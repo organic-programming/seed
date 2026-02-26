@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package hello.v1;
+
+option java_package = "org.organicprogramming.hello";
+option java_outer_classname = "HelloProto";
+
+service HelloService {
+  rpc Greet(GreetRequest) returns (GreetResponse);
+}
+
+message GreetRequest {
+  string name = 1;
+}
+
+message GreetResponse {
+  string message = 1;
+}

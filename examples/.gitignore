@@ -1,0 +1,48 @@
+# Binaries & build output
+hello
+test_runner
+*.o
+*.exe
+*.dll
+*.so
+*.dylib
+*.class
+
+# Go
+*.test
+
+# Java / Kotlin
+bin/
+build/
+.gradle/
+*.jar
+
+# Rust
+target/
+Cargo.lock
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+hello_pb2.py
+hello_pb2_grpc.py
+
+# C# / .NET
+obj/
+out/
+*.user
+
+# Dart
+.dart_tool/
+pubspec.lock
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

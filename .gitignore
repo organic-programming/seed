@@ -1,0 +1,19 @@
+# Obsidian workspace
+.obsidian
+
+# Agent logs (generated, not committed)
+.agent/logs/
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+tasks/*
+
+.sculptor/*

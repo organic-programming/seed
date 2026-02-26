@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package hello.v1;
+
+// HelloService — the simplest possible holon contract.
+service HelloService {
+  // Greet returns a greeting for the given name.
+  rpc Greet(GreetRequest) returns (GreetResponse);
+}
+
+message GreetRequest {
+  // Name to greet. If empty, defaults to "World".
+  string name = 1;
+}
+
+message GreetResponse {
+  // The greeting message.
+  string message = 1;
+}

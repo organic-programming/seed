@@ -1,0 +1,15 @@
+# Java build artifacts
+build/
+.gradle/
+bin/
+*.class
+*.jar
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~

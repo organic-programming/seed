@@ -1,0 +1,55 @@
+[submodule "holons/sophia-who"]
+	path = holons/sophia-who
+	url = git@github.com:organic-programming/sophia-who.git
+[submodule "holons/grace-op"]
+	path = holons/grace-op
+	url = git@github.com:organic-programming/grace-op.git
+[submodule "sdk/c-holons"]
+	path = sdk/c-holons
+	url = git@github.com:organic-programming/c-holons.git
+[submodule "sdk/cpp-holons"]
+	path = sdk/cpp-holons
+	url = git@github.com:organic-programming/cpp-holons.git
+[submodule "sdk/csharp-holons"]
+	path = sdk/csharp-holons
+	url = git@github.com:organic-programming/csharp-holons.git
+[submodule "sdk/dart-holons"]
+	path = sdk/dart-holons
+	url = git@github.com:organic-programming/dart-holons.git
+[submodule "sdk/go-holons"]
+	path = sdk/go-holons
+	url = git@github.com:organic-programming/go-holons.git
+[submodule "sdk/java-holons"]
+	path = sdk/java-holons
+	url = git@github.com:organic-programming/java-holons.git
+[submodule "sdk/js-holons"]
+	path = sdk/js-holons
+	url = git@github.com:organic-programming/js-holons.git
+[submodule "sdk/js-web-holons"]
+	path = sdk/js-web-holons
+	url = git@github.com:organic-programming/js-web-holons.git
+[submodule "sdk/kotlin-holons"]
+	path = sdk/kotlin-holons
+	url = git@github.com:organic-programming/kotlin-holons.git
+[submodule "sdk/objc-holons"]
+	path = sdk/objc-holons
+	url = git@github.com:organic-programming/objc-holons.git
+[submodule "sdk/python-holons"]
+	path = sdk/python-holons
+	url = git@github.com:organic-programming/python-holons.git
+[submodule "sdk/ruby-holons"]
+	path = sdk/ruby-holons
+	url = git@github.com:organic-programming/ruby-holons.git
+[submodule "sdk/rust-holons"]
+	path = sdk/rust-holons
+	url = git@github.com:organic-programming/rust-holons.git
+[submodule "sdk/swift-holons"]
+	path = sdk/swift-holons
+	url = git@github.com:organic-programming/swift-holons.git
+[submodule "sdk/go-dart-holons"]
+	path = sdk/go-dart-holons
+	url = git@github.com:organic-programming/go-dart-holons.git
+	branch = master
+[submodule "sdk/go-cli-holonization"]
+	path = sdk/go-cli-holonization
+	url = git@github.com:organic-programming/go-cli-holonization.git

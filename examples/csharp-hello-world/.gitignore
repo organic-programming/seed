@@ -1,0 +1,14 @@
+# C# build artifacts
+bin/
+obj/
+*.user
+*.suo
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~

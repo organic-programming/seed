@@ -1,0 +1,14 @@
+# Dart build artifacts
+.dart_tool/
+.packages
+build/
+pubspec.lock
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~

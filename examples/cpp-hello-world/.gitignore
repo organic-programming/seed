@@ -1,0 +1,14 @@
+# C++ build artifacts
+build/
+*.o
+*.a
+*.so
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~

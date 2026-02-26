@@ -1,0 +1,13 @@
+# Ruby build artifacts
+.bundle/
+vendor/bundle/
+Gemfile.lock
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
