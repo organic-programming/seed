@@ -56,3 +56,6 @@
 [submodule "holons/rob-go"]
 	path = holons/rob-go
 	url = git@github.com:organic-programming/rob-go.git
+[submodule "holons/jess-npm"]
+	path = holons/jess-npm
+	url = git@github.com:organic-programming/jess-npm.git
