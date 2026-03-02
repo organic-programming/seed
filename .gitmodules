@@ -53,3 +53,6 @@
 [submodule "sdk/go-cli-holonization"]
 	path = sdk/go-cli-holonization
 	url = git@github.com:organic-programming/go-cli-holonization.git
+[submodule "holons/rob-go"]
+	path = holons/rob-go
+	url = git@github.com:organic-programming/rob-go.git
