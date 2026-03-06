@@ -1,0 +1,10 @@
+# build.runner not yet implemented in op
+schema: holon/v0
+kind: native
+build:
+  runner: dotnet
+requires:
+  commands: [dotnet]
+  files: [HelloWorld/HelloWorld.csproj]
+artifacts:
+  binary: .op/build/bin/csharp-hello-world

@@ -1,0 +1,10 @@
+# build.runner not yet implemented in op
+schema: holon/v0
+kind: native
+build:
+  runner: gradle
+requires:
+  commands: [java, gradle]
+  files: [build.gradle]
+artifacts:
+  binary: .op/build/bin/java-hello-world

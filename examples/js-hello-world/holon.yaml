@@ -1,0 +1,10 @@
+# build.runner not yet implemented in op
+schema: holon/v0
+kind: native
+build:
+  runner: node-package
+requires:
+  commands: [node, npm]
+  files: [package.json]
+artifacts:
+  binary: .op/build/bin/js-hello-world

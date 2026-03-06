@@ -1,0 +1,10 @@
+# build.runner not yet implemented in op
+schema: holon/v0
+kind: native
+build:
+  runner: gradle
+requires:
+  commands: [kotlin, gradle]
+  files: [build.gradle.kts]
+artifacts:
+  binary: .op/build/bin/kotlin-hello-world

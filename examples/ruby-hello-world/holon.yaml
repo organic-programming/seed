@@ -1,0 +1,10 @@
+# build.runner not yet implemented in op
+schema: holon/v0
+kind: native
+build:
+  runner: bundler
+requires:
+  commands: [ruby, bundle]
+  files: [Gemfile]
+artifacts:
+  binary: .op/build/bin/ruby-hello-world

@@ -1,0 +1,10 @@
+# build.runner not yet implemented in op
+schema: holon/v0
+kind: native
+build:
+  runner: make
+requires:
+  commands: [make, clang]
+  files: [Makefile]
+artifacts:
+  binary: .op/build/bin/objc-hello-world

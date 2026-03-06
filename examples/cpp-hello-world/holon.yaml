@@ -1,0 +1,9 @@
+schema: holon/v0
+kind: native
+build:
+  runner: cmake
+requires:
+  commands: [cmake, ctest]
+  files: [CMakeLists.txt]
+artifacts:
+  binary: .op/build/bin/cpp-hello-world

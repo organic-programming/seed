@@ -1,0 +1,9 @@
+schema: holon/v0
+kind: native
+build:
+  runner: go-module
+requires:
+  commands: [go]
+  files: [go.mod]
+artifacts:
+  binary: .op/build/bin/go-hello-world

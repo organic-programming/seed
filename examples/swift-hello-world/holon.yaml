@@ -1,0 +1,10 @@
+# build.runner not yet implemented in op
+schema: holon/v0
+kind: native
+build:
+  runner: swift-package
+requires:
+  commands: [swift]
+  files: [Package.swift]
+artifacts:
+  binary: .op/build/bin/swift-hello-world

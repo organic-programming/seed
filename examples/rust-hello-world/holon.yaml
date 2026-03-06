@@ -1,0 +1,10 @@
+# build.runner not yet implemented in op
+schema: holon/v0
+kind: native
+build:
+  runner: cargo
+requires:
+  commands: [cargo]
+  files: [Cargo.toml]
+artifacts:
+  binary: .op/build/bin/rust-hello-world

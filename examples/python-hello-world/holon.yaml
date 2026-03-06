@@ -1,0 +1,10 @@
+# build.runner not yet implemented in op
+schema: holon/v0
+kind: native
+build:
+  runner: python-package
+requires:
+  commands: [python3, pip]
+  files: [pyproject.toml]
+artifacts:
+  binary: .op/build/bin/python-hello-world
