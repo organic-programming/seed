@@ -94,13 +94,17 @@ browser-facing and lightweight interoperability.
 
 ## Specialized SDKs
 
-These SDKs address specific composition scenarios rather than a single
-target language.
-
 | SDK | Purpose | Status |
 |-----|---------|:------:|
-| [go-dart-holons](https://github.com/organic-programming/go-dart-holons) | Cross-stack composition — demonstrates a Go holon and a Dart holon composing into a single unit via serve/dial | draft |
 | [go-cli-holonization](https://github.com/organic-programming/go-cli-holonization) | Patterns, documentation, and examples for adopting existing CLI tools as holons in Go (built on `go-holons`) | draft |
+
+## Recipes
+
+Cross-language assembly patterns live in [`recipes/`](../recipes/).
+
+| Recipe | Purpose | Status |
+|--------|---------|:------:|
+| [go-dart-holons](https://github.com/organic-programming/go-dart-holons) | Go backend + Flutter UI — gRPC over stdio pipes | draft |
 
 ---
 

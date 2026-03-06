@@ -81,7 +81,7 @@ are available to experiment with:
   [Rust](https://github.com/organic-programming/rust-holons),
   [Swift](https://github.com/organic-programming/swift-holons).
 - **[examples/](./examples/)** — runnable hello world holon examples in more than 12 languages built with the SDK.
-- **[Go+Dart](https://github.com/organic-programming/go-dart-holons)** — cross-language assembly example (Go backend + Dart frontend).
+- **[Go+Dart](https://github.com/organic-programming/go-dart-holons)** — cross-language recipe (Go backend + Dart frontend).
 - **[holons/](./holons/)** — the blueprint toolchain (`op`, `who`).
 
 ---

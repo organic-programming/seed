@@ -46,10 +46,6 @@
 [submodule "sdk/swift-holons"]
 	path = sdk/swift-holons
 	url = git@github.com:organic-programming/swift-holons.git
-[submodule "sdk/go-dart-holons"]
-	path = sdk/go-dart-holons
-	url = git@github.com:organic-programming/go-dart-holons.git
-	branch = master
 [submodule "sdk/go-cli-holonization"]
 	path = sdk/go-cli-holonization
 	url = git@github.com:organic-programming/go-cli-holonization.git
@@ -59,3 +55,7 @@
 [submodule "holons/jess-npm"]
 	path = holons/jess-npm
 	url = git@github.com:organic-programming/jess-npm.git
+[submodule "recipes/go-dart-holons"]
+	path = recipes/go-dart-holons
+	url = git@github.com:organic-programming/go-dart-holons.git
+	branch = master
