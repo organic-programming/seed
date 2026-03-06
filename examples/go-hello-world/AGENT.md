@@ -119,7 +119,7 @@ go test ./... -count=1
 ```
 hello-world/
 ├── AGENT.md                     ← you are here
-├── HOLON.md                     ← identity (UUID, name, clade, motto)
+├── holon.yaml                   ← identity + operational manifest
 ├── README.md                    ← user-facing documentation
 ├── holon.mod                    ← organic dependency manifest
 ├── api/
@@ -143,7 +143,7 @@ hello-world/
 
 ## Conventions
 
-- **Binary name**: matches `given_name` in HOLON.md → `hello`
+- **Binary name**: matches slug in holon.yaml → `hello`
 - **Go module path**: `github.com/organic-programming/examples/hello-world`
 - **Proto package**: `hello.v1`
 - **Three facets**: CLI (subprocess), gRPC (server), API (Go package)

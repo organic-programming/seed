@@ -495,7 +495,7 @@ ad hoc file manipulation.
 ### Creating a new holon (canonical workflow)
 
 ```bash
-# 1. Create the identity (HOLON.md)
+# 1. Create the identity (holon.yaml)
 op grpc+stdio://who CreateIdentity '{
   "given_name": "my-holon",
   "family_name": "My Project",
@@ -527,7 +527,7 @@ After these steps, the holon directory contains:
 
 ```
 my-holon/
-├── HOLON.md     ← identity (UUID, name, clade, motto)
+├── holon.yaml   ← identity + operational manifest
 └── holon.mod    ← dependency manifest
 ```
 
@@ -555,7 +555,7 @@ A holon is distributable via Git in two forms:
    or the language's standard build command. Each supported target is
    explicit — there is no "build everywhere" magic.
 
-2. **Binary distribution** — pre-built binary + holon files (`HOLON.md`,
+2. **Binary distribution** — pre-built binary + holon files (`holon.yaml`,
    `.proto`, tests). The consumer clones and runs directly. The binary
    is committed or attached as a release artifact in the Git repository.
 
@@ -565,7 +565,7 @@ Regardless of the distribution form, a holon repository **must** contain:
 
 | File | Why |
 |------|-----|
-| `HOLON.md` | Identity is never stripped. A holon without a name is not a holon. |
+| `holon.yaml` | Identity is never stripped. A holon without a name is not a holon. |
 | `*.proto` | The contract is never stripped. A holon without a contract is a black box. |
 | Tests | The specification is never stripped. A holon without tests is unverifiable. |
 

@@ -1,10 +1,28 @@
-# build.runner not yet implemented in op
+# ── Identity ──────────────────────────────────────────
 schema: holon/v0
+uuid: "78e3f20f-4cca-4c64-82bf-021c9cc6e2a6"
+given_name: dart-hello-world
+family_name: Example Holons
+motto: Hello world holon in Dart.
+composer: B. ALTER
+clade: deterministic/pure
+status: draft
+born: "2026-02-12"
+
+# ── Lineage ───────────────────────────────────────────
+parents: []
+reproduction: manual
+generated_by: sophia-who
+
+# ── Description ───────────────────────────────────────
+description: ""
+
+# ── Operational ───────────────────────────────────────
 kind: native
 build:
-  runner: dart-package
+  runner: dart-package  # runner not yet implemented in op
 requires:
   commands: [dart]
   files: [pubspec.yaml]
 artifacts:
-  binary: .op/build/bin/dart-hello-world
+  binary: dart-hello-world

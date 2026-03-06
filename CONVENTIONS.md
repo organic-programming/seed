@@ -30,7 +30,7 @@ Regardless of language, every holon repository contains:
 
 ```
 my-holon/
-├── HOLON.md            ← identity (always present)
+├── holon.yaml          ← identity + operational manifest (always present)
 ├── protos/             ← .proto source files
 │   └── <package>/<version>/
 │       └── <service>.proto
@@ -61,7 +61,7 @@ my-holon/
 3. **`cmd/`** contains CLI entry points. Each subdirectory is one binary.
    When a holon has no CLI facet, `cmd/` is absent.
 
-4. **`HOLON.md`** is always at the holon root.
+4. **`holon.yaml`** is always at the holon root.
 
 ---
 
@@ -117,7 +117,7 @@ root in the global cache under `OPPATH`:
 
 ```
 $OPPATH/cache/<host>/<owner>/<name>@<version>/
-├── HOLON.md
+├── holon.yaml
 ├── protos/
 ├── gen/
 └── <idiomatic-src>/
@@ -485,7 +485,7 @@ my-holon/
    is a derived artifact of `protos/`.
 
 3. **Regeneration command.** Each holon should document its protoc
-   invocation (in `HOLON.md` or a `Makefile`/script) so that any
+   invocation (in `holon.yaml` or a `Makefile`/script) so that any
    actant can regenerate from source protos.
 
 4. **The `gen/` directory mirrors the proto package structure.** If

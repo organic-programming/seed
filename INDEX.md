@@ -26,7 +26,7 @@ if the purpose matches your current task.
 |----------|---------|
 | [AGENT.md](./AGENT.md) | Constitution — the rules every agent must follow |
 | [PROTOCOL.md](./PROTOCOL.md) | Holon communication protocol (transports, gRPC, Holon-RPC) |
-| [IDENTITY.md](./IDENTITY.md) | Holon civil status: creation, naming, versioning |
+| [MANIFEST.md](./MANIFEST.md) | Unified holon.yaml specification: identity, naming, operational metadata |
 | [CARTOUCHE.md](./CARTOUCHE.md) | Document metadata format (YAML frontmatter) |
 | [CONVENTIONS.md](./CONVENTIONS.md) | Per-language holon structure and idiomatic conventions |
 
@@ -40,6 +40,6 @@ if the purpose matches your current task.
 
 | Holon | Purpose |
 |-------|---------|
-| [holons/grace-op/HOLON.md](./holons/grace-op/HOLON.md) | CLI orchestrator — "One command, every holon." |
-| [holons/sophia-who/HOLON.md](./holons/sophia-who/HOLON.md) | Identity service — "Know thyself." |
+| [holons/grace-op/holon.yaml](./holons/grace-op/holon.yaml) | CLI orchestrator — "One command, every holon." |
+| [holons/sophia-who/holon.yaml](./holons/sophia-who/holon.yaml) | Identity service — "Know thyself." |
 

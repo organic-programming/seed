@@ -1,10 +1,28 @@
-# build.runner not yet implemented in op
+# ── Identity ──────────────────────────────────────────
 schema: holon/v0
+uuid: "3bb7ed9d-55c4-47da-95da-a5c2a522433e"
+given_name: objc-hello-world
+family_name: Example Holons
+motto: Hello world holon in Objective-C.
+composer: B. ALTER
+clade: deterministic/pure
+status: draft
+born: "2026-02-12"
+
+# ── Lineage ───────────────────────────────────────────
+parents: []
+reproduction: manual
+generated_by: sophia-who
+
+# ── Description ───────────────────────────────────────
+description: ""
+
+# ── Operational ───────────────────────────────────────
 kind: native
 build:
-  runner: make
+  runner: make  # runner not yet implemented in op
 requires:
   commands: [make, clang]
   files: [Makefile]
 artifacts:
-  binary: .op/build/bin/objc-hello-world
+  binary: objc-hello-world

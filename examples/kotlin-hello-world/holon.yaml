@@ -1,10 +1,28 @@
-# build.runner not yet implemented in op
+# ── Identity ──────────────────────────────────────────
 schema: holon/v0
+uuid: "1d1c9500-4cca-4bfa-81ba-e005c1fd828f"
+given_name: kotlin-hello-world
+family_name: Example Holons
+motto: Hello world holon in Kotlin.
+composer: B. ALTER
+clade: deterministic/pure
+status: draft
+born: "2026-02-12"
+
+# ── Lineage ───────────────────────────────────────────
+parents: []
+reproduction: manual
+generated_by: sophia-who
+
+# ── Description ───────────────────────────────────────
+description: ""
+
+# ── Operational ───────────────────────────────────────
 kind: native
 build:
-  runner: gradle
+  runner: gradle  # runner not yet implemented in op
 requires:
   commands: [kotlin, gradle]
   files: [build.gradle.kts]
 artifacts:
-  binary: .op/build/bin/kotlin-hello-world
+  binary: kotlin-hello-world

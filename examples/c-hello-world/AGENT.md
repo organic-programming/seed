@@ -31,7 +31,7 @@ Read the root constitution first: `/Users/bpds/Documents/Entrepot/Git/Compilons/
 ```
 examples/c-hello-world/
 ├── AGENT.md
-├── HOLON.md
+├── holon.yaml
 ├── README.md
 ├── hello.h
 ├── hello.c

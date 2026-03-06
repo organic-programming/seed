@@ -1,10 +1,28 @@
-# build.runner not yet implemented in op
+# ── Identity ──────────────────────────────────────────
 schema: holon/v0
+uuid: "b650cc24-ba82-41df-870a-d8411d26b062"
+given_name: python-hello-world
+family_name: Example Holons
+motto: Hello world holon in Python.
+composer: B. ALTER
+clade: deterministic/pure
+status: draft
+born: "2026-02-12"
+
+# ── Lineage ───────────────────────────────────────────
+parents: []
+reproduction: manual
+generated_by: sophia-who
+
+# ── Description ───────────────────────────────────────
+description: ""
+
+# ── Operational ───────────────────────────────────────
 kind: native
 build:
-  runner: python-package
+  runner: python-package  # runner not yet implemented in op
 requires:
   commands: [python3, pip]
   files: [pyproject.toml]
 artifacts:
-  binary: .op/build/bin/python-hello-world
+  binary: python-hello-world

@@ -1,4 +1,23 @@
+# ── Identity ──────────────────────────────────────────
 schema: holon/v0
+uuid: "b068d5ae-7931-43d3-80da-83d77f995c46"
+given_name: cpp-hello-world
+family_name: Example Holons
+motto: Hello world holon in C++.
+composer: B. ALTER
+clade: deterministic/pure
+status: draft
+born: "2026-02-12"
+
+# ── Lineage ───────────────────────────────────────────
+parents: []
+reproduction: manual
+generated_by: sophia-who
+
+# ── Description ───────────────────────────────────────
+description: ""
+
+# ── Operational ───────────────────────────────────────
 kind: native
 build:
   runner: cmake
@@ -6,4 +25,4 @@ requires:
   commands: [cmake, ctest]
   files: [CMakeLists.txt]
 artifacts:
-  binary: .op/build/bin/cpp-hello-world
+  binary: cpp-hello-world

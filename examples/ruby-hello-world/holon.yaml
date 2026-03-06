@@ -1,10 +1,28 @@
-# build.runner not yet implemented in op
+# ── Identity ──────────────────────────────────────────
 schema: holon/v0
+uuid: "f6ae1af2-29b8-49d7-baa4-00a7443f1652"
+given_name: ruby-hello-world
+family_name: Example Holons
+motto: Hello world holon in Ruby.
+composer: B. ALTER
+clade: deterministic/pure
+status: draft
+born: "2026-02-12"
+
+# ── Lineage ───────────────────────────────────────────
+parents: []
+reproduction: manual
+generated_by: sophia-who
+
+# ── Description ───────────────────────────────────────
+description: ""
+
+# ── Operational ───────────────────────────────────────
 kind: native
 build:
-  runner: bundler
+  runner: bundler  # runner not yet implemented in op
 requires:
   commands: [ruby, bundle]
   files: [Gemfile]
 artifacts:
-  binary: .op/build/bin/ruby-hello-world
+  binary: ruby-hello-world

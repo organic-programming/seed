@@ -1,10 +1,28 @@
-# build.runner not yet implemented in op
+# ── Identity ──────────────────────────────────────────
 schema: holon/v0
+uuid: "4032f337-1f47-40fb-aed8-3c7000032fae"
+given_name: js-hello-world
+family_name: Example Holons
+motto: Hello world holon in JavaScript.
+composer: B. ALTER
+clade: deterministic/pure
+status: draft
+born: "2026-02-12"
+
+# ── Lineage ───────────────────────────────────────────
+parents: []
+reproduction: manual
+generated_by: sophia-who
+
+# ── Description ───────────────────────────────────────
+description: ""
+
+# ── Operational ───────────────────────────────────────
 kind: native
 build:
-  runner: node-package
+  runner: node-package  # runner not yet implemented in op
 requires:
   commands: [node, npm]
   files: [package.json]
 artifacts:
-  binary: .op/build/bin/js-hello-world
+  binary: js-hello-world

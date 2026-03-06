@@ -1,10 +1,33 @@
-# build.runner not yet implemented in op
+# ── Identity ──────────────────────────────────────────
 schema: holon/v0
+uuid: "95a7a527-16f4-4363-a390-6604a391b966"
+given_name: c-hello-world
+family_name: Example Holons
+motto: The simplest possible holon - a greeting service in C.
+composer: B. ALTER
+clade: deterministic/pure
+status: draft
+born: "2026-02-12"
+
+# ── Lineage ───────────────────────────────────────────
+parents: []
+reproduction: manual
+generated_by: sophia-who
+
+# ── Description ───────────────────────────────────────
+description: |
+  A minimal, deterministic greeting holon implemented in C.
+  It exposes:
+  - a CLI facet (`greet`, `serve`, `version`)
+  - a transport-complete serve facet through `c-holons`
+  - unit tests for greeting logic and transport plumbing
+
+# ── Operational ───────────────────────────────────────
 kind: native
 build:
-  runner: make
+  runner: cmake
 requires:
-  commands: [make, cc]
-  files: [Makefile]
+  commands: [cmake, ctest]
+  files: [CMakeLists.txt]
 artifacts:
-  binary: .op/build/bin/c-hello-world
+  binary: c-hello-world
