@@ -40,8 +40,8 @@ standard directory for installed Organic Programming binaries.
 ## Godart examples
 
 Godart packages a Go host and a Dart front-end into a single holon.
-Examples live in the recipe: [`go-dart-holons/examples`](../recipes/go-dart-holons/examples/).
+Examples live in the recipe: [`go-dart-holons/examples/greeting`](../recipes/go-dart-holons/examples/greeting/).
 
-- [greeting-daemon](../recipes/go-dart-holons/examples/greeting-daemon/) — headless Go daemon
-- [greeting-godart](../recipes/go-dart-holons/examples/greeting-godart/) — full Godart holon with Dart UI
+- [greeting-daemon](../recipes/go-dart-holons/examples/greeting/greeting-daemon/) — headless Go daemon
+- [greeting-godart](../recipes/go-dart-holons/examples/greeting/greeting-godart/) — full Godart holon with Dart UI
 
