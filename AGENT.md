@@ -591,3 +591,29 @@ reflection, incorrect shutdown sequences.
 If no SDK exists yet for a target language, the holon author either:
 Contributes a new SDK (see [sdk/](./sdk/)).
 
+---
+
+## Article 15 — Recipes
+
+*"Combine SDKs, not codebases."*
+
+A **recipe** is a cross-language assembly pattern — it shows how to
+combine two or more language SDKs into a single application. Unlike a
+language SDK (which you `import`), a recipe provides architecture docs,
+build scripts, templates, and a working example.
+
+Recipes address a structural gap: language SDKs enable holons to serve
+and dial independently, but some applications require two holons — from
+different stacks — to ship as one artifact. A Go backend embedded in a
+Flutter app, a Rust engine driving a Swift UI, a Python model served
+through a JavaScript dashboard: these are recipe territory.
+
+A recipe contains:
+
+1. **Architecture documentation** — how the two stacks connect
+   (transport, lifecycle, shutdown).
+2. **Build scripts** — compile both sides and bundle them.
+3. **Templates** — reusable build phases and code generation scripts.
+4. **A working example** — proof that the pattern works end to end.
+
+See [recipes/](./recipes/) for available recipes.
