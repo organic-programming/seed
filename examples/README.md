@@ -5,7 +5,7 @@ author:
   name: "B. ALTER"
   copyright: "© 2026 Benoit Pereira da Silva"
 created: 2026-02-12
-revised: 2026-02-12
+revised: 2026-03-06
 lang: en-US
 origin_lang: en-US
 translation_of: null
@@ -29,8 +29,15 @@ Gophers may start with [`go-hello-world`](./go-hello-world/) for a simple exampl
 Install **op** (the holon operator):
 
 ```bash
-go install github.com/organic-programming/grace-op/cmd/op@latest
+export OPPATH="${OPPATH:-$HOME/.holon}"
+export OPBIN="${OPBIN:-$OPPATH/bin}"
+mkdir -p "$OPBIN"
+export PATH="$OPBIN:$PATH"
+GOBIN="$OPBIN" go install github.com/organic-programming/grace-op/cmd/op@latest
 ```
+
+`OPPATH` is the Organic Programming runtime home. `OPBIN` is the
+standard directory for installed Organic Programming binaries.
 
 ## Examples
 
@@ -56,6 +63,5 @@ Examples live in the SDK: [`go-dart-holons/examples`](../sdk/go-dart-holons/exam
 
 - [greeting-daemon](../sdk/go-dart-holons/examples/greeting-daemon/) — headless Go daemon
 - [greeting-godart](../sdk/go-dart-holons/examples/greeting-godart/) — full Godart holon with Dart UI
-
 
 

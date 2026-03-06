@@ -5,7 +5,7 @@ author:
   name: "B. ALTER & Claude"
   copyright: "© 2026 Benoit Pereira da Silva"
 created: 2026-02-17
-revised: 2026-02-17
+revised: 2026-03-06
 lang: en-US
 origin_lang: en-US
 translation_of: null
@@ -65,17 +65,62 @@ my-holon/
 
 ---
 
-## 2. Dependencies in the Cache
+## 2. Global Runtime Directories
+
+Organic Programming defines a user-local runtime home independent of
+any implementation language. These directories are for installation,
+cache, and runtime support files; they are not a source workspace and
+they do not replace a language-native development layout such as
+Go modules.
+
+### `OPPATH`
+
+`OPPATH` is the root directory for the local Organic Programming
+environment.
+
+- Default: `~/.holon`
+- Scope: per-user runtime home
+- Purpose: anchors standard subdirectories such as `bin/` and `cache/`
+
+### `OPBIN`
+
+`OPBIN` is the standard install directory for Organic Programming
+binaries and wrappers.
+
+- Default: `$OPPATH/bin`
+- Purpose: holds commands such as `op`, `who`, and other holon-facing
+  executables installed for direct use
+
+Shell environments should add `OPBIN` to `PATH` so these binaries are
+discoverable without language-specific knowledge:
+
+```sh
+export OPPATH="${OPPATH:-$HOME/.holon}"
+export OPBIN="${OPBIN:-$OPPATH/bin}"
+export PATH="$OPBIN:$PATH"
+```
+
+When a tool is installed through Go, `GOBIN` may be pointed at `OPBIN`
+for that installation step. `OPBIN` is the Organic Programming
+convention; `GOBIN` remains a Go-specific implementation detail.
+
+### Cache
 
 When a holon is fetched as a dependency (by Atlas), it has its own
-root in the global cache:
+root in the global cache under `OPPATH`:
 
 ```
-~/.holon/cache/<host>/<owner>/<name>@<version>/
+$OPPATH/cache/<host>/<owner>/<name>@<version>/
 ├── HOLON.md
 ├── protos/
 ├── gen/
 └── <idiomatic-src>/
+```
+
+With the default runtime home, this resolves to:
+
+```
+~/.holon/cache/<host>/<owner>/<name>@<version>/
 ```
 
 Each cached holon is a self-contained directory. There is no merging,
