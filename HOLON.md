@@ -266,6 +266,10 @@ It verifies:
 - delegated commands for wrappers
 - runner-specific entrypoint expectations
 
+For the draft extension of lifecycle semantics around `op build`,
+composite holons, and the `recipe` runner, see
+[grace-op/OP_BUILD_SPEC.md](./holons/grace-op/OP_BUILD_SPEC.md).
+
 ---
 
 ## Design Constraints
