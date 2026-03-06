@@ -1,0 +1,19 @@
+Start testing: Mar 06 17:06 CET
+----------------------------------------------------------
+1/1 Testing: hello_unit_tests
+1/1 Test: hello_unit_tests
+Command: "/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/examples/cpp-hello-world/build-codex-audit/test_hello"
+Directory: /Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/examples/cpp-hello-world/build-codex-audit
+"hello_unit_tests" start time: Mar 06 17:06 CET
+Output:
+----------------------------------------------------------
+2 passed, 0 failed
+<end of output>
+Test time =   0.19 sec
+----------------------------------------------------------
+Test Passed.
+"hello_unit_tests" end time: Mar 06 17:06 CET
+"hello_unit_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Mar 06 17:06 CET
