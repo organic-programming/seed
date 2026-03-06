@@ -97,6 +97,7 @@ discoverable without language-specific knowledge:
 ```sh
 export OPPATH="${OPPATH:-$HOME/.holon}"
 export OPBIN="${OPBIN:-$OPPATH/bin}"
+mkdir -p "$OPBIN"
 export PATH="$OPBIN:$PATH"
 ```
 
