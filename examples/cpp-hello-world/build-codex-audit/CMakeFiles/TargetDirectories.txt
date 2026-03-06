@@ -1,4 +1,0 @@
-/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/examples/cpp-hello-world/build-codex-audit/CMakeFiles/test_hello.dir
-/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/examples/cpp-hello-world/build-codex-audit/CMakeFiles/test.dir
-/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/examples/cpp-hello-world/build-codex-audit/CMakeFiles/edit_cache.dir
-/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/examples/cpp-hello-world/build-codex-audit/CMakeFiles/rebuild_cache.dir
