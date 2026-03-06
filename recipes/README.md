@@ -11,3 +11,4 @@ architecture docs, build scripts, templates, and a working example.
 | Recipe | Languages | Description |
 |--------|-----------|-------------|
 | [go-dart-holons](https://github.com/organic-programming/go-dart-holons) | Go + Dart/Flutter | Go backend + Flutter UI — gRPC over stdio pipes (desktop) or Unix sockets (mobile) |
+| [go-swiftui-holons](https://github.com/organic-programming/go-swiftui-holons) | Go + Swift/SwiftUI | Go backend + SwiftUI frontend — gRPC over TCP (macOS) |
