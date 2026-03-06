@@ -1,14 +1,3 @@
----
-# Cartouche v1
-title: "rust-hello-world — Hello World Holon in Rust"
-author:
-  name: "B. ALTER"
-created: 2026-02-12
-access:
-  humans: true
-  agents: false
-status: draft
----
 # rust-hello-world
 
 A minimal holon implementing `HelloService.Greet` in Rust (tonic).

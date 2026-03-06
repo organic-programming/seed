@@ -1,17 +1,3 @@
----
-# Cartouche v1
-title: "web-hello-world — Browser Client for a Go Holon"
-author:
-  name: "B. ALTER"
-  copyright: "© 2026 Benoit Pereira da Silva"
-created: 2026-02-12
-revised: 2026-02-12
-lang: en-US
-access:
-  humans: true
-  agents: true
-status: draft
----
 # web-hello-world
 
 Browser client invoking a Go holon via WebSocket. This example

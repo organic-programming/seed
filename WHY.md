@@ -1,21 +1,3 @@
----
-# Cartouche v1
-title: "Why"
-author:
-  name: "B. ALTER & Claude"
-  copyright: "© 2026 Benoit Pereira da Silva"
-created: 2026-02-09
-revised: 2026-03-06
-lang: en-US
-origin_lang: en-US
-translation_of: null
-translator: null
-access:
-  humans: true
-  agents: false
-status: review
----
-
 # Why?
 
 *"Calculemus!"* [^1]

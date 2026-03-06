@@ -1,15 +1,3 @@
----
-# Cartouche v1
-title: "swift-hello-world — Hello World Holon in Swift"
-author:
-  name: "B. ALTER"
-created: 2026-02-12
-lang: en-US
-access:
-  humans: true
-  agents: false
-status: draft
----
 # swift-hello-world
 
 A minimal Swift holon example with deterministic `Greet` behavior.

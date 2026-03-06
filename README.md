@@ -1,21 +1,3 @@
----
-# Cartouche v1
-title: "Seed — Organic Programming"
-author:
-  name: "B. ALTER & Claude"
-  copyright: "© 2026 Benoit Pereira da Silva"
-created: 2026-02-09
-revised: 2026-02-26
-lang: en-US
-origin_lang: en-US
-translation_of: null
-translator: null
-access:
-  humans: true
-  agents: false
-status: review
----
-
 ![A .proto illuminated by four facets is all you need – Organic Programming](assets/images/op-proto.jpg)
 
 # Organic Programming

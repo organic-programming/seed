@@ -1,21 +1,3 @@
----
-# Cartouche v1
-title: "SDK Fleet — Overview"
-author:
-  name: "B. ALTER"
-  copyright: "© 2026 Benoit Pereira da Silva"
-created: 2026-02-25
-revised: 2026-02-25
-lang: en-US
-origin_lang: en-US
-translation_of: null
-translator: null
-access:
-  humans: true
-  agents: true
-status: draft
----
-
 # SDK Fleet
 
 The SDK fleet provides language-native implementations of the Organic

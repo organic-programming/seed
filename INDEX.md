@@ -1,19 +1,3 @@
----
-# Cartouche v1
-title: "INDEX — Agent Document Registry"
-author:
-  name: "B. ALTER & Claude"
-  copyright: "© 2026 Benoit Pereira da Silva"
-created: 2026-02-09
-revised: 2026-02-20
-lang: en-US
-origin_lang: en-US
-access:
-  humans: false
-  agents: true
-status: stable
----
-
 # Agent Document Registry
 
 Read this file first. It lists every document an agent may need.
@@ -27,7 +11,6 @@ if the purpose matches your current task.
 | [AGENT.md](./AGENT.md) | Constitution — the rules every agent must follow |
 | [PROTOCOL.md](./PROTOCOL.md) | Holon communication protocol (transports, gRPC, Holon-RPC) |
 | [HOLON.md](./HOLON.md) | Unified holon.yaml specification: identity, naming, operational metadata |
-| [CARTOUCHE.md](./CARTOUCHE.md) | Document metadata format (YAML frontmatter) |
 | [CONVENTIONS.md](./CONVENTIONS.md) | Per-language holon structure and idiomatic conventions |
 
 ## SDK

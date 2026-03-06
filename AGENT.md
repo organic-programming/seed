@@ -1,21 +1,3 @@
----
-# Cartouche v1
-title: "Organic Programming — Constitution"
-author:
-  name: "B. ALTER & Claude"
-  copyright: "© 2026 Benoit Pereira da Silva"
-created: 2026-02-09
-revised: 2026-02-25
-lang: en-US
-origin_lang: en-US
-translation_of: null
-translator: null
-access:
-  humans: true
-  agents: true
-status: review
----
-
 # Organic Programming — Constitution
 
 We work using a paradigm called **Organic Programming**.
@@ -369,11 +351,9 @@ the holon substrate.
 Each project that adopts Organic Programming should provide:
 
 1. A **project-level `AGENT.md`** that references this constitution and provides project-specific context.
-2. An **`INDEX.md`** per folder that lists all documents with their access rights, language, and status (see [CARTOUCHE.md](./CARTOUCHE.md)).
-3. A **Cartouche** (YAML frontmatter) on every Markdown document declaring authorship, access control, language provenance, and maturity.
+2. An **`INDEX.md`** per folder that lists all documents with a one-line purpose, so that agents can navigate efficiently without opening every file.
 
-Agents must read `INDEX.md` upon entering any folder. If a document's access
-field excludes agents, the agent must not read it.
+Agents must read `INDEX.md` upon entering any folder.
 
 ---
 

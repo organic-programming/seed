@@ -1,14 +1,3 @@
----
-# Cartouche v1
-title: "js-hello-world — Hello World Holon in JavaScript"
-author:
-  name: "B. ALTER"
-created: 2026-02-12
-access:
-  humans: true
-  agents: false
-status: draft
----
 # js-hello-world
 
 A minimal Node.js holon implementing `hello.v1.HelloService/Greet`, now using

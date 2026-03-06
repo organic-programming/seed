@@ -1,19 +1,3 @@
----
-# Cartouche v1
-title: "Holon Communication Protocol"
-author:
-  name: "B. ALTER & Claude"
-  copyright: "© 2026 Benoit Pereira da Silva"
-created: 2026-02-13
-revised: 2026-02-16
-lang: en-US
-origin_lang: en-US
-access:
-  humans: true
-  agents: true
-version: "1.1"
-status: review
----
 # Holon Communication Protocol
 
 > *"Every holon must be reachable."* — Constitution, Article 11

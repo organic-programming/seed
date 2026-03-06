@@ -1,14 +1,3 @@
----
-# Cartouche v1
-title: "c-hello-world - Example Holon in C"
-author:
-  name: "B. ALTER"
-created: 2026-02-12
-access:
-  humans: true
-  agents: false
-status: draft
----
 # c-hello-world
 
 Minimal hello-world holon in C, backed by `sdk/c-holons`.

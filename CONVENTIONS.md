@@ -1,21 +1,3 @@
----
-# Cartouche v1
-title: "Conventions — Per-Language Holon Structure"
-author:
-  name: "B. ALTER & Claude"
-  copyright: "© 2026 Benoit Pereira da Silva"
-created: 2026-02-17
-revised: 2026-03-06
-lang: en-US
-origin_lang: en-US
-translation_of: null
-translator: null
-access:
-  humans: true
-  agents: true
-status: review
----
-
 # Conventions — Per-Language Holon Structure
 
 Every holon follows a **universal directory structure** with

@@ -1,17 +1,3 @@
----
-# Cartouche v1
-title: "python-hello-world — Hello World Holon in Python"
-author:
-  name: "B. ALTER"
-  copyright: "© 2026 Benoit Pereira da Silva"
-created: 2026-02-12
-revised: 2026-02-12
-lang: en-US
-access:
-  humans: true
-  agents: false
-status: draft
----
 # python-hello-world
 
 A minimal holon implementing `HelloService.Greet` in Python.

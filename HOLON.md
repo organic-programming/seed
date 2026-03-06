@@ -1,21 +1,3 @@
----
-# Cartouche v1
-title: "holon.yaml — Unified Holon Specification"
-author:
-  name: "B. ALTER & Claude"
-  copyright: "© 2026 Benoit Pereira da Silva"
-created: 2026-03-06
-revised: 2026-03-06
-lang: en-US
-origin_lang: en-US
-translation_of: null
-translator: null
-access:
-  humans: true
-  agents: true
-status: review
----
-
 # holon.yaml — Unified Holon Specification
 
 Every holon carries a single `holon.yaml` at its root. This file is

@@ -1,20 +1,3 @@
----
-# Cartouche v1
-title: "hello-world — Example Holon"
-author:
-  name: "B. ALTER"
-  copyright: "© 2026 Benoit Pereira da Silva"
-created: 2026-02-12
-revised: 2026-02-12
-lang: en-US
-origin_lang: en-US
-translation_of: null
-translator: null
-access:
-  humans: true
-  agents: false
-status: draft
----
 # hello-world
 
 > *"The simplest possible holon — a greeting service."*
