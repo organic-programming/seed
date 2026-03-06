@@ -59,6 +59,6 @@
 	path = recipes/go-dart-holons
 	url = git@github.com:organic-programming/go-dart-holons.git
 	branch = master
-[submodule "recipes/go-swiftui-holons"]
-	path = recipes/go-swiftui-holons
-	url = git@github.com:organic-programming/go-swiftui-holons.git
+[submodule "recipes/go-swift-holons"]
+	path = recipes/go-swift-holons
+	url = git@github.com:organic-programming/go-swift-holons.git
