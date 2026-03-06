@@ -29,7 +29,7 @@ Gophers may start with [`go-hello-world`](./go-hello-world/) for a simple exampl
 Install **op** (the holon operator):
 
 ```bash
-export OPPATH="${OPPATH:-$HOME/.holon}"
+export OPPATH="${OPPATH:-$HOME/.op}"
 export OPBIN="${OPBIN:-$OPPATH/bin}"
 mkdir -p "$OPBIN"
 export PATH="$OPBIN:$PATH"
@@ -63,5 +63,4 @@ Examples live in the SDK: [`go-dart-holons/examples`](../sdk/go-dart-holons/exam
 
 - [greeting-daemon](../sdk/go-dart-holons/examples/greeting-daemon/) — headless Go daemon
 - [greeting-godart](../sdk/go-dart-holons/examples/greeting-godart/) — full Godart holon with Dart UI
-
 

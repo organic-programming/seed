@@ -73,12 +73,17 @@ cache, and runtime support files; they are not a source workspace and
 they do not replace a language-native development layout such as
 Go modules.
 
+Organic Programming does not currently standardize project-local dotfiles
+or hidden working directories such as `.holonconfig`, `.holonallow`,
+`.holonignore`, or `.holon/`. Prefer visible repository paths such as
+`holons/` and explicit CLI flags.
+
 ### `OPPATH`
 
 `OPPATH` is the root directory for the local Organic Programming
 environment.
 
-- Default: `~/.holon`
+- Default: `~/.op`
 - Scope: per-user runtime home
 - Purpose: anchors standard subdirectories such as `bin/` and `cache/`
 
@@ -95,7 +100,7 @@ Shell environments should add `OPBIN` to `PATH` so these binaries are
 discoverable without language-specific knowledge:
 
 ```sh
-export OPPATH="${OPPATH:-$HOME/.holon}"
+export OPPATH="${OPPATH:-$HOME/.op}"
 export OPBIN="${OPBIN:-$OPPATH/bin}"
 mkdir -p "$OPBIN"
 export PATH="$OPBIN:$PATH"
@@ -121,7 +126,7 @@ $OPPATH/cache/<host>/<owner>/<name>@<version>/
 With the default runtime home, this resolves to:
 
 ```
-~/.holon/cache/<host>/<owner>/<name>@<version>/
+~/.op/cache/<host>/<owner>/<name>@<version>/
 ```
 
 Each cached holon is a self-contained directory. There is no merging,
