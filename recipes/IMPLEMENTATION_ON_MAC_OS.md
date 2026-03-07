@@ -6,6 +6,25 @@ implementation prompt.
 
 ---
 
+## Failure Handling Policy
+
+> **IMPORTANT:** If you are blocked on a recipe after **3 serious
+> attempts** (e.g. dependency resolution fails, build tool incompatibility,
+> proto codegen errors), you MUST:
+>
+> 1. **Write a failure report** in the recipe's `BLOCKED.md` file.
+>    Include: what you tried, exact error messages, suspected root cause,
+>    and what would be needed to unblock.
+> 2. **Commit and push** the partial work + `BLOCKED.md` so nothing is lost.
+> 3. **Move on to the next recipe** in the execution order.
+>
+> Do NOT spend more than 3 attempts on a single recipe. The goal is to
+> make as much progress as possible across ALL recipes, not to get stuck
+> on one. A well-written `BLOCKED.md` is more valuable than an incomplete
+> fix loop.
+
+---
+
 ## Context
 
 The Organic Programming ecosystem organizes cross-language applications
