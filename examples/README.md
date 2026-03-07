@@ -5,6 +5,11 @@
 Each subdirectory contains a minimal holon in a single language.
 Gophers may start with [`go-hello-world`](./go-hello-world/) for a simple example.
 
+Current status: a subset of these hello-worlds already import their
+matching SDK directly (`go`, `js`, `swift`, `c`, and the browser/web
+pairing). The rest are still intentionally useful raw gRPC baselines.
+The audited list lives in [`../sdk/SDK_GUIDE.md`](../sdk/SDK_GUIDE.md).
+
 ## Prerequisite
 
 Install **op** (the holon operator):
@@ -44,4 +49,3 @@ Examples live in the recipe: [`go-dart-holons/examples/greeting`](../recipes/go-
 
 - [greeting-daemon](../recipes/go-dart-holons/examples/greeting/greeting-daemon/) — headless Go daemon
 - [greeting-godart](../recipes/go-dart-holons/examples/greeting/greeting-godart/) — full Godart holon with Dart UI
-

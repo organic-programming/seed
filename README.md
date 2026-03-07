@@ -65,7 +65,9 @@ interlock like Lego bricks: one serves, the other dials.
 These ideas are not theoretical. Working SDKs and functional examples
 are available to experiment with:
 
-- **[sdk/](./sdk/)** — language SDKs:
+- **[sdk/](./sdk/)** — language SDKs built around the shared
+  `serve` / `transport` / `identity` / `discover` / `connect`
+  architecture:
   [C](https://github.com/organic-programming/c-holons),
   [C++](https://github.com/organic-programming/cpp-holons),
   [C#](https://github.com/organic-programming/csharp-holons),
@@ -80,8 +82,13 @@ are available to experiment with:
   [Ruby](https://github.com/organic-programming/ruby-holons),
   [Rust](https://github.com/organic-programming/rust-holons),
   [Swift](https://github.com/organic-programming/swift-holons).
-- **[examples/](./examples/)** — runnable hello world holon examples in more than 12 languages built with the SDK.
-- **[Go+Dart](https://github.com/organic-programming/go-dart-holons)** — cross-language recipe (Go backend + Dart frontend).
+- **[examples/](./examples/)** — runnable hello-world holons in 14
+  languages. Some already import their matching SDK; others are still
+  raw gRPC baselines. See [`sdk/SDK_GUIDE.md`](./sdk/SDK_GUIDE.md) for
+  the current audit.
+- **[recipes/](./recipes/)** — 12 cross-language recipes combining Go or
+  Rust daemons with Flutter, SwiftUI, Kotlin, .NET, Web, and Qt
+  frontends.
 - **[holons/](./holons/)** — the blueprint toolchain (`op`, `who`).
 
 ---

@@ -1,52 +1,52 @@
 # Recipes
 
-A recipe is a **cross-language assembly pattern** — it shows how to
-combine two or more language SDKs into a single application.
+A recipe is a cross-language assembly pattern: one daemon holon and one
+frontend holon sharing the same protobuf contract.
 
-Unlike a language SDK (which you `import`), a recipe provides
-architecture docs, build scripts, templates, and a working example.
+Unlike a language SDK, a recipe is not imported as a library. It ships
+architecture docs, build rules, manifests, and a working example under
+`examples/greeting/`.
 
-## Available Recipes
+## Current Workspace Status
 
-### Go Backend
+| Recipe | Backend | Frontend | Current status |
+|--------|---------|----------|----------------|
+| [go-dart-holons](./go-dart-holons/) | Go | Flutter/Dart | working; desktop frontend uses `dart-holons.connect()` |
+| [go-swift-holons](./go-swift-holons/) | Go | SwiftUI | working; frontend still uses raw `grpc-swift` over localhost TCP |
+| [go-kotlin-holons](./go-kotlin-holons/) | Go | Compose Desktop | working; frontend uses `kotlin-holons.Connect.connect()` |
+| [go-web-holons](./go-web-holons/) | Go | Web | scaffolded; frontend still uses raw web client wiring |
+| [go-qt-holons](./go-qt-holons/) | Go | Qt/C++ | scaffolded; fixed localhost TCP |
+| [go-dotnet-holons](./go-dotnet-holons/) | Go | .NET MAUI | working on macOS; frontend uses `Holons.ConnectTarget(...)` |
+| [rust-dart-holons](./rust-dart-holons/) | Rust | Flutter/Dart | working scaffold; frontend uses `dart-holons`, daemon still raw Rust |
+| [rust-swift-holons](./rust-swift-holons/) | Rust | SwiftUI | scaffolded; raw gRPC on both sides |
+| [rust-kotlin-holons](./rust-kotlin-holons/) | Rust | Compose Desktop | scaffolded; raw gRPC on both sides |
+| [rust-web-holons](./rust-web-holons/) | Rust | Web | scaffolded; raw web client wiring |
+| [rust-dotnet-holons](./rust-dotnet-holons/) | Rust | .NET MAUI | scaffolded; raw gRPC on both sides |
+| [rust-qt-holons](./rust-qt-holons/) | Rust | Qt/C++ | scaffolded; raw gRPC on both sides |
 
-| Recipe | Frontend | Platforms | Status |
-|--------|----------|-----------|--------|
-| [go-dart-holons](https://github.com/organic-programming/go-dart-holons) | Flutter/Dart | macOS, Linux, Windows, iOS, Android | ✅ |
-| [go-swift-holons](https://github.com/organic-programming/go-swift-holons) | SwiftUI | macOS, iOS | ✅ |
-| [go-kotlin-holons](https://github.com/organic-programming/go-kotlin-holons) | Jetpack Compose | Android, desktop | planned |
-| [go-web-holons](https://github.com/organic-programming/go-web-holons) | TypeScript (web) | browser | planned |
-| [go-dotnet-holons](https://github.com/organic-programming/go-dotnet-holons) | WinUI 3 / .NET MAUI | Windows | planned |
-| [go-qt-holons](https://github.com/organic-programming/go-qt-holons) | Qt / C++ | desktop, embedded | planned |
+No `BLOCKED.md` files are present in the current workspace snapshot.
 
-### Rust Backend
-
-| Recipe | Frontend | Platforms | Status |
-|--------|----------|-----------|--------|
-| [rust-dart-holons](https://github.com/organic-programming/rust-dart-holons) | Flutter/Dart | macOS, Linux, Windows, iOS, Android | planned |
-| [rust-swift-holons](https://github.com/organic-programming/rust-swift-holons) | SwiftUI | macOS, iOS | planned |
-| [rust-kotlin-holons](https://github.com/organic-programming/rust-kotlin-holons) | Jetpack Compose | Android, desktop | planned |
-| [rust-web-holons](https://github.com/organic-programming/rust-web-holons) | TypeScript (web) | browser | planned |
-| [rust-dotnet-holons](https://github.com/organic-programming/rust-dotnet-holons) | WinUI 3 / .NET MAUI | Windows | planned |
-| [rust-qt-holons](https://github.com/organic-programming/rust-qt-holons) | Qt / C++ | desktop, embedded | planned |
-
-## Pattern
-
-Every recipe follows the same structure:
+## Shared Structure
 
 ```text
 <backend>-<frontend>-holons/
 └── examples/greeting/
     ├── holon.yaml           # composite recipe manifest
-    ├── greeting-daemon/     # backend (Go or Rust gRPC daemon)
-    └── greeting-<name>/     # frontend (UI framework)
+    ├── greeting-daemon/     # backend daemon
+    └── greeting-<name>/     # frontend app
 ```
 
-All recipes share the same `greeting.proto` contract — a
-`GreetingService` that greets users in 56 languages. Only the daemon
-language and the UI framework change.
+Every recipe carries:
 
-## Implementation Guides
+- a composite `holon.yaml` at `examples/greeting/`
+- a daemon `holon.yaml`
+- a frontend app or component
 
-- [IMPLEMENTATION_ON_MAC_OS.md](IMPLEMENTATION_ON_MAC_OS.md) — build all recipes on macOS
-- [IMPLEMENTATION_ON_WINDOWS.md](IMPLEMENTATION_ON_WINDOWS.md) — build all recipes on Windows
+All recipes share the same `greeting.proto` contract: `ListLanguages`
+and `SayHello`.
+
+## Guides
+
+- [IMPLEMENTATION_ON_MAC_OS.md](./IMPLEMENTATION_ON_MAC_OS.md)
+- [IMPLEMENTATION_ON_WINDOWS.md](./IMPLEMENTATION_ON_WINDOWS.md)
+- [`../sdk/SDK_GUIDE.md`](../sdk/SDK_GUIDE.md) for the audited SDK usage table

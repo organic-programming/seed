@@ -4,6 +4,19 @@ This document describes how to create all recipe combinations that can
 be built on macOS. Hand it to Codex or any AI agent as a self-contained
 implementation prompt.
 
+## Current State
+
+As of March 7, 2026, this file is partly historical: several recipes
+described here already exist in the workspace.
+
+- `go-dart-holons`, `go-swift-holons`, `go-kotlin-holons`, and
+  `go-dotnet-holons` all exist.
+- The desktop frontends for `go-dart-holons`, `go-kotlin-holons`, and
+  `go-dotnet-holons` now resolve their daemon through SDK
+  `connect(slug)` flows instead of a fixed `127.0.0.1:9091` port.
+- Most Rust-backed recipes and the Qt/Web frontends are still useful as
+  implementation prompts because they remain on raw gRPC wiring.
+
 ---
 
 ## Failure Handling Policy
@@ -32,10 +45,12 @@ as **recipes**: a backend daemon (Go or Rust) paired with a frontend UI
 framework. All recipes share the same `greeting.proto` contract and
 produce a "Gudule Greeting" sample app that greets users in 56 languages.
 
-Two recipes already exist and serve as **reference implementations**:
+Several recipes already exist and serve as **reference implementations**:
 
-- `go-dart-holons/` — Go daemon + Flutter UI (all platforms)
-- `go-swift-holons/` — Go daemon + SwiftUI app (macOS)
+- `go-dart-holons/` — Go daemon + Flutter UI
+- `go-swift-holons/` — Go daemon + SwiftUI app
+- `go-kotlin-holons/` — Go daemon + Compose Desktop app
+- `go-dotnet-holons/` — Go daemon + .NET MAUI Mac Catalyst app
 
 Study them before creating new recipes. Their structure, naming, and
 `holon.yaml` format are the template for everything below.
