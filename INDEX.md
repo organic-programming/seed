@@ -24,4 +24,3 @@ if the purpose matches your current task.
 | Holon | Purpose |
 |-------|---------|
 | [holons/grace-op/holon.yaml](./holons/grace-op/holon.yaml) | CLI orchestrator — "One command, every holon." |
-| [holons/sophia-who/holon.yaml](./holons/sophia-who/holon.yaml) | Identity service — "Know thyself." |

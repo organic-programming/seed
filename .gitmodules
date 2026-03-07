@@ -1,6 +1,3 @@
-[submodule "holons/sophia-who"]
-	path = holons/sophia-who
-	url = git@github.com:organic-programming/sophia-who.git
 [submodule "holons/grace-op"]
 	path = holons/grace-op
 	url = git@github.com:organic-programming/grace-op.git
@@ -92,7 +89,3 @@
 [submodule "recipes/rust-qt-holons"]
 	path = recipes/rust-qt-holons
 	url = git@github.com:organic-programming/rust-qt-holons.git
-[submodule "holons/marco-atlas"]
-	path = holons/marco-atlas
-	url = git@github.com:organic-programming/marco-atlas.git
-	branch = dev
