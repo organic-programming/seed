@@ -115,7 +115,7 @@ Each cached holon is a self-contained directory. There is no merging,
 no flattening — every dependency keeps its own structure. This mirrors
 Go's module cache where each module version has its own directory tree.
 
-~~See `DEPENDENCIES.md` (in rhizome-atlas) for the cache layout.~~ currently not public.
+~~See `DEPENDENCIES.md` (in marco-atlas) for the cache layout.~~ currently not public.
 
 ---
 
@@ -586,4 +586,4 @@ client := pb.NewMyHolonServiceClient(conn)
 3. **Same `go.mod` module.** The bridge lives in the same module as
    the holon — no separate package.
 4. **Compositor holons use `replace` directives** in `go.mod` for local
-   development ~~(see `DEPENDENCIES.md` in rhizome-atlas)~~ currently not public.
+   development ~~(see `DEPENDENCIES.md` in marco-atlas)~~ currently not public.

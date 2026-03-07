@@ -470,7 +470,7 @@ ad hoc file manipulation.
 |------|---------|--------|
 | **op** | Dispatch — discover, invoke, and run holons | `op` |
 | **who** (Sophia Who?) | Identity — create, list, show, and pin holon identities | `who` |
-| **atlas** (Rhizome Atlas) | Dependencies — init, add, remove, pull, verify, graph, vendor *(incubation)* | `atlas` |
+| **atlas** (Marco Atlas) | Dependencies — init, add, remove, pull, verify, graph, vendor *(incubation)* | `atlas` |
 
 ### Creating a new holon (canonical workflow)
 
@@ -558,7 +558,7 @@ permanent civil documents.
 Git is the universal substrate. Every language, every platform, every CI
 system speaks Git. Using Git as the distribution channel — rather than a
 language-specific package manager — keeps holons language-agnostic and
-infrastructure-free. ~~See `DEPENDENCIES.md` (in rhizome-atlas) for
+infrastructure-free. ~~See `DEPENDENCIES.md` (in marco-atlas) for
 the resolution strategy~~ currently not public.
 
 ---

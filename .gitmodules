@@ -92,3 +92,7 @@
 [submodule "recipes/rust-qt-holons"]
 	path = recipes/rust-qt-holons
 	url = git@github.com:organic-programming/rust-qt-holons.git
+[submodule "holons/marco-atlas"]
+	path = holons/marco-atlas
+	url = git@github.com:organic-programming/marco-atlas.git
+	branch = dev
