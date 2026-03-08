@@ -19,7 +19,7 @@ Phase 5 splits into macOS recipe builds and Windows WinUI builds.
 ### Phase 3 — SDK Connect (parallel with Phase 2)
 
 - [x] **TASK006** — Rust `connect` ✅ already implemented
-- [ ] **TASK007** — Swift `connect`
+- [x] **TASK007** — Swift `connect` ✅ Codex
 - [x] **TASK008** — JS-web `connect` (browser, direct dial only) ✅ Codex
 - [x] **TASK009** — Ruby `connect` ✅ Codex
 - [x] **TASK010** — C `connect` ✅ Codex
