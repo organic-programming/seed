@@ -454,6 +454,33 @@ op run who --listen unix:///tmp/who.sock      start holon on Unix socket
 The contract (`.proto`) defines WHAT a holon does; the transport URI defines
 HOW the bytes flow. They are completely orthogonal.
 
+### Connect — Name-Based Resolution
+
+`Dial` requires a transport address. `Connect` requires only a holon
+name — the SDK handles the rest.
+
+Every SDK **should** provide a `connect` primitive that composes
+three lower-level operations:
+
+1. **Discover** — resolve a holon slug to a filesystem location
+   (scan `holon.yaml` manifests in known roots).
+2. **Start** (if needed) — find the built binary, launch it with
+   `serve --listen tcp://127.0.0.1:0`, and capture the allocated port.
+3. **Dial** — open a gRPC client channel to the running holon.
+
+```
+connect("rob-go")          →  discover → start → dial → ready gRPC channel
+connect("localhost:9090")  →  dial directly (host:port bypass)
+```
+
+`Disconnect` reverses the process: close the channel and, if the
+SDK started the holon (ephemeral mode), stop it.
+
+Connect is a **SDK facility**, not a protocol extension — the wire
+format is unchanged. It bridges the gap between "I know the address"
+(dial) and "I know the name" (connect), enabling autonomous
+holon-to-holon composition without `op` as an intermediary.
+
 ---
 
 ## Article 12 — Standard Toolchain
