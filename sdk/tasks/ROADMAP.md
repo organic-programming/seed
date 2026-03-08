@@ -9,7 +9,7 @@ Phase 5 splits into macOS recipe builds and Windows WinUI builds.
 
 - [x] **TASK001** — `op inspect` (offline proto docs) ✅ Codex
 - [x] **TASK002** — `op mcp` + `op tools` (MCP bridge) ✅ Codex
-- [ ] **TASK003** — `@required`/`@example`/`skills` enrichment — depends on TASK001
+- [x] **TASK003** — `@required`/`@example`/`skills` enrichment ✅ Codex
 
 ### Phase 2 — Describe RPC (parallel with Phase 1)
 
