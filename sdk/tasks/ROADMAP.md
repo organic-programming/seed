@@ -22,7 +22,7 @@ Phase 5 splits into macOS recipe builds and Windows WinUI builds.
 - [ ] **TASK007** — Swift `connect`
 - [x] **TASK008** — JS-web `connect` (browser, direct dial only) ✅ Codex
 - [x] **TASK009** — Ruby `connect` ✅ Codex
-- [ ] **TASK010** — C `connect`
+- [x] **TASK010** — C `connect` ✅ Codex
 - [x] **TASK011** — C++ `connect` ✅ Codex
 - [x] **TASK012** — Obj-C `connect` ✅ Codex
 
