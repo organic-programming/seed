@@ -28,11 +28,24 @@ Add methods to the existing `Holons` class in `Holons.h` and `Holons.m`.
 + (void)disconnect:(GRPCChannel *)channel;
 ```
 
+### ConnectOptions
+
+```objc
+@interface HolonsConnectOptions : NSObject
+@property (nonatomic) NSTimeInterval timeout;      // default 5.0
+@property (nonatomic, copy) NSString *transport;   // @"stdio" (default), @"tcp" for override
+@property (nonatomic) BOOL start;                  // YES = start if not running (default YES)
+@property (nonatomic, copy) NSString *portFile;    // nil = use default
+@end
+```
+
 ### Resolution logic
 
 Same 3-step algorithm:
 1. `target` contains `:` → direct dial.
-2. Else → slug → discover → port file → start → dial.
+2. Else → slug → discover → port file → start with
+   `serve --listen stdio://` (default) → dial over pipes.
+   TCP fallback: `serve --listen tcp://127.0.0.1:0`.
 
 ### Process management
 

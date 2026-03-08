@@ -29,10 +29,23 @@ public func connect(_ target: String, options: ConnectOptions) throws -> GRPCCha
 public func disconnect(_ channel: GRPCChannel) throws
 ```
 
+### ConnectOptions
+
+```swift
+public struct ConnectOptions {
+    var timeout: TimeInterval = 5.0
+    var transport: String = "stdio"  // "tcp" for explicit override
+    var start: Bool = true
+    var portFile: String? = nil
+}
+```
+
 ### Resolution logic
 
 Same as reference (see TASK001 for the 3-step algorithm):
-target contains `:` → direct dial; else → discover → port file check → start → dial.
+target contains `:` → direct dial; else → discover → port file check →
+start with `serve --listen stdio://` (default) → dial over pipes.
+TCP fallback: `serve --listen tcp://127.0.0.1:0`.
 
 ### Process management
 

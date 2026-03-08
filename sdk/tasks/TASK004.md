@@ -31,11 +31,27 @@ module Holons
 end
 ```
 
+### ConnectOptions
+
+```ruby
+module Holons
+  ConnectOptions = Struct.new(
+    :timeout,    # default 5 (seconds)
+    :transport,  # "stdio" (default) or "tcp"
+    :start,      # true = start if not running (default true)
+    :port_file,  # nil = use default
+    keyword_init: true
+  )
+end
+```
+
 ### Resolution logic
 
 Same 3-step algorithm as reference:
 1. `target` contains `:` → direct dial.
-2. Else → slug → `Holons.discover_by_slug(target)` → port file → start → dial.
+2. Else → slug → `Holons.discover_by_slug(target)` → port file → start
+   with `serve --listen stdio://` (default) → dial over pipes.
+   TCP fallback: `serve --listen tcp://127.0.0.1:0`.
 
 ### Process management
 

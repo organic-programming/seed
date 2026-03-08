@@ -48,6 +48,7 @@ a simple text-based parser is acceptable. It only needs to extract:
 - `service Name { ... }` blocks and their leading comments
 - `rpc Method(...)` declarations and their leading comments
 - `message Name { ... }` blocks with field declarations and comments
+- `@required` and `@example` tags from comment lines
 
 This is a subset of proto syntax — no need for a full compiler.
 

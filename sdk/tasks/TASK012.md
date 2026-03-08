@@ -36,6 +36,9 @@ This module:
    - Service names and comments
    - RPC method names and comments
    - Message field names, types, numbers, and comments
+   - `@required` tags in field comments → `FieldDoc.required = true`
+   - `@example` tags in field comments → `FieldDoc.example`
+   - `@example` tags in RPC comments → `MethodDoc.example_input`
 
 2. **Returns a populated `DescribeResponse`** from the parsed proto data,
    enriched with `slug` and `motto` from `holon.yaml` (use `pkg/identity`).
