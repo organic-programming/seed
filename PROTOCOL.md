@@ -363,6 +363,7 @@ enum FieldLabel {
   FIELD_LABEL_OPTIONAL    = 1;
   FIELD_LABEL_REPEATED    = 2;
   FIELD_LABEL_MAP         = 3;
+  FIELD_LABEL_REQUIRED    = 4;
 }
 
 // EnumValueDoc documents a single enum value.
