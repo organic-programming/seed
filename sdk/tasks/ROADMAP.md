@@ -13,7 +13,7 @@ Phase 5 splits into macOS recipe builds and Windows WinUI builds.
 
 ### Phase 2 — Describe RPC (parallel with Phase 1)
 
-- [ ] **TASK004** — `HolonMeta.Describe` in `go-holons` (reference)
+- [x] **TASK004** — `HolonMeta.Describe` in `go-holons` (reference)  ✅ Codex
 - [ ] **TASK005** — `Describe` across SDK fleet — depends on TASK004
 
 ### Phase 3 — SDK Connect (parallel with Phase 2)
