@@ -1,109 +1,42 @@
 # SDK Guide — Building and Composing Holons
 
-Organic Programming SDKs are converging on the same five-module runtime
-architecture:
+## What an SDK Gives You
 
-| Module | Purpose |
-|---|---|
-| `serve` | Standard `serve` CLI surface. In the most complete SDKs this is a real runner; in the lighter SDKs it is currently flag parsing only. |
-| `transport` | Parse transport URIs and expose runtime listeners/dialers. |
-| `identity` | Parse `holon.yaml` identity and manifest fields. |
-| `discover` | Scan local roots for visible holons. |
-| `connect` | Resolve a slug or `host:port` target to a ready gRPC channel. |
+An SDK is the **native runtime** for holons in a given language. It
+replaces hand-rolled gRPC boilerplate with standardized modules:
 
-`js-web-holons` is the browser-side exception: it provides Holon-RPC over
-WebSocket plus manifest-fetch discovery helpers, but it cannot scan the
-local filesystem or spawn processes.
+```
+sdk/<lang>-holons
+├── serve        Start a gRPC server, handle signals, shut down gracefully
+├── transport    Parse transport URIs (tcp, unix, stdio, mem, ws, wss)
+├── identity     Read holon.yaml — name, UUID, artifacts, build metadata
+├── discover     Scan the local filesystem for nearby holons
+├── connect      Resolve a holon by name → find it → start it → dial it
+└── describe     Self-documentation — auto-registered HolonMeta.Describe RPC
+```
 
----
+`describe` is auto-registered by the `serve` runner — holon developers
+do not implement it. Any caller can invoke `Describe()` to get a
+human-readable API catalog, even when gRPC reflection is disabled.
+See [PROTOCOL.md §3.5](../PROTOCOL.md) for the full proto definition.
 
-## SDKs and `op`
+### The key primitive: `connect`
 
-| Capability | SDK | `op` |
-|---|---|---|
-| Serve a holon | `serve` | `op serve`, `op run` |
-| Listen and dial transports | `transport` | `op grpc://...` dispatch |
-| Read identity | `identity` | `op show`, `op list` |
-| Find nearby holons | `discover` | `op discover` |
-| Resolve and start another holon | `connect` | `op grpc://<slug>` |
-| Build, install, test, clean | — | `op build`, `op install`, `op test`, `op clean` |
+Without the SDK, calling another holon requires knowing its address,
+starting it manually, and wiring up a raw gRPC channel. With the SDK:
 
-The SDK is the runtime substrate. `op` is the lifecycle and operator
-tooling layered on top.
+```
+connect("rob-go")          →  discover → start → dial → ready channel
+connect("localhost:9090")  →  dial directly (address bypass)
+```
 
----
+One call. The SDK handles discovery, process lifecycle, port allocation,
+and cleanup on disconnect. See
+[Constitution, Article 11](../AGENT.md#connect--name-based-resolution).
 
-## Current Fleet Status
-
-Identity parsing now exists across the fleet. The remaining differences
-are mostly in how much `serve`, `connect`, and Holon-RPC each SDK exposes.
-
-| SDK | Serve surface | Transport surface | Discover | Connect | Holon-RPC |
-|---|---|---|---|---|---|
-| `go-holons` | runner | full gRPC + ws bridge | ✅ | ✅ | client + server |
-| `js-holons` | runner | full gRPC + ws bridge | ✅ | ✅ | client + server |
-| `python-holons` | runner | TCP/Unix + mem + ws tunnel | ✅ | ✅ | client + server |
-| `rust-holons` | flags only | tcp/unix/mem runtime, ws/wss metadata | ✅ | — | — |
-| `swift-holons` | flags only | tcp/unix/stdio/mem runtime, ws/wss metadata | ✅ | — | client |
-| `dart-holons` | flags only | tcp/unix/stdio/mem runtime, ws/wss metadata | ✅ | ✅ tcp-only | client + server |
-| `kotlin-holons` | flags only | tcp/unix/mem runtime, stdio/ws metadata | ✅ | ✅ tcp-only | client |
-| `java-holons` | flags only | tcp/unix/mem runtime, stdio/ws metadata | ✅ | ✅ tcp-only | client |
-| `csharp-holons` | flags only | tcp/unix/mem runtime, stdio/ws metadata | ✅ | ✅ tcp-only | client |
-| `cpp-holons` | flags only | tcp/unix/stdio/mem runtime, ws/wss metadata | ✅ | — | client |
-| `c-holons` | runner | tcp/unix/stdio/mem runtime, ws/wss URI layer | ✅ | — | wrapper binaries only |
-| `objc-holons` | flags only | tcp/unix/stdio/mem runtime, ws/wss metadata | ✅ | — | client |
-| `ruby-holons` | flags only | tcp/unix/stdio/mem runtime, ws/wss metadata | ✅ | — | client |
-| `js-web-holons` | browser | ws/wss Holon-RPC only | remote manifest only | — | browser client + node harness |
-
-`runner` means the SDK can host the standard `serve` lifecycle itself.
-`flags only` means it currently stops at `--listen` / `--port` parsing and
-transport primitives.
-
----
-
-## Hello-World Audit
-
-The table below reflects the current workspace, not the intended end
-state. Several hello-worlds are still raw gRPC baselines.
-
-| Example | Matching SDK imported? | Note |
-|---|---|---|
-| [`go-hello-world`](../examples/go-hello-world) | ✅ | Uses `go-holons/pkg/serve`. |
-| [`rust-hello-world`](../examples/rust-hello-world) | ❌ | Raw `tonic`; migration still pending. |
-| [`dart-hello-world`](../examples/dart-hello-world) | ❌ | Raw gRPC baseline. |
-| [`swift-hello-world`](../examples/swift-hello-world) | ✅ | Depends on `swift-holons` via SPM path dependency. |
-| [`js-hello-world`](../examples/js-hello-world) | ✅ | Depends on `@organic-programming/holons`. |
-| [`web-hello-world`](../examples/web-hello-world) | ✅ | Browser uses a synced copy of `js-web-holons`; backend uses `go-holons`. |
-| [`kotlin-hello-world`](../examples/kotlin-hello-world) | ❌ | Raw gRPC baseline. |
-| [`java-hello-world`](../examples/java-hello-world) | ❌ | Raw gRPC baseline. |
-| [`csharp-hello-world`](../examples/csharp-hello-world) | ❌ | Raw gRPC baseline. |
-| [`cpp-hello-world`](../examples/cpp-hello-world) | ❌ | Raw gRPC baseline. |
-| [`c-hello-world`](../examples/c-hello-world) | ✅ | Uses `c-holons` transport and serve helpers. |
-| [`python-hello-world`](../examples/python-hello-world) | ❌ | Raw `grpcio` baseline. |
-| [`ruby-hello-world`](../examples/ruby-hello-world) | ❌ | Raw gRPC baseline. |
-| [`objc-hello-world`](../examples/objc-hello-world) | ❌ | Raw gRPC baseline. |
-
----
-
-## Recipe Audit
-
-This table tracks whether each side of a recipe is actually using its
-language SDK today.
-
-| Recipe | Daemon SDK | Frontend SDK | Current launch path |
-|---|---|---|---|
-| [`go-dart-holons`](../recipes/go-dart-holons) | ✅ `go-holons` | ✅ `dart-holons` | Desktop uses `connect("greeting-daemon-greeting-godart")`; mobile uses `unix://`. |
-| [`go-swift-holons`](../recipes/go-swift-holons) | ✅ `go-holons` | ❌ raw `grpc-swift` | Fixed localhost TCP. |
-| [`go-kotlin-holons`](../recipes/go-kotlin-holons) | ✅ `go-holons` | ✅ `kotlin-holons` | Desktop uses `Connect.connect("greeting-daemon-greeting-gokotlin")`. |
-| [`go-web-holons`](../recipes/go-web-holons) | ✅ `go-holons` | ❌ raw Connect-Web client | Browser reaches the daemon over HTTP/gRPC-Web style transport. |
-| [`go-qt-holons`](../recipes/go-qt-holons) | ✅ `go-holons` | ❌ raw Qt/gRPC client | Fixed localhost TCP. |
-| [`go-dotnet-holons`](../recipes/go-dotnet-holons) | ✅ `go-holons` | ✅ `csharp-holons` | Desktop uses `Holons.ConnectTarget("greeting-daemon-greeting-godotnet")`. |
-| [`rust-dart-holons`](../recipes/rust-dart-holons) | ❌ raw Rust daemon | ✅ `dart-holons` | Fixed localhost TCP with Dart-managed daemon lifecycle. |
-| [`rust-swift-holons`](../recipes/rust-swift-holons) | ❌ raw Rust daemon | ❌ raw `grpc-swift` | Fixed localhost TCP. |
-| [`rust-kotlin-holons`](../recipes/rust-kotlin-holons) | ❌ raw Rust daemon | ❌ raw JVM gRPC client | Fixed localhost TCP. |
-| [`rust-web-holons`](../recipes/rust-web-holons) | ❌ raw Rust daemon | ❌ raw web client | Browser reaches the daemon over localhost HTTP. |
-| [`rust-qt-holons`](../recipes/rust-qt-holons) | ❌ raw Rust daemon | ❌ raw Qt/gRPC client | Fixed localhost TCP. |
-| [`rust-dotnet-holons`](../recipes/rust-dotnet-holons) | ❌ raw Rust daemon | ❌ raw .NET gRPC client | Fixed localhost TCP. |
+`js-web-holons` is the browser exception: it provides Holon-RPC over
+WebSocket plus manifest-fetch discovery, but cannot scan filesystems or
+spawn processes. Its `connect` is direct-dial only.
 
 ---
 
@@ -112,9 +45,9 @@ language SDK today.
 ### Go
 
 ```go
+// Serve — standard holon entry point
 import (
     "os"
-
     "github.com/organic-programming/go-holons/pkg/serve"
     "google.golang.org/grpc"
 )
@@ -125,6 +58,15 @@ func main() {
         // register generated protobuf services here
     })
 }
+```
+
+```go
+// Connect — call another holon by name
+import "github.com/organic-programming/go-holons/pkg/connect"
+
+conn, err := connect.Connect("rob-go")
+defer connect.Disconnect(conn)
+// use conn as a *grpc.ClientConn
 ```
 
 ### Rust
@@ -147,6 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```dart
 import 'package:holons/holons.dart';
 
+// Discover nearby holons and connect to one
 final entries = await discoverLocal();
 final channel = await connect('greeting-daemon-greeting-godart');
 try {
@@ -199,7 +142,7 @@ runBlocking {
 }
 ```
 
-### C#
+### C# (.NET)
 
 ```csharp
 using Holons;
@@ -215,3 +158,103 @@ finally
     Connect.Disconnect(channel);
 }
 ```
+
+### C
+
+```c
+#include <holons/holons.h>
+
+// Parse flags and start serving
+const char *uri = holons_parse_flags(argc - 1, argv + 1);
+holons_listener lis = holons_listen(uri);
+holons_serve(lis, my_handler, NULL);
+```
+
+### Ruby
+
+```ruby
+require 'holons'
+
+entries = Holons.discover_local
+entries.each { |e| puts e.slug }
+```
+
+---
+
+## SDK vs `op`
+
+The SDK is the holon's own runtime. `op` is the operator tooling layered
+on top — it orchestrates, but is never required at runtime.
+
+| Capability | SDK | `op` |
+|---|---|---|
+| Serve a holon | `serve` | `op serve`, `op run` |
+| Listen and dial transports | `transport` | `op grpc://...` dispatch |
+| Read identity | `identity` | `op show`, `op list` |
+| Find nearby holons | `discover` | `op discover` |
+| Resolve and start another holon | `connect` | `op grpc://<slug>` |
+| Build, install, test, clean | — | `op build`, `op install`, `op test`, `op clean` |
+
+---
+
+## Fleet Status
+
+| SDK | Serve | Discover | Connect | Holon-RPC |
+|---|---|---|---|---|
+| `go-holons` | runner | ✅ | ✅ | client + server |
+| `js-holons` | runner | ✅ | ✅ | client + server |
+| `python-holons` | runner | ✅ | ✅ | client + server |
+| `rust-holons` | flags only | ✅ | — | — |
+| `swift-holons` | flags only | ✅ | — | client |
+| `dart-holons` | flags only | ✅ | ✅ tcp-only | client + server |
+| `kotlin-holons` | flags only | ✅ | ✅ tcp-only | client |
+| `java-holons` | flags only | ✅ | ✅ tcp-only | client |
+| `csharp-holons` | flags only | ✅ | ✅ tcp-only | client |
+| `cpp-holons` | flags only | ✅ | — | client |
+| `c-holons` | runner | ✅ | — | wrapper binaries only |
+| `objc-holons` | flags only | ✅ | — | client |
+| `ruby-holons` | flags only | ✅ | — | client |
+| `js-web-holons` | browser | remote manifest only | — | browser client + node harness |
+
+`runner` = SDK hosts the full serve lifecycle.
+`flags only` = SDK parses `--listen` / `--port` and provides transport primitives.
+
+---
+
+## Hello-World Audit
+
+| Example | Uses its SDK? | Note |
+|---|---|---|
+| `go-hello-world` | ✅ | Uses `go-holons/pkg/serve`. |
+| `rust-hello-world` | ❌ | Raw `tonic`; migration pending. |
+| `dart-hello-world` | ❌ | Raw gRPC baseline. |
+| `swift-hello-world` | ✅ | Depends on `swift-holons` via SPM. |
+| `js-hello-world` | ✅ | Depends on `@organic-programming/holons`. |
+| `web-hello-world` | ✅ | Browser uses `js-web-holons`; backend uses `go-holons`. |
+| `kotlin-hello-world` | ❌ | Raw gRPC baseline. |
+| `java-hello-world` | ❌ | Raw gRPC baseline. |
+| `csharp-hello-world` | ❌ | Raw gRPC baseline. |
+| `cpp-hello-world` | ❌ | Raw gRPC baseline. |
+| `c-hello-world` | ✅ | Uses `c-holons` transport and serve helpers. |
+| `python-hello-world` | ❌ | Raw `grpcio` baseline. |
+| `ruby-hello-world` | ❌ | Raw gRPC baseline. |
+| `objc-hello-world` | ❌ | Raw gRPC baseline. |
+
+---
+
+## Recipe Audit
+
+| Recipe | Daemon SDK | Frontend SDK | Current state |
+|---|---|---|---|
+| `go-dart-holons` | ✅ `go-holons` | ✅ `dart-holons` | Desktop uses `connect(slug)`; mobile uses `unix://`. |
+| `go-swift-holons` | ✅ `go-holons` | ❌ raw `grpc-swift` | Fixed localhost TCP. |
+| `go-kotlin-holons` | ✅ `go-holons` | ✅ `kotlin-holons` | Desktop uses `Connect.connect(slug)`. |
+| `go-web-holons` | ✅ `go-holons` | ❌ raw web client | Browser over HTTP/gRPC-Web. |
+| `go-qt-holons` | ✅ `go-holons` | ❌ raw Qt client | Fixed localhost TCP. |
+| `go-dotnet-holons` | ✅ `go-holons` | ✅ `csharp-holons` | Desktop uses `Holons.ConnectTarget(slug)`. |
+| `rust-dart-holons` | ❌ raw Rust | ✅ `dart-holons` | Fixed localhost TCP. |
+| `rust-swift-holons` | ❌ raw Rust | ❌ raw `grpc-swift` | Fixed localhost TCP. |
+| `rust-kotlin-holons` | ❌ raw Rust | ❌ raw JVM gRPC | Fixed localhost TCP. |
+| `rust-web-holons` | ❌ raw Rust | ❌ raw web client | Localhost HTTP. |
+| `rust-qt-holons` | ❌ raw Rust | ❌ raw Qt client | Fixed localhost TCP. |
+| `rust-dotnet-holons` | ❌ raw Rust | ❌ raw .NET gRPC | Fixed localhost TCP. |
