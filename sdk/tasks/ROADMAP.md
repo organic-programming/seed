@@ -1,14 +1,55 @@
 # Task Execution Roadmap
 
-## Overview
+20 tasks in 5 phases. Phases 1–4 run on macOS.
+Phase 5 splits into macOS recipe builds and Windows WinUI builds.
 
-16 tasks organized in 4 phases. Each phase can start once its
-dependencies are met. All work happens on **macOS** except two
-WinUI recipes at the very end.
+## Master Checklist
+
+### Phase 1 — OP Introspection
+
+- [ ] **TASK001** — `op inspect` (offline proto docs)
+- [ ] **TASK002** — `op mcp` + `op tools` (MCP bridge) — depends on TASK001
+- [ ] **TASK003** — `@required`/`@example`/`skills` enrichment — depends on TASK001
+
+### Phase 2 — Describe RPC (parallel with Phase 1)
+
+- [ ] **TASK004** — `HolonMeta.Describe` in `go-holons` (reference)
+- [ ] **TASK005** — `Describe` across SDK fleet — depends on TASK004
+
+### Phase 3 — SDK Connect (parallel with Phase 2)
+
+- [ ] **TASK006** — Rust `connect`
+- [ ] **TASK007** — Swift `connect`
+- [ ] **TASK008** — JS-web `connect` (browser, direct dial only)
+- [ ] **TASK009** — Ruby `connect`
+- [ ] **TASK010** — C `connect`
+- [ ] **TASK011** — C++ `connect`
+- [ ] **TASK012** — Obj-C `connect`
+
+### Phase 4 — Migrations (requires Phase 3)
+
+- [ ] **TASK013** — Go-backend recipe migration
+- [ ] **TASK014** — Rust-backend recipe migration
+- [ ] **TASK015** — Hello-world example migration
+- [ ] **TASK016** — Update TODO.md / status reports
+
+### Phase 5 — Recipe Builds (requires Phase 4)
+
+#### macOS
+
+- [ ] **mac_TASK001** — Build/verify 6 Go-backend recipes
+- [ ] **mac_TASK002** — Build/verify 6 Rust-backend recipes
+
+#### Windows
+
+- [ ] **windows_TASK001** — Build 2 WinUI-only recipes (`go-dotnet`, `rust-dotnet`)
+- [ ] **windows_TASK002** — Add Windows targets to 8 cross-platform recipes (optional)
 
 ---
 
-## Phase 1 — OP Introspection (no dependencies)
+## Phase Details
+
+### Phase 1 — OP Introspection (no dependencies)
 
 Make `op` the single gateway to holon APIs, MCP, and LLM tools.
 
@@ -24,7 +65,7 @@ exposes any holon as an MCP server.
 
 ---
 
-## Phase 2 — Describe RPC (parallel with Phase 1)
+### Phase 2 — Describe RPC (parallel with Phase 1)
 
 SDK-side runtime introspection.
 
@@ -38,7 +79,7 @@ SDK-side runtime introspection.
 
 ---
 
-## Phase 3 — SDK Connect (parallel with Phase 2)
+### Phase 3 — SDK Connect (parallel with Phase 2)
 
 Name-based resolution in every SDK.
 
@@ -57,16 +98,43 @@ Name-based resolution in every SDK.
 
 ---
 
-## Phase 4 — Migrations (requires Phase 3)
+### Phase 4 — Migrations (requires Phase 3)
 
 Wire recipes and examples to use SDK `connect`.
 
-| Task | What | Depends on | Windows? |
-|------|------|-----------|----------|
-| **TASK013** | Go-backend recipe migration | TASK007, 008, 011 | ⚠️ See below |
-| **TASK014** | Rust-backend recipe migration | TASK006 + frontends | ⚠️ See below |
-| **TASK015** | Hello-world example migration | All connect tasks | ❌ No |
-| **TASK016** | Update TODO.md / status reports | All previous | ❌ No |
+| Task | What | Depends on |
+|------|------|-----------|
+| **TASK013** | Go-backend recipe migration | TASK007, 008, 011 |
+| **TASK014** | Rust-backend recipe migration | TASK006 + frontends |
+| **TASK015** | Hello-world example migration | All connect tasks |
+| **TASK016** | Update TODO.md / status reports | All previous |
+
+**Platform:** macOS only.
+
+---
+
+### Phase 5 — Recipe Builds (requires Phase 4)
+
+Build and verify every recipe on its target platform.
+
+#### macOS
+
+| Task | What | Depends on |
+|------|------|-----------|
+| **mac_TASK001** | Build/verify 6 Go-backend recipes | TASK013 |
+| **mac_TASK002** | Build/verify 6 Rust-backend recipes | TASK014, mac_TASK001 |
+
+Covers: Flutter, SwiftUI, Compose, Web, Qt, .NET Mac Catalyst.
+
+#### Windows
+
+| Task | What | Depends on |
+|------|------|-----------|
+| **windows_TASK001** | Build 2 WinUI-only recipes (`go-dotnet`, `rust-dotnet`) | mac_TASK001 |
+| **windows_TASK002** | Add Windows targets to 8 cross-platform recipes | windows_TASK001 |
+
+**Only `windows_TASK001` is strictly required** — the 2 WinUI recipes
+cannot build on macOS. `windows_TASK002` is optional platform coverage.
 
 ---
 
@@ -93,13 +161,9 @@ Everything else builds on macOS:
 
 ### Recommended approach
 
-1. Complete TASK013/014 on macOS first — build all 8 non-WinUI recipes.
-2. Then move to a Windows machine (or VM) for the two WinUI recipes.
-3. Use `IMPLEMENTATION_ON_WINDOWS.md` as the prompt for that session.
-
-The macOS builds already prove the full architecture (gRPC contracts,
-composite holon assembly, transport chains). The Windows session adds
-platform coverage, not architectural validation.
+1. Complete mac_TASK001/002 — build all recipes on macOS.
+2. Then move to Windows for windows_TASK001 (WinUI).
+3. Optionally run windows_TASK002 for cross-platform coverage.
 
 ---
 
@@ -115,13 +179,18 @@ Phase 1 (OP)              Phase 2 (Describe)      Phase 3 (Connect)
 └──────────┘                                                ▼
                                                   Phase 4 (Migrations)
                                                   ┌──────────────────┐
-                                                  │ TASK013–014      │
-                                                  │ macOS recipes    │
-                                                  │   then Windows   │
-                                                  │   (2 WinUI only) │
-                                                  │ TASK015 examples │
-                                                  │ TASK016 docs     │
-                                                  └──────────────────┘
+                                                  │ TASK013–016      │
+                                                  └────────┬─────────┘
+                                                           │
+                                              ┌────────────┴────────────┐
+                                              ▼                         ▼
+                                    Phase 5a (macOS)          Phase 5b (Windows)
+                                    ┌────────────────┐        ┌─────────────────┐
+                                    │ mac_TASK001    │        │ windows_TASK001  │
+                                    │ Go recipes     │        │ 2 WinUI recipes  │
+                                    │ mac_TASK002    │        │ windows_TASK002  │
+                                    │ Rust recipes   │        │ cross-plat targets│
+                                    └────────────────┘        └─────────────────┘
 ```
 
 ---
@@ -133,4 +202,6 @@ Phase 1 (OP)              Phase 2 (Describe)      Phase 3 (Connect)
 | 1 — OP Introspection | ✅ all | ❌ not needed |
 | 2 — Describe RPC | ✅ all | ❌ not needed |
 | 3 — SDK Connect | ✅ all | ❌ not needed |
-| 4 — Migrations | ✅ 18/20 recipes | ⚠️ 2 WinUI recipes |
+| 4 — Migrations | ✅ all | ❌ not needed |
+| 5a — Recipe builds | ✅ mac_TASK001, mac_TASK002 | — |
+| 5b — Recipe builds | — | ⚠️ windows_TASK001 (required), windows_TASK002 (optional) |
