@@ -1,48 +1,60 @@
-# TASK008 — Migrate Go-Backend Recipes to SDK `connect`
+# TASK008 — Implement `connect` in `js-web-holons`
 
 ## Context
 
-Depends on: TASK002 (swift connect), TASK003 (js-web connect), TASK006 (cpp connect).
+The Organic Programming SDK fleet requires a `connect` module in every SDK.
+`js-web-holons` runs in the **browser** — it cannot spawn processes. Its
+`connect` is therefore a **reduced variant**: direct dial only (host:port),
+no slug resolution, no process start.
 
-Three Go-backend recipes still use hardcoded `localhost:PORT` addresses.
-They must be migrated to use the `connect("slug")` primitive from their
-respective frontend SDKs.
+The **reference implementation** is `go-holons/pkg/connect/connect.go` — study
+it for the general pattern, but only the direct-dial path applies here.
 
-See `sdk/TODO_MIGRATE_RECIPES.md` for the full migration plan.
+## Workspace
 
-Already migrated (for reference patterns):
-- `go-dart-holons` — uses `dart-holons` `connect`
-- `go-kotlin-holons` — uses `kotlin-holons` `connect`
-- `go-dotnet-holons` — uses `csharp-holons` `Connect`
+- SDK root: `sdk/js-web-holons/`
+- Existing modules: `src/discover.mjs`, `src/index.mjs`, `src/server.mjs`
+- Reference: `sdk/go-holons/pkg/connect/connect.go`
+- Spec: `sdk/TODO_CONNECT.md` § `js-web-holons`
 
-## Recipes to migrate
+## What to implement
 
-### 1. `go-swift-holons`
+Create `src/connect.mjs` and re-export from `src/index.mjs`.
 
-- Frontend: SwiftUI using `swift-holons`
-- **Before**: `let channel = try GRPCChannelPool.with(target: .host("localhost", port: 9091))`
-- **After**: `import Holons; let channel = try Holons.connect("gudule-daemon-greeting-goswift")`
-- Reference: see `go-dart-holons` for the equivalent Dart migration pattern.
+### Public API
 
-### 2. `go-web-holons`
+```javascript
+export function connect(hostPort) → GrpcWebClient
+export function disconnect(client) → void
+```
 
-- Frontend: Web (browser JS) using `js-web-holons`
-- **Before**: hardcoded URL in gRPC-Web or WebSocket client initialization.
-- **After**: `import { connect } from 'js-web-holons'; const client = connect("host:port")`
-- Note: `js-web-holons` connect is direct-dial only (no slug resolution in browser).
-  The daemon address must still be provided — but through `connect()` rather than raw
-  channel construction. The backend Go daemon already uses `go-holons` SDK.
+### Behavior
 
-### 3. `go-qt-holons`
+- `connect("host:port")` → create a gRPC-Web client connection.
+- `connect("ws://host:port/rpc")` → create a Holon-RPC (WebSocket JSON-RPC)
+  connection if the SDK already supports it via `index.mjs`.
+- **No slug resolution.** Browser JS cannot scan filesystems or spawn binaries.
+  If someone passes a bare slug, throw an error explaining this limitation.
+- `disconnect(client)` → close the connection.
 
-- Frontend: Qt/C++ using `cpp-holons`
-- **Before**: `grpc::CreateChannel("localhost:9091", grpc::InsecureChannelCredentials())`
-- **After**: `auto channel = holons::connect("gudule-daemon-greeting-goqt");`
+### Why this is limited
+
+Document in a JSDoc comment at the top of `connect.mjs`:
+
+```
+Browser environments cannot spawn processes or scan the filesystem.
+connect() in js-web-holons only supports direct host:port addressing.
+For slug-based resolution, use a Node.js environment with js-holons.
+```
+
+## Testing
+
+1. Test `connect("localhost:9090")` returns a client object.
+2. Test `connect("my-holon")` (bare slug) throws a descriptive error.
+3. Test `disconnect()` on a valid client does not throw.
 
 ## Rules
 
-1. **Non-regression**: every recipe that builds today must still build after migration.
-2. **One recipe at a time**: migrate, test, commit.
-3. **Do not modify the Go backend daemon** — it already uses `go-holons` SDK.
-4. **Backward compatible**: `connect("localhost:9091")` must still work.
-5. **No proto changes**: gRPC contracts stay as-is.
+- Follow existing code style in `src/discover.mjs`.
+- Use the same import patterns as `src/index.mjs`.
+- Do not add Node.js-only dependencies.

@@ -1,59 +1,57 @@
-# TASK007 — Implement `connect` in `objc-holons`
+# TASK007 — Implement `connect` in `swift-holons`
 
 ## Context
 
 The Organic Programming SDK fleet requires a `connect` module in every SDK.
-`objc-holons` uses a single-file architecture (`src/Holons.m` + `include/Holons/Holons.h`).
-The `connect` functions must be added to these existing files.
+`connect` composes discover + start + dial into a single name-based resolution
+primitive. See `AGENT.md` Article 11 "Connect — Name-Based Resolution".
 
 The **reference implementation** is `go-holons/pkg/connect/connect.go` — study
 it before starting.
 
 ## Workspace
 
-- SDK root: `sdk/objc-holons/`
-- Existing files: `include/Holons/Holons.h` (header), `src/Holons.m` (implementation)
+- SDK root: `sdk/swift-holons/`
+- Existing modules: `Sources/Holons/Discover.swift`, `Sources/Holons/Identity.swift`,
+  `Sources/Holons/Serve.swift`, `Sources/Holons/Transport.swift`
 - Reference: `sdk/go-holons/pkg/connect/connect.go`
-- Spec: `sdk/TODO_CONNECT.md` § `objc-holons`
+- Spec: `sdk/TODO_CONNECT.md` § `swift-holons`
 
 ## What to implement
 
-Add methods to the existing `Holons` class in `Holons.h` and `Holons.m`.
+Create `Sources/Holons/Connect.swift`.
 
 ### Public API
 
-```objc
-+ (GRPCChannel *)connect:(NSString *)target;
-+ (GRPCChannel *)connect:(NSString *)target options:(HolonsConnectOptions *)options;
-+ (void)disconnect:(GRPCChannel *)channel;
+```swift
+public func connect(_ target: String) throws -> GRPCChannel
+public func connect(_ target: String, options: ConnectOptions) throws -> GRPCChannel
+public func disconnect(_ channel: GRPCChannel) throws
 ```
 
 ### ConnectOptions
 
-```objc
-@interface HolonsConnectOptions : NSObject
-@property (nonatomic) NSTimeInterval timeout;      // default 5.0
-@property (nonatomic, copy) NSString *transport;   // @"stdio" (default), @"tcp" for override
-@property (nonatomic) BOOL start;                  // YES = start if not running (default YES)
-@property (nonatomic, copy) NSString *portFile;    // nil = use default
-@end
+```swift
+public struct ConnectOptions {
+    var timeout: TimeInterval = 5.0
+    var transport: String = "stdio"  // "tcp" for explicit override
+    var start: Bool = true
+    var portFile: String? = nil
+}
 ```
 
 ### Resolution logic
 
-Same 3-step algorithm:
-1. `target` contains `:` → direct dial.
-2. Else → slug → discover → port file → start with
-   `serve --listen stdio://` (default) → dial over pipes.
-   TCP fallback: `serve --listen tcp://127.0.0.1:0`.
+Same as reference (see TASK006 for the 3-step algorithm):
+target contains `:` → direct dial; else → discover → port file check →
+start with `serve --listen stdio://` (default) → dial over pipes.
+TCP fallback: `serve --listen tcp://127.0.0.1:0`.
 
 ### Process management
 
-- Use `NSTask` to launch the binary.
-- Track started tasks in a static `NSMutableDictionary`.
-- `disconnect:`: close channel, if ephemeral → `[task terminate]`, wait 2s,
-  then `[task interrupt]`.
-- Parse port from `NSPipe` attached to stdout/stderr.
+- Use `Foundation.Process` to launch the binary.
+- Track started processes for cleanup on disconnect.
+- Ephemeral mode: disconnect stops the process (SIGTERM → 2s → SIGKILL).
 
 ### Port file convention
 
@@ -62,10 +60,15 @@ Content: `tcp://127.0.0.1:<port>\n`
 
 ## Testing
 
-Add tests following existing patterns.
+1. Direct dial test
+2. Slug resolution test (with temp holon tree)
+3. Port file reuse test
+4. Stale port file cleanup test
+
+Follow `swift test` patterns. All existing tests must pass.
 
 ## Rules
 
-- Follow existing code style in `Holons.m` — match the discover section.
-- Use Foundation framework APIs (`NSTask`, `NSPipe`, `NSFileManager`).
-- All existing tests must still pass.
+- Follow existing code style in `Discover.swift` and `Transport.swift`.
+- Do not modify existing files except to add `connect` export if needed.
+- Use `grpc-swift` `ClientConnection` for the channel.

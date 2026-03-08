@@ -1,124 +1,47 @@
-# TASK016 — Add `@required`/`@example` Tags and `skills` Across All Holons
+# TASK016 — Update TODO.md to Reflect Current State
 
 ## Context
 
-Depends on: TASK014 (`op inspect` which displays tags and skills).
+Depends on: all previous tasks (TASK006–TASK015), or can be done incrementally
+after each batch.
 
-The spec now supports two conventions that holons should adopt:
+`sdk/TODO.md` is **stale** — its "Current state per SDK" table still shows
+`discover` and `connect` as ❌ across all SDKs, even though `discover` is
+100% complete and `connect` is done in 7 of 14 SDKs.
 
-1. **Proto comment tags** — `@required` and `@example` in `.proto`
-   file comments, parsed by `op inspect` and `Describe`.
-2. **Skills** — composed workflows in `holon.yaml`, displayed by
-   `op inspect` and exposed as MCP prompts by `op mcp`.
+## What to do
 
-No holons currently use either. This task adds them across the ecosystem.
+### 1. Update the table in `sdk/TODO.md`
 
-## Scope
+Update the "Current state per SDK" table (line 29–44) to reflect the actual
+state of each SDK. Use the following status markers:
 
-### Tier 1 — Core holons (proto tags + skills)
+- ✅ — module is implemented and tested
+- ❓ — partial implementation, needs verification
+- ❌ — not implemented
 
-These holons have real proto contracts and meaningful workflows.
-Add both `@required`/`@example` tags to their protos AND `skills`
-to their manifests.
+After all connect tasks are done, the table should show ✅ for `discover`
+and `connect` in every row.
 
-| Holon | Proto | Skills to define |
-|-------|-------|-----------------|
-| `grace-op` | `protos/op/v1/op.proto` | discover-and-build, full-lifecycle |
-| `rob-go` | `protos/go/v1/go.proto` | prepare-release, lint-and-fix |
-| `jess-npm` | `protos/npm/v1/npm.proto` | setup-project, audit-and-fix |
+### 2. Update `sdk/TODO_STATUS_REPORT.md`
 
-### Tier 2 — VideoSteno holons
+Replace the existing report with a current snapshot:
+- Mark `discover` section as "Complete — all SDKs".
+- Update `connect` section with current completions.
+- Update recipe migration section.
+- Update hello-world section.
+- Update the practical summary at the bottom.
 
-| Holon | Status | Has proto | Has source | Action |
-|-------|--------|-----------|------------|--------|
-| `wisupaa-whisper` | **implemented** | ✅ `protos/whisper/v1/` | ✅ C++ (CMake) | tags + skills |
-| `vs-cli` | **partial** | ❌ | ✅ `main.go` | skills only (when proto exists) |
-| `vs-aligner` | **placeholder** | ✅ `aligner.proto` | ❌ | tags only |
-| `vs-dte` | **placeholder** | ✅ `dte.proto` | ❌ | tags only |
-| `vs-hub` | **placeholder** | ✅ `hub.proto` | ❌ | tags only |
-| `vs-ingest` | **placeholder** | ✅ `ingest.proto` | ❌ | tags only |
-| `vs-packager` | **placeholder** | ✅ `packager.proto` | ❌ | tags only |
-| `vs-repository` | **placeholder** | ✅ `repository.proto` | ❌ | tags only |
-| `vs-revision` | **placeholder** | ✅ `revision.proto` | ❌ | tags only |
-| `vs-transcriber` | **placeholder** | ✅ `transcriber.proto` | ❌ | tags only |
-| `vs-app` | **placeholder** | ❌ | ❌ | skip (manifest only) |
+### 3. Mark completed TODO files
 
-> [!NOTE]
-> Placeholder holons (proto but no source) get `@required`/`@example`
-> tags in their proto files now — this documents the API intent before
-> implementation. Skills are deferred until the holon has working RPCs.
-
-### Tier 3 — B-ALTER holons
-
-| Holon | Status | Has proto | Has source | Action |
-|-------|--------|-----------|------------|--------|
-| `constantin-sculptor-godart` | **implemented** | ✅ `protos/godart/v1/` | ✅ Dart | tags + skills |
-| `abel-fishel-translator` | **placeholder** | ✅ `protos/` (dir only) | ❌ (go.mod stub) | tags only |
-| `constantin-sculptor` | **placeholder** | ✅ `protos/sculptor/v1/` | ❌ (go.mod stub) | tags only |
-
-### Tier 4 — Hello-world examples (proto tags only)
-
-These are minimal examples — add `@required`/`@example` tags to
-their proto files as reference patterns. No skills needed (they
-have a single RPC).
-
-All 13 hello-world examples under `organic-programming/examples/`.
-
-### Tier 5 — Recipe daemons (proto tags only)
-
-All recipe greeting daemons share the same `greeting/v1/greeting.proto`
-pattern. Add `@required`/`@example` tags to one, propagate to all 12.
-
-## How to add proto tags
-
-In each `.proto` file, add `@required` and `@example` tags to
-field and RPC comments:
-
-```protobuf
-// Transcribe processes an audio file and returns timed text.
-// @example {"file": "interview.wav", "language": "fr"}
-rpc Transcribe(TranscribeRequest) returns (TranscribeResponse);
-
-message TranscribeRequest {
-  // Path to the audio file.
-  // @required
-  // @example "interview.wav"
-  string file = 1;
-
-  // BCP-47 language code.
-  // @example "fr"
-  string language = 2;
-}
-```
-
-## How to add skills
-
-In each `holon.yaml`, add a `skills` section:
-
-```yaml
-skills:
-  - name: prepare-release
-    description: Prepare a Go package for production release.
-    when: User wants clean, tested, optimized code ready to ship.
-    steps:
-      - Fmt — format all source files
-      - Vet — run static analysis
-      - Test — run the full test suite
-      - Build with mode=release
-```
-
-## Execution order
-
-1. **Tier 1** first — core holons serve as the reference.
-2. **Tier 4** next — hello-world examples show the simplest pattern.
-3. **Tier 5** — recipe daemons (one change, propagate to all).
-4. **Tier 2** — VideoSteno holons.
-5. **Tier 3** — B-ALTER holons.
+If all items in a TODO file are done, add a `## Status: Complete` header
+at the top:
+- `TODO_DISCOVER.md` — should already be marked complete.
+- `TODO_CONNECT.md` — mark complete when all 14 SDKs have connect.
+- `TODO_MIGRATE_RECIPES.md` — mark complete when all recipes are migrated.
 
 ## Rules
 
-- Study each holon's proto file to write meaningful `@required`,
-  `@example`, and `skills`. Do not use placeholders.
-- Skills must match the holon's actual capabilities (its RPCs).
-- One commit per tier.
-- Run `op list` after each tier to verify manifests still parse.
+- Be factual — only mark items as ✅ if the file actually exists and tests pass.
+- Verify each claim by checking for the file on disk.
+- Do not modify SDK source code in this task — documentation only.

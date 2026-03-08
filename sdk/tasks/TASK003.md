@@ -1,60 +1,124 @@
-# TASK003 — Implement `connect` in `js-web-holons`
+# TASK003 — Add `@required`/`@example` Tags and `skills` Across All Holons
 
 ## Context
 
-The Organic Programming SDK fleet requires a `connect` module in every SDK.
-`js-web-holons` runs in the **browser** — it cannot spawn processes. Its
-`connect` is therefore a **reduced variant**: direct dial only (host:port),
-no slug resolution, no process start.
+Depends on: TASK001 (`op inspect` which displays tags and skills).
 
-The **reference implementation** is `go-holons/pkg/connect/connect.go` — study
-it for the general pattern, but only the direct-dial path applies here.
+The spec now supports two conventions that holons should adopt:
 
-## Workspace
+1. **Proto comment tags** — `@required` and `@example` in `.proto`
+   file comments, parsed by `op inspect` and `Describe`.
+2. **Skills** — composed workflows in `holon.yaml`, displayed by
+   `op inspect` and exposed as MCP prompts by `op mcp`.
 
-- SDK root: `sdk/js-web-holons/`
-- Existing modules: `src/discover.mjs`, `src/index.mjs`, `src/server.mjs`
-- Reference: `sdk/go-holons/pkg/connect/connect.go`
-- Spec: `sdk/TODO_CONNECT.md` § `js-web-holons`
+No holons currently use either. This task adds them across the ecosystem.
 
-## What to implement
+## Scope
 
-Create `src/connect.mjs` and re-export from `src/index.mjs`.
+### Tier 1 — Core holons (proto tags + skills)
 
-### Public API
+These holons have real proto contracts and meaningful workflows.
+Add both `@required`/`@example` tags to their protos AND `skills`
+to their manifests.
 
-```javascript
-export function connect(hostPort) → GrpcWebClient
-export function disconnect(client) → void
+| Holon | Proto | Skills to define |
+|-------|-------|-----------------|
+| `grace-op` | `protos/op/v1/op.proto` | discover-and-build, full-lifecycle |
+| `rob-go` | `protos/go/v1/go.proto` | prepare-release, lint-and-fix |
+| `jess-npm` | `protos/npm/v1/npm.proto` | setup-project, audit-and-fix |
+
+### Tier 2 — VideoSteno holons
+
+| Holon | Status | Has proto | Has source | Action |
+|-------|--------|-----------|------------|--------|
+| `wisupaa-whisper` | **implemented** | ✅ `protos/whisper/v1/` | ✅ C++ (CMake) | tags + skills |
+| `vs-cli` | **partial** | ❌ | ✅ `main.go` | skills only (when proto exists) |
+| `vs-aligner` | **placeholder** | ✅ `aligner.proto` | ❌ | tags only |
+| `vs-dte` | **placeholder** | ✅ `dte.proto` | ❌ | tags only |
+| `vs-hub` | **placeholder** | ✅ `hub.proto` | ❌ | tags only |
+| `vs-ingest` | **placeholder** | ✅ `ingest.proto` | ❌ | tags only |
+| `vs-packager` | **placeholder** | ✅ `packager.proto` | ❌ | tags only |
+| `vs-repository` | **placeholder** | ✅ `repository.proto` | ❌ | tags only |
+| `vs-revision` | **placeholder** | ✅ `revision.proto` | ❌ | tags only |
+| `vs-transcriber` | **placeholder** | ✅ `transcriber.proto` | ❌ | tags only |
+| `vs-app` | **placeholder** | ❌ | ❌ | skip (manifest only) |
+
+> [!NOTE]
+> Placeholder holons (proto but no source) get `@required`/`@example`
+> tags in their proto files now — this documents the API intent before
+> implementation. Skills are deferred until the holon has working RPCs.
+
+### Tier 3 — B-ALTER holons
+
+| Holon | Status | Has proto | Has source | Action |
+|-------|--------|-----------|------------|--------|
+| `constantin-sculptor-godart` | **implemented** | ✅ `protos/godart/v1/` | ✅ Dart | tags + skills |
+| `abel-fishel-translator` | **placeholder** | ✅ `protos/` (dir only) | ❌ (go.mod stub) | tags only |
+| `constantin-sculptor` | **placeholder** | ✅ `protos/sculptor/v1/` | ❌ (go.mod stub) | tags only |
+
+### Tier 4 — Hello-world examples (proto tags only)
+
+These are minimal examples — add `@required`/`@example` tags to
+their proto files as reference patterns. No skills needed (they
+have a single RPC).
+
+All 13 hello-world examples under `organic-programming/examples/`.
+
+### Tier 5 — Recipe daemons (proto tags only)
+
+All recipe greeting daemons share the same `greeting/v1/greeting.proto`
+pattern. Add `@required`/`@example` tags to one, propagate to all 12.
+
+## How to add proto tags
+
+In each `.proto` file, add `@required` and `@example` tags to
+field and RPC comments:
+
+```protobuf
+// Transcribe processes an audio file and returns timed text.
+// @example {"file": "interview.wav", "language": "fr"}
+rpc Transcribe(TranscribeRequest) returns (TranscribeResponse);
+
+message TranscribeRequest {
+  // Path to the audio file.
+  // @required
+  // @example "interview.wav"
+  string file = 1;
+
+  // BCP-47 language code.
+  // @example "fr"
+  string language = 2;
+}
 ```
 
-### Behavior
+## How to add skills
 
-- `connect("host:port")` → create a gRPC-Web client connection.
-- `connect("ws://host:port/rpc")` → create a Holon-RPC (WebSocket JSON-RPC)
-  connection if the SDK already supports it via `index.mjs`.
-- **No slug resolution.** Browser JS cannot scan filesystems or spawn binaries.
-  If someone passes a bare slug, throw an error explaining this limitation.
-- `disconnect(client)` → close the connection.
+In each `holon.yaml`, add a `skills` section:
 
-### Why this is limited
-
-Document in a JSDoc comment at the top of `connect.mjs`:
-
-```
-Browser environments cannot spawn processes or scan the filesystem.
-connect() in js-web-holons only supports direct host:port addressing.
-For slug-based resolution, use a Node.js environment with js-holons.
+```yaml
+skills:
+  - name: prepare-release
+    description: Prepare a Go package for production release.
+    when: User wants clean, tested, optimized code ready to ship.
+    steps:
+      - Fmt — format all source files
+      - Vet — run static analysis
+      - Test — run the full test suite
+      - Build with mode=release
 ```
 
-## Testing
+## Execution order
 
-1. Test `connect("localhost:9090")` returns a client object.
-2. Test `connect("my-holon")` (bare slug) throws a descriptive error.
-3. Test `disconnect()` on a valid client does not throw.
+1. **Tier 1** first — core holons serve as the reference.
+2. **Tier 4** next — hello-world examples show the simplest pattern.
+3. **Tier 5** — recipe daemons (one change, propagate to all).
+4. **Tier 2** — VideoSteno holons.
+5. **Tier 3** — B-ALTER holons.
 
 ## Rules
 
-- Follow existing code style in `src/discover.mjs`.
-- Use the same import patterns as `src/index.mjs`.
-- Do not add Node.js-only dependencies.
+- Study each holon's proto file to write meaningful `@required`,
+  `@example`, and `skills`. Do not use placeholders.
+- Skills must match the holon's actual capabilities (its RPCs).
+- One commit per tier.
+- Run `op list` after each tier to verify manifests still parse.

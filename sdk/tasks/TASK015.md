@@ -1,110 +1,60 @@
-# TASK015 — `op mcp` and `op tools` Commands
+# TASK015 — Migrate Hello-World Examples to SDK `connect`
 
 ## Context
 
-Depends on: TASK014 (`op inspect` — provides the proto parser).
+Depends on: all connect tasks (TASK006–TASK012).
 
-`op mcp` starts an MCP server that exposes any holon's RPCs as MCP
-tools. `op tools` outputs LLM tool definitions in various formats.
-Together, they make **every holon in the ecosystem instantly
-compatible with AI agents** — without any code changes to the holons.
+Nine hello-world examples are still on raw gRPC baselines. They must be
+migrated to use their SDK's `serve` and `connect` primitives, and a
+`connect` example must be added to each.
 
-See `OP.md` §14 "Introspection" for the full specification.
+See `sdk/TODO_MIGRATE_RECIPES.md` § "Hello-world examples" and
+`sdk/TODO_STATUS_REPORT.md` § "Hello-world migration".
 
-## Workspace
+## Already migrated (reference patterns)
 
-- `op` source: `holons/grace-op/`
-- Proto parser: `pkg/inspect/` (from TASK014)
-- New modules: `pkg/mcp/`, `pkg/tools/`
-- MCP spec: https://spec.modelcontextprotocol.io/
+- `go-hello-world` — already uses `go-holons` SDK
+- `js-hello-world` — already uses `js-holons` SDK
+- `swift-hello-world` — already uses `swift-holons` SDK
+- `c-hello-world` — already uses `c-holons` SDK
+- `web-hello-world` — already uses `js-web-holons` / `go-holons`
 
-## What to implement
+## Hello-worlds to migrate
 
-### `op mcp <slug> [slug2...]`
+For each, the migration is:
+1. Replace raw gRPC server setup with SDK's `serve` runner.
+2. Replace raw gRPC client setup with SDK's `connect`.
+3. Add a **connect example** showing slug-based resolution.
 
-Start an MCP server over stdio that exposes holon RPCs as MCP tools.
+| Example | SDK | What to do |
+|---|---|---|
+| `rust-hello-world` | `rust-holons` | Migrate to `holons::serve`, add `holons::connect` example |
+| `dart-hello-world` | `dart-holons` | Verify SDK usage, add connect example |
+| `kotlin-hello-world` | `kotlin-holons` | Migrate to SDK serve + connect |
+| `java-hello-world` | `java-holons` | Migrate to SDK serve + connect |
+| `csharp-hello-world` | `csharp-holons` | Migrate to SDK serve + connect |
+| `cpp-hello-world` | `cpp-holons` | Migrate to SDK serve + connect |
+| `python-hello-world` | `python-holons` | Migrate to SDK serve + connect |
+| `ruby-hello-world` | `ruby-holons` | Migrate to SDK serve + connect |
+| `objc-hello-world` | `objc-holons` | Migrate to SDK serve + connect |
 
-```bash
-op mcp rob-go                        # single holon
-op mcp rob-go jess-npm echo-server   # multiple holons
+## Connect example pattern
+
+Each hello-world should include a small `connect_example` (or equivalent) that:
+
+```
+1. Starts the echo-server in the background (or assumes it's built)
+2. Calls connect("echo-server") using the SDK
+3. Sends a Ping RPC
+4. Prints the response
+5. Calls disconnect()
 ```
 
-#### MCP server implementation
-
-Create `pkg/mcp/server.go`:
-
-1. **Parse protos** — reuse `pkg/inspect/` parser for each slug.
-2. **Generate tool definitions** — for each RPC method:
-   - `name`: `<slug>.<ServiceName>.<MethodName>`
-     (e.g. `rob-go.RobGoService.Build`)
-   - `description`: from proto comment
-   - `inputSchema`: JSON Schema generated from the proto field tree
-     (map proto types → JSON Schema types, mark `@required` fields,
-     include `@example` as schema examples)
-3. **Start stdio MCP server** — implement the MCP protocol:
-   - `initialize` → return server info and tool list
-   - `tools/list` → return generated tool definitions
-   - `tools/call` → receive JSON args → translate to gRPC →
-     `connect(slug)` → call RPC → return JSON result
-4. **Connect on demand** — use `connect.Connect(slug)` when a tool
-   is called, `connect.Disconnect` after the response.
-
-#### JSON Schema generation
-
-Create `pkg/tools/jsonschema.go`:
-
-Map proto types to JSON Schema:
-
-| Proto type | JSON Schema type |
-|-----------|-----------------|
-| `string` | `{"type": "string"}` |
-| `int32`, `int64` | `{"type": "integer"}` |
-| `float`, `double` | `{"type": "number"}` |
-| `bool` | `{"type": "boolean"}` |
-| `bytes` | `{"type": "string", "format": "byte"}` |
-| enum | `{"type": "string", "enum": [...values]}` |
-| message | `{"type": "object", "properties": {...}}` |
-| repeated T | `{"type": "array", "items": <T>}` |
-| map<K,V> | `{"type": "object", "additionalProperties": <V>}` |
-
-Populate `required` array from `@required`-tagged fields.
-Populate `examples` from `@example`-tagged fields.
-
-### `op tools <slug>`
-
-Output LLM tool definitions without starting an MCP server.
-
-```bash
-op tools rob-go                      # default (OpenAI format)
-op tools rob-go --format openai
-op tools rob-go --format anthropic
-op tools rob-go --format mcp
-```
-
-Create `pkg/tools/format.go`:
-
-- **OpenAI**: `{"type": "function", "function": {"name": ..., "description": ..., "parameters": <json_schema>}}`
-- **Anthropic**: `{"name": ..., "description": ..., "input_schema": <json_schema>}`
-- **MCP**: `{"name": ..., "description": ..., "inputSchema": <json_schema>}`
-
-Reuse the JSON Schema generator from `pkg/tools/jsonschema.go`.
-
-## Testing
-
-1. Parse echo-server protos, generate JSON Schema, verify correctness.
-2. Start `op mcp echo-server`, simulate MCP `tools/list` request,
-   verify tool definitions include correct names, descriptions, schemas.
-3. Start `op mcp echo-server`, simulate MCP `tools/call` for Ping,
-   verify the gRPC call is made and response is returned as JSON.
-4. Test `op tools echo-server --format openai`, verify valid JSON output.
-5. Test multi-holon: `op mcp echo-server rob-go`, verify both holons'
-   tools appear in the tool list.
-6. Verify skills from `holon.yaml` are exposed as MCP prompts.
+Reference: see `go-hello-world` for the Go pattern.
 
 ## Rules
 
-- The MCP server uses stdio transport (per MCP specification).
-- JSON Schema generation is `op`'s responsibility — holons never see it.
-- Skills from `holon.yaml` are exposed as MCP prompts alongside tools.
-- Reuse `pkg/inspect/` parser from TASK014 — do not duplicate parsing.
-- Follow existing `op` CLI code style in Grace.
+1. **Non-regression**: each example must still build and run.
+2. **One example at a time**: migrate, test, commit.
+3. **No proto changes**.
+4. Follow each SDK's existing code style.

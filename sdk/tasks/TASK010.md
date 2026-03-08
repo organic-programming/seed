@@ -1,60 +1,71 @@
-# TASK010 — Migrate Hello-World Examples to SDK `connect`
+# TASK010 — Implement `connect` in `c-holons`
 
 ## Context
 
-Depends on: all connect tasks (TASK001–TASK007).
+The Organic Programming SDK fleet requires a `connect` module in every SDK.
+`c-holons` uses a single-file architecture (`src/holons.c` + `include/holons/holons.h`).
+The `connect` functions must be added to these existing files.
 
-Nine hello-world examples are still on raw gRPC baselines. They must be
-migrated to use their SDK's `serve` and `connect` primitives, and a
-`connect` example must be added to each.
+The **reference implementation** is `go-holons/pkg/connect/connect.go` — study
+it before starting.
 
-See `sdk/TODO_MIGRATE_RECIPES.md` § "Hello-world examples" and
-`sdk/TODO_STATUS_REPORT.md` § "Hello-world migration".
+## Workspace
 
-## Already migrated (reference patterns)
+- SDK root: `sdk/c-holons/`
+- Existing files: `include/holons/holons.h` (header), `src/holons.c` (implementation)
+- Reference: `sdk/go-holons/pkg/connect/connect.go`
+- Spec: `sdk/TODO_CONNECT.md` § `c-holons`
 
-- `go-hello-world` — already uses `go-holons` SDK
-- `js-hello-world` — already uses `js-holons` SDK
-- `swift-hello-world` — already uses `swift-holons` SDK
-- `c-hello-world` — already uses `c-holons` SDK
-- `web-hello-world` — already uses `js-web-holons` / `go-holons`
+## What to implement
 
-## Hello-worlds to migrate
+Add functions to `include/holons/holons.h` and `src/holons.c`.
 
-For each, the migration is:
-1. Replace raw gRPC server setup with SDK's `serve` runner.
-2. Replace raw gRPC client setup with SDK's `connect`.
-3. Add a **connect example** showing slug-based resolution.
+### Public API
 
-| Example | SDK | What to do |
-|---|---|---|
-| `rust-hello-world` | `rust-holons` | Migrate to `holons::serve`, add `holons::connect` example |
-| `dart-hello-world` | `dart-holons` | Verify SDK usage, add connect example |
-| `kotlin-hello-world` | `kotlin-holons` | Migrate to SDK serve + connect |
-| `java-hello-world` | `java-holons` | Migrate to SDK serve + connect |
-| `csharp-hello-world` | `csharp-holons` | Migrate to SDK serve + connect |
-| `cpp-hello-world` | `cpp-holons` | Migrate to SDK serve + connect |
-| `python-hello-world` | `python-holons` | Migrate to SDK serve + connect |
-| `ruby-hello-world` | `ruby-holons` | Migrate to SDK serve + connect |
-| `objc-hello-world` | `objc-holons` | Migrate to SDK serve + connect |
+```c
+grpc_channel *holons_connect(const char *target);
+grpc_channel *holons_connect_with_opts(const char *target, holons_connect_options opts);
+void holons_disconnect(grpc_channel *channel);
 
-## Connect example pattern
-
-Each hello-world should include a small `connect_example` (or equivalent) that:
-
-```
-1. Starts the echo-server in the background (or assumes it's built)
-2. Calls connect("echo-server") using the SDK
-3. Sends a Ping RPC
-4. Prints the response
-5. Calls disconnect()
+typedef struct {
+    int timeout_ms;        // default 5000
+    const char *transport; // "stdio" (default), "tcp" (explicit override)
+    int start;             // 1 = start if not running (default 1)
+    const char *port_file; // NULL = use default
+} holons_connect_options;
 ```
 
-Reference: see `go-hello-world` for the Go pattern.
+### Resolution logic
+
+Same 3-step algorithm:
+1. `target` contains `:` → direct dial via `grpc_insecure_channel_create`.
+2. Else → slug → use existing `holons_discover_by_slug` → port file → start → dial.
+
+### Process management
+
+- Use `fork()`/`exec()` to launch the binary.
+- Track child PIDs in a static array or linked list.
+- `holons_disconnect()`: close channel, if ephemeral → `kill(pid, SIGTERM)`,
+  `waitpid` with 2s timeout, then `kill(pid, SIGKILL)`.
+- Parse port from child's stdout/stderr using `pipe()` + `read()`.
+
+### Port file convention
+
+Path: `$CWD/.op/run/<slug>.port`
+Content: `tcp://127.0.0.1:<port>\n`
+
+## Testing
+
+Add tests in `test/` following existing patterns.
+
+1. Direct dial test
+2. Slug resolution test
+3. Port file reuse test
+4. Stale port file cleanup test
 
 ## Rules
 
-1. **Non-regression**: each example must still build and run.
-2. **One example at a time**: migrate, test, commit.
-3. **No proto changes**.
-4. Follow each SDK's existing code style.
+- Follow existing code style in `holons.c` — look at the discover section for patterns.
+- Use POSIX-only APIs (`fork`, `exec`, `pipe`, `kill`, `waitpid`).
+- Run existing test suite — all must still pass.
+- Run with `-Wall -Wextra` — no new warnings.

@@ -1,43 +1,81 @@
-# TASK009 — Migrate Rust-Backend Recipes to SDK `connect`
+# TASK009 — Implement `connect` in `ruby-holons`
 
 ## Context
 
-Depends on: TASK001 (rust connect) + frontend SDK connect tasks.
+The Organic Programming SDK fleet requires a `connect` module in every SDK.
+`connect` composes discover + start + dial into a single name-based resolution
+primitive. See `AGENT.md` Article 11 "Connect — Name-Based Resolution".
 
-All six Rust-backend recipes need a **double migration**:
-1. The **Rust daemon** must use `rust-holons` `serve` (currently raw Rust gRPC).
-2. The **frontend** must use its SDK's `connect` (currently hardcoded addresses).
+The **reference implementation** is `go-holons/pkg/connect/connect.go` — study
+it before starting.
 
-See `sdk/TODO_MIGRATE_RECIPES.md` for the full migration plan.
+## Workspace
 
-## Recipes to migrate
+- SDK root: `sdk/ruby-holons/`
+- Existing modules: `lib/holons/discover.rb`, `lib/holons/identity.rb`,
+  `lib/holons/serve.rb`, `lib/holons/transport.rb`
+- Reference: `sdk/go-holons/pkg/connect/connect.go`
+- Spec: `sdk/TODO_CONNECT.md` § `ruby-holons`
 
-| Recipe | Daemon SDK | Frontend SDK | Frontend connect task dependency |
-|---|---|---|---|
-| `rust-dart-holons` | `rust-holons` | `dart-holons` | done (dart connect exists) |
-| `rust-swift-holons` | `rust-holons` | `swift-holons` | TASK002 |
-| `rust-kotlin-holons` | `rust-holons` | `kotlin-holons` | done (kotlin connect exists) |
-| `rust-web-holons` | `rust-holons` | `js-web-holons` | TASK003 |
-| `rust-dotnet-holons` | `rust-holons` | `csharp-holons` | done (csharp connect exists) |
-| `rust-qt-holons` | `rust-holons` | `cpp-holons` | TASK006 |
+## What to implement
 
-## Daemon migration (all 6)
+Create `lib/holons/connect.rb` and require it from the main `lib/holons.rb`.
 
-In each recipe's Rust daemon:
-1. Replace hand-rolled gRPC server setup with `holons::serve::run()`.
-2. Replace hand-rolled flag parsing with SDK's `--listen` convention.
-3. Ensure `holon.yaml` has correct `artifacts.binary` so `connect` can find it.
+### Public API
 
-Reference: see how Go daemons in `go-dart-holons` use `serve.Run()`.
+```ruby
+module Holons
+  def self.connect(target) → GRPC::Core::Channel
+  def self.connect(target, opts) → GRPC::Core::Channel
+  def self.disconnect(channel)
+end
+```
 
-## Frontend migration (all 6)
+### ConnectOptions
 
-Replace hardcoded `localhost:PORT` with `connect("slug")` using each
-frontend's SDK. Follow the same pattern as the Go-backend recipe migrations.
+```ruby
+module Holons
+  ConnectOptions = Struct.new(
+    :timeout,    # default 5 (seconds)
+    :transport,  # "stdio" (default) or "tcp"
+    :start,      # true = start if not running (default true)
+    :port_file,  # nil = use default
+    keyword_init: true
+  )
+end
+```
+
+### Resolution logic
+
+Same 3-step algorithm as reference:
+1. `target` contains `:` → direct dial.
+2. Else → slug → `Holons.discover_by_slug(target)` → port file → start
+   with `serve --listen stdio://` (default) → dial over pipes.
+   TCP fallback: `serve --listen tcp://127.0.0.1:0`.
+
+### Process management
+
+- Use `Process.spawn` to launch the binary.
+- Track started PIDs in a module-level `Hash`.
+- `disconnect()`: close channel, if ephemeral → `Process.kill("TERM", pid)`,
+  wait 2s, then `Process.kill("KILL", pid)`.
+
+### Port file convention
+
+Path: `$CWD/.op/run/<slug>.port`
+Content: `tcp://127.0.0.1:<port>\n`
+
+## Testing
+
+Follow `rake test` patterns from existing test files.
+
+1. Direct dial test
+2. Slug resolution test
+3. Port file reuse test
+4. Stale port file cleanup test
 
 ## Rules
 
-1. **Non-regression**: every recipe that builds today must still build.
-2. **One recipe at a time**: daemon first, then frontend, then commit.
-3. **Backward compatible**: direct `host:port` must still work everywhere.
-4. **No proto changes**.
+- Follow existing code style in `discover.rb`.
+- Use the `grpc` gem for channel creation.
+- Run `rake test` — all existing tests must still pass.

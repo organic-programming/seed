@@ -1,47 +1,67 @@
-# TASK011 — Update TODO.md to Reflect Current State
+# TASK011 — Implement `connect` in `cpp-holons`
 
 ## Context
 
-Depends on: all previous tasks (TASK001–TASK010), or can be done incrementally
-after each batch.
+The Organic Programming SDK fleet requires a `connect` module in every SDK.
+`cpp-holons` uses a header-based architecture in `include/holons/`.
 
-`sdk/TODO.md` is **stale** — its "Current state per SDK" table still shows
-`discover` and `connect` as ❌ across all SDKs, even though `discover` is
-100% complete and `connect` is done in 7 of 14 SDKs.
+The **reference implementation** is `go-holons/pkg/connect/connect.go` — study
+it before starting.
 
-## What to do
+## Workspace
 
-### 1. Update the table in `sdk/TODO.md`
+- SDK root: `sdk/cpp-holons/`
+- Existing files: `include/holons/holons.hpp` (main header with discover, transport, etc.)
+- Reference: `sdk/go-holons/pkg/connect/connect.go`
+- Spec: `sdk/TODO_CONNECT.md` § `cpp-holons`
 
-Update the "Current state per SDK" table (line 29–44) to reflect the actual
-state of each SDK. Use the following status markers:
+## What to implement
 
-- ✅ — module is implemented and tested
-- ❓ — partial implementation, needs verification
-- ❌ — not implemented
+Create `include/holons/connect.hpp` (or add to `holons.hpp` if the existing
+pattern keeps everything in one file — check first).
 
-After all connect tasks are done, the table should show ✅ for `discover`
-and `connect` in every row.
+### Public API
 
-### 2. Update `sdk/TODO_STATUS_REPORT.md`
+```cpp
+namespace holons {
+  std::shared_ptr<grpc::Channel> connect(const std::string& target);
+  std::shared_ptr<grpc::Channel> connect(const std::string& target, const ConnectOptions& opts);
+  void disconnect(std::shared_ptr<grpc::Channel> channel);
 
-Replace the existing report with a current snapshot:
-- Mark `discover` section as "Complete — all SDKs".
-- Update `connect` section with current completions.
-- Update recipe migration section.
-- Update hello-world section.
-- Update the practical summary at the bottom.
+  struct ConnectOptions {
+    int timeout_ms = 5000;
+    std::string transport = "stdio"; // "tcp" for explicit override
+    bool start = true;
+    std::string port_file;
+  };
+}
+```
 
-### 3. Mark completed TODO files
+### Resolution logic
 
-If all items in a TODO file are done, add a `## Status: Complete` header
-at the top:
-- `TODO_DISCOVER.md` — should already be marked complete.
-- `TODO_CONNECT.md` — mark complete when all 14 SDKs have connect.
-- `TODO_MIGRATE_RECIPES.md` — mark complete when all recipes are migrated.
+Same 3-step algorithm:
+1. `target` contains `:` → direct dial via `grpc::CreateChannel`.
+2. Else → slug → discover → port file → start → dial.
+
+### Process management
+
+- Use `popen()` or `fork()`/`exec()` for process launch.
+- Track started processes in a `static std::map`.
+- `disconnect()`: close channel, if ephemeral → SIGTERM → 2s wait → SIGKILL.
+
+### Port file convention
+
+Path: `$CWD/.op/run/<slug>.port`
+Content: `tcp://127.0.0.1:<port>\n`
+
+## Testing
+
+Add tests in `test/` following existing patterns.
 
 ## Rules
 
-- Be factual — only mark items as ✅ if the file actually exists and tests pass.
-- Verify each claim by checking for the file on disk.
-- Do not modify SDK source code in this task — documentation only.
+- Follow existing code style in `holons.hpp`.
+- Use C++17 standard library (`std::filesystem`, `std::optional`).
+- Use `grpc::CreateChannel` and `grpc::InsecureChannelCredentials`.
+- Build with existing `CMakeLists.txt` — adjust if needed.
+- All existing tests must still pass.

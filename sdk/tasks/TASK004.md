@@ -1,81 +1,89 @@
-# TASK004 — Implement `connect` in `ruby-holons`
+# TASK004 — HolonMeta Proto + Reference Implementation in `go-holons`
 
 ## Context
 
-The Organic Programming SDK fleet requires a `connect` module in every SDK.
-`connect` composes discover + start + dial into a single name-based resolution
-primitive. See `AGENT.md` Article 11 "Connect — Name-Based Resolution".
+Every holon should be self-documenting. The `HolonMeta` service exposes a
+`Describe` RPC that returns the holon's API catalog in plain English —
+method names, purposes, input/output fields with descriptions.
 
-The **reference implementation** is `go-holons/pkg/connect/connect.go` — study
-it before starting.
+This is **auto-registered** by the SDK's `serve` runner. Holon developers
+do not write any code for it.
+
+See `PROTOCOL.md` §3.5 for the full proto definition.
+See `AGENT.md` Article 2 "Self-documentation via Describe".
 
 ## Workspace
 
-- SDK root: `sdk/ruby-holons/`
-- Existing modules: `lib/holons/discover.rb`, `lib/holons/identity.rb`,
-  `lib/holons/serve.rb`, `lib/holons/transport.rb`
-- Reference: `sdk/go-holons/pkg/connect/connect.go`
-- Spec: `sdk/TODO_CONNECT.md` § `ruby-holons`
+- SDK root: `sdk/go-holons/`
+- Reference proto: `PROTOCOL.md` §3.5
+- Reference serve runner: `sdk/go-holons/pkg/serve/serve.go`
 
 ## What to implement
 
-Create `lib/holons/connect.rb` and require it from the main `lib/holons.rb`.
+### 1. Create the proto
 
-### Public API
+Create `sdk/go-holons/protos/holonmeta/v1/holonmeta.proto` with the
+exact definition from `PROTOCOL.md` §3.5. Generate Go stubs into
+`sdk/go-holons/gen/go/holonmeta/v1/`.
 
-```ruby
-module Holons
-  def self.connect(target) → GRPC::Core::Channel
-  def self.connect(target, opts) → GRPC::Core::Channel
-  def self.disconnect(channel)
-end
-```
+### 2. Create `pkg/describe/describe.go`
 
-### ConnectOptions
+This module:
 
-```ruby
-module Holons
-  ConnectOptions = Struct.new(
-    :timeout,    # default 5 (seconds)
-    :transport,  # "stdio" (default) or "tcp"
-    :start,      # true = start if not running (default true)
-    :port_file,  # nil = use default
-    keyword_init: true
-  )
-end
-```
+1. **Parses `.proto` files** from a given directory tree.
+   Use a proto parser library (e.g., `github.com/jhump/protoreflect/desc/protoparse`
+   or `github.com/bufbuild/protocompile`) to extract:
+   - Service names and comments
+   - RPC method names and comments
+   - Message field names, types, numbers, and comments
+   - `@required` tags in field comments → `FieldDoc.required = true`
+   - `@example` tags in field comments → `FieldDoc.example`
+   - `@example` tags in RPC comments → `MethodDoc.example_input`
 
-### Resolution logic
+2. **Returns a populated `DescribeResponse`** from the parsed proto data,
+   enriched with `slug` and `motto` from `holon.yaml` (use `pkg/identity`).
 
-Same 3-step algorithm as reference:
-1. `target` contains `:` → direct dial.
-2. Else → slug → `Holons.discover_by_slug(target)` → port file → start
-   with `serve --listen stdio://` (default) → dial over pipes.
-   TCP fallback: `serve --listen tcp://127.0.0.1:0`.
+3. **Implements the gRPC handler**:
+   ```go
+   type metaServer struct {
+       holonmetapb.UnimplementedHolonMetaServer
+       response *holonmetapb.DescribeResponse
+   }
 
-### Process management
+   func (s *metaServer) Describe(ctx context.Context, req *holonmetapb.DescribeRequest) (*holonmetapb.DescribeResponse, error) {
+       return s.response, nil
+   }
+   ```
 
-- Use `Process.spawn` to launch the binary.
-- Track started PIDs in a module-level `Hash`.
-- `disconnect()`: close channel, if ephemeral → `Process.kill("TERM", pid)`,
-  wait 2s, then `Process.kill("KILL", pid)`.
+4. **Provides a `Register` function** for use by `serve.Run`:
+   ```go
+   func Register(s *grpc.Server, protoDir string, holonYamlPath string) error
+   ```
 
-### Port file convention
+### 3. Auto-register in `serve.Run`
 
-Path: `$CWD/.op/run/<slug>.port`
-Content: `tcp://127.0.0.1:<port>\n`
+Modify `pkg/serve/serve.go` so that `Run` and `RunWithOptions` automatically
+register `HolonMeta` if a `protos/` directory and `holon.yaml` exist in the
+current working directory. If neither exists, skip silently.
 
-## Testing
+The auto-registration must:
+- Parse protos from `./protos/` (relative to cwd)
+- Read identity from `./holon.yaml`
+- Call `describe.Register(server, "./protos/", "./holon.yaml")`
+- Exclude `holonmeta.v1.HolonMeta` from its own output
 
-Follow `rake test` patterns from existing test files.
+### 4. Add tests
 
-1. Direct dial test
-2. Slug resolution test
-3. Port file reuse test
-4. Stale port file cleanup test
+- Parse the echo-server's proto (`protos/echo/v1/echo.proto`) and verify
+  the `DescribeResponse` contains correct service name, method name,
+  and comments.
+- Start a serve runner with `HolonMeta` auto-registered, call `Describe`,
+  verify the response.
+- Test graceful degradation: no `protos/` dir → no error, empty services list.
 
 ## Rules
 
-- Follow existing code style in `discover.rb`.
-- Use the `grpc` gem for channel creation.
-- Run `rake test` — all existing tests must still pass.
+- Follow existing code style in `pkg/connect/connect.go` and `pkg/serve/serve.go`.
+- Do not modify the holon developer's code path — `HolonMeta` is invisible to them.
+- Run `go test ./...` — all existing tests must still pass.
+- Run `go vet ./...` — no new warnings.

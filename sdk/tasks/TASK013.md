@@ -1,66 +1,48 @@
-# TASK013 — Implement HolonMeta `Describe` across SDK fleet
+# TASK013 — Migrate Go-Backend Recipes to SDK `connect`
 
 ## Context
 
-Depends on: TASK012 (reference `go-holons` implementation).
+Depends on: TASK007 (swift connect), TASK008 (js-web connect), TASK011 (cpp connect).
 
-Once `go-holons` has the reference `HolonMeta` implementation, each SDK
-must provide the same capability: parse the holon's `.proto` files at
-startup and auto-register a `Describe` RPC handler.
+Three Go-backend recipes still use hardcoded `localhost:PORT` addresses.
+They must be migrated to use the `connect("slug")` primitive from their
+respective frontend SDKs.
 
-See `PROTOCOL.md` §3.5 for the proto definition.
+See `sdk/TODO_MIGRATE_RECIPES.md` for the full migration plan.
 
-## SDKs to implement
+Already migrated (for reference patterns):
+- `go-dart-holons` — uses `dart-holons` `connect`
+- `go-kotlin-holons` — uses `kotlin-holons` `connect`
+- `go-dotnet-holons` — uses `csharp-holons` `Connect`
 
-The proto file (`holonmeta/v1/holonmeta.proto`) must be generated for
-each language. Each SDK's `serve` runner must auto-register `HolonMeta`.
+## Recipes to migrate
 
-### Tier 1 — SDKs with full serve runners
+### 1. `go-swift-holons`
 
-| SDK | Serve entry point | Proto parser strategy |
-|---|---|---|
-| `js-holons` | `src/server.mjs` | Use `protobufjs` to parse `.proto` files |
-| `python-holons` | `holons/serve.py` | Use `grpcio-tools` or `protobuf` compiler API |
-| `c-holons` | `src/holons.c` | Simple text parser for comments (no full proto compiler in C) |
+- Frontend: SwiftUI using `swift-holons`
+- **Before**: `let channel = try GRPCChannelPool.with(target: .host("localhost", port: 9091))`
+- **After**: `import Holons; let channel = try Holons.connect("gudule-daemon-greeting-goswift")`
+- Reference: see `go-dart-holons` for the equivalent Dart migration pattern.
 
-### Tier 2 — SDKs with partial serve (flag parsing)
+### 2. `go-web-holons`
 
-These SDKs don't have a full `serve` runner yet. Implement `describe` as
-a standalone module that can be manually registered:
+- Frontend: Web (browser JS) using `js-web-holons`
+- **Before**: hardcoded URL in gRPC-Web or WebSocket client initialization.
+- **After**: `import { connect } from 'js-web-holons'; const client = connect("host:port")`
+- Note: `js-web-holons` connect is direct-dial only (no slug resolution in browser).
+  The daemon address must still be provided — but through `connect()` rather than raw
+  channel construction. The backend Go daemon already uses `go-holons` SDK.
 
-| SDK | Module to create | Proto parser strategy |
-|---|---|---|
-| `rust-holons` | `src/describe.rs` | Use `protobuf-parse` crate |
-| `swift-holons` | `Sources/Holons/Describe.swift` | Use `SwiftProtobuf` reflection or text parsing |
-| `dart-holons` | `lib/src/describe.dart` | Use `protoc_plugin` or text parsing |
-| `kotlin-holons` | `src/main/kotlin/holons/Describe.kt` | Use `com.google.protobuf:protobuf-java` descriptor API |
-| `java-holons` | `src/main/java/holons/Describe.java` | Use `com.google.protobuf` descriptor API |
-| `csharp-holons` | `Holons/Describe.cs` | Use `Google.Protobuf.Reflection` |
-| `cpp-holons` | `include/holons/describe.hpp` | Use `google::protobuf::compiler` |
-| `ruby-holons` | `lib/holons/describe.rb` | Use `google-protobuf` gem or text parsing |
-| `objc-holons` | `src/HolonMeta.m` | Text parsing of `.proto` files |
-| `js-web-holons` | `src/describe.mjs` | Use `protobufjs` (same as `js-holons`) |
+### 3. `go-qt-holons`
 
-### Fallback: simple text parser
-
-For SDKs where a full proto compiler library is too heavy (C, Obj-C, Ruby),
-a simple text-based parser is acceptable. It only needs to extract:
-- `service Name { ... }` blocks and their leading comments
-- `rpc Method(...)` declarations and their leading comments
-- `message Name { ... }` blocks with field declarations and comments
-- `@required` and `@example` tags from comment lines
-
-This is a subset of proto syntax — no need for a full compiler.
-
-## Testing per SDK
-
-For each:
-1. Parse the echo-server `echo.proto` and verify correct extraction.
-2. Verify `HolonMeta` registration produces a working `Describe` RPC.
-3. Verify graceful degradation when no `.proto` files exist.
+- Frontend: Qt/C++ using `cpp-holons`
+- **Before**: `grpc::CreateChannel("localhost:9091", grpc::InsecureChannelCredentials())`
+- **After**: `auto channel = holons::connect("gudule-daemon-greeting-goqt");`
 
 ## Rules
 
-- One SDK at a time. Commit each independently.
-- The `holonmeta.v1` proto is the **same** across all SDKs — do not diverge.
-- Generated code for `holonmeta.v1` must be committed (per CONVENTIONS.md §5).
+1. **Non-regression**: every recipe that builds today must still build after migration.
+2. **One recipe at a time**: migrate, test, commit.
+3. **Do not modify the Go backend daemon** — it already uses `go-holons` SDK.
+4. **Backward compatible**: `connect("localhost:9091")` must still work.
+5. **No proto changes**: gRPC contracts stay as-is.

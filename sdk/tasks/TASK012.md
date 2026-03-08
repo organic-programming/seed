@@ -1,89 +1,71 @@
-# TASK012 — HolonMeta Proto + Reference Implementation in `go-holons`
+# TASK012 — Implement `connect` in `objc-holons`
 
 ## Context
 
-Every holon should be self-documenting. The `HolonMeta` service exposes a
-`Describe` RPC that returns the holon's API catalog in plain English —
-method names, purposes, input/output fields with descriptions.
+The Organic Programming SDK fleet requires a `connect` module in every SDK.
+`objc-holons` uses a single-file architecture (`src/Holons.m` + `include/Holons/Holons.h`).
+The `connect` functions must be added to these existing files.
 
-This is **auto-registered** by the SDK's `serve` runner. Holon developers
-do not write any code for it.
-
-See `PROTOCOL.md` §3.5 for the full proto definition.
-See `AGENT.md` Article 2 "Self-documentation via Describe".
+The **reference implementation** is `go-holons/pkg/connect/connect.go` — study
+it before starting.
 
 ## Workspace
 
-- SDK root: `sdk/go-holons/`
-- Reference proto: `PROTOCOL.md` §3.5
-- Reference serve runner: `sdk/go-holons/pkg/serve/serve.go`
+- SDK root: `sdk/objc-holons/`
+- Existing files: `include/Holons/Holons.h` (header), `src/Holons.m` (implementation)
+- Reference: `sdk/go-holons/pkg/connect/connect.go`
+- Spec: `sdk/TODO_CONNECT.md` § `objc-holons`
 
 ## What to implement
 
-### 1. Create the proto
+Add methods to the existing `Holons` class in `Holons.h` and `Holons.m`.
 
-Create `sdk/go-holons/protos/holonmeta/v1/holonmeta.proto` with the
-exact definition from `PROTOCOL.md` §3.5. Generate Go stubs into
-`sdk/go-holons/gen/go/holonmeta/v1/`.
+### Public API
 
-### 2. Create `pkg/describe/describe.go`
+```objc
++ (GRPCChannel *)connect:(NSString *)target;
++ (GRPCChannel *)connect:(NSString *)target options:(HolonsConnectOptions *)options;
++ (void)disconnect:(GRPCChannel *)channel;
+```
 
-This module:
+### ConnectOptions
 
-1. **Parses `.proto` files** from a given directory tree.
-   Use a proto parser library (e.g., `github.com/jhump/protoreflect/desc/protoparse`
-   or `github.com/bufbuild/protocompile`) to extract:
-   - Service names and comments
-   - RPC method names and comments
-   - Message field names, types, numbers, and comments
-   - `@required` tags in field comments → `FieldDoc.required = true`
-   - `@example` tags in field comments → `FieldDoc.example`
-   - `@example` tags in RPC comments → `MethodDoc.example_input`
+```objc
+@interface HolonsConnectOptions : NSObject
+@property (nonatomic) NSTimeInterval timeout;      // default 5.0
+@property (nonatomic, copy) NSString *transport;   // @"stdio" (default), @"tcp" for override
+@property (nonatomic) BOOL start;                  // YES = start if not running (default YES)
+@property (nonatomic, copy) NSString *portFile;    // nil = use default
+@end
+```
 
-2. **Returns a populated `DescribeResponse`** from the parsed proto data,
-   enriched with `slug` and `motto` from `holon.yaml` (use `pkg/identity`).
+### Resolution logic
 
-3. **Implements the gRPC handler**:
-   ```go
-   type metaServer struct {
-       holonmetapb.UnimplementedHolonMetaServer
-       response *holonmetapb.DescribeResponse
-   }
+Same 3-step algorithm:
+1. `target` contains `:` → direct dial.
+2. Else → slug → discover → port file → start with
+   `serve --listen stdio://` (default) → dial over pipes.
+   TCP fallback: `serve --listen tcp://127.0.0.1:0`.
 
-   func (s *metaServer) Describe(ctx context.Context, req *holonmetapb.DescribeRequest) (*holonmetapb.DescribeResponse, error) {
-       return s.response, nil
-   }
-   ```
+### Process management
 
-4. **Provides a `Register` function** for use by `serve.Run`:
-   ```go
-   func Register(s *grpc.Server, protoDir string, holonYamlPath string) error
-   ```
+- Use `NSTask` to launch the binary.
+- Track started tasks in a static `NSMutableDictionary`.
+- `disconnect:`: close channel, if ephemeral → `[task terminate]`, wait 2s,
+  then `[task interrupt]`.
+- Parse port from `NSPipe` attached to stdout/stderr.
 
-### 3. Auto-register in `serve.Run`
+### Port file convention
 
-Modify `pkg/serve/serve.go` so that `Run` and `RunWithOptions` automatically
-register `HolonMeta` if a `protos/` directory and `holon.yaml` exist in the
-current working directory. If neither exists, skip silently.
+Path: `$CWD/.op/run/<slug>.port`
+Content: `tcp://127.0.0.1:<port>\n`
 
-The auto-registration must:
-- Parse protos from `./protos/` (relative to cwd)
-- Read identity from `./holon.yaml`
-- Call `describe.Register(server, "./protos/", "./holon.yaml")`
-- Exclude `holonmeta.v1.HolonMeta` from its own output
+## Testing
 
-### 4. Add tests
-
-- Parse the echo-server's proto (`protos/echo/v1/echo.proto`) and verify
-  the `DescribeResponse` contains correct service name, method name,
-  and comments.
-- Start a serve runner with `HolonMeta` auto-registered, call `Describe`,
-  verify the response.
-- Test graceful degradation: no `protos/` dir → no error, empty services list.
+Add tests following existing patterns.
 
 ## Rules
 
-- Follow existing code style in `pkg/connect/connect.go` and `pkg/serve/serve.go`.
-- Do not modify the holon developer's code path — `HolonMeta` is invisible to them.
-- Run `go test ./...` — all existing tests must still pass.
-- Run `go vet ./...` — no new warnings.
+- Follow existing code style in `Holons.m` — match the discover section.
+- Use Foundation framework APIs (`NSTask`, `NSPipe`, `NSFileManager`).
+- All existing tests must still pass.

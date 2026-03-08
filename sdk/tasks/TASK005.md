@@ -1,71 +1,66 @@
-# TASK005 — Implement `connect` in `c-holons`
+# TASK005 — Implement HolonMeta `Describe` across SDK fleet
 
 ## Context
 
-The Organic Programming SDK fleet requires a `connect` module in every SDK.
-`c-holons` uses a single-file architecture (`src/holons.c` + `include/holons/holons.h`).
-The `connect` functions must be added to these existing files.
+Depends on: TASK004 (reference `go-holons` implementation).
 
-The **reference implementation** is `go-holons/pkg/connect/connect.go` — study
-it before starting.
+Once `go-holons` has the reference `HolonMeta` implementation, each SDK
+must provide the same capability: parse the holon's `.proto` files at
+startup and auto-register a `Describe` RPC handler.
 
-## Workspace
+See `PROTOCOL.md` §3.5 for the proto definition.
 
-- SDK root: `sdk/c-holons/`
-- Existing files: `include/holons/holons.h` (header), `src/holons.c` (implementation)
-- Reference: `sdk/go-holons/pkg/connect/connect.go`
-- Spec: `sdk/TODO_CONNECT.md` § `c-holons`
+## SDKs to implement
 
-## What to implement
+The proto file (`holonmeta/v1/holonmeta.proto`) must be generated for
+each language. Each SDK's `serve` runner must auto-register `HolonMeta`.
 
-Add functions to `include/holons/holons.h` and `src/holons.c`.
+### Tier 1 — SDKs with full serve runners
 
-### Public API
+| SDK | Serve entry point | Proto parser strategy |
+|---|---|---|
+| `js-holons` | `src/server.mjs` | Use `protobufjs` to parse `.proto` files |
+| `python-holons` | `holons/serve.py` | Use `grpcio-tools` or `protobuf` compiler API |
+| `c-holons` | `src/holons.c` | Simple text parser for comments (no full proto compiler in C) |
 
-```c
-grpc_channel *holons_connect(const char *target);
-grpc_channel *holons_connect_with_opts(const char *target, holons_connect_options opts);
-void holons_disconnect(grpc_channel *channel);
+### Tier 2 — SDKs with partial serve (flag parsing)
 
-typedef struct {
-    int timeout_ms;        // default 5000
-    const char *transport; // "stdio" (default), "tcp" (explicit override)
-    int start;             // 1 = start if not running (default 1)
-    const char *port_file; // NULL = use default
-} holons_connect_options;
-```
+These SDKs don't have a full `serve` runner yet. Implement `describe` as
+a standalone module that can be manually registered:
 
-### Resolution logic
+| SDK | Module to create | Proto parser strategy |
+|---|---|---|
+| `rust-holons` | `src/describe.rs` | Use `protobuf-parse` crate |
+| `swift-holons` | `Sources/Holons/Describe.swift` | Use `SwiftProtobuf` reflection or text parsing |
+| `dart-holons` | `lib/src/describe.dart` | Use `protoc_plugin` or text parsing |
+| `kotlin-holons` | `src/main/kotlin/holons/Describe.kt` | Use `com.google.protobuf:protobuf-java` descriptor API |
+| `java-holons` | `src/main/java/holons/Describe.java` | Use `com.google.protobuf` descriptor API |
+| `csharp-holons` | `Holons/Describe.cs` | Use `Google.Protobuf.Reflection` |
+| `cpp-holons` | `include/holons/describe.hpp` | Use `google::protobuf::compiler` |
+| `ruby-holons` | `lib/holons/describe.rb` | Use `google-protobuf` gem or text parsing |
+| `objc-holons` | `src/HolonMeta.m` | Text parsing of `.proto` files |
+| `js-web-holons` | `src/describe.mjs` | Use `protobufjs` (same as `js-holons`) |
 
-Same 3-step algorithm:
-1. `target` contains `:` → direct dial via `grpc_insecure_channel_create`.
-2. Else → slug → use existing `holons_discover_by_slug` → port file → start → dial.
+### Fallback: simple text parser
 
-### Process management
+For SDKs where a full proto compiler library is too heavy (C, Obj-C, Ruby),
+a simple text-based parser is acceptable. It only needs to extract:
+- `service Name { ... }` blocks and their leading comments
+- `rpc Method(...)` declarations and their leading comments
+- `message Name { ... }` blocks with field declarations and comments
+- `@required` and `@example` tags from comment lines
 
-- Use `fork()`/`exec()` to launch the binary.
-- Track child PIDs in a static array or linked list.
-- `holons_disconnect()`: close channel, if ephemeral → `kill(pid, SIGTERM)`,
-  `waitpid` with 2s timeout, then `kill(pid, SIGKILL)`.
-- Parse port from child's stdout/stderr using `pipe()` + `read()`.
+This is a subset of proto syntax — no need for a full compiler.
 
-### Port file convention
+## Testing per SDK
 
-Path: `$CWD/.op/run/<slug>.port`
-Content: `tcp://127.0.0.1:<port>\n`
-
-## Testing
-
-Add tests in `test/` following existing patterns.
-
-1. Direct dial test
-2. Slug resolution test
-3. Port file reuse test
-4. Stale port file cleanup test
+For each:
+1. Parse the echo-server `echo.proto` and verify correct extraction.
+2. Verify `HolonMeta` registration produces a working `Describe` RPC.
+3. Verify graceful degradation when no `.proto` files exist.
 
 ## Rules
 
-- Follow existing code style in `holons.c` — look at the discover section for patterns.
-- Use POSIX-only APIs (`fork`, `exec`, `pipe`, `kill`, `waitpid`).
-- Run existing test suite — all must still pass.
-- Run with `-Wall -Wextra` — no new warnings.
+- One SDK at a time. Commit each independently.
+- The `holonmeta.v1` proto is the **same** across all SDKs — do not diverge.
+- Generated code for `holonmeta.v1` must be committed (per CONVENTIONS.md §5).
