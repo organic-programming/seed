@@ -16,10 +16,11 @@ connect("rob-go") →
   1. If argument contains ":" → treat as host:port, dial directly
   2. Else → it's a holon slug
      a. discover() → find holon by slug
-     b. Check if already running (port file: .op/run/<slug>.port)
-     c. If not running → find binary, start with `serve --listen tcp://:0`
-     d. Read allocated port from stdout or port file
-     e. Dial grpc://localhost:<port>
+     b. Check if already running (port/socket file: .op/run/<slug>.port)
+     c. If running → dial whatever address the file advertises
+     d. If not running → find binary, start with `serve --listen stdio://`
+        (parent spawns child, pipe is wired at spawn time)
+     e. Dial over stdio pipe (default) or loopback TCP (explicit override)
   3. Return gRPC channel/connection
 ```
 
@@ -31,7 +32,7 @@ connect(target: string, opts: ConnectOptions) → GRPCChannel
 
 ConnectOptions:
   timeout:    duration      # how long to wait for server ready
-  transport:  string        # override: "tcp", "unix", "stdio"
+  transport:  string        # default: "stdio"; override: "tcp", "unix"
   start:      bool          # true = start if not running (default true)
   port_file:  string        # override port file path
 
@@ -49,13 +50,16 @@ disconnect(channel: GRPCChannel) → void
 
 ## Port file convention
 
-When a holon is started by `connect`, write:
+Port files are written only for **TCP or Unix** transports — `stdio://`
+has no addressable endpoint for other callers.
+
+When a holon is started by `connect` with `transport: "tcp"`, write:
 
 ```
 $ROOT/.op/run/<slug>.port
 ```
 
-Contents: `tcp://localhost:<port>\n`
+Contents: `tcp://localhost:<port>\n` or `unix://<path>\n`
 
 Before starting a holon, check if port file exists AND if the
 process is alive. If port file exists but process is dead, remove
@@ -73,8 +77,8 @@ func ConnectWithOpts(target string, opts ConnectOptions) (*grpc.ClientConn, erro
 func Disconnect(conn *grpc.ClientConn) error
 ```
 
-- Use `os/exec.Command` to start holon binary with `serve --listen tcp://:0`.
-- Parse port from binary's stderr (`"listening on tcp://:NNNN"`).
+- Default: start holon with `serve --listen stdio://` and dial over pipes.
+- TCP fallback: start with `serve --listen tcp://:0`, parse port from stderr.
 - Use `google.golang.org/grpc.Dial`.
 - Track started processes in a package-level map for cleanup.
 

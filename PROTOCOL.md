@@ -88,7 +88,8 @@ client := echopb.NewEchoClient(conn)
 ### 2.4 Serve — Wiring Listen to gRPC
 
 `Serve` is the standard entry point that combines Listen, gRPC
-server setup, reflection, and signal handling into a single call.
+server setup, `HolonMeta` self-documentation, and signal handling
+into a single call.
 See [Constitution, Article 11](./AGENT.md#article-11--the-serve--dial-convention).
 
 ```go
@@ -196,8 +197,8 @@ length-prefixed wire format (5-byte header: 1 compression flag +
 Every holon that supports the gRPC binding **must**:
 
 1. Accept a `--listen` flag for the transport URI.
-2. Enable [gRPC server reflection](https://grpc.io/docs/guides/reflection/)
-   (Constitution, Article 2 — Introspection).
+2. Register the `HolonMeta.Describe` service
+   (Constitution, Article 2 — Self-documentation).
 3. Handle `SIGTERM` / `SIGINT` for graceful shutdown.
 
 ### 3.2 Service Definition
@@ -236,8 +237,170 @@ the raw HTTP/2 stream.
 |----------|-----|
 | gRPC Documentation | [grpc.io](https://grpc.io/) |
 | Protocol Buffers | [protobuf.dev](https://protobuf.dev/) |
-| gRPC Server Reflection | [grpc.io/docs/guides/reflection](https://grpc.io/docs/guides/reflection/) |
 | gRPC Status Codes | [grpc.io/docs/guides/status-codes](https://grpc.io/docs/guides/status-codes/) |
+
+### 3.5 HolonMeta Service
+
+Every holon **must** register the `HolonMeta` service alongside its
+own domain services. The SDK auto-registers it when using the standard
+`serve` runner — holon developers do not implement it manually.
+
+`HolonMeta` provides a single RPC — `Describe` — that returns the
+holon's API documentation as a typed protobuf response. The holon
+controls what it exposes: internal or debug RPCs can be excluded.
+The response includes enough type information for a caller to
+dynamically construct and send requests without compiled stubs.
+
+```protobuf
+syntax = "proto3";
+package holonmeta.v1;
+
+// HolonMeta is auto-registered by the SDK's serve runner.
+// It provides self-documentation for any holon.
+service HolonMeta {
+  // Describe returns the holon's API catalog: services, methods,
+  // input/output types, enum definitions, and human-readable
+  // descriptions.
+  rpc Describe(DescribeRequest) returns (DescribeResponse);
+}
+
+message DescribeRequest {}
+
+message DescribeResponse {
+  // Holon identity from holon.yaml.
+  string slug  = 1;
+  string motto = 2;
+
+  // One entry per gRPC service the holon exposes.
+  repeated ServiceDoc services = 3;
+}
+
+// ServiceDoc documents a single gRPC service.
+message ServiceDoc {
+  // Fully qualified service name, e.g. "echo.v1.Echo".
+  string name = 1;
+
+  // Human-readable description from the proto comment.
+  string description = 2;
+
+  // One entry per RPC method in the service.
+  repeated MethodDoc methods = 3;
+}
+
+// MethodDoc documents a single RPC method.
+message MethodDoc {
+  // Method name, e.g. "Ping".
+  string name = 1;
+
+  // Human-readable description from the proto comment.
+  string description = 2;
+
+  // Fully qualified input message type, e.g. "echo.v1.PingRequest".
+  string input_type = 3;
+
+  // Fully qualified output message type, e.g. "echo.v1.PingResponse".
+  string output_type = 4;
+
+  // Documentation for each field in the input message.
+  repeated FieldDoc input_fields = 5;
+
+  // Documentation for each field in the output message.
+  repeated FieldDoc output_fields = 6;
+
+  // True if the input is a client-streaming type.
+  bool client_streaming = 7;
+
+  // True if the output is a server-streaming type.
+  bool server_streaming = 8;
+
+  // A concrete example request as JSON. Shows callers what a valid
+  // request looks like. Populated from @example tags in proto
+  // comments, or from companion .example.json files.
+  string example_input = 9;
+}
+
+// FieldDoc documents a single message field.
+message FieldDoc {
+  // Field name as declared in the proto.
+  string name = 1;
+
+  // Proto type name (e.g. "string", "int64", "echo.v1.Nested").
+  string type = 2;
+
+  // Field number in the proto definition.
+  int32 number = 3;
+
+  // Human-readable description from the proto comment.
+  string description = 4;
+
+  // Field cardinality.
+  FieldLabel label = 5;
+
+  // If this field is a map, the key and value type names.
+  string map_key_type   = 6;
+  string map_value_type  = 7;
+
+  // If this field references a message type, its nested fields.
+  repeated FieldDoc nested_fields = 8;
+
+  // If this field references an enum type, its values.
+  repeated EnumValueDoc enum_values = 9;
+
+  // Whether this field is semantically required. Proto3 has no
+  // wire-level required, but RPCs have semantic requirements
+  // (e.g. "slug must be provided"). Populated from @required
+  // tags in proto comments.
+  bool required = 10;
+
+  // Example value as JSON. Helps LLMs construct valid requests.
+  // Populated from @example tags in proto comments.
+  string example = 11;
+}
+
+// FieldLabel indicates field cardinality.
+enum FieldLabel {
+  FIELD_LABEL_UNSPECIFIED = 0;
+  FIELD_LABEL_OPTIONAL    = 1;
+  FIELD_LABEL_REPEATED    = 2;
+  FIELD_LABEL_MAP         = 3;
+}
+
+// EnumValueDoc documents a single enum value.
+message EnumValueDoc {
+  // Enum value name, e.g. "FIELD_LABEL_OPTIONAL".
+  string name = 1;
+
+  // Numeric value.
+  int32 number = 2;
+
+  // Human-readable description from the proto comment.
+  string description = 3;
+}
+```
+
+#### Behavior
+
+- The SDK parses `.proto` files from the holon's `protos/` directory
+  at startup and populates `DescribeResponse` automatically.
+- `HolonMeta` is excluded from its own `Describe` output — the
+  response documents only the holon's domain services.
+- If the holon has no parseable `.proto` files, `Describe` returns
+  a response with the holon's `slug` and `motto` (from `holon.yaml`)
+  and an empty `services` list.
+- Nested message fields are recursively expanded in `FieldDoc.nested_fields`
+  up to a reasonable depth (the SDK may cap recursion).
+
+#### External Bridges: `op inspect` and `op mcp`
+
+JSON Schema generation, MCP tool definitions, and LLM function-calling
+formats are **not** the holon's responsibility. `op` handles these
+externally by reading the holon's `.proto` files:
+
+- `op inspect <slug>` — rich offline API documentation from protos/
+- `op mcp <slug>` — MCP server bridge exposing RPCs as MCP tools
+- `op tools <slug>` — LLM tool definitions in any format
+
+See [OP.md §15](./OP.md) for details.
 
 ---
 
@@ -804,6 +967,5 @@ Everything else is standard JSON-RPC 2.0. No new protocol.
 | WebSocket Subprotocol Registry | [iana.org/assignments/websocket](https://www.iana.org/assignments/websocket/websocket.xml) |
 | gRPC Documentation | [grpc.io](https://grpc.io/) |
 | Protocol Buffers | [protobuf.dev](https://protobuf.dev/) |
-| gRPC Server Reflection | [grpc.io/docs/guides/reflection](https://grpc.io/docs/guides/reflection/) |
 | gRPC Status Codes | [grpc.io/docs/guides/status-codes](https://grpc.io/docs/guides/status-codes/) |
 | Language Server Protocol (similar approach) | [microsoft.github.io/language-server-protocol](https://microsoft.github.io/language-server-protocol/) |

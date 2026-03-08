@@ -154,31 +154,51 @@ gRPC is the default for distributed communication. Other transports are
 permitted when the use case requires it, but the proto definition remains
 the source of truth regardless of the transport layer.
 
-### Introspection by default
+### Self-documentation via `Describe`
 
-Every holon's gRPC server **must** enable
-[server reflection](https://github.com/grpc/grpc/blob/master/doc/server-reflection.md)
-by default. A holon is self-describing: an agent or tool connecting to it
-must be able to discover its services, methods, and message types at runtime
+A holon is self-describing: an agent or tool connecting to it must be
+able to discover its services, methods, and message types at runtime
 without needing the `.proto` file.
 
 This is not a convenience — it is a requirement of the organic paradigm.
-Opacity is the enemy of composition. A holon that hides its contract cannot
-participate in the ecosystem.
+Opacity is the enemy of composition. A holon that hides its contract
+cannot participate in the ecosystem.
 
-For network-exposed deployments where the API surface should not be
-discoverable, reflection can be disabled via the `--no-reflect` flag:
+Every holon **must** register the SDK's built-in `HolonMeta` service,
+which provides a `Describe` RPC:
 
 ```
-<holon> serve                 ← reflection ON (default)
-<holon> serve --no-reflect    ← reflection OFF (production/exposed)
+holon.Describe() → slug, motto, services[], methods[], field docs
 ```
+
+`Describe` returns the holon's API catalog — method names, purpose,
+input/output types with field descriptions, enum definitions — as a
+typed protobuf response. It provides:
+
+- **Selective exposure** — the holon controls exactly what it documents.
+  Internal or debug RPCs can be omitted.
+- **Full type information** — enough for a caller to dynamically
+  construct and send requests without compiled stubs.
+- **Human-readable descriptions** — curated English, not raw metadata.
+- **Examples** — concrete request examples from `@example` tags
+  in proto comments, so any caller can see what a valid call looks like.
+- **Semantic required/optional** — `@required` tags fill the gap where
+  proto3 has no wire-level required keyword.
+
+For LLM and MCP integration, `op` provides external bridges that read
+the `.proto` files directly — see `op inspect`, `op mcp`, `op tools`
+in [OP.md §15](./OP.md).
+
+The SDK auto-registers `HolonMeta` when using the standard `serve`
+runner. The proto documentation is parsed from the holon's `protos/`
+directory lazily at runtime. See [PROTOCOL.md §3.5](./PROTOCOL.md) for
+the full service definition.
 
 > [!NOTE]
-> A comprehensive security model (authentication, authorization,
-> transport encryption) is planned for a future revision of Organic
-> Programming. For now, `--no-reflect` is the minimal production
-> hardening mechanism.
+> gRPC server reflection **may** be enabled as a development
+> convenience for tools like `grpcurl`. It is not required by
+> this constitution — `Describe` is the canonical introspection
+> mechanism.
 
 ### Code generation is the bridge
 
@@ -431,7 +451,7 @@ A holon's transport choice determines two structural properties
 
 ### Requirements
 
-1. **gRPC reflection must be enabled** regardless of transport (see Article 2).
+1. **`HolonMeta.Describe` must be registered** regardless of transport (see Article 2).
 2. **The server must respond to `SIGTERM`** for graceful shutdown.
 3. **The `--listen` flag accepts a single URI.** Multiple listeners are not
    required for v1.
@@ -465,13 +485,30 @@ three lower-level operations:
 1. **Discover** — resolve a holon slug to a filesystem location
    (scan `holon.yaml` manifests in known roots).
 2. **Start** (if needed) — find the built binary, launch it with
-   `serve --listen tcp://127.0.0.1:0`, and capture the allocated port.
+   `serve --listen stdio://`, and wire the parent's pipes directly.
 3. **Dial** — open a gRPC client channel to the running holon.
 
 ```
 connect("rob-go")          →  discover → start → dial → ready gRPC channel
 connect("localhost:9090")  →  dial directly (host:port bypass)
 ```
+
+#### Transport cascade
+
+When `connect` starts a holon (ephemeral mode), it uses a transport
+cascade ordered by efficiency:
+
+| Priority | Transport | When |
+|:--------:|-----------|------|
+| **1** | `stdio://` | Default — parent owns child's pipes, zero overhead |
+| **2** | `tcp://127.0.0.1:0` | Explicit override via `ConnectOptions` |
+
+`stdio://` is the default because it is the universal baseline — every
+OS, every language has stdin/stdout. The pipe is already wired at spawn
+time: no port allocation, no loopback TCP overhead, no race conditions.
+
+When `connect` finds an **already-running** holon (via port/socket file),
+there is no cascade — it dials whatever address the file advertises.
 
 `Disconnect` reverses the process: close the channel and, if the
 SDK started the holon (ephemeral mode), stop it.
@@ -605,7 +642,7 @@ as much as possible. The SDK provides the canonical implementation of:
 Reimplementing these from scratch defeats the purpose of the ecosystem.
 A hand-rolled transport may work in isolation, but it risks
 incompatibility with the fleet — subtle framing differences, missing
-reflection, incorrect shutdown sequences.
+self-documentation, incorrect shutdown sequences.
 
 ### The rule
 

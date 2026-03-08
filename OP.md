@@ -44,7 +44,8 @@ composer (B. ALTER).
 11. [Dependency Management](#11-dependency-management)
 12. [Output & Formatting](#12-output--formatting)
 13. [Error Model](#13-error-model)
-14. [Complete Command Reference](#14-complete-command-reference)
+14. [Introspection](#14-introspection)
+15. [Complete Command Reference](#15-complete-command-reference)
 
 ---
 
@@ -220,7 +221,7 @@ contract:
   service: RobGoService
   rpcs: [Build, Test, Run, Fmt, Vet]
 
-# ── Operational ───────────────────────────────────────
+# ── Operational ────────────────────────────────────────────
 kind: wrapper
 platforms: [macos, linux, windows]
 build:
@@ -233,6 +234,17 @@ delegates:
   commands: [go]
 artifacts:
   binary: rob-go
+
+# ── Skills ───────────────────────────────────────────────
+skills:
+  - name: prepare-release
+    description: Prepare a Go package for production release.
+    when: User wants clean, tested, optimized code ready to ship.
+    steps:
+      - Fmt — format all source files
+      - Vet — run static analysis
+      - Test — run the full test suite
+      - Build with mode=release
 ```
 
 ### Identity fields
@@ -280,6 +292,20 @@ Omit `contract` entirely if the proto is not yet defined.
 | `delegates.commands` | list | no | Wrapper-only. External commands the holon wraps. |
 | `artifacts.binary` | string | yes for `native`/`wrapper`, no for `composite` | Primary binary name (not a path). Must equal the slug for `native`/`wrapper`. Build output is `.op/build/bin/<artifacts.binary>`, install destination is `$OPBIN/<artifacts.binary>`. |
 | `artifacts.primary` | string | no for `native`/`wrapper`, yes for `composite` | Non-binary primary artifact path (e.g. `.app` bundle), relative to holon root. Used as the success contract for `op build` when set. |
+
+### Skills fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `skills` | list | no | Composed workflows that describe how to use the holon's RPCs together. |
+| `skills[].name` | string | yes | Skill identifier, kebab-case (e.g. `prepare-release`). |
+| `skills[].description` | string | yes | What this skill achieves. |
+| `skills[].when` | string | no | When to use this skill — the trigger or context. |
+| `skills[].steps` | list of string | yes | Ordered sequence of RPC calls or instructions. |
+
+Skills are natural language workflows. They describe **when** to use
+the holon and **how** to combine its RPCs — complementing the proto
+file which describes **what** each RPC does individually.
 
 ### Kind
 
@@ -1084,7 +1110,122 @@ macOS, `sudo apt install cmake` on Linux).
 
 ---
 
-## 14. Complete Command Reference
+## 14. Introspection
+
+Every holon carries its `.proto` contract (Article 2, Article 13).
+`op` reads these files directly to provide rich introspection —
+the holon does not need to implement any introspection logic.
+
+### `op inspect <slug>`
+
+Offline API documentation. Reads `protos/` from the holon's
+directory — the holon does not need to be running.
+
+```bash
+op inspect rob-go              # human-readable API reference
+op inspect rob-go --json       # structured JSON output
+op inspect localhost:9090      # fallback: call Describe RPC
+```
+
+The human-readable output:
+
+```
+rob-go — Build what you mean.
+
+  rob_go.v1.RobGoService
+    Wraps the go command for gRPC access.
+
+    Build(BuildRequest) → BuildResponse
+      Compile Go packages.
+
+      Request:
+        package  string  [required]  The Go package to build.
+                                     @example "./cmd/rob"
+
+      Response:
+        output   string  Compiler output.
+        success  bool    Whether the build succeeded.
+```
+
+`op inspect` extracts `@required` and `@example` tags from proto
+comments. These are plain comment conventions, not proto syntax:
+
+```protobuf
+message BuildRequest {
+  // The Go package to build.
+  // @required
+  // @example "./cmd/rob"
+  string package = 1;
+}
+```
+
+When given a `host:port` address (an already-running holon), `op
+inspect` falls back to calling the `HolonMeta.Describe` RPC.
+
+If the holon declares `skills` in its manifest, `op inspect` shows
+them after the API reference:
+
+```
+  Skills:
+    prepare-release — Prepare a Go package for production release.
+      When: User wants clean, tested, optimized code ready to ship.
+      Steps:
+        1. Fmt — format all source files
+        2. Vet — run static analysis
+        3. Test — run the full test suite
+        4. Build with mode=release
+```
+
+### `op mcp <slug> [slug2...]`
+
+Start an MCP server that exposes one or more holons as MCP tools.
+
+```bash
+op mcp rob-go                        # one holon
+op mcp rob-go jess-npm echo-server   # multiple holons
+```
+
+This is the bridge between the organic ecosystem and any AI agent
+that speaks MCP (Claude, Cursor, Windsurf, etc.).
+
+**How it works:**
+
+1. Read each holon's `protos/` → parse services, methods, types
+2. Extract `@required`, `@example` tags from comments
+3. Generate MCP tool definitions with JSON Schema (from the
+   proto type tree) for each RPC method
+4. Start an MCP server over stdio (per MCP specification)
+5. When the LLM calls a tool → `op` translates the JSON request
+   into a gRPC call → `connect(slug)` → invoke the RPC →
+   return the response as JSON
+
+The JSON Schema generation is internal to `op` — the holon never
+sees it. The holon just serves its domain RPCs over gRPC as always.
+
+If holons declare `skills` in `holon.yaml`, `op mcp` exposes them
+as **MCP prompts** — composed workflows that guide the LLM through
+multi-step operations.
+
+**Every holon in the ecosystem is instantly MCP-compatible.**
+
+### `op tools <slug>`
+
+Output LLM tool definitions for a holon's RPCs.
+
+```bash
+op tools rob-go                      # default format
+op tools rob-go --format openai      # OpenAI function calling
+op tools rob-go --format anthropic   # Anthropic tool use
+op tools rob-go --format mcp         # MCP tool list
+```
+
+Same proto parsing as `op inspect`, different output format.
+Useful for embedding tool definitions in agent prompts or
+configuration files.
+
+---
+
+## 15. Complete Command Reference
 
 ### Identity
 
@@ -1158,3 +1299,14 @@ macOS, `sudo apt install cmake` on Linux).
 |---|---|
 | `op version` | Print version |
 | `op help` | Print usage |
+
+### Introspection
+
+| Command | Description |
+|---|---|
+| `op inspect <slug>` | Offline API documentation from protos/ |
+| `op inspect <slug> --json` | Structured JSON output |
+| `op inspect <host:port>` | Fallback: call Describe RPC on running holon |
+| `op mcp <slug> [slug2...]` | Start MCP server exposing holon RPCs as tools |
+| `op tools <slug>` | Output LLM tool definitions |
+| `op tools <slug> --format <fmt>` | Specific format: openai, anthropic, mcp |
