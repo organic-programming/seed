@@ -1,4 +1,4 @@
-# TASK017 — Fix QA Blockers from CODEX Audit Run
+# TASK017 — Fix QA Blockers and Complete Recipe Runtime Verification
 
 ## Context
 
@@ -6,115 +6,85 @@ Depends on: `mac_TASK001`, `mac_TASK002`.
 
 **Unblocks:** `QA_TASK001`, `AUDIT_TASK001`.
 
-CODEX ran `QA_TASK001` and got all 12 recipe **builds** passing, but
+CODEX ran `QA_TASK001` and got all 12 recipe **builds** passing but
 stopped before committing because end-to-end **runtime** verification
-is still failing. This task captures every blocker it identified and
-adds the remaining runtime sweep it could not complete.
+is still failing. This task fixes the identified issues and completes
+the runtime sweep.
 
-Until runtime is green and commits are landed, both QA and the
-documentation audit remain blocked.
-
-### What CODEX fixed (uncommitted, +1093 −617 across 34 files)
-
-The build regressions were already patched:
-
-| Area | Fix |
-|------|-----|
-| `greeting-goweb` / `greeting-rustweb` | Dropdown + button event wiring in `ui.ts`, layout in `style.css` |
-| `greeting-goqt` / `greeting-rustqt` | Picker + button signal wiring in `MainWindow.cpp/.h` |
-| `greeting-godart` / `greeting-rustdart` | Labels and widget keys in `greeting_screen.dart` |
-| `greeting-gokotlin` / `greeting-rustkotlin` | Dropdown + button behavior in `ContentView.kt` |
-| `greeting-godotnet` / `greeting-rustdotnet` | macOS targeting (`net8.0-maccatalyst`) and daemon shutdown in `.csproj` / `MainPage.xaml.cs` |
-| `greeting-rustqt` | RPC client binary path in `GreetingClient.cpp` |
-
-### What is still broken
-
-`go-swift-holons` launch/UI/RPC lifecycle fails when the daemon is
-started **by the bundled app** (autostart path). The SwiftUI client
-works when pointed at an **already running** TCP daemon, proving the
-gRPC layer and UI are correct. CODEX traced a bug in the migrated
-`connect(slug)` path, replaced the launcher with a managed TCP
-child-process approach with retries/timeouts, but the bundled autostart
-still does not reliably pass.
-
-`rust-swift-holons` likely inherits the same `DaemonProcess.swift` bug
-but was not verified at runtime.
-
-The remaining 10 recipes were not runtime-verified (build-only).
-
-The `examples/` hello-world matrix was not started.
+Until every recipe passes full lifecycle verification and commits are
+landed, both QA and the documentation audit remain blocked.
 
 ---
 
-## What to do
+## 1. Migrate SwiftUI recipes to SDK `connect`
 
-### 1. Triage CODEX uncommitted changes
+**Root cause of the go-swift / rust-swift blocker.**
 
-Review the 34 modified files, discard anything speculative, keep only
-clean fixes.
+The 10 other recipes use their SDK's `connect(slug)` for gRPC channel
+creation. The two SwiftUI recipes bypass the SDK entirely, dialing
+with raw `grpc-swift`:
 
-- [ ] Checkout a branch from current `master`.
-- [ ] Cherry-pick or re-apply the build fixes per recipe (use the diff
-      summary above as guide).
-- [ ] **Do not** carry forward the experimental `DaemonProcess.swift`
-      TCP child-process rewrite — start fresh from master for that file.
-- [ ] Commit per-recipe (one commit per recipe repo).
+```swift
+// WRONG — raw gRPC, no SDK
+let channel = ClientConnection.insecure(group: group)
+    .connect(host: host, port: port)
+```
 
-### 2. Fix `go-swift-holons` daemon autostart
+This must be replaced with `swift-holons` connect:
 
-The root issue: `DaemonProcess.swift` starts the Go daemon via
-`Foundation.Process`, but the gRPC channel connects before the daemon
-is listening. The `connect(slug)` migration may have introduced a race
-or wrong endpoint.
+```swift
+// CORRECT — SDK-managed connection
+import SwiftHolons
+let channel = try await SwiftHolons.connect(slug)
+```
 
-- [ ] Verify the daemon binary name in `holon.yaml` matches the binary
-      produced by `go build` (expected: `gudule-daemon-greeting-goswift`).
-- [ ] Verify `DaemonProcess.swift` resolves the binary path correctly
-      inside the app bundle (`Bundle.main.url(forAuxiliaryExecutable:)`).
-- [ ] Verify the TCP port in `DaemonProcess.swift` matches the daemon's
-      listen address (`127.0.0.1:9091`).
-- [ ] Add a readiness check: after `Process.run()`, poll the TCP port
-      (e.g. `connect()` in a retry loop with 100 ms intervals, 5 s
-      timeout) before returning from `startDaemon()`.
-- [ ] Verify `GreetingClient.swift` connects to the **same** port.
-- [ ] End-to-end: build, launch from Xcode, confirm language picker
+### `go-swift-holons`
+
+- [ ] Add `swift-holons` as a dependency in `Package.swift`.
+- [ ] Rewrite `GreetingClient.swift` to use
+      `SwiftHolons.connect("gudule-greeting-goswift")`.
+- [ ] Remove hardcoded `host`/`port` constants from `GreetingClient.swift`.
+- [ ] Keep `DaemonProcess.swift` daemon launch logic unchanged (subprocess
+      management is recipe-specific, not SDK territory).
+- [ ] Build and verify: launch from Xcode, confirm language picker
       populates and `SayHello` RPC returns a greeting.
 
-### 3. Fix `rust-swift-holons` daemon autostart
+### `rust-swift-holons`
 
-Same `DaemonProcess.swift` pattern — apply the same fix with the Rust
-binary name (`gudule-daemon-greeting-rustswift`).
+- [ ] Same migration with slug `"gudule-greeting-rustswift"`.
+- [ ] Build and verify end-to-end.
 
-- [ ] Apply the port-polling readiness check.
-- [ ] Verify Cargo binary path resolution.
-- [ ] End-to-end: build, launch, confirm greeting round-trip.
+---
 
-### 4. Runtime-verify remaining 10 recipes
+## 2. Runtime-verify all 12 recipes
 
-For each recipe, run the **full QA_TASK001 checklist** (Build → Launch
-→ UI → RPC → Daemon lifecycle):
+For each recipe, run the full `QA_TASK001` checklist
+(Build → Launch → UI → RPC → Daemon lifecycle).
 
-#### Go-backend
+Fix any issue found, commit per-recipe. Apply the 3-attempt rule:
+if stuck after 3 attempts, write `BLOCKED.md` and move on.
 
+### Go-backend
+
+- [ ] `go-swift-holons` — Xcode, run, greet.
 - [ ] `go-web-holons` — `npm run dev`, open browser, greet.
 - [ ] `go-qt-holons` — `cmake --build`, run binary, greet.
 - [ ] `go-dart-holons` — `flutter run -d macos`, greet.
 - [ ] `go-kotlin-holons` — `./gradlew run`, greet.
 - [ ] `go-dotnet-holons` — `dotnet build -f net8.0-maccatalyst`, run, greet.
 
-#### Rust-backend
+### Rust-backend
 
+- [ ] `rust-swift-holons` — Xcode, run, greet.
 - [ ] `rust-web-holons` — `npm run dev`, open browser, greet.
 - [ ] `rust-qt-holons` — `cmake --build`, run binary, greet.
 - [ ] `rust-dart-holons` — `flutter run -d macos`, greet.
 - [ ] `rust-kotlin-holons` — `./gradlew run`, greet.
 - [ ] `rust-dotnet-holons` — `dotnet build -f net8.0-maccatalyst`, run, greet.
 
-If any recipe fails runtime verification, fix it and commit in the
-same pass. Apply the 3-attempt rule: if stuck after 3 attempts, write
-`BLOCKED.md` and move on.
+---
 
-### 5. Runtime-verify `examples/` hello-world matrix
+## 3. Runtime-verify `examples/` hello-world matrix
 
 For each of the 14 hello-world examples:
 
@@ -124,9 +94,11 @@ For each of the 14 hello-world examples:
 
 See `QA_TASK001.md` § "Hello-world examples" for the full list.
 
-### 6. Update QA_TASK001 checklist
+---
 
-- [ ] Fill in every cell in the QA_TASK001 tables with ✅ or ❌.
+## 4. Update QA checklist and roadmap
+
+- [ ] Fill in every cell in the `QA_TASK001` tables with ✅ or ❌.
 - [ ] Write `BLOCKED.md` for any recipe still stuck after 3 attempts.
 - [ ] Update `ROADMAP.md` Phase 6 status.
 
@@ -134,8 +106,10 @@ See `QA_TASK001.md` § "Hello-world examples" for the full list.
 
 ## Rules
 
+- **SDK connect is mandatory.** Every recipe frontend must use its
+  SDK's `connect(slug)` — no raw gRPC channel creation.
 - Commit per-recipe, not as one giant commit.
-- The task is complete only when every QA_TASK001 row is ✅ or has a
+- The task is complete only when every `QA_TASK001` row is ✅ or has a
   `BLOCKED.md`.
 - Do not modify proto contracts or SDK library code — fixes go in the
   recipe/example source only.
