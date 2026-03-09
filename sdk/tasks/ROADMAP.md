@@ -197,13 +197,15 @@ Phase 1 (OP)              Phase 2 (Describe)      Phase 3 (Connect)
 
 ### Phase 6 — Quality Control (after Phase 5)
 
+- [ ] **TASK017** — Fix QA blockers from CODEX audit run
 - [ ] **QA_TASK001** — End-to-end verification of all recipes and examples
 
-Builds, launches, and verifies every recipe (12) and hello-world
-example (14). Checks UI integrity, RPC round-trip, and daemon
-lifecycle. Fixes any issue found during verification.
+**TASK017** triages CODEX's uncommitted build fixes, resolves the
+`go-swift-holons` / `rust-swift-holons` daemon autostart blocker,
+runtime-verifies the remaining 10 recipes and 14 hello-world examples,
+and updates the QA checklist. Must complete before re-running QA_TASK001.
 
-See [QA_TASK001.md](./QA_TASK001.md) for the full checklist.
+See [TASK017.md](./TASK017.md) and [QA_TASK001.md](./QA_TASK001.md).
 
 ---
 
