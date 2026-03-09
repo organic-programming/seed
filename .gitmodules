@@ -89,3 +89,6 @@
 [submodule "recipes/rust-qt-holons"]
 	path = recipes/rust-qt-holons
 	url = git@github.com:organic-programming/rust-qt-holons.git
+[submodule "holons/wisupaa-whisper"]
+	path = holons/wisupaa-whisper
+	url = git@github.com:organic-programming/wisupaa-whisper.git
