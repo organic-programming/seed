@@ -14,6 +14,7 @@ graph TD
         OP5["OP_TASK005<br/>Package Dist"]
         OP6["OP_TASK006<br/>Setup Docs"]
         OP7["OP_TASK007<br/>Recipe Restructuring"]
+        OP8["OP_TASK008<br/>Apple App Packaging"]
 
         OP1 --> OP2
         OP1 --> OP3
@@ -53,6 +54,7 @@ graph TD
 | [OP_TASK004](./OP_TASK004_mesh_documentation.md) | OP | Document `op mesh` + transport security in spec docs |
 | [OP_TASK005](./OP_TASK005_op_package_distribution.md) | OP | Package manager distribution for `op` CLI |
 | [OP_TASK007](./OP_TASK007_recipe_restructuring.md) | OP | Restructure recipes into `ui/` + `composition/` |
+| [OP_TASK008](./OP_TASK008_apple_app_packaging.md) | OP | Apple app packaging model for SwiftPM/Xcode frontends |
 | [RUST_TASK001](./RUST_TASK001_auto_holonmeta.md) | RUST | Auto-register `HolonMeta.Describe` in `serve::run()` |
 | [RUST_TASK002](./RUST_TASK002_grpcclient.md) | RUST | `grpcclient` module (WebSocket + mem dial) |
 | [MEGG_TASK001](./MEGG_TASK001_ffmpeg_bootstrap.md) | MEGG | Bootstrap `megg-ffmpeg` C++ holon |
