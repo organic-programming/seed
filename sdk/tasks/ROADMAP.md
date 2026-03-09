@@ -37,7 +37,7 @@ Phase 5 splits into macOS recipe builds and Windows WinUI builds.
 
 #### macOS
 
-- [ ] **mac_TASK001** — Build/verify 6 Go-backend recipes
+- [x] **mac_TASK001** — Build/verify 6 Go-backend recipes ✅ Codex
 - [x] **mac_TASK002** — Build/verify 6 Rust-backend recipes ✅ Codex
 
 #### Windows
