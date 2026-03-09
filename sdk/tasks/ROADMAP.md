@@ -28,7 +28,7 @@ Phase 5 splits into macOS recipe builds and Windows WinUI builds.
 
 ### Phase 4 — Migrations (requires Phase 3)
 
-- [ ] **TASK013** — Go-backend recipe migration
+- [x] **TASK013** — Go-backend recipe migration ✅ Codex
 - [ ] **TASK014** — Rust-backend recipe migration
 - [ ] **TASK015** — Hello-world example migration
 - [ ] **TASK016** — Update TODO.md / status reports
