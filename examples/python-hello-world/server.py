@@ -1,10 +1,15 @@
-"""Python hello-world holon — gRPC server implementing HelloService."""
+"""Python hello-world holon using python-holons serve helpers."""
+
+from __future__ import annotations
 
 import sys
-from concurrent import futures
+from pathlib import Path
 
-import grpc
-from grpc_reflection.v1alpha import reflection
+SDK_ROOT = Path(__file__).resolve().parents[2] / "sdk" / "python-holons"
+if str(SDK_ROOT) not in sys.path:
+    sys.path.insert(0, str(SDK_ROOT))
+
+from holons.serve import parse_flags, run_with_options
 
 # Generated proto stubs (run: python -m grpc_tools.protoc ...)
 import hello_pb2
@@ -19,27 +24,20 @@ class HelloServicer(hello_pb2_grpc.HelloServiceServicer):
         return hello_pb2.GreetResponse(message=f"Hello, {name}!")
 
 
-def serve(listen_addr: str = "[::]:9090"):
-    """Start the gRPC server."""
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
+def register(server) -> None:
+    """Register the HelloService implementation with a grpc.Server."""
     hello_pb2_grpc.add_HelloServiceServicer_to_server(HelloServicer(), server)
 
-    # Enable reflection
-    service_names = (
-        hello_pb2.DESCRIPTOR.services_by_name["HelloService"].full_name,
-        reflection.SERVICE_NAME,
-    )
-    reflection.enable_server_reflection(service_names, server)
 
-    server.add_insecure_port(listen_addr)
-    server.start()
-    print(f"gRPC server listening on {listen_addr}", file=sys.stderr)
-    server.wait_for_termination()
+def serve(args: list[str] | None = None) -> None:
+    """Start the gRPC server using python-holons serve helpers."""
+    argv = list(sys.argv[1:] if args is None else args)
+    if argv[:1] == ["serve"]:
+        argv = argv[1:]
+
+    listen_uri = parse_flags(argv)
+    run_with_options(listen_uri, register, reflect=True)
 
 
 if __name__ == "__main__":
-    addr = "[::]:9090"
-    for i, arg in enumerate(sys.argv):
-        if arg == "--port" and i + 1 < len(sys.argv):
-            addr = f"[::]:{sys.argv[i + 1]}"
-    serve(addr)
+    serve()
