@@ -1,6 +1,6 @@
 # TODO Status Report
 
-Date: 2026-03-07
+Date: 2026-03-09
 
 Source documents checked:
 
@@ -11,175 +11,128 @@ Source documents checked:
 
 ## Overall verdict
 
-`TODO.md` is now stale.
+`TODO.md` was stale. `discover` is now complete across the SDK fleet,
+while `connect` is split between 7 verified SDKs and 7 SDKs that still
+need verification or fixes.
 
-It still reports `discover` and `connect` as missing in most SDKs, but
-the workspace already contains much more than that. At the same time,
-the high-level 5-module goal is still not fully achieved across the
-fleet, and the recipe/example migration work is only partially done.
+The updated `TODO.md` table uses this rule:
 
-## What is effectively complete
+- `✅` = module exists and its current tests pass in this checkout
+- `❓` = code exists, but verification is incomplete or failing
+- `❌` = not implemented
 
-### `discover`
+This is narrower than full Go feature parity. Some SDKs still have
+reduced `serve` or transport scope even where a module now counts as
+implemented and tested.
 
-`discover` is implemented across the SDK fleet, with the expected
-browser-specific adaptation in `js-web-holons`:
+## `discover`
 
-| SDK | Status | Evidence |
-|---|---|---|
-| `go-holons` | complete | `pkg/discover/discover.go` |
-| `rust-holons` | complete | `src/discover.rs` |
-| `swift-holons` | complete | `Sources/Holons/Discover.swift` |
-| `dart-holons` | complete | `lib/src/discover.dart` |
-| `js-holons` | complete | `src/discover.js` |
-| `js-web-holons` | adapted | `src/discover.mjs` (`discoverFromManifest`) |
-| `kotlin-holons` | complete | `Discover.kt` |
-| `java-holons` | complete | `Discover.java` |
-| `csharp-holons` | complete | `Holons/Discover.cs` |
-| `cpp-holons` | complete | `include/holons/holons.hpp` |
-| `c-holons` | complete | `include/holons/holons.h` + `src/holons.c` |
-| `python-holons` | complete | `holons/discover.py` |
-| `ruby-holons` | complete | `lib/holons/discover.rb` |
-| `objc-holons` | complete | `include/Holons/Holons.h` + `src/Holons.m` |
+Complete — all SDKs.
 
-Conclusion: `TODO_DISCOVER.md` is functionally done.
-
-### Documentation audit
-
-The documentation audit is also done enough to stop treating it as an
-open blocker:
-
-- `sdk/SDK_GUIDE.md` now reflects actual SDK and recipe state.
-- `sdk/README.md` now reflects actual discover/connect coverage.
-- Per-SDK READMEs now distinguish between implemented modules and gaps.
-
-## What is still missing
-
-### 1. `connect` is only partially complete
-
-The roadmap-level `connect` module is implemented in these SDKs:
+Verified across all 14 SDKs:
 
 - `go-holons`
-- `dart-holons`
-- `js-holons`
-- `python-holons`
-- `kotlin-holons`
-- `java-holons`
-- `csharp-holons`
-
-The roadmap-level `connect` module is still missing in these SDKs:
-
-- `rust-holons`
-- `swift-holons`
-- `js-web-holons`
-- `ruby-holons`
-- `c-holons`
-- `cpp-holons`
-- `objc-holons`
-
-Notes:
-
-- `c-holons` has low-level dial helpers, but not the TODO-defined
-  slug-aware `connect` module.
-- `js-web-holons` has no `connect(hostPort)` helper yet, even though
-  `TODO_CONNECT.md` explicitly called for a browser-limited variant.
-
-Conclusion: `TODO_CONNECT.md` is still open.
-
-### 2. The 5-module architecture is still not true in the strict sense
-
-`TODO.md` defines `serve` as:
-
-`parse flags, listen, run gRPC server, shutdown`
-
-That is still not true across the full fleet.
-
-SDKs that currently have a real `serve` runner:
-
-- `go-holons`
-- `js-holons`
-- `python-holons`
-- `c-holons`
-
-SDKs that currently expose only serve-flag parsing or partial serve
-helpers:
-
 - `rust-holons`
 - `swift-holons`
 - `dart-holons`
+- `js-holons`
+- `js-web-holons` (`discoverFromManifest(...)` browser variant)
 - `kotlin-holons`
 - `java-holons`
 - `csharp-holons`
 - `cpp-holons`
+- `c-holons`
+- `python-holons`
 - `ruby-holons`
 - `objc-holons`
 
-Conclusion: even after discover/connect progress, the master TODO goal
-"every SDK must expose these 5 modules" remains incomplete if `serve`
-is interpreted strictly.
+Conclusion: `TODO_DISCOVER.md` is complete and can be marked complete.
 
-### 3. Recipe migration is only partially complete
+## `connect`
 
-Desktop recipe migrations completed:
+Verified complete (`✅` in `TODO.md`):
+
+- `go-holons`
+- `swift-holons`
+- `js-holons`
+- `js-web-holons` (direct `host:port` browser variant only)
+- `c-holons`
+- `python-holons`
+- `ruby-holons`
+
+Implemented but not yet verified complete (`❓` in `TODO.md`):
+
+- `rust-holons` — `cargo test --lib` fails `test_connect_slug_tcp_override_starts_binary_and_disconnect_stops_it` with `timed out waiting for holon startup`
+- `dart-holons` — `connect.dart` exists, but no direct `connect` test coverage was found
+- `kotlin-holons` — `Connect.kt` exists, but no direct `connect` test coverage was found
+- `java-holons` — `Connect.java` exists, but no direct `connect` test coverage was found
+- `csharp-holons` — `Connect.cs` exists, but no direct `connect` test coverage was found
+- `cpp-holons` — `connect()` exists, but the connect portion of `make test` was skipped in this checkout because `grpc++` headers were unavailable
+- `objc-holons` — the Objective-C test runner fails `connect stdio slug started process`
+
+Conclusion: `TODO_CONNECT.md` remains open.
+
+## Recipe Migration
+
+Recipes migrated to SDK client primitives:
 
 - `go-dart-holons`
 - `go-kotlin-holons`
-- `go-dotnet-holons`
-
-Recipe migrations still missing:
-
-- `go-swift-holons`
 - `go-web-holons`
 - `go-qt-holons`
-- `rust-dart-holons` (frontend uses `dart-holons`, but the recipe still
-  runs against fixed localhost TCP and the daemon is still raw Rust)
-- `rust-swift-holons`
+- `go-dotnet-holons`
+
+Recipes partially migrated:
+
+- `go-swift-holons` — embedded macOS launch uses `swift-holons connect(slug)`, but the remote/direct path still builds a raw gRPC channel
+- `rust-dart-holons` — Dart frontend uses `dart-holons.connect(...)`, but the Rust daemon still uses raw Rust server wiring
+- `rust-swift-holons` — embedded macOS launch uses `swift-holons connect(slug)`, but the Rust daemon is still raw and the remote/direct path is still raw gRPC
+
+Recipes still not migrated:
+
 - `rust-kotlin-holons`
 - `rust-web-holons`
 - `rust-dotnet-holons`
 - `rust-qt-holons`
 
-Conclusion: `TODO_MIGRATE_RECIPES.md` is still open.
+Conclusion: `TODO_MIGRATE_RECIPES.md` remains open.
 
-### 4. Hello-world migration is still missing
+## Hello-World Migration
 
-The roadmap also called for migrating hello-world examples and adding
-connect examples. That is not done.
-
-Hello-worlds currently importing their matching SDK:
+Fully on SDK helpers:
 
 - `go-hello-world`
 - `js-hello-world`
-- `swift-hello-world`
 - `c-hello-world`
-- `web-hello-world` (browser half via synced `js-web-holons`, backend via `go-holons`)
+- `python-hello-world`
+- `web-hello-world`
 
-Hello-worlds still on raw gRPC baselines:
+Partially migrated:
 
-- `rust-hello-world`
+- `rust-hello-world` — uses `rust-holons` helpers and now has `connect_example.rs`, but the server path is still a manual tonic setup
+- `swift-hello-world` — imports `Holons`, but is not yet a full SDK serve/connect example
+
+Still raw baselines:
+
 - `dart-hello-world`
 - `kotlin-hello-world`
 - `java-hello-world`
 - `csharp-hello-world`
 - `cpp-hello-world`
-- `python-hello-world`
 - `ruby-hello-world`
 - `objc-hello-world`
 
-No fleet-wide hello-world `connect` examples were added.
+Connect examples now present in:
 
-## Practical summary
+- `rust-hello-world`
+- `python-hello-world`
 
-If `TODO.md` is used as the source of truth today, these are the real
-remaining items:
+Conclusion: hello-world migration is still incomplete.
 
-1. Finish `connect` in `rust`, `swift`, `js-web`, `ruby`, `c`, `cpp`,
-   and `objc`.
-2. Decide whether the master roadmap still requires a full `serve`
-   runner in every SDK. If yes, that remains a major open tranche.
-3. Finish recipe migration for `go-swift`, `go-web`, `go-qt`, and all
-   Rust-backed recipes.
-4. Migrate the remaining raw hello-world examples and add the missing
-   `connect` examples.
-5. Update `TODO.md` itself so its "Current state per SDK" table matches
-   the current repository state.
+## Practical Summary
+
+1. `discover` is complete and verified across all 14 SDKs.
+2. `connect` is verified in 7 SDKs and still `❓` in 7 SDKs.
+3. Recipe migration is at 5 complete, 3 partial, 4 not migrated.
+4. Hello-world migration is at 5 full, 2 partial, 7 still raw.
+5. `TODO_DISCOVER.md` can be marked complete; `TODO_CONNECT.md` and `TODO_MIGRATE_RECIPES.md` should remain open.

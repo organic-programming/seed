@@ -1,3 +1,5 @@
+## Status: Complete
+
 # TODO: `discover` Module — All SDKs
 
 ## What `discover` does

@@ -195,6 +195,18 @@ Phase 1 (OP)              Phase 2 (Describe)      Phase 3 (Connect)
 
 ---
 
+### Phase 6 — Quality Control (after Phase 5)
+
+- [ ] **QA_TASK001** — End-to-end verification of all recipes and examples
+
+Builds, launches, and verifies every recipe (12) and hello-world
+example (14). Checks UI integrity, RPC round-trip, and daemon
+lifecycle. Fixes any issue found during verification.
+
+See [QA_TASK001.md](./QA_TASK001.md) for the full checklist.
+
+---
+
 ## Platform Summary
 
 | Phase | macOS | Windows |
@@ -205,3 +217,5 @@ Phase 1 (OP)              Phase 2 (Describe)      Phase 3 (Connect)
 | 4 — Migrations | ✅ all | ❌ not needed |
 | 5a — Recipe builds | ✅ mac_TASK001, mac_TASK002 | — |
 | 5b — Recipe builds | — | ⚠️ windows_TASK001 (required), windows_TASK002 (optional) |
+| 6 — QA | ✅ QA_TASK001 | ❌ not needed |
+

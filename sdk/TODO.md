@@ -26,22 +26,27 @@ sdk/<lang>-holons
 
 ### Current state per SDK
 
+Statuses below reflect current implementation plus verification in this
+checkout. For `js-web-holons`, `discover` and `connect` are the
+browser-adapted variants (`discoverFromManifest(...)` and direct
+`host:port` connect only).
+
 | SDK | serve | transport | identity | discover | connect |
 |---|---|---|---|---|---|
-| `go-holons` | ✅ `pkg/serve` | ✅ `pkg/transport` | ❌ | ❌ | ❌ |
-| `rust-holons` | ✅ `src/serve.rs` | ✅ `src/transport.rs` | ✅ `src/identity.rs` | ❌ | ❌ |
-| `swift-holons` | ✅ `Serve.swift` | ✅ `Transport.swift` | ✅ `Identity.swift` | ❌ | ❌ |
-| `dart-holons` | ✅ `lib/` | ❓ verify | ❓ verify | ❌ | ❌ |
-| `js-holons` | ✅ `src/` | ❓ verify | ❓ verify | ❌ | ❌ |
-| `js-web-holons` | ✅ `src/` | ❓ verify | ❓ verify | ❌ | ❌ |
-| `kotlin-holons` | ❓ Go cmd only | ❓ | ❓ | ❌ | ❌ |
-| `java-holons` | ❓ Go cmd only | ❓ | ❓ | ❌ | ❌ |
-| `csharp-holons` | ✅ `Serve.cs` | ✅ `Transport.cs` | ✅ `Identity.cs` | ❌ | ❌ |
-| `cpp-holons` | ❓ Go cmd only | ❓ | ❓ | ❌ | ❌ |
-| `c-holons` | ✅ `holons.h` | ✅ via holons.c | ❓ | ❌ | ❌ |
-| `python-holons` | ✅ `serve.py` | ✅ `transport.py` | ✅ `identity.py` | ❌ | ❌ |
-| `ruby-holons` | ✅ `serve.rb` | ✅ `transport.rb` | ✅ `identity.rb` | ❌ | ❌ |
-| `objc-holons` | ✅ `Holons.m` | ✅ via Holons.m | ❓ | ❌ | ❌ |
+| `go-holons` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `rust-holons` | ✅ | ✅ | ✅ | ✅ | ❓ |
+| `swift-holons` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `dart-holons` | ✅ | ✅ | ✅ | ✅ | ❓ |
+| `js-holons` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `js-web-holons` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `kotlin-holons` | ✅ | ✅ | ✅ | ✅ | ❓ |
+| `java-holons` | ✅ | ✅ | ✅ | ✅ | ❓ |
+| `csharp-holons` | ✅ | ✅ | ✅ | ✅ | ❓ |
+| `cpp-holons` | ✅ | ✅ | ✅ | ✅ | ❓ |
+| `c-holons` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `python-holons` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ruby-holons` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `objc-holons` | ✅ | ✅ | ✅ | ✅ | ❓ |
 
 Detailed plans: see `TODO_DISCOVER.md` and `TODO_CONNECT.md`.
 
