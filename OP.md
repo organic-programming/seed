@@ -84,6 +84,36 @@ eval "$(op env --shell)"
 After bootstrap, `op` is in `~/.op/bin/` and all OP commands are
 available.
 
+### Shell completion
+
+`op` supports tab-completion for zsh and bash. Completions use the
+existing discovery mechanism: identity-derived slugs, OPBIN entries,
+and PATH binaries are all suggested.
+
+**zsh** (add to `~/.zshrc`):
+
+```bash
+eval "$(op completion zsh)"
+```
+
+**bash** (add to `~/.bashrc`):
+
+```bash
+eval "$(op completion bash)"
+```
+
+After sourcing, tab-completion works for all holon-accepting commands:
+
+```
+op run gudule-<TAB>       →  gudule-greeting-godart, gudule-greeting-goswift, ...
+op build sophia<TAB>      →  sophia-who
+op install rob<TAB>       →  rob-go
+op uninstall <TAB>        →  only lists installed holons from $OPBIN
+```
+
+Subcommands (`build`, `run`, `install`, `check`, `test`, `clean`,
+`inspect`, `show`, `uninstall`) are also completed at the verb level.
+
 ---
 
 ## 2. Philosophy
