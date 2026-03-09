@@ -32,6 +32,8 @@ op run my-10-holon-stack           → composite: build, launch entry point
 ```
 op run <slug> [flags]
 
+  0. Resolve binary via OPBIN / PATH → if found, skip to step 4
+     (no source code needed — pre-built or installed holons run immediately)
   1. Discover holon by slug → read holon.yaml
   2. Determine artifact path:
      - kind: service    → artifacts.binary
@@ -44,6 +46,11 @@ op run <slug> [flags]
      - For composites: the frontend exits, connect()
        handles cleanup of spawned dependencies
 ```
+
+> [!IMPORTANT]
+> Source distribution is not a prerequisite. If a holon is already
+> installed (`op install`, package manager, manual copy to `$OPBIN`),
+> `op run <slug>` works immediately — no source tree, no build step.
 
 ### Flags
 
