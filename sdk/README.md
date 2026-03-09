@@ -40,24 +40,27 @@ primitives.
 
 ---
 
-## Transport Surface Summary
+## Transport Surface
 
-| SDK | Current scope |
-|-----|---------------|
-| `go-holons` | Full gRPC runtime over `tcp://`, `unix://`, `stdio://`, `mem://`, plus WebSocket bridging. |
-| `js-holons` | Full gRPC runtime over `tcp://`, `unix://`, `stdio://`, `mem://`, plus WebSocket bridging. |
-| `python-holons` | Native gRPC over TCP and Unix, in-process `mem://`, and a local WebSocket tunnel helper. |
-| `rust-holons` | Runtime primitives for `tcp://`, `unix://`, `mem://`; `stdio://` helper; `ws://` and `wss://` metadata only. |
-| `swift-holons` | Runtime primitives for `tcp://`, `unix://`, `stdio://`, `mem://`; `ws://` and `wss://` metadata only. |
-| `dart-holons` | Runtime primitives for `tcp://`, `unix://`, `stdio://`, `mem://`; `ws://` and `wss://` metadata only. |
-| `kotlin-holons` | Runtime primitives for `tcp://`, `unix://`, `mem://`; `stdio://` and `ws://` / `wss://` metadata only. |
-| `java-holons` | Runtime primitives for `tcp://`, `unix://`, `mem://`; `stdio://` and `ws://` / `wss://` metadata only. |
-| `csharp-holons` | Runtime primitives for `tcp://`, `unix://`, `mem://`; `stdio://` and `ws://` / `wss://` metadata only. |
-| `cpp-holons` | Runtime primitives for `tcp://`, `unix://`, `stdio://`, `mem://`; `ws://` and `wss://` metadata only. |
-| `c-holons` | Low-level runtime primitives for `tcp://`, `unix://`, `stdio://`, `mem://`; URI-compatible `ws://` / `wss://` listeners. |
-| `objc-holons` | Runtime primitives for `tcp://`, `unix://`, `stdio://`, `mem://`; `ws://` and `wss://` metadata only. |
-| `ruby-holons` | Runtime primitives for `tcp://`, `unix://`, `stdio://`, `mem://`; `ws://` and `wss://` metadata only. |
-| `js-web-holons` | Browser Holon-RPC over `ws://` / `wss://`; no local gRPC transport layer. |
+All SDKs support the 6 transport schemes defined in PROTOCOL.md:
+`tcp://`, `unix://`, `stdio://`, `mem://`, `ws://`, `wss://`.
+
+| SDK | tcp | unix | stdio | mem | ws/wss | Holon-RPC |
+|-----|:---:|:----:|:-----:|:---:|:------:|:---------:|
+| `go-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
+| `js-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
+| `python-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
+| `rust-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| `swift-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
+| `dart-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
+| `kotlin-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
+| `java-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
+| `csharp-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
+| `cpp-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
+| `c-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
+| `objc-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
+| `ruby-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
+| `js-web-holons` | — | — | — | — | ✅ | browser client |
 
 See [SDK_GUIDE.md](./SDK_GUIDE.md) and each SDK README for exact API
 surfaces and limitations.
