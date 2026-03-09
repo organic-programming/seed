@@ -1,6 +1,15 @@
 # dart-hello-world
 
-A minimal holon implementing HelloService.Greet in Dart.
+A minimal holon implementing `HelloService.Greet` in Dart with
+`dart-holons` serve parsing and `connect()`.
+
+## Run
+
+```bash
+dart run bin/hello.dart
+dart run bin/hello.dart Alice
+dart run bin/hello.dart serve --listen tcp://127.0.0.1:9090
+```
 
 ## Test
 
@@ -14,4 +23,12 @@ dart pub get && dart test
 dart compile exe bin/hello.dart -o hello
 op grpc+stdio://./hello Greet '{"name":"Alice"}'
 # → { "message": "Hello, Alice!" }
+```
+
+## Connect example
+
+```bash
+dart pub get
+dart run tool/connect_example.dart
+# → {"message":"hello-from-dart","sdk":"dart-holons","version":"0.1.0"}
 ```
