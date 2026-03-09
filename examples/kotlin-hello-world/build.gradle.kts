@@ -1,5 +1,7 @@
 import org.gradle.api.JavaVersion
+import org.gradle.jvm.tasks.Jar
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.tasks.JavaExec
 
 plugins {
     kotlin("jvm") version "2.1.20"
@@ -9,7 +11,7 @@ plugins {
 group = "org.organicprogramming"
 version = "0.1.0"
 
-val sharedJvmTarget = JavaVersion.VERSION_23
+val sharedJvmTarget = JavaVersion.VERSION_21
 
 java {
     sourceCompatibility = sharedJvmTarget
@@ -18,7 +20,7 @@ java {
 
 kotlin {
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_23)
+        jvmTarget.set(JvmTarget.JVM_21)
     }
 }
 
@@ -31,9 +33,25 @@ repositories {
 }
 
 dependencies {
+    implementation("org.organicprogramming:kotlin-holons:0.1.0")
+    implementation("io.grpc:grpc-netty-shaded:1.60.0")
+    implementation("io.grpc:grpc-stub:1.60.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     testImplementation(kotlin("test"))
 }
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.withType<Jar>().configureEach {
+    manifest {
+        attributes["Main-Class"] = "org.organicprogramming.hello.HelloKt"
+    }
+}
+
+tasks.register<JavaExec>("runConnectExample") {
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("org.organicprogramming.hello.ConnectExampleKt")
+    workingDir = projectDir
 }

@@ -1,17 +1,33 @@
 # kotlin-hello-world
 
-A minimal holon implementing HelloService.Greet in Kotlin.
+A minimal holon implementing `HelloService.Greet` in Kotlin with
+`kotlin-holons` serve parsing and `Connect.connect()`.
 
-## Test
+## Build & Test
 
 ```bash
-JAVA_HOME=/opt/homebrew/opt/openjdk@21 gradle test -Dorg.gradle.java.home=/opt/homebrew/opt/openjdk@21
+gradle test
+```
+
+## Run
+
+```bash
+gradle jar
+java -cp build/classes/kotlin/main:build/resources/main org.organicprogramming.hello.HelloKt Alice
+java -cp build/classes/kotlin/main:build/resources/main org.organicprogramming.hello.HelloKt serve --listen tcp://127.0.0.1:9090
 ```
 
 ## Invoke via stdio (zero config)
 
 ```bash
-JAVA_HOME=/opt/homebrew/opt/openjdk@21 gradle jar
+gradle jar
 op grpc+stdio://"java -jar build/libs/kotlin-hello-world-0.1.0.jar" Greet '{"name":"Alice"}'
 # → { "message": "Hello, Alice!" }
+```
+
+## Connect example
+
+```bash
+gradle runConnectExample
+# → {"message":"hello-from-kotlin","sdk":"kotlin-holons","version":"0.1.0"}
 ```
