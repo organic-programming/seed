@@ -6,7 +6,7 @@ Initialize `organic-programming/megg-ffmpeg` as a **complete C++ holon** that wr
 
 Repository: `git@github.com:organic-programming/megg-ffmpeg.git`
 
-FFmpeg must be compilable in **LGPL mode** (default) or **GPL mode** (opt-in) via a CMake flag.
+FFmpeg must be compilable in **LGPL mode** (default) or **GPL mode** (opt-in) via the `OP_CONFIG` build config mechanism (see `OP.md` §4 Build configs).
 
 ---
 
@@ -141,7 +141,7 @@ the same output.
 
 - FFmpeg lives in `third_party/FFmpeg/` (git submodule).
 - The `cpp-holons` SDK is in the parent monorepo: `../../organic-programming/sdk/cpp-holons/`.
-- Build with `-DMEGG_LICENSE=LGPL` (default) or `-DMEGG_LICENSE=GPL`.
+- Build with `op build --config lgpl` (default) or `op build --config gpl`.
 - LGPL mode disables GPL-only codecs (x264, x265, etc.).
 ```
 
@@ -289,8 +289,11 @@ project(megg-ffmpeg LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# License mode: LGPL (default) or GPL
-set(MEGG_LICENSE "LGPL" CACHE STRING "FFmpeg license mode: LGPL or GPL")
+# License mode: driven by OP_CONFIG (lgpl or gpl)
+set(MEGG_LICENSE "LGPL" CACHE STRING "FFmpeg license mode")
+if(DEFINED OP_CONFIG AND OP_CONFIG STREQUAL "gpl")
+    set(MEGG_LICENSE "GPL")
+endif()
 
 # cpp-holons SDK
 set(CPP_HOLONS_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../organic-programming/sdk/cpp-holons/include)
@@ -444,7 +447,7 @@ C++ wrapper mapping each RPC to the FFmpeg `libav*` C API.
 - `MuxSubtitles`: open input + subtitle → copy all streams + add subtitle stream → remux.
 - `GetVersion`: `av_version_info()` + `avformat_configuration()` + return MEGG_LICENSE.
 
-Pass `MEGG_LICENSE` from CMake as a compile definition:
+Pass `MEGG_LICENSE` (derived from `OP_CONFIG`) as a compile definition:
 ```cmake
 target_compile_definitions(media_service PRIVATE MEGG_LICENSE="${MEGG_LICENSE}")
 ```
@@ -526,7 +529,7 @@ git submodule add git@github.com:organic-programming/megg-ffmpeg.git holons/megg
 - **DRY** — no duplication.
 - `gen/cpp/` stays empty.
 - FFmpeg is built from source via `ExternalProject_Add` — no system FFmpeg dependency.
-- Default license is LGPL. Pass `-DMEGG_LICENSE=GPL` to enable GPL codecs.
+- Default config is `lgpl`. Use `op build --config gpl` to enable GPL codecs.
 - Use `holons::parse_flags()` for CLI args, `holons::parse_holon()` for identity.
 - File I/O RPCs work with local paths — no streaming over JSON-RPC (files only).
 - All RPC boundaries are stateless per call.

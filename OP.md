@@ -227,6 +227,11 @@ platforms: [macos, linux, windows]
 build:
   runner: go-module
   main: ./cmd/rob
+  configs:
+    standard: {}
+    with-cgo:
+      description: "Enable CGo for native bindings"
+  default_config: standard
 requires:
   commands: [go]
   files: [go.mod]
@@ -287,11 +292,50 @@ Omit `contract` entirely if the proto is not yet defined.
 | `platforms` | list | no | Supported OSes. Omit if cross-platform. |
 | `build.runner` | string | yes | Selects the runner (see [Runners](#8-runners)). |
 | `build.main` | string | no | Go package path (go-module only). |
+| `build.configs` | map | no | Named build configurations (see [Build configs](#build-configs)). |
+| `build.default_config` | string | no | Default config name. Required when `build.configs` is set. |
 | `requires.commands` | list | yes | CLI tools that must exist on `PATH`. |
 | `requires.files` | list | yes | Files that must exist relative to `holon.yaml`. |
 | `delegates.commands` | list | no | Wrapper-only. External commands the holon wraps. |
 | `artifacts.binary` | string | yes for `native`/`wrapper`, no for `composite` | Primary binary name (not a path). Must equal the slug for `native`/`wrapper`. Build output is `.op/build/bin/<artifacts.binary>`, install destination is `$OPBIN/<artifacts.binary>`. |
 | `artifacts.primary` | string | no for `native`/`wrapper`, yes for `composite` | Non-binary primary artifact path (e.g. `.app` bundle), relative to holon root. Used as the success contract for `op build` when set. |
+
+### Build configs
+
+A holon may declare multiple **named build configurations** to
+express build-time variants — such as license modes, feature sets,
+or linkage strategies — without exposing runner-specific flags in
+the manifest.
+
+The mechanism has two layers:
+
+1. **Universal envelope** — `op` knows about config names, selection
+   (`--config`), defaults (`default_config`), and propagation to
+   child builds. It never interprets the config contents.
+2. **Runner injection** — `op` passes the selected config name to
+   the runner as a well-known variable `OP_CONFIG`. The holon's own
+   build system (CMakeLists.txt, go build tags, Cargo.toml, etc.)
+   decides what the config name means.
+
+```yaml
+# megg-ffmpeg: LGPL vs GPL build
+build:
+  runner: cmake
+  configs:
+    lgpl:
+      description: "LGPL-safe build, no GPL codecs"
+    gpl:
+      description: "Full GPL build with x264/x265"
+  default_config: lgpl
+```
+
+Config entries are maps. The only universal field is `description`
+(optional, for documentation). Runners may define additional
+runner-specific fields in the future; unknown fields are rejected
+at `op check` time.
+
+When no `build.configs` is declared, `OP_CONFIG` is not set and
+the runner builds with its own defaults.
 
 ### Skills fields
 
@@ -583,6 +627,7 @@ Build the primary artifact via the declared runner.
 $ op build                          # build current directory
 $ op build rob-go                   # build by name
 $ op build --target macos --mode release
+$ op build --config gpl             # select a named build config
 $ op build --dry-run                # print plan, don't execute
 ```
 
@@ -592,6 +637,7 @@ Flags:
 |---|---|---|---|
 | `--target` | `macos`, `linux`, `windows`, `ios`, `ios-simulator`, `tvos`, `tvos-simulator`, `watchos`, `watchos-simulator`, `visionos`, `visionos-simulator`, `android`, `all` | current OS | Platform target |
 | `--mode` | `debug`, `release`, `profile` | `debug` | Build mode |
+| `--config` | any key from `build.configs` | `build.default_config` | Named build configuration |
 | `--dry-run` | | | Print resolved plan without executing |
 
 **Success contract**: a successful `op build` guarantees:
@@ -675,6 +721,7 @@ All lifecycle commands produce a structured `Report`:
   "runner": "go-module",
   "build_target": "macos",
   "build_mode": "debug",
+  "build_config": "standard",
   "artifact": ".op/build/bin/rob-go",
   "commands": ["go build -o .op/build/bin/rob-go ./cmd/rob"],
   "notes": [],
@@ -702,6 +749,9 @@ For holons written in Go.
 | test | `go test ./...` |
 | clean | remove `.op/` |
 
+When `build.configs` is declared, `OP_CONFIG` is set as an
+environment variable during `go build` and `go test`.
+
 ### `cmake` (leaf runner)
 
 For holons written in C/C++.
@@ -709,13 +759,24 @@ For holons written in C/C++.
 | Operation | Command |
 |---|---|
 | check | verify `CMakeLists.txt` exists |
-| build (configure) | `cmake -S . -B .op/build/cmake -DCMAKE_BUILD_TYPE=<mode> -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=.op/build/bin` |
+| build (configure) | `cmake -S . -B .op/build/cmake -DCMAKE_BUILD_TYPE=<mode> -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=.op/build/bin [-DOP_CONFIG=<config>]` |
 | build (compile) | `cmake --build .op/build/cmake --config <mode>` |
 | test | `ctest --test-dir .op/build/cmake --output-on-failure -C <mode>` |
 | clean | remove `.op/` |
 
 Mode mapping: `debug` → `Debug`, `release` → `Release`,
 `profile` → `RelWithDebInfo`.
+
+When `build.configs` is declared, `OP_CONFIG` is passed as a
+CMake define (`-DOP_CONFIG=<config>`) during the configure step.
+The `CMakeLists.txt` is responsible for interpreting the value:
+
+```cmake
+# Example: megg-ffmpeg license selection
+if(OP_CONFIG STREQUAL "gpl")
+    list(APPEND FFMPEG_CONFIGURE_FLAGS --enable-gpl)
+endif()
+```
 
 CMake holons must register tests with CTest. If no tests are
 registered, `op test` fails with an actionable error.
@@ -763,7 +824,7 @@ artifacts:
 
 | Step | Description |
 |---|---|
-| `build_member` | Recursively `op build` a member of type `holon` |
+| `build_member` | Recursively `op build` a member of type `holon`. Accepts optional `config:` to override the child's default build config. |
 | `exec` | Run a command (argv array, explicit `cwd`, no shell) |
 | `copy` | Copy a file from one manifest-relative path to another |
 | `assert_file` | Verify a file exists (packaging validation) |
