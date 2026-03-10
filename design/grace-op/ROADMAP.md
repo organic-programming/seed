@@ -13,7 +13,6 @@ Complete `op` for single-host development.
 - 7 new runners (cargo, swift-package, flutter, npm, gradle, dotnet, qt-cmake)
 - Bundle install (`.app`, `.exe` → `$OPBIN`)
 - Package manager distribution (Homebrew, WinGet, NPM)
-- Spec documentation for mesh and setup
 - Holon templates (`op new --template`)
 
 **Tasks:** [v0.3/_TASKS.md](./v0.3/_TASKS.md)

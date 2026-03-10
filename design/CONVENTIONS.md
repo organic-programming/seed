@@ -7,7 +7,7 @@ folder system.
 
 ## Version Folders
 
-Each version has its own folder: `v0.3/`, `v0.4/`, ..., `v0.10/`.
+Each version has its own folder: `v0.3/`, `v0.4/`, ..., `v0.11/`.
 
 A folder contains:
 - `_TASKS.md` — task index with status

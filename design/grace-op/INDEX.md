@@ -29,12 +29,12 @@ Each proposes new commands, schemas, or SDK capabilities to be added.
 
 ## Tasks
 
-- [v0.3/](./v0.3/_TASKS.md) — Core Maturity (9 tasks)
+- [v0.3/](./v0.3/_TASKS.md) — Core Maturity (7 tasks)
 - [v0.4/](./v0.4/_TASKS.md) — Recipe Ecosystem (6 tasks)
 - [v0.5/](./v0.5/_TASKS.md) — Extensibility (3 tasks)
 - [v0.6/](./v0.6/_TASKS.md) — REST + SSE Transport (10 tasks)
-- [v0.7/](./v0.7/_TASKS.md) — Cross-Compilation (14 tasks)
+- [v0.7/](./v0.7/_TASKS.md) — Cross-Compilation (15 tasks)
 - [v0.8/](./v0.8/_TASKS.md) — Release Pipeline (7 tasks)
-- [v0.9/](./v0.9/_TASKS.md) — Mesh
-- [v0.10/](./v0.10/_TASKS.md) — Public Holons
-- [v0.11/](./v0.11/_TASKS.md) — Setup
+- [v0.9/](./v0.9/_TASKS.md) — Mesh (4 tasks)
+- [v0.10/](./v0.10/_TASKS.md) — Public Holons (6 tasks)
+- [v0.11/](./v0.11/_TASKS.md) — Setup (4 tasks)
