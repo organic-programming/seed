@@ -89,6 +89,19 @@ Derive the verification URL from the repo remote:
 - `git@github.com:organic-programming/seed.git` →
   `https://github.com/organic-programming/seed/commit/<sha>`
 
+## Folder status update
+
+After every task completion, evaluate the version folder status
+using `/update-version-status`:
+
+- If the completed task is ❌ → set folder to `⚠️`
+- If the completed task is ✅ and **all** tasks in the folder
+  are now ✅ → set folder to `✅`
+- Otherwise the folder stays `💭`
+
+This step is **mandatory** — never close a task without checking
+the folder status.
+
 ## Done criteria
 
 A task is only done when:
@@ -96,4 +109,5 @@ A task is only done when:
 - The filename contains ✅ or ❌
 - The task file contains a `## Status` block with commit SHA(s)
 - The `_TASKS.md` row is updated with the emoji
+- The version folder status is up to date
 - (❌ only) a `.failure.md` report exists alongside the task
