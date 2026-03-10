@@ -1,9 +1,12 @@
-# TASK09 — REST + SSE Transport for Python SDK
+# TASK10 — REST + SSE Transport for Python SDK
 
 ## Objective
 
 Port the REST + SSE transport to `python-holons`.
 
+## Repository
+
+- `python-holons`: `github.com/organic-programming/python-holons`
 ## Reference
 
 - [DESIGN_transport_rest_sse.md](./DESIGN_transport_rest_sse.md)
@@ -21,6 +24,7 @@ Same as TASK01. Uses `requests`/`httpx` for POST and
 - [ ] Cross-language interop verified
 - [ ] `pytest` — zero failures
 
+- [ ] Verify with `op run` over REST + SSE
 ## Dependencies
 
-TASK01.
+TASK01, TASK02.

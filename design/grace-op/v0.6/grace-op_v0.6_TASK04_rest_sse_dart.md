@@ -1,9 +1,12 @@
-# TASK03 — REST + SSE Transport for Dart SDK
+# TASK04 — REST + SSE Transport for Dart SDK
 
 ## Objective
 
 Port the REST + SSE transport to `dart-holons`.
 
+## Repository
+
+- `dart-holons`: `github.com/organic-programming/dart-holons`
 ## Reference
 
 - [DESIGN_transport_rest_sse.md](./DESIGN_transport_rest_sse.md)
@@ -21,6 +24,7 @@ to REST + SSE.
 - [ ] Cross-language interop verified
 - [ ] `dart test` — zero failures
 
+- [ ] Verify with `op run` over REST + SSE
 ## Dependencies
 
-TASK01.
+TASK01, TASK02.

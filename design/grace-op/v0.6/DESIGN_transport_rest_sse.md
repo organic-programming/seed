@@ -99,6 +99,30 @@ REST + SSE runs over standard HTTPS. For cross-network holon communication, **mT
 - **HTTP/1.1 connection limit**: browsers limit ~6 SSE connections per domain. Non-issue with HTTP/2 (multiplexed) or server-to-server (no browser limit).
 - **No bidi on one connection**: acceptable trade-off. Holon RPCs are overwhelmingly request-response with occasional server-push.
 
+## Implementation Strategy
+
+### Phase 1: Go Reference (TASK01)
+
+`go-holons` implements the reference REST + SSE transport, establishing:
+- URL routing: `POST /v1/<service>/<method>` for unary
+- SSE event structure: `event:` + `data:` fields with `protojson`
+- Auto-reconnect behavior for EventSource clients
+- `rest+sse://` URI scheme for discover/listener registration
+
+### Phase 2: grace-op CLI (TASK02)
+
+Wire the Go transport into `op serve` and `op dial`:
+- `op serve` starts a REST + SSE listener alongside gRPC
+- `op dial` connects via REST + SSE when discover returns `rest+sse://`
+- `holon.yaml` `serve.listeners` accepts `rest+sse://` URIs
+
+### Phase 3: SDK Ports (TASK03–10)
+
+Each SDK ports the Go reference and verifies with `op`:
+- Rust, Dart, Swift, Kotlin, C#, Node.js, C++, Python
+- Cross-language interop: any SDK server ↔ any SDK client
+- End-to-end: `op run` with REST + SSE transport
+
 ## Verdict
 
 REST + SSE is **sustainable and recommended** as the default transport for distributed holon communication. Reserve raw gRPC for co-located / LAN scenarios and large binary data transfers.

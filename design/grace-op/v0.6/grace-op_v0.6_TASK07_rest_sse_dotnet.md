@@ -1,9 +1,12 @@
-# TASK06 — REST + SSE Transport for C# SDK
+# TASK07 — REST + SSE Transport for C# SDK
 
 ## Objective
 
 Port the REST + SSE transport to `dotnet-holons`.
 
+## Repository
+
+- `dotnet-holons`: `github.com/organic-programming/dotnet-holons`
 ## Reference
 
 - [DESIGN_transport_rest_sse.md](./DESIGN_transport_rest_sse.md)
@@ -21,6 +24,7 @@ Same as TASK01. Uses `HttpClient` for POST and
 - [ ] Cross-language interop verified
 - [ ] `dotnet test` — zero failures
 
+- [ ] Verify with `op run` over REST + SSE
 ## Dependencies
 
-TASK01.
+TASK01, TASK02.

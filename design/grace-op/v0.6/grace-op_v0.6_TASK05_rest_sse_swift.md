@@ -1,9 +1,12 @@
-# TASK04 — REST + SSE Transport for Swift SDK
+# TASK05 — REST + SSE Transport for Swift SDK
 
 ## Objective
 
 Port the REST + SSE transport to `swift-holons`.
 
+## Repository
+
+- `swift-holons`: `github.com/organic-programming/swift-holons`
 ## Reference
 
 - [DESIGN_transport_rest_sse.md](./DESIGN_transport_rest_sse.md)
@@ -21,6 +24,7 @@ Same as TASK01. Uses `URLSession` for POST and
 - [ ] Cross-language interop verified
 - [ ] `swift test` — zero failures
 
+- [ ] Verify with `op run` over REST + SSE
 ## Dependencies
 
-TASK01.
+TASK01, TASK02.

@@ -1,9 +1,12 @@
-# TASK08 — REST + SSE Transport for C++ SDK
+# TASK09 — REST + SSE Transport for C++ SDK
 
 ## Objective
 
 Port the REST + SSE transport to `cpp-holons`.
 
+## Repository
+
+- `cpp-holons`: `github.com/organic-programming/cpp-holons`
 ## Reference
 
 - [DESIGN_transport_rest_sse.md](./DESIGN_transport_rest_sse.md)
@@ -21,6 +24,7 @@ custom SSE parser for streaming.
 - [ ] Cross-language interop verified
 - [ ] Tests pass
 
+- [ ] Verify with `op run` over REST + SSE
 ## Dependencies
 
-TASK01.
+TASK01, TASK02.

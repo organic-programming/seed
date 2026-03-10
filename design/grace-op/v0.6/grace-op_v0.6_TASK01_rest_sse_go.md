@@ -5,6 +5,9 @@
 Implement REST + SSE transport in `go-holons` as the reference
 implementation. All other SDK tasks follow this one.
 
+## Repository
+
+- `go-holons`: `github.com/organic-programming/go-holons`
 ## Reference
 
 - [DESIGN_transport_rest_sse.md](./DESIGN_transport_rest_sse.md)
