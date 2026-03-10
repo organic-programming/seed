@@ -20,7 +20,7 @@ package prompt
 func Build(cfg Config, setDir, taskFile string, priorResults []string) (string, error) { ... }
 ```
 
-1. **System layer** — read `CONVENTIONS.md` and `AGENT.md`.
+1. **System layer** — read `CONVENTIONS.md` and `AGENT.md` if present relative to `--root`.
 2. **Version layer** — read all `DESIGN_*.md` in `setDir`.
 3. **History layer** — read `.result.md` from prior completed tasks.
 4. **Task layer** — read the current task file.

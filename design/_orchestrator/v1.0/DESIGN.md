@@ -421,7 +421,7 @@ The orchestrator assembles the prompt sent to `codex exec` from four context lay
 
 | Layer | Source files | Inclusion rule |
 |---|---|---|
-| **System** | `CONVENTIONS.md`, `AGENT.md` | Always included verbatim |
+| **System** | `CONVENTIONS.md`, `AGENT.md` | Included if present relative to `--root` |
 | **Version** | `DESIGN_*.md` in current version folder | Always included verbatim |
 | **History** | `.result.md` from completed tasks in the set | Full until budget exceeded, then compressed |
 | **Task** | The current task `.md` file | Always included verbatim |
