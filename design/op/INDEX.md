@@ -22,6 +22,7 @@ Each proposes new commands, schemas, or SDK capabilities to be added.
 - [DESIGN_transport_rest_sse.md](./DESIGN_transport_rest_sse.md) — REST + SSE transport
 - [DESIGN_cross_compilation.md](./DESIGN_cross_compilation.md) — `op build --target` cross-compilation
 - [DESIGN_sequences.md](./DESIGN_sequences.md) — `sequences:` manifest + `op do` executor
+- [DESIGN_holon_templates.md](./DESIGN_holon_templates.md) — `op new --template` scaffolding
 
 ## Tasks
 

@@ -18,6 +18,7 @@ Complete `op` for single-host development.
 - Recipe restructuring
 - Spec documentation for mesh and setup
 - Sequences (`op do` + MCP tool exposure)
+- Holon templates (`op new --template`)
 
 **Tasks:** [v0_3/_TASKS.md](./v0_3/_TASKS.md)
 
