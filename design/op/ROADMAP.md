@@ -104,7 +104,7 @@ Expose holons to external consumers with per-listener security.
 
 ---
 
-## v1.0 — Setup
+## v0.10 — Setup
 
 Declarative host provisioning from zero to functioning OP host.
 
@@ -115,7 +115,7 @@ Declarative host provisioning from zero to functioning OP host.
 - Multi-image composition
 - Mesh join integration
 
-**Design:** [DESIGN_setup.md](./v1.0/DESIGN_setup.md)
+**Design:** [DESIGN_setup.md](./v0.10/DESIGN_setup.md)
 
 ---
 
@@ -129,7 +129,7 @@ v0.3 (core maturity)
             └─ v0.7 (cross-compilation)
                  └─ v0.8 (mesh networking)
                       └─ v0.9 (public security)
-                           └─ v1.0 (provisioning)
+                           └─ v0.10 (provisioning)
 ```
 
 v0.4 and v0.5 can proceed in parallel after v0.3. The distributed

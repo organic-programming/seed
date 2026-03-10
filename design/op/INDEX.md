@@ -17,7 +17,7 @@ These design documents describe features **not yet in the specs above**.
 Each proposes new commands, schemas, or SDK capabilities to be added.
 
 - [DESIGN_mesh.md](./v0.8/DESIGN_mesh.md) — `op mesh` commands, mTLS, `mesh.yaml`
-- [DESIGN_setup.md](./v1.0/DESIGN_setup.md) — `op setup` provisioning, `setup.yaml`
+- [DESIGN_setup.md](./v0.10/DESIGN_setup.md) — `op setup` provisioning, `setup.yaml`
 - [DESIGN_public_holons.md](./v0.9/DESIGN_public_holons.md) — per-listener security policy
 - [DESIGN_transport_rest_sse.md](./v0.6/DESIGN_transport_rest_sse.md) — REST + SSE transport
 - [DESIGN_cross_compilation.md](./v0.7/DESIGN_cross_compilation.md) — `op build --target` cross-compilation
@@ -33,4 +33,4 @@ Each proposes new commands, schemas, or SDK capabilities to be added.
 - [v0.7/](./v0.7/_TASKS.md) — Cross-Compilation
 - [v0.8/](./v0.8/_TASKS.md) — Mesh
 - [v0.9/](./v0.9/_TASKS.md) — Public Holons
-- [v1.0/](./v1.0/_TASKS.md) — Setup
+- [v0.10/](./v0.10/_TASKS.md) — Setup
