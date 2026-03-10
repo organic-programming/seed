@@ -1,40 +1,77 @@
 ---
-description: Mark a completed task with ✅, exact commit SHA(s), and direct verification URL(s)
+description: Mark a completed task with ✅ or ❌, rename file, update _TASKS.md, and create failure report if needed
 ---
 
 # Complete Task
 
-When a task is finished, update the task document so completion is
-visible and directly verifiable from the file itself.
+When a task is finished (success or failure), mark it in three
+places: the task file, the filename, and the `_TASKS.md` index.
 
-## Rules
+## Status Emojis
 
-- Always mark the completed task with `✅`.
-- Always record the exact commit SHA after the work is committed.
-- Always include a direct commit URL for verification.
-- If the work spans multiple repos or a submodule plus parent repo,
-  list every relevant commit.
-- Do not mark the task complete until the commit exists and has been pushed.
+| Emoji | Meaning | When to use |
+|---|---|---|
+| ✅ | Success | Task fully completed and verified |
+| ❌ | Failure | Task failed, blocked, or abandoned |
 
-## Required status block
+## Steps — Success (✅)
 
-Add a `## Status` section near the top of the task file.
+1. Finish the implementation and tests.
+2. Commit and push all changes.
+3. **Rename the task file** — append ✅ before the extension:
+   ```
+   op_v0.3_TASK01_install_no_build.md
+   → op_v0.3_TASK01_install_no_build.✅.md
+   ```
+4. **Add a `## Status` block** near the top of the task file:
+   ```md
+   ## Status
 
-### Single commit
+   Complete ✅
 
-```md
-## Status
+   - Commit: `abc1234`
+   - Verify: https://github.com/<owner>/<repo>/commit/abc1234
+   ```
+5. **Update `_TASKS.md`** — add ✅ to the summary column:
+   ```md
+   | 01 | [TASK01](./op_v0.3_TASK01_install_no_build.✅.md) | ✅ `op install --no-build` flag | — |
+   ```
+6. If the task has a checklist, convert completed items to `[x]`.
+7. Commit the marking changes and push.
 
-Complete ✅
+## Steps — Failure (❌)
 
-- Commit: `abc1234`
-- Verify: https://github.com/<owner>/<repo>/commit/abc1234
-```
+1. **Rename the task file** — append ❌ before the extension:
+   ```
+   op_v0.4_TASK03_assembly_manifests.md
+   → op_v0.4_TASK03_assembly_manifests.❌.md
+   ```
+2. **Add a `## Status` block** near the top of the task file:
+   ```md
+   ## Status
 
-### Multiple commits
+   Failed ❌ — see [failure report](./op_v0.4_TASK03_assembly_manifests.failure.md)
+   ```
+3. **Create a failure report** — same basename with `.failure.md`:
+   ```
+   op_v0.4_TASK03_assembly_manifests.failure.md
+   ```
+   The report must contain:
+   - **Summary** — one-line description of what failed
+   - **Error** — the actual error message or log output
+   - **Context** — what was attempted, commands run, environment
+   - **Root cause** — if known
+   - **Next steps** — what to try next, or why the task is abandoned
+4. **Update `_TASKS.md`** — add ❌ to the summary column:
+   ```md
+   | 03 | [TASK03](./op_v0.4_TASK03_assembly_manifests.❌.md) | ❌ Create 48 assembly manifests | TASK01, TASK02 |
+   ```
+5. Commit all changes and push.
 
-Use this when the work spans multiple repositories, submodules, or a
-set of commits that are all required to verify the task.
+## Multiple commits
+
+When the work spans multiple repos or submodules, list every
+commit in the status block:
 
 ```md
 ## Status
@@ -45,33 +82,18 @@ Complete ✅
 - `cpp-holons`: `96d6470` | https://github.com/organic-programming/cpp-holons/commit/96d6470
 ```
 
-## Steps
-
-1. Finish the implementation and tests.
-2. Commit the changes in every affected repo.
-3. Push the commit or commits.
-4. Update the task file:
-   - add `✅`
-   - add the commit SHA or SHAs
-   - add the direct verification URL or URLs
-5. If the task has a checklist, convert completed items to `[x]`.
-6. If a submodule changed, include both:
-   - the submodule commit
-   - the parent repo commit that updates the submodule pointer
-
 ## URL format
 
 Derive the verification URL from the repo remote:
 
-- `git@github.com:organic-programming/seed.git` ->
+- `git@github.com:organic-programming/seed.git` →
   `https://github.com/organic-programming/seed/commit/<sha>`
-- `git@github.com:organic-programming/cpp-holons.git` ->
-  `https://github.com/organic-programming/cpp-holons/commit/<sha>`
 
 ## Done criteria
 
-A task is only done when the task file contains:
+A task is only done when:
 
-- `✅`
-- the exact commit SHA or SHAs
-- a direct verification URL for each commit
+- The filename contains ✅ or ❌
+- The task file contains a `## Status` block with commit SHA(s)
+- The `_TASKS.md` row is updated with the emoji
+- (❌ only) a `.failure.md` report exists alongside the task
