@@ -770,44 +770,147 @@ _orchestrator/
 | `internal/preflight` | Pre-flight environment validation | §3.10 |
 | `internal/summary` | Post-run summary report | §3.15 |
 
-### 4.3 Execution Flow
+### 4.3 Package Contracts
+
+Canonical type definitions and cross-package function signatures.
+Task specs reference this section — any signature conflict must be
+resolved here first.
+
+```go
+// --- internal/cli ---
+
+type Config struct {
+    Sets      []string
+    Model     string
+    Root      string
+    StateFile string // default: <root>/.codex_orchestrator_state.json
+}
+
+// --- internal/tasks ---
+
+type Entry struct {
+    Number    string
+    FilePath  string   // resolved to absolute path
+    Summary   string
+    DependsOn []string // e.g. ["TASK01", "TASK03"]
+}
+
+func Parse(tasksFile string) ([]Entry, error)
+func Sort(entries []Entry) ([]Entry, error)
+func FindSetDir(root, setName string) (setDir, project string, err error)
+
+// --- internal/state ---
+
+type State struct { /* per-task state keyed by file path */ }
+
+func Load(stateFile string) *State
+func (s *State) Save() error
+func (s *State) IsCompleted(taskFile string) bool
+func (s *State) CompletedResults(setDir string) []string
+
+type Lock struct { path string }
+
+func Acquire(root string) (*Lock, error)
+func (l *Lock) Release() error
+
+// --- internal/codex ---
+
+type Result struct {
+    Success   bool
+    ThreadID  string
+    Output    string
+    Attempts  int
+    Tokens    state.TokenUsage
+}
+
+func ExecuteLoop(cfg cli.Config, task tasks.Entry, prompt string, addDirs []string, st *state.State) Result
+func SetCurrentCmd(cmd *exec.Cmd)  // signal handler accessor
+func CurrentCmd() *exec.Cmd        // signal handler accessor
+
+// --- internal/git ---
+
+type Ops struct { Root string }
+
+func (o *Ops) Rename(from, to string) error
+func (o *Ops) AddCommitPush(msg string, files ...string) error
+func (o *Ops) Tag(name, msg string) error
+func EnsureConsistency(root, project, setName string) error
+func ListSubmodulePaths(root string) ([]string, error)
+func DetectRefs(taskContent string, submodules []string) []string
+
+// --- internal/lifecycle ---
+
+func StartTask(task tasks.Entry, setDir string, git *git.Ops) error
+func CompleteTask(task tasks.Entry, result codex.Result, setDir string, git *git.Ops) error
+func UpdateVersionStatus(setDir string, entries []tasks.Entry, git *git.Ops) error
+func Reset(setDir string, st *state.State, git *git.Ops) error
+func Release(setDir, version string, git *git.Ops) error
+
+// --- internal/summary ---
+
+type SetResult struct {
+    Name     string
+    Tasks    int
+    Passed   int
+    Failed   int
+    Tokens   state.TokenUsage
+    Status   string   // ✅, ⚠️, 💭
+    Failures []string
+}
+
+func Print(st *state.State, sets []SetResult, elapsed time.Duration)
+func BuildSetResult(setName string, entries []tasks.Entry, st *state.State) SetResult
+```
+
+### 4.4 Execution Flow
 
 ```go
 // cmd/orchestrator/main.go — simplified
 func main() {
     cfg := cli.Parse()
-    lock := state.AcquireLock(cfg.Root)
+    lock, _ := state.Acquire(cfg.Root)
     defer lock.Release()
 
-    preflight.Run(cfg)          // §3.10
-    st := state.Load(cfg)
+    preflight.Run(cfg)           // §3.10
+    st := state.Load(cfg.StateFile)
     setupSignalHandler(st, lock) // §3.14
 
-    for _, set := range cfg.Sets {
-        git.EnsureConsistency(cfg.Root, set)
-        dag := tasks.ParseAndSort(set)
+    startTime := time.Now()
+    var setResults []summary.SetResult
 
-        for _, task := range dag.Order() {
-            lifecycle.StartTask(task)
-            p := prompt.Build(cfg, set, task, st)
-            addDirs := git.DetectSubmoduleRefs(task)
+    for _, setName := range cfg.Sets {
+        setDir, project, _ := tasks.FindSetDir(cfg.Root, setName)
+        git.EnsureConsistency(cfg.Root, project, setName)
+        entries, _ := tasks.Parse(filepath.Join(setDir, "_TASKS.md"))
+        ordered, _ := tasks.Sort(entries)
+
+        for _, task := range ordered {
+            if st.IsCompleted(task.FilePath) { continue }
+            gitOps := &git.Ops{Root: cfg.Root}
+            lifecycle.StartTask(task, setDir, gitOps)
+
+            priorResults := st.CompletedResults(setDir)
+            p, _ := prompt.Build(cfg, setDir, task.FilePath, priorResults)
+            submodules, _ := git.ListSubmodulePaths(cfg.Root)
+            addDirs := git.DetectRefs(string(must(os.ReadFile(task.FilePath))), submodules)
 
             result := codex.ExecuteLoop(cfg, task, p, addDirs, st) // §3.9
-            lifecycle.CompleteTask(task, result)
-            lifecycle.UpdateVersionStatus(set)
+            lifecycle.CompleteTask(task, result, setDir, gitOps)
+            lifecycle.UpdateVersionStatus(setDir, ordered, gitOps)
             st.Save()
         }
 
-        if set.AllPassed() {
-            lifecycle.Release(set)
+        setResults = append(setResults, summary.BuildSetResult(setName, ordered, st))
+        if allPassed(ordered, st) {
+            lifecycle.Release(setDir, setName, &git.Ops{Root: cfg.Root})
         }
     }
 
-    summary.Print(st) // §3.15
+    summary.Print(st, setResults, time.Since(startTime)) // §3.15
 }
 ```
 
-### 4.4 Design Principles
+### 4.5 Design Principles
 
 - **No global state.** Dependencies are passed explicitly. The `main.go` function is the only place where components are wired together.
 - **`internal/` enforced.** All packages live under `internal/` — they are not importable by external modules. This is intentional: the orchestrator is a standalone tool, not a library.
