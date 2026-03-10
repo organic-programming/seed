@@ -57,7 +57,7 @@ Add HTTP-native transport for distributed holon communication.
 - SDK transport adapter (serve + connect)
 - mTLS over standard HTTPS
 
-**Design:** [DESIGN_transport_rest_sse.md](./DESIGN_transport_rest_sse.md)
+**Design:** [DESIGN_transport_rest_sse.md](./v0.6/DESIGN_transport_rest_sse.md)
 
 ---
 
@@ -73,7 +73,7 @@ Build holons for mobile and browser from a desktop host.
 - C/C++: Emscripten for WASM, NDK for Android
 - Platform-aware connect chain (auto-select transport by mode)
 
-**Design:** [DESIGN_cross_compilation.md](./DESIGN_cross_compilation.md)
+**Design:** [DESIGN_cross_compilation.md](./v0.7/DESIGN_cross_compilation.md)
 
 ---
 
@@ -87,7 +87,7 @@ Enable multi-host holon networks with `op mesh`.
 - `mesh.yaml` registry
 - SDK integration: mesh-aware discover, connect, serve (mTLS)
 
-**Design:** [DESIGN_mesh.md](./DESIGN_mesh.md)
+**Design:** [DESIGN_mesh.md](./v0.8/DESIGN_mesh.md)
 
 ---
 
@@ -100,7 +100,7 @@ Expose holons to external consumers with per-listener security.
 - Multi-listener `serve.Run` with mixed TLS configs
 - Consumer identity on gRPC context
 
-**Design:** [DESIGN_public_holons.md](./DESIGN_public_holons.md)
+**Design:** [DESIGN_public_holons.md](./v0.9/DESIGN_public_holons.md)
 
 ---
 
@@ -115,7 +115,7 @@ Declarative host provisioning from zero to functioning OP host.
 - Multi-image composition
 - Mesh join integration
 
-**Design:** [DESIGN_setup.md](./DESIGN_setup.md)
+**Design:** [DESIGN_setup.md](./v1.0/DESIGN_setup.md)
 
 ---
 

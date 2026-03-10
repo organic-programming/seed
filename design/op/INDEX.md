@@ -16,13 +16,13 @@
 These design documents describe features **not yet in the specs above**.
 Each proposes new commands, schemas, or SDK capabilities to be added.
 
-- [DESIGN_mesh.md](./DESIGN_mesh.md) — `op mesh` commands, mTLS, `mesh.yaml`
-- [DESIGN_setup.md](./DESIGN_setup.md) — `op setup` provisioning, `setup.yaml`
-- [DESIGN_public_holons.md](./DESIGN_public_holons.md) — per-listener security policy
-- [DESIGN_transport_rest_sse.md](./DESIGN_transport_rest_sse.md) — REST + SSE transport
-- [DESIGN_cross_compilation.md](./DESIGN_cross_compilation.md) — `op build --target` cross-compilation
-- [DESIGN_sequences.md](./DESIGN_sequences.md) — `sequences:` manifest + `op do` executor
-- [DESIGN_holon_templates.md](./DESIGN_holon_templates.md) — `op new --template` scaffolding
+- [DESIGN_mesh.md](./v0.8/DESIGN_mesh.md) — `op mesh` commands, mTLS, `mesh.yaml`
+- [DESIGN_setup.md](./v1.0/DESIGN_setup.md) — `op setup` provisioning, `setup.yaml`
+- [DESIGN_public_holons.md](./v0.9/DESIGN_public_holons.md) — per-listener security policy
+- [DESIGN_transport_rest_sse.md](./v0.6/DESIGN_transport_rest_sse.md) — REST + SSE transport
+- [DESIGN_cross_compilation.md](./v0.7/DESIGN_cross_compilation.md) — `op build --target` cross-compilation
+- [DESIGN_sequences.md](./v0.5/DESIGN_sequences.md) — `sequences:` manifest + `op do` executor
+- [DESIGN_holon_templates.md](./v0.3/DESIGN_holon_templates.md) — `op new --template` scaffolding
 
 ## Tasks
 
