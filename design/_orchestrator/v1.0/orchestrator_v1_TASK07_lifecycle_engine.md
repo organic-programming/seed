@@ -73,6 +73,10 @@ type Ops struct { Root string }
 func (o *Ops) Rename(from, to string) error { ... }
 func (o *Ops) AddCommitPush(msg string, files ...string) error { ... }
 func (o *Ops) Tag(name, msg string) error { ... }
+
+// EnsureConsistency verifies branch consistency across root and submodules
+// for the given project/set. Creates -dev branches if missing (§3.2).
+func EnsureConsistency(root, project, setName string) error { ... }
 ```
 
 ## Acceptance Criteria

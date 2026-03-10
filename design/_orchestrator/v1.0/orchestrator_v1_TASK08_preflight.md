@@ -29,6 +29,28 @@ func Acquire(root string) (*Lock, error) { ... }
 func (l *Lock) Release() error { ... }
 ```
 
+### [NEW] `internal/state/state.go`
+
+```go
+package state
+
+// State holds the orchestrator's persistent state across tasks.
+type State struct { ... }
+
+// Load reads the state file, or returns an empty state if it does not exist.
+func Load(stateFile string) *State { ... }
+
+// Save persists the current state to disk.
+func (s *State) Save() error { ... }
+
+// IsCompleted returns true if the task at the given path has completed.
+func (s *State) IsCompleted(taskFile string) bool { ... }
+
+// CompletedResults returns the .result.md paths for all completed tasks
+// in the given set directory, in execution order.
+func (s *State) CompletedResults(setDir string) []string { ... }
+```
+
 ### [NEW] `internal/preflight/checks.go`
 
 ```go

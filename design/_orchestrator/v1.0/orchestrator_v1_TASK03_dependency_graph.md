@@ -29,6 +29,11 @@ type Entry struct {
 
 // Parse reads a _TASKS.md file and returns all task entries.
 func Parse(tasksFile string) ([]Entry, error) { ... }
+
+// FindSetDir locates the version folder for a given set name (e.g. "v0.4")
+// by scanning <root>/design/<project>/ for a matching directory.
+// Returns the absolute path and the project name.
+func FindSetDir(root, setName string) (setDir, project string, err error) { ... }
 ```
 
 Handle edge cases: `—` means no dependencies; `TASK01, TASK03` means multiple;
