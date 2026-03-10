@@ -90,20 +90,59 @@ Result: `op build` works immediately on the generated scaffold.
 
 ## Template Catalog
 
-Built-in templates sourced from TASK08 recipe daemons:
+### Daemon Templates (native gRPC servers)
 
-| Template | Lang | Runner | Notes |
+| Template | Lang | Runner | Source |
 |---|---|---|---|
-| `go-daemon` | Go | go-module | |
-| `rust-daemon` | Rust | cargo | |
-| `python-daemon` | Python | script | |
-| `swift-daemon` | Swift | swift-package | |
-| `kotlin-daemon` | Kotlin | gradle | |
-| `dart-daemon` | Dart | flutter | |
-| `csharp-daemon` | C# | dotnet | |
-| `node-daemon` | Node.js | npm | |
-| `cpp-daemon` | C++ | cmake | |
-| `composite-*` | — | recipe | Assembly templates |
+| `go-daemon` | Go | go-module | TASK08.01 |
+| `rust-daemon` | Rust | cargo | TASK08.01 |
+| `python-daemon` | Python | script | TASK08.01 |
+| `swift-daemon` | Swift | swift-package | TASK08.01 |
+| `kotlin-daemon` | Kotlin | gradle | TASK08.01 |
+| `dart-daemon` | Dart | flutter | TASK08.01 |
+| `csharp-daemon` | C# | dotnet | TASK08.01 |
+| `node-daemon` | Node.js | npm | TASK08.01 |
+| `cpp-daemon` | C++ | cmake | CPP_TASK001 |
+
+### HostUI Templates (frontend clients)
+
+| Template | Tech | Runner | Source |
+|---|---|---|---|
+| `hostui-swiftui` | SwiftUI | swift-package | TASK08.02 |
+| `hostui-flutter` | Flutter | flutter | TASK08.02 |
+| `hostui-kotlin` | Kotlin Compose | gradle | TASK08.02 |
+| `hostui-web` | HTML/JS | script | TASK08.02 |
+| `hostui-dotnet` | .NET MAUI | dotnet | TASK08.02 |
+| `hostui-qt` | Qt/C++ | qt-cmake | TASK08.02 |
+
+### Composition Templates (backend-to-backend)
+
+| Template | Pattern | Source |
+|---|---|---|
+| `composition-direct-call` | A → B | TASK08.06 |
+| `composition-pipeline` | A → B → C | TASK08.06 |
+| `composition-fan-out` | A → {B, C} parallel | TASK08.06 |
+
+### Composite Templates (assemblies)
+
+| Template | Generates | Source |
+|---|---|---|
+| `composite-<daemon>-<hostui>` | manifest-only assembly | TASK08.03 |
+
+Example: `op new --template composite-go-swift my-app` generates
+a `holon.yaml` referencing a Go daemon and SwiftUI HostUI.
+
+### Wrapper Templates (external CLI delegation)
+
+| Template | Wraps | Source |
+|---|---|---|
+| `wrapper-cli` | Any CLI tool | Based on rob-go, jess-npm |
+
+### Toolchain Templates (development tooling)
+
+| Template | Purpose | Source |
+|---|---|---|
+| `toolchain-lang` | Language toolchain holon | Based on rob-go |
 
 ---
 
@@ -148,3 +187,44 @@ build:
 
 The agent reads this + runs `op new --template cpp-daemon` + fills
 in the details. The spec file is a **structured prompt**, not code.
+
+---
+
+## Template Maintenance Workflow
+
+Templates are living artifacts. When conventions or APIs change,
+templates must stay in sync.
+
+### Triggers
+
+| Event | Action |
+|---|---|
+| New runner added (e.g. `zig`) | Add daemon template |
+| New HostUI tech added | Add hostui template |
+| `serve.Run` API changes | Update all daemon `main.*` templates |
+| New `holon.yaml` field | Update all `holon.yaml.tmpl` files |
+| Proto convention change | Update all `service.proto.tmpl` files |
+| New composition pattern (e.g. sidecar) | Add composition template |
+| Platform matrix change | Update template `platforms` lists |
+
+### Maintenance Checklist
+
+1. **Edit the template** — modify `.tmpl` files
+2. **Regenerate test holon** — `op new --template <name> test-holon`
+3. **Verify it builds** — `op build test-holon`
+4. **Run testmatrix** — ensure existing recipes still pass
+5. **Update catalog** — if adding/removing templates
+6. **Update recipe source** — if the change applies to TASK08 recipes too
+
+### Source of Truth
+
+Recipe implementations are the canonical reference. Templates are
+scaffolds that produce the same structure:
+
+```
+recipes/daemons/greeting-daemon-go/   ← canonical (TASK08)
+templates/go-daemon/                  ← generates same structure
+```
+
+When both diverge, the **recipe is the source of truth**. Update
+the template to match.
