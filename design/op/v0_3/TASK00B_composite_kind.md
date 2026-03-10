@@ -1,4 +1,4 @@
-# TASK10 — Composite Kind Formalization
+# TASK00B — Composite Kind Formalization
 
 ## Context
 
@@ -13,7 +13,7 @@ but the manifest parser does not formally support these fields.
   `artifacts.primary` to locate the bundle path for install.
 - **TASK09** (build configs) touches the manifest parser but
   different fields — no conflict.
-- TASK01–03, TASK05–08: no interaction.
+- TASK01–08: no interaction.
 
 ## Objective
 
