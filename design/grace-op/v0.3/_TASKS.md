@@ -1,4 +1,4 @@
-# OP v0.3 Design Tasks — Core Maturity
+# Grace-OP v0.3 Design Tasks — Core Maturity
 
 ## Tasks
 
@@ -11,7 +11,5 @@
 | 05 | [TASK05](./grace-op_v0.3_TASK05_tier3_runners.md) | `dotnet`, `qt-cmake` runners | TASK03 |
 | 06 | [TASK06](./grace-op_v0.3_TASK06_install_bundles.md) | Install .app/.exe bundles to `$OPBIN` | TASK02 |
 | 07 | [TASK07](./grace-op_v0.3_TASK07_package_distribution.md) | Package manager distribution (Homebrew, WinGet, NPM) | — |
-| 08 | [TASK08](./grace-op_v0.3_TASK08_mesh_documentation.md) | Document `op mesh` + transport security | — |
-| 09 | [TASK09](./grace-op_v0.3_TASK09_setup_documentation.md) | Document `op setup` + `setup.yaml` spec | TASK08 |
 
 Design documents: [DESIGN_holon_templates.md](./DESIGN_holon_templates.md)
