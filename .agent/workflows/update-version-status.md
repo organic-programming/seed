@@ -44,9 +44,10 @@ it stays as `v0.X` while work is in progress.
    mv "design/grace-op/✅ v0.3" "design/grace-op/v0.3"
    mv "design/grace-op/⚠️ v0.4" "design/grace-op/v0.4"
    ```
-2. Strip task file status suffixes (`.✅.md` → `.md`, `.❌.md` → `.md`).
-3. Remove `.failure.md` reports from the previous run.
-4. Commit and push, then proceed with `/start-task`.
+2. Clear `_TASKS.md` Status column — reset all values back to `—`.
+3. Remove `## Status` blocks from task files.
+4. Remove `.failure.md` reports from the previous run.
+5. Commit and push, then proceed with `/start-task`.
 
 ## On ✅ Completion — Release
 
