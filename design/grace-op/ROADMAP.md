@@ -68,16 +68,31 @@ Build holons for mobile and browser from a desktop host.
 - `op build --target <platform>` flag
 - Execution mode selection per target (binary, framework, WASM)
 - `build.targets` in `holon.yaml` (per-platform build rules)
-- Go: `gomobile bind` for iOS/Android, `GOOS=js` for WASM
-- Rust: `cdylib` for mobile, `wasm-pack` for browser
-- C/C++: Emscripten for WASM, NDK for Android
+- All 9 SDK languages: Go, Rust, C++, Swift, Kotlin, Dart, C#, Node, Python
+- Desktop cross-compilation (macOS → Windows/Linux)
 - Platform-aware connect chain (auto-select transport by mode)
 
 **Design:** [DESIGN_cross_compilation.md](./v0.7/DESIGN_cross_compilation.md)
 
 ---
 
-## v0.8 — Mesh
+## v0.8 — Release Pipeline
+
+Publish pre-compiled holons for every platform so users can
+install without a compiler.
+
+- `op publish` — multi-platform build + upload
+- `op install` — platform resolution + source fallback
+- Holon registry (artifact storage + index)
+- CI build matrix templates (GitHub Actions)
+- Artifact signing and verification (Ed25519)
+- Platform-tagged naming convention
+
+**Design:** [DESIGN_release_pipeline.md](./v0.8/DESIGN_release_pipeline.md)
+
+---
+
+## v0.9 — Mesh
 
 Enable multi-host holon networks with `op mesh`.
 
@@ -87,11 +102,11 @@ Enable multi-host holon networks with `op mesh`.
 - `mesh.yaml` registry
 - SDK integration: mesh-aware discover, connect, serve (mTLS)
 
-**Design:** [DESIGN_mesh.md](./v0.8/DESIGN_mesh.md)
+**Design:** [DESIGN_mesh.md](./v0.9/DESIGN_mesh.md)
 
 ---
 
-## v0.9 — Public Holons
+## v0.10 — Public Holons
 
 Expose holons to external consumers with per-listener security.
 
@@ -100,11 +115,11 @@ Expose holons to external consumers with per-listener security.
 - Multi-listener `serve.Run` with mixed TLS configs
 - Consumer identity on gRPC context
 
-**Design:** [DESIGN_public_holons.md](./v0.9/DESIGN_public_holons.md)
+**Design:** [DESIGN_public_holons.md](./v0.10/DESIGN_public_holons.md)
 
 ---
 
-## v0.10 — Setup
+## v0.11 — Setup
 
 Declarative host provisioning from zero to functioning OP host.
 
@@ -115,7 +130,7 @@ Declarative host provisioning from zero to functioning OP host.
 - Multi-image composition
 - Mesh join integration
 
-**Design:** [DESIGN_setup.md](./v0.10/DESIGN_setup.md)
+**Design:** [DESIGN_setup.md](./v0.11/DESIGN_setup.md)
 
 ---
 
@@ -127,9 +142,10 @@ v0.3 (core maturity)
   └─ v0.5 (extensibility)
        └─ v0.6 (REST+SSE transport)
             └─ v0.7 (cross-compilation)
-                 └─ v0.8 (mesh networking)
-                      └─ v0.9 (public security)
-                           └─ v0.10 (provisioning)
+                 └─ v0.8 (release pipeline)
+                      └─ v0.9 (mesh networking)
+                           └─ v0.10 (public security)
+                                └─ v0.11 (provisioning)
 ```
 
 v0.4 and v0.5 can proceed in parallel after v0.3. The distributed

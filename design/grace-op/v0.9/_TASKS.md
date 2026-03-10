@@ -1,3 +1,3 @@
-# OP v0.9 Design Tasks — Public Holons
+# OP v0.9 Design Tasks — Mesh
 
-No tasks defined yet. See [DESIGN_public_holons.md](./DESIGN_public_holons.md).
+No tasks defined yet. See [DESIGN_mesh.md](./DESIGN_mesh.md).

@@ -111,5 +111,5 @@ needed.
 
 - **Requires v0.6** — REST+SSE transport must exist before
   framework/WASM targets make sense (they depend on HTTP transport)
-- **Independent of v0.8** — Mesh is network topology, not build
+- **Independent of v0.9** — Mesh is network topology, not build
   targeting

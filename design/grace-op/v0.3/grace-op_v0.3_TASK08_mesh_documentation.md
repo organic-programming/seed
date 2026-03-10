@@ -6,9 +6,9 @@ Update the Organic Programming specification documents to cover the distributed 
 
 ## Reference Documents
 
-- [DESIGN_mesh.md](../v0.8/DESIGN_mesh.md) — `op mesh` commands, data model, SDK integration
+- [DESIGN_mesh.md](../v0.9/DESIGN_mesh.md) — `op mesh` commands, data model, SDK integration
 - [DESIGN_transport_rest_sse.md](../v0.6/DESIGN_transport_rest_sse.md) — REST + SSE transport analysis
-- [DESIGN_public_holons.md](../v0.9/DESIGN_public_holons.md) — per-listener security policy and public holon exposure
+- [DESIGN_public_holons.md](../v0.10/DESIGN_public_holons.md) — per-listener security policy and public holon exposure
 
 ---
 

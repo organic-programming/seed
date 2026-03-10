@@ -6,7 +6,7 @@ Create specification documents for `op setup` (declarative host provisioning) an
 
 ## Reference Documents
 
-- [DESIGN_setup.md](../v0.10/DESIGN_setup.md) — full design for `op setup`, dependency resolution, execution flow
+- [DESIGN_setup.md](../v0.11/DESIGN_setup.md) — full design for `op setup`, dependency resolution, execution flow
 
 ---
 

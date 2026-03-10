@@ -1,3 +1,3 @@
-# OP v0.10 Design Tasks — Setup
+# OP v0.10 Design Tasks — Public Holons
 
-No tasks defined yet. See [DESIGN_setup.md](./DESIGN_setup.md).
+No tasks defined yet. See [DESIGN_public_holons.md](./DESIGN_public_holons.md).
