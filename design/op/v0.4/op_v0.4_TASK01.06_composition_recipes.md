@@ -62,4 +62,4 @@ None (workers are standalone; orchestrators use SDK `connect(slug)`).
 ## Reference
 
 Proto contracts, code snippets, and directory templates:
-[TASK01_NOTES.md](./TASK01_NOTES.md)
+[op_v0.4_TASK01_NOTES.md](./op_v0.4_TASK01_NOTES.md)

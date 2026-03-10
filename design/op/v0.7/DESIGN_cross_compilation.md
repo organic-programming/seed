@@ -18,7 +18,7 @@ source can produce three different artifacts:
 | **wasm** | WebAssembly module (`.wasm`) | Browser, edge |
 
 The execution mode determines which transports are available.
-See [PLATFORM_MATRIX.md](../PLATFORM_MATRIX.md) for the full
+See [PLATFORM_MATRIX.md](../../PLATFORM_MATRIX.md) for the full
 transport × mode × platform matrix.
 
 ## CLI Interface

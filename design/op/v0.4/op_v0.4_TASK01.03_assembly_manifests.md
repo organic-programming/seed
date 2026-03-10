@@ -50,4 +50,4 @@ TASK01.01, TASK01.02 (daemons and HostUIs must exist).
 ## Reference
 
 Full 48-entry assembly matrix with highlighted full-stack combos:
-[TASK01_NOTES.md](./TASK01_NOTES.md)
+[op_v0.4_TASK01_NOTES.md](./op_v0.4_TASK01_NOTES.md)

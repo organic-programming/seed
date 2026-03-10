@@ -11,7 +11,7 @@ manifest and executable via CLI or MCP tools.
 ### 1. `OP.md` — Add `sequences:` fields
 
 Add `### Sequences fields` section after `### Skills fields`.
-Spec: [DESIGN_sequences.md](../DESIGN_sequences.md)
+Spec: [DESIGN_sequences.md](./DESIGN_sequences.md)
 
 ### 2. `op do` CLI command
 

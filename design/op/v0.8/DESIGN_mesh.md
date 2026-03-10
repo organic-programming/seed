@@ -279,7 +279,7 @@ serve:
       security: none
 ```
 
-For the `public` mode (exposing a holon to external consumers with per-consumer confidentiality), see [DESIGN_public_holons.md](./DESIGN_public_holons.md).
+For the `public` mode (exposing a holon to external consumers with per-consumer confidentiality), see [DESIGN_public_holons.md](../v0.9/DESIGN_public_holons.md).
 
 ### Mesh Security Properties
 

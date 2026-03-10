@@ -80,7 +80,7 @@ REST + SSE doesn't replace Connect — it **aligns with it**. Connect is for typ
 
 ## Security Layer
 
-REST + SSE runs over standard HTTPS. For cross-network holon communication, **mTLS** (mutual TLS) secures the transport: both caller and callee present certificates signed by the mesh CA. This is managed by `op mesh` — see [DESIGN_op_mesh.md](./DESIGN_op_mesh.md).
+REST + SSE runs over standard HTTPS. For cross-network holon communication, **mTLS** (mutual TLS) secures the transport: both caller and callee present certificates signed by the mesh CA. This is managed by `op mesh` — see [DESIGN_op_mesh.md](../v0.8/DESIGN_mesh.md).
 
 ## Revised Transport Table
 
