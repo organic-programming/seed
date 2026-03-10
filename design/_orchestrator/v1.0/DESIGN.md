@@ -225,34 +225,33 @@ The version folder stays as `v0.X` throughout execution. Emoji prefixes are appl
 If the version folder has an emoji prefix from a previous run, the orchestrator strips it before starting:
 
 1. **Strip folder prefix** — `✅ v0.X` or `⚠️ v0.X` → `v0.X`.
-2. **Strip task file suffixes** — `.✅.md` → `.md`, `.❌.md` → `.md`.
-3. **Remove failure reports** — delete any `.failure.md` files from the previous run.
-4. **Commit and push** the reset.
+2. **Reset `_TASKS.md` Status column** — clear all status emojis back to `—`.
+3. **Remove `## Status` blocks** from task files.
+4. **Remove failure reports** — delete any `.failure.md` files from the previous run.
+5. **Commit and push** the reset.
 
 #### Before Execution — Start Task
 
-1. **Mark `_TASKS.md`** — add 🔨 to the summary column of the task row.
+1. **Update `_TASKS.md` Status column** — set the task's status to `💭`.
 2. **Commit and push** the marking before dispatching to codex.
 
 #### After Execution — Complete Task
 
-The orchestrator inspects the codex exit code and output to determine success or failure.
+The orchestrator inspects the codex exit code and output to determine success or failure. Task files are **never renamed** — status is tracked in `_TASKS.md` and inside the task file itself.
 
 **On ✅ Success:**
 
-1. Rename the task file: `TASK01_foo.md` → `TASK01_foo.✅.md`
-2. Inject a `## Status` block with commit SHA(s) and verification URL(s).
-3. Update the `_TASKS.md` row with ✅ and the renamed filename link.
-4. Commit and push.
+1. Inject a `## Status` block in the task file with commit SHA(s) and verification URL(s).
+2. Update the `_TASKS.md` Status column to `✅`.
+3. Commit and push.
 
 **On ❌ Failure:**
 
-1. Rename the task file: `TASK03_bar.md` → `TASK03_bar.❌.md`
-2. Inject a `## Status` block linking to a failure report.
-3. Generate `TASK03_bar.failure.md` containing: summary, error output, context, root cause (if determinable), and next steps.
-4. Update the `_TASKS.md` row with ❌.
-5. Commit and push.
-6. **Halt the set** — do not proceed to subsequent tasks.
+1. Inject a `## Status` block in the task file linking to a failure report.
+2. Generate `TASK03_bar.failure.md` containing: summary, error output, context, root cause (if determinable), and next steps.
+3. Update the `_TASKS.md` Status column to `❌`.
+4. Commit and push.
+5. **Halt the set** — do not proceed to subsequent tasks.
 
 #### After All Tasks — Update Version Status
 
@@ -310,21 +309,19 @@ design/<project>/v0.X/
 Every `_TASKS.md` follows this exact table format:
 
 ```md
-| # | File | Summary | Depends on |
-|---|---|---|---|
-| 01 | [TASK01](./grace-op_v0.3_TASK01_install_no_build.md) | `op install --no-build` flag | — |
-| 04 | [TASK04](./grace-op_v0.3_TASK04_tier2_runners.md) | `npm`, `gradle` runners | TASK03 |
+| # | File | Summary | Depends on | Status |
+|---|---|---|---|---|
+| 01 | [TASK01](./grace-op_v0.3_TASK01_install_no_build.md) | `op install --no-build` flag | — | — |
+| 04 | [TASK04](./grace-op_v0.3_TASK04_tier2_runners.md) | `npm`, `gradle` runners | TASK03 | — |
 ```
 
-Columns: task number, link to task file, one-line summary, intra-version dependencies (or `—` for none).
+Columns: task number, link to task file, one-line summary, intra-version dependencies (or `—` for none), status (`—`, `💭`, `✅`, `❌`, `⚠️`).
 
 #### Task File Naming
 
 Pattern: `<project>_v<X.Y>_TASKNN_<slug>.md`
 
-After completion/failure per §3.5, the file gains a status suffix:
-- `grace-op_v0.3_TASK01_install_no_build.✅.md`
-- `grace-op_v0.4_TASK03_assembly_manifests.❌.md`
+Task files are **never renamed**. Status is tracked in the `_TASKS.md` Status column and in the task file's `## Status` block.
 
 #### Task File Sections
 

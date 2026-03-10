@@ -3,8 +3,11 @@
 ## Context
 
 DESIGN.md §3.5 defines the full lifecycle doctrine: start marking,
-completion with ✅/❌ rename, `_TASKS.md` updates, failure reports,
-version folder status, and release tagging.
+completion status in `_TASKS.md`, `## Status` blocks in task files,
+failure reports, version folder status, and release tagging.
+
+Task files are **never renamed** — all status is tracked via the
+`_TASKS.md` Status column and the task file's `## Status` block.
 
 ## Objective
 
@@ -17,8 +20,8 @@ Implement `internal/lifecycle` and `internal/git/ops.go`.
 ```go
 package lifecycle
 
-// StartTask marks the task as in-progress in _TASKS.md and renames the
-// version folder to 💭 if this is the first task. Commits and pushes.
+// StartTask sets the task's Status column in _TASKS.md to 💭.
+// Commits and pushes.
 func StartTask(task tasks.Entry, setDir string, git *git.Ops) error { ... }
 ```
 
@@ -26,9 +29,8 @@ func StartTask(task tasks.Entry, setDir string, git *git.Ops) error { ... }
 
 ```go
 // CompleteTask handles ✅ or ❌ outcomes:
-// - Renames task file with status suffix
-// - Injects ## Status block
-// - Updates _TASKS.md row
+// - Injects ## Status block in the task file (commit SHAs, URLs)
+// - Updates _TASKS.md Status column to ✅ or ❌
 // - On ❌: generates .failure.md with attempt history
 // - Commits and pushes
 func CompleteTask(task tasks.Entry, result codex.Result, setDir string, git *git.Ops) error { ... }
@@ -37,9 +39,20 @@ func CompleteTask(task tasks.Entry, result codex.Result, setDir string, git *git
 ### [NEW] `internal/lifecycle/status.go`
 
 ```go
-// UpdateVersionStatus evaluates all tasks and renames the version folder:
-// any ❌ → ⚠️, all ✅ → ✅, otherwise stays 💭.
+// UpdateVersionStatus evaluates all tasks in _TASKS.md Status column
+// and renames the version folder once, after all tasks complete:
+// - all ✅ → ✅ v0.X
+// - any ❌ → ⚠️ v0.X
 func UpdateVersionStatus(setDir string, entries []tasks.Entry, git *git.Ops) error { ... }
+```
+
+### [NEW] `internal/lifecycle/reset.go`
+
+```go
+// Reset strips emoji prefix from the version folder, clears _TASKS.md
+// Status column, removes ## Status blocks and .failure.md files.
+// Used when re-running a previously completed version.
+func Reset(setDir string, git *git.Ops) error { ... }
 ```
 
 ### [NEW] `internal/lifecycle/release.go`
@@ -57,19 +70,19 @@ package git
 // Ops wraps git commands needed by the lifecycle engine.
 type Ops struct { Root string }
 
-func (o *Ops) MvFolder(from, to string) error { ... }
+func (o *Ops) Rename(from, to string) error { ... }
 func (o *Ops) AddCommitPush(msg string, files ...string) error { ... }
 func (o *Ops) Tag(name, msg string) error { ... }
 ```
 
 ## Acceptance Criteria
 
-- [ ] `_TASKS.md` updated with 🔨, ✅, or ❌ markers
-- [ ] Task files renamed with status suffix
+- [ ] `_TASKS.md` Status column updated with 💭, ✅, or ❌
+- [ ] `## Status` block injected in task files (never renamed)
 - [ ] Failure reports contain attempt history
-- [ ] Version folder renamed via `git mv`
-- [ ] Release tag created on full completion
-- [ ] All git ops commit and push
+- [ ] Version folder renamed only once on completion
+- [ ] Reset clears all status for re-runs
+- [ ] Release tag created on full ✅ completion
 - [ ] `go build ./...` — zero errors
 - [ ] `go vet ./...` — zero warnings
 
