@@ -1,4 +1,4 @@
-# TASK08.05 — Combinatorial Testing
+# TASK10.05 — Combinatorial Testing
 
 ## Summary
 
@@ -65,4 +65,4 @@ The `recipes/README.md` must feature the matrix prominently:
 
 ## Dependencies
 
-TASK08.03 (assemblies), TASK08.06 (composition recipes).
+TASK10.03 (assemblies), TASK10.06 (composition recipes).

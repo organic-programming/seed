@@ -1,8 +1,8 @@
-# TASK03 — Tier 3 Runners (dotnet, qt-cmake)
+# TASK05 — Tier 3 Runners (dotnet, qt-cmake)
 
 ## Context
 
-Depends on TASK01 (runner registry must exist).
+Depends on TASK03 (runner registry must exist).
 
 These runners require platform SDKs that may not be installed.
 They must handle the missing SDK case gracefully with actionable errors.
@@ -60,7 +60,7 @@ op check: qt-cmake runner requires Qt6
 - [ ] Test actionable error messages
 - [ ] `go test ./...` — zero failures
 
-## Final registry after all TASK01–03
+## Final registry after all TASK03–03
 
 ```go
 var runners = map[string]Runner{
@@ -79,4 +79,4 @@ var runners = map[string]Runner{
 
 ## Dependencies
 
-- TASK01 (runner registry)
+- TASK03 (runner registry)

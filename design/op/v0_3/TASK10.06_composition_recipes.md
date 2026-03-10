@@ -1,4 +1,4 @@
-# TASK08.06 — Composition Recipes
+# TASK10.06 — Composition Recipes
 
 ## Summary
 
@@ -62,4 +62,4 @@ None (workers are standalone; orchestrators use SDK `connect(slug)`).
 ## Reference
 
 Proto contracts, code snippets, and directory templates:
-[TASK08_NOTES.md](./TASK08_NOTES.md)
+[TASK10_NOTES.md](./TASK10_NOTES.md)

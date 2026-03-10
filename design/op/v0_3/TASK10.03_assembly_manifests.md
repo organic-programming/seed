@@ -1,4 +1,4 @@
-# TASK08.03 — Create Assembly Manifests
+# TASK10.03 — Create Assembly Manifests
 
 ## Summary
 
@@ -45,9 +45,9 @@ build:
 
 ## Dependencies
 
-TASK08.01, TASK08.02 (daemons and HostUIs must exist).
+TASK10.01, TASK10.02 (daemons and HostUIs must exist).
 
 ## Reference
 
 Full 48-entry assembly matrix with highlighted full-stack combos:
-[TASK08_NOTES.md](./TASK08_NOTES.md)
+[TASK10_NOTES.md](./TASK10_NOTES.md)

@@ -1,4 +1,4 @@
-# TASK07 — Document `op setup` and Host Provisioning
+# TASK09 — Document `op setup` and Host Provisioning
 
 ## Objective
 
@@ -96,5 +96,5 @@ New field:
 
 ## Dependencies
 
-- TASK06 must be completed first (creates `MESH_YAML.md` which is referenced here)
+- TASK08 must be completed first (creates `MESH_YAML.md` which is referenced here)
 - Design reference: `DESIGN_setup.md`

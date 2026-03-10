@@ -1,4 +1,4 @@
-# TASK00B — Composite Kind Formalization
+# TASK02 — Composite Kind Formalization
 
 ## Context
 
@@ -9,11 +9,11 @@ but the manifest parser does not formally support these fields.
 
 ## Relationship to other tasks
 
-- **TASK04** (install bundles) depends on this: it needs
+- **TASK06** (install bundles) depends on this: it needs
   `artifacts.primary` to locate the bundle path for install.
-- **TASK09** (build configs) touches the manifest parser but
+- **TASK11** (build configs) touches the manifest parser but
   different fields — no conflict.
-- TASK01–08: no interaction.
+- TASK03–10: no interaction.
 
 ## Objective
 
@@ -69,4 +69,4 @@ Populate `Report.Artifact` with `artifacts.primary` when set,
 
 ## Dependencies
 
-None. TASK04 depends on this task.
+None. TASK06 depends on this task.

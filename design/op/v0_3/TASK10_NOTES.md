@@ -1,6 +1,6 @@
-# TASK08 — Implementation Notes
+# TASK10 — Implementation Notes
 
-Reference material for TASK08 subtasks. Contains proto contracts,
+Reference material for TASK10 subtasks. Contains proto contracts,
 code snippets, and the full assembly listing.
 
 ---

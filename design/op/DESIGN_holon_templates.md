@@ -94,40 +94,40 @@ Result: `op build` works immediately on the generated scaffold.
 
 | Template | Lang | Runner | Source |
 |---|---|---|---|
-| `go-daemon` | Go | go-module | TASK08.01 |
-| `rust-daemon` | Rust | cargo | TASK08.01 |
-| `python-daemon` | Python | script | TASK08.01 |
-| `swift-daemon` | Swift | swift-package | TASK08.01 |
-| `kotlin-daemon` | Kotlin | gradle | TASK08.01 |
-| `dart-daemon` | Dart | flutter | TASK08.01 |
-| `csharp-daemon` | C# | dotnet | TASK08.01 |
-| `node-daemon` | Node.js | npm | TASK08.01 |
+| `go-daemon` | Go | go-module | TASK10.01 |
+| `rust-daemon` | Rust | cargo | TASK10.01 |
+| `python-daemon` | Python | script | TASK10.01 |
+| `swift-daemon` | Swift | swift-package | TASK10.01 |
+| `kotlin-daemon` | Kotlin | gradle | TASK10.01 |
+| `dart-daemon` | Dart | flutter | TASK10.01 |
+| `csharp-daemon` | C# | dotnet | TASK10.01 |
+| `node-daemon` | Node.js | npm | TASK10.01 |
 | `cpp-daemon` | C++ | cmake | CPP_TASK001 |
 
 ### HostUI Templates (frontend clients)
 
 | Template | Tech | Runner | Source |
 |---|---|---|---|
-| `hostui-swiftui` | SwiftUI | swift-package | TASK08.02 |
-| `hostui-flutter` | Flutter | flutter | TASK08.02 |
-| `hostui-kotlin` | Kotlin Compose | gradle | TASK08.02 |
-| `hostui-web` | HTML/JS | script | TASK08.02 |
-| `hostui-dotnet` | .NET MAUI | dotnet | TASK08.02 |
-| `hostui-qt` | Qt/C++ | qt-cmake | TASK08.02 |
+| `hostui-swiftui` | SwiftUI | swift-package | TASK10.02 |
+| `hostui-flutter` | Flutter | flutter | TASK10.02 |
+| `hostui-kotlin` | Kotlin Compose | gradle | TASK10.02 |
+| `hostui-web` | HTML/JS | script | TASK10.02 |
+| `hostui-dotnet` | .NET MAUI | dotnet | TASK10.02 |
+| `hostui-qt` | Qt/C++ | qt-cmake | TASK10.02 |
 
 ### Composition Templates (backend-to-backend)
 
 | Template | Pattern | Source |
 |---|---|---|
-| `composition-direct-call` | A → B | TASK08.06 |
-| `composition-pipeline` | A → B → C | TASK08.06 |
-| `composition-fan-out` | A → {B, C} parallel | TASK08.06 |
+| `composition-direct-call` | A → B | TASK10.06 |
+| `composition-pipeline` | A → B → C | TASK10.06 |
+| `composition-fan-out` | A → {B, C} parallel | TASK10.06 |
 
 ### Composite Templates (assemblies)
 
 | Template | Generates | Source |
 |---|---|---|
-| `composite-<daemon>-<hostui>` | manifest-only assembly | TASK08.03 |
+| `composite-<daemon>-<hostui>` | manifest-only assembly | TASK10.03 |
 
 Example: `op new --template composite-go-swift my-app` generates
 a `holon.yaml` referencing a Go daemon and SwiftUI HostUI.
@@ -214,7 +214,7 @@ templates must stay in sync.
 3. **Verify it builds** — `op build test-holon`
 4. **Run testmatrix** — ensure existing recipes still pass
 5. **Update catalog** — if adding/removing templates
-6. **Update recipe source** — if the change applies to TASK08 recipes too
+6. **Update recipe source** — if the change applies to TASK10 recipes too
 
 ### Source of Truth
 
@@ -222,7 +222,7 @@ Recipe implementations are the canonical reference. Templates are
 scaffolds that produce the same structure:
 
 ```
-recipes/daemons/greeting-daemon-go/   ← canonical (TASK08)
+recipes/daemons/greeting-daemon-go/   ← canonical (TASK10)
 templates/go-daemon/                  ← generates same structure
 ```
 

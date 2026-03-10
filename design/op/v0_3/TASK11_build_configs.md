@@ -5,7 +5,7 @@
 OP.md §4, §7, §8 and OP_BUILD_SPEC §4 specify a build configuration
 mechanism. It is fully designed but has zero implementation.
 
-No dependency on TASK01–08. Future runners (TASK01–03) will inherit
+No dependency on TASK03–10. Future runners (TASK01–03) will inherit
 `OP_CONFIG` support once this task is done.
 
 ## Objective
@@ -83,4 +83,4 @@ Populate it after config resolution.
 
 ## Dependencies
 
-None. Independent of TASK01–08.
+None. Independent of TASK03–10.

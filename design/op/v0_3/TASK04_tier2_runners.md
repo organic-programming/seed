@@ -1,8 +1,8 @@
-# TASK02 — Tier 2 Runners (npm, gradle)
+# TASK04 — Tier 2 Runners (npm, gradle)
 
 ## Context
 
-Depends on TASK01 (runner registry must exist).
+Depends on TASK03 (runner registry must exist).
 
 These runners support the web and JVM-based recipe frontends.
 
@@ -44,4 +44,4 @@ Use `./gradlew` (Gradle wrapper) if present, fall back to system `gradle`.
 
 ## Dependencies
 
-- TASK01 (runner registry)
+- TASK03 (runner registry)
