@@ -32,13 +32,13 @@ at a glance.
 2. **Rename the folder** with `git mv`:
    ```bash
    # Starting work
-   git mv design/op/v0.3 "design/op/💭 v0.3"
+   git mv design/grace-op/v0.3 "design/grace-op/💭 v0.3"
 
    # All tasks done
-   git mv "design/op/💭 v0.3" "design/op/✅ v0.3"
+   git mv "design/grace-op/💭 v0.3" "design/grace-op/✅ v0.3"
 
    # Failure or blocked
-   git mv "design/op/💭 v0.4" "design/op/⚠️ v0.4"
+   git mv "design/grace-op/💭 v0.4" "design/grace-op/⚠️ v0.4"
    ```
 3. **Update references** — after renaming a folder, update:
    - `ROADMAP.md` — the `**Tasks:**` link

@@ -1,6 +1,6 @@
 # OP Design Conventions
 
-Rules and naming patterns for the `design/op/` task and version
+Rules and naming patterns for the `design/grace-op/` task and version
 folder system.
 
 ---

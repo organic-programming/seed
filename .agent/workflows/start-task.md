@@ -16,7 +16,7 @@ and humans know what is being worked on.
 2. **If this is the first task in the version**, update the folder
    status using the `/update-version-status` workflow:
    ```bash
-   git mv design/op/v0.3 "design/op/💭 v0.3"
+   git mv design/grace-op/v0.3 "design/grace-op/💭 v0.3"
    ```
 3. Commit and push the marking before starting implementation.
 
