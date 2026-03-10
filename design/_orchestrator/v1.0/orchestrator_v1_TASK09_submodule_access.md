@@ -16,13 +16,12 @@ Implement `internal/git/submodule.go`.
 ```go
 package git
 
-// ListSubmodulePaths returns a map of repo name → local path for all
-// submodules (recursive).
-func ListSubmodulePaths(root string) (map[string]string, error) { ... }
+// ListSubmodulePaths returns local paths for all submodules (recursive).
+func ListSubmodulePaths(root string) ([]string, error) { ... }
 
 // DetectRefs scans a task file for repository references and returns
-// the corresponding local submodule paths.
-func DetectRefs(taskContent string, submodules map[string]string) []string { ... }
+// the corresponding local submodule paths for --add-dir flags.
+func DetectRefs(taskContent string, submodules []string) []string { ... }
 ```
 
 Detection patterns:

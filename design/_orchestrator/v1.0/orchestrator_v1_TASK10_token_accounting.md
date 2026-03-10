@@ -40,6 +40,9 @@ package summary
 // .codex_orchestrator_summary.md.
 func Print(st *state.State, sets []SetResult, elapsed time.Duration) { ... }
 
+// BuildSetResult constructs a SetResult from the ordered entries and state.
+func BuildSetResult(setName string, entries []tasks.Entry, st *state.State) SetResult { ... }
+
 type SetResult struct {
     Name    string
     Tasks   int

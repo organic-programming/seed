@@ -95,8 +95,8 @@ go run design/_orchestrator/codex.go --set v0.4 --set v0.5 --model gpt-5.4
 ```
 
 - **Independence:** Each set is processed sequentially and independently.
-- **Task Discovery:** For each set, the orchestrator reads all `.md` files in the corresponding `design/<project>/<set>/` directory.
-- **Ordering:** Files are processed in lexicographic order; use numeric prefixes (e.g. `TASK01_`, `TASK02_`) for explicit sequencing.
+- **Task Discovery:** For each set, the orchestrator reads `_TASKS.md` in the corresponding `design/<project>/<set>/` directory.
+- **Ordering:** Tasks are ordered by the dependency DAG (§3.6), not by filename.
 
 ### 3.2 Git Module & Submodule Strictness
 
@@ -342,10 +342,10 @@ Each task file follows a consistent structure:
 Dependencies come in two forms:
 
 1. **Intra-version** — `TASK04` depends on `TASK03` within the same version folder. The orchestrator resolves these into a topological execution order.
-2. **Cross-version** — `TASK05` depends on `v0.6` (a prior version set). The orchestrator must verify that the referenced version is `✅` before executing.
+2. **Cross-version** — `TASK05` depends on `v0.6` (a prior version set). Cross-version pre-checks are listed in §6 (future work); v1 enforces intra-version dependencies only.
 
 > [!WARNING]
-> The orchestrator must never execute a task whose dependencies (intra- or cross-version) are not satisfied. Tasks without dependencies can be executed in any order; tasks with dependencies must wait.
+> The orchestrator must never execute a task whose intra-version dependencies are not satisfied. Tasks without dependencies can be executed in any order; tasks with dependencies must wait.
 
 ### 3.7 Error Handling and Retry Policy
 
@@ -544,7 +544,7 @@ codex exec resume <thread_id> \
    Fix the issues and ensure all tests pass.'
 ```
 
-Using `codex exec resume` instead of a fresh `codex exec` is critical — the model retains full context of what it already implemented and why.
+Using `codex exec resume` preserves the model's full context of what it already implemented and why. However, if resume does not preserve `--add-dir` and workspace constraints (see §6), the FIX phase should fall back to a fresh `codex exec` with compressed prior-attempt context in the prompt.
 
 #### Iteration Limits
 
@@ -912,7 +912,7 @@ func main() {
 
 ### 4.5 Design Principles
 
-- **No global state.** Dependencies are passed explicitly. The `main.go` function is the only place where components are wired together.
+- **No global state.** Dependencies are passed explicitly. The `main.go` function is the only place where components are wired together. Exception: `codex.SetCurrentCmd`/`CurrentCmd` are package-level accessors required by the signal handler (§3.14), since `os/signal.Notify` callbacks cannot receive injected dependencies.
 - **`internal/` enforced.** All packages live under `internal/` — they are not importable by external modules. This is intentional: the orchestrator is a standalone tool, not a library.
 - **Interfaces at boundaries.** The `codex` package defines an `Executor` interface so tests can mock codex invocations without hitting the real CLI.
 - **Errors are values.** Functions return `error`, never call `log.Fatal`. Only `main.go` decides whether to exit.
