@@ -15,6 +15,12 @@ Design documents and implementation tasks for Grace OP (the `op` CLI)
 | 06 | [TASK06](./TASK06_mesh_documentation.md) | Document `op mesh` + transport security | — |
 | 07 | [TASK07](./TASK07_setup_documentation.md) | Document `op setup` + `setup.yaml` spec | TASK06 |
 | 08 | [TASK08](./TASK08_recipe_restructuring.md) | Restructure recipes into `ui/` + `composition/` | — |
+| 08.01 | [TASK08.01](./TASK08.01_dry_daemons.md) | Extract 8 DRY daemons | — |
+| 08.02 | [TASK08.02](./TASK08.02_dry_hostui.md) | Extract 6 DRY HostUIs | — |
+| 08.03 | [TASK08.03](./TASK08.03_assembly_manifests.md) | Create 48 assembly manifests | 08.01, 08.02 |
+| 08.04 | [TASK08.04](./TASK08.04_remove_submodules.md) | Remove 12 submodules, archive repos | 08.03 |
+| 08.05 | [TASK08.05](./TASK08.05_testmatrix.md) | Combinatorial testing (Go testmatrix) | 08.03, 08.06 |
+| 08.06 | [TASK08.06](./TASK08.06_composition_recipes.md) | 3 patterns × 11 orchestrator languages | — |
 | 09 | [TASK09](./TASK09_build_configs.md) | Build configs (`--config` + `OP_CONFIG`) | — |
 | 10 | [TASK10](./TASK10_composite_kind.md) | `kind: composite` + `artifacts.primary` | — |
 | 11 | [TASK11](./TASK11_mvs_resolution.md) | MVS transitive dependency resolution | — |
