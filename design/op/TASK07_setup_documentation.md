@@ -1,4 +1,4 @@
-# TASK003 — Document `op setup` and Host Provisioning
+# TASK07 — Document `op setup` and Host Provisioning
 
 ## Objective
 
@@ -6,7 +6,7 @@ Create specification documents for `op setup` (declarative host provisioning) an
 
 ## Reference Documents
 
-- [DESIGN_op_setup.md](./DESIGN_op_setup.md) — full design for `op setup`, dependency resolution, execution flow
+- [DESIGN_setup.md](./DESIGN_setup.md) — full design for `op setup`, dependency resolution, execution flow
 
 ---
 
@@ -96,5 +96,5 @@ New field:
 
 ## Dependencies
 
-- OP_TASK004 must be completed first (creates `MESH_YAML.md` which is referenced here)
-- Design reference: `design/DESIGN_op_setup.md`
+- TASK06 must be completed first (creates `MESH_YAML.md` which is referenced here)
+- Design reference: `DESIGN_setup.md`

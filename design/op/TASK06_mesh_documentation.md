@@ -1,4 +1,4 @@
-# TASK001 — Document Distributed Mesh and Transport Security
+# TASK06 — Document Distributed Mesh and Transport Security
 
 ## Objective
 
@@ -6,7 +6,7 @@ Update the Organic Programming specification documents to cover the distributed 
 
 ## Reference Documents
 
-- [DESIGN_op_mesh.md](./DESIGN_op_mesh.md) — `op mesh` commands, data model, SDK integration
+- [DESIGN_mesh.md](./DESIGN_mesh.md) — `op mesh` commands, data model, SDK integration
 - [DESIGN_transport_rest_sse.md](./DESIGN_transport_rest_sse.md) — REST + SSE transport analysis
 - [DESIGN_public_holons.md](./DESIGN_public_holons.md) — per-listener security policy and public holon exposure
 
