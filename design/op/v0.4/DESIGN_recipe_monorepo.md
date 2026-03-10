@@ -1,7 +1,7 @@
-# TASK01 — Implementation Notes
+# Recipe Monorepo Architecture
 
-Reference material for TASK01 subtasks. Contains proto contracts,
-code snippets, and the full assembly listing.
+Reference proto contracts,
+contracts, composition code patterns, and the full 48-entry assembly matrix.
 
 ---
 

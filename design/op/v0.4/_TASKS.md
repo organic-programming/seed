@@ -12,4 +12,4 @@
 | 01.05 | [TASK01.05](./op_v0.4_TASK01.05_testmatrix.md) | Combinatorial testing (Go testmatrix) | 01.03, 01.06 |
 | 01.06 | [TASK01.06](./op_v0.4_TASK01.06_composition_recipes.md) | 3 patterns × 11 orchestrator languages | — |
 
-Reference material: [op_v0.4_TASK01_NOTES.md](./op_v0.4_TASK01_NOTES.md)
+Design document: [DESIGN_recipe_monorepo.md](./DESIGN_recipe_monorepo.md)
