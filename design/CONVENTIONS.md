@@ -127,6 +127,26 @@ v0.3/output/
 
 ---
 
+## Draft Files
+
+`.DRAFT.md` files store intermediary notes, analysis, and
+reasoning produced while elaborating specs and design documents.
+
+```
+design/.DRAFT.md                    ← cross-cutting draft
+design/grace-op/v0.3/.DRAFT.md     ← version-specific draft
+```
+
+- Drafts are working documents — not deliverables.
+- They capture the *thinking process*: comparisons, options
+  considered, decisions made, and context gathered.
+- Drafts may be deleted once the resulting DESIGN or TASK
+  documents are finalized.
+- Unlike `📝 ` output files, drafts do not require formal
+  review — they are reference material for the author.
+
+---
+
 ## Cross-Version References
 
 - Use `../vX.Y/filename.md` for links across versions.
