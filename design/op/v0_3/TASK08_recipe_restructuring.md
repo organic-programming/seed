@@ -280,4 +280,27 @@ Two options:
 
 1. **Canonical scenario naming** — is "Computation Relay" a good name, or should it follow the Gudule pattern and have a holon identity (e.g., a holon named "Relay" or "Echo")?
 2. **Worker language** — should the default worker always be in the *other* language (Go orchestrator + Rust worker) to demonstrate cross-language, or same language for simplicity?
-3. **Dart/Python/C++ callers** — should composition recipes eventually cover callers beyond Go and Rust, as SDKs for other languages mature?
+
+---
+
+## Monorepo Evolution (from DRY analysis)
+
+The original 2×6 UI matrix (Go/Rust × 6 UIs) expands into a
+monorepo with shared components:
+
+- **8 daemon languages:** Go, Rust, Python, Swift, Kotlin, Dart, C#, Node.js
+- **6 HostUI technologies:** SwiftUI, Flutter, Kotlin, Web, .NET, Qt
+- **48 assemblies:** 8 × 6 thin `holon.yaml` manifests (no source)
+- **11 composition orchestrators:** Go through C++ (all SDKs with `connect(slug)`)
+- **12 submodule repos archived** and replaced by monorepo
+
+## Subtasks
+
+| # | File | Summary | Depends on |
+|---|---|---|---|
+| 08.01 | [TASK08.01](./TASK08.01_dry_daemons.md) | Extract 8 DRY daemons | — |
+| 08.02 | [TASK08.02](./TASK08.02_dry_hostui.md) | Extract 6 DRY HostUIs | — |
+| 08.03 | [TASK08.03](./TASK08.03_assembly_manifests.md) | Create 48 assembly manifests | 08.01, 08.02 |
+| 08.04 | [TASK08.04](./TASK08.04_remove_submodules.md) | Remove 12 submodules | 08.03 |
+| 08.05 | [TASK08.05](./TASK08.05_testmatrix.md) | Combinatorial testing (Go program) | 08.03, 08.06 |
+| 08.06 | [TASK08.06](./TASK08.06_composition_recipes.md) | 3 patterns × 11 languages | — |
