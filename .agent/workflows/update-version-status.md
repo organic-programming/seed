@@ -1,50 +1,52 @@
 ---
-description: Update a version folder's status emoji (💭 running, ✅ done, ⚠️ needs attention)
+description: Update a version folder's status emoji (✅ done, ⚠️ needs attention)
 ---
 
 # Update Version Status
 
-Version folders use an emoji prefix to signal their current state
-at a glance.
+Version folders use an emoji prefix to signal their final state
+at a glance. The folder is **never renamed during execution** —
+it stays as `v0.X` while work is in progress.
 
 ## Status Emojis
 
 | Emoji | Prefix | Meaning |
 |---|---|---|
-| (none) | `v0.X` | Not started — no work has been done yet |
-| 💭 | `💭 v0.X` | Running — at least one task is in progress |
+| (none) | `v0.X` | Not started, or in progress |
 | ✅ | `✅ v0.X` | Done — all tasks completed successfully |
-| ⚠️ | `⚠️ v0.X` | Attention — human review needed (blocked or has failures) |
+| ⚠️ | `⚠️ v0.X` | Attention — has failures or needs human review |
 
 ## When to Update
 
-| Event | New folder status |
+| Event | Folder status |
 |---|---|
-| First task in a version starts | (none) → `💭 v0.X` |
-| A task fails (❌) | any → `⚠️ v0.X` |
-| Work is blocked, waiting for human decision | any → `⚠️ v0.X` |
-| Human resolves the issue, work resumes | `⚠️ v0.X` → `💭 v0.X` |
-| Last task in a version completes (all ✅) | `💭 v0.X` → `✅ v0.X` |
+| All tasks in the version are ✅ | `v0.X` → `✅ v0.X` |
+| Any task is ❌ or blocked | `v0.X` → `⚠️ v0.X` |
+| Re-running a version (new attempt) | `✅ v0.X` or `⚠️ v0.X` → `v0.X` |
 
-## Steps
+## Steps — On Completion
 
-1. Determine the new status from the table above.
-2. **Rename the folder** with `git mv`:
+1. Determine the status from the table above.
+2. **Rename the folder**:
    ```bash
-   # Starting work
-   git mv design/grace-op/v0.3 "design/grace-op/💭 v0.3"
+   # All tasks passed
+   mv "design/grace-op/v0.3" "design/grace-op/✅ v0.3"
 
-   # All tasks done
-   git mv "design/grace-op/💭 v0.3" "design/grace-op/✅ v0.3"
-
-   # Failure or blocked
-   git mv "design/grace-op/💭 v0.4" "design/grace-op/⚠️ v0.4"
+   # Any task failed
+   mv "design/grace-op/v0.4" "design/grace-op/⚠️ v0.4"
    ```
-3. **Update references** — after renaming a folder, update:
-   - `ROADMAP.md` — the `**Tasks:**` link
-   - `INDEX.md` — the version folder link
-   - Any cross-version `../vX.Y/` references in other folders
-4. Commit and push.
+3. Commit and push.
+
+## Steps — On Re-Run
+
+1. **Strip the emoji prefix** to restore stable paths:
+   ```bash
+   mv "design/grace-op/✅ v0.3" "design/grace-op/v0.3"
+   mv "design/grace-op/⚠️ v0.4" "design/grace-op/v0.4"
+   ```
+2. Strip task file status suffixes (`.✅.md` → `.md`, `.❌.md` → `.md`).
+3. Remove `.failure.md` reports from the previous run.
+4. Commit and push, then proceed with `/start-task`.
 
 ## On ✅ Completion — Release
 
@@ -77,6 +79,6 @@ additional release steps:
 
 - A version is `⚠️` if **any** task in it is ❌ or blocked.
 - A version is `✅` only when **every** task in it is ✅.
-- A version stays `💭` as long as work is progressing normally.
-- Never skip from (none) directly to ✅ — always go through 💭.
+- A version stays as `v0.X` (no prefix) throughout execution.
+- On re-run, always strip the prefix before starting work.
 - On ✅, always bump `holon.yaml` and tag before moving on.

@@ -91,16 +91,9 @@ Derive the verification URL from the repo remote:
 
 ## Folder status update
 
-After every task completion, evaluate the version folder status
-using `/update-version-status`:
-
-- If the completed task is ❌ → set folder to `⚠️`
-- If the completed task is ✅ and **all** tasks in the folder
-  are now ✅ → set folder to `✅`
-- Otherwise the folder stays `💭`
-
-This step is **mandatory** — never close a task without checking
-the folder status.
+After the **last task** in a version completes, update the version
+folder using `/update-version-status`. The folder stays as `v0.X`
+throughout execution — it is only renamed once, at the end.
 
 ## Done criteria
 
@@ -109,5 +102,5 @@ A task is only done when:
 - The filename contains ✅ or ❌
 - The task file contains a `## Status` block with commit SHA(s)
 - The `_TASKS.md` row is updated with the emoji
-- The version folder status is up to date
 - (❌ only) a `.failure.md` report exists alongside the task
+- (last task) the version folder status is up to date
