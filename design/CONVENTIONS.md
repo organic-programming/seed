@@ -140,6 +140,8 @@ design/grace-op/v0.3/.DRAFT.md     ← version-specific draft
 - Drafts are working documents — not deliverables.
 - They capture the *thinking process*: comparisons, options
   considered, decisions made, and context gathered.
+- **Gitignored** — `.DRAFT*` is in `.gitignore`, drafts never
+  enter version control.
 - Drafts may be deleted once the resulting DESIGN or TASK
   documents are finalized.
 - Unlike `📝 ` output files, drafts do not require formal
