@@ -91,7 +91,7 @@ The `-c` flag accepts dotted TOML paths and is the primary mechanism for fine-tu
 One or more task "sets" (version directories) are specified on the command line:
 
 ```bash
-go run design/_orchestrator/codex.go --set v0.4 --set v0.5 --model gpt-5.4
+./orchestrator --set v0.4 --set v0.5 --model gpt-5.4
 ```
 
 - **Independence:** Each set is processed sequentially and independently.
@@ -531,7 +531,6 @@ When verification fails, the orchestrator resumes the existing codex session wit
 ```bash
 codex exec resume <thread_id> \
   --json --skip-git-repo-check \
-  -C <ROOT_REPO> -s workspace-write \
   -m <MODEL> \
   'The following verification commands failed after your implementation:
 
@@ -914,7 +913,7 @@ func main() {
 
 - **No global state.** Dependencies are passed explicitly. The `main.go` function is the only place where components are wired together. Exception: `codex.SetCurrentCmd`/`CurrentCmd` are package-level accessors required by the signal handler (§3.14), since `os/signal.Notify` callbacks cannot receive injected dependencies.
 - **`internal/` enforced.** All packages live under `internal/` — they are not importable by external modules. This is intentional: the orchestrator is a standalone tool, not a library.
-- **Interfaces at boundaries.** The `codex` package defines an `Executor` interface so tests can mock codex invocations without hitting the real CLI.
+- **Testability.** The `codex` package should accept an interface for the executor so tests can mock codex invocations without hitting the real CLI. The exact interface is implementation-time work.
 - **Errors are values.** Functions return `error`, never call `log.Fatal`. Only `main.go` decides whether to exit.
 
 ## 5. Usage

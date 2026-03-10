@@ -54,7 +54,8 @@ func Sort(entries []Entry) ([]Entry, error) { ... }
 
 - [ ] Parses multi-dep entries like `TASK01, TASK03`
 - [ ] Handles `—` as no dependency
-- [ ] Topological order is correct
+- [ ] Cross-version references (e.g. `v0.6`, `v0.7 TASK01`) are preserved in `Entry.DependsOn` but not enforced by the DAG (§6 future work)
+- [ ] Topological order is correct for intra-version deps
 - [ ] Cycle detection returns a clear error
 - [ ] `go build ./...` — zero errors
 - [ ] `go vet ./...` — zero warnings
