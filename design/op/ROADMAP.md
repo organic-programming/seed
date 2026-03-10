@@ -16,7 +16,7 @@ Complete `op` for single-host development.
 - Spec documentation for mesh and setup
 - Holon templates (`op new --template`)
 
-**Tasks:** [v0_3/_TASKS.md](./v0_3/_TASKS.md)
+**Tasks:** [v0.3/_TASKS.md](./v0.3/_TASKS.md)
 
 ---
 
@@ -31,7 +31,7 @@ and composition patterns.
 - Remove 12 legacy submodules
 - Combinatorial testmatrix program
 
-**Tasks:** [v0_4/_TASKS.md](./v0_4/_TASKS.md)
+**Tasks:** [v0.4/_TASKS.md](./v0.4/_TASKS.md)
 
 ---
 
@@ -43,7 +43,7 @@ Build configs, dependency resolution, and executable sequences.
 - MVS transitive dependency resolution
 - Sequences (`op do` + MCP tool exposure)
 
-**Tasks:** [v0_5/_TASKS.md](./v0_5/_TASKS.md)
+**Tasks:** [v0.5/_TASKS.md](./v0.5/_TASKS.md)
 
 ---
 
