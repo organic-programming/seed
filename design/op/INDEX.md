@@ -26,4 +26,6 @@ Each proposes new commands, schemas, or SDK capabilities to be added.
 
 ## Tasks
 
-- [v0_3/](./v0_3/_TASKS.md) — implementation tasks for v0.3
+- [v0_3/](./v0_3/_TASKS.md) — Core Maturity (TASK01–09)
+- [v0_4/](./v0_4/_TASKS.md) — Recipe Ecosystem (TASK10)
+- [v0_5/](./v0_5/_TASKS.md) — Extensibility (TASK11–13)
