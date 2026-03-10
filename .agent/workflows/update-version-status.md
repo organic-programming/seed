@@ -46,9 +46,37 @@ at a glance.
    - Any cross-version `../vX.Y/` references in other folders
 4. Commit and push.
 
+## On ✅ Completion — Release
+
+When a version reaches ✅ (all tasks done), perform two
+additional release steps:
+
+5. **Bump `holon.yaml` version** — update the `version:` field
+   in the holon's manifest to match the completed version:
+   ```yaml
+   # before
+   version: 0.2.0
+
+   # after
+   version: 0.3.0
+   ```
+6. **Tag the repository** — create an annotated git tag on the
+   holon's repository (if it has its own repo):
+   ```bash
+   git tag -a v0.3.0 -m "grace-op v0.3 — Core Maturity"
+   git push origin v0.3.0
+   ```
+   The tag message should include the version subtitle from the
+   roadmap.
+
+> [!IMPORTANT]
+> Only tag after the `holon.yaml` bump is committed and pushed.
+> The tagged commit must contain the correct version number.
+
 ## Rules
 
 - A version is `⚠️` if **any** task in it is ❌ or blocked.
 - A version is `✅` only when **every** task in it is ✅.
 - A version stays `💭` as long as work is progressing normally.
 - Never skip from (none) directly to ✅ — always go through 💭.
+- On ✅, always bump `holon.yaml` and tag before moving on.
