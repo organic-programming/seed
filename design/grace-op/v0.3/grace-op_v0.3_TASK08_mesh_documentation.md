@@ -82,11 +82,11 @@ being moved to their final location in the repo root.
 
 | Deliverable | Staging path | Final path |
 |---|---|---|
-| `OP.md` §11 (mesh) | `output/OP_mesh_section.md` | merged into `OP.md` |
-| `PROTOCOL.md` §8 (transport security) | `output/PROTOCOL_transport_security.md` | merged into `PROTOCOL.md` |
-| `MESH_YAML.md` (new) | `output/MESH_YAML.md` | `organic-programming/MESH_YAML.md` |
-| `HOLON_YAML.md` additions | `output/HOLON_YAML_listeners.md` | merged into `HOLON_YAML.md` |
-| `CONVENTIONS.md` additions | `output/CONVENTIONS_mesh_dirs.md` | merged into `CONVENTIONS.md` |
+| `OP.md` §11 (mesh) | `output/📝 OP_mesh_section.md` | merged into `OP.md` |
+| `PROTOCOL.md` §8 (transport security) | `output/📝 PROTOCOL_transport_security.md` | merged into `PROTOCOL.md` |
+| `MESH_YAML.md` (new) | `output/📝 MESH_YAML.md` | `organic-programming/MESH_YAML.md` |
+| `HOLON_YAML.md` additions | `output/📝 HOLON_YAML_listeners.md` | merged into `HOLON_YAML.md` |
+| `CONVENTIONS.md` additions | `output/📝 CONVENTIONS_mesh_dirs.md` | merged into `CONVENTIONS.md` |
 
 > [!IMPORTANT]
 > 📝 All output files require human review before merge.

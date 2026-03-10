@@ -92,10 +92,10 @@ being moved to their final location in the repo root.
 
 | Deliverable | Staging path | Final path |
 |---|---|---|
-| `OP.md` §12 (setup) | `output/OP_setup_section.md` | merged into `OP.md` |
-| `SETUP_YAML.md` (new) | `output/SETUP_YAML.md` | `organic-programming/SETUP_YAML.md` |
-| `HOLON_YAML.md` additions | `output/HOLON_YAML_sources.md` | merged into `HOLON_YAML.md` |
-| `CONVENTIONS.md` additions | `output/CONVENTIONS_cache_dirs.md` | merged into `CONVENTIONS.md` |
+| `OP.md` §12 (setup) | `output/📝 OP_setup_section.md` | merged into `OP.md` |
+| `SETUP_YAML.md` (new) | `output/📝 SETUP_YAML.md` | `organic-programming/SETUP_YAML.md` |
+| `HOLON_YAML.md` additions | `output/📝 HOLON_YAML_sources.md` | merged into `HOLON_YAML.md` |
+| `CONVENTIONS.md` additions | `output/📝 CONVENTIONS_cache_dirs.md` | merged into `CONVENTIONS.md` |
 
 > [!IMPORTANT]
 > 📝 All output files require human review before merge.

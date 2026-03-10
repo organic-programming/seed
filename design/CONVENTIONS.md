@@ -1,4 +1,4 @@
-# OP Design Conventions
+# Design Conventions
 
 Rules and naming patterns for the `design/grace-op/` task and version
 folder system.
@@ -113,12 +113,13 @@ write them to an `output/` folder inside the version folder:
 
 ```
 v0.3/output/
-├── OP_mesh_section.md         ← draft for OP.md §11
-├── MESH_YAML.md               ← new spec doc
-└── PROTOCOL_transport_security.md
+├── 📝 OP_mesh_section.md
+├── 📝 MESH_YAML.md
+└── 📝 PROTOCOL_transport_security.md
 ```
 
-- Output files are **📝 staging only** — never the final location.
+- Output files use a **`📝 ` prefix** in their filename to signal
+  they need human review.
 - A human must review before moving output to the repo root.
 - The task checklist includes `📝 Human review` and
   `Move reviewed files` as final steps.
