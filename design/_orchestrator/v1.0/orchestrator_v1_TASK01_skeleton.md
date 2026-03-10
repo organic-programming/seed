@@ -2,20 +2,18 @@
 
 ## Context
 
-The worktree already contains a stub `main.go` (exits immediately) and a
-`go.mod` with an old module path. The empty `pkg/` directory is a leftover.
-This task bootstraps the proper Effective Go structure on top of that baseline.
+The `_orchestrator/` directory currently contains only the `v1.0/` spec
+folder. There is no Go code, no `go.mod`, and no `cmd/` or `internal/` tree.
+This task creates the complete project structure from scratch.
 
 ## Objective
 
-Create the complete `cmd/` + `internal/` directory tree with stub files so that
-subsequent tasks can implement each package independently. Fix the module path.
+Bootstrap the Effective Go structure defined in DESIGN.md §4.1: `go.mod`,
+`cmd/orchestrator/main.go`, and stub files for all `internal/` packages.
 
 ## Changes
 
-### [MODIFY] `go.mod`
-
-Update the module path:
+### [NEW] `go.mod`
 
 ```
 module github.com/organic-programming/codex-orchestrator
@@ -23,9 +21,9 @@ module github.com/organic-programming/codex-orchestrator
 go 1.25.1
 ```
 
-### [MODIFY] `main.go` → [MOVE] `cmd/orchestrator/main.go`
+### [NEW] `cmd/orchestrator/main.go`
 
-Move the existing stub into the canonical location and add basic flag parsing:
+Minimal entry point with flag parsing:
 
 ```go
 package main
@@ -77,6 +75,7 @@ Create files with the correct `package` declaration so that
 - `internal/lifecycle/start.go` — `package lifecycle`
 - `internal/lifecycle/complete.go` — `package lifecycle`
 - `internal/lifecycle/status.go` — `package lifecycle`
+- `internal/lifecycle/reset.go` — `package lifecycle`
 - `internal/lifecycle/release.go` — `package lifecycle`
 - `internal/logging/tee.go` — `package logging`
 - `internal/prompt/builder.go` — `package prompt`
@@ -90,10 +89,6 @@ Create files with the correct `package` declaration so that
 - `internal/preflight/checks.go` — `package preflight`
 - `internal/summary/summary.go` — `package summary`
 
-### [DELETE] `pkg/`
-
-Remove the empty placeholder directory. All packages live under `internal/`.
-
 ## Acceptance Criteria
 
 - [ ] `go build ./...` — zero errors
@@ -101,7 +96,6 @@ Remove the empty placeholder directory. All packages live under `internal/`.
 - [ ] `go run ./cmd/orchestrator` runs and prints config
 - [ ] Every `internal/` package has at least one `.go` file
 - [ ] No code outside `cmd/` and `internal/`
-- [ ] `pkg/` directory removed
 - [ ] Module path is `github.com/organic-programming/codex-orchestrator`
 
 ## Dependencies
