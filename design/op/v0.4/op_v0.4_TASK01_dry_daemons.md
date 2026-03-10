@@ -1,4 +1,4 @@
-# TASK01.01 — Extract DRY Daemon Holons
+# TASK01 — Extract DRY Daemon Holons
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# TASK01.06 — Composition Recipes
+# TASK06 — Composition Recipes
 
 ## Summary
 

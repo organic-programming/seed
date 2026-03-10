@@ -298,9 +298,9 @@ monorepo with shared components:
 
 | # | File | Summary | Depends on |
 |---|---|---|---|
-| 01.01 | [TASK01.01](./op_v0.4_TASK01.01_dry_daemons.md) | Extract 8 DRY daemons | — |
-| 01.02 | [TASK01.02](./op_v0.4_TASK01.02_dry_hostui.md) | Extract 6 DRY HostUIs | — |
-| 01.03 | [TASK01.03](./op_v0.4_TASK01.03_assembly_manifests.md) | Create 48 assembly manifests | 01.01, 01.02 |
-| 01.04 | [TASK01.04](./op_v0.4_TASK01.04_remove_submodules.md) | Remove 12 submodules | 01.03 |
-| 01.05 | [TASK01.05](./op_v0.4_TASK01.05_testmatrix.md) | Combinatorial testing (Go program) | 01.03, 01.06 |
-| 01.06 | [TASK01.06](./op_v0.4_TASK01.06_composition_recipes.md) | 3 patterns × 11 languages | — |
+| 01 | [TASK01](./op_v0.4_TASK01_dry_daemons.md) | Extract 8 DRY daemons | — |
+| 02 | [TASK02](./op_v0.4_TASK02_dry_hostui.md) | Extract 6 DRY HostUIs | — |
+| 03 | [TASK03](./op_v0.4_TASK03_assembly_manifests.md) | Create 48 assembly manifests | 01, 01.02 |
+| 04 | [TASK04](./op_v0.4_TASK04_remove_submodules.md) | Remove 12 submodules | 03 |
+| 05 | [TASK05](./op_v0.4_TASK05_testmatrix.md) | Combinatorial testing (Go program) | 03, 01.06 |
+| 06 | [TASK06](./op_v0.4_TASK06_composition_recipes.md) | 3 patterns × 11 languages | — |
