@@ -72,12 +72,11 @@ Every SDK below must be implemented. Check off each one after commit.
 | `csharp-holons` | `Holons/Describe.cs` | `Google.Protobuf.Reflection` | ❌ |
 | `cpp-holons` | `include/holons/describe.hpp` | `google::protobuf::compiler` | ❌ |
 | `ruby-holons` | `lib/holons/describe.rb` | `google-protobuf` gem or text parsing | ❌ |
-| `objc-holons` | `src/HolonMeta.m` | Text parsing of `.proto` files | ❌ |
 | `js-web-holons` | `src/describe.mjs` | `protobufjs` (same as `js-holons`) | ❌ |
 
 ### Fallback: simple text parser
 
-For SDKs where a full proto compiler library is too heavy (C, Obj-C, Ruby),
+For SDKs where a full proto compiler library is too heavy (C, Ruby),
 a simple text-based parser is acceptable. It only needs to extract:
 - `service Name { ... }` blocks and their leading comments
 - `rpc Method(...)` declarations and their leading comments

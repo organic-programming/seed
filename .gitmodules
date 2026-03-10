@@ -28,9 +28,6 @@
 [submodule "sdk/kotlin-holons"]
 	path = sdk/kotlin-holons
 	url = git@github.com:organic-programming/kotlin-holons.git
-[submodule "sdk/objc-holons"]
-	path = sdk/objc-holons
-	url = git@github.com:organic-programming/objc-holons.git
 [submodule "sdk/python-holons"]
 	path = sdk/python-holons
 	url = git@github.com:organic-programming/python-holons.git

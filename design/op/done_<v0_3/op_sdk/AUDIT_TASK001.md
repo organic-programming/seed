@@ -30,7 +30,7 @@ project reflects the real state of the code.
 
 ## 3. Audit per-SDK READMEs
 
-For each of the 14 SDK repos:
+For each of the 13 SDK repos:
 
 - [ ] `go-holons/README.md` — document `pkg/discover`, `pkg/connect`
 - [ ] `rust-holons/README.md` — document `discover`, `connect`
@@ -45,11 +45,10 @@ For each of the 14 SDK repos:
 - [ ] `c-holons/README.md` — document discover, connect
 - [ ] `python-holons/README.md` — document discover, connect
 - [ ] `ruby-holons/README.md` — document discover, connect
-- [ ] `objc-holons/README.md` — document discover, connect
 
 ## 4. Audit hello-world examples
 
-For each of the 14 examples:
+For each of the 13 examples:
 
 - [ ] Verify it builds and runs.
 - [ ] Verify it uses its SDK (not raw gRPC).

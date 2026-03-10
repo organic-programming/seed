@@ -35,7 +35,6 @@ standard directory for installed Organic Programming binaries.
 - [Java](./java-hello-world/)
 - [JavaScript](./js-hello-world/)
 - [Kotlin](./kotlin-hello-world/)
-- [Objective-C](./objc-hello-world/)
 - [Python](./python-hello-world/)
 - [Ruby](./ruby-hello-world/)
 - [Rust](./rust-hello-world/)

@@ -24,7 +24,6 @@ Phase 5 splits into macOS recipe builds and Windows WinUI builds.
 - [x] **TASK009** — Ruby `connect` ✅ Codex
 - [x] **TASK010** — C `connect` ✅ Codex
 - [x] **TASK011** — C++ `connect` ✅ Codex
-- [x] **TASK012** — Obj-C `connect` ✅ Codex
 
 ### Phase 4 — Migrations (requires Phase 3)
 
@@ -91,10 +90,9 @@ Name-based resolution in every SDK.
 | **TASK009** | Ruby `connect` | — |
 | **TASK010** | C `connect` | — |
 | **TASK011** | C++ `connect` | — |
-| **TASK012** | Obj-C `connect` | — |
 
 **Platform:** macOS only.
-**Note:** Tasks 006–012 are independent — submit to Codex in parallel.
+**Note:** Tasks 006–011 are independent — submit to Codex in parallel.
 
 ---
 
@@ -220,4 +218,3 @@ See [TASK017.md](./TASK017.md) and [QA_TASK001.md](./QA_TASK001.md).
 | 5a — Recipe builds | ✅ mac_TASK001, mac_TASK002 | — |
 | 5b — Recipe builds | — | ⚠️ windows_TASK001 (required), windows_TASK002 (optional) |
 | 6 — QA | ✅ QA_TASK001 | ❌ not needed |
-

@@ -77,12 +77,11 @@ are available to experiment with:
   [JavaScript](https://github.com/organic-programming/js-holons),
   [JavaScript Web](https://github.com/organic-programming/js-web-holons),
   [Kotlin](https://github.com/organic-programming/kotlin-holons),
-  [Objective-C](https://github.com/organic-programming/objc-holons),
   [Python](https://github.com/organic-programming/python-holons),
   [Ruby](https://github.com/organic-programming/ruby-holons),
   [Rust](https://github.com/organic-programming/rust-holons),
   [Swift](https://github.com/organic-programming/swift-holons).
-- **[examples/](./examples/)** — runnable hello-world holons in 14
+- **[examples/](./examples/)** — runnable hello-world holons in 13
   languages. Some already import their matching SDK; others are still
   raw gRPC baselines. See [`sdk/SDK_GUIDE.md`](./sdk/SDK_GUIDE.md) for
   the current audit.

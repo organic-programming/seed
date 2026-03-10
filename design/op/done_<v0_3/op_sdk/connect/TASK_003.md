@@ -19,7 +19,6 @@ All must default to `stdio`.
 | `csharp-holons` | ? | ? | Audit + fix |
 | `c-holons` | ? | ? | Audit + fix |
 | `cpp-holons` | ? | ? | Audit + fix |
-| `objc-holons` | ? | ? | Audit + fix |
 | `js-web-holons` | N/A | N/A | Browser — no change |
 
 ## What to do
@@ -47,7 +46,6 @@ Run each SDK's test suite. The specific command varies:
 | `csharp-holons` | `dotnet test` |
 | `c-holons` | `cmake --build build && ctest --test-dir build` |
 | `cpp-holons` | `cmake --build build && ctest --test-dir build` |
-| `objc-holons` | `xcodebuild test` |
 
 ## Rules
 

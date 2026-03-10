@@ -97,7 +97,6 @@ Every SDK must pass 5 tests (see Testing section). Current state:
 | `csharp-holons` | ? | ? | ? |
 | `c-holons` | ? | ? | ? |
 | `cpp-holons` | ? | ? | ? |
-| `objc-holons` | ? | ? | ? |
 | `java-holons` | ? | ? | ? |
 | `js-web-holons` | N/A | N/A | N/A |
 

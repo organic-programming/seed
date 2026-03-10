@@ -4,7 +4,7 @@
 
 Depends on: all connect tasks (TASK006–TASK012).
 
-Nine hello-world examples are still on raw gRPC baselines. They must be
+Eight hello-world examples are still on raw gRPC baselines. They must be
 migrated to use their SDK's `serve` and `connect` primitives, and a
 `connect` example must be added to each.
 
@@ -36,7 +36,6 @@ For each, the migration is:
 | `cpp-hello-world` | `cpp-holons` | Migrate to SDK serve + connect |
 | `python-hello-world` | `python-holons` | Migrate to SDK serve + connect |
 | `ruby-hello-world` | `ruby-holons` | Migrate to SDK serve + connect |
-| `objc-hello-world` | `objc-holons` | Migrate to SDK serve + connect |
 
 ## Connect example pattern
 

@@ -388,30 +388,6 @@ my-holon/
 └── CMakeLists.txt
 ```
 
----
-
-### Objective-C
-
-| Aspect | Convention |
-|--------|-----------|
-| Source | `src/` |
-| Generated | `gen/objc/` |
-| Tests | `tests/` |
-| Manifest | `Makefile` or Xcode project |
-| Build | `xcodebuild` or `make` |
-
-```
-my-holon/
-├── protos/echo/v1/echo.proto
-├── gen/objc/Echo.pbobjc.h
-├── src/
-│   └── Server.m
-├── tests/EchoTest.m
-└── Makefile
-```
-
----
-
 ### Ruby
 
 | Aspect | Convention |
@@ -451,7 +427,6 @@ my-holon/
 | Swift | `Sources/` | `Sources/Gen/` | `Tests/` | `Package.swift` |
 | C | `src/` | `gen/c/` | `tests/` | `Makefile` |
 | C++ | `src/` | `gen/cpp/` | `tests/` | `CMakeLists.txt` |
-| Obj-C | `src/` | `gen/objc/` | `tests/` | `Makefile` |
 | Ruby | `lib/` | `lib/gen/` | `test/` | `Gemfile` |
 
 ---
@@ -512,7 +487,6 @@ Thumbs.db
 | Swift | `.build/`, `.swiftpm/`, `Package.resolved` |
 | C | `*.o`, `*.a`, `*.so`, binary names |
 | C++ | `build/`, `*.o`, `*.a`, `*.so`, binary names |
-| Obj-C | `*.o`, binary names, `build/`, `DerivedData/` |
 | Ruby | `.bundle/`, `vendor/bundle/`, `Gemfile.lock` |
 
 ### Rules

@@ -212,7 +212,6 @@ on top — it orchestrates, but is never required at runtime.
 | `csharp-holons` | flags only | ✅ | ✅ tcp-only | client |
 | `cpp-holons` | flags only | ✅ | — | client |
 | `c-holons` | runner | ✅ | — | wrapper binaries only |
-| `objc-holons` | flags only | ✅ | — | client |
 | `ruby-holons` | flags only | ✅ | — | client |
 | `js-web-holons` | browser | remote manifest only | — | browser client + node harness |
 
@@ -238,7 +237,6 @@ on top — it orchestrates, but is never required at runtime.
 | `c-hello-world` | ✅ | Uses `c-holons` transport and serve helpers. |
 | `python-hello-world` | ❌ | Raw `grpcio` baseline. |
 | `ruby-hello-world` | ❌ | Raw gRPC baseline. |
-| `objc-hello-world` | ❌ | Raw gRPC baseline. |
 
 ---
 

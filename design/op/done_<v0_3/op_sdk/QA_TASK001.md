@@ -70,7 +70,6 @@ run the connect example if present.
 | `csharp-hello-world` | | | | ❌ |
 | `c-hello-world` | | | | ❌ |
 | `cpp-hello-world` | | | | ❌ |
-| `objc-hello-world` | | | | ❌ |
 | `ruby-hello-world` | | | | ❌ |
 
 ## Build commands per frontend

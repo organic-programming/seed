@@ -39,7 +39,6 @@ Holon-RPC support.
 | [csharp-holons](https://github.com/organic-programming/csharp-holons) | C# | flags only | ✅ | ✅ | client | 0.1.0 |
 | [cpp-holons](https://github.com/organic-programming/cpp-holons) | C++ | flags only | ✅ | ✅ | client | 0.1.0 |
 | [c-holons](https://github.com/organic-programming/c-holons) | C | runner | ✅ | ✅ | wrapper binaries only | 0.1.0 |
-| [objc-holons](https://github.com/organic-programming/objc-holons) | Objective-C | flags only | ✅ | ✅ | client | 0.1.0 |
 | [ruby-holons](https://github.com/organic-programming/ruby-holons) | Ruby | flags only | ✅ | ✅ stdio | client | 0.1.0 |
 | [js-web-holons](https://github.com/organic-programming/js-web-holons) | JavaScript (Browser) | browser | remote only | dial only | browser client | 0.1.0 |
 
@@ -67,7 +66,6 @@ All SDKs support the 6 transport schemes defined in PROTOCOL.md:
 | `csharp-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
 | `cpp-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
 | `c-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
-| `objc-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
 | `ruby-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
 | `js-web-holons` | — | — | — | — | ✅ | browser client |
 
