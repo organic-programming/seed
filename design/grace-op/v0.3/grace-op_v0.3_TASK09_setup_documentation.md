@@ -85,6 +85,22 @@ New field:
 
 ---
 
+## Output
+
+All deliverables go to `v0.3/output/` for human review before
+being moved to their final location in the repo root.
+
+| Deliverable | Staging path | Final path |
+|---|---|---|
+| `OP.md` §12 (setup) | `output/OP_setup_section.md` | merged into `OP.md` |
+| `SETUP_YAML.md` (new) | `output/SETUP_YAML.md` | `organic-programming/SETUP_YAML.md` |
+| `HOLON_YAML.md` additions | `output/HOLON_YAML_sources.md` | merged into `HOLON_YAML.md` |
+| `CONVENTIONS.md` additions | `output/CONVENTIONS_cache_dirs.md` | merged into `CONVENTIONS.md` |
+
+> [!IMPORTANT]
+> 📝 All output files require human review before merge.
+> Do not modify the target files directly.
+
 ## Checklist
 
 - [ ] **OP.md**: Draft `op setup` section
@@ -92,7 +108,8 @@ New field:
 - [ ] **HOLON_YAML.md**: Add `requires.sources` schema with pinning rule
 - [ ] **CONVENTIONS.md**: Add `~/.op/cache/sources/` to standard directories
 - [ ] Add three-YAML cross-reference table to `SETUP_YAML.md`, `MESH_YAML.md`, `HOLON_YAML.md`
-- [ ] Review all changes for consistency with existing document tone and style
+- [ ] 📝 Human review of all `output/` files
+- [ ] Move reviewed files to final locations
 
 ## Dependencies
 

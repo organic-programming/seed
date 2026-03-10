@@ -75,6 +75,23 @@ Add `~/.op/mesh/` and its contents to the standard directories table.
 
 ---
 
+## Output
+
+All deliverables go to `v0.3/output/` for human review before
+being moved to their final location in the repo root.
+
+| Deliverable | Staging path | Final path |
+|---|---|---|
+| `OP.md` §11 (mesh) | `output/OP_mesh_section.md` | merged into `OP.md` |
+| `PROTOCOL.md` §8 (transport security) | `output/PROTOCOL_transport_security.md` | merged into `PROTOCOL.md` |
+| `MESH_YAML.md` (new) | `output/MESH_YAML.md` | `organic-programming/MESH_YAML.md` |
+| `HOLON_YAML.md` additions | `output/HOLON_YAML_listeners.md` | merged into `HOLON_YAML.md` |
+| `CONVENTIONS.md` additions | `output/CONVENTIONS_mesh_dirs.md` | merged into `CONVENTIONS.md` |
+
+> [!IMPORTANT]
+> 📝 All output files require human review before merge.
+> Do not modify the target files directly.
+
 ## Checklist
 
 - [ ] **OP.md**: Draft `op mesh` section (11.1–11.8)
@@ -87,7 +104,8 @@ Add `~/.op/mesh/` and its contents to the standard directories table.
 - [ ] **MESH_YAML.md**: Create new spec document
 - [ ] **HOLON_YAML.md**: Add `serve.listeners` schema
 - [ ] Cross-reference: `OP.md` §11 ↔ `PROTOCOL.md` §8 ↔ `MESH_YAML.md`
-- [ ] Review all changes for consistency with existing document tone and style
+- [ ] 📝 Human review of all `output/` files
+- [ ] Move reviewed files to final locations
 
 ## Dependencies
 

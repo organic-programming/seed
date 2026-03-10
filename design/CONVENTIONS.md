@@ -106,6 +106,26 @@ Status emojis are prepended to the summary column.
 
 ---
 
+## Task Output Staging
+
+Tasks that produce deliverables (spec docs, config files, etc.)
+write them to an `output/` folder inside the version folder:
+
+```
+v0.3/output/
+├── OP_mesh_section.md         ← draft for OP.md §11
+├── MESH_YAML.md               ← new spec doc
+└── PROTOCOL_transport_security.md
+```
+
+- Output files are **📝 staging only** — never the final location.
+- A human must review before moving output to the repo root.
+- The task checklist includes `📝 Human review` and
+  `Move reviewed files` as final steps.
+- The `output/` folder is deleted once all files are merged.
+
+---
+
 ## Cross-Version References
 
 - Use `../vX.Y/filename.md` for links across versions.
