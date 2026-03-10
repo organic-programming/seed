@@ -1,4 +1,4 @@
-# TASK01 — Recipe Ecosystem Restructuring
+# Recipe Ecosystem
 
 ## Problem Statement
 
