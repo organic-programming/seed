@@ -8,23 +8,46 @@ Version plan for Grace OP (`op` CLI).
 
 Complete `op` for single-host development.
 
-- 7 new runners (cargo, swift-package, flutter, npm, gradle, dotnet, qt-cmake)
-- Build configs (`--config` + `OP_CONFIG`)
-- Composite kind formalization (`kind: composite` + `artifacts.primary`)
-- Bundle install (`.app`, `.exe` → `$OPBIN`)
-- MVS transitive dependency resolution
 - `op install --no-build` flag
+- Composite kind formalization (`kind: composite` + `artifacts.primary`)
+- 7 new runners (cargo, swift-package, flutter, npm, gradle, dotnet, qt-cmake)
+- Bundle install (`.app`, `.exe` → `$OPBIN`)
 - Package manager distribution (Homebrew, WinGet, NPM)
-- Recipe restructuring
 - Spec documentation for mesh and setup
-- Sequences (`op do` + MCP tool exposure)
 - Holon templates (`op new --template`)
 
-**Tasks:** [v0_3/_TASKS.md](./v0_3/_TASKS.md)
+**Tasks:** [v0_3/_TASKS.md](./v0_3/_TASKS.md) — TASK01 through TASK09
 
 ---
 
-## v0.4 — REST + SSE Transport
+## v0.4 — Recipe Ecosystem
+
+Restructure recipes into a DRY monorepo with shared components
+and composition patterns.
+
+- Extract 8 DRY daemons + 6 DRY HostUIs
+- 48 assembly manifests (daemon × HostUI)
+- Composition recipes (direct-call, pipeline, fan-out)
+- Remove 12 legacy submodules
+- Combinatorial testmatrix program
+
+**Tasks:** [v0_3/_TASKS.md](./v0_3/_TASKS.md) — TASK10 (.01–.06)
+
+---
+
+## v0.5 — Extensibility
+
+Build configs, dependency resolution, and executable sequences.
+
+- Build configs (`--config` + `OP_CONFIG`)
+- MVS transitive dependency resolution
+- Sequences (`op do` + MCP tool exposure)
+
+**Tasks:** [v0_3/_TASKS.md](./v0_3/_TASKS.md) — TASK11, TASK12, TASK13
+
+---
+
+## v0.6 — REST + SSE Transport
 
 Add HTTP-native transport for distributed holon communication.
 
@@ -38,7 +61,7 @@ Add HTTP-native transport for distributed holon communication.
 
 ---
 
-## v0.5 — Cross-Compilation & Platform Targets
+## v0.7 — Cross-Compilation & Platform Targets
 
 Build holons for mobile and browser from a desktop host.
 
@@ -54,7 +77,7 @@ Build holons for mobile and browser from a desktop host.
 
 ---
 
-## v0.6 — Mesh
+## v0.8 — Mesh
 
 Enable multi-host holon networks with `op mesh`.
 
@@ -68,7 +91,7 @@ Enable multi-host holon networks with `op mesh`.
 
 ---
 
-## v0.7 — Public Holons
+## v0.9 — Public Holons
 
 Expose holons to external consumers with per-listener security.
 
@@ -99,12 +122,15 @@ Declarative host provisioning from zero to functioning OP host.
 ## Dependency Chain
 
 ```
-v0.3 (single-host)
-  └─ v0.4 (REST+SSE transport)
-       └─ v0.5 (cross-compilation)
-            └─ v0.6 (mesh networking)
-                 └─ v0.7 (public security)
-                      └─ v1.0 (provisioning)
+v0.3 (core maturity)
+  ├─ v0.4 (recipe ecosystem)
+  └─ v0.5 (extensibility)
+       └─ v0.6 (REST+SSE transport)
+            └─ v0.7 (cross-compilation)
+                 └─ v0.8 (mesh networking)
+                      └─ v0.9 (public security)
+                           └─ v1.0 (provisioning)
 ```
 
-Each version adds one layer to the distributed story.
+v0.4 and v0.5 can proceed in parallel after v0.3. The distributed
+story begins at v0.6.
