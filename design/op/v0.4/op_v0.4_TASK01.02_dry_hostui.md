@@ -1,4 +1,4 @@
-# TASK10.02 — Extract DRY HostUI Holons
+# TASK01.02 — Extract DRY HostUI Holons
 
 ## Summary
 
@@ -26,4 +26,4 @@ endpoint. Currently duplicated across 12 recipe repos.
 
 ## Dependencies
 
-None (can start in parallel with TASK10.01).
+None (can start in parallel with TASK01.01).

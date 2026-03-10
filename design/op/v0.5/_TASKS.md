@@ -4,8 +4,8 @@
 
 | # | File | Summary | Depends on |
 |---|---|---|---|
-| 11 | [TASK11](./TASK11_build_configs.md) | Build configs (`--config` + `OP_CONFIG`) | — |
-| 12 | [TASK12](./TASK12_mvs_resolution.md) | MVS transitive dependency resolution | — |
-| 13 | [TASK13](./TASK13_sequences.md) | Sequences (`op do`) + MCP tool exposure | — |
+| 01 | [TASK01](./op_v0.5_TASK01_build_configs.md) | Build configs (`--config` + `OP_CONFIG`) | — |
+| 02 | [TASK02](./op_v0.5_TASK02_mvs_resolution.md) | MVS transitive dependency resolution | — |
+| 03 | [TASK03](./op_v0.5_TASK03_sequences.md) | Sequences (`op do`) + MCP tool exposure | — |
 
-Design documents referenced by these tasks are listed in [INDEX.md](../INDEX.md).
+Design documents: [DESIGN_sequences.md](./DESIGN_sequences.md)

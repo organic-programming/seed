@@ -1,4 +1,4 @@
-# TASK12 — MVS Transitive Dependency Resolution
+# TASK02 — MVS Transitive Dependency Resolution
 
 ## Context
 

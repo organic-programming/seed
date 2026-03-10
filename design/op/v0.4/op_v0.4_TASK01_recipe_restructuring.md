@@ -1,4 +1,4 @@
-# TASK10 — Recipe Ecosystem Restructuring
+# TASK01 — Recipe Ecosystem Restructuring
 
 ## Problem Statement
 
@@ -298,9 +298,9 @@ monorepo with shared components:
 
 | # | File | Summary | Depends on |
 |---|---|---|---|
-| 10.01 | [TASK10.01](./TASK10.01_dry_daemons.md) | Extract 8 DRY daemons | — |
-| 10.02 | [TASK10.02](./TASK10.02_dry_hostui.md) | Extract 6 DRY HostUIs | — |
-| 10.03 | [TASK10.03](./TASK10.03_assembly_manifests.md) | Create 48 assembly manifests | 10.01, 10.02 |
-| 10.04 | [TASK10.04](./TASK10.04_remove_submodules.md) | Remove 12 submodules | 10.03 |
-| 10.05 | [TASK10.05](./TASK10.05_testmatrix.md) | Combinatorial testing (Go program) | 10.03, 10.06 |
-| 10.06 | [TASK10.06](./TASK10.06_composition_recipes.md) | 3 patterns × 11 languages | — |
+| 01.01 | [TASK01.01](./TASK01.01_dry_daemons.md) | Extract 8 DRY daemons | — |
+| 01.02 | [TASK01.02](./TASK01.02_dry_hostui.md) | Extract 6 DRY HostUIs | — |
+| 01.03 | [TASK01.03](./TASK01.03_assembly_manifests.md) | Create 48 assembly manifests | 01.01, 10.02 |
+| 01.04 | [TASK01.04](./TASK01.04_remove_submodules.md) | Remove 12 submodules | 01.03 |
+| 01.05 | [TASK01.05](./TASK01.05_testmatrix.md) | Combinatorial testing (Go program) | 01.03, 10.06 |
+| 01.06 | [TASK01.06](./TASK01.06_composition_recipes.md) | 3 patterns × 11 languages | — |
