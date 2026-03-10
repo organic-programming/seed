@@ -36,7 +36,23 @@ Add HTTP-native transport for distributed holon communication.
 
 ---
 
-## v0.5 — Mesh
+## v0.5 — Cross-Compilation & Platform Targets
+
+Build holons for mobile and browser from a desktop host.
+
+- `op build --target <platform>` flag
+- Execution mode selection per target (binary, framework, WASM)
+- `build.targets` in `holon.yaml` (per-platform build rules)
+- Go: `gomobile bind` for iOS/Android, `GOOS=js` for WASM
+- Rust: `cdylib` for mobile, `wasm-pack` for browser
+- C/C++: Emscripten for WASM, NDK for Android
+- Platform-aware connect chain (auto-select transport by mode)
+
+**Design:** [DESIGN_cross_compilation.md](./DESIGN_cross_compilation.md)
+
+---
+
+## v0.6 — Mesh
 
 Enable multi-host holon networks with `op mesh`.
 
@@ -50,7 +66,7 @@ Enable multi-host holon networks with `op mesh`.
 
 ---
 
-## v0.6 — Public Holons
+## v0.7 — Public Holons
 
 Expose holons to external consumers with per-listener security.
 
@@ -83,9 +99,10 @@ Declarative host provisioning from zero to functioning OP host.
 ```
 v0.3 (single-host)
   └─ v0.4 (REST+SSE transport)
-       └─ v0.5 (mesh networking)
-            └─ v0.6 (public security)
-                 └─ v1.0 (provisioning)
+       └─ v0.5 (cross-compilation)
+            └─ v0.6 (mesh networking)
+                 └─ v0.7 (public security)
+                      └─ v1.0 (provisioning)
 ```
 
 Each version adds one layer to the distributed story.
