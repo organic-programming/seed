@@ -23,4 +23,4 @@ Each proposes new commands, schemas, or SDK capabilities to be added.
 
 ## Tasks
 
-- [v3_0/](./v3_0/_TASKS.md) — implementation tasks for v3.0
+- [v3_0/](./v3_0/_TASKS.md) — implementation tasks for v0.3
