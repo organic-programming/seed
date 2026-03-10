@@ -46,3 +46,8 @@ build:
 ## Dependencies
 
 TASK08.01, TASK08.02 (daemons and HostUIs must exist).
+
+## Reference
+
+Full 48-entry assembly matrix with highlighted full-stack combos:
+[TASK08_NOTES.md](./TASK08_NOTES.md)

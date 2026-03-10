@@ -58,3 +58,8 @@ recipes/composition/
 ## Dependencies
 
 None (workers are standalone; orchestrators use SDK `connect(slug)`).
+
+## Reference
+
+Proto contracts, code snippets, and directory templates:
+[TASK08_NOTES.md](./TASK08_NOTES.md)
