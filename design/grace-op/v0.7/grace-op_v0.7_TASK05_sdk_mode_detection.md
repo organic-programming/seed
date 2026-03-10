@@ -8,9 +8,16 @@ accordingly. No manual configuration needed.
 
 ## Repositories
 
+All SDK repos:
 - `go-holons`: `github.com/organic-programming/go-holons`
 - `rust-holons`: `github.com/organic-programming/rust-holons`
-- All other SDK repos (port after Go + Rust)
+- `cpp-holons`: `github.com/organic-programming/cpp-holons`
+- `swift-holons`: `github.com/organic-programming/swift-holons`
+- `kotlin-holons`: `github.com/organic-programming/kotlin-holons`
+- `dart-holons`: `github.com/organic-programming/dart-holons`
+- `dotnet-holons`: `github.com/organic-programming/dotnet-holons`
+- `node-holons`: `github.com/organic-programming/node-holons`
+- `python-holons`: `github.com/organic-programming/python-holons`
 
 ## Reference
 
@@ -32,7 +39,9 @@ accordingly. No manual configuration needed.
 - **framework**: detected when loaded as a shared library
   (e.g., no `main()`, called via FFI)
 - **wasm**: detected via build tags or runtime environment
-  (`GOOS=js`, `wasm_bindgen`, etc.)
+  (`GOOS=js`, `wasm_bindgen`, Pyodide, etc.)
+- **interpreted** (Node, Python): always binary mode unless
+  running inside a WASM runtime
 
 ### SDK API
 
@@ -43,9 +52,15 @@ handles it.
 
 ## Acceptance Criteria
 
-- [ ] Go SDK: binary mode auto-selects full chain
-- [ ] Go SDK: WASM mode restricts to `mem → rest+sse`
+- [ ] Go SDK: binary mode → full chain, WASM → `mem → rest+sse`
 - [ ] Rust SDK: same behavior
+- [ ] C++ SDK: framework mode → `mem → tcp → rest+sse`
+- [ ] Swift SDK: framework mode detection
+- [ ] Kotlin SDK: framework mode detection
+- [ ] Dart SDK: framework + WASM modes
+- [ ] C# SDK: framework + WASM modes
+- [ ] Node SDK: WASM mode (when running in WASI)
+- [ ] Python SDK: WASM mode (when running in Pyodide)
 - [ ] No config required — detection is automatic
 - [ ] Existing binary holons unaffected
 

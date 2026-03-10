@@ -77,6 +77,9 @@ clear error: `holon "foo" does not declare a build target for "ios"`.
 | **Dart** | Flutter | `dart compile js` |
 | **C#** | .NET MAUI | Blazor WASM |
 
+| **Node.js** | N/A (interpreted) | WASI / bundler |
+| **Python** | N/A (interpreted) | Pyodide / CPython WASM |
+
 ## Runner Adaptation
 
 Each runner learns how to cross-compile. The recipe runner
@@ -106,7 +109,7 @@ needed.
 
 ## Dependency
 
-- **Requires v0.4** — REST+SSE transport must exist before
+- **Requires v0.6** — REST+SSE transport must exist before
   framework/WASM targets make sense (they depend on HTTP transport)
-- **Independent of v0.6** — Mesh is network topology, not build
+- **Independent of v0.8** — Mesh is network topology, not build
   targeting
