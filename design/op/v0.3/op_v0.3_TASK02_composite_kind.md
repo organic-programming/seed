@@ -11,9 +11,9 @@ but the manifest parser does not formally support these fields.
 
 - **TASK06** (install bundles) depends on this: it needs
   `artifacts.primary` to locate the bundle path for install.
-- **TASK11** (build configs) touches the manifest parser but
+- **v0.5 TASK01** (build configs) touches the manifest parser but
   different fields — no conflict.
-- TASK03–10: no interaction.
+- TASK03–09: no interaction.
 
 ## Objective
 
