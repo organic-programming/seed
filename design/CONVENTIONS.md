@@ -34,12 +34,12 @@ Executed via `/update-version-status`.
 ### Naming
 
 ```
-op_v<version>_TASK<NN>_<slug>.md
+grace-op_v<version>_TASK<NN>_<slug>.md
 ```
 
 Examples:
-- `op_v0.3_TASK01_install_no_build.md`
-- `op_v0.4_TASK06_composition_recipes.md`
+- `grace-op_v0.3_TASK01_install_no_build.md`
+- `grace-op_v0.4_TASK06_composition_recipes.md`
 
 The version is embedded in the filename for automation — any tool
 can determine the target version from the filename alone.
@@ -56,8 +56,8 @@ On completion, the filename gains an emoji before `.md`:
 
 On failure, a companion report is created:
 ```
-op_v0.4_TASK03_assembly_manifests.❌.md       ← task file
-op_v0.4_TASK03_assembly_manifests.failure.md  ← failure report
+grace-op_v0.4_TASK03_assembly_manifests.❌.md       ← task file
+grace-op_v0.4_TASK03_assembly_manifests.failure.md  ← failure report
 ```
 
 ### Task Lifecycle
@@ -97,9 +97,9 @@ Each version folder has a `_TASKS.md` index:
 ```md
 | # | File | Summary | Depends on |
 |---|---|---|---|
-| 01 | [TASK01](./op_v0.3_TASK01_foo.md) | `op install` flag | — |
-| 02 | [TASK02](./op_v0.3_TASK02_bar.md) | 🔨 composite kind | TASK01 |
-| 03 | [TASK03](./op_v0.3_TASK03_baz.✅.md) | ✅ tier1 runners | — |
+| 01 | [TASK01](./grace-op_v0.3_TASK01_foo.md) | `op install` flag | — |
+| 02 | [TASK02](./grace-op_v0.3_TASK02_bar.md) | 🔨 composite kind | TASK01 |
+| 03 | [TASK03](./grace-op_v0.3_TASK03_baz.✅.md) | ✅ tier1 runners | — |
 ```
 
 Status emojis are prepended to the summary column.
