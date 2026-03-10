@@ -838,3 +838,4 @@ go build -o orchestrator ./cmd/orchestrator
 - [ ] **Approval escalation:** Detect when codex is waiting for human approval (in full-auto mode) and surface it.
 - [ ] **Parallel execution:** Independent tasks (no shared dependencies) could run concurrently. Requires careful git state management.
 - [ ] **Cross-version pre-check:** Before starting a set, verify all referenced cross-version dependencies are `✅`.
+- [ ] **Resume sandbox parity:** `codex exec resume` may not preserve the same `--add-dir` and workspace constraints as the original CREATE session. Until verified, the FIX loop should fall back to a fresh `codex exec` with compressed prior-attempt context.

@@ -50,9 +50,10 @@ func UpdateVersionStatus(setDir string, entries []tasks.Entry, git *git.Ops) err
 
 ```go
 // Reset strips emoji prefix from the version folder, clears _TASKS.md
-// Status column, removes ## Status blocks and .failure.md files.
+// Status column, removes ## Status blocks, .failure.md files, and
+// clears the corresponding entries from the persistent state file.
 // Used when re-running a previously completed version.
-func Reset(setDir string, git *git.Ops) error { ... }
+func Reset(setDir string, st *state.State, git *git.Ops) error { ... }
 ```
 
 ### [NEW] `internal/lifecycle/release.go`
@@ -92,4 +93,4 @@ func EnsureConsistency(root, project, setName string) error { ... }
 
 ## Dependencies
 
-TASK02 (logging), TASK03 (tasks.Entry type and parser).
+TASK02 (logging), TASK03 (tasks.Entry type and parser), TASK05 (codex.Result type).

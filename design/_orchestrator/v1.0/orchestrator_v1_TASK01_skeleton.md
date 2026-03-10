@@ -53,9 +53,10 @@ Flag parsing with `--set` (repeatable), `--model`, `--root`:
 package cli
 
 type Config struct {
-    Sets  []string
-    Model string
-    Root  string
+    Sets      []string
+    Model     string
+    Root      string
+    StateFile string // default: <root>/.codex_orchestrator_state.json
 }
 
 func Parse() (*Config, error) { ... }

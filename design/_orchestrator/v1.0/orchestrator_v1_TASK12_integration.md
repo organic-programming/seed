@@ -39,9 +39,11 @@ func main() {
     setupSignalHandler(st, lock)
 
     startTime := time.Now()
+    var setResults []summary.SetResult
 
     for _, setName := range cfg.Sets {
-        setDir, project := tasks.FindSetDir(cfg.Root, setName)
+        setDir, project, err := tasks.FindSetDir(cfg.Root, setName)
+        if err != nil { ... }
         git.EnsureConsistency(cfg.Root, project, setName)
 
         entries, err := tasks.Parse(filepath.Join(setDir, "_TASKS.md"))
@@ -72,12 +74,24 @@ func main() {
             st.Save()
         }
 
+        setResults = append(setResults, summary.BuildSetResult(setName, ordered, st))
+
         if allPassed(ordered, st) {
             lifecycle.Release(setDir, setName, &git.Ops{Root: cfg.Root})
         }
     }
 
-    summary.Print(st, time.Since(startTime))
+    summary.Print(st, setResults, time.Since(startTime))
+}
+
+// allPassed returns true if every task in the set completed successfully.
+func allPassed(entries []tasks.Entry, st *state.State) bool {
+    for _, e := range entries {
+        if !st.IsCompleted(e.FilePath) {
+            return false
+        }
+    }
+    return true
 }
 ```
 
@@ -95,4 +109,4 @@ produces the expected log files and state.
 
 ## Dependencies
 
-TASK02–11 (all packages).
+TASK02, TASK03, TASK04, TASK05, TASK06, TASK07, TASK08, TASK09, TASK10, TASK11.
