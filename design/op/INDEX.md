@@ -20,7 +20,9 @@ Each proposes new commands, schemas, or SDK capabilities to be added.
 - [DESIGN_setup.md](./DESIGN_setup.md) — `op setup` provisioning, `setup.yaml`
 - [DESIGN_public_holons.md](./DESIGN_public_holons.md) — per-listener security policy
 - [DESIGN_transport_rest_sse.md](./DESIGN_transport_rest_sse.md) — REST + SSE transport
+- [DESIGN_cross_compilation.md](./DESIGN_cross_compilation.md) — `op build --target` cross-compilation
+- [DESIGN_sequences.md](./DESIGN_sequences.md) — `sequences:` manifest + `op do` executor
 
 ## Tasks
 
-- [v3_0/](./v3_0/_TASKS.md) — implementation tasks for v0.3
+- [v0_3/](./v0_3/_TASKS.md) — implementation tasks for v0.3

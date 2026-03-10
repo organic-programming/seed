@@ -18,5 +18,6 @@ Design documents and implementation tasks for Grace OP (the `op` CLI)
 | 09 | [TASK09](./TASK09_build_configs.md) | Build configs (`--config` + `OP_CONFIG`) | — |
 | 10 | [TASK10](./TASK10_composite_kind.md) | `kind: composite` + `artifacts.primary` | — |
 | 11 | [TASK11](./TASK11_mvs_resolution.md) | MVS transitive dependency resolution | — |
+| 12 | [TASK12](./TASK12_sequences.md) | Sequences (`op do`) + MCP tool exposure | — |
 
 Design documents referenced by these tasks are listed in [INDEX.md](../INDEX.md).

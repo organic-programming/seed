@@ -17,6 +17,7 @@ Complete `op` for single-host development.
 - Package manager distribution (Homebrew, WinGet, NPM)
 - Recipe restructuring
 - Spec documentation for mesh and setup
+- Sequences (`op do` + MCP tool exposure)
 
 **Tasks:** [v0_3/_TASKS.md](./v0_3/_TASKS.md)
 
