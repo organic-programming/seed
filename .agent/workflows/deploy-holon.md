@@ -4,44 +4,52 @@ description: Version-bump, build, deploy, and push any holon during dev
 
 # Deploy Holon
 
-Every time any holon (including `op`) is modified and deployed during dev,
-the **patch version must increment** (e.g., `0.2.0` → `0.2.1` → `0.2.2`).
+Every time a holon is modified and deployed during dev,
+the **patch version must increment** (e.g., `0.2.0` → `0.2.1`).
 Minor version increments are reserved for feature milestones.
 
-For `op` specifically, the version lives in `cmd/op/main.go` as
-`var version = "X.Y.Z"`. Other holons store their version in `holon.yaml`.
+## Prerequisites
+
+`$OPPATH` and `$OPBIN` must be set and `$OPBIN` on `$PATH`.
+If not done yet, add the output of `op env --shell` to your shell profile.
 
 ## Steps
 
-1. Increment the **patch** version.
+1. Increment the **patch** version in `holon.yaml`.
 
 // turbo
 2. Run tests:
    ```
-   cd holons/grace-op && go test ./...
+   op test <holon>
    ```
 
-3. Build and deploy with commit hash:
+3. Build:
    ```
-   cd holons/grace-op && \
+   op build <holon>
+   ```
+
+4. Commit and push:
+   ```
+   cd <holon-dir> && \
      git add -A && \
      git commit -m "<commit message>" && \
-     COMMIT=$(git rev-parse HEAD) && \
-     go build -ldflags "-X main.commit=$COMMIT" -o /usr/local/bin/op ./cmd/op && \
      git push
    ```
 
-4. Verify:
+5. Install:
    ```
-   op version
+   op install <holon>
    ```
-   Expected output: `op X.Y.Z (<commit>)`
+
+6. Verify:
+   ```
+   <holon-binary> --version   # or equivalent
+   ```
 
 ## Rules
 
-- The commit hash is injected via `-ldflags "-X main.commit=<hash>"`.
-- Always deploy to `/usr/local/bin/op`.
-- Always push after deploying.
+- Always bump the patch version **before** building.
+- Always commit and push **after** a successful build.
 - Always update parent submodule pointers (organic-programming → videosteno).
-- **Patch version increments on every deployment** — this rule applies to
-  any holon during dev, not just `op`.
+- `op install` copies the built artifact into `$OPBIN` — no manual
+  path needed.
