@@ -1,6 +1,6 @@
-# OP Design Tasks
+# OP v1.0.0 Design Tasks
 
-Design documents and implementation tasks for Grace OP (the `op` CLI).
+Design documents and implementation tasks for Grace OP (the `op` CLI)
 
 ## Tasks
 
