@@ -11,7 +11,7 @@
 
 ## Execution Strategy
 
-Strictly linear — each task gates the next. TASK10 is the 3x3 cross-language validation milestone. Do not proceed to v0.4.3 until TASK10 passes.
+Strictly linear — each task gates the next. TASK06 is the 3×3 cross-language validation milestone. Do not proceed to v0.4.3 until TASK06 passes.
 
 ## Tasks
 

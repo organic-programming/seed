@@ -8,8 +8,7 @@ GreetingService against the shared proto.
 
 > [!WARNING]
 > **Python and Node.js are new implementations.** There is no
-> existing source to extract. Python also requires a new `op` runner
-> (currently `TBD` in recipes.yaml) before it can build with `op build`.
+> existing source to extract.
 
 > [!IMPORTANT]
 > **Always use the language SDK.**

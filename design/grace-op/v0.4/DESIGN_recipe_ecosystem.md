@@ -285,13 +285,16 @@ monorepo with shared components:
 - **8 daemon languages:** Go, Rust, Python, Swift, Kotlin, Dart, C#, Node.js
 - **6 HostUI technologies:** Flutter, SwiftUI, Compose, Web, Dotnet, Qt
 - **48 assemblies:** 8 × 6 thin `holon.yaml` manifests (no source)
-- **11 composition orchestrators:** Go through C++ (all SDKs with `connect(slug)`)
+- **33 composition recipes:** 3 patterns (Direct Call, Pipeline, Fan-Out) × 11 orchestrator languages, plus 2 shared Go workers
 - **12 submodule repos archived** and replaced by monorepo
 
 ## Machine-Readable Manifest
 
-See [recipes.yaml](./recipes.yaml) for a structured manifest of all
-98 holons with exact source paths, SDKs, runners, and OS support.
+See [recipes.yaml](./recipes.yaml) for a machine-readable inventory of all holons
+(exact source paths, SDKs, runners, OS support, and phase-qualified task IDs).
+`recipes.yaml` is the source of truth for **Codex and CI tooling**.
+[DESIGN_recipe_monorepo.md](./DESIGN_recipe_monorepo.md) is the source of truth
+for **canonical naming** (directory names, `family_name` values, proto contracts).
 
 ## Subtasks
 

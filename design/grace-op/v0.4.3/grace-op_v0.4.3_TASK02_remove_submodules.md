@@ -40,4 +40,4 @@ archive the GitHub repos. The monorepo replaces them.
 
 ## Dependencies
 
-TASK11 (assemblies must exist before removing originals).
+v0.4.3/TASK01 (assemblies must exist before removing originals).

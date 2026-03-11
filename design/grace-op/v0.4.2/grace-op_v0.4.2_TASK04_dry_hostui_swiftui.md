@@ -26,4 +26,4 @@ connect-approach pattern validated by TASK04.
 
 ## Dependencies
 
-TASK07.
+v0.4.2/TASK03 (all daemons extracted — SwiftUI must be able to pair against any daemon).

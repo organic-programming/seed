@@ -63,7 +63,7 @@ recipes/composition/
 
 ## Dependencies
 
-TASK11.
+v0.4.3/TASK01 (shared workers live in the same monorepo; assemblies and composition are built together).
 
 ## Reference
 

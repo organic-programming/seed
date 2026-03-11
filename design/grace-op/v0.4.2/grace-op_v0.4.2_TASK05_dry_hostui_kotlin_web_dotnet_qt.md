@@ -36,4 +36,4 @@ follows the connect-approach pattern validated by TASK04.
 
 ## Dependencies
 
-TASK08.
+v0.4.2/TASK04 (SwiftUI HostUI — establishes the extraction pattern for all remaining HostUIs).
