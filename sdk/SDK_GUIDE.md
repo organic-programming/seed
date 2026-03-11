@@ -242,17 +242,17 @@ on top — it orchestrates, but is never required at runtime.
 
 ## Recipe Audit
 
-| Recipe | Daemon SDK | Frontend SDK | Current state |
-|---|---|---|---|
-| `go-dart-holons` | ✅ `go-holons` | ✅ `dart-holons` | Desktop uses `connect(slug)`; mobile uses `unix://`. |
-| `go-swift-holons` | ✅ `go-holons` | ✅ `swift-holons` | Uses `SwiftHolons.connect(slug)`. |
-| `go-kotlin-holons` | ✅ `go-holons` | ✅ `kotlin-holons` | Desktop uses `Connect.connect(slug)`. |
-| `go-web-holons` | ✅ `go-holons` | ✅ `js-web-holons` | Browser via `js-web-holons` connect. |
-| `go-qt-holons` | ✅ `go-holons` | ✅ `cpp-holons` | Uses `holons::connect(slug)`. |
-| `go-dotnet-holons` | ✅ `go-holons` | ✅ `csharp-holons` | Desktop uses `Holons.ConnectTarget(slug)`. |
-| `rust-dart-holons` | ✅ `rust-holons` | ✅ `dart-holons` | Desktop uses `holons.connect(slug)`. |
-| `rust-swift-holons` | ✅ `rust-holons` | ✅ `swift-holons` | Uses `SwiftHolons.connect(slug)`. |
-| `rust-kotlin-holons` | ✅ `rust-holons` | ✅ `kotlin-holons` | Desktop uses `Connect.connect(slug)`. |
-| `rust-web-holons` | ✅ `rust-holons` | ✅ `js-web-holons` | Browser via `js-web-holons` connect. |
-| `rust-qt-holons` | ✅ `rust-holons` | ✅ `cpp-holons` | Uses `holons::connect(slug)`. |
-| `rust-dotnet-holons` | ✅ `rust-holons` | ✅ `csharp-holons` | Desktop uses `Connect.ConnectTarget(slug)`. |
+| Recipe | Daemon SDK | Frontend SDK | Build (macOS) | Run (macOS) | Current state |
+|---|---|---|---|---|---|
+| `go-dart-holons` | ✅ `go-holons` | ✅ `dart-holons` | — | — | Desktop uses `connect(slug)`; mobile uses `unix://`. |
+| `go-swift-holons` | ✅ `go-holons` | ✅ `swift-holons` | ✅ | ✅ | Uses `SwiftHolons.connect(slug)`. Signed bundle launches via `open`; window and embedded daemon observed; daemon runs with `serve --listen stdio://`. |
+| `go-kotlin-holons` | ✅ `go-holons` | ✅ `kotlin-holons` | — | — | Desktop uses `Connect.connect(slug)`. |
+| `go-web-holons` | ✅ `go-holons` | ✅ `js-web-holons` | — | — | Browser via `js-web-holons` connect. |
+| `go-qt-holons` | ✅ `go-holons` | ✅ `cpp-holons` | — | — | Uses `holons::connect(slug)`. |
+| `go-dotnet-holons` | ✅ `go-holons` | ✅ `csharp-holons` | — | — | Desktop uses `Holons.ConnectTarget(slug)`. |
+| `rust-dart-holons` | ✅ `rust-holons` | ✅ `dart-holons` | — | — | Desktop uses `holons.connect(slug)`. |
+| `rust-swift-holons` | ✅ `rust-holons` | ✅ `swift-holons` | ✅ | ❌ | Signed bundle now launches via `open` and the old dyld / Launch Services blocker is resolved, but the embedded daemon / greeting RPC was not re-observed from the packaged app in this audit. Expected daemon transport remains `--listen tcp://127.0.0.1:0`. |
+| `rust-kotlin-holons` | ✅ `rust-holons` | ✅ `kotlin-holons` | — | — | Desktop uses `Connect.connect(slug)`. |
+| `rust-web-holons` | ✅ `rust-holons` | ✅ `js-web-holons` | — | — | Browser via `js-web-holons` connect. |
+| `rust-qt-holons` | ✅ `rust-holons` | ✅ `cpp-holons` | — | — | Uses `holons::connect(slug)`. |
+| `rust-dotnet-holons` | ✅ `rust-holons` | ✅ `csharp-holons` | — | — | Desktop uses `Connect.ConnectTarget(slug)`. |
