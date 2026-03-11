@@ -1,4 +1,4 @@
-# TASK11 — Remove Submodules
+# TASK12 — Remove Submodules
 
 ## Summary
 
@@ -40,4 +40,4 @@ archive the GitHub repos. The monorepo replaces them.
 
 ## Dependencies
 
-TASK10 (assemblies must exist before removing originals).
+TASK11 (assemblies must exist before removing originals).

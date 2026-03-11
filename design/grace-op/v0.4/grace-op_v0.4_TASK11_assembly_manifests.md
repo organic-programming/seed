@@ -1,4 +1,4 @@
-# TASK10 — Create Assembly Manifests
+# TASK11 — Create Assembly Manifests
 
 ## Summary
 
@@ -58,7 +58,7 @@ build:
 
 ## Dependencies
 
-TASK04b (3×3 validation must pass first).
+TASK10 (3×3 validation must pass first).
 
 ## Reference
 
