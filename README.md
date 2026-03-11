@@ -88,7 +88,8 @@ are available to experiment with:
 - **[recipes/](./recipes/)** — 12 cross-language recipes combining Go or
   Rust daemons with Flutter, SwiftUI, Kotlin, .NET, Web, and Qt
   frontends.
-- **[holons/](./holons/)** — the blueprint toolchain (`op`, `who`).
+- **[holons/](./holons/)** — the blueprint toolchain (`op`).
+  Installation notes for `op` live in [holons/grace-op/INSTALL.md](./holons/grace-op/INSTALL.md).
 
 ---
 
