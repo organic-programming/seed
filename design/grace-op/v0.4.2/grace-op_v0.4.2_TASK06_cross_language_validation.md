@@ -11,7 +11,7 @@ transport, proto inclusion, and `connect(slug)` issues early.
 
 |              | Flutter | Web | Qt |
 |---|---|---|---|
-| **Go**       | ✅ (TASK04) | — | — |
+| **Go**       | ✅ (v0.4.1/TASK04) | — | — |
 | **Rust**     | — | — | — |
 | **Swift**    | — | — | — |
 
@@ -24,7 +24,7 @@ transport, proto inclusion, and `connect(slug)` issues early.
 
 | Assembly | Daemon | HostUI |
 |---|---|---|
-| `gudule-greeting-flutter-go` | Go | Flutter (already TASK04) |
+| `gudule-greeting-flutter-go` | Go | Flutter (already v0.4.1/TASK04) |
 | `gudule-greeting-flutter-rust` | Rust | Flutter |
 | `gudule-greeting-flutter-swift` | Swift | Flutter |
 | `gudule-greeting-go-web` | Go | Web |

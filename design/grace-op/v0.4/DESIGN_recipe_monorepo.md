@@ -6,7 +6,7 @@ and the full assembly matrix.
 > [!CAUTION]
 > **Every name below is canonical.** Codex must use these exact names
 > for directories, `family_name` in `holon.yaml`, and binary names.
-> Do not invent names — this document is the single source of truth.
+> Do not invent names — this document is the canonical source of truth for **naming** (directory names, `family_name` values, proto contracts). For machine-readable inventory (source paths, SDKs, runners, task IDs) see [recipes.yaml](./recipes.yaml).
 
 Two personas:
 - **`given_name: gudule`** — Greeting scenario (daemons, HostUIs, assemblies, testmatrix)

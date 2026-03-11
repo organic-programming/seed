@@ -62,6 +62,7 @@ stall on `protoc` path errors.
 | Dart/Flutter | `build.yaml` or `protoc` script | `--proto_path=../../protos` |
 | C# | `.csproj` + Grpc.Tools | `<Protobuf Include="..." ProtoRoot="..." />` |
 | Node/Web | `buf.gen.yaml` or `npx protoc` | `--proto_path=../../protos` |
+| Python | `buf.gen.yaml` or `grpc_tools.protoc` script | `--proto_path=../../protos` |
 | C++/Qt | `CMakeLists.txt` | `protobuf_generate(IMPORT_DIRS ../../protos)` |
 
 ## Acceptance Criteria
@@ -73,7 +74,7 @@ stall on `protoc` path errors.
 - [ ] Messages: `Language`, `ListLanguagesRequest/Response`, `SayHelloRequest/Response`
 - [ ] Comments and meta-annotations follow [PROTO.md](../../PROTO.md)
 - [ ] Wrapper pattern documented and one example wrapper created
-- [ ] Build templates documented for all 8 toolchains
+- [ ] Build templates documented for all 9 toolchains (including Python)
 
 ## Dependencies
 

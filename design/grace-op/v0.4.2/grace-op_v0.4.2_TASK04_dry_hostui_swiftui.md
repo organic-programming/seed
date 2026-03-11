@@ -4,7 +4,7 @@
 
 Extract the SwiftUI HostUI from `go-swift-holons` into
 `recipes/hostui/gudule-greeting-hostui-swiftui/`. Follows the
-connect-approach pattern validated by TASK04.
+connect-approach pattern validated by v0.4.1/TASK04.
 
 > [!IMPORTANT]
 > **Connect approach only.** Must use `swift-holons` SDK

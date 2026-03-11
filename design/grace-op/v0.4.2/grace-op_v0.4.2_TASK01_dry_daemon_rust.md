@@ -4,7 +4,7 @@
 
 Extract the Rust daemon from `rust-dart-holons` into
 `recipes/daemons/gudule-daemon-greeting-rust/`. Follows the pattern
-validated by TASK04.
+validated by v0.4.1/TASK04.
 
 > [!IMPORTANT]
 > **Always use the language SDK as much as possible.**
@@ -23,4 +23,4 @@ validated by TASK04.
 
 ## Dependencies
 
-TASK04 (PoC validated — pattern is proven).
+v0.4.1/TASK04 (PoC validated — pattern is proven).

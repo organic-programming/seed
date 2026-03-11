@@ -1,6 +1,6 @@
 # OP v0.4 Design Tasks — Master Index
 
-To prevent LLM context saturation during implementation (14 tasks, 48 assemblies, 33 composition patterns), the v0.4 design phase is split into three strictly linear execution milestones. 
+To prevent LLM context saturation during implementation (14 tasks, 48 assemblies, 33 composition recipes), the v0.4 design phase is split into three strictly linear execution milestones.
 
 You must implement these **in order** and validate the milestones before moving on.
 
