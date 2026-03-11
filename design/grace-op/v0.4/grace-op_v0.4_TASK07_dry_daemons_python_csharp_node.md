@@ -2,8 +2,14 @@
 
 ## Summary
 
-Extract three daemons from server-scripting ecosystems.
-Each implements GreetingService against the shared proto.
+Extract one daemon from an existing repo (C#) and create two new
+daemons (Python, Node.js — no existing source). Each implements
+GreetingService against the shared proto.
+
+> [!WARNING]
+> **Python and Node.js are new implementations.** There is no
+> existing source to extract. Python also requires a new `op` runner
+> (currently `TBD` in recipes.yaml) before it can build with `op build`.
 
 > [!IMPORTANT]
 > **Always use the language SDK.**

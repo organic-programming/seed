@@ -2,8 +2,14 @@
 
 ## Summary
 
-Extract three daemons that share a mobile/cross-platform profile.
-Each implements GreetingService against the shared proto.
+Extract two daemons from existing repos (Swift, Kotlin) and create
+one new daemon (Dart — no existing source). Each implements
+GreetingService against the shared proto.
+
+> [!NOTE]
+> **Dart is a new implementation**, not an extraction. There is no
+> existing Dart server daemon to extract from. The `dart-holons` SDK
+> must support server-side gRPC before this daemon can be built.
 
 > [!IMPORTANT]
 > **Always use the language SDK as much as possible.**

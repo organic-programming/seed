@@ -35,6 +35,7 @@ schema: holon/v0
 kind: composite
 given_name: gudule
 family_name: Greeting-Flutter-Go
+transport: tcp            # explicit — avoids stdio/tcp mismatch
 build:
   runner: recipe
   members:
@@ -42,16 +43,22 @@ build:
     - path: ../../hostui/gudule-greeting-hostui-flutter
 ```
 
+> [!WARNING]
+> **Transport must be explicit.** Some SDKs default to `stdio`
+> (Swift), others to `tcp` (Go, Kotlin). The assembly manifest must
+> specify `transport:` to avoid `connect(slug)` timeout failures
+> in cross-language combinations.
+
 ## Acceptance Criteria
 
 - [ ] 48 `holon.yaml` files created (names per [DESIGN_recipe_monorepo.md](./DESIGN_recipe_monorepo.md))
 - [ ] Each `family_name` matches the canonical names in DESIGN_recipe_monorepo.md §4
 - [ ] Each builds with `op build`
-- [ ] Each runs with `op run` (daemon + UI start together)
+- [ ] Each manifest specifies `transport:` explicitly (tcp or stdio)
 
 ## Dependencies
 
-TASK09.
+TASK04b (3×3 validation must pass first).
 
 ## Reference
 

@@ -46,6 +46,24 @@ equivalent) to resolve the shared import. The wrapper allows each
 holon to carry its own meta-annotations while the service definition
 stays DRY.
 
+## Toolchain Build Templates
+
+TASK01 must also deliver a **proto build template** per toolchain,
+showing the exact configuration to resolve `import public` from
+`recipes/protos/`. Without these, each daemon/HostUI extraction will
+stall on `protoc` path errors.
+
+| Toolchain | Config file | Proto include path |
+|---|---|---|
+| Go | `buf.gen.yaml` or `Makefile` | `-I ../../protos` |
+| Rust | `build.rs` | `.proto_path("../../protos")` |
+| Swift | `Package.swift` + `protoc` script | `--proto_path=../../protos` |
+| Kotlin | `build.gradle.kts` | `protobuf { protoc { path = ... } }` |
+| Dart/Flutter | `build.yaml` or `protoc` script | `--proto_path=../../protos` |
+| C# | `.csproj` + Grpc.Tools | `<Protobuf Include="..." ProtoRoot="..." />` |
+| Node/Web | `buf.gen.yaml` or `npx protoc` | `--proto_path=../../protos` |
+| C++/Qt | `CMakeLists.txt` | `protobuf_generate(IMPORT_DIRS ../../protos)` |
+
 ## Acceptance Criteria
 
 - [ ] Canonical `greeting.proto` extracted from current `go-dart-holons`
@@ -55,6 +73,7 @@ stays DRY.
 - [ ] Messages: `Language`, `ListLanguagesRequest/Response`, `SayHelloRequest/Response`
 - [ ] Comments and meta-annotations follow [PROTO.md](../../PROTO.md)
 - [ ] Wrapper pattern documented and one example wrapper created
+- [ ] Build templates documented for all 8 toolchains
 
 ## Dependencies
 
