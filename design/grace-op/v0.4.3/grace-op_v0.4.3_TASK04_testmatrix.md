@@ -65,4 +65,4 @@ The `recipes/README.md` must feature the matrix prominently:
 
 ## Dependencies
 
-TASK13.
+v0.4.3/TASK03 (all composition recipes built).

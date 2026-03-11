@@ -13,7 +13,8 @@ No source code in assemblies — manifests only.
 
 ## Scale
 
-8 daemons × 6 HostUIs = **48 assemblies**.
+8 daemons × 6 HostUIs = **48 assemblies** total.
+The 9 validated assemblies from the v0.4.2/TASK06 3×3 matrix already exist — this task creates the **remaining 39**.
 
 ```
 recipes/assemblies/
@@ -51,14 +52,14 @@ build:
 
 ## Acceptance Criteria
 
-- [ ] 48 `holon.yaml` files created (names per [DESIGN_recipe_monorepo.md](../v0.4/DESIGN_recipe_monorepo.md))
+- [ ] 39 new `holon.yaml` files created (48 total including the 9 from v0.4.2/TASK06; names per [DESIGN_recipe_monorepo.md](../v0.4/DESIGN_recipe_monorepo.md))
 - [ ] Each `family_name` matches the canonical names in DESIGN_recipe_monorepo.md §4
 - [ ] Each builds with `op build`
 - [ ] Each manifest specifies `transport:` explicitly (tcp or stdio)
 
 ## Dependencies
 
-TASK10 (3×3 validation must pass first).
+v0.4.2/TASK06 (3×3 validation must pass first; its 9 assemblies already exist).
 
 ## Reference
 

@@ -50,11 +50,11 @@ it once in a small matrix, then scale mechanically.
 
 ## Dependencies
 
-TASK04 (PoC validated), TASK05 (Rust daemon), TASK06 (Swift daemon),
-TASK08 (SwiftUI — needed for Swift HostUI extraction pattern),
-TASK09 (Web + Qt HostUI).
+v0.4.1/TASK04 (PoC validated), v0.4.2/TASK01 (Rust daemon), v0.4.2/TASK02 (Swift daemon),
+v0.4.2/TASK04 (SwiftUI — needed for Swift HostUI extraction pattern),
+v0.4.2/TASK05 (Web + Qt HostUI).
 
 > [!NOTE]
-> This task runs after the first HostUI batch (TASK09) but before
-> the full 48-assembly generation (TASK11). It validates the
+> This task runs after the first HostUI batch (v0.4.2/TASK05) but before
+> the full 48-assembly generation (v0.4.3/TASK01). It validates the
 > cross-language machinery at small scale.

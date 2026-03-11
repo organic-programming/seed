@@ -35,4 +35,4 @@ GreetingService against the shared proto.
 
 ## Dependencies
 
-TASK06.
+v0.4.2/TASK02 (Swift, Kotlin, Dart daemons extracted).

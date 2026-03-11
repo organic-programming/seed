@@ -35,4 +35,4 @@ GreetingService against the shared proto.
 
 ## Dependencies
 
-TASK05.
+v0.4.2/TASK01 (Rust daemon extracted and validated).

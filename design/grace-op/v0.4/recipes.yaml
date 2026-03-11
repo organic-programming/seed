@@ -23,7 +23,7 @@ daemons:
     lang: go
     runner: go-module
     os: [macos, linux, windows]
-    task: TASK02
+    task: v0.4.1/TASK02
 
   - name: gudule-daemon-greeting-rust
     family_name: Greeting-Daemon-Rust
@@ -32,7 +32,7 @@ daemons:
     lang: rust
     runner: cargo
     os: [macos, linux, windows]
-    task: TASK05
+    task: v0.4.2/TASK01
 
   - name: gudule-daemon-greeting-swift
     family_name: Greeting-Daemon-Swift
@@ -41,7 +41,7 @@ daemons:
     lang: swift
     runner: swift-package
     os: [macos, linux]
-    task: TASK06
+    task: v0.4.2/TASK02
 
   - name: gudule-daemon-greeting-kotlin
     family_name: Greeting-Daemon-Kotlin
@@ -50,7 +50,7 @@ daemons:
     lang: kotlin
     runner: gradle
     os: [macos, linux, windows]
-    task: TASK06
+    task: v0.4.2/TASK02
 
   - name: gudule-daemon-greeting-dart
     family_name: Greeting-Daemon-Dart
@@ -59,7 +59,7 @@ daemons:
     lang: dart
     runner: flutter  # dart server daemon uses flutter runner
     os: [macos, linux, windows]
-    task: TASK06
+    task: v0.4.2/TASK02
 
   - name: gudule-daemon-greeting-python
     family_name: Greeting-Daemon-Python
@@ -68,7 +68,7 @@ daemons:
     lang: python
     runner: TBD  # no op runner yet — will need a python runner
     os: [macos, linux, windows]
-    task: TASK07
+    task: v0.4.2/TASK03
 
   - name: gudule-daemon-greeting-csharp
     family_name: Greeting-Daemon-Csharp
@@ -77,7 +77,7 @@ daemons:
     lang: csharp
     runner: dotnet
     os: [macos, linux, windows]
-    task: TASK07
+    task: v0.4.2/TASK03
 
   - name: gudule-daemon-greeting-node
     family_name: Greeting-Daemon-Node
@@ -86,7 +86,7 @@ daemons:
     lang: node
     runner: npm
     os: [macos, linux, windows]
-    task: TASK07
+    task: v0.4.2/TASK03
 
 # ── HostUIs (6) ───────────────────────────────────────────
 hostuis:
@@ -97,7 +97,7 @@ hostuis:
     framework: flutter
     runner: flutter
     os: [macos, linux, windows]
-    task: TASK03
+    task: v0.4.1/TASK03
 
   - name: gudule-greeting-hostui-swiftui
     family_name: Greeting-Hostui-Swiftui
@@ -106,7 +106,7 @@ hostuis:
     framework: swiftui
     runner: swift-package
     os: [macos, ios]
-    task: TASK08
+    task: v0.4.2/TASK04
 
   - name: gudule-greeting-hostui-compose
     family_name: Greeting-Hostui-Compose
@@ -115,7 +115,7 @@ hostuis:
     framework: compose
     runner: gradle
     os: [macos, linux, windows, android]
-    task: TASK09
+    task: v0.4.2/TASK05
 
   - name: gudule-greeting-hostui-web
     family_name: Greeting-Hostui-Web
@@ -124,7 +124,7 @@ hostuis:
     framework: web
     runner: npm
     os: [macos, linux, windows]
-    task: TASK09
+    task: v0.4.2/TASK05
 
   - name: gudule-greeting-hostui-dotnet
     family_name: Greeting-Hostui-Dotnet
@@ -133,7 +133,7 @@ hostuis:
     framework: dotnet
     runner: dotnet
     os: [macos, windows]
-    task: TASK09
+    task: v0.4.2/TASK05
 
   - name: gudule-greeting-hostui-qt
     family_name: Greeting-Hostui-Qt
@@ -142,7 +142,7 @@ hostuis:
     framework: qt
     runner: qt-cmake
     os: [macos, linux, windows]
-    task: TASK09
+    task: v0.4.2/TASK05
 
 # ── Assemblies (48) ───────────────────────────────────────
 # Generated from: hostuis × daemons (web reversed: daemon-web)
@@ -210,16 +210,16 @@ assemblies:
 # ── Composition Workers (2) ──────────────────────────────
 workers:
   - name: charon-worker-compute
-    family_name: Worker-Compute
+    family_name: Composition-Worker-Compute
     lang: go
     runner: go-module
-    task: TASK13
+    task: v0.4.3/TASK03
 
   - name: charon-worker-transform
-    family_name: Worker-Transform
+    family_name: Composition-Worker-Transform
     lang: go
     runner: go-module
-    task: TASK13
+    task: v0.4.3/TASK03
 
 # ── Composition Orchestrators (33) ────────────────────────
 # Pattern × 11 languages, all calling Go workers.
@@ -266,4 +266,4 @@ testmatrix:
   name: gudule-greeting-testmatrix
   family_name: Greeting-Testmatrix
   path: recipes/testmatrix/gudule-greeting-testmatrix
-  task: TASK14
+  task: v0.4.3/TASK04

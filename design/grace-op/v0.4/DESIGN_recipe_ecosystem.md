@@ -43,7 +43,7 @@ recipes/
 │   └── greeting/v1/
 │       └── greeting.proto                           ← canonical GreetingService
 │
-├── daemons/                                         ← DRY daemons (TASK02, TASK05–07)
+├── daemons/                                         ← DRY daemons (v0.4.1/TASK02, v0.4.2/TASK01–03)
 │   ├── gudule-daemon-greeting-go/
 │   ├── gudule-daemon-greeting-rust/
 │   ├── gudule-daemon-greeting-swift/
@@ -53,7 +53,7 @@ recipes/
 │   ├── gudule-daemon-greeting-csharp/
 │   └── gudule-daemon-greeting-node/
 │
-├── hostui/                                          ← DRY HostUIs (TASK03, TASK08–09)
+├── hostui/                                          ← DRY HostUIs (v0.4.1/TASK03, v0.4.2/TASK04–05)
 │   ├── gudule-greeting-hostui-flutter/
 │   ├── gudule-greeting-hostui-swiftui/
 │   ├── gudule-greeting-hostui-compose/              ← Kotlin Compose
@@ -61,7 +61,7 @@ recipes/
 │   ├── gudule-greeting-hostui-dotnet/
 │   └── gudule-greeting-hostui-qt/
 │
-├── assemblies/                                      ← 48 thin manifests (TASK11)
+├── assemblies/                                      ← 48 thin manifests (v0.4.3/TASK01)
 │   ├── gudule-greeting-flutter-go/                  ← Flutter connects to Go
 │   ├── gudule-greeting-flutter-rust/
 │   ├── gudule-greeting-swiftui-go/
@@ -69,7 +69,7 @@ recipes/
 │   ├── ...                                          ← (see DESIGN_recipe_monorepo.md for full 48)
 │   └── gudule-greeting-qt-node/
 │
-├── composition/                                     ← backend-to-backend (TASK13)
+├── composition/                                     ← backend-to-backend (v0.4.3/TASK03)
 │   ├── README.md
 │   ├── workers/
 │   │   ├── charon-worker-compute/
@@ -86,7 +86,7 @@ recipes/
 │       ├── charon-fanout-go-go/
 │       └── ...
 │
-├── testmatrix/                                      ← combinatorial testing (TASK14)
+├── testmatrix/                                      ← combinatorial testing (v0.4.3/TASK04)
 │   └── gudule-greeting-testmatrix/
 │
 ├── IMPLEMENTATION_ON_MAC_OS.md
@@ -216,28 +216,32 @@ Defer to v2:
 
 ## Implementation Steps
 
-See [_TASKS.md](./_TASKS.md) for the detailed task breakdown (TASK01–TASK14).
+See [_TASKS.md](./_TASKS.md) for the detailed task breakdown (v0.4.1–v0.4.3).
 
-### Phase 1: DRY Extraction (TASK01–TASK09)
+### Milestone 1 — v0.4.1: Core Pattern & PoC
 
-1. Create shared `recipes/protos/greeting/v1/greeting.proto` (TASK01)
-2. Extract Go daemon into `recipes/daemons/gudule-daemon-greeting-go/` (TASK02)
-3. Extract Flutter HostUI into `recipes/hostui/gudule-greeting-hostui-flutter/` (TASK03)
-4. Create assembly `recipes/assemblies/gudule-greeting-flutter-go/` and validate (TASK04 — PoC milestone)
-5. Extract remaining 7 daemons (TASK05–07)
-6. Extract remaining 5 HostUIs (TASK08–09)
+1. Create shared `recipes/protos/greeting/v1/greeting.proto` (v0.4.1/TASK01)
+2. Extract Go daemon into `recipes/daemons/gudule-daemon-greeting-go/` (v0.4.1/TASK02)
+3. Extract Flutter HostUI into `recipes/hostui/gudule-greeting-hostui-flutter/` (v0.4.1/TASK03)
+4. Create assembly `recipes/assemblies/gudule-greeting-flutter-go/` and validate (v0.4.1/TASK04 — PoC milestone)
 
-### Phase 2: Assembly & Cleanup (TASK11–TASK12)
+### Milestone 2 — v0.4.2: Component Extraction & Matrix
 
-1. Create all 48 assembly manifests in `recipes/assemblies/` (TASK11)
-2. Remove the 12 old submodule repos and archive them (TASK12 — parallel, not blocking)
+1. Extract Rust daemon (v0.4.2/TASK01)
+2. Extract Swift/Kotlin and create Dart daemon (v0.4.2/TASK02)
+3. Extract C# and create Python/Node daemons (v0.4.2/TASK03)
+4. Extract SwiftUI HostUI (v0.4.2/TASK04)
+5. Extract Kotlin/Web/.NET/Qt HostUIs (v0.4.2/TASK05)
+6. **3×3 cross-language validation** — 9 assemblies (v0.4.2/TASK06 ★ milestone)
 
-### Phase 3: Composition & Testing (TASK13–TASK14)
+### Milestone 3 — v0.4.3: Scale, Composition & Testing
 
-1. Implement `charon-worker-compute` and `charon-worker-transform` (Go workers)
-2. Implement `charon-{direct,pipeline,fanout}-<lang>-go` for all 11 languages (TASK13)
-3. Build `gudule-greeting-testmatrix` for combinatorial testing (TASK14)
-4. Update CONVENTIONS.md / SDK_GUIDE.md to reference both recipe categories
+1. Create the remaining 39 assembly manifests (48 total) in `recipes/assemblies/` (v0.4.3/TASK01)
+2. Remove the 12 old submodule repos and archive them (v0.4.3/TASK02 — parallel, not blocking)
+3. Implement `charon-worker-compute` and `charon-worker-transform` (Go workers)
+4. Implement `charon-{direct,pipeline,fanout}-<lang>-go` for all 11 languages (v0.4.3/TASK03)
+5. Build `gudule-greeting-testmatrix` for combinatorial testing (v0.4.3/TASK04)
+6. Update CONVENTIONS.md / SDK_GUIDE.md to reference both recipe categories
 
 ---
 
@@ -296,10 +300,11 @@ dependency graph. Summary:
 
 | Phase | Tasks | Summary |
 |---|---|---|
-| **Shared proto** | TASK01 | Single `greeting.proto` |
-| **PoC (Go+Dart)** | TASK02, TASK03, TASK04 | Extract Go daemon + Flutter HostUI, validate assembly |
-| **Remaining daemons** | TASK05, TASK06, TASK07 | Rust, Swift/Kotlin/Dart, Python/C#/Node |
-| **Remaining HostUIs** | TASK08, TASK09 | SwiftUI, Kotlin/Web/.NET/Qt |
-| **Assembly & cleanup** | TASK11, TASK12 | 48 manifests, remove submodules |
-| **Composition** | TASK13 | 3 patterns × 11 languages |
-| **Testing** | TASK14 | Combinatorial test matrix |
+| **Shared proto** | v0.4.1/TASK01 | Single `greeting.proto` |
+| **PoC (Go+Dart)** | v0.4.1/TASK02–04 | Extract Go daemon + Flutter HostUI, validate assembly |
+| **Remaining daemons** | v0.4.2/TASK01–03 | Rust, Swift/Kotlin/Dart, Python/C#/Node |
+| **Remaining HostUIs** | v0.4.2/TASK04–05 | SwiftUI, Kotlin/Web/.NET/Qt |
+| **Validation milestone** | v0.4.2/TASK06 ★ | 3×3 cross-language validation (9 assemblies) |
+| **Assembly & cleanup** | v0.4.3/TASK01–02 | Remaining 39 manifests (48 total), remove submodules |
+| **Composition** | v0.4.3/TASK03 | 3 patterns × 11 languages |
+| **Testing** | v0.4.3/TASK04 | Combinatorial test matrix |
