@@ -81,13 +81,13 @@ Cross-language assembly patterns live in [`recipes/`](../recipes/).
 | Recipe | Backend | Frontend | Frontend uses `connect` |
 |--------|---------|----------|:----------------------:|
 | [go-dart-holons](https://github.com/organic-programming/go-dart-holons) | Go | Flutter/Dart | ✅ |
-| [go-swift-holons](https://github.com/organic-programming/go-swift-holons) | Go | SwiftUI | ❌ raw grpc-swift |
+| [go-swift-holons](https://github.com/organic-programming/go-swift-holons) | Go | SwiftUI | ✅ |
 | [go-kotlin-holons](https://github.com/organic-programming/go-kotlin-holons) | Go | Compose Desktop | ✅ |
 | [go-web-holons](https://github.com/organic-programming/go-web-holons) | Go | Web | ✅ |
 | [go-qt-holons](https://github.com/organic-programming/go-qt-holons) | Go | Qt/C++ | ✅ |
 | [go-dotnet-holons](https://github.com/organic-programming/go-dotnet-holons) | Go | .NET MAUI | ✅ |
 | [rust-dart-holons](https://github.com/organic-programming/rust-dart-holons) | Rust | Flutter/Dart | ✅ |
-| [rust-swift-holons](https://github.com/organic-programming/rust-swift-holons) | Rust | SwiftUI | ❌ raw grpc-swift |
+| [rust-swift-holons](https://github.com/organic-programming/rust-swift-holons) | Rust | SwiftUI | ✅ |
 | [rust-kotlin-holons](https://github.com/organic-programming/rust-kotlin-holons) | Rust | Compose Desktop | ✅ |
 | [rust-web-holons](https://github.com/organic-programming/rust-web-holons) | Rust | Web | ✅ |
 | [rust-dotnet-holons](https://github.com/organic-programming/rust-dotnet-holons) | Rust | .NET MAUI | ✅ |

@@ -204,16 +204,16 @@ on top — it orchestrates, but is never required at runtime.
 | `go-holons` | runner | ✅ | ✅ | client + server |
 | `js-holons` | runner | ✅ | ✅ | client + server |
 | `python-holons` | runner | ✅ | ✅ | client + server |
-| `rust-holons` | flags only | ✅ | — | — |
-| `swift-holons` | flags only | ✅ | — | client |
+| `rust-holons` | flags only | ✅ | ✅ stdio | — |
+| `swift-holons` | flags only | ✅ | ✅ stdio | client |
 | `dart-holons` | flags only | ✅ | ✅ tcp-only | client + server |
 | `kotlin-holons` | flags only | ✅ | ✅ tcp-only | client |
 | `java-holons` | flags only | ✅ | ✅ tcp-only | client |
 | `csharp-holons` | flags only | ✅ | ✅ tcp-only | client |
-| `cpp-holons` | flags only | ✅ | — | client |
-| `c-holons` | runner | ✅ | — | wrapper binaries only |
-| `ruby-holons` | flags only | ✅ | — | client |
-| `js-web-holons` | browser | remote manifest only | — | browser client + node harness |
+| `cpp-holons` | flags only | ✅ | ✅ | client |
+| `c-holons` | runner | ✅ | ✅ | wrapper binaries only |
+| `ruby-holons` | flags only | ✅ | ✅ stdio | client |
+| `js-web-holons` | browser | remote manifest only | ✅ dial-only | browser client + node harness |
 
 `runner` = SDK hosts the full serve lifecycle.
 `flags only` = SDK parses `--listen` / `--port` and provides transport primitives.
@@ -225,18 +225,18 @@ on top — it orchestrates, but is never required at runtime.
 | Example | Uses its SDK? | Note |
 |---|---|---|
 | `go-hello-world` | ✅ | Uses `go-holons/pkg/serve`. |
-| `rust-hello-world` | ❌ | Raw `tonic`; migration pending. |
-| `dart-hello-world` | ❌ | Raw gRPC baseline. |
+| `rust-hello-world` | ✅ | Uses `rust-holons` serve + connect. |
+| `dart-hello-world` | ✅ | Uses `dart-holons` via `pubspec.yaml`. |
 | `swift-hello-world` | ✅ | Depends on `swift-holons` via SPM. |
 | `js-hello-world` | ✅ | Depends on `@organic-programming/holons`. |
 | `web-hello-world` | ✅ | Browser uses `js-web-holons`; backend uses `go-holons`. |
-| `kotlin-hello-world` | ❌ | Raw gRPC baseline. |
-| `java-hello-world` | ❌ | Raw gRPC baseline. |
-| `csharp-hello-world` | ❌ | Raw gRPC baseline. |
-| `cpp-hello-world` | ❌ | Raw gRPC baseline. |
+| `kotlin-hello-world` | ✅ | Uses `kotlin-holons` via `includeBuild`. |
+| `java-hello-world` | ✅ | Uses `java-holons` via `includeBuild`. |
+| `csharp-hello-world` | ✅ | Uses `csharp-holons` via project reference. |
+| `cpp-hello-world` | ✅ | Uses `cpp-holons` headers and connect. |
 | `c-hello-world` | ✅ | Uses `c-holons` transport and serve helpers. |
-| `python-hello-world` | ❌ | Raw `grpcio` baseline. |
-| `ruby-hello-world` | ❌ | Raw gRPC baseline. |
+| `python-hello-world` | ✅ | Uses `python-holons` serve + connect. |
+| `ruby-hello-world` | ✅ | Uses `ruby-holons` serve + connect. |
 
 ---
 
@@ -245,14 +245,14 @@ on top — it orchestrates, but is never required at runtime.
 | Recipe | Daemon SDK | Frontend SDK | Current state |
 |---|---|---|---|
 | `go-dart-holons` | ✅ `go-holons` | ✅ `dart-holons` | Desktop uses `connect(slug)`; mobile uses `unix://`. |
-| `go-swift-holons` | ✅ `go-holons` | ❌ raw `grpc-swift` | Fixed localhost TCP. |
+| `go-swift-holons` | ✅ `go-holons` | ✅ `swift-holons` | Uses `SwiftHolons.connect(slug)`. |
 | `go-kotlin-holons` | ✅ `go-holons` | ✅ `kotlin-holons` | Desktop uses `Connect.connect(slug)`. |
-| `go-web-holons` | ✅ `go-holons` | ❌ raw web client | Browser over HTTP/gRPC-Web. |
-| `go-qt-holons` | ✅ `go-holons` | ❌ raw Qt client | Fixed localhost TCP. |
+| `go-web-holons` | ✅ `go-holons` | ✅ `js-web-holons` | Browser via `js-web-holons` connect. |
+| `go-qt-holons` | ✅ `go-holons` | ✅ `cpp-holons` | Uses `holons::connect(slug)`. |
 | `go-dotnet-holons` | ✅ `go-holons` | ✅ `csharp-holons` | Desktop uses `Holons.ConnectTarget(slug)`. |
-| `rust-dart-holons` | ❌ raw Rust | ✅ `dart-holons` | Fixed localhost TCP. |
-| `rust-swift-holons` | ❌ raw Rust | ❌ raw `grpc-swift` | Fixed localhost TCP. |
-| `rust-kotlin-holons` | ❌ raw Rust | ❌ raw JVM gRPC | Fixed localhost TCP. |
-| `rust-web-holons` | ❌ raw Rust | ❌ raw web client | Localhost HTTP. |
-| `rust-qt-holons` | ❌ raw Rust | ❌ raw Qt client | Fixed localhost TCP. |
-| `rust-dotnet-holons` | ❌ raw Rust | ❌ raw .NET gRPC | Fixed localhost TCP. |
+| `rust-dart-holons` | ✅ `rust-holons` | ✅ `dart-holons` | Desktop uses `holons.connect(slug)`. |
+| `rust-swift-holons` | ✅ `rust-holons` | ✅ `swift-holons` | Uses `SwiftHolons.connect(slug)`. |
+| `rust-kotlin-holons` | ✅ `rust-holons` | ✅ `kotlin-holons` | Desktop uses `Connect.connect(slug)`. |
+| `rust-web-holons` | ✅ `rust-holons` | ✅ `js-web-holons` | Browser via `js-web-holons` connect. |
+| `rust-qt-holons` | ✅ `rust-holons` | ✅ `cpp-holons` | Uses `holons::connect(slug)`. |
+| `rust-dotnet-holons` | ✅ `rust-holons` | ✅ `csharp-holons` | Desktop uses `Connect.ConnectTarget(slug)`. |
