@@ -56,5 +56,5 @@ TASK09 (Web + Qt HostUI).
 
 > [!NOTE]
 > This task runs after the first HostUI batch (TASK09) but before
-> the full 48-assembly generation (TASK10). It validates the
+> the full 48-assembly generation (TASK11). It validates the
 > cross-language machinery at small scale.

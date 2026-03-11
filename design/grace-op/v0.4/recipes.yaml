@@ -213,13 +213,13 @@ workers:
     family_name: Worker-Compute
     lang: go
     runner: go-module
-    task: TASK12
+    task: TASK13
 
   - name: charon-worker-transform
     family_name: Worker-Transform
     lang: go
     runner: go-module
-    task: TASK12
+    task: TASK13
 
 # ── Composition Orchestrators (33) ────────────────────────
 # Pattern × 11 languages, all calling Go workers.
@@ -266,4 +266,4 @@ testmatrix:
   name: gudule-greeting-testmatrix
   family_name: Greeting-Testmatrix
   path: recipes/testmatrix/gudule-greeting-testmatrix
-  task: TASK13
+  task: TASK14

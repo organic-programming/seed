@@ -61,7 +61,7 @@ recipes/
 │   ├── gudule-greeting-hostui-dotnet/
 │   └── gudule-greeting-hostui-qt/
 │
-├── assemblies/                                      ← 48 thin manifests (TASK10)
+├── assemblies/                                      ← 48 thin manifests (TASK11)
 │   ├── gudule-greeting-flutter-go/                  ← Flutter connects to Go
 │   ├── gudule-greeting-flutter-rust/
 │   ├── gudule-greeting-swiftui-go/
@@ -69,7 +69,7 @@ recipes/
 │   ├── ...                                          ← (see DESIGN_recipe_monorepo.md for full 48)
 │   └── gudule-greeting-qt-node/
 │
-├── composition/                                     ← backend-to-backend (TASK12)
+├── composition/                                     ← backend-to-backend (TASK13)
 │   ├── README.md
 │   ├── workers/
 │   │   ├── charon-worker-compute/
@@ -86,7 +86,7 @@ recipes/
 │       ├── charon-fanout-go-go/
 │       └── ...
 │
-├── testmatrix/                                      ← combinatorial testing (TASK13)
+├── testmatrix/                                      ← combinatorial testing (TASK14)
 │   └── gudule-greeting-testmatrix/
 │
 ├── IMPLEMENTATION_ON_MAC_OS.md
@@ -216,7 +216,7 @@ Defer to v2:
 
 ## Implementation Steps
 
-See [_TASKS.md](./_TASKS.md) for the detailed task breakdown (TASK01–TASK13).
+See [_TASKS.md](./_TASKS.md) for the detailed task breakdown (TASK01–TASK14).
 
 ### Phase 1: DRY Extraction (TASK01–TASK09)
 
@@ -227,16 +227,16 @@ See [_TASKS.md](./_TASKS.md) for the detailed task breakdown (TASK01–TASK13).
 5. Extract remaining 7 daemons (TASK05–07)
 6. Extract remaining 5 HostUIs (TASK08–09)
 
-### Phase 2: Assembly & Cleanup (TASK10–TASK11)
+### Phase 2: Assembly & Cleanup (TASK11–TASK12)
 
-1. Create all 48 assembly manifests in `recipes/assemblies/` (TASK10)
-2. Remove the 12 old submodule repos and archive them (TASK11 — parallel, not blocking)
+1. Create all 48 assembly manifests in `recipes/assemblies/` (TASK11)
+2. Remove the 12 old submodule repos and archive them (TASK12 — parallel, not blocking)
 
-### Phase 3: Composition & Testing (TASK12–TASK13)
+### Phase 3: Composition & Testing (TASK13–TASK14)
 
 1. Implement `charon-worker-compute` and `charon-worker-transform` (Go workers)
-2. Implement `charon-{direct,pipeline,fanout}-<lang>-go` for all 11 languages (TASK12)
-3. Build `gudule-greeting-testmatrix` for combinatorial testing (TASK13)
+2. Implement `charon-{direct,pipeline,fanout}-<lang>-go` for all 11 languages (TASK13)
+3. Build `gudule-greeting-testmatrix` for combinatorial testing (TASK14)
 4. Update CONVENTIONS.md / SDK_GUIDE.md to reference both recipe categories
 
 ---
@@ -268,7 +268,7 @@ Each recipe is self-contained for orchestrator logic. The worker holons are inte
 ## Repo Strategy
 
 All recipes live in the monorepo (`organic-programming/seed`). The 12
-old submodule repos will be archived after TASK11. No separate repos
+old submodule repos will be archived after TASK12. No separate repos
 for composition recipes — workers are shared, orchestrators are small.
 
 ---
@@ -300,6 +300,6 @@ dependency graph. Summary:
 | **PoC (Go+Dart)** | TASK02, TASK03, TASK04 | Extract Go daemon + Flutter HostUI, validate assembly |
 | **Remaining daemons** | TASK05, TASK06, TASK07 | Rust, Swift/Kotlin/Dart, Python/C#/Node |
 | **Remaining HostUIs** | TASK08, TASK09 | SwiftUI, Kotlin/Web/.NET/Qt |
-| **Assembly & cleanup** | TASK10, TASK11 | 48 manifests, remove submodules |
-| **Composition** | TASK12 | 3 patterns × 11 languages |
-| **Testing** | TASK13 | Combinatorial test matrix |
+| **Assembly & cleanup** | TASK11, TASK12 | 48 manifests, remove submodules |
+| **Composition** | TASK13 | 3 patterns × 11 languages |
+| **Testing** | TASK14 | Combinatorial test matrix |
