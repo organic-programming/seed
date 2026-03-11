@@ -146,8 +146,7 @@ func FindSetDir(root, setName string) (setDir, project string, err error) {
 	absRoot = filepath.Clean(absRoot)
 
 	// Support passing a specific project directory directly.
-	directSetDir := filepath.Join(absRoot, setName)
-	if isDir(directSetDir) {
+	if directSetDir, ok := findMatchingSetDir(absRoot, setName); ok {
 		return directSetDir, filepath.Base(absRoot), nil
 	}
 
@@ -307,8 +306,8 @@ func scanDesignRoot(designRoot, setName string) ([]struct {
 			continue
 		}
 
-		candidate := filepath.Join(designRoot, entry.Name(), setName)
-		if !isDir(candidate) {
+		candidate, ok := findMatchingSetDir(filepath.Join(designRoot, entry.Name()), setName)
+		if !ok {
 			continue
 		}
 
@@ -348,4 +347,36 @@ func uniqueStrings(values []string) []string {
 		result = append(result, value)
 	}
 	return result
+}
+
+func findMatchingSetDir(baseDir, setName string) (string, bool) {
+	entries, err := os.ReadDir(baseDir)
+	if err != nil {
+		return "", false
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if !matchesSetDirName(entry.Name(), setName) {
+			continue
+		}
+		return filepath.Join(baseDir, entry.Name()), true
+	}
+
+	return "", false
+}
+
+func matchesSetDirName(dirName, setName string) bool {
+	return stripSetDirPrefix(strings.TrimSpace(dirName)) == strings.TrimSpace(setName)
+}
+
+func stripSetDirPrefix(dirName string) string {
+	for _, prefix := range []string{"✅ ", "⚠️ ", "⚠ ", "💭 "} {
+		if strings.HasPrefix(dirName, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(dirName, prefix))
+		}
+	}
+	return dirName
 }

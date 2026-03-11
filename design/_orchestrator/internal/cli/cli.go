@@ -39,6 +39,10 @@ func (s *setFlags) Set(value string) error {
 }
 
 func Parse() (*Config, error) {
+	return ParseArgs(os.Args[1:])
+}
+
+func ParseArgs(args []string) (*Config, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("get working directory: %w", err)
@@ -57,12 +61,16 @@ func Parse() (*Config, error) {
 	fs.StringVar(&cfg.Model, "model", cfg.Model, "codex model to use")
 	fs.StringVar(&cfg.Root, "root", cfg.Root, "repository root")
 
-	if err := fs.Parse(os.Args[1:]); err != nil {
+	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
 
 	if len(fs.Args()) > 0 {
 		return nil, fmt.Errorf("unexpected arguments: %s", strings.Join(fs.Args(), " "))
+	}
+
+	if len(sets) == 0 {
+		return nil, errors.New("at least one --set is required")
 	}
 
 	if strings.TrimSpace(cfg.Model) == "" {

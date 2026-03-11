@@ -90,7 +90,7 @@ func TestFindSetDir(t *testing.T) {
 
 	t.Run("project root", func(t *testing.T) {
 		root := filepath.Join(t.TempDir(), "_orchestrator")
-		setDir := filepath.Join(root, "v1.0")
+		setDir := filepath.Join(root, "✅ v1.0")
 		if err := os.MkdirAll(setDir, 0o755); err != nil {
 			t.Fatalf("mkdir set dir: %v", err)
 		}
