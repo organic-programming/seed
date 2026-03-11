@@ -60,7 +60,9 @@ void main() {
       String currentDirectory = sandbox.path;
       String? connectTarget;
       holons.ConnectOptions? connectOptions;
-      int? killedPid;
+      String? startedBinaryPath;
+      String? startedPortFilePath;
+      bool sessionStopped = false;
       final channel = ClientChannel('localhost', port: 1);
 
       final launcher = DaemonLauncher(
@@ -76,14 +78,25 @@ void main() {
         },
         getCurrentDirectory: () => currentDirectory,
         setCurrentDirectory: (path) => currentDirectory = path,
-        killPid: (pid) async => killedPid = pid,
+        startBundledDaemon: (binaryPath, portFilePath) async {
+          startedBinaryPath = binaryPath;
+          startedPortFilePath = portFilePath;
+          await File(portFilePath).parent.create(recursive: true);
+          await File(portFilePath).writeAsString('tcp://127.0.0.1:43123\n');
+          return BundledDaemonSession(
+            stop: () async => sessionStopped = true,
+          );
+        },
       );
 
       final launched = await launcher.start(bundledBinaryPath: daemon.path);
       expect(launched, same(channel));
       expect(connectTarget, GreetingTargetResolver.daemonSlug);
       expect(connectOptions?.transport, 'tcp');
+      expect(connectOptions?.start, isFalse);
+      expect(connectOptions?.portFile, startedPortFilePath);
       expect(currentDirectory, sandbox.path);
+      expect(startedBinaryPath, daemon.absolute.path);
 
       final holonDir = Directory(
         '${stagedRoot.path}/holons/${GreetingTargetResolver.daemonSlug}',
@@ -93,16 +106,15 @@ void main() {
         File('${holonDir.path}/holon.yaml').readAsStringSync(),
         contains('family_name: "Greeting-Daemon-Go"'),
       );
-
-      if (!Platform.isWindows) {
-        await File('${holonDir.path}/daemon.pid').writeAsString('4242');
-      }
+      expect(
+        File('${holonDir.path}/holon.yaml').readAsStringSync(),
+        contains('binary: "${daemon.absolute.path}"'),
+      );
+      expect(File(startedPortFilePath!).existsSync(), isTrue);
 
       await launcher.stop(channel);
       expect(stagedRoot.existsSync(), isFalse);
-      if (!Platform.isWindows) {
-        expect(killedPid, 4242);
-      }
+      expect(sessionStopped, isTrue);
     });
 
     test('cleans up the staged holon when connect fails', () async {
@@ -116,6 +128,8 @@ void main() {
 
       final stagedRoot = Directory('${sandbox.path}/stage');
 
+      bool sessionStopped = false;
+
       final launcher = DaemonLauncher(
         connect: (_, [__]) async => throw StateError('connect failed'),
         disconnect: (_) async {},
@@ -125,7 +139,13 @@ void main() {
         },
         getCurrentDirectory: () => sandbox.path,
         setCurrentDirectory: (_) {},
-        killPid: (_) async {},
+        startBundledDaemon: (_, portFilePath) async {
+          await File(portFilePath).parent.create(recursive: true);
+          await File(portFilePath).writeAsString('tcp://127.0.0.1:43123\n');
+          return BundledDaemonSession(
+            stop: () async => sessionStopped = true,
+          );
+        },
       );
 
       await expectLater(
@@ -134,6 +154,7 @@ void main() {
       );
       expect(stagedRoot.existsSync(), isFalse);
       expect(launcher.stagedRootPath, isNull);
+      expect(sessionStopped, isTrue);
     });
   });
 }

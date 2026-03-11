@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -17,12 +18,17 @@ class GreetingApp extends StatefulWidget {
 class _GreetingAppState extends State<GreetingApp> {
   final GreetingClient _client = GreetingClient();
   final GreetingTargetResolver _targetResolver = GreetingTargetResolver();
+  late final AppLifecycleListener _lifecycleListener;
   bool _connecting = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _lifecycleListener = AppLifecycleListener(
+      onExitRequested: _handleExitRequested,
+      onDetach: _handleDetached,
+    );
     _connect();
   }
 
@@ -44,8 +50,18 @@ class _GreetingAppState extends State<GreetingApp> {
     }
   }
 
+  Future<AppExitResponse> _handleExitRequested() async {
+    await _client.close();
+    return AppExitResponse.exit;
+  }
+
+  void _handleDetached() {
+    unawaited(_client.close());
+  }
+
   @override
   void dispose() {
+    _lifecycleListener.dispose();
     unawaited(_client.close());
     super.dispose();
   }
