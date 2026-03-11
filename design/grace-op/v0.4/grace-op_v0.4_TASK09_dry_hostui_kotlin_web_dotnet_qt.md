@@ -18,17 +18,17 @@ follows the connect-approach pattern validated by TASK10.
 
 ## HostUIs
 
-| HostUI | Source repo | SDK |
-|---|---|---|
-| `greeting-hostui-kotlin` | `go-kotlin-holons` | `kotlin-holons` |
-| `greeting-hostui-web` | `go-web-holons` | `@connectrpc/connect-web` |
-| `greeting-hostui-dotnet` | `go-dotnet-holons` | `csharp-holons` |
-| `greeting-hostui-qt` | `go-qt-holons` | `cpp-holons` (or raw gRPC-C++) |
+| HostUI | Source repo | SDK | `family_name` |
+|---|---|---|---|
+| `gudule-greeting-hostui-compose` | `go-kotlin-holons` | `kotlin-holons` | `Greeting-Hostui-Compose` |
+| `gudule-greeting-hostui-web` | `go-web-holons` | `@connectrpc/connect-web` | `Greeting-Hostui-Web` |
+| `gudule-greeting-hostui-dotnet` | `go-dotnet-holons` | `csharp-holons` | `Greeting-Hostui-Dotnet` |
+| `gudule-greeting-hostui-qt` | `go-qt-holons` | `cpp-holons` (or raw gRPC-C++) | `Greeting-Hostui-Qt` |
 
 ## Acceptance Criteria
 
 - [ ] Each HostUI has its own `holon.yaml` + source
-- [ ] All use `recipes/protos/greeting/v1/greeting.proto` (shared)
+- [ ] All use `recipes/protos/greeting/v1/greeting.proto` (shared, via `import public`)
 - [ ] Each uses SDK `connect(slug)` for daemon resolution
 - [ ] Each builds standalone with `op build`
 - [ ] Each can connect to any GreetingService daemon

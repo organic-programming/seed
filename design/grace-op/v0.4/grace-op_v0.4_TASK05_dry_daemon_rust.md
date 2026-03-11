@@ -3,7 +3,7 @@
 ## Summary
 
 Extract the Rust daemon from `rust-dart-holons` (or equivalent) into
-`recipes/daemons/greeting-daemon-rust/`. Follows the pattern
+`recipes/daemons/gudule-daemon-greeting-rust/`. Follows the pattern
 validated by TASK04.
 
 > [!IMPORTANT]
@@ -12,8 +12,9 @@ validated by TASK04.
 
 ## Acceptance Criteria
 
-- [ ] `greeting-daemon-rust` has its own `holon.yaml` + Rust source
-- [ ] Uses `recipes/protos/greeting/v1/greeting.proto` (shared)
+- [ ] `gudule-daemon-greeting-rust` has its own `holon.yaml` + Rust source
+- [ ] `family_name: Greeting-Daemon-Rust` / binary: `gudule-daemon-greeting-rust`
+- [ ] Uses `recipes/protos/greeting/v1/greeting.proto` (shared, via `import public`)
 - [ ] Builds standalone with `op build`
 - [ ] Runs standalone with `op run`
 - [ ] Supports macOS, Windows, Linux

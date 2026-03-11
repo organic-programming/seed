@@ -3,7 +3,7 @@
 ## Summary
 
 Extract the Flutter/Dart HostUI from `go-dart-holons` into a
-standalone `recipes/hostui/greeting-hostui-flutter/` holon.
+standalone `recipes/hostui/gudule-greeting-hostui-flutter/` holon.
 Paired with TASK02 to form the complete Go + Dart proof of concept.
 
 > [!IMPORTANT]
@@ -20,12 +20,13 @@ Paired with TASK02 to form the complete Go + Dart proof of concept.
 
 | From | To |
 |---|---|
-| `recipes/go-dart-holons/examples/greeting/greeting-godart/` | `recipes/hostui/greeting-hostui-flutter/` |
+| `recipes/go-dart-holons/examples/greeting/greeting-godart/` | `recipes/hostui/gudule-greeting-hostui-flutter/` |
 
 ## Acceptance Criteria
 
-- [ ] `greeting-hostui-flutter` has its own `holon.yaml` + Dart/Flutter source
-- [ ] Uses `recipes/protos/greeting/v1/greeting.proto` (shared)
+- [ ] `gudule-greeting-hostui-flutter` has its own `holon.yaml` + Dart/Flutter source
+- [ ] `family_name: Greeting-Hostui-Flutter` / binary: `gudule-greeting-hostui-flutter`
+- [ ] Uses `recipes/protos/greeting/v1/greeting.proto` (shared, via `import public`)
 - [ ] Uses `dart-holons` SDK `connect(slug)` to reach the daemon
 - [ ] Builds standalone with `op build`
 - [ ] Can connect to any GreetingService daemon (configurable endpoint)

@@ -3,7 +3,7 @@
 ## Summary
 
 Extract the Go daemon from `go-dart-holons` into a standalone
-`recipes/daemons/greeting-daemon-go/` holon. This is the first
+`recipes/daemons/gudule-daemon-greeting-go/` holon. This is the first
 DRY extraction and serves as the proof-of-concept for all
 subsequent daemon extractions.
 
@@ -22,12 +22,13 @@ subsequent daemon extractions.
 
 | From | To |
 |---|---|
-| `recipes/go-dart-holons/examples/greeting/greeting-daemon/` | `recipes/daemons/greeting-daemon-go/` |
+| `recipes/go-dart-holons/examples/greeting/greeting-daemon/` | `recipes/daemons/gudule-daemon-greeting-go/` |
 
 ## Acceptance Criteria
 
-- [ ] `greeting-daemon-go` has its own `holon.yaml` + Go source
-- [ ] Uses `recipes/protos/greeting/v1/greeting.proto` (shared)
+- [ ] `gudule-daemon-greeting-go` has its own `holon.yaml` + Go source
+- [ ] `family_name: Greeting-Daemon-Go` / binary: `gudule-daemon-greeting-go`
+- [ ] Uses `recipes/protos/greeting/v1/greeting.proto` (shared, via `import public`)
 - [ ] Builds standalone with `op build`
 - [ ] Runs standalone with `op run` (serves GreetingService on gRPC)
 - [ ] Supports macOS, Windows, Linux (no platform regression)

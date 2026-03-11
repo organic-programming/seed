@@ -1,11 +1,177 @@
 # Recipe Monorepo Architecture
 
-Reference proto contracts,
-contracts, composition code patterns, and the full 48-entry assembly matrix.
+Canonical naming reference, proto contracts, composition code patterns,
+and the full assembly matrix.
+
+> [!CAUTION]
+> **Every name below is canonical.** Codex must use these exact names
+> for directories, `family_name` in `holon.yaml`, and binary names.
+> Do not invent names — this document is the single source of truth.
+
+All holons use `given_name: gudule`.
 
 ---
 
-## Shared Worker Proto Contracts
+## 1. Shared Proto
+
+```
+recipes/protos/greeting/v1/
+└── greeting.proto              ← canonical GreetingService definition
+```
+
+Each daemon and HostUI has a local `.proto` wrapper that re-exports
+via `import public` and adds holon-specific meta-annotations
+(see [PROTO.md](../../PROTO.md)).
+
+---
+
+## 2. DRY Daemons (8)
+
+| `family_name` | binary | directory |
+|---|---|---|
+| `Greeting-Daemon-Go` | `gudule-daemon-greeting-go` | `recipes/daemons/gudule-daemon-greeting-go/` |
+| `Greeting-Daemon-Rust` | `gudule-daemon-greeting-rust` | `recipes/daemons/gudule-daemon-greeting-rust/` |
+| `Greeting-Daemon-Swift` | `gudule-daemon-greeting-swift` | `recipes/daemons/gudule-daemon-greeting-swift/` |
+| `Greeting-Daemon-Kotlin` | `gudule-daemon-greeting-kotlin` | `recipes/daemons/gudule-daemon-greeting-kotlin/` |
+| `Greeting-Daemon-Dart` | `gudule-daemon-greeting-dart` | `recipes/daemons/gudule-daemon-greeting-dart/` |
+| `Greeting-Daemon-Python` | `gudule-daemon-greeting-python` | `recipes/daemons/gudule-daemon-greeting-python/` |
+| `Greeting-Daemon-Csharp` | `gudule-daemon-greeting-csharp` | `recipes/daemons/gudule-daemon-greeting-csharp/` |
+| `Greeting-Daemon-Node` | `gudule-daemon-greeting-node` | `recipes/daemons/gudule-daemon-greeting-node/` |
+
+---
+
+## 3. DRY HostUIs (6)
+
+HostUI names use the **framework name** (not the language name) to
+avoid collision with daemon language names.
+
+| `family_name` | binary | directory | Technology |
+|---|---|---|---|
+| `Greeting-Hostui-Flutter` | `gudule-greeting-hostui-flutter` | `recipes/hostui/gudule-greeting-hostui-flutter/` | Flutter (Dart) |
+| `Greeting-Hostui-Swiftui` | `gudule-greeting-hostui-swiftui` | `recipes/hostui/gudule-greeting-hostui-swiftui/` | SwiftUI (Swift) |
+| `Greeting-Hostui-Compose` | `gudule-greeting-hostui-compose` | `recipes/hostui/gudule-greeting-hostui-compose/` | Jetpack Compose (Kotlin) |
+| `Greeting-Hostui-Web` | `gudule-greeting-hostui-web` | `recipes/hostui/gudule-greeting-hostui-web/` | TypeScript/HTML |
+| `Greeting-Hostui-Dotnet` | `gudule-greeting-hostui-dotnet` | `recipes/hostui/gudule-greeting-hostui-dotnet/` | .NET MAUI (C#) |
+| `Greeting-Hostui-Qt` | `gudule-greeting-hostui-qt` | `recipes/hostui/gudule-greeting-hostui-qt/` | Qt (C++) |
+
+---
+
+## 4. Assemblies (48)
+
+Assembly naming: `<hostui>-<daemon>` — the HostUI connects to the
+daemon via `connect(slug)`.
+
+**Exception: Web assemblies** use `<daemon>-web` — the daemon serves
+the web client (Connect protocol, web dist embedded in daemon binary).
+
+### Flutter HostUI × 8 Daemons
+
+| `family_name` | directory |
+|---|---|
+| `Greeting-Flutter-Go` | `recipes/assemblies/gudule-greeting-flutter-go/` |
+| `Greeting-Flutter-Rust` | `recipes/assemblies/gudule-greeting-flutter-rust/` |
+| `Greeting-Flutter-Swift` | `recipes/assemblies/gudule-greeting-flutter-swift/` |
+| `Greeting-Flutter-Kotlin` | `recipes/assemblies/gudule-greeting-flutter-kotlin/` |
+| `Greeting-Flutter-Dart` ★ | `recipes/assemblies/gudule-greeting-flutter-dart/` |
+| `Greeting-Flutter-Python` | `recipes/assemblies/gudule-greeting-flutter-python/` |
+| `Greeting-Flutter-Csharp` | `recipes/assemblies/gudule-greeting-flutter-csharp/` |
+| `Greeting-Flutter-Node` | `recipes/assemblies/gudule-greeting-flutter-node/` |
+
+### SwiftUI HostUI × 8 Daemons
+
+| `family_name` | directory |
+|---|---|
+| `Greeting-Swiftui-Go` | `recipes/assemblies/gudule-greeting-swiftui-go/` |
+| `Greeting-Swiftui-Rust` | `recipes/assemblies/gudule-greeting-swiftui-rust/` |
+| `Greeting-Swiftui-Swift` ★ | `recipes/assemblies/gudule-greeting-swiftui-swift/` |
+| `Greeting-Swiftui-Kotlin` | `recipes/assemblies/gudule-greeting-swiftui-kotlin/` |
+| `Greeting-Swiftui-Dart` | `recipes/assemblies/gudule-greeting-swiftui-dart/` |
+| `Greeting-Swiftui-Python` | `recipes/assemblies/gudule-greeting-swiftui-python/` |
+| `Greeting-Swiftui-Csharp` | `recipes/assemblies/gudule-greeting-swiftui-csharp/` |
+| `Greeting-Swiftui-Node` | `recipes/assemblies/gudule-greeting-swiftui-node/` |
+
+### Compose HostUI × 8 Daemons
+
+| `family_name` | directory |
+|---|---|
+| `Greeting-Compose-Go` | `recipes/assemblies/gudule-greeting-compose-go/` |
+| `Greeting-Compose-Rust` | `recipes/assemblies/gudule-greeting-compose-rust/` |
+| `Greeting-Compose-Swift` | `recipes/assemblies/gudule-greeting-compose-swift/` |
+| `Greeting-Compose-Kotlin` ★ | `recipes/assemblies/gudule-greeting-compose-kotlin/` |
+| `Greeting-Compose-Dart` | `recipes/assemblies/gudule-greeting-compose-dart/` |
+| `Greeting-Compose-Python` | `recipes/assemblies/gudule-greeting-compose-python/` |
+| `Greeting-Compose-Csharp` | `recipes/assemblies/gudule-greeting-compose-csharp/` |
+| `Greeting-Compose-Node` | `recipes/assemblies/gudule-greeting-compose-node/` |
+
+### Web Assemblies × 8 Daemons (reversed: daemon serves web)
+
+| `family_name` | directory |
+|---|---|
+| `Greeting-Go-Web` | `recipes/assemblies/gudule-greeting-go-web/` |
+| `Greeting-Rust-Web` | `recipes/assemblies/gudule-greeting-rust-web/` |
+| `Greeting-Swift-Web` | `recipes/assemblies/gudule-greeting-swift-web/` |
+| `Greeting-Kotlin-Web` | `recipes/assemblies/gudule-greeting-kotlin-web/` |
+| `Greeting-Dart-Web` | `recipes/assemblies/gudule-greeting-dart-web/` |
+| `Greeting-Python-Web` | `recipes/assemblies/gudule-greeting-python-web/` |
+| `Greeting-Csharp-Web` | `recipes/assemblies/gudule-greeting-csharp-web/` |
+| `Greeting-Node-Web` ★ | `recipes/assemblies/gudule-greeting-node-web/` |
+
+### Dotnet HostUI × 8 Daemons
+
+| `family_name` | directory |
+|---|---|
+| `Greeting-Dotnet-Go` | `recipes/assemblies/gudule-greeting-dotnet-go/` |
+| `Greeting-Dotnet-Rust` | `recipes/assemblies/gudule-greeting-dotnet-rust/` |
+| `Greeting-Dotnet-Swift` | `recipes/assemblies/gudule-greeting-dotnet-swift/` |
+| `Greeting-Dotnet-Kotlin` | `recipes/assemblies/gudule-greeting-dotnet-kotlin/` |
+| `Greeting-Dotnet-Dart` | `recipes/assemblies/gudule-greeting-dotnet-dart/` |
+| `Greeting-Dotnet-Python` | `recipes/assemblies/gudule-greeting-dotnet-python/` |
+| `Greeting-Dotnet-Csharp` ★ | `recipes/assemblies/gudule-greeting-dotnet-csharp/` |
+| `Greeting-Dotnet-Node` | `recipes/assemblies/gudule-greeting-dotnet-node/` |
+
+### Qt HostUI × 8 Daemons
+
+| `family_name` | directory |
+|---|---|
+| `Greeting-Qt-Go` | `recipes/assemblies/gudule-greeting-qt-go/` |
+| `Greeting-Qt-Rust` | `recipes/assemblies/gudule-greeting-qt-rust/` |
+| `Greeting-Qt-Swift` | `recipes/assemblies/gudule-greeting-qt-swift/` |
+| `Greeting-Qt-Kotlin` | `recipes/assemblies/gudule-greeting-qt-kotlin/` |
+| `Greeting-Qt-Dart` | `recipes/assemblies/gudule-greeting-qt-dart/` |
+| `Greeting-Qt-Python` | `recipes/assemblies/gudule-greeting-qt-python/` |
+| `Greeting-Qt-Csharp` | `recipes/assemblies/gudule-greeting-qt-csharp/` |
+| `Greeting-Qt-Node` | `recipes/assemblies/gudule-greeting-qt-node/` |
+
+★ = full-stack (same-language ecosystem for both daemon and UI)
+
+---
+
+## 5. Assembly Manifest Template
+
+```yaml
+schema: holon/v0
+kind: composite
+given_name: gudule
+family_name: Greeting-Flutter-Go
+build:
+  runner: recipe
+  members:
+    - path: ../../daemons/gudule-daemon-greeting-go
+    - path: ../../hostui/gudule-greeting-hostui-flutter
+```
+
+---
+
+## 6. Composition Recipes
+
+### Workers (Go-only)
+
+| `family_name` | directory |
+|---|---|
+| `Composition-Worker-Compute` | `recipes/composition/workers/gudule-composition-worker-compute/` |
+| `Composition-Worker-Transform` | `recipes/composition/workers/gudule-composition-worker-transform/` |
+
+### Worker Proto Contracts
 
 **compute-worker** — accepts a number, returns its square:
 
@@ -27,17 +193,70 @@ message TransformRequest { string text = 1; }
 message TransformResponse { string result = 1; }
 ```
 
-Workers are intentionally trivial — the focus is the
-**orchestrator's composition logic**, not domain logic.
+### Direct Call — 11 orchestrators → Go workers
+
+| `family_name` | directory |
+|---|---|
+| `Composition-Direct-Go-Go` | `recipes/composition/direct-call/gudule-composition-direct-go-go/` |
+| `Composition-Direct-Rust-Go` | `recipes/composition/direct-call/gudule-composition-direct-rust-go/` |
+| `Composition-Direct-Swift-Go` | `recipes/composition/direct-call/gudule-composition-direct-swift-go/` |
+| `Composition-Direct-Kotlin-Go` | `recipes/composition/direct-call/gudule-composition-direct-kotlin-go/` |
+| `Composition-Direct-Dart-Go` | `recipes/composition/direct-call/gudule-composition-direct-dart-go/` |
+| `Composition-Direct-Csharp-Go` | `recipes/composition/direct-call/gudule-composition-direct-csharp-go/` |
+| `Composition-Direct-Node-Go` | `recipes/composition/direct-call/gudule-composition-direct-node-go/` |
+| `Composition-Direct-Python-Go` | `recipes/composition/direct-call/gudule-composition-direct-python-go/` |
+| `Composition-Direct-Ruby-Go` | `recipes/composition/direct-call/gudule-composition-direct-ruby-go/` |
+| `Composition-Direct-Java-Go` | `recipes/composition/direct-call/gudule-composition-direct-java-go/` |
+| `Composition-Direct-Cpp-Go` | `recipes/composition/direct-call/gudule-composition-direct-cpp-go/` |
+
+### Pipeline — 11 orchestrators → Go workers
+
+| `family_name` | directory |
+|---|---|
+| `Composition-Pipeline-Go-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-go-go/` |
+| `Composition-Pipeline-Rust-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-rust-go/` |
+| `Composition-Pipeline-Swift-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-swift-go/` |
+| `Composition-Pipeline-Kotlin-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-kotlin-go/` |
+| `Composition-Pipeline-Dart-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-dart-go/` |
+| `Composition-Pipeline-Csharp-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-csharp-go/` |
+| `Composition-Pipeline-Node-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-node-go/` |
+| `Composition-Pipeline-Python-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-python-go/` |
+| `Composition-Pipeline-Ruby-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-ruby-go/` |
+| `Composition-Pipeline-Java-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-java-go/` |
+| `Composition-Pipeline-Cpp-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-cpp-go/` |
+
+### Fan-Out — 11 orchestrators → Go workers
+
+| `family_name` | directory |
+|---|---|
+| `Composition-Fanout-Go-Go` | `recipes/composition/fan-out/gudule-composition-fanout-go-go/` |
+| `Composition-Fanout-Rust-Go` | `recipes/composition/fan-out/gudule-composition-fanout-rust-go/` |
+| `Composition-Fanout-Swift-Go` | `recipes/composition/fan-out/gudule-composition-fanout-swift-go/` |
+| `Composition-Fanout-Kotlin-Go` | `recipes/composition/fan-out/gudule-composition-fanout-kotlin-go/` |
+| `Composition-Fanout-Dart-Go` | `recipes/composition/fan-out/gudule-composition-fanout-dart-go/` |
+| `Composition-Fanout-Csharp-Go` | `recipes/composition/fan-out/gudule-composition-fanout-csharp-go/` |
+| `Composition-Fanout-Node-Go` | `recipes/composition/fan-out/gudule-composition-fanout-node-go/` |
+| `Composition-Fanout-Python-Go` | `recipes/composition/fan-out/gudule-composition-fanout-python-go/` |
+| `Composition-Fanout-Ruby-Go` | `recipes/composition/fan-out/gudule-composition-fanout-ruby-go/` |
+| `Composition-Fanout-Java-Go` | `recipes/composition/fan-out/gudule-composition-fanout-java-go/` |
+| `Composition-Fanout-Cpp-Go` | `recipes/composition/fan-out/gudule-composition-fanout-cpp-go/` |
 
 ---
 
-## Composition Code Snippets
+## 7. Test Matrix
+
+| `family_name` | directory |
+|---|---|
+| `Greeting-Testmatrix` | `recipes/testmatrix/gudule-greeting-testmatrix/` |
+
+---
+
+## 8. Composition Code Snippets
 
 ### Direct Call (Go)
 
 ```go
-conn := connect("compute-worker")    // discover → start → dial → ready
+conn := connect("gudule-composition-worker-compute")
 client := pb.NewComputeServiceClient(conn)
 resp, err := client.Compute(ctx, &pb.ComputeRequest{Value: 42})
 // resp.Result == 1764
@@ -46,8 +265,8 @@ resp, err := client.Compute(ctx, &pb.ComputeRequest{Value: 42})
 ### Pipeline (Go)
 
 ```go
-computeConn := connect("compute-worker")
-transformConn := connect("transform-worker")
+computeConn := connect("gudule-composition-worker-compute")
+transformConn := connect("gudule-composition-worker-transform")
 
 // Step 1: compute
 cResp, _ := pb.NewComputeServiceClient(computeConn).
@@ -63,8 +282,8 @@ tResp, _ := pb.NewTransformServiceClient(transformConn).
 ### Fan-Out (Go)
 
 ```go
-computeConn := connect("compute-worker")
-transformConn := connect("transform-worker")
+computeConn := connect("gudule-composition-worker-compute")
+transformConn := connect("gudule-composition-worker-transform")
 
 var wg sync.WaitGroup
 wg.Add(2)
@@ -73,43 +292,3 @@ go func() { transformResult = transform(ctx, transformConn, input); wg.Done() }(
 wg.Wait()
 // aggregate computeResult + transformResult
 ```
-
----
-
-## Full Assembly Listing (48)
-
-8 daemons × 6 HostUIs. Highlighted combinations are "full stack"
-(same-language daemon + native UI).
-
-| Daemon | swiftui | flutter | kotlin | web | dotnet | qt |
-|---|---|---|---|---|---|---|
-| **go** | go-swift | go-dart | go-kotlin | go-web | go-dotnet | go-qt |
-| **rust** | rust-swift | rust-dart | rust-kotlin | rust-web | rust-dotnet | rust-qt |
-| **python** | python-swift | python-dart | python-kotlin | python-web | python-dotnet | python-qt |
-| **swift** | **swift-swift** ★ | swift-dart | swift-kotlin | swift-web | swift-dotnet | swift-qt |
-| **kotlin** | kotlin-swift | kotlin-dart | **kotlin-kotlin** ★ | kotlin-web | kotlin-dotnet | kotlin-qt |
-| **dart** | dart-swift | **dart-dart** ★ | dart-kotlin | dart-web | dart-dotnet | dart-qt |
-| **csharp** | csharp-swift | csharp-dart | csharp-kotlin | csharp-web | **csharp-dotnet** ★ | csharp-qt |
-| **node** | node-swift | node-dart | node-kotlin | **node-web** ★ | node-dotnet | node-qt |
-
-★ = Full stack (same-lang ecosystem for both daemon and UI)
-
----
-
-## Composition Directory Template
-
-Each composition recipe follows this layout:
-
-```
-composition/<pattern>/<caller-lang>/
-├── holon.yaml          ← composite: members = [orchestrator, worker(s)]
-├── orchestrator/
-│   ├── holon.yaml
-│   ├── cmd/main.go     ← (or src/main.rs, etc.)
-│   └── protos/         ← imports worker proto(s)
-├── (compute-worker → ../../workers/compute-worker)
-└── (transform-worker → ../../workers/transform-worker)
-```
-
-Each recipe is self-contained. Worker references use relative
-paths to the shared `workers/` directory.

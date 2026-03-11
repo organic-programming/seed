@@ -13,16 +13,16 @@ Each implements GreetingService against the shared proto.
 
 ## Daemons
 
-| Daemon | Source repo | SDK |
-|---|---|---|
-| `greeting-daemon-swift` | `go-swift-holons` or new | `swift-holons` |
-| `greeting-daemon-kotlin` | `go-kotlin-holons` or new | `kotlin-holons` |
-| `greeting-daemon-dart` | new | `dart-holons` |
+| Daemon | Source repo | SDK | `family_name` |
+|---|---|---|---|
+| `gudule-daemon-greeting-swift` | `go-swift-holons` or new | `swift-holons` | `Greeting-Daemon-Swift` |
+| `gudule-daemon-greeting-kotlin` | `go-kotlin-holons` or new | `kotlin-holons` | `Greeting-Daemon-Kotlin` |
+| `gudule-daemon-greeting-dart` | new | `dart-holons` | `Greeting-Daemon-Dart` |
 
 ## Acceptance Criteria
 
 - [ ] Each daemon has its own `holon.yaml` + source
-- [ ] All use `recipes/protos/greeting/v1/greeting.proto` (shared)
+- [ ] All use `recipes/protos/greeting/v1/greeting.proto` (shared, via `import public`)
 - [ ] Each builds standalone with `op build`
 - [ ] Each runs standalone with `op run`
 - [ ] Uses respective language SDK for server bootstrap
