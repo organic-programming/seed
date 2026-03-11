@@ -51,7 +51,8 @@ stays DRY.
 - [ ] Canonical `greeting.proto` extracted from current `go-dart-holons`
 - [ ] Placed in `recipes/protos/greeting/v1/`
 - [ ] Proto package: `greeting.v1`
-- [ ] Service: `GreetingService` with `SayHello` RPC
+- [ ] Service: `GreetingService` with `ListLanguages` and `SayHello` RPCs
+- [ ] Messages: `Language`, `ListLanguagesRequest/Response`, `SayHelloRequest/Response`
 - [ ] Comments and meta-annotations follow [PROTO.md](../../PROTO.md)
 - [ ] Wrapper pattern documented and one example wrapper created
 

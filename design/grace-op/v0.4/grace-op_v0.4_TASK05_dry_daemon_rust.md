@@ -2,7 +2,7 @@
 
 ## Summary
 
-Extract the Rust daemon from `rust-dart-holons` (or equivalent) into
+Extract the Rust daemon from `rust-dart-holons` into
 `recipes/daemons/gudule-daemon-greeting-rust/`. Follows the pattern
 validated by TASK04.
 

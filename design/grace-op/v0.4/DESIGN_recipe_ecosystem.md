@@ -230,7 +230,7 @@ See [_TASKS.md](./_TASKS.md) for the detailed task breakdown (TASK01–TASK13).
 ### Phase 2: Assembly & Cleanup (TASK10–TASK11)
 
 1. Create all 48 assembly manifests in `recipes/assemblies/` (TASK10)
-2. Remove the 12 old submodule repos and archive them (TASK11)
+2. Remove the 12 old submodule repos and archive them (TASK11 — parallel, not blocking)
 
 ### Phase 3: Composition & Testing (TASK12–TASK13)
 
@@ -283,6 +283,11 @@ monorepo with shared components:
 - **48 assemblies:** 8 × 6 thin `holon.yaml` manifests (no source)
 - **11 composition orchestrators:** Go through C++ (all SDKs with `connect(slug)`)
 - **12 submodule repos archived** and replaced by monorepo
+
+## Machine-Readable Manifest
+
+See [recipes.yaml](./recipes.yaml) for a structured manifest of all
+98 holons with exact source paths, SDKs, runners, and OS support.
 
 ## Subtasks
 

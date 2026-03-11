@@ -1,0 +1,257 @@
+# Machine-readable manifest for all v0.4 recipe holons.
+# Source of truth for Codex and CI — matches DESIGN_recipe_monorepo.md.
+#
+# Naming rules:
+#   gudule  = Greeting scenario (daemons, HostUIs, assemblies, testmatrix)
+#   charon  = Composition scenario (workers, orchestrators)
+#
+# Assembly order: <hostui>-<daemon> (HostUI connects to daemon)
+# Exception: web assemblies are <daemon>-web (daemon serves web)
+
+protos:
+  greeting:
+    path: recipes/protos/greeting/v1/greeting.proto
+    package: greeting.v1
+    rpcs: [ListLanguages, SayHello]
+
+# ── Daemons (8) ───────────────────────────────────────────
+daemons:
+  - name: gudule-daemon-greeting-go
+    family_name: Greeting-Daemon-Go
+    source: recipes/go-dart-holons/examples/greeting/greeting-daemon
+    sdk: go-holons
+    lang: go
+    runner: go
+    os: [macos, linux, windows]
+    task: TASK02
+
+  - name: gudule-daemon-greeting-rust
+    family_name: Greeting-Daemon-Rust
+    source: recipes/rust-dart-holons/examples/greeting/greeting-daemon
+    sdk: rust-holons
+    lang: rust
+    runner: cargo
+    os: [macos, linux, windows]
+    task: TASK05
+
+  - name: gudule-daemon-greeting-swift
+    family_name: Greeting-Daemon-Swift
+    source: recipes/go-swift-holons/examples/greeting/greeting-daemon
+    sdk: swift-holons
+    lang: swift
+    runner: swift
+    os: [macos, linux]
+    task: TASK06
+
+  - name: gudule-daemon-greeting-kotlin
+    family_name: Greeting-Daemon-Kotlin
+    source: recipes/go-kotlin-holons/examples/greeting/greeting-daemon
+    sdk: kotlin-holons
+    lang: kotlin
+    runner: gradle
+    os: [macos, linux, windows]
+    task: TASK06
+
+  - name: gudule-daemon-greeting-dart
+    family_name: Greeting-Daemon-Dart
+    source: new
+    sdk: dart-holons
+    lang: dart
+    runner: dart
+    os: [macos, linux, windows]
+    task: TASK06
+
+  - name: gudule-daemon-greeting-python
+    family_name: Greeting-Daemon-Python
+    source: new
+    sdk: python-holons
+    lang: python
+    runner: python
+    os: [macos, linux, windows]
+    task: TASK07
+
+  - name: gudule-daemon-greeting-csharp
+    family_name: Greeting-Daemon-Csharp
+    source: recipes/go-dotnet-holons/examples/greeting/greeting-daemon
+    sdk: csharp-holons
+    lang: csharp
+    runner: dotnet
+    os: [macos, linux, windows]
+    task: TASK07
+
+  - name: gudule-daemon-greeting-node
+    family_name: Greeting-Daemon-Node
+    source: new
+    sdk: node-holons
+    lang: node
+    runner: node
+    os: [macos, linux, windows]
+    task: TASK07
+
+# ── HostUIs (6) ───────────────────────────────────────────
+hostuis:
+  - name: gudule-greeting-hostui-flutter
+    family_name: Greeting-Hostui-Flutter
+    source: recipes/go-dart-holons/examples/greeting/greeting-godart
+    sdk: dart-holons
+    framework: flutter
+    os: [macos, linux, windows]
+    task: TASK03
+
+  - name: gudule-greeting-hostui-swiftui
+    family_name: Greeting-Hostui-Swiftui
+    source: recipes/go-swift-holons/examples/greeting/greeting-swiftui
+    sdk: swift-holons
+    framework: swiftui
+    os: [macos, ios]
+    task: TASK08
+
+  - name: gudule-greeting-hostui-compose
+    family_name: Greeting-Hostui-Compose
+    source: recipes/go-kotlin-holons/examples/greeting/greeting-gokotlin
+    sdk: kotlin-holons
+    framework: compose
+    os: [macos, linux, windows, android]
+    task: TASK09
+
+  - name: gudule-greeting-hostui-web
+    family_name: Greeting-Hostui-Web
+    source: recipes/go-web-holons/examples/greeting/greeting-goweb
+    sdk: "@connectrpc/connect-web"
+    framework: web
+    os: [macos, linux, windows]
+    task: TASK09
+
+  - name: gudule-greeting-hostui-dotnet
+    family_name: Greeting-Hostui-Dotnet
+    source: recipes/go-dotnet-holons/examples/greeting/greeting-godotnet
+    sdk: csharp-holons
+    framework: dotnet
+    os: [macos, windows]
+    task: TASK09
+
+  - name: gudule-greeting-hostui-qt
+    family_name: Greeting-Hostui-Qt
+    source: recipes/go-qt-holons/examples/greeting/greeting-goqt
+    sdk: cpp-holons
+    framework: qt
+    os: [macos, linux, windows]
+    task: TASK09
+
+# ── Assemblies (48) ───────────────────────────────────────
+# Generated from: hostuis × daemons (web reversed: daemon-web)
+# Only representative entries shown; full matrix is mechanical.
+assemblies:
+  # Flutter row
+  - { name: gudule-greeting-flutter-go,      daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-flutter }
+  - { name: gudule-greeting-flutter-rust,    daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-flutter }
+  - { name: gudule-greeting-flutter-swift,   daemon: gudule-daemon-greeting-swift,   hostui: gudule-greeting-hostui-flutter }
+  - { name: gudule-greeting-flutter-kotlin,  daemon: gudule-daemon-greeting-kotlin,  hostui: gudule-greeting-hostui-flutter }
+  - { name: gudule-greeting-flutter-dart,    daemon: gudule-daemon-greeting-dart,    hostui: gudule-greeting-hostui-flutter }
+  - { name: gudule-greeting-flutter-python,  daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-flutter }
+  - { name: gudule-greeting-flutter-csharp,  daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-flutter }
+  - { name: gudule-greeting-flutter-node,    daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-flutter }
+  # SwiftUI row
+  - { name: gudule-greeting-swiftui-go,      daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-swiftui }
+  - { name: gudule-greeting-swiftui-rust,    daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-swiftui }
+  - { name: gudule-greeting-swiftui-swift,   daemon: gudule-daemon-greeting-swift,   hostui: gudule-greeting-hostui-swiftui }
+  - { name: gudule-greeting-swiftui-kotlin,  daemon: gudule-daemon-greeting-kotlin,  hostui: gudule-greeting-hostui-swiftui }
+  - { name: gudule-greeting-swiftui-dart,    daemon: gudule-daemon-greeting-dart,    hostui: gudule-greeting-hostui-swiftui }
+  - { name: gudule-greeting-swiftui-python,  daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-swiftui }
+  - { name: gudule-greeting-swiftui-csharp,  daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-swiftui }
+  - { name: gudule-greeting-swiftui-node,    daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-swiftui }
+  # Compose row
+  - { name: gudule-greeting-compose-go,      daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-compose }
+  - { name: gudule-greeting-compose-rust,    daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-compose }
+  - { name: gudule-greeting-compose-swift,   daemon: gudule-daemon-greeting-swift,   hostui: gudule-greeting-hostui-compose }
+  - { name: gudule-greeting-compose-kotlin,  daemon: gudule-daemon-greeting-kotlin,  hostui: gudule-greeting-hostui-compose }
+  - { name: gudule-greeting-compose-dart,    daemon: gudule-daemon-greeting-dart,    hostui: gudule-greeting-hostui-compose }
+  - { name: gudule-greeting-compose-python,  daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-compose }
+  - { name: gudule-greeting-compose-csharp,  daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-compose }
+  - { name: gudule-greeting-compose-node,    daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-compose }
+  # Web row (reversed: daemon-web)
+  - { name: gudule-greeting-go-web,          daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-web, topology: embedded }
+  - { name: gudule-greeting-rust-web,        daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-web, topology: embedded }
+  - { name: gudule-greeting-swift-web,       daemon: gudule-daemon-greeting-swift,   hostui: gudule-greeting-hostui-web, topology: embedded }
+  - { name: gudule-greeting-kotlin-web,      daemon: gudule-daemon-greeting-kotlin,  hostui: gudule-greeting-hostui-web, topology: embedded }
+  - { name: gudule-greeting-dart-web,        daemon: gudule-daemon-greeting-dart,    hostui: gudule-greeting-hostui-web, topology: embedded }
+  - { name: gudule-greeting-python-web,      daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-web, topology: embedded }
+  - { name: gudule-greeting-csharp-web,      daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-web, topology: embedded }
+  - { name: gudule-greeting-node-web,        daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-web, topology: embedded }
+  # Dotnet row
+  - { name: gudule-greeting-dotnet-go,       daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-dotnet }
+  - { name: gudule-greeting-dotnet-rust,     daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-dotnet }
+  - { name: gudule-greeting-dotnet-swift,    daemon: gudule-daemon-greeting-swift,   hostui: gudule-greeting-hostui-dotnet }
+  - { name: gudule-greeting-dotnet-kotlin,   daemon: gudule-daemon-greeting-kotlin,  hostui: gudule-greeting-hostui-dotnet }
+  - { name: gudule-greeting-dotnet-dart,     daemon: gudule-daemon-greeting-dart,    hostui: gudule-greeting-hostui-dotnet }
+  - { name: gudule-greeting-dotnet-python,   daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-dotnet }
+  - { name: gudule-greeting-dotnet-csharp,   daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-dotnet }
+  - { name: gudule-greeting-dotnet-node,     daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-dotnet }
+  # Qt row
+  - { name: gudule-greeting-qt-go,           daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-qt }
+  - { name: gudule-greeting-qt-rust,         daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-qt }
+  - { name: gudule-greeting-qt-swift,        daemon: gudule-daemon-greeting-swift,   hostui: gudule-greeting-hostui-qt }
+  - { name: gudule-greeting-qt-kotlin,       daemon: gudule-daemon-greeting-kotlin,  hostui: gudule-greeting-hostui-qt }
+  - { name: gudule-greeting-qt-dart,         daemon: gudule-daemon-greeting-dart,    hostui: gudule-greeting-hostui-qt }
+  - { name: gudule-greeting-qt-python,       daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-qt }
+  - { name: gudule-greeting-qt-csharp,       daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-qt }
+  - { name: gudule-greeting-qt-node,         daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-qt }
+
+# ── Composition Workers (2) ──────────────────────────────
+workers:
+  - name: charon-worker-compute
+    family_name: Worker-Compute
+    lang: go
+    task: TASK12
+
+  - name: charon-worker-transform
+    family_name: Worker-Transform
+    lang: go
+    task: TASK12
+
+# ── Composition Orchestrators (33) ────────────────────────
+# Pattern × 11 languages, all calling Go workers.
+compositions:
+  direct:
+    - { name: charon-direct-go-go,      lang: go }
+    - { name: charon-direct-rust-go,    lang: rust }
+    - { name: charon-direct-swift-go,   lang: swift }
+    - { name: charon-direct-kotlin-go,  lang: kotlin }
+    - { name: charon-direct-dart-go,    lang: dart }
+    - { name: charon-direct-csharp-go,  lang: csharp }
+    - { name: charon-direct-node-go,    lang: node }
+    - { name: charon-direct-python-go,  lang: python }
+    - { name: charon-direct-ruby-go,    lang: ruby }
+    - { name: charon-direct-java-go,    lang: java }
+    - { name: charon-direct-cpp-go,     lang: cpp }
+  pipeline:
+    - { name: charon-pipeline-go-go,      lang: go }
+    - { name: charon-pipeline-rust-go,    lang: rust }
+    - { name: charon-pipeline-swift-go,   lang: swift }
+    - { name: charon-pipeline-kotlin-go,  lang: kotlin }
+    - { name: charon-pipeline-dart-go,    lang: dart }
+    - { name: charon-pipeline-csharp-go,  lang: csharp }
+    - { name: charon-pipeline-node-go,    lang: node }
+    - { name: charon-pipeline-python-go,  lang: python }
+    - { name: charon-pipeline-ruby-go,    lang: ruby }
+    - { name: charon-pipeline-java-go,    lang: java }
+    - { name: charon-pipeline-cpp-go,     lang: cpp }
+  fanout:
+    - { name: charon-fanout-go-go,      lang: go }
+    - { name: charon-fanout-rust-go,    lang: rust }
+    - { name: charon-fanout-swift-go,   lang: swift }
+    - { name: charon-fanout-kotlin-go,  lang: kotlin }
+    - { name: charon-fanout-dart-go,    lang: dart }
+    - { name: charon-fanout-csharp-go,  lang: csharp }
+    - { name: charon-fanout-node-go,    lang: node }
+    - { name: charon-fanout-python-go,  lang: python }
+    - { name: charon-fanout-ruby-go,    lang: ruby }
+    - { name: charon-fanout-java-go,    lang: java }
+    - { name: charon-fanout-cpp-go,     lang: cpp }
+
+# ── Test Matrix (1) ──────────────────────────────────────
+testmatrix:
+  name: gudule-greeting-testmatrix
+  family_name: Greeting-Testmatrix
+  path: recipes/testmatrix/gudule-greeting-testmatrix
+  task: TASK13

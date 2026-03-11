@@ -15,9 +15,9 @@ Each implements GreetingService against the shared proto.
 
 | Daemon | Source repo | SDK | `family_name` |
 |---|---|---|---|
-| `gudule-daemon-greeting-python` | new | `python-holons` | `Greeting-Daemon-Python` |
-| `gudule-daemon-greeting-csharp` | `go-dotnet-holons` or new | `csharp-holons` | `Greeting-Daemon-Csharp` |
-| `gudule-daemon-greeting-node` | new | `node-holons` | `Greeting-Daemon-Node` |
+| `gudule-daemon-greeting-python` | new (no existing source) | `python-holons` | `Greeting-Daemon-Python` |
+| `gudule-daemon-greeting-csharp` | `go-dotnet-holons` | `csharp-holons` | `Greeting-Daemon-Csharp` |
+| `gudule-daemon-greeting-node` | new (no existing source) | `node-holons` | `Greeting-Daemon-Node` |
 
 ## Acceptance Criteria
 

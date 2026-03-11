@@ -43,8 +43,8 @@ milestone; nothing proceeds until it passes.
 | 09 | [TASK09](./grace-op_v0.4_TASK09_dry_hostui_kotlin_web_dotnet_qt.md) | Extract Kotlin, Web, .NET, Qt HostUIs | TASK08 | — |
 | | | **— Assembly & Cleanup —** | | |
 | 10 | [TASK10](./grace-op_v0.4_TASK10_assembly_manifests.md) | Create 48 assembly manifests | TASK09 | — |
-| 11 | [TASK11](./grace-op_v0.4_TASK11_remove_submodules.md) | Remove 12 submodules, archive repos | TASK10 | — |
-| 12 | [TASK12](./grace-op_v0.4_TASK12_composition_recipes.md) | 3 patterns × 11 orchestrator languages | TASK11 | — |
+| 11 | [TASK11](./grace-op_v0.4_TASK11_remove_submodules.md) | Remove 12 submodules, archive repos | TASK10 (parallel, not blocking) | — |
+| 12 | [TASK12](./grace-op_v0.4_TASK12_composition_recipes.md) | 3 patterns × 11 orchestrator languages | TASK10 | — |
 | 13 | [TASK13](./grace-op_v0.4_TASK13_testmatrix.md) | Combinatorial testing (Go testmatrix) | TASK12 | — |
 
 ## Design Documents
@@ -56,5 +56,6 @@ milestone; nothing proceeds until it passes.
 
 ```
 TASK01 → TASK02 → TASK03 → TASK04 ★ → TASK05 → TASK06 → TASK07
-→ TASK08 → TASK09 → TASK10 → TASK11 → TASK12 → TASK13
+→ TASK08 → TASK09 → TASK10 → TASK12 → TASK13
+                              └─→ TASK11 (parallel cleanup)
 ```

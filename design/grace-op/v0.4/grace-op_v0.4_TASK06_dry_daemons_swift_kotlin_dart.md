@@ -15,9 +15,9 @@ Each implements GreetingService against the shared proto.
 
 | Daemon | Source repo | SDK | `family_name` |
 |---|---|---|---|
-| `gudule-daemon-greeting-swift` | `go-swift-holons` or new | `swift-holons` | `Greeting-Daemon-Swift` |
-| `gudule-daemon-greeting-kotlin` | `go-kotlin-holons` or new | `kotlin-holons` | `Greeting-Daemon-Kotlin` |
-| `gudule-daemon-greeting-dart` | new | `dart-holons` | `Greeting-Daemon-Dart` |
+| `gudule-daemon-greeting-swift` | `go-swift-holons` | `swift-holons` | `Greeting-Daemon-Swift` |
+| `gudule-daemon-greeting-kotlin` | `go-kotlin-holons` | `kotlin-holons` | `Greeting-Daemon-Kotlin` |
+| `gudule-daemon-greeting-dart` | new (no existing source) | `dart-holons` | `Greeting-Daemon-Dart` |
 
 ## Acceptance Criteria
 
