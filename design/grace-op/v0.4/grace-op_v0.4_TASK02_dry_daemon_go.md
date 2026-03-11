@@ -43,4 +43,4 @@ subsequent daemon extractions.
 
 ## Dependencies
 
-None (can start immediately).
+TASK01 (shared proto must exist first).

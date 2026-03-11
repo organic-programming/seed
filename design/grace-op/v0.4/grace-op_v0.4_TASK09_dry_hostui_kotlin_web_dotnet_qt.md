@@ -3,7 +3,7 @@
 ## Summary
 
 Extract the four remaining HostUIs into `recipes/hostui/`. Each
-follows the connect-approach pattern validated by TASK10.
+follows the connect-approach pattern validated by TASK04.
 
 > [!IMPORTANT]
 > **Connect approach only.** Every HostUI must use its language's

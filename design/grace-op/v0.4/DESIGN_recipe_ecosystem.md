@@ -261,7 +261,7 @@ recipes/composition/direct-call/charon-direct-rust-go/
 Workers live in `recipes/composition/workers/` and are shared across
 all orchestrators — they are not embedded in each recipe.
 
-Each recipe is self-contained (following the daemon copy independence rule). The worker holons are intentionally simple — the focus is on the **orchestrator's composition logic**, not the worker's domain logic.
+Each recipe is self-contained for orchestrator logic. The worker holons are intentionally simple — the focus is on the **orchestrator's composition logic**, not the worker's domain logic.
 
 ---
 

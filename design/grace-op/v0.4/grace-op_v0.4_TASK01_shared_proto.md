@@ -21,17 +21,17 @@ meta-annotations (`@required`, `@example`, `@skill` — see
 recipes/protos/greeting/v1/
 └── greeting.proto              ← canonical service + messages
 
-daemons/greeting-daemon-go/protos/greeting/v1/
+daemons/gudule-daemon-greeting-go/protos/greeting/v1/
 └── greeting.proto              ← import public + Go-specific annotations
 
-hostui/greeting-hostui-flutter/protos/greeting/v1/
+hostui/gudule-greeting-hostui-flutter/protos/greeting/v1/
 └── greeting.proto              ← import public + Dart-specific annotations
 ```
 
 ## Per-Holon Wrapper Pattern
 
 ```protobuf
-// greeting-daemon-go/protos/greeting/v1/greeting.proto
+// gudule-daemon-greeting-go/protos/greeting/v1/greeting.proto
 syntax = "proto3";
 package greeting.v1;
 
