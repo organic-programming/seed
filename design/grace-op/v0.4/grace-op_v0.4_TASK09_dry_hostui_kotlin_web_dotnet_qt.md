@@ -10,11 +10,11 @@ follows the connect-approach pattern validated by TASK04.
 > SDK `connect(slug)` primitive — no raw gRPC dial.
 
 > [!IMPORTANT]
-> **Always use the language SDK as much as possible.**
+> **Always use the language SDK.**
 > - Kotlin → `kotlin-holons` SDK
 > - Web → `@connectrpc/connect-web` (Connect protocol)
-> - .NET → `csharp-holons` SDK / `Grpc.Net.Client`
-> - Qt/C++ → `cpp-holons` SDK or raw gRPC-C++ if SDK unavailable
+> - .NET → `csharp-holons` SDK
+> - Qt/C++ → `cpp-holons` SDK
 
 ## HostUIs
 
@@ -23,7 +23,7 @@ follows the connect-approach pattern validated by TASK04.
 | `gudule-greeting-hostui-compose` | `go-kotlin-holons` | `kotlin-holons` | `Greeting-Hostui-Compose` |
 | `gudule-greeting-hostui-web` | `go-web-holons` | `@connectrpc/connect-web` | `Greeting-Hostui-Web` |
 | `gudule-greeting-hostui-dotnet` | `go-dotnet-holons` | `csharp-holons` | `Greeting-Hostui-Dotnet` |
-| `gudule-greeting-hostui-qt` | `go-qt-holons` | `cpp-holons` (or raw gRPC-C++) | `Greeting-Hostui-Qt` |
+| `gudule-greeting-hostui-qt` | `go-qt-holons` | `cpp-holons` | `Greeting-Hostui-Qt` |
 
 ## Acceptance Criteria
 

@@ -9,10 +9,10 @@
 > stuck, preserve what works.
 
 > [!IMPORTANT]
-> **Always use the language SDK as much as possible.** Every daemon
-> and HostUI must use its language's Organic Programming SDK for
-> server bootstrap, `connect(slug)`, and transport negotiation.
-> Avoid raw gRPC boilerplate.
+> **Always use the language SDK.** Every daemon and HostUI must use
+> its language's Organic Programming SDK for server bootstrap,
+> `connect(slug)`, and transport negotiation. All SDKs exist and are
+> tested — no raw gRPC fallback.
 
 > [!IMPORTANT]
 > **Connect approach only.** Every UI assembly must use SDK
@@ -44,8 +44,8 @@ milestone; nothing proceeds until it passes.
 | | | **— Assembly & Cleanup —** | | |
 | 10 | [TASK10](./grace-op_v0.4_TASK10_assembly_manifests.md) | Create 48 assembly manifests | TASK09 | — |
 | 11 | [TASK11](./grace-op_v0.4_TASK11_remove_submodules.md) | Remove 12 submodules, archive repos | TASK10 | — |
-| 12 | [TASK12](./grace-op_v0.4_TASK12_testmatrix.md) | Combinatorial testing (Go testmatrix) | TASK11 | — |
-| 13 | [TASK13](./grace-op_v0.4_TASK13_composition_recipes.md) | 3 patterns × 11 orchestrator languages | TASK12 | — |
+| 12 | [TASK12](./grace-op_v0.4_TASK12_composition_recipes.md) | 3 patterns × 11 orchestrator languages | TASK11 | — |
+| 13 | [TASK13](./grace-op_v0.4_TASK13_testmatrix.md) | Combinatorial testing (Go testmatrix) | TASK12 | — |
 
 ## Design Documents
 

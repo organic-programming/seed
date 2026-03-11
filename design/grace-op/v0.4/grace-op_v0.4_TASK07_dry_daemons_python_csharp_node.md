@@ -6,10 +6,10 @@ Extract three daemons from server-scripting ecosystems.
 Each implements GreetingService against the shared proto.
 
 > [!IMPORTANT]
-> **Always use the language SDK as much as possible.**
-> - Python daemon → `python-holons` SDK (or raw gRPC-Python if SDK not yet available)
-> - C# daemon → `csharp-holons` SDK / `Grpc.AspNetCore`
-> - Node.js daemon → `node-holons` SDK / `@grpc/grpc-js`
+> **Always use the language SDK.**
+> - Python daemon → `python-holons` SDK
+> - C# daemon → `csharp-holons` SDK
+> - Node.js daemon → `node-holons` SDK
 
 ## Daemons
 

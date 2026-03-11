@@ -1,4 +1,4 @@
-# TASK12 — Combinatorial Testing
+# TASK13 — Combinatorial Testing
 
 ## Summary
 
@@ -18,8 +18,8 @@ go run recipes/testmatrix/gudule-greeting-testmatrix/main.go [--filter flutter-*
    `recipes/composition/*/` for `holon.yaml`
 2. **Build** — `op build` each (capture exit code + stderr)
 3. **Run** — `op run` with timeout (default 30s)
-4. **Verify** — assemblies: gRPC health check;
-   composition: exit code 0 + expected output
+4. **Verify** — automated tier: build success + gRPC health check
+   + exit code 0. Full UI + RPC is manual verification.
 5. **Report** — matrix table + JSON summary
 
 ## Output
@@ -65,4 +65,4 @@ The `recipes/README.md` must feature the matrix prominently:
 
 ## Dependencies
 
-TASK11.
+TASK12.

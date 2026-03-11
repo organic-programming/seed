@@ -6,6 +6,11 @@ Write thin composite `holon.yaml` manifests in `recipes/assemblies/`.
 Each assembly references a daemon and a HostUI via relative paths.
 No source code in assemblies — manifests only.
 
+> [!NOTE]
+> **Web assemblies** (`*-web`) have a single member: the daemon with
+> embedded web dist. No separate HostUI holon — the daemon serves
+> the web client directly via Connect protocol.
+
 ## Scale
 
 8 daemons × 6 HostUIs = **48 assemblies**.

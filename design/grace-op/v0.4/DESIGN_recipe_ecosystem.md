@@ -94,11 +94,11 @@ recipes/
 ```
 
 > [!IMPORTANT]
-> Composition recipes are organized by **pattern × caller language**,
-> not by language pair. Only the caller's language matters — the callee
-> can be written in anything (gRPC is language-agnostic). For example,
-> `charon-direct-rust-go` is a Rust orchestrator calling
-> Go workers; the Rust developer only needs the `direct-call/` recipe.
+> Composition recipes are organized by **pattern** in the directory
+> tree. Each holon **name** encodes both caller and callee
+> (`charon-direct-rust-go` = Rust orchestrator → Go workers) for
+> expressiveness and forward-compatibility. Today the callee is
+> always Go, but the naming supports future worker languages.
 
 ---
 
@@ -232,11 +232,11 @@ See [_TASKS.md](./_TASKS.md) for the detailed task breakdown (TASK01–TASK13).
 1. Create all 48 assembly manifests in `recipes/assemblies/` (TASK10)
 2. Remove the 12 old submodule repos and archive them (TASK11)
 
-### Phase 3: Testing & Composition (TASK12–TASK13)
+### Phase 3: Composition & Testing (TASK12–TASK13)
 
-1. Build `gudule-greeting-testmatrix` for combinatorial testing (TASK12)
-2. Implement `charon-worker-compute` and `charon-worker-transform` (Go workers)
-3. Implement `charon-{direct,pipeline,fanout}-<lang>-go` for all 11 languages (TASK13)
+1. Implement `charon-worker-compute` and `charon-worker-transform` (Go workers)
+2. Implement `charon-{direct,pipeline,fanout}-<lang>-go` for all 11 languages (TASK12)
+3. Build `gudule-greeting-testmatrix` for combinatorial testing (TASK13)
 4. Update CONVENTIONS.md / SDK_GUIDE.md to reference both recipe categories
 
 ---
@@ -296,5 +296,5 @@ dependency graph. Summary:
 | **Remaining daemons** | TASK05, TASK06, TASK07 | Rust, Swift/Kotlin/Dart, Python/C#/Node |
 | **Remaining HostUIs** | TASK08, TASK09 | SwiftUI, Kotlin/Web/.NET/Qt |
 | **Assembly & cleanup** | TASK10, TASK11 | 48 manifests, remove submodules |
-| **Testing** | TASK12 | Combinatorial test matrix |
-| **Composition** | TASK13 | 3 patterns × 11 languages |
+| **Composition** | TASK12 | 3 patterns × 11 languages |
+| **Testing** | TASK13 | Combinatorial test matrix |
