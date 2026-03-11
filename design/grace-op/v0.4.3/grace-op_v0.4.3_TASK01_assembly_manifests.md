@@ -3,7 +3,7 @@
 ## Summary
 
 Write thin composite `holon.yaml` manifests in `recipes/assemblies/`.
-Each assembly references a daemon and a HostUI via relative paths.
+Most assemblies reference a daemon and a HostUI via relative paths.
 No source code in assemblies — manifests only.
 
 > [!NOTE]

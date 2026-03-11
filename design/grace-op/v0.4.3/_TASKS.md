@@ -11,7 +11,7 @@
 
 ## Execution Strategy
 
-Strictly linear — each task gates the next. This final phase scales the architecture to 48 assemblies and 33 composition recipes (3 patterns × 11 orchestrator languages), concluding with an automated test matrix.
+Mostly linear — each task gates the next, with one exception: TASK02 (remove submodules) runs in parallel with TASK01 and is non-blocking.
 
 ## Tasks
 

@@ -18,7 +18,7 @@ transport, proto inclusion, and `connect(slug)` issues early.
 9 assemblies, covering:
 - 3 daemon runners: `go-module`, `cargo`, `swift-package`
 - 3 HostUI runners: `flutter`, `npm`, `qt-cmake`
-- Transport: **tcp only** (Flutter, Web, Qt all use tcp; stdio is SwiftUI-only and is validated at full scale in v0.4.3/TASK01)
+- Transport: **tcp only** (Flutter, Web, Qt all use tcp; stdio is SwiftUI-only and is validated at full scale in v0.4.3/TASK04 via the testmatrix)
 
 ## Assemblies to Validate
 
