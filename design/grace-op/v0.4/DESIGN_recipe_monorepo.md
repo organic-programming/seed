@@ -8,7 +8,9 @@ and the full assembly matrix.
 > for directories, `family_name` in `holon.yaml`, and binary names.
 > Do not invent names — this document is the single source of truth.
 
-All holons use `given_name: gudule`.
+Two personas:
+- **`given_name: gudule`** — Greeting scenario (daemons, HostUIs, assemblies, testmatrix)
+- **`given_name: charon`** — Composition scenario (workers, orchestrators)
 
 ---
 
@@ -168,8 +170,8 @@ build:
 
 | `family_name` | directory |
 |---|---|
-| `Composition-Worker-Compute` | `recipes/composition/workers/gudule-composition-worker-compute/` |
-| `Composition-Worker-Transform` | `recipes/composition/workers/gudule-composition-worker-transform/` |
+| `Composition-Worker-Compute` | `recipes/composition/workers/charon-worker-compute/` |
+| `Composition-Worker-Transform` | `recipes/composition/workers/charon-worker-transform/` |
 
 ### Worker Proto Contracts
 
@@ -197,49 +199,49 @@ message TransformResponse { string result = 1; }
 
 | `family_name` | directory |
 |---|---|
-| `Composition-Direct-Go-Go` | `recipes/composition/direct-call/gudule-composition-direct-go-go/` |
-| `Composition-Direct-Rust-Go` | `recipes/composition/direct-call/gudule-composition-direct-rust-go/` |
-| `Composition-Direct-Swift-Go` | `recipes/composition/direct-call/gudule-composition-direct-swift-go/` |
-| `Composition-Direct-Kotlin-Go` | `recipes/composition/direct-call/gudule-composition-direct-kotlin-go/` |
-| `Composition-Direct-Dart-Go` | `recipes/composition/direct-call/gudule-composition-direct-dart-go/` |
-| `Composition-Direct-Csharp-Go` | `recipes/composition/direct-call/gudule-composition-direct-csharp-go/` |
-| `Composition-Direct-Node-Go` | `recipes/composition/direct-call/gudule-composition-direct-node-go/` |
-| `Composition-Direct-Python-Go` | `recipes/composition/direct-call/gudule-composition-direct-python-go/` |
-| `Composition-Direct-Ruby-Go` | `recipes/composition/direct-call/gudule-composition-direct-ruby-go/` |
-| `Composition-Direct-Java-Go` | `recipes/composition/direct-call/gudule-composition-direct-java-go/` |
-| `Composition-Direct-Cpp-Go` | `recipes/composition/direct-call/gudule-composition-direct-cpp-go/` |
+| `Composition-Direct-Go-Go` | `recipes/composition/direct-call/charon-direct-go-go/` |
+| `Composition-Direct-Rust-Go` | `recipes/composition/direct-call/charon-direct-rust-go/` |
+| `Composition-Direct-Swift-Go` | `recipes/composition/direct-call/charon-direct-swift-go/` |
+| `Composition-Direct-Kotlin-Go` | `recipes/composition/direct-call/charon-direct-kotlin-go/` |
+| `Composition-Direct-Dart-Go` | `recipes/composition/direct-call/charon-direct-dart-go/` |
+| `Composition-Direct-Csharp-Go` | `recipes/composition/direct-call/charon-direct-csharp-go/` |
+| `Composition-Direct-Node-Go` | `recipes/composition/direct-call/charon-direct-node-go/` |
+| `Composition-Direct-Python-Go` | `recipes/composition/direct-call/charon-direct-python-go/` |
+| `Composition-Direct-Ruby-Go` | `recipes/composition/direct-call/charon-direct-ruby-go/` |
+| `Composition-Direct-Java-Go` | `recipes/composition/direct-call/charon-direct-java-go/` |
+| `Composition-Direct-Cpp-Go` | `recipes/composition/direct-call/charon-direct-cpp-go/` |
 
 ### Pipeline — 11 orchestrators → Go workers
 
 | `family_name` | directory |
 |---|---|
-| `Composition-Pipeline-Go-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-go-go/` |
-| `Composition-Pipeline-Rust-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-rust-go/` |
-| `Composition-Pipeline-Swift-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-swift-go/` |
-| `Composition-Pipeline-Kotlin-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-kotlin-go/` |
-| `Composition-Pipeline-Dart-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-dart-go/` |
-| `Composition-Pipeline-Csharp-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-csharp-go/` |
-| `Composition-Pipeline-Node-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-node-go/` |
-| `Composition-Pipeline-Python-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-python-go/` |
-| `Composition-Pipeline-Ruby-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-ruby-go/` |
-| `Composition-Pipeline-Java-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-java-go/` |
-| `Composition-Pipeline-Cpp-Go` | `recipes/composition/pipeline/gudule-composition-pipeline-cpp-go/` |
+| `Composition-Pipeline-Go-Go` | `recipes/composition/pipeline/charon-pipeline-go-go/` |
+| `Composition-Pipeline-Rust-Go` | `recipes/composition/pipeline/charon-pipeline-rust-go/` |
+| `Composition-Pipeline-Swift-Go` | `recipes/composition/pipeline/charon-pipeline-swift-go/` |
+| `Composition-Pipeline-Kotlin-Go` | `recipes/composition/pipeline/charon-pipeline-kotlin-go/` |
+| `Composition-Pipeline-Dart-Go` | `recipes/composition/pipeline/charon-pipeline-dart-go/` |
+| `Composition-Pipeline-Csharp-Go` | `recipes/composition/pipeline/charon-pipeline-csharp-go/` |
+| `Composition-Pipeline-Node-Go` | `recipes/composition/pipeline/charon-pipeline-node-go/` |
+| `Composition-Pipeline-Python-Go` | `recipes/composition/pipeline/charon-pipeline-python-go/` |
+| `Composition-Pipeline-Ruby-Go` | `recipes/composition/pipeline/charon-pipeline-ruby-go/` |
+| `Composition-Pipeline-Java-Go` | `recipes/composition/pipeline/charon-pipeline-java-go/` |
+| `Composition-Pipeline-Cpp-Go` | `recipes/composition/pipeline/charon-pipeline-cpp-go/` |
 
 ### Fan-Out — 11 orchestrators → Go workers
 
 | `family_name` | directory |
 |---|---|
-| `Composition-Fanout-Go-Go` | `recipes/composition/fan-out/gudule-composition-fanout-go-go/` |
-| `Composition-Fanout-Rust-Go` | `recipes/composition/fan-out/gudule-composition-fanout-rust-go/` |
-| `Composition-Fanout-Swift-Go` | `recipes/composition/fan-out/gudule-composition-fanout-swift-go/` |
-| `Composition-Fanout-Kotlin-Go` | `recipes/composition/fan-out/gudule-composition-fanout-kotlin-go/` |
-| `Composition-Fanout-Dart-Go` | `recipes/composition/fan-out/gudule-composition-fanout-dart-go/` |
-| `Composition-Fanout-Csharp-Go` | `recipes/composition/fan-out/gudule-composition-fanout-csharp-go/` |
-| `Composition-Fanout-Node-Go` | `recipes/composition/fan-out/gudule-composition-fanout-node-go/` |
-| `Composition-Fanout-Python-Go` | `recipes/composition/fan-out/gudule-composition-fanout-python-go/` |
-| `Composition-Fanout-Ruby-Go` | `recipes/composition/fan-out/gudule-composition-fanout-ruby-go/` |
-| `Composition-Fanout-Java-Go` | `recipes/composition/fan-out/gudule-composition-fanout-java-go/` |
-| `Composition-Fanout-Cpp-Go` | `recipes/composition/fan-out/gudule-composition-fanout-cpp-go/` |
+| `Composition-Fanout-Go-Go` | `recipes/composition/fan-out/charon-fanout-go-go/` |
+| `Composition-Fanout-Rust-Go` | `recipes/composition/fan-out/charon-fanout-rust-go/` |
+| `Composition-Fanout-Swift-Go` | `recipes/composition/fan-out/charon-fanout-swift-go/` |
+| `Composition-Fanout-Kotlin-Go` | `recipes/composition/fan-out/charon-fanout-kotlin-go/` |
+| `Composition-Fanout-Dart-Go` | `recipes/composition/fan-out/charon-fanout-dart-go/` |
+| `Composition-Fanout-Csharp-Go` | `recipes/composition/fan-out/charon-fanout-csharp-go/` |
+| `Composition-Fanout-Node-Go` | `recipes/composition/fan-out/charon-fanout-node-go/` |
+| `Composition-Fanout-Python-Go` | `recipes/composition/fan-out/charon-fanout-python-go/` |
+| `Composition-Fanout-Ruby-Go` | `recipes/composition/fan-out/charon-fanout-ruby-go/` |
+| `Composition-Fanout-Java-Go` | `recipes/composition/fan-out/charon-fanout-java-go/` |
+| `Composition-Fanout-Cpp-Go` | `recipes/composition/fan-out/charon-fanout-cpp-go/` |
 
 ---
 
@@ -256,7 +258,7 @@ message TransformResponse { string result = 1; }
 ### Direct Call (Go)
 
 ```go
-conn := connect("gudule-composition-worker-compute")
+conn := connect("charon-worker-compute")
 client := pb.NewComputeServiceClient(conn)
 resp, err := client.Compute(ctx, &pb.ComputeRequest{Value: 42})
 // resp.Result == 1764
@@ -265,8 +267,8 @@ resp, err := client.Compute(ctx, &pb.ComputeRequest{Value: 42})
 ### Pipeline (Go)
 
 ```go
-computeConn := connect("gudule-composition-worker-compute")
-transformConn := connect("gudule-composition-worker-transform")
+computeConn := connect("charon-worker-compute")
+transformConn := connect("charon-worker-transform")
 
 // Step 1: compute
 cResp, _ := pb.NewComputeServiceClient(computeConn).
@@ -282,8 +284,8 @@ tResp, _ := pb.NewTransformServiceClient(transformConn).
 ### Fan-Out (Go)
 
 ```go
-computeConn := connect("gudule-composition-worker-compute")
-transformConn := connect("gudule-composition-worker-transform")
+computeConn := connect("charon-worker-compute")
+transformConn := connect("charon-worker-transform")
 
 var wg sync.WaitGroup
 wg.Add(2)

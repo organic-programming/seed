@@ -2,14 +2,14 @@
 
 ## Summary
 
-A Go program (`recipes/testmatrix/main.go`) that discovers and
-runs all assemblies and composition recipes, producing a pass/fail
-matrix. Reusable for CI and manual testing.
+A Go program (`recipes/testmatrix/gudule-greeting-testmatrix/main.go`)
+that discovers and runs all assemblies and composition recipes,
+producing a pass/fail matrix. Reusable for CI and manual testing.
 
 ## Usage
 
 ```bash
-go run recipes/testmatrix/main.go [--filter go-*] [--timeout 60s]
+go run recipes/testmatrix/gudule-greeting-testmatrix/main.go [--filter flutter-*] [--timeout 60s]
 ```
 
 ## How It Works
@@ -26,7 +26,7 @@ go run recipes/testmatrix/main.go [--filter go-*] [--timeout 60s]
 
 ```
 Assemblies (daemon × hostui):
-                swiftui  flutter  kotlin  web     dotnet  qt
+                flutter  swiftui  compose  web     dotnet  qt
   go            ✅       ✅       ✅      ✅      ❌      ⏭️
   rust          ✅       ✅       ❌      ✅      ✅      ⏭️
   ...

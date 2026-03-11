@@ -12,15 +12,15 @@ No source code in assemblies — manifests only.
 
 ```
 recipes/assemblies/
-├── go-swiftui/holon.yaml
-├── go-flutter/holon.yaml
-├── go-kotlin/holon.yaml
-├── go-web/holon.yaml
-├── go-dotnet/holon.yaml
-├── go-qt/holon.yaml
-├── rust-swiftui/holon.yaml
+├── gudule-greeting-flutter-go/holon.yaml
+├── gudule-greeting-flutter-rust/holon.yaml
+├── gudule-greeting-swiftui-go/holon.yaml
+├── gudule-greeting-go-web/holon.yaml           ← reversed: daemon serves web
+├── gudule-greeting-compose-go/holon.yaml
+├── gudule-greeting-dotnet-go/holon.yaml
+├── gudule-greeting-qt-go/holon.yaml
 ├── ...
-└── node-qt/holon.yaml
+└── gudule-greeting-qt-node/holon.yaml
 ```
 
 ## Manifest Template
@@ -29,17 +29,18 @@ recipes/assemblies/
 schema: holon/v0
 kind: composite
 given_name: gudule
-family_name: greeting-go-swiftui
+family_name: Greeting-Flutter-Go
 build:
   runner: recipe
   members:
-    - path: ../../daemons/greeting-daemon-go
-    - path: ../../hostui/greeting-hostui-swiftui
+    - path: ../../daemons/gudule-daemon-greeting-go
+    - path: ../../hostui/gudule-greeting-hostui-flutter
 ```
 
 ## Acceptance Criteria
 
-- [ ] 48 `holon.yaml` files created
+- [ ] 48 `holon.yaml` files created (names per [DESIGN_recipe_monorepo.md](./DESIGN_recipe_monorepo.md))
+- [ ] Each `family_name` matches the canonical names in DESIGN_recipe_monorepo.md §4
 - [ ] Each builds with `op build`
 - [ ] Each runs with `op run` (daemon + UI start together)
 

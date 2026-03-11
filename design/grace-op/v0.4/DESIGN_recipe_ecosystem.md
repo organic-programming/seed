@@ -38,44 +38,67 @@ recipes/                          ← flat, UI-only
 
 ```
 recipes/
-├── README.md                         ← updated: explains the two categories
-├── ui/                               ← renamed from root; the existing 2×6 matrix
-│   ├── README.md                     ← current recipes/README.md, adapted
-│   ├── IMPLEMENTATION_ON_MAC_OS.md
-│   ├── IMPLEMENTATION_ON_WINDOWS.md
-│   ├── go-dart-holons/
-│   ├── go-swift-holons/
-│   ├── go-kotlin-holons/
-│   ├── go-web-holons/
-│   ├── go-dotnet-holons/
-│   ├── go-qt-holons/
-│   ├── rust-dart-holons/
-│   ├── rust-swift-holons/
-│   ├── rust-kotlin-holons/
-│   ├── rust-web-holons/
-│   ├── rust-dotnet-holons/
-│   └── rust-qt-holons/
-└── composition/                      ← NEW: pattern × caller-language
-    ├── README.md                     ← pattern catalog & guide
-    ├── direct-call/
-    │   ├── go/                       ← how to do a direct call FROM Go
-    │   └── rust/                     ← same pattern FROM Rust
-    ├── pipeline/
-    │   ├── go/
-    │   └── rust/
-    ├── fan-out/
-    │   ├── go/
-    │   └── rust/
-    ├── sidecar/                      ← v2
-    │   ├── go/
-    │   └── rust/
-    └── proxy/                        ← v2
-        ├── go/
-        └── rust/
+├── README.md
+├── protos/                                          ← shared proto (TASK01)
+│   └── greeting/v1/
+│       └── greeting.proto                           ← canonical GreetingService
+│
+├── daemons/                                         ← DRY daemons (TASK02, TASK05–07)
+│   ├── gudule-daemon-greeting-go/
+│   ├── gudule-daemon-greeting-rust/
+│   ├── gudule-daemon-greeting-swift/
+│   ├── gudule-daemon-greeting-kotlin/
+│   ├── gudule-daemon-greeting-dart/
+│   ├── gudule-daemon-greeting-python/
+│   ├── gudule-daemon-greeting-csharp/
+│   └── gudule-daemon-greeting-node/
+│
+├── hostui/                                          ← DRY HostUIs (TASK03, TASK08–09)
+│   ├── gudule-greeting-hostui-flutter/
+│   ├── gudule-greeting-hostui-swiftui/
+│   ├── gudule-greeting-hostui-compose/              ← Kotlin Compose
+│   ├── gudule-greeting-hostui-web/
+│   ├── gudule-greeting-hostui-dotnet/
+│   └── gudule-greeting-hostui-qt/
+│
+├── assemblies/                                      ← 48 thin manifests (TASK10)
+│   ├── gudule-greeting-flutter-go/                  ← Flutter connects to Go
+│   ├── gudule-greeting-flutter-rust/
+│   ├── gudule-greeting-swiftui-go/
+│   ├── gudule-greeting-go-web/                      ← reversed: Go serves web
+│   ├── ...                                          ← (see DESIGN_recipe_monorepo.md for full 48)
+│   └── gudule-greeting-qt-node/
+│
+├── composition/                                     ← backend-to-backend (TASK13)
+│   ├── README.md
+│   ├── workers/
+│   │   ├── charon-worker-compute/
+│   │   └── charon-worker-transform/
+│   ├── direct-call/
+│   │   ├── charon-direct-go-go/
+│   │   ├── charon-direct-rust-go/
+│   │   ├── charon-direct-swift-go/
+│   │   └── ...                                      ← (11 languages, see monorepo doc)
+│   ├── pipeline/
+│   │   ├── charon-pipeline-go-go/
+│   │   └── ...
+│   └── fan-out/
+│       ├── charon-fanout-go-go/
+│       └── ...
+│
+├── testmatrix/                                      ← combinatorial testing (TASK12)
+│   └── gudule-greeting-testmatrix/
+│
+├── IMPLEMENTATION_ON_MAC_OS.md
+└── IMPLEMENTATION_ON_WINDOWS.md
 ```
 
 > [!IMPORTANT]
-> Composition recipes are organized by **pattern × caller language**, not by language pair. Only the caller's language matters — the callee can be written in anything (gRPC is language-agnostic). A developer building a go-rust-dart fan-out just needs the `fan-out/go/` recipe; the callee languages are irrelevant.
+> Composition recipes are organized by **pattern × caller language**,
+> not by language pair. Only the caller's language matters — the callee
+> can be written in anything (gRPC is language-agnostic). For example,
+> `charon-direct-rust-go` is a Rust orchestrator calling
+> Go workers; the Rust developer only needs the `direct-call/` recipe.
 
 ---
 
@@ -193,35 +216,28 @@ Defer to v2:
 
 ## Implementation Steps
 
-### Phase 1: Restructure Directory
+See [_TASKS.md](./_TASKS.md) for the detailed task breakdown (TASK01–TASK13).
 
-1. Create `recipes/ui/` directory
-2. Move all 12 existing submodule repos into `recipes/ui/`
-3. Move [IMPLEMENTATION_ON_MAC_OS.md](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/IMPLEMENTATION_ON_MAC_OS.md) and [IMPLEMENTATION_ON_WINDOWS.md](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/IMPLEMENTATION_ON_WINDOWS.md) into `recipes/ui/`
-4. Move current [README.md](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/README.md) into `recipes/ui/README.md` (adapt content)
-5. Write new top-level [recipes/README.md](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/README.md) explaining both categories
-6. Update all references in external documentation (CONVENTIONS.md, SDK_GUIDE.md, etc.)
+### Phase 1: DRY Extraction (TASK01–TASK09)
 
-> [!WARNING]
-> Moving submodules requires updating `.gitmodules` paths. Each of the 12 submodule entries must be updated to reflect the new `ui/` prefix. This is a non-trivial git operation — test on a branch first.
+1. Create shared `recipes/protos/greeting/v1/greeting.proto` (TASK01)
+2. Extract Go daemon into `recipes/daemons/gudule-daemon-greeting-go/` (TASK02)
+3. Extract Flutter HostUI into `recipes/hostui/gudule-greeting-hostui-flutter/` (TASK03)
+4. Create assembly `recipes/assemblies/gudule-greeting-flutter-go/` and validate (TASK04 — PoC milestone)
+5. Extract remaining 7 daemons (TASK05–07)
+6. Extract remaining 5 HostUIs (TASK08–09)
 
-### Phase 2: Create Composition Recipes
+### Phase 2: Assembly & Cleanup (TASK10–TASK11)
 
-For each v1 pattern (direct-call, pipeline, fan-out):
+1. Create all 48 assembly manifests in `recipes/assemblies/` (TASK10)
+2. Remove the 12 old submodule repos and archive them (TASK11)
 
-1. **Define the proto contract** — keep it minimal, focused on demonstrating the pattern
-2. **Implement the Go caller** — using `go-holons` SDK's `discover` + `connect`
-3. **Implement the Rust caller** — using `rust-holons` SDK's equivalent
-4. **Implement worker holons** — at least one Go and one Rust worker (shared across patterns)
-5. **Write a [README.md](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/README.md) per pattern** — explaining the pattern, when to use it, and how to run the example
-6. **Write a `composition/README.md`** — the pattern catalog with links to each
-7. **Apply the same `BLOCKED.md` failure policy** as UI recipes (3 attempt rule)
+### Phase 3: Testing & Composition (TASK12–TASK13)
 
-### Phase 3: Update Documentation
-
-1. Update `CONVENTIONS.md` to reference both recipe categories
-2. Update `SDK_GUIDE.md` to explain `discover` + `connect` in the context of composition recipes
-3. Update KI artifacts for the recipe ecosystem
+1. Build `gudule-greeting-testmatrix` for combinatorial testing (TASK12)
+2. Implement `charon-worker-compute` and `charon-worker-transform` (Go workers)
+3. Implement `charon-{direct,pipeline,fanout}-<lang>-go` for all 11 languages (TASK13)
+4. Update CONVENTIONS.md / SDK_GUIDE.md to reference both recipe categories
 
 ---
 
@@ -230,23 +246,20 @@ For each v1 pattern (direct-call, pipeline, fan-out):
 Each composition recipe follows a consistent layout:
 
 ```
-composition/<pattern>/<caller-lang>/
+recipes/composition/direct-call/charon-direct-rust-go/
 ├── holon.yaml                  ← composite holon manifest
 ├── README.md                   ← pattern explanation + how to run
-├── orchestrator/               ← the caller holon
+├── orchestrator/               ← the Rust caller holon
 │   ├── holon.yaml
 │   ├── protos/
 │   ├── gen/
-│   ├── cmd/
-│   └── internal/ (or src/)
-├── worker/                     ← the callee holon(s)
-│   ├── holon.yaml
-│   ├── protos/
-│   ├── gen/
-│   ├── cmd/
-│   └── internal/ (or src/)
+│   ├── src/
+│   └── Cargo.toml
 └── Makefile                    ← builds + runs the full composition
 ```
+
+Workers live in `recipes/composition/workers/` and are shared across
+all orchestrators — they are not embedded in each recipe.
 
 Each recipe is self-contained (following the daemon copy independence rule). The worker holons are intentionally simple — the focus is on the **orchestrator's composition logic**, not the worker's domain logic.
 
@@ -254,32 +267,9 @@ Each recipe is self-contained (following the daemon copy independence rule). The
 
 ## Repo Strategy
 
-> [!IMPORTANT]
-> Unlike UI recipes which need 12 separate repos (one per combination), composition recipes can use **fewer repos** since they are pattern-focused.
-
-Two options:
-
-**Option A: One repo per pattern** (6 repos total for v1+v2)
-- `organic-programming/recipe-direct-call`
-- `organic-programming/recipe-pipeline`
-- `organic-programming/recipe-fan-out`
-- Pro: mirrors the UI recipe approach (submodule per repo)
-- Con: many small repos
-
-**Option B: Single composition repo** (1 repo)
-- `organic-programming/composition-recipes`
-- All patterns in subdirectories
-- Pro: simpler management, patterns share worker code
-- Con: breaks the submodule-per-repo convention
-
-**Recommendation**: Option A for consistency with the UI recipe model. Each pattern is different enough to warrant its own repo, and the submodule convention is well established.
-
----
-
-## Open Questions
-
-1. **Canonical scenario naming** — is "Computation Relay" a good name, or should it follow the Gudule pattern and have a holon identity (e.g., a holon named "Relay" or "Echo")?
-2. **Worker language** — should the default worker always be in the *other* language (Go orchestrator + Rust worker) to demonstrate cross-language, or same language for simplicity?
+All recipes live in the monorepo (`organic-programming/seed`). The 12
+old submodule repos will be archived after TASK11. No separate repos
+for composition recipes — workers are shared, orchestrators are small.
 
 ---
 
@@ -289,7 +279,7 @@ The original 2×6 UI matrix (Go/Rust × 6 UIs) expands into a
 monorepo with shared components:
 
 - **8 daemon languages:** Go, Rust, Python, Swift, Kotlin, Dart, C#, Node.js
-- **6 HostUI technologies:** SwiftUI, Flutter, Kotlin, Web, .NET, Qt
+- **6 HostUI technologies:** Flutter, SwiftUI, Compose, Web, Dotnet, Qt
 - **48 assemblies:** 8 × 6 thin `holon.yaml` manifests (no source)
 - **11 composition orchestrators:** Go through C++ (all SDKs with `connect(slug)`)
 - **12 submodule repos archived** and replaced by monorepo
