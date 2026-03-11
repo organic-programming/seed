@@ -1,0 +1,15 @@
+FROM ubuntu:24.04
+
+RUN apt-get update && apt-get install -y \
+    curl git unzip xz-utils clang cmake ninja-build \
+    pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev \
+    lld-18 \
+    golang-go \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Flutter
+RUN git clone https://github.com/flutter/flutter.git /opt/flutter --branch stable --depth 1
+ENV PATH="/opt/flutter/bin:${PATH}"
+RUN flutter precache --linux
+
+WORKDIR /workspace

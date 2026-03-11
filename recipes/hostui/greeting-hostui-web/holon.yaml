@@ -1,0 +1,25 @@
+schema: holon/v0
+uuid: "e9ea2a58-2b0d-4931-91bc-b6771cd1d162"
+given_name: greeting
+family_name: hostui-web
+motto: Web host UI for the greeting daemon.
+composer: Codex
+clade: deterministic/pure
+status: draft
+born: "2026-03-11"
+parents: []
+reproduction: manual
+generated_by: codex
+description: |
+  A standalone browser HostUI for the v0.4 greeting recipes. It consumes
+  a direct daemon target provided through the page bootstrap and builds
+  with npm into a static site artifact.
+kind: composite
+platforms: [macos, linux, windows]
+build:
+  runner: npm
+requires:
+  commands: [node, npm]
+  files: [package.json]
+artifacts:
+  primary: dist/index.html

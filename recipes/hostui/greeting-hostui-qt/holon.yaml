@@ -1,0 +1,26 @@
+schema: holon/v0
+uuid: "85ce44fa-7f2f-44fb-8cf0-969fbc2def8b"
+given_name: greeting
+family_name: hostui-qt
+motto: Qt host UI for the greeting daemon.
+composer: Codex
+clade: deterministic/pure
+status: draft
+born: "2026-03-11"
+parents: []
+reproduction: manual
+generated_by: codex
+description: |
+  A standalone Qt HostUI for the v0.4 greeting recipes. It uses
+  cpp-holons connect() for explicit targets and for packaged daemon
+  startup, while the daemon CLI binary handles the existing list/say
+  helper commands.
+kind: composite
+platforms: [macos, linux, windows]
+build:
+  runner: qt-cmake
+requires:
+  commands: [cmake]
+  files: [CMakeLists.txt]
+artifacts:
+  primary: .op/build/bin/gudule-greeting-goqt

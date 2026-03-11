@@ -1,0 +1,147 @@
+:root {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --panel: rgba(19, 27, 42, 0.88);
+  --panel-strong: rgba(12, 18, 30, 0.96);
+  --line: rgba(133, 173, 255, 0.24);
+  --text: #f3f6ff;
+  --muted: #95a7c2;
+  --accent: #7cf0d2;
+  --accent-strong: #33b7ff;
+  --danger: #ff7f9f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Iowan Old Style", "Palatino Linotype", serif;
+  background:
+    radial-gradient(circle at top left, rgba(51, 183, 255, 0.22), transparent 36%),
+    radial-gradient(circle at bottom right, rgba(124, 240, 210, 0.18), transparent 32%),
+    linear-gradient(160deg, #08111f 0%, #111a2c 55%, #090d16 100%);
+  color: var(--text);
+}
+
+#app {
+  min-height: 100vh;
+  padding: 32px 20px;
+}
+
+.shell {
+  max-width: 920px;
+  margin: 0 auto;
+  display: grid;
+  gap: 20px;
+}
+
+.hero,
+.panel {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+  border-radius: 24px;
+  box-shadow: 0 24px 80px rgba(5, 12, 24, 0.42);
+}
+
+.hero {
+  padding: 28px 30px;
+}
+
+.hero h1 {
+  margin: 0 0 8px;
+  font-size: clamp(2.4rem, 6vw, 4.8rem);
+  line-height: 0.94;
+  letter-spacing: -0.04em;
+}
+
+.hero p {
+  margin: 0;
+  max-width: 740px;
+  color: var(--muted);
+  font-size: 1.03rem;
+}
+
+.panel {
+  padding: 22px;
+}
+
+.greeting-card {
+  min-height: 320px;
+  display: grid;
+  gap: 20px;
+}
+
+.greeting-output {
+  border-radius: 20px;
+  min-height: 180px;
+  padding: 24px;
+  background: var(--panel-strong);
+  border: 1px solid rgba(124, 240, 210, 0.16);
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.greeting-output strong {
+  font-size: clamp(1.8rem, 4vw, 3.4rem);
+  line-height: 1.05;
+}
+
+.greeting-output p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.controls {
+  display: grid;
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field span {
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.field input,
+.field select,
+.controls button {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  padding: 14px 16px;
+  font: inherit;
+}
+
+.field input,
+.field select {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.field select {
+  appearance: none;
+}
+
+.controls button {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: #03121c;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.status {
+  color: var(--muted);
+  min-height: 1.4rem;
+}
+
+.status.error {
+  color: var(--danger);
+}

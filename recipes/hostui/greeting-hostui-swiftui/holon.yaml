@@ -1,0 +1,28 @@
+schema: holon/v0
+uuid: "98db8f7d-89de-4a4c-a93c-7ab938347501"
+given_name: greeting
+family_name: hostui-swiftui
+motto: SwiftUI host UI for the greeting daemon.
+composer: Codex
+clade: deterministic/pure
+status: draft
+born: "2026-03-11"
+parents: []
+reproduction: manual
+generated_by: codex
+description: |
+  A standalone SwiftUI HostUI for the v0.4 greeting recipes. It connects
+  through swift-holons using GUDULE_DAEMON_TARGET when provided and falls
+  back to a packaged daemon staged by an assembly.
+kind: composite
+platforms: [macos]
+build:
+  runner: swift-package
+  defaults:
+    target: macos
+    mode: debug
+requires:
+  commands: [swift, xcodebuild]
+  files: [Package.swift]
+artifacts:
+  primary: .op/build/swift/debug/GreetingSwiftUI

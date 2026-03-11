@@ -1,0 +1,28 @@
+schema: holon/v0
+uuid: "c5252937-a2bc-45d0-8ec7-793fa1127bd0"
+given_name: greeting
+family_name: hostui-dotnet
+motto: .NET host UI for the greeting daemon.
+composer: Codex
+clade: deterministic/pure
+status: draft
+born: "2026-03-11"
+parents: []
+reproduction: manual
+generated_by: codex
+description: |
+  A standalone .NET MAUI HostUI for the v0.4 greeting recipes. It prefers
+  GUDULE_DAEMON_TARGET at runtime and otherwise connects through a staged
+  packaged daemon.
+kind: composite
+platforms: [macos, windows]
+build:
+  runner: dotnet
+  defaults:
+    target: macos
+    mode: debug
+requires:
+  commands: [dotnet]
+  files: [GreetingGodotnet.csproj]
+artifacts:
+  primary: .op/build/dotnet/GreetingDotnet

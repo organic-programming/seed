@@ -1,0 +1,75 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">net8.0-windows10.0.19041.0</TargetFrameworks>
+    <TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('windows'))">net8.0-maccatalyst</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <UseAppHost>true</UseAppHost>
+    <RootNamespace>Greeting.Godotnet</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>GreetingDotnet</AssemblyName>
+    <ApplicationTitle>GreetingDotnet</ApplicationTitle>
+    <ApplicationId>org.organicprogramming.gudule.greeting.godotnet</ApplicationId>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::IsOSPlatform('windows'))">10.0.19041.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="!$([MSBuild]::IsOSPlatform('windows'))">14.0</SupportedOSPlatformVersion>
+    <WindowsPackageType Condition="$([MSBuild]::IsOSPlatform('windows'))">None</WindowsPackageType>
+    <PackagedDaemonBinaryName Condition="$([MSBuild]::IsOSPlatform('windows'))">gudule-greeting-daemon.exe</PackagedDaemonBinaryName>
+    <PackagedDaemonBinaryName Condition="!$([MSBuild]::IsOSPlatform('windows'))">gudule-greeting-daemon</PackagedDaemonBinaryName>
+    <DevDaemonBinaryName Condition="$([MSBuild]::IsOSPlatform('windows'))">gudule-daemon-greeting-go.exe</DevDaemonBinaryName>
+    <DevDaemonBinaryName Condition="!$([MSBuild]::IsOSPlatform('windows'))">gudule-daemon-greeting-go</DevDaemonBinaryName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.29.5" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.76.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.76.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="8.0.100" />
+    <ProjectReference Include="../../../sdk/csharp-holons/Holons/Holons.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('windows'))">
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240802000" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Protos/greeting.proto" GrpcServices="Client" CompileOutputs="false" />
+    <MauiAsset Include="Resources/Raw/**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Remove="Generated/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(IntermediateOutputPath)Protos\\Greeting.cs')">
+    <Compile Include="$(IntermediateOutputPath)Protos\\Greeting.cs" Link="Generated\\Greeting.cs" />
+    <Compile Include="$(IntermediateOutputPath)Protos\\GreetingGrpc.cs" Link="Generated\\GreetingGrpc.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="!Exists('$(IntermediateOutputPath)Protos\\Greeting.cs')">
+    <Compile Include="Generated\\Greeting.cs" />
+    <Compile Include="Generated\\GreetingGrpc.cs" />
+  </ItemGroup>
+
+  <Target Name="StageDaemon" BeforeTargets="Build">
+    <PropertyGroup>
+      <PrimaryDevDaemonPath>../../daemons/greeting-daemon-go/.op/build/bin/$(DevDaemonBinaryName)</PrimaryDevDaemonPath>
+      <FallbackDevDaemonPath>../../daemons/greeting-daemon-go/$(DevDaemonBinaryName)</FallbackDevDaemonPath>
+    </PropertyGroup>
+    <ItemGroup Condition="Exists('$(PrimaryDevDaemonPath)')">
+      <PackagedDaemon Include="$(PrimaryDevDaemonPath)" />
+    </ItemGroup>
+    <ItemGroup Condition="!Exists('$(PrimaryDevDaemonPath)') and Exists('$(FallbackDevDaemonPath)')">
+      <PackagedDaemon Include="$(FallbackDevDaemonPath)" />
+    </ItemGroup>
+    <MakeDir Directories="$(MSBuildProjectDirectory)/Resources/Raw" Condition="'@(PackagedDaemon)' != ''" />
+    <Copy
+      SourceFiles="@(PackagedDaemon)"
+      DestinationFiles="$(MSBuildProjectDirectory)/Resources/Raw/$(PackagedDaemonBinaryName)"
+      Condition="'@(PackagedDaemon)' != ''" />
+    <Exec Condition="'@(PackagedDaemon)' != '' and '$(OS)' != 'Windows_NT'" Command="chmod +x &quot;$(MSBuildProjectDirectory)/Resources/Raw/$(PackagedDaemonBinaryName)&quot;" />
+  </Target>
+</Project>

@@ -1,0 +1,36 @@
+schema: holon/v0
+uuid: "ca6db235-8e69-43de-b898-3480fa0873e1"
+given_name: greeting-hostui-flutter
+family_name: greeting-daemon-go
+motto: Go daemon plus Flutter HostUI assembly.
+composer: Codex
+clade: deterministic/pure
+status: draft
+born: "2026-03-11"
+parents: []
+reproduction: manual
+generated_by: codex
+description: |
+  Standalone v0.4 assembly for the Go greeting daemon paired with the
+  Flutter HostUI.
+kind: composite
+platforms: [macos]
+build:
+  runner: recipe
+  defaults:
+    target: macos
+    mode: debug
+  members:
+    - id: daemon
+      path: ../../daemons/greeting-daemon-go
+      type: holon
+    - id: hostui
+      path: ../../hostui/greeting-hostui-flutter
+      type: holon
+  targets:
+    macos:
+      steps:
+        - build_member: daemon
+        - build_member: hostui
+artifacts:
+  primary: ../../hostui/greeting-hostui-flutter/build/macos/Build/Products/Debug/Runner.app
