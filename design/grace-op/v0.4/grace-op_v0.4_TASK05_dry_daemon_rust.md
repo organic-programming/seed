@@ -1,0 +1,25 @@
+# TASK05 — Extract DRY Rust Daemon
+
+## Summary
+
+Extract the Rust daemon from `rust-dart-holons` (or equivalent) into
+`recipes/daemons/greeting-daemon-rust/`. Follows the pattern
+validated by TASK04.
+
+> [!IMPORTANT]
+> **Always use the language SDK as much as possible.**
+> The Rust daemon must use `rust-holons` SDK server primitives.
+
+## Acceptance Criteria
+
+- [ ] `greeting-daemon-rust` has its own `holon.yaml` + Rust source
+- [ ] Uses `recipes/protos/greeting/v1/greeting.proto` (shared)
+- [ ] Builds standalone with `op build`
+- [ ] Runs standalone with `op run`
+- [ ] Supports macOS, Windows, Linux
+- [ ] Uses `rust-holons` SDK for server bootstrap
+- [ ] Existing submodule repos NOT modified
+
+## Dependencies
+
+TASK04 (PoC validated — pattern is proven).

@@ -296,11 +296,15 @@ monorepo with shared components:
 
 ## Subtasks
 
-| # | File | Summary | Depends on |
-|---|---|---|---|
-| 01 | [TASK01](./grace-op_v0.4_TASK01_dry_daemons.md) | Extract 8 DRY daemons | — |
-| 02 | [TASK02](./grace-op_v0.4_TASK02_dry_hostui.md) | Extract 6 DRY HostUIs | — |
-| 03 | [TASK03](./grace-op_v0.4_TASK03_assembly_manifests.md) | Create 48 assembly manifests | 01, 01.02 |
-| 04 | [TASK04](./grace-op_v0.4_TASK04_remove_submodules.md) | Remove 12 submodules | 03 |
-| 05 | [TASK05](./grace-op_v0.4_TASK05_testmatrix.md) | Combinatorial testing (Go program) | 03, 01.06 |
-| 06 | [TASK06](./grace-op_v0.4_TASK06_composition_recipes.md) | 3 patterns × 11 languages | — |
+See [_TASKS.md](./_TASKS.md) for the full decomposed task list with
+dependency graph. Summary:
+
+| Phase | Tasks | Summary |
+|---|---|---|
+| **Shared proto** | TASK01 | Single `greeting.proto` |
+| **PoC (Go+Dart)** | TASK02, TASK03, TASK04 | Extract Go daemon + Flutter HostUI, validate assembly |
+| **Remaining daemons** | TASK05, TASK06, TASK07 | Rust, Swift/Kotlin/Dart, Python/C#/Node |
+| **Remaining HostUIs** | TASK08, TASK09 | SwiftUI, Kotlin/Web/.NET/Qt |
+| **Assembly & cleanup** | TASK10, TASK11 | 48 manifests, remove submodules |
+| **Testing** | TASK12 | Combinatorial test matrix |
+| **Composition** | TASK13 | 3 patterns × 11 languages |

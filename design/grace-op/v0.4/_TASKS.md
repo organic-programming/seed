@@ -1,16 +1,60 @@
 # OP v0.4 Design Tasks — Recipe Ecosystem
 
+> [!CAUTION]
+> **The current implementation is globally correct — do NOT rewrite it.**
+> Some samples may be stuck or incomplete, but the architecture and
+> patterns are sound. This work is a **DRY generalization and extension**
+> of working code. Extract, factor, and extend — do not redesign,
+> refactor for style, or "improve" what already works. Fix what is
+> stuck, preserve what works.
+
+> [!IMPORTANT]
+> **Always use the language SDK as much as possible.** Every daemon
+> and HostUI must use its language's Organic Programming SDK for
+> server bootstrap, `connect(slug)`, and transport negotiation.
+> Avoid raw gRPC boilerplate.
+
+> [!IMPORTANT]
+> **Connect approach only.** Every UI assembly must use SDK
+> `connect(slug)` for daemon resolution — no raw `GrpcChannel`
+> or hardcoded addresses.
+
+## Execution Strategy
+
+Strictly linear — each task gates the next. TASK04 is the PoC
+milestone; nothing proceeds until it passes.
+
 ## Tasks
 
 | # | File | Summary | Depends on | Status |
 |---|---|---|---|---|
-| 01 | [TASK01](./grace-op_v0.4_TASK01_dry_daemons.md) | Extract 8 DRY daemons | — | — |
-| 02 | [TASK02](./grace-op_v0.4_TASK02_dry_hostui.md) | Extract 6 DRY HostUIs | — | — |
-| 03 | [TASK03](./grace-op_v0.4_TASK03_assembly_manifests.md) | Create 48 assembly manifests | TASK01, TASK02 | — |
-| 04 | [TASK04](./grace-op_v0.4_TASK04_remove_submodules.md) | Remove 12 submodules, archive repos | TASK03 | — |
-| 05 | [TASK05](./grace-op_v0.4_TASK05_testmatrix.md) | Combinatorial testing (Go testmatrix) | TASK03, TASK06 | — |
-| 06 | [TASK06](./grace-op_v0.4_TASK06_composition_recipes.md) | 3 patterns × 11 orchestrator languages | — | — |
+| | | **— Shared Proto —** | | |
+| 01 | [TASK01](./grace-op_v0.4_TASK01_shared_proto.md) | Shared `greeting.proto` | — | — |
+| | | **— PoC: Go + Dart —** | | |
+| 02 | [TASK02](./grace-op_v0.4_TASK02_dry_daemon_go.md) | Extract Go daemon | TASK01 | — |
+| 03 | [TASK03](./grace-op_v0.4_TASK03_dry_hostui_flutter.md) | Extract Flutter/Dart HostUI | TASK02 | — |
+| 04 | [TASK04](./grace-op_v0.4_TASK04_validate_go_dart_poc.md) | **★ Validate Go+Dart assembly (MILESTONE)** | TASK03 | — |
+| | | **— Remaining Daemons —** | | |
+| 05 | [TASK05](./grace-op_v0.4_TASK05_dry_daemon_rust.md) | Extract Rust daemon | TASK04 | — |
+| 06 | [TASK06](./grace-op_v0.4_TASK06_dry_daemons_swift_kotlin_dart.md) | Extract Swift, Kotlin, Dart daemons | TASK05 | — |
+| 07 | [TASK07](./grace-op_v0.4_TASK07_dry_daemons_python_csharp_node.md) | Extract Python, C#, Node.js daemons | TASK06 | — |
+| | | **— Remaining HostUIs —** | | |
+| 08 | [TASK08](./grace-op_v0.4_TASK08_dry_hostui_swiftui.md) | Extract SwiftUI HostUI | TASK07 | — |
+| 09 | [TASK09](./grace-op_v0.4_TASK09_dry_hostui_kotlin_web_dotnet_qt.md) | Extract Kotlin, Web, .NET, Qt HostUIs | TASK08 | — |
+| | | **— Assembly & Cleanup —** | | |
+| 10 | [TASK10](./grace-op_v0.4_TASK10_assembly_manifests.md) | Create 48 assembly manifests | TASK09 | — |
+| 11 | [TASK11](./grace-op_v0.4_TASK11_remove_submodules.md) | Remove 12 submodules, archive repos | TASK10 | — |
+| 12 | [TASK12](./grace-op_v0.4_TASK12_testmatrix.md) | Combinatorial testing (Go testmatrix) | TASK11 | — |
+| 13 | [TASK13](./grace-op_v0.4_TASK13_composition_recipes.md) | 3 patterns × 11 orchestrator languages | TASK12 | — |
 
-Design documents:
+## Design Documents
+
 - [DESIGN_recipe_ecosystem.md](./DESIGN_recipe_ecosystem.md) — architecture, patterns, rationale
 - [DESIGN_recipe_monorepo.md](./DESIGN_recipe_monorepo.md) — proto contracts, assembly matrix
+
+## Dependency Graph
+
+```
+TASK01 → TASK02 → TASK03 → TASK04 ★ → TASK05 → TASK06 → TASK07
+→ TASK08 → TASK09 → TASK10 → TASK11 → TASK12 → TASK13
+```

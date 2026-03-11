@@ -1,4 +1,4 @@
-# TASK03 — Create Assembly Manifests
+# TASK10 — Create Assembly Manifests
 
 ## Summary
 
@@ -45,7 +45,7 @@ build:
 
 ## Dependencies
 
-TASK01, TASK02 (daemons and HostUIs must exist).
+TASK09.
 
 ## Reference
 
