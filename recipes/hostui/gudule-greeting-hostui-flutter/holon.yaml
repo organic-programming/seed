@@ -1,0 +1,28 @@
+schema: holon/v0
+uuid: "2df4ef43-37d0-49df-b71c-16bf7b6406c3"
+given_name: gudule
+family_name: Greeting-Hostui-Flutter
+motto: Greets users in 56 languages through a Flutter HostUI.
+composer: B. ALTER
+clade: deterministic/pure
+status: draft
+born: "2026-03-11"
+
+parents: []
+reproduction: manual
+generated_by: manual
+
+description: |
+  A standalone Flutter HostUI for the shared greeting contract. It can
+  connect to any GreetingService daemon through dart-holons connect(),
+  or stage the bundled Go daemon as a temporary discoverable holon.
+
+kind: composite
+platforms: [macos]
+build:
+  runner: flutter
+requires:
+  commands: [flutter, dart]
+  files: [pubspec.yaml]
+artifacts:
+  primary: build/macos/Build/Products/Debug/gudule-greeting-hostui-flutter.app

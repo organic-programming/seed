@@ -1,0 +1,61 @@
+schema: holon/v0
+uuid: "332cf2bf-da26-4eef-bdf2-f235f31c8c43"
+given_name: gudule
+family_name: Greeting-Flutter-Go
+motto: Greets users in 56 languages with a Go daemon and Flutter HostUI.
+composer: B. ALTER
+clade: deterministic/pure
+status: draft
+born: "2026-03-11"
+
+parents: []
+reproduction: manual
+generated_by: manual
+
+description: |
+  Thin macOS assembly for the extracted Go daemon and Flutter HostUI.
+  It builds both holons, bundles the daemon into the app Resources
+  directory, and leaves the runtime connection on dart-holons connect().
+
+kind: composite
+platforms: [macos]
+build:
+  runner: recipe
+  defaults:
+    target: macos
+    mode: debug
+  members:
+    - id: daemon
+      path: daemon
+      type: holon
+    - id: app
+      path: app
+      type: holon
+  targets:
+    macos:
+      steps:
+        - build_member: daemon
+        - build_member: app
+        - exec:
+            cwd: .
+            argv: ["/bin/sh", "-c", "rm -rf build/gudule-greeting-hostui-flutter.app"]
+        - exec:
+            cwd: .
+            argv:
+              [
+                "ditto",
+                "app/build/macos/Build/Products/Debug/gudule-greeting-hostui-flutter.app",
+                "build/gudule-greeting-hostui-flutter.app",
+              ]
+        - copy:
+            from: daemon/.op/build/bin/gudule-daemon-greeting-go
+            to: build/gudule-greeting-hostui-flutter.app/Contents/Resources/gudule-daemon-greeting-go
+        - assert_file:
+            path: build/gudule-greeting-hostui-flutter.app
+requires:
+  commands: [go, flutter, dart]
+  files:
+    - daemon/go.mod
+    - app/pubspec.yaml
+artifacts:
+  primary: build/gudule-greeting-hostui-flutter.app
