@@ -18,10 +18,10 @@ Strictly linear — each task gates the next. This final phase scales the archit
 | # | File | Summary | Depends on |
 |---|---|---|---|
 | | | **— Assembly & Cleanup —** | |
-| 11 | [TASK11](./grace-op_v0.4.3_TASK01_assembly_manifests.md) | Create 48 assembly manifests | TASK10 (from v0.4.2) |
-| 12 | [TASK12](./grace-op_v0.4.3_TASK02_remove_submodules.md) | Remove 12 submodules, archive repos | TASK11 (parallel, not blocking) |
-| 13 | [TASK13](./grace-op_v0.4.3_TASK03_composition_recipes.md) | 3 patterns × 11 orchestrator languages | TASK11 |
-| 14 | [TASK14](./grace-op_v0.4.3_TASK04_testmatrix.md) | Combinatorial testing (Go testmatrix) | TASK13 |
+| 01 | [TASK01](./grace-op_v0.4.3_TASK01_assembly_manifests.md) | Create 48 assembly manifests | TASK06 (from v0.4.2) |
+| 02 | [TASK02](./grace-op_v0.4.3_TASK02_remove_submodules.md) | Remove 12 submodules, archive repos | TASK01 (parallel, not blocking) |
+| 03 | [TASK03](./grace-op_v0.4.3_TASK03_composition_recipes.md) | 3 patterns × 11 orchestrator languages | TASK01 |
+| 04 | [TASK04](./grace-op_v0.4.3_TASK04_testmatrix.md) | Combinatorial testing (Go testmatrix) | TASK03 |
 
 ## Design Documents
 

@@ -18,14 +18,14 @@ Strictly linear — each task gates the next. TASK10 is the 3x3 cross-language v
 | # | File | Summary | Depends on |
 |---|---|---|---|
 | | | **— Remaining Daemons —** | |
-| 05 | [TASK05](./grace-op_v0.4.2_TASK01_dry_daemon_rust.md) | Extract Rust daemon | TASK04 (from v0.4.1) |
-| 06 | [TASK06](./grace-op_v0.4.2_TASK02_dry_daemons_swift_kotlin_dart.md) | Extract Swift/Kotlin, create Dart daemon | TASK05 |
-| 07 | [TASK07](./grace-op_v0.4.2_TASK03_dry_daemons_python_csharp_node.md) | Extract C#, create Python/Node daemons | TASK06 |
+| 01 | [TASK01](./grace-op_v0.4.2_TASK01_dry_daemon_rust.md) | Extract Rust daemon | TASK04 (from v0.4.1) |
+| 02 | [TASK02](./grace-op_v0.4.2_TASK02_dry_daemons_swift_kotlin_dart.md) | Extract Swift/Kotlin, create Dart daemon | TASK01 |
+| 03 | [TASK03](./grace-op_v0.4.2_TASK03_dry_daemons_python_csharp_node.md) | Extract C#, create Python/Node daemons | TASK02 |
 | | | **— Remaining HostUIs —** | |
-| 08 | [TASK08](./grace-op_v0.4.2_TASK04_dry_hostui_swiftui.md) | Extract SwiftUI HostUI | TASK07 |
-| 09 | [TASK09](./grace-op_v0.4.2_TASK05_dry_hostui_kotlin_web_dotnet_qt.md) | Extract Kotlin, Web, .NET, Qt HostUIs | TASK08 |
+| 04 | [TASK04](./grace-op_v0.4.2_TASK04_dry_hostui_swiftui.md) | Extract SwiftUI HostUI | TASK03 |
+| 05 | [TASK05](./grace-op_v0.4.2_TASK05_dry_hostui_kotlin_web_dotnet_qt.md) | Extract Kotlin, Web, .NET, Qt HostUIs | TASK04 |
 | | | **— Cross-Language Validation —** | |
-| 10 | [TASK10](./grace-op_v0.4.2_TASK06_cross_language_validation.md) | **★ 3×3 cross-language validation (MILESTONE)** | TASK09 |
+| 06 | [TASK06](./grace-op_v0.4.2_TASK06_cross_language_validation.md) | **★ 3×3 cross-language validation (MILESTONE)** | TASK05 |
 
 ## Design Documents
 
