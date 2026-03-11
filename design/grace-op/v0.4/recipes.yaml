@@ -21,7 +21,7 @@ daemons:
     source: recipes/go-dart-holons/examples/greeting/greeting-daemon
     sdk: go-holons
     lang: go
-    runner: go
+    runner: go-module
     os: [macos, linux, windows]
     task: TASK02
 
@@ -39,7 +39,7 @@ daemons:
     source: recipes/go-swift-holons/examples/greeting/greeting-daemon
     sdk: swift-holons
     lang: swift
-    runner: swift
+    runner: swift-package
     os: [macos, linux]
     task: TASK06
 
@@ -57,7 +57,7 @@ daemons:
     source: new
     sdk: dart-holons
     lang: dart
-    runner: dart
+    runner: flutter  # dart server daemon uses flutter runner
     os: [macos, linux, windows]
     task: TASK06
 
@@ -66,7 +66,7 @@ daemons:
     source: new
     sdk: python-holons
     lang: python
-    runner: python
+    runner: TBD  # no op runner yet — will need a python runner
     os: [macos, linux, windows]
     task: TASK07
 
@@ -84,7 +84,7 @@ daemons:
     source: new
     sdk: node-holons
     lang: node
-    runner: node
+    runner: npm
     os: [macos, linux, windows]
     task: TASK07
 
@@ -95,6 +95,7 @@ hostuis:
     source: recipes/go-dart-holons/examples/greeting/greeting-godart
     sdk: dart-holons
     framework: flutter
+    runner: flutter
     os: [macos, linux, windows]
     task: TASK03
 
@@ -103,6 +104,7 @@ hostuis:
     source: recipes/go-swift-holons/examples/greeting/greeting-swiftui
     sdk: swift-holons
     framework: swiftui
+    runner: swift-package
     os: [macos, ios]
     task: TASK08
 
@@ -111,6 +113,7 @@ hostuis:
     source: recipes/go-kotlin-holons/examples/greeting/greeting-gokotlin
     sdk: kotlin-holons
     framework: compose
+    runner: gradle
     os: [macos, linux, windows, android]
     task: TASK09
 
@@ -119,6 +122,7 @@ hostuis:
     source: recipes/go-web-holons/examples/greeting/greeting-goweb
     sdk: "@connectrpc/connect-web"
     framework: web
+    runner: npm
     os: [macos, linux, windows]
     task: TASK09
 
@@ -127,6 +131,7 @@ hostuis:
     source: recipes/go-dotnet-holons/examples/greeting/greeting-godotnet
     sdk: csharp-holons
     framework: dotnet
+    runner: dotnet
     os: [macos, windows]
     task: TASK09
 
@@ -135,6 +140,7 @@ hostuis:
     source: recipes/go-qt-holons/examples/greeting/greeting-goqt
     sdk: cpp-holons
     framework: qt
+    runner: qt-cmake
     os: [macos, linux, windows]
     task: TASK09
 
@@ -202,11 +208,13 @@ workers:
   - name: charon-worker-compute
     family_name: Worker-Compute
     lang: go
+    runner: go-module
     task: TASK12
 
   - name: charon-worker-transform
     family_name: Worker-Transform
     lang: go
+    runner: go-module
     task: TASK12
 
 # ── Composition Orchestrators (33) ────────────────────────

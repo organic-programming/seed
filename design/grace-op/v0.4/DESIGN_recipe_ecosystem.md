@@ -69,7 +69,7 @@ recipes/
 │   ├── ...                                          ← (see DESIGN_recipe_monorepo.md for full 48)
 │   └── gudule-greeting-qt-node/
 │
-├── composition/                                     ← backend-to-backend (TASK13)
+├── composition/                                     ← backend-to-backend (TASK12)
 │   ├── README.md
 │   ├── workers/
 │   │   ├── charon-worker-compute/
@@ -86,7 +86,7 @@ recipes/
 │       ├── charon-fanout-go-go/
 │       └── ...
 │
-├── testmatrix/                                      ← combinatorial testing (TASK12)
+├── testmatrix/                                      ← combinatorial testing (TASK13)
 │   └── gudule-greeting-testmatrix/
 │
 ├── IMPLEMENTATION_ON_MAC_OS.md
