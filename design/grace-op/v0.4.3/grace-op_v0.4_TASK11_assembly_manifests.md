@@ -51,7 +51,7 @@ build:
 
 ## Acceptance Criteria
 
-- [ ] 48 `holon.yaml` files created (names per [DESIGN_recipe_monorepo.md](./DESIGN_recipe_monorepo.md))
+- [ ] 48 `holon.yaml` files created (names per [DESIGN_recipe_monorepo.md](../v0.4/DESIGN_recipe_monorepo.md))
 - [ ] Each `family_name` matches the canonical names in DESIGN_recipe_monorepo.md §4
 - [ ] Each builds with `op build`
 - [ ] Each manifest specifies `transport:` explicitly (tcp or stdio)
@@ -63,4 +63,4 @@ TASK10 (3×3 validation must pass first).
 ## Reference
 
 Full 48-entry assembly matrix with highlighted full-stack combos:
-[DESIGN_recipe_monorepo.md](./DESIGN_recipe_monorepo.md)
+[DESIGN_recipe_monorepo.md](../v0.4/DESIGN_recipe_monorepo.md)
