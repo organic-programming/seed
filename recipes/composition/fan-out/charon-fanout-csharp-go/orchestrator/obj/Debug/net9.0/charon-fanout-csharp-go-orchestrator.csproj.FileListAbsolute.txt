@@ -1,0 +1,15 @@
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/.op/build/dotnet/charon-fanout-csharp-go-orchestrator
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/.op/build/dotnet/charon-fanout-csharp-go-orchestrator.deps.json
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/.op/build/dotnet/charon-fanout-csharp-go-orchestrator.runtimeconfig.json
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/.op/build/dotnet/charon-fanout-csharp-go-orchestrator.dll
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/.op/build/dotnet/charon-fanout-csharp-go-orchestrator.pdb
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/obj/Debug/net9.0/charon-fanout-csharp-go-orchestrator.GeneratedMSBuildEditorConfig.editorconfig
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/obj/Debug/net9.0/charon-fanout-csharp-go-orchestrator.AssemblyInfoInputs.cache
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/obj/Debug/net9.0/charon-fanout-csharp-go-orchestrator.AssemblyInfo.cs
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/obj/Debug/net9.0/charon-fanout-csharp-go-orchestrator.csproj.CoreCompileInputs.cache
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/obj/Debug/net9.0/charon-fanout-csharp-go-orchestrator.sourcelink.json
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/obj/Debug/net9.0/charon-fanout-csharp-go-orchestrator.dll
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/obj/Debug/net9.0/refint/charon-fanout-csharp-go-orchestrator.dll
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/obj/Debug/net9.0/charon-fanout-csharp-go-orchestrator.pdb
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/obj/Debug/net9.0/charon-fanout-csharp-go-orchestrator.genruntimeconfig.cache
+/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/recipes/composition/fan-out/charon-fanout-csharp-go/orchestrator/obj/Debug/net9.0/ref/charon-fanout-csharp-go-orchestrator.dll

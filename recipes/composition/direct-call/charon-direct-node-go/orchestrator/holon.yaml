@@ -1,0 +1,12 @@
+schema: holon/v0
+given_name: charon
+family_name: Composition-Orchestrator-Direct-Node-Go
+kind: native
+platforms: [macos]
+build:
+  runner: npm
+requires:
+  commands: [node, npm]
+  files: [package.json, package-lock.json, src/main.js]
+artifacts:
+  binary: charon-direct-node-go-orchestrator

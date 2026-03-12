@@ -1,0 +1,12 @@
+schema: holon/v0
+given_name: charon
+family_name: Composition-Orchestrator-Pipeline-Python-Go
+kind: native
+platforms: [macos]
+build:
+  runner: python
+requires:
+  commands: [python3]
+  files: [bin/main.py]
+artifacts:
+  binary: charon-pipeline-python-go-orchestrator

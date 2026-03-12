@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.20)
+project(charon-pipeline-cpp-go-orchestrator LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_executable(charon-pipeline-cpp-go-orchestrator src/main.cpp)

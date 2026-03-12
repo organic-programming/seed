@@ -1,0 +1,8 @@
+[package]
+name = "charon-fanout-rust-go-orchestrator"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "charon-fanout-rust-go-orchestrator"
+path = "src/main.rs"

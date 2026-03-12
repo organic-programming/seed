@@ -1,0 +1,5 @@
+name: charon_direct_dart_go_orchestrator
+description: charon-direct-dart-go orchestrator
+version: 0.1.0
+environment:
+  sdk: '>=3.9.0 <4.0.0'

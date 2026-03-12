@@ -1,0 +1,12 @@
+schema: holon/v0
+given_name: charon
+family_name: Composition-Orchestrator-Pipeline-Dart-Go
+kind: native
+platforms: [macos]
+build:
+  runner: dart
+requires:
+  commands: [dart]
+  files: [pubspec.yaml, bin/main.dart]
+artifacts:
+  binary: charon-pipeline-dart-go-orchestrator

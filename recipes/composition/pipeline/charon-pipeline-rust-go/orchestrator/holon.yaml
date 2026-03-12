@@ -1,0 +1,12 @@
+schema: holon/v0
+given_name: charon
+family_name: Composition-Orchestrator-Pipeline-Rust-Go
+kind: native
+platforms: [macos]
+build:
+  runner: cargo
+requires:
+  commands: [cargo]
+  files: [Cargo.toml, src/main.rs]
+artifacts:
+  binary: charon-pipeline-rust-go-orchestrator

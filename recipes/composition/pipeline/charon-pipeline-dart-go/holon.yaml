@@ -1,0 +1,94 @@
+schema: holon/v0
+given_name: charon
+family_name: Composition-Pipeline-Dart-Go
+kind: composite
+platforms: [macos]
+build:
+  runner: recipe
+  defaults:
+    target: macos
+    mode: debug
+  members:
+    - id: compute
+      path: ../../workers/charon-worker-compute
+      type: holon
+    - id: transform
+      path: ../../workers/charon-worker-transform
+      type: holon
+    - id: orchestrator
+      path: ./orchestrator
+      type: holon
+  targets:
+    macos:
+      steps:
+        - build_member: compute
+        - build_member: transform
+        - build_member: orchestrator
+        - exec:
+            cwd: .
+            argv:
+              - /bin/sh
+              - -c
+              - rm -rf build && mkdir -p build/holons/charon-worker-compute/.op/build/bin build/holons/charon-worker-transform/.op/build/bin build/orchestrator/bin build/orchestrator/scripts
+        - copy:
+            from: ../../workers/charon-worker-compute/holon.yaml
+            to: build/holons/charon-worker-compute/holon.yaml
+        - copy:
+            from: ../../workers/charon-worker-compute/.op/build/bin/charon-worker-compute
+            to: build/holons/charon-worker-compute/.op/build/bin/charon-worker-compute
+        - copy:
+            from: ../../workers/charon-worker-transform/holon.yaml
+            to: build/holons/charon-worker-transform/holon.yaml
+        - copy:
+            from: ../../workers/charon-worker-transform/.op/build/bin/charon-worker-transform
+            to: build/holons/charon-worker-transform/.op/build/bin/charon-worker-transform
+        - exec:
+            cwd: .
+            argv: ["ditto", "orchestrator/.op/build/bin", "build/orchestrator/bin"]
+        - exec:
+            cwd: .
+            argv:
+              - bash
+              - -lc
+              - |
+                  if [ -d "orchestrator/build/install/$(basename "$PWD")-orchestrator/lib" ]; then
+                    mkdir -p build/orchestrator/lib
+                    ditto "orchestrator/build/install/$(basename "$PWD")-orchestrator/lib" build/orchestrator/lib
+                  fi
+        - copy:
+            from: orchestrator/scripts/run.sh
+            to: build/orchestrator/scripts/run.sh
+        - exec:
+            cwd: .
+            argv:
+              - bash
+              - -lc
+              - |
+                  cat > build/run-composition.sh <<'EOF'
+                  #!/bin/sh
+                  set -eu
+                  SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+                  cd "$SCRIPT_DIR"
+                  export CHARON_WORKSPACE_ROOT="$SCRIPT_DIR"
+                  export CHARON_RUN_SCRIPT="$SCRIPT_DIR/orchestrator/scripts/run.sh"
+                  exec "$SCRIPT_DIR/orchestrator/bin/charon-pipeline-dart-go-orchestrator"
+                  EOF
+                  chmod +x build/run-composition.sh
+        - assert_file:
+            path: build/holons/charon-worker-compute/holon.yaml
+        - assert_file:
+            path: build/holons/charon-worker-compute/.op/build/bin/charon-worker-compute
+        - assert_file:
+            path: build/holons/charon-worker-transform/holon.yaml
+        - assert_file:
+            path: build/holons/charon-worker-transform/.op/build/bin/charon-worker-transform
+        - assert_file:
+            path: build/orchestrator/bin/charon-pipeline-dart-go-orchestrator
+        - assert_file:
+            path: build/orchestrator/scripts/run.sh
+        - assert_file:
+            path: build/run-composition.sh
+requires:
+  commands: [go, op, dart]
+artifacts:
+  primary: build/run-composition.sh

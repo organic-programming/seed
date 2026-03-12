@@ -1,0 +1,12 @@
+schema: holon/v0
+given_name: charon
+family_name: Composition-Orchestrator-Direct-Swift-Go
+kind: native
+platforms: [macos]
+build:
+  runner: swift-package
+requires:
+  commands: [swift, xcodebuild]
+  files: [Package.swift, Sources/charon-direct-swift-go-orchestrator/main.swift]
+artifacts:
+  binary: charon-direct-swift-go-orchestrator

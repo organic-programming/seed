@@ -1,0 +1,12 @@
+schema: holon/v0
+given_name: charon
+family_name: Composition-Orchestrator-Direct-Csharp-Go
+kind: native
+platforms: [macos]
+build:
+  runner: dotnet
+requires:
+  commands: [dotnet]
+  files: [charon-direct-csharp-go-orchestrator.csproj, Program.cs]
+artifacts:
+  binary: charon-direct-csharp-go-orchestrator

@@ -1,0 +1,13 @@
+schema: holon/v0
+given_name: charon
+family_name: Composition-Orchestrator-Fanout-Go-Go
+kind: native
+platforms: [macos]
+build:
+  runner: go-module
+  main: ./cmd/orchestrator
+requires:
+  commands: [go]
+  files: [go.mod, cmd/orchestrator/main.go]
+artifacts:
+  binary: charon-fanout-go-go-orchestrator

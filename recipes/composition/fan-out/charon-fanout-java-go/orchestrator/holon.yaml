@@ -1,0 +1,12 @@
+schema: holon/v0
+given_name: charon
+family_name: Composition-Orchestrator-Fanout-Java-Go
+kind: native
+platforms: [macos]
+build:
+  runner: gradle
+requires:
+  commands: [java, gradle]
+  files: [settings.gradle.kts, build.gradle.kts, src/main/java/Main.java]
+artifacts:
+  binary: charon-fanout-java-go-orchestrator

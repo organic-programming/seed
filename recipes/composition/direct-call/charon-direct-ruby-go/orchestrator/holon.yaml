@@ -1,0 +1,12 @@
+schema: holon/v0
+given_name: charon
+family_name: Composition-Orchestrator-Direct-Ruby-Go
+kind: native
+platforms: [macos]
+build:
+  runner: ruby
+requires:
+  commands: [ruby, bundle]
+  files: [Gemfile, bin/main.rb]
+artifacts:
+  binary: charon-direct-ruby-go-orchestrator

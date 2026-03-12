@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package transform.v1;
+
+option go_package = "github.com/organic-programming/seed/recipes/composition/workers/charon-worker-transform/gen/go/transform/v1;transformv1";
+
+import public "transform/v1/transform.proto";
