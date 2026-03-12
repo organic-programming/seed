@@ -2,7 +2,7 @@ schema: holon/v0
 given_name: gudule
 family_name: Greeting-Flutter-Kotlin
 kind: composite
-transport: tcp
+transport: stdio
 platforms: [macos]
 build:
   runner: recipe

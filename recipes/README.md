@@ -58,8 +58,8 @@ recipes/
 
 ### Transport Rules
 
-- SwiftUI assemblies use `transport: stdio`.
-- Flutter, Compose, Dotnet, Qt, and Web assemblies use `transport: tcp`.
+- All desktop HostUI assemblies use `transport: stdio`.
+- Web assemblies use `transport: tcp`.
 - The web row remains daemon + shared web HostUI composites in v0.4.3.
 
 ## Notes

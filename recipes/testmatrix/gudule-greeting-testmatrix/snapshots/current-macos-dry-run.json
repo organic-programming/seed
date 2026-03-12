@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-12T08:02:46Z",
+  "generated_at": "2026-03-12T10:56:47Z",
   "repo_root": "/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming",
   "timeout": "10s",
   "dry_run": true,
@@ -20,10 +20,13 @@
     {
       "name": "gudule-greeting-compose-csharp",
       "path": "recipes/assemblies/gudule-greeting-compose-csharp",
+      "family_name": "Greeting-Compose-Csharp",
+      "display_family": "Greeting-Compose-Csharp (Kotlin UI)",
+      "display_name": "Gudule Greeting-Compose-Csharp (Kotlin UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -35,10 +38,13 @@
     {
       "name": "gudule-greeting-compose-dart",
       "path": "recipes/assemblies/gudule-greeting-compose-dart",
+      "family_name": "Greeting-Compose-Dart",
+      "display_family": "Greeting-Compose-Dart (Kotlin UI)",
+      "display_name": "Gudule Greeting-Compose-Dart (Kotlin UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -50,10 +56,13 @@
     {
       "name": "gudule-greeting-compose-go",
       "path": "recipes/assemblies/gudule-greeting-compose-go",
+      "family_name": "Greeting-Compose-Go",
+      "display_family": "Greeting-Compose-Go (Kotlin UI)",
+      "display_name": "Gudule Greeting-Compose-Go (Kotlin UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -65,10 +74,13 @@
     {
       "name": "gudule-greeting-compose-kotlin",
       "path": "recipes/assemblies/gudule-greeting-compose-kotlin",
+      "family_name": "Greeting-Compose-Kotlin",
+      "display_family": "Greeting-Compose-Kotlin (Kotlin UI)",
+      "display_name": "Gudule Greeting-Compose-Kotlin (Kotlin UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -79,10 +91,13 @@
     {
       "name": "gudule-greeting-compose-node",
       "path": "recipes/assemblies/gudule-greeting-compose-node",
+      "family_name": "Greeting-Compose-Node",
+      "display_family": "Greeting-Compose-Node (Kotlin UI)",
+      "display_name": "Gudule Greeting-Compose-Node (Kotlin UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -95,10 +110,13 @@
     {
       "name": "gudule-greeting-compose-python",
       "path": "recipes/assemblies/gudule-greeting-compose-python",
+      "family_name": "Greeting-Compose-Python",
+      "display_family": "Greeting-Compose-Python (Kotlin UI)",
+      "display_name": "Gudule Greeting-Compose-Python (Kotlin UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -110,10 +128,13 @@
     {
       "name": "gudule-greeting-compose-rust",
       "path": "recipes/assemblies/gudule-greeting-compose-rust",
+      "family_name": "Greeting-Compose-Rust",
+      "display_family": "Greeting-Compose-Rust (Kotlin UI)",
+      "display_name": "Gudule Greeting-Compose-Rust (Kotlin UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -125,10 +146,13 @@
     {
       "name": "gudule-greeting-compose-swift",
       "path": "recipes/assemblies/gudule-greeting-compose-swift",
+      "family_name": "Greeting-Compose-Swift",
+      "display_family": "Greeting-Compose-Swift (Kotlin UI)",
+      "display_name": "Gudule Greeting-Compose-Swift (Kotlin UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -141,6 +165,9 @@
     {
       "name": "gudule-greeting-csharp-web",
       "path": "recipes/assemblies/gudule-greeting-csharp-web",
+      "family_name": "Greeting-Csharp-Web",
+      "display_family": "Greeting-Csharp-Web (Web UI)",
+      "display_name": "Gudule Greeting-Csharp-Web (Web UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -158,6 +185,9 @@
     {
       "name": "gudule-greeting-dart-web",
       "path": "recipes/assemblies/gudule-greeting-dart-web",
+      "family_name": "Greeting-Dart-Web",
+      "display_family": "Greeting-Dart-Web (Web UI)",
+      "display_name": "Gudule Greeting-Dart-Web (Web UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -175,10 +205,13 @@
     {
       "name": "gudule-greeting-dotnet-csharp",
       "path": "recipes/assemblies/gudule-greeting-dotnet-csharp",
+      "family_name": "Greeting-Dotnet-Csharp",
+      "display_family": "Greeting-Dotnet-Csharp (.NET UI)",
+      "display_name": "Gudule Greeting-Dotnet-Csharp (.NET UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -189,10 +222,13 @@
     {
       "name": "gudule-greeting-dotnet-dart",
       "path": "recipes/assemblies/gudule-greeting-dotnet-dart",
+      "family_name": "Greeting-Dotnet-Dart",
+      "display_family": "Greeting-Dotnet-Dart (.NET UI)",
+      "display_name": "Gudule Greeting-Dotnet-Dart (.NET UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -204,10 +240,13 @@
     {
       "name": "gudule-greeting-dotnet-go",
       "path": "recipes/assemblies/gudule-greeting-dotnet-go",
+      "family_name": "Greeting-Dotnet-Go",
+      "display_family": "Greeting-Dotnet-Go (.NET UI)",
+      "display_name": "Gudule Greeting-Dotnet-Go (.NET UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -219,10 +258,13 @@
     {
       "name": "gudule-greeting-dotnet-kotlin",
       "path": "recipes/assemblies/gudule-greeting-dotnet-kotlin",
+      "family_name": "Greeting-Dotnet-Kotlin",
+      "display_family": "Greeting-Dotnet-Kotlin (.NET UI)",
+      "display_name": "Gudule Greeting-Dotnet-Kotlin (.NET UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -234,10 +276,13 @@
     {
       "name": "gudule-greeting-dotnet-node",
       "path": "recipes/assemblies/gudule-greeting-dotnet-node",
+      "family_name": "Greeting-Dotnet-Node",
+      "display_family": "Greeting-Dotnet-Node (.NET UI)",
+      "display_name": "Gudule Greeting-Dotnet-Node (.NET UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -250,10 +295,13 @@
     {
       "name": "gudule-greeting-dotnet-python",
       "path": "recipes/assemblies/gudule-greeting-dotnet-python",
+      "family_name": "Greeting-Dotnet-Python",
+      "display_family": "Greeting-Dotnet-Python (.NET UI)",
+      "display_name": "Gudule Greeting-Dotnet-Python (.NET UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -265,10 +313,13 @@
     {
       "name": "gudule-greeting-dotnet-rust",
       "path": "recipes/assemblies/gudule-greeting-dotnet-rust",
+      "family_name": "Greeting-Dotnet-Rust",
+      "display_family": "Greeting-Dotnet-Rust (.NET UI)",
+      "display_name": "Gudule Greeting-Dotnet-Rust (.NET UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -280,10 +331,13 @@
     {
       "name": "gudule-greeting-dotnet-swift",
       "path": "recipes/assemblies/gudule-greeting-dotnet-swift",
+      "family_name": "Greeting-Dotnet-Swift",
+      "display_family": "Greeting-Dotnet-Swift (.NET UI)",
+      "display_name": "Gudule Greeting-Dotnet-Swift (.NET UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -296,10 +350,13 @@
     {
       "name": "gudule-greeting-flutter-csharp",
       "path": "recipes/assemblies/gudule-greeting-flutter-csharp",
+      "family_name": "Greeting-Flutter-Csharp",
+      "display_family": "Greeting-Flutter-Csharp (Flutter UI)",
+      "display_name": "Gudule Greeting-Flutter-Csharp (Flutter UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -312,10 +369,13 @@
     {
       "name": "gudule-greeting-flutter-dart",
       "path": "recipes/assemblies/gudule-greeting-flutter-dart",
+      "family_name": "Greeting-Flutter-Dart",
+      "display_family": "Greeting-Flutter-Dart (Flutter UI)",
+      "display_name": "Gudule Greeting-Flutter-Dart (Flutter UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -327,10 +387,13 @@
     {
       "name": "gudule-greeting-flutter-go",
       "path": "recipes/assemblies/gudule-greeting-flutter-go",
+      "family_name": "Greeting-Flutter-Go",
+      "display_family": "Greeting-Flutter-Go (Flutter UI)",
+      "display_name": "Gudule Greeting-Flutter-Go (Flutter UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -343,10 +406,13 @@
     {
       "name": "gudule-greeting-flutter-kotlin",
       "path": "recipes/assemblies/gudule-greeting-flutter-kotlin",
+      "family_name": "Greeting-Flutter-Kotlin",
+      "display_family": "Greeting-Flutter-Kotlin (Flutter UI)",
+      "display_name": "Gudule Greeting-Flutter-Kotlin (Flutter UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -359,10 +425,13 @@
     {
       "name": "gudule-greeting-flutter-node",
       "path": "recipes/assemblies/gudule-greeting-flutter-node",
+      "family_name": "Greeting-Flutter-Node",
+      "display_family": "Greeting-Flutter-Node (Flutter UI)",
+      "display_name": "Gudule Greeting-Flutter-Node (Flutter UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -376,10 +445,13 @@
     {
       "name": "gudule-greeting-flutter-python",
       "path": "recipes/assemblies/gudule-greeting-flutter-python",
+      "family_name": "Greeting-Flutter-Python",
+      "display_family": "Greeting-Flutter-Python (Flutter UI)",
+      "display_name": "Gudule Greeting-Flutter-Python (Flutter UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -392,10 +464,13 @@
     {
       "name": "gudule-greeting-flutter-rust",
       "path": "recipes/assemblies/gudule-greeting-flutter-rust",
+      "family_name": "Greeting-Flutter-Rust",
+      "display_family": "Greeting-Flutter-Rust (Flutter UI)",
+      "display_name": "Gudule Greeting-Flutter-Rust (Flutter UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -408,10 +483,13 @@
     {
       "name": "gudule-greeting-flutter-swift",
       "path": "recipes/assemblies/gudule-greeting-flutter-swift",
+      "family_name": "Greeting-Flutter-Swift",
+      "display_family": "Greeting-Flutter-Swift (Flutter UI)",
+      "display_name": "Gudule Greeting-Flutter-Swift (Flutter UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -425,6 +503,9 @@
     {
       "name": "gudule-greeting-go-web",
       "path": "recipes/assemblies/gudule-greeting-go-web",
+      "family_name": "Greeting-Go-Web",
+      "display_family": "Greeting-Go-Web (Web UI)",
+      "display_name": "Gudule Greeting-Go-Web (Web UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -442,6 +523,9 @@
     {
       "name": "gudule-greeting-kotlin-web",
       "path": "recipes/assemblies/gudule-greeting-kotlin-web",
+      "family_name": "Greeting-Kotlin-Web",
+      "display_family": "Greeting-Kotlin-Web (Web UI)",
+      "display_name": "Gudule Greeting-Kotlin-Web (Web UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -459,6 +543,9 @@
     {
       "name": "gudule-greeting-node-web",
       "path": "recipes/assemblies/gudule-greeting-node-web",
+      "family_name": "Greeting-Node-Web",
+      "display_family": "Greeting-Node-Web (Web UI)",
+      "display_name": "Gudule Greeting-Node-Web (Web UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -475,6 +562,9 @@
     {
       "name": "gudule-greeting-python-web",
       "path": "recipes/assemblies/gudule-greeting-python-web",
+      "family_name": "Greeting-Python-Web",
+      "display_family": "Greeting-Python-Web (Web UI)",
+      "display_name": "Gudule Greeting-Python-Web (Web UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -492,10 +582,13 @@
     {
       "name": "gudule-greeting-qt-csharp",
       "path": "recipes/assemblies/gudule-greeting-qt-csharp",
+      "family_name": "Greeting-Qt-Csharp",
+      "display_family": "Greeting-Qt-Csharp (Qt UI)",
+      "display_name": "Gudule Greeting-Qt-Csharp (Qt UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -507,10 +600,13 @@
     {
       "name": "gudule-greeting-qt-dart",
       "path": "recipes/assemblies/gudule-greeting-qt-dart",
+      "family_name": "Greeting-Qt-Dart",
+      "display_family": "Greeting-Qt-Dart (Qt UI)",
+      "display_name": "Gudule Greeting-Qt-Dart (Qt UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -522,10 +618,13 @@
     {
       "name": "gudule-greeting-qt-go",
       "path": "recipes/assemblies/gudule-greeting-qt-go",
+      "family_name": "Greeting-Qt-Go",
+      "display_family": "Greeting-Qt-Go (Qt UI)",
+      "display_name": "Gudule Greeting-Qt-Go (Qt UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -537,10 +636,13 @@
     {
       "name": "gudule-greeting-qt-kotlin",
       "path": "recipes/assemblies/gudule-greeting-qt-kotlin",
+      "family_name": "Greeting-Qt-Kotlin",
+      "display_family": "Greeting-Qt-Kotlin (Qt UI)",
+      "display_name": "Gudule Greeting-Qt-Kotlin (Qt UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -552,10 +654,13 @@
     {
       "name": "gudule-greeting-qt-node",
       "path": "recipes/assemblies/gudule-greeting-qt-node",
+      "family_name": "Greeting-Qt-Node",
+      "display_family": "Greeting-Qt-Node (Qt UI)",
+      "display_name": "Gudule Greeting-Qt-Node (Qt UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -568,10 +673,13 @@
     {
       "name": "gudule-greeting-qt-python",
       "path": "recipes/assemblies/gudule-greeting-qt-python",
+      "family_name": "Greeting-Qt-Python",
+      "display_family": "Greeting-Qt-Python (Qt UI)",
+      "display_name": "Gudule Greeting-Qt-Python (Qt UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -583,10 +691,13 @@
     {
       "name": "gudule-greeting-qt-rust",
       "path": "recipes/assemblies/gudule-greeting-qt-rust",
+      "family_name": "Greeting-Qt-Rust",
+      "display_family": "Greeting-Qt-Rust (Qt UI)",
+      "display_name": "Gudule Greeting-Qt-Rust (Qt UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -598,10 +709,13 @@
     {
       "name": "gudule-greeting-qt-swift",
       "path": "recipes/assemblies/gudule-greeting-qt-swift",
+      "family_name": "Greeting-Qt-Swift",
+      "display_family": "Greeting-Qt-Swift (Qt UI)",
+      "display_name": "Gudule Greeting-Qt-Swift (Qt UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "tcp",
+      "transport": "stdio",
       "platforms": [
         "macos"
       ],
@@ -614,6 +728,9 @@
     {
       "name": "gudule-greeting-rust-web",
       "path": "recipes/assemblies/gudule-greeting-rust-web",
+      "family_name": "Greeting-Rust-Web",
+      "display_family": "Greeting-Rust-Web (Web UI)",
+      "display_name": "Gudule Greeting-Rust-Web (Web UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -631,6 +748,9 @@
     {
       "name": "gudule-greeting-swift-web",
       "path": "recipes/assemblies/gudule-greeting-swift-web",
+      "family_name": "Greeting-Swift-Web",
+      "display_family": "Greeting-Swift-Web (Web UI)",
+      "display_name": "Gudule Greeting-Swift-Web (Web UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -649,6 +769,9 @@
     {
       "name": "gudule-greeting-swiftui-csharp",
       "path": "recipes/assemblies/gudule-greeting-swiftui-csharp",
+      "family_name": "Greeting-Swiftui-Csharp",
+      "display_family": "Greeting-Swiftui-Csharp (SwiftUI)",
+      "display_name": "Gudule Greeting-Swiftui-Csharp (SwiftUI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -664,6 +787,9 @@
     {
       "name": "gudule-greeting-swiftui-dart",
       "path": "recipes/assemblies/gudule-greeting-swiftui-dart",
+      "family_name": "Greeting-Swiftui-Dart",
+      "display_family": "Greeting-Swiftui-Dart (SwiftUI)",
+      "display_name": "Gudule Greeting-Swiftui-Dart (SwiftUI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -679,6 +805,9 @@
     {
       "name": "gudule-greeting-swiftui-go",
       "path": "recipes/assemblies/gudule-greeting-swiftui-go",
+      "family_name": "Greeting-Swiftui-Go",
+      "display_family": "Greeting-Swiftui-Go (SwiftUI)",
+      "display_name": "Gudule Greeting-Swiftui-Go (SwiftUI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -694,6 +823,9 @@
     {
       "name": "gudule-greeting-swiftui-kotlin",
       "path": "recipes/assemblies/gudule-greeting-swiftui-kotlin",
+      "family_name": "Greeting-Swiftui-Kotlin",
+      "display_family": "Greeting-Swiftui-Kotlin (SwiftUI)",
+      "display_name": "Gudule Greeting-Swiftui-Kotlin (SwiftUI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -709,6 +841,9 @@
     {
       "name": "gudule-greeting-swiftui-node",
       "path": "recipes/assemblies/gudule-greeting-swiftui-node",
+      "family_name": "Greeting-Swiftui-Node",
+      "display_family": "Greeting-Swiftui-Node (SwiftUI)",
+      "display_name": "Gudule Greeting-Swiftui-Node (SwiftUI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -725,6 +860,9 @@
     {
       "name": "gudule-greeting-swiftui-python",
       "path": "recipes/assemblies/gudule-greeting-swiftui-python",
+      "family_name": "Greeting-Swiftui-Python",
+      "display_family": "Greeting-Swiftui-Python (SwiftUI)",
+      "display_name": "Gudule Greeting-Swiftui-Python (SwiftUI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -740,6 +878,9 @@
     {
       "name": "gudule-greeting-swiftui-rust",
       "path": "recipes/assemblies/gudule-greeting-swiftui-rust",
+      "family_name": "Greeting-Swiftui-Rust",
+      "display_family": "Greeting-Swiftui-Rust (SwiftUI)",
+      "display_name": "Gudule Greeting-Swiftui-Rust (SwiftUI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -755,6 +896,9 @@
     {
       "name": "gudule-greeting-swiftui-swift",
       "path": "recipes/assemblies/gudule-greeting-swiftui-swift",
+      "family_name": "Greeting-Swiftui-Swift",
+      "display_family": "Greeting-Swiftui-Swift (SwiftUI)",
+      "display_name": "Gudule Greeting-Swiftui-Swift (SwiftUI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
@@ -770,6 +914,9 @@
     {
       "name": "charon-direct-cpp-go",
       "path": "recipes/composition/direct-call/charon-direct-cpp-go",
+      "family_name": "Composition-Direct-Cpp-Go",
+      "display_family": "Composition-Direct-Cpp-Go",
+      "display_name": "Composition-Direct-Cpp-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -785,6 +932,9 @@
     {
       "name": "charon-direct-csharp-go",
       "path": "recipes/composition/direct-call/charon-direct-csharp-go",
+      "family_name": "Composition-Direct-Csharp-Go",
+      "display_family": "Composition-Direct-Csharp-Go",
+      "display_name": "Composition-Direct-Csharp-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -800,6 +950,9 @@
     {
       "name": "charon-direct-dart-go",
       "path": "recipes/composition/direct-call/charon-direct-dart-go",
+      "family_name": "Composition-Direct-Dart-Go",
+      "display_family": "Composition-Direct-Dart-Go",
+      "display_name": "Composition-Direct-Dart-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -815,6 +968,9 @@
     {
       "name": "charon-direct-go-go",
       "path": "recipes/composition/direct-call/charon-direct-go-go",
+      "family_name": "Composition-Direct-Go-Go",
+      "display_family": "Composition-Direct-Go-Go",
+      "display_name": "Composition-Direct-Go-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -829,6 +985,9 @@
     {
       "name": "charon-direct-java-go",
       "path": "recipes/composition/direct-call/charon-direct-java-go",
+      "family_name": "Composition-Direct-Java-Go",
+      "display_family": "Composition-Direct-Java-Go",
+      "display_name": "Composition-Direct-Java-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -845,6 +1004,9 @@
     {
       "name": "charon-direct-kotlin-go",
       "path": "recipes/composition/direct-call/charon-direct-kotlin-go",
+      "family_name": "Composition-Direct-Kotlin-Go",
+      "display_family": "Composition-Direct-Kotlin-Go",
+      "display_name": "Composition-Direct-Kotlin-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -861,6 +1023,9 @@
     {
       "name": "charon-direct-node-go",
       "path": "recipes/composition/direct-call/charon-direct-node-go",
+      "family_name": "Composition-Direct-Node-Go",
+      "display_family": "Composition-Direct-Node-Go",
+      "display_name": "Composition-Direct-Node-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -877,6 +1042,9 @@
     {
       "name": "charon-direct-python-go",
       "path": "recipes/composition/direct-call/charon-direct-python-go",
+      "family_name": "Composition-Direct-Python-Go",
+      "display_family": "Composition-Direct-Python-Go",
+      "display_name": "Composition-Direct-Python-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -892,6 +1060,9 @@
     {
       "name": "charon-direct-ruby-go",
       "path": "recipes/composition/direct-call/charon-direct-ruby-go",
+      "family_name": "Composition-Direct-Ruby-Go",
+      "display_family": "Composition-Direct-Ruby-Go",
+      "display_name": "Composition-Direct-Ruby-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -908,6 +1079,9 @@
     {
       "name": "charon-direct-rust-go",
       "path": "recipes/composition/direct-call/charon-direct-rust-go",
+      "family_name": "Composition-Direct-Rust-Go",
+      "display_family": "Composition-Direct-Rust-Go",
+      "display_name": "Composition-Direct-Rust-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -923,6 +1097,9 @@
     {
       "name": "charon-direct-swift-go",
       "path": "recipes/composition/direct-call/charon-direct-swift-go",
+      "family_name": "Composition-Direct-Swift-Go",
+      "display_family": "Composition-Direct-Swift-Go",
+      "display_name": "Composition-Direct-Swift-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -939,6 +1116,9 @@
     {
       "name": "charon-fanout-cpp-go",
       "path": "recipes/composition/fan-out/charon-fanout-cpp-go",
+      "family_name": "Composition-Fanout-Cpp-Go",
+      "display_family": "Composition-Fanout-Cpp-Go",
+      "display_name": "Composition-Fanout-Cpp-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -954,6 +1134,9 @@
     {
       "name": "charon-fanout-csharp-go",
       "path": "recipes/composition/fan-out/charon-fanout-csharp-go",
+      "family_name": "Composition-Fanout-Csharp-Go",
+      "display_family": "Composition-Fanout-Csharp-Go",
+      "display_name": "Composition-Fanout-Csharp-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -969,6 +1152,9 @@
     {
       "name": "charon-fanout-dart-go",
       "path": "recipes/composition/fan-out/charon-fanout-dart-go",
+      "family_name": "Composition-Fanout-Dart-Go",
+      "display_family": "Composition-Fanout-Dart-Go",
+      "display_name": "Composition-Fanout-Dart-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -984,6 +1170,9 @@
     {
       "name": "charon-fanout-go-go",
       "path": "recipes/composition/fan-out/charon-fanout-go-go",
+      "family_name": "Composition-Fanout-Go-Go",
+      "display_family": "Composition-Fanout-Go-Go",
+      "display_name": "Composition-Fanout-Go-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -998,6 +1187,9 @@
     {
       "name": "charon-fanout-java-go",
       "path": "recipes/composition/fan-out/charon-fanout-java-go",
+      "family_name": "Composition-Fanout-Java-Go",
+      "display_family": "Composition-Fanout-Java-Go",
+      "display_name": "Composition-Fanout-Java-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1014,6 +1206,9 @@
     {
       "name": "charon-fanout-kotlin-go",
       "path": "recipes/composition/fan-out/charon-fanout-kotlin-go",
+      "family_name": "Composition-Fanout-Kotlin-Go",
+      "display_family": "Composition-Fanout-Kotlin-Go",
+      "display_name": "Composition-Fanout-Kotlin-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1030,6 +1225,9 @@
     {
       "name": "charon-fanout-node-go",
       "path": "recipes/composition/fan-out/charon-fanout-node-go",
+      "family_name": "Composition-Fanout-Node-Go",
+      "display_family": "Composition-Fanout-Node-Go",
+      "display_name": "Composition-Fanout-Node-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1046,6 +1244,9 @@
     {
       "name": "charon-fanout-python-go",
       "path": "recipes/composition/fan-out/charon-fanout-python-go",
+      "family_name": "Composition-Fanout-Python-Go",
+      "display_family": "Composition-Fanout-Python-Go",
+      "display_name": "Composition-Fanout-Python-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1061,6 +1262,9 @@
     {
       "name": "charon-fanout-ruby-go",
       "path": "recipes/composition/fan-out/charon-fanout-ruby-go",
+      "family_name": "Composition-Fanout-Ruby-Go",
+      "display_family": "Composition-Fanout-Ruby-Go",
+      "display_name": "Composition-Fanout-Ruby-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1077,6 +1281,9 @@
     {
       "name": "charon-fanout-rust-go",
       "path": "recipes/composition/fan-out/charon-fanout-rust-go",
+      "family_name": "Composition-Fanout-Rust-Go",
+      "display_family": "Composition-Fanout-Rust-Go",
+      "display_name": "Composition-Fanout-Rust-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1092,6 +1299,9 @@
     {
       "name": "charon-fanout-swift-go",
       "path": "recipes/composition/fan-out/charon-fanout-swift-go",
+      "family_name": "Composition-Fanout-Swift-Go",
+      "display_family": "Composition-Fanout-Swift-Go",
+      "display_name": "Composition-Fanout-Swift-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1108,6 +1318,9 @@
     {
       "name": "charon-pipeline-cpp-go",
       "path": "recipes/composition/pipeline/charon-pipeline-cpp-go",
+      "family_name": "Composition-Pipeline-Cpp-Go",
+      "display_family": "Composition-Pipeline-Cpp-Go",
+      "display_name": "Composition-Pipeline-Cpp-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1123,6 +1336,9 @@
     {
       "name": "charon-pipeline-csharp-go",
       "path": "recipes/composition/pipeline/charon-pipeline-csharp-go",
+      "family_name": "Composition-Pipeline-Csharp-Go",
+      "display_family": "Composition-Pipeline-Csharp-Go",
+      "display_name": "Composition-Pipeline-Csharp-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1138,6 +1354,9 @@
     {
       "name": "charon-pipeline-dart-go",
       "path": "recipes/composition/pipeline/charon-pipeline-dart-go",
+      "family_name": "Composition-Pipeline-Dart-Go",
+      "display_family": "Composition-Pipeline-Dart-Go",
+      "display_name": "Composition-Pipeline-Dart-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1153,6 +1372,9 @@
     {
       "name": "charon-pipeline-go-go",
       "path": "recipes/composition/pipeline/charon-pipeline-go-go",
+      "family_name": "Composition-Pipeline-Go-Go",
+      "display_family": "Composition-Pipeline-Go-Go",
+      "display_name": "Composition-Pipeline-Go-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1167,6 +1389,9 @@
     {
       "name": "charon-pipeline-java-go",
       "path": "recipes/composition/pipeline/charon-pipeline-java-go",
+      "family_name": "Composition-Pipeline-Java-Go",
+      "display_family": "Composition-Pipeline-Java-Go",
+      "display_name": "Composition-Pipeline-Java-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1183,6 +1408,9 @@
     {
       "name": "charon-pipeline-kotlin-go",
       "path": "recipes/composition/pipeline/charon-pipeline-kotlin-go",
+      "family_name": "Composition-Pipeline-Kotlin-Go",
+      "display_family": "Composition-Pipeline-Kotlin-Go",
+      "display_name": "Composition-Pipeline-Kotlin-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1199,6 +1427,9 @@
     {
       "name": "charon-pipeline-node-go",
       "path": "recipes/composition/pipeline/charon-pipeline-node-go",
+      "family_name": "Composition-Pipeline-Node-Go",
+      "display_family": "Composition-Pipeline-Node-Go",
+      "display_name": "Composition-Pipeline-Node-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1215,6 +1446,9 @@
     {
       "name": "charon-pipeline-python-go",
       "path": "recipes/composition/pipeline/charon-pipeline-python-go",
+      "family_name": "Composition-Pipeline-Python-Go",
+      "display_family": "Composition-Pipeline-Python-Go",
+      "display_name": "Composition-Pipeline-Python-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1230,6 +1464,9 @@
     {
       "name": "charon-pipeline-ruby-go",
       "path": "recipes/composition/pipeline/charon-pipeline-ruby-go",
+      "family_name": "Composition-Pipeline-Ruby-Go",
+      "display_family": "Composition-Pipeline-Ruby-Go",
+      "display_name": "Composition-Pipeline-Ruby-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1246,6 +1483,9 @@
     {
       "name": "charon-pipeline-rust-go",
       "path": "recipes/composition/pipeline/charon-pipeline-rust-go",
+      "family_name": "Composition-Pipeline-Rust-Go",
+      "display_family": "Composition-Pipeline-Rust-Go",
+      "display_name": "Composition-Pipeline-Rust-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",
@@ -1261,6 +1501,9 @@
     {
       "name": "charon-pipeline-swift-go",
       "path": "recipes/composition/pipeline/charon-pipeline-swift-go",
+      "family_name": "Composition-Pipeline-Swift-Go",
+      "display_family": "Composition-Pipeline-Swift-Go",
+      "display_name": "Composition-Pipeline-Swift-Go",
       "kind": "composition",
       "status": "dry-run",
       "validation": "json-output",

@@ -123,29 +123,41 @@ public sealed class DaemonProcess : IAsyncDisposable
         Console.Error.WriteLine(
             $"[HostUI] assembly={AssemblyFamily} daemon={daemon.BinaryName} transport={Transport}");
         var stageRoot = await StageHolonRootAsync(daemon, cancellationToken);
-        var portFile = PortFilePath(stageRoot, daemon.Slug);
-        var session = await StartBundledDaemonAsync(daemon, portFile, cancellationToken);
-
         _daemon = daemon;
         _stageRoot = stageRoot;
-        _daemonSession = session;
 
         var previousDirectory = Directory.GetCurrentDirectory();
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
             Directory.SetCurrentDirectory(stageRoot);
-            _channel = Connect.ConnectTarget(
-                daemon.Slug,
-                new Connect.ConnectOptions
-                {
-                    Transport = Transport,
-                    Start = false,
-                    PortFile = portFile,
-                });
+            if (string.Equals(Transport, "stdio", StringComparison.OrdinalIgnoreCase))
+            {
+                _channel = Connect.ConnectTarget(
+                    daemon.Slug,
+                    new Connect.ConnectOptions
+                    {
+                        Transport = "stdio",
+                        Start = true,
+                    });
+            }
+            else
+            {
+                var portFile = PortFilePath(stageRoot, daemon.Slug);
+                var session = await StartBundledDaemonAsync(daemon, portFile, cancellationToken);
+                _daemonSession = session;
+                _channel = Connect.ConnectTarget(
+                    daemon.Slug,
+                    new Connect.ConnectOptions
+                    {
+                        Transport = Transport,
+                        Start = false,
+                        PortFile = portFile,
+                    });
+            }
             _client = new GreetingClient(_channel);
             Console.Error.WriteLine(
-                $"[HostUI] connected to {daemon.BinaryName} on {DisplayConnectionTarget(session.ListenUri)}");
+                $"[HostUI] connected to {daemon.BinaryName} on {ConnectionTarget()}");
         }
         catch
         {
@@ -433,12 +445,22 @@ artifacts:
 
     private static string AssemblyTransportOrDefault() =>
         string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OP_ASSEMBLY_TRANSPORT"))
-            ? "tcp"
+            ? "stdio"
             : Environment.GetEnvironmentVariable("OP_ASSEMBLY_TRANSPORT")!;
+
+    private string ConnectionTarget()
+    {
+        if (string.Equals(Transport, "stdio", StringComparison.OrdinalIgnoreCase))
+        {
+            return "stdio";
+        }
+
+        return _daemonSession is null ? Transport : DisplayConnectionTarget(_daemonSession.ListenUri);
+    }
 
     private static string DisplayConnectionTarget(string value)
     {
-        foreach (var prefix in new[] { "tcp://", "http://", "https://", "ws://", "wss://" })
+        foreach (var prefix in new[] { "tcp://", "http://", "https://", "ws://", "wss://", "stdio://" })
         {
             if (value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {

@@ -95,7 +95,7 @@ String deriveGreetingAssemblyFamilyFromEndpoint(
 String resolveGreetingTransport([Map<String, String>? environment]) {
   final env = environment ?? Platform.environment;
   final value = (env['OP_ASSEMBLY_TRANSPORT'] ?? '').trim();
-  return value.isNotEmpty ? value : 'tcp';
+  return value.isNotEmpty ? value : 'stdio';
 }
 
 String resolveGreetingDaemonDisplayName({

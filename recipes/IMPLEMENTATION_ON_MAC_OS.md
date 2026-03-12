@@ -33,8 +33,8 @@ recipes/
 
 - All 48 greeting assemblies currently declare `platforms: [macos]`.
 - Transport is explicit across the matrix:
-  - SwiftUI assemblies use `transport: stdio`.
-  - Flutter, Compose, Dotnet, Qt, and Web assemblies use `transport: tcp`.
+  - All desktop HostUI assemblies use `transport: stdio`.
+  - Web assemblies use `transport: tcp`.
 - The web row remains a daemon + shared web HostUI composite in v0.4.3.
   The shared web dist defaults to same-origin and can be overridden per
   assembly when needed.

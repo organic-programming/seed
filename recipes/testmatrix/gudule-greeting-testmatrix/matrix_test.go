@@ -19,7 +19,7 @@ import (
 func TestDiscoverTargetsIgnoresNestedHolons(t *testing.T) {
 	root := t.TempDir()
 
-	writeManifest(t, root, "recipes/assemblies/gudule-greeting-flutter-go/holon.yaml", "family_name: Greeting-Flutter-Go\nkind: composite\ntransport: tcp\n")
+	writeManifest(t, root, "recipes/assemblies/gudule-greeting-flutter-go/holon.yaml", "family_name: Greeting-Flutter-Go\nkind: composite\ntransport: stdio\n")
 	writeManifest(t, root, "recipes/composition/direct-call/charon-direct-go-go/holon.yaml", "family_name: Composition-Direct-Go-Go\nkind: composite\n")
 	writeManifest(t, root, "recipes/composition/direct-call/charon-direct-go-go/orchestrator/holon.yaml", "kind: native\n")
 	writeManifest(t, root, "recipes/composition/workers/charon-worker-compute/holon.yaml", "kind: native\n")
@@ -203,7 +203,7 @@ func TestRenderReportTextIncludesDisplayNameAndTransportColumns(t *testing.T) {
 				DisplayFamily: "Greeting-Flutter-Rust (Flutter UI)",
 				DisplayName:   "Gudule Greeting-Flutter-Rust (Flutter UI)",
 				Kind:          assemblyTarget,
-				Transport:     "tcp",
+				Transport:     "stdio",
 				Path:          "recipes/assemblies/gudule-greeting-flutter-rust",
 			},
 		},
@@ -216,7 +216,7 @@ func TestRenderReportTextIncludesDisplayNameAndTransportColumns(t *testing.T) {
 	if !strings.Contains(rendered, "Gudule Greeting-Flutter-Rust (Flutter UI)") {
 		t.Fatalf("rendered text missing display_name value: %q", rendered)
 	}
-	if !strings.Contains(rendered, "assembly    tcp") {
+	if !strings.Contains(rendered, "assembly    stdio") {
 		t.Fatalf("rendered text missing transport column: %q", rendered)
 	}
 }
@@ -238,9 +238,9 @@ func TestActualRepoInventoryAndTransport(t *testing.T) {
 		switch target.Kind {
 		case assemblyTarget:
 			assemblyNames = append(assemblyNames, target.Name)
-			wantTransport := "tcp"
-			if strings.Contains(target.Name, "swiftui-") {
-				wantTransport = "stdio"
+			wantTransport := "stdio"
+			if strings.HasSuffix(target.Name, "-web") {
+				wantTransport = "tcp"
 			}
 			if target.Transport != wantTransport {
 				t.Fatalf("%s transport = %q, want %q", target.Name, target.Transport, wantTransport)

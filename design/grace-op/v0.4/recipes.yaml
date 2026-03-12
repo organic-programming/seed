@@ -148,9 +148,8 @@ hostuis:
 # Generated from: hostuis × daemons (web reversed: daemon-web)
 #
 # Transport rules (must be explicit in each holon.yaml):
-#   - SwiftUI assemblies: transport: stdio (Swift SDK default)
 #   - Web assemblies: transport: tcp (Connect protocol over HTTP)
-#   - All others: transport: tcp (Go/Kotlin/Dart/C#/Qt default)
+#   - All desktop HostUI assemblies: transport: stdio
 assemblies:
   # Flutter row
   - { name: gudule-greeting-flutter-go,      daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-flutter }

@@ -56,7 +56,7 @@ void main() {
         resolveGreetingTransport(const {'OP_ASSEMBLY_TRANSPORT': 'tcp'}),
         'tcp',
       );
-      expect(resolveGreetingTransport(const {}), 'tcp');
+      expect(resolveGreetingTransport(const {}), 'stdio');
     });
 
     test('derives assembly family from the bundled daemon identity', () {
@@ -106,7 +106,7 @@ void main() {
         },
         getCurrentDirectory: () => currentDirectory,
         setCurrentDirectory: (path) => currentDirectory = path,
-        getEnvironment: () => const {},
+        getEnvironment: () => const {'OP_ASSEMBLY_TRANSPORT': 'tcp'},
         startBundledDaemon: (binaryPath, portFilePath) async {
           startedBinaryPath = binaryPath;
           startedPortFilePath = portFilePath;
@@ -171,7 +171,7 @@ void main() {
         },
         getCurrentDirectory: () => sandbox.path,
         setCurrentDirectory: (_) {},
-        getEnvironment: () => const {},
+        getEnvironment: () => const {'OP_ASSEMBLY_TRANSPORT': 'tcp'},
         startBundledDaemon: (_, portFilePath) async {
           await File(portFilePath).parent.create(recursive: true);
           await File(portFilePath).writeAsString('tcp://127.0.0.1:43123\n');

@@ -142,7 +142,7 @@ QString assemblyFamily() {
 }
 
 QString assemblyTransport() {
-  return qEnvironmentVariable("OP_ASSEMBLY_TRANSPORT", "tcp");
+  return qEnvironmentVariable("OP_ASSEMBLY_TRANSPORT", "stdio");
 }
 
 QString displayConnectionTarget(const QString &value) {
@@ -209,11 +209,9 @@ bool DaemonProcess::start() {
   manifest.write(buildManifest(*daemon).toUtf8());
   manifest.close();
 
-  QString portFilePath;
-  try {
-    portFilePath = startBundledDaemon(*daemon, stageRoot->path());
-  } catch (const std::exception &ex) {
-    lastError_ = QString::fromUtf8(ex.what());
+  const QString previousDirectory = QDir::currentPath();
+  if (!QDir::setCurrent(stageRoot->path())) {
+    lastError_ = QStringLiteral("Failed to enter staged holon root: %1").arg(stageRoot->path());
     if (daemonProcess_) {
       daemonProcess_->kill();
       daemonProcess_->waitForFinished(1000);
@@ -222,23 +220,27 @@ bool DaemonProcess::start() {
     return false;
   }
 
-  const QString previousDirectory = QDir::currentPath();
-  if (!QDir::setCurrent(stageRoot->path())) {
-    lastError_ = QStringLiteral("Failed to enter staged holon root: %1").arg(stageRoot->path());
-    daemonProcess_->kill();
-    daemonProcess_->waitForFinished(1000);
-    daemonProcess_.reset();
-    return false;
-  }
-
   try {
+    const bool useStdio =
+        assemblyTransport().compare(QStringLiteral("stdio"), Qt::CaseInsensitive) == 0;
+    QString portFilePath;
+    if (!useStdio) {
+      portFilePath = startBundledDaemon(*daemon, stageRoot->path());
+    }
+
     holons::ConnectOptions opts;
     opts.transport = assemblyTransport().toStdString();
-    opts.start = false;
-    opts.port_file = portFilePath.toStdString();
+    if (useStdio) {
+      opts.start = true;
+    } else {
+      opts.start = false;
+      opts.port_file = portFilePath.toStdString();
+    }
+
     channel_ = holons::connect(daemon->slug.toStdString(), opts);
-    grpcTarget_ = QString::fromStdString(holons::channel_target(channel_));
-    if (grpcTarget_.isEmpty()) {
+    grpcTarget_ = useStdio ? QStringLiteral("stdio")
+                           : QString::fromStdString(holons::channel_target(channel_));
+    if (!useStdio && grpcTarget_.isEmpty()) {
       throw std::runtime_error("cpp-holons did not expose the daemon target");
     }
     logHostUI(QStringLiteral("[HostUI] connected to %1 on %2")
@@ -259,6 +261,8 @@ bool DaemonProcess::start() {
       daemonProcess_->waitForFinished(1000);
       daemonProcess_.reset();
     }
+    QDir::setCurrent(previousDirectory);
+    return false;
   }
 
   QDir::setCurrent(previousDirectory);

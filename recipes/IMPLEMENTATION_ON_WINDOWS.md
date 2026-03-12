@@ -52,8 +52,8 @@ directly. Do not recreate the removed `recipes/*-holons` submodules.
   - slug: `gudule-greeting-daemon-<lang>`
   - family name: `Greeting-Daemon-<Lang>`
 - Keep transport rules aligned with the current matrix:
-  - SwiftUI: `stdio` on Apple platforms only
-  - Flutter, Compose, Dotnet, Qt, Web: `tcp`
+  - Desktop HostUIs: `stdio`
+  - Web: `tcp`
 - Keep the v0.4.3 web row as daemon + shared web HostUI composites.
 - Treat UI assemblies as launch smoke in automation; full UI/RPC
   interaction remains a manual pass.
