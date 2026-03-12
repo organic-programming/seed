@@ -66,11 +66,10 @@ build:
                   <key>LSMinimumSystemVersion</key>
                   <string>15.0</string>
                   <key>NSHighResolutionCapable</key>
-                  <true/>
+                <true/>
                 </dict>
                 </plist>
                 EOF
-                codesign --force --deep --sign - "$app_dir"
       - exec:
           cwd: .
           argv: ["ditto", "../../daemons/gudule-daemon-greeting-csharp/.op/build/bin", "build/GreetingSwiftUI.app/Contents/Resources/daemon"]
