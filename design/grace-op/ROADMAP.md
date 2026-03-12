@@ -32,6 +32,18 @@ and composition patterns.
 
 **Tasks:** [v0.4/_TASKS.md](./v0.4/_TASKS.md)
 
+### v0.4.4 — Bundle Auto-Signing
+
+Replace hand-rolled `codesign` bash scripts in 10 assembly
+manifests with automatic ad-hoc signing in the recipe runner.
+
+- Auto ad-hoc sign `.app` / `.framework` after assembly
+- `--no-sign` flag to skip
+- Remove duplicated codesign exec from all assemblies
+
+**Design:** [DESIGN_bundle_codesign.md](./v0.4.4/DESIGN_bundle_codesign.md)
+**Tasks:** [v0.4.4/_TASKS.md](./v0.4.4/_TASKS.md)
+
 ---
 
 ## v0.5 — Extensibility
@@ -86,6 +98,9 @@ install without a compiler.
 - CI build matrix templates (GitHub Actions)
 - Artifact signing and verification (Ed25519)
 - Platform-tagged naming convention
+- **Full code signing** — `build.sign` manifest, `--sign <identity>`,
+  Developer ID, EV (Windows), App Store (iOS), notarization,
+  `OP_SIGN_*` env credentials
 
 **Design:** [DESIGN_release_pipeline.md](./v0.8/DESIGN_release_pipeline.md)
 
