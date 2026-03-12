@@ -1,0 +1,27 @@
+schema: holon/v0
+uuid: "a46fe4da-58f6-4f61-8fba-cd489fa3d191"
+given_name: gudule
+family_name: Greeting-Hostui-Web
+motto: Greets users in 56 languages through a web HostUI.
+composer: Codex
+clade: deterministic/pure
+status: draft
+born: "2026-03-11"
+
+parents: []
+reproduction: manual
+generated_by: manual
+
+description: |
+  A standalone Vite web HostUI for the shared greeting contract. The browser
+  connects directly to a daemon-advertised TCP endpoint through js-web-holons.
+
+kind: composite
+platforms: [macos]
+build:
+  runner: npm
+requires:
+  commands: [node, npm, protoc]
+  files: [package.json, proto/greeting.proto]
+artifacts:
+  primary: dist/index.html

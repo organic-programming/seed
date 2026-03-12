@@ -1,0 +1,42 @@
+schema: holon/v0
+uuid: "e2d57b4e-2360-4d3d-b080-ac6dd73184dd"
+given_name: gudule
+family_name: Greeting-Hostui-Dotnet
+motto: Greets users in 56 languages through a .NET HostUI.
+composer: Codex
+clade: deterministic/pure
+status: draft
+born: "2026-03-11"
+
+parents: []
+reproduction: manual
+generated_by: manual
+
+description: |
+  A standalone .NET MAUI HostUI for the shared greeting contract. It keeps the
+  staged-holon connect(slug) client flow on macOS.
+
+kind: composite
+platforms: [macos]
+build:
+  runner: recipe
+  defaults:
+    target: macos
+    mode: debug
+  members:
+    - id: app
+      path: .
+      type: component
+  targets:
+    macos:
+      steps:
+        - exec:
+            cwd: .
+            argv: ["dotnet", "build", "-f", "net8.0-maccatalyst", "-c", "Debug"]
+        - assert_file:
+            path: bin/Debug/net8.0-maccatalyst/maccatalyst-arm64/GreetingDotnet.app
+requires:
+  commands: [dotnet]
+  files: [GreetingGodotnet.csproj]
+artifacts:
+  primary: bin/Debug/net8.0-maccatalyst/maccatalyst-arm64/GreetingDotnet.app

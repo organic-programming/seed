@@ -1,0 +1,4 @@
+syntax = "proto3";
+package greeting.v1;
+
+import public "../../../../../protos/greeting/v1/greeting.proto";

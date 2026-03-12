@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="Greeting.Godotnet.MainPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="Gudule Greeting Godotnet">
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="16">
+            <Label FontAttributes="Bold" FontSize="28" Text="Gudule Greeting" />
+            <Label
+                x:Name="StatusLabel"
+                LineBreakMode="WordWrap"
+                Text="Starting local daemon..." />
+            <Entry
+                AutomationId="name-input"
+                x:Name="NameEntry"
+                Placeholder="Your name"
+                Text="Gudule" />
+            <Picker
+                AutomationId="language-picker"
+                x:Name="LanguagePicker"
+                Title="Select a language" />
+            <Button
+                AutomationId="greet-button"
+                Clicked="OnSayHelloClicked"
+                Text="Greet" />
+            <Label
+                AutomationId="greeting-output"
+                x:Name="GreetingLabel"
+                FontSize="22"
+                LineBreakMode="WordWrap" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
