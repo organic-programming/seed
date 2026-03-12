@@ -51,14 +51,14 @@ Future<void> main(List<String> args) async {
 
   switch (args.first) {
     case 'serve':
-      final recipeRoot = findRecipeRoot();
+      final recipeRoot = locateRecipeRoot();
       final listenUri = parseFlags(args.skip(1).toList());
       await runWithOptions(
         listenUri,
         <Service>[GreetingService()],
         options: ServeOptions(
-          protoDir: '$recipeRoot/protos',
-          holonYamlPath: '$recipeRoot/holon.yaml',
+          protoDir: recipeRoot == null ? null : '$recipeRoot/protos',
+          holonYamlPath: recipeRoot == null ? null : '$recipeRoot/holon.yaml',
         ),
       );
       return;
