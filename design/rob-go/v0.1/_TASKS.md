@@ -12,3 +12,4 @@
 | 06 | [TASK06](./rob-go_v0.1_TASK06_grpc_reflection.md) | Enable gRPC reflection | — | — |
 
 Design document: [DESIGN_hybrid_bootstrap.md](./DESIGN_hybrid_bootstrap.md)
+

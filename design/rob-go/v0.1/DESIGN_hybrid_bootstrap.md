@@ -71,6 +71,7 @@ $OPPATH/toolchains/go/
 │   │   ├── pkg/
 │   │   └── ...
 │   └── go1.25.0/           ← future versions
+├── gopath/                  ← GOPATH (rarely used in module mode)
 ├── cache/                   ← GOCACHE (shared across versions)
 ├── modcache/                ← GOMODCACHE (shared across versions)
 └── current -> go1.24.0     ← symlink to active version

@@ -56,4 +56,4 @@ calling analyzer functions.
 
 ## Dependencies
 
-TASK02 (hermetic env), TASK03 (service holds Runner with env).
+TASK02 (hermetic env).
