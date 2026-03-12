@@ -19,6 +19,7 @@ Each proposes new commands, schemas, or SDK capabilities to be added.
 - [DESIGN_holon_templates.md](./v0.3/DESIGN_holon_templates.md) — `op new --template` scaffolding
 - [DESIGN_recipe_ecosystem.md](./v0.4/DESIGN_recipe_ecosystem.md) — DRY recipe monorepo
 - [DESIGN_recipe_monorepo.md](./v0.4/DESIGN_recipe_monorepo.md) — composition matrix & proto contracts
+- ⭐ [VERIFICATION_composition.md](./v0.4/VERIFICATION_composition.md) — **exhaustive manual verification guide** (48 assemblies + 33 compositions)
 - [DESIGN_bundle_codesign.md](./v0.4.4/DESIGN_bundle_codesign.md) — auto ad-hoc bundle signing
 - [DESIGN_sequences.md](./v0.5/DESIGN_sequences.md) — `sequences:` manifest + `op do` executor
 - [DESIGN_transport_rest_sse.md](./v0.6/DESIGN_transport_rest_sse.md) — REST + SSE transport

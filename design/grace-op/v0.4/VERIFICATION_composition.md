@@ -50,14 +50,14 @@ Verification: build succeeds and the app launches (daemon starts, UI connects vi
 
 ---
 
-❌⚠️✅
+❌ ⚠️ ✅ **@bpds 12/02/2026**
 
 ### A.1 Flutter × 8 Daemons
 
 ```bash
 # A.1.1 — Flutter + Go
-op build recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅
-op run   recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅
+op build recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅ ✅
+op run   recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅ ✅
 
 # A.1.2 — Flutter + Rust
 op build recipes/assemblies/gudule-greeting-flutter-rust ✅ ✅ ✅
@@ -68,16 +68,16 @@ op build recipes/assemblies/gudule-greeting-flutter-swift ✅ ✅ ✅
 op run   recipes/assemblies/gudule-greeting-flutter-swift ❌ ❌ ✅
 
 # A.1.4 — Flutter + Kotlin
-op build recipes/assemblies/gudule-greeting-flutter-kotlin ✅
-op run   recipes/assemblies/gudule-greeting-flutter-kotlin ✅
+op build recipes/assemblies/gudule-greeting-flutter-kotlin ✅ ✅
+op run   recipes/assemblies/gudule-greeting-flutter-kotlin ✅ ✅
 
 # A.1.5 — Flutter + Dart
-op build recipes/assemblies/gudule-greeting-flutter-dart
-op run   recipes/assemblies/gudule-greeting-flutter-dart
+op build recipes/assemblies/gudule-greeting-flutter-dart ✅ ✅
+op run   recipes/assemblies/gudule-greeting-flutter-dart ❌ ✅
 
 # A.1.6 — Flutter + Python
-op build recipes/assemblies/gudule-greeting-flutter-python
-op run   recipes/assemblies/gudule-greeting-flutter-python
+op build recipes/assemblies/gudule-greeting-flutter-python ✅
+op run   recipes/assemblies/gudule-greeting-flutter-python ❌
 
 # A.1.7 — Flutter + C#
 op build recipes/assemblies/gudule-greeting-flutter-csharp
