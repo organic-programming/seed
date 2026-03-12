@@ -106,7 +106,7 @@ After sourcing, tab-completion works for all holon-accepting commands:
 
 ```
 op run gudule-<TAB>       →  gudule-greeting-godart, gudule-greeting-goswift, ...
-op build sophia<TAB>      →  sophia-who
+op build grace<TAB>       →  grace-op
 op install rob<TAB>       →  rob-go
 op uninstall <TAB>        →  only lists installed holons from $OPBIN
 ```
@@ -1205,7 +1205,7 @@ macOS, `sudo apt install cmake` on Linux).
 
 Every holon carries its `.proto` contract (Article 2, Article 13).
 `op` reads these files directly to provide rich introspection —
-the holon does not need to implement any introspection logic.
+the holon author/developer does not need to implement any introspection logic, as the SDK auto-registers the `HolonMeta` service at runtime, and `op inspect` statically parses `.proto` files.
 
 ### `op inspect <slug>`
 

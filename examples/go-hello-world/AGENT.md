@@ -17,28 +17,22 @@ The identity and dependency files were created using the standard toolchain
 
 ```bash
 # 1. Create identity
-op grpc+stdio://who CreateIdentity '{
+op new --json '{
   "given_name": "hello-world",
   "family_name": "Example Holons",
   "motto": "The simplest possible holon — a greeting service.",
   "composer": "B. ALTER",
-  "clade": "DETERMINISTIC_PURE",
+  "clade": "deterministic/pure",
   "lang": "go",
   "output_dir": "./examples/hello-world"
 }'
 
 # 2. Init dependency file
-op grpc+stdio://atlas Init '{
-  "directory": "./examples/hello-world",
-  "holon_path": "github.com/organic-programming/examples/hello-world"
-}'
+cd ./examples/hello-world
+op mod init github.com/organic-programming/examples/hello-world
 
 # 3. Add the SDK
-op grpc+stdio://atlas Add '{
-  "directory": "./examples/hello-world",
-  "path": "github.com/organic-programming/go-holons",
-  "version": "v0.2.0"
-}'
+op mod add github.com/organic-programming/go-holons v0.2.0
 ```
 
 No files were written by hand for identity or dependencies.

@@ -526,45 +526,36 @@ holon-to-holon composition without `op` as an intermediary.
 > The toolchain is under active development. See
 > [organic-programming/holons/](./holons/) for current status.
 
-Three holons form the canonical toolchain. **Always use them** when creating,
-inspecting, or managing holons — they are the standard interface, not
-ad hoc file manipulation.
+The `op` binary orchestrator forms the canonical toolchain. **Always use it** when creating,
+inspecting, managing holons, or handling dependencies — it provides the standard interface, fully integrating identity and dependency management, rather than relying on ad hoc file manipulation.
 
 | Tool | Purpose | Binary |
 |------|---------|--------|
-| **op** | Dispatch — discover, invoke, and run holons | `op` |
-| **who** (Sophia Who?) | Identity — create, list, show, and pin holon identities | `who` |
-| **atlas** (Marco Atlas) | Dependencies — init, add, remove, pull, verify, graph, vendor *(incubation)* | `atlas` |
+| **op** | Dispatch, Identity, Dependencies — discover, invoke, init, and run holons | `op` |
 
 ### Creating a new holon (canonical workflow)
 
 ```bash
 # 1. Create the identity (holon.yaml)
-op grpc+stdio://who CreateIdentity '{
+op new --json '{
   "given_name": "my-holon",
   "family_name": "My Project",
   "motto": "What this holon does.",
   "composer": "Author Name",
-  "clade": "DETERMINISTIC_PURE",
+  "clade": "deterministic/pure",
   "lang": "go",
   "output_dir": "./my-holon"
 }'
 
 # 2. Initialize the dependency file (holon.mod)
-op grpc+stdio://atlas Init '{
-  "directory": "./my-holon",
-  "holon_path": "github.com/org/my-holon"
-}'
+cd ./my-holon
+op mod init github.com/org/my-holon
 
 # 3. Add dependencies
-op grpc+stdio://atlas Add '{
-  "directory": "./my-holon",
-  "path": "github.com/organic-programming/go-holons",
-  "version": "v0.2.0"
-}'
+op mod add github.com/organic-programming/go-holons v0.2.0
 
 # 4. Inspect the dependency graph
-op grpc+stdio://atlas Graph '{"directory": "./my-holon"}'
+op mod graph
 ```
 
 After these steps, the holon directory contains:
@@ -581,7 +572,7 @@ server in the idiomatic source directory, and adds tests. See
 
 ### Why this matters
 
-Using `op`, `who`, and `atlas` — rather than manually creating files —
+Using `op` — rather than manually creating files —
 ensures identical structure, consistent UUIDs, and machine-verifiable
 dependency metadata. An agent creating a holon MUST use this workflow.
 

@@ -25,9 +25,9 @@ protocol semantics, shell recipes, dependency graphs, install hooks.
 # ── Identity ──────────────────────────────────────────
 schema: holon/v0
 uuid: "b00932e5-49d4-4724-ab4b-e2fc9e22e108"
-given_name: Sophia
-family_name: "Who?"
-motto: "Know thyself."
+given_name: Grace
+family_name: OP
+motto: "Build what you mean."
 composer: "B. ALTER"
 clade: deterministic/pure
 status: draft
@@ -58,7 +58,7 @@ requires:
   commands: [go]
   files: [go.mod]
 artifacts:
-  binary: sophia-who
+  binary: op
 ```
 
 ---
@@ -72,7 +72,7 @@ artifacts:
 | `schema` | string | yes | Always `holon/v0`. |
 | `uuid` | UUID v4 | yes | Unique identifier. Generated once at birth. Never changes. |
 | `given_name` | string | yes | The character — what distinguishes this holon from others of the same family. |
-| `family_name` | string | yes | The function — what the holon does. Like trade surnames: `Transcriber`, `OP`, `Who?`. |
+| `family_name` | string | yes | The function — what the holon does. Like trade surnames: `Transcriber`, `OP`, `Ghost`. |
 | `motto` | string | yes | The *dessein* in one sentence. |
 | `composer` | string | yes | Who made the design decisions — the human or agent who designed the holon. Author of intent, not the tool. |
 | `clade` | enum | yes | Computational nature (see [Clade](#clade)). |
@@ -85,7 +85,7 @@ artifacts:
 |---|---|---|---|
 | `parents` | list of UUID | yes | Holons from which this one descends. Empty for primordial holons. |
 | `reproduction` | enum | yes | How this holon was created (see [Reproduction](#reproduction)). |
-| `generated_by` | string | yes | What created this file: `sophia-who`, `manual`, `codex`, etc. |
+| `generated_by` | string | yes | What created this file: `op`, `manual`, `codex`, etc. |
 
 ### Description
 
@@ -200,29 +200,29 @@ is not metaphorical — it is tracked.
 
 Describes **what the holon does**. Noun or noun phrase, capitalized.
 
-Good: `Transcriber`, `OP`, `Who?`, `Sculptor`
+Good: `Transcriber`, `OP`, `Echo`, `Sculptor`
 Bad: `DoTranscription`, `run_ffprobe`, `my-tool`
 
 ### Given name
 
 Distinguishes **character**. May express speed, personality, or origin.
 
-Examples: `Sophia` Who?, `Grace` OP, `Wisupaa` Whisper
+Examples: `Grace` OP, `Wisupaa` Whisper, `Rob` Go
 
 ### Slug
 
 The holon slug is `<given_name>-<family_name>`, lowercased, hyphenated.
 This is the directory name and the binary name.
 
-Examples: `sophia-who`, `grace-op`, `wisupaa-whisper`, `rob-go`
+Examples: `grace-op`, `wisupaa-whisper`, `rob-go`
 
-Exception: the `op` binary keeps `op` as its primary name.
+Exception: By convention we do use `<given_name>-<family_name>`, but `op` is the one exception. It is both `grace-op` and the heart of Organic Programming, utilizing the short `op` binary as its primary name.
 
 ---
 
 ## Binary Naming
 
-The primary binary uses the holon slug: `sophia-who`, `rob-go`,
+The primary binary uses the holon slug: `grace-op`, `rob-go`,
 `wisupaa-whisper`.
 
 The single exception is `op`, the root entrypoint.
