@@ -36,7 +36,7 @@ archive the GitHub repos. The monorepo replaces them.
 - [x] All 12 submodule entries removed from `.gitmodules`
 - [x] `.git/modules/recipes/` cleaned
 - [x] No broken references in docs
-- [ ] GitHub repos archived (not deleted)
+- [x] GitHub repos archived (not deleted)
 
 ## Dependencies
 
