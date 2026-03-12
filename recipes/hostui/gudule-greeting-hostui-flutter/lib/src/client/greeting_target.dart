@@ -2,11 +2,6 @@ import 'dart:io';
 
 class GreetingDaemonIdentity {
   static const String binaryPrefix = 'gudule-daemon-greeting-';
-  static const GreetingDaemonIdentity go = GreetingDaemonIdentity(
-    slug: 'gudule-greeting-daemon-go',
-    binaryName: 'gudule-daemon-greeting-go',
-    familyName: 'Greeting-Daemon-Go',
-  );
 
   final String slug;
   final String binaryName;
@@ -47,11 +42,8 @@ class GreetingDaemonIdentity {
   static String _displayVariant(String variant) {
     const overrides = <String, String>{
       'cpp': 'CPP',
-      'csharp': 'CSharp',
-      'dotnet': 'DotNet',
       'js': 'JS',
       'qt': 'Qt',
-      'swiftui': 'SwiftUI',
     };
 
     return variant.split('-').where((token) => token.isNotEmpty).map((token) {
@@ -77,8 +69,6 @@ class GreetingEndpoint {
 }
 
 class GreetingTargetResolver {
-  static const GreetingDaemonIdentity defaultDaemon = GreetingDaemonIdentity.go;
-
   final String compileTimeTarget;
   final Map<String, String> environment;
   final String executablePath;
@@ -155,14 +145,6 @@ class GreetingTargetResolver {
   _BundledBinary? _findBundledBinary(Directory directory) {
     if (!directory.existsSync()) {
       return null;
-    }
-
-    final preferred = File('${directory.path}/${defaultDaemon.binaryName}');
-    if (preferred.existsSync()) {
-      return _BundledBinary(
-        path: preferred.path,
-        daemon: GreetingDaemonIdentity.fromBinaryPath(preferred.path),
-      );
     }
 
     final matches = directory

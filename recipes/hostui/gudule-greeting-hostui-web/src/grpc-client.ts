@@ -19,7 +19,18 @@ const SAY_HELLO_PATH = "/greeting.v1.GreetingService/SayHello";
 
 function resolveDaemonTarget(): string {
   const env = (globalThis as { __GUDULE_DAEMON__?: string }).__GUDULE_DAEMON__;
-  return env ?? "127.0.0.1:9091";
+  if (env && env.trim().length > 0) {
+    return env.trim();
+  }
+
+  if ("location" in globalThis) {
+    const { host, protocol } = globalThis.location;
+    if (protocol !== "file:" && host.trim().length > 0) {
+      return host;
+    }
+  }
+
+  return "127.0.0.1:9091";
 }
 
 const client = connect(resolveDaemonTarget());

@@ -5,11 +5,11 @@ export function renderApp(root: HTMLElement): void {
   root.innerHTML = `
     <main class="shell">
       <section class="hero">
-        <h1>Gudule Greeting<br />Goweb</h1>
+        <h1>Gudule Greeting<br />Web</h1>
         <p>
-          A browser client for the GreetingService contract. The Go daemon answers
-          over gRPC-Web, the page keeps the UI thin, and the 56-language catalog
-          stays entirely on the backend.
+          A browser client for the shared GreetingService contract. The page keeps
+          the UI thin, defaults to the current origin, and lets any compatible
+          greeting daemon own the language catalog.
         </p>
       </section>
       <section class="panel greeting-card">
@@ -82,7 +82,7 @@ export function renderApp(root: HTMLElement): void {
       setStatus("");
     } catch (error) {
       setStatus(String(error), true);
-      setGreeting("The daemon is not reachable", "Start gudule-daemon-greeting-goweb on tcp://127.0.0.1:9091.");
+      setGreeting("The daemon is not reachable", "Start a greeting daemon that serves the shared web client on this origin or set __GUDULE_DAEMON__.");
     }
   };
 
@@ -101,7 +101,7 @@ export function renderApp(root: HTMLElement): void {
       setStatus("");
     } catch (error) {
       setStatus(String(error), true);
-      setGreeting("The daemon is not reachable", "Run gudule-daemon-greeting-goweb serve --listen tcp://127.0.0.1:9091");
+      setGreeting("The daemon is not reachable", "Run a greeting daemon with gRPC-Web support on this origin or set __GUDULE_DAEMON__.");
     }
   })();
 }

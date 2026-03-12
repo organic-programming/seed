@@ -336,7 +336,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DAEMON_BINARY=\"${SRCROOT}/../../../daemons/gudule-daemon-greeting-go/.op/build/bin/gudule-daemon-greeting-go\"\nDEST=\"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/Contents/Resources/\"\n\nif [ -f \"$DAEMON_BINARY\" ]; then\n  mkdir -p \"$DEST\"\n  cp \"$DAEMON_BINARY\" \"$DEST/gudule-daemon-greeting-go\"\n  chmod +x \"$DEST/gudule-daemon-greeting-go\"\n  echo \"Bundled daemon binary into Resources\"\nelse\n  echo \"warning: daemon binary not found at $DAEMON_BINARY\"\n  echo \"Run: ./scripts/build_daemon.sh before flutter build\"\nfi\n";
+			shellScript = "echo \"Flutter HostUI no longer auto-bundles a specific daemon; assemblies stage the selected gudule-daemon-greeting-* binary.\"";
 		};
 		33CC111E2044C6BF0003C045 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;

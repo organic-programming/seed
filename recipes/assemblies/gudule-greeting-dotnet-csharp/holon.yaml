@@ -1,0 +1,40 @@
+schema: holon/v0
+given_name: gudule
+family_name: Greeting-Dotnet-Csharp
+kind: composite
+transport: tcp
+platforms: [macos]
+build:
+  runner: recipe
+  defaults:
+    target: macos
+    mode: debug
+  members:
+    - id: daemon
+      path: ../../daemons/gudule-daemon-greeting-csharp
+      type: holon
+    - id: app
+      path: ../../hostui/gudule-greeting-hostui-dotnet
+      type: holon
+  targets:
+    macos:
+      steps:
+      - build_member: daemon
+      - build_member: app
+      - exec:
+          cwd: .
+          argv: ["/bin/sh", "-c", "rm -rf build/GreetingDotnet.app"]
+      - exec:
+          cwd: .
+          argv: ["ditto", "../../hostui/gudule-greeting-hostui-dotnet/bin/Debug/net8.0-maccatalyst/maccatalyst-arm64/GreetingDotnet.app", "build/GreetingDotnet.app"]
+      - copy:
+          from: ../../daemons/gudule-daemon-greeting-csharp/.op/build/bin/gudule-daemon-greeting-csharp
+          to: build/GreetingDotnet.app/Contents/Resources/daemon/gudule-daemon-greeting-csharp
+      - assert_file:
+          path: build/GreetingDotnet.app
+      - assert_file:
+          path: build/GreetingDotnet.app/Contents/Resources/daemon/gudule-daemon-greeting-csharp
+requires:
+  commands: [dotnet]
+artifacts:
+  primary: build/GreetingDotnet.app

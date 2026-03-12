@@ -1,0 +1,40 @@
+schema: holon/v0
+given_name: gudule
+family_name: Greeting-Compose-Swift
+kind: composite
+transport: tcp
+platforms: [macos]
+build:
+  runner: recipe
+  defaults:
+    target: macos
+    mode: debug
+  members:
+    - id: daemon
+      path: ../../daemons/gudule-daemon-greeting-swift
+      type: holon
+    - id: app
+      path: ../../hostui/gudule-greeting-hostui-compose
+      type: holon
+  targets:
+    macos:
+      steps:
+      - build_member: daemon
+      - build_member: app
+      - exec:
+          cwd: .
+          argv: ["/bin/sh", "-c", "rm -rf build/gudule-greeting-gokotlin.app"]
+      - exec:
+          cwd: .
+          argv: ["ditto", "../../hostui/gudule-greeting-hostui-compose/build/compose/binaries/main/app/gudule-greeting-gokotlin.app", "build/gudule-greeting-gokotlin.app"]
+      - copy:
+          from: ../../daemons/gudule-daemon-greeting-swift/.op/build/bin/gudule-daemon-greeting-swift
+          to: build/gudule-greeting-gokotlin.app/Contents/Resources/daemon/gudule-daemon-greeting-swift
+      - assert_file:
+          path: build/gudule-greeting-gokotlin.app
+      - assert_file:
+          path: build/gudule-greeting-gokotlin.app/Contents/Resources/daemon/gudule-daemon-greeting-swift
+requires:
+  commands: [swift, xcodebuild, java]
+artifacts:
+  primary: build/gudule-greeting-gokotlin.app

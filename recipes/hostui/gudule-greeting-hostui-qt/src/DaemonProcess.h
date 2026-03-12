@@ -1,9 +1,11 @@
 #pragma once
 
 #include <QObject>
+#include <QProcess>
 #include <QString>
 #include <QTemporaryDir>
 
+#include <optional>
 #include <memory>
 
 namespace grpc {
@@ -14,7 +16,15 @@ class DaemonProcess final : public QObject {
   Q_OBJECT
 
 public:
-  explicit DaemonProcess(const QString &binaryName, QObject *parent = nullptr);
+  struct GreetingDaemonIdentity {
+    QString slug;
+    QString familyName;
+    QString binaryName;
+    QString buildRunner;
+    QString binaryPath;
+  };
+
+  explicit DaemonProcess(QObject *parent = nullptr);
 
   bool start();
   void stop();
@@ -26,13 +36,16 @@ public:
   [[nodiscard]] QString lastError() const;
 
 private:
-  [[nodiscard]] QString resolveBinaryPath() const;
-  [[nodiscard]] QString buildManifest(const QString &binaryPath) const;
+  [[nodiscard]] std::optional<GreetingDaemonIdentity> resolveDaemon() const;
+  [[nodiscard]] QString buildManifest(const GreetingDaemonIdentity &daemon) const;
+  [[nodiscard]] QString startBundledDaemon(const GreetingDaemonIdentity &daemon,
+                                           const QString &stageRootPath);
 
-  QString binaryName_;
+  QString daemonSlug_;
   QString binaryPath_;
   QString grpcTarget_;
   QString lastError_;
   std::shared_ptr<grpc::Channel> channel_;
   std::unique_ptr<QTemporaryDir> stageRoot_;
+  std::unique_ptr<QProcess> daemonProcess_;
 };

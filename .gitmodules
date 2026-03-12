@@ -49,43 +49,6 @@
 [submodule "holons/jess-npm"]
 	path = holons/jess-npm
 	url = git@github.com:organic-programming/jess-npm.git
-[submodule "recipes/go-dart-holons"]
-	path = recipes/go-dart-holons
-	url = git@github.com:organic-programming/go-dart-holons.git
-	branch = master
-[submodule "recipes/go-swift-holons"]
-	path = recipes/go-swift-holons
-	url = git@github.com:organic-programming/go-swift-holons.git
-[submodule "recipes/go-kotlin-holons"]
-	path = recipes/go-kotlin-holons
-	url = git@github.com:organic-programming/go-kotlin-holons.git
-[submodule "recipes/go-web-holons"]
-	path = recipes/go-web-holons
-	url = git@github.com:organic-programming/go-web-holons.git
-[submodule "recipes/go-dotnet-holons"]
-	path = recipes/go-dotnet-holons
-	url = git@github.com:organic-programming/go-dotnet-holons.git
-[submodule "recipes/go-qt-holons"]
-	path = recipes/go-qt-holons
-	url = git@github.com:organic-programming/go-qt-holons.git
-[submodule "recipes/rust-dart-holons"]
-	path = recipes/rust-dart-holons
-	url = git@github.com:organic-programming/rust-dart-holons.git
-[submodule "recipes/rust-swift-holons"]
-	path = recipes/rust-swift-holons
-	url = git@github.com:organic-programming/rust-swift-holons.git
-[submodule "recipes/rust-kotlin-holons"]
-	path = recipes/rust-kotlin-holons
-	url = git@github.com:organic-programming/rust-kotlin-holons.git
-[submodule "recipes/rust-web-holons"]
-	path = recipes/rust-web-holons
-	url = git@github.com:organic-programming/rust-web-holons.git
-[submodule "recipes/rust-dotnet-holons"]
-	path = recipes/rust-dotnet-holons
-	url = git@github.com:organic-programming/rust-dotnet-holons.git
-[submodule "recipes/rust-qt-holons"]
-	path = recipes/rust-qt-holons
-	url = git@github.com:organic-programming/rust-qt-holons.git
 [submodule "holons/wisupaa-whisper"]
 	path = holons/wisupaa-whisper
 	url = git@github.com:organic-programming/wisupaa-whisper.git

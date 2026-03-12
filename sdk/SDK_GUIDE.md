@@ -91,7 +91,7 @@ import 'package:holons/holons.dart';
 
 // Discover nearby holons and connect to one
 final entries = await discoverLocal();
-final channel = await connect('greeting-daemon-greeting-godart');
+final channel = await connect('gudule-greeting-daemon-go');
 try {
   print(entries.map((e) => e.slug).toList());
 } finally {
@@ -117,7 +117,7 @@ from holons.connect import connect, disconnect
 from holons.discover import discover_local
 
 entries = discover_local()
-channel = connect("greeting-daemon-greeting-godotnet")
+channel = connect("gudule-greeting-daemon-go")
 try:
     print([entry.slug for entry in entries])
 finally:
@@ -133,7 +133,7 @@ import kotlinx.coroutines.runBlocking
 
 runBlocking {
     val entries = Discover.discoverLocal()
-    val channel = Connect.connect("greeting-daemon-greeting-gokotlin")
+    val channel = Connect.connect("gudule-greeting-daemon-go")
     try {
         println(entries.map { it.slug })
     } finally {
@@ -148,7 +148,7 @@ runBlocking {
 using Holons;
 
 var entries = Discover.DiscoverLocal();
-var channel = Connect.ConnectTarget("greeting-daemon-greeting-godotnet");
+var channel = Connect.ConnectTarget("gudule-greeting-daemon-go");
 try
 {
     Console.WriteLine(string.Join(", ", entries.ConvertAll(entry => entry.Slug)));
@@ -258,6 +258,20 @@ for the full taxonomy.
 
 ## Recipe Audit
 
+Since v0.4.3, recipes are organized under `recipes/` instead of
+per-recipe git submodules:
+
+- `recipes/assemblies/` — 48 Gudule greeting composites.
+- `recipes/composition/` — 33 Charon compositions + shared Go workers.
+- `recipes/testmatrix/gudule-greeting-testmatrix/` — reusable
+  build-and-run audit tool.
+
+The runtime naming convention is now stable across the matrix:
+
+- daemon binary: `gudule-daemon-greeting-<lang>`
+- daemon slug: `gudule-greeting-daemon-<lang>`
+- daemon family name: `Greeting-Daemon-<Lang>`
+
 | Recipe | Daemon SDK | Frontend SDK | Build (macOS) | Run (macOS) | Current state |
 |---|---|---|---|---|---|
 | `go-dart-holons` | ✅ `go-holons` | ✅ `dart-holons` | — | — | Desktop uses `connect(slug)`; mobile uses `unix://`. |
@@ -272,3 +286,6 @@ for the full taxonomy.
 | `rust-web-holons` | ✅ `rust-holons` | ✅ `js-web-holons` | — | — | Browser via `js-web-holons` connect. |
 | `rust-qt-holons` | ✅ `rust-holons` | ✅ `cpp-holons` | — | — | Uses `holons::connect(slug)`. |
 | `rust-dotnet-holons` | ✅ `rust-holons` | ✅ `csharp-holons` | — | — | Desktop uses `Connect.ConnectTarget(slug)`. |
+
+For the current build and smoke baseline, see
+[`../recipes/README.md`](../recipes/README.md).

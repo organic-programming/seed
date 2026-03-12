@@ -1,0 +1,37 @@
+schema: holon/v0
+given_name: gudule
+family_name: Greeting-Qt-Python
+kind: composite
+transport: tcp
+platforms: [macos]
+build:
+  runner: recipe
+  defaults:
+    target: macos
+    mode: debug
+  members:
+    - id: daemon
+      path: ../../daemons/gudule-daemon-greeting-python
+      type: holon
+    - id: app
+      path: ../../hostui/gudule-greeting-hostui-qt
+      type: holon
+  targets:
+    macos:
+      steps:
+      - build_member: daemon
+      - build_member: app
+      - copy:
+          from: ../../hostui/gudule-greeting-hostui-qt/.op/build/bin/gudule-greeting-goqt
+          to: build/gudule-greeting-goqt
+      - copy:
+          from: ../../daemons/gudule-daemon-greeting-python/.op/build/bin/gudule-daemon-greeting-python
+          to: build/daemon/gudule-daemon-greeting-python
+      - assert_file:
+          path: build/gudule-greeting-goqt
+      - assert_file:
+          path: build/daemon/gudule-daemon-greeting-python
+requires:
+  commands: [python3, cmake]
+artifacts:
+  primary: build/gudule-greeting-goqt

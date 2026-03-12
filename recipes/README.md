@@ -1,52 +1,71 @@
 # Recipes
 
-A recipe is a cross-language assembly pattern: one daemon holon and one
-frontend holon sharing the same protobuf contract.
+The recipe workspace now lives directly in this repository. v0.4.3
+replaces the older `*-holons` submodules with shared dry daemons,
+shared HostUIs, generated assemblies, Charon compositions, and a
+reusable matrix runner.
 
-Unlike a language SDK, a recipe is not imported as a library. It ships
-architecture docs, build rules, manifests, and a working example under
-`examples/greeting/`.
+## Try It Yourself
 
-## Current Workspace Status
+From the repository root:
 
-| Recipe | Backend | Frontend | Current status |
-|--------|---------|----------|----------------|
-| [go-dart-holons](./go-dart-holons/) | Go | Flutter/Dart | working; desktop frontend uses `dart-holons.connect()` |
-| [go-swift-holons](./go-swift-holons/) | Go | SwiftUI | working; frontend still uses raw `grpc-swift` over localhost TCP |
-| [go-kotlin-holons](./go-kotlin-holons/) | Go | Compose Desktop | working; frontend uses `kotlin-holons.Connect.connect()` |
-| [go-web-holons](./go-web-holons/) | Go | Web | scaffolded; frontend still uses raw web client wiring |
-| [go-qt-holons](./go-qt-holons/) | Go | Qt/C++ | scaffolded; fixed localhost TCP |
-| [go-dotnet-holons](./go-dotnet-holons/) | Go | .NET MAUI | working on macOS; frontend uses `Holons.ConnectTarget(...)` |
-| [rust-dart-holons](./rust-dart-holons/) | Rust | Flutter/Dart | working scaffold; frontend uses `dart-holons`, daemon still raw Rust |
-| [rust-swift-holons](./rust-swift-holons/) | Rust | SwiftUI | scaffolded; raw gRPC on both sides |
-| [rust-kotlin-holons](./rust-kotlin-holons/) | Rust | Compose Desktop | scaffolded; raw gRPC on both sides |
-| [rust-web-holons](./rust-web-holons/) | Rust | Web | scaffolded; raw web client wiring |
-| [rust-dotnet-holons](./rust-dotnet-holons/) | Rust | .NET MAUI | scaffolded; raw gRPC on both sides |
-| [rust-qt-holons](./rust-qt-holons/) | Rust | Qt/C++ | scaffolded; raw gRPC on both sides |
+```sh
+op build recipes/composition/direct-call/charon-direct-go-go
+op run --no-build recipes/composition/direct-call/charon-direct-go-go
 
-No `BLOCKED.md` files are present in the current workspace snapshot.
+op build recipes/assemblies/gudule-greeting-go-web
+op run --no-build recipes/assemblies/gudule-greeting-go-web
 
-## Shared Structure
-
-```text
-<backend>-<frontend>-holons/
-└── examples/greeting/
-    ├── holon.yaml           # composite recipe manifest
-    ├── greeting-daemon/     # backend daemon
-    └── greeting-<name>/     # frontend app
+go test ./recipes/testmatrix/gudule-greeting-testmatrix/...
+go run ./recipes/testmatrix/gudule-greeting-testmatrix --dry-run --format json
+go run ./recipes/testmatrix/gudule-greeting-testmatrix --filter 'charon-' --format json
 ```
 
-Every recipe carries:
+## Current Matrix
 
-- a composite `holon.yaml` at `examples/greeting/`
-- a daemon `holon.yaml`
-- a frontend app or component
+- Inventory:
+  - 48 Gudule greeting assemblies in `recipes/assemblies/`
+  - 33 Charon composition recipes in `recipes/composition/`
+  - 2 shared Go workers in `recipes/composition/workers/`
+- Latest committed runtime snapshot:
+  - `recipes/testmatrix/gudule-greeting-testmatrix/snapshots/current-macos-composition.json`
+  - generated on March 12, 2026 with `--filter 'charon-'`
+  - result: 33 selected, 33 passed, 0 skipped, 0 build failures, 0 run failures, 0 timeouts
+- Full discovery snapshot:
+  - `recipes/testmatrix/gudule-greeting-testmatrix/snapshots/current-macos-dry-run.json`
+  - result: 81 selected, 48 assemblies, 33 compositions
+- The committed runtime baseline above is intentionally focused on the
+  composition recipes because UI assemblies are only validated as launch
+  smoke and still need manual interaction checks.
 
-All recipes share the same `greeting.proto` contract: `ListLanguages`
-and `SayHello`.
+## Layout
 
-## Guides
+```text
+recipes/
+├── protos/         # shared canonical contracts
+├── daemons/        # dry greeting daemons
+├── hostui/         # dry HostUI projects
+├── assemblies/     # 48 greeting composites
+├── composition/    # 33 charon compositions + 2 workers
+└── testmatrix/     # reusable Go matrix CLI + snapshots
+```
 
-- [IMPLEMENTATION_ON_MAC_OS.md](./IMPLEMENTATION_ON_MAC_OS.md)
-- [IMPLEMENTATION_ON_WINDOWS.md](./IMPLEMENTATION_ON_WINDOWS.md)
-- [`../sdk/SDK_GUIDE.md`](../sdk/SDK_GUIDE.md) for the audited SDK usage table
+### Shared Contracts
+
+- `recipes/protos/greeting/v1/greeting.proto`
+- `recipes/protos/compute/v1/compute.proto`
+- `recipes/protos/transform/v1/transform.proto`
+
+### Transport Rules
+
+- SwiftUI assemblies use `transport: stdio`.
+- Flutter, Compose, Dotnet, Qt, and Web assemblies use `transport: tcp`.
+- The web row remains daemon + shared web HostUI composites in v0.4.3.
+
+## Notes
+
+- Inventory comes from `design/grace-op/v0.4/recipes.yaml`.
+- Canonical naming comes from
+  `design/grace-op/v0.4/DESIGN_recipe_monorepo.md`.
+- Old recipe submodules were removed in v0.4.3; new work should target
+  the shared dry holons and the generated assembly/composition trees.

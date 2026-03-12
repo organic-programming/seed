@@ -1,0 +1,55 @@
+schema: holon/v0
+given_name: gudule
+family_name: Greeting-Swift-Web
+kind: composite
+transport: tcp
+platforms: [macos]
+build:
+  runner: recipe
+  defaults:
+    target: macos
+    mode: debug
+  members:
+    - id: daemon
+      path: ../../daemons/gudule-daemon-greeting-swift
+      type: holon
+    - id: app
+      path: ../../hostui/gudule-greeting-hostui-web
+      type: holon
+  targets:
+    macos:
+      steps:
+      - build_member: daemon
+      - build_member: app
+      - exec:
+          cwd: .
+          argv: ["/bin/sh", "-c", "rm -rf build/web && mkdir -p build"]
+      - exec:
+          cwd: .
+          argv: ["ditto", "../../hostui/gudule-greeting-hostui-web/dist", "build/web"]
+      - copy:
+          from: ../../daemons/gudule-daemon-greeting-swift/.op/build/bin/gudule-daemon-greeting-swift
+          to: build/gudule-daemon-greeting-swift
+      - exec:
+          cwd: .
+          argv:
+            - bash
+            - -lc
+            - |
+                cat > build/run-web-assembly.sh <<'EOF'
+                #!/bin/sh
+                set -eu
+                cd "$(dirname "$0")"
+                exec "./gudule-daemon-greeting-swift" serve --listen tcp://127.0.0.1:9091
+                EOF
+                chmod +x build/run-web-assembly.sh
+      - assert_file:
+          path: build/web/index.html
+      - assert_file:
+          path: build/gudule-daemon-greeting-swift
+      - assert_file:
+          path: build/run-web-assembly.sh
+requires:
+  commands: [swift, xcodebuild, node, npm, protoc]
+artifacts:
+  primary: build/run-web-assembly.sh

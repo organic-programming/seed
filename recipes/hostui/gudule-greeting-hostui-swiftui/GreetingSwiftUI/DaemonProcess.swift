@@ -1,6 +1,9 @@
 import Foundation
+#if os(macOS)
+import Holons
+#endif
 
-/// Manages the lifecycle of the Go greeting daemon connection.
+/// Manages the lifecycle of the bundled greeting daemon connection.
 @MainActor
 final class DaemonProcess: ObservableObject {
     @Published var isRunning = false
@@ -17,8 +20,8 @@ final class DaemonProcess: ObservableObject {
 
 #if os(macOS)
         do {
-            let daemonPath = try resolveDaemonPath()
-            let root = try stageHolonRoot(binaryPath: daemonPath)
+            let daemon = try resolveDaemon()
+            let root = try stageHolonRoot(daemon: daemon)
             stageRoot = root
 
             let previousDirectory = FileManager.default.currentDirectoryPath
@@ -29,7 +32,8 @@ final class DaemonProcess: ObservableObject {
                 FileManager.default.changeCurrentDirectoryPath(previousDirectory)
             }
 
-            client = try GreetingClient.connected(to: Self.holonSlug)
+            let options = ConnectOptions(transport: "stdio")
+            client = try GreetingClient.connected(to: daemon.slug, options: options)
             isRunning = true
         } catch {
             cleanupStageRoot()
@@ -97,78 +101,201 @@ enum DaemonError: LocalizedError {
 }
 
 #if os(macOS)
-private extension DaemonProcess {
-    static let holonSlug = "greeting-daemon-greeting-goswift"
-    static let holonUUID = "2b519b2f-7a34-4957-a0ab-58c1b7fa9f95"
-    static let familyName = "Greeting-Goswift"
-    static let daemonBinaryName = "gudule-daemon-greeting-goswift"
-    static let buildRunner = "go-module"
+private struct GreetingDaemonIdentity {
+    static let binaryPrefix = "gudule-daemon-greeting-"
 
-    func resolveDaemonPath() throws -> String {
-        for candidate in daemonCandidates() where FileManager.default.isExecutableFile(atPath: candidate) {
-            return candidate
+    let slug: String
+    let familyName: String
+    let binaryName: String
+    let buildRunner: String
+    let binaryPath: String
+
+    static func fromBinaryPath(_ path: String) -> GreetingDaemonIdentity? {
+        fromBinaryName(URL(fileURLWithPath: path).lastPathComponent, binaryPath: path)
+    }
+
+    static func fromBinaryName(_ binaryName: String, binaryPath: String) -> GreetingDaemonIdentity? {
+        let normalized = binaryName.hasSuffix(".exe")
+            ? String(binaryName.dropLast(4))
+            : binaryName
+        guard normalized.hasPrefix(binaryPrefix) else {
+            return nil
         }
-        throw DaemonStartError.binaryNotFound(Self.daemonBinaryName)
+
+        let variant = String(normalized.dropFirst(binaryPrefix.count))
+        return GreetingDaemonIdentity(
+            slug: "gudule-greeting-daemon-\(variant)",
+            familyName: "Greeting-Daemon-\(displayVariant(variant))",
+            binaryName: normalized,
+            buildRunner: runner(for: variant),
+            binaryPath: URL(fileURLWithPath: binaryPath).standardizedFileURL.path
+        )
+    }
+
+    private static func displayVariant(_ variant: String) -> String {
+        let overrides: [String: String] = [
+            "cpp": "CPP",
+            "js": "JS",
+            "qt": "Qt",
+        ]
+
+        return variant
+            .split(separator: "-")
+            .map { token in
+                let value = String(token)
+                if let override = overrides[value] {
+                    return override
+                }
+                guard let first = value.first else {
+                    return value
+                }
+                return String(first).uppercased() + value.dropFirst()
+            }
+            .joined(separator: "-")
+    }
+
+    private static func runner(for variant: String) -> String {
+        switch variant {
+        case "go":
+            return "go-module"
+        case "rust":
+            return "cargo"
+        case "swift":
+            return "swift-package"
+        case "kotlin":
+            return "gradle"
+        case "dart":
+            return "dart"
+        case "python":
+            return "python"
+        case "csharp":
+            return "dotnet"
+        case "node":
+            return "npm"
+        default:
+            return "go-module"
+        }
+    }
+}
+
+private extension DaemonProcess {
+    static let holonUUID = "61aa59e8-e4fc-425f-a799-48ff7a6d02d2"
+
+    func resolveDaemon() throws -> GreetingDaemonIdentity {
+        for candidate in daemonCandidates() {
+            if let daemon = GreetingDaemonIdentity.fromBinaryPath(candidate),
+               FileManager.default.isExecutableFile(atPath: daemon.binaryPath) {
+                return daemon
+            }
+        }
+        throw DaemonStartError.binaryNotFound(GreetingDaemonIdentity.binaryPrefix + "*")
     }
 
     func daemonCandidates() -> [String] {
-        var candidates: [String] = []
+        let fileManager = FileManager.default
         let currentDirectory = URL(
-            fileURLWithPath: FileManager.default.currentDirectoryPath,
+            fileURLWithPath: fileManager.currentDirectoryPath,
             isDirectory: true
         )
 
-        candidates.append(
-            currentDirectory
-                .appendingPathComponent("../greeting-daemon")
-                .appendingPathComponent(".op/build/bin")
-                .appendingPathComponent(Self.daemonBinaryName)
-                .path
-        )
-        candidates.append(
-            currentDirectory
-                .appendingPathComponent("../greeting-daemon")
-                .appendingPathComponent(Self.daemonBinaryName)
-                .path
-        )
-        candidates.append(currentDirectory.appendingPathComponent(Self.daemonBinaryName).path)
+        var directories: [URL] = [
+            currentDirectory.appendingPathComponent("build", isDirectory: true),
+            currentDirectory.appendingPathComponent("../build", isDirectory: true),
+            currentDirectory.appendingPathComponent("../../daemons", isDirectory: true),
+        ]
 
         if let executableURL = Bundle.main.executableURL {
             let executableDir = executableURL.deletingLastPathComponent()
-            candidates.append(executableDir.appendingPathComponent(Self.daemonBinaryName).path)
-            candidates.append(
-                executableDir
-                    .appendingPathComponent("../greeting-daemon")
-                    .appendingPathComponent(Self.daemonBinaryName)
-                    .path
-            )
+            directories.append(executableDir)
+            directories.append(executableDir.appendingPathComponent("daemon", isDirectory: true))
+            directories.append(executableDir.appendingPathComponent("../Resources", isDirectory: true))
+            directories.append(executableDir.appendingPathComponent("../Resources/daemon", isDirectory: true))
         }
 
-        let bundleParent = URL(fileURLWithPath: Bundle.main.bundlePath, isDirectory: true)
-            .deletingLastPathComponent()
-        candidates.append(bundleParent.appendingPathComponent(Self.daemonBinaryName).path)
-        candidates.append(
-            bundleParent
-                .appendingPathComponent("../greeting-daemon")
-                .appendingPathComponent(Self.daemonBinaryName)
-                .path
-        )
+        if let resourceURL = Bundle.main.resourceURL {
+            directories.append(resourceURL)
+            directories.append(resourceURL.appendingPathComponent("daemon", isDirectory: true))
+        }
 
         var seen = Set<String>()
-        return candidates.compactMap { path in
-            let normalized = URL(fileURLWithPath: path).standardizedFileURL.path
-            return seen.insert(normalized).inserted ? normalized : nil
+        var candidates: [String] = []
+        for directory in directories {
+            let normalizedDir = directory.standardizedFileURL.path
+            guard seen.insert(normalizedDir).inserted else {
+                continue
+            }
+
+            var isDirectory: ObjCBool = false
+            guard fileManager.fileExists(atPath: normalizedDir, isDirectory: &isDirectory),
+                  isDirectory.boolValue else {
+                continue
+            }
+
+            if directory.lastPathComponent == "daemons" {
+                appendSourceTreeDaemonCandidates(from: directory, into: &candidates)
+                continue
+            }
+
+            appendBundledBinaries(from: directory, into: &candidates)
+        }
+
+        return dedupeSortedPaths(candidates)
+    }
+
+    func appendBundledBinaries(from directory: URL, into results: inout [String]) {
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return
+        }
+
+        for entry in entries where entry.lastPathComponent.hasPrefix(GreetingDaemonIdentity.binaryPrefix) {
+            results.append(entry.standardizedFileURL.path)
         }
     }
 
-    func stageHolonRoot(binaryPath: String) throws -> URL {
+    func appendSourceTreeDaemonCandidates(from daemonsDir: URL, into results: inout [String]) {
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: daemonsDir,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return
+        }
+
+        for entry in entries where entry.lastPathComponent.hasPrefix(GreetingDaemonIdentity.binaryPrefix) {
+            results.append(
+                entry
+                    .appendingPathComponent(".op/build/bin", isDirectory: true)
+                    .appendingPathComponent(entry.lastPathComponent)
+                    .standardizedFileURL
+                    .path
+            )
+            results.append(entry.appendingPathComponent(entry.lastPathComponent).standardizedFileURL.path)
+        }
+    }
+
+    func dedupeSortedPaths(_ paths: [String]) -> [String] {
+        var seen = Set<String>()
+        return paths
+            .map { URL(fileURLWithPath: $0).standardizedFileURL.path }
+            .filter { seen.insert($0).inserted }
+            .sorted()
+    }
+
+    func stageHolonRoot(daemon: GreetingDaemonIdentity) throws -> URL {
         let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("greeting-goswift-holon-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("gudule-greeting-hostui-swiftui-\(UUID().uuidString)", isDirectory: true)
 
         do {
-            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-            try manifest(for: binaryPath)
-                .write(to: root.appendingPathComponent("holon.yaml"), atomically: true, encoding: .utf8)
+            let holonDir = root
+                .appendingPathComponent("holons", isDirectory: true)
+                .appendingPathComponent(daemon.slug, isDirectory: true)
+            try FileManager.default.createDirectory(at: holonDir, withIntermediateDirectories: true)
+            try manifest(for: daemon)
+                .write(to: holonDir.appendingPathComponent("holon.yaml"), atomically: true, encoding: .utf8)
             return root
         } catch {
             try? FileManager.default.removeItem(at: root)
@@ -176,23 +303,23 @@ private extension DaemonProcess {
         }
     }
 
-    func manifest(for binaryPath: String) -> String {
+    func manifest(for daemon: GreetingDaemonIdentity) -> String {
         """
         schema: holon/v0
         uuid: "\(Self.holonUUID)"
-        given_name: "greeting-daemon"
-        family_name: "\(Self.familyName)"
+        given_name: "gudule"
+        family_name: "\(daemon.familyName)"
         motto: "Greets users in 56 languages."
-        composer: "B. ALTER"
+        composer: "Codex"
         clade: deterministic/pure
         status: draft
-        born: "2026-03-06"
+        born: "2026-03-12"
         generated_by: manual
         kind: native
         build:
-          runner: \(Self.buildRunner)
+          runner: \(daemon.buildRunner)
         artifacts:
-          binary: "\(yamlEscape(binaryPath))"
+          binary: "\(yamlEscape(daemon.binaryPath))"
         """ + "\n"
     }
 
@@ -200,6 +327,7 @@ private extension DaemonProcess {
         value.replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
     }
+
     func cleanupStageRoot() {
         guard let root = stageRoot else { return }
         stageRoot = nil

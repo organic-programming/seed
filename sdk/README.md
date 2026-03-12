@@ -137,7 +137,18 @@ surfaces and limitations.
 
 ## Recipes
 
-Cross-language assembly patterns live in [`recipes/`](../recipes/).
+Cross-language matrices now live directly in [`recipes/`](../recipes/)
+instead of per-recipe git submodules.
+
+- `recipes/assemblies/` contains the 48 Gudule greeting assemblies.
+- `recipes/composition/` contains the 33 Charon compositions plus the 2
+  shared worker holons.
+- `recipes/testmatrix/gudule-greeting-testmatrix/` provides the reusable
+  build-and-run matrix CLI.
+
+Use [`../design/grace-op/v0.4/recipes.yaml`](../design/grace-op/v0.4/recipes.yaml)
+for inventory and naming, and [`../recipes/README.md`](../recipes/README.md)
+for current matrix notes and runnable examples.
 
 | Recipe | Backend | Frontend | Frontend uses `connect` |
 |--------|---------|----------|:----------------------:|

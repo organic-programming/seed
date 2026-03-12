@@ -2,19 +2,143 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
+#include <QRegularExpression>
+#include <QTextStream>
+
+#include <set>
+#include <stdexcept>
 
 #include "holons/holons.hpp"
 
 namespace {
-constexpr auto kHolonSlug = "gudule-daemon-greeting-goqt";
-constexpr auto kHolonUUID = "1a409a1e-69e3-4846-9f9b-47b0a6f98f84";
-constexpr auto kFamilyName = "Greeting-Goqt";
-} // namespace
+constexpr auto kBinaryPrefix = "gudule-daemon-greeting-";
+constexpr auto kHolonUUID = "77faf86e-e778-4cbc-a484-c545a0e35ce3";
 
-DaemonProcess::DaemonProcess(const QString &binaryName, QObject *parent)
-    : QObject(parent), binaryName_(binaryName) {
+QString displayVariant(const QString &variant) {
+  const QStringList tokens = variant.split('-', Qt::SkipEmptyParts);
+  QStringList parts;
+  parts.reserve(tokens.size());
+  for (const QString &token : tokens) {
+    if (token == QStringLiteral("cpp")) {
+      parts << QStringLiteral("CPP");
+    } else if (token == QStringLiteral("js")) {
+      parts << QStringLiteral("JS");
+    } else if (token == QStringLiteral("qt")) {
+      parts << QStringLiteral("Qt");
+    } else if (!token.isEmpty()) {
+      QString title = token;
+      title[0] = title.at(0).toUpper();
+      parts << title;
+    }
+  }
+  return parts.join('-');
+}
+
+QString buildRunnerFor(const QString &variant) {
+  if (variant == QStringLiteral("go")) {
+    return QStringLiteral("go-module");
+  }
+  if (variant == QStringLiteral("rust")) {
+    return QStringLiteral("cargo");
+  }
+  if (variant == QStringLiteral("swift")) {
+    return QStringLiteral("swift-package");
+  }
+  if (variant == QStringLiteral("kotlin")) {
+    return QStringLiteral("gradle");
+  }
+  if (variant == QStringLiteral("dart")) {
+    return QStringLiteral("dart");
+  }
+  if (variant == QStringLiteral("python")) {
+    return QStringLiteral("python");
+  }
+  if (variant == QStringLiteral("csharp")) {
+    return QStringLiteral("dotnet");
+  }
+  if (variant == QStringLiteral("node")) {
+    return QStringLiteral("npm");
+  }
+  return QStringLiteral("go-module");
+}
+
+std::optional<DaemonProcess::GreetingDaemonIdentity> identityFromBinaryPath(
+    const QString &binaryPath) {
+  const QString fileName = QFileInfo(binaryPath).fileName();
+  QString normalized = fileName;
+  if (normalized.endsWith(QStringLiteral(".exe"))) {
+    normalized.chop(4);
+  }
+  if (!normalized.startsWith(QString::fromUtf8(kBinaryPrefix))) {
+    return std::nullopt;
+  }
+
+  const QString variant = normalized.mid(qstrlen(kBinaryPrefix));
+  return DaemonProcess::GreetingDaemonIdentity{
+      QStringLiteral("gudule-greeting-daemon-%1").arg(variant),
+      QStringLiteral("Greeting-Daemon-%1").arg(displayVariant(variant)),
+      normalized,
+      buildRunnerFor(variant),
+      QFileInfo(binaryPath).absoluteFilePath(),
+  };
+}
+
+void addBundledBinaries(const QString &directoryPath, QStringList *results,
+                        std::set<QString> *seen) {
+  const QDir directory(directoryPath);
+  if (!directory.exists()) {
+    return;
+  }
+
+  const QFileInfoList entries =
+      directory.entryInfoList(QStringList(QStringLiteral("%1*").arg(QString::fromUtf8(kBinaryPrefix))),
+                              QDir::Files | QDir::NoDotAndDotDot, QDir::Name);
+  for (const QFileInfo &entry : entries) {
+    const QString normalized = entry.absoluteFilePath();
+    if (seen->insert(normalized).second) {
+      results->append(normalized);
+    }
+  }
+}
+
+void addSourceTreeDaemons(const QString &directoryPath, QStringList *results,
+                          std::set<QString> *seen) {
+  const QDir daemonsDir(directoryPath);
+  if (!daemonsDir.exists()) {
+    return;
+  }
+
+  const QFileInfoList entries = daemonsDir.entryInfoList(
+      QStringList(QStringLiteral("%1*").arg(QString::fromUtf8(kBinaryPrefix))),
+      QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+  for (const QFileInfo &entry : entries) {
+    const QString binaryName = entry.fileName();
+    const QString built =
+        QDir(entry.absoluteFilePath()).filePath(QStringLiteral(".op/build/bin/%1").arg(binaryName));
+    const QString local = QDir(entry.absoluteFilePath()).filePath(binaryName);
+    if (seen->insert(built).second) {
+      results->append(QDir::cleanPath(built));
+    }
+    if (seen->insert(local).second) {
+      results->append(QDir::cleanPath(local));
+    }
+  }
+}
+
+QString firstUri(const QString &line) {
+  static const QRegularExpression re(QStringLiteral(R"(tcp://\S+)"));
+  const QRegularExpressionMatch match = re.match(line);
+  if (!match.hasMatch()) {
+    return {};
+  }
+  return match.captured(0);
+}
+}  // namespace
+
+DaemonProcess::DaemonProcess(QObject *parent) : QObject(parent) {
 }
 
 bool DaemonProcess::start() {
@@ -24,15 +148,17 @@ bool DaemonProcess::start() {
   lastError_.clear();
   grpcTarget_.clear();
 
-  const QString binaryPath = resolveBinaryPath();
-  if (binaryPath.isEmpty()) {
-    lastError_ = QStringLiteral("Daemon binary not found: %1").arg(binaryName_);
+  const auto daemon = resolveDaemon();
+  if (!daemon.has_value()) {
+    lastError_ = QStringLiteral("Daemon binary not found: %1*")
+                     .arg(QString::fromUtf8(kBinaryPrefix));
     return false;
   }
-  binaryPath_ = binaryPath;
+  binaryPath_ = daemon->binaryPath;
+  daemonSlug_ = daemon->slug;
 
   auto stageRoot = std::make_unique<QTemporaryDir>(
-      QDir::temp().filePath(QStringLiteral("greeting-goqt-holon-XXXXXX")));
+      QDir::temp().filePath(QStringLiteral("gudule-greeting-hostui-qt-XXXXXX")));
   if (!stageRoot->isValid()) {
     lastError_ = QStringLiteral("Failed to create temporary holon root.");
     return false;
@@ -40,7 +166,7 @@ bool DaemonProcess::start() {
 
   const QDir root(stageRoot->path());
   const QString holonDir =
-      root.filePath(QStringLiteral("holons/%1").arg(QString::fromUtf8(kHolonSlug)));
+      root.filePath(QStringLiteral("holons/%1").arg(daemon->slug));
   if (!QDir().mkpath(holonDir)) {
     lastError_ = QStringLiteral("Failed to create staged holon directory: %1").arg(holonDir);
     return false;
@@ -52,17 +178,37 @@ bool DaemonProcess::start() {
                      .arg(manifest.errorString());
     return false;
   }
-  manifest.write(buildManifest(binaryPath).toUtf8());
+  manifest.write(buildManifest(*daemon).toUtf8());
   manifest.close();
+
+  QString portFilePath;
+  try {
+    portFilePath = startBundledDaemon(*daemon, stageRoot->path());
+  } catch (const std::exception &ex) {
+    lastError_ = QString::fromUtf8(ex.what());
+    if (daemonProcess_) {
+      daemonProcess_->kill();
+      daemonProcess_->waitForFinished(1000);
+      daemonProcess_.reset();
+    }
+    return false;
+  }
 
   const QString previousDirectory = QDir::currentPath();
   if (!QDir::setCurrent(stageRoot->path())) {
     lastError_ = QStringLiteral("Failed to enter staged holon root: %1").arg(stageRoot->path());
+    daemonProcess_->kill();
+    daemonProcess_->waitForFinished(1000);
+    daemonProcess_.reset();
     return false;
   }
 
   try {
-    channel_ = holons::connect(kHolonSlug);
+    holons::ConnectOptions opts;
+    opts.transport = "tcp";
+    opts.start = false;
+    opts.port_file = portFilePath.toStdString();
+    channel_ = holons::connect(daemon->slug.toStdString(), opts);
     grpcTarget_ = QString::fromStdString(holons::channel_target(channel_));
     if (grpcTarget_.isEmpty()) {
       throw std::runtime_error("cpp-holons did not expose the daemon target");
@@ -78,6 +224,11 @@ bool DaemonProcess::start() {
       channel_.reset();
     }
     grpcTarget_.clear();
+    if (daemonProcess_) {
+      daemonProcess_->kill();
+      daemonProcess_->waitForFinished(1000);
+      daemonProcess_.reset();
+    }
   }
 
   QDir::setCurrent(previousDirectory);
@@ -94,13 +245,21 @@ void DaemonProcess::stop() {
     channel_.reset();
   }
 
+  if (daemonProcess_) {
+    daemonProcess_->kill();
+    daemonProcess_->waitForFinished(1000);
+    daemonProcess_.reset();
+  }
+
   stageRoot_.reset();
+  daemonSlug_.clear();
+  binaryPath_.clear();
   grpcTarget_.clear();
 }
 
 std::shared_ptr<grpc::Channel> DaemonProcess::channel() const { return channel_; }
 
-QString DaemonProcess::target() const { return QString::fromUtf8(kHolonSlug); }
+QString DaemonProcess::target() const { return daemonSlug_; }
 
 QString DaemonProcess::grpcTarget() const { return grpcTarget_; }
 
@@ -108,42 +267,122 @@ QString DaemonProcess::binaryPath() const { return binaryPath_; }
 
 QString DaemonProcess::lastError() const { return lastError_; }
 
-QString DaemonProcess::resolveBinaryPath() const {
+std::optional<DaemonProcess::GreetingDaemonIdentity> DaemonProcess::resolveDaemon() const {
+  QStringList candidates;
+  std::set<QString> seen;
+  const QDir currentDir(QDir::currentPath());
+  addBundledBinaries(currentDir.filePath(QStringLiteral("build")), &candidates, &seen);
+  addBundledBinaries(currentDir.filePath(QStringLiteral("../build")), &candidates, &seen);
+  addSourceTreeDaemons(currentDir.filePath(QStringLiteral("../../daemons")), &candidates, &seen);
+
   const QDir appDir(QCoreApplication::applicationDirPath());
-  const QString bundled = appDir.filePath(QStringLiteral("daemon/%1").arg(binaryName_));
-  if (QFileInfo::exists(bundled)) {
-    return bundled;
+  addBundledBinaries(appDir.path(), &candidates, &seen);
+  addBundledBinaries(appDir.filePath(QStringLiteral("daemon")), &candidates, &seen);
+  addBundledBinaries(appDir.filePath(QStringLiteral("../Resources")), &candidates, &seen);
+  addBundledBinaries(appDir.filePath(QStringLiteral("../Resources/daemon")), &candidates, &seen);
+
+  for (const QString &candidate : candidates) {
+    const QFileInfo info(candidate);
+    if (!info.exists() || !info.isFile() || !info.isExecutable()) {
+      continue;
+    }
+    if (const auto identity = identityFromBinaryPath(candidate)) {
+      return identity;
+    }
   }
 
-  const QString devPath =
-      appDir.filePath(QStringLiteral("../../../../greeting-daemon/%1").arg(binaryName_));
-  if (QFileInfo::exists(devPath)) {
-    return QDir::cleanPath(devPath);
-  }
-
-  return {};
+  return std::nullopt;
 }
 
-QString DaemonProcess::buildManifest(const QString &binaryPath) const {
-  QString escapedPath = binaryPath;
+QString DaemonProcess::startBundledDaemon(const GreetingDaemonIdentity &daemon,
+                                          const QString &stageRootPath) {
+  auto process = std::make_unique<QProcess>();
+  process->setProgram(daemon.binaryPath);
+  process->setArguments(
+      {QStringLiteral("serve"), QStringLiteral("--listen"), QStringLiteral("tcp://127.0.0.1:0")});
+  process->setProcessChannelMode(QProcess::MergedChannels);
+  process->start();
+  if (!process->waitForStarted()) {
+    throw std::runtime_error("Failed to launch bundled daemon");
+  }
+
+  QString listenUri;
+  QStringList recentLines;
+  QElapsedTimer timer;
+  timer.start();
+  QByteArray buffered;
+
+  while (timer.elapsed() < 5000 && listenUri.isEmpty()) {
+    process->waitForReadyRead(100);
+    buffered.append(process->readAllStandardOutput());
+    const QList<QByteArray> lines = buffered.split('\n');
+    buffered = lines.isEmpty() ? QByteArray() : lines.last();
+    for (int i = 0; i + 1 < lines.size(); ++i) {
+      const QString line = QString::fromUtf8(lines.at(i)).trimmed();
+      if (line.isEmpty()) {
+        continue;
+      }
+      recentLines << line;
+      if (recentLines.size() > 8) {
+        recentLines.removeFirst();
+      }
+      const QString candidate = firstUri(line);
+      if (!candidate.isEmpty()) {
+        listenUri = candidate;
+        break;
+      }
+    }
+
+    if (process->state() == QProcess::NotRunning && listenUri.isEmpty()) {
+      throw std::runtime_error(
+          QStringLiteral("Bundled daemon exited before advertising an address: %1")
+              .arg(recentLines.join(QStringLiteral(" | ")))
+              .toStdString());
+    }
+  }
+
+  if (listenUri.isEmpty()) {
+    process->kill();
+    process->waitForFinished(1000);
+    throw std::runtime_error("Bundled daemon did not advertise a tcp:// address");
+  }
+
+  const QString portFilePath =
+      QDir(stageRootPath).filePath(QStringLiteral(".op/run/%1.port").arg(daemon.slug));
+  QDir().mkpath(QFileInfo(portFilePath).absolutePath());
+  QFile portFile(portFilePath);
+  if (!portFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+    process->kill();
+    process->waitForFinished(1000);
+    throw std::runtime_error("Failed to write daemon port file");
+  }
+  QTextStream(&portFile) << listenUri << '\n';
+  portFile.close();
+
+  daemonProcess_ = std::move(process);
+  return portFilePath;
+}
+
+QString DaemonProcess::buildManifest(const GreetingDaemonIdentity &daemon) const {
+  QString escapedPath = daemon.binaryPath;
   escapedPath.replace(QStringLiteral("\\"), QStringLiteral("\\\\"));
   escapedPath.replace(QStringLiteral("\""), QStringLiteral("\\\""));
 
   return QStringLiteral(
              "schema: holon/v0\n"
              "uuid: \"%1\"\n"
-             "given_name: gudule-daemon\n"
+             "given_name: gudule\n"
              "family_name: \"%2\"\n"
-             "motto: Greets users in 56 languages — a Go + Qt recipe example.\n"
+             "motto: Greets users in 56 languages through the bundled daemon.\n"
              "composer: Codex\n"
              "clade: deterministic/pure\n"
              "status: draft\n"
-             "born: \"2026-03-06\"\n"
+             "born: \"2026-03-12\"\n"
              "generated_by: manual\n"
              "kind: native\n"
              "build:\n"
-             "  runner: go-module\n"
+             "  runner: %3\n"
              "artifacts:\n"
-             "  binary: \"%3\"\n")
-      .arg(QString::fromUtf8(kHolonUUID), QString::fromUtf8(kFamilyName), escapedPath);
+             "  binary: \"%4\"\n")
+      .arg(QString::fromUtf8(kHolonUUID), daemon.familyName, daemon.buildRunner, escapedPath);
 }

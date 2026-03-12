@@ -15,7 +15,6 @@ repositories {
     maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
 }
 
-val daemonBinaryName = "gudule-daemon-greeting-gokotlin"
 val grpcVersion = "1.76.0"
 val grpcKotlinVersion = "1.4.3"
 val protobufVersion = "4.32.1"
@@ -66,19 +65,6 @@ protobuf {
                 create("grpckt")
             }
         }
-    }
-}
-
-val stageDaemon by tasks.registering(Copy::class) {
-    from(layout.projectDirectory.dir("../greeting-daemon"))
-    include(daemonBinaryName)
-    into(layout.buildDirectory.dir("generated/embedded-daemon"))
-}
-
-tasks.processResources {
-    dependsOn(stageDaemon)
-    from(stageDaemon) {
-        into("embedded")
     }
 }
 

@@ -4,7 +4,7 @@
 #include <QWidget>
 
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), daemon_("gudule-daemon-greeting-goqt"),
+    : QMainWindow(parent), daemon_(),
       statusLabel_(new QLabel(this)),
       languageCombo_(new QComboBox(this)), nameEdit_(new QLineEdit(this)),
       helloButton_(new QPushButton(QStringLiteral("Greet"), this)),

@@ -5,7 +5,7 @@ namespace Greeting.Godotnet;
 
 public partial class MainPage : ContentPage
 {
-    private readonly DaemonProcess _daemon = new(CurrentDaemonBinaryName());
+    private readonly DaemonProcess _daemon = new();
     private readonly CancellationTokenSource _lifetime = new();
     private GreetingClient? _client;
     private bool _initialized;
@@ -91,9 +91,4 @@ public partial class MainPage : ContentPage
         await _daemon.DisposeAsync();
         _lifetime.Dispose();
     }
-
-    private static string CurrentDaemonBinaryName() =>
-        OperatingSystem.IsWindows()
-            ? "gudule-daemon-greeting-godotnet.exe"
-            : "gudule-daemon-greeting-godotnet";
 }

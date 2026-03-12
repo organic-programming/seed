@@ -16,8 +16,6 @@
     <SupportedOSPlatformVersion Condition="$([MSBuild]::IsOSPlatform('windows'))">10.0.19041.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="!$([MSBuild]::IsOSPlatform('windows'))">14.0</SupportedOSPlatformVersion>
     <WindowsPackageType Condition="$([MSBuild]::IsOSPlatform('windows'))">None</WindowsPackageType>
-    <DaemonBinaryName Condition="$([MSBuild]::IsOSPlatform('windows'))">gudule-daemon-greeting-godotnet.exe</DaemonBinaryName>
-    <DaemonBinaryName Condition="!$([MSBuild]::IsOSPlatform('windows'))">gudule-daemon-greeting-godotnet</DaemonBinaryName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -50,12 +48,4 @@
     <Compile Include="Generated\\Greeting.cs" />
     <Compile Include="Generated\\GreetingGrpc.cs" />
   </ItemGroup>
-
-  <Target Name="StageDaemon" BeforeTargets="Build" Condition="Exists('../greeting-daemon/$(DaemonBinaryName)')">
-    <MakeDir Directories="$(MSBuildProjectDirectory)/Resources/Raw" />
-    <Copy
-      SourceFiles="../greeting-daemon/$(DaemonBinaryName)"
-      DestinationFiles="$(MSBuildProjectDirectory)/Resources/Raw/$(DaemonBinaryName)" />
-    <Exec Condition="'$(OS)' != 'Windows_NT'" Command="chmod +x &quot;$(MSBuildProjectDirectory)/Resources/Raw/$(DaemonBinaryName)&quot;" />
-  </Target>
 </Project>
