@@ -171,12 +171,101 @@ op install greeting-daemon-go
 The fallback makes the ecosystem work even for niche platforms
 that aren't in the CI matrix.
 
-## Security
+## Security & Signing
 
-- All artifacts signed with the holon author's key
-- `op install` verifies signatures before execution
-- Registry transport over HTTPS
-- Checksums prevent tampering
+Signing operates at **two layers**:
+
+### Layer 1: Artifact Signing (registry integrity)
+
+Every published artifact is signed with the holon author's
+Ed25519 key. `op install` verifies the signature before
+execution. This prevents tampering in transit/storage.
+
+- Sign: `op publish` attaches `.sig` per artifact
+- Verify: `op install` checks against author's public key
+- Key: `--key <path>` or `OP_SIGN_KEY` env var
+- Reject unsigned artifacts unless `--insecure`
+
+### Layer 2: Platform Code Signing (OS-level trust)
+
+OS-level code signing for distribution through stores,
+enterprise deployment, and Gatekeeper/SmartScreen compliance.
+
+#### `build.sign` manifest
+
+```yaml
+build:
+  sign:
+    macos:
+      identity: Developer ID Application
+      entitlements: entitlements.plist
+      options: [runtime]       # hardened runtime for notarization
+    windows:
+      certificate: $OP_SIGN_CERT    # .pfx path
+      password: $OP_SIGN_PASS       # cert password
+      timestamp: http://timestamp.digicert.com
+    linux:
+      gpg_key: $OP_GPG_KEY         # GPG key ID or path
+    ios:
+      identity: iPhone Distribution
+      provisioning: $OP_PROVISION    # .mobileprovision path
+    android:
+      keystore: $OP_ANDROID_KEYSTORE  # .jks or .keystore path
+      alias: $OP_ANDROID_ALIAS
+      password: $OP_ANDROID_PASS
+```
+
+#### Platform signing tools
+
+| Platform | Tool | Identity type | Use case |
+|---|---|---|---|
+| **macOS** | `codesign` | Developer ID Application | Gatekeeper, outside App Store |
+| **macOS** | `xcrun notarytool` | Apple ID + team | Notarization (required for distribution) |
+| **Windows** | `signtool.exe` | EV code signing cert | SmartScreen, enterprise |
+| **Windows** | `osslsigncode` | Same cert, cross-platform | Sign from macOS/Linux CI |
+| **Linux** | `gpg --detach-sign` | GPG key | Package repos (apt, rpm, pacman) |
+| **Linux** | `appimagesign` | GPG key | AppImage distribution |
+| **iOS** | `codesign` | iPhone Distribution | App Store / TestFlight |
+| **Android** | `apksigner` | Keystore | Play Store / sideload |
+| **Android** | `jarsigner` | Keystore | Legacy APK signing |
+
+#### CLI flags
+
+```bash
+# Sign with manifest-configured identity
+op publish --sign
+
+# Override identity
+op publish --sign "Developer ID Application: Compilons"
+
+# Notarize (macOS only, after signing)
+op publish --notarize
+
+# Skip platform signing (still does artifact Ed25519)
+op publish --no-platform-sign
+```
+
+#### Environment variables
+
+| Variable | Purpose |
+|---|---|
+| `OP_SIGN_KEY` | Ed25519 private key for artifact signing |
+| `OP_SIGN_IDENTITY` | Default platform signing identity |
+| `OP_SIGN_CERT` | Windows certificate path (.pfx) |
+| `OP_SIGN_PASS` | Windows certificate password |
+| `OP_GPG_KEY` | Linux GPG key ID or path |
+| `OP_PROVISION` | iOS provisioning profile path |
+| `OP_ANDROID_KEYSTORE` | Android keystore path (.jks) |
+| `OP_ANDROID_ALIAS` | Android key alias |
+| `OP_ANDROID_PASS` | Android keystore password |
+| `APPLE_ID` / `TEAM_ID` | macOS notarization credentials |
+
+#### Relationship to v0.4.4
+
+v0.4.4 introduced **auto ad-hoc signing** for local development.
+v0.8 extends this with real identities, EV certificates, and
+store submission. The `build.sign` manifest replaces `--sign -`
+with `--sign <identity>`.
 
 ## Dependency
 
