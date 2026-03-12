@@ -19,7 +19,7 @@ Complete `op` for single-host development.
 
 ---
 
-## v0.4 — Recipe Ecosystem
+## v0.4 — Recipe Ecosystem 💭
 
 Restructure recipes into a DRY monorepo with shared components
 and composition patterns.

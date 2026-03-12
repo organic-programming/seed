@@ -19,4 +19,4 @@ detection — exposed as stateless RPCs.
 Wisupaa pairs with [megg-ffmpeg](../megg_ffmpeg/INDEX.md) — megg handles
 media processing (format conversion, audio extraction), wisupaa handles ASR.
 
-See [CPP_HOLONS_STRATEGY.md](../cpp/CPP_HOLONS_STRATEGY.md) for the joint plan.
+See [CPP_HOLONS_STRATEGY.md](../sdk/cpp/CPP_HOLONS_STRATEGY.md) for the joint plan.
