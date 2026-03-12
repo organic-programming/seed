@@ -4,13 +4,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from holons.serve import parse_flags, run_with_options
-
 ROOT = Path(__file__).resolve().parent.parent
 SDK = ROOT.parent.parent.parent / "sdk" / "python-holons"
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(SDK))
 sys.path.insert(0, str(ROOT / "gen" / "python"))
 
+from holons.serve import parse_flags, run_with_options
 from greeting.v1 import greeting_pb2, greeting_pb2_grpc  # noqa: E402
 from greetings import GREETINGS, lookup  # noqa: E402
 
