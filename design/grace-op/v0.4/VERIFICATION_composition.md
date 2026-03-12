@@ -50,7 +50,12 @@ Verification: build succeeds and the app launches (daemon starts, UI connects vi
 
 ---
 
-❌ ⚠️ ✅ **@bpds 12/02/2026**
+❌ failure
+⚠️ quality issue
+✅ success
+
+**@bpds 12/02/2026 on mac os 15.7.2 (24G325) Apple M4**
+> @bpds: i do run each case, then in case of failure give a screenshot to codex, please guide it to fix the issue. When an issue is fixed i do verify if there are no regression. 
 
 ### A.1 Flutter × 8 Daemons
 
@@ -84,8 +89,8 @@ op build recipes/assemblies/gudule-greeting-flutter-csharp ✅ **@bpds 12/02/202
 op run   recipes/assemblies/gudule-greeting-flutter-csharp ✅ **@bpds 12/02/2026**
 
 # A.1.8 — Flutter + Node.js
-op build recipes/assemblies/gudule-greeting-flutter-node ✅ ✅ **@bpds 12/02/2026**
-op run   recipes/assemblies/gudule-greeting-flutter-node ❌ ❌ **@bpds 12/02/2026**
+op build recipes/assemblies/gudule-greeting-flutter-node ✅ ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-flutter-node ❌ ❌ ✅ **@bpds 12/02/2026**
 ```
 
 **Verify:** Flutter window opens → ListLanguages populates dropdown → SayHello returns greeting.
@@ -96,12 +101,12 @@ op run   recipes/assemblies/gudule-greeting-flutter-node ❌ ❌ **@bpds 12/02/2
 
 ```bash
 # A.2.1 — SwiftUI + Go
-op build recipes/assemblies/gudule-greeting-swiftui-go
-op run   recipes/assemblies/gudule-greeting-swiftui-go
+op build recipes/assemblies/gudule-greeting-swiftui-go ✅ ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-swiftui-go ❌ ✅ ✅ **@bpds 12/02/2026** 
 
 # A.2.2 — SwiftUI + Rust
-op build recipes/assemblies/gudule-greeting-swiftui-rust
-op run   recipes/assemblies/gudule-greeting-swiftui-rust
+op build recipes/assemblies/gudule-greeting-swiftui-rust ✅ ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-swiftui-rust ❌ ✅ **@bpds 12/02/2026** 
 
 # A.2.3 — SwiftUI + Swift
 op build recipes/assemblies/gudule-greeting-swiftui-swift
