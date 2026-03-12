@@ -5,6 +5,10 @@ import 'daemon_launcher.dart';
 import 'greeting_target.dart';
 
 class GreetingClient {
+  static final CallOptions _rpcOptions = CallOptions(
+    timeout: Duration(seconds: 10),
+  );
+
   ClientChannel? _channel;
   GreetingServiceClient? _stub;
   final DaemonLauncher _launcher;
@@ -22,12 +26,16 @@ class GreetingClient {
   }
 
   Future<ListLanguagesResponse> listLanguages() async {
-    return _stub!.listLanguages(ListLanguagesRequest());
+    return _stub!.listLanguages(
+      ListLanguagesRequest(),
+      options: _rpcOptions,
+    );
   }
 
   Future<SayHelloResponse> sayHello(String name, String langCode) async {
     return _stub!.sayHello(
       SayHelloRequest(name: name, langCode: langCode),
+      options: _rpcOptions,
     );
   }
 
