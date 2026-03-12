@@ -16,10 +16,7 @@ class GreetingClient {
 
   Future<void> connect(GreetingEndpoint endpoint) async {
     await close();
-    final channel = await _launcher.start(
-      target: endpoint.target,
-      bundledBinaryPath: endpoint.bundledBinaryPath,
-    );
+    final channel = await _launcher.start(endpoint);
     _channel = channel;
     _stub = GreetingServiceClient(channel);
   }

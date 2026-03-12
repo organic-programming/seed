@@ -27,7 +27,6 @@ class BundledDaemonSession {
 }
 
 class DaemonLauncher {
-  static const String _slug = GreetingTargetResolver.daemonSlug;
   static const String _uuid = '1a409a1e-69e3-4846-9f9b-47b0a6f98f84';
 
   final HolonConnect _connect;
@@ -59,13 +58,10 @@ class DaemonLauncher {
 
   String? get stagedRootPath => _root?.path;
 
-  Future<ClientChannel> start({
-    String? target,
-    String? bundledBinaryPath,
-  }) async {
+  Future<ClientChannel> start(GreetingEndpoint endpoint) async {
     await stop(null);
 
-    final configuredTarget = (target ?? '').trim();
+    final configuredTarget = (endpoint.target ?? '').trim();
     if (configuredTarget.isNotEmpty) {
       return _connect(
         configuredTarget,
@@ -73,15 +69,18 @@ class DaemonLauncher {
       );
     }
 
-    final binaryPath = (bundledBinaryPath ?? '').trim();
+    final binaryPath = (endpoint.bundledBinaryPath ?? '').trim();
     final file = File(binaryPath);
     if (!file.existsSync()) {
       throw StateError('Daemon binary not found: $binaryPath');
     }
 
+    final daemon =
+        endpoint.daemon ?? GreetingDaemonIdentity.fromBinaryPath(binaryPath);
+
     final root = await _createTempDirectory('greeting-hostui-flutter-');
-    final daemonRoot = await _stageHolonRoot(root, file.absolute.path);
-    final portFilePath = _portFilePath(root.path);
+    final daemonRoot = await _stageHolonRoot(root, file.absolute.path, daemon);
+    final portFilePath = _portFilePath(root.path, daemon.slug);
     final daemonSession = await _startBundledDaemon(
       file.absolute.path,
       portFilePath,
@@ -93,7 +92,7 @@ class DaemonLauncher {
       return await _withDiscoveryRoot(
         daemonRoot.path,
         () => _connect(
-          _slug,
+          daemon.slug,
           holons.ConnectOptions(
             transport: 'tcp',
             start: false,
@@ -130,25 +129,29 @@ class DaemonLauncher {
     }
   }
 
-  Future<Directory> _stageHolonRoot(Directory root, String binaryPath) async {
+  Future<Directory> _stageHolonRoot(
+    Directory root,
+    String binaryPath,
+    GreetingDaemonIdentity daemon,
+  ) async {
     final holonDir = Directory(
-      '${root.path}${Platform.pathSeparator}holons${Platform.pathSeparator}$_slug',
+      '${root.path}${Platform.pathSeparator}holons${Platform.pathSeparator}${daemon.slug}',
     );
     await holonDir.create(recursive: true);
     await File(
       '${holonDir.path}${Platform.pathSeparator}holon.yaml',
-    ).writeAsString(_manifestFor(binaryPath));
+    ).writeAsString(_manifestFor(binaryPath, daemon));
     return root;
   }
 
-  String _manifestFor(String binaryRef) {
+  String _manifestFor(String binaryRef, GreetingDaemonIdentity daemon) {
     final escapedBinaryRef = _escapeYaml(binaryRef);
     return '''
 schema: holon/v0
 uuid: "$_uuid"
 given_name: "gudule"
-family_name: "Greeting-Daemon-Go"
-motto: "Greets users in 56 languages through the extracted Go daemon."
+family_name: "${daemon.familyName}"
+motto: "Greets users in 56 languages through the bundled daemon."
 composer: "Codex"
 clade: "deterministic/pure"
 status: "draft"
@@ -166,8 +169,8 @@ artifacts:
     return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
   }
 
-  String _portFilePath(String rootPath) {
-    return '$rootPath${Platform.pathSeparator}.op${Platform.pathSeparator}run${Platform.pathSeparator}$_slug.port';
+  String _portFilePath(String rootPath, String daemonSlug) {
+    return '$rootPath${Platform.pathSeparator}.op${Platform.pathSeparator}run${Platform.pathSeparator}$daemonSlug.port';
   }
 
   Future<T> _withDiscoveryRoot<T>(

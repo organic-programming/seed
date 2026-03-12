@@ -36,7 +36,7 @@ daemons:
 
   - name: gudule-daemon-greeting-swift
     family_name: Greeting-Daemon-Swift
-    source: recipes/go-swift-holons/examples/greeting/greeting-daemon
+    source: recipes/daemons/gudule-daemon-greeting-swift
     sdk: swift-holons
     lang: swift
     runner: swift-package
@@ -45,7 +45,7 @@ daemons:
 
   - name: gudule-daemon-greeting-kotlin
     family_name: Greeting-Daemon-Kotlin
-    source: recipes/go-kotlin-holons/examples/greeting/greeting-daemon
+    source: recipes/daemons/gudule-daemon-greeting-kotlin
     sdk: kotlin-holons
     lang: kotlin
     runner: gradle
@@ -54,16 +54,16 @@ daemons:
 
   - name: gudule-daemon-greeting-dart
     family_name: Greeting-Daemon-Dart
-    source: new
+    source: recipes/daemons/gudule-daemon-greeting-dart
     sdk: dart-holons
     lang: dart
-    runner: flutter  # dart server daemon uses flutter runner
+    runner: dart
     os: [macos, linux, windows]
     task: v0.4.2/TASK02
 
   - name: gudule-daemon-greeting-python
     family_name: Greeting-Daemon-Python
-    source: new
+    source: recipes/daemons/gudule-daemon-greeting-python
     sdk: python-holons
     lang: python
     runner: python
@@ -72,7 +72,7 @@ daemons:
 
   - name: gudule-daemon-greeting-csharp
     family_name: Greeting-Daemon-Csharp
-    source: recipes/go-dotnet-holons/examples/greeting/greeting-daemon
+    source: recipes/daemons/gudule-daemon-greeting-csharp
     sdk: csharp-holons
     lang: csharp
     runner: dotnet
@@ -81,8 +81,8 @@ daemons:
 
   - name: gudule-daemon-greeting-node
     family_name: Greeting-Daemon-Node
-    source: new
-    sdk: node-holons
+    source: recipes/daemons/gudule-daemon-greeting-node
+    sdk: js-holons
     lang: node
     runner: npm
     os: [macos, linux, windows]
@@ -101,7 +101,7 @@ hostuis:
 
   - name: gudule-greeting-hostui-swiftui
     family_name: Greeting-Hostui-Swiftui
-    source: recipes/go-swift-holons/examples/greeting/greeting-swiftui
+    source: recipes/hostui/gudule-greeting-hostui-swiftui
     sdk: swift-holons
     framework: swiftui
     runner: swift-package
@@ -110,7 +110,7 @@ hostuis:
 
   - name: gudule-greeting-hostui-compose
     family_name: Greeting-Hostui-Compose
-    source: recipes/go-kotlin-holons/examples/greeting/greeting-gokotlin
+    source: recipes/hostui/gudule-greeting-hostui-compose
     sdk: kotlin-holons
     framework: compose
     runner: gradle
@@ -119,8 +119,8 @@ hostuis:
 
   - name: gudule-greeting-hostui-web
     family_name: Greeting-Hostui-Web
-    source: recipes/go-web-holons/examples/greeting/greeting-goweb
-    sdk: "@connectrpc/connect-web"
+    source: recipes/hostui/gudule-greeting-hostui-web
+    sdk: js-web-holons
     framework: web
     runner: npm
     os: [macos, linux, windows]
@@ -128,7 +128,7 @@ hostuis:
 
   - name: gudule-greeting-hostui-dotnet
     family_name: Greeting-Hostui-Dotnet
-    source: recipes/go-dotnet-holons/examples/greeting/greeting-godotnet
+    source: recipes/hostui/gudule-greeting-hostui-dotnet
     sdk: csharp-holons
     framework: dotnet
     runner: dotnet
@@ -137,7 +137,7 @@ hostuis:
 
   - name: gudule-greeting-hostui-qt
     family_name: Greeting-Hostui-Qt
-    source: recipes/go-qt-holons/examples/greeting/greeting-goqt
+    source: recipes/hostui/gudule-greeting-hostui-qt
     sdk: cpp-holons
     framework: qt
     runner: qt-cmake

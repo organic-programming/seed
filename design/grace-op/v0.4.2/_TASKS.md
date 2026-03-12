@@ -9,6 +9,14 @@
 > its language's Organic Programming SDK for server bootstrap,
 > `connect(slug)`, and transport negotiation.
 
+> [!NOTE]
+> **Repo truth for v0.4.2:** Swift, Kotlin, and C# daemons are new
+> implementations in this repo rather than literal extractions from older
+> recipe trees. Node uses `sdk/js-holons`, the browser client uses
+> `sdk/js-web-holons`, and web assemblies are `daemon-web` bundles where the
+> daemon serves adjacent built `web/` assets and the browser connects to the
+> daemon-advertised TCP endpoint.
+
 ## Execution Strategy
 
 Strictly linear — each task gates the next. TASK06 is the 3×3 cross-language validation milestone. Do not proceed to v0.4.3 until TASK06 passes.

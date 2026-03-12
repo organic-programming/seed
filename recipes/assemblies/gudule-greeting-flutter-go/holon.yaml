@@ -26,10 +26,10 @@ build:
     mode: debug
   members:
     - id: daemon
-      path: daemon
+      path: ../../daemons/gudule-daemon-greeting-go
       type: holon
     - id: app
-      path: app
+      path: ../../hostui/gudule-greeting-hostui-flutter
       type: holon
   targets:
     macos:
@@ -44,18 +44,18 @@ build:
             argv:
               [
                 "ditto",
-                "app/build/macos/Build/Products/Debug/gudule-greeting-hostui-flutter.app",
+                "../../hostui/gudule-greeting-hostui-flutter/build/macos/Build/Products/Debug/gudule-greeting-hostui-flutter.app",
                 "build/gudule-greeting-hostui-flutter.app",
               ]
         - copy:
-            from: daemon/.op/build/bin/gudule-daemon-greeting-go
+            from: ../../daemons/gudule-daemon-greeting-go/.op/build/bin/gudule-daemon-greeting-go
             to: build/gudule-greeting-hostui-flutter.app/Contents/Resources/gudule-daemon-greeting-go
         - assert_file:
             path: build/gudule-greeting-hostui-flutter.app
 requires:
   commands: [go, flutter, dart]
   files:
-    - daemon/go.mod
-    - app/pubspec.yaml
+    - ../../daemons/gudule-daemon-greeting-go/go.mod
+    - ../../hostui/gudule-greeting-hostui-flutter/pubspec.yaml
 artifacts:
   primary: build/gudule-greeting-hostui-flutter.app

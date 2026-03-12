@@ -20,6 +20,7 @@ void main() {
       final endpoint = resolver.resolve();
       expect(endpoint.target, 'tcp://127.0.0.1:9091');
       expect(endpoint.bundledBinaryPath, isNull);
+      expect(endpoint.daemon, isNull);
     });
 
     test('falls back to a local built daemon when no target is configured',
@@ -27,9 +28,7 @@ void main() {
       final sandbox = await Directory.systemTemp.createTemp('greeting-target-');
       addTearDown(() => sandbox.delete(recursive: true));
 
-      final daemon = File(
-        '${sandbox.path}/build/${GreetingTargetResolver.daemonBinary}',
-      );
+      final daemon = File('${sandbox.path}/build/gudule-daemon-greeting-rust');
       await daemon.parent.create(recursive: true);
       await daemon.writeAsString('daemon');
 
@@ -42,6 +41,8 @@ void main() {
       final endpoint = resolver.resolve();
       expect(endpoint.target, isNull);
       expect(endpoint.bundledBinaryPath, daemon.path);
+      expect(endpoint.daemon?.slug, 'gudule-greeting-daemon-rust');
+      expect(endpoint.daemon?.familyName, 'Greeting-Daemon-Rust');
     });
   });
 
@@ -51,9 +52,7 @@ void main() {
       final sandbox = await Directory.systemTemp.createTemp('daemon-launcher-');
       addTearDown(() => sandbox.delete(recursive: true));
 
-      final daemon = File(
-        '${sandbox.path}/${GreetingTargetResolver.daemonBinary}',
-      );
+      final daemon = File('${sandbox.path}/gudule-daemon-greeting-rust');
       await daemon.writeAsString('daemon');
 
       final stagedRoot = Directory('${sandbox.path}/stage');
@@ -89,9 +88,14 @@ void main() {
         },
       );
 
-      final launched = await launcher.start(bundledBinaryPath: daemon.path);
+      final launched = await launcher.start(
+        GreetingEndpoint(
+          bundledBinaryPath: daemon.path,
+          daemon: GreetingDaemonIdentity.fromBinaryPath(daemon.path),
+        ),
+      );
       expect(launched, same(channel));
-      expect(connectTarget, GreetingTargetResolver.daemonSlug);
+      expect(connectTarget, 'gudule-greeting-daemon-rust');
       expect(connectOptions?.transport, 'tcp');
       expect(connectOptions?.start, isFalse);
       expect(connectOptions?.portFile, startedPortFilePath);
@@ -99,12 +103,12 @@ void main() {
       expect(startedBinaryPath, daemon.absolute.path);
 
       final holonDir = Directory(
-        '${stagedRoot.path}/holons/${GreetingTargetResolver.daemonSlug}',
+        '${stagedRoot.path}/holons/gudule-greeting-daemon-rust',
       );
       expect(holonDir.existsSync(), isTrue);
       expect(
         File('${holonDir.path}/holon.yaml').readAsStringSync(),
-        contains('family_name: "Greeting-Daemon-Go"'),
+        contains('family_name: "Greeting-Daemon-Rust"'),
       );
       expect(
         File('${holonDir.path}/holon.yaml').readAsStringSync(),
@@ -121,9 +125,7 @@ void main() {
       final sandbox = await Directory.systemTemp.createTemp('daemon-launcher-');
       addTearDown(() => sandbox.delete(recursive: true));
 
-      final daemon = File(
-        '${sandbox.path}/${GreetingTargetResolver.daemonBinary}',
-      );
+      final daemon = File('${sandbox.path}/gudule-daemon-greeting-rust');
       await daemon.writeAsString('daemon');
 
       final stagedRoot = Directory('${sandbox.path}/stage');
@@ -149,7 +151,12 @@ void main() {
       );
 
       await expectLater(
-        launcher.start(bundledBinaryPath: daemon.path),
+        launcher.start(
+          GreetingEndpoint(
+            bundledBinaryPath: daemon.path,
+            daemon: GreetingDaemonIdentity.fromBinaryPath(daemon.path),
+          ),
+        ),
         throwsA(isA<StateError>()),
       );
       expect(stagedRoot.existsSync(), isFalse);

@@ -37,7 +37,7 @@ class _GreetingAppState extends State<GreetingApp> {
       final endpoint = _targetResolver.resolve();
       if (endpoint.target == null && endpoint.bundledBinaryPath == null) {
         throw StateError(
-          'No GreetingService target found. Set GREETING_TARGET or bundle the Go daemon.',
+          'No GreetingService target found. Set GREETING_TARGET or bundle a greeting daemon.',
         );
       }
       await _client.connect(endpoint);
