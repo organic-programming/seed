@@ -52,10 +52,10 @@ build:
 
 ## Acceptance Criteria
 
-- [ ] 39 new `holon.yaml` files created (48 total including the 9 from v0.4.2/TASK06; names per [DESIGN_recipe_monorepo.md](../v0.4/DESIGN_recipe_monorepo.md))
-- [ ] Each `family_name` matches the canonical names in DESIGN_recipe_monorepo.md §4
-- [ ] Each builds with `op build`
-- [ ] Each manifest specifies `transport:` explicitly (tcp or stdio)
+- [x] 39 new `holon.yaml` files created (48 total including the 9 from v0.4.2/TASK06; names per [DESIGN_recipe_monorepo.md](../v0.4/DESIGN_recipe_monorepo.md))
+- [x] Each `family_name` matches the canonical names in DESIGN_recipe_monorepo.md §4
+- [x] Each builds with `op build`
+- [x] Each manifest specifies `transport:` explicitly (tcp or stdio)
 
 ## Dependencies
 

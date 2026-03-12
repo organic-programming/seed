@@ -57,11 +57,11 @@ The `recipes/README.md` must feature the matrix prominently:
 
 ## Acceptance Criteria
 
-- [ ] Discovers assemblies and composition holons automatically
-- [ ] Builds and runs each with timeout
-- [ ] Detects missing toolchains (skip, not fail)
-- [ ] Outputs table + JSON
-- [ ] `recipes/README.md` showcases the matrix
+- [x] Discovers assemblies and composition holons automatically
+- [x] Builds and runs each with timeout
+- [x] Detects missing toolchains (skip, not fail)
+- [x] Outputs table + JSON
+- [x] `recipes/README.md` showcases the matrix
 
 ## Dependencies
 

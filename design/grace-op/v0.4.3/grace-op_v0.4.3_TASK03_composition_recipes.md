@@ -55,11 +55,11 @@ recipes/composition/
 
 ## Acceptance Criteria
 
-- [ ] 2 worker holons build and run
-- [ ] Direct-call implemented in all 11 languages (canonical names per [DESIGN_recipe_monorepo.md](../v0.4/DESIGN_recipe_monorepo.md))
-- [ ] Pipeline implemented in all 11 languages
-- [ ] Fan-out implemented in all 11 languages
-- [ ] Each composition builds with `op build` and runs with `op run`
+- [x] 2 worker holons build and run
+- [x] Direct-call implemented in all 11 languages (canonical names per [DESIGN_recipe_monorepo.md](../v0.4/DESIGN_recipe_monorepo.md))
+- [x] Pipeline implemented in all 11 languages
+- [x] Fan-out implemented in all 11 languages
+- [x] Each composition builds with `op build` and runs with `op run`
 
 ## Dependencies
 
