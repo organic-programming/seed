@@ -61,8 +61,8 @@ Verification: build succeeds and the app launches (daemon starts, UI connects vi
 
 ```bash
 # A.1.1 — Flutter + Go
-op build recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅ ✅ ✅ **@bpds 12/02/2026**
-op run   recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅ ✅ ✅ **@bpds 12/02/2026**
+op build recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅ ✅ ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅ ✅ ✅ ✅ **@bpds 12/02/2026**
 
 # A.1.2 — Flutter + Rust
 op build recipes/assemblies/gudule-greeting-flutter-rust ✅ ✅ ✅ **@bpds 12/02/2026**
@@ -85,8 +85,8 @@ op build recipes/assemblies/gudule-greeting-flutter-python ✅ ✅ **@bpds 12/02
 op run   recipes/assemblies/gudule-greeting-flutter-python ❌ ✅ **@bpds 12/02/2026**
 
 # A.1.7 — Flutter + C#
-op build recipes/assemblies/gudule-greeting-flutter-csharp ✅ **@bpds 12/02/2026**
-op run   recipes/assemblies/gudule-greeting-flutter-csharp ✅ **@bpds 12/02/2026**
+op build recipes/assemblies/gudule-greeting-flutter-csharp ✅ ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-flutter-csharp ✅ ✅ ✅ **@bpds 12/02/2026**
 
 # A.1.8 — Flutter + Node.js
 op build recipes/assemblies/gudule-greeting-flutter-node ✅ ✅ ✅ **@bpds 12/02/2026**
@@ -105,72 +105,72 @@ op build recipes/assemblies/gudule-greeting-swiftui-go ✅ ✅ ✅ **@bpds 12/02
 op run   recipes/assemblies/gudule-greeting-swiftui-go ❌ ✅ ✅ **@bpds 12/02/2026** 
 
 # A.2.2 — SwiftUI + Rust
-op build recipes/assemblies/gudule-greeting-swiftui-rust ✅ ✅ ✅ **@bpds 12/02/2026**
-op run   recipes/assemblies/gudule-greeting-swiftui-rust ❌ ✅ **@bpds 12/02/2026** 
+op build recipes/assemblies/gudule-greeting-swiftui-rust ✅ ✅ ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-swiftui-rust ❌ ✅ ✅ **@bpds 12/02/2026** 
 
 # A.2.3 — SwiftUI + Swift
-op build recipes/assemblies/gudule-greeting-swiftui-swift
-op run   recipes/assemblies/gudule-greeting-swiftui-swift
+op build recipes/assemblies/gudule-greeting-swiftui-swift ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-swiftui-swift ✅ **@bpds 12/02/2026**
 
 # A.2.4 — SwiftUI + Kotlin
-op build recipes/assemblies/gudule-greeting-swiftui-kotlin
-op run   recipes/assemblies/gudule-greeting-swiftui-kotlin
+op build recipes/assemblies/gudule-greeting-swiftui-kotlin ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-swiftui-kotlin ✅ **@bpds 12/02/2026**
 
 # A.2.5 — SwiftUI + Dart
-op build recipes/assemblies/gudule-greeting-swiftui-dart
-op run   recipes/assemblies/gudule-greeting-swiftui-dart
+op build recipes/assemblies/gudule-greeting-swiftui-dart ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-swiftui-dart ✅ **@bpds 12/02/2026**
 
 # A.2.6 — SwiftUI + Python
-op build recipes/assemblies/gudule-greeting-swiftui-python
-op run   recipes/assemblies/gudule-greeting-swiftui-python
+op build recipes/assemblies/gudule-greeting-swiftui-python  ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-swiftui-python  ✅ **@bpds 12/02/2026**
 
 # A.2.7 — SwiftUI + C#
-op build recipes/assemblies/gudule-greeting-swiftui-csharp
-op run   recipes/assemblies/gudule-greeting-swiftui-csharp
+op build recipes/assemblies/gudule-greeting-swiftui-csharp ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-swiftui-csharp ❌ ✅ **@bpds 12/02/2026** 
 
 # A.2.8 — SwiftUI + Node.js
-op build recipes/assemblies/gudule-greeting-swiftui-node
-op run   recipes/assemblies/gudule-greeting-swiftui-node
+op build recipes/assemblies/gudule-greeting-swiftui-node ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-swiftui-node ✅ **@bpds 12/02/2026**
 ```
 
 **Verify:** `.app` bundle launches → `_CodeSignature/CodeResources` present → ListLanguages → SayHello works.
 
 ---
 
-### A.3 Compose × 8 Daemons
+### A.3 Compose × 8 Daemons ⚠️⚠️⚠️⚠️⚠️ <----- it is a kotlin UI ... strange name rename it
 
 ```bash
 # A.3.1 — Compose + Go
-op build recipes/assemblies/gudule-greeting-compose-go
-op run   recipes/assemblies/gudule-greeting-compose-go
+op build recipes/assemblies/gudule-greeting-compose-go ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-compose-go ✅ **@bpds 12/02/2026**
 
 # A.3.2 — Compose + Rust
-op build recipes/assemblies/gudule-greeting-compose-rust
-op run   recipes/assemblies/gudule-greeting-compose-rust
+op build recipes/assemblies/gudule-greeting-compose-rust ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-compose-rust ✅ **@bpds 12/02/2026**
 
 # A.3.3 — Compose + Swift
-op build recipes/assemblies/gudule-greeting-compose-swift
-op run   recipes/assemblies/gudule-greeting-compose-swift
+op build recipes/assemblies/gudule-greeting-compose-swift ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-compose-swift ✅ **@bpds 12/02/2026**
 
 # A.3.4 — Compose + Kotlin
-op build recipes/assemblies/gudule-greeting-compose-kotlin
-op run   recipes/assemblies/gudule-greeting-compose-kotlin
+op build recipes/assemblies/gudule-greeting-compose-kotlin ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-compose-kotlin ✅ **@bpds 12/02/2026**
 
 # A.3.5 — Compose + Dart
-op build recipes/assemblies/gudule-greeting-compose-dart
-op run   recipes/assemblies/gudule-greeting-compose-dart
+op build recipes/assemblies/gudule-greeting-compose-dart ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-compose-dart ✅ **@bpds 12/02/2026**
 
 # A.3.6 — Compose + Python
-op build recipes/assemblies/gudule-greeting-compose-python
-op run   recipes/assemblies/gudule-greeting-compose-python
+op build recipes/assemblies/gudule-greeting-compose-python ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-compose-python ✅ **@bpds 12/02/2026**
 
 # A.3.7 — Compose + C#
-op build recipes/assemblies/gudule-greeting-compose-csharp
-op run   recipes/assemblies/gudule-greeting-compose-csharp
+op build recipes/assemblies/gudule-greeting-compose-csharp ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-compose-csharp ✅ ✅ **@bpds 12/02/2026**
 
 # A.3.8 — Compose + Node.js
-op build recipes/assemblies/gudule-greeting-compose-node
-op run   recipes/assemblies/gudule-greeting-compose-node
+op build recipes/assemblies/gudule-greeting-compose-node ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-compose-node ✅ **@bpds 12/02/2026**
 ```
 
 **Verify:** Compose desktop window → ListLanguages → SayHello.
@@ -184,7 +184,7 @@ serves the web client.
 
 ```bash
 # A.4.1 — Go + Web
-op build recipes/assemblies/gudule-greeting-go-web
+op build recipes/assemblies/gudule-greeting-go-web 
 op run   recipes/assemblies/gudule-greeting-go-web
 # → open http://localhost:<port> in browser
 
@@ -225,7 +225,7 @@ op run   recipes/assemblies/gudule-greeting-node-web
 
 ```bash
 # A.5.1 — Dotnet + Go
-op build recipes/assemblies/gudule-greeting-dotnet-go
+op build recipes/assemblies/gudule-greeting-dotnet-go ❌ **@bpds 12/02/2026**
 op run   recipes/assemblies/gudule-greeting-dotnet-go
 
 # A.5.2 — Dotnet + Rust
@@ -265,8 +265,8 @@ op run   recipes/assemblies/gudule-greeting-dotnet-node
 
 ```bash
 # A.6.1 — Qt + Go
-op build recipes/assemblies/gudule-greeting-qt-go
-op run   recipes/assemblies/gudule-greeting-qt-go
+op build recipes/assemblies/gudule-greeting-qt-go ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-qt-go ❌ **@bpds 12/02/2026**
 
 # A.6.2 — Qt + Rust
 op build recipes/assemblies/gudule-greeting-qt-rust
@@ -324,14 +324,14 @@ via `connect(slug)`.
 ### B.0 Build the Shared Workers (once)
 
 ```bash
-op build recipes/composition/workers/charon-worker-compute
-op build recipes/composition/workers/charon-worker-transform
+op build recipes/composition/workers/charon-worker-compute  ✅ **@bpds 12/02/2026**
+op build recipes/composition/workers/charon-worker-transform  ✅ **@bpds 12/02/2026**
 ```
 
 Verify:
 ```bash
-ls recipes/composition/workers/charon-worker-compute/build/
-ls recipes/composition/workers/charon-worker-transform/build/
+ls recipes/composition/workers/charon-worker-compute/build/ ❌ **@bpds 12/02/2026**
+ls recipes/composition/workers/charon-worker-transform/build/ ❌ **@bpds 12/02/2026**
 ```
 
 ---
@@ -343,8 +343,8 @@ Expected: sends `Compute(42)`, prints `result = 1764`.
 
 ```bash
 # B.1.1 — Go → Go
-op build recipes/composition/direct-call/charon-direct-go-go
-op run   recipes/composition/direct-call/charon-direct-go-go
+op build recipes/composition/direct-call/charon-direct-go-go ✅ **@bpds 12/02/2026**
+op run   recipes/composition/direct-call/charon-direct-go-go ✅ **@bpds 12/02/2026**
 
 # B.1.2 — Rust → Go
 op build recipes/composition/direct-call/charon-direct-rust-go
@@ -396,7 +396,7 @@ Expected: `Compute(5)` → `25`, then `Transform("25")` → `"52"`. Both results
 
 ```bash
 # B.2.1 — Go → Go
-op build recipes/composition/pipeline/charon-pipeline-go-go
+op build recipes/composition/pipeline/charon-pipeline-go-go ❌ **@bpds 12/02/2026** fails binding issue, architecture must be controlled.
 op run   recipes/composition/pipeline/charon-pipeline-go-go
 
 # B.2.2 — Rust → Go
@@ -449,8 +449,8 @@ Expected: both Compute and Transform execute concurrently. Aggregated results pr
 
 ```bash
 # B.3.1 — Go → Go (parallel)
-op build recipes/composition/fan-out/charon-fanout-go-go
-op run   recipes/composition/fan-out/charon-fanout-go-go
+op build recipes/composition/fan-out/charon-fanout-go-go ✅ **@bpds 12/02/2026**
+op run   recipes/composition/fan-out/charon-fanout-go-go ✅ **@bpds 12/02/2026**
 
 # B.3.2 — Rust → Go (parallel)
 op build recipes/composition/fan-out/charon-fanout-rust-go
@@ -519,8 +519,8 @@ pass **before** generating the remaining 39.
 
 ```bash
 # Row 1: Go daemon × 3 HostUIs
-op build recipes/assemblies/gudule-greeting-flutter-go   # Already validated (v0.4.1/TASK04)
-op run   recipes/assemblies/gudule-greeting-flutter-go
+op build recipes/assemblies/gudule-greeting-flutter-go    ✅ **@bpds 12/02/2026** # Already validated (v0.4.1/TASK04)
+op run   recipes/assemblies/gudule-greeting-flutter-go  ✅ **@bpds 12/02/2026**
 
 op build recipes/assemblies/gudule-greeting-go-web
 op run   recipes/assemblies/gudule-greeting-go-web
