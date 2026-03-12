@@ -1,0 +1,12 @@
+# Build outputs (op build places artifacts here)
+build/
+.op/
+
+# Toolchain caches
+.gradle/
+.dart_tool/
+.swiftpm/
+node_modules/
+target/
+bin/
+obj/
