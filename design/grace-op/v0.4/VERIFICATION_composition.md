@@ -56,20 +56,20 @@ Verification: build succeeds and the app launches (daemon starts, UI connects vi
 
 ```bash
 # A.1.1 — Flutter + Go
-op build recipes/assemblies/gudule-greeting-flutter-go
-op run   recipes/assemblies/gudule-greeting-flutter-go ✅
+op build recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅
+op run   recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅
 
 # A.1.2 — Flutter + Rust
-op build recipes/assemblies/gudule-greeting-flutter-rust
-op run   recipes/assemblies/gudule-greeting-flutter-rust ❌
+op build recipes/assemblies/gudule-greeting-flutter-rust ✅ ✅ ✅
+op run   recipes/assemblies/gudule-greeting-flutter-rust ❌ ✅ ✅
 
 # A.1.3 — Flutter + Swift
-op build recipes/assemblies/gudule-greeting-flutter-swift
-op run   recipes/assemblies/gudule-greeting-flutter-swift
+op build recipes/assemblies/gudule-greeting-flutter-swift ✅ ✅ ✅
+op run   recipes/assemblies/gudule-greeting-flutter-swift ❌ ❌ ✅
 
 # A.1.4 — Flutter + Kotlin
-op build recipes/assemblies/gudule-greeting-flutter-kotlin
-op run   recipes/assemblies/gudule-greeting-flutter-kotlin
+op build recipes/assemblies/gudule-greeting-flutter-kotlin ✅
+op run   recipes/assemblies/gudule-greeting-flutter-kotlin ✅
 
 # A.1.5 — Flutter + Dart
 op build recipes/assemblies/gudule-greeting-flutter-dart
