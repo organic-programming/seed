@@ -1,0 +1,1278 @@
+{
+  "generated_at": "2026-03-12T08:02:46Z",
+  "repo_root": "/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming",
+  "timeout": "10s",
+  "dry_run": true,
+  "summary": {
+    "discovered": 81,
+    "selected": 81,
+    "assemblies": 48,
+    "compositions": 33,
+    "dry_run": 81,
+    "skipped": 0,
+    "passed": 0,
+    "smoke_passed": 0,
+    "build_failed": 0,
+    "run_failed": 0,
+    "timed_out": 0
+  },
+  "results": [
+    {
+      "name": "gudule-greeting-compose-csharp",
+      "path": "recipes/assemblies/gudule-greeting-compose-csharp",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dotnet",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-compose-dart",
+      "path": "recipes/assemblies/gudule-greeting-compose-dart",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dart",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-compose-go",
+      "path": "recipes/assemblies/gudule-greeting-compose-go",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-compose-kotlin",
+      "path": "recipes/assemblies/gudule-greeting-compose-kotlin",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-compose-node",
+      "path": "recipes/assemblies/gudule-greeting-compose-node",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "node",
+        "npm",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-compose-python",
+      "path": "recipes/assemblies/gudule-greeting-compose-python",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "python3",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-compose-rust",
+      "path": "recipes/assemblies/gudule-greeting-compose-rust",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cargo",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-compose-swift",
+      "path": "recipes/assemblies/gudule-greeting-compose-swift",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "swift",
+        "xcodebuild",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-csharp-web",
+      "path": "recipes/assemblies/gudule-greeting-csharp-web",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dotnet",
+        "node",
+        "npm",
+        "protoc"
+      ]
+    },
+    {
+      "name": "gudule-greeting-dart-web",
+      "path": "recipes/assemblies/gudule-greeting-dart-web",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dart",
+        "node",
+        "npm",
+        "protoc"
+      ]
+    },
+    {
+      "name": "gudule-greeting-dotnet-csharp",
+      "path": "recipes/assemblies/gudule-greeting-dotnet-csharp",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dotnet"
+      ]
+    },
+    {
+      "name": "gudule-greeting-dotnet-dart",
+      "path": "recipes/assemblies/gudule-greeting-dotnet-dart",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dart",
+        "dotnet"
+      ]
+    },
+    {
+      "name": "gudule-greeting-dotnet-go",
+      "path": "recipes/assemblies/gudule-greeting-dotnet-go",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "dotnet"
+      ]
+    },
+    {
+      "name": "gudule-greeting-dotnet-kotlin",
+      "path": "recipes/assemblies/gudule-greeting-dotnet-kotlin",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "java",
+        "dotnet"
+      ]
+    },
+    {
+      "name": "gudule-greeting-dotnet-node",
+      "path": "recipes/assemblies/gudule-greeting-dotnet-node",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "node",
+        "npm",
+        "dotnet"
+      ]
+    },
+    {
+      "name": "gudule-greeting-dotnet-python",
+      "path": "recipes/assemblies/gudule-greeting-dotnet-python",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "python3",
+        "dotnet"
+      ]
+    },
+    {
+      "name": "gudule-greeting-dotnet-rust",
+      "path": "recipes/assemblies/gudule-greeting-dotnet-rust",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cargo",
+        "dotnet"
+      ]
+    },
+    {
+      "name": "gudule-greeting-dotnet-swift",
+      "path": "recipes/assemblies/gudule-greeting-dotnet-swift",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "swift",
+        "xcodebuild",
+        "dotnet"
+      ]
+    },
+    {
+      "name": "gudule-greeting-flutter-csharp",
+      "path": "recipes/assemblies/gudule-greeting-flutter-csharp",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dotnet",
+        "flutter",
+        "dart"
+      ]
+    },
+    {
+      "name": "gudule-greeting-flutter-dart",
+      "path": "recipes/assemblies/gudule-greeting-flutter-dart",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dart",
+        "flutter"
+      ]
+    },
+    {
+      "name": "gudule-greeting-flutter-go",
+      "path": "recipes/assemblies/gudule-greeting-flutter-go",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "flutter",
+        "dart"
+      ]
+    },
+    {
+      "name": "gudule-greeting-flutter-kotlin",
+      "path": "recipes/assemblies/gudule-greeting-flutter-kotlin",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "java",
+        "flutter",
+        "dart"
+      ]
+    },
+    {
+      "name": "gudule-greeting-flutter-node",
+      "path": "recipes/assemblies/gudule-greeting-flutter-node",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "node",
+        "npm",
+        "flutter",
+        "dart"
+      ]
+    },
+    {
+      "name": "gudule-greeting-flutter-python",
+      "path": "recipes/assemblies/gudule-greeting-flutter-python",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "python3",
+        "flutter",
+        "dart"
+      ]
+    },
+    {
+      "name": "gudule-greeting-flutter-rust",
+      "path": "recipes/assemblies/gudule-greeting-flutter-rust",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cargo",
+        "flutter",
+        "dart"
+      ]
+    },
+    {
+      "name": "gudule-greeting-flutter-swift",
+      "path": "recipes/assemblies/gudule-greeting-flutter-swift",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "swift",
+        "xcodebuild",
+        "flutter",
+        "dart"
+      ]
+    },
+    {
+      "name": "gudule-greeting-go-web",
+      "path": "recipes/assemblies/gudule-greeting-go-web",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "node",
+        "npm",
+        "protoc"
+      ]
+    },
+    {
+      "name": "gudule-greeting-kotlin-web",
+      "path": "recipes/assemblies/gudule-greeting-kotlin-web",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "java",
+        "node",
+        "npm",
+        "protoc"
+      ]
+    },
+    {
+      "name": "gudule-greeting-node-web",
+      "path": "recipes/assemblies/gudule-greeting-node-web",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "node",
+        "npm",
+        "protoc"
+      ]
+    },
+    {
+      "name": "gudule-greeting-python-web",
+      "path": "recipes/assemblies/gudule-greeting-python-web",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "python3",
+        "node",
+        "npm",
+        "protoc"
+      ]
+    },
+    {
+      "name": "gudule-greeting-qt-csharp",
+      "path": "recipes/assemblies/gudule-greeting-qt-csharp",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dotnet",
+        "cmake"
+      ]
+    },
+    {
+      "name": "gudule-greeting-qt-dart",
+      "path": "recipes/assemblies/gudule-greeting-qt-dart",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dart",
+        "cmake"
+      ]
+    },
+    {
+      "name": "gudule-greeting-qt-go",
+      "path": "recipes/assemblies/gudule-greeting-qt-go",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "cmake"
+      ]
+    },
+    {
+      "name": "gudule-greeting-qt-kotlin",
+      "path": "recipes/assemblies/gudule-greeting-qt-kotlin",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "java",
+        "cmake"
+      ]
+    },
+    {
+      "name": "gudule-greeting-qt-node",
+      "path": "recipes/assemblies/gudule-greeting-qt-node",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "node",
+        "npm",
+        "cmake"
+      ]
+    },
+    {
+      "name": "gudule-greeting-qt-python",
+      "path": "recipes/assemblies/gudule-greeting-qt-python",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "python3",
+        "cmake"
+      ]
+    },
+    {
+      "name": "gudule-greeting-qt-rust",
+      "path": "recipes/assemblies/gudule-greeting-qt-rust",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cargo",
+        "cmake"
+      ]
+    },
+    {
+      "name": "gudule-greeting-qt-swift",
+      "path": "recipes/assemblies/gudule-greeting-qt-swift",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "swift",
+        "xcodebuild",
+        "cmake"
+      ]
+    },
+    {
+      "name": "gudule-greeting-rust-web",
+      "path": "recipes/assemblies/gudule-greeting-rust-web",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cargo",
+        "node",
+        "npm",
+        "protoc"
+      ]
+    },
+    {
+      "name": "gudule-greeting-swift-web",
+      "path": "recipes/assemblies/gudule-greeting-swift-web",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "swift",
+        "xcodebuild",
+        "node",
+        "npm",
+        "protoc"
+      ]
+    },
+    {
+      "name": "gudule-greeting-swiftui-csharp",
+      "path": "recipes/assemblies/gudule-greeting-swiftui-csharp",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dotnet",
+        "xcodebuild"
+      ]
+    },
+    {
+      "name": "gudule-greeting-swiftui-dart",
+      "path": "recipes/assemblies/gudule-greeting-swiftui-dart",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dart",
+        "xcodebuild"
+      ]
+    },
+    {
+      "name": "gudule-greeting-swiftui-go",
+      "path": "recipes/assemblies/gudule-greeting-swiftui-go",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "xcodebuild"
+      ]
+    },
+    {
+      "name": "gudule-greeting-swiftui-kotlin",
+      "path": "recipes/assemblies/gudule-greeting-swiftui-kotlin",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "java",
+        "xcodebuild"
+      ]
+    },
+    {
+      "name": "gudule-greeting-swiftui-node",
+      "path": "recipes/assemblies/gudule-greeting-swiftui-node",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "node",
+        "npm",
+        "xcodebuild"
+      ]
+    },
+    {
+      "name": "gudule-greeting-swiftui-python",
+      "path": "recipes/assemblies/gudule-greeting-swiftui-python",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "python3",
+        "xcodebuild"
+      ]
+    },
+    {
+      "name": "gudule-greeting-swiftui-rust",
+      "path": "recipes/assemblies/gudule-greeting-swiftui-rust",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cargo",
+        "xcodebuild"
+      ]
+    },
+    {
+      "name": "gudule-greeting-swiftui-swift",
+      "path": "recipes/assemblies/gudule-greeting-swiftui-swift",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "swift",
+        "xcodebuild"
+      ]
+    },
+    {
+      "name": "charon-direct-cpp-go",
+      "path": "recipes/composition/direct-call/charon-direct-cpp-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cmake"
+      ]
+    },
+    {
+      "name": "charon-direct-csharp-go",
+      "path": "recipes/composition/direct-call/charon-direct-csharp-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "dotnet"
+      ]
+    },
+    {
+      "name": "charon-direct-dart-go",
+      "path": "recipes/composition/direct-call/charon-direct-dart-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "dart"
+      ]
+    },
+    {
+      "name": "charon-direct-go-go",
+      "path": "recipes/composition/direct-call/charon-direct-go-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op"
+      ]
+    },
+    {
+      "name": "charon-direct-java-go",
+      "path": "recipes/composition/direct-call/charon-direct-java-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "java",
+        "gradle"
+      ]
+    },
+    {
+      "name": "charon-direct-kotlin-go",
+      "path": "recipes/composition/direct-call/charon-direct-kotlin-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "java",
+        "gradle"
+      ]
+    },
+    {
+      "name": "charon-direct-node-go",
+      "path": "recipes/composition/direct-call/charon-direct-node-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "node",
+        "npm"
+      ]
+    },
+    {
+      "name": "charon-direct-python-go",
+      "path": "recipes/composition/direct-call/charon-direct-python-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "python3"
+      ]
+    },
+    {
+      "name": "charon-direct-ruby-go",
+      "path": "recipes/composition/direct-call/charon-direct-ruby-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "ruby",
+        "bundle"
+      ]
+    },
+    {
+      "name": "charon-direct-rust-go",
+      "path": "recipes/composition/direct-call/charon-direct-rust-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cargo"
+      ]
+    },
+    {
+      "name": "charon-direct-swift-go",
+      "path": "recipes/composition/direct-call/charon-direct-swift-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "swift",
+        "xcodebuild"
+      ]
+    },
+    {
+      "name": "charon-fanout-cpp-go",
+      "path": "recipes/composition/fan-out/charon-fanout-cpp-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cmake"
+      ]
+    },
+    {
+      "name": "charon-fanout-csharp-go",
+      "path": "recipes/composition/fan-out/charon-fanout-csharp-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "dotnet"
+      ]
+    },
+    {
+      "name": "charon-fanout-dart-go",
+      "path": "recipes/composition/fan-out/charon-fanout-dart-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "dart"
+      ]
+    },
+    {
+      "name": "charon-fanout-go-go",
+      "path": "recipes/composition/fan-out/charon-fanout-go-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op"
+      ]
+    },
+    {
+      "name": "charon-fanout-java-go",
+      "path": "recipes/composition/fan-out/charon-fanout-java-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "java",
+        "gradle"
+      ]
+    },
+    {
+      "name": "charon-fanout-kotlin-go",
+      "path": "recipes/composition/fan-out/charon-fanout-kotlin-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "java",
+        "gradle"
+      ]
+    },
+    {
+      "name": "charon-fanout-node-go",
+      "path": "recipes/composition/fan-out/charon-fanout-node-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "node",
+        "npm"
+      ]
+    },
+    {
+      "name": "charon-fanout-python-go",
+      "path": "recipes/composition/fan-out/charon-fanout-python-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "python3"
+      ]
+    },
+    {
+      "name": "charon-fanout-ruby-go",
+      "path": "recipes/composition/fan-out/charon-fanout-ruby-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "ruby",
+        "bundle"
+      ]
+    },
+    {
+      "name": "charon-fanout-rust-go",
+      "path": "recipes/composition/fan-out/charon-fanout-rust-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cargo"
+      ]
+    },
+    {
+      "name": "charon-fanout-swift-go",
+      "path": "recipes/composition/fan-out/charon-fanout-swift-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "swift",
+        "xcodebuild"
+      ]
+    },
+    {
+      "name": "charon-pipeline-cpp-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-cpp-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cmake"
+      ]
+    },
+    {
+      "name": "charon-pipeline-csharp-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-csharp-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "dotnet"
+      ]
+    },
+    {
+      "name": "charon-pipeline-dart-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-dart-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "dart"
+      ]
+    },
+    {
+      "name": "charon-pipeline-go-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-go-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op"
+      ]
+    },
+    {
+      "name": "charon-pipeline-java-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-java-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "java",
+        "gradle"
+      ]
+    },
+    {
+      "name": "charon-pipeline-kotlin-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-kotlin-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "java",
+        "gradle"
+      ]
+    },
+    {
+      "name": "charon-pipeline-node-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-node-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "node",
+        "npm"
+      ]
+    },
+    {
+      "name": "charon-pipeline-python-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-python-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "python3"
+      ]
+    },
+    {
+      "name": "charon-pipeline-ruby-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-ruby-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "ruby",
+        "bundle"
+      ]
+    },
+    {
+      "name": "charon-pipeline-rust-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-rust-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cargo"
+      ]
+    },
+    {
+      "name": "charon-pipeline-swift-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-swift-go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "swift",
+        "xcodebuild"
+      ]
+    }
+  ]
+}

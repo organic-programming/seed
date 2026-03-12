@@ -1,0 +1,730 @@
+{
+  "generated_at": "2026-03-12T07:56:17Z",
+  "repo_root": "/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming",
+  "filter": "charon-",
+  "timeout": "10s",
+  "dry_run": false,
+  "summary": {
+    "discovered": 81,
+    "selected": 33,
+    "assemblies": 0,
+    "compositions": 33,
+    "dry_run": 0,
+    "skipped": 0,
+    "passed": 33,
+    "smoke_passed": 0,
+    "build_failed": 0,
+    "run_failed": 0,
+    "timed_out": 0
+  },
+  "results": [
+    {
+      "name": "charon-direct-cpp-go",
+      "path": "recipes/composition/direct-call/charon-direct-cpp-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cmake"
+      ],
+      "build_ms": 1683,
+      "run_ms": 655,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}",
+      "actual_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}"
+    },
+    {
+      "name": "charon-direct-csharp-go",
+      "path": "recipes/composition/direct-call/charon-direct-csharp-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "dotnet"
+      ],
+      "build_ms": 3305,
+      "run_ms": 714,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}",
+      "actual_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}"
+    },
+    {
+      "name": "charon-direct-dart-go",
+      "path": "recipes/composition/direct-call/charon-direct-dart-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "dart"
+      ],
+      "build_ms": 2564,
+      "run_ms": 678,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}",
+      "actual_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}"
+    },
+    {
+      "name": "charon-direct-go-go",
+      "path": "recipes/composition/direct-call/charon-direct-go-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op"
+      ],
+      "build_ms": 1962,
+      "run_ms": 533,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}",
+      "actual_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}"
+    },
+    {
+      "name": "charon-direct-java-go",
+      "path": "recipes/composition/direct-call/charon-direct-java-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "java",
+        "gradle"
+      ],
+      "build_ms": 1868,
+      "run_ms": 716,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}",
+      "actual_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}"
+    },
+    {
+      "name": "charon-direct-kotlin-go",
+      "path": "recipes/composition/direct-call/charon-direct-kotlin-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "java",
+        "gradle"
+      ],
+      "build_ms": 2251,
+      "run_ms": 750,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}",
+      "actual_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}"
+    },
+    {
+      "name": "charon-direct-node-go",
+      "path": "recipes/composition/direct-call/charon-direct-node-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "node",
+        "npm"
+      ],
+      "build_ms": 1933,
+      "run_ms": 734,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}",
+      "actual_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}"
+    },
+    {
+      "name": "charon-direct-python-go",
+      "path": "recipes/composition/direct-call/charon-direct-python-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "python3"
+      ],
+      "build_ms": 1355,
+      "run_ms": 826,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}",
+      "actual_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}"
+    },
+    {
+      "name": "charon-direct-ruby-go",
+      "path": "recipes/composition/direct-call/charon-direct-ruby-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "ruby",
+        "bundle"
+      ],
+      "build_ms": 1822,
+      "run_ms": 1094,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}",
+      "actual_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}",
+      "run_output": "/System/Library/Frameworks/Ruby.framework/Versions/2.6/usr/lib/ruby/2.6.0/universal-darwin24/rbconfig.rb:21: warning: Insecure world writable dir /Users/bpds/Documents/Entrepot/Git in PATH, mode 040777\n/System/Library/Frameworks/Ruby.framework/Versions/2.6/usr/lib/ruby/2.6.0/universal-darwin24/rbconfig.rb:21: warning: Insecure world writable dir /Users/bpds/Documents/Entrepot/Git in PATH, mode 040777"
+    },
+    {
+      "name": "charon-direct-rust-go",
+      "path": "recipes/composition/direct-call/charon-direct-rust-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cargo"
+      ],
+      "build_ms": 1579,
+      "run_ms": 906,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}",
+      "actual_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}"
+    },
+    {
+      "name": "charon-direct-swift-go",
+      "path": "recipes/composition/direct-call/charon-direct-swift-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "swift",
+        "xcodebuild"
+      ],
+      "build_ms": 2681,
+      "run_ms": 717,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}",
+      "actual_json": "{\"pattern\":\"direct-call\",\"input\":42,\"result\":1764}"
+    },
+    {
+      "name": "charon-fanout-cpp-go",
+      "path": "recipes/composition/fan-out/charon-fanout-cpp-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cmake"
+      ],
+      "build_ms": 2284,
+      "run_ms": 891,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}",
+      "actual_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}"
+    },
+    {
+      "name": "charon-fanout-csharp-go",
+      "path": "recipes/composition/fan-out/charon-fanout-csharp-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "dotnet"
+      ],
+      "build_ms": 2439,
+      "run_ms": 984,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}",
+      "actual_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}"
+    },
+    {
+      "name": "charon-fanout-dart-go",
+      "path": "recipes/composition/fan-out/charon-fanout-dart-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "dart"
+      ],
+      "build_ms": 2714,
+      "run_ms": 955,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}",
+      "actual_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}"
+    },
+    {
+      "name": "charon-fanout-go-go",
+      "path": "recipes/composition/fan-out/charon-fanout-go-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op"
+      ],
+      "build_ms": 2093,
+      "run_ms": 813,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}",
+      "actual_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}"
+    },
+    {
+      "name": "charon-fanout-java-go",
+      "path": "recipes/composition/fan-out/charon-fanout-java-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "java",
+        "gradle"
+      ],
+      "build_ms": 1991,
+      "run_ms": 1067,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}",
+      "actual_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}"
+    },
+    {
+      "name": "charon-fanout-kotlin-go",
+      "path": "recipes/composition/fan-out/charon-fanout-kotlin-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "java",
+        "gradle"
+      ],
+      "build_ms": 4341,
+      "run_ms": 1632,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}",
+      "actual_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}"
+    },
+    {
+      "name": "charon-fanout-node-go",
+      "path": "recipes/composition/fan-out/charon-fanout-node-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "node",
+        "npm"
+      ],
+      "build_ms": 2922,
+      "run_ms": 834,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}",
+      "actual_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}"
+    },
+    {
+      "name": "charon-fanout-python-go",
+      "path": "recipes/composition/fan-out/charon-fanout-python-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "python3"
+      ],
+      "build_ms": 1645,
+      "run_ms": 969,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}",
+      "actual_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}"
+    },
+    {
+      "name": "charon-fanout-ruby-go",
+      "path": "recipes/composition/fan-out/charon-fanout-ruby-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "ruby",
+        "bundle"
+      ],
+      "build_ms": 1539,
+      "run_ms": 1095,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}",
+      "actual_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}",
+      "run_output": "/System/Library/Frameworks/Ruby.framework/Versions/2.6/usr/lib/ruby/2.6.0/universal-darwin24/rbconfig.rb:21: warning: Insecure world writable dir /Users/bpds/Documents/Entrepot/Git in PATH, mode 040777\n/System/Library/Frameworks/Ruby.framework/Versions/2.6/usr/lib/ruby/2.6.0/universal-darwin24/rbconfig.rb:21: warning: Insecure world writable dir /Users/bpds/Documents/Entrepot/Git in PATH, mode 040777"
+    },
+    {
+      "name": "charon-fanout-rust-go",
+      "path": "recipes/composition/fan-out/charon-fanout-rust-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cargo"
+      ],
+      "build_ms": 2136,
+      "run_ms": 865,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}",
+      "actual_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}"
+    },
+    {
+      "name": "charon-fanout-swift-go",
+      "path": "recipes/composition/fan-out/charon-fanout-swift-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "swift",
+        "xcodebuild"
+      ],
+      "build_ms": 5853,
+      "run_ms": 932,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}",
+      "actual_json": "{\"pattern\":\"fan-out\",\"compute_input\":5,\"compute_result\":25,\"transform_input\":\"hello\",\"transform_result\":\"olleh\"}"
+    },
+    {
+      "name": "charon-pipeline-cpp-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-cpp-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cmake"
+      ],
+      "build_ms": 2262,
+      "run_ms": 901,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}",
+      "actual_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}"
+    },
+    {
+      "name": "charon-pipeline-csharp-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-csharp-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "dotnet"
+      ],
+      "build_ms": 2417,
+      "run_ms": 1027,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}",
+      "actual_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}"
+    },
+    {
+      "name": "charon-pipeline-dart-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-dart-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "dart"
+      ],
+      "build_ms": 2572,
+      "run_ms": 912,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}",
+      "actual_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}"
+    },
+    {
+      "name": "charon-pipeline-go-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-go-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op"
+      ],
+      "build_ms": 1923,
+      "run_ms": 761,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}",
+      "actual_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}"
+    },
+    {
+      "name": "charon-pipeline-java-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-java-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "java",
+        "gradle"
+      ],
+      "build_ms": 2238,
+      "run_ms": 979,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}",
+      "actual_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}"
+    },
+    {
+      "name": "charon-pipeline-kotlin-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-kotlin-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "java",
+        "gradle"
+      ],
+      "build_ms": 2881,
+      "run_ms": 970,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}",
+      "actual_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}"
+    },
+    {
+      "name": "charon-pipeline-node-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-node-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "node",
+        "npm"
+      ],
+      "build_ms": 1944,
+      "run_ms": 826,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}",
+      "actual_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}"
+    },
+    {
+      "name": "charon-pipeline-python-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-python-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "python3"
+      ],
+      "build_ms": 1379,
+      "run_ms": 981,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}",
+      "actual_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}"
+    },
+    {
+      "name": "charon-pipeline-ruby-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-ruby-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "ruby",
+        "bundle"
+      ],
+      "build_ms": 1693,
+      "run_ms": 1088,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}",
+      "actual_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}",
+      "run_output": "/System/Library/Frameworks/Ruby.framework/Versions/2.6/usr/lib/ruby/2.6.0/universal-darwin24/rbconfig.rb:21: warning: Insecure world writable dir /Users/bpds/Documents/Entrepot/Git in PATH, mode 040777\n/System/Library/Frameworks/Ruby.framework/Versions/2.6/usr/lib/ruby/2.6.0/universal-darwin24/rbconfig.rb:21: warning: Insecure world writable dir /Users/bpds/Documents/Entrepot/Git in PATH, mode 040777"
+    },
+    {
+      "name": "charon-pipeline-rust-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-rust-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cargo"
+      ],
+      "build_ms": 2105,
+      "run_ms": 920,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}",
+      "actual_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}"
+    },
+    {
+      "name": "charon-pipeline-swift-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-swift-go",
+      "kind": "composition",
+      "status": "passed",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "swift",
+        "xcodebuild"
+      ],
+      "build_ms": 5604,
+      "run_ms": 899,
+      "build_code": 0,
+      "run_code": 0,
+      "expected_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}",
+      "actual_json": "{\"pattern\":\"pipeline\",\"input\":5,\"computed\":25,\"transformed\":\"52\"}"
+    }
+  ]
+}
