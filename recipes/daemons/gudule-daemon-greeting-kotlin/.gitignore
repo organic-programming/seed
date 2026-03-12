@@ -1,0 +1,7 @@
+# Organic Programming OP CLI build artifacts
+.op/
+
+# Gradle & Kotlin
+build/
+.gradle/
+.protoc-gen-grpc-kotlin

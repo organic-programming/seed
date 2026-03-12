@@ -1,0 +1,8 @@
+# Organic Programming OP CLI build artifacts
+.op/
+
+# .NET / C#
+bin/
+obj/
+tests/bin/
+tests/obj/

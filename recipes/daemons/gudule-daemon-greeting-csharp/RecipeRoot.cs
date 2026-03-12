@@ -11,6 +11,7 @@ internal static class RecipeRoot
         var starts = new List<string>
         {
             Directory.GetCurrentDirectory(),
+            AppContext.BaseDirectory
         };
 
         if (!string.IsNullOrWhiteSpace(Environment.ProcessPath))
