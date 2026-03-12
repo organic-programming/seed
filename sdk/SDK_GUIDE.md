@@ -204,34 +204,35 @@ for the full taxonomy.
 
 ### Daemon SDKs — serve holons
 
-| SDK | Serve | Discover | Connect | Holon-RPC |
+| SDK | Serve | Discover | Connect | Describe |
 |---|---|---|---|---|
-| `go-holons` | runner | ✅ | ✅ | server + client |
+| `go-holons` | runner | ✅ | ✅ | ✅ auto |
 | `rust-holons` | flags only | ✅ | ✅ stdio | — |
-| `js-holons` | runner | ✅ | ✅ | server + client |
-| `python-holons` | runner | ✅ | ✅ | server + client |
-| `c-holons` | runner | ✅ | ✅ | wrapper binaries |
+| `js-holons` | runner | ✅ | ✅ | ✅ auto |
+| `python-holons` | runner | ✅ | ✅ | ✅ auto |
+| `c-holons` | runner | ✅ | ✅ | — |
 
 ### Frontend SDKs — drive native UIs
 
-| SDK | UI Framework | Discover | Connect | Holon-RPC |
-|---|---|---|---|---|
-| `swift-holons` | SwiftUI | ✅ | ✅ stdio | client |
-| `dart-holons` | Flutter | ✅ | ✅ stdio | client + server |
-| `kotlin-holons` | Compose | ✅ | ✅ | client |
-| `csharp-holons` | MAUI | ✅ | ✅ | client |
-| `cpp-holons` | Qt | ✅ | ✅ | client |
+| SDK | UI Framework | Discover | Connect |
+|---|---|---|---|
+| `swift-holons` | SwiftUI | ✅ | ✅ stdio |
+| `dart-holons` | Flutter | ✅ | ✅ stdio |
+| `kotlin-holons` | Compose | ✅ | ✅ |
+| `csharp-holons` | MAUI | ✅ | ✅ |
+| `cpp-holons` | Qt | ✅ | ✅ |
 
 ### Browser + Utility SDKs
 
-| SDK | Role | Discover | Connect | Holon-RPC |
-|---|---|---|---|---|
-| `js-web-holons` | Browser client | remote only | dial only | browser client |
-| `java-holons` | Server-side | ✅ | ✅ | client |
-| `ruby-holons` | Scripting | ✅ | ✅ stdio | client |
+| SDK | Role | Discover | Connect |
+|---|---|---|---|
+| `js-web-holons` | Browser client | remote only | dial only |
+| `java-holons` | Server-side | ✅ | ✅ |
+| `ruby-holons` | Scripting | ✅ | ✅ stdio |
 
 `runner` = SDK hosts the full serve lifecycle.
 `flags only` = SDK parses `--listen` / `--port` and provides transport primitives.
+`Describe` = `HolonMeta.Describe` auto-registered — see [README.md §Holon-RPC](./README.md#holon-rpc-describe).
 
 ---
 

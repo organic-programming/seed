@@ -35,13 +35,13 @@ These SDKs host the full `serve` lifecycle. Holons written with
 them run as daemons: they listen for gRPC (and eventually
 REST+SSE), process requests, and are managed by `op`.
 
-| SDK | Language | Serve | Holon-RPC | Version |
-|-----|----------|-------|-----------|:-------:|
-| [go-holons](https://github.com/organic-programming/go-holons) | Go | runner | server + client | 0.3.0 |
+| SDK | Language | Serve | Describe | Version |
+|-----|----------|-------|----------|:-------:|
+| [go-holons](https://github.com/organic-programming/go-holons) | Go | runner | ✅ auto | 0.3.0 |
 | [rust-holons](https://github.com/organic-programming/rust-holons) | Rust | flags only | — | 0.1.0 |
-| [node-holons](https://github.com/organic-programming/js-holons) | Node.js | runner | server + client | 0.1.0 |
-| [python-holons](https://github.com/organic-programming/python-holons) | Python | runner | server + client | 0.1.0 |
-| [c-holons](https://github.com/organic-programming/c-holons) | C | runner | wrapper binaries | 0.1.0 |
+| [node-holons](https://github.com/organic-programming/js-holons) | Node.js | runner | ✅ auto | 0.1.0 |
+| [python-holons](https://github.com/organic-programming/python-holons) | Python | runner | ✅ auto | 0.1.0 |
+| [c-holons](https://github.com/organic-programming/c-holons) | C | runner | — | 0.1.0 |
 
 ### Frontend SDKs — drive native UIs, connect to daemons
 
@@ -49,13 +49,13 @@ These SDKs are embedded in **UI applications** (mobile, desktop).
 They use `connect(slug)` to reach daemon holons and do **not**
 serve RPCs themselves (though some _can_ if needed).
 
-| SDK | Language | UI Framework | Connect | Holon-RPC | Version |
-|-----|----------|--------------|---------|-----------|:-------:|
-| [swift-holons](https://github.com/organic-programming/swift-holons) | Swift | **SwiftUI** | ✅ stdio | client | 0.1.0 |
-| [dart-holons](https://github.com/organic-programming/dart-holons) | Dart | **Flutter** | ✅ stdio | client + server | 0.1.0 |
-| [kotlin-holons](https://github.com/organic-programming/kotlin-holons) | Kotlin | **Compose** | ✅ | client | 0.1.0 |
-| [csharp-holons](https://github.com/organic-programming/csharp-holons) | C# | **MAUI** | ✅ | client | 0.1.0 |
-| [cpp-holons](https://github.com/organic-programming/cpp-holons) | C++ | **Qt** | ✅ | client | 0.1.0 |
+| SDK | Language | UI Framework | Connect | Version |
+|-----|----------|--------------|---------|:-------:|
+| [swift-holons](https://github.com/organic-programming/swift-holons) | Swift | **SwiftUI** | ✅ stdio | 0.1.0 |
+| [dart-holons](https://github.com/organic-programming/dart-holons) | Dart | **Flutter** | ✅ stdio | 0.1.0 |
+| [kotlin-holons](https://github.com/organic-programming/kotlin-holons) | Kotlin | **Compose** | ✅ | 0.1.0 |
+| [csharp-holons](https://github.com/organic-programming/csharp-holons) | C# | **MAUI** | ✅ | 0.1.0 |
+| [cpp-holons](https://github.com/organic-programming/cpp-holons) | C++ | **Qt** | ✅ | 0.1.0 |
 
 ### Full-Stack SDKs — both daemon and frontend
 
@@ -75,9 +75,9 @@ drive UIs with first-class framework support.
 
 ### Browser SDK — web client only
 
-| SDK | Language | Serve | Connect | Holon-RPC |
-|-----|----------|-------|---------|-----------|
-| [js-web-holons](https://github.com/organic-programming/js-web-holons) | JS (Browser) | ❌ | dial only | browser client |
+| SDK | Language | Serve | Connect |
+|-----|----------|-------|---------|
+| [js-web-holons](https://github.com/organic-programming/js-web-holons) | JS (Browser) | ❌ | dial only |
 
 The browser cannot scan filesystems, spawn processes, or serve
 gRPC. `js-web-holons` provides `connect(uri)` (direct dial)
@@ -92,26 +92,43 @@ and native `EventSource` for SSE streaming.
 
 ---
 
+## Holon-RPC (Describe)
+
+`HolonMeta.Describe` is the self-documentation RPC auto-registered
+by the SDK's `serve` runner. It is **not** a transport — it is a
+service that runs _over_ any transport.
+
+- **Server** (auto): daemon SDKs with a `serve` runner register
+  `Describe` automatically by parsing `.proto` files at startup.
+- **Client** (all): any SDK that calls `connect()` can invoke
+  `Describe()` on the remote holon. This is how readiness
+  verification works and how `op inspect` queries holons.
+
+See [PROTO.md §5](../PROTO.md) and [PROTOCOL.md §3.5](../PROTOCOL.md).
+
+---
+
 ## Transport Surface
 
-All SDKs support the 6 transport schemes defined in PROTOCOL.md:
-`tcp://`, `unix://`, `stdio://`, `mem://`, `ws://`, `wss://`.
+All SDKs support the 7 transport schemes defined in PROTOCOL.md:
+`tcp://`, `unix://`, `stdio://`, `mem://`, `ws://`, `wss://`,
+`rest+sse://` (v0.6+).
 
-| SDK | tcp | unix | stdio | mem | ws/wss | Holon-RPC |
-|-----|:---:|:----:|:-----:|:---:|:------:|:---------:|
-| `go-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
-| `js-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
-| `python-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
-| `rust-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | — |
-| `swift-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
-| `dart-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
-| `kotlin-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
-| `java-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
-| `csharp-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
-| `cpp-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
-| `c-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
-| `ruby-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | server + client |
-| `js-web-holons` | — | — | — | — | ✅ | browser client |
+| SDK | tcp | unix | stdio | mem | ws/wss | rest+sse |
+|-----|:---:|:----:|:-----:|:---:|:------:|:--------:|
+| `go-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `js-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `python-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `rust-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `swift-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 client |
+| `dart-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 client |
+| `kotlin-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 client |
+| `java-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `csharp-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `cpp-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `c-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `ruby-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `js-web-holons` | — | — | — | — | ✅ | v0.6 client |
 
 See [SDK_GUIDE.md](./SDK_GUIDE.md) and each SDK README for exact API
 surfaces and limitations.
