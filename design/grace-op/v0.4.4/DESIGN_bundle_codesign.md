@@ -23,16 +23,28 @@ after assembly. No configuration needed.
 ## Behavior
 
 When `op build` produces a bundle artifact (`.app`, `.framework`),
-the recipe runner detects it and applies ad-hoc signing:
+the recipe runner detects it and applies ad-hoc signing **on the
+platforms where it applies**.
 
-```bash
-codesign --force --deep --sign - "$artifact"
-```
+### Platform behavior
+
+| Host OS | `.app` / `.framework` artifact | Action |
+|---|---|---|
+| **macOS** | ✅ produced | `codesign --force --deep --sign -` |
+| **Linux** | ❌ not produced (no Xcode) | Skip — no bundle to sign |
+| **Windows** | ❌ not produced (no Xcode) | Skip — no bundle to sign |
+
+> `.app` bundles are only built on macOS (they require Xcode).
+> The auto-sign step is macOS-only by nature, not by limitation.
+> When v0.8 adds Windows/Linux signing (Authenticode, etc.),
+> the runner will gain platform-specific signing paths.
 
 ### Detection logic
 
 1. Read `artifacts.primary` from `holon.yaml`
-2. If it ends with `.app` or `.framework` → auto-sign
+2. If it ends with `.app` or `.framework`:
+   a. Check `runtime.GOOS == "darwin"` → run `codesign`
+   b. Otherwise → log `skip signing: not on macOS`
 3. If `--no-sign` flag is set → skip
 
 ### CLI
