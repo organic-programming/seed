@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package greeting.v1;
+
+option java_multiple_files = true;
+option java_package = "greeting.v1";
+
+import public "greeting/v1/greeting.proto";

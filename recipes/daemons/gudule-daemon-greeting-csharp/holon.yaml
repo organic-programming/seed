@@ -1,0 +1,31 @@
+schema: holon/v0
+uuid: "846d57c7-d6e8-4be1-a1f0-89250bd87759"
+given_name: gudule
+family_name: Greeting-Daemon-Csharp
+motto: Greets users in 56 languages with a C# daemon.
+composer: Codex
+clade: deterministic/pure
+status: draft
+born: "2026-03-12"
+
+parents: []
+reproduction: manual
+generated_by: manual
+
+description: |
+  A standalone C# GreetingService daemon. It uses csharp-holons for the
+  standard serve lifecycle, auto-registers HolonMeta Describe from the
+  recipe-local protos tree, and serves both tcp:// and stdio:// transports.
+
+kind: native
+platforms: [macos]
+build:
+  runner: dotnet
+requires:
+  commands: [dotnet]
+  files:
+    - gudule-daemon-greeting-csharp.csproj
+    - Program.cs
+    - protos/greeting/v1/greeting.proto
+artifacts:
+  binary: gudule-daemon-greeting-csharp
