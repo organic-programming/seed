@@ -38,6 +38,16 @@ Kind: native
 Clade: deterministic/side-effects
 ```
 
+### The Jack Griffin Principle
+
+> When it is not possible to be invisible, be visible.
+
+Jack does **not** impersonate the target holon's identity on
+the network. He is a first-class participant — his own mesh
+member with his own certificate. The caller knows it is talking
+to Jack, and Jack knows he is talking to the target. Transparency,
+not deception.
+
 ---
 
 ## Architecture
