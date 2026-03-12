@@ -75,6 +75,7 @@ private data class GreetingDaemonIdentity(
 private data class BundledDaemonSession(
     val process: Process,
     val drainThread: Thread,
+    val listenUri: String,
 ) {
     fun stop() {
         process.destroy()
@@ -95,6 +96,7 @@ class DaemonProcess {
     private var client: GreetingClient? = null
     private var stageRoot: Path? = null
     private var daemonSession: BundledDaemonSession? = null
+    private var daemonIdentity: GreetingDaemonIdentity? = null
 
     fun client(): GreetingClient {
         if (client == null) {
@@ -109,29 +111,25 @@ class DaemonProcess {
         }
 
         val daemon = resolveDaemon()
+        val transport = assemblyTransport()
+        logStartup(daemon)
         val root = stageHolonRoot(daemon)
-        val portFile = portFilePath(root, daemon.slug)
-        val session = startBundledDaemon(daemon.binaryPath, portFile)
+        daemonIdentity = daemon
         stageRoot = root
-        daemonSession = session
 
         val previousUserDir = System.getProperty("user.dir")
         try {
             System.setProperty("user.dir", root.toString())
-            val channel = runBlocking {
-                Connect.connect(
-                    daemon.slug,
-                    ConnectOptions(
-                        transport = "tcp",
-                        start = false,
-                        portFile = portFile,
-                    ),
-                )
+            val (channel, listenUri, session) = when (transport) {
+                "tcp" -> connectOverTcp(root, daemon)
+                else -> connectOverStdio(daemon)
             }
             client = GreetingClient(channel)
+            daemonSession = session
+            logConnected(daemon, listenUri)
         } catch (t: Throwable) {
             daemonSession = null
-            session.stop()
+            daemonIdentity = null
             stageRoot = null
             deleteStageRoot(root)
             throw t
@@ -151,6 +149,7 @@ class DaemonProcess {
         daemonSession = null
         val activeClient = client
         client = null
+        daemonIdentity = null
 
         try {
             activeClient?.close()
@@ -162,11 +161,29 @@ class DaemonProcess {
         }
     }
 
+    fun subtitleText(): String {
+        val daemonLabel = resolvedDaemonIdentity()
+            ?.familyName
+            ?.removePrefix("Greeting-Daemon-")
+            ?: "Go"
+        return "Kotlin UI via Compose Desktop talking to the $daemonLabel daemon over ${assemblyTransport()} gRPC."
+    }
+
+    fun displayAssemblyFamily(): String =
+        resolvedAssemblyFamily()
+
+    fun displayAssemblyTitleFamily(): String =
+        System.getenv("OP_ASSEMBLY_DISPLAY_FAMILY")?.takeIf { it.isNotBlank() }
+            ?: "${resolvedAssemblyFamily()} (Kotlin UI)"
+
     private fun resolveDaemon(): GreetingDaemonIdentity {
         val candidates = daemonCandidates().mapNotNull { GreetingDaemonIdentity.fromBinaryPath(it) }
         return candidates.firstOrNull { it.binaryPath.exists() && it.binaryPath.isRegularFile() }
             ?: error("Bundled daemon binary not found")
     }
+
+    private fun resolvedDaemonIdentity(): GreetingDaemonIdentity? =
+        daemonIdentity ?: runCatching { resolveDaemon() }.getOrNull()
 
     private fun daemonCandidates(): List<Path> {
         val results = linkedSetOf<Path>()
@@ -233,6 +250,43 @@ class DaemonProcess {
     private fun portFilePath(root: Path, daemonSlug: String): Path =
         root.resolve(".op").resolve("run").resolve("$daemonSlug.port")
 
+    private fun connectOverStdio(daemon: GreetingDaemonIdentity): Triple<io.grpc.ManagedChannel, String, BundledDaemonSession?> {
+        val channel = runBlocking {
+            Connect.connect(
+                daemon.slug,
+                ConnectOptions(
+                    transport = "stdio",
+                    start = true,
+                ),
+            )
+        }
+        return Triple(channel, "stdio://", null)
+    }
+
+    private fun connectOverTcp(
+        root: Path,
+        daemon: GreetingDaemonIdentity,
+    ): Triple<io.grpc.ManagedChannel, String, BundledDaemonSession> {
+        val portFile = portFilePath(root, daemon.slug)
+        val session = startBundledDaemon(daemon.binaryPath, portFile)
+        val channel = try {
+            runBlocking {
+                Connect.connect(
+                    daemon.slug,
+                    ConnectOptions(
+                        transport = "tcp",
+                        start = false,
+                        portFile = portFile,
+                    ),
+                )
+            }
+        } catch (t: Throwable) {
+            session.stop()
+            throw t
+        }
+        return Triple(channel, session.listenUri, session)
+    }
+
     private fun manifestFor(daemon: GreetingDaemonIdentity): String = """
 schema: holon/v0
 uuid: "$holonUUID"
@@ -294,7 +348,7 @@ artifacts:
 
         val advertised = listenUri ?: throw IllegalStateException("Bundled daemon did not advertise a tcp:// address")
         writePortFile(portFile, advertised)
-        return BundledDaemonSession(process, drainThread)
+        return BundledDaemonSession(process, drainThread, advertised)
     }
 
     private fun writePortFile(portFile: Path, uri: String) {
@@ -307,6 +361,37 @@ artifacts:
 
     private fun yamlEscape(value: String): String =
         value.replace("\\", "\\\\").replace("\"", "\\\"")
+
+    private fun resolvedAssemblyFamily(): String =
+        System.getenv("OP_ASSEMBLY_FAMILY")?.takeIf { it.isNotBlank() }
+            ?: resolvedDaemonIdentity()?.let { daemon ->
+                "Greeting-Compose-${daemon.familyName.removePrefix("Greeting-Daemon-")}"
+            }
+            ?: "Greeting-Compose-Go"
+
+    private fun assemblyFamily(): String =
+        resolvedAssemblyFamily()
+
+    private fun assemblyTransport(): String =
+        System.getenv("OP_ASSEMBLY_TRANSPORT")?.takeIf { it.isNotBlank() } ?: "stdio"
+
+    private fun logStartup(daemon: GreetingDaemonIdentity) {
+        System.err.println(
+            "[HostUI] assembly=${assemblyFamily()} daemon=${daemon.binaryName} transport=${assemblyTransport()}",
+        )
+    }
+
+    private fun logConnected(daemon: GreetingDaemonIdentity, listenUri: String) {
+        System.err.println(
+            "[HostUI] connected to ${daemon.binaryName} on ${connectionTarget(listenUri)}",
+        )
+    }
+
+    private fun connectionTarget(uri: String): String =
+        when (uri) {
+            "stdio://" -> "stdio"
+            else -> uri.removePrefix("tcp://").removePrefix("stdio://")
+        }
 
     private fun deleteStageRoot(root: Path) {
         runCatching {

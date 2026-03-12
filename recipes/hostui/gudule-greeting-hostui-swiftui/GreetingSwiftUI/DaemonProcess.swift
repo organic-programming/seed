@@ -12,6 +12,7 @@ final class DaemonProcess: ObservableObject {
     private var client: GreetingClient?
 #if os(macOS)
     private var stageRoot: URL?
+    private var daemonIdentity: GreetingDaemonIdentity?
 #endif
 
     func start() {
@@ -21,6 +22,7 @@ final class DaemonProcess: ObservableObject {
 #if os(macOS)
         do {
             let daemon = try resolveDaemon()
+            daemonIdentity = daemon
             let root = try stageHolonRoot(daemon: daemon)
             stageRoot = root
 
@@ -32,10 +34,13 @@ final class DaemonProcess: ObservableObject {
                 FileManager.default.changeCurrentDirectoryPath(previousDirectory)
             }
 
-            let options = ConnectOptions(transport: "stdio")
+            logHostUI("[HostUI] assembly=\(assemblyFamily) daemon=\(daemon.binaryName) transport=\(transport)")
+            let options = ConnectOptions(transport: transport)
             client = try GreetingClient.connected(to: daemon.slug, options: options)
+            logHostUI("[HostUI] connected to \(daemon.binaryName) on \(connectionTarget())")
             isRunning = true
         } catch {
+            daemonIdentity = nil
             cleanupStageRoot()
             connectionError = "Failed to start bundled daemon: \(String(describing: error))"
             isRunning = false
@@ -49,6 +54,9 @@ final class DaemonProcess: ObservableObject {
     func stop() {
         let currentClient = client
         client = nil
+#if os(macOS)
+        daemonIdentity = nil
+#endif
 
         do {
             try currentClient?.close()
@@ -82,10 +90,40 @@ final class DaemonProcess: ObservableObject {
 #if os(macOS)
         let root = stageRoot
         stageRoot = nil
+        daemonIdentity = nil
         if let root {
             try? FileManager.default.removeItem(at: root)
         }
 #endif
+    }
+
+    var assemblyFamily: String {
+        let value = ProcessInfo.processInfo.environment["OP_ASSEMBLY_FAMILY"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (value?.isEmpty == false ? value! : "Greeting-Swiftui-Go")
+    }
+
+    var transport: String {
+        let value = ProcessInfo.processInfo.environment["OP_ASSEMBLY_TRANSPORT"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (value?.isEmpty == false ? value! : "stdio")
+    }
+
+    var daemonBinaryName: String {
+#if os(macOS)
+        return daemonIdentity?.binaryName ?? (try? resolveDaemon().binaryName) ?? "gudule-daemon-greeting-swift"
+#else
+        return "gudule-daemon-greeting-swift"
+#endif
+    }
+
+    private func connectionTarget() -> String {
+        transport == "stdio" ? "stdio" : transport
+    }
+
+    private func logHostUI(_ line: String) {
+        guard let data = (line + "\n").data(using: .utf8) else {
+            return
+        }
+        FileHandle.standardError.write(data)
     }
 }
 

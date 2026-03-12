@@ -6,8 +6,15 @@ import '../client/greeting_client.dart';
 
 class GreetingScreen extends StatefulWidget {
   final GreetingClient client;
+  final String assemblyFamily;
+  final String daemonDisplayName;
 
-  const GreetingScreen({super.key, required this.client});
+  const GreetingScreen({
+    super.key,
+    required this.client,
+    required this.assemblyFamily,
+    required this.daemonDisplayName,
+  });
 
   @override
   State<GreetingScreen> createState() => _GreetingScreenState();
@@ -96,129 +103,134 @@ class _GreetingScreenState extends State<GreetingScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F1A),
-      body: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 520),
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Title
-              Text(
-                'Flutter Greeting',
-                style: GoogleFonts.inter(
-                  fontSize: 36,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '56 languages | powered by Go + Flutter',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  color: Colors.white54,
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // Language picker
-              if (_loading)
-                const CircularProgressIndicator(color: Colors.white54)
-              else
-                _buildLanguagePicker(),
-
-              const SizedBox(height: 20),
-
-              // Name input
-              TextField(
-                key: const ValueKey('name-input'),
-                controller: _nameController,
-                style: GoogleFonts.inter(color: Colors.white, fontSize: 18),
-                decoration: InputDecoration(
-                  hintText: 'Enter your name',
-                  hintStyle: GoogleFonts.inter(color: Colors.white30),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.06),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                ),
-                onSubmitted: (_) => _greet(),
-              ),
-              const SizedBox(height: 20),
-
-              // Greet button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  key: const ValueKey('greet-button'),
-                  onPressed: _greet,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6C5CE7),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    textStyle: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Title
+                  Text(
+                    'Gudule ${widget.assemblyFamily}',
+                    style: GoogleFonts.inter(
+                      fontSize: 36,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
                     ),
                   ),
-                  child: const Text('Greet'),
-                ),
-              ),
-              const SizedBox(height: 32),
+                  const SizedBox(height: 8),
+                  Text(
+                    '56 languages | powered by ${widget.daemonDisplayName} + Flutter',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: Colors.white54,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
 
-              // Greeting card
-              if (_greeting != null)
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Container(
-                    key: const ValueKey('greeting-output'),
+                  // Language picker
+                  if (_loading)
+                    const CircularProgressIndicator(color: Colors.white54)
+                  else
+                    _buildLanguagePicker(),
+
+                  const SizedBox(height: 20),
+
+                  // Name input
+                  TextField(
+                    key: const ValueKey('name-input'),
+                    controller: _nameController,
+                    style: GoogleFonts.inter(color: Colors.white, fontSize: 18),
+                    decoration: InputDecoration(
+                      hintText: 'Enter your name',
+                      hintStyle: GoogleFonts.inter(color: Colors.white30),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.06),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                    ),
+                    onSubmitted: (_) => _greet(),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Greet button
+                  SizedBox(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          _greeting!,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
+                    height: 52,
+                    child: ElevatedButton(
+                      key: const ValueKey('greet-button'),
+                      onPressed: _greet,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6C5CE7),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _greetLanguage ?? '',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: Colors.white38,
-                          ),
+                        textStyle: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
                         ),
-                      ],
+                      ),
+                      child: const Text('Greet'),
                     ),
                   ),
-                ),
-            ],
+                  const SizedBox(height: 32),
+
+                  // Greeting card
+                  if (_greeting != null)
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Container(
+                        key: const ValueKey('greeting-output'),
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.08),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              _greeting!,
+                              textAlign: TextAlign.center,
+                              softWrap: true,
+                              style: GoogleFonts.inter(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _greetLanguage ?? '',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                color: Colors.white38,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

@@ -14,6 +14,12 @@ public partial class MainPage : ContentPage
     public MainPage()
     {
         InitializeComponent();
+        var assemblyFamily =
+            Environment.GetEnvironmentVariable("OP_ASSEMBLY_DISPLAY_FAMILY")
+            ?? Environment.GetEnvironmentVariable("OP_ASSEMBLY_FAMILY")
+            ?? "Greeting-Dotnet-Go (.NET UI)";
+        Title = $"Gudule {assemblyFamily}";
+        TitleLabel.Text = $"Gudule {assemblyFamily}";
     }
 
     protected override async void OnAppearing()

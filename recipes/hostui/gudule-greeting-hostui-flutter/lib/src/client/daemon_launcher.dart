@@ -15,6 +15,7 @@ typedef HolonDisconnect = Future<void> Function(ClientChannel channel);
 typedef TempDirectoryFactory = Future<Directory> Function(String prefix);
 typedef CurrentDirectoryGetter = String Function();
 typedef CurrentDirectorySetter = void Function(String path);
+typedef EnvironmentGetter = Map<String, String> Function();
 typedef BundledDaemonStarter = Future<BundledDaemonSession> Function(
   String binaryPath,
   String portFilePath,
@@ -22,8 +23,9 @@ typedef BundledDaemonStarter = Future<BundledDaemonSession> Function(
 
 class BundledDaemonSession {
   final Future<void> Function() stop;
+  final String? connectionTarget;
 
-  const BundledDaemonSession({required this.stop});
+  const BundledDaemonSession({required this.stop, this.connectionTarget});
 }
 
 class DaemonLauncher {
@@ -34,6 +36,7 @@ class DaemonLauncher {
   final TempDirectoryFactory _createTempDirectory;
   final CurrentDirectoryGetter _getCurrentDirectory;
   final CurrentDirectorySetter _setCurrentDirectory;
+  final EnvironmentGetter _getEnvironment;
   final BundledDaemonStarter _startBundledDaemon;
 
   Directory? _root;
@@ -45,6 +48,7 @@ class DaemonLauncher {
     TempDirectoryFactory? createTempDirectory,
     CurrentDirectoryGetter? getCurrentDirectory,
     CurrentDirectorySetter? setCurrentDirectory,
+    EnvironmentGetter? getEnvironment,
     BundledDaemonStarter? startBundledDaemon,
   })  : _connect = connect ?? holons.connect,
         _disconnect = disconnect ?? holons.disconnect,
@@ -54,19 +58,31 @@ class DaemonLauncher {
             getCurrentDirectory ?? (() => Directory.current.path),
         _setCurrentDirectory =
             setCurrentDirectory ?? ((path) => Directory.current = path),
+        _getEnvironment = getEnvironment ?? (() => Platform.environment),
         _startBundledDaemon = startBundledDaemon ?? _startBundledDaemonDefault;
 
   String? get stagedRootPath => _root?.path;
 
   Future<ClientChannel> start(GreetingEndpoint endpoint) async {
     await stop(null);
+    final environment = _getEnvironment();
+    final assemblyFamily = resolveGreetingAssemblyFamily(environment);
+    final transport = resolveGreetingTransport(environment);
+    final daemonLabel = describeGreetingDaemonForLogs(endpoint);
 
     final configuredTarget = (endpoint.target ?? '').trim();
     if (configuredTarget.isNotEmpty) {
-      return _connect(
-        configuredTarget,
-        const holons.ConnectOptions(transport: 'tcp'),
+      stderr.writeln(
+        '[HostUI] assembly=$assemblyFamily daemon=$daemonLabel transport=$transport',
       );
+      final channel = await _connect(
+        configuredTarget,
+        holons.ConnectOptions(transport: transport),
+      );
+      stderr.writeln(
+        '[HostUI] connected to $daemonLabel on ${_displayConnectionTarget(configuredTarget)}',
+      );
+      return channel;
     }
 
     final binaryPath = (endpoint.bundledBinaryPath ?? '').trim();
@@ -77,34 +93,61 @@ class DaemonLauncher {
 
     final daemon =
         endpoint.daemon ?? GreetingDaemonIdentity.fromBinaryPath(binaryPath);
+    stderr.writeln(
+      '[HostUI] assembly=$assemblyFamily daemon=${daemon.binaryName} transport=$transport',
+    );
 
     final root = await _createTempDirectory('greeting-hostui-flutter-');
     final daemonRoot = await _stageHolonRoot(root, file.absolute.path, daemon);
-    final portFilePath = _portFilePath(root.path, daemon.slug);
-    final daemonSession = await _startBundledDaemon(
-      file.absolute.path,
-      portFilePath,
-    );
     _root = root;
-    _daemonSession = daemonSession;
 
     try {
-      return await _withDiscoveryRoot(
+      if (transport == 'stdio') {
+        final channel = await _withDiscoveryRoot(
+          daemonRoot.path,
+          () => _connect(
+            daemon.slug,
+            const holons.ConnectOptions(
+              transport: 'stdio',
+            ),
+          ),
+        );
+        stderr.writeln(
+          '[HostUI] connected to ${daemon.binaryName} on stdio',
+        );
+        return channel;
+      }
+
+      final portFilePath = _portFilePath(root.path, daemon.slug);
+      final daemonSession = await _startBundledDaemon(
+        file.absolute.path,
+        portFilePath,
+      );
+      _daemonSession = daemonSession;
+
+      final channel = await _withDiscoveryRoot(
         daemonRoot.path,
         () => _connect(
           daemon.slug,
           holons.ConnectOptions(
-            transport: 'tcp',
+            transport: transport,
             start: false,
             portFile: portFilePath,
           ),
         ),
       );
+      stderr.writeln(
+        '[HostUI] connected to ${daemon.binaryName} on ${daemonSession.connectionTarget ?? daemon.slug}',
+      );
+      return channel;
     } catch (_) {
-      await daemonSession.stop();
+      final daemonSession = _daemonSession;
+      _daemonSession = null;
+      if (daemonSession != null) {
+        await daemonSession.stop();
+      }
       await _deleteRoot(root);
       _root = null;
-      _daemonSession = null;
       rethrow;
     }
   }
@@ -245,6 +288,7 @@ Future<BundledDaemonSession> _startBundledDaemonDefault(
         await stderrSub.cancel();
         await _stopProcess(process);
       },
+      connectionTarget: _displayConnectionTarget(uri),
     );
   } on Object {
     await stdoutSub.cancel();
@@ -295,6 +339,22 @@ String _trimUriField(String value) {
     end -= 1;
   }
   return value.substring(start, end);
+}
+
+String _displayConnectionTarget(String value) {
+  final trimmed = value.trim();
+  for (final prefix in const [
+    'tcp://',
+    'http://',
+    'https://',
+    'ws://',
+    'wss://'
+  ]) {
+    if (trimmed.startsWith(prefix)) {
+      return trimmed.substring(prefix.length);
+    }
+  }
+  return trimmed;
 }
 
 bool _isUriTrimChar(int codeUnit) {

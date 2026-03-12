@@ -56,6 +56,87 @@ class GreetingDaemonIdentity {
   }
 }
 
+String resolveGreetingAssemblyFamily([Map<String, String>? environment]) {
+  final env = environment ?? Platform.environment;
+  final value = (env['OP_ASSEMBLY_FAMILY'] ?? '').trim();
+  return value.isNotEmpty ? value : 'Greeting-Flutter-Go';
+}
+
+String resolveGreetingDisplayFamily([
+  Map<String, String>? environment,
+  String? fallbackFamily,
+]) {
+  final env = environment ?? Platform.environment;
+  final value = (env['OP_ASSEMBLY_DISPLAY_FAMILY'] ?? '').trim();
+  if (value.isNotEmpty) {
+    return value;
+  }
+
+  final family = (fallbackFamily ?? resolveGreetingAssemblyFamily(env)).trim();
+  if (family.isEmpty || family.contains('(Flutter UI)')) {
+    return family.isEmpty ? 'Greeting-Flutter-Go (Flutter UI)' : family;
+  }
+  return '$family (Flutter UI)';
+}
+
+String deriveGreetingAssemblyFamilyFromEndpoint(
+  GreetingEndpoint endpoint, {
+  String framework = 'Flutter',
+  String fallback = 'Greeting-Flutter-Go',
+}) {
+  final daemonFamily = endpoint.daemon?.familyName.trim();
+  if (daemonFamily != null && daemonFamily.startsWith('Greeting-Daemon-')) {
+    final daemonDisplay = daemonFamily.substring('Greeting-Daemon-'.length);
+    return 'Greeting-$framework-$daemonDisplay';
+  }
+  return fallback;
+}
+
+String resolveGreetingTransport([Map<String, String>? environment]) {
+  final env = environment ?? Platform.environment;
+  final value = (env['OP_ASSEMBLY_TRANSPORT'] ?? '').trim();
+  return value.isNotEmpty ? value : 'tcp';
+}
+
+String resolveGreetingDaemonDisplayName({
+  GreetingEndpoint? endpoint,
+  String? assemblyFamily,
+}) {
+  final daemonFamily = endpoint?.daemon?.familyName.trim();
+  if (daemonFamily != null && daemonFamily.startsWith('Greeting-Daemon-')) {
+    return daemonFamily.substring('Greeting-Daemon-'.length);
+  }
+
+  final family = (assemblyFamily ?? '').trim();
+  if (family.isNotEmpty) {
+    final parts = family.split('-');
+    if (parts.length >= 3) {
+      return parts.last;
+    }
+  }
+
+  return 'Go';
+}
+
+String describeGreetingDaemonForLogs(GreetingEndpoint endpoint) {
+  final daemon = endpoint.daemon;
+  if (daemon != null && daemon.binaryName.trim().isNotEmpty) {
+    return daemon.binaryName;
+  }
+
+  final target = (endpoint.target ?? '').trim();
+  if (target.isNotEmpty) {
+    return target;
+  }
+
+  final bundledBinaryPath = (endpoint.bundledBinaryPath ?? '').trim();
+  if (bundledBinaryPath.isNotEmpty) {
+    return GreetingDaemonIdentity.fromBinaryPath(bundledBinaryPath).binaryName;
+  }
+
+  return 'gudule-daemon-greeting-go';
+}
+
 class GreetingEndpoint {
   final String? target;
   final String? bundledBinaryPath;

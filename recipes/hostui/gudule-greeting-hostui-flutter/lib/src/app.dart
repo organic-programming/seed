@@ -19,6 +19,9 @@ class _GreetingAppState extends State<GreetingApp> {
   final GreetingClient _client = GreetingClient();
   final GreetingTargetResolver _targetResolver = GreetingTargetResolver();
   late final AppLifecycleListener _lifecycleListener;
+  String _assemblyFamily = resolveGreetingAssemblyFamily();
+  String _assemblyDisplayFamily = resolveGreetingDisplayFamily();
+  String _daemonDisplayName = 'Go';
   bool _connecting = true;
   String? _error;
 
@@ -41,7 +44,22 @@ class _GreetingAppState extends State<GreetingApp> {
         );
       }
       await _client.connect(endpoint);
-      setState(() => _connecting = false);
+      final assemblyFamily = deriveGreetingAssemblyFamilyFromEndpoint(
+        endpoint,
+        fallback: resolveGreetingAssemblyFamily(),
+      );
+      setState(() {
+        _assemblyFamily = assemblyFamily;
+        _assemblyDisplayFamily = resolveGreetingDisplayFamily(
+          null,
+          assemblyFamily,
+        );
+        _connecting = false;
+        _daemonDisplayName = resolveGreetingDaemonDisplayName(
+          endpoint: endpoint,
+          assemblyFamily: assemblyFamily,
+        );
+      });
     } catch (e) {
       setState(() {
         _connecting = false;
@@ -69,7 +87,7 @@ class _GreetingAppState extends State<GreetingApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Greeting',
+      title: 'Gudule $_assemblyDisplayFamily',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
         textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
@@ -97,6 +115,10 @@ class _GreetingAppState extends State<GreetingApp> {
         ),
       );
     }
-    return GreetingScreen(client: _client);
+    return GreetingScreen(
+      client: _client,
+      assemblyFamily: _assemblyDisplayFamily,
+      daemonDisplayName: _daemonDisplayName,
+    );
   }
 }

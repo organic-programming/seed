@@ -66,10 +66,12 @@ internal sealed record GreetingDaemonIdentity(
 internal sealed class BundledDaemonSession : IAsyncDisposable
 {
     private readonly Process _process;
+    public string ListenUri { get; }
 
-    public BundledDaemonSession(Process process)
+    public BundledDaemonSession(Process process, string listenUri)
     {
         _process = process;
+        ListenUri = listenUri;
     }
 
     public async ValueTask DisposeAsync()
@@ -102,6 +104,8 @@ public sealed class DaemonProcess : IAsyncDisposable
     private BundledDaemonSession? _daemonSession;
 
     public string HolonSlug => _daemon?.Slug ?? string.Empty;
+    public string AssemblyFamily => AssemblyFamilyOrDefault();
+    public string Transport => AssemblyTransportOrDefault();
 
     public GreetingClient Client =>
         _client ?? throw new InvalidOperationException("Daemon is not connected.");
@@ -116,6 +120,8 @@ public sealed class DaemonProcess : IAsyncDisposable
         AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 
         var daemon = await ResolveDaemonAsync(cancellationToken);
+        Console.Error.WriteLine(
+            $"[HostUI] assembly={AssemblyFamily} daemon={daemon.BinaryName} transport={Transport}");
         var stageRoot = await StageHolonRootAsync(daemon, cancellationToken);
         var portFile = PortFilePath(stageRoot, daemon.Slug);
         var session = await StartBundledDaemonAsync(daemon, portFile, cancellationToken);
@@ -133,11 +139,13 @@ public sealed class DaemonProcess : IAsyncDisposable
                 daemon.Slug,
                 new Connect.ConnectOptions
                 {
-                    Transport = "tcp",
+                    Transport = Transport,
                     Start = false,
                     PortFile = portFile,
                 });
             _client = new GreetingClient(_channel);
+            Console.Error.WriteLine(
+                $"[HostUI] connected to {daemon.BinaryName} on {DisplayConnectionTarget(session.ListenUri)}");
         }
         catch
         {
@@ -370,7 +378,7 @@ public sealed class DaemonProcess : IAsyncDisposable
         var uri = await listenUri.Task;
         Directory.CreateDirectory(Path.GetDirectoryName(portFile)!);
         await File.WriteAllTextAsync(portFile, $"{uri.Trim()}{Environment.NewLine}", cancellationToken);
-        return new BundledDaemonSession(process);
+        return new BundledDaemonSession(process, uri);
     }
 
     private string BuildManifest(GreetingDaemonIdentity daemon)
@@ -416,5 +424,28 @@ artifacts:
         }
 
         return Task.Run(() => Directory.Delete(root, recursive: true));
+    }
+
+    private static string AssemblyFamilyOrDefault() =>
+        string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OP_ASSEMBLY_FAMILY"))
+            ? "Greeting-Dotnet-Go"
+            : Environment.GetEnvironmentVariable("OP_ASSEMBLY_FAMILY")!;
+
+    private static string AssemblyTransportOrDefault() =>
+        string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("OP_ASSEMBLY_TRANSPORT"))
+            ? "tcp"
+            : Environment.GetEnvironmentVariable("OP_ASSEMBLY_TRANSPORT")!;
+
+    private static string DisplayConnectionTarget(string value)
+    {
+        foreach (var prefix in new[] { "tcp://", "http://", "https://", "ws://", "wss://" })
+        {
+            if (value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return value[prefix.Length..];
+            }
+        }
+
+        return value;
     }
 }

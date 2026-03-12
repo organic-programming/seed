@@ -27,13 +27,15 @@ build:
       - exec:
           cwd: .
           argv: ["ditto", "../../hostui/gudule-greeting-hostui-flutter/build/macos/Build/Products/Debug/gudule-greeting-hostui-flutter.app", "build/gudule-greeting-hostui-flutter.app"]
-      - copy:
-          from: ../../daemons/gudule-daemon-greeting-csharp/.op/build/bin/gudule-daemon-greeting-csharp
-          to: build/gudule-greeting-hostui-flutter.app/Contents/Resources/gudule-daemon-greeting-csharp
+      - exec:
+          cwd: .
+          argv: ["ditto", "../../daemons/gudule-daemon-greeting-csharp/.op/build/bin", "build/gudule-greeting-hostui-flutter.app/Contents/Resources"]
       - assert_file:
           path: build/gudule-greeting-hostui-flutter.app
       - assert_file:
           path: build/gudule-greeting-hostui-flutter.app/Contents/Resources/gudule-daemon-greeting-csharp
+      - assert_file:
+          path: build/gudule-greeting-hostui-flutter.app/Contents/Resources/gudule-daemon-greeting-csharp.dll
 requires:
   commands: [dotnet, flutter, dart]
 artifacts:

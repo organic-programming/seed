@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -13,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -38,9 +41,10 @@ import greeting.gokotlin.grpc.GreetingLanguage
 import kotlinx.coroutines.launch
 
 @Composable
-fun ContentView(daemon: DaemonProcess) {
+fun ContentView(daemon: DaemonProcess, assemblyFamily: String) {
     val scope = rememberCoroutineScope()
     val languages = remember { mutableStateListOf<GreetingLanguage>() }
+    val subtitle = remember { daemon.subtitleText() }
     var selectedLanguage by remember { mutableStateOf<GreetingLanguage?>(null) }
     var languageMenuExpanded by remember { mutableStateOf(false) }
     var userName by remember { mutableStateOf("World") }
@@ -92,14 +96,19 @@ fun ContentView(daemon: DaemonProcess) {
             Spacer(Modifier.width(20.dp))
 
             Card(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                Column(modifier = Modifier.fillMaxSize().padding(28.dp)) {
-                    Text("Gudule Greeting Gokotlin", style = MaterialTheme.typography.headlineMedium)
-                    Spacer(Modifier.height(12.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(28.dp),
+                ) {
+                    Text("Gudule $assemblyFamily", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(8.dp))
                     Text(
-                        "Compose Desktop talking to the Go daemon over localhost gRPC.",
+                        subtitle,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(16.dp))
                     Box {
                         OutlinedTextField(
                             modifier = Modifier
@@ -125,20 +134,24 @@ fun ContentView(daemon: DaemonProcess) {
                             }
                         }
                     }
-                    Spacer(Modifier.height(28.dp))
-                    Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    Spacer(Modifier.height(18.dp))
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 140.dp),
+                    ) {
                         Box(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-                            Text(greeting, style = MaterialTheme.typography.headlineLarge)
+                            Text(greeting, style = MaterialTheme.typography.titleMedium)
                         }
                     }
-                    Spacer(Modifier.height(18.dp))
+                    Spacer(Modifier.height(14.dp))
                     OutlinedTextField(
                         modifier = Modifier.fillMaxWidth(),
                         value = userName,
                         onValueChange = { userName = it },
                         label = { Text("Your name") },
                     )
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(10.dp))
                     Button(
                         onClick = {
                             val language = selectedLanguage ?: return@Button

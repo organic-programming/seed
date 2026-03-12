@@ -2,6 +2,9 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var daemon: DaemonProcess
+    private let assemblyFamily = ProcessInfo.processInfo.environment["OP_ASSEMBLY_DISPLAY_FAMILY"]
+        ?? ProcessInfo.processInfo.environment["OP_ASSEMBLY_FAMILY"]
+        ?? "Greeting-Swiftui-Go (SwiftUI)"
     @State private var languages: [Language] = []
     @State private var selectedCode: String = ""
     @State private var userName: String = "World"
@@ -10,7 +13,7 @@ struct ContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Gudule Greeting")
+            Text("Gudule \(assemblyFamily)")
                 .font(.largeTitle.bold())
 
             VStack(alignment: .leading, spacing: 8) {

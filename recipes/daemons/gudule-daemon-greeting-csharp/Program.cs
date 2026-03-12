@@ -15,16 +15,11 @@ public static class Program
         {
             case "serve":
             {
-                var recipeRoot = RecipeRoot.Find();
                 var listenUri = Serve.ParseFlags(args.Skip(1).ToArray());
                 Serve.RunWithOptions(
                     listenUri,
                     [Serve.Service(new GreetingServiceImpl())],
-                    new Serve.ServeOptions
-                    {
-                        ProtoDir = Path.Combine(recipeRoot, "protos"),
-                        HolonYamlPath = Path.Combine(recipeRoot, "holon.yaml"),
-                    });
+                    CreateServeOptions(RecipeRoot.TryFind()));
                 return 0;
             }
             case "version":
@@ -40,6 +35,23 @@ public static class Program
     {
         Console.Error.WriteLine("usage: gudule-daemon-greeting-csharp <serve|version> [flags]");
         Environment.Exit(1);
+    }
+
+    private static Serve.ServeOptions CreateServeOptions(string? recipeRoot)
+    {
+        if (string.IsNullOrWhiteSpace(recipeRoot))
+        {
+            return new Serve.ServeOptions
+            {
+                Describe = false,
+            };
+        }
+
+        return new Serve.ServeOptions
+        {
+            ProtoDir = Path.Combine(recipeRoot, "protos"),
+            HolonYamlPath = Path.Combine(recipeRoot, "holon.yaml"),
+        };
     }
 }
 

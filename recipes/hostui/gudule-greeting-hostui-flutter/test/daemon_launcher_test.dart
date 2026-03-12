@@ -44,6 +44,35 @@ void main() {
       expect(endpoint.daemon?.slug, 'gudule-greeting-daemon-rust');
       expect(endpoint.daemon?.familyName, 'Greeting-Daemon-Rust');
     });
+
+    test('resolves assembly family and transport defaults', () {
+      expect(
+        resolveGreetingAssemblyFamily(
+            const {'OP_ASSEMBLY_FAMILY': 'Greeting-Flutter-Rust'}),
+        'Greeting-Flutter-Rust',
+      );
+      expect(resolveGreetingAssemblyFamily(const {}), 'Greeting-Flutter-Go');
+      expect(
+        resolveGreetingTransport(const {'OP_ASSEMBLY_TRANSPORT': 'tcp'}),
+        'tcp',
+      );
+      expect(resolveGreetingTransport(const {}), 'tcp');
+    });
+
+    test('derives assembly family from the bundled daemon identity', () {
+      const endpoint = GreetingEndpoint(
+        daemon: GreetingDaemonIdentity(
+          slug: 'gudule-greeting-daemon-rust',
+          binaryName: 'gudule-daemon-greeting-rust',
+          familyName: 'Greeting-Daemon-Rust',
+        ),
+      );
+
+      expect(
+        deriveGreetingAssemblyFamilyFromEndpoint(endpoint),
+        'Greeting-Flutter-Rust',
+      );
+    });
   });
 
   group('DaemonLauncher', () {
@@ -77,6 +106,7 @@ void main() {
         },
         getCurrentDirectory: () => currentDirectory,
         setCurrentDirectory: (path) => currentDirectory = path,
+        getEnvironment: () => const {},
         startBundledDaemon: (binaryPath, portFilePath) async {
           startedBinaryPath = binaryPath;
           startedPortFilePath = portFilePath;
@@ -141,6 +171,7 @@ void main() {
         },
         getCurrentDirectory: () => sandbox.path,
         setCurrentDirectory: (_) {},
+        getEnvironment: () => const {},
         startBundledDaemon: (_, portFilePath) async {
           await File(portFilePath).parent.create(recursive: true);
           await File(portFilePath).writeAsString('tcp://127.0.0.1:43123\n');
@@ -163,5 +194,58 @@ void main() {
       expect(launcher.stagedRootPath, isNull);
       expect(sessionStopped, isTrue);
     });
+
+    test('uses Dart holons stdio connect path when transport override is stdio',
+        () async {
+      final sandbox = await Directory.systemTemp.createTemp('daemon-launcher-');
+      addTearDown(() => sandbox.delete(recursive: true));
+
+      final daemon = File('${sandbox.path}/gudule-daemon-greeting-rust');
+      await daemon.writeAsString('daemon');
+
+      final stagedRoot = Directory('${sandbox.path}/stage');
+      String currentDirectory = sandbox.path;
+      String? connectTarget;
+      holons.ConnectOptions? connectOptions;
+      bool startBundledDaemonCalled = false;
+      final channel = ClientChannel('localhost', port: 1);
+
+      final launcher = DaemonLauncher(
+        connect: (target, [opts]) async {
+          connectTarget = target;
+          connectOptions = opts;
+          return channel;
+        },
+        disconnect: (_) async {},
+        createTempDirectory: (_) async {
+          await stagedRoot.create(recursive: true);
+          return stagedRoot;
+        },
+        getCurrentDirectory: () => currentDirectory,
+        setCurrentDirectory: (path) => currentDirectory = path,
+        getEnvironment: () => const {'OP_ASSEMBLY_TRANSPORT': 'stdio'},
+        startBundledDaemon: (_, __) async {
+          startBundledDaemonCalled = true;
+          return const BundledDaemonSession(stop: _noopStop);
+        },
+      );
+
+      final launched = await launcher.start(
+        GreetingEndpoint(
+          bundledBinaryPath: daemon.path,
+          daemon: GreetingDaemonIdentity.fromBinaryPath(daemon.path),
+        ),
+      );
+
+      expect(launched, same(channel));
+      expect(connectTarget, 'gudule-greeting-daemon-rust');
+      expect(connectOptions?.transport, 'stdio');
+      expect(connectOptions?.start, isTrue);
+      expect(connectOptions?.portFile, isEmpty);
+      expect(startBundledDaemonCalled, isFalse);
+      expect(currentDirectory, sandbox.path);
+    });
   });
 }
+
+Future<void> _noopStop() async {}

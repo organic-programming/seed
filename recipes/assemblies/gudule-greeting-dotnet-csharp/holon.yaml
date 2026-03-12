@@ -27,13 +27,15 @@ build:
       - exec:
           cwd: .
           argv: ["ditto", "../../hostui/gudule-greeting-hostui-dotnet/bin/Debug/net8.0-maccatalyst/maccatalyst-arm64/GreetingDotnet.app", "build/GreetingDotnet.app"]
-      - copy:
-          from: ../../daemons/gudule-daemon-greeting-csharp/.op/build/bin/gudule-daemon-greeting-csharp
-          to: build/GreetingDotnet.app/Contents/Resources/daemon/gudule-daemon-greeting-csharp
+      - exec:
+          cwd: .
+          argv: ["ditto", "../../daemons/gudule-daemon-greeting-csharp/.op/build/bin", "build/GreetingDotnet.app/Contents/Resources/daemon"]
       - assert_file:
           path: build/GreetingDotnet.app
       - assert_file:
           path: build/GreetingDotnet.app/Contents/Resources/daemon/gudule-daemon-greeting-csharp
+      - assert_file:
+          path: build/GreetingDotnet.app/Contents/Resources/daemon/gudule-daemon-greeting-csharp.dll
 requires:
   commands: [dotnet]
 artifacts:

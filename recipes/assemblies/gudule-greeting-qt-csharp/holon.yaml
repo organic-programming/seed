@@ -24,13 +24,15 @@ build:
       - copy:
           from: ../../hostui/gudule-greeting-hostui-qt/.op/build/bin/gudule-greeting-goqt
           to: build/gudule-greeting-goqt
-      - copy:
-          from: ../../daemons/gudule-daemon-greeting-csharp/.op/build/bin/gudule-daemon-greeting-csharp
-          to: build/daemon/gudule-daemon-greeting-csharp
+      - exec:
+          cwd: .
+          argv: ["ditto", "../../daemons/gudule-daemon-greeting-csharp/.op/build/bin", "build/daemon"]
       - assert_file:
           path: build/gudule-greeting-goqt
       - assert_file:
           path: build/daemon/gudule-daemon-greeting-csharp
+      - assert_file:
+          path: build/daemon/gudule-daemon-greeting-csharp.dll
 requires:
   commands: [dotnet, cmake]
 artifacts:

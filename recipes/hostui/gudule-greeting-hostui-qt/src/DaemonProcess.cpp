@@ -136,6 +136,32 @@ QString firstUri(const QString &line) {
   }
   return match.captured(0);
 }
+
+QString assemblyFamily() {
+  return qEnvironmentVariable("OP_ASSEMBLY_FAMILY", "Greeting-Qt-Go");
+}
+
+QString assemblyTransport() {
+  return qEnvironmentVariable("OP_ASSEMBLY_TRANSPORT", "tcp");
+}
+
+QString displayConnectionTarget(const QString &value) {
+  QString trimmed = value.trimmed();
+  for (const auto &prefix :
+       {QStringLiteral("tcp://"), QStringLiteral("http://"),
+        QStringLiteral("https://"), QStringLiteral("ws://"),
+        QStringLiteral("wss://"), QStringLiteral("stdio://")}) {
+    if (trimmed.startsWith(prefix, Qt::CaseInsensitive)) {
+      return trimmed.mid(prefix.size());
+    }
+  }
+  return trimmed;
+}
+
+void logHostUI(const QString &line) {
+  QTextStream stream(stderr);
+  stream << line << Qt::endl;
+}
 }  // namespace
 
 DaemonProcess::DaemonProcess(QObject *parent) : QObject(parent) {
@@ -156,6 +182,8 @@ bool DaemonProcess::start() {
   }
   binaryPath_ = daemon->binaryPath;
   daemonSlug_ = daemon->slug;
+  logHostUI(QStringLiteral("[HostUI] assembly=%1 daemon=%2 transport=%3")
+                .arg(assemblyFamily(), daemon->binaryName, assemblyTransport()));
 
   auto stageRoot = std::make_unique<QTemporaryDir>(
       QDir::temp().filePath(QStringLiteral("gudule-greeting-hostui-qt-XXXXXX")));
@@ -205,7 +233,7 @@ bool DaemonProcess::start() {
 
   try {
     holons::ConnectOptions opts;
-    opts.transport = "tcp";
+    opts.transport = assemblyTransport().toStdString();
     opts.start = false;
     opts.port_file = portFilePath.toStdString();
     channel_ = holons::connect(daemon->slug.toStdString(), opts);
@@ -213,6 +241,8 @@ bool DaemonProcess::start() {
     if (grpcTarget_.isEmpty()) {
       throw std::runtime_error("cpp-holons did not expose the daemon target");
     }
+    logHostUI(QStringLiteral("[HostUI] connected to %1 on %2")
+                  .arg(daemon->binaryName, displayConnectionTarget(grpcTarget_)));
     stageRoot_ = std::move(stageRoot);
   } catch (const std::exception &ex) {
     lastError_ = QString::fromUtf8(ex.what());

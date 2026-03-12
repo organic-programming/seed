@@ -14,11 +14,26 @@ export type GreetingLanguage = {
   native: string;
 };
 
+type GreetingRuntimeGlobals = {
+  __GUDULE_DAEMON__?: string;
+  __GUDULE_DAEMON_SLUG__?: string;
+  __GUDULE_ASSEMBLY_FAMILY__?: string;
+};
+
+type WebHostUIContext = {
+  assemblyFamily: string;
+  daemonLabel: string;
+  transport: string;
+  target: string;
+};
+
 const LIST_LANGUAGES_PATH = "/greeting.v1.GreetingService/ListLanguages";
 const SAY_HELLO_PATH = "/greeting.v1.GreetingService/SayHello";
+const DEFAULT_WEB_FAMILY = "Greeting-Hostui-Web";
+const DEFAULT_WEB_TRANSPORT = "tcp";
 
 function resolveDaemonTarget(): string {
-  const env = (globalThis as { __GUDULE_DAEMON__?: string }).__GUDULE_DAEMON__;
+  const env = (globalThis as GreetingRuntimeGlobals).__GUDULE_DAEMON__;
   if (env && env.trim().length > 0) {
     return env.trim();
   }
@@ -33,12 +48,87 @@ function resolveDaemonTarget(): string {
   return "127.0.0.1:9091";
 }
 
-const client = connect(resolveDaemonTarget());
+function displayVariant(variant: string): string {
+  const overrides = new Map([
+    ["cpp", "CPP"],
+    ["js", "JS"],
+    ["qt", "Qt"],
+  ]);
+
+  return variant
+    .split("-")
+    .filter((token) => token.length > 0)
+    .map((token) => overrides.get(token) ?? `${token[0].toUpperCase()}${token.slice(1)}`)
+    .join("-");
+}
+
+function familyFromVariant(variant: string): string {
+  return `Greeting-${displayVariant(variant)}-Web`;
+}
+
+function parseDaemonVariant(value: string | undefined): string | null {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const match = trimmed.match(/gudule-(?:greeting-daemon|daemon-greeting)-([a-z0-9-]+)/i);
+  return match?.[1]?.toLowerCase() ?? null;
+}
+
+function displayConnectionTarget(value: string): string {
+  const trimmed = value.trim();
+  for (const prefix of ["tcp://", "http://", "https://", "ws://", "wss://"]) {
+    if (trimmed.startsWith(prefix)) {
+      return trimmed.slice(prefix.length);
+    }
+  }
+  return trimmed;
+}
+
+function resolveRuntimeContext(): WebHostUIContext {
+  const globals = globalThis as GreetingRuntimeGlobals;
+  const target = resolveDaemonTarget();
+  const variant =
+    parseDaemonVariant(globals.__GUDULE_DAEMON_SLUG__)
+    ?? parseDaemonVariant(globals.__GUDULE_DAEMON__)
+    ?? ("location" in globalThis ? parseDaemonVariant(globalThis.location.pathname) : null);
+  const explicitFamily = globals.__GUDULE_ASSEMBLY_FAMILY__?.trim();
+
+  return {
+    assemblyFamily: explicitFamily || (variant ? familyFromVariant(variant) : DEFAULT_WEB_FAMILY),
+    daemonLabel: variant ? `gudule-daemon-greeting-${variant}` : target,
+    transport: DEFAULT_WEB_TRANSPORT,
+    target,
+  };
+}
+
+const hostUIContext = resolveRuntimeContext();
+const client = connect(hostUIContext.target);
+let connectedLogged = false;
+
+console.error(
+  `[HostUI] assembly=${hostUIContext.assemblyFamily} daemon=${hostUIContext.daemonLabel} transport=${hostUIContext.transport}`,
+);
+
+function logConnected(): void {
+  if (connectedLogged) {
+    return;
+  }
+  connectedLogged = true;
+  console.error(
+    `[HostUI] connected to ${hostUIContext.daemonLabel} on ${displayConnectionTarget(hostUIContext.target)}`,
+  );
+}
 
 if ("addEventListener" in globalThis && typeof globalThis.addEventListener === "function") {
   globalThis.addEventListener("beforeunload", () => {
     disconnect(client);
   });
+}
+
+export function resolveWebAssemblyFamily(): string {
+  return hostUIContext.assemblyFamily;
 }
 
 export async function listLanguages(): Promise<GreetingLanguage[]> {
@@ -48,6 +138,7 @@ export async function listLanguages(): Promise<GreetingLanguage[]> {
     (bytes) => fromBinary(ListLanguagesResponseSchema, bytes),
     create(ListLanguagesRequestSchema),
   );
+  logConnected();
   return response.languages.map((language) => ({
     code: language.code,
     name: language.name,
@@ -65,5 +156,6 @@ export async function sayHello(name: string, langCode: string): Promise<string> 
       langCode,
     }),
   );
+  logConnected();
   return response.greeting;
 }

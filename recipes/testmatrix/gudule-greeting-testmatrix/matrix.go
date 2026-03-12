@@ -56,10 +56,11 @@ type RuntimeEnv struct {
 }
 
 type manifestLite struct {
-	Kind      string   `yaml:"kind"`
-	Transport string   `yaml:"transport,omitempty"`
-	Platforms []string `yaml:"platforms,omitempty"`
-	Requires  struct {
+	FamilyName string   `yaml:"family_name,omitempty"`
+	Kind       string   `yaml:"kind"`
+	Transport  string   `yaml:"transport,omitempty"`
+	Platforms  []string `yaml:"platforms,omitempty"`
+	Requires   struct {
 		Commands []string `yaml:"commands,omitempty"`
 	} `yaml:"requires,omitempty"`
 }
@@ -68,6 +69,9 @@ type Target struct {
 	Name             string     `json:"name"`
 	Path             string     `json:"path"`
 	ManifestPath     string     `json:"manifest_path"`
+	FamilyName       string     `json:"family_name,omitempty"`
+	DisplayFamily    string     `json:"display_family,omitempty"`
+	DisplayName      string     `json:"display_name,omitempty"`
 	Kind             TargetKind `json:"kind"`
 	Transport        string     `json:"transport,omitempty"`
 	Platforms        []string   `json:"platforms,omitempty"`
@@ -100,23 +104,26 @@ type MatrixSummary struct {
 }
 
 type TargetResult struct {
-	Name         string       `json:"name"`
-	Path         string       `json:"path"`
-	Kind         TargetKind   `json:"kind"`
-	Status       ResultStatus `json:"status"`
-	Validation   string       `json:"validation"`
-	Reason       string       `json:"reason,omitempty"`
-	Transport    string       `json:"transport,omitempty"`
-	Platforms    []string     `json:"platforms,omitempty"`
-	Requires     []string     `json:"requires,omitempty"`
-	BuildMS      int64        `json:"build_ms,omitempty"`
-	RunMS        int64        `json:"run_ms,omitempty"`
-	BuildCode    *int         `json:"build_code,omitempty"`
-	RunCode      *int         `json:"run_code,omitempty"`
-	ExpectedJSON string       `json:"expected_json,omitempty"`
-	ActualJSON   string       `json:"actual_json,omitempty"`
-	BuildOutput  string       `json:"build_output,omitempty"`
-	RunOutput    string       `json:"run_output,omitempty"`
+	Name          string       `json:"name"`
+	Path          string       `json:"path"`
+	FamilyName    string       `json:"family_name,omitempty"`
+	DisplayFamily string       `json:"display_family,omitempty"`
+	DisplayName   string       `json:"display_name,omitempty"`
+	Kind          TargetKind   `json:"kind"`
+	Status        ResultStatus `json:"status"`
+	Validation    string       `json:"validation"`
+	Reason        string       `json:"reason,omitempty"`
+	Transport     string       `json:"transport,omitempty"`
+	Platforms     []string     `json:"platforms,omitempty"`
+	Requires      []string     `json:"requires,omitempty"`
+	BuildMS       int64        `json:"build_ms,omitempty"`
+	RunMS         int64        `json:"run_ms,omitempty"`
+	BuildCode     *int         `json:"build_code,omitempty"`
+	RunCode       *int         `json:"run_code,omitempty"`
+	ExpectedJSON  string       `json:"expected_json,omitempty"`
+	ActualJSON    string       `json:"actual_json,omitempty"`
+	BuildOutput   string       `json:"build_output,omitempty"`
+	RunOutput     string       `json:"run_output,omitempty"`
 }
 
 func (r MatrixReport) HasFailures() bool {
@@ -234,14 +241,26 @@ func executeTargets(ctx context.Context, cfg MatrixConfig, targets []Target, run
 			report.Summary.Compositions++
 		}
 
+		displayFamily := target.DisplayFamily
+		if strings.TrimSpace(displayFamily) == "" {
+			displayFamily = targetDisplayFamily(target.Kind, target.FamilyName, target.Name)
+		}
+		displayName := target.DisplayName
+		if strings.TrimSpace(displayName) == "" {
+			displayName = targetDisplayName(target.Kind, displayFamily)
+		}
+
 		result := TargetResult{
-			Name:       target.Name,
-			Path:       target.Path,
-			Kind:       target.Kind,
-			Transport:  target.Transport,
-			Platforms:  append([]string(nil), target.Platforms...),
-			Requires:   append([]string(nil), target.RequiresCommands...),
-			Validation: validationMode(target.Kind),
+			Name:          target.Name,
+			Path:          target.Path,
+			FamilyName:    target.FamilyName,
+			DisplayFamily: displayFamily,
+			DisplayName:   displayName,
+			Kind:          target.Kind,
+			Transport:     target.Transport,
+			Platforms:     append([]string(nil), target.Platforms...),
+			Requires:      append([]string(nil), target.RequiresCommands...),
+			Validation:    validationMode(target.Kind),
 		}
 
 		switch {
@@ -329,10 +348,15 @@ func loadTarget(repoRoot, manifestPath string, kind TargetKind) (Target, error) 
 		return Target{}, err
 	}
 
+	displayFamily := targetDisplayFamily(kind, manifest.FamilyName, filepath.Base(dir))
+
 	return Target{
 		Name:             filepath.Base(dir),
 		Path:             filepath.ToSlash(relDir),
 		ManifestPath:     filepath.ToSlash(relManifest),
+		FamilyName:       manifest.FamilyName,
+		DisplayFamily:    displayFamily,
+		DisplayName:      targetDisplayName(kind, displayFamily),
 		Kind:             kind,
 		Transport:        manifest.Transport,
 		Platforms:        append([]string(nil), manifest.Platforms...),
@@ -363,7 +387,23 @@ func matchesPattern(pattern *regexp.Regexp, target Target) bool {
 	if pattern == nil {
 		return true
 	}
-	haystack := target.Name + " " + target.Path + " " + target.ManifestPath
+	displayFamily := target.DisplayFamily
+	if strings.TrimSpace(displayFamily) == "" {
+		displayFamily = targetDisplayFamily(target.Kind, target.FamilyName, target.Name)
+	}
+	displayName := target.DisplayName
+	if strings.TrimSpace(displayName) == "" {
+		displayName = targetDisplayName(target.Kind, displayFamily)
+	}
+	haystack := strings.Join([]string{
+		target.Name,
+		target.Path,
+		target.ManifestPath,
+		target.FamilyName,
+		displayFamily,
+		displayName,
+		target.Transport,
+	}, " ")
 	return pattern.MatchString(haystack)
 }
 
@@ -568,8 +608,17 @@ func renderReport(report MatrixReport, format string) string {
 		report.Summary.RunFailed,
 		report.Summary.TimedOut,
 	)
+	fmt.Fprintf(&b, "%-13s %-46s %-11s %-9s %s\n", "STATUS", "DISPLAY NAME", "KIND", "TRANSPORT", "TARGET")
 	for _, result := range report.Results {
-		fmt.Fprintf(&b, "%-13s %-11s %s", result.Status, result.Kind, result.Path)
+		fmt.Fprintf(
+			&b,
+			"%-13s %-46s %-11s %-9s %s",
+			result.Status,
+			displayNameForResult(result),
+			result.Kind,
+			displayTransport(result.Transport),
+			result.Path,
+		)
 		if result.Reason != "" {
 			fmt.Fprintf(&b, "  %s", result.Reason)
 		}
@@ -620,4 +669,82 @@ func clipTail(text string) string {
 
 func intPtr(value int) *int {
 	return &value
+}
+
+func targetDisplayFamily(kind TargetKind, familyName, fallbackName string) string {
+	family := strings.TrimSpace(familyName)
+	if family == "" {
+		family = strings.TrimSpace(fallbackName)
+	}
+	if family == "" || kind != assemblyTarget {
+		return family
+	}
+
+	label := assemblyHostUILabel(family)
+	if label == "" || strings.Contains(family, "("+label+")") {
+		return family
+	}
+	return family + " (" + label + ")"
+}
+
+func targetDisplayName(kind TargetKind, displayFamily string) string {
+	trimmed := strings.TrimSpace(displayFamily)
+	if trimmed == "" {
+		return ""
+	}
+	if kind != assemblyTarget || strings.HasPrefix(trimmed, "Gudule ") {
+		return trimmed
+	}
+	return "Gudule " + trimmed
+}
+
+func assemblyHostUILabel(family string) string {
+	parts := strings.Split(strings.TrimSpace(family), "-")
+	if len(parts) < 2 {
+		return ""
+	}
+
+	hostUI := ""
+	if strings.EqualFold(parts[len(parts)-1], "web") {
+		hostUI = "web"
+	} else if len(parts) >= 3 {
+		hostUI = strings.ToLower(parts[1])
+	}
+
+	switch hostUI {
+	case "compose":
+		return "Kotlin UI"
+	case "flutter":
+		return "Flutter UI"
+	case "swiftui":
+		return "SwiftUI"
+	case "dotnet":
+		return ".NET UI"
+	case "qt":
+		return "Qt UI"
+	case "web":
+		return "Web UI"
+	default:
+		return ""
+	}
+}
+
+func displayNameForResult(result TargetResult) string {
+	if trimmed := strings.TrimSpace(result.DisplayName); trimmed != "" {
+		return trimmed
+	}
+	if trimmed := strings.TrimSpace(result.DisplayFamily); trimmed != "" {
+		return trimmed
+	}
+	if trimmed := strings.TrimSpace(result.FamilyName); trimmed != "" {
+		return trimmed
+	}
+	return result.Name
+}
+
+func displayTransport(transport string) string {
+	if trimmed := strings.TrimSpace(transport); trimmed != "" {
+		return trimmed
+	}
+	return "-"
 }

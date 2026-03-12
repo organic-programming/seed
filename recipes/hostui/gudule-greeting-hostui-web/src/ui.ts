@@ -1,11 +1,13 @@
 import type { GreetingLanguage } from "./grpc-client";
-import { listLanguages, sayHello } from "./grpc-client";
+import { listLanguages, resolveWebAssemblyFamily, sayHello } from "./grpc-client";
 
 export function renderApp(root: HTMLElement): void {
+  const assemblyFamily = resolveWebAssemblyFamily();
+  document.title = `Gudule ${assemblyFamily}`;
   root.innerHTML = `
     <main class="shell">
       <section class="hero">
-        <h1>Gudule Greeting<br />Web</h1>
+        <h1>Gudule ${assemblyFamily}</h1>
         <p>
           A browser client for the shared GreetingService contract. The page keeps
           the UI thin, defaults to the current origin, and lets any compatible

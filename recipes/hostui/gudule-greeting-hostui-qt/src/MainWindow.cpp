@@ -12,8 +12,12 @@ MainWindow::MainWindow(QWidget *parent)
   auto *root = new QWidget(this);
   auto *layout = new QVBoxLayout(root);
   auto *languageLabel = new QLabel(QStringLiteral("Language"), this);
+  const auto displayFamily =
+      qEnvironmentVariable("OP_ASSEMBLY_DISPLAY_FAMILY",
+                           qEnvironmentVariable("OP_ASSEMBLY_FAMILY",
+                                                "Greeting-Qt-Go (Qt UI)"));
 
-  setWindowTitle(QStringLiteral("Gudule Greeting Goqt"));
+  setWindowTitle(QStringLiteral("Gudule %1").arg(displayFamily));
   resize(640, 480);
 
   statusLabel_->setWordWrap(true);

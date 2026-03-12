@@ -8,15 +8,16 @@ import greeting.gokotlin.ui.GokotlinTheme
 
 fun main() = application {
     val daemon = DaemonProcess()
+    val assemblyFamily = daemon.displayAssemblyTitleFamily()
     Window(
         onCloseRequest = {
             daemon.stop()
             exitApplication()
         },
-        title = "Gudule Greeting Gokotlin",
+        title = "Gudule $assemblyFamily",
     ) {
         GokotlinTheme {
-            ContentView(daemon)
+            ContentView(daemon, assemblyFamily)
         }
     }
 }

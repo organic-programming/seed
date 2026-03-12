@@ -2,7 +2,10 @@ namespace GreetingDaemon.Csharp;
 
 internal static class RecipeRoot
 {
-    public static string Find()
+    public static string Find() =>
+        TryFind() ?? throw new DirectoryNotFoundException("could not locate gudule-daemon-greeting-csharp recipe root");
+
+    public static string? TryFind()
     {
         var configured = (Environment.GetEnvironmentVariable("GUDULE_RECIPE_ROOT") ?? string.Empty).Trim();
         if (configured.Length > 0)
@@ -31,6 +34,6 @@ internal static class RecipeRoot
             }
         }
 
-        throw new DirectoryNotFoundException("could not locate gudule-daemon-greeting-csharp recipe root");
+        return null;
     }
 }

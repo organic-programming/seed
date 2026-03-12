@@ -71,13 +71,15 @@ build:
                 </plist>
                 EOF
                 codesign --force --deep --sign - "$app_dir"
-      - copy:
-          from: ../../daemons/gudule-daemon-greeting-csharp/.op/build/bin/gudule-daemon-greeting-csharp
-          to: build/GreetingSwiftUI.app/Contents/Resources/daemon/gudule-daemon-greeting-csharp
+      - exec:
+          cwd: .
+          argv: ["ditto", "../../daemons/gudule-daemon-greeting-csharp/.op/build/bin", "build/GreetingSwiftUI.app/Contents/Resources/daemon"]
       - assert_file:
           path: build/GreetingSwiftUI.app
       - assert_file:
           path: build/GreetingSwiftUI.app/Contents/Resources/daemon/gudule-daemon-greeting-csharp
+      - assert_file:
+          path: build/GreetingSwiftUI.app/Contents/Resources/daemon/gudule-daemon-greeting-csharp.dll
       - assert_file:
           path: build/GreetingSwiftUI.app/Contents/_CodeSignature/CodeResources
 requires:

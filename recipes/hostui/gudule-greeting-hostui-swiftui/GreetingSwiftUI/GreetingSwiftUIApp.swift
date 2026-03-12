@@ -6,9 +6,12 @@ import AppKit
 @main
 struct GreetingSwiftUIApp: App {
     @StateObject private var daemon = DaemonProcess()
+    private let assemblyFamily = ProcessInfo.processInfo.environment["OP_ASSEMBLY_DISPLAY_FAMILY"]
+        ?? ProcessInfo.processInfo.environment["OP_ASSEMBLY_FAMILY"]
+        ?? "Greeting-Swiftui-Go (SwiftUI)"
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("Gudule \(assemblyFamily)") {
 #if os(macOS)
             ContentView(daemon: daemon)
                 .frame(minWidth: 480, minHeight: 360)
