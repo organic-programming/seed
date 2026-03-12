@@ -4,7 +4,7 @@ Version plan for Grace OP (`op` CLI).
 
 ---
 
-## v0.3 — Core Maturity
+## v0.3 — Core Maturity ✅
 
 Complete `op` for single-host development.
 
@@ -31,6 +31,19 @@ and composition patterns.
 - Combinatorial testmatrix program
 
 **Tasks:** [v0.4/_TASKS.md](./v0.4/_TASKS.md)
+
+### v0.4.1 — Go+Dart PoC Validation ✅
+
+**Tasks:** [v0.4.1/_TASKS.md](./v0.4.1/_TASKS.md)
+
+### v0.4.2 — Repo-Truth Matrix Extraction ✅
+
+**Tasks:** [v0.4.2/_TASKS.md](./v0.4.2/_TASKS.md)
+
+### v0.4.3 — Assembly Manifests & Composition ✅
+
+**Tasks:** [v0.4.3/_TASKS.md](./v0.4.3/_TASKS.md)
+
 
 ### v0.4.4 — Bundle Auto-Signing
 
