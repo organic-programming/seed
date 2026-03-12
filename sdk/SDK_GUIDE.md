@@ -199,21 +199,36 @@ on top — it orchestrates, but is never required at runtime.
 
 ## Fleet Status
 
+SDKs are classified by **role** — see [README.md](./README.md)
+for the full taxonomy.
+
+### Daemon SDKs — serve holons
+
 | SDK | Serve | Discover | Connect | Holon-RPC |
 |---|---|---|---|---|
-| `go-holons` | runner | ✅ | ✅ | client + server |
-| `js-holons` | runner | ✅ | ✅ | client + server |
-| `python-holons` | runner | ✅ | ✅ | client + server |
+| `go-holons` | runner | ✅ | ✅ | server + client |
 | `rust-holons` | flags only | ✅ | ✅ stdio | — |
-| `swift-holons` | flags only | ✅ | ✅ stdio | client |
-| `dart-holons` | flags only | ✅ | ✅ tcp-only | client + server |
-| `kotlin-holons` | flags only | ✅ | ✅ tcp-only | client |
-| `java-holons` | flags only | ✅ | ✅ tcp-only | client |
-| `csharp-holons` | flags only | ✅ | ✅ tcp-only | client |
-| `cpp-holons` | flags only | ✅ | ✅ | client |
-| `c-holons` | runner | ✅ | ✅ | wrapper binaries only |
-| `ruby-holons` | flags only | ✅ | ✅ stdio | client |
-| `js-web-holons` | browser | remote manifest only | ✅ dial-only | browser client + node harness |
+| `js-holons` | runner | ✅ | ✅ | server + client |
+| `python-holons` | runner | ✅ | ✅ | server + client |
+| `c-holons` | runner | ✅ | ✅ | wrapper binaries |
+
+### Frontend SDKs — drive native UIs
+
+| SDK | UI Framework | Discover | Connect | Holon-RPC |
+|---|---|---|---|---|
+| `swift-holons` | SwiftUI | ✅ | ✅ stdio | client |
+| `dart-holons` | Flutter | ✅ | ✅ stdio | client + server |
+| `kotlin-holons` | Compose | ✅ | ✅ | client |
+| `csharp-holons` | MAUI | ✅ | ✅ | client |
+| `cpp-holons` | Qt | ✅ | ✅ | client |
+
+### Browser + Utility SDKs
+
+| SDK | Role | Discover | Connect | Holon-RPC |
+|---|---|---|---|---|
+| `js-web-holons` | Browser client | remote only | dial only | browser client |
+| `java-holons` | Server-side | ✅ | ✅ | client |
+| `ruby-holons` | Scripting | ✅ | ✅ stdio | client |
 
 `runner` = SDK hosts the full serve lifecycle.
 `flags only` = SDK parses `--listen` / `--port` and provides transport primitives.

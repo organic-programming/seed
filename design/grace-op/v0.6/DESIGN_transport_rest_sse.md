@@ -99,6 +99,36 @@ REST + SSE runs over standard HTTPS. For cross-network holon communication, **mT
 - **HTTP/1.1 connection limit**: browsers limit ~6 SSE connections per domain. Non-issue with HTTP/2 (multiplexed) or server-to-server (no browser limit).
 - **No bidi on one connection**: acceptable trade-off. Holon RPCs are overwhelmingly request-response with occasional server-push.
 
+---
+
+## Client vs Server Roles
+
+Not all SDKs need to implement both sides of REST+SSE.
+
+### Rule
+
+> **All SDKs must be REST+SSE clients.**
+> **Only daemon SDKs must be REST+SSE servers.**
+
+### Why
+
+Frontend SDKs (Swift, Dart, Kotlin) drive UIs and call
+daemons — they **consume** REST+SSE endpoints but don't
+**serve** them. Requiring them to implement the server side
+is wasted effort and architecturally wrong.
+
+### Obligation per SDK role
+
+| Role | REST+SSE Client (connect) | REST+SSE Server (serve) |
+|---|---|---|
+| **Daemon** (Go, Rust, Node, Python, C) | ✅ mandatory | ✅ mandatory |
+| **Frontend** (Swift, Dart, Kotlin, C#, C++) | ✅ mandatory | ⚠️ optional |
+| **Browser** (js-web) | ✅ native EventSource | ❌ impossible |
+| **Utility** (Java, Ruby) | ✅ mandatory | ⚠️ optional |
+
+Frontend SDKs _can_ add the server side later if a use case
+emerges (e.g. a SwiftUI app serving as a local mesh holon on
+macOS). But it is not a v0.6 requirement.
 ## Implementation Strategy
 
 ### Phase 1: Go Reference (TASK01)
@@ -108,6 +138,7 @@ REST + SSE runs over standard HTTPS. For cross-network holon communication, **mT
 - SSE event structure: `event:` + `data:` fields with `protojson`
 - Auto-reconnect behavior for EventSource clients
 - `rest+sse://` URI scheme for discover/listener registration
+- **Both sides**: client (connect) and server (serve)
 
 ### Phase 2: grace-op CLI (TASK02)
 
@@ -116,12 +147,20 @@ Wire the Go transport into `op serve` and `op dial`:
 - `op dial` connects via REST + SSE when discover returns `rest+sse://`
 - `holon.yaml` `serve.listeners` accepts `rest+sse://` URIs
 
-### Phase 3: SDK Ports (TASK03–10)
+### Phase 3: Daemon SDK Ports (TASK03, TASK07–10)
 
-Each SDK ports the Go reference and verifies with `op`:
-- Rust, Dart, Swift, Kotlin, C#, Node.js, C++, Python
-- Cross-language interop: any SDK server ↔ any SDK client
+Daemon SDKs implement **both** client and server sides:
+- Rust, C#, Node.js, C++, Python
+- Cross-language interop: any daemon SDK server ↔ any SDK client
 - End-to-end: `op run` with REST + SSE transport
+
+### Phase 4: Frontend SDK Ports (TASK04–06)
+
+Frontend SDKs implement **client only**:
+- Dart, Swift, Kotlin
+- POST for unary calls, EventSource for streaming
+- Connect to daemon holons over REST + SSE
+- No server-side requirement (optional future extension)
 
 ## Verdict
 
