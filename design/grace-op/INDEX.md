@@ -21,6 +21,7 @@ Each proposes new commands, schemas, or SDK capabilities to be added.
 - [DESIGN_recipe_monorepo.md](./v0.4/DESIGN_recipe_monorepo.md) — composition matrix & proto contracts
 - [DESIGN_sequences.md](./v0.5/DESIGN_sequences.md) — `sequences:` manifest + `op do` executor
 - [DESIGN_transport_rest_sse.md](./v0.6/DESIGN_transport_rest_sse.md) — REST + SSE transport
+- [DESIGN_sdk_transport_parity.md](./v0.6.1/DESIGN_sdk_transport_parity.md) — SDK transport full parity (source-verified matrix, runs after v0.6)
 - [DESIGN_cross_compilation.md](./v0.7/DESIGN_cross_compilation.md) — `op build --target` cross-compilation
 - [DESIGN_release_pipeline.md](./v0.8/DESIGN_release_pipeline.md) — `op publish`, holon registry, CI matrix
 - [DESIGN_mesh.md](./v0.9/DESIGN_mesh.md) — `op mesh` commands, mTLS, `mesh.yaml`
@@ -31,8 +32,12 @@ Each proposes new commands, schemas, or SDK capabilities to be added.
 
 - [v0.3/](./v0.3/_TASKS.md) — Core Maturity (7 tasks)
 - [v0.4/](./v0.4/_TASKS.md) — Recipe Ecosystem (6 tasks)
+  - [v0.4.1/](./v0.4.1/_TASKS.md) — Go+Dart PoC validation
+  - [v0.4.2/](./v0.4.2/_TASKS.md) — Repo-Truth Matrix Extraction (daemons, hostuis, assemblies)
+  - [v0.4.3/](./v0.4.3/_TASKS.md) — Assembly Manifests & Composition (48 assemblies, testmatrix)
 - [v0.5/](./v0.5/_TASKS.md) — Extensibility (3 tasks)
 - [v0.6/](./v0.6/_TASKS.md) — REST + SSE Transport (10 tasks)
+  - [v0.6.1/](./v0.6.1/_TASKS.md) — SDK Transport Full Parity (6 tasks, after v0.6 delivery)
 - [v0.7/](./v0.7/_TASKS.md) — Cross-Compilation (15 tasks)
 - [v0.8/](./v0.8/_TASKS.md) — Release Pipeline (7 tasks)
 - [v0.9/](./v0.9/_TASKS.md) — Mesh (4 tasks)
