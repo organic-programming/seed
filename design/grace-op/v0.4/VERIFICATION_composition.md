@@ -56,36 +56,36 @@ Verification: build succeeds and the app launches (daemon starts, UI connects vi
 
 ```bash
 # A.1.1 — Flutter + Go
-op build recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅ ✅
-op run   recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅ ✅
+op build recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅ ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-flutter-go ✅ ✅ ✅ ✅ ✅ **@bpds 12/02/2026**
 
 # A.1.2 — Flutter + Rust
-op build recipes/assemblies/gudule-greeting-flutter-rust ✅ ✅ ✅
-op run   recipes/assemblies/gudule-greeting-flutter-rust ❌ ✅ ✅
+op build recipes/assemblies/gudule-greeting-flutter-rust ✅ ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-flutter-rust ❌ ✅ ✅ **@bpds 12/02/2026**
 
 # A.1.3 — Flutter + Swift
-op build recipes/assemblies/gudule-greeting-flutter-swift ✅ ✅ ✅
-op run   recipes/assemblies/gudule-greeting-flutter-swift ❌ ❌ ✅
+op build recipes/assemblies/gudule-greeting-flutter-swift ✅ ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-flutter-swift ❌ ❌ ✅ **@bpds 12/02/2026**
 
 # A.1.4 — Flutter + Kotlin
-op build recipes/assemblies/gudule-greeting-flutter-kotlin ✅ ✅
-op run   recipes/assemblies/gudule-greeting-flutter-kotlin ✅ ✅
+op build recipes/assemblies/gudule-greeting-flutter-kotlin ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-flutter-kotlin ✅ ✅ **@bpds 12/02/2026**
 
 # A.1.5 — Flutter + Dart
-op build recipes/assemblies/gudule-greeting-flutter-dart ✅ ✅
-op run   recipes/assemblies/gudule-greeting-flutter-dart ❌ ✅
+op build recipes/assemblies/gudule-greeting-flutter-dart ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-flutter-dart ❌ ✅ **@bpds 12/02/2026**
 
 # A.1.6 — Flutter + Python
-op build recipes/assemblies/gudule-greeting-flutter-python ✅
-op run   recipes/assemblies/gudule-greeting-flutter-python ❌
+op build recipes/assemblies/gudule-greeting-flutter-python ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-flutter-python ❌ ✅ **@bpds 12/02/2026**
 
 # A.1.7 — Flutter + C#
-op build recipes/assemblies/gudule-greeting-flutter-csharp
-op run   recipes/assemblies/gudule-greeting-flutter-csharp
+op build recipes/assemblies/gudule-greeting-flutter-csharp ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-flutter-csharp ✅ **@bpds 12/02/2026**
 
 # A.1.8 — Flutter + Node.js
-op build recipes/assemblies/gudule-greeting-flutter-node
-op run   recipes/assemblies/gudule-greeting-flutter-node
+op build recipes/assemblies/gudule-greeting-flutter-node ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-flutter-node ❌ ❌ **@bpds 12/02/2026**
 ```
 
 **Verify:** Flutter window opens → ListLanguages populates dropdown → SayHello returns greeting.

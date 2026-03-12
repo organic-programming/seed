@@ -22,6 +22,10 @@ You must implement these **in order** and validate the milestones before moving 
 **Tasks 01–02:** Auto ad-hoc signing in the recipe runner, then removal of hand-rolled codesign from 10 assembly manifests.  
 **Milestone:** `op build` auto-signs `.app`/`.framework` bundles; no codesign boilerplate remains in any assembly.
 
+### 5. [v0.4.5: Native HostUI Expansion](../v0.4.5/_TASKS.md)
+**Tasks 01–03:** Add C++, C, and Java HostUI frameworks, each paired with 8 daemons (24 new assemblies, 72 total).  
+**Milestone:** All three native HostUIs build, run, and pass `ListLanguages` + `SayHello` end-to-end.
+
 ---
 
 > [!TIP]  

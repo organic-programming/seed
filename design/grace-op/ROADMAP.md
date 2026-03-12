@@ -57,6 +57,20 @@ manifests with automatic ad-hoc signing in the recipe runner.
 **Design:** [DESIGN_bundle_codesign.md](./v0.4.4/DESIGN_bundle_codesign.md)
 **Tasks:** [v0.4.4/_TASKS.md](./v0.4.4/_TASKS.md)
 
+### v0.4.5 — Native Expansion (C++, C, Java)
+
+Complete the assembly matrix with native HostUI frameworks and add
+C as a composition orchestrator language.
+
+- C++ HostUI (Qt / Dear ImGui) × 8 daemons
+- C HostUI (GTK 4 / SDL2) × 8 daemons
+- Java HostUI (Swing / JavaFX) × 8 daemons
+- C composition orchestrators (direct-call, pipeline, fan-out)
+- Update verification docs (24 assemblies + 3 compositions)
+
+**Design:** [DESIGN_native_hostui_expansion.md](./v0.4.5/DESIGN_native_hostui_expansion.md)
+**Tasks:** [v0.4.5/_TASKS.md](./v0.4.5/_TASKS.md)
+
 ---
 
 ## v0.5 — Extensibility
