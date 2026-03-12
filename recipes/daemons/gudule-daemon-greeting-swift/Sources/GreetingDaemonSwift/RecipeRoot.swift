@@ -1,6 +1,6 @@
 import Foundation
 
-func findRecipeRoot() throws -> URL {
+func locateRecipeRoot() -> URL? {
     let cwd = (FileManager.default.currentDirectoryPath as NSString).standardizingPath
     let executablePath = resolveExecutablePath(from: cwd)
     let starts = [
@@ -24,6 +24,14 @@ func findRecipeRoot() throws -> URL {
             }
             current = parent
         }
+    }
+
+    return nil
+}
+
+func findRecipeRoot() throws -> URL {
+    if let root = locateRecipeRoot() {
+        return root
     }
 
     throw NSError(

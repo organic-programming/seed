@@ -27,11 +27,11 @@ enum GreetingDaemonMain {
     }
 
     private static func runServe(_ args: [String]) throws {
-        let recipeRoot = try findRecipeRoot()
         let listenURI = Serve.parseFlags(args)
+        let recipeRoot = locateRecipeRoot()
         let options = Serve.Options(
-            protoDir: recipeRoot.appendingPathComponent("protos").path,
-            holonYAMLPath: recipeRoot.appendingPathComponent("holon.yaml").path
+            protoDir: recipeRoot?.appendingPathComponent("protos").path,
+            holonYAMLPath: recipeRoot?.appendingPathComponent("holon.yaml").path
         )
         let running = try Serve.startWithOptions(
             listenURI,
