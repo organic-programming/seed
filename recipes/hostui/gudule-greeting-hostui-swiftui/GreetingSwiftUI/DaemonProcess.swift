@@ -102,9 +102,17 @@ final class DaemonProcess: ObservableObject {
         return (value?.isEmpty == false ? value! : "Greeting-Swiftui-Go")
     }
 
-    var transport: String {
+    @Published var transport: String = {
         let value = ProcessInfo.processInfo.environment["OP_ASSEMBLY_TRANSPORT"]?.trimmingCharacters(in: .whitespacesAndNewlines)
         return (value?.isEmpty == false ? value! : "stdio")
+    }() {
+        didSet {
+            // When transport changes, restart the connection
+            if isRunning {
+                stop()
+                start()
+            }
+        }
     }
 
     var daemonBinaryName: String {
