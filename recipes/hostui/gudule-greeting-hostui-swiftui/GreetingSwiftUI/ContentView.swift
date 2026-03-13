@@ -33,9 +33,6 @@ struct ContentView: View {
         if daemon.isRunning {
             return "Ready"
         }
-        if let err = daemon.connectionError {
-            return "Offline - \(err)"
-        }
         return "Offline"
     }
 
@@ -47,6 +44,20 @@ struct ContentView: View {
             return Color.green
         }
         return Color.red
+    }
+
+    private var formattedTitle: String {
+        var family = assemblyFamily
+        if let idx = family.firstIndex(of: " ") {
+            family = String(family[..<idx])
+        }
+        let parts = family.split(separator: "-").map(String.init)
+        if parts.count >= 3 {
+            let ui = parts[1].prefix(1).uppercased() + parts[1].dropFirst()
+            let logic = parts[2].prefix(1).uppercased() + parts[2].dropFirst()
+            return "Gudule : \(ui) / \(logic)"
+        }
+        return "Gudule : \(family)"
     }
 
     var body: some View {
@@ -112,20 +123,11 @@ struct ContentView: View {
     private var topHeaderArea: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Gudule : swiftUI -> go")
+                Text(formattedTitle)
                     .font(.system(size: 26, weight: .bold, design: .default))
                     .foregroundStyle(.white)
                 
                 Spacer()
-                
-                // Transport Mode Selector
-                Picker("Mode:", selection: $daemon.transport) {
-                    Text("stdio").tag("stdio")
-                    Text("unix").tag("unix")
-                    Text("tcp").tag("tcp")
-                }
-                .pickerStyle(.menu)
-                .frame(width: 150)
             }
             
             Text("Connected to \(daemon.daemonBinaryName)")
@@ -156,6 +158,26 @@ struct ContentView: View {
             
             // Input Controls
             VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Mode")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.5))
+                        .textCase(.uppercase)
+                    
+                    Picker("", selection: $daemon.transport) {
+                        Text("mem").tag("mem")
+                        Text("stdio").tag("stdio")
+                        Text("unix").tag("unix")
+                        Text("tcp").tag("tcp")
+                        Text("rest+sse").tag("rest+sse")
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity)
+                    .onChange(of: daemon.transport) { _ in
+                        Task { await loadLanguages() }
+                    }
+                }
+
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Language")
                         .font(.system(size: 11, weight: .semibold))
@@ -199,7 +221,24 @@ struct ContentView: View {
 
     private var rightColumn: some View {
         ZStack {
-            if let error {
+            if let err = daemon.connectionError {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(Color(red: 1.0, green: 0.4, blue: 0.4))
+                            .font(.system(size: 20))
+                        Text("Daemon Offline")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(Color(red: 1.0, green: 0.4, blue: 0.4))
+                    }
+                    Text(err)
+                        .font(.system(size: 13, weight: .regular, design: .monospaced))
+                        .foregroundColor(Color.white.opacity(0.85))
+                        .textSelection(.enabled)
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else if let error {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
@@ -216,14 +255,10 @@ struct ContentView: View {
                 }
                 .padding(24)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            } else if greeting.isEmpty {
-                Text("\"Hello World!\"")
-                    .font(.system(size: 52, weight: .bold))
-                    .foregroundColor(Color.white.opacity(0.95))
-                    .multilineTextAlignment(.center)
             } else {
+                let displayGreeting = greeting.isEmpty ? "Hello World!" : greeting
                 VStack(spacing: 16) {
-                    Text("\"\(greeting)\"")
+                    Text("\"\(displayGreeting)\"")
                         .font(.system(size: 52, weight: .bold))
                         .foregroundColor(Color.white.opacity(0.95))
                         .multilineTextAlignment(.center)

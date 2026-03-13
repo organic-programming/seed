@@ -10,11 +10,19 @@ struct GreetingSwiftUIApp: App {
         ?? ProcessInfo.processInfo.environment["OP_ASSEMBLY_FAMILY"]
         ?? "Greeting-Swiftui-Go (SwiftUI)"
 
+    private var cleanAssemblyFamily: String {
+        var family = assemblyFamily
+        if let idx = family.firstIndex(of: " ") {
+            family = String(family[..<idx])
+        }
+        return family
+    }
+
     var body: some Scene {
-        WindowGroup("Gudule \(assemblyFamily)") {
+        WindowGroup("Gudule \(cleanAssemblyFamily)") {
 #if os(macOS)
             ContentView(daemon: daemon)
-                .frame(minWidth: 1080, minHeight: 720)
+                .frame(minWidth: 500, minHeight: 350)
                 .onAppear {
                     DispatchQueue.main.async {
                         revealAppWindow()
@@ -39,7 +47,7 @@ private func revealAppWindow() {
         return
     }
 
-    let minimumSize = NSSize(width: 1080, height: 720)
+    let minimumSize = NSSize(width: 500, height: 350)
     var frame = window.frame
     let needsResize = frame.size.width < minimumSize.width || frame.size.height < minimumSize.height
     if needsResize {
