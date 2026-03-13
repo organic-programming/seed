@@ -12,7 +12,7 @@ language (**3 new composition recipes**, 36 total).
 | 02 | [TASK02](./grace-op_v0.4.5_TASK02_daemon_c.md) | C Daemon × 6 HostUIs | TASK01 | — |
 | 03 | [TASK03](./grace-op_v0.4.5_TASK03_daemon_java.md) | Java Daemon × 6 HostUIs | TASK02 | — |
 | 04 | [TASK04](./grace-op_v0.4.5_TASK04_composition_c.md) | C composition orchestrators (direct, pipeline, fan-out) | TASK02 | — |
-| 05 | [TASK05](./grace-op_v0.4.5_TASK05_update_docs.md) | Update VERIFICATION_composition.md & docs (preserve ❌⚠️✅ annotations) | TASK01–04 | — |
+| 05 | [TASK05](./grace-op_v0.4.5_TASK05_update_docs.md) | Update docs | TASK01–04 | — |
 
 > [!NOTE]
 > TASK02, TASK03, and TASK04 can run in parallel once TASK01 establishes the native pattern. TASK04 shares the C tooling from TASK02.
