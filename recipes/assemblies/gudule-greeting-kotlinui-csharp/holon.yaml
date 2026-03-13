@@ -14,7 +14,7 @@ build:
       path: ../../daemons/gudule-daemon-greeting-csharp
       type: holon
     - id: app
-      path: ../../hostui/gudule-greeting-hostui-compose
+      path: ../../hostui/gudule-greeting-hostui-kotlin
       type: holon
   targets:
     macos:
@@ -26,7 +26,7 @@ build:
           argv: ["/bin/sh", "-c", "rm -rf build/gudule-greeting-gokotlin.app"]
       - exec:
           cwd: .
-          argv: ["ditto", "../../hostui/gudule-greeting-hostui-compose/build/compose/binaries/main/app/gudule-greeting-gokotlin.app", "build/gudule-greeting-gokotlin.app"]
+          argv: ["ditto", "../../hostui/gudule-greeting-hostui-kotlin/build/compose/binaries/main/app/gudule-greeting-gokotlin.app", "build/gudule-greeting-gokotlin.app"]
       - exec:
           cwd: .
           argv: ["ditto", "../../daemons/gudule-daemon-greeting-csharp/.op/build/bin", "build/gudule-greeting-gokotlin.app/Contents/Resources/daemon"]

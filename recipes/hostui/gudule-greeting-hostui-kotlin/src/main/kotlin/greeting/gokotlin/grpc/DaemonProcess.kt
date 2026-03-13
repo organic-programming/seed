@@ -365,9 +365,9 @@ artifacts:
     private fun resolvedAssemblyFamily(): String =
         System.getenv("OP_ASSEMBLY_FAMILY")?.takeIf { it.isNotBlank() }
             ?: resolvedDaemonIdentity()?.let { daemon ->
-                "Greeting-Compose-${daemon.familyName.removePrefix("Greeting-Daemon-")}"
+                "Greeting-Kotlinui-${daemon.familyName.removePrefix("Greeting-Daemon-")}"
             }
-            ?: "Greeting-Compose-Go"
+            ?: "Greeting-Kotlinui-Go"
 
     private fun assemblyFamily(): String =
         resolvedAssemblyFamily()

@@ -45,7 +45,7 @@ Verification: build succeeds and the app launches (daemon starts, UI connects vi
 
 > [!TIP]
 > **Transport rules:**
-> - Desktop HostUIs (Flutter, SwiftUI, Compose, Dotnet, Qt): `stdio`
+> - Desktop HostUIs (Flutter, SwiftUI, Kotlinui, Dotnet, Qt): `stdio`
 > - Web assemblies: `tcp` (Connect protocol over HTTP)
 
 ---
@@ -209,7 +209,7 @@ op build recipes/assemblies/gudule-greeting-kotlinui-java
 op run   recipes/assemblies/gudule-greeting-kotlinui-java
 ```
 
-**Verify:** Compose desktop window → ListLanguages → SayHello.
+**Verify:** Kotlin desktop window → ListLanguages → SayHello.
 
 ---
 

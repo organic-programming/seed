@@ -4,7 +4,7 @@
 
 Implement REST + SSE **client** transport in `kotlin-holons`.
 Kotlin is a frontend SDK — it connects to daemon holons via
-Compose Desktop/Android but does **not** serve REST+SSE endpoints.
+Kotlin Desktop/Android but does **not** serve REST+SSE endpoints.
 
 ## Repository
 

@@ -108,9 +108,9 @@ hostuis:
     os: [macos, ios]
     task: v0.4.2/TASK04
 
-  - name: gudule-greeting-hostui-compose
-    family_name: Greeting-Hostui-Compose
-    source: recipes/hostui/gudule-greeting-hostui-compose
+  - name: gudule-greeting-hostui-kotlin
+    family_name: Greeting-Hostui-Kotlin
+    source: recipes/hostui/gudule-greeting-hostui-kotlin
     sdk: kotlin-holons
     framework: compose
     runner: gradle
@@ -170,14 +170,14 @@ assemblies:
   - { name: gudule-greeting-swiftui-csharp,  daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-swiftui }
   - { name: gudule-greeting-swiftui-node,    daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-swiftui }
   # Kotlinui row
-  - { name: gudule-greeting-kotlinui-go,      daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-kotlinui-rust,    daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-kotlinui-swift,   daemon: gudule-daemon-greeting-swift,   hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-kotlinui-kotlin,  daemon: gudule-daemon-greeting-kotlin,  hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-kotlinui-dart,    daemon: gudule-daemon-greeting-dart,    hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-kotlinui-python,  daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-kotlinui-csharp,  daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-kotlinui-node,    daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-compose }
+  - { name: gudule-greeting-kotlinui-go,      daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-rust,    daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-swift,   daemon: gudule-daemon-greeting-swift,   hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-kotlin,  daemon: gudule-daemon-greeting-kotlin,  hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-dart,    daemon: gudule-daemon-greeting-dart,    hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-python,  daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-csharp,  daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-node,    daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-kotlin }
   # Web row (reversed: daemon-web)
   - { name: gudule-greeting-go-web,          daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-web, topology: embedded }
   - { name: gudule-greeting-rust-web,        daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-web, topology: embedded }

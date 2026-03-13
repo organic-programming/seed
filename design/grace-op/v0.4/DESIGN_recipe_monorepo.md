@@ -51,7 +51,7 @@ avoid collision with daemon language names.
 |---|---|---|---|
 | `Greeting-Hostui-Flutter` | `gudule-greeting-hostui-flutter` | `recipes/hostui/gudule-greeting-hostui-flutter/` | Flutter (Dart) |
 | `Greeting-Hostui-Swiftui` | `gudule-greeting-hostui-swiftui` | `recipes/hostui/gudule-greeting-hostui-swiftui/` | SwiftUI (Swift) |
-| `Greeting-Hostui-Compose` | `gudule-greeting-hostui-compose` | `recipes/hostui/gudule-greeting-hostui-compose/` | Jetpack Compose (Kotlin) |
+| `Greeting-Hostui-Kotlin` | `gudule-greeting-hostui-kotlin` | `recipes/hostui/gudule-greeting-hostui-kotlin/` | Jetpack Compose (Kotlin) |
 | `Greeting-Hostui-Web` | `gudule-greeting-hostui-web` | `recipes/hostui/gudule-greeting-hostui-web/` | TypeScript/HTML |
 | `Greeting-Hostui-Dotnet` | `gudule-greeting-hostui-dotnet` | `recipes/hostui/gudule-greeting-hostui-dotnet/` | .NET MAUI (C#) |
 | `Greeting-Hostui-Qt` | `gudule-greeting-hostui-qt` | `recipes/hostui/gudule-greeting-hostui-qt/` | Qt (C++) |

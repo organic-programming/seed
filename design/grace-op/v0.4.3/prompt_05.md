@@ -48,13 +48,13 @@ launched standalone).
 
 #### Compose (Kotlin)
 
-`recipes/hostui/gudule-greeting-hostui-compose/src/main/kotlin/greeting/gokotlin/Main.kt`
+`recipes/hostui/gudule-greeting-hostui-kotlin/src/main/kotlin/greeting/gokotlin/Main.kt`
 ```kotlin
-val assemblyFamily = System.getenv("OP_ASSEMBLY_FAMILY") ?: "Greeting-Compose-Go"
+val assemblyFamily = System.getenv("OP_ASSEMBLY_FAMILY") ?: "Greeting-Kotlinui-Go"
 // Use assemblyFamily in Window title (line 16)
 ```
 
-`recipes/hostui/gudule-greeting-hostui-compose/src/main/kotlin/greeting/gokotlin/ui/ContentView.kt`
+`recipes/hostui/gudule-greeting-hostui-kotlin/src/main/kotlin/greeting/gokotlin/ui/ContentView.kt`
 ```kotlin
 // Line 96: replace "Gudule Greeting Gokotlin" with "Gudule $assemblyFamily"
 // Pass assemblyFamily as a parameter from Main.kt
@@ -127,7 +127,7 @@ in the terminal.
 
 | HostUI | DaemonProcess file |
 |--------|-------------------|
-| Compose | `recipes/hostui/gudule-greeting-hostui-compose/src/main/kotlin/greeting/gokotlin/grpc/DaemonProcess.kt` |
+| Compose | `recipes/hostui/gudule-greeting-hostui-kotlin/src/main/kotlin/greeting/gokotlin/grpc/DaemonProcess.kt` |
 | SwiftUI | `recipes/hostui/gudule-greeting-hostui-swiftui/GreetingSwiftUI/DaemonProcess.swift` |
 | Flutter | `recipes/hostui/gudule-greeting-hostui-flutter/lib/src/client/greeting_target.dart` |
 | .NET | `recipes/hostui/gudule-greeting-hostui-dotnet/Services/DaemonProcess.cs` |
@@ -173,7 +173,7 @@ Add `family_name` between status and kind:
 ```
 So the output reads:
 ```
-passed        Greeting-Compose-Go       composition recipes/composition/direct-call/charon-direct-go-go
+passed        Greeting-Kotlinui-Go       composition recipes/composition/direct-call/charon-direct-go-go
 smoke-passed  Greeting-Flutter-Rust      assembly    recipes/assemblies/gudule-greeting-flutter-rust
 ```
 

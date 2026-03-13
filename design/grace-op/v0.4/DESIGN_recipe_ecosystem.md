@@ -56,7 +56,7 @@ recipes/
 ├── hostui/                                          ← DRY HostUIs (v0.4.1/TASK03, v0.4.2/TASK04–05)
 │   ├── gudule-greeting-hostui-flutter/
 │   ├── gudule-greeting-hostui-swiftui/
-│   ├── gudule-greeting-hostui-compose/              ← Kotlin Compose
+│   ├── gudule-greeting-hostui-kotlin/               ← Kotlin Desktop
 │   ├── gudule-greeting-hostui-web/
 │   ├── gudule-greeting-hostui-dotnet/
 │   └── gudule-greeting-hostui-qt/

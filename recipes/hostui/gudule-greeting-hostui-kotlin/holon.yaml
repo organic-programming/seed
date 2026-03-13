@@ -1,8 +1,8 @@
 schema: holon/v0
 uuid: "951bf1cb-6e4f-4b32-ae34-97a033a5848b"
 given_name: gudule
-family_name: Greeting-Hostui-Compose
-motto: Greets users in 56 languages through a Compose HostUI.
+family_name: Greeting-Hostui-Kotlin
+motto: Greets users in 56 languages through a Kotlin HostUI.
 composer: Codex
 clade: deterministic/pure
 status: draft
@@ -13,7 +13,7 @@ reproduction: manual
 generated_by: manual
 
 description: |
-  A standalone Compose Desktop HostUI for the shared greeting contract. It
+  A standalone Kotlin Desktop HostUI for the shared greeting contract. It
   preserves the staged-holon connect(slug) flow on macOS.
 
 kind: composite
