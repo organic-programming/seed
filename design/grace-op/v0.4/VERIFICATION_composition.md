@@ -1,7 +1,7 @@
 # Manual Verification Guide — All v0.4 Recipes
 
-Exhaustive command-by-command guide to verify every assembly (48)
-and every composition recipe (33). Each entry has exact `op build`
+Exhaustive command-by-command guide to verify every assembly (66)
+and every composition recipe (36). Each entry has exact `op build`
 and `op run` commands.
 
 All paths are relative to the seed root (`organic-programming/`).
@@ -38,7 +38,7 @@ Required toolchains (install as needed):
 
 ---
 
-## Part A — Assemblies (48)
+## Part A — Assemblies (66)
 
 Each assembly is a thin `holon.yaml` pairing a daemon with a HostUI.
 Verification: build succeeds and the app launches (daemon starts, UI connects via `connect(slug)`).
@@ -57,7 +57,7 @@ Verification: build succeeds and the app launches (daemon starts, UI connects vi
 **@bpds 12/02/2026 on mac os 15.7.2 (24G325) Apple M4**
 > @bpds: i do run each case, then in case of failure give a screenshot to codex, please guide it to fix the issue. When an issue is fixed i do verify if there are no regression. 
 
-### A.1 Flutter × 8 Daemons
+### A.1 Flutter × 11 Daemons
 
 ```bash
 # A.1.1 — Flutter + Go
@@ -91,13 +91,25 @@ op run   recipes/assemblies/gudule-greeting-flutter-csharp ✅ ✅ ✅ **@bpds 1
 # A.1.8 — Flutter + Node.js
 op build recipes/assemblies/gudule-greeting-flutter-node ✅ ✅ ✅ **@bpds 12/02/2026**
 op run   recipes/assemblies/gudule-greeting-flutter-node ❌ ❌ ✅ **@bpds 12/02/2026**
+
+# A.1.9 — Flutter + C++
+op build recipes/assemblies/gudule-greeting-flutter-cpp
+op run   recipes/assemblies/gudule-greeting-flutter-cpp
+
+# A.1.10 — Flutter + C
+op build recipes/assemblies/gudule-greeting-flutter-c
+op run   recipes/assemblies/gudule-greeting-flutter-c
+
+# A.1.11 — Flutter + Java
+op build recipes/assemblies/gudule-greeting-flutter-java
+op run   recipes/assemblies/gudule-greeting-flutter-java
 ```
 
 **Verify:** Flutter window opens → ListLanguages populates dropdown → SayHello returns greeting.
 
 ---
 
-### A.2 SwiftUI × 8 Daemons (macOS only)
+### A.2 SwiftUI × 11 Daemons (macOS only)
 
 ```bash
 # A.2.1 — SwiftUI + Go
@@ -131,13 +143,25 @@ op run   recipes/assemblies/gudule-greeting-swiftui-csharp ❌ ✅ **@bpds 12/02
 # A.2.8 — SwiftUI + Node.js
 op build recipes/assemblies/gudule-greeting-swiftui-node ✅ **@bpds 12/02/2026**
 op run   recipes/assemblies/gudule-greeting-swiftui-node ✅ **@bpds 12/02/2026**
+
+# A.2.9 — SwiftUI + C++
+op build recipes/assemblies/gudule-greeting-swiftui-cpp
+op run   recipes/assemblies/gudule-greeting-swiftui-cpp
+
+# A.2.10 — SwiftUI + C
+op build recipes/assemblies/gudule-greeting-swiftui-c
+op run   recipes/assemblies/gudule-greeting-swiftui-c
+
+# A.2.11 — SwiftUI + Java
+op build recipes/assemblies/gudule-greeting-swiftui-java
+op run   recipes/assemblies/gudule-greeting-swiftui-java
 ```
 
 **Verify:** `.app` bundle launches → `_CodeSignature/CodeResources` present → ListLanguages → SayHello works.
 
 ---
 
-### A.3 Kotlinui × 8 Daemons
+### A.3 Kotlinui × 11 Daemons
 
 ```bash
 # A.3.1 — Kotlinui + Go
@@ -171,13 +195,25 @@ op run   recipes/assemblies/gudule-greeting-kotlinui-csharp ✅ ✅ **@bpds 12/0
 # A.3.8 — Kotlinui + Node.js
 op build recipes/assemblies/gudule-greeting-kotlinui-node ✅ **@bpds 12/02/2026**
 op run   recipes/assemblies/gudule-greeting-kotlinui-node ✅ **@bpds 12/02/2026**
+
+# A.3.9 — Kotlinui + C++
+op build recipes/assemblies/gudule-greeting-kotlinui-cpp
+op run   recipes/assemblies/gudule-greeting-kotlinui-cpp
+
+# A.3.10 — Kotlinui + C
+op build recipes/assemblies/gudule-greeting-kotlinui-c
+op run   recipes/assemblies/gudule-greeting-kotlinui-c
+
+# A.3.11 — Kotlinui + Java
+op build recipes/assemblies/gudule-greeting-kotlinui-java
+op run   recipes/assemblies/gudule-greeting-kotlinui-java
 ```
 
 **Verify:** Compose desktop window → ListLanguages → SayHello.
 
 ---
 
-### A.4 Web × 8 Daemons (reversed naming: daemon-web)
+### A.4 Web × 11 Daemons (reversed naming: daemon-web)
 
 Web assemblies use Connect protocol over HTTP. The daemon embeds and
 serves the web client.
@@ -215,13 +251,25 @@ op run   recipes/assemblies/gudule-greeting-csharp-web
 # A.4.8 — Node.js + Web
 op build recipes/assemblies/gudule-greeting-node-web
 op run   recipes/assemblies/gudule-greeting-node-web
+
+# A.4.9 — C++ + Web
+op build recipes/assemblies/gudule-greeting-cpp-web
+op run   recipes/assemblies/gudule-greeting-cpp-web
+
+# A.4.10 — C + Web
+op build recipes/assemblies/gudule-greeting-c-web
+op run   recipes/assemblies/gudule-greeting-c-web
+
+# A.4.11 — Java + Web
+op build recipes/assemblies/gudule-greeting-java-web
+op run   recipes/assemblies/gudule-greeting-java-web
 ```
 
 **Verify:** Browser page loads at `localhost:<port>` → ListLanguages → SayHello via Connect RPC.
 
 ---
 
-### A.5 Dotnet × 8 Daemons
+### A.5 Dotnet × 11 Daemons
 
 ```bash
 # A.5.1 — Dotnet + Go
@@ -255,13 +303,25 @@ op run   recipes/assemblies/gudule-greeting-dotnet-csharp
 # A.5.8 — Dotnet + Node.js
 op build recipes/assemblies/gudule-greeting-dotnet-node
 op run   recipes/assemblies/gudule-greeting-dotnet-node
+
+# A.5.9 — Dotnet + C++
+op build recipes/assemblies/gudule-greeting-dotnet-cpp
+op run   recipes/assemblies/gudule-greeting-dotnet-cpp
+
+# A.5.10 — Dotnet + C
+op build recipes/assemblies/gudule-greeting-dotnet-c
+op run   recipes/assemblies/gudule-greeting-dotnet-c
+
+# A.5.11 — Dotnet + Java
+op build recipes/assemblies/gudule-greeting-dotnet-java
+op run   recipes/assemblies/gudule-greeting-dotnet-java
 ```
 
 **Verify:** .NET MAUI window → ListLanguages → SayHello.
 
 ---
 
-### A.6 Qt × 8 Daemons
+### A.6 Qt × 11 Daemons
 
 ```bash
 # A.6.1 — Qt + Go
@@ -295,6 +355,18 @@ op run   recipes/assemblies/gudule-greeting-qt-csharp
 # A.6.8 — Qt + Node.js
 op build recipes/assemblies/gudule-greeting-qt-node
 op run   recipes/assemblies/gudule-greeting-qt-node
+
+# A.6.9 — Qt + C++
+op build recipes/assemblies/gudule-greeting-qt-cpp
+op run   recipes/assemblies/gudule-greeting-qt-cpp
+
+# A.6.10 — Qt + C
+op build recipes/assemblies/gudule-greeting-qt-c
+op run   recipes/assemblies/gudule-greeting-qt-c
+
+# A.6.11 — Qt + Java
+op build recipes/assemblies/gudule-greeting-qt-java
+op run   recipes/assemblies/gudule-greeting-qt-java
 ```
 
 **Verify:** Qt window → ListLanguages → SayHello.
@@ -316,7 +388,7 @@ For each assembly (A.1.1 through A.6.8):
 
 ---
 
-## Part B — Composition Recipes (33)
+## Part B — Composition Recipes (36)
 
 Backend-to-backend patterns. No UI — orchestrator calls Go workers
 via `connect(slug)`.
@@ -336,7 +408,7 @@ ls recipes/composition/workers/charon-worker-transform/build/ ❌ **@bpds 12/02/
 
 ---
 
-### B.1 Direct Call (11 orchestrators)
+### B.1 Direct Call (12 orchestrators)
 
 Topology: `orchestrator → charon-worker-compute`
 Expected: sends `Compute(42)`, prints `result = 1764`.
@@ -385,11 +457,15 @@ op run   recipes/composition/direct-call/charon-direct-java-go
 # B.1.11 — C++ → Go
 op build recipes/composition/direct-call/charon-direct-cpp-go
 op run   recipes/composition/direct-call/charon-direct-cpp-go
+
+# B.1.12 — C → Go
+op build recipes/composition/direct-call/charon-direct-c-go
+op run   recipes/composition/direct-call/charon-direct-c-go
 ```
 
 ---
 
-### B.2 Pipeline (11 orchestrators)
+### B.2 Pipeline (12 orchestrators)
 
 Topology: `orchestrator → charon-worker-compute → charon-worker-transform`
 Expected: `Compute(5)` → `25`, then `Transform("25")` → `"52"`. Both results printed.
@@ -438,11 +514,15 @@ op run   recipes/composition/pipeline/charon-pipeline-java-go
 # B.2.11 — C++ → Go
 op build recipes/composition/pipeline/charon-pipeline-cpp-go
 op run   recipes/composition/pipeline/charon-pipeline-cpp-go
+
+# B.2.12 — C → Go
+op build recipes/composition/pipeline/charon-pipeline-c-go
+op run   recipes/composition/pipeline/charon-pipeline-c-go
 ```
 
 ---
 
-### B.3 Fan-Out (11 orchestrators)
+### B.3 Fan-Out (12 orchestrators)
 
 Topology: `orchestrator → {charon-worker-compute, charon-worker-transform}` in parallel
 Expected: both Compute and Transform execute concurrently. Aggregated results printed.
@@ -491,6 +571,10 @@ op run   recipes/composition/fan-out/charon-fanout-java-go
 # B.3.11 — C++ → Go (parallel)
 op build recipes/composition/fan-out/charon-fanout-cpp-go
 op run   recipes/composition/fan-out/charon-fanout-cpp-go
+
+# B.3.12 — C → Go (parallel)
+op build recipes/composition/fan-out/charon-fanout-c-go
+op run   recipes/composition/fan-out/charon-fanout-c-go
 ```
 
 ---
@@ -552,7 +636,7 @@ op run   recipes/assemblies/gudule-greeting-qt-swift
 ### C.2 Automated Test Matrix
 
 ```bash
-# Full matrix (all 48 assemblies + 33 compositions)
+# Full matrix (all 66 assemblies + 36 compositions)
 go run recipes/testmatrix/gudule-greeting-testmatrix/main.go
 
 # Assemblies only
