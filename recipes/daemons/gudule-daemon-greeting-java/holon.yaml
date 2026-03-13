@@ -1,0 +1,54 @@
+# ── Identity ──────────────────────────────────────────
+schema: holon/v0
+uuid: "43a1d6d9-952b-447c-8e47-4c9f0837d8bd"
+given_name: gudule
+family_name: Greeting-Daemon-Java
+motto: Greets users in 56 languages — a Java daemon recipe example.
+composer: B. ALTER
+clade: deterministic/pure
+status: draft
+born: "2026-03-13"
+
+# ── Lineage ───────────────────────────────────────────
+parents: []
+reproduction: manual
+generated_by: manual
+
+# ── Description ───────────────────────────────────────
+description: |
+  A Java gRPC daemon that greets users in 56 languages. Designed to be
+  embedded in a HostUI but also usable standalone. Demonstrates
+  the Java implementation of the canonical greeting daemon.
+
+# ── Operational ───────────────────────────────────────
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: daemon
+      path: .
+      type: component
+  targets:
+    macos:
+      steps:
+        - exec: { cwd: ".", argv: ["./gradlew", "build", "installDist"] }
+        - exec: { cwd: ".", argv: ["mkdir", "-p", "build"] }
+        - exec: { cwd: ".", argv: ["cp", "build/libs/gudule-daemon-greeting-java.jar", "build/gudule-daemon-greeting-java.jar"] }
+        - assert_file: { path: "build/gudule-daemon-greeting-java.jar" }
+    linux:
+      steps:
+        - exec: { cwd: ".", argv: ["./gradlew", "build", "installDist"] }
+        - exec: { cwd: ".", argv: ["mkdir", "-p", "build"] }
+        - exec: { cwd: ".", argv: ["cp", "build/libs/gudule-daemon-greeting-java.jar", "build/gudule-daemon-greeting-java.jar"] }
+        - assert_file: { path: "build/gudule-daemon-greeting-java.jar" }
+    windows:
+      steps:
+        - exec: { cwd: ".", argv: ["./gradlew", "build", "installDist"] }
+        - exec: { cwd: ".", argv: ["mkdir", "-p", "build"] }
+        - exec: { cwd: ".", argv: ["cp", "build/libs/gudule-daemon-greeting-java.jar", "build/gudule-daemon-greeting-java.jar"] }
+        - assert_file: { path: "build/gudule-daemon-greeting-java.jar" }
+requires:
+  commands: [gradle]
+  files: [build.gradle]
+artifacts:
+  primary: build/gudule-daemon-greeting-java.jar

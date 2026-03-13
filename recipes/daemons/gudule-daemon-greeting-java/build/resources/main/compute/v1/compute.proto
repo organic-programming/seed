@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package compute.v1;
+
+option go_package = "github.com/organic-programming/seed/recipes/protos/compute/v1;computev1";
+
+service ComputeService {
+  rpc Compute(ComputeRequest) returns (ComputeResponse);
+}
+
+message ComputeRequest {
+  int64 value = 1;
+}
+
+message ComputeResponse {
+  int64 result = 1;
+}

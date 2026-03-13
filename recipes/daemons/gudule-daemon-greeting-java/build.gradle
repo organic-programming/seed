@@ -1,0 +1,66 @@
+plugins {
+    id 'application'
+    id 'com.google.protobuf' version '0.9.4'
+}
+
+group = 'org.organicprogramming'
+version = '0.4.5'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':java-holons')
+    implementation 'io.grpc:grpc-netty-shaded:1.60.0'
+    implementation 'io.grpc:grpc-protobuf:1.60.0'
+    implementation 'io.grpc:grpc-stub:1.60.0'
+    implementation 'io.grpc:grpc-services:1.60.0'
+    implementation 'com.google.protobuf:protobuf-java:4.34.0'
+    compileOnly 'org.apache.tomcat:annotations-api:6.0.53'
+}
+
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:4.34.0'
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.60.0'
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {}
+        }
+    }
+}
+
+sourceSets {
+    main {
+        proto {
+            srcDir '../../protos'
+        }
+    }
+}
+
+application {
+    mainClass = 'org.organicprogramming.greeting.Daemon'
+}
+
+jar {
+    archiveBaseName = 'gudule-daemon-greeting-java'
+    archiveVersion = ''
+    manifest {
+        attributes 'Main-Class': 'org.organicprogramming.greeting.Daemon'
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
