@@ -137,40 +137,40 @@ op run   recipes/assemblies/gudule-greeting-swiftui-node ✅ **@bpds 12/02/2026*
 
 ---
 
-### A.3 Compose × 8 Daemons ⚠️⚠️⚠️⚠️⚠️ <----- it is a kotlin UI ... strange name rename it
+### A.3 Kotlinui × 8 Daemons
 
 ```bash
-# A.3.1 — Compose + Go
-op build recipes/assemblies/gudule-greeting-compose-go ✅ **@bpds 12/02/2026**
-op run   recipes/assemblies/gudule-greeting-compose-go ✅ **@bpds 12/02/2026**
+# A.3.1 — Kotlinui + Go
+op build recipes/assemblies/gudule-greeting-kotlinui-go ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-kotlinui-go ✅ **@bpds 12/02/2026**
 
-# A.3.2 — Compose + Rust
-op build recipes/assemblies/gudule-greeting-compose-rust ✅ **@bpds 12/02/2026**
-op run   recipes/assemblies/gudule-greeting-compose-rust ✅ **@bpds 12/02/2026**
+# A.3.2 — Kotlinui + Rust
+op build recipes/assemblies/gudule-greeting-kotlinui-rust ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-kotlinui-rust ✅ **@bpds 12/02/2026**
 
-# A.3.3 — Compose + Swift
-op build recipes/assemblies/gudule-greeting-compose-swift ✅ **@bpds 12/02/2026**
-op run   recipes/assemblies/gudule-greeting-compose-swift ✅ **@bpds 12/02/2026**
+# A.3.3 — Kotlinui + Swift
+op build recipes/assemblies/gudule-greeting-kotlinui-swift ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-kotlinui-swift ✅ **@bpds 12/02/2026**
 
-# A.3.4 — Compose + Kotlin
-op build recipes/assemblies/gudule-greeting-compose-kotlin ✅ **@bpds 12/02/2026**
-op run   recipes/assemblies/gudule-greeting-compose-kotlin ✅ **@bpds 12/02/2026**
+# A.3.4 — Kotlinui + Kotlin
+op build recipes/assemblies/gudule-greeting-kotlinui-kotlin ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-kotlinui-kotlin ✅ **@bpds 12/02/2026**
 
-# A.3.5 — Compose + Dart
-op build recipes/assemblies/gudule-greeting-compose-dart ✅ **@bpds 12/02/2026**
-op run   recipes/assemblies/gudule-greeting-compose-dart ✅ **@bpds 12/02/2026**
+# A.3.5 — Kotlinui + Dart
+op build recipes/assemblies/gudule-greeting-kotlinui-dart ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-kotlinui-dart ✅ **@bpds 12/02/2026**
 
-# A.3.6 — Compose + Python
-op build recipes/assemblies/gudule-greeting-compose-python ✅ **@bpds 12/02/2026**
-op run   recipes/assemblies/gudule-greeting-compose-python ✅ **@bpds 12/02/2026**
+# A.3.6 — Kotlinui + Python
+op build recipes/assemblies/gudule-greeting-kotlinui-python ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-kotlinui-python ✅ **@bpds 12/02/2026**
 
-# A.3.7 — Compose + C#
-op build recipes/assemblies/gudule-greeting-compose-csharp ✅ ✅ **@bpds 12/02/2026**
-op run   recipes/assemblies/gudule-greeting-compose-csharp ✅ ✅ **@bpds 12/02/2026**
+# A.3.7 — Kotlinui + C#
+op build recipes/assemblies/gudule-greeting-kotlinui-csharp ✅ ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-kotlinui-csharp ✅ ✅ **@bpds 12/02/2026**
 
-# A.3.8 — Compose + Node.js
-op build recipes/assemblies/gudule-greeting-compose-node ✅ **@bpds 12/02/2026**
-op run   recipes/assemblies/gudule-greeting-compose-node ✅ **@bpds 12/02/2026**
+# A.3.8 — Kotlinui + Node.js
+op build recipes/assemblies/gudule-greeting-kotlinui-node ✅ **@bpds 12/02/2026**
+op run   recipes/assemblies/gudule-greeting-kotlinui-node ✅ **@bpds 12/02/2026**
 ```
 
 **Verify:** Compose desktop window → ListLanguages → SayHello.
@@ -519,7 +519,7 @@ pass **before** generating the remaining 39.
 
 ```bash
 # Row 1: Go daemon × 3 HostUIs
-op build recipes/assemblies/gudule-greeting-flutter-go    ✅ **@bpds 12/02/2026** # Already validated (v0.4.1/TASK04)
+op build recipes/assemblies/gudule-greeting-flutter-go  ✅ **@bpds 12/02/2026** # Already validated (v0.4.1/TASK04)
 op run   recipes/assemblies/gudule-greeting-flutter-go  ✅ **@bpds 12/02/2026**
 
 op build recipes/assemblies/gudule-greeting-go-web

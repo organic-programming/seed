@@ -1,6 +1,6 @@
 schema: holon/v0
 given_name: gudule
-family_name: Greeting-Compose-Python
+family_name: Greeting-Kotlinui-Node
 kind: composite
 transport: stdio
 platforms: [macos]
@@ -11,7 +11,7 @@ build:
     mode: debug
   members:
     - id: daemon
-      path: ../../daemons/gudule-daemon-greeting-python
+      path: ../../daemons/gudule-daemon-greeting-node
       type: holon
     - id: app
       path: ../../hostui/gudule-greeting-hostui-compose
@@ -28,13 +28,13 @@ build:
           cwd: .
           argv: ["ditto", "../../hostui/gudule-greeting-hostui-compose/build/compose/binaries/main/app/gudule-greeting-gokotlin.app", "build/gudule-greeting-gokotlin.app"]
       - copy:
-          from: ../../daemons/gudule-daemon-greeting-python/.op/build/bin/gudule-daemon-greeting-python
-          to: build/gudule-greeting-gokotlin.app/Contents/Resources/daemon/gudule-daemon-greeting-python
+          from: ../../daemons/gudule-daemon-greeting-node/.op/build/bin/gudule-daemon-greeting-node
+          to: build/gudule-greeting-gokotlin.app/Contents/Resources/daemon/gudule-daemon-greeting-node
       - assert_file:
           path: build/gudule-greeting-gokotlin.app
       - assert_file:
-          path: build/gudule-greeting-gokotlin.app/Contents/Resources/daemon/gudule-daemon-greeting-python
+          path: build/gudule-greeting-gokotlin.app/Contents/Resources/daemon/gudule-daemon-greeting-node
 requires:
-  commands: [python3, java]
+  commands: [node, npm, java]
 artifacts:
   primary: build/gudule-greeting-gokotlin.app

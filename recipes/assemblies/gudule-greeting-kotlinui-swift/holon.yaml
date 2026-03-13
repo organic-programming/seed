@@ -1,6 +1,6 @@
 schema: holon/v0
 given_name: gudule
-family_name: Greeting-Compose-Swift
+family_name: Greeting-Kotlinui-Swift
 kind: composite
 transport: stdio
 platforms: [macos]

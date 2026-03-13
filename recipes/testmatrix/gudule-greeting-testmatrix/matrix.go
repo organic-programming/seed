@@ -712,7 +712,7 @@ func assemblyHostUILabel(family string) string {
 	}
 
 	switch hostUI {
-	case "compose":
+	case "compose", "kotlinui":
 		return "Kotlin UI"
 	case "flutter":
 		return "Flutter UI"

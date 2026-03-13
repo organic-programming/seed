@@ -1,6 +1,6 @@
 schema: holon/v0
 given_name: gudule
-family_name: Greeting-Compose-Csharp
+family_name: Greeting-Kotlinui-Python
 kind: composite
 transport: stdio
 platforms: [macos]
@@ -11,7 +11,7 @@ build:
     mode: debug
   members:
     - id: daemon
-      path: ../../daemons/gudule-daemon-greeting-csharp
+      path: ../../daemons/gudule-daemon-greeting-python
       type: holon
     - id: app
       path: ../../hostui/gudule-greeting-hostui-compose
@@ -27,16 +27,14 @@ build:
       - exec:
           cwd: .
           argv: ["ditto", "../../hostui/gudule-greeting-hostui-compose/build/compose/binaries/main/app/gudule-greeting-gokotlin.app", "build/gudule-greeting-gokotlin.app"]
-      - exec:
-          cwd: .
-          argv: ["ditto", "../../daemons/gudule-daemon-greeting-csharp/.op/build/bin", "build/gudule-greeting-gokotlin.app/Contents/Resources/daemon"]
+      - copy:
+          from: ../../daemons/gudule-daemon-greeting-python/.op/build/bin/gudule-daemon-greeting-python
+          to: build/gudule-greeting-gokotlin.app/Contents/Resources/daemon/gudule-daemon-greeting-python
       - assert_file:
           path: build/gudule-greeting-gokotlin.app
       - assert_file:
-          path: build/gudule-greeting-gokotlin.app/Contents/Resources/daemon/gudule-daemon-greeting-csharp
-      - assert_file:
-          path: build/gudule-greeting-gokotlin.app/Contents/Resources/daemon/gudule-daemon-greeting-csharp.dll
+          path: build/gudule-greeting-gokotlin.app/Contents/Resources/daemon/gudule-daemon-greeting-python
 requires:
-  commands: [dotnet, java]
+  commands: [python3, java]
 artifacts:
   primary: build/gudule-greeting-gokotlin.app
