@@ -240,7 +240,7 @@ class DaemonProcess {
     }
 
     private fun stageHolonRoot(daemon: GreetingDaemonIdentity): Path {
-        val root = Files.createTempDirectory("gudule-greeting-hostui-compose-")
+        val root = Files.createTempDirectory("gudule-greeting-hostui-kotlin-")
         val holonDir = root.resolve("holons").resolve(daemon.slug)
         Files.createDirectories(holonDir)
         Files.writeString(holonDir.resolve("holon.yaml"), manifestFor(daemon))
