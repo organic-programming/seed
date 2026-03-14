@@ -1,0 +1,42 @@
+schema: holon/v0
+uuid: "951bf1cb-6e4f-4b32-ae34-97a033a5848b"
+given_name: gudule
+family_name: Greeting-Hostui-Kotlin
+motto: Greets users in 56 languages through a Kotlin HostUI.
+composer: Codex
+clade: deterministic/pure
+status: draft
+born: "2026-03-11"
+
+parents: []
+reproduction: manual
+generated_by: manual
+
+description: |
+  A standalone Kotlin Desktop HostUI for the shared greeting contract. It
+  preserves the staged-holon connect(slug) flow on macOS.
+
+kind: composite
+platforms: [macos]
+build:
+  runner: recipe
+  defaults:
+    target: macos
+    mode: debug
+  members:
+    - id: app
+      path: .
+      type: component
+  targets:
+    macos:
+      steps:
+        - exec:
+            cwd: .
+            argv: ["./gradlew", "createDistributable"]
+        - assert_file:
+            path: build/compose/binaries/main/app/gudule-greeting-gokotlin.app
+requires:
+  commands: [java]
+  files: [build.gradle.kts, settings.gradle.kts]
+artifacts:
+  primary: build/compose/binaries/main/app/gudule-greeting-gokotlin.app

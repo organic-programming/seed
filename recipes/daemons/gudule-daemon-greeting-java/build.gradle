@@ -1,0 +1,92 @@
+plugins {
+    id 'application'
+    id 'com.google.protobuf' version '0.9.4'
+}
+
+group = 'org.organicprogramming'
+version = '0.4.5'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
+repositories {
+    mavenCentral()
+}
+
+def daemonBinaryName = 'gudule-daemon-greeting-java'
+def mainClassName = 'org.organicprogramming.greeting.Daemon'
+
+dependencies {
+    implementation project(':java-holons')
+    implementation 'io.grpc:grpc-netty-shaded:1.60.0'
+    implementation 'io.grpc:grpc-protobuf:1.60.0'
+    implementation 'io.grpc:grpc-stub:1.60.0'
+    implementation 'io.grpc:grpc-services:1.60.0'
+    implementation 'com.google.protobuf:protobuf-java:4.34.0'
+    compileOnly 'org.apache.tomcat:annotations-api:6.0.53'
+}
+
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:4.34.0'
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.60.0'
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {}
+        }
+    }
+}
+
+sourceSets {
+    main {
+        proto {
+            srcDir 'protos'
+        }
+    }
+}
+
+application {
+    mainClass = mainClassName
+}
+
+jar {
+    dependsOn ':java-holons:assemble'
+    archiveBaseName = daemonBinaryName
+    archiveVersion = ''
+    manifest {
+        attributes 'Main-Class': mainClassName
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
+
+def rewriteInstallLauncher = tasks.register('rewriteInstallLauncher') {
+    dependsOn tasks.installDist
+
+    doLast {
+        def launcher = layout.buildDirectory.file("install/${daemonBinaryName}/bin/${daemonBinaryName}").get().asFile
+        def recipeRoot = layout.projectDirectory.asFile.absolutePath
+        def installRoot = launcher.parentFile.parentFile.absolutePath
+
+        launcher.text = """#!/bin/sh
+set -eu
+APP_HOME=\${APP_HOME:-${installRoot}}
+CLASSPATH="\${APP_HOME}/lib/*"
+exec java -Dgudule.recipe.root="${recipeRoot}" -cp "\${CLASSPATH}" ${mainClassName} "\$@"
+"""
+        launcher.setExecutable(true)
+    }
+}
+
+tasks.installDist {
+    finalizedBy rewriteInstallLauncher
+}

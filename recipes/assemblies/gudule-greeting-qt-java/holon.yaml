@@ -1,0 +1,37 @@
+schema: holon/v0
+given_name: gudule
+family_name: Greeting-Qt-Java
+kind: composite
+transport: stdio
+platforms: [macos]
+build:
+  runner: recipe
+  defaults:
+    target: macos
+    mode: debug
+  members:
+    - id: daemon
+      path: ../../daemons/gudule-daemon-greeting-java
+      type: holon
+    - id: app
+      path: ../../hostui/gudule-greeting-hostui-qt
+      type: holon
+  targets:
+    macos:
+      steps:
+      - build_member: daemon
+      - build_member: app
+      - copy:
+          from: ../../hostui/gudule-greeting-hostui-qt/.op/build/bin/gudule-greeting-goqt
+          to: build/gudule-greeting-goqt
+      - copy:
+          from: ../../daemons/gudule-daemon-greeting-java/build/gudule-daemon-greeting-java.jar
+          to: build/daemon/gudule-daemon-greeting-java
+      - assert_file:
+          path: build/gudule-greeting-goqt
+      - assert_file:
+          path: build/daemon/gudule-daemon-greeting-java
+requires:
+  commands: [gradle]
+artifacts:
+  primary: build/gudule-greeting-goqt

@@ -40,12 +40,7 @@ public static class Program
     private static Serve.ServeOptions CreateServeOptions(string? recipeRoot)
     {
         if (string.IsNullOrWhiteSpace(recipeRoot))
-        {
-            return new Serve.ServeOptions
-            {
-                Describe = false,
-            };
-        }
+            return new Serve.ServeOptions();
 
         return new Serve.ServeOptions
         {

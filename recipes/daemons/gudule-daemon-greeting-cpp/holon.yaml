@@ -1,0 +1,31 @@
+# ── Identity ──────────────────────────────────────────
+schema: holon/v0
+uuid: "05af5ed2-79d3-438d-b8b1-6a252d09ab38"
+given_name: gudule
+family_name: Greeting-Daemon-Cpp
+motto: Greets users in 56 languages — a C++ daemon recipe example.
+composer: B. ALTER
+clade: deterministic/pure
+status: draft
+born: "2026-03-13"
+
+# ── Lineage ───────────────────────────────────────────
+parents: []
+reproduction: manual
+generated_by: manual
+
+# ── Description ───────────────────────────────────────
+description: |
+  A C++ gRPC daemon that greets users in 56 languages. Designed to be
+  embedded in a HostUI but also usable standalone. Demonstrates
+  the C++ implementation of the canonical greeting daemon.
+
+# ── Operational ───────────────────────────────────────
+kind: native
+build:
+  runner: cmake
+requires:
+  commands: [cmake, make]
+  files: [CMakeLists.txt]
+artifacts:
+  binary: gudule-daemon-greeting-cpp

@@ -24,16 +24,16 @@ go run ./recipes/testmatrix/gudule-greeting-testmatrix --filter 'charon-' --form
 ## Current Matrix
 
 - Inventory:
-  - 48 Gudule greeting assemblies in `recipes/assemblies/`
-  - 33 Charon composition recipes in `recipes/composition/`
+  - 66 Gudule greeting assemblies in `recipes/assemblies/`
+  - 36 Charon composition recipes in `recipes/composition/`
   - 2 shared Go workers in `recipes/composition/workers/`
 - Latest committed runtime snapshot:
   - `recipes/testmatrix/gudule-greeting-testmatrix/snapshots/current-macos-composition.json`
-  - generated on March 12, 2026 with `--filter 'charon-'`
-  - result: 33 selected, 33 passed, 0 skipped, 0 build failures, 0 run failures, 0 timeouts
+  - generated on March 13, 2026 with `--filter 'charon-'`
+  - result: 36 selected, 36 passed, 0 skipped, 0 build failures, 0 run failures, 0 timeouts
 - Full discovery snapshot:
   - `recipes/testmatrix/gudule-greeting-testmatrix/snapshots/current-macos-dry-run.json`
-  - result: 81 selected, 48 assemblies, 33 compositions
+  - result: 102 selected, 66 assemblies, 36 compositions
 - The committed runtime baseline above is intentionally focused on the
   composition recipes because UI assemblies are only validated as launch
   smoke and still need manual interaction checks.
@@ -45,8 +45,8 @@ recipes/
 ├── protos/         # shared canonical contracts
 ├── daemons/        # dry greeting daemons
 ├── hostui/         # dry HostUI projects
-├── assemblies/     # 48 greeting composites
-├── composition/    # 33 charon compositions + 2 workers
+├── assemblies/     # 66 greeting composites
+├── composition/    # 36 charon compositions + 2 workers
 └── testmatrix/     # reusable Go matrix CLI + snapshots
 ```
 

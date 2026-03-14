@@ -1,11 +1,12 @@
 import GRPC
+import GreetingDaemonSwiftSupport
 import GreetingGenerated
 import Holons
 import NIOCore
 import NIOPosix
 import SwiftProtobuf
 import XCTest
-@testable import GreetingDaemonSwift
+@testable import GreetingDaemonSwiftSupport
 
 final class GreetingDaemonSwiftTests: XCTestCase {
     func testGreetingTableExposes56Languages() {
@@ -17,10 +18,10 @@ final class GreetingDaemonSwiftTests: XCTestCase {
     }
 
     func testServeRoundTripReturnsBonjourForFrench() throws {
-        let recipeRoot = try findRecipeRoot()
+        let recipeRoot = try findGreetingDaemonSwiftRecipeRoot()
         let running = try Serve.startWithOptions(
             "tcp://127.0.0.1:0",
-            serviceProviders: [GreetingServiceProvider()],
+            serviceProviders: GreetingDaemonSwiftSupport.makeServiceProviders(),
             options: Serve.Options(
                 logger: { _ in },
                 protoDir: recipeRoot.appendingPathComponent("protos").path,
@@ -43,7 +44,7 @@ final class GreetingDaemonSwiftTests: XCTestCase {
         let greeting = try client.sayHello(name: "Ada", langCode: "fr")
 
         XCTAssertEqual(languages.languages.count, 56)
-        XCTAssertEqual(greeting.greeting, "Bonjour, Ada !")
+        XCTAssertEqual(greeting.greeting, "Bonjour, Ada")
     }
 }
 

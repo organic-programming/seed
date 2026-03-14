@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-03-12T10:56:47Z",
+  "generated_at": "2026-03-13T11:19:40Z",
   "repo_root": "/Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming",
   "timeout": "10s",
   "dry_run": true,
   "summary": {
-    "discovered": 81,
-    "selected": 81,
-    "assemblies": 48,
-    "compositions": 33,
-    "dry_run": 81,
+    "discovered": 102,
+    "selected": 102,
+    "assemblies": 66,
+    "compositions": 36,
+    "dry_run": 102,
     "skipped": 0,
     "passed": 0,
     "smoke_passed": 0,
@@ -18,148 +18,45 @@
   },
   "results": [
     {
-      "name": "gudule-greeting-compose-csharp",
-      "path": "recipes/assemblies/gudule-greeting-compose-csharp",
-      "family_name": "Greeting-Compose-Csharp",
-      "display_family": "Greeting-Compose-Csharp (Kotlin UI)",
-      "display_name": "Gudule Greeting-Compose-Csharp (Kotlin UI)",
+      "name": "gudule-greeting-c-web",
+      "path": "recipes/assemblies/gudule-greeting-c-web",
+      "family_name": "Greeting-C-Web",
+      "display_family": "Greeting-C-Web (Web UI)",
+      "display_name": "Gudule Greeting-C-Web (Web UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "stdio",
+      "transport": "tcp",
       "platforms": [
         "macos"
       ],
       "requires": [
-        "dotnet",
-        "java"
-      ]
-    },
-    {
-      "name": "gudule-greeting-compose-dart",
-      "path": "recipes/assemblies/gudule-greeting-compose-dart",
-      "family_name": "Greeting-Compose-Dart",
-      "display_family": "Greeting-Compose-Dart (Kotlin UI)",
-      "display_name": "Gudule Greeting-Compose-Dart (Kotlin UI)",
-      "kind": "assembly",
-      "status": "dry-run",
-      "validation": "launch-smoke",
-      "transport": "stdio",
-      "platforms": [
-        "macos"
-      ],
-      "requires": [
-        "dart",
-        "java"
-      ]
-    },
-    {
-      "name": "gudule-greeting-compose-go",
-      "path": "recipes/assemblies/gudule-greeting-compose-go",
-      "family_name": "Greeting-Compose-Go",
-      "display_family": "Greeting-Compose-Go (Kotlin UI)",
-      "display_name": "Gudule Greeting-Compose-Go (Kotlin UI)",
-      "kind": "assembly",
-      "status": "dry-run",
-      "validation": "launch-smoke",
-      "transport": "stdio",
-      "platforms": [
-        "macos"
-      ],
-      "requires": [
-        "go",
-        "java"
-      ]
-    },
-    {
-      "name": "gudule-greeting-compose-kotlin",
-      "path": "recipes/assemblies/gudule-greeting-compose-kotlin",
-      "family_name": "Greeting-Compose-Kotlin",
-      "display_family": "Greeting-Compose-Kotlin (Kotlin UI)",
-      "display_name": "Gudule Greeting-Compose-Kotlin (Kotlin UI)",
-      "kind": "assembly",
-      "status": "dry-run",
-      "validation": "launch-smoke",
-      "transport": "stdio",
-      "platforms": [
-        "macos"
-      ],
-      "requires": [
-        "java"
-      ]
-    },
-    {
-      "name": "gudule-greeting-compose-node",
-      "path": "recipes/assemblies/gudule-greeting-compose-node",
-      "family_name": "Greeting-Compose-Node",
-      "display_family": "Greeting-Compose-Node (Kotlin UI)",
-      "display_name": "Gudule Greeting-Compose-Node (Kotlin UI)",
-      "kind": "assembly",
-      "status": "dry-run",
-      "validation": "launch-smoke",
-      "transport": "stdio",
-      "platforms": [
-        "macos"
-      ],
-      "requires": [
+        "cmake",
+        "make",
         "node",
         "npm",
-        "java"
+        "protoc"
       ]
     },
     {
-      "name": "gudule-greeting-compose-python",
-      "path": "recipes/assemblies/gudule-greeting-compose-python",
-      "family_name": "Greeting-Compose-Python",
-      "display_family": "Greeting-Compose-Python (Kotlin UI)",
-      "display_name": "Gudule Greeting-Compose-Python (Kotlin UI)",
+      "name": "gudule-greeting-cpp-web",
+      "path": "recipes/assemblies/gudule-greeting-cpp-web",
+      "family_name": "Greeting-Cpp-Web",
+      "display_family": "Greeting-Cpp-Web (Web UI)",
+      "display_name": "Gudule Greeting-Cpp-Web (Web UI)",
       "kind": "assembly",
       "status": "dry-run",
       "validation": "launch-smoke",
-      "transport": "stdio",
+      "transport": "tcp",
       "platforms": [
         "macos"
       ],
       "requires": [
-        "python3",
-        "java"
-      ]
-    },
-    {
-      "name": "gudule-greeting-compose-rust",
-      "path": "recipes/assemblies/gudule-greeting-compose-rust",
-      "family_name": "Greeting-Compose-Rust",
-      "display_family": "Greeting-Compose-Rust (Kotlin UI)",
-      "display_name": "Gudule Greeting-Compose-Rust (Kotlin UI)",
-      "kind": "assembly",
-      "status": "dry-run",
-      "validation": "launch-smoke",
-      "transport": "stdio",
-      "platforms": [
-        "macos"
-      ],
-      "requires": [
-        "cargo",
-        "java"
-      ]
-    },
-    {
-      "name": "gudule-greeting-compose-swift",
-      "path": "recipes/assemblies/gudule-greeting-compose-swift",
-      "family_name": "Greeting-Compose-Swift",
-      "display_family": "Greeting-Compose-Swift (Kotlin UI)",
-      "display_name": "Gudule Greeting-Compose-Swift (Kotlin UI)",
-      "kind": "assembly",
-      "status": "dry-run",
-      "validation": "launch-smoke",
-      "transport": "stdio",
-      "platforms": [
-        "macos"
-      ],
-      "requires": [
-        "swift",
-        "xcodebuild",
-        "java"
+        "cmake",
+        "make",
+        "node",
+        "npm",
+        "protoc"
       ]
     },
     {
@@ -200,6 +97,44 @@
         "node",
         "npm",
         "protoc"
+      ]
+    },
+    {
+      "name": "gudule-greeting-dotnet-c",
+      "path": "recipes/assemblies/gudule-greeting-dotnet-c",
+      "family_name": "Greeting-Dotnet-C",
+      "display_family": "Greeting-Dotnet-C (.NET UI)",
+      "display_name": "Gudule Greeting-Dotnet-C (.NET UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cmake",
+        "make",
+        "dotnet"
+      ]
+    },
+    {
+      "name": "gudule-greeting-dotnet-cpp",
+      "path": "recipes/assemblies/gudule-greeting-dotnet-cpp",
+      "family_name": "Greeting-Dotnet-Cpp",
+      "display_family": "Greeting-Dotnet-Cpp (.NET UI)",
+      "display_name": "Gudule Greeting-Dotnet-Cpp (.NET UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cmake",
+        "make",
+        "dotnet"
       ]
     },
     {
@@ -252,6 +187,24 @@
       ],
       "requires": [
         "go",
+        "dotnet"
+      ]
+    },
+    {
+      "name": "gudule-greeting-dotnet-java",
+      "path": "recipes/assemblies/gudule-greeting-dotnet-java",
+      "family_name": "Greeting-Dotnet-Java",
+      "display_family": "Greeting-Dotnet-Java (.NET UI)",
+      "display_name": "Gudule Greeting-Dotnet-Java (.NET UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "gradle",
         "dotnet"
       ]
     },
@@ -348,6 +301,46 @@
       ]
     },
     {
+      "name": "gudule-greeting-flutter-c",
+      "path": "recipes/assemblies/gudule-greeting-flutter-c",
+      "family_name": "Greeting-Flutter-C",
+      "display_family": "Greeting-Flutter-C (Flutter UI)",
+      "display_name": "Gudule Greeting-Flutter-C (Flutter UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cmake",
+        "make",
+        "flutter",
+        "dart"
+      ]
+    },
+    {
+      "name": "gudule-greeting-flutter-cpp",
+      "path": "recipes/assemblies/gudule-greeting-flutter-cpp",
+      "family_name": "Greeting-Flutter-Cpp",
+      "display_family": "Greeting-Flutter-Cpp (Flutter UI)",
+      "display_name": "Gudule Greeting-Flutter-Cpp (Flutter UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cmake",
+        "make",
+        "flutter",
+        "dart"
+      ]
+    },
+    {
       "name": "gudule-greeting-flutter-csharp",
       "path": "recipes/assemblies/gudule-greeting-flutter-csharp",
       "family_name": "Greeting-Flutter-Csharp",
@@ -399,6 +392,25 @@
       ],
       "requires": [
         "go",
+        "flutter",
+        "dart"
+      ]
+    },
+    {
+      "name": "gudule-greeting-flutter-java",
+      "path": "recipes/assemblies/gudule-greeting-flutter-java",
+      "family_name": "Greeting-Flutter-Java",
+      "display_family": "Greeting-Flutter-Java (Flutter UI)",
+      "display_name": "Gudule Greeting-Flutter-Java (Flutter UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "gradle",
         "flutter",
         "dart"
       ]
@@ -521,6 +533,26 @@
       ]
     },
     {
+      "name": "gudule-greeting-java-web",
+      "path": "recipes/assemblies/gudule-greeting-java-web",
+      "family_name": "Greeting-Java-Web",
+      "display_family": "Greeting-Java-Web (Web UI)",
+      "display_name": "Gudule Greeting-Java-Web (Web UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "tcp",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "gradle",
+        "node",
+        "npm",
+        "protoc"
+      ]
+    },
+    {
       "name": "gudule-greeting-kotlin-web",
       "path": "recipes/assemblies/gudule-greeting-kotlin-web",
       "family_name": "Greeting-Kotlin-Web",
@@ -538,6 +570,207 @@
         "node",
         "npm",
         "protoc"
+      ]
+    },
+    {
+      "name": "gudule-greeting-kotlinui-c",
+      "path": "recipes/assemblies/gudule-greeting-kotlinui-c",
+      "family_name": "Greeting-Kotlinui-C",
+      "display_family": "Greeting-Kotlinui-C (Kotlin UI)",
+      "display_name": "Gudule Greeting-Kotlinui-C (Kotlin UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cmake",
+        "make",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-kotlinui-cpp",
+      "path": "recipes/assemblies/gudule-greeting-kotlinui-cpp",
+      "family_name": "Greeting-Kotlinui-Cpp",
+      "display_family": "Greeting-Kotlinui-Cpp (Kotlin UI)",
+      "display_name": "Gudule Greeting-Kotlinui-Cpp (Kotlin UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cmake",
+        "make",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-kotlinui-csharp",
+      "path": "recipes/assemblies/gudule-greeting-kotlinui-csharp",
+      "family_name": "Greeting-Kotlinui-Csharp",
+      "display_family": "Greeting-Kotlinui-Csharp (Kotlin UI)",
+      "display_name": "Gudule Greeting-Kotlinui-Csharp (Kotlin UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dotnet",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-kotlinui-dart",
+      "path": "recipes/assemblies/gudule-greeting-kotlinui-dart",
+      "family_name": "Greeting-Kotlinui-Dart",
+      "display_family": "Greeting-Kotlinui-Dart (Kotlin UI)",
+      "display_name": "Gudule Greeting-Kotlinui-Dart (Kotlin UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "dart",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-kotlinui-go",
+      "path": "recipes/assemblies/gudule-greeting-kotlinui-go",
+      "family_name": "Greeting-Kotlinui-Go",
+      "display_family": "Greeting-Kotlinui-Go (Kotlin UI)",
+      "display_name": "Gudule Greeting-Kotlinui-Go (Kotlin UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-kotlinui-java",
+      "path": "recipes/assemblies/gudule-greeting-kotlinui-java",
+      "family_name": "Greeting-Kotlinui-Java",
+      "display_family": "Greeting-Kotlinui-Java (Kotlin UI)",
+      "display_name": "Gudule Greeting-Kotlinui-Java (Kotlin UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "gradle",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-kotlinui-kotlin",
+      "path": "recipes/assemblies/gudule-greeting-kotlinui-kotlin",
+      "family_name": "Greeting-Kotlinui-Kotlin",
+      "display_family": "Greeting-Kotlinui-Kotlin (Kotlin UI)",
+      "display_name": "Gudule Greeting-Kotlinui-Kotlin (Kotlin UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-kotlinui-node",
+      "path": "recipes/assemblies/gudule-greeting-kotlinui-node",
+      "family_name": "Greeting-Kotlinui-Node",
+      "display_family": "Greeting-Kotlinui-Node (Kotlin UI)",
+      "display_name": "Gudule Greeting-Kotlinui-Node (Kotlin UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "node",
+        "npm",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-kotlinui-python",
+      "path": "recipes/assemblies/gudule-greeting-kotlinui-python",
+      "family_name": "Greeting-Kotlinui-Python",
+      "display_family": "Greeting-Kotlinui-Python (Kotlin UI)",
+      "display_name": "Gudule Greeting-Kotlinui-Python (Kotlin UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "python3",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-kotlinui-rust",
+      "path": "recipes/assemblies/gudule-greeting-kotlinui-rust",
+      "family_name": "Greeting-Kotlinui-Rust",
+      "display_family": "Greeting-Kotlinui-Rust (Kotlin UI)",
+      "display_name": "Gudule Greeting-Kotlinui-Rust (Kotlin UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cargo",
+        "java"
+      ]
+    },
+    {
+      "name": "gudule-greeting-kotlinui-swift",
+      "path": "recipes/assemblies/gudule-greeting-kotlinui-swift",
+      "family_name": "Greeting-Kotlinui-Swift",
+      "display_family": "Greeting-Kotlinui-Swift (Kotlin UI)",
+      "display_name": "Gudule Greeting-Kotlinui-Swift (Kotlin UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "swift",
+        "xcodebuild",
+        "java"
       ]
     },
     {
@@ -577,6 +810,42 @@
         "node",
         "npm",
         "protoc"
+      ]
+    },
+    {
+      "name": "gudule-greeting-qt-c",
+      "path": "recipes/assemblies/gudule-greeting-qt-c",
+      "family_name": "Greeting-Qt-C",
+      "display_family": "Greeting-Qt-C (Qt UI)",
+      "display_name": "Gudule Greeting-Qt-C (Qt UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cmake",
+        "make"
+      ]
+    },
+    {
+      "name": "gudule-greeting-qt-cpp",
+      "path": "recipes/assemblies/gudule-greeting-qt-cpp",
+      "family_name": "Greeting-Qt-Cpp",
+      "display_family": "Greeting-Qt-Cpp (Qt UI)",
+      "display_name": "Gudule Greeting-Qt-Cpp (Qt UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cmake",
+        "make"
       ]
     },
     {
@@ -631,6 +900,23 @@
       "requires": [
         "go",
         "cmake"
+      ]
+    },
+    {
+      "name": "gudule-greeting-qt-java",
+      "path": "recipes/assemblies/gudule-greeting-qt-java",
+      "family_name": "Greeting-Qt-Java",
+      "display_family": "Greeting-Qt-Java (Qt UI)",
+      "display_name": "Gudule Greeting-Qt-Java (Qt UI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "gradle"
       ]
     },
     {
@@ -767,6 +1053,44 @@
       ]
     },
     {
+      "name": "gudule-greeting-swiftui-c",
+      "path": "recipes/assemblies/gudule-greeting-swiftui-c",
+      "family_name": "Greeting-Swiftui-C",
+      "display_family": "Greeting-Swiftui-C (SwiftUI)",
+      "display_name": "Gudule Greeting-Swiftui-C (SwiftUI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cmake",
+        "make",
+        "xcodebuild"
+      ]
+    },
+    {
+      "name": "gudule-greeting-swiftui-cpp",
+      "path": "recipes/assemblies/gudule-greeting-swiftui-cpp",
+      "family_name": "Greeting-Swiftui-Cpp",
+      "display_family": "Greeting-Swiftui-Cpp (SwiftUI)",
+      "display_name": "Gudule Greeting-Swiftui-Cpp (SwiftUI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "cmake",
+        "make",
+        "xcodebuild"
+      ]
+    },
+    {
       "name": "gudule-greeting-swiftui-csharp",
       "path": "recipes/assemblies/gudule-greeting-swiftui-csharp",
       "family_name": "Greeting-Swiftui-Csharp",
@@ -817,6 +1141,24 @@
       ],
       "requires": [
         "go",
+        "xcodebuild"
+      ]
+    },
+    {
+      "name": "gudule-greeting-swiftui-java",
+      "path": "recipes/assemblies/gudule-greeting-swiftui-java",
+      "family_name": "Greeting-Swiftui-Java",
+      "display_family": "Greeting-Swiftui-Java (SwiftUI)",
+      "display_name": "Gudule Greeting-Swiftui-Java (SwiftUI)",
+      "kind": "assembly",
+      "status": "dry-run",
+      "validation": "launch-smoke",
+      "transport": "stdio",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "gradle",
         "xcodebuild"
       ]
     },
@@ -909,6 +1251,24 @@
       "requires": [
         "swift",
         "xcodebuild"
+      ]
+    },
+    {
+      "name": "charon-direct-c-go",
+      "path": "recipes/composition/direct-call/charon-direct-c-go",
+      "family_name": "Composition-Direct-C-Go",
+      "display_family": "Composition-Direct-C-Go",
+      "display_name": "Composition-Direct-C-Go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cmake"
       ]
     },
     {
@@ -1114,6 +1474,24 @@
       ]
     },
     {
+      "name": "charon-fanout-c-go",
+      "path": "recipes/composition/fan-out/charon-fanout-c-go",
+      "family_name": "Composition-Fanout-C-Go",
+      "display_family": "Composition-Fanout-C-Go",
+      "display_name": "Composition-Fanout-C-Go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cmake"
+      ]
+    },
+    {
       "name": "charon-fanout-cpp-go",
       "path": "recipes/composition/fan-out/charon-fanout-cpp-go",
       "family_name": "Composition-Fanout-Cpp-Go",
@@ -1313,6 +1691,24 @@
         "op",
         "swift",
         "xcodebuild"
+      ]
+    },
+    {
+      "name": "charon-pipeline-c-go",
+      "path": "recipes/composition/pipeline/charon-pipeline-c-go",
+      "family_name": "Composition-Pipeline-C-Go",
+      "display_family": "Composition-Pipeline-C-Go",
+      "display_name": "Composition-Pipeline-C-Go",
+      "kind": "composition",
+      "status": "dry-run",
+      "validation": "json-output",
+      "platforms": [
+        "macos"
+      ],
+      "requires": [
+        "go",
+        "op",
+        "cmake"
       ]
     },
     {

@@ -24,3 +24,4 @@ tasks/*
 
 .sculptor/*CMakeFiles/
 .DRAFT*
+.tmp

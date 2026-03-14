@@ -1,19 +1,43 @@
 # frozen_string_literal: true
 
-require "json"
-require_relative "../../sdk/ruby-holons/lib/holons"
-
-# Pure deterministic HelloService.
 module HelloService
-  def self.greet(name)
-    n = name.nil? || name.empty? ? "World" : name
-    "Hello, #{n}!"
-  end
+  class << self
+    def greet(name)
+      value = name.to_s.strip
+      value = "World" if value.empty?
+      "Hello, #{value}!"
+    end
 
-  def self.serve(args)
-    listen_uri = Holons::Serve.parse_flags(args)
-    warn("ruby-hello-world listening on #{listen_uri}")
-    puts(JSON.generate({ message: greet("") }))
+    def register(server)
+      load_runtime!
+      server.handle(Server.new)
+    end
+
+    def serve(args)
+      load_runtime!
+      listen_uri = Holons::Serve.parse_flags(args)
+      Holons::Serve.run_with_options(listen_uri, method(:register), true)
+    end
+
+    private
+
+    def load_runtime!
+      return if @runtime_loaded
+
+      require_relative "../../sdk/ruby-holons/lib/holons"
+      require_relative "hello_pb"
+      require_relative "hello_services_pb"
+
+      unless const_defined?(:Server, false)
+        const_set(:Server, Class.new(::Hello::V1::HelloService::Service) do
+          def greet(request, _call)
+            ::Hello::V1::GreetResponse.new(message: ::HelloService.greet(request.name))
+          end
+        end)
+      end
+
+      @runtime_loaded = true
+    end
   end
 end
 

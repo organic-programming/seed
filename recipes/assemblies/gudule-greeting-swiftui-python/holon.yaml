@@ -66,11 +66,10 @@ build:
                   <key>LSMinimumSystemVersion</key>
                   <string>15.0</string>
                   <key>NSHighResolutionCapable</key>
-                  <true/>
+                <true/>
                 </dict>
                 </plist>
                 EOF
-                codesign --force --deep --sign - "$app_dir"
       - copy:
           from: ../../daemons/gudule-daemon-greeting-python/.op/build/bin/gudule-daemon-greeting-python
           to: build/GreetingSwiftUI.app/Contents/Resources/daemon/gudule-daemon-greeting-python

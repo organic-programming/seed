@@ -3,3 +3,4 @@
 source "https://rubygems.org"
 
 gem "grpc"
+gem "minitest", "= 5.20.0"

@@ -51,7 +51,7 @@ avoid collision with daemon language names.
 |---|---|---|---|
 | `Greeting-Hostui-Flutter` | `gudule-greeting-hostui-flutter` | `recipes/hostui/gudule-greeting-hostui-flutter/` | Flutter (Dart) |
 | `Greeting-Hostui-Swiftui` | `gudule-greeting-hostui-swiftui` | `recipes/hostui/gudule-greeting-hostui-swiftui/` | SwiftUI (Swift) |
-| `Greeting-Hostui-Compose` | `gudule-greeting-hostui-compose` | `recipes/hostui/gudule-greeting-hostui-compose/` | Jetpack Compose (Kotlin) |
+| `Greeting-Hostui-Kotlin` | `gudule-greeting-hostui-kotlin` | `recipes/hostui/gudule-greeting-hostui-kotlin/` | Jetpack Compose (Kotlin) |
 | `Greeting-Hostui-Web` | `gudule-greeting-hostui-web` | `recipes/hostui/gudule-greeting-hostui-web/` | TypeScript/HTML |
 | `Greeting-Hostui-Dotnet` | `gudule-greeting-hostui-dotnet` | `recipes/hostui/gudule-greeting-hostui-dotnet/` | .NET MAUI (C#) |
 | `Greeting-Hostui-Qt` | `gudule-greeting-hostui-qt` | `recipes/hostui/gudule-greeting-hostui-qt/` | Qt (C++) |
@@ -92,18 +92,18 @@ the web client (Connect protocol, web dist embedded in daemon binary).
 | `Greeting-Swiftui-Csharp` | `recipes/assemblies/gudule-greeting-swiftui-csharp/` |
 | `Greeting-Swiftui-Node` | `recipes/assemblies/gudule-greeting-swiftui-node/` |
 
-### Compose HostUI × 8 Daemons
+### Kotlinui HostUI × 8 Daemons
 
 | `family_name` | directory |
 |---|---|
-| `Greeting-Compose-Go` | `recipes/assemblies/gudule-greeting-compose-go/` |
-| `Greeting-Compose-Rust` | `recipes/assemblies/gudule-greeting-compose-rust/` |
-| `Greeting-Compose-Swift` | `recipes/assemblies/gudule-greeting-compose-swift/` |
-| `Greeting-Compose-Kotlin` ★ | `recipes/assemblies/gudule-greeting-compose-kotlin/` |
-| `Greeting-Compose-Dart` | `recipes/assemblies/gudule-greeting-compose-dart/` |
-| `Greeting-Compose-Python` | `recipes/assemblies/gudule-greeting-compose-python/` |
-| `Greeting-Compose-Csharp` | `recipes/assemblies/gudule-greeting-compose-csharp/` |
-| `Greeting-Compose-Node` | `recipes/assemblies/gudule-greeting-compose-node/` |
+| `Greeting-Kotlinui-Go` | `recipes/assemblies/gudule-greeting-kotlinui-go/` |
+| `Greeting-Kotlinui-Rust` | `recipes/assemblies/gudule-greeting-kotlinui-rust/` |
+| `Greeting-Kotlinui-Swift` | `recipes/assemblies/gudule-greeting-kotlinui-swift/` |
+| `Greeting-Kotlinui-Kotlin` ★ | `recipes/assemblies/gudule-greeting-kotlinui-kotlin/` |
+| `Greeting-Kotlinui-Dart` | `recipes/assemblies/gudule-greeting-kotlinui-dart/` |
+| `Greeting-Kotlinui-Python` | `recipes/assemblies/gudule-greeting-kotlinui-python/` |
+| `Greeting-Kotlinui-Csharp` | `recipes/assemblies/gudule-greeting-kotlinui-csharp/` |
+| `Greeting-Kotlinui-Node` | `recipes/assemblies/gudule-greeting-kotlinui-node/` |
 
 ### Web Assemblies × 8 Daemons (reversed: daemon serves web)
 

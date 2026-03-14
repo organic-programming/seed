@@ -1,0 +1,2 @@
+include 'java-holons'
+project(':java-holons').projectDir = new File('../../../sdk/java-holons')

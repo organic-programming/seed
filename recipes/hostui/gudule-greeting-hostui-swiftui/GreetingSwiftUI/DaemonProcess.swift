@@ -19,6 +19,21 @@ final class DaemonProcess: ObservableObject {
         guard client == nil else { return }
         connectionError = nil
 
+        if transport == "mem" {
+            let family = assemblyFamily.lowercased()
+            let parts = family.split(separator: "-")
+            if parts.count >= 3 {
+                let ui = parts[1]
+                let daemon = String(parts[2].prefix(while: { $0.isLetter }))
+                let uiLang = ui.hasPrefix("swift") ? "swift" : String(ui)
+                if uiLang != daemon {
+                    connectionError = "memory connection mode requires the same language for UI and the daemon"
+                    isRunning = false
+                    return
+                }
+            }
+        }
+
 #if os(macOS)
         do {
             let daemon = try resolveDaemon()
@@ -35,7 +50,9 @@ final class DaemonProcess: ObservableObject {
             }
 
             logHostUI("[HostUI] assembly=\(assemblyFamily) daemon=\(daemon.binaryName) transport=\(transport)")
-            let options = ConnectOptions(transport: transport)
+            var options = ConnectOptions()
+            options.transport = transport
+            
             client = try GreetingClient.connected(to: daemon.slug, options: options)
             logHostUI("[HostUI] connected to \(daemon.binaryName) on \(connectionTarget())")
             isRunning = true
@@ -102,9 +119,14 @@ final class DaemonProcess: ObservableObject {
         return (value?.isEmpty == false ? value! : "Greeting-Swiftui-Go")
     }
 
-    var transport: String {
+    @Published var transport: String = {
         let value = ProcessInfo.processInfo.environment["OP_ASSEMBLY_TRANSPORT"]?.trimmingCharacters(in: .whitespacesAndNewlines)
         return (value?.isEmpty == false ? value! : "stdio")
+    }() {
+        didSet {
+            // When transport changes, cleanly stop so the UI can trigger a full reload
+            stop()
+        }
     }
 
     var daemonBinaryName: String {

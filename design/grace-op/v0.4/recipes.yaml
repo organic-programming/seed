@@ -14,7 +14,7 @@ protos:
     package: greeting.v1
     rpcs: [ListLanguages, SayHello]
 
-# ── Daemons (8) ───────────────────────────────────────────
+# ── Daemons (11) ───────────────────────────────────────────
 daemons:
   - name: gudule-daemon-greeting-go
     family_name: Greeting-Daemon-Go
@@ -88,6 +88,33 @@ daemons:
     os: [macos, linux, windows]
     task: v0.4.2/TASK03
 
+  - name: gudule-daemon-greeting-cpp
+    family_name: Greeting-Daemon-Cpp
+    source: recipes/daemons/gudule-daemon-greeting-cpp
+    sdk: cpp-holons
+    lang: cpp
+    runner: cmake
+    os: [macos, linux, windows]
+    task: v0.4.5/TASK01
+    
+  - name: gudule-daemon-greeting-c
+    family_name: Greeting-Daemon-C
+    source: recipes/daemons/gudule-daemon-greeting-c
+    sdk: c-holons
+    lang: c
+    runner: cmake
+    os: [macos, linux, windows]
+    task: v0.4.5/TASK02
+
+  - name: gudule-daemon-greeting-java
+    family_name: Greeting-Daemon-Java
+    source: recipes/daemons/gudule-daemon-greeting-java
+    sdk: java-holons
+    lang: java
+    runner: gradle
+    os: [macos, linux, windows]
+    task: v0.4.5/TASK03
+
 # ── HostUIs (6) ───────────────────────────────────────────
 hostuis:
   - name: gudule-greeting-hostui-flutter
@@ -108,9 +135,9 @@ hostuis:
     os: [macos, ios]
     task: v0.4.2/TASK04
 
-  - name: gudule-greeting-hostui-compose
-    family_name: Greeting-Hostui-Compose
-    source: recipes/hostui/gudule-greeting-hostui-compose
+  - name: gudule-greeting-hostui-kotlin
+    family_name: Greeting-Hostui-Kotlin
+    source: recipes/hostui/gudule-greeting-hostui-kotlin
     sdk: kotlin-holons
     framework: compose
     runner: gradle
@@ -144,7 +171,7 @@ hostuis:
     os: [macos, linux, windows]
     task: v0.4.2/TASK05
 
-# ── Assemblies (48) ───────────────────────────────────────
+# ── Assemblies (66) ───────────────────────────────────────
 # Generated from: hostuis × daemons (web reversed: daemon-web)
 #
 # Transport rules (must be explicit in each holon.yaml):
@@ -160,6 +187,9 @@ assemblies:
   - { name: gudule-greeting-flutter-python,  daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-flutter }
   - { name: gudule-greeting-flutter-csharp,  daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-flutter }
   - { name: gudule-greeting-flutter-node,    daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-flutter }
+  - { name: gudule-greeting-flutter-cpp,     daemon: gudule-daemon-greeting-cpp,     hostui: gudule-greeting-hostui-flutter }
+  - { name: gudule-greeting-flutter-c,       daemon: gudule-daemon-greeting-c,       hostui: gudule-greeting-hostui-flutter }
+  - { name: gudule-greeting-flutter-java,    daemon: gudule-daemon-greeting-java,    hostui: gudule-greeting-hostui-flutter }
   # SwiftUI row
   - { name: gudule-greeting-swiftui-go,      daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-swiftui }
   - { name: gudule-greeting-swiftui-rust,    daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-swiftui }
@@ -169,15 +199,21 @@ assemblies:
   - { name: gudule-greeting-swiftui-python,  daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-swiftui }
   - { name: gudule-greeting-swiftui-csharp,  daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-swiftui }
   - { name: gudule-greeting-swiftui-node,    daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-swiftui }
-  # Compose row
-  - { name: gudule-greeting-compose-go,      daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-compose-rust,    daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-compose-swift,   daemon: gudule-daemon-greeting-swift,   hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-compose-kotlin,  daemon: gudule-daemon-greeting-kotlin,  hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-compose-dart,    daemon: gudule-daemon-greeting-dart,    hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-compose-python,  daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-compose-csharp,  daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-compose }
-  - { name: gudule-greeting-compose-node,    daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-compose }
+  - { name: gudule-greeting-swiftui-cpp,     daemon: gudule-daemon-greeting-cpp,     hostui: gudule-greeting-hostui-swiftui }
+  - { name: gudule-greeting-swiftui-c,       daemon: gudule-daemon-greeting-c,       hostui: gudule-greeting-hostui-swiftui }
+  - { name: gudule-greeting-swiftui-java,    daemon: gudule-daemon-greeting-java,    hostui: gudule-greeting-hostui-swiftui }
+  # Kotlinui row
+  - { name: gudule-greeting-kotlinui-go,      daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-rust,    daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-swift,   daemon: gudule-daemon-greeting-swift,   hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-kotlin,  daemon: gudule-daemon-greeting-kotlin,  hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-dart,    daemon: gudule-daemon-greeting-dart,    hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-python,  daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-csharp,  daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-node,    daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-cpp,     daemon: gudule-daemon-greeting-cpp,     hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-c,       daemon: gudule-daemon-greeting-c,       hostui: gudule-greeting-hostui-kotlin }
+  - { name: gudule-greeting-kotlinui-java,    daemon: gudule-daemon-greeting-java,    hostui: gudule-greeting-hostui-kotlin }
   # Web row (reversed: daemon-web)
   - { name: gudule-greeting-go-web,          daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-web, topology: embedded }
   - { name: gudule-greeting-rust-web,        daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-web, topology: embedded }
@@ -187,6 +223,9 @@ assemblies:
   - { name: gudule-greeting-python-web,      daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-web, topology: embedded }
   - { name: gudule-greeting-csharp-web,      daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-web, topology: embedded }
   - { name: gudule-greeting-node-web,        daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-web, topology: embedded }
+  - { name: gudule-greeting-cpp-web,         daemon: gudule-daemon-greeting-cpp,     hostui: gudule-greeting-hostui-web, topology: embedded }
+  - { name: gudule-greeting-c-web,           daemon: gudule-daemon-greeting-c,       hostui: gudule-greeting-hostui-web, topology: embedded }
+  - { name: gudule-greeting-java-web,        daemon: gudule-daemon-greeting-java,    hostui: gudule-greeting-hostui-web, topology: embedded }
   # Dotnet row
   - { name: gudule-greeting-dotnet-go,       daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-dotnet }
   - { name: gudule-greeting-dotnet-rust,     daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-dotnet }
@@ -196,6 +235,9 @@ assemblies:
   - { name: gudule-greeting-dotnet-python,   daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-dotnet }
   - { name: gudule-greeting-dotnet-csharp,   daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-dotnet }
   - { name: gudule-greeting-dotnet-node,     daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-dotnet }
+  - { name: gudule-greeting-dotnet-cpp,      daemon: gudule-daemon-greeting-cpp,     hostui: gudule-greeting-hostui-dotnet }
+  - { name: gudule-greeting-dotnet-c,        daemon: gudule-daemon-greeting-c,       hostui: gudule-greeting-hostui-dotnet }
+  - { name: gudule-greeting-dotnet-java,     daemon: gudule-daemon-greeting-java,    hostui: gudule-greeting-hostui-dotnet }
   # Qt row
   - { name: gudule-greeting-qt-go,           daemon: gudule-daemon-greeting-go,      hostui: gudule-greeting-hostui-qt }
   - { name: gudule-greeting-qt-rust,         daemon: gudule-daemon-greeting-rust,    hostui: gudule-greeting-hostui-qt }
@@ -205,6 +247,9 @@ assemblies:
   - { name: gudule-greeting-qt-python,       daemon: gudule-daemon-greeting-python,  hostui: gudule-greeting-hostui-qt }
   - { name: gudule-greeting-qt-csharp,       daemon: gudule-daemon-greeting-csharp,  hostui: gudule-greeting-hostui-qt }
   - { name: gudule-greeting-qt-node,         daemon: gudule-daemon-greeting-node,    hostui: gudule-greeting-hostui-qt }
+  - { name: gudule-greeting-qt-cpp,          daemon: gudule-daemon-greeting-cpp,     hostui: gudule-greeting-hostui-qt }
+  - { name: gudule-greeting-qt-c,            daemon: gudule-daemon-greeting-c,       hostui: gudule-greeting-hostui-qt }
+  - { name: gudule-greeting-qt-java,         daemon: gudule-daemon-greeting-java,    hostui: gudule-greeting-hostui-qt }
 
 # ── Composition Workers (2) ──────────────────────────────
 workers:
@@ -220,8 +265,8 @@ workers:
     runner: go-module
     task: v0.4.3/TASK03
 
-# ── Composition Orchestrators (33) ────────────────────────
-# Pattern × 11 languages, all calling Go workers.
+# ── Composition Orchestrators (36) ────────────────────────
+# Pattern × 12 languages, all calling Go workers.
 compositions:
   direct:
     - { name: charon-direct-go-go,      lang: go }
@@ -235,6 +280,7 @@ compositions:
     - { name: charon-direct-ruby-go,    lang: ruby }
     - { name: charon-direct-java-go,    lang: java }
     - { name: charon-direct-cpp-go,     lang: cpp }
+    - { name: charon-direct-c-go,       lang: c }
   pipeline:
     - { name: charon-pipeline-go-go,      lang: go }
     - { name: charon-pipeline-rust-go,    lang: rust }
@@ -247,6 +293,7 @@ compositions:
     - { name: charon-pipeline-ruby-go,    lang: ruby }
     - { name: charon-pipeline-java-go,    lang: java }
     - { name: charon-pipeline-cpp-go,     lang: cpp }
+    - { name: charon-pipeline-c-go,       lang: c }
   fanout:
     - { name: charon-fanout-go-go,      lang: go }
     - { name: charon-fanout-rust-go,    lang: rust }
@@ -259,6 +306,7 @@ compositions:
     - { name: charon-fanout-ruby-go,    lang: ruby }
     - { name: charon-fanout-java-go,    lang: java }
     - { name: charon-fanout-cpp-go,     lang: cpp }
+    - { name: charon-fanout-c-go,       lang: c }
 
 # ── Test Matrix (1) ──────────────────────────────────────
 testmatrix:

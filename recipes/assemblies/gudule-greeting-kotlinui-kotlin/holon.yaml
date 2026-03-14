@@ -1,0 +1,40 @@
+schema: holon/v0
+given_name: gudule
+family_name: Greeting-Kotlinui-Kotlin
+kind: composite
+transport: stdio
+platforms: [macos]
+build:
+  runner: recipe
+  defaults:
+    target: macos
+    mode: debug
+  members:
+    - id: daemon
+      path: ../../daemons/gudule-daemon-greeting-kotlin
+      type: holon
+    - id: app
+      path: ../../hostui/gudule-greeting-hostui-kotlin
+      type: holon
+  targets:
+    macos:
+      steps:
+      - build_member: daemon
+      - build_member: app
+      - exec:
+          cwd: .
+          argv: ["/bin/sh", "-c", "rm -rf build/gudule-greeting-gokotlin.app"]
+      - exec:
+          cwd: .
+          argv: ["ditto", "../../hostui/gudule-greeting-hostui-kotlin/build/compose/binaries/main/app/gudule-greeting-gokotlin.app", "build/gudule-greeting-gokotlin.app"]
+      - copy:
+          from: ../../daemons/gudule-daemon-greeting-kotlin/.op/build/bin/gudule-daemon-greeting-kotlin
+          to: build/gudule-greeting-gokotlin.app/Contents/Resources/daemon/gudule-daemon-greeting-kotlin
+      - assert_file:
+          path: build/gudule-greeting-gokotlin.app
+      - assert_file:
+          path: build/gudule-greeting-gokotlin.app/Contents/Resources/daemon/gudule-daemon-greeting-kotlin
+requires:
+  commands: [java]
+artifacts:
+  primary: build/gudule-greeting-gokotlin.app

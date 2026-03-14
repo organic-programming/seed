@@ -1,6 +1,7 @@
 using Greeting.V1;
 using Grpc.Net.Client;
 using Holons;
+using System.Reflection;
 
 namespace GreetingDaemon.Csharp.Tests;
 
@@ -43,7 +44,22 @@ public class GreetingDaemonCsharpTests
         });
 
         Assert.Equal(56, languages.Languages.Count);
-        Assert.Equal("Bonjour, Ada !", greeting.Greeting);
+        Assert.Equal("Bonjour, Ada", greeting.Greeting);
+    }
+
+    [Fact]
+    public void CreateServeOptionsKeepsDescribeEnabledWhenRecipeRootIsMissing()
+    {
+        var method = typeof(Program).GetMethod(
+            "CreateServeOptions",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.NotNull(method);
+
+        var options = Assert.IsType<Serve.ServeOptions>(method!.Invoke(null, [null]));
+        Assert.True(options.Describe);
+        Assert.Null(options.ProtoDir);
+        Assert.Null(options.HolonYamlPath);
     }
 
     private static string FindRecipeRoot() =>

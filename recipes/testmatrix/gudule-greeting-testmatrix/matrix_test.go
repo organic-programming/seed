@@ -144,9 +144,9 @@ func TestSkipReasonDetectsMissingToolchain(t *testing.T) {
 
 func TestMatchesPatternUsesDerivedDisplayIdentity(t *testing.T) {
 	target := Target{
-		Name:       "gudule-greeting-compose-csharp",
-		Path:       "recipes/assemblies/gudule-greeting-compose-csharp",
-		FamilyName: "Greeting-Compose-Csharp",
+		Name:       "gudule-greeting-kotlinui-csharp",
+		Path:       "recipes/assemblies/gudule-greeting-kotlinui-csharp",
+		FamilyName: "Greeting-Kotlinui-Csharp",
 		Kind:       assemblyTarget,
 		Transport:  "stdio",
 	}
@@ -154,7 +154,7 @@ func TestMatchesPatternUsesDerivedDisplayIdentity(t *testing.T) {
 	if !matchesPattern(regexp.MustCompile("Kotlin UI"), target) {
 		t.Fatal("matchesPattern should match derived hostui label")
 	}
-	if !matchesPattern(regexp.MustCompile("Gudule Greeting-Compose-Csharp"), target) {
+	if !matchesPattern(regexp.MustCompile("Gudule Greeting-Kotlinui-Csharp"), target) {
 		t.Fatal("matchesPattern should match derived display name")
 	}
 	if !matchesPattern(regexp.MustCompile("stdio"), target) {

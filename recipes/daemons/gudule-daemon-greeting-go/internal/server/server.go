@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/organic-programming/go-holons/pkg/serve"
 	pb "github.com/organic-programming/seed/recipes/daemons/gudule-daemon-greeting-go/gen/go/greeting/v1"
@@ -32,7 +33,7 @@ func (s *Server) ListLanguages(_ context.Context, _ *pb.ListLanguagesRequest) (*
 
 // SayHello greets the user in the requested language.
 func (s *Server) SayHello(_ context.Context, req *pb.SayHelloRequest) (*pb.SayHelloResponse, error) {
-	name := req.Name
+	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		name = "World"
 	}

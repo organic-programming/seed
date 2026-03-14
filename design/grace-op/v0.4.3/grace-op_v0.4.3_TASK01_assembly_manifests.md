@@ -22,7 +22,7 @@ recipes/assemblies/
 ├── gudule-greeting-flutter-rust/holon.yaml
 ├── gudule-greeting-swiftui-go/holon.yaml
 ├── gudule-greeting-go-web/holon.yaml           ← reversed: daemon serves web
-├── gudule-greeting-compose-go/holon.yaml
+├── gudule-greeting-kotlinui-go/holon.yaml
 ├── gudule-greeting-dotnet-go/holon.yaml
 ├── gudule-greeting-qt-go/holon.yaml
 ├── ...

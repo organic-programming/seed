@@ -57,6 +57,20 @@ manifests with automatic ad-hoc signing in the recipe runner.
 **Design:** [DESIGN_bundle_codesign.md](./v0.4.4/DESIGN_bundle_codesign.md)
 **Tasks:** [v0.4.4/_TASKS.md](./v0.4.4/_TASKS.md)
 
+### v0.4.5 — Native Daemon Expansion (C++, C, Java)
+
+Complete the assembly matrix with native Daemon backend languages and add
+C as a composition orchestrator language.
+
+- C++ Daemon × 6 HostUIs
+- C Daemon × 6 HostUIs
+- Java Daemon × 6 HostUIs
+- C composition orchestrators (direct-call, pipeline, fan-out)
+- Update verification docs (18 assemblies + 3 compositions)
+
+**Design:** [DESIGN_native_daemon_expansion.md](./v0.4.5/DESIGN_native_daemon_expansion.md)
+**Tasks:** [v0.4.5/_TASKS.md](./v0.4.5/_TASKS.md)
+
 ---
 
 ## v0.5 — Extensibility

@@ -1,0 +1,11 @@
+schema: holon/v0
+given_name: charon-orchestrator
+family_name: Pipeline-CGo
+kind: native
+build:
+  runner: cmake
+requires:
+  commands: [cmake, make]
+  files: [CMakeLists.txt]
+artifacts:
+  binary: charon-pipeline-c-go-orchestrator

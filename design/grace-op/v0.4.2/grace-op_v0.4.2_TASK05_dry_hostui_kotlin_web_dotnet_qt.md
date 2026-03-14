@@ -20,7 +20,7 @@ follows the connect-approach pattern validated by v0.4.1/TASK04.
 
 | HostUI | Source repo | SDK | `family_name` |
 |---|---|---|---|
-| `gudule-greeting-hostui-compose` | `go-kotlin-holons` | `kotlin-holons` | `Greeting-Hostui-Compose` |
+| `gudule-greeting-hostui-kotlin` | `go-kotlin-holons` | `kotlin-holons` | `Greeting-Hostui-Kotlin` |
 | `gudule-greeting-hostui-web` | `go-web-holons` | `@connectrpc/connect-web` | `Greeting-Hostui-Web` |
 | `gudule-greeting-hostui-dotnet` | `go-dotnet-holons` | `csharp-holons` | `Greeting-Hostui-Dotnet` |
 | `gudule-greeting-hostui-qt` | `go-qt-holons` | `cpp-holons` | `Greeting-Hostui-Qt` |
