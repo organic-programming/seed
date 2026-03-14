@@ -79,8 +79,8 @@ func TestSayHello_Nominal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SayHello: %v", err)
 	}
-	if resp.Greeting != "Bonjour, Alice !" {
-		t.Errorf("expected 'Bonjour, Alice !', got %q", resp.Greeting)
+	if resp.Greeting != "Bonjour, Alice" {
+		t.Errorf("expected 'Bonjour, Alice', got %q", resp.Greeting)
 	}
 	if resp.Language != "French" {
 		t.Errorf("expected language 'French', got %q", resp.Language)
@@ -98,8 +98,8 @@ func TestSayHello_EmptyName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SayHello: %v", err)
 	}
-	if resp.Greeting != "Hello, World!" {
-		t.Errorf("expected 'Hello, World!', got %q", resp.Greeting)
+	if resp.Greeting != "Hello, World" {
+		t.Errorf("expected 'Hello, World', got %q", resp.Greeting)
 	}
 }
 
@@ -115,7 +115,7 @@ func TestSayHello_UnknownLanguageFallsBackToEnglish(t *testing.T) {
 	if resp.LangCode != "en" {
 		t.Errorf("expected fallback to 'en', got %q", resp.LangCode)
 	}
-	if resp.Greeting != "Hello, Bob!" {
-		t.Errorf("expected 'Hello, Bob!', got %q", resp.Greeting)
+	if resp.Greeting != "Hello, Bob" {
+		t.Errorf("expected 'Hello, Bob', got %q", resp.Greeting)
 	}
 }

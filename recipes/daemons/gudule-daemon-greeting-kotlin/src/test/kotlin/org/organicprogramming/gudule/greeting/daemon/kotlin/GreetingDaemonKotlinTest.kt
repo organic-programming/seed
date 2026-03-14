@@ -45,7 +45,7 @@ class GreetingDaemonKotlinTest {
             )
 
             assertEquals(56, languages.languagesCount)
-            assertEquals("Bonjour, Ada !", greeting.greeting)
+            assertEquals("Bonjour, Ada", greeting.greeting)
         } finally {
             channel.shutdownNow()
             running.stop()

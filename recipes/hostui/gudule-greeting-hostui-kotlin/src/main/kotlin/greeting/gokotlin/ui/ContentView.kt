@@ -36,7 +36,7 @@ fun ContentView(daemon: DaemonProcess, assemblyFamily: String) {
     val subtitle = remember { daemon.subtitleText() }
     var selectedLanguage by remember { mutableStateOf<GreetingLanguage?>(null) }
     var languageMenuExpanded by remember { mutableStateOf(false) }
-    var userName by remember { mutableStateOf("World!") }
+    var userName by remember { mutableStateOf("World") }
     var greeting by remember { mutableStateOf("Select a language and type a name") }
     var status by remember { mutableStateOf("Loading languages…") }
     var errorMsg by remember { mutableStateOf<String?>(null) }

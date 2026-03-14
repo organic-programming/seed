@@ -25,7 +25,7 @@ class GreetingDaemonTest < Minitest::Test
       nil
     )
 
-    assert_equal "Bonjour, Alice !", response.greeting
+    assert_equal "Bonjour, Alice", response.greeting
     assert_equal "French", response.language
     assert_equal "fr", response.lang_code
   end
@@ -36,7 +36,7 @@ class GreetingDaemonTest < Minitest::Test
       nil
     )
 
-    assert_equal "Hello, World!", response.greeting
+    assert_equal "Hello, World", response.greeting
     assert_equal "English", response.language
     assert_equal "en", response.lang_code
   end

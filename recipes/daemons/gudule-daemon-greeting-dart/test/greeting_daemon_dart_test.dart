@@ -48,6 +48,6 @@ void main() {
     );
 
     expect(languages.languages, hasLength(56));
-    expect(greeting.greeting, equals('Bonjour, Ada !'));
+    expect(greeting.greeting, equals('Bonjour, Ada'));
   });
 }

@@ -11,7 +11,7 @@ struct ContentView: View {
     private let daemonSlugWidth: CGFloat = 360
     @State private var languages: [Language] = []
     @State private var selectedCode: String = ""
-    @State private var userName: String = "World!"
+    @State private var userName: String = "World"
     @State private var greeting: String = ""
     @State private var error: String?
     @State private var isLoading = true

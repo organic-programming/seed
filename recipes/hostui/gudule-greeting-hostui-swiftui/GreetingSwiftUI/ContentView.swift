@@ -7,7 +7,7 @@ struct ContentView: View {
         ?? "Greeting-Swiftui-Go"
     @State private var languages: [Language] = []
     @State private var selectedCode: String = ""
-    @State private var userName: String = "World!"
+    @State private var userName: String = "World"
     @State private var greeting: String = ""
     @State private var error: String?
     @State private var isLoading = true
@@ -256,7 +256,7 @@ struct ContentView: View {
                 .padding(24)
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                let displayGreeting = greeting.isEmpty ? "Hello World!" : greeting
+                let displayGreeting = greeting.isEmpty ? "Hello, World" : greeting
                 VStack(spacing: 16) {
                     Text("\"\(displayGreeting)\"")
                         .font(.system(size: 52, weight: .bold))

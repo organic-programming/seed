@@ -50,7 +50,7 @@ message SayHelloRequest {
 message SayHelloResponse {
   // Localized greeting text returned by the daemon.
   // @required
-  // @example "Bonjour, Alice !"
+  // @example "Bonjour, Alice"
   string greeting = 1;
 
   // English language name used to resolve the greeting.

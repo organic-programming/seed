@@ -44,7 +44,7 @@ public class GreetingDaemonCsharpTests
         });
 
         Assert.Equal(56, languages.Languages.Count);
-        Assert.Equal("Bonjour, Ada !", greeting.Greeting);
+        Assert.Equal("Bonjour, Ada", greeting.Greeting);
     }
 
     [Fact]

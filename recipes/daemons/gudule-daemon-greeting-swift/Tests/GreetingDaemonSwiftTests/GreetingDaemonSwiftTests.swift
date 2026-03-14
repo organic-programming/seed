@@ -44,7 +44,7 @@ final class GreetingDaemonSwiftTests: XCTestCase {
         let greeting = try client.sayHello(name: "Ada", langCode: "fr")
 
         XCTAssertEqual(languages.languages.count, 56)
-        XCTAssertEqual(greeting.greeting, "Bonjour, Ada !")
+        XCTAssertEqual(greeting.greeting, "Bonjour, Ada")
     }
 }
 
