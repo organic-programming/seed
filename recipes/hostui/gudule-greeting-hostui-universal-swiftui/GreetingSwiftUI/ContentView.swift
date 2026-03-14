@@ -5,6 +5,10 @@ struct ContentView: View {
     private let assemblyFamily = ProcessInfo.processInfo.environment["OP_ASSEMBLY_DISPLAY_FAMILY"]
         ?? ProcessInfo.processInfo.environment["OP_ASSEMBLY_FAMILY"]
         ?? "Greeting-Swiftui-Go"
+    private let inputColumnWidth: CGFloat = 300
+    private let contentSpacing: CGFloat = 32
+    private let languagePickerWidth: CGFloat = 220
+    private let daemonSlugWidth: CGFloat = 360
     @State private var languages: [Language] = []
     @State private var selectedCode: String = ""
     @State private var userName: String = "World!"
@@ -44,55 +48,28 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             topHeaderArea
-            
-            ZStack(alignment: .bottomLeading) {
-                HStack(alignment: .center, spacing: 32) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        if #available(macOS 13.0, *) {
-                            TextField("", text: $userName, axis: .vertical)
-                                .lineLimit(4, reservesSpace: true)
-                                .textFieldStyle(.roundedBorder)
-                                .focused($isNameFieldFocused)
-                                .onChange(of: userName) { _ in
-                                    Task { await greet(code: selectedCode) }
-                                }
-                                .frame(width: 300)
-                        } else {
-                            TextEditor(text: $userName)
-                                .focused($isNameFieldFocused)
-                                .onChange(of: userName) { _ in
-                                    Task { await greet(code: selectedCode) }
-                                }
-                                .frame(width: 300, height: 100)
-                                .cornerRadius(6)
-                        }
-                    }
+            VStack(spacing: 24) {
+                HStack(alignment: .center, spacing: contentSpacing) {
+                    inputColumn
+                        .frame(width: inputColumnWidth)
 
-                    // Result Bubble Component
                     bubbleColumn
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                .padding(32)
-                
-                // Bottom-Left Language Picker overlay
-                VStack(alignment: .leading, spacing: 5) {
-                    Picker("", selection: $selectedCode) {
-                        if isLoading {
-                            Text("Loading...").tag("")
-                        } else {
-                            ForEach(languages) { lang in
-                                Text("\(lang.native) (\(lang.name))").tag(lang.code)
-                            }
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 160, alignment: .leading)
-                    .onChange(of: selectedCode) { _ in
-                        Task { await greet(code: selectedCode) }
+
+                HStack(alignment: .center, spacing: contentSpacing) {
+                    Color.clear
+                        .frame(width: inputColumnWidth, height: 1)
+
+                    HStack {
+                        Spacer(minLength: 0)
+                        languagePicker
+                        Spacer(minLength: 0)
                     }
                 }
-                .padding(32)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .padding(32)
         }
         .frame(minWidth: 800, minHeight: 500, alignment: .topLeading)
         .background(Color(red: 0.1, green: 0.1, blue: 0.1).ignoresSafeArea())
@@ -103,15 +80,25 @@ struct ContentView: View {
     private func loadLanguages() async {
         isLoading = true
         error = nil
-        daemon.start()
+        greeting = ""
+        languages = []
+        selectedCode = ""
+        await daemon.start()
+        guard daemon.isRunning else {
+            let detail = daemon.connectionError ?? "Daemon did not become ready"
+            self.error = "Failed to load languages: \(detail)"
+            self.isLoading = false
+            return
+        }
+        let retryDelays: [UInt64] = daemon.transport == "stdio"
+            ? [0, 80_000_000, 180_000_000]
+            : [120_000_000, 300_000_000, 600_000_000]
 
-        for attempt in 0..<3 {
+        for (attempt, delay) in retryDelays.enumerated() {
             do {
 #if os(macOS)
-                if attempt > 0 {
-                    try await Task.sleep(nanoseconds: 500_000_000)
-                } else {
-                    try await Task.sleep(nanoseconds: 300_000_000)
+                if delay > 0 {
+                    try await Task.sleep(nanoseconds: delay)
                 }
 #endif
                 languages = try await daemon.listLanguages()
@@ -158,6 +145,18 @@ struct ContentView: View {
                 }
                 .labelsHidden()
                 .frame(width: 250)
+                .onChange(of: daemon.selectedDaemon?.id) {
+                    Task { await loadLanguages() }
+                }
+
+                if let slug = daemon.selectedDaemon?.slug {
+                    Text(slug)
+                        .font(.system(size: 11, weight: .regular, design: .monospaced))
+                        .foregroundStyle(Color.white.opacity(0.7))
+                        .textSelection(.enabled)
+                        .lineLimit(2)
+                        .frame(width: daemonSlugWidth, alignment: .leading)
+                }
             }
             
             Spacer()
@@ -178,7 +177,7 @@ struct ContentView: View {
                     }
                     .labelsHidden()
                     .frame(width: 140)
-                    .onChange(of: daemon.transport) { _ in
+                    .onChange(of: daemon.transport) {
                         Task { await loadLanguages() }
                     }
                 }
@@ -202,6 +201,46 @@ struct ContentView: View {
             Rectangle().frame(height: 1).foregroundColor(Color.white.opacity(0.06)),
             alignment: .bottom
         )
+    }
+
+    private var inputColumn: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            if #available(macOS 13.0, *) {
+                TextField("", text: $userName, axis: .vertical)
+                    .lineLimit(4, reservesSpace: true)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($isNameFieldFocused)
+                    .onChange(of: userName) {
+                        Task { await greet(code: selectedCode) }
+                    }
+                    .frame(width: inputColumnWidth)
+            } else {
+                TextEditor(text: $userName)
+                    .focused($isNameFieldFocused)
+                    .onChange(of: userName) {
+                        Task { await greet(code: selectedCode) }
+                    }
+                    .frame(width: inputColumnWidth, height: 100)
+                    .cornerRadius(6)
+            }
+        }
+    }
+
+    private var languagePicker: some View {
+        Picker("", selection: $selectedCode) {
+            if isLoading {
+                Text("Loading...").tag("")
+            } else {
+                ForEach(languages) { lang in
+                    Text("\(lang.native) (\(lang.name))").tag(lang.code)
+                }
+            }
+        }
+        .labelsHidden()
+        .frame(width: languagePickerWidth)
+        .onChange(of: selectedCode) {
+            Task { await greet(code: selectedCode) }
+        }
     }
 
 
@@ -245,6 +284,16 @@ struct ContentView: View {
                             .font(.system(size: 13, weight: .regular, design: .monospaced))
                             .foregroundColor(Color.white.opacity(0.85))
                             .textSelection(.enabled)
+                    }
+                    .padding(24)
+                } else if isLoading {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(.white.opacity(0.85))
+                        Text("Connecting...")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(Color.white.opacity(0.8))
                     }
                     .padding(24)
                 } else {

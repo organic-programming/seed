@@ -32,6 +32,7 @@ struct GreetingSwiftUIApp: App {
 }
 
 #if os(macOS)
+@MainActor
 private func revealAppWindow() {
     NSApplication.shared.activate(ignoringOtherApps: true)
 
