@@ -340,6 +340,13 @@ struct GreetingDaemonIdentity: Identifiable, Hashable {
             buildRunner: "python",
             sortRank: 10
         ),
+        GreetingDaemonDescriptor(
+            variant: "ruby",
+            familySuffix: "Ruby",
+            displayName: "Daemon in Ruby",
+            buildRunner: "recipe",
+            sortRank: 11
+        ),
     ]
 
     fileprivate static func fromDescriptor(_ descriptor: GreetingDaemonDescriptor, binaryPath: String) -> GreetingDaemonIdentity {

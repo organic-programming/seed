@@ -52,6 +52,9 @@ build:
     - id: daemon_python
       path: ../../daemons/gudule-daemon-greeting-python
       type: holon
+    - id: daemon_ruby
+      path: ../../daemons/gudule-daemon-greeting-ruby
+      type: holon
     - id: daemon_rust
       path: ../../daemons/gudule-daemon-greeting-rust
       type: holon
@@ -73,6 +76,7 @@ build:
       - build_member: daemon_kotlin
       - build_member: daemon_node
       - build_member: daemon_python
+      - build_member: daemon_ruby
       - build_member: daemon_rust
       - build_member: daemon_swift
       - build_member: app
@@ -131,6 +135,6 @@ build:
       - assert_file:
           path: build/GreetingSwiftUI.app/Contents/_CodeSignature/CodeResources
 requires:
-  commands: [swift, xcodebuild, go, rustc, cargo, java, javac, python3, node, dotnet, dart, cmake, gcc, g++]
+  commands: [swift, xcodebuild, go, rustc, cargo, java, javac, python3, node, dotnet, dart, ruby, bundle, arch, cmake, gcc, g++]
 artifacts:
   primary: build/GreetingSwiftUI.app
