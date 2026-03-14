@@ -34,10 +34,62 @@ build:
         - exec:
             cwd: .
             argv: ["xcodebuild", "-scheme", "GreetingSwiftUI", "-configuration", "Debug", "-destination", "generic/platform=macOS", "-derivedDataPath", ".build/xcode/macos", "-clonedSourcePackagesDirPath", ".build/xcode/source-packages", "build"]
+        - exec:
+            cwd: .
+            argv:
+              - bash
+              - -lc
+              - |
+                  set -euo pipefail
+                  products_dir=".build/xcode/macos/Build/Products/Debug"
+                  app_dir="build/GreetingSwiftUI.app"
+                  rm -rf "$app_dir"
+                  mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources" "$app_dir/Contents/lib"
+                  cp "$products_dir/GreetingSwiftUI" "$app_dir/Contents/MacOS/GreetingSwiftUI"
+
+                  shopt -s nullglob
+                  for bundle in "$products_dir"/*.bundle; do
+                    cp -R "$bundle" "$app_dir/Contents/Resources/"
+                  done
+                  if [ -d "$products_dir/PackageFrameworks" ]; then
+                    cp -R "$products_dir/PackageFrameworks/." "$app_dir/Contents/lib/"
+                  fi
+                  cat > "$app_dir/Contents/Info.plist" <<'EOF'
+                  <?xml version="1.0" encoding="UTF-8"?>
+                  <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+                  <plist version="1.0">
+                  <dict>
+                    <key>CFBundleDevelopmentRegion</key>
+                    <string>en</string>
+                    <key>CFBundleDisplayName</key>
+                    <string>GreetingSwiftUI</string>
+                    <key>CFBundleExecutable</key>
+                    <string>GreetingSwiftUI</string>
+                    <key>CFBundleIdentifier</key>
+                    <string>org.organicprogramming.gudule-hostui-universal-swiftui</string>
+                    <key>CFBundleInfoDictionaryVersion</key>
+                    <string>6.0</string>
+                    <key>CFBundleName</key>
+                    <string>GreetingSwiftUI</string>
+                    <key>CFBundlePackageType</key>
+                    <string>APPL</string>
+                    <key>CFBundleShortVersionString</key>
+                    <string>1.0</string>
+                    <key>CFBundleVersion</key>
+                    <string>1</string>
+                    <key>LSMinimumSystemVersion</key>
+                    <string>15.0</string>
+                    <key>NSHighResolutionCapable</key>
+                    <true/>
+                  </dict>
+                  </plist>
+                  EOF
         - assert_file:
-            path: .build/xcode/macos/Build/Products/Debug/GreetingSwiftUI
+            path: build/GreetingSwiftUI.app
+        - assert_file:
+            path: build/GreetingSwiftUI.app/Contents/_CodeSignature/CodeResources
 requires:
   commands: [xcodebuild]
   files: [Package.swift]
 artifacts:
-  primary: .build/xcode/macos/Build/Products/Debug/GreetingSwiftUI
+  primary: build/GreetingSwiftUI.app

@@ -37,16 +37,16 @@ For a faster iteration loop, rebuild only this HostUI without rebuilding the dae
 op build gudule-greeting-hostui-universal-swiftui
 ```
 
-The built binary is written to:
+This now produces a runnable macOS app bundle at:
 
 ```sh
-recipes/hostui/gudule-greeting-hostui-universal-swiftui/.build/xcode/macos/Build/Products/Debug/GreetingSwiftUI
+recipes/hostui/gudule-greeting-hostui-universal-swiftui/build/GreetingSwiftUI.app
 ```
 
-You can run it directly:
+`xcodebuild` still writes the raw executable and package resources into:
 
 ```sh
-recipes/hostui/gudule-greeting-hostui-universal-swiftui/.build/xcode/macos/Build/Products/Debug/GreetingSwiftUI
+recipes/hostui/gudule-greeting-hostui-universal-swiftui/.build/xcode/macos/Build/Products/Debug/
 ```
 
 ## Fast local Swift-only loop
@@ -72,7 +72,13 @@ If you built the HostUI with `swift build`, run:
 If you built the HostUI with `op build gudule-greeting-hostui-universal-swiftui`, run:
 
 ```sh
-./.build/xcode/macos/Build/Products/Debug/GreetingSwiftUI
+open ./build/GreetingSwiftUI.app
+```
+
+Or let `op` launch the packaged app directly:
+
+```sh
+op run --no-build gudule-greeting-hostui-universal-swiftui
 ```
 
 If you built the full universal app with `op build gudule-greeting-universal-swiftui`, open the packaged app:
@@ -84,5 +90,5 @@ open ../../assemblies/gudule-greeting-universal-swiftui/build/GreetingSwiftUI.ap
 ## Notes
 
 - The universal assembly build (`gudule-greeting-universal-swiftui`) rebuilds all daemon members.
-- The HostUI build (`gudule-greeting-hostui-universal-swiftui`) rebuilds only the SwiftUI app.
+- The HostUI build (`gudule-greeting-hostui-universal-swiftui`) rebuilds only the SwiftUI app and repackages it as a `.app` bundle so `op run` opens it as a normal macOS app.
 - The current development flow expects the repository checkout to be present so the app can discover sibling daemon builds during local development.
