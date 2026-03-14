@@ -2,13 +2,13 @@ package org.organicprogramming.greeting;
 
 import greeting.v1.Greeting.*;
 import greeting.v1.GreetingServiceGrpc;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import org.organicprogramming.holons.Serve;
-import org.organicprogramming.holons.Transport;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -107,30 +107,18 @@ public class Daemon {
             return;
         }
 
-        String listenUri = Serve.parseFlags(args);
-        Transport.ParsedURI uri = Transport.parseURI(listenUri);
-
-        if (!"tcp".equals(uri.scheme()) && !"unix".equals(uri.scheme())) {
-            System.err.println("Unsupported scheme for Java gRPC yet: " + uri.scheme());
-            System.exit(1);
+        if (args.length == 0 || !"serve".equals(args[0])) {
+            usage();
         }
 
-        // We run on typical standard ServerBuilder since java-holons lifecycle wrapper
-        // isn't complete yet
-        // However we respect the port parsed by java-holons
-        int port = uri.port() > 0 ? uri.port() : 9090;
-
-        Server server = ServerBuilder.forPort(port)
-                .addService(new GreetingServiceImpl())
-                // .addService(ProtoReflectionService.newInstance()) // omitted to reduce
-                // dependency bloat
-                .build()
-                .start();
-
-        System.err.println("gRPC server listening on tcp://:" + server.getPort());
-
-        // Let it run
-        server.awaitTermination();
+        Path recipeRoot = findRecipeRoot();
+        String listenUri = Serve.parseFlags(java.util.Arrays.copyOfRange(args, 1, args.length));
+        Serve.runWithOptions(
+                listenUri,
+                java.util.List.of(new GreetingServiceImpl()),
+                new Serve.Options()
+                        .withHolonYamlPath(recipeRoot.resolve("holon.yaml"))
+                        .withProtoDir(recipeRoot.resolve("protos")));
     }
 
     static class GreetingServiceImpl extends GreetingServiceGrpc.GreetingServiceImplBase {
@@ -169,5 +157,43 @@ public class Daemon {
             responseObserver.onNext(response);
             responseObserver.onCompleted();
         }
+    }
+
+    private static void usage() {
+        System.err.println("usage: gudule-daemon-greeting-java <serve|version> [flags]");
+        System.exit(1);
+    }
+
+    private static Path findRecipeRoot() {
+        String configured = System.getProperty("gudule.recipe.root", "").trim();
+        if (!configured.isEmpty()) {
+            return Path.of(configured).toAbsolutePath().normalize();
+        }
+
+        Path[] starts = new Path[] {
+                Path.of("").toAbsolutePath().normalize(),
+                classpathRoot()
+        };
+
+        for (Path start : starts) {
+            Path current = Files.isDirectory(start) ? start : start.getParent();
+            while (current != null) {
+                if (Files.exists(current.resolve("holon.yaml")) && Files.exists(current.resolve("build.gradle"))) {
+                    return current;
+                }
+                current = current.getParent();
+            }
+        }
+
+        throw new IllegalStateException("could not locate gudule-daemon-greeting-java recipe root");
+    }
+
+    private static Path classpathRoot() {
+        String classPath = System.getProperty("java.class.path", "");
+        String firstEntry = classPath.split(File.pathSeparator)[0];
+        if (firstEntry == null || firstEntry.isBlank()) {
+            return Path.of("").toAbsolutePath().normalize();
+        }
+        return Path.of(firstEntry).toAbsolutePath().normalize();
     }
 }

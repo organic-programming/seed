@@ -316,7 +316,7 @@ struct GreetingDaemonIdentity: Identifiable, Hashable {
             variant: "java",
             familySuffix: "Java",
             displayName: "Daemon in Java",
-            buildRunner: "recipe",
+            buildRunner: "gradle",
             sortRank: 7
         ),
         GreetingDaemonDescriptor(

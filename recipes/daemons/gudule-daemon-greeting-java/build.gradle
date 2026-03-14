@@ -15,6 +15,9 @@ repositories {
     mavenCentral()
 }
 
+def daemonBinaryName = 'gudule-daemon-greeting-java'
+def mainClassName = 'org.organicprogramming.greeting.Daemon'
+
 dependencies {
     implementation project(':java-holons')
     implementation 'io.grpc:grpc-netty-shaded:1.60.0'
@@ -44,23 +47,46 @@ protobuf {
 sourceSets {
     main {
         proto {
-            srcDir '../../protos'
+            srcDir 'protos'
         }
     }
 }
 
 application {
-    mainClass = 'org.organicprogramming.greeting.Daemon'
+    mainClass = mainClassName
 }
 
 jar {
-    archiveBaseName = 'gudule-daemon-greeting-java'
+    dependsOn ':java-holons:assemble'
+    archiveBaseName = daemonBinaryName
     archiveVersion = ''
     manifest {
-        attributes 'Main-Class': 'org.organicprogramming.greeting.Daemon'
+        attributes 'Main-Class': mainClassName
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from {
         configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
+}
+
+def rewriteInstallLauncher = tasks.register('rewriteInstallLauncher') {
+    dependsOn tasks.installDist
+
+    doLast {
+        def launcher = layout.buildDirectory.file("install/${daemonBinaryName}/bin/${daemonBinaryName}").get().asFile
+        def recipeRoot = layout.projectDirectory.asFile.absolutePath
+        def installRoot = launcher.parentFile.parentFile.absolutePath
+
+        launcher.text = """#!/bin/sh
+set -eu
+APP_HOME=\${APP_HOME:-${installRoot}}
+CLASSPATH="\${APP_HOME}/lib/*"
+exec java -Dgudule.recipe.root="${recipeRoot}" -cp "\${CLASSPATH}" ${mainClassName} "\$@"
+"""
+        launcher.setExecutable(true)
+    }
+}
+
+tasks.installDist {
+    finalizedBy rewriteInstallLauncher
 }
