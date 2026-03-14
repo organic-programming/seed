@@ -199,15 +199,45 @@ int main(int argc, char** argv) {
     char uri[HOLONS_MAX_URI_LEN];
     holons_parse_flags(argc, argv, uri, sizeof(uri));
 
+    holons_listener_t listener;
     char err[256];
-    printf("gRPC (Connect JSON) server listening on %s\n", uri);
-    
-    // We only answer 1 connection if stdio, else loop forever.
-    int res = holons_serve(uri, handle_connection, NULL, 0, 1, err, sizeof(err));
-    if (res != 0) {
-        fprintf(stderr, "serve error: %s\n", err);
+
+    if (holons_listen(uri, &listener, err, sizeof(err)) != 0) {
+        fprintf(stderr, "listen error: %s\n", err);
         return 1;
     }
-    
+
+    printf("gRPC (Connect JSON) server listening on %s\n", listener.bound_uri[0] ? listener.bound_uri : uri);
+    fflush(stdout);
+
+    for (;;) {
+        holons_conn_t conn;
+        int handler_result;
+
+        if (holons_accept(&listener, &conn, err, sizeof(err)) != 0) {
+            fprintf(stderr, "accept error: %s\n", err);
+            holons_close_listener(&listener);
+            return 1;
+        }
+
+        handler_result = handle_connection(&conn, NULL);
+        holons_conn_close(&conn);
+
+        if (handler_result != 0) {
+            fprintf(stderr, "handler error: %d\n", handler_result);
+            holons_close_listener(&listener);
+            return 1;
+        }
+
+        if (listener.uri.scheme == HOLONS_SCHEME_STDIO || listener.uri.scheme == HOLONS_SCHEME_MEM) {
+            break;
+        }
+    }
+
+    if (holons_close_listener(&listener) != 0) {
+        fprintf(stderr, "close listener error\n");
+        return 1;
+    }
+
     return 0;
 }
