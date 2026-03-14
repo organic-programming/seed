@@ -542,6 +542,7 @@ private extension DaemonProcess {
             try FileManager.default.createDirectory(at: holonDir, withIntermediateDirectories: true)
             try manifest(for: daemon)
                 .write(to: holonDir.appendingPathComponent("holon.yaml"), atomically: true, encoding: .utf8)
+            try stageGreetingProto(into: holonDir)
             return root
         } catch {
             try? FileManager.default.removeItem(at: root)
@@ -572,6 +573,59 @@ private extension DaemonProcess {
     func yamlEscape(_ value: String) -> String {
         value.replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+
+    func stageGreetingProto(into holonDir: URL) throws {
+        guard let source = sharedGreetingProtoURL() else {
+            logHostUI("[HostUI] no shared greeting.proto found for staged holon metadata")
+            return
+        }
+
+        let protoDir = holonDir
+            .appendingPathComponent("protos", isDirectory: true)
+            .appendingPathComponent("greeting", isDirectory: true)
+            .appendingPathComponent("v1", isDirectory: true)
+        let destination = protoDir.appendingPathComponent("greeting.proto")
+
+        try FileManager.default.createDirectory(at: protoDir, withIntermediateDirectories: true)
+        let data = try Data(contentsOf: source)
+        try data.write(to: destination, options: .atomic)
+    }
+
+    func sharedGreetingProtoURL() -> URL? {
+        var candidates: [URL] = []
+
+        let currentDirectory = URL(
+            fileURLWithPath: FileManager.default.currentDirectoryPath,
+            isDirectory: true
+        )
+        candidates.append(contentsOf: greetingProtoCandidates(from: currentDirectory))
+
+        if let executableURL = Bundle.main.executableURL {
+            let executableDir = executableURL.deletingLastPathComponent()
+            for base in ancestorDirectories(of: executableDir, maxDepth: 8) {
+                candidates.append(contentsOf: greetingProtoCandidates(from: base))
+            }
+        }
+
+        var seen = Set<String>()
+        for candidate in candidates {
+            let normalized = candidate.standardizedFileURL
+            guard seen.insert(normalized.path).inserted else { continue }
+            if FileManager.default.fileExists(atPath: normalized.path) {
+                return normalized
+            }
+        }
+
+        return nil
+    }
+
+    func greetingProtoCandidates(from base: URL) -> [URL] {
+        [
+            base.appendingPathComponent("recipes/protos/greeting/v1/greeting.proto", isDirectory: false),
+            base.appendingPathComponent("Protos/greeting.proto", isDirectory: false),
+            base.appendingPathComponent("greeting.proto", isDirectory: false),
+        ]
     }
 
     func cleanupStageRoot() {

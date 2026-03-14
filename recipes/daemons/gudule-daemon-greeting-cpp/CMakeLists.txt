@@ -14,9 +14,15 @@ add_executable(gudule-daemon-greeting-cpp
   src/main.cpp
 )
 
+set(HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/cpp-holons")
+set(HOLONS_SDK_GEN_DIR "${HOLONS_SDK_ROOT}/gen/cpp")
+set(HOLONMETA_PROTO_SRC "${HOLONS_SDK_GEN_DIR}/holonmeta/v1/holonmeta.pb.cc")
+set(HOLONMETA_GRPC_SRC "${HOLONS_SDK_GEN_DIR}/holonmeta/v1/holonmeta.grpc.pb.cc")
+
 # Target include directories for the SDK
 target_include_directories(gudule-daemon-greeting-cpp PRIVATE
-  ../../../sdk/cpp-holons/include
+  "${HOLONS_SDK_ROOT}/include"
+  "${HOLONS_SDK_GEN_DIR}"
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
@@ -48,6 +54,8 @@ add_custom_command(
 target_sources(gudule-daemon-greeting-cpp PRIVATE
   "${PROTO_SRC}"
   "${GRPC_SRC}"
+  "${HOLONMETA_PROTO_SRC}"
+  "${HOLONMETA_GRPC_SRC}"
 )
 
 target_link_libraries(gudule-daemon-greeting-cpp PRIVATE
