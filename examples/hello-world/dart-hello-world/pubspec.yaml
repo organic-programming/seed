@@ -1,0 +1,13 @@
+name: dart_hello_world
+description: Hello world holon in Dart.
+version: 0.1.0
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  grpc: ^5.1.0
+  holons:
+    path: ../../../sdk/dart-holons
+
+dev_dependencies:
+  test: ^1.25.0
