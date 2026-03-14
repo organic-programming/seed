@@ -128,7 +128,7 @@ is wasted effort and architecturally wrong.
 
 Frontend SDKs _can_ add the server side later if a use case
 emerges (e.g. a SwiftUI app serving as a local mesh holon on
-macOS). But it is not a v0.6 requirement.
+macOS). But it is not a v0.5 requirement.
 ## Implementation Strategy
 
 ### Phase 1: Go Reference (TASK01)

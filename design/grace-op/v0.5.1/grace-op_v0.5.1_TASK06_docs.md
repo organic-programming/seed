@@ -14,7 +14,7 @@ This is the only task that touches documentation. No SDK source changes.
 
 ### `sdk/README.md` — Transport Surface section (lines 51–73)
 
-Replace the current table (all ✅) with the accurate post-v0.6.1 state:
+Replace the current table (all ✅) with the accurate post-v0.5.1 state:
 
 | SDK | tcp | unix | stdio | mem | ws server | ws client | SSE+REST |
 |-----|:---:|:----:|:-----:|:---:|:---------:|:---------:|:--------:|
@@ -82,7 +82,7 @@ Files to update:
 
 ## Acceptance Criteria
 
-- [ ] `sdk/README.md` transport table matches the post-v0.6.1 source-verified state
+- [ ] `sdk/README.md` transport table matches the post-v0.5.1 source-verified state
 - [ ] `sdk/SDK_GUIDE.md` has a "Transport Matrix" section
 - [ ] Every per-SDK README has a "Supported transports" section
 - [ ] No SDK README claims a transport that the code does not deliver
@@ -90,4 +90,4 @@ Files to update:
 
 ## Dependencies
 
-TASK01 through TASK05 must be complete before this task is finalized, so the table reflects the actual post-v0.6.1 state — not the pre-task state.
+TASK01 through TASK05 must be complete before this task is finalized, so the table reflects the actual post-v0.5.1 state — not the pre-task state.

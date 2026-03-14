@@ -21,7 +21,7 @@ Kotlin Desktop/Android but does **not** serve REST+SSE endpoints.
 - Auto-reconnect on SSE disconnect
 - Transport selection via `rest+sse://` in discover response
 
-> The server side (Ktor serving) is **not** in scope for v0.6.
+> The server side (Ktor serving) is **not** in scope for v0.5.
 
 ## Acceptance Criteria
 

@@ -1,7 +1,7 @@
 # SDK Transport Parity
 
 > Source of truth: SDK source code (not README.md).
-> This document is the reference for v0.6.1 implementation and documentation.
+> This document is the reference for v0.5.1 implementation and documentation.
 > It was written on 2026-03-12 after reading every SDK transport/serve source file directly.
 
 ---
@@ -64,9 +64,9 @@ README.md conflates both. A ✅ for `ws` in most SDKs means the URI *parses* —
 
 ---
 
-## Target State — end of v0.6.1
+## Target State — end of v0.5.1
 
-`v0.6` delivers SSE+REST for Go. `v0.6.1` adds remaining transport gaps and rewrites all docs.
+`v0.5` delivers SSE+REST for Go. `v0.5.1` adds remaining transport gaps and rewrites all docs.
 
 | SDK | tcp | unix | stdio | mem | ws server | ws client | SSE+REST |
 |-----|:---:|:----:|:-----:|:---:|:---------:|:---------:|:--------:|
@@ -89,7 +89,7 @@ README.md conflates both. A ✅ for `ws` in most SDKs means the URI *parses* —
 
 ---
 
-## v0.6.1 Task Scope
+## v0.5.1 Task Scope
 
 | # | SDK(s) | Work |
 |---|--------|------|
@@ -97,7 +97,7 @@ README.md conflates both. A ✅ for `ws` in most SDKs means the URI *parses* —
 | TASK02 | `rust-holons` | Add `mem` to `serve_router!` using tokio channel pair (same pattern as Go `bufconn`) |
 | TASK03 | `cpp-holons` | Add `mem` via gRPC++ in-process channel if feasible; document stdio as POSIX-only |
 | TASK04 | `kotlin-holons` `java-holons` | Wire `Serve` to dispatch stdio/unix/mem using the already-correct `Transport.listen` |
-| TASK05 | `go-holons` | Add ws dial in `connect()` (transport parses ws:// already); validate v0.6 SSE+REST end-to-end |
+| TASK05 | `go-holons` | Add ws dial in `connect()` (transport parses ws:// already); validate v0.5 SSE+REST end-to-end |
 | TASK06 | All SDKs | Rewrite every SDK README, `sdk/README.md`, `sdk/SDK_GUIDE.md` with accurate transport matrices |
 
 **ws server and SSE+REST are Go-only targets.** All other SDKs cap at `🚫 library` for ws server and `❌` for SSE+REST — that is the correct documented state, not an open issue.

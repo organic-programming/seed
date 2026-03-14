@@ -1,4 +1,4 @@
-# TASK05 — Go: ws Dial in `connect()` + Validate v0.6 SSE+REST
+# TASK05 — Go: ws Dial in `connect()` + Validate v0.5 SSE+REST
 
 ## Summary
 
@@ -9,17 +9,17 @@ Two related completions for `go-holons`:
    `DialWS(uri string) (grpc.ClientConnInterface, error)` function so that
    `connect()` can reach ws-served daemons.
 
-2. **SSE+REST validation** — v0.6 delivers the REST+SSE gateway. This task
+2. **SSE+REST validation** — v0.5 delivers the REST+SSE gateway. This task
    validates it end-to-end from `js-web-holons` (browser SDK using `EventSource`)
    through a Go daemon, and ensures the `WebBridge` (`pkg/transport/wsweb.go`)
-   integrates cleanly with the SSE endpoint added in v0.6.
+   integrates cleanly with the SSE endpoint added in v0.5.
 
 ## Target
 
 | Feature | Before | After |
 |---------|:------:|:-----:|
 | ws dial in `connect()` | ❌ | ✅ |
-| SSE+REST validate (v0.6) | — | ✅ |
+| SSE+REST validate (v0.5) | — | ✅ |
 
 ## Implementation
 
@@ -54,7 +54,7 @@ Integrate into the resolve-and-dial step in `connect.go`.
 
 Write a round-trip integration test that:
 1. Starts the Go greeting daemon with `--listen tcp://:0`.
-2. Connects via the REST+SSE endpoint added by v0.6.
+2. Connects via the REST+SSE endpoint added by v0.5.
 3. Calls `GET /greeting/v1/GreetingService/ListLanguages` (REST transcription).
 4. Opens an `EventSource` on `/greeting/v1/GreetingService/SayHelloStream` (SSE).
 5. Verifies responses match the gRPC equivalents.
@@ -64,11 +64,11 @@ This can be a Go `_test.go` file that uses `net/http` + `bufio.Scanner` for SSE.
 ## Acceptance Criteria
 
 - [ ] `go test ./pkg/transport/...` includes `TestDialWS` — dial a local ws server (from `TestNewWSListener`) and call any gRPC method
-- [ ] `go test ./pkg/serve/...` or `recipes/testmatrix` includes `TestRestSSERoundTrip` — validates v0.6 SSE+REST endpoint
+- [ ] `go test ./pkg/serve/...` or `recipes/testmatrix` includes `TestRestSSERoundTrip` — validates v0.5 SSE+REST endpoint
 - [ ] `connect("gudule-daemon-greeting-go")` resolves `ws://` URI and returns a ready channel
 - [ ] `wsweb.WebBridge` registers next to SSE handler on same `http.ServeMux` without conflict
 
 ## Dependencies
 
 `sdk/go-holons` only for the dial changes.  
-Requires v0.6 SSE+REST gateway to be delivered first for the validation step.
+Requires v0.5 SSE+REST gateway to be delivered first for the validation step.

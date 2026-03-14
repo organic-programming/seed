@@ -21,7 +21,7 @@ SwiftUI applications but does **not** serve REST+SSE endpoints.
 - Auto-reconnect on SSE disconnect
 - Transport selection via `rest+sse://` in discover response
 
-> The server side is **not** in scope for v0.6. A future
+> The server side is **not** in scope for v0.5. A future
 > version may add REST+SSE serving for macOS SwiftUI apps
 > acting as local mesh holons (via Vapor or SwiftNIO).
 
