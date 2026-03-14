@@ -16,7 +16,7 @@ typedef struct {
 const Greeting greetings[MAX_GREETINGS] = {
     {"en", "English", "English", "Hello, %s!"},
     {"fr", "French", "Français", "Bonjour, %s !"},
-    {"es", "Spanish", "Español", "¡Hola, %s!"},
+    {"es", "Spanish", "Español", "Hola, %s!"},
     {"de", "German", "Deutsch", "Hallo, %s!"},
     {"it", "Italian", "Italiano", "Ciao, %s!"},
     {"pt", "Portuguese", "Português", "Olá, %s!"},

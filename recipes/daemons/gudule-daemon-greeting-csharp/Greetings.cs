@@ -8,7 +8,7 @@ public static class Greetings
     {
         new("en", "English", "English", "Hello, %s!"),
         new("fr", "French", "Français", "Bonjour, %s !"),
-        new("es", "Spanish", "Español", "¡Hola, %s!"),
+        new("es", "Spanish", "Español", "Hola, %s!"),
         new("de", "German", "Deutsch", "Hallo, %s!"),
         new("it", "Italian", "Italiano", "Ciao, %s!"),
         new("pt", "Portuguese", "Português", "Olá, %s!"),

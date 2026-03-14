@@ -15,7 +15,7 @@ class GreetingEntry {
 const List<GreetingEntry> greetings = <GreetingEntry>[
   GreetingEntry(code: 'en', name: 'English', native: 'English', template: 'Hello, %s!'),
   GreetingEntry(code: 'fr', name: 'French', native: 'Français', template: 'Bonjour, %s !'),
-  GreetingEntry(code: 'es', name: 'Spanish', native: 'Español', template: '¡Hola, %s!'),
+  GreetingEntry(code: 'es', name: 'Spanish', native: 'Español', template: 'Hola, %s!'),
   GreetingEntry(code: 'de', name: 'German', native: 'Deutsch', template: 'Hallo, %s!'),
   GreetingEntry(code: 'it', name: 'Italian', native: 'Italiano', template: 'Ciao, %s!'),
   GreetingEntry(code: 'pt', name: 'Portuguese', native: 'Português', template: 'Olá, %s!'),

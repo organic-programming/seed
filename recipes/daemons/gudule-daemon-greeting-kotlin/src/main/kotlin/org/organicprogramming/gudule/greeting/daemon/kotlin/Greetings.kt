@@ -10,7 +10,7 @@ data class GreetingEntry(
 val greetings: List<GreetingEntry> = listOf(
     GreetingEntry(code = "en", name = "English", nativeLabel = "English", template = "Hello, %s!"),
     GreetingEntry(code = "fr", name = "French", nativeLabel = "Français", template = "Bonjour, %s !"),
-    GreetingEntry(code = "es", name = "Spanish", nativeLabel = "Español", template = "¡Hola, %s!"),
+    GreetingEntry(code = "es", name = "Spanish", nativeLabel = "Español", template = "Hola, %s!"),
     GreetingEntry(code = "de", name = "German", nativeLabel = "Deutsch", template = "Hallo, %s!"),
     GreetingEntry(code = "it", name = "Italian", nativeLabel = "Italiano", template = "Ciao, %s!"),
     GreetingEntry(code = "pt", name = "Portuguese", nativeLabel = "Português", template = "Olá, %s!"),

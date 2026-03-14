@@ -33,9 +33,6 @@ func (s *Server) ListLanguages(_ context.Context, _ *pb.ListLanguagesRequest) (*
 // SayHello greets the user in the requested language.
 func (s *Server) SayHello(_ context.Context, req *pb.SayHelloRequest) (*pb.SayHelloResponse, error) {
 	name := req.Name
-	if name == "" {
-		name = "World"
-	}
 	g := internal.Lookup(req.LangCode)
 	return &pb.SayHelloResponse{
 		Greeting: fmt.Sprintf(g.Template, name),

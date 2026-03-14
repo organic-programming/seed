@@ -8,7 +8,7 @@ pub struct Greeting {
 pub const GREETINGS: &[Greeting] = &[
     Greeting { code: "en", name: "English", native: "English", template: "Hello, %s!" },
     Greeting { code: "fr", name: "French", native: "Français", template: "Bonjour, %s !" },
-    Greeting { code: "es", name: "Spanish", native: "Español", template: "¡Hola, %s!" },
+    Greeting { code: "es", name: "Spanish", native: "Español", template: "Hola, %s!" },
     Greeting { code: "de", name: "German", native: "Deutsch", template: "Hallo, %s!" },
     Greeting { code: "it", name: "Italian", native: "Italiano", template: "Ciao, %s!" },
     Greeting { code: "pt", name: "Portuguese", native: "Português", template: "Olá, %s!" },

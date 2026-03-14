@@ -15,7 +15,7 @@ const INCLUDE_DIRS = [path.resolve(ROOT, '../../protos')];
 const GREETINGS = Object.freeze([
   { code: "en", name: "English", native: "English", template: "Hello, %s!" },
   { code: "fr", name: "French", native: "Français", template: "Bonjour, %s !" },
-  { code: "es", name: "Spanish", native: "Español", template: "¡Hola, %s!" },
+  { code: "es", name: "Spanish", native: "Español", template: "Hola, %s!" },
   { code: "de", name: "German", native: "Deutsch", template: "Hallo, %s!" },
   { code: "it", name: "Italian", native: "Italiano", template: "Ciao, %s!" },
   { code: "pt", name: "Portuguese", native: "Português", template: "Olá, %s!" },
