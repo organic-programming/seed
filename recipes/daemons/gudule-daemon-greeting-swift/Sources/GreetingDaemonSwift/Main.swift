@@ -1,6 +1,7 @@
 import Dispatch
 import Foundation
 import GRPC
+import GreetingDaemonSwiftSupport
 import Holons
 #if os(Linux)
 import Glibc
@@ -28,14 +29,14 @@ enum GreetingDaemonMain {
 
     private static func runServe(_ args: [String]) throws {
         let listenURI = Serve.parseFlags(args)
-        let recipeRoot = locateRecipeRoot()
+        let recipeRoot = GreetingDaemonSwiftSupport.locateRecipeRoot()
         let options = Serve.Options(
             protoDir: recipeRoot?.appendingPathComponent("protos").path,
             holonYAMLPath: recipeRoot?.appendingPathComponent("holon.yaml").path
         )
         let running = try Serve.startWithOptions(
             listenURI,
-            serviceProviders: [GreetingServiceProvider()],
+            serviceProviders: GreetingDaemonSwiftSupport.makeServiceProviders(),
             options: options
         )
 

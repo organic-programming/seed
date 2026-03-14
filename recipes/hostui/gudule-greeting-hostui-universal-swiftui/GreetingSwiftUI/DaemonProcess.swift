@@ -1,5 +1,6 @@
 import Foundation
 #if os(macOS)
+import GreetingDaemonSwiftSupport
 import Holons
 #endif
 
@@ -14,6 +15,7 @@ final class DaemonProcess: ObservableObject {
     private var startTaskID: UUID?
 #if os(macOS)
     private var stageRoot: URL?
+    private var embeddedSwiftMemDaemon: EmbeddedSwiftMemDaemon?
     
     @Published var availableDaemons: [GreetingDaemonIdentity] = []
     @Published var selectedDaemon: GreetingDaemonIdentity? = nil {
@@ -45,21 +47,6 @@ final class DaemonProcess: ObservableObject {
         }
         connectionError = nil
 
-        if transport == "mem" {
-            let family = assemblyFamily.lowercased()
-            let parts = family.split(separator: "-")
-            if parts.count >= 3 {
-                let ui = parts[1]
-                let daemon = String(parts[2].prefix(while: { $0.isLetter }))
-                let uiLang = ui.hasPrefix("swift") ? "swift" : String(ui)
-                if uiLang != daemon {
-                    connectionError = "memory connection mode requires the same language for UI and the daemon"
-                    isRunning = false
-                    return
-                }
-            }
-        }
-
 #if os(macOS)
         do {
             if availableDaemons.isEmpty {
@@ -76,6 +63,7 @@ final class DaemonProcess: ObservableObject {
             let root = try stageHolonRoot(daemon: daemon)
             stageRoot = root
             logHostUI("[HostUI] assembly=\(assemblyFamily) daemon=\(daemon.binaryName) transport=\(transport)")
+            try prepareEmbeddedDaemonIfNeeded(for: daemon, stageRoot: root)
 
             var options = ConnectOptions()
             options.transport = transport
@@ -108,6 +96,7 @@ final class DaemonProcess: ObservableObject {
                 guard startTaskID == taskID else {
                     return
                 }
+                stopEmbeddedDaemon()
                 cleanupStageRoot()
                 connectionError = "Failed to start bundled daemon: \(String(describing: error))"
                 isRunning = false
@@ -117,6 +106,7 @@ final class DaemonProcess: ObservableObject {
                 startTaskID = nil
             }
         } catch {
+            stopEmbeddedDaemon()
             cleanupStageRoot()
             connectionError = "Failed to start bundled daemon: \(String(describing: error))"
             isRunning = false
@@ -142,6 +132,7 @@ final class DaemonProcess: ObservableObject {
         }
 
 #if os(macOS)
+        stopEmbeddedDaemon()
         cleanupStageRoot()
 #endif
         isRunning = false
@@ -633,12 +624,39 @@ private extension DaemonProcess {
         stageRoot = nil
         try? FileManager.default.removeItem(at: root)
     }
+
+    func prepareEmbeddedDaemonIfNeeded(for daemon: GreetingDaemonIdentity, stageRoot: URL) throws {
+        guard transport == "mem" else {
+            stopEmbeddedDaemon()
+            return
+        }
+
+        guard daemon.variant == "swift" else {
+            throw DaemonStartError.unsupportedMemoryDaemon(
+                "memory connection mode currently requires the Swift daemon in the SwiftUI HostUI"
+            )
+        }
+
+        let embeddedDaemon = embeddedSwiftMemDaemon ?? EmbeddedSwiftMemDaemon()
+        try embeddedDaemon.start(
+            slug: daemon.slug,
+            stageRoot: stageRoot,
+            logger: logHostUI(_:)
+        )
+        embeddedSwiftMemDaemon = embeddedDaemon
+    }
+
+    func stopEmbeddedDaemon() {
+        embeddedSwiftMemDaemon?.stop(logger: logHostUI(_:))
+        embeddedSwiftMemDaemon = nil
+    }
 }
 
 private enum DaemonStartError: LocalizedError {
     case binaryNotFound(String)
     case failedToStageRoot(String)
     case failedToEnterRoot(String)
+    case unsupportedMemoryDaemon(String)
 
     var errorDescription: String? {
         switch self {
@@ -648,6 +666,8 @@ private enum DaemonStartError: LocalizedError {
             return "Failed to stage holon root: \(message)"
         case let .failedToEnterRoot(path):
             return "Failed to enter staged holon root: \(path)"
+        case let .unsupportedMemoryDaemon(message):
+            return message
         }
     }
 }

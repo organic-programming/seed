@@ -8,6 +8,10 @@ let package = Package(
     ],
     products: [
         .library(
+            name: "GreetingDaemonSwiftSupport",
+            targets: ["GreetingDaemonSwiftSupport"]
+        ),
+        .library(
             name: "GreetingGenerated",
             targets: ["GreetingGenerated"]
         ),
@@ -33,6 +37,7 @@ let package = Package(
         .executableTarget(
             name: "GreetingDaemonSwift",
             dependencies: [
+                "GreetingDaemonSwiftSupport",
                 "GreetingGenerated",
                 .product(name: "Holons", package: "swift-holons"),
                 .product(name: "GRPC", package: "grpc-swift"),
@@ -41,10 +46,20 @@ let package = Package(
             ],
             path: "Sources/GreetingDaemonSwift"
         ),
+        .target(
+            name: "GreetingDaemonSwiftSupport",
+            dependencies: [
+                "GreetingGenerated",
+                .product(name: "Holons", package: "swift-holons"),
+                .product(name: "GRPC", package: "grpc-swift"),
+                .product(name: "NIOCore", package: "swift-nio"),
+            ],
+            path: "Sources/GreetingDaemonSwiftSupport"
+        ),
         .testTarget(
             name: "GreetingDaemonSwiftTests",
             dependencies: [
-                "GreetingDaemonSwift",
+                "GreetingDaemonSwiftSupport",
                 "GreetingGenerated",
                 .product(name: "GRPC", package: "grpc-swift"),
                 .product(name: "NIOCore", package: "swift-nio"),

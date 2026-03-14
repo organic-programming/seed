@@ -11,6 +11,7 @@ let package = Package(
         .visionOS(.v2),
     ],
     dependencies: [
+        .package(path: "../../daemons/gudule-daemon-greeting-swift"),
         .package(path: "../../../sdk/swift-holons"),
         .package(url: "https://github.com/grpc/grpc-swift.git", exact: "1.9.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.36.0"),
@@ -23,6 +24,11 @@ let package = Package(
                 .product(
                     name: "Holons",
                     package: "swift-holons",
+                    condition: .when(platforms: [.macOS])
+                ),
+                .product(
+                    name: "GreetingDaemonSwiftSupport",
+                    package: "gudule-daemon-greeting-swift",
                     condition: .when(platforms: [.macOS])
                 ),
                 .product(name: "GRPC", package: "grpc-swift"),

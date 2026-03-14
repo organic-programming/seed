@@ -1,3 +1,5 @@
+import Foundation
+import GRPC
 import GreetingGenerated
 
 struct GreetingService {
@@ -25,5 +27,19 @@ struct GreetingService {
         response.language = entry.name
         response.langCode = entry.code
         return response
+    }
+}
+
+public enum GreetingDaemonSwiftSupport {
+    public static func makeServiceProviders() -> [CallHandlerProvider] {
+        [GreetingServiceProvider()]
+    }
+
+    public static func locateRecipeRoot() -> URL? {
+        locateGreetingDaemonSwiftRecipeRoot()
+    }
+
+    public static func findRecipeRoot() throws -> URL {
+        try findGreetingDaemonSwiftRecipeRoot()
     }
 }
