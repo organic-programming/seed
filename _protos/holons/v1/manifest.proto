@@ -1,0 +1,156 @@
+syntax = "proto3";
+
+package holons.v1;
+
+import "google/protobuf/descriptor.proto";
+
+// HolonManifest is the complete protobuf representation of holon.yaml.
+// It allows any .proto file to carry its full holon identity, lineage,
+// contract, skills, and operational metadata as structured FileOptions.
+message HolonManifest {
+
+  // ── Identity ──────────────────────────────────────────
+
+  message Identity {
+    string schema = 1;       // e.g. "holon/v0"
+    string uuid = 2;
+    string given_name = 3;   // individual identity (prénom)
+    string family_name = 4;  // group/context (nom de famille)
+    string motto = 5;
+    string composer = 6;     // author or generator
+    string clade = 7;        // e.g. "deterministic/pure", "probabilistic/perceptual"
+    string status = 8;       // draft | born | live | deprecated
+    string born = 9;         // ISO date YYYY-MM-DD
+  }
+
+  // ── Lineage ───────────────────────────────────────────
+
+  message Lineage {
+    repeated string parents = 1;
+    string reproduction = 2;   // manual | assisted
+    string generated_by = 3;   // manual | codex | op
+  }
+
+  // ── Skill ─────────────────────────────────────────────
+  // MCP-compatible skill declarations for LLM integration.
+
+  message Skill {
+    string name = 1;
+    string description = 2;
+    string when = 3;             // trigger condition
+    repeated string steps = 4;   // ordered human-readable steps
+  }
+
+  // ── Contract ──────────────────────────────────────────
+  // Pointer to the gRPC service this holon exposes.
+
+  message Contract {
+    string proto = 1;           // e.g. "protos/op/v1/op.proto"
+    string service = 2;         // fully qualified service name
+    repeated string rpcs = 3;   // exposed RPC method names
+  }
+
+  // ── Build ─────────────────────────────────────────────
+
+  message Build {
+    string runner = 1;     // go-module | cargo | cmake | swift-package | dart | python | flutter | recipe | none
+    string main = 2;       // entry point (go-module: "./cmd/daemon")
+
+    // Recipe-mode fields (runner == "recipe")
+    Defaults defaults = 3;
+    repeated Member members = 4;
+    map<string, Target> targets = 5;
+
+    message Defaults {
+      string target = 1;   // e.g. "macos", "linux"
+      string mode = 2;     // e.g. "debug", "release"
+    }
+
+    message Member {
+      string id = 1;       // e.g. "daemon", "app"
+      string path = 2;     // relative path to the member
+      string type = 3;     // holon | component
+    }
+
+    message Target {
+      repeated Step steps = 1;
+    }
+  }
+
+  // ── Step ───────────────────────────────────────────────
+  // A single recipe build step. Exactly one field must be set.
+
+  message Step {
+    oneof action {
+      Exec exec = 1;
+      Copy copy = 2;
+      string build_member = 3;    // member id to build
+      AssertFile assert_file = 4;
+    }
+
+    message Exec {
+      string cwd = 1;
+      repeated string argv = 2;
+    }
+
+    message Copy {
+      string from = 1;
+      string to = 2;
+    }
+
+    message AssertFile {
+      string path = 1;
+    }
+  }
+
+  // ── Requires ──────────────────────────────────────────
+
+  message Requires {
+    repeated string commands = 1;    // CLI tools required in PATH
+    repeated string files = 2;      // source files that must exist
+    repeated string platforms = 3;   // supported targets (macos, linux, windows…)
+  }
+
+  // ── Delegates ─────────────────────────────────────────
+  // For wrapper holons: the external commands they wrap.
+
+  message Delegates {
+    repeated string commands = 1;
+  }
+
+  // ── Artifacts ─────────────────────────────────────────
+
+  message Artifacts {
+    string binary = 1;                          // for native daemons/wrappers
+    string primary = 2;                         // for composites (e.g. ".app" path)
+    map<string, TargetArtifacts> by_target = 3; // per-platform overrides
+
+    message TargetArtifacts {
+      string debug = 1;
+      string release = 2;
+      string profile = 3;
+    }
+  }
+
+  // ── Top-level fields ──────────────────────────────────
+
+  Identity identity = 1;
+  Lineage lineage = 2;
+  string description = 3;
+  string lang = 4;                // primary implementation language (go, dart, rust…)
+  repeated Skill skills = 5;
+  Contract contract = 6;
+  string kind = 7;                // native | wrapper | composite
+  repeated string platforms = 8;  // shortcut for top-level platform list
+  string transport = 9;           // default transport (stdio, tcp)
+  Build build = 10;
+  Requires requires = 11;
+  Delegates delegates = 12;
+  Artifacts artifacts = 13;
+}
+
+// Register the manifest as a file-level option.
+// Field number 50000 is in the safe range for private extensions.
+extend google.protobuf.FileOptions {
+  HolonManifest manifest = 50000;
+}

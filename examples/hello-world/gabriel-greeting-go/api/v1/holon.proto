@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package greeting.v1;
+
+import "holons/v1/manifest.proto";
+import "v1/greeting.proto";
+
+
+// Go-specific holon descriptor for gabriel-greeting-go.
+// Layers Go codegen options and holon manifest on top of the shared
+// greeting contract.
+
+// To compile manually 
+// cd examples/hello-world/gabriel-greeting-go/v1
+// protoc --proto_path=. --proto_path=../../../../_protos --proto_path=../../../_protos holon.proto --descriptor_set_out=/dev/null
+
+option go_package = "github.com/organic-programming/seed/recipes/daemons/gudule-daemon-greeting-go/gen/go/greeting/v1;greetingv1";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "3f08b5c3-8931-46d0-847a-a64d8b9ba57e"
+    given_name: "Gabriel"
+    family_name: "Greeting-Go"
+    motto: "Greets users in 56 languages — a Go daemon recipe example."
+    composer: "B. ALTER"
+    clade: "deterministic/pure"
+    status: "draft"
+    born: "2026-02-20"
+  }
+  lineage: {
+    reproduction: "manual"
+    generated_by: "manual"
+  }
+  description: "A Go gRPC daemon that greets users in 56 languages. Designed to be embedded in a Flutter HostUI but also usable standalone."
+  lang: "go"
+  kind: "native"
+  build: {
+    runner: "go-module"
+    main: "./cmd"
+  }
+  requires: {
+    commands: ["go"]
+    files: ["go.mod"]
+  }
+  artifacts: {
+    binary: "gabriel-greeting-go"
+  }
+};
+
+// ── Usage (Go) ──────────────────────────────────────────
+//
+// func main() {
+//     server := grpc.NewServer()
+//
+//     // Register the business implementation (written by the developer)
+//     greetingv1.RegisterGreetingServiceServer(server, &myGreetingImpl{})
+//
+//     // Auto-register HolonMeta (single SDK call)
+//     // The SDK parses local .proto files and extracts the manifest from FileOptions
+//     describe.Register(server, ".", "v1/holon.proto")
+//     //                         ↑ proto root  ↑ file carrying the manifest
+//
+//     server.Serve(listener)
+// }
+

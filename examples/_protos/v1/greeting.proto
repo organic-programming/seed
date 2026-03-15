@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package greeting.v1;
+
+// Language-neutral service contract for the Greeting daemon family.
+// This file carries NO language-specific options and NO manifest data.
+// Each daemon implementation imports it and layers its own metadata on top.
+
+service GreetingService {
+  // Returns all available greeting languages.
+  // @example {}
+  rpc ListLanguages(ListLanguagesRequest) returns (ListLanguagesResponse);
+
+  // Greets the user in the chosen language.
+  // @example {"name":"Alice","lang_code":"fr"}
+  rpc SayHello(SayHelloRequest) returns (SayHelloResponse);
+}
+
+message ListLanguagesRequest {}
+
+message ListLanguagesResponse {
+  // Languages exposed by the daemon.
+  repeated Language languages = 1;
+}
+
+message Language {
+  // ISO 639-1 code advertised by the daemon.
+  // @required
+  // @example "fr"
+  string code = 1;
+
+  // English display name for the language.
+  // @required
+  // @example "French"
+  string name = 2;
+
+  // Native label shown to end users.
+  // @required
+  // @example "Français"
+  string native = 3;
+}
+
+message SayHelloRequest {
+  // Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
+  // @example "Alice"
+  string name = 1;
+
+  // ISO 639-1 code chosen by the UI.
+  // @required
+  // @example "fr"
+  string lang_code = 2;
+}
+
+message SayHelloResponse {
+  // Localized greeting text returned by the daemon.
+  // @required
+  // @example "Bonjour, Alice !"
+  string greeting = 1;
+
+  // English language name used to resolve the greeting.
+  // @required
+  // @example "French"
+  string language = 2;
+
+  // ISO 639-1 code used by the daemon.
+  // @required
+  // @example "fr"
+  string lang_code = 3;
+}
