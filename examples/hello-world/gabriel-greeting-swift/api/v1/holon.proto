@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package greeting.v1;
+
+import "holons/v1/manifest.proto";
+import "v1/greeting.proto";
+
+
+// Swift-specific holon descriptor for gabriel-greeting-swift.
+// Layers Swift package metadata and holon manifest on top of the shared
+// greeting contract.
+
+// To compile manually
+// cd examples/hello-world/gabriel-greeting-swift/api/v1
+// protoc --proto_path=. --proto_path=../../../../../_protos --proto_path=../../../../_protos holon.proto --descriptor_set_out=/dev/null
+
+option swift_prefix = "GR_";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "9d14585c-a155-4e72-b6fe-3cae3535948b"
+    given_name: "Gabriel"
+    family_name: "Greeting-Swift"
+    motto: "Greets users in 56 languages — a Swift daemon example."
+    composer: "B. ALTER"
+    clade: "deterministic/pure"
+    status: "draft"
+    born: "2026-03-15"
+  }
+  lineage: {
+    reproduction: "manual"
+    generated_by: "manual"
+  }
+  description: "A Swift gRPC daemon that greets users in 56 languages."
+  lang: "swift"
+  kind: "native"
+  build: {
+    runner: "swift-package"
+  }
+  requires: {
+    commands: ["swift"]
+    files: ["Package.swift"]
+  }
+  artifacts: {
+    binary: "gabriel-greeting-swift"
+  }
+  skills: [{
+    name: "multilingual-greeter"
+    description: "Greet a person by name in any of the 56 supported languages."
+    when: "The user wants to greet someone in a specific language."
+    steps: [
+      "Call ListLanguages to show available languages",
+      "Ask the user for a name and language code",
+      "Call SayHello with the chosen name and lang_code"
+    ]
+  }]
+  sequences: [{
+    name: "multilingual-greeting"
+    description: "List available languages then greet the user in the chosen one."
+    params: [
+      {name: "name", description: "Person to greet", required: true},
+      {name: "lang_code", description: "ISO 639-1 language code", required: true}
+    ]
+    steps: [
+      "op gabriel-greeting-swift ListLanguages",
+      "op gabriel-greeting-swift SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"{{ .lang_code }}\"}'"
+    ]
+  }, {
+    name: "greeting-fr-ja-ru-en"
+    description: "List available languages, then greet in French, Japanese, Russian, and English."
+    params: [
+      {name: "name", description: "Person to greet", required: true}
+    ]
+    steps: [
+      "op gabriel-greeting-swift ListLanguages",
+      "op gabriel-greeting-swift SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"fr\"}'",
+      "op gabriel-greeting-swift SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ja\"}'",
+      "op gabriel-greeting-swift SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ru\"}'",
+      "op gabriel-greeting-swift SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"en\"}'"
+    ]
+  }]
+};
+
+// ── Usage (Swift) ──────────────────────────────────────
+//
+// import GabrielGreetingServer
+// import Holons
+//
+// let listenURI = Serve.parseFlags(CommandLine.arguments)
+// try Serve.run(listenURI, serviceProviders: [GreetingServiceProvider()])
