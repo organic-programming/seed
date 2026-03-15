@@ -1,0 +1,31 @@
+# ── Identity ──────────────────────────────────────────
+schema: holon/v0
+uuid: "b943b196-2844-4419-bcc2-131efdb3a682"
+given_name: Gabriel
+family_name: Greet-Go
+motto: The simplest possible holon — a greeting service.
+composer: B. ALTER
+clade: deterministic/pure
+status: draft
+born: "2026-02-12"
+
+# ── Lineage ───────────────────────────────────────────
+parents: []
+reproduction: manual
+generated_by: op
+
+# ── Description ───────────────────────────────────────
+description: |
+  A minimal, complete holon that demonstrates all three facets (CLI, gRPC, API)
+  and all five transports (tcp, unix, stdio, mem, ws). Use this as a reference
+  when building your own holons.
+
+# ── Operational ───────────────────────────────────────
+kind: native
+build:
+  runner: go-module
+requires:
+  commands: [go]
+  files: [go.mod]
+artifacts:
+  binary: gabriel-greet-go

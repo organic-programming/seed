@@ -25,6 +25,7 @@ transports are available**, not the language.
 | `stdio://` | ✅ | ❌ no process | ❌ no process |
 | `unix://` | ✅ (POSIX) | ❌ sandboxed | ❌ no sockets |
 | `tcp://` | ✅ | ✅ | ❌ no sockets |
+<!--- @bpds pourquoi ne pas mettre  . ws, wss c'est très important -->  
 | `rest+sse://` (v0.4) | ✅ | ✅ | ✅ |
 
 **Key insight:** `mem://` and `rest+sse://` are the only universal

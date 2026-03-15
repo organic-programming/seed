@@ -73,19 +73,7 @@ C as a composition orchestrator language.
 
 ---
 
-## v0.5 — Extensibility
-
-Build configs, dependency resolution, and executable sequences.
-
-- Build configs (`--config` + `OP_CONFIG`)
-- MVS transitive dependency resolution
-- Sequences (`op do` + MCP tool exposure)
-
-**Tasks:** [v0.5/_TASKS.md](./v0.5/_TASKS.md)
-
----
-
-## v0.6 — REST + SSE Transport
+## v0.5 — REST + SSE Transport
 
 Add HTTP-native transport for distributed holon communication.
 
@@ -95,7 +83,19 @@ Add HTTP-native transport for distributed holon communication.
 - SDK transport adapter (serve + connect)
 - mTLS over standard HTTPS
 
-**Design:** [DESIGN_transport_rest_sse.md](./v0.6/DESIGN_transport_rest_sse.md)
+**Design:** [DESIGN_transport_rest_sse.md](./v0.5/DESIGN_transport_rest_sse.md)
+
+---
+
+## v0.6 — Extensibility
+
+Build configs, dependency resolution, and executable sequences.
+
+- Build configs (`--config` + `OP_CONFIG`)
+- MVS transitive dependency resolution
+- Sequences (`op do` + MCP tool exposure)
+
+**Tasks:** [v0.6/_TASKS.md](./v0.6/_TASKS.md)
 
 ---
 
@@ -180,8 +180,8 @@ Declarative host provisioning from zero to functioning OP host.
 ```
 v0.3 (core maturity)
   ├─ v0.4 (recipe ecosystem)
-  └─ v0.5 (extensibility)
-       └─ v0.6 (REST+SSE transport)
+  └─ v0.5 (REST+SSE transport)
+       └─ v0.6 (extensibility)
             └─ v0.7 (cross-compilation)
                  └─ v0.8 (release pipeline)
                       └─ v0.9 (mesh networking)
@@ -190,4 +190,4 @@ v0.3 (core maturity)
 ```
 
 v0.4 and v0.5 can proceed in parallel after v0.3. The distributed
-story begins at v0.6.
+story begins at v0.5.
