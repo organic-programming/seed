@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -25,7 +24,7 @@ func ListLanguages() (*pb.ListLanguagesResponse, error) {
 
 // SayHello greets the user in the requested language.
 
-func SayHello(_ context.Context, req *pb.SayHelloRequest) (*pb.SayHelloResponse, error) {
+func SayHello(req *pb.SayHelloRequest) (*pb.SayHelloResponse, error) {
 	g := internal.Lookup(req.LangCode)
 	name := strings.TrimSpace(req.Name)
 	if name == "" {

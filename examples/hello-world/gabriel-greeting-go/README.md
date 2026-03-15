@@ -26,7 +26,10 @@ protoc --proto_path=. --proto_path=../../../../_protos --proto_path=../../../_pr
 ```
 
 
-# Architecture : 
+# This holon exposes : 
 
-- [Public funcs](api/public.go) can be used for code composition.
+- [A Cli facet](api/cli.go) the CLI facade to the Code API functions (can be used by CI or scripts)
+- [The RPC facet](internal/server.go) exposed to the gRPC via the cli sub command "serve" (used by grace-op or any op holon)
+- [Code API Facet](api/public.go) can be used for code composition (can be used to integrate in code classic lib mode) 
 - [Internal implementation](internal/) should not be exposed.
+- Tests for each layer.
