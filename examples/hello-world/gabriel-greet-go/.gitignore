@@ -1,0 +1,6 @@
+# Binaries & build output
+gabriel-greet-go
+gabriel*
+
+# Internal OP build outputs
+.op/
