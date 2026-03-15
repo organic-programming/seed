@@ -41,6 +41,23 @@ message HolonManifest {
     repeated string steps = 4;   // ordered human-readable steps
   }
 
+  // ── Sequence ──────────────────────────────────────────
+  // Deterministic, linear step sequences executable via `op do` or MCP.
+
+  message Sequence {
+    string name = 1;              // kebab-case identifier
+    string description = 2;       // what it achieves
+    repeated Param params = 3;    // input parameters
+    repeated string steps = 4;    // ordered shell commands (Go text/template syntax)
+
+    message Param {
+      string name = 1;
+      string description = 2;
+      bool required = 3;
+      string default = 4;        // default value if not provided
+    }
+  }
+
   // ── Contract ──────────────────────────────────────────
   // Pointer to the gRPC service this holon exposes.
 
@@ -147,6 +164,7 @@ message HolonManifest {
   Requires requires = 11;
   Delegates delegates = 12;
   Artifacts artifacts = 13;
+  repeated Sequence sequences = 14;
 }
 
 // Register the manifest as a file-level option.

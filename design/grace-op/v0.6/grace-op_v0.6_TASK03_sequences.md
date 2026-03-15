@@ -2,7 +2,7 @@
 
 ## Summary
 
-Add `sequences:` section to `holon.yaml` and `op do` CLI command.
+Add `sequences:` section to the holon proto manifest (`option (holons.v1.manifest) = { ... }`) and `op do` CLI command.
 Sequences are deterministic, linear step sequences declared in the
 manifest and executable via CLI or MCP tools.
 
@@ -21,7 +21,7 @@ New command in `grace-op`:
 op do <holon> <sequence> [--param=value ...]
 ```
 
-- Parse `sequences:` from `holon.yaml`
+- Parse `sequences:` from the proto manifest carried by `holon.proto`
 - Validate required params
 - Substitute params via Go `text/template`
 - Execute each `run:` step sequentially
@@ -40,7 +40,7 @@ how skills are displayed today.
 
 ## Acceptance Criteria
 
-- [ ] `sequences:` parsed from `holon.yaml`
+- [ ] `sequences:` parsed from the proto manifest in `holon.proto`
 - [ ] `op do` executes steps with param substitution
 - [ ] `op do --dry-run` prints steps without executing
 - [ ] `op mcp` exposes sequences as MCP tools

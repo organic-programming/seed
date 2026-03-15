@@ -1,6 +1,6 @@
 # Gabriel Greeting Go
 
-Reference implementation of a Go holon. Strict layered architecture, fully tested.
+Reference implementation of a Go holon — a programmatic creature designed for the agentic age. Strict layered architecture, fully tested.
 
 Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` and `ListLanguages` — over a shared protobuf contract. The greeting table covers 56 languages with localized templates and culturally appropriate default names (e.g. "Marie" in French, "マリア" in Japanese, "Мария" in Russian). Beyond the classic Hello World, this example demonstrates proto-based identity, layered facets, SDK-managed serving, and the transport cascade across all supported platforms.
 
@@ -96,7 +96,11 @@ gen/                   Generated protobuf code (do not edit).
 
 `internal/` is not a facet — it is an **encapsulation practice**: private domain data and helpers, never imported outside the module.
 
-# MCP exposure
+# Acquired facets
+
+Each acquired facet builds on the previous — from exposing individual RPCs, to composing them into batches, to guiding agents on when and why to use them.
+
+## MCP — expose individual RPCs
 
 `op mcp` turns any holon into an [MCP](https://modelcontextprotocol.io) tool server — with zero code changes.
 
@@ -142,6 +146,58 @@ Every field comes from the proto source — no MCP-specific code, no configurati
 | `description` (per field) | Field comments + `@example` annotations |
 | `required` | Fields annotated with `@required` |
 
+## Sequences — compose RPCs into deterministic batches
+
+A sequence is a deterministic batch of steps declared in the proto manifest. No reasoning between steps — just execute.
+
+```bash
+op do gabriel-greeting-go greeting-fr-ja-ru-en --name=""
+op do gabriel-greeting-go greeting-fr-ja-ru-en --name=Joseph
+op do gabriel-greeting-go greeting-fr-ja-ru-en --name="" --dry-run
+op do gabriel-greeting-go greeting-fr-ja-ru-en --name=Joseph --dry-run
+```
+
+The sequence declares a required `name` parameter. Passing `--name=""` is intentional: Gabriel then falls back to the localized default name for each language (`Marie`, `マリア`, `Мария`, `Mary`). Passing a real name such as `Joseph` forces the same name through every step.
+
+Dry run:
+
+```
+[1/5] op gabriel-greeting-go ListLanguages
+[2/5] op gabriel-greeting-go SayHello '{"name":"","lang_code":"fr"}'
+[3/5] op gabriel-greeting-go SayHello '{"name":"","lang_code":"ja"}'
+[4/5] op gabriel-greeting-go SayHello '{"name":"","lang_code":"ru"}'
+[5/5] op gabriel-greeting-go SayHello '{"name":"","lang_code":"en"}'
+```
+
+Real run with `--name=Joseph` will greet Joseph in all four languages. Flags: `--dry-run` prints steps without executing, `--continue-on-error` skips failures.
+
+## Skills — guide agents on *when* and *why* to act
+
+A skill describes when and why to use a holon. Agents discover skills via `op inspect` or MCP and use them to decide which holon to call.
+
+```bash
+op inspect gabriel-greeting-go
+```
+
+Gabriel declares one skill:
+
+| Skill | When | Steps |
+|-------|------|-------|
+| **multilingual-greeter** | The user wants to greet someone in a specific language. | 1. ListLanguages → 2. Choose name + lang → 3. SayHello |
+
+An LLM agent reads the skill, decides it matches the user's intent, and calls the RPCs step by step with reasoning between each call.
+
+## MCP vs Sequences vs Skills
+
+| | MCP | Sequence | Skill |
+|-|-----|----------|-------|
+| **Granularity** | Single RPC | Batch of RPCs | Advisory guide |
+| **Execution** | Agent calls one tool | `op do` runs all steps | Agent reasons between steps |
+| **Determinism** | One call, one result | Linear, no branching | Adaptive, agent decides |
+| **Invocation** | MCP tool call | `op do` or MCP | Agent reads, then acts |
+
+All three are exposed via `op mcp`. The agent chooses the right level: **MCP** for single calls, **sequence** for fast deterministic batches, **skill** for adaptive reasoning.
+
 <!-- don't modify the following section-->
 
 ## How to launch
@@ -169,4 +225,3 @@ cd examples/hello-world/gabriel-greeting-go/v1
 protoc --proto_path=. --proto_path=../../../../_protos --proto_path=../../../_protos holon.proto --descriptor_set_out=/dev/null
 ```
 <!-- don't modify preeceeding section -->
-
