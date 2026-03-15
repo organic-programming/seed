@@ -23,7 +23,7 @@ The holon's `api/v1/holon.proto` imports from two shared `_protos` directories (
 
 A holon exposes two kinds of facets:
 
-### 4 Innate facets
+### 4 X Innate facets
 
 | Facet | Visibility | File | Role |
 |-------|-----------|------|------|
@@ -32,7 +32,7 @@ A holon exposes two kinds of facets:
 | **RPC** | `internal/` | [server.go](internal/server.go) | gRPC `GreetingServiceServer` implementation. Adapts proto request/response to internal logic. Exposed via `serve` sub-command to `op`, other holons, or any gRPC client. |
 | **Tests** | `api/`, `internal/` | [*_test.go](api/cli_test.go) | One test file per facet. Internal tests are a standard — TDD is the recommended approach. Validates Code API, CLI args/output, and RPC contract independently. |
 
-### 3 Acquired facets — traits gained through `op`
+### 3 X Acquired facets — traits gained through `op`
 
 These facets emerge from the proto contract and manifest. The holon writes no code for them.
 
