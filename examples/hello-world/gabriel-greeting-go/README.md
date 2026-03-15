@@ -4,7 +4,7 @@ Reference implementation of a Go holon — a programmatic creature designed for 
 
 Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` and `ListLanguages` — over a shared protobuf contract. The greeting table covers 56 languages with localized templates and culturally appropriate default names (e.g. "Marie" in French, "マリア" in Japanese, "Мария" in Russian). Beyond the classic Hello World, this example demonstrates proto-based identity, layered facets, SDK-managed serving, and the transport cascade across all supported platforms.
 
-This holon is built with the [Go SDK](https://github.com/organic-programming/go-holons) (`go-holons`). Every holon implementation relies on its language SDK for serving, transport negotiation, and discovery integration. SDKs are currently available for Go, Dart, Swift, Kotlin, and Rust — all still in active development.
+This holon is built with the [Go SDK](https://github.com/organic-programming/go-holons) (`go-holons`).
 
 # A Proto + 4 facets is all you need.
 
