@@ -299,6 +299,7 @@ private struct GabrielDaemonDescriptor {
 
     var relativePaths: [String] {
         [
+            ".op/build/\(binaryName).holon/bin/darwin_arm64/\(binaryName)",
             ".op/build/bin/\(binaryName)",
             "build/install/\(binaryName)/bin/\(binaryName)",
             "build/scripts/\(binaryName)",
@@ -366,8 +367,14 @@ private extension DaemonProcess {
     }
 
     func bundledBinaryCandidates(for descriptor: GabrielDaemonDescriptor, bundledRoots: [URL]) -> [String] {
-        bundledRoots.map {
-            $0.appendingPathComponent(descriptor.binaryName).standardizedFileURL.path
+        bundledRoots.flatMap { root in
+            [
+                root.appendingPathComponent(descriptor.binaryName).standardizedFileURL.path,
+                root
+                    .appendingPathComponent("\(descriptor.binaryName).holon", isDirectory: true)
+                    .appendingPathComponent("bin/darwin_arm64/\(descriptor.binaryName)")
+                    .standardizedFileURL.path,
+            ]
         }
     }
 
@@ -417,6 +424,7 @@ private extension DaemonProcess {
         }
         if let resourceURL = Bundle.main.resourceURL {
             candidates.append(resourceURL.appendingPathComponent("daemon", isDirectory: true))
+            candidates.append(resourceURL.appendingPathComponent("Holons", isDirectory: true))
             candidates.append(resourceURL)
         }
         return existingDirectories(in: candidates)
@@ -500,14 +508,13 @@ private extension DaemonProcess {
     }
 
     func stageGabrielProtos(into holonDir: URL, daemon: GabrielDaemonIdentity) throws {
-        let protoDir = holonDir
-            .appendingPathComponent("protos", isDirectory: true)
-            .appendingPathComponent("v1", isDirectory: true)
-        try FileManager.default.createDirectory(at: protoDir, withIntermediateDirectories: true)
-
         if let source = daemonHolonProtoURL(for: daemon) {
+            let daemonProtoDir = holonDir
+                .appendingPathComponent("api", isDirectory: true)
+                .appendingPathComponent("v1", isDirectory: true)
+            try FileManager.default.createDirectory(at: daemonProtoDir, withIntermediateDirectories: true)
             let data = try Data(contentsOf: source)
-            try data.write(to: protoDir.appendingPathComponent("holon.proto"), options: .atomic)
+            try data.write(to: daemonProtoDir.appendingPathComponent("holon.proto"), options: .atomic)
         } else {
             logHostUI("[HostUI] no daemon holon.proto found for \(daemon.slug)")
         }
@@ -516,8 +523,25 @@ private extension DaemonProcess {
             logHostUI("[HostUI] no shared greeting.proto found for staged holon metadata")
             return
         }
+
+        let sharedProtoDir = holonDir.appendingPathComponent("_protos", isDirectory: true)
+        let sharedGreetingDir = sharedProtoDir
+            .appendingPathComponent("v1", isDirectory: true)
+        try FileManager.default.createDirectory(at: sharedGreetingDir, withIntermediateDirectories: true)
         let greetingData = try Data(contentsOf: greetingSource)
-        try greetingData.write(to: protoDir.appendingPathComponent("greeting.proto"), options: .atomic)
+        try greetingData.write(to: sharedGreetingDir.appendingPathComponent("greeting.proto"), options: .atomic)
+
+        guard let manifestSource = sharedManifestProtoURL() else {
+            logHostUI("[HostUI] no shared holons/v1/manifest.proto found for staged holon metadata")
+            return
+        }
+
+        let sharedManifestDir = sharedProtoDir
+            .appendingPathComponent("holons", isDirectory: true)
+            .appendingPathComponent("v1", isDirectory: true)
+        try FileManager.default.createDirectory(at: sharedManifestDir, withIntermediateDirectories: true)
+        let manifestData = try Data(contentsOf: manifestSource)
+        try manifestData.write(to: sharedManifestDir.appendingPathComponent("manifest.proto"), options: .atomic)
     }
 
     func daemonHolonProtoURL(for daemon: GabrielDaemonIdentity) -> URL? {
@@ -542,19 +566,31 @@ private extension DaemonProcess {
     func sharedGreetingProtoURL() -> URL? {
         var candidates: [URL] = []
 
-        let currentDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
-        for base in ancestorDirectories(of: currentDirectory, maxDepth: 8) {
+        for base in sharedProtoSearchBases() {
             candidates.append(contentsOf: greetingProtoCandidates(from: base))
         }
 
+        return firstExistingURL(in: candidates)
+    }
+
+    func sharedManifestProtoURL() -> URL? {
+        var candidates: [URL] = []
+        for base in sharedProtoSearchBases() {
+            candidates.append(contentsOf: manifestProtoCandidates(from: base))
+        }
+        return firstExistingURL(in: candidates)
+    }
+
+    func sharedProtoSearchBases() -> [URL] {
+        let currentDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+        var candidates = ancestorDirectories(of: currentDirectory, maxDepth: 8)
+
         if let executableURL = Bundle.main.executableURL {
             let executableDir = executableURL.deletingLastPathComponent()
-            for base in ancestorDirectories(of: executableDir, maxDepth: 10) {
-                candidates.append(contentsOf: greetingProtoCandidates(from: base))
-            }
+            candidates.append(contentsOf: ancestorDirectories(of: executableDir, maxDepth: 10))
         }
 
-        return firstExistingURL(in: candidates)
+        return candidates
     }
 
     func greetingProtoCandidates(from base: URL) -> [URL] {
@@ -564,6 +600,13 @@ private extension DaemonProcess {
             base.appendingPathComponent("recipes/protos/greeting/v1/greeting.proto", isDirectory: false),
             base.appendingPathComponent("Protos/greeting.proto", isDirectory: false),
             base.appendingPathComponent("greeting.proto", isDirectory: false),
+        ]
+    }
+
+    func manifestProtoCandidates(from base: URL) -> [URL] {
+        [
+            base.appendingPathComponent("_protos/holons/v1/manifest.proto", isDirectory: false),
+            base.appendingPathComponent("holons/grace-op/_protos/holons/v1/manifest.proto", isDirectory: false),
         ]
     }
 

@@ -24,6 +24,16 @@ option (holons.v1.manifest) = {
       mode: "debug"
     }
     members: {
+      id: "greeting-go"
+      path: "../gabriel-greeting-go"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-swift"
+      path: "../gabriel-greeting-swift"
+      type: "holon"
+    }
+    members: {
       id: "app"
       path: "."
       type: "component"
@@ -31,6 +41,12 @@ option (holons.v1.manifest) = {
     targets: {
       key: "macos"
       value: {
+        steps: {
+          build_member: "greeting-go"
+        }
+        steps: {
+          build_member: "greeting-swift"
+        }
         steps: {
           exec: {
             cwd: "."
@@ -40,7 +56,19 @@ option (holons.v1.manifest) = {
         steps: {
           exec: {
             cwd: "."
-            argv: ["bash", "-lc", 'set -euo pipefail\nproducts_dir=".build/xcode/macos/Build/Products/Debug"\napp_dir="build/GabrielGreetingApp.app"\nrm -rf "$app_dir"\nmkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources" "$app_dir/Contents/lib"\ncp "$products_dir/GabrielGreetingApp" "$app_dir/Contents/MacOS/GabrielGreetingApp"\n\nshopt -s nullglob\nfor bundle in "$products_dir"/*.bundle; do\n  cp -R "$bundle" "$app_dir/Contents/Resources/"\ndone\nif [ -d "$products_dir/PackageFrameworks" ]; then\n  cp -R "$products_dir/PackageFrameworks/." "$app_dir/Contents/lib/"\nfi\ncat > "$app_dir/Contents/Info.plist" <<EOF\n<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n  <key>CFBundleDevelopmentRegion</key>\n  <string>en</string>\n  <key>CFBundleDisplayName</key>\n  <string>GabrielGreetingApp</string>\n  <key>CFBundleExecutable</key>\n  <string>GabrielGreetingApp</string>\n  <key>CFBundleIdentifier</key>\n  <string>org.organicprogramming.gabriel-greeting-app-swiftui</string>\n  <key>CFBundleInfoDictionaryVersion</key>\n  <string>6.0</string>\n  <key>CFBundleName</key>\n  <string>GabrielGreetingApp</string>\n  <key>CFBundlePackageType</key>\n  <string>APPL</string>\n  <key>CFBundleShortVersionString</key>\n  <string>1.0</string>\n  <key>CFBundleVersion</key>\n  <string>1</string>\n  <key>LSMinimumSystemVersion</key>\n  <string>15.0</string>\n  <key>NSHighResolutionCapable</key>\n  <true/>\n</dict>\n</plist>\nEOF']
+            argv: ["bash", "-lc", 'set -euo pipefail\nproducts_dir=".build/xcode/macos/Build/Products/Debug"\napp_dir="build/GabrielGreetingApp.app"\nrm -rf "$app_dir"\nmkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources" "$app_dir/Contents/Resources/Holons" "$app_dir/Contents/lib"\ncp "$products_dir/GabrielGreetingApp" "$app_dir/Contents/MacOS/GabrielGreetingApp"\n\nshopt -s nullglob\nfor bundle in "$products_dir"/*.bundle; do\n  cp -R "$bundle" "$app_dir/Contents/Resources/"\ndone\nif [ -d "$products_dir/PackageFrameworks" ]; then\n  cp -R "$products_dir/PackageFrameworks/." "$app_dir/Contents/lib/"\nfi\ncat > "$app_dir/Contents/Info.plist" <<EOF\n<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n  <key>CFBundleDevelopmentRegion</key>\n  <string>en</string>\n  <key>CFBundleDisplayName</key>\n  <string>GabrielGreetingApp</string>\n  <key>CFBundleExecutable</key>\n  <string>GabrielGreetingApp</string>\n  <key>CFBundleIdentifier</key>\n  <string>org.organicprogramming.gabriel-greeting-app-swiftui</string>\n  <key>CFBundleInfoDictionaryVersion</key>\n  <string>6.0</string>\n  <key>CFBundleName</key>\n  <string>GabrielGreetingApp</string>\n  <key>CFBundlePackageType</key>\n  <string>APPL</string>\n  <key>CFBundleShortVersionString</key>\n  <string>1.0</string>\n  <key>CFBundleVersion</key>\n  <string>1</string>\n  <key>LSMinimumSystemVersion</key>\n  <string>15.0</string>\n  <key>NSHighResolutionCapable</key>\n  <true/>\n</dict>\n</plist>\nEOF']
+          }
+        }
+        steps: {
+          copy_artifact: {
+            from: "greeting-go"
+            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-go.holon"
+          }
+        }
+        steps: {
+          copy_artifact: {
+            from: "greeting-swift"
+            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-swift.holon"
           }
         }
         steps: {

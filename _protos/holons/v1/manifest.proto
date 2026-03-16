@@ -110,6 +110,7 @@ message HolonManifest {
       Copy copy = 2;
       string build_member = 3;    // member id to build
       AssertFile assert_file = 4;
+      CopyArtifact copy_artifact = 5;
     }
 
     message Exec {
@@ -124,6 +125,11 @@ message HolonManifest {
 
     message AssertFile {
       string path = 1;
+    }
+
+    message CopyArtifact {
+      string from = 1;
+      string to = 2;
     }
   }
 
