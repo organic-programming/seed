@@ -32,6 +32,12 @@ A holon exposes two kinds of facets:
 | **RPC** | `internal/` | [server.go](internal/server.go) | gRPC `GreetingServiceServer` implementation. Adapts proto request/response to internal logic. Exposed via `serve` sub-command to `op`, other holons, or any gRPC client. |
 | **Tests** | `api/`, `internal/` | [*_test.go](api/cli_test.go) | One test file per facet. Internal tests are a standard — TDD is the recommended approach. Validates Code API, CLI args/output, and RPC contract independently. |
 
+> **Surface symmetry** — Gabriel exposes two RPCs (`SayHello`,
+> `ListLanguages`). Both are callable through the Code API, the CLI, the
+> RPC server, and covered by tests — same surface, four projections.
+> The internal greeting table (56 languages) is private volume; the
+> external skin stays minimal and uniform.
+
 ### 3 X Acquired facets — traits gained through `op`
 
 These facets emerge from the proto contract and manifest. The holon writes no code for them.

@@ -30,6 +30,10 @@ generated stubs:
 - **RPC** — gRPC service, SDK-managed serving and shutdown.
 - **Tests** — the executable specification.
 
+**Golden rule — surface symmetry**: all four innate facets cover the
+same external surface (`Code API = CLI = RPC = Tests`). Keep this
+surface minimal; the internal volume can be as complex as needed.
+
 **Acquired facets** — traits gained through `op`, zero code required:
 
 - **MCP** — individual RPCs exposed as MCP tools for LLM clients.

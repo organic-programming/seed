@@ -70,6 +70,23 @@ each one delegates to or wraps the generated stubs:
    exact value assertions. Testing strategies and helpers are provided
    per-SDK.
 
+### Surface symmetry — the golden rule
+
+The four innate facets must cover **the same external surface**:
+
+> **Code API surface = CLI surface = RPC surface = Test surface**
+
+Every operation the contract exposes is reachable through the Code API,
+invocable from the CLI, served over RPC, and verified by tests — no
+more, no less. If a function exists in one facet but is absent from
+another, the holon is incomplete.
+
+This symmetry is the primary design constraint: the external surface must
+be **as small as possible**. The internal volume behind it — helpers,
+engines, data structures — can be arbitrarily complex and composed, but
+the skin that the outside world touches remains thin, uniform, and fully
+tested.
+
 ### Acquired facets — traits gained through `op`
 
 These facets emerge from the proto contract and manifest. The holon
