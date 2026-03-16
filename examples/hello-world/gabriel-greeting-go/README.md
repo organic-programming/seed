@@ -108,7 +108,7 @@ Each acquired facet builds on the previous — from exposing individual RPCs, to
 op mcp gabriel-greeting-go
 ```
 
-`op` connects to the holon, introspects its gRPC contract via reflection, and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
+`op` connects to the holon, introspects its contract via the `Describe` RPC, and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
 
 Tools are fully qualified — `gabriel-greeting-go.GreetingService.SayHello` — allowing multiple holons to be served from a single `op mcp` instance.
 
@@ -216,12 +216,5 @@ mem, unix, ws, ws, sse+rest
 ```bash
 op grpc+mem://gabriel-greeting-go SayHello '{"name":"Alice","lang_code":"en"}'
 op gabriel-greeting-go SayHello '{"name":"Maria","lang_code":"fr"}'  
-```
-
-# How to compile manually the [holon.proto](v1/holon.proto)
-
-```bash
-cd examples/hello-world/gabriel-greeting-go/v1
-protoc --proto_path=. --proto_path=../../../../_protos --proto_path=../../../_protos holon.proto --descriptor_set_out=/dev/null
 ```
 <!-- don't modify preeceeding section -->

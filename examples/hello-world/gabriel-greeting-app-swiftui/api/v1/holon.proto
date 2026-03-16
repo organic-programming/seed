@@ -12,13 +12,8 @@ option (holons.v1.manifest) = {
     family_name: "Greeting-App-SwiftUI"
     motto: "SwiftUI HostUI for the Gabriel greeting service."
     composer: "Codex"
-    clade: "deterministic/pure"
     status: "draft"
     born: "2026-03-15"
-  }
-  lineage: {
-    reproduction: "manual"
-    generated_by: "manual"
   }
   description: "A standalone SwiftUI app that connects to Gabriel greeting holons (Go and Swift) and presents a multilingual greeting UI."
   kind: "composite"

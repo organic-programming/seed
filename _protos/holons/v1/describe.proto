@@ -6,6 +6,7 @@ import "holons/v1/manifest.proto";
 
 // HolonMeta is auto-registered by each SDK's serve runner.
 // It provides self-documentation for any running holon.
+// See HOLON_PROTO.md for the manifest schema.
 service HolonMeta {
   // Describe returns the holon's full manifest and its API catalog.
   rpc Describe(DescribeRequest) returns (DescribeResponse);
@@ -14,7 +15,7 @@ service HolonMeta {
 message DescribeRequest {}
 
 message DescribeResponse {
-  // Full holon manifest (identity, lineage, skills, build, etc.).
+  // Full holon manifest (identity, skills, build, guide, etc.).
   HolonManifest manifest = 1;
 
   // One entry per gRPC service the holon exposes (excluding HolonMeta itself).
