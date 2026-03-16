@@ -19,7 +19,7 @@ specified:
   formalize, especially `kind: composite` and `runner: recipe`
 
 The immediate pressure comes from composite applications such as
-`Gudule Greeting Godart`: one logical holon, multiple build systems,
+`Gabriel Greeting App SwiftUI`: one logical holon, multiple build systems,
 ordered artifacts, and platform-specific glue.
 
 This draft defines how `op build` should grow without turning `op` into
@@ -31,9 +31,9 @@ toolchains.
 `op build` is an orchestrator.
 
 It does not compile source code by itself. It reads the holon manifest
-(from `holon.proto` or `holon.yaml` as fallback), selects the declared
-runner, executes the minimum required sequence, and reports the primary
-artifact path.
+proto (`api/v1/holon.proto` carrying `option (holons.v1.manifest)`),
+selects the declared runner, executes the minimum required sequence,
+and produces a `.holon` package as output.
 
 Language tools and platform tools remain the actual builders.
 
@@ -96,6 +96,29 @@ Initial standard targets:
 Runner behavior on unsupported mode or target must fail with an
 actionable error, not silently degrade.
 
+## Build Output
+
+`op build` produces a `.holon` package as its standard output
+(see `HOLON_PACKAGE.md` for the full format specification).
+
+For compiled holons:
+
+```
+.op/build/<slug>.holon/
+  .holon.json                          # generated cache
+  bin/<arch>/<slug>                     # compiled binary
+```
+
+For composite holons with bundle artifacts:
+
+```
+.op/build/<App>.app                    # the bundle artifact
+.op/build/<App>.app.holon.json         # optional package cache
+```
+
+Where `<arch>` follows Go convention: `<os>_<cpu>` (e.g.,
+`darwin_arm64`, `linux_amd64`).
+
 ## Success Contract
 
 A successful `op build` must guarantee all of the following:
@@ -141,9 +164,13 @@ composite runner.
 
 ## Manifest Model
 
+The proto file `_protos/holons/v1/manifest.proto` is the canonical
+schema. All examples below use proto textproto syntax as it appears
+inside `option (holons.v1.manifest) = { ... }`.
+
 ### 1. Kinds
 
-The build model should formally recognize three kinds:
+The build model formally recognizes three kinds:
 
 - `native`
 - `wrapper`
@@ -179,22 +206,21 @@ Orchestration runners:
 
 ### 3. Primary Artifact
 
-The spec should distinguish between "binary path" and "primary
-artifact".
+The spec distinguishes between "binary path" and "primary artifact".
 
-Proposed rule:
+Rules:
 
-- `artifacts.primary` is introduced for non-CLI deliverables (e.g., .app bundles).
-- `artifacts.binary` remains for single-binary holons.
+- `artifacts.primary` is used for non-CLI deliverables (e.g., .app bundles).
+- `artifacts.binary` is used for single-binary holons.
 - if `artifacts.primary` is set, it is the success contract for
   `op build`
 - otherwise `artifacts.binary` is the success contract
 
 Examples:
 
-- `op`: `artifacts.binary: .op/build/bin/op`
-- `wisupaa-whisper`: `artifacts.binary: wisupaa-whisper`
-- `Gudule Greeting Godart`: `artifacts.primary: greeting-godart/build/macos/.../gudule-greeting-godart.app`
+- `op`: `artifacts: { binary: "op" }`
+- `wisupaa-whisper`: `artifacts: { binary: "wisupaa-whisper" }`
+- `Gabriel Greeting App`: `artifacts: { primary: "build/GabrielGreetingApp.app" }`
 
 ### 4. Build Configs
 
@@ -207,29 +233,21 @@ defaults (`default_config`), and propagation to child builds.
 It passes the selected config name to the runner as `OP_CONFIG`.
 The holon's build system decides what the name means.
 
-```yaml
-build:
-  runner: cmake
-  configs:
-    lgpl:
-      description: "LGPL-safe build, no GPL codecs"
-    gpl:
-      description: "Full GPL build with x264/x265"
-  default_config: lgpl
+```protobuf
+build: {
+  runner: "cmake"
+  configs: [
+    {name: "lgpl"  description: "LGPL-safe build, no GPL codecs"}
+    {name: "gpl"   description: "Full GPL build with x264/x265"}
+  ]
+  default_config: "lgpl"
+}
 ```
 
 Runner injection:
 - `cmake`: `-DOP_CONFIG=<config>` define during configure
 - `go-module`: `OP_CONFIG` environment variable during build/test
 - `recipe`: propagates `--config` to `build_member` children
-
-The `recipe` runner propagates `--config` to child holon builds:
-
-```yaml
-steps:
-  - build_member: daemon
-    config: gpl              # override the child's default config
-```
 
 ## Recipe Runner
 
@@ -241,44 +259,55 @@ It orchestrates:
 - structured command execution
 - file copy or promotion steps
 - artifact assertions
+- holon package embedding into bundles
 
 It must not accept raw shell strings.
 
 Commands are represented as argv arrays.
 
-### Proposed Manifest Shape
+### Manifest Shape
 
-```yaml
-kind: composite
-build:
-  runner: recipe
-  defaults:
-    target: macos
-    mode: debug
-  members:
-    - id: daemon
-      path: greeting-daemon
-      type: holon
-    - id: app
-      path: greeting-godart
-      type: component
-  targets:
-    macos:
-      steps:
-        - build_member: daemon
-        - copy:
-            from: greeting-daemon/gudule-daemon-greeting-godart
-            to: build/gudule-daemon-greeting-godart
-        - exec:
-            cwd: greeting-godart
-            argv: ["flutter", "pub", "get"]
-        - exec:
-            cwd: greeting-godart
-            argv: ["flutter", "build", "macos", "--debug"]
-        - assert_file:
-            path: greeting-godart/build/macos/Build/Products/Debug/gudule-greeting-godart.app/Contents/Resources/gudule-daemon-greeting-godart
-artifacts:
-  primary: greeting-godart/build/macos/Build/Products/Debug/gudule-greeting-godart.app
+```protobuf
+kind: "composite"
+build: {
+  runner: "recipe"
+  defaults: {
+    target: "macos"
+    mode: "debug"
+  }
+  members: {id: "greeting-go"    path: "../gabriel-greeting-go"    type: "holon"}
+  members: {id: "greeting-swift" path: "../gabriel-greeting-swift" type: "holon"}
+  members: {id: "app"            path: "."                         type: "component"}
+  targets: {
+    key: "macos"
+    value: {
+      steps: {build_member: "greeting-go"}
+      steps: {build_member: "greeting-swift"}
+      steps: {
+        exec: {
+          cwd: "."
+          argv: ["xcodebuild", "-scheme", "GabrielGreetingApp", "-configuration", "Debug", "-destination", "generic/platform=macOS", "-derivedDataPath", ".build/xcode/macos", "build"]
+        }
+      }
+      steps: {
+        copy_artifact: {
+          from: "greeting-go"
+          to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-go.holon"
+        }
+      }
+      steps: {
+        copy_artifact: {
+          from: "greeting-swift"
+          to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-swift.holon"
+        }
+      }
+      steps: {assert_file: {path: "build/GabrielGreetingApp.app"}}
+    }
+  }
+}
+artifacts: {
+  primary: "build/GabrielGreetingApp.app"
+}
 ```
 
 ### Recipe Concepts
@@ -286,8 +315,8 @@ artifacts:
 `members`
 
 - named build participants
-- `type: holon` means the path must contain its own holon manifest (proto or yaml)
-- `type: component` means the path is just a working directory used by
+- `type: "holon"` means the path must contain its own holon manifest proto
+- `type: "component"` means the path is just a working directory used by
   `exec`, `copy`, or `assert_file` steps
 
 `targets`
@@ -304,7 +333,8 @@ artifacts:
 
 `build_member`
 
-- recursively executes `op build` on a member of `type: holon`
+- recursively executes `op build` on a member of `type: "holon"`
+- produces a `.holon` package under the member's `.op/build/` directory
 - contributes a child report entry
 
 `exec`
@@ -318,6 +348,14 @@ artifacts:
 - copies a file from one manifest-relative path to another
 - creates destination directories if needed
 
+`copy_artifact`
+
+- copies a built member's `.holon` package to a destination path
+- `from` references a member id (must be `type: "holon"`)
+- `to` is a manifest-relative destination path
+- copies the entire `.holon` package directory (`.holon.json`, `bin/<arch>/`, etc.)
+- used to embed child holons into composite bundles (see `HOLON_PACKAGE.md` "Bundle Integration")
+
 `assert_file`
 
 - verifies a manifest-relative file exists
@@ -325,6 +363,27 @@ artifacts:
 
 The first version of `recipe` does not need loops, conditionals, or
 templating.
+
+### Bundle Embedding Pattern
+
+Composite holons that produce `.app` bundles embed child holons as
+`.holon` packages under `Contents/Resources/Holons/`.
+
+```protobuf
+steps: {build_member: "daemon"}
+steps: {
+  copy_artifact: {
+    from: "daemon"
+    to: "build/MyApp.app/Contents/Resources/Holons/gabriel-greeting-go.holon"
+  }
+}
+```
+
+The codesigning step runs automatically before any `assert_file` step
+when the primary artifact is a `.app` or `.framework` bundle.
+
+See `HOLON_PACKAGE.md` "Bundle Integration" for the full embedded
+package layout and discovery semantics.
 
 ## Runner Semantics
 
@@ -338,11 +397,21 @@ environment explicitly in a future revision.
 `--mode` is accepted but informational unless the Go build command is
 extended with mode-aware flags later.
 
+Output: `.op/build/<slug>.holon/bin/<arch>/<slug>`
+
 ### `cmake`
 
 `cmake` may map `--mode` to `Debug`, `Release`, or `RelWithDebInfo`
 internally, but the external `op build` vocabulary stays
 `debug|release|profile`.
+
+Output: `.op/build/<slug>.holon/bin/<arch>/<slug>`
+
+### `swift-package`
+
+`swift-package` builds Swift Package Manager projects.
+
+Output: `.op/build/<slug>.holon/bin/<arch>/<slug>`
 
 ### Future Runners
 
@@ -381,49 +450,56 @@ for:
 But it does require formalizing concepts already present in the
 repository and not yet present in the canonical manifest text:
 
-- `kind: composite`
-- `runner: recipe`
+- `kind: "composite"`
+- `runner: "recipe"`
 - a primary artifact that may be an app bundle, not only a binary
 
 ## Suggested Implementation Order
 
-### Phase 1
+### Phase 1 (done)
 
 - add `--target`, `--mode`, `--dry-run`
 - extend the build report with `build_target`, `build_mode`, `artifact`
 - keep existing `go-module` and `cmake` behavior
-
-### Phase 2
-
-- teach manifest validation about `kind: composite`
-- teach manifest validation about `runner: recipe`
+- teach manifest validation about `kind: "composite"` and `runner: "recipe"`
 - add `artifacts.primary`
+- implement the `recipe` runner with `build_member`, `exec`, `copy`,
+  and `assert_file`
+
+### Phase 2 (current)
+
+- `op build` produces `.holon` packages with `bin/<arch>/` layout and
+  `.holon.json` cache
+- add `copy_artifact` step type for embedding `.holon` packages into bundles
+- make `Gabriel Greeting App SwiftUI` the first full composite target:
+  `op build gabriel-greeting-app-swiftui --target macos`
 
 ### Phase 3
 
-- implement the `recipe` runner with `build_member`, `exec`, `copy`,
-  and `assert_file`
-- make `Gudule Greeting Godart` the first full composite target:
-  `op build examples/greeting --target macos`
+- `op install` copies `.holon` packages into `$OPBIN/`
+- `op discover` reads `.holon.json` from packages
+- legacy bare binaries in `$OPBIN` remain launchable as fallback
 
 ### Phase 4
 
-- add leaf runners such as `dart-package`
+- add leaf runners such as `flutter`, `dart`
+- add `use_installed` and `use_cached` recipe step types
 - decide whether `OPService` should expose lifecycle RPCs directly or
   continue routing them through CLI/invoke semantics
 
 ## Litmus Test
 
 If this spec is correct, the following should become possible without
-special-casing Gudule in Go code:
+special-casing any composite in Go code:
 
 ```text
-op build organic-programming/recipes/go-dart-holons/examples/greeting --target macos
+op build gabriel-greeting-app-swiftui --target macos
 ```
 
 And the result should:
 
-- build the daemon side
-- build the Flutter side
-- verify the daemon was bundled
-- print the final `.app` path for `Gudule Greeting Godart`
+- build the Go and Swift daemon holons (as `.holon` packages)
+- build the SwiftUI host app
+- embed the daemon `.holon` packages into the `.app` bundle
+- codesign the bundle
+- print the final `.app` path

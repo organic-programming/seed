@@ -1,9 +1,7 @@
 # Organic Programming — Constitution
 
 We work using a paradigm called **Organic Programming**.
-It is Bio-inspired and Unix-inspired.
 
-Unix is the philosophical inspiration — not the target platform.
 Organic Programming targets **any platform where code runs and a contract
 can be honored** — desktop (macOS, Linux, Windows), mobile (iOS, Android),
 web (browser, WebSocket), embedded, voice, and beyond. The only
@@ -14,13 +12,12 @@ requirement is support for Protocol Buffers; transport is pluggable.
 ## Article 1 — The Holon
 
 A **holon** is, at any scale, an independent, composable functional unit.
-A proto + facets is all you need.
+A proto is all you need.
 
 ### The proto — the center
 
-The `.proto` file is not a facet — it is the **gravitational center**
-from which all facets derive. It defines an
-`rpc` interface with typed `message` structures, making the holon
+The `.proto` is the **gravitational center**from which all facets derive. 
+It defines an`rpc` interface with typed `message` structures, making the holon
 language-agnostic and universally interoperable — any language, any
 machine, locally or over the network, can invoke it. The proto is the
 schema, the interface, and the formal specification — all in one
