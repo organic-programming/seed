@@ -13,35 +13,47 @@ requirement is support for Protocol Buffers; transport is pluggable.
 
 ## Article 1 — The Holon
 
-A **holon** is, at any scale, an independent, composable functional unit
-that exposes four facets — from most universal to most specific:
+A **holon** is, at any scale, an independent, composable functional unit.
+A proto + facets is all you need.
 
-1. **A contract** — a `.proto` file that defines an `rpc` interface with
-   typed `message` structures. The contract is the primary facet: it makes
-   the holon language-agnostic and universally interoperable — any
-   language, any machine, locally or over the network, can invoke it.
-   The contract is the schema, the interface, and the formal
-   specification — all in one artifact. Beyond services, the proto also
-   defines shared message types that other holons may reuse independently
-   of any RPC call.
-2. **External code** — a thin, minimal API in the implementation language
-   (a Go package, a Python module, a Rust crate) that wraps the generated
-   stubs. This facet enables same-language holons to compose directly
-   in-process — calling proto-defined services without serialization or
-   network overhead. It must remain as thin as possible: a convenience
-   bridge, not a parallel API. It exposes only what the contract defines,
+### The proto — the center
+
+The `.proto` file is not a facet — it is the **gravitational center**
+from which all facets derive. It defines an
+`rpc` interface with typed `message` structures, making the holon
+language-agnostic and universally interoperable — any language, any
+machine, locally or over the network, can invoke it. The proto is the
+schema, the interface, and the formal specification — all in one
+artifact. Beyond services, it also defines shared message types that
+other holons may reuse independently of any RPC call.
+
+### Innate facets — code the developer writes
+
+Four facets radiate from the proto. The developer implements them;
+each one delegates to or wraps the generated stubs:
+
+1. **Code API** — pure functions consuming and returning protobuf types.
+   No I/O, no server. The single source of truth for business logic —
+   every other facet delegates here. Same-language holons can import it
+   directly for in-process composition without serialization or network
+   overhead. It must remain as thin as possible: a convenience bridge,
+   not a parallel API. It exposes only what the contract defines,
    nothing more.
-3. **A CLI** (when possible or desirable) — a thin system I/O wrapper
-   (`stdin`/`stdout`) over the generated client, enabling composition at
-   the shell level. Some holons (browser SDKs, embedded libraries) may
-   not have a CLI facet. The CLI is a bridge to the existing ecosystem:
-   CI pipelines, shell scripts, human operators. Every CLI subcommand
-   must mirror an RPC method — they are the same operation, one for the
-   terminal, the other for the network. As the serve/dial mechanism
-   gains traction, the CLI facet will become less prominent for
-   inter-holon composition, but it remains valuable for tooling (e.g.
-   `op`, `who`) and legacy integration.
-4. **Unit tests** — the executable specification. Two levels:
+2. **CLI** — parses arguments, calls the Code API, formats output
+   (text or JSON). A `stdin`/`stdout` bridge to scripts, CI, and human
+   operators. Some holons (browser SDKs, embedded libraries) may not
+   have a CLI facet. Every CLI subcommand must mirror an RPC method —
+   they are the same operation, one for the terminal, the other for
+   the network. As the serve/dial mechanism gains traction, the CLI
+   facet will become less prominent for inter-holon composition, but
+   it remains valuable for tooling (e.g. `op`, `who`) and legacy
+   integration.
+3. **RPC** — gRPC service implementation. Adapts proto request/response
+   to internal logic. Exposed via the SDK-managed `serve` sub-command
+   to `op`, other holons, or any gRPC client. The holon registers its
+   service; the SDK handles listener negotiation, reflection, and
+   graceful shutdown.
+4. **Tests** — the executable specification. Two levels:
 
    **External tests** (mandatory) — verify the exposed surface:
    - **Contract tests**: every RPC → nominal case + error case.
@@ -54,13 +66,41 @@ that exposes four facets — from most universal to most specific:
      recommended. Good internal tests prevent regressions and document
      intent at the implementation level.
 
-   For **deterministic holons** (`pure`, `stateful`), Test-Driven Development
-   is the recommended workflow: proto → tests → implementation → refactor.
-   For **probabilistic holons**, use property-based testing instead of exact
-   value assertions. Testing strategies and helpers are provided per-SDK.
+   One test file per facet is a standard. TDD is the recommended
+   workflow for **deterministic holons** (`pure`, `stateful`):
+   proto → tests → implementation → refactor.
+   For **probabilistic holons**, use property-based testing instead of
+   exact value assertions. Testing strategies and helpers are provided
+   per-SDK.
+
+### Acquired facets — traits gained through `op`
+
+These facets emerge from the proto contract and manifest. The holon
+writes **no code** for them — `op` derives them automatically:
+
+| Facet | Provided by | Role |
+|-------|------------|------|
+| **MCP** | `op mcp` | Exposes RPCs as MCP tools for LLM clients. Proto comments become JSON Schema. |
+| **Skills** | manifest | Declared holon capabilities discoverable by agents and orchestrators. |
+| **Sequences** | manifest | Multi-step workflows composed from the holon's RPCs. |
+
+Each acquired facet builds on the previous — from exposing individual
+RPCs, to composing them into batches, to guiding agents on when and
+why to use them. See the
+[hello-world example](./examples/hello-world/gabriel-greeting-go/README.md)
+for concrete details.
+
+### Exposure
+
+Facets split into two contexts:
+
+| Context | Innate | Acquired |
+|---------|--------|----------|
+| **Dev time** | Code API, Tests | — |
+| **Runtime** | CLI, RPC | MCP, Skills, Sequences |
 
 A holon is not limited to local code or CLI execution. Through its
-contract, every holon can be invoked **locally or remotely** — the same
+proto, every holon can be invoked **locally or remotely** — the same
 contract serves all modes. This is what makes holons composable across
 machines and networks.
 
@@ -108,13 +148,16 @@ consumer, as long as the contract holds.
 Holons are language-agnostic *through their contract*. The `.proto` file
 is the universal bridge — code generation produces native stubs in any
 target language. Same-language holons can also compose directly via the
-external code facet, bypassing serialization and network overhead.
+Code API facet, bypassing serialization and network overhead.
 
 ---
 
 ## Article 2 — The Contract: Protocol Buffers
 
-The `.proto` file is the **single source of truth** for a holon's public surface.
+The `.proto` file is the **single source of truth** for a holon's public
+surface — the gravitational center described in Article 1. Every innate
+facet delegates to the generated stubs; every acquired facet is derived
+from the proto without additional code.
 
 ### Document the contract
 
@@ -148,11 +191,15 @@ message Time {
 Even functions called locally are declared as `rpc` methods. This ensures
 the contract is exhaustive: if it's not in the proto, it's not public.
 
-### gRPC is the default transport
+### Transport
 
-gRPC is the default for distributed communication. Other transports are
-permitted when the use case requires it, but the proto definition remains
-the source of truth regardless of the transport layer.
+gRPC over a pluggable transport is the communication mechanism.
+The holon's code is transport-indifferent — the SDK and `op` negotiate
+the best available transport automatically via a platform-specific
+connect cascade (see
+[Article 11](#article-11--the-serve--dial-convention)).
+The proto definition remains the source of truth regardless of the
+transport layer.
 
 ### Self-documentation via `Describe`
 
@@ -165,15 +212,16 @@ Opacity is the enemy of composition. A holon that hides its contract
 cannot participate in the ecosystem.
 
 Every holon **must** register the SDK's built-in `HolonMeta` service,
-which provides a `Describe` RPC:
+which provides a `Describe` RPC. The full service definition lives in
+[`_protos/holons/v1/describe.proto`](./_protos/holons/v1/describe.proto):
 
 ```
-holon.Describe() → slug, motto, services[], methods[], field docs
+holon.Describe() → manifest, services[], methods[], field docs
 ```
 
-`Describe` returns the holon's API catalog — method names, purpose,
-input/output types with field descriptions, enum definitions — as a
-typed protobuf response. It provides:
+`Describe` returns the holon's full manifest and its API catalog —
+method names, purpose, input/output types with field descriptions, enum
+definitions — as a typed protobuf response. It provides:
 
 - **Selective exposure** — the holon controls exactly what it documents.
   Internal or debug RPCs can be omitted.
@@ -185,14 +233,31 @@ typed protobuf response. It provides:
 - **Semantic required/optional** — `@required` tags fill the gap where
   proto3 has no wire-level required keyword.
 
+```go
+// ── Usage (Go) ──────────────────────────────────────────
+//
+// func main() {
+//     server := grpc.NewServer()
+//
+//     // Register the business implementation (written by the developer)
+//     greetingv1.RegisterGreetingServiceServer(server, &myGreetingImpl{})
+//
+//     // Auto-register HolonMeta (single SDK call)
+//     // The SDK parses local .proto files and extracts the manifest
+//     describe.Register(server, ".", "v1/holon.proto")
+//     //                         ↑ proto root  ↑ file carrying the manifest
+//
+//     server.Serve(listener)
+// }
+```
+
 For LLM and MCP integration, `op` provides external bridges that read
 the `.proto` files directly — see `op inspect`, `op mcp`, `op tools`
 in [OP.md §15](./OP.md).
 
 The SDK auto-registers `HolonMeta` when using the standard `serve`
-runner. The proto documentation is parsed from the holon's `protos/`
-directory lazily at runtime. See [PROTOCOL.md §3.5](./PROTOCOL.md) for
-the full service definition.
+runner. The proto documentation is parsed from the holon's proto
+directory lazily at runtime.
 
 > [!NOTE]
 > gRPC server reflection **may** be enabled as a development
@@ -308,7 +373,7 @@ To do a new job:
 
 Holons are composable at three levels:
 
-1. **In-process** — via the external code facet. Same-language holons
+1. **In-process** — via the Code API facet. Same-language holons
    call each other directly through generated stubs, with no
    serialization and no network overhead.
 2. **At runtime** — via serve & dial. Any holon can connect to any other
@@ -319,14 +384,6 @@ Holons are composable at three levels:
    for legacy interop and scripting.
 
 ---
-
-## Article 6 — The Universal Interface: Text Streams
-
-*"Write programs to handle text streams, because that is a universal interface."*
-
-1. **Text is the default for CLI.** Holon CLIs serialize to JSON, JSONLines, plain text, or any structured text format appropriate to the domain, for shell composability.
-2. **Binary is the default for RPC.** Protobuf wire format for performance between holons.
-3. **Stream is the default.** Unless told otherwise, every holon CLI must be capable of running as `echo "data" | ./holon`.
 
 ---
 
@@ -463,12 +520,12 @@ A holon's transport choice determines two structural properties
 OP uses the transport URI as a dispatch mechanism:
 
 ```
-op grpc://localhost:9090 ListIdentities      TCP (existing server)
-op grpc+stdio://who ListIdentities           stdio pipe (ephemeral)
-op grpc+unix:///tmp/who.sock ListIdentities   Unix socket
-op grpc+ws://host:8080/grpc ListIdentities    WebSocket
-op run who:9090                               start holon on TCP
-op run who --listen unix:///tmp/who.sock      start holon on Unix socket
+op grpc://localhost:9090 SayHello '{}'                         TCP (existing server)
+op grpc+stdio://gabriel-greeting-go SayHello '{}'              stdio pipe (ephemeral)
+op grpc+unix:///tmp/gabriel.sock SayHello '{}'                 Unix socket
+op grpc+ws://host:8080/grpc SayHello '{}'                      WebSocket
+op run gabriel-greeting-go:9090                                start holon on TCP
+op run gabriel-greeting-go --listen unix:///tmp/gabriel.sock    start holon on Unix socket
 ```
 
 The contract (`.proto`) defines WHAT a holon does; the transport URI defines
@@ -526,8 +583,11 @@ holon-to-holon composition without `op` as an intermediary.
 > The toolchain is under active development. See
 > [organic-programming/holons/](./holons/) for current status.
 
-The `op` binary orchestrator forms the canonical toolchain. **Always use it** when creating,
-inspecting, managing holons, or handling dependencies — it provides the standard interface, fully integrating identity and dependency management, rather than relying on ad hoc file manipulation.
+The `op` binary orchestrator forms the canonical toolchain. **Always use
+it** when creating, inspecting, managing holons, or handling
+dependencies — it provides the standard interface, fully integrating
+identity and dependency management, rather than relying on ad hoc file
+manipulation.
 
 | Tool | Purpose | Binary |
 |------|---------|--------|
@@ -535,8 +595,12 @@ inspecting, managing holons, or handling dependencies — it provides the standa
 
 ### Creating a new holon (canonical workflow)
 
+The identity and operational manifest live in a `.proto` file carrying
+`option (holons.v1.manifest)`. `op new` scaffolds this file and the
+surrounding directory structure:
+
 ```bash
-# 1. Create the identity (holon.yaml)
+# 1. Create the holon scaffold (proto manifest)
 op new --json '{
   "given_name": "my-holon",
   "family_name": "My Project",
@@ -562,13 +626,15 @@ After these steps, the holon directory contains:
 
 ```
 my-holon/
-├── holon.yaml   ← identity + operational manifest
-└── holon.mod    ← dependency manifest
+├── api/v1/holon.proto   ← identity + operational manifest (proto)
+└── holon.mod            ← dependency manifest
 ```
 
-The agent then creates `protos/` with the `.proto` file, implements the
-server in the idiomatic source directory, and adds tests. See
-[CONVENTIONS.md](./CONVENTIONS.md) for per-language directory structure.
+The agent then implements the Code API, CLI, RPC server, and tests.
+See [CONVENTIONS.md](./CONVENTIONS.md) for per-language directory
+structure and the
+[hello-world example](./examples/hello-world/gabriel-greeting-go/)
+for a complete reference.
 
 ### Why this matters
 
@@ -580,28 +646,21 @@ dependency metadata. An agent creating a holon MUST use this workflow.
 
 ## Article 13 — Distribution
 
-*"A holon travels as a Git repository."*
+*"A holon travels as a `.holon` package."*
 
-A holon is distributable via Git in two forms:
+The `.holon` package is the universal distribution unit. It wraps
+source, binaries, and metadata into one structure that `op` understands
+at every stage: development, build, cache, install, and runtime.
 
-1. **Source distribution** — source code + build recipe per supported
-   target (OS, architecture). The consumer clones, builds, and runs.
-   The build recipe is part of the holon: a `Makefile`, a `build.sh`,
-   or the language's standard build command. Each supported target is
-   explicit — there is no "build everywhere" magic.
-
-2. **Binary distribution** — pre-built binary + holon files (`holon.yaml`,
-   `.proto`, tests). The consumer clones and runs directly. The binary
-   is committed or attached as a release artifact in the Git repository.
+See [HOLON_PACKAGE.md](./HOLON_PACKAGE.md) for the full specification.
 
 ### What is always present
 
-Regardless of the distribution form, a holon repository **must** contain:
+Regardless of distribution mode, a holon **must** carry:
 
 | File | Why |
 |------|-----|
-| `holon.yaml` | Identity is never stripped. A holon without a name is not a holon. |
-| `*.proto` | The contract is never stripped. A holon without a contract is a black box. |
+| `*.proto` (with manifest) | Identity and contract are never stripped. A holon without a name or a contract is not a holon. |
 | Tests | The specification is never stripped. A holon without tests is unverifiable. |
 
 The contract and identity travel with the binary — they are not build
@@ -613,8 +672,7 @@ permanent civil documents.
 Git is the universal substrate. Every language, every platform, every CI
 system speaks Git. Using Git as the distribution channel — rather than a
 language-specific package manager — keeps holons language-agnostic and
-infrastructure-free. ~~See `DEPENDENCIES.md` (in marco-atlas) for
-the resolution strategy~~ currently not public.
+infrastructure-free.
 
 ---
 
@@ -646,29 +704,3 @@ self-documentation, incorrect shutdown sequences.
 If no SDK exists yet for a target language, the holon author either:
 Contributes a new SDK (see [sdk/](./sdk/)).
 
----
-
-## Article 15 — Recipes
-
-*"Combine SDKs, not codebases."*
-
-A **recipe** is a cross-language assembly pattern — it shows how to
-combine two or more language SDKs into a single application. Unlike a
-language SDK (which you `import`), a recipe provides architecture docs,
-build scripts, templates, and a working example.
-
-Recipes address a structural gap: language SDKs enable holons to serve
-and dial independently, but some applications require two holons — from
-different stacks — to ship as one artifact. A Go backend embedded in a
-Flutter app, a Rust engine driving a Swift UI, a Python model served
-through a JavaScript dashboard: these are recipe territory.
-
-A recipe contains:
-
-1. **Architecture documentation** — how the two stacks connect
-   (transport, lifecycle, shutdown).
-2. **Build scripts** — compile both sides and bundle them.
-3. **Templates** — reusable build phases and code generation scripts.
-4. **A working example** — proof that the pattern works end to end.
-
-See [recipes/](./recipes/) for available recipes.

@@ -1,5 +1,14 @@
 # Holon Communication Protocol
 
+<!-- 
+NOTE @bpds : we should document anything related to RCP serve, connect etc
+Exclude from that doc :  
+- The holon may be used also used by "cli" facet
+- The Code API
+
+We talk here of  gRPGC Holon RPC, 
+  -->
+
 > *"Every holon must be reachable."* — Constitution, Article 11
 > *"Invent only what is truly new; for everything else, imitate what works."* — Constitution, Article 9
 
@@ -175,6 +184,9 @@ simultaneously:
 
 | Scheme | Valence | Duplex | Notes |
 |--------|:-------:|:------:|-------|
+
+<!-- @bpds don't omit mem: in your sample -->
+
 | `tcp://` | Multi | Full | N concurrent connections, bidirectional byte stream |
 | `unix://` | Multi | Full | Same as TCP — bidirectional, POSIX only |
 | `stdio://` | **Mono** | **Simulated** | One pair of pipes per process lifetime |

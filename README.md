@@ -1,10 +1,10 @@
-![A .proto illuminated by four facets is all you need – Organic Programming](assets/images/op-proto.jpg)
+![A .proto at the center, facets radiating from it — Organic Programming](assets/images/op-proto.jpg)
 
 # Organic Programming
 
 A bio-inspired, Unix-inspired paradigm for a hybrid human–agent world.
-One `.proto` contract, four facets — and legacy code, new code, humans,
-and agents naturally interoperate.
+A `.proto` at the center, facets radiating from it — and legacy code,
+new code, humans, and agents naturally interoperate.
 
 > For the full motivation, see [Why?](./WHY.md).
 > For the full specification, see [AGENT.md](./AGENT.md).
@@ -16,24 +16,33 @@ and agents naturally interoperate.
 ### The Holon[^1]
 
 A **holon** is an independent, composable functional unit at any scale.
-It exposes **facets** — automatically generated from a single contract:
+A proto + facets is all you need.
 
-- **Contract** (`.proto`) — the universal interface. Any language, any
-  machine, local or remote.
-- **External code** — a thin API for same-language, in-process calls.
-- **CLI** — a `stdin`/`stdout` bridge to scripts, CI, and humans.
+The `.proto` file is the **gravitational center** — not a facet, but
+the source from which all facets derive.
+
+**Innate facets** — code the developer writes, each delegating to the
+generated stubs:
+
+- **Code API** — pure functions, no I/O. The single source of truth
+  for business logic.
+- **CLI** — `stdin`/`stdout` bridge to scripts, CI, and humans.
+- **RPC** — gRPC service, SDK-managed serving and shutdown.
 - **Tests** — the executable specification.
 
-Because facets are generated, they are cheap, numerous, and always
-consistent. The human writes only the domain logic.
+**Acquired facets** — traits gained through `op`, zero code required:
+
+- **MCP** — individual RPCs exposed as MCP tools for LLM clients.
+- **Skills** — declared capabilities discoverable by agents.
+- **Sequences** — deterministic multi-step workflows from the holon's
+  RPCs.
 
 ### The Contract[^2]
 
-Every holon's public surface is defined by a single `.proto` file.
-Every public function is an `rpc`. Every type is a `message`. The
-contract is the schema, the interface, and the documentation — all in
-one artifact. `protoc` generates native stubs in every target language;
-the human never writes API plumbing by hand.
+The `.proto` file is the single source of truth for a holon's public
+surface. Every public function is an `rpc`. Every type is a `message`.
+`protoc` generates native stubs in every target language; the human
+never writes API plumbing by hand.
 
 ### Composition[^3]
 
@@ -41,7 +50,7 @@ the human never writes API plumbing by hand.
 as yet unknown, holon."*
 
 Holons compose at three levels:
-1. **In-process** — direct calls via external code, no serialization.
+1. **In-process** — via the Code API facet, no serialization.
 2. **At runtime** — via serve & dial, any transport.
 3. **At the shell** — classic CLI piping.
 
@@ -85,9 +94,6 @@ are available to experiment with:
   languages. Some already import their matching SDK; others are still
   raw gRPC baselines. See [`sdk/SDK_GUIDE.md`](./sdk/SDK_GUIDE.md) for
   the current audit.
-- **[recipes/](./recipes/)** — 12 cross-language recipes combining Go or
-  Rust daemons with Flutter, SwiftUI, Kotlin, .NET, Web, and Qt
-  frontends.
 - **[holons/](./holons/)** — the blueprint toolchain (`op`).
   Installation notes for `op` live in [holons/grace-op/INSTALL.md](./holons/grace-op/INSTALL.md).
 
