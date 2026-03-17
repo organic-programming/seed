@@ -5,12 +5,20 @@
 #include "holons/holons.h"
 
 #include <errno.h>
+#include <limits.h>
 #include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 #ifndef GABRIEL_GREETING_C_BACKEND_BINARY
 #error "GABRIEL_GREETING_C_BACKEND_BINARY must be defined"
@@ -27,6 +35,115 @@
 #ifndef GABRIEL_GREETING_C_MANIFEST_PATH
 #error "GABRIEL_GREETING_C_MANIFEST_PATH must be defined"
 #endif
+
+static int file_exists(const char *path) {
+  return path != NULL && access(path, F_OK) == 0;
+}
+
+static int dir_exists(const char *path) {
+  return path != NULL && access(path, F_OK) == 0;
+}
+
+static int copy_path(char *out, size_t out_len, const char *path) {
+  if (out == NULL || out_len == 0 || path == NULL) {
+    return -1;
+  }
+  if (snprintf(out, out_len, "%s", path) >= (int)out_len) {
+    return -1;
+  }
+  return 0;
+}
+
+static int join_path(char *out, size_t out_len, const char *base, const char *name) {
+  if (out == NULL || out_len == 0 || base == NULL || name == NULL) {
+    return -1;
+  }
+  if (snprintf(out, out_len, "%s/%s", base, name) >= (int)out_len) {
+    return -1;
+  }
+  return 0;
+}
+
+static int executable_dir(char *out, size_t out_len) {
+#ifdef __APPLE__
+  uint32_t size = (uint32_t)out_len;
+  char resolved[PATH_MAX];
+  char *dir;
+  if (_NSGetExecutablePath(out, &size) != 0) {
+    return -1;
+  }
+  if (realpath(out, resolved) != NULL) {
+    if (copy_path(out, out_len, resolved) != 0) {
+      return -1;
+    }
+  }
+  dir = strrchr(out, '/');
+  if (dir == NULL) {
+    return -1;
+  }
+  *dir = '\0';
+  return 0;
+#else
+  (void)out;
+  (void)out_len;
+  return -1;
+#endif
+}
+
+static const char *resolve_backend_binary(char *buffer, size_t buffer_len) {
+  char dir[PATH_MAX];
+  if (executable_dir(dir, sizeof(dir)) == 0 &&
+      join_path(buffer, buffer_len, dir, "gabriel-greeting-c-backend") == 0 &&
+      file_exists(buffer)) {
+    return buffer;
+  }
+  if (copy_path(buffer, buffer_len, GABRIEL_GREETING_C_BACKEND_BINARY) == 0 &&
+      file_exists(buffer)) {
+    return buffer;
+  }
+  return GABRIEL_GREETING_C_BACKEND_BINARY;
+}
+
+static const char *resolve_bridge_binary(char *buffer, size_t buffer_len) {
+  char dir[PATH_MAX];
+  if (executable_dir(dir, sizeof(dir)) == 0 &&
+      join_path(buffer, buffer_len, dir, "grpc-bridge") == 0 &&
+      file_exists(buffer)) {
+    return buffer;
+  }
+  if (copy_path(buffer, buffer_len, GABRIEL_GREETING_C_BRIDGE_BINARY) == 0 &&
+      file_exists(buffer)) {
+    return buffer;
+  }
+  return GABRIEL_GREETING_C_BRIDGE_BINARY;
+}
+
+static const char *resolve_proto_dir(char *buffer, size_t buffer_len) {
+  if (copy_path(buffer, buffer_len, "protos") == 0 && dir_exists(buffer)) {
+    return buffer;
+  }
+  if (copy_path(buffer, buffer_len, "_protos") == 0 && dir_exists(buffer)) {
+    return buffer;
+  }
+  if (copy_path(buffer, buffer_len, GABRIEL_GREETING_C_PROTO_DIR) == 0 && dir_exists(buffer)) {
+    return buffer;
+  }
+  return GABRIEL_GREETING_C_PROTO_DIR;
+}
+
+static const char *resolve_manifest_path(char *buffer, size_t buffer_len) {
+  if (copy_path(buffer, buffer_len, "holon.yaml") == 0 && file_exists(buffer)) {
+    return buffer;
+  }
+  if (copy_path(buffer, buffer_len, "api/v1/holon.proto") == 0 && file_exists(buffer)) {
+    return buffer;
+  }
+  if (copy_path(buffer, buffer_len, GABRIEL_GREETING_C_MANIFEST_PATH) == 0 &&
+      file_exists(buffer)) {
+    return buffer;
+  }
+  return GABRIEL_GREETING_C_MANIFEST_PATH;
+}
 
 static void handle_signal(int signo) {
   (void)signo;
@@ -284,14 +401,18 @@ static int handle_connection(const holons_conn_t *conn, void *ctx) {
 }
 
 int gabriel_greeting_c_exec_bridge(const char *listen_uri, FILE *stderr_stream) {
+  char bridge_binary[PATH_MAX];
+  char backend_binary[PATH_MAX];
+  char proto_dir[PATH_MAX];
+  char manifest_path[PATH_MAX];
   char *const argv[] = {
-      (char *)GABRIEL_GREETING_C_BRIDGE_BINARY,
+      (char *)resolve_bridge_binary(bridge_binary, sizeof(bridge_binary)),
       (char *)"--backend",
-      (char *)GABRIEL_GREETING_C_BACKEND_BINARY,
+      (char *)resolve_backend_binary(backend_binary, sizeof(backend_binary)),
       (char *)"--proto-dir",
-      (char *)GABRIEL_GREETING_C_PROTO_DIR,
+      (char *)resolve_proto_dir(proto_dir, sizeof(proto_dir)),
       (char *)"--manifest",
-      (char *)GABRIEL_GREETING_C_MANIFEST_PATH,
+      (char *)resolve_manifest_path(manifest_path, sizeof(manifest_path)),
       (char *)"--listen",
       (char *)listen_uri,
       NULL,

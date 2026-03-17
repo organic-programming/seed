@@ -2,6 +2,7 @@
 
 #include "api/public.h"
 #include "internal/server.h"
+#include "holons/holons.h"
 
 #include <ctype.h>
 #include <stddef.h>
@@ -110,49 +111,6 @@ static int parse_command_options(int argc, char **argv,
       return -1;
     }
     options->positionals[options->positional_count++] = arg;
-  }
-
-  return 0;
-}
-
-static int parse_serve_options(int argc, char **argv, char *listen_uri,
-                               size_t listen_uri_len, char *err,
-                               size_t err_len) {
-  int i;
-  snprintf(listen_uri, listen_uri_len, "tcp://:9090");
-
-  for (i = 0; i < argc; ++i) {
-    const char *arg = argv[i];
-    if (strcmp(arg, "--listen") == 0) {
-      if (i + 1 >= argc) {
-        snprintf(err, err_len, "--listen requires a value");
-        return -1;
-      }
-      snprintf(listen_uri, listen_uri_len, "%s", argv[++i]);
-      continue;
-    }
-    if (strncmp(arg, "--listen=", 9) == 0) {
-      snprintf(listen_uri, listen_uri_len, "%s", arg + 9);
-      continue;
-    }
-    if (strcmp(arg, "--port") == 0) {
-      if (i + 1 >= argc) {
-        snprintf(err, err_len, "--port requires a value");
-        return -1;
-      }
-      snprintf(listen_uri, listen_uri_len, "tcp://:%s", argv[++i]);
-      continue;
-    }
-    if (strncmp(arg, "--port=", 7) == 0) {
-      snprintf(listen_uri, listen_uri_len, "tcp://:%s", arg + 7);
-      continue;
-    }
-    if (strncmp(arg, "--", 2) == 0) {
-      snprintf(err, err_len, "unknown flag \"%s\"", arg);
-      return -1;
-    }
-    snprintf(err, err_len, "serve accepts only --listen and --port");
-    return -1;
   }
 
   return 0;
@@ -332,8 +290,7 @@ static int run_say_hello(int argc, char **argv, FILE *stdout_stream,
 int gabriel_greeting_c_run_cli(int argc, char **argv, FILE *stdout_stream,
                                FILE *stderr_stream) {
   char command[64];
-  char listen_uri[256];
-  char err[256];
+  char listen_uri[HOLONS_MAX_URI_LEN];
 
   if (argc <= 0) {
     gabriel_greeting_c_print_usage(stderr_stream);
@@ -342,9 +299,8 @@ int gabriel_greeting_c_run_cli(int argc, char **argv, FILE *stdout_stream,
 
   canonical_command(argv[0], command, sizeof(command));
   if (strcmp(command, "serve") == 0) {
-    if (parse_serve_options(argc - 1, argv + 1, listen_uri, sizeof(listen_uri),
-                            err, sizeof(err)) != 0) {
-      fprintf(stderr_stream, "serve: %s\n", err);
+    if (holons_parse_flags(argc - 1, argv + 1, listen_uri, sizeof(listen_uri)) != 0) {
+      fprintf(stderr_stream, "serve: failed to parse listen options\n");
       return 1;
     }
     fflush(stdout_stream);
