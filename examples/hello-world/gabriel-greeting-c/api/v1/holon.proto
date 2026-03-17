@@ -30,7 +30,7 @@ option (holons.v1.manifest) = {
     main: "./cmd/main.c"
   }
   requires: {
-    commands: ["cmake", "go"]
+    commands: ["cmake"]
     files: ["CMakeLists.txt", "cmd/main.c"]
   }
   artifacts: {
