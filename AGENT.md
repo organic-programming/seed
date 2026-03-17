@@ -81,6 +81,12 @@ invocable from the CLI, served over RPC, and verified by tests — no
 more, no less. If a function exists in one facet but is absent from
 another, the holon is incomplete.
 
+Two CLI affordances are exempt: `serve` (circular — it bootstraps the
+RPC facet) and `help` (purely human-facing, register-specific). `version`
+is not exempt — the SDK derives it from the manifest and surfaces it
+across all facets automatically (built-in CLI subcommand + `Describe`
+response).
+
 This symmetry is the primary design constraint: the external surface must
 be **as small as possible**. The internal volume behind it — helpers,
 engines, data structures — can be arbitrarily complex and composed, but

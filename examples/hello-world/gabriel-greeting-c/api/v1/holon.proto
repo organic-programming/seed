@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package greeting.v1;
+
+import "holons/v1/manifest.proto";
+import "v1/greeting.proto";
+
+
+// C-specific holon descriptor for gabriel-greeting-c.
+// Layers CMake runtime metadata and holon manifest on top of the shared
+// greeting contract.
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "a9b515e3-0b75-44f5-ab68-70c4d53e4947"
+    given_name: "Gabriel"
+    family_name: "Greeting-C"
+    motto: "Greets users in 56 languages — a C daemon example."
+    composer: "Codex"
+    status: "draft"
+    born: "2026-03-16"
+    version: "0.1.0"
+  }
+  description: "A C gRPC daemon that greets users in 56 languages using the c-holons bridge."
+  lang: "c"
+  kind: "native"
+  build: {
+    runner: "cmake"
+    main: "./cmd/main.c"
+  }
+  requires: {
+    commands: ["cmake"]
+    files: ["CMakeLists.txt", "cmd/main.c"]
+  }
+  artifacts: {
+    binary: "gabriel-greeting-c"
+  }
+  skills: [{
+    name: "multilingual-greeter"
+    description: "Greet a person by name in any of the 56 supported languages."
+    when: "The user wants to greet someone in a specific language."
+    steps: [
+      "Call ListLanguages to show available languages",
+      "Ask the user for a name and language code",
+      "Call SayHello with the chosen name and lang_code"
+    ]
+  }]
+  sequences: [{
+    name: "multilingual-greeting"
+    description: "List available languages then greet the user in the chosen one."
+    params: [
+      {name: "name", description: "Person to greet", required: true},
+      {name: "lang_code", description: "ISO 639-1 language code", required: true}
+    ]
+    steps: [
+      "op gabriel-greeting-c ListLanguages",
+      "op gabriel-greeting-c SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"{{ .lang_code }}\"}'"
+    ]
+  }, {
+    name: "greeting-fr-ja-ru-en"
+    description: "List available languages, then greet in French, Japanese, Russian, and English."
+    params: [
+      {name: "name", description: "Person to greet", required: true}
+    ]
+    steps: [
+      "op gabriel-greeting-c ListLanguages",
+      "op gabriel-greeting-c SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"fr\"}'",
+      "op gabriel-greeting-c SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ja\"}'",
+      "op gabriel-greeting-c SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ru\"}'",
+      "op gabriel-greeting-c SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"en\"}'"
+    ]
+  }]
+};

@@ -1,0 +1,1 @@
+"""Private Gabriel greeting facets."""

@@ -268,6 +268,120 @@ private extension GabrielDaemonIdentity {
             holonUUID: "3f08b5c3-8931-46d0-847a-a64d8b9ba57e",
             born: "2026-02-20"
         ),
+        GabrielDaemonDescriptor(
+            variant: "rust",
+            familyName: "Greeting-Rust",
+            displayName: "Gabriel (Rust)",
+            binaryName: "gabriel-greeting-rust",
+            buildRunner: "cargo",
+            sortRank: 2,
+            holonUUID: "f6f82422-f0fa-4d7e-a417-67602e749d09",
+            born: "2026-03-16",
+            extraRelativePaths: [
+                "target/debug/gabriel-greeting-rust",
+                "target/release/gabriel-greeting-rust",
+            ]
+        ),
+        GabrielDaemonDescriptor(
+            variant: "python",
+            familyName: "Greeting-Python",
+            displayName: "Gabriel (Python)",
+            binaryName: "gabriel-greeting-python",
+            buildRunner: "python",
+            sortRank: 3,
+            holonUUID: "21c76e23-bdf2-4dbe-85fe-850c5d17118b",
+            born: "2026-03-16",
+            extraRelativePaths: [
+                "cmd/main.py",
+                "build/scripts/gabriel-greeting-python",
+            ]
+        ),
+        GabrielDaemonDescriptor(
+            variant: "c",
+            familyName: "Greeting-C",
+            displayName: "Gabriel (C)",
+            binaryName: "gabriel-greeting-c",
+            buildRunner: "cmake",
+            sortRank: 4,
+            holonUUID: "a9b515e3-0b75-44f5-ab68-70c4d53e4947",
+            born: "2026-03-16"
+        ),
+        GabrielDaemonDescriptor(
+            variant: "cpp",
+            familyName: "Greeting-Cpp",
+            displayName: "Gabriel (C++)",
+            binaryName: "gabriel-greeting-cpp",
+            buildRunner: "cmake",
+            sortRank: 5,
+            holonUUID: "05af5ed2-79d3-438d-b8b1-6a252d09ab38",
+            born: "2026-03-16"
+        ),
+        GabrielDaemonDescriptor(
+            variant: "csharp",
+            familyName: "Greeting-Csharp",
+            displayName: "Gabriel (C#)",
+            binaryName: "gabriel-greeting-csharp",
+            buildRunner: "dotnet",
+            sortRank: 6,
+            holonUUID: "846d57c7-d6e8-4be1-a1f0-89250bd87759",
+            born: "2026-03-16"
+        ),
+        GabrielDaemonDescriptor(
+            variant: "dart",
+            familyName: "Greeting-Dart",
+            displayName: "Gabriel (Dart)",
+            binaryName: "gabriel-greeting-dart",
+            buildRunner: "dart",
+            sortRank: 7,
+            holonUUID: "0e98310c-c48f-4d3b-aa4c-25e133b4880f",
+            born: "2026-03-16"
+        ),
+        GabrielDaemonDescriptor(
+            variant: "java",
+            familyName: "Greeting-Java",
+            displayName: "Gabriel (Java)",
+            binaryName: "gabriel-greeting-java",
+            buildRunner: "gradle",
+            sortRank: 8,
+            holonUUID: "43a1d6d9-952b-447c-8e47-4c9f0837d8bd",
+            born: "2026-03-16",
+            extraRelativePaths: [
+                "build/install/gabriel-greeting-java/bin/gabriel-greeting-java",
+            ]
+        ),
+        GabrielDaemonDescriptor(
+            variant: "kotlin",
+            familyName: "Greeting-Kotlin",
+            displayName: "Gabriel (Kotlin)",
+            binaryName: "gabriel-greeting-kotlin",
+            buildRunner: "gradle",
+            sortRank: 9,
+            holonUUID: "e7c6a320-8c93-4ae6-8c65-03efa8fa759e",
+            born: "2026-03-16",
+            extraRelativePaths: [
+                "build/install/gabriel-greeting-kotlin/bin/gabriel-greeting-kotlin",
+            ]
+        ),
+        GabrielDaemonDescriptor(
+            variant: "node",
+            familyName: "Greeting-Node",
+            displayName: "Gabriel (Node.js)",
+            binaryName: "gabriel-greeting-node",
+            buildRunner: "npm",
+            sortRank: 10,
+            holonUUID: "1d02f9a4-77e5-4082-bbd7-b6f9c4bb28db",
+            born: "2026-03-16"
+        ),
+        GabrielDaemonDescriptor(
+            variant: "ruby",
+            familyName: "Greeting-Ruby",
+            displayName: "Gabriel (Ruby)",
+            binaryName: "gabriel-greeting-ruby",
+            buildRunner: "ruby",
+            sortRank: 11,
+            holonUUID: "0d371dd4-2948-4192-8638-cee294fb8320",
+            born: "2026-03-16"
+        ),
     ]
 
     static func fromDescriptor(_ descriptor: GabrielDaemonDescriptor, binaryPath: String) -> GabrielDaemonIdentity {

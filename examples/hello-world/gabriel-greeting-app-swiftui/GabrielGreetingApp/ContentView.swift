@@ -275,16 +275,6 @@ struct ContentView: View {
                             .textSelection(.enabled)
                     }
                     .padding(24)
-                } else if isLoading || isGreeting {
-                    VStack(spacing: 12) {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .tint(.white.opacity(0.85))
-                        Text(isGreeting ? "Greeting..." : "Connecting...")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(Color.white.opacity(0.8))
-                    }
-                    .padding(24)
                 } else {
                     Text(greeting)
                         .font(.system(size: 42, weight: .medium))

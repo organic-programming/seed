@@ -14,8 +14,9 @@ option (holons.v1.manifest) = {
     composer: "Codex"
     status: "draft"
     born: "2026-03-15"
+    version: "0.1.0"
   }
-  description: "A standalone SwiftUI app that connects to Gabriel greeting holons (Go and Swift) and presents a multilingual greeting UI."
+  description: "A standalone SwiftUI app that connects to all 12 Gabriel greeting daemon variants and presents a multilingual greeting UI."
   kind: "composite"
   build: {
     runner: "recipe"
@@ -34,6 +35,56 @@ option (holons.v1.manifest) = {
       type: "holon"
     }
     members: {
+      id: "greeting-rust"
+      path: "../gabriel-greeting-rust"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-python"
+      path: "../gabriel-greeting-python"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-c"
+      path: "../gabriel-greeting-c"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-cpp"
+      path: "../gabriel-greeting-cpp"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-csharp"
+      path: "../gabriel-greeting-csharp"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-dart"
+      path: "../gabriel-greeting-dart"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-java"
+      path: "../gabriel-greeting-java"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-kotlin"
+      path: "../gabriel-greeting-kotlin"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-node"
+      path: "../gabriel-greeting-node"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-ruby"
+      path: "../gabriel-greeting-ruby"
+      type: "holon"
+    }
+    members: {
       id: "app"
       path: "."
       type: "component"
@@ -46,6 +97,36 @@ option (holons.v1.manifest) = {
         }
         steps: {
           build_member: "greeting-swift"
+        }
+        steps: {
+          build_member: "greeting-rust"
+        }
+        steps: {
+          build_member: "greeting-python"
+        }
+        steps: {
+          build_member: "greeting-c"
+        }
+        steps: {
+          build_member: "greeting-cpp"
+        }
+        steps: {
+          build_member: "greeting-csharp"
+        }
+        steps: {
+          build_member: "greeting-dart"
+        }
+        steps: {
+          build_member: "greeting-java"
+        }
+        steps: {
+          build_member: "greeting-kotlin"
+        }
+        steps: {
+          build_member: "greeting-node"
+        }
+        steps: {
+          build_member: "greeting-ruby"
         }
         steps: {
           exec: {
@@ -72,6 +153,66 @@ option (holons.v1.manifest) = {
           }
         }
         steps: {
+          copy_artifact: {
+            from: "greeting-rust"
+            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-rust.holon"
+          }
+        }
+        steps: {
+          copy_artifact: {
+            from: "greeting-python"
+            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-python.holon"
+          }
+        }
+        steps: {
+          copy_artifact: {
+            from: "greeting-c"
+            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-c.holon"
+          }
+        }
+        steps: {
+          copy_artifact: {
+            from: "greeting-cpp"
+            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-cpp.holon"
+          }
+        }
+        steps: {
+          copy_artifact: {
+            from: "greeting-csharp"
+            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-csharp.holon"
+          }
+        }
+        steps: {
+          copy_artifact: {
+            from: "greeting-dart"
+            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-dart.holon"
+          }
+        }
+        steps: {
+          copy_artifact: {
+            from: "greeting-java"
+            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-java.holon"
+          }
+        }
+        steps: {
+          copy_artifact: {
+            from: "greeting-kotlin"
+            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-kotlin.holon"
+          }
+        }
+        steps: {
+          copy_artifact: {
+            from: "greeting-node"
+            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-node.holon"
+          }
+        }
+        steps: {
+          copy_artifact: {
+            from: "greeting-ruby"
+            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-ruby.holon"
+          }
+        }
+        steps: {
           assert_file: {
             path: "build/GabrielGreetingApp.app"
           }
@@ -85,7 +226,7 @@ option (holons.v1.manifest) = {
     }
   }
   requires: {
-    commands: ["xcodebuild"]
+    commands: ["xcodebuild", "cargo", "python3"]
     files: ["Package.swift"]
   }
   artifacts: {

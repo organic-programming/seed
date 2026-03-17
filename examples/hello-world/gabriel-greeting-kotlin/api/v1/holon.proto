@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package greeting.v1;
+
+import "holons/v1/manifest.proto";
+import "v1/greeting.proto";
+
+option java_package = "org.organicprogramming.gabriel.greeting.kotlinholon.api.v1";
+option java_outer_classname = "HolonProto";
+option java_multiple_files = true;
+
+
+// Kotlin-specific holon descriptor for gabriel-greeting-kotlin.
+// Layers Kotlin runtime metadata and holon manifest on top of the shared
+// greeting contract.
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "e7c6a320-8c93-4ae6-8c65-03efa8fa759e"
+    given_name: "Gabriel"
+    family_name: "Greeting-Kotlin"
+    motto: "Greets users in 56 languages — a Kotlin daemon example."
+    composer: "Codex"
+    status: "draft"
+    born: "2026-03-16"
+    version: "0.1.0"
+  }
+  description: "A Kotlin gRPC daemon that greets users in 56 languages."
+  lang: "kotlin"
+  kind: "native"
+  build: {
+    runner: "gradle"
+    main: "./src/main/kotlin/org/organicprogramming/gabriel/greeting/kotlinholon/cmd/Main.kt"
+  }
+  requires: {
+    commands: ["java", "gradle"]
+    files: ["build.gradle.kts", "settings.gradle.kts"]
+  }
+  artifacts: {
+    binary: "gabriel-greeting-kotlin"
+  }
+  skills: [{
+    name: "multilingual-greeter"
+    description: "Greet a person by name in any of the 56 supported languages."
+    when: "The user wants to greet someone in a specific language."
+    steps: [
+      "Call ListLanguages to show available languages",
+      "Ask the user for a name and language code",
+      "Call SayHello with the chosen name and lang_code"
+    ]
+  }]
+  sequences: [{
+    name: "multilingual-greeting"
+    description: "List available languages then greet the user in the chosen one."
+    params: [
+      {name: "name", description: "Person to greet", required: true},
+      {name: "lang_code", description: "ISO 639-1 language code", required: true}
+    ]
+    steps: [
+      "op gabriel-greeting-kotlin ListLanguages",
+      "op gabriel-greeting-kotlin SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"{{ .lang_code }}\"}'"
+    ]
+  }, {
+    name: "greeting-fr-ja-ru-en"
+    description: "List available languages, then greet in French, Japanese, Russian, and English."
+    params: [
+      {name: "name", description: "Person to greet", required: true}
+    ]
+    steps: [
+      "op gabriel-greeting-kotlin ListLanguages",
+      "op gabriel-greeting-kotlin SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"fr\"}'",
+      "op gabriel-greeting-kotlin SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ja\"}'",
+      "op gabriel-greeting-kotlin SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ru\"}'",
+      "op gabriel-greeting-kotlin SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"en\"}'"
+    ]
+  }]
+};

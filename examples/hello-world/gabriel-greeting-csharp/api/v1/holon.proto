@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package greeting.v1;
+
+import "holons/v1/manifest.proto";
+import "v1/greeting.proto";
+
+option csharp_namespace = "GabrielGreeting.Csharp.Api.V1";
+
+
+// C#-specific holon descriptor for gabriel-greeting-csharp.
+// Layers C# runtime metadata and holon manifest on top of the shared
+// greeting contract.
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "846d57c7-d6e8-4be1-a1f0-89250bd87759"
+    given_name: "Gabriel"
+    family_name: "Greeting-Csharp"
+    motto: "Greets users in 56 languages — a C# daemon example."
+    composer: "Codex"
+    status: "draft"
+    born: "2026-03-16"
+    version: "0.1.0"
+  }
+  description: "A C# gRPC daemon that greets users in 56 languages."
+  lang: "csharp"
+  kind: "native"
+  build: {
+    runner: "dotnet"
+    main: "./cmd/Main.cs"
+  }
+  requires: {
+    commands: ["dotnet"]
+    files: ["gabriel-greeting-csharp.csproj", "cmd/Main.cs"]
+  }
+  artifacts: {
+    binary: "gabriel-greeting-csharp"
+  }
+  skills: [{
+    name: "multilingual-greeter"
+    description: "Greet a person by name in any of the 56 supported languages."
+    when: "The user wants to greet someone in a specific language."
+    steps: [
+      "Call ListLanguages to show available languages",
+      "Ask the user for a name and language code",
+      "Call SayHello with the chosen name and lang_code"
+    ]
+  }]
+  sequences: [{
+    name: "multilingual-greeting"
+    description: "List available languages then greet the user in the chosen one."
+    params: [
+      {name: "name", description: "Person to greet", required: true},
+      {name: "lang_code", description: "ISO 639-1 language code", required: true}
+    ]
+    steps: [
+      "op gabriel-greeting-csharp ListLanguages",
+      "op gabriel-greeting-csharp SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"{{ .lang_code }}\"}'"
+    ]
+  }, {
+    name: "greeting-fr-ja-ru-en"
+    description: "List available languages, then greet in French, Japanese, Russian, and English."
+    params: [
+      {name: "name", description: "Person to greet", required: true}
+    ]
+    steps: [
+      "op gabriel-greeting-csharp ListLanguages",
+      "op gabriel-greeting-csharp SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"fr\"}'",
+      "op gabriel-greeting-csharp SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ja\"}'",
+      "op gabriel-greeting-csharp SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ru\"}'",
+      "op gabriel-greeting-csharp SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"en\"}'"
+    ]
+  }]
+};

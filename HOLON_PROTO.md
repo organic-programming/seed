@@ -188,9 +188,38 @@ message Identity {
   string motto = 5;        // dessein in one sentence
   string composer = 6;     // who designed this holon
   string status = 8;       // draft | stable | deprecated | dead
-  string born = 9;         // ISO 8601 date
+  string born = 9;         // ISO 8601 date (YYYY-MM-DD)
+  string version = 10;     // semver, e.g. "0.4.1" — no "v" prefix
 }
 ```
+
+### Version
+
+`version` is the **single source of truth** for the holon's release version.
+It is a [semver](https://semver.org) string stored without a `v` prefix
+(e.g. `"0.4.1"`, not `"v0.4.1"`). The `v` is a display convention added
+by CLIs; the datum stays clean.
+
+| Facet | How version is surfaced |
+|-------|------------------------|
+| **CLI** | SDK-provided `version` subcommand — reads from the manifest at startup |
+| **RPC** | `Describe` response includes `version` from identity |
+| **Code API** | SDK exposes a `Version()` helper — no hand-written constant needed |
+| **Tests** | Assert against the SDK helper |
+
+Version lifecycle:
+
+```
+0.1.0  →  0.1.1 (patch: bug fix)
+       →  0.2.0 (minor: new RPC, backward-compatible)
+       →  1.0.0 (major: breaking contract change)
+```
+
+A new major version implies a new proto package (`greeting.v2`) — see §6.4.
+Major bumps are rare; the contract is designed to be stable.
+
+> **Author directive**: bump `version` in the proto manifest on every
+> release. Never maintain a separate version constant in code.
 
 ### Lifecycle
 
@@ -516,6 +545,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-02-20"
+    version: "0.4.1"
   }
   description: "A Go gRPC daemon that greets users in 56 languages."
   lang: "go"

@@ -27,6 +27,7 @@ message HolonManifest {
     reserved 7;              // was: clade (deprecated — computational nature taxonomy removed)
     string status = 8;       // draft | stable | deprecated | dead
     string born = 9;         // ISO 8601 date of creation (YYYY-MM-DD)
+    string version = 10;     // semver, e.g. "0.4.1" — no "v" prefix
   }
 
   // ── Skill ─────────────────────────────────────────────

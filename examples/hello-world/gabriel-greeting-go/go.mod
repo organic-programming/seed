@@ -4,7 +4,6 @@ go 1.25.1
 
 require (
 	github.com/organic-programming/go-holons v0.2.0
-	github.com/organic-programming/seed/recipes/daemons/gudule-daemon-greeting-go v0.0.0-20260312122938-c55e04c66ba6
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
 )

@@ -1,0 +1,20 @@
+{
+  "name": "gabriel-greeting-node",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gabriel greeting holon in Node.js.",
+  "main": "cmd/main.js",
+  "scripts": {
+    "generate-proto": "node scripts/generate_proto.js",
+    "test": "node --test api/public_test.js api/cli_test.js _internal/server_test.js"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.10.0",
+    "@grpc/proto-loader": "^0.8.0",
+    "@organic-programming/holons": "file:../../../sdk/js-holons",
+    "google-protobuf": "^3.21.4"
+  },
+  "devDependencies": {
+    "grpc-tools": "^1.13.0"
+  }
+}
