@@ -29,6 +29,5 @@ Future<void> listenAndServe(String listenUri) {
   return runWithOptions(
     listenUri,
     <Service>[GreetingService()],
-    options: const ServeOptions(describe: false),
   );
 }
