@@ -31,7 +31,7 @@
 ## 2026-03-17 — Script Wrapper Working Directory
 **Options considered:** Keep Python and Ruby wrappers `cd`-ing into the source tree; rewrite the holons to pass explicit Describe metadata paths; preserve the caller's working directory and make the wrappers self-sufficient with absolute paths and bundle environment variables.
 **Chosen approach:** Preserve the caller's working directory in Python and Ruby wrappers, using absolute entrypoint paths and Ruby bundle environment variables instead of `cd`.
-**Rationale:** The Swift host stages `holon.yaml` and `protos` in a temporary working directory for Describe readiness. Wrappers that change directories hide that staged metadata and break host discovery even though the underlying scripts can run without changing cwd.
+**Rationale:** The Swift host stages `holon.proto` and `protos` in a temporary working directory for Describe readiness. Wrappers that change directories hide that staged proto metadata and break host discovery even though the underlying scripts can run without changing cwd.
 
 ## 2026-03-17 — Python Interpreter Selection
 **Options considered:** Keep using the first `python3` on `PATH`; rewrite the Python holon to vendor dependencies itself; prefer a project-local virtualenv interpreter when present and fall back to the host Python otherwise.

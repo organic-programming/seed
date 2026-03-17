@@ -594,41 +594,12 @@ private extension HolonProcess {
                 .appendingPathComponent("holons", isDirectory: true)
                 .appendingPathComponent(holon.slug, isDirectory: true)
             try FileManager.default.createDirectory(at: holonDir, withIntermediateDirectories: true)
-            try manifest(for: holon)
-                .write(to: holonDir.appendingPathComponent("holon.yaml"), atomically: true, encoding: .utf8)
             try stageGabrielProtos(into: holonDir, holon: holon)
             return root
         } catch {
             try? FileManager.default.removeItem(at: root)
             throw HolonStartError.failedToStageRoot(error.localizedDescription)
         }
-    }
-
-    func manifest(for holon: GabrielHolonIdentity) -> String {
-        """
-        schema: holon/v1
-        uuid: "\(holon.holonUUID)"
-        given_name: "Gabriel"
-        family_name: "\(holon.familyName)"
-        motto: "Greets users in 56 languages."
-        composer: "Codex"
-        clade: deterministic/pure
-        status: draft
-        born: "\(holon.born)"
-        lang: "\(holon.variant)"
-        reproduction: manual
-        generated_by: manual
-        kind: native
-        build:
-          runner: \(holon.buildRunner)
-        artifacts:
-          binary: "\(yamlEscape(holon.binaryPath))"
-        """ + "\n"
-    }
-
-    func yamlEscape(_ value: String) -> String {
-        value.replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 
     func stageGabrielProtos(into holonDir: URL, holon: GabrielHolonIdentity) throws {

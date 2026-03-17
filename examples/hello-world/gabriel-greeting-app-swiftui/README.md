@@ -21,7 +21,7 @@ The UI exposes the same transport picker as the reference recipe:
 - `tcp`
 - `rest+sse`
 
-The HostUI uses a staged holon root for `connect(slug)` compatibility. It copies Gabriel's proto identity (`holon.proto`) plus the shared `greeting.proto`, and also emits a minimal `holon.yaml` because the current Swift SDK still requires it for discovery and describe support.
+The HostUI uses a staged holon root for `connect(slug)` compatibility. It copies Gabriel's proto identity (`holon.proto`) plus the shared `greeting.proto` so discovery and Describe can resolve the staged holon from proto metadata alone.
 
 ## Build
 

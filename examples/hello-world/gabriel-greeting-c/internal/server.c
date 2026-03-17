@@ -132,9 +132,6 @@ static const char *resolve_proto_dir(char *buffer, size_t buffer_len) {
 }
 
 static const char *resolve_manifest_path(char *buffer, size_t buffer_len) {
-  if (copy_path(buffer, buffer_len, "holon.yaml") == 0 && file_exists(buffer)) {
-    return buffer;
-  }
   if (copy_path(buffer, buffer_len, "api/v1/holon.proto") == 0 && file_exists(buffer)) {
     return buffer;
   }
