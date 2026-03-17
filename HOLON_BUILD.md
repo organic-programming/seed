@@ -418,6 +418,61 @@ Output: `.op/build/<slug>.holon/bin/<arch>/<slug>`
 New leaf runners are added by implementing the runner interface in `op`.
 See `manifest.proto` `Build.runner` for the canonical runner taxonomy.
 
+## Build-Time Templates
+
+Source files listed in `build.templates` are processed as Go templates
+before the language build. Template expressions are resolved with
+identity data from the holon's proto manifest, then the originals are
+restored after the build completes (success or failure).
+
+### Mechanism
+
+1. For each file in `build.templates`: read original bytes into memory
+2. Process as a Go template with identity data
+3. Write resolved content to disk
+4. Run the language build (compiled or packaged)
+5. Restore original bytes from memory (via `defer` — always runs)
+
+This works for all runners: compiled holons get the resolved values baked
+into the binary; interpreted holons get them in the packaged `.holon` output.
+
+### Manifest Shape
+
+```protobuf
+build: {
+  runner: "go-module"
+  main: "./cmd/op"
+  templates: ["api/version.go"]
+}
+```
+
+### Template Variables
+
+All identity fields are available:
+
+| Variable       | Source                    | Example      |
+|---------------|--------------------------|--------------|
+| `{{ .Version }}`  | `identity.version`  | `0.5.2`      |
+| `{{ .UUID }}`     | `identity.uuid`     | `28f22ab5-…` |
+| `{{ .GivenName }}`| `identity.given_name`| `Grace`     |
+| `{{ .FamilyName }}`| `identity.family_name`| `OP`       |
+| `{{ .Motto }}`    | `identity.motto`    | `One command…`|
+| `{{ .Composer }}` | `identity.composer` | `B. ALTER`   |
+| `{{ .Status }}`   | `identity.status`   | `draft`      |
+| `{{ .Born }}`     | `identity.born`     | `2026-02-12` |
+
+### Example: Go Version File
+
+```go
+// api/version.go
+package api
+
+func VersionString() string { return "{{ .Version }}" }
+```
+
+After `op build`, the binary returns `"0.5.2"`.
+The source file is restored to contain `{{ .Version }}`.
+
 ## Error Model
 
 `op build` should fail fast with one dominant error.

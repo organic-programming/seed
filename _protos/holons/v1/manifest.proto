@@ -87,6 +87,10 @@ message HolonManifest {
     repeated Member members = 4;
     map<string, Target> targets = 5;
 
+    // Source files containing Go template expressions (e.g. {{ .Version }}).
+    // Resolved with identity data before the language build, restored after.
+    repeated string templates = 6;
+
     message Defaults {
       string target = 1;   // e.g. "macos", "linux"
       string mode = 2;     // e.g. "debug", "release"
