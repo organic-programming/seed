@@ -28,7 +28,7 @@ RunningServer StartServer(const std::vector<std::string> &listeners,
 
   holons::serve::options options;
   options.enable_reflection = true;
-  options.auto_register_holon_meta = false;
+  options.auto_register_holon_meta = true;
   options.announce = announce;
 
   const std::vector<std::string> resolved =
@@ -46,7 +46,7 @@ RunningServer StartServer(const std::vector<std::string> &listeners,
 void Serve(const std::vector<std::string> &listeners) {
   holons::serve::options options;
   options.enable_reflection = true;
-  options.auto_register_holon_meta = false;
+  options.auto_register_holon_meta = true;
   options.announce = true;
 
   auto service = std::make_shared<Server>();
