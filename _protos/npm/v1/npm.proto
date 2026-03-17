@@ -1,0 +1,290 @@
+syntax = "proto3";
+package npm.v1;
+
+service NpmService {
+  // Package management
+
+  // Init creates package metadata with `npm init`.
+  // @example {"args":["-y"],"workdir":"."}
+  rpc Init(NpmCommandRequest) returns (NpmCommandResponse);
+
+  // Install installs runtime or development dependencies.
+  // @example {"packages":["typescript","vitest"],"workdir":".","save_dev":true}
+  rpc Install(InstallRequest) returns (NpmCommandResponse);
+
+  // Uninstall removes dependencies from the package.
+  // @example {"args":["left-pad"],"workdir":"."}
+  rpc Uninstall(NpmCommandRequest) returns (NpmCommandResponse);
+
+  // Update refreshes dependencies to newer matching versions.
+  // @example {"args":["react"],"workdir":"."}
+  rpc Update(NpmCommandRequest) returns (NpmCommandResponse);
+
+  // Add is an alias-friendly install entry point.
+  // @example {"args":["eslint","-D"],"workdir":"."}
+  rpc Add(NpmCommandRequest) returns (NpmCommandResponse);
+
+  // Build and run
+
+  // RunScript executes a package script with optional extra arguments.
+  // @example {"script":"build","args":["--watch"],"workdir":"."}
+  rpc RunScript(RunScriptRequest) returns (NpmCommandResponse);
+
+  // Test runs the package test script.
+  // @example {"args":["--","--runInBand"],"workdir":"."}
+  rpc Test(NpmCommandRequest) returns (NpmCommandResponse);
+
+  // Build runs the package build script.
+  // @example {"args":["--","--mode","production"],"workdir":"."}
+  rpc Build(NpmCommandRequest) returns (NpmCommandResponse);
+
+  // NodeExec runs a script file or inline JavaScript with Node.js.
+  // @example {"file":"scripts/release.mjs","args":["--dry-run"],"workdir":"."}
+  rpc NodeExec(NodeExecRequest) returns (NpmCommandResponse);
+
+  // Introspection (structured)
+
+  // ListDeps returns the dependency tree as structured data.
+  // @example {"workdir":".","all":true,"depth":1}
+  rpc ListDeps(ListDepsRequest) returns (ListDepsResponse);
+
+  // Audit returns structured vulnerability information from `npm audit`.
+  // @example {"args":["--omit","dev"],"workdir":"."}
+  rpc Audit(NpmCommandRequest) returns (AuditResponse);
+
+  // Outdated reports packages that are behind the registry.
+  // @example {"workdir":"."}
+  rpc Outdated(NpmCommandRequest) returns (OutdatedResponse);
+
+  // ReadPackageJson parses package.json into structured fields.
+  // @example {"workdir":"."}
+  rpc ReadPackageJson(ReadPackageJsonRequest) returns (PackageJsonResponse);
+
+  // Publishing and pack
+
+  // Pack creates a tarball from the current package.
+  // @example {"args":["--pack-destination","dist"],"workdir":"."}
+  rpc Pack(NpmCommandRequest) returns (NpmCommandResponse);
+
+  // Publish publishes the current package to the registry.
+  // @example {"args":["--tag","next"],"workdir":"."}
+  rpc Publish(NpmCommandRequest) returns (NpmCommandResponse);
+
+  // Utilities
+
+  // CacheClean clears npm's local cache.
+  // @example {"args":["--force"],"workdir":"."}
+  rpc CacheClean(NpmCommandRequest) returns (NpmCommandResponse);
+
+  // Npx executes a package binary without adding it as a dependency.
+  // @example {"args":["eslint",".","--fix"],"workdir":"."}
+  rpc Npx(NpmCommandRequest) returns (NpmCommandResponse);
+
+  // Version returns the installed npm, node, and npx versions.
+  // @example {}
+  rpc Version(VersionRequest) returns (VersionResponse);
+}
+
+message NpmCommandRequest {
+  // Arguments appended after the selected npm subcommand.
+  // @example ["react"]
+  repeated string args = 1;
+
+  // Working directory where npm runs.
+  // @example "."
+  string workdir = 2;
+
+  // Environment variables in `KEY=VALUE` format.
+  // @example ["NODE_ENV=production"]
+  repeated string env = 3;
+
+  // Timeout in seconds. Use 0 to disable the timeout.
+  // @example 60
+  int32 timeout_s = 4;
+}
+
+message NpmCommandResponse {
+  int32 exit_code = 1;
+  string stdout = 2;
+  string stderr = 3;
+  float elapsed_s = 4;
+}
+
+message InstallRequest {
+  // Packages to install. Leave empty to install from package-lock.json or package.json.
+  // @example ["typescript","vitest"]
+  repeated string packages = 1;
+
+  // Working directory where npm runs.
+  // @example "."
+  string workdir = 2;
+
+  // Environment variables in `KEY=VALUE` format.
+  // @example ["CI=true"]
+  repeated string env = 3;
+
+  // Timeout in seconds. Use 0 to disable the timeout.
+  // @example 120
+  int32 timeout_s = 4;
+
+  // Install the packages as dev dependencies.
+  // @example true
+  bool save_dev = 5;
+
+  // Pin installed versions exactly.
+  // @example true
+  bool save_exact = 6;
+
+  // Omit dev dependencies from the install.
+  // @example false
+  bool production = 7;
+
+  // Use npm's legacy peer dependency resolution.
+  // @example false
+  bool legacy_peer_deps = 8;
+}
+
+message RunScriptRequest {
+  // Package script name to execute.
+  // @required
+  // @example "build"
+  string script = 1;
+
+  // Extra arguments passed after `npm run <script> --`.
+  // @example ["--watch"]
+  repeated string args = 2;
+
+  // Working directory where npm runs.
+  // @example "."
+  string workdir = 3;
+
+  // Environment variables in `KEY=VALUE` format.
+  // @example ["NODE_ENV=development"]
+  repeated string env = 4;
+
+  // Timeout in seconds. Use 0 to disable the timeout.
+  // @example 300
+  int32 timeout_s = 5;
+}
+
+message NodeExecRequest {
+  // Script file to execute when not using `eval`.
+  // @example "scripts/release.mjs"
+  string file = 1;
+
+  // Arguments passed to the Node.js process.
+  // @example ["--dry-run"]
+  repeated string args = 2;
+
+  // Working directory where Node.js runs.
+  // @example "."
+  string workdir = 3;
+
+  // Environment variables in `KEY=VALUE` format.
+  // @example ["NODE_ENV=test"]
+  repeated string env = 4;
+
+  // Timeout in seconds. Use 0 to disable the timeout.
+  // @example 30
+  int32 timeout_s = 5;
+
+  // Inline JavaScript to evaluate instead of executing a file.
+  // @example "console.log(process.version)"
+  string eval = 6;
+}
+
+message ListDepsRequest {
+  // Working directory whose dependency graph should be inspected.
+  // @example "."
+  string workdir = 1;
+
+  // Environment variables in `KEY=VALUE` format.
+  // @example ["NODE_ENV=production"]
+  repeated string env = 2;
+
+  // Include the full dependency tree instead of the top level only.
+  // @example true
+  bool all = 3;
+
+  // Maximum tree depth to expand.
+  // @example 1
+  int32 depth = 4;
+}
+
+message ListDepsResponse {
+  int32 exit_code = 1;
+  repeated Dependency dependencies = 2;
+}
+
+message Dependency {
+  string name = 1;
+  string version = 2;
+  string resolved = 3;
+  bool dev = 4;
+  bool optional = 5;
+  repeated Dependency dependencies = 6;
+  repeated string problems = 7;
+}
+
+message AuditResponse {
+  int32 exit_code = 1;
+  int32 total_vulnerabilities = 2;
+  int32 critical = 3;
+  int32 high = 4;
+  int32 moderate = 5;
+  int32 low = 6;
+  int32 info = 7;
+  repeated Vulnerability vulnerabilities = 8;
+  string raw_json = 9;
+}
+
+message Vulnerability {
+  string name = 1;
+  string severity = 2;
+  string title = 3;
+  string url = 4;
+  string range = 5;
+  repeated string via = 6;
+  repeated string fixAvailable = 7;
+}
+
+message OutdatedResponse {
+  int32 exit_code = 1;
+  repeated OutdatedPackage packages = 2;
+}
+
+message OutdatedPackage {
+  string name = 1;
+  string current = 2;
+  string wanted = 3;
+  string latest = 4;
+  string location = 5;
+  string type = 6;
+}
+
+message ReadPackageJsonRequest {
+  // Working directory containing the package.json file.
+  // @example "."
+  string workdir = 1;
+}
+
+message PackageJsonResponse {
+  string name = 1;
+  string version = 2;
+  string description = 3;
+  string main = 4;
+  string license = 5;
+  map<string, string> scripts = 6;
+  map<string, string> dependencies = 7;
+  map<string, string> dev_dependencies = 8;
+  map<string, string> peer_dependencies = 9;
+  string raw_json = 10;
+}
+
+message VersionRequest {}
+
+message VersionResponse {
+  string npm_version = 1;
+  string node_version = 2;
+  string npx_version = 3;
+}
