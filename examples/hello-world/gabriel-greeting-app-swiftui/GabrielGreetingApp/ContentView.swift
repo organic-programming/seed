@@ -62,7 +62,7 @@ struct ContentView: View {
             .padding(32)
         }
         .frame(minWidth: 800, minHeight: 600, alignment: .topLeading)
-        .background(Color(red: 0.1, green: 0.1, blue: 0.1).ignoresSafeArea())
+        .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         .animation(.easeInOut(duration: 0.2), value: error)
         .task { await loadLanguages() }
     }
@@ -142,7 +142,7 @@ struct ContentView: View {
                 if let slug = holon.selectedHolon?.slug {
                     Text(slug)
                         .font(.system(size: 11, weight: .regular, design: .monospaced))
-                        .foregroundStyle(Color.white.opacity(0.7))
+                        .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                         .lineLimit(2)
                         .frame(width: holonSlugWidth, alignment: .leading)
@@ -155,7 +155,7 @@ struct ContentView: View {
                 HStack(spacing: 8) {
                     Text("mode:")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
 
                     Picker("", selection: $holon.transport) {
                         Text("mem").tag("mem")
@@ -174,7 +174,7 @@ struct ContentView: View {
                 HStack(spacing: 8) {
                     Text(statusTitle)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(Color.white)
+                        .foregroundStyle(.primary)
                     Circle()
                         .fill(statusColor)
                         .frame(width: 10, height: 10)
@@ -184,9 +184,9 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.horizontal, 32)
         .padding(.vertical, 20)
-        .background(Color(red: 0.13, green: 0.13, blue: 0.13))
+        .background(Color(nsColor: .controlBackgroundColor))
         .overlay(
-            Rectangle().frame(height: 1).foregroundColor(Color.white.opacity(0.06)),
+            Rectangle().frame(height: 1).foregroundColor(Color.primary.opacity(0.06)),
             alignment: .bottom
         )
     }
@@ -239,7 +239,7 @@ struct ContentView: View {
 
                 LeftPointerBubble()
                     .stroke(
-                        Color.white.opacity(0.4),
+                        Color.primary.opacity(0.4),
                         style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round, dash: [0.1, 5])
                     )
 
@@ -255,7 +255,7 @@ struct ContentView: View {
                         }
                         Text(connectionError)
                             .font(.system(size: 13, weight: .regular, design: .monospaced))
-                            .foregroundColor(Color.white.opacity(0.85))
+                            .foregroundColor(Color.primary.opacity(0.85))
                             .textSelection(.enabled)
                     }
                     .padding(24)
@@ -271,14 +271,14 @@ struct ContentView: View {
                         }
                         Text(error)
                             .font(.system(size: 13, weight: .regular, design: .monospaced))
-                            .foregroundColor(Color.white.opacity(0.85))
+                            .foregroundColor(Color.primary.opacity(0.85))
                             .textSelection(.enabled)
                     }
                     .padding(24)
                 } else {
                     Text(greeting)
                         .font(.system(size: 42, weight: .medium))
-                        .foregroundColor(Color.white)
+                        .foregroundColor(.primary)
                         .lineLimit(nil)
                         .multilineTextAlignment(.center)
                         .padding(.leading, 20)
