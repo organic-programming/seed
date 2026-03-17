@@ -279,12 +279,14 @@ service HolonMeta {
 message DescribeRequest {}
 
 message DescribeResponse {
-  // Holon identity from holon.yaml.
+  // Holon identity from holon.proto.
   string slug  = 1;
   string motto = 2;
 
   // One entry per gRPC service the holon exposes.
   repeated ServiceDoc services = 3;
+  // Semver version from the manifest identity, e.g. "0.4.1".
+  string version = 4;
 }
 
 // ServiceDoc documents a single gRPC service.
@@ -398,7 +400,7 @@ message EnumValueDoc {
 - `HolonMeta` is excluded from its own `Describe` output — the
   response documents only the holon's domain services.
 - If the holon has no parseable `.proto` files, `Describe` returns
-  a response with the holon's `slug` and `motto` (from `holon.yaml`)
+  a response with the holon's `slug`, `motto`, and `version` (from `holon.proto`)
   and an empty `services` list.
 - Nested message fields are recursively expanded in `FieldDoc.nested_fields`
   up to a reasonable depth (the SDK may cap recursion).

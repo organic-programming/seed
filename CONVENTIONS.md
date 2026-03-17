@@ -12,7 +12,9 @@ Regardless of language, every holon repository contains:
 
 ```
 my-holon/
-├── holon.yaml          ← identity + operational manifest (always present)
+├── api/
+│   └── v1/
+│       └── holon.proto ← identity + operational manifest (always present)
 ├── protos/             ← .proto source files
 │   └── <package>/<version>/
 │       └── <service>.proto
@@ -43,7 +45,19 @@ my-holon/
 3. **`cmd/`** contains CLI entry points. Each subdirectory is one binary.
    When a holon has no CLI facet, `cmd/` is absent.
 
-4. **`holon.yaml`** is always at the holon root.
+4. **`api/v1/holon.proto`** is always present at the holon root.
+
+### Surface Symmetry
+
+Every holon follows the golden rule:
+
+> **Code API surface = CLI surface = RPC surface = Test surface**
+
+`contract.rpcs` must exhaustively match the service definition. Every
+public RPC exists in the Code API, CLI, RPC server, and tests. The only
+CLI affordances outside that list are `serve` and `help`. `version` is
+not exempt from symmetry, but it is auto-derived from manifest identity
+instead of being hand-wired separately.
 
 ---
 
@@ -99,7 +113,7 @@ root in the global cache under `OPPATH`:
 
 ```
 $OPPATH/cache/<host>/<owner>/<name>@<version>/
-├── holon.yaml
+├── api/v1/holon.proto
 ├── protos/
 ├── gen/
 └── <idiomatic-src>/
@@ -442,7 +456,7 @@ my-holon/
    is a derived artifact of `protos/`.
 
 3. **Regeneration command.** Each holon should document its protoc
-   invocation (in `holon.yaml` or a `Makefile`/script) so that any
+   invocation (in `holon.proto`, the guide, or a `Makefile`/script) so that any
    actant can regenerate from source protos.
 
 4. **The `gen/` directory mirrors the proto package structure.** If

@@ -177,6 +177,20 @@ option (holons.v1.manifest) = { ... };
 | `platforms` | `string[]` | no | Supported platforms. |
 | `guide` | `string` | no | User-facing documentation in markdown. |
 
+### Surface Symmetry
+
+The manifest declares the holon's public surface, so it must enforce the
+same golden rule as the constitution:
+
+> **Code API surface = CLI surface = RPC surface = Test surface**
+
+`contract.rpcs` must exhaustively match the service definition. Every RPC
+listed there must exist in the Code API, CLI, RPC server, and tests. The
+only CLI affordances outside `contract.rpcs` are `serve` and `help`.
+`version` is also not listed there because the SDK derives it from
+`identity.version` and surfaces it automatically across CLI, RPC, Code
+API, and tests.
+
 ### Identity
 
 ```protobuf

@@ -22,7 +22,7 @@ The current system scatters holon concerns across disconnected formats:
 
 | Before | Problem |
 |--------|---------|
-| Source manifest as `holon.yaml` or `.proto` | Two competing formats, no resolution boundary |
+| Source manifest outside the proto/package boundary | No single source of truth for identity, contract, and runtime metadata |
 | Build output as bare binary under `.op/build/bin/` | No metadata, no architecture support |
 | Installed binary as bare file in `$OPBIN` | Opaque — cannot inspect, version, or uninstall cleanly |
 | Dependency cache as raw source trees | No binary caching, no multi-arch, no integrity verification |
@@ -310,7 +310,7 @@ api/v1/holon.proto         # holon-local manifest (humans edit this)
 `op` reads `.proto` files directly via `protocompile`. It resolves imports
 via the `_protos/` include paths.
 
-`holon.yaml` remains a supported fallback during migration.
+The proto is the only source format.
 
 ### 2. Build Truth (build output → package)
 
@@ -643,7 +643,7 @@ Removes the entire `.holon` directory from `$OPBIN/`.
 Discovery order:
 
 ```
-1. Source holons in known roots   (holon.proto or holon.yaml)
+1. Source holons in known roots   (holon.proto)
 2. Built packages                (.op/build/*.holon/)
 3. Installed packages            ($OPBIN/*.holon/)
 4. Cached packages               ($OPPATH/cache/*.holon/)
@@ -888,7 +888,7 @@ languages.
 ### Phase 1: Proto Source Truth (current)
 
 - New holons use `holon.proto` with `(holons.v1.manifest)`.
-- `op` discovers both proto and YAML manifests.
+- `op` discovers source holons from `holon.proto`.
 - Build still produces bare binaries under `.op/build/bin/`.
 
 ### Phase 2: Package Output
@@ -908,7 +908,6 @@ languages.
 
 ### Legacy Support
 
-- `holon.yaml` continues to work for source discovery.
 - Bare binaries in `$OPBIN` continue to be launchable.
 - Old `Describe` clients remain valid (response growth is additive).
 - No forced migration deadline.

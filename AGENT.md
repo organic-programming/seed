@@ -82,6 +82,10 @@ invocable from the CLI, served over RPC, and verified by tests — no
 more, no less. If a function exists in one facet but is absent from
 another, the holon is incomplete.
 
+The manifest's `contract.rpcs` list must exhaustively match the service
+definition. It is the declared external surface, so it must line up with
+the Code API, CLI, RPC server, and tests exactly.
+
 Two CLI affordances are exempt: `serve` (circular — it bootstraps the
 RPC facet) and `help` (purely human-facing, register-specific). `version`
 is not exempt — the SDK derives it from the manifest and surfaces it
@@ -561,7 +565,7 @@ Every SDK **should** provide a `connect` primitive that composes
 three lower-level operations:
 
 1. **Discover** — resolve a holon slug to a filesystem location
-   (scan `holon.yaml` manifests in known roots).
+   (scan `api/v1/holon.proto` manifests in known roots).
 2. **Start** (if needed) — find the built binary, launch it with
    `serve --listen stdio://`, and wire the parent's pipes directly.
 3. **Dial** — open a gRPC client channel to the running holon.
@@ -724,4 +728,3 @@ self-documentation, incorrect shutdown sequences.
 
 If no SDK exists yet for a target language, the holon author either:
 Contributes a new SDK (see [sdk/](./sdk/)).
-

@@ -11,7 +11,7 @@ language the other side uses:
 
 - **`serve`** — host a gRPC server with standard lifecycle
 - **`transport`** — listen on `tcp://`, `unix://`, `stdio://`, `mem://`, `ws://`, `wss://`, `rest+sse://`
-- **`identity`** — read `holon.yaml` (name, slug, artifacts)
+- **`identity`** — read `holon.proto` (name, slug, artifacts)
 - **`discover`** — scan `OPPATH` to find holons by slug
 - **`connect`** — resolve a slug, start the daemon if needed, return a ready gRPC channel
 

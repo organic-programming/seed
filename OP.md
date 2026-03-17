@@ -34,7 +34,7 @@ composer (B. ALTER).
 1. [Installation](#1-installation)
 2. [Philosophy](#2-philosophy)
 3. [Environment](#3-environment)
-4. [Holon Manifest (`holon.yaml`)](#4-holon-manifest)
+4. [Holon Proto Manifest](#4-holon-proto-manifest)
 5. [Identity Management](#5-identity-management)
 6. [Discovery](#6-discovery)
 7. [Lifecycle](#7-lifecycle)
@@ -126,7 +126,7 @@ the holon's name and the command to invoke. `op` resolves the rest.
 
 ### Orchestrator, not compiler
 
-`op` does not compile source code. It reads `holon.yaml`, selects
+`op` does not compile source code. It reads `api/v1/holon.proto`, selects
 the declared runner, executes the minimum required sequence, and
 reports the result. Language tools remain the actual builders.
 
@@ -159,7 +159,7 @@ constraints come from two places, not from `op`:
 - **Runners**: some runners depend on platform-specific toolchains
   (e.g. `swift-package` requires Xcode, `cmake` requires CMake).
 - **Holons**: each holon declares its supported platforms in
-  `holon.yaml` via the `platforms` field. `op check` verifies that
+  `holon.proto` via the manifest `platforms` field. `op check` verifies that
   the current OS is in that list before building.
 
 ---
@@ -212,105 +212,106 @@ export PATH="$OPBIN:$PATH"
 
 ---
 
-## 4. Holon YAML Manifest (`holon.yaml`)
+## 4. Holon Proto Manifest
 
-Every holon carries a single `holon.yaml` at its root. This file
-answers three questions:
+Every holon carries a single human-authored manifest at
+`api/v1/holon.proto`. `op` reads the `option (holons.v1.manifest)`
+block in that file and treats it as the source of truth for identity,
+contract, operational metadata, skills, sequences, and guide text.
 
-1. **Who is this holon?** — identity, lineage, motto
+It answers three questions:
+
+1. **Who is this holon?** — identity, version, motto
 2. **What does it do?** — description, contract
 3. **How does `op` operate it?** — kind, runner, requires, artifacts
 
-### Full schema
+### Example manifest
 
-```yaml
-# ── Identity ──────────────────────────────────────────
-schema: holon/v0
-uuid: "c7f3a1b2-8d4e-4f5a-b6c7-d8e9f0a1b2c3"
-given_name: Rob
-family_name: Go
-motto: "Build what you mean."
-composer: "B. ALTER"
-clade: deterministic/io_bound
-status: draft
-born: "2026-02-20"
+```protobuf
+syntax = "proto3";
 
-# ── Lineage ───────────────────────────────────────────
-parents: []
-reproduction: manual
-generated_by: op
+package rob_go.v1;
 
-# ── Description ───────────────────────────────────────
-description: |
-  Rob Go wraps the go command, exposing build, test, run,
-  fmt, vet, mod, and env as gRPC RPCs.
+import "holons/v1/manifest.proto";
+import "rob_go/v1/rob_go.proto";
 
-# ── Contract ──────────────────────────────────────────
-contract:
-  proto: protos/rob_go/v1/rob_go.proto
-  service: RobGoService
-  rpcs: [Build, Test, Run, Fmt, Vet]
+option go_package = "github.com/organic-programming/rob-go/gen/go/rob_go/v1;robgov1";
 
-# ── Operational ────────────────────────────────────────────
-kind: wrapper
-platforms: [macos, linux, windows]
-build:
-  runner: go-module
-  main: ./cmd/rob
-  configs:
-    standard: {}
-    with-cgo:
-      description: "Enable CGo for native bindings"
-  default_config: standard
-requires:
-  commands: [go]
-  files: [go.mod]
-delegates:
-  commands: [go]
-artifacts:
-  binary: rob-go
-
-# ── Skills ───────────────────────────────────────────────
-skills:
-  - name: prepare-release
-    description: Prepare a Go package for production release.
-    when: User wants clean, tested, optimized code ready to ship.
-    steps:
-      - Fmt — format all source files
-      - Vet — run static analysis
-      - Test — run the full test suite
-      - Build with mode=release
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "c7f3a1b2-8d4e-4f5a-b6c7-d8e9f0a1b2c3"
+    given_name: "Rob"
+    family_name: "Go"
+    motto: "Build what you mean."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-02-20"
+    version: "0.1.0"
+  }
+  description: "Rob Go wraps the go command, exposing build, test, run, fmt, vet, mod, and env as gRPC RPCs."
+  lang: "go"
+  kind: "wrapper"
+  contract: {
+    proto: "api/v1/holon.proto"
+    service: "rob_go.v1.RobGoService"
+    rpcs: "Build"
+    rpcs: "Test"
+    rpcs: "Run"
+    rpcs: "Fmt"
+    rpcs: "Vet"
+  }
+  platforms: "macos"
+  platforms: "linux"
+  platforms: "windows"
+  build: {
+    runner: "go-module"
+    main: "./cmd/rob"
+  }
+  requires: {
+    commands: "go"
+    files: "go.mod"
+  }
+  artifacts: {
+    binary: "rob-go"
+  }
+  skills: [{
+    name: "prepare-release"
+    description: "Prepare a Go package for production release."
+    when: "User wants clean, tested, optimized code ready to ship."
+    steps: "Fmt — format all source files"
+    steps: "Vet — run static analysis"
+    steps: "Test — run the full test suite"
+    steps: "Build with mode=release"
+  }]
+};
 ```
+
+For the authoritative field definitions, see
+[HOLON_PROTO.md](./HOLON_PROTO.md) and
+[`_protos/holons/v1/manifest.proto`](./_protos/holons/v1/manifest.proto).
 
 ### Identity fields
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `schema` | string | yes | Always `holon/v0`. |
-| `uuid` | UUID v4 | yes | Generated once at birth. Never changes. |
-| `given_name` | string | yes | The character — what distinguishes this holon. |
-| `family_name` | string | yes | The function — what the holon does. |
-| `motto` | string | yes | The *dessein* in one sentence. |
-| `composer` | string | yes | Who designed the holon. |
-| `clade` | enum | yes | Computational nature (see below). |
-| `status` | enum | yes | Lifecycle stage: `draft`, `stable`, `deprecated`, `dead`. |
-| `born` | date | yes | ISO 8601 date of creation. |
-
-### Lineage fields
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `parents` | list of UUID | yes | Holons from which this one descends. Empty for primordial holons. |
-| `reproduction` | enum | yes | `manual`, `assisted`, `automatic`, `autopoietic`, `bred`. |
-| `generated_by` | string | yes | What created this file: `op`, `manual`, `codex`, etc. |
+| `identity.schema` | string | yes | Always `holon/v1`. |
+| `identity.uuid` | UUID v4 | yes | Generated once at birth. Never changes. |
+| `identity.given_name` | string | yes | The character — what distinguishes this holon. |
+| `identity.family_name` | string | yes | The function — what the holon does. |
+| `identity.motto` | string | yes | The *dessein* in one sentence. |
+| `identity.composer` | string | yes | Who designed the holon. |
+| `identity.status` | enum | yes | Lifecycle stage: `draft`, `stable`, `deprecated`, `dead`. |
+| `identity.born` | date | yes | ISO 8601 date of creation. |
+| `identity.version` | semver | yes | Release version without a `v` prefix. |
 
 ### Contract fields
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `contract.proto` | string | no | Path to `.proto` file, relative to holon root. |
-| `contract.service` | string | no | gRPC service name. |
-| `contract.rpcs` | list | no | RPC method names. |
+| `contract.proto` | string | no | Path to the proto file that carries the exposed service definition. |
+| `contract.service` | string | no | Fully qualified gRPC service name. |
+| `contract.rpcs` | list | no | Exhaustive public RPC method names for the holon surface. |
 
 Omit `contract` entirely if the proto is not yet defined.
 
@@ -318,17 +319,20 @@ Omit `contract` entirely if the proto is not yet defined.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
+| `description` | string | yes | What the holon does, in plain language. |
+| `lang` | string | yes | Primary implementation language. |
 | `kind` | enum | yes | `native`, `wrapper`, or `composite`. |
+| `transport` | string | no | Default transport hint such as `stdio` or `tcp`. |
 | `platforms` | list | no | Supported OSes. Omit if cross-platform. |
 | `build.runner` | string | yes | Selects the runner (see [Runners](#8-runners)). |
-| `build.main` | string | no | Go package path (go-module only). |
+| `build.main` | string | no | Runner entry point (for example `./cmd/rob` for `go-module`). |
 | `build.configs` | map | no | Named build configurations (see [Build configs](#build-configs)). |
 | `build.default_config` | string | no | Default config name. Required when `build.configs` is set. |
 | `requires.commands` | list | yes | CLI tools that must exist on `PATH`. |
-| `requires.files` | list | yes | Files that must exist relative to `holon.yaml`. |
-| `delegates.commands` | list | no | Wrapper-only. External commands the holon wraps. |
+| `requires.files` | list | yes | Files that must exist relative to the holon root. |
 | `artifacts.binary` | string | yes for `native`/`wrapper`, no for `composite` | Primary binary name (not a path). Must equal the slug for `native`/`wrapper`. Build output is `.op/build/bin/<artifacts.binary>`, install destination is `$OPBIN/<artifacts.binary>`. |
 | `artifacts.primary` | string | no for `native`/`wrapper`, yes for `composite` | Non-binary primary artifact path (e.g. `.app` bundle), relative to holon root. Used as the success contract for `op build` when set. |
+| `guide` | string | no | User-facing markdown rendered by `op man`. |
 
 ### Build configs
 
@@ -399,21 +403,9 @@ file which describes **what** each RPC does individually.
 ### Wrapper delegation
 
 A wrapper holon does not implement domain logic — it delegates to
-an external command. Wrappers **must** declare `delegates.commands`
-in their manifest so that `op check` can verify the external tool
-is available before build:
-
-```yaml
-kind: wrapper
-delegates:
-  commands: [npm]          # jess-npm delegates to npm
-```
-
-```yaml
-kind: wrapper
-delegates:
-  commands: [go]           # rob-go delegates to go
-```
+an external command. Wrappers **must** declare those binaries in
+`requires.commands` so that `op check` can verify the external tool
+is available before build.
 
 `op check` verifies each delegated command exists on `PATH` and
 reports an actionable install hint if missing.
@@ -513,7 +505,7 @@ Output directory [holons/megg-prober]:
 
 ✓ Born: Megg Prober
   UUID: a1b2c3d4-...
-  File: holons/megg-prober/holon.yaml
+  File: holons/megg-prober/api/v1/holon.proto
 ```
 
 Non-interactive mode:
@@ -545,7 +537,7 @@ a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d   Wisupaa Whisper                    local 
 ```
 
 Scans:
-1. `<root>` recursively — every `holon.yaml` under the designated root
+1. `<root>` recursively — every `api/v1/holon.proto` under the designated root
 2. `$OPPATH/cache/` — cached dependencies
 
 ---
@@ -573,7 +565,7 @@ In $PATH:
 When resolving a holon by name, `op` searches in this order:
 
 ```
-1. Effective local root    recursive scan for every holon.yaml under the designated root
+1. Effective local root    recursive scan for every `api/v1/holon.proto` under the designated root
 2. $OPBIN                  ~/.op/bin/ (installed holons)
 3. $PATH                   system PATH
 4. $OPPATH/cache/          cached dependencies (populated by op mod pull)
@@ -586,7 +578,7 @@ The effective local root is:
 1. the explicit root argument when a command accepts one
 2. otherwise the current working directory
 
-Discovery then scans recursively for every `holon.yaml` under that
+Discovery then scans recursively for every `api/v1/holon.proto` under that
 root. There is no requirement that holons live only under fixed
 folders such as `holons/` or `recipes/`.
 
@@ -601,7 +593,7 @@ Recursive discovery skips the following directories:
 - `build`
 - Any directory starting with `.`
 
-Deduplication: if two `holon.yaml` files have the same UUID, the
+Deduplication: if two `holon.proto` files have the same UUID, the
 one closest to the effective root wins.
 
 ### Name resolution
@@ -746,7 +738,7 @@ All lifecycle commands produce a structured `Report`:
   "target": "rob-go",
   "holon": "Rob Go",
   "dir": "/path/to/rob-go",
-  "manifest": "holon.yaml",
+  "manifest": "api/v1/holon.proto",
   "kind": "wrapper",
   "runner": "go-module",
   "build_target": "macos",
@@ -1059,7 +1051,7 @@ created holon.mod
 
 Initialization behavior:
 - If an explicit holon path is provided, use it as-is.
-- Otherwise, if `./holon.yaml` exists, derive the holon path from the
+- Otherwise, if `./api/v1/holon.proto` exists, derive the holon path from the
   identity slug (`<given_name>-<family_name>`, lowercased,
   hyphenated).
 - Otherwise, fall back to the current directory name.
@@ -1184,7 +1176,7 @@ All commands follow the same pattern:
 
 | Category | Example |
 |---|---|
-| Invalid manifest | `op build: holon.yaml: missing required field "uuid"` |
+| Invalid manifest | `op build: holon.proto: missing required field "identity.uuid"` |
 | Unsupported runner | `op build: unknown runner "cargo"` |
 | Unsupported target | `op build: target "android" not supported by go-module runner` |
 | Missing prerequisite command | `op check: missing required command "go" on PATH; install it with...` |
@@ -1293,7 +1285,7 @@ that speaks MCP (Claude, Cursor, Windsurf, etc.).
 The JSON Schema generation is internal to `op` — the holon never
 sees it. The holon just serves its domain RPCs over gRPC as always.
 
-If holons declare `skills` in `holon.yaml`, `op mcp` exposes them
+If holons declare `skills` in `holon.proto`, `op mcp` exposes them
 as **MCP prompts** — composed workflows that guide the LLM through
 multi-step operations.
 
