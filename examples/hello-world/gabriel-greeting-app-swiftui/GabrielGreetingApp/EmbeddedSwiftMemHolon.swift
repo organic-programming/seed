@@ -12,17 +12,14 @@ final class EmbeddedSwiftMemHolon {
 
     func start(
         slug: String,
-        stageRoot: URL,
+        protoDir: URL,
         logger: @escaping (String) -> Void
     ) throws {
         stop(logger: logger)
 
-        let holonRoot = stageRoot
-            .appendingPathComponent("holons", isDirectory: true)
-            .appendingPathComponent(slug, isDirectory: true)
         let options = Serve.Options(
             logger: logger,
-            protoDir: holonRoot.appendingPathComponent("protos", isDirectory: true).path
+            protoDir: protoDir.path
         )
         let running = try Serve.startWithOptions(
             "mem://\(slug)",
