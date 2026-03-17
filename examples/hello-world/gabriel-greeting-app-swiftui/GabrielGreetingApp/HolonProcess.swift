@@ -5,13 +5,13 @@ import Holons
 #endif
 
 @MainActor
-final class DaemonProcess: ObservableObject {
+final class HolonProcess: ObservableObject {
     @Published var isRunning = false
     @Published var connectionError: String?
-    @Published var availableDaemons: [GabrielDaemonIdentity] = []
-    @Published var selectedDaemon: GabrielDaemonIdentity? = nil {
+    @Published var availableHolons: [GabrielHolonIdentity] = []
+    @Published var selectedHolon: GabrielHolonIdentity? = nil {
         didSet {
-            guard oldValue != selectedDaemon else { return }
+            guard oldValue != selectedHolon else { return }
             stop()
         }
     }
@@ -30,12 +30,12 @@ final class DaemonProcess: ObservableObject {
     private var startTaskID: UUID?
 #if os(macOS)
     private var stageRoot: URL?
-    private var embeddedSwiftMemDaemon: EmbeddedSwiftMemDaemon?
+    private var embeddedSwiftMemHolon: EmbeddedSwiftMemHolon?
 #endif
 
     init() {
 #if os(macOS)
-        refreshDaemons()
+        refreshHolons()
 #endif
     }
 
@@ -46,7 +46,7 @@ final class DaemonProcess: ObservableObject {
                 _ = try await startTask.value
             } catch {
                 if connectionError == nil {
-                    connectionError = "Failed to start Gabriel daemon: \(String(describing: error))"
+                    connectionError = "Failed to start Gabriel holon: \(String(describing: error))"
                 }
                 isRunning = false
             }
@@ -56,21 +56,21 @@ final class DaemonProcess: ObservableObject {
 
 #if os(macOS)
         do {
-            if availableDaemons.isEmpty {
-                refreshDaemons()
+            if availableHolons.isEmpty {
+                refreshHolons()
             }
-            guard let daemon = selectedDaemon ?? preferredDaemon(in: availableDaemons) else {
-                throw DaemonStartError.binaryNotFound("No Gabriel backends found")
-            }
-
-            if selectedDaemon != daemon {
-                selectedDaemon = daemon
+            guard let holon = selectedHolon ?? preferredHolon(in: availableHolons) else {
+                throw HolonStartError.binaryNotFound("No Gabriel holons found")
             }
 
-            let root = try stageHolonRoot(daemon: daemon)
+            if selectedHolon != holon {
+                selectedHolon = holon
+            }
+
+            let root = try stageHolonRoot(holon: holon)
             stageRoot = root
-            logHostUI("[HostUI] assembly=\(assemblyFamily) daemon=\(daemon.binaryName) transport=\(transport)")
-            try prepareEmbeddedDaemonIfNeeded(for: daemon, stageRoot: root)
+            logHostUI("[HostUI] assembly=\(assemblyFamily) holon=\(holon.binaryName) transport=\(transport)")
+            try prepareEmbeddedHolonIfNeeded(for: holon, stageRoot: root)
 
             var options = ConnectOptions()
             options.transport = transport
@@ -80,7 +80,7 @@ final class DaemonProcess: ObservableObject {
             startTaskID = taskID
             let connectTask = Task.detached(priority: .userInitiated) {
                 try connectClient(
-                    daemonSlug: daemon.slug,
+                    holonSlug: holon.slug,
                     stageRoot: root,
                     options: options
                 )
@@ -97,25 +97,26 @@ final class DaemonProcess: ObservableObject {
                     return
                 }
                 client = connectedClient
-                logHostUI("[HostUI] connected to \(daemon.binaryName) on \(connectionTarget())")
+                logHostUI("[HostUI] connected to \(holon.binaryName) on \(connectionTarget())")
                 isRunning = true
             } catch {
                 guard startTaskID == taskID else {
                     return
                 }
-                stopEmbeddedDaemon()
+                stopEmbeddedHolon()
                 cleanupStageRoot()
-                connectionError = "Failed to start Gabriel daemon: \(String(describing: error))"
+                connectionError = "Failed to start Gabriel holon: \(String(describing: error))"
                 isRunning = false
             }
+
             if startTaskID == taskID {
                 startTask = nil
                 startTaskID = nil
             }
         } catch {
-            stopEmbeddedDaemon()
+            stopEmbeddedHolon()
             cleanupStageRoot()
-            connectionError = "Failed to start Gabriel daemon: \(String(describing: error))"
+            connectionError = "Failed to start Gabriel holon: \(String(describing: error))"
             isRunning = false
         }
 #else
@@ -135,11 +136,11 @@ final class DaemonProcess: ObservableObject {
         do {
             try currentClient?.close()
         } catch {
-            connectionError = "Failed to stop Gabriel daemon connection: \(error.localizedDescription)"
+            connectionError = "Failed to stop Gabriel holon connection: \(error.localizedDescription)"
         }
 
 #if os(macOS)
-        stopEmbeddedDaemon()
+        stopEmbeddedHolon()
         cleanupStageRoot()
 #endif
         isRunning = false
@@ -148,14 +149,14 @@ final class DaemonProcess: ObservableObject {
     func listLanguages() async throws -> [Language] {
         if client == nil { await start() }
         guard let client else {
-            throw DaemonError.notConnected
+            throw HolonError.notConnected
         }
         return try await client.listLanguages()
     }
 
     func sayHello(name: String, langCode: String) async throws -> String {
         guard let client else {
-            throw DaemonError.notConnected
+            throw HolonError.notConnected
         }
         return try await client.sayHello(name: name, langCode: langCode)
     }
@@ -177,8 +178,8 @@ final class DaemonProcess: ObservableObject {
         return value?.isEmpty == false ? value! : "Gabriel-Greeting-App-SwiftUI"
     }
 
-    var daemonBinaryName: String {
-        selectedDaemon?.binaryName ?? "gabriel-greeting-swift"
+    var holonBinaryName: String {
+        selectedHolon?.binaryName ?? "gabriel-greeting-swift"
     }
 
     private func connectionTarget() -> String {
@@ -196,7 +197,7 @@ final class DaemonProcess: ObservableObject {
 private let connectClientLock = NSLock()
 
 private func connectClient(
-    daemonSlug: String,
+    holonSlug: String,
     stageRoot: URL,
     options: ConnectOptions
 ) throws -> GreetingClient {
@@ -205,27 +206,27 @@ private func connectClient(
 
     let previousDirectory = FileManager.default.currentDirectoryPath
     guard FileManager.default.changeCurrentDirectoryPath(stageRoot.path) else {
-        throw DaemonStartError.failedToEnterRoot(stageRoot.path)
+        throw HolonStartError.failedToEnterRoot(stageRoot.path)
     }
     defer {
         FileManager.default.changeCurrentDirectoryPath(previousDirectory)
     }
 
-    return try GreetingClient.connected(to: daemonSlug, options: options)
+    return try GreetingClient.connected(to: holonSlug, options: options)
 }
 
-enum DaemonError: LocalizedError {
+enum HolonError: LocalizedError {
     case notConnected
 
     var errorDescription: String? {
         switch self {
         case .notConnected:
-            return "Not connected to the Gabriel greeting daemon"
+            return "Not connected to the Gabriel greeting holon"
         }
     }
 }
 
-struct GabrielDaemonIdentity: Identifiable, Hashable {
+struct GabrielHolonIdentity: Identifiable, Hashable {
     let variant: String
     let slug: String
     let familyName: String
@@ -241,9 +242,9 @@ struct GabrielDaemonIdentity: Identifiable, Hashable {
 }
 
 #if os(macOS)
-private extension GabrielDaemonIdentity {
-    static let supportedDaemons: [GabrielDaemonDescriptor] = [
-        GabrielDaemonDescriptor(
+private extension GabrielHolonIdentity {
+    static let supportedHolons: [GabrielHolonDescriptor] = [
+        GabrielHolonDescriptor(
             variant: "swift",
             familyName: "Greeting-Swift",
             displayName: "Gabriel (Swift)",
@@ -258,7 +259,7 @@ private extension GabrielDaemonIdentity {
                 ".op/build/swift/arm64-apple-macosx/debug/gabriel-greeting-swift",
             ]
         ),
-        GabrielDaemonDescriptor(
+        GabrielHolonDescriptor(
             variant: "go",
             familyName: "Greeting-Go",
             displayName: "Gabriel (Go)",
@@ -268,7 +269,7 @@ private extension GabrielDaemonIdentity {
             holonUUID: "3f08b5c3-8931-46d0-847a-a64d8b9ba57e",
             born: "2026-02-20"
         ),
-        GabrielDaemonDescriptor(
+        GabrielHolonDescriptor(
             variant: "rust",
             familyName: "Greeting-Rust",
             displayName: "Gabriel (Rust)",
@@ -282,7 +283,7 @@ private extension GabrielDaemonIdentity {
                 "target/release/gabriel-greeting-rust",
             ]
         ),
-        GabrielDaemonDescriptor(
+        GabrielHolonDescriptor(
             variant: "python",
             familyName: "Greeting-Python",
             displayName: "Gabriel (Python)",
@@ -292,11 +293,10 @@ private extension GabrielDaemonIdentity {
             holonUUID: "21c76e23-bdf2-4dbe-85fe-850c5d17118b",
             born: "2026-03-16",
             extraRelativePaths: [
-                "cmd/main.py",
                 "build/scripts/gabriel-greeting-python",
             ]
         ),
-        GabrielDaemonDescriptor(
+        GabrielHolonDescriptor(
             variant: "c",
             familyName: "Greeting-C",
             displayName: "Gabriel (C)",
@@ -304,9 +304,12 @@ private extension GabrielDaemonIdentity {
             buildRunner: "cmake",
             sortRank: 4,
             holonUUID: "a9b515e3-0b75-44f5-ab68-70c4d53e4947",
-            born: "2026-03-16"
+            born: "2026-03-16",
+            extraRelativePaths: [
+                "build/gabriel-greeting-c",
+            ]
         ),
-        GabrielDaemonDescriptor(
+        GabrielHolonDescriptor(
             variant: "cpp",
             familyName: "Greeting-Cpp",
             displayName: "Gabriel (C++)",
@@ -314,9 +317,12 @@ private extension GabrielDaemonIdentity {
             buildRunner: "cmake",
             sortRank: 5,
             holonUUID: "05af5ed2-79d3-438d-b8b1-6a252d09ab38",
-            born: "2026-03-16"
+            born: "2026-03-16",
+            extraRelativePaths: [
+                "build/gabriel-greeting-cpp",
+            ]
         ),
-        GabrielDaemonDescriptor(
+        GabrielHolonDescriptor(
             variant: "csharp",
             familyName: "Greeting-Csharp",
             displayName: "Gabriel (C#)",
@@ -326,7 +332,7 @@ private extension GabrielDaemonIdentity {
             holonUUID: "846d57c7-d6e8-4be1-a1f0-89250bd87759",
             born: "2026-03-16"
         ),
-        GabrielDaemonDescriptor(
+        GabrielHolonDescriptor(
             variant: "dart",
             familyName: "Greeting-Dart",
             displayName: "Gabriel (Dart)",
@@ -336,7 +342,7 @@ private extension GabrielDaemonIdentity {
             holonUUID: "0e98310c-c48f-4d3b-aa4c-25e133b4880f",
             born: "2026-03-16"
         ),
-        GabrielDaemonDescriptor(
+        GabrielHolonDescriptor(
             variant: "java",
             familyName: "Greeting-Java",
             displayName: "Gabriel (Java)",
@@ -349,7 +355,7 @@ private extension GabrielDaemonIdentity {
                 "build/install/gabriel-greeting-java/bin/gabriel-greeting-java",
             ]
         ),
-        GabrielDaemonDescriptor(
+        GabrielHolonDescriptor(
             variant: "kotlin",
             familyName: "Greeting-Kotlin",
             displayName: "Gabriel (Kotlin)",
@@ -362,7 +368,7 @@ private extension GabrielDaemonIdentity {
                 "build/install/gabriel-greeting-kotlin/bin/gabriel-greeting-kotlin",
             ]
         ),
-        GabrielDaemonDescriptor(
+        GabrielHolonDescriptor(
             variant: "node",
             familyName: "Greeting-Node",
             displayName: "Gabriel (Node.js)",
@@ -372,7 +378,7 @@ private extension GabrielDaemonIdentity {
             holonUUID: "1d02f9a4-77e5-4082-bbd7-b6f9c4bb28db",
             born: "2026-03-16"
         ),
-        GabrielDaemonDescriptor(
+        GabrielHolonDescriptor(
             variant: "ruby",
             familyName: "Greeting-Ruby",
             displayName: "Gabriel (Ruby)",
@@ -380,12 +386,16 @@ private extension GabrielDaemonIdentity {
             buildRunner: "ruby",
             sortRank: 11,
             holonUUID: "0d371dd4-2948-4192-8638-cee294fb8320",
-            born: "2026-03-16"
+            born: "2026-03-16",
+            extraRelativePaths: [
+                "build/scripts/gabriel-greeting-ruby",
+                "cmd/main.rb",
+            ]
         ),
     ]
 
-    static func fromDescriptor(_ descriptor: GabrielDaemonDescriptor, binaryPath: String) -> GabrielDaemonIdentity {
-        GabrielDaemonIdentity(
+    static func fromDescriptor(_ descriptor: GabrielHolonDescriptor, binaryPath: String) -> GabrielHolonIdentity {
+        GabrielHolonIdentity(
             variant: descriptor.variant,
             slug: "gabriel-greeting-\(descriptor.variant)",
             familyName: descriptor.familyName,
@@ -400,7 +410,7 @@ private extension GabrielDaemonIdentity {
     }
 }
 
-private struct GabrielDaemonDescriptor {
+private struct GabrielHolonDescriptor {
     let variant: String
     let familyName: String
     let displayName: String
@@ -422,65 +432,65 @@ private struct GabrielDaemonDescriptor {
     }
 }
 
-private extension DaemonProcess {
-    func preferredDaemon(in daemons: [GabrielDaemonIdentity]) -> GabrielDaemonIdentity? {
-        daemons.sorted(by: daemonSort).first
+private extension HolonProcess {
+    func preferredHolon(in holons: [GabrielHolonIdentity]) -> GabrielHolonIdentity? {
+        holons.sorted(by: holonSort).first
     }
 
-    func daemonSort(_ lhs: GabrielDaemonIdentity, _ rhs: GabrielDaemonIdentity) -> Bool {
+    func holonSort(_ lhs: GabrielHolonIdentity, _ rhs: GabrielHolonIdentity) -> Bool {
         if lhs.sortRank != rhs.sortRank {
             return lhs.sortRank < rhs.sortRank
         }
         return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
     }
 
-    func refreshDaemons() {
-        let previousSelection = selectedDaemon?.slug
-        let bundledRoots = bundledDaemonRoots()
-        let sourceRoots = sourceTreeDaemonRoots()
-        var results: [GabrielDaemonIdentity] = []
+    func refreshHolons() {
+        let previousSelection = selectedHolon?.slug
+        let bundledRoots = bundledHolonRoots()
+        let sourceRoots = sourceTreeHolonRoots()
+        var results: [GabrielHolonIdentity] = []
 
-        logHostUI("[HostUI] refreshDaemons() scanning \(GabrielDaemonIdentity.supportedDaemons.count) Gabriel backends")
-        for descriptor in GabrielDaemonIdentity.supportedDaemons {
-            if let daemon = resolveDaemon(
+        logHostUI("[HostUI] refreshHolons() scanning \(GabrielHolonIdentity.supportedHolons.count) Gabriel holons")
+        for descriptor in GabrielHolonIdentity.supportedHolons {
+            if let holon = resolveHolon(
                 descriptor: descriptor,
                 bundledRoots: bundledRoots,
                 sourceRoots: sourceRoots
             ) {
-                results.append(daemon)
+                results.append(holon)
             }
         }
 
-        availableDaemons = results.sorted(by: daemonSort)
+        availableHolons = results.sorted(by: holonSort)
         if let previousSelection,
-           let daemon = availableDaemons.first(where: { $0.slug == previousSelection }) {
-            selectedDaemon = daemon
+           let holon = availableHolons.first(where: { $0.slug == previousSelection }) {
+            selectedHolon = holon
         } else {
-            selectedDaemon = preferredDaemon(in: availableDaemons)
+            selectedHolon = preferredHolon(in: availableHolons)
         }
     }
 
-    func resolveDaemon(
-        descriptor: GabrielDaemonDescriptor,
+    func resolveHolon(
+        descriptor: GabrielHolonDescriptor,
         bundledRoots: [URL],
         sourceRoots: [URL]
-    ) -> GabrielDaemonIdentity? {
+    ) -> GabrielHolonIdentity? {
         for candidate in bundledBinaryCandidates(for: descriptor, bundledRoots: bundledRoots) {
             if FileManager.default.isExecutableFile(atPath: candidate) {
                 logHostUI("[HostUI] resolved \(descriptor.binaryName) -> \(candidate)")
-                return GabrielDaemonIdentity.fromDescriptor(descriptor, binaryPath: candidate)
+                return GabrielHolonIdentity.fromDescriptor(descriptor, binaryPath: candidate)
             }
         }
         for candidate in sourceTreeBinaryCandidates(for: descriptor, sourceRoots: sourceRoots) {
             if FileManager.default.isExecutableFile(atPath: candidate) {
                 logHostUI("[HostUI] resolved \(descriptor.binaryName) -> \(candidate)")
-                return GabrielDaemonIdentity.fromDescriptor(descriptor, binaryPath: candidate)
+                return GabrielHolonIdentity.fromDescriptor(descriptor, binaryPath: candidate)
             }
         }
         return nil
     }
 
-    func bundledBinaryCandidates(for descriptor: GabrielDaemonDescriptor, bundledRoots: [URL]) -> [String] {
+    func bundledBinaryCandidates(for descriptor: GabrielHolonDescriptor, bundledRoots: [URL]) -> [String] {
         bundledRoots.flatMap { root in
             [
                 root.appendingPathComponent(descriptor.binaryName).standardizedFileURL.path,
@@ -492,13 +502,13 @@ private extension DaemonProcess {
         }
     }
 
-    func sourceTreeBinaryCandidates(for descriptor: GabrielDaemonDescriptor, sourceRoots: [URL]) -> [String] {
+    func sourceTreeBinaryCandidates(for descriptor: GabrielHolonDescriptor, sourceRoots: [URL]) -> [String] {
         var seen = Set<String>()
         var results: [String] = []
         for root in sourceRoots {
-            let daemonDir = root.appendingPathComponent(descriptor.binaryName, isDirectory: true)
+            let holonDir = root.appendingPathComponent(descriptor.binaryName, isDirectory: true)
             for relativePath in descriptor.relativePaths {
-                let candidate = daemonDir.appendingPathComponent(relativePath).standardizedFileURL.path
+                let candidate = holonDir.appendingPathComponent(relativePath).standardizedFileURL.path
                 if seen.insert(candidate).inserted {
                     results.append(candidate)
                 }
@@ -507,7 +517,7 @@ private extension DaemonProcess {
         return results
     }
 
-    func sourceTreeDaemonRoots() -> [URL] {
+    func sourceTreeHolonRoots() -> [URL] {
         let fileManager = FileManager.default
         let currentDirectory = URL(fileURLWithPath: fileManager.currentDirectoryPath, isDirectory: true)
         var candidates: [URL] = [
@@ -529,15 +539,15 @@ private extension DaemonProcess {
         return existingDirectories(in: candidates)
     }
 
-    func bundledDaemonRoots() -> [URL] {
+    func bundledHolonRoots() -> [URL] {
         var candidates: [URL] = []
         if let executableURL = Bundle.main.executableURL {
             let executableDir = executableURL.deletingLastPathComponent()
-            candidates.append(executableDir.appendingPathComponent("daemon", isDirectory: true))
+            candidates.append(executableDir.appendingPathComponent("holons", isDirectory: true))
             candidates.append(executableDir)
         }
         if let resourceURL = Bundle.main.resourceURL {
-            candidates.append(resourceURL.appendingPathComponent("daemon", isDirectory: true))
+            candidates.append(resourceURL.appendingPathComponent("holons", isDirectory: true))
             candidates.append(resourceURL.appendingPathComponent("Holons", isDirectory: true))
             candidates.append(resourceURL)
         }
@@ -575,44 +585,44 @@ private extension DaemonProcess {
         return results
     }
 
-    func stageHolonRoot(daemon: GabrielDaemonIdentity) throws -> URL {
+    func stageHolonRoot(holon: GabrielHolonIdentity) throws -> URL {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("gabriel-greeting-app-swiftui-\(UUID().uuidString)", isDirectory: true)
 
         do {
             let holonDir = root
                 .appendingPathComponent("holons", isDirectory: true)
-                .appendingPathComponent(daemon.slug, isDirectory: true)
+                .appendingPathComponent(holon.slug, isDirectory: true)
             try FileManager.default.createDirectory(at: holonDir, withIntermediateDirectories: true)
-            try manifest(for: daemon)
+            try manifest(for: holon)
                 .write(to: holonDir.appendingPathComponent("holon.yaml"), atomically: true, encoding: .utf8)
-            try stageGabrielProtos(into: holonDir, daemon: daemon)
+            try stageGabrielProtos(into: holonDir, holon: holon)
             return root
         } catch {
             try? FileManager.default.removeItem(at: root)
-            throw DaemonStartError.failedToStageRoot(error.localizedDescription)
+            throw HolonStartError.failedToStageRoot(error.localizedDescription)
         }
     }
 
-    func manifest(for daemon: GabrielDaemonIdentity) -> String {
+    func manifest(for holon: GabrielHolonIdentity) -> String {
         """
         schema: holon/v1
-        uuid: "\(daemon.holonUUID)"
+        uuid: "\(holon.holonUUID)"
         given_name: "Gabriel"
-        family_name: "\(daemon.familyName)"
+        family_name: "\(holon.familyName)"
         motto: "Greets users in 56 languages."
         composer: "Codex"
         clade: deterministic/pure
         status: draft
-        born: "\(daemon.born)"
-        lang: "\(daemon.variant)"
+        born: "\(holon.born)"
+        lang: "\(holon.variant)"
         reproduction: manual
         generated_by: manual
         kind: native
         build:
-          runner: \(daemon.buildRunner)
+          runner: \(holon.buildRunner)
         artifacts:
-          binary: "\(yamlEscape(daemon.binaryPath))"
+          binary: "\(yamlEscape(holon.binaryPath))"
         """ + "\n"
     }
 
@@ -621,16 +631,16 @@ private extension DaemonProcess {
             .replacingOccurrences(of: "\"", with: "\\\"")
     }
 
-    func stageGabrielProtos(into holonDir: URL, daemon: GabrielDaemonIdentity) throws {
-        if let source = daemonHolonProtoURL(for: daemon) {
-            let daemonProtoDir = holonDir
+    func stageGabrielProtos(into holonDir: URL, holon: GabrielHolonIdentity) throws {
+        if let source = holonManifestProtoURL(for: holon) {
+            let manifestProtoDir = holonDir
                 .appendingPathComponent("api", isDirectory: true)
                 .appendingPathComponent("v1", isDirectory: true)
-            try FileManager.default.createDirectory(at: daemonProtoDir, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: manifestProtoDir, withIntermediateDirectories: true)
             let data = try Data(contentsOf: source)
-            try data.write(to: daemonProtoDir.appendingPathComponent("holon.proto"), options: .atomic)
+            try data.write(to: manifestProtoDir.appendingPathComponent("holon.proto"), options: .atomic)
         } else {
-            logHostUI("[HostUI] no daemon holon.proto found for \(daemon.slug)")
+            logHostUI("[HostUI] no holon manifest proto found for \(holon.slug)")
         }
 
         guard let greetingSource = sharedGreetingProtoURL() else {
@@ -638,38 +648,42 @@ private extension DaemonProcess {
             return
         }
 
-        let sharedProtoDir = holonDir.appendingPathComponent("_protos", isDirectory: true)
-        let sharedGreetingDir = sharedProtoDir
-            .appendingPathComponent("v1", isDirectory: true)
-        try FileManager.default.createDirectory(at: sharedGreetingDir, withIntermediateDirectories: true)
-        let greetingData = try Data(contentsOf: greetingSource)
-        try greetingData.write(to: sharedGreetingDir.appendingPathComponent("greeting.proto"), options: .atomic)
-
         guard let manifestSource = sharedManifestProtoURL() else {
             logHostUI("[HostUI] no shared holons/v1/manifest.proto found for staged holon metadata")
             return
         }
 
-        let sharedManifestDir = sharedProtoDir
-            .appendingPathComponent("holons", isDirectory: true)
-            .appendingPathComponent("v1", isDirectory: true)
-        try FileManager.default.createDirectory(at: sharedManifestDir, withIntermediateDirectories: true)
-        let manifestData = try Data(contentsOf: manifestSource)
-        try manifestData.write(to: sharedManifestDir.appendingPathComponent("manifest.proto"), options: .atomic)
+        let protoRoots = ["protos", "_protos"]
+        for protoRoot in protoRoots {
+            let greetingTargetDir = holonDir
+                .appendingPathComponent(protoRoot, isDirectory: true)
+                .appendingPathComponent("v1", isDirectory: true)
+            try FileManager.default.createDirectory(at: greetingTargetDir, withIntermediateDirectories: true)
+            let greetingData = try Data(contentsOf: greetingSource)
+            try greetingData.write(to: greetingTargetDir.appendingPathComponent("greeting.proto"), options: .atomic)
+
+            let manifestTargetDir = holonDir
+                .appendingPathComponent(protoRoot, isDirectory: true)
+                .appendingPathComponent("holons", isDirectory: true)
+                .appendingPathComponent("v1", isDirectory: true)
+            try FileManager.default.createDirectory(at: manifestTargetDir, withIntermediateDirectories: true)
+            let manifestData = try Data(contentsOf: manifestSource)
+            try manifestData.write(to: manifestTargetDir.appendingPathComponent("manifest.proto"), options: .atomic)
+        }
     }
 
-    func daemonHolonProtoURL(for daemon: GabrielDaemonIdentity) -> URL? {
+    func holonManifestProtoURL(for holon: GabrielHolonIdentity) -> URL? {
         var candidates: [URL] = []
 
-        let binaryURL = URL(fileURLWithPath: daemon.binaryPath, isDirectory: false)
+        let binaryURL = URL(fileURLWithPath: holon.binaryPath, isDirectory: false)
         for base in ancestorDirectories(of: binaryURL.deletingLastPathComponent(), maxDepth: 8) {
             candidates.append(base.appendingPathComponent("api/v1/holon.proto", isDirectory: false))
         }
 
-        for root in sourceTreeDaemonRoots() {
+        for root in sourceTreeHolonRoots() {
             candidates.append(
                 root
-                    .appendingPathComponent(daemon.binaryName, isDirectory: true)
+                    .appendingPathComponent(holon.binaryName, isDirectory: true)
                     .appendingPathComponent("api/v1/holon.proto", isDirectory: false)
             )
         }
@@ -710,6 +724,7 @@ private extension DaemonProcess {
     func greetingProtoCandidates(from base: URL) -> [URL] {
         [
             base.appendingPathComponent("_protos/v1/greeting.proto", isDirectory: false),
+            base.appendingPathComponent("protos/v1/greeting.proto", isDirectory: false),
             base.appendingPathComponent("examples/_protos/v1/greeting.proto", isDirectory: false),
             base.appendingPathComponent("recipes/protos/greeting/v1/greeting.proto", isDirectory: false),
             base.appendingPathComponent("Protos/greeting.proto", isDirectory: false),
@@ -720,6 +735,7 @@ private extension DaemonProcess {
     func manifestProtoCandidates(from base: URL) -> [URL] {
         [
             base.appendingPathComponent("_protos/holons/v1/manifest.proto", isDirectory: false),
+            base.appendingPathComponent("protos/holons/v1/manifest.proto", isDirectory: false),
             base.appendingPathComponent("holons/grace-op/_protos/holons/v1/manifest.proto", isDirectory: false),
         ]
     }
@@ -742,48 +758,48 @@ private extension DaemonProcess {
         try? FileManager.default.removeItem(at: root)
     }
 
-    func prepareEmbeddedDaemonIfNeeded(for daemon: GabrielDaemonIdentity, stageRoot: URL) throws {
+    func prepareEmbeddedHolonIfNeeded(for holon: GabrielHolonIdentity, stageRoot: URL) throws {
         guard transport == "mem" else {
-            stopEmbeddedDaemon()
+            stopEmbeddedHolon()
             return
         }
 
-        guard daemon.variant == "swift" else {
-            throw DaemonStartError.unsupportedMemoryDaemon(
+        guard holon.variant == "swift" else {
+            throw HolonStartError.unsupportedMemoryHolon(
                 "memory connection mode currently requires the Swift Gabriel backend"
             )
         }
 
-        let embeddedDaemon = embeddedSwiftMemDaemon ?? EmbeddedSwiftMemDaemon()
-        try embeddedDaemon.start(
-            slug: daemon.slug,
+        let embeddedHolon = embeddedSwiftMemHolon ?? EmbeddedSwiftMemHolon()
+        try embeddedHolon.start(
+            slug: holon.slug,
             stageRoot: stageRoot,
             logger: logHostUI(_:)
         )
-        embeddedSwiftMemDaemon = embeddedDaemon
+        embeddedSwiftMemHolon = embeddedHolon
     }
 
-    func stopEmbeddedDaemon() {
-        embeddedSwiftMemDaemon?.stop(logger: logHostUI(_:))
-        embeddedSwiftMemDaemon = nil
+    func stopEmbeddedHolon() {
+        embeddedSwiftMemHolon?.stop(logger: logHostUI(_:))
+        embeddedSwiftMemHolon = nil
     }
 }
 
-private enum DaemonStartError: LocalizedError {
+private enum HolonStartError: LocalizedError {
     case binaryNotFound(String)
     case failedToStageRoot(String)
     case failedToEnterRoot(String)
-    case unsupportedMemoryDaemon(String)
+    case unsupportedMemoryHolon(String)
 
     var errorDescription: String? {
         switch self {
         case let .binaryNotFound(binaryName):
-            return "Daemon binary not found: \(binaryName)"
+            return "Holon binary not found: \(binaryName)"
         case let .failedToStageRoot(message):
             return "Failed to stage holon root: \(message)"
         case let .failedToEnterRoot(path):
             return "Failed to enter staged holon root: \(path)"
-        case let .unsupportedMemoryDaemon(message):
+        case let .unsupportedMemoryHolon(message):
             return message
         }
     }

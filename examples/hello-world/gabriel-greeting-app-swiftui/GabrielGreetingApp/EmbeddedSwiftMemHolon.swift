@@ -3,7 +3,7 @@ import Foundation
 import GabrielGreetingServer
 import Holons
 
-final class EmbeddedSwiftMemDaemon {
+final class EmbeddedSwiftMemHolon {
     private var runningServer: Serve.RunningServer?
 
     deinit {
@@ -31,7 +31,7 @@ final class EmbeddedSwiftMemDaemon {
             options: options
         )
 
-        logger("[HostUI] embedded Swift mem daemon listening on \(running.publicURI)")
+        logger("[HostUI] embedded Swift mem holon listening on \(running.publicURI)")
         runningServer = running
     }
 
@@ -39,7 +39,7 @@ final class EmbeddedSwiftMemDaemon {
         guard let runningServer else { return }
         self.runningServer = nil
         runningServer.stop()
-        logger?("[HostUI] embedded Swift mem daemon stopped")
+        logger?("[HostUI] embedded Swift mem holon stopped")
     }
 }
 #endif

@@ -5,24 +5,24 @@ import AppKit
 
 @main
 struct GabrielGreetingApp: App {
-    @StateObject private var daemon = DaemonProcess()
+    @StateObject private var holon = HolonProcess()
 
     var body: some Scene {
         WindowGroup("Gabriel Greeting") {
 #if os(macOS)
-            ContentView(daemon: daemon)
+            ContentView(holon: holon)
                 .frame(minWidth: 800, minHeight: 600)
                 .onAppear {
                     DispatchQueue.main.async {
                         revealAppWindow()
                     }
                 }
-                .onDisappear { daemon.stop() }
+                .onDisappear { holon.stop() }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
-                    daemon.stop()
+                    holon.stop()
                 }
 #else
-            ContentView(daemon: daemon)
+            ContentView(holon: holon)
 #endif
         }
     }

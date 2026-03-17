@@ -1,14 +1,14 @@
 import SwiftUI
 
 struct ContentView: View {
-    @ObservedObject var daemon: DaemonProcess
+    @ObservedObject var holon: HolonProcess
     private let inputColumnWidth: CGFloat = 300
     private let contentSpacing: CGFloat = 32
     private let languagePickerWidth: CGFloat = 220
-    private let daemonSlugWidth: CGFloat = 360
+    private let holonSlugWidth: CGFloat = 360
     @State private var languages: [Language] = []
     @State private var selectedCode: String = ""
-    @State private var userName: String = "Mary"
+    @State private var userName: String = ""
     @State private var greeting: String = ""
     @State private var error: String?
     @State private var isLoading = true
@@ -17,9 +17,9 @@ struct ContentView: View {
 
     private var statusTitle: String {
         if isLoading {
-            return "Starting daemon..."
+            return "Starting holon..."
         }
-        if daemon.isRunning {
+        if holon.isRunning {
             return "Ready"
         }
         return "Offline"
@@ -29,7 +29,7 @@ struct ContentView: View {
         if isLoading {
             return Color.orange
         }
-        if daemon.isRunning {
+        if holon.isRunning {
             return Color.green
         }
         return Color.red
@@ -73,14 +73,14 @@ struct ContentView: View {
         greeting = ""
         languages = []
         selectedCode = ""
-        await daemon.start()
-        guard daemon.isRunning else {
-            let detail = daemon.connectionError ?? "Daemon did not become ready"
+        await holon.start()
+        guard holon.isRunning else {
+            let detail = holon.connectionError ?? "Holon did not become ready"
             error = "Failed to load languages: \(detail)"
             isLoading = false
             return
         }
-        let retryDelays: [UInt64] = daemon.transport == "stdio"
+        let retryDelays: [UInt64] = holon.transport == "stdio"
             ? [0, 80_000_000, 180_000_000]
             : [120_000_000, 300_000_000, 600_000_000]
 
@@ -91,7 +91,7 @@ struct ContentView: View {
                     try await Task.sleep(nanoseconds: delay)
                 }
 #endif
-                languages = try await daemon.listLanguages()
+                languages = try await holon.listLanguages()
                 selectedCode = languages.first(where: { $0.code == "en" })?.code ?? languages.first?.code ?? ""
                 error = nil
                 isLoading = false
@@ -101,7 +101,7 @@ struct ContentView: View {
                 return
             } catch {
                 if attempt == retryDelays.count - 1 {
-                    let detail = daemon.connectionError ?? error.localizedDescription
+                    let detail = holon.connectionError ?? error.localizedDescription
                     self.error = "Failed to load languages: \(detail)"
                     isLoading = false
                 }
@@ -113,7 +113,7 @@ struct ContentView: View {
         guard !code.isEmpty else { return }
         isGreeting = true
         do {
-            greeting = try await daemon.sayHello(name: userName, langCode: code)
+            greeting = try await holon.sayHello(name: userName, langCode: code)
             error = nil
         } catch {
             self.error = "Greeting failed: \(error.localizedDescription)"
@@ -124,28 +124,28 @@ struct ContentView: View {
     private var topHeaderArea: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 6) {
-                Picker("", selection: $daemon.selectedDaemon) {
-                    if daemon.availableDaemons.isEmpty {
-                        Text("Loading daemons...").tag(nil as GabrielDaemonIdentity?)
+                Picker("", selection: $holon.selectedHolon) {
+                    if holon.availableHolons.isEmpty {
+                        Text("Loading holons...").tag(nil as GabrielHolonIdentity?)
                     } else {
-                        ForEach(daemon.availableDaemons) { identity in
-                            Text(identity.displayName).tag(identity as GabrielDaemonIdentity?)
+                        ForEach(holon.availableHolons) { identity in
+                            Text(identity.displayName).tag(identity as GabrielHolonIdentity?)
                         }
                     }
                 }
                 .labelsHidden()
                 .frame(width: 250)
-                .onChange(of: daemon.selectedDaemon?.id) {
+                .onChange(of: holon.selectedHolon?.id) {
                     Task { await loadLanguages() }
                 }
 
-                if let slug = daemon.selectedDaemon?.slug {
+                if let slug = holon.selectedHolon?.slug {
                     Text(slug)
                         .font(.system(size: 11, weight: .regular, design: .monospaced))
                         .foregroundStyle(Color.white.opacity(0.7))
                         .textSelection(.enabled)
                         .lineLimit(2)
-                        .frame(width: daemonSlugWidth, alignment: .leading)
+                        .frame(width: holonSlugWidth, alignment: .leading)
                 }
             }
 
@@ -157,7 +157,7 @@ struct ContentView: View {
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(.white)
 
-                    Picker("", selection: $daemon.transport) {
+                    Picker("", selection: $holon.transport) {
                         Text("mem").tag("mem")
                         Text("stdio").tag("stdio")
                         Text("unix").tag("unix")
@@ -166,7 +166,7 @@ struct ContentView: View {
                     }
                     .labelsHidden()
                     .frame(width: 140)
-                    .onChange(of: daemon.transport) {
+                    .onChange(of: holon.transport) {
                         Task { await loadLanguages() }
                     }
                 }
@@ -243,13 +243,13 @@ struct ContentView: View {
                         style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round, dash: [0.1, 5])
                     )
 
-                if let connectionError = daemon.connectionError {
+                if let connectionError = holon.connectionError {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(Color(red: 1.0, green: 0.4, blue: 0.4))
                                 .font(.system(size: 20))
-                            Text("Daemon Offline")
+                            Text("Holon Offline")
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(Color(red: 1.0, green: 0.4, blue: 0.4))
                         }
