@@ -11,7 +11,7 @@ new code, humans, and agents naturally interoperate.
 
 ---
 
-## Five core ideas
+## Core ideas
 
 ### The Holon[^1]
 

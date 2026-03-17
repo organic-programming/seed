@@ -12,9 +12,10 @@ requirement is support for Protocol Buffers; transport is pluggable.
 ## Article 1 — The Holon
 
 A **holon** is, at any scale, an independent, composable functional unit.
-A proto is all you need.
+
 
 ### The proto — the center
+
 
 The `.proto` is the **gravitational center**from which all facets derive. 
 It defines an`rpc` interface with typed `message` structures, making the holon
