@@ -214,26 +214,32 @@ It is a [semver](https://semver.org) string stored without a `v` prefix
 (e.g. `"0.4.1"`, not `"v0.4.1"`). The `v` is a display convention added
 by CLIs; the datum stays clean.
 
+**Auto-patch**: `op build` auto-increments the patch component on every
+successful build. Major and minor versions are only changed by human or
+agent action. On build failure, the version is restored. See
+[HOLON_BUILD.md § Versioning](./HOLON_BUILD.md#versioning) for the full
+specification.
+
 | Facet | How version is surfaced |
 |-------|------------------------|
-| **CLI** | SDK-provided `version` subcommand — reads from the manifest at startup |
+| **CLI** | Build-time template `{{ .Version }}` resolved by `op build` |
 | **RPC** | `Describe` response includes `version` from identity |
-| **Code API** | SDK exposes a `Version()` helper — no hand-written constant needed |
+| **Code API** | SDK exposes a `Version()` helper via build-time template |
 | **Tests** | Assert against the SDK helper |
 
 Version lifecycle:
 
 ```
-0.1.0  →  0.1.1 (patch: bug fix)
-       →  0.2.0 (minor: new RPC, backward-compatible)
-       →  1.0.0 (major: breaking contract change)
+0.1.0  →  0.1.1  →  0.1.2  →  ...  (patch: auto-incremented by each op build)
+       →  0.2.0 (minor: human sets — new feature, backward-compatible)
+       →  1.0.0 (major: human sets — breaking contract change)
 ```
 
 A new major version implies a new proto package (`greeting.v2`) — see §6.4.
 Major bumps are rare; the contract is designed to be stable.
 
-> **Author directive**: bump `version` in the proto manifest on every
-> release. Never maintain a separate version constant in code.
+> **Rule**: never maintain a separate version constant in code. Use
+> build-time templates — see [HOLON_BUILD.md § Build-Time Templates](./HOLON_BUILD.md#build-time-templates).
 
 ### Lifecycle
 

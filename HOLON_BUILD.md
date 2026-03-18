@@ -473,6 +473,69 @@ func VersionString() string { return "{{ .Version }}" }
 After `op build`, the binary returns `"0.5.2"`.
 The source file is restored to contain `{{ .Version }}`.
 
+## Versioning
+
+`op build` auto-increments the **patch** component of `identity.version`
+on every successful build. Major and minor versions are only changed by
+human or agent action — `op` never touches them.
+
+### Semantics
+
+```
+identity.version: "1.4.7"
+                   │ │ └── patch: auto-incremented by op build
+                   │ └──── minor: human/agent sets (new feature, backward-compatible)
+                   └────── major: human/agent sets (breaking change)
+```
+
+### Build Flow
+
+```
+proto: version: "1.4.7"
+        ↓
+op build:
+  1. Read version from proto   → 1.4.7
+  2. Increment patch           → 1.4.8
+  3. Write new version to proto
+  4. Process build templates   ({{ .Version }} → "1.4.8")
+  5. Run the language build
+  6. On SUCCESS → proto keeps "1.4.8"
+     On FAILURE → proto restored to "1.4.7" (patch not burned)
+  7. Source template files restored (always)
+```
+
+### Rules
+
+| Rule | Detail |
+|------|--------|
+| **Patch = build counter** | Monotonically incremented by `op build`. |
+| **Major/minor = human decision** | A human writes `version: "2.0.0"` in the proto. The next successful build makes it `2.0.1`. |
+| **No dry-run increment** | `op build --dry-run` does not bump the version. |
+| **Failure-safe** | On build failure, the proto is restored to the original version. |
+| **Git-friendly** | The version bump shows up in `git status` — commit it alongside the build. |
+| **Universal** | Applies to all runners and all languages. |
+
+### Resetting the Base
+
+A human or agent sets a new major or minor version by editing the proto:
+
+```protobuf
+identity: {
+  version: "2.0.0"   // human sets the base
+}
+```
+
+The next `op build` produces `2.0.1`, then `2.0.2`, etc.
+
+### No Version Constants in Code
+
+With build-time templates, no holon should maintain a hand-written
+version constant. The version flows from the proto through templates:
+
+```
+proto (source of truth) → op build (auto-patch) → template ({{ .Version }}) → built artifact
+```
+
 ## Error Model
 
 `op build` should fail fast with one dominant error.

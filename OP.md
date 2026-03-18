@@ -303,7 +303,7 @@ For the authoritative field definitions, see
 | `identity.composer` | string | yes | Who designed the holon. |
 | `identity.status` | enum | yes | Lifecycle stage: `draft`, `stable`, `deprecated`, `dead`. |
 | `identity.born` | date | yes | ISO 8601 date of creation. |
-| `identity.version` | semver | yes | Release version without a `v` prefix. |
+| `identity.version` | semver | yes | Release version without `v` prefix. Patch is auto-incremented by `op build`; major/minor set by humans. |
 
 ### Contract fields
 
