@@ -10,7 +10,7 @@ other language, on any transport, without knowing or caring which
 language the other side uses:
 
 - **`serve`** — host a gRPC server with standard lifecycle
-- **`transport`** — listen on `tcp://`, `unix://`, `stdio://`, `mem://`, `ws://`, `wss://`, `rest+sse://`
+- **`transport`** — listen on `tcp://`, `unix://`, `stdio://`, `ws://`, `wss://`, `rest+sse://`
 - **`identity`** — read `holon.proto` (name, slug, artifacts)
 - **`discover`** — scan `OPPATH` to find holons by slug
 - **`connect`** — resolve a slug, start the daemon if needed, return a ready gRPC channel
@@ -110,25 +110,25 @@ See [PROTO.md §5](../PROTO.md) and [PROTOCOL.md §3.5](../PROTOCOL.md).
 
 ## Transport Surface
 
-All SDKs support the 7 transport schemes defined in PROTOCOL.md:
-`tcp://`, `unix://`, `stdio://`, `mem://`, `ws://`, `wss://`,
+All SDKs support the 6 transport schemes defined in PROTOCOL.md:
+`tcp://`, `unix://`, `stdio://`, `ws://`, `wss://`,
 `rest+sse://` (v0.6+).
 
-| SDK | tcp | unix | stdio | mem | ws/wss | rest+sse |
-|-----|:---:|:----:|:-----:|:---:|:------:|:--------:|
-| `go-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `js-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `python-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `rust-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `swift-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 client |
-| `dart-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 client |
-| `kotlin-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 client |
-| `java-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `csharp-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `cpp-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `c-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `ruby-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `js-web-holons` | — | — | — | — | ✅ | v0.6 client |
+| SDK | tcp | unix | stdio | ws/wss | rest+sse |
+|-----|:---:|:----:|:-----:|:------:|:--------:|
+| `go-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `js-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `python-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `rust-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `swift-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 client |
+| `dart-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 client |
+| `kotlin-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 client |
+| `java-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `csharp-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `cpp-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `c-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `ruby-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
+| `js-web-holons` | — | — | — | ✅ | v0.6 client |
 
 See [SDK_GUIDE.md](./SDK_GUIDE.md) and each SDK README for exact API
 surfaces and limitations.

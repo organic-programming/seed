@@ -8,7 +8,7 @@ replaces hand-rolled gRPC boilerplate with standardized modules:
 ```
 sdk/<lang>-holons
 ├── serve        Start a gRPC server, handle signals, shut down gracefully
-├── transport    Parse transport URIs (tcp, unix, stdio, mem, ws, wss)
+├── transport    Parse transport URIs (tcp, unix, stdio, ws, wss)
 ├── identity     Read holon.proto — name, UUID, artifacts, build metadata
 ├── discover     Scan the local filesystem for nearby holons
 ├── connect      Resolve a holon by name → find it → start it → dial it
