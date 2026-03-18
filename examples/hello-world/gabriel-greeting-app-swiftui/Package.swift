@@ -5,7 +5,6 @@ let package = Package(
     name: "GabrielGreetingApp",
     platforms: [.macOS(.v15), .iOS(.v18)],
     dependencies: [
-        .package(path: "../gabriel-greeting-swift"),
         .package(path: "../../../sdk/swift-holons"),
         .package(url: "https://github.com/grpc/grpc-swift.git", exact: "1.9.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.36.0"),
@@ -16,12 +15,12 @@ let package = Package(
             name: "GabrielGreetingApp",
             dependencies: [
                 .product(name: "Holons", package: "swift-holons", condition: .when(platforms: [.macOS])),
-                .product(name: "GabrielGreetingServer", package: "gabriel-greeting-swift", condition: .when(platforms: [.macOS])),
                 .product(name: "GRPC", package: "grpc-swift"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "SwiftProtobuf", package: "swift-protobuf"),
             ],
-            path: "GabrielGreetingApp"
+            path: "GabrielGreetingApp",
+            exclude: ["Info.plist"]
         ),
     ]
 )

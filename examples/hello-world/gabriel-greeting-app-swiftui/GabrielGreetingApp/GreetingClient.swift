@@ -34,7 +34,7 @@ final class GreetingClient: GRPCClient, @unchecked Sendable {
             responseType: ProtobufPayload<Greeting_V1_ListLanguagesResponse>.self
         )
         return response.message.languages.map { language in
-            Language(code: language.code, name: language.name, native: language.native_p)
+            Language(code: language.code, name: language.name, native: language.native)
         }
     }
 
