@@ -403,7 +403,7 @@ Holons are composable at three levels:
    serialization and no network overhead.
 2. **At runtime** — via serve & dial. Any holon can connect to any other
    regardless of language, using any supported transport (TCP, stdio,
-   Unix socket, WebSocket, in-memory). This is the native composition
+   Unix socket, WebSocket). This is the native composition
    mechanism of Organic Programming.
 3. **At the shell** — via CLI piping. Standard Unix-style composition
    for legacy interop and scripting.
@@ -479,8 +479,8 @@ Three properties make this mechanism powerful:
 1. **Symmetry** — a holon can serve and dial at the same time: server
    and client simultaneously.
 2. **Transport indifference** — whether over TCP on the network, via
-   stdin/stdout pipes on the same machine, or in-memory within the same
-   process (`mem://`), the holon's code does not change. Only the
+   stdin/stdout pipes on the same machine, or through a WebSocket
+   tunnel, the holon's code does not change. Only the
    address changes.
 3. **Composition** — this is the fundamental mechanism that lets holons
    plug into each other at runtime. Two holons from different technology
@@ -514,7 +514,6 @@ have stdio.
 | URI scheme | Transport | Description |
 |-----------|-----------|-------------|
 | `unix://<path>` | Unix domain socket | Local, fast, no port conflicts |
-| `mem://` | In-process bufconn | Testing, composite holons, ~1µs latency |
 | `ws://<host>:<port>[/path]` | WebSocket | Browser-accessible, NAT-friendly |
 | `wss://<host>:<port>[/path]` | WebSocket over TLS | Encrypted WebSocket |
 
@@ -523,7 +522,7 @@ have stdio.
 A holon's transport choice determines two structural properties
 (see [PROTOCOL.md §2.7](./PROTOCOL.md#27-transport-properties)):
 
-- **Valence**: `stdio://` and `mem://` are **monovalent** (one
+- **Valence**: `stdio://` is **monovalent** (one
   connection per lifetime). `tcp://`, `unix://`, `ws://`, `wss://`
   are **multivalent** (N concurrent connections). A holon on a
   multivalent transport may still operate as monovalent.
@@ -708,7 +707,7 @@ infrastructure-free.
 Every holon **must** be developed using the SDK for its target language,
 as much as possible. The SDK provides the canonical implementation of:
 
-- **Transport** — TCP, stdio, Unix, WebSocket, in-memory.
+- **Transport** — TCP, stdio, Unix, WebSocket.
 - **Framing** — gRPC and Holon-RPC wire format.
 - **Reflection** — server self-description at runtime.
 - **Lifecycle** — `serve`, graceful shutdown, signal handling.

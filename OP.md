@@ -22,7 +22,6 @@ Holon dispatch (transport chain):
 Direct gRPC URI dispatch:
   op grpc://<slug|host:port> <method>     gRPC auto-connect for slugs, direct TCP for host:port
   op grpc+tcp://<slug|host:port> <method> force gRPC over TCP
-  op grpc+mem://<holon> <method>          force gRPC over in-memory pipe
   op grpc+stdio://<holon> <method>        force gRPC over stdio pipe
   op grpc+unix://<path> <method>          gRPC over Unix socket
   op grpc+ws://<host:port> <method>       gRPC over WebSocket
@@ -929,14 +928,10 @@ The chain selects the best available transport automatically.
 When `op <holon> <command>` is invoked:
 
 ```
-1. mem://     in-process composition (Go holons compiled into op)
-2. stdio://   ephemeral subprocess via stdin/stdout pipes
-3. tcp://     gRPC over TCP (ephemeral or existing server)
+1. stdio://   ephemeral subprocess via stdin/stdout pipes
+2. tcp://     gRPC over TCP (ephemeral or existing server)
 ```
 
-- **mem://** is used when the holon is registered in the in-process
-  compose registry. Zero process spawn overhead. Only available for
-  Go holons compiled into `op`.
 - **stdio://** is used when a holon binary is found locally. `op`
   launches it with `serve --listen stdio://`, communicates via
   stdin/stdout gRPC pipe, then kills the process.
@@ -1069,7 +1064,7 @@ All transport URIs follow a consistent scheme:
 | `stdio://` | Standard I/O pipes | serve (child process) |
 | `ws://host:port/grpc` | WebSocket | dial |
 | `wss://host:port/grpc` | Secure WebSocket | dial |
-| `mem://` | In-process listener | internal only |
+
 
 ### The `serve --listen` contract
 

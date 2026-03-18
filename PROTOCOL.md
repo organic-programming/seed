@@ -31,7 +31,7 @@ its own set of transports:
 │     (protobuf)       │  (JSON-RPC 2.0)            │
 ├──────────────────────┼────────────────────────────┤
 │  tcp://  unix://     │                            │
-│  stdio://  mem://    │       ws://  wss://        │
+│  stdio://            │       ws://  wss://        │
 │ws://  wss:// (tunnel)│                            │
 └──────────────────────┴────────────────────────────┘
 ```
@@ -59,15 +59,14 @@ Transport URIs follow the scheme `scheme://authority`:
 | `tcp://` | TCP socket | `tcp://:9090` | ✅ Article 11 |
 | `unix://` | Unix domain socket (POSIX) | `unix:///tmp/holon.sock` | optional |
 | `stdio://` | Standard input/output pipes | — | ✅ Article 11 |
-| `mem://` | In-process channel (testing) | — | optional |
+
 | `ws://` | WebSocket (unencrypted) | `ws://:8080/rpc` | optional |
 | `wss://` | WebSocket (TLS) | `wss://:8443/rpc` | optional |
 
 ### 2.2 Listen — Server-Side Binding
 
-`Listen(uri) → Listener` opens a real OS-level socket (or pipe,
-or in-process channel) and returns something a gRPC server can
-accept connections on.
+`Listen(uri) → Listener` opens a real OS-level socket (or pipe)
+and returns something a gRPC server can accept connections on.
 
 - **Input**: a transport URI.
 - **Output**: a bound listener with an `Accept()` method.
@@ -135,12 +134,6 @@ Enables holon composition via process pipes:
 holon-a --listen stdio:// | holon-b --connect stdio://
 ```
 
-#### `mem://`
-
-In-process channel using connected buffer pairs (e.g., `socketpair()`,
-`bufconn`, `DuplexStream`). Used exclusively for unit testing where
-server and client coexist in the same process.
-
 #### `ws://host:port/path` and `wss://host:port/path`
 
 WebSocket transport. Two distinct uses:
@@ -184,13 +177,9 @@ simultaneously:
 
 | Scheme | Valence | Duplex | Notes |
 |--------|:-------:|:------:|-------|
-
-<!-- @bpds don't omit mem: in your sample -->
-
 | `tcp://` | Multi | Full | N concurrent connections, bidirectional byte stream |
 | `unix://` | Multi | Full | Same as TCP — bidirectional, POSIX only |
 | `stdio://` | **Mono** | **Simulated** | One pair of pipes per process lifetime |
-| `mem://` | **Mono** | Full | One in-process channel pair per lifetime |
 | `ws://` | Multi | Full | WebSocket is explicitly full-duplex (RFC 6455 §1.1) |
 | `wss://` | Multi | Full | Same as `ws://` with TLS |
 
@@ -202,7 +191,7 @@ simultaneously:
 
 The primary holon-to-holon protocol. Uses [gRPC](https://grpc.io/)
 with Protocol Buffers for serialization. Over TCP, gRPC uses its
-standard HTTP/2 framing. Over stdio and mem, gRPC uses its native
+standard HTTP/2 framing. Over stdio, gRPC uses its native
 length-prefixed wire format (5-byte header: 1 compression flag +
 4-byte big-endian message length, then the serialized protobuf).
 
@@ -239,7 +228,7 @@ message PingResponse {
 
 ### 3.3 Supported Transports
 
-The gRPC binding operates over `tcp://`, `unix://`, `stdio://`, and `mem://`.
+The gRPC binding operates over `tcp://`, `unix://`, and `stdio://`.
 It can also be tunneled through `ws://` / `wss://` where WebSocket wraps
 the raw HTTP/2 stream.
 
@@ -954,7 +943,7 @@ application-level pagination — not oversized RPC envelopes.
 | Aspect | gRPC Binding | Holon-RPC Binding |
 |--------|:------------:|:-----------------:|
 | Wire format | Protobuf | JSON-RPC 2.0 over WebSocket |
-| Transports | tcp, unix, stdio, mem, ws/wss (tunnel) | ws, wss |
+| Transports | tcp, unix, stdio, ws/wss (tunnel) | ws, wss |
 | Dependency | gRPC library + protoc | WebSocket + JSON |
 | Bidirectional | ❌ caller-initiated only | ✅ symmetric — either side initiates |
 | Type safety | ✅ proto schemas | ⚠️ JSON (runtime validation) |
