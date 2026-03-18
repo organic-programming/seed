@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-const char *gabriel_greeting_c_version = "gabriel-greeting-c v0.1.0";
+const char *gabriel_greeting_c_version = "gabriel-greeting-c {{ .Version }}";
 
 typedef enum {
   GABRIEL_GREETING_C_FORMAT_TEXT = 0,

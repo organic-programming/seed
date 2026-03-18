@@ -28,6 +28,7 @@ option (holons.v1.manifest) = {
   build: {
     runner: "dart"
     main: "./cmd/main.dart"
+    templates: ["api/cli.dart"]
   }
   requires: {
     commands: ["dart"]

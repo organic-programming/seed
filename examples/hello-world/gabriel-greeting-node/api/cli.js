@@ -5,7 +5,7 @@ const pb = require('../gen/node/greeting/v1/greeting_pb.js');
 const { serve } = require('@organic-programming/holons');
 const server = require('../_internal/server');
 
-const VERSION = 'gabriel-greeting-node v0.1.0';
+const VERSION = 'gabriel-greeting-node {{ .Version }}';
 
 async function main(args = process.argv.slice(2), stdout = process.stdout, stderr = process.stderr) {
   if (!args.length) {

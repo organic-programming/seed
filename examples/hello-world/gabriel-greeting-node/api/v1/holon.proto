@@ -28,6 +28,7 @@ option (holons.v1.manifest) = {
   build: {
     runner: "npm"
     main: "./cmd/main.js"
+    templates: ["api/cli.js"]
   }
   requires: {
     commands: ["node", "npm"]

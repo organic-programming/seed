@@ -28,6 +28,7 @@ option (holons.v1.manifest) = {
   build: {
     runner: "cmake"
     main: "./cmd/main.cpp"
+    templates: ["api/cli.hpp"]
   }
   requires: {
     commands: ["cmake"]

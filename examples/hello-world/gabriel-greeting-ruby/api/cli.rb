@@ -10,7 +10,7 @@ require_relative "../internal/server"
 module GabrielGreetingRuby
   module Api
     module Cli
-      VERSION = "gabriel-greeting-ruby v0.1.0"
+      VERSION = "gabriel-greeting-ruby {{ .Version }}"
       CommandOptions = Struct.new(:format, :lang, keyword_init: true)
 
       class << self

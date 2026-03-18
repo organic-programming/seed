@@ -6,7 +6,7 @@
 
 namespace gabriel::greeting::cppholon::api {
 
-inline constexpr char kVersion[] = "gabriel-greeting-cpp v0.1.0";
+inline constexpr char kVersion[] = "gabriel-greeting-cpp {{ .Version }}";
 
 int RunCLI(const std::vector<std::string> &args,
            std::ostream &stdout_stream,

@@ -28,6 +28,7 @@ option (holons.v1.manifest) = {
   build: {
     runner: "python"
     main: "./cmd/main.py"
+    templates: ["api/cli.py"]
   }
   requires: {
     commands: ["python3"]

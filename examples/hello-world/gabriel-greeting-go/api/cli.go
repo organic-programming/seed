@@ -9,21 +9,10 @@ import (
 	pb "gabriel-greeting-go/gen/go/greeting/v1"
 	"gabriel-greeting-go/internal"
 
-	"github.com/organic-programming/go-holons/pkg/identity"
 	"github.com/organic-programming/go-holons/pkg/serve"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
-
-// version returns the holon version from the manifest proto (semver with "v" prefix).
-// Falls back to "unknown" if the manifest is not found or has no version.
-func version() string {
-	resolved, err := identity.Resolve(".")
-	if err != nil || resolved.Identity.Version == "" {
-		return "unknown"
-	}
-	return "v" + resolved.Identity.Version
-}
 
 type outputFormat string
 
@@ -63,7 +52,7 @@ func RunCLI(args []string, outputs ...io.Writer) int {
 		}
 		return 0
 	case "version":
-		fmt.Fprintln(stdout, version())
+		fmt.Fprintf(stdout, "gabriel-greeting-go %s\n", VersionString())
 		return 0
 	case "help":
 		printUsage(stdout)

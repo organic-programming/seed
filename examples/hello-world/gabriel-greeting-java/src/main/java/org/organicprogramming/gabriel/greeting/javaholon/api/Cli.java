@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class Cli {
-    public static final String VERSION = "gabriel-greeting-java v0.1.0";
+    public static final String VERSION = "gabriel-greeting-java {{ .Version }}";
 
     private Cli() {
     }

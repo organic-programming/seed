@@ -27,6 +27,7 @@ option (holons.v1.manifest) = {
   kind: "native"
   build: {
     runner: "cargo"
+    templates: ["api/cli.rs"]
   }
   requires: {
     commands: ["cargo"]

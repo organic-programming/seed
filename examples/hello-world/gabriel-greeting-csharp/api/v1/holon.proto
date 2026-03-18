@@ -30,6 +30,7 @@ option (holons.v1.manifest) = {
   build: {
     runner: "dotnet"
     main: "./cmd/Main.cs"
+    templates: ["api/Cli.cs"]
   }
   requires: {
     commands: ["dotnet"]

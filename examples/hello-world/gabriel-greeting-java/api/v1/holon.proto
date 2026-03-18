@@ -32,6 +32,7 @@ option (holons.v1.manifest) = {
   build: {
     runner: "gradle"
     main: "./src/main/java/org/organicprogramming/gabriel/greeting/javaholon/cmd/Main.java"
+    templates: ["src/main/java/org/organicprogramming/gabriel/greeting/javaholon/api/Cli.java"]
   }
   requires: {
     commands: ["java", "gradle"]

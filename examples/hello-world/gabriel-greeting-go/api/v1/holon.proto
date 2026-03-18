@@ -30,6 +30,7 @@ option (holons.v1.manifest) = {
   build: {
     runner: "go-module"
     main: "./cmd"
+    templates: ["api/version.go"]
   }
   requires: {
     commands: ["go"]

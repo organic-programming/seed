@@ -17,10 +17,8 @@ func TestRunCLIVersion(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("RunCLI returned %d, want 0", code)
 	}
-	// The version is resolved from the manifest at runtime;
-	// exact value is tested in integration tests.
-	if got := strings.TrimSpace(stdout.String()); got == "" {
-		t.Fatal("version output is empty")
+	if got := strings.TrimSpace(stdout.String()); got != "gabriel-greeting-go {{ .Version }}" {
+		t.Fatalf("version = %q, want %q", got, "gabriel-greeting-go {{ .Version }}")
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q, want empty", stderr.String())

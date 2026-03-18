@@ -16,7 +16,7 @@ from v1 import greeting_pb2
 from _internal import server as server_impl
 from api import public
 
-VERSION = "gabriel-greeting-python v0.1.0"
+VERSION = "gabriel-greeting-python {{ .Version }}"
 
 
 def main(argv: list[str] | None = None) -> int:

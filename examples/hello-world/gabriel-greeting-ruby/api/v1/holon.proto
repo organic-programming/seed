@@ -28,6 +28,7 @@ option (holons.v1.manifest) = {
   build: {
     runner: "ruby"
     main: "./cmd/main.rb"
+    templates: ["api/cli.rb"]
   }
   requires: {
     commands: ["ruby", "bundle"]
