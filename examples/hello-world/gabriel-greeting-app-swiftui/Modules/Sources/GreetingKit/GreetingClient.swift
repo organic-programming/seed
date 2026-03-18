@@ -27,15 +27,13 @@ final class GreetingClient: GRPCClient, @unchecked Sendable {
 #endif
     }
 
-    func listLanguages() async throws -> [Language] {
+    func listLanguages() async throws -> [Greeting_V1_Language] {
         let response: ProtobufPayload<Greeting_V1_ListLanguagesResponse> = try await performAsyncUnaryCall(
             path: "/greeting.v1.GreetingService/ListLanguages",
             request: ProtobufPayload(message: Greeting_V1_ListLanguagesRequest()),
             responseType: ProtobufPayload<Greeting_V1_ListLanguagesResponse>.self
         )
-        return response.message.languages.map { language in
-            Language(code: language.code, name: language.name, native: language.native)
-        }
+        return Array(response.message.languages)
     }
 
     func sayHello(name: String, langCode: String) async throws -> String {

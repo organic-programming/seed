@@ -7,7 +7,7 @@ struct ContentView: View {
     private let contentSpacing: CGFloat = 32
     private let languagePickerWidth: CGFloat = 220
     private let holonSlugWidth: CGFloat = 360
-    @State private var languages: [Language] = []
+    @State private var languages: [Greeting_V1_Language] = []
     @State private var selectedCode: String = ""
     @State private var userName: String = ""
     @State private var greeting: String = ""
@@ -20,8 +20,6 @@ struct ContentView: View {
         switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
         case "", "auto", "stdio", "stdio://":
             return "stdio"
-        case "mem", "mem://":
-            return "mem"
         case "unix", "unix://":
             return "unix"
         case "tcp", "tcp://":
@@ -189,7 +187,6 @@ struct ContentView: View {
                         .foregroundStyle(.primary)
 
                     Picker("", selection: transportSelection) {
-                        Text("mem").tag("mem")
                         Text("stdio").tag("stdio")
                         Text("unix").tag("unix")
                         Text("tcp").tag("tcp")

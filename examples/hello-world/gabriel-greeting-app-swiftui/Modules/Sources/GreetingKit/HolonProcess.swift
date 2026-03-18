@@ -129,7 +129,7 @@ public final class HolonProcess: ObservableObject {
         isRunning = false
     }
 
-    public func listLanguages() async throws -> [Language] {
+    public func listLanguages() async throws -> [Greeting_V1_Language] {
         if client == nil { await start() }
         guard let client else {
             throw HolonError.notConnected
