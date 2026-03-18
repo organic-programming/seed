@@ -1,4 +1,4 @@
-# PROTO — The Holon Proto Specification v1
+# PROTO — The Holon .Proto Specification v1
 
 Status: draft
 

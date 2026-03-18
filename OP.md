@@ -565,11 +565,16 @@ In $PATH:
 When resolving a holon by name, `op` searches in this order:
 
 ```
-1. Effective local root    recursive scan for every `api/v1/holon.proto` under the designated root
+1. Effective local root    recursive scan for `api/v1/holon.proto` + `*.holon/` package dirs
 2. $OPBIN                  ~/.op/bin/ (installed holons)
 3. $PATH                   system PATH
 4. $OPPATH/cache/          cached dependencies (populated by op mod pull)
 ```
+
+For `.holon` package directories, `op` reads `.holon.json` for fast
+identity resolution. If `.holon.json` is missing, `op` probes the
+binary via stdio `Describe` and caches the result as `.holon.json`
+for subsequent scans.
 
 ### Effective root
 
@@ -591,7 +596,7 @@ Recursive discovery skips the following directories:
 - `node_modules`
 - `vendor`
 - `build`
-- Any directory starting with `.`
+- Any directory starting with `.` (except `*.holon` package directories)
 
 Deduplication: if two `holon.proto` files have the same UUID, the
 one closest to the effective root wins.
