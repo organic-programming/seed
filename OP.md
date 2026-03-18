@@ -388,11 +388,11 @@ file which describes **what** each RPC does individually.
 ### Kind
 
 - **`native`** — implements the capability from source.
-  Example: `wisupaa-whisper` embeds whisper.cpp and compiles it
-  directly.
+  Example: `gabriel-greeting-c` implements the greeting service
+  in C and compiles it directly.
 - **`wrapper`** — delegates to an external CLI without implementing
   the domain logic itself.
-  Example: `jess-npm` wraps the `npm` command.
+  Example: `rob-go` wraps the `go` command.
 - **`composite`** — assembled from multiple buildable parts into a
   single deliverable.
   Examples:
@@ -450,8 +450,8 @@ given name provides uniqueness (a character), the family name
 provides meaning (a function). Collision requires both to overlap,
 which is unlikely when the composer names things deliberately.
 
-- Examples: `rob-go`, `wisupaa-whisper`, `jess-npm`, `megg-ffmpeg`,
-  `megg-ffprobe`, `line-git`, `gudule-greeting-godart`.
+- Examples: `rob-go`, `gabriel-greeting-go`, `gabriel-greeting-c`,
+  `gabriel-greeting-node`, `megg-ffmpeg`, `gudule-greeting-godart`.
 - Exception: the `op` binary keeps `op` as its name.
 
 ### Collision handling
@@ -532,8 +532,8 @@ $ op list
 UUID                                   NAME                              ORIGIN   CLADE                     STATUS   PATH
 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 c7f3a1b2-8d4e-4f5a-b6c7-d8e9f0a1b2c3   Rob Go                            local    deterministic/io_bound    draft    holons/rob-go
-d9e0f1a2-3b4c-5d6e-7f8a-9b0c1d2e3f4a   Jess NPM                          local    deterministic/io_bound    draft    holons/jess-npm
-a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d   Wisupaa Whisper                    local    probabilistic/perceptual  draft    holons/wisupaa-whisper
+f1a2b3c4-5d6e-7f8a-9b0c-1d2e3f4a5b6c   Gabriel Greeting Go               local    deterministic/pure        draft    examples/hello-world/gabriel-greeting-go
+d1e2f3a4-5b6c-7d8e-9f0a-1b2c3d4e5f6a   Gabriel Greeting C                local    deterministic/pure        draft    examples/hello-world/gabriel-greeting-c
 ```
 
 Scans:
@@ -551,9 +551,9 @@ List all reachable holons with their origin:
 ```
 $ op discover
 NAME              LANG  CLADE                    STATUS  ORIGIN  REL_PATH              UUID
-Rob Go            go    deterministic/io_bound   draft   local   rob-go                c7f3a1b2-...
-Jess NPM          go    deterministic/io_bound   draft   local   jess-npm              d9e0f1a2-...
-Wisupaa Whisper   c++   probabilistic/perceptual draft   local   wisupaa-whisper        a1b2c3d4-...
+Rob Go              go    deterministic/io_bound   draft   local   rob-go                c7f3a1b2-...
+Gabriel Greeting Go go    deterministic/pure       draft   local   gabriel-greeting-go   f1a2b3c4-...
+Gabriel Greeting C  c     deterministic/pure       draft   local   gabriel-greeting-c    d1e2f3a4-...
 
 In $PATH:
   op -> /Users/alice/.op/bin/op
@@ -900,8 +900,8 @@ Dispatch a command to any holon through the transport chain:
 
 ```bash
 op rob-go build '{"package":"./..."}'
-op jess-npm install '{"packages":["express"]}'
-op wisupaa-whisper transcribe '{"file":"audio.wav"}'
+op gabriel-greeting-go greet '{"name":"World"}'
+op gabriel-greeting-c greet '{"name":"World"}'
 ```
 
 The command is mapped to an RPC method name:
@@ -957,7 +957,7 @@ RPC input is JSON:
 
 ```bash
 op grpc://rob-go Build '{"package":"./cmd/rob"}'
-op grpc+stdio://jess-npm Install '{"packages":["express"]}'
+op grpc+stdio://gabriel-greeting-go Greet '{"name":"World"}'
 ```
 
 If no JSON is provided, `{}` is used.
@@ -991,8 +991,8 @@ Start **any holon's gRPC server** as a background process:
 
 ```bash
 op run rob-go:9091                  # TCP shorthand
-op run jess-npm --listen tcp://:9092
-op run wisupaa-whisper --listen unix:///tmp/whisper.sock
+op run gabriel-greeting-go --listen tcp://:9092
+op run gabriel-greeting-c --listen unix:///tmp/greeting.sock
 ```
 
 Under the hood:
@@ -1063,7 +1063,7 @@ Initialization behavior:
 Add a dependency:
 
 ```bash
-op mod add github.com/organic-programming/wisupaa-whisper v0.1.0
+op mod add github.com/organic-programming/gabriel-greeting-go v0.1.0
 ```
 
 If `version` is omitted, `op` resolves the latest published tag
@@ -1074,7 +1074,7 @@ automatically.
 Remove a dependency:
 
 ```bash
-op mod remove github.com/organic-programming/wisupaa-whisper
+op mod remove github.com/organic-programming/gabriel-greeting-go
 ```
 
 ### `op mod tidy`
@@ -1265,7 +1265,7 @@ Start an MCP server that exposes one or more holons as MCP tools.
 
 ```bash
 op mcp rob-go                        # one holon
-op mcp rob-go jess-npm echo-server   # multiple holons
+op mcp rob-go gabriel-greeting-go     # multiple holons
 ```
 
 This is the bridge between the organic ecosystem and any AI agent

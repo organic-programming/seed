@@ -219,7 +219,7 @@ Rules:
 Examples:
 
 - `op`: `artifacts: { binary: "op" }`
-- `wisupaa-whisper`: `artifacts: { binary: "wisupaa-whisper" }`
+- `gabriel-greeting-c`: `artifacts: { binary: "gabriel-greeting-c" }`
 - `Gabriel Greeting App`: `artifacts: { primary: "build/GabrielGreetingApp.app" }`
 
 ### 4. Build Configs

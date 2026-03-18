@@ -259,12 +259,12 @@ capitalized.
 **Given name** — distinguishes **character**. May express speed,
 personality, or origin.
 
-- Examples: `Grace` OP, `Wisupaa` Whisper, `Rob` Go, `Gabriel` Greeting-Go
+- Examples: `Grace` OP, `Gabriel` Greeting-C, `Rob` Go, `Gabriel` Greeting-Go
 
 **Slug** — `<given_name>-<family_name>`, lowercased, hyphenated. This is
 the directory name, the binary name, and the universal identifier.
 
-- Examples: `grace-op`, `wisupaa-whisper`, `rob-go`, `gabriel-greeting-go`
+- Examples: `grace-op`, `gabriel-greeting-c`, `rob-go`, `gabriel-greeting-go`
 - Exception: `op` is the binary name for `grace-op`.
 
 ### Build

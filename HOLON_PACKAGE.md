@@ -412,9 +412,9 @@ MyApp.app/
         gabriel-greeting-go.holon/
           .holon.json
           bin/darwin_arm64/gabriel-greeting-go
-        wisupaa-whisper.holon/
+        gabriel-greeting-c.holon/
           .holon.json
-          bin/darwin_arm64/wisupaa-whisper
+          bin/darwin_arm64/gabriel-greeting-c
     Info.plist
 ```
 
@@ -469,13 +469,13 @@ transitive dependency tree:
 ```yaml
 steps:
   - build_member: daemon                         # builds gabriel-greeting-go
-  - build_member: transcriber                    # builds wisupaa-whisper
+  - build_member: greeting-c                     # builds gabriel-greeting-c
   - copy_artifact:
       from: daemon
       to: MyApp.app/Contents/Resources/Holons/gabriel-greeting-go.holon
   - copy_artifact:
-      from: transcriber
-      to: MyApp.app/Contents/Resources/Holons/wisupaa-whisper.holon
+      from: greeting-c
+      to: MyApp.app/Contents/Resources/Holons/gabriel-greeting-c.holon
   - use_cached:
       ref: github.com/organic-programming/some-dep
       version: v0.3.0
@@ -522,7 +522,7 @@ and embeds them all under `Contents/Resources/Holons/`.
     OldLegacyTool                               # legacy bare binary (fallback)
   cache/                                        # fetched dependencies
     github.com/organic-programming/
-      wisupaa-whisper@v0.1.0.holon/             # source-only cached package
+      gabriel-greeting-c@v0.1.0.holon/            # source-only cached package
         .holon.json
         git/
           api/v1/holon.proto
@@ -601,7 +601,7 @@ When `op mod pull` fetches a dependency:
 module github.com/organic-programming/my-holon
 
 require (
-    github.com/organic-programming/wisupaa-whisper v0.1.0
+    github.com/organic-programming/gabriel-greeting-c v0.1.0
     github.com/organic-programming/rob-go v0.2.0
 )
 ```
