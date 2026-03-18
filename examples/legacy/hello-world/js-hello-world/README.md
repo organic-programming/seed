@@ -47,5 +47,4 @@ op grpc+stdio://"node server.mjs" Greet '{"name":"Alice"}'
 
 ## Notes
 
-- `mem://` is intended for in-process tests/composition via `grpcclient.dialMem`.
 - `wss://` requires TLS key/cert configuration in the SDK (`HOLONS_TLS_KEY_FILE`, `HOLONS_TLS_CERT_FILE`, or serve options).

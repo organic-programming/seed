@@ -31,8 +31,7 @@ examples/c-hello-world/
 ## Transport notes
 
 The example validates:
-- parser compatibility for `tcp`, `unix`, `stdio`, `mem`, `ws`, `wss`
-- live round-trips for `mem` always
+- parser compatibility for `tcp`, `unix`, `stdio`, `ws`, `wss`
 - live round-trips for bind-based schemes when environment permits bind
 
 As with the SDK:

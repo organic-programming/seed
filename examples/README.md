@@ -45,4 +45,4 @@ The audited list lives in [`../../sdk/SDK_GUIDE.md`](../hello-world/sdk/SDK_GUID
 - [Swift](./hello-world/swift-hello-world/)
 - [Web (browser)](./hello-world/web-hello-world/)
 
-## Mem Ping Pong Examples
+

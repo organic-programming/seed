@@ -79,12 +79,12 @@ op gabriel-greeting-go SayHello '{"name":"Alice","lang_code":"en"}'
 
 | Platform | Mode | Connect cascade |
 |----------|------|-----------------|
-| macOS | binary | `mem → stdio → unix → tcp → rest+sse` |
-| Linux | binary | `mem → stdio → unix → tcp → rest+sse` |
-| Windows | binary | `mem → stdio → tcp → rest+sse` |
-| iOS | framework | `mem → tcp → rest+sse` |
-| Android | framework | `mem → tcp → rest+sse` |
-| Browser | WASM | `mem → rest+sse` |
+| macOS | binary | `stdio → unix → tcp → rest+sse` |
+| Linux | binary | `stdio → unix → tcp → rest+sse` |
+| Windows | binary | `stdio → tcp → rest+sse` |
+| iOS | framework | `tcp → rest+sse` |
+| Android | framework | `tcp → rest+sse` |
+| Browser | WASM | `rest+sse` |
 
 The holon itself knows nothing about discovery or transport selection — `serve` and `op` handle it.
 
@@ -217,10 +217,9 @@ op grpc+tcp://gabriel-greeting-go SayHello '{"name":"Maria","lang_code":"en"}'
 
 ## Currently not supported .
 
-mem, unix, ws, ws, sse+rest 
+unix, ws, ws, sse+rest 
 
 ```bash
-op grpc+mem://gabriel-greeting-go SayHello '{"name":"Alice","lang_code":"en"}'
 op gabriel-greeting-go SayHello '{"name":"Maria","lang_code":"fr"}'  
 ```
 <!-- don't modify preeceeding section -->

@@ -3,7 +3,7 @@
 Minimal hello-world holon in C, backed by `sdk/c-holons`.
 
 This example is transport-complete at the SDK layer:
-`tcp`, `unix`, `stdio`, `mem`, `ws`, `wss`.
+`tcp`, `unix`, `stdio`, `ws`, `wss`.
 
 Note:
 - `ws` and `wss` in this C example are socket-layer URI/listener support.

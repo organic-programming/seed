@@ -2,7 +2,7 @@
 
 > *"The simplest possible idiomatic holon — a greeting service."*
 
-A minimal, complete holon demonstrating the OP-first execution model, alongside its three facets (CLI, gRPC, API) and all five transports (tcp, unix, stdio, mem, ws). Use this as a reference when building your own.
+A minimal, complete holon demonstrating the OP-first execution model, alongside its three facets (CLI, gRPC, API) and all four transports (tcp, unix, stdio, ws). Use this as a reference when building your own.
 
 ## Build
 
@@ -14,7 +14,6 @@ op gabriel-greet-go Greet '{"name": "Alice"}'
 op grpc://gabriel-greet-go Greet '{"name":"Alice"}'
 op grpc+stdio://gabriel-greet-go Greet '{"name":"Alice"}'
 op grpc+tcp://gabriel-greet-go Greet '{"name":"Alice"}'
-op grpc+mem://gabriel-greet-go Greet '{"name":"Alice"}'  ???? 
 
 ??? 
 op grpc://127.0.0.1:9090 Greet '{"name":"Alice"}'
@@ -100,7 +99,7 @@ op ws://localhost:8080/grpc Greet '{"name": "Alice"}'
 op stdio://gabriel-greet-go Greet '{"name": "Alice"}'
 ```
 
-*(Note: While both OP and Gabriel are written in Go, the `mem://` transport relies on an in-memory buffer, like `net.Pipe`, which cannot cross process boundaries. It is strictly reserved for internal Go unit tests and cannot be dialed externally by OP).*
+
 
 ## Test
 
