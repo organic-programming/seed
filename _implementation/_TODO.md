@@ -1,3 +1,7 @@
+# Gabriel app swiftUI
+- Simplify the code (no harcoded holon )
+- support mem via the swift SDK
+
 # OP
 
 - I think that `op install` should not build the holon without explicit "--build" flag

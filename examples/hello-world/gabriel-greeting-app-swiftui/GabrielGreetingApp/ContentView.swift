@@ -15,6 +15,30 @@ struct ContentView: View {
     @State private var isGreeting = false
     @FocusState private var isNameFieldFocused: Bool
 
+    private func normalizedTransportSelection(_ value: String) -> String {
+        switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "", "auto", "stdio", "stdio://":
+            return "stdio"
+        case "mem", "mem://":
+            return "mem"
+        case "unix", "unix://":
+            return "unix"
+        case "tcp", "tcp://":
+            return "tcp"
+        case "rest+sse", "http", "http://", "https", "https://", "sse", "rest":
+            return "rest+sse"
+        default:
+            return "stdio"
+        }
+    }
+
+    private var transportSelection: Binding<String> {
+        Binding(
+            get: { normalizedTransportSelection(holon.transport) },
+            set: { holon.transport = $0 }
+        )
+    }
+
     private var statusTitle: String {
         if isLoading {
             return "Starting holon..."
@@ -64,7 +88,13 @@ struct ContentView: View {
         .frame(minWidth: 800, minHeight: 600, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         .animation(.easeInOut(duration: 0.2), value: error)
-        .task { await loadLanguages() }
+        .task {
+            let normalized = normalizedTransportSelection(holon.transport)
+            if holon.transport != normalized {
+                holon.transport = normalized
+            }
+            await loadLanguages()
+        }
     }
 
     private func loadLanguages() async {
@@ -80,7 +110,7 @@ struct ContentView: View {
             isLoading = false
             return
         }
-        let retryDelays: [UInt64] = holon.transport == "stdio"
+        let retryDelays: [UInt64] = normalizedTransportSelection(holon.transport) == "stdio"
             ? [0, 80_000_000, 180_000_000]
             : [120_000_000, 300_000_000, 600_000_000]
 
@@ -157,7 +187,7 @@ struct ContentView: View {
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(.primary)
 
-                    Picker("", selection: $holon.transport) {
+                    Picker("", selection: transportSelection) {
                         Text("mem").tag("mem")
                         Text("stdio").tag("stdio")
                         Text("unix").tag("unix")

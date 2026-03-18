@@ -8,8 +8,18 @@ Gabriel is a multilingual greeting service with 56 languages. This HostUI is the
 
 | Backend | Slug | Binary | Source location |
 |---------|------|--------|-----------------|
-| Swift | `gabriel-greeting-swift` | `gabriel-greeting-swift` | `../gabriel-greeting-swift/` |
+| C | `gabriel-greeting-c` | `gabriel-greeting-c` | `../gabriel-greeting-c/` |
+| C++ | `gabriel-greeting-cpp` | `gabriel-greeting-cpp` | `../gabriel-greeting-cpp/` |
+| C# | `gabriel-greeting-csharp` | `gabriel-greeting-csharp` | `../gabriel-greeting-csharp/` |
+| Dart | `gabriel-greeting-dart` | `gabriel-greeting-dart` | `../gabriel-greeting-dart/` |
 | Go | `gabriel-greeting-go` | `gabriel-greeting-go` | `../gabriel-greeting-go/` |
+| Java | `gabriel-greeting-java` | `gabriel-greeting-java` | `../gabriel-greeting-java/` |
+| Kotlin | `gabriel-greeting-kotlin` | `gabriel-greeting-kotlin` | `../gabriel-greeting-kotlin/` |
+| Node | `gabriel-greeting-node` | `gabriel-greeting-node` | `../gabriel-greeting-node/` |
+| Python | `gabriel-greeting-python` | `gabriel-greeting-python` | `../gabriel-greeting-python/` |
+| Ruby | `gabriel-greeting-ruby` | `gabriel-greeting-ruby` | `../gabriel-greeting-ruby/` |
+| Rust | `gabriel-greeting-rust` | `gabriel-greeting-rust` | `../gabriel-greeting-rust/` |
+| Swift | `gabriel-greeting-swift` | `gabriel-greeting-swift` | `../gabriel-greeting-swift/` |
 
 ## Transport support
 
@@ -20,6 +30,8 @@ The UI exposes the same transport picker as the reference recipe:
 - `unix`
 - `tcp`
 - `rest+sse`
+
+When `OP_ASSEMBLY_TRANSPORT` is unset, the app starts with `stdio` selected by default.
 
 The HostUI uses a staged holon root for `connect(slug)` compatibility. It copies Gabriel's proto identity (`holon.proto`) plus the shared `greeting.proto` so discovery and Describe can resolve the staged holon from proto metadata alone.
 

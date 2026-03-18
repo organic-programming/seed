@@ -18,7 +18,7 @@ final class HolonProcess: ObservableObject {
     @Published var transport: String = {
         let value = ProcessInfo.processInfo.environment["OP_ASSEMBLY_TRANSPORT"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return value?.isEmpty == false ? value! : "auto"
+        return value?.isEmpty == false ? value! : "stdio"
     }() {
         didSet {
             stop()
