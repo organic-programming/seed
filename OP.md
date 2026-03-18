@@ -8,6 +8,51 @@ dependencies, and dispatches commands to them through a single
 interface. The actant installs one binary and gets access to every
 holon.
 
+```bash
+op help
+op — the Organic Programming CLI
+
+Global flags (must come before <holon> or URI):
+  -f, --format <text|json>              output format for RPC responses (default: text)
+  -q, --quiet                           suppress progress output
+
+Holon dispatch (transport chain):
+  op <holon> <command> [args]            dispatch via the SDK auto-connect chain
+
+Direct gRPC URI dispatch:
+  op grpc://<slug|host:port> <method>     gRPC auto-connect for slugs, direct TCP for host:port
+  op grpc+tcp://<slug|host:port> <method> force gRPC over TCP
+  op grpc+mem://<holon> <method>          force gRPC over in-memory pipe
+  op grpc+stdio://<holon> <method>        force gRPC over stdio pipe
+  op grpc+unix://<path> <method>          gRPC over Unix socket
+  op grpc+ws://<host:port> <method>       gRPC over WebSocket
+  op grpc+wss://<host:port> <method>      gRPC over secure WebSocket
+
+OP commands:
+  op list [root]
+  op show <uuid-or-prefix>
+  op new [--json <payload>]
+  op new --list
+  op new --template <name> <holon-name> [--set key=value]
+  op discover
+  op inspect <slug|host:port> [--json]
+  op do <holon> <sequence> [--param=value ...]
+  op tools <slug> [--format <fmt>]
+  op check [<holon-or-path>]
+  op build [<holon-or-path>] [flags]
+  op test [<holon-or-path>]
+  op clean [<holon-or-path>]
+  op run <holon> [flags]
+  op install [<holon-or-path>] [flags]
+  op uninstall <holon>
+  op mod <command>
+  op env [--init] [--shell]
+  op mcp <slug> [slug2...]
+  op serve [--listen tcp://:9090]
+  op version
+```
+
+
 ---
 
 ## R&D Context
