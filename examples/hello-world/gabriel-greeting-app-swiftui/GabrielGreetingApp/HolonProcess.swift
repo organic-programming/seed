@@ -18,7 +18,7 @@ final class HolonProcess: ObservableObject {
     @Published var transport: String = {
         let value = ProcessInfo.processInfo.environment["OP_ASSEMBLY_TRANSPORT"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return value?.isEmpty == false ? value! : "stdio"
+        return value?.isEmpty == false ? value! : "auto"
     }() {
         didSet {
             stop()
@@ -29,7 +29,6 @@ final class HolonProcess: ObservableObject {
     private var startTask: Task<GreetingClient, Error>?
     private var startTaskID: UUID?
 #if os(macOS)
-    private var embeddedSwiftMemHolon: EmbeddedSwiftMemHolon?
 #endif
 
     init() {
@@ -67,11 +66,11 @@ final class HolonProcess: ObservableObject {
             }
 
             logHostUI("[HostUI] assembly=\(assemblyFamily) holon=\(holon.binaryName) transport=\(transport)")
-            try prepareEmbeddedHolonIfNeeded(for: holon)
 
             var options = ConnectOptions()
             options.transport = transport
-            options.timeout = transport == "stdio" ? 1.5 : 2.0
+            options.lifecycle = "ephemeral"
+            options.timeout = 5.0
 
             let taskID = UUID()
             startTaskID = taskID
@@ -93,7 +92,6 @@ final class HolonProcess: ObservableObject {
                 guard startTaskID == taskID else {
                     return
                 }
-                stopEmbeddedHolon()
                 connectionError = "Failed to start Gabriel holon: \(String(describing: error))"
                 isRunning = false
             }
@@ -103,7 +101,6 @@ final class HolonProcess: ObservableObject {
                 startTaskID = nil
             }
         } catch {
-            stopEmbeddedHolon()
             connectionError = "Failed to start Gabriel holon: \(String(describing: error))"
             isRunning = false
         }
@@ -128,7 +125,6 @@ final class HolonProcess: ObservableObject {
         }
 
 #if os(macOS)
-        stopEmbeddedHolon()
 #endif
         isRunning = false
     }
@@ -257,111 +253,16 @@ private extension HolonProcess {
         entry.slug.hasPrefix("gabriel-greeting-") && entry.slug != "gabriel-greeting-app-swiftui"
     }
 
-    func prepareEmbeddedHolonIfNeeded(for holon: GabrielHolonIdentity) throws {
-        guard transport == "mem" else {
-            stopEmbeddedHolon()
-            return
-        }
 
-        guard holon.variant == "swift" else {
-            throw HolonStartError.unsupportedMemoryHolon(
-                "memory connection mode currently requires the Swift Gabriel backend"
-            )
-        }
-
-        let protoRoot = try memProtoRoot(for: holon)
-        let embeddedHolon = embeddedSwiftMemHolon ?? EmbeddedSwiftMemHolon()
-        try embeddedHolon.start(
-            slug: holon.slug,
-            protoDir: protoRoot,
-            logger: logHostUI(_:)
-        )
-        embeddedSwiftMemHolon = embeddedHolon
-    }
-
-    func memProtoRoot(for holon: GabrielHolonIdentity) throws -> URL {
-        let directRoot = URL(fileURLWithPath: holon.discoveryPath, isDirectory: true)
-        if hasHolonProto(in: directRoot) {
-            return directRoot
-        }
-
-        if holon.sourceKind == "package" {
-            let gitRoot = directRoot.appendingPathComponent("git", isDirectory: true)
-            if hasHolonProto(in: gitRoot) {
-                return gitRoot
-            }
-        }
-
-        for root in candidateSourceRoots(for: holon.slug) {
-            if hasHolonProto(in: root) {
-                return root
-            }
-        }
-
-        throw HolonStartError.protoRootNotFound(holon.slug)
-    }
-
-    func candidateSourceRoots(for slug: String) -> [URL] {
-        var candidates: [URL] = []
-        let currentDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
-        candidates.append(contentsOf: ancestorDirectories(of: currentDirectory, maxDepth: 8))
-
-        if let executableURL = Bundle.main.executableURL {
-            candidates.append(contentsOf: ancestorDirectories(of: executableURL.deletingLastPathComponent(), maxDepth: 10))
-        }
-
-        var seen = Set<String>()
-        return candidates.compactMap { base in
-            let root = base
-                .appendingPathComponent("examples", isDirectory: true)
-                .appendingPathComponent("hello-world", isDirectory: true)
-                .appendingPathComponent(slug, isDirectory: true)
-                .standardizedFileURL
-            return seen.insert(root.path).inserted ? root : nil
-        }
-    }
-
-    func ancestorDirectories(of url: URL, maxDepth: Int) -> [URL] {
-        var current = url.standardizedFileURL
-        var results: [URL] = []
-        for _ in 0..<maxDepth {
-            results.append(current)
-            let parent = current.deletingLastPathComponent()
-            if parent == current {
-                break
-            }
-            current = parent
-        }
-        return results
-    }
-
-    func hasHolonProto(in root: URL) -> Bool {
-        let candidates = [
-            root.appendingPathComponent("api/v1/holon.proto", isDirectory: false),
-            root.appendingPathComponent("holon.proto", isDirectory: false),
-        ]
-        return candidates.contains { FileManager.default.fileExists(atPath: $0.path) }
-    }
-
-    func stopEmbeddedHolon() {
-        embeddedSwiftMemHolon?.stop(logger: logHostUI(_:))
-        embeddedSwiftMemHolon = nil
-    }
 }
 
 private enum HolonStartError: LocalizedError {
     case holonNotFound
-    case protoRootNotFound(String)
-    case unsupportedMemoryHolon(String)
 
     var errorDescription: String? {
         switch self {
         case .holonNotFound:
             return "No Gabriel holons found"
-        case let .protoRootNotFound(slug):
-            return "Failed to locate a proto root for \(slug)"
-        case let .unsupportedMemoryHolon(message):
-            return message
         }
     }
 }
