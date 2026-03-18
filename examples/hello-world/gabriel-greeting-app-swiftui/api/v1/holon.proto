@@ -14,13 +14,13 @@ option (holons.v1.manifest) = {
     composer: "Codex"
     status: "draft"
     born: "2026-03-15"
-    version: "0.1.15"
+    version: "0.1.16"
   }
   description: "A standalone SwiftUI app that connects to all 12 Gabriel greeting daemon variants and presents a multilingual greeting UI."
   kind: "composite"
   build: {
     runner: "recipe"
-    templates: ["GabrielGreetingApp/Info.plist"]
+    templates: ["App/Info.plist"]
     defaults: {
       target: "macos"
       mode: "debug"
@@ -132,13 +132,19 @@ option (holons.v1.manifest) = {
         steps: {
           exec: {
             cwd: "."
-            argv: ["xcodebuild", "-scheme", "GabrielGreetingApp", "-configuration", "Debug", "-destination", "generic/platform=macOS", "-derivedDataPath", ".build/xcode/macos", "-clonedSourcePackagesDirPath", ".build/xcode/source-packages", "build"]
+            argv: ["xcodegen", "generate"]
           }
         }
         steps: {
           exec: {
             cwd: "."
-            argv: ["bash", "-lc", 'set -euo pipefail\nproducts_dir=".build/xcode/macos/Build/Products/Debug"\napp_dir="build/GabrielGreetingApp.app"\nrm -rf "$app_dir"\nmkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources" "$app_dir/Contents/Resources/Holons" "$app_dir/Contents/lib"\ncp "$products_dir/GabrielGreetingApp" "$app_dir/Contents/MacOS/GabrielGreetingApp"\n\nshopt -s nullglob\nfor bundle in "$products_dir"/*.bundle; do\n  cp -R "$bundle" "$app_dir/Contents/Resources/"\ndone\nif [ -d "$products_dir/PackageFrameworks" ]; then\n  cp -R "$products_dir/PackageFrameworks/." "$app_dir/Contents/lib/"\nfi\ncp GabrielGreetingApp/Info.plist "$app_dir/Contents/Info.plist"']
+            argv: ["xcodebuild", "-project", "GabrielGreetingApp.xcodeproj", "-scheme", "GabrielGreetingApp", "-configuration", "Debug", "-destination", "generic/platform=macOS", "-derivedDataPath", ".build/xcode/macos", "-clonedSourcePackagesDirPath", ".build/xcode/source-packages", "build"]
+          }
+        }
+        steps: {
+          exec: {
+            cwd: "."
+            argv: ["bash", "-lc", 'set -euo pipefail\nproducts_dir=".build/xcode/macos/Build/Products/Debug"\napp_dir="build/GabrielGreetingApp.app"\nrm -rf "$app_dir"\ncp -R "$products_dir/GabrielGreetingApp.app" "$app_dir"\nmkdir -p "$app_dir/Contents/Resources/Holons"\ncp App/Info.plist "$app_dir/Contents/Info.plist"']
           }
         }
         steps: {
@@ -227,8 +233,8 @@ option (holons.v1.manifest) = {
     }
   }
   requires: {
-    commands: ["xcodebuild", "cargo", "python3"]
-    files: ["Package.swift"]
+    commands: ["xcodebuild", "xcodegen", "cargo", "python3"]
+    files: ["project.yml"]
   }
   artifacts: {
     primary: "build/GabrielGreetingApp.app"

@@ -1,0 +1,28 @@
+name: GabrielGreetingApp
+options:
+  bundleIdPrefix: com.compilons.gabriel
+  deploymentTarget:
+    macOS: "15.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+packages:
+  Modules:
+    path: Modules
+targets:
+  GabrielGreetingApp:
+    type: application
+    platform: macOS
+    sources:
+      - App
+    dependencies:
+      - package: Modules
+        product: GreetingKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.compilons.gabriel.greeting-app
+        INFOPLIST_FILE: App/Info.plist
+        CODE_SIGN_ENTITLEMENTS: App/GabrielGreetingApp.entitlements
+        SWIFT_VERSION: "6.0"
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+        PRODUCT_NAME: GabrielGreetingApp
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

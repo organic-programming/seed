@@ -1,4 +1,5 @@
 import SwiftUI
+import GreetingKit
 
 struct ContentView: View {
     @ObservedObject var holon: HolonProcess
@@ -370,12 +371,4 @@ struct LeftPointerBubble: Shape {
 
         return path
     }
-}
-
-struct Language: Identifiable {
-    let code: String
-    let name: String
-    let native: String
-
-    var id: String { code }
 }

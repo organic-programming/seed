@@ -1,4 +1,5 @@
 import SwiftUI
+import GreetingKit
 #if os(macOS)
 import AppKit
 #endif

@@ -5,17 +5,17 @@ import Holons
 #endif
 
 @MainActor
-final class HolonProcess: ObservableObject {
-    @Published var isRunning = false
-    @Published var connectionError: String?
-    @Published var availableHolons: [GabrielHolonIdentity] = []
-    @Published var selectedHolon: GabrielHolonIdentity? = nil {
+public final class HolonProcess: ObservableObject {
+    @Published public var isRunning = false
+    @Published public var connectionError: String?
+    @Published public var availableHolons: [GabrielHolonIdentity] = []
+    @Published public var selectedHolon: GabrielHolonIdentity? = nil {
         didSet {
             guard oldValue != selectedHolon else { return }
             stop()
         }
     }
-    @Published var transport: String = {
+    @Published public var transport: String = {
         let value = ProcessInfo.processInfo.environment["OP_ASSEMBLY_TRANSPORT"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return value?.isEmpty == false ? value! : "stdio"
@@ -31,13 +31,13 @@ final class HolonProcess: ObservableObject {
 #if os(macOS)
 #endif
 
-    init() {
+    public init() {
 #if os(macOS)
         refreshHolons()
 #endif
     }
 
-    func start() async {
+    public func start() async {
         guard client == nil else { return }
         if let startTask {
             do {
@@ -74,8 +74,8 @@ final class HolonProcess: ObservableObject {
 
             let taskID = UUID()
             startTaskID = taskID
-            let connectTask = Task.detached(priority: .userInitiated) {
-                try connectClient(holonSlug: holon.slug, options: options)
+            let connectTask = Task.detached(priority: .userInitiated) { [slug = holon.slug, options] in
+                try connectClient(holonSlug: slug, options: options)
             }
             startTask = connectTask
 
@@ -110,7 +110,7 @@ final class HolonProcess: ObservableObject {
 #endif
     }
 
-    func stop() {
+    public func stop() {
         startTaskID = nil
         startTask?.cancel()
         startTask = nil
@@ -129,7 +129,7 @@ final class HolonProcess: ObservableObject {
         isRunning = false
     }
 
-    func listLanguages() async throws -> [Language] {
+    public func listLanguages() async throws -> [Language] {
         if client == nil { await start() }
         guard let client else {
             throw HolonError.notConnected
@@ -137,7 +137,7 @@ final class HolonProcess: ObservableObject {
         return try await client.listLanguages()
     }
 
-    func sayHello(name: String, langCode: String) async throws -> String {
+    public func sayHello(name: String, langCode: String) async throws -> String {
         guard let client else {
             throw HolonError.notConnected
         }
@@ -148,13 +148,13 @@ final class HolonProcess: ObservableObject {
         try? client?.close()
     }
 
-    var assemblyFamily: String {
+    public var assemblyFamily: String {
         let value = ProcessInfo.processInfo.environment["OP_ASSEMBLY_FAMILY"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return value?.isEmpty == false ? value! : "Gabriel-Greeting-App-SwiftUI"
     }
 
-    var holonBinaryName: String {
+    public var holonBinaryName: String {
         selectedHolon?.binaryName ?? "gabriel-greeting-swift"
     }
 
@@ -181,10 +181,10 @@ private func connectClient(
     return try GreetingClient.connected(to: holonSlug, options: options)
 }
 
-enum HolonError: LocalizedError {
+public enum HolonError: LocalizedError {
     case notConnected
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .notConnected:
             return "Not connected to the Gabriel greeting holon"
@@ -192,21 +192,21 @@ enum HolonError: LocalizedError {
     }
 }
 
-struct GabrielHolonIdentity: Identifiable, Hashable {
-    let slug: String
-    let familyName: String
-    let binaryName: String
-    let buildRunner: String
-    let displayName: String
-    let sortRank: Int
-    let holonUUID: String
-    let born: String
-    let sourceKind: String
-    let discoveryPath: String
-    let hasSource: Bool
+public struct GabrielHolonIdentity: Identifiable, Hashable {
+    public let slug: String
+    public let familyName: String
+    public let binaryName: String
+    public let buildRunner: String
+    public let displayName: String
+    public let sortRank: Int
+    public let holonUUID: String
+    public let born: String
+    public let sourceKind: String
+    public let discoveryPath: String
+    public let hasSource: Bool
 
-    var id: String { slug }
-    var variant: String { slug.replacingOccurrences(of: "gabriel-greeting-", with: "") }
+    public var id: String { slug }
+    public var variant: String { slug.replacingOccurrences(of: "gabriel-greeting-", with: "") }
 }
 
 #if os(macOS)
