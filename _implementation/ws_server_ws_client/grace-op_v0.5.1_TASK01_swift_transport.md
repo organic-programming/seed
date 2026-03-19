@@ -14,7 +14,7 @@ guard parsed.scheme == "tcp" else {
 }
 ```
 
-Remove this guard and implement `unix://`, `stdio://`, and `mem://` using SwiftNIO
+Remove this guard and implement `unix://` and `stdio://` using SwiftNIO
 primitives. Also add a ws dial path so Swift HostUIs can reach ws-served daemons.
 
 ## Target
@@ -24,7 +24,6 @@ primitives. Also add a ws dial path so Swift HostUIs can reach ws-served daemons
 | `tcp://` | ✅ | ✅ |
 | `unix://` | ❌ | ✅ |
 | `stdio://` | ❌ | ✅ |
-| `mem://` | ❌ | ✅ |
 | ws server | ❌ | 🚫 library |
 | ws client (dial) | ❌ | ✅ |
 
@@ -36,7 +35,6 @@ Replace the tcp-only guard with a dispatch on `parsed.scheme`:
 
 - **`unix://`** — `ServerBootstrap` on a `UnixDomainSocketAddress`. Clean stale socket on start and shutdown.
 - **`stdio://`** — wrap `FileHandle.standardInput` / standard output as a NIO `Channel` using `NIOPipeBootstrap`. Single-connection semantics: accept once, then stop the listener loop.
-- **`mem://`** — use `NIOEmbeddedEventLoop` + an in-process `EmbeddedChannel` pair. Expose `RunningServer.memListen()` returning the client-side `Channel` for test use.
 
 ### `Transport.swift`
 
@@ -51,7 +49,6 @@ In `sdk/swift-holons/Sources/Holons/Connect.swift`, when the resolved URI scheme
 - [ ] `swift test` passes, including:
   - `ServeTests.testUnixRoundTrip` — bind on `unix:///tmp/holons-test.sock`, connect, call Describe
   - `ServeTests.testStdioAcceptsOne` — verify serve loop terminates after one connection closes
-  - `ServeTests.testMemRoundTrip` — in-process client/server pair
 - [ ] `op build recipes/daemons/gudule-daemon-greeting-swift` (from v0.4.2) still passes
 - [ ] `--listen stdio://` reaches `SayHello` when piped from a Go test
 

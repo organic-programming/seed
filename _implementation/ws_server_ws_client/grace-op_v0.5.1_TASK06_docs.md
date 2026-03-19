@@ -16,25 +16,24 @@ This is the only task that touches documentation. No SDK source changes.
 
 Replace the current table (all ✅) with the accurate post-v0.5.1 state:
 
-| SDK | tcp | unix | stdio | mem | ws server | ws client | SSE+REST |
-|-----|:---:|:----:|:-----:|:---:|:---------:|:---------:|:--------:|
-| `go-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `js-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
-| `kotlin-holons` | ✅ | ✅ | ✅ | ✅ | 🚫 | ❌ | ❌ |
-| `java-holons` | ✅ | ✅ | ✅ | ✅ | 🚫 | ❌ | ❌ |
-| `ruby-holons` | ✅ | ✅ | ✅ | ✅ | 🚫 | ❌ | ❌ |
-| `csharp-holons` | ✅ | ✅ | ✅ | ✅ | 🚫 | ❌ | ❌ |
-| `python-holons` | ✅ | ✅ | ✅¹ | ✅ | 🚫 | ❌ | ❌ |
-| `dart-holons` | ✅ | ✅ | ✅ | ✅ | 🚫 | ❌ | ❌ |
-| `rust-holons` | ✅ | ✅ | ✅ | ✅ | 🚫 | ❌ | ❌ |
-| `cpp-holons` | ✅ | ✅ | ✅² | ✅³ | 🚫 | ❌ | ❌ |
-| `swift-holons` | ✅ | ✅ | ✅ | ✅ | 🚫 | ✅ | ❌ |
-| `js-web-holons` | — | — | — | — | — | ✅ | ✅ client |
-| `c-holons` | ✅ | — | — | — | — | — | — |
+| SDK | tcp | unix | stdio | ws server | ws client | SSE+REST |
+|-----|:---:|:----:|:-----:|:---------:|:---------:|:--------:|
+| `go-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `js-holons` | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| `kotlin-holons` | ✅ | ✅ | ✅ | 🚫 | ❌ | ❌ |
+| `java-holons` | ✅ | ✅ | ✅ | 🚫 | ❌ | ❌ |
+| `ruby-holons` | ✅ | ✅ | ✅ | 🚫 | ❌ | ❌ |
+| `csharp-holons` | ✅ | ✅ | ✅ | 🚫 | ❌ | ❌ |
+| `python-holons` | ✅ | ✅ | ✅¹ | 🚫 | ❌ | ❌ |
+| `dart-holons` | ✅ | ✅ | ✅ | 🚫 | ❌ | ❌ |
+| `rust-holons` | ✅ | ✅ | ✅ | 🚫 | ❌ | ❌ |
+| `cpp-holons` | ✅ | ✅ | ✅² | 🚫 | ❌ | ❌ |
+| `swift-holons` | ✅ | ✅ | ✅ | 🚫 | ✅ | ❌ |
+| `js-web-holons` | — | — | — | — | ✅ | ✅ client |
+| `c-holons` | ✅ | — | — | — | — | — |
 
-¹ Python stdio via Unix bridge (`_StdioServeBridge`).  
-² C++ stdio is POSIX-only (`HOLONS_HAS_GRPC_FD`).  
-³ C++ mem only if `HOLONS_HAS_GRPC_IP` (gRPC ≥ 1.57).
+¹ Python stdio via Unix bridge (`_StdioServeBridge`).
+² C++ stdio is POSIX-only (`HOLONS_HAS_GRPC_FD`).
 
 Legend:
 - ✅ = fully implemented in serve layer
@@ -58,7 +57,6 @@ Add after the architecture overview, before API examples:
 
 - Pass `--listen unix:///tmp/holons.sock` to a daemon to use a Unix socket.
 - Pass `--listen stdio://` for pipe-based embedding (SwiftUI, Qt subprocess).
-- Pass `--listen mem://test` for in-process testing (same process only).
 - Pass `--listen ws://:9091` (Go/Node daemons only) for browser-accessible daemons.
 ```
 
