@@ -25,6 +25,7 @@ public final class HolonProcess: ObservableObject {
         return value?.isEmpty == false ? value! : "stdio"
     }() {
         didSet {
+            guard oldValue != transport else { return }
             stop()
         }
     }

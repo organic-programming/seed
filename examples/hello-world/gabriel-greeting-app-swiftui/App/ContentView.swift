@@ -31,7 +31,11 @@ struct ContentView: View {
     private var transportSelection: Binding<String> {
         Binding(
             get: { normalizedTransportSelection(holon.transport) },
-            set: { holon.transport = $0 }
+            set: { newValue in
+                let normalized = normalizedTransportSelection(newValue)
+                guard normalized != normalizedTransportSelection(holon.transport) else { return }
+                holon.transport = normalized
+            }
         )
     }
 

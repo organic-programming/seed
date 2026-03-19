@@ -33,7 +33,7 @@ an interface hosts holon organs.
 │             │ gRPC / mem                 │
 │   ┌─────────▼────────────────────┐       │
 │   │        App Kit               │       │
-│   │  catalog · connect ·         │       │
+│   │  catalog · connect ·         │       │  COAX + MCP + SERVICES
 │   │  lifecycle · picker model    │       │
 │   └─────────┬────────────────────┘       │
 │             │ delegates to               │
