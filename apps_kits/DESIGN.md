@@ -275,6 +275,39 @@ what the agent is doing, in real time.
 > COAX ensures the organism's functional domain is shared, without
 > demanding dogmatic symmetry where it provides no value.
 
+### COAX Server Must Register `Describe`
+
+The COAX gRPC server **must** register the `HolonMeta/Describe`
+service alongside `CoaxService` and any app-specific domain services.
+This is the same requirement as any holon — the organism's COAX
+server is no exception.
+
+**Why:** without `Describe`, a client connecting to the COAX server
+has no way to discover what services and methods are available.  The
+Dynamic Dispatch Workflow
+([HOLON_COMMUNICATION_PROTOCOL.md §3.6](../HOLON_COMMUNICATION_PROTOCOL.md))
+requires `Describe` as the schema source for building protobuf from
+JSON dynamically.  This is how `op`, agents, and any SDK client
+interact with the organism programmatically — without compiled stubs
+and without gRPC reflection.
+
+The `Describe` response from a COAX server includes **all** services
+registered on that server:
+
+```
+DescribeResponse:
+  slug: "gabriel-greeting-app-swiftui"
+  motto: "A multilingual greeting app for macOS."
+  services:
+    - holons.v1.CoaxService          ← shared COAX surface
+    - greeting_app.v1.GreetingAppService  ← app-specific domain verbs
+```
+
+This gives a caller a complete picture of the organism's interaction
+surface in one round-trip — both the generic member management
+(`ListMembers`, `Tell`) and the domain-specific actions
+(`SelectHolon`, `SelectLanguage`, `Greet`).
+
 ---
 
 ## What the App Still Owns

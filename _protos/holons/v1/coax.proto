@@ -54,6 +54,17 @@ service CoaxService {
   // for an external caller to interact with any member without needing
   // to discover and connect to each one separately.
   rpc Tell(TellRequest) returns (TellResponse);
+
+  // ── Server lifecycle ──────────────────────────────────────
+
+  // Shut down the COAX server gracefully.
+  // The response is sent before the server stops accepting new calls.
+  //
+  // TurnOn does not exist — it is impossible by design: one cannot
+  // call an RPC on a server that is not running. The COAX server is
+  // started by the organism itself (UI toggle, launch argument, or
+  // startup configuration).
+  rpc TurnOffCoax(TurnOffCoaxRequest) returns (TurnOffCoaxResponse);
 }
 
 // ── Messages ───────────────────────────────────────────────
@@ -148,3 +159,9 @@ message TellResponse {
   // JSON-encoded response from the member.
   bytes payload = 1;
 }
+
+// TurnOffCoax
+
+message TurnOffCoaxRequest {}
+
+message TurnOffCoaxResponse {}
