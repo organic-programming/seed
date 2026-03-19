@@ -8,10 +8,6 @@ struct ContentView: View {
     private let contentSpacing: CGFloat = 32
     private let languagePickerWidth: CGFloat = 220
     private let holonSlugWidth: CGFloat = 360
-    @State private var languages: [Greeting_V1_Language] = []
-    @State private var selectedCode: String = ""
-    @State private var userName: String = ""
-    @State private var greeting: String = ""
     @State private var error: String?
     @State private var isLoading = true
     @State private var isGreeting = false
@@ -100,9 +96,8 @@ struct ContentView: View {
     private func loadLanguages() async {
         isLoading = true
         error = nil
-        greeting = ""
-        languages = []
-        selectedCode = ""
+        holon.greeting = ""
+        holon.availableLanguages = []
         await holon.start()
         guard holon.isRunning else {
             let detail = holon.connectionError ?? "Holon did not become ready"
@@ -121,12 +116,17 @@ struct ContentView: View {
                     try await Task.sleep(nanoseconds: delay)
                 }
 #endif
-                languages = try await holon.listLanguages()
-                selectedCode = languages.first(where: { $0.code == "en" })?.code ?? languages.first?.code ?? ""
+                holon.availableLanguages = try await holon.listLanguages()
+                let preferredCode = holon.selectedLanguageCode
+                holon.selectedLanguageCode =
+                    holon.availableLanguages.first(where: { $0.code == preferredCode })?.code
+                    ?? holon.availableLanguages.first(where: { $0.code == "en" })?.code
+                    ?? holon.availableLanguages.first?.code
+                    ?? ""
                 error = nil
                 isLoading = false
-                if !selectedCode.isEmpty {
-                    Task { await greet(code: selectedCode) }
+                if !holon.selectedLanguageCode.isEmpty {
+                    Task { await greet(code: holon.selectedLanguageCode) }
                 }
                 return
             } catch {
@@ -143,7 +143,7 @@ struct ContentView: View {
         guard !code.isEmpty else { return }
         isGreeting = true
         do {
-            greeting = try await holon.sayHello(name: userName, langCode: code)
+            holon.greeting = try await holon.sayHello(name: holon.userName, langCode: code)
             error = nil
         } catch {
             self.error = "Greeting failed: \(error.localizedDescription)"
@@ -238,19 +238,19 @@ struct ContentView: View {
     private var inputColumn: some View {
         VStack(alignment: .leading, spacing: 5) {
             if #available(macOS 13.0, *) {
-                TextField("", text: $userName, axis: .vertical)
+                TextField("", text: $holon.userName, axis: .vertical)
                     .lineLimit(4, reservesSpace: true)
                     .textFieldStyle(.roundedBorder)
                     .focused($isNameFieldFocused)
-                    .onChange(of: userName) {
-                        Task { await greet(code: selectedCode) }
+                    .onChange(of: holon.userName) {
+                        Task { await greet(code: holon.selectedLanguageCode) }
                     }
                     .frame(width: inputColumnWidth)
             } else {
-                TextEditor(text: $userName)
+                TextEditor(text: $holon.userName)
                     .focused($isNameFieldFocused)
-                    .onChange(of: userName) {
-                        Task { await greet(code: selectedCode) }
+                    .onChange(of: holon.userName) {
+                        Task { await greet(code: holon.selectedLanguageCode) }
                     }
                     .frame(width: inputColumnWidth, height: 100)
                     .cornerRadius(6)
@@ -259,20 +259,19 @@ struct ContentView: View {
     }
 
     private var languagePicker: some View {
-        Picker("", selection: $selectedCode) {
+        Picker("", selection: $holon.selectedLanguageCode) {
             if isLoading {
                 Text("Loading...").tag("")
             } else {
-                ForEach(languages) { language in
+                ForEach(holon.availableLanguages) { language in
                     Text("\(language.native) (\(language.name))").tag(language.code)
                 }
             }
         }
         .labelsHidden()
         .frame(width: languagePickerWidth)
-        .onChange(of: selectedCode) {
-            holon.selectedLanguageCode = selectedCode
-            Task { await greet(code: selectedCode) }
+        .onChange(of: holon.selectedLanguageCode) {
+            Task { await greet(code: holon.selectedLanguageCode) }
         }
     }
 
@@ -321,7 +320,7 @@ struct ContentView: View {
                     }
                     .padding(24)
                 } else {
-                    Text(greeting)
+                    Text(holon.greeting)
                         .font(.system(size: 42, weight: .medium))
                         .foregroundColor(.primary)
                         .lineLimit(nil)

@@ -1,3 +1,4 @@
+import Foundation
 import GRPC
 import NIOCore
 import SwiftProtobuf
@@ -9,9 +10,11 @@ final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable {
     let serviceName: Substring = "holons.v1.CoaxService"
 
     private let holon: HolonProcess
+    private weak var coaxServer: CoaxServer?
 
-    init(holon: HolonProcess) {
+    init(holon: HolonProcess, coaxServer: CoaxServer) {
         self.holon = holon
+        self.coaxServer = coaxServer
     }
 
     func handle(method name: Substring, context: CallHandlerContext) -> GRPCServerHandlerProtocol? {
@@ -55,6 +58,14 @@ final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable {
                 responseSerializer: ProtobufSerializer<Holons_V1_TellResponse>(),
                 interceptors: [],
                 userFunction: tell(request:context:)
+            )
+        case "TurnOffCoax":
+            return UnaryServerHandler(
+                context: context,
+                requestDeserializer: ProtobufDeserializer<Holons_V1_ListMembersRequest>(),
+                responseSerializer: ProtobufSerializer<Holons_V1_DisconnectMemberResponse>(),
+                interceptors: [],
+                userFunction: turnOffCoax(request:context:)
             )
         default:
             return nil
@@ -157,5 +168,23 @@ final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable {
         return context.eventLoop.makeFailedFuture(
             GRPCStatus(code: .unimplemented, message: "Tell is not yet implemented")
         )
+    }
+
+    private func turnOffCoax(
+        request: Holons_V1_ListMembersRequest,
+        context: StatusOnlyCallContext
+    ) -> EventLoopFuture<Holons_V1_DisconnectMemberResponse> {
+        _ = request
+        let promise = context.eventLoop.makePromise(of: Holons_V1_DisconnectMemberResponse.self)
+        let eventLoop = context.eventLoop
+        Task { @MainActor [weak coaxServer] in
+            eventLoop.execute {
+                promise.succeed(Holons_V1_DisconnectMemberResponse())
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) {
+                coaxServer?.isEnabled = false
+            }
+        }
+        return promise.futureResult
     }
 }

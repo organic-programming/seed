@@ -16,6 +16,9 @@ public final class HolonProcess: ObservableObject {
         }
     }
     @Published public var selectedLanguageCode: String = ""
+    @Published public var availableLanguages: [Greeting_V1_Language] = []
+    @Published public var userName: String = ""
+    @Published public var greeting: String = ""
     @Published public var transport: String = {
         let value = ProcessInfo.processInfo.environment["OP_ASSEMBLY_TRANSPORT"]?
             .trimmingCharacters(in: .whitespacesAndNewlines)

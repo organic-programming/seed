@@ -89,12 +89,21 @@ final class GreetingAppServiceProvider: CallHandlerProvider, @unchecked Sendable
         let promise = context.eventLoop.makePromise(of: Greeting_V1_GreetResponse.self)
         Task { @MainActor [holon] in
             do {
-                let langCode = request.langCode.isEmpty ? holon.selectedLanguageCode : request.langCode
+                if !request.name.isEmpty {
+                    holon.userName = request.name
+                }
+                if !request.langCode.isEmpty {
+                    holon.selectedLanguageCode = request.langCode
+                }
+
+                let name = request.name.isEmpty ? holon.userName : request.name
+                let langCode = holon.selectedLanguageCode
                 guard !langCode.isEmpty else {
                     promise.fail(GRPCStatus(code: .invalidArgument, message: "No language selected"))
                     return
                 }
-                let greeting = try await holon.sayHello(name: request.name, langCode: langCode)
+                let greeting = try await holon.sayHello(name: name, langCode: langCode)
+                holon.greeting = greeting
                 var response = Greeting_V1_GreetResponse()
                 response.greeting = greeting
                 promise.succeed(response)

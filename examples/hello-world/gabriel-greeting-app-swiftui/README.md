@@ -97,3 +97,59 @@ Override the default via `OP_ASSEMBLY_TRANSPORT` environment variable.
 | Ruby | `gabriel-greeting-ruby` |
 | Rust | `gabriel-greeting-rust` |
 | Swift | `gabriel-greeting-swift` |
+
+
+# COAX support 
+
+Currently via tcp (could be extended to more transport)
+
+
+## Available rpc 
+
+- greeting.v1.GreetingAppService/Greet greeting.v1.GreetingAppService/SelectHolon 
+- greeting.v1.GreetingAppService/SelectLanguage 
+- holons.v1.CoaxService/ConnectMember 
+- holons.v1.CoaxService/DisconnectMember 
+- holons.v1.CoaxService/ListMembers 
+- holons.v1.CoaxService/MemberStatus 
+- holons.v1.CoaxService/Tell
+
+```shell 
+// Working
+op grpc+tcp://127.0.0.1:51311 ListMembers
+op grpc+tcp://127.0.0.1:51311 TurnOffCoax
+
+// Available explicitly not implemented : 
+op grpc+tcp://127.0.0.1:51311 Tell       
+op grpc: call /holons.v1.CoaxService/Tell: rpc error: code = Unimplemented desc = Tell is not yet implemented
+```
+
+## Greet 
+
+```
+op grpc+tcp://127.0.0.1:62704 Greet '{"name":"Jesus"}'
+```
+
+## Select Holon from the holon selector 
+
+```shell
+// Working
+ op grpc+tcp://127.0.0.1:51311 SelectHolon '{"slug":"gabriel-greeting-go"}'
+// Selects the holon in the GUI
+{
+  "slug": "gabriel-greeting-go",
+  "displayName": "Gabriel (Go)"
+} 
+```
+
+## Select Language from the language selector 
+
+```shell
+ // Does respond but does not select the language
+op grpc+tcp://127.0.0.1:51311 SelectLanguage '{"code":"fr"}'
+// Selects the language in the GUI
+{
+  "code": "fr"
+}
+```
+

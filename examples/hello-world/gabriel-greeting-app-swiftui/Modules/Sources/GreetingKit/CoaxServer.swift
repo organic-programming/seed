@@ -46,10 +46,12 @@ public final class CoaxServer: ObservableObject {
 
     private func startServer() {
         guard runningServer == nil else { return }
+        listenURI = nil
 
-        let coaxProvider = CoaxServiceProvider(holon: holon)
+        let coaxProvider = CoaxServiceProvider(holon: holon, coaxServer: self)
         let appProvider = GreetingAppServiceProvider(holon: holon)
-        let providers: [CallHandlerProvider] = [coaxProvider, appProvider]
+        let metaProvider = CoaxDescribeProvider()
+        let providers: [CallHandlerProvider] = [metaProvider, coaxProvider, appProvider]
 
         // Use a synchronous background thread (DispatchQueue) instead of Task.detached
         // to avoid Swift 6 sendability issues with Serve.RunningServer.
@@ -58,7 +60,10 @@ public final class CoaxServer: ObservableObject {
                 let server = try Serve.startWithOptions(
                     "tcp://:0",
                     serviceProviders: providers,
-                    options: Serve.Options(describe: false)
+                    options: Serve.Options(
+                        describe: false,
+                        logger: { _ in }
+                    )
                 )
                 let uri = server.publicURI
                 DispatchQueue.main.async { [weak self] in
@@ -68,6 +73,7 @@ public final class CoaxServer: ObservableObject {
                 }
             } catch {
                 DispatchQueue.main.async { [weak self] in
+                    self?.listenURI = nil
                     self?.logCoax("[COAX] failed to start server: \(error)")
                 }
             }
@@ -79,7 +85,7 @@ public final class CoaxServer: ObservableObject {
         runningServer = nil
         listenURI = nil
         logCoax("[COAX] server stopped")
-        DispatchQueue.global(qos: .utility).async {
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + .milliseconds(250)) {
             server.stop()
         }
     }
