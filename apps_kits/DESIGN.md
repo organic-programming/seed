@@ -198,6 +198,9 @@ a component that a human can discover, inspect, and operate should be
 just as discoverable, inspectable, and operable by an agent, a script,
 or another holon — through the same structural contracts.
 
+See [AGENT.md Article 1](../AGENT.md#article-1--the-holon) for the
+constitutional definition of COAX.
+
 ### Why Holons Are the Natural Foundation
 
 Holons already carry the properties COAX requires:
@@ -206,7 +209,7 @@ Holons already carry the properties COAX requires:
 |----------|-----------|-------------|
 | **Identity** | Readable name, description in `.holon.json` | Slug, UUID, proto manifest — programmatic lookup |
 | **Contract** | Proto definitions document the API a developer reads | Same protos generate stubs, enabling code-level introspection |
-| **Discovery** | `HolonCatalog` lets a user browse available organs | Same catalog is queryable by agents and tooling |
+| **Discovery** | `HolonCatalog` lets a user browse available members | Same catalog is queryable by agents and tooling |
 | **Lifecycle** | App Kit manages start/stop transparently for the user | Same lifecycle hooks are scriptable via `op` or SDK calls |
 
 Because every holon is self-describing (manifest, proto contract,
@@ -214,25 +217,54 @@ typed RPC surface), any tool — IDE, AI agent, test harness,
 orchestrator — can reason about the organism's structure without
 special adaptation.
 
-### COAX in Practice
+### The Organism's COAX Interaction Surface
 
-Apps Kits enforce COAX by design:
+A composite app holon is an **organism** — the living whole that
+assembles its member holons.  Today the organism has a UI for humans
+but no programmatic entry point.  The COAX interaction surface fixes
+this: a shared proto service
+([`coax.proto`](../_protos/holons/v1/coax.proto)) that any organism
+registers alongside its domain service.
 
-- **Machine-readable components.** Every `HolonIdentity` exposes
-  structured metadata (slugs, capabilities, transport options) — not
-  just display strings.  UI labels are derived from the same data
-  agents consume.
-- **Scriptable lifecycle.** Any action the user triggers through the
-  UI (connect, disconnect, refresh catalog) has an equivalent
-  programmatic path.  No operation is UI-only.
-- **Introspectable state.** `HolonPickerModel` state (available
-  organs, selected organ, connection status) is observable both by
-  the framework's reactive bindings *and* by external tooling through
-  the SDK.
-- **Uniform contract surface.** Proto-first design means the same
-  `.proto` files serve as human documentation, machine-generated
-  stubs, and the basis for automated testing — one source of truth
-  for both audiences.
+The interaction surface generalizes what AppleScript achieved for
+macOS apps — but universal (proto-based, any platform), typed
+(protobuf messages, not string dictionaries), self-describing
+(`Describe` exposes it), and recursive (an organism within an
+organism inherits the same surface).
+
+**Two layers compose the surface:**
+
+1. **Shared COAX service** (`holons.v1.CoaxService`) — member
+   discovery, lifecycle, and `Tell`.  Every organism registers this.
+   It maps directly to the App Kit primitives:
+
+   | App Kit primitive | COAX RPC |
+   |-------------------|----------|
+   | `HolonCatalog.discover()` | `ListMembers` |
+   | `HolonConnector.connect()` | `ConnectMember` |
+   | `HolonConnector.close()` | `DisconnectMember` |
+   | `HolonPickerModel.status` | `MemberStatus` |
+   | *(new)* | `Tell` — forward a command to a member by slug |
+
+2. **App-specific domain verbs** — each organism defines its own
+   service with the operations that make sense for *its* domain.
+   For Gabriel Greeting App: `SelectHolon`, `SelectLanguage`, `Greet`.
+   These are the actions a human performs through the UI, expressed as
+   RPCs that an agent can call equivalently.
+
+### Co-Interaction: Shared State, Visible Actions
+
+COAX does not bypass the UI — it **drives through it**.
+
+When an agent calls `Greet(name: "Marie")`, the name must appear in
+the text field.  When it calls `SelectHolon(slug: "greeting-go")`, the
+dropdown must update.  Both human and agent observe and mutate the same
+organism state — the `HolonPickerModel`, the domain model, the
+connection status — through the same reactive bindings.
+
+This is the fundamental difference from a headless API: COAX
+interactions are *visible*.  A human watching the screen sees exactly
+what the agent is doing, in real time.
 
 > [!IMPORTANT]
 > COAX is not optional polish.  An App Kit component that is operable
