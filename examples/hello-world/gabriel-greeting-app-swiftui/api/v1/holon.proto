@@ -16,7 +16,7 @@ option (holons.v1.manifest) = {
     born: "2026-03-15"
     version: "0.1.17"
   }
-  description: "A standalone SwiftUI app that connects to all 12 Gabriel greeting daemon variants and presents a multilingual greeting UI."
+  description: "A standalone SwiftUI app that connects to all 12 Gabriel greeting holon written in 12 programming languages and presents a multilingual greeting UI."
   kind: "composite"
   build: {
     runner: "recipe"
@@ -233,7 +233,7 @@ option (holons.v1.manifest) = {
     }
   }
   requires: {
-    commands: ["xcodebuild", "xcodegen", "cargo", "python3"]
+    commands: ["xcodebuild", "xcodegen", "go", "swift", "cargo", "python3", "cmake", "dotnet", "dart", "java", "gradle", "node", "npm", "ruby", "bundle"]
     files: ["project.yml"]
   }
   artifacts: {
