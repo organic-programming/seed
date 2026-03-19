@@ -11,7 +11,9 @@ requirement is support for Protocol Buffers; transport is pluggable.
 
 ## Article 1 — The Holon
 
-A **holon** is, at any scale, an independent, composable functional unit.
+A **holon** is, at any scale, an independent, composable functional unit
+built for **coaccessibility** (**COAX**) — equally accessible to humans
+and machines through the same structural contracts.
 
 
 ### The proto — the center
@@ -520,7 +522,7 @@ have stdio.
 ### Transport properties
 
 A holon's transport choice determines two structural properties
-(see [PROTOCOL.md §2.7](./PROTOCOL.md#27-transport-properties)):
+(see [HOLON_COMMUNICATION_PROTOCOL.md §2.7](./HOLON_COMMUNICATION_PROTOCOL.md#27-transport-properties)):
 
 - **Valence**: `stdio://` is **monovalent** (one
   connection per lifetime). `tcp://`, `unix://`, `ws://`, `wss://`

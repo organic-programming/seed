@@ -18,7 +18,7 @@ sdk/<lang>-holons
 `describe` is auto-registered by the `serve` runner — holon developers
 do not implement it. Any caller can invoke `Describe()` to get a
 human-readable API catalog, even when gRPC reflection is disabled.
-See [PROTOCOL.md §3.5](../PROTOCOL.md) for the full proto definition.
+See [HOLON_COMMUNICATION_PROTOCOL.md §3.5](../HOLON_COMMUNICATION_PROTOCOL.md) for the full proto definition.
 
 ### The key primitive: `connect`
 

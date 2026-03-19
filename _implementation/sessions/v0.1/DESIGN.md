@@ -215,7 +215,7 @@ to `FAILED` on transport error.
 ## Transport Constraints
 
 Session semantics depend on the transport's structural properties
-(see [PROTOCOL.md §2.7](../../../PROTOCOL.md#27-transport-properties)).
+(see [HOLON_COMMUNICATION_PROTOCOL.md §2.7](../../../HOLON_COMMUNICATION_PROTOCOL.md#27-transport-properties)).
 Not every transport behaves the same way, and the session store must
 account for these differences.
 

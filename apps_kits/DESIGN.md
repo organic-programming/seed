@@ -184,6 +184,65 @@ The App Kit hooks into the framework's lifecycle automatically:
 
 ---
 
+## COAX — Coaccessibility
+
+**COAX** stands for **coaccessibility**: every component in an OP
+application must be equally accessible to humans *and* machines.
+This is not an afterthought or an accessibility layer bolted on top —
+it is a foundational design principle that shapes how Apps Kits are
+built and how apps built on them behave.
+
+Traditional frameworks treat human (UI) accessibility and machine
+(API) accessibility as separate concerns.  COAX rejects that split:
+a component that a human can discover, inspect, and operate should be
+just as discoverable, inspectable, and operable by an agent, a script,
+or another holon — through the same structural contracts.
+
+### Why Holons Are the Natural Foundation
+
+Holons already carry the properties COAX requires:
+
+| Property | Human side | Machine side |
+|----------|-----------|-------------|
+| **Identity** | Readable name, description in `.holon.json` | Slug, UUID, proto manifest — programmatic lookup |
+| **Contract** | Proto definitions document the API a developer reads | Same protos generate stubs, enabling code-level introspection |
+| **Discovery** | `HolonCatalog` lets a user browse available organs | Same catalog is queryable by agents and tooling |
+| **Lifecycle** | App Kit manages start/stop transparently for the user | Same lifecycle hooks are scriptable via `op` or SDK calls |
+
+Because every holon is self-describing (manifest, proto contract,
+typed RPC surface), any tool — IDE, AI agent, test harness,
+orchestrator — can reason about the organism's structure without
+special adaptation.
+
+### COAX in Practice
+
+Apps Kits enforce COAX by design:
+
+- **Machine-readable components.** Every `HolonIdentity` exposes
+  structured metadata (slugs, capabilities, transport options) — not
+  just display strings.  UI labels are derived from the same data
+  agents consume.
+- **Scriptable lifecycle.** Any action the user triggers through the
+  UI (connect, disconnect, refresh catalog) has an equivalent
+  programmatic path.  No operation is UI-only.
+- **Introspectable state.** `HolonPickerModel` state (available
+  organs, selected organ, connection status) is observable both by
+  the framework's reactive bindings *and* by external tooling through
+  the SDK.
+- **Uniform contract surface.** Proto-first design means the same
+  `.proto` files serve as human documentation, machine-generated
+  stubs, and the basis for automated testing — one source of truth
+  for both audiences.
+
+> [!IMPORTANT]
+> COAX is not optional polish.  An App Kit component that is operable
+> only through a visual interface — with no programmatic equivalent —
+> is **incomplete by definition**.  Every primitive (`HolonCatalog`,
+> `HolonConnector`, `HolonPickerModel`, lifecycle hooks) must satisfy
+> both sides of the coaccessibility contract.
+
+---
+
 ## What the App Still Owns
 
 After the App Kit absorbs organism plumbing, the app is **pure domain + interface:**

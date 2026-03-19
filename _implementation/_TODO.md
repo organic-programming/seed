@@ -1,5 +1,10 @@
 # General 
 
+- Put emphasis on COAX **COAX** stands for **coaccessibility**: every component in an OP
+application must be equally accessible to humans *and* machines.
+
+- Update HOLON_COMMUNICATION_PROTOCOL.md with sse+rest and clarification on server and client for WS / SSE
+
 # Gabriel app swiftUI
 - Simplify the code (no harcoded holon )
 

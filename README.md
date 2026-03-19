@@ -111,7 +111,7 @@ which the ecosystem grows.
 | Document | What it answers |
 |----------|----------------|
 | [Constitution](./AGENT.md) | What is a holon? |
-| [Protocol](./PROTOCOL.md) | How do holons communicate? |
+| [Protocol](./HOLON_COMMUNICATION_PROTOCOL.md) | How do holons communicate? |
 | [Conventions](./CONVENTIONS.md) | How is a holon structured per language? |
 | [Index](./INDEX.md) | Full list of all documents |
 

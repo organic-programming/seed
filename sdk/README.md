@@ -104,13 +104,13 @@ service that runs _over_ any transport.
   `Describe()` on the remote holon. This is how readiness
   verification works and how `op inspect` queries holons.
 
-See [PROTO.md §5](../PROTO.md) and [PROTOCOL.md §3.5](../PROTOCOL.md).
+See [PROTO.md §5](../PROTO.md) and [HOLON_COMMUNICATION_PROTOCOL.md §3.5](../HOLON_COMMUNICATION_PROTOCOL.md).
 
 ---
 
 ## Transport Surface
 
-All SDKs support the 6 transport schemes defined in PROTOCOL.md:
+All SDKs support the 6 transport schemes defined in HOLON_COMMUNICATION_PROTOCOL.md:
 `tcp://`, `unix://`, `stdio://`, `ws://`, `wss://`,
 `rest+sse://` (v0.6+).
 
