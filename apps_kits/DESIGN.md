@@ -308,6 +308,77 @@ surface in one round-trip — both the generic member management
 (`ListMembers`, `Tell`) and the domain-specific actions
 (`SelectHolon`, `SelectLanguage`, `Greet`).
 
+### COAX + MCP: Agent-Native Access
+
+`op mcp <slug>` already exposes any holon's RPCs as
+[MCP](https://modelcontextprotocol.io) tools.  The COAX surface
+extends this to composite apps: an AI agent can discover, connect to,
+and operate an organism's members — all through standard MCP tool
+calls.
+
+**How it works:**
+
+```
+Agent (Claude, Copilot, …)
+  │
+  └─ MCP client ──── stdio ────→ op mcp grpc+tcp://<slug>:<port>
+                                      │
+                                      ├─ 1. Call Describe on COAX server
+                                      │     → gets CoaxService + GreetingAppService
+                                      │
+                                      ├─ 2. Expose as MCP tools:
+                                      │     • gabriel-greeting-app.CoaxService.ListMembers
+                                      │     • gabriel-greeting-app.CoaxService.Tell
+                                      │     • gabriel-greeting-app.GreetingAppService.Greet
+                                      │     • gabriel-greeting-app.GreetingAppService.SelectHolon
+                                      │     • ...
+                                      │
+                                      └─ 3. Bridge: tool_call → Dynamic Dispatch → gRPC
+```
+
+The key difference from `op mcp <slug>` on a regular holon: for COAX,
+`op` connects to an **already running** server at a given address.
+For a regular holon, `op` starts the holon first, then connects.
+In both cases, the schema source is `Describe` — never local
+`.proto` files.
+
+**Two modes of operation:**
+
+| Mode | Command | Schema source |
+|------|---------|---------------|
+| **Regular holon** | `op mcp gabriel-greeting-go` | `Describe` (op starts the holon, then calls Describe) |
+| **COAX (running app)** | `op mcp grpc+tcp://<slug>:<port>` | `Describe` (op connects to the running COAX server) |
+
+Both produce the same MCP tool surface — JSON Schema from proto
+fields, descriptions from proto comments, `@required` / `@example`
+propagated to tool parameter schemas.
+
+**Agent workflow example:**
+
+```
+Agent: tools/list
+  → [ListMembers, ConnectMember, Tell, SelectHolon, Greet, ...]
+
+Agent: tools/call ListMembers {}
+  → [{slug: "gabriel-greeting-go", state: "CONNECTED"},
+     {slug: "gabriel-greeting-rust", state: "AVAILABLE"}, ...]
+
+Agent: tools/call SelectHolon {slug: "gabriel-greeting-go"}
+  → (dropdown updates in the UI)
+
+Agent: tools/call Greet {name: "Marie", lang_code: "fr"}
+  → {greeting: "Bonjour, Marie !"} (text field updates in the UI)
+```
+
+The agent operates the app exactly as a human would — every action
+visible in the UI — but through MCP tool calls.
+
+> [!NOTE]
+> An organism may also embed its own MCP server natively, without
+> relying on `op` as a bridge.  The App Kit can provide a built-in
+> MCP transport that maps COAX RPCs to MCP tools directly, giving
+> the app a self-contained agent interface with no external dependencies.
+
 ---
 
 ## What the App Still Owns
