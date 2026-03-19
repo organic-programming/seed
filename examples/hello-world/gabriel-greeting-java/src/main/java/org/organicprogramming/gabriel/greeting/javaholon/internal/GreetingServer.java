@@ -2,10 +2,11 @@ package org.organicprogramming.gabriel.greeting.javaholon.internal;
 
 import greeting.v1.Greeting;
 import greeting.v1.GreetingServiceGrpc;
-import io.grpc.protobuf.services.ProtoReflectionService;
 import io.grpc.stub.StreamObserver;
 import org.organicprogramming.gabriel.greeting.javaholon.api.PublicApi;
 import org.organicprogramming.holons.Serve;
+
+import java.util.List;
 
 public final class GreetingServer extends GreetingServiceGrpc.GreetingServiceImplBase {
     @Override
@@ -24,7 +25,10 @@ public final class GreetingServer extends GreetingServiceGrpc.GreetingServiceImp
         responseObserver.onCompleted();
     }
 
-    public static void listenAndServe(String listenUri) throws Exception {
-        Serve.run(listenUri, new GreetingServer(), ProtoReflectionService.newInstance());
+    public static void listenAndServe(String listenUri, boolean reflect) throws Exception {
+        Serve.runWithOptions(
+                listenUri,
+                List.of(new GreetingServer()),
+                new Serve.Options().withReflect(reflect));
     }
 }

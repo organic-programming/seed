@@ -2,7 +2,7 @@
 
 Reference implementation of a Kotlin holon — a programmatic creature designed for the agentic age. Strict layered architecture, fully tested.
 
-Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` and `ListLanguages` — over a shared protobuf contract. The greeting table covers 56 languages with localized templates and culturally appropriate default names such as `Marie`, `マリア`, and `Мария`. This example demonstrates proto-based identity, a 4-facet split, committed generated Kotlin/Java stubs, and SDK-backed gRPC serving with server reflection.
+Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` and `ListLanguages` — over a shared protobuf contract. The greeting table covers 56 languages with localized templates and culturally appropriate default names such as `Marie`, `マリア`, and `Мария`. This example demonstrates proto-based identity, a 4-facet split, committed generated Kotlin/Java stubs, and SDK-backed gRPC serving with `Describe` by default plus optional `--reflect` debugging.
 
 ## Facets
 
@@ -33,7 +33,7 @@ gradle test
 gradle -q run --args='version'
 gradle -q run --args='listLanguages --format json'
 gradle -q run --args='sayHello Alice fr'
-gradle -q run --args='serve --port 9090'
+gradle -q run --args='serve --port 9090 --reflect'
 grpcurl -plaintext 127.0.0.1:9090 list
 grpcurl -plaintext -d '{"name":"Alice","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
 ```

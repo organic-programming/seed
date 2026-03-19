@@ -20,11 +20,11 @@ module GabrielGreetingRuby
 
     module Server
       class << self
-        def listen_and_serve(listen_uri, on_listen: nil)
+        def listen_and_serve(listen_uri, reflect: false, on_listen: nil)
           Holons::Serve.run_with_options(
             normalize_listen_uri(listen_uri),
             method(:register_services),
-            false,
+            reflect,
             on_listen: on_listen
           )
         end

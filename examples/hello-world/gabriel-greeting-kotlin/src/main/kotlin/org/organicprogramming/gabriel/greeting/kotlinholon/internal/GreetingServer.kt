@@ -2,7 +2,6 @@ package org.organicprogramming.gabriel.greeting.kotlinholon.internal
 
 import greeting.v1.Greeting
 import greeting.v1.GreetingServiceGrpcKt
-import io.grpc.protobuf.services.ProtoReflectionService
 import org.organicprogramming.gabriel.greeting.kotlinholon.api.PublicApi
 import org.organicprogramming.holons.Serve
 
@@ -14,8 +13,8 @@ class GreetingServer : GreetingServiceGrpcKt.GreetingServiceCoroutineImplBase() 
         PublicApi.sayHello(request)
 
     companion object {
-        fun listenAndServe(listenUri: String) {
-            Serve.run(listenUri, GreetingServer(), ProtoReflectionService.newInstance())
+        fun listenAndServe(listenUri: String, reflect: Boolean) {
+            Serve.runWithOptions(listenUri, listOf(GreetingServer()), Serve.Options(reflect = reflect))
         }
     }
 }

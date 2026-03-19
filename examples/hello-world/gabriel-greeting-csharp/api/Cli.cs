@@ -27,7 +27,8 @@ public static class Cli
             case "serve":
                 try
                 {
-                    await _Internal.GreetingServer.ListenAndServeAsync(Serve.ParseFlags(args.Skip(1).ToArray()));
+                    var parsed = Serve.ParseOptions(args.Skip(1).ToArray());
+                    await _Internal.GreetingServer.ListenAndServeAsync(parsed.ListenUri, parsed.Reflect);
                     return 0;
                 }
                 catch (Exception error)

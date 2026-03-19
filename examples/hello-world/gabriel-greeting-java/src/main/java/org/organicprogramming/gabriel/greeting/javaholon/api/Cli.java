@@ -25,7 +25,8 @@ public final class Cli {
         switch (canonicalCommand(args[0])) {
             case "serve":
                 try {
-                    GreetingServer.listenAndServe(Serve.parseFlags(slice(args, 1)));
+                    Serve.ParsedFlags parsed = Serve.parseOptions(slice(args, 1));
+                    GreetingServer.listenAndServe(parsed.listenUri(), parsed.reflect());
                     return 0;
                 } catch (Exception error) {
                     stderr.printf("serve: %s%n", error.getMessage());

@@ -21,6 +21,11 @@ struct CommandOptions {
   std::vector<std::string> positional;
 };
 
+struct ServeOptions {
+  std::vector<std::string> listeners;
+  bool reflect = false;
+};
+
 std::string Trim(std::string_view value) {
   size_t start = 0;
   while (start < value.size() &&
@@ -109,8 +114,8 @@ bool ParseCommandOptions(const std::vector<std::string> &args,
   return true;
 }
 
-bool ParseServeListeners(const std::vector<std::string> &args,
-                         std::vector<std::string> *listeners,
+bool ParseServeOptions(const std::vector<std::string> &args,
+                       ServeOptions *options,
                          std::string *error) {
   for (size_t i = 0; i < args.size(); ++i) {
     const std::string &arg = args[i];
@@ -119,11 +124,11 @@ bool ParseServeListeners(const std::vector<std::string> &args,
         *error = "--listen requires a value";
         return false;
       }
-      listeners->push_back(args[++i]);
+      options->listeners.push_back(args[++i]);
       continue;
     }
     if (arg.rfind("--listen=", 0) == 0) {
-      listeners->push_back(arg.substr(9));
+      options->listeners.push_back(arg.substr(9));
       continue;
     }
     if (arg == "--port") {
@@ -131,23 +136,27 @@ bool ParseServeListeners(const std::vector<std::string> &args,
         *error = "--port requires a value";
         return false;
       }
-      listeners->push_back("tcp://:" + args[++i]);
+      options->listeners.push_back("tcp://:" + args[++i]);
       continue;
     }
     if (arg.rfind("--port=", 0) == 0) {
-      listeners->push_back("tcp://:" + arg.substr(7));
+      options->listeners.push_back("tcp://:" + arg.substr(7));
+      continue;
+    }
+    if (arg == "--reflect") {
+      options->reflect = true;
       continue;
     }
     if (arg.rfind("--", 0) == 0) {
       *error = "unknown flag \"" + arg + "\"";
       return false;
     }
-    *error = "serve accepts only --listen and --port";
+    *error = "serve accepts only --listen, --port, and --reflect";
     return false;
   }
 
-  if (listeners->empty()) {
-    listeners->push_back("tcp://:9090");
+  if (options->listeners.empty()) {
+    options->listeners.push_back("tcp://:9090");
   }
   return true;
 }
@@ -290,14 +299,14 @@ int RunCLI(const std::vector<std::string> &args,
   const std::vector<std::string> tail(args.begin() + 1, args.end());
 
   if (command == "serve") {
-    std::vector<std::string> listeners;
+    ServeOptions serve_options;
     std::string error;
-    if (!ParseServeListeners(tail, &listeners, &error)) {
+    if (!ParseServeOptions(tail, &serve_options, &error)) {
       stderr_stream << "serve: " << error << '\n';
       return 1;
     }
     try {
-      internal::Serve(listeners);
+      internal::Serve(serve_options.listeners, serve_options.reflect);
       return 0;
     } catch (const std::exception &error) {
       stderr_stream << "serve: " << error.what() << '\n';
@@ -328,13 +337,14 @@ int RunCLI(const std::vector<std::string> &args,
 void PrintUsage(std::ostream &output) {
   output << "usage: gabriel-greeting-cpp <command> [args] [flags]\n\n";
   output << "commands:\n";
-  output << "  serve [--listen <uri>]                    Start the gRPC server\n";
+  output << "  serve [--listen <uri>] [--reflect]        Start the gRPC server\n";
   output << "  version                                  Print version and exit\n";
   output << "  help                                     Print usage\n";
   output << "  listLanguages [--format text|json]       List supported languages\n";
   output << "  sayHello [name] [lang_code] [--format text|json] [--lang <code>]\n\n";
   output << "examples:\n";
   output << "  gabriel-greeting-cpp serve --listen tcp://:9090\n";
+  output << "  gabriel-greeting-cpp serve --listen tcp://:9090 --reflect\n";
   output << "  gabriel-greeting-cpp listLanguages --format json\n";
   output << "  gabriel-greeting-cpp sayHello Alice fr\n";
   output << "  gabriel-greeting-cpp sayHello Alice --lang fr --format json\n";

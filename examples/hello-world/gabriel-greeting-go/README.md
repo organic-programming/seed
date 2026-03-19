@@ -60,7 +60,7 @@ Facets split into two contexts:
 
 # Serve
 
-The `serve` sub-command is a rich feature provided by the [Go SDK](https://github.com/organic-programming/go-holons) (`pkg/serve`). It handles listener negotiation, reflection, and graceful shutdown — the holon only registers its gRPC service.
+The `serve` sub-command is a rich feature provided by the [Go SDK](https://github.com/organic-programming/go-holons) (`pkg/serve`). It handles listener negotiation, `Describe`, optional `--reflect` debugging, and graceful shutdown — the holon only registers its gRPC service.
 
 When a user runs:
 

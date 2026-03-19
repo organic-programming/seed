@@ -22,12 +22,13 @@ grpc::Status Server::SayHello(grpc::ServerContext *,
 }
 
 RunningServer StartServer(const std::vector<std::string> &listeners,
-                          bool announce) {
+                          bool announce,
+                          bool reflect) {
   RunningServer running;
   running.service = std::make_shared<Server>();
 
   holons::serve::options options;
-  options.enable_reflection = true;
+  options.enable_reflection = reflect;
   options.auto_register_holon_meta = true;
   options.announce = announce;
 
@@ -43,9 +44,9 @@ RunningServer StartServer(const std::vector<std::string> &listeners,
   return running;
 }
 
-void Serve(const std::vector<std::string> &listeners) {
+void Serve(const std::vector<std::string> &listeners, bool reflect) {
   holons::serve::options options;
-  options.enable_reflection = true;
+  options.enable_reflection = reflect;
   options.auto_register_holon_meta = true;
   options.announce = true;
 

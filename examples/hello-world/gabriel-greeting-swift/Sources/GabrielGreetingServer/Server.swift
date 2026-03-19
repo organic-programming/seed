@@ -22,6 +22,10 @@ public final class GreetingServiceProvider: Greeting_V1_GreetingServiceProvider 
     }
 }
 
-public func listenAndServe(_ listenURI: String) throws {
-    try Serve.run(listenURI, serviceProviders: [GreetingServiceProvider(), ReflectionProvider()])
+public func listenAndServe(_ listenURI: String, reflect: Bool = false) throws {
+    try Serve.runWithOptions(
+        listenURI,
+        serviceProviders: [GreetingServiceProvider()],
+        options: Serve.Options(reflect: reflect)
+    )
 }

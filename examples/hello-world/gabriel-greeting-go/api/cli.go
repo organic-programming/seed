@@ -45,8 +45,8 @@ func RunCLI(args []string, outputs ...io.Writer) int {
 
 	switch canonicalCommand(args[0]) {
 	case "serve":
-		listenURI := serve.ParseFlags(args[1:])
-		if err := internal.ListenAndServe(listenURI, true); err != nil {
+		options := serve.ParseOptions(args[1:])
+		if err := internal.ListenAndServe(options.ListenURI, options.Reflect); err != nil {
 			fmt.Fprintf(stderr, "serve: %v\n", err)
 			return 1
 		}

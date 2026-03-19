@@ -19,7 +19,8 @@ object Cli {
         return when (canonicalCommand(args[0])) {
             "serve" -> {
                 try {
-                    GreetingServer.listenAndServe(Serve.parseFlags(args.drop(1).toTypedArray()))
+                    val parsed = Serve.parseOptions(args.drop(1).toTypedArray())
+                    GreetingServer.listenAndServe(parsed.listenUri, parsed.reflect)
                     0
                 } catch (error: Exception) {
                     stderr.println("serve: ${error.message}")

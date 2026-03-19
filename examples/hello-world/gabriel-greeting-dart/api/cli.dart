@@ -10,7 +10,8 @@ import 'public.dart' as public_api;
 
 const String version = 'gabriel-greeting-dart {{ .Version }}';
 
-Future<int> main(List<String> args, {StringSink? stdoutSink, StringSink? stderrSink}) async {
+Future<int> main(List<String> args,
+    {StringSink? stdoutSink, StringSink? stderrSink}) async {
   final stdout = stdoutSink ?? io.stdout;
   final stderr = stderrSink ?? io.stderr;
 
@@ -21,9 +22,9 @@ Future<int> main(List<String> args, {StringSink? stdoutSink, StringSink? stderrS
 
   switch (canonicalCommand(args.first)) {
     case 'serve':
-      final listenUri = parseFlags(args.sublist(1));
+      final parsed = parseOptions(args.sublist(1));
       try {
-        await rpc.listenAndServe(listenUri);
+        await rpc.listenAndServe(parsed.listenUri, reflect: parsed.reflect);
       } catch (error) {
         stderr.writeln('serve: $error');
         return 1;
@@ -84,7 +85,8 @@ int runSayHello(
     }
     if (parsed.positional.length >= 2) {
       if (parsed.lang.isNotEmpty) {
-        stderr.writeln('sayHello: use either a positional lang_code or --lang, not both');
+        stderr.writeln(
+            'sayHello: use either a positional lang_code or --lang, not both');
         return 1;
       }
       request.langCode = parsed.positional[1];
@@ -183,17 +185,22 @@ void printUsage(StringSink output) {
   output.writeln('usage: gabriel-greeting-dart <command> [args] [flags]');
   output.writeln('');
   output.writeln('commands:');
-  output.writeln('  serve [--listen <uri>]                    Start the gRPC server');
-  output.writeln('  version                                  Print version and exit');
+  output.writeln(
+      '  serve [--listen <uri>] [--reflect]        Start the gRPC server');
+  output.writeln(
+      '  version                                  Print version and exit');
   output.writeln('  help                                     Print usage');
-  output.writeln('  listLanguages [--format text|json]       List supported languages');
-  output.writeln('  sayHello [name] [lang_code] [--format text|json] [--lang <code>]');
+  output.writeln(
+      '  listLanguages [--format text|json]       List supported languages');
+  output.writeln(
+      '  sayHello [name] [lang_code] [--format text|json] [--lang <code>]');
   output.writeln('');
   output.writeln('examples:');
   output.writeln('  gabriel-greeting-dart serve --listen stdio');
   output.writeln('  gabriel-greeting-dart listLanguages --format json');
   output.writeln('  gabriel-greeting-dart sayHello Alice fr');
-  output.writeln('  gabriel-greeting-dart sayHello Alice --lang fr --format json');
+  output.writeln(
+      '  gabriel-greeting-dart sayHello Alice --lang fr --format json');
 }
 
 class CommandOptions {

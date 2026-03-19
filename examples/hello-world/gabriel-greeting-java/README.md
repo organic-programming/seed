@@ -2,7 +2,7 @@
 
 Reference implementation of a Java holon — a programmatic creature designed for the agentic age. Strict layered architecture, fully tested.
 
-Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` and `ListLanguages` — over a shared protobuf contract. The greeting table covers 56 languages with localized templates and culturally appropriate default names such as `Marie`, `マリア`, and `Мария`. This example demonstrates proto-based identity, a 4-facet split, committed generated Java stubs, and SDK-backed gRPC serving with server reflection.
+Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` and `ListLanguages` — over a shared protobuf contract. The greeting table covers 56 languages with localized templates and culturally appropriate default names such as `Marie`, `マリア`, and `Мария`. This example demonstrates proto-based identity, a 4-facet split, committed generated Java stubs, and SDK-backed gRPC serving with `Describe` by default plus optional `--reflect` debugging.
 
 ## Facets
 
@@ -33,7 +33,7 @@ gradle test
 java -cp build/classes/java/main:build/resources/main org.organicprogramming.gabriel.greeting.javaholon.cmd.Main version
 java -cp build/classes/java/main:build/resources/main org.organicprogramming.gabriel.greeting.javaholon.cmd.Main listLanguages --format json
 java -cp build/classes/java/main:build/resources/main org.organicprogramming.gabriel.greeting.javaholon.cmd.Main sayHello Alice fr
-java -cp build/classes/java/main:build/resources/main org.organicprogramming.gabriel.greeting.javaholon.cmd.Main serve --port 9090
+java -cp build/classes/java/main:build/resources/main org.organicprogramming.gabriel.greeting.javaholon.cmd.Main serve --port 9090 --reflect
 grpcurl -plaintext 127.0.0.1:9090 list
 grpcurl -plaintext -d '{"name":"Alice","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
 ```

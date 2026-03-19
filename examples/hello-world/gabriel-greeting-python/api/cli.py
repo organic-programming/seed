@@ -10,7 +10,7 @@ from support import ensure_import_paths
 
 ensure_import_paths()
 
-from holons.serve import parse_flags
+from holons.serve import parse_options
 from v1 import greeting_pb2
 
 from _internal import server as server_impl
@@ -38,9 +38,9 @@ def run_cli(
 
     command = canonical_command(args[0])
     if command == "serve":
-        listen_uri = parse_flags(args[1:])
+        options = parse_options(args[1:])
         try:
-            server_impl.listen_and_serve(listen_uri)
+            server_impl.listen_and_serve(options.listen_uri, reflect=options.reflect)
         except Exception as exc:
             print(f"serve: {exc}", file=stderr)
             return 1

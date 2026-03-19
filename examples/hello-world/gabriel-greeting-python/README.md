@@ -52,7 +52,7 @@ Facets split into two contexts:
 
 # Serve
 
-The `serve` sub-command is a rich feature provided by the Python SDK (`holons.serve`). It handles listener negotiation, reflection, and graceful shutdown — the holon only registers its gRPC service.
+The `serve` sub-command is a rich feature provided by the Python SDK (`holons.serve`). It handles listener negotiation, `Describe`, optional `--reflect` debugging, and graceful shutdown — the holon only registers its gRPC service.
 
 When a user runs:
 
@@ -110,7 +110,7 @@ Each acquired facet builds on the previous — from exposing individual RPCs, to
 op mcp gabriel-greeting-python
 ```
 
-`op` connects to the holon, introspects its gRPC contract via reflection, and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
+`op` connects to the holon, introspects its gRPC contract via `Describe` (falling back to reflection only when needed), and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
 
 Tools are fully qualified — `gabriel-greeting-python.GreetingService.SayHello` — allowing multiple holons to be served from a single `op mcp` instance.
 

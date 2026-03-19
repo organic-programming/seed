@@ -52,7 +52,7 @@ Facets split into two contexts:
 
 # Serve
 
-The `serve` sub-command is provided by the Rust SDK (`holons::serve`). It handles listener negotiation and graceful shutdown — the holon only registers its gRPC service and reflection.
+The `serve` sub-command is provided by the Rust SDK (`holons::serve`). It handles listener negotiation, `Describe`, optional `--reflect` debugging, and graceful shutdown — the holon only registers its gRPC service.
 
 When a user runs:
 
@@ -93,7 +93,6 @@ api/v1/holon.proto                          Identity manifest — proto-based ho
 internal/server.rs                          RPC server — gRPC implementation.
 internal/greetings.rs                       Greeting data — 56 languages.
 gen/rust/greeting/v1/greeting.v1.rs         Generated protobuf and gRPC code (do not edit).
-gen/rust/greeting/v1/greeting_descriptor.bin Generated descriptor set used for reflection.
 ```
 
 `internal/` is not a facet — it is an **encapsulation practice**: private domain data and transport glue, never imported by external consumers.
@@ -110,7 +109,7 @@ Each acquired facet builds on the previous — from exposing individual RPCs, to
 op mcp gabriel-greeting-rust
 ```
 
-`op` connects to the holon, introspects its gRPC contract via reflection, and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
+`op` connects to the holon, introspects its gRPC contract via `Describe` (falling back to reflection only when needed), and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
 
 Tools are fully qualified — `gabriel-greeting-rust.GreetingService.SayHello` — allowing multiple holons to be served from a single `op mcp` instance.
 

@@ -1,8 +1,6 @@
 using Greeting.V1;
 using Grpc.Core;
 using Holons;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace GabrielGreeting.Csharp._Internal;
 
@@ -23,22 +21,19 @@ public sealed class GreetingServiceImpl : GreetingService.GreetingServiceBase
 
 public static class GreetingServer
 {
-    public static Task ListenAndServeAsync(string listenUri)
+    public static Task ListenAndServeAsync(string listenUri, bool reflect)
     {
-        Serve.Run(listenUri, CreateRegistrations());
+        Serve.RunWithOptions(listenUri, CreateRegistrations(), new Serve.ServeOptions { Reflect = reflect });
         return Task.CompletedTask;
     }
 
-    public static Task<Serve.RunningServer> StartAsync(string listenUri)
+    public static Task<Serve.RunningServer> StartAsync(string listenUri, bool reflect = false)
     {
-        return Task.FromResult(Serve.StartWithOptions(listenUri, CreateRegistrations()));
+        return Task.FromResult(Serve.StartWithOptions(listenUri, CreateRegistrations(), new Serve.ServeOptions { Reflect = reflect }));
     }
 
     private static Serve.GrpcServiceRegistration[] CreateRegistrations() =>
     [
-        Serve.Service<GreetingServiceImpl>(),
-        new(
-            services => services.AddGrpcReflection(),
-            app => app.MapGrpcReflectionService()),
+        Serve.Service<GreetingServiceImpl>()
     ];
 }

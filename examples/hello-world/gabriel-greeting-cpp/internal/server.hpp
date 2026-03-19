@@ -25,7 +25,8 @@ struct RunningServer {
 };
 
 RunningServer StartServer(const std::vector<std::string> &listeners,
-                          bool announce);
-void Serve(const std::vector<std::string> &listeners);
+                          bool announce,
+                          bool reflect = false);
+void Serve(const std::vector<std::string> &listeners, bool reflect = false);
 
 } // namespace gabriel::greeting::cppholon::internal

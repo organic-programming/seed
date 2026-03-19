@@ -25,9 +25,10 @@ class GreetingService extends GreetingServiceBase {
   }
 }
 
-Future<void> listenAndServe(String listenUri) {
+Future<void> listenAndServe(String listenUri, {bool reflect = false}) {
   return runWithOptions(
     listenUri,
     <Service>[GreetingService()],
+    options: ServeOptions(reflect: reflect),
   );
 }

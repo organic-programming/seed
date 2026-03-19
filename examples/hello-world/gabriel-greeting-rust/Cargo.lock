@@ -229,7 +229,6 @@ dependencies = [
  "tokio-stream",
  "tonic",
  "tonic-build",
- "tonic-reflection",
 ]
 
 [[package]]
@@ -315,6 +314,7 @@ dependencies = [
  "tokio-stream",
  "tonic",
  "tonic-build",
+ "tonic-reflection",
  "tower-service",
 ]
 

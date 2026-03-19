@@ -107,7 +107,7 @@ Each acquired facet builds on the previous — from exposing individual RPCs, to
 op mcp gabriel-greeting-swift
 ```
 
-`op` connects to the holon, introspects its gRPC contract via reflection, and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
+`op` connects to the holon, introspects its gRPC contract via `Describe` (falling back to reflection only when needed), and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
 
 Tools are fully qualified — `gabriel-greeting-swift.GreetingService.SayHello` — allowing multiple holons to be served from a single `op mcp` instance.
 

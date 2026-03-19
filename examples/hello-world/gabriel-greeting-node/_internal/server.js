@@ -1,24 +1,9 @@
 'use strict';
 
-const path = require('node:path');
-const protoLoader = require('@grpc/proto-loader');
 const { serve } = require('@organic-programming/holons');
 
 const publicApi = require('../api/public');
 const grpcPb = require('../gen/node/greeting/v1/greeting_grpc_pb.js');
-
-const ROOT = path.resolve(__dirname, '..');
-const SHARED_PROTO = path.join(ROOT, '..', '..', '_protos', 'v1', 'greeting.proto');
-const DOMAIN_PROTO_ROOT = path.join(ROOT, '..', '..', '_protos');
-
-const reflectionPackageDefinition = protoLoader.loadSync(SHARED_PROTO, {
-  includeDirs: [DOMAIN_PROTO_ROOT],
-  keepCase: true,
-  longs: String,
-  enums: String,
-  defaults: true,
-  oneofs: true,
-});
 
 class GreetingService {
   listLanguages(call, callback) {
@@ -30,12 +15,11 @@ class GreetingService {
   }
 }
 
-async function listenAndServe(listenUri) {
+async function listenAndServe(listenUri, reflect = false) {
   return serve.runWithOptions(listenUri, (server) => {
     server.addService(grpcPb.GreetingServiceService, new GreetingService());
   }, {
-    reflect: true,
-    reflectionPackageDefinition,
+    reflect,
     logger: console,
   });
 }

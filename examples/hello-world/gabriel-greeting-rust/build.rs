@@ -5,12 +5,13 @@ use std::process::Command;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let out_dir = PathBuf::from("gen/rust/greeting/v1");
     fs::create_dir_all(&out_dir)?;
+    let greeting_descriptor = out_dir.join("greeting_descriptor.bin");
 
     tonic_build::configure()
         .build_server(true)
         .build_client(true)
+        .file_descriptor_set_path(&greeting_descriptor)
         .out_dir(&out_dir)
-        .file_descriptor_set_path(out_dir.join("greeting_descriptor.bin"))
         .compile_protos(&["../../_protos/v1/greeting.proto"], &["../../_protos"])?;
 
     let holon_descriptor = PathBuf::from(

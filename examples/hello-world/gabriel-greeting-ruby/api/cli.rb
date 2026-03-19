@@ -178,8 +178,8 @@ module GabrielGreetingRuby
         private
 
         def run_serve(args, stderr)
-          listen_uri = Holons::Serve.parse_flags(args)
-          Internal::Server.listen_and_serve(listen_uri)
+          parsed = Holons::Serve.parse_options(args)
+          Internal::Server.listen_and_serve(parsed.listen_uri, reflect: parsed.reflect)
           0
         rescue StandardError => e
           stderr.puts("serve: #{e.message}")
