@@ -17,7 +17,7 @@ option (holons.v1.manifest) = {
     given_name: "Gabriel"
     family_name: "Greeting-Dart"
     motto: "Greets users in 56 languages — a Dart daemon example."
-    composer: "Codex"
+    composer: "B. ALTER"
     status: "draft"
     born: "2026-03-16"
     version: "0.1.9"

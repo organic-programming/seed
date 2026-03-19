@@ -11,7 +11,7 @@ option (holons.v1.manifest) = {
     given_name: "Gabriel"
     family_name: "Greeting-App-SwiftUI"
     motto: "SwiftUI HostUI for the Gabriel greeting service."
-    composer: "Codex"
+    composer: "B. ALTER"
     status: "draft"
     born: "2026-03-15"
     version: "0.1.17"
