@@ -267,11 +267,13 @@ interactions are *visible*.  A human watching the screen sees exactly
 what the agent is doing, in real time.
 
 > [!IMPORTANT]
-> COAX is not optional polish.  An App Kit component that is operable
-> only through a visual interface — with no programmatic equivalent —
-> is **incomplete by definition**.  Every primitive (`HolonCatalog`,
-> `HolonConnector`, `HolonPickerModel`, lifecycle hooks) must satisfy
-> both sides of the coaccessibility contract.
+> COAX is not optional polish, but it is also not a rigid diktat.
+> While core capabilities must satisfy both sides of the coaccessibility
+> contract, `Apps Kits` recognise that some interactions may legitimately be
+> reserved for one class of actant. For example, a purely visual layout
+> adjustment (human-only) or a low-level diagnostic hook (machine-only).
+> COAX ensures the organism's functional domain is shared, without
+> demanding dogmatic symmetry where it provides no value.
 
 ---
 

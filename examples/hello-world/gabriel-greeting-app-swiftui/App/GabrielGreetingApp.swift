@@ -6,24 +6,36 @@ import AppKit
 
 @main
 struct GabrielGreetingApp: App {
-    @StateObject private var holon = HolonProcess()
+    @StateObject private var holon: HolonProcess
+    @StateObject private var coaxServer: CoaxServer
+
+    init() {
+        let h = HolonProcess()
+        _holon = StateObject(wrappedValue: h)
+        _coaxServer = StateObject(wrappedValue: CoaxServer(holon: h))
+    }
 
     var body: some Scene {
         WindowGroup("Gabriel Greeting") {
 #if os(macOS)
-            ContentView(holon: holon)
+            ContentView(holon: holon, coaxServer: coaxServer)
                 .frame(minWidth: 800, minHeight: 600)
                 .onAppear {
                     DispatchQueue.main.async {
                         revealAppWindow()
                     }
+                    coaxServer.startIfEnabled()
                 }
-                .onDisappear { holon.stop() }
+                .onDisappear {
+                    holon.stop()
+                    coaxServer.stop()
+                }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
                     holon.stop()
+                    coaxServer.stop()
                 }
 #else
-            ContentView(holon: holon)
+            ContentView(holon: holon, coaxServer: coaxServer)
 #endif
         }
     }

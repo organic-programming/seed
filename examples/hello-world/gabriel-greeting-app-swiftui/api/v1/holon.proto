@@ -2,6 +2,7 @@ syntax = "proto3";
 package greeting.v1;
 
 import "holons/v1/manifest.proto";
+import "holons/v1/coax.proto";
 import "v1/greeting.proto";
 
 option (holons.v1.manifest) = {
@@ -14,10 +15,15 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-03-15"
-    version: "0.1.17"
+    version: "0.1.18"
   }
   description: "A standalone SwiftUI app that connects to all 12 Gabriel greeting holon written in 12 programming languages and presents a multilingual greeting UI."
   kind: "composite"
+  contract: {
+    proto: "api/v1/holon.proto"
+    service: "greeting.v1.GreetingAppService"
+    rpcs: ["SelectHolon", "SelectLanguage", "Greet"]
+  }
   build: {
     runner: "recipe"
     templates: ["App/Info.plist"]
@@ -240,3 +246,50 @@ option (holons.v1.manifest) = {
     primary: "build/GabrielGreetingApp.app"
   }
 };
+
+// GreetingAppService is the COAX domain surface for this organism.
+// These are the high-level actions a human performs through the UI,
+// expressed as RPCs an agent can call equivalently.
+//
+// An agent calling SelectHolon + SelectLanguage + Greet achieves the
+// same result as a human clicking the dropdown, picking a language,
+// and typing a name — and the UI reflects every step in real time.
+service GreetingAppService {
+  // Select which greeting holon to use (by slug).
+  rpc SelectHolon(SelectHolonRequest) returns (SelectHolonResponse);
+
+  // Select a language for the greeting.
+  rpc SelectLanguage(SelectLanguageRequest) returns (SelectLanguageResponse);
+
+  // Greet using the current selection.
+  rpc Greet(GreetRequest) returns (GreetResponse);
+}
+
+message SelectHolonRequest {
+  string slug = 1;
+}
+
+message SelectHolonResponse {
+  // Returns the identity of the now-selected holon.
+  string slug = 1;
+  string display_name = 2;
+}
+
+message SelectLanguageRequest {
+  string code = 1;
+}
+
+message SelectLanguageResponse {
+  string code = 1;
+}
+
+message GreetRequest {
+  string name = 1;
+  // Optional: override current language. If empty, uses current selection.
+  string lang_code = 2;
+}
+
+message GreetResponse {
+  string greeting = 1;
+}
+

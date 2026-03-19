@@ -3,6 +3,7 @@ import GreetingKit
 
 struct ContentView: View {
     @ObservedObject var holon: HolonProcess
+    @ObservedObject var coaxServer: CoaxServer
     private let inputColumnWidth: CGFloat = 300
     private let contentSpacing: CGFloat = 32
     private let languagePickerWidth: CGFloat = 220
@@ -207,6 +208,21 @@ struct ContentView: View {
                         .fill(statusColor)
                         .frame(width: 10, height: 10)
                 }
+
+                Divider().frame(height: 12)
+
+                HStack(spacing: 8) {
+                    Toggle("COAX", isOn: $coaxServer.isEnabled)
+                        .toggleStyle(.switch)
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                }
+
+                if let uri = coaxServer.listenURI {
+                    Text(uri)
+                        .font(.system(size: 11, weight: .regular, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -255,6 +271,7 @@ struct ContentView: View {
         .labelsHidden()
         .frame(width: languagePickerWidth)
         .onChange(of: selectedCode) {
+            holon.selectedLanguageCode = selectedCode
             Task { await greet(code: selectedCode) }
         }
     }
