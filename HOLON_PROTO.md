@@ -535,11 +535,18 @@ holon.proto (human-authored)
      │
      ├── protocompile ──────→ .holon.json      (derived JSON cache for fast discovery)
      ├── protoc + plugins ──→ gen/             (language-specific stubs)
-     └── SDK embed ─────────→ Describe RPC     (runtime metadata inside the binary)
+     └── SDK embed ─────────→ Describe RPC     (runtime schema — replaces reflection)
 ```
 
 `op` performs the first step internally using `protocompile` (pure Go).
 The developer performs stub generation using `protoc` or `buf`.
+
+> [!NOTE]
+> At runtime, any client **must** call `Describe` to obtain the full
+> schema (field numbers, types, descriptions) for dynamic dispatch
+> without compiled stubs. gRPC reflection is not required and is
+> disabled by default. See
+> [HOLON_COMMUNICATION_PROTOCOL.md §3.6](./HOLON_COMMUNICATION_PROTOCOL.md).
 
 ---
 

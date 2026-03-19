@@ -252,6 +252,14 @@ controls what it exposes: internal or debug RPCs can be excluded.
 The response includes enough type information for a caller to
 dynamically construct and send requests without compiled stubs.
 
+> [!IMPORTANT]
+> gRPC reflection (`grpc.reflection.v1alpha.ServerReflection`) is
+> **not required** and **must be disabled by default**. The `Describe`
+> service provides all information needed for dynamic dispatch,
+> including field numbers and types. SDKs **may** offer an opt-in
+> flag (e.g. `--reflect`) as a development convenience for third-party
+> tools like `grpcurl`.
+
 ```protobuf
 syntax = "proto3";
 package holonmeta.v1;
@@ -405,6 +413,81 @@ externally by reading the holon's `.proto` files:
 - `op tools <slug>` — LLM tool definitions in any format
 
 See [OP.md §15](./OP.md) for details.
+
+### 3.6 Dynamic Dispatch Workflow
+
+Any client that dispatches gRPC calls dynamically (without compiled
+stubs) **must** use the `Describe` service as its schema source. This
+applies to `op`, SDK `connect` modules, custom tools, and any other
+client in the ecosystem.
+
+> [!IMPORTANT]
+> This workflow is **mandatory** for dynamic dispatch. It replaces
+> gRPC reflection as the canonical schema-discovery mechanism.
+
+#### Workflow
+
+```
+Client connects to holon
+  │
+  ├─ 1. Call HolonMeta/Describe         (one round-trip, ~5 KB)
+  │     → DescribeResponse: services[], methods[], FieldDocs
+  │
+  ├─ 2. Cache the DescribeResponse       (schema is static)
+  │
+  ├─ 3. Receive dispatch: method + JSON payload
+  │     → look up method in cached response
+  │     → read input_fields: [{name, number, type, label}, ...]
+  │
+  ├─ 4. Build protobuf bytes dynamically
+  │     → map each JSON key to its FieldDoc
+  │     → encode using field number + wire type
+  │     → handle nested_fields recursively
+  │
+  ├─ 5. Send the gRPC call
+  │     → path: /package.Service/Method
+  │
+  └─ 6. Deserialize the response
+        → use cached output_fields to decode protobuf → JSON
+```
+
+#### Why Describe, Not Reflection
+
+| Property | `Describe` | gRPC Reflection |
+|----------|:----------:|:---------------:|
+| Protocol | Works over gRPC **and** Holon-RPC | gRPC only |
+| Schema data | field numbers, types, labels | raw file descriptors |
+| Human-readable | ✅ descriptions, examples, `@required` | ❌ binary proto descriptors |
+| Agent-friendly | ✅ structured, flat, cacheable | ❌ requires protobuf compiler |
+| Holon-controlled | ✅ can exclude internal RPCs | ❌ exposes everything |
+| One round-trip | ✅ single unary call | ❌ bidirectional stream |
+
+#### Type Mapping
+
+The `FieldDoc.type` string maps directly to protobuf wire types:
+
+| `type` | Wire type | Encoding |
+|--------|:---------:|----------|
+| `string` | 2 (length-delimited) | UTF-8 bytes |
+| `bytes` | 2 (length-delimited) | raw bytes |
+| `int32`, `int64` | 0 (varint) | signed varint |
+| `uint32`, `uint64` | 0 (varint) | unsigned varint |
+| `sint32`, `sint64` | 0 (varint) | zigzag varint |
+| `bool` | 0 (varint) | 0 or 1 |
+| `float` | 5 (32-bit) | IEEE 754 |
+| `double` | 1 (64-bit) | IEEE 754 |
+| `fixed32`, `sfixed32` | 5 (32-bit) | little-endian |
+| `fixed64`, `sfixed64` | 1 (64-bit) | little-endian |
+| `<package.MessageType>` | 2 (length-delimited) | recursive, use `nested_fields` |
+| `<package.EnumType>` | 0 (varint) | enum number from `enum_values` |
+
+For `repeated` fields (`label = FIELD_LABEL_REPEATED`), scalar types
+use packed encoding (a single length-delimited field containing
+concatenated values). Message types repeat the field tag.
+
+For `map` fields (`label = FIELD_LABEL_MAP`), encode as repeated
+messages with `key` (field 1) and `value` (field 2), using the types
+from `map_key_type` and `map_value_type`.
 
 ---
 

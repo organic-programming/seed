@@ -12,13 +12,17 @@ sdk/<lang>-holons
 ├── identity     Read holon.proto — name, UUID, artifacts, build metadata
 ├── discover     Scan the local filesystem for nearby holons
 ├── connect      Resolve a holon by name → find it → start it → dial it
-└── describe     Self-documentation — auto-registered HolonMeta.Describe RPC
+└── describe     Self-documentation + dynamic dispatch schema (HolonMeta.Describe)
 ```
 
 `describe` is auto-registered by the `serve` runner — holon developers
-do not implement it. Any caller can invoke `Describe()` to get a
-human-readable API catalog, even when gRPC reflection is disabled.
-See [HOLON_COMMUNICATION_PROTOCOL.md §3.5](../HOLON_COMMUNICATION_PROTOCOL.md) for the full proto definition.
+do not implement it. Any caller can invoke `Describe()` to obtain the
+full API schema (field numbers, types, labels), enabling dynamic
+dispatch without compiled stubs or gRPC reflection. gRPC reflection
+is **disabled by default** — SDKs may offer an opt-in `--reflect`
+flag for third-party tools like `grpcurl`.
+See [HOLON_COMMUNICATION_PROTOCOL.md §3.6](../HOLON_COMMUNICATION_PROTOCOL.md)
+for the mandatory Dynamic Dispatch Workflow.
 
 ### The key primitive: `connect`
 
@@ -204,35 +208,36 @@ for the full taxonomy.
 
 ### Daemon SDKs — serve holons
 
-| SDK | Serve | Discover | Connect | Describe |
-|---|---|---|---|---|
-| `go-holons` | runner | ✅ | ✅ | ✅ auto |
-| `rust-holons` | flags only | ✅ | ✅ stdio | — |
-| `js-holons` | runner | ✅ | ✅ | ✅ auto |
-| `python-holons` | runner | ✅ | ✅ | ✅ auto |
-| `c-holons` | runner | ✅ | ✅ | — |
+| SDK | Serve | Discover | Connect | Describe | Reflection |
+|---|---|---|---|---|---|
+| `go-holons` | runner | ✅ | ✅ | ✅ auto | opt-in |
+| `rust-holons` | flags only | ✅ | ✅ stdio | — | opt-in |
+| `js-holons` | runner | ✅ | ✅ | ✅ auto | opt-in |
+| `python-holons` | runner | ✅ | ✅ | ✅ auto | opt-in |
+| `c-holons` | runner | ✅ | ✅ | — | opt-in |
 
 ### Frontend SDKs — drive native UIs
 
-| SDK | UI Framework | Discover | Connect |
-|---|---|---|---|
-| `swift-holons` | SwiftUI | ✅ | ✅ stdio |
-| `dart-holons` | Flutter | ✅ | ✅ stdio |
-| `kotlin-holons` | Compose | ✅ | ✅ |
-| `csharp-holons` | MAUI | ✅ | ✅ |
-| `cpp-holons` | Qt | ✅ | ✅ |
+| SDK | UI Framework | Discover | Connect | Reflection |
+|---|---|---|---|---|
+| `swift-holons` | SwiftUI | ✅ | ✅ stdio | opt-in |
+| `dart-holons` | Flutter | ✅ | ✅ stdio | opt-in |
+| `kotlin-holons` | Compose | ✅ | ✅ | opt-in |
+| `csharp-holons` | MAUI | ✅ | ✅ | opt-in |
+| `cpp-holons` | Qt | ✅ | ✅ | opt-in |
 
 ### Browser + Utility SDKs
 
-| SDK | Role | Discover | Connect |
-|---|---|---|---|
-| `js-web-holons` | Browser client | remote only | dial only |
-| `java-holons` | Server-side | ✅ | ✅ |
-| `ruby-holons` | Scripting | ✅ | ✅ stdio |
+| SDK | Role | Discover | Connect | Reflection |
+|---|---|---|---|---|
+| `js-web-holons` | Browser client | remote only | dial only | n/a |
+| `java-holons` | Server-side | ✅ | ✅ | opt-in |
+| `ruby-holons` | Scripting | ✅ | ✅ stdio | opt-in |
 
 `runner` = SDK hosts the full serve lifecycle.
 `flags only` = SDK parses `--listen` / `--port` and provides transport primitives.
-`Describe` = `HolonMeta.Describe` auto-registered — see [README.md §Holon-RPC](./README.md#holon-rpc-describe).
+`Describe` = `HolonMeta.Describe` auto-registered — see [HOLON_COMMUNICATION_PROTOCOL.md §3.5–3.6](../HOLON_COMMUNICATION_PROTOCOL.md).
+`Reflection` = gRPC reflection; disabled by default, available via `--reflect` for `grpcurl` debugging.
 
 ---
 
