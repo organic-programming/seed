@@ -12,7 +12,7 @@ requirement is support for Protocol Buffers; transport is pluggable.
 ## Article 1 — The Holon
 
 A **holon** is, at any scale, an independent, composable, software functional unit
-built for **coaccessibility** (**COAX**) — equally accessible to humans
+built for [**coaccessibility** (**COAX**)](./COAX.md) — equally accessible to humans
 and machines (agents, CI, LLM) through the same structural contracts.
 
 
