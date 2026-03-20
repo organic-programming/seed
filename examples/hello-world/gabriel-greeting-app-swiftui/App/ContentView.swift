@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var isLoading = true
     @State private var isGreeting = false
     @State private var didSeedInitialName = false
+    @State private var isShowingCoaxSettings = false
     @FocusState private var isNameFieldFocused: Bool
 
     private func normalizedTransportSelection(_ value: String) -> String {
@@ -229,19 +230,61 @@ struct ContentView: View {
                         .toggleStyle(.switch)
                         .font(.system(size: 12, weight: .medium, design: .monospaced))
 
-                    Button(action: {}) {
+                    Button {
+                        isShowingCoaxSettings.toggle()
+                    } label: {
                         Image(systemName: "gearshape")
                             .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(isShowingCoaxSettings ? .primary : .secondary)
+                            .padding(6)
+                            .background(
+                                Circle()
+                                    .fill(
+                                        isShowingCoaxSettings
+                                            ? Color.primary.opacity(0.08)
+                                            : Color.clear
+                                    )
+                            )
+                    }
+                    .popover(
+                        isPresented: $isShowingCoaxSettings,
+                        attachmentAnchor: .rect(.bounds),
+                        arrowEdge: .trailing
+                    ) {
+                        CoaxSettingsPopup(coaxServer: coaxServer, isPresented: $isShowingCoaxSettings)
                     }
                     .buttonStyle(.plain)
                 }
 
-                if let uri = coaxServer.listenURI {
-                    Text(uri)
-                        .font(.system(size: 11, weight: .regular, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
+                if !coaxServer.visibleSurfaceStatuses.isEmpty {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        ForEach(coaxServer.visibleSurfaceStatuses) { surface in
+                            HStack(spacing: 6) {
+                                Text(surface.title + ":")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+
+                                if let endpoint = surface.endpoint {
+                                    Text(endpoint)
+                                        .font(.system(size: 11, weight: .regular, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                        .textSelection(.enabled)
+                                }
+
+                                Text(surface.state.badgeTitle)
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(surfaceBadgeColor(surface.state))
+                            }
+                        }
+                    }
+                }
+
+                if let detail = coaxServer.statusDetail {
+                    Text(detail)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.orange)
+                        .frame(width: 320, alignment: .trailing)
+                        .multilineTextAlignment(.trailing)
                 }
             }
         }
@@ -412,5 +455,20 @@ struct LeftPointerBubble: Shape {
         )
 
         return path
+    }
+}
+
+private func surfaceBadgeColor(_ state: CoaxSurfaceState) -> Color {
+    switch state {
+    case .off:
+        return .secondary
+    case .saved:
+        return Color.gray
+    case .announced:
+        return Color.orange
+    case .live:
+        return Color.green
+    case .error:
+        return Color.red
     }
 }
