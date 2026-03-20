@@ -1,27 +1,55 @@
-# COAX : 
+# COAX
 
-> A **holon** is, at any scale, an independent, composable, software functional unit
-> built for [**coaccessibility** (**COAX**)](COAX.md) — equally accessible to humans
-> and machines (agents, CI, LLM) through the same structural contracts.
->
-> — [AGENT.md Article 1](./AGENT.md#article-1--the-holon)
+**COAX** (coaccessibility) is the design principle that every **holon**[^1]
+follows: expose the same structural contracts to humans and machines
+alike. No special agent API, no separate admin interface — one surface,
+universally accessible through  innate facets Code API, CLI, RPC, Test, (and acquired facets MCP, SKILLS, Sequences)
 
-## So What is COAX ? 
+[^1]:> A **holon** is, at any scale, an independent, composable, software functional unit built for [**coaccessibility** (**COAX**)](COAX.md) — equally accessible to humans and machines (agents, CI, LLM) through the same structural contracts. — [AGENT.md Article 1](./AGENT.md#article-1--the-holon)
 
-## Concretely how does it work ? 
+---
+# Organism
 
+An **organism** is an application — standalone or distributed — built
+from holons and coaccessible by design.
 
-### What happens when use **op** to interact with a COAX server?
+It can be a **standalone app** (a SwiftUI desktop app, an Android app,
+a CLI tool) or a **distributed system** (a cloud service, a multi-node
+pipeline). What makes it an organism is not where it runs, but what it
+exposes: any agent, CI pipeline, LLM, or human can interact with it
+naturally through its structural contracts — RPC, CLI, MCP — without
+adaptation layers or special integrations.
+
+An organism is not required to expose all its members. `ListMembers`
+may intentionally omit internal holons — the organism controls its
+exposure surface, keeping its external interface minimal while its
+internal composition can be arbitrarily complex.
+
+Every organism is a holon, but not every holon is an organism.
+A leaf holon (e.g. `gabriel-greeting-go`) serves RPCs but has no members.
+An organism (e.g. `gabriel-greeting-app-swiftui`) composes member holons
+and makes the *whole system* coaccessible as one living unit. When the
+organism has a UI, agent calls and human interactions share the same
+observable state. The single source of truth is the organism's `.proto`
+— it imports the foundation protos (`describe.proto`, `coax.proto`) and
+adds its own domain services on top.
+
+## Concretely, how does it work?
+
+### What happens when you use **op**[^2] to interact with an organism?
+
+[^2]: `op` is the Organic Programming CLI orchestrator. See [OP.md](./OP.md).
+
 
 1. You have launched [gabriel-greeting-app-swiftui](./examples/hello-world/gabriel-greeting-app-swiftui/) either by clicking on the app icon or by calling `op run gabriel-greeting-app-swiftui`. 
-2. You have opted in for COAX by toggling it. 
+2. You have enabled COAX by toggling it (it is worth noting that enabling COAX is an opt-in, as it exposes the organism).
 
 #### Initial state of the app  
 
 ![Gabriel Greeting App SwiftUI greets Mary](./assets/images/gabriel-greeting-app-swiftui-mary.png)
 
 
-#### You call **op Greet jesus** on the COAX server 
+#### You call **op Greet jesus** on the organism 
 
 ```shell
 $ op grpc+tcp://127.0.0.1:60062 Greet '{"name":"Jesus"}'
@@ -43,15 +71,15 @@ $ op grpc+tcp://127.0.0.1:60062 Greet '{"name":"Jesus"}'
    since `127.0.0.1:60062` is a `host:port` target.
 
 2. **OP TCP dial** — [client.go](./internal/grpcclient/client.go) → `Dial`
-   opens a standard gRPC/HTTP2 connection over TCP to the COAX server exposed
+   opens a standard gRPC/HTTP2 connection over TCP to the organism exposed
    by gabriel-greeting-app-swiftui.
 
 3. **OP sends Describe RPC** — [client.go](./internal/grpcclient/client.go) → `InvokeConn`
    tries `invokeViaDescribe` first.
    [describe_catalog.go](./internal/grpcclient/describe_catalog.go) → `fetchDescribeCatalog`
-   calls `HolonMeta/Describe` on the COAX server.
+   calls `HolonMeta/Describe` on the organism.
 
-4. **COAX receives Describe** — The Swift app's in-process gRPC server
+4. **Organism receives Describe** — The Swift app's in-process gRPC server
    ([CoaxServer.swift](../../examples/hello-world/gabriel-greeting-app-swiftui/Modules/Sources/GreetingKit/CoaxServer.swift))
    routes the call to
    [CoaxDescribeProvider.swift](../../examples/hello-world/gabriel-greeting-app-swiftui/Modules/Sources/GreetingKit/CoaxDescribeProvider.swift) → `describe`.
@@ -83,9 +111,9 @@ $ op grpc+tcp://127.0.0.1:60062 Greet '{"name":"Jesus"}'
    `GreetRequest` descriptor.
 
 9. **OP gRPC invoke (binary protobuf on the wire)** — `conn.Invoke` sends the
-   request as **standard binary protobuf** over HTTP/2 to the COAX server.
+   request as **standard binary protobuf** over HTTP/2 to the organism.
 
-10. **COAX receives the Greet RPC** — The gRPC server dispatches the call to
+10. **Organism receives the Greet RPC** — The gRPC server dispatches the call to
     [GreetingAppServiceProvider.swift](../../examples/hello-world/gabriel-greeting-app-swiftui/Modules/Sources/GreetingKit/GreetingAppServiceProvider.swift) → `greet`.
     The handler runs on `@MainActor` (the main thread), and:
 
@@ -97,7 +125,7 @@ $ op grpc+tcp://127.0.0.1:60062 Greet '{"name":"Jesus"}'
     - If `lang_code` is provided, sets `holon.selectedLanguageCode` accordingly
       (which updates the language picker in the UI).
 
-11. **COAX delegates to the child holon** — The handler calls
+11. **Organism delegates to the child holon** — The handler calls
     `holon.sayHello(name: "Jesus", langCode: langCode)` →
     [HolonProcess.swift](../../examples/hello-world/gabriel-greeting-app-swiftui/Modules/Sources/GreetingKit/HolonProcess.swift) → `sayHello`
     which forwards the request to the **currently connected child holon**
@@ -111,13 +139,13 @@ $ op grpc+tcp://127.0.0.1:60062 Greet '{"name":"Jesus"}'
     processes the `SayHello` request and returns the localized greeting text
     (e.g. `"Hello, Jesus!"`).
 
-13. **COAX updates the UI** — Back in `GreetingAppServiceProvider.greet()`, the
+13. **Organism updates the UI** — Back in `GreetingAppServiceProvider.greet()`, the
     handler sets `holon.greeting = greeting` on `@MainActor`. Because
     `HolonProcess.greeting` is `@Published`, **SwiftUI instantly updates the
     speech bubble** in `ContentView.bubbleColumn` — the greeting appears on
     screen.
 
-14. **COAX returns response to OP** — The `GreetResponse` (containing the
+14. **Organism returns response to OP** — The `GreetResponse` (containing the
     greeting string) is serialized as binary protobuf and sent back over TCP
     to `op`.
 
@@ -130,11 +158,11 @@ $ op grpc+tcp://127.0.0.1:60062 Greet '{"name":"Jesus"}'
 
 > **Key insight**: The COAX call produces **two visible effects simultaneously**:
 > the terminal displays the JSON response, and the SwiftUI app updates its UI
-> in real time (name field + greeting bubble). This happens because the COAX
+> in real time (name field + greeting bubble). This happens because the organism's
 > handler mutates the same `@Published` state that the UI observes — the agent
 > and the human share a single source of truth.
 
-### How to use directly grpc on a COAX server?
+### How to use gRPC directly on an organism?
 
 You can bypass `op` entirely and use standard gRPC tools like
 [grpcurl](https://github.com/fullstorydev/grpcurl). You need to provide the
@@ -152,7 +180,7 @@ The app's contract is defined in
 [holon.proto](./examples/hello-world/gabriel-greeting-app-swiftui/api/v1/holon.proto),
 which imports from both paths.
 
-> **No reflection** — COAX servers intentionally do not enable gRPC reflection.
+> **No reflection** — COAX organisms intentionally do not enable gRPC reflection.
 > `grpcurl list` will fail with `server does not support the reflection API`.
 > This is by design: holons use `HolonMeta/Describe` instead — a curated,
 > documented schema with examples, field descriptions, and semantic metadata
