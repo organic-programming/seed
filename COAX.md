@@ -11,7 +11,7 @@
 ## Concretely how does it work ? 
 
 
-### What happens when i call **op Greet jesus** on a COAX server?
+### What happens when use **op** to interact with a COAX server?
 
 1. You have launched [gabriel-greeting-app-swiftui](./examples/hello-world/gabriel-greeting-app-swiftui/) either by clicking on the app icon or by calling `op run gabriel-greeting-app-swiftui`. 
 2. You have opted in for COAX by toggling it. 
@@ -133,3 +133,72 @@ $ op grpc+tcp://127.0.0.1:60062 Greet '{"name":"Jesus"}'
 > in real time (name field + greeting bubble). This happens because the COAX
 > handler mutates the same `@Published` state that the UI observes — the agent
 > and the human share a single source of truth.
+
+### How to use directly grpc on a COAX server?
+
+You can bypass `op` entirely and use standard gRPC tools like
+[grpcurl](https://github.com/fullstorydev/grpcurl). You need to provide the
+proto files so `grpcurl` knows the schema — unlike `op`, it does not use
+`Describe` for dynamic discovery.
+
+The proto import graph requires two include paths:
+
+| Import path | Contains |
+|---|---|
+| `_protos/` | [coax.proto](./_protos/holons/v1/coax.proto), [describe.proto](./_protos/holons/v1/describe.proto), [manifest.proto](./_protos/holons/v1/manifest.proto) |
+| `examples/_protos/` | [greeting.proto](./examples/_protos/v1/greeting.proto) |
+
+The app's contract is defined in
+[holon.proto](./examples/hello-world/gabriel-greeting-app-swiftui/api/v1/holon.proto),
+which imports from both paths.
+
+> **No reflection** — COAX servers intentionally do not enable gRPC reflection.
+> `grpcurl list` will fail with `server does not support the reflection API`.
+> This is by design: holons use `HolonMeta/Describe` instead — a curated,
+> documented schema with examples, field descriptions, and semantic metadata
+> that reflection does not provide.
+
+#### Call Describe (same RPC that `op` uses internally)
+
+```shell
+$ grpcurl -plaintext \
+    -import-path _protos \
+    -proto holons/v1/describe.proto \
+    127.0.0.1:60062 holons.v1.HolonMeta/Describe
+```
+
+#### List available member holons
+
+```shell
+$ grpcurl -plaintext \
+    -import-path _protos \
+    -proto holons/v1/coax.proto \
+    127.0.0.1:60062 holons.v1.CoaxService/ListMembers
+```
+
+#### Connect a member holon
+
+```shell
+$ grpcurl -plaintext \
+    -import-path _protos \
+    -proto holons/v1/coax.proto \
+    -d '{"slug":"gabriel-greeting-go"}' \
+    127.0.0.1:60062 holons.v1.CoaxService/ConnectMember
+```
+
+#### Greet (domain RPC)
+
+```shell
+$ grpcurl -plaintext \
+    -import-path _protos \
+    -import-path examples/_protos \
+    -import-path examples/hello-world/gabriel-greeting-app-swiftui \
+    -proto api/v1/holon.proto \
+    -d '{"name":"Jesus"}' \
+    127.0.0.1:60062 greeting.v1.GreetingAppService/Greet
+```
+
+> **Note**: With `grpcurl` you must use the **fully-qualified** method name
+> (e.g. `greeting.v1.GreetingAppService/Greet`), whereas `op` resolves short
+> names like `Greet` automatically via `Describe`.
+
