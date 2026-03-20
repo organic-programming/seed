@@ -219,6 +219,13 @@ struct ContentView: View {
                     Toggle("COAX", isOn: $coaxServer.isEnabled)
                         .toggleStyle(.switch)
                         .font(.system(size: 12, weight: .medium, design: .monospaced))
+
+                    Button(action: {}) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
 
                 if let uri = coaxServer.listenURI {
