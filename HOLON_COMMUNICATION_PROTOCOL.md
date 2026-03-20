@@ -262,7 +262,7 @@ dynamically construct and send requests without compiled stubs.
 
 ```protobuf
 syntax = "proto3";
-package holonmeta.v1;
+package holons.v1;
 
 // HolonMeta is auto-registered by the SDK's serve runner.
 // It provides self-documentation for any holon.

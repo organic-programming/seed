@@ -4,6 +4,8 @@ import GreetingKit
 struct ContentView: View {
     @ObservedObject var holon: HolonProcess
     @ObservedObject var coaxServer: CoaxServer
+    private let initialNameValue = "World"
+    private let defaultNamePrompt = "Mary"
     private let inputColumnWidth: CGFloat = 300
     private let contentSpacing: CGFloat = 32
     private let languagePickerWidth: CGFloat = 220
@@ -11,6 +13,7 @@ struct ContentView: View {
     @State private var error: String?
     @State private var isLoading = true
     @State private var isGreeting = false
+    @State private var didSeedInitialName = false
     @FocusState private var isNameFieldFocused: Bool
 
     private func normalizedTransportSelection(_ value: String) -> String {
@@ -89,6 +92,12 @@ struct ContentView: View {
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         .animation(.easeInOut(duration: 0.2), value: error)
         .task {
+            if !didSeedInitialName {
+                didSeedInitialName = true
+                if holon.userName.isEmpty {
+                    holon.userName = initialNameValue
+                }
+            }
             let normalized = normalizedTransportSelection(holon.transport)
             if holon.transport != normalized {
                 holon.transport = normalized
@@ -249,7 +258,7 @@ struct ContentView: View {
     private var inputColumn: some View {
         VStack(alignment: .leading, spacing: 5) {
             if #available(macOS 13.0, *) {
-                TextField("", text: $holon.userName, axis: .vertical)
+                TextField("", text: $holon.userName, prompt: Text(defaultNamePrompt), axis: .vertical)
                     .lineLimit(4, reservesSpace: true)
                     .textFieldStyle(.roundedBorder)
                     .focused($isNameFieldFocused)
@@ -258,13 +267,22 @@ struct ContentView: View {
                     }
                     .frame(width: inputColumnWidth)
             } else {
-                TextEditor(text: $holon.userName)
-                    .focused($isNameFieldFocused)
-                    .onChange(of: holon.userName) {
-                        Task { await greet(code: holon.selectedLanguageCode) }
+                ZStack(alignment: .topLeading) {
+                    if holon.userName.isEmpty {
+                        Text(defaultNamePrompt)
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 8)
+                            .padding(.leading, 5)
                     }
-                    .frame(width: inputColumnWidth, height: 100)
-                    .cornerRadius(6)
+
+                    TextEditor(text: $holon.userName)
+                        .focused($isNameFieldFocused)
+                        .onChange(of: holon.userName) {
+                            Task { await greet(code: holon.selectedLanguageCode) }
+                        }
+                }
+                .frame(width: inputColumnWidth, height: 100)
+                .cornerRadius(6)
             }
         }
     }

@@ -387,7 +387,7 @@ $OPBIN/<slug>.holon/
 ### 5. Runtime Truth (running process)
 
 `op inspect`, `op tools`, and `op mcp` obtain rich metadata from
-`holonmeta.v1.HolonMeta/Describe`. The SDK embeds the manifest into the
+`holons.v1.HolonMeta/Describe`. The SDK embeds the manifest into the
 binary at build time.
 
 | Consumer | Source | Purpose |

@@ -1,5 +1,8 @@
 use crate::gen::rust::greeting::v1 as pb;
-use holons::gen::holonmeta::v1::{DescribeResponse, FieldDoc, FieldLabel, MethodDoc, ServiceDoc};
+use holons::gen::holons::v1::{
+    holon_manifest::{Artifacts, Build, Identity},
+    DescribeResponse, FieldDoc, FieldLabel, HolonManifest, MethodDoc, ServiceDoc,
+};
 use tonic::{Request, Response, Status};
 
 const DESCRIPTOR_SET: &[u8] = include_bytes!(concat!(
@@ -47,9 +50,43 @@ pub(crate) async fn listen_and_serve(listen_uri: &str, reflect: bool) -> holons:
 
 fn describe_response() -> DescribeResponse {
     DescribeResponse {
-        slug: "gabriel-greeting-rust".to_string(),
-        motto: "Greets users in 56 languages — a Rust daemon example.".to_string(),
-        version: "0.1.19".to_string(),
+        manifest: Some(HolonManifest {
+            identity: Some(Identity {
+                schema: "holon/v1".to_string(),
+                uuid: String::new(),
+                given_name: "Gabriel".to_string(),
+                family_name: "Greeting-Rust".to_string(),
+                motto: "Greets users in 56 languages — a Rust daemon example.".to_string(),
+                composer: "hello-world-example".to_string(),
+                status: "draft".to_string(),
+                born: "2026-03-20".to_string(),
+                version: "0.1.19".to_string(),
+                aliases: Vec::new(),
+            }),
+            description: String::new(),
+            lang: "rust".to_string(),
+            skills: Vec::new(),
+            contract: None,
+            kind: "native".to_string(),
+            platforms: Vec::new(),
+            transport: String::new(),
+            build: Some(Build {
+                runner: "cargo".to_string(),
+                main: String::new(),
+                defaults: None,
+                members: Vec::new(),
+                targets: std::collections::HashMap::new(),
+                templates: Vec::new(),
+            }),
+            requires: None,
+            artifacts: Some(Artifacts {
+                binary: String::new(),
+                primary: String::new(),
+                by_target: std::collections::HashMap::new(),
+            }),
+            sequences: Vec::new(),
+            guide: String::new(),
+        }),
         services: vec![ServiceDoc {
             name: "greeting.v1.GreetingService".to_string(),
             description: "Language-neutral service contract for the Greeting daemon family. This file carries NO language-specific options and NO manifest data. Each daemon implementation imports it and layers its own metadata on top.".to_string(),

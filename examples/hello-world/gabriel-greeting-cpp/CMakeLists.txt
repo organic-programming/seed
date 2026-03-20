@@ -19,8 +19,9 @@ add_library(gabriel_greeting_cpp_lib
   internal/server.cpp
   gen/cpp/greeting/v1/greeting.pb.cc
   gen/cpp/greeting/v1/greeting.grpc.pb.cc
-  "${HOLONS_SDK_ROOT}/gen/cpp/holonmeta/v1/holonmeta.pb.cc"
-  "${HOLONS_SDK_ROOT}/gen/cpp/holonmeta/v1/holonmeta.grpc.pb.cc"
+  "${HOLONS_SDK_ROOT}/gen/cpp/holons/v1/manifest.pb.cc"
+  "${HOLONS_SDK_ROOT}/gen/cpp/holons/v1/describe.pb.cc"
+  "${HOLONS_SDK_ROOT}/gen/cpp/holons/v1/describe.grpc.pb.cc"
 )
 
 target_include_directories(gabriel_greeting_cpp_lib

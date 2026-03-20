@@ -23,7 +23,6 @@ message DescribeResponse {
 }
 
 // ── API Introspection Catalog ───────────────────────────
-// Moved verbatim from holonmeta/v1 — battle-tested across 5 SDKs.
 
 // ServiceDoc documents a single gRPC service.
 message ServiceDoc {

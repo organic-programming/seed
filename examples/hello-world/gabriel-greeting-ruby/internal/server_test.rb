@@ -3,8 +3,9 @@
 require "minitest/autorun"
 require_relative "../support"
 require "grpc"
-require "gen/holonmeta/v1/holonmeta_pb"
-require "gen/holonmeta/v1/holonmeta_services_pb"
+require "gen/holons/v1/manifest_pb"
+require "gen/holons/v1/describe_pb"
+require "gen/holons/v1/describe_services_pb"
 require "v1/greeting_services_pb"
 require_relative "server"
 
@@ -18,7 +19,7 @@ class GreetingServerTest < Minitest::Test
 
     target = "127.0.0.1:#{@port}"
     @greeting_stub = Greeting::V1::GreetingService::Stub.new(target, :this_channel_is_insecure, timeout: 5)
-    @meta_stub = Holonmeta::V1::HolonMeta::Stub.new(target, :this_channel_is_insecure, timeout: 5)
+    @meta_stub = Holons::V1::HolonMeta::Stub.new(target, :this_channel_is_insecure, timeout: 5)
   end
 
   def teardown
@@ -52,11 +53,12 @@ class GreetingServerTest < Minitest::Test
     assert_equal "fr", response.lang_code
   end
 
-  def test_holonmeta_describe_uses_proto_manifest
-    response = @meta_stub.describe(Holonmeta::V1::DescribeRequest.new)
+  def test_describe_uses_proto_manifest
+    response = @meta_stub.describe(Holons::V1::DescribeRequest.new)
 
-    assert_equal "gabriel-greeting-ruby", response.slug
-    assert_equal "Greets users in 56 languages — a Ruby daemon example.", response.motto
+    assert_equal "Gabriel", response.manifest.identity.given_name
+    assert_equal "Greeting-Ruby", response.manifest.identity.family_name
+    assert_equal "Greets users in 56 languages — a Ruby daemon example.", response.manifest.identity.motto
     assert_equal ["greeting.v1.GreetingService"], response.services.map(&:name)
   end
 

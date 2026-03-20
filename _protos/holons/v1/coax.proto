@@ -25,6 +25,10 @@ service CoaxService {
 
   // List the organism's available member holons.
   // Equivalent to browsing the holon picker in the UI.
+  // The organism controls which members are listed — internal holons
+  // may be intentionally omitted to keep the exposure surface minimal.
+  // Organism Kits provide built-in exposure strategies (all, filtered,
+  // or none) — the organism picks one, no custom filtering needed.
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
 
   // Query the runtime status of a specific member.

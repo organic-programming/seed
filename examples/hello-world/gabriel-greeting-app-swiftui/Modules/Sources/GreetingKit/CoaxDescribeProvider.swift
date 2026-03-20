@@ -1,30 +1,39 @@
 import Foundation
 import GRPC
-import Holons
 import NIOCore
 
-final class CoaxDescribeProvider: Holonmeta_V1_HolonMetaProvider {
+final class CoaxDescribeProvider: CallHandlerProvider, @unchecked Sendable {
+    let serviceName: Substring = "holons.v1.HolonMeta"
+
     private let response = makeDescribeResponse()
 
+    func handle(method name: Substring, context: CallHandlerContext) -> GRPCServerHandlerProtocol? {
+        switch name {
+        case "Describe":
+            return UnaryServerHandler(
+                context: context,
+                requestDeserializer: ProtobufDeserializer<Holons_V1_DescribeRequest>(),
+                responseSerializer: ProtobufSerializer<Holons_V1_DescribeResponse>(),
+                interceptors: [],
+                userFunction: describe(request:context:)
+            )
+        default:
+            return nil
+        }
+    }
+
     func describe(
-        request: Holonmeta_V1_DescribeRequest,
+        request: Holons_V1_DescribeRequest,
         context: StatusOnlyCallContext
-    ) -> EventLoopFuture<Holonmeta_V1_DescribeResponse> {
+    ) -> EventLoopFuture<Holons_V1_DescribeResponse> {
         _ = request
         return context.eventLoop.makeSucceededFuture(response)
     }
 }
 
-private func makeDescribeResponse() -> Holonmeta_V1_DescribeResponse {
-    var response = Holonmeta_V1_DescribeResponse()
-    response.slug = "gabriel-greeting-app-swiftui"
-    response.motto = "SwiftUI HostUI for the Gabriel greeting service."
-    if let version = Bundle.main.infoDictionary?["CFBundleVersion"] as? String,
-       !version.isEmpty,
-       !version.contains("{{")
-    {
-        response.version = version
-    }
+private func makeDescribeResponse() -> Holons_V1_DescribeResponse {
+    var response = Holons_V1_DescribeResponse()
+    response.manifest = makeManifest()
     response.services = [
         coaxServiceDoc(),
         greetingAppServiceDoc(),
@@ -32,8 +41,30 @@ private func makeDescribeResponse() -> Holonmeta_V1_DescribeResponse {
     return response
 }
 
-private func coaxServiceDoc() -> Holonmeta_V1_ServiceDoc {
-    var service = Holonmeta_V1_ServiceDoc()
+private func makeManifest() -> Holons_V1_HolonManifest {
+    var manifest = Holons_V1_HolonManifest()
+    manifest.identity = .with {
+        $0.schema = "holon/v1"
+        $0.givenName = "Gabriel"
+        $0.familyName = "Greeting-App-SwiftUI"
+        $0.motto = "SwiftUI HostUI for the Gabriel greeting service."
+        $0.composer = "swiftui-example"
+        $0.status = "draft"
+        $0.born = "2026-03-20"
+        if let version = Bundle.main.infoDictionary?["CFBundleVersion"] as? String,
+           !version.isEmpty,
+           !version.contains("{{")
+        {
+            $0.version = version
+        }
+    }
+    manifest.lang = "swift"
+    manifest.kind = "composite"
+    return manifest
+}
+
+private func coaxServiceDoc() -> Holons_V1_ServiceDoc {
+    var service = Holons_V1_ServiceDoc()
     service.name = "holons.v1.CoaxService"
     service.description_p =
         "COAX interaction surface for the Gabriel Greeting app. It exposes member discovery, connection, and agent-driven UI actions through the same shared state the human interface uses."
@@ -184,8 +215,8 @@ private func coaxServiceDoc() -> Holonmeta_V1_ServiceDoc {
     return service
 }
 
-private func greetingAppServiceDoc() -> Holonmeta_V1_ServiceDoc {
-    var service = Holonmeta_V1_ServiceDoc()
+private func greetingAppServiceDoc() -> Holons_V1_ServiceDoc {
+    var service = Holons_V1_ServiceDoc()
     service.name = "greeting.v1.GreetingAppService"
     service.description_p =
         "High-level domain RPCs for the Gabriel Greeting UI. Agents use these methods to drive the same selections and greeting flow a human performs in the app."
@@ -281,7 +312,7 @@ private func greetingAppServiceDoc() -> Holonmeta_V1_ServiceDoc {
     return service
 }
 
-private func memberInfoFields() -> [Holonmeta_V1_FieldDoc] {
+private func memberInfoFields() -> [Holons_V1_FieldDoc] {
     [
         fieldDoc(
             name: "slug",
@@ -312,7 +343,7 @@ private func memberInfoFields() -> [Holonmeta_V1_FieldDoc] {
     ]
 }
 
-private func identityFields() -> [Holonmeta_V1_FieldDoc] {
+private func identityFields() -> [Holons_V1_FieldDoc] {
     [
         fieldDoc(
             name: "given_name",
@@ -337,7 +368,7 @@ private func identityFields() -> [Holonmeta_V1_FieldDoc] {
     ]
 }
 
-private func memberStateValues() -> [Holonmeta_V1_EnumValueDoc] {
+private func memberStateValues() -> [Holons_V1_EnumValueDoc] {
     [
         enumValueDoc(
             name: "MEMBER_STATE_UNSPECIFIED",
@@ -372,11 +403,11 @@ private func methodDoc(
     description: String,
     inputType: String,
     outputType: String,
-    inputFields: [Holonmeta_V1_FieldDoc] = [],
-    outputFields: [Holonmeta_V1_FieldDoc] = [],
+    inputFields: [Holons_V1_FieldDoc] = [],
+    outputFields: [Holons_V1_FieldDoc] = [],
     exampleInput: String = ""
-) -> Holonmeta_V1_MethodDoc {
-    var method = Holonmeta_V1_MethodDoc()
+) -> Holons_V1_MethodDoc {
+    var method = Holons_V1_MethodDoc()
     method.name = name
     method.description_p = description
     method.inputType = inputType
@@ -392,13 +423,13 @@ private func fieldDoc(
     type: String,
     number: Int32,
     description: String,
-    label: Holonmeta_V1_FieldLabel = .optional,
+    label: Holons_V1_FieldLabel = .optional,
     required: Bool = false,
     example: String = "",
-    nestedFields: [Holonmeta_V1_FieldDoc] = [],
-    enumValues: [Holonmeta_V1_EnumValueDoc] = []
-) -> Holonmeta_V1_FieldDoc {
-    var field = Holonmeta_V1_FieldDoc()
+    nestedFields: [Holons_V1_FieldDoc] = [],
+    enumValues: [Holons_V1_EnumValueDoc] = []
+) -> Holons_V1_FieldDoc {
+    var field = Holons_V1_FieldDoc()
     field.name = name
     field.type = type
     field.number = number
@@ -415,8 +446,8 @@ private func enumValueDoc(
     name: String,
     number: Int32,
     description: String
-) -> Holonmeta_V1_EnumValueDoc {
-    var value = Holonmeta_V1_EnumValueDoc()
+) -> Holons_V1_EnumValueDoc {
+    var value = Holons_V1_EnumValueDoc()
     value.name = name
     value.number = number
     value.description_p = description
