@@ -38,7 +38,7 @@ adds its own domain services on top.
 
 ### What happens when you use **op**[^2] to interact with an organism?
 
-[^2]: `op` is the Organic Programming CLI orchestrator. See [OP.md](./OP.md).
+[^2]: `op` is the Organic Programming CLI orchestrator. See [OP.md](./holons/grace-op/README.md).
 
 
 1. You have launched [gabriel-greeting-app-swiftui](./examples/hello-world/gabriel-greeting-app-swiftui/) either by clicking on the app icon or by calling `op run gabriel-greeting-app-swiftui`. 
