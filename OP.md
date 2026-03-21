@@ -112,9 +112,7 @@ export PATH="$OPBIN:$PATH"
 ### From source
 
 ```bash
-cd organic-programming/holons/grace-op
-go build -o op ./cmd/op
-mv op "$OPBIN/"
+cd ./holons/grace-op && go run ./cmd/op install .
 ```
 
 ### Bootstrap from zero
