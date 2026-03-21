@@ -25,13 +25,13 @@ struct CoaxSettingsPopup: View {
     @Binding var isPresented: Bool
     @State private var selectedTab: CoaxSettingsTab = .server
 
-    private let popoverWidth: CGFloat = 660
+    private let sheetWidth: CGFloat = 780
     private let rowLabelWidth: CGFloat = 110
 
-    private var popoverHeight: CGFloat {
+    private var sheetHeight: CGFloat {
         switch selectedTab {
         case .server:
-            var height: CGFloat = coaxServer.serverTransport == .unix ? 420 : 448
+            var height: CGFloat = coaxServer.serverTransport == .unix ? 560 : 588
             if coaxServer.serverPortValidationMessage != nil {
                 height += 28
             }
@@ -40,15 +40,15 @@ struct CoaxSettingsPopup: View {
             }
             return height
         case .relay:
-            return 500
+            return 620
         case .mcp:
             switch coaxServer.mcpTransport {
             case .stdio:
-                return 462
+                return 585
             case .streamableHTTP, .sse:
-                return 510
+                return 635
             case .other:
-                return 548
+                return 675
             }
         }
     }
@@ -84,8 +84,8 @@ struct CoaxSettingsPopup: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
-        .frame(width: popoverWidth, height: popoverHeight)
-        .animation(.easeInOut(duration: 0.18), value: popoverHeight)
+        .frame(minWidth: sheetWidth, idealWidth: sheetWidth, minHeight: sheetHeight, idealHeight: sheetHeight)
+        .animation(.easeInOut(duration: 0.18), value: sheetHeight)
     }
 
     private var header: some View {

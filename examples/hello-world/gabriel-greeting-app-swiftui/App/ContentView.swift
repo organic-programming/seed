@@ -67,6 +67,8 @@ struct ContentView: View {
         VStack(spacing: 0) {
             topHeaderArea
             VStack(spacing: 24) {
+                workspaceTopBar
+
                 HStack(alignment: .center, spacing: contentSpacing) {
                     inputColumn
                         .frame(width: inputColumnWidth)
@@ -92,6 +94,9 @@ struct ContentView: View {
         .frame(minWidth: 800, minHeight: 600, alignment: .topLeading)
         .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
         .animation(.easeInOut(duration: 0.2), value: error)
+        .sheet(isPresented: $isShowingCoaxSettings) {
+            CoaxSettingsPopup(coaxServer: coaxServer, isPresented: $isShowingCoaxSettings)
+        }
         .task {
             if !didSeedInitialName {
                 didSeedInitialName = true
@@ -167,135 +172,145 @@ struct ContentView: View {
 
     private var topHeaderArea: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 6) {
-                Picker("", selection: $holon.selectedHolon) {
-                    if holon.availableHolons.isEmpty {
-                        Text("Loading holons...").tag(nil as GabrielHolonIdentity?)
-                    } else {
-                        ForEach(holon.availableHolons) { identity in
-                            Text(identity.displayName).tag(identity as GabrielHolonIdentity?)
-                        }
-                    }
-                }
-                .labelsHidden()
-                .frame(width: 250)
-                .onChange(of: holon.selectedHolon?.id) {
-                    Task { await loadLanguages() }
-                }
-
-                if let slug = holon.selectedHolon?.slug {
-                    Text(slug)
-                        .font(.system(size: 11, weight: .regular, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                        .lineLimit(2)
-                        .frame(width: holonSlugWidth, alignment: .leading)
-                }
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 6) {
-                HStack(spacing: 8) {
-                    Text("mode:")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.primary)
-
-                    Picker("", selection: transportSelection) {
-                        Text("stdio").tag("stdio")
-                        Text("unix").tag("unix")
-                        Text("tcp").tag("tcp")
-                        Text("rest+sse").tag("rest+sse")
-                    }
-                    .labelsHidden()
-                    .frame(width: 140)
-                    .onChange(of: holon.transport) {
-                        Task { await loadLanguages() }
-                    }
-                }
-
-                HStack(spacing: 8) {
-                    Text(statusTitle)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.primary)
-                    Circle()
-                        .fill(statusColor)
-                        .frame(width: 10, height: 10)
-                }
-
-                Divider().frame(height: 12)
-
-                HStack(spacing: 8) {
-                    Toggle("COAX", isOn: $coaxServer.isEnabled)
-                        .toggleStyle(.switch)
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-
-                    Button {
-                        isShowingCoaxSettings.toggle()
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 14))
-                            .foregroundStyle(isShowingCoaxSettings ? .primary : .secondary)
-                            .padding(6)
-                            .background(
-                                Circle()
-                                    .fill(
-                                        isShowingCoaxSettings
-                                            ? Color.primary.opacity(0.08)
-                                            : Color.clear
-                                    )
-                            )
-                    }
-                    .popover(
-                        isPresented: $isShowingCoaxSettings,
-                        attachmentAnchor: .rect(.bounds),
-                        arrowEdge: .trailing
-                    ) {
-                        CoaxSettingsPopup(coaxServer: coaxServer, isPresented: $isShowingCoaxSettings)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                if !coaxServer.visibleSurfaceStatuses.isEmpty {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        ForEach(coaxServer.visibleSurfaceStatuses) { surface in
-                            HStack(spacing: 6) {
-                                Text(surface.title + ":")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-
-                                if let endpoint = surface.endpoint {
-                                    Text(endpoint)
-                                        .font(.system(size: 11, weight: .regular, design: .monospaced))
-                                        .foregroundStyle(.secondary)
-                                        .textSelection(.enabled)
-                                }
-
-                                Text(surface.state.badgeTitle)
-                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(surfaceBadgeColor(surface.state))
-                            }
-                        }
-                    }
-                }
-
-                if let detail = coaxServer.statusDetail {
-                    Text(detail)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Color.orange)
-                        .frame(width: 320, alignment: .trailing)
-                        .multilineTextAlignment(.trailing)
-                }
-            }
+            Spacer(minLength: 0)
+            coaxHeaderGroup
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.horizontal, 32)
-        .padding(.vertical, 20)
+        .padding(.vertical, 16)
         .background(Color(nsColor: .controlBackgroundColor))
         .overlay(
             Rectangle().frame(height: 1).foregroundColor(Color.primary.opacity(0.06)),
             alignment: .bottom
         )
+    }
+
+    private var workspaceTopBar: some View {
+        HStack(alignment: .bottom) {
+            holonHeaderGroup
+            Spacer()
+            runtimeHeaderGroup
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var holonHeaderGroup: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Picker("", selection: $holon.selectedHolon) {
+                if holon.availableHolons.isEmpty {
+                    Text("Loading holons...").tag(nil as GabrielHolonIdentity?)
+                } else {
+                    ForEach(holon.availableHolons) { identity in
+                        Text(identity.displayName).tag(identity as GabrielHolonIdentity?)
+                    }
+                }
+            }
+            .labelsHidden()
+            .frame(width: 250)
+            .onChange(of: holon.selectedHolon?.id) {
+                Task { await loadLanguages() }
+            }
+
+            if let slug = holon.selectedHolon?.slug {
+                Text(slug)
+                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .lineLimit(2)
+                    .frame(width: holonSlugWidth, alignment: .leading)
+            }
+        }
+    }
+
+    private var runtimeHeaderGroup: some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("mode:")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.primary)
+
+                Picker("", selection: transportSelection) {
+                    Text("stdio").tag("stdio")
+                    Text("unix").tag("unix")
+                    Text("tcp").tag("tcp")
+                    Text("rest+sse").tag("rest+sse")
+                }
+                .labelsHidden()
+                .frame(width: 140)
+                .onChange(of: holon.transport) {
+                    Task { await loadLanguages() }
+                }
+            }
+
+            HStack(spacing: 8) {
+                Text(statusTitle)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.primary)
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 10, height: 10)
+            }
+        }
+    }
+
+    private var coaxHeaderGroup: some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            HStack(spacing: 8) {
+                Toggle("COAX", isOn: $coaxServer.isEnabled)
+                    .toggleStyle(.switch)
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+
+                Button {
+                    isShowingCoaxSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 14))
+                        .foregroundStyle(isShowingCoaxSettings ? .primary : .secondary)
+                        .padding(6)
+                        .background(
+                            Circle()
+                                .fill(
+                                    isShowingCoaxSettings
+                                        ? Color.primary.opacity(0.08)
+                                        : Color.clear
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+
+            VStack(alignment: .trailing, spacing: 4) {
+                ForEach(coaxServer.visibleSurfaceStatuses) { surface in
+                    HStack(alignment: .top, spacing: 6) {
+                        Text(surface.title + ":")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+
+                        if let endpoint = surface.endpoint {
+                            Text(endpoint)
+                                .font(.system(size: 11, weight: .regular, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                                .multilineTextAlignment(.trailing)
+                        }
+
+                        Text(surface.state.badgeTitle)
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(surfaceBadgeColor(surface.state))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+            .frame(maxWidth: 520, alignment: .trailing)
+
+            if let detail = coaxServer.statusDetail {
+                Text(detail)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Color.orange)
+                    .frame(width: 320, alignment: .trailing)
+                    .multilineTextAlignment(.trailing)
+            }
+        }
     }
 
     private var inputColumn: some View {

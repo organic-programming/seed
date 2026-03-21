@@ -263,17 +263,7 @@ public final class CoaxServer: ObservableObject {
     }
 
     public var visibleSurfaceStatuses: [CoaxSurfaceStatus] {
-        var result: [CoaxSurfaceStatus] = []
-        if serverEnabled {
-            result.append(serverStatus)
-        }
-        if relayEnabled {
-            result.append(relayStatus)
-        }
-        if mcpEnabled {
-            result.append(mcpStatus)
-        }
-        return result
+        [serverStatus, relayStatus, mcpStatus]
     }
 
     private let holon: HolonProcess

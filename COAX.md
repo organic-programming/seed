@@ -52,7 +52,7 @@ adds its own domain services on top.
 #### You call **op Greet jesus** on the organism 
 
 ```shell
-$ op grpc+tcp://127.0.0.1:60062 Greet '{"name":"Jesus"}'
+$ op grpc+tcp://127.0.0.1:60000 Greet '{"name":"Jesus"}'
 {
   "greeting": "Hello Jesus"
 }
@@ -66,9 +66,9 @@ $ op grpc+tcp://127.0.0.1:60062 Greet '{"name":"Jesus"}'
 
 #### Detailed step by step :
 
-1. **OP CLI dispatch** — `op` parses `grpc+tcp://127.0.0.1:60062` as a gRPC URI.
+1. **OP CLI dispatch** — `op` parses `grpc+tcp://127.0.0.1:60000` as a gRPC URI.
    [commands.go](./internal/cli/commands.go) → `cmdGRPC` → `cmdGRPCDirect`
-   since `127.0.0.1:60062` is a `host:port` target.
+   since `127.0.0.1:60000` is a `host:port` target.
 
 2. **OP TCP dial** — [client.go](./internal/grpcclient/client.go) → `Dial`
    opens a standard gRPC/HTTP2 connection over TCP to the organism exposed
@@ -192,7 +192,7 @@ which imports from both paths.
 $ grpcurl -plaintext \
     -import-path _protos \
     -proto holons/v1/describe.proto \
-    127.0.0.1:60062 holons.v1.HolonMeta/Describe
+    127.0.0.1:60000 holons.v1.HolonMeta/Describe
 ```
 
 #### List available member holons
@@ -201,7 +201,7 @@ $ grpcurl -plaintext \
 $ grpcurl -plaintext \
     -import-path _protos \
     -proto holons/v1/coax.proto \
-    127.0.0.1:60062 holons.v1.CoaxService/ListMembers
+    127.0.0.1:60000 holons.v1.CoaxService/ListMembers
 ```
 
 #### Connect a member holon
@@ -211,7 +211,7 @@ $ grpcurl -plaintext \
     -import-path _protos \
     -proto holons/v1/coax.proto \
     -d '{"slug":"gabriel-greeting-go"}' \
-    127.0.0.1:60062 holons.v1.CoaxService/ConnectMember
+    127.0.0.1:60000 holons.v1.CoaxService/ConnectMember
 ```
 
 #### Greet (domain RPC)
@@ -223,7 +223,7 @@ $ grpcurl -plaintext \
     -import-path examples/hello-world/gabriel-greeting-app-swiftui \
     -proto api/v1/holon.proto \
     -d '{"name":"Jesus"}' \
-    127.0.0.1:60062 greeting.v1.GreetingAppService/Greet
+    127.0.0.1:60000 greeting.v1.GreetingAppService/Greet
 ```
 
 > **Note**: With `grpcurl` you must use the **fully-qualified** method name
