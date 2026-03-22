@@ -8,6 +8,7 @@ application must be equally accessible to humans *and* machines.
 # Gabriel app swiftUI
 
 # OP
+- op install should support git urls (binaries, source, url)
 - we need to review all the subcommand and provide a `op help <command>`
 - Man of op should be integrated in the proto (and injected in the holon help) question à approfondir ... 
 

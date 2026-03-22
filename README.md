@@ -75,31 +75,35 @@ interlock like Lego bricks: one serves, the other dials.
 
 ### Try it
 
-These ideas are not theoretical. Working SDKs and functional examples
-are available to experiment with:
+These ideas are not theoretical
 
-- **[sdk/](./sdk/)** — language SDKs built around the shared
-  `serve` / `transport` / `identity` / `discover` / `connect`
-  architecture:
-  [C](https://github.com/organic-programming/c-holons),
-  [C++](https://github.com/organic-programming/cpp-holons),
-  [C#](https://github.com/organic-programming/csharp-holons),
-  [Dart](https://github.com/organic-programming/dart-holons),
-  [Go](https://github.com/organic-programming/go-holons),
-  [Java](https://github.com/organic-programming/java-holons),
-  [JavaScript](https://github.com/organic-programming/js-holons),
-  [JavaScript Web](https://github.com/organic-programming/js-web-holons),
-  [Kotlin](https://github.com/organic-programming/kotlin-holons),
-  [Python](https://github.com/organic-programming/python-holons),
-  [Ruby](https://github.com/organic-programming/ruby-holons),
-  [Rust](https://github.com/organic-programming/rust-holons),
-  [Swift](https://github.com/organic-programming/swift-holons).
-- **[examples/](./examples/)** — runnable hello-world holons in 13
-  languages. Some already import their matching SDK; others are still
-  raw gRPC baselines. See [`sdk/SDK_GUIDE.md`](./sdk/SDK_GUIDE.md) for
-  the current audit.
-- **[holons/](./holons/)** — the blueprint toolchain (`op`).
-  Installation notes for `op` live in [holons/grace-op/INSTALL.md](./holons/grace-op/INSTALL.md).
+### Examples
+
+
+[SwiftUI App](./examples/hello-world/gabriel-greeting-app-swiftui/) — composite holon: recipe-driven build, COAX interaction, and native macOS host UI
+![Gabriel Greeting App SwiftUI greets Mary](./assets/images/gabriel-greeting-app-swiftui-mary.png)
+
+Greeting holons — the same `GreetingService` contract implemented
+in every supported language:
+
+- [Go](./examples/hello-world/gabriel-greeting-go/) — the reference implementation
+- [C](./examples/hello-world/gabriel-greeting-c/)
+- [C++](./examples/hello-world/gabriel-greeting-cpp/)
+- [C#](./examples/hello-world/gabriel-greeting-csharp/)
+- [Dart](./examples/hello-world/gabriel-greeting-dart/)
+- [Java](./examples/hello-world/gabriel-greeting-java/)
+- [Kotlin](./examples/hello-world/gabriel-greeting-kotlin/)
+- [Node](./examples/hello-world/gabriel-greeting-node/)
+- [Python](./examples/hello-world/gabriel-greeting-python/)
+- [Ruby](./examples/hello-world/gabriel-greeting-ruby/)
+- [Rust](./examples/hello-world/gabriel-greeting-rust/)
+- [Swift](./examples/hello-world/gabriel-greeting-swift/)
+
+
+SDKs and toolchain:
+
+- **[sdk/](./sdk/)** — language SDKs (`serve`, `transport`, `identity`, `discover`, `connect`)
+- **[holons/grace-op/](./holons/grace-op/)** — the `op` orchestrator
 
 ---
 
@@ -111,9 +115,15 @@ which the ecosystem grows.
 | Document | What it answers |
 |----------|----------------|
 | [Constitution](./AGENT.md) | What is a holon? |
-| [Protocol](./HOLON_COMMUNICATION_PROTOCOL.md) | How do holons communicate? |
+| [Coax](./COAX.md)| coaccessibility. |
 | [Conventions](./CONVENTIONS.md) | How is a holon structured per language? |
-| [Index](./INDEX.md) | Full list of all documents |
+| [Holon discovery](./holons/grace-op/HOLON_DISCOVERY.md) | How do holons discover each other? |
+| [Holon build](./holons/grace-op/HOLON_BUILD.md) | How do holons build each other? |
+| [.proto](./holons/grace-op/HOLON_PROTO.md) | How do holons use protos? |
+| [Holon package](./holons/grace-op/HOLON_PACKAGE.md) | How do holons package each other? |
+| [OP](./holons/grace-op/README.md) |  Op is the CLI tool. |
+| [Protocol](./PROTOCOL.md) | How do holons communicate? |
+
 
 © 2026 Benoit Pereira da Silva. All rights reserved.
 
