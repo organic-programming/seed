@@ -1,20 +1,12 @@
 # Holon Communication Protocol
 
-<!-- 
-NOTE @bpds : we should document anything related to RCP serve, connect etc
-Exclude from that doc :  
-- The holon may be used also used by "cli" facet
-- The Code API
-
-We talk here of  gRPGC Holon RPC, 
-  -->
-
 > *"Every holon must be reachable."* — Constitution, Article 11
 > *"Invent only what is truly new; for everything else, imitate what works."* — Constitution, Article 9
 
 This document is the single, authoritative reference for how holons
-communicate. It covers the transport layer, both RPC bindings (gRPC
-and Holon-RPC), error codes, and operational concerns.
+communicate. It covers the transport layer, name-based resolution
+(Connect), both RPC bindings (gRPC and JSON-RPC 2.0), error codes,
+and operational concerns.
 
 ---
 
@@ -24,26 +16,30 @@ Holons communicate through two complementary RPC bindings, each with
 its own set of transports:
 
 ```
-┌───────────────────────────────────────────────────┐
-│                  Applications                     │
-├──────────────────────┬────────────────────────────┤
-│      gRPC Binding    │    Holon-RPC Binding       │
-│     (protobuf)       │  (JSON-RPC 2.0)            │
-├──────────────────────┼────────────────────────────┤
-│  tcp://  unix://     │                            │
-│  stdio://            │       ws://  wss://        │
-│ws://  wss:// (tunnel)│                            │
-└──────────────────────┴────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                       Applications                          │
+├─────────────────────────────────────────────────────────────┤
+│                  ACL · Routing (planned)                    │
+├──────────────────────────────┬──────────────────────────────┤
+│       gRPC Binding           │    JSON-RPC 2.0 Binding      │
+│      (protobuf)              │                              │
+├──────────────────────────────┼──────────────────────────────┤
+│  tcp://                      │   ws://                      │
+│  unix://                     │   wss://                     │
+│  stdio://                    │   http://  (REST + SSE)      │
+│  ws://   (gRPC-over-WS)      │   https:// (REST + SSE)      │
+│  wss://  (gRPC-over-WS)      │                              │
+└──────────────────────────────┴──────────────────────────────┘
 ```
 
 Transports differ in two structural properties beyond mere
 connectivity — **valence** (how many simultaneous peers) and
-**duplex** (can both sides send at the same time). See §2.7.
+**duplex** (can both sides send at the same time) — see §2.7.
 
 | Binding | Wire format | Use case | Dependency |
 |---------|-------------|----------|------------|
 | **gRPC** | Protobuf | Holon-to-holon (high performance, local/LAN) | gRPC library required |
-| **Holon-RPC** | JSON-RPC 2.0 over WebSocket | Internet, browser, mobile, scripting | WebSocket + JSON only |
+| **JSON-RPC 2.0** | JSON-RPC 2.0 over WebSocket or HTTP+SSE | Internet, browser, mobile, scripting | WebSocket or HTTP + JSON |
 
 ---
 
@@ -60,8 +56,10 @@ Transport URIs follow the scheme `scheme://authority`:
 | `unix://` | Unix domain socket (POSIX) | `unix:///tmp/holon.sock` | optional |
 | `stdio://` | Standard input/output pipes | — | ✅ Article 11 |
 
-| `ws://` | WebSocket (unencrypted) | `ws://:8080/rpc` | optional |
-| `wss://` | WebSocket (TLS) | `wss://:8443/rpc` | optional |
+| `ws://` | WebSocket (unencrypted) | `ws://:8080/api/v1/rpc` | optional |
+| `wss://` | WebSocket (TLS) | `wss://:8443/api/v1/rpc` | optional |
+| `http://` | HTTP (request/response + SSE) | `http://:8080/api/v1/rpc` | optional |
+| `https://` | HTTP over TLS (request/response + SSE) | `https://:8443/api/v1/rpc` | optional |
 
 ### 2.2 Listen — Server-Side Binding
 
@@ -140,11 +138,26 @@ WebSocket transport. Two distinct uses:
 
 1. **gRPC tunnel** — wraps gRPC binary frames inside WebSocket frames.
    The WebSocket is transparent; gRPC operates normally.
-2. **Holon-RPC** — carries JSON-RPC 2.0 messages (see §4).
+2. **JSON-RPC 2.0** — carries JSON-RPC 2.0 messages (see §5).
    No gRPC involvement.
 
-The path distinguishes the two: convention is `/grpc` for tunneled gRPC
-and `/rpc` for Holon-RPC. This is a recommendation, not a requirement.
+The path distinguishes the two: convention is `/api/v1/grpc` for tunneled gRPC
+and `/api/v1/rpc` for JSON-RPC 2.0. This is a recommendation, not a requirement.
+
+#### `http://host:port/path` and `https://host:port/path`
+
+HTTP transport for the JSON-RPC 2.0 binding. Two mechanisms:
+
+1. **Request/response** — `POST /api/v1/rpc/<package.Service>/<Method>` with a
+   JSON request body; server returns a JSON response.
+2. **Server-push** — `GET /api/v1/rpc/<package.Service>/<Method>` with
+   `Accept: text/event-stream` opens an SSE stream for server-streaming
+   RPCs.
+
+Unlike WebSocket, HTTP+SSE does **not** support bidirectional calls —
+the server cannot invoke methods on the client. It is well suited for
+environments where WebSocket upgrade is blocked (proxies, CDNs,
+corporate firewalls) or where standard HTTP caching is desired.
 
 ### 2.7 Transport Properties
 
@@ -182,12 +195,140 @@ simultaneously:
 | `stdio://` | **Mono** | **Simulated** | One pair of pipes per process lifetime |
 | `ws://` | Multi | Full | WebSocket is explicitly full-duplex (RFC 6455 §1.1) |
 | `wss://` | Multi | Full | Same as `ws://` with TLS |
+| `http://` | Multi | **Simulated** | POST + SSE — request/response + server-push |
+| `https://` | Multi | **Simulated** | Same as `http://` with TLS |
 
 ---
 
-## 3. gRPC Binding
+## 3. Connect — Name-Based Resolution
 
 ### 3.1 Overview
+
+`Dial` (§2.3) requires a concrete transport address. In practice,
+callers rarely know that address in advance — they know a **holon name**.
+The `connect` primitive bridges that gap: given a slug, it discovers
+the holon, starts it if necessary, dials it, and returns a ready gRPC
+channel.
+
+```
+connect("rob-go")         → discover → start → dial → ready channel
+connect("localhost:9090") → dial directly (host:port bypass)
+```
+
+Connect is an **SDK facility**, not a protocol extension — the wire
+format is unchanged. It enables autonomous holon-to-holon composition
+without `op` as an intermediary.
+
+> [!IMPORTANT]
+> Using raw gRPC dialing (e.g., hardcoded `localhost:9091`) is a
+> **failure pattern**. Raw dials bypass readiness polling, dynamic
+> port assignment, and automatic cleanup. Always use the SDK's
+> `connect(slug)`.
+
+### 3.2 Resolution Algorithm
+
+All SDK implementations **must** follow the same resolution logic.
+
+```
+connect(target)
+  │
+  ├─ 1. Direct target?
+  │     if target contains ":" or "://" → skip to step 7
+  │
+  ├─ 2. Discover by slug
+  │     → scan OPPATH for holon.yaml matching the slug
+  │     → resolve holon directory
+  │
+  ├─ 3. Port file check (tcp/unix only)
+  │     → look for .op/run/<slug>.port
+  │     → if file exists AND target responds to probe → step 7
+  │     → if dead → remove stale file, continue
+  │
+  ├─ 4. Resolve binary
+  │     → check artifacts.binary in manifest
+  │     → search <holon_dir>/.op/build/bin/
+  │     → fallback to system PATH
+  │
+  ├─ 5. Launch daemon
+  │     → spawn binary as child process
+  │     → stdio (default): serve --listen stdio://
+  │     → tcp  (opt-in):   serve --listen tcp://127.0.0.1:0
+  │
+  ├─ 6. Parse advertisement (tcp only)
+  │     → capture stdout/stderr for first URI line
+  │     → for stdio the URI is simply stdio://
+  │
+  ├─ 7. dialReady(URI)
+  │     → open gRPC channel
+  │     → await readiness verification (see §3.3)
+  │
+  └─ 8. Cache connection (tcp/unix only)
+        → write .op/run/<slug>.port
+        → stdio has no addressable endpoint, never cached
+```
+
+### 3.3 Readiness Verification
+
+When a holon is started as a child process, the gRPC listener may
+not be ready immediately. The SDK **must** verify readiness before
+returning the channel to the caller.
+
+| Strategy | Description | SDKs |
+|----------|-------------|------|
+| **Connectivity polling** | Poll `GetState()` until `READY` | Go, Dart, Kotlin |
+| **RPC probe** | Call `HolonMeta/Describe` with the connect timeout | Swift |
+
+The RPC probe is **recommended** for new SDK implementations — it
+confirms that the service layer is responsive and processing protobuf
+requests, not just that the socket is open.
+
+**Requirements:**
+
+- **Retry with backoff** — poll every ~100 ms with a sensible timeout
+  (default 5 s).
+- **Handle ephemeral ports** — if the daemon was started on port `0`,
+  parse the advertised URI from stdout/stderr before probing.
+- **Descriptive errors** — e.g. "holon exited before becoming ready"
+  or "timed out waiting for readiness".
+- **Zombie prevention** — if the readiness probe fails, kill the child
+  process to prevent leaking half-started daemons.
+
+### 3.4 Transport Cascade
+
+When `connect` starts a holon (ephemeral mode), it uses a cascade
+ordered by efficiency:
+
+| Priority | Transport | Rationale |
+|:--------:|-----------|----------|
+| **1** | `stdio://` | Default — parent owns child's pipes, zero overhead |
+| **2** | `tcp://127.0.0.1:0` | Explicit override via `ConnectOptions` |
+
+`stdio://` is the default because it is the universal baseline (see
+§2.6). The pipe is already wired at spawn time: no port allocation,
+no loopback TCP overhead, no race conditions.
+
+When `connect` finds an **already-running** holon (via step 3's port
+file), there is no cascade — it dials whatever address the file
+advertises.
+
+### 3.5 Disconnect and Lifecycle
+
+`Disconnect` reverses the process:
+
+1. Close the gRPC channel.
+2. If the SDK started the holon (ephemeral mode), stop the child
+   process (SIGTERM → grace period → SIGKILL).
+3. Remove the `.op/run/<slug>.port` file if it was created.
+
+The SDK **must not** leak OS resources (child processes, file
+descriptors) across connect/disconnect cycles — this aligns with
+the robustness requirements in §7.4.2.
+
+---
+
+## 4. gRPC Binding
+
+### 4.1 Overview
 
 The primary holon-to-holon protocol. Uses [gRPC](https://grpc.io/)
 with Protocol Buffers for serialization. Over TCP, gRPC uses its
@@ -202,7 +343,7 @@ Every holon that supports the gRPC binding **must**:
    (Constitution, Article 2 — Self-documentation).
 3. Handle `SIGTERM` / `SIGINT` for graceful shutdown.
 
-### 3.2 Service Definition
+### 4.2 Service Definition
 
 Services are defined using `.proto` files following Protocol Buffers
 [style guide](https://protobuf.dev/programming-guides/style/):
@@ -226,13 +367,13 @@ message PingResponse {
 }
 ```
 
-### 3.3 Supported Transports
+### 4.3 Supported Transports
 
 The gRPC binding operates over `tcp://`, `unix://`, and `stdio://`.
 It can also be tunneled through `ws://` / `wss://` where WebSocket wraps
 the raw HTTP/2 stream.
 
-### 3.4 References
+### 4.4 References
 
 | Document | URL |
 |----------|-----|
@@ -240,15 +381,14 @@ the raw HTTP/2 stream.
 | Protocol Buffers | [protobuf.dev](https://protobuf.dev/) |
 | gRPC Status Codes | [grpc.io/docs/guides/status-codes](https://grpc.io/docs/guides/status-codes/) |
 
-### 3.5 HolonMeta Service
+### 4.5 HolonMeta Service
 
 Every holon **must** register the `HolonMeta` service alongside its
 own domain services. The SDK auto-registers it when using the standard
 `serve` runner — holon developers do not implement it manually.
 
 `HolonMeta` provides a single RPC — `Describe` — that returns the
-holon's API documentation as a typed protobuf response. The holon
-controls what it exposes: internal or debug RPCs can be excluded.
+holon's full manifest and API catalog as a typed protobuf response.
 The response includes enough type information for a caller to
 dynamically construct and send requests without compiled stubs.
 
@@ -260,145 +400,20 @@ dynamically construct and send requests without compiled stubs.
 > flag (e.g. `--reflect`) as a development convenience for third-party
 > tools like `grpcurl`.
 
-```protobuf
-syntax = "proto3";
-package holons.v1;
+**Canonical proto files** (the single source of truth):
 
-// HolonMeta is auto-registered by the SDK's serve runner.
-// It provides self-documentation for any holon.
-service HolonMeta {
-  // Describe returns the holon's API catalog: services, methods,
-  // input/output types, enum definitions, and human-readable
-  // descriptions.
-  rpc Describe(DescribeRequest) returns (DescribeResponse);
-}
+- [`describe.proto`](./holons/grace-op/_protos/holons/v1/describe.proto) — `HolonMeta` service, `DescribeRequest/Response`, `ServiceDoc`, `MethodDoc`, `FieldDoc`
+- [`manifest.proto`](./holons/grace-op/_protos/holons/v1/manifest.proto) — `HolonManifest` (identity, skills, sequences, contract, build, artifacts)
+- [`coax.proto`](./holons/grace-op/_protos/holons/v1/coax.proto) — `CoaxService` (organism-level member discovery, lifecycle, and `Tell`)
 
-message DescribeRequest {}
+Key design points:
 
-message DescribeResponse {
-  // Holon identity from holon.proto.
-  string slug  = 1;
-  string motto = 2;
-
-  // One entry per gRPC service the holon exposes.
-  repeated ServiceDoc services = 3;
-  // Semver version from the manifest identity, e.g. "0.4.1".
-  string version = 4;
-}
-
-// ServiceDoc documents a single gRPC service.
-message ServiceDoc {
-  // Fully qualified service name, e.g. "echo.v1.Echo".
-  string name = 1;
-
-  // Human-readable description from the proto comment.
-  string description = 2;
-
-  // One entry per RPC method in the service.
-  repeated MethodDoc methods = 3;
-}
-
-// MethodDoc documents a single RPC method.
-message MethodDoc {
-  // Method name, e.g. "Ping".
-  string name = 1;
-
-  // Human-readable description from the proto comment.
-  string description = 2;
-
-  // Fully qualified input message type, e.g. "echo.v1.PingRequest".
-  string input_type = 3;
-
-  // Fully qualified output message type, e.g. "echo.v1.PingResponse".
-  string output_type = 4;
-
-  // Documentation for each field in the input message.
-  repeated FieldDoc input_fields = 5;
-
-  // Documentation for each field in the output message.
-  repeated FieldDoc output_fields = 6;
-
-  // True if the input is a client-streaming type.
-  bool client_streaming = 7;
-
-  // True if the output is a server-streaming type.
-  bool server_streaming = 8;
-
-  // A concrete example request as JSON. Shows callers what a valid
-  // request looks like. Populated from @example tags in proto
-  // comments, or from companion .example.json files.
-  string example_input = 9;
-}
-
-// FieldDoc documents a single message field.
-message FieldDoc {
-  // Field name as declared in the proto.
-  string name = 1;
-
-  // Proto type name (e.g. "string", "int64", "echo.v1.Nested").
-  string type = 2;
-
-  // Field number in the proto definition.
-  int32 number = 3;
-
-  // Human-readable description from the proto comment.
-  string description = 4;
-
-  // Field cardinality.
-  FieldLabel label = 5;
-
-  // If this field is a map, the key and value type names.
-  string map_key_type   = 6;
-  string map_value_type  = 7;
-
-  // If this field references a message type, its nested fields.
-  repeated FieldDoc nested_fields = 8;
-
-  // If this field references an enum type, its values.
-  repeated EnumValueDoc enum_values = 9;
-
-  // Whether this field is semantically required. Proto3 has no
-  // wire-level required, but RPCs have semantic requirements
-  // (e.g. "slug must be provided"). Populated from @required
-  // tags in proto comments.
-  bool required = 10;
-
-  // Example value as JSON. Helps LLMs construct valid requests.
-  // Populated from @example tags in proto comments.
-  string example = 11;
-}
-
-// FieldLabel indicates field cardinality.
-enum FieldLabel {
-  FIELD_LABEL_UNSPECIFIED = 0;
-  FIELD_LABEL_OPTIONAL    = 1;
-  FIELD_LABEL_REPEATED    = 2;
-  FIELD_LABEL_MAP         = 3;
-  FIELD_LABEL_REQUIRED    = 4;
-}
-
-// EnumValueDoc documents a single enum value.
-message EnumValueDoc {
-  // Enum value name, e.g. "FIELD_LABEL_OPTIONAL".
-  string name = 1;
-
-  // Numeric value.
-  int32 number = 2;
-
-  // Human-readable description from the proto comment.
-  string description = 3;
-}
-```
-
-#### Behavior
-
-- The SDK parses `.proto` files from the holon's `protos/` directory
-  at startup and populates `DescribeResponse` automatically.
+- `DescribeResponse` wraps the full `HolonManifest` (identity, skills,
+  build metadata) alongside a `repeated ServiceDoc` API catalog.
 - `HolonMeta` is excluded from its own `Describe` output — the
   response documents only the holon's domain services.
 - If the holon has no parseable `.proto` files, `Describe` returns
-  a response with the holon's `slug`, `motto`, and `version` (from `holon.proto`)
-  and an empty `services` list.
+  a response with the manifest and an empty `services` list.
 - Nested message fields are recursively expanded in `FieldDoc.nested_fields`
   up to a reasonable depth (the SDK may cap recursion).
 
@@ -412,9 +427,9 @@ externally by reading the holon's `.proto` files:
 - `op mcp <slug>` — MCP server bridge exposing RPCs as MCP tools
 - `op tools <slug>` — LLM tool definitions in any format
 
-See [OP.md §15](./OP.md) for details.
+See [OP.md §15](./holons/grace-op/OP.md) for details.
 
-### 3.6 Dynamic Dispatch Workflow
+### 4.6 Dynamic Dispatch Workflow
 
 Any client that dispatches gRPC calls dynamically (without compiled
 stubs) **must** use the `Describe` service as its schema source. This
@@ -455,7 +470,7 @@ Client connects to holon
 
 | Property | `Describe` | gRPC Reflection |
 |----------|:----------:|:---------------:|
-| Protocol | Works over gRPC **and** Holon-RPC | gRPC only |
+| Protocol | Works over gRPC **and** JSON-RPC 2.0 | gRPC only |
 | Schema data | field numbers, types, labels | raw file descriptors |
 | Human-readable | ✅ descriptions, examples, `@required` | ❌ binary proto descriptors |
 | Agent-friendly | ✅ structured, flat, cacheable | ❌ requires protobuf compiler |
@@ -491,47 +506,52 @@ from `map_key_type` and `map_value_type`.
 
 ---
 
-## 4. Holon-RPC Binding
+## 5. JSON-RPC 2.0 Binding
 
-### 4.1 Overview
+### 5.1 Overview
 
-**Holon-RPC** is a convention layer on top of two established standards:
+The JSON-RPC 2.0 binding uses standard
+[JSON-RPC 2.0](https://www.jsonrpc.org/specification) exactly as specified.
+No custom protocol is introduced. Three conventions adapt it to the
+organic ecosystem:
 
-- [**JSON-RPC 2.0**](https://www.jsonrpc.org/specification) — the wire format
-- [**WebSocket** (RFC 6455)](https://datatracker.ietf.org/doc/html/rfc6455) — the transport
+1. **Method naming** — `package.Service/Method` (gRPC style).
+2. **ID namespacing** — server-originated IDs prefixed with `s`.
+3. **Subprotocol** — WebSocket handshake uses `holon-rpc`.
 
-Holon-RPC is **not a new protocol**. It is JSON-RPC 2.0 transmitted over
-WebSocket, with gRPC-style method naming and bidirectional call support.
-Any compliant JSON-RPC 2.0 library can produce and consume Holon-RPC
-messages without modification.
+Any compliant JSON-RPC 2.0 library can produce and consume messages
+without modification.
 
 **Design principles:**
 
 1. **No invention** — reuse JSON-RPC 2.0 exactly as specified.
-2. **Symmetric** — both client and server can initiate calls.
+2. **Symmetric** — over WebSocket, both sides can initiate calls.
 3. **Lightweight** — no gRPC dependency, no protobuf, no HTTP/2.
-4. **Universal** — any language with WebSocket + JSON can participate.
+4. **Universal** — any language with WebSocket or HTTP + JSON can participate.
 
-### 4.2 When to Use
+### 5.2 When to Use
 
-Holon-RPC exists for environments where gRPC is unavailable or impractical:
+The JSON-RPC 2.0 binding exists for environments where gRPC is
+unavailable or impractical:
 
 - **Browsers** — no HTTP/2 trailer support.
 - **Mobile apps** — lighter than a full gRPC dependency.
 - **Scripting languages** — PHP, Ruby, etc. where gRPC setup is heavy.
-- **Internet-facing access** — WebSocket traverses NATs and proxies.
+- **Internet-facing access** — WebSocket and HTTP traverse NATs and proxies.
 
-### 4.3 Transport Binding
+### 5.3 Transport Binding
 
-Holon-RPC messages are exchanged as **WebSocket text frames** (opcode `0x1`).
+The JSON-RPC 2.0 binding supports two transports:
+
+#### 5.3.1 WebSocket Transport
+
+Messages are exchanged as **WebSocket text frames** (opcode `0x1`).
 Each frame contains exactly one JSON-RPC 2.0 message.
-
-#### Subprotocol
 
 The WebSocket handshake **must** include the subprotocol `holon-rpc`:
 
 ```
-GET /rpc HTTP/1.1
+GET /api/v1/rpc HTTP/1.1
 Upgrade: websocket
 Sec-WebSocket-Protocol: holon-rpc
 ```
@@ -540,16 +560,48 @@ The server **must** confirm the subprotocol in its response.
 If the server does not confirm `holon-rpc`, the client **should** close
 the connection with status `1002` (Protocol Error).
 
+WebSocket is **full-duplex** — either side can initiate calls at any
+time (see §5.6). This is the preferred transport when bidirectional
+communication is needed.
+
+#### 5.3.2 HTTP+SSE Transport
+
+For environments where WebSocket upgrade is blocked (proxies, CDNs,
+corporate firewalls), the binding also operates over plain HTTP:
+
+- **Requests** — `POST /api/v1/rpc/<package.Service>/<Method>` with a JSON
+  request body. The server returns a JSON response. The method is
+  identified by the URL path, not the body.
+- **Server-push** — `GET /api/v1/rpc/<package.Service>/<Method>` with
+  `Accept: text/event-stream` opens an SSE stream for server-streaming
+  RPCs. Each event is a JSON-encoded response message.
+
+HTTP+SSE is **not bidirectional** — the server cannot invoke methods
+on the client. It supports unary requests and server-streaming only.
+
+| Verb | URL pattern | Body | Use |
+|------|-------------|------|-----|
+| `POST` | `/api/v1/rpc/<package.Service>/<Method>` | JSON request | Unary RPC |
+| `GET` | `/api/v1/rpc/<package.Service>/<Method>` | — (query params) | Server-streaming via SSE |
+
+> **Note**: unlike the WebSocket transport (which uses JSON-RPC 2.0
+> message framing), the HTTP+SSE transport uses **direct per-method
+> routes**. This gives better access-log visibility, standard
+> URL-based rate limiting, and simpler infrastructure integration.
+
 #### URL Convention
 
-Recommended default endpoint: `/rpc`.
-
 ```
-ws://host:port/rpc        — unencrypted
-wss://host:port/rpc       — TLS encrypted
+WebSocket:
+  ws://host:port/api/v1/rpc             — all methods via JSON-RPC body
+  wss://host:port/api/v1/rpc            — TLS
+
+HTTP+SSE:
+  POST  https://host/api/v1/rpc/greeting.v1.GreetingService/SayHello
+  GET   https://host/api/v1/rpc/build.v1.BuildService/WatchBuild
 ```
 
-### 4.4 Wire Format
+### 5.4 Wire Format
 
 JSON-RPC 2.0 exactly as specified in
 [jsonrpc.org/specification](https://www.jsonrpc.org/specification).
@@ -626,10 +678,10 @@ a response. Useful for telemetry, logging, and events.
 #### Batch (optional)
 
 JSON-RPC 2.0 supports [batch requests](https://www.jsonrpc.org/specification#batch).
-Holon-RPC implementations **may** support batching. If unsupported,
-the receiver **should** respond with error code `-32600` (Invalid Request).
+Implementations **may** support batching. If unsupported, the receiver
+**should** respond with error code `-32600` (Invalid Request).
 
-### 4.5 Method Naming Convention
+### 5.5 Method Naming Convention
 
 Methods follow gRPC's `package.Service/Method` convention:
 
@@ -649,22 +701,26 @@ Methods prefixed with `rpc.` are reserved for protocol-level operations:
 | Method | Direction | Description |
 |--------|-----------|-------------|
 | `rpc.discover` | client → server | List available methods (optional) |
-| `rpc.heartbeat` | either direction | Keep-alive (see §6) |
-| `rpc.peers` | client → hub | List connected peer IDs and their registered methods. Returns `{ "peers": [{ "id": "…", "methods": ["…"] }] }`. Required for `_target` unicast addressing (see §4.9). |
+| `rpc.heartbeat` | either direction | Keep-alive (see §7) |
+| `rpc.peers` | client → hub | List connected peer IDs and their registered methods. Returns `{ "peers": [{ "id": "…", "methods": ["…"] }] }`. Required for `_target` unicast addressing (see §5.9). |
 | `rpc.resume` | client → server | *Reserved — not yet specified.* Intent: reconnect session continuity (resume from a sequence number). |
 | `rpc.transfer` | either direction | *Reserved — not yet specified.* Intent: out-of-band large payload negotiation (exchange a URI/hash instead of inline data). |
 
-### 4.6 Bidirectional Calls
+### 5.6 Bidirectional Calls (WebSocket Only)
 
-Holon-RPC is **fully symmetric**: once connected, either holon can
-call remote methods registered on the other. The concepts of "client"
-and "server" refer only to who initiated the WebSocket connection —
-after the handshake, both peers are equal.
+Over WebSocket, the JSON-RPC 2.0 binding is **fully symmetric**: once
+connected, either holon can call remote methods registered on the
+other. The concepts of "client" and "server" refer only to who
+initiated the connection — after the handshake, both peers are equal.
 
 > **Note**: bidirectionality is orthogonal to valence. A monovalent
 > link (e.g., `stdio://`) is still symmetric — both sides can call
 > each other — but it connects exactly one pair. A multivalent
 > transport adds the 1:N dimension, not the bidirectional one.
+
+> **Note**: HTTP+SSE does **not** support bidirectional calls —
+> the server cannot invoke methods on the client. Use WebSocket
+> when server-initiated RPC is required.
 
 #### ID Namespacing
 
@@ -673,8 +729,9 @@ To prevent ID collisions in bidirectional communication:
 - **Client-originated IDs**: any string or number chosen by the client.
 - **Server-originated IDs**: **must** be prefixed with `s` (e.g., `"s1"`, `"s2"`).
 
-This convention is **mandatory** for Holon-RPC to enable safe
-bidirectional multiplexing.
+This convention is **mandatory** for the WebSocket transport to enable
+safe bidirectional multiplexing. Over HTTP+SSE, only client-originated
+IDs are used.
 
 #### Handler Registration
 
@@ -701,26 +758,30 @@ When a message is received:
 1. If `method` is present → **request** (or notification if no `id`).
 2. If `result` or `error` is present → **response** to a pending call.
 
-### 4.7 Roles
+### 5.7 Roles
 
-The Holon-RPC binding has two distinct roles:
+The JSON-RPC 2.0 binding has two distinct roles:
 
-- **Server**: accepts WebSocket connections, dispatches incoming JSON
-  calls to handlers, and can invoke methods on connected clients.
+- **Server**: accepts WebSocket and/or HTTP connections, dispatches
+  incoming JSON calls to handlers. Over WebSocket, the server can also
+  invoke methods on connected clients. Over HTTP+SSE, the server can
+  push notifications via SSE but cannot call client methods.
   This is a **backend concern** — only SDKs running as servers need this.
   The Go SDK provides two complementary implementations:
     - `transport.WebBridge` — embeddable in an existing HTTP server
-      (for browser-facing applications serving static files + Holon-RPC).
-    - `holonrpc.Server` — standalone server (owns its TCP listener,
-      for Go-to-Go Holon-RPC and interop testing).
+      (browser-facing applications serving static files + JSON-RPC).
+    - Standalone server — owns its TCP listener (for Go-to-Go
+      JSON-RPC and interop testing).
 
-- **Client**: connects to a Holon-RPC server, sends requests, receives
-  responses, and can register handlers for server-initiated calls.
+- **Client**: connects to a JSON-RPC server, sends requests, receives
+  responses. Over WebSocket, the client can also register handlers
+  for server-initiated calls. Over HTTP+SSE, the client receives
+  server-push notifications via SSE.
   **Every SDK must implement this** — it is the universal on-ramp to the
   organic ecosystem over the internet. Currently implemented in JS
   (`js-web-holons`).
 
-### 4.8 References
+### 5.8 References
 
 | Document | URL |
 |----------|-----|
@@ -729,9 +790,9 @@ The Holon-RPC binding has two distinct roles:
 | WebSocket Subprotocol Registry | [iana.org/assignments/websocket](https://www.iana.org/assignments/websocket/websocket.xml) |
 | Language Server Protocol (similar approach) | [microsoft.github.io/language-server-protocol](https://microsoft.github.io/language-server-protocol/) |
 
-### 4.9 Routing Topologies
+### 5.9 Routing Topologies
 
-When a **multivalent** Holon-RPC bridge maintains connections to
+When a **multivalent** JSON-RPC bridge maintains connections to
 N peers, the bridge can route messages beyond simple unicast.
 Routing is an **application-level capability** of the bridge —
 not a protocol extension. The wire format (JSON-RPC 2.0) is unchanged.
@@ -859,18 +920,19 @@ Each entry **must** contain a `peer` identifier and either a
 #### Applicability
 
 Routing only applies to **hub-role SDKs** running a multivalent
-Holon-RPC server. It has no meaning for monovalent transports
-(one peer, no routing decision), for the gRPC binding
-(point-to-point by design), or for client-role SDKs.
+JSON-RPC server (WebSocket transport). It has no meaning for
+monovalent transports (one peer, no routing decision), for the
+gRPC binding (point-to-point by design), for client-role SDKs,
+or for the HTTP+SSE transport (no bidirectional calls).
 
 ---
 
-## 5. Error Codes
+## 6. Error Codes
 
 Both bindings share a common error code space based on
 [gRPC status codes](https://grpc.io/docs/guides/status-codes/).
 
-### 5.1 Application Error Codes (gRPC)
+### 6.1 Application Error Codes (gRPC)
 
 | Code | Name | Meaning |
 |:----:|------|---------|
@@ -892,9 +954,9 @@ Both bindings share a common error code space based on
 | 15 | DATA_LOSS | Unrecoverable data loss |
 | 16 | UNAUTHENTICATED | Missing or invalid authentication |
 
-### 5.2 Protocol Error Codes (JSON-RPC only)
+### 6.2 Protocol Error Codes (JSON-RPC only)
 
-These apply exclusively to the Holon-RPC binding:
+These apply exclusively to the JSON-RPC 2.0 binding:
 
 | Code | Name | Meaning |
 |:----:|------|---------|
@@ -906,9 +968,9 @@ These apply exclusively to the Holon-RPC binding:
 
 ---
 
-## 6. Operational Concerns
+## 7. Operational Concerns
 
-### 6.1 Heartbeat
+### 7.1 Heartbeat
 
 To detect stale connections, either side **may** send periodic heartbeat
 calls using a standard JSON-RPC request:
@@ -927,7 +989,7 @@ Expected response: `{ "jsonrpc": "2.0", "id": "hb-1", "result": {} }`
 If a heartbeat response is not received within the timeout, the
 sender **should** consider the connection stale and close it.
 
-### 6.2 Reconnection
+### 7.2 Reconnection
 
 Client implementations on bidirectional transports **must** support
 automatic reconnection with exponential backoff. Under default
@@ -946,9 +1008,9 @@ is available).
 delay = min(minDelay × factor^n, maxDelay) × (1 + random(0, jitter))
 ```
 
-### 6.3 Graceful Shutdown
+### 7.3 Graceful Shutdown
 
-All servers (gRPC and Holon-RPC) **must** handle `SIGTERM` and
+All servers (gRPC and JSON-RPC) **must** handle `SIGTERM` and
 `SIGINT` for graceful shutdown:
 
 1. Stop accepting new connections.
@@ -957,19 +1019,19 @@ All servers (gRPC and Holon-RPC) **must** handle `SIGTERM` and
 4. Close all listeners and connections.
 5. Exit with code 0.
 
-### 6.4 Robustness Requirements
+### 7.4 Robustness Requirements
 
 These requirements apply to all implementations, regardless of
 transport or binding. They ensure production-grade reliability.
 
-#### 6.4.1 Concurrency
+#### 7.4.1 Concurrency
 
 Implementations **must** handle concurrent requests without
 deadlock or data corruption. A server must be able to process
 at least 50 simultaneous RPC calls from independent clients
 without failure.
 
-#### 6.4.2 Resource Lifecycle
+#### 7.4.2 Resource Lifecycle
 
 Implementations **must not** leak operating system resources
 (file descriptors, threads, goroutines, sockets) across
@@ -977,7 +1039,7 @@ connection lifecycles. After N connect/disconnect cycles,
 resource usage must return to within a small constant delta
 of the baseline (≤ 5 units).
 
-#### 6.4.3 Timeout Propagation
+#### 7.4.3 Timeout Propagation
 
 When a caller provides a context with a deadline, the
 implementation **should** propagate that deadline to the
@@ -985,7 +1047,7 @@ handler. If the handler exceeds the deadline, the
 implementation **must** return a `DEADLINE_EXCEEDED` error
 (gRPC code 4) to the caller rather than hang indefinitely.
 
-#### 6.4.4 Abrupt Disconnect Resilience
+#### 7.4.4 Abrupt Disconnect Resilience
 
 A server **must** remain operational when individual
 connections are terminated abnormally (TCP RST, process kill,
@@ -994,7 +1056,7 @@ network partition). Abrupt disconnects on a subset of clients
 clients. Pending calls on the dropped connection **must** be
 failed with an appropriate error (code 14, `UNAVAILABLE`).
 
-### 6.5 Message Size Limits
+### 7.5 Message Size Limits
 
 Implementations **must** accept single messages up to at least
 **1 MB** (1,048,576 bytes). Messages exceeding an implementation's
@@ -1004,7 +1066,7 @@ truncated or dropped.
 | Binding | Mechanism | Default | Error on exceed |
 |---------|-----------|:-------:|-----------------|
 | gRPC | `MaxRecvMsgSize` / `MaxSendMsgSize` | 4 MB | `RESOURCE_EXHAUSTED` (code 8) |
-| Holon-RPC | WebSocket `ReadLimit` | 1 MB | Connection closed with status 1009 (Message Too Big) |
+| JSON-RPC 2.0 | WebSocket `ReadLimit` / HTTP `Content-Length` | 1 MB | Connection closed with status 1009 (WS) or HTTP 413 (HTTP) |
 
 Implementations **may** allow operators to raise these limits
 via configuration, but **must not** lower them below 1 MB.
@@ -1021,29 +1083,27 @@ application-level pagination — not oversized RPC envelopes.
 
 ---
 
-## 7. Summary
+## 8. Summary
 
-| Aspect | gRPC Binding | Holon-RPC Binding |
-|--------|:------------:|:-----------------:|
-| Wire format | Protobuf | JSON-RPC 2.0 over WebSocket |
-| Transports | tcp, unix, stdio, ws/wss (tunnel) | ws, wss |
-| Dependency | gRPC library + protoc | WebSocket + JSON |
-| Bidirectional | ❌ caller-initiated only | ✅ symmetric — either side initiates |
+| Aspect | gRPC Binding | JSON-RPC 2.0 Binding |
+|--------|:------------:|:--------------------:|
+| Wire format | Protobuf | JSON-RPC 2.0 |
+| Transports | tcp, unix, stdio, ws/wss (tunnel) | ws, wss, http, https (SSE) |
+| Dependency | gRPC library + protoc | WebSocket or HTTP + JSON |
+| Bidirectional | ❌ caller-initiated only | ✅ WebSocket: symmetric — ❌ HTTP+SSE: server-push only |
 | Type safety | ✅ proto schemas | ⚠️ JSON (runtime validation) |
 | Use case | Holon-to-holon (local, LAN, high perf) | Internet, browser, mobile, scripting |
-| Subprotocol | — | `holon-rpc` |
+| Subprotocol | — | `holon-rpc` (WebSocket only) |
 
-**Holon-RPC = JSON-RPC 2.0 + WebSocket + three conventions:**
-
-1. **Method naming**: `package.Service/Method` (gRPC style).
-2. **ID namespacing**: server-originated IDs prefixed with `s`.
-3. **Subprotocol**: `holon-rpc`.
-
-Everything else is standard JSON-RPC 2.0. No new protocol.
+The JSON-RPC 2.0 binding adds **three conventions** to standard
+JSON-RPC 2.0 — method naming (`package.Service/Method`), ID
+namespacing (server-originated IDs prefixed with `s`), and a
+WebSocket subprotocol (`holon-rpc`). Everything else is standard.
+No new protocol.
 
 ---
 
-## 8. References
+## 9. References
 
 | Document | URL |
 |----------|-----|
