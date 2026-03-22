@@ -80,8 +80,11 @@ These ideas are not theoretical
 ### Examples
 
 
-[SwiftUI App](./examples/hello-world/gabriel-greeting-app-swiftui/) — composite holon: recipe-driven build, COAX interaction, and native macOS host UI
-![Gabriel Greeting App SwiftUI greets Mary](./assets/images/gabriel-greeting-app-swiftui-mary.png)
+[SwiftUI Organism](./examples/hello-world/gabriel-greeting-app-swiftui/) — composite organism: recipe-driven build, COAX interaction, and native macOS host UI.
+
+![Gabriel Greeting App SwiftUI greets Mary](./assets/images/gabriel-greeting-app-swiftui-mary.png
+
+
 
 Greeting holons — the same `GreetingService` contract implemented
 in every supported language:
