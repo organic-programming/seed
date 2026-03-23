@@ -3,8 +3,11 @@
 require_relative "../support"
 require "grpc"
 require "holons"
+require "describe_generated"
 require "v1/greeting_services_pb"
 require_relative "../api/public"
+
+Holons::Describe.use_static_response(Gen::DescribeGenerated.static_describe_response)
 
 module GabrielGreetingRuby
   module Internal
@@ -31,11 +34,7 @@ module GabrielGreetingRuby
 
         def register_services(server)
           server.handle(GreetingService.new)
-          Holons::Describe.register(
-            server,
-            proto_dir: GabrielGreetingRuby::SHARED_PROTO_ROOT,
-            manifest_path: GabrielGreetingRuby::HOLON_PROTO_PATH
-          )
+          Holons::Describe.register(server)
         end
 
         def normalize_listen_uri(listen_uri)

@@ -53,7 +53,7 @@ class GreetingServerTest < Minitest::Test
     assert_equal "fr", response.lang_code
   end
 
-  def test_describe_uses_proto_manifest
+  def test_describe_uses_static_manifest
     response = @meta_stub.describe(Holons::V1::DescribeRequest.new)
 
     assert_equal "Gabriel", response.manifest.identity.given_name
