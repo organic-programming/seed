@@ -58,16 +58,16 @@ Transports provide the underlying connection mechanism. Not all SDKs support all
 |-----|:--------:|:---------:|:----------:|:-------:|:--------:|:----------:|
 | `go-holons` | both | both | both | both | both | both |
 | `dart-holons` | both | both | both | both | dial | both |
-| `kotlin-holons` | both | both | both | dial | dial | - |
+| `kotlin-holons` | both | both | both | dial | dial | dial |
 | `swift-holons` | ? | ? | ? | ? | ? | ? |
 | `rust-holons` | ? | ? | ? | ? | ? | ? |
 | `js-holons` | both | both | both | both | both | - |
 | `js-web-holons` | - | - | - | dial | dial | dial |
 | `c-holons` | ? | ? | ? | ? | ? | ? |
 | `cpp-holons` | both | both | both | dial | - | - |
-| `csharp-holons` | both | both | both | dial | ? | - |
+| `csharp-holons` | both | both | both | dial | dial | dial |
 | `java-holons`   | both | both | both | dial | dial | dial |
-| `python-holons` | ? | ? | ? | ? | ? | ? |
+| `python-holons` | both | both | both | dial | - | - |
 | `ruby-holons`   | both | both | both | dial | dial | - |
 
 
