@@ -3,10 +3,10 @@
 > **Status:** Discussion draft
 >
 > **Prerequisite reading:**
-> - [HOLON_PACKAGE.md](../HOLON_PACKAGE.md) — The `.holon` package format and Bundle Integration
-> - [HOLON_BUILD.md](../HOLON_BUILD.md) — `op build` and the recipe runner
-> - [COAX.md](../COAX.md) — COAX principle and Organism definition
-> - [CONVENTIONS.md](../CONVENTIONS.md) — Per-language structure (⚠️ outdated)
+> - [HOLON_PACKAGE.md](../holons/grace-op/HOLON_PACKAGE.md) — The `.holon` package format and Bundle Integration
+> - [HOLON_BUILD.md](../holons/grace-op/HOLON_BUILD.md) — `op build` and the recipe runner
+> - [COAX.md](../holons/grace-op/COAX.md) — COAX principle and Organism definition
+> - [CONVENTIONS.md](../holons/grace-op/CONVENTIONS.md) — Per-language structure (⚠️ outdated)
 
 ---
 
@@ -188,7 +188,7 @@ The Organism Kit hooks into the framework's lifecycle automatically:
 
 ## COAX — Coaccessibility
 
-> See [COAX.md](../COAX.md) for the full definition of COAX and Organism.
+> See [COAX.md](../holons/grace-op/COAX.md) for the full definition of COAX and Organism.
 
 **COAX** stands for **coaccessibility**: every component in an OP
 application must be equally accessible to humans *and* machines.
@@ -227,7 +227,7 @@ A composite app holon is an **organism** — the living whole that
 assembles its member holons.  Today the organism has a UI for humans
 but no programmatic entry point.  The COAX interaction surface fixes
 this: a shared proto service
-([`coax.proto`](../_protos/holons/v1/coax.proto)) that any organism
+([`coax.proto`](../holons/grace-op/protos/holons/v1/coax.proto)) that any organism
 registers alongside its domain service.
 
 The interaction surface generalizes what AppleScript achieved for
@@ -289,7 +289,7 @@ server is no exception.
 **Why:** without `Describe`, a client connecting to the COAX server
 has no way to discover what services and methods are available.  The
 Dynamic Dispatch Workflow
-([HOLON_COMMUNICATION_PROTOCOL.md §3.6](../HOLON_COMMUNICATION_PROTOCOL.md))
+([HOLON_COMMUNICATION_PROTOCOL.md §3.6](../PROTOCOL.md))
 requires `Describe` as the schema source for building protobuf from
 JSON dynamically.  This is how `op`, agents, and any SDK client
 interact with the organism programmatically — without compiled stubs
