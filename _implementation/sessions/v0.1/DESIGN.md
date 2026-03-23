@@ -49,7 +49,7 @@ overriding the one below:
 |:---:|---|---|---|
 | **1 (highest)** | **Code API** | Per-dial, per-listener | At connect/serve call time |
 | **2** | **RPC** | Per-listener, runtime | Operator toggles on a live holon |
-| **3 (lowest)** | **Config** | Per-holon, static | `OP_SESSIONS` env or `holon.yaml` |
+| **3 (lowest)** | **Config** | Per-holon, static | `OP_SESSIONS` env or `holon.proto` |
 
 Higher-priority layers override lower ones. Each SDK expresses these
 layers in its own idiomatic way — the principle is universal, the
@@ -77,7 +77,7 @@ disable — without a deploy cycle.
 
 ### Layer 3 — Config (Static Defaults)
 
-Environment variable and `holon.yaml` provide the static baseline.
+Environment variable and `holon.proto` provide the static baseline.
 
 ```
 OP_SESSIONS=1         # enable session tracking (all listeners)
@@ -156,7 +156,7 @@ sides keep their own store.
 |---|---|---|---|
 | `session_id` | `string` (UUID v4) | Generated at dial or accept time | Unique per connection |
 | `caller_slug` | `string` | `x-holon-slug` gRPC metadata header | Who initiated |
-| `target_slug` | `string` | From holon.yaml or `--listen` URI | Who was dialed |
+| `target_slug` | `string` | From holon.proto or `--listen` URI | Who was dialed |
 | `transport` | `string` | `"stdio"`, `"tcp"`, `"unix"`, `"ws"`, `"wss"` | Wire transport |
 | `address` | `string` | `"stdio://"`, `"tcp://127.0.0.1:54321"`, etc. | Concrete endpoint |
 | `direction` | `enum` | `INBOUND` / `OUTBOUND` | Server-side or client-side |
@@ -391,7 +391,7 @@ listeners gain **consumer identity** from the auth layer:
 
 | Auth strategy | `remote_slug` source |
 |---|---|
-| API key | Key `name` from `holon.yaml` (e.g. `"consumer-alpha"`) |
+| API key | Key `name` from `holon.proto` (e.g. `"consumer-alpha"`) |
 | JWT | `sub` claim from the token |
 | OAuth | `sub` claim from validated token |
 | None (mesh peer) | `x-holon-slug` header as before |
@@ -401,7 +401,7 @@ consumer name**, not a holon slug. The field serves double duty: holon
 identity on the mesh, consumer identity on public endpoints.
 
 **Per-listener `session_visibility`**: the global `session_visibility`
-setting in `holon.yaml` can be overridden per listener:
+setting in `holon.proto` can be overridden per listener:
 
 ```yaml
 serve:
@@ -947,7 +947,7 @@ sessions and learn who else is connected, from where, and since when.**
 ### Mitigation: Visibility Levels
 
 The `Sessions` RPC respects a **visibility** policy declared in
-`holon.yaml`. The SDK enforces it before returning results:
+`holon.proto`. The SDK enforces it before returning results:
 
 | Visibility | Behavior | Default for |
 |---|---|---|
@@ -955,7 +955,7 @@ The `Sessions` RPC respects a **visibility** policy declared in
 | `summary` | Returns `session_id`, `state`, `rpc_count`. Omits `remote_slug`, `address`, `transport`. | `tcp://`, `unix://` |
 | `off` | `Sessions` returns `PERMISSION_DENIED` (code 7) | `ws://`, `wss://` (internet-facing) |
 
-Configuration in `holon.yaml`:
+Configuration in `holon.proto`:
 
 ```yaml
 session_visibility: summary   # full | summary | off
@@ -971,7 +971,7 @@ to `summary` — you see that 3 sessions are active but not who they are.
 visibility level. For full diagnostics on a private holon, the operator
 can:
 
-1. Set `session_visibility: full` in `holon.yaml` (development).
+1. Set `session_visibility: full` in `holon.proto` (development).
 2. Use `stdio://` transport (inherently local, defaults to `full`).
 3. Add the future `security: mesh` listener (mTLS peers get `full`).
 

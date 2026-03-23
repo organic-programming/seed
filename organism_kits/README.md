@@ -475,8 +475,8 @@ proto-first model. Here is a prompt for a separate task:
 Update CONVENTIONS.md to align with the current Organic Programming model:
 
 1. Replace `protos/` with `api/v1/` as the canonical proto location.
-2. Replace `holon.yaml` references with `api/v1/holon.proto` carrying
-   `option (holons.v1.manifest)`.
+2. Verify `holon.yaml` references are replaced with `api/v1/holon.proto` carrying
+   `option (holons.v1.manifest)` (done — proto is the source of truth).
 3. Add a "Facet Model" section documenting the 4 facets:
    Code API (api/public.*), CLI (api/cli.*), RPC (_internal/server.*),
    Test (*_test.*).
@@ -484,8 +484,8 @@ Update CONVENTIONS.md to align with the current Organic Programming model:
    holon is structured (recipe, members, Organism Kit usage).
 5. Update the per-language source/gen/test table to reflect actual
    conventions used in the gabriel-greeting-* examples.
-6. Remove or deprecate references to `holon.yaml` (proto is the source
-   of truth, yaml is legacy fallback).
+6. Confirm no remaining references to `holon.yaml` (proto is the source
+   of truth; yaml has been removed).
 7. Verify every example tree matches the actual directory structure of
    existing holons in examples/hello-world/.
 ```

@@ -236,7 +236,7 @@ connect(target)
   │     if target contains ":" or "://" → skip to step 7
   │
   ├─ 2. Discover by slug
-  │     → scan OPPATH for holon.yaml matching the slug
+  │     → scan OPPATH for holon.proto matching the slug
   │     → resolve holon directory
   │
   ├─ 3. Port file check (tcp/unix only)
