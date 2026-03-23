@@ -1,4 +1,5 @@
 using Greeting.V1;
+using Gen;
 using Grpc.Core;
 using Holons;
 
@@ -21,6 +22,11 @@ public sealed class GreetingServiceImpl : GreetingService.GreetingServiceBase
 
 public static class GreetingServer
 {
+    static GreetingServer()
+    {
+        Describe.UseStaticResponse(DescribeGenerated.StaticDescribeResponse());
+    }
+
     public static Task ListenAndServeAsync(string listenUri, bool reflect)
     {
         Serve.RunWithOptions(listenUri, CreateRegistrations(), new Serve.ServeOptions { Reflect = reflect });
