@@ -23,6 +23,7 @@ public final class GreetingServiceProvider: Greeting_V1_GreetingServiceProvider 
 }
 
 public func listenAndServe(_ listenURI: String, reflect: Bool = false) throws {
+    try Describe.useStaticResponse(DescribeGenerated.StaticDescribeResponse())
     try Serve.runWithOptions(
         listenURI,
         serviceProviders: [GreetingServiceProvider()],

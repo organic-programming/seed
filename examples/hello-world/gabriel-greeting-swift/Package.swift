@@ -35,6 +35,7 @@ let package = Package(
             ],
             sources: [
                 "Sources/GabrielGreeting",
+                "gen/describe_generated.swift",
                 "gen/swift/greeting/v1",
             ]
         ),
