@@ -66,7 +66,7 @@ Transports provide the underlying connection mechanism. Not all SDKs support all
 | `c-holons` | ? | ? | ? | ? | ? | ? |
 | `cpp-holons` | ? | ? | ? | ? | ? | ? |
 | `csharp-holons` | ? | ? | ? | ? | ? | ? |
-| `java-holons`   | ? | ? | ? | ? | ? | ? |
+| `java-holons`   | both | both | both | dial | dial | - |
 | `python-holons` | ? | ? | ? | ? | ? | ? |
 | `ruby-holons`   | ? | ? | ? | ? | ? | ? |
 
