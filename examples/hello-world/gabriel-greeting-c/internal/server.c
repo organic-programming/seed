@@ -36,6 +36,12 @@
 #error "GABRIEL_GREETING_C_MANIFEST_PATH must be defined"
 #endif
 
+#ifndef GABRIEL_GREETING_C_DESCRIBE_STATIC_PATH
+#error "GABRIEL_GREETING_C_DESCRIBE_STATIC_PATH must be defined"
+#endif
+
+const holons_describe_response_t *holons_generated_describe_response(void);
+
 static int file_exists(const char *path) {
   return path != NULL && access(path, F_OK) == 0;
 }
@@ -131,15 +137,25 @@ static const char *resolve_proto_dir(char *buffer, size_t buffer_len) {
   return GABRIEL_GREETING_C_PROTO_DIR;
 }
 
-static const char *resolve_manifest_path(char *buffer, size_t buffer_len) {
-  if (copy_path(buffer, buffer_len, "api/v1/holon.proto") == 0 && file_exists(buffer)) {
-    return buffer;
-  }
-  if (copy_path(buffer, buffer_len, GABRIEL_GREETING_C_MANIFEST_PATH) == 0 &&
+static const char *resolve_describe_static_path(char *buffer, size_t buffer_len) {
+  char dir[PATH_MAX];
+  if (executable_dir(dir, sizeof(dir)) == 0 &&
+      join_path(buffer, buffer_len, dir, "describe_generated.json") == 0 &&
       file_exists(buffer)) {
     return buffer;
   }
-  return GABRIEL_GREETING_C_MANIFEST_PATH;
+  if (copy_path(buffer, buffer_len, "gen/describe_generated.json") == 0 && file_exists(buffer)) {
+    return buffer;
+  }
+  if (copy_path(buffer, buffer_len, GABRIEL_GREETING_C_DESCRIBE_STATIC_PATH) == 0 &&
+      file_exists(buffer)) {
+    return buffer;
+  }
+  return GABRIEL_GREETING_C_DESCRIBE_STATIC_PATH;
+}
+
+static void register_static_describe_response(void) {
+  holons_use_static_describe_response(holons_generated_describe_response());
 }
 
 static void handle_signal(int signo) {
@@ -401,20 +417,21 @@ int gabriel_greeting_c_exec_bridge(const char *listen_uri, FILE *stderr_stream) 
   char bridge_binary[PATH_MAX];
   char backend_binary[PATH_MAX];
   char proto_dir[PATH_MAX];
-  char manifest_path[PATH_MAX];
+  char describe_static_path[PATH_MAX];
   char *const argv[] = {
       (char *)resolve_bridge_binary(bridge_binary, sizeof(bridge_binary)),
       (char *)"--backend",
       (char *)resolve_backend_binary(backend_binary, sizeof(backend_binary)),
       (char *)"--proto-dir",
       (char *)resolve_proto_dir(proto_dir, sizeof(proto_dir)),
-      (char *)"--manifest",
-      (char *)resolve_manifest_path(manifest_path, sizeof(manifest_path)),
+      (char *)"--describe-static",
+      (char *)resolve_describe_static_path(describe_static_path, sizeof(describe_static_path)),
       (char *)"--listen",
       (char *)listen_uri,
       NULL,
   };
 
+  register_static_describe_response();
   execv(argv[0], argv);
   fprintf(stderr_stream, "serve: exec %s failed: %s\n", argv[0], strerror(errno));
   return 1;
@@ -428,6 +445,7 @@ int gabriel_greeting_c_backend_serve(const char *listen_uri, FILE *stdout_stream
   void (*old_int)(int);
   void (*old_term)(int);
 
+  register_static_describe_response();
   if (holons_listen(listen_uri, &listener, err, sizeof(err)) != 0) {
     fprintf(stderr_stream, "backend listen error: %s\n", err);
     return 1;

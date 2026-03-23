@@ -24,6 +24,7 @@ set(GABRIEL_GREETING_C_BACKEND_BINARY "${GABRIEL_GREETING_C_RUNTIME_DIR}/gabriel
 set(GABRIEL_GREETING_C_BRIDGE_BINARY "${GABRIEL_GREETING_C_RUNTIME_DIR}/grpc-bridge")
 set(GABRIEL_GREETING_C_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../_protos")
 set(GABRIEL_GREETING_C_MANIFEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/api/v1/holon.proto")
+set(GABRIEL_GREETING_C_DESCRIBE_STATIC_PATH "${GABRIEL_GREETING_C_RUNTIME_DIR}/describe_generated.json")
 
 file(MAKE_DIRECTORY "${GABRIEL_GREETING_C_RUNTIME_DIR}")
 add_custom_command(
@@ -35,11 +36,26 @@ add_custom_command(
 )
 add_custom_target(gabriel_greeting_c_bridge ALL DEPENDS "${GABRIEL_GREETING_C_BRIDGE_BINARY}")
 
+add_custom_command(
+  OUTPUT "${GABRIEL_GREETING_C_DESCRIBE_STATIC_PATH}"
+  COMMAND "${GO_EXECUTABLE}" run "${HOLONS_SDK_ROOT}/cmd/describe-json-go/main.go"
+          --proto-dir "${GABRIEL_GREETING_C_PROTO_DIR}"
+          --manifest "${GABRIEL_GREETING_C_MANIFEST_PATH}"
+          --out "${GABRIEL_GREETING_C_DESCRIBE_STATIC_PATH}"
+  DEPENDS
+    "${HOLONS_SDK_ROOT}/cmd/describe-json-go/main.go"
+    "${CMAKE_CURRENT_SOURCE_DIR}/api/v1/holon.proto"
+  WORKING_DIRECTORY "${HOLONS_SDK_ROOT}/../go-holons"
+  VERBATIM
+)
+add_custom_target(gabriel_greeting_c_static_describe ALL DEPENDS "${GABRIEL_GREETING_C_DESCRIBE_STATIC_PATH}")
+
 add_library(gabriel_greeting_c_lib
   api/public.c
   api/cli.c
   internal/greetings.c
   internal/server.c
+  gen/describe_generated.c
   gen/c/greeting/v1/greeting.upb.c
   gen/c/greeting/v1/greeting.upb_minitable.c
   "${HOLONS_SDK_ROOT}/src/holons.c"
@@ -59,6 +75,7 @@ target_compile_definitions(gabriel_greeting_c_lib
     GABRIEL_GREETING_C_BRIDGE_BINARY="${GABRIEL_GREETING_C_BRIDGE_BINARY}"
     GABRIEL_GREETING_C_PROTO_DIR="${GABRIEL_GREETING_C_PROTO_DIR}"
     GABRIEL_GREETING_C_MANIFEST_PATH="${GABRIEL_GREETING_C_MANIFEST_PATH}"
+    GABRIEL_GREETING_C_DESCRIBE_STATIC_PATH="${GABRIEL_GREETING_C_DESCRIBE_STATIC_PATH}"
 )
 
 target_link_libraries(gabriel_greeting_c_lib
@@ -72,7 +89,8 @@ target_link_libraries(gabriel-greeting-c PRIVATE gabriel_greeting_c_lib)
 
 add_executable(gabriel-greeting-c-backend cmd/backend_main.c)
 target_link_libraries(gabriel-greeting-c-backend PRIVATE gabriel_greeting_c_lib)
-add_dependencies(gabriel-greeting-c gabriel-greeting-c-backend gabriel_greeting_c_bridge)
+add_dependencies(gabriel-greeting-c gabriel-greeting-c-backend gabriel_greeting_c_bridge gabriel_greeting_c_static_describe)
+add_dependencies(gabriel-greeting-c-backend gabriel_greeting_c_static_describe)
 
 add_executable(gabriel_greeting_c_public_test api/public_test.c)
 target_link_libraries(gabriel_greeting_c_public_test PRIVATE gabriel_greeting_c_lib)
@@ -87,7 +105,7 @@ target_compile_definitions(gabriel_greeting_c_server_test
     GABRIEL_GREETING_C_PROTO_DIR="${GABRIEL_GREETING_C_PROTO_DIR}"
 )
 target_link_libraries(gabriel_greeting_c_server_test PRIVATE gabriel_greeting_c_lib)
-add_dependencies(gabriel_greeting_c_server_test gabriel-greeting-c gabriel_greeting_c_bridge)
+add_dependencies(gabriel_greeting_c_server_test gabriel-greeting-c gabriel_greeting_c_bridge gabriel_greeting_c_static_describe)
 
 add_test(NAME gabriel_greeting_c_public_test COMMAND gabriel_greeting_c_public_test)
 add_test(NAME gabriel_greeting_c_cli_test COMMAND gabriel_greeting_c_cli_test)
