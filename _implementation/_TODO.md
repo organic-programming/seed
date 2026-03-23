@@ -1,4 +1,9 @@
-# General 
+# v0.6 Plan :
+A very serious release minimalist
+
+1. [SDK CLEANUP](SDK_CLEANUP.md)
+2. 
+
 
 - Create real rules for OP
     - Always guarantee the ["Surface symmetry — the golden rule"](../AGENT.md#surface-symmetry--the-golden-rule)

@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-package greeting.v1;
-
-option csharp_namespace = "Greeting.V1";
-
-import public "greeting/v1/greeting.proto";

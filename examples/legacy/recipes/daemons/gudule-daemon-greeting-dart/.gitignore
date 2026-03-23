@@ -1,7 +1,0 @@
-# Organic Programming OP CLI build artifacts
-.op/
-
-# Dart & Pub
-.dart_tool/
-.packages
-build/

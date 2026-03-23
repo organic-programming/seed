@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-package greeting.v1;
-
-option go_package = "github.com/organic-programming/seed/recipes/daemons/gudule-daemon-greeting-go/gen/go/greeting/v1;greetingv1";
-
-import public "greeting/v1/greeting.proto";
