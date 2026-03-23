@@ -68,7 +68,7 @@ Transports provide the underlying connection mechanism. Not all SDKs support all
 | `csharp-holons` | both | both | both | dial | ? | - |
 | `java-holons`   | both | both | both | dial | dial | dial |
 | `python-holons` | ? | ? | ? | ? | ? | ? |
-| `ruby-holons`   | ? | ? | ? | ? | ? | ? |
+| `ruby-holons`   | both | both | both | dial | dial | - |
 
 
 ## Expected v0.6 transport Matrix 
