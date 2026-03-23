@@ -1,8 +1,10 @@
 package org.organicprogramming.gabriel.greeting.javaholon.internal;
 
+import gen.describe_generated;
 import greeting.v1.Greeting;
 import greeting.v1.GreetingServiceGrpc;
 import io.grpc.stub.StreamObserver;
+import org.organicprogramming.holons.Describe;
 import org.organicprogramming.gabriel.greeting.javaholon.api.PublicApi;
 import org.organicprogramming.holons.Serve;
 
@@ -26,6 +28,7 @@ public final class GreetingServer extends GreetingServiceGrpc.GreetingServiceImp
     }
 
     public static void listenAndServe(String listenUri, boolean reflect) throws Exception {
+        Describe.useStaticResponse(describe_generated.StaticDescribeResponse());
         Serve.runWithOptions(
                 listenUri,
                 List.of(new GreetingServer()),
