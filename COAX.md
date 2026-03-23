@@ -114,23 +114,23 @@ $ op grpc+tcp://127.0.0.1:60000 Greet '{"name":"Jesus"}'
    request as **standard binary protobuf** over HTTP/2 to the organism.
 
 10. **Organism receives the Greet RPC** — The gRPC server dispatches the call to
-    [GreetingAppServiceProvider.swift](../../examples/hello-world/gabriel-greeting-app-swiftui/Modules/Sources/GreetingKit/GreetingAppServiceProvider.swift) → `greet`.
+    [GreetingAppServiceProvider.swift](./examples/hello-world/gabriel-greeting-app-swiftui/Modules/Sources/GreetingKit/GreetingAppServiceProvider.swift) → `greet`.
     The handler runs on `@MainActor` (the main thread), and:
 
     - Sets `holon.userName = "Jesus"` — because `HolonProcess` is an
       `@ObservableObject`, this **immediately updates the SwiftUI text field**
       in
-      [ContentView.swift](../../examples/hello-world/gabriel-greeting-app-swiftui/App/ContentView.swift).
+      [ContentView.swift](./examples/hello-world/gabriel-greeting-app-swiftui/App/ContentView.swift).
       The name "Jesus" appears in the input field in real time.
     - If `lang_code` is provided, sets `holon.selectedLanguageCode` accordingly
       (which updates the language picker in the UI).
 
 11. **Organism delegates to the child holon** — The handler calls
     `holon.sayHello(name: "Jesus", langCode: langCode)` →
-    [HolonProcess.swift](../../examples/hello-world/gabriel-greeting-app-swiftui/Modules/Sources/GreetingKit/HolonProcess.swift) → `sayHello`
+    [HolonProcess.swift](./examples/hello-world/gabriel-greeting-app-swiftui/Modules/Sources/GreetingKit/HolonProcess.swift) → `sayHello`
     which forwards the request to the **currently connected child holon**
     (e.g. `gabriel-greeting-go`, `gabriel-greeting-rust`, etc.) via
-    [GreetingClient.swift](../../examples/hello-world/gabriel-greeting-app-swiftui/Modules/Sources/GreetingKit/GreetingClient.swift) → `sayHello`.
+    [GreetingClient.swift](./examples/hello-world/gabriel-greeting-app-swiftui/Modules/Sources/GreetingKit/GreetingClient.swift) → `sayHello`.
     This is a second gRPC call — from the Swift app to the holon subprocess
     over stdio or tcp, using compiled protobuf stubs
     (`/greeting.v1.GreetingService/SayHello`).
