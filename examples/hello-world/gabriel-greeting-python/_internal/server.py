@@ -6,10 +6,15 @@ from support import ensure_import_paths
 
 ensure_import_paths()
 
+from holons import describe
 from holons.serve import run_with_options
+from gen import describe_generated
 from v1 import greeting_pb2_grpc
 
 from api import public
+
+# Register the generated Incode Description at startup.
+describe.use_static_response(describe_generated.static_describe_response())
 
 
 class GreetingService(greeting_pb2_grpc.GreetingServiceServicer):
