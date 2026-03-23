@@ -1,175 +1,91 @@
-# SDK Fleet
+# Organic Programming SDKs
 
-**Connect anything with anything.** A Go holon calls a Rust holon.
-A Swift UI talks to a Python daemon. A C++ engine composes with a
-Kotlin frontend. The language doesn't matter — the protocol does.
+An SDK provides the native runtime for holons in a given language. It replaces hand-rolled gRPC boilerplate with a standardized set of modules.
 
-Every SDK implements the same 5 modules so that a holon written in
-any language can discover, start, and talk to a holon written in any
-other language, on any transport, without knowing or caring which
-language the other side uses:
+## Every SDK implements:
 
-- **`serve`** — host a gRPC server with standard lifecycle
-- **`transport`** — listen on `tcp://`, `unix://`, `stdio://`, `ws://`, `wss://`, `rest+sse://`
-- **`identity`** — read `holon.proto` (name, slug, artifacts)
-- **`discover`** — scan `OPPATH` to find holons by slug
-- **`connect`** — resolve a slug, start the daemon if needed, return a ready gRPC channel
+- **`serve`**: The high-level orchestrator. Takes a listener, wires it to an RPC server, auto-registers the `HolonMeta.Describe` service, and gracefully handles OS signals for shutdown.
+- **`transport`**: Opens sockets or pipes (`tcp://`, `unix://`, `stdio://`, `ws://`, `wss://`, `rest+sse://`).
+- **`identity`**: The in-memory representation of the `holons.v1.HolonManifest` schema (from `manifest.proto`). It holds the holon's name, version, artifacts, and **slug** (e.g., `"rob-go"`, `"gabriel-greeting-app-swiftui"`), exposing them via the `Describe` service.
+- **`discover`**: Scans the local filesystem to find nearby holons by slug.
+- **`connect`**: Resolves a slug, starts the daemon if needed, and returns a ready channel.
+- **`describe`**: Self-documentation and dynamic dispatch schema (via `HolonMeta.Describe`).
 
-One line is all it takes: `connect("any-holon")` — the SDK finds the
-binary, spawns it, wires gRPC over stdin/stdout, and hands back a
-ready channel. No configuration, no port management, no glue code.
+## Language SDKs
 
-The remaining differences across SDKs are in `serve` depth and
-Holon-RPC support.
+The following languages have official SDK implementations in their respective directories:
 
----
+- `c-holons`
+- `cpp-holons`
+- `csharp-holons`
+- `dart-holons`
+- `go-holons`[^1]
+- `java-holons`
+- `js-holons`
+- `js-web-holons`[^2]
+- `kotlin-holons`
+- `python-holons`
+- `ruby-holons`
+- `rust-holons`
+- `swift-holons`
 
-## SDK Classification
+## CLI Holonization SDK
 
-SDKs are classified by **role** — what they _do_ in an assembly,
-not what they _could_ theoretically support.
+Expected for V1.0.0 but neither implemented nor fully specified : [go-cli-holonization](./go-cli-holonization/README.md)
 
-### Daemon SDKs — serve holons as background processes
+## Transport Matrix 
 
-These SDKs host the full `serve` lifecycle. Holons written with
-them run as daemons: they listen for gRPC (and eventually
-REST+SSE), process requests, and are managed by `op`.
+Transports provide the underlying connection mechanism. Not all SDKs support all transports, an SDK may **Dial** (act as a client calling out) or **Serve** (act as a server listening) on a transport, and these capabilities are not always symmetrically supported [^3].
 
-| SDK | Language | Serve | Describe | Version |
-|-----|----------|-------|----------|:-------:|
-| [go-holons](https://github.com/organic-programming/go-holons) | Go | runner | ✅ auto | 0.3.0 |
-| [rust-holons](https://github.com/organic-programming/rust-holons) | Rust | flags only | — | 0.1.0 |
-| [node-holons](https://github.com/organic-programming/js-holons) | Node.js | runner | ✅ auto | 0.1.0 |
-| [python-holons](https://github.com/organic-programming/python-holons) | Python | runner | ✅ auto | 0.1.0 |
-| [c-holons](https://github.com/organic-programming/c-holons) | C | runner | — | 0.1.0 |
+*   **both**: The SDK can both Dial (Client) and Serve (Server).
+*   **dial**: The SDK can only Dial (Client).
+*   **-**: Not implemented.
+*   **?**: Implementation has not been controlled
 
-### Frontend SDKs — drive native UIs, connect to daemons
+| SDK | `tcp://` | `unix://` | `stdio://` | `ws://` | `wss://` | `rest+sse` |
+|-----|:--------:|:---------:|:----------:|:-------:|:--------:|:----------:|
+| `go-holons` | both | both | both | ? | ? | ? |
+| `dart-holons` | ? | ? | ? | ? | ? | ? |
+| `kotlin-holons` | ? | ? | ? | ? | ? | ? |
+| `swift-holons` | ? | ? | ? | ? | ? | ? |
+| `rust-holons` | ? | ? | ? | ? | ? | ? |
+| `js-holons` | ? | ? | ? | ? | ? | ? |
+| `js-web-holons` | - | - | - | ?| ? | ? |
+| `c-holons` | ? | ? | ? | ? | ? | ? |
+| `cpp-holons` | ? | ? | ? | ? | ? | ? |
+| `csharp-holons`| ? | ? | ? | ? | ? | ? |
+| `java-holons` | ? | ? | ? | ? | ? | ? |
+| `python-holons`| ? | ? | ? | ? | ? | ? |
+| `ruby-holons` | ? | ? | ? | ? | ? | ? |
 
-These SDKs are embedded in **UI applications** (mobile, desktop).
-They use `connect(slug)` to reach daemon holons and do **not**
-serve RPCs themselves (though some _can_ if needed).
 
-| SDK | Language | UI Framework | Connect | Version |
-|-----|----------|--------------|---------|:-------:|
-| [swift-holons](https://github.com/organic-programming/swift-holons) | Swift | **SwiftUI** | ✅ stdio | 0.1.0 |
-| [dart-holons](https://github.com/organic-programming/dart-holons) | Dart | **Flutter** | ✅ stdio | 0.1.0 |
-| [kotlin-holons](https://github.com/organic-programming/kotlin-holons) | Kotlin | **Compose** | ✅ | 0.1.0 |
-| [csharp-holons](https://github.com/organic-programming/csharp-holons) | C# | **MAUI** | ✅ | 0.1.0 |
-| [cpp-holons](https://github.com/organic-programming/cpp-holons) | C++ | **Qt** | ✅ | 0.1.0 |
+## Expected v0.6 transport Matrix 
 
-### Full-Stack SDKs — both daemon and frontend
+| SDK | `tcp://` | `unix://` | `stdio://` | `ws://` | `wss://` | `rest+sse` |
+|-----|:--------:|:---------:|:----------:|:-------:|:--------:|:----------:|
+| `go-holons` | both | both | both | both | both | both |
+| `dart-holons` | both | both | both | dial | dial | dial |
+| `kotlin-holons` | both | both | both | dial | dial | dial |
+| `swift-holons` | both | both | both | dial | dial | dial |
+| `rust-holons` | both | both | both | dial | dial | dial |
+| `js-holons` | both | both | both | dial | dial | dial |
+| `js-web-holons` | - | - | - | dial| dial | dial |
+| `c-holons` | both | both | both | dial | dial | dial |
+| `cpp-holons` | both | both | both | dial | dial | dial |
+| `csharp-holons`| both | both | both | dial | dial | dial |
+| `java-holons` | both | both | both | dial | dial | dial |
+| `python-holons`| both | both | both | dial | dial | dial |
+| `ruby-holons` | both | both | both | dial | dial | dial |
 
-Some SDKs work on both sides. They can serve holons _and_
-drive UIs with first-class framework support.
 
-| SDK | Language | Daemon? | UI? | Note |
-|-----|----------|---------|-----|------|
-| **Swift** | Swift | ⚠️ possible (Vapor/NIO) | ✅ SwiftUI | macOS apps can serve; iOS cannot |
-| **Dart** | Dart | ⚠️ possible (shelf) | ✅ Flutter | Primarily frontend |
-| **Kotlin** | Kotlin | ⚠️ possible (Ktor) | ✅ Compose | Primarily frontend |
-| **C#** | C# | ✅ Kestrel | ✅ MAUI | Both sides supported |
-| **C++** | C++ | ✅ custom | ✅ Qt | Both sides supported |
+## References
 
-> The Full-Stack table shows **capability**, not current usage.
-> Today, Swift/Dart/Kotlin are used as frontends in recipes.
-
-### Browser SDK — web client only
-
-| SDK | Language | Serve | Connect |
-|-----|----------|-------|---------|
-| [js-web-holons](https://github.com/organic-programming/js-web-holons) | JS (Browser) | ❌ | dial only |
-
-The browser cannot scan filesystems, spawn processes, or serve
-gRPC. `js-web-holons` provides `connect(uri)` (direct dial)
-and native `EventSource` for SSE streaming.
-
-### Utility SDKs
-
-| SDK | Language | Role | Version |
-|-----|----------|------|:-------:|
-| [java-holons](https://github.com/organic-programming/java-holons) | Java | Server-side alternative to Kotlin | 0.1.0 |
-| [ruby-holons](https://github.com/organic-programming/ruby-holons) | Ruby | Scripting + automation | 0.1.0 |
+- Protocol details, including the dynamic dispatch workflow: [`../PROTOCOL.md`](../PROTOCOL.md)
+- **UNVERIFIED DEEP REVIEW REQUIRED DON'T USE THIS CURRENTLY**:  Directory and naming conventions for holon structure: [`../CONVENTIONS.md`](../CONVENTIONS.md)
+- Examples and "Hello World" implementations: [`../examples/README.md`](../examples/README.md)
 
 ---
 
-## Holon-RPC (Describe)
-
-`HolonMeta.Describe` is the self-documentation RPC auto-registered
-by the SDK's `serve` runner. It is **not** a transport — it is a
-service that runs _over_ any transport.
-
-- **Server** (auto): daemon SDKs with a `serve` runner register
-  `Describe` automatically by parsing `.proto` files at startup.
-- **Client** (all): any SDK that calls `connect()` can invoke
-  `Describe()` on the remote holon. This is how readiness
-  verification works and how `op inspect` queries holons.
-
-See [PROTO.md §5](../PROTO.md) and [HOLON_COMMUNICATION_PROTOCOL.md §3.5](../HOLON_COMMUNICATION_PROTOCOL.md).
-
----
-
-## Transport Surface
-
-All SDKs support the 6 transport schemes defined in HOLON_COMMUNICATION_PROTOCOL.md:
-`tcp://`, `unix://`, `stdio://`, `ws://`, `wss://`,
-`rest+sse://` (v0.6+).
-
-| SDK | tcp | unix | stdio | ws/wss | rest+sse |
-|-----|:---:|:----:|:-----:|:------:|:--------:|
-| `go-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `js-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `python-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `rust-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `swift-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 client |
-| `dart-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 client |
-| `kotlin-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 client |
-| `java-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `csharp-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `cpp-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `c-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `ruby-holons` | ✅ | ✅ | ✅ | ✅ | v0.6 |
-| `js-web-holons` | — | — | — | ✅ | v0.6 client |
-
-See [SDK_GUIDE.md](./SDK_GUIDE.md) and each SDK README for exact API
-surfaces and limitations.
-
----
-
-## Recipes
-
-Cross-language matrices now live directly in [`recipes/`](../recipes/)
-instead of per-recipe git submodules.
-
-- `recipes/assemblies/` contains the 48 Gudule greeting assemblies.
-- `recipes/composition/` contains the 33 Charon compositions plus the 2
-  shared worker holons.
-- `recipes/testmatrix/gudule-greeting-testmatrix/` provides the reusable
-  build-and-run matrix CLI.
-
-Use [`../design/grace-op/v0.4/recipes.yaml`](../design/grace-op/v0.4/recipes.yaml)
-for inventory and naming, and [`../recipes/README.md`](../recipes/README.md)
-for current matrix notes and runnable examples.
-
-| Recipe | Backend | Frontend | Frontend uses `connect` |
-|--------|---------|----------|:----------------------:|
-| [go-dart-holons](https://github.com/organic-programming/go-dart-holons) | Go | Flutter/Dart | ✅ |
-| [go-swift-holons](https://github.com/organic-programming/go-swift-holons) | Go | SwiftUI | ✅ |
-| [go-kotlin-holons](https://github.com/organic-programming/go-kotlin-holons) | Go | Kotlin Desktop | ✅ |
-| [go-web-holons](https://github.com/organic-programming/go-web-holons) | Go | Web | ✅ |
-| [go-qt-holons](https://github.com/organic-programming/go-qt-holons) | Go | Qt/C++ | ✅ |
-| [go-dotnet-holons](https://github.com/organic-programming/go-dotnet-holons) | Go | .NET MAUI | ✅ |
-| [rust-dart-holons](https://github.com/organic-programming/rust-dart-holons) | Rust | Flutter/Dart | ✅ |
-| [rust-swift-holons](https://github.com/organic-programming/rust-swift-holons) | Rust | SwiftUI | ✅ |
-| [rust-kotlin-holons](https://github.com/organic-programming/rust-kotlin-holons) | Rust | Kotlin Desktop | ✅ |
-| [rust-web-holons](https://github.com/organic-programming/rust-web-holons) | Rust | Web | ✅ |
-| [rust-dotnet-holons](https://github.com/organic-programming/rust-dotnet-holons) | Rust | .NET MAUI | ✅ |
-| [rust-qt-holons](https://github.com/organic-programming/rust-qt-holons) | Rust | Qt/C++ | ✅ |
-
----
-
-## Reference Implementation
-
-**go-holons** remains the reference SDK. It currently provides the most
-complete `serve` / `transport` / `identity` / `discover` / `connect`
-surface and the canonical Holon-RPC implementation used by the rest of
-the fleet for interop validation.
+[^1]: **Reference Implementation**: Fully implements Dial and Serve across all transports.
+[^2]: Browser-only: Can only Dial outward; cannot bind to a port to Serve.
+[^3]: This is the direct transport matrix per sdk, using [op proxy](../holons/grace-op/PROXY.md) enables to serve any transports.
