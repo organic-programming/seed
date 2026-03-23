@@ -589,6 +589,106 @@ on the client. It supports unary requests and server-streaming only.
 > routes**. This gives better access-log visibility, standard
 > URL-based rate limiting, and simpler infrastructure integration.
 
+##### Content-Type
+
+| Direction | Header |
+|-----------|--------|
+| Request (POST) | `Content-Type: application/json` |
+| Response (POST) | `Content-Type: application/json` |
+| Response (GET SSE) | `Content-Type: text/event-stream` |
+
+##### HTTP Status Codes
+
+The server **must** return standard HTTP status codes. JSON-RPC error
+objects are still included in the body when applicable.
+
+| Situation | HTTP Status | Body |
+|-----------|:-----------:|------|
+| Success (unary) | `200` | JSON response |
+| Method not found | `404` | JSON-RPC error (`code: 5`) |
+| Invalid JSON / bad request | `400` | JSON-RPC error (`code: -32700` or `-32600`) |
+| Internal error | `500` | JSON-RPC error (`code: 13`) |
+| SSE stream opened | `200` | `text/event-stream` |
+
+##### Server-Streaming Requests
+
+Server-streaming RPCs use `Accept: text/event-stream` to open an SSE
+stream. Both verbs are supported:
+
+| Verb | When to use | Payload |
+|------|-------------|---------|
+| `POST` | Request has a body (recommended) | JSON body, same as unary |
+| `GET` | Request has no fields or only simple scalars | Query params (`?key=value`) |
+
+Both **must** include `Accept: text/event-stream`. The server returns
+`Content-Type: text/event-stream` and begins streaming.
+
+```
+POST /api/v1/rpc/build.v1.BuildService/WatchBuild
+Accept: text/event-stream
+Content-Type: application/json
+
+{"project": "myapp", "filter": {"status": "active"}}
+```
+
+```
+GET /api/v1/rpc/build.v1.BuildService/WatchBuild?project=myapp
+Accept: text/event-stream
+```
+
+##### SSE Event Format
+
+Each SSE event carries one JSON response message. The format follows
+the [SSE specification](https://html.spec.whatwg.org/multipage/server-sent-events.html):
+
+```
+event: message
+id: 1
+data: {"jsonrpc":"2.0","id":"c42","result":{"status":"building","progress":42}}
+
+event: message
+id: 2
+data: {"jsonrpc":"2.0","id":"c42","result":{"status":"done","progress":100}}
+
+event: error
+data: {"jsonrpc":"2.0","id":"c42","error":{"code":13,"message":"build failed"}}
+
+```
+
+| SSE field | Value | Required |
+|-----------|-------|:--------:|
+| `event` | `message` for results, `error` for errors | ✅ |
+| `id` | Monotonically increasing integer (1, 2, 3…) | ✅ |
+| `data` | One complete JSON-RPC 2.0 response object per line | ✅ |
+
+- The `id` field enables `Last-Event-ID` reconnection per the SSE spec.
+- The stream ends with an `event: done` event (empty `data:`), after
+  which the server closes the connection.
+- If the client disconnects, the server **must** cancel the
+  underlying RPC.
+
+```
+event: done
+data:
+
+```
+
+##### CORS (Browser Clients)
+
+Servers exposing HTTP+SSE **must** handle CORS for browser access:
+
+| Header | Value |
+|--------|-------|
+| `Access-Control-Allow-Origin` | Configurable (default: request `Origin`) |
+| `Access-Control-Allow-Methods` | `GET, POST, OPTIONS` |
+| `Access-Control-Allow-Headers` | `Content-Type, Accept, Last-Event-ID` |
+| `Access-Control-Max-Age` | `86400` (24 h) |
+
+Preflight `OPTIONS` requests **must** return `204` with the headers
+above. The allowed origin **should** be configurable per listener —
+`*` is acceptable for development but **must not** be the production
+default.
+
 #### URL Convention
 
 ```
