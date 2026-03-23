@@ -56,7 +56,7 @@ Transports provide the underlying connection mechanism. Not all SDKs support all
 
 | SDK | `tcp://` | `unix://` | `stdio://` | `ws://` | `wss://` | `rest+sse` |
 |-----|:--------:|:---------:|:----------:|:-------:|:--------:|:----------:|
-| `go-holons` | both | both | both | ? | ? | ? |
+| `go-holons` | both | both | both | both | both | both |
 | `dart-holons` | ? | ? | ? | ? | ? | ? |
 | `kotlin-holons` | ? | ? | ? | ? | ? | ? |
 | `swift-holons` | ? | ? | ? | ? | ? | ? |
