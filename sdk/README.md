@@ -58,7 +58,7 @@ Transports provide the underlying connection mechanism. Not all SDKs support all
 |-----|:--------:|:---------:|:----------:|:-------:|:--------:|:----------:|
 | `go-holons` | both | both | both | both | both | both |
 | `dart-holons` | both | both | both | both | dial | both |
-| `kotlin-holons` | ? | ? | ? | ? | ? | ? |
+| `kotlin-holons` | both | both | both | dial | dial | - |
 | `swift-holons` | ? | ? | ? | ? | ? | ? |
 | `rust-holons` | ? | ? | ? | ? | ? | ? |
 | `js-holons` | both | both | both | both | both | - |
