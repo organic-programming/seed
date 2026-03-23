@@ -53,13 +53,13 @@ void main() {
     final stderr = StringBuffer();
 
     final code = await cli.main(
-      <String>['sayHello', 'Alice', 'fr'],
+      <String>['sayHello', 'Bob', 'fr'],
       stdoutSink: stdout,
       stderrSink: stderr,
     );
 
     expect(code, equals(0));
-    expect(stdout.toString().trim(), equals('Bonjour Alice'));
+    expect(stdout.toString().trim(), equals('Bonjour Bob'));
     expect(stderr.toString(), isEmpty);
   });
 

@@ -59,6 +59,6 @@ npm install
 npm run generate-proto
 node cmd/main.js version
 node cmd/main.js listLanguages --format json
-node cmd/main.js sayHello Alice fr
+node cmd/main.js sayHello Bob fr
 node cmd/main.js serve --port 9090
 ```

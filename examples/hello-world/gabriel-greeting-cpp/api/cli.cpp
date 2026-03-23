@@ -346,8 +346,8 @@ void PrintUsage(std::ostream &output) {
   output << "  gabriel-greeting-cpp serve --listen tcp://:9090\n";
   output << "  gabriel-greeting-cpp serve --listen tcp://:9090 --reflect\n";
   output << "  gabriel-greeting-cpp listLanguages --format json\n";
-  output << "  gabriel-greeting-cpp sayHello Alice fr\n";
-  output << "  gabriel-greeting-cpp sayHello Alice --lang fr --format json\n";
+  output << "  gabriel-greeting-cpp sayHello Bob fr\n";
+  output << "  gabriel-greeting-cpp sayHello Bob --lang fr --format json\n";
 }
 
 } // namespace gabriel::greeting::cppholon::api

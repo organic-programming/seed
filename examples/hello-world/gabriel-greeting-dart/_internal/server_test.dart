@@ -63,11 +63,11 @@ void main() {
     final client = GreetingServiceClient(channel);
     final response = await client.sayHello(
       SayHelloRequest()
-        ..name = 'Alice'
+        ..name = 'Bob'
         ..langCode = 'fr',
     );
 
-    expect(response.greeting, equals('Bonjour Alice'));
+    expect(response.greeting, equals('Bonjour Bob'));
     expect(response.language, equals('French'));
     expect(response.langCode, equals('fr'));
   });

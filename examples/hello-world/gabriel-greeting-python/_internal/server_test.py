@@ -43,10 +43,10 @@ class GreetingServerTest(unittest.TestCase):
 
     def test_say_hello_uses_requested_language(self) -> None:
         response = self.stub.SayHello(
-            greeting_pb2.SayHelloRequest(name="Alice", lang_code="fr"),
+            greeting_pb2.SayHelloRequest(name="Bob", lang_code="fr"),
             timeout=5,
         )
-        self.assertEqual(response.greeting, "Bonjour Alice")
+        self.assertEqual(response.greeting, "Bonjour Bob")
         self.assertEqual(response.language, "French")
         self.assertEqual(response.lang_code, "fr")
 

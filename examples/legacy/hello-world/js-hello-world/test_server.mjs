@@ -6,10 +6,10 @@ import { greet, register } from "./server.mjs";
 
 describe("HelloService", () => {
     it("greets with a name", (_, done) => {
-        const call = { request: { name: "Alice" } };
+        const call = { request: { name: "Bob" } };
         greet(call, (err, resp) => {
             assert.equal(err, null);
-            assert.equal(resp.message, "Hello, Alice!");
+            assert.equal(resp.message, "Hello, Bob!");
             done();
         });
     });

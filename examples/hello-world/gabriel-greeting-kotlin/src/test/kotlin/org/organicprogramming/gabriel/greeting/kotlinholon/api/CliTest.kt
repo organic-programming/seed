@@ -57,10 +57,10 @@ class CliTest {
         val stdout = ByteArrayOutputStream()
         val stderr = ByteArrayOutputStream()
 
-        val exitCode = Cli.run(arrayOf("sayHello", "Alice", "fr"), PrintStream(stdout), PrintStream(stderr))
+        val exitCode = Cli.run(arrayOf("sayHello", "Bob", "fr"), PrintStream(stdout), PrintStream(stderr))
 
         assertEquals(0, exitCode)
-        assertEquals("Bonjour Alice", stdout.toString().trim())
+        assertEquals("Bonjour Bob", stdout.toString().trim())
         assertEquals("", stderr.toString())
     }
 

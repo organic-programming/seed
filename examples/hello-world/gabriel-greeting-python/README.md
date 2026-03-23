@@ -57,7 +57,7 @@ The `serve` sub-command is a rich feature provided by the Python SDK (`holons.se
 When a user runs:
 
 ```bash
-op gabriel-greeting-python SayHello '{"name":"Alice","lang_code":"en"}'
+op gabriel-greeting-python SayHello '{"name":"Bob","lang_code":"en"}'
 ```
 
 `op` performs the following chain:

@@ -8,7 +8,7 @@ require_relative "hello"
 
 class HelloServiceTest < Minitest::Test
   def test_greet_with_name
-    assert_equal "Hello, Alice!", HelloService.greet("Alice")
+    assert_equal "Hello, Bob!", HelloService.greet("Bob")
   end
 
   def test_greet_default
@@ -42,8 +42,8 @@ class HelloServiceTest < Minitest::Test
           timeout: 5
         )
 
-        response = stub.greet(Hello::V1::GreetRequest.new(name: "Alice"))
-        assert_equal "Hello, Alice!", response.message
+        response = stub.greet(Hello::V1::GreetRequest.new(name: "Bob"))
+        assert_equal "Hello, Bob!", response.message
       ensure
         Holons.disconnect(channel)
       end

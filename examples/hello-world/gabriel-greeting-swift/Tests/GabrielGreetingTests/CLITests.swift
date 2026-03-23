@@ -32,10 +32,10 @@ final class CLITests: XCTestCase {
         var stdout = StringOutputStream()
         var stderr = StringOutputStream()
 
-        let code = CLI.run(["say-hello", "Alice", "fr"], stdout: &stdout, stderr: &stderr)
+        let code = CLI.run(["say-hello", "Bob", "fr"], stdout: &stdout, stderr: &stderr)
 
         XCTAssertEqual(code, 0)
-        XCTAssertEqual(stdout.string.trimmingCharacters(in: .whitespacesAndNewlines), "Bonjour Alice")
+        XCTAssertEqual(stdout.string.trimmingCharacters(in: .whitespacesAndNewlines), "Bonjour Bob")
         XCTAssertTrue(stderr.string.isEmpty)
     }
 

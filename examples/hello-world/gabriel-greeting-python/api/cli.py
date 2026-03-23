@@ -198,9 +198,9 @@ def print_usage(output: TextIO) -> None:
     print("examples:", file=output)
     print("  gabriel-greeting-python serve --listen stdio", file=output)
     print("  gabriel-greeting-python listLanguages --format json", file=output)
-    print("  gabriel-greeting-python sayHello Alice fr", file=output)
+    print("  gabriel-greeting-python sayHello Bob fr", file=output)
     print(
-        "  gabriel-greeting-python sayHello Alice --lang fr --format json",
+        "  gabriel-greeting-python sayHello Bob --lang fr --format json",
         file=output,
     )
 

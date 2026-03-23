@@ -32,8 +32,8 @@ build.gradle                              Gradle build.
 gradle test
 java -cp build/classes/java/main:build/resources/main org.organicprogramming.gabriel.greeting.javaholon.cmd.Main version
 java -cp build/classes/java/main:build/resources/main org.organicprogramming.gabriel.greeting.javaholon.cmd.Main listLanguages --format json
-java -cp build/classes/java/main:build/resources/main org.organicprogramming.gabriel.greeting.javaholon.cmd.Main sayHello Alice fr
+java -cp build/classes/java/main:build/resources/main org.organicprogramming.gabriel.greeting.javaholon.cmd.Main sayHello Bob fr
 java -cp build/classes/java/main:build/resources/main org.organicprogramming.gabriel.greeting.javaholon.cmd.Main serve --port 9090 --reflect
 grpcurl -plaintext 127.0.0.1:9090 list
-grpcurl -plaintext -d '{"name":"Alice","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
+grpcurl -plaintext -d '{"name":"Bob","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
 ```

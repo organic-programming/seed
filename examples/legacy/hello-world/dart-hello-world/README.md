@@ -7,7 +7,7 @@ A minimal holon implementing `HelloService.Greet` in Dart with
 
 ```bash
 dart run bin/hello.dart
-dart run bin/hello.dart Alice
+dart run bin/hello.dart Bob
 dart run bin/hello.dart serve --listen tcp://127.0.0.1:9090
 ```
 
@@ -21,8 +21,8 @@ dart pub get && dart test
 
 ```bash
 dart compile exe bin/hello.dart -o hello
-op grpc+stdio://./hello Greet '{"name":"Alice"}'
-# → { "message": "Hello, Alice!" }
+op grpc+stdio://./hello Greet '{"name":"Bob"}'
+# → { "message": "Hello, Bob!" }
 ```
 
 ## Connect example

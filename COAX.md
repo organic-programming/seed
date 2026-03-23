@@ -49,18 +49,18 @@ adds its own domain services on top.
 ![Gabriel Greeting App SwiftUI greets Mary](./assets/images/gabriel-greeting-app-swiftui-mary.png)
 
 
-#### You call **op Greet jesus** on the organism 
+#### You call **op Greet Bob** on the organism 
 
 ```shell
-$ op grpc+tcp://127.0.0.1:60000 Greet '{"name":"Jesus"}'
+$ op grpc+tcp://127.0.0.1:60000 Greet '{"name":"Bob"}'
 {
-  "greeting": "Hello Jesus"
+  "greeting": "Hello Bob"
 }
 ```
 
 #### State of the app after the call 
 
-![Gabriel Greeting App SwiftUI greet Jesus](./assets/images/gabriel-greeting-app-swiftui-jesus.png)
+![Gabriel Greeting App SwiftUI greet Bob](./assets/images/gabriel-greeting-app-swiftui-Bob.png)
 
 
 
@@ -107,7 +107,7 @@ $ op grpc+tcp://127.0.0.1:60000 Greet '{"name":"Jesus"}'
    produced by `protoc` at compile time.
 
 8. **OP JSON → dynamic protobuf message** — `protojson.Unmarshal` parses the CLI
-   JSON `{"name":"Jesus"}` into a `dynamicpb.Message` backed by the synthetic
+   JSON `{"name":"Bob"}` into a `dynamicpb.Message` backed by the synthetic
    `GreetRequest` descriptor.
 
 9. **OP gRPC invoke (binary protobuf on the wire)** — `conn.Invoke` sends the
@@ -117,16 +117,16 @@ $ op grpc+tcp://127.0.0.1:60000 Greet '{"name":"Jesus"}'
     [GreetingAppServiceProvider.swift](./examples/hello-world/gabriel-greeting-app-swiftui/Modules/Sources/GreetingKit/GreetingAppServiceProvider.swift) → `greet`.
     The handler runs on `@MainActor` (the main thread), and:
 
-    - Sets `holon.userName = "Jesus"` — because `HolonProcess` is an
+    - Sets `holon.userName = "Bob"` — because `HolonProcess` is an
       `@ObservableObject`, this **immediately updates the SwiftUI text field**
       in
       [ContentView.swift](./examples/hello-world/gabriel-greeting-app-swiftui/App/ContentView.swift).
-      The name "Jesus" appears in the input field in real time.
+      The name "Bob" appears in the input field in real time.
     - If `lang_code` is provided, sets `holon.selectedLanguageCode` accordingly
       (which updates the language picker in the UI).
 
 11. **Organism delegates to the child holon** — The handler calls
-    `holon.sayHello(name: "Jesus", langCode: langCode)` →
+    `holon.sayHello(name: "Bob", langCode: langCode)` →
     [HolonProcess.swift](./examples/hello-world/gabriel-greeting-app-swiftui/Modules/Sources/GreetingKit/HolonProcess.swift) → `sayHello`
     which forwards the request to the **currently connected child holon**
     (e.g. `gabriel-greeting-go`, `gabriel-greeting-rust`, etc.) via
@@ -137,7 +137,7 @@ $ op grpc+tcp://127.0.0.1:60000 Greet '{"name":"Jesus"}'
 
 12. **Child holon responds** — The selected holon (e.g. gabriel-greeting-go)
     processes the `SayHello` request and returns the localized greeting text
-    (e.g. `"Hello, Jesus!"`).
+    (e.g. `"Hello, Bob!"`).
 
 13. **Organism updates the UI** — Back in `GreetingAppServiceProvider.greet()`, the
     handler sets `holon.greeting = greeting` on `@MainActor`. Because
@@ -222,7 +222,7 @@ $ grpcurl -plaintext \
     -import-path examples/_protos \
     -import-path examples/hello-world/gabriel-greeting-app-swiftui \
     -proto api/v1/holon.proto \
-    -d '{"name":"Jesus"}' \
+    -d '{"name":"Bob"}' \
     127.0.0.1:60000 greeting.v1.GreetingAppService/Greet
 ```
 

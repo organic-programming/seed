@@ -339,7 +339,7 @@ void gabriel_greeting_c_print_usage(FILE *output) {
   fprintf(output, "examples:\n");
   fprintf(output, "  gabriel-greeting-c serve --listen tcp://:9090\n");
   fprintf(output, "  gabriel-greeting-c listLanguages --format json\n");
-  fprintf(output, "  gabriel-greeting-c sayHello Alice fr\n");
+  fprintf(output, "  gabriel-greeting-c sayHello Bob fr\n");
   fprintf(output,
-          "  gabriel-greeting-c sayHello Alice --lang fr --format json\n");
+          "  gabriel-greeting-c sayHello Bob --lang fr --format json\n");
 }

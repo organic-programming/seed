@@ -10,23 +10,23 @@ The recommended way to build a holon is via `op build`:
 
 
 ```bash
-op gabriel-greet-go Greet '{"name": "Alice"}'
-op grpc://gabriel-greet-go Greet '{"name":"Alice"}'
-op grpc+stdio://gabriel-greet-go Greet '{"name":"Alice"}'
-op grpc+tcp://gabriel-greet-go Greet '{"name":"Alice"}'
+op gabriel-greet-go Greet '{"name": "Bob"}'
+op grpc://gabriel-greet-go Greet '{"name":"Bob"}'
+op grpc+stdio://gabriel-greet-go Greet '{"name":"Bob"}'
+op grpc+tcp://gabriel-greet-go Greet '{"name":"Bob"}'
 
 ??? 
-op grpc://127.0.0.1:9090 Greet '{"name":"Alice"}'
-op grpc+tcp://127.0.0.1:9090 Greet '{"name":"Alice"}'
-op grpc+unix:///tmp/gabriel-greet-go.sock Greet '{"name":"Alice"}'
-op grpc+ws://127.0.0.1:8080/grpc Greet '{"name":"Alice"}'
-op grpc+wss://example.com/grpc Greet '{"name":"Alice"}'
+op grpc://127.0.0.1:9090 Greet '{"name":"Bob"}'
+op grpc+tcp://127.0.0.1:9090 Greet '{"name":"Bob"}'
+op grpc+unix:///tmp/gabriel-greet-go.sock Greet '{"name":"Bob"}'
+op grpc+ws://127.0.0.1:8080/grpc Greet '{"name":"Bob"}'
+op grpc+wss://example.com/grpc Greet '{"name":"Bob"}'
 
 op grpc://127.0.0.1:9090
 op grpc+unix:///tmp/gabriel-greet-go.sock
 
-op gabriel-greet-go Greet '{"name":"Alice"}'
-op grpc://gabriel-greet-go Greet '{"name":"Alice"}'
+op gabriel-greet-go Greet '{"name":"Bob"}'
+op grpc://gabriel-greet-go Greet '{"name":"Bob"}'
 
 ````
 
@@ -44,8 +44,8 @@ This ensures the binary is properly constructed using the runner specified in `h
 The most idiomatic way to orchestrate a holon is using `op`. `op` acts as the runner, taking care of starting the binary, connecting over the `stdio` pipe, calling the method, and gracefully shutting it down:
 
 ```bash
-op grpc+stdio://gabriel-greet-go Greet '{"name": "Alice"}'
-# → { "message": "Hello, Alice!" }
+op grpc+stdio://gabriel-greet-go Greet '{"name": "Bob"}'
+# → { "message": "Hello, Bob!" }
 ```
 
 No server to explicitly start, no port to figure out. **This is the recommended way to call a holon.**
@@ -56,7 +56,7 @@ Underneath the OP execution, `gabriel-greet-go` is still just a standard binary 
 
 ```bash
 ./gabriel-greet-go greet              # → Hello, World!
-./gabriel-greet-go greet Alice        # → Hello, Alice!
+./gabriel-greet-go greet Bob        # → Hello, Bob!
 ```
 
 ### 3. The Composed Way: Persistent Server
@@ -70,7 +70,7 @@ When a holon needs to stay alive—handling multiple clients, exposed on a netwo
 ```
 **Terminal 2 (Client):**
 ```bash
-op tcp://localhost:1234 Greet '{"name": "Alice"}'
+op tcp://localhost:1234 Greet '{"name": "Bob"}'
 ```
 
 ### 2. Unix Domain Sockets
@@ -80,7 +80,7 @@ op tcp://localhost:1234 Greet '{"name": "Alice"}'
 ```
 **Terminal 2 (Client):**
 ```bash
-op unix:///tmp/gabriel.sock Greet '{"name": "Alice"}'
+op unix:///tmp/gabriel.sock Greet '{"name": "Bob"}'
 ```
 
 ### 3. WebSocket (gRPC-Web over ws://)
@@ -90,13 +90,13 @@ op unix:///tmp/gabriel.sock Greet '{"name": "Alice"}'
 ```
 **Terminal 2 (Client):**
 ```bash
-op ws://localhost:8080/grpc Greet '{"name": "Alice"}'
+op ws://localhost:8080/grpc Greet '{"name": "Bob"}'
 ```
 
 ### 4. STDIO (Standard I/O streams)
 *STDIO is a special transport where the client spawns the server as a subprocess and communicates over stdin/stdout. You only need one terminal:*
 ```bash
-op stdio://gabriel-greet-go Greet '{"name": "Alice"}'
+op stdio://gabriel-greet-go Greet '{"name": "Bob"}'
 ```
 
 

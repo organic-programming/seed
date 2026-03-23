@@ -64,8 +64,8 @@ static int dial_tcp(const holons_uri_t *uri) {
 static void test_greeting(void) {
   char out[128];
 
-  check_int(hello_greet("Alice", out, sizeof(out)) == 0, "hello_greet Alice");
-  check_int(strcmp(out, "Hello, Alice!") == 0, "greet Alice text");
+  check_int(hello_greet("Bob", out, sizeof(out)) == 0, "hello_greet Bob");
+  check_int(strcmp(out, "Hello, Bob!") == 0, "greet Bob text");
 
   check_int(hello_greet("", out, sizeof(out)) == 0, "hello_greet empty");
   check_int(strcmp(out, "Hello, World!") == 0, "greet empty -> World");
@@ -91,7 +91,7 @@ static void test_transports(void) {
   check_int(holons_mem_dial(&listener, &client_conn, err, sizeof(err)) == 0, "mem dial");
   check_int(holons_accept(&listener, &server_conn, err, sizeof(err)) == 0, "mem accept");
 
-  check_int(holons_conn_write(&client_conn, "Alice\n", 6) == 6, "mem write request");
+  check_int(holons_conn_write(&client_conn, "Bob\n", 6) == 6, "mem write request");
   n = holons_conn_read(&server_conn, buffer, sizeof(buffer) - 1);
   check_int(n == 6, "mem read request");
   buffer[n] = '\0';

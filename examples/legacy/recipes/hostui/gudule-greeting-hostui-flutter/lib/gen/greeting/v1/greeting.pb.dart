@@ -239,7 +239,7 @@ class SayHelloRequest extends $pb.GeneratedMessage {
   static SayHelloRequest? _defaultInstance;
 
   /// Name to greet. If empty, the daemon falls back to "World".
-  /// @example "Alice"
+  /// @example "Bob"
   @$pb.TagNumber(1)
   $core.String get name => $_getSZ(0);
   @$pb.TagNumber(1)
@@ -314,7 +314,7 @@ class SayHelloResponse extends $pb.GeneratedMessage {
 
   /// Localized greeting text returned by the daemon.
   /// @required
-  /// @example "Bonjour, Alice !"
+  /// @example "Bonjour, Bob !"
   @$pb.TagNumber(1)
   $core.String get greeting => $_getSZ(0);
   @$pb.TagNumber(1)

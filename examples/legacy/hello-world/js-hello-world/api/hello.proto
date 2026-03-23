@@ -5,19 +5,19 @@ package hello.v1;
 // HelloService — the simplest possible holon contract.
 service HelloService {
   // Greet returns a friendly message for the requested name.
-  // @example {"name":"Alice"}
+  // @example {"name":"Bob"}
   rpc Greet(GreetRequest) returns (GreetResponse);
 }
 
 message GreetRequest {
   // Name to greet. If empty, the service falls back to "World".
-  // @example "Alice"
+  // @example "Bob"
   string name = 1;
 }
 
 message GreetResponse {
   // Generated greeting text.
   // @required
-  // @example "Hello, Alice!"
+  // @example "Hello, Bob!"
   string message = 1;
 }

@@ -738,7 +738,7 @@ namespace Greeting.V1 {
     private string name_ = "";
     /// <summary>
     /// Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-    /// @example "Alice"
+    /// @example "Bob"
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -984,7 +984,7 @@ namespace Greeting.V1 {
     /// <summary>
     /// Localized greeting text returned by the daemon.
     /// @required
-    /// @example "Bonjour, Alice !"
+    /// @example "Bonjour, Bob !"
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

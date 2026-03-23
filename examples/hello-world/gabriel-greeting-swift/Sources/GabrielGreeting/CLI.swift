@@ -220,8 +220,8 @@ public enum CLI {
         output.write("examples:\n")
         output.write("  gabriel-greeting-swift serve --listen stdio\n")
         output.write("  gabriel-greeting-swift list-languages --format json\n")
-        output.write("  gabriel-greeting-swift say-hello Alice fr\n")
-        output.write("  gabriel-greeting-swift say-hello --name Alice --lang fr --format json\n")
+        output.write("  gabriel-greeting-swift say-hello Bob fr\n")
+        output.write("  gabriel-greeting-swift say-hello --name Bob --lang fr --format json\n")
     }
 }
 

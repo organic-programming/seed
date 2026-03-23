@@ -3,7 +3,7 @@ import XCTest
 
 final class SwiftHelloWorldTests: XCTestCase {
     func testGreetName() {
-        XCTAssertEqual(HelloService.greet(name: "Alice"), "Hello, Alice!")
+        XCTAssertEqual(HelloService.greet(name: "Bob"), "Hello, Bob!")
     }
 
     func testGreetDefault() {

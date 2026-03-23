@@ -6,9 +6,9 @@ from server import HelloServicer
 
 def test_greet_with_name():
     servicer = HelloServicer()
-    req = hello_pb2.GreetRequest(name="Alice")
+    req = hello_pb2.GreetRequest(name="Bob")
     resp = servicer.Greet(req, None)
-    assert resp.message == "Hello, Alice!"
+    assert resp.message == "Hello, Bob!"
 
 
 def test_greet_default():

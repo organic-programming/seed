@@ -74,7 +74,7 @@ public struct Greeting_V1_SayHelloRequest: Sendable {
   // methods supported on all messages.
 
   /// Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-  /// @example "Alice"
+  /// @example "Bob"
   public var name: String = String()
 
   /// ISO 639-1 code chosen by the UI.
@@ -94,7 +94,7 @@ public struct Greeting_V1_SayHelloResponse: Sendable {
 
   /// Localized greeting text returned by the daemon.
   /// @required
-  /// @example "Bonjour, Alice !"
+  /// @example "Bonjour, Bob !"
   public var greeting: String = String()
 
   /// English language name used to resolve the greeting.

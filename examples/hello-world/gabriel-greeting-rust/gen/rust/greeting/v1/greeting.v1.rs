@@ -28,7 +28,7 @@ pub struct Language {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SayHelloRequest {
     /// Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-    /// @example "Alice"
+    /// @example "Bob"
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
     /// ISO 639-1 code chosen by the UI.
@@ -41,7 +41,7 @@ pub struct SayHelloRequest {
 pub struct SayHelloResponse {
     /// Localized greeting text returned by the daemon.
     /// @required
-    /// @example "Bonjour, Alice !"
+    /// @example "Bonjour, Bob !"
     #[prost(string, tag = "1")]
     pub greeting: ::prost::alloc::string::String,
     /// English language name used to resolve the greeting.
@@ -173,7 +173,7 @@ pub mod greeting_service_client {
             self.inner.unary(req, path, codec).await
         }
         /// Greets the user in the chosen language.
-        /// @example {"name":"Alice","lang_code":"fr"}
+        /// @example {"name":"Bob","lang_code":"fr"}
         pub async fn say_hello(
             &mut self,
             request: impl tonic::IntoRequest<super::SayHelloRequest>,
@@ -223,7 +223,7 @@ pub mod greeting_service_server {
             tonic::Status,
         >;
         /// Greets the user in the chosen language.
-        /// @example {"name":"Alice","lang_code":"fr"}
+        /// @example {"name":"Bob","lang_code":"fr"}
         async fn say_hello(
             &self,
             request: tonic::Request<super::SayHelloRequest>,

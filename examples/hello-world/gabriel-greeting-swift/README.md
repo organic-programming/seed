@@ -57,7 +57,7 @@ The `serve` sub-command is a rich feature provided by the Swift SDK (`Holons.Ser
 When a user runs:
 
 ```bash
-op gabriel-greeting-swift SayHello '{"name":"Alice","lang_code":"en"}'
+op gabriel-greeting-swift SayHello '{"name":"Bob","lang_code":"en"}'
 ```
 
 `op` performs the following chain:

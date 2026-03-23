@@ -22,10 +22,10 @@ class GreetingPublicTest(unittest.TestCase):
 
     def test_say_hello_uses_requested_language(self) -> None:
         response = public.say_hello(
-            greeting_pb2.SayHelloRequest(name="Alice", lang_code="fr")
+            greeting_pb2.SayHelloRequest(name="Bob", lang_code="fr")
         )
 
-        self.assertEqual(response.greeting, "Bonjour Alice")
+        self.assertEqual(response.greeting, "Bonjour Bob")
         self.assertEqual(response.language, "French")
         self.assertEqual(response.lang_code, "fr")
 

@@ -7,7 +7,7 @@ public class HelloServiceTest
     [Fact]
     public void GreetWithName()
     {
-        Assert.Equal("Hello, Alice!", HelloService.Greet("Alice"));
+        Assert.Equal("Hello, Bob!", HelloService.Greet("Bob"));
     }
 
     [Fact]

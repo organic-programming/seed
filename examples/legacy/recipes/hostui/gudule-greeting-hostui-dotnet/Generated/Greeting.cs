@@ -970,7 +970,7 @@ namespace Greeting.V1 {
     public const int GreetingFieldNumber = 1;
     private string greeting_ = "";
     /// <summary>
-    /// "Bonjour, Alice !"
+    /// "Bonjour, Bob !"
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

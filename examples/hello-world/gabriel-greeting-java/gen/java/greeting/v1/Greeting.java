@@ -2228,7 +2228,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
     /**
      * <pre>
      * Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-     * &#64;example "Alice"
+     * &#64;example "Bob"
      * </pre>
      *
      * <code>string name = 1;</code>
@@ -2238,7 +2238,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
     /**
      * <pre>
      * Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-     * &#64;example "Alice"
+     * &#64;example "Bob"
      * </pre>
      *
      * <code>string name = 1;</code>
@@ -2321,7 +2321,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
     /**
      * <pre>
      * Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-     * &#64;example "Alice"
+     * &#64;example "Bob"
      * </pre>
      *
      * <code>string name = 1;</code>
@@ -2343,7 +2343,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
     /**
      * <pre>
      * Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-     * &#64;example "Alice"
+     * &#64;example "Bob"
      * </pre>
      *
      * <code>string name = 1;</code>
@@ -2737,7 +2737,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
       /**
        * <pre>
        * Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-       * &#64;example "Alice"
+       * &#64;example "Bob"
        * </pre>
        *
        * <code>string name = 1;</code>
@@ -2758,7 +2758,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
       /**
        * <pre>
        * Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-       * &#64;example "Alice"
+       * &#64;example "Bob"
        * </pre>
        *
        * <code>string name = 1;</code>
@@ -2780,7 +2780,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
       /**
        * <pre>
        * Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-       * &#64;example "Alice"
+       * &#64;example "Bob"
        * </pre>
        *
        * <code>string name = 1;</code>
@@ -2798,7 +2798,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
       /**
        * <pre>
        * Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-       * &#64;example "Alice"
+       * &#64;example "Bob"
        * </pre>
        *
        * <code>string name = 1;</code>
@@ -2813,7 +2813,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
       /**
        * <pre>
        * Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-       * &#64;example "Alice"
+       * &#64;example "Bob"
        * </pre>
        *
        * <code>string name = 1;</code>
@@ -2991,7 +2991,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
      * <pre>
      * Localized greeting text returned by the daemon.
      * &#64;required
-     * &#64;example "Bonjour, Alice !"
+     * &#64;example "Bonjour, Bob !"
      * </pre>
      *
      * <code>string greeting = 1;</code>
@@ -3002,7 +3002,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
      * <pre>
      * Localized greeting text returned by the daemon.
      * &#64;required
-     * &#64;example "Bonjour, Alice !"
+     * &#64;example "Bonjour, Bob !"
      * </pre>
      *
      * <code>string greeting = 1;</code>
@@ -3111,7 +3111,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
      * <pre>
      * Localized greeting text returned by the daemon.
      * &#64;required
-     * &#64;example "Bonjour, Alice !"
+     * &#64;example "Bonjour, Bob !"
      * </pre>
      *
      * <code>string greeting = 1;</code>
@@ -3134,7 +3134,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
      * <pre>
      * Localized greeting text returned by the daemon.
      * &#64;required
-     * &#64;example "Bonjour, Alice !"
+     * &#64;example "Bonjour, Bob !"
      * </pre>
      *
      * <code>string greeting = 1;</code>
@@ -3604,7 +3604,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
        * <pre>
        * Localized greeting text returned by the daemon.
        * &#64;required
-       * &#64;example "Bonjour, Alice !"
+       * &#64;example "Bonjour, Bob !"
        * </pre>
        *
        * <code>string greeting = 1;</code>
@@ -3626,7 +3626,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
        * <pre>
        * Localized greeting text returned by the daemon.
        * &#64;required
-       * &#64;example "Bonjour, Alice !"
+       * &#64;example "Bonjour, Bob !"
        * </pre>
        *
        * <code>string greeting = 1;</code>
@@ -3649,7 +3649,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
        * <pre>
        * Localized greeting text returned by the daemon.
        * &#64;required
-       * &#64;example "Bonjour, Alice !"
+       * &#64;example "Bonjour, Bob !"
        * </pre>
        *
        * <code>string greeting = 1;</code>
@@ -3668,7 +3668,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
        * <pre>
        * Localized greeting text returned by the daemon.
        * &#64;required
-       * &#64;example "Bonjour, Alice !"
+       * &#64;example "Bonjour, Bob !"
        * </pre>
        *
        * <code>string greeting = 1;</code>
@@ -3684,7 +3684,7 @@ public final class Greeting extends com.google.protobuf.GeneratedFile {
        * <pre>
        * Localized greeting text returned by the daemon.
        * &#64;required
-       * &#64;example "Bonjour, Alice !"
+       * &#64;example "Bonjour, Bob !"
        * </pre>
        *
        * <code>string greeting = 1;</code>

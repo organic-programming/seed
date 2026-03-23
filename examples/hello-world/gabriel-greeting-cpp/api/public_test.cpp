@@ -34,10 +34,10 @@ int main() {
   }
 
   greeting::v1::SayHelloRequest unknown;
-  unknown.set_name("Alice");
+  unknown.set_name("Bob");
   unknown.set_lang_code("xx");
   auto english_fallback = gabriel::greeting::cppholon::api::SayHello(unknown);
-  if (!Expect(english_fallback.greeting() == "Hello Alice", "expected English fallback greeting")) {
+  if (!Expect(english_fallback.greeting() == "Hello Bob", "expected English fallback greeting")) {
     return 1;
   }
   if (!Expect(english_fallback.lang_code() == "en", "expected English fallback lang code")) {

@@ -57,7 +57,7 @@ The `serve` sub-command is provided by the Rust SDK (`holons::serve`). It handle
 When a user runs:
 
 ```bash
-op gabriel-greeting-rust SayHello '{"name":"Alice","lang_code":"en"}'
+op gabriel-greeting-rust SayHello '{"name":"Bob","lang_code":"en"}'
 ```
 
 `op` performs the following chain:

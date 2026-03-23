@@ -36,8 +36,8 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ./build/gabriel-greeting-cpp version
 ./build/gabriel-greeting-cpp listLanguages --format json
-./build/gabriel-greeting-cpp sayHello Alice fr
+./build/gabriel-greeting-cpp sayHello Bob fr
 ./build/gabriel-greeting-cpp serve --port 9090
 grpcurl -plaintext 127.0.0.1:9090 list
-grpcurl -plaintext -d '{"name":"Alice","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
+grpcurl -plaintext -d '{"name":"Bob","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
 ```

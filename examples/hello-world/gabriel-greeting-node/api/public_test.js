@@ -17,12 +17,12 @@ test('listLanguages includes English', () => {
 
 test('sayHello uses requested language', () => {
   const request = new pb.SayHelloRequest();
-  request.setName('Alice');
+  request.setName('Bob');
   request.setLangCode('fr');
 
   const response = publicApi.sayHello(request);
 
-  assert.equal(response.getGreeting(), 'Bonjour Alice');
+  assert.equal(response.getGreeting(), 'Bonjour Bob');
   assert.equal(response.getLanguage(), 'French');
   assert.equal(response.getLangCode(), 'fr');
 });

@@ -69,12 +69,12 @@ test('RPC SayHello uses requested language', async (t) => {
   t.after(() => runtime.server.forceShutdown());
 
   const request = new pb.SayHelloRequest();
-  request.setName('Alice');
+  request.setName('Bob');
   request.setLangCode('fr');
 
   const response = await callUnary(runtime.client, 'sayHello', request);
 
-  assert.equal(response.getGreeting(), 'Bonjour Alice');
+  assert.equal(response.getGreeting(), 'Bonjour Bob');
   assert.equal(response.getLanguage(), 'French');
   assert.equal(response.getLangCode(), 'fr');
 });

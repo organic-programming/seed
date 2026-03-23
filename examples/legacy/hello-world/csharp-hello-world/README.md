@@ -7,7 +7,7 @@ A minimal holon implementing `HelloService.Greet` in C# with
 
 ```bash
 dotnet run --project HelloWorld
-dotnet run --project HelloWorld -- Alice
+dotnet run --project HelloWorld -- Bob
 dotnet run --project HelloWorld -- serve --listen tcp://127.0.0.1:9090
 ```
 
@@ -21,8 +21,8 @@ dotnet test
 
 ```bash
 dotnet publish -c Release -o out
-op grpc+stdio://"dotnet out/HelloWorld.dll" Greet '{"name":"Alice"}'
-# → { "message": "Hello, Alice!" }
+op grpc+stdio://"dotnet out/HelloWorld.dll" Greet '{"name":"Bob"}'
+# → { "message": "Hello, Bob!" }
 ```
 
 ## Connect example

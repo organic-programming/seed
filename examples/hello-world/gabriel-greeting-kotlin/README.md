@@ -32,8 +32,8 @@ build.gradle.kts                          Gradle build.
 gradle test
 gradle -q run --args='version'
 gradle -q run --args='listLanguages --format json'
-gradle -q run --args='sayHello Alice fr'
+gradle -q run --args='sayHello Bob fr'
 gradle -q run --args='serve --port 9090 --reflect'
 grpcurl -plaintext 127.0.0.1:9090 list
-grpcurl -plaintext -d '{"name":"Alice","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
+grpcurl -plaintext -d '{"name":"Bob","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
 ```

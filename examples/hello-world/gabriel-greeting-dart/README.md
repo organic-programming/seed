@@ -49,12 +49,12 @@ dart pub get
 ./scripts/generate_proto.sh
 dart cmd/main.dart version
 dart cmd/main.dart listLanguages --format json
-dart cmd/main.dart sayHello Alice fr
+dart cmd/main.dart sayHello Bob fr
 dart cmd/main.dart serve --port 9090
 grpcurl -plaintext \
   -import-path ../../_protos \
   -proto v1/greeting.proto \
-  -d '{"name":"Alice","lang_code":"fr"}' \
+  -d '{"name":"Bob","lang_code":"fr"}' \
   127.0.0.1:9090 \
   greeting.v1.GreetingService/SayHello
 ```

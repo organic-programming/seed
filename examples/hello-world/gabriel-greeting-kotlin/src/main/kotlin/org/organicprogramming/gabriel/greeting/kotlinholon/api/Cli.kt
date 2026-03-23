@@ -165,8 +165,8 @@ object Cli {
         output.println("examples:")
         output.println("  gabriel-greeting-kotlin serve --listen tcp://:9090")
         output.println("  gabriel-greeting-kotlin listLanguages --format json")
-        output.println("  gabriel-greeting-kotlin sayHello Alice fr")
-        output.println("  gabriel-greeting-kotlin sayHello Alice --lang fr --format json")
+        output.println("  gabriel-greeting-kotlin sayHello Bob fr")
+        output.println("  gabriel-greeting-kotlin sayHello Bob --lang fr --format json")
     }
 
     private data class CommandOptions(

@@ -32,7 +32,7 @@ clang -std=c11 -Wall -Wextra -pedantic \
 
 ```bash
 ./hello greet
-./hello greet Alice
+./hello greet Bob
 ```
 
 Serve on any transport:
@@ -48,7 +48,7 @@ Serve on any transport:
 Quick smoke calls:
 
 ```bash
-printf "Alice\n" | ./hello serve --listen stdio:// --once
-printf "Alice\n" | nc 127.0.0.1 9090
-printf "Alice\n" | nc -U /tmp/c-hello-world.sock
+printf "Bob\n" | ./hello serve --listen stdio:// --once
+printf "Bob\n" | nc 127.0.0.1 9090
+printf "Bob\n" | nc -U /tmp/c-hello-world.sock
 ```

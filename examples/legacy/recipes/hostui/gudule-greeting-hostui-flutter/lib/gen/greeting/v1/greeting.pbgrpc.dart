@@ -42,7 +42,7 @@ class GreetingServiceClient extends $grpc.Client {
   }
 
   /// Greets the user in the chosen language.
-  /// @example {"name":"Alice","lang_code":"fr"}
+  /// @example {"name":"Bob","lang_code":"fr"}
   $grpc.ResponseFuture<$0.SayHelloResponse> sayHello(
     $0.SayHelloRequest request, {
     $grpc.CallOptions? options,

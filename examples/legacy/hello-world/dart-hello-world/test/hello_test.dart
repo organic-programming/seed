@@ -3,7 +3,7 @@ import '../bin/hello.dart';
 
 void main() {
   test('greet with name', () {
-    expect(greet('Alice'), equals('Hello, Alice!'));
+    expect(greet('Bob'), equals('Hello, Bob!'));
   });
 
   test('greet default', () {

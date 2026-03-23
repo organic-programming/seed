@@ -13,7 +13,7 @@ gradle test
 
 ```bash
 gradle jar
-java -cp build/classes/kotlin/main:build/resources/main org.organicprogramming.hello.HelloKt Alice
+java -cp build/classes/kotlin/main:build/resources/main org.organicprogramming.hello.HelloKt Bob
 java -cp build/classes/kotlin/main:build/resources/main org.organicprogramming.hello.HelloKt serve --listen tcp://127.0.0.1:9090
 ```
 
@@ -21,8 +21,8 @@ java -cp build/classes/kotlin/main:build/resources/main org.organicprogramming.h
 
 ```bash
 gradle jar
-op grpc+stdio://"java -jar build/libs/kotlin-hello-world-0.1.0.jar" Greet '{"name":"Alice"}'
-# → { "message": "Hello, Alice!" }
+op grpc+stdio://"java -jar build/libs/kotlin-hello-world-0.1.0.jar" Greet '{"name":"Bob"}'
+# → { "message": "Hello, Bob!" }
 ```
 
 ## Connect example

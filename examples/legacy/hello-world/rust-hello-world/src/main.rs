@@ -64,10 +64,10 @@ mod tests {
     async fn test_greet_with_name() {
         let svc = MyHelloService;
         let req = Request::new(GreetRequest {
-            name: "Alice".into(),
+            name: "Bob".into(),
         });
         let resp = svc.greet(req).await.unwrap();
-        assert_eq!(resp.get_ref().message, "Hello, Alice!");
+        assert_eq!(resp.get_ref().message, "Hello, Bob!");
     }
 
     #[tokio::test]

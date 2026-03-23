@@ -32,12 +32,12 @@ final class GreetingServerTests: XCTestCase {
         defer { client.stop() }
 
         var request = Greeting_V1_SayHelloRequest()
-        request.name = "Alice"
+        request.name = "Bob"
         request.langCode = "fr"
 
         let response = try client.stub.sayHello(request).response.wait()
 
-        XCTAssertEqual(response.greeting, "Bonjour Alice")
+        XCTAssertEqual(response.greeting, "Bonjour Bob")
         XCTAssertEqual(response.language, "French")
         XCTAssertEqual(response.langCode, "fr")
     }

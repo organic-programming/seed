@@ -58,10 +58,10 @@ test('runCLI renders sayHello as text', async () => {
   const stdout = createBuffer();
   const stderr = createBuffer();
 
-  const code = await cli.runCLI(['sayHello', 'Alice', 'fr'], stdout, stderr);
+  const code = await cli.runCLI(['sayHello', 'Bob', 'fr'], stdout, stderr);
 
   assert.equal(code, 0);
-  assert.equal(stdout.toString().trim(), 'Bonjour Alice');
+  assert.equal(stdout.toString().trim(), 'Bonjour Bob');
   assert.equal(stderr.toString(), '');
 });
 

@@ -127,7 +127,7 @@ op grpc: call /holons.v1.CoaxService/Tell: rpc error: code = Unimplemented desc 
 ## Greet 
 
 ```
-op grpc+tcp://127.0.0.1:62704 Greet '{"name":"Jesus"}'
+op grpc+tcp://127.0.0.1:62704 Greet '{"name":"Bob"}'
 ```
 
 ## Select Holon from the holon selector 

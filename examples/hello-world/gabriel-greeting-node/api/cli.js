@@ -213,8 +213,8 @@ function printUsage(output) {
   output.write('examples:\n');
   output.write('  gabriel-greeting-node serve --listen stdio\n');
   output.write('  gabriel-greeting-node listLanguages --format json\n');
-  output.write('  gabriel-greeting-node sayHello Alice fr\n');
-  output.write('  gabriel-greeting-node sayHello Alice --lang fr --format json\n');
+  output.write('  gabriel-greeting-node sayHello Bob fr\n');
+  output.write('  gabriel-greeting-node sayHello Bob --lang fr --format json\n');
 }
 
 module.exports = {

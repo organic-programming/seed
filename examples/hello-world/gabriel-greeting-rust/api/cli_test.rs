@@ -62,13 +62,13 @@ fn run_cli_say_hello_text() {
     let mut stderr = Vec::new();
 
     let code = crate::cli::run_cli(
-        &args(&["sayHello", "Alice", "fr"]),
+        &args(&["sayHello", "Bob", "fr"]),
         &mut stdout,
         &mut stderr,
     );
 
     assert_eq!(code, 0);
-    assert_eq!(stdout_string(stdout).trim(), "Bonjour Alice");
+    assert_eq!(stdout_string(stdout).trim(), "Bonjour Bob");
     assert!(stderr.is_empty());
 }
 

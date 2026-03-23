@@ -557,7 +557,7 @@ import (
 
 // Direct Code API usage — no transport, no serialization.
 svc := myholon.New()
-resp, err := svc.SayHello(ctx, &pb.SayHelloRequest{Name: "Alice"})
+resp, err := svc.SayHello(ctx, &pb.SayHelloRequest{Name: "Bob"})
 ```
 
 ### Rules

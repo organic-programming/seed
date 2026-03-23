@@ -19,8 +19,8 @@ cargo run --bin hello -- serve --listen tcp://127.0.0.1:9090
 
 ```bash
 cargo build --release
-op grpc+stdio://target/release/hello Greet '{"name":"Alice"}'
-# → { "message": "Hello, Alice!" }
+op grpc+stdio://target/release/hello Greet '{"name":"Bob"}'
+# → { "message": "Hello, Bob!" }
 ```
 
 ## Connect example

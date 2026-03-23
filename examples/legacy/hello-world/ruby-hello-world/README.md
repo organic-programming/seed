@@ -16,7 +16,7 @@ prebuilt `x86_64-darwin` gem under Rosetta.
 
 ```bash
 arch -x86_64 bundle exec ruby hello.rb
-arch -x86_64 bundle exec ruby hello.rb Alice
+arch -x86_64 bundle exec ruby hello.rb Bob
 arch -x86_64 bundle exec ruby hello.rb serve --listen tcp://127.0.0.1:9090
 ```
 
@@ -29,8 +29,8 @@ arch -x86_64 bundle exec ruby test_hello.rb
 ## Invoke via stdio
 
 ```bash
-op grpc+stdio://"arch -x86_64 bundle exec ruby hello.rb" Greet '{"name":"Alice"}'
-# → { "message": "Hello, Alice!" }
+op grpc+stdio://"arch -x86_64 bundle exec ruby hello.rb" Greet '{"name":"Bob"}'
+# → { "message": "Hello, Bob!" }
 ```
 
 ## Connect example

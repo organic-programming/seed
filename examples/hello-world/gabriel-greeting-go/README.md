@@ -65,7 +65,7 @@ The `serve` sub-command is a rich feature provided by the [Go SDK](https://githu
 When a user runs:
 
 ```bash
-op gabriel-greeting-go SayHello '{"name":"Alice","lang_code":"en"}'
+op gabriel-greeting-go SayHello '{"name":"Bob","lang_code":"en"}'
 ```
 
 `op` performs the following chain:

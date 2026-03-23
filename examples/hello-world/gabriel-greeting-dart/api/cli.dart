@@ -198,9 +198,9 @@ void printUsage(StringSink output) {
   output.writeln('examples:');
   output.writeln('  gabriel-greeting-dart serve --listen stdio');
   output.writeln('  gabriel-greeting-dart listLanguages --format json');
-  output.writeln('  gabriel-greeting-dart sayHello Alice fr');
+  output.writeln('  gabriel-greeting-dart sayHello Bob fr');
   output.writeln(
-      '  gabriel-greeting-dart sayHello Alice --lang fr --format json');
+      '  gabriel-greeting-dart sayHello Bob --lang fr --format json');
 }
 
 class CommandOptions {

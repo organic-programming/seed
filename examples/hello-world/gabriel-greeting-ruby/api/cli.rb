@@ -171,8 +171,8 @@ module GabrielGreetingRuby
           output.puts("examples:")
           output.puts("  gabriel-greeting-ruby serve --listen stdio://")
           output.puts("  gabriel-greeting-ruby listLanguages --format json")
-          output.puts("  gabriel-greeting-ruby sayHello Alice fr")
-          output.puts("  gabriel-greeting-ruby sayHello Alice --lang fr --format json")
+          output.puts("  gabriel-greeting-ruby sayHello Bob fr")
+          output.puts("  gabriel-greeting-ruby sayHello Bob --lang fr --format json")
         end
 
         private

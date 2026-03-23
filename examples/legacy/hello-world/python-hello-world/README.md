@@ -27,8 +27,8 @@ python3 -m pytest test_server.py -v
 ## Invoke via stdio (zero config)
 
 ```bash
-op grpc+stdio://"python3 server.py" Greet '{"name":"Alice"}'
-# → { "message": "Hello, Alice!" }
+op grpc+stdio://"python3 server.py" Greet '{"name":"Bob"}'
+# → { "message": "Hello, Bob!" }
 ```
 
 No server to start, no port to allocate. OP launches the process,

@@ -76,8 +76,8 @@ void main() {
         isTrue,
       );
 
-      final response = await client.sayHello('Alice', 'fr');
-      expect(response.greeting, contains('Alice'));
+      final response = await client.sayHello('Bob', 'fr');
+      expect(response.greeting, contains('Bob'));
       expect(response.langCode, 'fr');
     } finally {
       await client.close();

@@ -212,8 +212,8 @@ public static class Cli
         await output.WriteLineAsync("examples:");
         await output.WriteLineAsync("  gabriel-greeting-csharp serve --listen tcp://:9090");
         await output.WriteLineAsync("  gabriel-greeting-csharp listLanguages --format json");
-        await output.WriteLineAsync("  gabriel-greeting-csharp sayHello Alice fr");
-        await output.WriteLineAsync("  gabriel-greeting-csharp sayHello Alice --lang fr --format json");
+        await output.WriteLineAsync("  gabriel-greeting-csharp sayHello Bob fr");
+        await output.WriteLineAsync("  gabriel-greeting-csharp sayHello Bob --lang fr --format json");
     }
 
     private sealed class CommandOptions

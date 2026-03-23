@@ -14,7 +14,7 @@ ctest --test-dir build
 ## Run
 
 ```bash
-./build/cpp-hello-world Alice
+./build/cpp-hello-world Bob
 ./build/cpp-hello-world serve --listen tcp://127.0.0.1:9090
 ```
 
@@ -23,8 +23,8 @@ ctest --test-dir build
 ```bash
 cmake -S . -B build
 cmake --build build --target cpp-hello-world
-op grpc+stdio://./build/cpp-hello-world Greet '{"name":"Alice"}'
-# → { "message": "Hello, Alice!" }
+op grpc+stdio://./build/cpp-hello-world Greet '{"name":"Bob"}'
+# → { "message": "Hello, Bob!" }
 ```
 
 ## Connect example

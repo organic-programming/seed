@@ -20,10 +20,10 @@ class GreetingPublicTest < Minitest::Test
 
   def test_say_hello_uses_requested_language
     response = GabrielGreetingRuby::Api::Public.say_hello(
-      Greeting::V1::SayHelloRequest.new(name: "Alice", lang_code: "fr")
+      Greeting::V1::SayHelloRequest.new(name: "Bob", lang_code: "fr")
     )
 
-    assert_equal "Bonjour Alice", response.greeting
+    assert_equal "Bonjour Bob", response.greeting
     assert_equal "French", response.language
     assert_equal "fr", response.lang_code
   end

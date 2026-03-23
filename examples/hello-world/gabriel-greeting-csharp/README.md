@@ -33,8 +33,8 @@ tests/*.csproj                   Test project.
 dotnet test tests/Gabriel.Greeting.Csharp.Tests.csproj
 dotnet run --project gabriel-greeting-csharp.csproj -- version
 dotnet run --project gabriel-greeting-csharp.csproj -- listLanguages --format json
-dotnet run --project gabriel-greeting-csharp.csproj -- sayHello Alice fr
+dotnet run --project gabriel-greeting-csharp.csproj -- sayHello Bob fr
 dotnet run --project gabriel-greeting-csharp.csproj -- serve --port 9090 --reflect
 grpcurl -plaintext 127.0.0.1:9090 list
-grpcurl -plaintext -d '{"name":"Alice","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
+grpcurl -plaintext -d '{"name":"Bob","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
 ```

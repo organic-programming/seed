@@ -8,7 +8,7 @@ service GreetingService {
   rpc ListLanguages(ListLanguagesRequest) returns (ListLanguagesResponse);
 
   // Greets the user in the chosen language.
-  // @example {"name":"Alice","lang_code":"fr"}
+  // @example {"name":"Bob","lang_code":"fr"}
   rpc SayHello(SayHelloRequest) returns (SayHelloResponse);
 }
 
@@ -38,7 +38,7 @@ message Language {
 
 message SayHelloRequest {
   // Name to greet. If empty, the daemon falls back to "World".
-  // @example "Alice"
+  // @example "Bob"
   string name = 1;
 
   // ISO 639-1 code chosen by the UI.
@@ -50,7 +50,7 @@ message SayHelloRequest {
 message SayHelloResponse {
   // Localized greeting text returned by the daemon.
   // @required
-  // @example "Bonjour, Alice !"
+  // @example "Bonjour, Bob !"
   string greeting = 1;
 
   // English language name used to resolve the greeting.

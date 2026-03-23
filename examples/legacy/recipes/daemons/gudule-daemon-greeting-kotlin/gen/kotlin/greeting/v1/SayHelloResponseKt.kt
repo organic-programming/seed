@@ -33,7 +33,7 @@ public object SayHelloResponseKt {
      * ```
      * Localized greeting text returned by the daemon.
      * @required
-     * @example "Bonjour, Alice !"
+     * @example "Bonjour, Bob !"
      * ```
      *
      * `string greeting = 1;`
@@ -49,7 +49,7 @@ public object SayHelloResponseKt {
      * ```
      * Localized greeting text returned by the daemon.
      * @required
-     * @example "Bonjour, Alice !"
+     * @example "Bonjour, Bob !"
      * ```
      *
      * `string greeting = 1;`

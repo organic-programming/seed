@@ -41,8 +41,8 @@ npm test
 ## Invoke via stdio (zero config)
 
 ```bash
-op grpc+stdio://"node server.mjs" Greet '{"name":"Alice"}'
-# → { "message": "Hello, Alice!" }
+op grpc+stdio://"node server.mjs" Greet '{"name":"Bob"}'
+# → { "message": "Hello, Bob!" }
 ```
 
 ## Notes

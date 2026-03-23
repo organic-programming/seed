@@ -32,7 +32,7 @@ public object SayHelloRequestKt {
     /**
      * ```
      * Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-     * @example "Alice"
+     * @example "Bob"
      * ```
      *
      * `string name = 1;`
@@ -47,7 +47,7 @@ public object SayHelloRequestKt {
     /**
      * ```
      * Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
-     * @example "Alice"
+     * @example "Bob"
      * ```
      *
      * `string name = 1;`

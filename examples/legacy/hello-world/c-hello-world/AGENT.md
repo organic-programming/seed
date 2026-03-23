@@ -55,5 +55,5 @@ clang -std=c11 -Wall -Wextra -pedantic -I ../../../sdk/c-holons/include hello.c 
 ./test_runner
 
 clang -std=c11 -Wall -Wextra -pedantic -I ../../../sdk/c-holons/include hello.c main.c ../../../sdk/c-holons/src/holons.c -o hello
-./hello greet Alice
+./hello greet Bob
 ```

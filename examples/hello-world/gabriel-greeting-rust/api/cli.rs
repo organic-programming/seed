@@ -265,10 +265,10 @@ fn print_usage(output: &mut dyn Write) -> std::io::Result<()> {
         output,
         "  gabriel-greeting-rust listLanguages --format json"
     )?;
-    writeln!(output, "  gabriel-greeting-rust sayHello Alice fr")?;
+    writeln!(output, "  gabriel-greeting-rust sayHello Bob fr")?;
     writeln!(
         output,
-        "  gabriel-greeting-rust sayHello Alice --lang fr --format json"
+        "  gabriel-greeting-rust sayHello Bob --lang fr --format json"
     )?;
     Ok(())
 }

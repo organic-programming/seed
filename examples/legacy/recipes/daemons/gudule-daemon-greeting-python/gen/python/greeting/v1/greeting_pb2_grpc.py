@@ -59,7 +59,7 @@ class GreetingServiceServicer(object):
 
     def SayHello(self, request, context):
         """Greets the user in the chosen language.
-        @example {"name":"Alice","lang_code":"fr"}
+        @example {"name":"Bob","lang_code":"fr"}
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')

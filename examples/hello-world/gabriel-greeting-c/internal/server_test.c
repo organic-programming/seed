@@ -159,11 +159,11 @@ int main(void) {
 
   snprintf(command, sizeof(command),
            "grpcurl -plaintext -import-path %s -proto v1/greeting.proto "
-           "-d '{\"name\":\"Alice\",\"lang_code\":\"fr\"}' "
+           "-d '{\"name\":\"Bob\",\"lang_code\":\"fr\"}' "
            "127.0.0.1:%d greeting.v1.GreetingService/SayHello 2>/dev/null",
            GABRIEL_GREETING_C_PROTO_DIR, port);
   output = capture_command(command);
-  if (!expect(output != NULL && strstr(output, "Bonjour Alice") != NULL,
+  if (!expect(output != NULL && strstr(output, "Bonjour Bob") != NULL,
               "SayHello grpcurl call failed")) {
     free(output);
     stop_server_group(pid);

@@ -43,12 +43,12 @@ Open [http://localhost:8080](http://localhost:8080) in your browser.
 
 4. When the user clicks **Invoke Greet**, the SDK sends:
    ```json
-   { "jsonrpc": "2.0", "id": "1", "method": "hello.v1.HelloService/Greet", "params": {"name":"Alice"} }
+   { "jsonrpc": "2.0", "id": "1", "method": "hello.v1.HelloService/Greet", "params": {"name":"Bob"} }
    ```
 
 5. The WebBridge dispatches to the registered handler, which returns:
    ```json
-   { "jsonrpc": "2.0", "id": "1", "result": {"message":"Hello, Alice!"} }
+   { "jsonrpc": "2.0", "id": "1", "result": {"message":"Hello, Bob!"} }
    ```
 
 6. The SDK resolves the promise and the page displays the greeting.

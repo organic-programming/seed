@@ -186,8 +186,8 @@ public final class Cli {
         output.println("examples:");
         output.println("  gabriel-greeting-java serve --listen tcp://:9090");
         output.println("  gabriel-greeting-java listLanguages --format json");
-        output.println("  gabriel-greeting-java sayHello Alice fr");
-        output.println("  gabriel-greeting-java sayHello Alice --lang fr --format json");
+        output.println("  gabriel-greeting-java sayHello Bob fr");
+        output.println("  gabriel-greeting-java sayHello Bob --lang fr --format json");
     }
 
     private static String[] slice(String[] args, int offset) {

@@ -155,7 +155,7 @@ fn describe_response() -> DescribeResponse {
                             "Name to greet. If empty, the daemon falls back to a localized default (e.g., \"Mary\", \"Maria\") or \"World\".",
                             FieldLabel::Optional,
                             false,
-                            "\"Alice\"",
+                            "\"Bob\"",
                             Vec::new(),
                         ),
                         field_doc(
@@ -177,7 +177,7 @@ fn describe_response() -> DescribeResponse {
                             "Localized greeting text returned by the daemon.",
                             FieldLabel::Optional,
                             true,
-                            "\"Bonjour, Alice !\"",
+                            "\"Bonjour, Bob !\"",
                             Vec::new(),
                         ),
                         field_doc(
@@ -203,7 +203,7 @@ fn describe_response() -> DescribeResponse {
                     ],
                     client_streaming: false,
                     server_streaming: false,
-                    example_input: "{\"name\":\"Alice\",\"lang_code\":\"fr\"}".to_string(),
+                    example_input: "{\"name\":\"Bob\",\"lang_code\":\"fr\"}".to_string(),
                 },
             ],
         }],
