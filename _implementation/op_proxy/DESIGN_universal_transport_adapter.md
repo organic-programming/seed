@@ -19,9 +19,9 @@ transport complexity, protocol translation, and middleware.
 
 ```
 ┌──────────────┐        ┌──────────────────────┐        ┌──────────────┐
-│   External   │  any   │      op proxy         │ stdio  │    Holon     │
-│   Consumer   │───────▶│  adapter + middleware  │───────▶│  (gRPC only) │
-│              │◀───────│                       │◀───────│              │
+│   External   │  any   │      op proxy        │ stdio  │    Holon     │
+│   Consumer   │───────▶│  adapter + middleware│───────▶│  (gRPC only) │
+│              │◀───────│                      │◀───────│              │
 └──────────────┘        └──────────────────────┘        └──────────────┘
      REST+SSE            translates protocols             unchanged
      WebSocket           observes (log, metrics)
@@ -93,6 +93,33 @@ op proxy rob-go --as rest+sse --listen https://:8443 \
 op proxy --coax my-organism.yaml --as rest+sse --listen https://:8443
 ```
 
+### Recipe-Level Declaration
+
+Proxy interposition can be declared per member in a recipe manifest,
+avoiding any manual CLI wiring:
+
+```yaml
+members:
+  - id: daemon
+    path: rob-go
+    proxy:
+      as: rest+sse
+      listen: https://:8443
+      middleware: [logger, metrics, recorder]
+      plugins: [snoopy-inspect, gate-guard]
+      record_dir: .op/traces/
+```
+
+| Field | Description |
+|---|---|
+| `proxy.as` | Protocol adapter (rest+sse, ws, mcp, etc.) |
+| `proxy.listen` | Listener URI |
+| `proxy.middleware` | Built-in middleware chain |
+| `proxy.plugins` | Plugin holon slugs (Tier 2 chain) |
+| `proxy.record_dir` | Output directory for recorder middleware |
+
+If `proxy` is absent, no interposition occurs (default).
+
 ### Relationship to Existing Commands
 
 | Today | Tomorrow | Change |
@@ -133,17 +160,100 @@ External → [adapter] → [middleware 1] → [middleware 2] → ... → holon (
 These are zero-config, zero-dependency — they work on an airgapped
 machine with no observability stack.
 
+### Built-in Interceptor Interface
+
+```go
+// Interceptor is a built-in middleware function.
+type Interceptor func(ctx context.Context, call *Call, next Handler) error
+
+// Call captures the RPC metadata visible to middleware.
+type Call struct {
+    FullMethod  string    // e.g. "/go.v1.GoService/Build"
+    StartTime   time.Time
+    Request     []byte    // raw protobuf (lazy-decoded)
+    Response    []byte    // filled by next handler
+    StatusCode  codes.Code
+    Metadata    metadata.MD
+    Duration    time.Duration
+}
+
+// Handler is the next step in the chain.
+type Handler func(ctx context.Context, call *Call) error
+```
+
+`op proxy` uses gRPC's `UnknownServiceHandler` to catch all RPCs
+for unregistered services and forward them through the middleware
+chain — no generated stubs needed for any target holon.
+
 ### Tier 2 — Plugin Holons (external)
 
-For custom logic that doesn't belong in `op`, the plugin model from
-Jack Middle remains available. A plugin holon implements
-`middleware.v1.PluginService` and is connected via `--plugin slug`:
+For custom logic that doesn't belong in `op`, a plugin holon
+implements `middleware.v1.PluginService` and is connected via
+`--plugin slug`:
 
 ```
 External → [adapter] → [built-in chain] → [plugin holon A] → [plugin holon B] → holon
 ```
 
-Plugin catalogue (future):
+#### Plugin Contract
+
+```protobuf
+syntax = "proto3";
+package middleware.v1;
+
+service PluginService {
+  // Called for each proxied RPC. The plugin inspects / mutates
+  // the call and returns a verdict.
+  rpc Intercept(InterceptRequest) returns (InterceptResponse);
+
+  // Returns the plugin's capabilities and metadata.
+  rpc Describe(DescribeRequest) returns (DescribeResponse);
+}
+
+message InterceptRequest {
+  string full_method = 1;           // e.g. "/go.v1.GoService/Build"
+  bytes  request_payload = 2;       // raw protobuf frame
+  map<string, string> metadata = 3; // gRPC headers
+  Direction direction = 4;          // REQUEST or RESPONSE
+}
+
+enum Direction {
+  REQUEST = 0;
+  RESPONSE = 1;
+}
+
+message InterceptResponse {
+  Verdict verdict = 1;
+  bytes   payload = 2;              // potentially mutated payload
+  map<string, string> metadata = 3; // potentially mutated headers
+  int32   status_code = 4;          // only for REJECT verdict
+  string  status_message = 5;
+}
+
+enum Verdict {
+  FORWARD = 0;   // pass through (payload may be mutated)
+  REJECT = 1;    // block the call, return status_code to caller
+  SKIP = 2;      // pass through, skip remaining plugins
+}
+
+message DescribeRequest {}
+
+message DescribeResponse {
+  string name = 1;
+  string description = 2;
+  repeated string capabilities = 3; // e.g. ["inspect", "mutate", "block"]
+}
+```
+
+#### Plugin Lifecycle
+
+1. `op proxy` starts → reads `--plugin slug1,slug2`
+2. For each plugin: `connect(slug)` → readiness check
+3. For each RPC: built-in chain first, then plugin chain
+4. Each plugin receives `InterceptRequest`, returns `InterceptResponse`
+5. `FORWARD` → next plugin; `REJECT` → abort; `SKIP` → jump to target
+
+#### Plugin Catalogue (future)
 
 | Plugin | Slug | Purpose |
 |--------|------|---------|
@@ -151,6 +261,9 @@ Plugin catalogue (future):
 | Gate Guard | `gate-guard` | ACL-based call authorization |
 | Echo Replay | `echo-replay` | Record-and-replay for testing |
 | Canary Split | `canary-split` | A/B traffic routing |
+| Morph Rewrite | `morph-rewrite` | Rule-based payload rewriting |
+| Schema Audit | `schema-audit` | Validate payloads against proto descriptors |
+| Tap Stream | `tap-stream` | Real-time event streaming to external sink |
 
 ### Prometheus Endpoint
 
@@ -257,6 +370,24 @@ N external consumers through one stdio channel:
 
 For high-throughput scenarios, `op proxy` can use `tcp://` instead
 of `stdio://` for multivalent connections.
+
+### Stdio Pipeline Wiring
+
+When the target uses stdio transport (the OP default), `op`
+builds a process pipeline with fd-level piping:
+
+```
+caller ↔ op proxy (stdio:in) → (stdio:out) ↔ target (stdio:in) → (stdio:out)
+```
+
+`op` spawns:
+1. Target with `serve --listen stdio://`
+2. Proxy with middleware chain attached
+3. Pipes proxy's backend stdout/stdin to the target's stdin/stdout
+
+This is the Unix process-pipe model applied to gRPC — the
+middleware chain runs in the same process as `op`, with zero
+extra network hops.
 
 ---
 

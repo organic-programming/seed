@@ -22,8 +22,8 @@ Both share the same schema pipeline (`DefinitionsFromDescribe`,
 
 ## Authoritative References
 
-- `apps_kits/DESIGN.md` § "COAX + MCP: Agent-Native Access"
-- `_protos/holons/v1/coax.proto` — `CoaxService` definition
+- `organism_kits/README.md` § "COAX + MCP: Agent-Native Access"
+- `holons/grace-op/_protos/holons/v1/coax.proto` — `CoaxService` definition
 - `_implementation/mcp/TASK001_migrate_mcp_to_describe.md` — prerequisite task
 - `holons/grace-op/internal/mcp/server.go` — MCP server (post-migration)
 

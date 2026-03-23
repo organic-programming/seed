@@ -23,7 +23,7 @@ Gophers may start with [`go-hello-world`](./hello-world/go-hello-world/) for a s
 Current status: a subset of these hello-worlds already import their
 matching SDK directly (`go`, `js`, `swift`, `c`, and the browser/web
 pairing). The rest are still intentionally useful raw gRPC baselines.
-The audited list lives in [`../../sdk/SDK_GUIDE.md`](../hello-world/sdk/SDK_GUIDE.md).
+The audited list lives in [`./sdk/SDK_GUIDE.md`](./sdk/SDK_GUIDE.md).
 
 ## UI examples : 
 

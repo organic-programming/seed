@@ -14,15 +14,13 @@ After this migration:
 - `op mcp` starts the holon, connects, calls `Describe`, and builds
   MCP tools from the `DescribeResponse`
 - No local `.proto` files are read for tool discovery or serialization
-- The same pipeline can later serve COAX remote connections (see
-  `_implementation/mcp/coax_mcp_support.md`)
 
 ## Authoritative References
 
 Read these files **before** making any changes:
 
-- `HOLON_COMMUNICATION_PROTOCOL.md` §3.6 — Dynamic Dispatch Workflow
-- `_protos/holons/v1/describe.proto` — `DescribeResponse`, `FieldDoc`
+- `PROTOCOL.md` §3.6 — Dynamic Dispatch Workflow
+- `holons/grace-op/_protos/v1/describe.proto` — `DescribeResponse`, `FieldDoc`
 - `holons/grace-op/internal/mcp/server.go` — current MCP implementation
 - `holons/grace-op/internal/inspect/local.go` — `LocalCatalog` (to be removed)
 - `holons/grace-op/internal/tools/jsonschema.go` — `Definition` struct
