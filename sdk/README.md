@@ -61,14 +61,14 @@ Transports provide the underlying connection mechanism. Not all SDKs support all
 | `kotlin-holons` | both | both | both | dial | dial | dial |
 | `swift-holons` | ? | ? | ? | ? | ? | ? |
 | `rust-holons` | ? | ? | ? | ? | ? | ? |
-| `js-holons` | both | both | both | both | both | - |
+| `js-holons` | both | both | both | both | both | dial |
 | `js-web-holons` | - | - | - | dial | dial | dial |
-| `c-holons` | ? | ? | ? | ? | ? | ? |
+| `c-holons` | both | both | both | - | - | - |
 | `cpp-holons` | both | both | both | dial | - | - |
 | `csharp-holons` | both | both | both | dial | dial | dial |
 | `java-holons`   | both | both | both | dial | dial | dial |
 | `python-holons` | both | both | both | dial | - | - |
-| `ruby-holons`   | both | both | both | dial | dial | - |
+| `ruby-holons`   | both | both | both | dial | dial | dial |
 
 
 ## Expected v0.6 transport Matrix 
