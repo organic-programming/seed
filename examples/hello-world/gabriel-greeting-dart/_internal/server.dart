@@ -2,6 +2,7 @@ import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart';
 
 import '../api/public.dart' as public_api;
+import '../gen/describe_generated.dart';
 import '../gen/dart/greeting/v1/greeting.pb.dart';
 import '../gen/dart/greeting/v1/greeting.pbgrpc.dart';
 
@@ -26,6 +27,7 @@ class GreetingService extends GreetingServiceBase {
 }
 
 Future<void> listenAndServe(String listenUri, {bool reflect = false}) {
+  useStaticResponse(staticDescribeResponse());
   return runWithOptions(
     listenUri,
     <Service>[GreetingService()],
