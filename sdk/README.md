@@ -57,7 +57,7 @@ Transports provide the underlying connection mechanism. Not all SDKs support all
 | SDK | `tcp://` | `unix://` | `stdio://` | `ws://` | `wss://` | `rest+sse` |
 |-----|:--------:|:---------:|:----------:|:-------:|:--------:|:----------:|
 | `go-holons` | both | both | both | both | both | both |
-| `dart-holons` | both | both | both | both | dial | - |
+| `dart-holons` | both | both | both | both | dial | both |
 | `kotlin-holons` | ? | ? | ? | ? | ? | ? |
 | `swift-holons` | ? | ? | ? | ? | ? | ? |
 | `rust-holons` | ? | ? | ? | ? | ? | ? |
@@ -66,7 +66,7 @@ Transports provide the underlying connection mechanism. Not all SDKs support all
 | `c-holons` | ? | ? | ? | ? | ? | ? |
 | `cpp-holons` | both | both | both | dial | - | - |
 | `csharp-holons` | both | both | both | dial | ? | - |
-| `java-holons`   | both | both | both | dial | dial | - |
+| `java-holons`   | both | both | both | dial | dial | dial |
 | `python-holons` | ? | ? | ? | ? | ? | ? |
 | `ruby-holons`   | ? | ? | ? | ? | ? | ? |
 
