@@ -1,33 +1,11 @@
 import Foundation
-import GRPC
-import NIOCore
+import Holons
+import SwiftProtobuf
 
-final class CoaxDescribeProvider: CallHandlerProvider, @unchecked Sendable {
-    let serviceName: Substring = "holons.v1.HolonMeta"
-
-    private let response = makeDescribeResponse()
-
-    func handle(method name: Substring, context: CallHandlerContext) -> GRPCServerHandlerProtocol? {
-        switch name {
-        case "Describe":
-            return UnaryServerHandler(
-                context: context,
-                requestDeserializer: ProtobufDeserializer<Holons_V1_DescribeRequest>(),
-                responseSerializer: ProtobufSerializer<Holons_V1_DescribeResponse>(),
-                interceptors: [],
-                userFunction: describe(request:context:)
-            )
-        default:
-            return nil
-        }
-    }
-
-    func describe(
-        request: Holons_V1_DescribeRequest,
-        context: StatusOnlyCallContext
-    ) -> EventLoopFuture<Holons_V1_DescribeResponse> {
-        _ = request
-        return context.eventLoop.makeSucceededFuture(response)
+enum CoaxDescribeRegistration {
+    static func register() throws {
+        let payload = try makeDescribeResponse().serializedData().base64EncodedString()
+        try Describe.useStaticResponse(StaticDescribeResponse(payloadBase64: payload))
     }
 }
 

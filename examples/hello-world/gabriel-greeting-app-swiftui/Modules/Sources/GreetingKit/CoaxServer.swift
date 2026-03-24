@@ -415,8 +415,7 @@ public final class CoaxServer: ObservableObject {
     private func startServer() {
         let coaxProvider = CoaxServiceProvider(holon: holon, coaxServer: self)
         let appProvider = GreetingAppServiceProvider(holon: holon)
-        let metaProvider = CoaxDescribeProvider()
-        let providers: [CallHandlerProvider] = [metaProvider, coaxProvider, appProvider]
+        let providers: [CallHandlerProvider] = [coaxProvider, appProvider]
         let providersBox = CallHandlerProvidersBox(providers)
         let listenTarget = runtimeListenURI
         let startID = UUID()
@@ -427,11 +426,11 @@ public final class CoaxServer: ObservableObject {
 
         DispatchQueue.global(qos: .utility).async { [weak self] in
             do {
+                try CoaxDescribeRegistration.register()
                 let server = try Serve.startWithOptions(
                     listenTarget,
                     serviceProviders: providersBox.value,
                     options: Serve.Options(
-                        describe: false,
                         logger: { _ in }
                     )
                 )
