@@ -22,7 +22,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-03-15"
-    version: "0.1.53"
+    version: "0.1.60"
   }
   description: "A Swift gRPC daemon that greets users in 56 languages."
   lang: "swift"
