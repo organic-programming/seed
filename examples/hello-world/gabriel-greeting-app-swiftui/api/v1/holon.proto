@@ -15,7 +15,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-03-15"
-    version: "0.1.69"
+    version: "0.1.72"
   }
   description: "A standalone SwiftUI app that connects to all 12 Gabriel greeting holon written in 12 programming languages and presents a multilingual greeting UI."
   kind: "composite"
@@ -150,7 +150,7 @@ option (holons.v1.manifest) = {
         steps: {
           exec: {
             cwd: "."
-            argv: ["bash", "-lc", 'set -euo pipefail\nproducts_dir=".build/xcode/macos/Build/Products/Debug"\napp_dir="build/GabrielGreetingApp.app"\nrm -rf "$app_dir"\ncp -R "$products_dir/GabrielGreetingApp.app" "$app_dir"\nmkdir -p "$app_dir/Contents/Resources/Holons"\ncp App/Info.plist "$app_dir/Contents/Info.plist"']
+            argv: ["bash", "-lc", 'set -euo pipefail\nproducts_dir=".build/xcode/macos/Build/Products/Debug"\napp_dir="build/GabrielGreetingApp.app"\nmkdir -p "$(dirname "$app_dir")"\nrm -rf "$app_dir"\ncp -R "$products_dir/GabrielGreetingApp.app" "$app_dir"\nmkdir -p "$app_dir/Contents/Resources/Holons"\ncp App/Info.plist "$app_dir/Contents/Info.plist"']
           }
         }
         steps: {
@@ -292,4 +292,3 @@ message GreetRequest {
 message GreetResponse {
   string greeting = 1;
 }
-
