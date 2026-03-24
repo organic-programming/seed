@@ -34,7 +34,6 @@ module GabrielGreetingRuby
 
         def register_services(server)
           server.handle(GreetingService.new)
-          Holons::Describe.register(server)
         end
 
         def normalize_listen_uri(listen_uri)
