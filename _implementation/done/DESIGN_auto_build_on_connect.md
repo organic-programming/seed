@@ -16,16 +16,18 @@ All long-running `op` commands display elapsed-time progress on stderr. The same
 
 ### Output format
 
+A single line, overwritten in place each second and on every phase change:
+
 ```
 00:00:01 building gabriel-greeting-swift…
-00:00:02 building gabriel-greeting-swift… swift build
-00:00:08 building gabriel-greeting-swift… linking
-00:00:09 building gabriel-greeting-swift… packaging .holon
+00:00:02 building gabriel-greeting-swift… swift build       ← replaces previous
+00:00:08 building gabriel-greeting-swift… linking           ← replaces previous
+00:00:09 building gabriel-greeting-swift… packaging .holon  ← replaces previous
 ```
 
-- Elapsed: `%02d:%02d:%02d` from start.
-- Each line overwrites the previous (single-line mode) or appends (multi-line mode).
-- Non-TTY: prints lines without ANSI codes; auto-build suppresses entirely.
+- Elapsed `%02d:%02d:%02d` ticks every second on the **same line** (carriage return `\r` + clear-to-EOL).
+- A new phase message replaces the current line immediately.
+- Non-TTY: prints each phase as a new line without ANSI codes; auto-build suppresses entirely.
 
 ### API
 
@@ -181,15 +183,12 @@ To skip auto-build and fail immediately, use `--no-build`.
 
 From the user's perspective, `op build <slug>` behaves identically whether `<slug>` is a leaf holon or a composite[^3]. For a composite, `op build` resolves the dependency graph and builds each dependency in topological order, showing per-holon progress:
 
+Each dependency occupies **one line** while building (same overwrite behavior as §1). Once done, its line is finalized with `✓` and the next dependency starts on a **new line**:
+
 ```
-00:00:01 building gabriel-greeting-swift…
-00:00:08 building gabriel-greeting-swift… linking
-00:00:09 building gabriel-greeting-swift… ✓
-00:00:09 building gabriel-greeting-dart…
-00:00:11 building gabriel-greeting-dart… ✓
-00:00:11 building gabriel-greeting-app-swiftui…
-00:00:14 building gabriel-greeting-app-swiftui… linking
-00:00:15 building gabriel-greeting-app-swiftui… ✓
+00:00:09 building gabriel-greeting-swift… ✓              ← line frozen
+00:00:11 building gabriel-greeting-dart… ✓               ← line frozen
+00:00:15 building gabriel-greeting-app-swiftui… linking   ← live, ticking
 ```
 
 ### Resolution
