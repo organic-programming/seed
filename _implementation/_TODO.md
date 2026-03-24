@@ -1,11 +1,21 @@
 # v0.6 Plan :
 A very serious release minimalist
 
-1. [SDK CLEANUP](SDK_CLEANUP_PLAN.md)
-    - Phase 2 — Finalize 
-    - Balance pro and cons : After testing if possible add support for ws, rest+sse to any lang that can support it easily?
-    - Test if describe is now accessible from any isolated built holon. 
-2. `op proxy` [PROXY.md](../holons/grace-op/PROXY.md) TO BE PLANIFIED
+--
+
+- Discovery - must be universal, for any sdk, any language, any platform.
+- The spec should be unified
+- The discovery code should be factored for any usage (autocompletion, list, run ... <slug> etc ...)
+- cd ~/Desktop/isolated && op gabriel-greeting-go SayHello '{"name":"","lang_code":"fr"}'
+- When we call op <slug> <method> <json> e.g op gabriel-greeting-go SayHello '{"name":"","lang_code":"fr"}' could we have a flag to output the bin path ?
+- could we support `op <binary url> <method> <json>` with no discovery
+- Auto completion on "op gabriel-greeting-s" should propose  op gabriel-greeting-swift  and the method list ( Call Describe ) 
+
+
+
+- Balance pro and cons : After testing if possible add support for ws, rest+sse to any lang that can support it easily?
+- Test if describe is now accessible from any isolated built holon. 
+-  `op proxy` [PROXY.md](../holons/grace-op/PROXY.md) TO BE PLANIFIED
 
 
 - Create real rules for OP
