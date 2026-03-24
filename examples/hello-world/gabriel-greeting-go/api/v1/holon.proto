@@ -22,7 +22,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-02-20"
-    version: "0.4.65"
+    version: "0.4.75"
   }
   description: "A Go gRPC daemon that greets users in 56 languages. Designed to be embedded in a Flutter HostUI but also usable standalone."
   lang: "go"

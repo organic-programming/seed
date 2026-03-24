@@ -19,7 +19,7 @@ pub fn static_describe_response() -> DescribeResponse {
                     composer: "B. ALTER".to_string(),
                     status: "draft".to_string(),
                     born: "2026-03-16".to_string(),
-                    version: "0.1.51".to_string(),
+                    version: "0.1.57".to_string(),
                     aliases: vec![],
                 }
             ),
