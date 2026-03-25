@@ -202,7 +202,7 @@ a component that a human can discover, inspect, and operate should be
 just as discoverable, inspectable, and operable by an agent, a script,
 or another holon — through the same structural contracts.
 
-See [AGENT.md Article 1](../AGENT.md#article-1--the-holon) for the
+See [CONSTITUTION.md Article 1](../CONSTITUTION.md#article-1--the-holon) for the
 constitutional definition of COAX.
 
 ### Why Holons Are the Natural Foundation
@@ -289,7 +289,7 @@ server is no exception.
 **Why:** without `Describe`, a client connecting to the COAX server
 has no way to discover what services and methods are available.  The
 Dynamic Dispatch Workflow
-([HOLON_COMMUNICATION_PROTOCOL.md §3.6](../PROTOCOL.md))
+([COMMUNICATION.md §3.6](../COMMUNICATION.md))
 requires `Describe` as the schema source for building protobuf from
 JSON dynamically.  This is how `op`, agents, and any SDK client
 interact with the organism programmatically — without compiled stubs

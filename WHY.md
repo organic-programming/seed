@@ -1,3 +1,10 @@
+
+<!--
+⚠️ 
+@todo BPdS write something more personal (in french / english / spanish) 
+AND REVEAL THE AMBITION : Software architecture needs a reboot - without reinventing the wheel.
+--->
+
 # Why?
 
 *"Calculemus!"* [^1]
@@ -44,27 +51,7 @@ protocols, operating systems — an immense stack of accumulated
 inventions. Agents never start from nothing. They consume, combine, and
 extend this heritage.
 
-## All of these reasons demand the birth of Organic Programming
-
-This bio-inspired, Unix-inspired paradigm lays down solid principles for
-a hybrid human-agent world where legacy code coexists with new code,
-machines compose with machines, and humans orchestrate the whole.
-
-To bring order to this joyful mess, Organic Programming relies on two
-foundational devices:
-
-1. **The proto contract** — a single formal language
-   (Protocol Buffers) that makes everything naturally interoperable.
-   Legacy code, new code, humans, agents: all speak the same interface.
-
-2. **Four facets** — each holon exposes the contract through four
-   surfaces: the interface itself (contract), a thin native API (code),
-   a terminal bridge (CLI), and an executable proof (tests). Because
-   most of these are generated from the proto, they stay consistent,
-   numerous, and cheap. The human writes only the domain logic.
-
-The contract unifies. The facets multiply. Together they turn a chaotic
-ecosystem into a composable one.
+All of these reasons demand the birth of Organic Programming.
 
 
 [^1]: "Calculemus!" means "Let us calculate!" in Latin. It is a quote

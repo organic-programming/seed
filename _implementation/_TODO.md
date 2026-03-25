@@ -8,7 +8,7 @@ A very serious release
 -  `op proxy` [PROXY.md](../holons/grace-op/PROXY.md) TO BE PLANIFIED
 
 - Create real rules for OP
-    - Always guarantee the ["Surface symmetry — the golden rule"](../AGENT.md#surface-symmetry--the-golden-rule)
+    - Always guarantee the ["Surface symmetry — the golden rule"](../CONSTITUTION.md#surface-symmetry--the-golden-rule)
     - The golden rule implementation should push the code api to the front ( the other part should be mechanical and conventionnaly documented by clear example) 
     - Never leave a test failing. 
     - Use SDK first

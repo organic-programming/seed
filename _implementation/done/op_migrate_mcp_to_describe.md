@@ -8,7 +8,7 @@ file descriptors to serialize/deserialize messages.
 
 This must change: `op mcp` should use `HolonMeta/Describe` as its
 schema source, like all dynamic dispatch
-(see HOLON_COMMUNICATION_PROTOCOL.md §3.6).
+(see COMMUNICATION.md §3.6).
 
 After this migration:
 - `op mcp` starts the holon, connects, calls `Describe`, and builds
@@ -19,7 +19,7 @@ After this migration:
 
 Read these files **before** making any changes:
 
-- `PROTOCOL.md` §3.6 — Dynamic Dispatch Workflow
+- `COMMUNICATION.md` §3.6 — Dynamic Dispatch Workflow
 - `holons/grace-op/_protos/v1/describe.proto` — `DescribeResponse`, `FieldDoc`
 - `holons/grace-op/internal/mcp/server.go` — current MCP implementation
 - `holons/grace-op/internal/inspect/local.go` — `LocalCatalog` (to be removed)

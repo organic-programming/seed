@@ -2,7 +2,7 @@
 
 ## Context
 
-The Organic Programming constitution (`AGENT.md`) states:
+The Organic Programming constitution (`CONSTITUTION.md`) states:
 
 > gRPC server reflection **may** be enabled as a development convenience
 > for tools like `grpcurl`. It is not required by this constitution —
@@ -28,8 +28,8 @@ the need for gRPC reflection entirely.
 
 Read these files first — they define the intended architecture:
 
-- `AGENT.md` (constitution) — especially the note on reflection
-- [HOLON_COMMUNICATION_PROTOCOL.md](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/HOLON_COMMUNICATION_PROTOCOL.md) §3.5 — [HolonMeta](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/_protos/holons/v1/describe.proto#10-14) specification
+- `CONSTITUTION.md` (constitution) — especially the note on reflection
+- [COMMUNICATION.md](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/COMMUNICATION.md) §3.5 — [HolonMeta](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/_protos/holons/v1/describe.proto#10-14) specification
 - [_protos/holons/v1/describe.proto](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/_protos/holons/v1/describe.proto) — full [DescribeResponse](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/_protos/holons/v1/describe.proto#17-24) schema
 
 ## Scope
@@ -145,6 +145,6 @@ op grpc+tcp://gabriel-greeting-go SayHello '{"name":"Maria","lang_code":"en"}'
 - **Do NOT remove** the `HolonMeta/Describe` service — it must remain ON by default
 - **Do NOT remove** reflection code from SDKs — just change the default to OFF
 - **Do NOT modify** `_protos/holons/v1/describe.proto`
-- **Do NOT modify** `AGENT.md` or `HOLON_COMMUNICATION_PROTOCOL.md`
+- **Do NOT modify** `CONSTITUTION.md` or `COMMUNICATION.md`
 - Work **one SDK at a time**, then **one example at a time** — verify each builds before moving to the next
 - Follow existing code style in each language

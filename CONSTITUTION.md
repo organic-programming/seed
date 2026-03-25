@@ -454,7 +454,7 @@ the holon substrate.
 
 Each project that adopts Organic Programming should provide:
 
-1. A **project-level `AGENT.md`** that references this constitution and provides project-specific context.
+1. A **project-level `CONSTITUTION.md`** that references this constitution and provides project-specific context.
 2. An **`INDEX.md`** per folder that lists all documents with a one-line purpose, so that agents can navigate efficiently without opening every file.
 
 Agents must read `INDEX.md` upon entering any folder.
@@ -522,7 +522,7 @@ have stdio.
 ### Transport properties
 
 A holon's transport choice determines two structural properties
-(see [HOLON_COMMUNICATION_PROTOCOL.md §2.7](./HOLON_COMMUNICATION_PROTOCOL.md#27-transport-properties)):
+(see [COMMUNICATION.md §2.7](./COMMUNICATION.md#27-transport-properties)):
 
 - **Valence**: `stdio://` is **monovalent** (one
   connection per lifetime). `tcp://`, `unix://`, `ws://`, `wss://`
@@ -728,4 +728,4 @@ self-documentation, incorrect shutdown sequences.
 ### When no SDK exists
 
 If no SDK exists yet for a target language, the holon author either:
-Contributes a new SDK (see [sdk/](./sdk/)).
+Contributes a new SDK (see [sdk](./sdk/README.md)).

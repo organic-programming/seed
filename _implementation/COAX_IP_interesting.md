@@ -118,7 +118,7 @@ These are high-level domain verbs — the actions that make sense for *this* org
 |----------|--------|
 | `_protos/holons/v1/coax.proto` | **[NEW]** Shared COAX interaction proto |
 | [apps_kits/DESIGN.md](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/apps_kits/DESIGN.md) | Add section linking App Kit primitives to the COAX proto surface |
-| [AGENT.md](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/AGENT.md) | Already done (COAX in Article 1) |
+| [CONSTITUTION.md](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/CONSTITUTION.md) | Already done (COAX in Article 1) |
 | Gabriel app [holon.proto](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/examples/hello-world/gabriel-greeting-go/api/v1/holon.proto) | Add contract + service declaration (modeling only) |
 | [manifest.proto](file:///Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/_protos/holons/v1/manifest.proto) | No changes needed — `contract` field already supports this |
 

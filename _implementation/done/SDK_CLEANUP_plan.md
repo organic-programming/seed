@@ -25,7 +25,7 @@ Key design decisions (binding for all other SDKs):
 - **Static-only runtime** — `describe.Register` serves the generated static response only. No proto fallback at runtime.
 - **Missing Incode → startup failure** — if no static response is registered, serve fails with: `"no Incode Description registered — run op build"`.
 - **`BuildResponse` is build-time only** — stays in SDK as a library for `op build`, not called at runtime.
-- **REST+SSE** — native HTTP+SSE JSON-RPC binding per `PROTOCOL.md` §5.3.2. POST for unary, POST/GET with `Accept: text/event-stream` for server-streaming.
+- **REST+SSE** — native HTTP+SSE JSON-RPC binding per `COMMUNICATION.md` §5.3.2. POST for unary, POST/GET with `Accept: text/event-stream` for server-streaming.
 
 ---
 
@@ -53,7 +53,7 @@ Key design rule: Describe is STATIC-ONLY at runtime.
 Context files to read first:
 - sdk/README.md — Incode Description spec, transport matrix, per-SDK README spec
 - sdk/go-holons/ — reference implementation for all modules
-- PROTOCOL.md §5.3.2 — HTTP+SSE transport spec (Content-Type, status codes, SSE event format, CORS)
+- COMMUNICATION.md §5.3.2 — HTTP+SSE transport spec (Content-Type, status codes, SSE event format, CORS)
 
 Execute the following steps IN ORDER. After each step, commit with `fix(LANG-holons):` or `feat(LANG-holons):`.
 
@@ -86,7 +86,7 @@ Do NOT assume — only mark what you can prove with a passing test.
 ### Step 6 — Implement Required Transports
 Compare current state with the expected v0.6 matrix in sdk/README.md.
 Implement missing transports. Each must have a test.
-For `rest+sse`: implement the HTTP+SSE JSON-RPC binding per PROTOCOL.md §5.3.2.
+For `rest+sse`: implement the HTTP+SSE JSON-RPC binding per COMMUNICATION.md §5.3.2.
 
 ### Step 7 — Test Suite Cleanup
 Run the full test suite. Fix broken tests, remove irrelevant ones, ensure all pass.
@@ -149,6 +149,6 @@ Final tasks:
 
 1. **Parallel** — launch all 12 Codex sessions simultaneously.
 2. **Static-only** — no proto fallback. Missing Incode Description = startup failure.
-3. **REST+SSE** — implement per PROTOCOL.md §5.3.2, not gRPC-over-HTTP.
+3. **REST+SSE** — implement per COMMUNICATION.md §5.3.2, not gRPC-over-HTTP.
 4. **Commit after each step** — rollback-friendly.
 5. **Don't trust `?`** — prove with tests, not assumptions.

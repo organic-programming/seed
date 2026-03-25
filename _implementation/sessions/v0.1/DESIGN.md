@@ -215,7 +215,7 @@ to `FAILED` on transport error.
 ## Transport Constraints
 
 Session semantics depend on the transport's structural properties
-(see [HOLON_COMMUNICATION_PROTOCOL.md §2.7](../../../HOLON_COMMUNICATION_PROTOCOL.md#27-transport-properties)).
+(see [COMMUNICATION.md §2.7](../../../COMMUNICATION.md#27-transport-properties)).
 Not every transport behaves the same way, and the session store must
 account for these differences.
 
@@ -278,7 +278,7 @@ buffer.
 
 ### Reconnection and Session Identity
 
-When a client reconnects after a transport error (PROTOCOL.md §6.2),
+When a client reconnects after a transport error (COMMUNICATION.md §6.2),
 a **new session** is created. The old session transitions to `CLOSED`.
 Reconnection does not reuse the same session UUID — identity is per
 connection, not per logical relationship.
@@ -298,7 +298,7 @@ history.
 
 ### Resource Lifecycle Alignment
 
-Session tracking itself must respect PROTOCOL.md §6.4.2 (resource
+Session tracking itself must respect COMMUNICATION.md §6.4.2 (resource
 lifecycle): after N connect/disconnect cycles, the session store's
 memory footprint must remain bounded. The ring buffer guarantees this —
 the store never grows beyond `max_history` closed sessions + N active

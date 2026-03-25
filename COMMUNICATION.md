@@ -96,7 +96,7 @@ client := echopb.NewEchoClient(conn)
 `Serve` is the standard entry point that combines Listen, gRPC
 server setup, `HolonMeta` self-documentation, and signal handling
 into a single call.
-See [Constitution, Article 11](./AGENT.md#article-11--the-serve--dial-convention).
+See [Constitution, Article 11](./CONSTITUTION.md#article-11--the-serve--dial-convention).
 
 ```go
 // Go reference
@@ -1207,8 +1207,8 @@ No new protocol.
 
 | Document | URL |
 |----------|-----|
-| Constitution — Article 9 (Mimesis) | [AGENT.md](./AGENT.md#article-9--mimesis) |
-| Constitution — Article 11 (Serve) | [AGENT.md](./AGENT.md#article-11--the-serve--dial-convention) |
+| Constitution — Article 9 (Mimesis) | [CONSTITUTION.md](./CONSTITUTION.md#article-9--mimesis) |
+| Constitution — Article 11 (Serve) | [CONSTITUTION.md](./CONSTITUTION.md#article-11--the-serve--dial-convention) |
 | JSON-RPC 2.0 Specification | [jsonrpc.org/specification](https://www.jsonrpc.org/specification) |
 | WebSocket Protocol (RFC 6455) | [datatracker.ietf.org/doc/html/rfc6455](https://datatracker.ietf.org/doc/html/rfc6455) |
 | WebSocket Subprotocol Registry | [iana.org/assignments/websocket](https://www.iana.org/assignments/websocket/websocket.xml) |

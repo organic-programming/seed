@@ -5,7 +5,7 @@ follows: expose the same structural contracts to humans and machines
 alike. No special agent API, no separate admin interface — one surface,
 universally accessible through  innate facets Code API, CLI, RPC, Test, (and acquired facets MCP, SKILLS, Sequences)
 
-[^1]:> A **holon** is, at any scale, an independent, composable, software functional unit built for [**coaccessibility** (**COAX**)](COAX.md) — equally accessible to humans and machines (agents, CI, LLM) through the same structural contracts. — [AGENT.md Article 1](./AGENT.md#article-1--the-holon)
+[^1]:> A **holon** is, at any scale, an independent, composable, software functional unit built for [**coaccessibility** (**COAX**)](COAX.md) — equally accessible to humans and machines (agents, CI, LLM) through the same structural contracts. — [CONSTITUTION.md Article 1](./CONSTITUTION.md#article-1--the-holon)
 
 ---
 # Organism

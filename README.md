@@ -7,7 +7,7 @@ A `.proto` at the center, facets radiating from it — and legacy code,
 new code, humans, and agents naturally interoperate.
 
 > For the full motivation, see [Why?](./WHY.md).
-> For the full specification, see [AGENT.md](./AGENT.md).
+> For the full specification, see [CONSTITUTION.md](./CONSTITUTION.md).
 
 ---
 
@@ -117,23 +117,23 @@ which the ecosystem grows.
 
 | Document | What it answers |
 |----------|----------------|
-| [Constitution](./AGENT.md) | What is a holon? |
+| [Constitution](./CONSTITUTION.md) | What is a holon? |
 | [Coax](./COAX.md)| coaccessibility. |
 | [Conventions](./CONVENTIONS.md) | How is a holon structured per language? |
 | [Holon discovery](./holons/grace-op/HOLON_DISCOVERY.md) | How do holons discover each other? |
 | [Holon build](./holons/grace-op/HOLON_BUILD.md) | How do holons build each other? |
-| [.proto](./holons/grace-op/HOLON_PROTO.md) | How do holons use protos? |
+| [.proto](./PROTO.md) | How do holons use the `.proto` manifest? |
 | [Holon package](./holons/grace-op/HOLON_PACKAGE.md) | How do holons package each other? |
 | [OP](./holons/grace-op/README.md) |  Op is the CLI tool. |
-| [Protocol](./PROTOCOL.md) | How do holons communicate? |
+| [Protocol](./COMMUNICATION.md) | How do holons communicate? |
 
 
 © 2026 Benoit Pereira da Silva. All rights reserved.
 
 ---
 
-[^1]: See [AGENT.md — Article 1](./AGENT.md#article-1--the-holon)
-[^2]: See [AGENT.md — Article 2](./AGENT.md#article-2--the-contract-protocol-buffers)
-[^3]: See [AGENT.md — Article 5](./AGENT.md#article-5--composition)
-[^4]: See [AGENT.md — Article 9](./AGENT.md#article-9--mimesis)
-[^5]: See [AGENT.md — Article 11](./AGENT.md#article-11--the-serve--dial-convention)
+[^1]: See [CONSTITUTION.md — Article 1](./CONSTITUTION.md#article-1--the-holon)
+[^2]: See [CONSTITUTION.md — Article 2](./CONSTITUTION.md#article-2--the-contract-protocol-buffers)
+[^3]: See [CONSTITUTION.md — Article 5](./CONSTITUTION.md#article-5--composition)
+[^4]: See [CONSTITUTION.md — Article 9](./CONSTITUTION.md#article-9--mimesis)
+[^5]: See [CONSTITUTION.md — Article 11](./CONSTITUTION.md#article-11--the-serve--dial-convention)
