@@ -1,147 +1,176 @@
-# FIX:Holon Discovery
+# Implementation: Holon Discovery
 
-## BPdS decisions 
+Align `grace-op` code with the [Discovery Spec](../DISCOVERY.md) and [OP Discovery](../holons/grace-op/OP_DISCOVERY.md).
 
-**Pseudo API** = `Discover(holon:string!,root:string?, specifiers:enum{source,built,installed,cached}...)` specifiers parameter is variadic or can be combined by logic value --source --installed. no specifier is a special case, it means all the specifiers.
+---
 
-**<holon>** can be slug, alias, uuid, package path, binary path, in any context.
+## Tasks
 
-## BPdS tasks
+### Discover API
 
-- Work directly on the go Discover function public & implementation. 
-- [] --root modifier is a global flag and can be used with any command to constraint to a root for discovery
-- [] when --root is set we search only in this root. 
-- [] reject --root with void or any invalid path.
-- [] We need just one command `op list` to list holons (no `op discover`) remove it, from code, code api , documentations.
-- [] any command that needs to resolve a holon should use the same discovery algorithm
-- Some command like `op build` always use --source specifier and reject any other specifier.
+- [ ] Refactor `DiscoverHolons` into `Discover(holon, root, specifiers...)` — single public function
+- [ ] Implement specifier-based layer filtering (siblings, cwd, source, built, installed, cached)
+- [ ] Implement resolution order: siblings → cwd → source → built → installed → cached
+- [ ] Multiple specifiers = union, resolved in default order (flag position is meaningless)
+
+### `--root` flag
+
+- [ ] `--root` is a global flag usable with any command
+- [ ] When set, constrain all discovery to that root only
+- [ ] When unset, root defaults to cwd
+- [ ] Reject `--root` with empty or invalid path
+
+### Unify `<holon>` parameter across all commands
+
+Every command that resolves a holon must accept the same input: slug, alias, uuid, path, or binary path. Today, different commands use different resolution paths.
+
+**Current state (code audit):**
+
+| Code path | Used by | What it accepts |
+|---|---|---|
+| `ResolveTarget(ref)` in `discovery.go` | `op <holon>`, `op run` | slug, alias, `existingTargetDir` (cwd-relative) |
+| `resolveHolonRef(ref)` in `cli.go` | `op build`, `op check`, `op test`, `op clean`, `op install` | slug, path (`.`, `./foo`), but separate resolution logic |
+| `who.Show(ref)` in `who.go` | `op show` | UUID prefix |
+| Custom parsing in `cli.go` | `op inspect` | slug, host:port |
+
+**Target state:** one `Discover(holon, root, specifiers...)` call for all.
+
+**Steps:**
+
+- [ ] Audit all commands: identify where each parses `<holon>` → list each code path
+- [ ] Route `op build`, `op check`, `op test`, `op clean`, `op install` through `Discover(holon, root, --source)`
+- [ ] Route `op run` through `Discover(holon, root, --installed, --built, --siblings)`
+- [ ] Route `op show` through `Discover(holon, root)` with UUID matching
+- [ ] Route `op inspect`, `op tools`, `op mcp`, `op uninstall`, `op do` through `Discover(holon, root)`
+- [ ] `op list [root]` stays as-is — positional arg is a directory, not a holon
+- [ ] `op inspect` keeps `host:port` as an exception (skip Discover, connect directly)
+- [ ] Remove `resolveHolonRef` — replaced by `Discover`
+- [ ] Remove `ResolveTarget` — replaced by `Discover`
+
+### Remove `op discover`
+
+- [ ] Remove `op discover` command from CLI (`cli.go`, `cli_misc.go`)
+- [ ] Remove `Discover` from code API (`api/public_identity.go`)
+- [ ] Update all documentation references
+- [ ] `op list` absorbs all discovery functionality
+
+### Command special cases
+
+- [ ] `op build` forces `--source` specifier, ignores others
+- [ ] `op install` uses `--built` specifier
+- [ ] `op run` uses `--installed --built --siblings`, with auto-build fallback from source
+- [ ] `op run` default listen URI: `tcp://127.0.0.1:0` (not `stdio://`)
+- [ ] `op run --listen stdio://` rejected
+
+### `.holon` package execution
+
+- [ ] `op run` handles `.holon` packages (`.holon.json` + binary, no `holon.proto` required)
+- [ ] `runWithIO` resolves binary via `PackageBinaryPath` when `holon.proto` is absent
+
+### `--bin` → `--origin`
+
+- [ ] Rename `--bin` flag to `--origin`
+- [ ] `--origin` outputs resolved path + layer to stderr
+- [ ] Fix: `op run <holon> --origin` must not cause `op: holon "run" not found`
+
+### SDK validation — `gabriel-greeting-app-swiftui`
+
+The SwiftUI app is the proof that `Discover()` works end-to-end from the SDK side.
+
+**Current state:** the app hardcodes holon descriptors (names, UUIDs, binary paths, sort ranks) in ~200-400 lines of plumbing code.
+
+**Target state:** the app calls `swift-holons` SDK's `Discover()` to find its member holons dynamically.
+
+- [ ] Implement `Discover(holon, root, specifiers...)` in `swift-holons` SDK (`pkg/discover`)
+- [ ] Published app mode: scan `Contents/Resources/Holons/*.holon/`, read `.holon.json`
+- [ ] Dev mode: delegate to `op list --format json` or reimplement the same walk
+- [ ] Replace hardcoded descriptors in `gabriel-greeting-app-swiftui` with `HolonCatalog.discover()`
+- [ ] Verify: app discovers all 12 greeting holons from its bundle at runtime
+- [ ] Verify: adding/removing a `.holon` package from the bundle changes what the app discovers (no code change needed)
 
 
-### Flags for `op` command that uses discovery : 
 
-| Flag | Scope | Notes|
-|------|-------|-------|    
-| *(none)* | same as `--all` | |
-| `--all` | everything across all layers | |
-| `--siblings` | e.g. bundle for apple app's bundles | |
-| `--cwd` | the execution | |
-| `--source` | source holons in workspace | |
-| `--built` | `.op/build/` packages | |
-| `--installed` | `$OPBIN` packages | | 
-| `--cached` | `$OPPATH/cache` packages | |
-| `--root <path>` | override anything as scan root | **unique preempt any other flag** | 
+Two tiers: Go unit tests first (fast, prevent code-level regressions), then integration tests (full CLI pipeline).
 
-Resolution order when `--all` or undefined : 
+#### Tier 1 — Go unit tests (`internal/holons/discovery_test.go`)
 
-1. siblings
-2. cwd
-3. source
-4. built
-5. installed
-6. cached
+Extend existing test infrastructure (`writeDiscoveryHolon`, `chdirForHolonTest`, `t.Setenv`).
 
-#### What happens we provide a set of specifiers ? e.g : --installed --source
+**`--root` / OPROOT behavior:**
 
-The resolution should be the intersection of the specifiers with the default resolution order (--source --installed  in our case we don't want to give a meaning to flag positions)
+- [ ] `TestDiscoverWithOPROOT` — `t.Setenv("OPROOT", root)`, call `DiscoverHolons(".")`, verify only holons under root are found
+- [ ] `TestDiscoverOPROOTIgnoresCWD` — cwd has holons, OPROOT points elsewhere, verify cwd holons are NOT found
+- [ ] `TestResolveTargetRespectsOPROOT` — slug exists under OPROOT but not cwd, verify it resolves
+- [ ] `TestResolveTargetBareSlugIgnoresCWDWithOPROOT` — slug matches a cwd dir name, but OPROOT is set, verify OPROOT wins
+- [ ] `TestDiscoverRejectsEmptyRoot` — empty string root returns error
 
-####  Op command special cases
+**`.holon` package discovery:**
 
-1. By design `op build <holon>` requires source code and ignore any specifier flags it uses the Discovery code api with `--source` specifier in any case (immutable behavior).  **IMPORTANT1** note <holon> can be the path to a source holon in this case the build is done in the directory of the source holon. **IMPORTANT2** if `--root` is set, the build is done in the root directory (if it contains sources or .holon with sources recursively)
-2. `op install <holon> --build` is a composition of `op build <holon> --source` followed by `op install <holon> --installed`. Note the that `op install` without build uses the already built binary.
-3. `op run <holon>` uses the installed binary if available, otherwise it uses the built binary if available, otherwise fails.  **IMPORTANT**: you can add `--build` to force to build , you can give the path to the source holon as <holon> to scope a specific .holon.  When `op run <holon>` just find a source holon it it equivalent to run `--build` this mechanism is auto-build.
+- [ ] `TestDiscoverFindsHolonPackage` — create a `foo.holon/` dir with `.holon.json`, verify discovered
+- [ ] `TestDiscoverHolonPackageNeedsNoProto` — `.holon` package without `holon.proto`, verify discovered
+- [ ] `TestResolveTargetFindsHolonPackageBySlug` — slug `foo` resolves to `foo.holon/`
 
-```shell
-op build    → Discover(holon, root, --source)
-op install  → Discover(holon, root, --built)
-op run      → Discover(holon, root, --installed, --built, --siblings)
-#               ↳ if only source found → auto-build, then run
+**Alias resolution:**
 
+- [ ] `TestResolveTargetByAlias` — holon with `aliases: ["op"]`, verify `ResolveTarget("op")` finds it
+- [ ] `TestResolveTargetAliasWorksWithOPROOT` — same but with OPROOT set
+
+**Specifier filtering (once Discover API is refactored):**
+
+- [ ] `TestDiscoverWithSourceSpecifier` — only source holons returned
+- [ ] `TestDiscoverWithInstalledSpecifier` — only `$OPBIN` packages returned
+- [ ] `TestDiscoverIntersectionOrder` — `--installed --source` returns results in default order (source before installed)
+
+#### Tier 2 — Integration tests (`scripts/test_tools/acceptance_test.sh`)
+
+Runs the compiled `op` binary against real filesystem fixtures. Each test:
+1. Creates a temp dir with controlled structure
+2. Runs an `op` command
+3. Asserts on exit code + output
+
+```bash
+# Fixture setup:
+#   $FIXTURES/
+#     workspace/
+#       holons/gabriel-greeting-go/   (source holon with holon.proto)
+#     isolated/
+#       gabriel-greeting-go.holon/    (.holon package with .holon.json + binary)
+#     empty/
+
+# --- Root scoping ---
+test_list_root_constrains_discovery()
+  op list --root "$FIXTURES/isolated"     # finds gabriel-greeting-go
+  op list --root "$FIXTURES/empty"        # finds nothing
+  op list --root "$FIXTURES/workspace"    # finds source holon only
+
+# --- Run behavior ---
+test_run_defaults_to_tcp()
+  op run gabriel-greeting-go 2>&1 | grep "tcp://"
+
+test_run_rejects_stdio()
+  op run gabriel-greeting-go --listen stdio://  # exit 1
+
+test_run_holon_package()
+  op run gabriel-greeting-go --root "$FIXTURES/isolated"  # succeeds
+
+test_run_op()
+  op run op  # alias resolution, must not fail
+
+# --- Origin flag ---
+test_origin_shows_path()
+  op gabriel-greeting-go SayHello '{}' --origin 2>&1 | grep "origin:"
 ```
 
+#### Execution order
 
-### Using binary path.
+1. Write Tier 1 Go tests **before** touching `discovery.go`
+2. Run `go test ./internal/holons/...` — some will fail, documenting bugs
+3. Fix `discovery.go` to make failing tests pass
+4. **SDK validation: implement `Discover()` in `swift-holons`, integrate into `gabriel-greeting-app-swiftui`**
+5. Write Tier 2 integration script after Go + Swift are validated
+6. Run Tier 2 before every release
 
-- `op <holon> <command> [args]` can be a binary path.
-- Using a binary path bypasses discover and is faster.
-- When possible for example in autocompletion the op internal logic should use the resolved binary path to avoid discover and even cache the result of the description.
+### Performance
 
-- NEW feature `op <binary-path> Describe` should enable to get the description of the holon it is faster because it bypasses discover. 
-
-### The --bin flag should be renamed --origin 
-
-**VERY IMPORTANT**
-- `op <holon> <command> --origin` should show the origin in stderr. (operationnal in build)
-
-
-## Usage contexts
-
-### A. Scan — enumerate all holons under a root
-
-| Command | Default root | `--root` |
-|---|---|---|
-| `op list [root]` | cwd | overrides cwd |$
-
-### B. Resolve one holon by name — find it, then act
-
-| Command | Accepts |
-|---|---|
-| `op <holon> <command> [args]` | slug, alias |
-| `op run <holon>` | slug, alias |
-| `op inspect <slug>` | slug, alias, host:port |
-| `op do <holon> <sequence>` | slug, alias |
-| `op tools <slug>` | slug, alias |
-| `op mcp <slug>` | slug, alias, URI |
-| `op uninstall <holon>` | slug, alias |
-
-### C. Resolve by slug-or-path — local-first
-
-| Command | Accepts |
-|---|---|
-| `op build [<holon-or-path>]` | slug, alias, `.`, `./path` |
-| `op check [<holon-or-path>]` | slug, alias, `.`, `./path` |
-| `op test [<holon-or-path>]` | slug, alias, `.`, `./path` |
-| `op clean [<holon-or-path>]` | slug, alias, `.`, `./path` |
-| `op install [<holon-or-path>]` | slug, alias, `.`, `./path` |
-
-### D. Resolve by UUID
-
-| Command | Accepts |
-|---|---|
-| `op show <uuid-or-prefix>` | full UUID, prefix |
-
-### E. No discovery
-
-| Command | Notes |
-|---|---|
-| `op <binary-path> <method>` | direct file, no resolution |
-| `op grpc://...` | direct URI |
-| `op serve`, `op version`, `op new`, `op env`, `op mod` | self or scaffolding |
-
-### F. SDK runtime — holon-to-holon
-
-A running holon discovers peers to connect to them. Uses the same algorithm but from the holon's own process context, not the CLI.
-
----
-
-## Holon identity keys
-
-A holon can be found by any of these:
-
-| Key | Example | Source |
-|---|---|---|
-| **Slug** | `gabriel-greeting-go` | `given-family` lowercased |
-| **Alias** | `op` | explicit `aliases` list in identity |
-| **Dir name** | `gabriel-greeting-go.holon` | directory basename (`.holon` stripped) |
-| **UUID** | `3f08b5c3` | identity, full or prefix |
-| **Path** | `./holons/foo`, `.` | filesystem, no discovery walk |
-| **Binary** | `gabriel-greeting-go` | installed in `$OPBIN` or `$PATH` |
-
----
-
-## What discovery finds
-
-| Kind | Marker | Has binary? | Has `holon.proto`? |
-|---|---|---|---|
-| **Source holon** | `holon.proto` in tree | after build | yes |
-| **`.holon` package** | `*.holon/` dir + `.holon.json` | yes (prebuilt) | no |
+- [ ] `op list --root ~/` remains under 30s on macOS (current: ~28s)
 
