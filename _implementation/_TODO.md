@@ -1,9 +1,10 @@
 # v0.6 Plan :
 A very serious release
 
-- [] [DISCOVERY FIX](DISCOVERY.md)
+- [] [ORIGIN_FLAG.md](ORIGIN_FLAG.md)
 - [] [OP RUN ISSUES](../holons/grace-op/OP_RUN.md)
 - [] As any holon op can be run. e.g `op op <command>`    
+- [] [DISCOVERY FIX](DISCOVERY.md)
 -  `op proxy` [PROXY.md](../holons/grace-op/PROXY.md) TO BE PLANIFIED
 
 - Create real rules for OP
@@ -11,8 +12,6 @@ A very serious release
     - The golden rule implementation should push the code api to the front ( the other part should be mechanical and conventionnaly documented by clear example) 
     - Never leave a test failing. 
     - Use SDK first
- 
-
 
 
 # Gabriel app swiftUI
