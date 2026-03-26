@@ -1,12 +1,6 @@
 [submodule "holons/grace-op"]
 	path = holons/grace-op
 	url = git@github.com:organic-programming/grace-op.git
-[submodule "sdk/c-holons"]
-	path = sdk/c-holons
-	url = git@github.com:organic-programming/c-holons.git
-[submodule "sdk/cpp-holons"]
-	path = sdk/cpp-holons
-	url = git@github.com:organic-programming/cpp-holons.git
 [submodule "holons/rob-go"]
 	path = holons/rob-go
 	url = git@github.com:organic-programming/rob-go.git
