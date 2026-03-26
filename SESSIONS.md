@@ -111,39 +111,34 @@ When multiple layers disagree, the higher-priority layer wins:
 
 When no layer has an explicit opinion, the default is **off**.
 
-### Jack Middle — Proxy-Level Activation
+### `op proxy` — Network-Level Activation
 
-[Jack Middle](../../jack-middle/v0.1/DESIGN_transparent_proxy.md) is a
-transparent gRPC proxy that sits between caller and target. He sees
-every connection and every RPC — which makes him a natural session
-activation point.
+`op proxy` is the transparent routing daemon that sits between caller and target instances. It sees every connection and every RPC — which makes it a natural session activation point.
 
-Jack can **activate** or **inhibit** sessions on the connections he
-proxies, independently for each side:
+`op proxy` can **activate** or **inhibit** sessions on the connections it proxies, independently for each side:
 
-| Side | Connection | Jack's control |
+| Side | Connection | `op proxy`'s control |
 |---|---|---|
-| **Frontend** | Caller → Jack | Jack can enable sessions on his listener (inbound) |
-| **Backend** | Jack → Target | Jack can enable sessions on his dial (outbound) |
+| **Frontend** | Caller → Proxy | Can enable sessions on its listener (inbound) |
+| **Backend** | Proxy → Target | Can enable sessions on its dial (outbound) |
 
-This gives Jack three modes for session control:
+This gives `op proxy` three modes for session control:
 
 | Mode | Frontend sessions | Backend sessions | Use case |
 |---|:---:|:---:|---|
 | **Observe** | ✅ on | ✅ on | Full visibility: trace both sides |
 | **Frontend only** | ✅ on | ❌ off | Trace callers without the target knowing |
-| **Inhibit** | ❌ off | ❌ off | Jack is invisible to session tracking |
+| **Inhibit** | ❌ off | ❌ off | Proxy is invisible to target's session tracking |
 
-Jack's built-in `metrics` middleware already collects per-method
+`op proxy`'s built-in routing engine naturally collects per-method
 latency and counts. With session activation, these metrics can be
-**attached to session IDs** — correlating Jack's middleware data
+**attached to session IDs** — correlating the proxy's middleware data
 with the session store on both sides.
 
-**Layer mapping**: Jack activates sessions using Layer 1 (Code API)
-when he dials or listens, and Layer 2 (RPC) when an operator calls
-`MiddleService.SetMiddleware` to toggle tracing at runtime. The
+**Layer mapping**: `op proxy` activates sessions using Layer 1 (Code API)
+when it dials or listens, and Layer 2 (RPC) when an operator toggles tracing at runtime. The
 target holon's own session policy (Layer 1/2/3) is independent —
-Jack's backend session is the target's inbound session, and both
+the proxy's backend session is the target's inbound session, and both
 sides keep their own store.
 
 ---
@@ -521,7 +516,7 @@ at accept, handler entry, handler exit, and response flush. It knows
 
 **Correlation**: when both sides have sessions enabled, the full
 4-phase picture is available by combining client and server views.
-Jack Middle, sitting in the middle, can measure all four from a
+`op proxy`, sitting in the middle, can measure all four from a
 single observation point.
 
 ### What Is Collected
@@ -591,32 +586,31 @@ works out of the box — even on an airgapped machine with no observability
 stack. They are **not** a replacement for Prometheus, OpenTelemetry, or
 structured logging. But they can **feed into** those systems.
 
-#### Jack Middle as Metrics Collector
+#### `op proxy` as Metrics Collector
 
-[Jack Middle](../../jack-middle/v0.1/DESIGN_transparent_proxy.md) is the
-natural bridge between session metrics and production observability. Jack
-already collects per-method latency, error rates, and call counts through
-his `metrics` middleware. With session awareness, Jack becomes a
+Because `op proxy` governs network topology, it is the
+natural bridge between session metrics and production observability. It
+already collects per-method latency, error rates, and call counts.
+With session awareness, `op proxy` natively acts as a
 **zero-config Prometheus exporter**:
 
-- Jack exposes a `/metrics` HTTP endpoint in Prometheus exposition
+- `op proxy` exposes a `/metrics` HTTP endpoint in Prometheus exposition
   format, scraped by any standard Prometheus instance.
 - Each metric is labeled with session metadata: `remote_slug`,
   `transport`, `direction`, `method` — enabling Grafana dashboards
   that show per-peer, per-method, per-transport breakdowns.
-- The operator drops Jack in front of any holon and gets dashboards
-  without touching the holon's code.
+- The operator relies entirely on `op proxy` without needing any secondary sidecars.
 
-This is complementary, not competing:
+This provides a remarkably clean observability stack:
 
 | Layer | Tool | Scope | Dependency |
 |---|---|---|---|
 | **In-process** | Session metrics (`OP_SESSIONS=metrics`) | Per-holon, in-memory | None |
-| **Proxy** | Jack + Prometheus exporter | Cross-holon, time-series | Jack deployed as sidecar |
+| **Network** | `op proxy` + Prometheus exporter | Cross-holon, time-series | Natively handled by `op` |
 | **Full stack** | OpenTelemetry SDK integration | Distributed tracing, logs | OTel collector + backend |
 
 The session model is designed to feed all three layers. `SessionMetrics`
-is the in-process source of truth; Jack aggregates and exports; OTel
+is the in-process source of truth; `op proxy` aggregates and exports across multiplexed connections; OTel
 provides the full distributed picture.
 
 ---
