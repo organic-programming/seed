@@ -7,39 +7,6 @@
 [submodule "sdk/cpp-holons"]
 	path = sdk/cpp-holons
 	url = git@github.com:organic-programming/cpp-holons.git
-[submodule "sdk/csharp-holons"]
-	path = sdk/csharp-holons
-	url = git@github.com:organic-programming/csharp-holons.git
-[submodule "sdk/dart-holons"]
-	path = sdk/dart-holons
-	url = git@github.com:organic-programming/dart-holons.git
-[submodule "sdk/go-holons"]
-	path = sdk/go-holons
-	url = git@github.com:organic-programming/go-holons.git
-[submodule "sdk/java-holons"]
-	path = sdk/java-holons
-	url = git@github.com:organic-programming/java-holons.git
-[submodule "sdk/js-holons"]
-	path = sdk/js-holons
-	url = git@github.com:organic-programming/js-holons.git
-[submodule "sdk/js-web-holons"]
-	path = sdk/js-web-holons
-	url = git@github.com:organic-programming/js-web-holons.git
-[submodule "sdk/kotlin-holons"]
-	path = sdk/kotlin-holons
-	url = git@github.com:organic-programming/kotlin-holons.git
-[submodule "sdk/python-holons"]
-	path = sdk/python-holons
-	url = git@github.com:organic-programming/python-holons.git
-[submodule "sdk/ruby-holons"]
-	path = sdk/ruby-holons
-	url = git@github.com:organic-programming/ruby-holons.git
-[submodule "sdk/rust-holons"]
-	path = sdk/rust-holons
-	url = git@github.com:organic-programming/rust-holons.git
-[submodule "sdk/swift-holons"]
-	path = sdk/swift-holons
-	url = git@github.com:organic-programming/swift-holons.git
 [submodule "holons/rob-go"]
 	path = holons/rob-go
 	url = git@github.com:organic-programming/rob-go.git
