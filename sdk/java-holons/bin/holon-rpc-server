@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SDK_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+GO_HOLONS_DIR="${SDK_DIR}/../go-holons"
+HELPER_PATH="${SDK_DIR}/cmd/holon-rpc-server-go/main.go"
+PREFERRED_GO_BIN="/Users/bpds/go/go1.25.1/bin/go"
+
+resolve_go_bin() {
+  if [[ -n "${GO_BIN:-}" ]]; then
+    printf '%s\n' "${GO_BIN}"
+    return
+  fi
+  if [[ -x "${PREFERRED_GO_BIN}" ]]; then
+    printf '%s\n' "${PREFERRED_GO_BIN}"
+    return
+  fi
+  printf '%s\n' "go"
+}
+
+contains_flag() {
+  local flag_name="$1"
+  shift
+  local arg
+  for arg in "$@"; do
+    if [[ "${arg}" == "${flag_name}" || "${arg}" == "${flag_name}="* ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+GO_CMD="$(resolve_go_bin)"
+export GOCACHE="${GOCACHE:-/tmp/go-cache}"
+
+args=("$@")
+if ! contains_flag "--sdk" "${args[@]}"; then
+  args=("--sdk" "java-holons" "${args[@]}")
+fi
+
+cd "${GO_HOLONS_DIR}"
+exec "${GO_CMD}" run "${HELPER_PATH}" "${args[@]}"

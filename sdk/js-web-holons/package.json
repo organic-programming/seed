@@ -1,0 +1,26 @@
+{
+  "name": "js-web-holons",
+  "version": "0.1.0",
+  "description": "Browser-only Holon-RPC client for Organic Programming — WebSocket JSON-RPC and HTTP+SSE",
+  "type": "module",
+  "main": "src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.mjs"
+  },
+  "keywords": [
+    "organic-programming",
+    "holon",
+    "json-rpc",
+    "websocket",
+    "sse",
+    "browser"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "protobufjs": "^7.5.4",
+    "ws": "^8.19.0"
+  }
+}

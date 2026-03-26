@@ -1,0 +1,9 @@
+test_runner
+describe-static-helper
+*.o
+*.a
+*.so
+*.dylib
+bin/
+
+*.dSYM/

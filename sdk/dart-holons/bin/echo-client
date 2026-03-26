@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+SDK_ROOT="$SCRIPT_DIR/.."
+GO_HOLONS_DIR="$SDK_ROOT/../go-holons"
+HELPER_PATH="$SDK_ROOT/cmd/echo-client-go/main.go"
+
+cd "$GO_HOLONS_DIR"
+
+GO_BIN="${GO_BIN:-}"
+if [[ -z "$GO_BIN" ]]; then
+  if [[ -x "/Users/bpds/go/go1.25.1/bin/go" ]]; then
+    GO_BIN="/Users/bpds/go/go1.25.1/bin/go"
+  else
+    GO_BIN="go"
+  fi
+fi
+
+cmd=("$GO_BIN" run "$HELPER_PATH" "$@")
+"${cmd[@]}"

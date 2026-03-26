@@ -1,0 +1,8 @@
+bin/*
+!bin/echo-client
+!bin/echo-server
+!bin/holon-rpc-server
+
+.bundle/
+vendor/bundle/
+Gemfile.lock

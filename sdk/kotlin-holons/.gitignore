@@ -1,0 +1,9 @@
+build/
+.gradle/
+bin/*
+!bin/
+!bin/echo-server
+!bin/echo-client
+!bin/holon-rpc-server
+
+*.class
