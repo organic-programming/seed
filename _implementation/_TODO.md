@@ -1,10 +1,23 @@
 # v0.6 Plan :
-A very serious release
 
+
+## Validated specification
+
+- [X] [Discovery API](../DISCOVERY.md)
+- [X] [OP discovery](../holons/grace-op/OP_DISCOVERY.md)
+- [ ] [SESSIONS.md](SESSIONS.md)
+- [ ] [INSTANCE.md](INSTANCE.md)
+- [ ] [PROXY.md](PROXY.md)
+- [ ] [METRICS.md](METRICS.md)
+
+
+## Todo 
+
+A very serious release
 - [] [ORIGIN_FLAG.md](ORIGIN_FLAG.md)
 - [] [OP RUN ISSUES](../holons/grace-op/OP_RUN.md)
 - [] As any holon op can be run. e.g `op op <command>`    
-- [] [DISCOVERY FIX](DISCOVERY.md)
+- [] DISCOVERY FIX
 -  `op proxy` [PROXY.md](../holons/grace-op/PROXY.md) TO BE PLANIFIED
 
 - Create real rules for OP

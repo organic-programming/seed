@@ -49,26 +49,29 @@ Each SDK README must provide a concise, example-oriented section for each module
 Transports provide the underlying connection mechanism. Not all SDKs support all transports, an SDK may **Dial** (act as a client calling out) or **Serve** (act as a server listening) on a transport, and these capabilities are not always symmetrically supported.
 
 *   **both**: The SDK can both Dial (Client) and Serve (Server).
-*   **dial**: The SDK can only Dial (Client).
+*   **dial or client**: The SDK can only Dial (Client).
 *   **-**: Not implemented.
 *   **?**: Not yet verified
 
-| SDK | `tcp://` | `unix://` | `stdio://` | `ws://` | `wss://` | `rest+sse` |
-|-----|:--------:|:---------:|:----------:|:-------:|:--------:|:----------:|
-| `go-holons`[^2] | both | both | both | both | both | both |
-| `dart-holons` | both | both | both | dial | dial | dial |
-| `kotlin-holons` | both | both | both | dial | dial | dial |
-| `swift-holons` | both | both | both | dial | dial | dial |
-| `rust-holons` | both | both | both | dial | dial | dial |
-| `js-holons` | both | both | both | dial | dial | dial |
-| `js-web-holons`[^3] | - | - | - | dial | dial | dial |
-| `c-holons`      | both | both | both | dial | dial | dial |
-| `cpp-holons`    | both | both | both | dial | dial | dial |
-| `csharp-holons` | both | both | both | dial | dial | dial |
-| `java-holons`   | both | both | both | dial | dial | dial |
-| `python-holons` | both | both | both | dial | dial | dial |
-| `ruby-holons`   | both | both | both | dial | dial | dial |
+| SDK               | `tcp://` | `unix://` | `stdio://` | `ws://` | `wss://` | `rest+sse` | `hub api` |
+|-------------------|:--------:|:---------:|:----------:|:-------:|:--------:|:----------:|:----------|
+| `go-holons`[^2]   | both     | both      | both       | both    | both     | both       | both      | 
+| `dart-holons`     | both     | both      | both       | dial    | dial     | dial       | client    |
+| `kotlin-holons`   | both     | both      | both       | dial    | dial     | dial       | client    |
+| `swift-holons`    | both     | both      | both       | dial    | dial     | dial       | client    |
+| `rust-holons`     | both     | both      | both       | dial    | dial     | dial       | client    |
+| `js-holons`       | both     | both      | both       | dial    | dial     | dial       | client    |
+| `js-web-holons`[^3]| -       | -         | -          | dial    | dial     | dial       | client    |
+| `c-holons`        | both     | both      | both       | dial    | dial     | dial       | client    |
+| `cpp-holons`      | both     | both      | both       | dial    | dial     | dial       | client    |
+| `csharp-holons`   | both     | both      | both       | dial    | dial     | dial       | client    |
+| `java-holons`     | both     | both      | both       | dial    | dial     | dial       | client    |
+| `python-holons`   | both     | both      | both       | dial    | dial     | dial       | client    |
+| `ruby-holons`     | both     | both      | both       | dial    | dial     | dial       | client    |
 
+> ⚠️ `hub api` not totally implemented has been updated to reflect the changes in [COMMUNICATION.md](../COMMUNICATION.md#43-multiplexing--routing-matrix)
+
+> **Note on Routing (Hubs vs Clients):** As defined in [COMMUNICATION.md](../COMMUNICATION.md), any SDK capable of **Serving** (`both`) on `ws://` or `wss://` automatically acts as a **Hub**. SDKs that can only `dial` act strictly as **Clients** and rely on the Hub for message routing.
 
 With [`op proxy`](../holons/grace-op/PROXY.md), any holon — regardless of its SDK — gains server-side support for additional transports (REST+SSE, WebSocket, MCP, mTLS) without native implementation. The proxy bridges external protocols to the holon's native `stdio://` or `tcp://` connection.
 
