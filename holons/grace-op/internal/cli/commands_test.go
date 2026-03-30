@@ -2021,8 +2021,8 @@ func TestRunCommandSkipsBuildWhenArtifactAlreadyExists(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stdout, "serve --listen stdio://") {
-		t.Fatalf("run output missing default stdio listen: %q", stdout)
+	if !strings.Contains(stdout, "serve --listen tcp://127.0.0.1:0") {
+		t.Fatalf("run output missing default tcp listen: %q", stdout)
 	}
 	if strings.Contains(stderr, "go build -o") {
 		t.Fatalf("run unexpectedly rebuilt artifact: %q", stderr)
@@ -2069,10 +2069,10 @@ func TestRunCommandCleanRebuildsStaleArtifact(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stdout, "rebuilt serve --listen stdio://") {
+	if !strings.Contains(stdout, "rebuilt serve --listen tcp://127.0.0.1:0") {
 		t.Fatalf("run --clean output missing rebuilt binary execution: %q", stdout)
 	}
-	if strings.Contains(stdout, "stale serve --listen stdio://") {
+	if strings.Contains(stdout, "stale serve --listen tcp://127.0.0.1:0") {
 		t.Fatalf("run --clean unexpectedly used stale binary: %q", stdout)
 	}
 	if !strings.Contains(stderr, "go build -o") {
@@ -2104,6 +2104,19 @@ func TestRunCommandNoBuildFailsWhenArtifactMissing(t *testing.T) {
 
 	if !strings.Contains(stderr, "artifact missing") {
 		t.Fatalf("stderr missing artifact error: %q", stderr)
+	}
+}
+
+func TestRunCommandRejectsExplicitStdioListen(t *testing.T) {
+	stderr := captureStderr(t, func() {
+		code := Run([]string{"run", "demo", "--listen", "stdio://"}, "0.1.0-test")
+		if code != 1 {
+			t.Fatalf("run returned %d, want 1", code)
+		}
+	})
+
+	if !strings.Contains(stderr, "--listen stdio:// is not supported for op run") {
+		t.Fatalf("stderr missing stdio rejection: %q", stderr)
 	}
 }
 

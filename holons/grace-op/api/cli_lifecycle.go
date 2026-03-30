@@ -7,6 +7,7 @@ import (
 
 	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
 	"github.com/organic-programming/grace-op/internal/holons"
+	"github.com/organic-programming/grace-op/internal/runpolicy"
 )
 
 func (c cliState) runLifecycleCommand(format Format, quiet bool, operation string, args []string) int {
@@ -170,10 +171,11 @@ func (c cliState) runUninstallCommand(format Format, quiet bool, args []string) 
 }
 
 type runOptions struct {
-	ListenURI string
-	NoBuild   bool
-	Target    string
-	Mode      string
+	ListenURI      string
+	ListenExplicit bool
+	NoBuild        bool
+	Target         string
+	Mode           string
 }
 
 func (c cliState) runRunCommand(format Format, quiet bool, args []string) int {
@@ -206,7 +208,7 @@ func (c cliState) runRunCommand(format Format, quiet bool, args []string) int {
 }
 
 func parseRunArgs(args []string) (string, runOptions, error) {
-	opts := runOptions{ListenURI: "stdio://"}
+	opts := runOptions{}
 	var positional []string
 	for i := 0; i < len(args); i++ {
 		switch {
@@ -215,6 +217,7 @@ func parseRunArgs(args []string) (string, runOptions, error) {
 				return "", opts, fmt.Errorf("--listen requires a value")
 			}
 			opts.ListenURI = args[i+1]
+			opts.ListenExplicit = true
 			i++
 		case args[i] == "--no-build":
 			opts.NoBuild = true
@@ -239,5 +242,25 @@ func parseRunArgs(args []string) (string, runOptions, error) {
 	if len(positional) != 1 {
 		return "", opts, fmt.Errorf("accepts exactly one <holon>")
 	}
-	return positional[0], opts, nil
+
+	holonName := strings.TrimSpace(positional[0])
+	if legacyName, legacyListen, ok := parseLegacyRunTarget(holonName); ok {
+		if opts.ListenExplicit {
+			return "", opts, fmt.Errorf("cannot combine --listen with <holon>:<port> shorthand")
+		}
+		holonName = legacyName
+		opts.ListenURI = legacyListen
+		opts.ListenExplicit = true
+	}
+	if holonName == "" {
+		return "", opts, fmt.Errorf("accepts exactly one <holon>")
+	}
+
+	listenURI, err := runpolicy.NormalizeRunListenURI(opts.ListenURI, opts.ListenExplicit)
+	if err != nil {
+		return "", opts, err
+	}
+	opts.ListenURI = listenURI
+
+	return holonName, opts, nil
 }

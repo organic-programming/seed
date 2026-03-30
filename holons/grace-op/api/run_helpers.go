@@ -17,6 +17,7 @@ import (
 	"github.com/organic-programming/grace-op/internal/holons"
 	"github.com/organic-programming/grace-op/internal/identity"
 	"github.com/organic-programming/grace-op/internal/progress"
+	"github.com/organic-programming/grace-op/internal/runpolicy"
 )
 
 type runIO struct {
@@ -37,15 +38,15 @@ func runWithIO(req *opv1.RunRequest, ioCfg runIO) (*opv1.RunResponse, error) {
 	}
 
 	holonName := strings.TrimSpace(req.GetHolon())
-	listenURI := strings.TrimSpace(req.GetListenUri())
-	if listenURI == "" {
-		listenURI = "stdio://"
-	}
-
 	response := &opv1.RunResponse{
 		Holon:     holonName,
-		ListenUri: listenURI,
+		ListenUri: strings.TrimSpace(req.GetListenUri()),
 	}
+	listenURI, err := runpolicy.NormalizeRunListenURI(req.GetListenUri(), strings.TrimSpace(req.GetListenUri()) != "")
+	if err != nil {
+		return response, err
+	}
+	response.ListenUri = listenURI
 	reporter := ioCfg.progress
 	if reporter == nil {
 		reporter = progress.Silence()

@@ -23,6 +23,7 @@ import (
 	"github.com/organic-programming/grace-op/internal/grpcclient"
 	"github.com/organic-programming/grace-op/internal/holons"
 	"github.com/organic-programming/grace-op/internal/identity"
+	"github.com/organic-programming/grace-op/internal/runpolicy"
 	"github.com/organic-programming/grace-op/internal/server"
 
 	"google.golang.org/grpc"
@@ -196,7 +197,7 @@ Install flags:
 
 Run flags:
   --clean                                      clean before building and running (cannot be combined with --no-build)
-  --listen <URI>                               listen address for service holons (default: stdio://)
+  --listen <URI>                               listen address for service holons (default: tcp://127.0.0.1:0)
   --no-build                                   fail if the artifact is missing instead of building
   --target <...>                               pass build target through if a build is needed
   --mode <debug|release|profile>               pass build mode through if a build is needed
@@ -253,7 +254,7 @@ Build a holon if needed, then launch it in the foreground.
 
 Flags:
   --clean                                      clean before building and running (cannot be combined with --no-build)
-  --listen <URI>                               listen address for service holons (default: stdio://)
+  --listen <URI>                               listen address for service holons (default: tcp://127.0.0.1:0)
   --no-build                                   fail if the artifact is missing instead of building
   --target <...>                               pass build target through if a build is needed
   --mode <debug|release|profile>               pass build mode through if a build is needed
@@ -865,7 +866,7 @@ func commandForInstalledArtifact(path string, target *holons.Target, listenURI s
 }
 
 func parseRunArgs(args []string) (string, runOptions, error) {
-	opts := runOptions{ListenURI: "stdio://"}
+	opts := runOptions{}
 	var positional []string
 
 	for i := 0; i < len(args); i++ {
@@ -922,6 +923,12 @@ func parseRunArgs(args []string) (string, runOptions, error) {
 	if holonName == "" {
 		return "", opts, fmt.Errorf("requires <holon> [flags]")
 	}
+
+	listenURI, err := runpolicy.NormalizeRunListenURI(opts.ListenURI, opts.ListenExplicit)
+	if err != nil {
+		return "", opts, err
+	}
+	opts.ListenURI = listenURI
 
 	return holonName, opts, nil
 }

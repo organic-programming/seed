@@ -9,7 +9,7 @@ This file is a quick book for human developers and testers.
 
 1. **Global flags parsed** in [parseGlobalOptions](./api/cli.go#L205-L256) — extracts `--format`, `--quiet`, `--root`, `--bin` before the subcommand.
 2. **Dispatch** — `"run"` case in [run()](./api/cli.go#L104-L105) calls `runRunCommand`.
-3. **Flag parsing** — [parseRunArgs](./api/cli_lifecycle.go#L208-L243) extracts `--listen` (default `stdio://`), `--no-build`, `--target`, `--mode`.
+3. **Flag parsing** — [parseRunArgs](./api/cli_lifecycle.go#L208-L243) extracts `--listen` (default `tcp://127.0.0.1:0`), `--no-build`, `--target`, `--mode`.
 4. **Request resolution** — [resolveRunRequest](./api/run_helpers.go#L296-L308) builds the `RunRequest` protobuf.
 5. **Execution** — [runWithIO](./api/run_helpers.go#L34-L157) does the heavy lifting:
    - Resolves holon target via [ResolveTarget](./api/run_helpers.go#L84)
@@ -44,7 +44,7 @@ Canonical form : `op run <holon> [flags]`
 ### --bin
 
 ## Default behaviour `op run gabriel-greeting-go`
-`op run gabriel-greeting-go` == `op run gabriel-greeting-go --listen tcp://120.0.0.1:0`
+`op run gabriel-greeting-go` == `op run gabriel-greeting-go --listen tcp://127.0.0.1:0`
 
 ## `op run gabriel-greeting-go` != `op gabriel-greeting-go`
 `op gabriel-greeting-go` requires a second arg (a method name). Without one it errors: missing command for holon "gabriel-greeting-go"
@@ -84,6 +84,5 @@ kill $(lsof -ti tcp:60001)
 # Or force-kill if needed
 kill -9 $(lsof -ti tcp:60001)
 ```
-
 
 
