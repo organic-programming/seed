@@ -117,14 +117,16 @@ func Run(args []string, version string) int {
 	case "new", "list", "show":
 		return cmdWho(format, quiet, cmd, rest)
 
-	// --- URI dispatch: grpc://, grpc+tcp://, grpc+stdio://, grpc+unix://, grpc+ws:// ---
+	// --- URI dispatch: grpc://, tcp://, stdio://, unix://, ws://, http://, https:// ---
 	default:
 		if strings.HasPrefix(cmd, "grpc://") ||
-			strings.HasPrefix(cmd, "grpc+tcp://") ||
-			strings.HasPrefix(cmd, "grpc+stdio://") ||
-			strings.HasPrefix(cmd, "grpc+unix://") ||
-			strings.HasPrefix(cmd, "grpc+ws://") ||
-			strings.HasPrefix(cmd, "grpc+wss://") {
+			strings.HasPrefix(cmd, "tcp://") ||
+			strings.HasPrefix(cmd, "stdio://") ||
+			strings.HasPrefix(cmd, "unix://") ||
+			strings.HasPrefix(cmd, "ws://") ||
+			strings.HasPrefix(cmd, "wss://") ||
+			strings.HasPrefix(cmd, "http://") ||
+			strings.HasPrefix(cmd, "https://") {
 			return cmdGRPC(format, cmd, rest)
 		}
 		// Direct binary dispatch: if cmd is an existing executable file,
@@ -155,11 +157,13 @@ Holon dispatch (transport chain):
 
 Direct gRPC URI dispatch:
   op grpc://<slug|host:port> <method>    gRPC auto-connect for slugs, direct TCP for host:port
-  op grpc+tcp://<slug|host:port> <method> force gRPC over TCP
-  op grpc+stdio://<holon> <method>       force gRPC over stdio pipe (ephemeral)
-  op grpc+unix://<path> <method>         gRPC over Unix socket
-  op grpc+ws://<host:port> <method>      gRPC over WebSocket
-  op grpc+wss://<host:port> <method>     gRPC over secure WebSocket
+  op tcp://<slug|host:port> <method>     force gRPC over TCP
+  op stdio://<holon> <method>            force gRPC over stdio pipe (ephemeral)
+  op unix://<path> <method>              gRPC over Unix socket
+  op ws://<host:port> <method>           gRPC over WebSocket
+  op wss://<host:port> <method>          gRPC over secure WebSocket
+  op http://<host:port> <method>         gRPC over HTTP REST + SSE
+  op https://<host:port> <method>        gRPC over secure HTTP REST + SSE
   op run <holon> [flags]                 build if needed, then launch in foreground
   op run <holon>:<port>                  shorthand for --listen tcp://:<port>
 
@@ -173,7 +177,7 @@ OP commands:
   op do <holon> <sequence> [--param=value ...]
                                          run a declared manifest sequence
   op mcp <slug> [slug2...]               start an MCP server for one or more holons
-  op mcp <grpc+tcp://host:port>          start an MCP server for a running gRPC server
+  op mcp <tcp://host:port>               start an MCP server for a running gRPC server
   op tools <slug> [--format <fmt>]       output tool definitions (openai, anthropic, mcp)
   op check [<holon-or-path>]             validate the holon manifest and prerequisites
   op build [<holon-or-path>] [flags]     build a holon artifact via its runner
@@ -580,20 +584,20 @@ func cmdRun(format Format, globalQuiet bool, args []string) int {
 //   - grpc://host:port <method>       → TCP to existing server
 //   - grpc://host:port                → list available methods
 //   - grpc://holon <method>           → auto-connect chain for slug targets
-//   - grpc+tcp://host:port <method>   → TCP to existing server
-//   - grpc+tcp://holon <method>       → forced TCP startup for slug targets
-//   - grpc+stdio://holon <method>     → forced stdio pipe
-//   - grpc+unix://path <method>       → Unix domain socket connection
+//   - tcp://host:port <method>        → TCP to existing server
+//   - tcp://holon <method>            → forced TCP startup for slug targets
+//   - stdio://holon <method>          → forced stdio pipe
+//   - unix://path <method>            → Unix domain socket connection
 func cmdGRPC(format Format, uri string, args []string) int {
 	switch {
-	case strings.HasPrefix(uri, "grpc+stdio://"):
+	case strings.HasPrefix(uri, "stdio://"):
 		return cmdGRPCStdio(format, uri, args)
-	case strings.HasPrefix(uri, "grpc+unix://"):
-		return cmdGRPCDirect(format, "unix://"+strings.TrimPrefix(uri, "grpc+unix://"), args)
-	case strings.HasPrefix(uri, "grpc+ws://") || strings.HasPrefix(uri, "grpc+wss://"):
+	case strings.HasPrefix(uri, "unix://"):
+		return cmdGRPCDirect(format, "unix://"+trimURIAnyPrefix(uri, "unix://"), args)
+	case strings.HasPrefix(uri, "ws://") || strings.HasPrefix(uri, "wss://"):
 		return cmdGRPCWebSocket(format, uri, args)
-	case strings.HasPrefix(uri, "grpc+tcp://"):
-		target := strings.TrimPrefix(uri, "grpc+tcp://")
+	case strings.HasPrefix(uri, "tcp://"):
+		target := trimURIAnyPrefix(uri, "tcp://")
 		if isHostPortTarget(target) {
 			return cmdGRPCDirect(format, target, args)
 		}
@@ -601,6 +605,15 @@ func cmdGRPC(format Format, uri string, args []string) int {
 	default:
 		return cmdGRPCTCP(format, uri, args)
 	}
+}
+
+func trimURIAnyPrefix(uri string, prefixes ...string) string {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(uri, prefix) {
+			return strings.TrimPrefix(uri, prefix)
+		}
+	}
+	return uri
 }
 
 // cmdGRPCTCP handles grpc://host:port directly and grpc://holon via auto-connect.
@@ -612,19 +625,17 @@ func cmdGRPCTCP(format Format, uri string, args []string) int {
 	return cmdGRPCConnected(format, uri, target, args, sdkconnect.TransportAuto)
 }
 
-// cmdGRPCStdio handles grpc+stdio://holon — launches the holon with
+// cmdGRPCStdio handles stdio://holon — launches the holon with
 // serve --listen stdio:// and communicates via stdin/stdout pipes.
 func cmdGRPCStdio(format Format, uri string, args []string) int {
-	holonName := strings.TrimPrefix(uri, "grpc+stdio://")
+	holonName := trimURIAnyPrefix(uri, "stdio://")
 	return cmdGRPCConnected(format, uri, holonName, args, sdkconnect.TransportStdio)
 }
 
-// cmdGRPCWebSocket handles grpc+ws://host:port[/path] and grpc+wss://...
+// cmdGRPCWebSocket handles ws://host:port[/path] and wss://...
 // Connects to an existing WebSocket gRPC server.
 func cmdGRPCWebSocket(format Format, uri string, args []string) int {
-	// Convert grpc+ws://host:port → ws://host:port
-	// Convert grpc+wss://host:port → wss://host:port
-	wsURI := strings.TrimPrefix(uri, "grpc+")
+	wsURI := trimURIAnyPrefix(uri, "grpc+")
 
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "op grpc: method required")

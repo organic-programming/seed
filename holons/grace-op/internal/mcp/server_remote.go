@@ -188,7 +188,7 @@ func IsURI(arg string) bool {
 	return strings.Contains(arg, "://")
 }
 
-// parseGRPCAddress extracts a host:port from a URI like "grpc+tcp://host:port".
+// parseGRPCAddress extracts a host:port from a URI like "tcp://host:port".
 func parseGRPCAddress(uri string) (string, error) {
 	trimmed := strings.TrimSpace(uri)
 	if trimmed == "" {
@@ -204,7 +204,7 @@ func parseGRPCAddress(uri string) (string, error) {
 
 	// If no known scheme, check if it has a scheme at all.
 	if idx := strings.Index(trimmed, "://"); idx >= 0 {
-		return "", fmt.Errorf("unsupported URI scheme in %q (use grpc+tcp://, tcp://, or grpc://)", trimmed)
+		return "", fmt.Errorf("unsupported URI scheme in %q (use tcp:// ...)", trimmed)
 	}
 
 	// Bare host:port.

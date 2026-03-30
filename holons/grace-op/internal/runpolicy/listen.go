@@ -13,7 +13,7 @@ func NormalizeRunListenURI(raw string, explicit bool) (string, error) {
 		return DefaultRunListenURI, nil
 	}
 	if explicit && IsStdioURI(listenURI) {
-		return "", fmt.Errorf("--listen stdio:// is not supported for op run; use grpc+stdio://<holon> <method> for stdio RPC")
+		return "", fmt.Errorf("--listen stdio:// is not supported for op run; use stdio://<holon> <method> for stdio RPC")
 	}
 	return listenURI, nil
 }

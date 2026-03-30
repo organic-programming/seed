@@ -233,14 +233,14 @@ func (c cliState) runConnectedRPC(format Format, errPrefix string, holonName str
 
 func (c cliState) runGRPCCommand(format Format, uri string, args []string) int {
 	switch {
-	case strings.HasPrefix(uri, "grpc+stdio://"):
-		return c.runGRPCConnectedCommand(format, uri, strings.TrimPrefix(uri, "grpc+stdio://"), args, sdkconnect.TransportStdio)
-	case strings.HasPrefix(uri, "grpc+unix://"):
-		return c.runGRPCDirectCommand(format, "unix://"+strings.TrimPrefix(uri, "grpc+unix://"), args)
-	case strings.HasPrefix(uri, "grpc+ws://") || strings.HasPrefix(uri, "grpc+wss://"):
+	case strings.HasPrefix(uri, "stdio://"):
+		return c.runGRPCConnectedCommand(format, uri, trimURIAnyPrefix(uri, "stdio://"), args, sdkconnect.TransportStdio)
+	case strings.HasPrefix(uri, "unix://"):
+		return c.runGRPCDirectCommand(format, "unix://"+trimURIAnyPrefix(uri, "unix://"), args)
+	case strings.HasPrefix(uri, "ws://") || strings.HasPrefix(uri, "wss://"):
 		return c.runGRPCWebSocketCommand(format, uri, args)
-	case strings.HasPrefix(uri, "grpc+tcp://"):
-		target := strings.TrimPrefix(uri, "grpc+tcp://")
+	case strings.HasPrefix(uri, "tcp://"):
+		target := trimURIAnyPrefix(uri, "tcp://")
 		if isHostPortTarget(target) {
 			return c.runGRPCDirectCommand(format, target, args)
 		}
@@ -252,6 +252,15 @@ func (c cliState) runGRPCCommand(format Format, uri string, args []string) int {
 		}
 		return c.runGRPCConnectedCommand(format, uri, target, args, sdkconnect.TransportAuto)
 	}
+}
+
+func trimURIAnyPrefix(uri string, prefixes ...string) string {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(uri, prefix) {
+			return strings.TrimPrefix(uri, prefix)
+		}
+	}
+	return uri
 }
 
 func (c cliState) runGRPCConnectedCommand(format Format, uri string, holonName string, args []string, transport string) int {
@@ -296,7 +305,7 @@ func (c cliState) runGRPCDirectCommand(format Format, address string, args []str
 }
 
 func (c cliState) runGRPCWebSocketCommand(format Format, uri string, args []string) int {
-	wsURI := strings.TrimPrefix(uri, "grpc+")
+	wsURI := trimURIAnyPrefix(uri, "grpc+")
 	if len(args) < 1 {
 		fmt.Fprintln(c.stderr, "op grpc: method required")
 		fmt.Fprintf(c.stderr, "usage: op %s <method>\n", uri)

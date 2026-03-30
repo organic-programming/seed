@@ -27,11 +27,13 @@ Holon dispatch (transport chain):
 
 Direct gRPC URI dispatch:
   op grpc://<slug|host:port> <method>    gRPC auto-connect for slugs, direct TCP for host:port
-  op grpc+tcp://<slug|host:port> <method> force gRPC over TCP
-  op grpc+stdio://<holon> <method>       force gRPC over stdio pipe (ephemeral)
-  op grpc+unix://<path> <method>         gRPC over Unix socket
-  op grpc+ws://<host:port> <method>      gRPC over WebSocket
-  op grpc+wss://<host:port> <method>     gRPC over secure WebSocket
+  op tcp://<slug|host:port> <method>     force gRPC over TCP
+  op stdio://<holon> <method>            force gRPC over stdio pipe (ephemeral)
+  op unix://<path> <method>              gRPC over Unix socket
+  op ws://<host:port> <method>           gRPC over WebSocket
+  op wss://<host:port> <method>          gRPC over secure WebSocket
+  op http://<host:port> <method>         gRPC over HTTP REST + SSE
+  op https://<host:port> <method>        gRPC over secure HTTP REST + SSE
   op run <holon> [flags]                 build if needed, then launch in foreground
   op run <holon>:<port>                  shorthand for --listen tcp://:<port>
 
@@ -45,7 +47,7 @@ OP commands:
   op do <holon> <sequence> [--param=value ...]
                                          run a declared manifest sequence
   op mcp <slug> [slug2...]               start an MCP server for one or more holons
-  op mcp <grpc+tcp://host:port>          start an MCP server for a running gRPC server
+  op mcp <tcp://host:port>               start an MCP server for a running gRPC server
   op tools <slug> [--format <fmt>]       output tool definitions (openai, anthropic, mcp)
   op check [<holon-or-path>]             validate the holon manifest and prerequisites
   op build [<holon-or-path>] [flags]     build a holon artifact via its runner
@@ -1005,14 +1007,14 @@ op grpc://localhost:9090 Build
 op grpc://rob-go Build
 
 # Stdio pipe — launch binary, pipe gRPC, done
-op grpc+stdio://rob-go Build
+op stdio://rob-go Build
 
 # Unix domain socket
-op grpc+unix:///tmp/rob.sock Build
+op unix:///tmp/rob.sock Build
 
 # WebSocket
-op grpc+ws://localhost:8080 Build
-op grpc+wss://secure.example.com Build
+op ws://localhost:8080 Build
+op wss://secure.example.com Build
 ```
 
 **Parsing rule**: if the authority part of `grpc://` contains a `:`
@@ -1037,7 +1039,7 @@ RPC input is JSON:
 
 ```bash
 op grpc://rob-go Build '{"package":"./cmd/rob"}'
-op grpc+stdio://gabriel-greeting-go Greet '{"name":"World"}'
+op stdio://gabriel-greeting-go Greet '{"name":"World"}'
 ```
 
 If no JSON is provided, `{}` is used.
@@ -1457,10 +1459,10 @@ configuration files.
 | `op <holon> <method> [--no-build] [json]` | Call a holon RPC; auto-build compiled slug targets if needed |
 | `op grpc://<host:port> [method]` | gRPC over TCP |
 | `op grpc://<slug> <method> [--no-build] [json]` | gRPC auto-connect for slug targets |
-| `op grpc+stdio://<holon> <method>` | gRPC over stdio pipe |
-| `op grpc+unix://<path> <method>` | gRPC over Unix socket |
-| `op grpc+ws://<host:port> <method>` | gRPC over WebSocket |
-| `op grpc+wss://<host:port> <method>` | gRPC over secure WebSocket |
+| `op stdio://<holon> <method>` | gRPC over stdio pipe |
+| `op unix://<path> <method>` | gRPC over Unix socket |
+| `op ws://<host:port> <method>` | gRPC over WebSocket |
+| `op wss://<host:port> <method>` | gRPC over secure WebSocket |
 
 ### Meta
 

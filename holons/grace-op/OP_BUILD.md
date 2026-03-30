@@ -559,7 +559,7 @@ op <slug> <command>
 proto comments, plus invocation examples:
 
 ```
-op grpc+stdio://<slug> SayHello '{"name":"Bob","lang_code":"fr"}'
+op stdio://<slug> SayHello '{"name":"Bob","lang_code":"fr"}'
 ```
 
 ### Comment Annotations

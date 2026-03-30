@@ -2341,9 +2341,9 @@ func TestGRPCTCPSlugDispatchForcesTCP(t *testing.T) {
 	seedEchoHolon(t, root)
 
 	stdout := captureStdout(t, func() {
-		code := Run([]string{"grpc+tcp://echo-server", "Ping", `{"message":"Alice"}`}, "0.1.0-test")
+		code := Run([]string{"tcp://echo-server", "Ping", `{"message":"Alice"}`}, "0.1.0-test")
 		if code != 0 {
-			t.Fatalf("grpc+tcp://echo-server returned %d, want 0", code)
+			t.Fatalf("tcp://echo-server returned %d, want 0", code)
 		}
 	})
 
@@ -2354,6 +2354,23 @@ func TestGRPCTCPSlugDispatchForcesTCP(t *testing.T) {
 	portFile := filepath.Join(root, ".op", "run", "echo-server.port")
 	if _, err := os.Stat(portFile); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("forced TCP dispatch should not leave a port file, got err=%v", err)
+	}
+}
+
+func TestGRPCStdioSlugDispatchUsesDirectStdioScheme(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	seedEchoHolon(t, root)
+
+	stdout := captureStdout(t, func() {
+		code := Run([]string{"stdio://echo-server", "Ping", `{"message":"Alice"}`}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("stdio://echo-server returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, `"message": "Alice"`) {
+		t.Fatalf("stdout missing echoed payload: %q", stdout)
 	}
 }
 

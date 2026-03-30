@@ -39,6 +39,19 @@ func TestRunCLIHelp(t *testing.T) {
 	if !strings.Contains(stdout.String(), "Organic Programming CLI") {
 		t.Fatalf("help output missing usage banner: %q", stdout.String())
 	}
+	for _, want := range []string{
+		"op tcp://<slug|host:port> <method>",
+		"op stdio://<holon> <method>",
+		"op unix://<path> <method>",
+		"op ws://<host:port> <method>",
+		"op wss://<host:port> <method>",
+		"op http://<host:port> <method>",
+		"op https://<host:port> <method>",
+	} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("help output missing %q: %q", want, stdout.String())
+		}
+	}
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q, want empty", stderr.String())
 	}

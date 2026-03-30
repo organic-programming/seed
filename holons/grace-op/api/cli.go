@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	holonserve "github.com/organic-programming/go-holons/pkg/serve"
 	sdkgrpc "github.com/organic-programming/go-holons/pkg/grpcclient"
+	holonserve "github.com/organic-programming/go-holons/pkg/serve"
 	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
 	"github.com/organic-programming/grace-op/internal/grpcclient"
 	"github.com/organic-programming/grace-op/internal/holons"
@@ -131,11 +131,13 @@ func (c cliState) run(args []string) int {
 		return c.runIdentityCommand(format, quiet, cmd, rest)
 	default:
 		if strings.HasPrefix(cmd, "grpc://") ||
-			strings.HasPrefix(cmd, "grpc+tcp://") ||
-			strings.HasPrefix(cmd, "grpc+stdio://") ||
-			strings.HasPrefix(cmd, "grpc+unix://") ||
-			strings.HasPrefix(cmd, "grpc+ws://") ||
-			strings.HasPrefix(cmd, "grpc+wss://") {
+			strings.HasPrefix(cmd, "tcp://") ||
+			strings.HasPrefix(cmd, "stdio://") ||
+			strings.HasPrefix(cmd, "unix://") ||
+			strings.HasPrefix(cmd, "ws://") ||
+			strings.HasPrefix(cmd, "wss://") ||
+			strings.HasPrefix(cmd, "http://") ||
+			strings.HasPrefix(cmd, "https://") {
 			return c.runGRPCCommand(format, cmd, rest)
 		}
 		// Direct binary dispatch: if cmd is an existing executable file,
@@ -162,11 +164,13 @@ Holon dispatch (transport chain):
 
 Direct gRPC URI dispatch:
   op grpc://<slug|host:port> <method>     gRPC auto-connect for slugs, direct TCP for host:port
-  op grpc+tcp://<slug|host:port> <method> force gRPC over TCP
-  op grpc+stdio://<holon> <method>        force gRPC over stdio pipe
-  op grpc+unix://<path> <method>          gRPC over Unix socket
-  op grpc+ws://<host:port> <method>       gRPC over WebSocket
-  op grpc+wss://<host:port> <method>      gRPC over secure WebSocket
+  op tcp://<slug|host:port> <method>      force gRPC over TCP
+  op stdio://<holon> <method>             force gRPC over stdio pipe
+  op unix://<path> <method>               gRPC over Unix socket
+  op ws://<host:port> <method>            gRPC over WebSocket
+  op wss://<host:port> <method>           gRPC over secure WebSocket
+  op http://<host:port> <method>          gRPC over HTTP REST + SSE
+  op https://<host:port> <method>         gRPC over secure HTTP REST+ SSE
 
 OP commands:
   op list [root]
@@ -188,7 +192,7 @@ OP commands:
   op mod <command>
   op env [--init] [--shell]
   op mcp <slug> [slug2...]
-  op mcp <grpc+tcp://host:port>
+  op mcp <tcp://host:port>
   op serve [--listen tcp://:9090]
   op version
 `)
@@ -333,7 +337,6 @@ func (c cliState) runDirectBinary(format Format, binaryPath string, args []strin
 	fmt.Fprintln(c.stdout, formatRPCOutput(format, method, []byte(result.Output)))
 	return 0
 }
-
 
 func parseFormat(value string) (Format, error) {
 	switch Format(strings.ToLower(strings.TrimSpace(value))) {
