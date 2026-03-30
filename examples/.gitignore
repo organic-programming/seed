@@ -24,6 +24,7 @@ Cargo.lock
 # Node.js
 node_modules/
 package-lock.json
+!hello-world/gabriel-greeting-node/package-lock.json
 
 # Python
 __pycache__/

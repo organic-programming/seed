@@ -55,7 +55,7 @@ scripts/generate_proto.js      Regenerates protobuf code and validates holon.pro
 ## How to launch
 
 ```bash
-npm install
+npm ci
 npm run generate-proto
 node cmd/main.js version
 node cmd/main.js listLanguages --format json
