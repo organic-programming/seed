@@ -1,0 +1,24 @@
+{
+  "name": "@organic-programming/op",
+  "version": "0.0.0-development",
+  "description": "Organic Programming CLI",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/organic-programming/grace-op.git"
+  },
+  "bin": {
+    "op": "bin/op.js"
+  },
+  "files": [
+    "bin/op.js",
+    "README.md"
+  ],
+  "optionalDependencies": {
+    "@organic-programming/op-darwin-arm64": "0.0.0-development",
+    "@organic-programming/op-darwin-x64": "0.0.0-development",
+    "@organic-programming/op-linux-arm64": "0.0.0-development",
+    "@organic-programming/op-linux-x64": "0.0.0-development",
+    "@organic-programming/op-win32-x64": "0.0.0-development"
+  }
+}

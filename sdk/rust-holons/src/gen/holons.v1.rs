@@ -849,7 +849,7 @@ pub mod coax_service_client {
     /// This service is recursive: a member that is itself an organism
     /// exposes its own CoaxService at its own level.
     ///
-    /// See AGENT.md Article 1 for the COAX principle.
+    /// See CONSTITUTION.md Article 1 for the COAX principle.
     /// See apps_kits/DESIGN.md for how App Kits implement this surface.
     #[derive(Debug, Clone)]
     pub struct CoaxServiceClient<T> {
@@ -1198,7 +1198,7 @@ pub mod coax_service_server {
     /// This service is recursive: a member that is itself an organism
     /// exposes its own CoaxService at its own level.
     ///
-    /// See AGENT.md Article 1 for the COAX principle.
+    /// See CONSTITUTION.md Article 1 for the COAX principle.
     /// See apps_kits/DESIGN.md for how App Kits implement this surface.
     #[derive(Debug)]
     pub struct CoaxServiceServer<T> {

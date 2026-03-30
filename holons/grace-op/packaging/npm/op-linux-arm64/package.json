@@ -1,0 +1,19 @@
+{
+  "name": "@organic-programming/op-linux-arm64",
+  "version": "0.0.0-development",
+  "description": "Organic Programming CLI binary for Linux arm64",
+  "license": "UNLICENSED",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin/op",
+    "README.md"
+  ],
+  "bin": {
+    "op": "bin/op"
+  }
+}

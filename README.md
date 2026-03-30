@@ -6,7 +6,6 @@ A bio-inspired, Unix-inspired paradigm for a hybrid human–agent world.
 A `.proto` at the center, facets radiating from it — and legacy code,
 new code, humans, and agents naturally interoperate.
 
-> For the full motivation, see [Why?](./WHY.md).
 > For the full specification, see [CONSTITUTION.md](./CONSTITUTION.md).
 
 ---
