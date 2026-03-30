@@ -14,7 +14,7 @@ op mcp gabriel-greeting-go
 op mcp gabriel-greeting-go rob-go
 
 # Remote COAX server via URI
-op mcp grpc+tcp://127.0.0.1:60000
+op mcp tcp://127.0.0.1:60000
 ```
 
 The slug-based mode starts the holon via `connect(slug)`, calls
@@ -42,7 +42,7 @@ address to `tcp://127.0.0.1:60000`.
 **3. Bridge COAX to MCP**
 
 ```bash
-op mcp grpc+tcp://127.0.0.1:60000
+op mcp tcp://127.0.0.1:60000
 ```
 
 This connects to the running organism, calls `HolonMeta/Describe`,

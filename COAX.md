@@ -52,7 +52,7 @@ adds its own domain services on top.
 #### You call **op Greet Bob** on the organism 
 
 ```shell
-$ op grpc+tcp://127.0.0.1:60000 Greet '{"name":"Bob"}'
+$ op tcp://127.0.0.1:60000 Greet '{"name":"Bob"}'
 {
   "greeting": "Hello Bob"
 }

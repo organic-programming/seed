@@ -352,7 +352,7 @@ External ──────────▶├─ WebSocket listener (:8444) ─�
                     │                               ├── middleware ── stdio ── holon
                     ├─ MCP listener (stdio) ────────┤   chain          gRPC
                     │                               │                 channel
-                    └─ gRPC+mTLS listener (:9090) ──┘
+                    └─ gRPC + mTLS listener (:9090)─┘
 ```
 
 All adapters share the **same gRPC channel** to the holon. The

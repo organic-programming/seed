@@ -325,7 +325,7 @@ calls.
 ```
 Agent (Claude, Copilot, …)
   │
-  └─ MCP client ──── stdio ────→ op mcp grpc+tcp://<slug>:<port>
+  └─ MCP client ──── stdio ────→ op mcp tcp://<slug>:<port>
                                       │
                                       ├─ 1. Call Describe on organism
                                       │     → gets CoaxService + GreetingAppService
@@ -351,7 +351,7 @@ In both cases, the schema source is `Describe` — never local
 | Mode | Command | Schema source |
 |------|---------|---------------|
 | **Regular holon** | `op mcp gabriel-greeting-go` | `Describe` (op starts the holon, then calls Describe) |
-| **COAX (running organism)** | `op mcp grpc+tcp://<slug>:<port>` | `Describe` (op connects to the running organism) |
+| **COAX (running organism)** | `op mcp tcp://<slug>:<port>` | `Describe` (op connects to the running organism) |
 
 Both produce the same MCP tool surface — JSON Schema from proto
 fields, descriptions from proto comments, `@required` / `@example`

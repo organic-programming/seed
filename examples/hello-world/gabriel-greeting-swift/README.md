@@ -203,9 +203,8 @@ All three are exposed via `op mcp`. The agent chooses the right level: **MCP** f
 
 ```bash
 op gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc://gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc+stdio://gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc+tcp://gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"en"}'
+stdio://gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"en"}'
+op tcp://gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"en"}'
 ```
 
 ## Currently not supported .

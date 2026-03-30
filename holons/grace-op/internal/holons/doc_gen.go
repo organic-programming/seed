@@ -59,7 +59,7 @@ func generateDocumentation(manifest *LoadedManifest, fds []*desc.FileDescriptor,
 				}
 
 				example := extractExample(m)
-				buf.WriteString(fmt.Sprintf("```\nop grpc+stdio://%s %s '%s'\n```\n\n",
+				buf.WriteString(fmt.Sprintf("```\nop stdio://%s %s '%s'\n```\n\n",
 					slug, m.GetName(), example))
 			}
 		}

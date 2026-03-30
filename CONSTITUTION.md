@@ -546,10 +546,10 @@ A holon's transport choice determines two structural properties
 **op** uses the transport URI as a dispatch mechanism:
 
 ```
-op grpc://localhost:9090 SayHello '{"name":"folks","lang_code":"en"}'                         TCP (existing server)
-op grpc+stdio://gabriel-greeting-go SayHello '{"name":"folks","lang_code":"en"}'              stdio pipe (ephemeral)
-op grpc+unix:///tmp/gabriel.sock SayHello  '{"name":"folks","lang_code":"en"}'                Unix socket
-op grpc+ws://host:8080/grpc SayHello  '{"name":"folks","lang_code":"en"}'                     WebSocket
+op tcp://localhost:9090 SayHello '{"name":"folks","lang_code":"en"}'                     TCP (existing server)
+op stdio://gabriel-greeting-go SayHello '{"name":"folks","lang_code":"en"}'              stdio pipe (ephemeral)
+op unix:///tmp/gabriel.sock SayHello  '{"name":"folks","lang_code":"en"}'                Unix socket
+op ws://host:8080/grpc SayHello  '{"name":"folks","lang_code":"en"}'                     WebSocket
 op run gabriel-greeting-go:9090                                start holon on TCP
 op run gabriel-greeting-go --listen unix:///tmp/gabriel.sock    start holon on Unix socket
 ```

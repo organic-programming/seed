@@ -290,7 +290,7 @@ func isExecutableFile(path string) bool {
 }
 
 // runDirectBinary launches an executable directly and invokes an RPC via
-// grpc+stdio (no discovery).
+// stdio (no discovery).
 func (c cliState) runDirectBinary(format Format, binaryPath string, args []string) int {
 	abs, err := filepath.Abs(binaryPath)
 	if err != nil {

@@ -32,7 +32,7 @@ func isExecutableFile(path string) bool {
 }
 
 // cmdDirectBinary launches an executable directly and invokes an RPC via
-// grpc+stdio — no discovery, no slug resolution.
+// stdio — no discovery, no slug resolution.
 func cmdDirectBinary(format Format, binaryPath string, args []string) int {
 	abs, err := filepath.Abs(binaryPath)
 	if err != nil {

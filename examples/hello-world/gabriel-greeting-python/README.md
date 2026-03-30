@@ -157,10 +157,9 @@ All three are exposed via `op mcp`. The agent chooses the right level: **MCP** f
 ## How to launch
 
 ```bash
-op gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc://gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc+stdio://gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc+tcp://gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}'
+op gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}
+op stdio://gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}'
+op tcp://gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}'
 ```
 
 ## Currently not supported .

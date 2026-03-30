@@ -16,7 +16,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 				Composer:   "B. ALTER",
 				Status:     "draft",
 				Born:       "2026-02-12",
-				Version:    "0.5.44",
+				Version:    "0.5.45",
 				Aliases: []string{
 					"op",
 				},
@@ -95,7 +95,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 		Services: []*holonsv1.ServiceDoc{
 			&holonsv1.ServiceDoc{
 				Name:        "holons.v1.CoaxService",
-				Description: "CoaxService is the COAX (coaccessibility) interaction surface for any organism — a composite holon that assembles member holons. It enables programmatic discovery, connection, and interaction with the organism's members: the same operations a human performs through the UI, driven through the same shared state. Agent-initiated actions (selecting a member, invoking a method) must be reflected in the organism's interface in real time — COAX does not bypass the UI, it drives through it. This service is recursive: a member that is itself an organism exposes its own CoaxService at its own level. See AGENT.md Article 1 for the COAX principle. See apps_kits/DESIGN.md for how App Kits implement this surface.",
+				Description: "CoaxService is the COAX (coaccessibility) interaction surface for any organism — a composite holon that assembles member holons. It enables programmatic discovery, connection, and interaction with the organism's members: the same operations a human performs through the UI, driven through the same shared state. Agent-initiated actions (selecting a member, invoking a method) must be reflected in the organism's interface in real time — COAX does not bypass the UI, it drives through it. This service is recursive: a member that is itself an organism exposes its own CoaxService at its own level. See CONSTITUTION.md Article 1 for the COAX principle. See apps_kits/DESIGN.md for how App Kits implement this surface.",
 				Methods: []*holonsv1.MethodDoc{
 					&holonsv1.MethodDoc{
 						Name:        "ListMembers",
