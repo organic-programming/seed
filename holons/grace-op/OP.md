@@ -26,7 +26,6 @@ Holon dispatch (transport chain):
   op <binary-path> <method> [json]       call an executable directly (no discovery)
 
 Direct gRPC URI dispatch:
-  op grpc://<slug|host:port> <method>    gRPC auto-connect for slugs, direct TCP for host:port
   op tcp://<slug|host:port> <method>     force gRPC over TCP
   op stdio://<holon> <method>            force gRPC over stdio pipe (ephemeral)
   op unix://<path> <method>              gRPC over Unix socket
