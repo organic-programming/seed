@@ -30,12 +30,14 @@
 
 | Spec | Impl | Doc | Topic |
 |:---:|:---:|---|---|
+| ? | ? | [holons/grace-op/INSTALL.md](holons/grace-op/INSTALL.md) | `op` installation guide |
 | ? | ? | [holons/grace-op/OP.md](holons/grace-op/OP.md) | `op` command reference |
 | ? | ? | [holons/grace-op/OP_BUILD.md](holons/grace-op/OP_BUILD.md) | `op build` |
 | ✅ | - | [holons/grace-op/OP_DISCOVERY.md](holons/grace-op/OP_DISCOVERY.md) | `op`-specific discovery expression routing |
 | ? | ? | [holons/grace-op/OP_PROXY.md](holons/grace-op/OP_PROXY.md) | `op proxy` |
 | ? | ? | [holons/grace-op/OP_RUN.md](holons/grace-op/OP_RUN.md) | `op run` |
 | ? | ? | [holons/grace-op/README.md](holons/grace-op/README.md) | `op` overview |
+
 
 ## SDK Interfaces (sdk)
 
