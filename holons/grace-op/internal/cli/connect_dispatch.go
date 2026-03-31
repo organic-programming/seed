@@ -218,40 +218,59 @@ func connectLaunchedTCP(binaryPath string, origin *sdkdiscover.HolonRef, timeout
 		return activeConnection{}, err
 	}
 
-	go func() {
-		_, _ = io.Copy(os.Stderr, stderr)
-	}()
-
 	addressCh := make(chan string, 1)
-	errCh := make(chan error, 1)
-	go func() {
-		reader := bufio.NewReader(stdout)
+	readErrCh := make(chan error, 2)
+	streamReader := func(reader io.Reader, mirror io.Writer) {
+		buffered := bufio.NewReader(reader)
 		for {
-			line, readErr := reader.ReadString('\n')
-			if strings.TrimSpace(line) != "" {
-				addressCh <- strings.TrimSpace(line)
-				return
+			line, readErr := buffered.ReadString('\n')
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "" {
+				if mirror != nil {
+					fmt.Fprintln(mirror, trimmed)
+				}
+				if address := advertisedListenAddress(trimmed); address != "" {
+					select {
+					case addressCh <- address:
+					default:
+					}
+					return
+				}
 			}
 			if readErr != nil {
-				if readErr == io.EOF {
-					errCh <- fmt.Errorf("holon did not advertise a listen address")
-				} else {
-					errCh <- readErr
+				if readErr != io.EOF {
+					readErrCh <- readErr
+					return
 				}
+				readErrCh <- io.EOF
 				return
 			}
 		}
-	}()
+	}
+	go streamReader(stdout, nil)
+	go streamReader(stderr, os.Stderr)
 
-	var address string
-	select {
-	case <-ctx.Done():
-		_ = stopCommand(cmd)
-		return activeConnection{}, fmt.Errorf("server startup timeout")
-	case err := <-errCh:
-		_ = stopCommand(cmd)
-		return activeConnection{}, err
-	case address = <-addressCh:
+	var (
+		address    string
+		streamDone int
+	)
+	for address == "" {
+		select {
+		case <-ctx.Done():
+			_ = stopCommand(cmd)
+			return activeConnection{}, fmt.Errorf("server startup timeout")
+		case err := <-readErrCh:
+			if err != io.EOF {
+				_ = stopCommand(cmd)
+				return activeConnection{}, err
+			}
+			streamDone++
+			if streamDone == 2 {
+				_ = stopCommand(cmd)
+				return activeConnection{}, fmt.Errorf("holon did not advertise a listen address")
+			}
+		case address = <-addressCh:
+		}
 	}
 
 	conn, err := sdkgrpcclient.Dial(ctx, normalizeDialTarget(address))
@@ -277,6 +296,19 @@ func connectLaunchedTCP(binaryPath string, origin *sdkdiscover.HolonRef, timeout
 		},
 		origin: originCopy,
 	}, nil
+}
+
+func advertisedListenAddress(line string) string {
+	trimmed := strings.TrimSpace(line)
+	if strings.HasPrefix(trimmed, "tcp://") || strings.HasPrefix(trimmed, "unix://") {
+		return trimmed
+	}
+	for _, field := range strings.Fields(trimmed) {
+		if strings.HasPrefix(field, "tcp://") || strings.HasPrefix(field, "unix://") {
+			return strings.TrimSpace(field)
+		}
+	}
+	return ""
 }
 
 func autoBuildAndConnect(holonName string, transport string) (activeConnection, error) {
