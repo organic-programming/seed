@@ -165,7 +165,7 @@ func inspectDocumentToProto(doc *inspectpkg.Document) *opv1.InspectDocument {
 				OutputType:      method.OutputType,
 				ClientStreaming: method.ClientStreaming,
 				ServerStreaming: method.ServerStreaming,
-				ExampleInput:    method.ExampleInput,
+				ExampleInput:    method.ExampleInput(),
 			}
 			for _, field := range method.InputFields {
 				methodOut.InputFields = append(methodOut.InputFields, inspectFieldToProto(field))
@@ -243,6 +243,11 @@ func inspectDocumentFromProto(doc *opv1.InspectDocument) *inspectpkg.Document {
 			Description: service.GetDescription(),
 		}
 		for _, method := range service.GetMethods() {
+			exampleInput := strings.TrimSpace(method.GetExampleInput())
+			examples := make([][]string, 0, 1)
+			if exampleInput != "" {
+				examples = append(examples, []string{exampleInput})
+			}
 			methodOut := inspectpkg.Method{
 				Name:            method.GetName(),
 				Description:     method.GetDescription(),
@@ -250,7 +255,7 @@ func inspectDocumentFromProto(doc *opv1.InspectDocument) *inspectpkg.Document {
 				OutputType:      method.GetOutputType(),
 				ClientStreaming: method.GetClientStreaming(),
 				ServerStreaming: method.GetServerStreaming(),
-				ExampleInput:    method.GetExampleInput(),
+				Examples:        examples,
 			}
 			for _, field := range method.GetInputFields() {
 				methodOut.InputFields = append(methodOut.InputFields, inspectFieldFromProto(field))

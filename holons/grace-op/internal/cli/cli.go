@@ -158,6 +158,7 @@ func newRootCmd(version string) *cobra.Command {
 	registerRootPersistentFlags(cmd)
 	registerRootCommands(cmd, version)
 	cmd.InitDefaultCompletionCmd()
+	patchCompletionCommands(cmd)
 
 	return cmd
 }
@@ -176,14 +177,14 @@ func completeRootFallbackArgs(cmd *cobra.Command, args []string, toComplete stri
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	switch len(args) {
-	case 1:
+	switch {
+	case len(args) == 1:
 		if strings.HasPrefix(strings.TrimSpace(toComplete), "-") {
 			return completeCommandFlags(cmd, toComplete), cobra.ShellCompDirectiveNoFileComp
 		}
 		return completeInvokeMethods(args[0], toComplete), cobra.ShellCompDirectiveNoFileComp
 	default:
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return completeInvokePayload(cmd, args[0], args[1], args[2:], toComplete), cobra.ShellCompDirectiveNoFileComp
 	}
 }
 

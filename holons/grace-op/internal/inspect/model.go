@@ -17,15 +17,24 @@ type Service struct {
 }
 
 type Method struct {
-	Name            string  `json:"name"`
-	Description     string  `json:"description,omitempty"`
-	InputType       string  `json:"input_type,omitempty"`
-	OutputType      string  `json:"output_type,omitempty"`
-	InputFields     []Field `json:"input_fields,omitempty"`
-	OutputFields    []Field `json:"output_fields,omitempty"`
-	ClientStreaming bool    `json:"client_streaming,omitempty"`
-	ServerStreaming bool    `json:"server_streaming,omitempty"`
-	ExampleInput    string  `json:"example_input,omitempty"`
+	Name            string     `json:"name"`
+	Description     string     `json:"description,omitempty"`
+	InputType       string     `json:"input_type,omitempty"`
+	OutputType      string     `json:"output_type,omitempty"`
+	InputFields     []Field    `json:"input_fields,omitempty"`
+	OutputFields    []Field    `json:"output_fields,omitempty"`
+	ClientStreaming bool       `json:"client_streaming,omitempty"`
+	ServerStreaming bool       `json:"server_streaming,omitempty"`
+	Examples        [][]string `json:"examples,omitempty"`
+}
+
+// ExampleInput returns the first example's first token, or "" if absent.
+// Deprecated: use Examples directly.
+func (m Method) ExampleInput() string {
+	if len(m.Examples) > 0 && len(m.Examples[0]) > 0 {
+		return m.Examples[0][0]
+	}
+	return ""
 }
 
 type Field struct {

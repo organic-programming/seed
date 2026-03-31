@@ -1706,7 +1706,7 @@ func TestInvokeCommandCompletesMethodsFromTCPDescribeWithEmptyPrefix(t *testing.
 	}
 }
 
-func TestInvokeCommandDoesNotCompletePayloadPlaceholder(t *testing.T) {
+func TestInvokeCommandCompletesPayloadExample(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)
 	seedEchoHolon(t, root)
@@ -1718,8 +1718,8 @@ func TestInvokeCommandDoesNotCompletePayloadPlaceholder(t *testing.T) {
 		}
 	})
 
-	if strings.Contains(stdout, "{") {
-		t.Fatalf("stdout should not suggest a JSON payload placeholder: %q", stdout)
+	if !strings.Contains(stdout, `'{"message":"hello","tags":["one","two"],"mode":"ECHO_MODE_UPPER"}'`) {
+		t.Fatalf("stdout missing quoted payload example: %q", stdout)
 	}
 	if strings.Contains(stderr, "Completion ended with directive:") {
 		t.Fatalf("stderr should not leak completion directive text: %q", stderr)

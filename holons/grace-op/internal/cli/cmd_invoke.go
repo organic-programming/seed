@@ -19,8 +19,9 @@ import (
 const invokeCompletionTimeout = 2 * time.Second
 
 type invokeMethodCandidate struct {
-	service string
-	method  string
+	service  string
+	method   string
+	examples [][]string
 }
 
 func newInvokeCmd() *cobra.Command {
@@ -200,20 +201,20 @@ func invokeConnectedArgs(method string, inputJSON string, noBuild bool) []string
 	return args
 }
 
-func completeInvokeArgs(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+func completeInvokeArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	args = normalizeCompletionArgs(args, toComplete)
 
 	if err := applyCurrentEnvOverrides(); err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	switch len(args) {
-	case 0:
+	switch {
+	case len(args) == 0:
 		return completeHolonSlugs(nil, args, toComplete)
-	case 1:
+	case len(args) == 1:
 		return completeInvokeMethods(args[0], toComplete), cobra.ShellCompDirectiveNoFileComp
 	default:
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return completeInvokePayload(cmd, args[0], args[1], args[2:], toComplete), cobra.ShellCompDirectiveNoFileComp
 	}
 }
 
@@ -321,8 +322,9 @@ func invokeMethodCandidatesFromDocument(doc *inspectpkg.Document) []invokeMethod
 				continue
 			}
 			out = append(out, invokeMethodCandidate{
-				service: serviceName,
-				method:  methodName,
+				service:  serviceName,
+				method:   methodName,
+				examples: method.Examples,
 			})
 		}
 	}
@@ -385,6 +387,148 @@ func invokeMethodCandidatesFromQualifiedList(methods []string) []invokeMethodCan
 		})
 	}
 	return out
+}
+
+func completeInvokePayload(
+	cmd *cobra.Command,
+	target string,
+	method string,
+	trailingArgs []string,
+	toComplete string,
+) []string {
+	flagCmd := completionFlagCommand(cmd)
+	candidates, err := discoverInvokeMethodCandidates(target)
+	if err != nil {
+		return completeCommandFlags(flagCmd, toComplete)
+	}
+
+	seen := make(map[string]int)
+	out := make([]string, 0)
+	add := func(token string) {
+		key := completionTokenKey(token)
+		if idx, ok := seen[key]; ok {
+			if !strings.Contains(out[idx], "\t") && strings.Contains(token, "\t") {
+				out[idx] = token
+			}
+			return
+		}
+		seen[key] = len(out)
+		out = append(out, token)
+	}
+
+	for _, candidate := range candidates {
+		if !matchesInvokePayloadMethod(candidate, method) {
+			continue
+		}
+		for _, seq := range candidate.examples {
+			next, ok := nextExampleToken(seq, trailingArgs, toComplete)
+			if !ok {
+				continue
+			}
+			add(next)
+		}
+	}
+
+	for _, flag := range completeCommandFlags(flagCmd, toComplete) {
+		add(flag)
+	}
+	return out
+}
+
+func nextExampleToken(seq []string, typed []string, toComplete string) (string, bool) {
+	visible := visibleExampleSequence(seq)
+	if len(visible) <= len(typed) {
+		return "", false
+	}
+
+	for i, token := range typed {
+		if !exampleTokenMatches(visible[i], token) {
+			return "", false
+		}
+	}
+
+	candidate := visible[len(typed)]
+	display := candidate
+	if looksLikeJSON(candidate) {
+		display = shellQuoteJSON(candidate)
+	}
+	if toComplete != "" &&
+		!strings.HasPrefix(display, toComplete) &&
+		!strings.HasPrefix(candidate, toComplete) {
+		return "", false
+	}
+	return display, true
+}
+
+func visibleExampleSequence(seq []string) []string {
+	if len(seq) == 0 {
+		return nil
+	}
+	if isEmptyJSON(seq[0]) {
+		return seq[1:]
+	}
+	return seq
+}
+
+func exampleTokenMatches(expected string, actual string) bool {
+	unquotedExpected := unquote(expected)
+	unquotedActual := unquote(actual)
+	if looksLikeJSON(unquotedExpected) || looksLikeJSON(unquotedActual) {
+		return unquotedExpected == unquotedActual
+	}
+	return strings.EqualFold(unquotedExpected, unquotedActual)
+}
+
+func unquote(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) >= 2 {
+		if (s[0] == '\'' && s[len(s)-1] == '\'') ||
+			(s[0] == '"' && s[len(s)-1] == '"') {
+			return s[1 : len(s)-1]
+		}
+	}
+	return s
+}
+
+func shellQuoteJSON(json string) string {
+	return "'" + json + "'"
+}
+
+func isEmptyJSON(s string) bool {
+	trimmed := strings.TrimSpace(s)
+	return trimmed == "" || trimmed == "{}" || trimmed == "[]"
+}
+
+func matchesInvokePayloadMethod(candidate invokeMethodCandidate, method string) bool {
+	trimmedMethod := strings.TrimSpace(method)
+	if trimmedMethod == "" {
+		return false
+	}
+	if strings.EqualFold(candidate.method, trimmedMethod) {
+		return true
+	}
+	service := strings.TrimSpace(candidate.service)
+	if service == "" {
+		return false
+	}
+	return strings.EqualFold(service+"/"+candidate.method, trimmedMethod)
+}
+
+func completionTokenKey(token string) string {
+	if idx := strings.IndexRune(token, '\t'); idx >= 0 {
+		return token[:idx]
+	}
+	return token
+}
+
+func completionFlagCommand(cmd *cobra.Command) *cobra.Command {
+	if cmd == nil {
+		return nil
+	}
+	if root := cmd.Root(); root != nil {
+		return root
+	}
+	return cmd
 }
 
 func formatInvokeMethodCompletions(methods []invokeMethodCandidate, toComplete string) []string {

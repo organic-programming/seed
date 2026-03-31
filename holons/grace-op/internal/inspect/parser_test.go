@@ -34,8 +34,14 @@ func TestParseProtoDirExtractsDocsAndTags(t *testing.T) {
 	if method.Description != "Compile Go packages." {
 		t.Fatalf("method description = %q", method.Description)
 	}
-	if method.ExampleInput != `{"package":"./cmd/rob"}` {
-		t.Fatalf("method example = %q", method.ExampleInput)
+	if got := method.ExampleInput(); got != `{"package":"./cmd/rob"}` {
+		t.Fatalf("method example = %q", got)
+	}
+	if got := len(method.Examples); got != 2 {
+		t.Fatalf("method examples = %d, want 2", got)
+	}
+	if !equalStringSlices(method.Examples[1], []string{`{"package":"./cmd/rob"}`, "--origin"}) {
+		t.Fatalf("second example = %#v", method.Examples[1])
 	}
 	if got := len(method.InputFields); got != 2 {
 		t.Fatalf("input fields = %d, want 2", got)
@@ -81,6 +87,7 @@ func TestRenderTextIncludesSkills(t *testing.T) {
 						Description: "Compile Go packages.",
 						InputType:   "rob_go.v1.BuildRequest",
 						OutputType:  "rob_go.v1.BuildResponse",
+						Examples:    [][]string{{`{"package":"./cmd/rob"}`}},
 						InputFields: []Field{
 							{
 								Name:        "package",
@@ -110,9 +117,84 @@ func TestRenderTextIncludesSkills(t *testing.T) {
 	output := RenderText(doc)
 	assertContains(t, output, "rob-go - Build what you mean.")
 	assertContains(t, output, "Build(BuildRequest) -> BuildResponse")
+	assertContains(t, output, `Example: {"package":"./cmd/rob"}`)
 	assertContains(t, output, "@example \"./cmd/rob\"")
 	assertContains(t, output, "Skills:")
 	assertContains(t, output, "prepare-release - Prepare a Go package for production release.")
+}
+
+func TestParseExampleTokens(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  []string
+	}{
+		{
+			name:  "json only",
+			value: `{"name":"Bob"}`,
+			want:  []string{`{"name":"Bob"}`},
+		},
+		{
+			name:  "json and flag",
+			value: `{"name":"Bob"} --origin`,
+			want:  []string{`{"name":"Bob"}`, "--origin"},
+		},
+		{
+			name:  "json flag and value",
+			value: `{"name":"Carol"} -f json`,
+			want:  []string{`{"name":"Carol"}`, "-f", "json"},
+		},
+		{
+			name:  "empty",
+			value: "",
+			want:  nil,
+		},
+		{
+			name:  "malformed json",
+			value: `{"name":"Bob"`,
+			want:  []string{`{"name":"Bob"`},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := parseExampleTokens(tc.value); !equalStringSlices(got, tc.want) {
+				t.Fatalf("parseExampleTokens(%q) = %#v, want %#v", tc.value, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseProtoDirRejectsMethodExampleSingleQuote(t *testing.T) {
+	protoDir := t.TempDir()
+
+	file := filepath.Join(protoDir, "broken", "v1", "broken.proto")
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := `syntax = "proto3";
+
+package broken.v1;
+
+service BrokenService {
+  // @example {"name":"O'Brien"}
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+message PingRequest {}
+message PingResponse {}
+`
+	if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := ParseProtoDir(protoDir)
+	if err == nil {
+		t.Fatal("ParseProtoDir returned nil error, want validation failure")
+	}
+	if !strings.Contains(err.Error(), "single quote") {
+		t.Fatalf("error = %v, want single quote validation", err)
+	}
 }
 
 func writeProtoFixture(t *testing.T, protoDir string) {
@@ -131,6 +213,7 @@ package rob_go.v1;
 service RobGoService {
   // Compile Go packages.
   // @example {"package":"./cmd/rob"}
+  // @example {"package":"./cmd/rob"} --origin
   rpc Build(BuildRequest) returns (BuildResponse);
 }
 
@@ -168,4 +251,16 @@ func assertContains(t *testing.T, output, want string) {
 	if !strings.Contains(output, want) {
 		t.Fatalf("output missing %q:\n%s", want, output)
 	}
+}
+
+func equalStringSlices(got []string, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }

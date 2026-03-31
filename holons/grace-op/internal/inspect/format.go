@@ -39,8 +39,8 @@ func RenderText(doc *Document) string {
 				if method.Description != "" {
 					fmt.Fprintf(&b, "      %s\n", method.Description)
 				}
-				if method.ExampleInput != "" {
-					fmt.Fprintf(&b, "      Example: %s\n", method.ExampleInput)
+				if exampleInput := method.ExampleInput(); exampleInput != "" {
+					fmt.Fprintf(&b, "      Example: %s\n", exampleInput)
 				}
 				if len(method.InputFields) > 0 {
 					b.WriteString("\n")

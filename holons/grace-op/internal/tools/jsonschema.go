@@ -101,7 +101,7 @@ func JSONSchemaForMethod(method inspectpkg.Method) map[string]any {
 	if len(required) > 0 {
 		schema["required"] = required
 	}
-	if example, ok := parseExample(method.ExampleInput); ok {
+	if example, ok := parseExample(method.ExampleInput()); ok {
 		schema["examples"] = []any{example}
 	}
 	return schema

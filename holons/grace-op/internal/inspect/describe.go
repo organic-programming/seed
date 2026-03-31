@@ -17,6 +17,11 @@ func FromDescribeResponse(response *holonsv1.DescribeResponse) *Document {
 	for _, service := range response.GetServices() {
 		methods := make([]Method, 0, len(service.GetMethods()))
 		for _, method := range service.GetMethods() {
+			exampleInput := strings.TrimSpace(method.GetExampleInput())
+			examples := make([][]string, 0, 1)
+			if exampleInput != "" {
+				examples = append(examples, []string{exampleInput})
+			}
 			methods = append(methods, Method{
 				Name:            method.GetName(),
 				Description:     method.GetDescription(),
@@ -26,7 +31,7 @@ func FromDescribeResponse(response *holonsv1.DescribeResponse) *Document {
 				OutputFields:    fromDescribeFields(method.GetOutputFields()),
 				ClientStreaming: method.GetClientStreaming(),
 				ServerStreaming: method.GetServerStreaming(),
-				ExampleInput:    method.GetExampleInput(),
+				Examples:        examples,
 			})
 		}
 

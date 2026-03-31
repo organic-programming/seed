@@ -82,7 +82,10 @@ func ParseCatalog(protoDir string) (*Catalog, error) {
 	}
 
 	builder := parserBuilder{inputFiles: inputFiles}
-	document, methods := builder.buildCatalog(files)
+	document, methods, err := builder.buildCatalog(files)
+	if err != nil {
+		return nil, err
+	}
 	return &Catalog{
 		Document: document,
 		Methods:  methods,
@@ -93,7 +96,7 @@ type parserBuilder struct {
 	inputFiles map[string]struct{}
 }
 
-func (b parserBuilder) buildCatalog(files []*desc.FileDescriptor) (*Document, []MethodBinding) {
+func (b parserBuilder) buildCatalog(files []*desc.FileDescriptor) (*Document, []MethodBinding, error) {
 	document := &Document{
 		Services: make([]Service, 0),
 	}
@@ -101,32 +104,38 @@ func (b parserBuilder) buildCatalog(files []*desc.FileDescriptor) (*Document, []
 	fileSeen := make(map[string]bool)
 	serviceSeen := make(map[string]bool)
 	for _, file := range files {
-		fileServices, fileMethods := b.buildCatalogFromFile(file, fileSeen, serviceSeen)
+		fileServices, fileMethods, err := b.buildCatalogFromFile(file, fileSeen, serviceSeen)
+		if err != nil {
+			return nil, nil, err
+		}
 		document.Services = append(document.Services, fileServices...)
 		methods = append(methods, fileMethods...)
 	}
-	return document, methods
+	return document, methods, nil
 }
 
 func (b parserBuilder) buildCatalogFromFile(
 	file *desc.FileDescriptor,
 	fileSeen map[string]bool,
 	serviceSeen map[string]bool,
-) ([]Service, []MethodBinding) {
+) ([]Service, []MethodBinding, error) {
 	if file == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	name := filepath.ToSlash(file.GetName())
 	if fileSeen[name] {
-		return nil, nil
+		return nil, nil, nil
 	}
 	fileSeen[name] = true
 
 	services := make([]Service, 0, len(file.GetServices()))
 	methods := make([]MethodBinding, 0)
 	for _, dep := range file.GetDependencies() {
-		depServices, depMethods := b.buildCatalogFromFile(dep, fileSeen, serviceSeen)
+		depServices, depMethods, err := b.buildCatalogFromFile(dep, fileSeen, serviceSeen)
+		if err != nil {
+			return nil, nil, err
+		}
 		services = append(services, depServices...)
 		methods = append(methods, depMethods...)
 	}
@@ -135,19 +144,25 @@ func (b parserBuilder) buildCatalogFromFile(
 			continue
 		}
 		serviceSeen[service.GetFullyQualifiedName()] = true
-		serviceDoc, serviceMethods := b.buildService(service)
+		serviceDoc, serviceMethods, err := b.buildService(service)
+		if err != nil {
+			return nil, nil, err
+		}
 		services = append(services, serviceDoc)
 		methods = append(methods, serviceMethods...)
 	}
-	return services, methods
+	return services, methods, nil
 }
 
-func (b parserBuilder) buildService(service *desc.ServiceDescriptor) (Service, []MethodBinding) {
+func (b parserBuilder) buildService(service *desc.ServiceDescriptor) (Service, []MethodBinding, error) {
 	meta := parseCommentBlock(sourceComments(service.GetSourceInfo()))
 	methods := make([]Method, 0, len(service.GetMethods()))
 	bindings := make([]MethodBinding, 0, len(service.GetMethods()))
 	for _, method := range service.GetMethods() {
-		methodDoc := b.buildMethod(method)
+		methodDoc, err := b.buildMethod(method)
+		if err != nil {
+			return Service{}, nil, err
+		}
 		methods = append(methods, methodDoc)
 		bindings = append(bindings, MethodBinding{
 			ServiceName:      service.GetFullyQualifiedName(),
@@ -160,11 +175,15 @@ func (b parserBuilder) buildService(service *desc.ServiceDescriptor) (Service, [
 		Name:        service.GetFullyQualifiedName(),
 		Description: meta.Description,
 		Methods:     methods,
-	}, bindings
+	}, bindings, nil
 }
 
-func (b parserBuilder) buildMethod(method *desc.MethodDescriptor) Method {
+func (b parserBuilder) buildMethod(method *desc.MethodDescriptor) (Method, error) {
 	meta := parseCommentBlock(sourceComments(method.GetSourceInfo()))
+	examples, err := parseMethodExamples(method.GetFullyQualifiedName(), meta.ExampleLines)
+	if err != nil {
+		return Method{}, err
+	}
 	return Method{
 		Name:            method.GetName(),
 		Description:     meta.Description,
@@ -174,8 +193,8 @@ func (b parserBuilder) buildMethod(method *desc.MethodDescriptor) Method {
 		OutputFields:    b.buildFields(method.GetOutputType(), map[string]bool{}),
 		ClientStreaming: method.IsClientStreaming(),
 		ServerStreaming: method.IsServerStreaming(),
-		ExampleInput:    meta.Example,
-	}
+		Examples:        examples,
+	}, nil
 }
 
 func (b parserBuilder) buildFields(message *desc.MessageDescriptor, seen map[string]bool) []Field {
@@ -307,9 +326,10 @@ func appendImportDir(paths *[]string, seen map[string]struct{}, candidate string
 }
 
 type commentMeta struct {
-	Description string
-	Required    bool
-	Example     string
+	Description  string
+	Required     bool
+	Example      string
+	ExampleLines []string
 }
 
 func parseCommentBlock(raw string) commentMeta {
@@ -337,10 +357,108 @@ func parseCommentBlock(raw string) commentMeta {
 	}
 
 	return commentMeta{
-		Description: strings.Join(description, " "),
-		Required:    required,
-		Example:     strings.Join(examples, "\n"),
+		Description:  strings.Join(description, " "),
+		Required:     required,
+		Example:      strings.Join(examples, "\n"),
+		ExampleLines: append([]string(nil), examples...),
 	}
+}
+
+func parseMethodExamples(methodName string, values []string) ([][]string, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+
+	out := make([][]string, 0, len(values))
+	for _, value := range values {
+		tokens := parseExampleTokens(value)
+		if len(tokens) == 0 {
+			continue
+		}
+		if strings.Contains(tokens[0], "'") {
+			return nil, fmt.Errorf("method %s: @example JSON payload must not contain single quote", methodName)
+		}
+		out = append(out, tokens)
+	}
+	return out, nil
+}
+
+// parseExampleTokens parses a single @example annotation value into an ordered
+// list of shell tokens. The first token is the JSON payload when present,
+// captured via balanced object/array parsing; subsequent tokens are split on
+// ASCII whitespace.
+func parseExampleTokens(value string) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+
+	tokens := make([]string, 0, 2)
+	if value[0] == '{' || value[0] == '[' {
+		end := balancedJSONPrefixEnd(value)
+		if end < 0 {
+			return []string{value}
+		}
+		tokens = append(tokens, strings.TrimSpace(value[:end]))
+		value = strings.TrimSpace(value[end:])
+	}
+
+	for _, part := range strings.Fields(value) {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			tokens = append(tokens, part)
+		}
+	}
+	return tokens
+}
+
+func balancedJSONPrefixEnd(value string) int {
+	if value == "" {
+		return -1
+	}
+
+	stack := []byte{value[0]}
+	inString := false
+	escaped := false
+
+	for i := 1; i < len(value); i++ {
+		ch := value[i]
+		if inString {
+			switch {
+			case escaped:
+				escaped = false
+			case ch == '\\':
+				escaped = true
+			case ch == '"':
+				inString = false
+			}
+			continue
+		}
+
+		switch ch {
+		case '"':
+			inString = true
+		case '{', '[':
+			stack = append(stack, ch)
+		case '}', ']':
+			if len(stack) == 0 || ch != matchingClose(stack[len(stack)-1]) {
+				return -1
+			}
+			stack = stack[:len(stack)-1]
+			if len(stack) == 0 {
+				return i + 1
+			}
+		}
+	}
+
+	return -1
+}
+
+func matchingClose(open byte) byte {
+	if open == '{' {
+		return '}'
+	}
+	return ']'
 }
 
 func sourceComments(location *descriptorpb.SourceCodeInfo_Location) string {
