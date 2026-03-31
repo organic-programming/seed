@@ -2,6 +2,7 @@
 
 import * as net from 'net';
 import * as grpc from '@grpc/grpc-js';
+import * as protobuf from 'protobufjs';
 import { EventEmitter } from 'events';
 import { ChildProcess } from 'child_process';
 
@@ -123,6 +124,8 @@ export namespace serve {
 }
 
 export namespace describe {
+    type DescribeResponseMessage = protobuf.Message<{}>;
+
     const HOLON_META_SERVICE_NAME: string;
     const NO_INCODE_DESCRIPTION_MESSAGE: string;
     const holons: {
@@ -132,19 +135,10 @@ export namespace describe {
         DescribeResponse: any;
     };
 
-    function buildResponse(protoDir: string, manifestPath?: string): {
-        manifest: {
-            identity: identity.HolonIdentity;
-            kind: string;
-            lang: string;
-            build: discover.HolonBuild;
-            artifacts: discover.HolonArtifacts;
-        };
-        services: Array<Record<string, any>>;
-    };
+    function buildResponse(protoDir: string, manifestPath?: string): DescribeResponseMessage;
 
-    function useStaticResponse(response: Record<string, any> | null): void;
-    function staticResponse(): Record<string, any> | null;
+    function useStaticResponse(response: DescribeResponseMessage | Record<string, any> | null): void;
+    function staticResponse(): DescribeResponseMessage | null;
     function register(server: grpc.Server): void;
 }
 

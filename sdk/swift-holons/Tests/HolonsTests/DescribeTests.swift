@@ -102,7 +102,20 @@ final class DescribeTests: XCTestCase {
     XCTAssertEqual(response.manifest.guide, "Use the demo sequence.")
   }
 
-  func testPublicStaticDescribeRegistrationAcceptsGeneratedPayload() throws {
+  func testPublicStaticDescribeRegistrationAcceptsNativeResponse() throws {
+    let root = try writeEchoHolon()
+    defer { try? FileManager.default.removeItem(at: root) }
+    defer { Describe.clearStaticResponse() }
+
+    let response = try Describe.buildResponse(protoDir: root.path)
+    try Describe.useStaticResponse(response)
+
+    let provider = try Describe.register()
+    let describeProvider = try XCTUnwrap(provider as? HolonMetaDescribeProvider)
+    XCTAssertEqual(describeProvider.describe().manifest.identity.givenName, "Echo")
+  }
+
+  func testPublicStaticDescribeRegistrationAcceptsLegacyPayloadWrapper() throws {
     let root = try writeEchoHolon()
     defer { try? FileManager.default.removeItem(at: root) }
     defer { Describe.clearStaticResponse() }

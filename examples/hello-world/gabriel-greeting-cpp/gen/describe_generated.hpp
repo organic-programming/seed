@@ -21,7 +21,7 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
       identity->set_composer("B. ALTER");
       identity->set_status("draft");
       identity->set_born("2026-03-16");
-      identity->set_version("0.1.56");
+      identity->set_version("0.1.59");
     }
     manifest->set_description("A C++ gRPC daemon that greets users in 56 languages.");
     manifest->set_lang("cpp");
@@ -95,12 +95,42 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
       method->set_input_type("greeting.v1.ListLanguagesRequest");
       method->set_output_type("greeting.v1.ListLanguagesResponse");
       {
-        auto *field = method->add_output_fields();
-        field->set_name("languages");
-        field->set_type("greeting.v1.Language");
-        field->set_number(1);
-        field->set_description("Languages exposed by the daemon.");
-        field->set_label(static_cast<holons::v1::FieldLabel>(2));
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("languages");
+        field_3->set_type("greeting.v1.Language");
+        field_3->set_number(1);
+        field_3->set_description("Languages exposed by the daemon.");
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(2));
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("code");
+          field_4->set_type("string");
+          field_4->set_number(1);
+          field_4->set_description("ISO 639-1 code advertised by the daemon.");
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+          field_4->set_required(true);
+          field_4->set_example("\"fr\"");
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("name");
+          field_4->set_type("string");
+          field_4->set_number(2);
+          field_4->set_description("English display name for the language.");
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+          field_4->set_required(true);
+          field_4->set_example("\"French\"");
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("native");
+          field_4->set_type("string");
+          field_4->set_number(3);
+          field_4->set_description("Native label shown to end users.");
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+          field_4->set_required(true);
+          field_4->set_example("\"Français\"");
+        }
       }
       method->set_example_input("{}");
     }
@@ -111,53 +141,53 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
       method->set_input_type("greeting.v1.SayHelloRequest");
       method->set_output_type("greeting.v1.SayHelloResponse");
       {
-        auto *field = method->add_input_fields();
-        field->set_name("name");
-        field->set_type("string");
-        field->set_number(1);
-        field->set_description("Name to greet. If empty, the daemon falls back to a localized default (e.g., \"Mary\", \"Maria\") or \"World\".");
-        field->set_label(static_cast<holons::v1::FieldLabel>(1));
-        field->set_example("\"Bob\"");
+        auto *field_3 = method->add_input_fields();
+        field_3->set_name("name");
+        field_3->set_type("string");
+        field_3->set_number(1);
+        field_3->set_description("Name to greet. If empty, the daemon falls back to a localized default (e.g., \"Mary\", \"Maria\") or \"World\".");
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+        field_3->set_example("\"Bob\"");
       }
       {
-        auto *field = method->add_input_fields();
-        field->set_name("lang_code");
-        field->set_type("string");
-        field->set_number(2);
-        field->set_description("ISO 639-1 code chosen by the UI.");
-        field->set_label(static_cast<holons::v1::FieldLabel>(1));
-        field->set_required(true);
-        field->set_example("\"fr\"");
+        auto *field_3 = method->add_input_fields();
+        field_3->set_name("lang_code");
+        field_3->set_type("string");
+        field_3->set_number(2);
+        field_3->set_description("ISO 639-1 code chosen by the UI.");
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+        field_3->set_required(true);
+        field_3->set_example("\"fr\"");
       }
       {
-        auto *field = method->add_output_fields();
-        field->set_name("greeting");
-        field->set_type("string");
-        field->set_number(1);
-        field->set_description("Localized greeting text returned by the daemon.");
-        field->set_label(static_cast<holons::v1::FieldLabel>(1));
-        field->set_required(true);
-        field->set_example("\"Bonjour, Bob !\"");
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("greeting");
+        field_3->set_type("string");
+        field_3->set_number(1);
+        field_3->set_description("Localized greeting text returned by the daemon.");
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+        field_3->set_required(true);
+        field_3->set_example("\"Bonjour, Bob !\"");
       }
       {
-        auto *field = method->add_output_fields();
-        field->set_name("language");
-        field->set_type("string");
-        field->set_number(2);
-        field->set_description("English language name used to resolve the greeting.");
-        field->set_label(static_cast<holons::v1::FieldLabel>(1));
-        field->set_required(true);
-        field->set_example("\"French\"");
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("language");
+        field_3->set_type("string");
+        field_3->set_number(2);
+        field_3->set_description("English language name used to resolve the greeting.");
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+        field_3->set_required(true);
+        field_3->set_example("\"French\"");
       }
       {
-        auto *field = method->add_output_fields();
-        field->set_name("lang_code");
-        field->set_type("string");
-        field->set_number(3);
-        field->set_description("ISO 639-1 code used by the daemon.");
-        field->set_label(static_cast<holons::v1::FieldLabel>(1));
-        field->set_required(true);
-        field->set_example("\"fr\"");
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("lang_code");
+        field_3->set_type("string");
+        field_3->set_number(3);
+        field_3->set_description("ISO 639-1 code used by the daemon.");
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+        field_3->set_required(true);
+        field_3->set_example("\"fr\"");
       }
       method->set_example_input("{\"name\":\"Bob\",\"lang_code\":\"fr\"}");
     }

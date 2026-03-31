@@ -15,7 +15,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-03-15"
-    version: "0.1.73"
+    version: "0.1.75"
   }
   description: "A standalone SwiftUI app that connects to all 12 Gabriel greeting holon written in 12 programming languages and presents a multilingual greeting UI."
   kind: "composite"

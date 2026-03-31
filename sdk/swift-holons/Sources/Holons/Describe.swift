@@ -2,6 +2,7 @@ import Foundation
 import GRPC
 import NIOCore
 
+@available(*, deprecated, message: "Use Holons_V1_DescribeResponse directly.")
 public struct StaticDescribeResponse: Equatable, Sendable {
   public let payloadBase64: String
 
@@ -30,13 +31,18 @@ public enum Describe {
   private static let staticResponseLock = NSLock()
   private static var registeredResponse: Holons_V1_DescribeResponse?
 
+  public static func useStaticResponse(_ response: Holons_V1_DescribeResponse) throws {
+    useStaticResponse(Optional(response))
+  }
+
+  @available(*, deprecated, message: "Use Describe.useStaticResponse(_ response: Holons_V1_DescribeResponse) instead.")
   public static func useStaticResponse(_ response: StaticDescribeResponse) throws {
     guard let data = Data(base64Encoded: response.payloadBase64) else {
       throw DescribeRegistrationError.invalidGeneratedResponse("payload is not valid base64")
     }
 
     do {
-      useStaticResponse(try Holons_V1_DescribeResponse(serializedBytes: data))
+      try useStaticResponse(Holons_V1_DescribeResponse(serializedBytes: data))
     } catch {
       throw DescribeRegistrationError.invalidGeneratedResponse(String(describing: error))
     }

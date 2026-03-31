@@ -2,15 +2,201 @@
 
 from __future__ import annotations
 
-import base64
-
 from holons.v1 import describe_pb2
+from holons.v1 import manifest_pb2
 
 
 def static_describe_response() -> describe_pb2.DescribeResponse:
-    response = describe_pb2.DescribeResponse()
-    response.ParseFromString(base64.b64decode("CvYKCqoBCghob2xvbi92MRIkMjFjNzZlMjMtYmRmMi00ZGJlLTg1ZmUtODUwYzVkMTcxMThiGgdHYWJyaWVsIg9HcmVldGluZy1QeXRob24qOUdyZWV0cyB1c2VycyBpbiA1NiBsYW5ndWFnZXMg4oCUIGEgUHl0aG9uIGRhZW1vbiBleGFtcGxlLjIIQi4gQUxURVJCBWRyYWZ0SgoyMDI2LTAzLTE2UgYwLjEuNTcaN0EgUHl0aG9uIGdSUEMgZGFlbW9uIHRoYXQgZ3JlZXRzIHVzZXJzIGluIDU2IGxhbmd1YWdlcy4iBnB5dGhvbiqaAgoUbXVsdGlsaW5ndWFsLWdyZWV0ZXISPEdyZWV0IGEgcGVyc29uIGJ5IG5hbWUgaW4gYW55IG9mIHRoZSA1NiBzdXBwb3J0ZWQgbGFuZ3VhZ2VzLho3VGhlIHVzZXIgd2FudHMgdG8gZ3JlZXQgc29tZW9uZSBpbiBhIHNwZWNpZmljIGxhbmd1YWdlLiIuQ2FsbCBMaXN0TGFuZ3VhZ2VzIHRvIHNob3cgYXZhaWxhYmxlIGxhbmd1YWdlcyIpQXNrIHRoZSB1c2VyIGZvciBhIG5hbWUgYW5kIGxhbmd1YWdlIGNvZGUiMENhbGwgU2F5SGVsbG8gd2l0aCB0aGUgY2hvc2VuIG5hbWUgYW5kIGxhbmdfY29kZToGbmF0aXZlUhcKBnB5dGhvbhINLi9jbWQvbWFpbi5weVodEgtjbWQvbWFpbi5weRIOcHlwcm9qZWN0LnRvbWxqGQoXZ2FicmllbC1ncmVldGluZy1weXRob25yogIKFW11bHRpbGluZ3VhbC1ncmVldGluZxI/TGlzdCBhdmFpbGFibGUgbGFuZ3VhZ2VzIHRoZW4gZ3JlZXQgdGhlIHVzZXIgaW4gdGhlIGNob3NlbiBvbmUuGhkKBG5hbWUSD1BlcnNvbiB0byBncmVldBgBGiYKCWxhbmdfY29kZRIXSVNPIDYzOS0xIGxhbmd1YWdlIGNvZGUYASIob3AgZ2FicmllbC1ncmVldGluZy1weXRob24gTGlzdExhbmd1YWdlcyJbb3AgZ2FicmllbC1ncmVldGluZy1weXRob24gU2F5SGVsbG8gJ3sibmFtZSI6Int7IC5uYW1lIH19IiwibGFuZ19jb2RlIjoie3sgLmxhbmdfY29kZSB9fSJ9J3LoAwoUZ3JlZXRpbmctZnItamEtcnUtZW4ST0xpc3QgYXZhaWxhYmxlIGxhbmd1YWdlcywgdGhlbiBncmVldCBpbiBGcmVuY2gsIEphcGFuZXNlLCBSdXNzaWFuLCBhbmQgRW5nbGlzaC4aGQoEbmFtZRIPUGVyc29uIHRvIGdyZWV0GAEiKG9wIGdhYnJpZWwtZ3JlZXRpbmctcHl0aG9uIExpc3RMYW5ndWFnZXMiTW9wIGdhYnJpZWwtZ3JlZXRpbmctcHl0aG9uIFNheUhlbGxvICd7Im5hbWUiOiJ7eyAubmFtZSB9fSIsImxhbmdfY29kZSI6ImZyIn0nIk1vcCBnYWJyaWVsLWdyZWV0aW5nLXB5dGhvbiBTYXlIZWxsbyAneyJuYW1lIjoie3sgLm5hbWUgfX0iLCJsYW5nX2NvZGUiOiJqYSJ9JyJNb3AgZ2FicmllbC1ncmVldGluZy1weXRob24gU2F5SGVsbG8gJ3sibmFtZSI6Int7IC5uYW1lIH19IiwibGFuZ19jb2RlIjoicnUifSciTW9wIGdhYnJpZWwtZ3JlZXRpbmctcHl0aG9uIFNheUhlbGxvICd7Im5hbWUiOiJ7eyAubmFtZSB9fSIsImxhbmdfY29kZSI6ImVuIn0nEpkIChtncmVldGluZy52MS5HcmVldGluZ1NlcnZpY2UaogMKDUxpc3RMYW5ndWFnZXMSKVJldHVybnMgYWxsIGF2YWlsYWJsZSBncmVldGluZyBsYW5ndWFnZXMuGiBncmVldGluZy52MS5MaXN0TGFuZ3VhZ2VzUmVxdWVzdCIhZ3JlZXRpbmcudjEuTGlzdExhbmd1YWdlc1Jlc3BvbnNlMpwCCglsYW5ndWFnZXMSFGdyZWV0aW5nLnYxLkxhbmd1YWdlGAEiIExhbmd1YWdlcyBleHBvc2VkIGJ5IHRoZSBkYWVtb24uKAJCRAoEY29kZRIGc3RyaW5nGAEiKElTTyA2MzktMSBjb2RlIGFkdmVydGlzZWQgYnkgdGhlIGRhZW1vbi4oAVABWgQiZnIiQkYKBG5hbWUSBnN0cmluZxgCIiZFbmdsaXNoIGRpc3BsYXkgbmFtZSBmb3IgdGhlIGxhbmd1YWdlLigBUAFaCCJGcmVuY2giQkUKBm5hdGl2ZRIGc3RyaW5nGAMiIE5hdGl2ZSBsYWJlbCBzaG93biB0byBlbmQgdXNlcnMuKAFQAVoLIkZyYW7Dp2FpcyJKAnt9GtQECghTYXlIZWxsbxInR3JlZXRzIHRoZSB1c2VyIGluIHRoZSBjaG9zZW4gbGFuZ3VhZ2UuGhtncmVldGluZy52MS5TYXlIZWxsb1JlcXVlc3QiHGdyZWV0aW5nLnYxLlNheUhlbGxvUmVzcG9uc2UqhAEKBG5hbWUSBnN0cmluZxgBImlOYW1lIHRvIGdyZWV0LiBJZiBlbXB0eSwgdGhlIGRhZW1vbiBmYWxscyBiYWNrIHRvIGEgbG9jYWxpemVkIGRlZmF1bHQgKGUuZy4sICJNYXJ5IiwgIk1hcmlhIikgb3IgIldvcmxkIi4oAVoFIkJvYiIqQQoJbGFuZ19jb2RlEgZzdHJpbmcYAiIgSVNPIDYzOS0xIGNvZGUgY2hvc2VuIGJ5IHRoZSBVSS4oAVABWgQiZnIiMlsKCGdyZWV0aW5nEgZzdHJpbmcYASIvTG9jYWxpemVkIGdyZWV0aW5nIHRleHQgcmV0dXJuZWQgYnkgdGhlIGRhZW1vbi4oAVABWhAiQm9uam91ciwgQm9iICEiMlcKCGxhbmd1YWdlEgZzdHJpbmcYAiIzRW5nbGlzaCBsYW5ndWFnZSBuYW1lIHVzZWQgdG8gcmVzb2x2ZSB0aGUgZ3JlZXRpbmcuKAFQAVoIIkZyZW5jaCIyQwoJbGFuZ19jb2RlEgZzdHJpbmcYAyIiSVNPIDYzOS0xIGNvZGUgdXNlZCBieSB0aGUgZGFlbW9uLigBUAFaBCJmciJKH3sibmFtZSI6IkJvYiIsImxhbmdfY29kZSI6ImZyIn0="))
-    return response
+    return describe_pb2.DescribeResponse(
+    manifest=manifest_pb2.HolonManifest(
+        identity=manifest_pb2.HolonManifest.Identity(
+            schema="holon/v1",
+            uuid="21c76e23-bdf2-4dbe-85fe-850c5d17118b",
+            given_name="Gabriel",
+            family_name="Greeting-Python",
+            motto="Greets users in 56 languages — a Python daemon example.",
+            composer="B. ALTER",
+            status="draft",
+            born="2026-03-16",
+            version="0.1.61",
+        ),
+        description="A Python gRPC daemon that greets users in 56 languages.",
+        lang="python",
+        skills=[
+            manifest_pb2.HolonManifest.Skill(
+                name="multilingual-greeter",
+                description="Greet a person by name in any of the 56 supported languages.",
+                when="The user wants to greet someone in a specific language.",
+                steps=[
+                    "Call ListLanguages to show available languages",
+                    "Ask the user for a name and language code",
+                    "Call SayHello with the chosen name and lang_code",
+                ],
+            ),
+        ],
+        kind="native",
+        build=manifest_pb2.HolonManifest.Build(
+            runner="python",
+            main="./cmd/main.py",
+        ),
+        requires=manifest_pb2.HolonManifest.Requires(
+            files=[
+                "cmd/main.py",
+                "pyproject.toml",
+            ],
+        ),
+        artifacts=manifest_pb2.HolonManifest.Artifacts(
+            binary="gabriel-greeting-python",
+        ),
+        sequences=[
+            manifest_pb2.HolonManifest.Sequence(
+                name="multilingual-greeting",
+                description="List available languages then greet the user in the chosen one.",
+                params=[
+                    manifest_pb2.HolonManifest.Sequence.Param(
+                        name="name",
+                        description="Person to greet",
+                        required=True,
+                    ),
+                    manifest_pb2.HolonManifest.Sequence.Param(
+                        name="lang_code",
+                        description="ISO 639-1 language code",
+                        required=True,
+                    ),
+                ],
+                steps=[
+                    "op gabriel-greeting-python ListLanguages",
+                    "op gabriel-greeting-python SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"{{ .lang_code }}\"}'",
+                ],
+            ),
+            manifest_pb2.HolonManifest.Sequence(
+                name="greeting-fr-ja-ru-en",
+                description="List available languages, then greet in French, Japanese, Russian, and English.",
+                params=[
+                    manifest_pb2.HolonManifest.Sequence.Param(
+                        name="name",
+                        description="Person to greet",
+                        required=True,
+                    ),
+                ],
+                steps=[
+                    "op gabriel-greeting-python ListLanguages",
+                    "op gabriel-greeting-python SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"fr\"}'",
+                    "op gabriel-greeting-python SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ja\"}'",
+                    "op gabriel-greeting-python SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ru\"}'",
+                    "op gabriel-greeting-python SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"en\"}'",
+                ],
+            ),
+        ],
+    ),
+    services=[
+        describe_pb2.ServiceDoc(
+            name="greeting.v1.GreetingService",
+            methods=[
+                describe_pb2.MethodDoc(
+                    name="ListLanguages",
+                    description="Returns all available greeting languages.",
+                    input_type="greeting.v1.ListLanguagesRequest",
+                    output_type="greeting.v1.ListLanguagesResponse",
+                    output_fields=[
+                        describe_pb2.FieldDoc(
+                            name="languages",
+                            type="greeting.v1.Language",
+                            number=1,
+                            description="Languages exposed by the daemon.",
+                            label=describe_pb2.FIELD_LABEL_REPEATED,
+                            nested_fields=[
+                                describe_pb2.FieldDoc(
+                                    name="code",
+                                    type="string",
+                                    number=1,
+                                    description="ISO 639-1 code advertised by the daemon.",
+                                    label=describe_pb2.FIELD_LABEL_OPTIONAL,
+                                    required=True,
+                                    example="\"fr\"",
+                                ),
+                                describe_pb2.FieldDoc(
+                                    name="name",
+                                    type="string",
+                                    number=2,
+                                    description="English display name for the language.",
+                                    label=describe_pb2.FIELD_LABEL_OPTIONAL,
+                                    required=True,
+                                    example="\"French\"",
+                                ),
+                                describe_pb2.FieldDoc(
+                                    name="native",
+                                    type="string",
+                                    number=3,
+                                    description="Native label shown to end users.",
+                                    label=describe_pb2.FIELD_LABEL_OPTIONAL,
+                                    required=True,
+                                    example="\"Français\"",
+                                ),
+                            ],
+                        ),
+                    ],
+                    example_input="{}",
+                ),
+                describe_pb2.MethodDoc(
+                    name="SayHello",
+                    description="Greets the user in the chosen language.",
+                    input_type="greeting.v1.SayHelloRequest",
+                    output_type="greeting.v1.SayHelloResponse",
+                    input_fields=[
+                        describe_pb2.FieldDoc(
+                            name="name",
+                            type="string",
+                            number=1,
+                            description="Name to greet. If empty, the daemon falls back to a localized default (e.g., \"Mary\", \"Maria\") or \"World\".",
+                            label=describe_pb2.FIELD_LABEL_OPTIONAL,
+                            example="\"Bob\"",
+                        ),
+                        describe_pb2.FieldDoc(
+                            name="lang_code",
+                            type="string",
+                            number=2,
+                            description="ISO 639-1 code chosen by the UI.",
+                            label=describe_pb2.FIELD_LABEL_OPTIONAL,
+                            required=True,
+                            example="\"fr\"",
+                        ),
+                    ],
+                    output_fields=[
+                        describe_pb2.FieldDoc(
+                            name="greeting",
+                            type="string",
+                            number=1,
+                            description="Localized greeting text returned by the daemon.",
+                            label=describe_pb2.FIELD_LABEL_OPTIONAL,
+                            required=True,
+                            example="\"Bonjour, Bob !\"",
+                        ),
+                        describe_pb2.FieldDoc(
+                            name="language",
+                            type="string",
+                            number=2,
+                            description="English language name used to resolve the greeting.",
+                            label=describe_pb2.FIELD_LABEL_OPTIONAL,
+                            required=True,
+                            example="\"French\"",
+                        ),
+                        describe_pb2.FieldDoc(
+                            name="lang_code",
+                            type="string",
+                            number=3,
+                            description="ISO 639-1 code used by the daemon.",
+                            label=describe_pb2.FIELD_LABEL_OPTIONAL,
+                            required=True,
+                            example="\"fr\"",
+                        ),
+                    ],
+                    example_input="{\"name\":\"Bob\",\"lang_code\":\"fr\"}",
+                ),
+            ],
+        ),
+    ],
+)
 
 
 def StaticDescribeResponse() -> describe_pb2.DescribeResponse:

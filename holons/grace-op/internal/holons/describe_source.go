@@ -2,7 +2,6 @@ package holons
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"go/format"
 	"os"
@@ -15,7 +14,6 @@ import (
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	godescribe "github.com/organic-programming/go-holons/pkg/describe"
 	"github.com/organic-programming/grace-op/internal/progress"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -208,21 +206,50 @@ func renderDescribeTemplate(templatePath, outputPath string, response *holonsv1.
 }
 
 func describeTemplateFuncs(ext string) template.FuncMap {
-	funcs := template.FuncMap{
-		"protoBase64": func(message proto.Message) (string, error) {
-			if message == nil {
-				return "", nil
-			}
-			data, err := proto.Marshal(message)
-			if err != nil {
-				return "", fmt.Errorf("marshal proto message: %w", err)
-			}
-			return base64.StdEncoding.EncodeToString(data), nil
-		},
-	}
+	funcs := template.FuncMap{}
 	if ext == "go" {
 		funcs["goDescribeResponse"] = func(response *holonsv1.DescribeResponse) string {
 			return goDescribeResponseLiteral(response)
+		}
+	}
+	if ext == "dart" {
+		funcs["dartDescribeResponse"] = func(response *holonsv1.DescribeResponse) string {
+			return dartDescribeResponseLiteral(response)
+		}
+	}
+	if ext == "py" {
+		funcs["pythonDescribeResponse"] = func(response *holonsv1.DescribeResponse) string {
+			return pythonDescribeResponseLiteral(response)
+		}
+	}
+	if ext == "js" {
+		funcs["jsDescribeResponse"] = func(response *holonsv1.DescribeResponse) string {
+			return jsDescribeResponseLiteral(response)
+		}
+	}
+	if ext == "swift" {
+		funcs["swiftDescribeResponse"] = func(response *holonsv1.DescribeResponse) string {
+			return swiftDescribeResponseLiteral(response)
+		}
+	}
+	if ext == "cs" {
+		funcs["csharpDescribeResponse"] = func(response *holonsv1.DescribeResponse) string {
+			return csharpDescribeResponseLiteral(response)
+		}
+	}
+	if ext == "java" {
+		funcs["javaDescribeResponse"] = func(response *holonsv1.DescribeResponse) string {
+			return javaDescribeResponseLiteral(response)
+		}
+	}
+	if ext == "kt" {
+		funcs["kotlinDescribeResponse"] = func(response *holonsv1.DescribeResponse) string {
+			return kotlinDescribeResponseLiteral(response)
+		}
+	}
+	if ext == "rb" {
+		funcs["rubyDescribeResponse"] = func(response *holonsv1.DescribeResponse) string {
+			return rubyDescribeResponseLiteral(response)
 		}
 	}
 	if ext == "rs" {
@@ -1361,4 +1388,2840 @@ func writeCPPInt32Setter(buf *strings.Builder, indent int, target, setter string
 		return
 	}
 	writeCLine(buf, indent, fmt.Sprintf("%s->%s(%d);", target, setter, value))
+}
+
+type generatedField struct {
+	name  string
+	value string
+}
+
+func sourceStringLiteral(value string) string {
+	var buf strings.Builder
+	buf.WriteByte('"')
+	for _, r := range value {
+		switch r {
+		case '\\':
+			buf.WriteString(`\\`)
+		case '"':
+			buf.WriteString(`\"`)
+		case '\n':
+			buf.WriteString(`\n`)
+		case '\r':
+			buf.WriteString(`\r`)
+		case '\t':
+			buf.WriteString(`\t`)
+		case '\b':
+			buf.WriteString(`\b`)
+		case '\f':
+			buf.WriteString(`\f`)
+		default:
+			if r < 0x20 {
+				buf.WriteString(fmt.Sprintf(`\u%04X`, r))
+				continue
+			}
+			buf.WriteRune(r)
+		}
+	}
+	buf.WriteByte('"')
+	return buf.String()
+}
+
+func genericIndent(unit string, indent int) string {
+	if indent <= 0 {
+		return ""
+	}
+	return strings.Repeat(unit, indent)
+}
+
+func dartDescribeResponseLiteral(response *holonsv1.DescribeResponse) string {
+	if response == nil {
+		return "DescribeResponse()"
+	}
+	return dartDescribeResponseExpr(response, 0)
+}
+
+func dartDescribeResponseExpr(response *holonsv1.DescribeResponse, indent int) string {
+	fields := make([]generatedField, 0, 2)
+	if response.GetManifest() != nil {
+		fields = append(fields, generatedField{
+			name:  "manifest",
+			value: dartHolonManifestExpr(response.GetManifest(), indent+1),
+		})
+	}
+	if len(response.GetServices()) > 0 {
+		values := make([]string, 0, len(response.GetServices()))
+		for _, service := range response.GetServices() {
+			values = append(values, dartServiceDocExpr(service, indent+2))
+		}
+		fields = append(fields, generatedField{
+			name:  "services",
+			value: dartListExpr(indent+1, values),
+		})
+	}
+	return dartCallExpr(indent, "DescribeResponse", fields)
+}
+
+func dartHolonManifestExpr(manifest *holonsv1.HolonManifest, indent int) string {
+	if manifest == nil {
+		return "HolonManifest()"
+	}
+	fields := make([]generatedField, 0, 11)
+	if manifest.GetIdentity() != nil {
+		fields = append(fields, generatedField{
+			name:  "identity",
+			value: dartIdentityExpr(manifest.GetIdentity(), indent+1),
+		})
+	}
+	if manifest.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(manifest.GetDescription())})
+	}
+	if manifest.GetLang() != "" {
+		fields = append(fields, generatedField{name: "lang", value: sourceStringLiteral(manifest.GetLang())})
+	}
+	if len(manifest.GetSkills()) > 0 {
+		values := make([]string, 0, len(manifest.GetSkills()))
+		for _, skill := range manifest.GetSkills() {
+			values = append(values, dartSkillExpr(skill, indent+2))
+		}
+		fields = append(fields, generatedField{name: "skills", value: dartListExpr(indent+1, values)})
+	}
+	if manifest.GetKind() != "" {
+		fields = append(fields, generatedField{name: "kind", value: sourceStringLiteral(manifest.GetKind())})
+	}
+	if len(manifest.GetPlatforms()) > 0 {
+		values := make([]string, 0, len(manifest.GetPlatforms()))
+		for _, platform := range manifest.GetPlatforms() {
+			values = append(values, sourceStringLiteral(platform))
+		}
+		fields = append(fields, generatedField{name: "platforms", value: dartListExpr(indent+1, values)})
+	}
+	if manifest.GetTransport() != "" {
+		fields = append(fields, generatedField{name: "transport", value: sourceStringLiteral(manifest.GetTransport())})
+	}
+	if manifest.GetBuild() != nil {
+		fields = append(fields, generatedField{name: "build", value: dartBuildExpr(manifest.GetBuild(), indent+1)})
+	}
+	if manifest.GetRequires() != nil {
+		fields = append(fields, generatedField{name: "requires", value: dartRequiresExpr(manifest.GetRequires(), indent+1)})
+	}
+	if manifest.GetArtifacts() != nil {
+		fields = append(fields, generatedField{name: "artifacts", value: dartArtifactsExpr(manifest.GetArtifacts(), indent+1)})
+	}
+	if len(manifest.GetSequences()) > 0 {
+		values := make([]string, 0, len(manifest.GetSequences()))
+		for _, sequence := range manifest.GetSequences() {
+			values = append(values, dartSequenceExpr(sequence, indent+2))
+		}
+		fields = append(fields, generatedField{name: "sequences", value: dartListExpr(indent+1, values)})
+	}
+	if manifest.GetGuide() != "" {
+		fields = append(fields, generatedField{name: "guide", value: sourceStringLiteral(manifest.GetGuide())})
+	}
+	return dartCallExpr(indent, "HolonManifest", fields)
+}
+
+func dartIdentityExpr(identity *holonsv1.HolonManifest_Identity, indent int) string {
+	if identity == nil {
+		return "HolonManifest_Identity()"
+	}
+	fields := make([]generatedField, 0, 10)
+	if identity.GetSchema() != "" {
+		fields = append(fields, generatedField{name: "schema", value: sourceStringLiteral(identity.GetSchema())})
+	}
+	if identity.GetUuid() != "" {
+		fields = append(fields, generatedField{name: "uuid", value: sourceStringLiteral(identity.GetUuid())})
+	}
+	if identity.GetGivenName() != "" {
+		fields = append(fields, generatedField{name: "givenName", value: sourceStringLiteral(identity.GetGivenName())})
+	}
+	if identity.GetFamilyName() != "" {
+		fields = append(fields, generatedField{name: "familyName", value: sourceStringLiteral(identity.GetFamilyName())})
+	}
+	if identity.GetMotto() != "" {
+		fields = append(fields, generatedField{name: "motto", value: sourceStringLiteral(identity.GetMotto())})
+	}
+	if identity.GetComposer() != "" {
+		fields = append(fields, generatedField{name: "composer", value: sourceStringLiteral(identity.GetComposer())})
+	}
+	if identity.GetStatus() != "" {
+		fields = append(fields, generatedField{name: "status", value: sourceStringLiteral(identity.GetStatus())})
+	}
+	if identity.GetBorn() != "" {
+		fields = append(fields, generatedField{name: "born", value: sourceStringLiteral(identity.GetBorn())})
+	}
+	if identity.GetVersion() != "" {
+		fields = append(fields, generatedField{name: "version", value: sourceStringLiteral(identity.GetVersion())})
+	}
+	if len(identity.GetAliases()) > 0 {
+		values := make([]string, 0, len(identity.GetAliases()))
+		for _, alias := range identity.GetAliases() {
+			values = append(values, sourceStringLiteral(alias))
+		}
+		fields = append(fields, generatedField{name: "aliases", value: dartListExpr(indent+1, values)})
+	}
+	return dartCallExpr(indent, "HolonManifest_Identity", fields)
+}
+
+func dartSkillExpr(skill *holonsv1.HolonManifest_Skill, indent int) string {
+	if skill == nil {
+		return "HolonManifest_Skill()"
+	}
+	fields := make([]generatedField, 0, 4)
+	if skill.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(skill.GetName())})
+	}
+	if skill.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(skill.GetDescription())})
+	}
+	if skill.GetWhen() != "" {
+		fields = append(fields, generatedField{name: "when", value: sourceStringLiteral(skill.GetWhen())})
+	}
+	if len(skill.GetSteps()) > 0 {
+		values := make([]string, 0, len(skill.GetSteps()))
+		for _, step := range skill.GetSteps() {
+			values = append(values, sourceStringLiteral(step))
+		}
+		fields = append(fields, generatedField{name: "steps", value: dartListExpr(indent+1, values)})
+	}
+	return dartCallExpr(indent, "HolonManifest_Skill", fields)
+}
+
+func dartSequenceExpr(sequence *holonsv1.HolonManifest_Sequence, indent int) string {
+	if sequence == nil {
+		return "HolonManifest_Sequence()"
+	}
+	fields := make([]generatedField, 0, 4)
+	if sequence.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(sequence.GetName())})
+	}
+	if sequence.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(sequence.GetDescription())})
+	}
+	if len(sequence.GetParams()) > 0 {
+		values := make([]string, 0, len(sequence.GetParams()))
+		for _, param := range sequence.GetParams() {
+			values = append(values, dartSequenceParamExpr(param, indent+2))
+		}
+		fields = append(fields, generatedField{name: "params", value: dartListExpr(indent+1, values)})
+	}
+	if len(sequence.GetSteps()) > 0 {
+		values := make([]string, 0, len(sequence.GetSteps()))
+		for _, step := range sequence.GetSteps() {
+			values = append(values, sourceStringLiteral(step))
+		}
+		fields = append(fields, generatedField{name: "steps", value: dartListExpr(indent+1, values)})
+	}
+	return dartCallExpr(indent, "HolonManifest_Sequence", fields)
+}
+
+func dartSequenceParamExpr(param *holonsv1.HolonManifest_Sequence_Param, indent int) string {
+	if param == nil {
+		return "HolonManifest_Sequence_Param()"
+	}
+	fields := make([]generatedField, 0, 4)
+	if param.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(param.GetName())})
+	}
+	if param.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(param.GetDescription())})
+	}
+	if param.GetRequired() {
+		fields = append(fields, generatedField{name: "required", value: "true"})
+	}
+	if param.GetDefault() != "" {
+		fields = append(fields, generatedField{name: "default_4", value: sourceStringLiteral(param.GetDefault())})
+	}
+	return dartCallExpr(indent, "HolonManifest_Sequence_Param", fields)
+}
+
+func dartBuildExpr(build *holonsv1.HolonManifest_Build, indent int) string {
+	if build == nil {
+		return "HolonManifest_Build()"
+	}
+	fields := make([]generatedField, 0, 3)
+	if build.GetRunner() != "" {
+		fields = append(fields, generatedField{name: "runner", value: sourceStringLiteral(build.GetRunner())})
+	}
+	if build.GetMain() != "" {
+		fields = append(fields, generatedField{name: "main", value: sourceStringLiteral(build.GetMain())})
+	}
+	if len(build.GetTemplates()) > 0 {
+		values := make([]string, 0, len(build.GetTemplates()))
+		for _, template := range build.GetTemplates() {
+			values = append(values, sourceStringLiteral(template))
+		}
+		fields = append(fields, generatedField{name: "templates", value: dartListExpr(indent+1, values)})
+	}
+	return dartCallExpr(indent, "HolonManifest_Build", fields)
+}
+
+func dartRequiresExpr(requires *holonsv1.HolonManifest_Requires, indent int) string {
+	if requires == nil {
+		return "HolonManifest_Requires()"
+	}
+	fields := make([]generatedField, 0, 3)
+	if len(requires.GetCommands()) > 0 {
+		values := make([]string, 0, len(requires.GetCommands()))
+		for _, command := range requires.GetCommands() {
+			values = append(values, sourceStringLiteral(command))
+		}
+		fields = append(fields, generatedField{name: "commands", value: dartListExpr(indent+1, values)})
+	}
+	if len(requires.GetFiles()) > 0 {
+		values := make([]string, 0, len(requires.GetFiles()))
+		for _, file := range requires.GetFiles() {
+			values = append(values, sourceStringLiteral(file))
+		}
+		fields = append(fields, generatedField{name: "files", value: dartListExpr(indent+1, values)})
+	}
+	if len(requires.GetPlatforms()) > 0 {
+		values := make([]string, 0, len(requires.GetPlatforms()))
+		for _, platform := range requires.GetPlatforms() {
+			values = append(values, sourceStringLiteral(platform))
+		}
+		fields = append(fields, generatedField{name: "platforms", value: dartListExpr(indent+1, values)})
+	}
+	return dartCallExpr(indent, "HolonManifest_Requires", fields)
+}
+
+func dartArtifactsExpr(artifacts *holonsv1.HolonManifest_Artifacts, indent int) string {
+	if artifacts == nil {
+		return "HolonManifest_Artifacts()"
+	}
+	fields := make([]generatedField, 0, 2)
+	if artifacts.GetBinary() != "" {
+		fields = append(fields, generatedField{name: "binary", value: sourceStringLiteral(artifacts.GetBinary())})
+	}
+	if artifacts.GetPrimary() != "" {
+		fields = append(fields, generatedField{name: "primary", value: sourceStringLiteral(artifacts.GetPrimary())})
+	}
+	return dartCallExpr(indent, "HolonManifest_Artifacts", fields)
+}
+
+func dartServiceDocExpr(service *holonsv1.ServiceDoc, indent int) string {
+	if service == nil {
+		return "ServiceDoc()"
+	}
+	fields := make([]generatedField, 0, 3)
+	if service.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(service.GetName())})
+	}
+	if service.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(service.GetDescription())})
+	}
+	if len(service.GetMethods()) > 0 {
+		values := make([]string, 0, len(service.GetMethods()))
+		for _, method := range service.GetMethods() {
+			values = append(values, dartMethodDocExpr(method, indent+2))
+		}
+		fields = append(fields, generatedField{name: "methods", value: dartListExpr(indent+1, values)})
+	}
+	return dartCallExpr(indent, "ServiceDoc", fields)
+}
+
+func dartMethodDocExpr(method *holonsv1.MethodDoc, indent int) string {
+	if method == nil {
+		return "MethodDoc()"
+	}
+	fields := make([]generatedField, 0, 9)
+	if method.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(method.GetName())})
+	}
+	if method.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(method.GetDescription())})
+	}
+	if method.GetInputType() != "" {
+		fields = append(fields, generatedField{name: "inputType", value: sourceStringLiteral(method.GetInputType())})
+	}
+	if method.GetOutputType() != "" {
+		fields = append(fields, generatedField{name: "outputType", value: sourceStringLiteral(method.GetOutputType())})
+	}
+	if len(method.GetInputFields()) > 0 {
+		values := make([]string, 0, len(method.GetInputFields()))
+		for _, field := range method.GetInputFields() {
+			values = append(values, dartFieldDocExpr(field, indent+2))
+		}
+		fields = append(fields, generatedField{name: "inputFields", value: dartListExpr(indent+1, values)})
+	}
+	if len(method.GetOutputFields()) > 0 {
+		values := make([]string, 0, len(method.GetOutputFields()))
+		for _, field := range method.GetOutputFields() {
+			values = append(values, dartFieldDocExpr(field, indent+2))
+		}
+		fields = append(fields, generatedField{name: "outputFields", value: dartListExpr(indent+1, values)})
+	}
+	if method.GetClientStreaming() {
+		fields = append(fields, generatedField{name: "clientStreaming", value: "true"})
+	}
+	if method.GetServerStreaming() {
+		fields = append(fields, generatedField{name: "serverStreaming", value: "true"})
+	}
+	if method.GetExampleInput() != "" {
+		fields = append(fields, generatedField{name: "exampleInput", value: sourceStringLiteral(method.GetExampleInput())})
+	}
+	return dartCallExpr(indent, "MethodDoc", fields)
+}
+
+func dartFieldDocExpr(field *holonsv1.FieldDoc, indent int) string {
+	if field == nil {
+		return "FieldDoc()"
+	}
+	fields := make([]generatedField, 0, 11)
+	if field.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(field.GetName())})
+	}
+	if field.GetType() != "" {
+		fields = append(fields, generatedField{name: "type", value: sourceStringLiteral(field.GetType())})
+	}
+	if field.GetNumber() != 0 {
+		fields = append(fields, generatedField{name: "number", value: fmt.Sprintf("%d", field.GetNumber())})
+	}
+	if field.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(field.GetDescription())})
+	}
+	fields = append(fields, generatedField{name: "label", value: dartFieldLabelLiteral(field.GetLabel())})
+	if field.GetMapKeyType() != "" {
+		fields = append(fields, generatedField{name: "mapKeyType", value: sourceStringLiteral(field.GetMapKeyType())})
+	}
+	if field.GetMapValueType() != "" {
+		fields = append(fields, generatedField{name: "mapValueType", value: sourceStringLiteral(field.GetMapValueType())})
+	}
+	if len(field.GetNestedFields()) > 0 {
+		values := make([]string, 0, len(field.GetNestedFields()))
+		for _, nested := range field.GetNestedFields() {
+			values = append(values, dartFieldDocExpr(nested, indent+2))
+		}
+		fields = append(fields, generatedField{name: "nestedFields", value: dartListExpr(indent+1, values)})
+	}
+	if len(field.GetEnumValues()) > 0 {
+		values := make([]string, 0, len(field.GetEnumValues()))
+		for _, value := range field.GetEnumValues() {
+			values = append(values, dartEnumValueDocExpr(value, indent+2))
+		}
+		fields = append(fields, generatedField{name: "enumValues", value: dartListExpr(indent+1, values)})
+	}
+	if field.GetRequired() {
+		fields = append(fields, generatedField{name: "required", value: "true"})
+	}
+	if field.GetExample() != "" {
+		fields = append(fields, generatedField{name: "example", value: sourceStringLiteral(field.GetExample())})
+	}
+	return dartCallExpr(indent, "FieldDoc", fields)
+}
+
+func dartEnumValueDocExpr(value *holonsv1.EnumValueDoc, indent int) string {
+	if value == nil {
+		return "EnumValueDoc()"
+	}
+	fields := make([]generatedField, 0, 3)
+	if value.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(value.GetName())})
+	}
+	if value.GetNumber() != 0 {
+		fields = append(fields, generatedField{name: "number", value: fmt.Sprintf("%d", value.GetNumber())})
+	}
+	if value.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(value.GetDescription())})
+	}
+	return dartCallExpr(indent, "EnumValueDoc", fields)
+}
+
+func dartCallExpr(indent int, name string, fields []generatedField) string {
+	if len(fields) == 0 {
+		return name + "()"
+	}
+	var buf strings.Builder
+	buf.WriteString(name)
+	buf.WriteString("(\n")
+	for _, field := range fields {
+		buf.WriteString(genericIndent("  ", indent+1))
+		buf.WriteString(field.name)
+		buf.WriteString(": ")
+		buf.WriteString(field.value)
+		buf.WriteString(",\n")
+	}
+	buf.WriteString(genericIndent("  ", indent))
+	buf.WriteString(")")
+	return buf.String()
+}
+
+func dartListExpr(indent int, values []string) string {
+	if len(values) == 0 {
+		return "[]"
+	}
+	var buf strings.Builder
+	buf.WriteString("[\n")
+	for _, value := range values {
+		buf.WriteString(genericIndent("  ", indent+1))
+		buf.WriteString(value)
+		buf.WriteString(",\n")
+	}
+	buf.WriteString(genericIndent("  ", indent))
+	buf.WriteString("]")
+	return buf.String()
+}
+
+func dartFieldLabelLiteral(value holonsv1.FieldLabel) string {
+	switch value {
+	case holonsv1.FieldLabel_FIELD_LABEL_UNSPECIFIED:
+		return "FieldLabel.FIELD_LABEL_UNSPECIFIED"
+	case holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL:
+		return "FieldLabel.FIELD_LABEL_OPTIONAL"
+	case holonsv1.FieldLabel_FIELD_LABEL_REPEATED:
+		return "FieldLabel.FIELD_LABEL_REPEATED"
+	case holonsv1.FieldLabel_FIELD_LABEL_MAP:
+		return "FieldLabel.FIELD_LABEL_MAP"
+	case holonsv1.FieldLabel_FIELD_LABEL_REQUIRED:
+		return "FieldLabel.FIELD_LABEL_REQUIRED"
+	default:
+		return fmt.Sprintf("FieldLabel.valueOf(%d)", value)
+	}
+}
+
+func pythonDescribeResponseLiteral(response *holonsv1.DescribeResponse) string {
+	if response == nil {
+		return "describe_pb2.DescribeResponse()"
+	}
+	return pythonDescribeResponseExpr(response, 0)
+}
+
+func pythonDescribeResponseExpr(response *holonsv1.DescribeResponse, indent int) string {
+	fields := make([]generatedField, 0, 2)
+	if response.GetManifest() != nil {
+		fields = append(fields, generatedField{name: "manifest", value: pythonHolonManifestExpr(response.GetManifest(), indent+1)})
+	}
+	if len(response.GetServices()) > 0 {
+		values := make([]string, 0, len(response.GetServices()))
+		for _, service := range response.GetServices() {
+			values = append(values, pythonServiceDocExpr(service, indent+2))
+		}
+		fields = append(fields, generatedField{name: "services", value: pythonListExpr(indent+1, values)})
+	}
+	return pythonCallExpr(indent, "describe_pb2.DescribeResponse", fields)
+}
+
+func pythonHolonManifestExpr(manifest *holonsv1.HolonManifest, indent int) string {
+	if manifest == nil {
+		return "manifest_pb2.HolonManifest()"
+	}
+	fields := make([]generatedField, 0, 11)
+	if manifest.GetIdentity() != nil {
+		fields = append(fields, generatedField{name: "identity", value: pythonIdentityExpr(manifest.GetIdentity(), indent+1)})
+	}
+	if manifest.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(manifest.GetDescription())})
+	}
+	if manifest.GetLang() != "" {
+		fields = append(fields, generatedField{name: "lang", value: sourceStringLiteral(manifest.GetLang())})
+	}
+	if len(manifest.GetSkills()) > 0 {
+		values := make([]string, 0, len(manifest.GetSkills()))
+		for _, skill := range manifest.GetSkills() {
+			values = append(values, pythonSkillExpr(skill, indent+2))
+		}
+		fields = append(fields, generatedField{name: "skills", value: pythonListExpr(indent+1, values)})
+	}
+	if manifest.GetKind() != "" {
+		fields = append(fields, generatedField{name: "kind", value: sourceStringLiteral(manifest.GetKind())})
+	}
+	if len(manifest.GetPlatforms()) > 0 {
+		values := make([]string, 0, len(manifest.GetPlatforms()))
+		for _, platform := range manifest.GetPlatforms() {
+			values = append(values, sourceStringLiteral(platform))
+		}
+		fields = append(fields, generatedField{name: "platforms", value: pythonListExpr(indent+1, values)})
+	}
+	if manifest.GetTransport() != "" {
+		fields = append(fields, generatedField{name: "transport", value: sourceStringLiteral(manifest.GetTransport())})
+	}
+	if manifest.GetBuild() != nil {
+		fields = append(fields, generatedField{name: "build", value: pythonBuildExpr(manifest.GetBuild(), indent+1)})
+	}
+	if manifest.GetRequires() != nil {
+		fields = append(fields, generatedField{name: "requires", value: pythonRequiresExpr(manifest.GetRequires(), indent+1)})
+	}
+	if manifest.GetArtifacts() != nil {
+		fields = append(fields, generatedField{name: "artifacts", value: pythonArtifactsExpr(manifest.GetArtifacts(), indent+1)})
+	}
+	if len(manifest.GetSequences()) > 0 {
+		values := make([]string, 0, len(manifest.GetSequences()))
+		for _, sequence := range manifest.GetSequences() {
+			values = append(values, pythonSequenceExpr(sequence, indent+2))
+		}
+		fields = append(fields, generatedField{name: "sequences", value: pythonListExpr(indent+1, values)})
+	}
+	if manifest.GetGuide() != "" {
+		fields = append(fields, generatedField{name: "guide", value: sourceStringLiteral(manifest.GetGuide())})
+	}
+	return pythonCallExpr(indent, "manifest_pb2.HolonManifest", fields)
+}
+
+func pythonIdentityExpr(identity *holonsv1.HolonManifest_Identity, indent int) string {
+	if identity == nil {
+		return "manifest_pb2.HolonManifest.Identity()"
+	}
+	fields := make([]generatedField, 0, 10)
+	if identity.GetSchema() != "" {
+		fields = append(fields, generatedField{name: "schema", value: sourceStringLiteral(identity.GetSchema())})
+	}
+	if identity.GetUuid() != "" {
+		fields = append(fields, generatedField{name: "uuid", value: sourceStringLiteral(identity.GetUuid())})
+	}
+	if identity.GetGivenName() != "" {
+		fields = append(fields, generatedField{name: "given_name", value: sourceStringLiteral(identity.GetGivenName())})
+	}
+	if identity.GetFamilyName() != "" {
+		fields = append(fields, generatedField{name: "family_name", value: sourceStringLiteral(identity.GetFamilyName())})
+	}
+	if identity.GetMotto() != "" {
+		fields = append(fields, generatedField{name: "motto", value: sourceStringLiteral(identity.GetMotto())})
+	}
+	if identity.GetComposer() != "" {
+		fields = append(fields, generatedField{name: "composer", value: sourceStringLiteral(identity.GetComposer())})
+	}
+	if identity.GetStatus() != "" {
+		fields = append(fields, generatedField{name: "status", value: sourceStringLiteral(identity.GetStatus())})
+	}
+	if identity.GetBorn() != "" {
+		fields = append(fields, generatedField{name: "born", value: sourceStringLiteral(identity.GetBorn())})
+	}
+	if identity.GetVersion() != "" {
+		fields = append(fields, generatedField{name: "version", value: sourceStringLiteral(identity.GetVersion())})
+	}
+	if len(identity.GetAliases()) > 0 {
+		values := make([]string, 0, len(identity.GetAliases()))
+		for _, alias := range identity.GetAliases() {
+			values = append(values, sourceStringLiteral(alias))
+		}
+		fields = append(fields, generatedField{name: "aliases", value: pythonListExpr(indent+1, values)})
+	}
+	return pythonCallExpr(indent, "manifest_pb2.HolonManifest.Identity", fields)
+}
+
+func pythonSkillExpr(skill *holonsv1.HolonManifest_Skill, indent int) string {
+	if skill == nil {
+		return "manifest_pb2.HolonManifest.Skill()"
+	}
+	fields := make([]generatedField, 0, 4)
+	if skill.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(skill.GetName())})
+	}
+	if skill.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(skill.GetDescription())})
+	}
+	if skill.GetWhen() != "" {
+		fields = append(fields, generatedField{name: "when", value: sourceStringLiteral(skill.GetWhen())})
+	}
+	if len(skill.GetSteps()) > 0 {
+		values := make([]string, 0, len(skill.GetSteps()))
+		for _, step := range skill.GetSteps() {
+			values = append(values, sourceStringLiteral(step))
+		}
+		fields = append(fields, generatedField{name: "steps", value: pythonListExpr(indent+1, values)})
+	}
+	return pythonCallExpr(indent, "manifest_pb2.HolonManifest.Skill", fields)
+}
+
+func pythonSequenceExpr(sequence *holonsv1.HolonManifest_Sequence, indent int) string {
+	if sequence == nil {
+		return "manifest_pb2.HolonManifest.Sequence()"
+	}
+	fields := make([]generatedField, 0, 4)
+	if sequence.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(sequence.GetName())})
+	}
+	if sequence.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(sequence.GetDescription())})
+	}
+	if len(sequence.GetParams()) > 0 {
+		values := make([]string, 0, len(sequence.GetParams()))
+		for _, param := range sequence.GetParams() {
+			values = append(values, pythonSequenceParamExpr(param, indent+2))
+		}
+		fields = append(fields, generatedField{name: "params", value: pythonListExpr(indent+1, values)})
+	}
+	if len(sequence.GetSteps()) > 0 {
+		values := make([]string, 0, len(sequence.GetSteps()))
+		for _, step := range sequence.GetSteps() {
+			values = append(values, sourceStringLiteral(step))
+		}
+		fields = append(fields, generatedField{name: "steps", value: pythonListExpr(indent+1, values)})
+	}
+	return pythonCallExpr(indent, "manifest_pb2.HolonManifest.Sequence", fields)
+}
+
+func pythonSequenceParamExpr(param *holonsv1.HolonManifest_Sequence_Param, indent int) string {
+	if param == nil {
+		return "manifest_pb2.HolonManifest.Sequence.Param()"
+	}
+	fields := make([]generatedField, 0, 4)
+	if param.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(param.GetName())})
+	}
+	if param.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(param.GetDescription())})
+	}
+	if param.GetRequired() {
+		fields = append(fields, generatedField{name: "required", value: "True"})
+	}
+	if param.GetDefault() != "" {
+		fields = append(fields, generatedField{name: "default", value: sourceStringLiteral(param.GetDefault())})
+	}
+	return pythonCallExpr(indent, "manifest_pb2.HolonManifest.Sequence.Param", fields)
+}
+
+func pythonBuildExpr(build *holonsv1.HolonManifest_Build, indent int) string {
+	if build == nil {
+		return "manifest_pb2.HolonManifest.Build()"
+	}
+	fields := make([]generatedField, 0, 3)
+	if build.GetRunner() != "" {
+		fields = append(fields, generatedField{name: "runner", value: sourceStringLiteral(build.GetRunner())})
+	}
+	if build.GetMain() != "" {
+		fields = append(fields, generatedField{name: "main", value: sourceStringLiteral(build.GetMain())})
+	}
+	if len(build.GetTemplates()) > 0 {
+		values := make([]string, 0, len(build.GetTemplates()))
+		for _, template := range build.GetTemplates() {
+			values = append(values, sourceStringLiteral(template))
+		}
+		fields = append(fields, generatedField{name: "templates", value: pythonListExpr(indent+1, values)})
+	}
+	return pythonCallExpr(indent, "manifest_pb2.HolonManifest.Build", fields)
+}
+
+func pythonRequiresExpr(requires *holonsv1.HolonManifest_Requires, indent int) string {
+	if requires == nil {
+		return "manifest_pb2.HolonManifest.Requires()"
+	}
+	fields := make([]generatedField, 0, 3)
+	if len(requires.GetCommands()) > 0 {
+		values := make([]string, 0, len(requires.GetCommands()))
+		for _, command := range requires.GetCommands() {
+			values = append(values, sourceStringLiteral(command))
+		}
+		fields = append(fields, generatedField{name: "commands", value: pythonListExpr(indent+1, values)})
+	}
+	if len(requires.GetFiles()) > 0 {
+		values := make([]string, 0, len(requires.GetFiles()))
+		for _, file := range requires.GetFiles() {
+			values = append(values, sourceStringLiteral(file))
+		}
+		fields = append(fields, generatedField{name: "files", value: pythonListExpr(indent+1, values)})
+	}
+	if len(requires.GetPlatforms()) > 0 {
+		values := make([]string, 0, len(requires.GetPlatforms()))
+		for _, platform := range requires.GetPlatforms() {
+			values = append(values, sourceStringLiteral(platform))
+		}
+		fields = append(fields, generatedField{name: "platforms", value: pythonListExpr(indent+1, values)})
+	}
+	return pythonCallExpr(indent, "manifest_pb2.HolonManifest.Requires", fields)
+}
+
+func pythonArtifactsExpr(artifacts *holonsv1.HolonManifest_Artifacts, indent int) string {
+	if artifacts == nil {
+		return "manifest_pb2.HolonManifest.Artifacts()"
+	}
+	fields := make([]generatedField, 0, 2)
+	if artifacts.GetBinary() != "" {
+		fields = append(fields, generatedField{name: "binary", value: sourceStringLiteral(artifacts.GetBinary())})
+	}
+	if artifacts.GetPrimary() != "" {
+		fields = append(fields, generatedField{name: "primary", value: sourceStringLiteral(artifacts.GetPrimary())})
+	}
+	return pythonCallExpr(indent, "manifest_pb2.HolonManifest.Artifacts", fields)
+}
+
+func pythonServiceDocExpr(service *holonsv1.ServiceDoc, indent int) string {
+	if service == nil {
+		return "describe_pb2.ServiceDoc()"
+	}
+	fields := make([]generatedField, 0, 3)
+	if service.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(service.GetName())})
+	}
+	if service.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(service.GetDescription())})
+	}
+	if len(service.GetMethods()) > 0 {
+		values := make([]string, 0, len(service.GetMethods()))
+		for _, method := range service.GetMethods() {
+			values = append(values, pythonMethodDocExpr(method, indent+2))
+		}
+		fields = append(fields, generatedField{name: "methods", value: pythonListExpr(indent+1, values)})
+	}
+	return pythonCallExpr(indent, "describe_pb2.ServiceDoc", fields)
+}
+
+func pythonMethodDocExpr(method *holonsv1.MethodDoc, indent int) string {
+	if method == nil {
+		return "describe_pb2.MethodDoc()"
+	}
+	fields := make([]generatedField, 0, 9)
+	if method.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(method.GetName())})
+	}
+	if method.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(method.GetDescription())})
+	}
+	if method.GetInputType() != "" {
+		fields = append(fields, generatedField{name: "input_type", value: sourceStringLiteral(method.GetInputType())})
+	}
+	if method.GetOutputType() != "" {
+		fields = append(fields, generatedField{name: "output_type", value: sourceStringLiteral(method.GetOutputType())})
+	}
+	if len(method.GetInputFields()) > 0 {
+		values := make([]string, 0, len(method.GetInputFields()))
+		for _, field := range method.GetInputFields() {
+			values = append(values, pythonFieldDocExpr(field, indent+2))
+		}
+		fields = append(fields, generatedField{name: "input_fields", value: pythonListExpr(indent+1, values)})
+	}
+	if len(method.GetOutputFields()) > 0 {
+		values := make([]string, 0, len(method.GetOutputFields()))
+		for _, field := range method.GetOutputFields() {
+			values = append(values, pythonFieldDocExpr(field, indent+2))
+		}
+		fields = append(fields, generatedField{name: "output_fields", value: pythonListExpr(indent+1, values)})
+	}
+	if method.GetClientStreaming() {
+		fields = append(fields, generatedField{name: "client_streaming", value: "True"})
+	}
+	if method.GetServerStreaming() {
+		fields = append(fields, generatedField{name: "server_streaming", value: "True"})
+	}
+	if method.GetExampleInput() != "" {
+		fields = append(fields, generatedField{name: "example_input", value: sourceStringLiteral(method.GetExampleInput())})
+	}
+	return pythonCallExpr(indent, "describe_pb2.MethodDoc", fields)
+}
+
+func pythonFieldDocExpr(field *holonsv1.FieldDoc, indent int) string {
+	if field == nil {
+		return "describe_pb2.FieldDoc()"
+	}
+	fields := make([]generatedField, 0, 11)
+	if field.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(field.GetName())})
+	}
+	if field.GetType() != "" {
+		fields = append(fields, generatedField{name: "type", value: sourceStringLiteral(field.GetType())})
+	}
+	if field.GetNumber() != 0 {
+		fields = append(fields, generatedField{name: "number", value: fmt.Sprintf("%d", field.GetNumber())})
+	}
+	if field.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(field.GetDescription())})
+	}
+	fields = append(fields, generatedField{name: "label", value: pythonFieldLabelLiteral(field.GetLabel())})
+	if field.GetMapKeyType() != "" {
+		fields = append(fields, generatedField{name: "map_key_type", value: sourceStringLiteral(field.GetMapKeyType())})
+	}
+	if field.GetMapValueType() != "" {
+		fields = append(fields, generatedField{name: "map_value_type", value: sourceStringLiteral(field.GetMapValueType())})
+	}
+	if len(field.GetNestedFields()) > 0 {
+		values := make([]string, 0, len(field.GetNestedFields()))
+		for _, nested := range field.GetNestedFields() {
+			values = append(values, pythonFieldDocExpr(nested, indent+2))
+		}
+		fields = append(fields, generatedField{name: "nested_fields", value: pythonListExpr(indent+1, values)})
+	}
+	if len(field.GetEnumValues()) > 0 {
+		values := make([]string, 0, len(field.GetEnumValues()))
+		for _, value := range field.GetEnumValues() {
+			values = append(values, pythonEnumValueDocExpr(value, indent+2))
+		}
+		fields = append(fields, generatedField{name: "enum_values", value: pythonListExpr(indent+1, values)})
+	}
+	if field.GetRequired() {
+		fields = append(fields, generatedField{name: "required", value: "True"})
+	}
+	if field.GetExample() != "" {
+		fields = append(fields, generatedField{name: "example", value: sourceStringLiteral(field.GetExample())})
+	}
+	return pythonCallExpr(indent, "describe_pb2.FieldDoc", fields)
+}
+
+func pythonEnumValueDocExpr(value *holonsv1.EnumValueDoc, indent int) string {
+	if value == nil {
+		return "describe_pb2.EnumValueDoc()"
+	}
+	fields := make([]generatedField, 0, 3)
+	if value.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(value.GetName())})
+	}
+	if value.GetNumber() != 0 {
+		fields = append(fields, generatedField{name: "number", value: fmt.Sprintf("%d", value.GetNumber())})
+	}
+	if value.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(value.GetDescription())})
+	}
+	return pythonCallExpr(indent, "describe_pb2.EnumValueDoc", fields)
+}
+
+func pythonCallExpr(indent int, name string, fields []generatedField) string {
+	if len(fields) == 0 {
+		return name + "()"
+	}
+	var buf strings.Builder
+	buf.WriteString(name)
+	buf.WriteString("(\n")
+	for _, field := range fields {
+		buf.WriteString(genericIndent("    ", indent+1))
+		buf.WriteString(field.name)
+		buf.WriteString("=")
+		buf.WriteString(field.value)
+		buf.WriteString(",\n")
+	}
+	buf.WriteString(genericIndent("    ", indent))
+	buf.WriteString(")")
+	return buf.String()
+}
+
+func pythonListExpr(indent int, values []string) string {
+	if len(values) == 0 {
+		return "[]"
+	}
+	var buf strings.Builder
+	buf.WriteString("[\n")
+	for _, value := range values {
+		buf.WriteString(genericIndent("    ", indent+1))
+		buf.WriteString(value)
+		buf.WriteString(",\n")
+	}
+	buf.WriteString(genericIndent("    ", indent))
+	buf.WriteString("]")
+	return buf.String()
+}
+
+func pythonFieldLabelLiteral(value holonsv1.FieldLabel) string {
+	switch value {
+	case holonsv1.FieldLabel_FIELD_LABEL_UNSPECIFIED:
+		return "describe_pb2.FIELD_LABEL_UNSPECIFIED"
+	case holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL:
+		return "describe_pb2.FIELD_LABEL_OPTIONAL"
+	case holonsv1.FieldLabel_FIELD_LABEL_REPEATED:
+		return "describe_pb2.FIELD_LABEL_REPEATED"
+	case holonsv1.FieldLabel_FIELD_LABEL_MAP:
+		return "describe_pb2.FIELD_LABEL_MAP"
+	case holonsv1.FieldLabel_FIELD_LABEL_REQUIRED:
+		return "describe_pb2.FIELD_LABEL_REQUIRED"
+	default:
+		return fmt.Sprintf("%d", value)
+	}
+}
+
+func rubyDescribeResponseLiteral(response *holonsv1.DescribeResponse) string {
+	if response == nil {
+		return "::Holons::V1::DescribeResponse.new"
+	}
+	return rubyDescribeResponseExpr(response, 0)
+}
+
+func rubyDescribeResponseExpr(response *holonsv1.DescribeResponse, indent int) string {
+	fields := make([]generatedField, 0, 2)
+	if response.GetManifest() != nil {
+		fields = append(fields, generatedField{name: "manifest", value: rubyHolonManifestExpr(response.GetManifest(), indent+1)})
+	}
+	if len(response.GetServices()) > 0 {
+		values := make([]string, 0, len(response.GetServices()))
+		for _, service := range response.GetServices() {
+			values = append(values, rubyServiceDocExpr(service, indent+2))
+		}
+		fields = append(fields, generatedField{name: "services", value: rubyArrayExpr(indent+1, values)})
+	}
+	return rubyCallExpr(indent, "::Holons::V1::DescribeResponse.new", fields)
+}
+
+func rubyHolonManifestExpr(manifest *holonsv1.HolonManifest, indent int) string {
+	if manifest == nil {
+		return "::Holons::V1::HolonManifest.new"
+	}
+	fields := make([]generatedField, 0, 11)
+	if manifest.GetIdentity() != nil {
+		fields = append(fields, generatedField{name: "identity", value: rubyIdentityExpr(manifest.GetIdentity(), indent+1)})
+	}
+	if manifest.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(manifest.GetDescription())})
+	}
+	if manifest.GetLang() != "" {
+		fields = append(fields, generatedField{name: "lang", value: sourceStringLiteral(manifest.GetLang())})
+	}
+	if len(manifest.GetSkills()) > 0 {
+		values := make([]string, 0, len(manifest.GetSkills()))
+		for _, skill := range manifest.GetSkills() {
+			values = append(values, rubySkillExpr(skill, indent+2))
+		}
+		fields = append(fields, generatedField{name: "skills", value: rubyArrayExpr(indent+1, values)})
+	}
+	if manifest.GetKind() != "" {
+		fields = append(fields, generatedField{name: "kind", value: sourceStringLiteral(manifest.GetKind())})
+	}
+	if len(manifest.GetPlatforms()) > 0 {
+		values := make([]string, 0, len(manifest.GetPlatforms()))
+		for _, platform := range manifest.GetPlatforms() {
+			values = append(values, sourceStringLiteral(platform))
+		}
+		fields = append(fields, generatedField{name: "platforms", value: rubyArrayExpr(indent+1, values)})
+	}
+	if manifest.GetTransport() != "" {
+		fields = append(fields, generatedField{name: "transport", value: sourceStringLiteral(manifest.GetTransport())})
+	}
+	if manifest.GetBuild() != nil {
+		fields = append(fields, generatedField{name: "build", value: rubyBuildExpr(manifest.GetBuild(), indent+1)})
+	}
+	if manifest.GetRequires() != nil {
+		fields = append(fields, generatedField{name: "requires", value: rubyRequiresExpr(manifest.GetRequires(), indent+1)})
+	}
+	if manifest.GetArtifacts() != nil {
+		fields = append(fields, generatedField{name: "artifacts", value: rubyArtifactsExpr(manifest.GetArtifacts(), indent+1)})
+	}
+	if len(manifest.GetSequences()) > 0 {
+		values := make([]string, 0, len(manifest.GetSequences()))
+		for _, sequence := range manifest.GetSequences() {
+			values = append(values, rubySequenceExpr(sequence, indent+2))
+		}
+		fields = append(fields, generatedField{name: "sequences", value: rubyArrayExpr(indent+1, values)})
+	}
+	if manifest.GetGuide() != "" {
+		fields = append(fields, generatedField{name: "guide", value: sourceStringLiteral(manifest.GetGuide())})
+	}
+	return rubyCallExpr(indent, "::Holons::V1::HolonManifest.new", fields)
+}
+
+func rubyIdentityExpr(identity *holonsv1.HolonManifest_Identity, indent int) string {
+	if identity == nil {
+		return "::Holons::V1::HolonManifest::Identity.new"
+	}
+	fields := make([]generatedField, 0, 10)
+	if identity.GetSchema() != "" {
+		fields = append(fields, generatedField{name: "schema", value: sourceStringLiteral(identity.GetSchema())})
+	}
+	if identity.GetUuid() != "" {
+		fields = append(fields, generatedField{name: "uuid", value: sourceStringLiteral(identity.GetUuid())})
+	}
+	if identity.GetGivenName() != "" {
+		fields = append(fields, generatedField{name: "given_name", value: sourceStringLiteral(identity.GetGivenName())})
+	}
+	if identity.GetFamilyName() != "" {
+		fields = append(fields, generatedField{name: "family_name", value: sourceStringLiteral(identity.GetFamilyName())})
+	}
+	if identity.GetMotto() != "" {
+		fields = append(fields, generatedField{name: "motto", value: sourceStringLiteral(identity.GetMotto())})
+	}
+	if identity.GetComposer() != "" {
+		fields = append(fields, generatedField{name: "composer", value: sourceStringLiteral(identity.GetComposer())})
+	}
+	if identity.GetStatus() != "" {
+		fields = append(fields, generatedField{name: "status", value: sourceStringLiteral(identity.GetStatus())})
+	}
+	if identity.GetBorn() != "" {
+		fields = append(fields, generatedField{name: "born", value: sourceStringLiteral(identity.GetBorn())})
+	}
+	if identity.GetVersion() != "" {
+		fields = append(fields, generatedField{name: "version", value: sourceStringLiteral(identity.GetVersion())})
+	}
+	if len(identity.GetAliases()) > 0 {
+		values := make([]string, 0, len(identity.GetAliases()))
+		for _, alias := range identity.GetAliases() {
+			values = append(values, sourceStringLiteral(alias))
+		}
+		fields = append(fields, generatedField{name: "aliases", value: rubyArrayExpr(indent+1, values)})
+	}
+	return rubyCallExpr(indent, "::Holons::V1::HolonManifest::Identity.new", fields)
+}
+
+func rubySkillExpr(skill *holonsv1.HolonManifest_Skill, indent int) string {
+	if skill == nil {
+		return "::Holons::V1::HolonManifest::Skill.new"
+	}
+	fields := make([]generatedField, 0, 4)
+	if skill.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(skill.GetName())})
+	}
+	if skill.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(skill.GetDescription())})
+	}
+	if skill.GetWhen() != "" {
+		fields = append(fields, generatedField{name: "when", value: sourceStringLiteral(skill.GetWhen())})
+	}
+	if len(skill.GetSteps()) > 0 {
+		values := make([]string, 0, len(skill.GetSteps()))
+		for _, step := range skill.GetSteps() {
+			values = append(values, sourceStringLiteral(step))
+		}
+		fields = append(fields, generatedField{name: "steps", value: rubyArrayExpr(indent+1, values)})
+	}
+	return rubyCallExpr(indent, "::Holons::V1::HolonManifest::Skill.new", fields)
+}
+
+func rubySequenceExpr(sequence *holonsv1.HolonManifest_Sequence, indent int) string {
+	if sequence == nil {
+		return "::Holons::V1::HolonManifest::Sequence.new"
+	}
+	fields := make([]generatedField, 0, 4)
+	if sequence.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(sequence.GetName())})
+	}
+	if sequence.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(sequence.GetDescription())})
+	}
+	if len(sequence.GetParams()) > 0 {
+		values := make([]string, 0, len(sequence.GetParams()))
+		for _, param := range sequence.GetParams() {
+			values = append(values, rubySequenceParamExpr(param, indent+2))
+		}
+		fields = append(fields, generatedField{name: "params", value: rubyArrayExpr(indent+1, values)})
+	}
+	if len(sequence.GetSteps()) > 0 {
+		values := make([]string, 0, len(sequence.GetSteps()))
+		for _, step := range sequence.GetSteps() {
+			values = append(values, sourceStringLiteral(step))
+		}
+		fields = append(fields, generatedField{name: "steps", value: rubyArrayExpr(indent+1, values)})
+	}
+	return rubyCallExpr(indent, "::Holons::V1::HolonManifest::Sequence.new", fields)
+}
+
+func rubySequenceParamExpr(param *holonsv1.HolonManifest_Sequence_Param, indent int) string {
+	if param == nil {
+		return "::Holons::V1::HolonManifest::Sequence::Param.new"
+	}
+	fields := make([]generatedField, 0, 4)
+	if param.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(param.GetName())})
+	}
+	if param.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(param.GetDescription())})
+	}
+	if param.GetRequired() {
+		fields = append(fields, generatedField{name: "required", value: "true"})
+	}
+	if param.GetDefault() != "" {
+		fields = append(fields, generatedField{name: "default", value: sourceStringLiteral(param.GetDefault())})
+	}
+	return rubyCallExpr(indent, "::Holons::V1::HolonManifest::Sequence::Param.new", fields)
+}
+
+func rubyBuildExpr(build *holonsv1.HolonManifest_Build, indent int) string {
+	if build == nil {
+		return "::Holons::V1::HolonManifest::Build.new"
+	}
+	fields := make([]generatedField, 0, 3)
+	if build.GetRunner() != "" {
+		fields = append(fields, generatedField{name: "runner", value: sourceStringLiteral(build.GetRunner())})
+	}
+	if build.GetMain() != "" {
+		fields = append(fields, generatedField{name: "main", value: sourceStringLiteral(build.GetMain())})
+	}
+	if len(build.GetTemplates()) > 0 {
+		values := make([]string, 0, len(build.GetTemplates()))
+		for _, template := range build.GetTemplates() {
+			values = append(values, sourceStringLiteral(template))
+		}
+		fields = append(fields, generatedField{name: "templates", value: rubyArrayExpr(indent+1, values)})
+	}
+	return rubyCallExpr(indent, "::Holons::V1::HolonManifest::Build.new", fields)
+}
+
+func rubyRequiresExpr(requires *holonsv1.HolonManifest_Requires, indent int) string {
+	if requires == nil {
+		return "::Holons::V1::HolonManifest::Requires.new"
+	}
+	fields := make([]generatedField, 0, 3)
+	if len(requires.GetCommands()) > 0 {
+		values := make([]string, 0, len(requires.GetCommands()))
+		for _, command := range requires.GetCommands() {
+			values = append(values, sourceStringLiteral(command))
+		}
+		fields = append(fields, generatedField{name: "commands", value: rubyArrayExpr(indent+1, values)})
+	}
+	if len(requires.GetFiles()) > 0 {
+		values := make([]string, 0, len(requires.GetFiles()))
+		for _, file := range requires.GetFiles() {
+			values = append(values, sourceStringLiteral(file))
+		}
+		fields = append(fields, generatedField{name: "files", value: rubyArrayExpr(indent+1, values)})
+	}
+	if len(requires.GetPlatforms()) > 0 {
+		values := make([]string, 0, len(requires.GetPlatforms()))
+		for _, platform := range requires.GetPlatforms() {
+			values = append(values, sourceStringLiteral(platform))
+		}
+		fields = append(fields, generatedField{name: "platforms", value: rubyArrayExpr(indent+1, values)})
+	}
+	return rubyCallExpr(indent, "::Holons::V1::HolonManifest::Requires.new", fields)
+}
+
+func rubyArtifactsExpr(artifacts *holonsv1.HolonManifest_Artifacts, indent int) string {
+	if artifacts == nil {
+		return "::Holons::V1::HolonManifest::Artifacts.new"
+	}
+	fields := make([]generatedField, 0, 2)
+	if artifacts.GetBinary() != "" {
+		fields = append(fields, generatedField{name: "binary", value: sourceStringLiteral(artifacts.GetBinary())})
+	}
+	if artifacts.GetPrimary() != "" {
+		fields = append(fields, generatedField{name: "primary", value: sourceStringLiteral(artifacts.GetPrimary())})
+	}
+	return rubyCallExpr(indent, "::Holons::V1::HolonManifest::Artifacts.new", fields)
+}
+
+func rubyServiceDocExpr(service *holonsv1.ServiceDoc, indent int) string {
+	if service == nil {
+		return "::Holons::V1::ServiceDoc.new"
+	}
+	fields := make([]generatedField, 0, 3)
+	if service.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(service.GetName())})
+	}
+	if service.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(service.GetDescription())})
+	}
+	if len(service.GetMethods()) > 0 {
+		values := make([]string, 0, len(service.GetMethods()))
+		for _, method := range service.GetMethods() {
+			values = append(values, rubyMethodDocExpr(method, indent+2))
+		}
+		fields = append(fields, generatedField{name: "methods", value: rubyArrayExpr(indent+1, values)})
+	}
+	return rubyCallExpr(indent, "::Holons::V1::ServiceDoc.new", fields)
+}
+
+func rubyMethodDocExpr(method *holonsv1.MethodDoc, indent int) string {
+	if method == nil {
+		return "::Holons::V1::MethodDoc.new"
+	}
+	fields := make([]generatedField, 0, 9)
+	if method.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(method.GetName())})
+	}
+	if method.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(method.GetDescription())})
+	}
+	if method.GetInputType() != "" {
+		fields = append(fields, generatedField{name: "input_type", value: sourceStringLiteral(method.GetInputType())})
+	}
+	if method.GetOutputType() != "" {
+		fields = append(fields, generatedField{name: "output_type", value: sourceStringLiteral(method.GetOutputType())})
+	}
+	if len(method.GetInputFields()) > 0 {
+		values := make([]string, 0, len(method.GetInputFields()))
+		for _, field := range method.GetInputFields() {
+			values = append(values, rubyFieldDocExpr(field, indent+2))
+		}
+		fields = append(fields, generatedField{name: "input_fields", value: rubyArrayExpr(indent+1, values)})
+	}
+	if len(method.GetOutputFields()) > 0 {
+		values := make([]string, 0, len(method.GetOutputFields()))
+		for _, field := range method.GetOutputFields() {
+			values = append(values, rubyFieldDocExpr(field, indent+2))
+		}
+		fields = append(fields, generatedField{name: "output_fields", value: rubyArrayExpr(indent+1, values)})
+	}
+	if method.GetClientStreaming() {
+		fields = append(fields, generatedField{name: "client_streaming", value: "true"})
+	}
+	if method.GetServerStreaming() {
+		fields = append(fields, generatedField{name: "server_streaming", value: "true"})
+	}
+	if method.GetExampleInput() != "" {
+		fields = append(fields, generatedField{name: "example_input", value: sourceStringLiteral(method.GetExampleInput())})
+	}
+	return rubyCallExpr(indent, "::Holons::V1::MethodDoc.new", fields)
+}
+
+func rubyFieldDocExpr(field *holonsv1.FieldDoc, indent int) string {
+	if field == nil {
+		return "::Holons::V1::FieldDoc.new"
+	}
+	fields := make([]generatedField, 0, 11)
+	if field.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(field.GetName())})
+	}
+	if field.GetType() != "" {
+		fields = append(fields, generatedField{name: "type", value: sourceStringLiteral(field.GetType())})
+	}
+	if field.GetNumber() != 0 {
+		fields = append(fields, generatedField{name: "number", value: fmt.Sprintf("%d", field.GetNumber())})
+	}
+	if field.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(field.GetDescription())})
+	}
+	fields = append(fields, generatedField{name: "label", value: rubyFieldLabelLiteral(field.GetLabel())})
+	if field.GetMapKeyType() != "" {
+		fields = append(fields, generatedField{name: "map_key_type", value: sourceStringLiteral(field.GetMapKeyType())})
+	}
+	if field.GetMapValueType() != "" {
+		fields = append(fields, generatedField{name: "map_value_type", value: sourceStringLiteral(field.GetMapValueType())})
+	}
+	if len(field.GetNestedFields()) > 0 {
+		values := make([]string, 0, len(field.GetNestedFields()))
+		for _, nested := range field.GetNestedFields() {
+			values = append(values, rubyFieldDocExpr(nested, indent+2))
+		}
+		fields = append(fields, generatedField{name: "nested_fields", value: rubyArrayExpr(indent+1, values)})
+	}
+	if len(field.GetEnumValues()) > 0 {
+		values := make([]string, 0, len(field.GetEnumValues()))
+		for _, value := range field.GetEnumValues() {
+			values = append(values, rubyEnumValueDocExpr(value, indent+2))
+		}
+		fields = append(fields, generatedField{name: "enum_values", value: rubyArrayExpr(indent+1, values)})
+	}
+	if field.GetRequired() {
+		fields = append(fields, generatedField{name: "required", value: "true"})
+	}
+	if field.GetExample() != "" {
+		fields = append(fields, generatedField{name: "example", value: sourceStringLiteral(field.GetExample())})
+	}
+	return rubyCallExpr(indent, "::Holons::V1::FieldDoc.new", fields)
+}
+
+func rubyEnumValueDocExpr(value *holonsv1.EnumValueDoc, indent int) string {
+	if value == nil {
+		return "::Holons::V1::EnumValueDoc.new"
+	}
+	fields := make([]generatedField, 0, 3)
+	if value.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(value.GetName())})
+	}
+	if value.GetNumber() != 0 {
+		fields = append(fields, generatedField{name: "number", value: fmt.Sprintf("%d", value.GetNumber())})
+	}
+	if value.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(value.GetDescription())})
+	}
+	return rubyCallExpr(indent, "::Holons::V1::EnumValueDoc.new", fields)
+}
+
+func rubyCallExpr(indent int, name string, fields []generatedField) string {
+	if len(fields) == 0 {
+		return name
+	}
+	var buf strings.Builder
+	buf.WriteString(name)
+	buf.WriteString("(\n")
+	for _, field := range fields {
+		buf.WriteString(genericIndent("  ", indent+1))
+		buf.WriteString(field.name)
+		buf.WriteString(": ")
+		buf.WriteString(field.value)
+		buf.WriteString(",\n")
+	}
+	buf.WriteString(genericIndent("  ", indent))
+	buf.WriteString(")")
+	return buf.String()
+}
+
+func rubyArrayExpr(indent int, values []string) string {
+	if len(values) == 0 {
+		return "[]"
+	}
+	var buf strings.Builder
+	buf.WriteString("[\n")
+	for _, value := range values {
+		buf.WriteString(genericIndent("  ", indent+1))
+		buf.WriteString(value)
+		buf.WriteString(",\n")
+	}
+	buf.WriteString(genericIndent("  ", indent))
+	buf.WriteString("]")
+	return buf.String()
+}
+
+func rubyFieldLabelLiteral(value holonsv1.FieldLabel) string {
+	switch value {
+	case holonsv1.FieldLabel_FIELD_LABEL_UNSPECIFIED:
+		return "::Holons::V1::FieldLabel::FIELD_LABEL_UNSPECIFIED"
+	case holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL:
+		return "::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL"
+	case holonsv1.FieldLabel_FIELD_LABEL_REPEATED:
+		return "::Holons::V1::FieldLabel::FIELD_LABEL_REPEATED"
+	case holonsv1.FieldLabel_FIELD_LABEL_MAP:
+		return "::Holons::V1::FieldLabel::FIELD_LABEL_MAP"
+	case holonsv1.FieldLabel_FIELD_LABEL_REQUIRED:
+		return "::Holons::V1::FieldLabel::FIELD_LABEL_REQUIRED"
+	default:
+		return fmt.Sprintf("%d", value)
+	}
+}
+
+func jsDescribeResponseLiteral(response *holonsv1.DescribeResponse) string {
+	if response == nil {
+		return "describe.holons.DescribeResponse.fromObject({})"
+	}
+	return "describe.holons.DescribeResponse.fromObject(\n" + jsDescribeResponseObject(response, 1) + "\n)"
+}
+
+func jsDescribeResponseObject(response *holonsv1.DescribeResponse, indent int) string {
+	fields := make([]generatedField, 0, 2)
+	if response.GetManifest() != nil {
+		fields = append(fields, generatedField{name: "manifest", value: jsHolonManifestObject(response.GetManifest(), indent+1)})
+	}
+	if len(response.GetServices()) > 0 {
+		values := make([]string, 0, len(response.GetServices()))
+		for _, service := range response.GetServices() {
+			values = append(values, jsServiceDocObject(service, indent+2))
+		}
+		fields = append(fields, generatedField{name: "services", value: jsArrayExpr(indent+1, values)})
+	}
+	return jsObjectExpr(indent, fields)
+}
+
+func jsHolonManifestObject(manifest *holonsv1.HolonManifest, indent int) string {
+	if manifest == nil {
+		return "{}"
+	}
+	fields := make([]generatedField, 0, 11)
+	if manifest.GetIdentity() != nil {
+		fields = append(fields, generatedField{name: "identity", value: jsIdentityObject(manifest.GetIdentity(), indent+1)})
+	}
+	if manifest.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(manifest.GetDescription())})
+	}
+	if manifest.GetLang() != "" {
+		fields = append(fields, generatedField{name: "lang", value: sourceStringLiteral(manifest.GetLang())})
+	}
+	if len(manifest.GetSkills()) > 0 {
+		values := make([]string, 0, len(manifest.GetSkills()))
+		for _, skill := range manifest.GetSkills() {
+			values = append(values, jsSkillObject(skill, indent+2))
+		}
+		fields = append(fields, generatedField{name: "skills", value: jsArrayExpr(indent+1, values)})
+	}
+	if manifest.GetKind() != "" {
+		fields = append(fields, generatedField{name: "kind", value: sourceStringLiteral(manifest.GetKind())})
+	}
+	if len(manifest.GetPlatforms()) > 0 {
+		values := make([]string, 0, len(manifest.GetPlatforms()))
+		for _, platform := range manifest.GetPlatforms() {
+			values = append(values, sourceStringLiteral(platform))
+		}
+		fields = append(fields, generatedField{name: "platforms", value: jsArrayExpr(indent+1, values)})
+	}
+	if manifest.GetTransport() != "" {
+		fields = append(fields, generatedField{name: "transport", value: sourceStringLiteral(manifest.GetTransport())})
+	}
+	if manifest.GetBuild() != nil {
+		fields = append(fields, generatedField{name: "build", value: jsBuildObject(manifest.GetBuild(), indent+1)})
+	}
+	if manifest.GetRequires() != nil {
+		fields = append(fields, generatedField{name: "requires", value: jsRequiresObject(manifest.GetRequires(), indent+1)})
+	}
+	if manifest.GetArtifacts() != nil {
+		fields = append(fields, generatedField{name: "artifacts", value: jsArtifactsObject(manifest.GetArtifacts(), indent+1)})
+	}
+	if len(manifest.GetSequences()) > 0 {
+		values := make([]string, 0, len(manifest.GetSequences()))
+		for _, sequence := range manifest.GetSequences() {
+			values = append(values, jsSequenceObject(sequence, indent+2))
+		}
+		fields = append(fields, generatedField{name: "sequences", value: jsArrayExpr(indent+1, values)})
+	}
+	if manifest.GetGuide() != "" {
+		fields = append(fields, generatedField{name: "guide", value: sourceStringLiteral(manifest.GetGuide())})
+	}
+	return jsObjectExpr(indent, fields)
+}
+
+func jsIdentityObject(identity *holonsv1.HolonManifest_Identity, indent int) string {
+	fields := make([]generatedField, 0, 10)
+	if identity.GetSchema() != "" {
+		fields = append(fields, generatedField{name: "schema", value: sourceStringLiteral(identity.GetSchema())})
+	}
+	if identity.GetUuid() != "" {
+		fields = append(fields, generatedField{name: "uuid", value: sourceStringLiteral(identity.GetUuid())})
+	}
+	if identity.GetGivenName() != "" {
+		fields = append(fields, generatedField{name: "given_name", value: sourceStringLiteral(identity.GetGivenName())})
+	}
+	if identity.GetFamilyName() != "" {
+		fields = append(fields, generatedField{name: "family_name", value: sourceStringLiteral(identity.GetFamilyName())})
+	}
+	if identity.GetMotto() != "" {
+		fields = append(fields, generatedField{name: "motto", value: sourceStringLiteral(identity.GetMotto())})
+	}
+	if identity.GetComposer() != "" {
+		fields = append(fields, generatedField{name: "composer", value: sourceStringLiteral(identity.GetComposer())})
+	}
+	if identity.GetStatus() != "" {
+		fields = append(fields, generatedField{name: "status", value: sourceStringLiteral(identity.GetStatus())})
+	}
+	if identity.GetBorn() != "" {
+		fields = append(fields, generatedField{name: "born", value: sourceStringLiteral(identity.GetBorn())})
+	}
+	if identity.GetVersion() != "" {
+		fields = append(fields, generatedField{name: "version", value: sourceStringLiteral(identity.GetVersion())})
+	}
+	if len(identity.GetAliases()) > 0 {
+		values := make([]string, 0, len(identity.GetAliases()))
+		for _, alias := range identity.GetAliases() {
+			values = append(values, sourceStringLiteral(alias))
+		}
+		fields = append(fields, generatedField{name: "aliases", value: jsArrayExpr(indent+1, values)})
+	}
+	return jsObjectExpr(indent, fields)
+}
+
+func jsSkillObject(skill *holonsv1.HolonManifest_Skill, indent int) string {
+	fields := make([]generatedField, 0, 4)
+	if skill.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(skill.GetName())})
+	}
+	if skill.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(skill.GetDescription())})
+	}
+	if skill.GetWhen() != "" {
+		fields = append(fields, generatedField{name: "when", value: sourceStringLiteral(skill.GetWhen())})
+	}
+	if len(skill.GetSteps()) > 0 {
+		values := make([]string, 0, len(skill.GetSteps()))
+		for _, step := range skill.GetSteps() {
+			values = append(values, sourceStringLiteral(step))
+		}
+		fields = append(fields, generatedField{name: "steps", value: jsArrayExpr(indent+1, values)})
+	}
+	return jsObjectExpr(indent, fields)
+}
+
+func jsSequenceObject(sequence *holonsv1.HolonManifest_Sequence, indent int) string {
+	fields := make([]generatedField, 0, 4)
+	if sequence.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(sequence.GetName())})
+	}
+	if sequence.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(sequence.GetDescription())})
+	}
+	if len(sequence.GetParams()) > 0 {
+		values := make([]string, 0, len(sequence.GetParams()))
+		for _, param := range sequence.GetParams() {
+			values = append(values, jsSequenceParamObject(param, indent+2))
+		}
+		fields = append(fields, generatedField{name: "params", value: jsArrayExpr(indent+1, values)})
+	}
+	if len(sequence.GetSteps()) > 0 {
+		values := make([]string, 0, len(sequence.GetSteps()))
+		for _, step := range sequence.GetSteps() {
+			values = append(values, sourceStringLiteral(step))
+		}
+		fields = append(fields, generatedField{name: "steps", value: jsArrayExpr(indent+1, values)})
+	}
+	return jsObjectExpr(indent, fields)
+}
+
+func jsSequenceParamObject(param *holonsv1.HolonManifest_Sequence_Param, indent int) string {
+	fields := make([]generatedField, 0, 4)
+	if param.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(param.GetName())})
+	}
+	if param.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(param.GetDescription())})
+	}
+	if param.GetRequired() {
+		fields = append(fields, generatedField{name: "required", value: "true"})
+	}
+	if param.GetDefault() != "" {
+		fields = append(fields, generatedField{name: "default", value: sourceStringLiteral(param.GetDefault())})
+	}
+	return jsObjectExpr(indent, fields)
+}
+
+func jsBuildObject(build *holonsv1.HolonManifest_Build, indent int) string {
+	fields := make([]generatedField, 0, 3)
+	if build.GetRunner() != "" {
+		fields = append(fields, generatedField{name: "runner", value: sourceStringLiteral(build.GetRunner())})
+	}
+	if build.GetMain() != "" {
+		fields = append(fields, generatedField{name: "main", value: sourceStringLiteral(build.GetMain())})
+	}
+	if len(build.GetTemplates()) > 0 {
+		values := make([]string, 0, len(build.GetTemplates()))
+		for _, template := range build.GetTemplates() {
+			values = append(values, sourceStringLiteral(template))
+		}
+		fields = append(fields, generatedField{name: "templates", value: jsArrayExpr(indent+1, values)})
+	}
+	return jsObjectExpr(indent, fields)
+}
+
+func jsRequiresObject(requires *holonsv1.HolonManifest_Requires, indent int) string {
+	fields := make([]generatedField, 0, 3)
+	if len(requires.GetCommands()) > 0 {
+		values := make([]string, 0, len(requires.GetCommands()))
+		for _, command := range requires.GetCommands() {
+			values = append(values, sourceStringLiteral(command))
+		}
+		fields = append(fields, generatedField{name: "commands", value: jsArrayExpr(indent+1, values)})
+	}
+	if len(requires.GetFiles()) > 0 {
+		values := make([]string, 0, len(requires.GetFiles()))
+		for _, file := range requires.GetFiles() {
+			values = append(values, sourceStringLiteral(file))
+		}
+		fields = append(fields, generatedField{name: "files", value: jsArrayExpr(indent+1, values)})
+	}
+	if len(requires.GetPlatforms()) > 0 {
+		values := make([]string, 0, len(requires.GetPlatforms()))
+		for _, platform := range requires.GetPlatforms() {
+			values = append(values, sourceStringLiteral(platform))
+		}
+		fields = append(fields, generatedField{name: "platforms", value: jsArrayExpr(indent+1, values)})
+	}
+	return jsObjectExpr(indent, fields)
+}
+
+func jsArtifactsObject(artifacts *holonsv1.HolonManifest_Artifacts, indent int) string {
+	fields := make([]generatedField, 0, 2)
+	if artifacts.GetBinary() != "" {
+		fields = append(fields, generatedField{name: "binary", value: sourceStringLiteral(artifacts.GetBinary())})
+	}
+	if artifacts.GetPrimary() != "" {
+		fields = append(fields, generatedField{name: "primary", value: sourceStringLiteral(artifacts.GetPrimary())})
+	}
+	return jsObjectExpr(indent, fields)
+}
+
+func jsServiceDocObject(service *holonsv1.ServiceDoc, indent int) string {
+	fields := make([]generatedField, 0, 3)
+	if service.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(service.GetName())})
+	}
+	if service.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(service.GetDescription())})
+	}
+	if len(service.GetMethods()) > 0 {
+		values := make([]string, 0, len(service.GetMethods()))
+		for _, method := range service.GetMethods() {
+			values = append(values, jsMethodDocObject(method, indent+2))
+		}
+		fields = append(fields, generatedField{name: "methods", value: jsArrayExpr(indent+1, values)})
+	}
+	return jsObjectExpr(indent, fields)
+}
+
+func jsMethodDocObject(method *holonsv1.MethodDoc, indent int) string {
+	fields := make([]generatedField, 0, 9)
+	if method.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(method.GetName())})
+	}
+	if method.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(method.GetDescription())})
+	}
+	if method.GetInputType() != "" {
+		fields = append(fields, generatedField{name: "input_type", value: sourceStringLiteral(method.GetInputType())})
+	}
+	if method.GetOutputType() != "" {
+		fields = append(fields, generatedField{name: "output_type", value: sourceStringLiteral(method.GetOutputType())})
+	}
+	if len(method.GetInputFields()) > 0 {
+		values := make([]string, 0, len(method.GetInputFields()))
+		for _, field := range method.GetInputFields() {
+			values = append(values, jsFieldDocObject(field, indent+2))
+		}
+		fields = append(fields, generatedField{name: "input_fields", value: jsArrayExpr(indent+1, values)})
+	}
+	if len(method.GetOutputFields()) > 0 {
+		values := make([]string, 0, len(method.GetOutputFields()))
+		for _, field := range method.GetOutputFields() {
+			values = append(values, jsFieldDocObject(field, indent+2))
+		}
+		fields = append(fields, generatedField{name: "output_fields", value: jsArrayExpr(indent+1, values)})
+	}
+	if method.GetClientStreaming() {
+		fields = append(fields, generatedField{name: "client_streaming", value: "true"})
+	}
+	if method.GetServerStreaming() {
+		fields = append(fields, generatedField{name: "server_streaming", value: "true"})
+	}
+	if method.GetExampleInput() != "" {
+		fields = append(fields, generatedField{name: "example_input", value: sourceStringLiteral(method.GetExampleInput())})
+	}
+	return jsObjectExpr(indent, fields)
+}
+
+func jsFieldDocObject(field *holonsv1.FieldDoc, indent int) string {
+	fields := make([]generatedField, 0, 11)
+	if field.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(field.GetName())})
+	}
+	if field.GetType() != "" {
+		fields = append(fields, generatedField{name: "type", value: sourceStringLiteral(field.GetType())})
+	}
+	if field.GetNumber() != 0 {
+		fields = append(fields, generatedField{name: "number", value: fmt.Sprintf("%d", field.GetNumber())})
+	}
+	if field.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(field.GetDescription())})
+	}
+	fields = append(fields, generatedField{name: "label", value: jsFieldLabelLiteral(field.GetLabel())})
+	if field.GetMapKeyType() != "" {
+		fields = append(fields, generatedField{name: "map_key_type", value: sourceStringLiteral(field.GetMapKeyType())})
+	}
+	if field.GetMapValueType() != "" {
+		fields = append(fields, generatedField{name: "map_value_type", value: sourceStringLiteral(field.GetMapValueType())})
+	}
+	if len(field.GetNestedFields()) > 0 {
+		values := make([]string, 0, len(field.GetNestedFields()))
+		for _, nested := range field.GetNestedFields() {
+			values = append(values, jsFieldDocObject(nested, indent+2))
+		}
+		fields = append(fields, generatedField{name: "nested_fields", value: jsArrayExpr(indent+1, values)})
+	}
+	if len(field.GetEnumValues()) > 0 {
+		values := make([]string, 0, len(field.GetEnumValues()))
+		for _, value := range field.GetEnumValues() {
+			values = append(values, jsEnumValueDocObject(value, indent+2))
+		}
+		fields = append(fields, generatedField{name: "enum_values", value: jsArrayExpr(indent+1, values)})
+	}
+	if field.GetRequired() {
+		fields = append(fields, generatedField{name: "required", value: "true"})
+	}
+	if field.GetExample() != "" {
+		fields = append(fields, generatedField{name: "example", value: sourceStringLiteral(field.GetExample())})
+	}
+	return jsObjectExpr(indent, fields)
+}
+
+func jsEnumValueDocObject(value *holonsv1.EnumValueDoc, indent int) string {
+	fields := make([]generatedField, 0, 3)
+	if value.GetName() != "" {
+		fields = append(fields, generatedField{name: "name", value: sourceStringLiteral(value.GetName())})
+	}
+	if value.GetNumber() != 0 {
+		fields = append(fields, generatedField{name: "number", value: fmt.Sprintf("%d", value.GetNumber())})
+	}
+	if value.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "description", value: sourceStringLiteral(value.GetDescription())})
+	}
+	return jsObjectExpr(indent, fields)
+}
+
+func jsObjectExpr(indent int, fields []generatedField) string {
+	if len(fields) == 0 {
+		return "{}"
+	}
+	var buf strings.Builder
+	buf.WriteString("{\n")
+	for _, field := range fields {
+		buf.WriteString(genericIndent("    ", indent+1))
+		buf.WriteString(field.name)
+		buf.WriteString(": ")
+		buf.WriteString(field.value)
+		buf.WriteString(",\n")
+	}
+	buf.WriteString(genericIndent("    ", indent))
+	buf.WriteString("}")
+	return buf.String()
+}
+
+func jsArrayExpr(indent int, values []string) string {
+	if len(values) == 0 {
+		return "[]"
+	}
+	var buf strings.Builder
+	buf.WriteString("[\n")
+	for _, value := range values {
+		buf.WriteString(genericIndent("    ", indent+1))
+		buf.WriteString(value)
+		buf.WriteString(",\n")
+	}
+	buf.WriteString(genericIndent("    ", indent))
+	buf.WriteString("]")
+	return buf.String()
+}
+
+func jsFieldLabelLiteral(value holonsv1.FieldLabel) string {
+	switch value {
+	case holonsv1.FieldLabel_FIELD_LABEL_UNSPECIFIED:
+		return "describe.holons.FieldLabel.FIELD_LABEL_UNSPECIFIED"
+	case holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL:
+		return "describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL"
+	case holonsv1.FieldLabel_FIELD_LABEL_REPEATED:
+		return "describe.holons.FieldLabel.FIELD_LABEL_REPEATED"
+	case holonsv1.FieldLabel_FIELD_LABEL_MAP:
+		return "describe.holons.FieldLabel.FIELD_LABEL_MAP"
+	case holonsv1.FieldLabel_FIELD_LABEL_REQUIRED:
+		return "describe.holons.FieldLabel.FIELD_LABEL_REQUIRED"
+	default:
+		return fmt.Sprintf("%d", value)
+	}
+}
+
+func csharpDescribeResponseLiteral(response *holonsv1.DescribeResponse) string {
+	if response == nil {
+		return "new DescribeResponse()"
+	}
+	return csharpDescribeResponseExpr(response, 0)
+}
+
+func csharpDescribeResponseExpr(response *holonsv1.DescribeResponse, indent int) string {
+	fields := make([]generatedField, 0, 2)
+	if response.GetManifest() != nil {
+		fields = append(fields, generatedField{name: "Manifest", value: csharpHolonManifestExpr(response.GetManifest(), indent+1)})
+	}
+	if len(response.GetServices()) > 0 {
+		values := make([]string, 0, len(response.GetServices()))
+		for _, service := range response.GetServices() {
+			values = append(values, csharpServiceDocExpr(service, indent+2))
+		}
+		fields = append(fields, generatedField{name: "Services", value: csharpCollectionExpr(indent+1, values)})
+	}
+	return csharpObjectExpr(indent, "DescribeResponse", fields)
+}
+
+func csharpHolonManifestExpr(manifest *holonsv1.HolonManifest, indent int) string {
+	if manifest == nil {
+		return "new HolonManifest()"
+	}
+	fields := make([]generatedField, 0, 11)
+	if manifest.GetIdentity() != nil {
+		fields = append(fields, generatedField{name: "Identity", value: csharpIdentityExpr(manifest.GetIdentity(), indent+1)})
+	}
+	if manifest.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "Description", value: sourceStringLiteral(manifest.GetDescription())})
+	}
+	if manifest.GetLang() != "" {
+		fields = append(fields, generatedField{name: "Lang", value: sourceStringLiteral(manifest.GetLang())})
+	}
+	if len(manifest.GetSkills()) > 0 {
+		values := make([]string, 0, len(manifest.GetSkills()))
+		for _, skill := range manifest.GetSkills() {
+			values = append(values, csharpSkillExpr(skill, indent+2))
+		}
+		fields = append(fields, generatedField{name: "Skills", value: csharpCollectionExpr(indent+1, values)})
+	}
+	if manifest.GetKind() != "" {
+		fields = append(fields, generatedField{name: "Kind", value: sourceStringLiteral(manifest.GetKind())})
+	}
+	if len(manifest.GetPlatforms()) > 0 {
+		values := make([]string, 0, len(manifest.GetPlatforms()))
+		for _, platform := range manifest.GetPlatforms() {
+			values = append(values, sourceStringLiteral(platform))
+		}
+		fields = append(fields, generatedField{name: "Platforms", value: csharpCollectionExpr(indent+1, values)})
+	}
+	if manifest.GetTransport() != "" {
+		fields = append(fields, generatedField{name: "Transport", value: sourceStringLiteral(manifest.GetTransport())})
+	}
+	if manifest.GetBuild() != nil {
+		fields = append(fields, generatedField{name: "Build", value: csharpBuildExpr(manifest.GetBuild(), indent+1)})
+	}
+	if manifest.GetRequires() != nil {
+		fields = append(fields, generatedField{name: "Requires", value: csharpRequiresExpr(manifest.GetRequires(), indent+1)})
+	}
+	if manifest.GetArtifacts() != nil {
+		fields = append(fields, generatedField{name: "Artifacts", value: csharpArtifactsExpr(manifest.GetArtifacts(), indent+1)})
+	}
+	if len(manifest.GetSequences()) > 0 {
+		values := make([]string, 0, len(manifest.GetSequences()))
+		for _, sequence := range manifest.GetSequences() {
+			values = append(values, csharpSequenceExpr(sequence, indent+2))
+		}
+		fields = append(fields, generatedField{name: "Sequences", value: csharpCollectionExpr(indent+1, values)})
+	}
+	if manifest.GetGuide() != "" {
+		fields = append(fields, generatedField{name: "Guide", value: sourceStringLiteral(manifest.GetGuide())})
+	}
+	return csharpObjectExpr(indent, "HolonManifest", fields)
+}
+
+func csharpIdentityExpr(identity *holonsv1.HolonManifest_Identity, indent int) string {
+	fields := make([]generatedField, 0, 10)
+	if identity.GetSchema() != "" {
+		fields = append(fields, generatedField{name: "Schema", value: sourceStringLiteral(identity.GetSchema())})
+	}
+	if identity.GetUuid() != "" {
+		fields = append(fields, generatedField{name: "Uuid", value: sourceStringLiteral(identity.GetUuid())})
+	}
+	if identity.GetGivenName() != "" {
+		fields = append(fields, generatedField{name: "GivenName", value: sourceStringLiteral(identity.GetGivenName())})
+	}
+	if identity.GetFamilyName() != "" {
+		fields = append(fields, generatedField{name: "FamilyName", value: sourceStringLiteral(identity.GetFamilyName())})
+	}
+	if identity.GetMotto() != "" {
+		fields = append(fields, generatedField{name: "Motto", value: sourceStringLiteral(identity.GetMotto())})
+	}
+	if identity.GetComposer() != "" {
+		fields = append(fields, generatedField{name: "Composer", value: sourceStringLiteral(identity.GetComposer())})
+	}
+	if identity.GetStatus() != "" {
+		fields = append(fields, generatedField{name: "Status", value: sourceStringLiteral(identity.GetStatus())})
+	}
+	if identity.GetBorn() != "" {
+		fields = append(fields, generatedField{name: "Born", value: sourceStringLiteral(identity.GetBorn())})
+	}
+	if identity.GetVersion() != "" {
+		fields = append(fields, generatedField{name: "Version", value: sourceStringLiteral(identity.GetVersion())})
+	}
+	if len(identity.GetAliases()) > 0 {
+		values := make([]string, 0, len(identity.GetAliases()))
+		for _, alias := range identity.GetAliases() {
+			values = append(values, sourceStringLiteral(alias))
+		}
+		fields = append(fields, generatedField{name: "Aliases", value: csharpCollectionExpr(indent+1, values)})
+	}
+	return csharpObjectExpr(indent, "HolonManifest.Types.Identity", fields)
+}
+
+func csharpSkillExpr(skill *holonsv1.HolonManifest_Skill, indent int) string {
+	fields := make([]generatedField, 0, 4)
+	if skill.GetName() != "" {
+		fields = append(fields, generatedField{name: "Name", value: sourceStringLiteral(skill.GetName())})
+	}
+	if skill.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "Description", value: sourceStringLiteral(skill.GetDescription())})
+	}
+	if skill.GetWhen() != "" {
+		fields = append(fields, generatedField{name: "When", value: sourceStringLiteral(skill.GetWhen())})
+	}
+	if len(skill.GetSteps()) > 0 {
+		values := make([]string, 0, len(skill.GetSteps()))
+		for _, step := range skill.GetSteps() {
+			values = append(values, sourceStringLiteral(step))
+		}
+		fields = append(fields, generatedField{name: "Steps", value: csharpCollectionExpr(indent+1, values)})
+	}
+	return csharpObjectExpr(indent, "HolonManifest.Types.Skill", fields)
+}
+
+func csharpSequenceExpr(sequence *holonsv1.HolonManifest_Sequence, indent int) string {
+	fields := make([]generatedField, 0, 4)
+	if sequence.GetName() != "" {
+		fields = append(fields, generatedField{name: "Name", value: sourceStringLiteral(sequence.GetName())})
+	}
+	if sequence.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "Description", value: sourceStringLiteral(sequence.GetDescription())})
+	}
+	if len(sequence.GetParams()) > 0 {
+		values := make([]string, 0, len(sequence.GetParams()))
+		for _, param := range sequence.GetParams() {
+			values = append(values, csharpSequenceParamExpr(param, indent+2))
+		}
+		fields = append(fields, generatedField{name: "Params", value: csharpCollectionExpr(indent+1, values)})
+	}
+	if len(sequence.GetSteps()) > 0 {
+		values := make([]string, 0, len(sequence.GetSteps()))
+		for _, step := range sequence.GetSteps() {
+			values = append(values, sourceStringLiteral(step))
+		}
+		fields = append(fields, generatedField{name: "Steps", value: csharpCollectionExpr(indent+1, values)})
+	}
+	return csharpObjectExpr(indent, "HolonManifest.Types.Sequence", fields)
+}
+
+func csharpSequenceParamExpr(param *holonsv1.HolonManifest_Sequence_Param, indent int) string {
+	fields := make([]generatedField, 0, 4)
+	if param.GetName() != "" {
+		fields = append(fields, generatedField{name: "Name", value: sourceStringLiteral(param.GetName())})
+	}
+	if param.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "Description", value: sourceStringLiteral(param.GetDescription())})
+	}
+	if param.GetRequired() {
+		fields = append(fields, generatedField{name: "Required", value: "true"})
+	}
+	if param.GetDefault() != "" {
+		fields = append(fields, generatedField{name: "Default", value: sourceStringLiteral(param.GetDefault())})
+	}
+	return csharpObjectExpr(indent, "HolonManifest.Types.Sequence.Types.Param", fields)
+}
+
+func csharpBuildExpr(build *holonsv1.HolonManifest_Build, indent int) string {
+	fields := make([]generatedField, 0, 3)
+	if build.GetRunner() != "" {
+		fields = append(fields, generatedField{name: "Runner", value: sourceStringLiteral(build.GetRunner())})
+	}
+	if build.GetMain() != "" {
+		fields = append(fields, generatedField{name: "Main", value: sourceStringLiteral(build.GetMain())})
+	}
+	if len(build.GetTemplates()) > 0 {
+		values := make([]string, 0, len(build.GetTemplates()))
+		for _, template := range build.GetTemplates() {
+			values = append(values, sourceStringLiteral(template))
+		}
+		fields = append(fields, generatedField{name: "Templates", value: csharpCollectionExpr(indent+1, values)})
+	}
+	return csharpObjectExpr(indent, "HolonManifest.Types.Build", fields)
+}
+
+func csharpRequiresExpr(requires *holonsv1.HolonManifest_Requires, indent int) string {
+	fields := make([]generatedField, 0, 3)
+	if len(requires.GetCommands()) > 0 {
+		values := make([]string, 0, len(requires.GetCommands()))
+		for _, command := range requires.GetCommands() {
+			values = append(values, sourceStringLiteral(command))
+		}
+		fields = append(fields, generatedField{name: "Commands", value: csharpCollectionExpr(indent+1, values)})
+	}
+	if len(requires.GetFiles()) > 0 {
+		values := make([]string, 0, len(requires.GetFiles()))
+		for _, file := range requires.GetFiles() {
+			values = append(values, sourceStringLiteral(file))
+		}
+		fields = append(fields, generatedField{name: "Files", value: csharpCollectionExpr(indent+1, values)})
+	}
+	if len(requires.GetPlatforms()) > 0 {
+		values := make([]string, 0, len(requires.GetPlatforms()))
+		for _, platform := range requires.GetPlatforms() {
+			values = append(values, sourceStringLiteral(platform))
+		}
+		fields = append(fields, generatedField{name: "Platforms", value: csharpCollectionExpr(indent+1, values)})
+	}
+	return csharpObjectExpr(indent, "HolonManifest.Types.Requires", fields)
+}
+
+func csharpArtifactsExpr(artifacts *holonsv1.HolonManifest_Artifacts, indent int) string {
+	fields := make([]generatedField, 0, 2)
+	if artifacts.GetBinary() != "" {
+		fields = append(fields, generatedField{name: "Binary", value: sourceStringLiteral(artifacts.GetBinary())})
+	}
+	if artifacts.GetPrimary() != "" {
+		fields = append(fields, generatedField{name: "Primary", value: sourceStringLiteral(artifacts.GetPrimary())})
+	}
+	return csharpObjectExpr(indent, "HolonManifest.Types.Artifacts", fields)
+}
+
+func csharpServiceDocExpr(service *holonsv1.ServiceDoc, indent int) string {
+	fields := make([]generatedField, 0, 3)
+	if service.GetName() != "" {
+		fields = append(fields, generatedField{name: "Name", value: sourceStringLiteral(service.GetName())})
+	}
+	if service.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "Description", value: sourceStringLiteral(service.GetDescription())})
+	}
+	if len(service.GetMethods()) > 0 {
+		values := make([]string, 0, len(service.GetMethods()))
+		for _, method := range service.GetMethods() {
+			values = append(values, csharpMethodDocExpr(method, indent+2))
+		}
+		fields = append(fields, generatedField{name: "Methods", value: csharpCollectionExpr(indent+1, values)})
+	}
+	return csharpObjectExpr(indent, "ServiceDoc", fields)
+}
+
+func csharpMethodDocExpr(method *holonsv1.MethodDoc, indent int) string {
+	fields := make([]generatedField, 0, 9)
+	if method.GetName() != "" {
+		fields = append(fields, generatedField{name: "Name", value: sourceStringLiteral(method.GetName())})
+	}
+	if method.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "Description", value: sourceStringLiteral(method.GetDescription())})
+	}
+	if method.GetInputType() != "" {
+		fields = append(fields, generatedField{name: "InputType", value: sourceStringLiteral(method.GetInputType())})
+	}
+	if method.GetOutputType() != "" {
+		fields = append(fields, generatedField{name: "OutputType", value: sourceStringLiteral(method.GetOutputType())})
+	}
+	if len(method.GetInputFields()) > 0 {
+		values := make([]string, 0, len(method.GetInputFields()))
+		for _, field := range method.GetInputFields() {
+			values = append(values, csharpFieldDocExpr(field, indent+2))
+		}
+		fields = append(fields, generatedField{name: "InputFields", value: csharpCollectionExpr(indent+1, values)})
+	}
+	if len(method.GetOutputFields()) > 0 {
+		values := make([]string, 0, len(method.GetOutputFields()))
+		for _, field := range method.GetOutputFields() {
+			values = append(values, csharpFieldDocExpr(field, indent+2))
+		}
+		fields = append(fields, generatedField{name: "OutputFields", value: csharpCollectionExpr(indent+1, values)})
+	}
+	if method.GetClientStreaming() {
+		fields = append(fields, generatedField{name: "ClientStreaming", value: "true"})
+	}
+	if method.GetServerStreaming() {
+		fields = append(fields, generatedField{name: "ServerStreaming", value: "true"})
+	}
+	if method.GetExampleInput() != "" {
+		fields = append(fields, generatedField{name: "ExampleInput", value: sourceStringLiteral(method.GetExampleInput())})
+	}
+	return csharpObjectExpr(indent, "MethodDoc", fields)
+}
+
+func csharpFieldDocExpr(field *holonsv1.FieldDoc, indent int) string {
+	fields := make([]generatedField, 0, 11)
+	if field.GetName() != "" {
+		fields = append(fields, generatedField{name: "Name", value: sourceStringLiteral(field.GetName())})
+	}
+	if field.GetType() != "" {
+		fields = append(fields, generatedField{name: "Type", value: sourceStringLiteral(field.GetType())})
+	}
+	if field.GetNumber() != 0 {
+		fields = append(fields, generatedField{name: "Number", value: fmt.Sprintf("%d", field.GetNumber())})
+	}
+	if field.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "Description", value: sourceStringLiteral(field.GetDescription())})
+	}
+	fields = append(fields, generatedField{name: "Label", value: csharpFieldLabelLiteral(field.GetLabel())})
+	if field.GetMapKeyType() != "" {
+		fields = append(fields, generatedField{name: "MapKeyType", value: sourceStringLiteral(field.GetMapKeyType())})
+	}
+	if field.GetMapValueType() != "" {
+		fields = append(fields, generatedField{name: "MapValueType", value: sourceStringLiteral(field.GetMapValueType())})
+	}
+	if len(field.GetNestedFields()) > 0 {
+		values := make([]string, 0, len(field.GetNestedFields()))
+		for _, nested := range field.GetNestedFields() {
+			values = append(values, csharpFieldDocExpr(nested, indent+2))
+		}
+		fields = append(fields, generatedField{name: "NestedFields", value: csharpCollectionExpr(indent+1, values)})
+	}
+	if len(field.GetEnumValues()) > 0 {
+		values := make([]string, 0, len(field.GetEnumValues()))
+		for _, value := range field.GetEnumValues() {
+			values = append(values, csharpEnumValueDocExpr(value, indent+2))
+		}
+		fields = append(fields, generatedField{name: "EnumValues", value: csharpCollectionExpr(indent+1, values)})
+	}
+	if field.GetRequired() {
+		fields = append(fields, generatedField{name: "Required", value: "true"})
+	}
+	if field.GetExample() != "" {
+		fields = append(fields, generatedField{name: "Example", value: sourceStringLiteral(field.GetExample())})
+	}
+	return csharpObjectExpr(indent, "FieldDoc", fields)
+}
+
+func csharpEnumValueDocExpr(value *holonsv1.EnumValueDoc, indent int) string {
+	fields := make([]generatedField, 0, 3)
+	if value.GetName() != "" {
+		fields = append(fields, generatedField{name: "Name", value: sourceStringLiteral(value.GetName())})
+	}
+	if value.GetNumber() != 0 {
+		fields = append(fields, generatedField{name: "Number", value: fmt.Sprintf("%d", value.GetNumber())})
+	}
+	if value.GetDescription() != "" {
+		fields = append(fields, generatedField{name: "Description", value: sourceStringLiteral(value.GetDescription())})
+	}
+	return csharpObjectExpr(indent, "EnumValueDoc", fields)
+}
+
+func csharpObjectExpr(indent int, typeName string, fields []generatedField) string {
+	if len(fields) == 0 {
+		return "new " + typeName + "()"
+	}
+	var buf strings.Builder
+	buf.WriteString("new ")
+	buf.WriteString(typeName)
+	buf.WriteString("\n")
+	buf.WriteString(genericIndent("    ", indent))
+	buf.WriteString("{\n")
+	for _, field := range fields {
+		buf.WriteString(genericIndent("    ", indent+1))
+		buf.WriteString(field.name)
+		buf.WriteString(" = ")
+		buf.WriteString(field.value)
+		buf.WriteString(",\n")
+	}
+	buf.WriteString(genericIndent("    ", indent))
+	buf.WriteString("}")
+	return buf.String()
+}
+
+func csharpCollectionExpr(indent int, values []string) string {
+	if len(values) == 0 {
+		return "{ }"
+	}
+	var buf strings.Builder
+	buf.WriteString("{\n")
+	for _, value := range values {
+		buf.WriteString(genericIndent("    ", indent+1))
+		buf.WriteString(value)
+		buf.WriteString(",\n")
+	}
+	buf.WriteString(genericIndent("    ", indent))
+	buf.WriteString("}")
+	return buf.String()
+}
+
+func csharpFieldLabelLiteral(value holonsv1.FieldLabel) string {
+	switch value {
+	case holonsv1.FieldLabel_FIELD_LABEL_UNSPECIFIED:
+		return "FieldLabel.Unspecified"
+	case holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL:
+		return "FieldLabel.Optional"
+	case holonsv1.FieldLabel_FIELD_LABEL_REPEATED:
+		return "FieldLabel.Repeated"
+	case holonsv1.FieldLabel_FIELD_LABEL_MAP:
+		return "FieldLabel.Map"
+	case holonsv1.FieldLabel_FIELD_LABEL_REQUIRED:
+		return "FieldLabel.Required"
+	default:
+		return fmt.Sprintf("(FieldLabel)%d", value)
+	}
+}
+
+func javaDescribeResponseLiteral(response *holonsv1.DescribeResponse) string {
+	if response == nil {
+		return "holons.v1.Describe.DescribeResponse.newBuilder().build()"
+	}
+	return javaDescribeResponseExpr(response, 0)
+}
+
+func javaDescribeResponseExpr(response *holonsv1.DescribeResponse, indent int) string {
+	var buf strings.Builder
+	writeJavaLine(&buf, indent, "holons.v1.Describe.DescribeResponse.newBuilder()")
+	if response.GetManifest() != nil {
+		writeJavaLine(&buf, indent+1, ".setManifest(")
+		writeJavaDescribeManifestExpr(&buf, response.GetManifest(), indent+2)
+		writeJavaLine(&buf, indent+1, ")")
+	}
+	for _, service := range response.GetServices() {
+		writeJavaLine(&buf, indent+1, ".addServices(")
+		writeJavaServiceDocExpr(&buf, service, indent+2)
+		writeJavaLine(&buf, indent+1, ")")
+	}
+	writeJavaLine(&buf, indent+1, ".build()")
+	return strings.TrimSuffix(buf.String(), "\n")
+}
+
+func writeJavaDescribeManifestExpr(buf *strings.Builder, manifest *holonsv1.HolonManifest, indent int) {
+	writeJavaLine(buf, indent, "holons.v1.Manifest.HolonManifest.newBuilder()")
+	if manifest.GetIdentity() != nil {
+		writeJavaLine(buf, indent+1, ".setIdentity(")
+		writeJavaIdentityExpr(buf, manifest.GetIdentity(), indent+2)
+		writeJavaLine(buf, indent+1, ")")
+	}
+	writeJavaStringSetter(buf, indent+1, "Description", manifest.GetDescription())
+	writeJavaStringSetter(buf, indent+1, "Lang", manifest.GetLang())
+	for _, skill := range manifest.GetSkills() {
+		writeJavaLine(buf, indent+1, ".addSkills(")
+		writeJavaSkillExpr(buf, skill, indent+2)
+		writeJavaLine(buf, indent+1, ")")
+	}
+	writeJavaStringSetter(buf, indent+1, "Kind", manifest.GetKind())
+	for _, platform := range manifest.GetPlatforms() {
+		writeJavaLine(buf, indent+1, fmt.Sprintf(".addPlatforms(%s)", sourceStringLiteral(platform)))
+	}
+	writeJavaStringSetter(buf, indent+1, "Transport", manifest.GetTransport())
+	if manifest.GetBuild() != nil {
+		writeJavaLine(buf, indent+1, ".setBuild(")
+		writeJavaBuildExpr(buf, manifest.GetBuild(), indent+2)
+		writeJavaLine(buf, indent+1, ")")
+	}
+	if manifest.GetRequires() != nil {
+		writeJavaLine(buf, indent+1, ".setRequires(")
+		writeJavaRequiresExpr(buf, manifest.GetRequires(), indent+2)
+		writeJavaLine(buf, indent+1, ")")
+	}
+	if manifest.GetArtifacts() != nil {
+		writeJavaLine(buf, indent+1, ".setArtifacts(")
+		writeJavaArtifactsExpr(buf, manifest.GetArtifacts(), indent+2)
+		writeJavaLine(buf, indent+1, ")")
+	}
+	for _, sequence := range manifest.GetSequences() {
+		writeJavaLine(buf, indent+1, ".addSequences(")
+		writeJavaSequenceExpr(buf, sequence, indent+2)
+		writeJavaLine(buf, indent+1, ")")
+	}
+	writeJavaStringSetter(buf, indent+1, "Guide", manifest.GetGuide())
+	writeJavaLine(buf, indent+1, ".build()")
+}
+
+func writeJavaIdentityExpr(buf *strings.Builder, identity *holonsv1.HolonManifest_Identity, indent int) {
+	writeJavaLine(buf, indent, "holons.v1.Manifest.HolonManifest.Identity.newBuilder()")
+	writeJavaStringSetter(buf, indent+1, "Schema", identity.GetSchema())
+	writeJavaStringSetter(buf, indent+1, "Uuid", identity.GetUuid())
+	writeJavaStringSetter(buf, indent+1, "GivenName", identity.GetGivenName())
+	writeJavaStringSetter(buf, indent+1, "FamilyName", identity.GetFamilyName())
+	writeJavaStringSetter(buf, indent+1, "Motto", identity.GetMotto())
+	writeJavaStringSetter(buf, indent+1, "Composer", identity.GetComposer())
+	writeJavaStringSetter(buf, indent+1, "Status", identity.GetStatus())
+	writeJavaStringSetter(buf, indent+1, "Born", identity.GetBorn())
+	writeJavaStringSetter(buf, indent+1, "Version", identity.GetVersion())
+	for _, alias := range identity.GetAliases() {
+		writeJavaLine(buf, indent+1, fmt.Sprintf(".addAliases(%s)", sourceStringLiteral(alias)))
+	}
+	writeJavaLine(buf, indent+1, ".build()")
+}
+
+func writeJavaSkillExpr(buf *strings.Builder, skill *holonsv1.HolonManifest_Skill, indent int) {
+	writeJavaLine(buf, indent, "holons.v1.Manifest.HolonManifest.Skill.newBuilder()")
+	writeJavaStringSetter(buf, indent+1, "Name", skill.GetName())
+	writeJavaStringSetter(buf, indent+1, "Description", skill.GetDescription())
+	writeJavaStringSetter(buf, indent+1, "When", skill.GetWhen())
+	for _, step := range skill.GetSteps() {
+		writeJavaLine(buf, indent+1, fmt.Sprintf(".addSteps(%s)", sourceStringLiteral(step)))
+	}
+	writeJavaLine(buf, indent+1, ".build()")
+}
+
+func writeJavaSequenceExpr(buf *strings.Builder, sequence *holonsv1.HolonManifest_Sequence, indent int) {
+	writeJavaLine(buf, indent, "holons.v1.Manifest.HolonManifest.Sequence.newBuilder()")
+	writeJavaStringSetter(buf, indent+1, "Name", sequence.GetName())
+	writeJavaStringSetter(buf, indent+1, "Description", sequence.GetDescription())
+	for _, param := range sequence.GetParams() {
+		writeJavaLine(buf, indent+1, ".addParams(")
+		writeJavaSequenceParamExpr(buf, param, indent+2)
+		writeJavaLine(buf, indent+1, ")")
+	}
+	for _, step := range sequence.GetSteps() {
+		writeJavaLine(buf, indent+1, fmt.Sprintf(".addSteps(%s)", sourceStringLiteral(step)))
+	}
+	writeJavaLine(buf, indent+1, ".build()")
+}
+
+func writeJavaSequenceParamExpr(buf *strings.Builder, param *holonsv1.HolonManifest_Sequence_Param, indent int) {
+	writeJavaLine(buf, indent, "holons.v1.Manifest.HolonManifest.Sequence.Param.newBuilder()")
+	writeJavaStringSetter(buf, indent+1, "Name", param.GetName())
+	writeJavaStringSetter(buf, indent+1, "Description", param.GetDescription())
+	writeJavaBoolSetter(buf, indent+1, "Required", param.GetRequired())
+	writeJavaStringSetter(buf, indent+1, "Default", param.GetDefault())
+	writeJavaLine(buf, indent+1, ".build()")
+}
+
+func writeJavaBuildExpr(buf *strings.Builder, build *holonsv1.HolonManifest_Build, indent int) {
+	writeJavaLine(buf, indent, "holons.v1.Manifest.HolonManifest.Build.newBuilder()")
+	writeJavaStringSetter(buf, indent+1, "Runner", build.GetRunner())
+	writeJavaStringSetter(buf, indent+1, "Main", build.GetMain())
+	for _, template := range build.GetTemplates() {
+		writeJavaLine(buf, indent+1, fmt.Sprintf(".addTemplates(%s)", sourceStringLiteral(template)))
+	}
+	writeJavaLine(buf, indent+1, ".build()")
+}
+
+func writeJavaRequiresExpr(buf *strings.Builder, requires *holonsv1.HolonManifest_Requires, indent int) {
+	writeJavaLine(buf, indent, "holons.v1.Manifest.HolonManifest.Requires.newBuilder()")
+	for _, command := range requires.GetCommands() {
+		writeJavaLine(buf, indent+1, fmt.Sprintf(".addCommands(%s)", sourceStringLiteral(command)))
+	}
+	for _, file := range requires.GetFiles() {
+		writeJavaLine(buf, indent+1, fmt.Sprintf(".addFiles(%s)", sourceStringLiteral(file)))
+	}
+	for _, platform := range requires.GetPlatforms() {
+		writeJavaLine(buf, indent+1, fmt.Sprintf(".addPlatforms(%s)", sourceStringLiteral(platform)))
+	}
+	writeJavaLine(buf, indent+1, ".build()")
+}
+
+func writeJavaArtifactsExpr(buf *strings.Builder, artifacts *holonsv1.HolonManifest_Artifacts, indent int) {
+	writeJavaLine(buf, indent, "holons.v1.Manifest.HolonManifest.Artifacts.newBuilder()")
+	writeJavaStringSetter(buf, indent+1, "Binary", artifacts.GetBinary())
+	writeJavaStringSetter(buf, indent+1, "Primary", artifacts.GetPrimary())
+	writeJavaLine(buf, indent+1, ".build()")
+}
+
+func writeJavaServiceDocExpr(buf *strings.Builder, service *holonsv1.ServiceDoc, indent int) {
+	writeJavaLine(buf, indent, "holons.v1.Describe.ServiceDoc.newBuilder()")
+	writeJavaStringSetter(buf, indent+1, "Name", service.GetName())
+	writeJavaStringSetter(buf, indent+1, "Description", service.GetDescription())
+	for _, method := range service.GetMethods() {
+		writeJavaLine(buf, indent+1, ".addMethods(")
+		writeJavaMethodDocExpr(buf, method, indent+2)
+		writeJavaLine(buf, indent+1, ")")
+	}
+	writeJavaLine(buf, indent+1, ".build()")
+}
+
+func writeJavaMethodDocExpr(buf *strings.Builder, method *holonsv1.MethodDoc, indent int) {
+	writeJavaLine(buf, indent, "holons.v1.Describe.MethodDoc.newBuilder()")
+	writeJavaStringSetter(buf, indent+1, "Name", method.GetName())
+	writeJavaStringSetter(buf, indent+1, "Description", method.GetDescription())
+	writeJavaStringSetter(buf, indent+1, "InputType", method.GetInputType())
+	writeJavaStringSetter(buf, indent+1, "OutputType", method.GetOutputType())
+	for _, field := range method.GetInputFields() {
+		writeJavaLine(buf, indent+1, ".addInputFields(")
+		writeJavaFieldDocExpr(buf, field, indent+2)
+		writeJavaLine(buf, indent+1, ")")
+	}
+	for _, field := range method.GetOutputFields() {
+		writeJavaLine(buf, indent+1, ".addOutputFields(")
+		writeJavaFieldDocExpr(buf, field, indent+2)
+		writeJavaLine(buf, indent+1, ")")
+	}
+	writeJavaBoolSetter(buf, indent+1, "ClientStreaming", method.GetClientStreaming())
+	writeJavaBoolSetter(buf, indent+1, "ServerStreaming", method.GetServerStreaming())
+	writeJavaStringSetter(buf, indent+1, "ExampleInput", method.GetExampleInput())
+	writeJavaLine(buf, indent+1, ".build()")
+}
+
+func writeJavaFieldDocExpr(buf *strings.Builder, field *holonsv1.FieldDoc, indent int) {
+	writeJavaLine(buf, indent, "holons.v1.Describe.FieldDoc.newBuilder()")
+	writeJavaStringSetter(buf, indent+1, "Name", field.GetName())
+	writeJavaStringSetter(buf, indent+1, "Type", field.GetType())
+	writeJavaInt32Setter(buf, indent+1, "Number", field.GetNumber())
+	writeJavaStringSetter(buf, indent+1, "Description", field.GetDescription())
+	writeJavaLine(buf, indent+1, fmt.Sprintf(".setLabel(%s)", javaFieldLabelLiteral(field.GetLabel())))
+	writeJavaStringSetter(buf, indent+1, "MapKeyType", field.GetMapKeyType())
+	writeJavaStringSetter(buf, indent+1, "MapValueType", field.GetMapValueType())
+	for _, nested := range field.GetNestedFields() {
+		writeJavaLine(buf, indent+1, ".addNestedFields(")
+		writeJavaFieldDocExpr(buf, nested, indent+2)
+		writeJavaLine(buf, indent+1, ")")
+	}
+	for _, value := range field.GetEnumValues() {
+		writeJavaLine(buf, indent+1, ".addEnumValues(")
+		writeJavaEnumValueDocExpr(buf, value, indent+2)
+		writeJavaLine(buf, indent+1, ")")
+	}
+	writeJavaBoolSetter(buf, indent+1, "Required", field.GetRequired())
+	writeJavaStringSetter(buf, indent+1, "Example", field.GetExample())
+	writeJavaLine(buf, indent+1, ".build()")
+}
+
+func writeJavaEnumValueDocExpr(buf *strings.Builder, value *holonsv1.EnumValueDoc, indent int) {
+	writeJavaLine(buf, indent, "holons.v1.Describe.EnumValueDoc.newBuilder()")
+	writeJavaStringSetter(buf, indent+1, "Name", value.GetName())
+	writeJavaInt32Setter(buf, indent+1, "Number", value.GetNumber())
+	writeJavaStringSetter(buf, indent+1, "Description", value.GetDescription())
+	writeJavaLine(buf, indent+1, ".build()")
+}
+
+func writeJavaLine(buf *strings.Builder, indent int, line string) {
+	buf.WriteString(genericIndent("    ", indent))
+	buf.WriteString(line)
+	buf.WriteString("\n")
+}
+
+func writeJavaStringSetter(buf *strings.Builder, indent int, fieldName, value string) {
+	if value == "" {
+		return
+	}
+	writeJavaLine(buf, indent, fmt.Sprintf(".set%s(%s)", fieldName, sourceStringLiteral(value)))
+}
+
+func writeJavaBoolSetter(buf *strings.Builder, indent int, fieldName string, value bool) {
+	if !value {
+		return
+	}
+	writeJavaLine(buf, indent, fmt.Sprintf(".set%s(true)", fieldName))
+}
+
+func writeJavaInt32Setter(buf *strings.Builder, indent int, fieldName string, value int32) {
+	if value == 0 {
+		return
+	}
+	writeJavaLine(buf, indent, fmt.Sprintf(".set%s(%d)", fieldName, value))
+}
+
+func javaFieldLabelLiteral(value holonsv1.FieldLabel) string {
+	switch value {
+	case holonsv1.FieldLabel_FIELD_LABEL_UNSPECIFIED:
+		return "holons.v1.Describe.FieldLabel.FIELD_LABEL_UNSPECIFIED"
+	case holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL:
+		return "holons.v1.Describe.FieldLabel.FIELD_LABEL_OPTIONAL"
+	case holonsv1.FieldLabel_FIELD_LABEL_REPEATED:
+		return "holons.v1.Describe.FieldLabel.FIELD_LABEL_REPEATED"
+	case holonsv1.FieldLabel_FIELD_LABEL_MAP:
+		return "holons.v1.Describe.FieldLabel.FIELD_LABEL_MAP"
+	case holonsv1.FieldLabel_FIELD_LABEL_REQUIRED:
+		return "holons.v1.Describe.FieldLabel.FIELD_LABEL_REQUIRED"
+	default:
+		return fmt.Sprintf("holons.v1.Describe.FieldLabel.forNumber(%d)", value)
+	}
+}
+
+func kotlinDescribeResponseLiteral(response *holonsv1.DescribeResponse) string {
+	if response == nil {
+		return "holons.v1.Describe.DescribeResponse.newBuilder().build()"
+	}
+	return javaDescribeResponseExpr(response, 0)
+}
+
+func swiftDescribeResponseLiteral(response *holonsv1.DescribeResponse) string {
+	if response == nil {
+		return "Holons_V1_DescribeResponse()"
+	}
+	return swiftDescribeResponseExpr(response, 0)
+}
+
+func swiftDescribeResponseExpr(response *holonsv1.DescribeResponse, indent int) string {
+	assignments := make([]generatedField, 0, 2)
+	if response.GetManifest() != nil {
+		assignments = append(assignments, generatedField{name: "manifest", value: swiftHolonManifestExpr(response.GetManifest(), indent+1)})
+	}
+	if len(response.GetServices()) > 0 {
+		values := make([]string, 0, len(response.GetServices()))
+		for _, service := range response.GetServices() {
+			values = append(values, swiftServiceDocExpr(service, indent+2))
+		}
+		assignments = append(assignments, generatedField{name: "services", value: swiftArrayExpr(indent+1, values)})
+	}
+	return swiftWithExpr(indent, "Holons_V1_DescribeResponse", assignments)
+}
+
+func swiftHolonManifestExpr(manifest *holonsv1.HolonManifest, indent int) string {
+	assignments := make([]generatedField, 0, 11)
+	if manifest.GetIdentity() != nil {
+		assignments = append(assignments, generatedField{name: "identity", value: swiftIdentityExpr(manifest.GetIdentity(), indent+1)})
+	}
+	if manifest.GetDescription() != "" {
+		assignments = append(assignments, generatedField{name: "description_p", value: sourceStringLiteral(manifest.GetDescription())})
+	}
+	if manifest.GetLang() != "" {
+		assignments = append(assignments, generatedField{name: "lang", value: sourceStringLiteral(manifest.GetLang())})
+	}
+	if len(manifest.GetSkills()) > 0 {
+		values := make([]string, 0, len(manifest.GetSkills()))
+		for _, skill := range manifest.GetSkills() {
+			values = append(values, swiftSkillExpr(skill, indent+2))
+		}
+		assignments = append(assignments, generatedField{name: "skills", value: swiftArrayExpr(indent+1, values)})
+	}
+	if manifest.GetKind() != "" {
+		assignments = append(assignments, generatedField{name: "kind", value: sourceStringLiteral(manifest.GetKind())})
+	}
+	if len(manifest.GetPlatforms()) > 0 {
+		values := make([]string, 0, len(manifest.GetPlatforms()))
+		for _, platform := range manifest.GetPlatforms() {
+			values = append(values, sourceStringLiteral(platform))
+		}
+		assignments = append(assignments, generatedField{name: "platforms", value: swiftArrayExpr(indent+1, values)})
+	}
+	if manifest.GetTransport() != "" {
+		assignments = append(assignments, generatedField{name: "transport", value: sourceStringLiteral(manifest.GetTransport())})
+	}
+	if manifest.GetBuild() != nil {
+		assignments = append(assignments, generatedField{name: "build", value: swiftBuildExpr(manifest.GetBuild(), indent+1)})
+	}
+	if manifest.GetRequires() != nil {
+		assignments = append(assignments, generatedField{name: "requires", value: swiftRequiresExpr(manifest.GetRequires(), indent+1)})
+	}
+	if manifest.GetArtifacts() != nil {
+		assignments = append(assignments, generatedField{name: "artifacts", value: swiftArtifactsExpr(manifest.GetArtifacts(), indent+1)})
+	}
+	if len(manifest.GetSequences()) > 0 {
+		values := make([]string, 0, len(manifest.GetSequences()))
+		for _, sequence := range manifest.GetSequences() {
+			values = append(values, swiftSequenceExpr(sequence, indent+2))
+		}
+		assignments = append(assignments, generatedField{name: "sequences", value: swiftArrayExpr(indent+1, values)})
+	}
+	if manifest.GetGuide() != "" {
+		assignments = append(assignments, generatedField{name: "guide", value: sourceStringLiteral(manifest.GetGuide())})
+	}
+	return swiftWithExpr(indent, "Holons_V1_HolonManifest", assignments)
+}
+
+func swiftIdentityExpr(identity *holonsv1.HolonManifest_Identity, indent int) string {
+	assignments := make([]generatedField, 0, 10)
+	if identity.GetSchema() != "" {
+		assignments = append(assignments, generatedField{name: "schema", value: sourceStringLiteral(identity.GetSchema())})
+	}
+	if identity.GetUuid() != "" {
+		assignments = append(assignments, generatedField{name: "uuid", value: sourceStringLiteral(identity.GetUuid())})
+	}
+	if identity.GetGivenName() != "" {
+		assignments = append(assignments, generatedField{name: "givenName", value: sourceStringLiteral(identity.GetGivenName())})
+	}
+	if identity.GetFamilyName() != "" {
+		assignments = append(assignments, generatedField{name: "familyName", value: sourceStringLiteral(identity.GetFamilyName())})
+	}
+	if identity.GetMotto() != "" {
+		assignments = append(assignments, generatedField{name: "motto", value: sourceStringLiteral(identity.GetMotto())})
+	}
+	if identity.GetComposer() != "" {
+		assignments = append(assignments, generatedField{name: "composer", value: sourceStringLiteral(identity.GetComposer())})
+	}
+	if identity.GetStatus() != "" {
+		assignments = append(assignments, generatedField{name: "status", value: sourceStringLiteral(identity.GetStatus())})
+	}
+	if identity.GetBorn() != "" {
+		assignments = append(assignments, generatedField{name: "born", value: sourceStringLiteral(identity.GetBorn())})
+	}
+	if identity.GetVersion() != "" {
+		assignments = append(assignments, generatedField{name: "version", value: sourceStringLiteral(identity.GetVersion())})
+	}
+	if len(identity.GetAliases()) > 0 {
+		values := make([]string, 0, len(identity.GetAliases()))
+		for _, alias := range identity.GetAliases() {
+			values = append(values, sourceStringLiteral(alias))
+		}
+		assignments = append(assignments, generatedField{name: "aliases", value: swiftArrayExpr(indent+1, values)})
+	}
+	return swiftWithExpr(indent, "Holons_V1_HolonManifest.Identity", assignments)
+}
+
+func swiftSkillExpr(skill *holonsv1.HolonManifest_Skill, indent int) string {
+	assignments := make([]generatedField, 0, 4)
+	if skill.GetName() != "" {
+		assignments = append(assignments, generatedField{name: "name", value: sourceStringLiteral(skill.GetName())})
+	}
+	if skill.GetDescription() != "" {
+		assignments = append(assignments, generatedField{name: "description_p", value: sourceStringLiteral(skill.GetDescription())})
+	}
+	if skill.GetWhen() != "" {
+		assignments = append(assignments, generatedField{name: "when", value: sourceStringLiteral(skill.GetWhen())})
+	}
+	if len(skill.GetSteps()) > 0 {
+		values := make([]string, 0, len(skill.GetSteps()))
+		for _, step := range skill.GetSteps() {
+			values = append(values, sourceStringLiteral(step))
+		}
+		assignments = append(assignments, generatedField{name: "steps", value: swiftArrayExpr(indent+1, values)})
+	}
+	return swiftWithExpr(indent, "Holons_V1_HolonManifest.Skill", assignments)
+}
+
+func swiftSequenceExpr(sequence *holonsv1.HolonManifest_Sequence, indent int) string {
+	assignments := make([]generatedField, 0, 4)
+	if sequence.GetName() != "" {
+		assignments = append(assignments, generatedField{name: "name", value: sourceStringLiteral(sequence.GetName())})
+	}
+	if sequence.GetDescription() != "" {
+		assignments = append(assignments, generatedField{name: "description_p", value: sourceStringLiteral(sequence.GetDescription())})
+	}
+	if len(sequence.GetParams()) > 0 {
+		values := make([]string, 0, len(sequence.GetParams()))
+		for _, param := range sequence.GetParams() {
+			values = append(values, swiftSequenceParamExpr(param, indent+2))
+		}
+		assignments = append(assignments, generatedField{name: "params", value: swiftArrayExpr(indent+1, values)})
+	}
+	if len(sequence.GetSteps()) > 0 {
+		values := make([]string, 0, len(sequence.GetSteps()))
+		for _, step := range sequence.GetSteps() {
+			values = append(values, sourceStringLiteral(step))
+		}
+		assignments = append(assignments, generatedField{name: "steps", value: swiftArrayExpr(indent+1, values)})
+	}
+	return swiftWithExpr(indent, "Holons_V1_HolonManifest.Sequence", assignments)
+}
+
+func swiftSequenceParamExpr(param *holonsv1.HolonManifest_Sequence_Param, indent int) string {
+	assignments := make([]generatedField, 0, 4)
+	if param.GetName() != "" {
+		assignments = append(assignments, generatedField{name: "name", value: sourceStringLiteral(param.GetName())})
+	}
+	if param.GetDescription() != "" {
+		assignments = append(assignments, generatedField{name: "description_p", value: sourceStringLiteral(param.GetDescription())})
+	}
+	if param.GetRequired() {
+		assignments = append(assignments, generatedField{name: "required", value: "true"})
+	}
+	if param.GetDefault() != "" {
+		assignments = append(assignments, generatedField{name: "default", value: sourceStringLiteral(param.GetDefault())})
+	}
+	return swiftWithExpr(indent, "Holons_V1_HolonManifest.Sequence.Param", assignments)
+}
+
+func swiftBuildExpr(build *holonsv1.HolonManifest_Build, indent int) string {
+	assignments := make([]generatedField, 0, 3)
+	if build.GetRunner() != "" {
+		assignments = append(assignments, generatedField{name: "runner", value: sourceStringLiteral(build.GetRunner())})
+	}
+	if build.GetMain() != "" {
+		assignments = append(assignments, generatedField{name: "main", value: sourceStringLiteral(build.GetMain())})
+	}
+	if len(build.GetTemplates()) > 0 {
+		values := make([]string, 0, len(build.GetTemplates()))
+		for _, template := range build.GetTemplates() {
+			values = append(values, sourceStringLiteral(template))
+		}
+		assignments = append(assignments, generatedField{name: "templates", value: swiftArrayExpr(indent+1, values)})
+	}
+	return swiftWithExpr(indent, "Holons_V1_HolonManifest.Build", assignments)
+}
+
+func swiftRequiresExpr(requires *holonsv1.HolonManifest_Requires, indent int) string {
+	assignments := make([]generatedField, 0, 3)
+	if len(requires.GetCommands()) > 0 {
+		values := make([]string, 0, len(requires.GetCommands()))
+		for _, command := range requires.GetCommands() {
+			values = append(values, sourceStringLiteral(command))
+		}
+		assignments = append(assignments, generatedField{name: "commands", value: swiftArrayExpr(indent+1, values)})
+	}
+	if len(requires.GetFiles()) > 0 {
+		values := make([]string, 0, len(requires.GetFiles()))
+		for _, file := range requires.GetFiles() {
+			values = append(values, sourceStringLiteral(file))
+		}
+		assignments = append(assignments, generatedField{name: "files", value: swiftArrayExpr(indent+1, values)})
+	}
+	if len(requires.GetPlatforms()) > 0 {
+		values := make([]string, 0, len(requires.GetPlatforms()))
+		for _, platform := range requires.GetPlatforms() {
+			values = append(values, sourceStringLiteral(platform))
+		}
+		assignments = append(assignments, generatedField{name: "platforms", value: swiftArrayExpr(indent+1, values)})
+	}
+	return swiftWithExpr(indent, "Holons_V1_HolonManifest.Requires", assignments)
+}
+
+func swiftArtifactsExpr(artifacts *holonsv1.HolonManifest_Artifacts, indent int) string {
+	assignments := make([]generatedField, 0, 2)
+	if artifacts.GetBinary() != "" {
+		assignments = append(assignments, generatedField{name: "binary", value: sourceStringLiteral(artifacts.GetBinary())})
+	}
+	if artifacts.GetPrimary() != "" {
+		assignments = append(assignments, generatedField{name: "primary", value: sourceStringLiteral(artifacts.GetPrimary())})
+	}
+	return swiftWithExpr(indent, "Holons_V1_HolonManifest.Artifacts", assignments)
+}
+
+func swiftServiceDocExpr(service *holonsv1.ServiceDoc, indent int) string {
+	assignments := make([]generatedField, 0, 3)
+	if service.GetName() != "" {
+		assignments = append(assignments, generatedField{name: "name", value: sourceStringLiteral(service.GetName())})
+	}
+	if service.GetDescription() != "" {
+		assignments = append(assignments, generatedField{name: "description_p", value: sourceStringLiteral(service.GetDescription())})
+	}
+	if len(service.GetMethods()) > 0 {
+		values := make([]string, 0, len(service.GetMethods()))
+		for _, method := range service.GetMethods() {
+			values = append(values, swiftMethodDocExpr(method, indent+2))
+		}
+		assignments = append(assignments, generatedField{name: "methods", value: swiftArrayExpr(indent+1, values)})
+	}
+	return swiftWithExpr(indent, "Holons_V1_ServiceDoc", assignments)
+}
+
+func swiftMethodDocExpr(method *holonsv1.MethodDoc, indent int) string {
+	assignments := make([]generatedField, 0, 9)
+	if method.GetName() != "" {
+		assignments = append(assignments, generatedField{name: "name", value: sourceStringLiteral(method.GetName())})
+	}
+	if method.GetDescription() != "" {
+		assignments = append(assignments, generatedField{name: "description_p", value: sourceStringLiteral(method.GetDescription())})
+	}
+	if method.GetInputType() != "" {
+		assignments = append(assignments, generatedField{name: "inputType", value: sourceStringLiteral(method.GetInputType())})
+	}
+	if method.GetOutputType() != "" {
+		assignments = append(assignments, generatedField{name: "outputType", value: sourceStringLiteral(method.GetOutputType())})
+	}
+	if len(method.GetInputFields()) > 0 {
+		values := make([]string, 0, len(method.GetInputFields()))
+		for _, field := range method.GetInputFields() {
+			values = append(values, swiftFieldDocExpr(field, indent+2))
+		}
+		assignments = append(assignments, generatedField{name: "inputFields", value: swiftArrayExpr(indent+1, values)})
+	}
+	if len(method.GetOutputFields()) > 0 {
+		values := make([]string, 0, len(method.GetOutputFields()))
+		for _, field := range method.GetOutputFields() {
+			values = append(values, swiftFieldDocExpr(field, indent+2))
+		}
+		assignments = append(assignments, generatedField{name: "outputFields", value: swiftArrayExpr(indent+1, values)})
+	}
+	if method.GetClientStreaming() {
+		assignments = append(assignments, generatedField{name: "clientStreaming", value: "true"})
+	}
+	if method.GetServerStreaming() {
+		assignments = append(assignments, generatedField{name: "serverStreaming", value: "true"})
+	}
+	if method.GetExampleInput() != "" {
+		assignments = append(assignments, generatedField{name: "exampleInput", value: sourceStringLiteral(method.GetExampleInput())})
+	}
+	return swiftWithExpr(indent, "Holons_V1_MethodDoc", assignments)
+}
+
+func swiftFieldDocExpr(field *holonsv1.FieldDoc, indent int) string {
+	assignments := make([]generatedField, 0, 11)
+	if field.GetName() != "" {
+		assignments = append(assignments, generatedField{name: "name", value: sourceStringLiteral(field.GetName())})
+	}
+	if field.GetType() != "" {
+		assignments = append(assignments, generatedField{name: "type", value: sourceStringLiteral(field.GetType())})
+	}
+	if field.GetNumber() != 0 {
+		assignments = append(assignments, generatedField{name: "number", value: fmt.Sprintf("%d", field.GetNumber())})
+	}
+	if field.GetDescription() != "" {
+		assignments = append(assignments, generatedField{name: "description_p", value: sourceStringLiteral(field.GetDescription())})
+	}
+	assignments = append(assignments, generatedField{name: "label", value: swiftFieldLabelLiteral(field.GetLabel())})
+	if field.GetMapKeyType() != "" {
+		assignments = append(assignments, generatedField{name: "mapKeyType", value: sourceStringLiteral(field.GetMapKeyType())})
+	}
+	if field.GetMapValueType() != "" {
+		assignments = append(assignments, generatedField{name: "mapValueType", value: sourceStringLiteral(field.GetMapValueType())})
+	}
+	if len(field.GetNestedFields()) > 0 {
+		values := make([]string, 0, len(field.GetNestedFields()))
+		for _, nested := range field.GetNestedFields() {
+			values = append(values, swiftFieldDocExpr(nested, indent+2))
+		}
+		assignments = append(assignments, generatedField{name: "nestedFields", value: swiftArrayExpr(indent+1, values)})
+	}
+	if len(field.GetEnumValues()) > 0 {
+		values := make([]string, 0, len(field.GetEnumValues()))
+		for _, value := range field.GetEnumValues() {
+			values = append(values, swiftEnumValueDocExpr(value, indent+2))
+		}
+		assignments = append(assignments, generatedField{name: "enumValues", value: swiftArrayExpr(indent+1, values)})
+	}
+	if field.GetRequired() {
+		assignments = append(assignments, generatedField{name: "required", value: "true"})
+	}
+	if field.GetExample() != "" {
+		assignments = append(assignments, generatedField{name: "example", value: sourceStringLiteral(field.GetExample())})
+	}
+	return swiftWithExpr(indent, "Holons_V1_FieldDoc", assignments)
+}
+
+func swiftEnumValueDocExpr(value *holonsv1.EnumValueDoc, indent int) string {
+	assignments := make([]generatedField, 0, 3)
+	if value.GetName() != "" {
+		assignments = append(assignments, generatedField{name: "name", value: sourceStringLiteral(value.GetName())})
+	}
+	if value.GetNumber() != 0 {
+		assignments = append(assignments, generatedField{name: "number", value: fmt.Sprintf("%d", value.GetNumber())})
+	}
+	if value.GetDescription() != "" {
+		assignments = append(assignments, generatedField{name: "description_p", value: sourceStringLiteral(value.GetDescription())})
+	}
+	return swiftWithExpr(indent, "Holons_V1_EnumValueDoc", assignments)
+}
+
+func swiftWithExpr(indent int, typeName string, assignments []generatedField) string {
+	if len(assignments) == 0 {
+		return typeName + "()"
+	}
+	var buf strings.Builder
+	buf.WriteString(typeName)
+	buf.WriteString(".with {\n")
+	for _, assignment := range assignments {
+		buf.WriteString(genericIndent("  ", indent+1))
+		buf.WriteString("$0.")
+		buf.WriteString(assignment.name)
+		buf.WriteString(" = ")
+		buf.WriteString(assignment.value)
+		buf.WriteString("\n")
+	}
+	buf.WriteString(genericIndent("  ", indent))
+	buf.WriteString("}")
+	return buf.String()
+}
+
+func swiftArrayExpr(indent int, values []string) string {
+	if len(values) == 0 {
+		return "[]"
+	}
+	var buf strings.Builder
+	buf.WriteString("[\n")
+	for _, value := range values {
+		buf.WriteString(genericIndent("  ", indent+1))
+		buf.WriteString(value)
+		buf.WriteString(",\n")
+	}
+	buf.WriteString(genericIndent("  ", indent))
+	buf.WriteString("]")
+	return buf.String()
+}
+
+func swiftFieldLabelLiteral(value holonsv1.FieldLabel) string {
+	switch value {
+	case holonsv1.FieldLabel_FIELD_LABEL_UNSPECIFIED:
+		return ".unspecified"
+	case holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL:
+		return ".optional"
+	case holonsv1.FieldLabel_FIELD_LABEL_REPEATED:
+		return ".repeated"
+	case holonsv1.FieldLabel_FIELD_LABEL_MAP:
+		return ".map"
+	case holonsv1.FieldLabel_FIELD_LABEL_REQUIRED:
+		return ".required"
+	default:
+		return fmt.Sprintf("Holons_V1_FieldLabel(rawValue: %d) ?? .unspecified", value)
+	}
 }

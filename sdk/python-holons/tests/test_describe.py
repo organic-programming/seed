@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import json
 import os
 from concurrent import futures
@@ -445,23 +444,32 @@ def test_serve_uses_registered_static_describe_without_local_protos(tmp_path: Pa
 def test_built_server_without_proto_files_serves_static_describe_response(tmp_path: Path):
     generated = tmp_path / "gen"
     generated.mkdir(parents=True)
-    response = _sample_static_response(with_echo=False)
-    payload = base64.b64encode(response.SerializeToString()).decode("ascii")
 
     (generated / "describe_generated.py").write_text(
         "\n".join(
             [
                 "from __future__ import annotations",
                 "",
-                "import base64",
-                "",
                 "from holons.v1 import describe_pb2",
+                "from holons.v1 import manifest_pb2",
                 "",
                 "",
                 "def static_describe_response() -> describe_pb2.DescribeResponse:",
-                "    response = describe_pb2.DescribeResponse()",
-                f"    response.ParseFromString(base64.b64decode({payload!r}))",
-                "    return response",
+                "    return describe_pb2.DescribeResponse(",
+                "        manifest=manifest_pb2.HolonManifest(",
+                "            identity=manifest_pb2.HolonManifest.Identity(",
+                "                schema='holon/v1',",
+                "                uuid='echo-server-0000',",
+                "                given_name='Echo',",
+                "                family_name='Server',",
+                "                motto='Reply precisely.',",
+                "                composer='describe-test',",
+                "                status='draft',",
+                "                born='2026-03-17',",
+                "            ),",
+                "            lang='python',",
+                "        ),",
+                "    )",
                 "",
                 "",
                 "def StaticDescribeResponse() -> describe_pb2.DescribeResponse:",

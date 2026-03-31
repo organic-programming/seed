@@ -1,16 +1,13 @@
 package holons
 
 import (
-	"encoding/base64"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	"github.com/organic-programming/grace-op/internal/progress"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestGenerateDescribeSourceSkipsWhenTemplateMissing(t *testing.T) {
@@ -170,7 +167,7 @@ func TestRenderDescribeTemplateFromGoSDKCompiles(t *testing.T) {
 	}
 }
 
-func TestRenderDescribeTemplateFromDartSDKRoundTripsResponse(t *testing.T) {
+func TestRenderDescribeTemplateFromDartSDKBuildsStaticResponseSource(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "gen", "describe_generated.dart")
 
 	rendered, err := renderDescribeTemplate(repoDartDescribeTemplatePath(t), outputPath, sampleDescribeResponse())
@@ -185,31 +182,16 @@ func TestRenderDescribeTemplateFromDartSDKRoundTripsResponse(t *testing.T) {
 	if !strings.Contains(content, "DescribeResponse staticDescribeResponse()") {
 		t.Fatal("rendered output missing staticDescribeResponse")
 	}
-	if !strings.Contains(content, "base64Decode('") {
-		t.Fatal("rendered output missing base64 payload")
+	if !strings.Contains(content, "DescribeResponse(") {
+		t.Fatal("rendered output missing native DescribeResponse construction")
 	}
-
-	match := regexp.MustCompile(`base64Decode\('([^']*)'\)`).FindStringSubmatch(content)
-	if len(match) != 2 {
-		t.Fatalf("rendered output missing decodable payload: %s", content)
+	if !strings.Contains(content, "FieldLabel.FIELD_LABEL_MAP") {
+		t.Fatal("rendered output missing Dart field label literal")
 	}
-
-	payload, err := base64.StdEncoding.DecodeString(match[1])
-	if err != nil {
-		t.Fatalf("decode rendered payload: %v", err)
-	}
-
-	var decoded holonsv1.DescribeResponse
-	if err := proto.Unmarshal(payload, &decoded); err != nil {
-		t.Fatalf("unmarshal rendered payload: %v", err)
-	}
-
-	if !proto.Equal(&decoded, sampleDescribeResponse()) {
-		t.Fatalf("rendered payload did not round-trip\n got: %v\nwant: %v", &decoded, sampleDescribeResponse())
-	}
+	assertDescribeTemplateUsesNativeSource(t, content)
 }
 
-func TestRenderDescribeTemplateFromPythonSDKRoundTripsResponse(t *testing.T) {
+func TestRenderDescribeTemplateFromPythonSDKBuildsStaticResponseSource(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "gen", "describe_generated.py")
 
 	rendered, err := renderDescribeTemplate(repoPythonDescribeTemplatePath(t), outputPath, sampleDescribeResponse())
@@ -224,31 +206,16 @@ func TestRenderDescribeTemplateFromPythonSDKRoundTripsResponse(t *testing.T) {
 	if !strings.Contains(content, "def static_describe_response()") {
 		t.Fatal("rendered output missing static_describe_response")
 	}
-	if !strings.Contains(content, "base64.b64decode(\"") {
-		t.Fatal("rendered output missing base64 payload")
+	if !strings.Contains(content, "describe_pb2.DescribeResponse(") {
+		t.Fatal("rendered output missing native DescribeResponse construction")
 	}
-
-	match := regexp.MustCompile(`base64\.b64decode\("([^"]*)"\)`).FindStringSubmatch(content)
-	if len(match) != 2 {
-		t.Fatalf("rendered output missing decodable payload: %s", content)
+	if !strings.Contains(content, "describe_pb2.FIELD_LABEL_MAP") {
+		t.Fatal("rendered output missing Python field label literal")
 	}
-
-	payload, err := base64.StdEncoding.DecodeString(match[1])
-	if err != nil {
-		t.Fatalf("decode rendered payload: %v", err)
-	}
-
-	var decoded holonsv1.DescribeResponse
-	if err := proto.Unmarshal(payload, &decoded); err != nil {
-		t.Fatalf("unmarshal rendered payload: %v", err)
-	}
-
-	if !proto.Equal(&decoded, sampleDescribeResponse()) {
-		t.Fatalf("rendered payload did not round-trip\n got: %v\nwant: %v", &decoded, sampleDescribeResponse())
-	}
+	assertDescribeTemplateUsesNativeSource(t, content)
 }
 
-func TestRenderDescribeTemplateFromJSSDKRoundTripsResponse(t *testing.T) {
+func TestRenderDescribeTemplateFromJSSDKBuildsStaticResponseSource(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "gen", "describe_generated.js")
 
 	rendered, err := renderDescribeTemplate(repoJSDescribeTemplatePath(t), outputPath, sampleDescribeResponse())
@@ -263,31 +230,16 @@ func TestRenderDescribeTemplateFromJSSDKRoundTripsResponse(t *testing.T) {
 	if !strings.Contains(content, "function staticDescribeResponse()") {
 		t.Fatal("rendered output missing staticDescribeResponse")
 	}
-	if !strings.Contains(content, "Buffer.from(\"") && !strings.Contains(content, "Buffer.from('") {
-		t.Fatal("rendered output missing base64 payload")
+	if !strings.Contains(content, "DescribeResponse.fromObject(") {
+		t.Fatal("rendered output missing native DescribeResponse construction")
 	}
-
-	match := regexp.MustCompile(`Buffer\.from\('([^']*)', 'base64'\)`).FindStringSubmatch(content)
-	if len(match) != 2 {
-		t.Fatalf("rendered output missing decodable payload: %s", content)
+	if !strings.Contains(content, "FieldLabel.FIELD_LABEL_MAP") {
+		t.Fatal("rendered output missing JS field label literal")
 	}
-
-	payload, err := base64.StdEncoding.DecodeString(match[1])
-	if err != nil {
-		t.Fatalf("decode rendered payload: %v", err)
-	}
-
-	var decoded holonsv1.DescribeResponse
-	if err := proto.Unmarshal(payload, &decoded); err != nil {
-		t.Fatalf("unmarshal rendered payload: %v", err)
-	}
-
-	if !proto.Equal(&decoded, sampleDescribeResponse()) {
-		t.Fatalf("rendered payload did not round-trip\n got: %v\nwant: %v", &decoded, sampleDescribeResponse())
-	}
+	assertDescribeTemplateUsesNativeSource(t, content)
 }
 
-func TestRenderDescribeTemplateFromSwiftSDKRoundTripsResponse(t *testing.T) {
+func TestRenderDescribeTemplateFromSwiftSDKBuildsStaticResponseSource(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "gen", "describe_generated.swift")
 
 	rendered, err := renderDescribeTemplate(repoSwiftDescribeTemplatePath(t), outputPath, sampleDescribeResponse())
@@ -299,37 +251,25 @@ func TestRenderDescribeTemplateFromSwiftSDKRoundTripsResponse(t *testing.T) {
 	if !strings.Contains(content, "Code generated by op build. DO NOT EDIT.") {
 		t.Fatal("rendered output missing generated header")
 	}
-	if !strings.Contains(content, "public typealias DescribeGeneratedStaticResponse = StaticDescribeResponse") {
+	if !strings.Contains(content, "public typealias DescribeGeneratedStaticResponse = Holons_V1_DescribeResponse") {
 		t.Fatal("rendered output missing static response typealias")
 	}
 	if !strings.Contains(content, "public static func staticDescribeResponse() -> DescribeGeneratedStaticResponse") {
 		t.Fatal("rendered output missing staticDescribeResponse")
 	}
-	if !strings.Contains(content, `DescribeGeneratedStaticResponse(payloadBase64: "`) {
-		t.Fatal("rendered output missing static describe response payload")
+	if !strings.Contains(content, "Holons_V1_DescribeResponse.with {") {
+		t.Fatal("rendered output missing native Swift DescribeResponse construction")
 	}
-
-	match := regexp.MustCompile(`payloadBase64: "([^"]*)"`).FindStringSubmatch(content)
-	if len(match) != 2 {
-		t.Fatalf("rendered output missing decodable payload: %s", content)
+	if !strings.Contains(content, "Holons_V1_HolonManifest.Build.with") {
+		t.Fatal("rendered output missing nested Swift manifest Build construction")
 	}
-
-	payload, err := base64.StdEncoding.DecodeString(match[1])
-	if err != nil {
-		t.Fatalf("decode rendered payload: %v", err)
+	if !strings.Contains(content, "Holons_V1_HolonManifest.Sequence.Param.with") {
+		t.Fatal("rendered output missing nested Swift manifest Sequence.Param construction")
 	}
-
-	var decoded holonsv1.DescribeResponse
-	if err := proto.Unmarshal(payload, &decoded); err != nil {
-		t.Fatalf("unmarshal rendered payload: %v", err)
-	}
-
-	if !proto.Equal(&decoded, sampleDescribeResponse()) {
-		t.Fatalf("rendered payload did not round-trip\n got: %v\nwant: %v", &decoded, sampleDescribeResponse())
-	}
+	assertDescribeTemplateUsesNativeSource(t, content)
 }
 
-func TestRenderDescribeTemplateFromCSharpSDKRoundTripsResponse(t *testing.T) {
+func TestRenderDescribeTemplateFromCSharpSDKBuildsStaticResponseSource(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "gen", "describe_generated.cs")
 
 	rendered, err := renderDescribeTemplate(repoCSharpDescribeTemplatePath(t), outputPath, sampleDescribeResponse())
@@ -344,31 +284,16 @@ func TestRenderDescribeTemplateFromCSharpSDKRoundTripsResponse(t *testing.T) {
 	if !strings.Contains(content, "public static DescribeResponse StaticDescribeResponse()") {
 		t.Fatal("rendered output missing StaticDescribeResponse")
 	}
-	if !strings.Contains(content, "Convert.FromBase64String(\"") {
-		t.Fatal("rendered output missing base64 payload")
+	if !strings.Contains(content, "new DescribeResponse") {
+		t.Fatal("rendered output missing native DescribeResponse construction")
 	}
-
-	match := regexp.MustCompile(`Convert\.FromBase64String\("([^"]*)"\)`).FindStringSubmatch(content)
-	if len(match) != 2 {
-		t.Fatalf("rendered output missing decodable payload: %s", content)
+	if !strings.Contains(content, "FieldLabel.Map") {
+		t.Fatal("rendered output missing C# field label literal")
 	}
-
-	payload, err := base64.StdEncoding.DecodeString(match[1])
-	if err != nil {
-		t.Fatalf("decode rendered payload: %v", err)
-	}
-
-	var decoded holonsv1.DescribeResponse
-	if err := proto.Unmarshal(payload, &decoded); err != nil {
-		t.Fatalf("unmarshal rendered payload: %v", err)
-	}
-
-	if !proto.Equal(&decoded, sampleDescribeResponse()) {
-		t.Fatalf("rendered payload did not round-trip\n got: %v\nwant: %v", &decoded, sampleDescribeResponse())
-	}
+	assertDescribeTemplateUsesNativeSource(t, content)
 }
 
-func TestRenderDescribeTemplateFromJavaSDKRoundTripsResponse(t *testing.T) {
+func TestRenderDescribeTemplateFromJavaSDKBuildsStaticResponseSource(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "gen", "describe_generated.java")
 
 	rendered, err := renderDescribeTemplate(repoJavaDescribeTemplatePath(t), outputPath, sampleDescribeResponse())
@@ -383,28 +308,55 @@ func TestRenderDescribeTemplateFromJavaSDKRoundTripsResponse(t *testing.T) {
 	if !strings.Contains(content, "public static DescribeResponse StaticDescribeResponse()") {
 		t.Fatal("rendered output missing StaticDescribeResponse")
 	}
-	if !strings.Contains(content, "Base64.getDecoder().decode(\"") {
-		t.Fatal("rendered output missing base64 payload")
+	if !strings.Contains(content, "DescribeResponse.newBuilder()") {
+		t.Fatal("rendered output missing native DescribeResponse construction")
 	}
-
-	match := regexp.MustCompile(`Base64\.getDecoder\(\)\.decode\("([^"]*)"\)`).FindStringSubmatch(content)
-	if len(match) != 2 {
-		t.Fatalf("rendered output missing decodable payload: %s", content)
+	if !strings.Contains(content, "FIELD_LABEL_MAP") {
+		t.Fatal("rendered output missing Java field label literal")
 	}
+	assertDescribeTemplateUsesNativeSource(t, content)
+}
 
-	payload, err := base64.StdEncoding.DecodeString(match[1])
+func TestRenderDescribeTemplateFromKotlinSDKBuildsStaticResponseSource(t *testing.T) {
+	outputPath := filepath.Join(t.TempDir(), "gen", "describe_generated.kt")
+
+	rendered, err := renderDescribeTemplate(repoKotlinDescribeTemplatePath(t), outputPath, sampleDescribeResponse())
 	if err != nil {
-		t.Fatalf("decode rendered payload: %v", err)
+		t.Fatalf("renderDescribeTemplate failed: %v", err)
 	}
 
-	var decoded holonsv1.DescribeResponse
-	if err := proto.Unmarshal(payload, &decoded); err != nil {
-		t.Fatalf("unmarshal rendered payload: %v", err)
+	content := string(rendered)
+	if !strings.Contains(content, "fun StaticDescribeResponse(): DescribeResponse") {
+		t.Fatal("rendered output missing StaticDescribeResponse")
+	}
+	if !strings.Contains(content, "DescribeResponse.newBuilder()") {
+		t.Fatal("rendered output missing native DescribeResponse construction")
+	}
+	if !strings.Contains(content, "FIELD_LABEL_MAP") {
+		t.Fatal("rendered output missing Kotlin field label literal")
+	}
+	assertDescribeTemplateUsesNativeSource(t, content)
+}
+
+func TestRenderDescribeTemplateFromRubySDKBuildsStaticResponseSource(t *testing.T) {
+	outputPath := filepath.Join(t.TempDir(), "gen", "describe_generated.rb")
+
+	rendered, err := renderDescribeTemplate(repoRubyDescribeTemplatePath(t), outputPath, sampleDescribeResponse())
+	if err != nil {
+		t.Fatalf("renderDescribeTemplate failed: %v", err)
 	}
 
-	if !proto.Equal(&decoded, sampleDescribeResponse()) {
-		t.Fatalf("rendered payload did not round-trip\n got: %v\nwant: %v", &decoded, sampleDescribeResponse())
+	content := string(rendered)
+	if !strings.Contains(content, "def static_describe_response") {
+		t.Fatal("rendered output missing static_describe_response")
 	}
+	if !strings.Contains(content, "::Holons::V1::DescribeResponse.new(") {
+		t.Fatal("rendered output missing native DescribeResponse construction")
+	}
+	if !strings.Contains(content, "FIELD_LABEL_MAP") {
+		t.Fatal("rendered output missing Ruby field label literal")
+	}
+	assertDescribeTemplateUsesNativeSource(t, content)
 }
 
 func TestRenderDescribeTemplateFromCPPSDKBuildsStaticResponseSource(t *testing.T) {
@@ -580,6 +532,16 @@ func repoJavaDescribeTemplatePath(t *testing.T) string {
 	return filepath.Join(holonsRepoRoot(t), "sdk", "java-holons", "templates", "describe.java.tmpl")
 }
 
+func repoKotlinDescribeTemplatePath(t *testing.T) string {
+	t.Helper()
+	return filepath.Join(holonsRepoRoot(t), "sdk", "kotlin-holons", "templates", "describe.kt.tmpl")
+}
+
+func repoRubyDescribeTemplatePath(t *testing.T) string {
+	t.Helper()
+	return filepath.Join(holonsRepoRoot(t), "sdk", "ruby-holons", "templates", "describe.rb.tmpl")
+}
+
 func repoCPPDescribeTemplatePath(t *testing.T) string {
 	t.Helper()
 	return filepath.Join(holonsRepoRoot(t), "sdk", "cpp-holons", "templates", "describe.hpp.tmpl")
@@ -588,6 +550,27 @@ func repoCPPDescribeTemplatePath(t *testing.T) string {
 func repoRustDescribeTemplatePath(t *testing.T) string {
 	t.Helper()
 	return filepath.Join(holonsRepoRoot(t), "sdk", "rust-holons", "templates", "describe.rs.tmpl")
+}
+
+func assertDescribeTemplateUsesNativeSource(t *testing.T, content string) {
+	t.Helper()
+
+	disallowed := []string{
+		"base64Decode(",
+		"base64.b64decode(",
+		"Buffer.from(",
+		"payloadBase64:",
+		"Convert.FromBase64String(",
+		"Base64.getDecoder().decode(",
+		"ParseFromString(",
+		"strict_decode64(",
+		"parseFrom(",
+	}
+	for _, token := range disallowed {
+		if strings.Contains(content, token) {
+			t.Fatalf("rendered output should not include runtime decode path %q", token)
+		}
+	}
 }
 
 func writeDescribeProtoFixture(t *testing.T, dir string) {

@@ -9,11 +9,6 @@ public final class describe_generated {
     }
 
     public static DescribeResponse StaticDescribeResponse() {
-        try {
-            return DescribeResponse.parseFrom(
-                    java.util.Base64.getDecoder().decode("{{ protoBase64 . }}"));
-        } catch (com.google.protobuf.InvalidProtocolBufferException error) {
-            throw new IllegalStateException("decode generated DescribeResponse", error);
-        }
+        return {{ javaDescribeResponse . }};
     }
 }

@@ -11,7 +11,12 @@ const EnumValueDoc = root.lookupType('holons.v1.EnumValueDoc');
 const FieldLabel = root.lookupEnum('holons.v1.FieldLabel').values;
 
 function makeSerializer(type) {
-    return (value) => Buffer.from(type.encode(type.fromObject(value || {})).finish());
+    return (value) => {
+        if (value && typeof value === 'object' && value.$type === type) {
+            return Buffer.from(type.encode(value).finish());
+        }
+        return Buffer.from(type.encode(type.fromObject(value || {})).finish());
+    };
 }
 
 function makeDeserializer(type) {

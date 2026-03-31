@@ -1632,6 +1632,43 @@ func TestInvokeCommandCompletesMethodsFromDescribe(t *testing.T) {
 	}
 }
 
+func TestRootFallbackCompletesMethodsFromTCPDescribe(t *testing.T) {
+	address := startDescribeServer(t, &holonsv1.DescribeResponse{
+		Manifest: &holonsv1.HolonManifest{
+			Identity: &holonsv1.HolonManifest_Identity{
+				GivenName:  "Gabriel",
+				FamilyName: "Greeting",
+			},
+		},
+		Services: []*holonsv1.ServiceDoc{
+			{
+				Name: "greeting.v1.GreetingAppService",
+				Methods: []*holonsv1.MethodDoc{
+					{
+						Name:       "Greet",
+						InputType:  "greeting.v1.GreetRequest",
+						OutputType: "greeting.v1.GreetResponse",
+					},
+				},
+			},
+		},
+	})
+
+	stdout, stderr := captureOutput(t, func() {
+		code := Run([]string{"__complete", "tcp://" + address, "Gr"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("__complete tcp root fallback returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, "Greet") {
+		t.Fatalf("stdout missing tcp root fallback completion: %q", stdout)
+	}
+	if strings.Contains(stderr, "Completion ended with directive:") {
+		t.Fatalf("stderr should not leak completion directive text: %q", stderr)
+	}
+}
+
 func TestInvokeCommandDoesNotCompletePayloadPlaceholder(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)

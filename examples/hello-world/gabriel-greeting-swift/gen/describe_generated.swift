@@ -2,11 +2,198 @@
 
 import Holons
 
-public typealias DescribeGeneratedStaticResponse = StaticDescribeResponse
+public typealias DescribeGeneratedStaticResponse = Holons_V1_DescribeResponse
 
 public enum DescribeGenerated {
   public static func staticDescribeResponse() -> DescribeGeneratedStaticResponse {
-    DescribeGeneratedStaticResponse(payloadBase64: "CtQKCqgBCghob2xvbi92MRIkOWQxNDU4NWMtYTE1NS00ZTcyLWI2ZmUtM2NhZTM1MzU5NDhiGgdHYWJyaWVsIg5HcmVldGluZy1Td2lmdCo4R3JlZXRzIHVzZXJzIGluIDU2IGxhbmd1YWdlcyDigJQgYSBTd2lmdCBkYWVtb24gZXhhbXBsZS4yCEIuIEFMVEVSQgVkcmFmdEoKMjAyNi0wMy0xNVIGMC4xLjgzGjZBIFN3aWZ0IGdSUEMgZGFlbW9uIHRoYXQgZ3JlZXRzIHVzZXJzIGluIDU2IGxhbmd1YWdlcy4iBXN3aWZ0KpoCChRtdWx0aWxpbmd1YWwtZ3JlZXRlchI8R3JlZXQgYSBwZXJzb24gYnkgbmFtZSBpbiBhbnkgb2YgdGhlIDU2IHN1cHBvcnRlZCBsYW5ndWFnZXMuGjdUaGUgdXNlciB3YW50cyB0byBncmVldCBzb21lb25lIGluIGEgc3BlY2lmaWMgbGFuZ3VhZ2UuIi5DYWxsIExpc3RMYW5ndWFnZXMgdG8gc2hvdyBhdmFpbGFibGUgbGFuZ3VhZ2VzIilBc2sgdGhlIHVzZXIgZm9yIGEgbmFtZSBhbmQgbGFuZ3VhZ2UgY29kZSIwQ2FsbCBTYXlIZWxsbyB3aXRoIHRoZSBjaG9zZW4gbmFtZSBhbmQgbGFuZ19jb2RlOgZuYXRpdmVSDwoNc3dpZnQtcGFja2FnZVoPEg1QYWNrYWdlLnN3aWZ0ahgKFmdhYnJpZWwtZ3JlZXRpbmctc3dpZnRyoAIKFW11bHRpbGluZ3VhbC1ncmVldGluZxI/TGlzdCBhdmFpbGFibGUgbGFuZ3VhZ2VzIHRoZW4gZ3JlZXQgdGhlIHVzZXIgaW4gdGhlIGNob3NlbiBvbmUuGhkKBG5hbWUSD1BlcnNvbiB0byBncmVldBgBGiYKCWxhbmdfY29kZRIXSVNPIDYzOS0xIGxhbmd1YWdlIGNvZGUYASInb3AgZ2FicmllbC1ncmVldGluZy1zd2lmdCBMaXN0TGFuZ3VhZ2VzIlpvcCBnYWJyaWVsLWdyZWV0aW5nLXN3aWZ0IFNheUhlbGxvICd7Im5hbWUiOiJ7eyAubmFtZSB9fSIsImxhbmdfY29kZSI6Int7IC5sYW5nX2NvZGUgfX0ifSdy4wMKFGdyZWV0aW5nLWZyLWphLXJ1LWVuEk9MaXN0IGF2YWlsYWJsZSBsYW5ndWFnZXMsIHRoZW4gZ3JlZXQgaW4gRnJlbmNoLCBKYXBhbmVzZSwgUnVzc2lhbiwgYW5kIEVuZ2xpc2guGhkKBG5hbWUSD1BlcnNvbiB0byBncmVldBgBIidvcCBnYWJyaWVsLWdyZWV0aW5nLXN3aWZ0IExpc3RMYW5ndWFnZXMiTG9wIGdhYnJpZWwtZ3JlZXRpbmctc3dpZnQgU2F5SGVsbG8gJ3sibmFtZSI6Int7IC5uYW1lIH19IiwibGFuZ19jb2RlIjoiZnIifSciTG9wIGdhYnJpZWwtZ3JlZXRpbmctc3dpZnQgU2F5SGVsbG8gJ3sibmFtZSI6Int7IC5uYW1lIH19IiwibGFuZ19jb2RlIjoiamEifSciTG9wIGdhYnJpZWwtZ3JlZXRpbmctc3dpZnQgU2F5SGVsbG8gJ3sibmFtZSI6Int7IC5uYW1lIH19IiwibGFuZ19jb2RlIjoicnUifSciTG9wIGdhYnJpZWwtZ3JlZXRpbmctc3dpZnQgU2F5SGVsbG8gJ3sibmFtZSI6Int7IC5uYW1lIH19IiwibGFuZ19jb2RlIjoiZW4ifScSmQgKG2dyZWV0aW5nLnYxLkdyZWV0aW5nU2VydmljZRqiAwoNTGlzdExhbmd1YWdlcxIpUmV0dXJucyBhbGwgYXZhaWxhYmxlIGdyZWV0aW5nIGxhbmd1YWdlcy4aIGdyZWV0aW5nLnYxLkxpc3RMYW5ndWFnZXNSZXF1ZXN0IiFncmVldGluZy52MS5MaXN0TGFuZ3VhZ2VzUmVzcG9uc2UynAIKCWxhbmd1YWdlcxIUZ3JlZXRpbmcudjEuTGFuZ3VhZ2UYASIgTGFuZ3VhZ2VzIGV4cG9zZWQgYnkgdGhlIGRhZW1vbi4oAkJECgRjb2RlEgZzdHJpbmcYASIoSVNPIDYzOS0xIGNvZGUgYWR2ZXJ0aXNlZCBieSB0aGUgZGFlbW9uLigBUAFaBCJmciJCRgoEbmFtZRIGc3RyaW5nGAIiJkVuZ2xpc2ggZGlzcGxheSBuYW1lIGZvciB0aGUgbGFuZ3VhZ2UuKAFQAVoIIkZyZW5jaCJCRQoGbmF0aXZlEgZzdHJpbmcYAyIgTmF0aXZlIGxhYmVsIHNob3duIHRvIGVuZCB1c2Vycy4oAVABWgsiRnJhbsOnYWlzIkoCe30a1AQKCFNheUhlbGxvEidHcmVldHMgdGhlIHVzZXIgaW4gdGhlIGNob3NlbiBsYW5ndWFnZS4aG2dyZWV0aW5nLnYxLlNheUhlbGxvUmVxdWVzdCIcZ3JlZXRpbmcudjEuU2F5SGVsbG9SZXNwb25zZSqEAQoEbmFtZRIGc3RyaW5nGAEiaU5hbWUgdG8gZ3JlZXQuIElmIGVtcHR5LCB0aGUgZGFlbW9uIGZhbGxzIGJhY2sgdG8gYSBsb2NhbGl6ZWQgZGVmYXVsdCAoZS5nLiwgIk1hcnkiLCAiTWFyaWEiKSBvciAiV29ybGQiLigBWgUiQm9iIipBCglsYW5nX2NvZGUSBnN0cmluZxgCIiBJU08gNjM5LTEgY29kZSBjaG9zZW4gYnkgdGhlIFVJLigBUAFaBCJmciIyWwoIZ3JlZXRpbmcSBnN0cmluZxgBIi9Mb2NhbGl6ZWQgZ3JlZXRpbmcgdGV4dCByZXR1cm5lZCBieSB0aGUgZGFlbW9uLigBUAFaECJCb25qb3VyLCBCb2IgISIyVwoIbGFuZ3VhZ2USBnN0cmluZxgCIjNFbmdsaXNoIGxhbmd1YWdlIG5hbWUgdXNlZCB0byByZXNvbHZlIHRoZSBncmVldGluZy4oAVABWggiRnJlbmNoIjJDCglsYW5nX2NvZGUSBnN0cmluZxgDIiJJU08gNjM5LTEgY29kZSB1c2VkIGJ5IHRoZSBkYWVtb24uKAFQAVoEImZyIkofeyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ==")
+    Holons_V1_DescribeResponse.with {
+  $0.manifest = Holons_V1_HolonManifest.with {
+    $0.identity = Holons_V1_HolonManifest.Identity.with {
+      $0.schema = "holon/v1"
+      $0.uuid = "9d14585c-a155-4e72-b6fe-3cae3535948b"
+      $0.givenName = "Gabriel"
+      $0.familyName = "Greeting-Swift"
+      $0.motto = "Greets users in 56 languages — a Swift daemon example."
+      $0.composer = "B. ALTER"
+      $0.status = "draft"
+      $0.born = "2026-03-15"
+      $0.version = "0.1.87"
+    }
+    $0.description_p = "A Swift gRPC daemon that greets users in 56 languages."
+    $0.lang = "swift"
+    $0.skills = [
+      Holons_V1_HolonManifest.Skill.with {
+        $0.name = "multilingual-greeter"
+        $0.description_p = "Greet a person by name in any of the 56 supported languages."
+        $0.when = "The user wants to greet someone in a specific language."
+        $0.steps = [
+          "Call ListLanguages to show available languages",
+          "Ask the user for a name and language code",
+          "Call SayHello with the chosen name and lang_code",
+        ]
+      },
+    ]
+    $0.kind = "native"
+    $0.build = Holons_V1_HolonManifest.Build.with {
+      $0.runner = "swift-package"
+    }
+    $0.requires = Holons_V1_HolonManifest.Requires.with {
+      $0.files = [
+        "Package.swift",
+      ]
+    }
+    $0.artifacts = Holons_V1_HolonManifest.Artifacts.with {
+      $0.binary = "gabriel-greeting-swift"
+    }
+    $0.sequences = [
+      Holons_V1_HolonManifest.Sequence.with {
+        $0.name = "multilingual-greeting"
+        $0.description_p = "List available languages then greet the user in the chosen one."
+        $0.params = [
+          Holons_V1_HolonManifest.Sequence.Param.with {
+            $0.name = "name"
+            $0.description_p = "Person to greet"
+            $0.required = true
+          },
+          Holons_V1_HolonManifest.Sequence.Param.with {
+            $0.name = "lang_code"
+            $0.description_p = "ISO 639-1 language code"
+            $0.required = true
+          },
+        ]
+        $0.steps = [
+          "op gabriel-greeting-swift ListLanguages",
+          "op gabriel-greeting-swift SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"{{ .lang_code }}\"}'",
+        ]
+      },
+      Holons_V1_HolonManifest.Sequence.with {
+        $0.name = "greeting-fr-ja-ru-en"
+        $0.description_p = "List available languages, then greet in French, Japanese, Russian, and English."
+        $0.params = [
+          Holons_V1_HolonManifest.Sequence.Param.with {
+            $0.name = "name"
+            $0.description_p = "Person to greet"
+            $0.required = true
+          },
+        ]
+        $0.steps = [
+          "op gabriel-greeting-swift ListLanguages",
+          "op gabriel-greeting-swift SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"fr\"}'",
+          "op gabriel-greeting-swift SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ja\"}'",
+          "op gabriel-greeting-swift SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ru\"}'",
+          "op gabriel-greeting-swift SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"en\"}'",
+        ]
+      },
+    ]
+  }
+  $0.services = [
+    Holons_V1_ServiceDoc.with {
+      $0.name = "greeting.v1.GreetingService"
+      $0.methods = [
+        Holons_V1_MethodDoc.with {
+          $0.name = "ListLanguages"
+          $0.description_p = "Returns all available greeting languages."
+          $0.inputType = "greeting.v1.ListLanguagesRequest"
+          $0.outputType = "greeting.v1.ListLanguagesResponse"
+          $0.outputFields = [
+            Holons_V1_FieldDoc.with {
+              $0.name = "languages"
+              $0.type = "greeting.v1.Language"
+              $0.number = 1
+              $0.description_p = "Languages exposed by the daemon."
+              $0.label = .repeated
+              $0.nestedFields = [
+                Holons_V1_FieldDoc.with {
+                  $0.name = "code"
+                  $0.type = "string"
+                  $0.number = 1
+                  $0.description_p = "ISO 639-1 code advertised by the daemon."
+                  $0.label = .optional
+                  $0.required = true
+                  $0.example = "\"fr\""
+                },
+                Holons_V1_FieldDoc.with {
+                  $0.name = "name"
+                  $0.type = "string"
+                  $0.number = 2
+                  $0.description_p = "English display name for the language."
+                  $0.label = .optional
+                  $0.required = true
+                  $0.example = "\"French\""
+                },
+                Holons_V1_FieldDoc.with {
+                  $0.name = "native"
+                  $0.type = "string"
+                  $0.number = 3
+                  $0.description_p = "Native label shown to end users."
+                  $0.label = .optional
+                  $0.required = true
+                  $0.example = "\"Français\""
+                },
+              ]
+            },
+          ]
+          $0.exampleInput = "{}"
+        },
+        Holons_V1_MethodDoc.with {
+          $0.name = "SayHello"
+          $0.description_p = "Greets the user in the chosen language."
+          $0.inputType = "greeting.v1.SayHelloRequest"
+          $0.outputType = "greeting.v1.SayHelloResponse"
+          $0.inputFields = [
+            Holons_V1_FieldDoc.with {
+              $0.name = "name"
+              $0.type = "string"
+              $0.number = 1
+              $0.description_p = "Name to greet. If empty, the daemon falls back to a localized default (e.g., \"Mary\", \"Maria\") or \"World\"."
+              $0.label = .optional
+              $0.example = "\"Bob\""
+            },
+            Holons_V1_FieldDoc.with {
+              $0.name = "lang_code"
+              $0.type = "string"
+              $0.number = 2
+              $0.description_p = "ISO 639-1 code chosen by the UI."
+              $0.label = .optional
+              $0.required = true
+              $0.example = "\"fr\""
+            },
+          ]
+          $0.outputFields = [
+            Holons_V1_FieldDoc.with {
+              $0.name = "greeting"
+              $0.type = "string"
+              $0.number = 1
+              $0.description_p = "Localized greeting text returned by the daemon."
+              $0.label = .optional
+              $0.required = true
+              $0.example = "\"Bonjour, Bob !\""
+            },
+            Holons_V1_FieldDoc.with {
+              $0.name = "language"
+              $0.type = "string"
+              $0.number = 2
+              $0.description_p = "English language name used to resolve the greeting."
+              $0.label = .optional
+              $0.required = true
+              $0.example = "\"French\""
+            },
+            Holons_V1_FieldDoc.with {
+              $0.name = "lang_code"
+              $0.type = "string"
+              $0.number = 3
+              $0.description_p = "ISO 639-1 code used by the daemon."
+              $0.label = .optional
+              $0.required = true
+              $0.example = "\"fr\""
+            },
+          ]
+          $0.exampleInput = "{\"name\":\"Bob\",\"lang_code\":\"fr\"}"
+        },
+      ]
+    },
+  ]
+}
   }
 
   public static func StaticDescribeResponse() -> DescribeGeneratedStaticResponse {

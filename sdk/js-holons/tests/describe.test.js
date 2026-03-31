@@ -93,6 +93,10 @@ function findField(fields, name) {
     return fields.find((field) => field.name === name);
 }
 
+function isDescribeResponseMessage(value) {
+    return Boolean(value) && value.$type === sdk.describe.holons.DescribeResponse;
+}
+
 function writeStaticEchoServer(runtimeRoot, response) {
     const scriptPath = path.join(runtimeRoot, 'static-echo-server.js');
     fs.writeFileSync(scriptPath, [
@@ -208,6 +212,7 @@ describe('describe', () => {
         const root = makeHolonDir(true);
         try {
             const response = sdk.describe.buildResponse(path.join(root, 'protos'));
+            assert.equal(isDescribeResponseMessage(response), true);
             const identity = response.manifest.identity;
 
             assert.equal(identity.given_name, 'Echo');
@@ -232,6 +237,26 @@ describe('describe', () => {
         } finally {
             removeDir(root);
         }
+    });
+
+    it('useStaticResponse() normalizes plain objects into DescribeResponse messages', () => {
+        const response = {
+            manifest: {
+                identity: {
+                    uuid: 'native-message-0000',
+                    given_name: 'Native',
+                    family_name: 'Message',
+                },
+            },
+        };
+
+        sdk.describe.useStaticResponse(response);
+        const registered = sdk.describe.staticResponse();
+        sdk.describe.useStaticResponse(null);
+
+        assert.equal(isDescribeResponseMessage(registered), true);
+        assert.equal(registered.manifest.identity.given_name, 'Native');
+        assert.equal(registered.manifest.identity.family_name, 'Message');
     });
 
     it('serve.runWithOptions() serves the registered static response with no adjacent proto files', async (t) => {

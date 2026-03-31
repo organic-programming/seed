@@ -129,6 +129,7 @@ func newRootCmd(version string) *cobra.Command {
 			"op tools <slug> --format openai",
 		}, "\n"),
 		Args:               cobra.ArbitraryArgs,
+		ValidArgsFunction:  completeRootFallbackArgs,
 		DisableFlagParsing: true,
 		SilenceErrors:      true,
 		SilenceUsage:       true,
@@ -159,6 +160,29 @@ func newRootCmd(version string) *cobra.Command {
 	cmd.InitDefaultCompletionCmd()
 
 	return cmd
+}
+
+func completeRootFallbackArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) == 0 {
+		if strings.HasPrefix(strings.TrimSpace(toComplete), "-") {
+			return completeCommandFlags(cmd, toComplete), cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveDefault
+	}
+
+	if err := applyCurrentEnvOverrides(); err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	switch len(args) {
+	case 1:
+		if strings.HasPrefix(strings.TrimSpace(toComplete), "-") {
+			return completeCommandFlags(cmd, toComplete), cobra.ShellCompDirectiveNoFileComp
+		}
+		return completeInvokeMethods(args[0], toComplete), cobra.ShellCompDirectiveNoFileComp
+	default:
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 }
 
 func registerRootPersistentFlags(cmd *cobra.Command) {

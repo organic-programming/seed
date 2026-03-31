@@ -156,16 +156,33 @@ void _log(String message) {
 }
 ''');
 
-  final payload = base64Encode(_sampleResponse().writeToBuffer());
   File('${projectDir.path}/gen/describe_generated.dart').writeAsStringSync('''
-import 'dart:convert' show base64Decode;
-
 import 'package:holons/gen/holons/v1/describe.pb.dart';
+import 'package:holons/gen/holons/v1/manifest.pb.dart';
 
 DescribeResponse staticDescribeResponse() {
-  return DescribeResponse.fromBuffer(
-    base64Decode('$payload'),
-  );
+  return DescribeResponse()
+    ..manifest = (HolonManifest()
+      ..identity = (HolonManifest_Identity()
+        ..schema = 'holon/v1'
+        ..uuid = 'static-holon-0000'
+        ..givenName = 'Static'
+        ..familyName = 'Holon'
+        ..motto = 'Registered from generated code.'
+        ..composer = 'describe-test'
+        ..status = 'draft'
+        ..born = '2026-03-23')
+      ..lang = 'dart')
+    ..services.add(
+      ServiceDoc()
+        ..name = 'static.v1.Echo'
+        ..description = 'Static test service.'
+        ..methods.add(
+          MethodDoc()
+            ..name = 'Ping'
+            ..description = 'Replies with the payload.',
+        ),
+    );
 }
 ''');
 }

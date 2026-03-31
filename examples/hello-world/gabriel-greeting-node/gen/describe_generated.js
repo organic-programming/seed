@@ -5,18 +5,91 @@
 const { describe } = require('@organic-programming/holons');
 
 function staticDescribeResponse() {
-    const buffer = Buffer.from('Ct0KCqkBCghob2xvbi92MRIkMWQwMmY5YTQtNzdlNS00MDgyLWJiZDctYjZmOWM0YmIyOGRiGgdHYWJyaWVsIg1HcmVldGluZy1Ob2RlKjpHcmVldHMgdXNlcnMgaW4gNTYgbGFuZ3VhZ2VzIOKAlCBhIE5vZGUuanMgZGFlbW9uIGV4YW1wbGUuMghCLiBBTFRFUkIFZHJhZnRKCjIwMjYtMDMtMTZSBjAuMS41Nho4QSBOb2RlLmpzIGdSUEMgZGFlbW9uIHRoYXQgZ3JlZXRzIHVzZXJzIGluIDU2IGxhbmd1YWdlcy4iAmpzKpoCChRtdWx0aWxpbmd1YWwtZ3JlZXRlchI8R3JlZXQgYSBwZXJzb24gYnkgbmFtZSBpbiBhbnkgb2YgdGhlIDU2IHN1cHBvcnRlZCBsYW5ndWFnZXMuGjdUaGUgdXNlciB3YW50cyB0byBncmVldCBzb21lb25lIGluIGEgc3BlY2lmaWMgbGFuZ3VhZ2UuIi5DYWxsIExpc3RMYW5ndWFnZXMgdG8gc2hvdyBhdmFpbGFibGUgbGFuZ3VhZ2VzIilBc2sgdGhlIHVzZXIgZm9yIGEgbmFtZSBhbmQgbGFuZ3VhZ2UgY29kZSIwQ2FsbCBTYXlIZWxsbyB3aXRoIHRoZSBjaG9zZW4gbmFtZSBhbmQgbGFuZ19jb2RlOgZuYXRpdmVSFAoDbnBtEg0uL2NtZC9tYWluLmpzWhsSC2NtZC9tYWluLmpzEgxwYWNrYWdlLmpzb25qFwoVZ2FicmllbC1ncmVldGluZy1ub2Rlcp4CChVtdWx0aWxpbmd1YWwtZ3JlZXRpbmcSP0xpc3QgYXZhaWxhYmxlIGxhbmd1YWdlcyB0aGVuIGdyZWV0IHRoZSB1c2VyIGluIHRoZSBjaG9zZW4gb25lLhoZCgRuYW1lEg9QZXJzb24gdG8gZ3JlZXQYARomCglsYW5nX2NvZGUSF0lTTyA2MzktMSBsYW5ndWFnZSBjb2RlGAEiJm9wIGdhYnJpZWwtZ3JlZXRpbmctbm9kZSBMaXN0TGFuZ3VhZ2VzIllvcCBnYWJyaWVsLWdyZWV0aW5nLW5vZGUgU2F5SGVsbG8gJ3sibmFtZSI6Int7IC5uYW1lIH19IiwibGFuZ19jb2RlIjoie3sgLmxhbmdfY29kZSB9fSJ9J3LeAwoUZ3JlZXRpbmctZnItamEtcnUtZW4ST0xpc3QgYXZhaWxhYmxlIGxhbmd1YWdlcywgdGhlbiBncmVldCBpbiBGcmVuY2gsIEphcGFuZXNlLCBSdXNzaWFuLCBhbmQgRW5nbGlzaC4aGQoEbmFtZRIPUGVyc29uIHRvIGdyZWV0GAEiJm9wIGdhYnJpZWwtZ3JlZXRpbmctbm9kZSBMaXN0TGFuZ3VhZ2VzIktvcCBnYWJyaWVsLWdyZWV0aW5nLW5vZGUgU2F5SGVsbG8gJ3sibmFtZSI6Int7IC5uYW1lIH19IiwibGFuZ19jb2RlIjoiZnIifSciS29wIGdhYnJpZWwtZ3JlZXRpbmctbm9kZSBTYXlIZWxsbyAneyJuYW1lIjoie3sgLm5hbWUgfX0iLCJsYW5nX2NvZGUiOiJqYSJ9JyJLb3AgZ2FicmllbC1ncmVldGluZy1ub2RlIFNheUhlbGxvICd7Im5hbWUiOiJ7eyAubmFtZSB9fSIsImxhbmdfY29kZSI6InJ1In0nIktvcCBnYWJyaWVsLWdyZWV0aW5nLW5vZGUgU2F5SGVsbG8gJ3sibmFtZSI6Int7IC5uYW1lIH19IiwibGFuZ19jb2RlIjoiZW4ifSc=', 'base64');
-    return describe.holons.DescribeResponse.toObject(
-        describe.holons.DescribeResponse.decode(buffer),
-        {
-            longs: String,
-            enums: String,
-            defaults: true,
-            arrays: true,
-            objects: true,
-            oneofs: true,
+    return describe.holons.DescribeResponse.fromObject(
+{
+        manifest: {
+            identity: {
+                schema: "holon/v1",
+                uuid: "1d02f9a4-77e5-4082-bbd7-b6f9c4bb28db",
+                given_name: "Gabriel",
+                family_name: "Greeting-Node",
+                motto: "Greets users in 56 languages — a Node.js daemon example.",
+                composer: "B. ALTER",
+                status: "draft",
+                born: "2026-03-16",
+                version: "0.1.60",
+            },
+            description: "A Node.js gRPC daemon that greets users in 56 languages.",
+            lang: "js",
+            skills: [
+                {
+                    name: "multilingual-greeter",
+                    description: "Greet a person by name in any of the 56 supported languages.",
+                    when: "The user wants to greet someone in a specific language.",
+                    steps: [
+                        "Call ListLanguages to show available languages",
+                        "Ask the user for a name and language code",
+                        "Call SayHello with the chosen name and lang_code",
+                    ],
+                },
+            ],
+            kind: "native",
+            build: {
+                runner: "npm",
+                main: "./cmd/main.js",
+            },
+            requires: {
+                files: [
+                    "cmd/main.js",
+                    "package.json",
+                ],
+            },
+            artifacts: {
+                binary: "gabriel-greeting-node",
+            },
+            sequences: [
+                {
+                    name: "multilingual-greeting",
+                    description: "List available languages then greet the user in the chosen one.",
+                    params: [
+                        {
+                            name: "name",
+                            description: "Person to greet",
+                            required: true,
+                        },
+                        {
+                            name: "lang_code",
+                            description: "ISO 639-1 language code",
+                            required: true,
+                        },
+                    ],
+                    steps: [
+                        "op gabriel-greeting-node ListLanguages",
+                        "op gabriel-greeting-node SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"{{ .lang_code }}\"}'",
+                    ],
+                },
+                {
+                    name: "greeting-fr-ja-ru-en",
+                    description: "List available languages, then greet in French, Japanese, Russian, and English.",
+                    params: [
+                        {
+                            name: "name",
+                            description: "Person to greet",
+                            required: true,
+                        },
+                    ],
+                    steps: [
+                        "op gabriel-greeting-node ListLanguages",
+                        "op gabriel-greeting-node SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"fr\"}'",
+                        "op gabriel-greeting-node SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ja\"}'",
+                        "op gabriel-greeting-node SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ru\"}'",
+                        "op gabriel-greeting-node SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"en\"}'",
+                    ],
+                },
+            ],
         },
-    );
+    }
+);
 }
 
 module.exports = {

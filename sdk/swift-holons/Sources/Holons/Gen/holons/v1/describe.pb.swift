@@ -21,8 +21,8 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
 }
 
 /// FieldLabel indicates field cardinality.
-enum Holons_V1_FieldLabel: SwiftProtobuf.Enum, Swift.CaseIterable {
-  typealias RawValue = Int
+public enum Holons_V1_FieldLabel: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
   case unspecified // = 0
   case `optional` // = 1
   case repeated // = 2
@@ -30,11 +30,11 @@ enum Holons_V1_FieldLabel: SwiftProtobuf.Enum, Swift.CaseIterable {
   case `required` // = 4
   case UNRECOGNIZED(Int)
 
-  init() {
+  public init() {
     self = .unspecified
   }
 
-  init?(rawValue: Int) {
+  public init?(rawValue: Int) {
     switch rawValue {
     case 0: self = .unspecified
     case 1: self = .optional
@@ -45,7 +45,7 @@ enum Holons_V1_FieldLabel: SwiftProtobuf.Enum, Swift.CaseIterable {
     }
   }
 
-  var rawValue: Int {
+  public var rawValue: Int {
     switch self {
     case .unspecified: return 0
     case .optional: return 1
@@ -57,7 +57,7 @@ enum Holons_V1_FieldLabel: SwiftProtobuf.Enum, Swift.CaseIterable {
   }
 
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  static let allCases: [Holons_V1_FieldLabel] = [
+  public static let allCases: [Holons_V1_FieldLabel] = [
     .unspecified,
     .optional,
     .repeated,
@@ -67,145 +67,145 @@ enum Holons_V1_FieldLabel: SwiftProtobuf.Enum, Swift.CaseIterable {
 
 }
 
-struct Holons_V1_DescribeRequest: Sendable {
+public struct Holons_V1_DescribeRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Holons_V1_DescribeResponse: Sendable {
+public struct Holons_V1_DescribeResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Full holon manifest (identity, skills, build, guide, etc.).
-  var manifest: Holons_V1_HolonManifest {
+  public var manifest: Holons_V1_HolonManifest {
     get {_manifest ?? Holons_V1_HolonManifest()}
     set {_manifest = newValue}
   }
   /// Returns true if `manifest` has been explicitly set.
-  var hasManifest: Bool {self._manifest != nil}
+  public var hasManifest: Bool {self._manifest != nil}
   /// Clears the value of `manifest`. Subsequent reads from it will return its default value.
-  mutating func clearManifest() {self._manifest = nil}
+  public mutating func clearManifest() {self._manifest = nil}
 
   /// One entry per gRPC service the holon exposes (excluding HolonMeta itself).
-  var services: [Holons_V1_ServiceDoc] = []
+  public var services: [Holons_V1_ServiceDoc] = []
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 
   fileprivate var _manifest: Holons_V1_HolonManifest? = nil
 }
 
 /// ServiceDoc documents a single gRPC service.
-struct Holons_V1_ServiceDoc: Sendable {
+public struct Holons_V1_ServiceDoc: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Fully qualified service name, e.g. "greeting.v1.GreetingService".
-  var name: String = String()
+  public var name: String = String()
 
   /// Human-readable description from the proto comment.
-  var description_p: String = String()
+  public var description_p: String = String()
 
   /// One entry per RPC method in the service.
-  var methods: [Holons_V1_MethodDoc] = []
+  public var methods: [Holons_V1_MethodDoc] = []
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
 /// MethodDoc documents a single RPC method.
-struct Holons_V1_MethodDoc: Sendable {
+public struct Holons_V1_MethodDoc: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var name: String = String()
+  public var name: String = String()
 
-  var description_p: String = String()
+  public var description_p: String = String()
 
   /// Fully qualified input/output message types.
-  var inputType: String = String()
+  public var inputType: String = String()
 
-  var outputType: String = String()
+  public var outputType: String = String()
 
   /// Field documentation for input and output messages.
-  var inputFields: [Holons_V1_FieldDoc] = []
+  public var inputFields: [Holons_V1_FieldDoc] = []
 
-  var outputFields: [Holons_V1_FieldDoc] = []
+  public var outputFields: [Holons_V1_FieldDoc] = []
 
-  var clientStreaming: Bool = false
+  public var clientStreaming: Bool = false
 
-  var serverStreaming: Bool = false
+  public var serverStreaming: Bool = false
 
   /// Concrete example request as JSON, from @example tags in proto comments.
-  var exampleInput: String = String()
+  public var exampleInput: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
 /// FieldDoc documents a single message field.
-struct Holons_V1_FieldDoc: Sendable {
+public struct Holons_V1_FieldDoc: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var name: String = String()
+  public var name: String = String()
 
   /// proto type (e.g. "string", "greeting.v1.Language")
-  var type: String = String()
+  public var type: String = String()
 
-  var number: Int32 = 0
+  public var number: Int32 = 0
 
-  var description_p: String = String()
+  public var description_p: String = String()
 
-  var label: Holons_V1_FieldLabel = .unspecified
+  public var label: Holons_V1_FieldLabel = .unspecified
 
   /// Map-specific type information.
-  var mapKeyType: String = String()
+  public var mapKeyType: String = String()
 
-  var mapValueType: String = String()
+  public var mapValueType: String = String()
 
   /// Recursive: nested message fields or enum values.
-  var nestedFields: [Holons_V1_FieldDoc] = []
+  public var nestedFields: [Holons_V1_FieldDoc] = []
 
-  var enumValues: [Holons_V1_EnumValueDoc] = []
+  public var enumValues: [Holons_V1_EnumValueDoc] = []
 
   /// Semantic metadata from @required and @example proto comment tags.
-  var required: Bool = false
+  public var required: Bool = false
 
-  var example: String = String()
+  public var example: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
 /// EnumValueDoc documents a single enum value.
-struct Holons_V1_EnumValueDoc: Sendable {
+public struct Holons_V1_EnumValueDoc: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var name: String = String()
+  public var name: String = String()
 
-  var number: Int32 = 0
+  public var number: Int32 = 0
 
-  var description_p: String = String()
+  public var description_p: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -213,33 +213,33 @@ struct Holons_V1_EnumValueDoc: Sendable {
 fileprivate let _protobuf_package = "holons.v1"
 
 extension Holons_V1_FieldLabel: SwiftProtobuf._ProtoNameProviding {
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0FIELD_LABEL_UNSPECIFIED\0\u{1}FIELD_LABEL_OPTIONAL\0\u{1}FIELD_LABEL_REPEATED\0\u{1}FIELD_LABEL_MAP\0\u{1}FIELD_LABEL_REQUIRED\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0FIELD_LABEL_UNSPECIFIED\0\u{1}FIELD_LABEL_OPTIONAL\0\u{1}FIELD_LABEL_REPEATED\0\u{1}FIELD_LABEL_MAP\0\u{1}FIELD_LABEL_REQUIRED\0")
 }
 
 extension Holons_V1_DescribeRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".DescribeRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let protoMessageName: String = _protobuf_package + ".DescribeRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_DescribeRequest, rhs: Holons_V1_DescribeRequest) -> Bool {
+  public static func ==(lhs: Holons_V1_DescribeRequest, rhs: Holons_V1_DescribeRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Holons_V1_DescribeResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".DescribeResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}manifest\0\u{1}services\0")
+  public static let protoMessageName: String = _protobuf_package + ".DescribeResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}manifest\0\u{1}services\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -252,7 +252,7 @@ extension Holons_V1_DescribeResponse: SwiftProtobuf.Message, SwiftProtobuf._Mess
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -266,7 +266,7 @@ extension Holons_V1_DescribeResponse: SwiftProtobuf.Message, SwiftProtobuf._Mess
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_DescribeResponse, rhs: Holons_V1_DescribeResponse) -> Bool {
+  public static func ==(lhs: Holons_V1_DescribeResponse, rhs: Holons_V1_DescribeResponse) -> Bool {
     if lhs._manifest != rhs._manifest {return false}
     if lhs.services != rhs.services {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -275,10 +275,10 @@ extension Holons_V1_DescribeResponse: SwiftProtobuf.Message, SwiftProtobuf._Mess
 }
 
 extension Holons_V1_ServiceDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ServiceDoc"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}description\0\u{1}methods\0")
+  public static let protoMessageName: String = _protobuf_package + ".ServiceDoc"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}description\0\u{1}methods\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -292,7 +292,7 @@ extension Holons_V1_ServiceDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.name.isEmpty {
       try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
     }
@@ -305,7 +305,7 @@ extension Holons_V1_ServiceDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_ServiceDoc, rhs: Holons_V1_ServiceDoc) -> Bool {
+  public static func ==(lhs: Holons_V1_ServiceDoc, rhs: Holons_V1_ServiceDoc) -> Bool {
     if lhs.name != rhs.name {return false}
     if lhs.description_p != rhs.description_p {return false}
     if lhs.methods != rhs.methods {return false}
@@ -315,10 +315,10 @@ extension Holons_V1_ServiceDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
 }
 
 extension Holons_V1_MethodDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".MethodDoc"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}description\0\u{3}input_type\0\u{3}output_type\0\u{3}input_fields\0\u{3}output_fields\0\u{3}client_streaming\0\u{3}server_streaming\0\u{3}example_input\0")
+  public static let protoMessageName: String = _protobuf_package + ".MethodDoc"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}description\0\u{3}input_type\0\u{3}output_type\0\u{3}input_fields\0\u{3}output_fields\0\u{3}client_streaming\0\u{3}server_streaming\0\u{3}example_input\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -338,7 +338,7 @@ extension Holons_V1_MethodDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.name.isEmpty {
       try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
     }
@@ -369,7 +369,7 @@ extension Holons_V1_MethodDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_MethodDoc, rhs: Holons_V1_MethodDoc) -> Bool {
+  public static func ==(lhs: Holons_V1_MethodDoc, rhs: Holons_V1_MethodDoc) -> Bool {
     if lhs.name != rhs.name {return false}
     if lhs.description_p != rhs.description_p {return false}
     if lhs.inputType != rhs.inputType {return false}
@@ -385,10 +385,10 @@ extension Holons_V1_MethodDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
 }
 
 extension Holons_V1_FieldDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".FieldDoc"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}type\0\u{1}number\0\u{1}description\0\u{1}label\0\u{3}map_key_type\0\u{3}map_value_type\0\u{3}nested_fields\0\u{3}enum_values\0\u{1}required\0\u{1}example\0")
+  public static let protoMessageName: String = _protobuf_package + ".FieldDoc"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}type\0\u{1}number\0\u{1}description\0\u{1}label\0\u{3}map_key_type\0\u{3}map_value_type\0\u{3}nested_fields\0\u{3}enum_values\0\u{1}required\0\u{1}example\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -410,7 +410,7 @@ extension Holons_V1_FieldDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.name.isEmpty {
       try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
     }
@@ -447,7 +447,7 @@ extension Holons_V1_FieldDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_FieldDoc, rhs: Holons_V1_FieldDoc) -> Bool {
+  public static func ==(lhs: Holons_V1_FieldDoc, rhs: Holons_V1_FieldDoc) -> Bool {
     if lhs.name != rhs.name {return false}
     if lhs.type != rhs.type {return false}
     if lhs.number != rhs.number {return false}
@@ -465,10 +465,10 @@ extension Holons_V1_FieldDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageImple
 }
 
 extension Holons_V1_EnumValueDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".EnumValueDoc"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}number\0\u{1}description\0")
+  public static let protoMessageName: String = _protobuf_package + ".EnumValueDoc"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}number\0\u{1}description\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -482,7 +482,7 @@ extension Holons_V1_EnumValueDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.name.isEmpty {
       try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
     }
@@ -495,7 +495,7 @@ extension Holons_V1_EnumValueDoc: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_EnumValueDoc, rhs: Holons_V1_EnumValueDoc) -> Bool {
+  public static func ==(lhs: Holons_V1_EnumValueDoc, rhs: Holons_V1_EnumValueDoc) -> Bool {
     if lhs.name != rhs.name {return false}
     if lhs.number != rhs.number {return false}
     if lhs.description_p != rhs.description_p {return false}

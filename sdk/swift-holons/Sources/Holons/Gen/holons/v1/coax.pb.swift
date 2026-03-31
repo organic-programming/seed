@@ -22,8 +22,8 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
 }
 
 /// MemberState represents the runtime lifecycle of a member.
-enum Holons_V1_MemberState: SwiftProtobuf.Enum, Swift.CaseIterable {
-  typealias RawValue = Int
+public enum Holons_V1_MemberState: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
   case unspecified // = 0
 
   /// Known but not running.
@@ -39,11 +39,11 @@ enum Holons_V1_MemberState: SwiftProtobuf.Enum, Swift.CaseIterable {
   case error // = 4
   case UNRECOGNIZED(Int)
 
-  init() {
+  public init() {
     self = .unspecified
   }
 
-  init?(rawValue: Int) {
+  public init?(rawValue: Int) {
     switch rawValue {
     case 0: self = .unspecified
     case 1: self = .available
@@ -54,7 +54,7 @@ enum Holons_V1_MemberState: SwiftProtobuf.Enum, Swift.CaseIterable {
     }
   }
 
-  var rawValue: Int {
+  public var rawValue: Int {
     switch self {
     case .unspecified: return 0
     case .available: return 1
@@ -66,7 +66,7 @@ enum Holons_V1_MemberState: SwiftProtobuf.Enum, Swift.CaseIterable {
   }
 
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  static let allCases: [Holons_V1_MemberState] = [
+  public static let allCases: [Holons_V1_MemberState] = [
     .unspecified,
     .available,
     .connecting,
@@ -76,203 +76,203 @@ enum Holons_V1_MemberState: SwiftProtobuf.Enum, Swift.CaseIterable {
 
 }
 
-struct Holons_V1_ListMembersRequest: Sendable {
+public struct Holons_V1_ListMembersRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Holons_V1_ListMembersResponse: Sendable {
+public struct Holons_V1_ListMembersResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var members: [Holons_V1_MemberInfo] = []
+  public var members: [Holons_V1_MemberInfo] = []
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
 /// MemberInfo describes a member holon visible to the organism.
-struct Holons_V1_MemberInfo: Sendable {
+public struct Holons_V1_MemberInfo: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The member's slug (used for Tell and Connect).
-  var slug: String = String()
+  public var slug: String = String()
 
   /// Identity from the member's manifest.
-  var identity: Holons_V1_HolonManifest.Identity {
+  public var identity: Holons_V1_HolonManifest.Identity {
     get {_identity ?? Holons_V1_HolonManifest.Identity()}
     set {_identity = newValue}
   }
   /// Returns true if `identity` has been explicitly set.
-  var hasIdentity: Bool {self._identity != nil}
+  public var hasIdentity: Bool {self._identity != nil}
   /// Clears the value of `identity`. Subsequent reads from it will return its default value.
-  mutating func clearIdentity() {self._identity = nil}
+  public mutating func clearIdentity() {self._identity = nil}
 
   /// Current runtime status.
-  var state: Holons_V1_MemberState = .unspecified
+  public var state: Holons_V1_MemberState = .unspecified
 
   /// Whether this member is itself an organism (recursive COAX).
-  var isOrganism: Bool = false
+  public var isOrganism: Bool = false
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 
   fileprivate var _identity: Holons_V1_HolonManifest.Identity? = nil
 }
 
-struct Holons_V1_MemberStatusRequest: Sendable {
+public struct Holons_V1_MemberStatusRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var slug: String = String()
+  public var slug: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Holons_V1_MemberStatusResponse: Sendable {
+public struct Holons_V1_MemberStatusResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var member: Holons_V1_MemberInfo {
+  public var member: Holons_V1_MemberInfo {
     get {_member ?? Holons_V1_MemberInfo()}
     set {_member = newValue}
   }
   /// Returns true if `member` has been explicitly set.
-  var hasMember: Bool {self._member != nil}
+  public var hasMember: Bool {self._member != nil}
   /// Clears the value of `member`. Subsequent reads from it will return its default value.
-  mutating func clearMember() {self._member = nil}
+  public mutating func clearMember() {self._member = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 
   fileprivate var _member: Holons_V1_MemberInfo? = nil
 }
 
-struct Holons_V1_ConnectMemberRequest: Sendable {
+public struct Holons_V1_ConnectMemberRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var slug: String = String()
+  public var slug: String = String()
 
   /// Optional transport override (default: organism decides).
-  var transport: String = String()
+  public var transport: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Holons_V1_ConnectMemberResponse: Sendable {
+public struct Holons_V1_ConnectMemberResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var member: Holons_V1_MemberInfo {
+  public var member: Holons_V1_MemberInfo {
     get {_member ?? Holons_V1_MemberInfo()}
     set {_member = newValue}
   }
   /// Returns true if `member` has been explicitly set.
-  var hasMember: Bool {self._member != nil}
+  public var hasMember: Bool {self._member != nil}
   /// Clears the value of `member`. Subsequent reads from it will return its default value.
-  mutating func clearMember() {self._member = nil}
+  public mutating func clearMember() {self._member = nil}
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 
   fileprivate var _member: Holons_V1_MemberInfo? = nil
 }
 
-struct Holons_V1_DisconnectMemberRequest: Sendable {
+public struct Holons_V1_DisconnectMemberRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var slug: String = String()
+  public var slug: String = String()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Holons_V1_DisconnectMemberResponse: Sendable {
+public struct Holons_V1_DisconnectMemberResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Holons_V1_TellRequest: Sendable {
+public struct Holons_V1_TellRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Which member to address (by slug).
-  var memberSlug: String = String()
+  public var memberSlug: String = String()
 
   /// Fully qualified RPC method name
   /// (e.g. "greeting.v1.GreetingService/SayHello").
-  var method: String = String()
+  public var method: String = String()
 
   /// JSON-encoded request payload.
   /// The organism deserializes and forwards as protobuf to the member.
-  var payload: Data = Data()
+  public var payload: Data = Data()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Holons_V1_TellResponse: Sendable {
+public struct Holons_V1_TellResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// JSON-encoded response from the member.
-  var payload: Data = Data()
+  public var payload: Data = Data()
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Holons_V1_TurnOffCoaxRequest: Sendable {
+public struct Holons_V1_TurnOffCoaxRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
-struct Holons_V1_TurnOffCoaxResponse: Sendable {
+public struct Holons_V1_TurnOffCoaxResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  var unknownFields = SwiftProtobuf.UnknownStorage()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  init() {}
+  public init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -280,33 +280,33 @@ struct Holons_V1_TurnOffCoaxResponse: Sendable {
 fileprivate let _protobuf_package = "holons.v1"
 
 extension Holons_V1_MemberState: SwiftProtobuf._ProtoNameProviding {
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0MEMBER_STATE_UNSPECIFIED\0\u{1}MEMBER_STATE_AVAILABLE\0\u{1}MEMBER_STATE_CONNECTING\0\u{1}MEMBER_STATE_CONNECTED\0\u{1}MEMBER_STATE_ERROR\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0MEMBER_STATE_UNSPECIFIED\0\u{1}MEMBER_STATE_AVAILABLE\0\u{1}MEMBER_STATE_CONNECTING\0\u{1}MEMBER_STATE_CONNECTED\0\u{1}MEMBER_STATE_ERROR\0")
 }
 
 extension Holons_V1_ListMembersRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ListMembersRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let protoMessageName: String = _protobuf_package + ".ListMembersRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_ListMembersRequest, rhs: Holons_V1_ListMembersRequest) -> Bool {
+  public static func ==(lhs: Holons_V1_ListMembersRequest, rhs: Holons_V1_ListMembersRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Holons_V1_ListMembersResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ListMembersResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}members\0")
+  public static let protoMessageName: String = _protobuf_package + ".ListMembersResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}members\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -318,14 +318,14 @@ extension Holons_V1_ListMembersResponse: SwiftProtobuf.Message, SwiftProtobuf._M
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.members.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.members, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_ListMembersResponse, rhs: Holons_V1_ListMembersResponse) -> Bool {
+  public static func ==(lhs: Holons_V1_ListMembersResponse, rhs: Holons_V1_ListMembersResponse) -> Bool {
     if lhs.members != rhs.members {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -333,10 +333,10 @@ extension Holons_V1_ListMembersResponse: SwiftProtobuf.Message, SwiftProtobuf._M
 }
 
 extension Holons_V1_MemberInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".MemberInfo"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}slug\0\u{1}identity\0\u{1}state\0\u{3}is_organism\0")
+  public static let protoMessageName: String = _protobuf_package + ".MemberInfo"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}slug\0\u{1}identity\0\u{1}state\0\u{3}is_organism\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -351,7 +351,7 @@ extension Holons_V1_MemberInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -371,7 +371,7 @@ extension Holons_V1_MemberInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_MemberInfo, rhs: Holons_V1_MemberInfo) -> Bool {
+  public static func ==(lhs: Holons_V1_MemberInfo, rhs: Holons_V1_MemberInfo) -> Bool {
     if lhs.slug != rhs.slug {return false}
     if lhs._identity != rhs._identity {return false}
     if lhs.state != rhs.state {return false}
@@ -382,10 +382,10 @@ extension Holons_V1_MemberInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
 }
 
 extension Holons_V1_MemberStatusRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".MemberStatusRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}slug\0")
+  public static let protoMessageName: String = _protobuf_package + ".MemberStatusRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}slug\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -397,14 +397,14 @@ extension Holons_V1_MemberStatusRequest: SwiftProtobuf.Message, SwiftProtobuf._M
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.slug.isEmpty {
       try visitor.visitSingularStringField(value: self.slug, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_MemberStatusRequest, rhs: Holons_V1_MemberStatusRequest) -> Bool {
+  public static func ==(lhs: Holons_V1_MemberStatusRequest, rhs: Holons_V1_MemberStatusRequest) -> Bool {
     if lhs.slug != rhs.slug {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -412,10 +412,10 @@ extension Holons_V1_MemberStatusRequest: SwiftProtobuf.Message, SwiftProtobuf._M
 }
 
 extension Holons_V1_MemberStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".MemberStatusResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}member\0")
+  public static let protoMessageName: String = _protobuf_package + ".MemberStatusResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}member\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -427,7 +427,7 @@ extension Holons_V1_MemberStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -438,7 +438,7 @@ extension Holons_V1_MemberStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_MemberStatusResponse, rhs: Holons_V1_MemberStatusResponse) -> Bool {
+  public static func ==(lhs: Holons_V1_MemberStatusResponse, rhs: Holons_V1_MemberStatusResponse) -> Bool {
     if lhs._member != rhs._member {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -446,10 +446,10 @@ extension Holons_V1_MemberStatusResponse: SwiftProtobuf.Message, SwiftProtobuf._
 }
 
 extension Holons_V1_ConnectMemberRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ConnectMemberRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}slug\0\u{1}transport\0")
+  public static let protoMessageName: String = _protobuf_package + ".ConnectMemberRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}slug\0\u{1}transport\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -462,7 +462,7 @@ extension Holons_V1_ConnectMemberRequest: SwiftProtobuf.Message, SwiftProtobuf._
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.slug.isEmpty {
       try visitor.visitSingularStringField(value: self.slug, fieldNumber: 1)
     }
@@ -472,7 +472,7 @@ extension Holons_V1_ConnectMemberRequest: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_ConnectMemberRequest, rhs: Holons_V1_ConnectMemberRequest) -> Bool {
+  public static func ==(lhs: Holons_V1_ConnectMemberRequest, rhs: Holons_V1_ConnectMemberRequest) -> Bool {
     if lhs.slug != rhs.slug {return false}
     if lhs.transport != rhs.transport {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -481,10 +481,10 @@ extension Holons_V1_ConnectMemberRequest: SwiftProtobuf.Message, SwiftProtobuf._
 }
 
 extension Holons_V1_ConnectMemberResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".ConnectMemberResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}member\0")
+  public static let protoMessageName: String = _protobuf_package + ".ConnectMemberResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}member\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -496,7 +496,7 @@ extension Holons_V1_ConnectMemberResponse: SwiftProtobuf.Message, SwiftProtobuf.
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     // The use of inline closures is to circumvent an issue where the compiler
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
@@ -507,7 +507,7 @@ extension Holons_V1_ConnectMemberResponse: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_ConnectMemberResponse, rhs: Holons_V1_ConnectMemberResponse) -> Bool {
+  public static func ==(lhs: Holons_V1_ConnectMemberResponse, rhs: Holons_V1_ConnectMemberResponse) -> Bool {
     if lhs._member != rhs._member {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -515,10 +515,10 @@ extension Holons_V1_ConnectMemberResponse: SwiftProtobuf.Message, SwiftProtobuf.
 }
 
 extension Holons_V1_DisconnectMemberRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".DisconnectMemberRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}slug\0")
+  public static let protoMessageName: String = _protobuf_package + ".DisconnectMemberRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}slug\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -530,14 +530,14 @@ extension Holons_V1_DisconnectMemberRequest: SwiftProtobuf.Message, SwiftProtobu
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.slug.isEmpty {
       try visitor.visitSingularStringField(value: self.slug, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_DisconnectMemberRequest, rhs: Holons_V1_DisconnectMemberRequest) -> Bool {
+  public static func ==(lhs: Holons_V1_DisconnectMemberRequest, rhs: Holons_V1_DisconnectMemberRequest) -> Bool {
     if lhs.slug != rhs.slug {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -545,29 +545,29 @@ extension Holons_V1_DisconnectMemberRequest: SwiftProtobuf.Message, SwiftProtobu
 }
 
 extension Holons_V1_DisconnectMemberResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".DisconnectMemberResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let protoMessageName: String = _protobuf_package + ".DisconnectMemberResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_DisconnectMemberResponse, rhs: Holons_V1_DisconnectMemberResponse) -> Bool {
+  public static func ==(lhs: Holons_V1_DisconnectMemberResponse, rhs: Holons_V1_DisconnectMemberResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Holons_V1_TellRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".TellRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}member_slug\0\u{1}method\0\u{1}payload\0")
+  public static let protoMessageName: String = _protobuf_package + ".TellRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}member_slug\0\u{1}method\0\u{1}payload\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -581,7 +581,7 @@ extension Holons_V1_TellRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.memberSlug.isEmpty {
       try visitor.visitSingularStringField(value: self.memberSlug, fieldNumber: 1)
     }
@@ -594,7 +594,7 @@ extension Holons_V1_TellRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_TellRequest, rhs: Holons_V1_TellRequest) -> Bool {
+  public static func ==(lhs: Holons_V1_TellRequest, rhs: Holons_V1_TellRequest) -> Bool {
     if lhs.memberSlug != rhs.memberSlug {return false}
     if lhs.method != rhs.method {return false}
     if lhs.payload != rhs.payload {return false}
@@ -604,10 +604,10 @@ extension Holons_V1_TellRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
 }
 
 extension Holons_V1_TellResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".TellResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}payload\0")
+  public static let protoMessageName: String = _protobuf_package + ".TellResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}payload\0")
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
@@ -619,14 +619,14 @@ extension Holons_V1_TellResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     }
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     if !self.payload.isEmpty {
       try visitor.visitSingularBytesField(value: self.payload, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_TellResponse, rhs: Holons_V1_TellResponse) -> Bool {
+  public static func ==(lhs: Holons_V1_TellResponse, rhs: Holons_V1_TellResponse) -> Bool {
     if lhs.payload != rhs.payload {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -634,38 +634,38 @@ extension Holons_V1_TellResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageI
 }
 
 extension Holons_V1_TurnOffCoaxRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".TurnOffCoaxRequest"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let protoMessageName: String = _protobuf_package + ".TurnOffCoaxRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_TurnOffCoaxRequest, rhs: Holons_V1_TurnOffCoaxRequest) -> Bool {
+  public static func ==(lhs: Holons_V1_TurnOffCoaxRequest, rhs: Holons_V1_TurnOffCoaxRequest) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
 extension Holons_V1_TurnOffCoaxResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  static let protoMessageName: String = _protobuf_package + ".TurnOffCoaxResponse"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let protoMessageName: String = _protobuf_package + ".TurnOffCoaxResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
-  mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     // Load everything into unknown fields
     while try decoder.nextFieldNumber() != nil {}
   }
 
-  func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  static func ==(lhs: Holons_V1_TurnOffCoaxResponse, rhs: Holons_V1_TurnOffCoaxResponse) -> Bool {
+  public static func ==(lhs: Holons_V1_TurnOffCoaxResponse, rhs: Holons_V1_TurnOffCoaxResponse) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

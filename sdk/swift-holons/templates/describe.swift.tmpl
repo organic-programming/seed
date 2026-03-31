@@ -2,11 +2,11 @@
 
 import Holons
 
-public typealias DescribeGeneratedStaticResponse = StaticDescribeResponse
+public typealias DescribeGeneratedStaticResponse = Holons_V1_DescribeResponse
 
 public enum DescribeGenerated {
   public static func staticDescribeResponse() -> DescribeGeneratedStaticResponse {
-    DescribeGeneratedStaticResponse(payloadBase64: "{{ protoBase64 . }}")
+    {{ swiftDescribeResponse . }}
   }
 
   public static func StaticDescribeResponse() -> DescribeGeneratedStaticResponse {

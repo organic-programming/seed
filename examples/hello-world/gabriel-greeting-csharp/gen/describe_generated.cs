@@ -8,7 +8,219 @@ public static class DescribeGenerated
 {
     public static DescribeResponse StaticDescribeResponse()
     {
-        return DescribeResponse.Parser.ParseFrom(
-            global::System.Convert.FromBase64String("Cv4KCqYBCghob2xvbi92MRIkODQ2ZDU3YzctZDZlOC00YmUxLWExZjAtODkyNTBiZDg3NzU5GgdHYWJyaWVsIg9HcmVldGluZy1Dc2hhcnAqNUdyZWV0cyB1c2VycyBpbiA1NiBsYW5ndWFnZXMg4oCUIGEgQyMgZGFlbW9uIGV4YW1wbGUuMghCLiBBTFRFUkIFZHJhZnRKCjIwMjYtMDMtMTZSBjAuMS41NRozQSBDIyBnUlBDIGRhZW1vbiB0aGF0IGdyZWV0cyB1c2VycyBpbiA1NiBsYW5ndWFnZXMuIgZjc2hhcnAqmgIKFG11bHRpbGluZ3VhbC1ncmVldGVyEjxHcmVldCBhIHBlcnNvbiBieSBuYW1lIGluIGFueSBvZiB0aGUgNTYgc3VwcG9ydGVkIGxhbmd1YWdlcy4aN1RoZSB1c2VyIHdhbnRzIHRvIGdyZWV0IHNvbWVvbmUgaW4gYSBzcGVjaWZpYyBsYW5ndWFnZS4iLkNhbGwgTGlzdExhbmd1YWdlcyB0byBzaG93IGF2YWlsYWJsZSBsYW5ndWFnZXMiKUFzayB0aGUgdXNlciBmb3IgYSBuYW1lIGFuZCBsYW5ndWFnZSBjb2RlIjBDYWxsIFNheUhlbGxvIHdpdGggdGhlIGNob3NlbiBuYW1lIGFuZCBsYW5nX2NvZGU6Bm5hdGl2ZVIXCgZkb3RuZXQSDS4vY21kL01haW4uY3NaLRIeZ2FicmllbC1ncmVldGluZy1jc2hhcnAuY3Nwcm9qEgtjbWQvTWFpbi5jc2oZChdnYWJyaWVsLWdyZWV0aW5nLWNzaGFycHKiAgoVbXVsdGlsaW5ndWFsLWdyZWV0aW5nEj9MaXN0IGF2YWlsYWJsZSBsYW5ndWFnZXMgdGhlbiBncmVldCB0aGUgdXNlciBpbiB0aGUgY2hvc2VuIG9uZS4aGQoEbmFtZRIPUGVyc29uIHRvIGdyZWV0GAEaJgoJbGFuZ19jb2RlEhdJU08gNjM5LTEgbGFuZ3VhZ2UgY29kZRgBIihvcCBnYWJyaWVsLWdyZWV0aW5nLWNzaGFycCBMaXN0TGFuZ3VhZ2VzIltvcCBnYWJyaWVsLWdyZWV0aW5nLWNzaGFycCBTYXlIZWxsbyAneyJuYW1lIjoie3sgLm5hbWUgfX0iLCJsYW5nX2NvZGUiOiJ7eyAubGFuZ19jb2RlIH19In0ncugDChRncmVldGluZy1mci1qYS1ydS1lbhJPTGlzdCBhdmFpbGFibGUgbGFuZ3VhZ2VzLCB0aGVuIGdyZWV0IGluIEZyZW5jaCwgSmFwYW5lc2UsIFJ1c3NpYW4sIGFuZCBFbmdsaXNoLhoZCgRuYW1lEg9QZXJzb24gdG8gZ3JlZXQYASIob3AgZ2FicmllbC1ncmVldGluZy1jc2hhcnAgTGlzdExhbmd1YWdlcyJNb3AgZ2FicmllbC1ncmVldGluZy1jc2hhcnAgU2F5SGVsbG8gJ3sibmFtZSI6Int7IC5uYW1lIH19IiwibGFuZ19jb2RlIjoiZnIifSciTW9wIGdhYnJpZWwtZ3JlZXRpbmctY3NoYXJwIFNheUhlbGxvICd7Im5hbWUiOiJ7eyAubmFtZSB9fSIsImxhbmdfY29kZSI6ImphIn0nIk1vcCBnYWJyaWVsLWdyZWV0aW5nLWNzaGFycCBTYXlIZWxsbyAneyJuYW1lIjoie3sgLm5hbWUgfX0iLCJsYW5nX2NvZGUiOiJydSJ9JyJNb3AgZ2FicmllbC1ncmVldGluZy1jc2hhcnAgU2F5SGVsbG8gJ3sibmFtZSI6Int7IC5uYW1lIH19IiwibGFuZ19jb2RlIjoiZW4ifScSwwYKG2dyZWV0aW5nLnYxLkdyZWV0aW5nU2VydmljZRrMAQoNTGlzdExhbmd1YWdlcxIpUmV0dXJucyBhbGwgYXZhaWxhYmxlIGdyZWV0aW5nIGxhbmd1YWdlcy4aIGdyZWV0aW5nLnYxLkxpc3RMYW5ndWFnZXNSZXF1ZXN0IiFncmVldGluZy52MS5MaXN0TGFuZ3VhZ2VzUmVzcG9uc2UyRwoJbGFuZ3VhZ2VzEhRncmVldGluZy52MS5MYW5ndWFnZRgBIiBMYW5ndWFnZXMgZXhwb3NlZCBieSB0aGUgZGFlbW9uLigCSgJ7fRrUBAoIU2F5SGVsbG8SJ0dyZWV0cyB0aGUgdXNlciBpbiB0aGUgY2hvc2VuIGxhbmd1YWdlLhobZ3JlZXRpbmcudjEuU2F5SGVsbG9SZXF1ZXN0IhxncmVldGluZy52MS5TYXlIZWxsb1Jlc3BvbnNlKoQBCgRuYW1lEgZzdHJpbmcYASJpTmFtZSB0byBncmVldC4gSWYgZW1wdHksIHRoZSBkYWVtb24gZmFsbHMgYmFjayB0byBhIGxvY2FsaXplZCBkZWZhdWx0IChlLmcuLCAiTWFyeSIsICJNYXJpYSIpIG9yICJXb3JsZCIuKAFaBSJCb2IiKkEKCWxhbmdfY29kZRIGc3RyaW5nGAIiIElTTyA2MzktMSBjb2RlIGNob3NlbiBieSB0aGUgVUkuKAFQAVoEImZyIjJbCghncmVldGluZxIGc3RyaW5nGAEiL0xvY2FsaXplZCBncmVldGluZyB0ZXh0IHJldHVybmVkIGJ5IHRoZSBkYWVtb24uKAFQAVoQIkJvbmpvdXIsIEJvYiAhIjJXCghsYW5ndWFnZRIGc3RyaW5nGAIiM0VuZ2xpc2ggbGFuZ3VhZ2UgbmFtZSB1c2VkIHRvIHJlc29sdmUgdGhlIGdyZWV0aW5nLigBUAFaCCJGcmVuY2giMkMKCWxhbmdfY29kZRIGc3RyaW5nGAMiIklTTyA2MzktMSBjb2RlIHVzZWQgYnkgdGhlIGRhZW1vbi4oAVABWgQiZnIiSh97Im5hbWUiOiJCb2IiLCJsYW5nX2NvZGUiOiJmciJ9"));
+        return new DescribeResponse
+{
+    Manifest = new HolonManifest
+    {
+        Identity = new HolonManifest.Types.Identity
+        {
+            Schema = "holon/v1",
+            Uuid = "846d57c7-d6e8-4be1-a1f0-89250bd87759",
+            GivenName = "Gabriel",
+            FamilyName = "Greeting-Csharp",
+            Motto = "Greets users in 56 languages — a C# daemon example.",
+            Composer = "B. ALTER",
+            Status = "draft",
+            Born = "2026-03-16",
+            Version = "0.1.59",
+        },
+        Description = "A C# gRPC daemon that greets users in 56 languages.",
+        Lang = "csharp",
+        Skills = {
+            new HolonManifest.Types.Skill
+            {
+                Name = "multilingual-greeter",
+                Description = "Greet a person by name in any of the 56 supported languages.",
+                When = "The user wants to greet someone in a specific language.",
+                Steps = {
+                    "Call ListLanguages to show available languages",
+                    "Ask the user for a name and language code",
+                    "Call SayHello with the chosen name and lang_code",
+                },
+            },
+        },
+        Kind = "native",
+        Build = new HolonManifest.Types.Build
+        {
+            Runner = "dotnet",
+            Main = "./cmd/Main.cs",
+        },
+        Requires = new HolonManifest.Types.Requires
+        {
+            Files = {
+                "gabriel-greeting-csharp.csproj",
+                "cmd/Main.cs",
+            },
+        },
+        Artifacts = new HolonManifest.Types.Artifacts
+        {
+            Binary = "gabriel-greeting-csharp",
+        },
+        Sequences = {
+            new HolonManifest.Types.Sequence
+            {
+                Name = "multilingual-greeting",
+                Description = "List available languages then greet the user in the chosen one.",
+                Params = {
+                    new HolonManifest.Types.Sequence.Types.Param
+                    {
+                        Name = "name",
+                        Description = "Person to greet",
+                        Required = true,
+                    },
+                    new HolonManifest.Types.Sequence.Types.Param
+                    {
+                        Name = "lang_code",
+                        Description = "ISO 639-1 language code",
+                        Required = true,
+                    },
+                },
+                Steps = {
+                    "op gabriel-greeting-csharp ListLanguages",
+                    "op gabriel-greeting-csharp SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"{{ .lang_code }}\"}'",
+                },
+            },
+            new HolonManifest.Types.Sequence
+            {
+                Name = "greeting-fr-ja-ru-en",
+                Description = "List available languages, then greet in French, Japanese, Russian, and English.",
+                Params = {
+                    new HolonManifest.Types.Sequence.Types.Param
+                    {
+                        Name = "name",
+                        Description = "Person to greet",
+                        Required = true,
+                    },
+                },
+                Steps = {
+                    "op gabriel-greeting-csharp ListLanguages",
+                    "op gabriel-greeting-csharp SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"fr\"}'",
+                    "op gabriel-greeting-csharp SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ja\"}'",
+                    "op gabriel-greeting-csharp SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"ru\"}'",
+                    "op gabriel-greeting-csharp SayHello '{\"name\":\"{{ .name }}\",\"lang_code\":\"en\"}'",
+                },
+            },
+        },
+    },
+    Services = {
+        new ServiceDoc
+        {
+            Name = "greeting.v1.GreetingService",
+            Methods = {
+                new MethodDoc
+                {
+                    Name = "ListLanguages",
+                    Description = "Returns all available greeting languages.",
+                    InputType = "greeting.v1.ListLanguagesRequest",
+                    OutputType = "greeting.v1.ListLanguagesResponse",
+                    OutputFields = {
+                        new FieldDoc
+                        {
+                            Name = "languages",
+                            Type = "greeting.v1.Language",
+                            Number = 1,
+                            Description = "Languages exposed by the daemon.",
+                            Label = FieldLabel.Repeated,
+                            NestedFields = {
+                                new FieldDoc
+                                {
+                                    Name = "code",
+                                    Type = "string",
+                                    Number = 1,
+                                    Description = "ISO 639-1 code advertised by the daemon.",
+                                    Label = FieldLabel.Optional,
+                                    Required = true,
+                                    Example = "\"fr\"",
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "name",
+                                    Type = "string",
+                                    Number = 2,
+                                    Description = "English display name for the language.",
+                                    Label = FieldLabel.Optional,
+                                    Required = true,
+                                    Example = "\"French\"",
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "native",
+                                    Type = "string",
+                                    Number = 3,
+                                    Description = "Native label shown to end users.",
+                                    Label = FieldLabel.Optional,
+                                    Required = true,
+                                    Example = "\"Français\"",
+                                },
+                            },
+                        },
+                    },
+                    ExampleInput = "{}",
+                },
+                new MethodDoc
+                {
+                    Name = "SayHello",
+                    Description = "Greets the user in the chosen language.",
+                    InputType = "greeting.v1.SayHelloRequest",
+                    OutputType = "greeting.v1.SayHelloResponse",
+                    InputFields = {
+                        new FieldDoc
+                        {
+                            Name = "name",
+                            Type = "string",
+                            Number = 1,
+                            Description = "Name to greet. If empty, the daemon falls back to a localized default (e.g., \"Mary\", \"Maria\") or \"World\".",
+                            Label = FieldLabel.Optional,
+                            Example = "\"Bob\"",
+                        },
+                        new FieldDoc
+                        {
+                            Name = "lang_code",
+                            Type = "string",
+                            Number = 2,
+                            Description = "ISO 639-1 code chosen by the UI.",
+                            Label = FieldLabel.Optional,
+                            Required = true,
+                            Example = "\"fr\"",
+                        },
+                    },
+                    OutputFields = {
+                        new FieldDoc
+                        {
+                            Name = "greeting",
+                            Type = "string",
+                            Number = 1,
+                            Description = "Localized greeting text returned by the daemon.",
+                            Label = FieldLabel.Optional,
+                            Required = true,
+                            Example = "\"Bonjour, Bob !\"",
+                        },
+                        new FieldDoc
+                        {
+                            Name = "language",
+                            Type = "string",
+                            Number = 2,
+                            Description = "English language name used to resolve the greeting.",
+                            Label = FieldLabel.Optional,
+                            Required = true,
+                            Example = "\"French\"",
+                        },
+                        new FieldDoc
+                        {
+                            Name = "lang_code",
+                            Type = "string",
+                            Number = 3,
+                            Description = "ISO 639-1 code used by the daemon.",
+                            Label = FieldLabel.Optional,
+                            Required = true,
+                            Example = "\"fr\"",
+                        },
+                    },
+                    ExampleInput = "{\"name\":\"Bob\",\"lang_code\":\"fr\"}",
+                },
+            },
+        },
+    },
+};
     }
 }

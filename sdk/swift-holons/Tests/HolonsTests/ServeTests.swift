@@ -17,7 +17,7 @@ final class ServeTests: XCTestCase {
   func testStartWithOptionsRegistersDescribeService() throws {
     let root = try writeEchoHolon()
     defer { try? FileManager.default.removeItem(at: root) }
-    Describe.useStaticResponse(try Describe.buildResponse(protoDir: root.path))
+    try Describe.useStaticResponse(Describe.buildResponse(protoDir: root.path))
     defer { Describe.useStaticResponse(nil) }
 
     let running = try Serve.startWithOptions(
@@ -57,7 +57,7 @@ final class ServeTests: XCTestCase {
   func testStartWithOptionsRegistersDescribeServiceOverUnix() throws {
     let root = try writeEchoHolon()
     defer { try? FileManager.default.removeItem(at: root) }
-    Describe.useStaticResponse(try Describe.buildResponse(protoDir: root.path))
+    try Describe.useStaticResponse(Describe.buildResponse(protoDir: root.path))
     defer { Describe.useStaticResponse(nil) }
 
     let socketPath = root.appendingPathComponent("serve.sock").path
@@ -102,7 +102,7 @@ final class ServeTests: XCTestCase {
   func testStartWithOptionsRegistersReflectionWhenEnabled() throws {
     let root = try writeEchoHolon()
     defer { try? FileManager.default.removeItem(at: root) }
-    Describe.useStaticResponse(try Describe.buildResponse(protoDir: root.path))
+    try Describe.useStaticResponse(Describe.buildResponse(protoDir: root.path))
     defer { Describe.useStaticResponse(nil) }
 
     let running = try Serve.startWithOptions(

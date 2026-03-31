@@ -3,11 +3,8 @@
 package gen
 
 import holons.v1.Describe.DescribeResponse
-import java.util.Base64
 
 object DescribeGenerated {
     fun StaticDescribeResponse(): DescribeResponse =
-        DescribeResponse.parseFrom(
-            Base64.getDecoder().decode("{{ protoBase64 . }}"),
-        )
+        {{ kotlinDescribeResponse . }}
 }

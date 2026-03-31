@@ -25,10 +25,10 @@ function buildResponse(protoDir, manifestPath) {
     const resolved = manifestPath ? resolveProtoFile(manifestPath) : resolve(protoDir);
     const services = parseServices(protoDir);
 
-    return {
+    return normalizeDescribeResponse({
         manifest: protoManifest(resolved),
         services,
-    };
+    });
 }
 
 function useStaticResponse(response) {
@@ -354,15 +354,27 @@ function cloneDescribeResponse(response) {
 
     const holons = loadHolons();
     const type = holons.DescribeResponse;
-    const message = type.fromObject(response);
-    return type.toObject(type.decode(type.encode(message).finish()), {
-        longs: String,
-        enums: String,
-        defaults: true,
-        arrays: true,
-        objects: true,
-        oneofs: true,
-    });
+    const message = normalizeDescribeResponse(response);
+    return type.decode(type.encode(message).finish());
+}
+
+function normalizeDescribeResponse(response) {
+    if (response == null) {
+        return null;
+    }
+
+    const holons = loadHolons();
+    const type = holons.DescribeResponse;
+    if (isDescribeResponseMessage(response, type)) {
+        return response;
+    }
+    return type.fromObject(response);
+}
+
+function isDescribeResponseMessage(value, type) {
+    return Boolean(value)
+        && typeof value === 'object'
+        && value.$type === type;
 }
 
 const api = {

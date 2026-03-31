@@ -3,13 +3,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CANONICAL_DESCRIBE="$ROOT/_protos/holons/v1/describe.proto"
+PROTO_ROOT="$ROOT/holons/grace-op/_protos"
+CANONICAL_DESCRIBE="$PROTO_ROOT/holons/v1/describe.proto"
 PROTO_FILES=(
-  "$ROOT/_protos/holons/v1/manifest.proto"
-  "$ROOT/_protos/holons/v1/describe.proto"
-  "$ROOT/_protos/holons/v1/coax.proto"
+  "$PROTO_ROOT/holons/v1/manifest.proto"
+  "$PROTO_ROOT/holons/v1/describe.proto"
+  "$PROTO_ROOT/holons/v1/coax.proto"
 )
-PROTO_INCLUDES=(-I "$ROOT/_protos")
+PROTO_INCLUDES=(-I "$PROTO_ROOT")
 SUMMARY=()
 
 for include_dir in /opt/homebrew/include /usr/local/include; do
@@ -90,6 +91,7 @@ generate_swift() {
   require_tool protoc-gen-swift
   run_in_root protoc "${PROTO_INCLUDES[@]}" \
     --swift_out=sdk/swift-holons/Sources/Holons/Gen \
+    --swift_opt=Visibility=Public \
     "${PROTO_FILES[@]}"
   record_summary "swift -> sdk/swift-holons/Sources/Holons/Gen/holons/v1"
 }
@@ -129,7 +131,7 @@ generate_c() {
   compat_dir="$(find_compatible_protobuf33 || true)"
   if [[ -n "$compat_dir" ]]; then
     protoc_c_env=(env "DYLD_LIBRARY_PATH=${compat_dir}/lib")
-    c_includes=(-I "$ROOT/_protos" -I "${compat_dir}/include")
+    c_includes=(-I "$PROTO_ROOT" -I "${compat_dir}/include")
     for include_dir in /opt/homebrew/include /usr/local/include; do
       if [[ -d "$include_dir/google/protobuf" ]]; then
         c_includes+=(-I "$include_dir")
