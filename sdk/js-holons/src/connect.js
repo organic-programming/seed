@@ -2,132 +2,343 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const readline = require('node:readline');
-const { spawn } = require('node:child_process');
+const { fileURLToPath } = require('node:url');
 
 const grpc = require('@grpc/grpc-js');
 
 const discover = require('./discover');
-const transport = require('./transport');
 const grpcclient = require('./grpcclient');
+const {
+    LOCAL,
+} = require('./discovery_types');
 
-const DEFAULT_TIMEOUT_MS = 5000;
+/**
+ * @typedef {import('./discovery_types').HolonInfo} HolonInfo
+ * @typedef {import('./discovery_types').HolonRef} HolonRef
+ * @typedef {import('./discovery_types').ConnectResult} ConnectResult
+ */
+
 const started = new WeakMap();
 
-async function connect(target, opts) {
-    const trimmed = String(target || '').trim();
-
-    if (!trimmed) {
-        throw new Error('target is required');
+async function connect(scope, expression, root, specifiers, timeout) {
+    if (scope !== LOCAL) {
+        return {
+            channel: null,
+            uid: '',
+            origin: null,
+            error: `scope ${scope} not supported`,
+        };
     }
 
-    const options = normalizeOptions(opts);
-    const ephemeral = opts == null || options.transport === 'stdio';
-
-    if (isDirectTarget(trimmed)) {
-        return dialReady(normalizeDialTarget(trimmed), options.timeout);
+    const target = normalizeString(expression);
+    if (!target) {
+        return {
+            channel: null,
+            uid: '',
+            origin: null,
+            error: 'expression is required',
+        };
     }
 
-    const entry = await discover.findBySlug(trimmed);
-    if (!entry) {
-        throw new Error(`holon "${trimmed}" not found`);
-    }
-
-    const portFile = options.port_file || defaultPortFilePath(entry.slug);
-    const reusable = await usablePortFile(portFile, options.timeout);
-    if (reusable) {
-        return reusable;
-    }
-    if (!options.start) {
-        throw new Error(`holon "${trimmed}" is not running`);
-    }
-
-    const binaryPath = await resolveBinaryPath(entry);
-    if (options.transport === 'stdio') {
-        const session = await grpcclient.dialStdio(binaryPath, grpc.Client, {
-            credentials: grpc.credentials.createInsecure(),
-        });
-
-        await waitForReady(session.client, options.timeout);
-        started.set(session.client, {
-            ephemeral: true,
-            close: session.close,
-        });
-        return session.client;
-    }
-
-    const startup = options.transport === 'unix'
-        ? await startUnixHolon(binaryPath, entry.slug, portFile, options.timeout)
-        : await startTCPHolon(binaryPath, options.timeout);
-    const { client, child, target: advertisedTarget } = startup;
-
-    if (!ephemeral) {
-        try {
-            await writePortFile(portFile, advertisedTarget);
-        } catch (err) {
-            await stopChild(child);
-            client.close();
-            throw err;
+    try {
+        const resolved = await discover.resolve(scope, target, root, specifiers, timeout);
+        if (resolved.error) {
+            return {
+                channel: null,
+                uid: '',
+                origin: resolved.ref ? cloneRef(resolved.ref) : null,
+                error: resolved.error,
+            };
         }
-    }
+        if (!resolved.ref) {
+            return {
+                channel: null,
+                uid: '',
+                origin: null,
+                error: `holon ${JSON.stringify(target)} not found`,
+            };
+        }
+        if (resolved.ref.error) {
+            return {
+                channel: null,
+                uid: '',
+                origin: cloneRef(resolved.ref),
+                error: resolved.ref.error,
+            };
+        }
 
-    started.set(client, {
-        ephemeral,
-        close: async () => {
-            client.close();
-            if (ephemeral) {
-                await stopChild(child);
-            }
-        },
-    });
-    return client;
-}
-
-async function disconnect(client) {
-    if (!client) return;
-
-    const handle = started.get(client);
-    started.delete(client);
-
-    if (handle && typeof handle.close === 'function') {
-        await handle.close();
-        return;
-    }
-
-    if (typeof client.close === 'function') {
-        client.close();
+        return await connectResolved(resolved.ref, timeout);
+    } catch (err) {
+        return {
+            channel: null,
+            uid: '',
+            origin: null,
+            error: messageOf(err),
+        };
     }
 }
 
-function normalizeOptions(opts = {}) {
-    const timeout = Number.isFinite(opts.timeout) && opts.timeout > 0 ? opts.timeout : DEFAULT_TIMEOUT_MS;
-    const transportName = String(opts.transport || 'stdio').trim().toLowerCase();
-    if (transportName !== 'tcp' && transportName !== 'stdio' && transportName !== 'unix') {
-        throw new Error(`unsupported transport ${JSON.stringify(opts.transport)}`);
+async function connectResolved(ref, timeout) {
+    const origin = cloneRef(ref);
+
+    try {
+        const session = await dialRef(ref, timeout);
+        if (session) {
+            remember(session);
+            return {
+                channel: session.client,
+                uid: '',
+                origin,
+                error: null,
+            };
+        }
+    } catch (err) {
+        const launched = await launchRef(ref, timeout).catch(() => null);
+        if (launched) {
+            remember(launched);
+            return {
+                channel: launched.client,
+                uid: '',
+                origin,
+                error: null,
+            };
+        }
+
+        return {
+            channel: null,
+            uid: '',
+            origin,
+            error: messageOf(err) || 'target unreachable',
+        };
+    }
+
+    const launched = await launchRef(ref, timeout).catch((err) => ({
+        error: messageOf(err),
+    }));
+    if (launched && launched.client) {
+        remember(launched);
+        return {
+            channel: launched.client,
+            uid: '',
+            origin,
+            error: null,
+        };
     }
 
     return {
-        timeout,
-        transport: transportName,
-        start: opts.start !== false,
-        port_file: typeof opts.port_file === 'string' ? opts.port_file.trim() : '',
+        channel: null,
+        uid: '',
+        origin,
+        error: launched?.error || 'target unreachable',
     };
 }
 
-async function dialReady(target, timeoutMs) {
-    const client = new grpc.Client(target, grpc.credentials.createInsecure());
-    try {
-        await waitForReady(client, timeoutMs);
-        return client;
-    } catch (err) {
-        client.close();
-        throw err;
+async function dialRef(ref, timeout) {
+    const scheme = uriScheme(ref.url);
+    if (!scheme || scheme === 'file') {
+        return null;
+    }
+    if (scheme !== 'tcp' && scheme !== 'unix' && scheme !== 'ws' && scheme !== 'wss') {
+        throw new Error(`unsupported transport ${JSON.stringify(scheme)}`);
+    }
+
+    const session = await grpcclient.dialURI(ref.url, grpc.Client, {
+        credentials: grpc.credentials.createInsecure(),
+    });
+    await waitForReady(session.client, timeout);
+    return session;
+}
+
+async function launchRef(ref, timeout) {
+    const fsPath = pathFromFileURL(ref.url);
+    if (!fsPath) {
+        throw new Error('target unreachable');
+    }
+
+    const target = await resolveLaunchTarget(fsPath, ref.info);
+    const args = [...target.args, 'serve', '--listen', 'stdio://'];
+    const session = await grpcclient.dialStdio(target.commandPath, grpc.Client, {
+        args,
+        cwd: target.workingDirectory,
+        env: process.env,
+        credentials: grpc.credentials.createInsecure(),
+    });
+    await waitForReady(session.client, timeout);
+    return session;
+}
+
+async function resolveLaunchTarget(fsPath, info) {
+    if (isPackagePath(fsPath)) {
+        return resolvePackageLaunchTarget(fsPath, info);
+    }
+    return resolveSourceLaunchTarget(fsPath, info);
+}
+
+async function resolvePackageLaunchTarget(dir, info) {
+    const entrypoint = normalizeString(info?.entrypoint);
+    if (entrypoint) {
+        const packageBinary = path.join(dir, 'bin', packageArchDir(), path.basename(entrypoint));
+        if (await fileExists(packageBinary)) {
+            return {
+                commandPath: packageBinary,
+                args: [],
+                workingDirectory: dir,
+            };
+        }
+
+        const distEntrypoint = path.join(dir, 'dist', fromPosix(entrypoint));
+        if (await fileExists(distEntrypoint)) {
+            const runnerTarget = launchTargetForRunner(info?.runner, distEntrypoint, dir);
+            if (runnerTarget) {
+                return runnerTarget;
+            }
+        }
+    }
+
+    const fallbackBinary = await firstPackageBinary(dir);
+    if (fallbackBinary) {
+        return {
+            commandPath: fallbackBinary,
+            args: [],
+            workingDirectory: dir,
+        };
+    }
+
+    throw new Error(`holon ${JSON.stringify(info?.slug || path.basename(dir))} package is not runnable`);
+}
+
+async function resolveSourceLaunchTarget(dir, info) {
+    const entrypoint = normalizeString(info?.entrypoint);
+    if (!entrypoint) {
+        throw new Error(`holon ${JSON.stringify(info?.slug || path.basename(dir))} has no entrypoint`);
+    }
+
+    if (path.isAbsolute(entrypoint) && await fileExists(entrypoint)) {
+        return {
+            commandPath: entrypoint,
+            args: [],
+            workingDirectory: dir,
+        };
+    }
+
+    const sourceBuiltBinary = path.join(dir, '.op', 'build', 'bin', path.basename(entrypoint));
+    if (await fileExists(sourceBuiltBinary)) {
+        return {
+            commandPath: sourceBuiltBinary,
+            args: [],
+            workingDirectory: dir,
+        };
+    }
+
+    const slugBuiltBinary = path.join(
+        dir,
+        '.op',
+        'build',
+        `${normalizeString(info?.slug)}.holon`,
+        'bin',
+        packageArchDir(),
+        path.basename(entrypoint),
+    );
+    if (await fileExists(slugBuiltBinary)) {
+        return {
+            commandPath: slugBuiltBinary,
+            args: [],
+            workingDirectory: dir,
+        };
+    }
+
+    throw new Error(`holon ${JSON.stringify(info?.slug || path.basename(dir))} is not runnable`);
+}
+
+function launchTargetForRunner(runner, entrypoint, workingDirectory) {
+    const normalizedRunner = normalizeString(runner).toLowerCase();
+    if (!normalizedRunner || !entrypoint) {
+        return null;
+    }
+
+    switch (normalizedRunner) {
+    case 'go':
+    case 'go-module':
+        return {
+            commandPath: process.env.GO_BIN || 'go',
+            args: ['run', entrypoint],
+            workingDirectory,
+        };
+    case 'node':
+    case 'typescript':
+    case 'npm':
+        return {
+            commandPath: 'node',
+            args: [entrypoint],
+            workingDirectory,
+        };
+    case 'python':
+        return {
+            commandPath: 'python3',
+            args: [entrypoint],
+            workingDirectory,
+        };
+    case 'ruby':
+        return {
+            commandPath: 'ruby',
+            args: [entrypoint],
+            workingDirectory,
+        };
+    case 'dart':
+    case 'flutter':
+        return {
+            commandPath: 'dart',
+            args: ['run', entrypoint],
+            workingDirectory,
+        };
+    default:
+        return null;
     }
 }
 
-function waitForReady(client, timeoutMs) {
+function disconnect(result) {
+    const channel = result && result.channel;
+    if (!channel) {
+        return;
+    }
+
+    const handle = started.get(channel);
+    started.delete(channel);
+
+    if (handle && typeof handle.close === 'function') {
+        try {
+            const promise = handle.close();
+            if (promise && typeof promise.catch === 'function') {
+                promise.catch(() => {});
+            }
+            return;
+        } catch {
+            // Fall through to direct close below.
+        }
+    }
+
+    if (typeof channel.close === 'function') {
+        try {
+            channel.close();
+        } catch {
+            // Best-effort cleanup only.
+        }
+    }
+}
+
+function remember(session) {
+    started.set(session.client, {
+        close: session.close,
+    });
+}
+
+function waitForReady(client, timeout) {
     return new Promise((resolve, reject) => {
-        client.waitForReady(Date.now() + timeoutMs, (err) => {
+        const deadline = timeout > 0
+            ? Date.now() + timeout
+            : Date.now() + (365 * 24 * 60 * 60 * 1000);
+
+        client.waitForReady(deadline, (err) => {
             if (err) {
                 reject(err);
                 return;
@@ -137,252 +348,71 @@ function waitForReady(client, timeoutMs) {
     });
 }
 
-async function usablePortFile(portFile, timeoutMs) {
-    let data;
+async function firstPackageBinary(dir) {
+    const archRoot = path.join(dir, 'bin', packageArchDir());
+    let entries;
     try {
-        data = await fs.promises.readFile(portFile, 'utf8');
+        entries = await fs.promises.readdir(archRoot, { withFileTypes: true });
     } catch {
-        return null;
+        return '';
     }
 
-    const rawTarget = String(data || '').trim();
-    if (!rawTarget) {
-        await fs.promises.rm(portFile, { force: true });
-        return null;
-    }
+    const files = entries
+        .filter((entry) => entry.isFile())
+        .map((entry) => path.join(archRoot, entry.name))
+        .sort();
 
+    return files[0] || '';
+}
+
+function packageArchDir() {
+    const platform = process.platform === 'win32' ? 'windows' : process.platform;
+    const arch = ({
+        x64: 'amd64',
+        ia32: '386',
+    })[process.arch] || process.arch;
+
+    return `${platform}_${arch}`;
+}
+
+function pathFromFileURL(value) {
+    const trimmed = normalizeString(value);
+    if (!trimmed || !trimmed.toLowerCase().startsWith('file://')) {
+        return '';
+    }
     try {
-        const client = await dialReady(normalizeDialTarget(rawTarget), Math.max(250, Math.min(timeoutMs / 4, 1000)));
-        return client;
+        return path.resolve(fileURLToPath(trimmed));
     } catch {
-        await fs.promises.rm(portFile, { force: true });
-        return null;
+        return '';
     }
 }
 
-async function startTCPHolon(binaryPath, timeoutMs) {
-    const child = spawn(binaryPath, ['serve', '--listen', 'tcp://127.0.0.1:0'], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    try {
-        const advertised = await waitForAdvertisedURI(child, timeoutMs);
-        const client = await dialReady(normalizeDialTarget(advertised), timeoutMs);
-        return {
-            client,
-            child,
-            target: advertised,
-        };
-    } catch (err) {
-        await stopChild(child);
-        throw err;
-    }
+function isPackagePath(value) {
+    return path.basename(value).toLowerCase().endsWith('.holon');
 }
 
-async function startUnixHolon(binaryPath, slug, portFile, timeoutMs) {
-    const target = defaultUnixSocketURI(slug, portFile);
-    const socketPath = target.slice('unix://'.length);
-    const child = spawn(binaryPath, ['serve', '--listen', target], {
-        stdio: ['ignore', 'ignore', 'pipe'],
-    });
-
-    try {
-        await waitForUnixSocket(child, socketPath, timeoutMs);
-        const client = await dialReady(normalizeDialTarget(target), timeoutMs);
-        return { client, child, target };
-    } catch (err) {
-        await stopChild(child);
-        throw err;
-    }
+function uriScheme(value) {
+    const match = /^([A-Za-z][A-Za-z0-9+.-]*):\/\//.exec(normalizeString(value));
+    return match ? match[1].toLowerCase() : '';
 }
 
-async function waitForUnixSocket(child, socketPath, timeoutMs) {
-    const deadline = Date.now() + timeoutMs;
-    const stderrChunks = [];
-
-    child.stderr.on('data', (chunk) => {
-        stderrChunks.push(Buffer.from(chunk));
-    });
-
-    while (Date.now() < deadline) {
-        if (child.exitCode !== null) {
-            const stderrText = Buffer.concat(stderrChunks).toString('utf8').trim();
-            const details = stderrText ? `: ${stderrText}` : '';
-            throw new Error(`holon exited before binding unix socket (${child.exitCode})${details}`);
-        }
-
-        try {
-            const stat = await fs.promises.stat(socketPath);
-            if (stat.isSocket?.() ?? true) {
-                return;
-            }
-        } catch {}
-
-        await sleep(20);
-    }
-
-    const stderrText = Buffer.concat(stderrChunks).toString('utf8').trim();
-    const details = stderrText ? `: ${stderrText}` : '';
-    throw new Error(`timed out waiting for unix holon startup${details}`);
+function normalizeString(value) {
+    return String(value ?? '').trim();
 }
 
-function waitForAdvertisedURI(child, timeoutMs) {
-    return new Promise((resolve, reject) => {
-        const stderrChunks = [];
-        let settled = false;
-
-        const finish = (err, uri) => {
-            if (settled) return;
-            settled = true;
-            cleanup();
-            if (err) {
-                reject(err);
-                return;
-            }
-            resolve(uri);
-        };
-
-        const timer = setTimeout(() => {
-            finish(new Error('timed out waiting for holon startup'));
-        }, timeoutMs);
-        timer.unref?.();
-
-        const onLine = (line) => {
-            const uri = firstURI(line);
-            if (uri) {
-                finish(null, uri);
-            }
-        };
-
-        const stdoutRL = readline.createInterface({ input: child.stdout });
-        const stderrRL = readline.createInterface({ input: child.stderr });
-        stdoutRL.on('line', onLine);
-        stderrRL.on('line', onLine);
-        child.stderr.on('data', (chunk) => {
-            stderrChunks.push(Buffer.from(chunk));
-        });
-
-        child.once('error', (err) => {
-            finish(err);
-        });
-        child.once('exit', (code, signal) => {
-            const stderrText = Buffer.concat(stderrChunks).toString('utf8').trim();
-            const details = stderrText ? `: ${stderrText}` : '';
-            finish(new Error(`holon exited before advertising an address (${signal || code || 'unknown'})${details}`));
-        });
-
-        function cleanup() {
-            clearTimeout(timer);
-            stdoutRL.close();
-            stderrRL.close();
-            child.removeAllListeners('error');
-            child.removeAllListeners('exit');
-        }
-    });
-}
-
-async function resolveBinaryPath(entry) {
-    if (!entry.manifest) {
-        throw new Error(`holon "${entry.slug}" has no manifest`);
-    }
-
-    const binary = String(entry.manifest.artifacts?.binary || '').trim();
-    if (!binary) {
-        throw new Error(`holon "${entry.slug}" has no artifacts.binary`);
-    }
-
-    if (path.isAbsolute(binary) && await fileExists(binary)) {
-        return binary;
-    }
-
-    const candidate = path.join(entry.dir, '.op', 'build', 'bin', path.basename(binary));
-    if (await fileExists(candidate)) {
-        return candidate;
-    }
-
-    return binary;
-}
-
-function defaultPortFilePath(slug) {
-    return path.join(process.cwd(), '.op', 'run', `${slug}.port`);
-}
-
-function defaultUnixSocketURI(slug, portFile) {
-    const label = socketLabel(slug);
-    const hash = fnv1a64(String(portFile));
-    return `unix:///tmp/holons-${label}-${hash.toString(16).padStart(12, '0').slice(-12)}.sock`;
-}
-
-function socketLabel(slug) {
-    let label = '';
-    let lastDash = false;
-
-    for (const ch of String(slug || '').trim().toLowerCase()) {
-        const code = ch.charCodeAt(0);
-        if ((code >= 97 && code <= 122) || (code >= 48 && code <= 57)) {
-            label += ch;
-            lastDash = false;
-        } else if ((ch === '-' || ch === '_') && label && !lastDash) {
-            label += '-';
-            lastDash = true;
-        }
-
-        if (label.length >= 24) {
-            break;
-        }
-    }
-
-    label = label.replace(/^-+|-+$/g, '');
-    return label || 'socket';
-}
-
-function fnv1a64(text) {
-    let hash = 0xcbf29ce484222325n;
-    for (const byte of Buffer.from(String(text), 'utf8')) {
-        hash ^= BigInt(byte);
-        hash = (hash * 0x100000001b3n) & 0xffffffffffffffffn;
-    }
-    return hash & 0xffffffffffffn;
-}
-
-async function writePortFile(portFile, uri) {
-    await fs.promises.mkdir(path.dirname(portFile), { recursive: true });
-    await fs.promises.writeFile(portFile, `${String(uri).trim()}\n`, 'utf8');
-}
-
-async function stopChild(child) {
-    if (!child || child.exitCode !== null) {
-        return;
-    }
-
-    child.kill('SIGTERM');
-    const exited = await Promise.race([
-        onceExit(child),
-        sleep(2000).then(() => false),
-    ]);
-
-    if (exited) {
-        return;
-    }
-
-    if (child.exitCode === null) {
-        child.kill('SIGKILL');
-    }
-    await onceExit(child);
-}
-
-function onceExit(child) {
-    return new Promise((resolve) => {
-        if (!child || child.exitCode !== null) {
-            resolve(true);
-            return;
-        }
-        child.once('exit', () => resolve(true));
-    });
-}
-
-function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+function cloneRef(ref) {
+    return {
+        url: ref.url,
+        info: ref.info ? {
+            ...ref.info,
+            identity: {
+                ...ref.info.identity,
+                aliases: ref.info.identity?.aliases ? [...ref.info.identity.aliases] : undefined,
+            },
+            architectures: [...ref.info.architectures],
+        } : null,
+        error: ref.error,
+    };
 }
 
 async function fileExists(candidate) {
@@ -394,47 +424,22 @@ async function fileExists(candidate) {
     }
 }
 
-function isDirectTarget(target) {
-    return target.includes('://') || target.includes(':');
+function messageOf(err) {
+    if (err && typeof err === 'object' && typeof err.message === 'string' && err.message.trim()) {
+        return err.message.trim();
+    }
+    return String(err);
 }
 
-function normalizeDialTarget(target) {
-    if (!target.includes('://')) {
-        return target;
-    }
-
-    const parsed = transport.parseURI(target);
-    if (parsed.scheme === 'tcp') {
-        const host = !parsed.host || parsed.host === '0.0.0.0' ? '127.0.0.1' : parsed.host;
-        return `${host}:${parsed.port}`;
-    }
-    if (parsed.scheme === 'unix') {
-        return `unix://${parsed.path}`;
-    }
-    return target;
-}
-
-function firstURI(line) {
-    for (const field of String(line || '').split(/\s+/)) {
-        const trimmed = field.trim().replace(/^["'([{]+|["')\]}.,]+$/g, '');
-        if (
-            trimmed.startsWith('tcp://')
-            || trimmed.startsWith('unix://')
-            || trimmed.startsWith('stdio://')
-            || trimmed.startsWith('ws://')
-            || trimmed.startsWith('wss://')
-        ) {
-            return trimmed;
-        }
-    }
-    return '';
+function fromPosix(value) {
+    return String(value || '').split('/').join(path.sep);
 }
 
 module.exports = {
     connect,
     disconnect,
     _internal: {
+        packageArchDir,
         started,
-        stopChild,
     },
 };

@@ -88,9 +88,11 @@ func parseConnectedRPCArgs(args []string) (method string, inputJSON string, noBu
 		inputJSON = remaining[0]
 	}
 
-	for _, arg := range remaining[1:] {
-		if strings.TrimSpace(arg) == "--no-build" {
-			return "", "", false, fmt.Errorf("--no-build must come immediately after the method")
+	if len(remaining) > 1 {
+		for _, arg := range remaining[1:] {
+			if strings.TrimSpace(arg) == "--no-build" {
+				return "", "", false, fmt.Errorf("--no-build must come immediately after the method")
+			}
 		}
 	}
 

@@ -8,6 +8,8 @@ import 'package:grpc/src/client/http2_connection.dart'
     show Http2ClientConnection;
 
 import 'discover.dart';
+import 'discovery_probe.dart';
+import 'discovery_types.dart';
 import 'grpcclient.dart';
 import 'transport.dart';
 
@@ -50,91 +52,214 @@ class _StdioClientChannel extends ClientChannel {
       Http2ClientConnection.fromClientTransportConnector(_connector, options);
 }
 
-Future<ClientChannel> connect(String target, [ConnectOptions? opts]) async {
+Future<dynamic> connect(
+  dynamic scopeOrTarget, [
+  dynamic expressionOrOptions,
+  dynamic root,
+  dynamic specifiers,
+  dynamic timeout,
+]) async {
+  if (scopeOrTarget is int) {
+    return _connectUniform(
+      scopeOrTarget,
+      expressionOrOptions is String ? expressionOrOptions : '',
+      root is String ? root : null,
+      specifiers is int ? specifiers : ALL,
+      timeout is int ? timeout : NO_TIMEOUT,
+    );
+  }
+
+  if (scopeOrTarget is String) {
+    final options =
+        expressionOrOptions is ConnectOptions ? expressionOrOptions : null;
+    final result = await _connectLegacy(scopeOrTarget, options);
+    if (result.error != null && result.error!.isNotEmpty) {
+      throw StateError(result.error!);
+    }
+    return result.channel;
+  }
+
+  throw ArgumentError(
+      'connect expects either (scope, expression, ...) or (target, [options])');
+}
+
+void disconnect(dynamic result) {
+  unawaited(_disconnectAsync(result));
+}
+
+Future<ConnectResult> _connectUniform(
+  int scope,
+  String expression,
+  String? root,
+  int specifiers,
+  int timeout,
+) async {
+  if (scope != LOCAL) {
+    return ConnectResult(error: 'scope $scope not supported');
+  }
+
+  final target = expression.trim();
+  if (target.isEmpty) {
+    return const ConnectResult(error: 'expression is required');
+  }
+
+  final resolved = resolve(scope, target, root, specifiers, timeout);
+  if (resolved.error != null) {
+    return ConnectResult(origin: resolved.ref, error: resolved.error);
+  }
+  if (resolved.ref == null) {
+    return ConnectResult(error: 'holon "$target" not found');
+  }
+
+  return _connectResolvedWithOptions(
+    resolved.ref!,
+    ConnectOptions(timeout: _timeoutDuration(timeout)),
+  );
+}
+
+Future<ConnectResult> _connectLegacy(
+  String target,
+  ConnectOptions? options,
+) async {
+  final normalized = _normalizeOptions(options);
   final trimmed = target.trim();
   if (trimmed.isEmpty) {
-    throw ArgumentError('target is required');
+    return const ConnectResult(error: 'target is required');
   }
 
-  final options = _normalizeOptions(opts);
-
-  if (_isDirectTarget(trimmed)) {
-    return _dialReady(_normalizeDialTarget(trimmed), options.timeout);
-  }
-
-  final entry = await findBySlug(trimmed);
-  if (entry == null) {
-    throw StateError('holon "$trimmed" not found');
-  }
-
-  final portFile = options.portFile.isNotEmpty
-      ? options.portFile
-      : _defaultPortFilePath(entry.slug);
-
-  final reusable = await _usablePortFile(portFile, options.timeout);
-  if (reusable != null) {
-    return reusable;
-  }
-  if (!options.start) {
-    throw StateError('holon "$trimmed" is not running');
-  }
-
-  final binaryPath = _resolveBinaryPath(entry);
-  switch (options.transport) {
-    case 'stdio':
-      final started = await _startStdioHolon(binaryPath);
-      _started[started.$1] = _StartedHandle(started.$2, true);
-      return started.$1;
-
-    case 'tcp':
-      final started = await _startTcpHolon(binaryPath, options.timeout);
-      final channel = await _dialReady(
-        _normalizeDialTarget(started.$1),
-        options.timeout,
+  try {
+    if (_isLegacyDirectTarget(trimmed)) {
+      final channel =
+          await _dialReady(_normalizeDialTarget(trimmed), normalized.timeout);
+      return ConnectResult(
+        channel: channel,
+        origin: HolonRef(url: trimmed),
       );
+    }
 
-      try {
-        await _writePortFile(portFile, started.$1);
-      } catch (_) {
-        await channel.shutdown();
-        _stopProcess(started.$2);
-        rethrow;
-      }
-
-      _started[channel] = _StartedHandle(started.$2, false);
-      return channel;
-
-    case 'unix':
-      final started = await _startUnixHolon(
-        binaryPath,
-        entry.slug,
-        portFile,
-        options.timeout,
-      );
-      final channel = await _dialReady(started.$1, options.timeout);
-
-      try {
-        await _writePortFile(portFile, started.$1);
-      } catch (_) {
-        await channel.shutdown();
-        await _stopProcess(started.$2);
-        rethrow;
-      }
-
-      _started[channel] = _StartedHandle(started.$2, false);
-      return channel;
-
-    default:
-      throw UnsupportedError('unsupported transport "${options.transport}"');
+    final resolved =
+        resolve(LOCAL, trimmed, null, ALL, _timeoutMillis(normalized.timeout));
+    if (resolved.error != null) {
+      return ConnectResult(origin: resolved.ref, error: resolved.error);
+    }
+    if (resolved.ref == null) {
+      return ConnectResult(error: 'holon "$trimmed" not found');
+    }
+    return _connectResolvedWithOptions(resolved.ref!, normalized);
+  } on Object catch (error) {
+    return ConnectResult(error: '$error');
   }
 }
 
-Future<void> disconnect(ClientChannel channel) async {
+Future<ConnectResult> _connectResolvedWithOptions(
+  HolonRef ref,
+  ConnectOptions options,
+) async {
+  if (_isReachableTarget(ref.url)) {
+    try {
+      final channel =
+          await _dialReady(_normalizeDialTarget(ref.url), options.timeout);
+      return ConnectResult(channel: channel, origin: ref);
+    } on Object catch (_) {
+      // Fall through to local launch handling when the ref is local and launchable.
+    }
+  }
+
+  final path = _pathFromFileUrl(ref.url);
+  if (path == null) {
+    return ConnectResult(origin: ref, error: 'target unreachable');
+  }
+
+  try {
+    final binaryPath = _resolveBinaryPath(ref, path);
+    switch (options.transport) {
+      case 'stdio':
+        final started = await _startStdioHolon(binaryPath);
+        _started[started.$1] = _StartedHandle(started.$2, true);
+        return ConnectResult(channel: started.$1, origin: ref);
+
+      case 'tcp':
+        final portFile = options.portFile.isNotEmpty
+            ? options.portFile
+            : _defaultPortFilePath(_refSlug(ref, path));
+        final reusable = await _usablePortFile(portFile, options.timeout);
+        if (reusable != null) {
+          return ConnectResult(channel: reusable, origin: ref);
+        }
+        if (!options.start) {
+          return ConnectResult(origin: ref, error: 'target unreachable');
+        }
+
+        final started = await _startTcpHolon(binaryPath, options.timeout);
+        final channel =
+            await _dialReady(_normalizeDialTarget(started.$1), options.timeout);
+        await _writePortFile(portFile, started.$1);
+        _started[channel] = _StartedHandle(started.$2, false);
+        return ConnectResult(
+            channel: channel,
+            origin: HolonRef(url: started.$1, info: ref.info));
+
+      case 'unix':
+        final portFile = options.portFile.isNotEmpty
+            ? options.portFile
+            : _defaultPortFilePath(_refSlug(ref, path));
+        final reusable = await _usablePortFile(portFile, options.timeout);
+        if (reusable != null) {
+          return ConnectResult(channel: reusable, origin: ref);
+        }
+        if (!options.start) {
+          return ConnectResult(origin: ref, error: 'target unreachable');
+        }
+
+        final started = await _startUnixHolon(
+          binaryPath,
+          _refSlug(ref, path),
+          portFile,
+          options.timeout,
+        );
+        final channel = await _dialReady(started.$1, options.timeout);
+        await _writePortFile(portFile, started.$1);
+        _started[channel] = _StartedHandle(started.$2, false);
+        return ConnectResult(
+            channel: channel,
+            origin: HolonRef(url: started.$1, info: ref.info));
+
+      default:
+        return ConnectResult(
+          origin: ref,
+          error: 'unsupported transport "${options.transport}"',
+        );
+    }
+  } on Object catch (error) {
+    return ConnectResult(origin: ref, error: '$error');
+  }
+}
+
+Future<void> _disconnectAsync(dynamic value) async {
+  final channel = value is ConnectResult ? value.channel : value;
+  if (channel == null) {
+    return;
+  }
+
   final handle = _started[channel];
   _started[channel] = null;
-  await channel.shutdown();
-  if (handle != null && handle.ephemeral) {
-    await _stopProcess(handle.process);
+
+  try {
+    if (channel is ClientChannel) {
+      await channel.shutdown();
+    } else if (channel is ClientTransportConnectorChannel) {
+      await channel.shutdown();
+    } else if (channel is dynamic) {
+      try {
+        await channel.shutdown();
+      } on Object {
+        // Ignore unknown channel types.
+      }
+    }
+  } finally {
+    if (handle != null && handle.ephemeral) {
+      await _stopProcess(handle.process);
+    }
   }
 }
 
@@ -224,7 +349,9 @@ Future<bool> _probeUnixReady(String path) async {
 }
 
 Future<ClientChannel?> _usablePortFile(
-    String portFile, Duration timeout) async {
+  String portFile,
+  Duration timeout,
+) async {
   try {
     final raw = (await File(portFile).readAsString()).trim();
     if (raw.isEmpty) {
@@ -281,7 +408,9 @@ Future<(ClientChannel, Process)> _startStdioHolon(String binaryPath) async {
 }
 
 Future<(String, Process)> _startTcpHolon(
-    String binaryPath, Duration timeout) async {
+  String binaryPath,
+  Duration timeout,
+) async {
   final process = await Process.start(
     binaryPath,
     const <String>['serve', '--listen', 'tcp://127.0.0.1:0'],
@@ -391,41 +520,59 @@ Future<(String, Process)> _startUnixHolon(
   }
 }
 
-String _resolveBinaryPath(HolonEntry entry) {
-  final manifest = entry.manifest;
-  if (manifest == null) {
-    throw StateError('holon "${entry.slug}" has no manifest');
+String _resolveBinaryPath(HolonRef ref, String path) {
+  final info = ref.info;
+  if (File(path).existsSync()) {
+    return path;
   }
 
-  final binary = manifest.artifacts.binary.trim();
-  if (binary.isEmpty) {
-    throw StateError('holon "${entry.slug}" has no artifacts.binary');
+  if (Directory(path).existsSync() && _basename(path).endsWith('.holon')) {
+    final direct = findPackageBinary(path);
+    if (direct != null) {
+      return direct;
+    }
+
+    final entrypoint = (info?.entrypoint ?? '').trim();
+    if (entrypoint.isNotEmpty) {
+      final candidate = _joinPath(
+        _joinPath(path, 'bin/${currentArchDirectory()}'),
+        _basename(entrypoint),
+      );
+      if (File(candidate).existsSync()) {
+        return candidate;
+      }
+    }
+    throw StateError(
+        'built binary not found for holon "${_refSlug(ref, path)}"');
   }
 
-  if (binary.startsWith('/')) {
-    if (File(binary).existsSync()) {
-      return binary;
+  final entrypoint = (info?.entrypoint ?? '').trim();
+  if (entrypoint.isNotEmpty) {
+    if (_isAbsolutePath(entrypoint) && File(entrypoint).existsSync()) {
+      return entrypoint;
+    }
+
+    final buildBin = _joinPath(
+      _joinPath(path, '.op/build/bin'),
+      _basename(entrypoint),
+    );
+    if (File(buildBin).existsSync()) {
+      return buildBin;
+    }
+
+    final fromPath = _searchPath(_basename(entrypoint));
+    if (fromPath != null) {
+      return fromPath;
     }
   }
 
-  final candidate =
-      '${entry.dir}${Platform.pathSeparator}.op${Platform.pathSeparator}build${Platform.pathSeparator}bin${Platform.pathSeparator}${binary.split(Platform.pathSeparator).last}'
-          .replaceAll('${Platform.pathSeparator}${Platform.pathSeparator}',
-              Platform.pathSeparator);
-  if (File(candidate).existsSync()) {
-    return candidate;
+  final slugCandidate =
+      _joinPath(_joinPath(path, '.op/build/bin'), _refSlug(ref, path));
+  if (File(slugCandidate).existsSync()) {
+    return slugCandidate;
   }
 
-  final resolved = Platform.environment['PATH']
-      ?.split(Platform.isWindows ? ';' : ':')
-      .map((dir) =>
-          '$dir${Platform.pathSeparator}${binary.split(Platform.pathSeparator).last}')
-      .firstWhere((file) => File(file).existsSync(), orElse: () => '');
-  if (resolved != null && resolved.isNotEmpty) {
-    return resolved;
-  }
-
-  throw StateError('built binary not found for holon "${entry.slug}"');
+  throw StateError('built binary not found for holon "${_refSlug(ref, path)}"');
 }
 
 String _defaultPortFilePath(String slug) =>
@@ -498,8 +645,13 @@ int _fnv1a64(List<int> bytes) {
   return hash;
 }
 
-bool _isDirectTarget(String target) =>
-    target.contains('://') || target.contains(':');
+bool _isLegacyDirectTarget(String target) =>
+    target.startsWith('tcp://') ||
+    target.startsWith('unix://') ||
+    (target.contains(':') && !target.contains(Platform.pathSeparator));
+
+bool _isReachableTarget(String target) =>
+    target.startsWith('tcp://') || target.startsWith('unix://');
 
 String _normalizeDialTarget(String target) {
   if (!target.contains('://')) {
@@ -554,14 +706,79 @@ String _trimUriField(String value) {
 }
 
 bool _isUriTrimChar(int codeUnit) {
-  return codeUnit == 34 || // "
-      codeUnit == 39 || // '
-      codeUnit == 40 || // (
-      codeUnit == 41 || // )
-      codeUnit == 44 || // ,
-      codeUnit == 46 || // .
-      codeUnit == 91 || // [
-      codeUnit == 93 || // ]
-      codeUnit == 123 || // {
-      codeUnit == 125; // }
+  return codeUnit == 34 ||
+      codeUnit == 39 ||
+      codeUnit == 40 ||
+      codeUnit == 41 ||
+      codeUnit == 44 ||
+      codeUnit == 46 ||
+      codeUnit == 91 ||
+      codeUnit == 93 ||
+      codeUnit == 123 ||
+      codeUnit == 125;
+}
+
+String? _pathFromFileUrl(String raw) {
+  if (!raw.startsWith('file://')) {
+    return null;
+  }
+  return Uri.parse(raw).toFilePath();
+}
+
+String _refSlug(HolonRef ref, String path) {
+  final slug = ref.info?.slug.trim() ?? '';
+  if (slug.isNotEmpty) {
+    return slug;
+  }
+  return _basename(path).replaceFirst(RegExp(r'\.holon$'), '');
+}
+
+String? _searchPath(String binaryName) {
+  final path = Platform.environment['PATH'];
+  if (path == null || path.trim().isEmpty) {
+    return null;
+  }
+
+  final separator = Platform.isWindows ? ';' : ':';
+  for (final dir in path.split(separator)) {
+    final candidate = '$dir${Platform.pathSeparator}$binaryName';
+    if (File(candidate).existsSync()) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+Duration _timeoutDuration(int timeout) {
+  if (timeout <= 0) {
+    return const Duration(seconds: 5);
+  }
+  return Duration(milliseconds: timeout);
+}
+
+int _timeoutMillis(Duration timeout) => timeout.inMilliseconds;
+
+bool _isAbsolutePath(String path) {
+  if (path.startsWith('/')) {
+    return true;
+  }
+  return RegExp(r'^[A-Za-z]:[\\/]').hasMatch(path);
+}
+
+String _joinPath(String left, String right) {
+  final separator = Platform.pathSeparator;
+  final normalizedLeft =
+      left.endsWith(separator) ? left.substring(0, left.length - 1) : left;
+  final normalizedRight =
+      right.startsWith(separator) ? right.substring(1) : right;
+  return '$normalizedLeft$separator$normalizedRight';
+}
+
+String _basename(String path) {
+  final normalized = path.replaceAll('\\', '/');
+  final trimmed = normalized.endsWith('/') && normalized.length > 1
+      ? normalized.substring(0, normalized.length - 1)
+      : normalized;
+  final index = trimmed.lastIndexOf('/');
+  return index >= 0 ? trimmed.substring(index + 1) : trimmed;
 }

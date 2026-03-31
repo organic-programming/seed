@@ -286,10 +286,7 @@ fn scalar(name: &str, source: &str) -> String {
 }
 
 fn boolean(name: &str, source: &str) -> bool {
-    matches!(
-        scalar(name, source).trim(),
-        "true" | "True" | "TRUE" | "1"
-    )
+    matches!(scalar(name, source).trim(), "true" | "True" | "TRUE" | "1")
 }
 
 fn string_list(name: &str, source: &str) -> Vec<String> {

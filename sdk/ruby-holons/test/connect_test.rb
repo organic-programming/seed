@@ -8,6 +8,7 @@ require "shellwords"
 require "socket"
 require "tmpdir"
 require "timeout"
+require "uri"
 require_relative "../lib/holons"
 
 class ConnectTest < Minitest::Test
@@ -22,140 +23,48 @@ class ConnectTest < Minitest::Test
     end
   end
 
-  def test_connect_dials_direct_tcp_target
-    with_echo_server("--listen", "tcp://127.0.0.1:0") do |uri|
-      channel = Holons.connect(uri)
+  def test_connect_unresolvable_target
+    Dir.mktmpdir("ruby-holons-connect-") do |root|
+      result = Holons.connect(Holons::LOCAL, "missing", root, Holons::CWD, 1000)
+      refute_nil result.error
+      assert_nil result.channel
+    end
+  end
+
+  def test_connect_returns_connect_result
+    with_echo_package_fixture do |fixture|
+      result = Holons.connect(Holons::LOCAL, fixture[:slug], fixture[:root], Holons::CWD, 5000)
+      assert_instance_of Holons::ConnectResult, result
+      assert_nil result.error
+      refute_nil result.channel
+
       begin
-        assert_instance_of GRPC::Core::Channel, channel
-
-        out = invoke_ping(channel, "direct-ruby")
-        assert_equal "direct-ruby", out["message"]
-        assert_equal "ruby-holons", out["sdk"]
+        out = invoke_ping(result.channel, "connect-result")
+        assert_equal "connect-result", out["message"]
       ensure
-        Holons.disconnect(channel)
+        Holons.disconnect(result)
       end
     end
   end
 
-  def test_connect_resolves_slug_and_stops_ephemeral_process
-    Dir.mktmpdir("ruby-holons-connect-") do |root|
-      fixture = create_holon_fixture(root, "Connect", "Ephemeral")
-
-      with_holon_root(root) do
-        channel = Holons.connect(fixture[:slug])
-        pid = wait_for_pid_file(fixture[:pid_file])
-
-        begin
-          out = invoke_ping(channel, "ephemeral-ruby")
-          assert_equal "ephemeral-ruby", out["message"]
-        ensure
-          Holons.disconnect(channel)
-        end
-
-        wait_for_pid_exit(pid)
-        refute File.exist?(fixture[:port_file]), "unexpected port file #{fixture[:port_file]}"
-      end
+  def test_connect_populates_origin
+    with_echo_package_fixture do |fixture|
+      result = Holons.connect(Holons::LOCAL, fixture[:slug], fixture[:root], Holons::CWD, 5000)
+      assert_nil result.error
+      refute_nil result.origin
+      refute_nil result.origin.info
+      assert_equal fixture[:slug], result.origin.info.slug
+      assert_equal fixture[:package_url], result.origin.url
+    ensure
+      Holons.disconnect(result) if defined?(result)
     end
   end
 
-  def test_connect_reuses_existing_port_file
-    Dir.mktmpdir("ruby-holons-connect-") do |root|
-      fixture = create_holon_fixture(root, "Connect", "Reuse")
-
-      with_holon_root(root) do
-        stdin, stdout, stderr, wait_thr = Open3.popen3(
-          fixture[:binary_path],
-          "serve",
-          "--listen",
-          "tcp://127.0.0.1:0"
-        )
-
-        begin
-          uri = read_advertised_uri(stdout, stderr)
-          pid = wait_for_pid_file(fixture[:pid_file])
-
-          FileUtils.mkdir_p(File.dirname(fixture[:port_file]))
-          File.write(fixture[:port_file], "#{uri}\n")
-
-          channel = Holons.connect(fixture[:slug])
-          begin
-            out = invoke_ping(channel, "reuse-ruby")
-            assert_equal "reuse-ruby", out["message"]
-            assert pid_alive?(pid), "expected reused process #{pid} to stay alive"
-          ensure
-            Holons.disconnect(channel)
-          end
-        ensure
-          terminate_process(wait_thr.pid)
-          stdin.close unless stdin.closed?
-          stdout.close unless stdout.closed?
-          stderr.close unless stderr.closed?
-        end
-      end
-    end
-  end
-
-  def test_connect_writes_unix_port_file_in_persistent_mode
-    Dir.mktmpdir("ruby-holons-connect-") do |root|
-      fixture = create_holon_fixture(root, "Connect", "Unix")
-
-      with_holon_root(root) do
-        channel = Holons.connect(
-          fixture[:slug],
-          transport: "unix",
-          timeout: 5,
-          start: true
-        )
-        pid = wait_for_pid_file(fixture[:pid_file])
-
-        begin
-          out = invoke_ping(channel, "unix-ruby")
-          assert_equal "unix-ruby", out["message"]
-        ensure
-          Holons.disconnect(channel)
-        end
-
-        target = File.read(fixture[:port_file]).strip
-        assert_match(/^unix:\/\/\/tmp\/holons-/, target)
-        assert pid_alive?(pid), "expected persistent process #{pid} to stay alive"
-
-        reused = Holons.connect(fixture[:slug])
-        begin
-          out = invoke_ping(reused, "unix-reuse-ruby")
-          assert_equal "unix-reuse-ruby", out["message"]
-        ensure
-          Holons.disconnect(reused)
-          terminate_process(pid)
-        end
-      end
-    end
-  end
-
-  def test_connect_removes_stale_port_file_and_starts_fresh
-    Dir.mktmpdir("ruby-holons-connect-") do |root|
-      fixture = create_holon_fixture(root, "Connect", "Stale")
-
-      with_holon_root(root) do
-        stale_server = TCPServer.new("127.0.0.1", 0)
-        stale_port = stale_server.local_address.ip_port
-        stale_server.close
-
-        FileUtils.mkdir_p(File.dirname(fixture[:port_file]))
-        File.write(fixture[:port_file], "tcp://127.0.0.1:#{stale_port}\n")
-
-        channel = Holons.connect(fixture[:slug])
-        pid = wait_for_pid_file(fixture[:pid_file])
-
-        begin
-          out = invoke_ping(channel, "stale-ruby")
-          assert_equal "stale-ruby", out["message"]
-          refute File.exist?(fixture[:port_file]), "stale port file should be removed"
-        ensure
-          Holons.disconnect(channel)
-        end
-
-        wait_for_pid_exit(pid)
-      end
+  def test_disconnect_accepts_connect_result
+    with_echo_package_fixture do |fixture|
+      result = Holons.connect(Holons::LOCAL, fixture[:slug], fixture[:root], Holons::CWD, 5000)
+      assert_nil result.error
+      assert_nil Holons.disconnect(result)
     end
   end
 
@@ -186,168 +95,55 @@ class ConnectTest < Minitest::Test
     )
   end
 
-  def with_echo_server(*args)
-    env = {
-      "GOCACHE" => ENV.fetch("GOCACHE", "/tmp/go-cache-ruby-holons-tests")
-    }
-    stdin, stdout, stderr, wait_thr = Open3.popen3(
-      env,
-      echo_server_script,
-      *args,
-      chdir: sdk_dir
-    )
+  def with_echo_package_fixture
+    Dir.mktmpdir("ruby-holons-connect-") do |root|
+      slug = "connect-helper"
+      package_dir = File.join(root, "#{slug}.holon")
+      arch_dir = File.join(package_dir, "bin", Holons::DiscoverySupport.package_arch_dir)
+      binary_path = File.join(arch_dir, slug)
 
-    begin
-      uri = read_advertised_uri(stdout, stderr)
-      yield(uri)
-    ensure
-      terminate_process(wait_thr.pid)
-      stdin.close unless stdin.closed?
-      stdout.close unless stdout.closed?
-      stderr.close unless stderr.closed?
+      FileUtils.mkdir_p(arch_dir)
+      File.write(binary_path, wrapper_script)
+      File.chmod(0o755, binary_path)
+
+      File.write(File.join(package_dir, ".holon.json"), <<~JSON)
+        {
+          "schema": "holon-package/v1",
+          "slug": #{slug.inspect},
+          "uuid": "connect-helper-uuid",
+          "identity": {
+            "given_name": "Connect",
+            "family_name": "Helper"
+          },
+          "lang": "ruby",
+          "runner": "ruby",
+          "status": "draft",
+          "kind": "native",
+          "transport": "stdio",
+          "entrypoint": #{slug.inspect},
+          "architectures": [#{Holons::DiscoverySupport.package_arch_dir.inspect}],
+          "has_dist": false,
+          "has_source": false
+        }
+      JSON
+
+      yield(
+        root: root,
+        slug: slug,
+        package_url: file_url(package_dir)
+      )
     end
   end
 
-  def read_advertised_uri(stdout, stderr)
-    uri = nil
-
-    Timeout.timeout(20) do
-      uri = stdout.gets&.strip
-    end
-
-    return uri unless uri.nil? || uri.empty?
-
-    error_output = stderr.read
-    if bind_denied?(error_output)
-      skip "echo-server requires local bind permissions in this environment"
-    end
-
-    raise "echo-server did not output URL: #{error_output}"
-  end
-
-  def create_holon_fixture(root, given_name, family_name)
-    slug = "#{given_name}-#{family_name}".downcase
-    holon_dir = File.join(root, "holons", slug)
-    binary_dir = File.join(holon_dir, ".op", "build", "bin")
-    pid_file = File.join(root, "#{slug}.pid")
-    binary_path = File.join(binary_dir, "echo-wrapper")
-    port_file = File.join(root, ".op", "run", "#{slug}.port")
-
-    FileUtils.mkdir_p(binary_dir)
-    File.write(binary_path, wrapper_script(pid_file))
-    File.chmod(0o755, binary_path)
-
-    File.write(File.join(holon_dir, "holon.proto"), <<~PROTO)
-      syntax = "proto3";
-
-      package holons.test.v1;
-
-      option (holons.v1.manifest) = {
-        identity: {
-          uuid: "#{slug}-uuid"
-          given_name: "#{given_name}"
-          family_name: "#{family_name}"
-          composer: "connect-test"
-        }
-        kind: "service"
-        build: {
-          runner: "ruby"
-          main: "bin/echo-server"
-        }
-        artifacts: {
-          binary: "echo-wrapper"
-        }
-      };
-    PROTO
-
-    {
-      slug: slug,
-      pid_file: pid_file,
-      binary_path: binary_path,
-      port_file: port_file
-    }
-  end
-
-  def wrapper_script(pid_file)
+  def wrapper_script
     [
       "#!/bin/sh",
-      "printf '%s\\n' \"$$\" > #{Shellwords.escape(pid_file)}",
       "exec #{Shellwords.escape(echo_server_script)} \"$@\"",
       ""
     ].join("\n")
   end
 
-  def with_holon_root(root)
-    original_dir = Dir.pwd
-    original_oppath = ENV["OPPATH"]
-    original_opbin = ENV["OPBIN"]
-
-    Dir.chdir(root)
-    ENV["OPPATH"] = File.join(root, ".op-home")
-    ENV["OPBIN"] = File.join(root, ".op-bin")
-
-    yield
-  ensure
-    Dir.chdir(original_dir)
-    ENV["OPPATH"] = original_oppath
-    ENV["OPBIN"] = original_opbin
-  end
-
-  def wait_for_pid_file(path, timeout: 5)
-    deadline = Time.now + timeout
-    while Time.now < deadline
-      begin
-        raw = File.read(path).strip
-        pid = Integer(raw, 10)
-        return pid if pid.positive?
-      rescue Errno::ENOENT, ArgumentError
-        nil
-      end
-      sleep(0.025)
-    end
-
-    flunk "timed out waiting for pid file #{path}"
-  end
-
-  def wait_for_pid_exit(pid, timeout: 2)
-    deadline = Time.now + timeout
-    while Time.now < deadline
-      return unless pid_alive?(pid)
-
-      sleep(0.025)
-    end
-
-    flunk "process #{pid} did not exit"
-  end
-
-  def pid_alive?(pid)
-    Process.kill(0, pid)
-    true
-  rescue Errno::EPERM
-    true
-  rescue Errno::ESRCH
-    false
-  end
-
-  def terminate_process(pid)
-    return unless pid_alive?(pid)
-
-    Process.kill("TERM", pid)
-    deadline = Time.now + 2
-    while Time.now < deadline
-      return unless pid_alive?(pid)
-
-      sleep(0.025)
-    end
-
-    Process.kill("KILL", pid) if pid_alive?(pid)
-  rescue Errno::ESRCH
-    nil
-  end
-
-  def bind_denied?(text)
-    normalized = text.to_s.downcase
-    normalized.include?("bind: operation not permitted") ||
-      normalized.include?("operation not permitted - bind")
+  def file_url(path)
+    URI::Generic.build(scheme: "file", path: File.expand_path(path).tr(File::SEPARATOR, "/")).to_s
   end
 end

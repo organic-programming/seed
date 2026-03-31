@@ -23,6 +23,9 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 
 static volatile sig_atomic_t g_stop_requested = 0;
 
@@ -42,11 +45,28 @@ typedef struct holons_started_channel {
   struct holons_started_channel *next;
 } holons_started_channel_t;
 
+typedef struct {
+  HolonsHolonRef ref;
+  char *dir_path;
+  char *relative_path;
+} holons_discovered_ref_t;
+
+typedef struct {
+  holons_discovered_ref_t *items;
+  size_t count;
+  size_t capacity;
+} holons_discovered_refs_t;
+
 static holons_started_channel_t *g_started_channels = NULL;
 static const holons_describe_response_t *g_static_describe_response = NULL;
 
 static const char *holons_no_incode_description_error =
     "no Incode Description registered — run op build";
+
+#define HOLONS_SOURCE_BRIDGE_COMMAND_ENV "HOLONS_SOURCE_BRIDGE_COMMAND"
+#define HOLONS_DESCRIBE_PROBE_COMMAND_ENV "HOLONS_DESCRIBE_PROBE_COMMAND"
+
+void holons_free_entries(holon_entry_t *entries);
 
 static void set_err(char *err, size_t err_len, const char *fmt, ...) {
   va_list ap;
@@ -1526,11 +1546,11 @@ int holons_parse_holon(const char *path, holons_identity_t *out, char *err, size
   return 0;
 }
 
-int holons_discover(const char *root,
-                    holon_entry_t **entries,
-                    size_t *count,
-                    char *err,
-                    size_t err_len) {
+static int holons_discover_native_source(const char *root,
+                                         holon_entry_t **entries,
+                                         size_t *count,
+                                         char *err,
+                                         size_t err_len) {
   char resolved_root[PATH_MAX];
   holon_entries_t found;
 
@@ -1565,7 +1585,7 @@ int holons_discover(const char *root,
 }
 
 int holons_discover_local(holon_entry_t **entries, size_t *count, char *err, size_t err_len) {
-  return holons_discover(NULL, entries, count, err, err_len);
+  return holons_discover_native_source(NULL, entries, count, err, err_len);
 }
 
 int holons_discover_all(holon_entry_t **entries, size_t *count, char *err, size_t err_len) {
@@ -2802,7 +2822,7 @@ static grpc_channel *connect_internal(const char *target, holons_connect_options
   return channel;
 }
 
-grpc_channel *holons_connect(const char *target) {
+static grpc_channel *holons_connect_legacy(const char *target) {
   holons_connect_options opts;
 
   opts.timeout_ms = HOLONS_CONNECT_DEFAULT_TIMEOUT_MS;
@@ -2816,7 +2836,7 @@ grpc_channel *holons_connect_with_opts(const char *target, holons_connect_option
   return connect_internal(target, opts, 0);
 }
 
-void holons_disconnect(grpc_channel *channel) {
+static void holons_disconnect_channel(grpc_channel *channel) {
   holons_started_channel_t *started;
 
   if (channel == NULL) {

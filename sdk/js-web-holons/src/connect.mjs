@@ -1,13 +1,6 @@
-/**
- * Browser environments cannot spawn processes or scan the filesystem.
- * connect() in js-web-holons only supports explicit dial URIs.
- *
- * Supported transports:
- *   - ws:// and wss:// for bidirectional WebSocket JSON-RPC
- *   - http:// and https:// for unary HTTP POST and SSE streaming
- */
-
 import { HolonClient, HolonError } from "./client.mjs";
+import { LOCAL } from "./discovery_types.mjs";
+import { resolve as resolveRef } from "./discover.mjs";
 
 const DEFAULT_HTTP_TIMEOUT_MS = 30000;
 const DEFAULT_RPC_PATH = "/api/v1/rpc";
@@ -146,7 +139,14 @@ export class HolonHTTPClient {
     }
 }
 
-export function connect(target, options = {}) {
+/**
+ * Internal helper for explicit browser dial URIs used by describe().
+ *
+ * @param {string} target
+ * @param {Object} [options]
+ * @returns {HolonClient|HolonHTTPClient}
+ */
+export function connectDirect(target, options = {}) {
     const normalized = normalizeTarget(target);
     if (normalized.kind === "websocket") {
         return new HolonClient(normalized.url, options);
@@ -154,13 +154,69 @@ export function connect(target, options = {}) {
     return new HolonHTTPClient(normalized.baseUrl, options);
 }
 
-export function disconnect(client) {
-    if (!client) {
+/**
+ * Uniform browser connect API. Phase 1 does not perform direct-URL dialing or
+ * delegated discovery, so all failures are surfaced through ConnectResult.
+ *
+ * @param {number} scope
+ * @param {string|null|undefined} expression
+ * @param {string|null|undefined} root
+ * @param {number} specifiers
+ * @param {number} timeout
+ * @returns {import("./discovery_types.mjs").ConnectResult}
+ */
+export function connect(scope, expression, root, specifiers, timeout) {
+    if (scope !== LOCAL) {
+        return connectResult(null, "", null, `scope ${scope} not supported`);
+    }
+
+    const target = normalizeExpression(expression);
+    if (target === "") {
+        return connectResult(null, "", null, "expression is required");
+    }
+
+    const resolved = resolveRef(scope, target, root, specifiers, timeout);
+    if (resolved.error !== null) {
+        return connectResult(null, "", resolved.ref, resolved.error);
+    }
+    if (resolved.ref === null) {
+        return connectResult(null, "", null, `holon "${target}" not found`);
+    }
+    if (resolved.ref.error !== null) {
+        return connectResult(null, "", resolved.ref, resolved.ref.error);
+    }
+
+    return connectResult(null, "", resolved.ref, "target unreachable");
+}
+
+/**
+ * Disconnect a ConnectResult channel. Direct clients are also accepted so
+ * describe() can reuse the same helper.
+ *
+ * @param {import("./discovery_types.mjs").ConnectResult|{close?: Function}|null|undefined} result
+ * @returns {void}
+ */
+export function disconnect(result) {
+    if (!result) {
         return;
     }
-    if (typeof client.close === "function") {
-        client.close();
+
+    if (typeof result.close === "function") {
+        result.close();
+        return;
     }
+
+    if (result.channel && typeof result.channel.close === "function") {
+        try {
+            result.channel.close();
+        } catch {
+            return;
+        }
+    }
+}
+
+function connectResult(channel, uid, origin, error) {
+    return { channel, uid, origin, error };
 }
 
 function defaultFetch() {
@@ -168,6 +224,13 @@ function defaultFetch() {
         return undefined;
     }
     return globalThis.fetch.bind(globalThis);
+}
+
+function normalizeExpression(expression) {
+    if (expression == null) {
+        return "";
+    }
+    return String(expression).trim();
 }
 
 function normalizeTarget(target) {

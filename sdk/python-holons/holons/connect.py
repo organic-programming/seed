@@ -3,381 +3,211 @@ from __future__ import annotations
 """Resolve holons to ready-to-use gRPC channels."""
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
-from queue import Empty, Queue
-import shutil
-import subprocess
-import threading
-import time
-from typing import Any, Callable
+import platform
+import sys
+from urllib.parse import unquote, urlparse
 
 import grpc
 
-from . import discover, grpcclient
-from .transport import parse_uri
+from . import grpcclient
+from .discover import resolve as resolve_ref
+from .discovery_types import ConnectResult, HolonInfo, HolonRef, LOCAL
 
-DEFAULT_TIMEOUT = 5.0
-
-
-@dataclass(slots=True)
-class ConnectOptions:
-    timeout: float = DEFAULT_TIMEOUT
-    transport: str = "stdio"
-    start: bool = True
-    port_file: str = ""
+_DEFAULT_CONNECT_TIMEOUT_SECONDS = 5.0
 
 
-class _ManagedConnectChannel(grpc.Channel):
-    def __init__(self, inner: grpc.Channel, on_close: Callable[[], None] | None = None):
-        self._inner = inner
-        self._on_close = on_close
-        self._closed = False
-
-    def subscribe(self, callback: Any, try_to_connect: bool = False) -> None:
-        self._inner.subscribe(callback, try_to_connect=try_to_connect)
-
-    def unsubscribe(self, callback: Any) -> None:
-        self._inner.unsubscribe(callback)
-
-    def unary_unary(self, *args: Any, **kwargs: Any):
-        return self._inner.unary_unary(*args, **kwargs)
-
-    def unary_stream(self, *args: Any, **kwargs: Any):
-        return self._inner.unary_stream(*args, **kwargs)
-
-    def stream_unary(self, *args: Any, **kwargs: Any):
-        return self._inner.stream_unary(*args, **kwargs)
-
-    def stream_stream(self, *args: Any, **kwargs: Any):
-        return self._inner.stream_stream(*args, **kwargs)
-
-    def close(self) -> None:
-        if self._closed:
-            return
-        self._closed = True
-        try:
-            self._inner.close()
-        finally:
-            if self._on_close is not None:
-                self._on_close()
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._inner, name)
+@dataclass(frozen=True)
+class _LaunchTarget:
+    command: tuple[str, ...]
+    cwd: str | None = None
 
 
-def connect(target: str, opts: ConnectOptions | None = None) -> grpc.Channel:
-    trimmed = target.strip()
-    if not trimmed:
-        raise ValueError("target is required")
+def connect(
+    scope: int,
+    expression: str,
+    root: str | None,
+    specifiers: int,
+    timeout: int,
+) -> ConnectResult:
+    if scope != LOCAL:
+        return ConnectResult(channel=None, uid="", origin=None, error=f"scope {scope} not supported")
 
-    options = _normalize_options(opts)
-    ephemeral = opts is None or options.transport == "stdio"
+    target = expression.strip()
+    if not target:
+        return ConnectResult(channel=None, uid="", origin=None, error="expression is required")
 
-    if _is_direct_target(trimmed):
-        return _dial_ready(_normalize_dial_target(trimmed), options.timeout)
+    resolved = resolve_ref(scope, target, root, specifiers, timeout)
+    if resolved.error is not None:
+        return ConnectResult(channel=None, uid="", origin=resolved.ref, error=resolved.error)
+    if resolved.ref is None:
+        return ConnectResult(channel=None, uid="", origin=None, error=f'holon "{target}" not found')
 
-    entry = discover.find_by_slug(trimmed)
-    if entry is None:
-        raise ValueError(f'holon "{trimmed}" not found')
+    ref = resolved.ref
+    if ref.error is not None:
+        return ConnectResult(channel=None, uid="", origin=ref, error=ref.error)
 
-    binary_path = _resolve_binary_path(entry)
-    port_file = options.port_file or _default_port_file_path(entry.slug)
-    reusable = _usable_port_file(port_file, options.timeout)
-    if reusable is not None:
-        return reusable
-    if not options.start:
-        raise ValueError(f'holon "{trimmed}" is not running')
-
-    if options.transport == "stdio":
-        channel = grpcclient.dial_stdio(binary_path, "serve", "--listen", "stdio://")
-        _wait_ready(channel, options.timeout)
-        return channel
-
-    if options.transport == "unix":
-        advertised_uri, proc = _start_unix_holon(binary_path, entry.slug, port_file, options.timeout)
-    else:
-        advertised_uri, proc = _start_tcp_holon(binary_path, options.timeout)
     try:
-        channel = _dial_ready(_normalize_dial_target(advertised_uri), options.timeout)
-    except Exception:
-        _stop_process(proc)
-        raise
-
-    def _cleanup() -> None:
-        if ephemeral:
-            _stop_process(proc)
-
-    if not ephemeral:
-        _reap_process(proc)
-        try:
-            _write_port_file(port_file, advertised_uri)
-        except Exception:
-            channel.close()
-            _stop_process(proc)
-            raise
-
-    return _ManagedConnectChannel(channel, on_close=_cleanup)
+        return _connect_resolved(ref, timeout)
+    except Exception as exc:
+        return ConnectResult(channel=None, uid="", origin=ref, error=str(exc) or "target unreachable")
 
 
-def disconnect(channel: grpc.Channel) -> None:
-    if channel is None:
+def disconnect(result: ConnectResult) -> None:
+    if result.channel is None:
         return
-    channel.close()
+    try:
+        result.channel.close()
+    except Exception:
+        return
 
 
-def _normalize_options(opts: ConnectOptions | None) -> ConnectOptions:
-    options = opts or ConnectOptions()
-    timeout = options.timeout if options.timeout and options.timeout > 0 else DEFAULT_TIMEOUT
-    transport = (options.transport or "stdio").strip().lower()
-    if transport not in {"tcp", "stdio", "unix"}:
-        raise ValueError(f"unsupported transport {options.transport!r}")
-    return ConnectOptions(
-        timeout=timeout,
-        transport=transport,
-        start=options.start,
-        port_file=(options.port_file or "").strip(),
-    )
+def _connect_resolved(ref: HolonRef, timeout: int) -> ConnectResult:
+    scheme = _url_scheme(ref.url)
+    if scheme in {"tcp", "unix", "ws", "wss"}:
+        channel = _dial_ready_uri(ref.url, timeout)
+        return ConnectResult(channel=channel, uid="", origin=ref, error=None)
+
+    if scheme != "file":
+        raise ValueError(f"unsupported target URL {ref.url!r}")
+
+    target = _launch_target_from_ref(ref)
+    channel = grpcclient.dial_stdio(target.command[0], *target.command[1:], cwd=target.cwd)
+    _wait_ready(channel, timeout)
+    return ConnectResult(channel=channel, uid="", origin=ref, error=None)
 
 
-def _dial_ready(target: str, timeout: float) -> grpc.Channel:
-    channel = grpc.insecure_channel(target)
+def _dial_ready_uri(uri: str, timeout: int) -> grpc.Channel:
+    channel = grpcclient.dial_uri(uri)
     try:
         _wait_ready(channel, timeout)
-        return _ManagedConnectChannel(channel)
+        return channel
     except Exception:
         channel.close()
         raise
 
 
-def _wait_ready(channel: grpc.Channel, timeout: float) -> None:
-    grpc.channel_ready_future(channel).result(timeout=timeout)
+def _wait_ready(channel: grpc.Channel, timeout: int) -> None:
+    future = grpc.channel_ready_future(channel)
+    seconds = None if timeout <= 0 else max(timeout / 1000.0, 0.001)
+    future.result(timeout=seconds)
 
 
-def _usable_port_file(port_file: str, timeout: float) -> grpc.Channel | None:
-    path = Path(port_file)
-    try:
-        raw_target = path.read_text(encoding="utf-8").strip()
-    except OSError:
-        return None
+def _launch_target_from_ref(ref: HolonRef) -> _LaunchTarget:
+    path = _path_from_file_url(ref.url)
+    info = ref.info
+    if info is None:
+        raise ValueError("holon metadata unavailable")
 
-    if not raw_target:
-        path.unlink(missing_ok=True)
-        return None
+    if os.path.isfile(path):
+        return _LaunchTarget(command=(path,), cwd=str(Path(path).resolve().parent))
 
-    try:
-        return _dial_ready(_normalize_dial_target(raw_target), min(max(timeout / 4.0, 0.25), 1.0))
-    except Exception:
-        path.unlink(missing_ok=True)
-        return None
+    if not os.path.isdir(path):
+        raise ValueError(f'target path "{path}" is not launchable')
 
+    if path.endswith(".holon"):
+        target = _package_launch_target(path, info)
+        if target is not None:
+            return target
 
-def _start_tcp_holon(binary_path: str, timeout: float) -> tuple[str, subprocess.Popen[str]]:
-    proc = subprocess.Popen(
-        [binary_path, "serve", "--listen", "tcp://127.0.0.1:0"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-
-    queue: Queue[tuple[str, str | int]] = Queue()
-    stderr_lines: list[str] = []
-
-    def _reader(stream: Any, kind: str) -> None:
-        try:
-            while True:
-                line = stream.readline()
-                if not line:
-                    return
-                if kind == "stderr":
-                    stderr_lines.append(line)
-                queue.put(("line", line))
-        finally:
-            queue.put(("stream_closed", kind))
-
-    if proc.stdout is None or proc.stderr is None:
-        _stop_process(proc)
-        raise RuntimeError("child process must expose stdout/stderr pipes")
-
-    stdout_thread = threading.Thread(target=_reader, args=(proc.stdout, "stdout"), daemon=True)
-    stderr_thread = threading.Thread(target=_reader, args=(proc.stderr, "stderr"), daemon=True)
-    stdout_thread.start()
-    stderr_thread.start()
-
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if proc.poll() is not None:
-            stderr_text = "".join(stderr_lines).strip()
-            details = f": {stderr_text}" if stderr_text else ""
-            raise RuntimeError(f"holon exited before advertising an address ({proc.returncode}){details}")
-
-        try:
-            event, payload = queue.get(timeout=0.05)
-        except Empty:
-            continue
-
-        if event != "line":
-            continue
-
-        uri = _first_uri(str(payload))
-        if uri:
-            return uri, proc
-
-    _stop_process(proc)
-    raise RuntimeError("timed out waiting for holon startup")
-
-
-def _start_unix_holon(
-    binary_path: str, slug: str, port_file: str, timeout: float
-) -> tuple[str, subprocess.Popen[str]]:
-    uri = _default_unix_socket_uri(slug, port_file)
-    socket_path = uri.removeprefix("unix://")
-    proc = subprocess.Popen(
-        [binary_path, "serve", "--listen", uri],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-
-    stderr_lines: list[str] = []
-
-    if proc.stderr is None:
-        _stop_process(proc)
-        raise RuntimeError("child process must expose stderr pipe")
-
-    def _stderr_reader() -> None:
-        assert proc.stderr is not None
-        for line in proc.stderr:
-            stderr_lines.append(line)
-
-    threading.Thread(target=_stderr_reader, daemon=True).start()
-
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if proc.poll() is not None:
-            stderr_text = "".join(stderr_lines).strip()
-            details = f": {stderr_text}" if stderr_text else ""
-            raise RuntimeError(f"holon exited before binding unix socket ({proc.returncode}){details}")
-
-        if Path(socket_path).exists():
-            return uri, proc
-
-        time.sleep(0.02)
-
-    _stop_process(proc)
-    stderr_text = "".join(stderr_lines).strip()
-    details = f": {stderr_text}" if stderr_text else ""
-    raise RuntimeError(f"timed out waiting for unix holon startup{details}")
-
-
-def _resolve_binary_path(entry: discover.HolonEntry) -> str:
-    if entry.manifest is None:
-        raise ValueError(f'holon "{entry.slug}" has no manifest')
-
-    binary = entry.manifest.artifacts.binary.strip()
-    if not binary:
-        raise ValueError(f'holon "{entry.slug}" has no artifacts.binary')
-
-    binary_path = Path(binary)
-    if binary_path.is_absolute() and binary_path.is_file():
-        return str(binary_path)
-
-    candidate = Path(entry.dir).joinpath(".op", "build", "bin", binary_path.name)
-    if candidate.is_file():
-        return str(candidate)
-
-    looked_up = shutil.which(binary_path.name)
-    if looked_up:
-        return looked_up
-
-    raise ValueError(f'built binary not found for holon "{entry.slug}"')
-
-
-def _default_port_file_path(slug: str) -> str:
-    return str(Path.cwd().joinpath(".op", "run", f"{slug}.port"))
-
-
-def _default_unix_socket_uri(slug: str, port_file: str) -> str:
-    label = _socket_label(slug)
-    hash_value = _fnv1a64(port_file.encode("utf-8")) & 0xFFFFFFFFFFFF
-    return f"unix:///tmp/holons-{label}-{hash_value:012x}.sock"
-
-
-def _socket_label(slug: str) -> str:
-    chars: list[str] = []
-    last_dash = False
-    for char in slug.strip().lower():
-        if char.isascii() and (char.isalpha() or char.isdigit()):
-            chars.append(char)
-            last_dash = False
-        elif char in "-_" and chars and not last_dash:
-            chars.append("-")
-            last_dash = True
-
-        if len(chars) >= 24:
-            break
-
-    label = "".join(chars).strip("-")
-    return label or "socket"
-
-
-def _fnv1a64(data: bytes) -> int:
-    hash_value = 0xCBF29CE484222325
-    for byte in data:
-        hash_value ^= byte
-        hash_value = (hash_value * 0x100000001B3) & 0xFFFFFFFFFFFFFFFF
-    return hash_value
-
-
-def _write_port_file(port_file: str, uri: str) -> None:
-    path = Path(port_file)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(f"{uri.strip()}\n", encoding="utf-8")
-
-
-def _stop_process(proc: subprocess.Popen[str] | None) -> None:
-    if proc is None or proc.poll() is not None:
-        return
-
-    proc.terminate()
-    try:
-        proc.wait(timeout=2)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        proc.wait(timeout=2)
-
-
-def _reap_process(proc: subprocess.Popen[str]) -> None:
-    def _waiter() -> None:
-        try:
-            proc.wait()
-        except Exception:
-            return
-
-    threading.Thread(target=_waiter, daemon=True).start()
-
-
-def _is_direct_target(target: str) -> bool:
-    return "://" in target or ":" in target
-
-
-def _normalize_dial_target(target: str) -> str:
-    if "://" not in target:
+    target = _source_launch_target(path, info)
+    if target is not None:
         return target
 
-    parsed = parse_uri(target)
-    if parsed.scheme == "tcp":
-        host = parsed.host or "127.0.0.1"
-        if host == "0.0.0.0":
-            host = "127.0.0.1"
-        return f"{host}:{parsed.port}"
-    if parsed.scheme == "unix":
-        return f"unix://{parsed.path}"
-    return target
+    raise ValueError("target unreachable")
 
 
-def _first_uri(line: str) -> str:
-    for field in line.split():
-        trimmed = field.strip().strip("\"'()[]{}.,")
-        if trimmed.startswith(("tcp://", "unix://", "stdio://", "ws://", "wss://")):
-            return trimmed
-    return ""
+def _package_launch_target(package_dir: str, info: HolonInfo) -> _LaunchTarget | None:
+    entrypoint = (info.entrypoint or info.slug).strip()
+    if not entrypoint:
+        return None
+
+    binary_path = Path(package_dir).joinpath("bin", _package_arch_dir(), Path(entrypoint).name)
+    if binary_path.is_file():
+        return _LaunchTarget(command=(str(binary_path),), cwd=package_dir)
+
+    dist_entry = Path(package_dir).joinpath("dist", Path(entrypoint))
+    if dist_entry.is_file():
+        return _launch_target_for_runner(info.runner, str(dist_entry), package_dir)
+
+    git_root = Path(package_dir).joinpath("git")
+    if git_root.is_dir():
+        return _source_launch_target(str(git_root), info)
+
+    return None
+
+
+def _source_launch_target(source_dir: str, info: HolonInfo) -> _LaunchTarget | None:
+    entrypoint = (info.entrypoint or info.slug).strip()
+    if entrypoint:
+        absolute_entry = Path(entrypoint)
+        if absolute_entry.is_absolute() and absolute_entry.is_file():
+            return _LaunchTarget(command=(str(absolute_entry),), cwd=source_dir)
+
+        source_package_binary = (
+            Path(source_dir)
+            .joinpath(".op", "build", f"{info.slug}.holon", "bin", _package_arch_dir(), Path(entrypoint).name)
+        )
+        if source_package_binary.is_file():
+            return _LaunchTarget(command=(str(source_package_binary),), cwd=source_dir)
+
+        source_binary = Path(source_dir).joinpath(".op", "build", "bin", Path(entrypoint).name)
+        if source_binary.is_file():
+            return _LaunchTarget(command=(str(source_binary),), cwd=source_dir)
+
+        direct_entry = Path(source_dir).joinpath(entrypoint)
+        if direct_entry.is_file():
+            target = _launch_target_for_runner(info.runner, str(direct_entry), source_dir)
+            if target is not None:
+                return target
+
+    return None
+
+
+def _launch_target_for_runner(runner: str, entrypoint: str, cwd: str) -> _LaunchTarget | None:
+    runner_name = runner.strip().lower()
+    if not runner_name or not entrypoint:
+        return None
+
+    if runner_name in {"go", "go-module"}:
+        return _LaunchTarget(command=("go", "run", entrypoint), cwd=cwd)
+    if runner_name == "python":
+        return _LaunchTarget(command=(sys.executable, entrypoint), cwd=cwd)
+    if runner_name in {"node", "typescript", "npm"}:
+        return _LaunchTarget(command=("node", entrypoint), cwd=cwd)
+    if runner_name == "ruby":
+        return _LaunchTarget(command=("ruby", entrypoint), cwd=cwd)
+    if runner_name == "dart":
+        return _LaunchTarget(command=("dart", "run", entrypoint), cwd=cwd)
+    return None
+
+
+def _package_arch_dir() -> str:
+    system = platform.system().strip().lower() or sys.platform.lower()
+    machine = platform.machine().strip().lower()
+    arch_aliases = {
+        "x86_64": "amd64",
+        "amd64": "amd64",
+        "aarch64": "arm64",
+        "arm64": "arm64",
+    }
+    return f"{system}_{arch_aliases.get(machine, machine or 'unknown')}"
+
+
+def _url_scheme(raw_url: str) -> str:
+    parsed = urlparse(raw_url.strip())
+    return parsed.scheme.lower()
+
+
+def _path_from_file_url(raw_url: str) -> str:
+    parsed = urlparse(raw_url.strip())
+    if parsed.scheme != "file":
+        raise ValueError(f'holon URL "{raw_url}" is not a local file target')
+
+    path = unquote(parsed.path or "")
+    if parsed.netloc and parsed.netloc != "localhost":
+        path = f"//{parsed.netloc}{path}"
+    if not path:
+        raise ValueError(f'holon URL "{raw_url}" has no path')
+    return str(Path(path).resolve())

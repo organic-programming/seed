@@ -4,6 +4,22 @@ Reference implementation of a C holon. This port keeps the Gabriel 4-facet split
 
 The public binary exposes the Gabriel CLI and delegates `serve` to the SDK bridge. A private backend binary implements the internal unary HTTP/JSON server that the bridge forwards to. The greeting catalog covers the full 56 languages with localized default names.
 
+## Discovery
+
+This holon is source-discoverable from the repo root:
+
+```bash
+op list --source
+```
+
+Programmatically:
+
+```text
+Discover(LOCAL, "gabriel-greeting-c", null, SOURCE, NO_LIMIT, NO_TIMEOUT)
+```
+
+Today this works in the Go SDK. The other non-browser SDKs will support the same source lookup once their Phase 1 discovery tasks land. The browser SDK is excluded because it has no filesystem-based discovery.
+
 ## Facets
 
 | Facet | Visibility | Location | Role |

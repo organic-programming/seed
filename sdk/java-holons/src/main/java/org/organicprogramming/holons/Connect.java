@@ -3,6 +3,11 @@ package org.organicprogramming.holons;
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import org.organicprogramming.holons.DiscoveryTypes.ConnectResult;
+import org.organicprogramming.holons.DiscoveryTypes.HolonInfo;
+import org.organicprogramming.holons.DiscoveryTypes.HolonRef;
+import org.organicprogramming.holons.DiscoveryTypes.IdentityInfo;
+import org.organicprogramming.holons.DiscoveryTypes.ResolveResult;
 
 import java.io.BufferedReader;
 import java.io.Closeable;
@@ -13,6 +18,7 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
@@ -21,14 +27,33 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-/** Resolve holons to ready gRPC channels. */
+/**
+ * Uniform Phase 1 connect API plus legacy convenience wrappers.
+ *
+ * <p>The {@code expression} and {@code root} parameters on the uniform API may be {@code null}
+ * even though the Java signature uses {@link String} references. Normal operational failures are
+ * returned through {@link ConnectResult#error}; callers should not expect checked exceptions from
+ * the uniform API.
+ */
 public final class Connect {
+    public static final int LOCAL = DiscoveryTypes.LOCAL;
+    public static final int PROXY = DiscoveryTypes.PROXY;
+    public static final int DELEGATED = DiscoveryTypes.DELEGATED;
+
+    public static final int SIBLINGS = DiscoveryTypes.SIBLINGS;
+    public static final int CWD = DiscoveryTypes.CWD;
+    public static final int SOURCE = DiscoveryTypes.SOURCE;
+    public static final int BUILT = DiscoveryTypes.BUILT;
+    public static final int INSTALLED = DiscoveryTypes.INSTALLED;
+    public static final int CACHED = DiscoveryTypes.CACHED;
+    public static final int ALL = DiscoveryTypes.ALL;
+
+    public static final int NO_TIMEOUT = DiscoveryTypes.NO_TIMEOUT;
 
     public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
 
@@ -55,6 +80,69 @@ public final class Connect {
     }
 
     private record DialedChannel(ManagedChannel channel, Closeable closeable) {
+    }
+
+    private record ConnectedRef(ManagedChannel channel, HolonRef origin) {
+    }
+
+    /**
+     * Resolve, dial, or launch a holon using the uniform Phase 1 contract.
+     *
+     * <p>{@code expression} and {@code root} may be {@code null}. Failures are returned in the
+     * result object instead of being thrown.
+     */
+    public static ConnectResult connect(int scope, String expression, String root, int specifiers, int timeout) {
+        ConnectResult result = new ConnectResult();
+
+        if (scope != LOCAL) {
+            result.error = "scope %d not supported".formatted(scope);
+            return result;
+        }
+
+        String target = expression == null ? "" : expression.trim();
+        if (target.isEmpty()) {
+            result.error = "expression is required";
+            return result;
+        }
+
+        ResolveResult resolved = Discover.resolve(scope, target, root, specifiers, timeout);
+        if (resolved.ref != null) {
+            result.origin = copyRef(resolved.ref);
+        }
+        if (resolved.error != null && !resolved.error.isBlank()) {
+            result.error = resolved.error;
+            return result;
+        }
+        if (resolved.ref == null) {
+            result.error = "holon %s not found".formatted(quoted(target));
+            return result;
+        }
+        if (resolved.ref.error != null && !resolved.ref.error.isBlank()) {
+            result.error = resolved.ref.error;
+            return result;
+        }
+
+        try {
+            ConnectedRef connected = connectRefInternal(
+                    copyRef(resolved.ref),
+                    target,
+                    new ConnectOptions(effectiveTimeout(timeout), hintedTransportOptions(resolved.ref), true, null),
+                    true,
+                    true);
+            result.channel = connected.channel();
+            result.origin = connected.origin();
+            return result;
+        } catch (Exception e) {
+            result.error = messageOf(e);
+            return result;
+        }
+    }
+
+    public static void disconnect(ConnectResult result) {
+        if (result == null || !(result.channel instanceof ManagedChannel channel)) {
+            return;
+        }
+        disconnect(channel);
     }
 
     public static ManagedChannel connect(String target) throws IOException {
@@ -106,31 +194,63 @@ public final class Connect {
         if (!"stdio".equals(options.transport()) && !"tcp".equals(options.transport()) && !"unix".equals(options.transport())) {
             throw new IllegalArgumentException("unsupported transport \"" + options.transport() + "\"");
         }
-        boolean ephemeral = defaultEphemeral || "stdio".equals(options.transport());
 
-        Optional<Discover.HolonEntry> entryOpt = Discover.findBySlug(trimmed);
-        if (entryOpt.isEmpty()) {
-            throw new IllegalArgumentException("holon \"" + trimmed + "\" not found");
+        ResolveResult resolved = Discover.resolve(LOCAL, trimmed, null, ALL, (int) options.timeout().toMillis());
+        if (resolved.error != null && !resolved.error.isBlank()) {
+            throw new IllegalArgumentException(resolved.error);
         }
-        Discover.HolonEntry entry = entryOpt.get();
+        if (resolved.ref == null) {
+            throw new IllegalArgumentException("holon %s not found".formatted(quoted(trimmed)));
+        }
 
-        Path portFile = options.portFile() != null ? options.portFile() : defaultPortFilePath(entry.slug());
-        String reusable = usablePortFile(portFile, options.timeout());
-        if (reusable != null) {
-            DialedChannel direct = dialReady(normalizeDialTarget(reusable), options.timeout());
+        return connectRefInternal(copyRef(resolved.ref), trimmed, options, defaultEphemeral, false).channel();
+    }
+
+    private static ConnectedRef connectRefInternal(
+            HolonRef ref,
+            String targetName,
+            ConnectOptions options,
+            boolean defaultEphemeral,
+            boolean preferTransportHint) throws IOException {
+        if (ref == null) {
+            throw new IllegalArgumentException("resolved holon ref is required");
+        }
+
+        String originalUrl = ref.url == null ? "" : ref.url.trim();
+        if (isReachableTarget(originalUrl)) {
+            DialedChannel direct = dialReady(normalizeDialTarget(originalUrl), options.timeout());
             rememberChannel(direct, false);
-            return direct.channel();
+            return new ConnectedRef(direct.channel(), copyRef(ref));
+        }
+
+        String transport = preferTransportHint ? hintedTransport(ref) : options.transport();
+        if (!"stdio".equals(transport) && !"tcp".equals(transport) && !"unix".equals(transport)) {
+            throw new IllegalArgumentException("unsupported transport \"" + transport + "\"");
+        }
+        boolean ephemeral = defaultEphemeral || "stdio".equals(transport);
+
+        String slug = safeSlug(ref, targetName);
+        Path portFile = options.portFile() != null ? options.portFile() : defaultPortFilePath(slug);
+        if (!ephemeral && ("tcp".equals(transport) || "unix".equals(transport))) {
+            String reusable = usablePortFile(portFile, options.timeout());
+            if (reusable != null) {
+                DialedChannel direct = dialReady(normalizeDialTarget(reusable), options.timeout());
+                rememberChannel(direct, false);
+                HolonRef origin = copyRef(ref);
+                origin.url = reusable;
+                return new ConnectedRef(direct.channel(), origin);
+            }
         }
         if (!options.start()) {
-            throw new IllegalStateException("holon \"" + trimmed + "\" is not running");
+            throw new IllegalStateException("holon %s is not running".formatted(quoted(targetName)));
         }
 
-        String binaryPath = resolveBinaryPath(entry);
-        StartedProcess started = "stdio".equals(options.transport())
+        String binaryPath = resolveBinaryPath(ref);
+        StartedProcess started = "stdio".equals(transport)
                 ? startStdioHolon(binaryPath, options.timeout())
-                : "unix".equals(options.transport())
-                ? startUnixHolon(binaryPath, entry.slug(), portFile, options.timeout())
-                : startTcpHolon(binaryPath, options.timeout());
+                : "unix".equals(transport)
+                ? startUnixHolon(binaryPath, slug, portFile, options.timeout())
+                : startAdvertisedHolon(binaryPath, "tcp://127.0.0.1:0", options.timeout());
 
         DialedChannel dialed;
         try {
@@ -140,9 +260,9 @@ public final class Connect {
             stopProcess(started.process());
             throw e;
         }
-        ManagedChannel channel = dialed.channel();
 
-        if (!ephemeral && ("tcp".equals(options.transport()) || "unix".equals(options.transport()))) {
+        ManagedChannel channel = dialed.channel();
+        if (!ephemeral && ("tcp".equals(transport) || "unix".equals(transport))) {
             try {
                 writePortFile(portFile, started.uri());
             } catch (IOException e) {
@@ -153,9 +273,116 @@ public final class Connect {
         }
 
         synchronized (STARTED) {
-            STARTED.put(channel, new StartedHandle(started.process(), combineCloseables(started.closeable(), dialed.closeable()), ephemeral));
+            STARTED.put(channel, new StartedHandle(
+                    started.process(),
+                    combineCloseables(started.closeable(), dialed.closeable()),
+                    ephemeral));
         }
-        return channel;
+
+        HolonRef origin = copyRef(ref);
+        if (!"stdio".equals(transport)) {
+            origin.url = started.uri();
+        }
+        return new ConnectedRef(channel, origin);
+    }
+
+    private static String resolveBinaryPath(HolonRef ref) {
+        if (ref.info == null) {
+            throw new IllegalArgumentException("holon metadata unavailable");
+        }
+
+        Path targetPath = filePath(ref);
+        String entrypoint = ref.info.entrypoint == null ? "" : ref.info.entrypoint.trim();
+        String slug = safeSlug(ref, "holon");
+
+        if (targetPath != null && Files.isRegularFile(targetPath)) {
+            return targetPath.toString();
+        }
+
+        if (targetPath != null && Files.isDirectory(targetPath) && basename(targetPath).endsWith(".holon")) {
+            Path packageBinary = resolvePackageBinary(targetPath, entrypoint);
+            if (Files.isRegularFile(packageBinary)) {
+                return packageBinary.toString();
+            }
+        }
+
+        if (targetPath != null && !entrypoint.isBlank()) {
+            Path configured = Path.of(entrypoint);
+            if (configured.isAbsolute() && Files.isRegularFile(configured)) {
+                return configured.toString();
+            }
+
+            Path candidate = targetPath.resolve(".op").resolve("build").resolve("bin").resolve(configured.getFileName());
+            if (Files.isRegularFile(candidate)) {
+                return candidate.toString();
+            }
+        }
+
+        if (targetPath != null) {
+            Path slugCandidate = targetPath.resolve(".op").resolve("build").resolve("bin").resolve(slug);
+            if (Files.isRegularFile(slugCandidate)) {
+                return slugCandidate.toString();
+            }
+        }
+
+        String searchName = !entrypoint.isBlank() ? Path.of(entrypoint).getFileName().toString() : slug;
+        String pathEnv = System.getenv("PATH");
+        if (pathEnv != null) {
+            for (String dir : pathEnv.split(java.io.File.pathSeparator)) {
+                Path resolved = Path.of(dir).resolve(searchName);
+                if (Files.isRegularFile(resolved) && Files.isExecutable(resolved)) {
+                    return resolved.toString();
+                }
+            }
+        }
+
+        throw new IllegalArgumentException("built binary not found for holon %s".formatted(quoted(slug)));
+    }
+
+    private static Path resolvePackageBinary(Path packageDir, String entrypoint) {
+        Path archDir = packageDir.resolve("bin").resolve(currentPlatformTag());
+        if (!Files.isDirectory(archDir)) {
+            return archDir.resolve(entrypoint.isBlank() ? "missing" : entrypoint);
+        }
+
+        if (!entrypoint.isBlank()) {
+            Path named = archDir.resolve(Path.of(entrypoint).getFileName().toString());
+            if (Files.isRegularFile(named)) {
+                return named;
+            }
+        }
+
+        try (var stream = Files.list(archDir)) {
+            return stream
+                    .filter(Files::isRegularFile)
+                    .sorted()
+                    .findFirst()
+                    .orElse(archDir.resolve("missing"));
+        } catch (IOException e) {
+            return archDir.resolve("missing");
+        }
+    }
+
+    private static String hintedTransportOptions(HolonRef ref) {
+        return hintedTransport(ref);
+    }
+
+    private static String hintedTransport(HolonRef ref) {
+        String transport = ref != null && ref.info != null && ref.info.transport != null
+                ? ref.info.transport.trim().toLowerCase()
+                : "";
+        return switch (transport) {
+            case "tcp" -> "tcp";
+            case "unix" -> "unix";
+            default -> "stdio";
+        };
+    }
+
+    private static boolean isReachableTarget(String target) {
+        if (target == null || target.isBlank()) {
+            return false;
+        }
+        return target.startsWith("tcp://") || target.startsWith("unix://");
     }
 
     private static DialedChannel dialReady(String target, Duration timeout) throws IOException {
@@ -224,14 +451,14 @@ public final class Connect {
             try {
                 Files.deleteIfExists(portFile);
             } catch (IOException ignoredDelete) {
-                // Keep best-effort cleanup semantics.
+                // Best effort.
             }
             return null;
         }
     }
 
-    private static StartedProcess startTcpHolon(String binaryPath, Duration timeout) throws IOException {
-        Process process = new ProcessBuilder(binaryPath, "serve", "--listen", "tcp://127.0.0.1:0").start();
+    private static StartedProcess startAdvertisedHolon(String binaryPath, String listenURI, Duration timeout) throws IOException {
+        Process process = new ProcessBuilder(binaryPath, "serve", "--listen", listenURI).start();
         BlockingQueue<String> lines = new LinkedBlockingQueue<>();
         StringBuilder stderr = new StringBuilder();
 
@@ -241,7 +468,7 @@ public final class Connect {
         long deadlineNanos = System.nanoTime() + timeout.toNanos();
         while (System.nanoTime() < deadlineNanos) {
             if (!process.isAlive()) {
-                throw new IOException("holon exited before advertising an address: " + stderr.toString().trim());
+                throw new IOException("holon exited before advertising an address" + suffix(stderr));
             }
 
             try {
@@ -261,7 +488,7 @@ public final class Connect {
         }
 
         stopProcess(process);
-        throw new IOException("timed out waiting for holon startup");
+        throw new IOException("timed out waiting for holon startup" + suffix(stderr));
     }
 
     private static StartedProcess startUnixHolon(String binaryPath, String slug, Path portFile, Duration timeout)
@@ -279,8 +506,7 @@ public final class Connect {
                 return new StartedProcess(uri, process, null);
             }
             if (!process.isAlive()) {
-                String details = stderr.toString().trim();
-                throw new IOException("holon exited before binding unix socket" + (details.isBlank() ? "" : ": " + details));
+                throw new IOException("holon exited before binding unix socket" + suffix(stderr));
             }
             try {
                 Thread.sleep(20);
@@ -292,8 +518,7 @@ public final class Connect {
         }
 
         stopProcess(process);
-        String details = stderr.toString().trim();
-        throw new IOException("timed out waiting for unix holon startup" + (details.isBlank() ? "" : ": " + details));
+        throw new IOException("timed out waiting for unix holon startup" + suffix(stderr));
     }
 
     private static StartedProcess startStdioHolon(String binaryPath, Duration timeout) throws IOException {
@@ -332,44 +557,11 @@ public final class Connect {
                     lines.offer(line);
                 }
             } catch (IOException ignored) {
-                // Startup timeout / shutdown paths tolerate closed pipes.
+                // Startup timeout and shutdown paths tolerate closed pipes.
             }
         });
         thread.setDaemon(true);
         thread.start();
-    }
-
-    private static String resolveBinaryPath(Discover.HolonEntry entry) {
-        if (entry.manifest() == null) {
-            throw new IllegalArgumentException("holon \"" + entry.slug() + "\" has no manifest");
-        }
-
-        String binary = entry.manifest().artifacts().binary().trim();
-        if (binary.isEmpty()) {
-            throw new IllegalArgumentException("holon \"" + entry.slug() + "\" has no artifacts.binary");
-        }
-
-        Path configured = Path.of(binary);
-        if (configured.isAbsolute() && Files.isRegularFile(configured)) {
-            return configured.toString();
-        }
-
-        Path candidate = entry.dir().resolve(".op").resolve("build").resolve("bin").resolve(configured.getFileName());
-        if (Files.isRegularFile(candidate)) {
-            return candidate.toString();
-        }
-
-        String pathEnv = System.getenv("PATH");
-        if (pathEnv != null) {
-            for (String dir : pathEnv.split(java.io.File.pathSeparator)) {
-                Path resolved = Path.of(dir).resolve(configured.getFileName().toString());
-                if (Files.isRegularFile(resolved) && Files.isExecutable(resolved)) {
-                    return resolved.toString();
-                }
-            }
-        }
-
-        throw new IllegalArgumentException("built binary not found for holon \"" + entry.slug() + "\"");
     }
 
     private static Path defaultPortFilePath(String slug) {
@@ -452,7 +644,7 @@ public final class Connect {
         try {
             closeable.close();
         } catch (IOException ignored) {
-            // Best-effort cleanup.
+            // Best effort.
         }
     }
 
@@ -554,11 +746,119 @@ public final class Connect {
                     }
                 }
             } catch (IOException ignored) {
-                // Stream closed during shutdown.
+                // Closed during shutdown.
             }
         }, name);
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private static String safeSlug(HolonRef ref, String fallback) {
+        if (ref != null && ref.info != null && ref.info.slug != null && !ref.info.slug.isBlank()) {
+            return ref.info.slug.trim();
+        }
+        return fallback == null || fallback.isBlank() ? "holon" : fallback.trim();
+    }
+
+    private static Path filePath(HolonRef ref) {
+        if (ref == null || ref.url == null || !ref.url.regionMatches(true, 0, "file://", 0, "file://".length())) {
+            return null;
+        }
+        return Path.of(URI.create(ref.url)).toAbsolutePath().normalize();
+    }
+
+    private static String basename(Path path) {
+        return path.getFileName() == null ? "" : path.getFileName().toString();
+    }
+
+    private static Duration effectiveTimeout(int timeout) {
+        return timeout > 0 ? Duration.ofMillis(timeout) : DEFAULT_TIMEOUT;
+    }
+
+    private static String messageOf(Throwable error) {
+        if (error == null) {
+            return "";
+        }
+        String message = error.getMessage();
+        return message == null || message.isBlank() ? error.toString() : message;
+    }
+
+    private static String quoted(String value) {
+        return value == null ? "\"\"" : "\"%s\"".formatted(value);
+    }
+
+    private static String suffix(StringBuilder builder) {
+        String details = builder == null ? "" : builder.toString().trim();
+        return details.isBlank() ? "" : ": " + details;
+    }
+
+    private static String currentPlatformTag() {
+        return normalizedOs() + "_" + normalizedArch();
+    }
+
+    private static String normalizedOs() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        if (os.contains("mac") || os.contains("darwin")) {
+            return "darwin";
+        }
+        if (os.contains("win")) {
+            return "windows";
+        }
+        return "linux";
+    }
+
+    private static String normalizedArch() {
+        String arch = System.getProperty("os.arch", "").toLowerCase();
+        if ("aarch64".equals(arch) || "arm64".equals(arch)) {
+            return "arm64";
+        }
+        if ("x86_64".equals(arch) || "amd64".equals(arch)) {
+            return "amd64";
+        }
+        return arch.replace('-', '_');
+    }
+
+    private static HolonRef copyRef(HolonRef ref) {
+        if (ref == null) {
+            return null;
+        }
+        HolonRef copy = new HolonRef();
+        copy.url = ref.url == null ? "" : ref.url;
+        copy.error = ref.error == null ? "" : ref.error;
+        copy.info = copyInfo(ref.info);
+        return copy;
+    }
+
+    private static HolonInfo copyInfo(HolonInfo info) {
+        if (info == null) {
+            return null;
+        }
+        HolonInfo copy = new HolonInfo();
+        copy.slug = info.slug == null ? "" : info.slug;
+        copy.uuid = info.uuid == null ? "" : info.uuid;
+        copy.identity = copyIdentity(info.identity);
+        copy.lang = info.lang == null ? "" : info.lang;
+        copy.runner = info.runner == null ? "" : info.runner;
+        copy.status = info.status == null ? "" : info.status;
+        copy.kind = info.kind == null ? "" : info.kind;
+        copy.transport = info.transport == null ? "" : info.transport;
+        copy.entrypoint = info.entrypoint == null ? "" : info.entrypoint;
+        copy.architectures = info.architectures == null ? new java.util.ArrayList<>() : new java.util.ArrayList<>(info.architectures);
+        copy.hasDist = info.hasDist;
+        copy.hasSource = info.hasSource;
+        return copy;
+    }
+
+    private static IdentityInfo copyIdentity(IdentityInfo identity) {
+        IdentityInfo copy = new IdentityInfo();
+        if (identity == null) {
+            return copy;
+        }
+        copy.givenName = identity.givenName == null ? "" : identity.givenName;
+        copy.familyName = identity.familyName == null ? "" : identity.familyName;
+        copy.motto = identity.motto == null ? "" : identity.motto;
+        copy.aliases = identity.aliases == null ? new java.util.ArrayList<>() : new java.util.ArrayList<>(identity.aliases);
+        return copy;
     }
 
     private static final class StdioBridge implements Closeable {
@@ -633,7 +933,7 @@ public final class Connect {
                 upstream.join();
                 downstream.join();
             } catch (IOException ignored) {
-                // Listener/socket closed during shutdown.
+                // Closed during shutdown.
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } finally {
@@ -658,7 +958,7 @@ public final class Connect {
                         output.flush();
                     }
                 } catch (IOException ignored) {
-                    // Pipe/socket closed during shutdown.
+                    // Closed during shutdown.
                 } finally {
                     if (closeOutput) {
                         closeStream(output);
@@ -670,32 +970,11 @@ public final class Connect {
             return thread;
         }
 
-        private static void startDrainThread(InputStream stream, StringBuilder capture, String name) {
-            Thread thread = new Thread(() -> {
-                byte[] buffer = new byte[4096];
-                try {
-                    while (true) {
-                        int read = stream.read(buffer);
-                        if (read < 0) {
-                            break;
-                        }
-                        synchronized (capture) {
-                            capture.append(new String(buffer, 0, read, StandardCharsets.UTF_8));
-                        }
-                    }
-                } catch (IOException ignored) {
-                    // Stream closed during shutdown.
-                }
-            }, name);
-            thread.setDaemon(true);
-            thread.start();
-        }
-
         private static void closeStream(Closeable closeable) {
             try {
                 closeable.close();
             } catch (IOException ignored) {
-                // Best-effort shutdown.
+                // Best effort.
             }
         }
     }
@@ -767,7 +1046,7 @@ public final class Connect {
                 upstreamPump.join();
                 downstreamPump.join();
             } catch (IOException ignored) {
-                // Listener/socket closed during shutdown.
+                // Closed during shutdown.
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } finally {
@@ -782,7 +1061,7 @@ public final class Connect {
                     try {
                         activeUpstream.close();
                     } catch (IOException ignored) {
-                        // Best-effort shutdown.
+                        // Best effort.
                     }
                 }
             }
@@ -801,7 +1080,7 @@ public final class Connect {
                         output.flush();
                     }
                 } catch (IOException ignored) {
-                    // Bridge closed during shutdown.
+                    // Closed during shutdown.
                 } finally {
                     if (closeOutput) {
                         closeQuietly(output);

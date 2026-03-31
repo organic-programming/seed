@@ -31,7 +31,7 @@ void main() {
 
       final channel = await connect(running.publicUri);
       addTearDown(() async {
-        await disconnect(channel);
+        disconnect(channel);
       });
 
       final response =

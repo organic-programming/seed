@@ -201,6 +201,8 @@ func invokeConnectedArgs(method string, inputJSON string, noBuild bool) []string
 }
 
 func completeInvokeArgs(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	args = normalizeCompletionArgs(args, toComplete)
+
 	if err := applyCurrentEnvOverrides(); err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}

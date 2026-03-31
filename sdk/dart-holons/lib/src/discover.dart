@@ -1,287 +1,857 @@
+import 'dart:convert';
 import 'dart:io';
 
-import 'identity.dart';
+import 'discovery_types.dart';
 
-class HolonBuild {
-  final String runner;
-  final String main;
+typedef SourceDiscoverBridge = DiscoverResult Function(
+  int scope,
+  String? expression,
+  String root,
+  int specifiers,
+  int limit,
+  int timeout,
+);
 
-  const HolonBuild({
-    this.runner = '',
-    this.main = '',
-  });
+String Function() discoverCurrentRootProvider =
+    () => _normalizeAbsolutePath(Directory.current.path);
+Map<String, String> Function() discoverEnvironmentProvider =
+    () => Platform.environment;
+String? Function() discoverSiblingsRootProvider = _defaultSiblingsRoot;
+String Function() discoverDartRunWorkingDirectoryProvider =
+    () => Directory.current.path;
+SourceDiscoverBridge discoverSourceBridge = _defaultSourceDiscoverBridge;
+
+void resetDiscoveryTestOverrides() {
+  discoverCurrentRootProvider =
+      () => _normalizeAbsolutePath(Directory.current.path);
+  discoverEnvironmentProvider = () => Platform.environment;
+  discoverSiblingsRootProvider = _defaultSiblingsRoot;
+  discoverDartRunWorkingDirectoryProvider = () => Directory.current.path;
+  discoverSourceBridge = _defaultSourceDiscoverBridge;
 }
 
-class HolonArtifacts {
-  final String binary;
-  final String primary;
+DiscoverResult Discover(
+  int scope,
+  String? expression,
+  String? root,
+  int specifiers,
+  int limit,
+  int timeout,
+) {
+  if (scope != LOCAL) {
+    return DiscoverResult(error: 'scope $scope not supported');
+  }
+  if (specifiers < 0 || (specifiers & ~ALL) != 0) {
+    return DiscoverResult(
+      error:
+          'invalid specifiers ${_formatSpecifiers(specifiers)}: valid range is 0x00-0x3F',
+    );
+  }
 
-  const HolonArtifacts({
-    this.binary = '',
-    this.primary = '',
-  });
-}
+  var effectiveSpecifiers = specifiers == 0 ? ALL : specifiers;
+  if (limit < 0) {
+    return const DiscoverResult(found: <HolonRef>[]);
+  }
 
-class HolonManifest {
-  final String kind;
-  final HolonBuild build;
-  final HolonArtifacts artifacts;
+  final normalizedExpression = expression?.trim();
+  String? resolvedRoot;
 
-  const HolonManifest({
-    this.kind = '',
-    this.build = const HolonBuild(),
-    this.artifacts = const HolonArtifacts(),
-  });
-}
+  String resolveRoot() {
+    if (resolvedRoot != null) {
+      return resolvedRoot!;
+    }
+    final result = _resolveDiscoverRoot(root);
+    if (result.error != null) {
+      throw _RootResolutionError(result.error!);
+    }
+    resolvedRoot = result.root!;
+    return resolvedRoot!;
+  }
 
-class HolonEntry {
-  final String slug;
-  final String uuid;
-  final String dir;
-  final String relativePath;
-  final String origin;
-  final HolonIdentity identity;
-  final HolonManifest? manifest;
+  try {
+    if (normalizedExpression != null) {
+      final pathResult = _discoverPathExpression(
+        normalizedExpression,
+        resolveRoot,
+        timeout,
+      );
+      if (pathResult.handled) {
+        if (pathResult.error != null) {
+          return DiscoverResult(error: pathResult.error);
+        }
+        return DiscoverResult(
+          found: _applyRefLimit(pathResult.found, limit),
+        );
+      }
+    }
 
-  const HolonEntry({
-    required this.slug,
-    required this.uuid,
-    required this.dir,
-    required this.relativePath,
-    required this.origin,
-    required this.identity,
-    required this.manifest,
-  });
-}
+    final rootResult = _resolveDiscoverRoot(root);
+    if (rootResult.error != null) {
+      return DiscoverResult(error: rootResult.error);
+    }
+    resolvedRoot = rootResult.root!;
+  } on _RootResolutionError catch (error) {
+    return DiscoverResult(error: error.message);
+  }
 
-Future<List<HolonEntry>> discover(String root) async {
-  return _discoverInRoot(root, 'local');
-}
-
-Future<List<HolonEntry>> discoverLocal() async {
-  return discover(Directory.current.path);
-}
-
-Future<List<HolonEntry>> discoverAll() async {
-  final roots = <({String path, String origin})>[
-    (path: Directory.current.path, origin: 'local'),
-    (path: _opbin(), origin: r'$OPBIN'),
-    (path: _cacheDir(), origin: 'cache'),
+  final found = <HolonRef>[];
+  final seen = <String>{};
+  final layers = <_Layer>[
+    _Layer(
+      flag: SIBLINGS,
+      name: 'siblings',
+      scan: (_, remainingLimit) {
+        final siblingsRoot = discoverSiblingsRootProvider();
+        if (siblingsRoot == null || siblingsRoot.trim().isEmpty) {
+          return const DiscoverResult(found: <HolonRef>[]);
+        }
+        return _discoverPackageLayer(
+          _normalizeAbsolutePath(siblingsRoot),
+          'siblings',
+          recursive: false,
+          timeout: timeout,
+        );
+      },
+    ),
+    _Layer(
+      flag: CWD,
+      name: 'cwd',
+      scan: (searchRoot, remainingLimit) => _discoverPackageLayer(
+        searchRoot,
+        'cwd',
+        recursive: true,
+        timeout: timeout,
+      ),
+    ),
+    _Layer(
+      flag: SOURCE,
+      name: 'source',
+      scan: (searchRoot, remainingLimit) => discoverSourceBridge(
+        LOCAL,
+        normalizedExpression,
+        searchRoot,
+        SOURCE,
+        remainingLimit,
+        timeout,
+      ),
+    ),
+    _Layer(
+      flag: BUILT,
+      name: 'built',
+      scan: (searchRoot, remainingLimit) => _discoverPackageLayer(
+        _joinPath(searchRoot, '.op/build'),
+        'built',
+        recursive: false,
+        timeout: timeout,
+      ),
+    ),
+    _Layer(
+      flag: INSTALLED,
+      name: 'installed',
+      scan: (_, remainingLimit) => _discoverPackageLayer(
+        _opbin(),
+        'installed',
+        recursive: false,
+        timeout: timeout,
+      ),
+    ),
+    _Layer(
+      flag: CACHED,
+      name: 'cached',
+      scan: (_, remainingLimit) => _discoverPackageLayer(
+        _cacheDir(),
+        'cached',
+        recursive: true,
+        timeout: timeout,
+      ),
+    ),
   ];
 
-  final seen = <String>{};
-  final entries = <HolonEntry>[];
-  for (final root in roots) {
-    final discovered = await _discoverInRoot(root.path, root.origin);
-    for (final entry in discovered) {
-      final key = entry.uuid.trim().isEmpty ? entry.dir : entry.uuid;
-      if (seen.add(key)) {
-        entries.add(entry);
+  for (final layer in layers) {
+    if ((effectiveSpecifiers & layer.flag) == 0) {
+      continue;
+    }
+    final remainingLimit =
+        limit > 0 ? (limit - found.length).clamp(0, limit) : NO_LIMIT;
+    if (limit > 0 && remainingLimit == 0) {
+      break;
+    }
+
+    final result = layer.scan(resolvedRoot!, remainingLimit);
+    if (result.error != null) {
+      return DiscoverResult(
+        error: 'scan ${layer.name} layer: ${result.error}',
+      );
+    }
+
+    for (final ref in result.found) {
+      final key = _refKey(ref);
+      if (!seen.add(key)) {
+        continue;
+      }
+      if (!_matchesExpression(ref, normalizedExpression)) {
+        continue;
+      }
+      found.add(ref);
+      if (limit > 0 && found.length >= limit) {
+        break;
       }
     }
   }
 
-  return entries;
+  return DiscoverResult(found: found);
 }
 
-Future<HolonEntry?> findBySlug(String slug) async {
-  final needle = slug.trim();
-  if (needle.isEmpty) {
-    return null;
+ResolveResult resolve(
+  int scope,
+  String expression,
+  String? root,
+  int specifiers,
+  int timeout,
+) {
+  final result = Discover(scope, expression, root, specifiers, 1, timeout);
+  if (result.error != null) {
+    return ResolveResult(error: result.error);
   }
-
-  HolonEntry? match;
-  for (final entry in await discoverAll()) {
-    if (entry.slug != needle) {
-      continue;
-    }
-    if (match != null && match.uuid != entry.uuid) {
-      throw StateError('ambiguous holon "$needle"');
-    }
-    match = entry;
+  if (result.found.isEmpty) {
+    return ResolveResult(error: 'holon "$expression" not found');
   }
-  return match;
+  final ref = result.found.first;
+  if (ref.error != null && ref.error!.isNotEmpty) {
+    return ResolveResult(ref: ref, error: ref.error);
+  }
+  return ResolveResult(ref: ref);
 }
 
-Future<HolonEntry?> findByUUID(String prefix) async {
-  final needle = prefix.trim();
-  if (needle.isEmpty) {
-    return null;
-  }
-
-  HolonEntry? match;
-  for (final entry in await discoverAll()) {
-    if (!entry.uuid.startsWith(needle)) {
-      continue;
-    }
-    if (match != null && match.uuid != entry.uuid) {
-      throw StateError('ambiguous UUID prefix "$needle"');
-    }
-    match = entry;
-  }
-  return match;
-}
-
-Future<List<HolonEntry>> _discoverInRoot(String root, String origin) async {
+DiscoverResult _discoverPackageLayer(
+  String root,
+  String origin, {
+  required bool recursive,
+  required int timeout,
+}) {
   final normalizedRoot = _normalizeAbsolutePath(root);
   final directory = Directory(normalizedRoot);
   if (!directory.existsSync()) {
-    return <HolonEntry>[];
+    return const DiscoverResult(found: <HolonRef>[]);
   }
 
-  final entriesByKey = <String, HolonEntry>{};
+  final dirs = recursive
+      ? _packageDirsRecursive(normalizedRoot)
+      : _packageDirsDirect(normalizedRoot);
+  final recordsByKey = <String, _LayerRecord>{};
   final orderedKeys = <String>[];
 
-  void scan(Directory current) {
-    List<FileSystemEntity> entities;
-    try {
-      entities = current.listSync(followLinks: false);
-    } on FileSystemException {
-      return;
+  for (final dir in dirs) {
+    final record =
+        _loadPackageRecord(normalizedRoot, dir, origin, timeout: timeout);
+    final key = record.key;
+    final existing = recordsByKey[key];
+    if (existing != null) {
+      if (_shouldReplaceRecord(existing, record)) {
+        recordsByKey[key] = record;
+      }
+      continue;
     }
 
-    for (final entity in entities) {
-      final path = _normalizeAbsolutePath(entity.path);
-      final name = _basename(path);
-      if (entity is Directory) {
-        if (_shouldSkipDir(normalizedRoot, path, name)) {
-          continue;
-        }
-        scan(entity);
-        continue;
-      }
-      if (entity is! File || name != 'holon.proto') {
-        continue;
-      }
+    recordsByKey[key] = record;
+    orderedKeys.add(key);
+  }
 
-      try {
-        final resolved = resolveProtoFile(path);
-        final dir = _manifestRoot(path);
-        final entry = HolonEntry(
-          slug: resolved.identity.slug(),
-          uuid: resolved.identity.uuid,
-          dir: dir,
-          relativePath: _relativePath(normalizedRoot, dir),
-          origin: origin,
-          identity: resolved.identity,
-          manifest: HolonManifest(
-            kind: resolved.kind,
-            build: HolonBuild(
-              runner: resolved.buildRunner,
-              main: resolved.buildMain,
-            ),
-            artifacts: HolonArtifacts(
-              binary: resolved.artifactBinary,
-              primary: resolved.artifactPrimary,
-            ),
-          ),
-        );
-
-        final key = entry.uuid.trim().isEmpty ? entry.dir : entry.uuid;
-        final existing = entriesByKey[key];
-        if (existing != null) {
-          if (_pathDepth(entry.relativePath) <
-              _pathDepth(existing.relativePath)) {
-            entriesByKey[key] = entry;
-          }
-          continue;
-        }
-
-        entriesByKey[key] = entry;
-        orderedKeys.add(key);
-      } on Object {
-        continue;
+  final records = <_LayerRecord>[
+    for (final key in orderedKeys)
+      if (recordsByKey.containsKey(key)) recordsByKey[key]!,
+  ]..sort((left, right) {
+      final byPath = left.relativePath.compareTo(right.relativePath);
+      if (byPath != 0) {
+        return byPath;
       }
+      return left.uuid.compareTo(right.uuid);
+    });
+
+  return DiscoverResult(found: records.map((record) => record.ref).toList());
+}
+
+_LayerRecord _loadPackageRecord(
+  String root,
+  String dir,
+  String origin, {
+  required int timeout,
+}) {
+  final normalizedDir = _normalizeAbsolutePath(dir);
+  final info = _loadPackageInfoFromJson(normalizedDir);
+  if (info != null) {
+    return _LayerRecord(
+      ref: HolonRef(url: _fileUrl(normalizedDir), info: info),
+      dir: normalizedDir,
+      relativePath: _relativePath(root, normalizedDir),
+      uuid: info.uuid,
+      key: info.uuid.trim().isEmpty ? normalizedDir : info.uuid,
+    );
+  }
+
+  try {
+    final probed = _probeHelper('describe-package', normalizedDir, timeout);
+    return _LayerRecord(
+      ref: HolonRef(url: _fileUrl(normalizedDir), info: probed),
+      dir: normalizedDir,
+      relativePath: _relativePath(root, normalizedDir),
+      uuid: probed.uuid,
+      key: probed.uuid.trim().isEmpty ? normalizedDir : probed.uuid,
+    );
+  } on Object catch (error) {
+    return _LayerRecord(
+      ref: HolonRef(url: _fileUrl(normalizedDir), error: '$error'),
+      dir: normalizedDir,
+      relativePath: _relativePath(root, normalizedDir),
+      uuid: '',
+      key: normalizedDir,
+    );
+  }
+}
+
+HolonInfo? _loadPackageInfoFromJson(String dir) {
+  final manifestFile = File(_joinPath(dir, '.holon.json'));
+  if (!manifestFile.existsSync()) {
+    return null;
+  }
+
+  final decoded = jsonDecode(manifestFile.readAsStringSync());
+  if (decoded is! Map) {
+    return null;
+  }
+  final json = decoded.map(
+    (key, dynamic value) => MapEntry(key.toString(), value),
+  );
+  final schema = (json['schema'] as String?)?.trim() ?? '';
+  if (schema.isNotEmpty && schema != 'holon-package/v1') {
+    return null;
+  }
+
+  final info = HolonInfo.fromJson(json);
+  if (info.slug.isNotEmpty) {
+    return info;
+  }
+
+  final slug = _slugFromIdentity(info.identity);
+  return HolonInfo(
+    slug: slug,
+    uuid: info.uuid,
+    identity: info.identity,
+    lang: info.lang,
+    runner: info.runner,
+    status: info.status,
+    kind: info.kind,
+    transport: info.transport,
+    entrypoint: info.entrypoint,
+    architectures: info.architectures,
+    hasDist: info.hasDist,
+    hasSource: info.hasSource,
+  );
+}
+
+_PathDiscoverResult _discoverPathExpression(
+  String expression,
+  String Function() resolveRoot,
+  int timeout,
+) {
+  final candidate = _pathExpressionCandidate(expression, resolveRoot);
+  if (!candidate.handled) {
+    return const _PathDiscoverResult(handled: false);
+  }
+  if (candidate.error != null) {
+    return _PathDiscoverResult(handled: true, error: candidate.error);
+  }
+
+  final path = candidate.path!;
+  final type = FileSystemEntity.typeSync(path, followLinks: false);
+  if (type == FileSystemEntityType.notFound) {
+    return const _PathDiscoverResult(handled: true, found: <HolonRef>[]);
+  }
+
+  if (type == FileSystemEntityType.directory) {
+    if (_basename(path).endsWith('.holon') ||
+        File(_joinPath(path, '.holon.json')).existsSync()) {
+      return _PathDiscoverResult(
+        handled: true,
+        found: <HolonRef>[
+          _loadPackageRecord(_dirname(path), path, 'path', timeout: timeout)
+              .ref,
+        ],
+      );
+    }
+
+    final source = discoverSourceBridge(
+      LOCAL,
+      path,
+      resolveRoot(),
+      SOURCE,
+      1,
+      timeout,
+    );
+    if (source.error != null) {
+      return _PathDiscoverResult(handled: true, error: source.error);
+    }
+    return _PathDiscoverResult(handled: true, found: source.found);
+  }
+
+  if (_basename(path) == 'holon.proto') {
+    final source = discoverSourceBridge(
+      LOCAL,
+      path,
+      resolveRoot(),
+      SOURCE,
+      1,
+      timeout,
+    );
+    if (source.error != null) {
+      return _PathDiscoverResult(handled: true, error: source.error);
+    }
+    return _PathDiscoverResult(handled: true, found: source.found);
+  }
+
+  try {
+    final info = _probeHelper('describe-binary', path, timeout);
+    return _PathDiscoverResult(
+      handled: true,
+      found: <HolonRef>[
+        HolonRef(url: _fileUrl(path), info: info),
+      ],
+    );
+  } on Object catch (error) {
+    return _PathDiscoverResult(
+      handled: true,
+      found: <HolonRef>[
+        HolonRef(url: _fileUrl(path), error: '$error'),
+      ],
+    );
+  }
+}
+
+_PathCandidate _pathExpressionCandidate(
+  String expression,
+  String Function() resolveRoot,
+) {
+  final trimmed = expression.trim();
+  if (trimmed.isEmpty) {
+    return const _PathCandidate(handled: false);
+  }
+
+  if (trimmed.startsWith('file://')) {
+    try {
+      return _PathCandidate(
+        handled: true,
+        path: _normalizeAbsolutePath(Uri.parse(trimmed).toFilePath()),
+      );
+    } on Object catch (error) {
+      return _PathCandidate(handled: true, error: '$error');
     }
   }
 
-  scan(directory);
+  final isPathLike = _isAbsolutePath(trimmed) ||
+      trimmed.startsWith('.') ||
+      trimmed.contains('/') ||
+      trimmed.contains(r'\') ||
+      trimmed.endsWith('.holon');
+  if (!isPathLike) {
+    return const _PathCandidate(handled: false);
+  }
 
-  final entries = <HolonEntry>[
-    for (final key in orderedKeys)
-      if (entriesByKey.containsKey(key)) entriesByKey[key]!,
+  if (_isAbsolutePath(trimmed)) {
+    return _PathCandidate(
+      handled: true,
+      path: _normalizeAbsolutePath(trimmed),
+    );
+  }
+
+  return _PathCandidate(
+    handled: true,
+    path: _normalizeAbsolutePath(_joinPath(resolveRoot(), trimmed)),
+  );
+}
+
+HolonInfo _probeHelper(String command, String path, int timeout) {
+  final args = <String>[
+    'run',
+    'holons:discovery_probe',
+    command,
+    path,
+    '$timeout',
   ];
-  entries.sort((left, right) {
-    final byPath = left.relativePath.compareTo(right.relativePath);
-    if (byPath != 0) {
-      return byPath;
+
+  final result = Process.runSync(
+    Platform.resolvedExecutable,
+    args,
+    workingDirectory: discoverDartRunWorkingDirectoryProvider(),
+  );
+  if (result.exitCode != 0) {
+    final stderr = result.stderr.toString().trim();
+    final stdout = result.stdout.toString().trim();
+    final message = stderr.isNotEmpty
+        ? stderr
+        : (stdout.isNotEmpty ? stdout : 'probe failed');
+    throw StateError(message);
+  }
+
+  final decoded = jsonDecode(result.stdout.toString());
+  if (decoded is! Map) {
+    throw StateError('probe returned invalid JSON');
+  }
+
+  return HolonInfo.fromJson(
+    decoded.map((key, dynamic value) => MapEntry(key.toString(), value)),
+  );
+}
+
+DiscoverResult _defaultSourceDiscoverBridge(
+  int scope,
+  String? expression,
+  String root,
+  int specifiers,
+  int limit,
+  int timeout,
+) {
+  try {
+    final args = <String>[
+      '--format',
+      'json',
+      'list',
+      '--source',
+      '--root',
+      root,
+    ];
+    if (limit > 0) {
+      args.addAll(<String>['--limit', '$limit']);
     }
-    return left.uuid.compareTo(right.uuid);
-  });
-  return entries;
+    if (timeout > 0) {
+      args.addAll(<String>['--timeout', '$timeout']);
+    }
+
+    final result = Process.runSync(
+      'op',
+      args,
+      workingDirectory: discoverDartRunWorkingDirectoryProvider(),
+    );
+    if (result.exitCode != 0) {
+      final stderr = result.stderr.toString().trim();
+      final stdout = result.stdout.toString().trim();
+      final message = stderr.isNotEmpty
+          ? stderr
+          : (stdout.isNotEmpty ? stdout : 'op list failed');
+      return DiscoverResult(error: 'source discovery offload failed: $message');
+    }
+
+    final decoded = jsonDecode(result.stdout.toString());
+    if (decoded is! Map) {
+      return const DiscoverResult(
+        error: 'source discovery offload returned invalid JSON',
+      );
+    }
+
+    final entries = decoded['entries'];
+    if (entries is! List) {
+      return const DiscoverResult(found: <HolonRef>[]);
+    }
+
+    final refs = <HolonRef>[];
+    for (final value in entries.whereType<Map>()) {
+      final entry = value.map(
+        (key, dynamic item) => MapEntry(key.toString(), item),
+      );
+      final identityJson = entry['identity'];
+      final identity = identityJson is Map<String, dynamic>
+          ? IdentityInfo.fromJson(identityJson)
+          : const IdentityInfo();
+      final relativePath =
+          (entry['relativePath'] ?? entry['relative_path'] ?? '.')
+              .toString()
+              .trim();
+      final absolutePath = relativePath == '.' || relativePath.isEmpty
+          ? _normalizeAbsolutePath(root)
+          : _normalizeAbsolutePath(_joinPath(root, relativePath));
+      final info = HolonInfo(
+        slug: _slugFromIdentity(identity),
+        uuid: _readNestedString(entry, 'identity', 'uuid'),
+        identity: identity,
+        lang: _readNestedString(entry, 'identity', 'lang'),
+        status: _readNestedString(entry, 'identity', 'status'),
+        hasSource: true,
+      );
+      refs.add(HolonRef(url: _fileUrl(absolutePath), info: info));
+    }
+    return DiscoverResult(found: refs);
+  } on ProcessException catch (error) {
+    return DiscoverResult(error: 'source discovery offload failed: $error');
+  } on FormatException catch (error) {
+    return DiscoverResult(error: 'source discovery offload failed: $error');
+  }
+}
+
+bool _matchesExpression(HolonRef ref, String? expression) {
+  if (expression == null) {
+    return true;
+  }
+
+  final needle = expression.trim();
+  if (needle.isEmpty) {
+    return false;
+  }
+
+  final info = ref.info;
+  if (info != null) {
+    if (info.slug == needle) {
+      return true;
+    }
+    if (info.uuid.startsWith(needle)) {
+      return true;
+    }
+    if (info.identity.aliases.contains(needle)) {
+      return true;
+    }
+  }
+
+  final path = _pathFromFileUrl(ref.url);
+  if (path == null) {
+    return false;
+  }
+  final base = _basename(path).replaceFirst(RegExp(r'\.holon$'), '');
+  return base == needle;
+}
+
+String _refKey(HolonRef ref) {
+  final uuid = ref.info?.uuid.trim() ?? '';
+  return uuid.isNotEmpty ? uuid : ref.url;
+}
+
+bool _shouldReplaceRecord(_LayerRecord current, _LayerRecord next) {
+  return _pathDepth(next.relativePath) < _pathDepth(current.relativePath);
+}
+
+List<String> _packageDirsDirect(String root) {
+  final directory = Directory(root);
+  if (!directory.existsSync()) {
+    return const <String>[];
+  }
+
+  final dirs = directory
+      .listSync(followLinks: false)
+      .whereType<Directory>()
+      .map((dir) => _normalizeAbsolutePath(dir.path))
+      .where((dir) => _basename(dir).endsWith('.holon'))
+      .toList()
+    ..sort();
+  return dirs;
+}
+
+List<String> _packageDirsRecursive(String root) {
+  final directories = <String>[];
+  final stack = <Directory>[Directory(root)];
+
+  while (stack.isNotEmpty) {
+    final current = stack.removeLast();
+    final currentPath = _normalizeAbsolutePath(current.path);
+
+    List<FileSystemEntity> children;
+    try {
+      children = current.listSync(followLinks: false);
+    } on FileSystemException {
+      continue;
+    }
+
+    for (final entity in children) {
+      if (entity is! Directory) {
+        continue;
+      }
+      final path = _normalizeAbsolutePath(entity.path);
+      final name = _basename(path);
+      if (_shouldSkipDir(root, path, name)) {
+        continue;
+      }
+      if (name.endsWith('.holon')) {
+        directories.add(path);
+        continue;
+      }
+      stack.add(entity);
+    }
+  }
+
+  directories.sort();
+  return directories;
 }
 
 bool _shouldSkipDir(String root, String path, String name) {
-  if (path == root) {
+  if (_normalizeAbsolutePath(path) == _normalizeAbsolutePath(root)) {
+    return false;
+  }
+  if (name.endsWith('.holon')) {
     return false;
   }
   if (name == '.git' ||
       name == '.op' ||
       name == 'node_modules' ||
       name == 'vendor' ||
-      name == 'build') {
+      name == 'build' ||
+      name == 'testdata') {
     return true;
   }
   return name.startsWith('.');
 }
 
-String _relativePath(String root, String dir) {
-  if (dir == root) {
-    return '.';
+_RootResolution _resolveDiscoverRoot(String? root) {
+  if (root == null) {
+    return _RootResolution(
+        root: _normalizeAbsolutePath(discoverCurrentRootProvider()));
   }
-  final prefix = root.endsWith('/') ? root : '$root/';
-  if (dir.startsWith(prefix)) {
-    return dir.substring(prefix.length);
+
+  final trimmed = root.trim();
+  if (trimmed.isEmpty) {
+    return const _RootResolution(error: 'root cannot be empty');
   }
-  return dir;
+
+  final normalized = _normalizeAbsolutePath(trimmed);
+  final directory = Directory(normalized);
+  if (!directory.existsSync()) {
+    return _RootResolution(error: 'root "$trimmed" is not a directory');
+  }
+  return _RootResolution(root: normalized);
 }
 
-String _manifestRoot(String manifestPath) {
-  final manifestDir = _dirname(manifestPath);
-  final versionDir = _basename(manifestDir);
-  final apiDir = _basename(_dirname(manifestDir));
-  if (RegExp(r'^v[0-9]+(?:[A-Za-z0-9._-]*)?$').hasMatch(versionDir) &&
-      apiDir == 'api') {
-    return _dirname(_dirname(manifestDir));
+String _formatSpecifiers(int specifiers) {
+  final masked = specifiers & 0xFF;
+  return '0x${masked.toRadixString(16).padLeft(2, '0').toUpperCase()}';
+}
+
+List<HolonRef> _applyRefLimit(List<HolonRef> refs, int limit) {
+  if (limit <= 0 || refs.length <= limit) {
+    return refs;
   }
-  return manifestDir;
+  return refs.sublist(0, limit);
+}
+
+String _slugFromIdentity(IdentityInfo identity) {
+  final family = identity.familyName.trim().replaceFirst(RegExp(r'\?$'), '');
+  return '${identity.givenName.trim()}-$family'
+      .trim()
+      .toLowerCase()
+      .replaceAll(' ', '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
+}
+
+String _readNestedString(
+  Map<String, dynamic> json,
+  String key,
+  String nestedKey,
+) {
+  final nested = json[key];
+  if (nested is! Map) {
+    return '';
+  }
+  final value = nested[nestedKey];
+  return value is String ? value.trim() : '';
+}
+
+String? _defaultSiblingsRoot() {
+  final executable = Platform.resolvedExecutable;
+  var current = Directory(_dirname(executable));
+  while (true) {
+    final path = _normalizeAbsolutePath(current.path);
+    if (_basename(path).toLowerCase().endsWith('.app')) {
+      final candidate = _joinPath(path, 'Contents/Resources/Holons');
+      if (Directory(candidate).existsSync()) {
+        return candidate;
+      }
+    }
+    final parent = current.parent;
+    if (_normalizeAbsolutePath(parent.path) == path) {
+      break;
+    }
+    current = parent;
+  }
+  return null;
+}
+
+String _oppath() {
+  final env = discoverEnvironmentProvider();
+  final configured = (env['OPPATH'] ?? '').trim();
+  if (configured.isNotEmpty) {
+    return _normalizeAbsolutePath(configured);
+  }
+
+  final home = (env['HOME'] ?? '').trim();
+  if (home.isEmpty) {
+    return _normalizeAbsolutePath('.op');
+  }
+  return _normalizeAbsolutePath(_joinPath(home, '.op'));
+}
+
+String _opbin() {
+  final env = discoverEnvironmentProvider();
+  final configured = (env['OPBIN'] ?? '').trim();
+  if (configured.isNotEmpty) {
+    return _normalizeAbsolutePath(configured);
+  }
+  return _joinPath(_oppath(), 'bin');
+}
+
+String _cacheDir() => _joinPath(_oppath(), 'cache');
+
+String _fileUrl(String path) => Uri.file(path).toString();
+
+String? _pathFromFileUrl(String raw) {
+  if (!raw.startsWith('file://')) {
+    return null;
+  }
+  return _normalizeAbsolutePath(Uri.parse(raw).toFilePath());
+}
+
+bool _isAbsolutePath(String path) {
+  if (path.startsWith('/')) {
+    return true;
+  }
+  return RegExp(r'^[A-Za-z]:[\\/]').hasMatch(path);
+}
+
+String _joinPath(String left, String right) {
+  final separator = Platform.pathSeparator;
+  final normalizedLeft =
+      left.endsWith(separator) ? left.substring(0, left.length - 1) : left;
+  final normalizedRight =
+      right.startsWith(separator) ? right.substring(1) : right;
+  return '$normalizedLeft$separator$normalizedRight';
+}
+
+String _relativePath(String root, String dir) {
+  final normalizedRoot = _normalizeAbsolutePath(root);
+  final normalizedDir = _normalizeAbsolutePath(dir);
+  if (normalizedDir == normalizedRoot) {
+    return '.';
+  }
+  final prefix =
+      normalizedRoot.endsWith('/') ? normalizedRoot : '$normalizedRoot/';
+  if (normalizedDir.startsWith(prefix)) {
+    return normalizedDir.substring(prefix.length);
+  }
+  return normalizedDir;
 }
 
 int _pathDepth(String relativePath) {
-  final trimmed = relativePath.trim().replaceAll(RegExp(r'^/+|/+$'), '');
+  final trimmed = relativePath
+      .trim()
+      .replaceAll('\\', '/')
+      .replaceAll(RegExp(r'^/+|/+$'), '');
   if (trimmed.isEmpty || trimmed == '.') {
     return 0;
   }
   return trimmed.split('/').length;
 }
 
-String _oppath() {
-  final env = Platform.environment['OPPATH']?.trim();
-  if (env != null && env.isNotEmpty) {
-    return _normalizeAbsolutePath(env);
-  }
-
-  final home = Platform.environment['HOME']?.trim();
-  if (home != null && home.isNotEmpty) {
-    return _normalizeAbsolutePath('$home/.op');
-  }
-  return _normalizeAbsolutePath('.op');
-}
-
-String _opbin() {
-  final env = Platform.environment['OPBIN']?.trim();
-  if (env != null && env.isNotEmpty) {
-    return _normalizeAbsolutePath(env);
-  }
-  return _normalizeAbsolutePath('${_oppath()}/bin');
-}
-
-String _cacheDir() {
-  return _normalizeAbsolutePath('${_oppath()}/cache');
-}
-
 String _normalizeAbsolutePath(String path) {
-  final normalized = Directory(path).absolute.path.replaceAll('\\', '/');
+  final file = File(path);
+  final directory = Directory(path);
+  final absolutePath =
+      (directory.path.endsWith('/') || Directory(path).existsSync())
+          ? directory.absolute.path
+          : file.absolute.path;
+  final normalized = absolutePath.replaceAll('\\', '/');
   if (normalized.length > 1 && normalized.endsWith('/')) {
     return normalized.substring(0, normalized.length - 1);
   }
@@ -294,17 +864,85 @@ String _basename(String path) {
       ? normalized.substring(0, normalized.length - 1)
       : normalized;
   final index = trimmed.lastIndexOf('/');
-  if (index < 0) {
-    return trimmed;
-  }
-  return trimmed.substring(index + 1);
+  return index >= 0 ? trimmed.substring(index + 1) : trimmed;
 }
 
 String _dirname(String path) {
   final normalized = path.replaceAll('\\', '/');
-  final index = normalized.lastIndexOf('/');
+  final trimmed = normalized.endsWith('/') && normalized.length > 1
+      ? normalized.substring(0, normalized.length - 1)
+      : normalized;
+  final index = trimmed.lastIndexOf('/');
   if (index <= 0) {
     return index == 0 ? '/' : '.';
   }
-  return normalized.substring(0, index);
+  return trimmed.substring(0, index);
+}
+
+final class _Layer {
+  final int flag;
+  final String name;
+  final DiscoverResult Function(String root, int remainingLimit) scan;
+
+  const _Layer({
+    required this.flag,
+    required this.name,
+    required this.scan,
+  });
+}
+
+final class _LayerRecord {
+  final HolonRef ref;
+  final String dir;
+  final String relativePath;
+  final String uuid;
+  final String key;
+
+  const _LayerRecord({
+    required this.ref,
+    required this.dir,
+    required this.relativePath,
+    required this.uuid,
+    required this.key,
+  });
+}
+
+final class _PathDiscoverResult {
+  final bool handled;
+  final List<HolonRef> found;
+  final String? error;
+
+  const _PathDiscoverResult({
+    required this.handled,
+    this.found = const <HolonRef>[],
+    this.error,
+  });
+}
+
+final class _PathCandidate {
+  final bool handled;
+  final String? path;
+  final String? error;
+
+  const _PathCandidate({
+    required this.handled,
+    this.path,
+    this.error,
+  });
+}
+
+final class _RootResolution {
+  final String? root;
+  final String? error;
+
+  const _RootResolution({
+    this.root,
+    this.error,
+  });
+}
+
+final class _RootResolutionError implements Exception {
+  final String message;
+
+  const _RootResolutionError(this.message);
 }

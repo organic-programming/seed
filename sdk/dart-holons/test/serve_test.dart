@@ -74,7 +74,7 @@ void main() {
           expect(response.services, hasLength(1));
           expect(response.services.single.name, equals('echo.v1.Echo'));
         } finally {
-          await disconnect(channel);
+          disconnect(channel);
           await running.stop();
         }
       } finally {

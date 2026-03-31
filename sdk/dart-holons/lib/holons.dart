@@ -3,7 +3,8 @@ library holons;
 
 export 'src/transport.dart';
 export 'src/serve.dart';
-export 'src/identity.dart';
+export 'src/identity.dart' hide resolve;
+export 'src/discovery_types.dart';
 export 'src/discover.dart';
 export 'src/describe.dart';
 export 'src/connect.dart';

@@ -43,15 +43,15 @@ class ServeTest < Minitest::Test
 
       begin
         uri = read_advertised_uri(stdout, stderr)
-        channel = Holons.connect(uri)
+        result = Holons.connect(Holons::LOCAL, uri, nil, Holons::ALL, 5000)
         begin
-          response = describe(channel)
+          response = describe(result.channel)
           assert_equal "Serve", response.manifest.identity.given_name
           assert_equal "Helper", response.manifest.identity.family_name
           assert_equal "Reply precisely.", response.manifest.identity.motto
           assert_equal ["echo.v1.Echo"], response.services.map(&:name)
         ensure
-          Holons.disconnect(channel)
+          Holons.disconnect(result)
         end
       ensure
         terminate_process(wait_thr.pid)
@@ -88,13 +88,13 @@ class ServeTest < Minitest::Test
   def test_connect_slug_reaches_stdio_serve_helper
     with_serve_fixture do |fixture|
       with_holon_root(fixture[:workspace]) do
-        channel = Holons.connect(fixture[:slug])
+        result = Holons.connect(Holons::LOCAL, fixture[:slug], fixture[:workspace], Holons::CWD, 5000)
         begin
-          response = describe(channel)
+          response = describe(result.channel)
           assert_equal "Serve", response.manifest.identity.given_name
           assert_equal ["echo.v1.Echo"], response.services.map(&:name)
         ensure
-          Holons.disconnect(channel)
+          Holons.disconnect(result)
         end
       end
     end
@@ -115,13 +115,13 @@ class ServeTest < Minitest::Test
 
       begin
         uri = read_advertised_uri(stdout, stderr)
-        channel = Holons.connect(uri)
+        result = Holons.connect(Holons::LOCAL, uri, nil, Holons::ALL, 5000)
         begin
-          response = describe(channel)
+          response = describe(result.channel)
           assert_equal "Serve", response.manifest.identity.given_name
           assert_equal ["echo.v1.Echo"], response.services.map(&:name)
         ensure
-          Holons.disconnect(channel)
+          Holons.disconnect(result)
         end
       ensure
         terminate_process(wait_thr.pid)

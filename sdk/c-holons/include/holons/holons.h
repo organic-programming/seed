@@ -1,6 +1,7 @@
 #ifndef HOLONS_H
 #define HOLONS_H
 
+#include <stdbool.h>
 #include <signal.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -13,6 +14,21 @@ extern "C" {
 #define HOLONS_MAX_URI_LEN 512
 #define HOLONS_MAX_FIELD_LEN 256
 #define HOLONS_MAX_DOC_LEN 512
+
+#define HOLONS_LOCAL 0
+#define HOLONS_PROXY 1
+#define HOLONS_DELEGATED 2
+
+#define HOLONS_SIBLINGS 0x01
+#define HOLONS_CWD 0x02
+#define HOLONS_SOURCE 0x04
+#define HOLONS_BUILT 0x08
+#define HOLONS_INSTALLED 0x10
+#define HOLONS_CACHED 0x20
+#define HOLONS_ALL 0x3F
+
+#define HOLONS_NO_LIMIT 0
+#define HOLONS_NO_TIMEOUT 0
 
 typedef enum {
   HOLONS_SCHEME_INVALID = 0,
@@ -164,6 +180,54 @@ typedef struct {
   const holons_describe_response_t *response;
 } holons_describe_registration_t;
 
+typedef struct {
+  char *given_name;
+  char *family_name;
+  char *motto;
+  char **aliases;
+  size_t aliases_len;
+} HolonsIdentityInfo;
+
+typedef struct {
+  char *slug;
+  char *uuid;
+  HolonsIdentityInfo identity;
+  char *lang;
+  char *runner;
+  char *status;
+  char *kind;
+  char *transport;
+  char *entrypoint;
+  char **architectures;
+  size_t architectures_len;
+  bool has_dist;
+  bool has_source;
+} HolonsHolonInfo;
+
+typedef struct {
+  char *url;
+  HolonsHolonInfo *info;
+  char *error;
+} HolonsHolonRef;
+
+typedef struct {
+  HolonsHolonRef *found;
+  size_t found_len;
+  char *error;
+} HolonsDiscoverResult;
+
+typedef struct {
+  HolonsHolonRef *ref;
+  char *error;
+} HolonsResolveResult;
+
+typedef struct {
+  void *channel;
+  char *uid;
+  HolonsHolonRef *origin;
+  char *error;
+} HolonsConnectResult;
+
 const char *holons_default_uri(void);
 holons_scheme_t holons_scheme_from_uri(const char *uri);
 const char *holons_scheme_name(holons_scheme_t scheme);
@@ -214,20 +278,28 @@ int holons_invoke_describe(const holons_describe_registration_t *registration,
                            char *err,
                            size_t err_len);
 void holons_free_describe_response(holons_describe_response_t *response);
-int holons_discover(const char *root,
-                    holon_entry_t **entries,
-                    size_t *count,
-                    char *err,
-                    size_t err_len);
-int holons_discover_local(holon_entry_t **entries, size_t *count, char *err, size_t err_len);
-int holons_discover_all(holon_entry_t **entries, size_t *count, char *err, size_t err_len);
-holon_entry_t *holons_find_by_slug(const char *slug, char *err, size_t err_len);
-holon_entry_t *holons_find_by_uuid(const char *prefix, char *err, size_t err_len);
-void holons_free_entries(holon_entry_t *entries);
 
-grpc_channel *holons_connect(const char *target);
-grpc_channel *holons_connect_with_opts(const char *target, holons_connect_options opts);
-void holons_disconnect(grpc_channel *channel);
+HolonsDiscoverResult holons_discover(int scope,
+                                     const char *expression,
+                                     const char *root,
+                                     int specifiers,
+                                     int limit,
+                                     int timeout);
+HolonsResolveResult holons_resolve(int scope,
+                                   const char *expression,
+                                   const char *root,
+                                   int specifiers,
+                                   int timeout);
+HolonsConnectResult holons_connect(int scope,
+                                   const char *expression,
+                                   const char *root,
+                                   int specifiers,
+                                   int timeout);
+void holons_disconnect(HolonsConnectResult *result);
+
+void holons_discover_result_free(HolonsDiscoverResult *result);
+void holons_resolve_result_free(HolonsResolveResult *result);
+void holons_connect_result_free(HolonsConnectResult *result);
 
 volatile sig_atomic_t *holons_stop_token(void);
 void holons_request_stop(void);

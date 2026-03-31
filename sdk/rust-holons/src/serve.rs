@@ -162,9 +162,7 @@ where
             .add_service(service);
         serve_router!(router, listen_uri, options)
     } else {
-        let router = builder
-            .add_service(meta_service)
-            .add_service(service);
+        let router = builder.add_service(meta_service).add_service(service);
         serve_router!(router, listen_uri, options)
     }
 }
@@ -239,9 +237,8 @@ where
 
 fn registered_holon_meta_service(
     options: &RunOptions,
-) -> Result<
-    crate::gen::holons::v1::holon_meta_server::HolonMetaServer<crate::describe::MetaService>,
-> {
+) -> Result<crate::gen::holons::v1::holon_meta_server::HolonMetaServer<crate::describe::MetaService>>
+{
     if let Some(response) = options.describe_response.clone() {
         return Ok(describe::service_from_response(response));
     }
@@ -540,7 +537,13 @@ mod tests {
             .await
             .unwrap()
             .into_inner();
-        let identity = response.manifest.as_ref().unwrap().identity.as_ref().unwrap();
+        let identity = response
+            .manifest
+            .as_ref()
+            .unwrap()
+            .identity
+            .as_ref()
+            .unwrap();
 
         assert_eq!(identity.given_name, "Echo");
         assert_eq!(identity.family_name, "Server");
@@ -564,12 +567,16 @@ mod tests {
         let port = free_port();
         let listen_uri = format!("tcp://127.0.0.1:{port}");
 
-        let error = run_single_with_options(&listen_uri, UnimplementedService, RunOptions::default())
-            .await
-            .unwrap_err();
+        let error =
+            run_single_with_options(&listen_uri, UnimplementedService, RunOptions::default())
+                .await
+                .unwrap_err();
         assert_eq!(
             error.to_string(),
-            format!("register HolonMeta: {}", crate::describe::ERR_NO_INCODE_DESCRIPTION)
+            format!(
+                "register HolonMeta: {}",
+                crate::describe::ERR_NO_INCODE_DESCRIPTION
+            )
         );
     }
 
@@ -612,7 +619,13 @@ mod tests {
             .await
             .unwrap()
             .into_inner();
-        let identity = response.manifest.as_ref().unwrap().identity.as_ref().unwrap();
+        let identity = response
+            .manifest
+            .as_ref()
+            .unwrap()
+            .identity
+            .as_ref()
+            .unwrap();
 
         assert_eq!(identity.given_name, "Embedded");
         assert_eq!(identity.family_name, "Holon");

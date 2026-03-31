@@ -1,210 +1,607 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:holons/holons.dart';
+import 'package:holons/src/discover.dart' as discover_impl;
 import 'package:test/test.dart';
+
+import 'test_support/discovery_fixture.dart';
 
 void main() {
   final sdkRoot = Directory.current.path;
 
-  group('discover', () {
-    test('recurses skips and dedups by uuid', () async {
-      final root = Directory.systemTemp.createTempSync('holons_discover_dart_');
-      addTearDown(() => root.delete(recursive: true));
+  tearDown(discover_impl.resetDiscoveryTestOverrides);
 
-      _writeHolon(root.path, 'holons/alpha',
-          const _HolonSeed('uuid-alpha', 'Alpha', 'Go', 'alpha-go'));
-      _writeHolon(root.path, 'nested/beta',
-          const _HolonSeed('uuid-beta', 'Beta', 'Rust', 'beta-rust'));
-      _writeHolon(root.path, 'nested/dup/alpha',
-          const _HolonSeed('uuid-alpha', 'Alpha', 'Go', 'alpha-go'));
+  group('Discover', () {
+    test('discover all layers', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
 
+      configureDiscoveryRuntime(
+        fixture,
+        siblingsRootProvider: () => fixture.siblings.path,
+        sourceBridge: (scope, expression, root, specifiers, limit, timeout) {
+          return DiscoverResult(
+            found: <HolonRef>[
+              HolonRef(
+                url: Uri.file('${fixture.root.path}/source/source-alpha')
+                    .toString(),
+                info: const HolonInfo(
+                  slug: 'source-alpha',
+                  uuid: 'uuid-source-alpha',
+                  identity:
+                      IdentityInfo(givenName: 'Source', familyName: 'Alpha'),
+                  hasSource: true,
+                ),
+              ),
+            ],
+          );
+        },
+      );
+
+      writePackageHolon(
+        Directory('${fixture.siblings.path}/siblings-alpha.holon'),
+        slug: 'siblings-alpha',
+        uuid: 'uuid-siblings-alpha',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/cwd-beta.holon'),
+        slug: 'cwd-beta',
+        uuid: 'uuid-cwd-beta',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/.op/build/built-gamma.holon'),
+        slug: 'built-gamma',
+        uuid: 'uuid-built-gamma',
+      );
+      writePackageHolon(
+        Directory('${fixture.opBin.path}/installed-delta.holon'),
+        slug: 'installed-delta',
+        uuid: 'uuid-installed-delta',
+      );
+      writePackageHolon(
+        Directory('${fixture.cache.path}/deps/cached-epsilon.holon'),
+        slug: 'cached-epsilon',
+        uuid: 'uuid-cached-epsilon',
+      );
+
+      final result =
+          Discover(LOCAL, null, fixture.root.path, ALL, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(
+        slugs(result),
+        equals(<String>[
+          'siblings-alpha',
+          'cwd-beta',
+          'source-alpha',
+          'built-gamma',
+          'installed-delta',
+          'cached-epsilon',
+        ]),
+      );
+    });
+
+    test('filter by specifiers', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/cwd-alpha.holon'),
+        slug: 'cwd-alpha',
+        uuid: 'uuid-cwd-alpha',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/.op/build/built-beta.holon'),
+        slug: 'built-beta',
+        uuid: 'uuid-built-beta',
+      );
+      writePackageHolon(
+        Directory('${fixture.opBin.path}/installed-gamma.holon'),
+        slug: 'installed-gamma',
+        uuid: 'uuid-installed-gamma',
+      );
+
+      final result = Discover(LOCAL, null, fixture.root.path, BUILT | INSTALLED,
+          NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['built-beta', 'installed-gamma']));
+    });
+
+    test('match by slug', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/alpha.holon'),
+        slug: 'alpha',
+        uuid: 'uuid-alpha',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/beta.holon'),
+        slug: 'beta',
+        uuid: 'uuid-beta',
+      );
+
+      final result =
+          Discover(LOCAL, 'beta', fixture.root.path, CWD, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['beta']));
+    });
+
+    test('match by alias', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/alpha.holon'),
+        slug: 'alpha',
+        uuid: 'uuid-alpha',
+        aliases: const <String>['first'],
+      );
+
+      final result = Discover(
+          LOCAL, 'first', fixture.root.path, CWD, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['alpha']));
+    });
+
+    test('match by UUID prefix', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/alpha.holon'),
+        slug: 'alpha',
+        uuid: '12345678-aaaa',
+      );
+
+      final result = Discover(
+          LOCAL, '12345678', fixture.root.path, CWD, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['alpha']));
+    });
+
+    test('match by path', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      final packageDir = Directory('${fixture.root.path}/path-alpha.holon');
+      writePackageHolon(
+        packageDir,
+        slug: 'path-alpha',
+        uuid: 'uuid-path-alpha',
+      );
+
+      final result = Discover(
+          LOCAL, packageDir.path, fixture.root.path, CWD, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['path-alpha']));
+    });
+
+    test('limit one', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/alpha.holon'),
+        slug: 'alpha',
+        uuid: 'uuid-alpha',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/beta.holon'),
+        slug: 'beta',
+        uuid: 'uuid-beta',
+      );
+
+      final result =
+          Discover(LOCAL, null, fixture.root.path, CWD, 1, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(result.found, hasLength(1));
+    });
+
+    test('limit zero means unlimited', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/alpha.holon'),
+        slug: 'alpha',
+        uuid: 'uuid-alpha',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/beta.holon'),
+        slug: 'beta',
+        uuid: 'uuid-beta',
+      );
+
+      final result =
+          Discover(LOCAL, null, fixture.root.path, CWD, 0, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(result.found, hasLength(2));
+    });
+
+    test('negative limit returns empty', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/alpha.holon'),
+        slug: 'alpha',
+        uuid: 'uuid-alpha',
+      );
+
+      final result =
+          Discover(LOCAL, null, fixture.root.path, CWD, -1, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(result.found, isEmpty);
+    });
+
+    test('invalid specifiers', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      final result =
+          Discover(LOCAL, null, fixture.root.path, 0xFF, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, contains('invalid specifiers'));
+    });
+
+    test('specifiers zero treated as all', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/cwd-alpha.holon'),
+        slug: 'cwd-alpha',
+        uuid: 'uuid-cwd-alpha',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/.op/build/built-beta.holon'),
+        slug: 'built-beta',
+        uuid: 'uuid-built-beta',
+      );
+      writePackageHolon(
+        Directory('${fixture.opBin.path}/installed-gamma.holon'),
+        slug: 'installed-gamma',
+        uuid: 'uuid-installed-gamma',
+      );
+      writePackageHolon(
+        Directory('${fixture.cache.path}/deps/cached-delta.holon'),
+        slug: 'cached-delta',
+        uuid: 'uuid-cached-delta',
+      );
+
+      final allResult =
+          Discover(LOCAL, null, fixture.root.path, ALL, NO_LIMIT, NO_TIMEOUT);
+      final zeroResult =
+          Discover(LOCAL, null, fixture.root.path, 0, NO_LIMIT, NO_TIMEOUT);
+
+      expect(zeroResult.error, isNull);
+      expect(slugs(zeroResult), equals(slugs(allResult)));
+    });
+
+    test('null expression returns all', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/alpha.holon'),
+        slug: 'alpha',
+        uuid: 'uuid-alpha',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/beta.holon'),
+        slug: 'beta',
+        uuid: 'uuid-beta',
+      );
+
+      final result =
+          Discover(LOCAL, null, fixture.root.path, CWD, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(result.found, hasLength(2));
+    });
+
+    test('missing expression returns empty', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/alpha.holon'),
+        slug: 'alpha',
+        uuid: 'uuid-alpha',
+      );
+
+      final result = Discover(
+          LOCAL, 'missing', fixture.root.path, CWD, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(result.found, isEmpty);
+    });
+
+    test('excluded dirs skipped', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/kept.holon'),
+        slug: 'kept',
+        uuid: 'uuid-kept',
+      );
       for (final skipped in <String>[
-        '.git/hidden',
-        '.op/hidden',
-        'node_modules/hidden',
-        'vendor/hidden',
-        'build/hidden',
-        '.cache/hidden',
+        '.git/hidden.holon',
+        '.op/hidden.holon',
+        'node_modules/hidden.holon',
+        'vendor/hidden.holon',
+        'build/hidden.holon',
+        'testdata/hidden.holon',
+        '.cache/hidden.holon',
       ]) {
-        _writeHolon(
-            root.path,
-            skipped,
-            const _HolonSeed(
-                'ignored-uuid', 'Ignored', 'Holon', 'ignored-holon'));
+        writePackageHolon(
+          Directory('${fixture.root.path}/$skipped'),
+          slug: 'hidden',
+          uuid: 'uuid-$skipped',
+        );
       }
 
-      final entries = await discover(root.path);
-      expect(entries, hasLength(2));
+      final result =
+          Discover(LOCAL, null, fixture.root.path, CWD, NO_LIMIT, NO_TIMEOUT);
 
-      final alpha = entries.firstWhere((entry) => entry.uuid == 'uuid-alpha');
-      expect(alpha.slug, equals('alpha-go'));
-      expect(alpha.relativePath, equals('holons/alpha'));
-      expect(alpha.manifest?.build.runner, equals('go-module'));
-
-      final beta = entries.firstWhere((entry) => entry.uuid == 'uuid-beta');
-      expect(beta.relativePath, equals('nested/beta'));
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['kept']));
     });
 
-    test('discoverLocal and find helpers use the current directory', () async {
-      final root = Directory.systemTemp.createTempSync('holons_find_dart_');
-      addTearDown(() => root.delete(recursive: true));
+    test('deduplicate by UUID', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
 
-      _writeHolon(
-        root.path,
-        'rob-go',
-        const _HolonSeed(
-          'c7f3a1b2-1111-1111-1111-111111111111',
-          'Rob',
-          'Go',
-          'rob-go',
-        ),
+      writePackageHolon(
+        Directory('${fixture.root.path}/alpha.holon'),
+        slug: 'alpha',
+        uuid: 'same-uuid',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/nested/alpha-copy.holon'),
+        slug: 'alpha-copy',
+        uuid: 'same-uuid',
       );
 
-      final runner = _writeDiscoverRunnerScript(sdkRoot);
-      addTearDown(() {
-        if (runner.existsSync()) {
-          runner.deleteSync();
+      final result =
+          Discover(LOCAL, null, fixture.root.path, CWD, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(result.found, hasLength(1));
+      expect(result.found.single.info?.slug, equals('alpha'));
+    });
+
+    test('`.holon.json` fast path', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/fast-path.holon'),
+        slug: 'fast-path',
+        uuid: 'uuid-fast-path',
+        runner: 'dart',
+        entrypoint: 'fast-binary',
+      );
+
+      final result =
+          Discover(LOCAL, null, fixture.root.path, CWD, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(result.found.single.info?.runner, equals('dart'));
+      expect(result.found.single.info?.entrypoint, equals('fast-binary'));
+    });
+
+    test(
+      'Describe fallback when `.holon.json` is missing',
+      () {
+        final helper = buildDescribeHelper(sdkRoot);
+        if (helper == null) {
+          return;
         }
-      });
+        final fixture = createRuntimeFixture(sdkRoot);
+        addTearDown(() => deleteFixture(fixture));
+        configureDiscoveryRuntime(fixture);
 
-      final result = await Process.run(
-        Platform.resolvedExecutable,
-        <String>[runner.path],
-        workingDirectory: root.path,
-      );
-      expect(
-        result.exitCode,
-        equals(0),
-        reason:
-            'discover runner failed:\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}',
+        writeDescribePackageHolon(
+          Directory('${fixture.root.path}/fallback.holon'),
+          executablePath: helper,
+          slug: 'fallback',
+          entrypoint: 'fallback',
+        );
+
+        final result =
+            Discover(LOCAL, null, fixture.root.path, CWD, NO_LIMIT, NO_TIMEOUT);
+
+        expect(result.error, isNull);
+        expect(result.found.single.info?.slug, equals('fallback'));
+      },
+      skip: Platform.isWindows
+          ? 'fixture binary uses a POSIX shell launcher'
+          : false,
+    );
+
+    test('siblings layer', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(
+        fixture,
+        siblingsRootProvider: () => fixture.siblings.path,
       );
 
-      final decoded =
-          jsonDecode((result.stdout as String).trim()) as Map<String, dynamic>;
-      expect(decoded['localLength'], equals(1));
-      expect(decoded['localSlug'], equals('rob-go'));
-      expect(
-        decoded['bySlugUuid'],
-        equals('c7f3a1b2-1111-1111-1111-111111111111'),
+      writePackageHolon(
+        Directory('${fixture.siblings.path}/siblings-alpha.holon'),
+        slug: 'siblings-alpha',
+        uuid: 'uuid-siblings-alpha',
       );
-      expect(decoded['byUuidSlug'], equals('rob-go'));
-      expect(decoded['missing'], isNull);
+
+      final result = Discover(
+          LOCAL, null, fixture.root.path, SIBLINGS, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['siblings-alpha']));
     });
 
-    test('skips unreadable directories', () async {
-      if (Platform.isWindows) {
-        return;
-      }
+    test('source layer offloads to local `op`', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
 
-      final root = Directory.systemTemp.createTempSync('holons_unreadable_');
-      final locked = Directory('${root.path}/locked')..createSync();
-      addTearDown(() {
-        Process.runSync('chmod', <String>['755', locked.path]);
-        root.deleteSync(recursive: true);
-      });
-
-      _writeHolon(
-        root.path,
-        'readable',
-        const _HolonSeed(
-          '3d7fe412-8f34-44d7-8ef2-b222f25c1dbb',
-          'Readable',
-          'Go',
-          'readable-go',
-        ),
+      late List<Object?> captured;
+      configureDiscoveryRuntime(
+        fixture,
+        sourceBridge: (scope, expression, root, specifiers, limit, timeout) {
+          captured = <Object?>[
+            scope,
+            expression,
+            root,
+            specifiers,
+            limit,
+            timeout
+          ];
+          return DiscoverResult(
+            found: <HolonRef>[
+              HolonRef(
+                url: Uri.file('${fixture.root.path}/source-alpha').toString(),
+                info: const HolonInfo(
+                  slug: 'source-alpha',
+                  uuid: 'uuid-source-alpha',
+                  identity:
+                      IdentityInfo(givenName: 'Source', familyName: 'Alpha'),
+                  hasSource: true,
+                ),
+              ),
+            ],
+          );
+        },
       );
-      _writeHolon(
-        root.path,
-        'locked/hidden',
-        const _HolonSeed(
-          'd4f62503-c6e2-4874-a607-e58d0c993f68',
-          'Hidden',
-          'Go',
-          'hidden-go',
-        ),
-      );
 
-      final chmod = Process.runSync('chmod', <String>['000', locked.path]);
+      final result =
+          Discover(LOCAL, null, fixture.root.path, SOURCE, NO_LIMIT, 5000);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['source-alpha']));
       expect(
-        chmod.exitCode,
-        equals(0),
-        reason: 'chmod failed: ${chmod.stderr}',
+        captured,
+        equals(
+            <Object?>[LOCAL, null, fixture.root.path, SOURCE, NO_LIMIT, 5000]),
+      );
+    });
+
+    test('built layer', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/.op/build/built-alpha.holon'),
+        slug: 'built-alpha',
+        uuid: 'uuid-built-alpha',
       );
 
-      final entries = await discover(root.path);
-      expect(entries, hasLength(1));
-      expect(entries.single.slug, equals('readable-go'));
+      final result =
+          Discover(LOCAL, null, fixture.root.path, BUILT, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['built-alpha']));
+    });
+
+    test('installed layer', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.opBin.path}/installed-alpha.holon'),
+        slug: 'installed-alpha',
+        uuid: 'uuid-installed-alpha',
+      );
+
+      final result = Discover(
+          LOCAL, null, fixture.root.path, INSTALLED, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['installed-alpha']));
+    });
+
+    test('cached layer', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      writePackageHolon(
+        Directory('${fixture.cache.path}/deps/cached-alpha.holon'),
+        slug: 'cached-alpha',
+        uuid: 'uuid-cached-alpha',
+      );
+
+      final result = Discover(
+          LOCAL, null, fixture.root.path, CACHED, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['cached-alpha']));
+    });
+
+    test('nil root defaults to cwd', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture, currentRoot: fixture.root.path);
+
+      writePackageHolon(
+        Directory('${fixture.root.path}/alpha.holon'),
+        slug: 'alpha',
+        uuid: 'uuid-alpha',
+      );
+
+      final result = Discover(LOCAL, null, null, CWD, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['alpha']));
+    });
+
+    test('empty root returns error', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      final result = Discover(LOCAL, null, '', ALL, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, equals('root cannot be empty'));
+    });
+
+    test('unsupported scope returns error', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      final result =
+          Discover(PROXY, null, fixture.root.path, ALL, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, equals('scope 1 not supported'));
     });
   });
-}
-
-class _HolonSeed {
-  final String uuid;
-  final String givenName;
-  final String familyName;
-  final String binary;
-
-  const _HolonSeed(this.uuid, this.givenName, this.familyName, this.binary);
-}
-
-void _writeHolon(String root, String relativeDir, _HolonSeed seed) {
-  final dir = Directory('$root/$relativeDir')..createSync(recursive: true);
-  final file = File('${dir.path}/holon.proto');
-  file.writeAsStringSync('''
-syntax = "proto3";
-
-package test.v1;
-
-option (holons.v1.manifest) = {
-  identity: {
-    uuid: "${seed.uuid}"
-    given_name: "${seed.givenName}"
-    family_name: "${seed.familyName}"
-    motto: "Test"
-    composer: "test"
-    clade: "deterministic/pure"
-    status: "draft"
-    born: "2026-03-07"
-  }
-  lineage: {
-    generated_by: "test"
-  }
-  kind: "native"
-  build: {
-    runner: "go-module"
-  }
-  artifacts: {
-    binary: "${seed.binary}"
-  }
-};
-''');
-}
-
-File _writeDiscoverRunnerScript(String sdkRoot) {
-  final runner = File(
-    '$sdkRoot/.dart_tool/discover-runner-${DateTime.now().microsecondsSinceEpoch}.dart',
-  );
-  runner.parent.createSync(recursive: true);
-  runner.writeAsStringSync('''
-import 'dart:convert';
-
-import 'package:holons/holons.dart';
-
-Future<void> main() async {
-  final local = await discoverLocal();
-  final bySlug = await findBySlug('rob-go');
-  final byUuid = await findByUUID('c7f3a1b2');
-  final missing = await findBySlug('missing');
-
-  print(jsonEncode(<String, Object?>{
-    'localLength': local.length,
-    'localSlug': local.single.slug,
-    'bySlugUuid': bySlug?.uuid,
-    'byUuidSlug': byUuid?.slug,
-    'missing': missing?.slug,
-  }));
-}
-''');
-  return runner;
 }

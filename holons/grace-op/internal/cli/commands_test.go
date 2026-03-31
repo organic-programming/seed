@@ -1655,7 +1655,7 @@ func TestRootFallbackCompletesMethodsFromTCPDescribe(t *testing.T) {
 	})
 
 	stdout, stderr := captureOutput(t, func() {
-		code := Run([]string{"__complete", "tcp://" + address, "Gr"}, "0.1.0-test")
+		code := Run([]string{"__complete", "tcp://" + address, ""}, "0.1.0-test")
 		if code != 0 {
 			t.Fatalf("__complete tcp root fallback returned %d, want 0", code)
 		}
@@ -1663,6 +1663,43 @@ func TestRootFallbackCompletesMethodsFromTCPDescribe(t *testing.T) {
 
 	if !strings.Contains(stdout, "Greet") {
 		t.Fatalf("stdout missing tcp root fallback completion: %q", stdout)
+	}
+	if strings.Contains(stderr, "Completion ended with directive:") {
+		t.Fatalf("stderr should not leak completion directive text: %q", stderr)
+	}
+}
+
+func TestInvokeCommandCompletesMethodsFromTCPDescribeWithEmptyPrefix(t *testing.T) {
+	address := startDescribeServer(t, &holonsv1.DescribeResponse{
+		Manifest: &holonsv1.HolonManifest{
+			Identity: &holonsv1.HolonManifest_Identity{
+				GivenName:  "Gabriel",
+				FamilyName: "Greeting",
+			},
+		},
+		Services: []*holonsv1.ServiceDoc{
+			{
+				Name: "greeting.v1.GreetingAppService",
+				Methods: []*holonsv1.MethodDoc{
+					{
+						Name:       "Greet",
+						InputType:  "greeting.v1.GreetRequest",
+						OutputType: "greeting.v1.GreetResponse",
+					},
+				},
+			},
+		},
+	})
+
+	stdout, stderr := captureOutput(t, func() {
+		code := Run([]string{"__complete", "invoke", "tcp://" + address, ""}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("__complete invoke tcp returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, "Greet") {
+		t.Fatalf("stdout missing invoke tcp completion: %q", stdout)
 	}
 	if strings.Contains(stderr, "Completion ended with directive:") {
 		t.Fatalf("stderr should not leak completion directive text: %q", stderr)
@@ -1683,6 +1720,43 @@ func TestInvokeCommandDoesNotCompletePayloadPlaceholder(t *testing.T) {
 
 	if strings.Contains(stdout, "{") {
 		t.Fatalf("stdout should not suggest a JSON payload placeholder: %q", stdout)
+	}
+	if strings.Contains(stderr, "Completion ended with directive:") {
+		t.Fatalf("stderr should not leak completion directive text: %q", stderr)
+	}
+}
+
+func TestInvokeCommandTransportTargetDefaultsEmptyPayload(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	seedEchoHolon(t, root)
+
+	stdout := captureStdout(t, func() {
+		code := Run([]string{"invoke", "stdio://echo-server", "Ping"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("invoke stdio Ping returned %d, want 0", code)
+		}
+	})
+
+	if strings.TrimSpace(stdout) != "{}" {
+		t.Fatalf("stdout missing empty default payload response: %q", stdout)
+	}
+}
+
+func TestInvokeCommandCompletesMethodsFromStdioTargetWithEmptyPrefix(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	seedEchoHolon(t, root)
+
+	stdout, stderr := captureOutput(t, func() {
+		code := Run([]string{"__complete", "invoke", "stdio://echo-server", ""}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("__complete invoke stdio returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, "Ping") {
+		t.Fatalf("stdout missing invoke stdio completion: %q", stdout)
 	}
 	if strings.Contains(stderr, "Completion ended with directive:") {
 		t.Fatalf("stderr should not leak completion directive text: %q", stderr)

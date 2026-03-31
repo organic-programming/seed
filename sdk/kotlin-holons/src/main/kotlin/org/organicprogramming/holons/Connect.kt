@@ -1,6 +1,5 @@
 package org.organicprogramming.holons
 
-import io.grpc.ConnectivityState
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.Dispatchers
@@ -15,15 +14,14 @@ import java.io.OutputStream
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
-import java.nio.charset.StandardCharsets
 import java.nio.channels.Channels
 import java.nio.channels.SocketChannel
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
 import java.util.Collections
 import java.util.IdentityHashMap
-import java.util.Optional
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
@@ -36,7 +34,52 @@ data class ConnectOptions(
     val portFile: Path? = null,
 )
 
+suspend fun connect(scope: Int, expression: String, root: String?, specifiers: Int, timeout: Int): ConnectResult =
+    withContext(Dispatchers.IO) {
+        if (scope != LOCAL) {
+            return@withContext ConnectResult(error = "scope $scope not supported")
+        }
+
+        val trimmed = expression.trim()
+        if (trimmed.isEmpty()) {
+            return@withContext ConnectResult(error = "expression is required")
+        }
+
+        val resolved = resolve(scope, trimmed, root, specifiers, timeout)
+        if (resolved.error != null) {
+            return@withContext ConnectResult(origin = resolved.ref, error = resolved.error)
+        }
+
+        val ref = resolved.ref ?: return@withContext ConnectResult(error = "holon \"$trimmed\" not found")
+        if (ref.error != null) {
+            return@withContext ConnectResult(origin = ref, error = ref.error)
+        }
+
+        ConnectRuntime.connectResolved(ref, timeout)
+    }
+
+fun disconnect(result: ConnectResult) {
+    when (val channel = result.channel) {
+        is ManagedChannel -> ConnectRuntime.disconnectChannel(channel)
+        is Closeable -> runCatching { channel.close() }
+    }
+}
+
 object Connect {
+    suspend fun connect(target: String): ManagedChannel = withContext(Dispatchers.IO) {
+        ConnectRuntime.connectLegacy(target, ConnectOptions(), defaultEphemeral = true)
+    }
+
+    suspend fun connect(target: String, options: ConnectOptions): ManagedChannel = withContext(Dispatchers.IO) {
+        ConnectRuntime.connectLegacy(target, options, defaultEphemeral = false)
+    }
+
+    suspend fun disconnect(channel: ManagedChannel?) = withContext(Dispatchers.IO) {
+        ConnectRuntime.disconnectChannel(channel)
+    }
+}
+
+private object ConnectRuntime {
     private data class StartedHandle(
         val process: Process?,
         val closeable: Closeable?,
@@ -61,62 +104,84 @@ object Connect {
 
     private val started = Collections.synchronizedMap(IdentityHashMap<ManagedChannel, StartedHandle>())
 
-    suspend fun connect(target: String): ManagedChannel = withContext(Dispatchers.IO) {
-        connectInternal(target, ConnectOptions(), defaultEphemeral = true)
-    }
+    fun connectResolved(ref: HolonRef, timeout: Int): ConnectResult {
+        val duration = operationTimeout(timeout)
 
-    suspend fun connect(target: String, options: ConnectOptions): ManagedChannel = withContext(Dispatchers.IO) {
-        connectInternal(target, options, defaultEphemeral = false)
-    }
-
-    suspend fun disconnect(channel: ManagedChannel?) = withContext(Dispatchers.IO) {
-        if (channel == null) return@withContext
-
-        val handle = synchronized(started) { started.remove(channel) }
-        channel.shutdownNow()
-        runCatching { channel.awaitTermination(2, TimeUnit.SECONDS) }
-
-        closeQuietly(handle?.closeable)
-        if (handle?.ephemeral == true) {
-            stopProcess(handle.process)
+        if (isDialableTarget(ref.url)) {
+            val dialed = runCatching { dialReady(ref.url, duration) }.getOrNull()
+            if (dialed != null) {
+                rememberDialedChannel(dialed, ephemeral = false)
+                return ConnectResult(channel = dialed.channel, origin = ref)
+            }
         }
+
+        return runCatching {
+            val binaryPath = resolveLaunchBinary(ref)
+            val startedProcess = startStdioHolon(binaryPath, duration)
+            val dialed = try {
+                dialReady(startedProcess.uri, duration)
+            } catch (t: Throwable) {
+                closeQuietly(startedProcess.closeable)
+                stopProcess(startedProcess.process)
+                throw t
+            }
+
+            synchronized(started) {
+                started[dialed.channel] = StartedHandle(
+                    process = startedProcess.process,
+                    closeable = combineCloseables(startedProcess.closeable, dialed.closeable),
+                    ephemeral = true,
+                )
+            }
+
+            ConnectResult(
+                channel = dialed.channel,
+                origin = ref.copy(url = startedProcess.uri),
+            )
+        }.getOrElse { ConnectResult(origin = ref, error = it.message ?: "target unreachable") }
     }
 
-    private fun connectInternal(target: String, options: ConnectOptions, defaultEphemeral: Boolean): ManagedChannel {
+    fun connectLegacy(target: String, options: ConnectOptions, defaultEphemeral: Boolean): ManagedChannel {
         val trimmed = target.trim()
         require(trimmed.isNotEmpty()) { "target is required" }
 
         val timeout = if (options.timeout.isZero || options.timeout.isNegative) Duration.ofSeconds(5) else options.timeout
 
         if (isDirectTarget(trimmed)) {
-            return dialReady(normalizeDialTarget(trimmed), timeout).also { rememberDialedChannel(it, ephemeral = false) }.channel
+            return dialReady(normalizeDialTarget(trimmed), timeout)
+                .also { rememberDialedChannel(it, ephemeral = false) }
+                .channel
         }
 
         val transport = options.transport.trim().ifEmpty { "stdio" }.lowercase()
         require(transport == "stdio" || transport == "tcp" || transport == "unix") { "unsupported transport \"$transport\"" }
         val ephemeral = defaultEphemeral || transport == "stdio"
 
-        val entry = Discover.findBySlug(trimmed)
-            ?: throw IllegalStateException("holon \"$trimmed\" not found")
+        val resolved = resolve(LOCAL, trimmed, null, ALL, timeout.toMillis().toInt())
+        if (resolved.error != null) {
+            throw IllegalStateException(resolved.error)
+        }
+        val ref = requireNotNull(resolved.ref) { "holon \"$trimmed\" not found" }
 
-        val portFile = options.portFile ?: defaultPortFilePath(entry.slug)
+        val slug = ref.info?.slug?.ifBlank { trimmed } ?: trimmed
+        val portFile = options.portFile ?: defaultPortFilePath(slug)
         val reusable = usablePortFile(portFile, timeout)
         if (reusable != null) {
-            return dialReady(normalizeDialTarget(reusable), timeout).also { rememberDialedChannel(it, ephemeral = false) }.channel
+            return dialReady(normalizeDialTarget(reusable), timeout)
+                .also { rememberDialedChannel(it, ephemeral = false) }
+                .channel
         }
         check(options.start) { "holon \"$trimmed\" is not running" }
 
-        val binaryPath = resolveBinaryPath(entry)
-        val startedProcess = if (transport == "stdio") {
-            startStdioHolon(binaryPath, timeout)
-        } else if (transport == "unix") {
-            startUnixHolon(binaryPath, entry.slug, portFile, timeout)
-        } else {
-            startTcpHolon(binaryPath, timeout)
+        val binaryPath = resolveLaunchBinary(ref)
+        val startedProcess = when (transport) {
+            "stdio" -> startStdioHolon(binaryPath, timeout)
+            "unix" -> startUnixHolon(binaryPath, slug, portFile, timeout)
+            else -> startTcpHolon(binaryPath, timeout)
         }
 
         val dialed = try {
-            dialReady(normalizeDialTarget(startedProcess.uri), timeout)
+            dialReady(startedProcess.uri, timeout)
         } catch (t: Throwable) {
             closeQuietly(startedProcess.closeable)
             stopProcess(startedProcess.process)
@@ -135,9 +200,28 @@ object Connect {
         }
 
         synchronized(started) {
-            started[channel] = StartedHandle(startedProcess.process, combineCloseables(startedProcess.closeable, dialed.closeable), ephemeral)
+            started[channel] = StartedHandle(
+                process = startedProcess.process,
+                closeable = combineCloseables(startedProcess.closeable, dialed.closeable),
+                ephemeral = ephemeral,
+            )
         }
         return channel
+    }
+
+    fun disconnectChannel(channel: ManagedChannel?) {
+        if (channel == null) {
+            return
+        }
+
+        val handle = synchronized(started) { started.remove(channel) }
+        channel.shutdownNow()
+        runCatching { channel.awaitTermination(2, TimeUnit.SECONDS) }
+
+        closeQuietly(handle?.closeable)
+        if (handle?.ephemeral == true) {
+            stopProcess(handle.process)
+        }
     }
 
     private fun dialReady(target: String, timeout: Duration): DialedChannel {
@@ -146,7 +230,7 @@ object Connect {
             val hostPort = parseHostPort(normalizeDialTarget(bridge.uri()))
             DialedChannel(ManagedChannelBuilder.forAddress(hostPort.host, hostPort.port).usePlaintext().build(), bridge)
         } else {
-            val hostPort = parseHostPort(target)
+            val hostPort = parseHostPort(normalizeDialTarget(target))
             DialedChannel(ManagedChannelBuilder.forAddress(hostPort.host, hostPort.port).usePlaintext().build())
         }
 
@@ -157,24 +241,6 @@ object Connect {
             dialed.channel.shutdownNow()
             closeQuietly(dialed.closeable)
             throw t
-        }
-    }
-
-    private fun waitForReady(channel: ManagedChannel, timeout: Duration) {
-        val deadline = System.nanoTime() + timeout.toNanos()
-        var state = channel.getState(true)
-        while (state != ConnectivityState.READY) {
-            check(state != ConnectivityState.SHUTDOWN) { "gRPC channel shut down before becoming ready" }
-
-            val remaining = deadline - System.nanoTime()
-            check(remaining > 0) { "timed out waiting for gRPC readiness" }
-
-            val latch = CountDownLatch(1)
-            channel.notifyWhenStateChanged(state) { latch.countDown() }
-            if (!latch.await(remaining, TimeUnit.NANOSECONDS)) {
-                error("timed out waiting for gRPC readiness")
-            }
-            state = channel.getState(false)
         }
     }
 
@@ -277,30 +343,53 @@ object Connect {
         }
     }
 
-    private fun resolveBinaryPath(entry: HolonEntry): String {
-        val manifest = entry.manifest ?: error("holon \"${entry.slug}\" has no manifest")
-        val binary = manifest.artifacts.binary.trim()
-        require(binary.isNotEmpty()) { "holon \"${entry.slug}\" has no artifacts.binary" }
+    private fun resolveLaunchBinary(ref: HolonRef): String {
+        val path = pathFromFileURL(ref.url)
+        val info = ref.info
 
-        val configured = Path.of(binary)
-        if (configured.isAbsolute && Files.isRegularFile(configured)) {
-            return configured.toString()
+        if (Files.isRegularFile(path)) {
+            return path.toString()
+        }
+        if (path.fileName?.toString().orEmpty().endsWith(".holon")) {
+            return packageBinaryPath(path).toString()
         }
 
-        val candidate = entry.dir.resolve(".op").resolve("build").resolve("bin").resolve(configured.fileName)
-        if (Files.isRegularFile(candidate)) {
-            return candidate.toString()
-        }
+        val entrypoint = info?.entrypoint?.trim().orEmpty()
+        if (entrypoint.isNotEmpty()) {
+            val configured = Path.of(entrypoint)
+            if (configured.isAbsolute && Files.isRegularFile(configured)) {
+                return configured.toString()
+            }
 
-        val pathEnv = System.getenv("PATH") ?: ""
-        pathEnv.split(File.pathSeparator).forEach { dir ->
-            val resolved = Path.of(dir).resolve(configured.fileName.toString())
-            if (Files.isRegularFile(resolved) && Files.isExecutable(resolved)) {
-                return resolved.toString()
+            val localCandidate = path.resolve(entrypoint).normalize()
+            if (Files.isRegularFile(localCandidate)) {
+                return localCandidate.toString()
             }
         }
 
-        error("built binary not found for holon \"${entry.slug}\"")
+        val binaryName = when {
+            entrypoint.isNotBlank() -> Path.of(entrypoint).fileName.toString()
+            !info?.slug.isNullOrBlank() -> info!!.slug
+            else -> path.fileName?.toString().orEmpty()
+        }
+
+        val built = path.resolve(".op").resolve("build").resolve("bin").resolve(binaryName)
+        if (Files.isRegularFile(built)) {
+            return built.toString()
+        }
+
+        findExecutableOnPath(binaryName)?.let { return it }
+        error("built binary not found for holon \"${info?.slug ?: path.fileName}\"")
+    }
+
+    private fun findExecutableOnPath(binaryName: String): String? {
+        val pathEnv = System.getenv("PATH") ?: return null
+        return pathEnv
+            .split(File.pathSeparator)
+            .asSequence()
+            .map { Path.of(it).resolve(binaryName) }
+            .firstOrNull { Files.isRegularFile(it) && Files.isExecutable(it) }
+            ?.toString()
     }
 
     private fun defaultPortFilePath(slug: String): Path =
@@ -350,18 +439,11 @@ object Connect {
         Files.writeString(portFile, uri.trim() + System.lineSeparator())
     }
 
-    private fun stopProcess(process: Process?) {
-        if (process == null || !process.isAlive) return
-
-        process.destroy()
-        if (!process.waitFor(2, TimeUnit.SECONDS)) {
-            process.destroyForcibly()
-            process.waitFor(2, TimeUnit.SECONDS)
-        }
-    }
-
     private fun isDirectTarget(target: String): Boolean =
         target.contains("://") || target.contains(':')
+
+    private fun isDialableTarget(target: String): Boolean =
+        target.startsWith("tcp://") || target.startsWith("unix://") || target.startsWith("127.0.0.1:") || target.startsWith("localhost:")
 
     private fun closeQuietly(closeable: Closeable?) {
         runCatching { closeable?.close() }
@@ -377,8 +459,12 @@ object Connect {
     }
 
     private fun combineCloseables(first: Closeable?, second: Closeable?): Closeable? {
-        if (first == null) return second
-        if (second == null) return first
+        if (first == null) {
+            return second
+        }
+        if (second == null) {
+            return first
+        }
         return Closeable {
             var firstError: Exception? = null
             try {
@@ -395,20 +481,6 @@ object Connect {
             }
 
             firstError?.let { throw it }
-        }
-    }
-
-    private fun normalizeDialTarget(target: String): String {
-        if (!target.contains("://")) return target
-
-        val parsed = Transport.parseURI(target)
-        return when (parsed.scheme) {
-            "tcp" -> {
-                val host = if (parsed.host.isNullOrBlank() || parsed.host == "0.0.0.0") "127.0.0.1" else parsed.host
-                "$host:${parsed.port}"
-            }
-            "unix" -> "unix://${parsed.path}"
-            else -> target
         }
     }
 
@@ -522,8 +594,8 @@ object Connect {
             }
         }
 
-        private fun startPump(input: InputStream, output: OutputStream, closeOutput: Boolean, name: String): Thread {
-            return Thread({
+        private fun startPump(input: InputStream, output: OutputStream, closeOutput: Boolean, name: String): Thread =
+            Thread({
                 val buffer = ByteArray(16 * 1024)
                 try {
                     while (true) {
@@ -545,29 +617,6 @@ object Connect {
                 isDaemon = true
                 start()
             }
-        }
-
-        private fun startDrainThread(stream: InputStream, capture: StringBuilder, name: String) {
-            Thread({
-                val buffer = ByteArray(4096)
-                try {
-                    while (true) {
-                        val read = stream.read(buffer)
-                        if (read < 0) {
-                            break
-                        }
-                        synchronized(capture) {
-                            capture.append(String(buffer, 0, read, StandardCharsets.UTF_8))
-                        }
-                    }
-                } catch (_: IOException) {
-                    // Stream closed during shutdown.
-                }
-            }, name).apply {
-                isDaemon = true
-                start()
-            }
-        }
     }
 
     private class UnixBridge(private val target: String) : Closeable {
@@ -637,8 +686,8 @@ object Connect {
             }
         }
 
-        private fun startBridgePump(input: InputStream, output: OutputStream, closeOutput: Boolean, name: String): Thread {
-            return Thread({
+        private fun startBridgePump(input: InputStream, output: OutputStream, closeOutput: Boolean, name: String): Thread =
+            Thread({
                 val buffer = ByteArray(16 * 1024)
                 try {
                     while (true) {
@@ -660,6 +709,5 @@ object Connect {
                 isDaemon = true
                 start()
             }
-        }
     }
 }

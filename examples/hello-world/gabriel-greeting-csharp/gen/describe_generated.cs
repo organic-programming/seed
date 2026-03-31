@@ -22,7 +22,7 @@ public static class DescribeGenerated
             Composer = "B. ALTER",
             Status = "draft",
             Born = "2026-03-16",
-            Version = "0.1.59",
+            Version = "0.1.60",
         },
         Description = "A C# gRPC daemon that greets users in 56 languages.",
         Lang = "csharp",

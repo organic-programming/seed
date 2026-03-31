@@ -2,6 +2,22 @@
 
 SwiftUI HostUI for the Gabriel greeting holons. Discovers sibling Gabriel daemons, connects over the Holons transport layer, and renders an interactive multilingual greeting UI (56 languages).
 
+## Discovery
+
+This holon is source-discoverable from the repo root:
+
+```bash
+op list --source
+```
+
+Programmatically:
+
+```text
+Discover(LOCAL, "gabriel-greeting-app-swiftui", null, SOURCE, NO_LIMIT, NO_TIMEOUT)
+```
+
+Today this works in the Go SDK. The other non-browser SDKs will support the same source lookup once their Phase 1 discovery tasks land. The browser SDK is excluded because it has no filesystem-based discovery.
+
 ## Project structure
 
 ```
@@ -152,4 +168,3 @@ op tcp://127.0.0.1:51311 SelectLanguage '{"code":"fr"}'
   "code": "fr"
 }
 ```
-

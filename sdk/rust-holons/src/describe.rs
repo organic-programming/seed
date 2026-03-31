@@ -133,14 +133,14 @@ fn proto_manifest(resolved: &identity::ResolvedManifest) -> HolonManifest {
         build: (!resolved.build_runner.is_empty()
             || !resolved.build_main.is_empty()
             || !resolved.member_paths.is_empty())
-            .then(|| Build {
-                runner: resolved.build_runner.clone(),
-                main: resolved.build_main.clone(),
-                defaults: None,
-                members: Vec::new(),
-                targets: HashMap::new(),
-                templates: Vec::new(),
-            }),
+        .then(|| Build {
+            runner: resolved.build_runner.clone(),
+            main: resolved.build_main.clone(),
+            defaults: None,
+            members: Vec::new(),
+            targets: HashMap::new(),
+            templates: Vec::new(),
+        }),
         requires: (!resolved.required_files.is_empty()).then(|| Requires {
             commands: Vec::new(),
             files: resolved.required_files.clone(),
@@ -804,8 +804,8 @@ enum Block {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::{acquire_process_guard, acquire_process_guard_blocking};
     use crate::gen::holons::v1::holon_meta_client::HolonMetaClient;
+    use crate::test_support::{acquire_process_guard, acquire_process_guard_blocking};
     use tempfile::TempDir;
     use tokio::sync::oneshot;
     use tokio_stream::wrappers::TcpListenerStream;
@@ -913,7 +913,13 @@ mod tests {
     fn build_response_from_echo_proto() {
         let holon = write_echo_holon();
         let response = build_response(holon.path().join("protos")).unwrap();
-        let identity = response.manifest.as_ref().unwrap().identity.as_ref().unwrap();
+        let identity = response
+            .manifest
+            .as_ref()
+            .unwrap()
+            .identity
+            .as_ref()
+            .unwrap();
 
         assert_eq!(identity.given_name, "Echo");
         assert_eq!(identity.family_name, "Server");
@@ -977,7 +983,13 @@ mod tests {
             .await
             .unwrap()
             .into_inner();
-        let identity = response.manifest.as_ref().unwrap().identity.as_ref().unwrap();
+        let identity = response
+            .manifest
+            .as_ref()
+            .unwrap()
+            .identity
+            .as_ref()
+            .unwrap();
 
         assert_eq!(identity.given_name, "Echo");
         assert_eq!(identity.family_name, "Server");
@@ -1016,7 +1028,13 @@ option (holons.v1.manifest) = {
         .unwrap();
 
         let response = build_response(dir.path().join("protos")).unwrap();
-        let identity = response.manifest.as_ref().unwrap().identity.as_ref().unwrap();
+        let identity = response
+            .manifest
+            .as_ref()
+            .unwrap()
+            .identity
+            .as_ref()
+            .unwrap();
         assert_eq!(identity.given_name, "Silent");
         assert_eq!(identity.family_name, "Holon");
         assert_eq!(identity.motto, "Quietly available.");

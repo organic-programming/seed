@@ -4,6 +4,22 @@ Reference implementation of a Ruby holon. Gabriel is a multilingual greeting dae
 
 This port follows the gabriel architecture exactly: local proto manifest, 4-facet split, committed generated stubs, 56 languages with localized default names, and SDK-backed serving. In this workspace the practical Ruby gRPC path is `arch -x86_64` on Apple Silicon, so the checked-in wrapper under `.op/build/bin/` launches the holon through Rosetta.
 
+## Discovery
+
+This holon is source-discoverable from the repo root:
+
+```bash
+op list --source
+```
+
+Programmatically:
+
+```text
+Discover(LOCAL, "gabriel-greeting-ruby", null, SOURCE, NO_LIMIT, NO_TIMEOUT)
+```
+
+Today this works in the Go SDK. The other non-browser SDKs will support the same source lookup once their Phase 1 discovery tasks land. The browser SDK is excluded because it has no filesystem-based discovery.
+
 ## Facets
 
 | Facet | Visibility | Location | Role |

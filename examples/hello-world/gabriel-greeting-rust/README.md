@@ -6,6 +6,22 @@ Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` a
 
 This holon is built with the [Rust SDK](https://github.com/organic-programming/rust-holons) (`rust-holons`).
 
+## Discovery
+
+This holon is source-discoverable from the repo root:
+
+```bash
+op list --source
+```
+
+Programmatically:
+
+```text
+Discover(LOCAL, "gabriel-greeting-rust", null, SOURCE, NO_LIMIT, NO_TIMEOUT)
+```
+
+Today this works in the Go SDK. The other non-browser SDKs will support the same source lookup once their Phase 1 discovery tasks land. The browser SDK is excluded because it has no filesystem-based discovery.
+
 # A Proto + 4 facets is all you need.
 
 ## Protos

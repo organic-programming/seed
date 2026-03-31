@@ -2,7 +2,7 @@ CC ?= clang
 CFLAGS ?= -std=c11 -Wall -Wextra -pedantic -I include
 
 TEST_BIN := test_runner
-SRC := src/holons.c
+SRC := src/holons.c src/discovery_api.c
 TEST_SRC := test/holons_test.c
 DESCRIBE_HELPER_BIN := describe-static-helper
 DESCRIBE_HELPER_SRC := test/describe_static_helper.c test/describe_generated_fixture.c

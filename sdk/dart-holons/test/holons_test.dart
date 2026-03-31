@@ -1,6 +1,8 @@
 import 'dart:io';
+
 import 'package:test/test.dart';
 import 'package:holons/holons.dart';
+import 'package:holons/src/identity.dart' as identity;
 
 void main() {
   group('transport', () {
@@ -189,7 +191,7 @@ void main() {
         '};\n',
       );
 
-      final resolved = resolve(holonDir.path);
+      final resolved = identity.resolve(holonDir.path);
       final direct = resolveProtoFile(manifest.path);
 
       expect(resolved.identity.uuid, equals('test-uuid-1234'));

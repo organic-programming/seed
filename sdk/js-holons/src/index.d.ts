@@ -197,55 +197,123 @@ export namespace identity {
     function slugForIdentity(identity: HolonIdentity): string;
 }
 
-// --- Discover ---
+// --- Discovery ---
 
-export namespace discover {
-    interface HolonBuild {
-        runner: string;
-        main: string;
-    }
+export const LOCAL: 0;
+export const PROXY: 1;
+export const DELEGATED: 2;
 
-    interface HolonArtifacts {
-        binary: string;
-        primary: string;
-    }
+export const SIBLINGS: 0x01;
+export const CWD: 0x02;
+export const SOURCE: 0x04;
+export const BUILT: 0x08;
+export const INSTALLED: 0x10;
+export const CACHED: 0x20;
+export const ALL: 0x3F;
 
-    interface HolonManifest {
-        identity: identity.HolonIdentity;
-        kind: string;
-        build: HolonBuild;
-        artifacts: HolonArtifacts;
-    }
+export const NO_LIMIT: 0;
+export const NO_TIMEOUT: 0;
 
-    interface HolonEntry {
-        slug: string;
-        uuid: string;
-        dir: string;
-        relative_path: string;
-        origin: string;
-        identity: identity.HolonIdentity;
-        manifest: HolonManifest | null;
-    }
-
-    function discover(root: string): Promise<HolonEntry[]>;
-    function discoverLocal(): Promise<HolonEntry[]>;
-    function discoverAll(): Promise<HolonEntry[]>;
-    function findBySlug(slug: string): Promise<HolonEntry | null>;
-    function findByUUID(prefix: string): Promise<HolonEntry | null>;
+export interface IdentityInfo {
+    given_name: string;
+    family_name: string;
+    motto?: string;
+    aliases?: string[];
 }
 
-// --- Connect ---
+export interface HolonInfo {
+    slug: string;
+    uuid: string;
+    identity: IdentityInfo;
+    lang: string;
+    runner: string;
+    status: string;
+    kind: string;
+    transport: string;
+    entrypoint: string;
+    architectures: string[];
+    has_dist: boolean;
+    has_source: boolean;
+}
 
-export namespace connect {
-    interface ConnectOptions {
-        timeout?: number;
-        transport?: 'tcp' | 'stdio';
-        start?: boolean;
-        port_file?: string;
-    }
+export interface HolonRef {
+    url: string;
+    info: HolonInfo | null;
+    error: string | null;
+}
 
-    function connect(target: string, opts?: ConnectOptions): Promise<grpc.Client>;
-    function disconnect(client: grpc.Client): Promise<void>;
+export interface DiscoverResult {
+    found: HolonRef[];
+    error: string | null;
+}
+
+export interface ResolveResult {
+    ref: HolonRef | null;
+    error: string | null;
+}
+
+export interface ConnectResult {
+    channel: object | null;
+    uid: string;
+    origin: HolonRef | null;
+    error: string | null;
+}
+
+export function Discover(
+    scope: number,
+    expression: string | null,
+    root: string | null,
+    specifiers: number,
+    limit: number,
+    timeout: number,
+): Promise<DiscoverResult>;
+
+export function resolve(
+    scope: number,
+    expression: string | null,
+    root: string | null,
+    specifiers: number,
+    timeout: number,
+): Promise<ResolveResult>;
+
+export function connect(
+    scope: number,
+    expression: string | null,
+    root: string | null,
+    specifiers: number,
+    timeout: number,
+): Promise<ConnectResult>;
+
+export function disconnect(result: ConnectResult | null | undefined): void;
+
+export namespace discover {
+    const LOCAL: 0;
+    const PROXY: 1;
+    const DELEGATED: 2;
+    const SIBLINGS: 0x01;
+    const CWD: 0x02;
+    const SOURCE: 0x04;
+    const BUILT: 0x08;
+    const INSTALLED: 0x10;
+    const CACHED: 0x20;
+    const ALL: 0x3F;
+    const NO_LIMIT: 0;
+    const NO_TIMEOUT: 0;
+    function Discover(
+        scope: number,
+        expression: string | null,
+        root: string | null,
+        specifiers: number,
+        limit: number,
+        timeout: number,
+    ): Promise<DiscoverResult>;
+    function resolve(
+        scope: number,
+        expression: string | null,
+        root: string | null,
+        specifiers: number,
+        timeout: number,
+    ): Promise<ResolveResult>;
 }
 
 // --- gRPC Client ---

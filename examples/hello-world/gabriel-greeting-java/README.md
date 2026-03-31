@@ -4,6 +4,22 @@ Reference implementation of a Java holon — a programmatic creature designed fo
 
 Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` and `ListLanguages` — over a shared protobuf contract. The greeting table covers 56 languages with localized templates and culturally appropriate default names such as `Marie`, `マリア`, and `Мария`. This example demonstrates proto-based identity, a 4-facet split, committed generated Java stubs, and SDK-backed gRPC serving with `Describe` by default plus optional `--reflect` debugging.
 
+## Discovery
+
+This holon is source-discoverable from the repo root:
+
+```bash
+op list --source
+```
+
+Programmatically:
+
+```text
+Discover(LOCAL, "gabriel-greeting-java", null, SOURCE, NO_LIMIT, NO_TIMEOUT)
+```
+
+Today this works in the Go SDK. The other non-browser SDKs will support the same source lookup once their Phase 1 discovery tasks land. The browser SDK is excluded because it has no filesystem-based discovery.
+
 ## Facets
 
 | Facet | Visibility | Location | Role |

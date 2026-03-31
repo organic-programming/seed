@@ -89,7 +89,10 @@ pub fn normalize_transport_url(raw: &str) -> Result<(TransportMode, String)> {
     }
 
     if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
-        return Ok((TransportMode::Http, trimmed.trim_end_matches('/').to_string()));
+        return Ok((
+            TransportMode::Http,
+            trimmed.trim_end_matches('/').to_string(),
+        ));
     }
 
     if let Some(rest) = trimmed.strip_prefix("rest+sse://") {
@@ -152,8 +155,10 @@ impl Client {
         F: Fn(JSONObject) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<JSONObject>> + Send + 'static,
     {
-        self.handlers
-            .insert(method.into(), Box::new(move |params| Box::pin(handler(params))));
+        self.handlers.insert(
+            method.into(),
+            Box::new(move |params| Box::pin(handler(params))),
+        );
     }
 
     pub fn unregister(&mut self, method: &str) {
@@ -480,7 +485,10 @@ async fn decode_http_response(response: reqwest::Response) -> Result<JSONObject>
     }
 
     if status.is_client_error() || status.is_server_error() {
-        return Err(boxed_err(format!("holon-rpc http status {}", status.as_u16())));
+        return Err(boxed_err(format!(
+            "holon-rpc http status {}",
+            status.as_u16()
+        )));
     }
 
     let value = serde_json::from_slice::<Value>(&body)?;
@@ -616,7 +624,10 @@ fn decode_object(value: Option<Value>) -> Result<JSONObject> {
 }
 
 fn boxed_err(message: impl Into<String>) -> BoxError {
-    Box::new(std::io::Error::new(std::io::ErrorKind::Other, message.into()))
+    Box::new(std::io::Error::new(
+        std::io::ErrorKind::Other,
+        message.into(),
+    ))
 }
 
 #[cfg(test)]
@@ -648,11 +659,16 @@ mod tests {
         let address = listener.local_addr().unwrap();
         let done = spawn_websocket_echo_server(listener, false);
 
-        let mut client = Client::connect(&format!("ws://{address}/rpc")).await.unwrap();
+        let mut client = Client::connect(&format!("ws://{address}/rpc"))
+            .await
+            .unwrap();
         let mut params = JSONObject::new();
         params.insert("message".to_string(), Value::String("hola".to_string()));
         let response = client.invoke("echo.v1.Echo/Ping", params).await.unwrap();
-        assert_eq!(response.get("message"), Some(&Value::String("hola".to_string())));
+        assert_eq!(
+            response.get("message"),
+            Some(&Value::String("hola".to_string()))
+        );
         client.close().await.unwrap();
 
         done.await.unwrap();
@@ -664,17 +680,16 @@ mod tests {
         let address = listener.local_addr().unwrap();
         let done = spawn_websocket_callback_server(listener);
 
-        let mut client = Client::connect(&format!("ws://{address}/rpc")).await.unwrap();
+        let mut client = Client::connect(&format!("ws://{address}/rpc"))
+            .await
+            .unwrap();
         client.register("client.v1.Client/Hello", |params| async move {
             let name = params
                 .get("name")
                 .and_then(Value::as_str)
                 .unwrap_or("unknown");
             let mut result = JSONObject::new();
-            result.insert(
-                "message".to_string(),
-                Value::String(format!("pong:{name}")),
-            );
+            result.insert("message".to_string(), Value::String(format!("pong:{name}")));
             Ok(result)
         });
 
@@ -759,12 +774,14 @@ mod tests {
                 .unwrap();
         });
 
-        let client =
-            HTTPClient::new(&format!("rest+sse://{address}/api/v1/rpc")).unwrap();
+        let client = HTTPClient::new(&format!("rest+sse://{address}/api/v1/rpc")).unwrap();
         let mut params = JSONObject::new();
         params.insert("message".to_string(), Value::String("hello".to_string()));
         let response = client.invoke("echo.v1.Echo/Ping", params).await.unwrap();
-        assert_eq!(response.get("message"), Some(&Value::String("hello".to_string())));
+        assert_eq!(
+            response.get("message"),
+            Some(&Value::String("hello".to_string()))
+        );
 
         done.await.unwrap();
     }
@@ -798,7 +815,9 @@ mod tests {
                 "data:\r\n",
                 "\r\n"
             );
-            write_http_stream_response(&mut stream, payload).await.unwrap();
+            write_http_stream_response(&mut stream, payload)
+                .await
+                .unwrap();
         });
 
         let client = HTTPClient::new(&format!("http://{address}/api/v1/rpc")).unwrap();
@@ -842,7 +861,9 @@ mod tests {
                 "data:\r\n",
                 "\r\n"
             );
-            write_http_stream_response(&mut stream, payload).await.unwrap();
+            write_http_stream_response(&mut stream, payload)
+                .await
+                .unwrap();
         });
 
         let client = HTTPClient::new(&format!("http://{address}/api/v1/rpc")).unwrap();
@@ -861,7 +882,10 @@ mod tests {
         done.await.unwrap();
     }
 
-    fn spawn_websocket_echo_server(listener: TcpListener, secure: bool) -> tokio::task::JoinHandle<()> {
+    fn spawn_websocket_echo_server(
+        listener: TcpListener,
+        secure: bool,
+    ) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let (stream, _) = listener.accept().await.unwrap();
             let mut websocket = accept_test_websocket(stream).await.unwrap();
@@ -950,9 +974,7 @@ mod tests {
         })
     }
 
-    async fn accept_test_websocket<S>(
-        stream: S,
-    ) -> io::Result<WebSocketStream<S>>
+    async fn accept_test_websocket<S>(stream: S) -> io::Result<WebSocketStream<S>>
     where
         S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
     {
@@ -963,9 +985,11 @@ mod tests {
                 .and_then(|value| value.to_str().ok())
                 .unwrap_or_default();
             if protocol != "holon-rpc" {
-                return Err(tokio_tungstenite::tungstenite::handshake::server::ErrorResponse::new(
-                    Some("missing holon-rpc subprotocol".to_string()),
-                ));
+                return Err(
+                    tokio_tungstenite::tungstenite::handshake::server::ErrorResponse::new(Some(
+                        "missing holon-rpc subprotocol".to_string(),
+                    )),
+                );
             }
             response.headers_mut().insert(
                 SEC_WEBSOCKET_PROTOCOL,

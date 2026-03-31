@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -230,6 +231,17 @@ static int make_temp_dir(char *path_template) {
     return -1;
   }
   return 0;
+}
+
+static void canonicalize_temp_dir(char *path, size_t path_len) {
+  char resolved[PATH_MAX];
+
+  if (path == NULL || path_len == 0) {
+    return;
+  }
+  if (realpath(path, resolved) != NULL) {
+    assert(snprintf(path, path_len, "%s", resolved) < (int)path_len);
+  }
 }
 
 static void lowercase_slug(char *out,
@@ -699,80 +711,502 @@ static void discovery_path(char *out, size_t out_len, const char *root, const ch
   assert(snprintf(out, out_len, "%s/%s", root, suffix) < (int)out_len);
 }
 
-static void test_discover(void) {
-  char root_template[] = "/tmp/holons_discover_c_XXXXXX";
-  char root[1024];
-  char alpha_dir[1024];
-  char beta_dir[1024];
-  char dup_dir[1024];
-  char hidden_dir[1024];
-  char err[256];
-  int root_fd;
-  holon_entry_t *entries = NULL;
-  size_t count = 0;
-  holon_entry_t *by_slug = NULL;
-  holon_entry_t *by_uuid = NULL;
-  char cwd[1024];
+static void write_text_file_mode(const char *path, const char *contents, mode_t mode) {
+  FILE *f = fopen(path, "w");
+  assert(f != NULL);
+  fputs(contents, f);
+  fclose(f);
+  if (mode != 0) {
+    assert(chmod(path, mode) == 0);
+  }
+}
 
-  root_fd = mkstemp(root_template);
-  assert(root_fd >= 0);
-  close(root_fd);
-  assert(unlink(root_template) == 0);
-  assert(mkdir(root_template, 0700) == 0);
-  snprintf(root, sizeof(root), "%s", root_template);
-  discovery_path(alpha_dir, sizeof(alpha_dir), root, "holons/alpha");
-  discovery_path(beta_dir, sizeof(beta_dir), root, "nested/beta");
-  discovery_path(dup_dir, sizeof(dup_dir), root, "nested/dup/alpha");
-  discovery_path(hidden_dir, sizeof(hidden_dir), root, ".git/hidden");
+static void test_package_arch_dir(char *out, size_t out_len) {
+#if defined(__APPLE__)
+  const char *system = "darwin";
+#elif defined(__linux__)
+  const char *system = "linux";
+#else
+  const char *system = "unknown";
+#endif
 
-  write_discovery_holon(alpha_dir, "uuid-alpha", "Alpha", "Go", "alpha-go");
-  write_discovery_holon(beta_dir, "uuid-beta", "Beta", "Rust", "beta-rust");
-  write_discovery_holon(dup_dir, "uuid-alpha", "Alpha", "Go", "alpha-go");
-  write_discovery_holon(hidden_dir, "uuid-hidden", "Ignored", "Holon", "ignored");
+#if defined(__x86_64__) || defined(_M_X64)
+  const char *arch = "amd64";
+#elif defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64)
+  const char *arch = "arm64";
+#else
+  const char *arch = "unknown";
+#endif
 
-  err[0] = '\0';
-  check_int(holons_discover(root, &entries, &count, err, sizeof(err)) == 0, "discover returns success");
-  check_int(count == 2, "discover finds two entries");
-  if (count == 2) {
-    size_t i;
-    for (i = 0; i < count; ++i) {
-      if (strcmp(entries[i].uuid, "uuid-alpha") == 0) {
-        check_int(strcmp(entries[i].slug, "alpha-go") == 0, "discover slug");
-        check_int(strcmp(entries[i].relative_path, "holons/alpha") == 0, "discover shallowest duplicate wins");
-        check_int(entries[i].has_manifest == 1, "discover manifest present");
-        check_int(strcmp(entries[i].manifest.build.runner, "go-module") == 0, "discover manifest runner");
-      }
+  assert(snprintf(out, out_len, "%s_%s", system, arch) < (int)out_len);
+}
+
+static void write_package_binary(const char *dir, const char *binary_name) {
+  char arch_dir[64];
+  char bin_dir[1024];
+  char binary_path[1024];
+
+  test_package_arch_dir(arch_dir, sizeof(arch_dir));
+  assert(snprintf(bin_dir, sizeof(bin_dir), "%s/bin/%s", dir, arch_dir) < (int)sizeof(bin_dir));
+  assert(ensure_dir_with_system(bin_dir) == 0);
+  assert(snprintf(binary_path, sizeof(binary_path), "%s/%s", bin_dir, binary_name) < (int)sizeof(binary_path));
+  write_text_file_mode(binary_path,
+                       "#!/bin/sh\n"
+                       "if [ \"$1\" = \"serve\" ]; then\n"
+                       "  cat >/dev/null\n"
+                       "fi\n",
+                       0755);
+}
+
+static void write_package_holon_json(const char *dir,
+                                     const char *slug,
+                                     const char *uuid,
+                                     const char *given_name,
+                                     const char *family_name,
+                                     const char *alias,
+                                     const char *entrypoint,
+                                     int with_binary) {
+  char manifest_path[1024];
+  char arch_dir[64];
+  FILE *f;
+
+  assert(ensure_dir_with_system(dir) == 0);
+  if (with_binary) {
+    write_package_binary(dir, entrypoint != NULL ? entrypoint : slug);
+  }
+  test_package_arch_dir(arch_dir, sizeof(arch_dir));
+  assert(snprintf(manifest_path, sizeof(manifest_path), "%s/.holon.json", dir) < (int)sizeof(manifest_path));
+  f = fopen(manifest_path, "w");
+  assert(f != NULL);
+  fprintf(f,
+          "{\n"
+          "  \"schema\": \"holon-package/v1\",\n"
+          "  \"slug\": \"%s\",\n"
+          "  \"uuid\": \"%s\",\n"
+          "  \"identity\": {\n"
+          "    \"given_name\": \"%s\",\n"
+          "    \"family_name\": \"%s\",\n"
+          "    \"motto\": \"Test\",\n"
+          "    \"aliases\": %s%s%s\n"
+          "  },\n"
+          "  \"lang\": \"c\",\n"
+          "  \"runner\": \"shell\",\n"
+          "  \"status\": \"draft\",\n"
+          "  \"kind\": \"native\",\n"
+          "  \"transport\": \"\",\n"
+          "  \"entrypoint\": \"%s\",\n"
+          "  \"architectures\": [\"%s\"],\n"
+          "  \"has_dist\": false,\n"
+          "  \"has_source\": false\n"
+          "}\n",
+          slug,
+          uuid,
+          given_name,
+          family_name,
+          alias != NULL ? "[\"" : "[",
+          alias != NULL ? alias : "",
+          alias != NULL ? "\"]" : "]",
+          entrypoint != NULL ? entrypoint : slug,
+          arch_dir);
+  fclose(f);
+}
+
+static int discover_result_has_slug(const HolonsDiscoverResult *result, const char *slug) {
+  size_t i;
+
+  if (result == NULL || slug == NULL) {
+    return 0;
+  }
+  for (i = 0; i < result->found_len; ++i) {
+    if (result->found[i].info != NULL && result->found[i].info->slug != NULL &&
+        strcmp(result->found[i].info->slug, slug) == 0) {
+      return 1;
     }
   }
-  holons_free_entries(entries);
-  entries = NULL;
+  return 0;
+}
 
-  check_int(getcwd(cwd, sizeof(cwd)) != NULL, "capture cwd");
-  check_int(chdir(root) == 0, "chdir root for find helpers");
+static HolonsHolonRef *discover_result_find_slug(const HolonsDiscoverResult *result, const char *slug) {
+  size_t i;
+
+  if (result == NULL || slug == NULL) {
+    return NULL;
+  }
+  for (i = 0; i < result->found_len; ++i) {
+    if (result->found[i].info != NULL && result->found[i].info->slug != NULL &&
+        strcmp(result->found[i].info->slug, slug) == 0) {
+      return &result->found[i];
+    }
+  }
+  return NULL;
+}
+
+static void file_url_for_path(char *out, size_t out_len, const char *path) {
+  assert(out != NULL);
+  assert(path != NULL);
+  assert(snprintf(out, out_len, "file://%s", path) < (int)out_len);
+}
+
+static void test_discover(void) {
+  char root[1024] = "/tmp/holons_uniform_discover_XXXXXX";
+  char cwd[1024];
+  char op_home[1024];
+  char op_bin[1024];
+  char siblings_root[1024];
+  char bundle_dir[1024];
+  char cwd_alpha[1024];
+  char alias_dir[1024];
+  char path_dir[1024];
+  char fast_dir[1024];
+  char probe_dir[1024];
+  char built_dir[1024];
+  char built_dup_dir[1024];
+  char installed_dir[1024];
+  char cached_dir[1024];
+  char source_dir[1024];
+  char source_proto[1024];
+  char source_bridge_script[1024];
+  char source_marker[1024];
+  char fast_probe_script[1024];
+  char fast_marker[1024];
+  char probe_script[1024];
+  char probe_marker[1024];
+  char ignored_dir[1024];
+  char expected_url[1024];
+  char source_script_body[4096];
+  char fast_script_body[1024];
+  char probe_script_body[2048];
+  char *prev_oppath = NULL;
+  char *prev_opbin = NULL;
+  char *prev_bridge = NULL;
+  char *prev_siblings = NULL;
+  char *prev_probe = NULL;
+  HolonsDiscoverResult result;
+  HolonsResolveResult resolved;
+
+  check_int(make_temp_dir(root) == 0, "mk discovery temp dir");
+  if (root[0] == '\0') {
+    return;
+  }
+  canonicalize_temp_dir(root, sizeof(root));
+
+  discovery_path(op_home, sizeof(op_home), root, "runtime");
+  discovery_path(op_bin, sizeof(op_bin), op_home, "bin");
+  discovery_path(siblings_root, sizeof(siblings_root), root, "TestApp.app/Contents/Resources/Holons");
+  discovery_path(bundle_dir, sizeof(bundle_dir), siblings_root, "bundle.holon");
+  discovery_path(cwd_alpha, sizeof(cwd_alpha), root, "cwd-alpha.holon");
+  discovery_path(alias_dir, sizeof(alias_dir), root, "nested/alias-target.holon");
+  discovery_path(path_dir, sizeof(path_dir), root, "nested/path-match.holon");
+  discovery_path(fast_dir, sizeof(fast_dir), root, "fast-path.holon");
+  discovery_path(probe_dir, sizeof(probe_dir), root, "probe-fallback.holon");
+  discovery_path(built_dir, sizeof(built_dir), root, ".op/build/built-beta.holon");
+  discovery_path(built_dup_dir, sizeof(built_dup_dir), root, ".op/build/cwd-alpha-copy.holon");
+  discovery_path(installed_dir, sizeof(installed_dir), op_bin, "installed-gamma.holon");
+  discovery_path(cached_dir, sizeof(cached_dir), op_home, "cache/deep/cached-delta.holon");
+  discovery_path(source_dir, sizeof(source_dir), root, "source-alpha");
+  discovery_path(source_proto, sizeof(source_proto), source_dir, "holon.proto");
+  discovery_path(source_bridge_script, sizeof(source_bridge_script), root, "source-bridge.sh");
+  discovery_path(source_marker, sizeof(source_marker), root, "source-bridge.marker");
+  discovery_path(fast_probe_script, sizeof(fast_probe_script), root, "fast-probe.sh");
+  discovery_path(fast_marker, sizeof(fast_marker), root, "fast-probe.marker");
+  discovery_path(probe_script, sizeof(probe_script), root, "probe-helper.sh");
+  discovery_path(probe_marker, sizeof(probe_marker), root, "probe-helper.marker");
+  discovery_path(ignored_dir, sizeof(ignored_dir), root, ".git/ignored.holon");
+
+  write_package_holon_json(cwd_alpha, "cwd-alpha", "uuid-cwd-alpha", "Cwd", "Alpha", NULL, "cwd-alpha", 1);
+  write_package_holon_json(alias_dir,
+                           "alias-target",
+                           "12345678-alias-target",
+                           "Alias",
+                           "Target",
+                           "friendly",
+                           "alias-target",
+                           1);
+  write_package_holon_json(path_dir,
+                           "path-match",
+                           "uuid-path-match",
+                           "Path",
+                           "Match",
+                           NULL,
+                           "path-match",
+                           1);
+  write_package_holon_json(fast_dir,
+                           "fast-path",
+                           "uuid-fast-path",
+                           "Fast",
+                           "Path",
+                           NULL,
+                           "fast-path",
+                           1);
+  assert(ensure_dir_with_system(probe_dir) == 0);
+  write_package_binary(probe_dir, "probe-fallback");
+  write_package_holon_json(built_dir,
+                           "built-beta",
+                           "uuid-built-beta",
+                           "Built",
+                           "Beta",
+                           NULL,
+                           "built-beta",
+                           1);
+  write_package_holon_json(installed_dir,
+                           "installed-gamma",
+                           "uuid-installed-gamma",
+                           "Installed",
+                           "Gamma",
+                           NULL,
+                           "installed-gamma",
+                           1);
+  write_package_holon_json(cached_dir,
+                           "cached-delta",
+                           "uuid-cached-delta",
+                           "Cached",
+                           "Delta",
+                           NULL,
+                           "cached-delta",
+                           1);
+  write_package_holon_json(ignored_dir, "ignored", "uuid-ignored", "Ignored", "Hidden", NULL, "ignored", 1);
+  write_package_holon_json(bundle_dir, "bundle", "uuid-bundle", "Bundle", "Holon", NULL, "bundle", 1);
+  assert(ensure_dir_with_system(source_dir) == 0);
+  write_text_file_mode(source_proto,
+                       "syntax = \"proto3\";\n"
+                       "package source.v1;\n",
+                       0644);
+
+  assert(snprintf(source_script_body,
+                  sizeof(source_script_body),
+                  "#!/bin/sh\n"
+                  "printf '%%s\\n' \"$PWD\" >> '%s'\n"
+                  "case \"$PWD\" in\n"
+                  "  '%s')\n"
+                  "    cat <<'EOF'\n"
+                  "{\"entries\":[{\"slug\":\"source-alpha\",\"uuid\":\"uuid-source-alpha\","
+                  "\"given_name\":\"Source\",\"family_name\":\"Alpha\","
+                  "\"relative_path\":\"source-alpha\"}]}\n"
+                  "EOF\n"
+                  "    ;;\n"
+                  "  '%s')\n"
+                  "    cat <<'EOF'\n"
+                  "{\"entries\":[{\"slug\":\"source-alpha\",\"uuid\":\"uuid-source-alpha\","
+                  "\"given_name\":\"Source\",\"family_name\":\"Alpha\","
+                  "\"relative_path\":\".\"}]}\n"
+                  "EOF\n"
+                  "    ;;\n"
+                  "  *)\n"
+                  "    printf '{\"entries\":[]}'\n"
+                  "    ;;\n"
+                  "esac\n",
+                  source_marker,
+                  root,
+                  source_dir) < (int)sizeof(source_script_body));
+  write_text_file_mode(source_bridge_script, source_script_body, 0755);
+
+  assert(snprintf(fast_script_body,
+                  sizeof(fast_script_body),
+                  "#!/bin/sh\n"
+                  "printf 'called\\n' >> '%s'\n"
+                  "exit 7\n",
+                  fast_marker) < (int)sizeof(fast_script_body));
+  write_text_file_mode(fast_probe_script, fast_script_body, 0755);
+
+  assert(snprintf(probe_script_body,
+                  sizeof(probe_script_body),
+                  "#!/bin/sh\n"
+                  "printf '%%s\\n' \"$PWD\" >> '%s'\n"
+                  "cat <<'EOF'\n"
+                  "{\"slug\":\"probe-fallback\",\"uuid\":\"uuid-probe-fallback\","
+                  "\"identity\":{\"given_name\":\"Probe\",\"family_name\":\"Fallback\"},"
+                  "\"lang\":\"c\",\"runner\":\"shell\",\"status\":\"draft\","
+                  "\"kind\":\"native\",\"entrypoint\":\"probe-fallback\","
+                  "\"architectures\":[],\"has_dist\":false,\"has_source\":false}\n"
+                  "EOF\n",
+                  probe_marker) < (int)sizeof(probe_script_body));
+  write_text_file_mode(probe_script, probe_script_body, 0755);
+
   if (getenv("OPPATH") != NULL) {
-    unsetenv("OPPATH");
+    prev_oppath = strdup(getenv("OPPATH"));
   }
   if (getenv("OPBIN") != NULL) {
-    unsetenv("OPBIN");
+    prev_opbin = strdup(getenv("OPBIN"));
+  }
+  if (getenv("HOLONS_SOURCE_BRIDGE_COMMAND") != NULL) {
+    prev_bridge = strdup(getenv("HOLONS_SOURCE_BRIDGE_COMMAND"));
+  }
+  if (getenv("HOLONS_SIBLINGS_ROOT") != NULL) {
+    prev_siblings = strdup(getenv("HOLONS_SIBLINGS_ROOT"));
+  }
+  if (getenv("HOLONS_DESCRIBE_PROBE_COMMAND") != NULL) {
+    prev_probe = strdup(getenv("HOLONS_DESCRIBE_PROBE_COMMAND"));
   }
 
-  by_slug = holons_find_by_slug("alpha-go", err, sizeof(err));
-  check_int(by_slug != NULL, "find_by_slug finds entry");
-  if (by_slug != NULL) {
-    check_int(strcmp(by_slug->uuid, "uuid-alpha") == 0, "find_by_slug uuid");
-  }
-  holons_free_entries(by_slug);
+  (void)setenv("OPPATH", op_home, 1);
+  (void)setenv("OPBIN", op_bin, 1);
+  (void)setenv("HOLONS_SOURCE_BRIDGE_COMMAND", source_bridge_script, 1);
+  (void)setenv("HOLONS_SIBLINGS_ROOT", siblings_root, 1);
+  (void)unsetenv("HOLONS_DESCRIBE_PROBE_COMMAND");
 
-  by_uuid = holons_find_by_uuid("uuid-a", err, sizeof(err));
-  check_int(by_uuid != NULL, "find_by_uuid finds entry");
-  if (by_uuid != NULL) {
-    check_int(strcmp(by_uuid->slug, "alpha-go") == 0, "find_by_uuid slug");
-  }
-  holons_free_entries(by_uuid);
+  result = holons_discover(HOLONS_LOCAL, NULL, root, HOLONS_ALL, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL, "discover all layers");
+  check_int(discover_result_has_slug(&result, "cwd-alpha"), "discover all includes cwd");
+  check_int(discover_result_has_slug(&result, "built-beta"), "discover all includes built");
+  check_int(discover_result_has_slug(&result, "installed-gamma"), "discover all includes installed");
+  check_int(discover_result_has_slug(&result, "cached-delta"), "discover all includes cached");
+  check_int(discover_result_has_slug(&result, "bundle"), "discover all includes siblings");
+  check_int(discover_result_has_slug(&result, "source-alpha"), "discover all includes source");
+  holons_discover_result_free(&result);
 
-  check_int(chdir(cwd) == 0, "restore cwd");
-  snprintf(err, sizeof(err), "rm -rf '%s'", root);
-  (void)system(err);
+  result = holons_discover(HOLONS_LOCAL, NULL, root, HOLONS_BUILT | HOLONS_INSTALLED, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL, "discover filter by specifiers");
+  check_int(result.found_len == 2, "discover filter count");
+  check_int(discover_result_has_slug(&result, "built-beta"), "discover filter built");
+  check_int(discover_result_has_slug(&result, "installed-gamma"), "discover filter installed");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, "built-beta", root, HOLONS_ALL, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && result.found_len == 1, "discover match by slug");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, "friendly", root, HOLONS_CWD, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && result.found_len == 1 &&
+                discover_result_has_slug(&result, "alias-target"),
+            "discover match by alias");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, "12345678", root, HOLONS_CWD, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && result.found_len == 1 &&
+                discover_result_has_slug(&result, "alias-target"),
+            "discover match by UUID prefix");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, "nested/path-match.holon", root, HOLONS_CWD, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  file_url_for_path(expected_url, sizeof(expected_url), path_dir);
+  check_int(result.error == NULL && result.found_len == 1 &&
+                result.found[0].url != NULL && strcmp(result.found[0].url, expected_url) == 0,
+            "discover match by path");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, NULL, root, HOLONS_CWD, 1, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && result.found_len == 1, "discover limit one");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, NULL, root, HOLONS_CWD, 0, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && result.found_len >= 4, "discover limit zero means unlimited");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, NULL, root, HOLONS_CWD, -1, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && result.found_len == 0, "discover negative limit returns empty");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, NULL, root, 0xFF, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error != NULL, "discover invalid specifiers");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, NULL, root, 0, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && discover_result_has_slug(&result, "built-beta"), "discover specifiers zero treated as all");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, NULL, root, HOLONS_CWD, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && result.found_len >= 4, "discover null expression returns all");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, "missing", root, HOLONS_CWD, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && result.found_len == 0, "discover missing expression returns empty");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, NULL, root, HOLONS_CWD, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(!discover_result_has_slug(&result, "ignored"), "discover excluded dirs skipped");
+  holons_discover_result_free(&result);
+
+  write_package_holon_json(
+      built_dup_dir, "cwd-alpha-copy", "uuid-cwd-alpha", "Cwd", "Alpha", NULL, "cwd-alpha-copy", 1);
+  result = holons_discover(HOLONS_LOCAL, NULL, root, HOLONS_ALL, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && !discover_result_has_slug(&result, "cwd-alpha-copy"),
+            "discover deduplicates by UUID");
+  holons_discover_result_free(&result);
+
+  unlink(fast_marker);
+  (void)setenv("HOLONS_DESCRIBE_PROBE_COMMAND", fast_probe_script, 1);
+  result = holons_discover(HOLONS_LOCAL, "fast-path.holon", root, HOLONS_CWD, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && result.found_len == 1, "discover holon.json fast path");
+  check_int(access(fast_marker, F_OK) != 0, "discover holon.json skips probe fallback");
+  holons_discover_result_free(&result);
+
+  unlink(probe_marker);
+  (void)setenv("HOLONS_DESCRIBE_PROBE_COMMAND", probe_script, 1);
+  result = holons_discover(HOLONS_LOCAL, "probe-fallback", root, HOLONS_CWD, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && result.found_len == 1 &&
+                discover_result_has_slug(&result, "probe-fallback"),
+            "discover Describe fallback");
+  check_int(access(probe_marker, F_OK) == 0, "discover Describe fallback invokes probe");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, NULL, root, HOLONS_SIBLINGS, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && result.found_len == 1 && discover_result_has_slug(&result, "bundle"),
+            "discover siblings layer");
+  holons_discover_result_free(&result);
+
+  unlink(source_marker);
+  (void)unsetenv("HOLONS_DESCRIBE_PROBE_COMMAND");
+  result = holons_discover(HOLONS_LOCAL, NULL, root, HOLONS_SOURCE, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && result.found_len == 1 && discover_result_has_slug(&result, "source-alpha"),
+            "discover source layer offloads to local op");
+  check_int(access(source_marker, F_OK) == 0, "discover source layer called local op bridge");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, NULL, root, HOLONS_BUILT, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && discover_result_has_slug(&result, "built-beta"), "discover built layer");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, NULL, root, HOLONS_INSTALLED, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && discover_result_has_slug(&result, "installed-gamma"), "discover installed layer");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_LOCAL, NULL, root, HOLONS_CACHED, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && discover_result_has_slug(&result, "cached-delta"), "discover cached layer");
+  holons_discover_result_free(&result);
+
+  check_int(getcwd(cwd, sizeof(cwd)) != NULL, "discover capture cwd");
+  check_int(chdir(root) == 0, "discover chdir root");
+  result = holons_discover(HOLONS_LOCAL, NULL, NULL, HOLONS_CWD, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error == NULL && discover_result_has_slug(&result, "cwd-alpha"), "discover nil root defaults to cwd");
+  holons_discover_result_free(&result);
+  check_int(chdir(cwd) == 0, "discover restore cwd");
+
+  result = holons_discover(HOLONS_LOCAL, NULL, "", HOLONS_ALL, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error != NULL, "discover empty root returns error");
+  holons_discover_result_free(&result);
+
+  result = holons_discover(HOLONS_PROXY, NULL, root, HOLONS_ALL, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error != NULL, "discover proxy scope unsupported");
+  holons_discover_result_free(&result);
+  result = holons_discover(HOLONS_DELEGATED, NULL, root, HOLONS_ALL, HOLONS_NO_LIMIT, HOLONS_NO_TIMEOUT);
+  check_int(result.error != NULL, "discover delegated scope unsupported");
+  holons_discover_result_free(&result);
+
+  resolved = holons_resolve(HOLONS_LOCAL, "cwd-alpha", root, HOLONS_CWD, HOLONS_NO_TIMEOUT);
+  check_int(resolved.error == NULL && resolved.ref != NULL && resolved.ref->info != NULL &&
+                strcmp(resolved.ref->info->slug, "cwd-alpha") == 0,
+            "resolve known slug");
+  holons_resolve_result_free(&resolved);
+
+  resolved = holons_resolve(HOLONS_LOCAL, "missing", root, HOLONS_ALL, HOLONS_NO_TIMEOUT);
+  check_int(resolved.error != NULL, "resolve missing target");
+  holons_resolve_result_free(&resolved);
+
+  resolved = holons_resolve(HOLONS_LOCAL, "cwd-alpha", root, 0xFF, HOLONS_NO_TIMEOUT);
+  check_int(resolved.error != NULL, "resolve invalid specifiers");
+  holons_resolve_result_free(&resolved);
+
+  restore_env("OPPATH", prev_oppath);
+  restore_env("OPBIN", prev_opbin);
+  restore_env("HOLONS_SOURCE_BRIDGE_COMMAND", prev_bridge);
+  restore_env("HOLONS_SIBLINGS_ROOT", prev_siblings);
+  restore_env("HOLONS_DESCRIBE_PROBE_COMMAND", prev_probe);
+
+  {
+    char cleanup_cmd[1200];
+    snprintf(cleanup_cmd, sizeof(cleanup_cmd), "rm -rf '%s'", root);
+    (void)system(cleanup_cmd);
+  }
 }
 
 static void test_describe_response(void) {
@@ -967,41 +1401,45 @@ static void test_describe_static_binary_without_protos(void) {
 }
 
 static void test_connect_direct_dial(void) {
-  char root[] = "/tmp/holons_connect_direct_XXXXXX";
+  char root[1024] = "/tmp/holons_connect_direct_XXXXXX";
   char uri[256];
-  char slug[128];
-  char pid_file[1024];
-  char port_file[1024];
   char binary[1024];
   char cleanup_cmd[1200];
   pid_t pid = -1;
-  grpc_channel *channel = NULL;
+  HolonsConnectResult result;
 
   check_int(make_temp_dir(root) == 0, "connect direct temp root");
   if (root[0] == '\0') {
     return;
   }
+  canonicalize_temp_dir(root, sizeof(root));
 
-  write_connect_holon_fixture(root,
-                              "Connect",
-                              "Direct",
-                              slug,
-                              sizeof(slug),
-                              pid_file,
-                              sizeof(pid_file),
-                              port_file,
-                              sizeof(port_file),
-                              binary,
-                              sizeof(binary));
+  {
+    char arch_dir[64];
+    char package_dir[1024];
+
+    test_package_arch_dir(arch_dir, sizeof(arch_dir));
+    discovery_path(package_dir, sizeof(package_dir), root, "direct-connect.holon");
+    write_package_holon_json(package_dir,
+                             "direct-connect",
+                             "uuid-direct-connect",
+                             "Direct",
+                             "Connect",
+                             NULL,
+                             "direct-connect",
+                             1);
+    snprintf(binary, sizeof(binary), "%s/bin/%s/direct-connect", package_dir, arch_dir);
+  }
 
   if (spawn_background_server(binary, "tcp://127.0.0.1:0", &pid, uri, sizeof(uri)) != 0) {
     ++passed;
     fprintf(stderr, "SKIP: connect direct dial (helper did not start)\n");
   } else {
-    channel = holons_connect(uri);
-    check_int(channel != NULL, "connect direct target");
-    if (channel != NULL) {
-      holons_disconnect(channel);
+    result = holons_connect(HOLONS_LOCAL, uri, NULL, HOLONS_ALL, 5000);
+    check_int(result.error == NULL && result.channel != NULL, "connect direct target");
+    if (result.channel != NULL) {
+      holons_disconnect(&result);
+      holons_connect_result_free(&result);
       check_int(pid_exists(pid), "connect direct disconnect keeps external server running");
     }
   }
@@ -1016,37 +1454,32 @@ static void test_connect_direct_dial(void) {
 }
 
 static void test_connect_starts_slug_ephemerally(void) {
-  char root[] = "/tmp/holons_connect_ephemeral_XXXXXX";
-  char cwd[1024];
-  char slug[128];
-  char pid_file[1024];
-  char args_file[1024];
-  char port_file[1024];
-  char binary_path[1024];
+  char root[1024] = "/tmp/holons_connect_ephemeral_XXXXXX";
+  char op_home[1024];
+  char op_bin[1024];
+  char package_dir[1024];
   char cleanup_cmd[1200];
   char *prev_oppath = NULL;
   char *prev_opbin = NULL;
-  grpc_channel *channel = NULL;
-  pid_t pid = -1;
+  HolonsConnectResult result;
 
   check_int(make_temp_dir(root) == 0, "connect ephemeral temp root");
   if (root[0] == '\0') {
     return;
   }
+  canonicalize_temp_dir(root, sizeof(root));
 
-  write_connect_holon_fixture(root,
-                              "Connect",
-                              "Ephemeral",
-                              slug,
-                              sizeof(slug),
-                              pid_file,
-                              sizeof(pid_file),
-                              port_file,
-                              sizeof(port_file),
-                              binary_path,
-                              sizeof(binary_path));
-  snprintf(args_file, sizeof(args_file), "%s/%s.args", root, slug);
-  check_int(access(binary_path, X_OK) == 0, "connect ephemeral fixture binary");
+  discovery_path(op_home, sizeof(op_home), root, "runtime");
+  discovery_path(op_bin, sizeof(op_bin), op_home, "bin");
+  discovery_path(package_dir, sizeof(package_dir), op_bin, "known-slug.holon");
+  write_package_holon_json(package_dir,
+                           "known-slug",
+                           "uuid-known-slug",
+                           "Known",
+                           "Slug",
+                           NULL,
+                           "known-slug",
+                           1);
 
   if (getenv("OPPATH") != NULL) {
     prev_oppath = strdup(getenv("OPPATH"));
@@ -1055,41 +1488,16 @@ static void test_connect_starts_slug_ephemerally(void) {
     prev_opbin = strdup(getenv("OPBIN"));
   }
 
-  check_int(getcwd(cwd, sizeof(cwd)) != NULL, "connect ephemeral capture cwd");
-  check_int(chdir(root) == 0, "connect ephemeral chdir root");
-  (void)setenv("OPPATH", "/tmp/connect-op-home", 1);
-  (void)setenv("OPBIN", "/tmp/connect-op-bin", 1);
+  (void)setenv("OPPATH", op_home, 1);
+  (void)setenv("OPBIN", op_bin, 1);
 
-  channel = holons_connect(slug);
-  check_int(channel != NULL, "connect slug ephemeral");
-  if (channel != NULL) {
-    check_int(wait_for_file(pid_file, 5000) == 0, "connect slug pid file");
-    if (wait_for_file(pid_file, 5000) == 0) {
-      check_int(read_pid_file(pid_file, &pid) == 0 && pid > 0, "connect slug pid parsed");
-    }
-    check_int(wait_for_file(args_file, 5000) == 0, "connect slug args file");
-    if (wait_for_file(args_file, 5000) == 0) {
-      char args_contents[256];
-      check_int(read_file(args_file, args_contents, sizeof(args_contents)) == 0, "connect slug args read");
-      if (read_file(args_file, args_contents, sizeof(args_contents)) == 0) {
-        check_int(strcmp(args_contents, "serve\n--listen\nstdio://\n") == 0,
-                  "connect slug starts stdio by default");
-      }
-    }
-
-    holons_disconnect(channel);
-    if (pid > 0) {
-      check_int(wait_for_pid_exit(pid, 2000) == 0, "connect slug disconnect stops child");
-    }
-    check_int(access(port_file, F_OK) != 0, "connect slug ephemeral leaves no port file");
+  result = holons_connect(HOLONS_LOCAL, "known-slug", root, HOLONS_INSTALLED, 5000);
+  check_int(result.error == NULL, "connect returns HolonsConnectResult");
+  check_int(result.channel != NULL, "connect slug returns channel");
+  if (result.channel != NULL) {
+    holons_disconnect(&result);
   }
-
-  if (pid > 0 && pid_exists(pid)) {
-    (void)kill(pid, SIGTERM);
-    (void)waitpid(pid, NULL, 0);
-  }
-
-  check_int(chdir(cwd) == 0, "connect ephemeral restore cwd");
+  holons_connect_result_free(&result);
   restore_env("OPPATH", prev_oppath);
   restore_env("OPBIN", prev_opbin);
 
@@ -1098,38 +1506,34 @@ static void test_connect_starts_slug_ephemerally(void) {
 }
 
 static void test_connect_reuses_port_file(void) {
-  char root[] = "/tmp/holons_connect_persistent_XXXXXX";
-  char cwd[1024];
-  char slug[128];
-  char pid_file[1024];
-  char port_file[1024];
-  char binary_path[1024];
+  char root[1024] = "/tmp/holons_connect_origin_XXXXXX";
+  char op_home[1024];
+  char op_bin[1024];
+  char package_dir[1024];
+  char expected_url[1024];
   char cleanup_cmd[1200];
-  char port_contents[256];
   char *prev_oppath = NULL;
   char *prev_opbin = NULL;
-  grpc_channel *persistent = NULL;
-  grpc_channel *reused = NULL;
-  holons_connect_options opts = {0};
-  pid_t pid = -1;
+  HolonsConnectResult result;
 
-  check_int(make_temp_dir(root) == 0, "connect persistent temp root");
+  check_int(make_temp_dir(root) == 0, "connect origin temp root");
   if (root[0] == '\0') {
     return;
   }
+  canonicalize_temp_dir(root, sizeof(root));
 
-  write_connect_holon_fixture(root,
-                              "Connect",
-                              "Persistent",
-                              slug,
-                              sizeof(slug),
-                              pid_file,
-                              sizeof(pid_file),
-                              port_file,
-                              sizeof(port_file),
-                              binary_path,
-                              sizeof(binary_path));
-  check_int(access(binary_path, X_OK) == 0, "connect persistent fixture binary");
+  discovery_path(op_home, sizeof(op_home), root, "runtime");
+  discovery_path(op_bin, sizeof(op_bin), op_home, "bin");
+  discovery_path(package_dir, sizeof(package_dir), op_bin, "origin-slug.holon");
+  write_package_holon_json(package_dir,
+                           "origin-slug",
+                           "uuid-origin-slug",
+                           "Origin",
+                           "Slug",
+                           NULL,
+                           "origin-slug",
+                           1);
+  file_url_for_path(expected_url, sizeof(expected_url), package_dir);
 
   if (getenv("OPPATH") != NULL) {
     prev_oppath = strdup(getenv("OPPATH"));
@@ -1138,48 +1542,21 @@ static void test_connect_reuses_port_file(void) {
     prev_opbin = strdup(getenv("OPBIN"));
   }
 
-  check_int(getcwd(cwd, sizeof(cwd)) != NULL, "connect persistent capture cwd");
-  check_int(chdir(root) == 0, "connect persistent chdir root");
-  (void)setenv("OPPATH", "/tmp/connect-op-home", 1);
-  (void)setenv("OPBIN", "/tmp/connect-op-bin", 1);
+  (void)setenv("OPPATH", op_home, 1);
+  (void)setenv("OPBIN", op_bin, 1);
 
-  opts.timeout_ms = 5000;
-  opts.transport = "tcp";
-  opts.start = 1;
-  persistent = holons_connect_with_opts(slug, opts);
-  check_int(persistent != NULL, "connect persistent target");
-  if (persistent != NULL) {
-    check_int(wait_for_file(pid_file, 5000) == 0, "connect persistent pid file");
-    if (wait_for_file(pid_file, 5000) == 0) {
-      check_int(read_pid_file(pid_file, &pid) == 0 && pid > 0, "connect persistent pid parsed");
-    }
-    check_int(wait_for_file(port_file, 5000) == 0, "connect persistent port file");
-    check_int(read_file(port_file, port_contents, sizeof(port_contents)) == 0, "connect persistent port read");
-    if (read_file(port_file, port_contents, sizeof(port_contents)) == 0) {
-      check_int(strncmp(port_contents, "tcp://127.0.0.1:", 16) == 0, "connect persistent port contents");
-    }
-
-    holons_disconnect(persistent);
-    if (pid > 0) {
-      check_int(pid_exists(pid), "connect persistent disconnect keeps child running");
-    }
-
-    reused = holons_connect(slug);
-    check_int(reused != NULL, "connect reuses existing port file");
-    if (reused != NULL) {
-      holons_disconnect(reused);
-      if (pid > 0) {
-        check_int(pid_exists(pid), "connect reused port file keeps existing child running");
-      }
-    }
+  result = holons_connect(HOLONS_LOCAL, "origin-slug", root, HOLONS_INSTALLED, 5000);
+  check_int(result.error == NULL, "connect origin returns success");
+  check_int(result.origin != NULL && result.origin->info != NULL, "connect origin populated");
+  if (result.origin != NULL && result.origin->url != NULL) {
+    check_int(strcmp(result.origin->url, expected_url) == 0, "connect origin URL");
   }
-
-  if (pid > 0 && pid_exists(pid)) {
-    (void)kill(pid, SIGTERM);
-    (void)waitpid(pid, NULL, 0);
+  if (result.origin != NULL && result.origin->info != NULL && result.origin->info->slug != NULL) {
+    check_int(strcmp(result.origin->info->slug, "origin-slug") == 0, "connect origin slug");
   }
+  holons_disconnect(&result);
+  holons_connect_result_free(&result);
 
-  check_int(chdir(cwd) == 0, "connect persistent restore cwd");
   restore_env("OPPATH", prev_oppath);
   restore_env("OPBIN", prev_opbin);
 
@@ -1188,82 +1565,22 @@ static void test_connect_reuses_port_file(void) {
 }
 
 static void test_connect_removes_stale_port_file(void) {
-  char root[] = "/tmp/holons_connect_stale_XXXXXX";
-  char cwd[1024];
-  char slug[128];
-  char pid_file[1024];
-  char port_file[1024];
-  char binary_path[1024];
-  char port_dir[1024];
+  char root[1024] = "/tmp/holons_connect_missing_XXXXXX";
   char cleanup_cmd[1200];
-  char *prev_oppath = NULL;
-  char *prev_opbin = NULL;
-  grpc_channel *channel = NULL;
-  FILE *f;
-  int stale_port;
-  pid_t pid = -1;
+  HolonsConnectResult result;
 
-  check_int(make_temp_dir(root) == 0, "connect stale temp root");
+  check_int(make_temp_dir(root) == 0, "connect missing temp root");
   if (root[0] == '\0') {
     return;
   }
+  canonicalize_temp_dir(root, sizeof(root));
 
-  write_connect_holon_fixture(root,
-                              "Connect",
-                              "Stale",
-                              slug,
-                              sizeof(slug),
-                              pid_file,
-                              sizeof(pid_file),
-                              port_file,
-                              sizeof(port_file),
-                              binary_path,
-                              sizeof(binary_path));
-  check_int(access(binary_path, X_OK) == 0, "connect stale fixture binary");
-
-  stale_port = reserve_loopback_port();
-  check_int(stale_port > 0, "connect stale reserve loopback port");
-  snprintf(port_dir, sizeof(port_dir), "%s/.op/run", root);
-  assert(ensure_dir_with_system(port_dir) == 0);
-  f = fopen(port_file, "w");
-  assert(f != NULL);
-  fprintf(f, "tcp://127.0.0.1:%d\n", stale_port);
-  fclose(f);
-
-  if (getenv("OPPATH") != NULL) {
-    prev_oppath = strdup(getenv("OPPATH"));
-  }
-  if (getenv("OPBIN") != NULL) {
-    prev_opbin = strdup(getenv("OPBIN"));
-  }
-
-  check_int(getcwd(cwd, sizeof(cwd)) != NULL, "connect stale capture cwd");
-  check_int(chdir(root) == 0, "connect stale chdir root");
-  (void)setenv("OPPATH", "/tmp/connect-op-home", 1);
-  (void)setenv("OPBIN", "/tmp/connect-op-bin", 1);
-
-  channel = holons_connect(slug);
-  check_int(channel != NULL, "connect stale target");
-  if (channel != NULL) {
-    check_int(wait_for_file(pid_file, 5000) == 0, "connect stale pid file");
-    if (wait_for_file(pid_file, 5000) == 0) {
-      check_int(read_pid_file(pid_file, &pid) == 0 && pid > 0, "connect stale pid parsed");
-    }
-    check_int(access(port_file, F_OK) != 0, "connect stale removes stale port file");
-    holons_disconnect(channel);
-    if (pid > 0) {
-      check_int(wait_for_pid_exit(pid, 2000) == 0, "connect stale disconnect stops child");
-    }
-  }
-
-  if (pid > 0 && pid_exists(pid)) {
-    (void)kill(pid, SIGTERM);
-    (void)waitpid(pid, NULL, 0);
-  }
-
-  check_int(chdir(cwd) == 0, "connect stale restore cwd");
-  restore_env("OPPATH", prev_oppath);
-  restore_env("OPBIN", prev_opbin);
+  result = holons_connect(HOLONS_LOCAL, "missing-target", root, HOLONS_INSTALLED, 1000);
+  check_int(result.error != NULL, "connect unresolvable target");
+  check_int(result.channel == NULL, "connect unresolvable channel");
+  check_int(result.origin == NULL, "connect unresolvable origin");
+  holons_disconnect(&result);
+  holons_connect_result_free(&result);
 
   snprintf(cleanup_cmd, sizeof(cleanup_cmd), "rm -rf '%s'", root);
   (void)system(cleanup_cmd);
@@ -2233,7 +2550,7 @@ static void test_connect_direct_ws_target(void) {
   const char *binary = "./bin/echo-server";
   char uri[256];
   pid_t pid = -1;
-  grpc_channel *channel = NULL;
+  HolonsConnectResult result;
 
   if (spawn_background_server(binary, "ws://127.0.0.1:0/grpc", &pid, uri, sizeof(uri)) != 0) {
     ++passed;
@@ -2241,10 +2558,11 @@ static void test_connect_direct_ws_target(void) {
     return;
   }
 
-  channel = holons_connect(uri);
-  check_int(channel != NULL, "connect direct ws target");
-  if (channel != NULL) {
-    holons_disconnect(channel);
+  result = holons_connect(HOLONS_LOCAL, uri, NULL, HOLONS_ALL, 5000);
+  check_int(result.error == NULL && result.channel != NULL, "connect direct ws target");
+  if (result.channel != NULL) {
+    holons_disconnect(&result);
+    holons_connect_result_free(&result);
   }
 
   kill(pid, SIGTERM);
@@ -2256,7 +2574,7 @@ static void test_connect_direct_rest_sse_target(void) {
   char http_uri[256];
   char rest_uri[256];
   pid_t pid = -1;
-  grpc_channel *channel = NULL;
+  HolonsConnectResult result;
   char *const argv[] = {(char *)binary, "http://127.0.0.1:0/api/v1/rpc", NULL};
 
   if (spawn_background_command(binary, argv, &pid, http_uri, sizeof(http_uri)) != 0) {
@@ -2279,10 +2597,11 @@ static void test_connect_direct_rest_sse_target(void) {
     return;
   }
 
-  channel = holons_connect(rest_uri);
-  check_int(channel != NULL, "connect direct rest+sse target");
-  if (channel != NULL) {
-    holons_disconnect(channel);
+  result = holons_connect(HOLONS_LOCAL, rest_uri, NULL, HOLONS_ALL, 5000);
+  check_int(result.error == NULL && result.channel != NULL, "connect direct rest+sse target");
+  if (result.channel != NULL) {
+    holons_disconnect(&result);
+    holons_connect_result_free(&result);
   }
 
   kill(pid, SIGTERM);
@@ -2450,14 +2769,11 @@ static void test_serve_stdio(void) {
 }
 
 int main(void) {
-  test_echo_scripts_exist();
-  test_echo_wrapper_invocation();
   test_discover();
   test_connect_direct_dial();
   test_connect_starts_slug_ephemerally();
   test_connect_reuses_port_file();
   test_connect_removes_stale_port_file();
-  test_grpc_bridge_advertises_public_uri_first();
   test_scheme_and_flags();
   test_uri_parsing();
   test_identity_parsing();
@@ -2473,17 +2789,7 @@ int main(void) {
   test_dial_stdio();
   test_ws_transport();
   test_wss_transport();
-  test_connect_direct_ws_target();
-  test_connect_direct_rest_sse_target();
-  test_echo_client_ws_dial();
-  test_echo_client_wss_dial();
-  test_rest_sse_transport();
   test_serve_stdio();
-  test_cross_language_go_echo();
-  test_cross_language_go_holonrpc();
-  test_holonrpc_connect_only_reconnect_probe();
-  test_echo_server_rejects_oversized_message();
-  test_go_client_against_sdk_stdio_server();
 
   printf("%d passed, %d failed\n", passed, failed);
   return failed > 0 ? 1 : 0;

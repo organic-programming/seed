@@ -12,11 +12,68 @@ if _GENERATED_PACKAGE_DIR.is_dir():
     if generated_path not in __path__:
         __path__.append(generated_path)
 
-__all__ = ["transport", "serve", "identity", "discover", "connect", "grpcclient", "holonrpc", "describe"]
+from .connect import connect, disconnect
+from .discover import Discover, resolve
+from .discovery_types import (
+    ALL,
+    BUILT,
+    CACHED,
+    CWD,
+    DELEGATED,
+    INSTALLED,
+    LOCAL,
+    NO_LIMIT,
+    NO_TIMEOUT,
+    PROXY,
+    SIBLINGS,
+    SOURCE,
+    ConnectResult,
+    DiscoverResult,
+    HolonInfo,
+    HolonRef,
+    IdentityInfo,
+    ResolveResult,
+)
+
+_MODULE_EXPORTS = [
+    "transport",
+    "serve",
+    "identity",
+    "discover",
+    "grpcclient",
+    "holonrpc",
+    "describe",
+]
+
+__all__ = [
+    "Discover",
+    "resolve",
+    "connect",
+    "disconnect",
+    "LOCAL",
+    "PROXY",
+    "DELEGATED",
+    "SIBLINGS",
+    "CWD",
+    "SOURCE",
+    "BUILT",
+    "INSTALLED",
+    "CACHED",
+    "ALL",
+    "NO_LIMIT",
+    "NO_TIMEOUT",
+    "IdentityInfo",
+    "HolonInfo",
+    "HolonRef",
+    "DiscoverResult",
+    "ResolveResult",
+    "ConnectResult",
+    *_MODULE_EXPORTS,
+]
 
 
 def __getattr__(name: str):
-    if name in __all__:
+    if name in _MODULE_EXPORTS:
         module = import_module(f"{__name__}.{name}")
         globals()[name] = module
         return module

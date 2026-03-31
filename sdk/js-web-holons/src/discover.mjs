@@ -1,105 +1,129 @@
-import { parseManifestText } from "./manifest.mjs";
+import {
+    ALL,
+    LOCAL,
+} from "./discovery_types.mjs";
 
-function slugFor(identity) {
-    const given = String(identity.given_name || "").trim();
-    const family = String(identity.family_name || "").trim().replace(/\?$/, "");
-    if (!given && !family) {
-        return "";
+export {
+    ALL,
+    BUILT,
+    CACHED,
+    CWD,
+    DELEGATED,
+    INSTALLED,
+    LOCAL,
+    NO_LIMIT,
+    NO_TIMEOUT,
+    PROXY,
+    SIBLINGS,
+    SOURCE,
+} from "./discovery_types.mjs";
+
+/**
+ * Browser Phase 1 discovery is validation-only. All filesystem-backed layers
+ * are unavailable in js-web-holons, so successful calls return an empty set.
+ *
+ * @param {number} scope
+ * @param {string|null|undefined} expression
+ * @param {string|null|undefined} root
+ * @param {number} specifiers
+ * @param {number} limit
+ * @param {number} timeout
+ * @returns {import("./discovery_types.mjs").DiscoverResult}
+ */
+export function Discover(scope, expression, root, specifiers, limit, timeout) {
+    void expression;
+    void timeout;
+
+    if (scope !== LOCAL) {
+        return { found: [], error: `scope ${scope} not supported` };
     }
-    return `${given}-${family}`
-        .trim()
-        .toLowerCase()
-        .replace(/ /g, "-")
-        .replace(/^-+|-+$/g, "");
+
+    const normalizedSpecifiers = normalizeSpecifiers(specifiers);
+    if (normalizedSpecifiers.error !== null) {
+        return { found: [], error: normalizedSpecifiers.error };
+    }
+
+    if (normalizeLimit(limit) < 0) {
+        return { found: [], error: null };
+    }
+
+    const rootError = validateRoot(root);
+    if (rootError !== null) {
+        return { found: [], error: rootError };
+    }
+
+    return { found: [], error: null };
 }
 
-function toEntry(document, sourceURL) {
-    const url = new URL(sourceURL);
-    const relativePath = url.pathname.replace(/^\/+/, "") || ".";
+/**
+ * Resolve the first browser-discoverable holon. Phase 1 browser discovery has
+ * no discoverable layers, so resolution returns not found after validation.
+ *
+ * @param {number} scope
+ * @param {string|null|undefined} expression
+ * @param {string|null|undefined} root
+ * @param {number} specifiers
+ * @param {number} timeout
+ * @returns {import("./discovery_types.mjs").ResolveResult}
+ */
+export function resolve(scope, expression, root, specifiers, timeout) {
+    const result = Discover(scope, expression, root, specifiers, 1, timeout);
+    if (result.error !== null) {
+        return { ref: null, error: result.error };
+    }
+
+    const target = normalizeExpression(expression);
+    return { ref: null, error: `holon "${target}" not found` };
+}
+
+function normalizeSpecifiers(specifiers) {
+    const bits = specifiers == null ? 0 : Number(specifiers);
+    if (!Number.isInteger(bits) || bits < 0 || (bits & ~ALL) !== 0) {
+        return {
+            value: null,
+            error: `invalid specifiers 0x${formatHex(specifiers)}: valid range is 0x00-0x3F`,
+        };
+    }
     return {
-        slug: slugFor(document.identity),
-        uuid: document.identity.uuid || "",
-        dir: sourceURL,
-        relative_path: relativePath,
-        origin: "remote",
-        identity: document.identity,
-        manifest: {
-            kind: document.kind || "",
-            build: document.build || { runner: "", main: "" },
-            artifacts: document.artifacts || { binary: "", primary: "" },
-        },
+        value: bits === 0 ? ALL : bits,
+        error: null,
     };
 }
 
-export async function discoverFromManifest(url, options = {}) {
-    const fetchImpl = options.fetch ?? globalThis.fetch;
-    if (typeof fetchImpl !== "function") {
-        throw new Error("fetch implementation required");
+function normalizeLimit(limit) {
+    if (limit == null) {
+        return 0;
     }
-
-    const response = await fetchImpl(url, {
-        headers: {
-            Accept: "text/plain, application/octet-stream, application/json",
-        },
-    });
-    if (!response.ok) {
-        throw new Error(`failed to fetch manifest: ${response.status} ${response.statusText}`);
+    const value = Number(limit);
+    if (Number.isNaN(value)) {
+        return 0;
     }
-
-    const contentType = String(response.headers?.get?.("content-type") || "").toLowerCase();
-    const text = await response.text();
-    if (contentType.includes("application/json")) {
-        const parsed = JSON.parse(text);
-        const docs = Array.isArray(parsed) ? parsed : [parsed];
-        return docs.map((doc) => toEntry({
-            identity: {
-                uuid: String(doc.uuid || ""),
-                given_name: String(doc.given_name || ""),
-                family_name: String(doc.family_name || ""),
-                motto: String(doc.motto || ""),
-                composer: String(doc.composer || ""),
-                clade: String(doc.clade || ""),
-                status: String(doc.status || ""),
-                born: String(doc.born || ""),
-                lang: String(doc.lang || ""),
-                parents: Array.isArray(doc.parents) ? doc.parents.map(String) : [],
-                reproduction: String(doc.reproduction || ""),
-                generated_by: String(doc.generated_by || ""),
-                proto_status: String(doc.proto_status || ""),
-                aliases: Array.isArray(doc.aliases) ? doc.aliases.map(String) : [],
-            },
-            manifest: {
-                kind: String(doc.kind || ""),
-                build: {
-                    runner: String(doc.build?.runner || ""),
-                    main: String(doc.build?.main || ""),
-                },
-                artifacts: {
-                    binary: String(doc.artifacts?.binary || ""),
-                    primary: String(doc.artifacts?.primary || ""),
-                },
-            },
-        }, url));
-    }
-
-    return [toEntry(parseManifestText(text, url), url)];
+    return value;
 }
 
-export function findBySlug(entries, slug) {
-    const needle = String(slug || "").trim();
-    if (!needle) {
+function validateRoot(root) {
+    if (root == null) {
         return null;
     }
 
-    let match = null;
-    for (const entry of entries || []) {
-        if (entry?.slug !== needle) {
-            continue;
-        }
-        if (match && match.uuid !== entry.uuid) {
-            throw new Error(`ambiguous holon "${needle}"`);
-        }
-        match = entry;
+    if (String(root).trim() === "") {
+        return "root cannot be empty";
     }
-    return match;
+
+    return null;
+}
+
+function normalizeExpression(expression) {
+    if (expression == null) {
+        return "";
+    }
+    return String(expression).trim();
+}
+
+function formatHex(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+        return "00";
+    }
+    return (Math.trunc(numeric) >>> 0).toString(16).toUpperCase().padStart(2, "0");
 }

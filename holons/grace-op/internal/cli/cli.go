@@ -163,6 +163,8 @@ func newRootCmd(version string) *cobra.Command {
 }
 
 func completeRootFallbackArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	args = normalizeCompletionArgs(args, toComplete)
+
 	if len(args) == 0 {
 		if strings.HasPrefix(strings.TrimSpace(toComplete), "-") {
 			return completeCommandFlags(cmd, toComplete), cobra.ShellCompDirectiveNoFileComp
@@ -183,6 +185,16 @@ func completeRootFallbackArgs(cmd *cobra.Command, args []string, toComplete stri
 	default:
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
+}
+
+func normalizeCompletionArgs(args []string, toComplete string) []string {
+	if strings.TrimSpace(toComplete) != "" || len(args) == 0 {
+		return args
+	}
+	if strings.TrimSpace(args[len(args)-1]) != "" {
+		return args
+	}
+	return args[:len(args)-1]
 }
 
 func registerRootPersistentFlags(cmd *cobra.Command) {

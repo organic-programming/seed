@@ -1,4 +1,4 @@
-import { connect, disconnect } from "./connect.mjs";
+import { connectDirect, disconnect } from "./connect.mjs";
 
 export const HOLON_META_METHOD = "holons.v1.HolonMeta/Describe";
 
@@ -9,7 +9,7 @@ export const HOLON_META_METHOD = "holons.v1.HolonMeta/Describe";
  * @param {string|{invoke: Function}} targetOrClient - explicit dial URI or an existing client
  * @param {Object} [request={}] - DescribeRequest payload
  * @param {Object} [options={}]
- * @param {Object} [options.connectOptions] - options forwarded to connect() when targetOrClient is a URI
+ * @param {Object} [options.connectOptions] - options forwarded to the direct URI dial helper
  * @param {Object} [options.invokeOptions] - options forwarded to client.invoke()
  * @param {boolean} [options.disconnect=true] - whether to close auto-created clients
  * @returns {Promise<Object>}
@@ -18,7 +18,7 @@ export async function describe(targetOrClient, request = {}, options = {}) {
     const autoDisconnect = options.disconnect ?? true;
     const ownsClient = typeof targetOrClient === "string";
     const client = ownsClient
-        ? connect(targetOrClient, options.connectOptions || {})
+        ? connectDirect(targetOrClient, options.connectOptions || {})
         : targetOrClient;
 
     if (!client || typeof client.invoke !== "function") {

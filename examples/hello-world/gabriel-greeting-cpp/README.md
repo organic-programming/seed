@@ -4,6 +4,22 @@ Reference implementation of a C++ holon. This port mirrors the Gabriel greeting 
 
 Gabriel exposes `SayHello` and `ListLanguages` over the shared greeting contract and ships the full 56-language catalog with localized default names such as `Marie`, `マリア`, and `Мария`.
 
+## Discovery
+
+This holon is source-discoverable from the repo root:
+
+```bash
+op list --source
+```
+
+Programmatically:
+
+```text
+Discover(LOCAL, "gabriel-greeting-cpp", null, SOURCE, NO_LIMIT, NO_TIMEOUT)
+```
+
+Today this works in the Go SDK. The other non-browser SDKs will support the same source lookup once their Phase 1 discovery tasks land. The browser SDK is excluded because it has no filesystem-based discovery.
+
 ## Facets
 
 | Facet | Visibility | Location | Role |

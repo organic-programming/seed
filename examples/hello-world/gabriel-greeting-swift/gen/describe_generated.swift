@@ -17,7 +17,7 @@ public enum DescribeGenerated {
       $0.composer = "B. ALTER"
       $0.status = "draft"
       $0.born = "2026-03-15"
-      $0.version = "0.1.87"
+      $0.version = "0.1.88"
     }
     $0.description_p = "A Swift gRPC daemon that greets users in 56 languages."
     $0.lang = "swift"

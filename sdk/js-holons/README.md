@@ -46,11 +46,15 @@ describe.useStaticResponse(require('./gen/describe_generated').staticDescribeRes
 ## discover
 
 ```js
-const entry = await require('@organic-programming/holons').discover.findBySlug('gabriel-greeting-node');
+const { Discover, LOCAL, CWD, NO_LIMIT, NO_TIMEOUT } = require('@organic-programming/holons');
+
+const result = await Discover(LOCAL, 'gabriel-greeting-node', null, CWD, NO_LIMIT, NO_TIMEOUT);
 ```
 
 ## connect
 
 ```js
-const channel = await require('@organic-programming/holons').connect.connect('gabriel-greeting-node');
+const { connect, LOCAL, INSTALLED, NO_TIMEOUT } = require('@organic-programming/holons');
+
+const result = await connect(LOCAL, 'gabriel-greeting-node', null, INSTALLED, NO_TIMEOUT);
 ```

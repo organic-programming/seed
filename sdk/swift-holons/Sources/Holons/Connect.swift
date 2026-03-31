@@ -334,6 +334,37 @@ private final class SocketRelay: RelayHandle {
 private let connectStateLock = NSLock()
 private var connectHandles: [ObjectIdentifier: ConnectionHandle] = [:]
 
+public func connect(
+    scope: Int,
+    expression: String,
+    root: String?,
+    specifiers: Int,
+    timeout: Int
+) async -> ConnectResult {
+    let normalized = expression.trimmingCharacters(in: .whitespacesAndNewlines)
+    if normalized.isEmpty {
+        return ConnectResult(error: "expression is required")
+    }
+
+    let resolved = resolve(
+        scope: scope,
+        expression: normalized,
+        root: root,
+        specifiers: specifiers,
+        timeout: timeout
+    )
+
+    if let error = resolved.error {
+        return ConnectResult(origin: resolved.ref, error: error)
+    }
+
+    guard let ref = resolved.ref else {
+        return ConnectResult(error: "holon \"\(normalized)\" not found")
+    }
+
+    return connectResolvedRef(ref, timeout: timeout)
+}
+
 public func connect(_ target: String) throws -> GRPCChannel {
     try connectInternal(target, options: ConnectOptions())
 }
@@ -390,6 +421,116 @@ public func disconnect(_ channel: GRPCChannel) throws {
 
     if let firstError {
         throw firstError
+    }
+}
+
+public func disconnect(_ result: ConnectResult) {
+    guard let channel = result.channel else {
+        return
+    }
+    try? disconnect(channel)
+}
+
+private func connectResolvedRef(_ ref: HolonRef, timeout: Int) -> ConnectResult {
+    let timeoutSeconds = uniformConnectTimeout(timeout)
+
+    if isResolvedDirectTarget(ref.url) {
+        do {
+            let channel = try dialReady(
+                target: try normalizeDialTarget(ref.url),
+                timeout: timeoutSeconds,
+                process: nil,
+                ephemeral: false,
+                stderr: nil
+            )
+            return ConnectResult(channel: channel, origin: ref)
+        } catch {
+            return ConnectResult(origin: ref, error: String(describing: error))
+        }
+    }
+
+    let entry: HolonEntry
+    do {
+        entry = try holonEntry(from: ref)
+    } catch {
+        return ConnectResult(origin: ref, error: String(describing: error))
+    }
+
+    var errorsSeen: [String] = []
+    for transport in launchTransportAttempts(for: ref, entry: entry) {
+        do {
+            let attempt = try connectResolvedEntry(
+                ref: ref,
+                entry: entry,
+                transport: transport,
+                timeout: timeoutSeconds
+            )
+            return attempt
+        } catch {
+            errorsSeen.append("\(transport)-error: \(error)")
+        }
+    }
+
+    if errorsSeen.isEmpty {
+        return ConnectResult(origin: ref, error: "target unreachable")
+    }
+    return ConnectResult(origin: ref, error: errorsSeen.joined(separator: "; "))
+}
+
+private func connectResolvedEntry(
+    ref: HolonRef,
+    entry: HolonEntry,
+    transport: String,
+    timeout: TimeInterval
+) throws -> ConnectResult {
+    let launchTarget = try resolveLaunchTarget(entry)
+    switch transport {
+    case "stdio":
+        let channel = try connectStdioHolon(
+            launchTarget: launchTarget,
+            timeout: timeout
+        )
+        return ConnectResult(channel: channel, origin: ref)
+
+    case "tcp":
+        let started = try startTCPHolon(
+            launchTarget: launchTarget,
+            timeout: timeout
+        )
+        let channel = try dialReady(
+            target: try normalizeDialTarget(started.uri),
+            timeout: timeout,
+            process: started.process,
+            ephemeral: true,
+            stderr: started.stderr
+        )
+        return ConnectResult(
+            channel: channel,
+            origin: HolonRef(url: started.uri, info: ref.info, error: ref.error)
+        )
+
+    case "unix":
+        let slug = resolvedTransportSlug(ref: ref, entry: entry)
+        let started = try startUnixHolon(
+            launchTarget: launchTarget,
+            slug: slug,
+            portFile: normalizedPortFilePath(nil, slug: slug),
+            timeout: timeout
+        )
+        let channel = try dialReady(
+            target: try normalizeDialTarget(started.uri),
+            timeout: timeout,
+            process: started.process,
+            ephemeral: true,
+            stderr: started.stderr
+        )
+        return ConnectResult(
+            channel: channel,
+            origin: HolonRef(url: started.uri, info: ref.info, error: ref.error)
+        )
+
+    default:
+        throw ConnectError.unsupportedTransport(transport)
     }
 }
 
@@ -706,6 +847,46 @@ private func waitForReady(
         }
         throw ConnectError.readinessFailed("timed out waiting for holon readiness: \(error)")
     }
+}
+
+func describeLaunchTarget(
+    _ launchTarget: LaunchTarget,
+    timeout: TimeInterval
+) throws -> Holons_V1_DescribeResponse {
+    do {
+        let channel = try connectStdioHolon(
+            launchTarget: launchTarget,
+            timeout: timeout
+        )
+        defer {
+            try? disconnect(channel)
+        }
+        return try describeResponse(channel: channel, timeout: timeout)
+    } catch {
+        let started = try startTCPHolon(
+            launchTarget: launchTarget,
+            timeout: timeout
+        )
+        let channel = try dialReady(
+            target: try normalizeDialTarget(started.uri),
+            timeout: timeout,
+            process: started.process,
+            ephemeral: true,
+            stderr: started.stderr
+        )
+        defer {
+            try? disconnect(channel)
+        }
+        return try describeResponse(channel: channel, timeout: timeout)
+    }
+}
+
+func describeResponse(
+    channel: GRPCChannel,
+    timeout: TimeInterval
+) throws -> Holons_V1_DescribeResponse {
+    let payload = try describe(channel: channel, timeout: timeout)
+    return try Holons_V1_DescribeResponse(serializedBytes: payload.data)
 }
 
 private func describe(channel: GRPCChannel, timeout: TimeInterval) throws -> RawBytesPayload {
@@ -1062,6 +1243,210 @@ private func sourceEntryFromPackageGit(_ entry: HolonEntry, gitRoot: URL) throws
     )
 }
 
+private func holonEntry(from ref: HolonRef) throws -> HolonEntry {
+    let path = try localPath(from: ref.url)
+    let url = URL(fileURLWithPath: path, isDirectory: false).standardizedFileURL
+
+    var isDirectoryFlag: ObjCBool = false
+    guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectoryFlag) else {
+        throw ConnectError.ioFailure("local target \"\(ref.url)\" does not exist")
+    }
+
+    if isDirectoryFlag.boolValue {
+        if url.lastPathComponent.hasSuffix(".holon") || hasHolonJSONAtPath(url) {
+            guard let info = ref.info else {
+                throw ConnectError.ioFailure("holon metadata unavailable")
+            }
+            return packageEntry(from: info, directory: url)
+        }
+
+        if let discovered = try discoverSourceEntry(at: url, ref: ref) {
+            return discovered
+        }
+
+        guard let info = ref.info else {
+            throw ConnectError.ioFailure("holon metadata unavailable")
+        }
+        return sourceEntry(from: info, directory: url)
+    }
+
+    guard let info = ref.info else {
+        throw ConnectError.ioFailure("holon metadata unavailable")
+    }
+    return binaryEntry(from: info, path: url)
+}
+
+private func discoverSourceEntry(at directory: URL, ref: HolonRef) throws -> HolonEntry? {
+    let discovered = try discover(root: directory)
+    var fallback: HolonEntry?
+
+    for candidate in discovered where candidate.sourceKind == "source" {
+        if fallback == nil {
+            fallback = candidate
+        }
+        if let uuid = ref.info?.uuid, !uuid.isEmpty, candidate.uuid == uuid {
+            return candidate
+        }
+        if let slug = ref.info?.slug, !slug.isEmpty, candidate.slug == slug {
+            return candidate
+        }
+        if candidate.dir.standardizedFileURL.path == directory.standardizedFileURL.path {
+            return candidate
+        }
+    }
+
+    return fallback
+}
+
+private func packageEntry(from info: HolonInfo, directory: URL) -> HolonEntry {
+    var identity = HolonIdentity()
+    identity.uuid = info.uuid
+    identity.givenName = info.identity.givenName
+    identity.familyName = info.identity.familyName
+    identity.motto = info.identity.motto
+    identity.aliases = info.identity.aliases
+    identity.lang = info.lang
+    identity.status = info.status
+
+    var manifest = HolonManifest()
+    manifest.kind = info.kind
+    manifest.build.runner = info.runner
+    manifest.artifacts.binary = info.entrypoint
+
+    return HolonEntry(
+        slug: info.slug,
+        uuid: info.uuid,
+        dir: directory.standardizedFileURL,
+        relativePath: ".",
+        origin: "resolve",
+        identity: identity,
+        manifest: manifest,
+        sourceKind: "package",
+        packageRoot: directory.standardizedFileURL,
+        runner: info.runner,
+        transport: info.transport,
+        entrypoint: info.entrypoint,
+        architectures: info.architectures,
+        hasDist: info.hasDist,
+        hasSource: info.hasSource
+    )
+}
+
+private func sourceEntry(from info: HolonInfo, directory: URL) -> HolonEntry {
+    var identity = HolonIdentity()
+    identity.uuid = info.uuid
+    identity.givenName = info.identity.givenName
+    identity.familyName = info.identity.familyName
+    identity.motto = info.identity.motto
+    identity.aliases = info.identity.aliases
+    identity.lang = info.lang
+    identity.status = info.status
+
+    var manifest = HolonManifest()
+    manifest.kind = info.kind
+    manifest.build.runner = info.runner
+    manifest.artifacts.binary = info.entrypoint
+
+    return HolonEntry(
+        slug: info.slug,
+        uuid: info.uuid,
+        dir: directory.standardizedFileURL,
+        relativePath: ".",
+        origin: "resolve",
+        identity: identity,
+        manifest: manifest,
+        sourceKind: "source",
+        packageRoot: nil,
+        runner: info.runner,
+        transport: info.transport,
+        entrypoint: info.entrypoint,
+        architectures: info.architectures,
+        hasDist: info.hasDist,
+        hasSource: info.hasSource
+    )
+}
+
+private func binaryEntry(from info: HolonInfo, path: URL) -> HolonEntry {
+    var identity = HolonIdentity()
+    identity.uuid = info.uuid
+    identity.givenName = info.identity.givenName
+    identity.familyName = info.identity.familyName
+    identity.motto = info.identity.motto
+    identity.aliases = info.identity.aliases
+    identity.lang = info.lang
+    identity.status = info.status
+
+    var manifest = HolonManifest()
+    manifest.kind = info.kind
+    manifest.build.runner = info.runner
+    manifest.artifacts.binary = path.path
+
+    return HolonEntry(
+        slug: info.slug,
+        uuid: info.uuid,
+        dir: path.deletingLastPathComponent().standardizedFileURL,
+        relativePath: ".",
+        origin: "resolve",
+        identity: identity,
+        manifest: manifest,
+        sourceKind: "binary",
+        packageRoot: nil,
+        runner: info.runner,
+        transport: info.transport,
+        entrypoint: path.path,
+        architectures: info.architectures,
+        hasDist: info.hasDist,
+        hasSource: info.hasSource
+    )
+}
+
+private func hasHolonJSONAtPath(_ directory: URL) -> Bool {
+    var isDirectoryFlag: ObjCBool = false
+    let manifestURL = directory.appendingPathComponent(".holon.json", isDirectory: false)
+    guard FileManager.default.fileExists(atPath: manifestURL.path, isDirectory: &isDirectoryFlag) else {
+        return false
+    }
+    return !isDirectoryFlag.boolValue
+}
+
+private func localPath(from url: String) throws -> String {
+    guard let parsed = URL(string: url), parsed.scheme?.lowercased() == "file" else {
+        throw ConnectError.unsupportedDialTarget(url)
+    }
+    guard !parsed.path.isEmpty else {
+        throw ConnectError.invalidDirectTarget(url)
+    }
+    return URL(fileURLWithPath: parsed.path).standardizedFileURL.path
+}
+
+private func launchTransportAttempts(for ref: HolonRef, entry: HolonEntry) -> [String] {
+    var transports: [String] = []
+    var seen = Set<String>()
+
+    func add(_ transport: String) {
+        let normalized = transport.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard ["stdio", "unix", "tcp"].contains(normalized) else {
+            return
+        }
+        if seen.insert(normalized).inserted {
+            transports.append(normalized)
+        }
+    }
+
+    add(ref.info?.transport ?? entry.transport)
+    add("stdio")
+    #if !os(Windows)
+    add("unix")
+    #endif
+    add("tcp")
+    return transports
+}
+
+private func resolvedTransportSlug(ref: HolonRef, entry: HolonEntry) -> String {
+    let slug = (ref.info?.slug ?? entry.slug).trimmingCharacters(in: .whitespacesAndNewlines)
+    return slug.isEmpty ? "holon" : slug
+}
+
 private func interpreterForRunner(_ runner: String) -> String? {
     let normalized = runner.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     switch normalized {
@@ -1235,6 +1620,18 @@ private func parseHostPort(_ target: String) throws -> (host: String, port: Int)
 
 private func isDirectTarget(_ target: String) -> Bool {
     target.contains("://") || target.contains(":")
+}
+
+private func isResolvedDirectTarget(_ target: String) -> Bool {
+    let trimmed = target.trimmingCharacters(in: .whitespacesAndNewlines)
+    if trimmed.lowercased().hasPrefix("file://") {
+        return false
+    }
+    return isDirectTarget(trimmed)
+}
+
+private func uniformConnectTimeout(_ timeout: Int) -> TimeInterval {
+    timeout > 0 ? TimeInterval(timeout) / 1000.0 : 5.0
 }
 
 private func firstURI(in line: String) -> String? {
