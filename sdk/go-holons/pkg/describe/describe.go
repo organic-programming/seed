@@ -74,11 +74,13 @@ func parseServices(protoDir string) ([]*holonsv1.ServiceDoc, error) {
 		return nil, nil
 	}
 
+	schemaRoots := discoverProtoImportPaths(absDir)
 	parseFiles := relFiles
-	importPaths := discoverProtoImportPaths(absDir)
-	if hasSharedProtoCollision(absDir, relFiles, importPaths[1:]) {
+	importPaths := append([]string(nil), schemaRoots...)
+	collision := hasSharedProtoCollision(absDir, relFiles, schemaRoots[1:])
+	if collision {
 		parseFiles = prefixImportRoot(filepath.Base(absDir), relFiles)
-		importPaths = append([]string{filepath.Dir(absDir)}, importPaths[1:]...)
+		importPaths = append([]string{filepath.Dir(absDir)}, schemaRoots[1:]...)
 		importPaths = append(importPaths, absDir)
 	}
 
@@ -94,16 +96,16 @@ func parseServices(protoDir string) ([]*holonsv1.ServiceDoc, error) {
 		return nil, fmt.Errorf("parse proto files in %s: %w", absDir, err)
 	}
 
-	inputFiles := make(map[string]struct{}, len(parseFiles))
-	for _, rel := range parseFiles {
-		inputFiles[filepath.ToSlash(rel)] = struct{}{}
+	expandableFiles, err := collectExpandableFiles(absDir, schemaRoots, collision)
+	if err != nil {
+		return nil, err
 	}
 
-	return responseBuilder{inputFiles: inputFiles}.buildServices(files), nil
+	return responseBuilder{expandableFiles: expandableFiles}.buildServices(files), nil
 }
 
 type responseBuilder struct {
-	inputFiles map[string]struct{}
+	expandableFiles map[string]struct{}
 }
 
 func (b responseBuilder) buildServices(files []*desc.FileDescriptor) []*holonsv1.ServiceDoc {
@@ -244,8 +246,30 @@ func buildEnumValues(enumType *desc.EnumDescriptor) []*holonsv1.EnumValueDoc {
 }
 
 func (b responseBuilder) shouldExpand(fileName string) bool {
-	_, ok := b.inputFiles[filepath.ToSlash(fileName)]
+	_, ok := b.expandableFiles[filepath.ToSlash(fileName)]
 	return ok
+}
+
+func collectExpandableFiles(primaryRoot string, roots []string, collision bool) (map[string]struct{}, error) {
+	expandableFiles := make(map[string]struct{})
+	cleanPrimaryRoot := filepath.Clean(primaryRoot)
+
+	for _, root := range roots {
+		relFiles, err := collectProtoFiles(root)
+		if err != nil {
+			return nil, err
+		}
+		for _, rel := range relFiles {
+			expandableFiles[filepath.ToSlash(rel)] = struct{}{}
+		}
+		if collision && filepath.Clean(root) == cleanPrimaryRoot {
+			for _, rel := range prefixImportRoot(filepath.Base(cleanPrimaryRoot), relFiles) {
+				expandableFiles[filepath.ToSlash(rel)] = struct{}{}
+			}
+		}
+	}
+
+	return expandableFiles, nil
 }
 
 func collectProtoFiles(dir string) ([]string, error) {

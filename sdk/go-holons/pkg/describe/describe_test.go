@@ -128,6 +128,42 @@ func TestBuildResponseFromProtoManifestSource(t *testing.T) {
 	if len(service.GetMethods()) != 2 {
 		t.Fatalf("methods len = %d, want 2", len(service.GetMethods()))
 	}
+
+	method := findMethod(t, service.GetMethods(), "ListLanguages")
+	languages := findField(t, method.GetOutputFields(), "languages")
+	if languages.GetType() != "greeting.v1.Language" {
+		t.Fatalf("languages type = %q, want %q", languages.GetType(), "greeting.v1.Language")
+	}
+	if languages.GetLabel() != holonsv1.FieldLabel_FIELD_LABEL_REPEATED {
+		t.Fatalf("languages label = %v, want %v", languages.GetLabel(), holonsv1.FieldLabel_FIELD_LABEL_REPEATED)
+	}
+	assertField(t, languages.GetNestedFields(), &holonsv1.FieldDoc{
+		Name:        "code",
+		Type:        "string",
+		Number:      1,
+		Description: "ISO 639-1 code advertised by the daemon.",
+		Label:       holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+		Required:    true,
+		Example:     `"fr"`,
+	})
+	assertField(t, languages.GetNestedFields(), &holonsv1.FieldDoc{
+		Name:        "name",
+		Type:        "string",
+		Number:      2,
+		Description: "English display name for the language.",
+		Label:       holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+		Required:    true,
+		Example:     `"French"`,
+	})
+	assertField(t, languages.GetNestedFields(), &holonsv1.FieldDoc{
+		Name:        "native",
+		Type:        "string",
+		Number:      3,
+		Description: "Native label shown to end users.",
+		Label:       holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+		Required:    true,
+		Example:     `"Français"`,
+	})
 }
 
 func TestBuildResponseFromProtoDirWithLocalSharedProtos(t *testing.T) {
@@ -229,6 +265,32 @@ func assertField(t *testing.T, fields []*holonsv1.FieldDoc, want *holonsv1.Field
 	}
 
 	t.Fatalf("field %q not found", want.GetName())
+}
+
+func findMethod(t *testing.T, methods []*holonsv1.MethodDoc, name string) *holonsv1.MethodDoc {
+	t.Helper()
+
+	for _, method := range methods {
+		if method.GetName() == name {
+			return method
+		}
+	}
+
+	t.Fatalf("method %q not found", name)
+	return nil
+}
+
+func findField(t *testing.T, fields []*holonsv1.FieldDoc, name string) *holonsv1.FieldDoc {
+	t.Helper()
+
+	for _, field := range fields {
+		if field.GetName() == name {
+			return field
+		}
+	}
+
+	t.Fatalf("field %q not found", name)
+	return nil
 }
 
 func describeResponseSlug(response *holonsv1.DescribeResponse) string {
