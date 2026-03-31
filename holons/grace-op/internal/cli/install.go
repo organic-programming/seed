@@ -6,13 +6,14 @@ import (
 	"os"
 	"strings"
 
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	"github.com/organic-programming/grace-op/internal/holons"
 	"github.com/organic-programming/grace-op/internal/suggest"
 )
 
-func cmdInstall(format Format, globalQuiet bool, args []string) int {
+func cmdInstall(format Format, runtimeOpts commandRuntimeOptions, args []string) int {
 	ui, args, _ := extractQuietFlag(args)
-	quiet := globalQuiet || ui.Quiet
+	quiet := runtimeOpts.quiet || ui.Quiet
 
 	var (
 		opts       holons.InstallOptions
@@ -21,6 +22,7 @@ func cmdInstall(format Format, globalQuiet bool, args []string) int {
 	printer := commandProgress(format, quiet)
 	defer printer.Close()
 	opts.Progress = printer
+	opts.ResolveTimeout = runtimeOpts.timeout
 
 	for _, arg := range args {
 		switch arg {
@@ -47,6 +49,13 @@ func cmdInstall(format Format, globalQuiet bool, args []string) int {
 		target = positional[0]
 	}
 
+	if opts.Build {
+		opts.ResolveSpecifiers = sdkdiscover.SOURCE
+	} else {
+		opts.ResolveSpecifiers = sdkdiscover.BUILT
+	}
+	emitOriginForExpression(runtimeOpts, target, opts.ResolveSpecifiers)
+
 	report, err := holons.Install(target, opts)
 	if err != nil {
 		printer.Keep()
@@ -66,9 +75,9 @@ func cmdInstall(format Format, globalQuiet bool, args []string) int {
 	return exitCode
 }
 
-func cmdUninstall(format Format, globalQuiet bool, args []string) int {
+func cmdUninstall(format Format, runtimeOpts commandRuntimeOptions, args []string) int {
 	ui, args, _ := extractQuietFlag(args)
-	quiet := globalQuiet || ui.Quiet
+	quiet := runtimeOpts.quiet || ui.Quiet
 
 	if len(args) != 1 {
 		fmt.Fprintln(os.Stderr, "op uninstall: requires <holon>")
@@ -77,7 +86,12 @@ func cmdUninstall(format Format, globalQuiet bool, args []string) int {
 
 	printer := commandProgress(format, quiet)
 	defer printer.Close()
-	report, err := holons.UninstallWithOptions(args[0], holons.InstallOptions{Progress: printer})
+	emitOriginForExpression(runtimeOpts, args[0], sdkdiscover.INSTALLED)
+	report, err := holons.UninstallWithOptions(args[0], holons.InstallOptions{
+		Progress:          printer,
+		ResolveSpecifiers: sdkdiscover.INSTALLED,
+		ResolveTimeout:    runtimeOpts.timeout,
+	})
 	if err != nil {
 		printer.Done("uninstall failed", err)
 		return printInstallResult(format, report, err, "uninstall")

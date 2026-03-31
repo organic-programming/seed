@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
+	openv "github.com/organic-programming/grace-op/internal/env"
 	"github.com/organic-programming/grace-op/internal/scaffold"
 	"github.com/organic-programming/grace-op/internal/suggest"
 	"github.com/organic-programming/grace-op/internal/who"
@@ -16,32 +19,66 @@ import (
 
 const newUsage = "usage: op new [--json <payload>] | op new --list | op new --template <name> <holon-name> [--set key=value]"
 
-func cmdWho(format Format, globalQuiet bool, verb string, args []string) int {
+func cmdWho(format Format, runtimeOpts commandRuntimeOptions, verb string, args []string) int {
 	switch verb {
 	case "list":
-		return cmdWhoList(format, args)
+		return cmdWhoList(format, runtimeOpts, args)
 	case "show":
-		return cmdWhoShow(format, args)
+		return cmdWhoShow(format, runtimeOpts, args)
 	case "new":
-		return cmdWhoNew(format, globalQuiet, args)
+		return cmdWhoNew(format, runtimeOpts.quiet, args)
 	default:
 		fmt.Fprintf(os.Stderr, "op %s: unsupported identity verb\n", verb)
 		return 1
 	}
 }
 
-func cmdWhoList(format Format, args []string) int {
-	if len(args) > 1 {
+func cmdWhoList(format Format, runtimeOpts commandRuntimeOptions, args []string) int {
+	specifiers := 0
+	limit := sdkdiscover.NO_LIMIT
+	positional := make([]string, 0, 1)
+	for i := 0; i < len(args); i++ {
+		switch {
+		case isDiscoveryFlag(args[i]):
+			specifiers = addDiscoverySpecifier(specifiers, args[i])
+		case args[i] == "--limit":
+			if i+1 >= len(args) {
+				fmt.Fprintln(os.Stderr, "op list: --limit requires a value")
+				return 1
+			}
+			value, err := strconv.Atoi(strings.TrimSpace(args[i+1]))
+			if err != nil || value < 0 {
+				fmt.Fprintf(os.Stderr, "op list: invalid --limit %q\n", args[i+1])
+				return 1
+			}
+			limit = value
+			i++
+		case strings.HasPrefix(args[i], "--limit="):
+			value, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(args[i], "--limit=")))
+			if err != nil || value < 0 {
+				fmt.Fprintf(os.Stderr, "op list: invalid --limit %q\n", strings.TrimPrefix(args[i], "--limit="))
+				return 1
+			}
+			limit = value
+		default:
+			positional = append(positional, args[i])
+		}
+	}
+
+	if len(positional) > 1 {
 		fmt.Fprintln(os.Stderr, "usage: op list [root]")
 		return 1
 	}
 
-	root := "."
-	if len(args) == 1 {
-		root = args[0]
+	root := openv.Root()
+	if len(positional) == 1 {
+		root = positional[0]
+	}
+	if specifiers == 0 {
+		specifiers = sdkdiscover.ALL
 	}
 
-	resp, err := who.List(root)
+	resp, err := who.ListWithOptions(root, specifiers, limit, runtimeOpts.timeout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op list: %v\n", err)
 		return 1
@@ -51,13 +88,28 @@ func cmdWhoList(format Format, args []string) int {
 	return 0
 }
 
-func cmdWhoShow(format Format, args []string) int {
-	if len(args) != 1 {
+func cmdWhoShow(format Format, runtimeOpts commandRuntimeOptions, args []string) int {
+	specifiers := 0
+	positional := make([]string, 0, 1)
+	for _, arg := range args {
+		if isDiscoveryFlag(arg) {
+			specifiers = addDiscoverySpecifier(specifiers, arg)
+			continue
+		}
+		positional = append(positional, arg)
+	}
+
+	if len(positional) != 1 {
 		fmt.Fprintln(os.Stderr, "usage: op show <uuid-or-prefix>")
 		return 1
 	}
+	if specifiers == 0 {
+		specifiers = sdkdiscover.ALL
+	}
 
-	resp, err := who.Show(args[0])
+	root := openv.Root()
+	emitOriginForExpression(runtimeOpts, positional[0], specifiers)
+	resp, err := who.ShowWithOptions(positional[0], &root, specifiers, runtimeOpts.timeout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op show: %v\n", err)
 		return 1

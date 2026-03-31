@@ -25,6 +25,7 @@ type ResolvedManifest struct {
 	SourcePath      string
 	Description     string
 	Kind            string
+	Transport       string
 	BuildRunner     string
 	BuildMain       string
 	ArtifactBinary  string
@@ -240,6 +241,7 @@ func resolvedFromDynamic(manifest *dynamic.Message) *ResolvedManifest {
 	resolved.Identity.Lang = dynString(manifest, 4)
 	resolved.Skills = resolvedSkillsFromDynamic(manifest)
 	resolved.Kind = dynString(manifest, 7)
+	resolved.Transport = dynString(manifest, 9)
 	resolved.Sequences = resolvedSequencesFromDynamic(manifest)
 
 	if identMsg := dynSubMessage(manifest, 1); identMsg != nil {

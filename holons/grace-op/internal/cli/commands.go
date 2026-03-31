@@ -13,13 +13,15 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"text/tabwriter"
 
-	sdkconnect "github.com/organic-programming/go-holons/pkg/connect"
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	holonserve "github.com/organic-programming/go-holons/pkg/serve"
 	"github.com/organic-programming/grace-op/api"
+	openv "github.com/organic-programming/grace-op/internal/env"
 	"github.com/organic-programming/grace-op/internal/grpcclient"
 	"github.com/organic-programming/grace-op/internal/holons"
 	"github.com/organic-programming/grace-op/internal/identity"
@@ -28,6 +30,12 @@ import (
 
 	"google.golang.org/grpc"
 )
+
+type commandRuntimeOptions struct {
+	quiet   bool
+	timeout int
+	origin  bool
+}
 
 // Run dispatches the command and returns an exit code.
 func Run(args []string, version string) int {
@@ -38,6 +46,11 @@ func Run(args []string, version string) int {
 	}
 	format := gopts.format
 	quiet := gopts.quiet
+	runtimeOpts := commandRuntimeOptions{
+		quiet:   quiet,
+		timeout: gopts.timeout,
+		origin:  gopts.origin,
+	}
 
 	// Apply --root override via env var so all discovery paths see it.
 	if gopts.root != "" {
@@ -73,31 +86,31 @@ func Run(args []string, version string) int {
 	switch cmd {
 	// --- OP's own commands ---
 	case "check":
-		return cmdLifecycle(format, quiet, holons.OperationCheck, rest)
+		return cmdLifecycle(format, runtimeOpts, holons.OperationCheck, rest)
 	case "build":
-		return cmdLifecycle(format, quiet, holons.OperationBuild, rest)
+		return cmdLifecycle(format, runtimeOpts, holons.OperationBuild, rest)
 	case "test":
-		return cmdLifecycle(format, quiet, holons.OperationTest, rest)
+		return cmdLifecycle(format, runtimeOpts, holons.OperationTest, rest)
 	case "clean":
-		return cmdLifecycle(format, quiet, holons.OperationClean, rest)
+		return cmdLifecycle(format, runtimeOpts, holons.OperationClean, rest)
 	case "install":
-		return cmdInstall(format, quiet, rest)
+		return cmdInstall(format, runtimeOpts, rest)
 	case "uninstall":
-		return cmdUninstall(format, quiet, rest)
+		return cmdUninstall(format, runtimeOpts, rest)
 	case "mod":
 		return cmdMod(format, quiet, rest)
 	case "run":
-		return cmdRun(format, quiet, rest)
+		return cmdRun(format, runtimeOpts, rest)
 	case "discover":
 		return cmdDiscover(format)
 	case "inspect":
-		return cmdInspect(format, rest)
+		return cmdInspect(format, runtimeOpts, rest)
 	case "do":
-		return cmdDo(format, quiet, rest)
+		return cmdDo(format, runtimeOpts, rest)
 	case "mcp":
-		return cmdMCP(rest, version)
+		return cmdMCP(runtimeOpts, rest, version)
 	case "tools":
-		return cmdTools(format, rest)
+		return cmdTools(format, runtimeOpts, rest)
 	case "env":
 		return cmdEnv(format, rest)
 	case "serve":
@@ -115,7 +128,7 @@ func Run(args []string, version string) int {
 		PrintUsage()
 		return 0
 	case "new", "list", "show":
-		return cmdWho(format, quiet, cmd, rest)
+		return cmdWho(format, runtimeOpts, cmd, rest)
 
 	// --- URI dispatch: grpc://, tcp://, stdio://, unix://, ws://, http://, https:// ---
 	default:
@@ -134,7 +147,7 @@ func Run(args []string, version string) int {
 		if isExecutableFile(cmd) {
 			return cmdDirectBinary(format, cmd, rest)
 		}
-		return cmdHolon(format, quiet, cmd, rest)
+		return cmdHolon(format, runtimeOpts, cmd, rest)
 	}
 }
 
@@ -411,9 +424,9 @@ type runOptions struct {
 }
 
 // cmdRun builds a holon artifact if needed, then launches it in the foreground.
-func cmdRun(format Format, globalQuiet bool, args []string) int {
+func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int {
 	ui, args, _ := extractQuietFlag(args)
-	quiet := globalQuiet || ui.Quiet
+	quiet := runtimeOpts.quiet || ui.Quiet
 
 	holonName, opts, err := parseRunArgs(args)
 	if err != nil {
@@ -422,6 +435,8 @@ func cmdRun(format Format, globalQuiet bool, args []string) int {
 	}
 	printer := commandProgress(format, quiet)
 	defer printer.Close()
+
+	emitOriginForExpression(runtimeOpts, holonName, sdkdiscover.INSTALLED|sdkdiscover.BUILT|sdkdiscover.SIBLINGS)
 
 	printer.Step("resolving " + holonName + "...")
 
@@ -601,7 +616,7 @@ func cmdGRPC(format Format, uri string, args []string) int {
 		if isHostPortTarget(target) {
 			return cmdGRPCDirect(format, target, args)
 		}
-		return cmdGRPCConnected(format, uri, target, args, sdkconnect.TransportTCP)
+		return cmdGRPCConnected(format, uri, target, args, "tcp")
 	default:
 		return cmdGRPCTCP(format, uri, args)
 	}
@@ -622,14 +637,14 @@ func cmdGRPCTCP(format Format, uri string, args []string) int {
 	if isHostPortTarget(target) {
 		return cmdGRPCDirect(format, target, args)
 	}
-	return cmdGRPCConnected(format, uri, target, args, sdkconnect.TransportAuto)
+	return cmdGRPCConnected(format, uri, target, args, "auto")
 }
 
 // cmdGRPCStdio handles stdio://holon — launches the holon with
 // serve --listen stdio:// and communicates via stdin/stdout pipes.
 func cmdGRPCStdio(format Format, uri string, args []string) int {
 	holonName := trimURIAnyPrefix(uri, "stdio://")
-	return cmdGRPCConnected(format, uri, holonName, args, sdkconnect.TransportStdio)
+	return cmdGRPCConnected(format, uri, holonName, args, "stdio")
 }
 
 // cmdGRPCWebSocket handles ws://host:port[/path] and wss://...
@@ -702,7 +717,7 @@ func discoverInPath() []string {
 // --- Namespace dispatch ---
 
 // cmdHolon runs `op <holon> <command> [args...]` through the transport chain.
-func cmdHolon(format Format, quiet bool, holon string, args []string) int {
+func cmdHolon(format Format, runtimeOpts commandRuntimeOptions, holon string, args []string) int {
 	if len(args) == 0 {
 		fmt.Fprintf(os.Stderr, "op: missing command for holon %q\n", holon)
 		return 1
@@ -717,15 +732,16 @@ func cmdHolon(format Format, quiet bool, holon string, args []string) int {
 		fmt.Fprintln(os.Stderr, "op: --clean cannot be combined with --no-build")
 		return 1
 	}
+	emitOriginForExpression(runtimeOpts, holon, sdkdiscover.ALL)
 	if cleanFirst {
-		printer := commandProgress(format, quiet)
+		printer := commandProgress(format, runtimeOpts.quiet)
 		defer printer.Close()
 		if _, err := runCleanWithProgress(printer, holon); err != nil {
 			fmt.Fprintf(os.Stderr, "op: %v\n", err)
 			return 1
 		}
 	}
-	return runConnectedRPC(format, "op", holon, method, inputJSON, oneShotConnectOptions(sdkconnect.TransportAuto), noBuild)
+	return runConnectedRPC(format, "op", holon, method, inputJSON, "auto", noBuild)
 }
 
 func isHostPortTarget(target string) bool {
@@ -1351,11 +1367,72 @@ func flagOrDefault(args []string, key, defaultVal string) string {
 	return defaultVal
 }
 
+func isDiscoveryFlag(arg string) bool {
+	switch strings.TrimSpace(arg) {
+	case "--all", "--siblings", "--cwd", "--source", "--built", "--installed", "--cached":
+		return true
+	default:
+		return false
+	}
+}
+
+func addDiscoverySpecifier(current int, arg string) int {
+	switch strings.TrimSpace(arg) {
+	case "--siblings":
+		return current | sdkdiscover.SIBLINGS
+	case "--cwd":
+		return current | sdkdiscover.CWD
+	case "--source":
+		return current | sdkdiscover.SOURCE
+	case "--built":
+		return current | sdkdiscover.BUILT
+	case "--installed":
+		return current | sdkdiscover.INSTALLED
+	case "--cached":
+		return current | sdkdiscover.CACHED
+	case "--all":
+		return sdkdiscover.ALL
+	default:
+		return current
+	}
+}
+
+func specifiersFromFlags(args []string) int {
+	specs := 0
+	for _, arg := range args {
+		if isDiscoveryFlag(arg) {
+			specs = addDiscoverySpecifier(specs, arg)
+		}
+	}
+	if specs == 0 {
+		return sdkdiscover.ALL
+	}
+	return specs
+}
+
+func emitOriginForExpression(runtimeOpts commandRuntimeOptions, expression string, specifiers int) {
+	if !runtimeOpts.origin {
+		return
+	}
+	root := openv.Root()
+	resolved := holons.ResolveRef(expression, &root, specifiers, runtimeOpts.timeout)
+	if resolved.Error != "" || resolved.Ref == nil {
+		return
+	}
+	path, layer, err := holons.OriginDetails(resolved.Ref, &root)
+	if err != nil {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "origin: %s (%s)\n", path, layer)
+}
+
 type internalGlobalOptions struct {
-	format Format
-	quiet  bool
-	root   string
-	bin    bool
+	format  Format
+	quiet   bool
+	root    string
+	bin     bool
+	timeout int
+	origin  bool
 }
 
 func parseGlobalOptions(args []string) (internalGlobalOptions, []string, error) {
@@ -1370,6 +1447,9 @@ func parseGlobalOptions(args []string) (internalGlobalOptions, []string, error) 
 		case args[i] == "--bin":
 			opts.bin = true
 			i++
+		case args[i] == "--origin":
+			opts.origin = true
+			i++
 		case args[i] == "--root":
 			if i+1 >= len(args) {
 				return internalGlobalOptions{}, nil, fmt.Errorf("--root requires a path")
@@ -1379,27 +1459,50 @@ func parseGlobalOptions(args []string) (internalGlobalOptions, []string, error) 
 		case strings.HasPrefix(args[i], "--root="):
 			opts.root = strings.TrimPrefix(args[i], "--root=")
 			i++
+		case args[i] == "--timeout":
+			if i+1 >= len(args) {
+				return internalGlobalOptions{}, nil, fmt.Errorf("--timeout requires milliseconds")
+			}
+			value, parseErr := strconv.Atoi(strings.TrimSpace(args[i+1]))
+			if parseErr != nil || value < 0 {
+				return internalGlobalOptions{}, nil, fmt.Errorf("invalid --timeout %q", args[i+1])
+			}
+			opts.timeout = value
+			i += 2
+		case strings.HasPrefix(args[i], "--timeout="):
+			value, parseErr := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(args[i], "--timeout=")))
+			if parseErr != nil || value < 0 {
+				return internalGlobalOptions{}, nil, fmt.Errorf("invalid --timeout %q", strings.TrimPrefix(args[i], "--timeout="))
+			}
+			opts.timeout = value
+			i++
 		case args[i] == "--format" || args[i] == "-f":
 			if i+1 >= len(args) {
 				return internalGlobalOptions{}, nil, fmt.Errorf("%s requires a value (text or json)", args[i])
 			}
 			parsed, err := parseFormat(args[i+1])
 			if err != nil {
-				return internalGlobalOptions{}, nil, err
+				remaining = append(remaining, args[i], args[i+1])
+				i += 2
+				continue
 			}
 			opts.format = parsed
 			i += 2
 		case strings.HasPrefix(args[i], "--format="):
 			parsed, err := parseFormat(strings.TrimPrefix(args[i], "--format="))
 			if err != nil {
-				return internalGlobalOptions{}, nil, err
+				remaining = append(remaining, args[i])
+				i++
+				continue
 			}
 			opts.format = parsed
 			i++
 		case strings.HasPrefix(args[i], "-f="):
 			parsed, err := parseFormat(strings.TrimPrefix(args[i], "-f="))
 			if err != nil {
-				return internalGlobalOptions{}, nil, err
+				remaining = append(remaining, args[i])
+				i++
+				continue
 			}
 			opts.format = parsed
 			i++

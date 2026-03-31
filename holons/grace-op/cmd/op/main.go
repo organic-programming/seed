@@ -4,8 +4,9 @@ import (
 	"os"
 
 	"github.com/organic-programming/grace-op/api"
+	"github.com/organic-programming/grace-op/internal/cli"
 )
 
 func main() {
-	os.Exit(api.RunCLI(os.Args[1:]))
+	os.Exit(cli.Run(os.Args[1:], api.VersionString()))
 }

@@ -2,17 +2,20 @@
 package discover
 
 import (
+	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/organic-programming/go-holons/pkg/identity"
 )
 
-// HolonEntry is one discovered holon.
+// HolonEntry is the internal discover representation used by the Go SDK.
 type HolonEntry struct {
 	Slug          string
 	UUID          string
@@ -24,6 +27,7 @@ type HolonEntry struct {
 	SourceKind    string
 	PackageRoot   string
 	Runner        string
+	Transport     string
 	Entrypoint    string
 	Architectures []string
 	HasDist       bool
@@ -49,155 +53,182 @@ type Artifacts struct {
 	Primary string
 }
 
-// Discover scans a root directory recursively for holon.proto files.
-func Discover(root string) ([]HolonEntry, error) {
-	trimmed := strings.TrimSpace(root)
-	if trimmed == "" {
-		trimmed = currentRoot()
-	}
-
-	var entries []HolonEntry
-	var seen = make(map[string]struct{})
-	appendEntries := func(discovered []HolonEntry) {
-		for _, entry := range discovered {
-			key := entryKey(entry)
-			if _, ok := seen[key]; ok {
-				continue
-			}
-			seen[key] = struct{}{}
-			entries = append(entries, entry)
-		}
-	}
-
-	packages, err := discoverPackagesRecursive(trimmed, "local")
-	if err != nil {
-		return nil, err
-	}
-	appendEntries(packages)
-
-	sources, err := discoverSourceInRoot(trimmed, "local")
-	if err != nil {
-		return nil, err
-	}
-	appendEntries(sources)
-
-	return entries, nil
+type discoverLayer struct {
+	flag int
+	name string
+	scan func(root string) ([]HolonEntry, error)
 }
 
-// DiscoverLocal scans from the current working directory.
-func DiscoverLocal() ([]HolonEntry, error) {
-	root, err := os.Getwd()
-	if err != nil {
-		return nil, err
+// Discover scans for holons matching the given criteria.
+func Discover(scope int, expression *string, root *string, specifiers int, limit int, timeout int) DiscoverResult {
+	if scope != LOCAL {
+		return DiscoverResult{Error: fmt.Sprintf("scope %d not supported", scope)}
 	}
-	return Discover(root)
-}
+	if specifiers < 0 || specifiers > ALL {
+		return DiscoverResult{Error: fmt.Sprintf("invalid specifiers 0x%02X: valid range is 0x00-0x3F", specifiers)}
+	}
+	if specifiers == 0 {
+		specifiers = ALL
+	}
+	if limit < 0 {
+		return DiscoverResult{Found: []HolonRef{}}
+	}
 
-// DiscoverAll scans the local root, then $OPBIN, then $OPPATH/cache.
-func DiscoverAll() ([]HolonEntry, error) {
-	seen := make(map[string]struct{})
-	entries := make([]HolonEntry, 0)
-	appendEntries := func(discovered []HolonEntry) {
-		for _, entry := range discovered {
-			key := entryKey(entry)
-			if _, ok := seen[key]; ok {
-				continue
-			}
-			seen[key] = struct{}{}
-			entries = append(entries, entry)
+	ctx, cancel := discoverContext(timeout)
+	defer cancel()
+
+	expr := normalizedExpression(expression)
+	if expr != nil && isDirectTransportExpression(*expr) {
+		return DiscoverResult{Found: applyRefLimit([]HolonRef{discoverTransportRef(ctx, *expr)}, limit)}
+	}
+
+	var searchRoot string
+	var err error
+	resolveRoot := func() (string, error) {
+		if searchRoot != "" {
+			return searchRoot, nil
 		}
-	}
-
-	roots := []struct {
-		discover func() ([]HolonEntry, error)
-	}{
-		{discover: func() ([]HolonEntry, error) {
-			root := bundleHolonsRoot()
-			if root == "" {
-				return nil, nil
-			}
-			return discoverPackagesDirect(root, "bundle")
-		}},
-		{discover: func() ([]HolonEntry, error) {
-			return discoverPackagesDirect(buildPackagesRoot(), "build")
-		}},
-		{discover: func() ([]HolonEntry, error) {
-			return discoverPackagesDirect(opbin(), "$OPBIN")
-		}},
-		{discover: func() ([]HolonEntry, error) {
-			return discoverPackagesRecursive(cacheDir(), "cache")
-		}},
-		{discover: func() ([]HolonEntry, error) {
-			return discoverPackagesRecursive(currentRoot(), "local")
-		}},
-		{discover: func() ([]HolonEntry, error) {
-			return discoverSourceInRoot(currentRoot(), "local")
-		}},
-	}
-
-	for _, root := range roots {
-		discovered, err := root.discover()
+		resolvedRoot, err := resolveDiscoverRoot(root)
 		if err != nil {
+			return "", err
+		}
+		searchRoot = resolvedRoot
+		return searchRoot, nil
+	}
+
+	if expr != nil {
+		refs, handled, pathErr := discoverPathExpression(ctx, *expr, resolveRoot)
+		if pathErr != nil {
+			return DiscoverResult{Error: pathErr.Error()}
+		}
+		if handled {
+			return DiscoverResult{Found: applyRefLimit(refs, limit)}
+		}
+	}
+
+	searchRoot, err = resolveRoot()
+	if err != nil {
+		return DiscoverResult{Error: err.Error()}
+	}
+
+	entries, err := discoverEntries(ctx, searchRoot, specifiers)
+	if err != nil {
+		return DiscoverResult{Error: err.Error()}
+	}
+
+	found := make([]HolonRef, 0, len(entries))
+	for _, entry := range entries {
+		if err := contextError(ctx); err != nil {
+			return DiscoverResult{Error: err.Error()}
+		}
+		if !matchesExpression(entry, expr) {
+			continue
+		}
+		found = append(found, holonRefFromEntry(entry))
+		if limit > 0 && len(found) >= limit {
+			break
+		}
+	}
+
+	return DiscoverResult{Found: found}
+}
+
+func Resolve(scope int, expression string, root *string, specifiers int, timeout int) ResolveResult {
+	expr := expression
+	result := Discover(scope, &expr, root, specifiers, 1, timeout)
+	if result.Error != "" {
+		return ResolveResult{Error: result.Error}
+	}
+	if len(result.Found) == 0 {
+		return ResolveResult{Error: fmt.Sprintf("holon %q not found", expression)}
+	}
+	if result.Found[0].Error != "" {
+		ref := result.Found[0]
+		return ResolveResult{Ref: &ref, Error: ref.Error}
+	}
+	return ResolveResult{Ref: &result.Found[0]}
+}
+
+func discoverEntries(ctx context.Context, root string, specifiers int) ([]HolonEntry, error) {
+	layers := []discoverLayer{
+		{
+			flag: SIBLINGS,
+			name: "siblings",
+			scan: func(string) ([]HolonEntry, error) {
+				bundleRoot := bundleHolonsRoot()
+				if bundleRoot == "" {
+					return nil, nil
+				}
+				return discoverPackagesDirect(bundleRoot, "siblings")
+			},
+		},
+		{
+			flag: CWD,
+			name: "cwd",
+			scan: func(root string) ([]HolonEntry, error) {
+				return discoverPackagesRecursive(root, "cwd")
+			},
+		},
+		{
+			flag: SOURCE,
+			name: "source",
+			scan: func(root string) ([]HolonEntry, error) {
+				return discoverSourceInRoot(root, "source")
+			},
+		},
+		{
+			flag: BUILT,
+			name: "built",
+			scan: func(root string) ([]HolonEntry, error) {
+				return discoverPackagesDirect(filepath.Join(root, ".op", "build"), "built")
+			},
+		},
+		{
+			flag: INSTALLED,
+			name: "installed",
+			scan: func(string) ([]HolonEntry, error) {
+				return discoverPackagesDirect(opbin(), "installed")
+			},
+		},
+		{
+			flag: CACHED,
+			name: "cached",
+			scan: func(string) ([]HolonEntry, error) {
+				return discoverPackagesRecursive(cacheDir(), "cached")
+			},
+		},
+	}
+
+	seen := make(map[string]struct{})
+	found := make([]HolonEntry, 0)
+
+	for _, layer := range layers {
+		if specifiers&layer.flag == 0 {
+			continue
+		}
+		if err := contextError(ctx); err != nil {
 			return nil, err
 		}
-		appendEntries(discovered)
-	}
 
-	return entries, nil
-}
-
-// FindBySlug resolves a holon by slug across the standard discover roots.
-func FindBySlug(slug string) (*HolonEntry, error) {
-	needle := strings.TrimSpace(slug)
-	if needle == "" {
-		return nil, nil
-	}
-
-	entries, err := DiscoverAll()
-	if err != nil {
-		return nil, err
-	}
-
-	var match *HolonEntry
-	for i := range entries {
-		if entries[i].Slug != needle {
-			continue
+		entries, err := layer.scan(root)
+		if err != nil {
+			return nil, fmt.Errorf("scan %s layer: %w", layer.name, err)
 		}
-		if match != nil && match.UUID != entries[i].UUID {
-			return nil, fmt.Errorf("ambiguous holon %q", needle)
+
+		for _, entry := range entries {
+			if err := contextError(ctx); err != nil {
+				return nil, err
+			}
+			key := entryKey(entry)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			found = append(found, entry)
 		}
-		entry := entries[i]
-		match = &entry
 	}
 
-	return match, nil
-}
-
-// FindByUUID resolves a holon by UUID prefix across the standard discover roots.
-func FindByUUID(prefix string) (*HolonEntry, error) {
-	needle := strings.TrimSpace(prefix)
-	if needle == "" {
-		return nil, nil
-	}
-
-	entries, err := DiscoverAll()
-	if err != nil {
-		return nil, err
-	}
-
-	var match *HolonEntry
-	for i := range entries {
-		if !strings.HasPrefix(entries[i].UUID, needle) {
-			continue
-		}
-		if match != nil && match.UUID != entries[i].UUID {
-			return nil, fmt.Errorf("ambiguous UUID prefix %q", needle)
-		}
-		entry := entries[i]
-		match = &entry
-	}
-
-	return match, nil
+	return found, nil
 }
 
 func discoverSourceInRoot(root, origin string) ([]HolonEntry, error) {
@@ -223,7 +254,6 @@ func discoverSourceInRoot(root, origin string) ([]HolonEntry, error) {
 
 	entriesByKey := make(map[string]HolonEntry)
 	keys := make([]string, 0)
-
 	protoFiles := make([]string, 0)
 
 	err = filepath.WalkDir(absRoot, func(path string, d os.DirEntry, walkErr error) error {
@@ -236,11 +266,9 @@ func discoverSourceInRoot(root, origin string) ([]HolonEntry, error) {
 			}
 			return nil
 		}
-
 		if d.Name() == identity.ProtoManifestFileName {
 			protoFiles = append(protoFiles, path)
 		}
-
 		return nil
 	})
 	if err != nil {
@@ -269,7 +297,9 @@ func discoverSourceInRoot(root, origin string) ([]HolonEntry, error) {
 			Manifest:     manifestFromResolved(resolved),
 			SourceKind:   "source",
 			Runner:       resolved.BuildRunner,
+			Transport:    resolved.Transport,
 			Entrypoint:   resolved.ArtifactBinary,
+			HasSource:    true,
 		}
 
 		key := strings.TrimSpace(entry.UUID)
@@ -288,8 +318,7 @@ func discoverSourceInRoot(root, origin string) ([]HolonEntry, error) {
 
 	entries := make([]HolonEntry, 0, len(entriesByKey))
 	for _, key := range keys {
-		entry, ok := entriesByKey[key]
-		if ok {
+		if entry, ok := entriesByKey[key]; ok {
 			entries = append(entries, entry)
 		}
 	}
@@ -445,6 +474,9 @@ func shouldSkipDir(root, path, name string) bool {
 	if filepath.Clean(path) == filepath.Clean(root) {
 		return false
 	}
+	if strings.HasSuffix(name, ".holon") {
+		return false
+	}
 	if name == ".git" || name == ".op" || name == "node_modules" || name == "vendor" || name == "build" || name == "testdata" {
 		return true
 	}
@@ -476,10 +508,6 @@ func currentRoot() string {
 		return abs
 	}
 	return cwd
-}
-
-func buildPackagesRoot() string {
-	return filepath.Join(currentRoot(), ".op", "build")
 }
 
 var executablePath = os.Executable
@@ -535,4 +563,252 @@ func opbin() string {
 
 func cacheDir() string {
 	return filepath.Join(oppath(), "cache")
+}
+
+func resolveDiscoverRoot(root *string) (string, error) {
+	if root == nil {
+		return currentRoot(), nil
+	}
+
+	trimmed := strings.TrimSpace(*root)
+	if trimmed == "" {
+		return "", fmt.Errorf("root cannot be empty")
+	}
+
+	absRoot, err := filepath.Abs(trimmed)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Stat(absRoot)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("root %q is not a directory", trimmed)
+	}
+	return absRoot, nil
+}
+
+func discoverContext(timeout int) (context.Context, context.CancelFunc) {
+	if timeout <= 0 {
+		return context.WithCancel(context.Background())
+	}
+	return context.WithTimeout(context.Background(), time.Duration(timeout)*time.Millisecond)
+}
+
+func contextError(ctx context.Context) error {
+	if ctx == nil {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		if err == context.DeadlineExceeded {
+			return fmt.Errorf("discover timed out")
+		}
+		return err
+	}
+	return nil
+}
+
+func normalizedExpression(expression *string) *string {
+	if expression == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*expression)
+	return &trimmed
+}
+
+func discoverPathExpression(ctx context.Context, expression string, rootResolver func() (string, error)) ([]HolonRef, bool, error) {
+	candidate, ok, err := pathExpressionCandidate(expression, rootResolver)
+	if err != nil {
+		return nil, true, err
+	}
+	if !ok {
+		return nil, false, nil
+	}
+	if err := contextError(ctx); err != nil {
+		return nil, true, err
+	}
+
+	ref, found, err := discoverRefAtPath(candidate)
+	if err != nil {
+		return nil, true, err
+	}
+	if !found {
+		return []HolonRef{}, true, nil
+	}
+	return []HolonRef{ref}, true, nil
+}
+
+func pathExpressionCandidate(expression string, rootResolver func() (string, error)) (string, bool, error) {
+	trimmed := strings.TrimSpace(expression)
+	if trimmed == "" {
+		return "", false, nil
+	}
+	if strings.HasPrefix(strings.ToLower(trimmed), "file://") {
+		path, err := pathFromFileURL(trimmed)
+		if err != nil {
+			return "", false, err
+		}
+		return path, true, nil
+	}
+	if !(filepath.IsAbs(trimmed) ||
+		strings.HasPrefix(trimmed, ".") ||
+		strings.Contains(trimmed, string(os.PathSeparator)) ||
+		strings.Contains(trimmed, "/") ||
+		strings.Contains(trimmed, "\\") ||
+		strings.HasSuffix(strings.ToLower(trimmed), ".holon")) {
+		return "", false, nil
+	}
+	if filepath.IsAbs(trimmed) {
+		return trimmed, true, nil
+	}
+	root, err := rootResolver()
+	if err != nil {
+		return "", false, err
+	}
+	return filepath.Join(root, trimmed), true, nil
+}
+
+func discoverRefAtPath(path string) (HolonRef, bool, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return HolonRef{}, false, err
+	}
+
+	info, err := os.Stat(absPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return HolonRef{}, false, nil
+		}
+		return HolonRef{}, false, err
+	}
+
+	if info.IsDir() {
+		if strings.HasSuffix(info.Name(), ".holon") || hasHolonJSON(absPath) {
+			root := filepath.Dir(absPath)
+			entry, loadErr := loadPackageEntry(root, absPath, "path")
+			if loadErr == nil {
+				return holonRefFromEntry(entry), true, nil
+			}
+			entry, probeErr := probePackageEntry(root, absPath, "path")
+			if probeErr == nil {
+				return holonRefFromEntry(entry), true, nil
+			}
+			return HolonRef{URL: fileURL(absPath), Error: probeErr.Error()}, true, nil
+		}
+
+		entries, discoverErr := discoverSourceInRoot(absPath, "path")
+		if discoverErr != nil {
+			return HolonRef{}, false, discoverErr
+		}
+		if len(entries) == 1 {
+			return holonRefFromEntry(entries[0]), true, nil
+		}
+		for _, entry := range entries {
+			if filepath.Clean(entry.Dir) == filepath.Clean(absPath) {
+				return holonRefFromEntry(entry), true, nil
+			}
+		}
+		return HolonRef{}, false, nil
+	}
+
+	if filepath.Base(absPath) == identity.ProtoManifestFileName {
+		entries, discoverErr := discoverSourceInRoot(filepath.Dir(absPath), "path")
+		if discoverErr != nil {
+			return HolonRef{}, false, discoverErr
+		}
+		if len(entries) == 1 {
+			return holonRefFromEntry(entries[0]), true, nil
+		}
+		return HolonRef{}, false, nil
+	}
+
+	entry, probeErr := probeBinaryPath(absPath)
+	if probeErr == nil {
+		return holonRefFromEntry(entry), true, nil
+	}
+	return HolonRef{URL: fileURL(absPath), Error: probeErr.Error()}, true, nil
+}
+
+func hasHolonJSON(dir string) bool {
+	info, err := os.Stat(filepath.Join(dir, ".holon.json"))
+	return err == nil && !info.IsDir()
+}
+
+func matchesExpression(entry HolonEntry, expression *string) bool {
+	if expression == nil {
+		return true
+	}
+
+	needle := strings.TrimSpace(*expression)
+	if needle == "" {
+		return false
+	}
+	if entry.Slug == needle {
+		return true
+	}
+	if strings.HasPrefix(entry.UUID, needle) {
+		return true
+	}
+	for _, alias := range entry.Identity.Aliases {
+		if alias == needle {
+			return true
+		}
+	}
+
+	base := strings.TrimSuffix(filepath.Base(entry.Dir), ".holon")
+	return base == needle
+}
+
+func holonRefFromEntry(entry HolonEntry) HolonRef {
+	return HolonRef{
+		URL:  fileURL(entry.Dir),
+		Info: holonInfoFromEntry(entry),
+	}
+}
+
+func holonInfoFromEntry(entry HolonEntry) *HolonInfo {
+	runner := entry.Runner
+	kind := ""
+	buildMain := ""
+	if entry.Manifest != nil {
+		if runner == "" {
+			runner = entry.Manifest.Build.Runner
+		}
+		kind = entry.Manifest.Kind
+		buildMain = entry.Manifest.Build.Main
+	}
+
+	return &HolonInfo{
+		Slug: entry.Slug,
+		UUID: entry.UUID,
+		Identity: IdentityInfo{
+			GivenName:  entry.Identity.GivenName,
+			FamilyName: entry.Identity.FamilyName,
+			Motto:      entry.Identity.Motto,
+			Aliases:    append([]string(nil), entry.Identity.Aliases...),
+		},
+		Lang:          entry.Identity.Lang,
+		Runner:        runner,
+		Status:        entry.Identity.Status,
+		Kind:          kind,
+		Transport:     entry.Transport,
+		Entrypoint:    entry.Entrypoint,
+		Architectures: append([]string(nil), entry.Architectures...),
+		HasDist:       entry.HasDist,
+		HasSource:     entry.HasSource,
+		BuildMain:     buildMain,
+		SourceKind:    entry.SourceKind,
+	}
+}
+
+func fileURL(path string) string {
+	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String()
+}
+
+func applyRefLimit(refs []HolonRef, limit int) []HolonRef {
+	if limit <= 0 || len(refs) <= limit {
+		return refs
+	}
+	return refs[:limit]
 }

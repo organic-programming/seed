@@ -8,6 +8,7 @@ import (
 	"time"
 
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
+	sdkconnect "github.com/organic-programming/go-holons/pkg/connect"
 	grpcclientpkg "github.com/organic-programming/grace-op/internal/grpcclient"
 	toolspkg "github.com/organic-programming/grace-op/internal/tools"
 	"google.golang.org/grpc"
@@ -51,7 +52,7 @@ func NewServerFromURI(uri string, version string) (*Server, error) {
 func buildServerFromDescribe(conn *grpc.ClientConn, response *holonsv1.DescribeResponse, uri string, version string) (*Server, error) {
 	slug := slugFromDescribe(response, uri)
 
-	connCache := map[string]*grpc.ClientConn{slug: conn}
+	connCache := map[string]sdkconnect.ConnectResult{slug: {Channel: conn}}
 	describeCache := map[string]*holonsv1.DescribeResponse{slug: response}
 	toolNamesBySlug := map[string][]string{}
 
@@ -135,7 +136,7 @@ func buildServerFromReflection(conn *grpc.ClientConn, address string, uri string
 	}
 
 	slug := slugFromURI(uri)
-	connCache := map[string]*grpc.ClientConn{slug: conn}
+	connCache := map[string]sdkconnect.ConnectResult{slug: {Channel: conn}}
 
 	definitions := make([]toolspkg.Definition, 0, len(methods))
 	toolIndex := make(map[string]toolBinding, len(methods))

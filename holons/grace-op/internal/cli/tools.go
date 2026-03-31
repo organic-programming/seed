@@ -5,18 +5,22 @@ import (
 	"os"
 	"strings"
 
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
+	openv "github.com/organic-programming/grace-op/internal/env"
 	inspectpkg "github.com/organic-programming/grace-op/internal/inspect"
 	toolspkg "github.com/organic-programming/grace-op/internal/tools"
 )
 
-func cmdTools(_ Format, args []string) int {
+func cmdTools(_ Format, runtimeOpts commandRuntimeOptions, args []string) int {
 	format, target, err := parseToolsArgs(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op tools: %v\n", err)
 		return 1
 	}
 
-	catalog, err := inspectpkg.LoadLocal(target)
+	root := openv.Root()
+	emitOriginForExpression(runtimeOpts, target, sdkdiscover.ALL)
+	catalog, err := inspectpkg.LoadLocalWithOptions(target, &root, sdkdiscover.ALL, runtimeOpts.timeout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op tools: %v\n", err)
 		return 1

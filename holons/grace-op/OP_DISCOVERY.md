@@ -18,6 +18,10 @@ This document covers `op`-specific CLI behavior.
 | `--installed` | `$OPBIN` packages | |
 | `--cached` | `$OPPATH/cache` packages | |
 | `--root <path>` | override scan root | **preempts any other scoping flag** |
+| `--limit <n>` | limit discovery results | `op list` only; `0` means no limit |
+| `--timeout <ms>` | discovery/connect timeout | applies to all commands; `0` means no timeout |
+
+⚠️ Phase 1 note: Only `LOCAL` scope is supported. `PROXY`, `DELEGATED`, and instance targeting (`:uid`) will be available in a future release.
 
 ---
 
@@ -43,10 +47,10 @@ op inspect gabriel-greeting-go --built --installed
 ## Command Special Cases
 
 ```shell
-op list     → Discover(LOCAL, null, root, specifiers)                     // DiscoverResult
-op build    → resolve(LOCAL, expression, root, --source)                  // HolonRef
-op install  → resolve(LOCAL, expression, root, --built)
-op run      → connect(LOCAL, expression, root, --installed | --built | --siblings)
+op list     → Discover(LOCAL, null, root, specifiers, limit, timeout)     // DiscoverResult
+op build    → Resolve(LOCAL, expression, root, SOURCE, timeout)           // HolonRef
+op install  → Resolve(LOCAL, expression, root, BUILT, timeout)
+op run      → Connect(LOCAL, expression, root, INSTALLED | BUILT | SIBLINGS, timeout)
 #               ↳ if only source found → auto-build, then connect
 ```
 

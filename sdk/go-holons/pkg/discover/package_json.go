@@ -27,9 +27,10 @@ type holonPackageJSON struct {
 }
 
 type holonIdentityJSON struct {
-	GivenName  string `json:"given_name"`
-	FamilyName string `json:"family_name"`
-	Motto      string `json:"motto"`
+	GivenName  string   `json:"given_name"`
+	FamilyName string   `json:"family_name"`
+	Motto      string   `json:"motto"`
+	Aliases    []string `json:"aliases,omitempty"`
 }
 
 func discoverPackagesDirect(root, origin string) ([]HolonEntry, error) {
@@ -202,6 +203,7 @@ func loadPackageEntry(root, dir, origin string) (HolonEntry, error) {
 		Motto:      strings.TrimSpace(payload.Identity.Motto),
 		Status:     strings.TrimSpace(payload.Status),
 		Lang:       strings.TrimSpace(payload.Lang),
+		Aliases:    append([]string(nil), payload.Identity.Aliases...),
 	}
 
 	slug := strings.TrimSpace(payload.Slug)
@@ -228,6 +230,7 @@ func loadPackageEntry(root, dir, origin string) (HolonEntry, error) {
 		SourceKind:    "package",
 		PackageRoot:   absDir,
 		Runner:        strings.TrimSpace(payload.Runner),
+		Transport:     strings.TrimSpace(payload.Transport),
 		Entrypoint:    entrypoint,
 		Architectures: append([]string(nil), payload.Architectures...),
 		HasDist:       payload.HasDist,

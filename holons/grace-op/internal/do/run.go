@@ -10,17 +10,21 @@ import (
 	"strings"
 	"text/template"
 
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	"github.com/organic-programming/grace-op/internal/holons"
 )
 
 type Options struct {
-	Params          map[string]string
-	DryRun          bool
-	ContinueOnError bool
-	Progress        io.Writer
-	Stdout          io.Writer
-	Stderr          io.Writer
-	Env             []string
+	Params            map[string]string
+	DryRun            bool
+	ContinueOnError   bool
+	Progress          io.Writer
+	Stdout            io.Writer
+	Stderr            io.Writer
+	Env               []string
+	ResolveRoot       *string
+	ResolveSpecifiers int
+	ResolveTimeout    int
 }
 
 type Result struct {
@@ -43,7 +47,12 @@ type StepResult struct {
 }
 
 func Run(ref, sequenceName string, opts Options) (*Result, error) {
-	target, err := holons.ResolveTarget(ref)
+	resolveSpecifiers := opts.ResolveSpecifiers
+	if resolveSpecifiers == 0 {
+		resolveSpecifiers = sdkdiscover.ALL
+	}
+
+	target, err := holons.ResolveTargetWithOptions(ref, opts.ResolveRoot, resolveSpecifiers, opts.ResolveTimeout)
 	if err != nil {
 		return nil, err
 	}

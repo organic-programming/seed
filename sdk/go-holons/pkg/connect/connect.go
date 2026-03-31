@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"net"
 	"net/url"
 	"os"
@@ -20,39 +19,18 @@ import (
 
 	"github.com/organic-programming/go-holons/pkg/discover"
 	"github.com/organic-programming/go-holons/pkg/grpcclient"
+	"github.com/organic-programming/go-holons/pkg/identity"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 )
 
-const defaultTimeout = 5 * time.Second
-
 var ErrBinaryNotFound = errors.New("built binary not found")
 
-const (
-	// TransportAuto tries the platform-appropriate transport chain.
-	TransportAuto = "auto"
-	// TransportStdio forces an ephemeral stdio child process.
-	TransportStdio = "stdio"
-	// TransportUnix forces a Unix socket child process.
-	TransportUnix = "unix"
-	// TransportTCP forces a TCP child process.
-	TransportTCP = "tcp"
-)
-
-const (
-	// LifecycleEphemeral stops any spawned process when the connection is closed.
-	LifecycleEphemeral = "ephemeral"
-	// LifecyclePersistent keeps spawned daemons running and writes a reusable port file.
-	LifecyclePersistent = "persistent"
-)
-
-// ConnectOptions control how slug resolution and startup behave.
-type ConnectOptions struct {
-	Timeout   time.Duration
-	Transport string
-	Lifecycle string
-	Start     bool
-	PortFile  string
+type ConnectResult struct {
+	Channel *grpc.ClientConn
+	UID     string
+	Origin  *discover.HolonRef
+	Error   string
 }
 
 type processHandle struct {
@@ -73,39 +51,55 @@ type launchTarget struct {
 	workingDirectory string
 }
 
+type runnerLaunchSpec struct {
+	commandPath string
+	argsPrefix  []string
+}
+
 var (
 	mu      sync.Mutex
 	started = map[*grpc.ClientConn]connHandle{}
 )
 
-// Connect resolves a target and returns a ready gRPC connection.
-func Connect(target string) (*grpc.ClientConn, error) {
-	opts := ConnectOptions{
-		Timeout:   defaultTimeout,
-		Transport: TransportAuto,
-		Lifecycle: LifecycleEphemeral,
-		Start:     true,
+func Connect(scope int, expression string, root *string, specifiers int, timeout int) ConnectResult {
+	if scope != discover.LOCAL {
+		return ConnectResult{Error: fmt.Sprintf("scope %d not supported", scope)}
 	}
-	return connectWithMode(target, opts)
+
+	target := strings.TrimSpace(expression)
+	if target == "" {
+		return ConnectResult{Error: "expression is required"}
+	}
+
+	if isHostPortTarget(target) {
+		ctx, cancel := connectContext(timeout)
+		defer cancel()
+
+		conn, err := dialReady(ctx, normalizeDialTarget(target))
+		if err != nil {
+			return ConnectResult{Error: err.Error()}
+		}
+
+		origin := discover.HolonRef{URL: target}
+		return ConnectResult{Channel: conn, Origin: &origin}
+	}
+
+	resolved := discover.Resolve(scope, target, root, specifiers, timeout)
+	if resolved.Error != "" {
+		return ConnectResult{Origin: resolved.Ref, Error: resolved.Error}
+	}
+	if resolved.Ref == nil {
+		return ConnectResult{Error: fmt.Sprintf("holon %q not found", target)}
+	}
+	if resolved.Ref.Error != "" {
+		return ConnectResult{Origin: resolved.Ref, Error: resolved.Ref.Error}
+	}
+
+	return connectResolved(*resolved.Ref, timeout)
 }
 
-// ConnectWithOpts resolves a target with explicit options.
-func ConnectWithOpts(target string, opts ConnectOptions) (*grpc.ClientConn, error) {
-	if opts.Timeout <= 0 {
-		opts.Timeout = defaultTimeout
-	}
-	if strings.TrimSpace(opts.Transport) == "" {
-		opts.Transport = TransportTCP
-	}
-	if strings.TrimSpace(opts.Lifecycle) == "" {
-		opts.Lifecycle = LifecyclePersistent
-	}
-	return connectWithMode(target, opts)
-}
-
-// Disconnect closes a connection and stops any ephemeral process that connect started for it.
-func Disconnect(conn *grpc.ClientConn) error {
-	if conn == nil {
+func Disconnect(result ConnectResult) error {
+	if result.Channel == nil {
 		return nil
 	}
 
@@ -113,11 +107,11 @@ func Disconnect(conn *grpc.ClientConn) error {
 	var ok bool
 
 	mu.Lock()
-	handle, ok = started[conn]
-	delete(started, conn)
+	handle, ok = started[result.Channel]
+	delete(started, result.Channel)
 	mu.Unlock()
 
-	closeErr := conn.Close()
+	closeErr := result.Channel.Close()
 	if !ok || handle.process == nil || !handle.ephemeral {
 		return closeErr
 	}
@@ -129,370 +123,135 @@ func Disconnect(conn *grpc.ClientConn) error {
 	return stopErr
 }
 
-func connectWithMode(target string, opts ConnectOptions) (*grpc.ClientConn, error) {
-	trimmed := strings.TrimSpace(target)
-	if trimmed == "" {
-		return nil, errors.New("target is required")
-	}
-
-	if opts.Timeout <= 0 {
-		opts.Timeout = defaultTimeout
-	}
-
-	if isDirectTarget(trimmed) {
-		ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
-		defer cancel()
-		return dialReady(ctx, normalizeDialTarget(trimmed))
-	}
-
-	transport, err := normalizeTransport(opts.Transport)
-	if err != nil {
-		return nil, err
-	}
-	lifecycle, err := normalizeLifecycle(opts.Lifecycle)
-	if err != nil {
-		return nil, err
-	}
-	opts.Transport = transport
-	opts.Lifecycle = lifecycle
-
-	entry, err := discover.FindBySlug(trimmed)
-	if err != nil {
-		return nil, err
-	}
-	if entry == nil {
-		return nil, fmt.Errorf("holon %q not found", trimmed)
-	}
-
-	portFile := strings.TrimSpace(opts.PortFile)
-	if portFile == "" {
-		portFile = defaultPortFilePath(entry.Slug)
-	}
-
-	if transportSupportsPortFileReuse(opts.Transport) {
-		if uri, ok := usablePortFile(portFile, opts.Timeout, opts.Transport); ok {
-			ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
-			defer cancel()
-			return dialReady(ctx, normalizeDialTarget(uri))
-		}
-	}
-
-	transports := transportAttempts(opts.Transport, opts.Lifecycle)
-	var errorsSeen []string
-	binaryMissing := false
-	for _, currentTransport := range transports {
-		ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
-		conn, err := connectViaTransport(ctx, trimmed, *entry, portFile, currentTransport, opts)
-		cancel()
-		if err != nil {
-			if errors.Is(err, ErrBinaryNotFound) {
-				binaryMissing = true
-			}
-			errorsSeen = append(errorsSeen, fmt.Sprintf("%s: %v", currentTransport, err))
-			continue
-		}
-		return conn, nil
-	}
-
-	if len(errorsSeen) == 0 {
-		return nil, fmt.Errorf("holon %q is not reachable", trimmed)
-	}
-	err = fmt.Errorf("connect %q failed: %s", trimmed, strings.Join(errorsSeen, "; "))
-	if binaryMissing {
-		return nil, fmt.Errorf("%w: %v", ErrBinaryNotFound, err)
-	}
-	return nil, err
-}
-
-func connectViaTransport(
-	ctx context.Context,
-	target string,
-	entry discover.HolonEntry,
-	portFile string,
-	transport string,
-	opts ConnectOptions,
-) (*grpc.ClientConn, error) {
-	switch transport {
-	case TransportStdio:
-		if opts.Lifecycle != LifecycleEphemeral {
-			return nil, errors.New("stdio transport only supports ephemeral connect()")
-		}
-		if !opts.Start {
-			return nil, fmt.Errorf("holon %q is not running", target)
-		}
-		cmd, err := launchCommand(entry, "stdio://")
-		if err != nil {
-			return nil, err
-		}
-		conn, startedCmd, err := grpcclient.DialStdioCommand(ctx, cmd)
-		if err != nil {
-			return nil, err
-		}
-		remember(conn, connHandle{process: newProcessHandle(startedCmd), ephemeral: true})
-		return conn, nil
-	case TransportUnix, TransportTCP:
-		if !opts.Start {
-			return nil, fmt.Errorf("holon %q is not running", target)
-		}
-
-		var (
-			startedURI string
-			proc       *processHandle
-			err        error
-		)
-		switch transport {
-		case TransportTCP:
-			cmd, launchErr := launchCommand(entry, "tcp://127.0.0.1:0")
-			if launchErr != nil {
-				return nil, launchErr
-			}
-			startedURI, proc, err = startTCPHolon(ctx, cmd)
-		case TransportUnix:
-			socketURI := defaultUnixSocketURI(entry.Slug, portFile)
-			cmd, launchErr := launchCommand(entry, socketURI)
-			if launchErr != nil {
-				return nil, launchErr
-			}
-			startedURI, proc, err = startUnixHolon(cmd, socketURI)
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		conn, err := dialReady(ctx, normalizeDialTarget(startedURI))
-		if err != nil {
-			_ = stopProcess(proc)
-			return nil, err
-		}
-
-		ephemeral := opts.Lifecycle == LifecycleEphemeral
-		if !ephemeral {
-			if err := writePortFile(portFile, startedURI); err != nil {
-				_ = stopProcess(proc)
-				_ = conn.Close()
-				return nil, err
-			}
-		}
-
-		remember(conn, connHandle{process: proc, ephemeral: ephemeral})
-		return conn, nil
-	default:
-		return nil, fmt.Errorf("unsupported transport %q", transport)
-	}
-}
-
-func remember(conn *grpc.ClientConn, handle connHandle) {
-	mu.Lock()
-	started[conn] = handle
-	mu.Unlock()
-}
-
-func dialReady(ctx context.Context, target string) (*grpc.ClientConn, error) {
-	conn, err := grpcclient.Dial(ctx, target)
-	if err != nil {
-		return nil, err
-	}
-	if err := waitForReady(ctx, conn); err != nil {
-		_ = conn.Close()
-		return nil, err
-	}
-	return conn, nil
-}
-
-func waitForReady(ctx context.Context, conn *grpc.ClientConn) error {
-	conn.Connect()
-	for {
-		state := conn.GetState()
-		switch state {
-		case connectivity.Ready:
-			return nil
-		case connectivity.Shutdown:
-			return errors.New("grpc connection shut down before becoming ready")
-		}
-
-		if !conn.WaitForStateChange(ctx, state) {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			return fmt.Errorf("timed out waiting for gRPC readiness")
-		}
-	}
-}
-
-func usablePortFile(path string, timeout time.Duration, transport string) (string, bool) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", false
-	}
-
-	target := strings.TrimSpace(string(data))
-	if target == "" {
-		_ = os.Remove(path)
-		return "", false
-	}
-	if !portFileMatchesTransport(target, transport) {
-		return "", false
-	}
-
-	checkTimeout := timeout / 4
-	if checkTimeout <= 0 {
-		checkTimeout = time.Second
-	}
-	if checkTimeout > time.Second {
-		checkTimeout = time.Second
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
+func connectResolved(ref discover.HolonRef, timeout int) ConnectResult {
+	ctx, cancel := connectContext(timeout)
 	defer cancel()
 
-	conn, err := dialReady(ctx, normalizeDialTarget(target))
-	if err == nil {
-		_ = conn.Close()
-		return target, true
-	}
-
-	_ = os.Remove(path)
-	return "", false
-}
-
-func normalizeTransport(value string) (string, error) {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "", TransportAuto:
-		return TransportAuto, nil
-	case TransportStdio:
-		return TransportStdio, nil
-	case TransportUnix:
-		return TransportUnix, nil
-	case TransportTCP:
-		return TransportTCP, nil
-	default:
-		return "", fmt.Errorf("unsupported transport %q", value)
-	}
-}
-
-func normalizeLifecycle(value string) (string, error) {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "", LifecycleEphemeral:
-		return LifecycleEphemeral, nil
-	case LifecyclePersistent:
-		return LifecyclePersistent, nil
-	default:
-		return "", fmt.Errorf("unsupported lifecycle %q", value)
-	}
-}
-
-func transportAttempts(transport string, lifecycle string) []string {
-	if transport != TransportAuto {
-		return []string{transport}
-	}
-
-	attempts := make([]string, 0, 3)
-	if lifecycle == LifecycleEphemeral {
-		attempts = append(attempts, TransportStdio)
-	}
-	if runtime.GOOS != "windows" {
-		attempts = append(attempts, TransportUnix)
-	}
-	attempts = append(attempts, TransportTCP)
-	return attempts
-}
-
-func transportSupportsPortFileReuse(transport string) bool {
-	switch transport {
-	case TransportAuto, TransportUnix, TransportTCP:
-		return true
-	default:
-		return false
-	}
-}
-
-func portFileMatchesTransport(target string, transport string) bool {
-	trimmed := strings.TrimSpace(target)
-	switch transport {
-	case TransportAuto:
-		return true
-	case TransportTCP:
-		return strings.HasPrefix(trimmed, "tcp://")
-	case TransportUnix:
-		return strings.HasPrefix(trimmed, "unix://")
-	default:
-		return false
-	}
-}
-
-func startTCPHolon(ctx context.Context, cmd *exec.Cmd) (string, *processHandle, error) {
-	if cmd == nil {
-		return "", nil, errors.New("start tcp holon: command is required")
-	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return "", nil, fmt.Errorf("create stdout pipe: %w", err)
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return "", nil, fmt.Errorf("create stderr pipe: %w", err)
-	}
-
-	if err := cmd.Start(); err != nil {
-		return "", nil, fmt.Errorf("start %s: %w", commandLabel(cmd), err)
-	}
-
-	proc := newProcessHandle(cmd)
-
-	lineCh := make(chan string, 16)
-	errCh := make(chan error, 2)
-	scanPipe := func(scanner *bufio.Scanner) {
-		for scanner.Scan() {
-			lineCh <- scanner.Text()
-		}
-		if err := scanner.Err(); err != nil {
-			errCh <- err
+	if isReachableTarget(ref.URL) {
+		conn, err := dialReady(ctx, normalizeDialTarget(ref.URL))
+		if err == nil {
+			refCopy := ref
+			return ConnectResult{Channel: conn, Origin: &refCopy}
 		}
 	}
 
-	go scanPipe(bufio.NewScanner(stdout))
-	go scanPipe(bufio.NewScanner(stderr))
+	origin := ref
+	var lastErr error
 
-	waitCh := proc.wait()
+	for _, listenURI := range launchListenURIs(ref) {
+		cmd, err := launchCommandFromRef(ref, listenURI)
+		if err != nil {
+			lastErr = err
+			continue
+		}
 
-	for {
-		select {
-		case line := <-lineCh:
-			if uri := firstURI(line); uri != "" {
-				if !usableStartupURI(uri) {
-					continue
-				}
-				return uri, proc, nil
+		if listenURI == "stdio://" {
+			conn, startedCmd, dialErr := grpcclient.DialStdioCommand(ctx, cmd)
+			if dialErr != nil {
+				lastErr = dialErr
+				continue
 			}
-		case err := <-errCh:
-			if err != nil {
-				_ = stopProcess(proc)
-				return "", nil, fmt.Errorf("read startup output: %w", err)
-			}
-		case err := <-waitCh:
-			if err == nil {
-				err = errors.New("holon exited before advertising an address")
-			}
-			return "", nil, err
-		case <-ctx.Done():
+			remember(conn, connHandle{process: newProcessHandle(startedCmd), ephemeral: true})
+			return ConnectResult{Channel: conn, Origin: &origin}
+		}
+
+		startedURI, proc, startErr := startAdvertisedHolon(ctx, cmd)
+		if startErr != nil {
+			lastErr = startErr
+			continue
+		}
+		conn, dialErr := dialReady(ctx, normalizeDialTarget(startedURI))
+		if dialErr != nil {
 			_ = stopProcess(proc)
-			return "", nil, fmt.Errorf("timed out waiting for holon startup: %w", ctx.Err())
+			lastErr = dialErr
+			continue
 		}
+
+		origin.URL = startedURI
+		remember(conn, connHandle{process: proc, ephemeral: true})
+		return ConnectResult{Channel: conn, Origin: &origin}
 	}
+
+	if lastErr == nil {
+		lastErr = fmt.Errorf("target unreachable")
+	}
+	return ConnectResult{Origin: &origin, Error: lastErr.Error()}
 }
 
-func startUnixHolon(cmd *exec.Cmd, socketURI string) (string, *processHandle, error) {
-	if cmd == nil {
-		return "", nil, errors.New("start unix holon: command is required")
+func launchCommandFromRef(ref discover.HolonRef, listenURI string) (*exec.Cmd, error) {
+	entry, err := entryFromRef(ref)
+	if err != nil {
+		return nil, err
 	}
-	cmd.Stdout = nil
-	cmd.Stderr = nil
+	return launchCommand(entry, listenURI)
+}
 
-	if err := cmd.Start(); err != nil {
-		return "", nil, fmt.Errorf("start %s: %w", commandLabel(cmd), err)
+func entryFromRef(ref discover.HolonRef) (discover.HolonEntry, error) {
+	if ref.Info == nil {
+		return discover.HolonEntry{}, errors.New("holon metadata unavailable")
 	}
 
-	return socketURI, newProcessHandle(cmd), nil
+	dir, err := pathFromFileURL(ref.URL)
+	if err != nil {
+		return discover.HolonEntry{}, err
+	}
+	actualPath := dir
+
+	sourceKind := strings.TrimSpace(ref.Info.SourceKind)
+	if sourceKind == "" {
+		info, statErr := os.Stat(actualPath)
+		switch {
+		case statErr == nil && !info.IsDir():
+			sourceKind = "binary"
+		case strings.HasSuffix(strings.ToLower(actualPath), ".holon"):
+			sourceKind = "package"
+		default:
+			sourceKind = "source"
+		}
+	}
+
+	entryDir := actualPath
+	entryBinary := strings.TrimSpace(ref.Info.Entrypoint)
+	if sourceKind == "binary" {
+		entryDir = filepath.Dir(actualPath)
+		entryBinary = actualPath
+	}
+
+	entry := discover.HolonEntry{
+		Slug:       ref.Info.Slug,
+		UUID:       ref.Info.UUID,
+		Dir:        entryDir,
+		SourceKind: sourceKind,
+		Runner:     ref.Info.Runner,
+		Transport:  ref.Info.Transport,
+		Entrypoint: entryBinary,
+		Identity: identity.Identity{
+			UUID:       ref.Info.UUID,
+			GivenName:  ref.Info.Identity.GivenName,
+			FamilyName: ref.Info.Identity.FamilyName,
+			Motto:      ref.Info.Identity.Motto,
+			Aliases:    append([]string(nil), ref.Info.Identity.Aliases...),
+			Lang:       ref.Info.Lang,
+			Status:     ref.Info.Status,
+		},
+		Manifest: &discover.Manifest{
+			Kind: ref.Info.Kind,
+			Build: discover.Build{
+				Runner: ref.Info.Runner,
+				Main:   ref.Info.BuildMain,
+			},
+			Artifacts: discover.Artifacts{
+				Binary: entryBinary,
+			},
+		},
+		Architectures: append([]string(nil), ref.Info.Architectures...),
+		HasDist:       ref.Info.HasDist,
+		HasSource:     ref.Info.HasSource,
+	}
+	if sourceKind == "package" {
+		entry.PackageRoot = dir
+	}
+	return entry, nil
 }
 
 func launchCommand(entry discover.HolonEntry, listenURI string) (*exec.Cmd, error) {
@@ -540,13 +299,9 @@ func resolvePackageLaunchTarget(entry discover.HolonEntry) (launchTarget, error)
 
 	distEntrypoint := filepath.Join(entry.Dir, "dist", filepath.FromSlash(entrypoint))
 	if info, err := os.Stat(distEntrypoint); err == nil && !info.IsDir() {
-		runner := entry.Runner
-		if runner == "" && entry.Manifest != nil {
-			runner = entry.Manifest.Build.Runner
-		}
-		target, ok := launchTargetForRunner("package-dist", runner, distEntrypoint, entry.Dir)
+		target, ok := launchTargetForRunner("package-dist", entry.Runner, distEntrypoint, entry.Dir)
 		if !ok {
-			return launchTarget{}, fmt.Errorf("holon %q package dist is not runnable for runner %q", entry.Slug, runner)
+			return launchTarget{}, fmt.Errorf("holon %q package dist is not runnable for runner %q", entry.Slug, entry.Runner)
 		}
 		return target, nil
 	}
@@ -560,7 +315,7 @@ func resolvePackageLaunchTarget(entry discover.HolonEntry) (launchTarget, error)
 		return resolveSourceLaunchTarget(sourceEntry)
 	}
 
-	return launchTarget{}, fmt.Errorf("holon %q package is not runnable for arch %q: missing bin/%s/%s, dist/%s, and git/", entry.Slug, archDir, archDir, filepath.Base(entrypoint), filepath.ToSlash(entrypoint))
+	return launchTarget{}, fmt.Errorf("holon %q package is not runnable for arch %q", entry.Slug, archDir)
 }
 
 func resolveSourceLaunchTarget(entry discover.HolonEntry) (launchTarget, error) {
@@ -583,8 +338,6 @@ func resolveSourceLaunchTarget(entry discover.HolonEntry) (launchTarget, error) 
 		}
 	}
 
-	// Check the .holon package layout produced by op build:
-	// .op/build/<slug>.holon/bin/<os_arch>/<binary>
 	holonPkgBin := filepath.Join(entry.Dir, ".op", "build",
 		entry.Slug+".holon", "bin", packageArchDir(), filepath.Base(name))
 	if info, err := os.Stat(holonPkgBin); err == nil && !info.IsDir() {
@@ -595,7 +348,6 @@ func resolveSourceLaunchTarget(entry discover.HolonEntry) (launchTarget, error) 
 		}, nil
 	}
 
-	// Legacy flat layout: .op/build/bin/<binary>
 	candidate := filepath.Join(entry.Dir, ".op", "build", "bin", filepath.Base(name))
 	if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
 		return launchTarget{
@@ -605,12 +357,8 @@ func resolveSourceLaunchTarget(entry discover.HolonEntry) (launchTarget, error) 
 		}, nil
 	}
 
-	runner := ""
-	mainPath := ""
-	if entry.Manifest != nil {
-		runner = strings.ToLower(strings.TrimSpace(entry.Manifest.Build.Runner))
-		mainPath = strings.TrimSpace(entry.Manifest.Build.Main)
-	}
+	runner := strings.ToLower(strings.TrimSpace(entry.Manifest.Build.Runner))
+	mainPath := strings.TrimSpace(entry.Manifest.Build.Main)
 	if target, ok := launchTargetForRunner("source-run", runner, mainPath, entry.Dir); ok {
 		return target, nil
 	}
@@ -619,41 +367,32 @@ func resolveSourceLaunchTarget(entry discover.HolonEntry) (launchTarget, error) 
 }
 
 func sourceEntryFromPackageGit(entry discover.HolonEntry, gitRoot string) (discover.HolonEntry, error) {
-	discovered, err := discover.Discover(gitRoot)
-	if err != nil {
-		return discover.HolonEntry{}, fmt.Errorf("discover package source for holon %q: %w", entry.Slug, err)
+	if entry.UUID != "" {
+		resolved := discover.Resolve(discover.LOCAL, entry.UUID, &gitRoot, discover.SOURCE, discover.NO_TIMEOUT)
+		if resolved.Ref != nil {
+			return entryFromRef(*resolved.Ref)
+		}
 	}
 
-	var fallback *discover.HolonEntry
-	for i := range discovered {
-		candidate := discovered[i]
-		if candidate.SourceKind != "source" {
-			continue
-		}
-		if fallback == nil {
-			copy := candidate
-			fallback = &copy
-		}
-		if entry.UUID != "" && candidate.UUID == entry.UUID {
-			return candidate, nil
-		}
-		if candidate.Slug == entry.Slug {
-			return candidate, nil
+	if entry.Slug != "" {
+		resolved := discover.Resolve(discover.LOCAL, entry.Slug, &gitRoot, discover.SOURCE, discover.NO_TIMEOUT)
+		if resolved.Ref != nil {
+			return entryFromRef(*resolved.Ref)
 		}
 	}
-	if fallback != nil {
-		return *fallback, nil
+
+	discovered := discover.Discover(discover.LOCAL, nil, &gitRoot, discover.SOURCE, 1, discover.NO_TIMEOUT)
+	if discovered.Error != "" {
+		return discover.HolonEntry{}, fmt.Errorf("discover package source for holon %q: %s", entry.Slug, discovered.Error)
 	}
-	return discover.HolonEntry{}, fmt.Errorf("holon %q package git/ does not contain a runnable source holon", entry.Slug)
+	if len(discovered.Found) == 0 {
+		return discover.HolonEntry{}, fmt.Errorf("holon %q package git/ does not contain a runnable source holon", entry.Slug)
+	}
+	return entryFromRef(discovered.Found[0])
 }
 
 func packageArchDir() string {
 	return runtime.GOOS + "_" + runtime.GOARCH
-}
-
-type runnerLaunchSpec struct {
-	commandPath string
-	argsPrefix  []string
 }
 
 func launchTargetForRunner(kind string, runner string, entrypoint string, workingDirectory string) (launchTarget, bool) {
@@ -692,63 +431,49 @@ func launchSpecForRunner(runner string) (runnerLaunchSpec, bool) {
 	}
 }
 
-func commandLabel(cmd *exec.Cmd) string {
-	if cmd == nil {
-		return ""
-	}
-	if len(cmd.Args) == 0 {
-		return cmd.Path
-	}
-	return strings.Join(cmd.Args, " ")
+func remember(conn *grpc.ClientConn, handle connHandle) {
+	mu.Lock()
+	started[conn] = handle
+	mu.Unlock()
 }
 
-func defaultPortFilePath(slug string) string {
-	root, err := os.Getwd()
+func dialReady(ctx context.Context, target string) (*grpc.ClientConn, error) {
+	conn, err := grpcclient.Dial(ctx, target)
 	if err != nil {
-		root = "."
+		return nil, err
 	}
-	return filepath.Join(root, ".op", "run", slug+".port")
+	if err := waitForReady(ctx, conn); err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	return conn, nil
 }
 
-func defaultUnixSocketURI(slug string, portFile string) string {
-	hasher := fnv.New64a()
-	_, _ = hasher.Write([]byte(portFile))
-	label := socketLabel(slug)
-	return fmt.Sprintf("unix:///tmp/holons-%s-%012x.sock", label, hasher.Sum64()&0xffffffffffff)
-}
-
-func socketLabel(slug string) string {
-	var b strings.Builder
-	lastDash := false
-	for _, r := range strings.ToLower(strings.TrimSpace(slug)) {
-		switch {
-		case r >= 'a' && r <= 'z':
-			b.WriteRune(r)
-			lastDash = false
-		case r >= '0' && r <= '9':
-			b.WriteRune(r)
-			lastDash = false
-		case (r == '-' || r == '_') && !lastDash && b.Len() > 0:
-			b.WriteByte('-')
-			lastDash = true
+func waitForReady(ctx context.Context, conn *grpc.ClientConn) error {
+	conn.Connect()
+	for {
+		state := conn.GetState()
+		switch state {
+		case connectivity.Ready:
+			return nil
+		case connectivity.Shutdown:
+			return errors.New("grpc connection shut down before becoming ready")
 		}
-		if b.Len() >= 24 {
-			break
+
+		if !conn.WaitForStateChange(ctx, state) {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return fmt.Errorf("timed out waiting for gRPC readiness")
 		}
 	}
-
-	label := strings.Trim(b.String(), "-")
-	if label == "" {
-		return "socket"
-	}
-	return label
 }
 
-func writePortFile(path, uri string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
+func connectContext(timeout int) (context.Context, context.CancelFunc) {
+	if timeout <= 0 {
+		return context.WithCancel(context.Background())
 	}
-	return os.WriteFile(path, []byte(strings.TrimSpace(uri)+"\n"), 0o644)
+	return context.WithTimeout(context.Background(), time.Duration(timeout)*time.Millisecond)
 }
 
 func newProcessHandle(cmd *exec.Cmd) *processHandle {
@@ -779,10 +504,6 @@ func stopProcess(proc *processHandle) error {
 		return nil
 	}
 
-	if proc.cmd.ProcessState != nil && proc.cmd.ProcessState.Exited() {
-		return nil
-	}
-
 	waitCh := proc.wait()
 	if err := proc.cmd.Process.Signal(syscall.SIGTERM); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		_ = proc.cmd.Process.Kill()
@@ -803,10 +524,87 @@ func stopProcess(proc *processHandle) error {
 }
 
 func isDirectTarget(target string) bool {
-	if strings.Contains(target, "://") {
+	trimmed := strings.TrimSpace(target)
+	if strings.HasPrefix(trimmed, "file://") {
+		return false
+	}
+	if strings.Contains(trimmed, "://") {
 		return true
 	}
-	return strings.Contains(target, ":")
+	return strings.Contains(trimmed, ":")
+}
+
+func isHostPortTarget(target string) bool {
+	trimmed := strings.TrimSpace(target)
+	return !strings.Contains(trimmed, "://") && strings.Contains(trimmed, ":")
+}
+
+func launchListenURIs(ref discover.HolonRef) []string {
+	added := make(map[string]struct{})
+	out := make([]string, 0, 4)
+	add := func(uri string) {
+		if strings.TrimSpace(uri) == "" {
+			return
+		}
+		if _, ok := added[uri]; ok {
+			return
+		}
+		added[uri] = struct{}{}
+		out = append(out, uri)
+	}
+
+	if ref.Info != nil {
+		add(launchURIForTransport(ref.Info.Transport, ref.Info.Slug))
+	}
+
+	add("stdio://")
+	if runtime.GOOS != "windows" {
+		add(launchURIForTransport("unix", transportSlug(ref)))
+	}
+	add(launchURIForTransport("tcp", transportSlug(ref)))
+	add(launchURIForTransport("ws", transportSlug(ref)))
+	add(launchURIForTransport("wss", transportSlug(ref)))
+	return out
+}
+
+func transportSlug(ref discover.HolonRef) string {
+	if ref.Info != nil && strings.TrimSpace(ref.Info.Slug) != "" {
+		return ref.Info.Slug
+	}
+	return "holon"
+}
+
+func launchURIForTransport(transport string, slug string) string {
+	switch strings.ToLower(strings.TrimSpace(transport)) {
+	case "", "default":
+		return ""
+	case "stdio":
+		return "stdio://"
+	case "tcp":
+		return "tcp://127.0.0.1:0"
+	case "unix":
+		if runtime.GOOS == "windows" {
+			return ""
+		}
+		return defaultUnixSocketURI(slug)
+	case "ws":
+		return "ws://127.0.0.1:0/grpc"
+	case "wss":
+		return "wss://127.0.0.1:0/grpc"
+	default:
+		return ""
+	}
+}
+
+func isReachableTarget(target string) bool {
+	trimmed := strings.TrimSpace(target)
+	if trimmed == "" || strings.HasPrefix(trimmed, "file://") {
+		return false
+	}
+	if strings.Contains(trimmed, "://") {
+		return true
+	}
+	return strings.Contains(trimmed, ":")
 }
 
 func normalizeDialTarget(target string) string {
@@ -836,6 +634,116 @@ func normalizeDialTarget(target string) string {
 	default:
 		return trimmed
 	}
+}
+
+func pathFromFileURL(raw string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return "", err
+	}
+	if parsed.Scheme != "file" {
+		return "", fmt.Errorf("holon URL %q is not a local file target", raw)
+	}
+	path := parsed.Path
+	if parsed.Host != "" && parsed.Host != "localhost" {
+		path = "//" + parsed.Host + path
+	}
+	if path == "" {
+		return "", fmt.Errorf("holon URL %q has no path", raw)
+	}
+	return filepath.Clean(path), nil
+}
+
+func defaultUnixSocketURI(slug string) string {
+	return "unix://" + filepath.Join(os.TempDir(), fmt.Sprintf("holons-%s-%d.sock", socketLabel(slug), time.Now().UnixNano()))
+}
+
+func socketLabel(slug string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(strings.TrimSpace(slug)) {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '-' || r == '_':
+			b.WriteByte('-')
+		}
+		if b.Len() >= 24 {
+			break
+		}
+	}
+	label := strings.Trim(b.String(), "-")
+	if label == "" {
+		return "holon"
+	}
+	return label
+}
+
+func startAdvertisedHolon(ctx context.Context, cmd *exec.Cmd) (string, *processHandle, error) {
+	if cmd == nil {
+		return "", nil, errors.New("start holon: command is required")
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", nil, fmt.Errorf("create stdout pipe: %w", err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return "", nil, fmt.Errorf("create stderr pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return "", nil, fmt.Errorf("start %s: %w", commandLabel(cmd), err)
+	}
+
+	proc := newProcessHandle(cmd)
+	lineCh := make(chan string, 16)
+	errCh := make(chan error, 2)
+	scanPipe := func(scanner *bufio.Scanner) {
+		for scanner.Scan() {
+			lineCh <- scanner.Text()
+		}
+		if scanErr := scanner.Err(); scanErr != nil {
+			errCh <- scanErr
+		}
+	}
+
+	go scanPipe(bufio.NewScanner(stdout))
+	go scanPipe(bufio.NewScanner(stderr))
+
+	waitCh := proc.wait()
+	for {
+		select {
+		case line := <-lineCh:
+			if uri := firstURI(line); uri != "" && usableStartupURI(uri) {
+				return uri, proc, nil
+			}
+		case scanErr := <-errCh:
+			if scanErr != nil {
+				_ = stopProcess(proc)
+				return "", nil, fmt.Errorf("read startup output: %w", scanErr)
+			}
+		case waitErr := <-waitCh:
+			if waitErr == nil {
+				waitErr = errors.New("holon exited before advertising an address")
+			}
+			return "", nil, waitErr
+		case <-ctx.Done():
+			_ = stopProcess(proc)
+			return "", nil, fmt.Errorf("timed out waiting for holon startup: %w", ctx.Err())
+		}
+	}
+}
+
+func commandLabel(cmd *exec.Cmd) string {
+	if cmd == nil {
+		return ""
+	}
+	if len(cmd.Args) == 0 {
+		return cmd.Path
+	}
+	return strings.Join(cmd.Args, " ")
 }
 
 func firstURI(line string) string {

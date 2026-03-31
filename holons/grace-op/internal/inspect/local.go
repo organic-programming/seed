@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	"github.com/organic-programming/grace-op/internal/holons"
 	"github.com/organic-programming/grace-op/internal/identity"
 )
@@ -18,7 +19,11 @@ type LocalCatalog struct {
 // LoadLocal resolves a slug/path/uuid selector, parses the holon's protos, and
 // attaches identity metadata, skills, and sequences from the manifest source.
 func LoadLocal(ref string) (*LocalCatalog, error) {
-	target, err := holons.ResolveTarget(ref)
+	return LoadLocalWithOptions(ref, nil, sdkdiscover.ALL, sdkdiscover.NO_TIMEOUT)
+}
+
+func LoadLocalWithOptions(ref string, root *string, specifiers int, timeout int) (*LocalCatalog, error) {
+	target, err := holons.ResolveTargetWithOptions(ref, root, specifiers, timeout)
 	if err != nil {
 		return nil, err
 	}

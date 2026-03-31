@@ -8,15 +8,19 @@ import (
 	"runtime"
 	"strings"
 
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	openv "github.com/organic-programming/grace-op/internal/env"
 	"github.com/organic-programming/grace-op/internal/identity"
 	"github.com/organic-programming/grace-op/internal/progress"
 )
 
 type InstallOptions struct {
-	Build            bool
-	LinkApplications bool
-	Progress         progress.Reporter
+	Build             bool
+	LinkApplications  bool
+	Progress          progress.Reporter
+	ResolveRoot       *string
+	ResolveSpecifiers int
+	ResolveTimeout    int
 }
 
 type InstallReport struct {
@@ -39,7 +43,16 @@ func Install(ref string, opts InstallOptions) (InstallReport, error) {
 		reporter = progress.Silence()
 	}
 	reporter.Step("resolving " + normalizedTarget(ref) + "...")
-	target, err := ResolveTarget(ref)
+	resolveSpecifiers := opts.ResolveSpecifiers
+	if resolveSpecifiers == 0 {
+		if opts.Build {
+			resolveSpecifiers = sdkdiscover.SOURCE
+		} else {
+			resolveSpecifiers = sdkdiscover.BUILT
+		}
+	}
+
+	target, err := ResolveTargetWithOptions(ref, opts.ResolveRoot, resolveSpecifiers, opts.ResolveTimeout)
 	if err != nil {
 		return InstallReport{
 			Operation: "install",
@@ -190,7 +203,12 @@ func UninstallWithOptions(ref string, opts InstallOptions) (InstallReport, error
 		reporter = progress.Silence()
 	}
 	reporter.Step("resolving " + normalizedTarget(ref) + "...")
-	target, err := ResolveTarget(ref)
+	resolveSpecifiers := opts.ResolveSpecifiers
+	if resolveSpecifiers == 0 {
+		resolveSpecifiers = sdkdiscover.INSTALLED
+	}
+
+	target, err := ResolveTargetWithOptions(ref, opts.ResolveRoot, resolveSpecifiers, opts.ResolveTimeout)
 	if err == nil && target.ManifestErr != nil {
 		return baseInstallReport("uninstall", target, BuildContext{}), target.ManifestErr
 	}

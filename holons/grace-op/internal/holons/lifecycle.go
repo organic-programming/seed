@@ -15,6 +15,7 @@ import (
 	"text/template"
 	"time"
 
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	"github.com/organic-programming/grace-op/internal/identity"
 	"github.com/organic-programming/grace-op/internal/progress"
 )
@@ -34,12 +35,15 @@ const (
 
 // BuildOptions captures CLI/build request overrides before manifest defaults are applied.
 type BuildOptions struct {
-	Target    string
-	Mode      string
-	DryRun    bool
-	NoSign    bool
-	Progress  progress.Reporter
-	composite *compositeBuildExecution
+	Target            string
+	Mode              string
+	DryRun            bool
+	NoSign            bool
+	Progress          progress.Reporter
+	ResolveRoot       *string
+	ResolveSpecifiers int
+	ResolveTimeout    int
+	composite         *compositeBuildExecution
 }
 
 // BuildContext is the canonical build request used by runners and artifact resolution.
@@ -105,7 +109,12 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 		reporter = progress.Silence()
 	}
 
-	target, err := ResolveTarget(ref)
+	resolveSpecifiers := bo.ResolveSpecifiers
+	if resolveSpecifiers == 0 {
+		resolveSpecifiers = sdkdiscover.ALL
+	}
+
+	target, err := ResolveTargetWithOptions(ref, bo.ResolveRoot, resolveSpecifiers, bo.ResolveTimeout)
 	if err != nil {
 		return Report{Operation: string(op), Target: normalizedTarget(ref)}, err
 	}

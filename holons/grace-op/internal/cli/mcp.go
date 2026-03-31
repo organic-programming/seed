@@ -8,7 +8,7 @@ import (
 	mcppkg "github.com/organic-programming/grace-op/internal/mcp"
 )
 
-func cmdMCP(args []string, version string) int {
+func cmdMCP(_ commandRuntimeOptions, args []string, version string) int {
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "op mcp: requires at least one <slug> or URI")
 		return 1

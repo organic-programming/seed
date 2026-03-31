@@ -6,10 +6,12 @@ import (
 	"os"
 	"strings"
 
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	dopkg "github.com/organic-programming/grace-op/internal/do"
+	openv "github.com/organic-programming/grace-op/internal/env"
 )
 
-func cmdDo(format Format, quiet bool, args []string) int {
+func cmdDo(format Format, runtimeOpts commandRuntimeOptions, args []string) int {
 	if len(args) < 2 {
 		fmt.Fprintln(os.Stderr, "op do: requires <holon> and <sequence>")
 		return 1
@@ -19,12 +21,17 @@ func cmdDo(format Format, quiet bool, args []string) int {
 		Params: make(map[string]string),
 	}
 	if format != FormatJSON {
-		if !quiet {
+		if !runtimeOpts.quiet {
 			opts.Progress = os.Stdout
 		}
 		opts.Stdout = os.Stdout
 		opts.Stderr = os.Stderr
 	}
+	opts.ResolveTimeout = runtimeOpts.timeout
+	opts.ResolveSpecifiers = sdkdiscover.ALL
+	root := openv.Root()
+	opts.ResolveRoot = &root
+	emitOriginForExpression(runtimeOpts, args[0], sdkdiscover.ALL)
 
 	for i := 2; i < len(args); i++ {
 		arg := args[i]

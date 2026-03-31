@@ -10,6 +10,7 @@ import (
 	"time"
 
 	sdkconnect "github.com/organic-programming/go-holons/pkg/connect"
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
 	"github.com/organic-programming/grace-op/internal/grpcclient"
 	"github.com/organic-programming/grace-op/internal/holons"
@@ -202,39 +203,30 @@ func (c cliState) runEnvCommand(format Format, args []string) int {
 
 const connectDispatchTimeout = 10 * time.Second
 
-func oneShotConnectOptions(transport string) sdkconnect.ConnectOptions {
-	return sdkconnect.ConnectOptions{
-		Timeout:   connectDispatchTimeout,
-		Transport: transport,
-		Lifecycle: sdkconnect.LifecycleEphemeral,
-		Start:     true,
-	}
-}
-
-func (c cliState) runConnectedRPC(format Format, errPrefix string, holonName string, method string, inputJSON string, opts sdkconnect.ConnectOptions) int {
-	conn, err := sdkconnect.ConnectWithOpts(holonName, opts)
-	if err != nil {
-		fmt.Fprintf(c.stderr, "%s: %v\n", errPrefix, err)
+func (c cliState) runConnectedRPC(format Format, errPrefix string, holonName string, method string, inputJSON string, _ string) int {
+	result := holons.ConnectRef(holonName, nil, sdkdiscover.ALL, int(connectDispatchTimeout/time.Millisecond))
+	if result.Error != "" {
+		fmt.Fprintf(c.stderr, "%s: %s\n", errPrefix, result.Error)
 		return 1
 	}
-	defer func() { _ = sdkconnect.Disconnect(conn) }()
+	defer func() { _ = sdkconnect.Disconnect(result) }()
 
-	ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), connectDispatchTimeout)
 	defer cancel()
 
-	result, err := grpcclient.InvokeConn(ctx, conn, method, inputJSON)
+	callResult, err := grpcclient.InvokeConn(ctx, result.Channel, method, inputJSON)
 	if err != nil {
 		fmt.Fprintf(c.stderr, "%s: %v\n", errPrefix, err)
 		return 1
 	}
-	fmt.Fprintln(c.stdout, formatRPCOutput(format, method, []byte(result.Output)))
+	fmt.Fprintln(c.stdout, formatRPCOutput(format, method, []byte(callResult.Output)))
 	return 0
 }
 
 func (c cliState) runGRPCCommand(format Format, uri string, args []string) int {
 	switch {
 	case strings.HasPrefix(uri, "stdio://"):
-		return c.runGRPCConnectedCommand(format, uri, trimURIAnyPrefix(uri, "stdio://"), args, sdkconnect.TransportStdio)
+		return c.runGRPCConnectedCommand(format, uri, trimURIAnyPrefix(uri, "stdio://"), args, "stdio")
 	case strings.HasPrefix(uri, "unix://"):
 		return c.runGRPCDirectCommand(format, "unix://"+trimURIAnyPrefix(uri, "unix://"), args)
 	case strings.HasPrefix(uri, "ws://") || strings.HasPrefix(uri, "wss://"):
@@ -244,13 +236,13 @@ func (c cliState) runGRPCCommand(format Format, uri string, args []string) int {
 		if isHostPortTarget(target) {
 			return c.runGRPCDirectCommand(format, target, args)
 		}
-		return c.runGRPCConnectedCommand(format, uri, target, args, sdkconnect.TransportTCP)
+		return c.runGRPCConnectedCommand(format, uri, target, args, "tcp")
 	default:
 		target := strings.TrimPrefix(uri, "grpc://")
 		if isHostPortTarget(target) {
 			return c.runGRPCDirectCommand(format, target, args)
 		}
-		return c.runGRPCConnectedCommand(format, uri, target, args, sdkconnect.TransportAuto)
+		return c.runGRPCConnectedCommand(format, uri, target, args, "auto")
 	}
 }
 
@@ -274,7 +266,7 @@ func (c cliState) runGRPCConnectedCommand(format Format, uri string, holonName s
 	if len(args) > 1 {
 		inputJSON = args[1]
 	}
-	return c.runConnectedRPC(format, "op grpc", holonName, method, inputJSON, oneShotConnectOptions(transport))
+	return c.runConnectedRPC(format, "op grpc", holonName, method, inputJSON, transport)
 }
 
 func (c cliState) runGRPCDirectCommand(format Format, address string, args []string) int {
@@ -338,7 +330,7 @@ func (c cliState) runHolonCommand(format Format, holon string, args []string) in
 		fmt.Fprintf(c.stderr, "op: %v\n", err)
 		return 1
 	}
-	return c.runConnectedRPC(format, "op", holon, method, inputJSON, oneShotConnectOptions(sdkconnect.TransportAuto))
+	return c.runConnectedRPC(format, "op", holon, method, inputJSON, "auto")
 }
 
 func mapHolonCommandToRPC(args []string) (string, string, error) {

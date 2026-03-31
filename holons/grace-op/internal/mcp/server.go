@@ -13,10 +13,11 @@ import (
 
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	sdkconnect "github.com/organic-programming/go-holons/pkg/connect"
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	dopkg "github.com/organic-programming/grace-op/internal/do"
 	grpcclientpkg "github.com/organic-programming/grace-op/internal/grpcclient"
+	"github.com/organic-programming/grace-op/internal/holons"
 	toolspkg "github.com/organic-programming/grace-op/internal/tools"
-	"google.golang.org/grpc"
 )
 
 const protocolVersion = "2025-06-18"
@@ -28,7 +29,7 @@ type Server struct {
 
 	toolIndex     map[string]toolBinding
 	promptIndex   map[string]promptDefinition
-	connCache     map[string]*grpc.ClientConn
+	connCache     map[string]sdkconnect.ConnectResult
 	describeCache map[string]*holonsv1.DescribeResponse
 }
 
@@ -85,22 +86,22 @@ func NewServer(slugs []string, version string) (*Server, error) {
 		return nil, fmt.Errorf("at least one <slug> is required")
 	}
 
-	connCache := make(map[string]*grpc.ClientConn, len(slugs))
+	connCache := make(map[string]sdkconnect.ConnectResult, len(slugs))
 	describeCache := make(map[string]*holonsv1.DescribeResponse, len(slugs))
 	definitions := make([]toolspkg.Definition, 0)
 	toolIndex := make(map[string]toolBinding)
 	toolNamesBySlug := make(map[string][]string, len(slugs))
 
 	for _, slug := range slugs {
-		conn, err := sdkconnect.Connect(slug)
-		if err != nil {
+		result := holons.ConnectRef(slug, nil, sdkdiscover.ALL, int((10*time.Second)/time.Millisecond))
+		if result.Error != "" {
 			_ = closeConnections(connCache)
-			return nil, err
+			return nil, fmt.Errorf(result.Error)
 		}
-		connCache[slug] = conn
+		connCache[slug] = result
 
 		describeCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		response, err := holonsv1.NewHolonMetaClient(conn).Describe(describeCtx, &holonsv1.DescribeRequest{})
+		response, err := holonsv1.NewHolonMetaClient(result.Channel).Describe(describeCtx, &holonsv1.DescribeRequest{})
 		cancel()
 		if err != nil {
 			_ = closeConnections(connCache)
@@ -348,8 +349,8 @@ func (s *Server) handleToolCall(ctx context.Context, params json.RawMessage) (ma
 	callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	conn := s.connCache[binding.slug]
-	if conn == nil {
+	connected := s.connCache[binding.slug]
+	if connected.Channel == nil {
 		return map[string]any{
 			"content": []textContent{{
 				Type: "text",
@@ -359,7 +360,7 @@ func (s *Server) handleToolCall(ctx context.Context, params json.RawMessage) (ma
 		}, nil
 	}
 
-	result, err := grpcclientpkg.InvokeConn(callCtx, conn, binding.fullMethod, string(args))
+	result, err := grpcclientpkg.InvokeConn(callCtx, connected.Channel, binding.fullMethod, string(args))
 	if err != nil {
 		return map[string]any{
 			"content": []textContent{{
@@ -483,17 +484,17 @@ func bytesTrimSpace(data []byte) []byte {
 	return []byte(strings.TrimSpace(string(data)))
 }
 
-func closeConnections(connCache map[string]*grpc.ClientConn) error {
+func closeConnections(connCache map[string]sdkconnect.ConnectResult) error {
 	if len(connCache) == 0 {
 		return nil
 	}
 
 	errs := make([]error, 0)
-	for slug, conn := range connCache {
-		if conn == nil {
+	for slug, result := range connCache {
+		if result.Channel == nil {
 			continue
 		}
-		if err := sdkconnect.Disconnect(conn); err != nil {
+		if err := sdkconnect.Disconnect(result); err != nil {
 			errs = append(errs, fmt.Errorf("disconnect %s: %w", slug, err))
 		}
 	}

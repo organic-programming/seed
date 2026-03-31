@@ -2,13 +2,16 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	sdkconnect "github.com/organic-programming/go-holons/pkg/connect"
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
+	"github.com/organic-programming/grace-op/internal/holons"
 	inspectpkg "github.com/organic-programming/grace-op/internal/inspect"
 )
 
@@ -43,16 +46,16 @@ func inspectLocal(ref string) (*inspectpkg.Document, error) {
 }
 
 func inspectRemote(address string) (*inspectpkg.Document, error) {
-	conn, err := sdkconnect.Connect(address)
-	if err != nil {
-		return nil, err
+	result := holons.ConnectRef(address, nil, sdkdiscover.ALL, int((5*time.Second)/time.Millisecond))
+	if result.Error != "" {
+		return nil, errors.New(result.Error)
 	}
-	defer func() { _ = sdkconnect.Disconnect(conn) }()
+	defer func() { _ = sdkconnect.Disconnect(result) }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	client := holonsv1.NewHolonMetaClient(conn)
+	client := holonsv1.NewHolonMetaClient(result.Channel)
 	response, err := client.Describe(ctx, &holonsv1.DescribeRequest{})
 	if err != nil {
 		return nil, err

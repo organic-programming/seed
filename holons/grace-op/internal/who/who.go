@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
 	openv "github.com/organic-programming/grace-op/internal/env"
 	"github.com/organic-programming/grace-op/internal/holons"
@@ -18,6 +19,10 @@ import (
 
 // List returns local and cached identities, preserving their origin labels.
 func List(root string) (*opv1.ListIdentitiesResponse, error) {
+	return ListWithOptions(root, sdkdiscover.ALL, sdkdiscover.NO_LIMIT, sdkdiscover.NO_TIMEOUT)
+}
+
+func ListWithOptions(root string, specifiers int, limit int, timeout int) (*opv1.ListIdentitiesResponse, error) {
 	if strings.TrimSpace(root) == "" {
 		root = "."
 	}
@@ -34,17 +39,11 @@ func List(root string) (*opv1.ListIdentitiesResponse, error) {
 		}
 	}
 
-	local, err := holons.DiscoverHolons(root)
+	local, err := holons.DiscoverHolonsWithOptions(&root, specifiers, limit, timeout)
 	if err != nil {
 		return nil, err
 	}
 	appendEntries(local)
-
-	cached, err := holons.DiscoverCachedHolons()
-	if err != nil {
-		return nil, err
-	}
-	appendEntries(cached)
 
 	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].GetOrigin() == entries[j].GetOrigin() {
@@ -61,49 +60,50 @@ func List(root string) (*opv1.ListIdentitiesResponse, error) {
 
 // Show resolves an identity by UUID or prefix, searching local first then cache.
 func Show(target string) (*opv1.ShowIdentityResponse, error) {
+	root := openv.Root()
+	return ShowWithOptions(target, &root, sdkdiscover.ALL, sdkdiscover.NO_TIMEOUT)
+}
+
+func ShowWithOptions(target string, root *string, specifiers int, timeout int) (*opv1.ShowIdentityResponse, error) {
 	target = strings.TrimSpace(target)
 	if target == "" {
 		return nil, fmt.Errorf("uuid is required")
 	}
 
-	local, err := holons.DiscoverHolons(openv.Root())
+	resolved, err := holons.ResolveTargetWithOptions(target, root, specifiers, timeout)
 	if err != nil {
 		return nil, err
 	}
-	cached, err := holons.DiscoverCachedHolons()
-	if err != nil {
-		return nil, err
+	path := resolved.IdentityPath
+	if path == "" && resolved.Manifest != nil {
+		path = resolved.Manifest.Path
 	}
-
-	matches := make([]holons.LocalHolon, 0)
-	appendMatches := func(located []holons.LocalHolon) {
-		for _, entry := range located {
-			uuid := strings.TrimSpace(entry.Identity.UUID)
-			if uuid == "" {
-				continue
-			}
-			if uuid == target || strings.HasPrefix(uuid, target) {
-				matches = append(matches, entry)
+	if path == "" && strings.TrimSpace(resolved.Dir) != "" {
+		for _, candidate := range []string{
+			filepath.Join(resolved.Dir, identity.ManifestFileName),
+			filepath.Join(resolved.Dir, ".holon.json"),
+		} {
+			if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+				path = candidate
+				break
 			}
 		}
 	}
-	appendMatches(local)
-	appendMatches(cached)
-	if len(matches) == 0 {
-		return nil, fmt.Errorf("holon not found: %s", target)
+	if path == "" {
+		return nil, fmt.Errorf("no identity file found for %s", target)
 	}
-	if len(matches) > 1 {
-		return nil, fmt.Errorf("uuid prefix %q is ambiguous", target)
-	}
-
-	path := matches[0].IdentityPath
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
+	id := identity.Identity{}
+	if resolved.Identity != nil {
+		id = *resolved.Identity
+	}
+
 	return &opv1.ShowIdentityResponse{
-		Identity:   toProto(matches[0].Identity),
+		Identity:   toProto(id),
 		FilePath:   path,
 		RawContent: string(raw),
 	}, nil

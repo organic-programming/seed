@@ -6,18 +6,20 @@ import (
 	"os"
 	"strings"
 
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	"github.com/organic-programming/grace-op/internal/holons"
 	"github.com/organic-programming/grace-op/internal/suggest"
 )
 
-func cmdLifecycle(format Format, globalQuiet bool, operation holons.Operation, args []string) int {
+func cmdLifecycle(format Format, runtimeOpts commandRuntimeOptions, operation holons.Operation, args []string) int {
 	ui, args, _ := extractQuietFlag(args)
-	quiet := globalQuiet || ui.Quiet
+	quiet := runtimeOpts.quiet || ui.Quiet
 
 	// Parse build-specific flags before the positional argument.
 	var opts holons.BuildOptions
 	cleanFirst := false
 	var positional []string
+	discoverySpecs := 0
 	for i := 0; i < len(args); i++ {
 		switch {
 		case args[i] == "--target" && i+1 < len(args):
@@ -32,6 +34,8 @@ func cmdLifecycle(format Format, globalQuiet bool, operation holons.Operation, a
 			cleanFirst = true
 		case args[i] == "--no-sign" && operation == holons.OperationBuild:
 			opts.NoSign = true
+		case isDiscoveryFlag(args[i]):
+			discoverySpecs = addDiscoverySpecifier(discoverySpecs, args[i])
 		case strings.HasPrefix(args[i], "--"):
 			fmt.Fprintf(os.Stderr, "op %s: unknown flag %q\n", operation, args[i])
 			return 1
@@ -67,6 +71,17 @@ func cmdLifecycle(format Format, globalQuiet bool, operation holons.Operation, a
 			return 1
 		}
 	}
+
+	opts.ResolveTimeout = runtimeOpts.timeout
+	if operation == holons.OperationBuild {
+		opts.ResolveSpecifiers = sdkdiscover.SOURCE
+	} else {
+		if discoverySpecs == 0 {
+			discoverySpecs = sdkdiscover.ALL
+		}
+		opts.ResolveSpecifiers = discoverySpecs
+	}
+	emitOriginForExpression(runtimeOpts, target, opts.ResolveSpecifiers)
 
 	report, err := holons.ExecuteLifecycle(operation, target, opts)
 	if err != nil {
