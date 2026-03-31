@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	"github.com/organic-programming/grace-op/internal/holons"
 	"github.com/organic-programming/grace-op/internal/identity"
@@ -46,8 +47,8 @@ func TestHelpCommandIncludesCleanFlags(t *testing.T) {
 
 	for _, want := range []string{
 		"op <holon> --clean <method> [--no-build] [json]",
-		"--clean                                      clean before building (cannot be combined with --dry-run)",
-		"--clean                                      clean before building and running (cannot be combined with --no-build)",
+		"op build [<holon-or-path>] --clean",
+		"op run <holon>:<port>",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("help output missing %q:\n%s", want, output)
@@ -1100,6 +1101,42 @@ func TestInstallCommandProtoManifest(t *testing.T) {
 	}
 }
 
+func TestInstallCommandResolvesAliasFromSourceWhenArtifactExists(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go command not available")
+	}
+
+	root := t.TempDir()
+	chdirForTest(t, root)
+	t.Setenv("OPPATH", filepath.Join(root, ".runtime"))
+	t.Setenv("OPBIN", filepath.Join(root, ".runtime", "bin"))
+
+	dir := writeProtoInstallFixtureWithAliases(t, root, "demo-proto", "demo")
+
+	var buildCode int
+	buildStdout, buildStderr := captureOutput(t, func() {
+		buildCode = Run([]string{"build", dir}, "0.1.0-test")
+	})
+	if buildCode != 0 {
+		t.Fatalf("build returned %d, want 0\nstdout=%s\nstderr=%s", buildCode, buildStdout, buildStderr)
+	}
+
+	output := captureStdout(t, func() {
+		code := Run([]string{"install", "demo"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("install returned %d, want 0", code)
+		}
+	})
+
+	installed := filepath.Join(root, ".runtime", "bin", "demo-proto.holon")
+	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, "demo-proto")); err != nil {
+		t.Fatalf("installed package binary missing: %v", err)
+	}
+	if !strings.Contains(output, "Installed: "+installed) {
+		t.Fatalf("install output missing installed path: %q", output)
+	}
+}
+
 func TestInstallCommandFailsWhenArtifactMissing(t *testing.T) {
 	root := t.TempDir()
 	chdirForTest(t, root)
@@ -1293,6 +1330,345 @@ func TestBuildCommandQuietSuppressesProgressAndSuggestions(t *testing.T) {
 	}
 	if strings.TrimSpace(stderr) != "" {
 		t.Fatalf("stderr not empty for quiet build: %q", stderr)
+	}
+}
+
+func TestBuildCommandInstallBuildsAndInstalls(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go command not available")
+	}
+
+	root := t.TempDir()
+	chdirForTest(t, root)
+	t.Setenv("OPPATH", filepath.Join(root, ".runtime"))
+	t.Setenv("OPBIN", filepath.Join(root, ".runtime", "bin"))
+
+	writeProtoInstallFixture(t, root, "demo-proto")
+
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = Run([]string{"build", "demo-proto", "--install"}, "0.1.0-test")
+	})
+	if code != 0 {
+		t.Fatalf("build --install returned %d, want 0\nstdout=%s\nstderr=%s", code, stdout, stderr)
+	}
+
+	installed := filepath.Join(root, ".runtime", "bin", "demo-proto.holon")
+	if _, err := os.Stat(filepath.Join(installed, "bin", runtime.GOOS+"_"+runtime.GOARCH, "demo-proto")); err != nil {
+		t.Fatalf("installed package binary missing: %v", err)
+	}
+	for _, want := range []string{
+		"Build:",
+		"Operation: build",
+		"Install:",
+		"Operation: install",
+		"Installed: " + installed,
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, unwanted := range []string{
+		"op install demo-proto",
+	} {
+		if strings.Contains(stderr, unwanted) {
+			t.Fatalf("stderr unexpectedly contains %q:\n%s", unwanted, stderr)
+		}
+	}
+	if !strings.Contains(stderr, "Next steps:") {
+		t.Fatalf("stderr missing install follow-up suggestions:\n%s", stderr)
+	}
+}
+
+func TestBuildCommandInstallJSONFormat(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go command not available")
+	}
+
+	root := t.TempDir()
+	chdirForTest(t, root)
+	t.Setenv("OPPATH", filepath.Join(root, ".runtime"))
+	t.Setenv("OPBIN", filepath.Join(root, ".runtime", "bin"))
+
+	writeProtoInstallFixture(t, root, "demo-proto")
+
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = Run([]string{"--format", "json", "build", "demo-proto", "--install"}, "0.1.0-test")
+	})
+	if code != 0 {
+		t.Fatalf("build --install --format json returned %d, want 0\nstdout=%s\nstderr=%s", code, stdout, stderr)
+	}
+
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("stderr not empty for json build --install: %q", stderr)
+	}
+	var payload struct {
+		Build struct {
+			Operation string `json:"operation"`
+		} `json:"build"`
+		Install struct {
+			Operation string `json:"operation"`
+			Installed string `json:"installed"`
+		} `json:"install"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("stdout is not valid json: %v\noutput=%s", err, stdout)
+	}
+	if payload.Build.Operation != "build" {
+		t.Fatalf("build.operation = %q, want build", payload.Build.Operation)
+	}
+	if payload.Install.Operation != "install" {
+		t.Fatalf("install.operation = %q, want install", payload.Install.Operation)
+	}
+	if payload.Install.Installed != filepath.Join(root, ".runtime", "bin", "demo-proto.holon") {
+		t.Fatalf("install.installed = %q, want %q", payload.Install.Installed, filepath.Join(root, ".runtime", "bin", "demo-proto.holon"))
+	}
+}
+
+func TestCompletionRunSuppressesDirectiveAndNormalizesInstalledPackageName(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+
+	opbin := filepath.Join(root, ".runtime", "bin")
+	t.Setenv("OPPATH", filepath.Join(root, ".runtime"))
+	t.Setenv("OPBIN", opbin)
+
+	if err := os.MkdirAll(filepath.Join(opbin, "grace-op.holon"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		code := Run([]string{"__complete", "run", "gr"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("__complete returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, "grace-op") {
+		t.Fatalf("stdout missing normalized completion candidate: %q", stdout)
+	}
+	if strings.Contains(stdout, "grace-op.holon") {
+		t.Fatalf("stdout should not contain raw package name: %q", stdout)
+	}
+	if strings.Contains(stderr, "Completion ended with directive:") {
+		t.Fatalf("stderr should not leak completion directive text: %q", stderr)
+	}
+}
+
+func TestCompletionBuildIncludesLocalAlias(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	t.Setenv("OPPATH", filepath.Join(root, ".runtime"))
+	t.Setenv("OPBIN", filepath.Join(root, ".runtime", "bin"))
+
+	writeProtoInstallFixtureWithAliases(t, filepath.Join(root, "holons"), "grace-op", "op")
+
+	stdout, stderr := captureOutput(t, func() {
+		code := Run([]string{"__complete", "build", "o"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("__complete build returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, "op") {
+		t.Fatalf("stdout missing local alias completion: %q", stdout)
+	}
+	if strings.Contains(stderr, "Completion ended with directive:") {
+		t.Fatalf("stderr should not leak completion directive text: %q", stderr)
+	}
+}
+
+func TestCompletionBuildIncludesInstalledPackageEntrypointFallback(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+
+	oppath := filepath.Join(root, ".runtime")
+	opbin := filepath.Join(oppath, "bin")
+	t.Setenv("OPPATH", oppath)
+	t.Setenv("OPBIN", opbin)
+
+	packageDir := filepath.Join(opbin, "grace-op.holon")
+	binaryPath := filepath.Join(packageDir, "bin", runtime.GOOS+"_"+runtime.GOARCH, "op")
+	if err := os.MkdirAll(filepath.Dir(binaryPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(binaryPath, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageDir, ".holon.json"), []byte(`{
+  "schema": "holon-package/v1",
+  "slug": "grace-op",
+  "uuid": "28f22ab5-c62d-41f8-9ada-e34333060ff9",
+  "identity": {
+    "given_name": "Grace",
+    "family_name": "OP",
+    "motto": "One command, every holon."
+  },
+  "entrypoint": "op"
+}
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		code := Run([]string{"__complete", "build", "o"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("__complete build returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, "op") {
+		t.Fatalf("stdout missing installed package entrypoint completion: %q", stdout)
+	}
+	if strings.Contains(stderr, "Completion ended with directive:") {
+		t.Fatalf("stderr should not leak completion directive text: %q", stderr)
+	}
+}
+
+func TestCompletionBuildAfterPositionalIncludesFlags(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		code := Run([]string{"__complete", "build", "grace-op", ""}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("__complete build grace-op returned %d, want 0", code)
+		}
+	})
+
+	for _, want := range []string{"--clean", "--install", "--target", "--format"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing flag completion %q: %q", want, stdout)
+		}
+	}
+	if strings.Contains(stderr, "Completion ended with directive:") {
+		t.Fatalf("stderr should not leak completion directive text: %q", stderr)
+	}
+}
+
+func TestInvokeCommandDispatchesHolonRPC(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	seedEchoHolon(t, root)
+
+	stdout := captureStdout(t, func() {
+		code := Run([]string{"invoke", "echo-server", "Ping", `{"message":"Alice"}`}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("invoke returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, `"message": "Alice"`) {
+		t.Fatalf("stdout missing echoed payload: %q", stdout)
+	}
+}
+
+func TestInvokeCommandCompletesHolonNames(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	seedEchoHolon(t, root)
+
+	stdout, stderr := captureOutput(t, func() {
+		code := Run([]string{"__complete", "invoke", "ec"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("__complete invoke returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, "echo-server") {
+		t.Fatalf("stdout missing invoke holon completion: %q", stdout)
+	}
+	if strings.Contains(stderr, "Completion ended with directive:") {
+		t.Fatalf("stderr should not leak completion directive text: %q", stderr)
+	}
+}
+
+func TestInvokeCommandCompletesMethodsFromLocalInspect(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	seedEchoHolon(t, root)
+
+	stdout := captureStdout(t, func() {
+		code := Run([]string{"__complete", "invoke", "echo-server", "Pi"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("__complete invoke methods returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, "Ping") {
+		t.Fatalf("stdout missing invoke method completion: %q", stdout)
+	}
+}
+
+func TestInvokeCommandCompletesMethodsFromDescribe(t *testing.T) {
+	address := startDescribeServer(t, &holonsv1.DescribeResponse{
+		Manifest: &holonsv1.HolonManifest{
+			Identity: &holonsv1.HolonManifest_Identity{
+				GivenName:  "Gabriel",
+				FamilyName: "Greeting",
+			},
+		},
+		Services: []*holonsv1.ServiceDoc{
+			{
+				Name: "greeting.v1.GreetingService",
+				Methods: []*holonsv1.MethodDoc{
+					{
+						Name:       "SayHello",
+						InputType:  "greeting.v1.SayHelloRequest",
+						OutputType: "greeting.v1.SayHelloResponse",
+					},
+				},
+			},
+		},
+	})
+
+	stdout := captureStdout(t, func() {
+		code := Run([]string{"__complete", "invoke", "grpc://" + address, "Sa"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("__complete invoke grpc methods returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, "SayHello") {
+		t.Fatalf("stdout missing describe-backed invoke completion: %q", stdout)
+	}
+}
+
+func TestInvokeCommandDoesNotCompletePayloadPlaceholder(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	seedEchoHolon(t, root)
+
+	stdout, stderr := captureOutput(t, func() {
+		code := Run([]string{"__complete", "invoke", "echo-server", "Ping", ""}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("__complete invoke payload returned %d, want 0", code)
+		}
+	})
+
+	if strings.Contains(stdout, "{") {
+		t.Fatalf("stdout should not suggest a JSON payload placeholder: %q", stdout)
+	}
+	if strings.Contains(stderr, "Completion ended with directive:") {
+		t.Fatalf("stderr should not leak completion directive text: %q", stderr)
+	}
+}
+
+func TestCompletionWithGlobalFlagSuppressesDirectiveText(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+	seedEchoHolon(t, root)
+
+	stdout, stderr := captureOutput(t, func() {
+		code := Run([]string{"--root", root, "__complete", "invoke", "echo-server", "Pi"}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("completion with --root returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, "Ping") {
+		t.Fatalf("stdout missing method completion: %q", stdout)
+	}
+	if strings.Contains(stderr, "Completion ended with directive:") {
+		t.Fatalf("stderr should not leak completion directive text: %q", stderr)
 	}
 }
 
@@ -2679,6 +3055,10 @@ func executableSuffixForRunTest() string {
 }
 
 func writeProtoInstallFixture(t *testing.T, root, name string) string {
+	return writeProtoInstallFixtureWithAliases(t, root, name)
+}
+
+func writeProtoInstallFixtureWithAliases(t *testing.T, root, name string, aliases ...string) string {
 	t.Helper()
 
 	dir := filepath.Join(root, name)
@@ -2696,6 +3076,21 @@ func writeProtoInstallFixture(t *testing.T, root, name string) string {
 	}
 	writeCLISharedManifestProto(t, root)
 
+	aliasBlock := ""
+	if len(aliases) > 0 {
+		quoted := make([]string, 0, len(aliases))
+		for _, alias := range aliases {
+			alias = strings.TrimSpace(alias)
+			if alias == "" {
+				continue
+			}
+			quoted = append(quoted, fmt.Sprintf("%q", alias))
+		}
+		if len(quoted) > 0 {
+			aliasBlock = "    aliases: [" + strings.Join(quoted, ", ") + "]\n"
+		}
+	}
+
 	proto := fmt.Sprintf(`syntax = "proto3";
 
 package test.v1;
@@ -2709,6 +3104,7 @@ import "holons/v1/manifest.proto";
 	    given_name: "Demo"
 	    family_name: "Proto"
 	    motto: "Proto-backed install fixture."
+%s
 	    composer: "test"
 	    status: "draft"
 	    born: "2026-03-15"
@@ -2727,7 +3123,7 @@ import "holons/v1/manifest.proto";
 	    binary: "%s"
 	  }
 	};
-`, name, name, name)
+`, name, aliasBlock, name, name)
 	if err := os.WriteFile(filepath.Join(dir, "api", "v1", "holon.proto"), []byte(proto), 0o644); err != nil {
 		t.Fatal(err)
 	}

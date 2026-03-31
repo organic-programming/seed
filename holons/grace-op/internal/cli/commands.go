@@ -37,247 +37,6 @@ type commandRuntimeOptions struct {
 	origin  bool
 }
 
-// Run dispatches the command and returns an exit code.
-func Run(args []string, version string) int {
-	gopts, args, err := parseGlobalOptions(args)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op: %v\n", err)
-		return 1
-	}
-	format := gopts.format
-	quiet := gopts.quiet
-	runtimeOpts := commandRuntimeOptions{
-		quiet:   quiet,
-		timeout: gopts.timeout,
-		origin:  gopts.origin,
-	}
-
-	// Apply --root override via env var so all discovery paths see it.
-	if gopts.root != "" {
-		os.Setenv("OPROOT", gopts.root)
-	}
-
-	// --bin <slug>: print the resolved binary path and exit.
-	if gopts.bin {
-		if len(args) == 0 {
-			fmt.Fprintln(os.Stderr, "op: --bin requires a holon slug")
-			return 1
-		}
-		binaryPath, err := holons.ResolveBinary(args[0])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "op: %v\n", err)
-			return 1
-		}
-		if len(args) == 1 {
-			fmt.Println(binaryPath)
-			return 0
-		}
-		fmt.Fprintf(os.Stderr, "bin: %s\n", binaryPath)
-	}
-
-	if len(args) == 0 {
-		PrintUsage()
-		return 1
-	}
-
-	cmd := args[0]
-	rest := args[1:]
-
-	switch cmd {
-	// --- OP's own commands ---
-	case "check":
-		return cmdLifecycle(format, runtimeOpts, holons.OperationCheck, rest)
-	case "build":
-		return cmdLifecycle(format, runtimeOpts, holons.OperationBuild, rest)
-	case "test":
-		return cmdLifecycle(format, runtimeOpts, holons.OperationTest, rest)
-	case "clean":
-		return cmdLifecycle(format, runtimeOpts, holons.OperationClean, rest)
-	case "install":
-		return cmdInstall(format, runtimeOpts, rest)
-	case "uninstall":
-		return cmdUninstall(format, runtimeOpts, rest)
-	case "mod":
-		return cmdMod(format, quiet, rest)
-	case "run":
-		return cmdRun(format, runtimeOpts, rest)
-	case "discover":
-		return cmdDiscover(format)
-	case "inspect":
-		return cmdInspect(format, runtimeOpts, rest)
-	case "do":
-		return cmdDo(format, runtimeOpts, rest)
-	case "mcp":
-		return cmdMCP(runtimeOpts, rest, version)
-	case "tools":
-		return cmdTools(format, runtimeOpts, rest)
-	case "env":
-		return cmdEnv(format, rest)
-	case "serve":
-		return cmdServe(rest)
-	case "version":
-		fmt.Printf("op %s\n", version)
-		return 0
-	case "completion":
-		return cmdCompletion(rest)
-	case "__complete":
-		return cmdComplete(rest)
-	case "help":
-		return cmdHelp(rest)
-	case "--help", "-h":
-		PrintUsage()
-		return 0
-	case "new", "list", "show":
-		return cmdWho(format, runtimeOpts, cmd, rest)
-
-	// --- URI dispatch: grpc://, tcp://, stdio://, unix://, ws://, http://, https:// ---
-	default:
-		if strings.HasPrefix(cmd, "grpc://") ||
-			strings.HasPrefix(cmd, "tcp://") ||
-			strings.HasPrefix(cmd, "stdio://") ||
-			strings.HasPrefix(cmd, "unix://") ||
-			strings.HasPrefix(cmd, "ws://") ||
-			strings.HasPrefix(cmd, "wss://") ||
-			strings.HasPrefix(cmd, "http://") ||
-			strings.HasPrefix(cmd, "https://") {
-			return cmdGRPC(format, cmd, rest)
-		}
-		// Direct binary dispatch: if cmd is an existing executable file,
-		// launch it directly without discovery.
-		if isExecutableFile(cmd) {
-			return cmdDirectBinary(format, cmd, rest)
-		}
-		return cmdHolon(format, runtimeOpts, cmd, rest)
-	}
-}
-
-// PrintUsage displays the help text.
-func PrintUsage() {
-	fmt.Print(`op — the Organic Programming CLI
-
-Global flags (must come before <holon> or URI):
-  -f, --format <text|json>              output format for RPC responses (default: text)
-  -q, --quiet                           suppress progress and suggestions
-  --root <path>                         override discovery root (default: cwd)
-  --bin <slug>                          print the resolved binary path and exit
-
-Holon dispatch (transport chain):
-  op <holon> <command> [args]            dispatch via the SDK auto-connect chain
-  op <holon> --clean <method> [--no-build] [json]
-  op <holon> <method> [--no-build] [json]
-                                         call a holon RPC; auto-build compiled slugs if needed
-  op <binary-path> <method> [json]       call an executable directly (no discovery)
-
-Direct gRPC URI dispatch:
-  op grpc://<slug|host:port> <method>    gRPC auto-connect for slugs, direct TCP for host:port
-  op tcp://<slug|host:port> <method>     force gRPC over TCP
-  op stdio://<holon> <method>            force gRPC over stdio pipe (ephemeral)
-  op unix://<path> <method>              gRPC over Unix socket
-  op ws://<host:port> <method>           gRPC over WebSocket
-  op wss://<host:port> <method>          gRPC over secure WebSocket
-  op http://<host:port> <method>         gRPC over HTTP REST + SSE
-  op https://<host:port> <method>        gRPC over secure HTTP REST + SSE
-  op run <holon> [flags]                 build if needed, then launch in foreground
-  op run <holon>:<port>                  shorthand for --listen tcp://:<port>
-
-OP commands:
-  op list [root]                         list local + cached holons natively
-  op show <uuid-or-prefix>               display a holon identity natively
-  op new [--json <payload>]              create a holon identity natively
-  op new --list                          list shipped holon templates
-  op new --template <name> <holon-name>  generate a holon scaffold from a template
-  op inspect <slug|host:port> [--json]   inspect a holon's API offline or via Describe
-  op do <holon> <sequence> [--param=value ...]
-                                         run a declared manifest sequence
-  op mcp <slug> [slug2...]               start an MCP server for one or more holons
-  op mcp <tcp://host:port>               start an MCP server for a running gRPC server
-  op tools <slug> [--format <fmt>]       output tool definitions (openai, anthropic, mcp)
-  op check [<holon-or-path>]             validate the holon manifest and prerequisites
-  op build [<holon-or-path>] [flags]     build a holon artifact via its runner
-  op test [<holon-or-path>]              run a holon's test contract
-  op clean [<holon-or-path>]             remove .op/ build outputs
-  op install [<holon-or-path>] [flags]   install a pre-built artifact into $OPBIN
-  op uninstall <holon>                   remove an installed artifact from $OPBIN
-  op mod <command>                       manage holon.mod and holon.sum
-  op env [--init] [--shell]              print resolved OPPATH / OPBIN / ROOT
-
-Build flags:
-  --clean                                      clean before building (cannot be combined with --dry-run)
-  --target <macos|linux|windows|ios|ios-simulator|tvos|tvos-simulator|watchos|watchos-simulator|visionos|visionos-simulator|android|all>   platform target (default: current OS)
-  --mode <debug|release|profile>               build mode (default: debug)
-  --dry-run                                    print resolved plan, do not execute
-  --no-sign                                    skip automatic ad-hoc signing for bundle artifacts
-
-Install flags:
-  --build                                      build before installing (default: install pre-built artifact as-is)
-  --link-applications                          symlink installed .app bundles into /Applications (macOS only)
-
-Run flags:
-  --clean                                      clean before building and running (cannot be combined with --no-build)
-  --listen <URI>                               listen address for service holons (default: tcp://127.0.0.1:0)
-  --no-build                                   fail if the artifact is missing instead of building
-  --target <...>                               pass build target through if a build is needed
-  --mode <debug|release|profile>               pass build mode through if a build is needed
-
-Dispatch flag:
-  --clean                                      clean the slug target before auto-building and calling
-  --no-build                                   fail if a slug-based RPC target is missing its built binary
-
-  op discover                            list available holons
-  op serve [--listen tcp://:9090]        start OP's own gRPC server
-  op version                             show op version
-  op help [command]                      this message or topic help (build, run)
-`)
-}
-
-func cmdHelp(args []string) int {
-	if len(args) == 0 {
-		PrintUsage()
-		return 0
-	}
-
-	switch strings.ToLower(strings.TrimSpace(args[0])) {
-	case "build":
-		printBuildHelp()
-		return 0
-	case "run":
-		printRunHelp()
-		return 0
-	default:
-		fmt.Fprintf(os.Stderr, "op help: unknown topic %q\n", args[0])
-		return 1
-	}
-}
-
-func printBuildHelp() {
-	fmt.Print(`op build [<holon-or-path>] [flags]
-
-Build a holon artifact via its runner.
-
-Flags:
-  --clean                                      clean before building (cannot be combined with --dry-run)
-  --target <macos|linux|windows|ios|ios-simulator|tvos|tvos-simulator|watchos|watchos-simulator|visionos|visionos-simulator|android|all>   platform target (default: current OS)
-  --mode <debug|release|profile>               build mode (default: debug)
-  --dry-run                                    print resolved plan, do not execute
-  --no-sign                                    skip automatic ad-hoc signing for bundle artifacts
-`)
-}
-
-func printRunHelp() {
-	fmt.Print(`op run <holon> [flags]
-op run <holon>:<port>
-
-Build a holon if needed, then launch it in the foreground.
-
-Flags:
-  --clean                                      clean before building and running (cannot be combined with --no-build)
-  --listen <URI>                               listen address for service holons (default: tcp://127.0.0.1:0)
-  --no-build                                   fail if the artifact is missing instead of building
-  --target <...>                               pass build target through if a build is needed
-  --mode <debug|release|profile>               pass build mode through if a build is needed
-`)
-}
-
 // --- OP's own commands ---
 
 type discoverEntry struct {
@@ -1430,13 +1189,23 @@ type internalGlobalOptions struct {
 	format  Format
 	quiet   bool
 	root    string
-	bin     bool
+	path    string
+	opbin   string
+	bin     string
 	timeout int
 	origin  bool
 }
 
 func parseGlobalOptions(args []string) (internalGlobalOptions, []string, error) {
-	opts := internalGlobalOptions{format: FormatText}
+	return parseGlobalOptionsConfigured(args, internalGlobalOptions{format: FormatText}, globalParseConfig{consumeFormat: true})
+}
+
+type globalParseConfig struct {
+	consumeFormat bool
+}
+
+func parseGlobalOptionsConfigured(args []string, defaults internalGlobalOptions, cfg globalParseConfig) (internalGlobalOptions, []string, error) {
+	opts := defaults
 	var remaining []string
 	i := 0
 	for i < len(args) {
@@ -1445,7 +1214,13 @@ func parseGlobalOptions(args []string) (internalGlobalOptions, []string, error) 
 			opts.quiet = true
 			i++
 		case args[i] == "--bin":
-			opts.bin = true
+			if i+1 >= len(args) {
+				return internalGlobalOptions{}, nil, fmt.Errorf("--bin requires a slug")
+			}
+			opts.bin = args[i+1]
+			i += 2
+		case strings.HasPrefix(args[i], "--bin="):
+			opts.bin = strings.TrimPrefix(args[i], "--bin=")
 			i++
 		case args[i] == "--origin":
 			opts.origin = true
@@ -1458,6 +1233,24 @@ func parseGlobalOptions(args []string) (internalGlobalOptions, []string, error) 
 			i += 2
 		case strings.HasPrefix(args[i], "--root="):
 			opts.root = strings.TrimPrefix(args[i], "--root=")
+			i++
+		case args[i] == "--path":
+			if i+1 >= len(args) {
+				return internalGlobalOptions{}, nil, fmt.Errorf("--path requires a value")
+			}
+			opts.path = args[i+1]
+			i += 2
+		case strings.HasPrefix(args[i], "--path="):
+			opts.path = strings.TrimPrefix(args[i], "--path=")
+			i++
+		case args[i] == "--opbin":
+			if i+1 >= len(args) {
+				return internalGlobalOptions{}, nil, fmt.Errorf("--opbin requires a value")
+			}
+			opts.opbin = args[i+1]
+			i += 2
+		case strings.HasPrefix(args[i], "--opbin="):
+			opts.opbin = strings.TrimPrefix(args[i], "--opbin=")
 			i++
 		case args[i] == "--timeout":
 			if i+1 >= len(args) {
@@ -1476,7 +1269,7 @@ func parseGlobalOptions(args []string) (internalGlobalOptions, []string, error) 
 			}
 			opts.timeout = value
 			i++
-		case args[i] == "--format" || args[i] == "-f":
+		case cfg.consumeFormat && (args[i] == "--format" || args[i] == "-f"):
 			if i+1 >= len(args) {
 				return internalGlobalOptions{}, nil, fmt.Errorf("%s requires a value (text or json)", args[i])
 			}
@@ -1488,7 +1281,7 @@ func parseGlobalOptions(args []string) (internalGlobalOptions, []string, error) 
 			}
 			opts.format = parsed
 			i += 2
-		case strings.HasPrefix(args[i], "--format="):
+		case cfg.consumeFormat && strings.HasPrefix(args[i], "--format="):
 			parsed, err := parseFormat(strings.TrimPrefix(args[i], "--format="))
 			if err != nil {
 				remaining = append(remaining, args[i])
@@ -1497,7 +1290,7 @@ func parseGlobalOptions(args []string) (internalGlobalOptions, []string, error) 
 			}
 			opts.format = parsed
 			i++
-		case strings.HasPrefix(args[i], "-f="):
+		case cfg.consumeFormat && strings.HasPrefix(args[i], "-f="):
 			parsed, err := parseFormat(strings.TrimPrefix(args[i], "-f="))
 			if err != nil {
 				remaining = append(remaining, args[i])

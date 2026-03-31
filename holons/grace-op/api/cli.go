@@ -120,10 +120,6 @@ func (c cliState) run(args []string) int {
 	case "version":
 		fmt.Fprintf(c.stdout, "op %s\n", c.version)
 		return 0
-	case "completion":
-		return c.runCompletionCommand(rest)
-	case "__complete":
-		return c.runCompleteCommand(rest)
 	case "help", "--help", "-h":
 		c.printUsage()
 		return 0

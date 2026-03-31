@@ -75,6 +75,7 @@ artifacts:
 	if err != nil {
 		t.Fatalf("LoadManifest failed: %v", err)
 	}
+	manifest.Manifest.Aliases = []string{"demo"}
 
 	if err := os.MkdirAll(filepath.Dir(manifest.BinaryPath()), 0o755); err != nil {
 		t.Fatal(err)
@@ -111,6 +112,9 @@ artifacts:
 	}
 	if payload.UUID != "12345678-1234-1234-1234-1234567890ab" {
 		t.Fatalf("UUID = %q", payload.UUID)
+	}
+	if got, want := payload.Aliases, []string{"demo"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("Aliases = %v, want %v", got, want)
 	}
 	if payload.Identity.GivenName != "Demo" || payload.Identity.FamilyName != "Holon" || payload.Identity.Motto != "A packaged test holon." {
 		t.Fatalf("Identity = %#v", payload.Identity)

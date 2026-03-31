@@ -148,6 +148,16 @@ func ListMethods(address string) ([]string, error) {
 	}
 	defer conn.Close()
 
+	return ListMethodsConn(ctx, conn)
+}
+
+// ListMethodsConn returns all available service methods over an existing
+// gRPC connection.
+func ListMethodsConn(ctx context.Context, conn *grpc.ClientConn) ([]string, error) {
+	if conn == nil {
+		return nil, errors.New("gRPC connection is required")
+	}
+
 	if methods, err := listMethodsViaDescribe(ctx, conn); err == nil {
 		return methods, nil
 	} else if !shouldFallbackToReflection(err) {

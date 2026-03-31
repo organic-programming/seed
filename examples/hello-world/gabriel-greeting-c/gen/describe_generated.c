@@ -2,6 +2,48 @@
 
 #include "holons/holons.h"
 
+static holons_field_doc_t holons_generated_fields_4[] = {
+  {
+    .name = "code",
+    .type = "string",
+    .number = 1,
+    .description = "ISO 639-1 code advertised by the daemon.",
+    .label = HOLONS_FIELD_LABEL_OPTIONAL,
+    .nested_fields = NULL,
+    .nested_field_count = 0,
+    .enum_values = NULL,
+    .enum_value_count = 0,
+    .required = 1,
+    .example = "\"fr\"",
+  },
+  {
+    .name = "name",
+    .type = "string",
+    .number = 2,
+    .description = "English display name for the language.",
+    .label = HOLONS_FIELD_LABEL_OPTIONAL,
+    .nested_fields = NULL,
+    .nested_field_count = 0,
+    .enum_values = NULL,
+    .enum_value_count = 0,
+    .required = 1,
+    .example = "\"French\"",
+  },
+  {
+    .name = "native",
+    .type = "string",
+    .number = 3,
+    .description = "Native label shown to end users.",
+    .label = HOLONS_FIELD_LABEL_OPTIONAL,
+    .nested_fields = NULL,
+    .nested_field_count = 0,
+    .enum_values = NULL,
+    .enum_value_count = 0,
+    .required = 1,
+    .example = "\"Français\"",
+  }
+};
+
 static holons_field_doc_t holons_generated_fields_3[] = {
   {
     .name = "languages",
@@ -9,15 +51,15 @@ static holons_field_doc_t holons_generated_fields_3[] = {
     .number = 1,
     .description = "Languages exposed by the daemon.",
     .label = HOLONS_FIELD_LABEL_REPEATED,
-    .nested_fields = NULL,
-    .nested_field_count = 0,
+    .nested_fields = holons_generated_fields_4,
+    .nested_field_count = 3,
     .enum_values = NULL,
     .enum_value_count = 0,
     .required = 0,
   }
 };
 
-static holons_field_doc_t holons_generated_fields_4[] = {
+static holons_field_doc_t holons_generated_fields_5[] = {
   {
     .name = "name",
     .type = "string",
@@ -46,7 +88,7 @@ static holons_field_doc_t holons_generated_fields_4[] = {
   }
 };
 
-static holons_field_doc_t holons_generated_fields_5[] = {
+static holons_field_doc_t holons_generated_fields_6[] = {
   {
     .name = "greeting",
     .type = "string",
@@ -107,9 +149,9 @@ static holons_method_doc_t holons_generated_methods_2[] = {
     .description = "Greets the user in the chosen language.",
     .input_type = "greeting.v1.SayHelloRequest",
     .output_type = "greeting.v1.SayHelloResponse",
-    .input_fields = holons_generated_fields_4,
+    .input_fields = holons_generated_fields_5,
     .input_field_count = 2,
-    .output_fields = holons_generated_fields_5,
+    .output_fields = holons_generated_fields_6,
     .output_field_count = 3,
     .client_streaming = 0,
     .server_streaming = 0,

@@ -98,9 +98,13 @@ func parseConnectedRPCArgs(args []string) (method string, inputJSON string, noBu
 }
 
 func connectForRPC(holonName string, transport string) (activeConnection, error) {
+	return connectForRPCWithTimeout(holonName, transport, connectDispatchTimeout)
+}
+
+func connectForRPCWithTimeout(holonName string, transport string, timeout time.Duration) (activeConnection, error) {
 	root := openv.Root()
 	specifiers := sdkdiscover.ALL
-	timeoutMS := int(connectDispatchTimeout / time.Millisecond)
+	timeoutMS := int(timeout / time.Millisecond)
 
 	switch strings.ToLower(strings.TrimSpace(transport)) {
 	case "", "auto":
@@ -114,9 +118,9 @@ func connectForRPC(holonName string, transport string) (activeConnection, error)
 			origin:     result.Origin,
 		}, nil
 	case "stdio":
-		return connectForcedTransport(holonName, "stdio", &root, specifiers, connectDispatchTimeout)
+		return connectForcedTransport(holonName, "stdio", &root, specifiers, timeout)
 	case "tcp":
-		return connectForcedTransport(holonName, "tcp", &root, specifiers, connectDispatchTimeout)
+		return connectForcedTransport(holonName, "tcp", &root, specifiers, timeout)
 	default:
 		result := holons.ConnectRef(holonName, &root, specifiers, timeoutMS)
 		if result.Error != "" {

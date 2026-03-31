@@ -13,6 +13,7 @@ type HolonPackageJSON struct {
 	Schema        string            `json:"schema"`
 	Slug          string            `json:"slug"`
 	UUID          string            `json:"uuid"`
+	Aliases       []string          `json:"aliases,omitempty"`
 	Identity      HolonIdentityJSON `json:"identity"`
 	Lang          string            `json:"lang"`
 	Runner        string            `json:"runner"`
@@ -55,6 +56,9 @@ func writeHolonJSON(manifest *LoadedManifest) error {
 		Schema: "holon-package/v1",
 		Slug:   manifest.Name,
 		UUID:   strings.TrimSpace(manifest.Manifest.UUID),
+		Aliases: append([]string(nil),
+			manifest.Manifest.Aliases...,
+		),
 		Identity: HolonIdentityJSON{
 			GivenName:  strings.TrimSpace(manifest.Manifest.GivenName),
 			FamilyName: strings.TrimSpace(manifest.Manifest.FamilyName),
@@ -115,6 +119,9 @@ func writeHolonJSONForInstall(manifest *LoadedManifest, pkgDir string) error {
 		Schema: "holon-package/v1",
 		Slug:   manifest.Name,
 		UUID:   strings.TrimSpace(manifest.Manifest.UUID),
+		Aliases: append([]string(nil),
+			manifest.Manifest.Aliases...,
+		),
 		Identity: HolonIdentityJSON{
 			GivenName:  strings.TrimSpace(manifest.Manifest.GivenName),
 			FamilyName: strings.TrimSpace(manifest.Manifest.FamilyName),
@@ -138,4 +145,3 @@ func writeHolonJSONForInstall(manifest *LoadedManifest, pkgDir string) error {
 	data = append(data, '\n')
 	return os.WriteFile(filepath.Join(pkgDir, ".holon.json"), data, 0o644)
 }
-

@@ -21,6 +21,8 @@ type InstallOptions struct {
 	ResolveRoot       *string
 	ResolveSpecifiers int
 	ResolveTimeout    int
+	BuildTarget       string
+	BuildMode         string
 }
 
 type InstallReport struct {
@@ -52,7 +54,7 @@ func Install(ref string, opts InstallOptions) (InstallReport, error) {
 		}
 	}
 
-	target, err := ResolveTargetWithOptions(ref, opts.ResolveRoot, resolveSpecifiers, opts.ResolveTimeout)
+	target, err := resolveInstallTarget(ref, opts, resolveSpecifiers)
 	if err != nil {
 		return InstallReport{
 			Operation: "install",
@@ -66,7 +68,10 @@ func Install(ref string, opts InstallOptions) (InstallReport, error) {
 		return baseInstallReport("install", target, BuildContext{}), fmt.Errorf("no %s found in %s", identity.ProtoManifestFileName, target.RelativePath)
 	}
 
-	ctx, err := resolveBuildContext(target.Manifest, BuildOptions{})
+	ctx, err := resolveBuildContext(target.Manifest, BuildOptions{
+		Target: opts.BuildTarget,
+		Mode:   opts.BuildMode,
+	})
 	if err != nil {
 		return baseInstallReport("install", target, BuildContext{}), err
 	}
@@ -97,7 +102,11 @@ func Install(ref string, opts InstallOptions) (InstallReport, error) {
 				return report, fmt.Errorf("remove stale artifact %s: %w", report.Artifact, err)
 			}
 		}
-		_, buildErr := ExecuteLifecycle(OperationBuild, ref, BuildOptions{Progress: reporter})
+		_, buildErr := ExecuteLifecycle(OperationBuild, ref, BuildOptions{
+			Target:   opts.BuildTarget,
+			Mode:     opts.BuildMode,
+			Progress: reporter,
+		})
 		if buildErr != nil {
 			report.Notes = append(report.Notes, "build failed before install")
 			return report, buildErr
@@ -191,6 +200,28 @@ func Install(ref string, opts InstallOptions) (InstallReport, error) {
 	report.Installed = installedPath
 	report.Notes = append(report.Notes, "installed into "+installedPath)
 	return report, nil
+}
+
+func resolveInstallTarget(ref string, opts InstallOptions, resolveSpecifiers int) (*Target, error) {
+	target, err := ResolveTargetWithOptions(ref, opts.ResolveRoot, resolveSpecifiers, opts.ResolveTimeout)
+	if opts.Build || resolveSpecifiers&sdkdiscover.SOURCE != 0 {
+		return target, err
+	}
+	if err == nil && target != nil && target.ManifestErr == nil && target.Manifest != nil {
+		return target, nil
+	}
+	if err != nil && !isTargetNotFound(err) {
+		return nil, err
+	}
+
+	sourceTarget, sourceErr := ResolveTargetWithOptions(ref, opts.ResolveRoot, sdkdiscover.SOURCE, opts.ResolveTimeout)
+	if sourceErr != nil {
+		if err != nil {
+			return nil, err
+		}
+		return nil, sourceErr
+	}
+	return sourceTarget, nil
 }
 
 func Uninstall(ref string) (InstallReport, error) {

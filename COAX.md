@@ -75,7 +75,7 @@ $ op tcp://127.0.0.1:60000 Greet '{"name":"Bob"}'
    by gabriel-greeting-app-swiftui.
 
 3. **OP sends Describe RPC** — [client.go](./internal/grpcclient/client.go) → `InvokeConn`
-   tries `invokeViaDescribe` first.
+   tries `invokeViaDescribe` first  
    [describe_catalog.go](./internal/grpcclient/describe_catalog.go) → `fetchDescribeCatalog`
    calls `HolonMeta/Describe` on the organism.
 
