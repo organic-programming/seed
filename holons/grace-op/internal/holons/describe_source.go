@@ -1311,28 +1311,30 @@ func writeCPPFieldDoc(buf *strings.Builder, indent int, target string, field *ho
 		return
 	}
 
+	fieldVar := fmt.Sprintf("field_%d", indent)
+
 	writeCLine(buf, indent, "{")
-	writeCLine(buf, indent+1, "auto *field = "+target+";")
-	writeCPPStringSetter(buf, indent+1, "field", "set_name", field.GetName())
-	writeCPPStringSetter(buf, indent+1, "field", "set_type", field.GetType())
-	writeCPPInt32Setter(buf, indent+1, "field", "set_number", field.GetNumber())
-	writeCPPStringSetter(buf, indent+1, "field", "set_description", field.GetDescription())
-	writeCLine(buf, indent+1, fmt.Sprintf("field->set_label(static_cast<holons::v1::FieldLabel>(%d));", field.GetLabel()))
-	writeCPPStringSetter(buf, indent+1, "field", "set_map_key_type", field.GetMapKeyType())
-	writeCPPStringSetter(buf, indent+1, "field", "set_map_value_type", field.GetMapValueType())
+	writeCLine(buf, indent+1, "auto *"+fieldVar+" = "+target+";")
+	writeCPPStringSetter(buf, indent+1, fieldVar, "set_name", field.GetName())
+	writeCPPStringSetter(buf, indent+1, fieldVar, "set_type", field.GetType())
+	writeCPPInt32Setter(buf, indent+1, fieldVar, "set_number", field.GetNumber())
+	writeCPPStringSetter(buf, indent+1, fieldVar, "set_description", field.GetDescription())
+	writeCLine(buf, indent+1, fmt.Sprintf("%s->set_label(static_cast<holons::v1::FieldLabel>(%d));", fieldVar, field.GetLabel()))
+	writeCPPStringSetter(buf, indent+1, fieldVar, "set_map_key_type", field.GetMapKeyType())
+	writeCPPStringSetter(buf, indent+1, fieldVar, "set_map_value_type", field.GetMapValueType())
 	for _, nested := range field.GetNestedFields() {
-		writeCPPFieldDoc(buf, indent+1, "field->add_nested_fields()", nested)
+		writeCPPFieldDoc(buf, indent+1, fieldVar+"->add_nested_fields()", nested)
 	}
 	for _, value := range field.GetEnumValues() {
 		writeCLine(buf, indent+1, "{")
-		writeCLine(buf, indent+2, "auto *value = field->add_enum_values();")
+		writeCLine(buf, indent+2, "auto *value = "+fieldVar+"->add_enum_values();")
 		writeCPPStringSetter(buf, indent+2, "value", "set_name", value.GetName())
 		writeCPPInt32Setter(buf, indent+2, "value", "set_number", value.GetNumber())
 		writeCPPStringSetter(buf, indent+2, "value", "set_description", value.GetDescription())
 		writeCLine(buf, indent+1, "}")
 	}
-	writeCPPBoolSetter(buf, indent+1, "field", "set_required", field.GetRequired())
-	writeCPPStringSetter(buf, indent+1, "field", "set_example", field.GetExample())
+	writeCPPBoolSetter(buf, indent+1, fieldVar, "set_required", field.GetRequired())
+	writeCPPStringSetter(buf, indent+1, fieldVar, "set_example", field.GetExample())
 	writeCLine(buf, indent, "}")
 }
 

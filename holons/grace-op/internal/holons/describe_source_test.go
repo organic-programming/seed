@@ -438,6 +438,12 @@ func TestRenderDescribeTemplateFromCPPSDKBuildsStaticResponseSource(t *testing.T
 	if !strings.Contains(content, "static_cast<holons::v1::FieldLabel>(3)") {
 		t.Fatal("rendered output missing field label literal")
 	}
+	if strings.Contains(content, "auto *field = field->add_nested_fields();") {
+		t.Fatal("rendered output reused the nested field binding name")
+	}
+	if !strings.Contains(content, "auto *field_4 = field_3->add_nested_fields();") {
+		t.Fatal("rendered output missing nested field construction")
+	}
 }
 
 func TestRenderDescribeTemplateFromRustSDKBuildsStaticResponseSource(t *testing.T) {
