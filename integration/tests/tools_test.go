@@ -1,3 +1,5 @@
+// Tool export tests verify OpenAI, Anthropic, and MCP tool schemas for the
+// hello-world holons, including the default output shape.
 package integration
 
 import "testing"

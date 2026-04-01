@@ -1,3 +1,6 @@
+// Test harness helpers build one canonical op binary, mirror the sample
+// workspace under integration/.artifacts, and run every integration command
+// inside that isolated copy.
 package integration
 
 import (
@@ -13,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -26,9 +30,15 @@ const (
 )
 
 var (
-	opBinary    string
-	seedRoot    string
-	graceOpRoot string
+	opBinary          string
+	seedRoot          string
+	integrationRoot   string
+	artifactsBaseRoot string
+	artifactsRoot     string
+	tempBaseRoot      string
+	tempAliasRoot     string
+	workspaceRoot     string
+	graceOpRoot       string
 )
 
 type sandbox struct {
@@ -36,6 +46,7 @@ type sandbox struct {
 	OPPATH   string
 	OPBIN    string
 	CacheDir string
+	TMPDIR   string
 }
 
 type runOptions struct {
@@ -133,16 +144,43 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "resolve seed root: %v\n", err)
 		os.Exit(1)
 	}
+	integrationRoot = filepath.Join(seedRoot, "integration")
+	artifactsBaseRoot = filepath.Join(integrationRoot, ".artifacts")
+	artifactsRoot = filepath.Join(artifactsBaseRoot, "run-"+strconv.FormatInt(time.Now().UnixNano(), 10))
+	tempBaseRoot = filepath.Join(os.TempDir(), "seed-int-store-"+strconv.Itoa(os.Getpid()))
 	graceOpRoot = filepath.Join(seedRoot, "holons", "grace-op")
+
+	if err := resetArtifactsRoot(); err != nil {
+		fmt.Fprintf(os.Stderr, "prepare integration artifacts: %v\n", err)
+		os.Exit(1)
+	}
+	tempAliasRoot, err = ensureTempAlias(tempBaseRoot)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "prepare integration temp alias: %v\n", err)
+		os.Exit(1)
+	}
+	workspaceRoot, err = prepareWorkspaceMirror()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "prepare mirrored workspace: %v\n", err)
+		os.Exit(1)
+	}
 
 	opBinary, cleanup, err = buildCanonicalBinary()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "build canonical op: %v\n", err)
 		os.Exit(1)
 	}
-	defer cleanup()
-
-	os.Exit(m.Run())
+	code := m.Run()
+	if cleanup != nil {
+		cleanup()
+	}
+	if tempAliasRoot != "" && tempAliasRoot != tempBaseRoot {
+		_ = os.Remove(tempAliasRoot)
+	}
+	if tempBaseRoot != "" {
+		_ = os.RemoveAll(tempBaseRoot)
+	}
+	os.Exit(code)
 }
 
 func resolveSeedRoot() (string, error) {
@@ -154,37 +192,35 @@ func resolveSeedRoot() (string, error) {
 }
 
 func buildCanonicalBinary() (string, func(), error) {
-	tmpDir, err := os.MkdirTemp("", "op-integration-*")
-	if err != nil {
-		return "", nil, err
-	}
-
 	binaryName := "op"
 	if runtime.GOOS == "windows" {
 		binaryName += ".exe"
 	}
-	binaryPath := filepath.Join(tmpDir, binaryName)
+	binaryPath := filepath.Join(artifactsRoot, "bin", binaryName)
 
 	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/op")
 	cmd.Dir = graceOpRoot
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = append([]string{}, os.Environ()...)
+	cmd.Env = withEnvValue(cmd.Env, "GOCACHE", filepath.Join(artifactsRoot, "tool-cache", "go-build"))
+	cmd.Env = withEnvValue(cmd.Env, "GOMODCACHE", filepath.Join(artifactsRoot, "tool-cache", "go-mod"))
 	if err := cmd.Run(); err != nil {
-		_ = os.RemoveAll(tmpDir)
 		return "", nil, err
 	}
 
-	return binaryPath, func() { _ = os.RemoveAll(tmpDir) }, nil
+	return binaryPath, func() {}, nil
 }
 
 func newSandbox(t *testing.T) *sandbox {
 	t.Helper()
 
-	root := t.TempDir()
+	root := artifactTempDir(t, "sandboxes")
 	oppath := filepath.Join(root, ".op")
 	opbin := filepath.Join(oppath, "bin")
 	cacheDir := filepath.Join(oppath, "cache")
-	for _, dir := range []string{oppath, opbin, cacheDir} {
+	tmpDir := filepath.Join(root, "tmp")
+	for _, dir := range []string{oppath, opbin, cacheDir, tmpDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
@@ -195,6 +231,7 @@ func newSandbox(t *testing.T) *sandbox {
 		OPPATH:   oppath,
 		OPBIN:    opbin,
 		CacheDir: cacheDir,
+		TMPDIR:   tmpDir,
 	}
 }
 
@@ -224,7 +261,7 @@ func (s *sandbox) runOPWithOptions(t *testing.T, opts runOptions, args ...string
 	}
 	workDir := opts.WorkDir
 	if strings.TrimSpace(workDir) == "" {
-		workDir = seedRoot
+		workDir = defaultWorkspaceDir()
 	}
 
 	cmd := exec.CommandContext(ctx, binaryPath, fullArgs...)
@@ -266,7 +303,7 @@ func (s *sandbox) startProcess(t *testing.T, opts runOptions, args ...string) *p
 	}
 	workDir := opts.WorkDir
 	if strings.TrimSpace(workDir) == "" {
-		workDir = seedRoot
+		workDir = defaultWorkspaceDir()
 	}
 
 	cmd := exec.Command(binaryPath, fullArgs...)
@@ -305,6 +342,11 @@ func (s *sandbox) commandEnv(extra []string) []string {
 	env = append(env,
 		"OPPATH="+s.OPPATH,
 		"OPBIN="+s.OPBIN,
+		"GOCACHE="+filepath.Join(artifactsRoot, "tool-cache", "go-build"),
+		"GOMODCACHE="+filepath.Join(artifactsRoot, "tool-cache", "go-mod"),
+		"TMPDIR="+s.TMPDIR,
+		"TMP="+s.TMPDIR,
+		"TEMP="+s.TMPDIR,
 	)
 	env = append(env, extra...)
 	return env
@@ -315,7 +357,7 @@ func commandArgs(opts runOptions, args ...string) []string {
 	if !opts.SkipDiscoverRoot {
 		root := strings.TrimSpace(opts.DiscoverRoot)
 		if root == "" {
-			root = seedRoot
+			root = defaultWorkspaceDir()
 		}
 		fullArgs = append(fullArgs, "--root", root)
 	}
@@ -528,7 +570,7 @@ func reportPath(path string) string {
 	if filepath.IsAbs(path) {
 		return path
 	}
-	return filepath.Join(seedRoot, filepath.FromSlash(path))
+	return filepath.Join(defaultWorkspaceDir(), filepath.FromSlash(path))
 }
 
 func buildReportFor(t *testing.T, sb *sandbox, slug string, extraArgs ...string) lifecycleReport {
@@ -649,4 +691,160 @@ func skipIfShort(t *testing.T, reason string) {
 	if testing.Short() {
 		t.Skip(reason)
 	}
+}
+
+func defaultWorkspaceDir() string {
+	if strings.TrimSpace(workspaceRoot) != "" {
+		return workspaceRoot
+	}
+	return seedRoot
+}
+
+func resetArtifactsRoot() error {
+	if strings.TrimSpace(artifactsRoot) == "" {
+		return fmt.Errorf("artifacts root not set")
+	}
+	for _, dir := range []string{
+		artifactsBaseRoot,
+		artifactsRoot,
+		filepath.Join(artifactsRoot, "bin"),
+		filepath.Join(artifactsRoot, "sandboxes"),
+		filepath.Join(artifactsRoot, "tool-cache"),
+		tempBaseRoot,
+	} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func prepareWorkspaceMirror() (string, error) {
+	root := filepath.Join(artifactsRoot, "workspace")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return "", err
+	}
+	for _, rel := range []string{"examples", "sdk"} {
+		src := filepath.Join(seedRoot, rel)
+		dst := filepath.Join(root, rel)
+		if err := copyTree(src, dst); err != nil {
+			return "", fmt.Errorf("copy %s: %w", rel, err)
+		}
+	}
+	return root, nil
+}
+
+func copyTree(srcRoot, dstRoot string) error {
+	return filepath.Walk(srcRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		rel, err := filepath.Rel(srcRoot, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dstRoot, rel)
+		if shouldSkipMirrorPath(filepath.ToSlash(filepath.Join(filepath.Base(srcRoot), rel)), info) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		switch {
+		case info.Mode()&os.ModeSymlink != 0:
+			target, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			return os.Symlink(target, dstPath)
+		case info.IsDir():
+			return os.MkdirAll(dstPath, info.Mode().Perm())
+		default:
+			return copyFile(path, dstPath, info.Mode())
+		}
+	})
+}
+
+func shouldSkipMirrorPath(rel string, info os.FileInfo) bool {
+	if rel == "." {
+		return false
+	}
+
+	base := info.Name()
+	if info.IsDir() {
+		switch base {
+		case ".git", ".gradle", ".kotlin", ".build", "build", "target", "node_modules", "__pycache__":
+			return true
+		}
+	}
+
+	clean := strings.Trim(filepath.ToSlash(rel), "/")
+	parts := strings.Split(clean, "/")
+	if len(parts) == 3 && parts[0] == "sdk" && parts[2] == "bin" && info.IsDir() {
+		return true
+	}
+
+	return false
+}
+
+func copyFile(srcPath, dstPath string, mode os.FileMode) error {
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
+		return err
+	}
+
+	src, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	dst, err := os.OpenFile(dstPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode.Perm())
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(dst, src); err != nil {
+		_ = dst.Close()
+		return err
+	}
+	return dst.Close()
+}
+
+func artifactTempDir(t *testing.T, category string) string {
+	t.Helper()
+
+	root := filepath.Join(artifactsRoot, category)
+	if category == "sandboxes" && strings.TrimSpace(tempAliasRoot) != "" {
+		root = filepath.Join(tempAliasRoot, "sb")
+	}
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("mkdir artifact temp root %s: %v", root, err)
+	}
+
+	prefix := "tmp-"
+	dir, err := os.MkdirTemp(root, prefix)
+	if err != nil {
+		t.Fatalf("mkdtemp %s: %v", root, err)
+	}
+	return dir
+}
+
+func ensureTempAlias(target string) (string, error) {
+	if strings.TrimSpace(target) == "" {
+		return "", fmt.Errorf("temp alias target not set")
+	}
+	if runtime.GOOS == "windows" {
+		return target, nil
+	}
+
+	alias := filepath.Join(integrationRoot, ".t")
+	if err := os.RemoveAll(alias); err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+	if err := os.Symlink(target, alias); err != nil {
+		return "", err
+	}
+	return alias, nil
 }

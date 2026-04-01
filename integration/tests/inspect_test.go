@@ -1,3 +1,5 @@
+// Inspect tests verify local and remote Describe output for built holons,
+// including the hello-world skills and sequences surfaced by inspect.
 package integration
 
 import (

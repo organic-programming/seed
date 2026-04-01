@@ -1,3 +1,5 @@
+// Installed-binary smoke tests validate that a PATH-provided op binary still
+// works against the mirrored integration workspace.
 package integration
 
 import (

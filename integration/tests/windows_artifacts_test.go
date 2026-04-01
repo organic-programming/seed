@@ -1,5 +1,7 @@
 //go:build windows
 
+// Windows-only artifact tests verify executable naming and install paths in the
+// lifecycle reports produced by the real CLI.
 package integration
 
 import (

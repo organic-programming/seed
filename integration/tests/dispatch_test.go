@@ -1,3 +1,5 @@
+// Dispatch tests call real holon RPC methods through the direct CLI target
+// syntax across the local transport matrix.
 package integration
 
 import (

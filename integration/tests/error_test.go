@@ -1,3 +1,5 @@
+// Error tests verify that invalid targets, payloads, and conflicting flags fail
+// cleanly when routed through the real op binary.
 package integration
 
 import "testing"

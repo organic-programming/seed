@@ -1,3 +1,5 @@
+// Install tests build, install, and uninstall hello-world holons and check the
+// expected failure paths around missing artifacts.
 package integration
 
 import (

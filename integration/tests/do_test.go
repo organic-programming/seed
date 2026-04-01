@@ -1,3 +1,5 @@
+// Sequence tests exercise op do in dry-run and live modes, including multi-step
+// execution and expected failure cases.
 package integration
 
 import "testing"

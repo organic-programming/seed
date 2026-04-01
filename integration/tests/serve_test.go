@@ -1,3 +1,5 @@
+// Serve tests start op serve and verify the OPService RPC surface end to end
+// through the canonical CLI binary.
 package integration
 
 import (
@@ -27,7 +29,7 @@ func TestServe_OPService(t *testing.T) {
 		t.Fatalf("empty shell payload: %#v", envPayload)
 	}
 
-	discoverResult := sb.runOP(t, "--format", "json", "grpc://"+hostPort, "Discover", `{"root_dir":"`+seedRoot+`"}`)
+	discoverResult := sb.runOP(t, "--format", "json", "grpc://"+hostPort, "Discover", `{"root_dir":"`+defaultWorkspaceDir()+`"}`)
 	requireSuccess(t, discoverResult)
 	discoverPayload := decodeJSON[map[string]any](t, discoverResult.Stdout)
 	entries, ok := discoverPayload["entries"].([]any)

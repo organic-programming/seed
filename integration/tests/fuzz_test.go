@@ -1,3 +1,5 @@
+// Fuzz targets send random commands and payloads to the real binary and assert
+// the process does not hang or crash.
 package integration
 
 import (

@@ -1,3 +1,5 @@
+// Holon and transport registry helpers pick the buildable hello-world fixtures
+// for the current machine and shrink the matrix when short mode is enabled.
 package integration
 
 import (

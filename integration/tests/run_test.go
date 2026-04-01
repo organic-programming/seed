@@ -1,3 +1,5 @@
+// Run tests start real holon servers, connect to their advertised endpoints,
+// and verify launch behavior across build-related flags.
 package integration
 
 import (

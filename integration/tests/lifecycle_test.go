@@ -1,3 +1,5 @@
+// Lifecycle tests cover check, build, test, inspect, release build, and clean
+// for every available hello-world holon in the mirrored workspace.
 package integration
 
 import (

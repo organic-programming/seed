@@ -1,3 +1,5 @@
+// MCP tests drive the real stdio MCP bridge with JSON-RPC and verify tool and
+// prompt exposure for one or more hello-world holons.
 package integration
 
 import (

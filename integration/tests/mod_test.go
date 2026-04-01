@@ -1,3 +1,5 @@
+// Mod command tests initialize and inspect a minimal module workspace without
+// depending on discovery from the mirrored hello-world tree.
 package integration
 
 import (
@@ -9,7 +11,7 @@ import (
 func TestMod_InitListTidy(t *testing.T) {
 	sb := newSandbox(t)
 
-	root := filepath.Join(t.TempDir(), "alpha")
+	root := filepath.Join(sb.Root, "alpha")
 	if err := os.MkdirAll(filepath.Join(root, "api", "v1"), 0o755); err != nil {
 		t.Fatalf("mkdir mod root: %v", err)
 	}

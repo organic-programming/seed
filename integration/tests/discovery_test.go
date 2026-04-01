@@ -1,3 +1,5 @@
+// Discovery tests verify that op discover and op list can find the mirrored
+// hello-world workspace and return stable text and JSON output.
 package integration
 
 import (

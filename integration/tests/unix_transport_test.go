@@ -1,5 +1,7 @@
 //go:build !windows
 
+// Unix-only transport tests launch holons on unix sockets and dispatch real
+// RPCs over that endpoint.
 package integration
 
 import (
@@ -13,7 +15,7 @@ func TestUnixTransport_RunAndDispatch(t *testing.T) {
 	for _, spec := range nativeTestHolons(t) {
 		t.Run(spec.Slug, func(t *testing.T) {
 			sb := newSandbox(t)
-			socketPath := filepath.Join(t.TempDir(), spec.Slug+".sock")
+			socketPath := filepath.Join(sb.Root, spec.Slug+".sock")
 
 			process := sb.startProcess(t, runOptions{}, "run", spec.Slug, "--listen", "unix://"+socketPath)
 			defer process.Stop(t)

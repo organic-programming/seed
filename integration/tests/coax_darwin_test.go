@@ -1,5 +1,7 @@
 //go:build darwin
 
+// Darwin-only COAX tests build the SwiftUI recipe app, launch it from the
+// mirrored workspace, and exercise its RPC and MCP surfaces.
 package integration
 
 import (
@@ -21,7 +23,7 @@ func TestCOAX_BuildAndRPC(t *testing.T) {
 	requirePathExists(t, appBundle)
 
 	appBinary := appBundleExecutable(t, appBundle)
-	home := t.TempDir()
+	home := filepath.Join(sb.Root, "home")
 	tmpDir := filepath.Join(home, "tmp")
 	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		t.Fatalf("mkdir tmp dir: %v", err)

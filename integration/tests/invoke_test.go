@@ -1,3 +1,5 @@
+// Invoke tests exercise the explicit op invoke command across local transports
+// and flag combinations against the real hello-world holons.
 package integration
 
 import "testing"
