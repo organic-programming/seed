@@ -139,10 +139,10 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 		return nil, fmt.Errorf("no steps matched profile %q and filter %q", profile, opts.StepFilter)
 	}
 
-	manifest := RunManifest{
+	manifest := HistoryRecord{
 		ConfigDir:     runtimeCfg.ConfigDir,
 		Suite:         runtimeCfg.SuiteName,
-		RunID:         runID,
+		HistoryID:     runID,
 		Profile:       profile,
 		Lane:          lane,
 		Source:        source,
@@ -168,7 +168,7 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 			Lane:        step.Lane,
 			Description: step.Description,
 			Workdir:     step.Workdir,
-			Command:     step.Command,
+			Command:     displayStepCommand(step),
 			LogPath:     logPath,
 		}
 
@@ -356,13 +356,13 @@ func Cleanup(_ context.Context, configDir string) (*CleanupResult, error) {
 	return result, nil
 }
 
-func ListRuns(_ context.Context, configDir string) ([]RunSummary, error) {
+func History(_ context.Context, configDir string) ([]HistoryEntry, error) {
 	runtimeCfg, err := loadRepoConfig(configDir)
 	if err != nil {
 		return nil, err
 	}
 	paths := runtimeCfg.Paths
-	items := map[string]RunSummary{}
+	items := map[string]HistoryEntry{}
 	reportEntries, _ := os.ReadDir(paths.ReportsDir)
 	for _, entry := range reportEntries {
 		if !entry.IsDir() {
@@ -372,7 +372,7 @@ func ListRuns(_ context.Context, configDir string) ([]RunSummary, error) {
 		if err != nil {
 			continue
 		}
-		items[manifest.RunID] = summaryFromManifest(manifest)
+		items[manifest.HistoryID] = summaryFromManifest(manifest)
 	}
 	archivePaths, _ := findArchivePaths(paths.ArchivesDir)
 	for _, archivePath := range archivePaths {
@@ -382,39 +382,39 @@ func ListRuns(_ context.Context, configDir string) ([]RunSummary, error) {
 		}
 		summary := summaryFromManifest(manifest)
 		summary.ArchivePath = archivePath
-		if existing, ok := items[summary.RunID]; ok {
+		if existing, ok := items[summary.HistoryID]; ok {
 			if existing.ReportDir != "" {
 				existing.ArchivePath = archivePath
-				items[summary.RunID] = existing
+				items[summary.HistoryID] = existing
 				continue
 			}
 		}
-		items[summary.RunID] = summary
+		items[summary.HistoryID] = summary
 	}
-	out := make([]RunSummary, 0, len(items))
+	out := make([]HistoryEntry, 0, len(items))
 	for _, item := range items {
 		out = append(out, item)
 	}
 	sort.Slice(out, func(i, j int) bool {
-		return out[i].RunID > out[j].RunID
+		return out[i].HistoryID > out[j].HistoryID
 	})
 	return out, nil
 }
 
-func ShowRun(_ context.Context, configDir string, runID string) (*RunResult, error) {
+func ShowHistory(_ context.Context, configDir string, historyID string) (*RunResult, error) {
 	runtimeCfg, err := loadRepoConfig(configDir)
 	if err != nil {
 		return nil, err
 	}
 	paths := runtimeCfg.Paths
-	reportDir := filepath.Join(paths.ReportsDir, runID)
+	reportDir := filepath.Join(paths.ReportsDir, historyID)
 	if dirExists(reportDir) {
 		return loadRunFromReportDir(reportDir)
 	}
 	archivePaths, _ := findArchivePaths(paths.ArchivesDir)
 	for _, archivePath := range archivePaths {
 		manifest, steps, summaryMD, err := readArchivePayload(archivePath)
-		if err != nil || manifest.RunID != runID {
+		if err != nil || manifest.HistoryID != historyID {
 			continue
 		}
 		summaryTSV, _ := readArchiveFile(archivePath, reportSummaryTSV)
@@ -426,7 +426,7 @@ func ShowRun(_ context.Context, configDir string, runID string) (*RunResult, err
 			SummaryTSV:      summaryTSV,
 		}, nil
 	}
-	return nil, fmt.Errorf("run %q not found", runID)
+	return nil, fmt.Errorf("history %q not found", historyID)
 }
 
 func gitMetadata(repoRoot string) (commitHash string, branch string, dirty bool) {
@@ -536,7 +536,10 @@ func runStepCommand(ctx context.Context, step StepSpec, env []string, logPath st
 	if progress != nil {
 		writer = io.MultiWriter(logFile, progress)
 	}
-	cmd := exec.CommandContext(ctx, "bash", "-lc", step.Command)
+	cmd, err := buildStepCommand(ctx, step)
+	if err != nil {
+		return 1, err
+	}
 	cmd.Dir = step.Workdir
 	cmd.Env = env
 	cmd.Stdout = writer
@@ -552,6 +555,31 @@ func runStepCommand(ctx context.Context, step StepSpec, env []string, logPath st
 		return 1, err
 	}
 	return 0, nil
+}
+
+func buildStepCommand(ctx context.Context, step StepSpec) (*exec.Cmd, error) {
+	if strings.TrimSpace(step.Script) != "" {
+		info, err := os.Stat(step.Script)
+		if err != nil {
+			return nil, fmt.Errorf("script %s: %w", step.Script, err)
+		}
+		if info.IsDir() {
+			return nil, fmt.Errorf("script %s is a directory", step.Script)
+		}
+		if info.Mode()&0o111 == 0 {
+			return nil, fmt.Errorf("script %s is not executable", step.Script)
+		}
+		return exec.CommandContext(ctx, step.Script, step.Args...), nil
+	}
+	return exec.CommandContext(ctx, "bash", "-lc", step.Command), nil
+}
+
+func displayStepCommand(step StepSpec) string {
+	if strings.TrimSpace(step.Script) != "" {
+		parts := append([]string{step.Script}, step.Args...)
+		return strings.Join(parts, " ")
+	}
+	return step.Command
 }
 
 func missingPrereqs(prereqs []string) []string {
@@ -583,13 +611,13 @@ func setupSkipReason(stepID string, workdir string) string {
 	return ""
 }
 
-func buildSummaryMarkdown(manifest RunManifest, steps []StepResult) string {
+func buildSummaryMarkdown(manifest HistoryRecord, steps []StepResult) string {
 	var b strings.Builder
 	fmt.Fprintln(&b, "# Verification Report")
 	fmt.Fprintln(&b)
 	fmt.Fprintf(&b, "- Config Dir: `%s`\n", manifest.ConfigDir)
 	fmt.Fprintf(&b, "- Suite: `%s`\n", manifest.Suite)
-	fmt.Fprintf(&b, "- Run ID: `%s`\n", manifest.RunID)
+	fmt.Fprintf(&b, "- History ID: `%s`\n", manifest.HistoryID)
 	fmt.Fprintf(&b, "- Profile: `%s`\n", manifest.Profile)
 	fmt.Fprintf(&b, "- Lane: `%s`\n", manifest.Lane)
 	fmt.Fprintf(&b, "- Source: `%s`\n", manifest.Source)
@@ -683,7 +711,7 @@ func writeReport(result *RunResult, reportDir string, toolVersions string) error
 	return nil
 }
 
-func archiveReportDir(paths repoPaths, manifest RunManifest, reportDir string) (string, error) {
+func archiveReportDir(paths repoPaths, manifest HistoryRecord, reportDir string) (string, error) {
 	commitDir := filepath.Join(paths.ArchivesDir, manifest.CommitHash)
 	if err := os.MkdirAll(commitDir, 0o755); err != nil {
 		return "", err
@@ -692,7 +720,7 @@ func archiveReportDir(paths repoPaths, manifest RunManifest, reportDir string) (
 	if manifest.Source == "workspace" && manifest.Dirty {
 		suffix = "-dirty"
 	}
-	archivePath := filepath.Join(commitDir, fmt.Sprintf("%s-%s%s.tar.gz", manifest.RunID, manifest.Profile, suffix))
+	archivePath := filepath.Join(commitDir, fmt.Sprintf("%s-%s%s.tar.gz", manifest.HistoryID, manifest.Profile, suffix))
 	file, err := os.Create(archivePath)
 	if err != nil {
 		return "", err
@@ -744,13 +772,13 @@ func loadRunForArchive(paths repoPaths, opts ArchiveOptions) (*RunResult, string
 		result, err := loadRunFromReportDir(reportDir)
 		return result, reportDir, err
 	}
-	runID := strings.TrimSpace(opts.RunID)
-	if runID == "" {
-		return nil, "", fmt.Errorf("archive requires --run or --latest")
+	historyID := strings.TrimSpace(opts.HistoryID)
+	if historyID == "" {
+		return nil, "", fmt.Errorf("archive requires --id or --latest")
 	}
-	reportDir := filepath.Join(paths.ReportsDir, runID)
+	reportDir := filepath.Join(paths.ReportsDir, historyID)
 	if !dirExists(reportDir) {
-		if archivePath, ok := findArchiveByRunID(paths.ArchivesDir, runID); ok {
+		if archivePath, ok := findArchiveByHistoryID(paths.ArchivesDir, historyID); ok {
 			manifest, steps, summaryMD, err := readArchivePayload(archivePath)
 			if err != nil {
 				return nil, "", err
@@ -764,7 +792,7 @@ func loadRunForArchive(paths repoPaths, opts ArchiveOptions) (*RunResult, string
 				SummaryTSV:      summaryTSV,
 			}, "", nil
 		}
-		return nil, "", fmt.Errorf("run %q not found", runID)
+		return nil, "", fmt.Errorf("history %q not found", historyID)
 	}
 	result, err := loadRunFromReportDir(reportDir)
 	return result, reportDir, err
@@ -807,14 +835,14 @@ func loadRunFromReportDir(reportDir string) (*RunResult, error) {
 	}, nil
 }
 
-func readManifestFile(path string) (RunManifest, error) {
+func readManifestFile(path string) (HistoryRecord, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return RunManifest{}, err
+		return HistoryRecord{}, err
 	}
-	var manifest RunManifest
+	var manifest HistoryRecord
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		return RunManifest{}, err
+		return HistoryRecord{}, err
 	}
 	return manifest, nil
 }
@@ -849,39 +877,39 @@ func findArchivePaths(archivesDir string) ([]string, error) {
 	return paths, err
 }
 
-func findArchiveByRunID(archivesDir string, runID string) (string, bool) {
+func findArchiveByHistoryID(archivesDir string, historyID string) (string, bool) {
 	paths, err := findArchivePaths(archivesDir)
 	if err != nil {
 		return "", false
 	}
 	for _, path := range paths {
-		if strings.Contains(filepath.Base(path), runID+"-") {
+		if strings.Contains(filepath.Base(path), historyID+"-") {
 			return path, true
 		}
 	}
 	return "", false
 }
 
-func readArchivePayload(path string) (RunManifest, []StepResult, string, error) {
+func readArchivePayload(path string) (HistoryRecord, []StepResult, string, error) {
 	manifestData, err := readArchiveFile(path, reportManifestName)
 	if err != nil {
-		return RunManifest{}, nil, "", err
+		return HistoryRecord{}, nil, "", err
 	}
 	stepsData, err := readArchiveFile(path, reportStepsName)
 	if err != nil {
-		return RunManifest{}, nil, "", err
+		return HistoryRecord{}, nil, "", err
 	}
 	summaryMD, err := readArchiveFile(path, reportSummaryMD)
 	if err != nil {
-		return RunManifest{}, nil, "", err
+		return HistoryRecord{}, nil, "", err
 	}
-	var manifest RunManifest
+	var manifest HistoryRecord
 	if err := json.Unmarshal([]byte(manifestData), &manifest); err != nil {
-		return RunManifest{}, nil, "", err
+		return HistoryRecord{}, nil, "", err
 	}
 	var steps []StepResult
 	if err := json.Unmarshal([]byte(stepsData), &steps); err != nil {
-		return RunManifest{}, nil, "", err
+		return HistoryRecord{}, nil, "", err
 	}
 	return manifest, steps, summaryMD, nil
 }
@@ -917,9 +945,9 @@ func readArchiveFile(path string, name string) (string, error) {
 	return "", fmt.Errorf("%s not found in %s", name, path)
 }
 
-func summaryFromManifest(manifest RunManifest) RunSummary {
-	return RunSummary{
-		RunID:       manifest.RunID,
+func summaryFromManifest(manifest HistoryRecord) HistoryEntry {
+	return HistoryEntry{
+		HistoryID:   manifest.HistoryID,
 		Suite:       manifest.Suite,
 		Profile:     manifest.Profile,
 		Lane:        manifest.Lane,

@@ -50,6 +50,8 @@ type suiteStepConfig struct {
 	Workdir     string   `mapstructure:"workdir"`
 	Prereqs     []string `mapstructure:"prereqs"`
 	Command     string   `mapstructure:"command"`
+	Script      string   `mapstructure:"script"`
+	Args        []string `mapstructure:"args"`
 	Description string   `mapstructure:"description"`
 }
 
@@ -145,6 +147,18 @@ func readSuiteConfig(path string) (suiteConfig, error) {
 	}
 	if len(cfg.Profiles) == 0 {
 		return suiteConfig{}, fmt.Errorf("suite file %s does not define any profiles", path)
+	}
+	for id, step := range cfg.Steps {
+		command := strings.TrimSpace(step.Command)
+		script := strings.TrimSpace(step.Script)
+		switch {
+		case script == "" && len(step.Args) > 0:
+			return suiteConfig{}, fmt.Errorf("suite file %s step %q cannot define args without script", path, id)
+		case command == "" && script == "":
+			return suiteConfig{}, fmt.Errorf("suite file %s step %q must define exactly one of command or script", path, id)
+		case command != "" && script != "":
+			return suiteConfig{}, fmt.Errorf("suite file %s step %q cannot define both command and script", path, id)
+		}
 	}
 	return cfg, nil
 }

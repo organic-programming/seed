@@ -3,7 +3,7 @@ steps:
   ader-unit:
     workdir: holons/clem-ader
     prereqs: [go]
-    command: go test ./...
+    script: scripts/test-unit.sh
     description: clem-ader unit tests
   grace-op-unit:
     workdir: holons/grace-op

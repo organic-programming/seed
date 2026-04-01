@@ -31,28 +31,28 @@ func TestRPCSurface(t *testing.T) {
 		if err != nil {
 			t.Fatalf("RPC Test() error = %v", err)
 		}
-		runID := testResponse.GetManifest().GetRunId()
-		if runID == "" {
-			t.Fatal("expected run id from RPC Test")
+		historyID := testResponse.GetManifest().GetHistoryId()
+		if historyID == "" {
+			t.Fatal("expected history id from RPC Test")
 		}
 
-		listResponse, err := client.ListRuns(context.Background(), &aderv1.ListRunsRequest{ConfigDir: configDir})
+		historyResponse, err := client.History(context.Background(), &aderv1.HistoryRequest{ConfigDir: configDir})
 		if err != nil {
-			t.Fatalf("RPC ListRuns() error = %v", err)
+			t.Fatalf("RPC History() error = %v", err)
 		}
-		if len(listResponse.GetRuns()) == 0 {
-			t.Fatal("expected at least one run from RPC ListRuns")
+		if len(historyResponse.GetEntries()) == 0 {
+			t.Fatal("expected at least one history entry from RPC History")
 		}
 
-		showResponse, err := client.ShowRun(context.Background(), &aderv1.ShowRunRequest{
+		showResponse, err := client.ShowHistory(context.Background(), &aderv1.ShowHistoryRequest{
 			ConfigDir: configDir,
-			RunId:     runID,
+			HistoryId: historyID,
 		})
 		if err != nil {
-			t.Fatalf("RPC ShowRun() error = %v", err)
+			t.Fatalf("RPC ShowHistory() error = %v", err)
 		}
-		if showResponse.GetManifest().GetRunId() != runID {
-			t.Fatalf("RPC ShowRun() run id = %q, want %q", showResponse.GetManifest().GetRunId(), runID)
+		if showResponse.GetManifest().GetHistoryId() != historyID {
+			t.Fatalf("RPC ShowHistory() history id = %q, want %q", showResponse.GetManifest().GetHistoryId(), historyID)
 		}
 
 		archiveResponse, err := client.Archive(context.Background(), &aderv1.ArchiveRequest{

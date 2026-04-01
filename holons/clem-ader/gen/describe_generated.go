@@ -16,7 +16,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 				Composer:   "B. ALTER",
 				Status:     "draft",
 				Born:       "2026-04-01",
-				Version:    "0.2.4",
+				Version:    "0.2.6",
 				Aliases: []string{
 					"ader",
 				},
@@ -31,7 +31,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 					Steps: []string{
 						"Run `ader test integration --suite seed --profile full`",
 						"Inspect the archived report for the commit hash",
-						"Use `ader history integration` and `ader show integration --run <run-id>` to revisit the exact evidence later",
+						"Use `ader history integration` and `ader show integration --id <history-id>` to revisit the exact evidence later",
 					},
 				},
 				&holonsv1.HolonManifest_Skill{
@@ -40,7 +40,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 					When:        "The user is iterating quickly on a change and wants a frozen local proof.",
 					Steps: []string{
 						"Run `ader test integration --suite seed --profile quick --lane progression --source workspace`",
-						"Inspect `integration/reports/<run-id>/summary.md` and `promotion.md`",
+						"Inspect `integration/reports/<history-id>/summary.md` and `promotion.md`",
 						"Promote the step references from progression to regression once the proof is accepted",
 					},
 				},
@@ -136,7 +136,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 						OutputFields: []*holonsv1.FieldDoc{
 							&holonsv1.FieldDoc{
 								Name:   "manifest",
-								Type:   "ader.v1.RunManifest",
+								Type:   "ader.v1.HistoryRecord",
 								Number: 1,
 								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
 								NestedFields: []*holonsv1.FieldDoc{
@@ -153,7 +153,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
 									},
 									&holonsv1.FieldDoc{
-										Name:   "run_id",
+										Name:   "history_id",
 										Type:   "string",
 										Number: 3,
 										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
@@ -356,7 +356,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
 							},
 							&holonsv1.FieldDoc{
-								Name:   "run_id",
+								Name:   "history_id",
 								Type:   "string",
 								Number: 2,
 								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
@@ -371,7 +371,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 						OutputFields: []*holonsv1.FieldDoc{
 							&holonsv1.FieldDoc{
 								Name:   "manifest",
-								Type:   "ader.v1.RunManifest",
+								Type:   "ader.v1.HistoryRecord",
 								Number: 1,
 								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
 								NestedFields: []*holonsv1.FieldDoc{
@@ -388,7 +388,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
 									},
 									&holonsv1.FieldDoc{
-										Name:   "run_id",
+										Name:   "history_id",
 										Type:   "string",
 										Number: 3,
 										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
@@ -551,9 +551,9 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 						},
 					},
 					&holonsv1.MethodDoc{
-						Name:       "ListRuns",
-						InputType:  "ader.v1.ListRunsRequest",
-						OutputType: "ader.v1.ListRunsResponse",
+						Name:       "History",
+						InputType:  "ader.v1.HistoryRequest",
+						OutputType: "ader.v1.HistoryResponse",
 						InputFields: []*holonsv1.FieldDoc{
 							&holonsv1.FieldDoc{
 								Name:   "config_dir",
@@ -564,13 +564,13 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 						},
 						OutputFields: []*holonsv1.FieldDoc{
 							&holonsv1.FieldDoc{
-								Name:   "runs",
-								Type:   "ader.v1.RunSummary",
+								Name:   "entries",
+								Type:   "ader.v1.HistoryEntry",
 								Number: 1,
 								Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
 								NestedFields: []*holonsv1.FieldDoc{
 									&holonsv1.FieldDoc{
-										Name:   "run_id",
+										Name:   "history_id",
 										Type:   "string",
 										Number: 1,
 										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
@@ -646,9 +646,9 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 						},
 					},
 					&holonsv1.MethodDoc{
-						Name:       "ShowRun",
-						InputType:  "ader.v1.ShowRunRequest",
-						OutputType: "ader.v1.ShowRunResponse",
+						Name:       "ShowHistory",
+						InputType:  "ader.v1.ShowHistoryRequest",
+						OutputType: "ader.v1.ShowHistoryResponse",
 						InputFields: []*holonsv1.FieldDoc{
 							&holonsv1.FieldDoc{
 								Name:   "config_dir",
@@ -657,7 +657,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
 							},
 							&holonsv1.FieldDoc{
-								Name:   "run_id",
+								Name:   "history_id",
 								Type:   "string",
 								Number: 2,
 								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
@@ -666,7 +666,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 						OutputFields: []*holonsv1.FieldDoc{
 							&holonsv1.FieldDoc{
 								Name:   "manifest",
-								Type:   "ader.v1.RunManifest",
+								Type:   "ader.v1.HistoryRecord",
 								Number: 1,
 								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
 								NestedFields: []*holonsv1.FieldDoc{
@@ -683,7 +683,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
 									},
 									&holonsv1.FieldDoc{
-										Name:   "run_id",
+										Name:   "history_id",
 										Type:   "string",
 										Number: 3,
 										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,

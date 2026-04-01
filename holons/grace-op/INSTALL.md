@@ -36,6 +36,8 @@ Then activate (or restart your terminal):
 
 ```bash
 eval "$(op env --shell)"                                    # macOS / Linux
+op completion install zsh                                  # zsh
+op completion install bash                                 # bash
 ```
 ```powershell
 op env --init   # Windows (OPBIN is added to PATH by op install)
@@ -51,3 +53,22 @@ go run ./cmd/op install .
 ```
 
 Then activate as above, or restart your terminal.
+
+### Shell completion
+
+`op` can install shell completion directly into the active shell profile:
+
+```bash
+op completion install zsh
+op completion install bash
+```
+
+These commands are idempotent. They append one of:
+
+```zsh
+eval "$(op completion zsh)"
+```
+
+```bash
+source <(op completion bash)
+```

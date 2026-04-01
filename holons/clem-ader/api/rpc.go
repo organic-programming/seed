@@ -22,10 +22,10 @@ func (RPCHandler) Cleanup(ctx context.Context, req *aderv1.CleanupRequest) (*ade
 	return cleanupContext(ctx, req)
 }
 
-func (RPCHandler) ListRuns(ctx context.Context, req *aderv1.ListRunsRequest) (*aderv1.ListRunsResponse, error) {
-	return listRunsContext(ctx, req)
+func (RPCHandler) History(ctx context.Context, req *aderv1.HistoryRequest) (*aderv1.HistoryResponse, error) {
+	return historyContext(ctx, req)
 }
 
-func (RPCHandler) ShowRun(ctx context.Context, req *aderv1.ShowRunRequest) (*aderv1.ShowRunResponse, error) {
-	return showRunContext(ctx, req)
+func (RPCHandler) ShowHistory(ctx context.Context, req *aderv1.ShowHistoryRequest) (*aderv1.ShowHistoryResponse, error) {
+	return showHistoryContext(ctx, req)
 }

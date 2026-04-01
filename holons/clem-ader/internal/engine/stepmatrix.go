@@ -121,12 +121,18 @@ func resolveProfileLaneSteps(cfg *runtimeConfig, profile string, lane string, sn
 			if !filepath.IsAbs(workdir) {
 				workdir = filepath.Join(snapshotRoot, filepath.FromSlash(workdir))
 			}
+			script := strings.TrimSpace(stepEntry.Script)
+			if script != "" && !filepath.IsAbs(script) {
+				script = filepath.Join(workdir, filepath.FromSlash(script))
+			}
 			out = append(out, StepSpec{
 				ID:          id,
 				Lane:        stepLane,
 				Workdir:     workdir,
 				Prereqs:     append([]string(nil), stepEntry.Prereqs...),
 				Command:     stepEntry.Command,
+				Script:      script,
+				Args:        append([]string(nil), stepEntry.Args...),
 				Description: stepEntry.Description,
 			})
 			seen[id] = struct{}{}

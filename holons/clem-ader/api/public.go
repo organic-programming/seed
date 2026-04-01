@@ -19,12 +19,12 @@ func Cleanup(req *aderv1.CleanupRequest) (*aderv1.CleanupResponse, error) {
 	return cleanupContext(context.Background(), req)
 }
 
-func ListRuns(req *aderv1.ListRunsRequest) (*aderv1.ListRunsResponse, error) {
-	return listRunsContext(context.Background(), req)
+func History(req *aderv1.HistoryRequest) (*aderv1.HistoryResponse, error) {
+	return historyContext(context.Background(), req)
 }
 
-func ShowRun(req *aderv1.ShowRunRequest) (*aderv1.ShowRunResponse, error) {
-	return showRunContext(context.Background(), req)
+func ShowHistory(req *aderv1.ShowHistoryRequest) (*aderv1.ShowHistoryResponse, error) {
+	return showHistoryContext(context.Background(), req)
 }
 
 func testContext(ctx context.Context, req *aderv1.TestRequest) (*aderv1.TestResponse, error) {
@@ -51,7 +51,7 @@ func testContext(ctx context.Context, req *aderv1.TestRequest) (*aderv1.TestResp
 func archiveContext(ctx context.Context, req *aderv1.ArchiveRequest) (*aderv1.ArchiveResponse, error) {
 	result, err := engine.Archive(ctx, engine.ArchiveOptions{
 		ConfigDir: req.GetConfigDir(),
-		RunID:     req.GetRunId(),
+		HistoryID: req.GetHistoryId(),
 		Latest:    req.GetLatest(),
 	})
 	if err != nil {
@@ -76,20 +76,20 @@ func cleanupContext(ctx context.Context, req *aderv1.CleanupRequest) (*aderv1.Cl
 	}, nil
 }
 
-func listRunsContext(ctx context.Context, req *aderv1.ListRunsRequest) (*aderv1.ListRunsResponse, error) {
-	runs, err := engine.ListRuns(ctx, req.GetConfigDir())
+func historyContext(ctx context.Context, req *aderv1.HistoryRequest) (*aderv1.HistoryResponse, error) {
+	entries, err := engine.History(ctx, req.GetConfigDir())
 	if err != nil {
 		return nil, err
 	}
-	return &aderv1.ListRunsResponse{Runs: runSummariesToProto(runs)}, nil
+	return &aderv1.HistoryResponse{Entries: historyEntriesToProto(entries)}, nil
 }
 
-func showRunContext(ctx context.Context, req *aderv1.ShowRunRequest) (*aderv1.ShowRunResponse, error) {
-	result, err := engine.ShowRun(ctx, req.GetConfigDir(), req.GetRunId())
+func showHistoryContext(ctx context.Context, req *aderv1.ShowHistoryRequest) (*aderv1.ShowHistoryResponse, error) {
+	result, err := engine.ShowHistory(ctx, req.GetConfigDir(), req.GetHistoryId())
 	if err != nil {
 		return nil, err
 	}
-	return &aderv1.ShowRunResponse{
+	return &aderv1.ShowHistoryResponse{
 		Manifest:        manifestToProto(result.Manifest),
 		Steps:           stepsToProto(result.Steps),
 		SummaryMarkdown: result.SummaryMarkdown,
@@ -97,11 +97,11 @@ func showRunContext(ctx context.Context, req *aderv1.ShowRunRequest) (*aderv1.Sh
 	}, nil
 }
 
-func manifestToProto(m engine.RunManifest) *aderv1.RunManifest {
-	return &aderv1.RunManifest{
+func manifestToProto(m engine.HistoryRecord) *aderv1.HistoryRecord {
+	return &aderv1.HistoryRecord{
 		ConfigDir:     m.ConfigDir,
 		Suite:         m.Suite,
-		RunId:         m.RunID,
+		HistoryId:     m.HistoryID,
 		Profile:       m.Profile,
 		Lane:          m.Lane,
 		Source:        m.Source,
@@ -143,11 +143,11 @@ func stepsToProto(steps []engine.StepResult) []*aderv1.StepResult {
 	return out
 }
 
-func runSummariesToProto(items []engine.RunSummary) []*aderv1.RunSummary {
-	out := make([]*aderv1.RunSummary, 0, len(items))
+func historyEntriesToProto(items []engine.HistoryEntry) []*aderv1.HistoryEntry {
+	out := make([]*aderv1.HistoryEntry, 0, len(items))
 	for _, item := range items {
-		out = append(out, &aderv1.RunSummary{
-			RunId:       item.RunID,
+		out = append(out, &aderv1.HistoryEntry{
+			HistoryId:   item.HistoryID,
 			Suite:       item.Suite,
 			Profile:     item.Profile,
 			Lane:        item.Lane,

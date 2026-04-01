@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -17,6 +19,7 @@ func patchCompletionCommands(root *cobra.Command) {
 
 	patchCompletionShell(root, completionCmd, "bash", generatePatchedBashCompletion)
 	patchCompletionShell(root, completionCmd, "zsh", generatePatchedZshCompletion)
+	completionCmd.AddCommand(newCompletionInstallCommand(root))
 }
 
 func patchCompletionShell(
@@ -52,6 +55,92 @@ func completionNoDescriptions(root *cobra.Command, cmd *cobra.Command) bool {
 
 	noDesc, err := cmd.Flags().GetBool("no-descriptions")
 	return err == nil && noDesc
+}
+
+func newCompletionInstallCommand(root *cobra.Command) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "install [shell]",
+		Short: "Install shell completion into the active shell profile",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			overrideProfile, _ := cmd.Flags().GetString("profile")
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return err
+			}
+			shell, profile, line, err := completionInstallTarget(args, os.Getenv("SHELL"), home, overrideProfile)
+			if err != nil {
+				return err
+			}
+			status, err := ensureProfileSnippet(profile, "# op CLI autocompletion", line)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s %s completion in %s\n", status, shell, profile)
+			return err
+		},
+	}
+	cmd.Flags().String("profile", "", "explicit shell profile path")
+	return cmd
+}
+
+func completionInstallTarget(args []string, shellPath string, home string, overrideProfile string) (shell string, profile string, line string, err error) {
+	if len(args) > 0 {
+		shell = strings.ToLower(strings.TrimSpace(args[0]))
+	} else {
+		shell = strings.ToLower(strings.TrimSpace(filepath.Base(shellPath)))
+	}
+	if shell == "" {
+		return "", "", "", fmt.Errorf("completion install requires a shell name or SHELL to be set")
+	}
+
+	switch shell {
+	case "zsh":
+		line = `eval "$(op completion zsh)"`
+		if strings.TrimSpace(overrideProfile) != "" {
+			profile = overrideProfile
+		} else {
+			profile = filepath.Join(home, ".zshrc")
+		}
+	case "bash":
+		line = `source <(op completion bash)`
+		if strings.TrimSpace(overrideProfile) != "" {
+			profile = overrideProfile
+		} else {
+			profile = filepath.Join(home, ".bashrc")
+		}
+	default:
+		return "", "", "", fmt.Errorf("unsupported shell %q; supported shells: zsh, bash", shell)
+	}
+	return shell, profile, line, nil
+}
+
+func ensureProfileSnippet(profile string, comment string, line string) (string, error) {
+	content := ""
+	if data, err := os.ReadFile(profile); err == nil {
+		content = string(data)
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+
+	if strings.Contains(content, line) {
+		return "already configured", nil
+	}
+
+	var b strings.Builder
+	if strings.TrimSpace(content) != "" {
+		b.WriteString(strings.TrimRight(content, "\n"))
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+	b.WriteString(comment)
+	b.WriteString("\n")
+	b.WriteString(line)
+	b.WriteString("\n")
+	if err := os.WriteFile(profile, []byte(b.String()), 0o644); err != nil {
+		return "", err
+	}
+	return "installed", nil
 }
 
 func findChildCommand(parent *cobra.Command, name string) *cobra.Command {

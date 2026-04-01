@@ -19,11 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AderService_Test_FullMethodName     = "/ader.v1.AderService/Test"
-	AderService_Archive_FullMethodName  = "/ader.v1.AderService/Archive"
-	AderService_Cleanup_FullMethodName  = "/ader.v1.AderService/Cleanup"
-	AderService_ListRuns_FullMethodName = "/ader.v1.AderService/ListRuns"
-	AderService_ShowRun_FullMethodName  = "/ader.v1.AderService/ShowRun"
+	AderService_Test_FullMethodName        = "/ader.v1.AderService/Test"
+	AderService_Archive_FullMethodName     = "/ader.v1.AderService/Archive"
+	AderService_Cleanup_FullMethodName     = "/ader.v1.AderService/Cleanup"
+	AderService_History_FullMethodName     = "/ader.v1.AderService/History"
+	AderService_ShowHistory_FullMethodName = "/ader.v1.AderService/ShowHistory"
 )
 
 // AderServiceClient is the client API for AderService service.
@@ -33,8 +33,8 @@ type AderServiceClient interface {
 	Test(ctx context.Context, in *TestRequest, opts ...grpc.CallOption) (*TestResponse, error)
 	Archive(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
 	Cleanup(ctx context.Context, in *CleanupRequest, opts ...grpc.CallOption) (*CleanupResponse, error)
-	ListRuns(ctx context.Context, in *ListRunsRequest, opts ...grpc.CallOption) (*ListRunsResponse, error)
-	ShowRun(ctx context.Context, in *ShowRunRequest, opts ...grpc.CallOption) (*ShowRunResponse, error)
+	History(ctx context.Context, in *HistoryRequest, opts ...grpc.CallOption) (*HistoryResponse, error)
+	ShowHistory(ctx context.Context, in *ShowHistoryRequest, opts ...grpc.CallOption) (*ShowHistoryResponse, error)
 }
 
 type aderServiceClient struct {
@@ -75,20 +75,20 @@ func (c *aderServiceClient) Cleanup(ctx context.Context, in *CleanupRequest, opt
 	return out, nil
 }
 
-func (c *aderServiceClient) ListRuns(ctx context.Context, in *ListRunsRequest, opts ...grpc.CallOption) (*ListRunsResponse, error) {
+func (c *aderServiceClient) History(ctx context.Context, in *HistoryRequest, opts ...grpc.CallOption) (*HistoryResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListRunsResponse)
-	err := c.cc.Invoke(ctx, AderService_ListRuns_FullMethodName, in, out, cOpts...)
+	out := new(HistoryResponse)
+	err := c.cc.Invoke(ctx, AderService_History_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *aderServiceClient) ShowRun(ctx context.Context, in *ShowRunRequest, opts ...grpc.CallOption) (*ShowRunResponse, error) {
+func (c *aderServiceClient) ShowHistory(ctx context.Context, in *ShowHistoryRequest, opts ...grpc.CallOption) (*ShowHistoryResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ShowRunResponse)
-	err := c.cc.Invoke(ctx, AderService_ShowRun_FullMethodName, in, out, cOpts...)
+	out := new(ShowHistoryResponse)
+	err := c.cc.Invoke(ctx, AderService_ShowHistory_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +102,8 @@ type AderServiceServer interface {
 	Test(context.Context, *TestRequest) (*TestResponse, error)
 	Archive(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
 	Cleanup(context.Context, *CleanupRequest) (*CleanupResponse, error)
-	ListRuns(context.Context, *ListRunsRequest) (*ListRunsResponse, error)
-	ShowRun(context.Context, *ShowRunRequest) (*ShowRunResponse, error)
+	History(context.Context, *HistoryRequest) (*HistoryResponse, error)
+	ShowHistory(context.Context, *ShowHistoryRequest) (*ShowHistoryResponse, error)
 	mustEmbedUnimplementedAderServiceServer()
 }
 
@@ -123,11 +123,11 @@ func (UnimplementedAderServiceServer) Archive(context.Context, *ArchiveRequest) 
 func (UnimplementedAderServiceServer) Cleanup(context.Context, *CleanupRequest) (*CleanupResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Cleanup not implemented")
 }
-func (UnimplementedAderServiceServer) ListRuns(context.Context, *ListRunsRequest) (*ListRunsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListRuns not implemented")
+func (UnimplementedAderServiceServer) History(context.Context, *HistoryRequest) (*HistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method History not implemented")
 }
-func (UnimplementedAderServiceServer) ShowRun(context.Context, *ShowRunRequest) (*ShowRunResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ShowRun not implemented")
+func (UnimplementedAderServiceServer) ShowHistory(context.Context, *ShowHistoryRequest) (*ShowHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ShowHistory not implemented")
 }
 func (UnimplementedAderServiceServer) mustEmbedUnimplementedAderServiceServer() {}
 func (UnimplementedAderServiceServer) testEmbeddedByValue()                     {}
@@ -204,38 +204,38 @@ func _AderService_Cleanup_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AderService_ListRuns_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListRunsRequest)
+func _AderService_History_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HistoryRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AderServiceServer).ListRuns(ctx, in)
+		return srv.(AderServiceServer).History(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AderService_ListRuns_FullMethodName,
+		FullMethod: AderService_History_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AderServiceServer).ListRuns(ctx, req.(*ListRunsRequest))
+		return srv.(AderServiceServer).History(ctx, req.(*HistoryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AderService_ShowRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ShowRunRequest)
+func _AderService_ShowHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ShowHistoryRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AderServiceServer).ShowRun(ctx, in)
+		return srv.(AderServiceServer).ShowHistory(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AderService_ShowRun_FullMethodName,
+		FullMethod: AderService_ShowHistory_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AderServiceServer).ShowRun(ctx, req.(*ShowRunRequest))
+		return srv.(AderServiceServer).ShowHistory(ctx, req.(*ShowHistoryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -260,12 +260,12 @@ var AderService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AderService_Cleanup_Handler,
 		},
 		{
-			MethodName: "ListRuns",
-			Handler:    _AderService_ListRuns_Handler,
+			MethodName: "History",
+			Handler:    _AderService_History_Handler,
 		},
 		{
-			MethodName: "ShowRun",
-			Handler:    _AderService_ShowRun_Handler,
+			MethodName: "ShowHistory",
+			Handler:    _AderService_ShowHistory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

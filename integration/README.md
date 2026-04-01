@@ -31,26 +31,68 @@ ader test integration --suite seed --profile quick
 ader test integration --suite seed --profile full
 ader test integration --suite seed --profile quick --lane progression --source workspace
 ader test integration --suite seed --profile quick --silent
+ader completion install zsh
 ader history integration
-ader show integration --run <run-id>
+ader show integration --id <history-id>
 ader archive integration --latest
 ader cleanup integration
 ```
 
 Default behavior is live progress on `stderr` plus a final summary on `stdout`. Add `--silent` if you only want the final summary.
 
+## Install
+
+Typical local setup:
+
+```bash
+go install github.com/organic-programming/grace-op/cmd/op@latest
+op env --init
+op install ./holons/clem-ader
+eval "$(op env --shell)"
+ader completion install zsh
+exec zsh
+```
+
+If `op` is already installed:
+
+```bash
+op env --init
+op install ./holons/clem-ader
+eval "$(op env --shell)"
+ader completion install zsh
+exec zsh
+```
+
+## Zsh Completion
+
+Install it once:
+
+```bash
+ader completion install zsh
+exec zsh
+```
+
+Then the useful checks are:
+
+```bash
+ader test <TAB>
+ader test integration --suite <TAB>
+ader test integration --profile <TAB>
+ader show integration --id <TAB>
+```
+
 ## Files Produced
 
 Reports:
 
 ```text
-integration/reports/<run-id>/
+integration/reports/<history-id>/
 ```
 
 Archives:
 
 ```text
-integration/archives/<commit-hash>/<run-id>-<profile>.tar.gz
+integration/archives/<commit-hash>/<history-id>-<profile>.tar.gz
 ```
 
 Deterministic local residue:
@@ -75,3 +117,19 @@ Read that as:
 - `regression` = test lane
 
 `ader` does not perform that change automatically.
+
+## Step Kinds
+
+The suite YAML supports two step kinds:
+
+- `command`: one-line shell command
+- `script`: executable file resolved from the step `workdir`
+
+Example from the seed suite:
+
+```yaml
+ader-unit:
+  workdir: holons/clem-ader
+  script: scripts/test-unit.sh
+  description: clem-ader self test
+```

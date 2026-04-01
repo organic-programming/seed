@@ -96,26 +96,26 @@ func TestRunFullArchivesAndHistoryShow(t *testing.T) {
 			t.Fatalf("expected extracted report to be removed, stat err = %v", err)
 		}
 
-		history, err := ListRuns(context.Background(), configDir)
+		history, err := History(context.Background(), configDir)
 		if err != nil {
-			t.Fatalf("ListRuns() error = %v", err)
+			t.Fatalf("History() error = %v", err)
 		}
 		if len(history) != 1 {
-			t.Fatalf("ListRuns() count = %d, want 1", len(history))
+			t.Fatalf("History() count = %d, want 1", len(history))
 		}
 		if history[0].ArchivePath == "" {
-			t.Fatal("expected archived run in ListRuns")
+			t.Fatal("expected archived history entry")
 		}
 		if history[0].Suite != "fixture" {
 			t.Fatalf("history suite = %q, want fixture", history[0].Suite)
 		}
 
-		shown, err := ShowRun(context.Background(), configDir, result.Manifest.RunID)
+		shown, err := ShowHistory(context.Background(), configDir, result.Manifest.HistoryID)
 		if err != nil {
-			t.Fatalf("ShowRun() error = %v", err)
+			t.Fatalf("ShowHistory() error = %v", err)
 		}
-		if shown.Manifest.RunID != result.Manifest.RunID {
-			t.Fatalf("ShowRun() run id = %q, want %q", shown.Manifest.RunID, result.Manifest.RunID)
+		if shown.Manifest.HistoryID != result.Manifest.HistoryID {
+			t.Fatalf("ShowHistory() history id = %q, want %q", shown.Manifest.HistoryID, result.Manifest.HistoryID)
 		}
 		if !strings.Contains(shown.SummaryMarkdown, "Verification Report") {
 			t.Fatalf("summary markdown missing heading: %q", shown.SummaryMarkdown)
@@ -152,7 +152,7 @@ func TestArchiveLatestAndCleanup(t *testing.T) {
 			t.Fatalf("manual archive missing: %v", err)
 		}
 
-		removedDir := filepath.Join(root, "integration", ".artifacts", "local-suite", result.Manifest.RunID)
+		removedDir := filepath.Join(root, "integration", ".artifacts", "local-suite", result.Manifest.HistoryID)
 		if !dirExists(removedDir) {
 			t.Fatalf("expected local-suite dir to exist before cleanup: %s", removedDir)
 		}
@@ -254,6 +254,89 @@ func TestResolveProfileLaneSteps(t *testing.T) {
 	if strings.Join(ids, ",") != strings.Join(want, ",") {
 		t.Fatalf("selected ids = %v, want %v", ids, want)
 	}
+}
+
+func TestReadSuiteConfigRejectsMalformedScriptSteps(t *testing.T) {
+	root := t.TempDir()
+	suitePath := filepath.Join(root, "fixture.yaml")
+	if err := os.WriteFile(suitePath, []byte(`steps:
+  broken:
+    workdir: .
+profiles:
+  quick:
+    regression: [broken]
+`), 0o644); err != nil {
+		t.Fatalf("write suite: %v", err)
+	}
+	if _, err := readSuiteConfig(suitePath); err == nil || !strings.Contains(err.Error(), "exactly one of command or script") {
+		t.Fatalf("readSuiteConfig() error = %v, want exact command/script validation", err)
+	}
+
+	if err := os.WriteFile(suitePath, []byte(`steps:
+  broken:
+    workdir: .
+    command: echo hi
+    script: scripts/test.sh
+profiles:
+  quick:
+    regression: [broken]
+`), 0o644); err != nil {
+		t.Fatalf("rewrite suite: %v", err)
+	}
+	if _, err := readSuiteConfig(suitePath); err == nil || !strings.Contains(err.Error(), "cannot define both command and script") {
+		t.Fatalf("readSuiteConfig() error = %v, want xor validation", err)
+	}
+
+	if err := os.WriteFile(suitePath, []byte(`steps:
+  broken:
+    workdir: .
+    args: [alpha]
+profiles:
+  quick:
+    regression: [broken]
+`), 0o644); err != nil {
+		t.Fatalf("rewrite suite with args only: %v", err)
+	}
+	if _, err := readSuiteConfig(suitePath); err == nil || !strings.Contains(err.Error(), "cannot define args without script") {
+		t.Fatalf("readSuiteConfig() error = %v, want args-without-script validation", err)
+	}
+}
+
+func TestRunScriptStepWithArgs(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "integration")
+	withWorkingDir(t, root, func() {
+		result, err := Run(context.Background(), RunOptions{
+			ConfigDir:     configDir,
+			Suite:         "fixture",
+			Profile:       "unit",
+			Lane:          "progression",
+			StepFilter:    "^fixture-script$",
+			Source:        "workspace",
+			ArchivePolicy: "never",
+			KeepReport:    true,
+		})
+		if err != nil {
+			t.Fatalf("Run() error = %v", err)
+		}
+		if len(result.Steps) != 1 {
+			t.Fatalf("steps count = %d, want 1", len(result.Steps))
+		}
+		step := result.Steps[0]
+		if step.Status != "PASS" {
+			t.Fatalf("script step status = %q, want PASS", step.Status)
+		}
+		if !strings.Contains(step.Command, "fixture-step.sh alpha beta") {
+			t.Fatalf("script step command = %q, want script path with args", step.Command)
+		}
+		logData, err := os.ReadFile(step.LogPath)
+		if err != nil {
+			t.Fatalf("read script log: %v", err)
+		}
+		if !strings.Contains(string(logData), "fixture-script:alpha:beta") {
+			t.Fatalf("script log = %q, want fixture output", string(logData))
+		}
+	})
 }
 
 func withWorkingDir(t *testing.T, dir string, fn func()) {

@@ -14,22 +14,22 @@ type RunOptions struct {
 
 type ArchiveOptions struct {
 	ConfigDir string
-	RunID     string
+	HistoryID string
 	Latest    bool
 }
 
 type RunResult struct {
-	Manifest        RunManifest
+	Manifest        HistoryRecord
 	Steps           []StepResult
 	SummaryMarkdown string
 	SummaryTSV      string
 	Promotion       *PromotionProposal
 }
 
-type RunManifest struct {
+type HistoryRecord struct {
 	ConfigDir     string `json:"config_dir"`
 	Suite         string `json:"suite"`
-	RunID         string `json:"run_id"`
+	HistoryID     string `json:"history_id"`
 	Profile       string `json:"profile"`
 	Lane          string `json:"lane"`
 	Source        string `json:"source"`
@@ -64,8 +64,8 @@ type StepResult struct {
 	DurationSeconds int64  `json:"duration_seconds"`
 }
 
-type RunSummary struct {
-	RunID       string `json:"run_id"`
+type HistoryEntry struct {
+	HistoryID   string `json:"history_id"`
 	Suite       string `json:"suite"`
 	Profile     string `json:"profile"`
 	Lane        string `json:"lane"`
@@ -92,6 +92,8 @@ type StepSpec struct {
 	Workdir     string
 	Prereqs     []string
 	Command     string
+	Script      string
+	Args        []string
 	Description string
 }
 

@@ -16,7 +16,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-04-01"
-    version: "0.2.4"
+    version: "0.2.6"
     aliases: ["ader"]
   }
   description: "Clem Ader is the configurable verification holon of the seed. It loads repo-local suites from a config directory, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, and proposes progression-to-regression promotion without mutating the repo."
@@ -41,8 +41,8 @@ option (holons.v1.manifest) = {
       "Test",
       "Archive",
       "Cleanup",
-      "ListRuns",
-      "ShowRun"
+      "History",
+      "ShowHistory"
     ]
   }
   skills: [{
@@ -52,7 +52,7 @@ option (holons.v1.manifest) = {
     steps: [
       "Run `ader test integration --suite seed --profile full`",
       "Inspect the archived report for the commit hash",
-      "Use `ader history integration` and `ader show integration --run <run-id>` to revisit the exact evidence later"
+      "Use `ader history integration` and `ader show integration --id <history-id>` to revisit the exact evidence later"
     ]
   }, {
     name: "progression-loop"
@@ -60,7 +60,7 @@ option (holons.v1.manifest) = {
     when: "The user is iterating quickly on a change and wants a frozen local proof."
     steps: [
       "Run `ader test integration --suite seed --profile quick --lane progression --source workspace`",
-      "Inspect `integration/reports/<run-id>/summary.md` and `promotion.md`",
+      "Inspect `integration/reports/<history-id>/summary.md` and `promotion.md`",
       "Promote the step references from progression to regression once the proof is accepted"
     ]
   }, {
@@ -79,8 +79,8 @@ service AderService {
   rpc Test (TestRequest) returns (TestResponse);
   rpc Archive (ArchiveRequest) returns (ArchiveResponse);
   rpc Cleanup (CleanupRequest) returns (CleanupResponse);
-  rpc ListRuns (ListRunsRequest) returns (ListRunsResponse);
-  rpc ShowRun (ShowRunRequest) returns (ShowRunResponse);
+  rpc History (HistoryRequest) returns (HistoryResponse);
+  rpc ShowHistory (ShowHistoryRequest) returns (ShowHistoryResponse);
 }
 
 message TestRequest {
@@ -96,18 +96,18 @@ message TestRequest {
 }
 
 message TestResponse {
-  RunManifest manifest = 1;
+  HistoryRecord manifest = 1;
   repeated StepResult steps = 2;
 }
 
 message ArchiveRequest {
   string config_dir = 1;
-  string run_id = 2;
+  string history_id = 2;
   bool latest = 3;
 }
 
 message ArchiveResponse {
-  RunManifest manifest = 1;
+  HistoryRecord manifest = 1;
   string archive_path = 2;
 }
 
@@ -122,28 +122,28 @@ message CleanupResponse {
   repeated string removed_paths = 4;
 }
 
-message ListRunsRequest {
+message HistoryRequest {
   string config_dir = 1;
 }
 
-message ListRunsResponse {
-  repeated RunSummary runs = 1;
+message HistoryResponse {
+  repeated HistoryEntry entries = 1;
 }
 
-message ShowRunRequest {
+message ShowHistoryRequest {
   string config_dir = 1;
-  string run_id = 2;
+  string history_id = 2;
 }
 
-message ShowRunResponse {
-  RunManifest manifest = 1;
+message ShowHistoryResponse {
+  HistoryRecord manifest = 1;
   repeated StepResult steps = 2;
   string summary_markdown = 3;
   string summary_tsv = 4;
 }
 
-message RunSummary {
-  string run_id = 1;
+message HistoryEntry {
+  string history_id = 1;
   string suite = 2;
   string profile = 3;
   string lane = 4;
@@ -157,10 +157,10 @@ message RunSummary {
   string archive_path = 12;
 }
 
-message RunManifest {
+message HistoryRecord {
   string config_dir = 1;
   string suite = 2;
-  string run_id = 3;
+  string history_id = 3;
   string profile = 4;
   string lane = 5;
   string source = 6;

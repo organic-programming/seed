@@ -31,8 +31,8 @@ Code API and RPC:
 - `Test`
 - `Archive`
 - `Cleanup`
-- `ListRuns`
-- `ShowRun`
+- `History`
+- `ShowHistory`
 
 CLI:
 
@@ -40,9 +40,9 @@ CLI:
 - `ader archive <config-dir>`
 - `ader cleanup <config-dir>`
 - `ader history <config-dir>`
-- `ader show <config-dir> --run <id>`
+- `ader show <config-dir> --id <history-id>`
 
-`history` is the CLI view of `ListRuns`.
+`history` is the CLI view of `History`.
 
 ## Core Model
 
@@ -70,26 +70,95 @@ ader test integration --suite seed --profile quick
 ader test integration --suite seed --profile full
 ader test integration --suite seed --profile quick --lane progression --source workspace
 ader test integration --suite seed --profile quick --silent
+ader completion install zsh
 ader history integration
-ader show integration --run <run-id>
+ader show integration --id <history-id>
 ader archive integration --latest
 ader cleanup integration
 ```
 
 By default, `ader test` streams live step progress and subprocess output on `stderr`, then prints the final summary on `stdout`. Use `--silent` to keep only the final summary.
 
+## Install
+
+The canonical path is: install `op`, install the `clem-ader` holon into `OPBIN`, then enable shell completion.
+
+From the seed:
+
+```bash
+go install github.com/organic-programming/grace-op/cmd/op@latest
+op env --init
+op install ./holons/clem-ader
+eval "$(op env --shell)"
+ader completion install zsh
+exec zsh
+```
+
+If `op` is already installed and on `PATH`, the minimum is:
+
+```bash
+op env --init
+op install ./holons/clem-ader
+eval "$(op env --shell)"
+ader completion install zsh
+exec zsh
+```
+
+## Zsh Completion
+
+Install it once:
+
+```bash
+ader completion install zsh
+exec zsh
+```
+
+Quick check:
+
+```bash
+ader test <TAB>
+ader test integration --suite <TAB>
+ader test integration --profile <TAB>
+ader show integration --id <TAB>
+```
+
+The installed line is:
+
+```zsh
+eval "$(ader completion zsh)"
+```
+
+`op env --shell` only exposes `OPPATH`, `OPBIN`, and `PATH`. It does not install `ader` completion by itself.
+
+## Step Types
+
+Each suite step defines exactly one execution mode:
+
+- `command`: shell one-liner executed with `bash -lc`
+- `script`: executable file resolved relative to the step `workdir`
+
+Example:
+
+```yaml
+steps:
+  ader-unit:
+    workdir: holons/clem-ader
+    script: scripts/test-unit.sh
+    description: clem-ader self test
+```
+
 ## Outputs
 
 Reports:
 
 ```text
-integration/reports/<run-id>/
+integration/reports/<history-id>/
 ```
 
 Archives:
 
 ```text
-integration/archives/<commit-hash>/<run-id>-<profile>.tar.gz
+integration/archives/<commit-hash>/<history-id>-<profile>.tar.gz
 ```
 
 Promotion proposals, when applicable:

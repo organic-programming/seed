@@ -27,8 +27,8 @@ func TestPublicTestOperation(t *testing.T) {
 		if response.GetManifest().GetFinalStatus() != "PASS" {
 			t.Fatalf("final status = %q, want PASS", response.GetManifest().GetFinalStatus())
 		}
-		if response.GetManifest().GetRunId() == "" {
-			t.Fatal("expected run id")
+		if response.GetManifest().GetHistoryId() == "" {
+			t.Fatal("expected history id")
 		}
 		if response.GetManifest().GetSuite() != "fixture" {
 			t.Fatalf("suite = %q, want fixture", response.GetManifest().GetSuite())
@@ -84,7 +84,7 @@ func TestPublicCleanupOperation(t *testing.T) {
 	})
 }
 
-func TestPublicListRunsAndShowRunOperations(t *testing.T) {
+func TestPublicHistoryAndShowHistoryOperations(t *testing.T) {
 	root := testrepo.Create(t)
 	configDir := filepath.Join(root, "integration")
 	withWorkingDir(t, root, func() {
@@ -98,22 +98,22 @@ func TestPublicListRunsAndShowRunOperations(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Test() error = %v", err)
 		}
-		listResponse, err := ListRuns(&aderv1.ListRunsRequest{ConfigDir: configDir})
+		listResponse, err := History(&aderv1.HistoryRequest{ConfigDir: configDir})
 		if err != nil {
-			t.Fatalf("ListRuns() error = %v", err)
+			t.Fatalf("History() error = %v", err)
 		}
-		if len(listResponse.GetRuns()) != 1 {
-			t.Fatalf("ListRuns() count = %d, want 1", len(listResponse.GetRuns()))
+		if len(listResponse.GetEntries()) != 1 {
+			t.Fatalf("History() count = %d, want 1", len(listResponse.GetEntries()))
 		}
-		showResponse, err := ShowRun(&aderv1.ShowRunRequest{
+		showResponse, err := ShowHistory(&aderv1.ShowHistoryRequest{
 			ConfigDir: configDir,
-			RunId:     testResponse.GetManifest().GetRunId(),
+			HistoryId: testResponse.GetManifest().GetHistoryId(),
 		})
 		if err != nil {
-			t.Fatalf("ShowRun() error = %v", err)
+			t.Fatalf("ShowHistory() error = %v", err)
 		}
-		if showResponse.GetManifest().GetRunId() != testResponse.GetManifest().GetRunId() {
-			t.Fatalf("ShowRun() run id = %q, want %q", showResponse.GetManifest().GetRunId(), testResponse.GetManifest().GetRunId())
+		if showResponse.GetManifest().GetHistoryId() != testResponse.GetManifest().GetHistoryId() {
+			t.Fatalf("ShowHistory() history id = %q, want %q", showResponse.GetManifest().GetHistoryId(), testResponse.GetManifest().GetHistoryId())
 		}
 		if showResponse.GetSummaryMarkdown() == "" {
 			t.Fatal("expected summary markdown")

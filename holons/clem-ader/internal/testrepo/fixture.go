@@ -48,6 +48,11 @@ steps:
     prereqs: [go]
     command: go test ./...
     description: go sdk unit tests
+  fixture-script:
+    workdir: holons/clem-ader
+    script: scripts/fixture-step.sh
+    args: [alpha, beta]
+    description: fixture script execution
   example-go-unit:
     workdir: examples/hello-world/gabriel-greeting-go
     prereqs: [go]
@@ -69,7 +74,7 @@ profiles:
     progression: [ader-unit, example-go-unit]
   unit:
     regression: [ader-unit, grace-op-unit, sdk-go-unit, example-go-unit]
-    progression: [ader-unit, example-go-unit]
+    progression: [ader-unit, example-go-unit, fixture-script]
   integration:
     regression: [integration-deterministic]
     progression: [integration-short]
@@ -86,6 +91,7 @@ profiles:
 
 	writeFile(t, filepath.Join(root, "holons", "clem-ader", "go.mod"), "module example.com/fixture/ader\n\ngo 1.25.1\n")
 	writeFile(t, filepath.Join(root, "holons", "clem-ader", "smoke_test.go"), "package ader\n\nimport \"testing\"\n\nfunc TestSmoke(t *testing.T) {}\n")
+	writeFileMode(t, filepath.Join(root, "holons", "clem-ader", "scripts", "fixture-step.sh"), "#!/usr/bin/env bash\nset -euo pipefail\necho fixture-script:$1:$2\n", 0o755)
 
 	writeFile(t, filepath.Join(root, "holons", "grace-op", "go.mod"), "module example.com/fixture/grace-op\n\ngo 1.25.1\n")
 	writeFile(t, filepath.Join(root, "holons", "grace-op", "smoke_test.go"), "package graceop\n\nimport \"testing\"\n\nfunc TestSmoke(t *testing.T) {}\n")
@@ -110,6 +116,16 @@ func writeFile(t testing.TB, path string, content string) {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func writeFileMode(t testing.TB, path string, content string, mode os.FileMode) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(content), mode); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }

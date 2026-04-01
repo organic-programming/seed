@@ -14,7 +14,7 @@ import (
 )
 
 func TestSurfaceSymmetry(t *testing.T) {
-	wantRPC := []string{"Archive", "Cleanup", "ListRuns", "ShowRun", "Test"}
+	wantRPC := []string{"Archive", "Cleanup", "History", "ShowHistory", "Test"}
 
 	gotRPC := make([]string, 0, len(aderv1.AderService_ServiceDesc.Methods))
 	for _, method := range aderv1.AderService_ServiceDesc.Methods {
@@ -41,7 +41,7 @@ func TestSurfaceSymmetry(t *testing.T) {
 		t.Fatalf("CLI commands = %v, want %v", gotCLI, wantCLI)
 	}
 
-	gotAPI := []string{"Archive", "Cleanup", "ListRuns", "ShowRun", "Test"}
+	gotAPI := []string{"Archive", "Cleanup", "History", "ShowHistory", "Test"}
 	sort.Strings(gotAPI)
 	if !reflect.DeepEqual(gotAPI, wantRPC) {
 		t.Fatalf("public API set = %v, want %v", gotAPI, wantRPC)
@@ -68,7 +68,7 @@ func TestSurfaceSymmetry(t *testing.T) {
 	}
 }
 
-func TestHistoryMapsToListRuns(t *testing.T) {
+func TestHistoryCommandShape(t *testing.T) {
 	root := newRootCommand(io.Discard, io.Discard)
 	history := root.Commands()[0]
 	for _, cmd := range root.Commands() {
