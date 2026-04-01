@@ -24,6 +24,7 @@
 | ? | ? | [PROTO.md](PROTO.md) | `holon.proto` — the holon descriptor format |
 | ? | ? | [README.md](README.md) | Root repository overview |
 | ? | - | [SESSIONS.md](SESSIONS.md) | Network connection tracing and metrics |
+| ? | ? | [TDD.md](TDD.md) | TDD promotion pipeline — unit → integration → regression |
 | ⚠️ | ? | [WHY.md](WHY.md) | Rationale and guiding motivations |
 
 ## op CLI (holons/grace-op)

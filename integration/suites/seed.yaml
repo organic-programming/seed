@@ -162,17 +162,18 @@ steps:
     description: Black-box fuzz flag permutations
 profiles:
   quick:
-    regression: [ader-unit, grace-op-unit, sdk-go-unit, example-go-unit, integration-short]
-    progression: [ader-unit, example-go-unit]
+    regression: []
+    progression: [ader-unit, grace-op-unit, sdk-go-unit, example-go-unit, integration-short]
   unit:
-    regression: [ader-unit, grace-op-unit, sdk-go-unit, sdk-c-unit, sdk-cpp-unit, sdk-csharp-unit, sdk-dart-unit, sdk-java-unit, sdk-js-unit, sdk-js-web-unit, sdk-kotlin-unit, sdk-ruby-unit, sdk-rust-unit, sdk-swift-unit, example-c-unit, example-cpp-unit, example-csharp-unit, example-dart-unit, example-go-unit, example-java-unit, example-kotlin-unit, example-node-unit, example-python-unit, example-ruby-unit, example-rust-unit, example-swift-unit]
-    progression: [ader-unit, grace-op-unit, sdk-go-unit, example-go-unit]
+    regression: []
+    progression: [ader-unit, grace-op-unit, sdk-go-unit, sdk-c-unit, sdk-cpp-unit, sdk-csharp-unit, sdk-dart-unit, sdk-java-unit, sdk-js-unit, sdk-js-web-unit, sdk-kotlin-unit, sdk-ruby-unit, sdk-rust-unit, sdk-swift-unit, example-c-unit, example-cpp-unit, example-csharp-unit, example-dart-unit, example-go-unit, example-java-unit, example-kotlin-unit, example-node-unit, example-python-unit, example-ruby-unit, example-rust-unit, example-swift-unit]
   integration:
-    regression: [integration-deterministic]
-    progression: [integration-short]
+    regression: []
+    progression: [integration-deterministic, integration-short]
   full:
-    regression: [ader-unit, grace-op-unit, sdk-go-unit, sdk-c-unit, sdk-cpp-unit, sdk-csharp-unit, sdk-dart-unit, sdk-java-unit, sdk-js-unit, sdk-js-web-unit, sdk-kotlin-unit, sdk-ruby-unit, sdk-rust-unit, sdk-swift-unit, example-c-unit, example-cpp-unit, example-csharp-unit, example-dart-unit, example-go-unit, example-java-unit, example-kotlin-unit, example-node-unit, example-python-unit, example-ruby-unit, example-rust-unit, example-swift-unit, integration-deterministic]
-    progression: [ader-unit, example-go-unit, integration-short]
+    regression: []
+    progression: [ader-unit, grace-op-unit, sdk-go-unit, sdk-c-unit, sdk-cpp-unit, sdk-csharp-unit, sdk-dart-unit, sdk-java-unit, sdk-js-unit, sdk-js-web-unit, sdk-kotlin-unit, sdk-ruby-unit, sdk-rust-unit, sdk-swift-unit, example-c-unit, example-cpp-unit, example-csharp-unit, example-dart-unit, example-go-unit, example-java-unit, example-kotlin-unit, example-node-unit, example-python-unit, example-ruby-unit, example-rust-unit, example-swift-unit, integration-deterministic, integration-short]
   stress:
-    regression: [integration-fuzz-random, integration-fuzz-json, integration-fuzz-uri, integration-fuzz-flags]
-    progression: []
+    regression: []
+    progression: [integration-fuzz-random, integration-fuzz-json, integration-fuzz-uri, integration-fuzz-flags]
+
