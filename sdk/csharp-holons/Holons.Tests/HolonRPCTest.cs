@@ -211,17 +211,7 @@ public class HolonRPCTest
 
     private static string FindSdkDirectory()
     {
-        var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
-
-        while (dir is not null)
-        {
-            var candidate = Path.Combine(dir.FullName, "go-holons");
-            if (Directory.Exists(candidate))
-                return dir.FullName;
-            dir = dir.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Unable to locate sdk directory containing go-holons");
+        return TestPaths.SdkRoot();
     }
 
     private static string ResolveGoBinary()

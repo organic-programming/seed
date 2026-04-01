@@ -59,11 +59,12 @@ The black-box suite in
 is self-isolated:
 
 - it builds a canonical `op` binary under `integration/.artifacts/run-*/`
-- it mirrors `examples/` and `sdk/` into that run directory
+- it mirrors `examples/`, `_protos/`, `protos/`, `sdk/`, `holons/`, and `scripts/` into that run directory
 - it points `--root`, `cmd.Dir`, `OPPATH`, `OPBIN`, and `TMPDIR` at that copy
-- it exposes `integration/.t/` as a short temp alias for Unix socket safety
+- it creates real socket-bearing sandboxes under a short temp root in `/tmp/...`
+- it exposes `integration/.t/` only as a human-facing alias to that short temp root
 
-That suite should not mutate the real `examples/` or `sdk/` trees.
+That suite should not mutate the real source trees.
 
 ### The umbrella runner
 
@@ -78,6 +79,7 @@ It copies the source trees needed for native unit suites:
 - `holons/`
 - `sdk/`
 - `examples/`
+- `_protos/`
 - `protos/`
 - `scripts/`
 
@@ -141,6 +143,10 @@ Examples:
 ./integration/run-local-suite.sh full 'integration-|grace-op'
 ```
 
+```bash
+./integration/run-local-suite.sh stress
+```
+
 ## Profiles
 
 ### `quick`
@@ -170,7 +176,7 @@ This is the native-unit layer only.
 
 ### `integration`
 
-Runs only the real-binary black-box suite:
+Runs only the deterministic real-binary black-box suite:
 
 ```bash
 cd integration/tests
@@ -185,6 +191,13 @@ Runs:
 2. then `integration`
 
 This is the intended broad local regression pass before merge or release.
+
+### `stress`
+
+Runs only opt-in fuzz targets for the black-box suite.
+
+This profile is intentionally separate from `full` so the default local
+regression pass stays deterministic and bounded.
 
 ## Step Filters
 
@@ -294,7 +307,7 @@ make clean && make test && make clean
 
 ```bash
 cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/sdk/cpp-holons
-make clean && make test && make clean
+cmake -S . -B build && cmake --build build --target test_runner && ./build/test_runner
 ```
 
 ### Python Example
@@ -332,6 +345,13 @@ cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/integration/tests
 go test -v -count=1 -timeout 30m ./...
 ```
 
+### Black-box Fuzzing
+
+```bash
+cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/integration/tests
+OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzRandomCommands -fuzztime=30s ./
+```
+
 ### A small black-box slice
 
 ```bash
@@ -350,6 +370,10 @@ The umbrella runner prints live step progress:
 
 If a toolchain is missing, the step is marked `SKIP` and the run continues.
 
+If a Node or Ruby project has not had its dependencies restored yet, the step
+is also marked `SKIP` with a setup reason instead of being reported as a
+misleading product failure.
+
 If a step fails, the run continues so the report captures the whole visible
 damage, then exits non-zero at the end.
 
@@ -367,7 +391,7 @@ Examples:
 - .NET, Gradle, Swift, Cargo, and Go need their normal toolchains present
 
 Missing binaries are reported as `SKIP`. Missing project dependencies usually
-show up as `FAIL` in the relevant step log.
+show up as `SKIP` for the Node and Ruby steps the runner can preflight.
 
 ## Recommended Local Loop
 

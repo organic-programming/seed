@@ -202,21 +202,7 @@ internal static class DiscoveryTestSupport
 
     private static string ResolveFixtureDllPath()
     {
-        var sdkRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
-        var framework = new DirectoryInfo(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory)).Name;
-        var configuration = Directory.GetParent(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory))!.Name;
-        var path = Path.Combine(
-            sdkRoot,
-            "Holons.Tests",
-            "Fixtures",
-            "StaticDescribeFixture",
-            "bin",
-            configuration,
-            framework,
-            "StaticDescribeFixture.dll");
-        if (!File.Exists(path))
-            throw new FileNotFoundException("Static describe fixture build output was not found", path);
-        return path;
+        return TestPaths.StaticDescribeFixtureDll();
     }
 
     private static string PackageArchDirectory()

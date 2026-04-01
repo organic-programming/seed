@@ -724,11 +724,22 @@ func prepareWorkspaceMirror() (string, error) {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return "", err
 	}
-	for _, rel := range []string{"examples", "sdk"} {
-		src := filepath.Join(seedRoot, rel)
-		dst := filepath.Join(root, rel)
+	type mirrorSpec struct {
+		src string
+		dst string
+	}
+	for _, spec := range []mirrorSpec{
+		{src: filepath.Join(seedRoot, "examples"), dst: filepath.Join(root, "examples")},
+		{src: filepath.Join(seedRoot, "examples", "_protos"), dst: filepath.Join(root, "_protos")},
+		{src: filepath.Join(seedRoot, "protos"), dst: filepath.Join(root, "protos")},
+		{src: filepath.Join(seedRoot, "sdk"), dst: filepath.Join(root, "sdk")},
+		{src: filepath.Join(seedRoot, "holons"), dst: filepath.Join(root, "holons")},
+		{src: filepath.Join(seedRoot, "scripts"), dst: filepath.Join(root, "scripts")},
+	} {
+		src := spec.src
+		dst := spec.dst
 		if err := copyTree(src, dst); err != nil {
-			return "", fmt.Errorf("copy %s: %w", rel, err)
+			return "", fmt.Errorf("copy %s: %w", src, err)
 		}
 	}
 	return root, nil
@@ -758,6 +769,9 @@ func copyTree(srcRoot, dstRoot string) error {
 			if err != nil {
 				return err
 			}
+			if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
+				return err
+			}
 			return os.Symlink(target, dstPath)
 		case info.IsDir():
 			return os.MkdirAll(dstPath, info.Mode().Perm())
@@ -775,7 +789,7 @@ func shouldSkipMirrorPath(rel string, info os.FileInfo) bool {
 	base := info.Name()
 	if info.IsDir() {
 		switch base {
-		case ".git", ".gradle", ".kotlin", ".build", "build", "target", "node_modules", "__pycache__":
+		case ".git", ".gradle", ".kotlin", ".build", "build", "target", "__pycache__":
 			return true
 		}
 	}
@@ -816,8 +830,8 @@ func artifactTempDir(t *testing.T, category string) string {
 	t.Helper()
 
 	root := filepath.Join(artifactsRoot, category)
-	if category == "sandboxes" && strings.TrimSpace(tempAliasRoot) != "" {
-		root = filepath.Join(tempAliasRoot, "sb")
+	if category == "sandboxes" && strings.TrimSpace(tempBaseRoot) != "" {
+		root = filepath.Join(tempBaseRoot, "sb")
 	}
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatalf("mkdir artifact temp root %s: %v", root, err)

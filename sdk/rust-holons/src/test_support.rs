@@ -96,13 +96,16 @@ pub(crate) fn file_url(path: &Path) -> String {
 pub(crate) fn compiled_fixture_holon_binary() -> PathBuf {
     static BIN: OnceLock<PathBuf> = OnceLock::new();
     BIN.get_or_init(|| {
-        let root = env::temp_dir().join("holons-rust-test-fixture");
+        let root = fixture_root();
+        let target_dir = root.join("target");
         write_fixture_holon_crate(&root);
 
         let output = Command::new("cargo")
             .arg("build")
             .arg("--manifest-path")
             .arg(root.join("Cargo.toml"))
+            .arg("--target-dir")
+            .arg(&target_dir)
             .output()
             .expect("failed to build fixture holon binary");
 
@@ -114,10 +117,9 @@ pub(crate) fn compiled_fixture_holon_binary() -> PathBuf {
             );
         }
 
-        let binary = root
-            .join("target")
+        let binary = target_dir
             .join("debug")
-            .join("holons-test-fixture");
+            .join(fixture_binary_name());
         assert!(
             binary.is_file(),
             "missing fixture binary {}",
@@ -126,6 +128,24 @@ pub(crate) fn compiled_fixture_holon_binary() -> PathBuf {
         binary
     })
     .clone()
+}
+
+fn fixture_root() -> PathBuf {
+    if let Ok(path) = env::var("HOLONS_RUST_FIXTURE_ROOT") {
+        let trimmed = path.trim();
+        if !trimmed.is_empty() {
+            return PathBuf::from(trimmed);
+        }
+    }
+    env::temp_dir().join("holons-rust-test-fixture")
+}
+
+fn fixture_binary_name() -> &'static str {
+    if cfg!(windows) {
+        "holons-test-fixture.exe"
+    } else {
+        "holons-test-fixture"
+    }
 }
 
 pub(crate) fn write_package_holon(

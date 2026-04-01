@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	holonserve "github.com/organic-programming/go-holons/pkg/serve"
@@ -36,6 +37,7 @@ func startTestServer(t *testing.T, root string) (opv1.OPServiceClient, func()) {
 	if err := os.Chdir(root); err != nil {
 		t.Fatal(err)
 	}
+	isolateTestRuntime(t, root)
 
 	lis := bufconn.Listen(bufSize)
 	s := grpc.NewServer()
@@ -61,6 +63,48 @@ func startTestServer(t *testing.T, root string) (opv1.OPServiceClient, func()) {
 	}
 
 	return opv1.NewOPServiceClient(conn), cleanup
+}
+
+func isolateTestRuntime(t *testing.T, root string) {
+	t.Helper()
+
+	runtimeHome := filepath.Join(root, ".runtime")
+	runtimeBin := filepath.Join(runtimeHome, "bin")
+	runtimeCache := filepath.Join(runtimeHome, "cache")
+	for _, dir := range []string{runtimeBin, runtimeCache} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("OPPATH", runtimeHome)
+	t.Setenv("OPBIN", runtimeBin)
+	t.Setenv("OPROOT", "")
+	t.Setenv("PATH", filterInstalledHolonsPath(os.Getenv("PATH")))
+}
+
+func filterInstalledHolonsPath(pathValue string) string {
+	if strings.TrimSpace(pathValue) == "" {
+		return pathValue
+	}
+
+	entries := strings.Split(pathValue, string(os.PathListSeparator))
+	filtered := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		trimmed := strings.TrimSpace(entry)
+		if trimmed == "" {
+			continue
+		}
+		cleaned := filepath.Clean(trimmed)
+		lower := strings.ToLower(cleaned)
+		if strings.Contains(lower, strings.ToLower(string(filepath.Separator)+".op"+string(filepath.Separator)+"bin")) {
+			continue
+		}
+		if strings.HasSuffix(lower, strings.ToLower(filepath.Join(".op", "bin"))) {
+			continue
+		}
+		filtered = append(filtered, trimmed)
+	}
+	return strings.Join(filtered, string(os.PathListSeparator))
 }
 
 // seedHolon creates a holon.proto in a temp subdirectory.
@@ -119,9 +163,18 @@ func TestDiscoverWithHolons(t *testing.T) {
 		t.Errorf("Discover returned %d entries, want 2", len(resp.Entries))
 	}
 	for _, e := range resp.Entries {
-		if e.Origin != "local" {
-			t.Errorf("Origin = %q, want %q", e.Origin, "local")
+		if !isWorkspaceOrigin(e.Origin) {
+			t.Errorf("Origin = %q, want one of cwd/source/path", e.Origin)
 		}
+	}
+}
+
+func isWorkspaceOrigin(origin string) bool {
+	switch origin {
+	case "cwd", "source", "path":
+		return true
+	default:
+		return false
 	}
 }
 

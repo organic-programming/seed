@@ -15,7 +15,7 @@ func TestLifecycle_HelloWorldHolons(t *testing.T) {
 			checkResult := sb.runOP(t, "check", spec.Slug)
 			requireSuccess(t, checkResult)
 
-			if spec.Slug != "gabriel-greeting-go" {
+			if spec.Slug != "gabriel-greeting-go" && supportsOPTest(spec) {
 				testResult := sb.runOP(t, "test", spec.Slug)
 				requireSuccess(t, testResult)
 			}

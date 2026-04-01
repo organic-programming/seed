@@ -9,10 +9,7 @@ public class StaticDescribeBinaryTests
     [Fact]
     public async Task PublishedBinaryServesStaticDescribeWithoutAdjacentProtoFiles()
     {
-        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
-        var framework = new DirectoryInfo(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory)).Name;
-        var configuration = Directory.GetParent(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory))!.Name;
-        var fixtureOutputDir = Path.Combine(root, "Holons.Tests", "Fixtures", "StaticDescribeFixture", "bin", configuration, framework);
+        var fixtureOutputDir = Path.GetDirectoryName(TestPaths.StaticDescribeFixtureDll())!;
         var runRoot = Directory.CreateTempSubdirectory("holons-csharp-static-describe-");
         var runDir = Path.Combine(runRoot.FullName, "run");
 

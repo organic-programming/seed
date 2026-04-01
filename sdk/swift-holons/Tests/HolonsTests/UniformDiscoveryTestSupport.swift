@@ -159,7 +159,7 @@ func makeServablePackage(
   let payload = try response.serializedData().base64EncodedString()
   let executable = try uniformFindBuiltExecutable(
     named: "protoless-describe-fixture",
-    under: CertificationCLI.packageRoot().appendingPathComponent(".build")
+    under: holonsSwiftBuildRoot()
   )
 
   let binary = packageRoot
@@ -212,6 +212,15 @@ func uniformFindBuiltExecutable(named name: String, under root: URL) throws -> U
   }
 
   throw XCTSkip("failed to locate built executable \(name)")
+}
+
+func holonsSwiftBuildRoot() -> URL {
+  if let configured = ProcessInfo.processInfo.environment["HOLONS_SWIFT_BUILD_ROOT"],
+     !configured.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  {
+    return URL(fileURLWithPath: configured, isDirectory: true)
+  }
+  return CertificationCLI.packageRoot().appendingPathComponent(".build", isDirectory: true)
 }
 
 func uniformCurrentArchDirectory() -> String {

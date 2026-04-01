@@ -15,7 +15,7 @@ func TestUnixTransport_RunAndDispatch(t *testing.T) {
 	for _, spec := range nativeTestHolons(t) {
 		t.Run(spec.Slug, func(t *testing.T) {
 			sb := newSandbox(t)
-			socketPath := filepath.Join(sb.Root, spec.Slug+".sock")
+			socketPath := filepath.Join(sb.Root, "h.sock")
 
 			process := sb.startProcess(t, runOptions{}, "run", spec.Slug, "--listen", "unix://"+socketPath)
 			defer process.Stop(t)

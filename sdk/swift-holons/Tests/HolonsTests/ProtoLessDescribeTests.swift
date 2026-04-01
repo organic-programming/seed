@@ -130,7 +130,7 @@ private func prepareProtoLessServerRun() throws -> BuiltProtoLessServer {
   guard
     let executable = findBuiltExecutable(
       named: "protoless-describe-fixture",
-      under: CertificationCLI.packageRoot().appendingPathComponent(".build")
+      under: holonsSwiftBuildRoot()
     )
   else {
     throw NSError(

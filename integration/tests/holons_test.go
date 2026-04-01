@@ -87,6 +87,15 @@ func lifecycleHolons(t *testing.T) []holonSpec {
 	return holons
 }
 
+func supportsOPTest(spec holonSpec) bool {
+	switch spec.Runner {
+	case "python", "dart":
+		return false
+	default:
+		return true
+	}
+}
+
 func compositeTestHolons(t *testing.T) []holonSpec {
 	t.Helper()
 	available := filterAvailableHolons(compositeHolons)

@@ -213,9 +213,51 @@ func chdirWhoTest(t *testing.T, dir string) {
 	}
 	t.Cleanup(func() { _ = os.Chdir(wd) })
 
+	ensureWhoTestRuntime(t, dir)
 	if err := os.Chdir(dir); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func ensureWhoTestRuntime(t *testing.T, dir string) {
+	t.Helper()
+
+	if strings.TrimSpace(os.Getenv("OPPATH")) == "" {
+		runtimeHome := filepath.Join(dir, ".runtime")
+		runtimeBin := filepath.Join(runtimeHome, "bin")
+		if err := os.MkdirAll(runtimeBin, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("OPPATH", runtimeHome)
+		t.Setenv("OPBIN", runtimeBin)
+	}
+	t.Setenv("OPROOT", "")
+	t.Setenv("PATH", filterWhoTestPath(os.Getenv("PATH")))
+}
+
+func filterWhoTestPath(pathValue string) string {
+	if strings.TrimSpace(pathValue) == "" {
+		return pathValue
+	}
+
+	entries := strings.Split(pathValue, string(os.PathListSeparator))
+	filtered := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		trimmed := strings.TrimSpace(entry)
+		if trimmed == "" {
+			continue
+		}
+		cleaned := filepath.Clean(trimmed)
+		lower := strings.ToLower(cleaned)
+		if strings.Contains(lower, strings.ToLower(string(filepath.Separator)+".op"+string(filepath.Separator)+"bin")) {
+			continue
+		}
+		if strings.HasSuffix(lower, strings.ToLower(filepath.Join(".op", "bin"))) {
+			continue
+		}
+		filtered = append(filtered, trimmed)
+	}
+	return strings.Join(filtered, string(os.PathListSeparator))
 }
 
 func repoRoot(t *testing.T) string {

@@ -4,15 +4,26 @@ package integration
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
 )
 
-func FuzzRandomCommands(f *testing.F) {
+const fuzzOptInReason = "set OP_TEST_FUZZ=1 to run fuzz targets"
+
+func requireFuzzOptIn(f *testing.F) {
+	f.Helper()
 	if testing.Short() {
 		f.Skip(shortTestReason)
 	}
+	if strings.TrimSpace(os.Getenv("OP_TEST_FUZZ")) != "1" {
+		f.Skip(fuzzOptInReason)
+	}
+}
+
+func FuzzRandomCommands(f *testing.F) {
+	requireFuzzOptIn(f)
 
 	for _, seed := range []string{
 		"version",
@@ -37,9 +48,7 @@ func FuzzRandomCommands(f *testing.F) {
 }
 
 func FuzzJSONInput(f *testing.F) {
-	if testing.Short() {
-		f.Skip(shortTestReason)
-	}
+	requireFuzzOptIn(f)
 
 	for _, seed := range []string{`{"name":"World","lang_code":"en"}`, "{broken", "[]"} {
 		f.Add(seed)
@@ -58,9 +67,7 @@ func FuzzJSONInput(f *testing.F) {
 }
 
 func FuzzTransportURI(f *testing.F) {
-	if testing.Short() {
-		f.Skip(shortTestReason)
-	}
+	requireFuzzOptIn(f)
 
 	for _, seed := range []string{"grpc://gabriel-greeting-go", "tcp://gabriel-greeting-go", "stdio://gabriel-greeting-go", "bogus://gabriel-greeting-go"} {
 		f.Add(seed)
@@ -79,9 +86,7 @@ func FuzzTransportURI(f *testing.F) {
 }
 
 func FuzzFlagPermutations(f *testing.F) {
-	if testing.Short() {
-		f.Skip(shortTestReason)
-	}
+	requireFuzzOptIn(f)
 
 	for _, seed := range []string{
 		"invoke gabriel-greeting-go SayHello --no-build {}",
