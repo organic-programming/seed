@@ -84,6 +84,57 @@ ader cleanup integration
 
 By default, `ader test` streams live step progress and subprocess output on `stderr`, then prints the final summary on `stdout`. Use `--silent` to keep only the final summary.
 
+## Flag Reference
+
+```
+ader test integration --suite seed --profile quick --lane regression --source committed
+         │              │             │              │                │
+         config-dir     suite         profile        lane             source
+```
+
+| Flag | Role | Values | Default |
+|------|------|--------|---------|
+| `<config-dir>` | Directory containing `ader.yaml` and `suites/` | any path | required |
+| `--suite` | Which suite file to load from `suites/<name>.yaml` | any suite in `suites/` | from `ader.yaml` (`seed`) |
+| `--profile` | Which group of steps to run | `quick`, `unit`, `integration`, `full`, `stress` | `quick` |
+| `--lane` | Which subset of the profile to run | `regression`, `progression`, `both` | `regression` |
+| `--source` | Where the snapshot comes from | `committed`, `workspace` | `committed` |
+| `--step-filter` | Regex to filter step IDs | any regex | none |
+| `--silent` | Suppress live progress | flag | off |
+| `--archive` | Archive policy | `auto`, `always`, `never` | per-profile in `ader.yaml` |
+| `--keep-report` | Keep report dir after archiving | flag | off |
+| `--keep-snapshot` | Keep the frozen snapshot after the run | flag | off |
+| `--full` | Shorthand for `--profile full` | flag | off |
+
+## Snapshot Sources
+
+Tests never run against the live working directory. Every run creates a frozen snapshot in a temporary directory. `--source` controls what gets copied:
+
+```
+--source committed                    --source workspace
+         │                                     │
+         ▼                                     ▼
+  git archive HEAD                    copy of the working tree
+  (last commit only)                  (includes uncommitted changes)
+         │                                     │
+         ▼                                     ▼
+         ┌────────────────────────────────────┐
+         │  /tmp/ader-int-store-<runID>/      │
+         │    run/                            │
+         │      snapshot/      ← tests run    │
+         │        sdk/go-holons/  against     │
+         │        holons/grace-op/ this copy  │
+         │        ...                         │
+         └────────────────────────────────────┘
+         │
+         ▼
+       deleted after the run (unless --keep-snapshot)
+```
+
+- `committed` = reproducible proof. Two machines with the same commit get the same snapshot. Used for `regression`.
+- `workspace` = fast iteration. Test uncommitted changes immediately. Used for `progression` (TDD).
+
+
 ## Install
 
 The canonical path is: install `op`, install the `clem-ader` holon into `OPBIN`, then enable shell completion.
