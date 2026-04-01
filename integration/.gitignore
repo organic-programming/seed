@@ -1,4 +1,5 @@
 results*
 .artifacts/
+.t
 .t/
 reports/
