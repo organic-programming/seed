@@ -84,6 +84,35 @@ func TestPublicCleanupOperation(t *testing.T) {
 	})
 }
 
+func TestPublicDowngradeOperation(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "integration")
+	withWorkingDir(t, root, func() {
+		response, err := Downgrade(&aderv1.DowngradeRequest{
+			ConfigDir: configDir,
+			Suite:     "fixture",
+			Profile:   "unit",
+			StepIds:   []string{"sdk-go-unit"},
+		})
+		if err != nil {
+			t.Fatalf("Downgrade() error = %v", err)
+		}
+		if response.GetSuite() != "fixture" {
+			t.Fatalf("suite = %q, want fixture", response.GetSuite())
+		}
+		if len(response.GetProfileChanges()) != 1 {
+			t.Fatalf("profile changes = %d, want 1", len(response.GetProfileChanges()))
+		}
+		change := response.GetProfileChanges()[0]
+		if change.GetProfile() != "unit" {
+			t.Fatalf("profile = %q, want unit", change.GetProfile())
+		}
+		if len(change.GetMovedSteps()) != 1 || change.GetMovedSteps()[0] != "sdk-go-unit" {
+			t.Fatalf("moved steps = %v, want [sdk-go-unit]", change.GetMovedSteps())
+		}
+	})
+}
+
 func TestPublicHistoryAndShowHistoryOperations(t *testing.T) {
 	root := testrepo.Create(t)
 	configDir := filepath.Join(root, "integration")

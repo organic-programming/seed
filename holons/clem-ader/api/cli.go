@@ -49,6 +49,7 @@ func newRootCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 	root.AddCommand(newTestCommand(stdout, stderr))
 	root.AddCommand(newArchiveCommand(stdout))
 	root.AddCommand(newCleanupCommand(stdout))
+	root.AddCommand(newDowngradeCommand(stdout))
 	root.AddCommand(newHistoryCommand(stdout))
 	root.AddCommand(newShowCommand(stdout))
 	root.AddCommand(newServeCommand())
@@ -228,6 +229,40 @@ func newCleanupCommand(stdout io.Writer) *cobra.Command {
 	return cmd
 }
 
+func newDowngradeCommand(stdout io.Writer) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "downgrade <config-dir>",
+		Short: "Move regression steps back to progression in the suite YAML",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := commandViper(cmd, args[0])
+			if err != nil {
+				return err
+			}
+			result, err := Downgrade(&aderv1.DowngradeRequest{
+				ConfigDir: args[0],
+				Suite:     cfg.GetString("downgrade.suite"),
+				Profile:   cfg.GetString("downgrade.profile"),
+				StepIds:   cfg.GetStringSlice("downgrade.step"),
+				All:       cfg.GetBool("downgrade.all"),
+			})
+			if err != nil {
+				return err
+			}
+			return printDowngradeResult(stdout, result)
+		},
+	}
+	cmd.Flags().String("suite", "", "suite name from <config-dir>/suites")
+	cmd.Flags().String("profile", "", "limit downgrade to one profile")
+	cmd.Flags().StringArray("step", nil, "step id to downgrade; repeat for multiple steps")
+	cmd.Flags().Bool("all", false, "downgrade all regression steps in scope")
+	cmd.ValidArgsFunction = completeConfigDirs
+	_ = cmd.RegisterFlagCompletionFunc("suite", completeSuites)
+	_ = cmd.RegisterFlagCompletionFunc("profile", completeProfiles)
+	_ = cmd.RegisterFlagCompletionFunc("step", completeDowngradeSteps)
+	return cmd
+}
+
 func newHistoryCommand(stdout io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "history <config-dir>",
@@ -327,7 +362,7 @@ func commandViper(cmd *cobra.Command, configDir string) (*viper.Viper, error) {
 	if err := cfg.ReadInConfig(); err != nil {
 		return nil, err
 	}
-	for _, flag := range []string{"suite", "profile", "full", "lane", "step-filter", "source", "archive", "keep-report", "keep-snapshot", "silent", "id", "latest"} {
+	for _, flag := range []string{"suite", "profile", "full", "lane", "step-filter", "source", "archive", "keep-report", "keep-snapshot", "silent", "id", "latest", "step", "all"} {
 		if cmd.Flags().Lookup(flag) == nil {
 			continue
 		}
@@ -337,6 +372,8 @@ func commandViper(cmd *cobra.Command, configDir string) (*viper.Viper, error) {
 			key = "test." + flag
 		case "archive":
 			key = "archive." + flag
+		case "downgrade":
+			key = "downgrade." + flag
 		case "show":
 			key = "show." + flag
 		}
@@ -362,6 +399,29 @@ func printRunResult(w io.Writer, manifest *aderv1.HistoryRecord) error {
 	if strings.TrimSpace(manifest.GetArchivePath()) != "" {
 		_, err = fmt.Fprintf(w, "archive: %s\n", manifest.GetArchivePath())
 		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printDowngradeResult(w io.Writer, response *aderv1.DowngradeResponse) error {
+	if _, err := fmt.Fprintf(w, "suite: %s\nsuite-file: %s\n", response.GetSuite(), response.GetSuiteFile()); err != nil {
+		return err
+	}
+	if len(response.GetProfileChanges()) == 0 {
+		if _, err := io.WriteString(w, "moved: none\n"); err != nil {
+			return err
+		}
+	} else {
+		for _, change := range response.GetProfileChanges() {
+			if _, err := fmt.Fprintf(w, "profile: %s\tmoved: %s\n", change.GetProfile(), strings.Join(change.GetMovedSteps(), ", ")); err != nil {
+				return err
+			}
+		}
+	}
+	if len(response.GetIgnoredSteps()) > 0 {
+		if _, err := fmt.Fprintf(w, "ignored: %s\n", strings.Join(response.GetIgnoredSteps(), ", ")); err != nil {
 			return err
 		}
 	}
@@ -436,6 +496,27 @@ func completeHistoryIDs(cmd *cobra.Command, args []string, toComplete string) ([
 			Value:       entry.HistoryID,
 			Description: compactHistoryDescription(entry),
 		})
+	}
+	return completionValues(items, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+func completeDowngradeSteps(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+	configDir, ok := positionalConfigDir(args)
+	if !ok {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	suite, _ := cmd.Flags().GetString("suite")
+	if strings.TrimSpace(suite) == "" {
+		defaultSuite, err := engine.DefaultSuite(configDir)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		suite = defaultSuite
+	}
+	profile, _ := cmd.Flags().GetString("profile")
+	items, err := engine.ListRegressionSteps(configDir, suite, profile)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 	return completionValues(items, toComplete), cobra.ShellCompDirectiveNoFileComp
 }

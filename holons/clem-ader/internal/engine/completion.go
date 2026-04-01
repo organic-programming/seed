@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -92,6 +93,40 @@ func ListProfiles(configDir string, suite string) ([]CompletionItem, error) {
 			continue
 		}
 		items = append(items, CompletionItem{Value: profile, Description: ProfileDescription(profile)})
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].Value < items[j].Value })
+	return items, nil
+}
+
+func ListRegressionSteps(configDir string, suite string, profile string) ([]CompletionItem, error) {
+	cfg, err := loadRunConfig(configDir, suite)
+	if err != nil {
+		return nil, err
+	}
+	stepProfiles := map[string][]string{}
+	if value := strings.TrimSpace(profile); value != "" {
+		value = normalizeProfile(value)
+		lanes, ok := cfg.Suite.Profiles[value]
+		if !ok {
+			return nil, fmt.Errorf("suite %q does not define profile %q", cfg.SuiteName, value)
+		}
+		for _, stepID := range lanes.Regression {
+			stepProfiles[stepID] = append(stepProfiles[stepID], value)
+		}
+	} else {
+		for _, item := range orderedSuiteProfiles(cfg.Suite.Profiles) {
+			for _, stepID := range cfg.Suite.Profiles[item].Regression {
+				stepProfiles[stepID] = append(stepProfiles[stepID], item)
+			}
+		}
+	}
+	items := make([]CompletionItem, 0, len(stepProfiles))
+	for stepID, profiles := range stepProfiles {
+		description := strings.TrimSpace(cfg.Suite.Steps[stepID].Description)
+		if len(profiles) > 0 {
+			description = strings.TrimSpace(strings.Join([]string{description, "regression in " + strings.Join(profiles, ", ")}, " | "))
+		}
+		items = append(items, CompletionItem{Value: stepID, Description: description})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Value < items[j].Value })
 	return items, nil

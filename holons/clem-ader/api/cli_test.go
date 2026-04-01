@@ -79,6 +79,25 @@ func TestRunCLITestArchiveHistoryAndShow(t *testing.T) {
 	})
 }
 
+func TestRunCLIDowngrade(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "integration")
+	withWorkingDir(t, root, func() {
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+
+		if code := RunCLI([]string{"downgrade", configDir, "--suite", "fixture", "--profile", "unit", "--step", "sdk-go-unit"}, &stdout, &stderr); code != 0 {
+			t.Fatalf("RunCLI(downgrade) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "profile: unit\tmoved: sdk-go-unit") {
+			t.Fatalf("downgrade stdout = %q, want moved step summary", stdout.String())
+		}
+		if stderr.Len() != 0 {
+			t.Fatalf("downgrade stderr = %q, want empty", stderr.String())
+		}
+	})
+}
+
 func TestCLICompletionSuggestsSuitesProfilesAndHistoryIDs(t *testing.T) {
 	root := testrepo.Create(t)
 	configDir := filepath.Join(root, "integration")
@@ -121,6 +140,25 @@ func TestCLICompletionSuggestsSuitesProfilesAndHistoryIDs(t *testing.T) {
 		profiles, _ := profileCompletion(testCmd, []string{configDir}, "in")
 		if len(profiles) == 0 || !strings.Contains(string(profiles[0]), "integration") {
 			t.Fatalf("profile completion = %v, want integration", profiles)
+		}
+
+		downgradeCmd := findCommand(newRootCommand(io.Discard, io.Discard), "downgrade")
+		if downgradeCmd == nil {
+			t.Fatal("downgrade command missing")
+		}
+		if err := downgradeCmd.Flags().Set("suite", "fixture"); err != nil {
+			t.Fatalf("set downgrade suite flag: %v", err)
+		}
+		if err := downgradeCmd.Flags().Set("profile", "unit"); err != nil {
+			t.Fatalf("set downgrade profile flag: %v", err)
+		}
+		stepCompletion, ok := downgradeCmd.GetFlagCompletionFunc("step")
+		if !ok {
+			t.Fatal("downgrade --step completion lookup failed")
+		}
+		steps, _ := stepCompletion(downgradeCmd, []string{configDir}, "sdk")
+		if len(steps) == 0 || !strings.Contains(string(steps[0]), "sdk-go-unit") {
+			t.Fatalf("downgrade step completion = %v, want sdk-go-unit", steps)
 		}
 
 		var stdout bytes.Buffer

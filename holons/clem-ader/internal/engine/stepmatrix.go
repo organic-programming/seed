@@ -16,6 +16,8 @@ var profileDescriptions = map[string]string{
 	"stress":      "Opt-in black-box fuzz and stress only",
 }
 
+var profileLadder = []string{"quick", "unit", "integration", "full"}
+
 func SupportedProfiles() []string {
 	out := make([]string, 0, len(profileDescriptions))
 	for profile := range profileDescriptions {
@@ -62,6 +64,24 @@ func normalizeArchivePolicy(raw string) string {
 		return "auto"
 	}
 	return value
+}
+
+func nextProfileInLadder(profile string) (string, bool) {
+	profile = normalizeProfile(profile)
+	for index, item := range profileLadder {
+		if item != profile {
+			continue
+		}
+		if index+1 >= len(profileLadder) {
+			return "", false
+		}
+		return profileLadder[index+1], true
+	}
+	return "", false
+}
+
+func profileContainsStep(lanes suiteProfileLanes, stepID string) bool {
+	return containsString(lanes.Regression, stepID) || containsString(lanes.Progression, stepID)
 }
 
 func validateRunOptions(opts RunOptions) error {

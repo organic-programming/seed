@@ -32,6 +32,8 @@ ader test integration --suite seed --profile full
 ader test integration --suite seed --profile quick --lane progression --source workspace
 ader test integration --suite seed --profile quick --silent
 ader completion install zsh
+ader downgrade integration --profile unit --all
+ader downgrade integration --step sdk-go-unit
 ader history integration
 ader show integration --id <history-id>
 ader archive integration --latest
@@ -111,12 +113,16 @@ When a `progression` run passes completely, `ader` may write:
 
 These files propose how to move step references from the `progression` lane to the `regression` lane in the suite YAML.
 
+They also expose `cross_tier_suggestions` for the next profile in the ladder `quick -> unit -> integration -> full`.
+
 Read that as:
 
 - `progression` = TDD lane
 - `regression` = test lane
 
 `ader` does not perform that change automatically.
+
+To reset checks back into TDD, use `ader downgrade ...`. It rewrites the suite YAML immediately and never auto-commits.
 
 ## Step Kinds
 

@@ -8,12 +8,13 @@
 
 ## Scope
 
-`ader` does four things:
+`ader` does five things:
 
 1. freeze a snapshot of a repo state
 2. execute a configured verification suite from that snapshot
 3. store reports and optional archives
 4. propose promotion from `progression` (TDD) to `regression` (tests)
+5. downgrade `regression` steps back to `progression` when a profile must be reset
 
 `ader` does **not**:
 
@@ -31,6 +32,7 @@ Code API and RPC:
 - `Test`
 - `Archive`
 - `Cleanup`
+- `Downgrade`
 - `History`
 - `ShowHistory`
 
@@ -39,6 +41,7 @@ CLI:
 - `ader test <config-dir>`
 - `ader archive <config-dir>`
 - `ader cleanup <config-dir>`
+- `ader downgrade <config-dir>`
 - `ader history <config-dir>`
 - `ader show <config-dir> --id <history-id>`
 
@@ -71,6 +74,8 @@ ader test integration --suite seed --profile full
 ader test integration --suite seed --profile quick --lane progression --source workspace
 ader test integration --suite seed --profile quick --silent
 ader completion install zsh
+ader downgrade integration --profile unit --all
+ader downgrade integration --step sdk-go-unit --step example-go-unit
 ader history integration
 ader show integration --id <history-id>
 ader archive integration --latest
@@ -165,6 +170,8 @@ Promotion proposals, when applicable:
 
 - `promotion.json`
 - `promotion.md`
+
+`promotion.json` / `promotion.md` also include `cross_tier_suggestions` for the next profile in the ladder `quick -> unit -> integration -> full`.
 
 ## Why It Exists
 

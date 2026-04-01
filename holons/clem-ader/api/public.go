@@ -27,6 +27,10 @@ func ShowHistory(req *aderv1.ShowHistoryRequest) (*aderv1.ShowHistoryResponse, e
 	return showHistoryContext(context.Background(), req)
 }
 
+func Downgrade(req *aderv1.DowngradeRequest) (*aderv1.DowngradeResponse, error) {
+	return downgradeContext(context.Background(), req)
+}
+
 func testContext(ctx context.Context, req *aderv1.TestRequest) (*aderv1.TestResponse, error) {
 	result, err := engine.Run(ctx, engine.RunOptions{
 		ConfigDir:     req.GetConfigDir(),
@@ -97,6 +101,25 @@ func showHistoryContext(ctx context.Context, req *aderv1.ShowHistoryRequest) (*a
 	}, nil
 }
 
+func downgradeContext(ctx context.Context, req *aderv1.DowngradeRequest) (*aderv1.DowngradeResponse, error) {
+	result, err := engine.Downgrade(ctx, engine.DowngradeOptions{
+		ConfigDir: req.GetConfigDir(),
+		Suite:     req.GetSuite(),
+		Profile:   req.GetProfile(),
+		StepIDs:   append([]string(nil), req.GetStepIds()...),
+		All:       req.GetAll(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &aderv1.DowngradeResponse{
+		Suite:          result.Suite,
+		SuiteFile:      result.SuiteFile,
+		ProfileChanges: downgradeChangesToProto(result.ProfileChanges),
+		IgnoredSteps:   append([]string(nil), result.IgnoredSteps...),
+	}, nil
+}
+
 func manifestToProto(m engine.HistoryRecord) *aderv1.HistoryRecord {
 	return &aderv1.HistoryRecord{
 		ConfigDir:     m.ConfigDir,
@@ -159,6 +182,17 @@ func historyEntriesToProto(items []engine.HistoryEntry) []*aderv1.HistoryEntry {
 			FinishedAt:  item.FinishedAt,
 			ReportDir:   item.ReportDir,
 			ArchivePath: item.ArchivePath,
+		})
+	}
+	return out
+}
+
+func downgradeChangesToProto(items []engine.DowngradeProfileChange) []*aderv1.DowngradeProfileChange {
+	out := make([]*aderv1.DowngradeProfileChange, 0, len(items))
+	for _, item := range items {
+		out = append(out, &aderv1.DowngradeProfileChange{
+			Profile:    item.Profile,
+			MovedSteps: append([]string(nil), item.MovedSteps...),
 		})
 	}
 	return out

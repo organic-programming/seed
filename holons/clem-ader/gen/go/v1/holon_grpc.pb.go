@@ -22,6 +22,7 @@ const (
 	AderService_Test_FullMethodName        = "/ader.v1.AderService/Test"
 	AderService_Archive_FullMethodName     = "/ader.v1.AderService/Archive"
 	AderService_Cleanup_FullMethodName     = "/ader.v1.AderService/Cleanup"
+	AderService_Downgrade_FullMethodName   = "/ader.v1.AderService/Downgrade"
 	AderService_History_FullMethodName     = "/ader.v1.AderService/History"
 	AderService_ShowHistory_FullMethodName = "/ader.v1.AderService/ShowHistory"
 )
@@ -33,6 +34,7 @@ type AderServiceClient interface {
 	Test(ctx context.Context, in *TestRequest, opts ...grpc.CallOption) (*TestResponse, error)
 	Archive(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
 	Cleanup(ctx context.Context, in *CleanupRequest, opts ...grpc.CallOption) (*CleanupResponse, error)
+	Downgrade(ctx context.Context, in *DowngradeRequest, opts ...grpc.CallOption) (*DowngradeResponse, error)
 	History(ctx context.Context, in *HistoryRequest, opts ...grpc.CallOption) (*HistoryResponse, error)
 	ShowHistory(ctx context.Context, in *ShowHistoryRequest, opts ...grpc.CallOption) (*ShowHistoryResponse, error)
 }
@@ -75,6 +77,16 @@ func (c *aderServiceClient) Cleanup(ctx context.Context, in *CleanupRequest, opt
 	return out, nil
 }
 
+func (c *aderServiceClient) Downgrade(ctx context.Context, in *DowngradeRequest, opts ...grpc.CallOption) (*DowngradeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DowngradeResponse)
+	err := c.cc.Invoke(ctx, AderService_Downgrade_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *aderServiceClient) History(ctx context.Context, in *HistoryRequest, opts ...grpc.CallOption) (*HistoryResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HistoryResponse)
@@ -102,6 +114,7 @@ type AderServiceServer interface {
 	Test(context.Context, *TestRequest) (*TestResponse, error)
 	Archive(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
 	Cleanup(context.Context, *CleanupRequest) (*CleanupResponse, error)
+	Downgrade(context.Context, *DowngradeRequest) (*DowngradeResponse, error)
 	History(context.Context, *HistoryRequest) (*HistoryResponse, error)
 	ShowHistory(context.Context, *ShowHistoryRequest) (*ShowHistoryResponse, error)
 	mustEmbedUnimplementedAderServiceServer()
@@ -122,6 +135,9 @@ func (UnimplementedAderServiceServer) Archive(context.Context, *ArchiveRequest) 
 }
 func (UnimplementedAderServiceServer) Cleanup(context.Context, *CleanupRequest) (*CleanupResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Cleanup not implemented")
+}
+func (UnimplementedAderServiceServer) Downgrade(context.Context, *DowngradeRequest) (*DowngradeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Downgrade not implemented")
 }
 func (UnimplementedAderServiceServer) History(context.Context, *HistoryRequest) (*HistoryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method History not implemented")
@@ -204,6 +220,24 @@ func _AderService_Cleanup_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AderService_Downgrade_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DowngradeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AderServiceServer).Downgrade(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AderService_Downgrade_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AderServiceServer).Downgrade(ctx, req.(*DowngradeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AderService_History_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HistoryRequest)
 	if err := dec(in); err != nil {
@@ -258,6 +292,10 @@ var AderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Cleanup",
 			Handler:    _AderService_Cleanup_Handler,
+		},
+		{
+			MethodName: "Downgrade",
+			Handler:    _AderService_Downgrade_Handler,
 		},
 		{
 			MethodName: "History",

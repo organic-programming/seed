@@ -18,12 +18,32 @@ type ArchiveOptions struct {
 	Latest    bool
 }
 
+type DowngradeOptions struct {
+	ConfigDir string
+	Suite     string
+	Profile   string
+	StepIDs   []string
+	All       bool
+}
+
 type RunResult struct {
 	Manifest        HistoryRecord
 	Steps           []StepResult
 	SummaryMarkdown string
 	SummaryTSV      string
 	Promotion       *PromotionProposal
+}
+
+type DowngradeResult struct {
+	Suite          string                   `json:"suite"`
+	SuiteFile      string                   `json:"suite_file"`
+	ProfileChanges []DowngradeProfileChange `json:"profile_changes"`
+	IgnoredSteps   []string                 `json:"ignored_steps,omitempty"`
+}
+
+type DowngradeProfileChange struct {
+	Profile    string   `json:"profile"`
+	MovedSteps []string `json:"moved_steps"`
 }
 
 type HistoryRecord struct {
@@ -98,13 +118,22 @@ type StepSpec struct {
 }
 
 type PromotionProposal struct {
-	Suite                  string   `json:"suite"`
-	Profile                string   `json:"profile"`
-	Lane                   string   `json:"lane"`
-	DestinationLane        string   `json:"destination_lane"`
-	SuiteFile              string   `json:"suite_file"`
-	EligibleSteps          []string `json:"eligible_steps"`
-	SuggestedPatch         string   `json:"suggested_patch"`
-	SuggestedGitCommands   []string `json:"suggested_git_commands"`
-	SuggestedCommitMessage string   `json:"suggested_commit_message"`
+	Suite                  string                `json:"suite"`
+	Profile                string                `json:"profile"`
+	Lane                   string                `json:"lane"`
+	DestinationLane        string                `json:"destination_lane"`
+	SuiteFile              string                `json:"suite_file"`
+	EligibleSteps          []string              `json:"eligible_steps"`
+	SuggestedPatch         string                `json:"suggested_patch"`
+	SuggestedGitCommands   []string              `json:"suggested_git_commands"`
+	SuggestedCommitMessage string                `json:"suggested_commit_message"`
+	CrossTierSuggestions   []CrossTierSuggestion `json:"cross_tier_suggestions,omitempty"`
+}
+
+type CrossTierSuggestion struct {
+	StepID      string `json:"step_id"`
+	FromProfile string `json:"from_profile"`
+	ToProfile   string `json:"to_profile"`
+	ToLane      string `json:"to_lane"`
+	Reason      string `json:"reason"`
 }

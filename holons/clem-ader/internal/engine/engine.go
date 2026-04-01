@@ -1007,6 +1007,24 @@ func buildPromotionProposal(cfg *runtimeConfig, result *RunResult) *PromotionPro
 		yamlList(remainingProgression, 6),
 	))
 
+	var crossTierSuggestions []CrossTierSuggestion
+	if nextProfile, ok := nextProfileInLadder(result.Manifest.Profile); ok {
+		if nextEntry, ok := cfg.Suite.Profiles[nextProfile]; ok {
+			for _, id := range progression {
+				if profileContainsStep(nextEntry, id) {
+					continue
+				}
+				crossTierSuggestions = append(crossTierSuggestions, CrossTierSuggestion{
+					StepID:      id,
+					FromProfile: result.Manifest.Profile,
+					ToProfile:   nextProfile,
+					ToLane:      "progression",
+					Reason:      fmt.Sprintf("Promoted in %s; not yet present in %s", result.Manifest.Profile, nextProfile),
+				})
+			}
+		}
+	}
+
 	return &PromotionProposal{
 		Suite:           result.Manifest.Suite,
 		Profile:         result.Manifest.Profile,
@@ -1020,6 +1038,7 @@ func buildPromotionProposal(cfg *runtimeConfig, result *RunResult) *PromotionPro
 			fmt.Sprintf("git commit -m %q", fmt.Sprintf("Promote %s %s progression checks", result.Manifest.Suite, result.Manifest.Profile)),
 		},
 		SuggestedCommitMessage: fmt.Sprintf("Promote %s %s progression checks", result.Manifest.Suite, result.Manifest.Profile),
+		CrossTierSuggestions:   crossTierSuggestions,
 	}
 }
 
@@ -1049,6 +1068,22 @@ func buildPromotionMarkdown(proposal *PromotionProposal) string {
 	fmt.Fprintln(&b)
 	for _, command := range proposal.SuggestedGitCommands {
 		fmt.Fprintf(&b, "- `%s`\n", command)
+	}
+	if len(proposal.CrossTierSuggestions) > 0 {
+		fmt.Fprintln(&b)
+		fmt.Fprintln(&b, "## Cross-Profile Suggestions")
+		fmt.Fprintln(&b)
+		fmt.Fprintln(&b, "| Step | From | To | Lane | Reason |")
+		fmt.Fprintln(&b, "| --- | --- | --- | --- | --- |")
+		for _, suggestion := range proposal.CrossTierSuggestions {
+			fmt.Fprintf(&b, "| `%s` | %s | %s | %s | %s |\n",
+				suggestion.StepID,
+				suggestion.FromProfile,
+				suggestion.ToProfile,
+				suggestion.ToLane,
+				suggestion.Reason,
+			)
+		}
 	}
 	return b.String()
 }

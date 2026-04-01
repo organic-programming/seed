@@ -16,7 +16,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-04-01"
-    version: "0.2.6"
+    version: "0.2.7"
     aliases: ["ader"]
   }
   description: "Clem Ader is the configurable verification holon of the seed. It loads repo-local suites from a config directory, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, and proposes progression-to-regression promotion without mutating the repo."
@@ -41,6 +41,7 @@ option (holons.v1.manifest) = {
       "Test",
       "Archive",
       "Cleanup",
+      "Downgrade",
       "History",
       "ShowHistory"
     ]
@@ -64,6 +65,15 @@ option (holons.v1.manifest) = {
       "Promote the step references from progression to regression once the proof is accepted"
     ]
   }, {
+    name: "downgrade-and-rebuild"
+    description: "Move regression steps back to progression, rerun the proof, and review the new promotion evidence."
+    when: "A profile or step should be reset to TDD without editing the suite YAML by hand."
+    steps: [
+      "Run `ader downgrade integration --profile unit --all` or target specific steps with `--step`",
+      "Run `ader test integration --suite seed --profile unit --lane progression --source workspace`",
+      "Review the new `promotion.json` and `promotion.md` before re-promoting"
+    ]
+  }, {
     name: "report-hygiene"
     description: "Archive the useful evidence and remove deterministic run residue."
     when: "Old snapshots, temp stores, or extracted reports should be pruned safely."
@@ -79,6 +89,7 @@ service AderService {
   rpc Test (TestRequest) returns (TestResponse);
   rpc Archive (ArchiveRequest) returns (ArchiveResponse);
   rpc Cleanup (CleanupRequest) returns (CleanupResponse);
+  rpc Downgrade (DowngradeRequest) returns (DowngradeResponse);
   rpc History (HistoryRequest) returns (HistoryResponse);
   rpc ShowHistory (ShowHistoryRequest) returns (ShowHistoryResponse);
 }
@@ -120,6 +131,26 @@ message CleanupResponse {
   uint32 removed_temp_stores = 2;
   uint32 removed_temp_aliases = 3;
   repeated string removed_paths = 4;
+}
+
+message DowngradeRequest {
+  string config_dir = 1;
+  string suite = 2;
+  string profile = 3;
+  repeated string step_ids = 4;
+  bool all = 5;
+}
+
+message DowngradeResponse {
+  string suite = 1;
+  string suite_file = 2;
+  repeated DowngradeProfileChange profile_changes = 3;
+  repeated string ignored_steps = 4;
+}
+
+message DowngradeProfileChange {
+  string profile = 1;
+  repeated string moved_steps = 2;
 }
 
 message HistoryRequest {

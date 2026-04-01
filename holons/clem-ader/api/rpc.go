@@ -29,3 +29,7 @@ func (RPCHandler) History(ctx context.Context, req *aderv1.HistoryRequest) (*ade
 func (RPCHandler) ShowHistory(ctx context.Context, req *aderv1.ShowHistoryRequest) (*aderv1.ShowHistoryResponse, error) {
 	return showHistoryContext(ctx, req)
 }
+
+func (RPCHandler) Downgrade(ctx context.Context, req *aderv1.DowngradeRequest) (*aderv1.DowngradeResponse, error) {
+	return downgradeContext(ctx, req)
+}

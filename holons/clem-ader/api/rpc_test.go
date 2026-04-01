@@ -77,6 +77,19 @@ func TestRPCSurface(t *testing.T) {
 		if cleanupResponse.GetRemovedLocalSuiteDirs() == 0 {
 			t.Fatal("expected Cleanup RPC to remove at least one directory")
 		}
+
+		downgradeResponse, err := client.Downgrade(context.Background(), &aderv1.DowngradeRequest{
+			ConfigDir: configDir,
+			Suite:     "fixture",
+			Profile:   "unit",
+			StepIds:   []string{"sdk-go-unit"},
+		})
+		if err != nil {
+			t.Fatalf("RPC Downgrade() error = %v", err)
+		}
+		if len(downgradeResponse.GetProfileChanges()) != 1 {
+			t.Fatalf("RPC Downgrade() profile changes = %d, want 1", len(downgradeResponse.GetProfileChanges()))
+		}
 	})
 }
 

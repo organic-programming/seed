@@ -16,7 +16,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 				Composer:   "B. ALTER",
 				Status:     "draft",
 				Born:       "2026-04-01",
-				Version:    "0.2.6",
+				Version:    "0.2.7",
 				Aliases: []string{
 					"ader",
 				},
@@ -42,6 +42,16 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 						"Run `ader test integration --suite seed --profile quick --lane progression --source workspace`",
 						"Inspect `integration/reports/<history-id>/summary.md` and `promotion.md`",
 						"Promote the step references from progression to regression once the proof is accepted",
+					},
+				},
+				&holonsv1.HolonManifest_Skill{
+					Name:        "downgrade-and-rebuild",
+					Description: "Move regression steps back to progression, rerun the proof, and review the new promotion evidence.",
+					When:        "A profile or step should be reset to TDD without editing the suite YAML by hand.",
+					Steps: []string{
+						"Run `ader downgrade integration --profile unit --all` or target specific steps with `--step`",
+						"Run `ader test integration --suite seed --profile unit --lane progression --source workspace`",
+						"Review the new `promotion.json` and `promotion.md` before re-promoting",
 					},
 				},
 				&holonsv1.HolonManifest_Skill{
@@ -544,6 +554,83 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 							},
 							&holonsv1.FieldDoc{
 								Name:   "removed_paths",
+								Type:   "string",
+								Number: 4,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
+							},
+						},
+					},
+					&holonsv1.MethodDoc{
+						Name:       "Downgrade",
+						InputType:  "ader.v1.DowngradeRequest",
+						OutputType: "ader.v1.DowngradeResponse",
+						InputFields: []*holonsv1.FieldDoc{
+							&holonsv1.FieldDoc{
+								Name:   "config_dir",
+								Type:   "string",
+								Number: 1,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "suite",
+								Type:   "string",
+								Number: 2,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "profile",
+								Type:   "string",
+								Number: 3,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "step_ids",
+								Type:   "string",
+								Number: 4,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "all",
+								Type:   "bool",
+								Number: 5,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+						},
+						OutputFields: []*holonsv1.FieldDoc{
+							&holonsv1.FieldDoc{
+								Name:   "suite",
+								Type:   "string",
+								Number: 1,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "suite_file",
+								Type:   "string",
+								Number: 2,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "profile_changes",
+								Type:   "ader.v1.DowngradeProfileChange",
+								Number: 3,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
+								NestedFields: []*holonsv1.FieldDoc{
+									&holonsv1.FieldDoc{
+										Name:   "profile",
+										Type:   "string",
+										Number: 1,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+									},
+									&holonsv1.FieldDoc{
+										Name:   "moved_steps",
+										Type:   "string",
+										Number: 2,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
+									},
+								},
+							},
+							&holonsv1.FieldDoc{
+								Name:   "ignored_steps",
 								Type:   "string",
 								Number: 4,
 								Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
