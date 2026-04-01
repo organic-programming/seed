@@ -79,21 +79,30 @@ func TestRunCLITestArchiveHistoryAndShow(t *testing.T) {
 	})
 }
 
-func TestRunCLIDowngrade(t *testing.T) {
+func TestRunCLIPromoteAndDowngrade(t *testing.T) {
 	root := testrepo.Create(t)
 	configDir := filepath.Join(root, "integration")
 	withWorkingDir(t, root, func() {
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
 
-		if code := RunCLI([]string{"downgrade", configDir, "--suite", "fixture", "--profile", "unit", "--step", "sdk-go-unit"}, &stdout, &stderr); code != 0 {
+		if code := RunCLI([]string{"promote", configDir, "--suite", "fixture", "--step", "fixture-script"}, &stdout, &stderr); code != 0 {
+			t.Fatalf("RunCLI(promote) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "promoted: fixture-script") {
+			t.Fatalf("promote stdout = %q, want promoted step summary", stdout.String())
+		}
+
+		stdout.Reset()
+		stderr.Reset()
+		if code := RunCLI([]string{"downgrade", configDir, "--suite", "fixture", "--step", "grace-op-unit"}, &stdout, &stderr); code != 0 {
 			t.Fatalf("RunCLI(downgrade) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
 		}
-		if !strings.Contains(stdout.String(), "profile: unit\tmoved: sdk-go-unit") {
-			t.Fatalf("downgrade stdout = %q, want moved step summary", stdout.String())
+		if !strings.Contains(stdout.String(), "downgraded: grace-op-unit") {
+			t.Fatalf("downgrade stdout = %q, want downgraded step summary", stdout.String())
 		}
 		if stderr.Len() != 0 {
-			t.Fatalf("downgrade stderr = %q, want empty", stderr.String())
+			t.Fatalf("stderr = %q, want empty", stderr.String())
 		}
 	})
 }
@@ -141,6 +150,9 @@ func TestCLICompletionSuggestsSuitesProfilesAndHistoryIDs(t *testing.T) {
 		if len(profiles) == 0 || !strings.Contains(string(profiles[0]), "integration") {
 			t.Fatalf("profile completion = %v, want integration", profiles)
 		}
+		if !strings.Contains(string(profiles[0]), "Deterministic black-box integration suite only") {
+			t.Fatalf("profile completion = %v, want YAML description", profiles)
+		}
 
 		downgradeCmd := findCommand(newRootCommand(io.Discard, io.Discard), "downgrade")
 		if downgradeCmd == nil {
@@ -149,9 +161,6 @@ func TestCLICompletionSuggestsSuitesProfilesAndHistoryIDs(t *testing.T) {
 		if err := downgradeCmd.Flags().Set("suite", "fixture"); err != nil {
 			t.Fatalf("set downgrade suite flag: %v", err)
 		}
-		if err := downgradeCmd.Flags().Set("profile", "unit"); err != nil {
-			t.Fatalf("set downgrade profile flag: %v", err)
-		}
 		stepCompletion, ok := downgradeCmd.GetFlagCompletionFunc("step")
 		if !ok {
 			t.Fatal("downgrade --step completion lookup failed")
@@ -159,6 +168,22 @@ func TestCLICompletionSuggestsSuitesProfilesAndHistoryIDs(t *testing.T) {
 		steps, _ := stepCompletion(downgradeCmd, []string{configDir}, "sdk")
 		if len(steps) == 0 || !strings.Contains(string(steps[0]), "sdk-go-unit") {
 			t.Fatalf("downgrade step completion = %v, want sdk-go-unit", steps)
+		}
+
+		promoteCmd := findCommand(newRootCommand(io.Discard, io.Discard), "promote")
+		if promoteCmd == nil {
+			t.Fatal("promote command missing")
+		}
+		if err := promoteCmd.Flags().Set("suite", "fixture"); err != nil {
+			t.Fatalf("set promote suite flag: %v", err)
+		}
+		promoteCompletion, ok := promoteCmd.GetFlagCompletionFunc("step")
+		if !ok {
+			t.Fatal("promote --step completion lookup failed")
+		}
+		promoteSteps, _ := promoteCompletion(promoteCmd, []string{configDir}, "fixture")
+		if len(promoteSteps) == 0 || !strings.Contains(string(promoteSteps[0]), "fixture-script") {
+			t.Fatalf("promote step completion = %v, want progression step", promoteSteps)
 		}
 
 		var stdout bytes.Buffer
@@ -181,6 +206,43 @@ func TestCLICompletionSuggestsSuitesProfilesAndHistoryIDs(t *testing.T) {
 		ids, _ := idCompletion(showCmd, []string{configDir}, "")
 		if len(ids) == 0 || !strings.Contains(string(ids[0]), "fixture") {
 			t.Fatalf("history id completion = %v, want fixture description", ids)
+		}
+	})
+}
+
+func TestRunCLIUsesConfiguredDefaultProfile(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "integration")
+	aderPath := filepath.Join(configDir, "ader.yaml")
+	withWorkingDir(t, root, func() {
+		if err := os.WriteFile(aderPath, []byte(`storage:
+  reports: reports
+  archives: archives
+  artifacts: .artifacts
+  temp_alias: .t
+defaults:
+  suite: fixture
+  source: committed
+  lane: progression
+  profile: integration
+  ladder: [quick, unit, integration, full]
+  archive_policy:
+    quick: never
+    unit: never
+    integration: never
+    full: auto
+    stress: never
+`), 0o644); err != nil {
+			t.Fatalf("rewrite ader.yaml: %v", err)
+		}
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		if code := RunCLI([]string{"test", configDir, "--source", "workspace", "--archive", "never"}, &stdout, &stderr); code != 0 {
+			t.Fatalf("RunCLI(test default profile) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
+		}
+		if !strings.Contains(stderr.String(), "integration-short") {
+			t.Fatalf("stderr = %q, want integration profile execution", stderr.String())
 		}
 	})
 }

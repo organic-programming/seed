@@ -226,8 +226,14 @@ func TestLoadRunConfigDefaults(t *testing.T) {
 	if cfg.Root.Defaults.Lane != "regression" {
 		t.Fatalf("default lane = %q, want regression", cfg.Root.Defaults.Lane)
 	}
+	if cfg.Root.Defaults.Profile != "quick" {
+		t.Fatalf("default profile = %q, want quick", cfg.Root.Defaults.Profile)
+	}
 	if cfg.Root.Defaults.Source != "committed" {
 		t.Fatalf("default source = %q, want committed", cfg.Root.Defaults.Source)
+	}
+	if strings.Join(cfg.Root.Defaults.Ladder, ",") != "quick,unit,integration,full" {
+		t.Fatalf("default ladder = %v, want [quick unit integration full]", cfg.Root.Defaults.Ladder)
 	}
 	if cfg.Root.Defaults.ArchivePolicy["full"] != "auto" {
 		t.Fatalf("full archive policy = %q, want auto", cfg.Root.Defaults.ArchivePolicy["full"])
@@ -250,7 +256,7 @@ func TestResolveProfileLaneSteps(t *testing.T) {
 	for _, step := range got {
 		ids = append(ids, step.ID)
 	}
-	want := []string{"ader-unit", "example-go-unit", "sdk-go-unit", "integration-short"}
+	want := []string{"ader-unit", "sdk-go-unit", "example-go-unit", "integration-short"}
 	if strings.Join(ids, ",") != strings.Join(want, ",") {
 		t.Fatalf("selected ids = %v, want %v", ids, want)
 	}
@@ -264,7 +270,7 @@ func TestReadSuiteConfigRejectsMalformedScriptSteps(t *testing.T) {
     workdir: .
 profiles:
   quick:
-    regression: [broken]
+    steps: [broken]
 `), 0o644); err != nil {
 		t.Fatalf("write suite: %v", err)
 	}
@@ -279,7 +285,7 @@ profiles:
     script: scripts/test.sh
 profiles:
   quick:
-    regression: [broken]
+    steps: [broken]
 `), 0o644); err != nil {
 		t.Fatalf("rewrite suite: %v", err)
 	}
@@ -293,12 +299,72 @@ profiles:
     args: [alpha]
 profiles:
   quick:
-    regression: [broken]
+    steps: [broken]
 `), 0o644); err != nil {
 		t.Fatalf("rewrite suite with args only: %v", err)
 	}
 	if _, err := readSuiteConfig(suitePath); err == nil || !strings.Contains(err.Error(), "cannot define args without script") {
 		t.Fatalf("readSuiteConfig() error = %v, want args-without-script validation", err)
+	}
+}
+
+func TestReadSuiteConfigRejectsOldProfileLaneFormat(t *testing.T) {
+	root := t.TempDir()
+	suitePath := filepath.Join(root, "fixture.yaml")
+	if err := os.WriteFile(suitePath, []byte(`steps:
+  ok:
+    workdir: .
+    command: echo ok
+profiles:
+  quick:
+    regression: [ok]
+    progression: []
+`), 0o644); err != nil {
+		t.Fatalf("write suite: %v", err)
+	}
+	if _, err := readSuiteConfig(suitePath); err == nil || !strings.Contains(err.Error(), "old regression/progression format") {
+		t.Fatalf("readSuiteConfig() error = %v, want migration failure", err)
+	}
+}
+
+func TestReadSuiteConfigDefaultsMissingLaneToProgression(t *testing.T) {
+	root := t.TempDir()
+	suitePath := filepath.Join(root, "fixture.yaml")
+	if err := os.WriteFile(suitePath, []byte(`steps:
+  ok:
+    workdir: .
+    command: echo ok
+profiles:
+  quick:
+    steps: [ok]
+`), 0o644); err != nil {
+		t.Fatalf("write suite: %v", err)
+	}
+	cfg, err := readSuiteConfig(suitePath)
+	if err != nil {
+		t.Fatalf("readSuiteConfig() error = %v", err)
+	}
+	if got := normalizeStepLane(cfg.Steps["ok"].Lane); got != "progression" {
+		t.Fatalf("lane = %q, want progression", got)
+	}
+}
+
+func TestReadSuiteConfigRejectsInvalidLane(t *testing.T) {
+	root := t.TempDir()
+	suitePath := filepath.Join(root, "fixture.yaml")
+	if err := os.WriteFile(suitePath, []byte(`steps:
+  broken:
+    workdir: .
+    command: echo ok
+    lane: sideways
+profiles:
+  quick:
+    steps: [broken]
+`), 0o644); err != nil {
+		t.Fatalf("write suite: %v", err)
+	}
+	if _, err := readSuiteConfig(suitePath); err == nil || !strings.Contains(err.Error(), "invalid lane") {
+		t.Fatalf("readSuiteConfig() error = %v, want invalid-lane failure", err)
 	}
 }
 

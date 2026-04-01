@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 type runtimeConfig struct {
@@ -37,13 +38,15 @@ type defaultsConfig struct {
 	Suite         string            `mapstructure:"suite"`
 	Source        string            `mapstructure:"source"`
 	Lane          string            `mapstructure:"lane"`
+	Profile       string            `mapstructure:"profile"`
+	Ladder        []string          `mapstructure:"ladder"`
 	ArchivePolicy map[string]string `mapstructure:"archive_policy"`
 }
 
 type suiteConfig struct {
-	Description string                       `mapstructure:"description"`
-	Steps       map[string]suiteStepConfig   `mapstructure:"steps"`
-	Profiles    map[string]suiteProfileLanes `mapstructure:"profiles"`
+	Description string                        `mapstructure:"description"`
+	Steps       map[string]suiteStepConfig    `mapstructure:"steps"`
+	Profiles    map[string]suiteProfileConfig `mapstructure:"profiles"`
 }
 
 type suiteStepConfig struct {
@@ -53,11 +56,12 @@ type suiteStepConfig struct {
 	Script      string   `mapstructure:"script"`
 	Args        []string `mapstructure:"args"`
 	Description string   `mapstructure:"description"`
+	Lane        string   `mapstructure:"lane"`
 }
 
-type suiteProfileLanes struct {
-	Regression  []string `mapstructure:"regression"`
-	Progression []string `mapstructure:"progression"`
+type suiteProfileConfig struct {
+	Description string   `mapstructure:"description"`
+	Steps       []string `mapstructure:"steps"`
 }
 
 func loadRepoConfig(configDir string) (*runtimeConfig, error) {
@@ -133,6 +137,9 @@ func readSuiteConfig(path string) (suiteConfig, error) {
 	if !fileExists(path) {
 		return suiteConfig{}, fmt.Errorf("suite file not found: %s", path)
 	}
+	if err := validateSuiteYAMLShape(path); err != nil {
+		return suiteConfig{}, err
+	}
 	v := viper.New()
 	v.SetConfigFile(path)
 	if err := v.ReadInConfig(); err != nil {
@@ -151,6 +158,7 @@ func readSuiteConfig(path string) (suiteConfig, error) {
 	for id, step := range cfg.Steps {
 		command := strings.TrimSpace(step.Command)
 		script := strings.TrimSpace(step.Script)
+		lane := normalizeStepLane(step.Lane)
 		switch {
 		case script == "" && len(step.Args) > 0:
 			return suiteConfig{}, fmt.Errorf("suite file %s step %q cannot define args without script", path, id)
@@ -158,9 +166,57 @@ func readSuiteConfig(path string) (suiteConfig, error) {
 			return suiteConfig{}, fmt.Errorf("suite file %s step %q must define exactly one of command or script", path, id)
 		case command != "" && script != "":
 			return suiteConfig{}, fmt.Errorf("suite file %s step %q cannot define both command and script", path, id)
+		case lane != "" && lane != "progression" && lane != "regression":
+			return suiteConfig{}, fmt.Errorf("suite file %s step %q has invalid lane %q", path, id, step.Lane)
+		}
+	}
+	for profile, entry := range cfg.Profiles {
+		for _, stepID := range entry.Steps {
+			stepID = strings.TrimSpace(stepID)
+			if stepID == "" {
+				continue
+			}
+			if _, ok := cfg.Steps[stepID]; !ok {
+				return suiteConfig{}, fmt.Errorf("suite file %s references unknown step %q in profile %q", path, stepID, profile)
+			}
 		}
 	}
 	return cfg, nil
+}
+
+func validateSuiteYAMLShape(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return err
+	}
+	if doc.Kind != yaml.DocumentNode || len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
+		return fmt.Errorf("suite file %s root must be a mapping", path)
+	}
+	profilesNode, ok := mappingValue(doc.Content[0], "profiles")
+	if !ok || profilesNode.Kind != yaml.MappingNode {
+		return nil
+	}
+	for index := 0; index+1 < len(profilesNode.Content); index += 2 {
+		profileName := strings.TrimSpace(profilesNode.Content[index].Value)
+		profileNode := profilesNode.Content[index+1]
+		if profileNode.Kind != yaml.MappingNode {
+			return fmt.Errorf("suite file %s profile %q must be a mapping", path, profileName)
+		}
+		if _, ok := mappingValue(profileNode, "regression"); ok {
+			return fmt.Errorf("suite file %s profile %q uses the old regression/progression format; migrate to profiles.<profile>.steps plus steps.<step>.lane", path, profileName)
+		}
+		if _, ok := mappingValue(profileNode, "progression"); ok {
+			return fmt.Errorf("suite file %s profile %q uses the old regression/progression format; migrate to profiles.<profile>.steps plus steps.<step>.lane", path, profileName)
+		}
+		if stepsNode, ok := mappingValue(profileNode, "steps"); ok && stepsNode.Kind != yaml.SequenceNode {
+			return fmt.Errorf("suite file %s profile %q field %q must be a sequence", path, profileName, "steps")
+		}
+	}
+	return nil
 }
 
 func applyRootDefaults(cfg *rootConfig) {
@@ -181,6 +237,9 @@ func applyRootDefaults(cfg *rootConfig) {
 	}
 	if strings.TrimSpace(cfg.Defaults.Lane) == "" {
 		cfg.Defaults.Lane = "regression"
+	}
+	if strings.TrimSpace(cfg.Defaults.Profile) == "" {
+		cfg.Defaults.Profile = "quick"
 	}
 	if cfg.Defaults.ArchivePolicy == nil {
 		cfg.Defaults.ArchivePolicy = map[string]string{}

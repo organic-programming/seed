@@ -7,6 +7,8 @@ defaults:
   suite: seed
   source: committed
   lane: regression
+  profile: quick
+  ladder: [quick, unit, integration, full]
   archive_policy:
     quick: never
     unit: never

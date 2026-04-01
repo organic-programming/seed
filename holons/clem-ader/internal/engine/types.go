@@ -18,10 +18,16 @@ type ArchiveOptions struct {
 	Latest    bool
 }
 
+type PromoteOptions struct {
+	ConfigDir string
+	Suite     string
+	StepIDs   []string
+	All       bool
+}
+
 type DowngradeOptions struct {
 	ConfigDir string
 	Suite     string
-	Profile   string
 	StepIDs   []string
 	All       bool
 }
@@ -34,16 +40,18 @@ type RunResult struct {
 	Promotion       *PromotionProposal
 }
 
-type DowngradeResult struct {
-	Suite          string                   `json:"suite"`
-	SuiteFile      string                   `json:"suite_file"`
-	ProfileChanges []DowngradeProfileChange `json:"profile_changes"`
-	IgnoredSteps   []string                 `json:"ignored_steps,omitempty"`
+type PromoteResult struct {
+	Suite         string   `json:"suite"`
+	SuiteFile     string   `json:"suite_file"`
+	PromotedSteps []string `json:"promoted_steps"`
+	IgnoredSteps  []string `json:"ignored_steps,omitempty"`
 }
 
-type DowngradeProfileChange struct {
-	Profile    string   `json:"profile"`
-	MovedSteps []string `json:"moved_steps"`
+type DowngradeResult struct {
+	Suite           string   `json:"suite"`
+	SuiteFile       string   `json:"suite_file"`
+	DowngradedSteps []string `json:"downgraded_steps"`
+	IgnoredSteps    []string `json:"ignored_steps,omitempty"`
 }
 
 type HistoryRecord struct {
@@ -124,7 +132,7 @@ type PromotionProposal struct {
 	DestinationLane        string                `json:"destination_lane"`
 	SuiteFile              string                `json:"suite_file"`
 	EligibleSteps          []string              `json:"eligible_steps"`
-	SuggestedPatch         string                `json:"suggested_patch"`
+	SuggestedCommand       string                `json:"suggested_command"`
 	SuggestedGitCommands   []string              `json:"suggested_git_commands"`
 	SuggestedCommitMessage string                `json:"suggested_commit_message"`
 	CrossTierSuggestions   []CrossTierSuggestion `json:"cross_tier_suggestions,omitempty"`

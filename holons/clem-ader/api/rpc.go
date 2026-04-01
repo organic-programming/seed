@@ -30,6 +30,10 @@ func (RPCHandler) ShowHistory(ctx context.Context, req *aderv1.ShowHistoryReques
 	return showHistoryContext(ctx, req)
 }
 
+func (RPCHandler) Promote(ctx context.Context, req *aderv1.PromoteRequest) (*aderv1.PromoteResponse, error) {
+	return promoteContext(ctx, req)
+}
+
 func (RPCHandler) Downgrade(ctx context.Context, req *aderv1.DowngradeRequest) (*aderv1.DowngradeResponse, error) {
 	return downgradeContext(ctx, req)
 }

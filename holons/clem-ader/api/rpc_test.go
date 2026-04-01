@@ -78,17 +78,28 @@ func TestRPCSurface(t *testing.T) {
 			t.Fatal("expected Cleanup RPC to remove at least one directory")
 		}
 
+		promoteResponse, err := client.Promote(context.Background(), &aderv1.PromoteRequest{
+			ConfigDir: configDir,
+			Suite:     "fixture",
+			StepIds:   []string{"fixture-script"},
+		})
+		if err != nil {
+			t.Fatalf("RPC Promote() error = %v", err)
+		}
+		if len(promoteResponse.GetPromotedSteps()) != 1 {
+			t.Fatalf("RPC Promote() promoted steps = %d, want 1", len(promoteResponse.GetPromotedSteps()))
+		}
+
 		downgradeResponse, err := client.Downgrade(context.Background(), &aderv1.DowngradeRequest{
 			ConfigDir: configDir,
 			Suite:     "fixture",
-			Profile:   "unit",
-			StepIds:   []string{"sdk-go-unit"},
+			StepIds:   []string{"grace-op-unit"},
 		})
 		if err != nil {
 			t.Fatalf("RPC Downgrade() error = %v", err)
 		}
-		if len(downgradeResponse.GetProfileChanges()) != 1 {
-			t.Fatalf("RPC Downgrade() profile changes = %d, want 1", len(downgradeResponse.GetProfileChanges()))
+		if len(downgradeResponse.GetDowngradedSteps()) != 1 {
+			t.Fatalf("RPC Downgrade() downgraded steps = %d, want 1", len(downgradeResponse.GetDowngradedSteps()))
 		}
 	})
 }

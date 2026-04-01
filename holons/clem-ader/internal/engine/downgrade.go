@@ -21,47 +21,36 @@ func Downgrade(_ context.Context, opts DowngradeOptions) (*DowngradeResult, erro
 		return nil, err
 	}
 
-	profiles, err := targetedDowngradeProfiles(cfg, opts)
+	targetStepIDs, err := targetedStepIDs(cfg, editor, opts.StepIDs, opts.All, "regression")
 	if err != nil {
 		return nil, err
 	}
-	targetStepIDs := orderedUniqueStrings(opts.StepIDs)
 
 	result := &DowngradeResult{
 		Suite:     cfg.SuiteName,
 		SuiteFile: cfg.SuitePath,
 	}
-	ignoredSet := map[string]struct{}{}
 	changed := false
 
-	for _, profile := range profiles {
-		moved, ignored, err := editor.downgradeProfile(profile, targetStepIDs, opts.All)
+	for _, stepID := range targetStepIDs {
+		lane, _, err := editor.stepLane(stepID)
 		if err != nil {
 			return nil, err
 		}
-		if len(moved) > 0 {
-			changed = true
-			result.ProfileChanges = append(result.ProfileChanges, DowngradeProfileChange{
-				Profile:    profile,
-				MovedSteps: moved,
-			})
+		if lane != "regression" {
+			result.IgnoredSteps = append(result.IgnoredSteps, stepID)
+			continue
 		}
-		for _, stepID := range ignored {
-			ignoredSet[stepID] = struct{}{}
+		if err := editor.setStepLane(stepID, "progression"); err != nil {
+			return nil, err
 		}
+		changed = true
+		result.DowngradedSteps = append(result.DowngradedSteps, stepID)
 	}
 
 	if changed {
 		if err := editor.write(); err != nil {
 			return nil, err
-		}
-	}
-
-	if !opts.All {
-		for _, stepID := range targetStepIDs {
-			if _, ok := ignoredSet[stepID]; ok {
-				result.IgnoredSteps = append(result.IgnoredSteps, stepID)
-			}
 		}
 	}
 	return result, nil
@@ -74,65 +63,31 @@ func validateDowngradeOptions(opts DowngradeOptions) error {
 	if opts.All == (len(orderedUniqueStrings(opts.StepIDs)) > 0) {
 		return fmt.Errorf("downgrade requires exactly one of --all or --step")
 	}
-	if profile := strings.TrimSpace(opts.Profile); profile != "" {
-		normalized := normalizeProfile(profile)
-		if _, ok := profileDescriptions[normalized]; !ok {
-			return fmt.Errorf("unsupported profile %q", opts.Profile)
-		}
-	}
 	return nil
 }
 
-func targetedDowngradeProfiles(cfg *runtimeConfig, opts DowngradeOptions) ([]string, error) {
-	if profile := strings.TrimSpace(opts.Profile); profile != "" {
-		normalized := normalizeProfile(profile)
-		if _, ok := cfg.Suite.Profiles[normalized]; !ok {
-			return nil, fmt.Errorf("suite %q does not define profile %q", cfg.SuiteName, normalized)
+func targetedStepIDs(cfg *runtimeConfig, editor *suiteEditor, rawStepIDs []string, all bool, currentLane string) ([]string, error) {
+	if !all {
+		return orderedUniqueStrings(rawStepIDs), nil
+	}
+	out := make([]string, 0, len(cfg.Suite.Steps))
+	for _, stepID := range orderedStepIDs(cfg.Suite.Steps) {
+		lane, _, err := editor.stepLane(stepID)
+		if err != nil {
+			return nil, err
 		}
-		return []string{normalized}, nil
-	}
-	if opts.All {
-		return orderedSuiteProfiles(cfg.Suite.Profiles), nil
-	}
-	stepIDs := orderedUniqueStrings(opts.StepIDs)
-	seen := make(map[string]struct{})
-	var profiles []string
-	for _, profile := range orderedSuiteProfiles(cfg.Suite.Profiles) {
-		lanes := cfg.Suite.Profiles[profile]
-		for _, stepID := range stepIDs {
-			if !containsString(lanes.Regression, stepID) {
-				continue
-			}
-			if _, ok := seen[profile]; ok {
-				break
-			}
-			seen[profile] = struct{}{}
-			profiles = append(profiles, profile)
-			break
+		if lane == currentLane {
+			out = append(out, stepID)
 		}
 	}
-	if len(profiles) == 0 {
-		return orderedSuiteProfiles(cfg.Suite.Profiles), nil
-	}
-	return profiles, nil
+	return out, nil
 }
 
-func orderedSuiteProfiles(profiles map[string]suiteProfileLanes) []string {
-	out := make([]string, 0, len(profiles))
-	seen := make(map[string]struct{}, len(profiles))
-	for _, profile := range append(append([]string(nil), profileLadder...), "stress") {
-		if _, ok := profiles[profile]; ok {
-			out = append(out, profile)
-			seen[profile] = struct{}{}
-		}
+func orderedStepIDs(steps map[string]suiteStepConfig) []string {
+	out := make([]string, 0, len(steps))
+	for stepID := range steps {
+		out = append(out, stepID)
 	}
-	var extras []string
-	for profile := range profiles {
-		if _, ok := seen[profile]; ok {
-			continue
-		}
-		extras = append(extras, profile)
-	}
-	sort.Strings(extras)
-	return append(out, extras...)
+	sort.Strings(out)
+	return out
 }

@@ -84,6 +84,27 @@ func TestPublicCleanupOperation(t *testing.T) {
 	})
 }
 
+func TestPublicPromoteOperation(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "integration")
+	withWorkingDir(t, root, func() {
+		response, err := Promote(&aderv1.PromoteRequest{
+			ConfigDir: configDir,
+			Suite:     "fixture",
+			StepIds:   []string{"fixture-script"},
+		})
+		if err != nil {
+			t.Fatalf("Promote() error = %v", err)
+		}
+		if response.GetSuite() != "fixture" {
+			t.Fatalf("suite = %q, want fixture", response.GetSuite())
+		}
+		if len(response.GetPromotedSteps()) != 1 || response.GetPromotedSteps()[0] != "fixture-script" {
+			t.Fatalf("promoted steps = %v, want [fixture-script]", response.GetPromotedSteps())
+		}
+	})
+}
+
 func TestPublicDowngradeOperation(t *testing.T) {
 	root := testrepo.Create(t)
 	configDir := filepath.Join(root, "integration")
@@ -91,8 +112,7 @@ func TestPublicDowngradeOperation(t *testing.T) {
 		response, err := Downgrade(&aderv1.DowngradeRequest{
 			ConfigDir: configDir,
 			Suite:     "fixture",
-			Profile:   "unit",
-			StepIds:   []string{"sdk-go-unit"},
+			StepIds:   []string{"grace-op-unit"},
 		})
 		if err != nil {
 			t.Fatalf("Downgrade() error = %v", err)
@@ -100,15 +120,8 @@ func TestPublicDowngradeOperation(t *testing.T) {
 		if response.GetSuite() != "fixture" {
 			t.Fatalf("suite = %q, want fixture", response.GetSuite())
 		}
-		if len(response.GetProfileChanges()) != 1 {
-			t.Fatalf("profile changes = %d, want 1", len(response.GetProfileChanges()))
-		}
-		change := response.GetProfileChanges()[0]
-		if change.GetProfile() != "unit" {
-			t.Fatalf("profile = %q, want unit", change.GetProfile())
-		}
-		if len(change.GetMovedSteps()) != 1 || change.GetMovedSteps()[0] != "sdk-go-unit" {
-			t.Fatalf("moved steps = %v, want [sdk-go-unit]", change.GetMovedSteps())
+		if len(response.GetDowngradedSteps()) != 1 || response.GetDowngradedSteps()[0] != "grace-op-unit" {
+			t.Fatalf("downgraded steps = %v, want [grace-op-unit]", response.GetDowngradedSteps())
 		}
 	})
 }

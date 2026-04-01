@@ -16,7 +16,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-04-01"
-    version: "0.2.7"
+    version: "0.2.8"
     aliases: ["ader"]
   }
   description: "Clem Ader is the configurable verification holon of the seed. It loads repo-local suites from a config directory, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, and proposes progression-to-regression promotion without mutating the repo."
@@ -41,6 +41,7 @@ option (holons.v1.manifest) = {
       "Test",
       "Archive",
       "Cleanup",
+      "Promote",
       "Downgrade",
       "History",
       "ShowHistory"
@@ -62,14 +63,23 @@ option (holons.v1.manifest) = {
     steps: [
       "Run `ader test integration --suite seed --profile quick --lane progression --source workspace`",
       "Inspect `integration/reports/<history-id>/summary.md` and `promotion.md`",
-      "Promote the step references from progression to regression once the proof is accepted"
+      "Run the suggested `ader promote integration --step ...` command once the proof is accepted"
+    ]
+  }, {
+    name: "promote-after-proof"
+    description: "Promote progression steps to regression after a clean proof."
+    when: "A progression run passed and the step should now become part of the regression baseline."
+    steps: [
+      "Inspect `promotion.md` to confirm the suggested `ader promote ...` command",
+      "Run `ader promote integration --step <step-id>` or `--all` as needed",
+      "Review the suite diff and commit deliberately"
     ]
   }, {
     name: "downgrade-and-rebuild"
     description: "Move regression steps back to progression, rerun the proof, and review the new promotion evidence."
     when: "A profile or step should be reset to TDD without editing the suite YAML by hand."
     steps: [
-      "Run `ader downgrade integration --profile unit --all` or target specific steps with `--step`",
+      "Run `ader downgrade integration --all` or target specific steps with `--step`",
       "Run `ader test integration --suite seed --profile unit --lane progression --source workspace`",
       "Review the new `promotion.json` and `promotion.md` before re-promoting"
     ]
@@ -89,6 +99,7 @@ service AderService {
   rpc Test (TestRequest) returns (TestResponse);
   rpc Archive (ArchiveRequest) returns (ArchiveResponse);
   rpc Cleanup (CleanupRequest) returns (CleanupResponse);
+  rpc Promote (PromoteRequest) returns (PromoteResponse);
   rpc Downgrade (DowngradeRequest) returns (DowngradeResponse);
   rpc History (HistoryRequest) returns (HistoryResponse);
   rpc ShowHistory (ShowHistoryRequest) returns (ShowHistoryResponse);
@@ -133,24 +144,32 @@ message CleanupResponse {
   repeated string removed_paths = 4;
 }
 
+message PromoteRequest {
+  string config_dir = 1;
+  string suite = 2;
+  repeated string step_ids = 3;
+  bool all = 4;
+}
+
+message PromoteResponse {
+  string suite = 1;
+  string suite_file = 2;
+  repeated string promoted_steps = 3;
+  repeated string ignored_steps = 4;
+}
+
 message DowngradeRequest {
   string config_dir = 1;
   string suite = 2;
-  string profile = 3;
-  repeated string step_ids = 4;
-  bool all = 5;
+  repeated string step_ids = 3;
+  bool all = 4;
 }
 
 message DowngradeResponse {
   string suite = 1;
   string suite_file = 2;
-  repeated DowngradeProfileChange profile_changes = 3;
+  repeated string downgraded_steps = 3;
   repeated string ignored_steps = 4;
-}
-
-message DowngradeProfileChange {
-  string profile = 1;
-  repeated string moved_steps = 2;
 }
 
 message HistoryRequest {

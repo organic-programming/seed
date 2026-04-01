@@ -5,175 +5,206 @@ steps:
     prereqs: [go]
     script: scripts/test-unit.sh
     description: clem-ader unit tests
+    lane: progression
   grace-op-unit:
     workdir: holons/grace-op
     prereqs: [go]
     command: go test ./...
     description: grace-op unit tests
+    lane: progression
   sdk-go-unit:
     workdir: sdk/go-holons
     prereqs: [go]
     command: go test ./...
     description: Go SDK unit tests
+    lane: progression
   sdk-c-unit:
     workdir: sdk/c-holons
     prereqs: [make]
     command: make clean && make test && make clean
     description: C SDK unit tests
+    lane: progression
   sdk-cpp-unit:
     workdir: sdk/cpp-holons
     prereqs: [cmake]
     command: rm -rf build && cmake -S . -B build && cmake --build build --target test_runner && ./build/test_runner && rm -rf build
     description: C++ SDK unit tests
+    lane: progression
   sdk-csharp-unit:
     workdir: sdk/csharp-holons
     prereqs: [dotnet]
     command: 'HOLONS_CSHARP_SOURCE_ROOT="$ADER_REPO_ROOT/sdk/csharp-holons" dotnet test csharp-holons.sln'
     description: C# SDK unit tests
+    lane: progression
   sdk-dart-unit:
     workdir: sdk/dart-holons
     prereqs: [dart]
     command: dart test
     description: Dart SDK unit tests
+    lane: progression
   sdk-java-unit:
     workdir: sdk/java-holons
     prereqs: [java, gradle]
     command: gradle test
     description: Java SDK unit tests
+    lane: progression
   sdk-js-unit:
     workdir: sdk/js-holons
     prereqs: [node, npm]
     command: npm test
     description: Node.js SDK unit tests
+    lane: progression
   sdk-js-web-unit:
     workdir: sdk/js-web-holons
     prereqs: [node, npm]
     command: npm test
     description: JS web SDK unit tests
+    lane: progression
   sdk-kotlin-unit:
     workdir: sdk/kotlin-holons
     prereqs: [java, gradle]
     command: gradle test
     description: Kotlin SDK unit tests
+    lane: progression
   sdk-ruby-unit:
     workdir: sdk/ruby-holons
     prereqs: [ruby, bundle]
     command: bundle exec rake test
     description: Ruby SDK unit tests
+    lane: progression
   sdk-rust-unit:
     workdir: sdk/rust-holons
     prereqs: [cargo]
     command: 'cargo test --target-dir "$ADER_RUN_ARTIFACTS/cargo/sdk-rust"'
     description: Rust SDK unit tests
+    lane: progression
   sdk-swift-unit:
     workdir: sdk/swift-holons
     prereqs: [swift]
     command: swift test
     description: Swift SDK unit tests
+    lane: progression
   example-c-unit:
     workdir: examples/hello-world/gabriel-greeting-c
     prereqs: [cmake]
     command: 'rm -rf "$ADER_RUN_ARTIFACTS/cmake/example-c" && cmake -S . -B "$ADER_RUN_ARTIFACTS/cmake/example-c" && cmake --build "$ADER_RUN_ARTIFACTS/cmake/example-c" && ctest --test-dir "$ADER_RUN_ARTIFACTS/cmake/example-c" --output-on-failure'
     description: C example unit tests
+    lane: progression
   example-cpp-unit:
     workdir: examples/hello-world/gabriel-greeting-cpp
     prereqs: [cmake]
     command: 'rm -rf "$ADER_RUN_ARTIFACTS/cmake/example-cpp" && cmake -S . -B "$ADER_RUN_ARTIFACTS/cmake/example-cpp" && cmake --build "$ADER_RUN_ARTIFACTS/cmake/example-cpp" && ctest --test-dir "$ADER_RUN_ARTIFACTS/cmake/example-cpp" --output-on-failure'
     description: C++ example unit tests
+    lane: progression
   example-csharp-unit:
     workdir: examples/hello-world/gabriel-greeting-csharp
     prereqs: [dotnet]
     command: dotnet test tests/Gabriel.Greeting.Csharp.Tests.csproj
     description: C# example unit tests
+    lane: progression
   example-dart-unit:
     workdir: examples/hello-world/gabriel-greeting-dart
     prereqs: [dart]
     command: dart test
     description: Dart example unit tests
+    lane: progression
   example-go-unit:
     workdir: examples/hello-world/gabriel-greeting-go
     prereqs: [go]
     command: go test ./...
     description: Canonical Go example unit tests
+    lane: progression
   example-java-unit:
     workdir: examples/hello-world/gabriel-greeting-java
     prereqs: [java, gradle]
     command: gradle test
     description: Java example unit tests
+    lane: progression
   example-kotlin-unit:
     workdir: examples/hello-world/gabriel-greeting-kotlin
     prereqs: [java, gradle]
     command: gradle test
     description: Kotlin example unit tests
+    lane: progression
   example-node-unit:
     workdir: examples/hello-world/gabriel-greeting-node
     prereqs: [node, npm]
     command: npm test
     description: Node.js example unit tests
+    lane: progression
   example-python-unit:
     workdir: examples/hello-world/gabriel-greeting-python
     prereqs: [python3]
     command: python3 -m unittest api.public_test api.cli_test _internal.server_test
     description: Python example unit tests
+    lane: progression
   example-ruby-unit:
     workdir: examples/hello-world/gabriel-greeting-ruby
     prereqs: [ruby, bundle]
     command: bundle exec rake test
     description: Ruby example unit tests
+    lane: progression
   example-rust-unit:
     workdir: examples/hello-world/gabriel-greeting-rust
     prereqs: [cargo]
     command: 'cargo test --target-dir "$ADER_RUN_ARTIFACTS/cargo/example-rust"'
     description: Rust example unit tests
+    lane: progression
   example-swift-unit:
     workdir: examples/hello-world/gabriel-greeting-swift
     prereqs: [swift]
     command: swift test
     description: Swift example unit tests
+    lane: progression
   integration-short:
     workdir: integration/tests
     prereqs: [go]
     command: go test -short -count=1 -timeout 15m ./...
     description: Short black-box integration suite
+    lane: progression
   integration-deterministic:
     workdir: integration/tests
     prereqs: [go]
     command: go test -count=1 -timeout 30m ./...
     description: Deterministic black-box integration suite
+    lane: progression
   integration-fuzz-random:
     workdir: integration/tests
     prereqs: [go]
     command: OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzRandomCommands -fuzztime=30s ./
     description: Black-box fuzz random commands
+    lane: progression
   integration-fuzz-json:
     workdir: integration/tests
     prereqs: [go]
     command: OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzJSONInput -fuzztime=30s ./
     description: Black-box fuzz JSON payloads
+    lane: progression
   integration-fuzz-uri:
     workdir: integration/tests
     prereqs: [go]
     command: OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzTransportURI -fuzztime=30s ./
     description: Black-box fuzz transport URIs
+    lane: progression
   integration-fuzz-flags:
     workdir: integration/tests
     prereqs: [go]
     command: OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzFlagPermutations -fuzztime=30s ./
     description: Black-box fuzz flag permutations
+    lane: progression
 profiles:
   quick:
-    regression: []
-    progression: [ader-unit, grace-op-unit, sdk-go-unit, example-go-unit, integration-short]
+    description: Fast proof for the canonical path and short black-box coverage
+    steps: [ader-unit, grace-op-unit, sdk-go-unit, example-go-unit, integration-short]
   unit:
-    regression: []
-    progression: [ader-unit, grace-op-unit, sdk-go-unit, sdk-c-unit, sdk-cpp-unit, sdk-csharp-unit, sdk-dart-unit, sdk-java-unit, sdk-js-unit, sdk-js-web-unit, sdk-kotlin-unit, sdk-ruby-unit, sdk-rust-unit, sdk-swift-unit, example-c-unit, example-cpp-unit, example-csharp-unit, example-dart-unit, example-go-unit, example-java-unit, example-kotlin-unit, example-node-unit, example-python-unit, example-ruby-unit, example-rust-unit, example-swift-unit]
+    description: Native unit suites across SDKs, holons, and examples
+    steps: [ader-unit, grace-op-unit, sdk-go-unit, sdk-c-unit, sdk-cpp-unit, sdk-csharp-unit, sdk-dart-unit, sdk-java-unit, sdk-js-unit, sdk-js-web-unit, sdk-kotlin-unit, sdk-ruby-unit, sdk-rust-unit, sdk-swift-unit, example-c-unit, example-cpp-unit, example-csharp-unit, example-dart-unit, example-go-unit, example-java-unit, example-kotlin-unit, example-node-unit, example-python-unit, example-ruby-unit, example-rust-unit, example-swift-unit]
   integration:
-    regression: []
-    progression: [integration-deterministic, integration-short]
+    description: Deterministic black-box integration suite only
+    steps: [integration-deterministic, integration-short]
   full:
-    regression: []
-    progression: [ader-unit, grace-op-unit, sdk-go-unit, sdk-c-unit, sdk-cpp-unit, sdk-csharp-unit, sdk-dart-unit, sdk-java-unit, sdk-js-unit, sdk-js-web-unit, sdk-kotlin-unit, sdk-ruby-unit, sdk-rust-unit, sdk-swift-unit, example-c-unit, example-cpp-unit, example-csharp-unit, example-dart-unit, example-go-unit, example-java-unit, example-kotlin-unit, example-node-unit, example-python-unit, example-ruby-unit, example-rust-unit, example-swift-unit, integration-deterministic, integration-short]
+    description: Unit suites plus deterministic integration suite
+    steps: [ader-unit, grace-op-unit, sdk-go-unit, sdk-c-unit, sdk-cpp-unit, sdk-csharp-unit, sdk-dart-unit, sdk-java-unit, sdk-js-unit, sdk-js-web-unit, sdk-kotlin-unit, sdk-ruby-unit, sdk-rust-unit, sdk-swift-unit, example-c-unit, example-cpp-unit, example-csharp-unit, example-dart-unit, example-go-unit, example-java-unit, example-kotlin-unit, example-node-unit, example-python-unit, example-ruby-unit, example-rust-unit, example-swift-unit, integration-deterministic, integration-short]
   stress:
-    regression: []
-    progression: [integration-fuzz-random, integration-fuzz-json, integration-fuzz-uri, integration-fuzz-flags]
-
+    description: Opt-in black-box fuzz and stress only
+    steps: [integration-fuzz-random, integration-fuzz-json, integration-fuzz-uri, integration-fuzz-flags]

@@ -14,7 +14,7 @@ import (
 )
 
 func TestSurfaceSymmetry(t *testing.T) {
-	wantRPC := []string{"Archive", "Cleanup", "Downgrade", "History", "ShowHistory", "Test"}
+	wantRPC := []string{"Archive", "Cleanup", "Downgrade", "History", "Promote", "ShowHistory", "Test"}
 
 	gotRPC := make([]string, 0, len(aderv1.AderService_ServiceDesc.Methods))
 	for _, method := range aderv1.AderService_ServiceDesc.Methods {
@@ -36,12 +36,12 @@ func TestSurfaceSymmetry(t *testing.T) {
 		}
 	}
 	sort.Strings(gotCLI)
-	wantCLI := []string{"archive", "cleanup", "downgrade", "history", "show", "test"}
+	wantCLI := []string{"archive", "cleanup", "downgrade", "history", "promote", "show", "test"}
 	if !reflect.DeepEqual(gotCLI, wantCLI) {
 		t.Fatalf("CLI commands = %v, want %v", gotCLI, wantCLI)
 	}
 
-	gotAPI := []string{"Archive", "Cleanup", "Downgrade", "History", "ShowHistory", "Test"}
+	gotAPI := []string{"Archive", "Cleanup", "Downgrade", "History", "Promote", "ShowHistory", "Test"}
 	sort.Strings(gotAPI)
 	if !reflect.DeepEqual(gotAPI, wantRPC) {
 		t.Fatalf("public API set = %v, want %v", gotAPI, wantRPC)
@@ -99,5 +99,25 @@ func TestDowngradeCommandShape(t *testing.T) {
 	}
 	if downgrade.Use != "downgrade <config-dir>" {
 		t.Fatalf("downgrade use = %q, want %q", downgrade.Use, "downgrade <config-dir>")
+	}
+	if downgrade.Flags().Lookup("profile") != nil {
+		t.Fatal("downgrade should not expose --profile")
+	}
+}
+
+func TestPromoteCommandShape(t *testing.T) {
+	root := newRootCommand(io.Discard, io.Discard)
+	promote := root.Commands()[0]
+	for _, cmd := range root.Commands() {
+		if cmd.Name() == "promote" {
+			promote = cmd
+			break
+		}
+	}
+	if promote.Name() != "promote" {
+		t.Fatalf("promote command missing from CLI")
+	}
+	if promote.Use != "promote <config-dir>" {
+		t.Fatalf("promote use = %q, want %q", promote.Use, "promote <config-dir>")
 	}
 }

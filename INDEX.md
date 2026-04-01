@@ -39,6 +39,14 @@
 | ? | ? | [holons/grace-op/OP_RUN.md](holons/grace-op/OP_RUN.md) | `op run` |
 | ? | ? | [holons/grace-op/README.md](holons/grace-op/README.md) | `op` overview |
 
+## ader CLI (holons/clem-ader)
+
+| Spec | Impl | Doc | Topic |
+|:---:|:---:|---|---|
+| ? | ? | [holons/clem-ader/README.md](holons/clem-ader/README.md) | `ader` overview — concepts, commands, workflows |
+| ? | ? | [holons/clem-ader/api/v1/holon.proto](holons/clem-ader/api/v1/holon.proto) | `ader` RPC surface and skills |
+| ? | ? | [integration/README.md](integration/README.md) | Seed config root and usage |
+| ? | ? | [integration/suites/seed.yaml](integration/suites/seed.yaml) | Seed suite definition |
 
 ## SDK Interfaces (sdk)
 
@@ -80,23 +88,3 @@
 |:---:|:---:|---|---|
 
 | ? | ? | [organism_kits/README.md](organism_kits/README.md) | Organism kits — siblings resolution, app bundles |
-
-## Implementation Details
-
-| Spec | Impl | Doc | Topic |
-|:---:|:---:|---|---|
-| - | ? | [COAX_IP_interesting.md](_implementation/COAX_IP_interesting.md) | COAX — interesting IP patterns |
-| - | ? | [OP_GET.md](_implementation/OP_GET.md) | `op get` implementation notes |
-| - | ? | [ORIGIN_FLAG.md](_implementation/ORIGIN_FLAG.md) | `--origin` flag implementation |
-| - | - | [_TODO.md](_implementation/_TODO.md) | Active task list |
-
-## Archived Implementation Notes
-
-| Spec | Impl | Doc | Topic |
-|:---:|:---:|---|---|
-| ❌| ? | [DESIGN_auto_build_on_connect.md](_implementation/done/DESIGN_auto_build_on_connect.md) | Archive: Auto-build on connect |
-| ❌ | ? | [SDK_CLEANUP.md](_implementation/done/SDK_CLEANUP.md) | Archive: SDK Cleanup |
-| ❌ | ? | [SDK_CLEANUP_plan.md](_implementation/done/SDK_CLEANUP_plan.md) | Archive: SDK Cleanup Plan |
-| ❌ | ? | [codex_remove_reflection.md](_implementation/done/codex_remove_reflection.md) | Archive: Codex Reflection Removal |
-| ❌ | ? | [op_coax_mcp_support.md](_implementation/done/op_coax_mcp_support.md) | Archive: MCP Support |
-| ❌ | ? | [op_migrate_mcp_to_describe.md](_implementation/done/op_migrate_mcp_to_describe.md) | Archive: MCP to Describe Migration |

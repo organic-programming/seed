@@ -17,7 +17,7 @@ Each tier is defined as a set of **steps** in the [suite YAML](integration/suite
 
 ## 2. Test Lifecycle
 
-Every test step lives in one of two **lanes** at any given time. Lanes are **per-profile**: the same step can be in `regression` in `quick` and in `progression` in `full`.
+Every test step lives in one of two **lanes** at any given time. Lane is a property of the **step**, not the profile, so one step has one lane everywhere it is reused.
 
 ```
 progression ──[clean pass]──▶ promotion ──[review + apply]──▶ regression
@@ -37,10 +37,10 @@ ader test integration --suite seed --profile unit --lane progression --source wo
 
 When a `progression` run passes completely, ader generates two files in the report directory:
 
-- `promotion.json` — machine-readable: eligible steps, suggested YAML patch, suggested git commands
+- `promotion.json` — machine-readable: eligible steps, suggested `ader promote ...` command, suggested git commands
 - `promotion.md` — human-readable summary
 
-These files propose moving the passing steps from `progression` to `regression` in the suite YAML. Neither ader nor the agent apply the patch automatically. A human reviews and applies.
+These files propose moving the passing steps from `progression` to `regression` in the suite YAML. Neither ader nor the agent mutate the suite automatically during `test`. A human reviews and applies the explicit promote command.
 
 ### Regression (Safety Net)
 
@@ -57,12 +57,11 @@ Default lane is `regression`. Default source is `committed`.
 To move tests back to `progression` for re-evaluation:
 
 ```bash
-ader downgrade integration --all                              # all steps, all profiles
-ader downgrade integration --profile unit --all               # all steps in unit
+ader downgrade integration --all                              # all regression steps
 ader downgrade integration --step sdk-go-unit --step X        # specific steps
 ```
 
-Rules: steps are removed from `regression` and appended to `progression` (no duplicates). The suite YAML is rewritten immediately, never auto-committed.[^1]
+Rules: step `lane` changes from `regression` to `progression`. The suite YAML is rewritten immediately, never auto-committed.[^1]
 
 [^1]: `ader downgrade` is specified in the [Codex prompt](prompts/codex-cross-tier-promotion.md).
 
@@ -73,11 +72,11 @@ An AI agent follows this loop when developing or validating code:
 ```
 1. unit --lane progression --source workspace
    → iterate until clean pass
-   → review promotion.md → apply patch
+   → review promotion.md → run `ader promote ...`
 
 2. integration --lane progression --source workspace
    → iterate until clean pass
-   → review promotion.md → apply patch
+   → review promotion.md → run `ader promote ...`
 
 3. full --lane regression --source committed
    → final proof → archive
@@ -93,7 +92,7 @@ Each tier must pass before moving to the next. This isolation ensures errors are
 
 ## 4. Suite Structure
 
-The suite YAML (`integration/suites/seed.yaml`) maps steps to profiles and lanes:
+The suite YAML (`integration/suites/seed.yaml`) maps steps to profiles. Lane lives on the step itself:
 
 ```yaml
 steps:
@@ -102,17 +101,16 @@ steps:
     prereqs: [go]
     command: go test ./...
     description: Go SDK unit tests
+    lane: progression
 
 profiles:
   unit:
-    regression: [sdk-go-unit, ...]    # safety net
-    progression: [new-feature-unit]   # active TDD
+    steps: [sdk-go-unit, new-feature-unit]
   integration:
-    regression: [integration-deterministic]
-    progression: [integration-short]
+    steps: [integration-deterministic, integration-short]
 ```
 
-A step can appear in multiple profiles. Its lane assignment is **per-profile**: `sdk-go-unit` can be `regression` in `quick` and `progression` in `unit` simultaneously.
+A step can appear in multiple profiles. Its lane assignment is global: `sdk-go-unit` is either `progression` or `regression` everywhere.
 
 ### Profile Ladder
 
@@ -136,8 +134,9 @@ When a step is promoted in a profile, ader suggests adding it to the `progressio
 | Integration regression | `ader test integration --suite seed --profile integration` |
 | Full regression | `ader test integration --suite seed --profile full` |
 | Quick check | `ader test integration --suite seed --profile quick` |
+| Promote specific | `ader promote integration --step sdk-go-unit` |
+| Promote all progression | `ader promote integration --all` |
 | Downgrade all | `ader downgrade integration --all` |
-| Downgrade by profile | `ader downgrade integration --profile unit --all` |
 | Downgrade specific | `ader downgrade integration --step sdk-go-unit` |
 | Archive latest | `ader archive integration --latest` |
 | View history | `ader history integration` |
@@ -154,14 +153,14 @@ When a step is promoted in a profile, ader suggests adding it to the `progressio
   "profile": "unit",
   "lane": "progression",
   "destination_lane": "regression",
-  "suite_file": "/path/to/integration/suites/seed.yaml",
+  "suite_file": "integration/suites/seed.yaml",
   "eligible_steps": ["sdk-go-unit", "example-go-unit"],
-  "suggested_patch": "profiles:\n  unit:\n    regression:\n      - sdk-go-unit\n      ...",
+  "suggested_command": "ader promote integration --step sdk-go-unit --step example-go-unit",
   "suggested_git_commands": [
     "git add integration/suites/seed.yaml",
-    "git commit -m \"Promote seed unit progression checks\""
+    "git commit -m \"Promote sdk-go-unit, example-go-unit to regression\""
   ],
-  "suggested_commit_message": "Promote seed unit progression checks",
+  "suggested_commit_message": "Promote sdk-go-unit, example-go-unit to regression",
   "cross_tier_suggestions": [
     {
       "step_id": "sdk-go-unit",
@@ -176,7 +175,7 @@ When a step is promoted in a profile, ader suggests adding it to the `progressio
 
 ### `promotion.md`
 
-A markdown summary: eligible steps, YAML patch, git commands, and **cross-profile suggestions** showing which steps should be considered for the next profile in the ladder.
+A markdown summary: eligible steps, the exact `ader promote ...` command, git commands, and **cross-profile suggestions** showing which steps should be considered for the next profile in the ladder.
 
 ## References
 

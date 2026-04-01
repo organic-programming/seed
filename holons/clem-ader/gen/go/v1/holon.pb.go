@@ -406,20 +406,155 @@ func (x *CleanupResponse) GetRemovedPaths() []string {
 	return nil
 }
 
+type PromoteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ConfigDir     string                 `protobuf:"bytes,1,opt,name=config_dir,json=configDir,proto3" json:"config_dir,omitempty"`
+	Suite         string                 `protobuf:"bytes,2,opt,name=suite,proto3" json:"suite,omitempty"`
+	StepIds       []string               `protobuf:"bytes,3,rep,name=step_ids,json=stepIds,proto3" json:"step_ids,omitempty"`
+	All           bool                   `protobuf:"varint,4,opt,name=all,proto3" json:"all,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PromoteRequest) Reset() {
+	*x = PromoteRequest{}
+	mi := &file_v1_holon_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PromoteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PromoteRequest) ProtoMessage() {}
+
+func (x *PromoteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_holon_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PromoteRequest.ProtoReflect.Descriptor instead.
+func (*PromoteRequest) Descriptor() ([]byte, []int) {
+	return file_v1_holon_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PromoteRequest) GetConfigDir() string {
+	if x != nil {
+		return x.ConfigDir
+	}
+	return ""
+}
+
+func (x *PromoteRequest) GetSuite() string {
+	if x != nil {
+		return x.Suite
+	}
+	return ""
+}
+
+func (x *PromoteRequest) GetStepIds() []string {
+	if x != nil {
+		return x.StepIds
+	}
+	return nil
+}
+
+func (x *PromoteRequest) GetAll() bool {
+	if x != nil {
+		return x.All
+	}
+	return false
+}
+
+type PromoteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Suite         string                 `protobuf:"bytes,1,opt,name=suite,proto3" json:"suite,omitempty"`
+	SuiteFile     string                 `protobuf:"bytes,2,opt,name=suite_file,json=suiteFile,proto3" json:"suite_file,omitempty"`
+	PromotedSteps []string               `protobuf:"bytes,3,rep,name=promoted_steps,json=promotedSteps,proto3" json:"promoted_steps,omitempty"`
+	IgnoredSteps  []string               `protobuf:"bytes,4,rep,name=ignored_steps,json=ignoredSteps,proto3" json:"ignored_steps,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PromoteResponse) Reset() {
+	*x = PromoteResponse{}
+	mi := &file_v1_holon_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PromoteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PromoteResponse) ProtoMessage() {}
+
+func (x *PromoteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_holon_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PromoteResponse.ProtoReflect.Descriptor instead.
+func (*PromoteResponse) Descriptor() ([]byte, []int) {
+	return file_v1_holon_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *PromoteResponse) GetSuite() string {
+	if x != nil {
+		return x.Suite
+	}
+	return ""
+}
+
+func (x *PromoteResponse) GetSuiteFile() string {
+	if x != nil {
+		return x.SuiteFile
+	}
+	return ""
+}
+
+func (x *PromoteResponse) GetPromotedSteps() []string {
+	if x != nil {
+		return x.PromotedSteps
+	}
+	return nil
+}
+
+func (x *PromoteResponse) GetIgnoredSteps() []string {
+	if x != nil {
+		return x.IgnoredSteps
+	}
+	return nil
+}
+
 type DowngradeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ConfigDir     string                 `protobuf:"bytes,1,opt,name=config_dir,json=configDir,proto3" json:"config_dir,omitempty"`
 	Suite         string                 `protobuf:"bytes,2,opt,name=suite,proto3" json:"suite,omitempty"`
-	Profile       string                 `protobuf:"bytes,3,opt,name=profile,proto3" json:"profile,omitempty"`
-	StepIds       []string               `protobuf:"bytes,4,rep,name=step_ids,json=stepIds,proto3" json:"step_ids,omitempty"`
-	All           bool                   `protobuf:"varint,5,opt,name=all,proto3" json:"all,omitempty"`
+	StepIds       []string               `protobuf:"bytes,3,rep,name=step_ids,json=stepIds,proto3" json:"step_ids,omitempty"`
+	All           bool                   `protobuf:"varint,4,opt,name=all,proto3" json:"all,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DowngradeRequest) Reset() {
 	*x = DowngradeRequest{}
-	mi := &file_v1_holon_proto_msgTypes[6]
+	mi := &file_v1_holon_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -431,7 +566,7 @@ func (x *DowngradeRequest) String() string {
 func (*DowngradeRequest) ProtoMessage() {}
 
 func (x *DowngradeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[6]
+	mi := &file_v1_holon_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -444,7 +579,7 @@ func (x *DowngradeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DowngradeRequest.ProtoReflect.Descriptor instead.
 func (*DowngradeRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{6}
+	return file_v1_holon_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *DowngradeRequest) GetConfigDir() string {
@@ -457,13 +592,6 @@ func (x *DowngradeRequest) GetConfigDir() string {
 func (x *DowngradeRequest) GetSuite() string {
 	if x != nil {
 		return x.Suite
-	}
-	return ""
-}
-
-func (x *DowngradeRequest) GetProfile() string {
-	if x != nil {
-		return x.Profile
 	}
 	return ""
 }
@@ -483,18 +611,18 @@ func (x *DowngradeRequest) GetAll() bool {
 }
 
 type DowngradeResponse struct {
-	state          protoimpl.MessageState    `protogen:"open.v1"`
-	Suite          string                    `protobuf:"bytes,1,opt,name=suite,proto3" json:"suite,omitempty"`
-	SuiteFile      string                    `protobuf:"bytes,2,opt,name=suite_file,json=suiteFile,proto3" json:"suite_file,omitempty"`
-	ProfileChanges []*DowngradeProfileChange `protobuf:"bytes,3,rep,name=profile_changes,json=profileChanges,proto3" json:"profile_changes,omitempty"`
-	IgnoredSteps   []string                  `protobuf:"bytes,4,rep,name=ignored_steps,json=ignoredSteps,proto3" json:"ignored_steps,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Suite           string                 `protobuf:"bytes,1,opt,name=suite,proto3" json:"suite,omitempty"`
+	SuiteFile       string                 `protobuf:"bytes,2,opt,name=suite_file,json=suiteFile,proto3" json:"suite_file,omitempty"`
+	DowngradedSteps []string               `protobuf:"bytes,3,rep,name=downgraded_steps,json=downgradedSteps,proto3" json:"downgraded_steps,omitempty"`
+	IgnoredSteps    []string               `protobuf:"bytes,4,rep,name=ignored_steps,json=ignoredSteps,proto3" json:"ignored_steps,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DowngradeResponse) Reset() {
 	*x = DowngradeResponse{}
-	mi := &file_v1_holon_proto_msgTypes[7]
+	mi := &file_v1_holon_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -506,7 +634,7 @@ func (x *DowngradeResponse) String() string {
 func (*DowngradeResponse) ProtoMessage() {}
 
 func (x *DowngradeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[7]
+	mi := &file_v1_holon_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -519,7 +647,7 @@ func (x *DowngradeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DowngradeResponse.ProtoReflect.Descriptor instead.
 func (*DowngradeResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{7}
+	return file_v1_holon_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DowngradeResponse) GetSuite() string {
@@ -536,9 +664,9 @@ func (x *DowngradeResponse) GetSuiteFile() string {
 	return ""
 }
 
-func (x *DowngradeResponse) GetProfileChanges() []*DowngradeProfileChange {
+func (x *DowngradeResponse) GetDowngradedSteps() []string {
 	if x != nil {
-		return x.ProfileChanges
+		return x.DowngradedSteps
 	}
 	return nil
 }
@@ -546,58 +674,6 @@ func (x *DowngradeResponse) GetProfileChanges() []*DowngradeProfileChange {
 func (x *DowngradeResponse) GetIgnoredSteps() []string {
 	if x != nil {
 		return x.IgnoredSteps
-	}
-	return nil
-}
-
-type DowngradeProfileChange struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Profile       string                 `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
-	MovedSteps    []string               `protobuf:"bytes,2,rep,name=moved_steps,json=movedSteps,proto3" json:"moved_steps,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DowngradeProfileChange) Reset() {
-	*x = DowngradeProfileChange{}
-	mi := &file_v1_holon_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DowngradeProfileChange) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DowngradeProfileChange) ProtoMessage() {}
-
-func (x *DowngradeProfileChange) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DowngradeProfileChange.ProtoReflect.Descriptor instead.
-func (*DowngradeProfileChange) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *DowngradeProfileChange) GetProfile() string {
-	if x != nil {
-		return x.Profile
-	}
-	return ""
-}
-
-func (x *DowngradeProfileChange) GetMovedSteps() []string {
-	if x != nil {
-		return x.MovedSteps
 	}
 	return nil
 }
@@ -611,7 +687,7 @@ type HistoryRequest struct {
 
 func (x *HistoryRequest) Reset() {
 	*x = HistoryRequest{}
-	mi := &file_v1_holon_proto_msgTypes[9]
+	mi := &file_v1_holon_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -623,7 +699,7 @@ func (x *HistoryRequest) String() string {
 func (*HistoryRequest) ProtoMessage() {}
 
 func (x *HistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[9]
+	mi := &file_v1_holon_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -636,7 +712,7 @@ func (x *HistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryRequest.ProtoReflect.Descriptor instead.
 func (*HistoryRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{9}
+	return file_v1_holon_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *HistoryRequest) GetConfigDir() string {
@@ -655,7 +731,7 @@ type HistoryResponse struct {
 
 func (x *HistoryResponse) Reset() {
 	*x = HistoryResponse{}
-	mi := &file_v1_holon_proto_msgTypes[10]
+	mi := &file_v1_holon_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -667,7 +743,7 @@ func (x *HistoryResponse) String() string {
 func (*HistoryResponse) ProtoMessage() {}
 
 func (x *HistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[10]
+	mi := &file_v1_holon_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -680,7 +756,7 @@ func (x *HistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryResponse.ProtoReflect.Descriptor instead.
 func (*HistoryResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{10}
+	return file_v1_holon_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *HistoryResponse) GetEntries() []*HistoryEntry {
@@ -700,7 +776,7 @@ type ShowHistoryRequest struct {
 
 func (x *ShowHistoryRequest) Reset() {
 	*x = ShowHistoryRequest{}
-	mi := &file_v1_holon_proto_msgTypes[11]
+	mi := &file_v1_holon_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -712,7 +788,7 @@ func (x *ShowHistoryRequest) String() string {
 func (*ShowHistoryRequest) ProtoMessage() {}
 
 func (x *ShowHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[11]
+	mi := &file_v1_holon_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -725,7 +801,7 @@ func (x *ShowHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShowHistoryRequest.ProtoReflect.Descriptor instead.
 func (*ShowHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{11}
+	return file_v1_holon_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ShowHistoryRequest) GetConfigDir() string {
@@ -754,7 +830,7 @@ type ShowHistoryResponse struct {
 
 func (x *ShowHistoryResponse) Reset() {
 	*x = ShowHistoryResponse{}
-	mi := &file_v1_holon_proto_msgTypes[12]
+	mi := &file_v1_holon_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -766,7 +842,7 @@ func (x *ShowHistoryResponse) String() string {
 func (*ShowHistoryResponse) ProtoMessage() {}
 
 func (x *ShowHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[12]
+	mi := &file_v1_holon_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -779,7 +855,7 @@ func (x *ShowHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShowHistoryResponse.ProtoReflect.Descriptor instead.
 func (*ShowHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{12}
+	return file_v1_holon_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ShowHistoryResponse) GetManifest() *HistoryRecord {
@@ -830,7 +906,7 @@ type HistoryEntry struct {
 
 func (x *HistoryEntry) Reset() {
 	*x = HistoryEntry{}
-	mi := &file_v1_holon_proto_msgTypes[13]
+	mi := &file_v1_holon_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -842,7 +918,7 @@ func (x *HistoryEntry) String() string {
 func (*HistoryEntry) ProtoMessage() {}
 
 func (x *HistoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[13]
+	mi := &file_v1_holon_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -855,7 +931,7 @@ func (x *HistoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryEntry.ProtoReflect.Descriptor instead.
 func (*HistoryEntry) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{13}
+	return file_v1_holon_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *HistoryEntry) GetHistoryId() string {
@@ -971,7 +1047,7 @@ type HistoryRecord struct {
 
 func (x *HistoryRecord) Reset() {
 	*x = HistoryRecord{}
-	mi := &file_v1_holon_proto_msgTypes[14]
+	mi := &file_v1_holon_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -983,7 +1059,7 @@ func (x *HistoryRecord) String() string {
 func (*HistoryRecord) ProtoMessage() {}
 
 func (x *HistoryRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[14]
+	mi := &file_v1_holon_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -996,7 +1072,7 @@ func (x *HistoryRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryRecord.ProtoReflect.Descriptor instead.
 func (*HistoryRecord) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{14}
+	return file_v1_holon_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *HistoryRecord) GetConfigDir() string {
@@ -1165,7 +1241,7 @@ type StepResult struct {
 
 func (x *StepResult) Reset() {
 	*x = StepResult{}
-	mi := &file_v1_holon_proto_msgTypes[15]
+	mi := &file_v1_holon_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1177,7 +1253,7 @@ func (x *StepResult) String() string {
 func (*StepResult) ProtoMessage() {}
 
 func (x *StepResult) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[15]
+	mi := &file_v1_holon_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1190,7 +1266,7 @@ func (x *StepResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepResult.ProtoReflect.Descriptor instead.
 func (*StepResult) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{15}
+	return file_v1_holon_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *StepResult) GetStepId() string {
@@ -1307,24 +1383,31 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\x18removed_local_suite_dirs\x18\x01 \x01(\rR\x15removedLocalSuiteDirs\x12.\n" +
 	"\x13removed_temp_stores\x18\x02 \x01(\rR\x11removedTempStores\x120\n" +
 	"\x14removed_temp_aliases\x18\x03 \x01(\rR\x12removedTempAliases\x12#\n" +
-	"\rremoved_paths\x18\x04 \x03(\tR\fremovedPaths\"\x8e\x01\n" +
+	"\rremoved_paths\x18\x04 \x03(\tR\fremovedPaths\"r\n" +
+	"\x0ePromoteRequest\x12\x1d\n" +
+	"\n" +
+	"config_dir\x18\x01 \x01(\tR\tconfigDir\x12\x14\n" +
+	"\x05suite\x18\x02 \x01(\tR\x05suite\x12\x19\n" +
+	"\bstep_ids\x18\x03 \x03(\tR\astepIds\x12\x10\n" +
+	"\x03all\x18\x04 \x01(\bR\x03all\"\x92\x01\n" +
+	"\x0fPromoteResponse\x12\x14\n" +
+	"\x05suite\x18\x01 \x01(\tR\x05suite\x12\x1d\n" +
+	"\n" +
+	"suite_file\x18\x02 \x01(\tR\tsuiteFile\x12%\n" +
+	"\x0epromoted_steps\x18\x03 \x03(\tR\rpromotedSteps\x12#\n" +
+	"\rignored_steps\x18\x04 \x03(\tR\fignoredSteps\"t\n" +
 	"\x10DowngradeRequest\x12\x1d\n" +
 	"\n" +
 	"config_dir\x18\x01 \x01(\tR\tconfigDir\x12\x14\n" +
-	"\x05suite\x18\x02 \x01(\tR\x05suite\x12\x18\n" +
-	"\aprofile\x18\x03 \x01(\tR\aprofile\x12\x19\n" +
-	"\bstep_ids\x18\x04 \x03(\tR\astepIds\x12\x10\n" +
-	"\x03all\x18\x05 \x01(\bR\x03all\"\xb7\x01\n" +
+	"\x05suite\x18\x02 \x01(\tR\x05suite\x12\x19\n" +
+	"\bstep_ids\x18\x03 \x03(\tR\astepIds\x12\x10\n" +
+	"\x03all\x18\x04 \x01(\bR\x03all\"\x98\x01\n" +
 	"\x11DowngradeResponse\x12\x14\n" +
 	"\x05suite\x18\x01 \x01(\tR\x05suite\x12\x1d\n" +
 	"\n" +
-	"suite_file\x18\x02 \x01(\tR\tsuiteFile\x12H\n" +
-	"\x0fprofile_changes\x18\x03 \x03(\v2\x1f.ader.v1.DowngradeProfileChangeR\x0eprofileChanges\x12#\n" +
-	"\rignored_steps\x18\x04 \x03(\tR\fignoredSteps\"S\n" +
-	"\x16DowngradeProfileChange\x12\x18\n" +
-	"\aprofile\x18\x01 \x01(\tR\aprofile\x12\x1f\n" +
-	"\vmoved_steps\x18\x02 \x03(\tR\n" +
-	"movedSteps\"/\n" +
+	"suite_file\x18\x02 \x01(\tR\tsuiteFile\x12)\n" +
+	"\x10downgraded_steps\x18\x03 \x03(\tR\x0fdowngradedSteps\x12#\n" +
+	"\rignored_steps\x18\x04 \x03(\tR\fignoredSteps\"/\n" +
 	"\x0eHistoryRequest\x12\x1d\n" +
 	"\n" +
 	"config_dir\x18\x01 \x01(\tR\tconfigDir\"B\n" +
@@ -1408,22 +1491,24 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\vfinished_at\x18\n" +
 	" \x01(\tR\n" +
 	"finishedAt\x12)\n" +
-	"\x10duration_seconds\x18\v \x01(\x04R\x0fdurationSeconds2\x8a\x03\n" +
+	"\x10duration_seconds\x18\v \x01(\x04R\x0fdurationSeconds2\xc8\x03\n" +
 	"\vAderService\x123\n" +
 	"\x04Test\x12\x14.ader.v1.TestRequest\x1a\x15.ader.v1.TestResponse\x12<\n" +
 	"\aArchive\x12\x17.ader.v1.ArchiveRequest\x1a\x18.ader.v1.ArchiveResponse\x12<\n" +
-	"\aCleanup\x12\x17.ader.v1.CleanupRequest\x1a\x18.ader.v1.CleanupResponse\x12B\n" +
+	"\aCleanup\x12\x17.ader.v1.CleanupRequest\x1a\x18.ader.v1.CleanupResponse\x12<\n" +
+	"\aPromote\x12\x17.ader.v1.PromoteRequest\x1a\x18.ader.v1.PromoteResponse\x12B\n" +
 	"\tDowngrade\x12\x19.ader.v1.DowngradeRequest\x1a\x1a.ader.v1.DowngradeResponse\x12<\n" +
 	"\aHistory\x12\x17.ader.v1.HistoryRequest\x1a\x18.ader.v1.HistoryResponse\x12H\n" +
-	"\vShowHistory\x12\x1b.ader.v1.ShowHistoryRequest\x1a\x1c.ader.v1.ShowHistoryResponseB\xfb\x12\x82\xb5\x18\xbb\x12\n" +
+	"\vShowHistory\x12\x1b.ader.v1.ShowHistoryRequest\x1a\x1c.ader.v1.ShowHistoryResponseB\xeb\x15\x82\xb5\x18\xab\x15\n" +
 	"\x9d\x01\n" +
 	"\bholon/v1\x12$0dc655fd-d130-41d3-b332-cf1cf334f61d\x1a\x04Clem\"\x04Ader*5Freeze the repo, run the proof, archive the evidence.2\bB. ALTERB\x05draftJ\n" +
-	"2026-04-01R\x050.2.6Z\x04ader\x1a\xb6\x02Clem Ader is the configurable verification holon of the seed. It loads repo-local suites from a config directory, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, and proposes progression-to-regression promotion without mutating the repo.\"\x02go*\x85\x03\n" +
-	"\x0fregression-loop\x12YFreeze a committed snapshot, execute a broad verification pass, and archive the evidence.\x1a;A commit must be validated locally before merge or release.\"7Run `ader test integration --suite seed --profile full`\"/Inspect the archived report for the commit hash\"pUse `ader history integration` and `ader show integration --id <history-id>` to revisit the exact evidence later*\xda\x03\n" +
-	"\x10progression-loop\x12zFreeze the current workspace for a local TDD loop and propose promotion from progression to regression after a clean pass.\x1aIThe user is iterating quickly on a change and wants a frozen local proof.\"^Run `ader test integration --suite seed --profile quick --lane progression --source workspace`\"HInspect `integration/reports/<history-id>/summary.md` and `promotion.md`\"UPromote the step references from progression to regression once the proof is accepted*\xd2\x03\n" +
-	"\x15downgrade-and-rebuild\x12bMove regression steps back to progression, rerun the proof, and review the new promotion evidence.\x1aPA profile or step should be reset to TDD without editing the suite YAML by hand.\"\\Run `ader downgrade integration --profile unit --all` or target specific steps with `--step`\"]Run `ader test integration --suite seed --profile unit --lane progression --source workspace`\"FReview the new `promotion.json` and `promotion.md` before re-promoting*\xfb\x02\n" +
-	"\x0ereport-hygiene\x12AArchive the useful evidence and remove deterministic run residue.\x1aIOld snapshots, temp stores, or extracted reports should be pruned safely.\"TRun `ader archive integration --latest` if the report must be preserved historically\"JRun `ader cleanup integration` to delete deterministic local-suite residue\"9Keep archives under `integration/archives/<commit-hash>/`2b\n" +
-	"\x12api/v1/holon.proto\x12\x13ader.v1.AderService\x1a\x04Test\x1a\aArchive\x1a\aCleanup\x1a\tDowngrade\x1a\aHistory\x1a\vShowHistory:\x06nativeR\"\n" +
+	"2026-04-01R\x050.2.7Z\x04ader\x1a\xb6\x02Clem Ader is the configurable verification holon of the seed. It loads repo-local suites from a config directory, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, and proposes progression-to-regression promotion without mutating the repo.\"\x02go*\x85\x03\n" +
+	"\x0fregression-loop\x12YFreeze a committed snapshot, execute a broad verification pass, and archive the evidence.\x1a;A commit must be validated locally before merge or release.\"7Run `ader test integration --suite seed --profile full`\"/Inspect the archived report for the commit hash\"pUse `ader history integration` and `ader show integration --id <history-id>` to revisit the exact evidence later*\xdf\x03\n" +
+	"\x10progression-loop\x12zFreeze the current workspace for a local TDD loop and propose promotion from progression to regression after a clean pass.\x1aIThe user is iterating quickly on a change and wants a frozen local proof.\"^Run `ader test integration --suite seed --profile quick --lane progression --source workspace`\"HInspect `integration/reports/<history-id>/summary.md` and `promotion.md`\"ZRun the suggested `ader promote integration --step ...` command once the proof is accepted*\xee\x02\n" +
+	"\x13promote-after-proof\x12<Promote progression steps to regression after a clean proof.\x1aXA progression run passed and the step should now become part of the regression baseline.\"JInspect `promotion.md` to confirm the suggested `ader promote ...` command\"DRun `ader promote integration --step <step-id>` or `--all` as needed\"-Review the suite diff and commit deliberately*\xc3\x03\n" +
+	"\x15downgrade-and-rebuild\x12bMove regression steps back to progression, rerun the proof, and review the new promotion evidence.\x1aPA profile or step should be reset to TDD without editing the suite YAML by hand.\"MRun `ader downgrade integration --all` or target specific steps with `--step`\"]Run `ader test integration --suite seed --profile unit --lane progression --source workspace`\"FReview the new `promotion.json` and `promotion.md` before re-promoting*\xfb\x02\n" +
+	"\x0ereport-hygiene\x12AArchive the useful evidence and remove deterministic run residue.\x1aIOld snapshots, temp stores, or extracted reports should be pruned safely.\"TRun `ader archive integration --latest` if the report must be preserved historically\"JRun `ader cleanup integration` to delete deterministic local-suite residue\"9Keep archives under `integration/archives/<commit-hash>/`2k\n" +
+	"\x12api/v1/holon.proto\x12\x13ader.v1.AderService\x1a\x04Test\x1a\aArchive\x1a\aCleanup\x1a\aPromote\x1a\tDowngrade\x1a\aHistory\x1a\vShowHistory:\x06nativeR\"\n" +
 	"\tgo-module\x12\x05./cmd2\x0eapi/version.goZ\f\n" +
 	"\x02go\x12\x06go.modj\x06\n" +
 	"\x04aderZ9github.com/organic-programming/clem-ader/gen/go/v1;aderv1b\x06proto3"
@@ -1440,50 +1525,52 @@ func file_v1_holon_proto_rawDescGZIP() []byte {
 	return file_v1_holon_proto_rawDescData
 }
 
-var file_v1_holon_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_v1_holon_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_v1_holon_proto_goTypes = []any{
-	(*TestRequest)(nil),            // 0: ader.v1.TestRequest
-	(*TestResponse)(nil),           // 1: ader.v1.TestResponse
-	(*ArchiveRequest)(nil),         // 2: ader.v1.ArchiveRequest
-	(*ArchiveResponse)(nil),        // 3: ader.v1.ArchiveResponse
-	(*CleanupRequest)(nil),         // 4: ader.v1.CleanupRequest
-	(*CleanupResponse)(nil),        // 5: ader.v1.CleanupResponse
-	(*DowngradeRequest)(nil),       // 6: ader.v1.DowngradeRequest
-	(*DowngradeResponse)(nil),      // 7: ader.v1.DowngradeResponse
-	(*DowngradeProfileChange)(nil), // 8: ader.v1.DowngradeProfileChange
-	(*HistoryRequest)(nil),         // 9: ader.v1.HistoryRequest
-	(*HistoryResponse)(nil),        // 10: ader.v1.HistoryResponse
-	(*ShowHistoryRequest)(nil),     // 11: ader.v1.ShowHistoryRequest
-	(*ShowHistoryResponse)(nil),    // 12: ader.v1.ShowHistoryResponse
-	(*HistoryEntry)(nil),           // 13: ader.v1.HistoryEntry
-	(*HistoryRecord)(nil),          // 14: ader.v1.HistoryRecord
-	(*StepResult)(nil),             // 15: ader.v1.StepResult
+	(*TestRequest)(nil),         // 0: ader.v1.TestRequest
+	(*TestResponse)(nil),        // 1: ader.v1.TestResponse
+	(*ArchiveRequest)(nil),      // 2: ader.v1.ArchiveRequest
+	(*ArchiveResponse)(nil),     // 3: ader.v1.ArchiveResponse
+	(*CleanupRequest)(nil),      // 4: ader.v1.CleanupRequest
+	(*CleanupResponse)(nil),     // 5: ader.v1.CleanupResponse
+	(*PromoteRequest)(nil),      // 6: ader.v1.PromoteRequest
+	(*PromoteResponse)(nil),     // 7: ader.v1.PromoteResponse
+	(*DowngradeRequest)(nil),    // 8: ader.v1.DowngradeRequest
+	(*DowngradeResponse)(nil),   // 9: ader.v1.DowngradeResponse
+	(*HistoryRequest)(nil),      // 10: ader.v1.HistoryRequest
+	(*HistoryResponse)(nil),     // 11: ader.v1.HistoryResponse
+	(*ShowHistoryRequest)(nil),  // 12: ader.v1.ShowHistoryRequest
+	(*ShowHistoryResponse)(nil), // 13: ader.v1.ShowHistoryResponse
+	(*HistoryEntry)(nil),        // 14: ader.v1.HistoryEntry
+	(*HistoryRecord)(nil),       // 15: ader.v1.HistoryRecord
+	(*StepResult)(nil),          // 16: ader.v1.StepResult
 }
 var file_v1_holon_proto_depIdxs = []int32{
-	14, // 0: ader.v1.TestResponse.manifest:type_name -> ader.v1.HistoryRecord
-	15, // 1: ader.v1.TestResponse.steps:type_name -> ader.v1.StepResult
-	14, // 2: ader.v1.ArchiveResponse.manifest:type_name -> ader.v1.HistoryRecord
-	8,  // 3: ader.v1.DowngradeResponse.profile_changes:type_name -> ader.v1.DowngradeProfileChange
-	13, // 4: ader.v1.HistoryResponse.entries:type_name -> ader.v1.HistoryEntry
-	14, // 5: ader.v1.ShowHistoryResponse.manifest:type_name -> ader.v1.HistoryRecord
-	15, // 6: ader.v1.ShowHistoryResponse.steps:type_name -> ader.v1.StepResult
-	0,  // 7: ader.v1.AderService.Test:input_type -> ader.v1.TestRequest
-	2,  // 8: ader.v1.AderService.Archive:input_type -> ader.v1.ArchiveRequest
-	4,  // 9: ader.v1.AderService.Cleanup:input_type -> ader.v1.CleanupRequest
-	6,  // 10: ader.v1.AderService.Downgrade:input_type -> ader.v1.DowngradeRequest
-	9,  // 11: ader.v1.AderService.History:input_type -> ader.v1.HistoryRequest
-	11, // 12: ader.v1.AderService.ShowHistory:input_type -> ader.v1.ShowHistoryRequest
+	15, // 0: ader.v1.TestResponse.manifest:type_name -> ader.v1.HistoryRecord
+	16, // 1: ader.v1.TestResponse.steps:type_name -> ader.v1.StepResult
+	15, // 2: ader.v1.ArchiveResponse.manifest:type_name -> ader.v1.HistoryRecord
+	14, // 3: ader.v1.HistoryResponse.entries:type_name -> ader.v1.HistoryEntry
+	15, // 4: ader.v1.ShowHistoryResponse.manifest:type_name -> ader.v1.HistoryRecord
+	16, // 5: ader.v1.ShowHistoryResponse.steps:type_name -> ader.v1.StepResult
+	0,  // 6: ader.v1.AderService.Test:input_type -> ader.v1.TestRequest
+	2,  // 7: ader.v1.AderService.Archive:input_type -> ader.v1.ArchiveRequest
+	4,  // 8: ader.v1.AderService.Cleanup:input_type -> ader.v1.CleanupRequest
+	6,  // 9: ader.v1.AderService.Promote:input_type -> ader.v1.PromoteRequest
+	8,  // 10: ader.v1.AderService.Downgrade:input_type -> ader.v1.DowngradeRequest
+	10, // 11: ader.v1.AderService.History:input_type -> ader.v1.HistoryRequest
+	12, // 12: ader.v1.AderService.ShowHistory:input_type -> ader.v1.ShowHistoryRequest
 	1,  // 13: ader.v1.AderService.Test:output_type -> ader.v1.TestResponse
 	3,  // 14: ader.v1.AderService.Archive:output_type -> ader.v1.ArchiveResponse
 	5,  // 15: ader.v1.AderService.Cleanup:output_type -> ader.v1.CleanupResponse
-	7,  // 16: ader.v1.AderService.Downgrade:output_type -> ader.v1.DowngradeResponse
-	10, // 17: ader.v1.AderService.History:output_type -> ader.v1.HistoryResponse
-	12, // 18: ader.v1.AderService.ShowHistory:output_type -> ader.v1.ShowHistoryResponse
-	13, // [13:19] is the sub-list for method output_type
-	7,  // [7:13] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	7,  // 16: ader.v1.AderService.Promote:output_type -> ader.v1.PromoteResponse
+	9,  // 17: ader.v1.AderService.Downgrade:output_type -> ader.v1.DowngradeResponse
+	11, // 18: ader.v1.AderService.History:output_type -> ader.v1.HistoryResponse
+	13, // 19: ader.v1.AderService.ShowHistory:output_type -> ader.v1.ShowHistoryResponse
+	13, // [13:20] is the sub-list for method output_type
+	6,  // [6:13] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_v1_holon_proto_init() }
@@ -1497,7 +1584,7 @@ func file_v1_holon_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_v1_holon_proto_rawDesc), len(file_v1_holon_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

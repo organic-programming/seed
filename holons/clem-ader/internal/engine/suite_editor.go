@@ -32,58 +32,53 @@ func loadSuiteEditor(path string) (*suiteEditor, error) {
 	return &suiteEditor{path: path, doc: doc}, nil
 }
 
-func (e *suiteEditor) downgradeProfile(profile string, stepIDs []string, all bool) ([]string, []string, error) {
-	regressionNode, progressionNode, err := e.profileLaneNodes(profile)
+func (e *suiteEditor) stepLane(stepID string) (string, bool, error) {
+	stepNode, err := e.stepNode(stepID)
 	if err != nil {
-		return nil, nil, err
+		return "", false, err
 	}
-	regression, err := sequenceValues(regressionNode)
+	if laneNode, ok := mappingValue(stepNode, "lane"); ok {
+		if laneNode.Kind != yaml.ScalarNode {
+			return "", false, fmt.Errorf("suite file %s step %q field %q must be a scalar", e.path, stepID, "lane")
+		}
+		return normalizeStepLane(laneNode.Value), true, nil
+	}
+	return "progression", false, nil
+}
+
+func (e *suiteEditor) setStepLane(stepID string, lane string) error {
+	lane = normalizeStepLane(lane)
+	if lane != "progression" && lane != "regression" {
+		return fmt.Errorf("unsupported lane %q", lane)
+	}
+	stepNode, err := e.stepNode(stepID)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
-	progression, err := sequenceValues(progressionNode)
-	if err != nil {
-		return nil, nil, err
+	if laneNode, ok := mappingValue(stepNode, "lane"); ok {
+		laneNode.Kind = yaml.ScalarNode
+		laneNode.Tag = "!!str"
+		laneNode.Value = lane
+		return nil
 	}
+	stepNode.Content = append(stepNode.Content,
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "lane"},
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: lane},
+	)
+	return nil
+}
 
-	var moved []string
-	var ignored []string
-	if all {
-		moved = append(moved, regression...)
-	} else {
-		targets := orderedUniqueStrings(stepIDs)
-		for _, id := range regression {
-			if containsString(targets, id) {
-				moved = append(moved, id)
-			}
-		}
-		for _, id := range targets {
-			if !containsString(moved, id) {
-				ignored = append(ignored, id)
-			}
-		}
+func (e *suiteEditor) stepNode(stepID string) (*yaml.Node, error) {
+	root := e.doc.Content[0]
+	stepsNode, ok := mappingValue(root, "steps")
+	if !ok || stepsNode.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("suite file %s does not define steps", e.path)
 	}
-
-	if len(moved) == 0 {
-		return nil, ignored, nil
+	stepNode, ok := mappingValue(stepsNode, stepID)
+	if !ok || stepNode.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("suite file %s does not define step %q", e.path, stepID)
 	}
-
-	newRegression := make([]string, 0, len(regression))
-	for _, id := range regression {
-		if !containsString(moved, id) {
-			newRegression = append(newRegression, id)
-		}
-	}
-	newProgression := append([]string(nil), progression...)
-	for _, id := range moved {
-		if !containsString(newProgression, id) {
-			newProgression = append(newProgression, id)
-		}
-	}
-
-	setSequenceValues(regressionNode, newRegression)
-	setSequenceValues(progressionNode, newProgression)
-	return moved, ignored, nil
+	return stepNode, nil
 }
 
 func (e *suiteEditor) write() error {
@@ -100,27 +95,6 @@ func (e *suiteEditor) write() error {
 	return os.WriteFile(e.path, buf.Bytes(), 0o644)
 }
 
-func (e *suiteEditor) profileLaneNodes(profile string) (*yaml.Node, *yaml.Node, error) {
-	root := e.doc.Content[0]
-	profilesNode, ok := mappingValue(root, "profiles")
-	if !ok || profilesNode.Kind != yaml.MappingNode {
-		return nil, nil, fmt.Errorf("suite file %s does not define profiles", e.path)
-	}
-	profileNode, ok := mappingValue(profilesNode, profile)
-	if !ok || profileNode.Kind != yaml.MappingNode {
-		return nil, nil, fmt.Errorf("suite file %s does not define profile %q", e.path, profile)
-	}
-	regressionNode, err := ensureSequenceValue(profileNode, "regression")
-	if err != nil {
-		return nil, nil, err
-	}
-	progressionNode, err := ensureSequenceValue(profileNode, "progression")
-	if err != nil {
-		return nil, nil, err
-	}
-	return regressionNode, progressionNode, nil
-}
-
 func mappingValue(node *yaml.Node, key string) (*yaml.Node, bool) {
 	if node == nil || node.Kind != yaml.MappingNode {
 		return nil, false
@@ -131,52 +105,6 @@ func mappingValue(node *yaml.Node, key string) (*yaml.Node, bool) {
 		}
 	}
 	return nil, false
-}
-
-func ensureSequenceValue(mapping *yaml.Node, key string) (*yaml.Node, error) {
-	if value, ok := mappingValue(mapping, key); ok {
-		if value.Kind != yaml.SequenceNode {
-			return nil, fmt.Errorf("profile lane %q must be a sequence", key)
-		}
-		return value, nil
-	}
-	keyNode := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}
-	valueNode := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
-	mapping.Content = append(mapping.Content, keyNode, valueNode)
-	return valueNode, nil
-}
-
-func sequenceValues(node *yaml.Node) ([]string, error) {
-	if node == nil {
-		return nil, nil
-	}
-	if node.Kind != yaml.SequenceNode {
-		return nil, fmt.Errorf("expected YAML sequence node")
-	}
-	values := make([]string, 0, len(node.Content))
-	for _, item := range node.Content {
-		if item.Kind != yaml.ScalarNode {
-			return nil, fmt.Errorf("expected YAML scalar sequence item")
-		}
-		value := strings.TrimSpace(item.Value)
-		if value != "" {
-			values = append(values, value)
-		}
-	}
-	return values, nil
-}
-
-func setSequenceValues(node *yaml.Node, values []string) {
-	node.Kind = yaml.SequenceNode
-	node.Tag = "!!seq"
-	node.Content = node.Content[:0]
-	for _, value := range values {
-		node.Content = append(node.Content, &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Tag:   "!!str",
-			Value: value,
-		})
-	}
 }
 
 func orderedUniqueStrings(values []string) []string {

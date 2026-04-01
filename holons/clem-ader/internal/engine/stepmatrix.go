@@ -8,36 +8,18 @@ import (
 	"strings"
 )
 
-var profileDescriptions = map[string]string{
-	"quick":       "Fast proof for the canonical path and short black-box coverage",
-	"unit":        "Native unit suites across grace-op, SDKs, examples, and ader itself",
-	"integration": "Deterministic black-box integration suite only",
-	"full":        "Unit suites plus deterministic integration suite",
-	"stress":      "Opt-in black-box fuzz and stress only",
-}
-
-var profileLadder = []string{"quick", "unit", "integration", "full"}
-
-func SupportedProfiles() []string {
-	out := make([]string, 0, len(profileDescriptions))
-	for profile := range profileDescriptions {
-		out = append(out, profile)
-	}
-	sort.Strings(out)
-	return out
-}
-
-func ProfileDescription(profile string) string {
-	return profileDescriptions[profile]
-}
-
 func normalizeProfile(raw string) string {
 	value := strings.ToLower(strings.TrimSpace(raw))
-	if value == "" {
-		return "quick"
-	}
 	if value == "global" {
 		return "full"
+	}
+	return value
+}
+
+func normalizeStepLane(raw string) string {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	if value == "" {
+		return "progression"
 	}
 	return value
 }
@@ -66,31 +48,27 @@ func normalizeArchivePolicy(raw string) string {
 	return value
 }
 
-func nextProfileInLadder(profile string) (string, bool) {
+func nextProfileInLadder(ladder []string, profile string) (string, bool) {
 	profile = normalizeProfile(profile)
-	for index, item := range profileLadder {
+	for index, item := range ladder {
 		if item != profile {
 			continue
 		}
-		if index+1 >= len(profileLadder) {
+		if index+1 >= len(ladder) {
 			return "", false
 		}
-		return profileLadder[index+1], true
+		return ladder[index+1], true
 	}
 	return "", false
 }
 
-func profileContainsStep(lanes suiteProfileLanes, stepID string) bool {
-	return containsString(lanes.Regression, stepID) || containsString(lanes.Progression, stepID)
+func profileContainsStep(profile suiteProfileConfig, stepID string) bool {
+	return containsString(profile.Steps, stepID)
 }
 
 func validateRunOptions(opts RunOptions) error {
 	if strings.TrimSpace(opts.ConfigDir) == "" {
 		return fmt.Errorf("config dir is required")
-	}
-	profile := normalizeProfile(opts.Profile)
-	if _, ok := profileDescriptions[profile]; !ok {
-		return fmt.Errorf("unsupported profile %q", opts.Profile)
 	}
 	switch normalizeLane(opts.Lane) {
 	case "regression", "progression", "both":
@@ -115,8 +93,63 @@ func validateRunOptions(opts RunOptions) error {
 	return nil
 }
 
+func resolveProfileName(cfg *runtimeConfig, raw string) string {
+	if profile := normalizeProfile(raw); profile != "" {
+		return profile
+	}
+	if profile := normalizeProfile(cfg.Root.Defaults.Profile); profile != "" {
+		if _, ok := cfg.Suite.Profiles[profile]; ok {
+			return profile
+		}
+	}
+	return firstProfileName(cfg.Suite.Profiles)
+}
+
+func firstProfileName(profiles map[string]suiteProfileConfig) string {
+	if len(profiles) == 0 {
+		return ""
+	}
+	names := orderedProfileNames(profiles)
+	if len(names) == 0 {
+		return ""
+	}
+	return names[0]
+}
+
+func orderedProfileNames(profiles map[string]suiteProfileConfig) []string {
+	names := make([]string, 0, len(profiles))
+	for profile := range profiles {
+		names = append(names, profile)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func resolveProfileLadder(cfg *runtimeConfig) []string {
+	if len(cfg.Root.Defaults.Ladder) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(cfg.Root.Defaults.Ladder))
+	seen := make(map[string]struct{}, len(cfg.Root.Defaults.Ladder))
+	for _, raw := range cfg.Root.Defaults.Ladder {
+		profile := normalizeProfile(raw)
+		if profile == "" {
+			continue
+		}
+		if _, ok := cfg.Suite.Profiles[profile]; !ok {
+			continue
+		}
+		if _, dup := seen[profile]; dup {
+			continue
+		}
+		seen[profile] = struct{}{}
+		out = append(out, profile)
+	}
+	return out
+}
+
 func resolveProfileLaneSteps(cfg *runtimeConfig, profile string, lane string, snapshotRoot string) ([]StepSpec, error) {
-	profile = normalizeProfile(profile)
+	profile = resolveProfileName(cfg, profile)
 	lane = normalizeLane(lane)
 	profileEntry, ok := cfg.Suite.Profiles[profile]
 	if !ok {
@@ -124,59 +157,57 @@ func resolveProfileLaneSteps(cfg *runtimeConfig, profile string, lane string, sn
 	}
 
 	seen := map[string]struct{}{}
-	appendSteps := func(ids []string, stepLane string, out []StepSpec) ([]StepSpec, error) {
-		for _, id := range ids {
-			id = strings.TrimSpace(id)
-			if id == "" {
-				continue
-			}
-			if _, dup := seen[id]; dup {
-				continue
-			}
-			stepEntry, ok := cfg.Suite.Steps[id]
-			if !ok {
-				return nil, fmt.Errorf("suite %q references unknown step %q in profile %q", cfg.SuiteName, id, profile)
-			}
-			workdir := stepEntry.Workdir
-			if !filepath.IsAbs(workdir) {
-				workdir = filepath.Join(snapshotRoot, filepath.FromSlash(workdir))
-			}
-			script := strings.TrimSpace(stepEntry.Script)
-			if script != "" && !filepath.IsAbs(script) {
-				script = filepath.Join(workdir, filepath.FromSlash(script))
-			}
-			out = append(out, StepSpec{
-				ID:          id,
-				Lane:        stepLane,
-				Workdir:     workdir,
-				Prereqs:     append([]string(nil), stepEntry.Prereqs...),
-				Command:     stepEntry.Command,
-				Script:      script,
-				Args:        append([]string(nil), stepEntry.Args...),
-				Description: stepEntry.Description,
-			})
-			seen[id] = struct{}{}
+	appendStep := func(id string, out []StepSpec) ([]StepSpec, error) {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return out, nil
 		}
+		if _, dup := seen[id]; dup {
+			return out, nil
+		}
+		stepEntry, ok := cfg.Suite.Steps[id]
+		if !ok {
+			return nil, fmt.Errorf("suite %q references unknown step %q in profile %q", cfg.SuiteName, id, profile)
+		}
+		stepLane := normalizeStepLane(stepEntry.Lane)
+		switch lane {
+		case "progression", "regression":
+			if stepLane != lane {
+				return out, nil
+			}
+		case "both":
+		default:
+			return nil, fmt.Errorf("unsupported lane %q", lane)
+		}
+		workdir := stepEntry.Workdir
+		if !filepath.IsAbs(workdir) {
+			workdir = filepath.Join(snapshotRoot, filepath.FromSlash(workdir))
+		}
+		script := strings.TrimSpace(stepEntry.Script)
+		if script != "" && !filepath.IsAbs(script) {
+			script = filepath.Join(workdir, filepath.FromSlash(script))
+		}
+		out = append(out, StepSpec{
+			ID:          id,
+			Lane:        stepLane,
+			Workdir:     workdir,
+			Prereqs:     append([]string(nil), stepEntry.Prereqs...),
+			Command:     stepEntry.Command,
+			Script:      script,
+			Args:        append([]string(nil), stepEntry.Args...),
+			Description: stepEntry.Description,
+		})
+		seen[id] = struct{}{}
 		return out, nil
 	}
 
 	var out []StepSpec
-	var err error
-	switch lane {
-	case "progression":
-		out, err = appendSteps(profileEntry.Progression, "progression", out)
-	case "regression":
-		out, err = appendSteps(profileEntry.Regression, "regression", out)
-	case "both":
-		out, err = appendSteps(profileEntry.Progression, "progression", out)
-		if err == nil {
-			out, err = appendSteps(profileEntry.Regression, "regression", out)
+	for _, id := range profileEntry.Steps {
+		var err error
+		out, err = appendStep(id, out)
+		if err != nil {
+			return nil, err
 		}
-	default:
-		err = fmt.Errorf("unsupported lane %q", lane)
-	}
-	if err != nil {
-		return nil, err
 	}
 	return out, nil
 }

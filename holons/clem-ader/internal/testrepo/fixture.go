@@ -24,6 +24,8 @@ defaults:
   suite: fixture
   source: committed
   lane: regression
+  profile: quick
+  ladder: [quick, unit, integration, full]
   archive_policy:
     quick: never
     unit: never
@@ -38,52 +40,59 @@ steps:
     prereqs: [go]
     command: go test ./...
     description: ader self test
+    lane: regression
   grace-op-unit:
     workdir: holons/grace-op
     prereqs: [go]
     command: go test ./...
     description: grace-op unit tests
+    lane: regression
   sdk-go-unit:
     workdir: sdk/go-holons
     prereqs: [go]
     command: go test ./...
     description: go sdk unit tests
+    lane: regression
   fixture-script:
     workdir: holons/clem-ader
     script: scripts/fixture-step.sh
     args: [alpha, beta]
     description: fixture script execution
+    lane: progression
   example-go-unit:
     workdir: examples/hello-world/gabriel-greeting-go
     prereqs: [go]
     command: go test ./...
     description: canonical go example unit tests
+    lane: progression
   integration-short:
     workdir: integration/tests
     prereqs: [go]
     command: go test -short -count=1 ./...
     description: short black-box integration suite
+    lane: progression
   integration-deterministic:
     workdir: integration/tests
     prereqs: [go]
     command: go test -count=1 ./...
     description: deterministic integration suite
+    lane: regression
 profiles:
   quick:
-    regression: [ader-unit, sdk-go-unit, example-go-unit, integration-short]
-    progression: [ader-unit, example-go-unit]
+    description: Fast proof for the canonical path and short black-box coverage
+    steps: [ader-unit, sdk-go-unit, example-go-unit, integration-short]
   unit:
-    regression: [ader-unit, grace-op-unit, sdk-go-unit, example-go-unit]
-    progression: [ader-unit, example-go-unit, fixture-script]
+    description: Native unit suites across grace-op, SDKs, examples, and ader itself
+    steps: [ader-unit, grace-op-unit, sdk-go-unit, example-go-unit, fixture-script]
   integration:
-    regression: [integration-deterministic]
-    progression: [integration-short]
+    description: Deterministic black-box integration suite only
+    steps: [integration-deterministic, integration-short]
   full:
-    regression: [ader-unit, grace-op-unit, sdk-go-unit, example-go-unit, integration-deterministic]
-    progression: [ader-unit, example-go-unit]
+    description: Unit suites plus deterministic integration suite
+    steps: [ader-unit, grace-op-unit, sdk-go-unit, example-go-unit, integration-deterministic]
   stress:
-    regression: []
-    progression: []
+    description: Opt-in black-box fuzz and stress only
+    steps: []
 `)
 
 	writeFile(t, filepath.Join(root, "integration", "tests", "go.mod"), "module example.com/fixture/integration\n\ngo 1.25.1\n")

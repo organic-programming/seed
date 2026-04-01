@@ -103,7 +103,7 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 	}()
 
 	commitHash, branch, dirty := gitMetadata(repoRoot)
-	profile := normalizeProfile(opts.Profile)
+	profile := resolveProfileName(runtimeCfg, opts.Profile)
 	source := normalizeSource(firstNonEmpty(opts.Source, runtimeCfg.Root.Defaults.Source))
 	lane := normalizeLane(firstNonEmpty(opts.Lane, runtimeCfg.Root.Defaults.Lane))
 	archivePolicy := normalizeArchivePolicy(firstNonEmpty(opts.ArchivePolicy, runtimeCfg.Root.Defaults.ArchivePolicy[profile]))
@@ -966,51 +966,35 @@ func buildPromotionProposal(cfg *runtimeConfig, result *RunResult) *PromotionPro
 	if result.Manifest.Lane == "regression" {
 		return nil
 	}
-	progression := make([]string, 0)
-	resultByID := make(map[string]StepResult, len(result.Steps))
+	eligible := make([]string, 0)
 	for _, step := range result.Steps {
-		resultByID[step.StepID] = step
-		if step.Lane == "progression" {
-			progression = append(progression, step.StepID)
+		if step.Lane == "progression" && step.Status == "PASS" {
+			eligible = append(eligible, step.StepID)
 		}
 	}
-	if len(progression) == 0 {
+	if len(eligible) == 0 {
 		return nil
 	}
-	for _, id := range progression {
-		if resultByID[id].Status != "PASS" {
-			return nil
-		}
+	sort.Strings(eligible)
+	configDir := cfg.ConfigRelDir
+	if strings.TrimSpace(configDir) == "" {
+		configDir = cfg.ConfigDir
 	}
-
-	profileEntry, ok := cfg.Suite.Profiles[result.Manifest.Profile]
-	if !ok {
-		return nil
+	suiteFile := cfg.SuitePath
+	if rel, err := filepath.Rel(cfg.RepoRoot, cfg.SuitePath); err == nil {
+		suiteFile = filepath.ToSlash(rel)
 	}
-	regressionIDs := append([]string(nil), profileEntry.Regression...)
-	for _, id := range progression {
-		if !containsString(regressionIDs, id) {
-			regressionIDs = append(regressionIDs, id)
-		}
+	promoteArgs := make([]string, 0, len(eligible)+4)
+	promoteArgs = append(promoteArgs, "ader", "promote", configDir)
+	for _, id := range eligible {
+		promoteArgs = append(promoteArgs, "--step", id)
 	}
-	remainingProgression := make([]string, 0, len(profileEntry.Progression))
-	for _, id := range profileEntry.Progression {
-		if !containsString(progression, id) {
-			remainingProgression = append(remainingProgression, id)
-		}
-	}
-
-	suggestedPatch := strings.TrimSpace(fmt.Sprintf(
-		"profiles:\n  %s:\n    regression:\n%s\n    progression:\n%s\n",
-		result.Manifest.Profile,
-		yamlList(regressionIDs, 6),
-		yamlList(remainingProgression, 6),
-	))
+	suggestedCommand := strings.Join(promoteArgs, " ")
 
 	var crossTierSuggestions []CrossTierSuggestion
-	if nextProfile, ok := nextProfileInLadder(result.Manifest.Profile); ok {
+	if nextProfile, ok := nextProfileInLadder(resolveProfileLadder(cfg), result.Manifest.Profile); ok {
 		if nextEntry, ok := cfg.Suite.Profiles[nextProfile]; ok {
-			for _, id := range progression {
+			for _, id := range eligible {
 				if profileContainsStep(nextEntry, id) {
 					continue
 				}
@@ -1026,18 +1010,18 @@ func buildPromotionProposal(cfg *runtimeConfig, result *RunResult) *PromotionPro
 	}
 
 	return &PromotionProposal{
-		Suite:           result.Manifest.Suite,
-		Profile:         result.Manifest.Profile,
-		Lane:            result.Manifest.Lane,
-		DestinationLane: "regression",
-		SuiteFile:       cfg.SuitePath,
-		EligibleSteps:   progression,
-		SuggestedPatch:  suggestedPatch,
+		Suite:            result.Manifest.Suite,
+		Profile:          result.Manifest.Profile,
+		Lane:             result.Manifest.Lane,
+		DestinationLane:  "regression",
+		SuiteFile:        suiteFile,
+		EligibleSteps:    eligible,
+		SuggestedCommand: suggestedCommand,
 		SuggestedGitCommands: []string{
-			fmt.Sprintf("git add %s", cfg.SuitePath),
-			fmt.Sprintf("git commit -m %q", fmt.Sprintf("Promote %s %s progression checks", result.Manifest.Suite, result.Manifest.Profile)),
+			fmt.Sprintf("git add %s", suiteFile),
+			fmt.Sprintf("git commit -m %q", fmt.Sprintf("Promote %s to regression", strings.Join(eligible, ", "))),
 		},
-		SuggestedCommitMessage: fmt.Sprintf("Promote %s %s progression checks", result.Manifest.Suite, result.Manifest.Profile),
+		SuggestedCommitMessage: fmt.Sprintf("Promote %s to regression", strings.Join(eligible, ", ")),
 		CrossTierSuggestions:   crossTierSuggestions,
 	}
 }
@@ -1058,10 +1042,10 @@ func buildPromotionMarkdown(proposal *PromotionProposal) string {
 		fmt.Fprintf(&b, "- `%s`\n", step)
 	}
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "## Suggested Patch")
+	fmt.Fprintln(&b, "## Apply")
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "```yaml")
-	fmt.Fprintln(&b, proposal.SuggestedPatch)
+	fmt.Fprintln(&b, "```bash")
+	fmt.Fprintln(&b, proposal.SuggestedCommand)
 	fmt.Fprintln(&b, "```")
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "## Suggested Git Commands")
