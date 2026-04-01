@@ -28,6 +28,8 @@ func cmdInstall(format Format, runtimeOpts commandRuntimeOptions, args []string)
 		switch arg {
 		case "--build":
 			opts.Build = true
+		case "--symlink":
+			opts.Symlink = true
 		case "--link-applications":
 			opts.LinkApplications = true
 		default:

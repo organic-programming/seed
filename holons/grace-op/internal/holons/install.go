@@ -23,6 +23,7 @@ type InstallOptions struct {
 	ResolveTimeout    int
 	BuildTarget       string
 	BuildMode         string
+	Symlink           bool
 }
 
 type InstallReport struct {
@@ -138,8 +139,8 @@ func Install(ref string, opts InstallOptions) (InstallReport, error) {
 
 	// Self-install: install as a proper .holon package (like every other
 	// holon), then create a symlink $OPBIN/<binary> → <pkg>/bin/<arch>/<binary>
-	// so that `op` remains directly callable from PATH.
-	if isSelfInstall(target.Manifest) {
+	// so that tools remain directly callable from PATH.
+	if isSelfInstall(target.Manifest) || (opts.Symlink && isHolonPackagePath(installName)) {
 		reporter.Step("copying to " + installedPath + "...")
 		if err := copyArtifact(artifactPath, installedPath); err != nil {
 			return report, fmt.Errorf("install %s: %w", installName, err)
@@ -148,6 +149,9 @@ func Install(ref string, opts InstallOptions) (InstallReport, error) {
 		report.Notes = append(report.Notes, "installed into "+installedPath)
 
 		binaryName := target.Manifest.BinaryName()
+		if binaryName == "" {
+			binaryName = report.Binary
+		}
 		// Relative symlink: e.g. grace-op.holon/bin/darwin_arm64/op
 		symlinkRel := filepath.Join(installName, "bin", runtimeArchitecture(), binaryName)
 		symlinkPath := filepath.Join(openv.OPBIN(), binaryName)

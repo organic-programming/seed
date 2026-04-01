@@ -139,7 +139,7 @@ func cmdBuildAndInstall(format Format, runtimeOpts commandRuntimeOptions, args [
 	ui, args, _ := extractQuietFlag(args)
 	quiet := runtimeOpts.quiet || ui.Quiet
 
-	target, opts, cleanFirst, err := parseBuildCommandArgs(args)
+	target, opts, cleanFirst, symlink, err := parseBuildCommandArgs(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op build: %v\n", err)
 		return 1
@@ -184,6 +184,7 @@ func cmdBuildAndInstall(format Format, runtimeOpts commandRuntimeOptions, args [
 		ResolveTimeout:    runtimeOpts.timeout,
 		BuildTarget:       opts.Target,
 		BuildMode:         opts.Mode,
+		Symlink:           symlink,
 	})
 	if installRef != target {
 		if strings.TrimSpace(buildReport.Target) != "" {
@@ -230,10 +231,11 @@ func installReferenceForBuild(originalTarget string, report holons.Report) strin
 	return originalTarget
 }
 
-func parseBuildCommandArgs(args []string) (string, holons.BuildOptions, bool, error) {
+func parseBuildCommandArgs(args []string) (string, holons.BuildOptions, bool, bool, error) {
 	var (
 		opts       holons.BuildOptions
 		cleanFirst bool
+		symlink    bool
 		positional []string
 	)
 
@@ -241,13 +243,13 @@ func parseBuildCommandArgs(args []string) (string, holons.BuildOptions, bool, er
 		switch {
 		case args[i] == "--target":
 			if i+1 >= len(args) {
-				return "", holons.BuildOptions{}, false, fmt.Errorf("--target requires a value")
+				return "", holons.BuildOptions{}, false, false, fmt.Errorf("--target requires a value")
 			}
 			opts.Target = args[i+1]
 			i++
 		case args[i] == "--mode":
 			if i+1 >= len(args) {
-				return "", holons.BuildOptions{}, false, fmt.Errorf("--mode requires a value")
+				return "", holons.BuildOptions{}, false, false, fmt.Errorf("--mode requires a value")
 			}
 			opts.Mode = args[i+1]
 			i++
@@ -257,25 +259,27 @@ func parseBuildCommandArgs(args []string) (string, holons.BuildOptions, bool, er
 			cleanFirst = true
 		case args[i] == "--no-sign":
 			opts.NoSign = true
+		case args[i] == "--symlink":
+			symlink = true
 		case isDiscoveryFlag(args[i]):
 			// `op build` always resolves source targets; keep discovery flags accepted
 			// here for parity with the standard lifecycle path.
 		case strings.HasPrefix(args[i], "--"):
-			return "", holons.BuildOptions{}, false, fmt.Errorf("unknown flag %q", args[i])
+			return "", holons.BuildOptions{}, false, false, fmt.Errorf("unknown flag %q", args[i])
 		default:
 			positional = append(positional, args[i])
 		}
 	}
 
 	if len(positional) > 1 {
-		return "", holons.BuildOptions{}, false, fmt.Errorf("accepts at most one <holon-or-path>")
+		return "", holons.BuildOptions{}, false, false, fmt.Errorf("accepts at most one <holon-or-path>")
 	}
 
 	target := "."
 	if len(positional) == 1 {
 		target = positional[0]
 	}
-	return target, opts, cleanFirst, nil
+	return target, opts, cleanFirst, symlink, nil
 }
 
 func printLifecycleFailure(format Format, operation holons.Operation, report holons.Report, err error) int {

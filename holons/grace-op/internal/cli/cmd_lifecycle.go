@@ -40,6 +40,7 @@ func newBuildCmd() *cobra.Command {
 	}
 	addLifecycleExecutionFlags(cmd, true)
 	cmd.Flags().Bool("install", false, "install the artifact after a successful build")
+	cmd.Flags().Bool("symlink", false, "symlink installed binary into $OPBIN (when used with --install)")
 	return cmd
 }
 
@@ -134,6 +135,7 @@ func newInstallCmd() *cobra.Command {
 	}
 	cmd.Flags().Bool("build", false, "build before installing instead of requiring a pre-built artifact")
 	cmd.Flags().Bool("link-applications", false, "symlink installed .app bundles into /Applications (macOS only)")
+	cmd.Flags().Bool("symlink", false, "symlink installed binary into $OPBIN (for .holon packages)")
 	return cmd
 }
 
@@ -185,6 +187,9 @@ func lifecycleArgsFromCommand(cmd *cobra.Command, positional []string) []string 
 	if noSign, err := cmd.Flags().GetBool("no-sign"); err == nil && noSign {
 		args = append(args, "--no-sign")
 	}
+	if symlink, err := cmd.Flags().GetBool("symlink"); err == nil && symlink {
+		args = append(args, "--symlink")
+	}
 	args = append(args, selectedDiscoveryArgs(cmd)...)
 	args = append(args, positional...)
 	return args
@@ -218,6 +223,9 @@ func installArgsFromCommand(cmd *cobra.Command, positional []string) []string {
 	}
 	if linkApplications, _ := cmd.Flags().GetBool("link-applications"); linkApplications {
 		args = append(args, "--link-applications")
+	}
+	if symlink, _ := cmd.Flags().GetBool("symlink"); symlink {
+		args = append(args, "--symlink")
 	}
 	args = append(args, positional...)
 	return args
