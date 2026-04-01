@@ -1,0 +1,15 @@
+storage:
+  reports: reports
+  archives: archives
+  artifacts: .artifacts
+  temp_alias: .t
+defaults:
+  suite: seed
+  source: committed
+  lane: regression
+  archive_policy:
+    quick: never
+    unit: never
+    integration: never
+    full: auto
+    stress: never

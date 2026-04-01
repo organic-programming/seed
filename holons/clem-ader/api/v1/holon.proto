@@ -1,0 +1,196 @@
+syntax = "proto3";
+
+package ader.v1;
+
+import "holons/v1/manifest.proto";
+
+option go_package = "github.com/organic-programming/clem-ader/gen/go/v1;aderv1";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "0dc655fd-d130-41d3-b332-cf1cf334f61d"
+    given_name: "Clem"
+    family_name: "Ader"
+    motto: "Freeze the repo, run the proof, archive the evidence."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-04-01"
+    version: "0.2.4"
+    aliases: ["ader"]
+  }
+  description: "Clem Ader is the configurable verification holon of the seed. It loads repo-local suites from a config directory, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, and proposes progression-to-regression promotion without mutating the repo."
+  lang: "go"
+  kind: "native"
+  build: {
+    runner: "go-module"
+    main: "./cmd"
+    templates: ["api/version.go"]
+  }
+  requires: {
+    commands: ["go"]
+    files: ["go.mod"]
+  }
+  artifacts: {
+    binary: "ader"
+  }
+  contract: {
+    proto: "api/v1/holon.proto"
+    service: "ader.v1.AderService"
+    rpcs: [
+      "Test",
+      "Archive",
+      "Cleanup",
+      "ListRuns",
+      "ShowRun"
+    ]
+  }
+  skills: [{
+    name: "regression-loop"
+    description: "Freeze a committed snapshot, execute a broad verification pass, and archive the evidence."
+    when: "A commit must be validated locally before merge or release."
+    steps: [
+      "Run `ader test integration --suite seed --profile full`",
+      "Inspect the archived report for the commit hash",
+      "Use `ader history integration` and `ader show integration --run <run-id>` to revisit the exact evidence later"
+    ]
+  }, {
+    name: "progression-loop"
+    description: "Freeze the current workspace for a local TDD loop and propose promotion from progression to regression after a clean pass."
+    when: "The user is iterating quickly on a change and wants a frozen local proof."
+    steps: [
+      "Run `ader test integration --suite seed --profile quick --lane progression --source workspace`",
+      "Inspect `integration/reports/<run-id>/summary.md` and `promotion.md`",
+      "Promote the step references from progression to regression once the proof is accepted"
+    ]
+  }, {
+    name: "report-hygiene"
+    description: "Archive the useful evidence and remove deterministic run residue."
+    when: "Old snapshots, temp stores, or extracted reports should be pruned safely."
+    steps: [
+      "Run `ader archive integration --latest` if the report must be preserved historically",
+      "Run `ader cleanup integration` to delete deterministic local-suite residue",
+      "Keep archives under `integration/archives/<commit-hash>/`"
+    ]
+  }]
+};
+
+service AderService {
+  rpc Test (TestRequest) returns (TestResponse);
+  rpc Archive (ArchiveRequest) returns (ArchiveResponse);
+  rpc Cleanup (CleanupRequest) returns (CleanupResponse);
+  rpc ListRuns (ListRunsRequest) returns (ListRunsResponse);
+  rpc ShowRun (ShowRunRequest) returns (ShowRunResponse);
+}
+
+message TestRequest {
+  string config_dir = 1;
+  string suite = 2;
+  string profile = 3;
+  string lane = 4;
+  string step_filter = 5;
+  string source = 6;
+  string archive_policy = 7;
+  bool keep_report = 8;
+  bool keep_snapshot = 9;
+}
+
+message TestResponse {
+  RunManifest manifest = 1;
+  repeated StepResult steps = 2;
+}
+
+message ArchiveRequest {
+  string config_dir = 1;
+  string run_id = 2;
+  bool latest = 3;
+}
+
+message ArchiveResponse {
+  RunManifest manifest = 1;
+  string archive_path = 2;
+}
+
+message CleanupRequest {
+  string config_dir = 1;
+}
+
+message CleanupResponse {
+  uint32 removed_local_suite_dirs = 1;
+  uint32 removed_temp_stores = 2;
+  uint32 removed_temp_aliases = 3;
+  repeated string removed_paths = 4;
+}
+
+message ListRunsRequest {
+  string config_dir = 1;
+}
+
+message ListRunsResponse {
+  repeated RunSummary runs = 1;
+}
+
+message ShowRunRequest {
+  string config_dir = 1;
+  string run_id = 2;
+}
+
+message ShowRunResponse {
+  RunManifest manifest = 1;
+  repeated StepResult steps = 2;
+  string summary_markdown = 3;
+  string summary_tsv = 4;
+}
+
+message RunSummary {
+  string run_id = 1;
+  string suite = 2;
+  string profile = 3;
+  string lane = 4;
+  string source = 5;
+  string final_status = 6;
+  string commit_hash = 7;
+  bool dirty = 8;
+  string started_at = 9;
+  string finished_at = 10;
+  string report_dir = 11;
+  string archive_path = 12;
+}
+
+message RunManifest {
+  string config_dir = 1;
+  string suite = 2;
+  string run_id = 3;
+  string profile = 4;
+  string lane = 5;
+  string source = 6;
+  string archive_policy = 7;
+  string step_filter = 8;
+  string repo_root = 9;
+  string snapshot_root = 10;
+  string report_dir = 11;
+  string archive_path = 12;
+  string commit_hash = 13;
+  string branch = 14;
+  bool dirty = 15;
+  string started_at = 16;
+  string finished_at = 17;
+  string final_status = 18;
+  uint32 pass_count = 19;
+  uint32 fail_count = 20;
+  uint32 skip_count = 21;
+}
+
+message StepResult {
+  string step_id = 1;
+  string lane = 2;
+  string description = 3;
+  string workdir = 4;
+  string command = 5;
+  string status = 6;
+  string reason = 7;
+  string log_path = 8;
+  string started_at = 9;
+  string finished_at = 10;
+  uint64 duration_seconds = 11;
+}

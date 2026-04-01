@@ -1,405 +1,77 @@
-# Local Regression Control Plane
+# Integration
 
-`integration/` is the local regression control plane for this repository.
+`integration/` is the seed configuration root for `ader`.
 
-The point is not to squeeze a giant polyglot system into cheap hosted CI. The
-point is to have one local place from which you can run:
+It is not just a folder of tests. It defines the local verification system.
 
-- `grace-op` unit tests
-- SDK unit tests across languages
-- example holon native unit tests
-- the black-box `op` integration suite
-- one aggregated report that survives the limits of agent context windows
+## What Lives Here
 
-That aggregated local report is the artifact used in the regression loop after
-agent changes.
+- [`ader.yaml`](./ader.yaml)
+  Global defaults and storage paths.
+- [`suites/seed.yaml`](./suites/seed.yaml)
+  The seed verification suite.
+- [`tests/`](./tests/)
+  The black-box `op` integration suite.
 
-## Why This Exists
+## Scope
 
-This repo is too wide for free CI to carry real regression pressure:
+This config drives two loops:
 
-- multiple language toolchains
-- platform-specific slices such as Darwin COAX coverage
-- long-running build and integration flows
-- repeated rebuilds and transport tests
-- agent work that can break distant parts of the tree the agent did not model
+- `progression`
+  workspace proof, used during TDD before a check is promoted
+- `regression`
+  committed proof, archiveable, used once the check has become a project test
 
-So the strategy is local-first and deliberate.
+The suite does not replace native tests. It orchestrates them.
 
-`integration/` does **not** mean “rewrite every test as a Go integration test.”
-It means:
+## Commands
 
-- native unit tests stay native
-- `integration/tests/` stays black-box
-- `integration/run-local-suite.sh` is the umbrella runner
-- `integration/reports/<timestamp>/` is the regression memory surface
+```bash
+ader test integration --suite seed --profile quick
+ader test integration --suite seed --profile full
+ader test integration --suite seed --profile quick --lane progression --source workspace
+ader test integration --suite seed --profile quick --silent
+ader history integration
+ader show integration --run <run-id>
+ader archive integration --latest
+ader cleanup integration
+```
 
-That is what “integration subsumes unit tests” means here.
+Default behavior is live progress on `stderr` plus a final summary on `stdout`. Add `--silent` if you only want the final summary.
 
-## The Layers
+## Files Produced
 
-There are four layers:
-
-1. `grace-op` unit tests
-2. SDK unit tests
-3. example holon native unit tests
-4. real-binary black-box integration tests in
-   [`integration/tests`](/Users/bpds/Documents/Entrepot/Git/Compilons/seed/integration/tests)
-
-The runner executes those layers and emits one report.
-
-## Isolation Strategy
-
-There are two different isolation stories.
-
-### `integration/tests`
-
-The black-box suite in
-[`integration/tests`](/Users/bpds/Documents/Entrepot/Git/Compilons/seed/integration/tests)
-is self-isolated:
-
-- it builds a canonical `op` binary under `integration/.artifacts/run-*/`
-- it mirrors `examples/`, `_protos/`, `protos/`, `sdk/`, `holons/`, and `scripts/` into that run directory
-- it points `--root`, `cmd.Dir`, `OPPATH`, `OPBIN`, and `TMPDIR` at that copy
-- it creates real socket-bearing sandboxes under a short temp root in `/tmp/...`
-- it exposes `integration/.t/` only as a human-facing alias to that short temp root
-
-That suite should not mutate the real source trees.
-
-### The umbrella runner
-
-The umbrella runner also creates a mirrored local-suite workspace under:
+Reports:
 
 ```text
-integration/.artifacts/local-suite/<timestamp>/workspace/
+integration/reports/<run-id>/
 ```
 
-It copies the source trees needed for native unit suites:
-
-- `holons/`
-- `sdk/`
-- `examples/`
-- `_protos/`
-- `protos/`
-- `scripts/`
-
-The native unit suites run from that mirrored workspace, not the real repo
-paths. That keeps build directories, temp files, Python bytecode, and other
-toolchain-local artifacts inside `integration/.artifacts/` as much as the
-native tools allow.
-
-Shared caches are also redirected under:
+Archives:
 
 ```text
-integration/.artifacts/tool-cache/
+integration/archives/<commit-hash>/<run-id>-<profile>.tar.gz
 ```
 
-## Reports
-
-Each umbrella run writes a report under:
+Deterministic local residue:
 
 ```text
-integration/reports/<timestamp>/
+integration/.artifacts/
+integration/.t
 ```
 
-Artifacts per run:
+## Promotion
 
-- `summary.md`
-  Human-readable global result
-- `summary.tsv`
-  Machine-friendly table for post-processing
-- `logs/<step>.log`
-  Full stdout/stderr for each step
+When a `progression` run passes completely, `ader` may write:
 
-Git ignores:
+- `promotion.json`
+- `promotion.md`
 
-- `integration/.artifacts/`
-- `integration/.t/`
-- `integration/reports/`
+These files propose how to move step references from the `progression` lane to the `regression` lane in the suite YAML.
 
-## Runner
+Read that as:
 
-Primary entrypoint:
+- `progression` = TDD lane
+- `regression` = test lane
 
-```bash
-./integration/run-local-suite.sh <profile> [step-regex]
-```
-
-Examples:
-
-```bash
-./integration/run-local-suite.sh quick
-```
-
-```bash
-./integration/run-local-suite.sh full
-```
-
-```bash
-./integration/run-local-suite.sh unit 'sdk-go|sdk-rust|example-go'
-```
-
-```bash
-./integration/run-local-suite.sh full 'integration-|grace-op'
-```
-
-```bash
-./integration/run-local-suite.sh stress
-```
-
-## Profiles
-
-### `quick`
-
-Fast Go-first regression loop:
-
-- `grace-op-unit`
-- `sdk-go-unit`
-- `example-go-unit`
-- `integration-short`
-
-Use this after most agent changes.
-
-### `unit`
-
-Runs native unit suites across:
-
-- `holons/grace-op`
-- SDKs:
-  `c`, `cpp`, `csharp`, `dart`, `go`, `java`, `js`, `js-web`, `kotlin`,
-  `ruby`, `rust`, `swift`
-- examples:
-  `c`, `cpp`, `csharp`, `dart`, `go`, `java`, `kotlin`, `node`, `python`,
-  `ruby`, `rust`, `swift`
-
-This is the native-unit layer only.
-
-### `integration`
-
-Runs only the deterministic real-binary black-box suite:
-
-```bash
-cd integration/tests
-go test -count=1 -timeout 30m ./...
-```
-
-### `full`
-
-Runs:
-
-1. `unit`
-2. then `integration`
-
-This is the intended broad local regression pass before merge or release.
-
-### `stress`
-
-Runs only opt-in fuzz targets for the black-box suite.
-
-This profile is intentionally separate from `full` so the default local
-regression pass stays deterministic and bounded.
-
-## Step Filters
-
-The second argument is an optional regex applied to step ids.
-
-Examples:
-
-```bash
-./integration/run-local-suite.sh unit 'sdk-js|sdk-js-web|example-node'
-```
-
-```bash
-./integration/run-local-suite.sh full 'integration-|example-python'
-```
-
-This is the practical way to run “small parts” without creating more scripts.
-
-List the built-in matrix:
-
-```bash
-./integration/run-local-suite.sh list
-```
-
-## Manual Narrow Runs
-
-When you want to run a single slice without the umbrella runner, use the native
-tool directly.
-
-### `grace-op`
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/holons/grace-op
-go test ./...
-```
-
-### Go SDK
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/sdk/go-holons
-go test ./...
-```
-
-### Rust SDK
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/sdk/rust-holons
-cargo test
-```
-
-### Swift SDK
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/sdk/swift-holons
-swift test
-```
-
-### Node SDK
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/sdk/js-holons
-npm test
-```
-
-### Dart SDK
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/sdk/dart-holons
-dart test
-```
-
-### Ruby SDK
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/sdk/ruby-holons
-bundle exec rake test
-```
-
-### Java SDK
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/sdk/java-holons
-gradle test
-```
-
-### Kotlin SDK
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/sdk/kotlin-holons
-gradle test
-```
-
-### C# SDK
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed
-dotnet test sdk/csharp-holons/csharp-holons.sln
-```
-
-### C SDK
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/sdk/c-holons
-make clean && make test && make clean
-```
-
-### C++ SDK
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/sdk/cpp-holons
-cmake -S . -B build && cmake --build build --target test_runner && ./build/test_runner
-```
-
-### Python Example
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/examples/hello-world/gabriel-greeting-python
-python3 -m unittest api.public_test api.cli_test _internal.server_test
-```
-
-### Node Example
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/examples/hello-world/gabriel-greeting-node
-npm test
-```
-
-### Rust Example
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/examples/hello-world/gabriel-greeting-rust
-cargo test
-```
-
-### Black-box Integration Smoke
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/integration/tests
-go test -short -v -count=1 -timeout 15m ./...
-```
-
-### Black-box Integration Full
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/integration/tests
-go test -v -count=1 -timeout 30m ./...
-```
-
-### Black-box Fuzzing
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/integration/tests
-OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzRandomCommands -fuzztime=30s ./
-```
-
-### A small black-box slice
-
-```bash
-cd /Users/bpds/Documents/Entrepot/Git/Compilons/seed/integration/tests
-go test -v -run 'TestDispatch_|TestInvoke_|TestLifecycle_' -count=1 ./...
-```
-
-## Progress And Failure Handling
-
-The umbrella runner prints live step progress:
-
-```text
-[03/27] RUN  sdk-rust-unit
-[03/27] PASS sdk-rust-unit (12s)
-```
-
-If a toolchain is missing, the step is marked `SKIP` and the run continues.
-
-If a Node or Ruby project has not had its dependencies restored yet, the step
-is also marked `SKIP` with a setup reason instead of being reported as a
-misleading product failure.
-
-If a step fails, the run continues so the report captures the whole visible
-damage, then exits non-zero at the end.
-
-## Prerequisites
-
-This runner does **not** bootstrap every ecosystem for you.
-
-It assumes the machine already has the relevant language toolchains and that any
-required package restores have already been done for the modules you care about.
-Examples:
-
-- Node projects may need `npm install`
-- Ruby projects may need `bundle install`
-- Dart projects may need `dart pub get`
-- .NET, Gradle, Swift, Cargo, and Go need their normal toolchains present
-
-Missing binaries are reported as `SKIP`. Missing project dependencies usually
-show up as `SKIP` for the Node and Ruby steps the runner can preflight.
-
-## Recommended Local Loop
-
-After an agent change:
-
-1. run `./integration/run-local-suite.sh quick`
-2. if the change touches multiple layers, run `./integration/run-local-suite.sh full`
-3. inspect the newest `integration/reports/<timestamp>/summary.md`
-4. use `logs/*.log` as the factual memory surface for the next fix iteration
-
-That loop is the strategic purpose of this directory.
+`ader` does not perform that change automatically.
