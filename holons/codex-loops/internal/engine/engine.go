@@ -525,10 +525,7 @@ func (r runner) executeProgram(ctx context.Context, repoRoot string, liveDir str
 		if stepStatus.State == "passed" || stepStatus.State == "skipped" {
 			continue
 		}
-		startCommit, err := r.git.CurrentCommit()
-		if err != nil {
-			return false, err
-		}
+
 		status.State = "running"
 		status.CurrentStep = step.ID
 		stepStatus.State = "running"
@@ -537,65 +534,19 @@ func (r runner) executeProgram(ctx context.Context, repoRoot string, liveDir str
 			return false, err
 		}
 
-		retryContext := ""
-		passed := false
-		for attemptNo := 1; attemptNo <= maxRetries; {
-			attempt := Attempt{StartedAt: nowRFC3339()}
-			prompt, err := loadPrompt(filepath.Join(liveDir, filepath.Clean(step.Brief)), retryContext)
-			if err != nil {
-				return false, err
-			}
-			exitCode, stdout, stderr, err := r.codex.Run(ctx, repoRoot, prompt)
-			if err != nil {
-				return false, err
-			}
-			if isQuotaIssue(exitCode, stdout, stderr) {
-				if err := r.waitForQuotaRecovery(ctx, repoRoot, liveDir, status, step.ID); err != nil {
-					return false, err
-				}
-				continue
-			}
-			attempt.CodexExitCode = exitCode
-
-			gatePassed, reportPath, err := runGate(ctx, repoRoot, step.Gate)
-			if err != nil {
-				return false, err
-			}
-			attempt.FinishedAt = nowRFC3339()
-			attempt.GateReport = reportPath
-			if gatePassed {
-				attempt.GateResult = "PASS"
-				stepStatus.State = "passed"
-				stepStatus.Attempts = append(stepStatus.Attempts, attempt)
-				status.Steps[step.ID] = stepStatus
-				if err := r.git.CommitAll(fmt.Sprintf("codex-loops: %s PASS (attempt %d)", step.ID, attemptNo)); err != nil {
-					return false, err
-				}
-				if err := WriteStatus(liveDir, status); err != nil {
-					return false, err
-				}
-				passed = true
-				attemptNo++
-				break
-			}
-
-			attempt.GateResult = "FAIL"
-			patchPath := filepath.Join(liveDir, fmt.Sprintf("%s-attempt-%d.patch", step.ID, attemptNo))
-			if err := r.git.SavePatch(patchPath); err != nil {
-				return false, err
-			}
-			attempt.DiffPatch = patchPath
-			if err := r.git.ResetHard(startCommit); err != nil {
-				return false, err
-			}
-			stepStatus.State = "failed"
-			stepStatus.Attempts = append(stepStatus.Attempts, attempt)
-			status.Steps[step.ID] = stepStatus
-			if err := WriteStatus(liveDir, status); err != nil {
-				return false, err
-			}
-			retryContext = readRetryContext(repoRoot, reportPath)
-			attemptNo++
+		var passed bool
+		var err error
+		if step.Iterations > 1 {
+			passed, err = r.executeIterationStep(ctx, repoRoot, liveDir, step, status, &stepStatus)
+		} else {
+			passed, err = r.executeLinearStep(ctx, repoRoot, liveDir, step, status, &stepStatus, maxRetries)
+		}
+		if err != nil {
+			return false, err
+		}
+		status.Steps[step.ID] = stepStatus
+		if err := WriteStatus(liveDir, status); err != nil {
+			return false, err
 		}
 		if !passed {
 			status.State = "deferred"
@@ -611,6 +562,180 @@ func (r runner) executeProgram(ctx context.Context, repoRoot string, liveDir str
 		return false, err
 	}
 	return true, nil
+}
+
+// executeLinearStep is the original retry-on-failure loop: try up to maxRetries,
+// stop on first PASS, defer on exhaustion.
+func (r runner) executeLinearStep(ctx context.Context, repoRoot, liveDir string, step ProgramStep, status *Status, stepStatus *StepStatus, maxRetries int) (bool, error) {
+	startCommit, err := r.git.CurrentCommit()
+	if err != nil {
+		return false, err
+	}
+	retryContext := ""
+	for attemptNo := 1; attemptNo <= maxRetries; {
+		attempt := Attempt{StartedAt: nowRFC3339()}
+		prompt, err := loadPrompt(filepath.Join(liveDir, filepath.Clean(step.Brief)), retryContext)
+		if err != nil {
+			return false, err
+		}
+		exitCode, stdout, stderr, err := r.codex.Run(ctx, repoRoot, prompt)
+		if err != nil {
+			return false, err
+		}
+		if isQuotaIssue(exitCode, stdout, stderr) {
+			if err := r.waitForQuotaRecovery(ctx, repoRoot, liveDir, status, step.ID); err != nil {
+				return false, err
+			}
+			continue
+		}
+		attempt.CodexExitCode = exitCode
+
+		gatePassed, reportPath, err := runGate(ctx, repoRoot, step.Gate)
+		if err != nil {
+			return false, err
+		}
+		attempt.FinishedAt = nowRFC3339()
+		attempt.GateReport = reportPath
+		if gatePassed {
+			attempt.GateResult = "PASS"
+			stepStatus.State = "passed"
+			stepStatus.Attempts = append(stepStatus.Attempts, attempt)
+			status.Steps[step.ID] = *stepStatus
+			if err := r.git.CommitAll(fmt.Sprintf("codex-loops: %s PASS (attempt %d)", step.ID, attemptNo)); err != nil {
+				return false, err
+			}
+			if err := WriteStatus(liveDir, status); err != nil {
+				return false, err
+			}
+			return true, nil
+		}
+
+		attempt.GateResult = "FAIL"
+		patchPath := filepath.Join(liveDir, fmt.Sprintf("%s-attempt-%d.patch", step.ID, attemptNo))
+		if err := r.git.SavePatch(patchPath); err != nil {
+			return false, err
+		}
+		attempt.DiffPatch = patchPath
+		if err := r.git.ResetHard(startCommit); err != nil {
+			return false, err
+		}
+		stepStatus.State = "failed"
+		stepStatus.Attempts = append(stepStatus.Attempts, attempt)
+		status.Steps[step.ID] = *stepStatus
+		if err := WriteStatus(liveDir, status); err != nil {
+			return false, err
+		}
+		retryContext = readRetryContext(repoRoot, reportPath)
+		attemptNo++
+	}
+	return false, nil
+}
+
+// executeIterationStep is the autoresearch loop: run the step N times,
+// keep gate-passing commits, discard regressions. Lock after max consecutive failures.
+func (r runner) executeIterationStep(ctx context.Context, repoRoot, liveDir string, step ProgramStep, status *Status, stepStatus *StepStatus) (bool, error) {
+	iterations := step.Iterations
+	maxConsecFail := step.MaxConsecutiveFailures
+	keptCount := 0
+	consecutiveFailures := 0
+	lastChange := "baseline"
+
+	for iter := 1; iter <= iterations; iter++ {
+		iterCommit, err := r.git.CurrentCommit()
+		if err != nil {
+			return false, err
+		}
+		attempt := Attempt{StartedAt: nowRFC3339(), Iteration: iter}
+
+		prompt, err := loadPrompt(
+			filepath.Join(liveDir, filepath.Clean(step.Brief)),
+			iterationContext(iter, iterations, keptCount, lastChange),
+		)
+		if err != nil {
+			return false, err
+		}
+		exitCode, stdout, stderr, err := r.codex.Run(ctx, repoRoot, prompt)
+		if err != nil {
+			return false, err
+		}
+		if isQuotaIssue(exitCode, stdout, stderr) {
+			if err := r.waitForQuotaRecovery(ctx, repoRoot, liveDir, status, step.ID); err != nil {
+				return false, err
+			}
+			iter-- // retry same iteration after quota recovery
+			continue
+		}
+		attempt.CodexExitCode = exitCode
+
+		gatePassed, reportPath, err := runGate(ctx, repoRoot, step.Gate)
+		if err != nil {
+			return false, err
+		}
+		attempt.FinishedAt = nowRFC3339()
+		attempt.GateReport = reportPath
+
+		if gatePassed {
+			attempt.GateResult = "PASS"
+			attempt.Kept = true
+			commitMsg := fmt.Sprintf("codex-loops: %s iteration %d/%d PASS", step.ID, iter, iterations)
+			if err := r.git.CommitAll(commitMsg); err != nil {
+				return false, err
+			}
+			keptCount++
+			consecutiveFailures = 0
+			lastChange = commitMsg
+		} else {
+			attempt.GateResult = "FAIL"
+			attempt.Kept = false
+			patchPath := filepath.Join(liveDir, fmt.Sprintf("%s-iter-%d.patch", step.ID, iter))
+			if err := r.git.SavePatch(patchPath); err != nil {
+				return false, err
+			}
+			attempt.DiffPatch = patchPath
+			if err := r.git.ResetHard(iterCommit); err != nil {
+				return false, err
+			}
+			consecutiveFailures++
+		}
+
+		stepStatus.Attempts = append(stepStatus.Attempts, attempt)
+		stepStatus.IterationsCompleted = keptCount
+		status.Steps[step.ID] = *stepStatus
+		if err := WriteStatus(liveDir, status); err != nil {
+			return false, err
+		}
+
+		// Lock: bail if max consecutive failures reached
+		if maxConsecFail > 0 && consecutiveFailures >= maxConsecFail {
+			stepStatus.State = "locked"
+			status.Steps[step.ID] = *stepStatus
+			if err := WriteStatus(liveDir, status); err != nil {
+				return false, err
+			}
+			return false, nil
+		}
+	}
+
+	// Iteration step always passes (the gate is the invariant, not the count)
+	stepStatus.State = "passed"
+	stepStatus.IterationsCompleted = keptCount
+	return true, nil
+}
+
+// iterationContext builds the context block injected into the prompt for iteration > 1.
+func iterationContext(iteration, total, keptCount int, lastChange string) string {
+	if iteration <= 1 {
+		return ""
+	}
+	return fmt.Sprintf(
+		"\n\n--- ITERATION %d/%d ---\n"+
+			"Commits kept so far: %d\n"+
+			"Last change: %s\n\n"+
+			"Continue improving. Do not repeat previous changes. "+
+			"Make one focused change and stop. "+
+			"Do not ask questions.",
+		iteration, total, keptCount, lastChange,
+	)
 }
 
 func (r runner) waitForQuotaRecovery(ctx context.Context, repoRoot string, liveDir string, status *Status, stepID string) error {

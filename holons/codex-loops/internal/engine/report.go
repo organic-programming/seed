@@ -107,8 +107,8 @@ func writeReportProgram(b *strings.Builder, item reportProgram) {
 		b.WriteString(status.Branch)
 		b.WriteString("\n\n")
 	}
-	b.WriteString("| step | result | attempts | gate report path |\n")
-	b.WriteString("| --- | --- | --- | --- |\n")
+	b.WriteString("| step | result | attempts | kept/total | gate report path |\n")
+	b.WriteString("| --- | --- | --- | --- | --- |\n")
 	stepIDs := sortedStepIDs(status)
 	for _, stepID := range stepIDs {
 		step := status.Steps[stepID]
@@ -116,7 +116,11 @@ func writeReportProgram(b *strings.Builder, item reportProgram) {
 		if attempt := lastAttempt(step); attempt != nil {
 			lastReport = attempt.GateReport
 		}
-		fmt.Fprintf(b, "| %s | %s | %d | %s |\n", stepID, step.State, len(step.Attempts), lastReport)
+		keptTotal := fmt.Sprintf("%d", len(step.Attempts))
+		if step.IterationsCompleted > 0 {
+			keptTotal = fmt.Sprintf("%d/%d", step.IterationsCompleted, len(step.Attempts))
+		}
+		fmt.Fprintf(b, "| %s | %s | %d | %s | %s |\n", stepID, step.State, len(step.Attempts), keptTotal, lastReport)
 	}
 	if status.State == "deferred" {
 		if stepID, attempt := lastFailedAttempt(status); attempt != nil {

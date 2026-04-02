@@ -8,9 +8,11 @@ type Program struct {
 }
 
 type ProgramStep struct {
-	ID    string `yaml:"id" json:"id"`
-	Brief string `yaml:"brief" json:"brief"` // relative path to .md file
-	Gate  Gate   `yaml:"gate" json:"gate"`
+	ID                    string `yaml:"id" json:"id"`
+	Brief                 string `yaml:"brief" json:"brief"` // relative path to .md file
+	Gate                  Gate   `yaml:"gate" json:"gate"`
+	Iterations            int    `yaml:"iterations,omitempty" json:"iterations,omitempty"`               // >1 = autoresearch loop
+	MaxConsecutiveFailures int   `yaml:"max_consecutive_failures,omitempty" json:"max_consecutive_failures,omitempty"` // 0 = no limit
 }
 
 type Gate struct {
@@ -30,8 +32,9 @@ type Status struct {
 }
 
 type StepStatus struct {
-	State    string    `yaml:"state" json:"state"` // pending | running | passed | failed | skipped
-	Attempts []Attempt `yaml:"attempts" json:"attempts"`
+	State               string    `yaml:"state" json:"state"` // pending | running | passed | failed | skipped | locked
+	Attempts            []Attempt `yaml:"attempts" json:"attempts"`
+	IterationsCompleted int       `yaml:"iterations_completed,omitempty" json:"iterations_completed,omitempty"`
 }
 
 type Attempt struct {
@@ -41,6 +44,8 @@ type Attempt struct {
 	GateResult    string `yaml:"gate_result" json:"gate_result"` // PASS | FAIL | "" (in progress)
 	GateReport    string `yaml:"gate_report" json:"gate_report"` // path to ader report
 	DiffPatch     string `yaml:"diff_patch" json:"diff_patch"`   // path to saved .patch file
+	Iteration     int    `yaml:"iteration,omitempty" json:"iteration,omitempty"`
+	Kept          bool   `yaml:"kept,omitempty" json:"kept,omitempty"`
 }
 
 // RunOptions configures the overnight queue runner.
