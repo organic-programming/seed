@@ -1,0 +1,215 @@
+syntax = "proto3";
+
+package codexloops.v1;
+
+import "holons/v1/manifest.proto";
+
+option go_package = "github.com/organic-programming/codex-loops/gen/go/v1;codexloopsv1";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "22e33ab1-4737-4b79-b018-53efed7976a2"
+    given_name: "Codex"
+    family_name: "Loops"
+    motto: "Queue the briefs, run the night, read the morning report."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-04-02"
+    version: "0.1.0"
+    aliases: ["codex-loops"]
+  }
+  description: "Codex Loops orchestrates sequential overnight Codex CLI sessions governed by ader acceptance gates. It manages a queue of programs (brief + gate pairs), feeds briefs to codex exec, validates output with ader test, retries on failure, defers blocked programs, and produces a structured morning report."
+  lang: "go"
+  kind: "native"
+  build: {
+    runner: "go-module"
+    main: "./cmd"
+    templates: ["api/version.go"]
+  }
+  requires: {
+    commands: ["go", "codex", "ader", "git"]
+  }
+  artifacts: {
+    binary: "codex-loops"
+  }
+  contract: {
+    proto: "api/v1/holon.proto"
+    service: "codexloops.v1.CodexLoopsService"
+    rpcs: [
+      "Run",
+      "Enqueue",
+      "List",
+      "Status",
+      "Drop",
+      "Resume",
+      "Skip",
+      "Abort",
+      "ReEnqueue",
+      "Log"
+    ]
+  }
+  skills: [{
+    name: "overnight-run"
+    description: "Process the queue overnight: feed briefs to Codex, validate with ader gates, defer on failure, report in the morning."
+    when: "The human has queued programs and is leaving for the night."
+    steps: [
+      "Run `codex-loops run` from the repo root",
+      "In the morning, run `codex-loops status` to see results",
+      "Review branches: `git log --oneline codex-loops/*`",
+      "For deferred programs: `codex-loops re-enqueue <slot>` after fixing the brief"
+    ]
+  }, {
+    name: "enqueue-from-cookbook"
+    description: "Instantiate a cookbook template into a queue slot."
+    when: "A common task pattern exists in the cookbook and needs to be queued."
+    steps: [
+      "Run `codex-loops enqueue --from-cookbook fix-unit-bug`",
+      "Edit the instantiated briefs in `ader/codex-loops/queue/<NNN>/briefs/`",
+      "Run `codex-loops list` to confirm the queue"
+    ]
+  }]
+};
+
+service CodexLoopsService {
+  rpc Run (RunRequest) returns (RunResponse);
+  rpc Enqueue (EnqueueRequest) returns (EnqueueResponse);
+  rpc List (ListRequest) returns (ListResponse);
+  rpc Status (StatusRequest) returns (StatusResponse);
+  rpc Drop (DropRequest) returns (DropResponse);
+  rpc Resume (ResumeRequest) returns (ResumeResponse);
+  rpc Skip (SkipRequest) returns (SkipResponse);
+  rpc Abort (AbortRequest) returns (AbortResponse);
+  rpc ReEnqueue (ReEnqueueRequest) returns (ReEnqueueResponse);
+  rpc Log (LogRequest) returns (LogResponse);
+}
+
+message RunRequest {
+  string root = 1;
+  bool dry_run = 2;
+  uint32 max_retries = 3;
+}
+
+message RunResponse {
+  string report_path = 1;
+  string report_markdown = 2;
+}
+
+message EnqueueRequest {
+  string root = 1;
+  string program_dir = 2;
+  string from_cookbook = 3;
+}
+
+message EnqueueResponse {
+  string slot = 1;
+  string path = 2;
+  SlotSummary summary = 3;
+}
+
+message ListRequest {
+  string root = 1;
+}
+
+message ListResponse {
+  StatusSnapshot status = 1;
+}
+
+message StatusRequest {
+  string root = 1;
+}
+
+message StatusResponse {
+  string report_path = 1;
+  string report_markdown = 2;
+  StatusSnapshot status = 3;
+}
+
+message DropRequest {
+  string root = 1;
+  string slot = 2;
+  bool deferred = 3;
+}
+
+message DropResponse {
+  string slot = 1;
+  string path = 2;
+}
+
+message ResumeRequest {
+  string root = 1;
+}
+
+message ResumeResponse {
+  string report_path = 1;
+  string report_markdown = 2;
+}
+
+message SkipRequest {
+  string root = 1;
+}
+
+message SkipResponse {
+  string skipped_step = 1;
+  string next_step = 2;
+  string report_path = 3;
+  string report_markdown = 4;
+}
+
+message AbortRequest {
+  string root = 1;
+}
+
+message AbortResponse {
+  string deferred_slot = 1;
+  string path = 2;
+}
+
+message ReEnqueueRequest {
+  string root = 1;
+  string slot = 2;
+}
+
+message ReEnqueueResponse {
+  string from_slot = 1;
+  string to_slot = 2;
+  string path = 3;
+  SlotSummary summary = 4;
+}
+
+message LogRequest {
+  string root = 1;
+  string step_id = 2;
+}
+
+message LogResponse {
+  string slot = 1;
+  string step_id = 2;
+  repeated AttemptRecord attempts = 3;
+}
+
+message StatusSnapshot {
+  repeated SlotSummary queue_slots = 1;
+  SlotSummary live_slot = 2;
+  repeated SlotSummary deferred_slots = 3;
+  repeated SlotSummary done_slots = 4;
+}
+
+message SlotSummary {
+  string slot = 1;
+  string description = 2;
+  string state = 3;
+  string branch = 4;
+  uint32 steps_passed = 5;
+  uint32 steps_total = 6;
+  string current_step = 7;
+}
+
+message AttemptRecord {
+  string started_at = 1;
+  string finished_at = 2;
+  int32 codex_exit_code = 3;
+  string gate_result = 4;
+  string gate_report = 5;
+  string diff_patch = 6;
+}
