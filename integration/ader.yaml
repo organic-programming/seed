@@ -13,5 +13,5 @@ defaults:
     quick: never
     unit: never
     integration: never
-    full: auto
-    stress: never
+    full: never
+    stress: auto

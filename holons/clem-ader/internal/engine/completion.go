@@ -61,6 +61,10 @@ func ListSuites(configDir string) ([]CompletionItem, error) {
 	if err != nil {
 		return nil, err
 	}
+	checks, err := readChecksConfig(filepath.Join(cfg.ConfigDir, "checks.yaml"))
+	if err != nil {
+		return nil, err
+	}
 	entries, err := os.ReadDir(filepath.Join(cfg.ConfigDir, "suites"))
 	if err != nil {
 		return nil, err
@@ -71,7 +75,7 @@ func ListSuites(configDir string) ([]CompletionItem, error) {
 			continue
 		}
 		name := strings.TrimSuffix(entry.Name(), ".yaml")
-		suite, err := readSuiteConfig(filepath.Join(cfg.ConfigDir, "suites", entry.Name()))
+		suite, err := readSuiteConfig(filepath.Join(cfg.ConfigDir, "suites", entry.Name()), checks)
 		if err != nil {
 			continue
 		}
@@ -123,14 +127,6 @@ func listStepsByLane(configDir string, suite string, lane string) ([]CompletionI
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Value < items[j].Value })
 	return items, nil
-}
-
-func DefaultSuite(configDir string) (string, error) {
-	cfg, err := loadRepoConfig(configDir)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(cfg.Root.Defaults.Suite), nil
 }
 
 func shouldSkipCompletionDir(name string) bool {

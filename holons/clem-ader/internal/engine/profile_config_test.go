@@ -12,9 +12,11 @@ import (
 
 func TestRunAcceptsCustomProfileDefinedInSuite(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
 	if err := os.WriteFile(suitePath, []byte(`description: fixture suite
+defaults:
+  profile: my-custom-profile
 steps:
   fixture-script:
     workdir: holons/clem-ader
@@ -25,6 +27,7 @@ steps:
 profiles:
   my-custom-profile:
     description: Custom profile loaded from YAML
+    archive: never
     steps: [fixture-script]
 `), 0o644); err != nil {
 		t.Fatalf("rewrite suite: %v", err)
@@ -50,7 +53,7 @@ profiles:
 
 func TestResolveProfileLaneStepsUnknownProfileStillFails(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	cfg, err := loadRunConfig(configDir, "fixture")
 	if err != nil {
 		t.Fatalf("loadRunConfig() error = %v", err)
@@ -60,29 +63,24 @@ func TestResolveProfileLaneStepsUnknownProfileStillFails(t *testing.T) {
 	}
 }
 
-func TestResolveProfileNameUsesConfiguredDefault(t *testing.T) {
+func TestResolveProfileNameUsesSuiteDefault(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
-	aderPath := filepath.Join(configDir, "ader.yaml")
-	if err := os.WriteFile(aderPath, []byte(`storage:
-  reports: reports
-  archives: archives
-  artifacts: .artifacts
-  temp_alias: .t
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
+	if err := os.WriteFile(suitePath, []byte(`description: fixture suite
 defaults:
-  suite: fixture
-  source: committed
-  lane: regression
-  profile: unit
-  ladder: [quick, unit, integration, full]
-  archive_policy:
-    quick: never
-    unit: never
-    integration: never
-    full: auto
-    stress: never
+  profile: integration
+steps:
+  integration-short:
+    check: integration-smoke
+    lane: progression
+profiles:
+  integration:
+    description: Deterministic black-box integration suite only
+    archive: never
+    steps: [integration-short]
 `), 0o644); err != nil {
-		t.Fatalf("rewrite ader.yaml: %v", err)
+		t.Fatalf("rewrite suite: %v", err)
 	}
 
 	withWorkingDir(t, root, func() {
@@ -90,22 +88,21 @@ defaults:
 			ConfigDir:     configDir,
 			Suite:         "fixture",
 			Lane:          "progression",
-			StepFilter:    "^fixture-script$",
 			Source:        "workspace",
 			ArchivePolicy: "never",
 		})
 		if err != nil {
 			t.Fatalf("Run() error = %v", err)
 		}
-		if result.Manifest.Profile != "unit" {
-			t.Fatalf("profile = %q, want unit", result.Manifest.Profile)
+		if result.Manifest.Profile != "integration" {
+			t.Fatalf("profile = %q, want integration", result.Manifest.Profile)
 		}
 	})
 }
 
-func TestResolveProfileNameFallsBackToFirstProfileWhenDefaultMissing(t *testing.T) {
+func TestResolveProfileNameFallsBackToFirstProfileWhenSuiteDefaultMissing(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
 	if err := os.WriteFile(suitePath, []byte(`description: fallback suite
 steps:
@@ -117,8 +114,10 @@ steps:
     lane: progression
 profiles:
   alpha:
+    archive: never
     steps: [fixture-script]
   omega:
+    archive: never
     steps: []
 `), 0o644); err != nil {
 		t.Fatalf("rewrite suite: %v", err)
@@ -133,9 +132,9 @@ profiles:
 	}
 }
 
-func TestLoadRunConfigBackwardsCompatibleWithoutProfileOrLadder(t *testing.T) {
+func TestLoadRepoConfigDefaultsSourceAndLaneOnly(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	aderPath := filepath.Join(configDir, "ader.yaml")
 	if err := os.WriteFile(aderPath, []byte(`storage:
   reports: reports
@@ -143,21 +142,20 @@ func TestLoadRunConfigBackwardsCompatibleWithoutProfileOrLadder(t *testing.T) {
   artifacts: .artifacts
   temp_alias: .t
 defaults:
-  suite: fixture
   source: committed
   lane: regression
 `), 0o644); err != nil {
 		t.Fatalf("rewrite ader.yaml: %v", err)
 	}
 
-	cfg, err := loadRunConfig(configDir, "fixture")
+	cfg, err := loadRepoConfig(configDir)
 	if err != nil {
-		t.Fatalf("loadRunConfig() error = %v", err)
+		t.Fatalf("loadRepoConfig() error = %v", err)
 	}
-	if cfg.Root.Defaults.Profile != "quick" {
-		t.Fatalf("default profile = %q, want quick compatibility fallback", cfg.Root.Defaults.Profile)
+	if cfg.Root.Defaults.Source != "committed" {
+		t.Fatalf("default source = %q, want committed", cfg.Root.Defaults.Source)
 	}
-	if len(cfg.Root.Defaults.Ladder) != 0 {
-		t.Fatalf("default ladder = %v, want empty compatibility fallback", cfg.Root.Defaults.Ladder)
+	if cfg.Root.Defaults.Lane != "regression" {
+		t.Fatalf("default lane = %q, want regression", cfg.Root.Defaults.Lane)
 	}
 }

@@ -1,185 +1,259 @@
-# TDD — Test-Driven Development Pipeline
+# TDD
 
-The seed uses a promotion-based TDD pipeline driven by [clem-ader](holons/clem-ader/README.md).
+The seed now uses `ader` as a local verification runner built around four levels:
 
-Tests progress through a lifecycle, from active development to permanent safety net, across two validation tiers.
+- `check`: reusable execution atom
+- `suite`: precise scenario with suite-local promotion state
+- `catalogue`: isolated verification root containing checks, suites, reports, archives, caches, and lock
+- `bouquet`: orchestration across several catalogues
 
-## 1. Validation Hierarchy
+The active root is [`verification/`](verification/README.md).
 
-Two tiers, bottom-up. Fix the lower tier before running the upper one.
+## Core Rule
 
-| Tier | Validates | Profile | Typical Source |
-|------|-----------|---------|----------------|
-| **Unit** | Internal logic per module | `unit`, `quick` | `workspace` |
-| **Integration** | Black-box contract between components via `op` | `integration`, `full` | `committed` |
+A suite is a scenario, not a global inventory.
 
-Each tier is defined as a set of **steps** in the [suite YAML](integration/suites/seed.yaml). Steps are shell commands or scripts, each with a `workdir`, `prereqs`, and `description`.
+That has one consequence for promotion:
 
-## 2. Test Lifecycle
+- promotion and downgrade are **suite-local**
+- the same underlying check may be `progression` in one suite and `regression` in another
 
-Every test step lives in one of two **lanes** at any given time. Lane is a property of the **step**, not the profile, so one step has one lane everywhere it is reused.
+This keeps `ader` useful for composed TDD:
 
-```
-progression ──[clean pass]──▶ promotion ──[review + apply]──▶ regression
-     ▲                                                            │
-     └────────────────────[downgrade]─────────────────────────────┘
-```
+- develop one scenario in `workspace`
+- promote only the checks proven in that scenario
+- keep an anti-regression baseline for that scenario
+- aggregate several scenarios later with a bouquet
 
-### Progression (Active TDD)
+## Layout
 
-The step is under active development. The agent iterates until all steps in the lane pass cleanly.
+```text
+verification/
+  bouquets/
+    local-dev.yaml
+    cross-platform.yaml
 
-```bash
-ader test integration --suite seed --profile unit --lane progression --source workspace
-```
+  catalogues/
+    op/
+      ader.yaml
+      checks.yaml
+      suites/
+        op-instances.yaml
+        op-proxy.yaml
+        op-examples.yaml
+        op-composites.yaml
 
-### Promotion (Transition)
-
-When a `progression` run passes completely, ader generates two files in the report directory:
-
-- `promotion.json` — machine-readable: eligible steps, suggested `ader promote ...` command, suggested git commands
-- `promotion.md` — human-readable summary
-
-These files propose moving the passing steps from `progression` to `regression` in the suite YAML. Neither ader nor the agent mutate the suite automatically during `test`. A human reviews and applies the explicit promote command.
-
-### Regression (Safety Net)
-
-Promoted steps become the immutable baseline. Any failure in `regression` signals a breakage of existing behavior.
-
-```bash
-ader test integration --suite seed --profile unit --lane regression
-```
-
-Default lane is `regression`. Default source is `committed`.
-
-### Downgrade (Reset)
-
-To move tests back to `progression` for re-evaluation:
-
-```bash
-ader downgrade integration --all                              # all regression steps
-ader downgrade integration --step sdk-go-unit --step X        # specific steps
+    ader/
+      ader.yaml
+      checks.yaml
+      suites/
+        ader-core.yaml
+        ader-self.yaml
 ```
 
-Rules: step `lane` changes from `regression` to `progression`. The suite YAML is rewritten immediately, never auto-committed.[^1]
+[`verification/catalogues/*/ader.yaml`](verification/) contains only catalogue-local runtime defaults:
 
-[^1]: `ader downgrade` is specified in the [Codex prompt](prompts/codex-cross-tier-promotion.md).
+- storage paths
+- default `source`
+- default `lane`
 
-## 3. Bottom-Up Agent Loop
+There is no default suite at catalogue level. `--suite` is required for `test`, `promote`, and `downgrade`.
 
-An AI agent follows this loop when developing or validating code:
+[`verification/catalogues/*/checks.yaml`](verification/) defines reusable execution facts:
 
-```
-1. unit --lane progression --source workspace
-   → iterate until clean pass
-   → review promotion.md → run `ader promote ...`
+- `workdir`
+- `prereqs`
+- `command` xor `script`
+- `args`
+- `description`
 
-2. integration --lane progression --source workspace
-   → iterate until clean pass
-   → review promotion.md → run `ader promote ...`
+Suite files under [`verification/catalogues/*/suites/`](verification/) define:
 
-3. full --lane regression --source committed
-   → final proof → archive
-```
+- suite-local steps
+- `lane` on each suite step
+- profiles
+- suite-local `archive` policy per profile
 
-Each tier must pass before moving to the next. This isolation ensures errors are caught at the most granular level.
-
-### Why This Works for Agents
-
-- **Noise reduction**: the agent focuses on one tier at a time, not the entire suite
-- **Auditability**: `promotion.json` forces the agent to produce evidence before code enters the safety net
-- **Resilience**: every promotion strengthens the regression baseline automatically
-
-## 4. Suite Structure
-
-The suite YAML (`integration/suites/seed.yaml`) maps steps to profiles. Lane lives on the step itself:
+Example:
 
 ```yaml
+description: op proxy scenario
+
+defaults:
+  profile: smoke
+
 steps:
-  sdk-go-unit:
-    workdir: sdk/go-holons
-    prereqs: [go]
-    command: go test ./...
-    description: Go SDK unit tests
+  op-build:
+    check: holons-grace-op-unit-internal-cli
+    lane: regression
+
+  proxy-smoke:
+    check: integration-dispatch-say-hello-across-transports-go-auto
     lane: progression
 
 profiles:
-  unit:
-    steps: [sdk-go-unit, new-feature-unit]
-  integration:
-    steps: [integration-deterministic, integration-short]
+  smoke:
+    description: canonical path
+    archive: never
+    steps: [op-build, proxy-smoke]
+
+  full:
+    description: broader proof
+    archive: auto
+    steps: [op-build, proxy-smoke]
 ```
 
-A step can appear in multiple profiles. Its lane assignment is global: `sdk-go-unit` is either `progression` or `regression` everywhere.
+## TDD Loop
 
-### Profile Ladder
+Suite-local lanes still follow the same lifecycle:
 
-Profiles form a hierarchy for cross-tier suggestions:
-
-```
-quick → unit → integration → full
-```
-
-`stress` is outside this ladder.
-
-When a step is promoted in a profile, ader suggests adding it to the `progression` lane of the next profile in the ladder — if it isn't already present there. This is purely informational; no automatic mutation.
-
-## 5. Commands
-
-| Phase | Command |
-|-------|---------|
-| Unit progression | `ader test integration --suite seed --profile unit --lane progression --source workspace` |
-| Unit regression | `ader test integration --suite seed --profile unit` |
-| Integration progression | `ader test integration --suite seed --profile integration --lane progression --source workspace` |
-| Integration regression | `ader test integration --suite seed --profile integration` |
-| Full regression | `ader test integration --suite seed --profile full` |
-| Quick check | `ader test integration --suite seed --profile quick` |
-| Promote specific | `ader promote integration --step sdk-go-unit` |
-| Promote all progression | `ader promote integration --all` |
-| Downgrade all | `ader downgrade integration --all` |
-| Downgrade specific | `ader downgrade integration --step sdk-go-unit` |
-| Archive latest | `ader archive integration --latest` |
-| View history | `ader history integration` |
-| Show report | `ader show integration --id <history-id>` |
-| Cleanup residue | `ader cleanup integration` |
-
-## 6. Promotion Artifacts
-
-### `promotion.json`
-
-```json
-{
-  "suite": "seed",
-  "profile": "unit",
-  "lane": "progression",
-  "destination_lane": "regression",
-  "suite_file": "integration/suites/seed.yaml",
-  "eligible_steps": ["sdk-go-unit", "example-go-unit"],
-  "suggested_command": "ader promote integration --step sdk-go-unit --step example-go-unit",
-  "suggested_git_commands": [
-    "git add integration/suites/seed.yaml",
-    "git commit -m \"Promote sdk-go-unit, example-go-unit to regression\""
-  ],
-  "suggested_commit_message": "Promote sdk-go-unit, example-go-unit to regression",
-  "cross_tier_suggestions": [
-    {
-      "step_id": "sdk-go-unit",
-      "from_profile": "unit",
-      "to_profile": "integration",
-      "to_lane": "progression",
-      "reason": "Promoted in unit; not yet present in integration"
-    }
-  ]
-}
+```text
+progression -> promote -> regression
+regression -> downgrade -> progression
 ```
 
-### `promotion.md`
+Typical loop on one scenario:
 
-A markdown summary: eligible steps, the exact `ader promote ...` command, git commands, and **cross-profile suggestions** showing which steps should be considered for the next profile in the ladder.
+```bash
+ader test verification/catalogues/op \
+  --suite op-proxy \
+  --profile smoke \
+  --lane progression \
+  --source workspace
+
+ader promote verification/catalogues/op \
+  --suite op-proxy \
+  --step integration-dispatch-say-hello-across-transports-go-auto
+
+ader test verification/catalogues/op \
+  --suite op-proxy \
+  --profile smoke \
+  --lane regression \
+  --source committed
+```
+
+To reset a scenario back into TDD:
+
+```bash
+ader downgrade verification/catalogues/op --suite op-proxy --all
+```
+
+`ader test` never mutates the suite. Only `promote` and `downgrade` rewrite `steps.<id>.lane` in the selected suite file.
+
+## Bouquets
+
+A bouquet orchestrates several catalogue runs:
+
+```yaml
+description: local dev bouquet
+
+defaults:
+  source: workspace
+  lane: progression
+  archive: never
+
+entries:
+  - catalogue: op
+    suite: op-proxy
+    profile: smoke
+
+  - catalogue: ader
+    suite: ader-self
+    profile: smoke
+```
+
+Run it with:
+
+```bash
+ader test-bouquet verification --name local-dev
+```
+
+Execution policy:
+
+- entries for the same catalogue run sequentially
+- different catalogues may run in parallel
+- if one entry fails inside a catalogue, later entries in that same catalogue are marked `SKIP`
+- other catalogues continue
+
+## Locking
+
+Each catalogue owns a lock file:
+
+```text
+<catalogue>/.artifacts/ader.lock
+```
+
+Commands that take the lock:
+
+- `test`
+- `promote`
+- `downgrade`
+- `archive`
+- `cleanup`
+
+Read-only commands do not lock:
+
+- `history`
+- `show`
+
+This allows safe parallel execution across different catalogues while preventing concurrent mutation inside one catalogue.
+
+## Reports
+
+Child suite runs still write normal catalogue-local reports:
+
+```text
+verification/catalogues/<name>/reports/<history-id>/
+```
+
+Every child report contains:
+
+- `manifest.json`
+- `step-results.json`
+- `summary.md`
+- `summary.tsv`
+- `suite-snapshot.yaml`
+- `logs/`
+- `promotion.json` and `promotion.md` when a progression run finishes cleanly
+
+History ids use:
+
+```text
+<suite>_<source>_<profile>-YYYYMMDD_HH_MM_SS_NNNN
+```
+
+Bouquet runs write aggregate reports at:
+
+```text
+verification/reports/bouquets/<bouquet-history-id>/
+verification/archives/bouquets/<bouquet-history-id>.tar.gz
+```
+
+## Commands
+
+Catalogue commands:
+
+```bash
+ader test verification/catalogues/ader --suite ader-self --profile smoke
+ader promote verification/catalogues/ader --suite ader-self --step holons-clem-ader-unit-root
+ader downgrade verification/catalogues/ader --suite ader-self --all
+ader history verification/catalogues/ader
+ader show verification/catalogues/ader --id <history-id>
+ader archive verification/catalogues/ader --latest
+ader cleanup verification/catalogues/ader
+```
+
+Bouquet commands:
+
+```bash
+ader test-bouquet verification --name local-dev
+ader history-bouquet verification
+ader show-bouquet verification --id <bouquet-history-id>
+ader archive-bouquet verification --latest
+```
 
 ## References
 
-- [clem-ader README](holons/clem-ader/README.md) — engine documentation
-- [integration README](integration/README.md) — config root and commands
-- [Suite definition](integration/suites/seed.yaml) — step and profile definitions
-- [holon.proto skills](holons/clem-ader/api/v1/holon.proto) — `regression-loop`, `progression-loop`, `report-hygiene`
+- [`verification/README.md`](verification/README.md)
+- [`holons/clem-ader/README.md`](holons/clem-ader/README.md)
+- [`holons/clem-ader/api/v1/holon.proto`](holons/clem-ader/api/v1/holon.proto)

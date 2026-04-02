@@ -14,7 +14,7 @@ import (
 )
 
 func TestSurfaceSymmetry(t *testing.T) {
-	wantRPC := []string{"Archive", "Cleanup", "Downgrade", "History", "Promote", "ShowHistory", "Test"}
+	wantRPC := []string{"Archive", "ArchiveBouquet", "BouquetHistory", "Cleanup", "Downgrade", "History", "Promote", "ShowBouquetHistory", "ShowHistory", "Test", "TestBouquet"}
 
 	gotRPC := make([]string, 0, len(aderv1.AderService_ServiceDesc.Methods))
 	for _, method := range aderv1.AderService_ServiceDesc.Methods {
@@ -36,12 +36,12 @@ func TestSurfaceSymmetry(t *testing.T) {
 		}
 	}
 	sort.Strings(gotCLI)
-	wantCLI := []string{"archive", "cleanup", "downgrade", "history", "promote", "show", "test"}
+	wantCLI := []string{"archive", "archive-bouquet", "cleanup", "downgrade", "history", "history-bouquet", "promote", "show", "show-bouquet", "test", "test-bouquet"}
 	if !reflect.DeepEqual(gotCLI, wantCLI) {
 		t.Fatalf("CLI commands = %v, want %v", gotCLI, wantCLI)
 	}
 
-	gotAPI := []string{"Archive", "Cleanup", "Downgrade", "History", "Promote", "ShowHistory", "Test"}
+	gotAPI := []string{"Archive", "ArchiveBouquet", "BouquetHistory", "Cleanup", "Downgrade", "History", "Promote", "ShowBouquetHistory", "ShowHistory", "Test", "TestBouquet"}
 	sort.Strings(gotAPI)
 	if !reflect.DeepEqual(gotAPI, wantRPC) {
 		t.Fatalf("public API set = %v, want %v", gotAPI, wantRPC)
@@ -80,8 +80,8 @@ func TestHistoryCommandShape(t *testing.T) {
 	if history.Name() != "history" {
 		t.Fatalf("history command missing from CLI")
 	}
-	if history.Use != "history <config-dir>" {
-		t.Fatalf("history use = %q, want %q", history.Use, "history <config-dir>")
+	if history.Use != "history <catalogue-dir>" {
+		t.Fatalf("history use = %q, want %q", history.Use, "history <catalogue-dir>")
 	}
 }
 
@@ -97,8 +97,8 @@ func TestDowngradeCommandShape(t *testing.T) {
 	if downgrade.Name() != "downgrade" {
 		t.Fatalf("downgrade command missing from CLI")
 	}
-	if downgrade.Use != "downgrade <config-dir>" {
-		t.Fatalf("downgrade use = %q, want %q", downgrade.Use, "downgrade <config-dir>")
+	if downgrade.Use != "downgrade <catalogue-dir>" {
+		t.Fatalf("downgrade use = %q, want %q", downgrade.Use, "downgrade <catalogue-dir>")
 	}
 	if downgrade.Flags().Lookup("profile") != nil {
 		t.Fatal("downgrade should not expose --profile")
@@ -117,7 +117,7 @@ func TestPromoteCommandShape(t *testing.T) {
 	if promote.Name() != "promote" {
 		t.Fatalf("promote command missing from CLI")
 	}
-	if promote.Use != "promote <config-dir>" {
-		t.Fatalf("promote use = %q, want %q", promote.Use, "promote <config-dir>")
+	if promote.Use != "promote <catalogue-dir>" {
+		t.Fatalf("promote use = %q, want %q", promote.Use, "promote <catalogue-dir>")
 	}
 }

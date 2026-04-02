@@ -1,210 +1,3817 @@
 description: Seed local verification suite
 steps:
-  ader-unit:
-    workdir: holons/clem-ader
-    prereqs: [go]
-    script: scripts/test-unit.sh
-    description: clem-ader unit tests
-    lane: progression
-  grace-op-unit:
-    workdir: holons/grace-op
-    prereqs: [go]
-    command: go test ./...
-    description: grace-op unit tests
-    lane: progression
-  sdk-go-unit:
-    workdir: sdk/go-holons
-    prereqs: [go]
-    command: go test ./...
-    description: Go SDK unit tests
-    lane: progression
-  sdk-c-unit:
-    workdir: sdk/c-holons
-    prereqs: [make]
-    command: make clean && make test && make clean
-    description: C SDK unit tests
-    lane: progression
-  sdk-cpp-unit:
-    workdir: sdk/cpp-holons
-    prereqs: [cmake]
-    command: rm -rf build && cmake -S . -B build && cmake --build build --target test_runner && ./build/test_runner && rm -rf build
-    description: C++ SDK unit tests
-    lane: progression
-  sdk-csharp-unit:
-    workdir: sdk/csharp-holons
-    prereqs: [dotnet]
-    command: 'HOLONS_CSHARP_SOURCE_ROOT="$ADER_REPO_ROOT/sdk/csharp-holons" dotnet test csharp-holons.sln'
-    description: C# SDK unit tests
-    lane: progression
-  sdk-dart-unit:
-    workdir: sdk/dart-holons
-    prereqs: [dart]
-    command: dart test
-    description: Dart SDK unit tests
-    lane: progression
-  sdk-java-unit:
-    workdir: sdk/java-holons
-    prereqs: [java, gradle]
-    command: gradle test
-    description: Java SDK unit tests
-    lane: progression
-  sdk-js-unit:
-    workdir: sdk/js-holons
-    prereqs: [node, npm]
-    command: npm test
-    description: Node.js SDK unit tests
-    lane: progression
-  sdk-js-web-unit:
-    workdir: sdk/js-web-holons
-    prereqs: [node, npm]
-    command: npm test
-    description: JS web SDK unit tests
-    lane: progression
-  sdk-kotlin-unit:
-    workdir: sdk/kotlin-holons
-    prereqs: [java, gradle]
-    command: gradle test
-    description: Kotlin SDK unit tests
-    lane: progression
-  sdk-ruby-unit:
-    workdir: sdk/ruby-holons
-    prereqs: [ruby, bundle]
-    command: bundle exec rake test
-    description: Ruby SDK unit tests
-    lane: progression
-  sdk-rust-unit:
-    workdir: sdk/rust-holons
-    prereqs: [cargo]
-    command: 'cargo test --target-dir "$ADER_RUN_ARTIFACTS/cargo/sdk-rust"'
-    description: Rust SDK unit tests
-    lane: progression
-  sdk-swift-unit:
-    workdir: sdk/swift-holons
-    prereqs: [swift]
-    command: swift test
-    description: Swift SDK unit tests
-    lane: progression
-  example-c-unit:
-    workdir: examples/hello-world/gabriel-greeting-c
-    prereqs: [cmake]
-    command: 'rm -rf "$ADER_RUN_ARTIFACTS/cmake/example-c" && cmake -S . -B "$ADER_RUN_ARTIFACTS/cmake/example-c" && cmake --build "$ADER_RUN_ARTIFACTS/cmake/example-c" && ctest --test-dir "$ADER_RUN_ARTIFACTS/cmake/example-c" --output-on-failure'
-    description: C example unit tests
-    lane: progression
-  example-cpp-unit:
-    workdir: examples/hello-world/gabriel-greeting-cpp
-    prereqs: [cmake]
-    command: 'rm -rf "$ADER_RUN_ARTIFACTS/cmake/example-cpp" && cmake -S . -B "$ADER_RUN_ARTIFACTS/cmake/example-cpp" && cmake --build "$ADER_RUN_ARTIFACTS/cmake/example-cpp" && ctest --test-dir "$ADER_RUN_ARTIFACTS/cmake/example-cpp" --output-on-failure'
-    description: C++ example unit tests
-    lane: progression
-  example-csharp-unit:
-    workdir: examples/hello-world/gabriel-greeting-csharp
-    prereqs: [dotnet]
-    command: dotnet test tests/Gabriel.Greeting.Csharp.Tests.csproj
-    description: C# example unit tests
-    lane: progression
-  example-dart-unit:
-    workdir: examples/hello-world/gabriel-greeting-dart
-    prereqs: [dart]
-    command: dart test
-    description: Dart example unit tests
-    lane: progression
-  example-go-unit:
-    workdir: examples/hello-world/gabriel-greeting-go
-    prereqs: [go]
-    command: go test ./...
-    description: Canonical Go example unit tests
-    lane: progression
-  example-java-unit:
-    workdir: examples/hello-world/gabriel-greeting-java
-    prereqs: [java, gradle]
-    command: gradle test
-    description: Java example unit tests
-    lane: progression
-  example-kotlin-unit:
-    workdir: examples/hello-world/gabriel-greeting-kotlin
-    prereqs: [java, gradle]
-    command: gradle test
-    description: Kotlin example unit tests
-    lane: progression
-  example-node-unit:
-    workdir: examples/hello-world/gabriel-greeting-node
-    prereqs: [node, npm]
-    command: npm test
-    description: Node.js example unit tests
-    lane: progression
-  example-python-unit:
-    workdir: examples/hello-world/gabriel-greeting-python
-    prereqs: [python3]
-    command: python3 -m unittest api.public_test api.cli_test _internal.server_test
-    description: Python example unit tests
-    lane: progression
-  example-ruby-unit:
-    workdir: examples/hello-world/gabriel-greeting-ruby
-    prereqs: [ruby, bundle]
-    command: bundle exec rake test
-    description: Ruby example unit tests
-    lane: progression
-  example-rust-unit:
-    workdir: examples/hello-world/gabriel-greeting-rust
-    prereqs: [cargo]
-    command: 'cargo test --target-dir "$ADER_RUN_ARTIFACTS/cargo/example-rust"'
-    description: Rust example unit tests
-    lane: progression
-  example-swift-unit:
-    workdir: examples/hello-world/gabriel-greeting-swift
-    prereqs: [swift]
-    command: swift test
-    description: Swift example unit tests
-    lane: progression
-  integration-short:
-    workdir: integration/tests
-    prereqs: [go]
-    command: go test -short -count=1 -timeout 15m ./...
-    description: Short black-box integration suite
-    lane: progression
-  integration-deterministic:
-    workdir: integration/tests
-    prereqs: [go]
-    command: go test -count=1 -timeout 30m ./...
-    description: Deterministic black-box integration suite
-    lane: progression
-  integration-fuzz-random:
-    workdir: integration/tests
-    prereqs: [go]
-    command: OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzRandomCommands -fuzztime=30s ./
-    description: Black-box fuzz random commands
-    lane: progression
-  integration-fuzz-json:
-    workdir: integration/tests
-    prereqs: [go]
-    command: OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzJSONInput -fuzztime=30s ./
-    description: Black-box fuzz JSON payloads
-    lane: progression
-  integration-fuzz-uri:
-    workdir: integration/tests
-    prereqs: [go]
-    command: OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzTransportURI -fuzztime=30s ./
-    description: Black-box fuzz transport URIs
-    lane: progression
-  integration-fuzz-flags:
-    workdir: integration/tests
-    prereqs: [go]
-    command: OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzFlagPermutations -fuzztime=30s ./
-    description: Black-box fuzz flag permutations
-    lane: progression
+    example-c-unit:
+        workdir: examples/hello-world/gabriel-greeting-c
+        prereqs:
+            - cmake
+        command: rm -rf "$ADER_RUN_ARTIFACTS/cmake/example-c" && cmake -S . -B "$ADER_RUN_ARTIFACTS/cmake/example-c" && cmake --build "$ADER_RUN_ARTIFACTS/cmake/example-c" && ctest --test-dir "$ADER_RUN_ARTIFACTS/cmake/example-c" --output-on-failure
+        script: ""
+        args: []
+        description: C example unit tests
+        lane: regression
+    example-cpp-unit:
+        workdir: examples/hello-world/gabriel-greeting-cpp
+        prereqs:
+            - cmake
+        command: rm -rf "$ADER_RUN_ARTIFACTS/cmake/example-cpp" && cmake -S . -B "$ADER_RUN_ARTIFACTS/cmake/example-cpp" && cmake --build "$ADER_RUN_ARTIFACTS/cmake/example-cpp" && ctest --test-dir "$ADER_RUN_ARTIFACTS/cmake/example-cpp" --output-on-failure
+        script: ""
+        args: []
+        description: C++ example unit tests
+        lane: regression
+    example-csharp-unit:
+        workdir: examples/hello-world/gabriel-greeting-csharp
+        prereqs:
+            - dotnet
+        command: dotnet test tests/Gabriel.Greeting.Csharp.Tests.csproj
+        script: ""
+        args: []
+        description: C# example unit tests
+        lane: regression
+    example-dart-unit:
+        workdir: examples/hello-world/gabriel-greeting-dart
+        prereqs:
+            - dart
+        command: dart test
+        script: ""
+        args: []
+        description: Dart example unit tests
+        lane: progression
+    example-java-unit:
+        workdir: examples/hello-world/gabriel-greeting-java
+        prereqs:
+            - java
+            - gradle
+        command: gradle test
+        script: ""
+        args: []
+        description: Java example unit tests
+        lane: regression
+    example-kotlin-unit:
+        workdir: examples/hello-world/gabriel-greeting-kotlin
+        prereqs:
+            - java
+            - gradle
+        command: gradle test
+        script: ""
+        args: []
+        description: Kotlin example unit tests
+        lane: regression
+    example-node-unit:
+        workdir: examples/hello-world/gabriel-greeting-node
+        prereqs:
+            - node
+            - npm
+        command: npm test
+        script: ""
+        args: []
+        description: Node.js example unit tests
+        lane: progression
+    example-python-unit:
+        workdir: examples/hello-world/gabriel-greeting-python
+        prereqs:
+            - python3
+        command: python3 -m unittest api.public_test api.cli_test _internal.server_test
+        script: ""
+        args: []
+        description: Python example unit tests
+        lane: regression
+    example-ruby-unit:
+        workdir: examples/hello-world/gabriel-greeting-ruby
+        prereqs:
+            - ruby
+            - bundle
+        command: bundle exec rake test
+        script: ""
+        args: []
+        description: Ruby example unit tests
+        lane: progression
+    example-rust-unit:
+        workdir: examples/hello-world/gabriel-greeting-rust
+        prereqs:
+            - cargo
+        command: cargo test --target-dir "$ADER_RUN_ARTIFACTS/cargo/example-rust"
+        script: ""
+        args: []
+        description: Rust example unit tests
+        lane: regression
+    example-swift-unit:
+        workdir: examples/hello-world/gabriel-greeting-swift
+        prereqs:
+            - swift
+        command: swift test
+        script: ""
+        args: []
+        description: Swift example unit tests
+        lane: regression
+    examples-hello-world-gabriel-greeting-go-unit-api:
+        workdir: examples/hello-world/gabriel-greeting-go
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./api
+        script: ""
+        args: []
+        description: examples-hello-world-gabriel-greeting-go package tests (api)
+        lane: regression
+    examples-hello-world-gabriel-greeting-go-unit-internal:
+        workdir: examples/hello-world/gabriel-greeting-go
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal
+        script: ""
+        args: []
+        description: examples-hello-world-gabriel-greeting-go package tests (internal)
+        lane: regression
+    holons-clem-ader-unit-api:
+        workdir: holons/clem-ader
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./api
+        script: ""
+        args: []
+        description: holons-clem-ader package tests (api)
+        lane: regression
+    holons-clem-ader-unit-internal-engine:
+        workdir: holons/clem-ader
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/engine
+        script: ""
+        args: []
+        description: holons-clem-ader package tests (internal-engine)
+        lane: regression
+    holons-grace-op-unit-api:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./api
+        script: ""
+        args: []
+        description: holons-grace-op package tests (api)
+        lane: progression
+    holons-grace-op-unit-internal-cli:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/cli
+        script: ""
+        args: []
+        description: holons-grace-op package tests (internal-cli)
+        lane: progression
+    holons-grace-op-unit-internal-env:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/env
+        script: ""
+        args: []
+        description: holons-grace-op package tests (internal-env)
+        lane: progression
+    holons-grace-op-unit-internal-grpcclient:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/grpcclient
+        script: ""
+        args: []
+        description: holons-grace-op package tests (internal-grpcclient)
+        lane: progression
+    holons-grace-op-unit-internal-holons:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/holons
+        script: ""
+        args: []
+        description: holons-grace-op package tests (internal-holons)
+        lane: progression
+    holons-grace-op-unit-internal-identity:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/identity
+        script: ""
+        args: []
+        description: holons-grace-op package tests (internal-identity)
+        lane: progression
+    holons-grace-op-unit-internal-inspect:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/inspect
+        script: ""
+        args: []
+        description: holons-grace-op package tests (internal-inspect)
+        lane: progression
+    holons-grace-op-unit-internal-mod:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/mod
+        script: ""
+        args: []
+        description: holons-grace-op package tests (internal-mod)
+        lane: progression
+    holons-grace-op-unit-internal-progress:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/progress
+        script: ""
+        args: []
+        description: holons-grace-op package tests (internal-progress)
+        lane: progression
+    holons-grace-op-unit-internal-scaffold:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/scaffold
+        script: ""
+        args: []
+        description: holons-grace-op package tests (internal-scaffold)
+        lane: progression
+    holons-grace-op-unit-internal-server:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/server
+        script: ""
+        args: []
+        description: holons-grace-op package tests (internal-server)
+        lane: progression
+    holons-grace-op-unit-internal-suggest:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/suggest
+        script: ""
+        args: []
+        description: holons-grace-op package tests (internal-suggest)
+        lane: progression
+    holons-grace-op-unit-internal-tools:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/tools
+        script: ""
+        args: []
+        description: holons-grace-op package tests (internal-tools)
+        lane: progression
+    holons-grace-op-unit-internal-who:
+        workdir: holons/grace-op
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./internal/who
+        script: ""
+        args: []
+        description: holons-grace-op package tests (internal-who)
+        lane: progression
+    integration-coax-build-recipe-app:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestCOAX_BuildRecipeApp$" ./...
+        script: ""
+        args: []
+        description: coax build recipe app
+        lane: progression
+    integration-coax-runtime-surface:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestCOAX_RuntimeSurface$" ./...
+        script: ""
+        args: []
+        description: coax runtime surface
+        lane: progression
+    integration-discover:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDiscover$" ./...
+        script: ""
+        args: []
+        description: discover
+        lane: progression
+    integration-discover-contains-available-hello-world-holons:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDiscoverContainsAvailableHelloWorldHolons$" ./...
+        script: ""
+        args: []
+        description: discover contains available hello world holons
+        lane: progression
+    integration-discover-json:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDiscoverJSON$" ./...
+        script: ""
+        args: []
+        description: discover json
+        lane: progression
+    integration-dispatch-auto-build:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_AutoBuild$" ./...
+        script: ""
+        args: []
+        description: dispatch auto build
+        lane: progression
+    integration-dispatch-clean-then-call:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_CleanThenCall$" ./...
+        script: ""
+        args: []
+        description: dispatch clean then call
+        lane: progression
+    integration-dispatch-jsonoutput-c:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-c$" ./...
+        script: ""
+        args: []
+        description: dispatch jsonoutput c
+        lane: progression
+    integration-dispatch-jsonoutput-cpp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-cpp$" ./...
+        script: ""
+        args: []
+        description: dispatch jsonoutput cpp
+        lane: progression
+    integration-dispatch-jsonoutput-csharp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-csharp$" ./...
+        script: ""
+        args: []
+        description: dispatch jsonoutput csharp
+        lane: progression
+    integration-dispatch-jsonoutput-dart:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-dart$" ./...
+        script: ""
+        args: []
+        description: dispatch jsonoutput dart
+        lane: progression
+    integration-dispatch-jsonoutput-go:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-go$" ./...
+        script: ""
+        args: []
+        description: dispatch jsonoutput go
+        lane: progression
+    integration-dispatch-jsonoutput-java:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-java$" ./...
+        script: ""
+        args: []
+        description: dispatch jsonoutput java
+        lane: progression
+    integration-dispatch-jsonoutput-kotlin:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-kotlin$" ./...
+        script: ""
+        args: []
+        description: dispatch jsonoutput kotlin
+        lane: progression
+    integration-dispatch-jsonoutput-node:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-node$" ./...
+        script: ""
+        args: []
+        description: dispatch jsonoutput node
+        lane: progression
+    integration-dispatch-jsonoutput-python:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-python$" ./...
+        script: ""
+        args: []
+        description: dispatch jsonoutput python
+        lane: progression
+    integration-dispatch-jsonoutput-ruby:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-ruby$" ./...
+        script: ""
+        args: []
+        description: dispatch jsonoutput ruby
+        lane: progression
+    integration-dispatch-jsonoutput-rust:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-rust$" ./...
+        script: ""
+        args: []
+        description: dispatch jsonoutput rust
+        lane: progression
+    integration-dispatch-jsonoutput-swift:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-swift$" ./...
+        script: ""
+        args: []
+        description: dispatch jsonoutput swift
+        lane: progression
+    integration-dispatch-list-languages-c:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-c$" ./...
+        script: ""
+        args: []
+        description: dispatch list languages c
+        lane: progression
+    integration-dispatch-list-languages-cpp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-cpp$" ./...
+        script: ""
+        args: []
+        description: dispatch list languages cpp
+        lane: progression
+    integration-dispatch-list-languages-csharp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-csharp$" ./...
+        script: ""
+        args: []
+        description: dispatch list languages csharp
+        lane: progression
+    integration-dispatch-list-languages-dart:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-dart$" ./...
+        script: ""
+        args: []
+        description: dispatch list languages dart
+        lane: progression
+    integration-dispatch-list-languages-go:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-go$" ./...
+        script: ""
+        args: []
+        description: dispatch list languages go
+        lane: progression
+    integration-dispatch-list-languages-java:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-java$" ./...
+        script: ""
+        args: []
+        description: dispatch list languages java
+        lane: progression
+    integration-dispatch-list-languages-kotlin:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-kotlin$" ./...
+        script: ""
+        args: []
+        description: dispatch list languages kotlin
+        lane: progression
+    integration-dispatch-list-languages-node:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-node$" ./...
+        script: ""
+        args: []
+        description: dispatch list languages node
+        lane: progression
+    integration-dispatch-list-languages-python:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-python$" ./...
+        script: ""
+        args: []
+        description: dispatch list languages python
+        lane: progression
+    integration-dispatch-list-languages-ruby:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-ruby$" ./...
+        script: ""
+        args: []
+        description: dispatch list languages ruby
+        lane: progression
+    integration-dispatch-list-languages-rust:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-rust$" ./...
+        script: ""
+        args: []
+        description: dispatch list languages rust
+        lane: progression
+    integration-dispatch-list-languages-swift:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-swift$" ./...
+        script: ""
+        args: []
+        description: dispatch list languages swift
+        lane: progression
+    integration-dispatch-no-build-does-not-build:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_NoBuildDoesNotBuild$" ./...
+        script: ""
+        args: []
+        description: dispatch no build does not build
+        lane: progression
+    integration-dispatch-say-hello-across-transports-c-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-c$/^auto$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports c via auto
+        lane: progression
+    integration-dispatch-say-hello-across-transports-c-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-c$/^grpc$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports c via grpc
+        lane: progression
+    integration-dispatch-say-hello-across-transports-c-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-c$/^stdio$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports c via stdio
+        lane: progression
+    integration-dispatch-say-hello-across-transports-c-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-c$/^tcp$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports c via tcp
+        lane: progression
+    integration-dispatch-say-hello-across-transports-cpp-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-cpp$/^auto$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports cpp via auto
+        lane: progression
+    integration-dispatch-say-hello-across-transports-cpp-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-cpp$/^grpc$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports cpp via grpc
+        lane: progression
+    integration-dispatch-say-hello-across-transports-cpp-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-cpp$/^stdio$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports cpp via stdio
+        lane: progression
+    integration-dispatch-say-hello-across-transports-cpp-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-cpp$/^tcp$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports cpp via tcp
+        lane: progression
+    integration-dispatch-say-hello-across-transports-csharp-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-csharp$/^auto$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports csharp via auto
+        lane: progression
+    integration-dispatch-say-hello-across-transports-csharp-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-csharp$/^grpc$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports csharp via grpc
+        lane: progression
+    integration-dispatch-say-hello-across-transports-csharp-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-csharp$/^stdio$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports csharp via stdio
+        lane: progression
+    integration-dispatch-say-hello-across-transports-csharp-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-csharp$/^tcp$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports csharp via tcp
+        lane: progression
+    integration-dispatch-say-hello-across-transports-dart-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-dart$/^auto$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports dart via auto
+        lane: progression
+    integration-dispatch-say-hello-across-transports-dart-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-dart$/^grpc$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports dart via grpc
+        lane: progression
+    integration-dispatch-say-hello-across-transports-dart-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-dart$/^stdio$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports dart via stdio
+        lane: progression
+    integration-dispatch-say-hello-across-transports-dart-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-dart$/^tcp$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports dart via tcp
+        lane: progression
+    integration-dispatch-say-hello-across-transports-go-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-go$/^auto$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports go via auto
+        lane: progression
+    integration-dispatch-say-hello-across-transports-go-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-go$/^grpc$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports go via grpc
+        lane: progression
+    integration-dispatch-say-hello-across-transports-go-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-go$/^stdio$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports go via stdio
+        lane: progression
+    integration-dispatch-say-hello-across-transports-go-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-go$/^tcp$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports go via tcp
+        lane: progression
+    integration-dispatch-say-hello-across-transports-java-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-java$/^auto$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports java via auto
+        lane: progression
+    integration-dispatch-say-hello-across-transports-java-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-java$/^grpc$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports java via grpc
+        lane: progression
+    integration-dispatch-say-hello-across-transports-java-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-java$/^stdio$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports java via stdio
+        lane: progression
+    integration-dispatch-say-hello-across-transports-java-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-java$/^tcp$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports java via tcp
+        lane: progression
+    integration-dispatch-say-hello-across-transports-kotlin-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-kotlin$/^auto$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports kotlin via auto
+        lane: progression
+    integration-dispatch-say-hello-across-transports-kotlin-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-kotlin$/^grpc$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports kotlin via grpc
+        lane: progression
+    integration-dispatch-say-hello-across-transports-kotlin-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-kotlin$/^stdio$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports kotlin via stdio
+        lane: progression
+    integration-dispatch-say-hello-across-transports-kotlin-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-kotlin$/^tcp$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports kotlin via tcp
+        lane: progression
+    integration-dispatch-say-hello-across-transports-node-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-node$/^auto$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports node via auto
+        lane: progression
+    integration-dispatch-say-hello-across-transports-node-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-node$/^grpc$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports node via grpc
+        lane: progression
+    integration-dispatch-say-hello-across-transports-node-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-node$/^stdio$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports node via stdio
+        lane: progression
+    integration-dispatch-say-hello-across-transports-node-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-node$/^tcp$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports node via tcp
+        lane: progression
+    integration-dispatch-say-hello-across-transports-python-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-python$/^auto$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports python via auto
+        lane: progression
+    integration-dispatch-say-hello-across-transports-python-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-python$/^grpc$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports python via grpc
+        lane: progression
+    integration-dispatch-say-hello-across-transports-python-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-python$/^stdio$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports python via stdio
+        lane: progression
+    integration-dispatch-say-hello-across-transports-python-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-python$/^tcp$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports python via tcp
+        lane: progression
+    integration-dispatch-say-hello-across-transports-ruby-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-ruby$/^auto$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports ruby via auto
+        lane: progression
+    integration-dispatch-say-hello-across-transports-ruby-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-ruby$/^grpc$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports ruby via grpc
+        lane: progression
+    integration-dispatch-say-hello-across-transports-ruby-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-ruby$/^stdio$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports ruby via stdio
+        lane: progression
+    integration-dispatch-say-hello-across-transports-ruby-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-ruby$/^tcp$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports ruby via tcp
+        lane: progression
+    integration-dispatch-say-hello-across-transports-rust-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-rust$/^auto$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports rust via auto
+        lane: progression
+    integration-dispatch-say-hello-across-transports-rust-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-rust$/^grpc$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports rust via grpc
+        lane: progression
+    integration-dispatch-say-hello-across-transports-rust-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-rust$/^stdio$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports rust via stdio
+        lane: progression
+    integration-dispatch-say-hello-across-transports-rust-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-rust$/^tcp$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports rust via tcp
+        lane: progression
+    integration-dispatch-say-hello-across-transports-swift-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-swift$/^auto$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports swift via auto
+        lane: progression
+    integration-dispatch-say-hello-across-transports-swift-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-swift$/^grpc$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports swift via grpc
+        lane: progression
+    integration-dispatch-say-hello-across-transports-swift-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-swift$/^stdio$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports swift via stdio
+        lane: progression
+    integration-dispatch-say-hello-across-transports-swift-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestDispatch_SayHelloAcrossTransports$/^gabriel-greeting-swift$/^tcp$" ./...
+        script: ""
+        args: []
+        description: dispatch say hello across transports swift via tcp
+        lane: progression
+    integration-do-dry-run:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDo_DryRun$" ./...
+        script: ""
+        args: []
+        description: do dry run
+        lane: progression
+    integration-do-errors:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDo_Errors$" ./...
+        script: ""
+        args: []
+        description: do errors
+        lane: progression
+    integration-do-live:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDo_Live$" ./...
+        script: ""
+        args: []
+        description: do live
+        lane: progression
+    integration-do-multi-step:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestDo_MultiStep$" ./...
+        script: ""
+        args: []
+        description: do multi step
+        lane: progression
+    integration-errors-robust-failures:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestErrors_RobustFailures$" ./...
+        script: ""
+        args: []
+        description: errors robust failures
+        lane: progression
+    integration-fuzz-flags:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzFlagPermutations -fuzztime=30s ./
+        script: ""
+        args: []
+        description: Black-box fuzz flag permutations
+        lane: progression
+    integration-fuzz-json:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzJSONInput -fuzztime=30s ./
+        script: ""
+        args: []
+        description: Black-box fuzz JSON payloads
+        lane: progression
+    integration-fuzz-random:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzRandomCommands -fuzztime=30s ./
+        script: ""
+        args: []
+        description: Black-box fuzz random commands
+        lane: progression
+    integration-fuzz-uri:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: OP_TEST_FUZZ=1 go test -run '^$' -fuzz=FuzzTransportURI -fuzztime=30s ./
+        script: ""
+        args: []
+        description: Black-box fuzz transport URIs
+        lane: progression
+    integration-inspect-local-holons-c:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-c$" ./...
+        script: ""
+        args: []
+        description: inspect local holons c
+        lane: progression
+    integration-inspect-local-holons-cpp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-cpp$" ./...
+        script: ""
+        args: []
+        description: inspect local holons cpp
+        lane: progression
+    integration-inspect-local-holons-csharp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-csharp$" ./...
+        script: ""
+        args: []
+        description: inspect local holons csharp
+        lane: progression
+    integration-inspect-local-holons-dart:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-dart$" ./...
+        script: ""
+        args: []
+        description: inspect local holons dart
+        lane: progression
+    integration-inspect-local-holons-go:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-go$" ./...
+        script: ""
+        args: []
+        description: inspect local holons go
+        lane: progression
+    integration-inspect-local-holons-java:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-java$" ./...
+        script: ""
+        args: []
+        description: inspect local holons java
+        lane: progression
+    integration-inspect-local-holons-kotlin:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-kotlin$" ./...
+        script: ""
+        args: []
+        description: inspect local holons kotlin
+        lane: progression
+    integration-inspect-local-holons-node:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-node$" ./...
+        script: ""
+        args: []
+        description: inspect local holons node
+        lane: progression
+    integration-inspect-local-holons-python:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-python$" ./...
+        script: ""
+        args: []
+        description: inspect local holons python
+        lane: progression
+    integration-inspect-local-holons-ruby:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-ruby$" ./...
+        script: ""
+        args: []
+        description: inspect local holons ruby
+        lane: progression
+    integration-inspect-local-holons-rust:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-rust$" ./...
+        script: ""
+        args: []
+        description: inspect local holons rust
+        lane: progression
+    integration-inspect-local-holons-swift:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-swift$" ./...
+        script: ""
+        args: []
+        description: inspect local holons swift
+        lane: progression
+    integration-inspect-remote-describe:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_RemoteDescribe$" ./...
+        script: ""
+        args: []
+        description: inspect remote describe
+        lane: progression
+    integration-inspect-shows-skills-and-sequences:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInspect_ShowsSkillsAndSequences$" ./...
+        script: ""
+        args: []
+        description: inspect shows skills and sequences
+        lane: progression
+    integration-install-build-install-uninstall-c:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-c$" ./...
+        script: ""
+        args: []
+        description: install build install uninstall c
+        lane: progression
+    integration-install-build-install-uninstall-cpp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-cpp$" ./...
+        script: ""
+        args: []
+        description: install build install uninstall cpp
+        lane: progression
+    integration-install-build-install-uninstall-csharp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-csharp$" ./...
+        script: ""
+        args: []
+        description: install build install uninstall csharp
+        lane: progression
+    integration-install-build-install-uninstall-dart:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-dart$" ./...
+        script: ""
+        args: []
+        description: install build install uninstall dart
+        lane: progression
+    integration-install-build-install-uninstall-go:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-go$" ./...
+        script: ""
+        args: []
+        description: install build install uninstall go
+        lane: progression
+    integration-install-build-install-uninstall-java:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-java$" ./...
+        script: ""
+        args: []
+        description: install build install uninstall java
+        lane: progression
+    integration-install-build-install-uninstall-kotlin:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-kotlin$" ./...
+        script: ""
+        args: []
+        description: install build install uninstall kotlin
+        lane: progression
+    integration-install-build-install-uninstall-node:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-node$" ./...
+        script: ""
+        args: []
+        description: install build install uninstall node
+        lane: progression
+    integration-install-build-install-uninstall-python:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-python$" ./...
+        script: ""
+        args: []
+        description: install build install uninstall python
+        lane: progression
+    integration-install-build-install-uninstall-ruby:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-ruby$" ./...
+        script: ""
+        args: []
+        description: install build install uninstall ruby
+        lane: progression
+    integration-install-build-install-uninstall-rust:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-rust$" ./...
+        script: ""
+        args: []
+        description: install build install uninstall rust
+        lane: progression
+    integration-install-build-install-uninstall-swift:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-swift$" ./...
+        script: ""
+        args: []
+        description: install build install uninstall swift
+        lane: progression
+    integration-install-no-binary-fails:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_NoBinaryFails$" ./...
+        script: ""
+        args: []
+        description: install no binary fails
+        lane: progression
+    integration-install-with-build-flag-c:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-c$" ./...
+        script: ""
+        args: []
+        description: install with build flag c
+        lane: progression
+    integration-install-with-build-flag-cpp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-cpp$" ./...
+        script: ""
+        args: []
+        description: install with build flag cpp
+        lane: progression
+    integration-install-with-build-flag-csharp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-csharp$" ./...
+        script: ""
+        args: []
+        description: install with build flag csharp
+        lane: progression
+    integration-install-with-build-flag-dart:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-dart$" ./...
+        script: ""
+        args: []
+        description: install with build flag dart
+        lane: progression
+    integration-install-with-build-flag-go:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-go$" ./...
+        script: ""
+        args: []
+        description: install with build flag go
+        lane: progression
+    integration-install-with-build-flag-java:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-java$" ./...
+        script: ""
+        args: []
+        description: install with build flag java
+        lane: progression
+    integration-install-with-build-flag-kotlin:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-kotlin$" ./...
+        script: ""
+        args: []
+        description: install with build flag kotlin
+        lane: progression
+    integration-install-with-build-flag-node:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-node$" ./...
+        script: ""
+        args: []
+        description: install with build flag node
+        lane: progression
+    integration-install-with-build-flag-python:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-python$" ./...
+        script: ""
+        args: []
+        description: install with build flag python
+        lane: progression
+    integration-install-with-build-flag-ruby:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-ruby$" ./...
+        script: ""
+        args: []
+        description: install with build flag ruby
+        lane: progression
+    integration-install-with-build-flag-rust:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-rust$" ./...
+        script: ""
+        args: []
+        description: install with build flag rust
+        lane: progression
+    integration-install-with-build-flag-swift:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-swift$" ./...
+        script: ""
+        args: []
+        description: install with build flag swift
+        lane: progression
+    integration-installed-binary-smoke:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInstalledBinary_Smoke$" ./...
+        script: ""
+        args: []
+        description: installed binary smoke
+        lane: progression
+    integration-invoke-across-transports-c-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-c$/^auto$" ./...
+        script: ""
+        args: []
+        description: invoke across transports c via auto
+        lane: progression
+    integration-invoke-across-transports-c-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-c$/^grpc$" ./...
+        script: ""
+        args: []
+        description: invoke across transports c via grpc
+        lane: progression
+    integration-invoke-across-transports-c-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-c$/^stdio$" ./...
+        script: ""
+        args: []
+        description: invoke across transports c via stdio
+        lane: progression
+    integration-invoke-across-transports-c-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-c$/^tcp$" ./...
+        script: ""
+        args: []
+        description: invoke across transports c via tcp
+        lane: progression
+    integration-invoke-across-transports-cpp-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-cpp$/^auto$" ./...
+        script: ""
+        args: []
+        description: invoke across transports cpp via auto
+        lane: progression
+    integration-invoke-across-transports-cpp-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-cpp$/^grpc$" ./...
+        script: ""
+        args: []
+        description: invoke across transports cpp via grpc
+        lane: progression
+    integration-invoke-across-transports-cpp-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-cpp$/^stdio$" ./...
+        script: ""
+        args: []
+        description: invoke across transports cpp via stdio
+        lane: progression
+    integration-invoke-across-transports-cpp-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-cpp$/^tcp$" ./...
+        script: ""
+        args: []
+        description: invoke across transports cpp via tcp
+        lane: progression
+    integration-invoke-across-transports-csharp-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-csharp$/^auto$" ./...
+        script: ""
+        args: []
+        description: invoke across transports csharp via auto
+        lane: progression
+    integration-invoke-across-transports-csharp-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-csharp$/^grpc$" ./...
+        script: ""
+        args: []
+        description: invoke across transports csharp via grpc
+        lane: progression
+    integration-invoke-across-transports-csharp-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-csharp$/^stdio$" ./...
+        script: ""
+        args: []
+        description: invoke across transports csharp via stdio
+        lane: progression
+    integration-invoke-across-transports-csharp-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-csharp$/^tcp$" ./...
+        script: ""
+        args: []
+        description: invoke across transports csharp via tcp
+        lane: progression
+    integration-invoke-across-transports-dart-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-dart$/^auto$" ./...
+        script: ""
+        args: []
+        description: invoke across transports dart via auto
+        lane: progression
+    integration-invoke-across-transports-dart-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-dart$/^grpc$" ./...
+        script: ""
+        args: []
+        description: invoke across transports dart via grpc
+        lane: progression
+    integration-invoke-across-transports-dart-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-dart$/^stdio$" ./...
+        script: ""
+        args: []
+        description: invoke across transports dart via stdio
+        lane: progression
+    integration-invoke-across-transports-dart-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-dart$/^tcp$" ./...
+        script: ""
+        args: []
+        description: invoke across transports dart via tcp
+        lane: progression
+    integration-invoke-across-transports-go-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-go$/^auto$" ./...
+        script: ""
+        args: []
+        description: invoke across transports go via auto
+        lane: progression
+    integration-invoke-across-transports-go-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-go$/^grpc$" ./...
+        script: ""
+        args: []
+        description: invoke across transports go via grpc
+        lane: progression
+    integration-invoke-across-transports-go-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-go$/^stdio$" ./...
+        script: ""
+        args: []
+        description: invoke across transports go via stdio
+        lane: progression
+    integration-invoke-across-transports-go-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-go$/^tcp$" ./...
+        script: ""
+        args: []
+        description: invoke across transports go via tcp
+        lane: progression
+    integration-invoke-across-transports-java-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-java$/^auto$" ./...
+        script: ""
+        args: []
+        description: invoke across transports java via auto
+        lane: progression
+    integration-invoke-across-transports-java-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-java$/^grpc$" ./...
+        script: ""
+        args: []
+        description: invoke across transports java via grpc
+        lane: progression
+    integration-invoke-across-transports-java-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-java$/^stdio$" ./...
+        script: ""
+        args: []
+        description: invoke across transports java via stdio
+        lane: progression
+    integration-invoke-across-transports-java-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-java$/^tcp$" ./...
+        script: ""
+        args: []
+        description: invoke across transports java via tcp
+        lane: progression
+    integration-invoke-across-transports-kotlin-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-kotlin$/^auto$" ./...
+        script: ""
+        args: []
+        description: invoke across transports kotlin via auto
+        lane: progression
+    integration-invoke-across-transports-kotlin-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-kotlin$/^grpc$" ./...
+        script: ""
+        args: []
+        description: invoke across transports kotlin via grpc
+        lane: progression
+    integration-invoke-across-transports-kotlin-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-kotlin$/^stdio$" ./...
+        script: ""
+        args: []
+        description: invoke across transports kotlin via stdio
+        lane: progression
+    integration-invoke-across-transports-kotlin-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-kotlin$/^tcp$" ./...
+        script: ""
+        args: []
+        description: invoke across transports kotlin via tcp
+        lane: progression
+    integration-invoke-across-transports-node-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-node$/^auto$" ./...
+        script: ""
+        args: []
+        description: invoke across transports node via auto
+        lane: progression
+    integration-invoke-across-transports-node-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-node$/^grpc$" ./...
+        script: ""
+        args: []
+        description: invoke across transports node via grpc
+        lane: progression
+    integration-invoke-across-transports-node-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-node$/^stdio$" ./...
+        script: ""
+        args: []
+        description: invoke across transports node via stdio
+        lane: progression
+    integration-invoke-across-transports-node-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-node$/^tcp$" ./...
+        script: ""
+        args: []
+        description: invoke across transports node via tcp
+        lane: progression
+    integration-invoke-across-transports-python-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-python$/^auto$" ./...
+        script: ""
+        args: []
+        description: invoke across transports python via auto
+        lane: progression
+    integration-invoke-across-transports-python-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-python$/^grpc$" ./...
+        script: ""
+        args: []
+        description: invoke across transports python via grpc
+        lane: progression
+    integration-invoke-across-transports-python-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-python$/^stdio$" ./...
+        script: ""
+        args: []
+        description: invoke across transports python via stdio
+        lane: progression
+    integration-invoke-across-transports-python-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-python$/^tcp$" ./...
+        script: ""
+        args: []
+        description: invoke across transports python via tcp
+        lane: progression
+    integration-invoke-across-transports-ruby-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-ruby$/^auto$" ./...
+        script: ""
+        args: []
+        description: invoke across transports ruby via auto
+        lane: progression
+    integration-invoke-across-transports-ruby-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-ruby$/^grpc$" ./...
+        script: ""
+        args: []
+        description: invoke across transports ruby via grpc
+        lane: progression
+    integration-invoke-across-transports-ruby-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-ruby$/^stdio$" ./...
+        script: ""
+        args: []
+        description: invoke across transports ruby via stdio
+        lane: progression
+    integration-invoke-across-transports-ruby-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-ruby$/^tcp$" ./...
+        script: ""
+        args: []
+        description: invoke across transports ruby via tcp
+        lane: progression
+    integration-invoke-across-transports-rust-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-rust$/^auto$" ./...
+        script: ""
+        args: []
+        description: invoke across transports rust via auto
+        lane: progression
+    integration-invoke-across-transports-rust-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-rust$/^grpc$" ./...
+        script: ""
+        args: []
+        description: invoke across transports rust via grpc
+        lane: progression
+    integration-invoke-across-transports-rust-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-rust$/^stdio$" ./...
+        script: ""
+        args: []
+        description: invoke across transports rust via stdio
+        lane: progression
+    integration-invoke-across-transports-rust-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-rust$/^tcp$" ./...
+        script: ""
+        args: []
+        description: invoke across transports rust via tcp
+        lane: progression
+    integration-invoke-across-transports-swift-auto:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-swift$/^auto$" ./...
+        script: ""
+        args: []
+        description: invoke across transports swift via auto
+        lane: progression
+    integration-invoke-across-transports-swift-grpc:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-swift$/^grpc$" ./...
+        script: ""
+        args: []
+        description: invoke across transports swift via grpc
+        lane: progression
+    integration-invoke-across-transports-swift-stdio:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-swift$/^stdio$" ./...
+        script: ""
+        args: []
+        description: invoke across transports swift via stdio
+        lane: progression
+    integration-invoke-across-transports-swift-tcp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-swift$/^tcp$" ./...
+        script: ""
+        args: []
+        description: invoke across transports swift via tcp
+        lane: progression
+    integration-invoke-clean-flag:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_CleanFlag$" ./...
+        script: ""
+        args: []
+        description: invoke clean flag
+        lane: progression
+    integration-invoke-clean-no-build-conflict:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_CleanNoBuildConflict$" ./...
+        script: ""
+        args: []
+        description: invoke clean no build conflict
+        lane: progression
+    integration-invoke-no-build-does-not-build:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestInvoke_NoBuildDoesNotBuild$" ./...
+        script: ""
+        args: []
+        description: invoke no build does not build
+        lane: progression
+    integration-lifecycle-hello-world-holons-app-swiftui:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - xcodebuild
+            - xcodegen
+            - swift
+            - cargo
+            - python3
+            - cmake
+            - dotnet
+            - dart
+            - java
+            - gradle
+            - node
+            - npm
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-app-swiftui$" ./...
+        script: ""
+        args: []
+        description: lifecycle hello world holons app swiftui
+        lane: progression
+    integration-lifecycle-hello-world-holons-c:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-c$" ./...
+        script: ""
+        args: []
+        description: lifecycle hello world holons c
+        lane: progression
+    integration-lifecycle-hello-world-holons-cpp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-cpp$" ./...
+        script: ""
+        args: []
+        description: lifecycle hello world holons cpp
+        lane: progression
+    integration-lifecycle-hello-world-holons-csharp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-csharp$" ./...
+        script: ""
+        args: []
+        description: lifecycle hello world holons csharp
+        lane: progression
+    integration-lifecycle-hello-world-holons-dart:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-dart$" ./...
+        script: ""
+        args: []
+        description: lifecycle hello world holons dart
+        lane: progression
+    integration-lifecycle-hello-world-holons-go:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-go$" ./...
+        script: ""
+        args: []
+        description: lifecycle hello world holons go
+        lane: progression
+    integration-lifecycle-hello-world-holons-java:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-java$" ./...
+        script: ""
+        args: []
+        description: lifecycle hello world holons java
+        lane: progression
+    integration-lifecycle-hello-world-holons-kotlin:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-kotlin$" ./...
+        script: ""
+        args: []
+        description: lifecycle hello world holons kotlin
+        lane: progression
+    integration-lifecycle-hello-world-holons-node:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-node$" ./...
+        script: ""
+        args: []
+        description: lifecycle hello world holons node
+        lane: progression
+    integration-lifecycle-hello-world-holons-python:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-python$" ./...
+        script: ""
+        args: []
+        description: lifecycle hello world holons python
+        lane: progression
+    integration-lifecycle-hello-world-holons-ruby:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-ruby$" ./...
+        script: ""
+        args: []
+        description: lifecycle hello world holons ruby
+        lane: progression
+    integration-lifecycle-hello-world-holons-rust:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-rust$" ./...
+        script: ""
+        args: []
+        description: lifecycle hello world holons rust
+        lane: progression
+    integration-lifecycle-hello-world-holons-swift:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-swift$" ./...
+        script: ""
+        args: []
+        description: lifecycle hello world holons swift
+        lane: progression
+    integration-list:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestList$" ./...
+        script: ""
+        args: []
+        description: list
+        lane: progression
+    integration-list-json:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestListJSON$" ./...
+        script: ""
+        args: []
+        description: list json
+        lane: progression
+    integration-mcp-local-holon-handshake-and-tools:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestMCP_LocalHolonHandshakeAndTools$" ./...
+        script: ""
+        args: []
+        description: mcp local holon handshake and tools
+        lane: progression
+    integration-mcp-multiple-holons:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestMCP_MultipleHolons$" ./...
+        script: ""
+        args: []
+        description: mcp multiple holons
+        lane: progression
+    integration-mcp-no-args-fails:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestMCP_NoArgsFails$" ./...
+        script: ""
+        args: []
+        description: mcp no args fails
+        lane: progression
+    integration-mcp-tool-call:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestMCP_ToolCall$" ./...
+        script: ""
+        args: []
+        description: mcp tool call
+        lane: progression
+    integration-mod-init-list-tidy:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestMod_InitListTidy$" ./...
+        script: ""
+        args: []
+        description: mod init list tidy
+        lane: progression
+    integration-run-auto-build:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_AutoBuild$" ./...
+        script: ""
+        args: []
+        description: run auto build
+        lane: progression
+    integration-run-clean-rebuild-run:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_CleanRebuildRun$" ./...
+        script: ""
+        args: []
+        description: run clean rebuild run
+        lane: progression
+    integration-run-no-build-fails:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_NoBuildFails$" ./...
+        script: ""
+        args: []
+        description: run no build fails
+        lane: progression
+    integration-run-port-shorthand:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_PortShorthand$" ./...
+        script: ""
+        args: []
+        description: run port shorthand
+        lane: progression
+    integration-run-tcp-c:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-c$" ./...
+        script: ""
+        args: []
+        description: run tcp c
+        lane: progression
+    integration-run-tcp-cpp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-cpp$" ./...
+        script: ""
+        args: []
+        description: run tcp cpp
+        lane: progression
+    integration-run-tcp-csharp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-csharp$" ./...
+        script: ""
+        args: []
+        description: run tcp csharp
+        lane: progression
+    integration-run-tcp-dart:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-dart$" ./...
+        script: ""
+        args: []
+        description: run tcp dart
+        lane: progression
+    integration-run-tcp-go:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-go$" ./...
+        script: ""
+        args: []
+        description: run tcp go
+        lane: progression
+    integration-run-tcp-java:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-java$" ./...
+        script: ""
+        args: []
+        description: run tcp java
+        lane: progression
+    integration-run-tcp-kotlin:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-kotlin$" ./...
+        script: ""
+        args: []
+        description: run tcp kotlin
+        lane: progression
+    integration-run-tcp-node:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-node$" ./...
+        script: ""
+        args: []
+        description: run tcp node
+        lane: progression
+    integration-run-tcp-python:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-python$" ./...
+        script: ""
+        args: []
+        description: run tcp python
+        lane: progression
+    integration-run-tcp-ruby:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-ruby$" ./...
+        script: ""
+        args: []
+        description: run tcp ruby
+        lane: progression
+    integration-run-tcp-rust:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-rust$" ./...
+        script: ""
+        args: []
+        description: run tcp rust
+        lane: progression
+    integration-run-tcp-swift:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-swift$" ./...
+        script: ""
+        args: []
+        description: run tcp swift
+        lane: progression
+    integration-serve-opservice:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestServe_OPService$" ./...
+        script: ""
+        args: []
+        description: serve opservice
+        lane: progression
+    integration-tools-default-format-c:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-c$" ./...
+        script: ""
+        args: []
+        description: tools default format c
+        lane: progression
+    integration-tools-default-format-cpp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-cpp$" ./...
+        script: ""
+        args: []
+        description: tools default format cpp
+        lane: progression
+    integration-tools-default-format-csharp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-csharp$" ./...
+        script: ""
+        args: []
+        description: tools default format csharp
+        lane: progression
+    integration-tools-default-format-dart:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-dart$" ./...
+        script: ""
+        args: []
+        description: tools default format dart
+        lane: progression
+    integration-tools-default-format-go:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-go$" ./...
+        script: ""
+        args: []
+        description: tools default format go
+        lane: progression
+    integration-tools-default-format-java:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-java$" ./...
+        script: ""
+        args: []
+        description: tools default format java
+        lane: progression
+    integration-tools-default-format-kotlin:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-kotlin$" ./...
+        script: ""
+        args: []
+        description: tools default format kotlin
+        lane: progression
+    integration-tools-default-format-node:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-node$" ./...
+        script: ""
+        args: []
+        description: tools default format node
+        lane: progression
+    integration-tools-default-format-python:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-python$" ./...
+        script: ""
+        args: []
+        description: tools default format python
+        lane: progression
+    integration-tools-default-format-ruby:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-ruby$" ./...
+        script: ""
+        args: []
+        description: tools default format ruby
+        lane: progression
+    integration-tools-default-format-rust:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-rust$" ./...
+        script: ""
+        args: []
+        description: tools default format rust
+        lane: progression
+    integration-tools-default-format-swift:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-swift$" ./...
+        script: ""
+        args: []
+        description: tools default format swift
+        lane: progression
+    integration-tools-formats-c:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-c$" ./...
+        script: ""
+        args: []
+        description: tools formats c
+        lane: progression
+    integration-tools-formats-cpp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-cpp$" ./...
+        script: ""
+        args: []
+        description: tools formats cpp
+        lane: progression
+    integration-tools-formats-csharp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-csharp$" ./...
+        script: ""
+        args: []
+        description: tools formats csharp
+        lane: progression
+    integration-tools-formats-dart:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-dart$" ./...
+        script: ""
+        args: []
+        description: tools formats dart
+        lane: progression
+    integration-tools-formats-go:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-go$" ./...
+        script: ""
+        args: []
+        description: tools formats go
+        lane: progression
+    integration-tools-formats-java:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-java$" ./...
+        script: ""
+        args: []
+        description: tools formats java
+        lane: progression
+    integration-tools-formats-kotlin:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-kotlin$" ./...
+        script: ""
+        args: []
+        description: tools formats kotlin
+        lane: progression
+    integration-tools-formats-node:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-node$" ./...
+        script: ""
+        args: []
+        description: tools formats node
+        lane: progression
+    integration-tools-formats-python:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-python$" ./...
+        script: ""
+        args: []
+        description: tools formats python
+        lane: progression
+    integration-tools-formats-ruby:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-ruby$" ./...
+        script: ""
+        args: []
+        description: tools formats ruby
+        lane: progression
+    integration-tools-formats-rust:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-rust$" ./...
+        script: ""
+        args: []
+        description: tools formats rust
+        lane: progression
+    integration-tools-formats-swift:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-swift$" ./...
+        script: ""
+        args: []
+        description: tools formats swift
+        lane: progression
+    integration-uninstall-missing-is-idempotent:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestUninstall_MissingIsIdempotent$" ./...
+        script: ""
+        args: []
+        description: uninstall missing is idempotent
+        lane: progression
+    integration-unix-transport-run-and-dispatch-c:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-c$" ./...
+        script: ""
+        args: []
+        description: unix transport run and dispatch c
+        lane: progression
+    integration-unix-transport-run-and-dispatch-cpp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-cpp$" ./...
+        script: ""
+        args: []
+        description: unix transport run and dispatch cpp
+        lane: progression
+    integration-unix-transport-run-and-dispatch-csharp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-csharp$" ./...
+        script: ""
+        args: []
+        description: unix transport run and dispatch csharp
+        lane: progression
+    integration-unix-transport-run-and-dispatch-dart:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-dart$" ./...
+        script: ""
+        args: []
+        description: unix transport run and dispatch dart
+        lane: progression
+    integration-unix-transport-run-and-dispatch-go:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-go$" ./...
+        script: ""
+        args: []
+        description: unix transport run and dispatch go
+        lane: progression
+    integration-unix-transport-run-and-dispatch-java:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-java$" ./...
+        script: ""
+        args: []
+        description: unix transport run and dispatch java
+        lane: progression
+    integration-unix-transport-run-and-dispatch-kotlin:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-kotlin$" ./...
+        script: ""
+        args: []
+        description: unix transport run and dispatch kotlin
+        lane: progression
+    integration-unix-transport-run-and-dispatch-node:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-node$" ./...
+        script: ""
+        args: []
+        description: unix transport run and dispatch node
+        lane: progression
+    integration-unix-transport-run-and-dispatch-python:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-python$" ./...
+        script: ""
+        args: []
+        description: unix transport run and dispatch python
+        lane: progression
+    integration-unix-transport-run-and-dispatch-ruby:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-ruby$" ./...
+        script: ""
+        args: []
+        description: unix transport run and dispatch ruby
+        lane: progression
+    integration-unix-transport-run-and-dispatch-rust:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-rust$" ./...
+        script: ""
+        args: []
+        description: unix transport run and dispatch rust
+        lane: progression
+    integration-unix-transport-run-and-dispatch-swift:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-swift$" ./...
+        script: ""
+        args: []
+        description: unix transport run and dispatch swift
+        lane: progression
+    integration-windows-build-reports-exe-artifact-c:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestWindows_BuildReportsExeArtifact$/^gabriel-greeting-c$" ./...
+        script: ""
+        args: []
+        description: windows build reports exe artifact c
+        lane: progression
+    integration-windows-build-reports-exe-artifact-cpp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cmake
+        command: go test -v -count=1 -timeout 5m -run "^TestWindows_BuildReportsExeArtifact$/^gabriel-greeting-cpp$" ./...
+        script: ""
+        args: []
+        description: windows build reports exe artifact cpp
+        lane: progression
+    integration-windows-build-reports-exe-artifact-csharp:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dotnet
+        command: go test -v -count=1 -timeout 5m -run "^TestWindows_BuildReportsExeArtifact$/^gabriel-greeting-csharp$" ./...
+        script: ""
+        args: []
+        description: windows build reports exe artifact csharp
+        lane: progression
+    integration-windows-build-reports-exe-artifact-dart:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - dart
+        command: go test -v -count=1 -timeout 5m -run "^TestWindows_BuildReportsExeArtifact$/^gabriel-greeting-dart$" ./...
+        script: ""
+        args: []
+        description: windows build reports exe artifact dart
+        lane: progression
+    integration-windows-build-reports-exe-artifact-go:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestWindows_BuildReportsExeArtifact$/^gabriel-greeting-go$" ./...
+        script: ""
+        args: []
+        description: windows build reports exe artifact go
+        lane: progression
+    integration-windows-build-reports-exe-artifact-java:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestWindows_BuildReportsExeArtifact$/^gabriel-greeting-java$" ./...
+        script: ""
+        args: []
+        description: windows build reports exe artifact java
+        lane: progression
+    integration-windows-build-reports-exe-artifact-kotlin:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - java
+            - gradle
+        command: go test -v -count=1 -timeout 5m -run "^TestWindows_BuildReportsExeArtifact$/^gabriel-greeting-kotlin$" ./...
+        script: ""
+        args: []
+        description: windows build reports exe artifact kotlin
+        lane: progression
+    integration-windows-build-reports-exe-artifact-node:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - node
+            - npm
+        command: go test -v -count=1 -timeout 5m -run "^TestWindows_BuildReportsExeArtifact$/^gabriel-greeting-node$" ./...
+        script: ""
+        args: []
+        description: windows build reports exe artifact node
+        lane: progression
+    integration-windows-build-reports-exe-artifact-python:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - python3
+        command: go test -v -count=1 -timeout 5m -run "^TestWindows_BuildReportsExeArtifact$/^gabriel-greeting-python$" ./...
+        script: ""
+        args: []
+        description: windows build reports exe artifact python
+        lane: progression
+    integration-windows-build-reports-exe-artifact-ruby:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - ruby
+            - bundle
+        command: go test -v -count=1 -timeout 5m -run "^TestWindows_BuildReportsExeArtifact$/^gabriel-greeting-ruby$" ./...
+        script: ""
+        args: []
+        description: windows build reports exe artifact ruby
+        lane: progression
+    integration-windows-build-reports-exe-artifact-rust:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - cargo
+        command: go test -v -count=1 -timeout 5m -run "^TestWindows_BuildReportsExeArtifact$/^gabriel-greeting-rust$" ./...
+        script: ""
+        args: []
+        description: windows build reports exe artifact rust
+        lane: progression
+    integration-windows-build-reports-exe-artifact-swift:
+        workdir: integration/tests
+        prereqs:
+            - go
+            - swift
+        command: go test -v -count=1 -timeout 5m -run "^TestWindows_BuildReportsExeArtifact$/^gabriel-greeting-swift$" ./...
+        script: ""
+        args: []
+        description: windows build reports exe artifact swift
+        lane: progression
+    integration-windows-install-produces-executable-package:
+        workdir: integration/tests
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m -run "^TestWindows_InstallProducesExecutablePackage$" ./...
+        script: ""
+        args: []
+        description: windows install produces executable package
+        lane: progression
+    sdk-c-unit:
+        workdir: sdk/c-holons
+        prereqs:
+            - make
+        command: make clean && make test && make clean
+        script: ""
+        args: []
+        description: C SDK unit tests
+        lane: regression
+    sdk-cpp-unit:
+        workdir: sdk/cpp-holons
+        prereqs:
+            - cmake
+        command: rm -rf build && cmake -S . -B build && cmake --build build --target test_runner && ./build/test_runner && rm -rf build
+        script: ""
+        args: []
+        description: C++ SDK unit tests
+        lane: progression
+    sdk-csharp-unit:
+        workdir: sdk/csharp-holons
+        prereqs:
+            - dotnet
+        command: HOLONS_CSHARP_SOURCE_ROOT="$ADER_REPO_ROOT/sdk/csharp-holons" dotnet test csharp-holons.sln
+        script: ""
+        args: []
+        description: C# SDK unit tests
+        lane: progression
+    sdk-dart-unit:
+        workdir: sdk/dart-holons
+        prereqs:
+            - dart
+        command: dart test
+        script: ""
+        args: []
+        description: Dart SDK unit tests
+        lane: progression
+    sdk-go-holons-unit-cmd-echo-client:
+        workdir: sdk/go-holons
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./cmd/echo-client
+        script: ""
+        args: []
+        description: sdk-go-holons package tests (cmd-echo-client)
+        lane: progression
+    sdk-go-holons-unit-cmd-echo-server:
+        workdir: sdk/go-holons
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./cmd/echo-server
+        script: ""
+        args: []
+        description: sdk-go-holons package tests (cmd-echo-server)
+        lane: progression
+    sdk-go-holons-unit-pkg-connect:
+        workdir: sdk/go-holons
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./pkg/connect
+        script: ""
+        args: []
+        description: sdk-go-holons package tests (pkg-connect)
+        lane: progression
+    sdk-go-holons-unit-pkg-describe:
+        workdir: sdk/go-holons
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./pkg/describe
+        script: ""
+        args: []
+        description: sdk-go-holons package tests (pkg-describe)
+        lane: progression
+    sdk-go-holons-unit-pkg-discover:
+        workdir: sdk/go-holons
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./pkg/discover
+        script: ""
+        args: []
+        description: sdk-go-holons package tests (pkg-discover)
+        lane: progression
+    sdk-go-holons-unit-pkg-grpcclient:
+        workdir: sdk/go-holons
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./pkg/grpcclient
+        script: ""
+        args: []
+        description: sdk-go-holons package tests (pkg-grpcclient)
+        lane: progression
+    sdk-go-holons-unit-pkg-holonrpc:
+        workdir: sdk/go-holons
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./pkg/holonrpc
+        script: ""
+        args: []
+        description: sdk-go-holons package tests (pkg-holonrpc)
+        lane: progression
+    sdk-go-holons-unit-pkg-identity:
+        workdir: sdk/go-holons
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./pkg/identity
+        script: ""
+        args: []
+        description: sdk-go-holons package tests (pkg-identity)
+        lane: progression
+    sdk-go-holons-unit-pkg-serve:
+        workdir: sdk/go-holons
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./pkg/serve
+        script: ""
+        args: []
+        description: sdk-go-holons package tests (pkg-serve)
+        lane: progression
+    sdk-go-holons-unit-pkg-transport:
+        workdir: sdk/go-holons
+        prereqs:
+            - go
+        command: go test -v -count=1 -timeout 5m ./pkg/transport
+        script: ""
+        args: []
+        description: sdk-go-holons package tests (pkg-transport)
+        lane: progression
+    sdk-java-unit:
+        workdir: sdk/java-holons
+        prereqs:
+            - java
+            - gradle
+        command: gradle test
+        script: ""
+        args: []
+        description: Java SDK unit tests
+        lane: regression
+    sdk-js-unit:
+        workdir: sdk/js-holons
+        prereqs:
+            - node
+            - npm
+        command: npm test
+        script: ""
+        args: []
+        description: Node.js SDK unit tests
+        lane: progression
+    sdk-js-web-unit:
+        workdir: sdk/js-web-holons
+        prereqs:
+            - node
+            - npm
+        command: npm test
+        script: ""
+        args: []
+        description: JS web SDK unit tests
+        lane: progression
+    sdk-kotlin-unit:
+        workdir: sdk/kotlin-holons
+        prereqs:
+            - java
+            - gradle
+        command: gradle test
+        script: ""
+        args: []
+        description: Kotlin SDK unit tests
+        lane: regression
+    sdk-ruby-unit:
+        workdir: sdk/ruby-holons
+        prereqs:
+            - ruby
+            - bundle
+        command: bundle exec rake test
+        script: ""
+        args: []
+        description: Ruby SDK unit tests
+        lane: progression
+    sdk-rust-unit:
+        workdir: sdk/rust-holons
+        prereqs:
+            - cargo
+        command: cargo test --target-dir "$ADER_RUN_ARTIFACTS/cargo/sdk-rust"
+        script: ""
+        args: []
+        description: Rust SDK unit tests
+        lane: progression
+    sdk-swift-unit:
+        workdir: sdk/swift-holons
+        prereqs:
+            - swift
+        command: swift test
+        script: ""
+        args: []
+        description: Swift SDK unit tests
+        lane: regression
 profiles:
-  quick:
-    description: Fast proof for the canonical path and short black-box coverage
-    steps: [ader-unit, grace-op-unit, sdk-go-unit, example-go-unit, integration-short]
-  unit:
-    description: Native unit suites across SDKs, holons, and examples
-    steps: [ader-unit, grace-op-unit, sdk-go-unit, sdk-c-unit, sdk-cpp-unit, sdk-csharp-unit, sdk-dart-unit, sdk-java-unit, sdk-js-unit, sdk-js-web-unit, sdk-kotlin-unit, sdk-ruby-unit, sdk-rust-unit, sdk-swift-unit, example-c-unit, example-cpp-unit, example-csharp-unit, example-dart-unit, example-go-unit, example-java-unit, example-kotlin-unit, example-node-unit, example-python-unit, example-ruby-unit, example-rust-unit, example-swift-unit]
-  integration:
-    description: Deterministic black-box integration suite only
-    steps: [integration-deterministic, integration-short]
-  full:
-    description: Unit suites plus deterministic integration suite
-    steps: [ader-unit, grace-op-unit, sdk-go-unit, sdk-c-unit, sdk-cpp-unit, sdk-csharp-unit, sdk-dart-unit, sdk-java-unit, sdk-js-unit, sdk-js-web-unit, sdk-kotlin-unit, sdk-ruby-unit, sdk-rust-unit, sdk-swift-unit, example-c-unit, example-cpp-unit, example-csharp-unit, example-dart-unit, example-go-unit, example-java-unit, example-kotlin-unit, example-node-unit, example-python-unit, example-ruby-unit, example-rust-unit, example-swift-unit, integration-deterministic, integration-short]
-  stress:
-    description: Opt-in black-box fuzz and stress only
-    steps: [integration-fuzz-random, integration-fuzz-json, integration-fuzz-uri, integration-fuzz-flags]
+    full:
+        description: Unit suites plus deterministic integration suite
+        steps:
+            - sdk-c-unit
+            - sdk-cpp-unit
+            - sdk-csharp-unit
+            - sdk-dart-unit
+            - sdk-java-unit
+            - sdk-js-unit
+            - sdk-js-web-unit
+            - sdk-kotlin-unit
+            - sdk-ruby-unit
+            - sdk-rust-unit
+            - sdk-swift-unit
+            - example-c-unit
+            - example-cpp-unit
+            - example-csharp-unit
+            - example-dart-unit
+            - example-java-unit
+            - example-kotlin-unit
+            - example-node-unit
+            - example-python-unit
+            - example-ruby-unit
+            - example-rust-unit
+            - example-swift-unit
+            - holons-clem-ader-unit-api
+            - holons-clem-ader-unit-internal-engine
+            - holons-grace-op-unit-api
+            - holons-grace-op-unit-internal-cli
+            - holons-grace-op-unit-internal-env
+            - holons-grace-op-unit-internal-grpcclient
+            - holons-grace-op-unit-internal-holons
+            - holons-grace-op-unit-internal-identity
+            - holons-grace-op-unit-internal-inspect
+            - holons-grace-op-unit-internal-mod
+            - holons-grace-op-unit-internal-progress
+            - holons-grace-op-unit-internal-scaffold
+            - holons-grace-op-unit-internal-server
+            - holons-grace-op-unit-internal-suggest
+            - holons-grace-op-unit-internal-tools
+            - holons-grace-op-unit-internal-who
+            - sdk-go-holons-unit-cmd-echo-client
+            - sdk-go-holons-unit-cmd-echo-server
+            - sdk-go-holons-unit-pkg-connect
+            - sdk-go-holons-unit-pkg-describe
+            - sdk-go-holons-unit-pkg-discover
+            - sdk-go-holons-unit-pkg-grpcclient
+            - sdk-go-holons-unit-pkg-holonrpc
+            - sdk-go-holons-unit-pkg-identity
+            - sdk-go-holons-unit-pkg-serve
+            - sdk-go-holons-unit-pkg-transport
+            - examples-hello-world-gabriel-greeting-go-unit-api
+            - examples-hello-world-gabriel-greeting-go-unit-internal
+            - integration-coax-build-recipe-app
+            - integration-coax-runtime-surface
+            - integration-discover
+            - integration-discover-json
+            - integration-discover-contains-available-hello-world-holons
+            - integration-list
+            - integration-list-json
+            - integration-dispatch-say-hello-across-transports-go-auto
+            - integration-dispatch-say-hello-across-transports-go-grpc
+            - integration-dispatch-say-hello-across-transports-go-tcp
+            - integration-dispatch-say-hello-across-transports-go-stdio
+            - integration-dispatch-say-hello-across-transports-c-auto
+            - integration-dispatch-say-hello-across-transports-c-grpc
+            - integration-dispatch-say-hello-across-transports-c-tcp
+            - integration-dispatch-say-hello-across-transports-c-stdio
+            - integration-dispatch-say-hello-across-transports-cpp-auto
+            - integration-dispatch-say-hello-across-transports-cpp-grpc
+            - integration-dispatch-say-hello-across-transports-cpp-tcp
+            - integration-dispatch-say-hello-across-transports-cpp-stdio
+            - integration-dispatch-say-hello-across-transports-rust-auto
+            - integration-dispatch-say-hello-across-transports-rust-grpc
+            - integration-dispatch-say-hello-across-transports-rust-tcp
+            - integration-dispatch-say-hello-across-transports-rust-stdio
+            - integration-dispatch-say-hello-across-transports-swift-auto
+            - integration-dispatch-say-hello-across-transports-swift-grpc
+            - integration-dispatch-say-hello-across-transports-swift-tcp
+            - integration-dispatch-say-hello-across-transports-swift-stdio
+            - integration-dispatch-say-hello-across-transports-python-auto
+            - integration-dispatch-say-hello-across-transports-python-grpc
+            - integration-dispatch-say-hello-across-transports-python-tcp
+            - integration-dispatch-say-hello-across-transports-python-stdio
+            - integration-dispatch-say-hello-across-transports-ruby-auto
+            - integration-dispatch-say-hello-across-transports-ruby-grpc
+            - integration-dispatch-say-hello-across-transports-ruby-tcp
+            - integration-dispatch-say-hello-across-transports-ruby-stdio
+            - integration-dispatch-say-hello-across-transports-node-auto
+            - integration-dispatch-say-hello-across-transports-node-grpc
+            - integration-dispatch-say-hello-across-transports-node-tcp
+            - integration-dispatch-say-hello-across-transports-node-stdio
+            - integration-dispatch-say-hello-across-transports-dart-auto
+            - integration-dispatch-say-hello-across-transports-dart-grpc
+            - integration-dispatch-say-hello-across-transports-dart-tcp
+            - integration-dispatch-say-hello-across-transports-dart-stdio
+            - integration-dispatch-say-hello-across-transports-java-auto
+            - integration-dispatch-say-hello-across-transports-java-grpc
+            - integration-dispatch-say-hello-across-transports-java-tcp
+            - integration-dispatch-say-hello-across-transports-java-stdio
+            - integration-dispatch-say-hello-across-transports-kotlin-auto
+            - integration-dispatch-say-hello-across-transports-kotlin-grpc
+            - integration-dispatch-say-hello-across-transports-kotlin-tcp
+            - integration-dispatch-say-hello-across-transports-kotlin-stdio
+            - integration-dispatch-say-hello-across-transports-csharp-auto
+            - integration-dispatch-say-hello-across-transports-csharp-grpc
+            - integration-dispatch-say-hello-across-transports-csharp-tcp
+            - integration-dispatch-say-hello-across-transports-csharp-stdio
+            - integration-dispatch-jsonoutput-go
+            - integration-dispatch-jsonoutput-c
+            - integration-dispatch-jsonoutput-cpp
+            - integration-dispatch-jsonoutput-rust
+            - integration-dispatch-jsonoutput-swift
+            - integration-dispatch-jsonoutput-python
+            - integration-dispatch-jsonoutput-ruby
+            - integration-dispatch-jsonoutput-node
+            - integration-dispatch-jsonoutput-dart
+            - integration-dispatch-jsonoutput-java
+            - integration-dispatch-jsonoutput-kotlin
+            - integration-dispatch-jsonoutput-csharp
+            - integration-dispatch-list-languages-go
+            - integration-dispatch-list-languages-c
+            - integration-dispatch-list-languages-cpp
+            - integration-dispatch-list-languages-rust
+            - integration-dispatch-list-languages-swift
+            - integration-dispatch-list-languages-python
+            - integration-dispatch-list-languages-ruby
+            - integration-dispatch-list-languages-node
+            - integration-dispatch-list-languages-dart
+            - integration-dispatch-list-languages-java
+            - integration-dispatch-list-languages-kotlin
+            - integration-dispatch-list-languages-csharp
+            - integration-dispatch-auto-build
+            - integration-dispatch-no-build-does-not-build
+            - integration-dispatch-clean-then-call
+            - integration-do-dry-run
+            - integration-do-live
+            - integration-do-multi-step
+            - integration-do-errors
+            - integration-errors-robust-failures
+            - integration-inspect-local-holons-go
+            - integration-inspect-local-holons-c
+            - integration-inspect-local-holons-cpp
+            - integration-inspect-local-holons-rust
+            - integration-inspect-local-holons-swift
+            - integration-inspect-local-holons-python
+            - integration-inspect-local-holons-ruby
+            - integration-inspect-local-holons-node
+            - integration-inspect-local-holons-dart
+            - integration-inspect-local-holons-java
+            - integration-inspect-local-holons-kotlin
+            - integration-inspect-local-holons-csharp
+            - integration-inspect-shows-skills-and-sequences
+            - integration-inspect-remote-describe
+            - integration-install-build-install-uninstall-go
+            - integration-install-build-install-uninstall-c
+            - integration-install-build-install-uninstall-cpp
+            - integration-install-build-install-uninstall-rust
+            - integration-install-build-install-uninstall-swift
+            - integration-install-build-install-uninstall-python
+            - integration-install-build-install-uninstall-ruby
+            - integration-install-build-install-uninstall-node
+            - integration-install-build-install-uninstall-dart
+            - integration-install-build-install-uninstall-java
+            - integration-install-build-install-uninstall-kotlin
+            - integration-install-build-install-uninstall-csharp
+            - integration-install-with-build-flag-go
+            - integration-install-with-build-flag-c
+            - integration-install-with-build-flag-cpp
+            - integration-install-with-build-flag-rust
+            - integration-install-with-build-flag-swift
+            - integration-install-with-build-flag-python
+            - integration-install-with-build-flag-ruby
+            - integration-install-with-build-flag-node
+            - integration-install-with-build-flag-dart
+            - integration-install-with-build-flag-java
+            - integration-install-with-build-flag-kotlin
+            - integration-install-with-build-flag-csharp
+            - integration-install-no-binary-fails
+            - integration-uninstall-missing-is-idempotent
+            - integration-installed-binary-smoke
+            - integration-invoke-across-transports-go-auto
+            - integration-invoke-across-transports-go-grpc
+            - integration-invoke-across-transports-go-tcp
+            - integration-invoke-across-transports-go-stdio
+            - integration-invoke-across-transports-c-auto
+            - integration-invoke-across-transports-c-grpc
+            - integration-invoke-across-transports-c-tcp
+            - integration-invoke-across-transports-c-stdio
+            - integration-invoke-across-transports-cpp-auto
+            - integration-invoke-across-transports-cpp-grpc
+            - integration-invoke-across-transports-cpp-tcp
+            - integration-invoke-across-transports-cpp-stdio
+            - integration-invoke-across-transports-rust-auto
+            - integration-invoke-across-transports-rust-grpc
+            - integration-invoke-across-transports-rust-tcp
+            - integration-invoke-across-transports-rust-stdio
+            - integration-invoke-across-transports-swift-auto
+            - integration-invoke-across-transports-swift-grpc
+            - integration-invoke-across-transports-swift-tcp
+            - integration-invoke-across-transports-swift-stdio
+            - integration-invoke-across-transports-python-auto
+            - integration-invoke-across-transports-python-grpc
+            - integration-invoke-across-transports-python-tcp
+            - integration-invoke-across-transports-python-stdio
+            - integration-invoke-across-transports-ruby-auto
+            - integration-invoke-across-transports-ruby-grpc
+            - integration-invoke-across-transports-ruby-tcp
+            - integration-invoke-across-transports-ruby-stdio
+            - integration-invoke-across-transports-node-auto
+            - integration-invoke-across-transports-node-grpc
+            - integration-invoke-across-transports-node-tcp
+            - integration-invoke-across-transports-node-stdio
+            - integration-invoke-across-transports-dart-auto
+            - integration-invoke-across-transports-dart-grpc
+            - integration-invoke-across-transports-dart-tcp
+            - integration-invoke-across-transports-dart-stdio
+            - integration-invoke-across-transports-java-auto
+            - integration-invoke-across-transports-java-grpc
+            - integration-invoke-across-transports-java-tcp
+            - integration-invoke-across-transports-java-stdio
+            - integration-invoke-across-transports-kotlin-auto
+            - integration-invoke-across-transports-kotlin-grpc
+            - integration-invoke-across-transports-kotlin-tcp
+            - integration-invoke-across-transports-kotlin-stdio
+            - integration-invoke-across-transports-csharp-auto
+            - integration-invoke-across-transports-csharp-grpc
+            - integration-invoke-across-transports-csharp-tcp
+            - integration-invoke-across-transports-csharp-stdio
+            - integration-invoke-clean-flag
+            - integration-invoke-no-build-does-not-build
+            - integration-invoke-clean-no-build-conflict
+            - integration-lifecycle-hello-world-holons-go
+            - integration-lifecycle-hello-world-holons-c
+            - integration-lifecycle-hello-world-holons-cpp
+            - integration-lifecycle-hello-world-holons-rust
+            - integration-lifecycle-hello-world-holons-swift
+            - integration-lifecycle-hello-world-holons-python
+            - integration-lifecycle-hello-world-holons-ruby
+            - integration-lifecycle-hello-world-holons-node
+            - integration-lifecycle-hello-world-holons-dart
+            - integration-lifecycle-hello-world-holons-java
+            - integration-lifecycle-hello-world-holons-kotlin
+            - integration-lifecycle-hello-world-holons-csharp
+            - integration-lifecycle-hello-world-holons-app-swiftui
+            - integration-mcp-local-holon-handshake-and-tools
+            - integration-mcp-tool-call
+            - integration-mcp-multiple-holons
+            - integration-mcp-no-args-fails
+            - integration-mod-init-list-tidy
+            - integration-run-tcp-go
+            - integration-run-tcp-c
+            - integration-run-tcp-cpp
+            - integration-run-tcp-rust
+            - integration-run-tcp-swift
+            - integration-run-tcp-python
+            - integration-run-tcp-ruby
+            - integration-run-tcp-node
+            - integration-run-tcp-dart
+            - integration-run-tcp-java
+            - integration-run-tcp-kotlin
+            - integration-run-tcp-csharp
+            - integration-run-auto-build
+            - integration-run-no-build-fails
+            - integration-run-clean-rebuild-run
+            - integration-run-port-shorthand
+            - integration-serve-opservice
+            - integration-tools-formats-go
+            - integration-tools-formats-c
+            - integration-tools-formats-cpp
+            - integration-tools-formats-rust
+            - integration-tools-formats-swift
+            - integration-tools-formats-python
+            - integration-tools-formats-ruby
+            - integration-tools-formats-node
+            - integration-tools-formats-dart
+            - integration-tools-formats-java
+            - integration-tools-formats-kotlin
+            - integration-tools-formats-csharp
+            - integration-tools-default-format-go
+            - integration-tools-default-format-c
+            - integration-tools-default-format-cpp
+            - integration-tools-default-format-rust
+            - integration-tools-default-format-swift
+            - integration-tools-default-format-python
+            - integration-tools-default-format-ruby
+            - integration-tools-default-format-node
+            - integration-tools-default-format-dart
+            - integration-tools-default-format-java
+            - integration-tools-default-format-kotlin
+            - integration-tools-default-format-csharp
+            - integration-unix-transport-run-and-dispatch-go
+            - integration-unix-transport-run-and-dispatch-c
+            - integration-unix-transport-run-and-dispatch-cpp
+            - integration-unix-transport-run-and-dispatch-rust
+            - integration-unix-transport-run-and-dispatch-swift
+            - integration-unix-transport-run-and-dispatch-python
+            - integration-unix-transport-run-and-dispatch-ruby
+            - integration-unix-transport-run-and-dispatch-node
+            - integration-unix-transport-run-and-dispatch-dart
+            - integration-unix-transport-run-and-dispatch-java
+            - integration-unix-transport-run-and-dispatch-kotlin
+            - integration-unix-transport-run-and-dispatch-csharp
+            - integration-windows-build-reports-exe-artifact-go
+            - integration-windows-build-reports-exe-artifact-c
+            - integration-windows-build-reports-exe-artifact-cpp
+            - integration-windows-build-reports-exe-artifact-rust
+            - integration-windows-build-reports-exe-artifact-swift
+            - integration-windows-build-reports-exe-artifact-python
+            - integration-windows-build-reports-exe-artifact-ruby
+            - integration-windows-build-reports-exe-artifact-node
+            - integration-windows-build-reports-exe-artifact-dart
+            - integration-windows-build-reports-exe-artifact-java
+            - integration-windows-build-reports-exe-artifact-kotlin
+            - integration-windows-build-reports-exe-artifact-csharp
+            - integration-windows-install-produces-executable-package
+    integration:
+        description: Deterministic black-box integration suite only
+        steps:
+            - integration-coax-build-recipe-app
+            - integration-coax-runtime-surface
+            - integration-discover
+            - integration-discover-json
+            - integration-discover-contains-available-hello-world-holons
+            - integration-list
+            - integration-list-json
+            - integration-dispatch-say-hello-across-transports-go-auto
+            - integration-dispatch-say-hello-across-transports-go-grpc
+            - integration-dispatch-say-hello-across-transports-go-tcp
+            - integration-dispatch-say-hello-across-transports-go-stdio
+            - integration-dispatch-say-hello-across-transports-c-auto
+            - integration-dispatch-say-hello-across-transports-c-grpc
+            - integration-dispatch-say-hello-across-transports-c-tcp
+            - integration-dispatch-say-hello-across-transports-c-stdio
+            - integration-dispatch-say-hello-across-transports-cpp-auto
+            - integration-dispatch-say-hello-across-transports-cpp-grpc
+            - integration-dispatch-say-hello-across-transports-cpp-tcp
+            - integration-dispatch-say-hello-across-transports-cpp-stdio
+            - integration-dispatch-say-hello-across-transports-rust-auto
+            - integration-dispatch-say-hello-across-transports-rust-grpc
+            - integration-dispatch-say-hello-across-transports-rust-tcp
+            - integration-dispatch-say-hello-across-transports-rust-stdio
+            - integration-dispatch-say-hello-across-transports-swift-auto
+            - integration-dispatch-say-hello-across-transports-swift-grpc
+            - integration-dispatch-say-hello-across-transports-swift-tcp
+            - integration-dispatch-say-hello-across-transports-swift-stdio
+            - integration-dispatch-say-hello-across-transports-python-auto
+            - integration-dispatch-say-hello-across-transports-python-grpc
+            - integration-dispatch-say-hello-across-transports-python-tcp
+            - integration-dispatch-say-hello-across-transports-python-stdio
+            - integration-dispatch-say-hello-across-transports-ruby-auto
+            - integration-dispatch-say-hello-across-transports-ruby-grpc
+            - integration-dispatch-say-hello-across-transports-ruby-tcp
+            - integration-dispatch-say-hello-across-transports-ruby-stdio
+            - integration-dispatch-say-hello-across-transports-node-auto
+            - integration-dispatch-say-hello-across-transports-node-grpc
+            - integration-dispatch-say-hello-across-transports-node-tcp
+            - integration-dispatch-say-hello-across-transports-node-stdio
+            - integration-dispatch-say-hello-across-transports-dart-auto
+            - integration-dispatch-say-hello-across-transports-dart-grpc
+            - integration-dispatch-say-hello-across-transports-dart-tcp
+            - integration-dispatch-say-hello-across-transports-dart-stdio
+            - integration-dispatch-say-hello-across-transports-java-auto
+            - integration-dispatch-say-hello-across-transports-java-grpc
+            - integration-dispatch-say-hello-across-transports-java-tcp
+            - integration-dispatch-say-hello-across-transports-java-stdio
+            - integration-dispatch-say-hello-across-transports-kotlin-auto
+            - integration-dispatch-say-hello-across-transports-kotlin-grpc
+            - integration-dispatch-say-hello-across-transports-kotlin-tcp
+            - integration-dispatch-say-hello-across-transports-kotlin-stdio
+            - integration-dispatch-say-hello-across-transports-csharp-auto
+            - integration-dispatch-say-hello-across-transports-csharp-grpc
+            - integration-dispatch-say-hello-across-transports-csharp-tcp
+            - integration-dispatch-say-hello-across-transports-csharp-stdio
+            - integration-dispatch-jsonoutput-go
+            - integration-dispatch-jsonoutput-c
+            - integration-dispatch-jsonoutput-cpp
+            - integration-dispatch-jsonoutput-rust
+            - integration-dispatch-jsonoutput-swift
+            - integration-dispatch-jsonoutput-python
+            - integration-dispatch-jsonoutput-ruby
+            - integration-dispatch-jsonoutput-node
+            - integration-dispatch-jsonoutput-dart
+            - integration-dispatch-jsonoutput-java
+            - integration-dispatch-jsonoutput-kotlin
+            - integration-dispatch-jsonoutput-csharp
+            - integration-dispatch-list-languages-go
+            - integration-dispatch-list-languages-c
+            - integration-dispatch-list-languages-cpp
+            - integration-dispatch-list-languages-rust
+            - integration-dispatch-list-languages-swift
+            - integration-dispatch-list-languages-python
+            - integration-dispatch-list-languages-ruby
+            - integration-dispatch-list-languages-node
+            - integration-dispatch-list-languages-dart
+            - integration-dispatch-list-languages-java
+            - integration-dispatch-list-languages-kotlin
+            - integration-dispatch-list-languages-csharp
+            - integration-dispatch-auto-build
+            - integration-dispatch-no-build-does-not-build
+            - integration-dispatch-clean-then-call
+            - integration-do-dry-run
+            - integration-do-live
+            - integration-do-multi-step
+            - integration-do-errors
+            - integration-errors-robust-failures
+            - integration-inspect-local-holons-go
+            - integration-inspect-local-holons-c
+            - integration-inspect-local-holons-cpp
+            - integration-inspect-local-holons-rust
+            - integration-inspect-local-holons-swift
+            - integration-inspect-local-holons-python
+            - integration-inspect-local-holons-ruby
+            - integration-inspect-local-holons-node
+            - integration-inspect-local-holons-dart
+            - integration-inspect-local-holons-java
+            - integration-inspect-local-holons-kotlin
+            - integration-inspect-local-holons-csharp
+            - integration-inspect-shows-skills-and-sequences
+            - integration-inspect-remote-describe
+            - integration-install-build-install-uninstall-go
+            - integration-install-build-install-uninstall-c
+            - integration-install-build-install-uninstall-cpp
+            - integration-install-build-install-uninstall-rust
+            - integration-install-build-install-uninstall-swift
+            - integration-install-build-install-uninstall-python
+            - integration-install-build-install-uninstall-ruby
+            - integration-install-build-install-uninstall-node
+            - integration-install-build-install-uninstall-dart
+            - integration-install-build-install-uninstall-java
+            - integration-install-build-install-uninstall-kotlin
+            - integration-install-build-install-uninstall-csharp
+            - integration-install-with-build-flag-go
+            - integration-install-with-build-flag-c
+            - integration-install-with-build-flag-cpp
+            - integration-install-with-build-flag-rust
+            - integration-install-with-build-flag-swift
+            - integration-install-with-build-flag-python
+            - integration-install-with-build-flag-ruby
+            - integration-install-with-build-flag-node
+            - integration-install-with-build-flag-dart
+            - integration-install-with-build-flag-java
+            - integration-install-with-build-flag-kotlin
+            - integration-install-with-build-flag-csharp
+            - integration-install-no-binary-fails
+            - integration-uninstall-missing-is-idempotent
+            - integration-installed-binary-smoke
+            - integration-invoke-across-transports-go-auto
+            - integration-invoke-across-transports-go-grpc
+            - integration-invoke-across-transports-go-tcp
+            - integration-invoke-across-transports-go-stdio
+            - integration-invoke-across-transports-c-auto
+            - integration-invoke-across-transports-c-grpc
+            - integration-invoke-across-transports-c-tcp
+            - integration-invoke-across-transports-c-stdio
+            - integration-invoke-across-transports-cpp-auto
+            - integration-invoke-across-transports-cpp-grpc
+            - integration-invoke-across-transports-cpp-tcp
+            - integration-invoke-across-transports-cpp-stdio
+            - integration-invoke-across-transports-rust-auto
+            - integration-invoke-across-transports-rust-grpc
+            - integration-invoke-across-transports-rust-tcp
+            - integration-invoke-across-transports-rust-stdio
+            - integration-invoke-across-transports-swift-auto
+            - integration-invoke-across-transports-swift-grpc
+            - integration-invoke-across-transports-swift-tcp
+            - integration-invoke-across-transports-swift-stdio
+            - integration-invoke-across-transports-python-auto
+            - integration-invoke-across-transports-python-grpc
+            - integration-invoke-across-transports-python-tcp
+            - integration-invoke-across-transports-python-stdio
+            - integration-invoke-across-transports-ruby-auto
+            - integration-invoke-across-transports-ruby-grpc
+            - integration-invoke-across-transports-ruby-tcp
+            - integration-invoke-across-transports-ruby-stdio
+            - integration-invoke-across-transports-node-auto
+            - integration-invoke-across-transports-node-grpc
+            - integration-invoke-across-transports-node-tcp
+            - integration-invoke-across-transports-node-stdio
+            - integration-invoke-across-transports-dart-auto
+            - integration-invoke-across-transports-dart-grpc
+            - integration-invoke-across-transports-dart-tcp
+            - integration-invoke-across-transports-dart-stdio
+            - integration-invoke-across-transports-java-auto
+            - integration-invoke-across-transports-java-grpc
+            - integration-invoke-across-transports-java-tcp
+            - integration-invoke-across-transports-java-stdio
+            - integration-invoke-across-transports-kotlin-auto
+            - integration-invoke-across-transports-kotlin-grpc
+            - integration-invoke-across-transports-kotlin-tcp
+            - integration-invoke-across-transports-kotlin-stdio
+            - integration-invoke-across-transports-csharp-auto
+            - integration-invoke-across-transports-csharp-grpc
+            - integration-invoke-across-transports-csharp-tcp
+            - integration-invoke-across-transports-csharp-stdio
+            - integration-invoke-clean-flag
+            - integration-invoke-no-build-does-not-build
+            - integration-invoke-clean-no-build-conflict
+            - integration-lifecycle-hello-world-holons-go
+            - integration-lifecycle-hello-world-holons-c
+            - integration-lifecycle-hello-world-holons-cpp
+            - integration-lifecycle-hello-world-holons-rust
+            - integration-lifecycle-hello-world-holons-swift
+            - integration-lifecycle-hello-world-holons-python
+            - integration-lifecycle-hello-world-holons-ruby
+            - integration-lifecycle-hello-world-holons-node
+            - integration-lifecycle-hello-world-holons-dart
+            - integration-lifecycle-hello-world-holons-java
+            - integration-lifecycle-hello-world-holons-kotlin
+            - integration-lifecycle-hello-world-holons-csharp
+            - integration-lifecycle-hello-world-holons-app-swiftui
+            - integration-mcp-local-holon-handshake-and-tools
+            - integration-mcp-tool-call
+            - integration-mcp-multiple-holons
+            - integration-mcp-no-args-fails
+            - integration-mod-init-list-tidy
+            - integration-run-tcp-go
+            - integration-run-tcp-c
+            - integration-run-tcp-cpp
+            - integration-run-tcp-rust
+            - integration-run-tcp-swift
+            - integration-run-tcp-python
+            - integration-run-tcp-ruby
+            - integration-run-tcp-node
+            - integration-run-tcp-dart
+            - integration-run-tcp-java
+            - integration-run-tcp-kotlin
+            - integration-run-tcp-csharp
+            - integration-run-auto-build
+            - integration-run-no-build-fails
+            - integration-run-clean-rebuild-run
+            - integration-run-port-shorthand
+            - integration-serve-opservice
+            - integration-tools-formats-go
+            - integration-tools-formats-c
+            - integration-tools-formats-cpp
+            - integration-tools-formats-rust
+            - integration-tools-formats-swift
+            - integration-tools-formats-python
+            - integration-tools-formats-ruby
+            - integration-tools-formats-node
+            - integration-tools-formats-dart
+            - integration-tools-formats-java
+            - integration-tools-formats-kotlin
+            - integration-tools-formats-csharp
+            - integration-tools-default-format-go
+            - integration-tools-default-format-c
+            - integration-tools-default-format-cpp
+            - integration-tools-default-format-rust
+            - integration-tools-default-format-swift
+            - integration-tools-default-format-python
+            - integration-tools-default-format-ruby
+            - integration-tools-default-format-node
+            - integration-tools-default-format-dart
+            - integration-tools-default-format-java
+            - integration-tools-default-format-kotlin
+            - integration-tools-default-format-csharp
+            - integration-unix-transport-run-and-dispatch-go
+            - integration-unix-transport-run-and-dispatch-c
+            - integration-unix-transport-run-and-dispatch-cpp
+            - integration-unix-transport-run-and-dispatch-rust
+            - integration-unix-transport-run-and-dispatch-swift
+            - integration-unix-transport-run-and-dispatch-python
+            - integration-unix-transport-run-and-dispatch-ruby
+            - integration-unix-transport-run-and-dispatch-node
+            - integration-unix-transport-run-and-dispatch-dart
+            - integration-unix-transport-run-and-dispatch-java
+            - integration-unix-transport-run-and-dispatch-kotlin
+            - integration-unix-transport-run-and-dispatch-csharp
+            - integration-windows-build-reports-exe-artifact-go
+            - integration-windows-build-reports-exe-artifact-c
+            - integration-windows-build-reports-exe-artifact-cpp
+            - integration-windows-build-reports-exe-artifact-rust
+            - integration-windows-build-reports-exe-artifact-swift
+            - integration-windows-build-reports-exe-artifact-python
+            - integration-windows-build-reports-exe-artifact-ruby
+            - integration-windows-build-reports-exe-artifact-node
+            - integration-windows-build-reports-exe-artifact-dart
+            - integration-windows-build-reports-exe-artifact-java
+            - integration-windows-build-reports-exe-artifact-kotlin
+            - integration-windows-build-reports-exe-artifact-csharp
+            - integration-windows-install-produces-executable-package
+    quick:
+        description: Fast proof for the canonical path and short black-box coverage
+        steps:
+            - holons-clem-ader-unit-internal-engine
+            - holons-grace-op-unit-internal-cli
+            - sdk-go-holons-unit-pkg-transport
+            - examples-hello-world-gabriel-greeting-go-unit-api
+            - integration-dispatch-say-hello-across-transports-go-auto
+            - integration-invoke-across-transports-go-auto
+            - integration-lifecycle-hello-world-holons-go
+            - integration-discover
+    stress:
+        description: Opt-in black-box fuzz and stress only
+        steps:
+            - integration-fuzz-random
+            - integration-fuzz-json
+            - integration-fuzz-uri
+            - integration-fuzz-flags
+    unit:
+        description: Native unit suites across SDKs, holons, and examples
+        steps:
+            - sdk-c-unit
+            - sdk-cpp-unit
+            - sdk-csharp-unit
+            - sdk-dart-unit
+            - sdk-java-unit
+            - sdk-js-unit
+            - sdk-js-web-unit
+            - sdk-kotlin-unit
+            - sdk-ruby-unit
+            - sdk-rust-unit
+            - sdk-swift-unit
+            - example-c-unit
+            - example-cpp-unit
+            - example-csharp-unit
+            - example-dart-unit
+            - example-java-unit
+            - example-kotlin-unit
+            - example-node-unit
+            - example-python-unit
+            - example-ruby-unit
+            - example-rust-unit
+            - example-swift-unit
+            - holons-clem-ader-unit-api
+            - holons-clem-ader-unit-internal-engine
+            - holons-grace-op-unit-api
+            - holons-grace-op-unit-internal-cli
+            - holons-grace-op-unit-internal-env
+            - holons-grace-op-unit-internal-grpcclient
+            - holons-grace-op-unit-internal-holons
+            - holons-grace-op-unit-internal-identity
+            - holons-grace-op-unit-internal-inspect
+            - holons-grace-op-unit-internal-mod
+            - holons-grace-op-unit-internal-progress
+            - holons-grace-op-unit-internal-scaffold
+            - holons-grace-op-unit-internal-server
+            - holons-grace-op-unit-internal-suggest
+            - holons-grace-op-unit-internal-tools
+            - holons-grace-op-unit-internal-who
+            - sdk-go-holons-unit-cmd-echo-client
+            - sdk-go-holons-unit-cmd-echo-server
+            - sdk-go-holons-unit-pkg-connect
+            - sdk-go-holons-unit-pkg-describe
+            - sdk-go-holons-unit-pkg-discover
+            - sdk-go-holons-unit-pkg-grpcclient
+            - sdk-go-holons-unit-pkg-holonrpc
+            - sdk-go-holons-unit-pkg-identity
+            - sdk-go-holons-unit-pkg-serve
+            - sdk-go-holons-unit-pkg-transport
+            - examples-hello-world-gabriel-greeting-go-unit-api
+            - examples-hello-world-gabriel-greeting-go-unit-internal

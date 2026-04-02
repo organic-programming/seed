@@ -19,13 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AderService_Test_FullMethodName        = "/ader.v1.AderService/Test"
-	AderService_Archive_FullMethodName     = "/ader.v1.AderService/Archive"
-	AderService_Cleanup_FullMethodName     = "/ader.v1.AderService/Cleanup"
-	AderService_Promote_FullMethodName     = "/ader.v1.AderService/Promote"
-	AderService_Downgrade_FullMethodName   = "/ader.v1.AderService/Downgrade"
-	AderService_History_FullMethodName     = "/ader.v1.AderService/History"
-	AderService_ShowHistory_FullMethodName = "/ader.v1.AderService/ShowHistory"
+	AderService_Test_FullMethodName               = "/ader.v1.AderService/Test"
+	AderService_TestBouquet_FullMethodName        = "/ader.v1.AderService/TestBouquet"
+	AderService_Archive_FullMethodName            = "/ader.v1.AderService/Archive"
+	AderService_ArchiveBouquet_FullMethodName     = "/ader.v1.AderService/ArchiveBouquet"
+	AderService_Cleanup_FullMethodName            = "/ader.v1.AderService/Cleanup"
+	AderService_Promote_FullMethodName            = "/ader.v1.AderService/Promote"
+	AderService_Downgrade_FullMethodName          = "/ader.v1.AderService/Downgrade"
+	AderService_History_FullMethodName            = "/ader.v1.AderService/History"
+	AderService_BouquetHistory_FullMethodName     = "/ader.v1.AderService/BouquetHistory"
+	AderService_ShowHistory_FullMethodName        = "/ader.v1.AderService/ShowHistory"
+	AderService_ShowBouquetHistory_FullMethodName = "/ader.v1.AderService/ShowBouquetHistory"
 )
 
 // AderServiceClient is the client API for AderService service.
@@ -33,12 +37,16 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AderServiceClient interface {
 	Test(ctx context.Context, in *TestRequest, opts ...grpc.CallOption) (*TestResponse, error)
+	TestBouquet(ctx context.Context, in *BouquetRequest, opts ...grpc.CallOption) (*BouquetResponse, error)
 	Archive(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
+	ArchiveBouquet(ctx context.Context, in *ArchiveBouquetRequest, opts ...grpc.CallOption) (*ArchiveBouquetResponse, error)
 	Cleanup(ctx context.Context, in *CleanupRequest, opts ...grpc.CallOption) (*CleanupResponse, error)
 	Promote(ctx context.Context, in *PromoteRequest, opts ...grpc.CallOption) (*PromoteResponse, error)
 	Downgrade(ctx context.Context, in *DowngradeRequest, opts ...grpc.CallOption) (*DowngradeResponse, error)
 	History(ctx context.Context, in *HistoryRequest, opts ...grpc.CallOption) (*HistoryResponse, error)
+	BouquetHistory(ctx context.Context, in *BouquetHistoryRequest, opts ...grpc.CallOption) (*BouquetHistoryResponse, error)
 	ShowHistory(ctx context.Context, in *ShowHistoryRequest, opts ...grpc.CallOption) (*ShowHistoryResponse, error)
+	ShowBouquetHistory(ctx context.Context, in *ShowBouquetHistoryRequest, opts ...grpc.CallOption) (*ShowBouquetHistoryResponse, error)
 }
 
 type aderServiceClient struct {
@@ -59,10 +67,30 @@ func (c *aderServiceClient) Test(ctx context.Context, in *TestRequest, opts ...g
 	return out, nil
 }
 
+func (c *aderServiceClient) TestBouquet(ctx context.Context, in *BouquetRequest, opts ...grpc.CallOption) (*BouquetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BouquetResponse)
+	err := c.cc.Invoke(ctx, AderService_TestBouquet_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *aderServiceClient) Archive(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ArchiveResponse)
 	err := c.cc.Invoke(ctx, AderService_Archive_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aderServiceClient) ArchiveBouquet(ctx context.Context, in *ArchiveBouquetRequest, opts ...grpc.CallOption) (*ArchiveBouquetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ArchiveBouquetResponse)
+	err := c.cc.Invoke(ctx, AderService_ArchiveBouquet_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -109,10 +137,30 @@ func (c *aderServiceClient) History(ctx context.Context, in *HistoryRequest, opt
 	return out, nil
 }
 
+func (c *aderServiceClient) BouquetHistory(ctx context.Context, in *BouquetHistoryRequest, opts ...grpc.CallOption) (*BouquetHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BouquetHistoryResponse)
+	err := c.cc.Invoke(ctx, AderService_BouquetHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *aderServiceClient) ShowHistory(ctx context.Context, in *ShowHistoryRequest, opts ...grpc.CallOption) (*ShowHistoryResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ShowHistoryResponse)
 	err := c.cc.Invoke(ctx, AderService_ShowHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aderServiceClient) ShowBouquetHistory(ctx context.Context, in *ShowBouquetHistoryRequest, opts ...grpc.CallOption) (*ShowBouquetHistoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ShowBouquetHistoryResponse)
+	err := c.cc.Invoke(ctx, AderService_ShowBouquetHistory_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -124,12 +172,16 @@ func (c *aderServiceClient) ShowHistory(ctx context.Context, in *ShowHistoryRequ
 // for forward compatibility.
 type AderServiceServer interface {
 	Test(context.Context, *TestRequest) (*TestResponse, error)
+	TestBouquet(context.Context, *BouquetRequest) (*BouquetResponse, error)
 	Archive(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
+	ArchiveBouquet(context.Context, *ArchiveBouquetRequest) (*ArchiveBouquetResponse, error)
 	Cleanup(context.Context, *CleanupRequest) (*CleanupResponse, error)
 	Promote(context.Context, *PromoteRequest) (*PromoteResponse, error)
 	Downgrade(context.Context, *DowngradeRequest) (*DowngradeResponse, error)
 	History(context.Context, *HistoryRequest) (*HistoryResponse, error)
+	BouquetHistory(context.Context, *BouquetHistoryRequest) (*BouquetHistoryResponse, error)
 	ShowHistory(context.Context, *ShowHistoryRequest) (*ShowHistoryResponse, error)
+	ShowBouquetHistory(context.Context, *ShowBouquetHistoryRequest) (*ShowBouquetHistoryResponse, error)
 	mustEmbedUnimplementedAderServiceServer()
 }
 
@@ -143,8 +195,14 @@ type UnimplementedAderServiceServer struct{}
 func (UnimplementedAderServiceServer) Test(context.Context, *TestRequest) (*TestResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Test not implemented")
 }
+func (UnimplementedAderServiceServer) TestBouquet(context.Context, *BouquetRequest) (*BouquetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method TestBouquet not implemented")
+}
 func (UnimplementedAderServiceServer) Archive(context.Context, *ArchiveRequest) (*ArchiveResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Archive not implemented")
+}
+func (UnimplementedAderServiceServer) ArchiveBouquet(context.Context, *ArchiveBouquetRequest) (*ArchiveBouquetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ArchiveBouquet not implemented")
 }
 func (UnimplementedAderServiceServer) Cleanup(context.Context, *CleanupRequest) (*CleanupResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Cleanup not implemented")
@@ -158,8 +216,14 @@ func (UnimplementedAderServiceServer) Downgrade(context.Context, *DowngradeReque
 func (UnimplementedAderServiceServer) History(context.Context, *HistoryRequest) (*HistoryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method History not implemented")
 }
+func (UnimplementedAderServiceServer) BouquetHistory(context.Context, *BouquetHistoryRequest) (*BouquetHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method BouquetHistory not implemented")
+}
 func (UnimplementedAderServiceServer) ShowHistory(context.Context, *ShowHistoryRequest) (*ShowHistoryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ShowHistory not implemented")
+}
+func (UnimplementedAderServiceServer) ShowBouquetHistory(context.Context, *ShowBouquetHistoryRequest) (*ShowBouquetHistoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ShowBouquetHistory not implemented")
 }
 func (UnimplementedAderServiceServer) mustEmbedUnimplementedAderServiceServer() {}
 func (UnimplementedAderServiceServer) testEmbeddedByValue()                     {}
@@ -200,6 +264,24 @@ func _AderService_Test_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AderService_TestBouquet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BouquetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AderServiceServer).TestBouquet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AderService_TestBouquet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AderServiceServer).TestBouquet(ctx, req.(*BouquetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AderService_Archive_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ArchiveRequest)
 	if err := dec(in); err != nil {
@@ -214,6 +296,24 @@ func _AderService_Archive_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AderServiceServer).Archive(ctx, req.(*ArchiveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AderService_ArchiveBouquet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveBouquetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AderServiceServer).ArchiveBouquet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AderService_ArchiveBouquet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AderServiceServer).ArchiveBouquet(ctx, req.(*ArchiveBouquetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -290,6 +390,24 @@ func _AderService_History_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AderService_BouquetHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BouquetHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AderServiceServer).BouquetHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AderService_BouquetHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AderServiceServer).BouquetHistory(ctx, req.(*BouquetHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AderService_ShowHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ShowHistoryRequest)
 	if err := dec(in); err != nil {
@@ -308,6 +426,24 @@ func _AderService_ShowHistory_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AderService_ShowBouquetHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ShowBouquetHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AderServiceServer).ShowBouquetHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AderService_ShowBouquetHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AderServiceServer).ShowBouquetHistory(ctx, req.(*ShowBouquetHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AderService_ServiceDesc is the grpc.ServiceDesc for AderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -320,8 +456,16 @@ var AderService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AderService_Test_Handler,
 		},
 		{
+			MethodName: "TestBouquet",
+			Handler:    _AderService_TestBouquet_Handler,
+		},
+		{
 			MethodName: "Archive",
 			Handler:    _AderService_Archive_Handler,
+		},
+		{
+			MethodName: "ArchiveBouquet",
+			Handler:    _AderService_ArchiveBouquet_Handler,
 		},
 		{
 			MethodName: "Cleanup",
@@ -340,8 +484,16 @@ var AderService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AderService_History_Handler,
 		},
 		{
+			MethodName: "BouquetHistory",
+			Handler:    _AderService_BouquetHistory_Handler,
+		},
+		{
 			MethodName: "ShowHistory",
 			Handler:    _AderService_ShowHistory_Handler,
+		},
+		{
+			MethodName: "ShowBouquetHistory",
+			Handler:    _AderService_ShowBouquetHistory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

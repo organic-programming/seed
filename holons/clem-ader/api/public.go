@@ -11,8 +11,16 @@ func Test(req *aderv1.TestRequest) (*aderv1.TestResponse, error) {
 	return testContext(context.Background(), req)
 }
 
+func TestBouquet(req *aderv1.BouquetRequest) (*aderv1.BouquetResponse, error) {
+	return testBouquetContext(context.Background(), req)
+}
+
 func Archive(req *aderv1.ArchiveRequest) (*aderv1.ArchiveResponse, error) {
 	return archiveContext(context.Background(), req)
+}
+
+func ArchiveBouquet(req *aderv1.ArchiveBouquetRequest) (*aderv1.ArchiveBouquetResponse, error) {
+	return archiveBouquetContext(context.Background(), req)
 }
 
 func Cleanup(req *aderv1.CleanupRequest) (*aderv1.CleanupResponse, error) {
@@ -23,8 +31,16 @@ func History(req *aderv1.HistoryRequest) (*aderv1.HistoryResponse, error) {
 	return historyContext(context.Background(), req)
 }
 
+func BouquetHistory(req *aderv1.BouquetHistoryRequest) (*aderv1.BouquetHistoryResponse, error) {
+	return bouquetHistoryContext(context.Background(), req)
+}
+
 func ShowHistory(req *aderv1.ShowHistoryRequest) (*aderv1.ShowHistoryResponse, error) {
 	return showHistoryContext(context.Background(), req)
+}
+
+func ShowBouquetHistory(req *aderv1.ShowBouquetHistoryRequest) (*aderv1.ShowBouquetHistoryResponse, error) {
+	return showBouquetHistoryContext(context.Background(), req)
 }
 
 func Promote(req *aderv1.PromoteRequest) (*aderv1.PromoteResponse, error) {
@@ -56,6 +72,20 @@ func testContext(ctx context.Context, req *aderv1.TestRequest) (*aderv1.TestResp
 	}, nil
 }
 
+func testBouquetContext(ctx context.Context, req *aderv1.BouquetRequest) (*aderv1.BouquetResponse, error) {
+	result, err := engine.RunBouquet(ctx, engine.BouquetOptions{
+		VerificationRoot: req.GetVerificationRoot(),
+		Name:             req.GetName(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &aderv1.BouquetResponse{
+		Manifest: bouquetManifestToProto(result.Manifest),
+		Entries:  bouquetEntriesToProto(result.Entries),
+	}, nil
+}
+
 func archiveContext(ctx context.Context, req *aderv1.ArchiveRequest) (*aderv1.ArchiveResponse, error) {
 	result, err := engine.Archive(ctx, engine.ArchiveOptions{
 		ConfigDir: req.GetConfigDir(),
@@ -67,6 +97,21 @@ func archiveContext(ctx context.Context, req *aderv1.ArchiveRequest) (*aderv1.Ar
 	}
 	return &aderv1.ArchiveResponse{
 		Manifest:    manifestToProto(result.Manifest),
+		ArchivePath: result.Manifest.ArchivePath,
+	}, nil
+}
+
+func archiveBouquetContext(ctx context.Context, req *aderv1.ArchiveBouquetRequest) (*aderv1.ArchiveBouquetResponse, error) {
+	result, err := engine.ArchiveBouquet(ctx, engine.BouquetArchiveOptions{
+		VerificationRoot: req.GetVerificationRoot(),
+		HistoryID:        req.GetHistoryId(),
+		Latest:           req.GetLatest(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &aderv1.ArchiveBouquetResponse{
+		Manifest:    bouquetManifestToProto(result.Manifest),
 		ArchivePath: result.Manifest.ArchivePath,
 	}, nil
 }
@@ -92,6 +137,14 @@ func historyContext(ctx context.Context, req *aderv1.HistoryRequest) (*aderv1.Hi
 	return &aderv1.HistoryResponse{Entries: historyEntriesToProto(entries)}, nil
 }
 
+func bouquetHistoryContext(ctx context.Context, req *aderv1.BouquetHistoryRequest) (*aderv1.BouquetHistoryResponse, error) {
+	entries, err := engine.BouquetHistory(ctx, req.GetVerificationRoot())
+	if err != nil {
+		return nil, err
+	}
+	return &aderv1.BouquetHistoryResponse{Entries: bouquetHistoryEntriesToProto(entries)}, nil
+}
+
 func showHistoryContext(ctx context.Context, req *aderv1.ShowHistoryRequest) (*aderv1.ShowHistoryResponse, error) {
 	result, err := engine.ShowHistory(ctx, req.GetConfigDir(), req.GetHistoryId())
 	if err != nil {
@@ -102,6 +155,18 @@ func showHistoryContext(ctx context.Context, req *aderv1.ShowHistoryRequest) (*a
 		Steps:           stepsToProto(result.Steps),
 		SummaryMarkdown: result.SummaryMarkdown,
 		SummaryTsv:      result.SummaryTSV,
+	}, nil
+}
+
+func showBouquetHistoryContext(ctx context.Context, req *aderv1.ShowBouquetHistoryRequest) (*aderv1.ShowBouquetHistoryResponse, error) {
+	result, err := engine.ShowBouquetHistory(ctx, req.GetVerificationRoot(), req.GetHistoryId())
+	if err != nil {
+		return nil, err
+	}
+	return &aderv1.ShowBouquetHistoryResponse{
+		Manifest:        bouquetManifestToProto(result.Manifest),
+		Entries:         bouquetEntriesToProto(result.Entries),
+		SummaryMarkdown: result.SummaryMarkdown,
 	}, nil
 }
 
@@ -199,6 +264,61 @@ func historyEntriesToProto(items []engine.HistoryEntry) []*aderv1.HistoryEntry {
 			FinalStatus: item.FinalStatus,
 			CommitHash:  item.CommitHash,
 			Dirty:       item.Dirty,
+			StartedAt:   item.StartedAt,
+			FinishedAt:  item.FinishedAt,
+			ReportDir:   item.ReportDir,
+			ArchivePath: item.ArchivePath,
+		})
+	}
+	return out
+}
+
+func bouquetManifestToProto(m engine.BouquetRecord) *aderv1.BouquetRecord {
+	return &aderv1.BouquetRecord{
+		VerificationRoot: m.VerificationRoot,
+		Bouquet:          m.Bouquet,
+		HistoryId:        m.HistoryID,
+		ReportDir:        m.ReportDir,
+		ArchivePath:      m.ArchivePath,
+		StartedAt:        m.StartedAt,
+		FinishedAt:       m.FinishedAt,
+		FinalStatus:      m.FinalStatus,
+		PassCount:        uint32(m.PassCount),
+		FailCount:        uint32(m.FailCount),
+		SkipCount:        uint32(m.SkipCount),
+	}
+}
+
+func bouquetEntriesToProto(items []engine.BouquetEntryResult) []*aderv1.BouquetEntryResult {
+	out := make([]*aderv1.BouquetEntryResult, 0, len(items))
+	for _, item := range items {
+		out = append(out, &aderv1.BouquetEntryResult{
+			Catalogue:      item.Catalogue,
+			ConfigDir:      item.ConfigDir,
+			Suite:          item.Suite,
+			Profile:        item.Profile,
+			Lane:           item.Lane,
+			Source:         item.Source,
+			ArchivePolicy:  item.ArchivePolicy,
+			FinalStatus:    item.FinalStatus,
+			Reason:         item.Reason,
+			ChildHistoryId: item.ChildHistoryID,
+			ChildReportDir: item.ChildReportDir,
+			ChildArchive:   item.ChildArchive,
+			StartedAt:      item.StartedAt,
+			FinishedAt:     item.FinishedAt,
+		})
+	}
+	return out
+}
+
+func bouquetHistoryEntriesToProto(items []engine.BouquetHistoryEntry) []*aderv1.BouquetHistoryEntry {
+	out := make([]*aderv1.BouquetHistoryEntry, 0, len(items))
+	for _, item := range items {
+		out = append(out, &aderv1.BouquetHistoryEntry{
+			HistoryId:   item.HistoryID,
+			Bouquet:     item.Bouquet,
+			FinalStatus: item.FinalStatus,
 			StartedAt:   item.StartedAt,
 			FinishedAt:  item.FinishedAt,
 			ReportDir:   item.ReportDir,

@@ -26,6 +26,7 @@ const (
 	reportSummaryMD     = "summary.md"
 	reportSummaryTSV    = "summary.tsv"
 	reportToolVersions  = "tool-versions.txt"
+	reportSuiteSnapshot = "suite-snapshot.yaml"
 	reportPromotionJSON = "promotion.json"
 	reportPromotionMD   = "promotion.md"
 	reportLogsDir       = "logs"
@@ -53,6 +54,7 @@ func RunWithProgress(ctx context.Context, opts RunOptions, progress io.Writer) (
 }
 
 func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, error) {
+	reporter := newProgressReporter(progress)
 	if err := validateRunOptions(opts); err != nil {
 		return nil, err
 	}
@@ -60,6 +62,12 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := acquireCatalogueLock(ctx, runtimeCfg.Paths.ArtifactsDir)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	reporter.phase("config loaded")
 	paths := runtimeCfg.Paths
 	repoRoot := runtimeCfg.RepoRoot
 	if err := os.MkdirAll(paths.LocalSuiteDir, 0o755); err != nil {
@@ -75,9 +83,20 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 		return nil, err
 	}
 
-	now := time.Now().UTC()
-	runID := fmt.Sprintf("%s-%d", now.Format("20060102T150405.000000000Z"), os.Getpid())
-	tmpStore := filepath.Join(os.TempDir(), tempStorePrefix+runID)
+	commitHash, branch, dirty := gitMetadata(repoRoot)
+	profile := resolveProfileName(runtimeCfg, opts.Profile)
+	source := normalizeSource(firstNonEmpty(opts.Source, runtimeCfg.Root.Defaults.Source))
+	lane := normalizeLane(firstNonEmpty(opts.Lane, runtimeCfg.Root.Defaults.Lane))
+	archivePolicy := normalizeArchivePolicy(firstNonEmpty(opts.ArchivePolicy, runtimeCfg.Suite.Profiles[profile].Archive))
+	started := time.Now()
+	runID, err := newHistoryID(paths.ReportsDir, runtimeCfg.SuiteName, source, profile, started)
+	if err != nil {
+		return nil, err
+	}
+	tmpStore, err := os.MkdirTemp(os.TempDir(), tempStorePrefix+sanitizeHistoryToken(runtimeCfg.CatalogueName)+"-"+runID+"-")
+	if err != nil {
+		return nil, err
+	}
 	runArtifactsDir := filepath.Join(tmpStore, "run")
 	snapshotRoot := filepath.Join(runArtifactsDir, "snapshot")
 	preservedRunDir := filepath.Join(paths.LocalSuiteDir, runID)
@@ -102,30 +121,29 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 		_ = os.Remove(paths.ShortTempAlias)
 	}()
 
-	commitHash, branch, dirty := gitMetadata(repoRoot)
-	profile := resolveProfileName(runtimeCfg, opts.Profile)
-	source := normalizeSource(firstNonEmpty(opts.Source, runtimeCfg.Root.Defaults.Source))
-	lane := normalizeLane(firstNonEmpty(opts.Lane, runtimeCfg.Root.Defaults.Lane))
-	archivePolicy := normalizeArchivePolicy(firstNonEmpty(opts.ArchivePolicy, runtimeCfg.Root.Defaults.ArchivePolicy[profile]))
+	reporter.phase(fmt.Sprintf("source %s", source))
 
-	switch source {
-	case "committed":
-		if err := snapshotCommitted(ctx, repoRoot, snapshotRoot); err != nil {
-			return nil, err
+	if err := reporter.withPhase("snapshot "+source, "snapshot ready", func() error {
+		switch source {
+		case "committed":
+			return snapshotCommitted(ctx, repoRoot, snapshotRoot)
+		case "workspace":
+			return snapshotWorkspace(repoRoot, snapshotRoot, paths, runtimeCfg.ConfigRelDir)
+		default:
+			return fmt.Errorf("unsupported source %q", source)
 		}
-	case "workspace":
-		if err := snapshotWorkspace(repoRoot, snapshotRoot, paths, runtimeCfg.ConfigRelDir); err != nil {
-			return nil, err
-		}
-	default:
-		return nil, fmt.Errorf("unsupported source %q", source)
+	}); err != nil {
+		return nil, err
 	}
-	if err := normalizeSnapshot(snapshotRoot); err != nil {
+	if err := reporter.withPhase("snapshot normalization", "snapshot normalized", func() error {
+		return normalizeSnapshot(snapshotRoot)
+	}); err != nil {
 		return nil, err
 	}
 	if err := replaceShortTempAlias(paths.ShortTempAlias, tmpStore); err != nil {
 		return nil, err
 	}
+	reporter.phase("environment ready")
 
 	steps, err := resolveProfileLaneSteps(runtimeCfg, profile, lane, snapshotRoot)
 	if err != nil {
@@ -138,6 +156,7 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 	if len(steps) == 0 {
 		return nil, fmt.Errorf("no steps matched profile %q and filter %q", profile, opts.StepFilter)
 	}
+	reporter.phase(fmt.Sprintf("selected %d steps for profile=%s lane=%s", len(steps), profile, lane))
 
 	manifest := HistoryRecord{
 		ConfigDir:     runtimeCfg.ConfigDir,
@@ -154,7 +173,7 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 		CommitHash:    commitHash,
 		Branch:        branch,
 		Dirty:         dirty,
-		StartedAt:     now.Format(time.RFC3339),
+		StartedAt:     started.UTC().Format(time.RFC3339),
 	}
 
 	toolVersions, _ := collectToolVersions()
@@ -180,7 +199,7 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 			}
 			results = append(results, result)
 			manifest.SkipCount++
-			printProgress(progress, "[%02d/%02d] SKIP %s (workdir missing from snapshot)\n", index+1, len(steps), step.ID)
+			printProgress(reporter, "[%02d/%02d] SKIP %s (workdir missing from snapshot)\n", index+1, len(steps), step.ID)
 			continue
 		}
 
@@ -192,7 +211,7 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 			}
 			results = append(results, result)
 			manifest.SkipCount++
-			printProgress(progress, "[%02d/%02d] SKIP %s (%s)\n", index+1, len(steps), step.ID, result.Reason)
+			printProgress(reporter, "[%02d/%02d] SKIP %s (%s)\n", index+1, len(steps), step.ID, result.Reason)
 			continue
 		}
 
@@ -204,14 +223,15 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 			}
 			results = append(results, result)
 			manifest.SkipCount++
-			printProgress(progress, "[%02d/%02d] SKIP %s (%s)\n", index+1, len(steps), step.ID, reason)
+			printProgress(reporter, "[%02d/%02d] SKIP %s (%s)\n", index+1, len(steps), step.ID, reason)
 			continue
 		}
 
-		printProgress(progress, "[%02d/%02d] RUN  %s\n", index+1, len(steps), step.ID)
+		printProgress(reporter, "[%02d/%02d] RUN  %s\n", index+1, len(steps), step.ID)
+		printProgress(reporter, "[%02d/%02d] CMD %s :: %s\n", index+1, len(steps), displayStepWorkdir(snapshotRoot, step.Workdir), displayStepCommand(step))
 		start := time.Now().UTC()
 		result.StartedAt = start.Format(time.RFC3339)
-		code, err := runStepCommand(ctx, step, env, logPath, progress)
+		code, err := runStepCommand(ctx, step, env, logPath, reporter)
 		end := time.Now().UTC()
 		result.FinishedAt = end.Format(time.RFC3339)
 		result.DurationSeconds = int64(end.Sub(start).Seconds())
@@ -221,11 +241,11 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 		if code == 0 {
 			result.Status = "PASS"
 			manifest.PassCount++
-			printProgress(progress, "[%02d/%02d] PASS %s (%ds)\n", index+1, len(steps), step.ID, result.DurationSeconds)
+			printProgress(reporter, "[%02d/%02d] PASS %s (%ds)\n", index+1, len(steps), step.ID, result.DurationSeconds)
 		} else {
 			result.Status = "FAIL"
 			manifest.FailCount++
-			printProgress(progress, "[%02d/%02d] FAIL %s (%ds)\n", index+1, len(steps), step.ID, result.DurationSeconds)
+			printProgress(reporter, "[%02d/%02d] FAIL %s (%ds)\n", index+1, len(steps), step.ID, result.DurationSeconds)
 		}
 		results = append(results, result)
 	}
@@ -244,21 +264,30 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 		Steps:           results,
 		SummaryMarkdown: summaryMD,
 		SummaryTSV:      summaryTSV,
+		SuiteSnapshot:   runtimeCfg.EffectiveSuiteYAML,
 	}
 	if proposal := buildPromotionProposal(runtimeCfg, result); proposal != nil {
 		result.Promotion = proposal
 	}
-	if err := writeReport(result, reportDir, toolVersions); err != nil {
+	if err := reporter.withPhase("writing report", "report ready", func() error {
+		return writeReport(result, reportDir, toolVersions)
+	}); err != nil {
 		return nil, err
 	}
 
 	if shouldArchive(profile, archivePolicy) {
-		archivePath, err := archiveReportDir(paths, manifest, reportDir)
-		if err != nil {
+		var archivePath string
+		if err := reporter.withPhase("archiving report", "archive ready", func() error {
+			var err error
+			archivePath, err = archiveReportDir(paths, manifest, reportDir)
+			return err
+		}); err != nil {
 			return result, err
 		}
 		result.Manifest.ArchivePath = archivePath
-		if err := writeReport(result, reportDir, toolVersions); err != nil {
+		if err := reporter.withPhase("writing archived report", "archived report ready", func() error {
+			return writeReport(result, reportDir, toolVersions)
+		}); err != nil {
 			return nil, err
 		}
 		if !opts.KeepReport {
@@ -267,20 +296,26 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 	}
 
 	if opts.KeepSnapshot {
-		_ = os.RemoveAll(preservedRunDir)
-		if err := os.MkdirAll(filepath.Dir(preservedRunDir), 0o755); err != nil {
-			return nil, err
-		}
-		if err := copyTree(runArtifactsDir, preservedRunDir); err != nil {
+		if err := reporter.withPhase("preserving snapshot", "snapshot preserved", func() error {
+			_ = os.RemoveAll(preservedRunDir)
+			if err := os.MkdirAll(filepath.Dir(preservedRunDir), 0o755); err != nil {
+				return err
+			}
+			return copyTree(runArtifactsDir, preservedRunDir)
+		}); err != nil {
 			return nil, err
 		}
 		_ = os.Remove(filepath.Join(preservedRunDir, runPIDFile))
 		result.Manifest.SnapshotRoot = filepath.Join(preservedRunDir, "snapshot")
-		if err := writeReport(result, reportDir, toolVersions); err != nil {
+		if err := reporter.withPhase("writing preserved report", "preserved report ready", func() error {
+			return writeReport(result, reportDir, toolVersions)
+		}); err != nil {
 			return nil, err
 		}
 	}
-	_ = os.RemoveAll(tmpStore)
+	_ = reporter.withPhase("cleanup temp store", "cleanup complete", func() error {
+		return os.RemoveAll(tmpStore)
+	})
 
 	return result, nil
 }
@@ -290,6 +325,11 @@ func Archive(ctx context.Context, opts ArchiveOptions) (*RunResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := acquireCatalogueLock(ctx, runtimeCfg.Paths.ArtifactsDir)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	paths := runtimeCfg.Paths
 	result, reportDir, err := loadRunForArchive(paths, opts)
 	if err != nil {
@@ -312,6 +352,11 @@ func Cleanup(_ context.Context, configDir string) (*CleanupResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := acquireCatalogueLock(context.Background(), runtimeCfg.Paths.ArtifactsDir)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	paths := runtimeCfg.Paths
 	result := &CleanupResult{}
 	if target, ok := symlinkTarget(paths.ShortTempAlias); ok {
@@ -396,6 +441,11 @@ func History(_ context.Context, configDir string) ([]HistoryEntry, error) {
 		out = append(out, item)
 	}
 	sort.Slice(out, func(i, j int) bool {
+		left := historyTimestamp(out[i])
+		right := historyTimestamp(out[j])
+		if !left.Equal(right) {
+			return left.After(right)
+		}
 		return out[i].HistoryID > out[j].HistoryID
 	})
 	return out, nil
@@ -526,15 +576,18 @@ func runEnvironment(paths repoPaths, repoRoot string, snapshotRoot string, runAr
 	return env
 }
 
-func runStepCommand(ctx context.Context, step StepSpec, env []string, logPath string, progress io.Writer) (int, error) {
+func runStepCommand(ctx context.Context, step StepSpec, env []string, logPath string, progress *progressReporter) (int, error) {
 	logFile, err := os.Create(logPath)
 	if err != nil {
 		return 1, err
 	}
 	defer logFile.Close()
 	writer := io.Writer(logFile)
-	if progress != nil {
-		writer = io.MultiWriter(logFile, progress)
+	var monitor *heartbeatMonitor
+	if progress != nil && progress.enabled() {
+		monitor = progress.startMonitor(step.ID, "no output yet")
+		defer monitor.stop()
+		writer = io.MultiWriter(logFile, monitor.writer())
 	}
 	cmd, err := buildStepCommand(ctx, step)
 	if err != nil {
@@ -576,10 +629,21 @@ func buildStepCommand(ctx context.Context, step StepSpec) (*exec.Cmd, error) {
 
 func displayStepCommand(step StepSpec) string {
 	if strings.TrimSpace(step.Script) != "" {
-		parts := append([]string{step.Script}, step.Args...)
+		script := filepath.ToSlash(step.Script)
+		if rel, err := filepath.Rel(step.Workdir, step.Script); err == nil && strings.TrimSpace(rel) != "" && rel != "." && !strings.HasPrefix(rel, "..") {
+			script = filepath.ToSlash(rel)
+		}
+		parts := append([]string{script}, step.Args...)
 		return strings.Join(parts, " ")
 	}
 	return step.Command
+}
+
+func displayStepWorkdir(snapshotRoot string, workdir string) string {
+	if rel, err := filepath.Rel(snapshotRoot, workdir); err == nil && strings.TrimSpace(rel) != "" && rel != "." && !strings.HasPrefix(rel, "..") {
+		return filepath.ToSlash(rel)
+	}
+	return filepath.ToSlash(workdir)
 }
 
 func missingPrereqs(prereqs []string) []string {
@@ -695,6 +759,9 @@ func writeReport(result *RunResult, reportDir string, toolVersions string) error
 		filepath.Join(reportDir, reportSummaryTSV):   []byte(result.SummaryTSV),
 		filepath.Join(reportDir, reportToolVersions): []byte(toolVersions),
 	}
+	if strings.TrimSpace(result.SuiteSnapshot) != "" {
+		files[filepath.Join(reportDir, reportSuiteSnapshot)] = []byte(result.SuiteSnapshot)
+	}
 	if result.Promotion != nil {
 		promotionJSON, err := json.MarshalIndent(result.Promotion, "", "  ")
 		if err != nil {
@@ -720,7 +787,7 @@ func archiveReportDir(paths repoPaths, manifest HistoryRecord, reportDir string)
 	if manifest.Source == "workspace" && manifest.Dirty {
 		suffix = "-dirty"
 	}
-	archivePath := filepath.Join(commitDir, fmt.Sprintf("%s-%s%s.tar.gz", manifest.HistoryID, manifest.Profile, suffix))
+	archivePath := filepath.Join(commitDir, fmt.Sprintf("%s%s.tar.gz", manifest.HistoryID, suffix))
 	file, err := os.Create(archivePath)
 	if err != nil {
 		return "", err
@@ -803,17 +870,38 @@ func latestReportDir(reportsDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var names []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			names = append(names, entry.Name())
-		}
+	type candidate struct {
+		path      string
+		startedAt time.Time
+		historyID string
 	}
-	if len(names) == 0 {
+	var candidates []candidate
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		fullPath := filepath.Join(reportsDir, entry.Name())
+		manifest, err := readManifestFile(filepath.Join(fullPath, reportManifestName))
+		if err == nil {
+			candidates = append(candidates, candidate{
+				path:      fullPath,
+				startedAt: historyTimestamp(summaryFromManifest(manifest)),
+				historyID: manifest.HistoryID,
+			})
+			continue
+		}
+		candidates = append(candidates, candidate{path: fullPath, historyID: entry.Name()})
+	}
+	if len(candidates) == 0 {
 		return "", fmt.Errorf("no extracted runs found under %s", reportsDir)
 	}
-	sort.Strings(names)
-	return filepath.Join(reportsDir, names[len(names)-1]), nil
+	sort.Slice(candidates, func(i, j int) bool {
+		if !candidates[i].startedAt.Equal(candidates[j].startedAt) {
+			return candidates[i].startedAt.After(candidates[j].startedAt)
+		}
+		return candidates[i].historyID > candidates[j].historyID
+	})
+	return candidates[0].path, nil
 }
 
 func loadRunFromReportDir(reportDir string) (*RunResult, error) {
@@ -984,30 +1072,12 @@ func buildPromotionProposal(cfg *runtimeConfig, result *RunResult) *PromotionPro
 	if rel, err := filepath.Rel(cfg.RepoRoot, cfg.SuitePath); err == nil {
 		suiteFile = filepath.ToSlash(rel)
 	}
-	promoteArgs := make([]string, 0, len(eligible)+4)
-	promoteArgs = append(promoteArgs, "ader", "promote", configDir)
+	promoteArgs := make([]string, 0, len(eligible)+6)
+	promoteArgs = append(promoteArgs, "ader", "promote", configDir, "--suite", result.Manifest.Suite)
 	for _, id := range eligible {
 		promoteArgs = append(promoteArgs, "--step", id)
 	}
 	suggestedCommand := strings.Join(promoteArgs, " ")
-
-	var crossTierSuggestions []CrossTierSuggestion
-	if nextProfile, ok := nextProfileInLadder(resolveProfileLadder(cfg), result.Manifest.Profile); ok {
-		if nextEntry, ok := cfg.Suite.Profiles[nextProfile]; ok {
-			for _, id := range eligible {
-				if profileContainsStep(nextEntry, id) {
-					continue
-				}
-				crossTierSuggestions = append(crossTierSuggestions, CrossTierSuggestion{
-					StepID:      id,
-					FromProfile: result.Manifest.Profile,
-					ToProfile:   nextProfile,
-					ToLane:      "progression",
-					Reason:      fmt.Sprintf("Promoted in %s; not yet present in %s", result.Manifest.Profile, nextProfile),
-				})
-			}
-		}
-	}
 
 	return &PromotionProposal{
 		Suite:            result.Manifest.Suite,
@@ -1022,7 +1092,6 @@ func buildPromotionProposal(cfg *runtimeConfig, result *RunResult) *PromotionPro
 			fmt.Sprintf("git commit -m %q", fmt.Sprintf("Promote %s to regression", strings.Join(eligible, ", "))),
 		},
 		SuggestedCommitMessage: fmt.Sprintf("Promote %s to regression", strings.Join(eligible, ", ")),
-		CrossTierSuggestions:   crossTierSuggestions,
 	}
 }
 
@@ -1052,22 +1121,6 @@ func buildPromotionMarkdown(proposal *PromotionProposal) string {
 	fmt.Fprintln(&b)
 	for _, command := range proposal.SuggestedGitCommands {
 		fmt.Fprintf(&b, "- `%s`\n", command)
-	}
-	if len(proposal.CrossTierSuggestions) > 0 {
-		fmt.Fprintln(&b)
-		fmt.Fprintln(&b, "## Cross-Profile Suggestions")
-		fmt.Fprintln(&b)
-		fmt.Fprintln(&b, "| Step | From | To | Lane | Reason |")
-		fmt.Fprintln(&b, "| --- | --- | --- | --- | --- |")
-		for _, suggestion := range proposal.CrossTierSuggestions {
-			fmt.Fprintf(&b, "| `%s` | %s | %s | %s | %s |\n",
-				suggestion.StepID,
-				suggestion.FromProfile,
-				suggestion.ToProfile,
-				suggestion.ToLane,
-				suggestion.Reason,
-			)
-		}
 	}
 	return b.String()
 }
@@ -1377,6 +1430,66 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func newHistoryID(reportsDir string, suite string, source string, profile string, now time.Time) (string, error) {
+	base := fmt.Sprintf("%s_%s_%s-%s",
+		sanitizeHistoryToken(suite),
+		sanitizeHistoryToken(source),
+		sanitizeHistoryToken(profile),
+		now.Format("20060102_15_04_05"),
+	)
+	for index := 1; index <= 9999; index++ {
+		candidate := fmt.Sprintf("%s_%04d", base, index)
+		candidateDir := filepath.Join(reportsDir, candidate)
+		if err := os.Mkdir(candidateDir, 0o755); err == nil {
+			return candidate, nil
+		} else if os.IsExist(err) {
+			continue
+		} else {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("could not allocate history id for %s", base)
+}
+
+func sanitizeHistoryToken(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "unknown"
+	}
+	var b strings.Builder
+	lastHyphen := false
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+			lastHyphen = false
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+			lastHyphen = false
+		case r == '-' || r == '_':
+			b.WriteRune(r)
+			lastHyphen = false
+		default:
+			if !lastHyphen {
+				b.WriteByte('-')
+				lastHyphen = true
+			}
+		}
+	}
+	out := strings.Trim(b.String(), "-_")
+	if out == "" {
+		return "unknown"
+	}
+	return out
+}
+
+func historyTimestamp(item HistoryEntry) time.Time {
+	if ts, err := time.Parse(time.RFC3339, strings.TrimSpace(item.StartedAt)); err == nil {
+		return ts
+	}
+	return time.Time{}
 }
 
 func yamlList(values []string, indent int) string {

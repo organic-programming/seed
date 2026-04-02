@@ -15,13 +15,18 @@ func Downgrade(_ context.Context, opts DowngradeOptions) (*DowngradeResult, erro
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := acquireCatalogueLock(context.Background(), cfg.Paths.ArtifactsDir)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 
 	editor, err := loadSuiteEditor(cfg.SuitePath)
 	if err != nil {
 		return nil, err
 	}
 
-	targetStepIDs, err := targetedStepIDs(cfg, editor, opts.StepIDs, opts.All, "regression")
+	targetStepIDs, err := targetedStepIDs(cfg, opts.StepIDs, opts.All, "regression")
 	if err != nil {
 		return nil, err
 	}
@@ -33,11 +38,11 @@ func Downgrade(_ context.Context, opts DowngradeOptions) (*DowngradeResult, erro
 	changed := false
 
 	for _, stepID := range targetStepIDs {
-		lane, _, err := editor.stepLane(stepID)
-		if err != nil {
-			return nil, err
+		step, ok := cfg.Suite.Steps[stepID]
+		if !ok {
+			return nil, fmt.Errorf("suite %q does not define step %q", cfg.SuiteName, stepID)
 		}
-		if lane != "regression" {
+		if normalizeStepLane(step.Lane) != "regression" {
 			result.IgnoredSteps = append(result.IgnoredSteps, stepID)
 			continue
 		}
@@ -60,23 +65,22 @@ func validateDowngradeOptions(opts DowngradeOptions) error {
 	if strings.TrimSpace(opts.ConfigDir) == "" {
 		return fmt.Errorf("config dir is required")
 	}
+	if strings.TrimSpace(opts.Suite) == "" {
+		return fmt.Errorf("suite is required")
+	}
 	if opts.All == (len(orderedUniqueStrings(opts.StepIDs)) > 0) {
 		return fmt.Errorf("downgrade requires exactly one of --all or --step")
 	}
 	return nil
 }
 
-func targetedStepIDs(cfg *runtimeConfig, editor *suiteEditor, rawStepIDs []string, all bool, currentLane string) ([]string, error) {
+func targetedStepIDs(cfg *runtimeConfig, rawStepIDs []string, all bool, currentLane string) ([]string, error) {
 	if !all {
 		return orderedUniqueStrings(rawStepIDs), nil
 	}
 	out := make([]string, 0, len(cfg.Suite.Steps))
 	for _, stepID := range orderedStepIDs(cfg.Suite.Steps) {
-		lane, _, err := editor.stepLane(stepID)
-		if err != nil {
-			return nil, err
-		}
-		if lane == currentLane {
+		if normalizeStepLane(cfg.Suite.Steps[stepID].Lane) == currentLane {
 			out = append(out, stepID)
 		}
 	}

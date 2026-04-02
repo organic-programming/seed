@@ -1,18 +1,20 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/organic-programming/clem-ader/internal/testrepo"
 )
 
 func TestRunCommittedSnapshotUsesHEAD(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	if err := os.WriteFile(filepath.Join(root, "state.txt"), []byte("dirty\n"), 0o644); err != nil {
 		t.Fatalf("write dirty state: %v", err)
 	}
@@ -42,9 +44,36 @@ func TestRunCommittedSnapshotUsesHEAD(t *testing.T) {
 	})
 }
 
+func TestNewHistoryIDReservesDirectory(t *testing.T) {
+	reportsDir := t.TempDir()
+	now := time.Date(2026, time.April, 1, 23, 30, 45, 0, time.Local)
+
+	first, err := newHistoryID(reportsDir, "seed", "committed", "quick", now)
+	if err != nil {
+		t.Fatalf("newHistoryID() first error = %v", err)
+	}
+	second, err := newHistoryID(reportsDir, "seed", "committed", "quick", now)
+	if err != nil {
+		t.Fatalf("newHistoryID() second error = %v", err)
+	}
+
+	if first != "seed_committed_quick-20260401_23_30_45_0001" {
+		t.Fatalf("first history id = %q", first)
+	}
+	if second != "seed_committed_quick-20260401_23_30_45_0002" {
+		t.Fatalf("second history id = %q", second)
+	}
+	if !dirExists(filepath.Join(reportsDir, first)) {
+		t.Fatalf("missing reserved report dir for %s", first)
+	}
+	if !dirExists(filepath.Join(reportsDir, second)) {
+		t.Fatalf("missing reserved report dir for %s", second)
+	}
+}
+
 func TestRunWorkspaceSnapshotUsesWorkingTree(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	if err := os.WriteFile(filepath.Join(root, "state.txt"), []byte("dirty\n"), 0o644); err != nil {
 		t.Fatalf("write dirty state: %v", err)
 	}
@@ -73,7 +102,7 @@ func TestRunWorkspaceSnapshotUsesWorkingTree(t *testing.T) {
 
 func TestRunFullArchivesAndHistoryShow(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		result, err := Run(context.Background(), RunOptions{
 			ConfigDir:     configDir,
@@ -123,9 +152,46 @@ func TestRunFullArchivesAndHistoryShow(t *testing.T) {
 	})
 }
 
+func TestRunWritesSuiteSnapshotAndStructuredHistoryID(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+
+	withWorkingDir(t, root, func() {
+		result, err := Run(context.Background(), RunOptions{
+			ConfigDir:     configDir,
+			Suite:         "fixture",
+			Profile:       "unit",
+			Lane:          "regression",
+			Source:        "committed",
+			ArchivePolicy: "never",
+		})
+		if err != nil {
+			t.Fatalf("Run() error = %v", err)
+		}
+		if !strings.HasPrefix(result.Manifest.HistoryID, "fixture_committed_unit-") {
+			t.Fatalf("history id = %q, want structured fixture_committed_unit-*", result.Manifest.HistoryID)
+		}
+		snapshotPath := filepath.Join(result.Manifest.ReportDir, reportSuiteSnapshot)
+		data, err := os.ReadFile(snapshotPath)
+		if err != nil {
+			t.Fatalf("read suite snapshot: %v", err)
+		}
+		text := string(data)
+		if !strings.Contains(text, "holons-clem-ader-unit-root:") {
+			t.Fatalf("suite snapshot missing explicit step: %q", text)
+		}
+		if !strings.Contains(text, "profiles:") {
+			t.Fatalf("suite snapshot missing profiles section: %q", text)
+		}
+		if strings.Contains(text, "generated_lanes:") || strings.Contains(text, "generation:") || strings.Contains(text, "generated_groups:") {
+			t.Fatalf("suite snapshot should be a plain explicit suite, got obsolete sidecar syntax: %q", text)
+		}
+	})
+}
+
 func TestArchiveLatestAndCleanup(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		result, err := Run(context.Background(), RunOptions{
 			ConfigDir:     configDir,
@@ -152,7 +218,7 @@ func TestArchiveLatestAndCleanup(t *testing.T) {
 			t.Fatalf("manual archive missing: %v", err)
 		}
 
-		removedDir := filepath.Join(root, "integration", ".artifacts", "local-suite", result.Manifest.HistoryID)
+		removedDir := filepath.Join(configDir, ".artifacts", "local-suite", result.Manifest.HistoryID)
 		if !dirExists(removedDir) {
 			t.Fatalf("expected local-suite dir to exist before cleanup: %s", removedDir)
 		}
@@ -171,7 +237,7 @@ func TestArchiveLatestAndCleanup(t *testing.T) {
 
 func TestProgressionProposalDoesNotMutateSuite(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
 	before, err := os.ReadFile(suitePath)
 	if err != nil {
@@ -212,37 +278,38 @@ func TestProgressionProposalDoesNotMutateSuite(t *testing.T) {
 	}
 }
 
-func TestLoadRunConfigDefaults(t *testing.T) {
+func TestLoadRunConfigRequiresSuiteAndUsesCatalogueDefaults(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 
 	cfg, err := loadRunConfig(configDir, "")
+	if err == nil || !strings.Contains(err.Error(), "suite is required") {
+		t.Fatalf("loadRunConfig() error = %v, want suite required", err)
+	}
+	cfg, err = loadRunConfig(configDir, "fixture")
 	if err != nil {
-		t.Fatalf("loadRunConfig() error = %v", err)
+		t.Fatalf("loadRunConfig() explicit suite error = %v", err)
 	}
 	if cfg.SuiteName != "fixture" {
-		t.Fatalf("default suite = %q, want fixture", cfg.SuiteName)
+		t.Fatalf("suite = %q, want fixture", cfg.SuiteName)
 	}
 	if cfg.Root.Defaults.Lane != "regression" {
 		t.Fatalf("default lane = %q, want regression", cfg.Root.Defaults.Lane)
 	}
-	if cfg.Root.Defaults.Profile != "quick" {
-		t.Fatalf("default profile = %q, want quick", cfg.Root.Defaults.Profile)
-	}
 	if cfg.Root.Defaults.Source != "committed" {
 		t.Fatalf("default source = %q, want committed", cfg.Root.Defaults.Source)
 	}
-	if strings.Join(cfg.Root.Defaults.Ladder, ",") != "quick,unit,integration,full" {
-		t.Fatalf("default ladder = %v, want [quick unit integration full]", cfg.Root.Defaults.Ladder)
+	if cfg.Suite.Defaults.Profile != "quick" {
+		t.Fatalf("suite default profile = %q, want quick", cfg.Suite.Defaults.Profile)
 	}
-	if cfg.Root.Defaults.ArchivePolicy["full"] != "auto" {
-		t.Fatalf("full archive policy = %q, want auto", cfg.Root.Defaults.ArchivePolicy["full"])
+	if cfg.Suite.Profiles["full"].Archive != "auto" {
+		t.Fatalf("full archive policy = %q, want auto", cfg.Suite.Profiles["full"].Archive)
 	}
 }
 
 func TestResolveProfileLaneSteps(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	cfg, err := loadRunConfig(configDir, "fixture")
 	if err != nil {
 		t.Fatalf("loadRunConfig() error = %v", err)
@@ -256,7 +323,7 @@ func TestResolveProfileLaneSteps(t *testing.T) {
 	for _, step := range got {
 		ids = append(ids, step.ID)
 	}
-	want := []string{"ader-unit", "sdk-go-unit", "example-go-unit", "integration-short"}
+	want := []string{"fixture-script", "quiet-script"}
 	if strings.Join(ids, ",") != strings.Join(want, ",") {
 		t.Fatalf("selected ids = %v, want %v", ids, want)
 	}
@@ -274,7 +341,7 @@ profiles:
 `), 0o644); err != nil {
 		t.Fatalf("write suite: %v", err)
 	}
-	if _, err := readSuiteConfig(suitePath); err == nil || !strings.Contains(err.Error(), "exactly one of command or script") {
+	if _, err := readSuiteConfig(suitePath, checksConfig{}); err == nil || !strings.Contains(err.Error(), "exactly one of command or script") {
 		t.Fatalf("readSuiteConfig() error = %v, want exact command/script validation", err)
 	}
 
@@ -289,7 +356,7 @@ profiles:
 `), 0o644); err != nil {
 		t.Fatalf("rewrite suite: %v", err)
 	}
-	if _, err := readSuiteConfig(suitePath); err == nil || !strings.Contains(err.Error(), "cannot define both command and script") {
+	if _, err := readSuiteConfig(suitePath, checksConfig{}); err == nil || !strings.Contains(err.Error(), "cannot define both command and script") {
 		t.Fatalf("readSuiteConfig() error = %v, want xor validation", err)
 	}
 
@@ -303,7 +370,7 @@ profiles:
 `), 0o644); err != nil {
 		t.Fatalf("rewrite suite with args only: %v", err)
 	}
-	if _, err := readSuiteConfig(suitePath); err == nil || !strings.Contains(err.Error(), "cannot define args without script") {
+	if _, err := readSuiteConfig(suitePath, checksConfig{}); err == nil || !strings.Contains(err.Error(), "cannot define args without script") {
 		t.Fatalf("readSuiteConfig() error = %v, want args-without-script validation", err)
 	}
 }
@@ -322,8 +389,58 @@ profiles:
 `), 0o644); err != nil {
 		t.Fatalf("write suite: %v", err)
 	}
-	if _, err := readSuiteConfig(suitePath); err == nil || !strings.Contains(err.Error(), "old regression/progression format") {
+	if _, err := readSuiteConfig(suitePath, checksConfig{}); err == nil || !strings.Contains(err.Error(), "old regression/progression format") {
 		t.Fatalf("readSuiteConfig() error = %v, want migration failure", err)
+	}
+}
+
+func TestReadSuiteConfigRejectsObsoleteSidecarSyntax(t *testing.T) {
+	root := t.TempDir()
+	suitePath := filepath.Join(root, "fixture.yaml")
+	if err := os.WriteFile(suitePath, []byte(`generation:
+  generated_file: fixture_generated.yaml
+steps:
+  ok:
+    workdir: .
+    command: echo ok
+profiles:
+  quick:
+    steps: [ok]
+`), 0o644); err != nil {
+		t.Fatalf("write suite: %v", err)
+	}
+	if _, err := readSuiteConfig(suitePath, checksConfig{}); err == nil || !strings.Contains(err.Error(), `obsolete syntax "generation"`) {
+		t.Fatalf("readSuiteConfig() error = %v, want obsolete sidecar syntax failure", err)
+	}
+
+	if err := os.WriteFile(suitePath, []byte(`generated_lanes:
+  ok: regression
+steps:
+  ok:
+    workdir: .
+    command: echo ok
+profiles:
+  quick:
+    steps: [ok]
+`), 0o644); err != nil {
+		t.Fatalf("rewrite suite with generated_lanes: %v", err)
+	}
+	if _, err := readSuiteConfig(suitePath, checksConfig{}); err == nil || !strings.Contains(err.Error(), `obsolete syntax "generated_lanes"`) {
+		t.Fatalf("readSuiteConfig() error = %v, want generated_lanes rejection", err)
+	}
+
+	if err := os.WriteFile(suitePath, []byte(`steps:
+  ok:
+    workdir: .
+    command: echo ok
+profiles:
+  quick:
+    generated_groups: [generated_go_unit_steps]
+`), 0o644); err != nil {
+		t.Fatalf("rewrite suite with generated_groups: %v", err)
+	}
+	if _, err := readSuiteConfig(suitePath, checksConfig{}); err == nil || !strings.Contains(err.Error(), `obsolete syntax "generated_groups"`) {
+		t.Fatalf("readSuiteConfig() error = %v, want generated_groups rejection", err)
 	}
 }
 
@@ -340,7 +457,7 @@ profiles:
 `), 0o644); err != nil {
 		t.Fatalf("write suite: %v", err)
 	}
-	cfg, err := readSuiteConfig(suitePath)
+	cfg, err := readSuiteConfig(suitePath, checksConfig{})
 	if err != nil {
 		t.Fatalf("readSuiteConfig() error = %v", err)
 	}
@@ -363,14 +480,14 @@ profiles:
 `), 0o644); err != nil {
 		t.Fatalf("write suite: %v", err)
 	}
-	if _, err := readSuiteConfig(suitePath); err == nil || !strings.Contains(err.Error(), "invalid lane") {
+	if _, err := readSuiteConfig(suitePath, checksConfig{}); err == nil || !strings.Contains(err.Error(), "invalid lane") {
 		t.Fatalf("readSuiteConfig() error = %v, want invalid-lane failure", err)
 	}
 }
 
 func TestRunScriptStepWithArgs(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		result, err := Run(context.Background(), RunOptions{
 			ConfigDir:     configDir,
@@ -403,6 +520,116 @@ func TestRunScriptStepWithArgs(t *testing.T) {
 			t.Fatalf("script log = %q, want fixture output", string(logData))
 		}
 	})
+}
+
+func TestCatalogueLockWaitsForRelease(t *testing.T) {
+	artifactsDir := t.TempDir()
+	unlock, err := acquireCatalogueLock(context.Background(), artifactsDir)
+	if err != nil {
+		t.Fatalf("acquireCatalogueLock() initial error = %v", err)
+	}
+	defer unlock()
+
+	acquired := make(chan struct{})
+	go func() {
+		secondUnlock, err := acquireCatalogueLock(context.Background(), artifactsDir)
+		if err == nil {
+			secondUnlock()
+		}
+		close(acquired)
+	}()
+
+	select {
+	case <-acquired:
+		t.Fatal("second lock acquired before first release")
+	case <-time.After(300 * time.Millisecond):
+	}
+
+	unlock()
+
+	select {
+	case <-acquired:
+	case <-time.After(2 * time.Second):
+		t.Fatal("second lock did not acquire after release")
+	}
+}
+
+func TestRunBouquetHistoryShowAndArchive(t *testing.T) {
+	root := testrepo.Create(t)
+	verificationRoot := filepath.Join(root, "verification")
+
+	withWorkingDir(t, root, func() {
+		result, err := RunBouquet(context.Background(), BouquetOptions{
+			VerificationRoot: verificationRoot,
+			Name:             "local-dev",
+		})
+		if err != nil {
+			t.Fatalf("RunBouquet() error = %v", err)
+		}
+		if len(result.Entries) != 2 {
+			t.Fatalf("bouquet entries = %d, want 2", len(result.Entries))
+		}
+		if _, err := os.Stat(filepath.Join(result.Manifest.ReportDir, reportSummaryMD)); err != nil {
+			t.Fatalf("bouquet summary missing: %v", err)
+		}
+		history, err := BouquetHistory(context.Background(), verificationRoot)
+		if err != nil {
+			t.Fatalf("BouquetHistory() error = %v", err)
+		}
+		if len(history) != 1 {
+			t.Fatalf("BouquetHistory() count = %d, want 1", len(history))
+		}
+		shown, err := ShowBouquetHistory(context.Background(), verificationRoot, result.Manifest.HistoryID)
+		if err != nil {
+			t.Fatalf("ShowBouquetHistory() error = %v", err)
+		}
+		if shown.Manifest.HistoryID != result.Manifest.HistoryID {
+			t.Fatalf("ShowBouquetHistory() history id = %q, want %q", shown.Manifest.HistoryID, result.Manifest.HistoryID)
+		}
+		archived, err := ArchiveBouquet(context.Background(), BouquetArchiveOptions{
+			VerificationRoot: verificationRoot,
+			Latest:           true,
+		})
+		if err != nil {
+			t.Fatalf("ArchiveBouquet() error = %v", err)
+		}
+		if archived.Manifest.ArchivePath == "" {
+			t.Fatal("expected bouquet archive path")
+		}
+		if _, err := os.Stat(archived.Manifest.ArchivePath); err != nil {
+			t.Fatalf("bouquet archive missing: %v", err)
+		}
+	})
+}
+
+func TestProgressReporterPhaseHeartbeat(t *testing.T) {
+	oldInterval := progressHeartbeatInterval
+	oldPoll := progressHeartbeatPollInterval
+	progressHeartbeatInterval = 20 * time.Millisecond
+	progressHeartbeatPollInterval = 5 * time.Millisecond
+	t.Cleanup(func() {
+		progressHeartbeatInterval = oldInterval
+		progressHeartbeatPollInterval = oldPoll
+	})
+
+	var buf bytes.Buffer
+	reporter := newProgressReporter(&buf)
+	if err := reporter.withPhase("snapshot workspace", "snapshot ready", func() error {
+		time.Sleep(70 * time.Millisecond)
+		return nil
+	}); err != nil {
+		t.Fatalf("withPhase() error = %v", err)
+	}
+	text := buf.String()
+	if !strings.Contains(text, "[phase] snapshot workspace") {
+		t.Fatalf("progress missing phase start: %q", text)
+	}
+	if !strings.Contains(text, "[wait] snapshot workspace still running") {
+		t.Fatalf("progress missing heartbeat: %q", text)
+	}
+	if !strings.Contains(text, "[phase] snapshot ready (") {
+		t.Fatalf("progress missing phase completion: %q", text)
+	}
 }
 
 func withWorkingDir(t *testing.T, dir string, fn func()) {

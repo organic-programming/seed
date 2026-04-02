@@ -1,142 +1,39 @@
 # Integration
 
-`integration/` is the seed configuration root for `ader`.
+`integration/` is no longer the active `ader` configuration root.
 
-It is not just a folder of tests. It defines the local verification system.
+The active verification model lives under [`verification/`](../verification/README.md):
 
-## What Lives Here
+- catalogue-local `ader.yaml`
+- catalogue-local `checks.yaml`
+- suite files under `verification/catalogues/*/suites/`
+- bouquet files under `verification/bouquets/`
 
-- [`ader.yaml`](./ader.yaml)
-  Global defaults and storage paths.
-- [`suites/seed.yaml`](./suites/seed.yaml)
-  The seed verification suite.
-- [`tests/`](./tests/)
-  The black-box `op` integration suite.
+What remains in `integration/` is still important:
 
-## Scope
+- [`tests/`](./tests/) contains the black-box Go tests used by the `op` catalogue
+- legacy seed files may remain here during migration, but they are not the primary runtime surface anymore
 
-This config drives two loops:
-
-- `progression`
-  workspace proof, used during TDD before a check is promoted
-- `regression`
-  committed proof, archiveable, used once the check has become a project test
-
-The suite does not replace native tests. It orchestrates them.
-
-## Commands
+Use commands against catalogue roots, not `integration/`:
 
 ```bash
-ader test integration --suite seed --profile quick
-ader test integration --suite seed --profile full
-ader test integration --suite seed --profile quick --lane progression --source workspace
-ader test integration --suite seed --profile quick --silent
-ader completion install zsh
-ader promote integration --step sdk-go-unit
-ader downgrade integration --all
-ader downgrade integration --step sdk-go-unit
-ader history integration
-ader show integration --id <history-id>
-ader archive integration --latest
-ader cleanup integration
+ader test verification/catalogues/op --suite op-proxy --profile smoke
+ader promote verification/catalogues/op --suite op-proxy --step <step-id>
+ader downgrade verification/catalogues/op --suite op-proxy --all
+ader history verification/catalogues/op
+ader test-bouquet verification --name local-dev
 ```
 
-Default behavior is live progress on `stderr` plus a final summary on `stdout`. Add `--silent` if you only want the final summary.
-
-## Install
-
-Typical local setup:
-
-```bash
-go install github.com/organic-programming/grace-op/cmd/op@latest
-op env --init
-op install ./holons/clem-ader
-eval "$(op env --shell)"
-ader completion install zsh
-exec zsh
-```
-
-If `op` is already installed:
-
-```bash
-op env --init
-op install ./holons/clem-ader
-eval "$(op env --shell)"
-ader completion install zsh
-exec zsh
-```
-
-## Zsh Completion
-
-Install it once:
-
-```bash
-ader completion install zsh
-exec zsh
-```
-
-Then the useful checks are:
-
-```bash
-ader test <TAB>
-ader test integration --suite <TAB>
-ader test integration --profile <TAB>
-ader show integration --id <TAB>
-```
-
-## Files Produced
-
-Reports:
+Reports now live per catalogue:
 
 ```text
-integration/reports/<history-id>/
+verification/catalogues/<catalogue>/reports/<history-id>/
+verification/catalogues/<catalogue>/archives/<commit-hash>/<history-id>.tar.gz
 ```
 
-Archives:
+Bouquet reports live at:
 
 ```text
-integration/archives/<commit-hash>/<history-id>-<profile>.tar.gz
-```
-
-Deterministic local residue:
-
-```text
-integration/.artifacts/
-integration/.t
-```
-
-## Promotion
-
-When a `progression` run passes completely, `ader` may write:
-
-- `promotion.json`
-- `promotion.md`
-
-These files propose how to move step lanes from `progression` to `regression` in the suite YAML. The proposal includes an explicit `ader promote ...` command.
-
-They also expose `cross_tier_suggestions` for the next profile in the ladder `quick -> unit -> integration -> full`.
-
-Read that as:
-
-- `progression` = TDD lane
-- `regression` = test lane
-
-`ader` does not perform that change automatically during `test`.
-
-To reset checks back into TDD, use `ader downgrade ...`. It rewrites the suite YAML immediately and never auto-commits.
-
-## Step Kinds
-
-The suite YAML supports two step kinds:
-
-- `command`: one-line shell command
-- `script`: executable file resolved from the step `workdir`
-
-Example from the seed suite:
-
-```yaml
-ader-unit:
-  workdir: holons/clem-ader
-  script: scripts/test-unit.sh
-  description: clem-ader self test
+verification/reports/bouquets/<bouquet-history-id>/
+verification/archives/bouquets/<bouquet-history-id>.tar.gz
 ```

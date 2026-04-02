@@ -1,0 +1,23 @@
+description: self-verification of clem-ader command and engine packages
+defaults:
+  profile: smoke
+steps:
+  holons-clem-ader-unit-api:
+    check: holons-clem-ader-unit-api
+    lane: regression
+  holons-clem-ader-unit-internal-engine:
+    check: holons-clem-ader-unit-internal-engine
+    lane: regression
+profiles:
+  smoke:
+    description: canonical path
+    archive: never
+    steps:
+    - holons-clem-ader-unit-api
+    - holons-clem-ader-unit-internal-engine
+  full:
+    description: full scenario proof
+    archive: auto
+    steps:
+    - holons-clem-ader-unit-api
+    - holons-clem-ader-unit-internal-engine

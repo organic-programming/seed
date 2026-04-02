@@ -16,12 +16,12 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 				Composer:   "B. ALTER",
 				Status:     "draft",
 				Born:       "2026-04-01",
-				Version:    "0.2.8",
+				Version:    "0.3.0",
 				Aliases: []string{
 					"ader",
 				},
 			},
-			Description: "Clem Ader is the configurable verification holon of the seed. It loads repo-local suites from a config directory, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, and proposes progression-to-regression promotion without mutating the repo.",
+			Description: "Clem Ader is the configurable verification holon of the seed. It loads catalogue-local checks and suites, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, orchestrates bouquets across several catalogues, and proposes suite-local promotion without mutating unrelated scenarios.",
 			Lang:        "go",
 			Skills: []*holonsv1.HolonManifest_Skill{
 				&holonsv1.HolonManifest_Skill{
@@ -29,9 +29,9 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 					Description: "Freeze a committed snapshot, execute a broad verification pass, and archive the evidence.",
 					When:        "A commit must be validated locally before merge or release.",
 					Steps: []string{
-						"Run `ader test integration --suite seed --profile full`",
+						"Run `ader test verification/catalogues/op --suite op-proxy --profile full`",
 						"Inspect the archived report for the commit hash",
-						"Use `ader history integration` and `ader show integration --id <history-id>` to revisit the exact evidence later",
+						"Use `ader history verification/catalogues/op` and `ader show verification/catalogues/op --id <history-id>` to revisit the exact evidence later",
 					},
 				},
 				&holonsv1.HolonManifest_Skill{
@@ -39,9 +39,9 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 					Description: "Freeze the current workspace for a local TDD loop and propose promotion from progression to regression after a clean pass.",
 					When:        "The user is iterating quickly on a change and wants a frozen local proof.",
 					Steps: []string{
-						"Run `ader test integration --suite seed --profile quick --lane progression --source workspace`",
-						"Inspect `integration/reports/<history-id>/summary.md` and `promotion.md`",
-						"Run the suggested `ader promote integration --step ...` command once the proof is accepted",
+						"Run `ader test verification/catalogues/ader --suite ader-self --profile smoke --lane progression --source workspace`",
+						"Inspect `verification/catalogues/ader/reports/<history-id>/summary.md` and `promotion.md`",
+						"Run the suggested `ader promote verification/catalogues/ader --suite ader-self --step ...` command once the proof is accepted",
 					},
 				},
 				&holonsv1.HolonManifest_Skill{
@@ -50,7 +50,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 					When:        "A progression run passed and the step should now become part of the regression baseline.",
 					Steps: []string{
 						"Inspect `promotion.md` to confirm the suggested `ader promote ...` command",
-						"Run `ader promote integration --step <step-id>` or `--all` as needed",
+						"Run `ader promote verification/catalogues/ader --suite ader-self --step <step-id>` or `--all` as needed",
 						"Review the suite diff and commit deliberately",
 					},
 				},
@@ -59,8 +59,8 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 					Description: "Move regression steps back to progression, rerun the proof, and review the new promotion evidence.",
 					When:        "A profile or step should be reset to TDD without editing the suite YAML by hand.",
 					Steps: []string{
-						"Run `ader downgrade integration --all` or target specific steps with `--step`",
-						"Run `ader test integration --suite seed --profile unit --lane progression --source workspace`",
+						"Run `ader downgrade verification/catalogues/op --suite op-proxy --all` or target specific steps with `--step`",
+						"Run `ader test verification/catalogues/op --suite op-proxy --profile smoke --lane progression --source workspace`",
 						"Review the new `promotion.json` and `promotion.md` before re-promoting",
 					},
 				},
@@ -69,9 +69,9 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 					Description: "Archive the useful evidence and remove deterministic run residue.",
 					When:        "Old snapshots, temp stores, or extracted reports should be pruned safely.",
 					Steps: []string{
-						"Run `ader archive integration --latest` if the report must be preserved historically",
-						"Run `ader cleanup integration` to delete deterministic local-suite residue",
-						"Keep archives under `integration/archives/<commit-hash>/`",
+						"Run `ader archive verification/catalogues/op --latest` if the report must be preserved historically",
+						"Run `ader cleanup verification/catalogues/op` to delete deterministic catalogue residue",
+						"Keep archives under `verification/catalogues/op/archives/<commit-hash>/`",
 					},
 				},
 			},

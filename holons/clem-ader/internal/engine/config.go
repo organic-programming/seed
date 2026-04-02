@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -12,14 +13,17 @@ import (
 )
 
 type runtimeConfig struct {
-	ConfigDir    string
-	ConfigRelDir string
-	RepoRoot     string
-	Root         rootConfig
-	Paths        repoPaths
-	SuiteName    string
-	SuitePath    string
-	Suite        suiteConfig
+	ConfigDir          string
+	ConfigRelDir       string
+	CatalogueName      string
+	RepoRoot           string
+	Root               rootConfig
+	Paths              repoPaths
+	SuiteName          string
+	SuitePath          string
+	ChecksPath         string
+	Suite              suiteConfig
+	EffectiveSuiteYAML string
 }
 
 type rootConfig struct {
@@ -35,33 +39,66 @@ type storageConfig struct {
 }
 
 type defaultsConfig struct {
-	Suite         string            `mapstructure:"suite"`
-	Source        string            `mapstructure:"source"`
-	Lane          string            `mapstructure:"lane"`
-	Profile       string            `mapstructure:"profile"`
-	Ladder        []string          `mapstructure:"ladder"`
-	ArchivePolicy map[string]string `mapstructure:"archive_policy"`
+	Source string `mapstructure:"source"`
+	Lane   string `mapstructure:"lane"`
+}
+
+type checksConfig struct {
+	Checks map[string]checkConfig `yaml:"checks"`
+}
+
+type checkConfig struct {
+	Workdir     string   `yaml:"workdir"`
+	Prereqs     []string `yaml:"prereqs"`
+	Command     string   `yaml:"command"`
+	Script      string   `yaml:"script"`
+	Args        []string `yaml:"args"`
+	Description string   `yaml:"description"`
 }
 
 type suiteConfig struct {
-	Description string                        `mapstructure:"description"`
-	Steps       map[string]suiteStepConfig    `mapstructure:"steps"`
-	Profiles    map[string]suiteProfileConfig `mapstructure:"profiles"`
+	Description string                        `yaml:"description"`
+	Defaults    suiteDefaultsConfig           `yaml:"defaults"`
+	Steps       map[string]suiteStepConfig    `yaml:"steps"`
+	Profiles    map[string]suiteProfileConfig `yaml:"profiles"`
+}
+
+type suiteDefaultsConfig struct {
+	Profile string `yaml:"profile"`
 }
 
 type suiteStepConfig struct {
-	Workdir     string   `mapstructure:"workdir"`
-	Prereqs     []string `mapstructure:"prereqs"`
-	Command     string   `mapstructure:"command"`
-	Script      string   `mapstructure:"script"`
-	Args        []string `mapstructure:"args"`
-	Description string   `mapstructure:"description"`
-	Lane        string   `mapstructure:"lane"`
+	Workdir     string   `yaml:"workdir"`
+	Prereqs     []string `yaml:"prereqs"`
+	Command     string   `yaml:"command"`
+	Script      string   `yaml:"script"`
+	Args        []string `yaml:"args"`
+	Description string   `yaml:"description"`
+	Lane        string   `yaml:"lane"`
+}
+
+type rawSuiteConfig struct {
+	Description string                        `yaml:"description"`
+	Defaults    suiteDefaultsConfig           `yaml:"defaults"`
+	Steps       map[string]rawSuiteStepConfig `yaml:"steps"`
+	Profiles    map[string]suiteProfileConfig `yaml:"profiles"`
+}
+
+type rawSuiteStepConfig struct {
+	Check       string   `yaml:"check"`
+	Workdir     string   `yaml:"workdir"`
+	Prereqs     []string `yaml:"prereqs"`
+	Command     string   `yaml:"command"`
+	Script      string   `yaml:"script"`
+	Args        []string `yaml:"args"`
+	Description string   `yaml:"description"`
+	Lane        string   `yaml:"lane"`
 }
 
 type suiteProfileConfig struct {
-	Description string   `mapstructure:"description"`
-	Steps       []string `mapstructure:"steps"`
+	Description string   `yaml:"description"`
+	Archive     string   `yaml:"archive"`
+	Steps       []string `yaml:"steps"`
 }
 
 func loadRepoConfig(configDir string) (*runtimeConfig, error) {
@@ -86,11 +123,12 @@ func loadRepoConfig(configDir string) (*runtimeConfig, error) {
 		return nil, err
 	}
 	return &runtimeConfig{
-		ConfigDir:    absConfigDir,
-		ConfigRelDir: filepath.ToSlash(configRelDir),
-		RepoRoot:     repoRoot,
-		Root:         rootCfg,
-		Paths:        paths,
+		ConfigDir:     absConfigDir,
+		ConfigRelDir:  filepath.ToSlash(configRelDir),
+		CatalogueName: filepath.Base(absConfigDir),
+		RepoRoot:      repoRoot,
+		Root:          rootCfg,
+		Paths:         paths,
 	}, nil
 }
 
@@ -101,19 +139,27 @@ func loadRunConfig(configDir string, suiteName string) (*runtimeConfig, error) {
 	}
 	name := strings.TrimSpace(suiteName)
 	if name == "" {
-		name = strings.TrimSpace(cfg.Root.Defaults.Suite)
-	}
-	if name == "" {
 		return nil, fmt.Errorf("suite is required")
 	}
+	checksPath := filepath.Join(cfg.ConfigDir, "checks.yaml")
+	checks, err := readChecksConfig(checksPath)
+	if err != nil {
+		return nil, err
+	}
 	suitePath := filepath.Join(cfg.ConfigDir, "suites", name+".yaml")
-	suite, err := readSuiteConfig(suitePath)
+	suite, err := readSuiteConfig(suitePath, checks)
+	if err != nil {
+		return nil, err
+	}
+	effectiveSuiteYAML, err := marshalSuiteConfig(suite)
 	if err != nil {
 		return nil, err
 	}
 	cfg.SuiteName = name
 	cfg.SuitePath = suitePath
+	cfg.ChecksPath = checksPath
 	cfg.Suite = suite
+	cfg.EffectiveSuiteYAML = effectiveSuiteYAML
 	return cfg, nil
 }
 
@@ -133,55 +179,141 @@ func readRootConfig(configDir string) (rootConfig, error) {
 	return cfg, nil
 }
 
-func readSuiteConfig(path string) (suiteConfig, error) {
+func readChecksConfig(path string) (checksConfig, error) {
+	if !fileExists(path) {
+		return checksConfig{}, fmt.Errorf("check catalog file not found: %s", path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return checksConfig{}, err
+	}
+	var cfg checksConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return checksConfig{}, err
+	}
+	if cfg.Checks == nil {
+		cfg.Checks = map[string]checkConfig{}
+	}
+	for id, check := range cfg.Checks {
+		command := strings.TrimSpace(check.Command)
+		script := strings.TrimSpace(check.Script)
+		switch {
+		case script == "" && len(check.Args) > 0:
+			return checksConfig{}, fmt.Errorf("check catalog %s entry %q cannot define args without script", path, id)
+		case command == "" && script == "":
+			return checksConfig{}, fmt.Errorf("check catalog %s entry %q must define exactly one of command or script", path, id)
+		case command != "" && script != "":
+			return checksConfig{}, fmt.Errorf("check catalog %s entry %q cannot define both command and script", path, id)
+		}
+	}
+	return cfg, nil
+}
+
+func readSuiteConfig(path string, checks checksConfig) (suiteConfig, error) {
 	if !fileExists(path) {
 		return suiteConfig{}, fmt.Errorf("suite file not found: %s", path)
 	}
 	if err := validateSuiteYAMLShape(path); err != nil {
 		return suiteConfig{}, err
 	}
-	v := viper.New()
-	v.SetConfigFile(path)
-	if err := v.ReadInConfig(); err != nil {
+	data, err := os.ReadFile(path)
+	if err != nil {
 		return suiteConfig{}, err
 	}
-	var cfg suiteConfig
-	if err := v.Unmarshal(&cfg); err != nil {
+	var raw rawSuiteConfig
+	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return suiteConfig{}, err
 	}
-	if len(cfg.Steps) == 0 {
+	return materializeSuite(path, raw, checks)
+}
+
+func materializeSuite(path string, raw rawSuiteConfig, checks checksConfig) (suiteConfig, error) {
+	if len(raw.Steps) == 0 {
 		return suiteConfig{}, fmt.Errorf("suite file %s does not define any steps", path)
 	}
-	if len(cfg.Profiles) == 0 {
+	if len(raw.Profiles) == 0 {
 		return suiteConfig{}, fmt.Errorf("suite file %s does not define any profiles", path)
 	}
-	for id, step := range cfg.Steps {
-		command := strings.TrimSpace(step.Command)
-		script := strings.TrimSpace(step.Script)
-		lane := normalizeStepLane(step.Lane)
-		switch {
-		case script == "" && len(step.Args) > 0:
-			return suiteConfig{}, fmt.Errorf("suite file %s step %q cannot define args without script", path, id)
-		case command == "" && script == "":
-			return suiteConfig{}, fmt.Errorf("suite file %s step %q must define exactly one of command or script", path, id)
-		case command != "" && script != "":
-			return suiteConfig{}, fmt.Errorf("suite file %s step %q cannot define both command and script", path, id)
-		case lane != "" && lane != "progression" && lane != "regression":
-			return suiteConfig{}, fmt.Errorf("suite file %s step %q has invalid lane %q", path, id, step.Lane)
-		}
+	out := suiteConfig{
+		Description: raw.Description,
+		Defaults:    raw.Defaults,
+		Steps:       make(map[string]suiteStepConfig, len(raw.Steps)),
+		Profiles:    make(map[string]suiteProfileConfig, len(raw.Profiles)),
 	}
-	for profile, entry := range cfg.Profiles {
+	for id, step := range raw.Steps {
+		resolved, err := materializeSuiteStep(path, id, step, checks)
+		if err != nil {
+			return suiteConfig{}, err
+		}
+		out.Steps[id] = resolved
+	}
+	for profile, entry := range raw.Profiles {
+		if archive := normalizeArchivePolicy(entry.Archive); archive != "auto" && archive != "always" && archive != "never" {
+			return suiteConfig{}, fmt.Errorf("suite file %s profile %q has invalid archive policy %q", path, profile, entry.Archive)
+		}
 		for _, stepID := range entry.Steps {
 			stepID = strings.TrimSpace(stepID)
 			if stepID == "" {
 				continue
 			}
-			if _, ok := cfg.Steps[stepID]; !ok {
+			if _, ok := out.Steps[stepID]; !ok {
 				return suiteConfig{}, fmt.Errorf("suite file %s references unknown step %q in profile %q", path, stepID, profile)
 			}
 		}
+		out.Profiles[profile] = entry
 	}
-	return cfg, nil
+	if profile := normalizeProfile(out.Defaults.Profile); profile != "" {
+		if _, ok := out.Profiles[profile]; !ok {
+			return suiteConfig{}, fmt.Errorf("suite file %s default profile %q is not defined", path, out.Defaults.Profile)
+		}
+		out.Defaults.Profile = profile
+	}
+	return out, nil
+}
+
+func materializeSuiteStep(path string, id string, step rawSuiteStepConfig, checks checksConfig) (suiteStepConfig, error) {
+	checkID := strings.TrimSpace(step.Check)
+	lane := normalizeStepLane(step.Lane)
+	if lane != "" && lane != "progression" && lane != "regression" {
+		return suiteStepConfig{}, fmt.Errorf("suite file %s step %q has invalid lane %q", path, id, step.Lane)
+	}
+	if checkID != "" {
+		if strings.TrimSpace(step.Workdir) != "" || len(step.Prereqs) > 0 || strings.TrimSpace(step.Command) != "" || strings.TrimSpace(step.Script) != "" || len(step.Args) > 0 || strings.TrimSpace(step.Description) != "" {
+			return suiteStepConfig{}, fmt.Errorf("suite file %s step %q cannot combine check with inline execution fields", path, id)
+		}
+		check, ok := checks.Checks[checkID]
+		if !ok {
+			return suiteStepConfig{}, fmt.Errorf("suite file %s step %q references unknown check %q", path, id, checkID)
+		}
+		return suiteStepConfig{
+			Workdir:     check.Workdir,
+			Prereqs:     append([]string(nil), check.Prereqs...),
+			Command:     check.Command,
+			Script:      check.Script,
+			Args:        append([]string(nil), check.Args...),
+			Description: check.Description,
+			Lane:        lane,
+		}, nil
+	}
+	command := strings.TrimSpace(step.Command)
+	script := strings.TrimSpace(step.Script)
+	switch {
+	case script == "" && len(step.Args) > 0:
+		return suiteStepConfig{}, fmt.Errorf("suite file %s step %q cannot define args without script", path, id)
+	case command == "" && script == "":
+		return suiteStepConfig{}, fmt.Errorf("suite file %s step %q must define either check or exactly one of command or script", path, id)
+	case command != "" && script != "":
+		return suiteStepConfig{}, fmt.Errorf("suite file %s step %q cannot define both command and script", path, id)
+	}
+	return suiteStepConfig{
+		Workdir:     step.Workdir,
+		Prereqs:     append([]string(nil), step.Prereqs...),
+		Command:     step.Command,
+		Script:      step.Script,
+		Args:        append([]string(nil), step.Args...),
+		Description: step.Description,
+		Lane:        lane,
+	}, nil
 }
 
 func validateSuiteYAMLShape(path string) error {
@@ -196,7 +328,13 @@ func validateSuiteYAMLShape(path string) error {
 	if doc.Kind != yaml.DocumentNode || len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
 		return fmt.Errorf("suite file %s root must be a mapping", path)
 	}
-	profilesNode, ok := mappingValue(doc.Content[0], "profiles")
+	root := doc.Content[0]
+	for _, field := range []string{"generation", "generated_lanes", "generated_groups"} {
+		if _, ok := mappingValue(root, field); ok {
+			return fmt.Errorf("suite file %s uses obsolete syntax %q", path, field)
+		}
+	}
+	profilesNode, ok := mappingValue(root, "profiles")
 	if !ok || profilesNode.Kind != yaml.MappingNode {
 		return nil
 	}
@@ -207,10 +345,13 @@ func validateSuiteYAMLShape(path string) error {
 			return fmt.Errorf("suite file %s profile %q must be a mapping", path, profileName)
 		}
 		if _, ok := mappingValue(profileNode, "regression"); ok {
-			return fmt.Errorf("suite file %s profile %q uses the old regression/progression format; migrate to profiles.<profile>.steps plus steps.<step>.lane", path, profileName)
+			return fmt.Errorf("suite file %s profile %q uses the old regression/progression format; migrate to explicit step lanes", path, profileName)
 		}
 		if _, ok := mappingValue(profileNode, "progression"); ok {
-			return fmt.Errorf("suite file %s profile %q uses the old regression/progression format; migrate to profiles.<profile>.steps plus steps.<step>.lane", path, profileName)
+			return fmt.Errorf("suite file %s profile %q uses the old regression/progression format; migrate to explicit step lanes", path, profileName)
+		}
+		if _, ok := mappingValue(profileNode, "generated_groups"); ok {
+			return fmt.Errorf("suite file %s uses obsolete syntax %q", path, "generated_groups")
 		}
 		if stepsNode, ok := mappingValue(profileNode, "steps"); ok && stepsNode.Kind != yaml.SequenceNode {
 			return fmt.Errorf("suite file %s profile %q field %q must be a sequence", path, profileName, "steps")
@@ -238,23 +379,25 @@ func applyRootDefaults(cfg *rootConfig) {
 	if strings.TrimSpace(cfg.Defaults.Lane) == "" {
 		cfg.Defaults.Lane = "regression"
 	}
-	if strings.TrimSpace(cfg.Defaults.Profile) == "" {
-		cfg.Defaults.Profile = "quick"
+}
+
+func marshalSuiteConfig(cfg suiteConfig) (string, error) {
+	type snapshotSuite struct {
+		Description string                        `yaml:"description,omitempty"`
+		Defaults    suiteDefaultsConfig           `yaml:"defaults,omitempty"`
+		Steps       map[string]suiteStepConfig    `yaml:"steps"`
+		Profiles    map[string]suiteProfileConfig `yaml:"profiles"`
 	}
-	if cfg.Defaults.ArchivePolicy == nil {
-		cfg.Defaults.ArchivePolicy = map[string]string{}
+	out, err := yaml.Marshal(snapshotSuite{
+		Description: cfg.Description,
+		Defaults:    cfg.Defaults,
+		Steps:       cfg.Steps,
+		Profiles:    cfg.Profiles,
+	})
+	if err != nil {
+		return "", err
 	}
-	for profile, value := range map[string]string{
-		"quick":       "never",
-		"unit":        "never",
-		"integration": "never",
-		"full":        "auto",
-		"stress":      "never",
-	} {
-		if strings.TrimSpace(cfg.Defaults.ArchivePolicy[profile]) == "" {
-			cfg.Defaults.ArchivePolicy[profile] = value
-		}
-	}
+	return string(out), nil
 }
 
 func resolveConfigDir(raw string) (string, error) {
@@ -314,4 +457,13 @@ func detectRepoRootFrom(start string) (string, error) {
 		current = parent
 	}
 	return "", fmt.Errorf("unable to detect repository root from %s", start)
+}
+
+func orderedCheckIDs(checks map[string]checkConfig) []string {
+	out := make([]string, 0, len(checks))
+	for id := range checks {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
 }

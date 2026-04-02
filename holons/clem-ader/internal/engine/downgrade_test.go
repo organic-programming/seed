@@ -12,7 +12,7 @@ import (
 
 func TestPromoteSpecificStep(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 
 	result, err := Promote(context.Background(), PromoteOptions{
 		ConfigDir: configDir,
@@ -37,7 +37,7 @@ func TestPromoteSpecificStep(t *testing.T) {
 
 func TestPromoteAllProgressionSteps(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 
 	result, err := Promote(context.Background(), PromoteOptions{
 		ConfigDir: configDir,
@@ -47,7 +47,7 @@ func TestPromoteAllProgressionSteps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Promote() error = %v", err)
 	}
-	want := []string{"example-go-unit", "fixture-script", "integration-short"}
+	want := []string{"examples-hello-world-gabriel-greeting-go-unit-root", "fixture-script", "integration-short", "quiet-script", "sdk-go-holons-unit-root"}
 	if strings.Join(result.PromotedSteps, ",") != strings.Join(want, ",") {
 		t.Fatalf("promoted steps = %v, want %v", result.PromotedSteps, want)
 	}
@@ -55,7 +55,7 @@ func TestPromoteAllProgressionSteps(t *testing.T) {
 
 func TestPromoteValidation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 
 	if _, err := Promote(context.Background(), PromoteOptions{
 		ConfigDir: configDir,
@@ -76,7 +76,7 @@ func TestPromoteValidation(t *testing.T) {
 
 func TestPromotePreservesYAMLStructureOutsideEditedSteps(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
 	if err := os.WriteFile(suitePath, []byte(`description: fixture suite
 # catalog comment
@@ -121,32 +121,32 @@ profiles:
 
 func TestDowngradeSpecificStep(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 
 	result, err := Downgrade(context.Background(), DowngradeOptions{
 		ConfigDir: configDir,
 		Suite:     "fixture",
-		StepIDs:   []string{"grace-op-unit"},
+		StepIDs:   []string{"holons-grace-op-unit-root"},
 	})
 	if err != nil {
 		t.Fatalf("Downgrade() error = %v", err)
 	}
-	if strings.Join(result.DowngradedSteps, ",") != "grace-op-unit" {
-		t.Fatalf("downgraded steps = %v, want [grace-op-unit]", result.DowngradedSteps)
+	if strings.Join(result.DowngradedSteps, ",") != "holons-grace-op-unit-root" {
+		t.Fatalf("downgraded steps = %v, want [holons-grace-op-unit-root]", result.DowngradedSteps)
 	}
 
 	cfg, err := loadRunConfig(configDir, "fixture")
 	if err != nil {
 		t.Fatalf("loadRunConfig() error = %v", err)
 	}
-	if got := normalizeStepLane(cfg.Suite.Steps["grace-op-unit"].Lane); got != "progression" {
-		t.Fatalf("grace-op-unit lane = %q, want progression", got)
+	if got := normalizeStepLane(cfg.Suite.Steps["holons-grace-op-unit-root"].Lane); got != "progression" {
+		t.Fatalf("holons-grace-op-unit-root lane = %q, want progression", got)
 	}
 }
 
 func TestDowngradeAllRegressionSteps(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 
 	result, err := Downgrade(context.Background(), DowngradeOptions{
 		ConfigDir: configDir,
@@ -156,7 +156,7 @@ func TestDowngradeAllRegressionSteps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Downgrade() error = %v", err)
 	}
-	want := []string{"ader-unit", "grace-op-unit", "integration-deterministic", "sdk-go-unit"}
+	want := []string{"holons-clem-ader-unit-root", "holons-grace-op-unit-root", "integration-deterministic"}
 	if strings.Join(result.DowngradedSteps, ",") != strings.Join(want, ",") {
 		t.Fatalf("downgraded steps = %v, want %v", result.DowngradedSteps, want)
 	}
@@ -164,7 +164,7 @@ func TestDowngradeAllRegressionSteps(t *testing.T) {
 
 func TestDowngradeIgnoresAlreadyProgressionStep(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 
 	result, err := Downgrade(context.Background(), DowngradeOptions{
 		ConfigDir: configDir,
@@ -184,7 +184,7 @@ func TestDowngradeIgnoresAlreadyProgressionStep(t *testing.T) {
 
 func TestDowngradeValidation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 
 	if _, err := Downgrade(context.Background(), DowngradeOptions{
 		ConfigDir: configDir,
@@ -197,7 +197,7 @@ func TestDowngradeValidation(t *testing.T) {
 		ConfigDir: configDir,
 		Suite:     "fixture",
 		All:       true,
-		StepIDs:   []string{"grace-op-unit"},
+		StepIDs:   []string{"holons-grace-op-unit-root"},
 	}); err == nil || !strings.Contains(err.Error(), "exactly one of --all or --step") {
 		t.Fatalf("Downgrade() error = %v, want mutually exclusive validation", err)
 	}
@@ -205,21 +205,21 @@ func TestDowngradeValidation(t *testing.T) {
 
 func TestDowngradePreservesYAMLStructureOutsideEditedSteps(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
 	if err := os.WriteFile(suitePath, []byte(`description: fixture suite
 # catalog comment
 steps:
-  grace-op-unit:
+  holons-grace-op-unit-root:
     workdir: holons/grace-op
     prereqs: [go]
-    command: go test ./...
-    description: grace-op unit tests
+    command: go test -v -count=1 -timeout 5m .
+    description: grace-op root package tests
     lane: regression
 profiles:
   # quick profile comment
   quick:
-    steps: [grace-op-unit]
+    steps: [holons-grace-op-unit-root]
 `), 0o644); err != nil {
 		t.Fatalf("rewrite suite: %v", err)
 	}
@@ -227,7 +227,7 @@ profiles:
 	if _, err := Downgrade(context.Background(), DowngradeOptions{
 		ConfigDir: configDir,
 		Suite:     "fixture",
-		StepIDs:   []string{"grace-op-unit"},
+		StepIDs:   []string{"holons-grace-op-unit-root"},
 	}); err != nil {
 		t.Fatalf("Downgrade() error = %v", err)
 	}
@@ -244,7 +244,7 @@ profiles:
 		t.Fatalf("suite lost profile comment: %s", text)
 	}
 	if !strings.Contains(text, "lane: progression") {
-		t.Fatalf("suite missing updated lane: %s", text)
+		t.Fatalf("suite missing downgraded explicit lane: %s", text)
 	}
 }
 
@@ -279,112 +279,39 @@ func TestBuildPromotionProposalIncludesPromoteCommand(t *testing.T) {
 	if proposal == nil {
 		t.Fatal("buildPromotionProposal() = nil, want proposal")
 	}
-	if got := proposal.SuggestedCommand; got != "ader promote integration --step sdk-go-unit" {
+	if got := proposal.SuggestedCommand; got != "ader promote integration --suite fixture --step sdk-go-unit" {
 		t.Fatalf("suggested command = %q, want promote command", got)
 	}
 	markdown := buildPromotionMarkdown(proposal)
-	if !strings.Contains(markdown, "## Apply") || !strings.Contains(markdown, "ader promote integration --step sdk-go-unit") {
+	if !strings.Contains(markdown, "## Apply") || !strings.Contains(markdown, "ader promote integration --suite fixture --step sdk-go-unit") {
 		t.Fatalf("promotion markdown missing promote command: %s", markdown)
 	}
 }
 
-func TestBuildPromotionProposalAddsCrossTierSuggestions(t *testing.T) {
-	cfg := &runtimeConfig{
-		SuiteName: "fixture",
-		SuitePath: "/tmp/fixture.yaml",
-		Root: rootConfig{
-			Defaults: defaultsConfig{
-				Ladder: []string{"quick", "unit", "integration", "full"},
-			},
-		},
-		Suite: suiteConfig{
-			Steps: map[string]suiteStepConfig{
-				"sdk-go-unit": {Lane: "progression"},
-			},
-			Profiles: map[string]suiteProfileConfig{
-				"unit":        {Steps: []string{"sdk-go-unit"}},
-				"integration": {Steps: []string{}},
-			},
-		},
-	}
-	result := &RunResult{
-		Manifest: HistoryRecord{
-			Suite:   "fixture",
-			Profile: "unit",
-			Lane:    "progression",
-		},
-		Steps: []StepResult{
-			{StepID: "sdk-go-unit", Lane: "progression", Status: "PASS"},
-		},
+func TestPromoteIsSuiteLocalForReusedCheck(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+
+	if _, err := Promote(context.Background(), PromoteOptions{
+		ConfigDir: configDir,
+		Suite:     "fixture",
+		StepIDs:   []string{"fixture-script"},
+	}); err != nil {
+		t.Fatalf("Promote() error = %v", err)
 	}
 
-	proposal := buildPromotionProposal(cfg, result)
-	if proposal == nil {
-		t.Fatal("buildPromotionProposal() = nil, want proposal")
+	primaryCfg, err := loadRunConfig(configDir, "fixture")
+	if err != nil {
+		t.Fatalf("loadRunConfig(fixture) error = %v", err)
 	}
-	if len(proposal.CrossTierSuggestions) != 1 {
-		t.Fatalf("cross-tier suggestions = %d, want 1", len(proposal.CrossTierSuggestions))
+	reuseCfg, err := loadRunConfig(configDir, "reuse")
+	if err != nil {
+		t.Fatalf("loadRunConfig(reuse) error = %v", err)
 	}
-	suggestion := proposal.CrossTierSuggestions[0]
-	if suggestion.FromProfile != "unit" || suggestion.ToProfile != "integration" || suggestion.ToLane != "progression" {
-		t.Fatalf("suggestion = %+v, want unit -> integration progression", suggestion)
+	if got := normalizeStepLane(primaryCfg.Suite.Steps["fixture-script"].Lane); got != "regression" {
+		t.Fatalf("fixture suite lane = %q, want regression", got)
 	}
-}
-
-func TestBuildPromotionProposalHandlesLadderGracefully(t *testing.T) {
-	testCases := []struct {
-		name   string
-		ladder []string
-		want   int
-	}{
-		{name: "empty ladder", ladder: nil, want: 0},
-		{name: "invalid entry skipped", ladder: []string{"quick", "missing", "integration"}, want: 1},
-		{name: "full has no next profile", ladder: []string{"quick", "unit", "integration", "full"}, want: 0},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			profile := "quick"
-			if tc.name == "full has no next profile" {
-				profile = "full"
-			}
-			cfg := &runtimeConfig{
-				SuiteName: "fixture",
-				SuitePath: "/tmp/fixture.yaml",
-				Root: rootConfig{
-					Defaults: defaultsConfig{
-						Ladder: tc.ladder,
-					},
-				},
-				Suite: suiteConfig{
-					Steps: map[string]suiteStepConfig{
-						"sdk-go-unit": {Lane: "progression"},
-					},
-					Profiles: map[string]suiteProfileConfig{
-						"quick":       {Steps: []string{"sdk-go-unit"}},
-						"integration": {Steps: []string{}},
-						"full":        {Steps: []string{"sdk-go-unit"}},
-					},
-				},
-			}
-			result := &RunResult{
-				Manifest: HistoryRecord{
-					Suite:   "fixture",
-					Profile: profile,
-					Lane:    "progression",
-				},
-				Steps: []StepResult{
-					{StepID: "sdk-go-unit", Lane: "progression", Status: "PASS"},
-				},
-			}
-
-			proposal := buildPromotionProposal(cfg, result)
-			if proposal == nil {
-				t.Fatal("buildPromotionProposal() = nil, want proposal")
-			}
-			if len(proposal.CrossTierSuggestions) != tc.want {
-				t.Fatalf("cross-tier suggestions = %d, want %d", len(proposal.CrossTierSuggestions), tc.want)
-			}
-		})
+	if got := normalizeStepLane(reuseCfg.Suite.Steps["fixture-script"].Lane); got != "progression" {
+		t.Fatalf("reuse suite lane = %q, want progression", got)
 	}
 }

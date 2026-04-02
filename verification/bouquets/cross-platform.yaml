@@ -1,0 +1,18 @@
+description: cross-platform regression bouquet
+defaults:
+  source: committed
+  lane: regression
+  archive: never
+entries:
+- catalogue: op
+  suite: op-instances
+  profile: full
+- catalogue: ader
+  suite: ader-core
+  profile: full
+- catalogue: swiftui
+  suite: swiftui-smoke
+  profile: full
+- catalogue: flutter
+  suite: flutter-smoke
+  profile: full

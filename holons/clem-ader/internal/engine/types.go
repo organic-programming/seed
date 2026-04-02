@@ -18,6 +18,17 @@ type ArchiveOptions struct {
 	Latest    bool
 }
 
+type BouquetOptions struct {
+	VerificationRoot string
+	Name             string
+}
+
+type BouquetArchiveOptions struct {
+	VerificationRoot string
+	HistoryID        string
+	Latest           bool
+}
+
 type PromoteOptions struct {
 	ConfigDir string
 	Suite     string
@@ -37,7 +48,14 @@ type RunResult struct {
 	Steps           []StepResult
 	SummaryMarkdown string
 	SummaryTSV      string
+	SuiteSnapshot   string
 	Promotion       *PromotionProposal
+}
+
+type BouquetRunResult struct {
+	Manifest        BouquetRecord
+	Entries         []BouquetEntryResult
+	SummaryMarkdown string
 }
 
 type PromoteResult struct {
@@ -114,6 +132,47 @@ type CleanupResult struct {
 	RemovedPaths          []string `json:"removed_paths"`
 }
 
+type BouquetRecord struct {
+	VerificationRoot string `json:"verification_root"`
+	Bouquet          string `json:"bouquet"`
+	HistoryID        string `json:"history_id"`
+	ReportDir        string `json:"report_dir"`
+	ArchivePath      string `json:"archive_path"`
+	StartedAt        string `json:"started_at"`
+	FinishedAt       string `json:"finished_at"`
+	FinalStatus      string `json:"final_status"`
+	PassCount        int    `json:"pass_count"`
+	FailCount        int    `json:"fail_count"`
+	SkipCount        int    `json:"skip_count"`
+}
+
+type BouquetEntryResult struct {
+	Catalogue      string `json:"catalogue"`
+	ConfigDir      string `json:"config_dir"`
+	Suite          string `json:"suite"`
+	Profile        string `json:"profile"`
+	Lane           string `json:"lane"`
+	Source         string `json:"source"`
+	ArchivePolicy  string `json:"archive_policy"`
+	FinalStatus    string `json:"final_status"`
+	Reason         string `json:"reason,omitempty"`
+	ChildHistoryID string `json:"child_history_id,omitempty"`
+	ChildReportDir string `json:"child_report_dir,omitempty"`
+	ChildArchive   string `json:"child_archive_path,omitempty"`
+	StartedAt      string `json:"started_at,omitempty"`
+	FinishedAt     string `json:"finished_at,omitempty"`
+}
+
+type BouquetHistoryEntry struct {
+	HistoryID   string `json:"history_id"`
+	Bouquet     string `json:"bouquet"`
+	FinalStatus string `json:"final_status"`
+	StartedAt   string `json:"started_at"`
+	FinishedAt  string `json:"finished_at"`
+	ReportDir   string `json:"report_dir"`
+	ArchivePath string `json:"archive_path"`
+}
+
 type StepSpec struct {
 	ID          string
 	Lane        string
@@ -126,22 +185,13 @@ type StepSpec struct {
 }
 
 type PromotionProposal struct {
-	Suite                  string                `json:"suite"`
-	Profile                string                `json:"profile"`
-	Lane                   string                `json:"lane"`
-	DestinationLane        string                `json:"destination_lane"`
-	SuiteFile              string                `json:"suite_file"`
-	EligibleSteps          []string              `json:"eligible_steps"`
-	SuggestedCommand       string                `json:"suggested_command"`
-	SuggestedGitCommands   []string              `json:"suggested_git_commands"`
-	SuggestedCommitMessage string                `json:"suggested_commit_message"`
-	CrossTierSuggestions   []CrossTierSuggestion `json:"cross_tier_suggestions,omitempty"`
-}
-
-type CrossTierSuggestion struct {
-	StepID      string `json:"step_id"`
-	FromProfile string `json:"from_profile"`
-	ToProfile   string `json:"to_profile"`
-	ToLane      string `json:"to_lane"`
-	Reason      string `json:"reason"`
+	Suite                  string   `json:"suite"`
+	Profile                string   `json:"profile"`
+	Lane                   string   `json:"lane"`
+	DestinationLane        string   `json:"destination_lane"`
+	SuiteFile              string   `json:"suite_file"`
+	EligibleSteps          []string `json:"eligible_steps"`
+	SuggestedCommand       string   `json:"suggested_command"`
+	SuggestedGitCommands   []string `json:"suggested_git_commands"`
+	SuggestedCommitMessage string   `json:"suggested_commit_message"`
 }

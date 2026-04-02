@@ -16,10 +16,10 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-04-01"
-    version: "0.2.8"
+    version: "0.3.0"
     aliases: ["ader"]
   }
-  description: "Clem Ader is the configurable verification holon of the seed. It loads repo-local suites from a config directory, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, and proposes progression-to-regression promotion without mutating the repo."
+  description: "Clem Ader is the configurable verification holon of the seed. It loads catalogue-local checks and suites, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, orchestrates bouquets across several catalogues, and proposes suite-local promotion without mutating unrelated scenarios."
   lang: "go"
   kind: "native"
   build: {
@@ -39,12 +39,16 @@ option (holons.v1.manifest) = {
     service: "ader.v1.AderService"
     rpcs: [
       "Test",
+      "TestBouquet",
       "Archive",
+      "ArchiveBouquet",
       "Cleanup",
       "Promote",
       "Downgrade",
       "History",
-      "ShowHistory"
+      "BouquetHistory",
+      "ShowHistory",
+      "ShowBouquetHistory"
     ]
   }
   skills: [{
@@ -52,18 +56,18 @@ option (holons.v1.manifest) = {
     description: "Freeze a committed snapshot, execute a broad verification pass, and archive the evidence."
     when: "A commit must be validated locally before merge or release."
     steps: [
-      "Run `ader test integration --suite seed --profile full`",
+      "Run `ader test verification/catalogues/op --suite op-proxy --profile full`",
       "Inspect the archived report for the commit hash",
-      "Use `ader history integration` and `ader show integration --id <history-id>` to revisit the exact evidence later"
+      "Use `ader history verification/catalogues/op` and `ader show verification/catalogues/op --id <history-id>` to revisit the exact evidence later"
     ]
   }, {
     name: "progression-loop"
     description: "Freeze the current workspace for a local TDD loop and propose promotion from progression to regression after a clean pass."
     when: "The user is iterating quickly on a change and wants a frozen local proof."
     steps: [
-      "Run `ader test integration --suite seed --profile quick --lane progression --source workspace`",
-      "Inspect `integration/reports/<history-id>/summary.md` and `promotion.md`",
-      "Run the suggested `ader promote integration --step ...` command once the proof is accepted"
+      "Run `ader test verification/catalogues/ader --suite ader-self --profile smoke --lane progression --source workspace`",
+      "Inspect `verification/catalogues/ader/reports/<history-id>/summary.md` and `promotion.md`",
+      "Run the suggested `ader promote verification/catalogues/ader --suite ader-self --step ...` command once the proof is accepted"
     ]
   }, {
     name: "promote-after-proof"
@@ -71,7 +75,7 @@ option (holons.v1.manifest) = {
     when: "A progression run passed and the step should now become part of the regression baseline."
     steps: [
       "Inspect `promotion.md` to confirm the suggested `ader promote ...` command",
-      "Run `ader promote integration --step <step-id>` or `--all` as needed",
+      "Run `ader promote verification/catalogues/ader --suite ader-self --step <step-id>` or `--all` as needed",
       "Review the suite diff and commit deliberately"
     ]
   }, {
@@ -79,8 +83,8 @@ option (holons.v1.manifest) = {
     description: "Move regression steps back to progression, rerun the proof, and review the new promotion evidence."
     when: "A profile or step should be reset to TDD without editing the suite YAML by hand."
     steps: [
-      "Run `ader downgrade integration --all` or target specific steps with `--step`",
-      "Run `ader test integration --suite seed --profile unit --lane progression --source workspace`",
+      "Run `ader downgrade verification/catalogues/op --suite op-proxy --all` or target specific steps with `--step`",
+      "Run `ader test verification/catalogues/op --suite op-proxy --profile smoke --lane progression --source workspace`",
       "Review the new `promotion.json` and `promotion.md` before re-promoting"
     ]
   }, {
@@ -88,21 +92,25 @@ option (holons.v1.manifest) = {
     description: "Archive the useful evidence and remove deterministic run residue."
     when: "Old snapshots, temp stores, or extracted reports should be pruned safely."
     steps: [
-      "Run `ader archive integration --latest` if the report must be preserved historically",
-      "Run `ader cleanup integration` to delete deterministic local-suite residue",
-      "Keep archives under `integration/archives/<commit-hash>/`"
+      "Run `ader archive verification/catalogues/op --latest` if the report must be preserved historically",
+      "Run `ader cleanup verification/catalogues/op` to delete deterministic catalogue residue",
+      "Keep archives under `verification/catalogues/op/archives/<commit-hash>/`"
     ]
   }]
 };
 
 service AderService {
   rpc Test (TestRequest) returns (TestResponse);
+  rpc TestBouquet (BouquetRequest) returns (BouquetResponse);
   rpc Archive (ArchiveRequest) returns (ArchiveResponse);
+  rpc ArchiveBouquet (ArchiveBouquetRequest) returns (ArchiveBouquetResponse);
   rpc Cleanup (CleanupRequest) returns (CleanupResponse);
   rpc Promote (PromoteRequest) returns (PromoteResponse);
   rpc Downgrade (DowngradeRequest) returns (DowngradeResponse);
   rpc History (HistoryRequest) returns (HistoryResponse);
+  rpc BouquetHistory (BouquetHistoryRequest) returns (BouquetHistoryResponse);
   rpc ShowHistory (ShowHistoryRequest) returns (ShowHistoryResponse);
+  rpc ShowBouquetHistory (ShowBouquetHistoryRequest) returns (ShowBouquetHistoryResponse);
 }
 
 message TestRequest {
@@ -122,6 +130,16 @@ message TestResponse {
   repeated StepResult steps = 2;
 }
 
+message BouquetRequest {
+  string verification_root = 1;
+  string name = 2;
+}
+
+message BouquetResponse {
+  BouquetRecord manifest = 1;
+  repeated BouquetEntryResult entries = 2;
+}
+
 message ArchiveRequest {
   string config_dir = 1;
   string history_id = 2;
@@ -130,6 +148,17 @@ message ArchiveRequest {
 
 message ArchiveResponse {
   HistoryRecord manifest = 1;
+  string archive_path = 2;
+}
+
+message ArchiveBouquetRequest {
+  string verification_root = 1;
+  string history_id = 2;
+  bool latest = 3;
+}
+
+message ArchiveBouquetResponse {
+  BouquetRecord manifest = 1;
   string archive_path = 2;
 }
 
@@ -180,6 +209,14 @@ message HistoryResponse {
   repeated HistoryEntry entries = 1;
 }
 
+message BouquetHistoryRequest {
+  string verification_root = 1;
+}
+
+message BouquetHistoryResponse {
+  repeated BouquetHistoryEntry entries = 1;
+}
+
 message ShowHistoryRequest {
   string config_dir = 1;
   string history_id = 2;
@@ -190,6 +227,17 @@ message ShowHistoryResponse {
   repeated StepResult steps = 2;
   string summary_markdown = 3;
   string summary_tsv = 4;
+}
+
+message ShowBouquetHistoryRequest {
+  string verification_root = 1;
+  string history_id = 2;
+}
+
+message ShowBouquetHistoryResponse {
+  BouquetRecord manifest = 1;
+  repeated BouquetEntryResult entries = 2;
+  string summary_markdown = 3;
 }
 
 message HistoryEntry {
@@ -205,6 +253,16 @@ message HistoryEntry {
   string finished_at = 10;
   string report_dir = 11;
   string archive_path = 12;
+}
+
+message BouquetHistoryEntry {
+  string history_id = 1;
+  string bouquet = 2;
+  string final_status = 3;
+  string started_at = 4;
+  string finished_at = 5;
+  string report_dir = 6;
+  string archive_path = 7;
 }
 
 message HistoryRecord {
@@ -231,6 +289,20 @@ message HistoryRecord {
   uint32 skip_count = 21;
 }
 
+message BouquetRecord {
+  string verification_root = 1;
+  string bouquet = 2;
+  string history_id = 3;
+  string report_dir = 4;
+  string archive_path = 5;
+  string started_at = 6;
+  string finished_at = 7;
+  string final_status = 8;
+  uint32 pass_count = 9;
+  uint32 fail_count = 10;
+  uint32 skip_count = 11;
+}
+
 message StepResult {
   string step_id = 1;
   string lane = 2;
@@ -243,4 +315,21 @@ message StepResult {
   string started_at = 9;
   string finished_at = 10;
   uint64 duration_seconds = 11;
+}
+
+message BouquetEntryResult {
+  string catalogue = 1;
+  string config_dir = 2;
+  string suite = 3;
+  string profile = 4;
+  string lane = 5;
+  string source = 6;
+  string archive_policy = 7;
+  string final_status = 8;
+  string reason = 9;
+  string child_history_id = 10;
+  string child_report_dir = 11;
+  string child_archive = 12;
+  string started_at = 13;
+  string finished_at = 14;
 }

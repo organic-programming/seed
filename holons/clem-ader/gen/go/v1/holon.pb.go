@@ -182,6 +182,110 @@ func (x *TestResponse) GetSteps() []*StepResult {
 	return nil
 }
 
+type BouquetRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	VerificationRoot string                 `protobuf:"bytes,1,opt,name=verification_root,json=verificationRoot,proto3" json:"verification_root,omitempty"`
+	Name             string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *BouquetRequest) Reset() {
+	*x = BouquetRequest{}
+	mi := &file_v1_holon_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BouquetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BouquetRequest) ProtoMessage() {}
+
+func (x *BouquetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_holon_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BouquetRequest.ProtoReflect.Descriptor instead.
+func (*BouquetRequest) Descriptor() ([]byte, []int) {
+	return file_v1_holon_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *BouquetRequest) GetVerificationRoot() string {
+	if x != nil {
+		return x.VerificationRoot
+	}
+	return ""
+}
+
+func (x *BouquetRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type BouquetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Manifest      *BouquetRecord         `protobuf:"bytes,1,opt,name=manifest,proto3" json:"manifest,omitempty"`
+	Entries       []*BouquetEntryResult  `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BouquetResponse) Reset() {
+	*x = BouquetResponse{}
+	mi := &file_v1_holon_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BouquetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BouquetResponse) ProtoMessage() {}
+
+func (x *BouquetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_holon_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BouquetResponse.ProtoReflect.Descriptor instead.
+func (*BouquetResponse) Descriptor() ([]byte, []int) {
+	return file_v1_holon_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *BouquetResponse) GetManifest() *BouquetRecord {
+	if x != nil {
+		return x.Manifest
+	}
+	return nil
+}
+
+func (x *BouquetResponse) GetEntries() []*BouquetEntryResult {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
 type ArchiveRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ConfigDir     string                 `protobuf:"bytes,1,opt,name=config_dir,json=configDir,proto3" json:"config_dir,omitempty"`
@@ -193,7 +297,7 @@ type ArchiveRequest struct {
 
 func (x *ArchiveRequest) Reset() {
 	*x = ArchiveRequest{}
-	mi := &file_v1_holon_proto_msgTypes[2]
+	mi := &file_v1_holon_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -205,7 +309,7 @@ func (x *ArchiveRequest) String() string {
 func (*ArchiveRequest) ProtoMessage() {}
 
 func (x *ArchiveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[2]
+	mi := &file_v1_holon_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -218,7 +322,7 @@ func (x *ArchiveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveRequest.ProtoReflect.Descriptor instead.
 func (*ArchiveRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{2}
+	return file_v1_holon_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ArchiveRequest) GetConfigDir() string {
@@ -252,7 +356,7 @@ type ArchiveResponse struct {
 
 func (x *ArchiveResponse) Reset() {
 	*x = ArchiveResponse{}
-	mi := &file_v1_holon_proto_msgTypes[3]
+	mi := &file_v1_holon_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -264,7 +368,7 @@ func (x *ArchiveResponse) String() string {
 func (*ArchiveResponse) ProtoMessage() {}
 
 func (x *ArchiveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[3]
+	mi := &file_v1_holon_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -277,7 +381,7 @@ func (x *ArchiveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveResponse.ProtoReflect.Descriptor instead.
 func (*ArchiveResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{3}
+	return file_v1_holon_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ArchiveResponse) GetManifest() *HistoryRecord {
@@ -294,6 +398,118 @@ func (x *ArchiveResponse) GetArchivePath() string {
 	return ""
 }
 
+type ArchiveBouquetRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	VerificationRoot string                 `protobuf:"bytes,1,opt,name=verification_root,json=verificationRoot,proto3" json:"verification_root,omitempty"`
+	HistoryId        string                 `protobuf:"bytes,2,opt,name=history_id,json=historyId,proto3" json:"history_id,omitempty"`
+	Latest           bool                   `protobuf:"varint,3,opt,name=latest,proto3" json:"latest,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ArchiveBouquetRequest) Reset() {
+	*x = ArchiveBouquetRequest{}
+	mi := &file_v1_holon_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveBouquetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveBouquetRequest) ProtoMessage() {}
+
+func (x *ArchiveBouquetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_holon_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveBouquetRequest.ProtoReflect.Descriptor instead.
+func (*ArchiveBouquetRequest) Descriptor() ([]byte, []int) {
+	return file_v1_holon_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ArchiveBouquetRequest) GetVerificationRoot() string {
+	if x != nil {
+		return x.VerificationRoot
+	}
+	return ""
+}
+
+func (x *ArchiveBouquetRequest) GetHistoryId() string {
+	if x != nil {
+		return x.HistoryId
+	}
+	return ""
+}
+
+func (x *ArchiveBouquetRequest) GetLatest() bool {
+	if x != nil {
+		return x.Latest
+	}
+	return false
+}
+
+type ArchiveBouquetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Manifest      *BouquetRecord         `protobuf:"bytes,1,opt,name=manifest,proto3" json:"manifest,omitempty"`
+	ArchivePath   string                 `protobuf:"bytes,2,opt,name=archive_path,json=archivePath,proto3" json:"archive_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveBouquetResponse) Reset() {
+	*x = ArchiveBouquetResponse{}
+	mi := &file_v1_holon_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveBouquetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveBouquetResponse) ProtoMessage() {}
+
+func (x *ArchiveBouquetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_holon_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveBouquetResponse.ProtoReflect.Descriptor instead.
+func (*ArchiveBouquetResponse) Descriptor() ([]byte, []int) {
+	return file_v1_holon_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ArchiveBouquetResponse) GetManifest() *BouquetRecord {
+	if x != nil {
+		return x.Manifest
+	}
+	return nil
+}
+
+func (x *ArchiveBouquetResponse) GetArchivePath() string {
+	if x != nil {
+		return x.ArchivePath
+	}
+	return ""
+}
+
 type CleanupRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ConfigDir     string                 `protobuf:"bytes,1,opt,name=config_dir,json=configDir,proto3" json:"config_dir,omitempty"`
@@ -303,7 +519,7 @@ type CleanupRequest struct {
 
 func (x *CleanupRequest) Reset() {
 	*x = CleanupRequest{}
-	mi := &file_v1_holon_proto_msgTypes[4]
+	mi := &file_v1_holon_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -315,7 +531,7 @@ func (x *CleanupRequest) String() string {
 func (*CleanupRequest) ProtoMessage() {}
 
 func (x *CleanupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[4]
+	mi := &file_v1_holon_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -328,7 +544,7 @@ func (x *CleanupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupRequest.ProtoReflect.Descriptor instead.
 func (*CleanupRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{4}
+	return file_v1_holon_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CleanupRequest) GetConfigDir() string {
@@ -350,7 +566,7 @@ type CleanupResponse struct {
 
 func (x *CleanupResponse) Reset() {
 	*x = CleanupResponse{}
-	mi := &file_v1_holon_proto_msgTypes[5]
+	mi := &file_v1_holon_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -362,7 +578,7 @@ func (x *CleanupResponse) String() string {
 func (*CleanupResponse) ProtoMessage() {}
 
 func (x *CleanupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[5]
+	mi := &file_v1_holon_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -375,7 +591,7 @@ func (x *CleanupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupResponse.ProtoReflect.Descriptor instead.
 func (*CleanupResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{5}
+	return file_v1_holon_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CleanupResponse) GetRemovedLocalSuiteDirs() uint32 {
@@ -418,7 +634,7 @@ type PromoteRequest struct {
 
 func (x *PromoteRequest) Reset() {
 	*x = PromoteRequest{}
-	mi := &file_v1_holon_proto_msgTypes[6]
+	mi := &file_v1_holon_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -430,7 +646,7 @@ func (x *PromoteRequest) String() string {
 func (*PromoteRequest) ProtoMessage() {}
 
 func (x *PromoteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[6]
+	mi := &file_v1_holon_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -443,7 +659,7 @@ func (x *PromoteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteRequest.ProtoReflect.Descriptor instead.
 func (*PromoteRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{6}
+	return file_v1_holon_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PromoteRequest) GetConfigDir() string {
@@ -486,7 +702,7 @@ type PromoteResponse struct {
 
 func (x *PromoteResponse) Reset() {
 	*x = PromoteResponse{}
-	mi := &file_v1_holon_proto_msgTypes[7]
+	mi := &file_v1_holon_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -498,7 +714,7 @@ func (x *PromoteResponse) String() string {
 func (*PromoteResponse) ProtoMessage() {}
 
 func (x *PromoteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[7]
+	mi := &file_v1_holon_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -511,7 +727,7 @@ func (x *PromoteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteResponse.ProtoReflect.Descriptor instead.
 func (*PromoteResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{7}
+	return file_v1_holon_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PromoteResponse) GetSuite() string {
@@ -554,7 +770,7 @@ type DowngradeRequest struct {
 
 func (x *DowngradeRequest) Reset() {
 	*x = DowngradeRequest{}
-	mi := &file_v1_holon_proto_msgTypes[8]
+	mi := &file_v1_holon_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -566,7 +782,7 @@ func (x *DowngradeRequest) String() string {
 func (*DowngradeRequest) ProtoMessage() {}
 
 func (x *DowngradeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[8]
+	mi := &file_v1_holon_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -579,7 +795,7 @@ func (x *DowngradeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DowngradeRequest.ProtoReflect.Descriptor instead.
 func (*DowngradeRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{8}
+	return file_v1_holon_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DowngradeRequest) GetConfigDir() string {
@@ -622,7 +838,7 @@ type DowngradeResponse struct {
 
 func (x *DowngradeResponse) Reset() {
 	*x = DowngradeResponse{}
-	mi := &file_v1_holon_proto_msgTypes[9]
+	mi := &file_v1_holon_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -634,7 +850,7 @@ func (x *DowngradeResponse) String() string {
 func (*DowngradeResponse) ProtoMessage() {}
 
 func (x *DowngradeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[9]
+	mi := &file_v1_holon_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -647,7 +863,7 @@ func (x *DowngradeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DowngradeResponse.ProtoReflect.Descriptor instead.
 func (*DowngradeResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{9}
+	return file_v1_holon_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DowngradeResponse) GetSuite() string {
@@ -687,7 +903,7 @@ type HistoryRequest struct {
 
 func (x *HistoryRequest) Reset() {
 	*x = HistoryRequest{}
-	mi := &file_v1_holon_proto_msgTypes[10]
+	mi := &file_v1_holon_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -699,7 +915,7 @@ func (x *HistoryRequest) String() string {
 func (*HistoryRequest) ProtoMessage() {}
 
 func (x *HistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[10]
+	mi := &file_v1_holon_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -712,7 +928,7 @@ func (x *HistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryRequest.ProtoReflect.Descriptor instead.
 func (*HistoryRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{10}
+	return file_v1_holon_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *HistoryRequest) GetConfigDir() string {
@@ -731,7 +947,7 @@ type HistoryResponse struct {
 
 func (x *HistoryResponse) Reset() {
 	*x = HistoryResponse{}
-	mi := &file_v1_holon_proto_msgTypes[11]
+	mi := &file_v1_holon_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -743,7 +959,7 @@ func (x *HistoryResponse) String() string {
 func (*HistoryResponse) ProtoMessage() {}
 
 func (x *HistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[11]
+	mi := &file_v1_holon_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -756,10 +972,98 @@ func (x *HistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryResponse.ProtoReflect.Descriptor instead.
 func (*HistoryResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{11}
+	return file_v1_holon_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *HistoryResponse) GetEntries() []*HistoryEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+type BouquetHistoryRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	VerificationRoot string                 `protobuf:"bytes,1,opt,name=verification_root,json=verificationRoot,proto3" json:"verification_root,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *BouquetHistoryRequest) Reset() {
+	*x = BouquetHistoryRequest{}
+	mi := &file_v1_holon_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BouquetHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BouquetHistoryRequest) ProtoMessage() {}
+
+func (x *BouquetHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_holon_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BouquetHistoryRequest.ProtoReflect.Descriptor instead.
+func (*BouquetHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_v1_holon_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *BouquetHistoryRequest) GetVerificationRoot() string {
+	if x != nil {
+		return x.VerificationRoot
+	}
+	return ""
+}
+
+type BouquetHistoryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entries       []*BouquetHistoryEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BouquetHistoryResponse) Reset() {
+	*x = BouquetHistoryResponse{}
+	mi := &file_v1_holon_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BouquetHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BouquetHistoryResponse) ProtoMessage() {}
+
+func (x *BouquetHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_holon_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BouquetHistoryResponse.ProtoReflect.Descriptor instead.
+func (*BouquetHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_v1_holon_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *BouquetHistoryResponse) GetEntries() []*BouquetHistoryEntry {
 	if x != nil {
 		return x.Entries
 	}
@@ -776,7 +1080,7 @@ type ShowHistoryRequest struct {
 
 func (x *ShowHistoryRequest) Reset() {
 	*x = ShowHistoryRequest{}
-	mi := &file_v1_holon_proto_msgTypes[12]
+	mi := &file_v1_holon_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -788,7 +1092,7 @@ func (x *ShowHistoryRequest) String() string {
 func (*ShowHistoryRequest) ProtoMessage() {}
 
 func (x *ShowHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[12]
+	mi := &file_v1_holon_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -801,7 +1105,7 @@ func (x *ShowHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShowHistoryRequest.ProtoReflect.Descriptor instead.
 func (*ShowHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{12}
+	return file_v1_holon_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ShowHistoryRequest) GetConfigDir() string {
@@ -830,7 +1134,7 @@ type ShowHistoryResponse struct {
 
 func (x *ShowHistoryResponse) Reset() {
 	*x = ShowHistoryResponse{}
-	mi := &file_v1_holon_proto_msgTypes[13]
+	mi := &file_v1_holon_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -842,7 +1146,7 @@ func (x *ShowHistoryResponse) String() string {
 func (*ShowHistoryResponse) ProtoMessage() {}
 
 func (x *ShowHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[13]
+	mi := &file_v1_holon_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -855,7 +1159,7 @@ func (x *ShowHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShowHistoryResponse.ProtoReflect.Descriptor instead.
 func (*ShowHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{13}
+	return file_v1_holon_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ShowHistoryResponse) GetManifest() *HistoryRecord {
@@ -886,6 +1190,118 @@ func (x *ShowHistoryResponse) GetSummaryTsv() string {
 	return ""
 }
 
+type ShowBouquetHistoryRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	VerificationRoot string                 `protobuf:"bytes,1,opt,name=verification_root,json=verificationRoot,proto3" json:"verification_root,omitempty"`
+	HistoryId        string                 `protobuf:"bytes,2,opt,name=history_id,json=historyId,proto3" json:"history_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ShowBouquetHistoryRequest) Reset() {
+	*x = ShowBouquetHistoryRequest{}
+	mi := &file_v1_holon_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShowBouquetHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShowBouquetHistoryRequest) ProtoMessage() {}
+
+func (x *ShowBouquetHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_holon_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShowBouquetHistoryRequest.ProtoReflect.Descriptor instead.
+func (*ShowBouquetHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_v1_holon_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ShowBouquetHistoryRequest) GetVerificationRoot() string {
+	if x != nil {
+		return x.VerificationRoot
+	}
+	return ""
+}
+
+func (x *ShowBouquetHistoryRequest) GetHistoryId() string {
+	if x != nil {
+		return x.HistoryId
+	}
+	return ""
+}
+
+type ShowBouquetHistoryResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Manifest        *BouquetRecord         `protobuf:"bytes,1,opt,name=manifest,proto3" json:"manifest,omitempty"`
+	Entries         []*BouquetEntryResult  `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
+	SummaryMarkdown string                 `protobuf:"bytes,3,opt,name=summary_markdown,json=summaryMarkdown,proto3" json:"summary_markdown,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ShowBouquetHistoryResponse) Reset() {
+	*x = ShowBouquetHistoryResponse{}
+	mi := &file_v1_holon_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShowBouquetHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShowBouquetHistoryResponse) ProtoMessage() {}
+
+func (x *ShowBouquetHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_holon_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShowBouquetHistoryResponse.ProtoReflect.Descriptor instead.
+func (*ShowBouquetHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_v1_holon_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ShowBouquetHistoryResponse) GetManifest() *BouquetRecord {
+	if x != nil {
+		return x.Manifest
+	}
+	return nil
+}
+
+func (x *ShowBouquetHistoryResponse) GetEntries() []*BouquetEntryResult {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *ShowBouquetHistoryResponse) GetSummaryMarkdown() string {
+	if x != nil {
+		return x.SummaryMarkdown
+	}
+	return ""
+}
+
 type HistoryEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	HistoryId     string                 `protobuf:"bytes,1,opt,name=history_id,json=historyId,proto3" json:"history_id,omitempty"`
@@ -906,7 +1322,7 @@ type HistoryEntry struct {
 
 func (x *HistoryEntry) Reset() {
 	*x = HistoryEntry{}
-	mi := &file_v1_holon_proto_msgTypes[14]
+	mi := &file_v1_holon_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -918,7 +1334,7 @@ func (x *HistoryEntry) String() string {
 func (*HistoryEntry) ProtoMessage() {}
 
 func (x *HistoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[14]
+	mi := &file_v1_holon_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -931,7 +1347,7 @@ func (x *HistoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryEntry.ProtoReflect.Descriptor instead.
 func (*HistoryEntry) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{14}
+	return file_v1_holon_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *HistoryEntry) GetHistoryId() string {
@@ -1018,6 +1434,98 @@ func (x *HistoryEntry) GetArchivePath() string {
 	return ""
 }
 
+type BouquetHistoryEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	HistoryId     string                 `protobuf:"bytes,1,opt,name=history_id,json=historyId,proto3" json:"history_id,omitempty"`
+	Bouquet       string                 `protobuf:"bytes,2,opt,name=bouquet,proto3" json:"bouquet,omitempty"`
+	FinalStatus   string                 `protobuf:"bytes,3,opt,name=final_status,json=finalStatus,proto3" json:"final_status,omitempty"`
+	StartedAt     string                 `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	FinishedAt    string                 `protobuf:"bytes,5,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	ReportDir     string                 `protobuf:"bytes,6,opt,name=report_dir,json=reportDir,proto3" json:"report_dir,omitempty"`
+	ArchivePath   string                 `protobuf:"bytes,7,opt,name=archive_path,json=archivePath,proto3" json:"archive_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BouquetHistoryEntry) Reset() {
+	*x = BouquetHistoryEntry{}
+	mi := &file_v1_holon_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BouquetHistoryEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BouquetHistoryEntry) ProtoMessage() {}
+
+func (x *BouquetHistoryEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_holon_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BouquetHistoryEntry.ProtoReflect.Descriptor instead.
+func (*BouquetHistoryEntry) Descriptor() ([]byte, []int) {
+	return file_v1_holon_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *BouquetHistoryEntry) GetHistoryId() string {
+	if x != nil {
+		return x.HistoryId
+	}
+	return ""
+}
+
+func (x *BouquetHistoryEntry) GetBouquet() string {
+	if x != nil {
+		return x.Bouquet
+	}
+	return ""
+}
+
+func (x *BouquetHistoryEntry) GetFinalStatus() string {
+	if x != nil {
+		return x.FinalStatus
+	}
+	return ""
+}
+
+func (x *BouquetHistoryEntry) GetStartedAt() string {
+	if x != nil {
+		return x.StartedAt
+	}
+	return ""
+}
+
+func (x *BouquetHistoryEntry) GetFinishedAt() string {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return ""
+}
+
+func (x *BouquetHistoryEntry) GetReportDir() string {
+	if x != nil {
+		return x.ReportDir
+	}
+	return ""
+}
+
+func (x *BouquetHistoryEntry) GetArchivePath() string {
+	if x != nil {
+		return x.ArchivePath
+	}
+	return ""
+}
+
 type HistoryRecord struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ConfigDir     string                 `protobuf:"bytes,1,opt,name=config_dir,json=configDir,proto3" json:"config_dir,omitempty"`
@@ -1047,7 +1555,7 @@ type HistoryRecord struct {
 
 func (x *HistoryRecord) Reset() {
 	*x = HistoryRecord{}
-	mi := &file_v1_holon_proto_msgTypes[15]
+	mi := &file_v1_holon_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1059,7 +1567,7 @@ func (x *HistoryRecord) String() string {
 func (*HistoryRecord) ProtoMessage() {}
 
 func (x *HistoryRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[15]
+	mi := &file_v1_holon_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1072,7 +1580,7 @@ func (x *HistoryRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryRecord.ProtoReflect.Descriptor instead.
 func (*HistoryRecord) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{15}
+	return file_v1_holon_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *HistoryRecord) GetConfigDir() string {
@@ -1222,6 +1730,130 @@ func (x *HistoryRecord) GetSkipCount() uint32 {
 	return 0
 }
 
+type BouquetRecord struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	VerificationRoot string                 `protobuf:"bytes,1,opt,name=verification_root,json=verificationRoot,proto3" json:"verification_root,omitempty"`
+	Bouquet          string                 `protobuf:"bytes,2,opt,name=bouquet,proto3" json:"bouquet,omitempty"`
+	HistoryId        string                 `protobuf:"bytes,3,opt,name=history_id,json=historyId,proto3" json:"history_id,omitempty"`
+	ReportDir        string                 `protobuf:"bytes,4,opt,name=report_dir,json=reportDir,proto3" json:"report_dir,omitempty"`
+	ArchivePath      string                 `protobuf:"bytes,5,opt,name=archive_path,json=archivePath,proto3" json:"archive_path,omitempty"`
+	StartedAt        string                 `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	FinishedAt       string                 `protobuf:"bytes,7,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	FinalStatus      string                 `protobuf:"bytes,8,opt,name=final_status,json=finalStatus,proto3" json:"final_status,omitempty"`
+	PassCount        uint32                 `protobuf:"varint,9,opt,name=pass_count,json=passCount,proto3" json:"pass_count,omitempty"`
+	FailCount        uint32                 `protobuf:"varint,10,opt,name=fail_count,json=failCount,proto3" json:"fail_count,omitempty"`
+	SkipCount        uint32                 `protobuf:"varint,11,opt,name=skip_count,json=skipCount,proto3" json:"skip_count,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *BouquetRecord) Reset() {
+	*x = BouquetRecord{}
+	mi := &file_v1_holon_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BouquetRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BouquetRecord) ProtoMessage() {}
+
+func (x *BouquetRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_holon_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BouquetRecord.ProtoReflect.Descriptor instead.
+func (*BouquetRecord) Descriptor() ([]byte, []int) {
+	return file_v1_holon_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *BouquetRecord) GetVerificationRoot() string {
+	if x != nil {
+		return x.VerificationRoot
+	}
+	return ""
+}
+
+func (x *BouquetRecord) GetBouquet() string {
+	if x != nil {
+		return x.Bouquet
+	}
+	return ""
+}
+
+func (x *BouquetRecord) GetHistoryId() string {
+	if x != nil {
+		return x.HistoryId
+	}
+	return ""
+}
+
+func (x *BouquetRecord) GetReportDir() string {
+	if x != nil {
+		return x.ReportDir
+	}
+	return ""
+}
+
+func (x *BouquetRecord) GetArchivePath() string {
+	if x != nil {
+		return x.ArchivePath
+	}
+	return ""
+}
+
+func (x *BouquetRecord) GetStartedAt() string {
+	if x != nil {
+		return x.StartedAt
+	}
+	return ""
+}
+
+func (x *BouquetRecord) GetFinishedAt() string {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return ""
+}
+
+func (x *BouquetRecord) GetFinalStatus() string {
+	if x != nil {
+		return x.FinalStatus
+	}
+	return ""
+}
+
+func (x *BouquetRecord) GetPassCount() uint32 {
+	if x != nil {
+		return x.PassCount
+	}
+	return 0
+}
+
+func (x *BouquetRecord) GetFailCount() uint32 {
+	if x != nil {
+		return x.FailCount
+	}
+	return 0
+}
+
+func (x *BouquetRecord) GetSkipCount() uint32 {
+	if x != nil {
+		return x.SkipCount
+	}
+	return 0
+}
+
 type StepResult struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	StepId          string                 `protobuf:"bytes,1,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
@@ -1241,7 +1873,7 @@ type StepResult struct {
 
 func (x *StepResult) Reset() {
 	*x = StepResult{}
-	mi := &file_v1_holon_proto_msgTypes[16]
+	mi := &file_v1_holon_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1253,7 +1885,7 @@ func (x *StepResult) String() string {
 func (*StepResult) ProtoMessage() {}
 
 func (x *StepResult) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[16]
+	mi := &file_v1_holon_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1266,7 +1898,7 @@ func (x *StepResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepResult.ProtoReflect.Descriptor instead.
 func (*StepResult) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{16}
+	return file_v1_holon_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *StepResult) GetStepId() string {
@@ -1346,6 +1978,154 @@ func (x *StepResult) GetDurationSeconds() uint64 {
 	return 0
 }
 
+type BouquetEntryResult struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Catalogue      string                 `protobuf:"bytes,1,opt,name=catalogue,proto3" json:"catalogue,omitempty"`
+	ConfigDir      string                 `protobuf:"bytes,2,opt,name=config_dir,json=configDir,proto3" json:"config_dir,omitempty"`
+	Suite          string                 `protobuf:"bytes,3,opt,name=suite,proto3" json:"suite,omitempty"`
+	Profile        string                 `protobuf:"bytes,4,opt,name=profile,proto3" json:"profile,omitempty"`
+	Lane           string                 `protobuf:"bytes,5,opt,name=lane,proto3" json:"lane,omitempty"`
+	Source         string                 `protobuf:"bytes,6,opt,name=source,proto3" json:"source,omitempty"`
+	ArchivePolicy  string                 `protobuf:"bytes,7,opt,name=archive_policy,json=archivePolicy,proto3" json:"archive_policy,omitempty"`
+	FinalStatus    string                 `protobuf:"bytes,8,opt,name=final_status,json=finalStatus,proto3" json:"final_status,omitempty"`
+	Reason         string                 `protobuf:"bytes,9,opt,name=reason,proto3" json:"reason,omitempty"`
+	ChildHistoryId string                 `protobuf:"bytes,10,opt,name=child_history_id,json=childHistoryId,proto3" json:"child_history_id,omitempty"`
+	ChildReportDir string                 `protobuf:"bytes,11,opt,name=child_report_dir,json=childReportDir,proto3" json:"child_report_dir,omitempty"`
+	ChildArchive   string                 `protobuf:"bytes,12,opt,name=child_archive,json=childArchive,proto3" json:"child_archive,omitempty"`
+	StartedAt      string                 `protobuf:"bytes,13,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	FinishedAt     string                 `protobuf:"bytes,14,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *BouquetEntryResult) Reset() {
+	*x = BouquetEntryResult{}
+	mi := &file_v1_holon_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BouquetEntryResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BouquetEntryResult) ProtoMessage() {}
+
+func (x *BouquetEntryResult) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_holon_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BouquetEntryResult.ProtoReflect.Descriptor instead.
+func (*BouquetEntryResult) Descriptor() ([]byte, []int) {
+	return file_v1_holon_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *BouquetEntryResult) GetCatalogue() string {
+	if x != nil {
+		return x.Catalogue
+	}
+	return ""
+}
+
+func (x *BouquetEntryResult) GetConfigDir() string {
+	if x != nil {
+		return x.ConfigDir
+	}
+	return ""
+}
+
+func (x *BouquetEntryResult) GetSuite() string {
+	if x != nil {
+		return x.Suite
+	}
+	return ""
+}
+
+func (x *BouquetEntryResult) GetProfile() string {
+	if x != nil {
+		return x.Profile
+	}
+	return ""
+}
+
+func (x *BouquetEntryResult) GetLane() string {
+	if x != nil {
+		return x.Lane
+	}
+	return ""
+}
+
+func (x *BouquetEntryResult) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *BouquetEntryResult) GetArchivePolicy() string {
+	if x != nil {
+		return x.ArchivePolicy
+	}
+	return ""
+}
+
+func (x *BouquetEntryResult) GetFinalStatus() string {
+	if x != nil {
+		return x.FinalStatus
+	}
+	return ""
+}
+
+func (x *BouquetEntryResult) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *BouquetEntryResult) GetChildHistoryId() string {
+	if x != nil {
+		return x.ChildHistoryId
+	}
+	return ""
+}
+
+func (x *BouquetEntryResult) GetChildReportDir() string {
+	if x != nil {
+		return x.ChildReportDir
+	}
+	return ""
+}
+
+func (x *BouquetEntryResult) GetChildArchive() string {
+	if x != nil {
+		return x.ChildArchive
+	}
+	return ""
+}
+
+func (x *BouquetEntryResult) GetStartedAt() string {
+	if x != nil {
+		return x.StartedAt
+	}
+	return ""
+}
+
+func (x *BouquetEntryResult) GetFinishedAt() string {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return ""
+}
+
 var File_v1_holon_proto protoreflect.FileDescriptor
 
 const file_v1_holon_proto_rawDesc = "" +
@@ -1366,7 +2146,13 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\rkeep_snapshot\x18\t \x01(\bR\fkeepSnapshot\"m\n" +
 	"\fTestResponse\x122\n" +
 	"\bmanifest\x18\x01 \x01(\v2\x16.ader.v1.HistoryRecordR\bmanifest\x12)\n" +
-	"\x05steps\x18\x02 \x03(\v2\x13.ader.v1.StepResultR\x05steps\"f\n" +
+	"\x05steps\x18\x02 \x03(\v2\x13.ader.v1.StepResultR\x05steps\"Q\n" +
+	"\x0eBouquetRequest\x12+\n" +
+	"\x11verification_root\x18\x01 \x01(\tR\x10verificationRoot\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"|\n" +
+	"\x0fBouquetResponse\x122\n" +
+	"\bmanifest\x18\x01 \x01(\v2\x16.ader.v1.BouquetRecordR\bmanifest\x125\n" +
+	"\aentries\x18\x02 \x03(\v2\x1b.ader.v1.BouquetEntryResultR\aentries\"f\n" +
 	"\x0eArchiveRequest\x12\x1d\n" +
 	"\n" +
 	"config_dir\x18\x01 \x01(\tR\tconfigDir\x12\x1d\n" +
@@ -1375,6 +2161,14 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\x06latest\x18\x03 \x01(\bR\x06latest\"h\n" +
 	"\x0fArchiveResponse\x122\n" +
 	"\bmanifest\x18\x01 \x01(\v2\x16.ader.v1.HistoryRecordR\bmanifest\x12!\n" +
+	"\farchive_path\x18\x02 \x01(\tR\varchivePath\"{\n" +
+	"\x15ArchiveBouquetRequest\x12+\n" +
+	"\x11verification_root\x18\x01 \x01(\tR\x10verificationRoot\x12\x1d\n" +
+	"\n" +
+	"history_id\x18\x02 \x01(\tR\thistoryId\x12\x16\n" +
+	"\x06latest\x18\x03 \x01(\bR\x06latest\"o\n" +
+	"\x16ArchiveBouquetResponse\x122\n" +
+	"\bmanifest\x18\x01 \x01(\v2\x16.ader.v1.BouquetRecordR\bmanifest\x12!\n" +
 	"\farchive_path\x18\x02 \x01(\tR\varchivePath\"/\n" +
 	"\x0eCleanupRequest\x12\x1d\n" +
 	"\n" +
@@ -1412,7 +2206,11 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\n" +
 	"config_dir\x18\x01 \x01(\tR\tconfigDir\"B\n" +
 	"\x0fHistoryResponse\x12/\n" +
-	"\aentries\x18\x01 \x03(\v2\x15.ader.v1.HistoryEntryR\aentries\"R\n" +
+	"\aentries\x18\x01 \x03(\v2\x15.ader.v1.HistoryEntryR\aentries\"D\n" +
+	"\x15BouquetHistoryRequest\x12+\n" +
+	"\x11verification_root\x18\x01 \x01(\tR\x10verificationRoot\"P\n" +
+	"\x16BouquetHistoryResponse\x126\n" +
+	"\aentries\x18\x01 \x03(\v2\x1c.ader.v1.BouquetHistoryEntryR\aentries\"R\n" +
 	"\x12ShowHistoryRequest\x12\x1d\n" +
 	"\n" +
 	"config_dir\x18\x01 \x01(\tR\tconfigDir\x12\x1d\n" +
@@ -1423,7 +2221,15 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\x05steps\x18\x02 \x03(\v2\x13.ader.v1.StepResultR\x05steps\x12)\n" +
 	"\x10summary_markdown\x18\x03 \x01(\tR\x0fsummaryMarkdown\x12\x1f\n" +
 	"\vsummary_tsv\x18\x04 \x01(\tR\n" +
-	"summaryTsv\"\xe5\x02\n" +
+	"summaryTsv\"g\n" +
+	"\x19ShowBouquetHistoryRequest\x12+\n" +
+	"\x11verification_root\x18\x01 \x01(\tR\x10verificationRoot\x12\x1d\n" +
+	"\n" +
+	"history_id\x18\x02 \x01(\tR\thistoryId\"\xb2\x01\n" +
+	"\x1aShowBouquetHistoryResponse\x122\n" +
+	"\bmanifest\x18\x01 \x01(\v2\x16.ader.v1.BouquetRecordR\bmanifest\x125\n" +
+	"\aentries\x18\x02 \x03(\v2\x1b.ader.v1.BouquetEntryResultR\aentries\x12)\n" +
+	"\x10summary_markdown\x18\x03 \x01(\tR\x0fsummaryMarkdown\"\xe5\x02\n" +
 	"\fHistoryEntry\x12\x1d\n" +
 	"\n" +
 	"history_id\x18\x01 \x01(\tR\thistoryId\x12\x14\n" +
@@ -1442,7 +2248,19 @@ const file_v1_holon_proto_rawDesc = "" +
 	"finishedAt\x12\x1d\n" +
 	"\n" +
 	"report_dir\x18\v \x01(\tR\treportDir\x12!\n" +
-	"\farchive_path\x18\f \x01(\tR\varchivePath\"\x84\x05\n" +
+	"\farchive_path\x18\f \x01(\tR\varchivePath\"\xf3\x01\n" +
+	"\x13BouquetHistoryEntry\x12\x1d\n" +
+	"\n" +
+	"history_id\x18\x01 \x01(\tR\thistoryId\x12\x18\n" +
+	"\abouquet\x18\x02 \x01(\tR\abouquet\x12!\n" +
+	"\ffinal_status\x18\x03 \x01(\tR\vfinalStatus\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\x04 \x01(\tR\tstartedAt\x12\x1f\n" +
+	"\vfinished_at\x18\x05 \x01(\tR\n" +
+	"finishedAt\x12\x1d\n" +
+	"\n" +
+	"report_dir\x18\x06 \x01(\tR\treportDir\x12!\n" +
+	"\farchive_path\x18\a \x01(\tR\varchivePath\"\x84\x05\n" +
 	"\rHistoryRecord\x12\x1d\n" +
 	"\n" +
 	"config_dir\x18\x01 \x01(\tR\tconfigDir\x12\x14\n" +
@@ -1475,7 +2293,27 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\n" +
 	"fail_count\x18\x14 \x01(\rR\tfailCount\x12\x1d\n" +
 	"\n" +
-	"skip_count\x18\x15 \x01(\rR\tskipCount\"\xc5\x02\n" +
+	"skip_count\x18\x15 \x01(\rR\tskipCount\"\xf7\x02\n" +
+	"\rBouquetRecord\x12+\n" +
+	"\x11verification_root\x18\x01 \x01(\tR\x10verificationRoot\x12\x18\n" +
+	"\abouquet\x18\x02 \x01(\tR\abouquet\x12\x1d\n" +
+	"\n" +
+	"history_id\x18\x03 \x01(\tR\thistoryId\x12\x1d\n" +
+	"\n" +
+	"report_dir\x18\x04 \x01(\tR\treportDir\x12!\n" +
+	"\farchive_path\x18\x05 \x01(\tR\varchivePath\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\x06 \x01(\tR\tstartedAt\x12\x1f\n" +
+	"\vfinished_at\x18\a \x01(\tR\n" +
+	"finishedAt\x12!\n" +
+	"\ffinal_status\x18\b \x01(\tR\vfinalStatus\x12\x1d\n" +
+	"\n" +
+	"pass_count\x18\t \x01(\rR\tpassCount\x12\x1d\n" +
+	"\n" +
+	"fail_count\x18\n" +
+	" \x01(\rR\tfailCount\x12\x1d\n" +
+	"\n" +
+	"skip_count\x18\v \x01(\rR\tskipCount\"\xc5\x02\n" +
 	"\n" +
 	"StepResult\x12\x17\n" +
 	"\astep_id\x18\x01 \x01(\tR\x06stepId\x12\x12\n" +
@@ -1491,24 +2329,47 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\vfinished_at\x18\n" +
 	" \x01(\tR\n" +
 	"finishedAt\x12)\n" +
-	"\x10duration_seconds\x18\v \x01(\x04R\x0fdurationSeconds2\xc8\x03\n" +
+	"\x10duration_seconds\x18\v \x01(\x04R\x0fdurationSeconds\"\xc8\x03\n" +
+	"\x12BouquetEntryResult\x12\x1c\n" +
+	"\tcatalogue\x18\x01 \x01(\tR\tcatalogue\x12\x1d\n" +
+	"\n" +
+	"config_dir\x18\x02 \x01(\tR\tconfigDir\x12\x14\n" +
+	"\x05suite\x18\x03 \x01(\tR\x05suite\x12\x18\n" +
+	"\aprofile\x18\x04 \x01(\tR\aprofile\x12\x12\n" +
+	"\x04lane\x18\x05 \x01(\tR\x04lane\x12\x16\n" +
+	"\x06source\x18\x06 \x01(\tR\x06source\x12%\n" +
+	"\x0earchive_policy\x18\a \x01(\tR\rarchivePolicy\x12!\n" +
+	"\ffinal_status\x18\b \x01(\tR\vfinalStatus\x12\x16\n" +
+	"\x06reason\x18\t \x01(\tR\x06reason\x12(\n" +
+	"\x10child_history_id\x18\n" +
+	" \x01(\tR\x0echildHistoryId\x12(\n" +
+	"\x10child_report_dir\x18\v \x01(\tR\x0echildReportDir\x12#\n" +
+	"\rchild_archive\x18\f \x01(\tR\fchildArchive\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\r \x01(\tR\tstartedAt\x12\x1f\n" +
+	"\vfinished_at\x18\x0e \x01(\tR\n" +
+	"finishedAt2\x8f\x06\n" +
 	"\vAderService\x123\n" +
-	"\x04Test\x12\x14.ader.v1.TestRequest\x1a\x15.ader.v1.TestResponse\x12<\n" +
-	"\aArchive\x12\x17.ader.v1.ArchiveRequest\x1a\x18.ader.v1.ArchiveResponse\x12<\n" +
+	"\x04Test\x12\x14.ader.v1.TestRequest\x1a\x15.ader.v1.TestResponse\x12@\n" +
+	"\vTestBouquet\x12\x17.ader.v1.BouquetRequest\x1a\x18.ader.v1.BouquetResponse\x12<\n" +
+	"\aArchive\x12\x17.ader.v1.ArchiveRequest\x1a\x18.ader.v1.ArchiveResponse\x12Q\n" +
+	"\x0eArchiveBouquet\x12\x1e.ader.v1.ArchiveBouquetRequest\x1a\x1f.ader.v1.ArchiveBouquetResponse\x12<\n" +
 	"\aCleanup\x12\x17.ader.v1.CleanupRequest\x1a\x18.ader.v1.CleanupResponse\x12<\n" +
 	"\aPromote\x12\x17.ader.v1.PromoteRequest\x1a\x18.ader.v1.PromoteResponse\x12B\n" +
 	"\tDowngrade\x12\x19.ader.v1.DowngradeRequest\x1a\x1a.ader.v1.DowngradeResponse\x12<\n" +
-	"\aHistory\x12\x17.ader.v1.HistoryRequest\x1a\x18.ader.v1.HistoryResponse\x12H\n" +
-	"\vShowHistory\x12\x1b.ader.v1.ShowHistoryRequest\x1a\x1c.ader.v1.ShowHistoryResponseB\xeb\x15\x82\xb5\x18\xab\x15\n" +
+	"\aHistory\x12\x17.ader.v1.HistoryRequest\x1a\x18.ader.v1.HistoryResponse\x12Q\n" +
+	"\x0eBouquetHistory\x12\x1e.ader.v1.BouquetHistoryRequest\x1a\x1f.ader.v1.BouquetHistoryResponse\x12H\n" +
+	"\vShowHistory\x12\x1b.ader.v1.ShowHistoryRequest\x1a\x1c.ader.v1.ShowHistoryResponse\x12]\n" +
+	"\x12ShowBouquetHistory\x12\".ader.v1.ShowBouquetHistoryRequest\x1a#.ader.v1.ShowBouquetHistoryResponseB\xd1\x18\x82\xb5\x18\x91\x18\n" +
 	"\x9d\x01\n" +
 	"\bholon/v1\x12$0dc655fd-d130-41d3-b332-cf1cf334f61d\x1a\x04Clem\"\x04Ader*5Freeze the repo, run the proof, archive the evidence.2\bB. ALTERB\x05draftJ\n" +
-	"2026-04-01R\x050.2.7Z\x04ader\x1a\xb6\x02Clem Ader is the configurable verification holon of the seed. It loads repo-local suites from a config directory, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, and proposes progression-to-regression promotion without mutating the repo.\"\x02go*\x85\x03\n" +
-	"\x0fregression-loop\x12YFreeze a committed snapshot, execute a broad verification pass, and archive the evidence.\x1a;A commit must be validated locally before merge or release.\"7Run `ader test integration --suite seed --profile full`\"/Inspect the archived report for the commit hash\"pUse `ader history integration` and `ader show integration --id <history-id>` to revisit the exact evidence later*\xdf\x03\n" +
-	"\x10progression-loop\x12zFreeze the current workspace for a local TDD loop and propose promotion from progression to regression after a clean pass.\x1aIThe user is iterating quickly on a change and wants a frozen local proof.\"^Run `ader test integration --suite seed --profile quick --lane progression --source workspace`\"HInspect `integration/reports/<history-id>/summary.md` and `promotion.md`\"ZRun the suggested `ader promote integration --step ...` command once the proof is accepted*\xee\x02\n" +
-	"\x13promote-after-proof\x12<Promote progression steps to regression after a clean proof.\x1aXA progression run passed and the step should now become part of the regression baseline.\"JInspect `promotion.md` to confirm the suggested `ader promote ...` command\"DRun `ader promote integration --step <step-id>` or `--all` as needed\"-Review the suite diff and commit deliberately*\xc3\x03\n" +
-	"\x15downgrade-and-rebuild\x12bMove regression steps back to progression, rerun the proof, and review the new promotion evidence.\x1aPA profile or step should be reset to TDD without editing the suite YAML by hand.\"MRun `ader downgrade integration --all` or target specific steps with `--step`\"]Run `ader test integration --suite seed --profile unit --lane progression --source workspace`\"FReview the new `promotion.json` and `promotion.md` before re-promoting*\xfb\x02\n" +
-	"\x0ereport-hygiene\x12AArchive the useful evidence and remove deterministic run residue.\x1aIOld snapshots, temp stores, or extracted reports should be pruned safely.\"TRun `ader archive integration --latest` if the report must be preserved historically\"JRun `ader cleanup integration` to delete deterministic local-suite residue\"9Keep archives under `integration/archives/<commit-hash>/`2k\n" +
-	"\x12api/v1/holon.proto\x12\x13ader.v1.AderService\x1a\x04Test\x1a\aArchive\x1a\aCleanup\x1a\aPromote\x1a\tDowngrade\x1a\aHistory\x1a\vShowHistory:\x06nativeR\"\n" +
+	"2026-04-01R\x050.3.0Z\x04ader\x1a\xdc\x02Clem Ader is the configurable verification holon of the seed. It loads catalogue-local checks and suites, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, orchestrates bouquets across several catalogues, and proposes suite-local promotion without mutating unrelated scenarios.\"\x02go*\xb7\x03\n" +
+	"\x0fregression-loop\x12YFreeze a committed snapshot, execute a broad verification pass, and archive the evidence.\x1a;A commit must be validated locally before merge or release.\"JRun `ader test verification/catalogues/op --suite op-proxy --profile full`\"/Inspect the archived report for the commit hash\"\x8e\x01Use `ader history verification/catalogues/op` and `ader show verification/catalogues/op --id <history-id>` to revisit the exact evidence later*\xa9\x04\n" +
+	"\x10progression-loop\x12zFreeze the current workspace for a local TDD loop and propose promotion from progression to regression after a clean pass.\x1aIThe user is iterating quickly on a change and wants a frozen local proof.\"tRun `ader test verification/catalogues/ader --suite ader-self --profile smoke --lane progression --source workspace`\"YInspect `verification/catalogues/ader/reports/<history-id>/summary.md` and `promotion.md`\"}Run the suggested `ader promote verification/catalogues/ader --suite ader-self --step ...` command once the proof is accepted*\x91\x03\n" +
+	"\x13promote-after-proof\x12<Promote progression steps to regression after a clean proof.\x1aXA progression run passed and the step should now become part of the regression baseline.\"JInspect `promotion.md` to confirm the suggested `ader promote ...` command\"gRun `ader promote verification/catalogues/ader --suite ader-self --step <step-id>` or `--all` as needed\"-Review the suite diff and commit deliberately*\xf7\x03\n" +
+	"\x15downgrade-and-rebuild\x12bMove regression steps back to progression, rerun the proof, and review the new promotion evidence.\x1aPA profile or step should be reset to TDD without editing the suite YAML by hand.\"mRun `ader downgrade verification/catalogues/op --suite op-proxy --all` or target specific steps with `--step`\"qRun `ader test verification/catalogues/op --suite op-proxy --profile smoke --lane progression --source workspace`\"FReview the new `promotion.json` and `promotion.md` before re-promoting*\xa6\x03\n" +
+	"\x0ereport-hygiene\x12AArchive the useful evidence and remove deterministic run residue.\x1aIOld snapshots, temp stores, or extracted reports should be pruned safely.\"cRun `ader archive verification/catalogues/op --latest` if the report must be preserved historically\"WRun `ader cleanup verification/catalogues/op` to delete deterministic catalogue residue\"HKeep archives under `verification/catalogues/op/archives/<commit-hash>/`2\xac\x01\n" +
+	"\x12api/v1/holon.proto\x12\x13ader.v1.AderService\x1a\x04Test\x1a\vTestBouquet\x1a\aArchive\x1a\x0eArchiveBouquet\x1a\aCleanup\x1a\aPromote\x1a\tDowngrade\x1a\aHistory\x1a\x0eBouquetHistory\x1a\vShowHistory\x1a\x12ShowBouquetHistory:\x06nativeR\"\n" +
 	"\tgo-module\x12\x05./cmd2\x0eapi/version.goZ\f\n" +
 	"\x02go\x12\x06go.modj\x06\n" +
 	"\x04aderZ9github.com/organic-programming/clem-ader/gen/go/v1;aderv1b\x06proto3"
@@ -1525,52 +2386,77 @@ func file_v1_holon_proto_rawDescGZIP() []byte {
 	return file_v1_holon_proto_rawDescData
 }
 
-var file_v1_holon_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_v1_holon_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_v1_holon_proto_goTypes = []any{
-	(*TestRequest)(nil),         // 0: ader.v1.TestRequest
-	(*TestResponse)(nil),        // 1: ader.v1.TestResponse
-	(*ArchiveRequest)(nil),      // 2: ader.v1.ArchiveRequest
-	(*ArchiveResponse)(nil),     // 3: ader.v1.ArchiveResponse
-	(*CleanupRequest)(nil),      // 4: ader.v1.CleanupRequest
-	(*CleanupResponse)(nil),     // 5: ader.v1.CleanupResponse
-	(*PromoteRequest)(nil),      // 6: ader.v1.PromoteRequest
-	(*PromoteResponse)(nil),     // 7: ader.v1.PromoteResponse
-	(*DowngradeRequest)(nil),    // 8: ader.v1.DowngradeRequest
-	(*DowngradeResponse)(nil),   // 9: ader.v1.DowngradeResponse
-	(*HistoryRequest)(nil),      // 10: ader.v1.HistoryRequest
-	(*HistoryResponse)(nil),     // 11: ader.v1.HistoryResponse
-	(*ShowHistoryRequest)(nil),  // 12: ader.v1.ShowHistoryRequest
-	(*ShowHistoryResponse)(nil), // 13: ader.v1.ShowHistoryResponse
-	(*HistoryEntry)(nil),        // 14: ader.v1.HistoryEntry
-	(*HistoryRecord)(nil),       // 15: ader.v1.HistoryRecord
-	(*StepResult)(nil),          // 16: ader.v1.StepResult
+	(*TestRequest)(nil),                // 0: ader.v1.TestRequest
+	(*TestResponse)(nil),               // 1: ader.v1.TestResponse
+	(*BouquetRequest)(nil),             // 2: ader.v1.BouquetRequest
+	(*BouquetResponse)(nil),            // 3: ader.v1.BouquetResponse
+	(*ArchiveRequest)(nil),             // 4: ader.v1.ArchiveRequest
+	(*ArchiveResponse)(nil),            // 5: ader.v1.ArchiveResponse
+	(*ArchiveBouquetRequest)(nil),      // 6: ader.v1.ArchiveBouquetRequest
+	(*ArchiveBouquetResponse)(nil),     // 7: ader.v1.ArchiveBouquetResponse
+	(*CleanupRequest)(nil),             // 8: ader.v1.CleanupRequest
+	(*CleanupResponse)(nil),            // 9: ader.v1.CleanupResponse
+	(*PromoteRequest)(nil),             // 10: ader.v1.PromoteRequest
+	(*PromoteResponse)(nil),            // 11: ader.v1.PromoteResponse
+	(*DowngradeRequest)(nil),           // 12: ader.v1.DowngradeRequest
+	(*DowngradeResponse)(nil),          // 13: ader.v1.DowngradeResponse
+	(*HistoryRequest)(nil),             // 14: ader.v1.HistoryRequest
+	(*HistoryResponse)(nil),            // 15: ader.v1.HistoryResponse
+	(*BouquetHistoryRequest)(nil),      // 16: ader.v1.BouquetHistoryRequest
+	(*BouquetHistoryResponse)(nil),     // 17: ader.v1.BouquetHistoryResponse
+	(*ShowHistoryRequest)(nil),         // 18: ader.v1.ShowHistoryRequest
+	(*ShowHistoryResponse)(nil),        // 19: ader.v1.ShowHistoryResponse
+	(*ShowBouquetHistoryRequest)(nil),  // 20: ader.v1.ShowBouquetHistoryRequest
+	(*ShowBouquetHistoryResponse)(nil), // 21: ader.v1.ShowBouquetHistoryResponse
+	(*HistoryEntry)(nil),               // 22: ader.v1.HistoryEntry
+	(*BouquetHistoryEntry)(nil),        // 23: ader.v1.BouquetHistoryEntry
+	(*HistoryRecord)(nil),              // 24: ader.v1.HistoryRecord
+	(*BouquetRecord)(nil),              // 25: ader.v1.BouquetRecord
+	(*StepResult)(nil),                 // 26: ader.v1.StepResult
+	(*BouquetEntryResult)(nil),         // 27: ader.v1.BouquetEntryResult
 }
 var file_v1_holon_proto_depIdxs = []int32{
-	15, // 0: ader.v1.TestResponse.manifest:type_name -> ader.v1.HistoryRecord
-	16, // 1: ader.v1.TestResponse.steps:type_name -> ader.v1.StepResult
-	15, // 2: ader.v1.ArchiveResponse.manifest:type_name -> ader.v1.HistoryRecord
-	14, // 3: ader.v1.HistoryResponse.entries:type_name -> ader.v1.HistoryEntry
-	15, // 4: ader.v1.ShowHistoryResponse.manifest:type_name -> ader.v1.HistoryRecord
-	16, // 5: ader.v1.ShowHistoryResponse.steps:type_name -> ader.v1.StepResult
-	0,  // 6: ader.v1.AderService.Test:input_type -> ader.v1.TestRequest
-	2,  // 7: ader.v1.AderService.Archive:input_type -> ader.v1.ArchiveRequest
-	4,  // 8: ader.v1.AderService.Cleanup:input_type -> ader.v1.CleanupRequest
-	6,  // 9: ader.v1.AderService.Promote:input_type -> ader.v1.PromoteRequest
-	8,  // 10: ader.v1.AderService.Downgrade:input_type -> ader.v1.DowngradeRequest
-	10, // 11: ader.v1.AderService.History:input_type -> ader.v1.HistoryRequest
-	12, // 12: ader.v1.AderService.ShowHistory:input_type -> ader.v1.ShowHistoryRequest
-	1,  // 13: ader.v1.AderService.Test:output_type -> ader.v1.TestResponse
-	3,  // 14: ader.v1.AderService.Archive:output_type -> ader.v1.ArchiveResponse
-	5,  // 15: ader.v1.AderService.Cleanup:output_type -> ader.v1.CleanupResponse
-	7,  // 16: ader.v1.AderService.Promote:output_type -> ader.v1.PromoteResponse
-	9,  // 17: ader.v1.AderService.Downgrade:output_type -> ader.v1.DowngradeResponse
-	11, // 18: ader.v1.AderService.History:output_type -> ader.v1.HistoryResponse
-	13, // 19: ader.v1.AderService.ShowHistory:output_type -> ader.v1.ShowHistoryResponse
-	13, // [13:20] is the sub-list for method output_type
-	6,  // [6:13] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	24, // 0: ader.v1.TestResponse.manifest:type_name -> ader.v1.HistoryRecord
+	26, // 1: ader.v1.TestResponse.steps:type_name -> ader.v1.StepResult
+	25, // 2: ader.v1.BouquetResponse.manifest:type_name -> ader.v1.BouquetRecord
+	27, // 3: ader.v1.BouquetResponse.entries:type_name -> ader.v1.BouquetEntryResult
+	24, // 4: ader.v1.ArchiveResponse.manifest:type_name -> ader.v1.HistoryRecord
+	25, // 5: ader.v1.ArchiveBouquetResponse.manifest:type_name -> ader.v1.BouquetRecord
+	22, // 6: ader.v1.HistoryResponse.entries:type_name -> ader.v1.HistoryEntry
+	23, // 7: ader.v1.BouquetHistoryResponse.entries:type_name -> ader.v1.BouquetHistoryEntry
+	24, // 8: ader.v1.ShowHistoryResponse.manifest:type_name -> ader.v1.HistoryRecord
+	26, // 9: ader.v1.ShowHistoryResponse.steps:type_name -> ader.v1.StepResult
+	25, // 10: ader.v1.ShowBouquetHistoryResponse.manifest:type_name -> ader.v1.BouquetRecord
+	27, // 11: ader.v1.ShowBouquetHistoryResponse.entries:type_name -> ader.v1.BouquetEntryResult
+	0,  // 12: ader.v1.AderService.Test:input_type -> ader.v1.TestRequest
+	2,  // 13: ader.v1.AderService.TestBouquet:input_type -> ader.v1.BouquetRequest
+	4,  // 14: ader.v1.AderService.Archive:input_type -> ader.v1.ArchiveRequest
+	6,  // 15: ader.v1.AderService.ArchiveBouquet:input_type -> ader.v1.ArchiveBouquetRequest
+	8,  // 16: ader.v1.AderService.Cleanup:input_type -> ader.v1.CleanupRequest
+	10, // 17: ader.v1.AderService.Promote:input_type -> ader.v1.PromoteRequest
+	12, // 18: ader.v1.AderService.Downgrade:input_type -> ader.v1.DowngradeRequest
+	14, // 19: ader.v1.AderService.History:input_type -> ader.v1.HistoryRequest
+	16, // 20: ader.v1.AderService.BouquetHistory:input_type -> ader.v1.BouquetHistoryRequest
+	18, // 21: ader.v1.AderService.ShowHistory:input_type -> ader.v1.ShowHistoryRequest
+	20, // 22: ader.v1.AderService.ShowBouquetHistory:input_type -> ader.v1.ShowBouquetHistoryRequest
+	1,  // 23: ader.v1.AderService.Test:output_type -> ader.v1.TestResponse
+	3,  // 24: ader.v1.AderService.TestBouquet:output_type -> ader.v1.BouquetResponse
+	5,  // 25: ader.v1.AderService.Archive:output_type -> ader.v1.ArchiveResponse
+	7,  // 26: ader.v1.AderService.ArchiveBouquet:output_type -> ader.v1.ArchiveBouquetResponse
+	9,  // 27: ader.v1.AderService.Cleanup:output_type -> ader.v1.CleanupResponse
+	11, // 28: ader.v1.AderService.Promote:output_type -> ader.v1.PromoteResponse
+	13, // 29: ader.v1.AderService.Downgrade:output_type -> ader.v1.DowngradeResponse
+	15, // 30: ader.v1.AderService.History:output_type -> ader.v1.HistoryResponse
+	17, // 31: ader.v1.AderService.BouquetHistory:output_type -> ader.v1.BouquetHistoryResponse
+	19, // 32: ader.v1.AderService.ShowHistory:output_type -> ader.v1.ShowHistoryResponse
+	21, // 33: ader.v1.AderService.ShowBouquetHistory:output_type -> ader.v1.ShowBouquetHistoryResponse
+	23, // [23:34] is the sub-list for method output_type
+	12, // [12:23] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_v1_holon_proto_init() }
@@ -1584,7 +2470,7 @@ func file_v1_holon_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_v1_holon_proto_rawDesc), len(file_v1_holon_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

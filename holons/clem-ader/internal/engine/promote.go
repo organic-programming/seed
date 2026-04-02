@@ -14,13 +14,18 @@ func Promote(_ context.Context, opts PromoteOptions) (*PromoteResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	unlock, err := acquireCatalogueLock(context.Background(), cfg.Paths.ArtifactsDir)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 
 	editor, err := loadSuiteEditor(cfg.SuitePath)
 	if err != nil {
 		return nil, err
 	}
 
-	targetStepIDs, err := targetedStepIDs(cfg, editor, opts.StepIDs, opts.All, "progression")
+	targetStepIDs, err := targetedStepIDs(cfg, opts.StepIDs, opts.All, "progression")
 	if err != nil {
 		return nil, err
 	}
@@ -32,11 +37,11 @@ func Promote(_ context.Context, opts PromoteOptions) (*PromoteResult, error) {
 	changed := false
 
 	for _, stepID := range targetStepIDs {
-		lane, _, err := editor.stepLane(stepID)
-		if err != nil {
-			return nil, err
+		step, ok := cfg.Suite.Steps[stepID]
+		if !ok {
+			return nil, fmt.Errorf("suite %q does not define step %q", cfg.SuiteName, stepID)
 		}
-		if lane != "progression" {
+		if normalizeStepLane(step.Lane) != "progression" {
 			result.IgnoredSteps = append(result.IgnoredSteps, stepID)
 			continue
 		}
@@ -58,6 +63,9 @@ func Promote(_ context.Context, opts PromoteOptions) (*PromoteResult, error) {
 func validatePromoteOptions(opts PromoteOptions) error {
 	if strings.TrimSpace(opts.ConfigDir) == "" {
 		return fmt.Errorf("config dir is required")
+	}
+	if strings.TrimSpace(opts.Suite) == "" {
+		return fmt.Errorf("suite is required")
 	}
 	if opts.All == (len(orderedUniqueStrings(opts.StepIDs)) > 0) {
 		return fmt.Errorf("promote requires exactly one of --all or --step")

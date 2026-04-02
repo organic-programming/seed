@@ -1,0 +1,18 @@
+description: local development bouquet
+defaults:
+  source: workspace
+  lane: progression
+  archive: never
+entries:
+- catalogue: op
+  suite: op-proxy
+  profile: smoke
+- catalogue: ader
+  suite: ader-self
+  profile: smoke
+- catalogue: swiftui
+  suite: swiftui-smoke
+  profile: smoke
+- catalogue: flutter
+  suite: flutter-smoke
+  profile: smoke

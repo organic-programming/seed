@@ -3,11 +3,13 @@ package api
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/organic-programming/clem-ader/internal/testrepo"
 	"github.com/spf13/cobra"
@@ -30,7 +32,7 @@ func TestRunCLIVersion(t *testing.T) {
 
 func TestRunCLITestArchiveHistoryAndShow(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
@@ -79,9 +81,51 @@ func TestRunCLITestArchiveHistoryAndShow(t *testing.T) {
 	})
 }
 
+func TestRunCLITestShowsPhaseFeedbackAndHeartbeat(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	withWorkingDir(t, root, func() {
+		t.Setenv("ADER_TEST_SILENT_STEP_SLEEP", "6")
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+
+		if code := RunCLI([]string{"test", configDir, "--suite", "fixture", "--profile", "unit", "--lane", "progression", "--step-filter", "^quiet-script$", "--source", "workspace", "--archive", "never"}, &stdout, &stderr); code != 0 {
+			t.Fatalf("RunCLI(test quiet-script) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "summary: pass=1 fail=0 skip=0") {
+			t.Fatalf("stdout missing final summary: %q", stdout.String())
+		}
+		text := stderr.String()
+		if !strings.Contains(text, "[phase] config loaded") {
+			t.Fatalf("stderr missing config phase: %q", text)
+		}
+		if !strings.Contains(text, "[phase] snapshot workspace") {
+			t.Fatalf("stderr missing snapshot phase: %q", text)
+		}
+		if !strings.Contains(text, "[phase] selected 1 steps for profile=unit lane=progression") {
+			t.Fatalf("stderr missing selected-steps phase: %q", text)
+		}
+		if !strings.Contains(text, "[01/01] RUN  quiet-script") {
+			t.Fatalf("stderr missing RUN line: %q", text)
+		}
+		if !strings.Contains(text, "[01/01] CMD holons/clem-ader :: scripts/quiet-step.sh") {
+			t.Fatalf("stderr missing CMD line: %q", text)
+		}
+		if !strings.Contains(text, "[wait] quiet-script still running") || !strings.Contains(text, "no output yet") {
+			t.Fatalf("stderr missing heartbeat: %q", text)
+		}
+		if !strings.Contains(text, "quiet-step:done") {
+			t.Fatalf("stderr missing raw subprocess output: %q", text)
+		}
+		if strings.Index(text, "[phase] snapshot workspace") > strings.Index(text, "[01/01] RUN  quiet-script") {
+			t.Fatalf("snapshot phase should appear before first step: %q", text)
+		}
+	})
+}
+
 func TestRunCLIPromoteAndDowngrade(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
@@ -95,10 +139,10 @@ func TestRunCLIPromoteAndDowngrade(t *testing.T) {
 
 		stdout.Reset()
 		stderr.Reset()
-		if code := RunCLI([]string{"downgrade", configDir, "--suite", "fixture", "--step", "grace-op-unit"}, &stdout, &stderr); code != 0 {
+		if code := RunCLI([]string{"downgrade", configDir, "--suite", "fixture", "--step", "holons-grace-op-unit-root"}, &stdout, &stderr); code != 0 {
 			t.Fatalf("RunCLI(downgrade) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
 		}
-		if !strings.Contains(stdout.String(), "downgraded: grace-op-unit") {
+		if !strings.Contains(stdout.String(), "downgraded: holons-grace-op-unit-root") {
 			t.Fatalf("downgrade stdout = %q, want downgraded step summary", stdout.String())
 		}
 		if stderr.Len() != 0 {
@@ -109,19 +153,19 @@ func TestRunCLIPromoteAndDowngrade(t *testing.T) {
 
 func TestCLICompletionSuggestsSuitesProfilesAndHistoryIDs(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		testCmd := findCommand(newRootCommand(io.Discard, io.Discard), "test")
 		if testCmd == nil {
 			t.Fatal("test command missing")
 		}
 
-		args, directive := testCmd.ValidArgsFunction(testCmd, nil, "inte")
+		args, directive := testCmd.ValidArgsFunction(testCmd, nil, "ver")
 		if directive != cobra.ShellCompDirectiveNoFileComp {
 			t.Fatalf("config-dir completion directive = %v, want %v", directive, cobra.ShellCompDirectiveNoFileComp)
 		}
-		if len(args) == 0 || !strings.Contains(string(args[0]), "integration") {
-			t.Fatalf("config-dir completion = %v, want integration entry", args)
+		if !strings.Contains(strings.Join(completionsToStrings(args), "\n"), "verification/catalogues/fixture") {
+			t.Fatalf("config-dir completion = %v, want verification/catalogues/fixture entry", args)
 		}
 
 		suiteCompletion, ok := testCmd.GetFlagCompletionFunc("suite")
@@ -165,9 +209,9 @@ func TestCLICompletionSuggestsSuitesProfilesAndHistoryIDs(t *testing.T) {
 		if !ok {
 			t.Fatal("downgrade --step completion lookup failed")
 		}
-		steps, _ := stepCompletion(downgradeCmd, []string{configDir}, "sdk")
-		if len(steps) == 0 || !strings.Contains(string(steps[0]), "sdk-go-unit") {
-			t.Fatalf("downgrade step completion = %v, want sdk-go-unit", steps)
+		steps, _ := stepCompletion(downgradeCmd, []string{configDir}, "holons")
+		if len(steps) == 0 || !strings.Contains(string(steps[0]), "holons-clem-ader-unit-root") {
+			t.Fatalf("downgrade step completion = %v, want holons-clem-ader-unit-root", steps)
 		}
 
 		promoteCmd := findCommand(newRootCommand(io.Discard, io.Discard), "promote")
@@ -212,33 +256,28 @@ func TestCLICompletionSuggestsSuitesProfilesAndHistoryIDs(t *testing.T) {
 
 func TestRunCLIUsesConfiguredDefaultProfile(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
-	aderPath := filepath.Join(configDir, "ader.yaml")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
 	withWorkingDir(t, root, func() {
-		if err := os.WriteFile(aderPath, []byte(`storage:
-  reports: reports
-  archives: archives
-  artifacts: .artifacts
-  temp_alias: .t
+		if err := os.WriteFile(suitePath, []byte(`description: fixture suite
 defaults:
-  suite: fixture
-  source: committed
-  lane: progression
   profile: integration
-  ladder: [quick, unit, integration, full]
-  archive_policy:
-    quick: never
-    unit: never
-    integration: never
-    full: auto
-    stress: never
+steps:
+  integration-short:
+    check: integration-smoke
+    lane: progression
+profiles:
+  integration:
+    description: Deterministic black-box integration suite only
+    archive: never
+    steps: [integration-short]
 `), 0o644); err != nil {
-			t.Fatalf("rewrite ader.yaml: %v", err)
+			t.Fatalf("rewrite suite: %v", err)
 		}
 
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
-		if code := RunCLI([]string{"test", configDir, "--source", "workspace", "--archive", "never"}, &stdout, &stderr); code != 0 {
+		if code := RunCLI([]string{"test", configDir, "--suite", "fixture", "--lane", "progression", "--source", "workspace", "--archive", "never"}, &stdout, &stderr); code != 0 {
 			t.Fatalf("RunCLI(test default profile) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
 		}
 		if !strings.Contains(stderr.String(), "integration-short") {
@@ -249,12 +288,13 @@ defaults:
 
 func TestRunCLITestSilentSuppressesLiveProgress(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
+		t.Setenv("ADER_TEST_SILENT_STEP_SLEEP", "6")
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
 
-		if code := RunCLI([]string{"test", configDir, "--suite", "fixture", "--profile", "integration", "--source", "workspace", "--archive", "never", "--silent"}, &stdout, &stderr); code != 0 {
+		if code := RunCLI([]string{"test", configDir, "--suite", "fixture", "--profile", "unit", "--lane", "progression", "--step-filter", "^quiet-script$", "--source", "workspace", "--archive", "never", "--silent"}, &stdout, &stderr); code != 0 {
 			t.Fatalf("RunCLI(test --silent) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
 		}
 		if !strings.Contains(stdout.String(), "summary: pass=") {
@@ -266,16 +306,60 @@ func TestRunCLITestSilentSuppressesLiveProgress(t *testing.T) {
 	})
 }
 
+func TestRunCLITestBouquetArchiveHistoryAndShow(t *testing.T) {
+	root := testrepo.Create(t)
+	verificationRoot := filepath.Join(root, "verification")
+	withWorkingDir(t, root, func() {
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+
+		if code := RunCLI([]string{"test-bouquet", verificationRoot, "--name", "local-dev"}, &stdout, &stderr); code != 0 {
+			t.Fatalf("RunCLI(test-bouquet) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "summary: pass=") {
+			t.Fatalf("test-bouquet stdout missing summary: %q", stdout.String())
+		}
+
+		stdout.Reset()
+		stderr.Reset()
+		if code := RunCLI([]string{"history-bouquet", verificationRoot}, &stdout, &stderr); code != 0 {
+			t.Fatalf("RunCLI(history-bouquet) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
+		}
+		lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+		if len(lines) != 1 || lines[0] == "" {
+			t.Fatalf("history-bouquet stdout = %q, want exactly one history line", stdout.String())
+		}
+		historyID := strings.Split(lines[0], "\t")[0]
+
+		stdout.Reset()
+		stderr.Reset()
+		if code := RunCLI([]string{"show-bouquet", verificationRoot, "--id", historyID}, &stdout, &stderr); code != 0 {
+			t.Fatalf("RunCLI(show-bouquet) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "# Bouquet Report") {
+			t.Fatalf("show-bouquet stdout missing report heading: %q", stdout.String())
+		}
+
+		stdout.Reset()
+		stderr.Reset()
+		if code := RunCLI([]string{"archive-bouquet", verificationRoot, "--latest"}, &stdout, &stderr); code != 0 {
+			t.Fatalf("RunCLI(archive-bouquet) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "archived bouquet ") {
+			t.Fatalf("archive-bouquet stdout missing archived marker: %q", stdout.String())
+		}
+	})
+}
+
 func TestCLIConfigEnvAndFlagPrecedence(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		t.Setenv("ADER_TEST_SOURCE", "workspace")
-		t.Setenv("ADER_TEST_SUITE", "fixture")
 
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
-		if code := RunCLI([]string{"test", configDir, "--profile", "integration", "--archive", "never"}, &stdout, &stderr); code != 0 {
+		if code := RunCLI([]string{"test", configDir, "--suite", "fixture", "--profile", "integration", "--archive", "never"}, &stdout, &stderr); code != 0 {
 			t.Fatalf("RunCLI(test env override) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
 		}
 		runID := latestRunID(t, configDir)
@@ -350,8 +434,29 @@ func latestRunID(t *testing.T, configDir string) string {
 		t.Fatalf("readdir reports: %v", err)
 	}
 	latest := ""
+	latestStarted := time.Time{}
 	for _, entry := range entries {
-		if entry.IsDir() && entry.Name() > latest {
+		if !entry.IsDir() {
+			continue
+		}
+		manifestPath := filepath.Join(configDir, "reports", entry.Name(), "manifest.json")
+		data, err := os.ReadFile(manifestPath)
+		if err != nil {
+			continue
+		}
+		var payload struct {
+			StartedAt string `json:"started_at"`
+			HistoryID string `json:"history_id"`
+		}
+		if err := json.Unmarshal(data, &payload); err != nil {
+			continue
+		}
+		started, err := time.Parse(time.RFC3339, payload.StartedAt)
+		if err != nil {
+			started = time.Time{}
+		}
+		if started.After(latestStarted) || (started.Equal(latestStarted) && entry.Name() > latest) {
+			latestStarted = started
 			latest = entry.Name()
 		}
 	}
@@ -359,4 +464,12 @@ func latestRunID(t *testing.T, configDir string) string {
 		t.Fatal("expected at least one report dir")
 	}
 	return latest
+}
+
+func completionsToStrings(values []cobra.Completion) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		out = append(out, string(value))
+	}
+	return out
 }

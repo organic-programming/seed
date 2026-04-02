@@ -1,0 +1,102 @@
+description: Dart surface bootstrap while the Flutter-specific scenario set is still emerging
+defaults:
+  profile: smoke
+steps:
+  example-dart-unit:
+    check: example-dart-unit
+    lane: progression
+  integration-dispatch-jsonoutput-dart:
+    check: integration-dispatch-jsonoutput-dart
+    lane: progression
+  integration-dispatch-list-languages-dart:
+    check: integration-dispatch-list-languages-dart
+    lane: progression
+  integration-dispatch-say-hello-across-transports-dart-auto:
+    check: integration-dispatch-say-hello-across-transports-dart-auto
+    lane: progression
+  integration-dispatch-say-hello-across-transports-dart-grpc:
+    check: integration-dispatch-say-hello-across-transports-dart-grpc
+    lane: progression
+  integration-dispatch-say-hello-across-transports-dart-stdio:
+    check: integration-dispatch-say-hello-across-transports-dart-stdio
+    lane: progression
+  integration-dispatch-say-hello-across-transports-dart-tcp:
+    check: integration-dispatch-say-hello-across-transports-dart-tcp
+    lane: progression
+  integration-inspect-local-holons-dart:
+    check: integration-inspect-local-holons-dart
+    lane: progression
+  integration-install-build-install-uninstall-dart:
+    check: integration-install-build-install-uninstall-dart
+    lane: progression
+  integration-install-with-build-flag-dart:
+    check: integration-install-with-build-flag-dart
+    lane: progression
+  integration-invoke-across-transports-dart-auto:
+    check: integration-invoke-across-transports-dart-auto
+    lane: progression
+  integration-invoke-across-transports-dart-grpc:
+    check: integration-invoke-across-transports-dart-grpc
+    lane: progression
+  integration-invoke-across-transports-dart-stdio:
+    check: integration-invoke-across-transports-dart-stdio
+    lane: progression
+  integration-invoke-across-transports-dart-tcp:
+    check: integration-invoke-across-transports-dart-tcp
+    lane: progression
+  integration-lifecycle-hello-world-holons-dart:
+    check: integration-lifecycle-hello-world-holons-dart
+    lane: progression
+  integration-run-tcp-dart:
+    check: integration-run-tcp-dart
+    lane: progression
+  integration-tools-default-format-dart:
+    check: integration-tools-default-format-dart
+    lane: progression
+  integration-tools-formats-dart:
+    check: integration-tools-formats-dart
+    lane: progression
+  integration-unix-transport-run-and-dispatch-dart:
+    check: integration-unix-transport-run-and-dispatch-dart
+    lane: progression
+  integration-windows-build-reports-exe-artifact-dart:
+    check: integration-windows-build-reports-exe-artifact-dart
+    lane: progression
+  sdk-dart-unit:
+    check: sdk-dart-unit
+    lane: progression
+profiles:
+  smoke:
+    description: canonical path
+    archive: never
+    steps:
+    - sdk-dart-unit
+    - example-dart-unit
+    - integration-dispatch-say-hello-across-transports-dart-auto
+    - integration-invoke-across-transports-dart-auto
+    - integration-lifecycle-hello-world-holons-dart
+  full:
+    description: full scenario proof
+    archive: auto
+    steps:
+    - example-dart-unit
+    - integration-dispatch-jsonoutput-dart
+    - integration-dispatch-list-languages-dart
+    - integration-dispatch-say-hello-across-transports-dart-auto
+    - integration-dispatch-say-hello-across-transports-dart-grpc
+    - integration-dispatch-say-hello-across-transports-dart-stdio
+    - integration-dispatch-say-hello-across-transports-dart-tcp
+    - integration-inspect-local-holons-dart
+    - integration-install-build-install-uninstall-dart
+    - integration-install-with-build-flag-dart
+    - integration-invoke-across-transports-dart-auto
+    - integration-invoke-across-transports-dart-grpc
+    - integration-invoke-across-transports-dart-stdio
+    - integration-invoke-across-transports-dart-tcp
+    - integration-lifecycle-hello-world-holons-dart
+    - integration-run-tcp-dart
+    - integration-tools-default-format-dart
+    - integration-tools-formats-dart
+    - integration-unix-transport-run-and-dispatch-dart
+    - integration-windows-build-reports-exe-artifact-dart
+    - sdk-dart-unit

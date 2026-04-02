@@ -12,7 +12,7 @@ import (
 
 func TestPublicTestOperation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		response, err := Test(&aderv1.TestRequest{
 			ConfigDir:     configDir,
@@ -38,7 +38,7 @@ func TestPublicTestOperation(t *testing.T) {
 
 func TestPublicArchiveOperation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		if _, err := Test(&aderv1.TestRequest{
 			ConfigDir:     configDir,
@@ -68,9 +68,9 @@ func TestPublicArchiveOperation(t *testing.T) {
 
 func TestPublicCleanupOperation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
-		stale := filepath.Join(root, "integration", ".artifacts", "local-suite", "stale")
+		stale := filepath.Join(configDir, ".artifacts", "local-suite", "stale")
 		if err := os.MkdirAll(stale, 0o755); err != nil {
 			t.Fatalf("mkdir stale: %v", err)
 		}
@@ -86,7 +86,7 @@ func TestPublicCleanupOperation(t *testing.T) {
 
 func TestPublicPromoteOperation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		response, err := Promote(&aderv1.PromoteRequest{
 			ConfigDir: configDir,
@@ -107,12 +107,12 @@ func TestPublicPromoteOperation(t *testing.T) {
 
 func TestPublicDowngradeOperation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		response, err := Downgrade(&aderv1.DowngradeRequest{
 			ConfigDir: configDir,
 			Suite:     "fixture",
-			StepIds:   []string{"grace-op-unit"},
+			StepIds:   []string{"holons-grace-op-unit-root"},
 		})
 		if err != nil {
 			t.Fatalf("Downgrade() error = %v", err)
@@ -120,15 +120,15 @@ func TestPublicDowngradeOperation(t *testing.T) {
 		if response.GetSuite() != "fixture" {
 			t.Fatalf("suite = %q, want fixture", response.GetSuite())
 		}
-		if len(response.GetDowngradedSteps()) != 1 || response.GetDowngradedSteps()[0] != "grace-op-unit" {
-			t.Fatalf("downgraded steps = %v, want [grace-op-unit]", response.GetDowngradedSteps())
+		if len(response.GetDowngradedSteps()) != 1 || response.GetDowngradedSteps()[0] != "holons-grace-op-unit-root" {
+			t.Fatalf("downgraded steps = %v, want [holons-grace-op-unit-root]", response.GetDowngradedSteps())
 		}
 	})
 }
 
 func TestPublicHistoryAndShowHistoryOperations(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		testResponse, err := Test(&aderv1.TestRequest{
 			ConfigDir:     configDir,
@@ -159,6 +159,52 @@ func TestPublicHistoryAndShowHistoryOperations(t *testing.T) {
 		}
 		if showResponse.GetSummaryMarkdown() == "" {
 			t.Fatal("expected summary markdown")
+		}
+	})
+}
+
+func TestPublicBouquetOperations(t *testing.T) {
+	root := testrepo.Create(t)
+	verificationRoot := filepath.Join(root, "verification")
+	withWorkingDir(t, root, func() {
+		testResponse, err := TestBouquet(&aderv1.BouquetRequest{
+			VerificationRoot: verificationRoot,
+			Name:             "local-dev",
+		})
+		if err != nil {
+			t.Fatalf("TestBouquet() error = %v", err)
+		}
+		if testResponse.GetManifest().GetHistoryId() == "" {
+			t.Fatal("expected bouquet history id")
+		}
+		historyResponse, err := BouquetHistory(&aderv1.BouquetHistoryRequest{
+			VerificationRoot: verificationRoot,
+		})
+		if err != nil {
+			t.Fatalf("BouquetHistory() error = %v", err)
+		}
+		if len(historyResponse.GetEntries()) != 1 {
+			t.Fatalf("BouquetHistory() count = %d, want 1", len(historyResponse.GetEntries()))
+		}
+		showResponse, err := ShowBouquetHistory(&aderv1.ShowBouquetHistoryRequest{
+			VerificationRoot: verificationRoot,
+			HistoryId:        testResponse.GetManifest().GetHistoryId(),
+		})
+		if err != nil {
+			t.Fatalf("ShowBouquetHistory() error = %v", err)
+		}
+		if showResponse.GetSummaryMarkdown() == "" {
+			t.Fatal("expected bouquet summary markdown")
+		}
+		archiveResponse, err := ArchiveBouquet(&aderv1.ArchiveBouquetRequest{
+			VerificationRoot: verificationRoot,
+			Latest:           true,
+		})
+		if err != nil {
+			t.Fatalf("ArchiveBouquet() error = %v", err)
+		}
+		if archiveResponse.GetArchivePath() == "" {
+			t.Fatal("expected bouquet archive path")
 		}
 	})
 }

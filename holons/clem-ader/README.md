@@ -1,372 +1,261 @@
 # Clem Ader
 
-`clem-ader` is the local flight tester holon.
+`clem-ader` is the local verification holon of the seed.
 
-`ader`[^1] takes your code to the runway, checks whether it flies, and keeps the evidence.
+The public command is `ader`.
 
-- command: `ader`
-- seed config dir: [`integration/`](../../integration/)
-- seed suite: [`integration/suites/seed.yaml`](../../integration/suites/seed.yaml)
+The active verification root is [`verification/`](../../verification/README.md).
 
 ## Scope
 
-`ader` does five things:
+`ader` does four things:
 
-1. copy the codebase into an isolated sandbox so tests can't affect your working directory
-2. run a configured set of test commands inside that sandbox
-3. keep the results as reports and optional archives
-4. when all tests pass, propose which ones are ready to become permanent safety checks
-5. apply promotions or downgrades to the test configuration when you decide
+1. freeze the repo into a deterministic snapshot
+2. execute a selected suite profile from a catalogue
+3. keep reports and optional archives as evidence
+4. promote or downgrade suite-local checks between `progression` and `regression`
 
-`ader` does **not**:
+It also orchestrates several catalogue runs through bouquets.
 
-- replace native unit or integration tests
-- invent product tests by itself
-- mutate the repo automatically after a successful run
-- act as CI
+## Model
 
-It is a local verification engine and evidence keeper.
+`ader` now works with four explicit levels:
 
-## Concepts
+- `check`: reusable execution atom
+- `suite`: precise scenario
+- `catalogue`: isolated verification root
+- `bouquet`: orchestration across several catalogues
 
-### Steps
+### Check
 
-A **step** is one test command. It has a name, a working directory, the command to execute, and a **lane** indicating whether it's active TDD or established safety net.
+Checks live in `<catalogue>/checks.yaml`.
+
+They define only reusable execution facts:
 
 ```yaml
-steps:
-  sdk-go-unit:
-    workdir: sdk/go-holons
+checks:
+  holons-grace-op-unit-internal-cli:
+    workdir: holons/grace-op
     prereqs: [go]
-    command: go test ./...
-    description: Go SDK unit tests
-    lane: progression               # TDD — not yet promoted
+    command: go test -v -count=1 -timeout 5m ./internal/cli
+    description: grace-op cli package tests
 ```
 
-| Field | Description |
-|-------|-------------|
-| `workdir` | Directory where the command runs (relative to repo root) |
-| `command` | Shell one-liner via `bash -lc` |
-| `script` | Alternative to command: executable file relative to `workdir` |
-| `args` | Arguments passed to `script` |
-| `prereqs` | Required tools; step is skipped if missing |
-| `description` | Human-readable label |
-| `lane` | `progression` (default) or `regression` |
+### Suite
 
-### Lanes
+Suites live in `<catalogue>/suites/*.yaml`.
 
-A step is in one of two lanes:
+A suite owns:
 
-- **`progression`** — active TDD. The step is being developed or fixed. Failure is expected.
-- **`regression`** — safety net. The step protects the project. Failure means something broke.
+- suite-local steps
+- suite-local lanes
+- profiles
+- per-profile archive policy
 
-`ader promote` moves a step from `progression` to `regression`.
-`ader downgrade` moves it back.
-
-### Profiles
-
-A **profile** is a named group of steps. Different profiles select different subsets for different purposes.
+Example:
 
 ```yaml
-profiles:
-  quick:
-    description: Fast proof for the canonical path
-    steps: [ader-unit, sdk-go-unit, example-go-unit, integration-short]
-  unit:
-    description: All native unit suites
-    steps: [ader-unit, sdk-go-unit, sdk-c-unit, ...]
-  full:
-    description: Unit suites plus integration
-    steps: [ader-unit, ..., integration-deterministic]
-```
+description: op proxy scenario
 
-A step can appear in several profiles. Its lane is always the same everywhere (it's on the step, not the profile).
-
-### Suites
-
-A **suite** is a YAML file in `<config-dir>/suites/` that contains all the steps and all the profiles. The seed has one suite: `seed.yaml`.
-
-## Configuration
-
-Two files, both in the config directory (`integration/` for the seed):
-
-### `ader.yaml` — Defaults
-
-```yaml
 defaults:
-  suite: seed              # which suite to load
-  profile: quick           # which profile to run
-  lane: regression         # which lane to filter
-  source: committed        # where to take the snapshot from
-  ladder: [quick, unit, integration, full]
+  profile: smoke
+
+steps:
+  op-build:
+    check: holons-grace-op-unit-internal-cli
+    lane: regression
+
+  proxy-smoke:
+    check: integration-dispatch-say-hello-across-transports-go-auto
+    lane: progression
+
+profiles:
+  smoke:
+    description: canonical path
+    archive: never
+    steps: [op-build, proxy-smoke]
+
+  full:
+    description: broader proof
+    archive: auto
+    steps: [op-build, proxy-smoke]
 ```
 
-When you type `ader test integration` with no flags, these defaults apply.
+Promotion state is **suite-local**. The same underlying check may be `progression` in one suite and `regression` in another.
 
-### `suites/seed.yaml` — Suite Definition
+### Catalogue
 
-Contains the `steps:` and `profiles:` described above. This is your source of truth for what gets tested.
+A catalogue is an isolated config root:
 
-## The Command
-
-```
-ader test integration --suite seed --profile quick --lane regression --source committed
-│    │    │              │            │               │                │
-│    │    │              │            │               │                └─ what to snapshot
-│    │    │              │            │               └─ which lane to run
-│    │    │              │            └─ which group of steps
-│    │    │              └─ which suite file
-│    │    └─ config directory (contains ader.yaml)
-│    └─ subcommand
-└─ binary
+```text
+verification/catalogues/op/
+  ader.yaml
+  checks.yaml
+  suites/
+  reports/
+  archives/
+  .artifacts/
+  .t
 ```
 
-| Part | Values | Where defined | Default | Where default set |
-|------|--------|---------------|---------|-------------------|
-| `<config-dir>` | any path | filesystem | required | — |
-| `--suite` | any `<name>` matching `suites/<name>.yaml` | `suites/` directory | `seed` | `ader.yaml` → `defaults.suite` |
-| `--profile` | `quick`, `unit`, `integration`, `full`, `stress` | keys under `profiles:` in suite YAML | `quick` | `ader.yaml` → `defaults.profile` |
-| `--lane` | `regression`, `progression`, `both` | engine (fixed) | `regression` | `ader.yaml` → `defaults.lane` |
-| `--source` | `committed`, `workspace` | engine (fixed) | `committed` | `ader.yaml` → `defaults.source` |
+`ader.yaml` inside a catalogue keeps only:
 
-### Other Flags
+- storage paths
+- default `source`
+- default `lane`
 
-| Flag | Role | Default |
-|------|------|---------|
-| `--step-filter` | Regex to match step IDs | all steps |
-| `--silent` | Suppress live output | off |
-| `--full` | Shorthand for `--profile full` | off |
-| `--archive` | Archive policy: `auto`, `always`, `never` | per-profile in `ader.yaml` |
-| `--keep-report` | Keep report after archiving | off |
-| `--keep-snapshot` | Preserve the snapshot directory | off |
+There is no catalogue-level default suite. `--suite` is required for `test`, `promote`, and `downgrade`.
 
-## What Happens When You Run
+### Bouquet
 
-### 1. Snapshot
+Bouquets live in [`verification/bouquets/`](../../verification/bouquets).
 
-Tests never run against your live working directory. Ader first creates a **frozen copy** of the codebase:
+They orchestrate several suite runs:
 
-```
---source committed                    --source workspace
-         │                                     │
-         ▼                                     ▼
-  git archive HEAD                    copy of the working tree
-  (last commit only)                  (includes uncommitted changes)
-         │                                     │
-         ▼                                     ▼
-         ┌────────────────────────────────────┐
-         │  /tmp/ader-int-store-<runID>/      │
-         │    run/                            │
-         │      snapshot/      ← tests run    │
-         │        sdk/go-holons/  against     │
-         │        holons/grace-op/ this copy  │
-         │        ...                         │
-         └────────────────────────────────────┘
-         deleted after the run (unless --keep-snapshot)
+```yaml
+description: local dev bouquet
+
+defaults:
+  source: workspace
+  lane: progression
+  archive: never
+
+entries:
+  - catalogue: op
+    suite: op-proxy
+    profile: smoke
+
+  - catalogue: ader
+    suite: ader-self
+    profile: smoke
 ```
 
-- `committed` = reproducible proof. Same commit = same snapshot on any machine. Used for `regression`.
-- `workspace` = fast iteration. Includes uncommitted changes. Used for `progression` (TDD).
-
-### 2. Execute
-
-Each step is executed sequentially inside the snapshot. Ader provides environment variables:
-
-| Variable | Value |
-|----------|-------|
-| `ADER_REPO_ROOT` | snapshot root |
-| `ADER_LIVE_REPO_ROOT` | actual repo root |
-| `ADER_RUN_ARTIFACTS` | per-run temp directory |
-| `ADER_TOOL_CACHE` | shared cache (Go modules, npm, gradle, etc.) |
-
-Each step produces a log file and a result: `PASS`, `FAIL`, or `SKIP` (missing prereqs or workdir).
-
-By default, `ader test` streams live step progress and subprocess output on `stderr`, then prints the final summary on `stdout`. Use `--silent` to keep only the final summary.
-
-### 3. Report
-
-After all steps complete, ader writes a report:
-
-```
-reports/<runID>/
-├── manifest.json        ← run metadata (suite, profile, lane, commit, pass/fail counts)
-├── step-results.json    ← per-step results
-├── summary.md           ← human-readable report
-├── summary.tsv          ← machine-parseable
-├── tool-versions.txt    ← versions of all tools used
-├── logs/
-│   ├── ader-unit.log
-│   └── ...
-├── promotion.json       ← if progression clean pass
-└── promotion.md         ← if progression clean pass
-```
-
-### 4. Promote (optional)
-
-If the run was `--lane progression` and all steps passed, ader generates a promotion proposal. `promotion.md` tells you exactly what to run:
-
-```
-ader promote integration --step ader-unit --step sdk-go-unit
-```
-
-`promotion.json` / `promotion.md` also include:
-
-- `suggested_command`, which is an `ader promote ...` command
-- `cross_tier_suggestions` for the next profile in the ladder `quick -> unit -> integration -> full`
-
-See [TDD.md](../../TDD.md) for the full promotion lifecycle.
-
-### 5. Archive (optional)
-
-Reports can be archived as tarballs tied to a commit hash:
-
-```
-archives/<commit-hash>/<runID>-<profile>.tar.gz
-```
-
-## Public Surface
-
-Code API and RPC:
-
-- `Test`
-- `Archive`
-- `Cleanup`
-- `Promote`
-- `Downgrade`
-- `History`
-- `ShowHistory`
-
-CLI:
-
-- `ader test <config-dir>`
-- `ader archive <config-dir>`
-- `ader cleanup <config-dir>`
-- `ader promote <config-dir>`
-- `ader downgrade <config-dir>`
-- `ader history <config-dir>`
-- `ader show <config-dir> --id <history-id>`
-
-`history` is the CLI view of `History`.
-
-## All Commands
+Run them with:
 
 ```bash
-# Run tests
-ader test integration --suite seed --profile quick
-ader test integration --suite seed --profile full
-ader test integration --suite seed --profile unit --lane progression --source workspace
-ader test integration --suite seed --profile quick --silent
-
-# Promote / downgrade step lanes
-ader promote integration --step sdk-go-unit --step example-go-unit
-ader promote integration --all
-ader downgrade integration --all
-ader downgrade integration --step sdk-go-unit --step example-go-unit
-
-# History and reports
-ader history integration
-ader show integration --id <history-id>
-
-# Archive and cleanup
-ader archive integration --latest
-ader cleanup integration
-
-# Shell completion
-ader completion install zsh
+ader test-bouquet verification --name local-dev
 ```
 
-## Typical Workflows
+## Commands
 
-### TDD Iteration
+Catalogue commands:
 
 ```bash
-ader test integration --suite seed --profile unit --lane progression --source workspace
-# fix failures, re-run, until clean pass
-# promotion.md says: ader promote integration --step X
-ader promote integration --step X
-git commit -am "Promote X to regression"
+ader test verification/catalogues/op --suite op-proxy --profile smoke
+ader test verification/catalogues/ader --suite ader-self --profile smoke --lane progression --source workspace
+
+ader promote verification/catalogues/ader --suite ader-self --step holons-clem-ader-unit-root
+ader downgrade verification/catalogues/op --suite op-proxy --all
+
+ader history verification/catalogues/op
+ader show verification/catalogues/op --id <history-id>
+ader archive verification/catalogues/op --latest
+ader cleanup verification/catalogues/op
 ```
 
-### Full Regression Proof
+Bouquet commands:
 
 ```bash
-ader test integration --suite seed --profile full
-ader archive integration --latest
+ader test-bouquet verification --name local-dev
+ader history-bouquet verification
+ader show-bouquet verification --id <bouquet-history-id>
+ader archive-bouquet verification --latest
 ```
 
-### Reset Everything to Progression
+## Snapshot and Execution
 
-```bash
-ader downgrade integration --all
+`ader` never runs against the live working tree directly.
+
+It first creates a frozen snapshot from:
+
+- `committed`: `git archive HEAD`
+- `workspace`: a copy of the current working tree
+
+Then it executes the selected suite steps inside that snapshot.
+
+By default `ader test` prints:
+
+- phase banners
+- per-step `RUN` / `CMD` / `PASS` / `FAIL`
+- wait heartbeats for long silent work
+- raw subprocess output
+
+Use `--silent` to suppress live output and keep only the final summary.
+
+## Promotion and Downgrade
+
+`ader test` never mutates suite YAML.
+
+When a `progression` run passes, `ader` writes:
+
+- `promotion.json`
+- `promotion.md`
+
+These propose an explicit `ader promote ...` command.
+
+Only:
+
+- `ader promote`
+- `ader downgrade`
+
+rewrite `steps.<id>.lane` in the selected suite file.
+
+## Locking
+
+Each catalogue owns an exclusive lock:
+
+```text
+<catalogue>/.artifacts/ader.lock
 ```
 
-## Install
+Commands that take the lock:
 
-The canonical path is: install `op`, install the `clem-ader` holon into `OPBIN`, then enable shell completion.
+- `test`
+- `promote`
+- `downgrade`
+- `archive`
+- `cleanup`
 
-From the seed:
+Commands that stay read-only:
 
-```bash
-go install github.com/organic-programming/grace-op/cmd/op@latest
-op env --init
-op install ./holons/clem-ader
-eval "$(op env --shell)"
-ader completion install zsh
-exec zsh
+- `history`
+- `show`
+
+Bouquet workers use the same catalogue lock. This allows parallel execution across different catalogues while serializing work inside one catalogue.
+
+## Reports
+
+Child suite runs write reports under:
+
+```text
+verification/catalogues/<catalogue>/reports/<history-id>/
 ```
 
-If `op` is already installed and on `PATH`, the minimum is:
+Each report includes:
 
-```bash
-op env --init
-op install ./holons/clem-ader
-eval "$(op env --shell)"
-ader completion install zsh
-exec zsh
+- `manifest.json`
+- `step-results.json`
+- `summary.md`
+- `summary.tsv`
+- `suite-snapshot.yaml`
+- `logs/`
+- `promotion.json` and `promotion.md` when applicable
+
+History ids use:
+
+```text
+<suite>_<source>_<profile>-YYYYMMDD_HH_MM_SS_NNNN
 ```
 
-## Zsh Completion
+Bouquet reports live under:
 
-Install it once:
-
-```bash
-ader completion install zsh
-exec zsh
+```text
+verification/reports/bouquets/<bouquet-history-id>/
+verification/archives/bouquets/<bouquet-history-id>.tar.gz
 ```
-
-Quick check:
-
-```bash
-ader test <TAB>
-ader test integration --suite <TAB>
-ader test integration --profile <TAB>
-ader show integration --id <TAB>
-```
-
-The installed line is:
-
-```zsh
-eval "$(ader completion zsh)"
-```
-
-`op env --shell` only exposes `OPPATH`, `OPBIN`, and `PATH`. It does not install `ader` completion by itself.
-
-## Why It Exists
-
-The seed is too large and too polyglot to trust short-lived context or cheap CI as the primary verification memory.
-
-`ader` gives the project:
-
-- a frozen local proof
-- an execution history
-- archived evidence tied to commits
-- a clean path from TDD checks to regression tests
 
 ## References
 
-- [ADER.md](../../ADER.md) — root-level reference document
-- [TDD.md](../../TDD.md) — promotion pipeline methodology
-- [integration/](../../integration/) — seed config directory
-- [Suite definition](../../integration/suites/seed.yaml) — seed suite
-
-[^1]: Named after Clément Ader (1841–1925), the French engineer who achieved powered flight before the Wright brothers. https://en.wikipedia.org/wiki/Clément_Ader
+- [`../../verification/README.md`](../../verification/README.md)
+- [`../../TDD.md`](../../TDD.md)
+- [`api/v1/holon.proto`](api/v1/holon.proto)

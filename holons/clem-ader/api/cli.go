@@ -47,12 +47,16 @@ func newRootCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 	root.SetErr(stderr)
 
 	root.AddCommand(newTestCommand(stdout, stderr))
+	root.AddCommand(newTestBouquetCommand(stdout))
 	root.AddCommand(newArchiveCommand(stdout))
+	root.AddCommand(newArchiveBouquetCommand(stdout))
 	root.AddCommand(newCleanupCommand(stdout))
 	root.AddCommand(newPromoteCommand(stdout))
 	root.AddCommand(newDowngradeCommand(stdout))
 	root.AddCommand(newHistoryCommand(stdout))
+	root.AddCommand(newHistoryBouquetCommand(stdout))
 	root.AddCommand(newShowCommand(stdout))
+	root.AddCommand(newShowBouquetCommand(stdout))
 	root.AddCommand(newServeCommand())
 	root.InitDefaultCompletionCmd()
 	root.AddCommand(&cobra.Command{
@@ -99,8 +103,8 @@ func newCompletionInstallCommand(stdout io.Writer) *cobra.Command {
 
 func newTestCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "test <config-dir>",
-		Short: "Freeze a snapshot and execute a verification suite profile",
+		Use:   "test <catalogue-dir>",
+		Short: "Freeze a snapshot and execute one suite profile from a catalogue",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := commandViper(cmd, args[0])
@@ -156,6 +160,7 @@ func newTestCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 	cmd.Flags().Bool("keep-report", false, "keep the extracted report directory after a successful archive")
 	cmd.Flags().Bool("keep-snapshot", false, "keep the deterministic snapshot and per-run artifacts")
 	cmd.Flags().Bool("silent", false, "suppress live step progress and subprocess output")
+	_ = cmd.MarkFlagRequired("suite")
 	cmd.ValidArgsFunction = completeConfigDirs
 	_ = cmd.RegisterFlagCompletionFunc("suite", completeSuites)
 	_ = cmd.RegisterFlagCompletionFunc("profile", completeProfiles)
@@ -176,9 +181,35 @@ func newTestCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 	return cmd
 }
 
+func newTestBouquetCommand(stdout io.Writer) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "test-bouquet <verification-root>",
+		Short: "Execute a bouquet across multiple catalogues",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name, _ := cmd.Flags().GetString("name")
+			if strings.TrimSpace(name) == "" {
+				return fmt.Errorf("test-bouquet requires --name")
+			}
+			result, err := TestBouquet(&aderv1.BouquetRequest{
+				VerificationRoot: args[0],
+				Name:             name,
+			})
+			if err != nil {
+				return err
+			}
+			return printBouquetRunResult(stdout, result.GetManifest())
+		},
+	}
+	cmd.Flags().String("name", "", "bouquet name from <verification-root>/bouquets")
+	cmd.ValidArgsFunction = completeVerificationRoots
+	_ = cmd.RegisterFlagCompletionFunc("name", completeBouquets)
+	return cmd
+}
+
 func newArchiveCommand(stdout io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "archive <config-dir>",
+		Use:   "archive <catalogue-dir>",
 		Short: "Archive an extracted run report",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -205,9 +236,36 @@ func newArchiveCommand(stdout io.Writer) *cobra.Command {
 	return cmd
 }
 
+func newArchiveBouquetCommand(stdout io.Writer) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "archive-bouquet <verification-root>",
+		Short: "Archive an extracted bouquet report",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			historyID, _ := cmd.Flags().GetString("id")
+			latest, _ := cmd.Flags().GetBool("latest")
+			result, err := ArchiveBouquet(&aderv1.ArchiveBouquetRequest{
+				VerificationRoot: args[0],
+				HistoryId:        historyID,
+				Latest:           latest,
+			})
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(stdout, "archived bouquet %s -> %s\n", result.GetManifest().GetHistoryId(), result.GetArchivePath())
+			return err
+		},
+	}
+	cmd.Flags().String("id", "", "bouquet history id to archive")
+	cmd.Flags().Bool("latest", false, "archive the latest extracted bouquet run")
+	cmd.ValidArgsFunction = completeVerificationRoots
+	_ = cmd.RegisterFlagCompletionFunc("id", completeBouquetHistoryIDs)
+	return cmd
+}
+
 func newCleanupCommand(stdout io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "cleanup <config-dir>",
+		Use:   "cleanup <catalogue-dir>",
 		Short: "Remove deterministic verification residue while preserving archives and caches",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -232,7 +290,7 @@ func newCleanupCommand(stdout io.Writer) *cobra.Command {
 
 func newPromoteCommand(stdout io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "promote <config-dir>",
+		Use:   "promote <catalogue-dir>",
 		Short: "Move progression steps to regression in the suite YAML",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -255,6 +313,7 @@ func newPromoteCommand(stdout io.Writer) *cobra.Command {
 	cmd.Flags().String("suite", "", "suite name from <config-dir>/suites")
 	cmd.Flags().StringArray("step", nil, "step id to promote; repeat for multiple steps")
 	cmd.Flags().Bool("all", false, "promote all progression steps")
+	_ = cmd.MarkFlagRequired("suite")
 	cmd.ValidArgsFunction = completeConfigDirs
 	_ = cmd.RegisterFlagCompletionFunc("suite", completeSuites)
 	_ = cmd.RegisterFlagCompletionFunc("step", completePromoteSteps)
@@ -263,7 +322,7 @@ func newPromoteCommand(stdout io.Writer) *cobra.Command {
 
 func newDowngradeCommand(stdout io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "downgrade <config-dir>",
+		Use:   "downgrade <catalogue-dir>",
 		Short: "Move regression steps back to progression in the suite YAML",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -286,6 +345,7 @@ func newDowngradeCommand(stdout io.Writer) *cobra.Command {
 	cmd.Flags().String("suite", "", "suite name from <config-dir>/suites")
 	cmd.Flags().StringArray("step", nil, "step id to downgrade; repeat for multiple steps")
 	cmd.Flags().Bool("all", false, "downgrade all regression steps")
+	_ = cmd.MarkFlagRequired("suite")
 	cmd.ValidArgsFunction = completeConfigDirs
 	_ = cmd.RegisterFlagCompletionFunc("suite", completeSuites)
 	_ = cmd.RegisterFlagCompletionFunc("step", completeDowngradeSteps)
@@ -294,7 +354,7 @@ func newDowngradeCommand(stdout io.Writer) *cobra.Command {
 
 func newHistoryCommand(stdout io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "history <config-dir>",
+		Use:   "history <catalogue-dir>",
 		Short: "List extracted and archived verification history",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -331,9 +391,42 @@ func newHistoryCommand(stdout io.Writer) *cobra.Command {
 	return cmd
 }
 
+func newHistoryBouquetCommand(stdout io.Writer) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "history-bouquet <verification-root>",
+		Short: "List extracted and archived bouquet history",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			response, err := BouquetHistory(&aderv1.BouquetHistoryRequest{VerificationRoot: args[0]})
+			if err != nil {
+				return err
+			}
+			entries := response.GetEntries()
+			sort.Slice(entries, func(i, j int) bool { return entries[i].GetHistoryId() > entries[j].GetHistoryId() })
+			for _, entry := range entries {
+				location := entry.GetArchivePath()
+				if strings.TrimSpace(location) == "" {
+					location = entry.GetReportDir()
+				}
+				if _, err := fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n",
+					entry.GetHistoryId(),
+					entry.GetFinalStatus(),
+					entry.GetBouquet(),
+					location,
+				); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
+	cmd.ValidArgsFunction = completeVerificationRoots
+	return cmd
+}
+
 func newShowCommand(stdout io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "show <config-dir>",
+		Use:   "show <catalogue-dir>",
 		Short: "Show the stored report for one history entry",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -359,6 +452,33 @@ func newShowCommand(stdout io.Writer) *cobra.Command {
 	cmd.Flags().String("id", "", "history id to show")
 	cmd.ValidArgsFunction = completeConfigDirs
 	_ = cmd.RegisterFlagCompletionFunc("id", completeHistoryIDs)
+	return cmd
+}
+
+func newShowBouquetCommand(stdout io.Writer) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "show-bouquet <verification-root>",
+		Short: "Show the stored report for one bouquet history entry",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			historyID, _ := cmd.Flags().GetString("id")
+			if strings.TrimSpace(historyID) == "" {
+				return fmt.Errorf("show-bouquet requires --id")
+			}
+			response, err := ShowBouquetHistory(&aderv1.ShowBouquetHistoryRequest{
+				VerificationRoot: args[0],
+				HistoryId:        historyID,
+			})
+			if err != nil {
+				return err
+			}
+			_, err = io.WriteString(stdout, response.GetSummaryMarkdown())
+			return err
+		},
+	}
+	cmd.Flags().String("id", "", "bouquet history id to show")
+	cmd.ValidArgsFunction = completeVerificationRoots
+	_ = cmd.RegisterFlagCompletionFunc("id", completeBouquetHistoryIDs)
 	return cmd
 }
 
@@ -418,6 +538,25 @@ func mustBind(cfg *viper.Viper, key string, cmd *cobra.Command, flag string) {
 }
 
 func printRunResult(w io.Writer, manifest *aderv1.HistoryRecord) error {
+	_, err := fmt.Fprintf(w, "summary: pass=%d fail=%d skip=%d\nreport: %s\n",
+		manifest.GetPassCount(),
+		manifest.GetFailCount(),
+		manifest.GetSkipCount(),
+		manifest.GetReportDir(),
+	)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(manifest.GetArchivePath()) != "" {
+		_, err = fmt.Fprintf(w, "archive: %s\n", manifest.GetArchivePath())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printBouquetRunResult(w io.Writer, manifest *aderv1.BouquetRecord) error {
 	_, err := fmt.Fprintf(w, "summary: pass=%d fail=%d skip=%d\nreport: %s\n",
 		manifest.GetPassCount(),
 		manifest.GetFailCount(),
@@ -499,6 +638,18 @@ func completeConfigDirs(cmd *cobra.Command, args []string, toComplete string) ([
 	return completionValues(items, toComplete), cobra.ShellCompDirectiveNoFileComp
 }
 
+func completeVerificationRoots(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+	start, err := os.Getwd()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	items, err := discoverVerificationRoots(start)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	return completionValues(items, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
 func completeSuites(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
 	configDir, ok := positionalConfigDir(args)
 	if !ok {
@@ -518,11 +669,7 @@ func completeProfiles(cmd *cobra.Command, args []string, toComplete string) ([]c
 	}
 	suite, _ := cmd.Flags().GetString("suite")
 	if strings.TrimSpace(suite) == "" {
-		defaultSuite, err := engine.DefaultSuite(configDir)
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-		suite = defaultSuite
+		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 	items, err := engine.ListProfiles(configDir, suite)
 	if err != nil {
@@ -557,11 +704,7 @@ func completeDowngradeSteps(cmd *cobra.Command, args []string, toComplete string
 	}
 	suite, _ := cmd.Flags().GetString("suite")
 	if strings.TrimSpace(suite) == "" {
-		defaultSuite, err := engine.DefaultSuite(configDir)
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-		suite = defaultSuite
+		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 	items, err := engine.ListRegressionSteps(configDir, suite)
 	if err != nil {
@@ -577,15 +720,42 @@ func completePromoteSteps(cmd *cobra.Command, args []string, toComplete string) 
 	}
 	suite, _ := cmd.Flags().GetString("suite")
 	if strings.TrimSpace(suite) == "" {
-		defaultSuite, err := engine.DefaultSuite(configDir)
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-		suite = defaultSuite
+		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 	items, err := engine.ListProgressionSteps(configDir, suite)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	return completionValues(items, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+func completeBouquets(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+	root, ok := positionalConfigDir(args)
+	if !ok {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	items, err := listBouquets(root)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	return completionValues(items, toComplete), cobra.ShellCompDirectiveNoFileComp
+}
+
+func completeBouquetHistoryIDs(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+	root, ok := positionalConfigDir(args)
+	if !ok {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	response, err := BouquetHistory(&aderv1.BouquetHistoryRequest{VerificationRoot: root})
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	items := make([]engine.CompletionItem, 0, len(response.GetEntries()))
+	for _, entry := range response.GetEntries() {
+		items = append(items, engine.CompletionItem{
+			Value:       entry.GetHistoryId(),
+			Description: strings.Join([]string{entry.GetFinalStatus(), entry.GetBouquet()}, " | "),
+		})
 	}
 	return completionValues(items, toComplete), cobra.ShellCompDirectiveNoFileComp
 }
@@ -635,6 +805,63 @@ func compactHistoryDescription(entry engine.HistoryEntry) string {
 		entry.Profile,
 		when,
 	}, " | ")
+}
+
+func discoverVerificationRoots(start string) ([]engine.CompletionItem, error) {
+	items := make([]engine.CompletionItem, 0)
+	seen := map[string]struct{}{}
+	configs, err := engine.DiscoverConfigDirs(start)
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range configs {
+		dir := item.Value
+		absDir, err := filepath.Abs(dir)
+		if err != nil {
+			continue
+		}
+		parent := filepath.Dir(absDir)
+		if filepath.Base(parent) != "catalogues" {
+			continue
+		}
+		root := filepath.Dir(parent)
+		rel, err := filepath.Rel(start, root)
+		if err != nil {
+			rel = root
+		}
+		rel = filepath.ToSlash(rel)
+		if rel == "." {
+			rel = root
+		}
+		if _, ok := seen[rel]; ok {
+			continue
+		}
+		seen[rel] = struct{}{}
+		items = append(items, engine.CompletionItem{Value: rel})
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].Value < items[j].Value })
+	return items, nil
+}
+
+func listBouquets(root string) ([]engine.CompletionItem, error) {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(filepath.Join(absRoot, "bouquets"))
+	if err != nil {
+		return nil, err
+	}
+	items := make([]engine.CompletionItem, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
+			continue
+		}
+		name := strings.TrimSuffix(entry.Name(), ".yaml")
+		items = append(items, engine.CompletionItem{Value: name})
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].Value < items[j].Value })
+	return items, nil
 }
 
 func completionInstallTarget(args []string, shellPath string, home string, overrideProfile string) (shell string, profile string, line string, err error) {

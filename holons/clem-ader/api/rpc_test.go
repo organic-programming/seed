@@ -17,7 +17,8 @@ import (
 
 func TestRPCSurface(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "integration")
+	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	verificationRoot := filepath.Join(root, "verification")
 	withWorkingDir(t, root, func() {
 		client := startRPCServer(t)
 
@@ -66,7 +67,7 @@ func TestRPCSurface(t *testing.T) {
 			t.Fatal("expected archive path from RPC Archive")
 		}
 
-		stale := filepath.Join(root, "integration", ".artifacts", "local-suite", "rpc-stale")
+		stale := filepath.Join(configDir, ".artifacts", "local-suite", "rpc-stale")
 		if err := os.MkdirAll(stale, 0o755); err != nil {
 			t.Fatalf("mkdir stale: %v", err)
 		}
@@ -93,13 +94,53 @@ func TestRPCSurface(t *testing.T) {
 		downgradeResponse, err := client.Downgrade(context.Background(), &aderv1.DowngradeRequest{
 			ConfigDir: configDir,
 			Suite:     "fixture",
-			StepIds:   []string{"grace-op-unit"},
+			StepIds:   []string{"holons-grace-op-unit-root"},
 		})
 		if err != nil {
 			t.Fatalf("RPC Downgrade() error = %v", err)
 		}
 		if len(downgradeResponse.GetDowngradedSteps()) != 1 {
 			t.Fatalf("RPC Downgrade() downgraded steps = %d, want 1", len(downgradeResponse.GetDowngradedSteps()))
+		}
+
+		bouquetResponse, err := client.TestBouquet(context.Background(), &aderv1.BouquetRequest{
+			VerificationRoot: verificationRoot,
+			Name:             "local-dev",
+		})
+		if err != nil {
+			t.Fatalf("RPC TestBouquet() error = %v", err)
+		}
+		if bouquetResponse.GetManifest().GetHistoryId() == "" {
+			t.Fatal("expected bouquet history id from RPC TestBouquet")
+		}
+		bouquetHistory, err := client.BouquetHistory(context.Background(), &aderv1.BouquetHistoryRequest{
+			VerificationRoot: verificationRoot,
+		})
+		if err != nil {
+			t.Fatalf("RPC BouquetHistory() error = %v", err)
+		}
+		if len(bouquetHistory.GetEntries()) == 0 {
+			t.Fatal("expected bouquet history entries")
+		}
+		bouquetShow, err := client.ShowBouquetHistory(context.Background(), &aderv1.ShowBouquetHistoryRequest{
+			VerificationRoot: verificationRoot,
+			HistoryId:        bouquetResponse.GetManifest().GetHistoryId(),
+		})
+		if err != nil {
+			t.Fatalf("RPC ShowBouquetHistory() error = %v", err)
+		}
+		if bouquetShow.GetSummaryMarkdown() == "" {
+			t.Fatal("expected bouquet summary markdown")
+		}
+		bouquetArchive, err := client.ArchiveBouquet(context.Background(), &aderv1.ArchiveBouquetRequest{
+			VerificationRoot: verificationRoot,
+			Latest:           true,
+		})
+		if err != nil {
+			t.Fatalf("RPC ArchiveBouquet() error = %v", err)
+		}
+		if bouquetArchive.GetArchivePath() == "" {
+			t.Fatal("expected bouquet archive path from RPC ArchiveBouquet")
 		}
 	})
 }

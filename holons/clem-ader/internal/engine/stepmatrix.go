@@ -48,27 +48,12 @@ func normalizeArchivePolicy(raw string) string {
 	return value
 }
 
-func nextProfileInLadder(ladder []string, profile string) (string, bool) {
-	profile = normalizeProfile(profile)
-	for index, item := range ladder {
-		if item != profile {
-			continue
-		}
-		if index+1 >= len(ladder) {
-			return "", false
-		}
-		return ladder[index+1], true
-	}
-	return "", false
-}
-
-func profileContainsStep(profile suiteProfileConfig, stepID string) bool {
-	return containsString(profile.Steps, stepID)
-}
-
 func validateRunOptions(opts RunOptions) error {
 	if strings.TrimSpace(opts.ConfigDir) == "" {
 		return fmt.Errorf("config dir is required")
+	}
+	if strings.TrimSpace(opts.Suite) == "" {
+		return fmt.Errorf("suite is required")
 	}
 	switch normalizeLane(opts.Lane) {
 	case "regression", "progression", "both":
@@ -97,7 +82,7 @@ func resolveProfileName(cfg *runtimeConfig, raw string) string {
 	if profile := normalizeProfile(raw); profile != "" {
 		return profile
 	}
-	if profile := normalizeProfile(cfg.Root.Defaults.Profile); profile != "" {
+	if profile := normalizeProfile(cfg.Suite.Defaults.Profile); profile != "" {
 		if _, ok := cfg.Suite.Profiles[profile]; ok {
 			return profile
 		}
@@ -123,29 +108,6 @@ func orderedProfileNames(profiles map[string]suiteProfileConfig) []string {
 	}
 	sort.Strings(names)
 	return names
-}
-
-func resolveProfileLadder(cfg *runtimeConfig) []string {
-	if len(cfg.Root.Defaults.Ladder) == 0 {
-		return nil
-	}
-	out := make([]string, 0, len(cfg.Root.Defaults.Ladder))
-	seen := make(map[string]struct{}, len(cfg.Root.Defaults.Ladder))
-	for _, raw := range cfg.Root.Defaults.Ladder {
-		profile := normalizeProfile(raw)
-		if profile == "" {
-			continue
-		}
-		if _, ok := cfg.Suite.Profiles[profile]; !ok {
-			continue
-		}
-		if _, dup := seen[profile]; dup {
-			continue
-		}
-		seen[profile] = struct{}{}
-		out = append(out, profile)
-	}
-	return out
 }
 
 func resolveProfileLaneSteps(cfg *runtimeConfig, profile string, lane string, snapshotRoot string) ([]StepSpec, error) {
