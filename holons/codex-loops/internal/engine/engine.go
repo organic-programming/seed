@@ -17,22 +17,30 @@ import (
 )
 
 const (
-	defaultMaxRetries = 3
-	programFile       = "program.yaml"
-	queueDirName      = "queue"
-	liveDirName       = "live"
-	deferredDirName   = "deferred"
-	doneDirName       = "done"
-	cookbookDirName   = "cookbook"
+	defaultMaxRetries      = 3
+	defaultQuotaProbeDelay = time.Minute
+	programFile            = "program.yaml"
+	queueDirName           = "queue"
+	liveDirName            = "live"
+	deferredDirName        = "deferred"
+	doneDirName            = "done"
+	cookbookDirName        = "cookbook"
 )
 
 type runner struct {
-	codex CodexRunner
-	git   GitOps
+	codex              CodexRunner
+	git                GitOps
+	quotaProbeInterval time.Duration
+	sleep              func(context.Context, time.Duration) error
 }
 
 func newRunner(codex CodexRunner, git GitOps) runner {
-	return runner{codex: codex, git: git}
+	return runner{
+		codex:              codex,
+		git:                git,
+		quotaProbeInterval: defaultQuotaProbeDelay,
+		sleep:              sleepContext,
+	}
 }
 
 func Run(ctx context.Context, opts RunOptions) error {
@@ -531,15 +539,21 @@ func (r runner) executeProgram(ctx context.Context, repoRoot string, liveDir str
 
 		retryContext := ""
 		passed := false
-		for attemptNo := 1; attemptNo <= maxRetries; attemptNo++ {
+		for attemptNo := 1; attemptNo <= maxRetries; {
 			attempt := Attempt{StartedAt: nowRFC3339()}
 			prompt, err := loadPrompt(filepath.Join(liveDir, filepath.Clean(step.Brief)), retryContext)
 			if err != nil {
 				return false, err
 			}
-			exitCode, _, _, err := r.codex.Run(ctx, repoRoot, prompt)
+			exitCode, stdout, stderr, err := r.codex.Run(ctx, repoRoot, prompt)
 			if err != nil {
 				return false, err
+			}
+			if isQuotaIssue(exitCode, stdout, stderr) {
+				if err := r.waitForQuotaRecovery(ctx, repoRoot, liveDir, status, step.ID); err != nil {
+					return false, err
+				}
+				continue
 			}
 			attempt.CodexExitCode = exitCode
 
@@ -561,6 +575,7 @@ func (r runner) executeProgram(ctx context.Context, repoRoot string, liveDir str
 					return false, err
 				}
 				passed = true
+				attemptNo++
 				break
 			}
 
@@ -580,6 +595,7 @@ func (r runner) executeProgram(ctx context.Context, repoRoot string, liveDir str
 				return false, err
 			}
 			retryContext = readRetryContext(repoRoot, reportPath)
+			attemptNo++
 		}
 		if !passed {
 			status.State = "deferred"
@@ -595,6 +611,32 @@ func (r runner) executeProgram(ctx context.Context, repoRoot string, liveDir str
 		return false, err
 	}
 	return true, nil
+}
+
+func (r runner) waitForQuotaRecovery(ctx context.Context, repoRoot string, liveDir string, status *Status, stepID string) error {
+	status.State = "waiting-budget"
+	status.CurrentStep = stepID
+	if err := WriteStatus(liveDir, status); err != nil {
+		return err
+	}
+
+	for {
+		if err := r.sleep(ctx, r.quotaProbeInterval); err != nil {
+			return err
+		}
+		exitCode, stdout, stderr, err := r.codex.Run(ctx, repoRoot, quotaProbePrompt)
+		if err != nil {
+			return err
+		}
+		if isQuotaIssue(exitCode, stdout, stderr) {
+			continue
+		}
+		if probeSaysReady(exitCode, stdout, stderr) {
+			status.State = "running"
+			status.CurrentStep = stepID
+			return WriteStatus(liveDir, status)
+		}
+	}
 }
 
 func resolveProgramSource(aderRoot string, opts EnqueueOptions) (string, error) {
@@ -965,4 +1007,23 @@ func slugify(value string) string {
 
 func nowRFC3339() string {
 	return time.Now().Format(time.RFC3339)
+}
+
+func sleepContext(ctx context.Context, delay time.Duration) error {
+	if delay <= 0 {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return nil
+		}
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }

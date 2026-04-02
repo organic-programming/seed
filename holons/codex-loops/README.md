@@ -2,6 +2,8 @@
 
 `codex-loops` is a queue runner for overnight Codex work. It takes prepared programs made of briefs and acceptance gates, executes them one step at a time with `codex exec`, validates each step with `ader`, rewinds failed attempts, defers blocked programs, and writes a morning report the human can review when the night run ends.
 
+If Codex reports a quota, credits, plan-limit, or rate-limit problem, the live program is not burned through retries immediately. Instead, `codex-loops` switches the live slot into a waiting state and probes with a tiny readiness prompt until Codex answers `y`, then resumes the same step.
+
 ## Operating model
 
 The day shift writes or instantiates programs, edits briefs, and queues work under `ader/codex-loops/queue/`. The night shift runs `codex-loops run`, which promotes the lowest numbered program into `live/`, creates a dedicated Git branch, executes each step in sequence, retries failed gates, and either moves the program into `done/` or defers it. The morning shift reads `ader/codex-loops/morning-report.md`, inspects any deferred reports or patches, and decides what to re-enqueue.
@@ -57,6 +59,8 @@ codex-loops log lint-step
 ## Git strategy
 
 Each program gets its own branch named `codex-loops/<slot>-<description-slug>`. Every passing step is committed immediately with a message shaped like `codex-loops: <step-id> PASS (attempt <N>)`. If a gate fails, the runner saves a patch for the failed attempt, then resets the worktree back to the step-start commit before retrying the same brief.
+
+Quota waits are different from gate failures: they do not consume the step retry budget, and no reset or defer happens until a real Codex run completes and the gate result is known.
 
 ## Morning report
 

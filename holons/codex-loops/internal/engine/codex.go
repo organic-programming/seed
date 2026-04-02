@@ -10,6 +10,21 @@ import (
 	"strings"
 )
 
+const quotaProbePrompt = "Are you ready? Respond y / n only."
+
+var quotaIssuePhrases = []string{
+	"quota",
+	"rate limit",
+	"usage limit",
+	"credit balance",
+	"credits",
+	"billing hard limit",
+	"hard limit",
+	"too many requests",
+	"429",
+	"plan limit",
+}
+
 type CodexRunner interface {
 	Run(ctx context.Context, repoRoot, prompt string) (exitCode int, stdout, stderr []byte, err error)
 }
@@ -61,4 +76,37 @@ func errorAs(err error, target interface{}) bool {
 	default:
 		return false
 	}
+}
+
+func isQuotaIssue(exitCode int, stdout []byte, stderr []byte) bool {
+	if exitCode == 0 {
+		return false
+	}
+	text := normalizedCodexOutput(stdout, stderr)
+	for _, phrase := range quotaIssuePhrases {
+		if strings.Contains(text, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+func probeSaysReady(exitCode int, stdout []byte, stderr []byte) bool {
+	if exitCode != 0 {
+		return false
+	}
+	text := strings.TrimSpace(normalizedCodexOutput(stdout, stderr))
+	if text == "" {
+		return false
+	}
+	fields := strings.Fields(text)
+	if len(fields) == 0 {
+		return false
+	}
+	token := strings.Trim(fields[0], ".,:;!?")
+	return token == "y" || token == "yes"
+}
+
+func normalizedCodexOutput(stdout []byte, stderr []byte) string {
+	return strings.ToLower(strings.TrimSpace(string(stdout) + "\n" + string(stderr)))
 }

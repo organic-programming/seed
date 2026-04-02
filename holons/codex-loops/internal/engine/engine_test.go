@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestScanNumberedDirsSorted(t *testing.T) {
@@ -265,6 +266,61 @@ func TestExecuteProgramUsesInjectedCodexAndGit(t *testing.T) {
 	}
 }
 
+func TestExecuteProgramWaitsForQuotaWithoutBurningRetries(t *testing.T) {
+	repoRoot := t.TempDir()
+	liveDir := filepath.Join(t.TempDir(), "live")
+	if err := os.MkdirAll(filepath.Join(liveDir, "briefs"), 0o755); err != nil {
+		t.Fatalf("mkdir briefs: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(liveDir, "briefs", "step-one.md"), []byte("do the thing"), 0o644); err != nil {
+		t.Fatalf("write brief: %v", err)
+	}
+	program := &Program{
+		Description: "Quota wait",
+		MaxRetries:  1,
+		Steps: []ProgramStep{{
+			ID:    "step-one",
+			Brief: "briefs/step-one.md",
+			Gate: Gate{
+				Command: `printf 'report: reports/step-one.md\n'; exit 0`,
+				Expect:  "PASS",
+			},
+		}},
+	}
+	status := newStatus(program, "running")
+	git := &mockGitOps{repoRoot: repoRoot, currentCommit: "abc123"}
+	codex := &scriptedCodexRunner{
+		results: []scriptedCodexResult{
+			{exitCode: 1, stderr: "rate limit exceeded"},
+			{exitCode: 0, stdout: "n"},
+			{exitCode: 0, stdout: "y"},
+			{exitCode: 0, stdout: "ok"},
+		},
+	}
+
+	r := newRunner(codex, git)
+	r.quotaProbeInterval = 0
+	r.sleep = func(ctx context.Context, delay time.Duration) error { return nil }
+
+	allPassed, err := r.executeProgram(context.Background(), repoRoot, liveDir, program, status, 1, false)
+	if err != nil {
+		t.Fatalf("executeProgram() error = %v", err)
+	}
+	if !allPassed {
+		t.Fatal("expected program to pass after quota wait")
+	}
+	wantPrompts := []string{"do the thing", quotaProbePrompt, quotaProbePrompt, "do the thing"}
+	if !reflect.DeepEqual(codex.prompts, wantPrompts) {
+		t.Fatalf("codex prompts = %v, want %v", codex.prompts, wantPrompts)
+	}
+	if len(git.commits) != 1 || git.commits[0] != "codex-loops: step-one PASS (attempt 1)" {
+		t.Fatalf("git commits = %v", git.commits)
+	}
+	if status.State != "running" {
+		t.Fatalf("status state = %q, want running", status.State)
+	}
+}
+
 func writeProgramFixture(t *testing.T, dir string, description string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Join(dir, "briefs"), 0o755); err != nil {
@@ -304,6 +360,28 @@ type mockCodexRunner struct {
 func (m *mockCodexRunner) Run(ctx context.Context, repoRoot, prompt string) (int, []byte, []byte, error) {
 	m.prompts = append(m.prompts, prompt)
 	return 0, []byte("ok"), nil, nil
+}
+
+type scriptedCodexResult struct {
+	exitCode int
+	stdout   string
+	stderr   string
+	err      error
+}
+
+type scriptedCodexRunner struct {
+	prompts []string
+	results []scriptedCodexResult
+}
+
+func (m *scriptedCodexRunner) Run(ctx context.Context, repoRoot, prompt string) (int, []byte, []byte, error) {
+	m.prompts = append(m.prompts, prompt)
+	if len(m.results) == 0 {
+		return 0, []byte("y"), nil, nil
+	}
+	result := m.results[0]
+	m.results = m.results[1:]
+	return result.exitCode, []byte(result.stdout), []byte(result.stderr), result.err
 }
 
 type mockGitOps struct {

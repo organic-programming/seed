@@ -20,7 +20,7 @@ type Gate struct {
 
 // Status is written to status.yaml.
 type Status struct {
-	State       string                `yaml:"state" json:"state"` // queued | running | done | deferred
+	State       string                `yaml:"state" json:"state"` // queued | running | waiting-budget | done | deferred
 	ProgramDesc string                `yaml:"program_desc" json:"program_desc"`
 	CurrentStep string                `yaml:"current_step" json:"current_step"`
 	Branch      string                `yaml:"branch" json:"branch"`
