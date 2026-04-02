@@ -1,0 +1,7 @@
+go 1.26.1
+
+use (
+	./examples/hello-world/gabriel-greeting-go
+	./holons/clem-ader
+	./holons/grace-op
+)
