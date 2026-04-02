@@ -9,6 +9,10 @@ The seed now uses `ader` as a local verification runner built around four levels
 
 The active root is [`verification/`](verification/README.md).
 
+The current shared black-box scenario source for `op`, `swiftui`, and `flutter` lives under:
+
+- [`verification/catalogues/op/integration/`](verification/catalogues/op/integration)
+
 ## Core Rule
 
 A suite is a scenario, not a global inventory.

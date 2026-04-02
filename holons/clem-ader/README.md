@@ -106,6 +106,10 @@ verification/catalogues/op/
 
 There is no catalogue-level default suite. `--suite` is required for `test`, `promote`, and `downgrade`.
 
+Scenario source may also live inside a catalogue. The current shared black-box scenario package lives under:
+
+- [`../../verification/catalogues/op/integration/`](../../verification/catalogues/op/integration)
+
 ### Bouquet
 
 Bouquets live in [`verification/bouquets/`](../../verification/bouquets).

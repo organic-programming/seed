@@ -6,21 +6,21 @@ checks:
     command: dart test
     description: Dart example unit tests
   integration-dispatch-jsonoutput-dart:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-dart$" ./...
     description: dispatch jsonoutput dart
   integration-dispatch-list-languages-dart:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-dart$" ./...
     description: dispatch list languages dart
   integration-dispatch-say-hello-across-transports-dart-auto:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
@@ -28,7 +28,7 @@ checks:
       ./...
     description: dispatch say hello across transports dart via auto
   integration-dispatch-say-hello-across-transports-dart-grpc:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
@@ -36,7 +36,7 @@ checks:
       ./...
     description: dispatch say hello across transports dart via grpc
   integration-dispatch-say-hello-across-transports-dart-stdio:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
@@ -44,7 +44,7 @@ checks:
       ./...
     description: dispatch say hello across transports dart via stdio
   integration-dispatch-say-hello-across-transports-dart-tcp:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
@@ -52,91 +52,91 @@ checks:
       ./...
     description: dispatch say hello across transports dart via tcp
   integration-inspect-local-holons-dart:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-dart$" ./...
     description: inspect local holons dart
   integration-install-build-install-uninstall-dart:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-dart$" ./...
     description: install build install uninstall dart
   integration-install-with-build-flag-dart:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-dart$" ./...
     description: install with build flag dart
   integration-invoke-across-transports-dart-auto:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-dart$/^auto$" ./...
     description: invoke across transports dart via auto
   integration-invoke-across-transports-dart-grpc:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-dart$/^grpc$" ./...
     description: invoke across transports dart via grpc
   integration-invoke-across-transports-dart-stdio:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-dart$/^stdio$" ./...
     description: invoke across transports dart via stdio
   integration-invoke-across-transports-dart-tcp:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestInvoke_AcrossTransports$/^gabriel-greeting-dart$/^tcp$" ./...
     description: invoke across transports dart via tcp
   integration-lifecycle-hello-world-holons-dart:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-dart$" ./...
     description: lifecycle hello world holons dart
   integration-run-tcp-dart:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-dart$" ./...
     description: run tcp dart
   integration-tools-default-format-dart:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-dart$" ./...
     description: tools default format dart
   integration-tools-formats-dart:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-dart$" ./...
     description: tools formats dart
   integration-unix-transport-run-and-dispatch-dart:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart
     command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-dart$" ./...
     description: unix transport run and dispatch dart
   integration-windows-build-reports-exe-artifact-dart:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - dart

@@ -100,6 +100,38 @@ func TestRunWorkspaceSnapshotUsesWorkingTree(t *testing.T) {
 	})
 }
 
+func TestCopyWorkspaceTreeSkipsSiblingCatalogueRuntimeState(t *testing.T) {
+	srcRoot := t.TempDir()
+	dstRoot := t.TempDir()
+
+	keepPath := filepath.Join(srcRoot, "verification", "catalogues", "op", "integration", "discover_test.go")
+	skipPath := filepath.Join(srcRoot, "verification", "catalogues", "ader", ".artifacts", "tool-cache", "go-mod", "cache.txt")
+
+	if err := os.MkdirAll(filepath.Dir(keepPath), 0o755); err != nil {
+		t.Fatalf("mkdir keep path: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(skipPath), 0o755); err != nil {
+		t.Fatalf("mkdir skip path: %v", err)
+	}
+	if err := os.WriteFile(keepPath, []byte("package integration\n"), 0o644); err != nil {
+		t.Fatalf("write keep path: %v", err)
+	}
+	if err := os.WriteFile(skipPath, []byte("cache\n"), 0o644); err != nil {
+		t.Fatalf("write skip path: %v", err)
+	}
+
+	if err := copyWorkspaceTree(srcRoot, dstRoot, filepath.Join("verification", "catalogues", "op")); err != nil {
+		t.Fatalf("copyWorkspaceTree() error = %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dstRoot, "verification", "catalogues", "op", "integration", "discover_test.go")); err != nil {
+		t.Fatalf("expected copied integration file: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dstRoot, "verification", "catalogues", "ader", ".artifacts", "tool-cache", "go-mod", "cache.txt")); !os.IsNotExist(err) {
+		t.Fatalf("expected sibling catalogue artifact cache to be skipped, stat err = %v", err)
+	}
+}
+
 func TestRunFullArchivesAndHistoryShow(t *testing.T) {
 	root := testrepo.Create(t)
 	configDir := filepath.Join(root, "verification", "catalogues", "fixture")

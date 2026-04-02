@@ -45,8 +45,8 @@
 |:---:|:---:|---|---|
 | ? | ? | [holons/clem-ader/README.md](holons/clem-ader/README.md) | `ader` overview — concepts, commands, workflows |
 | ? | ? | [holons/clem-ader/api/v1/holon.proto](holons/clem-ader/api/v1/holon.proto) | `ader` RPC surface and skills |
-| ? | ? | [integration/README.md](integration/README.md) | Seed config root and usage |
-| ? | ? | [integration/suites/seed.yaml](integration/suites/seed.yaml) | Seed suite definition |
+| ? | ? | [verification/README.md](verification/README.md) | Verification root, catalogues, bouquets |
+| ? | ? | [verification/catalogues/op/integration](verification/catalogues/op/integration) | Shared black-box scenario source owned by the `op` catalogue |
 
 ## SDK Interfaces (sdk)
 

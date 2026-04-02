@@ -1305,13 +1305,16 @@ func copyWorkspaceTree(srcRoot string, dstRoot string, configRelDir string, excl
 }
 
 func shouldSkipWorkspacePath(rel string, entry fs.DirEntry, configRelDir string) bool {
-	normalized := filepath.ToSlash(rel)
+	normalized := strings.TrimPrefix(filepath.ToSlash(rel), "./")
 	switch normalized {
 	case ".git":
 		return true
 	}
 	baseConfigDir := strings.TrimPrefix(filepath.ToSlash(configRelDir), "./")
 	for _, suffix := range []string{".artifacts", "reports", "archives", ".t"} {
+		if pathHasSegment(normalized, suffix) {
+			return true
+		}
 		target := suffix
 		if baseConfigDir != "" && baseConfigDir != "." {
 			target = baseConfigDir + "/" + suffix
@@ -1324,6 +1327,18 @@ func shouldSkipWorkspacePath(rel string, entry fs.DirEntry, configRelDir string)
 	switch base {
 	case ".git", ".gradle", ".kotlin", ".build", "build", "target", "obj", "__pycache__", "node_modules":
 		return true
+	}
+	return false
+}
+
+func pathHasSegment(path string, segment string) bool {
+	if path == segment {
+		return true
+	}
+	for _, part := range strings.Split(path, "/") {
+		if part == segment {
+			return true
+		}
 	}
 	return false
 }

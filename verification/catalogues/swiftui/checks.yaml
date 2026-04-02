@@ -6,54 +6,54 @@ checks:
     command: swift test
     description: Swift example unit tests
   integration-coax-build-recipe-app:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     command: go test -v -count=1 -timeout 5m -run "^TestCOAX_BuildRecipeApp$" ./...
     description: coax build recipe app
   integration-coax-runtime-surface:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     command: go test -v -count=1 -timeout 5m -run "^TestCOAX_RuntimeSurface$" ./...
     description: coax runtime surface
   integration-dispatch-jsonoutput-swift:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - swift
     command: go test -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-swift$" ./...
     description: dispatch jsonoutput swift
   integration-dispatch-list-languages-swift:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - swift
     command: go test -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-swift$" ./...
     description: dispatch list languages swift
   integration-inspect-local-holons-swift:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - swift
     command: go test -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-swift$" ./...
     description: inspect local holons swift
   integration-install-build-install-uninstall-swift:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - swift
     command: go test -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-swift$" ./...
     description: install build install uninstall swift
   integration-install-with-build-flag-swift:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - swift
     command: go test -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-swift$" ./...
     description: install with build flag swift
   integration-lifecycle-hello-world-holons-app-swiftui:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - xcodebuild
@@ -73,42 +73,42 @@ checks:
     command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-app-swiftui$" ./...
     description: lifecycle hello world holons app swiftui
   integration-lifecycle-hello-world-holons-swift:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - swift
     command: go test -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-swift$" ./...
     description: lifecycle hello world holons swift
   integration-run-tcp-swift:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - swift
     command: go test -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-swift$" ./...
     description: run tcp swift
   integration-tools-default-format-swift:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - swift
     command: go test -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-swift$" ./...
     description: tools default format swift
   integration-tools-formats-swift:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - swift
     command: go test -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-swift$" ./...
     description: tools formats swift
   integration-unix-transport-run-and-dispatch-swift:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - swift
     command: go test -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-swift$" ./...
     description: unix transport run and dispatch swift
   integration-windows-build-reports-exe-artifact-swift:
-    workdir: integration/tests
+    workdir: verification/catalogues/op/integration
     prereqs:
     - go
     - swift

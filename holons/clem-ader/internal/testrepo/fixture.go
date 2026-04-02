@@ -70,7 +70,7 @@ defaults:
     script: scripts/quiet-step.sh
     description: fixture script with delayed first output
   integration-smoke:
-    workdir: integration/tests
+    workdir: verification/catalogues/fixture/integration
     prereqs: [go]
     command: go test -v -count=1 -timeout 5m -run '^TestSmoke$' ./...
     description: integration smoke proof
@@ -183,8 +183,8 @@ profiles:
     steps: [aux-script]
 `)
 
-	writeFile(t, filepath.Join(root, "integration", "tests", "go.mod"), "module example.com/fixture/integration\n\ngo 1.25.1\n")
-	writeFile(t, filepath.Join(root, "integration", "tests", "smoke_test.go"), "package integration\n\nimport \"testing\"\n\nfunc TestSmoke(t *testing.T) {}\n")
+	writeFile(t, filepath.Join(root, "verification", "catalogues", "fixture", "integration", "go.mod"), "module example.com/fixture/integration\n\ngo 1.25.1\n")
+	writeFile(t, filepath.Join(root, "verification", "catalogues", "fixture", "integration", "smoke_test.go"), "package integration\n\nimport \"testing\"\n\nfunc TestSmoke(t *testing.T) {}\n")
 
 	writeFile(t, filepath.Join(root, "holons", "clem-ader", "go.mod"), "module example.com/fixture/ader\n\ngo 1.25.1\n")
 	writeFile(t, filepath.Join(root, "holons", "clem-ader", "smoke_test.go"), "package ader\n\nimport \"testing\"\n\nfunc TestSmoke(t *testing.T) {}\n")

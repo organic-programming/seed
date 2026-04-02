@@ -250,11 +250,11 @@ profiles:
 
 func TestBuildPromotionProposalIncludesPromoteCommand(t *testing.T) {
 	cfg := &runtimeConfig{
-		ConfigDir:    "/tmp/repo/integration",
-		ConfigRelDir: "integration",
+		ConfigDir:    "/tmp/repo/verification/catalogues/fixture",
+		ConfigRelDir: "verification/catalogues/fixture",
 		RepoRoot:     "/tmp/repo",
 		SuiteName:    "fixture",
-		SuitePath:    "/tmp/repo/integration/suites/fixture.yaml",
+		SuitePath:    "/tmp/repo/verification/catalogues/fixture/suites/fixture.yaml",
 		Suite: suiteConfig{
 			Steps: map[string]suiteStepConfig{
 				"sdk-go-unit": {Lane: "progression"},
@@ -279,11 +279,11 @@ func TestBuildPromotionProposalIncludesPromoteCommand(t *testing.T) {
 	if proposal == nil {
 		t.Fatal("buildPromotionProposal() = nil, want proposal")
 	}
-	if got := proposal.SuggestedCommand; got != "ader promote integration --suite fixture --step sdk-go-unit" {
+	if got := proposal.SuggestedCommand; got != "ader promote verification/catalogues/fixture --suite fixture --step sdk-go-unit" {
 		t.Fatalf("suggested command = %q, want promote command", got)
 	}
 	markdown := buildPromotionMarkdown(proposal)
-	if !strings.Contains(markdown, "## Apply") || !strings.Contains(markdown, "ader promote integration --suite fixture --step sdk-go-unit") {
+	if !strings.Contains(markdown, "## Apply") || !strings.Contains(markdown, "ader promote verification/catalogues/fixture --suite fixture --step sdk-go-unit") {
 		t.Fatalf("promotion markdown missing promote command: %s", markdown)
 	}
 }

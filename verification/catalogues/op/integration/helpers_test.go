@@ -1,5 +1,5 @@
 // Test harness helpers build one canonical op binary, mirror the sample
-// workspace under integration/.artifacts, and run every integration command
+// workspace under the scenario sandbox, and run every integration command
 // inside that isolated copy.
 package integration
 
@@ -32,6 +32,7 @@ const (
 var (
 	opBinary          string
 	seedRoot          string
+	catalogueRoot     string
 	integrationRoot   string
 	artifactsBaseRoot string
 	artifactsRoot     string
@@ -144,8 +145,9 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "resolve seed root: %v\n", err)
 		os.Exit(1)
 	}
-	integrationRoot = filepath.Join(seedRoot, "integration")
-	artifactsBaseRoot = filepath.Join(integrationRoot, ".artifacts")
+	catalogueRoot = filepath.Join(seedRoot, "verification", "catalogues", "op")
+	integrationRoot = filepath.Join(catalogueRoot, "integration")
+	artifactsBaseRoot = filepath.Join(catalogueRoot, ".artifacts")
 	artifactsRoot = filepath.Join(artifactsBaseRoot, "run-"+strconv.FormatInt(time.Now().UnixNano(), 10))
 	tempBaseRoot = filepath.Join(os.TempDir(), "seed-int-store-"+strconv.Itoa(os.Getpid()))
 	graceOpRoot = filepath.Join(seedRoot, "holons", "grace-op")
@@ -188,7 +190,7 @@ func resolveSeedRoot() (string, error) {
 	if !ok {
 		return "", fmt.Errorf("runtime.Caller failed")
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..")), nil
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..")), nil
 }
 
 func buildCanonicalBinary() (string, func(), error) {
@@ -738,6 +740,12 @@ func prepareWorkspaceMirror() (string, error) {
 	} {
 		src := spec.src
 		dst := spec.dst
+		if _, err := os.Stat(src); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return "", err
+		}
 		if err := copyTree(src, dst); err != nil {
 			return "", fmt.Errorf("copy %s: %w", src, err)
 		}
@@ -853,7 +861,7 @@ func ensureTempAlias(target string) (string, error) {
 		return target, nil
 	}
 
-	alias := filepath.Join(integrationRoot, ".t")
+	alias := filepath.Join(catalogueRoot, ".t")
 	if err := os.RemoveAll(alias); err != nil && !os.IsNotExist(err) {
 		return "", err
 	}
