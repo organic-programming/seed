@@ -125,7 +125,7 @@ which the ecosystem grows.
 | [.proto](./PROTO.md) | How do holons use the `.proto` manifest? |
 | [Holon package](./holons/grace-op/HOLON_PACKAGE.md) | How do holons package each other? |
 | [OP](./holons/grace-op/README.md) |  Op is the CLI tool. |
-| [Integration](./integration/README.md) | How the seed defines its local verification suite for `ader`. |
+| [Verification](./verification/README.md) | How the seed defines its local verification suites, catalogues, and bouquets for `ader`. |
 | [Protocol](./COMMUNICATION.md) | How do holons communicate? |
 
 
