@@ -10,6 +10,7 @@ import (
 )
 
 const morningReportFile = "morning-report.md"
+const runLogFile = "run-log.tsv"
 
 func GenerateMorningReport(aderRoot string) (string, error) {
 	absRoot, err := filepath.Abs(aderRoot)
@@ -50,6 +51,9 @@ func GenerateMorningReport(aderRoot string) (string, error) {
 	}
 	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
 		return "", fmt.Errorf("write %s: %w", path, err)
+	}
+	if err := writeRunLog(absRoot, sections); err != nil {
+		return "", err
 	}
 	return path, nil
 }
@@ -168,4 +172,44 @@ func sortedStepIDs(status *Status) []string {
 	}
 	sort.Strings(ids)
 	return ids
+}
+
+func writeRunLog(aderRoot string, sections []struct {
+	title string
+	slots []reportProgram
+}) error {
+	var b strings.Builder
+	b.WriteString("slot\tstep_id\tattempt\titeration\tkept\tgate_result\tfinished_at\tgate_report\tdiff_patch\tdescription\n")
+	for _, section := range sections {
+		for _, item := range section.slots {
+			for _, stepID := range sortedStepIDs(item.status) {
+				step := item.status.Steps[stepID]
+				for index, attempt := range step.Attempts {
+					fmt.Fprintf(&b, "%s\t%s\t%d\t%d\t%t\t%s\t%s\t%s\t%s\t%s\n",
+						item.slot,
+						stepID,
+						index+1,
+						attempt.Iteration,
+						attempt.Kept,
+						attempt.GateResult,
+						attempt.FinishedAt,
+						attempt.GateReport,
+						attempt.DiffPatch,
+						tsvField(item.status.ProgramDesc),
+					)
+				}
+			}
+		}
+	}
+	path := filepath.Join(aderRoot, runLogFile)
+	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
+}
+
+func tsvField(value string) string {
+	value = strings.ReplaceAll(value, "\t", " ")
+	value = strings.ReplaceAll(value, "\n", " ")
+	return value
 }

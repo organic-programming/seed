@@ -29,6 +29,7 @@ const (
 
 type runner struct {
 	codex              CodexRunner
+	gate               GateRunner
 	git                GitOps
 	quotaProbeInterval time.Duration
 	sleep              func(context.Context, time.Duration) error
@@ -37,6 +38,7 @@ type runner struct {
 func newRunner(codex CodexRunner, git GitOps) runner {
 	return runner{
 		codex:              codex,
+		gate:               shellGateRunner{},
 		git:                git,
 		quotaProbeInterval: defaultQuotaProbeDelay,
 		sleep:              sleepContext,
@@ -590,7 +592,7 @@ func (r runner) executeLinearStep(ctx context.Context, repoRoot, liveDir string,
 		}
 		attempt.CodexExitCode = exitCode
 
-		gatePassed, reportPath, err := runGate(ctx, repoRoot, step.Gate)
+		gatePassed, reportPath, err := r.gate.Run(ctx, repoRoot, step.Gate)
 		if err != nil {
 			return false, err
 		}
@@ -667,7 +669,7 @@ func (r runner) executeIterationStep(ctx context.Context, repoRoot, liveDir stri
 		}
 		attempt.CodexExitCode = exitCode
 
-		gatePassed, reportPath, err := runGate(ctx, repoRoot, step.Gate)
+		gatePassed, reportPath, err := r.gate.Run(ctx, repoRoot, step.Gate)
 		if err != nil {
 			return false, err
 		}

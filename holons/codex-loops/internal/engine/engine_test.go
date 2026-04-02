@@ -161,6 +161,18 @@ func TestGenerateMorningReport(t *testing.T) {
 	if !strings.Contains(text, "Last failure: step `test` report `reports/test.md`") {
 		t.Fatalf("report missing deferred failure detail: %q", text)
 	}
+
+	runLogData, err := os.ReadFile(filepath.Join(root, runLogFile))
+	if err != nil {
+		t.Fatalf("read run log: %v", err)
+	}
+	runLog := string(runLogData)
+	if !strings.Contains(runLog, "slot\tstep_id\tattempt\titeration\tkept\tgate_result") {
+		t.Fatalf("run log missing header: %q", runLog)
+	}
+	if !strings.Contains(runLog, "001\tlint\t1\t0\tfalse\tPASS") {
+		t.Fatalf("run log missing done attempt row: %q", runLog)
+	}
 }
 
 func TestSlotManagement(t *testing.T) {
@@ -332,19 +344,15 @@ func TestExecuteIterationStep(t *testing.T) {
 		t.Fatalf("write brief: %v", err)
 	}
 
-	// Scripted: iterations 1=PASS, 2=FAIL(gate), 3=PASS, 4=PASS, 5=FAIL(gate)
-	gateResults := []bool{true, false, true, true, false}
-	gateCall := 0
-
 	program := &Program{
 		Description: "Iterate",
 		MaxRetries:  1,
 		Steps: []ProgramStep{{
-			ID:         "simplify",
-			Brief:      "briefs/simplify.md",
-			Iterations: 5,
+			ID:                     "simplify",
+			Brief:                  "briefs/simplify.md",
+			Iterations:             5,
+			MaxConsecutiveFailures: 0,
 			Gate: Gate{
-				// Gate command is not used — we control via scripted gate
 				Command: "exit 0",
 				Expect:  "PASS",
 			},
@@ -354,16 +362,19 @@ func TestExecuteIterationStep(t *testing.T) {
 
 	git := &mockGitOps{repoRoot: repoRoot, currentCommit: "abc123"}
 	codex := &mockCodexRunner{}
+	gate := &scriptedGateRunner{
+		results: []scriptedGateResult{
+			{passed: true, reportPath: "reports/1.md"},
+			{passed: false, reportPath: "reports/2.md"},
+			{passed: true, reportPath: "reports/3.md"},
+			{passed: false, reportPath: "reports/4.md"},
+			{passed: true, reportPath: "reports/5.md"},
+		},
+	}
 
 	r := newRunner(codex, git)
-
-	// Override gate to use scripted results
-	// We can't easily override runGate, so we use a real gate that always passes
-	// and the iteration loop always keeps. For a proper test of PASS/FAIL alternation,
-	// we'd need to make runGate injectable. For now, test the happy path.
+	r.gate = gate
 	allPassed, err := r.executeProgram(context.Background(), repoRoot, liveDir, program, status, 1, false)
-	_ = gateResults
-	_ = gateCall
 	if err != nil {
 		t.Fatalf("executeProgram() error = %v", err)
 	}
@@ -375,30 +386,96 @@ func TestExecuteIterationStep(t *testing.T) {
 	if stepStatus.State != "passed" {
 		t.Fatalf("step state = %q, want passed", stepStatus.State)
 	}
-	if stepStatus.IterationsCompleted != 5 {
-		t.Fatalf("iterations completed = %d, want 5", stepStatus.IterationsCompleted)
+	if stepStatus.IterationsCompleted != 3 {
+		t.Fatalf("iterations completed = %d, want 3", stepStatus.IterationsCompleted)
 	}
 	if len(stepStatus.Attempts) != 5 {
 		t.Fatalf("attempts = %d, want 5", len(stepStatus.Attempts))
 	}
+	wantKept := []bool{true, false, true, false, true}
 	for i, attempt := range stepStatus.Attempts {
 		if attempt.Iteration != i+1 {
 			t.Fatalf("attempt[%d].Iteration = %d, want %d", i, attempt.Iteration, i+1)
 		}
-		if !attempt.Kept {
-			t.Fatalf("attempt[%d].Kept = false, want true", i)
+		if attempt.Kept != wantKept[i] {
+			t.Fatalf("attempt[%d].Kept = %t, want %t", i, attempt.Kept, wantKept[i])
 		}
 	}
 
 	// Verify commit messages
-	if len(git.commits) != 5 {
-		t.Fatalf("git commits = %d, want 5", len(git.commits))
+	if len(git.commits) != 3 {
+		t.Fatalf("git commits = %d, want 3", len(git.commits))
 	}
-	for i, msg := range git.commits {
-		want := fmt.Sprintf("codex-loops: simplify iteration %d/5 PASS", i+1)
-		if msg != want {
-			t.Fatalf("commit[%d] = %q, want %q", i, msg, want)
-		}
+	wantCommits := []string{
+		"codex-loops: simplify iteration 1/5 PASS",
+		"codex-loops: simplify iteration 3/5 PASS",
+		"codex-loops: simplify iteration 5/5 PASS",
+	}
+	if !reflect.DeepEqual(git.commits, wantCommits) {
+		t.Fatalf("git commits = %v, want %v", git.commits, wantCommits)
+	}
+	if len(git.resets) != 2 {
+		t.Fatalf("git resets = %d, want 2", len(git.resets))
+	}
+	if len(git.savedPatches) != 2 {
+		t.Fatalf("saved patches = %d, want 2", len(git.savedPatches))
+	}
+}
+
+func TestExecuteIterationStepLocksAfterConsecutiveFailures(t *testing.T) {
+	repoRoot := t.TempDir()
+	liveDir := filepath.Join(t.TempDir(), "live")
+	if err := os.MkdirAll(filepath.Join(liveDir, "briefs"), 0o755); err != nil {
+		t.Fatalf("mkdir briefs: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(liveDir, "briefs", "simplify.md"), []byte("simplify the code"), 0o644); err != nil {
+		t.Fatalf("write brief: %v", err)
+	}
+
+	program := &Program{
+		Description: "Iterate lock",
+		MaxRetries:  1,
+		Steps: []ProgramStep{{
+			ID:                     "simplify",
+			Brief:                  "briefs/simplify.md",
+			Iterations:             5,
+			MaxConsecutiveFailures: 2,
+			Gate: Gate{
+				Command: "exit 0",
+				Expect:  "PASS",
+			},
+		}},
+	}
+	status := newStatus(program, "running")
+
+	git := &mockGitOps{repoRoot: repoRoot, currentCommit: "abc123"}
+	codex := &mockCodexRunner{}
+	gate := &scriptedGateRunner{
+		results: []scriptedGateResult{
+			{passed: false, reportPath: "reports/1.md"},
+			{passed: false, reportPath: "reports/2.md"},
+			{passed: true, reportPath: "reports/3.md"},
+		},
+	}
+
+	r := newRunner(codex, git)
+	r.gate = gate
+	allPassed, err := r.executeProgram(context.Background(), repoRoot, liveDir, program, status, 1, false)
+	if err != nil {
+		t.Fatalf("executeProgram() error = %v", err)
+	}
+	if allPassed {
+		t.Fatal("expected locked iteration step to stop the program")
+	}
+	stepStatus := status.Steps["simplify"]
+	if stepStatus.State != "locked" {
+		t.Fatalf("step state = %q, want locked", stepStatus.State)
+	}
+	if stepStatus.IterationsCompleted != 0 {
+		t.Fatalf("iterations completed = %d, want 0", stepStatus.IterationsCompleted)
+	}
+	if len(stepStatus.Attempts) != 2 {
+		t.Fatalf("attempts = %d, want 2", len(stepStatus.Attempts))
 	}
 }
 
@@ -465,10 +542,32 @@ func (m *scriptedCodexRunner) Run(ctx context.Context, repoRoot, prompt string) 
 	return result.exitCode, []byte(result.stdout), []byte(result.stderr), result.err
 }
 
+type scriptedGateResult struct {
+	passed     bool
+	reportPath string
+	err        error
+}
+
+type scriptedGateRunner struct {
+	results []scriptedGateResult
+}
+
+func (m *scriptedGateRunner) Run(ctx context.Context, repoRoot string, gate Gate) (bool, string, error) {
+	if len(m.results) == 0 {
+		return true, "reports/default.md", nil
+	}
+	result := m.results[0]
+	m.results = m.results[1:]
+	return result.passed, result.reportPath, result.err
+}
+
 type mockGitOps struct {
 	repoRoot      string
 	currentCommit string
 	commits       []string
+	resets        []string
+	savedPatches  []string
+	commitSeq     int
 }
 
 func (m *mockGitOps) RepoRoot() (string, error) {
@@ -484,15 +583,19 @@ func (m *mockGitOps) CheckoutNewBranch(name string) error {
 }
 
 func (m *mockGitOps) ResetHard(commit string) error {
+	m.resets = append(m.resets, commit)
 	m.currentCommit = commit
 	return nil
 }
 
 func (m *mockGitOps) CommitAll(message string) error {
 	m.commits = append(m.commits, message)
+	m.commitSeq++
+	m.currentCommit = fmt.Sprintf("commit-%d", m.commitSeq)
 	return nil
 }
 
 func (m *mockGitOps) SavePatch(path string) error {
+	m.savedPatches = append(m.savedPatches, path)
 	return os.WriteFile(path, []byte("patch"), 0o644)
 }

@@ -10,6 +10,16 @@ import (
 	"strings"
 )
 
+type GateRunner interface {
+	Run(ctx context.Context, repoRoot string, gate Gate) (passed bool, reportPath string, err error)
+}
+
+type shellGateRunner struct{}
+
+func (shellGateRunner) Run(ctx context.Context, repoRoot string, gate Gate) (passed bool, reportPath string, err error) {
+	return runGate(ctx, repoRoot, gate)
+}
+
 func runGate(ctx context.Context, repoRoot string, gate Gate) (passed bool, reportPath string, err error) {
 	log.Printf("running gate command: %s", gate.Command)
 	cmd := exec.CommandContext(ctx, "sh", "-c", gate.Command)
