@@ -17,8 +17,8 @@ import (
 
 func TestRPCSurface(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
-	verificationRoot := filepath.Join(root, "verification")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
+	aderRoot := filepath.Join(root, "ader")
 	withWorkingDir(t, root, func() {
 		client := startRPCServer(t)
 
@@ -104,8 +104,8 @@ func TestRPCSurface(t *testing.T) {
 		}
 
 		bouquetResponse, err := client.TestBouquet(context.Background(), &aderv1.BouquetRequest{
-			VerificationRoot: verificationRoot,
-			Name:             "local-dev",
+			AderRoot: aderRoot,
+			Name:     "local-dev",
 		})
 		if err != nil {
 			t.Fatalf("RPC TestBouquet() error = %v", err)
@@ -114,7 +114,7 @@ func TestRPCSurface(t *testing.T) {
 			t.Fatal("expected bouquet history id from RPC TestBouquet")
 		}
 		bouquetHistory, err := client.BouquetHistory(context.Background(), &aderv1.BouquetHistoryRequest{
-			VerificationRoot: verificationRoot,
+			AderRoot: aderRoot,
 		})
 		if err != nil {
 			t.Fatalf("RPC BouquetHistory() error = %v", err)
@@ -123,8 +123,8 @@ func TestRPCSurface(t *testing.T) {
 			t.Fatal("expected bouquet history entries")
 		}
 		bouquetShow, err := client.ShowBouquetHistory(context.Background(), &aderv1.ShowBouquetHistoryRequest{
-			VerificationRoot: verificationRoot,
-			HistoryId:        bouquetResponse.GetManifest().GetHistoryId(),
+			AderRoot:  aderRoot,
+			HistoryId: bouquetResponse.GetManifest().GetHistoryId(),
 		})
 		if err != nil {
 			t.Fatalf("RPC ShowBouquetHistory() error = %v", err)
@@ -133,8 +133,8 @@ func TestRPCSurface(t *testing.T) {
 			t.Fatal("expected bouquet summary markdown")
 		}
 		bouquetArchive, err := client.ArchiveBouquet(context.Background(), &aderv1.ArchiveBouquetRequest{
-			VerificationRoot: verificationRoot,
-			Latest:           true,
+			AderRoot: aderRoot,
+			Latest:   true,
 		})
 		if err != nil {
 			t.Fatalf("RPC ArchiveBouquet() error = %v", err)

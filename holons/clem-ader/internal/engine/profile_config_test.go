@@ -12,7 +12,7 @@ import (
 
 func TestRunAcceptsCustomProfileDefinedInSuite(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
 	if err := os.WriteFile(suitePath, []byte(`description: fixture suite
 defaults:
@@ -53,7 +53,7 @@ profiles:
 
 func TestResolveProfileLaneStepsUnknownProfileStillFails(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	cfg, err := loadRunConfig(configDir, "fixture")
 	if err != nil {
 		t.Fatalf("loadRunConfig() error = %v", err)
@@ -65,7 +65,7 @@ func TestResolveProfileLaneStepsUnknownProfileStillFails(t *testing.T) {
 
 func TestResolveProfileNameUsesSuiteDefault(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
 	if err := os.WriteFile(suitePath, []byte(`description: fixture suite
 defaults:
@@ -102,7 +102,7 @@ profiles:
 
 func TestResolveProfileNameFallsBackToFirstProfileWhenSuiteDefaultMissing(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
 	if err := os.WriteFile(suitePath, []byte(`description: fallback suite
 steps:
@@ -134,7 +134,7 @@ profiles:
 
 func TestLoadRepoConfigDefaultsSourceAndLaneOnly(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	aderPath := filepath.Join(configDir, "ader.yaml")
 	if err := os.WriteFile(aderPath, []byte(`storage:
   reports: reports

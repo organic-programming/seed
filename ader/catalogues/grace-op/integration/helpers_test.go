@@ -145,7 +145,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "resolve seed root: %v\n", err)
 		os.Exit(1)
 	}
-	catalogueRoot = filepath.Join(seedRoot, "verification", "catalogues", "op")
+	catalogueRoot = filepath.Join(seedRoot, "ader", "catalogues", "grace-op")
 	integrationRoot = filepath.Join(catalogueRoot, "integration")
 	artifactsBaseRoot = filepath.Join(catalogueRoot, ".artifacts")
 	artifactsRoot = filepath.Join(artifactsBaseRoot, "run-"+strconv.FormatInt(time.Now().UnixNano(), 10))

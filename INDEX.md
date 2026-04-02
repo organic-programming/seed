@@ -45,8 +45,8 @@
 |:---:|:---:|---|---|
 | ? | ? | [holons/clem-ader/README.md](holons/clem-ader/README.md) | `ader` overview — concepts, commands, workflows |
 | ? | ? | [holons/clem-ader/api/v1/holon.proto](holons/clem-ader/api/v1/holon.proto) | `ader` RPC surface and skills |
-| ? | ? | [verification/README.md](verification/README.md) | Verification root, catalogues, bouquets |
-| ? | ? | [verification/catalogues/op/integration](verification/catalogues/op/integration) | Shared black-box scenario source owned by the `op` catalogue |
+| ? | ? | [ader/README.md](ader/README.md) | `ader` root, catalogues, bouquets, reports |
+| ? | ? | [ader/catalogues/grace-op/integration](ader/catalogues/grace-op/integration) | Shared black-box scenario source owned by the `op` catalogue |
 
 ## SDK Interfaces (sdk)
 

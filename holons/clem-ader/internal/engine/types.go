@@ -19,14 +19,14 @@ type ArchiveOptions struct {
 }
 
 type BouquetOptions struct {
-	VerificationRoot string
-	Name             string
+	AderRoot string
+	Name     string
 }
 
 type BouquetArchiveOptions struct {
-	VerificationRoot string
-	HistoryID        string
-	Latest           bool
+	AderRoot  string
+	HistoryID string
+	Latest    bool
 }
 
 type PromoteOptions struct {
@@ -133,17 +133,17 @@ type CleanupResult struct {
 }
 
 type BouquetRecord struct {
-	VerificationRoot string `json:"verification_root"`
-	Bouquet          string `json:"bouquet"`
-	HistoryID        string `json:"history_id"`
-	ReportDir        string `json:"report_dir"`
-	ArchivePath      string `json:"archive_path"`
-	StartedAt        string `json:"started_at"`
-	FinishedAt       string `json:"finished_at"`
-	FinalStatus      string `json:"final_status"`
-	PassCount        int    `json:"pass_count"`
-	FailCount        int    `json:"fail_count"`
-	SkipCount        int    `json:"skip_count"`
+	AderRoot    string `json:"ader_root"`
+	Bouquet     string `json:"bouquet"`
+	HistoryID   string `json:"history_id"`
+	ReportDir   string `json:"report_dir"`
+	ArchivePath string `json:"archive_path"`
+	StartedAt   string `json:"started_at"`
+	FinishedAt  string `json:"finished_at"`
+	FinalStatus string `json:"final_status"`
+	PassCount   int    `json:"pass_count"`
+	FailCount   int    `json:"fail_count"`
+	SkipCount   int    `json:"skip_count"`
 }
 
 type BouquetEntryResult struct {

@@ -32,7 +32,7 @@ func TestRunCLIVersion(t *testing.T) {
 
 func TestRunCLITestArchiveHistoryAndShow(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
@@ -75,7 +75,7 @@ func TestRunCLITestArchiveHistoryAndShow(t *testing.T) {
 		if code := RunCLI([]string{"show", configDir, "--id", historyID}, &stdout, &stderr); code != 0 {
 			t.Fatalf("RunCLI(show) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
 		}
-		if !strings.Contains(stdout.String(), "# Verification Report") {
+		if !strings.Contains(stdout.String(), "# Ader Report") {
 			t.Fatalf("show stdout missing report heading: %q", stdout.String())
 		}
 	})
@@ -83,7 +83,7 @@ func TestRunCLITestArchiveHistoryAndShow(t *testing.T) {
 
 func TestRunCLITestShowsPhaseFeedbackAndHeartbeat(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		t.Setenv("ADER_TEST_SILENT_STEP_SLEEP", "6")
 		var stdout bytes.Buffer
@@ -125,7 +125,7 @@ func TestRunCLITestShowsPhaseFeedbackAndHeartbeat(t *testing.T) {
 
 func TestRunCLIPromoteAndDowngrade(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
@@ -153,19 +153,19 @@ func TestRunCLIPromoteAndDowngrade(t *testing.T) {
 
 func TestCLICompletionSuggestsSuitesProfilesAndHistoryIDs(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		testCmd := findCommand(newRootCommand(io.Discard, io.Discard), "test")
 		if testCmd == nil {
 			t.Fatal("test command missing")
 		}
 
-		args, directive := testCmd.ValidArgsFunction(testCmd, nil, "ver")
+		args, directive := testCmd.ValidArgsFunction(testCmd, nil, "ad")
 		if directive != cobra.ShellCompDirectiveNoFileComp {
 			t.Fatalf("config-dir completion directive = %v, want %v", directive, cobra.ShellCompDirectiveNoFileComp)
 		}
-		if !strings.Contains(strings.Join(completionsToStrings(args), "\n"), "verification/catalogues/fixture") {
-			t.Fatalf("config-dir completion = %v, want verification/catalogues/fixture entry", args)
+		if !strings.Contains(strings.Join(completionsToStrings(args), "\n"), "ader/catalogues/fixture") {
+			t.Fatalf("config-dir completion = %v, want ader/catalogues/fixture entry", args)
 		}
 
 		suiteCompletion, ok := testCmd.GetFlagCompletionFunc("suite")
@@ -256,7 +256,7 @@ func TestCLICompletionSuggestsSuitesProfilesAndHistoryIDs(t *testing.T) {
 
 func TestRunCLIUsesConfiguredDefaultProfile(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
 	withWorkingDir(t, root, func() {
 		if err := os.WriteFile(suitePath, []byte(`description: fixture suite
@@ -288,7 +288,7 @@ profiles:
 
 func TestRunCLITestSilentSuppressesLiveProgress(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		t.Setenv("ADER_TEST_SILENT_STEP_SLEEP", "6")
 		var stdout bytes.Buffer
@@ -308,12 +308,12 @@ func TestRunCLITestSilentSuppressesLiveProgress(t *testing.T) {
 
 func TestRunCLITestBouquetArchiveHistoryAndShow(t *testing.T) {
 	root := testrepo.Create(t)
-	verificationRoot := filepath.Join(root, "verification")
+	aderRoot := filepath.Join(root, "ader")
 	withWorkingDir(t, root, func() {
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
 
-		if code := RunCLI([]string{"test-bouquet", verificationRoot, "--name", "local-dev"}, &stdout, &stderr); code != 0 {
+		if code := RunCLI([]string{"test-bouquet", aderRoot, "--name", "local-dev"}, &stdout, &stderr); code != 0 {
 			t.Fatalf("RunCLI(test-bouquet) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
 		}
 		if !strings.Contains(stdout.String(), "summary: pass=") {
@@ -322,7 +322,7 @@ func TestRunCLITestBouquetArchiveHistoryAndShow(t *testing.T) {
 
 		stdout.Reset()
 		stderr.Reset()
-		if code := RunCLI([]string{"history-bouquet", verificationRoot}, &stdout, &stderr); code != 0 {
+		if code := RunCLI([]string{"history-bouquet", aderRoot}, &stdout, &stderr); code != 0 {
 			t.Fatalf("RunCLI(history-bouquet) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
 		}
 		lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
@@ -333,7 +333,7 @@ func TestRunCLITestBouquetArchiveHistoryAndShow(t *testing.T) {
 
 		stdout.Reset()
 		stderr.Reset()
-		if code := RunCLI([]string{"show-bouquet", verificationRoot, "--id", historyID}, &stdout, &stderr); code != 0 {
+		if code := RunCLI([]string{"show-bouquet", aderRoot, "--id", historyID}, &stdout, &stderr); code != 0 {
 			t.Fatalf("RunCLI(show-bouquet) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
 		}
 		if !strings.Contains(stdout.String(), "# Bouquet Report") {
@@ -342,7 +342,7 @@ func TestRunCLITestBouquetArchiveHistoryAndShow(t *testing.T) {
 
 		stdout.Reset()
 		stderr.Reset()
-		if code := RunCLI([]string{"archive-bouquet", verificationRoot, "--latest"}, &stdout, &stderr); code != 0 {
+		if code := RunCLI([]string{"archive-bouquet", aderRoot, "--latest"}, &stdout, &stderr); code != 0 {
 			t.Fatalf("RunCLI(archive-bouquet) = %d\nstdout=%s\nstderr=%s", code, stdout.String(), stderr.String())
 		}
 		if !strings.Contains(stdout.String(), "archived bouquet ") {
@@ -353,7 +353,7 @@ func TestRunCLITestBouquetArchiveHistoryAndShow(t *testing.T) {
 
 func TestCLIConfigEnvAndFlagPrecedence(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		t.Setenv("ADER_TEST_SOURCE", "workspace")
 

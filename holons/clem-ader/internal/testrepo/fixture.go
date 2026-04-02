@@ -7,16 +7,16 @@ import (
 	"testing"
 )
 
-// Create builds a tiny synthetic verification repository suitable for fast tests.
+// Create builds a tiny synthetic ader repository suitable for fast tests.
 func Create(t testing.TB) string {
 	t.Helper()
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "README.md"), "# fixture\n")
 	writeFile(t, filepath.Join(root, "state.txt"), "committed\n")
-	writeFile(t, filepath.Join(root, "verification", "README.md"), "# verification\n")
-	writeFile(t, filepath.Join(root, "verification", ".gitignore"), ".artifacts/\n.t\nreports/\narchives/\n")
+	writeFile(t, filepath.Join(root, "ader", "README.md"), "# ader\n")
+	writeFile(t, filepath.Join(root, "ader", ".gitignore"), ".artifacts/\n.t\nreports/\narchives/\n")
 
-	writeFile(t, filepath.Join(root, "verification", "bouquets", "local-dev.yaml"), `description: local dev bouquet
+	writeFile(t, filepath.Join(root, "ader", "bouquets", "local-dev.yaml"), `description: local dev bouquet
 defaults:
   source: workspace
   lane: progression
@@ -30,7 +30,7 @@ entries:
     profile: smoke
 `)
 
-	writeFile(t, filepath.Join(root, "verification", "catalogues", "fixture", "ader.yaml"), `storage:
+	writeFile(t, filepath.Join(root, "ader", "catalogues", "fixture", "ader.yaml"), `storage:
   reports: reports
   archives: archives
   artifacts: .artifacts
@@ -39,7 +39,7 @@ defaults:
   source: committed
   lane: regression
 `)
-	writeFile(t, filepath.Join(root, "verification", "catalogues", "fixture", "checks.yaml"), `checks:
+	writeFile(t, filepath.Join(root, "ader", "catalogues", "fixture", "checks.yaml"), `checks:
   holons-clem-ader-unit-root:
     workdir: holons/clem-ader
     prereqs: [go]
@@ -70,12 +70,12 @@ defaults:
     script: scripts/quiet-step.sh
     description: fixture script with delayed first output
   integration-smoke:
-    workdir: verification/catalogues/fixture/integration
+    workdir: ader/catalogues/fixture/integration
     prereqs: [go]
     command: go test -v -count=1 -timeout 5m -run '^TestSmoke$' ./...
     description: integration smoke proof
 `)
-	writeFile(t, filepath.Join(root, "verification", "catalogues", "fixture", "suites", "fixture.yaml"), `description: fixture suite
+	writeFile(t, filepath.Join(root, "ader", "catalogues", "fixture", "suites", "fixture.yaml"), `description: fixture suite
 defaults:
   profile: quick
 steps:
@@ -139,7 +139,7 @@ profiles:
     archive: never
     steps: []
 `)
-	writeFile(t, filepath.Join(root, "verification", "catalogues", "fixture", "suites", "reuse.yaml"), `description: reuse suite
+	writeFile(t, filepath.Join(root, "ader", "catalogues", "fixture", "suites", "reuse.yaml"), `description: reuse suite
 defaults:
   profile: smoke
 steps:
@@ -153,7 +153,7 @@ profiles:
     steps: [fixture-script]
 `)
 
-	writeFile(t, filepath.Join(root, "verification", "catalogues", "aux", "ader.yaml"), `storage:
+	writeFile(t, filepath.Join(root, "ader", "catalogues", "aux", "ader.yaml"), `storage:
   reports: reports
   archives: archives
   artifacts: .artifacts
@@ -162,14 +162,14 @@ defaults:
   source: committed
   lane: regression
 `)
-	writeFile(t, filepath.Join(root, "verification", "catalogues", "aux", "checks.yaml"), `checks:
+	writeFile(t, filepath.Join(root, "ader", "catalogues", "aux", "checks.yaml"), `checks:
   aux-script:
     workdir: holons/clem-ader
     script: scripts/fixture-step.sh
     args: [gamma, delta]
     description: aux script execution
 `)
-	writeFile(t, filepath.Join(root, "verification", "catalogues", "aux", "suites", "smoke.yaml"), `description: aux smoke suite
+	writeFile(t, filepath.Join(root, "ader", "catalogues", "aux", "suites", "smoke.yaml"), `description: aux smoke suite
 defaults:
   profile: smoke
 steps:
@@ -183,8 +183,8 @@ profiles:
     steps: [aux-script]
 `)
 
-	writeFile(t, filepath.Join(root, "verification", "catalogues", "fixture", "integration", "go.mod"), "module example.com/fixture/integration\n\ngo 1.25.1\n")
-	writeFile(t, filepath.Join(root, "verification", "catalogues", "fixture", "integration", "smoke_test.go"), "package integration\n\nimport \"testing\"\n\nfunc TestSmoke(t *testing.T) {}\n")
+	writeFile(t, filepath.Join(root, "ader", "catalogues", "fixture", "integration", "go.mod"), "module example.com/fixture/integration\n\ngo 1.25.1\n")
+	writeFile(t, filepath.Join(root, "ader", "catalogues", "fixture", "integration", "smoke_test.go"), "package integration\n\nimport \"testing\"\n\nfunc TestSmoke(t *testing.T) {}\n")
 
 	writeFile(t, filepath.Join(root, "holons", "clem-ader", "go.mod"), "module example.com/fixture/ader\n\ngo 1.25.1\n")
 	writeFile(t, filepath.Join(root, "holons", "clem-ader", "smoke_test.go"), "package ader\n\nimport \"testing\"\n\nfunc TestSmoke(t *testing.T) {}\n")

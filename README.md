@@ -106,7 +106,7 @@ SDKs and toolchain:
 
 - **[sdk/](./sdk/)** — language SDKs (`serve`, `transport`, `identity`, `discover`, `connect`)
 - **[holons/grace-op/](./holons/grace-op/)** — the `op` orchestrator
-- **[holons/clem-ader/](./holons/clem-ader/)** — the local verification holon (`ader`): freeze a snapshot, run a configured proof, keep reports, archive evidence
+- **[holons/clem-ader/](./holons/clem-ader/)** — the local proof holon (`ader`): freeze a snapshot, run a configured proof, keep reports, archive evidence
 
 ---
 
@@ -125,7 +125,7 @@ which the ecosystem grows.
 | [.proto](./PROTO.md) | How do holons use the `.proto` manifest? |
 | [Holon package](./holons/grace-op/HOLON_PACKAGE.md) | How do holons package each other? |
 | [OP](./holons/grace-op/README.md) |  Op is the CLI tool. |
-| [Verification](./verification/README.md) | How the seed defines its local verification suites, catalogues, and bouquets for `ader`. |
+| [Ader](./ader/README.md) | How the seed defines `ader` catalogues, suites, bouquets, reports, and archives. |
 | [Protocol](./COMMUNICATION.md) | How do holons communicate? |
 
 

@@ -1,17 +1,17 @@
 # TDD
 
-The seed now uses `ader` as a local verification runner built around four levels:
+The seed now uses `ader` as a local proof runner built around four levels:
 
 - `check`: reusable execution atom
 - `suite`: precise scenario with suite-local promotion state
-- `catalogue`: isolated verification root containing checks, suites, reports, archives, caches, and lock
+- `catalogue`: isolated Ader root containing checks, suites, reports, archives, caches, and lock
 - `bouquet`: orchestration across several catalogues
 
-The active root is [`verification/`](verification/README.md).
+The active root is [`ader/`](ader/README.md).
 
 The current shared black-box scenario source for `op`, `swiftui`, and `flutter` lives under:
 
-- [`verification/catalogues/op/integration/`](verification/catalogues/op/integration)
+- [`ader/catalogues/grace-op/integration/`](ader/catalogues/grace-op/integration)
 
 ## Core Rule
 
@@ -32,13 +32,13 @@ This keeps `ader` useful for composed TDD:
 ## Layout
 
 ```text
-verification/
+ader/
   bouquets/
     local-dev.yaml
     cross-platform.yaml
 
   catalogues/
-    op/
+    grace-op/
       ader.yaml
       checks.yaml
       suites/
@@ -47,7 +47,7 @@ verification/
         op-examples.yaml
         op-composites.yaml
 
-    ader/
+    clem-ader/
       ader.yaml
       checks.yaml
       suites/
@@ -55,7 +55,7 @@ verification/
         ader-self.yaml
 ```
 
-[`verification/catalogues/*/ader.yaml`](verification/) contains only catalogue-local runtime defaults:
+[`ader/catalogues/*/ader.yaml`](ader/) contains only catalogue-local runtime defaults:
 
 - storage paths
 - default `source`
@@ -63,7 +63,7 @@ verification/
 
 There is no default suite at catalogue level. `--suite` is required for `test`, `promote`, and `downgrade`.
 
-[`verification/catalogues/*/checks.yaml`](verification/) defines reusable execution facts:
+[`ader/catalogues/*/checks.yaml`](ader/) defines reusable execution facts:
 
 - `workdir`
 - `prereqs`
@@ -71,7 +71,7 @@ There is no default suite at catalogue level. `--suite` is required for `test`, 
 - `args`
 - `description`
 
-Suite files under [`verification/catalogues/*/suites/`](verification/) define:
+Suite files under [`ader/catalogues/*/suites/`](ader/) define:
 
 - suite-local steps
 - `lane` on each suite step
@@ -119,17 +119,17 @@ regression -> downgrade -> progression
 Typical loop on one scenario:
 
 ```bash
-ader test verification/catalogues/op \
+ader test ader/catalogues/grace-op \
   --suite op-proxy \
   --profile smoke \
   --lane progression \
   --source workspace
 
-ader promote verification/catalogues/op \
+ader promote ader/catalogues/grace-op \
   --suite op-proxy \
   --step integration-dispatch-say-hello-across-transports-go-auto
 
-ader test verification/catalogues/op \
+ader test ader/catalogues/grace-op \
   --suite op-proxy \
   --profile smoke \
   --lane regression \
@@ -139,7 +139,7 @@ ader test verification/catalogues/op \
 To reset a scenario back into TDD:
 
 ```bash
-ader downgrade verification/catalogues/op --suite op-proxy --all
+ader downgrade ader/catalogues/grace-op --suite op-proxy --all
 ```
 
 `ader test` never mutates the suite. Only `promote` and `downgrade` rewrite `steps.<id>.lane` in the selected suite file.
@@ -157,11 +157,11 @@ defaults:
   archive: never
 
 entries:
-  - catalogue: op
+  - catalogue: grace-op
     suite: op-proxy
     profile: smoke
 
-  - catalogue: ader
+  - catalogue: clem-ader
     suite: ader-self
     profile: smoke
 ```
@@ -169,7 +169,7 @@ entries:
 Run it with:
 
 ```bash
-ader test-bouquet verification --name local-dev
+ader test-bouquet ader --name local-dev
 ```
 
 Execution policy:
@@ -207,7 +207,7 @@ This allows safe parallel execution across different catalogues while preventing
 Child suite runs still write normal catalogue-local reports:
 
 ```text
-verification/catalogues/<name>/reports/<history-id>/
+ader/catalogues/<name>/reports/<history-id>/
 ```
 
 Every child report contains:
@@ -229,8 +229,8 @@ History ids use:
 Bouquet runs write aggregate reports at:
 
 ```text
-verification/reports/bouquets/<bouquet-history-id>/
-verification/archives/bouquets/<bouquet-history-id>.tar.gz
+ader/reports/bouquets/<bouquet-history-id>/
+ader/archives/bouquets/<bouquet-history-id>.tar.gz
 ```
 
 ## Commands
@@ -238,26 +238,26 @@ verification/archives/bouquets/<bouquet-history-id>.tar.gz
 Catalogue commands:
 
 ```bash
-ader test verification/catalogues/ader --suite ader-self --profile smoke
-ader promote verification/catalogues/ader --suite ader-self --step holons-clem-ader-unit-root
-ader downgrade verification/catalogues/ader --suite ader-self --all
-ader history verification/catalogues/ader
-ader show verification/catalogues/ader --id <history-id>
-ader archive verification/catalogues/ader --latest
-ader cleanup verification/catalogues/ader
+ader test ader/catalogues/clem-ader --suite ader-self --profile smoke
+ader promote ader/catalogues/clem-ader --suite ader-self --step holons-clem-ader-unit-root
+ader downgrade ader/catalogues/clem-ader --suite ader-self --all
+ader history ader/catalogues/clem-ader
+ader show ader/catalogues/clem-ader --id <history-id>
+ader archive ader/catalogues/clem-ader --latest
+ader cleanup ader/catalogues/clem-ader
 ```
 
 Bouquet commands:
 
 ```bash
-ader test-bouquet verification --name local-dev
-ader history-bouquet verification
-ader show-bouquet verification --id <bouquet-history-id>
-ader archive-bouquet verification --latest
+ader test-bouquet ader --name local-dev
+ader history-bouquet ader
+ader show-bouquet ader --id <bouquet-history-id>
+ader archive-bouquet ader --latest
 ```
 
 ## References
 
-- [`verification/README.md`](verification/README.md)
+- [`ader/README.md`](ader/README.md)
 - [`holons/clem-ader/README.md`](holons/clem-ader/README.md)
 - [`holons/clem-ader/api/v1/holon.proto`](holons/clem-ader/api/v1/holon.proto)

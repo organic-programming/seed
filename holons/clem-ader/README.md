@@ -1,10 +1,10 @@
 # Clem Ader
 
-`clem-ader` is the local verification holon of the seed.
+`clem-ader` is the local proof holon of the seed.
 
 The public command is `ader`.
 
-The active verification root is [`verification/`](../../verification/README.md).
+The active Ader root is [`ader/`](../../ader/README.md).
 
 ## Scope
 
@@ -23,7 +23,7 @@ It also orchestrates several catalogue runs through bouquets.
 
 - `check`: reusable execution atom
 - `suite`: precise scenario
-- `catalogue`: isolated verification root
+- `catalogue`: isolated `ader` root
 - `bouquet`: orchestration across several catalogues
 
 ### Check
@@ -88,7 +88,7 @@ Promotion state is **suite-local**. The same underlying check may be `progressio
 A catalogue is an isolated config root:
 
 ```text
-verification/catalogues/op/
+ader/catalogues/grace-op/
   ader.yaml
   checks.yaml
   suites/
@@ -108,11 +108,11 @@ There is no catalogue-level default suite. `--suite` is required for `test`, `pr
 
 Scenario source may also live inside a catalogue. The current shared black-box scenario package lives under:
 
-- [`../../verification/catalogues/op/integration/`](../../verification/catalogues/op/integration)
+- [`../../ader/catalogues/grace-op/integration/`](../../ader/catalogues/grace-op/integration)
 
 ### Bouquet
 
-Bouquets live in [`verification/bouquets/`](../../verification/bouquets).
+Bouquets live in [`ader/bouquets/`](../../ader/bouquets).
 
 They orchestrate several suite runs:
 
@@ -125,11 +125,11 @@ defaults:
   archive: never
 
 entries:
-  - catalogue: op
+  - catalogue: grace-op
     suite: op-proxy
     profile: smoke
 
-  - catalogue: ader
+  - catalogue: clem-ader
     suite: ader-self
     profile: smoke
 ```
@@ -137,7 +137,7 @@ entries:
 Run them with:
 
 ```bash
-ader test-bouquet verification --name local-dev
+ader test-bouquet ader --name local-dev
 ```
 
 ## Commands
@@ -145,25 +145,25 @@ ader test-bouquet verification --name local-dev
 Catalogue commands:
 
 ```bash
-ader test verification/catalogues/op --suite op-proxy --profile smoke
-ader test verification/catalogues/ader --suite ader-self --profile smoke --lane progression --source workspace
+ader test ader/catalogues/grace-op --suite op-proxy --profile smoke
+ader test ader/catalogues/clem-ader --suite ader-self --profile smoke --lane progression --source workspace
 
-ader promote verification/catalogues/ader --suite ader-self --step holons-clem-ader-unit-root
-ader downgrade verification/catalogues/op --suite op-proxy --all
+ader promote ader/catalogues/clem-ader --suite ader-self --step holons-clem-ader-unit-root
+ader downgrade ader/catalogues/grace-op --suite op-proxy --all
 
-ader history verification/catalogues/op
-ader show verification/catalogues/op --id <history-id>
-ader archive verification/catalogues/op --latest
-ader cleanup verification/catalogues/op
+ader history ader/catalogues/grace-op
+ader show ader/catalogues/grace-op --id <history-id>
+ader archive ader/catalogues/grace-op --latest
+ader cleanup ader/catalogues/grace-op
 ```
 
 Bouquet commands:
 
 ```bash
-ader test-bouquet verification --name local-dev
-ader history-bouquet verification
-ader show-bouquet verification --id <bouquet-history-id>
-ader archive-bouquet verification --latest
+ader test-bouquet ader --name local-dev
+ader history-bouquet ader
+ader show-bouquet ader --id <bouquet-history-id>
+ader archive-bouquet ader --latest
 ```
 
 ## Snapshot and Execution
@@ -232,7 +232,7 @@ Bouquet workers use the same catalogue lock. This allows parallel execution acro
 Child suite runs write reports under:
 
 ```text
-verification/catalogues/<catalogue>/reports/<history-id>/
+ader/catalogues/<catalogue>/reports/<history-id>/
 ```
 
 Each report includes:
@@ -254,12 +254,12 @@ History ids use:
 Bouquet reports live under:
 
 ```text
-verification/reports/bouquets/<bouquet-history-id>/
-verification/archives/bouquets/<bouquet-history-id>.tar.gz
+ader/reports/bouquets/<bouquet-history-id>/
+ader/archives/bouquets/<bouquet-history-id>.tar.gz
 ```
 
 ## References
 
-- [`../../verification/README.md`](../../verification/README.md)
+- [`../../ader/README.md`](../../ader/README.md)
 - [`../../TDD.md`](../../TDD.md)
 - [`api/v1/holon.proto`](api/v1/holon.proto)

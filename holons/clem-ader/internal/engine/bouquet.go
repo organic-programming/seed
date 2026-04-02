@@ -50,8 +50,8 @@ func RunBouquetWithProgress(ctx context.Context, opts BouquetOptions, progress i
 	return runBouquet(ctx, opts, progress)
 }
 
-func BouquetHistory(_ context.Context, verificationRoot string) ([]BouquetHistoryEntry, error) {
-	root, err := resolveVerificationRoot(verificationRoot)
+func BouquetHistory(_ context.Context, aderRoot string) ([]BouquetHistoryEntry, error) {
+	root, err := resolveAderRoot(aderRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -103,8 +103,8 @@ func BouquetHistory(_ context.Context, verificationRoot string) ([]BouquetHistor
 	return out, nil
 }
 
-func ShowBouquetHistory(_ context.Context, verificationRoot string, historyID string) (*BouquetRunResult, error) {
-	root, err := resolveVerificationRoot(verificationRoot)
+func ShowBouquetHistory(_ context.Context, aderRoot string, historyID string) (*BouquetRunResult, error) {
+	root, err := resolveAderRoot(aderRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func ShowBouquetHistory(_ context.Context, verificationRoot string, historyID st
 }
 
 func ArchiveBouquet(_ context.Context, opts BouquetArchiveOptions) (*BouquetRunResult, error) {
-	root, err := resolveVerificationRoot(opts.VerificationRoot)
+	root, err := resolveAderRoot(opts.AderRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -169,13 +169,13 @@ func ArchiveBouquet(_ context.Context, opts BouquetArchiveOptions) (*BouquetRunR
 }
 
 func runBouquet(ctx context.Context, opts BouquetOptions, progress io.Writer) (*BouquetRunResult, error) {
-	if strings.TrimSpace(opts.VerificationRoot) == "" {
-		return nil, fmt.Errorf("verification root is required")
+	if strings.TrimSpace(opts.AderRoot) == "" {
+		return nil, fmt.Errorf("Ader root is required")
 	}
 	if strings.TrimSpace(opts.Name) == "" {
 		return nil, fmt.Errorf("bouquet name is required")
 	}
-	root, err := resolveVerificationRoot(opts.VerificationRoot)
+	root, err := resolveAderRoot(opts.AderRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -289,11 +289,11 @@ func runBouquet(ctx context.Context, opts BouquetOptions, progress io.Writer) (*
 	wg.Wait()
 
 	record := BouquetRecord{
-		VerificationRoot: root,
-		Bouquet:          opts.Name,
-		HistoryID:        historyID,
-		ReportDir:        reportDir,
-		StartedAt:        started.UTC().Format(time.RFC3339),
+		AderRoot:  root,
+		Bouquet:   opts.Name,
+		HistoryID: historyID,
+		ReportDir: reportDir,
+		StartedAt: started.UTC().Format(time.RFC3339),
 	}
 	for _, entry := range results {
 		switch entry.FinalStatus {
@@ -322,7 +322,7 @@ func runBouquet(ctx context.Context, opts BouquetOptions, progress io.Writer) (*
 	return result, nil
 }
 
-func resolveVerificationRoot(raw string) (string, error) {
+func resolveAderRoot(raw string) (string, error) {
 	return resolveConfigDir(raw)
 }
 

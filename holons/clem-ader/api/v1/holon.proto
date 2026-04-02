@@ -19,7 +19,7 @@ option (holons.v1.manifest) = {
     version: "0.3.0"
     aliases: ["ader"]
   }
-  description: "Clem Ader is the configurable verification holon of the seed. It loads catalogue-local checks and suites, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, orchestrates bouquets across several catalogues, and proposes suite-local promotion without mutating unrelated scenarios."
+  description: "Clem Ader is the local proof holon of the seed. It loads catalogue-local checks and suites, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, orchestrates bouquets across several catalogues, and keeps promotion scoped to each suite scenario."
   lang: "go"
   kind: "native"
   build: {
@@ -52,22 +52,22 @@ option (holons.v1.manifest) = {
     ]
   }
   skills: [{
-    name: "regression-loop"
-    description: "Freeze a committed snapshot, execute a broad verification pass, and archive the evidence."
+    name: "regression-proof"
+    description: "Freeze a committed snapshot, execute a broad proof pass, and archive the evidence."
     when: "A commit must be validated locally before merge or release."
     steps: [
-      "Run `ader test verification/catalogues/op --suite op-proxy --profile full`",
+      "Run `ader test ader/catalogues/grace-op --suite op-proxy --profile full`",
       "Inspect the archived report for the commit hash",
-      "Use `ader history verification/catalogues/op` and `ader show verification/catalogues/op --id <history-id>` to revisit the exact evidence later"
+      "Use `ader history ader/catalogues/grace-op` and `ader show ader/catalogues/grace-op --id <history-id>` to revisit the exact evidence later"
     ]
   }, {
-    name: "progression-loop"
-    description: "Freeze the current workspace for a local TDD loop and propose promotion from progression to regression after a clean pass."
+    name: "progression-proof"
+    description: "Freeze the current workspace for a local TDD proof pass and propose promotion from progression to regression after a clean run."
     when: "The user is iterating quickly on a change and wants a frozen local proof."
     steps: [
-      "Run `ader test verification/catalogues/ader --suite ader-self --profile smoke --lane progression --source workspace`",
-      "Inspect `verification/catalogues/ader/reports/<history-id>/summary.md` and `promotion.md`",
-      "Run the suggested `ader promote verification/catalogues/ader --suite ader-self --step ...` command once the proof is accepted"
+      "Run `ader test ader/catalogues/clem-ader --suite ader-self --profile smoke --lane progression --source workspace`",
+      "Inspect `ader/catalogues/clem-ader/reports/<history-id>/summary.md` and `promotion.md`",
+      "Run the suggested `ader promote ader/catalogues/clem-ader --suite ader-self --step ...` command once the proof is accepted"
     ]
   }, {
     name: "promote-after-proof"
@@ -75,7 +75,7 @@ option (holons.v1.manifest) = {
     when: "A progression run passed and the step should now become part of the regression baseline."
     steps: [
       "Inspect `promotion.md` to confirm the suggested `ader promote ...` command",
-      "Run `ader promote verification/catalogues/ader --suite ader-self --step <step-id>` or `--all` as needed",
+      "Run `ader promote ader/catalogues/clem-ader --suite ader-self --step <step-id>` or `--all` as needed",
       "Review the suite diff and commit deliberately"
     ]
   }, {
@@ -83,8 +83,8 @@ option (holons.v1.manifest) = {
     description: "Move regression steps back to progression, rerun the proof, and review the new promotion evidence."
     when: "A profile or step should be reset to TDD without editing the suite YAML by hand."
     steps: [
-      "Run `ader downgrade verification/catalogues/op --suite op-proxy --all` or target specific steps with `--step`",
-      "Run `ader test verification/catalogues/op --suite op-proxy --profile smoke --lane progression --source workspace`",
+      "Run `ader downgrade ader/catalogues/grace-op --suite op-proxy --all` or target specific steps with `--step`",
+      "Run `ader test ader/catalogues/grace-op --suite op-proxy --profile smoke --lane progression --source workspace`",
       "Review the new `promotion.json` and `promotion.md` before re-promoting"
     ]
   }, {
@@ -92,9 +92,9 @@ option (holons.v1.manifest) = {
     description: "Archive the useful evidence and remove deterministic run residue."
     when: "Old snapshots, temp stores, or extracted reports should be pruned safely."
     steps: [
-      "Run `ader archive verification/catalogues/op --latest` if the report must be preserved historically",
-      "Run `ader cleanup verification/catalogues/op` to delete deterministic catalogue residue",
-      "Keep archives under `verification/catalogues/op/archives/<commit-hash>/`"
+      "Run `ader archive ader/catalogues/grace-op --latest` if the report must be preserved historically",
+      "Run `ader cleanup ader/catalogues/grace-op` to delete deterministic catalogue residue",
+      "Keep archives under `ader/catalogues/grace-op/archives/<commit-hash>/`"
     ]
   }]
 };
@@ -131,7 +131,7 @@ message TestResponse {
 }
 
 message BouquetRequest {
-  string verification_root = 1;
+  string ader_root = 1;
   string name = 2;
 }
 
@@ -152,7 +152,7 @@ message ArchiveResponse {
 }
 
 message ArchiveBouquetRequest {
-  string verification_root = 1;
+  string ader_root = 1;
   string history_id = 2;
   bool latest = 3;
 }
@@ -210,7 +210,7 @@ message HistoryResponse {
 }
 
 message BouquetHistoryRequest {
-  string verification_root = 1;
+  string ader_root = 1;
 }
 
 message BouquetHistoryResponse {
@@ -230,7 +230,7 @@ message ShowHistoryResponse {
 }
 
 message ShowBouquetHistoryRequest {
-  string verification_root = 1;
+  string ader_root = 1;
   string history_id = 2;
 }
 
@@ -290,7 +290,7 @@ message HistoryRecord {
 }
 
 message BouquetRecord {
-  string verification_root = 1;
+  string ader_root = 1;
   string bouquet = 2;
   string history_id = 3;
   string report_dir = 4;

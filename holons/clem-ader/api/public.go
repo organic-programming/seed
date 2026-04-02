@@ -74,8 +74,8 @@ func testContext(ctx context.Context, req *aderv1.TestRequest) (*aderv1.TestResp
 
 func testBouquetContext(ctx context.Context, req *aderv1.BouquetRequest) (*aderv1.BouquetResponse, error) {
 	result, err := engine.RunBouquet(ctx, engine.BouquetOptions{
-		VerificationRoot: req.GetVerificationRoot(),
-		Name:             req.GetName(),
+		AderRoot: req.GetAderRoot(),
+		Name:     req.GetName(),
 	})
 	if err != nil {
 		return nil, err
@@ -103,9 +103,9 @@ func archiveContext(ctx context.Context, req *aderv1.ArchiveRequest) (*aderv1.Ar
 
 func archiveBouquetContext(ctx context.Context, req *aderv1.ArchiveBouquetRequest) (*aderv1.ArchiveBouquetResponse, error) {
 	result, err := engine.ArchiveBouquet(ctx, engine.BouquetArchiveOptions{
-		VerificationRoot: req.GetVerificationRoot(),
-		HistoryID:        req.GetHistoryId(),
-		Latest:           req.GetLatest(),
+		AderRoot:  req.GetAderRoot(),
+		HistoryID: req.GetHistoryId(),
+		Latest:    req.GetLatest(),
 	})
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func historyContext(ctx context.Context, req *aderv1.HistoryRequest) (*aderv1.Hi
 }
 
 func bouquetHistoryContext(ctx context.Context, req *aderv1.BouquetHistoryRequest) (*aderv1.BouquetHistoryResponse, error) {
-	entries, err := engine.BouquetHistory(ctx, req.GetVerificationRoot())
+	entries, err := engine.BouquetHistory(ctx, req.GetAderRoot())
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func showHistoryContext(ctx context.Context, req *aderv1.ShowHistoryRequest) (*a
 }
 
 func showBouquetHistoryContext(ctx context.Context, req *aderv1.ShowBouquetHistoryRequest) (*aderv1.ShowBouquetHistoryResponse, error) {
-	result, err := engine.ShowBouquetHistory(ctx, req.GetVerificationRoot(), req.GetHistoryId())
+	result, err := engine.ShowBouquetHistory(ctx, req.GetAderRoot(), req.GetHistoryId())
 	if err != nil {
 		return nil, err
 	}
@@ -275,17 +275,17 @@ func historyEntriesToProto(items []engine.HistoryEntry) []*aderv1.HistoryEntry {
 
 func bouquetManifestToProto(m engine.BouquetRecord) *aderv1.BouquetRecord {
 	return &aderv1.BouquetRecord{
-		VerificationRoot: m.VerificationRoot,
-		Bouquet:          m.Bouquet,
-		HistoryId:        m.HistoryID,
-		ReportDir:        m.ReportDir,
-		ArchivePath:      m.ArchivePath,
-		StartedAt:        m.StartedAt,
-		FinishedAt:       m.FinishedAt,
-		FinalStatus:      m.FinalStatus,
-		PassCount:        uint32(m.PassCount),
-		FailCount:        uint32(m.FailCount),
-		SkipCount:        uint32(m.SkipCount),
+		AderRoot:    m.AderRoot,
+		Bouquet:     m.Bouquet,
+		HistoryId:   m.HistoryID,
+		ReportDir:   m.ReportDir,
+		ArchivePath: m.ArchivePath,
+		StartedAt:   m.StartedAt,
+		FinishedAt:  m.FinishedAt,
+		FinalStatus: m.FinalStatus,
+		PassCount:   uint32(m.PassCount),
+		FailCount:   uint32(m.FailCount),
+		SkipCount:   uint32(m.SkipCount),
 	}
 }
 

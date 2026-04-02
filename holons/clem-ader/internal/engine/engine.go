@@ -677,7 +677,7 @@ func setupSkipReason(stepID string, workdir string) string {
 
 func buildSummaryMarkdown(manifest HistoryRecord, steps []StepResult) string {
 	var b strings.Builder
-	fmt.Fprintln(&b, "# Verification Report")
+	fmt.Fprintln(&b, "# Ader Report")
 	fmt.Fprintln(&b)
 	fmt.Fprintf(&b, "- Config Dir: `%s`\n", manifest.ConfigDir)
 	fmt.Fprintf(&b, "- Suite: `%s`\n", manifest.Suite)

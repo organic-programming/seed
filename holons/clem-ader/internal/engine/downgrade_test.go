@@ -12,7 +12,7 @@ import (
 
 func TestPromoteSpecificStep(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 
 	result, err := Promote(context.Background(), PromoteOptions{
 		ConfigDir: configDir,
@@ -37,7 +37,7 @@ func TestPromoteSpecificStep(t *testing.T) {
 
 func TestPromoteAllProgressionSteps(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 
 	result, err := Promote(context.Background(), PromoteOptions{
 		ConfigDir: configDir,
@@ -55,7 +55,7 @@ func TestPromoteAllProgressionSteps(t *testing.T) {
 
 func TestPromoteValidation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 
 	if _, err := Promote(context.Background(), PromoteOptions{
 		ConfigDir: configDir,
@@ -76,7 +76,7 @@ func TestPromoteValidation(t *testing.T) {
 
 func TestPromotePreservesYAMLStructureOutsideEditedSteps(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
 	if err := os.WriteFile(suitePath, []byte(`description: fixture suite
 # catalog comment
@@ -121,7 +121,7 @@ profiles:
 
 func TestDowngradeSpecificStep(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 
 	result, err := Downgrade(context.Background(), DowngradeOptions{
 		ConfigDir: configDir,
@@ -146,7 +146,7 @@ func TestDowngradeSpecificStep(t *testing.T) {
 
 func TestDowngradeAllRegressionSteps(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 
 	result, err := Downgrade(context.Background(), DowngradeOptions{
 		ConfigDir: configDir,
@@ -164,7 +164,7 @@ func TestDowngradeAllRegressionSteps(t *testing.T) {
 
 func TestDowngradeIgnoresAlreadyProgressionStep(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 
 	result, err := Downgrade(context.Background(), DowngradeOptions{
 		ConfigDir: configDir,
@@ -184,7 +184,7 @@ func TestDowngradeIgnoresAlreadyProgressionStep(t *testing.T) {
 
 func TestDowngradeValidation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 
 	if _, err := Downgrade(context.Background(), DowngradeOptions{
 		ConfigDir: configDir,
@@ -205,7 +205,7 @@ func TestDowngradeValidation(t *testing.T) {
 
 func TestDowngradePreservesYAMLStructureOutsideEditedSteps(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
 	if err := os.WriteFile(suitePath, []byte(`description: fixture suite
 # catalog comment
@@ -250,11 +250,11 @@ profiles:
 
 func TestBuildPromotionProposalIncludesPromoteCommand(t *testing.T) {
 	cfg := &runtimeConfig{
-		ConfigDir:    "/tmp/repo/verification/catalogues/fixture",
-		ConfigRelDir: "verification/catalogues/fixture",
+		ConfigDir:    "/tmp/repo/ader/catalogues/fixture",
+		ConfigRelDir: "ader/catalogues/fixture",
 		RepoRoot:     "/tmp/repo",
 		SuiteName:    "fixture",
-		SuitePath:    "/tmp/repo/verification/catalogues/fixture/suites/fixture.yaml",
+		SuitePath:    "/tmp/repo/ader/catalogues/fixture/suites/fixture.yaml",
 		Suite: suiteConfig{
 			Steps: map[string]suiteStepConfig{
 				"sdk-go-unit": {Lane: "progression"},
@@ -279,18 +279,18 @@ func TestBuildPromotionProposalIncludesPromoteCommand(t *testing.T) {
 	if proposal == nil {
 		t.Fatal("buildPromotionProposal() = nil, want proposal")
 	}
-	if got := proposal.SuggestedCommand; got != "ader promote verification/catalogues/fixture --suite fixture --step sdk-go-unit" {
+	if got := proposal.SuggestedCommand; got != "ader promote ader/catalogues/fixture --suite fixture --step sdk-go-unit" {
 		t.Fatalf("suggested command = %q, want promote command", got)
 	}
 	markdown := buildPromotionMarkdown(proposal)
-	if !strings.Contains(markdown, "## Apply") || !strings.Contains(markdown, "ader promote verification/catalogues/fixture --suite fixture --step sdk-go-unit") {
+	if !strings.Contains(markdown, "## Apply") || !strings.Contains(markdown, "ader promote ader/catalogues/fixture --suite fixture --step sdk-go-unit") {
 		t.Fatalf("promotion markdown missing promote command: %s", markdown)
 	}
 }
 
 func TestPromoteIsSuiteLocalForReusedCheck(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 
 	if _, err := Promote(context.Background(), PromoteOptions{
 		ConfigDir: configDir,

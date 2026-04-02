@@ -1,4 +1,4 @@
-description: self-verification of clem-ader command and engine packages
+description: core clem-ader package proof
 defaults:
   profile: smoke
 steps:

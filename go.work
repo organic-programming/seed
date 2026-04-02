@@ -4,5 +4,5 @@ use (
 	./examples/hello-world/gabriel-greeting-go
 	./holons/clem-ader
 	./holons/grace-op
-	./verification/catalogues/op/integration
+	./ader/catalogues/grace-op/integration
 )

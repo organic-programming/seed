@@ -14,7 +14,7 @@ import (
 
 func TestRunCommittedSnapshotUsesHEAD(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	if err := os.WriteFile(filepath.Join(root, "state.txt"), []byte("dirty\n"), 0o644); err != nil {
 		t.Fatalf("write dirty state: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestNewHistoryIDReservesDirectory(t *testing.T) {
 
 func TestRunWorkspaceSnapshotUsesWorkingTree(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	if err := os.WriteFile(filepath.Join(root, "state.txt"), []byte("dirty\n"), 0o644); err != nil {
 		t.Fatalf("write dirty state: %v", err)
 	}
@@ -104,8 +104,8 @@ func TestCopyWorkspaceTreeSkipsSiblingCatalogueRuntimeState(t *testing.T) {
 	srcRoot := t.TempDir()
 	dstRoot := t.TempDir()
 
-	keepPath := filepath.Join(srcRoot, "verification", "catalogues", "op", "integration", "discover_test.go")
-	skipPath := filepath.Join(srcRoot, "verification", "catalogues", "ader", ".artifacts", "tool-cache", "go-mod", "cache.txt")
+	keepPath := filepath.Join(srcRoot, "ader", "catalogues", "grace-op", "integration", "discover_test.go")
+	skipPath := filepath.Join(srcRoot, "ader", "catalogues", "clem-ader", ".artifacts", "tool-cache", "go-mod", "cache.txt")
 
 	if err := os.MkdirAll(filepath.Dir(keepPath), 0o755); err != nil {
 		t.Fatalf("mkdir keep path: %v", err)
@@ -120,21 +120,21 @@ func TestCopyWorkspaceTreeSkipsSiblingCatalogueRuntimeState(t *testing.T) {
 		t.Fatalf("write skip path: %v", err)
 	}
 
-	if err := copyWorkspaceTree(srcRoot, dstRoot, filepath.Join("verification", "catalogues", "op")); err != nil {
+	if err := copyWorkspaceTree(srcRoot, dstRoot, filepath.Join("ader", "catalogues", "grace-op")); err != nil {
 		t.Fatalf("copyWorkspaceTree() error = %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(dstRoot, "verification", "catalogues", "op", "integration", "discover_test.go")); err != nil {
+	if _, err := os.Stat(filepath.Join(dstRoot, "ader", "catalogues", "grace-op", "integration", "discover_test.go")); err != nil {
 		t.Fatalf("expected copied integration file: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dstRoot, "verification", "catalogues", "ader", ".artifacts", "tool-cache", "go-mod", "cache.txt")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(dstRoot, "ader", "catalogues", "clem-ader", ".artifacts", "tool-cache", "go-mod", "cache.txt")); !os.IsNotExist(err) {
 		t.Fatalf("expected sibling catalogue artifact cache to be skipped, stat err = %v", err)
 	}
 }
 
 func TestRunFullArchivesAndHistoryShow(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		result, err := Run(context.Background(), RunOptions{
 			ConfigDir:     configDir,
@@ -178,7 +178,7 @@ func TestRunFullArchivesAndHistoryShow(t *testing.T) {
 		if shown.Manifest.HistoryID != result.Manifest.HistoryID {
 			t.Fatalf("ShowHistory() history id = %q, want %q", shown.Manifest.HistoryID, result.Manifest.HistoryID)
 		}
-		if !strings.Contains(shown.SummaryMarkdown, "Verification Report") {
+		if !strings.Contains(shown.SummaryMarkdown, "Ader Report") {
 			t.Fatalf("summary markdown missing heading: %q", shown.SummaryMarkdown)
 		}
 	})
@@ -186,7 +186,7 @@ func TestRunFullArchivesAndHistoryShow(t *testing.T) {
 
 func TestRunWritesSuiteSnapshotAndStructuredHistoryID(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 
 	withWorkingDir(t, root, func() {
 		result, err := Run(context.Background(), RunOptions{
@@ -223,7 +223,7 @@ func TestRunWritesSuiteSnapshotAndStructuredHistoryID(t *testing.T) {
 
 func TestArchiveLatestAndCleanup(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		result, err := Run(context.Background(), RunOptions{
 			ConfigDir:     configDir,
@@ -269,7 +269,7 @@ func TestArchiveLatestAndCleanup(t *testing.T) {
 
 func TestProgressionProposalDoesNotMutateSuite(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	suitePath := filepath.Join(configDir, "suites", "fixture.yaml")
 	before, err := os.ReadFile(suitePath)
 	if err != nil {
@@ -312,7 +312,7 @@ func TestProgressionProposalDoesNotMutateSuite(t *testing.T) {
 
 func TestLoadRunConfigRequiresSuiteAndUsesCatalogueDefaults(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 
 	cfg, err := loadRunConfig(configDir, "")
 	if err == nil || !strings.Contains(err.Error(), "suite is required") {
@@ -341,7 +341,7 @@ func TestLoadRunConfigRequiresSuiteAndUsesCatalogueDefaults(t *testing.T) {
 
 func TestResolveProfileLaneSteps(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	cfg, err := loadRunConfig(configDir, "fixture")
 	if err != nil {
 		t.Fatalf("loadRunConfig() error = %v", err)
@@ -519,7 +519,7 @@ profiles:
 
 func TestRunScriptStepWithArgs(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		result, err := Run(context.Background(), RunOptions{
 			ConfigDir:     configDir,
@@ -588,12 +588,12 @@ func TestCatalogueLockWaitsForRelease(t *testing.T) {
 
 func TestRunBouquetHistoryShowAndArchive(t *testing.T) {
 	root := testrepo.Create(t)
-	verificationRoot := filepath.Join(root, "verification")
+	aderRoot := filepath.Join(root, "ader")
 
 	withWorkingDir(t, root, func() {
 		result, err := RunBouquet(context.Background(), BouquetOptions{
-			VerificationRoot: verificationRoot,
-			Name:             "local-dev",
+			AderRoot: aderRoot,
+			Name:     "local-dev",
 		})
 		if err != nil {
 			t.Fatalf("RunBouquet() error = %v", err)
@@ -604,14 +604,14 @@ func TestRunBouquetHistoryShowAndArchive(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(result.Manifest.ReportDir, reportSummaryMD)); err != nil {
 			t.Fatalf("bouquet summary missing: %v", err)
 		}
-		history, err := BouquetHistory(context.Background(), verificationRoot)
+		history, err := BouquetHistory(context.Background(), aderRoot)
 		if err != nil {
 			t.Fatalf("BouquetHistory() error = %v", err)
 		}
 		if len(history) != 1 {
 			t.Fatalf("BouquetHistory() count = %d, want 1", len(history))
 		}
-		shown, err := ShowBouquetHistory(context.Background(), verificationRoot, result.Manifest.HistoryID)
+		shown, err := ShowBouquetHistory(context.Background(), aderRoot, result.Manifest.HistoryID)
 		if err != nil {
 			t.Fatalf("ShowBouquetHistory() error = %v", err)
 		}
@@ -619,8 +619,8 @@ func TestRunBouquetHistoryShowAndArchive(t *testing.T) {
 			t.Fatalf("ShowBouquetHistory() history id = %q, want %q", shown.Manifest.HistoryID, result.Manifest.HistoryID)
 		}
 		archived, err := ArchiveBouquet(context.Background(), BouquetArchiveOptions{
-			VerificationRoot: verificationRoot,
-			Latest:           true,
+			AderRoot: aderRoot,
+			Latest:   true,
 		})
 		if err != nil {
 			t.Fatalf("ArchiveBouquet() error = %v", err)

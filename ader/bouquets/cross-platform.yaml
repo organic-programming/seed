@@ -4,10 +4,10 @@ defaults:
   lane: regression
   archive: never
 entries:
-- catalogue: op
+- catalogue: grace-op
   suite: op-instances
   profile: full
-- catalogue: ader
+- catalogue: clem-ader
   suite: ader-core
   profile: full
 - catalogue: swiftui

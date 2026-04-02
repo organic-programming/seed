@@ -183,11 +183,11 @@ func (x *TestResponse) GetSteps() []*StepResult {
 }
 
 type BouquetRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	VerificationRoot string                 `protobuf:"bytes,1,opt,name=verification_root,json=verificationRoot,proto3" json:"verification_root,omitempty"`
-	Name             string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AderRoot      string                 `protobuf:"bytes,1,opt,name=ader_root,json=aderRoot,proto3" json:"ader_root,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BouquetRequest) Reset() {
@@ -220,9 +220,9 @@ func (*BouquetRequest) Descriptor() ([]byte, []int) {
 	return file_v1_holon_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *BouquetRequest) GetVerificationRoot() string {
+func (x *BouquetRequest) GetAderRoot() string {
 	if x != nil {
-		return x.VerificationRoot
+		return x.AderRoot
 	}
 	return ""
 }
@@ -399,12 +399,12 @@ func (x *ArchiveResponse) GetArchivePath() string {
 }
 
 type ArchiveBouquetRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	VerificationRoot string                 `protobuf:"bytes,1,opt,name=verification_root,json=verificationRoot,proto3" json:"verification_root,omitempty"`
-	HistoryId        string                 `protobuf:"bytes,2,opt,name=history_id,json=historyId,proto3" json:"history_id,omitempty"`
-	Latest           bool                   `protobuf:"varint,3,opt,name=latest,proto3" json:"latest,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AderRoot      string                 `protobuf:"bytes,1,opt,name=ader_root,json=aderRoot,proto3" json:"ader_root,omitempty"`
+	HistoryId     string                 `protobuf:"bytes,2,opt,name=history_id,json=historyId,proto3" json:"history_id,omitempty"`
+	Latest        bool                   `protobuf:"varint,3,opt,name=latest,proto3" json:"latest,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ArchiveBouquetRequest) Reset() {
@@ -437,9 +437,9 @@ func (*ArchiveBouquetRequest) Descriptor() ([]byte, []int) {
 	return file_v1_holon_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *ArchiveBouquetRequest) GetVerificationRoot() string {
+func (x *ArchiveBouquetRequest) GetAderRoot() string {
 	if x != nil {
-		return x.VerificationRoot
+		return x.AderRoot
 	}
 	return ""
 }
@@ -983,10 +983,10 @@ func (x *HistoryResponse) GetEntries() []*HistoryEntry {
 }
 
 type BouquetHistoryRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	VerificationRoot string                 `protobuf:"bytes,1,opt,name=verification_root,json=verificationRoot,proto3" json:"verification_root,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AderRoot      string                 `protobuf:"bytes,1,opt,name=ader_root,json=aderRoot,proto3" json:"ader_root,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BouquetHistoryRequest) Reset() {
@@ -1019,9 +1019,9 @@ func (*BouquetHistoryRequest) Descriptor() ([]byte, []int) {
 	return file_v1_holon_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *BouquetHistoryRequest) GetVerificationRoot() string {
+func (x *BouquetHistoryRequest) GetAderRoot() string {
 	if x != nil {
-		return x.VerificationRoot
+		return x.AderRoot
 	}
 	return ""
 }
@@ -1191,11 +1191,11 @@ func (x *ShowHistoryResponse) GetSummaryTsv() string {
 }
 
 type ShowBouquetHistoryRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	VerificationRoot string                 `protobuf:"bytes,1,opt,name=verification_root,json=verificationRoot,proto3" json:"verification_root,omitempty"`
-	HistoryId        string                 `protobuf:"bytes,2,opt,name=history_id,json=historyId,proto3" json:"history_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AderRoot      string                 `protobuf:"bytes,1,opt,name=ader_root,json=aderRoot,proto3" json:"ader_root,omitempty"`
+	HistoryId     string                 `protobuf:"bytes,2,opt,name=history_id,json=historyId,proto3" json:"history_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ShowBouquetHistoryRequest) Reset() {
@@ -1228,9 +1228,9 @@ func (*ShowBouquetHistoryRequest) Descriptor() ([]byte, []int) {
 	return file_v1_holon_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *ShowBouquetHistoryRequest) GetVerificationRoot() string {
+func (x *ShowBouquetHistoryRequest) GetAderRoot() string {
 	if x != nil {
-		return x.VerificationRoot
+		return x.AderRoot
 	}
 	return ""
 }
@@ -1731,20 +1731,20 @@ func (x *HistoryRecord) GetSkipCount() uint32 {
 }
 
 type BouquetRecord struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	VerificationRoot string                 `protobuf:"bytes,1,opt,name=verification_root,json=verificationRoot,proto3" json:"verification_root,omitempty"`
-	Bouquet          string                 `protobuf:"bytes,2,opt,name=bouquet,proto3" json:"bouquet,omitempty"`
-	HistoryId        string                 `protobuf:"bytes,3,opt,name=history_id,json=historyId,proto3" json:"history_id,omitempty"`
-	ReportDir        string                 `protobuf:"bytes,4,opt,name=report_dir,json=reportDir,proto3" json:"report_dir,omitempty"`
-	ArchivePath      string                 `protobuf:"bytes,5,opt,name=archive_path,json=archivePath,proto3" json:"archive_path,omitempty"`
-	StartedAt        string                 `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	FinishedAt       string                 `protobuf:"bytes,7,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
-	FinalStatus      string                 `protobuf:"bytes,8,opt,name=final_status,json=finalStatus,proto3" json:"final_status,omitempty"`
-	PassCount        uint32                 `protobuf:"varint,9,opt,name=pass_count,json=passCount,proto3" json:"pass_count,omitempty"`
-	FailCount        uint32                 `protobuf:"varint,10,opt,name=fail_count,json=failCount,proto3" json:"fail_count,omitempty"`
-	SkipCount        uint32                 `protobuf:"varint,11,opt,name=skip_count,json=skipCount,proto3" json:"skip_count,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AderRoot      string                 `protobuf:"bytes,1,opt,name=ader_root,json=aderRoot,proto3" json:"ader_root,omitempty"`
+	Bouquet       string                 `protobuf:"bytes,2,opt,name=bouquet,proto3" json:"bouquet,omitempty"`
+	HistoryId     string                 `protobuf:"bytes,3,opt,name=history_id,json=historyId,proto3" json:"history_id,omitempty"`
+	ReportDir     string                 `protobuf:"bytes,4,opt,name=report_dir,json=reportDir,proto3" json:"report_dir,omitempty"`
+	ArchivePath   string                 `protobuf:"bytes,5,opt,name=archive_path,json=archivePath,proto3" json:"archive_path,omitempty"`
+	StartedAt     string                 `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	FinishedAt    string                 `protobuf:"bytes,7,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	FinalStatus   string                 `protobuf:"bytes,8,opt,name=final_status,json=finalStatus,proto3" json:"final_status,omitempty"`
+	PassCount     uint32                 `protobuf:"varint,9,opt,name=pass_count,json=passCount,proto3" json:"pass_count,omitempty"`
+	FailCount     uint32                 `protobuf:"varint,10,opt,name=fail_count,json=failCount,proto3" json:"fail_count,omitempty"`
+	SkipCount     uint32                 `protobuf:"varint,11,opt,name=skip_count,json=skipCount,proto3" json:"skip_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BouquetRecord) Reset() {
@@ -1777,9 +1777,9 @@ func (*BouquetRecord) Descriptor() ([]byte, []int) {
 	return file_v1_holon_proto_rawDescGZIP(), []int{25}
 }
 
-func (x *BouquetRecord) GetVerificationRoot() string {
+func (x *BouquetRecord) GetAderRoot() string {
 	if x != nil {
-		return x.VerificationRoot
+		return x.AderRoot
 	}
 	return ""
 }
@@ -2146,9 +2146,9 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\rkeep_snapshot\x18\t \x01(\bR\fkeepSnapshot\"m\n" +
 	"\fTestResponse\x122\n" +
 	"\bmanifest\x18\x01 \x01(\v2\x16.ader.v1.HistoryRecordR\bmanifest\x12)\n" +
-	"\x05steps\x18\x02 \x03(\v2\x13.ader.v1.StepResultR\x05steps\"Q\n" +
-	"\x0eBouquetRequest\x12+\n" +
-	"\x11verification_root\x18\x01 \x01(\tR\x10verificationRoot\x12\x12\n" +
+	"\x05steps\x18\x02 \x03(\v2\x13.ader.v1.StepResultR\x05steps\"A\n" +
+	"\x0eBouquetRequest\x12\x1b\n" +
+	"\tader_root\x18\x01 \x01(\tR\baderRoot\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\"|\n" +
 	"\x0fBouquetResponse\x122\n" +
 	"\bmanifest\x18\x01 \x01(\v2\x16.ader.v1.BouquetRecordR\bmanifest\x125\n" +
@@ -2161,9 +2161,9 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\x06latest\x18\x03 \x01(\bR\x06latest\"h\n" +
 	"\x0fArchiveResponse\x122\n" +
 	"\bmanifest\x18\x01 \x01(\v2\x16.ader.v1.HistoryRecordR\bmanifest\x12!\n" +
-	"\farchive_path\x18\x02 \x01(\tR\varchivePath\"{\n" +
-	"\x15ArchiveBouquetRequest\x12+\n" +
-	"\x11verification_root\x18\x01 \x01(\tR\x10verificationRoot\x12\x1d\n" +
+	"\farchive_path\x18\x02 \x01(\tR\varchivePath\"k\n" +
+	"\x15ArchiveBouquetRequest\x12\x1b\n" +
+	"\tader_root\x18\x01 \x01(\tR\baderRoot\x12\x1d\n" +
 	"\n" +
 	"history_id\x18\x02 \x01(\tR\thistoryId\x12\x16\n" +
 	"\x06latest\x18\x03 \x01(\bR\x06latest\"o\n" +
@@ -2206,9 +2206,9 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\n" +
 	"config_dir\x18\x01 \x01(\tR\tconfigDir\"B\n" +
 	"\x0fHistoryResponse\x12/\n" +
-	"\aentries\x18\x01 \x03(\v2\x15.ader.v1.HistoryEntryR\aentries\"D\n" +
-	"\x15BouquetHistoryRequest\x12+\n" +
-	"\x11verification_root\x18\x01 \x01(\tR\x10verificationRoot\"P\n" +
+	"\aentries\x18\x01 \x03(\v2\x15.ader.v1.HistoryEntryR\aentries\"4\n" +
+	"\x15BouquetHistoryRequest\x12\x1b\n" +
+	"\tader_root\x18\x01 \x01(\tR\baderRoot\"P\n" +
 	"\x16BouquetHistoryResponse\x126\n" +
 	"\aentries\x18\x01 \x03(\v2\x1c.ader.v1.BouquetHistoryEntryR\aentries\"R\n" +
 	"\x12ShowHistoryRequest\x12\x1d\n" +
@@ -2221,9 +2221,9 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\x05steps\x18\x02 \x03(\v2\x13.ader.v1.StepResultR\x05steps\x12)\n" +
 	"\x10summary_markdown\x18\x03 \x01(\tR\x0fsummaryMarkdown\x12\x1f\n" +
 	"\vsummary_tsv\x18\x04 \x01(\tR\n" +
-	"summaryTsv\"g\n" +
-	"\x19ShowBouquetHistoryRequest\x12+\n" +
-	"\x11verification_root\x18\x01 \x01(\tR\x10verificationRoot\x12\x1d\n" +
+	"summaryTsv\"W\n" +
+	"\x19ShowBouquetHistoryRequest\x12\x1b\n" +
+	"\tader_root\x18\x01 \x01(\tR\baderRoot\x12\x1d\n" +
 	"\n" +
 	"history_id\x18\x02 \x01(\tR\thistoryId\"\xb2\x01\n" +
 	"\x1aShowBouquetHistoryResponse\x122\n" +
@@ -2293,9 +2293,9 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\n" +
 	"fail_count\x18\x14 \x01(\rR\tfailCount\x12\x1d\n" +
 	"\n" +
-	"skip_count\x18\x15 \x01(\rR\tskipCount\"\xf7\x02\n" +
-	"\rBouquetRecord\x12+\n" +
-	"\x11verification_root\x18\x01 \x01(\tR\x10verificationRoot\x12\x18\n" +
+	"skip_count\x18\x15 \x01(\rR\tskipCount\"\xe7\x02\n" +
+	"\rBouquetRecord\x12\x1b\n" +
+	"\tader_root\x18\x01 \x01(\tR\baderRoot\x12\x18\n" +
 	"\abouquet\x18\x02 \x01(\tR\abouquet\x12\x1d\n" +
 	"\n" +
 	"history_id\x18\x03 \x01(\tR\thistoryId\x12\x1d\n" +
@@ -2360,15 +2360,15 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\aHistory\x12\x17.ader.v1.HistoryRequest\x1a\x18.ader.v1.HistoryResponse\x12Q\n" +
 	"\x0eBouquetHistory\x12\x1e.ader.v1.BouquetHistoryRequest\x1a\x1f.ader.v1.BouquetHistoryResponse\x12H\n" +
 	"\vShowHistory\x12\x1b.ader.v1.ShowHistoryRequest\x1a\x1c.ader.v1.ShowHistoryResponse\x12]\n" +
-	"\x12ShowBouquetHistory\x12\".ader.v1.ShowBouquetHistoryRequest\x1a#.ader.v1.ShowBouquetHistoryResponseB\xd1\x18\x82\xb5\x18\x91\x18\n" +
+	"\x12ShowBouquetHistory\x12\".ader.v1.ShowBouquetHistoryRequest\x1a#.ader.v1.ShowBouquetHistoryResponseB\x91\x18\x82\xb5\x18\xd1\x17\n" +
 	"\x9d\x01\n" +
 	"\bholon/v1\x12$0dc655fd-d130-41d3-b332-cf1cf334f61d\x1a\x04Clem\"\x04Ader*5Freeze the repo, run the proof, archive the evidence.2\bB. ALTERB\x05draftJ\n" +
-	"2026-04-01R\x050.3.0Z\x04ader\x1a\xdc\x02Clem Ader is the configurable verification holon of the seed. It loads catalogue-local checks and suites, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, orchestrates bouquets across several catalogues, and proposes suite-local promotion without mutating unrelated scenarios.\"\x02go*\xb7\x03\n" +
-	"\x0fregression-loop\x12YFreeze a committed snapshot, execute a broad verification pass, and archive the evidence.\x1a;A commit must be validated locally before merge or release.\"JRun `ader test verification/catalogues/op --suite op-proxy --profile full`\"/Inspect the archived report for the commit hash\"\x8e\x01Use `ader history verification/catalogues/op` and `ader show verification/catalogues/op --id <history-id>` to revisit the exact evidence later*\xa9\x04\n" +
-	"\x10progression-loop\x12zFreeze the current workspace for a local TDD loop and propose promotion from progression to regression after a clean pass.\x1aIThe user is iterating quickly on a change and wants a frozen local proof.\"tRun `ader test verification/catalogues/ader --suite ader-self --profile smoke --lane progression --source workspace`\"YInspect `verification/catalogues/ader/reports/<history-id>/summary.md` and `promotion.md`\"}Run the suggested `ader promote verification/catalogues/ader --suite ader-self --step ...` command once the proof is accepted*\x91\x03\n" +
-	"\x13promote-after-proof\x12<Promote progression steps to regression after a clean proof.\x1aXA progression run passed and the step should now become part of the regression baseline.\"JInspect `promotion.md` to confirm the suggested `ader promote ...` command\"gRun `ader promote verification/catalogues/ader --suite ader-self --step <step-id>` or `--all` as needed\"-Review the suite diff and commit deliberately*\xf7\x03\n" +
-	"\x15downgrade-and-rebuild\x12bMove regression steps back to progression, rerun the proof, and review the new promotion evidence.\x1aPA profile or step should be reset to TDD without editing the suite YAML by hand.\"mRun `ader downgrade verification/catalogues/op --suite op-proxy --all` or target specific steps with `--step`\"qRun `ader test verification/catalogues/op --suite op-proxy --profile smoke --lane progression --source workspace`\"FReview the new `promotion.json` and `promotion.md` before re-promoting*\xa6\x03\n" +
-	"\x0ereport-hygiene\x12AArchive the useful evidence and remove deterministic run residue.\x1aIOld snapshots, temp stores, or extracted reports should be pruned safely.\"cRun `ader archive verification/catalogues/op --latest` if the report must be preserved historically\"WRun `ader cleanup verification/catalogues/op` to delete deterministic catalogue residue\"HKeep archives under `verification/catalogues/op/archives/<commit-hash>/`2\xac\x01\n" +
+	"2026-04-01R\x050.3.0Z\x04ader\x1a\xb8\x02Clem Ader is the local proof holon of the seed. It loads catalogue-local checks and suites, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, orchestrates bouquets across several catalogues, and keeps promotion scoped to each suite scenario.\"\x02go*\xab\x03\n" +
+	"\x10regression-proof\x12RFreeze a committed snapshot, execute a broad proof pass, and archive the evidence.\x1a;A commit must be validated locally before merge or release.\"HRun `ader test ader/catalogues/grace-op --suite op-proxy --profile full`\"/Inspect the archived report for the commit hash\"\x8a\x01Use `ader history ader/catalogues/grace-op` and `ader show ader/catalogues/grace-op --id <history-id>` to revisit the exact evidence later*\xa6\x04\n" +
+	"\x11progression-proof\x12\x7fFreeze the current workspace for a local TDD proof pass and propose promotion from progression to regression after a clean run.\x1aIThe user is iterating quickly on a change and wants a frozen local proof.\"qRun `ader test ader/catalogues/clem-ader --suite ader-self --profile smoke --lane progression --source workspace`\"VInspect `ader/catalogues/clem-ader/reports/<history-id>/summary.md` and `promotion.md`\"zRun the suggested `ader promote ader/catalogues/clem-ader --suite ader-self --step ...` command once the proof is accepted*\x8e\x03\n" +
+	"\x13promote-after-proof\x12<Promote progression steps to regression after a clean proof.\x1aXA progression run passed and the step should now become part of the regression baseline.\"JInspect `promotion.md` to confirm the suggested `ader promote ...` command\"dRun `ader promote ader/catalogues/clem-ader --suite ader-self --step <step-id>` or `--all` as needed\"-Review the suite diff and commit deliberately*\xf3\x03\n" +
+	"\x15downgrade-and-rebuild\x12bMove regression steps back to progression, rerun the proof, and review the new promotion evidence.\x1aPA profile or step should be reset to TDD without editing the suite YAML by hand.\"kRun `ader downgrade ader/catalogues/grace-op --suite op-proxy --all` or target specific steps with `--step`\"oRun `ader test ader/catalogues/grace-op --suite op-proxy --profile smoke --lane progression --source workspace`\"FReview the new `promotion.json` and `promotion.md` before re-promoting*\xa0\x03\n" +
+	"\x0ereport-hygiene\x12AArchive the useful evidence and remove deterministic run residue.\x1aIOld snapshots, temp stores, or extracted reports should be pruned safely.\"aRun `ader archive ader/catalogues/grace-op --latest` if the report must be preserved historically\"URun `ader cleanup ader/catalogues/grace-op` to delete deterministic catalogue residue\"FKeep archives under `ader/catalogues/grace-op/archives/<commit-hash>/`2\xac\x01\n" +
 	"\x12api/v1/holon.proto\x12\x13ader.v1.AderService\x1a\x04Test\x1a\vTestBouquet\x1a\aArchive\x1a\x0eArchiveBouquet\x1a\aCleanup\x1a\aPromote\x1a\tDowngrade\x1a\aHistory\x1a\x0eBouquetHistory\x1a\vShowHistory\x1a\x12ShowBouquetHistory:\x06nativeR\"\n" +
 	"\tgo-module\x12\x05./cmd2\x0eapi/version.goZ\f\n" +
 	"\x02go\x12\x06go.modj\x06\n" +

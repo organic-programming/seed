@@ -12,7 +12,7 @@ import (
 
 func TestPublicTestOperation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		response, err := Test(&aderv1.TestRequest{
 			ConfigDir:     configDir,
@@ -38,7 +38,7 @@ func TestPublicTestOperation(t *testing.T) {
 
 func TestPublicArchiveOperation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		if _, err := Test(&aderv1.TestRequest{
 			ConfigDir:     configDir,
@@ -68,7 +68,7 @@ func TestPublicArchiveOperation(t *testing.T) {
 
 func TestPublicCleanupOperation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		stale := filepath.Join(configDir, ".artifacts", "local-suite", "stale")
 		if err := os.MkdirAll(stale, 0o755); err != nil {
@@ -86,7 +86,7 @@ func TestPublicCleanupOperation(t *testing.T) {
 
 func TestPublicPromoteOperation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		response, err := Promote(&aderv1.PromoteRequest{
 			ConfigDir: configDir,
@@ -107,7 +107,7 @@ func TestPublicPromoteOperation(t *testing.T) {
 
 func TestPublicDowngradeOperation(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		response, err := Downgrade(&aderv1.DowngradeRequest{
 			ConfigDir: configDir,
@@ -128,7 +128,7 @@ func TestPublicDowngradeOperation(t *testing.T) {
 
 func TestPublicHistoryAndShowHistoryOperations(t *testing.T) {
 	root := testrepo.Create(t)
-	configDir := filepath.Join(root, "verification", "catalogues", "fixture")
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
 	withWorkingDir(t, root, func() {
 		testResponse, err := Test(&aderv1.TestRequest{
 			ConfigDir:     configDir,
@@ -165,11 +165,11 @@ func TestPublicHistoryAndShowHistoryOperations(t *testing.T) {
 
 func TestPublicBouquetOperations(t *testing.T) {
 	root := testrepo.Create(t)
-	verificationRoot := filepath.Join(root, "verification")
+	aderRoot := filepath.Join(root, "ader")
 	withWorkingDir(t, root, func() {
 		testResponse, err := TestBouquet(&aderv1.BouquetRequest{
-			VerificationRoot: verificationRoot,
-			Name:             "local-dev",
+			AderRoot: aderRoot,
+			Name:     "local-dev",
 		})
 		if err != nil {
 			t.Fatalf("TestBouquet() error = %v", err)
@@ -178,7 +178,7 @@ func TestPublicBouquetOperations(t *testing.T) {
 			t.Fatal("expected bouquet history id")
 		}
 		historyResponse, err := BouquetHistory(&aderv1.BouquetHistoryRequest{
-			VerificationRoot: verificationRoot,
+			AderRoot: aderRoot,
 		})
 		if err != nil {
 			t.Fatalf("BouquetHistory() error = %v", err)
@@ -187,8 +187,8 @@ func TestPublicBouquetOperations(t *testing.T) {
 			t.Fatalf("BouquetHistory() count = %d, want 1", len(historyResponse.GetEntries()))
 		}
 		showResponse, err := ShowBouquetHistory(&aderv1.ShowBouquetHistoryRequest{
-			VerificationRoot: verificationRoot,
-			HistoryId:        testResponse.GetManifest().GetHistoryId(),
+			AderRoot:  aderRoot,
+			HistoryId: testResponse.GetManifest().GetHistoryId(),
 		})
 		if err != nil {
 			t.Fatalf("ShowBouquetHistory() error = %v", err)
@@ -197,8 +197,8 @@ func TestPublicBouquetOperations(t *testing.T) {
 			t.Fatal("expected bouquet summary markdown")
 		}
 		archiveResponse, err := ArchiveBouquet(&aderv1.ArchiveBouquetRequest{
-			VerificationRoot: verificationRoot,
-			Latest:           true,
+			AderRoot: aderRoot,
+			Latest:   true,
 		})
 		if err != nil {
 			t.Fatalf("ArchiveBouquet() error = %v", err)

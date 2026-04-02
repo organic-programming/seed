@@ -4,10 +4,10 @@ defaults:
   lane: progression
   archive: never
 entries:
-- catalogue: op
+- catalogue: grace-op
   suite: op-proxy
   profile: smoke
-- catalogue: ader
+- catalogue: clem-ader
   suite: ader-self
   profile: smoke
 - catalogue: swiftui

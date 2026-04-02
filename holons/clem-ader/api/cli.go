@@ -151,7 +151,7 @@ func newTestCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 		},
 	}
 	cmd.Flags().String("suite", "", "suite name from <config-dir>/suites")
-	cmd.Flags().String("profile", "", "verification profile")
+	cmd.Flags().String("profile", "", "suite profile")
 	cmd.Flags().Bool("full", false, "shorthand for --profile full")
 	cmd.Flags().String("lane", "", "suite lane: regression, progression, or both")
 	cmd.Flags().String("step-filter", "", "regex filter applied to step ids")
@@ -165,8 +165,8 @@ func newTestCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 	_ = cmd.RegisterFlagCompletionFunc("suite", completeSuites)
 	_ = cmd.RegisterFlagCompletionFunc("profile", completeProfiles)
 	_ = cmd.RegisterFlagCompletionFunc("lane", fixedCompletion(
-		engine.CompletionItem{Value: "regression", Description: "Committed verification lane"},
-		engine.CompletionItem{Value: "progression", Description: "TDD verification lane"},
+		engine.CompletionItem{Value: "regression", Description: "Committed proof lane"},
+		engine.CompletionItem{Value: "progression", Description: "TDD proof lane"},
 		engine.CompletionItem{Value: "both", Description: "Run progression then regression"},
 	))
 	_ = cmd.RegisterFlagCompletionFunc("source", fixedCompletion(
@@ -183,7 +183,7 @@ func newTestCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 
 func newTestBouquetCommand(stdout io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "test-bouquet <verification-root>",
+		Use:   "test-bouquet <ader-root>",
 		Short: "Execute a bouquet across multiple catalogues",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -192,8 +192,8 @@ func newTestBouquetCommand(stdout io.Writer) *cobra.Command {
 				return fmt.Errorf("test-bouquet requires --name")
 			}
 			result, err := TestBouquet(&aderv1.BouquetRequest{
-				VerificationRoot: args[0],
-				Name:             name,
+				AderRoot: args[0],
+				Name:     name,
 			})
 			if err != nil {
 				return err
@@ -201,8 +201,8 @@ func newTestBouquetCommand(stdout io.Writer) *cobra.Command {
 			return printBouquetRunResult(stdout, result.GetManifest())
 		},
 	}
-	cmd.Flags().String("name", "", "bouquet name from <verification-root>/bouquets")
-	cmd.ValidArgsFunction = completeVerificationRoots
+	cmd.Flags().String("name", "", "bouquet name from <ader-root>/bouquets")
+	cmd.ValidArgsFunction = completeAderRoots
 	_ = cmd.RegisterFlagCompletionFunc("name", completeBouquets)
 	return cmd
 }
@@ -238,16 +238,16 @@ func newArchiveCommand(stdout io.Writer) *cobra.Command {
 
 func newArchiveBouquetCommand(stdout io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "archive-bouquet <verification-root>",
+		Use:   "archive-bouquet <ader-root>",
 		Short: "Archive an extracted bouquet report",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			historyID, _ := cmd.Flags().GetString("id")
 			latest, _ := cmd.Flags().GetBool("latest")
 			result, err := ArchiveBouquet(&aderv1.ArchiveBouquetRequest{
-				VerificationRoot: args[0],
-				HistoryId:        historyID,
-				Latest:           latest,
+				AderRoot:  args[0],
+				HistoryId: historyID,
+				Latest:    latest,
 			})
 			if err != nil {
 				return err
@@ -258,7 +258,7 @@ func newArchiveBouquetCommand(stdout io.Writer) *cobra.Command {
 	}
 	cmd.Flags().String("id", "", "bouquet history id to archive")
 	cmd.Flags().Bool("latest", false, "archive the latest extracted bouquet run")
-	cmd.ValidArgsFunction = completeVerificationRoots
+	cmd.ValidArgsFunction = completeAderRoots
 	_ = cmd.RegisterFlagCompletionFunc("id", completeBouquetHistoryIDs)
 	return cmd
 }
@@ -266,7 +266,7 @@ func newArchiveBouquetCommand(stdout io.Writer) *cobra.Command {
 func newCleanupCommand(stdout io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cleanup <catalogue-dir>",
-		Short: "Remove deterministic verification residue while preserving archives and caches",
+		Short: "Remove deterministic proof residue while preserving archives and caches",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if _, err := commandViper(cmd, args[0]); err != nil {
@@ -355,7 +355,7 @@ func newDowngradeCommand(stdout io.Writer) *cobra.Command {
 func newHistoryCommand(stdout io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "history <catalogue-dir>",
-		Short: "List extracted and archived verification history",
+		Short: "List extracted and archived proof history",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if _, err := commandViper(cmd, args[0]); err != nil {
@@ -393,11 +393,11 @@ func newHistoryCommand(stdout io.Writer) *cobra.Command {
 
 func newHistoryBouquetCommand(stdout io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "history-bouquet <verification-root>",
+		Use:   "history-bouquet <ader-root>",
 		Short: "List extracted and archived bouquet history",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			response, err := BouquetHistory(&aderv1.BouquetHistoryRequest{VerificationRoot: args[0]})
+			response, err := BouquetHistory(&aderv1.BouquetHistoryRequest{AderRoot: args[0]})
 			if err != nil {
 				return err
 			}
@@ -420,7 +420,7 @@ func newHistoryBouquetCommand(stdout io.Writer) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.ValidArgsFunction = completeVerificationRoots
+	cmd.ValidArgsFunction = completeAderRoots
 	return cmd
 }
 
@@ -457,7 +457,7 @@ func newShowCommand(stdout io.Writer) *cobra.Command {
 
 func newShowBouquetCommand(stdout io.Writer) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "show-bouquet <verification-root>",
+		Use:   "show-bouquet <ader-root>",
 		Short: "Show the stored report for one bouquet history entry",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -466,8 +466,8 @@ func newShowBouquetCommand(stdout io.Writer) *cobra.Command {
 				return fmt.Errorf("show-bouquet requires --id")
 			}
 			response, err := ShowBouquetHistory(&aderv1.ShowBouquetHistoryRequest{
-				VerificationRoot: args[0],
-				HistoryId:        historyID,
+				AderRoot:  args[0],
+				HistoryId: historyID,
 			})
 			if err != nil {
 				return err
@@ -477,7 +477,7 @@ func newShowBouquetCommand(stdout io.Writer) *cobra.Command {
 		},
 	}
 	cmd.Flags().String("id", "", "bouquet history id to show")
-	cmd.ValidArgsFunction = completeVerificationRoots
+	cmd.ValidArgsFunction = completeAderRoots
 	_ = cmd.RegisterFlagCompletionFunc("id", completeBouquetHistoryIDs)
 	return cmd
 }
@@ -638,12 +638,12 @@ func completeConfigDirs(cmd *cobra.Command, args []string, toComplete string) ([
 	return completionValues(items, toComplete), cobra.ShellCompDirectiveNoFileComp
 }
 
-func completeVerificationRoots(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+func completeAderRoots(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
 	start, err := os.Getwd()
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-	items, err := discoverVerificationRoots(start)
+	items, err := discoverAderRoots(start)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
@@ -746,7 +746,7 @@ func completeBouquetHistoryIDs(cmd *cobra.Command, args []string, toComplete str
 	if !ok {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-	response, err := BouquetHistory(&aderv1.BouquetHistoryRequest{VerificationRoot: root})
+	response, err := BouquetHistory(&aderv1.BouquetHistoryRequest{AderRoot: root})
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
@@ -807,7 +807,7 @@ func compactHistoryDescription(entry engine.HistoryEntry) string {
 	}, " | ")
 }
 
-func discoverVerificationRoots(start string) ([]engine.CompletionItem, error) {
+func discoverAderRoots(start string) ([]engine.CompletionItem, error) {
 	items := make([]engine.CompletionItem, 0)
 	seen := map[string]struct{}{}
 	configs, err := engine.DiscoverConfigDirs(start)
