@@ -1,0 +1,7 @@
+description: "Integration tests for the 'op check' boundary capability."
+lanes:
+  - id: progression
+    description: Progression tests for op check validation architecture.
+    steps:
+      - check: op-check-base
+        description: Systematically executes checking validations against language matrices.
