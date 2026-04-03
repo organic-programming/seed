@@ -1,4 +1,4 @@
-//go:build !codexloops_generated
+//go:build codexloops_stubs
 
 package gen
 

@@ -1,5 +1,3 @@
-//go:build !codexloops_generated
-
 package codexloopsv1
 
 import (

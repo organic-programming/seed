@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-go test ./...
+if [[ -f gen/describe_generated.go ]]; then
+	go test ./...
+else
+	go test -tags codexloops_stubs ./...
+fi

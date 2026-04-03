@@ -16,7 +16,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-04-02"
-    version: "0.1.0"
+    version: "0.1.4"
     aliases: ["codex-loops"]
   }
   description: "Codex Loops orchestrates sequential overnight Codex CLI sessions governed by ader acceptance gates. It manages a queue of programs (brief + gate pairs), feeds briefs to codex exec, validates output with ader test, retries on failure, defers blocked programs, and produces a structured morning report."
