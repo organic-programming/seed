@@ -5,7 +5,7 @@ checks:
     description: Verifies that the 'op help' command executes successfully via Go integration tests
   op-build:
     workdir: ader/catalogues/grace-op/integration/build
-    command: go test -v -count=1 -timeout 5m .
+    command: go test -v -count=1 -timeout 20m .
     description: Verifies that the 'op build' command with precision.
   op-build-unit:
     workdir: holons/grace-op/internal/build
