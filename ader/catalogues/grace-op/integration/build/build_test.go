@@ -1,7 +1,6 @@
 package build_test
 
 import (
-	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
