@@ -208,6 +208,11 @@ func TestBuild_05_SymlinkOverwrite(t *testing.T) {
 func TestBuild_06_Matrix(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
+	opPath := os.Getenv("ADER_RUN_ARTIFACTS")
+	if opPath == "" {
+		t.Fatal("ADER_RUN_ARTIFACTS must be defined")
+	}
+	opBinDir := filepath.Join(opPath, "bin")
 
 	examples := []string{
 		"gabriel-greeting-c",
