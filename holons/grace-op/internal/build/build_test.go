@@ -4,11 +4,11 @@ import (
 	"testing"
 )
 
-// TestPackageStructure est un espace réservé pour que la suite "unit" démarre bien.
-// Comme diagnostiqué, la commande build ne peut pas vraiment être testée en "pur unitaire",
-// mais ce package contiendra la logique des flags et de construction interne à l'avenir.
+// TestPackageStructure is a placeholder to ensure the "unit" suite starts successfully.
+// Since the 'build' command is difficult to test strictly in pure unit tests,
+// this package will primarily contain the internal build flag and logic implementation.
 func TestPackageStructure(t *testing.T) {
-	t.Log("Le package internal/build a été sourcé avec succès.")
-	// Les futurs tests de manipulation de flags de construction, d'options, 
-	// ou de découverte viendront ici, débarrassés du monolithe.
+	t.Log("The internal/build package was sourced successfully.")
+	// Future unit tests for build flag manipulation, options,
+	// or discovery will be added here, decoupled from the monolith.
 }
