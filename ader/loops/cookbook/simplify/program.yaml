@@ -1,0 +1,12 @@
+description: "Simplify and factorize target code"
+mode: solo
+profiles:
+  coder: codex-default
+steps:
+  - id: simplify
+    brief: briefs/simplify.md
+    gate:
+      command: "ader test suite unit"
+      expect: PASS
+    iterations: 50
+    max_consecutive_failures: 10
