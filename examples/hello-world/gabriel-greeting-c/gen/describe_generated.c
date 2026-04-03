@@ -155,7 +155,7 @@ static holons_method_doc_t holons_generated_methods_2[] = {
     .output_field_count = 3,
     .client_streaming = 0,
     .server_streaming = 0,
-    .example_input = "{\"name\":\"Bob\",\"lang_code\":\"fr\"}\n{\"name\":\"Bob\",\"lang_code\":\"fr\"} --origin",
+    .example_input = "{\"name\":\"Bob\",\"lang_code\":\"fr\"}",
   }
 };
 

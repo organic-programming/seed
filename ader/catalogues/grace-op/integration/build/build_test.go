@@ -170,6 +170,9 @@ func TestBuild_05_SymlinkOverwrite(t *testing.T) {
 	re := regexp.MustCompile(`version:\s*".*?"`)
 	mutatedContent := re.ReplaceAllString(string(content), `version: "9.9.99"`)
 
+	// Register defer to strictly restore the original file contents cleanly
+	defer os.WriteFile(protoPath, content, 0644)
+
 	if err := os.WriteFile(protoPath, []byte(mutatedContent), 0644); err != nil {
 		t.Fatalf("Failed to write mutated holon.proto: %v", err)
 	}
@@ -230,6 +233,10 @@ func TestBuild_06_Matrix(t *testing.T) {
 
 			re := regexp.MustCompile(`version:\s*".*?"`)
 			mutatedContent := re.ReplaceAllString(string(content), `version: "8.8.88"`)
+			
+			// Register defer to strictly restore the workspace 
+			defer os.WriteFile(protoPath, content, 0644)
+
 			if err := os.WriteFile(protoPath, []byte(mutatedContent), 0644); err != nil {
 				t.Fatalf("Failed to explicitly mutate proto for %s: %v", ex, err)
 			}
