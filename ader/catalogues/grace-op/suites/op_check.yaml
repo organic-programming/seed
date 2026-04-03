@@ -1,7 +1,13 @@
-description: "Integration tests for the 'op check' boundary capability."
-lanes:
-  - id: progression
-    description: Progression tests for op check validation architecture.
+description: Suite validating op check with the CLI as the integration reference.
+defaults:
+  profile: smoke
+steps:
+  check-cli:
+    check: op-check-cli
+    lane: progression
+profiles:
+  smoke:
+    description: CLI-first verification for the check surface
+    archive: never
     steps:
-      - check: op-check-base
-        description: Systematically executes checking validations against language matrices.
+    - check-cli

@@ -96,7 +96,7 @@ func TestCheck_03_Flags(t *testing.T) {
 		if err != nil {
 			t.Fatalf("--cwd check failed: %v\nOutput: %s", err, string(out))
 		}
-		
+
 		output := string(out)
 		if !strings.Contains(output, "Operation: check") {
 			t.Fatalf("Failed to implicitly identify directory context payload: %s", output)

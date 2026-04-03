@@ -1,18 +1,28 @@
-description: Suite validating op build command (Unit and 3-level Integration)
+description: Suite validating op build with CLI-first integration and API/RPC alignment.
 defaults:
   profile: smoke
 steps:
   build-unit:
     check: op-build-unit
     lane: progression
-  build-base:
-    check: op-build
+  build-cli:
+    check: op-build-cli
     lane: progression
     needs: [build-unit]
+  build-api:
+    check: op-build-api
+    lane: progression
+    needs: [build-cli]
+  build-rpc:
+    check: op-build-rpc
+    lane: progression
+    needs: [build-api]
 profiles:
   smoke:
-    description: Basic verification
+    description: CLI-first verification with API and RPC alignment
     archive: never
     steps:
     - build-unit
-    - build-base
+    - build-cli
+    - build-api
+    - build-rpc

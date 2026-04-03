@@ -3,11 +3,19 @@ checks:
     workdir: holons/grace-op/internal/build
     command: go test -v -count=1 -timeout 2m .
     description: Verifies the internal build configuration integrity structure.
-  op-build:
+  op-build-cli:
     workdir: ader/catalogues/grace-op/integration/build
-    command: go test -v -count=1 -timeout 20m .
-    description: Verifies that the 'op build' command with precision.
-  op-check-base:
+    command: go test -v -count=1 -timeout 20m -run '^TestBuild_' .
+    description: Verifies the CLI-first op build integration surface, including logs, matrix, and composite coverage.
+  op-build-api:
+    workdir: ader/catalogues/grace-op/integration/build
+    command: go test -v -count=1 -timeout 10m -run '^TestBuildAPI_' .
+    description: Verifies that the public API build surface stays aligned with the CLI reference behavior.
+  op-build-rpc:
+    workdir: ader/catalogues/grace-op/integration/build
+    command: go test -v -count=1 -timeout 10m -run '^TestBuildRPC_' .
+    description: Verifies that the RPC stdio transport stays aligned with the CLI and API build behavior.
+  op-check-cli:
     workdir: ader/catalogues/grace-op/integration/check
-    command: go test -v -count=1 -timeout 5m .
-    description: Verifies complete execution path for op check.
+    command: go test -v -count=1 -timeout 5m -run '^TestCheck_' .
+    description: Verifies the CLI-first op check integration surface, including matrix and composite coverage.

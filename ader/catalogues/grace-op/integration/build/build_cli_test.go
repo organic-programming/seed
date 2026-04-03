@@ -197,7 +197,7 @@ func TestBuild_05_SymlinkOverwrite(t *testing.T) {
 	}
 }
 
-// TestBuild_06_Matrix evaluates op build capability comprehensively across the 12 example languages.
+// TestBuild_06_Matrix evaluates op build comprehensively across the example language matrix.
 func TestBuild_06_Matrix(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
@@ -220,66 +220,43 @@ func TestBuild_06_Matrix(t *testing.T) {
 
 	for _, ex := range examples {
 		t.Run(ex, func(t *testing.T) {
-			t.Logf("Mutating layer version and Building %s...", ex)
+			withMutatedHolonVersion(t, ex, "8.8.88", func() {
+				t.Logf("Building %s through the CLI...", ex)
 
-			// Force local version mutation to 8.8.88 to trigger compiling backend parity assertion
-			protoPath := filepath.Join(rootPath, "examples/hello-world", ex, "api/v1/holon.proto")
-			content, err := os.ReadFile(protoPath)
-			if err != nil {
-				t.Fatalf("Failed to read holon.proto for %s: %v", ex, err)
-			}
+				cmd := exec.Command(opBin, "build", ex, "--install", "--symlink", "--root", rootPath)
+				cmd.Env = envVars
+				out, err := cmd.CombinedOutput()
+				if err != nil {
+					t.Fatalf("Failed to build %s: %v\nOutput: %s", ex, err, string(out))
+				}
 
-			re := regexp.MustCompile(`version:\s*".*?"`)
-			mutatedContent := re.ReplaceAllString(string(content), `version: "8.8.88"`)
+				isolatedExeDir := filepath.Join(opBinDir, ex+"_isolated")
+				binaryPath := copyBinaryBundle(t, ex, isolatedExeDir)
+				finalVersion := runInstalledBinary(t, binaryPath, "version")
+				t.Logf("[%s] Final runtime output: %s", ex, finalVersion)
 
-			// Register defer to strictly restore the workspace
-			defer os.WriteFile(protoPath, content, 0644)
-
-			if err := os.WriteFile(protoPath, []byte(mutatedContent), 0644); err != nil {
-				t.Fatalf("Failed to explicitly mutate proto for %s: %v", ex, err)
-			}
-
-			// Compile via op build with install flag to access the binary universally
-			cmd := exec.Command(opBin, "build", ex, "--install", "--symlink", "--root", rootPath)
-			cmd.Env = envVars
-			if out, err := cmd.CombinedOutput(); err != nil {
-				t.Fatalf("Failed to build %s: %v\nOutput: %s", ex, err, string(out))
-			}
-
-			// Move compiled binary directory to isolated execution context to simulate install artifact
-			holonBinDir := filepath.Join(rootPath, "examples", "hello-world", ex, ".op", "build", ex+".holon", "bin")
-			isolatedExeDir := filepath.Join(opBinDir, ex+"_isolated")
-			err = exec.Command("cp", "-a", holonBinDir, isolatedExeDir).Run()
-			if err != nil {
-				t.Fatalf("Failed to copy binary bundle %s for isolated execution: %v", ex, err)
-			}
-
-			// Assertion: execute output binary and rigorously expect the bump
-			installedBin := filepath.Join(isolatedExeDir, "darwin_arm64", ex)
-			outVersion, err := exec.Command(installedBin, "version").CombinedOutput()
-			if err != nil {
-				t.Fatalf("Failed to natively execute %s binary: %v\nOutput: %s", ex, err, string(outVersion))
-			}
-
-			finalVersion := strings.TrimSpace(string(outVersion))
-			t.Logf("[%s] Final runtime output: %s", ex, finalVersion)
-
-			if !strings.Contains(finalVersion, "8.8.89") {
-				t.Fatalf("Regression! Auto-increment backend failed on %s runtime wrapper.\nExpected contain: 8.8.89\nGot: %s", ex, finalVersion)
-			}
+				if !strings.Contains(finalVersion, "8.8.89") {
+					t.Fatalf("Regression! Auto-increment backend failed on %s.\nExpected contain: 8.8.89\nGot: %s", ex, finalVersion)
+				}
+			})
 		})
 	}
 }
 
-// TestBuild_07_Composite evaluates the swiftui app composite capability without caching bias.
+// TestBuild_07_Composite evaluates the composite SwiftUI build via the real CLI from a clean state.
 func TestBuild_07_Composite(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
 
-	t.Log("Building composite app gabriel-greeting-app-swiftui from absolute zero state...")
+	t.Log("Building composite app gabriel-greeting-app-swiftui from a clean state...")
 	cmd := exec.Command(opBin, "build", "gabriel-greeting-app-swiftui", "--root", rootPath)
 	cmd.Env = envVars
-	if out, err := cmd.CombinedOutput(); err != nil {
+	out, err := cmd.CombinedOutput()
+	if err != nil {
 		t.Fatalf("Failed to build composite SwiftUI app: %v\nOutput: %s", err, string(out))
+	}
+
+	if _, err := os.Stat(appBundlePath("gabriel-greeting-app-swiftui")); err != nil {
+		t.Fatalf("expected built app bundle: %v", err)
 	}
 }
