@@ -96,7 +96,7 @@ func NewServer(slugs []string, version string) (*Server, error) {
 		result := holons.ConnectRef(slug, nil, sdkdiscover.ALL, int((10*time.Second)/time.Millisecond))
 		if result.Error != "" {
 			_ = closeConnections(connCache)
-			return nil, fmt.Errorf(result.Error)
+			return nil, errors.New(result.Error)
 		}
 		connCache[slug] = result
 

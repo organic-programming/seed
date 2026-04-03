@@ -16,7 +16,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-02-12"
-    version: "0.5.76"
+    version: "0.5.365"
     aliases: ["op"]
   }
   description: "OP is the unified entry point to the Organic Programming ecosystem. It discovers holons — locally or over the network — and dispatches commands to them through a single interface. The actant installs one binary and gets access to every holon. OP does not implement domain logic. It routes."
@@ -45,6 +45,7 @@ option (holons.v1.manifest) = {
       "ShowIdentity",
       "ListTemplates",
       "GenerateTemplate",
+      "Version",
       "Check",
       "Build",
       "Test",
@@ -144,6 +145,9 @@ service OPService {
 
   // GenerateTemplate scaffolds a holon from a built-in template.
   rpc GenerateTemplate (GenerateTemplateRequest) returns (GenerateTemplateResponse);
+
+  // Version returns the current OP version payload.
+  rpc Version (VersionRequest) returns (VersionResponse);
 
   // Check validates a holon's manifest and prerequisites.
   rpc Check (LifecycleRequest) returns (LifecycleResponse);
@@ -349,6 +353,14 @@ message GenerateTemplateRequest {
 message GenerateTemplateResponse {
   string template = 1;
   string dir = 2;
+}
+
+message VersionRequest {}
+
+message VersionResponse {
+  string name = 1;
+  string version = 2;
+  string banner = 3;
 }
 
 message BuildOptions {

@@ -118,7 +118,7 @@ func (c cliState) run(args []string) int {
 	case "serve":
 		return c.runServeCommand(rest)
 	case "version":
-		fmt.Fprintf(c.stdout, "op %s\n", c.version)
+		c.writeFormatted(format, VersionWithString(c.version))
 		return 0
 	case "help", "--help", "-h":
 		c.printUsage()

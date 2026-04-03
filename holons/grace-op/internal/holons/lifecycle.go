@@ -3,6 +3,7 @@ package holons
 import (
 	"bytes"
 	"fmt"
+	"hash/fnv"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -227,6 +228,9 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 		if err == nil && !isAggregateBuildTarget(ctx.Target) {
 			reporter.Step("verifying artifact...")
 			err = resolveArtifact(target.Manifest, ctx, &report)
+		}
+		if err == nil && !ctx.DryRun {
+			_ = syncSharedHolonPackageCache(target.Manifest)
 		}
 		if err == nil && !ctx.DryRun && !isAggregateBuildTarget(ctx.Target) {
 			err = verifyArtifact(target.Manifest, ctx, &report)
@@ -549,6 +553,9 @@ func dependencyFreshReport(node *compositeDependencyNode, ctx BuildContext) Repo
 }
 
 func dependencyIsFresh(manifest *LoadedManifest, ctx BuildContext) bool {
+	if cachedMarker := sharedHolonPackageMarker(manifest); cachedMarker != "" {
+		return true
+	}
 	markerPath := buildFreshnessMarker(manifest, ctx)
 	if markerPath == "" {
 		return false
@@ -588,6 +595,67 @@ func buildFreshnessMarker(manifest *LoadedManifest, ctx BuildContext) string {
 		return artifactPath
 	}
 	return ""
+}
+
+func syncSharedHolonPackageCache(manifest *LoadedManifest) error {
+	if manifest == nil {
+		return nil
+	}
+	srcDir := manifest.HolonPackageDir()
+	if info, err := os.Stat(srcDir); err != nil || !info.IsDir() {
+		return nil
+	}
+	return copyArtifact(srcDir, sharedHolonPackageDir(manifest))
+}
+
+func sharedHolonPackageDir(manifest *LoadedManifest) string {
+	base := filepath.Join(os.TempDir(), "grace-op-holon-cache")
+	name := "holon"
+	key := "."
+	if manifest != nil {
+		if binary := strings.TrimSpace(manifest.BinaryName()); binary != "" {
+			name = binary
+		} else if manifest.Name != "" {
+			name = strings.TrimSpace(manifest.Name)
+		}
+		if dir := strings.TrimSpace(manifest.Dir); dir != "" {
+			key = filepath.Clean(dir)
+		}
+	}
+
+	hasher := fnv.New64a()
+	_, _ = hasher.Write([]byte(key))
+	return filepath.Join(base, fmt.Sprintf("%s-%x.holon", name, hasher.Sum64()))
+}
+
+func sharedHolonPackageMarker(manifest *LoadedManifest) string {
+	cachedDir := sharedHolonPackageDir(manifest)
+	holonJSONPath := filepath.Join(cachedDir, ".holon.json")
+	if info, err := os.Stat(holonJSONPath); err == nil && !info.IsDir() {
+		return holonJSONPath
+	}
+	if binary := strings.TrimSpace(manifest.BinaryName()); binary != "" {
+		cachedBinary := filepath.Join(cachedDir, "bin", runtimeArchitecture(), hostExecutableName(binary))
+		if info, err := os.Stat(cachedBinary); err == nil && !info.IsDir() {
+			return cachedBinary
+		}
+	}
+	if info, err := os.Stat(cachedDir); err == nil && info.IsDir() {
+		return cachedDir
+	}
+	return ""
+}
+
+func availableHolonPackageDir(manifest *LoadedManifest) string {
+	localDir := manifest.HolonPackageDir()
+	if info, err := os.Stat(localDir); err == nil && info.IsDir() {
+		return localDir
+	}
+	cachedDir := sharedHolonPackageDir(manifest)
+	if info, err := os.Stat(cachedDir); err == nil && info.IsDir() {
+		return cachedDir
+	}
+	return localDir
 }
 
 func latestSourceTreeModTime(root string) (time.Time, error) {
@@ -736,19 +804,13 @@ func processTemplates(manifest *LoadedManifest, reporter progress.Reporter) (res
 
 		saved = append(saved, savedFile{path: absPath, original: original, mode: info.Mode()})
 
-		tmpl, parseErr := template.New(relPath).Parse(string(original))
-		if parseErr != nil {
+		rendered, renderErr := renderBuildTemplate(relPath, original, data)
+		if renderErr != nil {
 			restore()
-			return func() {}, fmt.Errorf("template %q parse: %w", relPath, parseErr)
+			return func() {}, renderErr
 		}
 
-		var buf bytes.Buffer
-		if execErr := tmpl.Execute(&buf, data); execErr != nil {
-			restore()
-			return func() {}, fmt.Errorf("template %q execute: %w", relPath, execErr)
-		}
-
-		if writeErr := os.WriteFile(absPath, buf.Bytes(), info.Mode()); writeErr != nil {
+		if writeErr := os.WriteFile(absPath, rendered, info.Mode()); writeErr != nil {
 			restore()
 			return func() {}, fmt.Errorf("template %q write: %w", relPath, writeErr)
 		}
@@ -760,6 +822,24 @@ func processTemplates(manifest *LoadedManifest, reporter progress.Reporter) (res
 }
 
 var versionLineRe = regexp.MustCompile(`(version:\s*")([0-9]+\.[0-9]+\.[0-9]+)(")`)
+var semverLiteralRe = regexp.MustCompile(`\b[0-9]+\.[0-9]+\.[0-9]+\b`)
+
+func renderBuildTemplate(relPath string, original []byte, data templateData) ([]byte, error) {
+	if bytes.Contains(original, []byte("{{")) {
+		tmpl, parseErr := template.New(relPath).Parse(string(original))
+		if parseErr != nil {
+			return nil, fmt.Errorf("template %q parse: %w", relPath, parseErr)
+		}
+
+		var buf bytes.Buffer
+		if execErr := tmpl.Execute(&buf, data); execErr != nil {
+			return nil, fmt.Errorf("template %q execute: %w", relPath, execErr)
+		}
+		return buf.Bytes(), nil
+	}
+
+	return []byte(semverLiteralRe.ReplaceAllString(string(original), data.Version)), nil
+}
 
 // autoIncrementPatch bumps the patch component of identity.version in the proto
 // file and updates the in-memory manifest. Returns two closures:
@@ -1282,7 +1362,7 @@ func (recipeRunner) stepCopyArtifact(manifest *LoadedManifest, ctx BuildContext,
 		return fmt.Errorf("copy_artifact member %q manifest: %w", ca.From, err)
 	}
 
-	srcDir := memberManifest.HolonPackageDir()
+	srcDir := availableHolonPackageDir(memberManifest)
 	dstDir, err := manifest.ResolveManifestPath(ca.To)
 	if err != nil {
 		return fmt.Errorf("copy_artifact to %q: %w", ca.To, err)

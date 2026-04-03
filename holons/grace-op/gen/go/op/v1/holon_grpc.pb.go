@@ -26,6 +26,7 @@ const (
 	OPService_ShowIdentity_FullMethodName     = "/op.v1.OPService/ShowIdentity"
 	OPService_ListTemplates_FullMethodName    = "/op.v1.OPService/ListTemplates"
 	OPService_GenerateTemplate_FullMethodName = "/op.v1.OPService/GenerateTemplate"
+	OPService_Version_FullMethodName          = "/op.v1.OPService/Version"
 	OPService_Check_FullMethodName            = "/op.v1.OPService/Check"
 	OPService_Build_FullMethodName            = "/op.v1.OPService/Build"
 	OPService_Test_FullMethodName             = "/op.v1.OPService/Test"
@@ -72,6 +73,8 @@ type OPServiceClient interface {
 	ListTemplates(ctx context.Context, in *ListTemplatesRequest, opts ...grpc.CallOption) (*ListTemplatesResponse, error)
 	// GenerateTemplate scaffolds a holon from a built-in template.
 	GenerateTemplate(ctx context.Context, in *GenerateTemplateRequest, opts ...grpc.CallOption) (*GenerateTemplateResponse, error)
+	// Version returns the current OP version payload.
+	Version(ctx context.Context, in *VersionRequest, opts ...grpc.CallOption) (*VersionResponse, error)
 	// Check validates a holon's manifest and prerequisites.
 	Check(ctx context.Context, in *LifecycleRequest, opts ...grpc.CallOption) (*LifecycleResponse, error)
 	// Build resolves and builds a holon artifact.
@@ -184,6 +187,16 @@ func (c *oPServiceClient) GenerateTemplate(ctx context.Context, in *GenerateTemp
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GenerateTemplateResponse)
 	err := c.cc.Invoke(ctx, OPService_GenerateTemplate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *oPServiceClient) Version(ctx context.Context, in *VersionRequest, opts ...grpc.CallOption) (*VersionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VersionResponse)
+	err := c.cc.Invoke(ctx, OPService_Version_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -405,6 +418,8 @@ type OPServiceServer interface {
 	ListTemplates(context.Context, *ListTemplatesRequest) (*ListTemplatesResponse, error)
 	// GenerateTemplate scaffolds a holon from a built-in template.
 	GenerateTemplate(context.Context, *GenerateTemplateRequest) (*GenerateTemplateResponse, error)
+	// Version returns the current OP version payload.
+	Version(context.Context, *VersionRequest) (*VersionResponse, error)
 	// Check validates a holon's manifest and prerequisites.
 	Check(context.Context, *LifecycleRequest) (*LifecycleResponse, error)
 	// Build resolves and builds a holon artifact.
@@ -473,6 +488,9 @@ func (UnimplementedOPServiceServer) ListTemplates(context.Context, *ListTemplate
 }
 func (UnimplementedOPServiceServer) GenerateTemplate(context.Context, *GenerateTemplateRequest) (*GenerateTemplateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GenerateTemplate not implemented")
+}
+func (UnimplementedOPServiceServer) Version(context.Context, *VersionRequest) (*VersionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Version not implemented")
 }
 func (UnimplementedOPServiceServer) Check(context.Context, *LifecycleRequest) (*LifecycleResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Check not implemented")
@@ -674,6 +692,24 @@ func _OPService_GenerateTemplate_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(OPServiceServer).GenerateTemplate(ctx, req.(*GenerateTemplateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _OPService_Version_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VersionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OPServiceServer).Version(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: OPService_Version_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OPServiceServer).Version(ctx, req.(*VersionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1054,6 +1090,10 @@ var OPService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GenerateTemplate",
 			Handler:    _OPService_GenerateTemplate_Handler,
+		},
+		{
+			MethodName: "Version",
+			Handler:    _OPService_Version_Handler,
 		},
 		{
 			MethodName: "Check",

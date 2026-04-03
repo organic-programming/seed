@@ -1315,6 +1315,102 @@ func (x *GenerateTemplateResponse) GetDir() string {
 	return ""
 }
 
+type VersionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VersionRequest) Reset() {
+	*x = VersionRequest{}
+	mi := &file_api_v1_holon_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VersionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VersionRequest) ProtoMessage() {}
+
+func (x *VersionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_holon_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VersionRequest.ProtoReflect.Descriptor instead.
+func (*VersionRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{18}
+}
+
+type VersionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	Banner        string                 `protobuf:"bytes,3,opt,name=banner,proto3" json:"banner,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VersionResponse) Reset() {
+	*x = VersionResponse{}
+	mi := &file_api_v1_holon_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VersionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VersionResponse) ProtoMessage() {}
+
+func (x *VersionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_holon_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VersionResponse.ProtoReflect.Descriptor instead.
+func (*VersionResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *VersionResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *VersionResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *VersionResponse) GetBanner() string {
+	if x != nil {
+		return x.Banner
+	}
+	return ""
+}
+
 type BuildOptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
@@ -1327,7 +1423,7 @@ type BuildOptions struct {
 
 func (x *BuildOptions) Reset() {
 	*x = BuildOptions{}
-	mi := &file_api_v1_holon_proto_msgTypes[18]
+	mi := &file_api_v1_holon_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1339,7 +1435,7 @@ func (x *BuildOptions) String() string {
 func (*BuildOptions) ProtoMessage() {}
 
 func (x *BuildOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[18]
+	mi := &file_api_v1_holon_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1352,7 +1448,7 @@ func (x *BuildOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildOptions.ProtoReflect.Descriptor instead.
 func (*BuildOptions) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{18}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *BuildOptions) GetTarget() string {
@@ -1393,7 +1489,7 @@ type LifecycleRequest struct {
 
 func (x *LifecycleRequest) Reset() {
 	*x = LifecycleRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[19]
+	mi := &file_api_v1_holon_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1405,7 +1501,7 @@ func (x *LifecycleRequest) String() string {
 func (*LifecycleRequest) ProtoMessage() {}
 
 func (x *LifecycleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[19]
+	mi := &file_api_v1_holon_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1418,7 +1514,7 @@ func (x *LifecycleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LifecycleRequest.ProtoReflect.Descriptor instead.
 func (*LifecycleRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{19}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *LifecycleRequest) GetTarget() string {
@@ -1457,7 +1553,7 @@ type LifecycleReport struct {
 
 func (x *LifecycleReport) Reset() {
 	*x = LifecycleReport{}
-	mi := &file_api_v1_holon_proto_msgTypes[20]
+	mi := &file_api_v1_holon_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1469,7 +1565,7 @@ func (x *LifecycleReport) String() string {
 func (*LifecycleReport) ProtoMessage() {}
 
 func (x *LifecycleReport) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[20]
+	mi := &file_api_v1_holon_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1482,7 +1578,7 @@ func (x *LifecycleReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LifecycleReport.ProtoReflect.Descriptor instead.
 func (*LifecycleReport) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{20}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *LifecycleReport) GetOperation() string {
@@ -1592,7 +1688,7 @@ type LifecycleResponse struct {
 
 func (x *LifecycleResponse) Reset() {
 	*x = LifecycleResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[21]
+	mi := &file_api_v1_holon_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1604,7 +1700,7 @@ func (x *LifecycleResponse) String() string {
 func (*LifecycleResponse) ProtoMessage() {}
 
 func (x *LifecycleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[21]
+	mi := &file_api_v1_holon_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1617,7 +1713,7 @@ func (x *LifecycleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LifecycleResponse.ProtoReflect.Descriptor instead.
 func (*LifecycleResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{21}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *LifecycleResponse) GetReport() *LifecycleReport {
@@ -1638,7 +1734,7 @@ type InstallRequest struct {
 
 func (x *InstallRequest) Reset() {
 	*x = InstallRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[22]
+	mi := &file_api_v1_holon_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1650,7 +1746,7 @@ func (x *InstallRequest) String() string {
 func (*InstallRequest) ProtoMessage() {}
 
 func (x *InstallRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[22]
+	mi := &file_api_v1_holon_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1663,7 +1759,7 @@ func (x *InstallRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallRequest.ProtoReflect.Descriptor instead.
 func (*InstallRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{22}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *InstallRequest) GetTarget() string {
@@ -1696,7 +1792,7 @@ type UninstallRequest struct {
 
 func (x *UninstallRequest) Reset() {
 	*x = UninstallRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[23]
+	mi := &file_api_v1_holon_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1708,7 +1804,7 @@ func (x *UninstallRequest) String() string {
 func (*UninstallRequest) ProtoMessage() {}
 
 func (x *UninstallRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[23]
+	mi := &file_api_v1_holon_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1721,7 +1817,7 @@ func (x *UninstallRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UninstallRequest.ProtoReflect.Descriptor instead.
 func (*UninstallRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{23}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *UninstallRequest) GetTarget() string {
@@ -1750,7 +1846,7 @@ type InstallReport struct {
 
 func (x *InstallReport) Reset() {
 	*x = InstallReport{}
-	mi := &file_api_v1_holon_proto_msgTypes[24]
+	mi := &file_api_v1_holon_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1762,7 +1858,7 @@ func (x *InstallReport) String() string {
 func (*InstallReport) ProtoMessage() {}
 
 func (x *InstallReport) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[24]
+	mi := &file_api_v1_holon_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1775,7 +1871,7 @@ func (x *InstallReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallReport.ProtoReflect.Descriptor instead.
 func (*InstallReport) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{24}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *InstallReport) GetOperation() string {
@@ -1864,7 +1960,7 @@ type InstallResponse struct {
 
 func (x *InstallResponse) Reset() {
 	*x = InstallResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[25]
+	mi := &file_api_v1_holon_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1876,7 +1972,7 @@ func (x *InstallResponse) String() string {
 func (*InstallResponse) ProtoMessage() {}
 
 func (x *InstallResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[25]
+	mi := &file_api_v1_holon_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1889,7 +1985,7 @@ func (x *InstallResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallResponse.ProtoReflect.Descriptor instead.
 func (*InstallResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{25}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *InstallResponse) GetReport() *InstallReport {
@@ -1912,7 +2008,7 @@ type RunRequest struct {
 
 func (x *RunRequest) Reset() {
 	*x = RunRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[26]
+	mi := &file_api_v1_holon_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1924,7 +2020,7 @@ func (x *RunRequest) String() string {
 func (*RunRequest) ProtoMessage() {}
 
 func (x *RunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[26]
+	mi := &file_api_v1_holon_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1937,7 +2033,7 @@ func (x *RunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunRequest.ProtoReflect.Descriptor instead.
 func (*RunRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{26}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *RunRequest) GetHolon() string {
@@ -1992,7 +2088,7 @@ type RunResponse struct {
 
 func (x *RunResponse) Reset() {
 	*x = RunResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[27]
+	mi := &file_api_v1_holon_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2004,7 +2100,7 @@ func (x *RunResponse) String() string {
 func (*RunResponse) ProtoMessage() {}
 
 func (x *RunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[27]
+	mi := &file_api_v1_holon_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2017,7 +2113,7 @@ func (x *RunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunResponse.ProtoReflect.Descriptor instead.
 func (*RunResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{27}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *RunResponse) GetHolon() string {
@@ -2092,7 +2188,7 @@ type InspectRequest struct {
 
 func (x *InspectRequest) Reset() {
 	*x = InspectRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[28]
+	mi := &file_api_v1_holon_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2104,7 +2200,7 @@ func (x *InspectRequest) String() string {
 func (*InspectRequest) ProtoMessage() {}
 
 func (x *InspectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[28]
+	mi := &file_api_v1_holon_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2117,7 +2213,7 @@ func (x *InspectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectRequest.ProtoReflect.Descriptor instead.
 func (*InspectRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{28}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *InspectRequest) GetTarget() string {
@@ -2138,7 +2234,7 @@ type InspectEnumValue struct {
 
 func (x *InspectEnumValue) Reset() {
 	*x = InspectEnumValue{}
-	mi := &file_api_v1_holon_proto_msgTypes[29]
+	mi := &file_api_v1_holon_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2150,7 +2246,7 @@ func (x *InspectEnumValue) String() string {
 func (*InspectEnumValue) ProtoMessage() {}
 
 func (x *InspectEnumValue) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[29]
+	mi := &file_api_v1_holon_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2163,7 +2259,7 @@ func (x *InspectEnumValue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectEnumValue.ProtoReflect.Descriptor instead.
 func (*InspectEnumValue) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{29}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *InspectEnumValue) GetName() string {
@@ -2206,7 +2302,7 @@ type InspectField struct {
 
 func (x *InspectField) Reset() {
 	*x = InspectField{}
-	mi := &file_api_v1_holon_proto_msgTypes[30]
+	mi := &file_api_v1_holon_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2218,7 +2314,7 @@ func (x *InspectField) String() string {
 func (*InspectField) ProtoMessage() {}
 
 func (x *InspectField) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[30]
+	mi := &file_api_v1_holon_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2231,7 +2327,7 @@ func (x *InspectField) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectField.ProtoReflect.Descriptor instead.
 func (*InspectField) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{30}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *InspectField) GetName() string {
@@ -2328,7 +2424,7 @@ type InspectMethod struct {
 
 func (x *InspectMethod) Reset() {
 	*x = InspectMethod{}
-	mi := &file_api_v1_holon_proto_msgTypes[31]
+	mi := &file_api_v1_holon_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2340,7 +2436,7 @@ func (x *InspectMethod) String() string {
 func (*InspectMethod) ProtoMessage() {}
 
 func (x *InspectMethod) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[31]
+	mi := &file_api_v1_holon_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2353,7 +2449,7 @@ func (x *InspectMethod) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectMethod.ProtoReflect.Descriptor instead.
 func (*InspectMethod) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{31}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *InspectMethod) GetName() string {
@@ -2430,7 +2526,7 @@ type InspectService struct {
 
 func (x *InspectService) Reset() {
 	*x = InspectService{}
-	mi := &file_api_v1_holon_proto_msgTypes[32]
+	mi := &file_api_v1_holon_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2442,7 +2538,7 @@ func (x *InspectService) String() string {
 func (*InspectService) ProtoMessage() {}
 
 func (x *InspectService) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[32]
+	mi := &file_api_v1_holon_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2455,7 +2551,7 @@ func (x *InspectService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectService.ProtoReflect.Descriptor instead.
 func (*InspectService) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{32}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *InspectService) GetName() string {
@@ -2491,7 +2587,7 @@ type InspectSkill struct {
 
 func (x *InspectSkill) Reset() {
 	*x = InspectSkill{}
-	mi := &file_api_v1_holon_proto_msgTypes[33]
+	mi := &file_api_v1_holon_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2503,7 +2599,7 @@ func (x *InspectSkill) String() string {
 func (*InspectSkill) ProtoMessage() {}
 
 func (x *InspectSkill) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[33]
+	mi := &file_api_v1_holon_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2516,7 +2612,7 @@ func (x *InspectSkill) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectSkill.ProtoReflect.Descriptor instead.
 func (*InspectSkill) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{33}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *InspectSkill) GetName() string {
@@ -2559,7 +2655,7 @@ type InspectSequenceParam struct {
 
 func (x *InspectSequenceParam) Reset() {
 	*x = InspectSequenceParam{}
-	mi := &file_api_v1_holon_proto_msgTypes[34]
+	mi := &file_api_v1_holon_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2571,7 +2667,7 @@ func (x *InspectSequenceParam) String() string {
 func (*InspectSequenceParam) ProtoMessage() {}
 
 func (x *InspectSequenceParam) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[34]
+	mi := &file_api_v1_holon_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2584,7 +2680,7 @@ func (x *InspectSequenceParam) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectSequenceParam.ProtoReflect.Descriptor instead.
 func (*InspectSequenceParam) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{34}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *InspectSequenceParam) GetName() string {
@@ -2627,7 +2723,7 @@ type InspectSequence struct {
 
 func (x *InspectSequence) Reset() {
 	*x = InspectSequence{}
-	mi := &file_api_v1_holon_proto_msgTypes[35]
+	mi := &file_api_v1_holon_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2639,7 +2735,7 @@ func (x *InspectSequence) String() string {
 func (*InspectSequence) ProtoMessage() {}
 
 func (x *InspectSequence) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[35]
+	mi := &file_api_v1_holon_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2652,7 +2748,7 @@ func (x *InspectSequence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectSequence.ProtoReflect.Descriptor instead.
 func (*InspectSequence) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{35}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *InspectSequence) GetName() string {
@@ -2696,7 +2792,7 @@ type InspectDocument struct {
 
 func (x *InspectDocument) Reset() {
 	*x = InspectDocument{}
-	mi := &file_api_v1_holon_proto_msgTypes[36]
+	mi := &file_api_v1_holon_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2708,7 +2804,7 @@ func (x *InspectDocument) String() string {
 func (*InspectDocument) ProtoMessage() {}
 
 func (x *InspectDocument) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[36]
+	mi := &file_api_v1_holon_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2721,7 +2817,7 @@ func (x *InspectDocument) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectDocument.ProtoReflect.Descriptor instead.
 func (*InspectDocument) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{36}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *InspectDocument) GetSlug() string {
@@ -2768,7 +2864,7 @@ type InspectResponse struct {
 
 func (x *InspectResponse) Reset() {
 	*x = InspectResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[37]
+	mi := &file_api_v1_holon_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2780,7 +2876,7 @@ func (x *InspectResponse) String() string {
 func (*InspectResponse) ProtoMessage() {}
 
 func (x *InspectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[37]
+	mi := &file_api_v1_holon_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2793,7 +2889,7 @@ func (x *InspectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InspectResponse.ProtoReflect.Descriptor instead.
 func (*InspectResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{37}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *InspectResponse) GetDocument() *InspectDocument {
@@ -2816,7 +2912,7 @@ type RunSequenceRequest struct {
 
 func (x *RunSequenceRequest) Reset() {
 	*x = RunSequenceRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[38]
+	mi := &file_api_v1_holon_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2828,7 +2924,7 @@ func (x *RunSequenceRequest) String() string {
 func (*RunSequenceRequest) ProtoMessage() {}
 
 func (x *RunSequenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[38]
+	mi := &file_api_v1_holon_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2841,7 +2937,7 @@ func (x *RunSequenceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunSequenceRequest.ProtoReflect.Descriptor instead.
 func (*RunSequenceRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{38}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *RunSequenceRequest) GetHolon() string {
@@ -2892,7 +2988,7 @@ type SequenceStepResult struct {
 
 func (x *SequenceStepResult) Reset() {
 	*x = SequenceStepResult{}
-	mi := &file_api_v1_holon_proto_msgTypes[39]
+	mi := &file_api_v1_holon_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2904,7 +3000,7 @@ func (x *SequenceStepResult) String() string {
 func (*SequenceStepResult) ProtoMessage() {}
 
 func (x *SequenceStepResult) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[39]
+	mi := &file_api_v1_holon_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2917,7 +3013,7 @@ func (x *SequenceStepResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SequenceStepResult.ProtoReflect.Descriptor instead.
 func (*SequenceStepResult) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{39}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *SequenceStepResult) GetIndex() int32 {
@@ -2971,7 +3067,7 @@ type SequenceResult struct {
 
 func (x *SequenceResult) Reset() {
 	*x = SequenceResult{}
-	mi := &file_api_v1_holon_proto_msgTypes[40]
+	mi := &file_api_v1_holon_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2983,7 +3079,7 @@ func (x *SequenceResult) String() string {
 func (*SequenceResult) ProtoMessage() {}
 
 func (x *SequenceResult) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[40]
+	mi := &file_api_v1_holon_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2996,7 +3092,7 @@ func (x *SequenceResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SequenceResult.ProtoReflect.Descriptor instead.
 func (*SequenceResult) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{40}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *SequenceResult) GetHolon() string {
@@ -3064,7 +3160,7 @@ type RunSequenceResponse struct {
 
 func (x *RunSequenceResponse) Reset() {
 	*x = RunSequenceResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[41]
+	mi := &file_api_v1_holon_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3076,7 +3172,7 @@ func (x *RunSequenceResponse) String() string {
 func (*RunSequenceResponse) ProtoMessage() {}
 
 func (x *RunSequenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[41]
+	mi := &file_api_v1_holon_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3089,7 +3185,7 @@ func (x *RunSequenceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunSequenceResponse.ProtoReflect.Descriptor instead.
 func (*RunSequenceResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{41}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *RunSequenceResponse) GetResult() *SequenceResult {
@@ -3110,7 +3206,7 @@ type Dependency struct {
 
 func (x *Dependency) Reset() {
 	*x = Dependency{}
-	mi := &file_api_v1_holon_proto_msgTypes[42]
+	mi := &file_api_v1_holon_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3122,7 +3218,7 @@ func (x *Dependency) String() string {
 func (*Dependency) ProtoMessage() {}
 
 func (x *Dependency) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[42]
+	mi := &file_api_v1_holon_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3135,7 +3231,7 @@ func (x *Dependency) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Dependency.ProtoReflect.Descriptor instead.
 func (*Dependency) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{42}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *Dependency) GetPath() string {
@@ -3170,7 +3266,7 @@ type UpdatedDependency struct {
 
 func (x *UpdatedDependency) Reset() {
 	*x = UpdatedDependency{}
-	mi := &file_api_v1_holon_proto_msgTypes[43]
+	mi := &file_api_v1_holon_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3182,7 +3278,7 @@ func (x *UpdatedDependency) String() string {
 func (*UpdatedDependency) ProtoMessage() {}
 
 func (x *UpdatedDependency) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[43]
+	mi := &file_api_v1_holon_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3195,7 +3291,7 @@ func (x *UpdatedDependency) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatedDependency.ProtoReflect.Descriptor instead.
 func (*UpdatedDependency) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{43}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *UpdatedDependency) GetPath() string {
@@ -3230,7 +3326,7 @@ type DependencyEdge struct {
 
 func (x *DependencyEdge) Reset() {
 	*x = DependencyEdge{}
-	mi := &file_api_v1_holon_proto_msgTypes[44]
+	mi := &file_api_v1_holon_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3242,7 +3338,7 @@ func (x *DependencyEdge) String() string {
 func (*DependencyEdge) ProtoMessage() {}
 
 func (x *DependencyEdge) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[44]
+	mi := &file_api_v1_holon_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3255,7 +3351,7 @@ func (x *DependencyEdge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DependencyEdge.ProtoReflect.Descriptor instead.
 func (*DependencyEdge) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{44}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *DependencyEdge) GetFrom() string {
@@ -3288,7 +3384,7 @@ type ModInitRequest struct {
 
 func (x *ModInitRequest) Reset() {
 	*x = ModInitRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[45]
+	mi := &file_api_v1_holon_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3300,7 +3396,7 @@ func (x *ModInitRequest) String() string {
 func (*ModInitRequest) ProtoMessage() {}
 
 func (x *ModInitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[45]
+	mi := &file_api_v1_holon_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3313,7 +3409,7 @@ func (x *ModInitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModInitRequest.ProtoReflect.Descriptor instead.
 func (*ModInitRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{45}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ModInitRequest) GetHolonPath() string {
@@ -3333,7 +3429,7 @@ type ModInitResponse struct {
 
 func (x *ModInitResponse) Reset() {
 	*x = ModInitResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[46]
+	mi := &file_api_v1_holon_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3345,7 +3441,7 @@ func (x *ModInitResponse) String() string {
 func (*ModInitResponse) ProtoMessage() {}
 
 func (x *ModInitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[46]
+	mi := &file_api_v1_holon_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3358,7 +3454,7 @@ func (x *ModInitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModInitResponse.ProtoReflect.Descriptor instead.
 func (*ModInitResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{46}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ModInitResponse) GetModFile() string {
@@ -3385,7 +3481,7 @@ type ModAddRequest struct {
 
 func (x *ModAddRequest) Reset() {
 	*x = ModAddRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[47]
+	mi := &file_api_v1_holon_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3397,7 +3493,7 @@ func (x *ModAddRequest) String() string {
 func (*ModAddRequest) ProtoMessage() {}
 
 func (x *ModAddRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[47]
+	mi := &file_api_v1_holon_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3410,7 +3506,7 @@ func (x *ModAddRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModAddRequest.ProtoReflect.Descriptor instead.
 func (*ModAddRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{47}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *ModAddRequest) GetModule() string {
@@ -3437,7 +3533,7 @@ type ModAddResponse struct {
 
 func (x *ModAddResponse) Reset() {
 	*x = ModAddResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[48]
+	mi := &file_api_v1_holon_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3449,7 +3545,7 @@ func (x *ModAddResponse) String() string {
 func (*ModAddResponse) ProtoMessage() {}
 
 func (x *ModAddResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[48]
+	mi := &file_api_v1_holon_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3462,7 +3558,7 @@ func (x *ModAddResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModAddResponse.ProtoReflect.Descriptor instead.
 func (*ModAddResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{48}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *ModAddResponse) GetDependency() *Dependency {
@@ -3488,7 +3584,7 @@ type ModRemoveRequest struct {
 
 func (x *ModRemoveRequest) Reset() {
 	*x = ModRemoveRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[49]
+	mi := &file_api_v1_holon_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3500,7 +3596,7 @@ func (x *ModRemoveRequest) String() string {
 func (*ModRemoveRequest) ProtoMessage() {}
 
 func (x *ModRemoveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[49]
+	mi := &file_api_v1_holon_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3513,7 +3609,7 @@ func (x *ModRemoveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModRemoveRequest.ProtoReflect.Descriptor instead.
 func (*ModRemoveRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{49}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ModRemoveRequest) GetModule() string {
@@ -3532,7 +3628,7 @@ type ModRemoveResponse struct {
 
 func (x *ModRemoveResponse) Reset() {
 	*x = ModRemoveResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[50]
+	mi := &file_api_v1_holon_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3544,7 +3640,7 @@ func (x *ModRemoveResponse) String() string {
 func (*ModRemoveResponse) ProtoMessage() {}
 
 func (x *ModRemoveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[50]
+	mi := &file_api_v1_holon_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3557,7 +3653,7 @@ func (x *ModRemoveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModRemoveResponse.ProtoReflect.Descriptor instead.
 func (*ModRemoveResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{50}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *ModRemoveResponse) GetPath() string {
@@ -3575,7 +3671,7 @@ type ModTidyRequest struct {
 
 func (x *ModTidyRequest) Reset() {
 	*x = ModTidyRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[51]
+	mi := &file_api_v1_holon_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3587,7 +3683,7 @@ func (x *ModTidyRequest) String() string {
 func (*ModTidyRequest) ProtoMessage() {}
 
 func (x *ModTidyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[51]
+	mi := &file_api_v1_holon_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3600,7 +3696,7 @@ func (x *ModTidyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModTidyRequest.ProtoReflect.Descriptor instead.
 func (*ModTidyRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{51}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{53}
 }
 
 type ModTidyResponse struct {
@@ -3614,7 +3710,7 @@ type ModTidyResponse struct {
 
 func (x *ModTidyResponse) Reset() {
 	*x = ModTidyResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[52]
+	mi := &file_api_v1_holon_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3626,7 +3722,7 @@ func (x *ModTidyResponse) String() string {
 func (*ModTidyResponse) ProtoMessage() {}
 
 func (x *ModTidyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[52]
+	mi := &file_api_v1_holon_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3639,7 +3735,7 @@ func (x *ModTidyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModTidyResponse.ProtoReflect.Descriptor instead.
 func (*ModTidyResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{52}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *ModTidyResponse) GetSumFile() string {
@@ -3671,7 +3767,7 @@ type ModPullRequest struct {
 
 func (x *ModPullRequest) Reset() {
 	*x = ModPullRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[53]
+	mi := &file_api_v1_holon_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3683,7 +3779,7 @@ func (x *ModPullRequest) String() string {
 func (*ModPullRequest) ProtoMessage() {}
 
 func (x *ModPullRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[53]
+	mi := &file_api_v1_holon_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3696,7 +3792,7 @@ func (x *ModPullRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModPullRequest.ProtoReflect.Descriptor instead.
 func (*ModPullRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{53}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{55}
 }
 
 type ModPullResponse struct {
@@ -3708,7 +3804,7 @@ type ModPullResponse struct {
 
 func (x *ModPullResponse) Reset() {
 	*x = ModPullResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[54]
+	mi := &file_api_v1_holon_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3720,7 +3816,7 @@ func (x *ModPullResponse) String() string {
 func (*ModPullResponse) ProtoMessage() {}
 
 func (x *ModPullResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[54]
+	mi := &file_api_v1_holon_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3733,7 +3829,7 @@ func (x *ModPullResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModPullResponse.ProtoReflect.Descriptor instead.
 func (*ModPullResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{54}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *ModPullResponse) GetFetched() []*Dependency {
@@ -3752,7 +3848,7 @@ type ModUpdateRequest struct {
 
 func (x *ModUpdateRequest) Reset() {
 	*x = ModUpdateRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[55]
+	mi := &file_api_v1_holon_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3764,7 +3860,7 @@ func (x *ModUpdateRequest) String() string {
 func (*ModUpdateRequest) ProtoMessage() {}
 
 func (x *ModUpdateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[55]
+	mi := &file_api_v1_holon_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3777,7 +3873,7 @@ func (x *ModUpdateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModUpdateRequest.ProtoReflect.Descriptor instead.
 func (*ModUpdateRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{55}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ModUpdateRequest) GetModule() string {
@@ -3796,7 +3892,7 @@ type ModUpdateResponse struct {
 
 func (x *ModUpdateResponse) Reset() {
 	*x = ModUpdateResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[56]
+	mi := &file_api_v1_holon_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3808,7 +3904,7 @@ func (x *ModUpdateResponse) String() string {
 func (*ModUpdateResponse) ProtoMessage() {}
 
 func (x *ModUpdateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[56]
+	mi := &file_api_v1_holon_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3821,7 +3917,7 @@ func (x *ModUpdateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModUpdateResponse.ProtoReflect.Descriptor instead.
 func (*ModUpdateResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{56}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ModUpdateResponse) GetUpdated() []*UpdatedDependency {
@@ -3839,7 +3935,7 @@ type ModListRequest struct {
 
 func (x *ModListRequest) Reset() {
 	*x = ModListRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[57]
+	mi := &file_api_v1_holon_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3851,7 +3947,7 @@ func (x *ModListRequest) String() string {
 func (*ModListRequest) ProtoMessage() {}
 
 func (x *ModListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[57]
+	mi := &file_api_v1_holon_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3864,7 +3960,7 @@ func (x *ModListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModListRequest.ProtoReflect.Descriptor instead.
 func (*ModListRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{57}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{59}
 }
 
 type ModListResponse struct {
@@ -3877,7 +3973,7 @@ type ModListResponse struct {
 
 func (x *ModListResponse) Reset() {
 	*x = ModListResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[58]
+	mi := &file_api_v1_holon_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3889,7 +3985,7 @@ func (x *ModListResponse) String() string {
 func (*ModListResponse) ProtoMessage() {}
 
 func (x *ModListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[58]
+	mi := &file_api_v1_holon_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3902,7 +3998,7 @@ func (x *ModListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModListResponse.ProtoReflect.Descriptor instead.
 func (*ModListResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{58}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ModListResponse) GetHolonPath() string {
@@ -3927,7 +4023,7 @@ type ModGraphRequest struct {
 
 func (x *ModGraphRequest) Reset() {
 	*x = ModGraphRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[59]
+	mi := &file_api_v1_holon_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3939,7 +4035,7 @@ func (x *ModGraphRequest) String() string {
 func (*ModGraphRequest) ProtoMessage() {}
 
 func (x *ModGraphRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[59]
+	mi := &file_api_v1_holon_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3952,7 +4048,7 @@ func (x *ModGraphRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModGraphRequest.ProtoReflect.Descriptor instead.
 func (*ModGraphRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{59}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{61}
 }
 
 type ModGraphResponse struct {
@@ -3965,7 +4061,7 @@ type ModGraphResponse struct {
 
 func (x *ModGraphResponse) Reset() {
 	*x = ModGraphResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[60]
+	mi := &file_api_v1_holon_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3977,7 +4073,7 @@ func (x *ModGraphResponse) String() string {
 func (*ModGraphResponse) ProtoMessage() {}
 
 func (x *ModGraphResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[60]
+	mi := &file_api_v1_holon_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3990,7 +4086,7 @@ func (x *ModGraphResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModGraphResponse.ProtoReflect.Descriptor instead.
 func (*ModGraphResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{60}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *ModGraphResponse) GetRoot() string {
@@ -4017,7 +4113,7 @@ type ToolsRequest struct {
 
 func (x *ToolsRequest) Reset() {
 	*x = ToolsRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[61]
+	mi := &file_api_v1_holon_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4029,7 +4125,7 @@ func (x *ToolsRequest) String() string {
 func (*ToolsRequest) ProtoMessage() {}
 
 func (x *ToolsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[61]
+	mi := &file_api_v1_holon_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4042,7 +4138,7 @@ func (x *ToolsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolsRequest.ProtoReflect.Descriptor instead.
 func (*ToolsRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{61}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *ToolsRequest) GetTarget() string {
@@ -4069,7 +4165,7 @@ type ToolsResponse struct {
 
 func (x *ToolsResponse) Reset() {
 	*x = ToolsResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[62]
+	mi := &file_api_v1_holon_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4081,7 +4177,7 @@ func (x *ToolsResponse) String() string {
 func (*ToolsResponse) ProtoMessage() {}
 
 func (x *ToolsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[62]
+	mi := &file_api_v1_holon_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4094,7 +4190,7 @@ func (x *ToolsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolsResponse.ProtoReflect.Descriptor instead.
 func (*ToolsResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{62}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *ToolsResponse) GetFormat() string {
@@ -4121,7 +4217,7 @@ type EnvRequest struct {
 
 func (x *EnvRequest) Reset() {
 	*x = EnvRequest{}
-	mi := &file_api_v1_holon_proto_msgTypes[63]
+	mi := &file_api_v1_holon_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4133,7 +4229,7 @@ func (x *EnvRequest) String() string {
 func (*EnvRequest) ProtoMessage() {}
 
 func (x *EnvRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[63]
+	mi := &file_api_v1_holon_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4146,7 +4242,7 @@ func (x *EnvRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnvRequest.ProtoReflect.Descriptor instead.
 func (*EnvRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{63}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *EnvRequest) GetInit() bool {
@@ -4177,7 +4273,7 @@ type EnvResponse struct {
 
 func (x *EnvResponse) Reset() {
 	*x = EnvResponse{}
-	mi := &file_api_v1_holon_proto_msgTypes[64]
+	mi := &file_api_v1_holon_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4189,7 +4285,7 @@ func (x *EnvResponse) String() string {
 func (*EnvResponse) ProtoMessage() {}
 
 func (x *EnvResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_holon_proto_msgTypes[64]
+	mi := &file_api_v1_holon_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4202,7 +4298,7 @@ func (x *EnvResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnvResponse.ProtoReflect.Descriptor instead.
 func (*EnvResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_holon_proto_rawDescGZIP(), []int{64}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *EnvResponse) GetOppath() string {
@@ -4339,7 +4435,12 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"H\n" +
 	"\x18GenerateTemplateResponse\x12\x1a\n" +
 	"\btemplate\x18\x01 \x01(\tR\btemplate\x12\x10\n" +
-	"\x03dir\x18\x02 \x01(\tR\x03dir\"l\n" +
+	"\x03dir\x18\x02 \x01(\tR\x03dir\"\x10\n" +
+	"\x0eVersionRequest\"W\n" +
+	"\x0fVersionResponse\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x12\x16\n" +
+	"\x06banner\x18\x03 \x01(\tR\x06banner\"l\n" +
 	"\fBuildOptions\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12\x12\n" +
 	"\x04mode\x18\x02 \x01(\tR\x04mode\x12\x17\n" +
@@ -4366,10 +4467,10 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x05notes\x18\r \x03(\tR\x05notes\x122\n" +
 	"\bchildren\x18\x0e \x03(\v2\x16.op.v1.LifecycleReportR\bchildren\"C\n" +
 	"\x11LifecycleResponse\x12.\n" +
-	"\x06report\x18\x01 \x01(\v2\x16.op.v1.LifecycleReportR\x06report\"p\n" +
+	"\x06report\x18\x01 \x01(\v2\x16.op.v1.LifecycleReportR\x06report\"k\n" +
 	"\x0eInstallRequest\x12\x16\n" +
-	"\x06target\x18\x01 \x01(\tR\x06target\x12\x19\n" +
-	"\bno_build\x18\x02 \x01(\bR\anoBuild\x12+\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x14\n" +
+	"\x05build\x18\x02 \x01(\bR\x05build\x12+\n" +
 	"\x11link_applications\x18\x03 \x01(\bR\x10linkApplications\"*\n" +
 	"\x10UninstallRequest\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\"\xb3\x02\n" +
@@ -4593,7 +4694,7 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x06STABLE\x10\x02\x12\x0e\n" +
 	"\n" +
 	"DEPRECATED\x10\x03\x12\b\n" +
-	"\x04DEAD\x10\x042\xda\f\n" +
+	"\x04DEAD\x10\x042\x94\r\n" +
 	"\tOPService\x12;\n" +
 	"\bDiscover\x12\x16.op.v1.DiscoverRequest\x1a\x17.op.v1.DiscoverResponse\x125\n" +
 	"\x06Invoke\x12\x14.op.v1.InvokeRequest\x1a\x15.op.v1.InvokeResponse\x12M\n" +
@@ -4601,7 +4702,8 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x0eListIdentities\x12\x1c.op.v1.ListIdentitiesRequest\x1a\x1d.op.v1.ListIdentitiesResponse\x12G\n" +
 	"\fShowIdentity\x12\x1a.op.v1.ShowIdentityRequest\x1a\x1b.op.v1.ShowIdentityResponse\x12J\n" +
 	"\rListTemplates\x12\x1b.op.v1.ListTemplatesRequest\x1a\x1c.op.v1.ListTemplatesResponse\x12S\n" +
-	"\x10GenerateTemplate\x12\x1e.op.v1.GenerateTemplateRequest\x1a\x1f.op.v1.GenerateTemplateResponse\x12:\n" +
+	"\x10GenerateTemplate\x12\x1e.op.v1.GenerateTemplateRequest\x1a\x1f.op.v1.GenerateTemplateResponse\x128\n" +
+	"\aVersion\x12\x15.op.v1.VersionRequest\x1a\x16.op.v1.VersionResponse\x12:\n" +
 	"\x05Check\x12\x17.op.v1.LifecycleRequest\x1a\x18.op.v1.LifecycleResponse\x12:\n" +
 	"\x05Build\x12\x17.op.v1.LifecycleRequest\x1a\x18.op.v1.LifecycleResponse\x129\n" +
 	"\x04Test\x12\x17.op.v1.LifecycleRequest\x1a\x18.op.v1.LifecycleResponse\x12:\n" +
@@ -4620,17 +4722,17 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\aModList\x12\x15.op.v1.ModListRequest\x1a\x16.op.v1.ModListResponse\x12;\n" +
 	"\bModGraph\x12\x16.op.v1.ModGraphRequest\x1a\x17.op.v1.ModGraphResponse\x122\n" +
 	"\x05Tools\x12\x13.op.v1.ToolsRequest\x1a\x14.op.v1.ToolsResponse\x12,\n" +
-	"\x03Env\x12\x11.op.v1.EnvRequest\x1a\x12.op.v1.EnvResponseB\xad\x14\x82\xb5\x18\xed\x13\n" +
-	"\x7f\n" +
+	"\x03Env\x12\x11.op.v1.EnvRequest\x1a\x12.op.v1.EnvResponseB\xc8\x14\x82\xb5\x18\x88\x14\n" +
+	"\x80\x01\n" +
 	"\bholon/v1\x12$28f22ab5-c62d-41f8-9ada-e34333060ff9\x1a\x05Grace\"\x02OP*\x19One command, every holon.2\bB. ALTERB\x05draftJ\n" +
-	"2026-02-12R\x060.5.11Z\x02op\x1a\xa5\x02OP is the unified entry point to the Organic Programming ecosystem. It discovers holons — locally or over the network — and dispatches commands to them through a single interface. The actant installs one binary and gets access to every holon. OP does not implement domain logic. It routes.\"\x02go*\x84\x03\n" +
+	"2026-02-12R\a0.5.107Z\x02op\x1a\xa5\x02OP is the unified entry point to the Organic Programming ecosystem. It discovers holons — locally or over the network — and dispatches commands to them through a single interface. The actant installs one binary and gets access to every holon. OP does not implement domain logic. It routes.\"\x02go*\x84\x03\n" +
 	"\x12discover-and-build\x12=Discover a holon, inspect its contract, and build it locally.\x1aQUser wants to find a holon in the workspace and turn it into a runnable artifact.\"7Discover local holons with `op list .` or `op discover`\".Inspect the contract with `op inspect <holon>`\".Validate prerequisites with `op check <holon>`\"CBuild and install with `op build <holon>` then `op install <holon>`*\xc0\x03\n" +
 	"\x0efull-lifecycle\x12@Drive a holon through validation, build, test, run, and cleanup.\x1aLUser wants the complete Organic Programming lifecycle for a holon or recipe.\"9Validate manifest and environment with `op check <holon>`\"IBuild and test the artifact with `op build <holon>` and `op test <holon>`\"BLaunch or dispatch with `op run <holon>` or `op <holon> <command>`\"TClean and uninstall when finished with `op clean <holon>` and `op uninstall <holon>`*\xcb\x02\n" +
 	"\x10introspect-holon\x12;Inspect a holon's RPC contract, fields, and skills offline.\x1a:User wants to understand a holon's API without running it.\"6Run `op inspect <holon>` for human-readable proto docs\";Use `op inspect <holon> --json` for machine-readable output\"IFallback to `op inspect <host:port>` for a running holon via Describe RPC*\xa4\x02\n" +
 	"\rexpose-to-llm\x122Expose any holon as MCP tools for LLM integration.\x1a*User wants an AI agent to call holon RPCs.\"*Start the MCP bridge with `op mcp <holon>`\"BOr export tool definitions with `op tools <holon> --format openai`\"CSkills from the manifest are exposed as MCP prompts alongside tools*\xa0\x02\n" +
-	"\x13manage-dependencies\x12*Manage holon dependencies like Go modules.\x1a/User needs to add, update, or audit holon deps.\"*Initialize with `op mod init <holon-path>`\"5Add dependencies with `op mod add <module> [version]`\"\"Tidy and verify with `op mod tidy`\"%Inspect the graph with `op mod graph`2\xa8\x02\n" +
-	"\x12api/v1/holon.proto\x12\x0fop.v1.OPService\x1a\bDiscover\x1a\x06Invoke\x1a\x0eCreateIdentity\x1a\x0eListIdentities\x1a\fShowIdentity\x1a\rListTemplates\x1a\x10GenerateTemplate\x1a\x05Check\x1a\x05Build\x1a\x04Test\x1a\x05Clean\x1a\aInstall\x1a\tUninstall\x1a\x03Run\x1a\aInspect\x1a\vRunSequence\x1a\aModInit\x1a\x06ModAdd\x1a\tModRemove\x1a\aModTidy\x1a\aModPull\x1a\tModUpdate\x1a\aModList\x1a\bModGraph\x1a\x05Tools\x1a\x03Env:\x06nativeR\x15\n" +
-	"\tgo-module\x12\b./cmd/opZ\f\n" +
+	"\x13manage-dependencies\x12*Manage holon dependencies like Go modules.\x1a/User needs to add, update, or audit holon deps.\"*Initialize with `op mod init <holon-path>`\"5Add dependencies with `op mod add <module> [version]`\"\"Tidy and verify with `op mod tidy`\"%Inspect the graph with `op mod graph`2\xb1\x02\n" +
+	"\x12api/v1/holon.proto\x12\x0fop.v1.OPService\x1a\bDiscover\x1a\x06Invoke\x1a\x0eCreateIdentity\x1a\x0eListIdentities\x1a\fShowIdentity\x1a\rListTemplates\x1a\x10GenerateTemplate\x1a\aVersion\x1a\x05Check\x1a\x05Build\x1a\x04Test\x1a\x05Clean\x1a\aInstall\x1a\tUninstall\x1a\x03Run\x1a\aInspect\x1a\vRunSequence\x1a\aModInit\x1a\x06ModAdd\x1a\tModRemove\x1a\aModTidy\x1a\aModPull\x1a\tModUpdate\x1a\aModList\x1a\bModGraph\x1a\x05Tools\x1a\x03Env:\x06nativeR%\n" +
+	"\tgo-module\x12\b./cmd/op2\x0eapi/version.goZ\f\n" +
 	"\x02go\x12\x06go.modj\x04\n" +
 	"\x02opZ9github.com/organic-programming/grace-op/gen/go/op/v1;opv1b\x06proto3"
 
@@ -4647,7 +4749,7 @@ func file_api_v1_holon_proto_rawDescGZIP() []byte {
 }
 
 var file_api_v1_holon_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_api_v1_holon_proto_msgTypes = make([]protoimpl.MessageInfo, 68)
+var file_api_v1_holon_proto_msgTypes = make([]protoimpl.MessageInfo, 70)
 var file_api_v1_holon_proto_goTypes = []any{
 	(Clade)(0),                       // 0: op.v1.Clade
 	(ReproductionMode)(0),            // 1: op.v1.ReproductionMode
@@ -4670,56 +4772,58 @@ var file_api_v1_holon_proto_goTypes = []any{
 	(*ListTemplatesResponse)(nil),    // 18: op.v1.ListTemplatesResponse
 	(*GenerateTemplateRequest)(nil),  // 19: op.v1.GenerateTemplateRequest
 	(*GenerateTemplateResponse)(nil), // 20: op.v1.GenerateTemplateResponse
-	(*BuildOptions)(nil),             // 21: op.v1.BuildOptions
-	(*LifecycleRequest)(nil),         // 22: op.v1.LifecycleRequest
-	(*LifecycleReport)(nil),          // 23: op.v1.LifecycleReport
-	(*LifecycleResponse)(nil),        // 24: op.v1.LifecycleResponse
-	(*InstallRequest)(nil),           // 25: op.v1.InstallRequest
-	(*UninstallRequest)(nil),         // 26: op.v1.UninstallRequest
-	(*InstallReport)(nil),            // 27: op.v1.InstallReport
-	(*InstallResponse)(nil),          // 28: op.v1.InstallResponse
-	(*RunRequest)(nil),               // 29: op.v1.RunRequest
-	(*RunResponse)(nil),              // 30: op.v1.RunResponse
-	(*InspectRequest)(nil),           // 31: op.v1.InspectRequest
-	(*InspectEnumValue)(nil),         // 32: op.v1.InspectEnumValue
-	(*InspectField)(nil),             // 33: op.v1.InspectField
-	(*InspectMethod)(nil),            // 34: op.v1.InspectMethod
-	(*InspectService)(nil),           // 35: op.v1.InspectService
-	(*InspectSkill)(nil),             // 36: op.v1.InspectSkill
-	(*InspectSequenceParam)(nil),     // 37: op.v1.InspectSequenceParam
-	(*InspectSequence)(nil),          // 38: op.v1.InspectSequence
-	(*InspectDocument)(nil),          // 39: op.v1.InspectDocument
-	(*InspectResponse)(nil),          // 40: op.v1.InspectResponse
-	(*RunSequenceRequest)(nil),       // 41: op.v1.RunSequenceRequest
-	(*SequenceStepResult)(nil),       // 42: op.v1.SequenceStepResult
-	(*SequenceResult)(nil),           // 43: op.v1.SequenceResult
-	(*RunSequenceResponse)(nil),      // 44: op.v1.RunSequenceResponse
-	(*Dependency)(nil),               // 45: op.v1.Dependency
-	(*UpdatedDependency)(nil),        // 46: op.v1.UpdatedDependency
-	(*DependencyEdge)(nil),           // 47: op.v1.DependencyEdge
-	(*ModInitRequest)(nil),           // 48: op.v1.ModInitRequest
-	(*ModInitResponse)(nil),          // 49: op.v1.ModInitResponse
-	(*ModAddRequest)(nil),            // 50: op.v1.ModAddRequest
-	(*ModAddResponse)(nil),           // 51: op.v1.ModAddResponse
-	(*ModRemoveRequest)(nil),         // 52: op.v1.ModRemoveRequest
-	(*ModRemoveResponse)(nil),        // 53: op.v1.ModRemoveResponse
-	(*ModTidyRequest)(nil),           // 54: op.v1.ModTidyRequest
-	(*ModTidyResponse)(nil),          // 55: op.v1.ModTidyResponse
-	(*ModPullRequest)(nil),           // 56: op.v1.ModPullRequest
-	(*ModPullResponse)(nil),          // 57: op.v1.ModPullResponse
-	(*ModUpdateRequest)(nil),         // 58: op.v1.ModUpdateRequest
-	(*ModUpdateResponse)(nil),        // 59: op.v1.ModUpdateResponse
-	(*ModListRequest)(nil),           // 60: op.v1.ModListRequest
-	(*ModListResponse)(nil),          // 61: op.v1.ModListResponse
-	(*ModGraphRequest)(nil),          // 62: op.v1.ModGraphRequest
-	(*ModGraphResponse)(nil),         // 63: op.v1.ModGraphResponse
-	(*ToolsRequest)(nil),             // 64: op.v1.ToolsRequest
-	(*ToolsResponse)(nil),            // 65: op.v1.ToolsResponse
-	(*EnvRequest)(nil),               // 66: op.v1.EnvRequest
-	(*EnvResponse)(nil),              // 67: op.v1.EnvResponse
-	nil,                              // 68: op.v1.GenerateTemplateRequest.OverridesEntry
-	nil,                              // 69: op.v1.RunSequenceRequest.ParamsEntry
-	nil,                              // 70: op.v1.SequenceResult.ParamsEntry
+	(*VersionRequest)(nil),           // 21: op.v1.VersionRequest
+	(*VersionResponse)(nil),          // 22: op.v1.VersionResponse
+	(*BuildOptions)(nil),             // 23: op.v1.BuildOptions
+	(*LifecycleRequest)(nil),         // 24: op.v1.LifecycleRequest
+	(*LifecycleReport)(nil),          // 25: op.v1.LifecycleReport
+	(*LifecycleResponse)(nil),        // 26: op.v1.LifecycleResponse
+	(*InstallRequest)(nil),           // 27: op.v1.InstallRequest
+	(*UninstallRequest)(nil),         // 28: op.v1.UninstallRequest
+	(*InstallReport)(nil),            // 29: op.v1.InstallReport
+	(*InstallResponse)(nil),          // 30: op.v1.InstallResponse
+	(*RunRequest)(nil),               // 31: op.v1.RunRequest
+	(*RunResponse)(nil),              // 32: op.v1.RunResponse
+	(*InspectRequest)(nil),           // 33: op.v1.InspectRequest
+	(*InspectEnumValue)(nil),         // 34: op.v1.InspectEnumValue
+	(*InspectField)(nil),             // 35: op.v1.InspectField
+	(*InspectMethod)(nil),            // 36: op.v1.InspectMethod
+	(*InspectService)(nil),           // 37: op.v1.InspectService
+	(*InspectSkill)(nil),             // 38: op.v1.InspectSkill
+	(*InspectSequenceParam)(nil),     // 39: op.v1.InspectSequenceParam
+	(*InspectSequence)(nil),          // 40: op.v1.InspectSequence
+	(*InspectDocument)(nil),          // 41: op.v1.InspectDocument
+	(*InspectResponse)(nil),          // 42: op.v1.InspectResponse
+	(*RunSequenceRequest)(nil),       // 43: op.v1.RunSequenceRequest
+	(*SequenceStepResult)(nil),       // 44: op.v1.SequenceStepResult
+	(*SequenceResult)(nil),           // 45: op.v1.SequenceResult
+	(*RunSequenceResponse)(nil),      // 46: op.v1.RunSequenceResponse
+	(*Dependency)(nil),               // 47: op.v1.Dependency
+	(*UpdatedDependency)(nil),        // 48: op.v1.UpdatedDependency
+	(*DependencyEdge)(nil),           // 49: op.v1.DependencyEdge
+	(*ModInitRequest)(nil),           // 50: op.v1.ModInitRequest
+	(*ModInitResponse)(nil),          // 51: op.v1.ModInitResponse
+	(*ModAddRequest)(nil),            // 52: op.v1.ModAddRequest
+	(*ModAddResponse)(nil),           // 53: op.v1.ModAddResponse
+	(*ModRemoveRequest)(nil),         // 54: op.v1.ModRemoveRequest
+	(*ModRemoveResponse)(nil),        // 55: op.v1.ModRemoveResponse
+	(*ModTidyRequest)(nil),           // 56: op.v1.ModTidyRequest
+	(*ModTidyResponse)(nil),          // 57: op.v1.ModTidyResponse
+	(*ModPullRequest)(nil),           // 58: op.v1.ModPullRequest
+	(*ModPullResponse)(nil),          // 59: op.v1.ModPullResponse
+	(*ModUpdateRequest)(nil),         // 60: op.v1.ModUpdateRequest
+	(*ModUpdateResponse)(nil),        // 61: op.v1.ModUpdateResponse
+	(*ModListRequest)(nil),           // 62: op.v1.ModListRequest
+	(*ModListResponse)(nil),          // 63: op.v1.ModListResponse
+	(*ModGraphRequest)(nil),          // 64: op.v1.ModGraphRequest
+	(*ModGraphResponse)(nil),         // 65: op.v1.ModGraphResponse
+	(*ToolsRequest)(nil),             // 66: op.v1.ToolsRequest
+	(*ToolsResponse)(nil),            // 67: op.v1.ToolsResponse
+	(*EnvRequest)(nil),               // 68: op.v1.EnvRequest
+	(*EnvResponse)(nil),              // 69: op.v1.EnvResponse
+	nil,                              // 70: op.v1.GenerateTemplateRequest.OverridesEntry
+	nil,                              // 71: op.v1.RunSequenceRequest.ParamsEntry
+	nil,                              // 72: op.v1.SequenceResult.ParamsEntry
 }
 var file_api_v1_holon_proto_depIdxs = []int32{
 	0,  // 0: op.v1.HolonIdentity.clade:type_name -> op.v1.Clade
@@ -4735,31 +4839,31 @@ var file_api_v1_holon_proto_depIdxs = []int32{
 	6,  // 10: op.v1.ListIdentitiesResponse.entries:type_name -> op.v1.HolonEntry
 	16, // 11: op.v1.TemplateEntry.params:type_name -> op.v1.TemplateParam
 	17, // 12: op.v1.ListTemplatesResponse.entries:type_name -> op.v1.TemplateEntry
-	68, // 13: op.v1.GenerateTemplateRequest.overrides:type_name -> op.v1.GenerateTemplateRequest.OverridesEntry
-	21, // 14: op.v1.LifecycleRequest.build:type_name -> op.v1.BuildOptions
-	23, // 15: op.v1.LifecycleReport.children:type_name -> op.v1.LifecycleReport
-	23, // 16: op.v1.LifecycleResponse.report:type_name -> op.v1.LifecycleReport
-	27, // 17: op.v1.InstallResponse.report:type_name -> op.v1.InstallReport
-	33, // 18: op.v1.InspectField.nested_fields:type_name -> op.v1.InspectField
-	32, // 19: op.v1.InspectField.enum_values:type_name -> op.v1.InspectEnumValue
-	33, // 20: op.v1.InspectMethod.input_fields:type_name -> op.v1.InspectField
-	33, // 21: op.v1.InspectMethod.output_fields:type_name -> op.v1.InspectField
-	34, // 22: op.v1.InspectService.methods:type_name -> op.v1.InspectMethod
-	37, // 23: op.v1.InspectSequence.params:type_name -> op.v1.InspectSequenceParam
-	35, // 24: op.v1.InspectDocument.services:type_name -> op.v1.InspectService
-	36, // 25: op.v1.InspectDocument.skills:type_name -> op.v1.InspectSkill
-	38, // 26: op.v1.InspectDocument.sequences:type_name -> op.v1.InspectSequence
-	39, // 27: op.v1.InspectResponse.document:type_name -> op.v1.InspectDocument
-	69, // 28: op.v1.RunSequenceRequest.params:type_name -> op.v1.RunSequenceRequest.ParamsEntry
-	70, // 29: op.v1.SequenceResult.params:type_name -> op.v1.SequenceResult.ParamsEntry
-	42, // 30: op.v1.SequenceResult.steps:type_name -> op.v1.SequenceStepResult
-	43, // 31: op.v1.RunSequenceResponse.result:type_name -> op.v1.SequenceResult
-	45, // 32: op.v1.ModAddResponse.dependency:type_name -> op.v1.Dependency
-	45, // 33: op.v1.ModTidyResponse.current:type_name -> op.v1.Dependency
-	45, // 34: op.v1.ModPullResponse.fetched:type_name -> op.v1.Dependency
-	46, // 35: op.v1.ModUpdateResponse.updated:type_name -> op.v1.UpdatedDependency
-	45, // 36: op.v1.ModListResponse.dependencies:type_name -> op.v1.Dependency
-	47, // 37: op.v1.ModGraphResponse.edges:type_name -> op.v1.DependencyEdge
+	70, // 13: op.v1.GenerateTemplateRequest.overrides:type_name -> op.v1.GenerateTemplateRequest.OverridesEntry
+	23, // 14: op.v1.LifecycleRequest.build:type_name -> op.v1.BuildOptions
+	25, // 15: op.v1.LifecycleReport.children:type_name -> op.v1.LifecycleReport
+	25, // 16: op.v1.LifecycleResponse.report:type_name -> op.v1.LifecycleReport
+	29, // 17: op.v1.InstallResponse.report:type_name -> op.v1.InstallReport
+	35, // 18: op.v1.InspectField.nested_fields:type_name -> op.v1.InspectField
+	34, // 19: op.v1.InspectField.enum_values:type_name -> op.v1.InspectEnumValue
+	35, // 20: op.v1.InspectMethod.input_fields:type_name -> op.v1.InspectField
+	35, // 21: op.v1.InspectMethod.output_fields:type_name -> op.v1.InspectField
+	36, // 22: op.v1.InspectService.methods:type_name -> op.v1.InspectMethod
+	39, // 23: op.v1.InspectSequence.params:type_name -> op.v1.InspectSequenceParam
+	37, // 24: op.v1.InspectDocument.services:type_name -> op.v1.InspectService
+	38, // 25: op.v1.InspectDocument.skills:type_name -> op.v1.InspectSkill
+	40, // 26: op.v1.InspectDocument.sequences:type_name -> op.v1.InspectSequence
+	41, // 27: op.v1.InspectResponse.document:type_name -> op.v1.InspectDocument
+	71, // 28: op.v1.RunSequenceRequest.params:type_name -> op.v1.RunSequenceRequest.ParamsEntry
+	72, // 29: op.v1.SequenceResult.params:type_name -> op.v1.SequenceResult.ParamsEntry
+	44, // 30: op.v1.SequenceResult.steps:type_name -> op.v1.SequenceStepResult
+	45, // 31: op.v1.RunSequenceResponse.result:type_name -> op.v1.SequenceResult
+	47, // 32: op.v1.ModAddResponse.dependency:type_name -> op.v1.Dependency
+	47, // 33: op.v1.ModTidyResponse.current:type_name -> op.v1.Dependency
+	47, // 34: op.v1.ModPullResponse.fetched:type_name -> op.v1.Dependency
+	48, // 35: op.v1.ModUpdateResponse.updated:type_name -> op.v1.UpdatedDependency
+	47, // 36: op.v1.ModListResponse.dependencies:type_name -> op.v1.Dependency
+	49, // 37: op.v1.ModGraphResponse.edges:type_name -> op.v1.DependencyEdge
 	4,  // 38: op.v1.OPService.Discover:input_type -> op.v1.DiscoverRequest
 	7,  // 39: op.v1.OPService.Invoke:input_type -> op.v1.InvokeRequest
 	9,  // 40: op.v1.OPService.CreateIdentity:input_type -> op.v1.CreateIdentityRequest
@@ -4767,53 +4871,55 @@ var file_api_v1_holon_proto_depIdxs = []int32{
 	11, // 42: op.v1.OPService.ShowIdentity:input_type -> op.v1.ShowIdentityRequest
 	15, // 43: op.v1.OPService.ListTemplates:input_type -> op.v1.ListTemplatesRequest
 	19, // 44: op.v1.OPService.GenerateTemplate:input_type -> op.v1.GenerateTemplateRequest
-	22, // 45: op.v1.OPService.Check:input_type -> op.v1.LifecycleRequest
-	22, // 46: op.v1.OPService.Build:input_type -> op.v1.LifecycleRequest
-	22, // 47: op.v1.OPService.Test:input_type -> op.v1.LifecycleRequest
-	22, // 48: op.v1.OPService.Clean:input_type -> op.v1.LifecycleRequest
-	25, // 49: op.v1.OPService.Install:input_type -> op.v1.InstallRequest
-	26, // 50: op.v1.OPService.Uninstall:input_type -> op.v1.UninstallRequest
-	29, // 51: op.v1.OPService.Run:input_type -> op.v1.RunRequest
-	31, // 52: op.v1.OPService.Inspect:input_type -> op.v1.InspectRequest
-	41, // 53: op.v1.OPService.RunSequence:input_type -> op.v1.RunSequenceRequest
-	48, // 54: op.v1.OPService.ModInit:input_type -> op.v1.ModInitRequest
-	50, // 55: op.v1.OPService.ModAdd:input_type -> op.v1.ModAddRequest
-	52, // 56: op.v1.OPService.ModRemove:input_type -> op.v1.ModRemoveRequest
-	54, // 57: op.v1.OPService.ModTidy:input_type -> op.v1.ModTidyRequest
-	56, // 58: op.v1.OPService.ModPull:input_type -> op.v1.ModPullRequest
-	58, // 59: op.v1.OPService.ModUpdate:input_type -> op.v1.ModUpdateRequest
-	60, // 60: op.v1.OPService.ModList:input_type -> op.v1.ModListRequest
-	62, // 61: op.v1.OPService.ModGraph:input_type -> op.v1.ModGraphRequest
-	64, // 62: op.v1.OPService.Tools:input_type -> op.v1.ToolsRequest
-	66, // 63: op.v1.OPService.Env:input_type -> op.v1.EnvRequest
-	5,  // 64: op.v1.OPService.Discover:output_type -> op.v1.DiscoverResponse
-	8,  // 65: op.v1.OPService.Invoke:output_type -> op.v1.InvokeResponse
-	10, // 66: op.v1.OPService.CreateIdentity:output_type -> op.v1.CreateIdentityResponse
-	14, // 67: op.v1.OPService.ListIdentities:output_type -> op.v1.ListIdentitiesResponse
-	12, // 68: op.v1.OPService.ShowIdentity:output_type -> op.v1.ShowIdentityResponse
-	18, // 69: op.v1.OPService.ListTemplates:output_type -> op.v1.ListTemplatesResponse
-	20, // 70: op.v1.OPService.GenerateTemplate:output_type -> op.v1.GenerateTemplateResponse
-	24, // 71: op.v1.OPService.Check:output_type -> op.v1.LifecycleResponse
-	24, // 72: op.v1.OPService.Build:output_type -> op.v1.LifecycleResponse
-	24, // 73: op.v1.OPService.Test:output_type -> op.v1.LifecycleResponse
-	24, // 74: op.v1.OPService.Clean:output_type -> op.v1.LifecycleResponse
-	28, // 75: op.v1.OPService.Install:output_type -> op.v1.InstallResponse
-	28, // 76: op.v1.OPService.Uninstall:output_type -> op.v1.InstallResponse
-	30, // 77: op.v1.OPService.Run:output_type -> op.v1.RunResponse
-	40, // 78: op.v1.OPService.Inspect:output_type -> op.v1.InspectResponse
-	44, // 79: op.v1.OPService.RunSequence:output_type -> op.v1.RunSequenceResponse
-	49, // 80: op.v1.OPService.ModInit:output_type -> op.v1.ModInitResponse
-	51, // 81: op.v1.OPService.ModAdd:output_type -> op.v1.ModAddResponse
-	53, // 82: op.v1.OPService.ModRemove:output_type -> op.v1.ModRemoveResponse
-	55, // 83: op.v1.OPService.ModTidy:output_type -> op.v1.ModTidyResponse
-	57, // 84: op.v1.OPService.ModPull:output_type -> op.v1.ModPullResponse
-	59, // 85: op.v1.OPService.ModUpdate:output_type -> op.v1.ModUpdateResponse
-	61, // 86: op.v1.OPService.ModList:output_type -> op.v1.ModListResponse
-	63, // 87: op.v1.OPService.ModGraph:output_type -> op.v1.ModGraphResponse
-	65, // 88: op.v1.OPService.Tools:output_type -> op.v1.ToolsResponse
-	67, // 89: op.v1.OPService.Env:output_type -> op.v1.EnvResponse
-	64, // [64:90] is the sub-list for method output_type
-	38, // [38:64] is the sub-list for method input_type
+	21, // 45: op.v1.OPService.Version:input_type -> op.v1.VersionRequest
+	24, // 46: op.v1.OPService.Check:input_type -> op.v1.LifecycleRequest
+	24, // 47: op.v1.OPService.Build:input_type -> op.v1.LifecycleRequest
+	24, // 48: op.v1.OPService.Test:input_type -> op.v1.LifecycleRequest
+	24, // 49: op.v1.OPService.Clean:input_type -> op.v1.LifecycleRequest
+	27, // 50: op.v1.OPService.Install:input_type -> op.v1.InstallRequest
+	28, // 51: op.v1.OPService.Uninstall:input_type -> op.v1.UninstallRequest
+	31, // 52: op.v1.OPService.Run:input_type -> op.v1.RunRequest
+	33, // 53: op.v1.OPService.Inspect:input_type -> op.v1.InspectRequest
+	43, // 54: op.v1.OPService.RunSequence:input_type -> op.v1.RunSequenceRequest
+	50, // 55: op.v1.OPService.ModInit:input_type -> op.v1.ModInitRequest
+	52, // 56: op.v1.OPService.ModAdd:input_type -> op.v1.ModAddRequest
+	54, // 57: op.v1.OPService.ModRemove:input_type -> op.v1.ModRemoveRequest
+	56, // 58: op.v1.OPService.ModTidy:input_type -> op.v1.ModTidyRequest
+	58, // 59: op.v1.OPService.ModPull:input_type -> op.v1.ModPullRequest
+	60, // 60: op.v1.OPService.ModUpdate:input_type -> op.v1.ModUpdateRequest
+	62, // 61: op.v1.OPService.ModList:input_type -> op.v1.ModListRequest
+	64, // 62: op.v1.OPService.ModGraph:input_type -> op.v1.ModGraphRequest
+	66, // 63: op.v1.OPService.Tools:input_type -> op.v1.ToolsRequest
+	68, // 64: op.v1.OPService.Env:input_type -> op.v1.EnvRequest
+	5,  // 65: op.v1.OPService.Discover:output_type -> op.v1.DiscoverResponse
+	8,  // 66: op.v1.OPService.Invoke:output_type -> op.v1.InvokeResponse
+	10, // 67: op.v1.OPService.CreateIdentity:output_type -> op.v1.CreateIdentityResponse
+	14, // 68: op.v1.OPService.ListIdentities:output_type -> op.v1.ListIdentitiesResponse
+	12, // 69: op.v1.OPService.ShowIdentity:output_type -> op.v1.ShowIdentityResponse
+	18, // 70: op.v1.OPService.ListTemplates:output_type -> op.v1.ListTemplatesResponse
+	20, // 71: op.v1.OPService.GenerateTemplate:output_type -> op.v1.GenerateTemplateResponse
+	22, // 72: op.v1.OPService.Version:output_type -> op.v1.VersionResponse
+	26, // 73: op.v1.OPService.Check:output_type -> op.v1.LifecycleResponse
+	26, // 74: op.v1.OPService.Build:output_type -> op.v1.LifecycleResponse
+	26, // 75: op.v1.OPService.Test:output_type -> op.v1.LifecycleResponse
+	26, // 76: op.v1.OPService.Clean:output_type -> op.v1.LifecycleResponse
+	30, // 77: op.v1.OPService.Install:output_type -> op.v1.InstallResponse
+	30, // 78: op.v1.OPService.Uninstall:output_type -> op.v1.InstallResponse
+	32, // 79: op.v1.OPService.Run:output_type -> op.v1.RunResponse
+	42, // 80: op.v1.OPService.Inspect:output_type -> op.v1.InspectResponse
+	46, // 81: op.v1.OPService.RunSequence:output_type -> op.v1.RunSequenceResponse
+	51, // 82: op.v1.OPService.ModInit:output_type -> op.v1.ModInitResponse
+	53, // 83: op.v1.OPService.ModAdd:output_type -> op.v1.ModAddResponse
+	55, // 84: op.v1.OPService.ModRemove:output_type -> op.v1.ModRemoveResponse
+	57, // 85: op.v1.OPService.ModTidy:output_type -> op.v1.ModTidyResponse
+	59, // 86: op.v1.OPService.ModPull:output_type -> op.v1.ModPullResponse
+	61, // 87: op.v1.OPService.ModUpdate:output_type -> op.v1.ModUpdateResponse
+	63, // 88: op.v1.OPService.ModList:output_type -> op.v1.ModListResponse
+	65, // 89: op.v1.OPService.ModGraph:output_type -> op.v1.ModGraphResponse
+	67, // 90: op.v1.OPService.Tools:output_type -> op.v1.ToolsResponse
+	69, // 91: op.v1.OPService.Env:output_type -> op.v1.EnvResponse
+	65, // [65:92] is the sub-list for method output_type
+	38, // [38:65] is the sub-list for method input_type
 	38, // [38:38] is the sub-list for extension type_name
 	38, // [38:38] is the sub-list for extension extendee
 	0,  // [0:38] is the sub-list for field type_name
@@ -4830,7 +4936,7 @@ func file_api_v1_holon_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_holon_proto_rawDesc), len(file_api_v1_holon_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   68,
+			NumMessages:   70,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

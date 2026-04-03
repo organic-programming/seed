@@ -3,6 +3,7 @@ package holons
 import (
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -303,15 +304,15 @@ func pythonBuildArgs(manifest *LoadedManifest) ([]string, bool, error) {
 	return []string{interpreter, "-m", "pip", "install", "-r", "requirements.txt"}, true, nil
 }
 
-func pythonEntrypoint(manifest *LoadedManifest) (string, error) {
+func pythonEntrypoint(manifest *LoadedManifest, searchDir string) (string, error) {
 	// Prefer the explicit entrypoint declared in build.main.
 	if rel := strings.TrimPrefix(strings.TrimSpace(manifest.Manifest.Build.Main), "./"); rel != "" {
-		if fileExists(filepath.Join(manifest.Dir, filepath.FromSlash(rel))) {
+		if fileExists(filepath.Join(searchDir, filepath.FromSlash(rel))) {
 			return rel, nil
 		}
 	}
 	for _, rel := range []string{"bin/main.py", "main.py", "app/main.py"} {
-		if fileExists(filepath.Join(manifest.Dir, filepath.FromSlash(rel))) {
+		if fileExists(filepath.Join(searchDir, filepath.FromSlash(rel))) {
 			return rel, nil
 		}
 	}
@@ -447,16 +448,81 @@ func rubyGemPath(rubyPath string) string {
 	return "gem"
 }
 
-func rubyBase64LibPath(manifest *LoadedManifest) string {
-	if manifest == nil {
+func rubyBase64LibPath(searchDir string) string {
+	if searchDir == "" {
 		return ""
 	}
-	matches, err := filepath.Glob(filepath.Join(manifest.Dir, ".op", "base64", "gems", "base64-*", "lib"))
+	matches, err := filepath.Glob(filepath.Join(searchDir, ".op", "base64", "gems", "base64-*", "lib"))
 	if err != nil || len(matches) == 0 {
 		return ""
 	}
 	sort.Strings(matches)
 	return matches[len(matches)-1]
+}
+
+func rubySharedCacheRoot(manifest *LoadedManifest) string {
+	baseDir := os.TempDir()
+	name := "ruby"
+	if manifest != nil {
+		if dir := strings.TrimSpace(manifest.Dir); dir != "" {
+			name = filepath.Base(dir)
+			hasher := fnv.New64a()
+			_, _ = hasher.Write([]byte(filepath.Clean(dir)))
+			return filepath.Join(baseDir, "grace-op-ruby-cache", fmt.Sprintf("%s-%x", name, hasher.Sum64()))
+		}
+		if binary := strings.TrimSpace(manifest.BinaryName()); binary != "" {
+			name = binary
+		}
+	}
+
+	hasher := fnv.New64a()
+	_, _ = hasher.Write([]byte(name))
+	return filepath.Join(baseDir, "grace-op-ruby-cache", fmt.Sprintf("%s-%x", name, hasher.Sum64()))
+}
+
+func rubySharedBundleDir(manifest *LoadedManifest) string {
+	return filepath.Join(rubySharedCacheRoot(manifest), "bundle")
+}
+
+func rubySharedBase64Dir(manifest *LoadedManifest) string {
+	return filepath.Join(rubySharedCacheRoot(manifest), "base64")
+}
+
+func prepareRubySharedCache(isolatedDir string, manifest *LoadedManifest) error {
+	if err := os.MkdirAll(filepath.Join(isolatedDir, ".op"), 0o755); err != nil {
+		return err
+	}
+
+	links := []struct {
+		linkPath   string
+		targetPath string
+	}{
+		{
+			linkPath:   filepath.Join(isolatedDir, ".op", "bundle"),
+			targetPath: rubySharedBundleDir(manifest),
+		},
+		{
+			linkPath:   filepath.Join(isolatedDir, ".op", "base64"),
+			targetPath: rubySharedBase64Dir(manifest),
+		},
+	}
+
+	for _, link := range links {
+		if err := os.MkdirAll(filepath.Dir(link.targetPath), 0o755); err != nil {
+			return err
+		}
+		if err := os.MkdirAll(link.targetPath, 0o755); err != nil {
+			return err
+		}
+		if err := os.RemoveAll(link.linkPath); err != nil {
+			return err
+		}
+		if err := os.Symlink(link.targetPath, link.linkPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func rubyTestArgs(manifest *LoadedManifest) ([]string, error) {
@@ -474,14 +540,22 @@ func rubyTestArgs(manifest *LoadedManifest) ([]string, error) {
 }
 
 func rubyEntrypoint(manifest *LoadedManifest) (string, error) {
+	searchDir := ""
+	if manifest != nil {
+		searchDir = manifest.Dir
+	}
+	return rubyEntrypointInDir(manifest, searchDir)
+}
+
+func rubyEntrypointInDir(manifest *LoadedManifest, searchDir string) (string, error) {
 	// Prefer the explicit entrypoint declared in build.main.
 	if rel := strings.TrimPrefix(strings.TrimSpace(manifest.Manifest.Build.Main), "./"); rel != "" {
-		if fileExists(filepath.Join(manifest.Dir, filepath.FromSlash(rel))) {
+		if fileExists(filepath.Join(searchDir, filepath.FromSlash(rel))) {
 			return rel, nil
 		}
 	}
 	for _, rel := range []string{"bin/main.rb", "main.rb", "app/main.rb"} {
-		if fileExists(filepath.Join(manifest.Dir, filepath.FromSlash(rel))) {
+		if fileExists(filepath.Join(searchDir, filepath.FromSlash(rel))) {
 			return rel, nil
 		}
 	}
@@ -608,6 +682,21 @@ func (pythonRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 		return err
 	}
 
+	isolatedDir := filepath.Join(manifest.OpRoot(), "build", "python")
+	if !ctx.DryRun {
+		_ = os.RemoveAll(isolatedDir)
+		if err := copyWorkspaceIsolated(manifest.Dir, isolatedDir); err != nil {
+			return fmt.Errorf("isolate python workspace: %w", err)
+		}
+
+		// Re-anchor relative SDK dependencies to absolute paths to survive inner execution
+		supportPath := filepath.Join(isolatedDir, "support.py")
+		if b, err := os.ReadFile(supportPath); err == nil {
+			s := strings.ReplaceAll(string(b), "ROOT.parent.parent.parent", fmt.Sprintf("Path(%q).parent.parent.parent", filepath.ToSlash(manifest.Dir)))
+			_ = os.WriteFile(supportPath, []byte(s), 0o644)
+		}
+	}
+
 	args, ok, err := pythonBuildArgs(manifest)
 	if err != nil {
 		return err
@@ -618,7 +707,7 @@ func (pythonRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 		report.Commands = append(report.Commands, commandString(args))
 		ctx.Progress.Step(commandString(args))
 		if !ctx.DryRun {
-			if output, err := runCommand(manifest.Dir, args); err != nil {
+			if output, err := runCommand(isolatedDir, args); err != nil {
 				return fmt.Errorf("%s\n%s", err, output)
 			}
 			report.Notes = append(report.Notes, "python dependencies installed")
@@ -629,7 +718,7 @@ func (pythonRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 		return nil
 	}
 
-	entrypoint, err := pythonEntrypoint(manifest)
+	entrypoint, err := pythonEntrypoint(manifest, isolatedDir)
 	if err != nil {
 		return err
 	}
@@ -639,7 +728,7 @@ func (pythonRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 	wrapper := fmt.Sprintf(
 		"#!/bin/sh\nset -eu\nexec %q %q \"$@\"\n",
 		argsOrDefaultPythonPathForManifest(manifest),
-		filepath.Join(manifest.Dir, filepath.FromSlash(entrypoint)),
+		filepath.Join(isolatedDir, filepath.FromSlash(entrypoint)),
 	)
 	if err := os.WriteFile(manifest.BinaryPath(), []byte(wrapper), 0o755); err != nil {
 		return err
@@ -825,7 +914,25 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 	}
 	gemPath := rubyGemPath(rubyPath)
 
-	_ = os.RemoveAll(filepath.Join(manifest.Dir, "vendor", "bundle"))
+	isolatedDir := filepath.Join(manifest.OpRoot(), "build", "ruby")
+	if !ctx.DryRun {
+		_ = os.RemoveAll(isolatedDir)
+		if err := copyWorkspaceIsolated(manifest.Dir, isolatedDir); err != nil {
+			return fmt.Errorf("isolate ruby workspace: %w", err)
+		}
+
+		// Re-anchor relative SDK dependencies to absolute paths to survive inner execution
+		supportPath := filepath.Join(isolatedDir, "support.rb")
+		if b, err := os.ReadFile(supportPath); err == nil {
+			s := strings.ReplaceAll(string(b), "\"../../../sdk/ruby-holons/lib\"", fmt.Sprintf("\"%s/../../../sdk/ruby-holons/lib\"", filepath.ToSlash(manifest.Dir)))
+			_ = os.WriteFile(supportPath, []byte(s), 0o644)
+		}
+		if err := prepareRubySharedCache(isolatedDir, manifest); err != nil {
+			return fmt.Errorf("prepare ruby cache: %w", err)
+		}
+	}
+
+	_ = os.RemoveAll(filepath.Join(isolatedDir, "vendor", "bundle"))
 
 	commands := [][]string{
 		{"env", "BUNDLE_FORCE_RUBY_PLATFORM=true", bundlePath, "lock", "--add-platform", "arm64-darwin"},
@@ -841,7 +948,7 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 		return nil
 	}
 	for _, args := range commands {
-		if output, err := runCommand(manifest.Dir, args); err != nil {
+		if output, err := runCommand(isolatedDir, args); err != nil {
 			return fmt.Errorf("%s\n%s", err, output)
 		}
 	}
@@ -850,7 +957,7 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 		return nil
 	}
 
-	entrypoint, err := rubyEntrypoint(manifest)
+	entrypoint, err := rubyEntrypointInDir(manifest, isolatedDir)
 	if err != nil {
 		return err
 	}
@@ -858,19 +965,20 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 		return err
 	}
 	rubyLibExport := ""
-	if base64Lib := rubyBase64LibPath(manifest); base64Lib != "" {
+	if base64Lib := rubyBase64LibPath(isolatedDir); base64Lib != "" {
 		rubyLibExport = fmt.Sprintf("export RUBYLIB=%q${RUBYLIB:+:$RUBYLIB}\n", base64Lib)
 	}
+	sourceEntrypoint := filepath.Join(manifest.Dir, filepath.FromSlash(entrypoint))
 	wrapper := fmt.Sprintf(
-		"#!/bin/sh\nset -eu\n%s\n%s\nexport BUNDLE_GEMFILE=%q\nexport BUNDLE_PATH=%q\nexport BUNDLE_DISABLE_SHARED_GEMS=true\nexport BUNDLE_FORCE_RUBY_PLATFORM=true\n%sexec %q exec %q %q \"$@\"\n",
+		"#!/bin/sh\nset -eu\n%s\n%s\n_OP_BASE=%q\n_OP_SOURCE_ENTRYPOINT=%q\nexport BUNDLE_GEMFILE=\"$_OP_BASE/Gemfile\"\nexport BUNDLE_PATH=\"$_OP_BASE/.op/bundle\"\nexport BUNDLE_DISABLE_SHARED_GEMS=true\nexport BUNDLE_FORCE_RUBY_PLATFORM=true\n%s\nexec %q exec %q \"$_OP_BASE/%s\" \"$@\"\n",
 		launcherPATHExports(),
 		launcherUTF8LocaleExports(),
-		filepath.Join(manifest.Dir, "Gemfile"),
-		filepath.Join(manifest.Dir, ".op", "bundle"),
+		isolatedDir,
+		sourceEntrypoint,
 		rubyLibExport,
 		bundlePath,
 		rubyPath,
-		filepath.Join(manifest.Dir, filepath.FromSlash(entrypoint)),
+		filepath.ToSlash(entrypoint),
 	)
 	if err := os.WriteFile(manifest.BinaryPath(), []byte(wrapper), 0o755); err != nil {
 		return err
@@ -931,7 +1039,7 @@ func (swiftPackageRunner) build(manifest *LoadedManifest, ctx BuildContext, repo
 	}
 
 	if hasSwiftPackage(manifest) {
-		buildPath := filepath.Join(manifest.OpRoot(), "build", "swift")
+		buildPath := swiftPackageBuildPath(manifest)
 		args := []string{"swift", "build", "--build-path", buildPath, "-c", swiftBuildMode(ctx.Mode)}
 		report.Commands = append(report.Commands, commandString(args))
 		ctx.Progress.Step(commandString(args))
@@ -940,24 +1048,26 @@ func (swiftPackageRunner) build(manifest *LoadedManifest, ctx BuildContext, repo
 		}
 		output, err := swiftPackageRunCommand(manifest.Dir, args)
 		if err != nil {
-			if !isSwiftBuildDescriptionCorruption(output) {
-				return fmt.Errorf("%s\n%s", err, output)
-			}
-
-			cleanArgs := []string{"swift", "package", "clean", "--build-path", buildPath}
-			report.Commands = append(report.Commands, commandString(cleanArgs), commandString(args))
-			ctx.Progress.Step(commandString(cleanArgs))
-			if cleanOutput, cleanErr := swiftPackageRunCommand(manifest.Dir, cleanArgs); cleanErr != nil {
-				return fmt.Errorf("%s\n%s\n%s\n%s", err, output, cleanErr, cleanOutput)
+			recoveryNote := "swift build cache reset after failed build"
+			if isSwiftBuildDescriptionCorruption(output) {
+				cleanArgs := []string{"swift", "package", "clean", "--build-path", buildPath}
+				report.Commands = append(report.Commands, commandString(cleanArgs), commandString(args))
+				ctx.Progress.Step(commandString(cleanArgs))
+				if cleanOutput, cleanErr := swiftPackageRunCommand(manifest.Dir, cleanArgs); cleanErr != nil {
+					return fmt.Errorf("%s\n%s\n%s\n%s", err, output, cleanErr, cleanOutput)
+				}
+				recoveryNote = "swift build cache reset after unknown build description"
+			} else if resetErr := os.RemoveAll(buildPath); resetErr != nil {
+				return fmt.Errorf("%s\n%s\nreset swift build path %s: %v", err, output, buildPath, resetErr)
 			}
 
 			ctx.Progress.Step(commandString(args))
 			if output, err = swiftPackageRunCommand(manifest.Dir, args); err != nil {
 				return fmt.Errorf("%s\n%s", err, output)
 			}
-			report.Notes = append(report.Notes, "swift build cache reset after unknown build description")
+			report.Notes = append(report.Notes, recoveryNote)
 		}
-		source := filepath.Join(buildPath, swiftBuildMode(ctx.Mode), hostExecutableName(manifest.BinaryName()))
+		source := swiftPackageArtifactSource(manifest, buildPath, ctx.Mode)
 		if err := syncBinaryArtifact(manifest, source); err != nil {
 			return err
 		}
@@ -993,7 +1103,7 @@ func (swiftPackageRunner) build(manifest *LoadedManifest, ctx BuildContext, repo
 
 func (swiftPackageRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
 	if hasSwiftPackage(manifest) {
-		args := []string{"swift", "test", "--build-path", filepath.Join(manifest.OpRoot(), "build", "swift"), "-c", swiftBuildMode(ctx.Mode)}
+		args := []string{"swift", "test", "--build-path", swiftPackageBuildPath(manifest), "-c", swiftBuildMode(ctx.Mode)}
 		report.Commands = append(report.Commands, commandString(args))
 		ctx.Progress.Step(commandString(args))
 		if output, err := runCommand(manifest.Dir, args); err != nil {
@@ -1044,6 +1154,35 @@ func swiftBuildMode(mode string) string {
 		return "debug"
 	}
 	return "release"
+}
+
+func swiftPackageBuildPath(manifest *LoadedManifest) string {
+	baseDir := os.TempDir()
+	name := "swift-package"
+	if manifest != nil {
+		if dir := strings.TrimSpace(manifest.Dir); dir != "" {
+			name = filepath.Base(dir)
+			hasher := fnv.New64a()
+			_, _ = hasher.Write([]byte(filepath.Clean(dir)))
+			return filepath.Join(baseDir, "grace-op-swift-cache", fmt.Sprintf("%s-%x", name, hasher.Sum64()))
+		}
+		if binary := strings.TrimSpace(manifest.BinaryName()); binary != "" {
+			name = binary
+		}
+	}
+
+	hasher := fnv.New64a()
+	_, _ = hasher.Write([]byte(name))
+	return filepath.Join(baseDir, "grace-op-swift-cache", fmt.Sprintf("%s-%x", name, hasher.Sum64()))
+}
+
+func swiftPackageArtifactSource(manifest *LoadedManifest, buildPath, mode string) string {
+	executable := hostExecutableName(manifest.BinaryName())
+	sharedPath := filepath.Join(buildPath, swiftBuildMode(mode), executable)
+	if _, err := os.Stat(sharedPath); err == nil {
+		return sharedPath
+	}
+	return filepath.Join(manifest.OpRoot(), "build", "swift", swiftBuildMode(mode), executable)
 }
 
 func isSwiftBuildDescriptionCorruption(output string) bool {
@@ -1133,6 +1272,26 @@ func (npmRunner) check(manifest *LoadedManifest, _ BuildContext) error {
 }
 
 func (npmRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
+	isolatedDir := filepath.Join(manifest.OpRoot(), "build", "npm")
+	if !ctx.DryRun {
+		_ = os.RemoveAll(isolatedDir)
+		if err := copyWorkspaceIsolated(manifest.Dir, isolatedDir); err != nil {
+			return fmt.Errorf("isolate npm workspace: %w", err)
+		}
+
+		// Re-anchor relative file dependencies to absolute paths to survive inner execution
+		packageJsonPath := filepath.Join(isolatedDir, "package.json")
+		if b, err := os.ReadFile(packageJsonPath); err == nil {
+			s := strings.ReplaceAll(string(b), "\"file:.", fmt.Sprintf("\"file:%s/.", filepath.ToSlash(manifest.Dir)))
+			_ = os.WriteFile(packageJsonPath, []byte(s), 0o644)
+		}
+		packageLockPath := filepath.Join(isolatedDir, "package-lock.json")
+		if b, err := os.ReadFile(packageLockPath); err == nil {
+			s := strings.ReplaceAll(string(b), "\"file:.", fmt.Sprintf("\"file:%s/.", filepath.ToSlash(manifest.Dir)))
+			_ = os.WriteFile(packageLockPath, []byte(s), 0o644)
+		}
+	}
+
 	var commands [][]string
 	commands = append(commands, []string{"npm", "ci"})
 	if npmHasBuildScript(manifest) {
@@ -1146,7 +1305,7 @@ func (npmRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repor
 		return nil
 	}
 	for _, args := range commands {
-		if output, err := runCommand(manifest.Dir, args); err != nil {
+		if output, err := runCommand(isolatedDir, args); err != nil {
 			return fmt.Errorf("%s\n%s", err, output)
 		}
 	}
@@ -1155,7 +1314,8 @@ func (npmRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repor
 		return nil
 	}
 
-	candidates := npmArtifactCandidates(manifest)
+	candidates := npmArtifactCandidates(manifest, isolatedDir)
+	candidates = append(candidates, npmArtifactCandidates(manifest, manifest.Dir)...)
 	candidate := firstExistingArtifactCandidate(candidates)
 	if candidate == "" {
 		return missingBinaryFromCandidates(manifest, candidates)
@@ -1164,14 +1324,15 @@ func (npmRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repor
 		return err
 	}
 	descriptorSeed := ""
-	if descriptorProto := nodeDescriptorProtoSource(manifest); descriptorProto != "" {
+	if descriptorProto := nodeDescriptorProtoSource(isolatedDir); descriptorProto != "" {
 		descriptorSeed = fmt.Sprintf(
-			"descriptor_src=%q\ndescriptor_dst=\"$(pwd)/protos/holons/v1/google/protobuf/descriptor.proto\"\nif [ -f \"$descriptor_src\" ] && [ ! -f \"$descriptor_dst\" ]; then\n  mkdir -p \"$(dirname \"$descriptor_dst\")\"\n  cp \"$descriptor_src\" \"$descriptor_dst\"\nfi\n",
+			"descriptor_src=%q\ndescriptor_dst=\"$_OP_BASE/protos/holons/v1/google/protobuf/descriptor.proto\"\nif [ -f \"$descriptor_src\" ] && [ ! -f \"$descriptor_dst\" ]; then\n  mkdir -p \"$(dirname \"$descriptor_dst\")\"\n  cp \"$descriptor_src\" \"$descriptor_dst\"\nfi\n",
 			descriptorProto,
 		)
 	}
 	wrapper := fmt.Sprintf(
-		"#!/bin/sh\nset -eu\n%sexec %q %q \"$@\"\n",
+		"#!/bin/sh\nset -eu\n_OP_BASE=%q\n%sexec %q %q \"$@\"\n",
+		isolatedDir,
 		descriptorSeed,
 		argsOrDefaultNodePath(),
 		candidate,
@@ -1209,31 +1370,31 @@ func (npmRunner) clean(manifest *LoadedManifest, _ BuildContext, report *Report)
 	return nil
 }
 
-func npmArtifactCandidates(manifest *LoadedManifest) []string {
+func npmArtifactCandidates(manifest *LoadedManifest, searchDir string) []string {
 	name := manifest.BinaryName()
 	var candidates []string
 	// Prefer the explicit entrypoint declared in build.main.
 	if rel := strings.TrimPrefix(strings.TrimSpace(manifest.Manifest.Build.Main), "./"); rel != "" {
-		if fileExists(filepath.Join(manifest.Dir, filepath.FromSlash(rel))) {
-			candidates = append(candidates, filepath.Join(manifest.Dir, filepath.FromSlash(rel)))
+		if fileExists(filepath.Join(searchDir, filepath.FromSlash(rel))) {
+			candidates = append(candidates, filepath.Join(searchDir, filepath.FromSlash(rel)))
 		}
 	}
 	candidates = append(candidates,
-		filepath.Join(manifest.Dir, "dist", name),
-		filepath.Join(manifest.Dir, "dist", name+".js"),
-		filepath.Join(manifest.Dir, "build", name),
-		filepath.Join(manifest.Dir, "build", name+".js"),
+		filepath.Join(searchDir, "dist", name),
+		filepath.Join(searchDir, "dist", name+".js"),
+		filepath.Join(searchDir, "build", name),
+		filepath.Join(searchDir, "build", name+".js"),
 	)
 	return candidates
 }
 
-func nodeDescriptorProtoSource(manifest *LoadedManifest) string {
-	if manifest == nil {
+func nodeDescriptorProtoSource(searchDir string) string {
+	if searchDir == "" {
 		return ""
 	}
 	for _, candidate := range []string{
-		filepath.Join(manifest.Dir, "node_modules", "protobufjs", "google", "protobuf", "descriptor.proto"),
-		filepath.Join(manifest.Dir, "node_modules", "grpc-tools", "bin", "google", "protobuf", "descriptor.proto"),
+		filepath.Join(searchDir, "node_modules", "protobufjs", "google", "protobuf", "descriptor.proto"),
+		filepath.Join(searchDir, "node_modules", "grpc-tools", "bin", "google", "protobuf", "descriptor.proto"),
 	} {
 		if fileExists(candidate) {
 			return candidate
@@ -1554,4 +1715,39 @@ func detectQt6Dir() (string, error) {
 		}
 	}
 	return "", fmt.Errorf("qt-cmake runner requires Qt6\n  install with: brew install qt6\n  then set: export Qt6_DIR=$(brew --prefix qt6)/lib/cmake/Qt6")
+}
+
+func copyWorkspaceIsolated(src, dst string) error {
+	return filepath.WalkDir(src, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		targetPath := filepath.Join(dst, rel)
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case ".git", ".op", "node_modules", "venv", "__pycache__", "build", "dist":
+				return filepath.SkipDir
+			}
+			return os.MkdirAll(targetPath, info.Mode())
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			linkTarget, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+				return err
+			}
+			return os.Symlink(linkTarget, targetPath)
+		}
+		return copyFile(path, targetPath)
+	})
 }

@@ -17,33 +17,57 @@ import (
 	"github.com/organic-programming/grace-op/internal/identity"
 )
 
-// List returns local and cached identities, preserving their origin labels.
+// List returns local and cached identities, normalizing in-root source entries to "local".
 func List(root string) (*opv1.ListIdentitiesResponse, error) {
-	return ListWithOptions(root, sdkdiscover.ALL, sdkdiscover.NO_LIMIT, sdkdiscover.NO_TIMEOUT)
+	return listWithOptions(root, sdkdiscover.ALL, sdkdiscover.NO_LIMIT, sdkdiscover.NO_TIMEOUT, true)
 }
 
 func ListWithOptions(root string, specifiers int, limit int, timeout int) (*opv1.ListIdentitiesResponse, error) {
+	return listWithOptions(root, specifiers, limit, timeout, true)
+}
+
+func ListWithDetailedOrigins(root string, specifiers int, limit int, timeout int) (*opv1.ListIdentitiesResponse, error) {
+	return listWithOptions(root, specifiers, limit, timeout, false)
+}
+
+func listWithOptions(root string, specifiers int, limit int, timeout int, normalizeLocal bool) (*opv1.ListIdentitiesResponse, error) {
 	if strings.TrimSpace(root) == "" {
 		root = "."
 	}
 
 	var entries []*opv1.HolonEntry
 
-	appendEntries := func(located []holons.LocalHolon) {
+	appendEntries := func(located []holons.LocalHolon, normalize bool) {
 		for _, holon := range located {
+			origin := holon.Origin
+			if normalize {
+				origin = normalizeListOrigin(origin)
+			}
 			entries = append(entries, &opv1.HolonEntry{
 				Identity:     toProto(holon.Identity),
-				Origin:       holon.Origin,
+				Origin:       origin,
 				RelativePath: filepath.Clean(holon.RelativePath),
 			})
 		}
 	}
 
-	local, err := holons.DiscoverHolonsWithOptions(&root, specifiers, limit, timeout)
-	if err != nil {
-		return nil, err
+	localSpecifiers := specifiers &^ sdkdiscover.CACHED
+	if localSpecifiers != 0 {
+		local, err := holons.DiscoverHolonsWithOptions(&root, localSpecifiers, limit, timeout)
+		if err != nil {
+			return nil, err
+		}
+		appendEntries(local, normalizeLocal)
 	}
-	appendEntries(local)
+
+	if specifiers&sdkdiscover.CACHED != 0 {
+		cacheRoot := openv.CacheDir()
+		cached, err := cachedEntries(cacheRoot)
+		if err != nil {
+			return nil, err
+		}
+		appendEntries(cached, false)
+	}
 
 	sort.Slice(entries, func(i, j int) bool {
 		if entries[i].GetOrigin() == entries[j].GetOrigin() {
@@ -56,6 +80,65 @@ func ListWithOptions(root string, specifiers int, limit int, timeout int) (*opv1
 	})
 
 	return &opv1.ListIdentitiesResponse{Entries: entries}, nil
+}
+
+func normalizeListOrigin(origin string) string {
+	switch strings.TrimSpace(origin) {
+	case "", "cwd", "source":
+		return "local"
+	default:
+		return origin
+	}
+}
+
+func cachedEntries(cacheRoot string) ([]holons.LocalHolon, error) {
+	cacheRoot = strings.TrimSpace(cacheRoot)
+	if cacheRoot == "" {
+		return nil, nil
+	}
+	if _, err := os.Stat(cacheRoot); err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	found := make([]holons.LocalHolon, 0)
+	err := filepath.WalkDir(cacheRoot, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if filepath.Base(path) != identity.ManifestFileName {
+			return nil
+		}
+
+		resolved, err := identity.ResolveFromProtoFile(path)
+		if err != nil {
+			return nil
+		}
+
+		holonDir := filepath.Dir(filepath.Dir(filepath.Dir(path)))
+		relativePath, err := filepath.Rel(cacheRoot, holonDir)
+		if err != nil {
+			relativePath = holonDir
+		}
+
+		found = append(found, holons.LocalHolon{
+			Dir:          holonDir,
+			RelativePath: filepath.ToSlash(relativePath),
+			Origin:       "cached",
+			Identity:     resolved.Identity,
+			IdentityPath: path,
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return found, nil
 }
 
 // Show resolves an identity by UUID or prefix, searching local first then cache.

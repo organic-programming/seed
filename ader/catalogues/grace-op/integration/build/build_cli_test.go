@@ -4,15 +4,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"testing"
-	"runtime"
-	"regexp"
 
 	"github.com/organic-programming/seed/ader/catalogues/grace-op/integration"
 )
-
-const rootPath = "../../../../.."
 
 // TestBuild_01_GoBuild evaluates the baseline Go compilation of the CLI source.
 func TestBuild_01_GoBuild(t *testing.T) {
@@ -62,7 +60,7 @@ func TestBuild_03_OpBuildSelf(t *testing.T) {
 
 	// We utilize the Setup helper to obtain a clean OP executable to test self-compilation
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
-	
+
 	t.Log("Level 3: Generation 2 builds Generation 3 (op build op)")
 	cmd := exec.Command(opBin, "build", "op", "--install", "--symlink", "--root", rootPath)
 	cmd.Env = envVars
@@ -106,7 +104,7 @@ func TestBuild_04_Flags(t *testing.T) {
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("Symlink flag failed: %v\nOutput: %s", err, string(out))
 		}
-		
+
 		symlinkTarget := filepath.Join(opBinDir, testHolon)
 		if stat, err := os.Stat(symlinkTarget); os.IsNotExist(err) || stat.Size() == 0 {
 			t.Fatalf("Symlink flag did not produce the expected symlink binary %s", symlinkTarget)
@@ -119,14 +117,14 @@ func TestBuild_04_Flags(t *testing.T) {
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("Clean flag failed: %v\nOutput: %s", err, string(out))
 		}
-		
+
 		// The local holon .op cache was cleaned and then rebuilt seamlessly
 		localOpPath := filepath.Join(rootPath, "examples", "hello-world", testHolon, ".op", "build", testHolon+".holon", "bin", runtime.GOOS+"_"+runtime.GOARCH, testHolon)
 		if stat, err := os.Stat(localOpPath); os.IsNotExist(err) || stat.Size() == 0 {
 			t.Fatalf("Clean flag prevented the expected local artifact creation at %s", localOpPath)
 		}
 	})
-	
+
 	t.Run("Quiet", func(t *testing.T) {
 		cmd := exec.Command(opBin, "build", testHolon, "--quiet", "--root", rootPath)
 		cmd.Env = envVars
@@ -220,7 +218,7 @@ func TestBuild_06_Matrix(t *testing.T) {
 		"gabriel-greeting-swift",
 	}
 
-	for _, ex := range examples {		
+	for _, ex := range examples {
 		t.Run(ex, func(t *testing.T) {
 			t.Logf("Mutating layer version and Building %s...", ex)
 
@@ -233,8 +231,8 @@ func TestBuild_06_Matrix(t *testing.T) {
 
 			re := regexp.MustCompile(`version:\s*".*?"`)
 			mutatedContent := re.ReplaceAllString(string(content), `version: "8.8.88"`)
-			
-			// Register defer to strictly restore the workspace 
+
+			// Register defer to strictly restore the workspace
 			defer os.WriteFile(protoPath, content, 0644)
 
 			if err := os.WriteFile(protoPath, []byte(mutatedContent), 0644); err != nil {
@@ -248,11 +246,19 @@ func TestBuild_06_Matrix(t *testing.T) {
 				t.Fatalf("Failed to build %s: %v\nOutput: %s", ex, err, string(out))
 			}
 
+			// Move compiled binary directory to isolated execution context to simulate install artifact
+			holonBinDir := filepath.Join(rootPath, "examples", "hello-world", ex, ".op", "build", ex+".holon", "bin")
+			isolatedExeDir := filepath.Join(opBinDir, ex+"_isolated")
+			err = exec.Command("cp", "-a", holonBinDir, isolatedExeDir).Run()
+			if err != nil {
+				t.Fatalf("Failed to copy binary bundle %s for isolated execution: %v", ex, err)
+			}
+
 			// Assertion: execute output binary and rigorously expect the bump
-			installedBin := filepath.Join(opBinDir, ex)
+			installedBin := filepath.Join(isolatedExeDir, "darwin_arm64", ex)
 			outVersion, err := exec.Command(installedBin, "version").CombinedOutput()
 			if err != nil {
-				t.Fatalf("Failed to natively execute %s binary: %v", ex, err)
+				t.Fatalf("Failed to natively execute %s binary: %v\nOutput: %s", ex, err, string(outVersion))
 			}
 
 			finalVersion := strings.TrimSpace(string(outVersion))

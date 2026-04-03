@@ -174,6 +174,7 @@ pub mod greeting_service_client {
         }
         /// Greets the user in the chosen language.
         /// @example {"name":"Bob","lang_code":"fr"}
+        /// @example {"name":"Bob","lang_code":"fr"} --origin
         pub async fn say_hello(
             &mut self,
             request: impl tonic::IntoRequest<super::SayHelloRequest>,
@@ -224,6 +225,7 @@ pub mod greeting_service_server {
         >;
         /// Greets the user in the chosen language.
         /// @example {"name":"Bob","lang_code":"fr"}
+        /// @example {"name":"Bob","lang_code":"fr"} --origin
         async fn say_hello(
             &self,
             request: tonic::Request<super::SayHelloRequest>,

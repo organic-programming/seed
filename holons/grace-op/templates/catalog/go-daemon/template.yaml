@@ -1,0 +1,7 @@
+name: go-daemon
+description: Go daemon scaffold
+lang: go
+params:
+  - name: service
+    description: Service banner
+    default: "{{.FamilyTitle}}Service"

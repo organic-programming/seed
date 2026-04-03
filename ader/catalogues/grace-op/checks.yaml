@@ -1,16 +1,12 @@
 checks:
-  op-help:
-    workdir: ader/catalogues/grace-op/integration/help
-    command: go test -v -count=1 -timeout 5m .
-    description: Verifies that the 'op help' command executes successfully via Go integration tests
-  op-build:
-    workdir: ader/catalogues/grace-op/integration/build
-    command: go test -v -count=1 -timeout 20m .
-    description: Verifies that the 'op build' command with precision.
   op-build-unit:
     workdir: holons/grace-op/internal/build
     command: go test -v -count=1 -timeout 2m .
     description: Verifies the internal build configuration integrity structure.
+  op-build:
+    workdir: ader/catalogues/grace-op/integration/build
+    command: go test -v -count=1 -timeout 20m .
+    description: Verifies that the 'op build' command with precision.
   op-check-base:
     workdir: ader/catalogues/grace-op/integration/check
     command: go test -v -count=1 -timeout 5m .

@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 
+	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
 	"github.com/organic-programming/grace-op/internal/holons"
 )
@@ -12,7 +13,12 @@ func Check(req *opv1.LifecycleRequest) (*opv1.LifecycleResponse, error) {
 }
 
 func Build(req *opv1.LifecycleRequest) (*opv1.LifecycleResponse, error) {
-	return runLifecycle(holons.OperationBuild, req)
+	target := lifecycleTarget(req)
+	opts := buildOptionsFromProto(nilIfNoBuild(req))
+	opts.ResolveSpecifiers = sdkdiscover.SOURCE
+
+	report, err := holons.ExecuteLifecycle(holons.OperationBuild, target, opts)
+	return &opv1.LifecycleResponse{Report: lifecycleReportToProto(report)}, err
 }
 
 func Test(req *opv1.LifecycleRequest) (*opv1.LifecycleResponse, error) {
@@ -24,13 +30,18 @@ func Clean(req *opv1.LifecycleRequest) (*opv1.LifecycleResponse, error) {
 }
 
 func runLifecycle(operation holons.Operation, req *opv1.LifecycleRequest) (*opv1.LifecycleResponse, error) {
+	target := lifecycleTarget(req)
+
+	report, err := holons.ExecuteLifecycle(operation, target, buildOptionsFromProto(nilIfNoBuild(req)))
+	return &opv1.LifecycleResponse{Report: lifecycleReportToProto(report)}, err
+}
+
+func lifecycleTarget(req *opv1.LifecycleRequest) string {
 	target := "."
 	if req != nil && req.GetTarget() != "" {
 		target = req.GetTarget()
 	}
-
-	report, err := holons.ExecuteLifecycle(operation, target, buildOptionsFromProto(nilIfNoBuild(req)))
-	return &opv1.LifecycleResponse{Report: lifecycleReportToProto(report)}, err
+	return target
 }
 
 func nilIfNoBuild(req *opv1.LifecycleRequest) *opv1.BuildOptions {

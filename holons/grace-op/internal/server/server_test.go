@@ -169,6 +169,23 @@ func TestDiscoverWithHolons(t *testing.T) {
 	}
 }
 
+func TestVersion(t *testing.T) {
+	root := t.TempDir()
+	client, cleanup := startTestServer(t, root)
+	defer cleanup()
+
+	resp, err := client.Version(context.Background(), &opv1.VersionRequest{})
+	if err != nil {
+		t.Fatalf("Version failed: %v", err)
+	}
+	if resp.GetName() != "op" {
+		t.Fatalf("name = %q, want %q", resp.GetName(), "op")
+	}
+	if resp.GetBanner() != api.Banner() {
+		t.Fatalf("banner = %q, want %q", resp.GetBanner(), api.Banner())
+	}
+}
+
 func isWorkspaceOrigin(origin string) bool {
 	switch origin {
 	case "cwd", "source", "path":

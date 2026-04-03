@@ -78,7 +78,7 @@ func cmdWhoList(format Format, runtimeOpts commandRuntimeOptions, args []string)
 		specifiers = sdkdiscover.ALL
 	}
 
-	resp, err := who.ListWithOptions(root, specifiers, limit, runtimeOpts.timeout)
+	resp, err := who.ListWithDetailedOrigins(root, specifiers, limit, runtimeOpts.timeout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op list: %v\n", err)
 		return 1

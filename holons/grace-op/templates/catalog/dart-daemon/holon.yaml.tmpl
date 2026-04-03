@@ -1,0 +1,19 @@
+schema: holon/v1
+uuid: "{{.UUID}}"
+given_name: "{{.GivenTitle}}"
+family_name: "{{.FamilyTitle}}"
+motto: "Dart daemon scaffold."
+composer: "grace-op scaffold"
+status: "draft"
+born: "{{.Date}}"
+description: "Generated Dart daemon."
+lang: "dart"
+kind: "native"
+build:
+  runner: "dart"
+  main: "./bin/main.dart"
+requires:
+  commands: ["dart"]
+  files: ["pubspec.yaml", "bin/main.dart"]
+artifacts:
+  binary: "{{.Slug}}"

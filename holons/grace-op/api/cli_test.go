@@ -28,6 +28,33 @@ func TestRunCLIVersion(t *testing.T) {
 	}
 }
 
+func TestRunCLIVersionJSON(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := api.RunCLIWithVersion([]string{"--format", "json", "version"}, "0.1.0-test", &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("RunCLIWithVersion returned %d, want 0", code)
+	}
+
+	var resp opv1.VersionResponse
+	if err := protojson.Unmarshal(stdout.Bytes(), &resp); err != nil {
+		t.Fatalf("invalid version json: %v\noutput=%s", err, stdout.String())
+	}
+	if resp.GetName() != "op" {
+		t.Fatalf("name = %q, want %q", resp.GetName(), "op")
+	}
+	if resp.GetVersion() != "0.1.0-test" {
+		t.Fatalf("version = %q, want %q", resp.GetVersion(), "0.1.0-test")
+	}
+	if resp.GetBanner() != "op 0.1.0-test" {
+		t.Fatalf("banner = %q, want %q", resp.GetBanner(), "op 0.1.0-test")
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
 func TestRunCLIHelp(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

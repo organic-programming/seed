@@ -39,6 +39,8 @@ func FormatResponse(format Format, resp proto.Message) string {
 		return formatCreateIdentityText(typed)
 	case *opv1.DiscoverResponse:
 		return formatDiscoverText(typed)
+	case *opv1.VersionResponse:
+		return formatVersionResponseText(typed)
 	case *opv1.LifecycleResponse:
 		return formatLifecycleResponseText(typed)
 	case *opv1.InstallResponse:
@@ -76,6 +78,8 @@ func responseMessageForMethod(method string) proto.Message {
 		return &opv1.ShowIdentityResponse{}
 	case "Discover":
 		return &opv1.DiscoverResponse{}
+	case "Version":
+		return &opv1.VersionResponse{}
 	case "Check", "Build", "Test", "Clean":
 		return &opv1.LifecycleResponse{}
 	case "Install", "Uninstall":
@@ -184,6 +188,19 @@ func formatDiscoverText(resp *opv1.DiscoverResponse) string {
 		return "No holons discovered."
 	}
 	return strings.TrimSpace(b.String())
+}
+
+func formatVersionResponseText(resp *opv1.VersionResponse) string {
+	if resp == nil {
+		return ""
+	}
+	if banner := strings.TrimSpace(resp.GetBanner()); banner != "" {
+		return banner
+	}
+	if version := strings.TrimSpace(resp.GetVersion()); version != "" {
+		return "op " + version
+	}
+	return strings.TrimSpace(resp.GetName())
 }
 
 func formatLifecycleResponseText(resp *opv1.LifecycleResponse) string {

@@ -21,7 +21,7 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
       identity->set_composer("B. ALTER");
       identity->set_status("draft");
       identity->set_born("2026-03-16");
-      identity->set_version("0.1.60");
+      identity->set_version("8.8.89");
     }
     manifest->set_description("A C++ gRPC daemon that greets users in 56 languages.");
     manifest->set_lang("cpp");
@@ -189,7 +189,7 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
         field_3->set_required(true);
         field_3->set_example("\"fr\"");
       }
-      method->set_example_input("{\"name\":\"Bob\",\"lang_code\":\"fr\"}");
+      method->set_example_input("{\"name\":\"Bob\",\"lang_code\":\"fr\"}\n{\"name\":\"Bob\",\"lang_code\":\"fr\"} --origin");
     }
   }
   return response;

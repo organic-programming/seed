@@ -16,7 +16,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 				Composer:   "B. ALTER",
 				Status:     "draft",
 				Born:       "2026-02-12",
-				Version:    "0.5.76",
+				Version:    "0.5.365",
 				Aliases: []string{
 					"op",
 				},
@@ -1757,6 +1757,32 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 								Name:   "dir",
 								Type:   "string",
 								Number: 2,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+						},
+					},
+					&holonsv1.MethodDoc{
+						Name:        "Version",
+						Description: "Version returns the current OP version payload.",
+						InputType:   "op.v1.VersionRequest",
+						OutputType:  "op.v1.VersionResponse",
+						OutputFields: []*holonsv1.FieldDoc{
+							&holonsv1.FieldDoc{
+								Name:   "name",
+								Type:   "string",
+								Number: 1,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "version",
+								Type:   "string",
+								Number: 2,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "banner",
+								Type:   "string",
+								Number: 3,
 								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
 							},
 						},

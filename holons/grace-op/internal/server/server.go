@@ -17,6 +17,7 @@ type Handler interface {
 	ShowIdentity(context.Context, *opv1.ShowIdentityRequest) (*opv1.ShowIdentityResponse, error)
 	ListTemplates(context.Context, *opv1.ListTemplatesRequest) (*opv1.ListTemplatesResponse, error)
 	GenerateTemplate(context.Context, *opv1.GenerateTemplateRequest) (*opv1.GenerateTemplateResponse, error)
+	Version(context.Context, *opv1.VersionRequest) (*opv1.VersionResponse, error)
 	Check(context.Context, *opv1.LifecycleRequest) (*opv1.LifecycleResponse, error)
 	Build(context.Context, *opv1.LifecycleRequest) (*opv1.LifecycleResponse, error)
 	Test(context.Context, *opv1.LifecycleRequest) (*opv1.LifecycleResponse, error)
@@ -73,6 +74,10 @@ func (s *Server) ListTemplates(ctx context.Context, req *opv1.ListTemplatesReque
 
 func (s *Server) GenerateTemplate(ctx context.Context, req *opv1.GenerateTemplateRequest) (*opv1.GenerateTemplateResponse, error) {
 	return s.handler.GenerateTemplate(ctx, req)
+}
+
+func (s *Server) Version(ctx context.Context, req *opv1.VersionRequest) (*opv1.VersionResponse, error) {
+	return s.handler.Version(ctx, req)
 }
 
 func (s *Server) Check(ctx context.Context, req *opv1.LifecycleRequest) (*opv1.LifecycleResponse, error) {

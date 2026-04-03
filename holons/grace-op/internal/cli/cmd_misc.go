@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 
+	"github.com/organic-programming/grace-op/api"
 	"github.com/spf13/cobra"
 )
 
@@ -131,7 +132,17 @@ func newVersionCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runCommandCode(func() int {
-				fmtVersion(cmd.Root().Version)
+				format, err := currentFormat()
+				if err != nil {
+					fmt.Fprintf(cmd.ErrOrStderr(), "op version: %v\n", err)
+					return 1
+				}
+
+				response := api.VersionWithString(cmd.Root().Version)
+				out := api.FormatResponse(api.Format(format), response)
+				if out != "" {
+					fmt.Fprintln(cmd.OutOrStdout(), out)
+				}
 				return 0
 			}())
 		},
@@ -172,8 +183,4 @@ func serveArgsFromCommand(cmd *cobra.Command) []string {
 		args = append(args, "--reflect")
 	}
 	return args
-}
-
-func fmtVersion(version string) {
-	fmt.Printf("op %s\n", version)
 }

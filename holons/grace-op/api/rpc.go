@@ -38,6 +38,10 @@ func (RPCHandler) GenerateTemplate(_ context.Context, req *opv1.GenerateTemplate
 	return GenerateTemplate(req)
 }
 
+func (RPCHandler) Version(_ context.Context, req *opv1.VersionRequest) (*opv1.VersionResponse, error) {
+	return Version(req)
+}
+
 func (RPCHandler) Check(_ context.Context, req *opv1.LifecycleRequest) (*opv1.LifecycleResponse, error) {
 	return Check(req)
 }
