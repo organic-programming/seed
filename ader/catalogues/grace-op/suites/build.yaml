@@ -4,7 +4,7 @@ defaults:
 steps:
   build-unit:
     check: op-build-unit
-    lane: unit
+    lane: progression
   build-base:
     check: op-build
     lane: progression
