@@ -9,7 +9,7 @@ import (
 
 func TestBuildDryRun(t *testing.T) {
 	// Exécuter `go run` sur le point d'entrée de op avec la commande build en dry-run sur 'op'
-	cmd := exec.Command("go", "run", "../../../../../holons/grace-op/cmd/op", "build", "op", "--dry-run")
+	cmd := exec.Command("go", "run", "../../../../../holons/grace-op/cmd/op", "build", "op", "--dry-run", "--root", "../../../../..")
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
