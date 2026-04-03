@@ -1,0 +1,52 @@
+description: example builds and canonical end-to-end flows around grace-op
+defaults:
+  profile: smoke
+steps:
+  example-c-unit:
+    check: example-c-unit
+    lane: regression
+  example-cpp-unit:
+    check: example-cpp-unit
+    lane: regression
+  example-csharp-unit:
+    check: example-csharp-unit
+    lane: regression
+  example-java-unit:
+    check: example-java-unit
+    lane: regression
+  example-kotlin-unit:
+    check: example-kotlin-unit
+    lane: regression
+  example-node-unit:
+    check: example-node-unit
+    lane: progression
+  example-python-unit:
+    check: example-python-unit
+    lane: regression
+  example-ruby-unit:
+    check: example-ruby-unit
+    lane: progression
+  example-rust-unit:
+    check: example-rust-unit
+    lane: regression
+profiles:
+  smoke:
+    description: canonical path
+    archive: never
+    steps:
+    - example-node-unit
+    - example-python-unit
+    - example-rust-unit
+  full:
+    description: full scenario proof
+    archive: auto
+    steps:
+    - example-c-unit
+    - example-cpp-unit
+    - example-csharp-unit
+    - example-java-unit
+    - example-kotlin-unit
+    - example-node-unit
+    - example-python-unit
+    - example-ruby-unit
+    - example-rust-unit

@@ -1,0 +1,473 @@
+description: dispatch and invoke transport matrix through grace-op
+defaults:
+  profile: smoke
+steps:
+  integration-dispatch-auto-build:
+    check: integration-dispatch-auto-build
+    lane: progression
+  integration-dispatch-clean-then-call:
+    check: integration-dispatch-clean-then-call
+    lane: progression
+  integration-dispatch-jsonoutput-c:
+    check: integration-dispatch-jsonoutput-c
+    lane: progression
+  integration-dispatch-jsonoutput-cpp:
+    check: integration-dispatch-jsonoutput-cpp
+    lane: progression
+  integration-dispatch-jsonoutput-csharp:
+    check: integration-dispatch-jsonoutput-csharp
+    lane: progression
+  integration-dispatch-jsonoutput-go:
+    check: integration-dispatch-jsonoutput-go
+    lane: progression
+  integration-dispatch-jsonoutput-java:
+    check: integration-dispatch-jsonoutput-java
+    lane: progression
+  integration-dispatch-jsonoutput-kotlin:
+    check: integration-dispatch-jsonoutput-kotlin
+    lane: progression
+  integration-dispatch-jsonoutput-node:
+    check: integration-dispatch-jsonoutput-node
+    lane: progression
+  integration-dispatch-jsonoutput-python:
+    check: integration-dispatch-jsonoutput-python
+    lane: progression
+  integration-dispatch-jsonoutput-ruby:
+    check: integration-dispatch-jsonoutput-ruby
+    lane: progression
+  integration-dispatch-jsonoutput-rust:
+    check: integration-dispatch-jsonoutput-rust
+    lane: progression
+  integration-dispatch-list-languages-c:
+    check: integration-dispatch-list-languages-c
+    lane: progression
+  integration-dispatch-list-languages-cpp:
+    check: integration-dispatch-list-languages-cpp
+    lane: progression
+  integration-dispatch-list-languages-csharp:
+    check: integration-dispatch-list-languages-csharp
+    lane: progression
+  integration-dispatch-list-languages-go:
+    check: integration-dispatch-list-languages-go
+    lane: progression
+  integration-dispatch-list-languages-java:
+    check: integration-dispatch-list-languages-java
+    lane: progression
+  integration-dispatch-list-languages-kotlin:
+    check: integration-dispatch-list-languages-kotlin
+    lane: progression
+  integration-dispatch-list-languages-node:
+    check: integration-dispatch-list-languages-node
+    lane: progression
+  integration-dispatch-list-languages-python:
+    check: integration-dispatch-list-languages-python
+    lane: progression
+  integration-dispatch-list-languages-ruby:
+    check: integration-dispatch-list-languages-ruby
+    lane: progression
+  integration-dispatch-list-languages-rust:
+    check: integration-dispatch-list-languages-rust
+    lane: progression
+  integration-dispatch-no-build-does-not-build:
+    check: integration-dispatch-no-build-does-not-build
+    lane: progression
+  integration-dispatch-say-hello-across-transports-c-auto:
+    check: integration-dispatch-say-hello-across-transports-c-auto
+    lane: progression
+  integration-dispatch-say-hello-across-transports-c-grpc:
+    check: integration-dispatch-say-hello-across-transports-c-grpc
+    lane: progression
+  integration-dispatch-say-hello-across-transports-c-stdio:
+    check: integration-dispatch-say-hello-across-transports-c-stdio
+    lane: progression
+  integration-dispatch-say-hello-across-transports-c-tcp:
+    check: integration-dispatch-say-hello-across-transports-c-tcp
+    lane: progression
+  integration-dispatch-say-hello-across-transports-cpp-auto:
+    check: integration-dispatch-say-hello-across-transports-cpp-auto
+    lane: progression
+  integration-dispatch-say-hello-across-transports-cpp-grpc:
+    check: integration-dispatch-say-hello-across-transports-cpp-grpc
+    lane: progression
+  integration-dispatch-say-hello-across-transports-cpp-stdio:
+    check: integration-dispatch-say-hello-across-transports-cpp-stdio
+    lane: progression
+  integration-dispatch-say-hello-across-transports-cpp-tcp:
+    check: integration-dispatch-say-hello-across-transports-cpp-tcp
+    lane: progression
+  integration-dispatch-say-hello-across-transports-csharp-auto:
+    check: integration-dispatch-say-hello-across-transports-csharp-auto
+    lane: progression
+  integration-dispatch-say-hello-across-transports-csharp-grpc:
+    check: integration-dispatch-say-hello-across-transports-csharp-grpc
+    lane: progression
+  integration-dispatch-say-hello-across-transports-csharp-stdio:
+    check: integration-dispatch-say-hello-across-transports-csharp-stdio
+    lane: progression
+  integration-dispatch-say-hello-across-transports-csharp-tcp:
+    check: integration-dispatch-say-hello-across-transports-csharp-tcp
+    lane: progression
+  integration-dispatch-say-hello-across-transports-go-auto:
+    check: integration-dispatch-say-hello-across-transports-go-auto
+    lane: progression
+  integration-dispatch-say-hello-across-transports-go-grpc:
+    check: integration-dispatch-say-hello-across-transports-go-grpc
+    lane: progression
+  integration-dispatch-say-hello-across-transports-go-stdio:
+    check: integration-dispatch-say-hello-across-transports-go-stdio
+    lane: progression
+  integration-dispatch-say-hello-across-transports-go-tcp:
+    check: integration-dispatch-say-hello-across-transports-go-tcp
+    lane: progression
+  integration-dispatch-say-hello-across-transports-java-auto:
+    check: integration-dispatch-say-hello-across-transports-java-auto
+    lane: progression
+  integration-dispatch-say-hello-across-transports-java-grpc:
+    check: integration-dispatch-say-hello-across-transports-java-grpc
+    lane: progression
+  integration-dispatch-say-hello-across-transports-java-stdio:
+    check: integration-dispatch-say-hello-across-transports-java-stdio
+    lane: progression
+  integration-dispatch-say-hello-across-transports-java-tcp:
+    check: integration-dispatch-say-hello-across-transports-java-tcp
+    lane: progression
+  integration-dispatch-say-hello-across-transports-kotlin-auto:
+    check: integration-dispatch-say-hello-across-transports-kotlin-auto
+    lane: progression
+  integration-dispatch-say-hello-across-transports-kotlin-grpc:
+    check: integration-dispatch-say-hello-across-transports-kotlin-grpc
+    lane: progression
+  integration-dispatch-say-hello-across-transports-kotlin-stdio:
+    check: integration-dispatch-say-hello-across-transports-kotlin-stdio
+    lane: progression
+  integration-dispatch-say-hello-across-transports-kotlin-tcp:
+    check: integration-dispatch-say-hello-across-transports-kotlin-tcp
+    lane: progression
+  integration-dispatch-say-hello-across-transports-node-auto:
+    check: integration-dispatch-say-hello-across-transports-node-auto
+    lane: progression
+  integration-dispatch-say-hello-across-transports-node-grpc:
+    check: integration-dispatch-say-hello-across-transports-node-grpc
+    lane: progression
+  integration-dispatch-say-hello-across-transports-node-stdio:
+    check: integration-dispatch-say-hello-across-transports-node-stdio
+    lane: progression
+  integration-dispatch-say-hello-across-transports-node-tcp:
+    check: integration-dispatch-say-hello-across-transports-node-tcp
+    lane: progression
+  integration-dispatch-say-hello-across-transports-python-auto:
+    check: integration-dispatch-say-hello-across-transports-python-auto
+    lane: progression
+  integration-dispatch-say-hello-across-transports-python-grpc:
+    check: integration-dispatch-say-hello-across-transports-python-grpc
+    lane: progression
+  integration-dispatch-say-hello-across-transports-python-stdio:
+    check: integration-dispatch-say-hello-across-transports-python-stdio
+    lane: progression
+  integration-dispatch-say-hello-across-transports-python-tcp:
+    check: integration-dispatch-say-hello-across-transports-python-tcp
+    lane: progression
+  integration-dispatch-say-hello-across-transports-ruby-auto:
+    check: integration-dispatch-say-hello-across-transports-ruby-auto
+    lane: progression
+  integration-dispatch-say-hello-across-transports-ruby-grpc:
+    check: integration-dispatch-say-hello-across-transports-ruby-grpc
+    lane: progression
+  integration-dispatch-say-hello-across-transports-ruby-stdio:
+    check: integration-dispatch-say-hello-across-transports-ruby-stdio
+    lane: progression
+  integration-dispatch-say-hello-across-transports-ruby-tcp:
+    check: integration-dispatch-say-hello-across-transports-ruby-tcp
+    lane: progression
+  integration-dispatch-say-hello-across-transports-rust-auto:
+    check: integration-dispatch-say-hello-across-transports-rust-auto
+    lane: progression
+  integration-dispatch-say-hello-across-transports-rust-grpc:
+    check: integration-dispatch-say-hello-across-transports-rust-grpc
+    lane: progression
+  integration-dispatch-say-hello-across-transports-rust-stdio:
+    check: integration-dispatch-say-hello-across-transports-rust-stdio
+    lane: progression
+  integration-dispatch-say-hello-across-transports-rust-tcp:
+    check: integration-dispatch-say-hello-across-transports-rust-tcp
+    lane: progression
+  integration-dispatch-say-hello-across-transports-swift-auto:
+    check: integration-dispatch-say-hello-across-transports-swift-auto
+    lane: progression
+  integration-dispatch-say-hello-across-transports-swift-grpc:
+    check: integration-dispatch-say-hello-across-transports-swift-grpc
+    lane: progression
+  integration-dispatch-say-hello-across-transports-swift-stdio:
+    check: integration-dispatch-say-hello-across-transports-swift-stdio
+    lane: progression
+  integration-dispatch-say-hello-across-transports-swift-tcp:
+    check: integration-dispatch-say-hello-across-transports-swift-tcp
+    lane: progression
+  integration-invoke-across-transports-c-auto:
+    check: integration-invoke-across-transports-c-auto
+    lane: progression
+  integration-invoke-across-transports-c-grpc:
+    check: integration-invoke-across-transports-c-grpc
+    lane: progression
+  integration-invoke-across-transports-c-stdio:
+    check: integration-invoke-across-transports-c-stdio
+    lane: progression
+  integration-invoke-across-transports-c-tcp:
+    check: integration-invoke-across-transports-c-tcp
+    lane: progression
+  integration-invoke-across-transports-cpp-auto:
+    check: integration-invoke-across-transports-cpp-auto
+    lane: progression
+  integration-invoke-across-transports-cpp-grpc:
+    check: integration-invoke-across-transports-cpp-grpc
+    lane: progression
+  integration-invoke-across-transports-cpp-stdio:
+    check: integration-invoke-across-transports-cpp-stdio
+    lane: progression
+  integration-invoke-across-transports-cpp-tcp:
+    check: integration-invoke-across-transports-cpp-tcp
+    lane: progression
+  integration-invoke-across-transports-csharp-auto:
+    check: integration-invoke-across-transports-csharp-auto
+    lane: progression
+  integration-invoke-across-transports-csharp-grpc:
+    check: integration-invoke-across-transports-csharp-grpc
+    lane: progression
+  integration-invoke-across-transports-csharp-stdio:
+    check: integration-invoke-across-transports-csharp-stdio
+    lane: progression
+  integration-invoke-across-transports-csharp-tcp:
+    check: integration-invoke-across-transports-csharp-tcp
+    lane: progression
+  integration-invoke-across-transports-go-auto:
+    check: integration-invoke-across-transports-go-auto
+    lane: progression
+  integration-invoke-across-transports-go-grpc:
+    check: integration-invoke-across-transports-go-grpc
+    lane: progression
+  integration-invoke-across-transports-go-stdio:
+    check: integration-invoke-across-transports-go-stdio
+    lane: progression
+  integration-invoke-across-transports-go-tcp:
+    check: integration-invoke-across-transports-go-tcp
+    lane: progression
+  integration-invoke-across-transports-java-auto:
+    check: integration-invoke-across-transports-java-auto
+    lane: progression
+  integration-invoke-across-transports-java-grpc:
+    check: integration-invoke-across-transports-java-grpc
+    lane: progression
+  integration-invoke-across-transports-java-stdio:
+    check: integration-invoke-across-transports-java-stdio
+    lane: progression
+  integration-invoke-across-transports-java-tcp:
+    check: integration-invoke-across-transports-java-tcp
+    lane: progression
+  integration-invoke-across-transports-kotlin-auto:
+    check: integration-invoke-across-transports-kotlin-auto
+    lane: progression
+  integration-invoke-across-transports-kotlin-grpc:
+    check: integration-invoke-across-transports-kotlin-grpc
+    lane: progression
+  integration-invoke-across-transports-kotlin-stdio:
+    check: integration-invoke-across-transports-kotlin-stdio
+    lane: progression
+  integration-invoke-across-transports-kotlin-tcp:
+    check: integration-invoke-across-transports-kotlin-tcp
+    lane: progression
+  integration-invoke-across-transports-node-auto:
+    check: integration-invoke-across-transports-node-auto
+    lane: progression
+  integration-invoke-across-transports-node-grpc:
+    check: integration-invoke-across-transports-node-grpc
+    lane: progression
+  integration-invoke-across-transports-node-stdio:
+    check: integration-invoke-across-transports-node-stdio
+    lane: progression
+  integration-invoke-across-transports-node-tcp:
+    check: integration-invoke-across-transports-node-tcp
+    lane: progression
+  integration-invoke-across-transports-python-auto:
+    check: integration-invoke-across-transports-python-auto
+    lane: progression
+  integration-invoke-across-transports-python-grpc:
+    check: integration-invoke-across-transports-python-grpc
+    lane: progression
+  integration-invoke-across-transports-python-stdio:
+    check: integration-invoke-across-transports-python-stdio
+    lane: progression
+  integration-invoke-across-transports-python-tcp:
+    check: integration-invoke-across-transports-python-tcp
+    lane: progression
+  integration-invoke-across-transports-ruby-auto:
+    check: integration-invoke-across-transports-ruby-auto
+    lane: progression
+  integration-invoke-across-transports-ruby-grpc:
+    check: integration-invoke-across-transports-ruby-grpc
+    lane: progression
+  integration-invoke-across-transports-ruby-stdio:
+    check: integration-invoke-across-transports-ruby-stdio
+    lane: progression
+  integration-invoke-across-transports-ruby-tcp:
+    check: integration-invoke-across-transports-ruby-tcp
+    lane: progression
+  integration-invoke-across-transports-rust-auto:
+    check: integration-invoke-across-transports-rust-auto
+    lane: progression
+  integration-invoke-across-transports-rust-grpc:
+    check: integration-invoke-across-transports-rust-grpc
+    lane: progression
+  integration-invoke-across-transports-rust-stdio:
+    check: integration-invoke-across-transports-rust-stdio
+    lane: progression
+  integration-invoke-across-transports-rust-tcp:
+    check: integration-invoke-across-transports-rust-tcp
+    lane: progression
+  integration-invoke-across-transports-swift-auto:
+    check: integration-invoke-across-transports-swift-auto
+    lane: progression
+  integration-invoke-across-transports-swift-grpc:
+    check: integration-invoke-across-transports-swift-grpc
+    lane: progression
+  integration-invoke-across-transports-swift-stdio:
+    check: integration-invoke-across-transports-swift-stdio
+    lane: progression
+  integration-invoke-across-transports-swift-tcp:
+    check: integration-invoke-across-transports-swift-tcp
+    lane: progression
+  integration-invoke-clean-flag:
+    check: integration-invoke-clean-flag
+    lane: progression
+  integration-invoke-clean-no-build-conflict:
+    check: integration-invoke-clean-no-build-conflict
+    lane: progression
+  integration-invoke-no-build-does-not-build:
+    check: integration-invoke-no-build-does-not-build
+    lane: progression
+profiles:
+  smoke:
+    description: canonical path
+    archive: never
+    steps:
+    - integration-dispatch-say-hello-across-transports-go-auto
+    - integration-invoke-across-transports-go-auto
+    - integration-dispatch-list-languages-go
+    - integration-dispatch-jsonoutput-go
+  full:
+    description: full scenario proof
+    archive: auto
+    steps:
+    - integration-dispatch-auto-build
+    - integration-dispatch-clean-then-call
+    - integration-dispatch-jsonoutput-c
+    - integration-dispatch-jsonoutput-cpp
+    - integration-dispatch-jsonoutput-csharp
+    - integration-dispatch-jsonoutput-go
+    - integration-dispatch-jsonoutput-java
+    - integration-dispatch-jsonoutput-kotlin
+    - integration-dispatch-jsonoutput-node
+    - integration-dispatch-jsonoutput-python
+    - integration-dispatch-jsonoutput-ruby
+    - integration-dispatch-jsonoutput-rust
+    - integration-dispatch-list-languages-c
+    - integration-dispatch-list-languages-cpp
+    - integration-dispatch-list-languages-csharp
+    - integration-dispatch-list-languages-go
+    - integration-dispatch-list-languages-java
+    - integration-dispatch-list-languages-kotlin
+    - integration-dispatch-list-languages-node
+    - integration-dispatch-list-languages-python
+    - integration-dispatch-list-languages-ruby
+    - integration-dispatch-list-languages-rust
+    - integration-dispatch-no-build-does-not-build
+    - integration-dispatch-say-hello-across-transports-c-auto
+    - integration-dispatch-say-hello-across-transports-c-grpc
+    - integration-dispatch-say-hello-across-transports-c-stdio
+    - integration-dispatch-say-hello-across-transports-c-tcp
+    - integration-dispatch-say-hello-across-transports-cpp-auto
+    - integration-dispatch-say-hello-across-transports-cpp-grpc
+    - integration-dispatch-say-hello-across-transports-cpp-stdio
+    - integration-dispatch-say-hello-across-transports-cpp-tcp
+    - integration-dispatch-say-hello-across-transports-csharp-auto
+    - integration-dispatch-say-hello-across-transports-csharp-grpc
+    - integration-dispatch-say-hello-across-transports-csharp-stdio
+    - integration-dispatch-say-hello-across-transports-csharp-tcp
+    - integration-dispatch-say-hello-across-transports-go-auto
+    - integration-dispatch-say-hello-across-transports-go-grpc
+    - integration-dispatch-say-hello-across-transports-go-stdio
+    - integration-dispatch-say-hello-across-transports-go-tcp
+    - integration-dispatch-say-hello-across-transports-java-auto
+    - integration-dispatch-say-hello-across-transports-java-grpc
+    - integration-dispatch-say-hello-across-transports-java-stdio
+    - integration-dispatch-say-hello-across-transports-java-tcp
+    - integration-dispatch-say-hello-across-transports-kotlin-auto
+    - integration-dispatch-say-hello-across-transports-kotlin-grpc
+    - integration-dispatch-say-hello-across-transports-kotlin-stdio
+    - integration-dispatch-say-hello-across-transports-kotlin-tcp
+    - integration-dispatch-say-hello-across-transports-node-auto
+    - integration-dispatch-say-hello-across-transports-node-grpc
+    - integration-dispatch-say-hello-across-transports-node-stdio
+    - integration-dispatch-say-hello-across-transports-node-tcp
+    - integration-dispatch-say-hello-across-transports-python-auto
+    - integration-dispatch-say-hello-across-transports-python-grpc
+    - integration-dispatch-say-hello-across-transports-python-stdio
+    - integration-dispatch-say-hello-across-transports-python-tcp
+    - integration-dispatch-say-hello-across-transports-ruby-auto
+    - integration-dispatch-say-hello-across-transports-ruby-grpc
+    - integration-dispatch-say-hello-across-transports-ruby-stdio
+    - integration-dispatch-say-hello-across-transports-ruby-tcp
+    - integration-dispatch-say-hello-across-transports-rust-auto
+    - integration-dispatch-say-hello-across-transports-rust-grpc
+    - integration-dispatch-say-hello-across-transports-rust-stdio
+    - integration-dispatch-say-hello-across-transports-rust-tcp
+    - integration-dispatch-say-hello-across-transports-swift-auto
+    - integration-dispatch-say-hello-across-transports-swift-grpc
+    - integration-dispatch-say-hello-across-transports-swift-stdio
+    - integration-dispatch-say-hello-across-transports-swift-tcp
+    - integration-invoke-across-transports-c-auto
+    - integration-invoke-across-transports-c-grpc
+    - integration-invoke-across-transports-c-stdio
+    - integration-invoke-across-transports-c-tcp
+    - integration-invoke-across-transports-cpp-auto
+    - integration-invoke-across-transports-cpp-grpc
+    - integration-invoke-across-transports-cpp-stdio
+    - integration-invoke-across-transports-cpp-tcp
+    - integration-invoke-across-transports-csharp-auto
+    - integration-invoke-across-transports-csharp-grpc
+    - integration-invoke-across-transports-csharp-stdio
+    - integration-invoke-across-transports-csharp-tcp
+    - integration-invoke-across-transports-go-auto
+    - integration-invoke-across-transports-go-grpc
+    - integration-invoke-across-transports-go-stdio
+    - integration-invoke-across-transports-go-tcp
+    - integration-invoke-across-transports-java-auto
+    - integration-invoke-across-transports-java-grpc
+    - integration-invoke-across-transports-java-stdio
+    - integration-invoke-across-transports-java-tcp
+    - integration-invoke-across-transports-kotlin-auto
+    - integration-invoke-across-transports-kotlin-grpc
+    - integration-invoke-across-transports-kotlin-stdio
+    - integration-invoke-across-transports-kotlin-tcp
+    - integration-invoke-across-transports-node-auto
+    - integration-invoke-across-transports-node-grpc
+    - integration-invoke-across-transports-node-stdio
+    - integration-invoke-across-transports-node-tcp
+    - integration-invoke-across-transports-python-auto
+    - integration-invoke-across-transports-python-grpc
+    - integration-invoke-across-transports-python-stdio
+    - integration-invoke-across-transports-python-tcp
+    - integration-invoke-across-transports-ruby-auto
+    - integration-invoke-across-transports-ruby-grpc
+    - integration-invoke-across-transports-ruby-stdio
+    - integration-invoke-across-transports-ruby-tcp
+    - integration-invoke-across-transports-rust-auto
+    - integration-invoke-across-transports-rust-grpc
+    - integration-invoke-across-transports-rust-stdio
+    - integration-invoke-across-transports-rust-tcp
+    - integration-invoke-across-transports-swift-auto
+    - integration-invoke-across-transports-swift-grpc
+    - integration-invoke-across-transports-swift-stdio
+    - integration-invoke-across-transports-swift-tcp
+    - integration-invoke-clean-flag
+    - integration-invoke-clean-no-build-conflict
+    - integration-invoke-no-build-does-not-build
