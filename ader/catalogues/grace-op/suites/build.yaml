@@ -1,0 +1,13 @@
+description: Suite validant la commande op build
+defaults:
+  profile: smoke
+steps:
+  build-base:
+    check: op-build
+    lane: progression
+profiles:
+  smoke:
+    description: Verification basique
+    archive: never
+    steps:
+    - build-base
