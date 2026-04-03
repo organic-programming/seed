@@ -64,8 +64,7 @@ func TestBuildSuite(t *testing.T) {
 		for _, ex := range examples {
 			t.Run(ex, func(t *testing.T) {
 				t.Logf("Building %s...", ex)
-				path := filepath.Join(rootDir, "examples/hello-world", ex)
-				cmd := exec.Command(gen2Bin, "build", path, "--root", rootDir)
+				cmd := exec.Command(gen2Bin, "build", ex, "--root", rootDir)
 				cmd.Env = envVars
 				if out, err := cmd.CombinedOutput(); err != nil {
 					t.Fatalf("Failed to build %s: %v\nOutput: %s", ex, err, string(out))
@@ -89,8 +88,7 @@ func TestBuildSuite(t *testing.T) {
 		}
 
 		t.Log("Building composite app gabriel-greeting-app-swiftui from absolute zero state...")
-		path := filepath.Join(rootDir, "examples/hello-world/gabriel-greeting-app-swiftui")
-		cmd := exec.Command(gen2Bin, "build", path, "--root", rootDir)
+		cmd := exec.Command(gen2Bin, "build", "gabriel-greeting-app-swiftui", "--root", rootDir)
 		cmd.Env = envVars
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("Failed to build composite SwiftUI app: %v\nOutput: %s", err, string(out))
