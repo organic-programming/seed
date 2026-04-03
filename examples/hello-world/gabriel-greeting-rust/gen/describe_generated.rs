@@ -19,7 +19,7 @@ pub fn static_describe_response() -> DescribeResponse {
                     composer: "B. ALTER".to_string(),
                     status: "draft".to_string(),
                     born: "2026-03-16".to_string(),
-                    version: "0.1.65".to_string(),
+                    version: "0.1.66".to_string(),
                     aliases: vec![],
                 }
             ),
@@ -275,7 +275,7 @@ pub fn static_describe_response() -> DescribeResponse {
                     ],
                     client_streaming: false,
                     server_streaming: false,
-                    example_input: "{\"name\":\"Bob\",\"lang_code\":\"fr\"}".to_string(),
+                    example_input: "{\"name\":\"Bob\",\"lang_code\":\"fr\"}\n{\"name\":\"Bob\",\"lang_code\":\"fr\"} --origin".to_string(),
                 }
                 ,
             ],

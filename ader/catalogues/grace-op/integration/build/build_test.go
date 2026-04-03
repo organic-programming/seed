@@ -75,11 +75,7 @@ func TestBuild_03_OpBuildSelf(t *testing.T) {
 func TestBuild_04_Flags(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
-	opPath := os.Getenv("ADER_RUN_ARTIFACTS")
-	if opPath == "" {
-		t.Fatal("ADER_RUN_ARTIFACTS must be explicitly defined for strict paths test")
-	}
-	opBinDir := filepath.Join(opPath, "bin")
+	opBinDir := filepath.Dir(opBin)
 	testHolon := "gabriel-greeting-go"
 
 	t.Run("DryRun", func(t *testing.T) {
@@ -144,11 +140,7 @@ func TestBuild_04_Flags(t *testing.T) {
 func TestBuild_05_SymlinkOverwrite(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
-	opPath := os.Getenv("ADER_RUN_ARTIFACTS")
-	if opPath == "" {
-		t.Fatal("ADER_RUN_ARTIFACTS must be defined")
-	}
-	opBinDir := filepath.Join(opPath, "bin")
+	opBinDir := filepath.Dir(opBin)
 	testHolon := "gabriel-greeting-go"
 
 	// Action 1: Initial build
@@ -208,11 +200,7 @@ func TestBuild_05_SymlinkOverwrite(t *testing.T) {
 func TestBuild_06_Matrix(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
-	opPath := os.Getenv("ADER_RUN_ARTIFACTS")
-	if opPath == "" {
-		t.Fatal("ADER_RUN_ARTIFACTS must be defined")
-	}
-	opBinDir := filepath.Join(opPath, "bin")
+	opBinDir := filepath.Dir(opBin)
 
 	examples := []string{
 		"gabriel-greeting-c",
