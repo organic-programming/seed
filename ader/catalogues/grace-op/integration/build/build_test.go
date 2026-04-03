@@ -1,16 +1,20 @@
 package build_test
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
-	
+	"runtime"
+
 	"github.com/organic-programming/seed/ader/catalogues/grace-op/integration"
 )
 
 const rootPath = "../../../../.."
 
-// TestNativeBuild strictly evaluates the baseline Go compilation of the CLI source (Level 1).
-func TestNativeBuild(t *testing.T) {
+// TestBuild_01_GoBuild evaluates the baseline Go compilation of the CLI source.
+func TestBuild_01_GoBuild(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 
 	opPath := os.Getenv("ADER_RUN_ARTIFACTS")
@@ -19,7 +23,6 @@ func TestNativeBuild(t *testing.T) {
 	}
 	opBin := filepath.Join(opPath, "bin")
 
-	// Level 1: Native 'go build' inside our sandbox
 	gen1Bin := filepath.Join(opBin, "op-gen1")
 	t.Logf("Level 1: Native build to %s", gen1Bin)
 	cmdGen1 := exec.Command("go", "build", "-o", gen1Bin, filepath.Join(rootPath, "holons/grace-op/cmd/op"))
@@ -28,8 +31,8 @@ func TestNativeBuild(t *testing.T) {
 	}
 }
 
-// TestBootstrapOP evaluates the self-referential capability of the CLI (Levels 2 & 3).
-func TestBootstrapOP(t *testing.T) {
+// TestBuild_02_GoRun evaluates that `go run` can execute the CLI source to build op itself.
+func TestBuild_02_GoRun(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 
 	opPath := os.Getenv("ADER_RUN_ARTIFACTS")
@@ -39,36 +42,105 @@ func TestBootstrapOP(t *testing.T) {
 	opBin := filepath.Join(opPath, "bin")
 	envVars := append(os.Environ(), "OPPATH="+opPath, "OPBIN="+opBin)
 
-	// Setup prereq: Minimal native build just to get Gen1
-	gen1Bin := filepath.Join(opBin, "op-gen1")
-	cmdGen1 := exec.Command("go", "build", "-o", gen1Bin, filepath.Join(rootPath, "holons/grace-op/cmd/op"))
-	if err := cmdGen1.Run(); err != nil {
-		t.Fatalf("Setup prerequisite failed: %v", err)
+	t.Log("Level 2: `go run` builds op (op build op --install)")
+	cmd := exec.Command("go", "run", filepath.Join(rootPath, "holons/grace-op/cmd/op"), "build", "op", "--install", "--symlink", "--root", rootPath)
+	cmd.Env = envVars
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Level 2 failed (go run): %v\nOutput: %s", err, string(out))
 	}
 
-	// Level 2: Execute Generation 1 binary to compile 'op' (Generation 2)
-	t.Log("Level 2: Generation 1 builds Generation 2 (op build op --install)")
-	cmdGen2 := exec.Command(gen1Bin, "build", "op", "--install", "--symlink", "--root", rootPath)
-	cmdGen2.Env = envVars
-	if out, err := cmdGen2.CombinedOutput(); err != nil {
-		t.Fatalf("Level 2 failed (Gen1 builds Gen2): %v\nOutput: %s", err, string(out))
+	symlinkedBin := filepath.Join(opBin, "op")
+	if stat, err := os.Stat(symlinkedBin); os.IsNotExist(err) || stat.Size() == 0 {
+		t.Fatalf("Level 2 did not produce the expected symlinked binary %s", symlinkedBin)
 	}
+}
 
-	gen2Bin := filepath.Join(opBin, "op")
-	if stat, err := os.Stat(gen2Bin); os.IsNotExist(err) || stat.Size() == 0 {
-		t.Fatalf("Level 2 did not produce the expected binary %s", gen2Bin)
-	}
+// TestBuild_03_OpBuildSelf evaluates the ultimate self-referential scenario where the binary builds itself.
+func TestBuild_03_OpBuildSelf(t *testing.T) {
+	integration.TeardownHolons(t, rootPath)
 
-	// Level 3: The Gen2 binary compiles 'op' in turn (Generation 3)
+	// We utilize the Setup helper to obtain a clean OP executable to test self-compilation
+	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
+	
 	t.Log("Level 3: Generation 2 builds Generation 3 (op build op)")
-	cmdGen3 := exec.Command(gen2Bin, "build", "op", "--install", "--symlink", "--root", rootPath)
-	cmdGen3.Env = envVars
-	if out, err := cmdGen3.CombinedOutput(); err != nil {
+	cmd := exec.Command(opBin, "build", "op", "--install", "--symlink", "--root", rootPath)
+	cmd.Env = envVars
+	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Level 3 self-referential build failed: %v\nOutput: %s", err, string(out))
 	}
 }
 
-func TestBuildMatrix(t *testing.T) {
+// TestBuild_04_Flags evaluates the functionality of configuration CLI flags.
+func TestBuild_04_Flags(t *testing.T) {
+	integration.TeardownHolons(t, rootPath)
+	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
+	opPath := os.Getenv("ADER_RUN_ARTIFACTS")
+	if opPath == "" {
+		t.Fatal("ADER_RUN_ARTIFACTS must be explicitly defined for strict paths test")
+	}
+	opBinDir := filepath.Join(opPath, "bin")
+	testHolon := "gabriel-greeting-go"
+
+	t.Run("DryRun", func(t *testing.T) {
+		cmd := exec.Command(opBin, "build", testHolon, "--dry-run", "--root", rootPath)
+		cmd.Env = envVars
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Dry run failed: %v\nOutput: %s", err, string(out))
+		}
+		// Dry run should not output a usable binary in OPBIN since we didn't install, but even in its local build folder it should be empty
+		// We'll just verify the command succeeded cleanly
+		if !strings.Contains(string(out), "gabriel-greeting-go") {
+			t.Errorf("Dry run output did not display the expected holon plan")
+		}
+	})
+
+	t.Run("Install", func(t *testing.T) {
+		cmd := exec.Command(opBin, "build", testHolon, "--install", "--root", rootPath)
+		cmd.Env = envVars
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("Install flag failed: %v\nOutput: %s", err, string(out))
+		}
+	})
+
+	t.Run("Symlink", func(t *testing.T) {
+		cmd := exec.Command(opBin, "build", testHolon, "--install", "--symlink", "--root", rootPath)
+		cmd.Env = envVars
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("Symlink flag failed: %v\nOutput: %s", err, string(out))
+		}
+		
+		symlinkTarget := filepath.Join(opBinDir, testHolon)
+		if stat, err := os.Stat(symlinkTarget); os.IsNotExist(err) || stat.Size() == 0 {
+			t.Fatalf("Symlink flag did not produce the expected symlink binary %s", symlinkTarget)
+		}
+	})
+
+	t.Run("Clean", func(t *testing.T) {
+		cmd := exec.Command(opBin, "build", testHolon, "--clean", "--root", rootPath)
+		cmd.Env = envVars
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("Clean flag failed: %v\nOutput: %s", err, string(out))
+		}
+		
+		// The local holon .op cache was cleaned and then rebuilt seamlessly
+		localOpPath := filepath.Join(rootPath, "examples", "hello-world", testHolon, ".op", "build", testHolon+".holon", "bin", runtime.GOOS+"_"+runtime.GOARCH, testHolon)
+		if stat, err := os.Stat(localOpPath); os.IsNotExist(err) || stat.Size() == 0 {
+			t.Fatalf("Clean flag prevented the expected local artifact creation at %s", localOpPath)
+		}
+	})
+	
+	t.Run("Quiet", func(t *testing.T) {
+		cmd := exec.Command(opBin, "build", testHolon, "--quiet", "--root", rootPath)
+		cmd.Env = envVars
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("Quiet flag failed: %v\nOutput: %s", err, string(out))
+		}
+	})
+}
+
+// TestBuild_05_Matrix evaluates op build capability comprehensively across the 12 example languages.
+func TestBuild_05_Matrix(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
 
@@ -99,7 +171,8 @@ func TestBuildMatrix(t *testing.T) {
 	}
 }
 
-func TestBuildComposite(t *testing.T) {
+// TestBuild_06_Composite evaluates the swiftui app composite capability without caching bias.
+func TestBuild_06_Composite(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
 
