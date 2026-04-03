@@ -10,4 +10,8 @@ checks:
   op-build-unit:
     workdir: holons/grace-op/internal/build
     command: go test -v -count=1 -timeout 2m .
-    description: Verifies unit behaviors of the build package
+    description: Verifies the internal build configuration integrity structure.
+  op-check-base:
+    workdir: ader/catalogues/grace-op/integration/check
+    command: go test -v -count=1 -timeout 5m .
+    description: Verifies complete execution path for op check.
