@@ -224,13 +224,42 @@ func TestBuild_06_Matrix(t *testing.T) {
 		"gabriel-greeting-swift",
 	}
 
-	for _, ex := range examples {
+	for _, ex := range examples {		
 		t.Run(ex, func(t *testing.T) {
-			t.Logf("Building %s...", ex)
-			cmd := exec.Command(opBin, "build", ex, "--root", rootPath)
+			t.Logf("Mutating layer version and Building %s...", ex)
+
+			// Force local version mutation to 8.8.88 to trigger compiling backend parity assertion
+			protoPath := filepath.Join(rootPath, "examples/hello-world", ex, "api/v1/holon.proto")
+			content, err := os.ReadFile(protoPath)
+			if err != nil {
+				t.Fatalf("Failed to read holon.proto for %s: %v", ex, err)
+			}
+
+			re := regexp.MustCompile(`version:\s*".*?"`)
+			mutatedContent := re.ReplaceAllString(string(content), `version: "8.8.88"`)
+			if err := os.WriteFile(protoPath, []byte(mutatedContent), 0644); err != nil {
+				t.Fatalf("Failed to explicitly mutate proto for %s: %v", ex, err)
+			}
+
+			// Compile via op build with install flag to access the binary universally
+			cmd := exec.Command(opBin, "build", ex, "--install", "--symlink", "--root", rootPath)
 			cmd.Env = envVars
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("Failed to build %s: %v\nOutput: %s", ex, err, string(out))
+			}
+
+			// Assertion: execute output binary and rigorously expect the bump
+			installedBin := filepath.Join(opBinDir, ex)
+			outVersion, err := exec.Command(installedBin, "version").CombinedOutput()
+			if err != nil {
+				t.Fatalf("Failed to natively execute %s binary: %v", ex, err)
+			}
+
+			finalVersion := strings.TrimSpace(string(outVersion))
+			t.Logf("[%s] Final runtime output: %s", ex, finalVersion)
+
+			if !strings.Contains(finalVersion, "8.8.89") {
+				t.Fatalf("Regression! Auto-increment backend failed on %s runtime wrapper.\nExpected contain: 8.8.89\nGot: %s", ex, finalVersion)
 			}
 		})
 	}
