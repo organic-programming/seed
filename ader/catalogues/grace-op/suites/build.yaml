@@ -1,13 +1,18 @@
-description: Suite validant la commande op build
+description: Suite validant la commande op build (Unit et Integration 3 niveaux)
 defaults:
   profile: smoke
 steps:
+  build-unit:
+    check: op-build-unit
+    lane: unit
   build-base:
     check: op-build
     lane: progression
+    needs: [build-unit]
 profiles:
   smoke:
-    description: Verification basique
+    description: Verification de base
     archive: never
     steps:
+    - build-unit
     - build-base

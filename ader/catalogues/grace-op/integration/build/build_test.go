@@ -5,50 +5,51 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
-func TestBuildOp(t *testing.T) {
-	// Utilisation des artifacts Ader si disponible, sinon TempDir
+func TestBuildOpBootstrap(t *testing.T) {
+	// Configuration du bac à sable respectant l'isolation (ADER_RUN_ARTIFACTS)
 	opPath := os.Getenv("ADER_RUN_ARTIFACTS")
 	if opPath == "" {
 		opPath = t.TempDir()
 	}
 	opBin := filepath.Join(opPath, "bin")
 
-	// Exécuter `go run` sur op pour construire `op` avec installation
-	// `op run` n'est pas utilisé directement ici pour s'amorcer, on utilise `go run ... build op --install`
-	cmd := exec.Command("go", "run", "../../../../../holons/grace-op/cmd/op", "build", "op", "--install", "--symlink", "--root", "../../../../..")
-	
-	// Injecter OPPATH et OPBIN pour isoler le build de la machine hôte
-	cmd.Env = append(os.Environ(), 
-		"OPPATH="+opPath,
-		"OPBIN="+opBin,
-	)
-
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-
-	err := cmd.Run()
-	if err != nil {
-		t.Fatalf("Echec de l'exécution de 'op build op --install': %v\nSortie: %s", err, out.String())
+	// Phase 1 : `go build` classique dans notre bac à sable (Génération 1)
+	gen1Bin := filepath.Join(opBin, "op-gen1")
+	t.Logf("Phase 1: Construction native (Génération 1) vers %s", gen1Bin)
+	cmdGen1 := exec.Command("go", "build", "-o", gen1Bin, "../../../../../holons/grace-op/cmd/op")
+	if out, err := cmdGen1.CombinedOutput(); err != nil {
+		t.Fatalf("Echec de la phase 1 (go build natif): %v\nSortie: %s", err, string(out))
 	}
 
-	output := out.String()
+	// Préparation de l'environnement isolé commun (OPPATH/OPBIN)
+	envVars := append(os.Environ(), "OPPATH="+opPath, "OPBIN="+opBin)
+
+	// Phase 2 : Exécution du binaire Génération 1 pour compiler `op` (Gen2)
+	// (équivalent au `go run <op> build op` demandé)
+	t.Log("Phase 2: Génération 1 construit Génération 2 (op build op --install)")
+	cmdGen2 := exec.Command(gen1Bin, "build", "op", "--install", "--symlink", "--root", "../../../../..")
+	cmdGen2.Env = envVars
+	if out, err := cmdGen2.CombinedOutput(); err != nil {
+		t.Fatalf("Echec de la phase 2 (Gen1 build Gen2): %v\nSortie: %s", err, string(out))
+	}
 	
-	// Vérification des indicateurs d'un build plan abouti
-	if !strings.Contains(output, "Operation: install") && !strings.Contains(output, "Operation: build") {
-		t.Errorf("Le résultat devrait indiquer une opération d'installation ou build, obtenu: %s", output)
+	// Le binaire symlinké construit par op s'appelle "op"
+	gen2Bin := filepath.Join(opBin, "op")
+	if stat, err := os.Stat(gen2Bin); os.IsNotExist(err) || stat.Size() == 0 {
+		t.Fatalf("La phase 2 n'a pas produit le binaire attendu %s", gen2Bin)
 	}
-	if !strings.Contains(output, "Holon: op") {
-		t.Errorf("Le résultat devrait identifier le holon 'op', obtenu: %s", output)
+
+	// Phase 3 : Le binaire Gen2 compile à son tour `op` (Gen3)
+	// C'est le cas ultime le plus autoréférentiel !
+	t.Log("Phase 3: Génération 2 construit Génération 3 (op build op)")
+	cmdGen3 := exec.Command(gen2Bin, "build", "op", "--install", "--symlink", "--root", "../../../../..")
+	cmdGen3.Env = envVars
+	if out, err := cmdGen3.CombinedOutput(); err != nil {
+		t.Fatalf("Echec de la phase 3 (Gen2 build Gen3): %v\nSortie: %s", err, string(out))
 	}
-	
-	// Vérifier que le binaire symlinké est bien dans OPBIN
-	expectedSymlink := filepath.Join(opBin, "op")
-	if _, err := os.Stat(expectedSymlink); os.IsNotExist(err) {
-		t.Errorf("Le symlink attendu n'a pas été trouvé dans OPBIN : %s", expectedSymlink)
-	}
+
+	t.Log("Le cycle complet de bootstrap autoréférentiel a réussi.")
 }

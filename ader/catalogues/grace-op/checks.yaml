@@ -7,3 +7,7 @@ checks:
     workdir: ader/catalogues/grace-op/integration/build
     command: go test -v -count=1 -timeout 5m .
     description: Verifies that the 'op build' command generates a valid dry-run plan
+  op-build-unit:
+    workdir: holons/grace-op/internal/build
+    command: go test -v -count=1 -timeout 2m .
+    description: Verifies unit behaviors of the build package
