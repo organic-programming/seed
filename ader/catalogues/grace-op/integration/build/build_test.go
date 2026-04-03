@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 	"runtime"
+	"regexp"
 
 	"github.com/organic-programming/seed/ader/catalogues/grace-op/integration"
 )
@@ -139,8 +140,72 @@ func TestBuild_04_Flags(t *testing.T) {
 	})
 }
 
-// TestBuild_05_Matrix evaluates op build capability comprehensively across the 12 example languages.
-func TestBuild_05_Matrix(t *testing.T) {
+// TestBuild_05_SymlinkOverwrite ensures repeated builds properly overwrite installed artifacts natively.
+func TestBuild_05_SymlinkOverwrite(t *testing.T) {
+	integration.TeardownHolons(t, rootPath)
+	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
+	opPath := os.Getenv("ADER_RUN_ARTIFACTS")
+	if opPath == "" {
+		t.Fatal("ADER_RUN_ARTIFACTS must be defined")
+	}
+	opBinDir := filepath.Join(opPath, "bin")
+	testHolon := "gabriel-greeting-go"
+
+	// Action 1: Initial build
+	t.Log("Action 1: Initial install/symlink")
+	cmd1 := exec.Command(opBin, "build", testHolon, "--install", "--symlink", "--root", rootPath)
+	cmd1.Env = envVars
+	if out, err := cmd1.CombinedOutput(); err != nil {
+		t.Fatalf("Initial build failed: %v\nOutput: %s", err, string(out))
+	}
+
+	// Read initial version from the built binary
+	installedBin := filepath.Join(opBinDir, testHolon)
+	outVersion1, err := exec.Command(installedBin, "version").CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to execute installed binary: %v", err)
+	}
+	t.Logf("Initial version output: %s", strings.TrimSpace(string(outVersion1)))
+
+	// Mutate the local holon.proto
+	protoPath := filepath.Join(rootPath, "examples/hello-world", testHolon, "api/v1/holon.proto")
+	content, err := os.ReadFile(protoPath)
+	if err != nil {
+		t.Fatalf("Failed to read holon.proto: %v", err)
+	}
+
+	// Regex to replace version to 9.9.99
+	re := regexp.MustCompile(`version:\s*".*?"`)
+	mutatedContent := re.ReplaceAllString(string(content), `version: "9.9.99"`)
+
+	if err := os.WriteFile(protoPath, []byte(mutatedContent), 0644); err != nil {
+		t.Fatalf("Failed to write mutated holon.proto: %v", err)
+	}
+
+	// Action 2: Re-build and overwrite
+	t.Log("Action 2: Rebuild with mutated version")
+	cmd2 := exec.Command(opBin, "build", testHolon, "--install", "--symlink", "--root", rootPath)
+	cmd2.Env = envVars
+	if out, err := cmd2.CombinedOutput(); err != nil {
+		t.Fatalf("Overwrite build failed: %v\nOutput: %s", err, string(out))
+	}
+
+	// Assertion 2: Verify the symlink now executes the 9.9.99 version
+	outVersion2, err := exec.Command(installedBin, "version").CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to execute overwritten binary: %v", err)
+	}
+
+	finalVersion := strings.TrimSpace(string(outVersion2))
+	t.Logf("Final version output: %s", finalVersion)
+
+	if !strings.Contains(finalVersion, "9.9.99") {
+		t.Fatalf("Regression! Symlink version not updated.\nExpected: 9.9.99\nGot: %s", finalVersion)
+	}
+}
+
+// TestBuild_06_Matrix evaluates op build capability comprehensively across the 12 example languages.
+func TestBuild_06_Matrix(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
 
@@ -171,8 +236,8 @@ func TestBuild_05_Matrix(t *testing.T) {
 	}
 }
 
-// TestBuild_06_Composite evaluates the swiftui app composite capability without caching bias.
-func TestBuild_06_Composite(t *testing.T) {
+// TestBuild_07_Composite evaluates the swiftui app composite capability without caching bias.
+func TestBuild_07_Composite(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
 
