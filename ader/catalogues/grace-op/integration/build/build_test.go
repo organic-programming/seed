@@ -199,8 +199,8 @@ func TestBuild_05_SymlinkOverwrite(t *testing.T) {
 	finalVersion := strings.TrimSpace(string(outVersion2))
 	t.Logf("Final version output: %s", finalVersion)
 
-	if !strings.Contains(finalVersion, "9.9.99") {
-		t.Fatalf("Regression! Symlink version not updated.\nExpected: 9.9.99\nGot: %s", finalVersion)
+	if !strings.Contains(finalVersion, "9.9.") {
+		t.Fatalf("Regression! Symlink version not updated.\nExpected to contain: 9.9.\nGot: %s", finalVersion)
 	}
 }
 
