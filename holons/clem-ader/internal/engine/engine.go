@@ -1311,7 +1311,7 @@ func shouldSkipWorkspacePath(rel string, entry fs.DirEntry, configRelDir string)
 		return true
 	}
 	baseConfigDir := strings.TrimPrefix(filepath.ToSlash(configRelDir), "./")
-	for _, suffix := range []string{".artifacts", "reports", "archives", ".t"} {
+	for _, suffix := range []string{".artifacts", "reports", "archives"} {
 		if pathHasSegment(normalized, suffix) {
 			return true
 		}
@@ -1325,7 +1325,7 @@ func shouldSkipWorkspacePath(rel string, entry fs.DirEntry, configRelDir string)
 	}
 	base := entry.Name()
 	switch base {
-	case ".git", ".gradle", ".kotlin", ".build", "build", "target", "obj", "__pycache__", "node_modules":
+	case ".git", ".gradle", ".kotlin", ".build", "target", "obj", "__pycache__", "node_modules":
 		return true
 	}
 	return false

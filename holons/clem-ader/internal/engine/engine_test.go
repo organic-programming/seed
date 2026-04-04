@@ -105,30 +105,50 @@ func TestCopyWorkspaceTreeSkipsSiblingCatalogueRuntimeState(t *testing.T) {
 	dstRoot := t.TempDir()
 
 	keepPath := filepath.Join(srcRoot, "ader", "catalogues", "grace-op", "integration", "discover_test.go")
+	keepBuildPath := filepath.Join(srcRoot, "ader", "catalogues", "grace-op", "integration", "build", "build_cli_test.go")
 	skipPath := filepath.Join(srcRoot, "ader", "catalogues", "clem-ader", ".artifacts", "tool-cache", "go-mod", "cache.txt")
+	skipAliasPath := filepath.Join(srcRoot, "ader", "catalogues", "grace-op", ".snapshot_alias", "tmp.txt")
 
 	if err := os.MkdirAll(filepath.Dir(keepPath), 0o755); err != nil {
 		t.Fatalf("mkdir keep path: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Dir(keepBuildPath), 0o755); err != nil {
+		t.Fatalf("mkdir keep build path: %v", err)
+	}
 	if err := os.MkdirAll(filepath.Dir(skipPath), 0o755); err != nil {
 		t.Fatalf("mkdir skip path: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(skipAliasPath), 0o755); err != nil {
+		t.Fatalf("mkdir skip alias path: %v", err)
 	}
 	if err := os.WriteFile(keepPath, []byte("package integration\n"), 0o644); err != nil {
 		t.Fatalf("write keep path: %v", err)
 	}
+	if err := os.WriteFile(keepBuildPath, []byte("package build_test\n"), 0o644); err != nil {
+		t.Fatalf("write keep build path: %v", err)
+	}
 	if err := os.WriteFile(skipPath, []byte("cache\n"), 0o644); err != nil {
 		t.Fatalf("write skip path: %v", err)
 	}
+	if err := os.WriteFile(skipAliasPath, []byte("alias\n"), 0o644); err != nil {
+		t.Fatalf("write skip alias path: %v", err)
+	}
 
-	if err := copyWorkspaceTree(srcRoot, dstRoot, filepath.Join("ader", "catalogues", "grace-op")); err != nil {
+	if err := copyWorkspaceTree(srcRoot, dstRoot, filepath.Join("ader", "catalogues", "grace-op"), filepath.Join(srcRoot, "ader", "catalogues", "grace-op", ".snapshot_alias")); err != nil {
 		t.Fatalf("copyWorkspaceTree() error = %v", err)
 	}
 
 	if _, err := os.Stat(filepath.Join(dstRoot, "ader", "catalogues", "grace-op", "integration", "discover_test.go")); err != nil {
 		t.Fatalf("expected copied integration file: %v", err)
 	}
+	if _, err := os.Stat(filepath.Join(dstRoot, "ader", "catalogues", "grace-op", "integration", "build", "build_cli_test.go")); err != nil {
+		t.Fatalf("expected copied integration build file: %v", err)
+	}
 	if _, err := os.Stat(filepath.Join(dstRoot, "ader", "catalogues", "clem-ader", ".artifacts", "tool-cache", "go-mod", "cache.txt")); !os.IsNotExist(err) {
 		t.Fatalf("expected sibling catalogue artifact cache to be skipped, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dstRoot, "ader", "catalogues", "grace-op", ".snapshot_alias", "tmp.txt")); !os.IsNotExist(err) {
+		t.Fatalf("expected snapshot alias to be skipped, stat err = %v", err)
 	}
 }
 

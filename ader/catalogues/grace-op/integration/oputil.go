@@ -70,7 +70,7 @@ func bootstrapIsolatedOPBinary(t *testing.T, absRoot string) string {
 		rt := mustRuntime(t)
 		hasher := fnv.New64a()
 		_, _ = hasher.Write([]byte(absRoot))
-		bootstrapRoot := filepath.Join(rt.catalogueRoot, ".bootstrap-op", fmt.Sprintf("%x", hasher.Sum64()))
+		bootstrapRoot := filepath.Join(rt.bootstrapRoot, fmt.Sprintf("%x-%d", hasher.Sum64(), os.Getpid()))
 		bootstrapOPPath := filepath.Join(bootstrapRoot, ".op")
 		bootstrapOPBin := filepath.Join(bootstrapOPPath, "bin")
 		if err := os.MkdirAll(bootstrapOPBin, 0o755); err != nil {
@@ -80,8 +80,9 @@ func bootstrapIsolatedOPBinary(t *testing.T, absRoot string) string {
 
 		gen1Bin := filepath.Join(bootstrapRoot, "op-gen1")
 		cmdGen1 := exec.Command("go", "build", "-o", gen1Bin, filepath.Join(absRoot, "holons", "grace-op", "cmd", "op"))
-		cmdGen1.Env = withEnvValue(os.Environ(), "GOCACHE", filepath.Join(rt.artifactsRoot, "tool-cache", "go-build"))
-		cmdGen1.Env = withEnvValue(cmdGen1.Env, "GOMODCACHE", filepath.Join(rt.artifactsRoot, "tool-cache", "go-mod"))
+		cmdGen1.Dir = absRoot
+		cmdGen1.Env = withEnvValue(os.Environ(), "GOCACHE", filepath.Join(rt.toolCacheRoot, "go-build"))
+		cmdGen1.Env = withEnvValue(cmdGen1.Env, "GOMODCACHE", filepath.Join(rt.toolCacheRoot, "go-mod"))
 		if out, err := cmdGen1.CombinedOutput(); err != nil {
 			entry.err = fmt.Errorf("native bootstrap build: %w\n%s", err, string(out))
 			return
@@ -114,9 +115,9 @@ func isolatedOPEnv(t *testing.T, opPath, opBin string) []string {
 	envVars := withEnv(os.Environ(), "OPPATH", opPath)
 	envVars = withEnv(envVars, "OPBIN", opBin)
 	envVars = withEnv(envVars, "PATH", FilterInstalledHolonsPath(os.Getenv("PATH")))
-	envVars = withEnv(envVars, "GOCACHE", filepath.Join(rt.artifactsRoot, "tool-cache", "go-build"))
-	envVars = withEnv(envVars, "GOMODCACHE", filepath.Join(rt.artifactsRoot, "tool-cache", "go-mod"))
-	envVars = withEnv(envVars, "GRACE_OP_SHARED_CACHE_DIR", filepath.Join(rt.catalogueRoot, ".shared-cache"))
+	envVars = withEnv(envVars, "GOCACHE", filepath.Join(rt.toolCacheRoot, "go-build"))
+	envVars = withEnv(envVars, "GOMODCACHE", filepath.Join(rt.toolCacheRoot, "go-mod"))
+	envVars = withEnv(envVars, "GRACE_OP_SHARED_CACHE_DIR", rt.sharedCacheRoot)
 	envVars = withEnv(envVars, "TMPDIR", tmpDir)
 	envVars = withEnv(envVars, "TMP", tmpDir)
 	envVars = withEnv(envVars, "TEMP", tmpDir)

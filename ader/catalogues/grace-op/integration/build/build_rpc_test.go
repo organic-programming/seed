@@ -63,25 +63,25 @@ func TestBuildRPC_BuildPrefersSourceOverPATHMatchesAPIAndCLI_GabrielGreetingGo(t
 	apiEnv := newBuildTestEnv(t)
 	runOP(t, apiEnv.OpBin, apiEnv.EnvVars, "--root", apiEnv.AbsRoot, "build", "gabriel-greeting-go")
 	apiPathDir := t.TempDir()
-	copyExecutable(t, buildArtifactPath("gabriel-greeting-go"), filepath.Join(apiPathDir, "gabriel-greeting-go"))
+	copyExecutable(t, buildArtifactPath(t, "gabriel-greeting-go"), filepath.Join(apiPathDir, "gabriel-greeting-go"))
 	apiEnv.EnvVars = withEnvEntry(apiEnv.EnvVars, "PATH", apiPathDir+string(os.PathListSeparator)+envValue(apiEnv.EnvVars, "PATH"))
-	integration.TeardownHolons(t, rootPath)
+	integration.TeardownHolons(t, apiEnv.AbsRoot)
 	apiReport := buildViaAPI(t, apiEnv, "gabriel-greeting-go", &opv1.BuildOptions{DryRun: true})
 
 	cliEnv := newBuildTestEnv(t)
 	runOP(t, cliEnv.OpBin, cliEnv.EnvVars, "--root", cliEnv.AbsRoot, "build", "gabriel-greeting-go")
 	cliPathDir := t.TempDir()
-	copyExecutable(t, buildArtifactPath("gabriel-greeting-go"), filepath.Join(cliPathDir, "gabriel-greeting-go"))
+	copyExecutable(t, buildArtifactPath(t, "gabriel-greeting-go"), filepath.Join(cliPathDir, "gabriel-greeting-go"))
 	cliEnv.EnvVars = withEnvEntry(cliEnv.EnvVars, "PATH", cliPathDir+string(os.PathListSeparator)+envValue(cliEnv.EnvVars, "PATH"))
-	integration.TeardownHolons(t, rootPath)
+	integration.TeardownHolons(t, cliEnv.AbsRoot)
 	cliReport := buildViaCLIJSON(t, cliEnv, "gabriel-greeting-go", &opv1.BuildOptions{DryRun: true}, false)
 
 	rpcEnv := newBuildTestEnv(t)
 	runOP(t, rpcEnv.OpBin, rpcEnv.EnvVars, "--root", rpcEnv.AbsRoot, "build", "gabriel-greeting-go")
 	rpcPathDir := t.TempDir()
-	copyExecutable(t, buildArtifactPath("gabriel-greeting-go"), filepath.Join(rpcPathDir, "gabriel-greeting-go"))
+	copyExecutable(t, buildArtifactPath(t, "gabriel-greeting-go"), filepath.Join(rpcPathDir, "gabriel-greeting-go"))
 	rpcEnv.EnvVars = withEnvEntry(rpcEnv.EnvVars, "PATH", rpcPathDir+string(os.PathListSeparator)+envValue(rpcEnv.EnvVars, "PATH"))
-	integration.TeardownHolons(t, rootPath)
+	integration.TeardownHolons(t, rpcEnv.AbsRoot)
 	rpcReport := buildViaRPC(t, rpcEnv, "gabriel-greeting-go", &opv1.BuildOptions{DryRun: true})
 
 	assertSourceReport(t, "API source over PATH", apiReport, "gabriel-greeting-go")
@@ -114,7 +114,7 @@ func TestBuildRPC_BuildThenInstallMatchesAPIAndCLI_GabrielGreetingGo(t *testing.
 func TestBuildRPC_CleanThenBuildMatchesAPIAndCLI_GabrielGreetingGo(t *testing.T) {
 	apiEnv := newBuildTestEnv(t)
 	buildViaAPI(t, apiEnv, "gabriel-greeting-go", nil)
-	apiMarker := filepath.Join(holonOPDir("gabriel-greeting-go"), "stale-marker.txt")
+	apiMarker := filepath.Join(holonOPDir(t, "gabriel-greeting-go"), "stale-marker.txt")
 	if err := os.WriteFile(apiMarker, []byte("stale"), 0o644); err != nil {
 		t.Fatalf("write API stale marker: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestBuildRPC_CleanThenBuildMatchesAPIAndCLI_GabrielGreetingGo(t *testing.T)
 
 	cliEnv := newBuildTestEnv(t)
 	buildViaCLIJSON(t, cliEnv, "gabriel-greeting-go", nil, false)
-	cliMarker := filepath.Join(holonOPDir("gabriel-greeting-go"), "stale-marker.txt")
+	cliMarker := filepath.Join(holonOPDir(t, "gabriel-greeting-go"), "stale-marker.txt")
 	if err := os.WriteFile(cliMarker, []byte("stale"), 0o644); err != nil {
 		t.Fatalf("write CLI stale marker: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestBuildRPC_CleanThenBuildMatchesAPIAndCLI_GabrielGreetingGo(t *testing.T)
 
 	rpcEnv := newBuildTestEnv(t)
 	buildViaRPC(t, rpcEnv, "gabriel-greeting-go", nil)
-	rpcMarker := filepath.Join(holonOPDir("gabriel-greeting-go"), "stale-marker.txt")
+	rpcMarker := filepath.Join(holonOPDir(t, "gabriel-greeting-go"), "stale-marker.txt")
 	if err := os.WriteFile(rpcMarker, []byte("stale"), 0o644); err != nil {
 		t.Fatalf("write RPC stale marker: %v", err)
 	}

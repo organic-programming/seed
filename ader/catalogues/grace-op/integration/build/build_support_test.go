@@ -19,8 +19,6 @@ import (
 	"github.com/organic-programming/seed/ader/catalogues/grace-op/integration"
 )
 
-const rootPath = "../../../../.."
-
 type lifecycleSnapshot struct {
 	Operation   string              `json:"operation"`
 	Target      string              `json:"target"`
@@ -61,10 +59,11 @@ type buildTestEnv struct {
 func newBuildTestEnv(t *testing.T) buildTestEnv {
 	t.Helper()
 
-	integration.TeardownHolons(t, rootPath)
-	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
+	root := absoluteRootPath(t)
+	integration.TeardownHolons(t, root)
+	envVars, opBin := integration.SetupIsolatedOP(t, root)
 	return buildTestEnv{
-		AbsRoot: absoluteRootPath(t),
+		AbsRoot: root,
 		EnvVars: envVars,
 		OpBin:   opBin,
 	}
@@ -72,12 +71,7 @@ func newBuildTestEnv(t *testing.T) buildTestEnv {
 
 func absoluteRootPath(t *testing.T) string {
 	t.Helper()
-
-	root, err := filepath.Abs(rootPath)
-	if err != nil {
-		t.Fatalf("resolve absolute root: %v", err)
-	}
-	return root
+	return integration.DefaultWorkspaceDir(t)
 }
 
 func withBuildEnv(t *testing.T, env buildTestEnv, fn func()) {
@@ -156,7 +150,7 @@ func installViaAPI(t *testing.T, env buildTestEnv, target string) *installSnapsh
 func buildViaRPC(t *testing.T, env buildTestEnv, target string, build *opv1.BuildOptions) *lifecycleSnapshot {
 	t.Helper()
 
-	client, cleanup := integration.SetupStdioOPClient(t, rootPath, env.OpBin, env.EnvVars)
+	client, cleanup := integration.SetupStdioOPClient(t, env.AbsRoot, env.OpBin, env.EnvVars)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -175,7 +169,7 @@ func buildViaRPC(t *testing.T, env buildTestEnv, target string, build *opv1.Buil
 func cleanViaRPC(t *testing.T, env buildTestEnv, target string) *lifecycleSnapshot {
 	t.Helper()
 
-	client, cleanup := integration.SetupStdioOPClient(t, rootPath, env.OpBin, env.EnvVars)
+	client, cleanup := integration.SetupStdioOPClient(t, env.AbsRoot, env.OpBin, env.EnvVars)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -191,7 +185,7 @@ func cleanViaRPC(t *testing.T, env buildTestEnv, target string) *lifecycleSnapsh
 func installViaRPC(t *testing.T, env buildTestEnv, target string) *installSnapshot {
 	t.Helper()
 
-	client, cleanup := integration.SetupStdioOPClient(t, rootPath, env.OpBin, env.EnvVars)
+	client, cleanup := integration.SetupStdioOPClient(t, env.AbsRoot, env.OpBin, env.EnvVars)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -417,7 +411,7 @@ func assertSourceReport(t *testing.T, label string, report *lifecycleSnapshot, h
 func assertArtifactExists(t *testing.T, holon string) {
 	t.Helper()
 
-	if _, err := os.Stat(buildArtifactPath(holon)); err != nil {
+	if _, err := os.Stat(buildArtifactPath(t, holon)); err != nil {
 		t.Fatalf("artifact missing for %s: %v", holon, err)
 	}
 }
@@ -425,14 +419,15 @@ func assertArtifactExists(t *testing.T, holon string) {
 func assertMarkerRemoved(t *testing.T, holon string) {
 	t.Helper()
 
-	if _, err := os.Stat(filepath.Join(holonOPDir(holon), "stale-marker.txt")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(holonOPDir(t, holon), "stale-marker.txt")); !os.IsNotExist(err) {
 		t.Fatalf("stale marker still exists for %s: %v", holon, err)
 	}
 }
 
-func buildArtifactPath(holon string) string {
+func buildArtifactPath(t *testing.T, holon string) string {
+	t.Helper()
 	return filepath.Join(
-		rootPath,
+		absoluteRootPath(t),
 		"examples",
 		"hello-world",
 		holon,
@@ -445,22 +440,25 @@ func buildArtifactPath(holon string) string {
 	)
 }
 
-func holonBinDir(holon string) string {
-	return filepath.Join(rootPath, "examples", "hello-world", holon, ".op", "build", holon+".holon", "bin")
+func holonBinDir(t *testing.T, holon string) string {
+	t.Helper()
+	return filepath.Join(absoluteRootPath(t), "examples", "hello-world", holon, ".op", "build", holon+".holon", "bin")
 }
 
-func holonOPDir(holon string) string {
-	return filepath.Join(rootPath, "examples", "hello-world", holon, ".op")
+func holonOPDir(t *testing.T, holon string) string {
+	t.Helper()
+	return filepath.Join(absoluteRootPath(t), "examples", "hello-world", holon, ".op")
 }
 
-func appBundlePath(app string) string {
-	return filepath.Join(rootPath, "examples", "hello-world", app, "build", "GabrielGreetingApp.app")
+func appBundlePath(t *testing.T, app string) string {
+	t.Helper()
+	return filepath.Join(absoluteRootPath(t), "examples", "hello-world", app, ".op", "build", "GabrielGreetingApp.app")
 }
 
 func withMutatedHolonVersion(t *testing.T, holon string, version string, fn func()) {
 	t.Helper()
 
-	protoPath := filepath.Join(rootPath, "examples", "hello-world", holon, "api", "v1", "holon.proto")
+	protoPath := filepath.Join(absoluteRootPath(t), "examples", "hello-world", holon, "api", "v1", "holon.proto")
 	content, err := os.ReadFile(protoPath)
 	if err != nil {
 		t.Fatalf("read holon.proto for %s: %v", holon, err)
@@ -504,7 +502,7 @@ func copyExecutable(t *testing.T, src, dst string) {
 func copyBinaryBundle(t *testing.T, holon, dstDir string) string {
 	t.Helper()
 
-	srcDir := holonBinDir(holon)
+	srcDir := holonBinDir(t, holon)
 	if err := exec.Command("cp", "-a", srcDir, dstDir).Run(); err != nil {
 		t.Fatalf("copy binary bundle %s to %s: %v", srcDir, dstDir, err)
 	}

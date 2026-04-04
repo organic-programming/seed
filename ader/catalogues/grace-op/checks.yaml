@@ -5,8 +5,16 @@ checks:
     description: Verifies the internal build configuration integrity structure.
   op-build-cli:
     workdir: ader/catalogues/grace-op/integration/build
-    command: go test -v -count=1 -timeout 25m -run '^TestBuild_' .
-    description: Verifies the CLI-first build surface, including logs, matrix, and composite coverage.
+    command: go test -v -count=1 -timeout 25m -run '^TestBuild_0[1-6]_' .
+    description: Verifies the core CLI-first build surface, including logs and matrix coverage.
+  op-build-cli-composite:
+    workdir: ader/catalogues/grace-op/integration/build/composite
+    command: go test -v -count=1 -timeout 25m -run '^TestBuild_07_Composite$' .
+    description: Verifies the CLI composite build path for the SwiftUI app.
+  op-build-cli-composite-rebuild:
+    workdir: ader/catalogues/grace-op/integration/build/composite_rebuild
+    command: go test -v -count=1 -timeout 25m -run '^TestBuild_08_CompositeRebuildsTouchedMember$' .
+    description: Verifies the CLI composite rebuild path when a member source changes.
   op-build-api:
     workdir: ader/catalogues/grace-op/integration/build
     command: go test -v -count=1 -timeout 15m -run '^TestBuildAPI_' .

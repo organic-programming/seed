@@ -14,6 +14,7 @@ import (
 
 // TestBuild_01_GoBuild evaluates the baseline Go compilation of the CLI source.
 func TestBuild_01_GoBuild(t *testing.T) {
+	rootPath := absoluteRootPath(t)
 	integration.TeardownHolons(t, rootPath)
 
 	opPath := os.Getenv("ADER_RUN_ARTIFACTS")
@@ -25,6 +26,7 @@ func TestBuild_01_GoBuild(t *testing.T) {
 	gen1Bin := filepath.Join(opBin, "op-gen1")
 	t.Logf("Level 1: Native build to %s", gen1Bin)
 	cmdGen1 := exec.Command("go", "build", "-o", gen1Bin, filepath.Join(rootPath, "holons/grace-op/cmd/op"))
+	cmdGen1.Dir = rootPath
 	if out, err := cmdGen1.CombinedOutput(); err != nil {
 		t.Fatalf("Level 1 failed (native go build): %v\nOutput: %s", err, string(out))
 	}
@@ -32,6 +34,7 @@ func TestBuild_01_GoBuild(t *testing.T) {
 
 // TestBuild_02_GoRun evaluates that `go run` can execute the CLI source to build op itself.
 func TestBuild_02_GoRun(t *testing.T) {
+	rootPath := absoluteRootPath(t)
 	integration.TeardownHolons(t, rootPath)
 
 	opPath := os.Getenv("ADER_RUN_ARTIFACTS")
@@ -44,6 +47,7 @@ func TestBuild_02_GoRun(t *testing.T) {
 	t.Log("Level 2: `go run` builds op (op build op --install)")
 	cmd := exec.Command("go", "run", filepath.Join(rootPath, "holons/grace-op/cmd/op"), "build", "op", "--install", "--symlink", "--root", rootPath)
 	cmd.Env = envVars
+	cmd.Dir = rootPath
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Level 2 failed (go run): %v\nOutput: %s", err, string(out))
 	}
@@ -56,6 +60,7 @@ func TestBuild_02_GoRun(t *testing.T) {
 
 // TestBuild_03_OpBuildSelf evaluates the ultimate self-referential scenario where the binary builds itself.
 func TestBuild_03_OpBuildSelf(t *testing.T) {
+	rootPath := absoluteRootPath(t)
 	integration.TeardownHolons(t, rootPath)
 
 	// We utilize the Setup helper to obtain a clean OP executable to test self-compilation
@@ -71,6 +76,7 @@ func TestBuild_03_OpBuildSelf(t *testing.T) {
 
 // TestBuild_04_Flags evaluates the functionality of configuration CLI flags.
 func TestBuild_04_Flags(t *testing.T) {
+	rootPath := absoluteRootPath(t)
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
 	opBinDir := filepath.Dir(opBin)
@@ -136,6 +142,7 @@ func TestBuild_04_Flags(t *testing.T) {
 
 // TestBuild_05_SymlinkOverwrite ensures repeated builds properly overwrite installed artifacts natively.
 func TestBuild_05_SymlinkOverwrite(t *testing.T) {
+	rootPath := absoluteRootPath(t)
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
 	opBinDir := filepath.Dir(opBin)
@@ -199,6 +206,7 @@ func TestBuild_05_SymlinkOverwrite(t *testing.T) {
 
 // TestBuild_06_Matrix evaluates op build comprehensively across the example language matrix.
 func TestBuild_06_Matrix(t *testing.T) {
+	rootPath := absoluteRootPath(t)
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
 	opBinDir := filepath.Dir(opBin)
@@ -240,72 +248,5 @@ func TestBuild_06_Matrix(t *testing.T) {
 				}
 			})
 		})
-	}
-}
-
-// TestBuild_07_Composite evaluates the composite SwiftUI build via the real CLI from a clean state.
-func TestBuild_07_Composite(t *testing.T) {
-	integration.TeardownHolons(t, rootPath)
-	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
-
-	t.Log("Building composite app gabriel-greeting-app-swiftui from a clean state...")
-	cmd := exec.Command(opBin, "build", "gabriel-greeting-app-swiftui", "--root", rootPath)
-	cmd.Env = envVars
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to build composite SwiftUI app: %v\nOutput: %s", err, string(out))
-	}
-
-	if _, err := os.Stat(appBundlePath("gabriel-greeting-app-swiftui")); err != nil {
-		t.Fatalf("expected built app bundle: %v", err)
-	}
-}
-
-// TestBuild_08_CompositeRebuildsTouchedMember verifies that a source change
-// in a composite holon member forces that member to rebuild instead of reusing
-// the shared prebuilt cache.
-func TestBuild_08_CompositeRebuildsTouchedMember(t *testing.T) {
-	integration.TeardownHolons(t, rootPath)
-	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
-
-	childHolon := "gabriel-greeting-go"
-	childBinary := buildArtifactPath(childHolon)
-	childRoot := filepath.Join(rootPath, "examples", "hello-world", childHolon)
-	rebuildTrigger := filepath.Join(childRoot, "integration-rebuild-trigger.txt")
-
-	buildChild := exec.Command(opBin, "build", childHolon, "--root", rootPath)
-	buildChild.Env = envVars
-	if out, err := buildChild.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to prebuild child holon: %v\nOutput: %s", err, string(out))
-	}
-
-	beforeInfo, err := os.Stat(childBinary)
-	if err != nil {
-		t.Fatalf("stat child binary before composite build: %v", err)
-	}
-
-	if err := os.WriteFile(rebuildTrigger, []byte("trigger composite member rebuild\n"), 0o644); err != nil {
-		t.Fatalf("write rebuild trigger: %v", err)
-	}
-	defer func() {
-		_ = os.Remove(rebuildTrigger)
-	}()
-
-	cmd := exec.Command(opBin, "build", "gabriel-greeting-app-swiftui", "--root", rootPath)
-	cmd.Env = envVars
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to rebuild composite after touching member source: %v\nOutput: %s", err, string(out))
-	}
-
-	afterInfo, err := os.Stat(childBinary)
-	if err != nil {
-		t.Fatalf("stat child binary after composite build: %v", err)
-	}
-	if !afterInfo.ModTime().After(beforeInfo.ModTime()) {
-		t.Fatalf("expected composite build to rebuild %s after source change; binary mtime stayed %s\nOutput: %s", childHolon, afterInfo.ModTime(), string(out))
-	}
-	if _, err := os.Stat(appBundlePath("gabriel-greeting-app-swiftui")); err != nil {
-		t.Fatalf("expected rebuilt composite app bundle: %v", err)
 	}
 }

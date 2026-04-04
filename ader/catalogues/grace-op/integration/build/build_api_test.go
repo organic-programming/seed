@@ -50,12 +50,12 @@ func TestBuildAPI_BuildPrefersSourceOverPATH_GabrielGreetingGo(t *testing.T) {
 	env := newBuildTestEnv(t)
 
 	runOP(t, env.OpBin, env.EnvVars, "--root", env.AbsRoot, "build", "gabriel-greeting-go")
-	sourceBinary := buildArtifactPath("gabriel-greeting-go")
+	sourceBinary := buildArtifactPath(t, "gabriel-greeting-go")
 	pathDir := t.TempDir()
 	copyExecutable(t, sourceBinary, filepath.Join(pathDir, "gabriel-greeting-go"))
 
 	env.EnvVars = withEnvEntry(env.EnvVars, "PATH", pathDir+string(os.PathListSeparator)+envValue(env.EnvVars, "PATH"))
-	integration.TeardownHolons(t, rootPath)
+	integration.TeardownHolons(t, env.AbsRoot)
 
 	report := buildViaAPI(t, env, "gabriel-greeting-go", &opv1.BuildOptions{DryRun: true})
 
@@ -81,7 +81,7 @@ func TestBuildAPI_CleanThenBuild_GabrielGreetingGo(t *testing.T) {
 	env := newBuildTestEnv(t)
 
 	buildViaAPI(t, env, "gabriel-greeting-go", nil)
-	markerPath := filepath.Join(holonOPDir("gabriel-greeting-go"), "stale-marker.txt")
+	markerPath := filepath.Join(holonOPDir(t, "gabriel-greeting-go"), "stale-marker.txt")
 	if err := os.WriteFile(markerPath, []byte("stale"), 0o644); err != nil {
 		t.Fatalf("write stale marker: %v", err)
 	}

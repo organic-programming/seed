@@ -37,6 +37,10 @@ type runtimeState struct {
 	seedRoot          string
 	catalogueRoot     string
 	artifactsBaseRoot string
+	runsRoot          string
+	toolCacheRoot     string
+	sharedCacheRoot   string
+	bootstrapRoot     string
 	artifactsRoot     string
 	tempBaseRoot      string
 	tempAliasRoot     string
@@ -271,9 +275,9 @@ func (s *Sandbox) commandEnv(t *testing.T, extra []string) []string {
 	env = append(env,
 		"OPPATH="+s.OPPATH,
 		"OPBIN="+s.OPBIN,
-		"GOCACHE="+filepath.Join(rt.artifactsRoot, "tool-cache", "go-build"),
-		"GOMODCACHE="+filepath.Join(rt.artifactsRoot, "tool-cache", "go-mod"),
-		"GRACE_OP_SHARED_CACHE_DIR="+filepath.Join(rt.catalogueRoot, ".shared-cache"),
+		"GOCACHE="+filepath.Join(rt.toolCacheRoot, "go-build"),
+		"GOMODCACHE="+filepath.Join(rt.toolCacheRoot, "go-mod"),
+		"GRACE_OP_SHARED_CACHE_DIR="+rt.sharedCacheRoot,
 		"TMPDIR="+s.TMPDIR,
 		"TMP="+s.TMPDIR,
 		"TEMP="+s.TMPDIR,
@@ -477,7 +481,11 @@ func initializeRuntime(rt *runtimeState) error {
 	}
 	rt.catalogueRoot = filepath.Join(rt.seedRoot, "ader", "catalogues", "grace-op")
 	rt.artifactsBaseRoot = filepath.Join(rt.catalogueRoot, ".artifacts")
-	rt.artifactsRoot = filepath.Join(rt.artifactsBaseRoot, "run-"+strconv.FormatInt(time.Now().UnixNano(), 10))
+	rt.runsRoot = filepath.Join(rt.artifactsBaseRoot, "runs")
+	rt.toolCacheRoot = filepath.Join(rt.artifactsBaseRoot, "tool-cache")
+	rt.bootstrapRoot = filepath.Join(rt.artifactsBaseRoot, "bootstrap")
+	rt.artifactsRoot = filepath.Join(rt.runsRoot, "run-"+strconv.FormatInt(time.Now().UnixNano(), 10))
+	rt.sharedCacheRoot = filepath.Join(rt.artifactsRoot, "shared")
 	rt.tempBaseRoot = filepath.Join(os.TempDir(), "seed-int-store-"+strconv.Itoa(os.Getpid()))
 	rt.graceOpRoot = filepath.Join(rt.seedRoot, "holons", "grace-op")
 
@@ -518,8 +526,8 @@ func buildCanonicalBinary(rt *runtimeState) (string, error) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = append([]string{}, os.Environ()...)
-	cmd.Env = withEnvValue(cmd.Env, "GOCACHE", filepath.Join(rt.artifactsRoot, "tool-cache", "go-build"))
-	cmd.Env = withEnvValue(cmd.Env, "GOMODCACHE", filepath.Join(rt.artifactsRoot, "tool-cache", "go-mod"))
+	cmd.Env = withEnvValue(cmd.Env, "GOCACHE", filepath.Join(rt.toolCacheRoot, "go-build"))
+	cmd.Env = withEnvValue(cmd.Env, "GOMODCACHE", filepath.Join(rt.toolCacheRoot, "go-mod"))
 	if err := cmd.Run(); err != nil {
 		return "", err
 	}
@@ -532,12 +540,14 @@ func resetArtifactsRoot(rt *runtimeState) error {
 	}
 	for _, dir := range []string{
 		rt.artifactsBaseRoot,
+		rt.runsRoot,
+		rt.toolCacheRoot,
+		rt.sharedCacheRoot,
+		rt.bootstrapRoot,
 		rt.artifactsRoot,
 		filepath.Join(rt.artifactsRoot, "bin"),
 		filepath.Join(rt.artifactsRoot, "sandboxes"),
-		filepath.Join(rt.artifactsRoot, "tool-cache"),
 		rt.tempBaseRoot,
-		filepath.Join(rt.catalogueRoot, ".shared-cache"),
 	} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err
