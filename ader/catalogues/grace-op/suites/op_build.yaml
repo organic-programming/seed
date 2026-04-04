@@ -4,26 +4,26 @@ defaults:
 steps:
   build-unit:
     check: op-build-unit
-    lane: progression
+    lane: regression
   build-cli:
     check: op-build-cli
-    lane: progression
+    lane: regression
     needs: [build-unit]
   build-cli-composite:
     check: op-build-cli-composite
-    lane: progression
+    lane: regression
     needs: [build-cli]
   build-cli-composite-rebuild:
     check: op-build-cli-composite-rebuild
-    lane: progression
+    lane: regression
     needs: [build-cli-composite]
   build-api:
     check: op-build-api
-    lane: progression
+    lane: regression
     needs: [build-cli-composite-rebuild]
   build-rpc:
     check: op-build-rpc
-    lane: progression
+    lane: regression
     needs: [build-api]
 profiles:
   smoke:
