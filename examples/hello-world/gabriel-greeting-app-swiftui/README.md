@@ -128,7 +128,7 @@ Override the default via `OP_ASSEMBLY_TRANSPORT` environment variable.
 
 # COAX support 
 
-The UI exposes the server surface only. The embedded runtime is live over `tcp` today and can preview the other server transport shapes from the COAX settings window.
+The UI exposes the server surface only. The embedded runtime is available over `tcp` and `unix` from the COAX settings window.
 
 
 ## Available rpc 

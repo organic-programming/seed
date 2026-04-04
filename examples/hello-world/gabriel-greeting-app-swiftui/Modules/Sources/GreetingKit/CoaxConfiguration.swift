@@ -3,8 +3,6 @@ import Foundation
 public enum CoaxServerTransport: String, Codable, CaseIterable, Identifiable, Sendable {
     case tcp
     case unix
-    case webSocket
-    case restSSE
 
     public var id: String { rawValue }
 
@@ -14,23 +12,6 @@ public enum CoaxServerTransport: String, Codable, CaseIterable, Identifiable, Se
             return "TCP"
         case .unix:
             return "Unix socket"
-        case .webSocket:
-            return "WS / WSS"
-        case .restSSE:
-            return "SSE + REST"
-        }
-    }
-
-    public var subtitle: String {
-        switch self {
-        case .tcp:
-            return "grpc-swift TCP listener"
-        case .unix:
-            return "Unix domain socket bridge"
-        case .webSocket:
-            return "Future extension"
-        case .restSSE:
-            return "Future extension"
         }
     }
 
@@ -40,9 +21,28 @@ public enum CoaxServerTransport: String, Codable, CaseIterable, Identifiable, Se
             return 60000
         case .unix:
             return 0
-        case .webSocket, .restSSE:
-            return 80
         }
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+
+        switch rawValue {
+        case Self.tcp.rawValue:
+            self = .tcp
+        case Self.unix.rawValue:
+            self = .unix
+        case "webSocket", "restSSE":
+            self = .tcp
+        default:
+            self = .tcp
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
     }
 }
 

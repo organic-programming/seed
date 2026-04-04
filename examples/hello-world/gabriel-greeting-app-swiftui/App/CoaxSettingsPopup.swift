@@ -13,9 +13,6 @@ struct CoaxSettingsPopup: View {
         if coaxServer.serverPortValidationMessage != nil {
             height += 28
         }
-        if coaxServer.serverTransportNote != nil {
-            height += 42
-        }
         return height
     }
 
@@ -86,7 +83,7 @@ struct CoaxSettingsPopup: View {
                 )
 
                 switch coaxServer.serverTransport {
-                case .tcp, .webSocket, .restSSE:
+                case .tcp:
                     textFieldRow("Host", text: $coaxServer.serverHost, placeholder: "127.0.0.1")
                     textFieldRow(
                         "Port",
@@ -105,10 +102,6 @@ struct CoaxSettingsPopup: View {
 
             if let message = coaxServer.serverPortValidationMessage {
                 noteRow(message)
-            }
-
-            if let note = coaxServer.serverTransportNote {
-                noteRow(note)
             }
 
             previewSection(

@@ -469,22 +469,44 @@ func sharedCacheBaseDir() string {
 
 func rubySharedCacheRoot(manifest *LoadedManifest) string {
 	baseDir := sharedCacheBaseDir()
+	name, fingerprint := rubySharedCacheKey(manifest)
+	return filepath.Join(baseDir, "grace-op-ruby-cache", fmt.Sprintf("%s-%x", name, fingerprint))
+}
+
+func rubySharedCacheKey(manifest *LoadedManifest) (string, uint64) {
 	name := "ruby"
 	if manifest != nil {
-		if dir := strings.TrimSpace(manifest.Dir); dir != "" {
-			name = filepath.Base(dir)
-			hasher := fnv.New64a()
-			_, _ = hasher.Write([]byte(filepath.Clean(dir)))
-			return filepath.Join(baseDir, "grace-op-ruby-cache", fmt.Sprintf("%s-%x", name, hasher.Sum64()))
-		}
-		if binary := strings.TrimSpace(manifest.BinaryName()); binary != "" {
-			name = binary
+		if slug := strings.TrimSpace(manifestSlug(manifest)); slug != "" {
+			name = slug
+		} else if manifest.Name != "" {
+			name = strings.TrimSpace(manifest.Name)
 		}
 	}
 
 	hasher := fnv.New64a()
-	_, _ = hasher.Write([]byte(name))
-	return filepath.Join(baseDir, "grace-op-ruby-cache", fmt.Sprintf("%s-%x", name, hasher.Sum64()))
+	writeRubyCacheHashPart := func(value string) {
+		_, _ = hasher.Write([]byte(value))
+		_, _ = hasher.Write([]byte{0})
+	}
+
+	writeRubyCacheHashPart(name)
+	writeRubyCacheHashPart(runtime.GOOS)
+	writeRubyCacheHashPart(runtime.GOARCH)
+
+	if manifest != nil {
+		for _, rel := range []string{"Gemfile", "Gemfile.lock"} {
+			path := filepath.Join(manifest.Dir, rel)
+			data, err := os.ReadFile(path)
+			if err != nil {
+				continue
+			}
+			writeRubyCacheHashPart(rel)
+			_, _ = hasher.Write(data)
+			_, _ = hasher.Write([]byte{0})
+		}
+	}
+
+	return name, hasher.Sum64()
 }
 
 func rubySharedBundleDir(manifest *LoadedManifest) string {

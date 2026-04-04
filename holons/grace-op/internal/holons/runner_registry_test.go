@@ -303,6 +303,78 @@ func TestRubyRunnerBuildCreatesNativeLauncher(t *testing.T) {
 	}
 }
 
+func TestRubySharedCacheRootStableAcrossSnapshots(t *testing.T) {
+	t.Setenv("GRACE_OP_SHARED_CACHE_DIR", t.TempDir())
+
+	makeManifest := func(root string) *LoadedManifest {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(root, "app"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "Gemfile"), []byte("source 'https://example.test'\ngem 'grpc', '~> 1.58'\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "Gemfile.lock"), []byte("GEM\n  specs:\n    grpc (1.78.1-arm64-darwin)\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "app", "main.rb"), []byte("puts 'ok'\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		writeRunnerManifest(t, root, "schema: holon/v0\nkind: composite\nbuild:\n  runner: ruby\nartifacts:\n  primary: app/main.rb\n")
+
+		manifest, err := LoadManifest(root)
+		if err != nil {
+			t.Fatalf("LoadManifest failed: %v", err)
+		}
+		return manifest
+	}
+
+	first := makeManifest(filepath.Join(t.TempDir(), "run-a", "examples", "hello-world", "gabriel-greeting-ruby"))
+	second := makeManifest(filepath.Join(t.TempDir(), "run-b", "examples", "hello-world", "gabriel-greeting-ruby"))
+
+	firstRoot := rubySharedCacheRoot(first)
+	secondRoot := rubySharedCacheRoot(second)
+	if firstRoot != secondRoot {
+		t.Fatalf("rubySharedCacheRoot should be stable across snapshots:\nfirst:  %s\nsecond: %s", firstRoot, secondRoot)
+	}
+}
+
+func TestRubySharedCacheRootChangesWhenDependenciesChange(t *testing.T) {
+	t.Setenv("GRACE_OP_SHARED_CACHE_DIR", t.TempDir())
+
+	makeManifest := func(root string, lockfile string) *LoadedManifest {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(root, "app"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "Gemfile"), []byte("source 'https://example.test'\ngem 'grpc', '~> 1.58'\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "Gemfile.lock"), []byte(lockfile), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "app", "main.rb"), []byte("puts 'ok'\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		writeRunnerManifest(t, root, "schema: holon/v0\nkind: composite\nbuild:\n  runner: ruby\nartifacts:\n  primary: app/main.rb\n")
+
+		manifest, err := LoadManifest(root)
+		if err != nil {
+			t.Fatalf("LoadManifest failed: %v", err)
+		}
+		return manifest
+	}
+
+	first := makeManifest(filepath.Join(t.TempDir(), "run-a", "examples", "hello-world", "gabriel-greeting-ruby"), "GEM\n  specs:\n    grpc (1.78.1-arm64-darwin)\n")
+	second := makeManifest(filepath.Join(t.TempDir(), "run-b", "examples", "hello-world", "gabriel-greeting-ruby"), "GEM\n  specs:\n    grpc (1.79.0-arm64-darwin)\n")
+
+	firstRoot := rubySharedCacheRoot(first)
+	secondRoot := rubySharedCacheRoot(second)
+	if firstRoot == secondRoot {
+		t.Fatalf("rubySharedCacheRoot should change when Gemfile.lock changes: %s", firstRoot)
+	}
+}
+
 func TestSwiftPackageRunnerDryRunBuild(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "Package.swift"), []byte("// swift-tools-version: 6.0\n"), 0o644); err != nil {

@@ -98,7 +98,7 @@ public final class CoaxServer: ObservableObject {
     }
 
     public var serverPortValidationMessage: String? {
-        guard serverTransport == .tcp || serverTransport == .webSocket || serverTransport == .restSSE else { return nil }
+        guard serverTransport == .tcp else { return nil }
         let trimmed = serverPortText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             return "Empty port. Falling back to \(serverTransport.defaultPort)."
@@ -115,21 +115,6 @@ public final class CoaxServer: ObservableObject {
             return "tcp://\(normalizedServerHost):\(serverPort)"
         case .unix:
             return "unix://\(normalizedServerUnixPath)"
-        case .webSocket:
-            return "ws://\(normalizedServerHost):\(serverPort)/grpc"
-        case .restSSE:
-            return "http://\(normalizedServerHost):\(serverPort)"
-        }
-    }
-
-    public var serverTransportNote: String? {
-        switch serverTransport {
-        case .tcp, .unix:
-            return nil
-        case .webSocket:
-            return "WS / WSS is shown as a future extension. The embedded runtime currently starts TCP and Unix socket only."
-        case .restSSE:
-            return "SSE + REST is shown as a future extension. The embedded runtime currently starts TCP and Unix socket only."
         }
     }
 
@@ -206,8 +191,6 @@ public final class CoaxServer: ObservableObject {
             return "tcp://\(normalizedServerHost):\(serverPort)"
         case .unix:
             return "unix://\(normalizedServerUnixPath)"
-        case .webSocket, .restSSE:
-            return ""
         }
     }
 
@@ -225,15 +208,6 @@ public final class CoaxServer: ObservableObject {
         reconfigureRuntime()
     }
 
-    private var serverTransportSupportsRuntime: Bool {
-        switch serverTransport {
-        case .tcp, .unix:
-            return true
-        case .webSocket, .restSSE:
-            return false
-        }
-    }
-
     private func reconfigureRuntime() {
         pendingStartID = nil
 
@@ -243,7 +217,6 @@ public final class CoaxServer: ObservableObject {
         }
 
         stopServer(clearStatus: false)
-        guard serverTransportSupportsRuntime else { return }
         startServer()
     }
 

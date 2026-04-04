@@ -1,6 +1,6 @@
 .artifacts/
 .bootstrap-op/
-.t
+.snapshot_alias 
 .shared-cache/
 reports/
 archives/
