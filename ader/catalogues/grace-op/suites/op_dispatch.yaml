@@ -1,0 +1,16 @@
+description: Suite validating the root dispatch surface across supported transports.
+defaults:
+  profile: smoke
+steps:
+  dispatch-cli:
+    check: op-dispatch-cli
+    lane: progression
+profiles:
+  smoke:
+    description: CLI-first verification of root dispatch.
+    archive: never
+    steps: [dispatch-cli]
+  full:
+    description: Exhaustive dispatch verification across supported transports.
+    archive: never
+    steps: [dispatch-cli]

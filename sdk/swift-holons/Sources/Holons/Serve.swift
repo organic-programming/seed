@@ -735,6 +735,7 @@ private func connectLoopback(host: String, port: Int) throws -> Int32 {
   guard fd >= 0 else {
     throw TransportError.listenFailed(String(cString: strerror(errno)))
   }
+  disableSIGPIPE(fd)
 
   var address = sockaddr_in()
   #if !os(Linux)

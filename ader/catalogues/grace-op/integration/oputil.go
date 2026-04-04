@@ -2,10 +2,13 @@ package integration
 
 import (
 	"context"
+	"fmt"
+	"hash/fnv"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,40 +16,111 @@ import (
 	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
 )
 
+type isolatedOPCache struct {
+	once   sync.Once
+	binary string
+	err    error
+}
+
+var isolatedOPBinaries sync.Map
+
 // SetupIsolatedOP creates an isolated OPPATH and builds the 'op' orchestrator.
 // It returns the environment variables to inject and the path to the installed 'op' binary.
 func SetupIsolatedOP(t *testing.T, rootDir string) ([]string, string) {
 	t.Helper()
+
+	absRoot, err := filepath.Abs(rootDir)
+	if err != nil {
+		t.Fatalf("resolve root %s: %v", rootDir, err)
+	}
 	opPath := os.Getenv("ADER_RUN_ARTIFACTS")
 	if opPath == "" {
 		opPath = t.TempDir()
 	}
 	opBin := filepath.Join(opPath, "bin")
-
-	// Phase 1: Native 'go build'
-	gen1Bin := filepath.Join(opBin, "op-gen1")
-	cmdGen1 := exec.Command("go", "build", "-o", gen1Bin, filepath.Join(rootDir, "holons/grace-op/cmd/op"))
-	if out, err := cmdGen1.CombinedOutput(); err != nil {
-		t.Fatalf("Failed native go build: %v\nOutput: %s", err, string(out))
+	if err := os.MkdirAll(opBin, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", opBin, err)
 	}
+	envVars := isolatedOPEnv(t, opPath, opBin)
 
-	envVars := withEnv(os.Environ(), "OPPATH", opPath)
-	envVars = withEnv(envVars, "OPBIN", opBin)
-	envVars = withEnv(envVars, "PATH", FilterInstalledHolonsPath(os.Getenv("PATH")))
-
-	// Phase 2: Generation 1 builds Generation 2 (the final op binary)
-	cmdGen2 := exec.Command(gen1Bin, "build", "op", "--install", "--symlink", "--root", rootDir)
-	cmdGen2.Env = envVars
-	if out, err := cmdGen2.CombinedOutput(); err != nil {
-		t.Fatalf("Failed OP bootstrap build: %v\nOutput: %s", err, string(out))
-	}
-
+	cachedBinary := bootstrapIsolatedOPBinary(t, absRoot)
 	gen2Bin := filepath.Join(opBin, "op")
+	info, err := os.Stat(cachedBinary)
+	if err != nil {
+		t.Fatalf("stat cached op binary: %v", err)
+	}
+	if err := copyFile(cachedBinary, gen2Bin, info.Mode()); err != nil {
+		t.Fatalf("copy cached op binary: %v", err)
+	}
+
 	if stat, err := os.Stat(gen2Bin); os.IsNotExist(err) || stat.Size() == 0 {
 		t.Fatalf("Bootstrap did not produce the expected binary %s", gen2Bin)
 	}
 
 	return envVars, gen2Bin
+}
+
+func bootstrapIsolatedOPBinary(t *testing.T, absRoot string) string {
+	t.Helper()
+
+	cacheKey := absRoot
+	entryAny, _ := isolatedOPBinaries.LoadOrStore(cacheKey, &isolatedOPCache{})
+	entry := entryAny.(*isolatedOPCache)
+	entry.once.Do(func() {
+		rt := mustRuntime(t)
+		hasher := fnv.New64a()
+		_, _ = hasher.Write([]byte(absRoot))
+		bootstrapRoot := filepath.Join(rt.catalogueRoot, ".bootstrap-op", fmt.Sprintf("%x", hasher.Sum64()))
+		bootstrapOPPath := filepath.Join(bootstrapRoot, ".op")
+		bootstrapOPBin := filepath.Join(bootstrapOPPath, "bin")
+		if err := os.MkdirAll(bootstrapOPBin, 0o755); err != nil {
+			entry.err = err
+			return
+		}
+
+		gen1Bin := filepath.Join(bootstrapRoot, "op-gen1")
+		cmdGen1 := exec.Command("go", "build", "-o", gen1Bin, filepath.Join(absRoot, "holons", "grace-op", "cmd", "op"))
+		cmdGen1.Env = withEnvValue(os.Environ(), "GOCACHE", filepath.Join(rt.artifactsRoot, "tool-cache", "go-build"))
+		cmdGen1.Env = withEnvValue(cmdGen1.Env, "GOMODCACHE", filepath.Join(rt.artifactsRoot, "tool-cache", "go-mod"))
+		if out, err := cmdGen1.CombinedOutput(); err != nil {
+			entry.err = fmt.Errorf("native bootstrap build: %w\n%s", err, string(out))
+			return
+		}
+
+		cmdGen2 := exec.Command(gen1Bin, "build", "op", "--install", "--symlink", "--root", absRoot)
+		cmdGen2.Env = isolatedOPEnv(t, bootstrapOPPath, bootstrapOPBin)
+		if out, err := cmdGen2.CombinedOutput(); err != nil {
+			entry.err = fmt.Errorf("bootstrap op build: %w\n%s", err, string(out))
+			return
+		}
+
+		entry.binary = filepath.Join(bootstrapOPBin, "op")
+	})
+	if entry.err != nil {
+		t.Fatalf("bootstrap isolated op: %v", entry.err)
+	}
+	return entry.binary
+}
+
+func isolatedOPEnv(t *testing.T, opPath, opBin string) []string {
+	t.Helper()
+
+	rt := mustRuntime(t)
+	tmpDir := filepath.Join(opPath, "tmp")
+	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", tmpDir, err)
+	}
+
+	envVars := withEnv(os.Environ(), "OPPATH", opPath)
+	envVars = withEnv(envVars, "OPBIN", opBin)
+	envVars = withEnv(envVars, "PATH", FilterInstalledHolonsPath(os.Getenv("PATH")))
+	envVars = withEnv(envVars, "GOCACHE", filepath.Join(rt.artifactsRoot, "tool-cache", "go-build"))
+	envVars = withEnv(envVars, "GOMODCACHE", filepath.Join(rt.artifactsRoot, "tool-cache", "go-mod"))
+	envVars = withEnv(envVars, "GRACE_OP_SHARED_CACHE_DIR", filepath.Join(rt.catalogueRoot, ".shared-cache"))
+	envVars = withEnv(envVars, "TMPDIR", tmpDir)
+	envVars = withEnv(envVars, "TMP", tmpDir)
+	envVars = withEnv(envVars, "TEMP", tmpDir)
+	return envVars
 }
 
 // SetupStdioOPClient launches the OP binary in stdio gRPC mode and returns a typed client.
@@ -79,6 +153,54 @@ func SetupStdioOPClient(t *testing.T, rootDir, opBin string, envVars []string) (
 	}
 
 	return opv1.NewOPServiceClient(conn), cleanup
+}
+
+// SetupSandboxStdioOPClient launches the canonical op binary from the shared integration
+// runtime against the mirrored workspace and returns a typed client bound to the sandbox.
+func SetupSandboxStdioOPClient(t *testing.T, sb *Sandbox) (opv1.OPServiceClient, func()) {
+	t.Helper()
+
+	rootDir := DefaultWorkspaceDir(t)
+	envVars := append([]string{}, sb.commandEnv(t, nil)...)
+	return SetupStdioOPClient(t, rootDir, CanonicalOPBinary(t), envVars)
+}
+
+// SetupSandboxStdioOPClientAt launches the canonical op binary in the given workdir.
+func SetupSandboxStdioOPClientAt(t *testing.T, sb *Sandbox, workDir string) (opv1.OPServiceClient, func()) {
+	t.Helper()
+
+	envVars := append([]string{}, sb.commandEnv(t, nil)...)
+	return SetupStdioOPClient(t, workDir, CanonicalOPBinary(t), envVars)
+}
+
+// WithSandboxEnv runs fn with OPPATH, OPBIN, and OPROOT pointing at the sandbox.
+func WithSandboxEnv(t *testing.T, sb *Sandbox, fn func()) {
+	t.Helper()
+
+	envVars := sb.commandEnv(t, nil)
+	for _, entry := range envVars {
+		parts := strings.SplitN(entry, "=", 2)
+		key := parts[0]
+		value := ""
+		if len(parts) == 2 {
+			value = parts[1]
+		}
+		t.Setenv(key, value)
+	}
+	t.Setenv("OPROOT", DefaultWorkspaceDir(t))
+
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(DefaultWorkspaceDir(t)); err != nil {
+		t.Fatalf("Chdir(%s): %v", DefaultWorkspaceDir(t), err)
+	}
+	defer func() {
+		_ = os.Chdir(original)
+	}()
+
+	fn()
 }
 
 // TeardownHolons vigorously wipes the .op/build specific cache directories across all examples

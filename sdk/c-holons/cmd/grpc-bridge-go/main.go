@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -334,6 +335,7 @@ func appendFileDescriptor(file *desc.FileDescriptor, set *descriptorpb.FileDescr
 
 func collectProtoFiles(root string) ([]string, error) {
 	files := []string{}
+	canonicalSeen := map[string]struct{}{}
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -349,13 +351,29 @@ func collectProtoFiles(root string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		files = append(files, filepath.ToSlash(rel))
+		rel = filepath.ToSlash(rel)
+		canonical := canonicalProtoScanPath(rel)
+		if _, ok := canonicalSeen[canonical]; ok {
+			return nil
+		}
+		canonicalSeen[canonical] = struct{}{}
+		files = append(files, rel)
 		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("walk proto dir %s: %w", root, err)
 	}
+	sort.Strings(files)
 	return files, nil
+}
+
+func canonicalProtoScanPath(rel string) string {
+	switch filepath.ToSlash(rel) {
+	case "xds/xds/data/orca/v3/orca_load_report.proto":
+		return "xds/data/orca/v3/orca_load_report.proto"
+	default:
+		return filepath.ToSlash(rel)
+	}
 }
 
 func startBackend(binary string) (*backendProcess, error) {

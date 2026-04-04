@@ -1,0 +1,20 @@
+description: Suite validating op clean with CLI-first integration and API/RPC alignment.
+defaults:
+  profile: smoke
+steps:
+  clean-cli:
+    check: op-clean-cli
+    lane: progression
+  clean-api:
+    check: op-clean-api
+    lane: progression
+    needs: [clean-cli]
+  clean-rpc:
+    check: op-clean-rpc
+    lane: progression
+    needs: [clean-api]
+profiles:
+  smoke:
+    description: CLI-first verification with API and RPC alignment.
+    archive: never
+    steps: [clean-cli, clean-api, clean-rpc]

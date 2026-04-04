@@ -6,7 +6,7 @@ namespace GabrielGreeting.Csharp.Api;
 
 public static class Cli
 {
-    public const string Version = "gabriel-greeting-csharp {{ .Version }}";
+    public const string Version = "gabriel-greeting-csharp 8.8.89";
 
     public static async Task<int> RunAsync(
         string[] args,

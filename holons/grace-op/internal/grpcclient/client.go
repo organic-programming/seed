@@ -33,10 +33,15 @@ type CallResult struct {
 	Output  string `json:"output"`
 }
 
+const (
+	defaultDirectRPCTimeout  = 2 * time.Minute
+	defaultDirectListTimeout = 30 * time.Second
+)
+
 // Dial connects to a gRPC server at the given address and calls a method.
 // It resolves methods via Describe first and falls back to reflection when needed.
 func Dial(address, methodName string, inputJSON string) (*CallResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultDirectRPCTimeout)
 	defer cancel()
 
 	conn, err := grpc.NewClient(
@@ -67,6 +72,23 @@ func InvokeConn(ctx context.Context, conn *grpc.ClientConn, methodName string, i
 	}
 
 	return invokeConnViaReflection(ctx, conn, methodName, inputJSON)
+}
+
+// InvokeMethodDescriptor calls a unary RPC using a caller-provided method
+// descriptor, which is useful when the local proto catalog is available but the
+// remote server does not expose Describe or reflection.
+func InvokeMethodDescriptor(ctx context.Context, conn *grpc.ClientConn, method protoreflect.MethodDescriptor, inputJSON string) (*CallResult, error) {
+	if conn == nil {
+		return nil, errors.New("gRPC connection is required")
+	}
+	if method == nil {
+		return nil, errors.New("method descriptor is required")
+	}
+	service, ok := method.Parent().(protoreflect.ServiceDescriptor)
+	if !ok || service == nil {
+		return nil, errors.New("method descriptor has no parent service")
+	}
+	return callMethod(ctx, conn, service, method, inputJSON)
 }
 
 func invokeConnViaReflection(ctx context.Context, conn *grpc.ClientConn, methodName string, inputJSON string) (*CallResult, error) {
@@ -136,7 +158,7 @@ func invokeConnViaReflection(ctx context.Context, conn *grpc.ClientConn, methodN
 
 // ListMethods returns all available service methods at the given address.
 func ListMethods(address string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultDirectListTimeout)
 	defer cancel()
 
 	conn, err := grpc.NewClient(
@@ -398,7 +420,7 @@ func callMethod(ctx context.Context, conn *grpc.ClientConn, svc protoreflect.Ser
 	}
 
 	// Marshal output to JSON
-	outputBytes, err := protojson.Marshal(outputMsg)
+	outputBytes, err := protojson.MarshalOptions{}.Marshal(outputMsg)
 	if err != nil {
 		return nil, fmt.Errorf("marshal output: %w", err)
 	}

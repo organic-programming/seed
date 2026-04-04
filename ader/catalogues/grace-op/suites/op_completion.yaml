@@ -1,0 +1,12 @@
+description: Suite validating op completion as a CLI-only surface.
+defaults:
+  profile: smoke
+steps:
+  completion-cli:
+    check: op-completion-cli
+    lane: progression
+profiles:
+  smoke:
+    description: CLI-only verification of completion generation and installation.
+    archive: never
+    steps: [completion-cli]

@@ -1,0 +1,20 @@
+description: Suite validating op env with CLI-first integration and API/RPC alignment.
+defaults:
+  profile: smoke
+steps:
+  env-cli:
+    check: op-env-cli
+    lane: progression
+  env-api:
+    check: op-env-api
+    lane: progression
+    needs: [env-cli]
+  env-rpc:
+    check: op-env-rpc
+    lane: progression
+    needs: [env-api]
+profiles:
+  smoke:
+    description: CLI-first verification with API and RPC alignment.
+    archive: never
+    steps: [env-cli, env-api, env-rpc]

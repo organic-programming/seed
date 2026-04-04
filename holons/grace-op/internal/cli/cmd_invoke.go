@@ -165,8 +165,17 @@ func cmdInvokeTransportTarget(format Format, target string, method string, input
 		return cmdGRPC(format, target, invokeConnectedArgs(method, inputJSON, noBuild))
 	case strings.HasPrefix(trimmed, "stdio://"):
 		return cmdGRPC(format, target, invokeConnectedArgs(method, inputJSON, noBuild))
-	case strings.HasPrefix(trimmed, "unix://"),
-		strings.HasPrefix(trimmed, "ws://"),
+	case strings.HasPrefix(trimmed, "unix://"):
+		remainder := trimURIAnyPrefix(trimmed, "unix://")
+		if isUnixSocketTarget(remainder) {
+			if noBuild {
+				fmt.Fprintln(os.Stderr, "op invoke: --no-build is only supported for holon targets")
+				return 1
+			}
+			return cmdGRPC(format, target, invokeDirectArgs(method, inputJSON))
+		}
+		return cmdGRPC(format, target, invokeConnectedArgs(method, inputJSON, noBuild))
+	case strings.HasPrefix(trimmed, "ws://"),
 		strings.HasPrefix(trimmed, "wss://"):
 		if noBuild {
 			fmt.Fprintln(os.Stderr, "op invoke: --no-build is only supported for holon targets")
@@ -263,7 +272,11 @@ func discoverInvokeRemoteMethods(target string) ([]invokeMethodCandidate, error)
 	case strings.HasPrefix(trimmed, "stdio://"):
 		return invokeMethodCandidatesFromConnectedTarget(trimURIAnyPrefix(trimmed, "stdio://"), "stdio", timeout)
 	case strings.HasPrefix(trimmed, "unix://"):
-		return invokeMethodCandidatesFromAddress(trimmed, timeout)
+		remainder := trimURIAnyPrefix(trimmed, "unix://")
+		if isUnixSocketTarget(remainder) {
+			return invokeMethodCandidatesFromAddress(trimmed, timeout)
+		}
+		return invokeMethodCandidatesFromConnectedTarget(remainder, "unix", timeout)
 	case isHostPortTarget(trimmed):
 		return invokeMethodCandidatesFromAddress(trimmed, timeout)
 	case isExecutableFile(trimmed):
@@ -298,6 +311,12 @@ func invokeInspectableTarget(target string) (string, bool) {
 	case strings.HasPrefix(trimmed, "stdio://"):
 		remainder := trimURIAnyPrefix(trimmed, "stdio://")
 		if remainder == "" {
+			return "", false
+		}
+		return remainder, true
+	case strings.HasPrefix(trimmed, "unix://"):
+		remainder := trimURIAnyPrefix(trimmed, "unix://")
+		if remainder == "" || isUnixSocketTarget(remainder) {
 			return "", false
 		}
 		return remainder, true

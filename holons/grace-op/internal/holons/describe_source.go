@@ -42,7 +42,7 @@ func generateDescribeSource(manifest *LoadedManifest, reporter progress.Reporter
 		return restore, nil
 	}
 
-	response, err := godescribe.BuildResponse(describeProtoDir(manifest), manifest.Path)
+	response, err := buildDescribeResponse(manifest)
 	if err != nil {
 		return restore, fmt.Errorf("build describe response: %w", err)
 	}
@@ -57,18 +57,90 @@ func generateDescribeSource(manifest *LoadedManifest, reporter progress.Reporter
 	return restore, nil
 }
 
-func describeProtoDir(manifest *LoadedManifest) string {
+func buildDescribeResponse(manifest *LoadedManifest) (*holonsv1.DescribeResponse, error) {
+	candidates := describeProtoCandidates(manifest)
+	var firstSuccess *holonsv1.DescribeResponse
+	var firstErr error
+	for _, candidate := range candidates {
+		response, err := godescribe.BuildResponse(candidate, manifest.Path)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		if firstSuccess == nil {
+			firstSuccess = response
+		}
+		if len(response.GetServices()) > 0 {
+			return response, nil
+		}
+	}
+	if firstSuccess != nil {
+		return firstSuccess, nil
+	}
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	return nil, fmt.Errorf("no proto sources found for describe generation")
+}
+
+func describeProtoCandidates(manifest *LoadedManifest) []string {
 	if manifest == nil {
-		return ""
+		return nil
+	}
+
+	var candidates []string
+	addCandidate := func(path string) {
+		trimmed := strings.TrimSpace(path)
+		if trimmed == "" {
+			return
+		}
+		for _, existing := range candidates {
+			if existing == trimmed {
+				return
+			}
+		}
+		candidates = append(candidates, trimmed)
+	}
+
+	manifestProtoDir := filepath.Dir(strings.TrimSpace(manifest.Path))
+	if describeDirHasProto(manifestProtoDir) {
+		addCandidate(manifestProtoDir)
 	}
 
 	candidate := filepath.Join(manifest.Dir, "proto")
 	info, err := os.Stat(candidate)
 	if err == nil && info.IsDir() {
-		return candidate
+		if resolved, resolveErr := filepath.EvalSymlinks(candidate); resolveErr == nil {
+			if resolvedInfo, resolvedErr := os.Stat(resolved); resolvedErr == nil && resolvedInfo.IsDir() {
+				addCandidate(resolved)
+			}
+		}
+		addCandidate(candidate)
 	}
 
-	return manifest.Dir
+	addCandidate(manifest.Dir)
+	return candidates
+}
+
+func describeDirHasProto(dir string) bool {
+	if strings.TrimSpace(dir) == "" {
+		return false
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if strings.EqualFold(filepath.Ext(entry.Name()), ".proto") {
+			return true
+		}
+	}
+	return false
 }
 
 func findDescribeTemplate(holonDir, lang string) (path string, ext string, err error) {

@@ -1,0 +1,24 @@
+description: Suite validating op install with CLI-first integration and API/RPC alignment.
+defaults:
+  profile: smoke
+steps:
+  install-cli:
+    check: op-install-cli
+    lane: progression
+  install-api:
+    check: op-install-api
+    lane: progression
+    needs: [install-cli]
+  install-rpc:
+    check: op-install-rpc
+    lane: progression
+    needs: [install-api]
+profiles:
+  smoke:
+    description: CLI-first verification with API and RPC alignment.
+    archive: never
+    steps: [install-cli, install-api, install-rpc]
+  full:
+    description: Exhaustive install verification.
+    archive: never
+    steps: [install-cli, install-api, install-rpc]

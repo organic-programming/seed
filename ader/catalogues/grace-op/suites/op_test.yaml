@@ -1,0 +1,24 @@
+description: Suite validating op test with CLI-first integration and API/RPC alignment.
+defaults:
+  profile: smoke
+steps:
+  test-cli:
+    check: op-test-cli
+    lane: progression
+  test-api:
+    check: op-test-api
+    lane: progression
+    needs: [test-cli]
+  test-rpc:
+    check: op-test-rpc
+    lane: progression
+    needs: [test-api]
+profiles:
+  smoke:
+    description: CLI-first verification with API and RPC alignment.
+    archive: never
+    steps: [test-cli, test-api, test-rpc]
+  full:
+    description: Exhaustive test verification across representative holons.
+    archive: never
+    steps: [test-cli, test-api, test-rpc]

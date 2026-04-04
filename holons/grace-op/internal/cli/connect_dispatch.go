@@ -3,27 +3,39 @@ package cli
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
 	sdkconnect "github.com/organic-programming/go-holons/pkg/connect"
 	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	sdkgrpcclient "github.com/organic-programming/go-holons/pkg/grpcclient"
+	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
 	openv "github.com/organic-programming/grace-op/internal/env"
 	internalgrpc "github.com/organic-programming/grace-op/internal/grpcclient"
 	"github.com/organic-programming/grace-op/internal/holons"
 	"github.com/organic-programming/grace-op/internal/identity"
+	inspectpkg "github.com/organic-programming/grace-op/internal/inspect"
 	"github.com/organic-programming/grace-op/internal/progress"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-const connectDispatchTimeout = 10 * time.Second
+// Slow first-run backends such as Python/Ruby may need several minutes to
+// install or initialize their runtime before they can advertise a transport.
+const connectDispatchTimeout = 5 * time.Minute
+const nativeStdioProbeTimeout = 20 * time.Second
 
 type activeConnection struct {
 	conn       *grpc.ClientConn
@@ -62,12 +74,61 @@ func runConnectedRPC(
 
 	result, err := internalgrpc.InvokeConn(ctx, conn.conn, method, inputJSON)
 	if err != nil {
+		if localResult, localErr := invokeConnViaLocalCatalog(ctx, conn.conn, holonName, method, inputJSON); localErr == nil {
+			result = localResult
+			err = nil
+		}
+	}
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", errPrefix, err)
 		return 1
 	}
 
 	fmt.Println(formatRPCOutput(format, method, []byte(result.Output)))
 	return 0
+}
+
+func invokeConnViaLocalCatalog(ctx context.Context, conn *grpc.ClientConn, holonName string, method string, inputJSON string) (*internalgrpc.CallResult, error) {
+	root := openv.Root()
+	catalog, err := inspectpkg.LoadLocalWithOptions(holonName, &root, sdkdiscover.ALL, int(connectDispatchTimeout/time.Millisecond))
+	if err == nil {
+		for _, binding := range catalog.Methods {
+			if strings.TrimSpace(binding.Method.Name) != strings.TrimSpace(method) {
+				continue
+			}
+			return internalgrpc.InvokeMethodDescriptor(ctx, conn, binding.Descriptor, inputJSON)
+		}
+	}
+
+	if builtin := builtinMethodDescriptor(holonName, method); builtin != nil {
+		return internalgrpc.InvokeMethodDescriptor(ctx, conn, builtin, inputJSON)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return nil, fmt.Errorf("method %q not found in local catalog for %s", method, holonName)
+}
+
+func builtinMethodDescriptor(holonName string, method string) protoreflect.MethodDescriptor {
+	if !strings.EqualFold(strings.TrimSpace(holonName), "op") {
+		return nil
+	}
+
+	service := opv1.File_api_v1_holon_proto.Services().ByName("OPService")
+	if service == nil {
+		return nil
+	}
+
+	targetMethod := canonicalMethodName(method)
+	methods := service.Methods()
+	for i := 0; i < methods.Len(); i++ {
+		candidate := methods.Get(i)
+		if string(candidate.Name()) == targetMethod {
+			return candidate
+		}
+	}
+	return nil
 }
 
 func parseConnectedRPCArgs(args []string) (method string, inputJSON string, noBuild bool, err error) {
@@ -105,77 +166,116 @@ func connectForRPC(holonName string, transport string) (activeConnection, error)
 
 func connectForRPCWithTimeout(holonName string, transport string, timeout time.Duration) (activeConnection, error) {
 	root := openv.Root()
-	specifiers := sdkdiscover.ALL
-	timeoutMS := int(timeout / time.Millisecond)
 
 	switch strings.ToLower(strings.TrimSpace(transport)) {
 	case "", "auto":
-		result := holons.ConnectRef(holonName, &root, specifiers, timeoutMS)
-		if result.Error != "" {
-			return activeConnection{}, errors.New(result.Error)
-		}
-		return activeConnection{
-			conn:       result.Channel,
-			disconnect: func() error { return sdkconnect.Disconnect(result) },
-			origin:     result.Origin,
-		}, nil
+		return connectBinaryAuto(holonName, &root, sdkdiscover.ALL, timeout)
 	case "stdio":
-		return connectForcedTransport(holonName, "stdio", &root, specifiers, timeout)
+		return connectForcedTransport(holonName, "stdio", &root, sdkdiscover.ALL, timeout)
 	case "tcp":
-		return connectForcedTransport(holonName, "tcp", &root, specifiers, timeout)
+		return connectForcedTransport(holonName, "tcp", &root, sdkdiscover.ALL, timeout)
+	case "unix":
+		return connectForcedTransport(holonName, "unix", &root, sdkdiscover.ALL, timeout)
 	default:
-		result := holons.ConnectRef(holonName, &root, specifiers, timeoutMS)
-		if result.Error != "" {
-			return activeConnection{}, errors.New(result.Error)
-		}
-		return activeConnection{
-			conn:       result.Channel,
-			disconnect: func() error { return sdkconnect.Disconnect(result) },
-			origin:     result.Origin,
-		}, nil
+		return connectBinaryAuto(holonName, &root, sdkdiscover.ALL, timeout)
 	}
 }
 
-func connectForcedTransport(holonName string, transport string, root *string, specifiers int, timeout time.Duration) (activeConnection, error) {
-	resolved := holons.ResolveRef(holonName, root, specifiers, int(timeout/time.Millisecond))
-	if resolved.Error != "" {
-		return activeConnection{}, errors.New(resolved.Error)
-	}
-	if resolved.Ref == nil {
-		return activeConnection{}, fmt.Errorf("holon %q not found", holonName)
+func connectBinaryAuto(holonName string, root *string, specifiers int, timeout time.Duration) (activeConnection, error) {
+	resolved, binaryPath, err := resolveConnectedBinary(holonName, root, specifiers, timeout)
+	if err != nil {
+		return activeConnection{}, err
 	}
 
-	binaryPath, err := binaryPathForRef(resolved.Ref, holonName)
+	if conn, err := dialBinaryStdio(binaryPath, resolved.Ref, minDuration(timeout, nativeStdioProbeTimeout)); err == nil {
+		return conn, nil
+	}
+
+	return connectLaunchedTCP(binaryPath, resolved.Ref, timeout)
+}
+
+func connectForcedTransport(holonName string, transport string, root *string, specifiers int, timeout time.Duration) (activeConnection, error) {
+	if target, err := holons.ResolveTargetWithOptions(holonName, root, specifiers, int(timeout/time.Millisecond)); err == nil &&
+		target != nil &&
+		target.ManifestErr == nil &&
+		target.Manifest != nil &&
+		target.Manifest.Manifest.Kind == holons.KindComposite {
+		return connectCompositeTarget(target, transport, timeout)
+	}
+
+	resolved, binaryPath, err := resolveConnectedBinary(holonName, root, specifiers, timeout)
 	if err != nil {
 		return activeConnection{}, err
 	}
 
 	switch transport {
 	case "stdio":
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
-
-		conn, cmd, err := sdkgrpcclient.DialStdio(ctx, binaryPath)
-		if err != nil {
-			return activeConnection{}, err
+		conn, err := dialBinaryStdio(binaryPath, resolved.Ref, minDuration(timeout, nativeStdioProbeTimeout))
+		if err == nil {
+			return conn, nil
 		}
-		return activeConnection{
-			conn: conn,
-			disconnect: func() error {
-				closeErr := conn.Close()
-				killErr := stopCommand(cmd)
-				if closeErr != nil {
-					return closeErr
-				}
-				return killErr
-			},
-			origin: resolved.Ref,
-		}, nil
+		return connectLaunchedTCP(binaryPath, resolved.Ref, timeout)
 	case "tcp":
 		return connectLaunchedTCP(binaryPath, resolved.Ref, timeout)
+	case "unix":
+		return connectLaunchedUnix(binaryPath, resolved.Ref, timeout)
 	default:
 		return activeConnection{}, fmt.Errorf("unsupported forced transport %q", transport)
 	}
+}
+
+func resolveConnectedBinary(holonName string, root *string, specifiers int, timeout time.Duration) (sdkdiscover.ResolveResult, string, error) {
+	resolved := holons.ResolveRef(holonName, root, specifiers, int(timeout/time.Millisecond))
+	if resolved.Error != "" {
+		if isResolveNotFound(resolved.Error) {
+			if binaryPath, err := binaryPathForRef(nil, holonName); err == nil {
+				return resolved, binaryPath, nil
+			}
+			return resolved, "", fmt.Errorf("%w for holon %q", sdkconnect.ErrBinaryNotFound, holonName)
+		}
+		return resolved, "", errors.New(resolved.Error)
+	}
+	if resolved.Ref == nil {
+		if binaryPath, err := binaryPathForRef(nil, holonName); err == nil {
+			return resolved, binaryPath, nil
+		}
+		return resolved, "", fmt.Errorf("%w for holon %q", sdkconnect.ErrBinaryNotFound, holonName)
+	}
+
+	binaryPath, err := binaryPathForRef(resolved.Ref, holonName)
+	if err != nil {
+		return resolved, "", err
+	}
+	return resolved, binaryPath, nil
+}
+
+func dialBinaryStdio(binaryPath string, origin *sdkdiscover.HolonRef, timeout time.Duration) (activeConnection, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	conn, cmd, err := sdkgrpcclient.DialStdio(ctx, binaryPath)
+	if err != nil {
+		return activeConnection{}, err
+	}
+	return activeConnection{
+		conn: conn,
+		disconnect: func() error {
+			closeErr := conn.Close()
+			killErr := stopCommand(cmd)
+			if closeErr != nil {
+				return closeErr
+			}
+			return killErr
+		},
+		origin: copyRef(origin),
+	}, nil
+}
+
+func minDuration(a, b time.Duration) time.Duration {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func binaryPathForRef(ref *sdkdiscover.HolonRef, fallback string) (string, error) {
@@ -201,20 +301,449 @@ func binaryPathForRef(ref *sdkdiscover.HolonRef, fallback string) (string, error
 }
 
 func connectLaunchedTCP(binaryPath string, origin *sdkdiscover.HolonRef, timeout time.Duration) (activeConnection, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+	return connectLaunchedAddress(binaryPath, origin, timeout, "tcp://127.0.0.1:0", nil)
+}
 
-	cmd := exec.Command(binaryPath, "serve", "--listen", "tcp://127.0.0.1:0")
-	stdout, err := cmd.StdoutPipe()
+func connectCompositeTarget(target *holons.Target, transport string, timeout time.Duration) (activeConnection, error) {
+	if target == nil || target.Manifest == nil {
+		return activeConnection{}, fmt.Errorf("composite target is missing its manifest")
+	}
+
+	switch transport {
+	case "", "auto", "stdio":
+		return connectCompositeTarget(target, "tcp", timeout)
+	case "tcp":
+		address, err := nextLoopbackAddress()
+		if err != nil {
+			return activeConnection{}, err
+		}
+		return connectLaunchedComposite(target, address, timeout)
+	case "unix":
+		if runtime.GOOS == "windows" {
+			return activeConnection{}, fmt.Errorf("unix transport is not supported on windows")
+		}
+		socketDir, err := os.MkdirTemp("/tmp", "op-composite-")
+		if err != nil {
+			socketDir, err = os.MkdirTemp("", "op-composite-")
+			if err != nil {
+				return activeConnection{}, err
+			}
+		}
+		socketPath := filepath.Join(socketDir, "h.sock")
+		conn, err := connectLaunchedComposite(target, "unix://"+socketPath, timeout)
+		if err != nil {
+			_ = os.RemoveAll(socketDir)
+			return activeConnection{}, err
+		}
+		previousDisconnect := conn.disconnect
+		conn.disconnect = func() error {
+			if previousDisconnect != nil {
+				_ = previousDisconnect()
+			}
+			return os.RemoveAll(socketDir)
+		}
+		return conn, nil
+	default:
+		return activeConnection{}, fmt.Errorf("unsupported forced transport %q", transport)
+	}
+}
+
+func connectLaunchedComposite(target *holons.Target, listenURI string, timeout time.Duration) (activeConnection, error) {
+	artifactPath := strings.TrimSpace(target.Manifest.ArtifactPath(holons.BuildContext{}))
+	if artifactPath == "" {
+		return activeConnection{}, fmt.Errorf("composite artifact path is empty for %s", target.Manifest.Name)
+	}
+
+	cmd, cleanup, err := compositeServeCommand(target.Manifest, artifactPath, listenURI)
 	if err != nil {
 		return activeConnection{}, err
 	}
-	stderr, err := cmd.StderrPipe()
+
+	var stdout strings.Builder
+	var stderr strings.Builder
+	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
+		if cleanup != nil {
+			_ = cleanup()
+		}
+		return activeConnection{}, err
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		if cleanup != nil {
+			_ = cleanup()
+		}
 		return activeConnection{}, err
 	}
 
 	if err := cmd.Start(); err != nil {
+		if cleanup != nil {
+			_ = cleanup()
+		}
+		return activeConnection{}, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	addressCh := make(chan string, 1)
+	readErrCh := make(chan error, 2)
+	streamReader := func(reader io.Reader, mirror *strings.Builder) {
+		buffered := bufio.NewReader(reader)
+		for {
+			line, readErr := buffered.ReadString('\n')
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "" {
+				mirror.WriteString(trimmed)
+				mirror.WriteByte('\n')
+				if address := advertisedListenAddress(trimmed); address != "" {
+					select {
+					case addressCh <- address:
+					default:
+					}
+				}
+			}
+			if readErr != nil {
+				if errors.Is(readErr, io.EOF) {
+					readErrCh <- nil
+				} else {
+					readErrCh <- readErr
+				}
+				return
+			}
+		}
+	}
+
+	go streamReader(stdoutPipe, &stdout)
+	go streamReader(stderrPipe, &stderr)
+
+	for {
+		select {
+		case address := <-addressCh:
+			conn, err := dialReadyAddress(ctx, normalizeDialTarget(address))
+			if err == nil {
+				return activeConnection{
+					conn: conn,
+					disconnect: func() error {
+						closeErr := conn.Close()
+						killErr := stopCommand(cmd)
+						if cleanup != nil {
+							_ = cleanup()
+						}
+						if closeErr != nil {
+							return closeErr
+						}
+						return killErr
+					},
+				}, nil
+			}
+		case readErr := <-readErrCh:
+			if readErr == nil && cmd.ProcessState == nil {
+				continue
+			}
+			if cleanup != nil {
+				_ = cleanup()
+			}
+			if readErr != nil {
+				return activeConnection{}, fmt.Errorf("composite server stream error: %w: %s%s", readErr, stdout.String(), stderr.String())
+			}
+			return activeConnection{}, fmt.Errorf("composite server exited before accepting connections: %s%s", stdout.String(), stderr.String())
+		case <-ctx.Done():
+			_ = stopCommand(cmd)
+			if cleanup != nil {
+				_ = cleanup()
+			}
+			return activeConnection{}, fmt.Errorf("composite server startup timeout for %s: %s%s", listenURI, stdout.String(), stderr.String())
+		}
+	}
+}
+
+func dialReadyAddress(ctx context.Context, address string) (*grpc.ClientConn, error) {
+	trimmed := strings.TrimSpace(address)
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+	}
+
+	if strings.HasPrefix(trimmed, "unix://") {
+		socketPath := strings.TrimPrefix(trimmed, "unix://")
+		opts = append(opts, grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
+			var dialer net.Dialer
+			return dialer.DialContext(ctx, "unix", socketPath)
+		}))
+		trimmed = "passthrough:///unix"
+	}
+
+	//nolint:staticcheck // Blocking handshake is intentional for startup readiness.
+	return grpc.DialContext(ctx, trimmed, opts...)
+}
+
+func compositeServeCommand(manifest *holons.LoadedManifest, artifactPath string, listenURI string) (*exec.Cmd, func() error, error) {
+	trimmedArtifact := strings.TrimSpace(artifactPath)
+	if manifest == nil || trimmedArtifact == "" {
+		return nil, nil, fmt.Errorf("composite artifact is not launchable")
+	}
+
+	bundleID, err := resolveCompositeBundleIdentifier(manifest, trimmedArtifact)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tempHome, cleanup, err := writeCompositeCoaxPreferences(bundleID, listenURI)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if isMacAppBundle(trimmedArtifact) && runtime.GOOS == "darwin" {
+		executableName, err := appBundleInfoValue(filepath.Join(trimmedArtifact, "Contents", "Info.plist"), "CFBundleExecutable")
+		if err != nil {
+			_ = cleanup()
+			return nil, nil, err
+		}
+		cmd := exec.Command(filepath.Join(trimmedArtifact, "Contents", "MacOS", executableName))
+		cmd = withCompositeRunEnv(cmd, manifest)
+		cmd.Env = replaceCommandEnv(cmd.Env, "HOME", tempHome)
+		cmd.Env = replaceCommandEnv(cmd.Env, "CFFIXED_USER_HOME", tempHome)
+		cmd.Env = replaceCommandEnv(cmd.Env, "TMPDIR", filepath.Join(tempHome, "tmp"))
+		cmd.Env = replaceCommandEnv(cmd.Env, "__CFBundleIdentifier", bundleID)
+		return cmd, cleanup, nil
+	}
+
+	cmd := exec.Command(trimmedArtifact)
+	cmd = withCompositeRunEnv(cmd, manifest)
+	cmd.Env = replaceCommandEnv(cmd.Env, "HOME", tempHome)
+	cmd.Env = replaceCommandEnv(cmd.Env, "TMPDIR", filepath.Join(tempHome, "tmp"))
+	return cmd, cleanup, nil
+}
+
+func writeCompositeCoaxPreferences(bundleID string, listenURI string) (string, func() error, error) {
+	tempHome, err := os.MkdirTemp("", "op-composite-home-")
+	if err != nil {
+		return "", nil, err
+	}
+
+	transport, host, portText, unixPath := compositeListenSnapshot(listenURI)
+	settings, err := json.Marshal(map[string]any{
+		"serverEnabled":   true,
+		"serverTransport": transport,
+		"serverHost":      host,
+		"serverPortText":  portText,
+		"serverUnixPath":  unixPath,
+		"relayEnabled":    false,
+		"relayTransport":  "restSSE",
+		"relayURL":        "",
+		"mcpEnabled":      false,
+		"mcpTransport":    "stdio",
+		"mcpEndpoint":     "",
+		"mcpCommand":      "",
+	})
+	if err != nil {
+		_ = os.RemoveAll(tempHome)
+		return "", nil, err
+	}
+
+	prefsDir := filepath.Join(tempHome, "Library", "Preferences")
+	tmpDir := filepath.Join(tempHome, "tmp")
+	if err := os.MkdirAll(prefsDir, 0o755); err != nil {
+		_ = os.RemoveAll(tempHome)
+		return "", nil, err
+	}
+	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
+		_ = os.RemoveAll(tempHome)
+		return "", nil, err
+	}
+
+	plistContents := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>coax.server.enabled</key>
+  <true/>
+  <key>coax.server.settings</key>
+  <data>%s</data>
+</dict>
+</plist>
+`, base64.StdEncoding.EncodeToString(settings))
+	if err := os.WriteFile(filepath.Join(prefsDir, bundleID+".plist"), []byte(plistContents), 0o644); err != nil {
+		_ = os.RemoveAll(tempHome)
+		return "", nil, err
+	}
+
+	return tempHome, func() error { return os.RemoveAll(tempHome) }, nil
+}
+
+func resolveCompositeBundleIdentifier(manifest *holons.LoadedManifest, artifactPath string) (string, error) {
+	if bundleID, err := appBundleInfoValue(filepath.Join(artifactPath, "Contents", "Info.plist"), "CFBundleIdentifier"); err == nil {
+		bundleID = strings.TrimSpace(bundleID)
+		if bundleID != "" && !strings.Contains(bundleID, "$(") {
+			return bundleID, nil
+		}
+	}
+
+	if manifest != nil {
+		if bundleID := xcodeBuildSettingValue(filepath.Join(manifest.Dir, "project.yml"), "PRODUCT_BUNDLE_IDENTIFIER"); bundleID != "" {
+			return bundleID, nil
+		}
+		if matches, err := filepath.Glob(filepath.Join(manifest.Dir, "*.xcodeproj", "project.pbxproj")); err == nil {
+			for _, path := range matches {
+				if bundleID := xcodeBuildSettingValue(path, "PRODUCT_BUNDLE_IDENTIFIER"); bundleID != "" {
+					return bundleID, nil
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("bundle identifier not found for composite %s", artifactPath)
+}
+
+func xcodeBuildSettingValue(path string, key string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+
+	yamlNeedle := key + ":"
+	pbxNeedle := key + " ="
+	for _, rawLine := range strings.Split(string(data), "\n") {
+		line := strings.TrimSpace(rawLine)
+		switch {
+		case strings.HasPrefix(line, yamlNeedle):
+			value := strings.TrimSpace(strings.TrimPrefix(line, yamlNeedle))
+			return strings.Trim(strings.TrimSuffix(value, ";"), `"`)
+		case strings.Contains(line, pbxNeedle):
+			index := strings.Index(line, pbxNeedle)
+			if index < 0 {
+				continue
+			}
+			value := strings.TrimSpace(line[index+len(pbxNeedle):])
+			return strings.Trim(strings.TrimSuffix(value, ";"), `"`)
+		}
+	}
+
+	return ""
+}
+
+func compositeListenSnapshot(listenURI string) (transport string, host string, portText string, unixPath string) {
+	trimmed := strings.TrimSpace(listenURI)
+	switch {
+	case strings.HasPrefix(trimmed, "unix://"):
+		return "unix", "127.0.0.1", "60000", strings.TrimPrefix(trimmed, "unix://")
+	case strings.HasPrefix(trimmed, "tcp://"):
+		remainder := strings.TrimPrefix(trimmed, "tcp://")
+		hostPart, portPart, err := net.SplitHostPort(remainder)
+		if err != nil {
+			return "tcp", "127.0.0.1", "60000", "/tmp/gabriel-greeting-coax.sock"
+		}
+		if hostPart == "" {
+			hostPart = "127.0.0.1"
+		}
+		return "tcp", hostPart, portPart, "/tmp/gabriel-greeting-coax.sock"
+	default:
+		return "tcp", "127.0.0.1", "60000", "/tmp/gabriel-greeting-coax.sock"
+	}
+}
+
+func appBundleInfoValue(plistPath string, key string) (string, error) {
+	data, err := os.ReadFile(plistPath)
+	if err != nil {
+		return "", err
+	}
+	needle := "<key>" + key + "</key>"
+	content := string(data)
+	index := strings.Index(content, needle)
+	if index < 0 {
+		return "", fmt.Errorf("%s missing from %s", key, plistPath)
+	}
+	rest := content[index+len(needle):]
+	start := strings.Index(rest, "<string>")
+	end := strings.Index(rest, "</string>")
+	if start < 0 || end < 0 || end <= start+len("<string>") {
+		return "", fmt.Errorf("%s has no string value in %s", key, plistPath)
+	}
+	return strings.TrimSpace(rest[start+len("<string>") : end]), nil
+}
+
+func nextLoopbackAddress() (string, error) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return "", err
+	}
+	defer listener.Close()
+	return "tcp://" + listener.Addr().String(), nil
+}
+
+func replaceCommandEnv(env []string, key string, value string) []string {
+	prefix := key + "="
+	out := make([]string, 0, len(env)+1)
+	replaced := false
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			if !replaced {
+				out = append(out, prefix+value)
+				replaced = true
+			}
+			continue
+		}
+		out = append(out, entry)
+	}
+	if !replaced {
+		out = append(out, prefix+value)
+	}
+	return out
+}
+
+func connectLaunchedUnix(binaryPath string, origin *sdkdiscover.HolonRef, timeout time.Duration) (activeConnection, error) {
+	tempRoot := "/tmp"
+	if info, err := os.Stat(tempRoot); err != nil || !info.IsDir() {
+		tempRoot = os.TempDir()
+	}
+
+	socketDir, err := os.MkdirTemp(tempRoot, "op-unix-")
+	if err != nil {
+		return activeConnection{}, err
+	}
+	socketPath := filepath.Join(socketDir, "h.sock")
+
+	conn, err := connectLaunchedAddress(binaryPath, origin, timeout, "unix://"+socketPath, func() error {
+		return os.RemoveAll(socketDir)
+	})
+	if err != nil {
+		_ = os.RemoveAll(socketDir)
+		return activeConnection{}, err
+	}
+	return conn, nil
+}
+
+func connectLaunchedAddress(
+	binaryPath string,
+	origin *sdkdiscover.HolonRef,
+	timeout time.Duration,
+	listenURI string,
+	cleanup func() error,
+) (activeConnection, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmd := exec.Command(binaryPath, "serve", "--listen", listenURI)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		if cleanup != nil {
+			_ = cleanup()
+		}
+		return activeConnection{}, err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		if cleanup != nil {
+			_ = cleanup()
+		}
+		return activeConnection{}, err
+	}
+
+	if err := cmd.Start(); err != nil {
+		if cleanup != nil {
+			_ = cleanup()
+		}
 		return activeConnection{}, err
 	}
 
@@ -258,15 +787,24 @@ func connectLaunchedTCP(binaryPath string, origin *sdkdiscover.HolonRef, timeout
 		select {
 		case <-ctx.Done():
 			_ = stopCommand(cmd)
+			if cleanup != nil {
+				_ = cleanup()
+			}
 			return activeConnection{}, fmt.Errorf("server startup timeout")
 		case err := <-readErrCh:
 			if err != io.EOF {
 				_ = stopCommand(cmd)
+				if cleanup != nil {
+					_ = cleanup()
+				}
 				return activeConnection{}, err
 			}
 			streamDone++
 			if streamDone == 2 {
 				_ = stopCommand(cmd)
+				if cleanup != nil {
+					_ = cleanup()
+				}
 				return activeConnection{}, fmt.Errorf("holon did not advertise a listen address")
 			}
 		case address = <-addressCh:
@@ -289,6 +827,9 @@ func connectLaunchedTCP(binaryPath string, origin *sdkdiscover.HolonRef, timeout
 		disconnect: func() error {
 			closeErr := conn.Close()
 			killErr := stopCommand(cmd)
+			if cleanup != nil {
+				_ = cleanup()
+			}
 			if closeErr != nil {
 				return closeErr
 			}
@@ -399,6 +940,11 @@ func isBuiltBinaryNotFound(err error) bool {
 		return false
 	}
 	return strings.Contains(err.Error(), sdkconnect.ErrBinaryNotFound.Error())
+}
+
+func isResolveNotFound(message string) bool {
+	trimmed := strings.ToLower(strings.TrimSpace(message))
+	return strings.Contains(trimmed, "not found")
 }
 
 func copyRef(ref *sdkdiscover.HolonRef) *sdkdiscover.HolonRef {

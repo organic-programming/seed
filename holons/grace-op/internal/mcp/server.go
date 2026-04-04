@@ -93,10 +93,10 @@ func NewServer(slugs []string, version string) (*Server, error) {
 	toolNamesBySlug := make(map[string][]string, len(slugs))
 
 	for _, slug := range slugs {
-		result := holons.ConnectRef(slug, nil, sdkdiscover.ALL, int((10*time.Second)/time.Millisecond))
-		if result.Error != "" {
+		result, err := connectOrBuildLocalHolon(slug)
+		if err != nil {
 			_ = closeConnections(connCache)
-			return nil, errors.New(result.Error)
+			return nil, err
 		}
 		connCache[slug] = result
 
@@ -184,6 +184,30 @@ func NewServer(slugs []string, version string) (*Server, error) {
 		connCache:     connCache,
 		describeCache: describeCache,
 	}, nil
+}
+
+func connectOrBuildLocalHolon(slug string) (sdkconnect.ConnectResult, error) {
+	const timeout = int((10 * time.Second) / time.Millisecond)
+
+	result := holons.ConnectRef(slug, nil, sdkdiscover.ALL, timeout)
+	if result.Error == "" {
+		return result, nil
+	}
+
+	target, err := holons.ResolveTargetWithOptions(slug, nil, sdkdiscover.SOURCE, timeout)
+	if err != nil {
+		return result, errors.New(result.Error)
+	}
+
+	if _, err := holons.ExecuteLifecycle(holons.OperationBuild, target.Dir); err != nil {
+		return result, fmt.Errorf("build %s: %w", slug, err)
+	}
+
+	result = holons.ConnectRef(slug, nil, sdkdiscover.ALL, timeout)
+	if result.Error != "" {
+		return result, errors.New(result.Error)
+	}
+	return result, nil
 }
 
 // Close releases cached holon connections.

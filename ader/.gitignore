@@ -1,5 +1,7 @@
 .artifacts/
+.bootstrap-op/
 .t
+.shared-cache/
 reports/
 archives/
 loops/live/

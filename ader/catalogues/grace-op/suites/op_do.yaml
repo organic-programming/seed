@@ -1,0 +1,20 @@
+description: Suite validating op do with CLI-first integration and API/RPC alignment.
+defaults:
+  profile: smoke
+steps:
+  do-cli:
+    check: op-do-cli
+    lane: progression
+  do-api:
+    check: op-do-api
+    lane: progression
+    needs: [do-cli]
+  do-rpc:
+    check: op-do-rpc
+    lane: progression
+    needs: [do-api]
+profiles:
+  smoke:
+    description: CLI-first verification with API and RPC alignment.
+    archive: never
+    steps: [do-cli, do-api, do-rpc]

@@ -1,0 +1,12 @@
+description: Suite validating op help as a CLI-only surface.
+defaults:
+  profile: smoke
+steps:
+  help-cli:
+    check: op-help-cli
+    lane: progression
+profiles:
+  smoke:
+    description: CLI-only verification of help output and topics.
+    archive: never
+    steps: [help-cli]

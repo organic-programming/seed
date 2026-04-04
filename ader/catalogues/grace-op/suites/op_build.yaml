@@ -19,10 +19,10 @@ steps:
     needs: [build-api]
 profiles:
   smoke:
-    description: CLI-first verification with API and RPC alignment
+    description: CLI-first verification with API and RPC alignment.
     archive: never
-    steps:
-    - build-unit
-    - build-cli
-    - build-api
-    - build-rpc
+    steps: [build-unit, build-cli, build-api, build-rpc]
+  full:
+    description: Exhaustive CLI-first build verification, including matrix and composite coverage.
+    archive: never
+    steps: [build-unit, build-cli, build-api, build-rpc]

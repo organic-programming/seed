@@ -184,7 +184,9 @@ func commandForInstalledArtifact(path string, target *holons.Target, listenURI s
 	if target != nil && manifest != nil && manifest.Manifest.Kind == holons.KindComposite {
 		return exec.Command(path), nil
 	}
-	return exec.Command(path, "serve", "--listen", listenURI), nil
+	cmd := exec.Command(path, serveArgs(listenURI)...)
+	cmd.Dir = runCommandDir(target, manifest, path)
+	return cmd, nil
 }
 
 func commandForArtifact(manifest *holons.LoadedManifest, ctx holons.BuildContext, listenURI string) (*exec.Cmd, error) {
@@ -222,7 +224,26 @@ func commandForArtifact(manifest *holons.LoadedManifest, ctx holons.BuildContext
 	if strings.TrimSpace(binaryPath) == "" {
 		return nil, fmt.Errorf("no binary declared for %s", manifest.Name)
 	}
-	return exec.Command(binaryPath, "serve", "--listen", listenURI), nil
+	cmd := exec.Command(binaryPath, serveArgs(listenURI)...)
+	cmd.Dir = runCommandDir(nil, manifest, binaryPath)
+	return cmd, nil
+}
+
+func serveArgs(listenURI string) []string {
+	return []string{"serve", "--listen", listenURI}
+}
+
+func runCommandDir(target *holons.Target, manifest *holons.LoadedManifest, artifactPath string) string {
+	if manifest != nil && strings.TrimSpace(manifest.Dir) != "" {
+		return manifest.Dir
+	}
+	if target != nil && strings.TrimSpace(target.Dir) != "" {
+		return target.Dir
+	}
+	if trimmed := strings.TrimSpace(artifactPath); trimmed != "" {
+		return filepath.Dir(trimmed)
+	}
+	return ""
 }
 
 func isMacAppBundle(path string) bool {

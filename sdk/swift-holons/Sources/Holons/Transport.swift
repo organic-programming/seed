@@ -262,6 +262,7 @@ public final class TCPRuntimeListener: RuntimeTransportListener {
 
             let acceptedFD = sysAccept(listenerFD)
             if acceptedFD >= 0 {
+                disableSIGPIPE(acceptedFD)
                 return POSIXRuntimeConnection(
                     readFD: acceptedFD,
                     writeFD: acceptedFD,
@@ -333,6 +334,7 @@ public final class UnixRuntimeListener: RuntimeTransportListener {
 
             let acceptedFD = sysAccept(listenerFD)
             if acceptedFD >= 0 {
+                disableSIGPIPE(acceptedFD)
                 return POSIXRuntimeConnection(
                     readFD: acceptedFD,
                     writeFD: acceptedFD,
@@ -614,7 +616,7 @@ public enum Transport {
         throw TransportError.listenFailed("tcp://\(host):\(port): \(lastError)")
     }
 
-    fileprivate static func bindUnix(path: String) throws -> Int32 {
+fileprivate static func bindUnix(path: String) throws -> Int32 {
         if path.isEmpty {
             throw TransportError.invalidURI("unix://")
         }
@@ -623,6 +625,7 @@ public enum Transport {
         if fd < 0 {
             throw TransportError.listenFailed(sysErrnoMessage())
         }
+        disableSIGPIPE(fd)
 
         _ = sysUnlink(path)
 
@@ -740,6 +743,24 @@ private func sysSocket(_ domain: Int32, _ type: Int32, _ proto: Int32) -> Int32 
     return Glibc.socket(domain, type, proto)
     #else
     return Darwin.socket(domain, type, proto)
+    #endif
+}
+
+func disableSIGPIPE(_ fd: Int32) {
+    #if os(Linux)
+    _ = fd
+    #else
+    guard fd >= 0 else {
+        return
+    }
+    var one: Int32 = 1
+    _ = setsockopt(
+        fd,
+        SOL_SOCKET,
+        SO_NOSIGPIPE,
+        &one,
+        socklen_t(MemoryLayout<Int32>.size)
+    )
     #endif
 }
 

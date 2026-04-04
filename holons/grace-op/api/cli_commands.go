@@ -200,7 +200,9 @@ func (c cliState) runEnvCommand(format Format, args []string) int {
 	return 0
 }
 
-const connectDispatchTimeout = 10 * time.Second
+// Keep the public CLI wrapper aligned with the internal CLI timeout budget for
+// slow first-run backends.
+const connectDispatchTimeout = 5 * time.Minute
 
 func (c cliState) runConnectedRPC(format Format, errPrefix string, holonName string, method string, inputJSON string, _ string) int {
 	result := holons.ConnectRef(holonName, nil, sdkdiscover.ALL, int(connectDispatchTimeout/time.Millisecond))

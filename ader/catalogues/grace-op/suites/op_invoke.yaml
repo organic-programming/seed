@@ -1,0 +1,24 @@
+description: Suite validating op invoke with CLI-first integration and API/RPC alignment.
+defaults:
+  profile: smoke
+steps:
+  invoke-cli:
+    check: op-invoke-cli
+    lane: progression
+  invoke-api:
+    check: op-invoke-api
+    lane: progression
+    needs: [invoke-cli]
+  invoke-rpc:
+    check: op-invoke-rpc
+    lane: progression
+    needs: [invoke-api]
+profiles:
+  smoke:
+    description: Representative invoke verification with the CLI as the integration reference.
+    archive: never
+    steps: [invoke-cli, invoke-api, invoke-rpc]
+  full:
+    description: Exhaustive invoke verification across examples, OPService RPCs, and supported transports.
+    archive: never
+    steps: [invoke-cli, invoke-api, invoke-rpc]

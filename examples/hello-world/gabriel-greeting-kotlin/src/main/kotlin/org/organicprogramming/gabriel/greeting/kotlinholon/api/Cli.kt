@@ -8,7 +8,7 @@ import org.organicprogramming.holons.Serve
 import java.io.PrintStream
 
 object Cli {
-    const val VERSION = "gabriel-greeting-kotlin {{ .Version }}"
+    const val VERSION = "gabriel-greeting-kotlin 8.8.89"
 
     fun run(args: Array<String>, stdout: PrintStream = System.out, stderr: PrintStream = System.err): Int {
         if (args.isEmpty()) {

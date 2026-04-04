@@ -5,9 +5,20 @@ steps:
   check-cli:
     check: op-check-cli
     lane: progression
+  check-api:
+    check: op-check-api
+    lane: progression
+    needs: [check-cli]
+  check-rpc:
+    check: op-check-rpc
+    lane: progression
+    needs: [check-api]
 profiles:
   smoke:
-    description: CLI-first verification for the check surface
+    description: CLI-first verification with API and RPC alignment.
     archive: never
-    steps:
-    - check-cli
+    steps: [check-cli, check-api, check-rpc]
+  full:
+    description: Exhaustive CLI-first check verification, including matrix and composite coverage.
+    archive: never
+    steps: [check-cli, check-api, check-rpc]

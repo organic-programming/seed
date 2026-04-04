@@ -26,13 +26,14 @@ module GabrielGreetingRuby
         def listen_and_serve(listen_uri, reflect: false, on_listen: nil)
           Holons::Serve.run_with_options(
             normalize_listen_uri(listen_uri),
-            method(:register_services),
+            proc { |server| register_services(server, include_meta: false) },
             reflect,
             on_listen: on_listen
           )
         end
 
-        def register_services(server)
+        def register_services(server, include_meta: true)
+          Holons::Describe.register(server) if include_meta
           server.handle(GreetingService.new)
         end
 

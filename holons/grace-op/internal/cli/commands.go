@@ -362,12 +362,17 @@ func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int
 //   - tcp://holon <method>            → forced TCP startup for slug targets
 //   - stdio://holon <method>          → forced stdio pipe
 //   - unix://path <method>            → Unix domain socket connection
+//   - unix://holon <method>           → forced Unix startup for slug targets
 func cmdGRPC(format Format, uri string, args []string) int {
 	switch {
 	case strings.HasPrefix(uri, "stdio://"):
 		return cmdGRPCStdio(format, uri, args)
 	case strings.HasPrefix(uri, "unix://"):
-		return cmdGRPCDirect(format, "unix://"+trimURIAnyPrefix(uri, "unix://"), args)
+		target := trimURIAnyPrefix(uri, "unix://")
+		if isUnixSocketTarget(target) {
+			return cmdGRPCDirect(format, "unix://"+target, args)
+		}
+		return cmdGRPCConnected(format, uri, target, args, "unix")
 	case strings.HasPrefix(uri, "ws://") || strings.HasPrefix(uri, "wss://"):
 		return cmdGRPCWebSocket(format, uri, args)
 	case strings.HasPrefix(uri, "tcp://"):
@@ -388,6 +393,24 @@ func trimURIAnyPrefix(uri string, prefixes ...string) string {
 		}
 	}
 	return uri
+}
+
+func isUnixSocketTarget(target string) bool {
+	trimmed := strings.TrimSpace(target)
+	switch {
+	case trimmed == "":
+		return false
+	case filepath.IsAbs(trimmed):
+		return true
+	case strings.HasPrefix(trimmed, "."):
+		return true
+	case strings.Contains(trimmed, "/"), strings.Contains(trimmed, `\`):
+		return true
+	case strings.HasSuffix(trimmed, ".sock"):
+		return true
+	default:
+		return false
+	}
 }
 
 // cmdGRPCTCP handles grpc://host:port directly and grpc://holon via auto-connect.
@@ -648,7 +671,9 @@ func commandForInstalledArtifact(path string, target *holons.Target, listenURI s
 	if target != nil && target.Manifest != nil && target.Manifest.Manifest.Kind == holons.KindComposite {
 		return withCompositeRunEnv(exec.Command(path), manifest), nil
 	}
-	return exec.Command(path, "serve", "--listen", listenURI), nil
+	cmd := exec.Command(path, serveArgs(listenURI)...)
+	cmd.Dir = runCommandDir(target, manifest, path)
+	return cmd, nil
 }
 
 func parseRunArgs(args []string) (string, runOptions, error) {
@@ -762,7 +787,26 @@ func commandForArtifact(manifest *holons.LoadedManifest, ctx holons.BuildContext
 	if strings.TrimSpace(binaryPath) == "" {
 		return nil, fmt.Errorf("no binary declared for %s", manifest.Name)
 	}
-	return exec.Command(binaryPath, "serve", "--listen", listenURI), nil
+	cmd := exec.Command(binaryPath, serveArgs(listenURI)...)
+	cmd.Dir = runCommandDir(nil, manifest, binaryPath)
+	return cmd, nil
+}
+
+func serveArgs(listenURI string) []string {
+	return []string{"serve", "--listen", listenURI}
+}
+
+func runCommandDir(target *holons.Target, manifest *holons.LoadedManifest, artifactPath string) string {
+	if manifest != nil && strings.TrimSpace(manifest.Dir) != "" {
+		return manifest.Dir
+	}
+	if target != nil && strings.TrimSpace(target.Dir) != "" {
+		return target.Dir
+	}
+	if trimmed := strings.TrimSpace(artifactPath); trimmed != "" {
+		return filepath.Dir(trimmed)
+	}
+	return ""
 }
 
 func isMacAppBundle(path string) bool {

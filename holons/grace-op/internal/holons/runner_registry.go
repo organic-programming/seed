@@ -460,8 +460,15 @@ func rubyBase64LibPath(searchDir string) string {
 	return matches[len(matches)-1]
 }
 
+func sharedCacheBaseDir() string {
+	if configured := strings.TrimSpace(os.Getenv("GRACE_OP_SHARED_CACHE_DIR")); configured != "" {
+		return configured
+	}
+	return os.TempDir()
+}
+
 func rubySharedCacheRoot(manifest *LoadedManifest) string {
-	baseDir := os.TempDir()
+	baseDir := sharedCacheBaseDir()
 	name := "ruby"
 	if manifest != nil {
 		if dir := strings.TrimSpace(manifest.Dir); dir != "" {
@@ -523,6 +530,30 @@ func prepareRubySharedCache(isolatedDir string, manifest *LoadedManifest) error 
 	}
 
 	return nil
+}
+
+func prepareRubyIsolatedWorkspace(isolatedDir string, manifest *LoadedManifest) error {
+	// Re-anchor relative SDK dependencies to absolute paths to survive inner execution.
+	supportPath := filepath.Join(isolatedDir, "support.rb")
+	if b, err := os.ReadFile(supportPath); err == nil {
+		s := strings.ReplaceAll(string(b), "\"../../../sdk/ruby-holons/lib\"", fmt.Sprintf("\"%s/../../../sdk/ruby-holons/lib\"", filepath.ToSlash(manifest.Dir)))
+		if err := os.WriteFile(supportPath, []byte(s), 0o644); err != nil {
+			return err
+		}
+	}
+	if err := prepareRubySharedCache(isolatedDir, manifest); err != nil {
+		return fmt.Errorf("prepare ruby cache: %w", err)
+	}
+	return nil
+}
+
+func rubySetupCommands(bundlePath, gemPath string) [][]string {
+	return [][]string{
+		{"env", "BUNDLE_FORCE_RUBY_PLATFORM=true", bundlePath, "lock", "--add-platform", "arm64-darwin"},
+		{bundlePath, "config", "set", "--local", "path", ".op/bundle"},
+		{"env", "BUNDLE_FORCE_RUBY_PLATFORM=true", bundlePath, "install"},
+		{gemPath, "install", "base64", "--install-dir", ".op/base64", "--no-document"},
+	}
 }
 
 func rubyTestArgs(manifest *LoadedManifest) ([]string, error) {
@@ -920,26 +951,14 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 		if err := copyWorkspaceIsolated(manifest.Dir, isolatedDir); err != nil {
 			return fmt.Errorf("isolate ruby workspace: %w", err)
 		}
-
-		// Re-anchor relative SDK dependencies to absolute paths to survive inner execution
-		supportPath := filepath.Join(isolatedDir, "support.rb")
-		if b, err := os.ReadFile(supportPath); err == nil {
-			s := strings.ReplaceAll(string(b), "\"../../../sdk/ruby-holons/lib\"", fmt.Sprintf("\"%s/../../../sdk/ruby-holons/lib\"", filepath.ToSlash(manifest.Dir)))
-			_ = os.WriteFile(supportPath, []byte(s), 0o644)
-		}
-		if err := prepareRubySharedCache(isolatedDir, manifest); err != nil {
-			return fmt.Errorf("prepare ruby cache: %w", err)
+		if err := prepareRubyIsolatedWorkspace(isolatedDir, manifest); err != nil {
+			return err
 		}
 	}
 
 	_ = os.RemoveAll(filepath.Join(isolatedDir, "vendor", "bundle"))
 
-	commands := [][]string{
-		{"env", "BUNDLE_FORCE_RUBY_PLATFORM=true", bundlePath, "lock", "--add-platform", "arm64-darwin"},
-		{bundlePath, "config", "set", "--local", "path", ".op/bundle"},
-		{"env", "BUNDLE_FORCE_RUBY_PLATFORM=true", bundlePath, "install"},
-		{gemPath, "install", "base64", "--install-dir", ".op/base64", "--no-document"},
-	}
+	commands := rubySetupCommands(bundlePath, gemPath)
 	for _, args := range commands {
 		report.Commands = append(report.Commands, commandString(args))
 		ctx.Progress.Step(commandString(args))
@@ -991,15 +1010,41 @@ func (rubyRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Repor
 	if err := ensureHostBuildTarget(RunnerRuby, ctx); err != nil {
 		return err
 	}
+	rubyPath, bundlePath, err := rubyToolchainPaths()
+	if err != nil {
+		return err
+	}
+	gemPath := rubyGemPath(rubyPath)
+
+	isolatedDir := filepath.Join(manifest.OpRoot(), "test", "ruby")
+	if !ctx.DryRun {
+		_ = os.RemoveAll(isolatedDir)
+		if err := copyWorkspaceIsolated(manifest.Dir, isolatedDir); err != nil {
+			return fmt.Errorf("isolate ruby workspace: %w", err)
+		}
+		if err := prepareRubyIsolatedWorkspace(isolatedDir, manifest); err != nil {
+			return err
+		}
+	}
+	_ = os.RemoveAll(filepath.Join(isolatedDir, "vendor", "bundle"))
 
 	args, err := rubyTestArgs(manifest)
 	if err != nil {
 		return err
 	}
-	report.Commands = append(report.Commands, commandString(args))
-	ctx.Progress.Step(commandString(args))
-	if output, err := runCommand(manifest.Dir, args); err != nil {
-		return fmt.Errorf("%s\n%s", err, output)
+
+	commands := append(rubySetupCommands(bundlePath, gemPath), args)
+	for _, cmdArgs := range commands {
+		report.Commands = append(report.Commands, commandString(cmdArgs))
+		ctx.Progress.Step(commandString(cmdArgs))
+	}
+	if ctx.DryRun {
+		return nil
+	}
+	for _, cmdArgs := range commands {
+		if output, err := runCommand(isolatedDir, cmdArgs); err != nil {
+			return fmt.Errorf("%s\n%s", err, output)
+		}
 	}
 	report.Notes = append(report.Notes, "ruby tests passed")
 	return nil
@@ -1157,7 +1202,7 @@ func swiftBuildMode(mode string) string {
 }
 
 func swiftPackageBuildPath(manifest *LoadedManifest) string {
-	baseDir := os.TempDir()
+	baseDir := sharedCacheBaseDir()
 	name := "swift-package"
 	if manifest != nil {
 		if dir := strings.TrimSpace(manifest.Dir); dir != "" {
@@ -1259,6 +1304,20 @@ func flutterBuildArgs(ctx BuildContext) ([]string, error) {
 	}
 }
 
+func prepareNPMIsolatedWorkspace(isolatedDir string, manifest *LoadedManifest) error {
+	// Re-anchor relative file dependencies to absolute paths to survive inner execution.
+	for _, name := range []string{"package.json", "package-lock.json"} {
+		path := filepath.Join(isolatedDir, name)
+		if b, err := os.ReadFile(path); err == nil {
+			s := strings.ReplaceAll(string(b), "\"file:.", fmt.Sprintf("\"file:%s/.", filepath.ToSlash(manifest.Dir)))
+			if err := os.WriteFile(path, []byte(s), 0o644); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 type npmRunner struct{}
 
 func (npmRunner) check(manifest *LoadedManifest, _ BuildContext) error {
@@ -1278,17 +1337,8 @@ func (npmRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repor
 		if err := copyWorkspaceIsolated(manifest.Dir, isolatedDir); err != nil {
 			return fmt.Errorf("isolate npm workspace: %w", err)
 		}
-
-		// Re-anchor relative file dependencies to absolute paths to survive inner execution
-		packageJsonPath := filepath.Join(isolatedDir, "package.json")
-		if b, err := os.ReadFile(packageJsonPath); err == nil {
-			s := strings.ReplaceAll(string(b), "\"file:.", fmt.Sprintf("\"file:%s/.", filepath.ToSlash(manifest.Dir)))
-			_ = os.WriteFile(packageJsonPath, []byte(s), 0o644)
-		}
-		packageLockPath := filepath.Join(isolatedDir, "package-lock.json")
-		if b, err := os.ReadFile(packageLockPath); err == nil {
-			s := strings.ReplaceAll(string(b), "\"file:.", fmt.Sprintf("\"file:%s/.", filepath.ToSlash(manifest.Dir)))
-			_ = os.WriteFile(packageLockPath, []byte(s), 0o644)
+		if err := prepareNPMIsolatedWorkspace(isolatedDir, manifest); err != nil {
+			return err
 		}
 	}
 
@@ -1325,13 +1375,13 @@ func (npmRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repor
 	}
 	descriptorSeed := ""
 	if descriptorProto := nodeDescriptorProtoSource(isolatedDir); descriptorProto != "" {
-		descriptorSeed = fmt.Sprintf(
+		descriptorSeed += fmt.Sprintf(
 			"descriptor_src=%q\ndescriptor_dst=\"$_OP_BASE/protos/holons/v1/google/protobuf/descriptor.proto\"\nif [ -f \"$descriptor_src\" ] && [ ! -f \"$descriptor_dst\" ]; then\n  mkdir -p \"$(dirname \"$descriptor_dst\")\"\n  cp \"$descriptor_src\" \"$descriptor_dst\"\nfi\n",
 			descriptorProto,
 		)
 	}
 	wrapper := fmt.Sprintf(
-		"#!/bin/sh\nset -eu\n_OP_BASE=%q\n%sexec %q %q \"$@\"\n",
+		"#!/bin/sh\nset -eu\n_OP_BASE=%q\n%scd \"$_OP_BASE\"\nexec %q %q \"$@\"\n",
 		isolatedDir,
 		descriptorSeed,
 		argsOrDefaultNodePath(),
@@ -1347,11 +1397,32 @@ func (npmRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repor
 }
 
 func (npmRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
-	args := []string{"npm", "test"}
-	report.Commands = append(report.Commands, commandString(args))
-	ctx.Progress.Step(commandString(args))
-	if output, err := runCommand(manifest.Dir, args); err != nil {
-		return fmt.Errorf("%s\n%s", err, output)
+	isolatedDir := filepath.Join(manifest.OpRoot(), "test", "npm")
+	if !ctx.DryRun {
+		_ = os.RemoveAll(isolatedDir)
+		if err := copyWorkspaceIsolated(manifest.Dir, isolatedDir); err != nil {
+			return fmt.Errorf("isolate npm workspace: %w", err)
+		}
+		if err := prepareNPMIsolatedWorkspace(isolatedDir, manifest); err != nil {
+			return err
+		}
+	}
+
+	commands := [][]string{
+		{"npm", "ci"},
+		{"npm", "test"},
+	}
+	for _, args := range commands {
+		report.Commands = append(report.Commands, commandString(args))
+		ctx.Progress.Step(commandString(args))
+	}
+	if ctx.DryRun {
+		return nil
+	}
+	for _, args := range commands {
+		if output, err := runCommand(isolatedDir, args); err != nil {
+			return fmt.Errorf("%s\n%s", err, output)
+		}
 	}
 	report.Notes = append(report.Notes, "npm test passed")
 	return nil

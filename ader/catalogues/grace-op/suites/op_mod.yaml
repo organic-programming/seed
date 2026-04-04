@@ -1,0 +1,20 @@
+description: Suite validating op mod with CLI-first integration and API/RPC alignment.
+defaults:
+  profile: smoke
+steps:
+  mod-cli:
+    check: op-mod-cli
+    lane: progression
+  mod-api:
+    check: op-mod-api
+    lane: progression
+    needs: [mod-cli]
+  mod-rpc:
+    check: op-mod-rpc
+    lane: progression
+    needs: [mod-api]
+profiles:
+  smoke:
+    description: CLI-first verification with API and RPC alignment.
+    archive: never
+    steps: [mod-cli, mod-api, mod-rpc]

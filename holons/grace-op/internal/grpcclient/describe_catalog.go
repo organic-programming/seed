@@ -87,7 +87,7 @@ func invokeViaDescribe(ctx context.Context, conn *grpc.ClientConn, methodName st
 		return nil, fmt.Errorf("call %s: %w", method.fullMethod, err)
 	}
 
-	outputBytes, err := protojson.Marshal(outputMsg)
+	outputBytes, err := protojson.MarshalOptions{}.Marshal(outputMsg)
 	if err != nil {
 		return nil, fmt.Errorf("marshal output: %w", err)
 	}

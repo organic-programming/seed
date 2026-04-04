@@ -5,17 +5,263 @@ checks:
     description: Verifies the internal build configuration integrity structure.
   op-build-cli:
     workdir: ader/catalogues/grace-op/integration/build
-    command: go test -v -count=1 -timeout 20m -run '^TestBuild_' .
-    description: Verifies the CLI-first op build integration surface, including logs, matrix, and composite coverage.
+    command: go test -v -count=1 -timeout 25m -run '^TestBuild_' .
+    description: Verifies the CLI-first build surface, including logs, matrix, and composite coverage.
   op-build-api:
     workdir: ader/catalogues/grace-op/integration/build
-    command: go test -v -count=1 -timeout 10m -run '^TestBuildAPI_' .
-    description: Verifies that the public API build surface stays aligned with the CLI reference behavior.
+    command: go test -v -count=1 -timeout 15m -run '^TestBuildAPI_' .
+    description: Verifies the public API alignment for build.
   op-build-rpc:
     workdir: ader/catalogues/grace-op/integration/build
-    command: go test -v -count=1 -timeout 10m -run '^TestBuildRPC_' .
-    description: Verifies that the RPC stdio transport stays aligned with the CLI and API build behavior.
+    command: go test -v -count=1 -timeout 15m -run '^TestBuildRPC_' .
+    description: Verifies the RPC alignment for build.
+
   op-check-cli:
     workdir: ader/catalogues/grace-op/integration/check
-    command: go test -v -count=1 -timeout 5m -run '^TestCheck_' .
-    description: Verifies the CLI-first op check integration surface, including matrix and composite coverage.
+    command: go test -v -count=1 -timeout 25m -run '^TestCheck_[0-9]' .
+    description: Verifies the CLI-first check surface, including matrix and composite coverage.
+  op-check-api:
+    workdir: ader/catalogues/grace-op/integration/check
+    command: go test -v -count=1 -timeout 10m -run '^TestCheck_API_' .
+    description: Verifies the public API alignment for check.
+  op-check-rpc:
+    workdir: ader/catalogues/grace-op/integration/check
+    command: go test -v -count=1 -timeout 10m -run '^TestCheck_RPC_' .
+    description: Verifies the RPC alignment for check.
+
+  op-clean-cli:
+    workdir: ader/catalogues/grace-op/integration/clean
+    command: go test -v -count=1 -timeout 10m -run '^TestClean_CLI_' .
+    description: Verifies the CLI clean surface and idempotence.
+  op-clean-api:
+    workdir: ader/catalogues/grace-op/integration/clean
+    command: go test -v -count=1 -timeout 10m -run '^TestClean_API_' .
+    description: Verifies the public API alignment for clean.
+  op-clean-rpc:
+    workdir: ader/catalogues/grace-op/integration/clean
+    command: go test -v -count=1 -timeout 10m -run '^TestClean_RPC_' .
+    description: Verifies the RPC alignment for clean.
+
+  op-completion-cli:
+    workdir: ader/catalogues/grace-op/integration/completion
+    command: go test -v -count=1 -timeout 10m -run '^TestCompletion_CLI_' .
+    description: Verifies shell completion generation and installation.
+
+  op-discover-cli:
+    workdir: ader/catalogues/grace-op/integration/discover
+    command: go test -v -count=1 -timeout 10m -run '^TestDiscover_CLI_' .
+    description: Verifies the CLI discover surface.
+  op-discover-api:
+    workdir: ader/catalogues/grace-op/integration/discover
+    command: go test -v -count=1 -timeout 10m -run '^TestDiscover_API_' .
+    description: Verifies the public API alignment for discover.
+  op-discover-rpc:
+    workdir: ader/catalogues/grace-op/integration/discover
+    command: go test -v -count=1 -timeout 10m -run '^TestDiscover_RPC_' .
+    description: Verifies the RPC alignment for discover.
+
+  op-do-cli:
+    workdir: ader/catalogues/grace-op/integration/do
+    command: go test -v -count=1 -timeout 10m -run '^TestDo_CLI_' .
+    description: Verifies the CLI do surface.
+  op-do-api:
+    workdir: ader/catalogues/grace-op/integration/do
+    command: go test -v -count=1 -timeout 10m -run '^TestDo_API_' .
+    description: Verifies the public API alignment for do.
+  op-do-rpc:
+    workdir: ader/catalogues/grace-op/integration/do
+    command: go test -v -count=1 -timeout 10m -run '^TestDo_RPC_' .
+    description: Verifies the RPC alignment for do.
+
+  op-env-cli:
+    workdir: ader/catalogues/grace-op/integration/env
+    command: go test -v -count=1 -timeout 10m -run '^TestEnv_CLI_' .
+    description: Verifies the CLI env surface.
+  op-env-api:
+    workdir: ader/catalogues/grace-op/integration/env
+    command: go test -v -count=1 -timeout 10m -run '^TestEnv_API_' .
+    description: Verifies the public API alignment for env.
+  op-env-rpc:
+    workdir: ader/catalogues/grace-op/integration/env
+    command: go test -v -count=1 -timeout 10m -run '^TestEnv_RPC_' .
+    description: Verifies the RPC alignment for env.
+
+  op-help-cli:
+    workdir: ader/catalogues/grace-op/integration/help
+    command: go test -v -count=1 -timeout 10m -run '^TestHelp_CLI_' .
+    description: Verifies the CLI help surface.
+
+  op-inspect-cli:
+    workdir: ader/catalogues/grace-op/integration/inspect
+    command: go test -v -count=1 -timeout 20m -run '^TestInspect_CLI_' .
+    description: Verifies the CLI inspect surface, including remote describe.
+  op-inspect-api:
+    workdir: ader/catalogues/grace-op/integration/inspect
+    command: go test -v -count=1 -timeout 10m -run '^TestInspect_API_' .
+    description: Verifies the public API alignment for inspect.
+  op-inspect-rpc:
+    workdir: ader/catalogues/grace-op/integration/inspect
+    command: go test -v -count=1 -timeout 10m -run '^TestInspect_RPC_' .
+    description: Verifies the RPC alignment for inspect.
+
+  op-install-cli:
+    workdir: ader/catalogues/grace-op/integration/install
+    command: go test -v -count=1 -timeout 20m -run '^TestInstall_CLI_' .
+    description: Verifies the CLI install surface.
+  op-install-api:
+    workdir: ader/catalogues/grace-op/integration/install
+    command: go test -v -count=1 -timeout 15m -run '^TestInstall_API_' .
+    description: Verifies the public API alignment for install.
+  op-install-rpc:
+    workdir: ader/catalogues/grace-op/integration/install
+    command: go test -v -count=1 -timeout 15m -run '^TestInstall_RPC_' .
+    description: Verifies the RPC alignment for install.
+
+  op-invoke-cli:
+    workdir: ader/catalogues/grace-op/integration/invoke
+    command: go test -v -count=1 -timeout 90m -run '^TestInvoke_CLI_' .
+    description: Verifies the exhaustive CLI invoke surface across examples, OPService RPCs, and transports.
+  op-invoke-api:
+    workdir: ader/catalogues/grace-op/integration/invoke
+    command: go test -v -count=1 -timeout 15m -run '^TestInvoke_API_' .
+    description: Verifies the public API alignment for invoke.
+  op-invoke-rpc:
+    workdir: ader/catalogues/grace-op/integration/invoke
+    command: go test -v -count=1 -timeout 15m -run '^TestInvoke_RPC_' .
+    description: Verifies the RPC alignment for invoke.
+
+  op-list-cli:
+    workdir: ader/catalogues/grace-op/integration/list
+    command: go test -v -count=1 -timeout 10m -run '^TestList_CLI_' .
+    description: Verifies the CLI list surface.
+  op-list-api:
+    workdir: ader/catalogues/grace-op/integration/list
+    command: go test -v -count=1 -timeout 10m -run '^TestList_API_' .
+    description: Verifies the public API alignment for list.
+  op-list-rpc:
+    workdir: ader/catalogues/grace-op/integration/list
+    command: go test -v -count=1 -timeout 10m -run '^TestList_RPC_' .
+    description: Verifies the RPC alignment for list.
+
+  op-mcp-cli:
+    workdir: ader/catalogues/grace-op/integration/mcp
+    command: go test -v -count=1 -timeout 15m -run '^TestMCP_CLI_' .
+    description: Verifies the CLI-only MCP bridge surface.
+
+  op-mod-cli:
+    workdir: ader/catalogues/grace-op/integration/mod
+    command: go test -v -count=1 -timeout 15m -run '^TestMod_CLI_' .
+    description: Verifies the CLI mod surface.
+  op-mod-api:
+    workdir: ader/catalogues/grace-op/integration/mod
+    command: go test -v -count=1 -timeout 10m -run '^TestMod_API_' .
+    description: Verifies the public API alignment for mod.
+  op-mod-rpc:
+    workdir: ader/catalogues/grace-op/integration/mod
+    command: go test -v -count=1 -timeout 10m -run '^TestMod_RPC_' .
+    description: Verifies the RPC alignment for mod.
+
+  op-new-cli:
+    workdir: ader/catalogues/grace-op/integration/new
+    command: go test -v -count=1 -timeout 10m -run '^TestNew_CLI_' .
+    description: Verifies the CLI new surface.
+  op-new-api:
+    workdir: ader/catalogues/grace-op/integration/new
+    command: go test -v -count=1 -timeout 10m -run '^TestNew_API_' .
+    description: Verifies the public API alignment for new.
+  op-new-rpc:
+    workdir: ader/catalogues/grace-op/integration/new
+    command: go test -v -count=1 -timeout 10m -run '^TestNew_RPC_' .
+    description: Verifies the RPC alignment for new.
+
+  op-run-cli:
+    workdir: ader/catalogues/grace-op/integration/run
+    command: go test -v -count=1 -timeout 20m -run '^TestRun_CLI_' .
+    description: Verifies the CLI run surface.
+  op-run-api:
+    workdir: ader/catalogues/grace-op/integration/run
+    command: go test -v -count=1 -timeout 10m -run '^TestRun_API_' .
+    description: Verifies the public API alignment for run.
+  op-run-rpc:
+    workdir: ader/catalogues/grace-op/integration/run
+    command: go test -v -count=1 -timeout 10m -run '^TestRun_RPC_' .
+    description: Verifies the RPC alignment for run.
+
+  op-serve-cli:
+    workdir: ader/catalogues/grace-op/integration/serve
+    command: go test -v -count=1 -timeout 10m -run '^TestServe_CLI_' .
+    description: Verifies the CLI-only serve surface.
+
+  op-show-cli:
+    workdir: ader/catalogues/grace-op/integration/show
+    command: go test -v -count=1 -timeout 10m -run '^TestShow_CLI_' .
+    description: Verifies the CLI show surface.
+  op-show-api:
+    workdir: ader/catalogues/grace-op/integration/show
+    command: go test -v -count=1 -timeout 10m -run '^TestShow_API_' .
+    description: Verifies the public API alignment for show.
+  op-show-rpc:
+    workdir: ader/catalogues/grace-op/integration/show
+    command: go test -v -count=1 -timeout 10m -run '^TestShow_RPC_' .
+    description: Verifies the RPC alignment for show.
+
+  op-test-cli:
+    workdir: ader/catalogues/grace-op/integration/test
+    command: go test -v -count=1 -timeout 25m -run '^TestTest_CLI_' .
+    description: Verifies the CLI-first test surface.
+  op-test-api:
+    workdir: ader/catalogues/grace-op/integration/test
+    command: go test -v -count=1 -timeout 15m -run '^TestTest_API_' .
+    description: Verifies the public API alignment for test.
+  op-test-rpc:
+    workdir: ader/catalogues/grace-op/integration/test
+    command: go test -v -count=1 -timeout 15m -run '^TestTest_RPC_' .
+    description: Verifies the RPC alignment for test.
+
+  op-tools-cli:
+    workdir: ader/catalogues/grace-op/integration/tools
+    command: go test -v -count=1 -timeout 15m -run '^TestTools_CLI_' .
+    description: Verifies the CLI tools surface.
+  op-tools-api:
+    workdir: ader/catalogues/grace-op/integration/tools
+    command: go test -v -count=1 -timeout 10m -run '^TestTools_API_' .
+    description: Verifies the public API alignment for tools.
+  op-tools-rpc:
+    workdir: ader/catalogues/grace-op/integration/tools
+    command: go test -v -count=1 -timeout 10m -run '^TestTools_RPC_' .
+    description: Verifies the RPC alignment for tools.
+
+  op-uninstall-cli:
+    workdir: ader/catalogues/grace-op/integration/uninstall
+    command: go test -v -count=1 -timeout 10m -run '^TestUninstall_CLI_' .
+    description: Verifies the CLI uninstall surface.
+  op-uninstall-api:
+    workdir: ader/catalogues/grace-op/integration/uninstall
+    command: go test -v -count=1 -timeout 10m -run '^TestUninstall_API_' .
+    description: Verifies the public API alignment for uninstall.
+  op-uninstall-rpc:
+    workdir: ader/catalogues/grace-op/integration/uninstall
+    command: go test -v -count=1 -timeout 10m -run '^TestUninstall_RPC_' .
+    description: Verifies the RPC alignment for uninstall.
+
+  op-version-cli:
+    workdir: ader/catalogues/grace-op/integration/version
+    command: go test -v -count=1 -timeout 10m -run '^TestVersion_CLI_' .
+    description: Verifies the CLI version surface.
+  op-version-api:
+    workdir: ader/catalogues/grace-op/integration/version
+    command: go test -v -count=1 -timeout 10m -run '^TestVersion_API_' .
+    description: Verifies the public API alignment for version.
+  op-version-rpc:
+    workdir: ader/catalogues/grace-op/integration/version
+    command: go test -v -count=1 -timeout 10m -run '^TestVersion_RPC_' .
+    description: Verifies the RPC alignment for version.
+  op-command-symmetry-unit:
+    workdir: holons/grace-op/internal/cli
+    command: go test -v -count=1 -timeout 5m -run '^TestCommandSurfaceSymmetry$' .
+    description: Verifies the structural CLI/API/RPC command surface symmetry.
+
+  op-dispatch-cli:
+    workdir: ader/catalogues/grace-op/integration/dispatch
+    command: go test -v -count=1 -timeout 30m -run '^TestDispatch_CLI_' .
+    description: Verifies the root dispatch surface across supported transports.

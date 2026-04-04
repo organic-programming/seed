@@ -270,11 +270,18 @@ func (b parserBuilder) shouldExpand(fileName string) bool {
 
 func collectProtoFiles(dir string) ([]string, error) {
 	files := make([]string, 0)
+	canonicalSeen := make(map[string]struct{})
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
 		if d.IsDir() {
+			if path != dir {
+				switch d.Name() {
+				case "node_modules", "vendor", "build", "testdata":
+					return filepath.SkipDir
+				}
+			}
 			if strings.HasPrefix(d.Name(), ".") && path != dir {
 				return filepath.SkipDir
 			}
@@ -287,7 +294,13 @@ func collectProtoFiles(dir string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		files = append(files, filepath.ToSlash(rel))
+		rel = filepath.ToSlash(rel)
+		canonical := canonicalProtoScanPath(rel)
+		if _, ok := canonicalSeen[canonical]; ok {
+			return nil
+		}
+		canonicalSeen[canonical] = struct{}{}
+		files = append(files, rel)
 		return nil
 	})
 	if err != nil {
@@ -295,6 +308,15 @@ func collectProtoFiles(dir string) ([]string, error) {
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+func canonicalProtoScanPath(rel string) string {
+	switch filepath.ToSlash(rel) {
+	case "xds/xds/data/orca/v3/orca_load_report.proto":
+		return "xds/data/orca/v3/orca_load_report.proto"
+	default:
+		return filepath.ToSlash(rel)
+	}
 }
 
 func discoverProtoImportPaths(protoDir string) []string {
