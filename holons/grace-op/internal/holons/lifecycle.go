@@ -553,22 +553,31 @@ func dependencyFreshReport(node *compositeDependencyNode, ctx BuildContext) Repo
 }
 
 func dependencyIsFresh(manifest *LoadedManifest, ctx BuildContext) bool {
-	if cachedMarker := sharedHolonPackageMarker(manifest); cachedMarker != "" {
-		return true
-	}
-	markerPath := buildFreshnessMarker(manifest, ctx)
-	if markerPath == "" {
-		return false
-	}
-	markerInfo, err := os.Stat(markerPath)
-	if err != nil || markerInfo.IsDir() {
+	if manifest == nil {
 		return false
 	}
 	sourceModTime, err := latestSourceTreeModTime(manifest.Dir)
 	if err != nil {
 		return false
 	}
-	return !markerInfo.ModTime().Before(sourceModTime)
+
+	for _, markerPath := range []string{
+		sharedHolonPackageMarker(manifest),
+		buildFreshnessMarker(manifest, ctx),
+	} {
+		if markerPath == "" {
+			continue
+		}
+		markerInfo, statErr := os.Stat(markerPath)
+		if statErr != nil {
+			continue
+		}
+		if !markerInfo.ModTime().Before(sourceModTime) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func buildFreshnessMarker(manifest *LoadedManifest, ctx BuildContext) string {

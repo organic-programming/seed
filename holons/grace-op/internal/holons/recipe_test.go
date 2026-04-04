@@ -1277,6 +1277,55 @@ artifacts:
 	}
 }
 
+func TestDependencyIsFreshRejectsStaleSharedCache(t *testing.T) {
+	if _, err := execLookPath("go"); err != nil {
+		t.Skip("go command not available")
+	}
+
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+
+	childDir := filepath.Join(root, "child")
+	if err := os.MkdirAll(filepath.Join(childDir, "cmd", "child"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(childDir, "go.mod"), []byte("module example.com/child\n\ngo 1.25.1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(childDir, "cmd", "child", "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeRecipeManifest(t, childDir, `schema: holon/v0
+kind: native
+build:
+  runner: go-module
+requires:
+  commands: [go]
+  files: [go.mod]
+artifacts:
+  binary: child
+`)
+
+	if _, err := ExecuteLifecycle(OperationBuild, childDir); err != nil {
+		t.Fatalf("initial build failed: %v", err)
+	}
+
+	manifest, err := LoadManifest(childDir)
+	if err != nil {
+		t.Fatalf("load manifest: %v", err)
+	}
+	if !dependencyIsFresh(manifest, BuildContext{}) {
+		t.Fatal("dependency should be fresh immediately after build")
+	}
+
+	if err := os.WriteFile(filepath.Join(childDir, "rebuild-trigger.txt"), []byte("touch\n"), 0o644); err != nil {
+		t.Fatalf("write rebuild trigger: %v", err)
+	}
+	if dependencyIsFresh(manifest, BuildContext{}) {
+		t.Fatal("dependency should become stale when the source tree changes after the shared cache is populated")
+	}
+}
+
 func TestRecipeRunnerAssertFilePass(t *testing.T) {
 	root := t.TempDir()
 	chdirForHolonTest(t, root)
