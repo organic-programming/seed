@@ -1,56 +1,22 @@
 import SwiftUI
 import GreetingKit
 
-private enum CoaxSettingsTab: String, CaseIterable, Identifiable {
-    case server
-    case relay
-    case mcp
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .server:
-            return "Server"
-        case .relay:
-            return "Relay"
-        case .mcp:
-            return "MCP"
-        }
-    }
-}
-
 struct CoaxSettingsPopup: View {
     @ObservedObject var coaxServer: CoaxServer
     @Binding var isPresented: Bool
-    @State private var selectedTab: CoaxSettingsTab = .server
 
     private let sheetWidth: CGFloat = 780
     private let rowLabelWidth: CGFloat = 110
 
     private var sheetHeight: CGFloat {
-        switch selectedTab {
-        case .server:
-            var height: CGFloat = coaxServer.serverTransport == .unix ? 560 : 588
-            if coaxServer.serverPortValidationMessage != nil {
-                height += 28
-            }
-            if coaxServer.serverTransportNote != nil {
-                height += 42
-            }
-            return height
-        case .relay:
-            return 620
-        case .mcp:
-            switch coaxServer.mcpTransport {
-            case .stdio:
-                return 585
-            case .streamableHTTP, .sse:
-                return 635
-            case .other:
-                return 675
-            }
+        var height: CGFloat = coaxServer.serverTransport == .unix ? 560 : 588
+        if coaxServer.serverPortValidationMessage != nil {
+            height += 28
         }
+        if coaxServer.serverTransportNote != nil {
+            height += 42
+        }
+        return height
     }
 
     var body: some View {
@@ -62,27 +28,13 @@ struct CoaxSettingsPopup: View {
 
             Divider()
 
-            TabView(selection: $selectedTab) {
-                tabContainer {
-                    serverTab
-                }
-                .tag(CoaxSettingsTab.server)
-                .tabItem { Text("Server") }
-
-                tabContainer {
-                    relayTab
-                }
-                .tag(CoaxSettingsTab.relay)
-                .tabItem { Text("Relay") }
-
-                tabContainer {
-                    mcpTab
-                }
-                .tag(CoaxSettingsTab.mcp)
-                .tabItem { Text("MCP") }
+            ScrollView(.vertical, showsIndicators: false) {
+                serverPage
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(minWidth: sheetWidth, idealWidth: sheetWidth, minHeight: sheetHeight, idealHeight: sheetHeight)
         .animation(.easeInOut(duration: 0.18), value: sheetHeight)
@@ -94,7 +46,7 @@ struct CoaxSettingsPopup: View {
                 Text("COAX")
                     .font(.system(size: 22, weight: .semibold))
 
-                Text("Configure server, relay, and MCP surfaces.")
+                Text("Configure the server surface.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
@@ -119,7 +71,7 @@ struct CoaxSettingsPopup: View {
         }
     }
 
-    private var serverTab: some View {
+    private var serverPage: some View {
         surfacePage(
             title: "Server",
             subtitle: "Expose the embedded runtime directly.",
@@ -164,99 +116,6 @@ struct CoaxSettingsPopup: View {
                 value: coaxServer.serverStatus.endpoint ?? coaxServer.serverPreviewEndpoint
             )
         }
-    }
-
-    private var relayTab: some View {
-        surfacePage(
-            title: "Relay",
-            subtitle: "Announce a client-facing surface through a COAX relay.",
-            state: coaxServer.relayStatus.state,
-            isEnabled: $coaxServer.relayEnabled
-        ) {
-            settingsSection("Connection") {
-                pickerRow(
-                    "Transport",
-                    selection: $coaxServer.relayTransport,
-                    values: CoaxRelayTransport.allCases
-                )
-                textFieldRow("Relay URL", text: $coaxServer.relayURL, placeholder: relayPlaceholder)
-                secureFieldRow("Bearer token", text: $coaxServer.relayBearerToken, placeholder: "coax_relay_...")
-            }
-
-            noteRow(coaxServer.secretStorageNote)
-
-            previewSection("Announced URL", value: coaxServer.relayPreviewEndpoint)
-        }
-    }
-
-    private var mcpTab: some View {
-        surfacePage(
-            title: "MCP",
-            subtitle: "Expose an MCP-facing surface alongside COAX.",
-            state: coaxServer.mcpStatus.state,
-            isEnabled: $coaxServer.mcpEnabled
-        ) {
-            settingsSection("Connection") {
-                pickerRow(
-                    "Transport",
-                    selection: $coaxServer.mcpTransport,
-                    values: CoaxMCPTransport.allCases
-                )
-
-                if coaxServer.mcpTransport == .stdio {
-                    textFieldRow("Command", text: $coaxServer.mcpCommand, placeholder: "uvx my-mcp-server")
-                } else {
-                    textFieldRow("Endpoint", text: $coaxServer.mcpEndpoint, placeholder: mcpPlaceholder)
-                    secureFieldRow("Bearer token", text: $coaxServer.mcpBearerToken, placeholder: "mcp_token_optional")
-
-                    if coaxServer.mcpTransport == .other {
-                        textFieldRow(
-                            "Optional command",
-                            text: $coaxServer.mcpCommand,
-                            placeholder: "launcher or descriptor"
-                        )
-                    }
-                }
-            }
-
-            noteRow(coaxServer.secretStorageNote)
-
-            previewSection("Announced endpoint", value: coaxServer.mcpPreviewEndpoint)
-        }
-    }
-
-    private var relayPlaceholder: String {
-        switch coaxServer.relayTransport {
-        case .restSSE:
-            return "https://relay.example.com"
-        case .webSocket:
-            return "wss://relay.example.com/grpc"
-        case .other:
-            return "custom://relay.example.com"
-        }
-    }
-
-    private var mcpPlaceholder: String {
-        switch coaxServer.mcpTransport {
-        case .stdio:
-            return "uvx my-mcp-server"
-        case .streamableHTTP:
-            return "https://mcp.example.com"
-        case .sse:
-            return "https://mcp.example.com/sse"
-        case .other:
-            return "custom+mcp://surface"
-        }
-    }
-
-    private func tabContainer<Content: View>(
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            content()
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func surfacePage<Content: View>(
@@ -378,18 +237,6 @@ struct CoaxSettingsPopup: View {
         }
     }
 
-    private func secureFieldRow(
-        _ title: String,
-        text: Binding<String>,
-        placeholder: String
-    ) -> some View {
-        formRow(title) {
-            SecureField(placeholder, text: text)
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
     private func formRow<Content: View>(
         _ title: String,
         @ViewBuilder content: () -> Content
@@ -417,16 +264,10 @@ struct CoaxSettingsPopup: View {
     }
 
     private func titleFor<Value>(_ value: Value) -> String where Value: RawRepresentable, Value.RawValue == String {
-        switch value {
-        case let transport as CoaxServerTransport:
+        if let transport = value as? CoaxServerTransport {
             return transport.title
-        case let transport as CoaxRelayTransport:
-            return transport.title
-        case let transport as CoaxMCPTransport:
-            return transport.title
-        default:
-            return value.rawValue
         }
+        return value.rawValue
     }
 
     private func statusColor(for state: CoaxSurfaceState) -> Color {

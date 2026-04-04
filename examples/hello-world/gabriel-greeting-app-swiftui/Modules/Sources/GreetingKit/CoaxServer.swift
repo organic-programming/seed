@@ -33,9 +33,9 @@ public struct CoaxSurfaceStatus: Identifiable, Hashable, Sendable {
     public let state: CoaxSurfaceState
 }
 
-// CoaxServer manages the embedded gRPC surface plus the announced relay and MCP
-// surfaces shown in the HostUI. The server surface can start the transports the
-// current Swift runtime serves directly here: tcp:// and unix://.
+// CoaxServer manages the embedded gRPC surface shown in the HostUI.
+// The server surface can start the transports the current Swift runtime
+// serves directly here: tcp:// and unix://.
 @MainActor
 public final class CoaxServer: ObservableObject {
     @Published public var isEnabled: Bool {
@@ -90,69 +90,6 @@ public final class CoaxServer: ObservableObject {
         }
     }
 
-    @Published public var relayEnabled: Bool {
-        didSet {
-            guard oldValue != relayEnabled else { return }
-            persistSettings()
-        }
-    }
-
-    @Published public var relayTransport: CoaxRelayTransport {
-        didSet {
-            guard oldValue != relayTransport else { return }
-            persistSettings()
-        }
-    }
-
-    @Published public var relayURL: String {
-        didSet {
-            guard oldValue != relayURL else { return }
-            persistSettings()
-        }
-    }
-
-    @Published public var relayBearerToken: String {
-        didSet {
-            guard oldValue != relayBearerToken else { return }
-            relayTokenStore.save(relayBearerToken)
-        }
-    }
-
-    @Published public var mcpEnabled: Bool {
-        didSet {
-            guard oldValue != mcpEnabled else { return }
-            persistSettings()
-        }
-    }
-
-    @Published public var mcpTransport: CoaxMCPTransport {
-        didSet {
-            guard oldValue != mcpTransport else { return }
-            persistSettings()
-        }
-    }
-
-    @Published public var mcpEndpoint: String {
-        didSet {
-            guard oldValue != mcpEndpoint else { return }
-            persistSettings()
-        }
-    }
-
-    @Published public var mcpCommand: String {
-        didSet {
-            guard oldValue != mcpCommand else { return }
-            persistSettings()
-        }
-    }
-
-    @Published public var mcpBearerToken: String {
-        didSet {
-            guard oldValue != mcpBearerToken else { return }
-            mcpTokenStore.save(mcpBearerToken)
-        }
-    }
-
     @Published public private(set) var listenURI: String?
     @Published public private(set) var statusDetail: String?
 
@@ -185,45 +122,6 @@ public final class CoaxServer: ObservableObject {
         }
     }
 
-    public var relayPreviewEndpoint: String {
-        let trimmed = trimmedRelayURL
-        if !trimmed.isEmpty {
-            return trimmed
-        }
-
-        switch relayTransport {
-        case .restSSE:
-            return "https://relay.example.com"
-        case .webSocket:
-            return "wss://relay.example.com/grpc"
-        case .other:
-            return "custom://relay.example.com"
-        }
-    }
-
-    public var mcpPreviewEndpoint: String {
-        switch mcpTransport {
-        case .stdio:
-            return trimmedMcpCommand.isEmpty ? "stdio: uvx my-mcp-server" : "stdio: \(trimmedMcpCommand)"
-        case .streamableHTTP:
-            return trimmedMcpEndpoint.isEmpty ? "https://mcp.example.com" : trimmedMcpEndpoint
-        case .sse:
-            return trimmedMcpEndpoint.isEmpty ? "https://mcp.example.com/sse" : trimmedMcpEndpoint
-        case .other:
-            if !trimmedMcpEndpoint.isEmpty {
-                return trimmedMcpEndpoint
-            }
-            if !trimmedMcpCommand.isEmpty {
-                return trimmedMcpCommand
-            }
-            return "custom+mcp://surface"
-        }
-    }
-
-    public var secretStorageNote: String {
-        "Bearer tokens are stored separately from visible preferences."
-    }
-
     public var serverTransportNote: String? {
         switch serverTransport {
         case .tcp, .unix:
@@ -244,31 +142,7 @@ public final class CoaxServer: ObservableObject {
         )
     }
 
-    public var relayStatus: CoaxSurfaceStatus {
-        CoaxSurfaceStatus(
-            id: "relay",
-            title: "Relay",
-            endpoint: relayPreviewEndpoint,
-            state: relaySurfaceState
-        )
-    }
-
-    public var mcpStatus: CoaxSurfaceStatus {
-        CoaxSurfaceStatus(
-            id: "mcp",
-            title: "MCP",
-            endpoint: mcpPreviewEndpoint,
-            state: mcpSurfaceState
-        )
-    }
-
-    public var visibleSurfaceStatuses: [CoaxSurfaceStatus] {
-        [serverStatus, relayStatus, mcpStatus]
-    }
-
     private let holon: HolonProcess
-    private let relayTokenStore: CoaxSecretStore
-    private let mcpTokenStore: CoaxSecretStore
     private var runningServer: Serve.RunningServer?
     private var pendingStartID: UUID?
 
@@ -277,12 +151,8 @@ public final class CoaxServer: ObservableObject {
 
     public init(holon: HolonProcess) {
         let snapshot = CoaxServer.loadSnapshot()
-        let relayTokenStore = CoaxSecretStore(account: "relay-bearer-token")
-        let mcpTokenStore = CoaxSecretStore(account: "mcp-bearer-token")
 
         self.holon = holon
-        self.relayTokenStore = relayTokenStore
-        self.mcpTokenStore = mcpTokenStore
 
         self.isEnabled = UserDefaults.standard.bool(forKey: CoaxServer.enabledKey)
         self.serverEnabled = snapshot.serverEnabled
@@ -290,15 +160,6 @@ public final class CoaxServer: ObservableObject {
         self.serverHost = snapshot.serverHost
         self.serverPortText = snapshot.serverPortText
         self.serverUnixPath = snapshot.serverUnixPath
-        self.relayEnabled = snapshot.relayEnabled
-        self.relayTransport = snapshot.relayTransport
-        self.relayURL = snapshot.relayURL
-        self.relayBearerToken = relayTokenStore.load()
-        self.mcpEnabled = snapshot.mcpEnabled
-        self.mcpTransport = snapshot.mcpTransport
-        self.mcpEndpoint = snapshot.mcpEndpoint
-        self.mcpCommand = snapshot.mcpCommand
-        self.mcpBearerToken = mcpTokenStore.load()
         self.listenURI = nil
         self.statusDetail = nil
     }
@@ -329,20 +190,6 @@ public final class CoaxServer: ObservableObject {
         return .announced
     }
 
-    private var relaySurfaceState: CoaxSurfaceState {
-        if !relayEnabled {
-            return .off
-        }
-        return isEnabled ? .announced : .saved
-    }
-
-    private var mcpSurfaceState: CoaxSurfaceState {
-        if !mcpEnabled {
-            return .off
-        }
-        return isEnabled ? .announced : .saved
-    }
-
     private var normalizedServerHost: String {
         let trimmed = serverHost.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? CoaxSettingsSnapshot.defaultHost : trimmed
@@ -351,18 +198,6 @@ public final class CoaxServer: ObservableObject {
     private var normalizedServerUnixPath: String {
         let trimmed = serverUnixPath.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? CoaxSettingsSnapshot.defaultUnixPath : trimmed
-    }
-
-    private var trimmedRelayURL: String {
-        relayURL.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private var trimmedMcpEndpoint: String {
-        mcpEndpoint.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private var trimmedMcpCommand: String {
-        mcpCommand.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var runtimeListenURI: String {
@@ -495,14 +330,7 @@ public final class CoaxServer: ObservableObject {
             serverTransport: serverTransport,
             serverHost: serverHost,
             serverPortText: serverPortText,
-            serverUnixPath: serverUnixPath,
-            relayEnabled: relayEnabled,
-            relayTransport: relayTransport,
-            relayURL: relayURL,
-            mcpEnabled: mcpEnabled,
-            mcpTransport: mcpTransport,
-            mcpEndpoint: mcpEndpoint,
-            mcpCommand: mcpCommand
+            serverUnixPath: serverUnixPath
         )
 
         let encoder = JSONEncoder()

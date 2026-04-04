@@ -25,8 +25,6 @@ struct ContentView: View {
             return "unix"
         case "tcp", "tcp://":
             return "tcp"
-        case "rest+sse", "http", "http://", "https", "https://", "sse", "rest":
-            return "rest+sse"
         default:
             return "stdio"
         }
@@ -233,7 +231,6 @@ struct ContentView: View {
                     Text("stdio").tag("stdio")
                     Text("unix").tag("unix")
                     Text("tcp").tag("tcp")
-                    Text("rest+sse").tag("rest+sse")
                 }
                 .labelsHidden()
                 .frame(width: 140)
@@ -279,24 +276,22 @@ struct ContentView: View {
                 .buttonStyle(.plain)
             }
 
-            VStack(alignment: .trailing, spacing: 4) {
-                ForEach(coaxServer.visibleSurfaceStatuses) { surface in
+            Group {
+                if let endpoint = coaxServer.serverStatus.endpoint {
                     HStack(alignment: .top, spacing: 6) {
-                        Text(surface.title + ":")
+                        Text(coaxServer.serverStatus.title + ":")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(.secondary)
 
-                        if let endpoint = surface.endpoint {
-                            Text(endpoint)
-                                .font(.system(size: 11, weight: .regular, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                                .textSelection(.enabled)
-                                .multilineTextAlignment(.trailing)
-                        }
+                        Text(endpoint)
+                            .font(.system(size: 11, weight: .regular, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .multilineTextAlignment(.trailing)
 
-                        Text(surface.state.badgeTitle)
+                        Text(coaxServer.serverStatus.state.badgeTitle)
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundStyle(surfaceBadgeColor(surface.state))
+                            .foregroundStyle(surfaceBadgeColor(coaxServer.serverStatus.state))
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }

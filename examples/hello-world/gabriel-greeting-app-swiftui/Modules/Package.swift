@@ -1,5 +1,16 @@
 // swift-tools-version: 6.0
+import Foundation
 import PackageDescription
+
+private let packageDirectory = URL(fileURLWithPath: #filePath)
+    .resolvingSymlinksInPath()
+    .deletingLastPathComponent()
+private let swiftHolonsPath = URL(
+    fileURLWithPath: "../../../../sdk/swift-holons",
+    relativeTo: packageDirectory
+)
+    .standardizedFileURL
+    .path
 
 let package = Package(
     name: "Modules",
@@ -8,7 +19,7 @@ let package = Package(
         .library(name: "GreetingKit", targets: ["GreetingKit"]),
     ],
     dependencies: [
-        .package(path: "../../../../sdk/swift-holons"),
+        .package(path: swiftHolonsPath),
         .package(url: "https://github.com/grpc/grpc-swift.git", exact: "1.9.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.36.0"),
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.35.0"),
