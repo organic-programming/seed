@@ -105,6 +105,17 @@ var compositeHolons = []HolonSpec{
 			"ruby", "bundle",
 		},
 	},
+	{
+		Slug:      "gabriel-greeting-app-flutter",
+		Runner:    "recipe",
+		Platform:  "darwin",
+		Composite: true,
+		Requires: []string{
+			"flutter", "go", "swift", "cargo", "python3",
+			"cmake", "dotnet", "dart", "java", "gradle", "node", "npm",
+			"ruby", "bundle",
+		},
+	},
 }
 
 var localTransports = []TransportSpec{
@@ -177,6 +188,15 @@ func TransportMatrix() []TransportSpec {
 
 func UnixTransportAvailable() bool {
 	return runtime.GOOS != "windows"
+}
+
+func CompositeArtifactPath(rootPath string, slug string) string {
+	switch slug {
+	case "gabriel-greeting-app-swiftui":
+		return filepath.Join(rootPath, "examples", "hello-world", slug, ".op", "build", "GabrielGreetingApp.app")
+	default:
+		return filepath.Join(rootPath, "examples", "hello-world", slug, ".op", "build", slug+".holon")
+	}
 }
 
 func BuildReportFor(t *testing.T, sb *Sandbox, slug string, extraArgs ...string) LifecycleReport {

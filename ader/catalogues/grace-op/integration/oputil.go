@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -114,7 +115,7 @@ func isolatedOPEnv(t *testing.T, opPath, opBin string) []string {
 
 	envVars := withEnv(os.Environ(), "OPPATH", opPath)
 	envVars = withEnv(envVars, "OPBIN", opBin)
-	envVars = withEnv(envVars, "PATH", FilterInstalledHolonsPath(os.Getenv("PATH")))
+	envVars = withEnv(envVars, "PATH", integrationToolPath())
 	envVars = withEnv(envVars, "GOCACHE", filepath.Join(rt.toolCacheRoot, "go-build"))
 	envVars = withEnv(envVars, "GOMODCACHE", filepath.Join(rt.toolCacheRoot, "go-mod"))
 	envVars = withEnv(envVars, "GRACE_OP_SHARED_CACHE_DIR", rt.sharedCacheRoot)
@@ -122,6 +123,40 @@ func isolatedOPEnv(t *testing.T, opPath, opBin string) []string {
 	envVars = withEnv(envVars, "TMP", tmpDir)
 	envVars = withEnv(envVars, "TEMP", tmpDir)
 	return envVars
+}
+
+func integrationToolPath() string {
+	base := FilterInstalledHolonsPath(os.Getenv("PATH"))
+	extras := userGemBinDirs()
+	if len(extras) == 0 {
+		return base
+	}
+	paths := make([]string, 0, len(extras)+1)
+	paths = append(paths, extras...)
+	if strings.TrimSpace(base) != "" {
+		paths = append(paths, base)
+	}
+	return strings.Join(paths, string(os.PathListSeparator))
+}
+
+func userGemBinDirs() []string {
+	home, err := os.UserHomeDir()
+	if err != nil || strings.TrimSpace(home) == "" {
+		return nil
+	}
+	matches, err := filepath.Glob(filepath.Join(home, ".gem", "ruby", "*", "bin"))
+	if err != nil {
+		return nil
+	}
+	sort.Strings(matches)
+	out := make([]string, 0, len(matches))
+	for _, match := range matches {
+		info, err := os.Stat(match)
+		if err == nil && info.IsDir() {
+			out = append(out, match)
+		}
+	}
+	return out
 }
 
 // SetupStdioOPClient launches the OP binary in stdio gRPC mode and returns a typed client.

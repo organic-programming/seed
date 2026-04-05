@@ -1,7 +1,34 @@
-description: Dart surface bootstrap while the Flutter-specific scenario set is still emerging
+description: Flutter desktop regression surface for the Dart SDK and Gabriel HostUI
 defaults:
   profile: smoke
 steps:
+  flutter-app-analyze:
+    check: flutter-app-analyze
+    lane: progression
+  flutter-app-unit:
+    check: flutter-app-unit
+    lane: progression
+  flutter-app-integration-smoke-macos:
+    check: flutter-app-integration-smoke-macos
+    lane: progression
+  integration-check-composite-flutter:
+    check: integration-check-composite-flutter
+    lane: progression
+  integration-build-composite-flutter:
+    check: integration-build-composite-flutter
+    lane: progression
+  integration-rebuild-composite-flutter:
+    check: integration-rebuild-composite-flutter
+    lane: progression
+  integration-invoke-composite-flutter-stdio:
+    check: integration-invoke-composite-flutter-stdio
+    lane: progression
+  integration-invoke-composite-flutter-tcp:
+    check: integration-invoke-composite-flutter-tcp
+    lane: progression
+  integration-invoke-composite-flutter-unix:
+    check: integration-invoke-composite-flutter-unix
+    lane: progression
   example-dart-unit:
     check: example-dart-unit
     lane: progression
@@ -67,19 +94,31 @@ steps:
     lane: progression
 profiles:
   smoke:
-    description: canonical path
+    description: macOS-first Flutter hostui proof
     archive: never
     steps:
     - sdk-dart-unit
     - example-dart-unit
-    - integration-dispatch-say-hello-across-transports-dart-auto
-    - integration-invoke-across-transports-dart-auto
-    - integration-lifecycle-hello-world-holons-dart
+    - flutter-app-analyze
+    - flutter-app-unit
+    - flutter-app-integration-smoke-macos
+    - integration-check-composite-flutter
+    - integration-invoke-composite-flutter-stdio
   full:
-    description: full scenario proof
+    description: full macOS-first Flutter scenario proof
     archive: auto
     steps:
+    - sdk-dart-unit
     - example-dart-unit
+    - flutter-app-analyze
+    - flutter-app-unit
+    - flutter-app-integration-smoke-macos
+    - integration-check-composite-flutter
+    - integration-build-composite-flutter
+    - integration-rebuild-composite-flutter
+    - integration-invoke-composite-flutter-stdio
+    - integration-invoke-composite-flutter-tcp
+    - integration-invoke-composite-flutter-unix
     - integration-dispatch-jsonoutput-dart
     - integration-dispatch-list-languages-dart
     - integration-dispatch-say-hello-across-transports-dart-auto
@@ -99,4 +138,3 @@ profiles:
     - integration-tools-formats-dart
     - integration-unix-transport-run-and-dispatch-dart
     - integration-windows-build-reports-exe-artifact-dart
-    - sdk-dart-unit

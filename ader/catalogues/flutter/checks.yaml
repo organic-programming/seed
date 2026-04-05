@@ -3,8 +3,102 @@ checks:
     workdir: examples/hello-world/gabriel-greeting-dart
     prereqs:
     - dart
-    command: dart test
+    command: dart test api _internal
     description: Dart example unit tests
+  flutter-app-analyze:
+    workdir: examples/hello-world/gabriel-greeting-app-flutter/app
+    prereqs:
+    - flutter
+    command: flutter analyze lib test integration_test
+    description: Flutter hostui static analysis
+  flutter-app-unit:
+    workdir: examples/hello-world/gabriel-greeting-app-flutter/app
+    prereqs:
+    - flutter
+    command: flutter test test
+    description: Flutter hostui unit and widget tests
+  flutter-app-integration-smoke:
+    workdir: examples/hello-world/gabriel-greeting-app-flutter/app
+    prereqs:
+    - flutter
+    command: flutter test integration_test/greeting_smoke_test.dart
+    description: Flutter hostui desktop integration smoke
+  flutter-app-integration-smoke-macos:
+    workdir: examples/hello-world/gabriel-greeting-app-flutter/app
+    prereqs:
+    - flutter
+    command: PATH="$HOME/.gem/ruby/2.6.0/bin:$PATH" flutter test integration_test/greeting_smoke_test.dart
+    description: Flutter hostui macOS desktop integration smoke
+  integration-check-composite-flutter:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - flutter
+    - dart
+    command: go test -v -count=1 -timeout 15m -run "^TestCheck_05_Composite$/^gabriel-greeting-app-flutter$" ./...
+    description: composite graph check for flutter hostui
+  integration-build-composite-flutter:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - flutter
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -v -count=1 -timeout 45m -run "^TestBuild_07_Composite$/^gabriel-greeting-app-flutter$" ./...
+    description: composite build for flutter hostui
+  integration-rebuild-composite-flutter:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - flutter
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -v -count=1 -timeout 45m -run "^TestBuild_08_CompositeRebuildsTouchedMember$/^gabriel-greeting-app-flutter$" ./...
+    description: composite rebuild propagation for flutter hostui
+  integration-invoke-composite-flutter-stdio:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - flutter
+    - dart
+    command: go test -v -count=1 -timeout 20m -run "^TestInvoke_CLI_CompositeAcrossTransports$/^gabriel-greeting-app-flutter$/^stdio$" ./...
+    description: composite invoke over stdio for flutter hostui
+  integration-invoke-composite-flutter-tcp:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - flutter
+    - dart
+    command: go test -v -count=1 -timeout 20m -run "^TestInvoke_CLI_CompositeAcrossTransports$/^gabriel-greeting-app-flutter$/^tcp$" ./...
+    description: composite invoke over tcp for flutter hostui
+  integration-invoke-composite-flutter-unix:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - flutter
+    - dart
+    command: go test -v -count=1 -timeout 20m -run "^TestInvoke_CLI_CompositeAcrossTransports$/^gabriel-greeting-app-flutter$/^unix$" ./...
+    description: composite invoke over unix for flutter hostui
   integration-dispatch-jsonoutput-dart:
     workdir: ader/catalogues/grace-op/integration
     prereqs:
@@ -146,5 +240,5 @@ checks:
     workdir: sdk/dart-holons
     prereqs:
     - dart
-    command: dart test
+    command: dart test test
     description: Dart SDK unit tests

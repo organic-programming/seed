@@ -122,28 +122,57 @@ func PackageBinaryPath(packageDir, binaryName string) string {
 
 func LaunchableArtifactPath(artifactPath string, manifest *LoadedManifest) string {
 	trimmed := strings.TrimSpace(artifactPath)
-	if trimmed == "" || manifest == nil {
+	if trimmed == "" {
 		return trimmed
 	}
-	if manifest.Manifest.Kind != KindNative && manifest.Manifest.Kind != KindWrapper {
+	if !isHolonPackagePath(trimmed) {
 		return trimmed
 	}
-	if isHolonPackagePath(trimmed) {
-		if binaryPath := PackageBinaryPath(trimmed, manifest.BinaryName()); binaryPath != "" {
+
+	if entrypointPath := packageEntrypointPath(trimmed); entrypointPath != "" {
+		return entrypointPath
+	}
+	preferredName := packagePreferredEntrypointName(trimmed, manifest)
+	if binaryPath := PackageBinaryPath(trimmed, preferredName); binaryPath != "" {
+		if _, err := os.Stat(binaryPath); err == nil {
 			return binaryPath
 		}
-		return trimmed
 	}
-
-	info, err := os.Stat(trimmed)
-	if err != nil || !info.IsDir() || isMacAppBundlePath(trimmed) || !isHolonPackagePath(trimmed) {
-		return trimmed
-	}
-
-	if binaryPath := PackageBinaryPath(trimmed, manifest.BinaryName()); binaryPath != "" {
-		return binaryPath
+	if launchablePath := firstLaunchableBinaryInPackage(trimmed, preferredName); launchablePath != "" {
+		return launchablePath
 	}
 	return trimmed
+}
+
+func packageEntrypointPath(packageDir string) string {
+	pkg, err := readHolonPackageJSON(packageDir)
+	if err != nil {
+		return ""
+	}
+	entrypoint := strings.TrimSpace(pkg.Entrypoint)
+	if entrypoint == "" {
+		return ""
+	}
+	path := PackageBinaryPath(packageDir, entrypoint)
+	if path == "" {
+		return ""
+	}
+	if _, err := os.Stat(path); err != nil {
+		return ""
+	}
+	return path
+}
+
+func packagePreferredEntrypointName(packageDir string, manifest *LoadedManifest) string {
+	if manifest != nil {
+		if binaryName := manifest.BinaryName(); binaryName != "" {
+			return binaryName
+		}
+		if name := strings.TrimSpace(manifest.Name); name != "" {
+			return name
+		}
+	}
+	return holonDirSlug(packageDir)
 }
 
 func copyArtifact(src, dst string) error {

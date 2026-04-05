@@ -13,6 +13,10 @@ import 'discovery_types.dart';
 import 'grpcclient.dart';
 import 'transport.dart';
 
+String Function() connectCurrentRootProvider = () => Directory.current.path;
+Map<String, String> Function() connectEnvironmentProvider =
+    () => Platform.environment;
+
 class ConnectOptions {
   final Duration timeout;
   final String transport;
@@ -40,6 +44,13 @@ const ChannelOptions _stdioChannelOptions = ChannelOptions(
   idleTimeout: null,
 );
 const Duration _stdioStartupProbeWindow = Duration(milliseconds: 500);
+
+void resetConnectTestOverrides() {
+  connectCurrentRootProvider = () => Directory.current.path;
+  connectEnvironmentProvider = () => Platform.environment;
+}
+
+String defaultPortFilePathForTest(String slug) => _defaultPortFilePath(slug);
 
 class _StdioClientChannel extends ClientChannel {
   final StdioTransportConnector _connector;
@@ -172,9 +183,13 @@ Future<ConnectResult> _connectResolvedWithOptions(
 
   try {
     final binaryPath = _resolveBinaryPath(ref, path);
+    final workingDirectory = _defaultWorkingDirectory(path, binaryPath);
     switch (options.transport) {
       case 'stdio':
-        final started = await _startStdioHolon(binaryPath);
+        final started = await _startStdioHolon(
+          binaryPath,
+          workingDirectory: workingDirectory,
+        );
         _started[started.$1] = _StartedHandle(started.$2, true);
         return ConnectResult(channel: started.$1, origin: ref);
 
@@ -190,7 +205,11 @@ Future<ConnectResult> _connectResolvedWithOptions(
           return ConnectResult(origin: ref, error: 'target unreachable');
         }
 
-        final started = await _startTcpHolon(binaryPath, options.timeout);
+        final started = await _startTcpHolon(
+          binaryPath,
+          options.timeout,
+          workingDirectory: workingDirectory,
+        );
         final channel =
             await _dialReady(_normalizeDialTarget(started.$1), options.timeout);
         await _writePortFile(portFile, started.$1);
@@ -216,6 +235,7 @@ Future<ConnectResult> _connectResolvedWithOptions(
           _refSlug(ref, path),
           portFile,
           options.timeout,
+          workingDirectory: workingDirectory,
         );
         final channel = await _dialReady(started.$1, options.timeout);
         await _writePortFile(portFile, started.$1);
@@ -373,10 +393,14 @@ Future<ClientChannel?> _usablePortFile(
   }
 }
 
-Future<(ClientChannel, Process)> _startStdioHolon(String binaryPath) async {
+Future<(ClientChannel, Process)> _startStdioHolon(
+  String binaryPath, {
+  required String workingDirectory,
+}) async {
   final process = await Process.start(
     binaryPath,
     const <String>['serve', '--listen', 'stdio://'],
+    workingDirectory: workingDirectory,
   );
   final recentLines = <String>[];
   utf8.decoder
@@ -410,14 +434,18 @@ Future<(ClientChannel, Process)> _startStdioHolon(String binaryPath) async {
 Future<(String, Process)> _startTcpHolon(
   String binaryPath,
   Duration timeout,
+  {
+  required String workingDirectory,
+}
 ) async {
   final process = await Process.start(
     binaryPath,
     const <String>['serve', '--listen', 'tcp://127.0.0.1:0'],
+    workingDirectory: workingDirectory,
   );
 
   final completer = Completer<String>();
-  final stdoutSub = utf8.decoder
+  utf8.decoder
       .bind(process.stdout)
       .transform(const LineSplitter())
       .listen((line) {
@@ -426,7 +454,7 @@ Future<(String, Process)> _startTcpHolon(
       completer.complete(uri);
     }
   });
-  final stderrSub = utf8.decoder
+  utf8.decoder
       .bind(process.stderr)
       .transform(const LineSplitter())
       .listen((line) {
@@ -450,9 +478,6 @@ Future<(String, Process)> _startTcpHolon(
   } on Object {
     await _stopProcess(process);
     rethrow;
-  } finally {
-    await stdoutSub.cancel();
-    await stderrSub.cancel();
   }
 }
 
@@ -461,6 +486,9 @@ Future<(String, Process)> _startUnixHolon(
   String slug,
   String portFile,
   Duration timeout,
+  {
+  required String workingDirectory,
+}
 ) async {
   final uri = _defaultUnixSocketURI(slug, portFile);
   final socketPath = uri.substring('unix://'.length);
@@ -474,10 +502,11 @@ Future<(String, Process)> _startUnixHolon(
   final process = await Process.start(
     binaryPath,
     <String>['serve', '--listen', uri],
+    workingDirectory: workingDirectory,
   );
 
   final recentLines = <String>[];
-  final stderrSub = utf8.decoder
+  utf8.decoder
       .bind(process.stderr)
       .transform(const LineSplitter())
       .listen((line) {
@@ -494,30 +523,26 @@ Future<(String, Process)> _startUnixHolon(
     exitCode = code;
   }));
 
-  try {
-    final deadline = DateTime.now().add(timeout);
-    while (DateTime.now().isBefore(deadline)) {
-      if (socketFile.existsSync() && await _probeUnixReady(socketPath)) {
-        return (uri, process);
-      }
-      if (exited) {
-        final details = _recentLineDetails(recentLines);
-        throw StateError(
-          'holon exited before binding unix socket ($exitCode)$details',
-        );
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (socketFile.existsSync() && await _probeUnixReady(socketPath)) {
+      return (uri, process);
     }
-
-    try {
-      await _stopProcess(process);
-    } catch (_) {}
-    throw StateError(
-      'timed out waiting for unix holon startup${_recentLineDetails(recentLines)}',
-    );
-  } finally {
-    await stderrSub.cancel();
+    if (exited) {
+      final details = _recentLineDetails(recentLines);
+      throw StateError(
+        'holon exited before binding unix socket ($exitCode)$details',
+      );
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 50));
   }
+
+  try {
+    await _stopProcess(process);
+  } catch (_) {}
+  throw StateError(
+    'timed out waiting for unix holon startup${_recentLineDetails(recentLines)}',
+  );
 }
 
 String _resolveBinaryPath(HolonRef ref, String path) {
@@ -576,7 +601,32 @@ String _resolveBinaryPath(HolonRef ref, String path) {
 }
 
 String _defaultPortFilePath(String slug) =>
-    '${Directory.current.path}${Platform.pathSeparator}.op${Platform.pathSeparator}run${Platform.pathSeparator}$slug.port';
+    '${_connectRunDirectory()}${Platform.pathSeparator}$slug.port';
+
+String _connectRunDirectory() => _joinPath(_connectOpPath(), 'run');
+
+String _connectOpPath() {
+  final env = connectEnvironmentProvider();
+  final configured = (env['OPPATH'] ?? '').trim();
+  if (configured.isNotEmpty) {
+    return _normalizeAbsolutePath(configured);
+  }
+
+  final home = (env['HOME'] ?? '').trim();
+  if (home.isNotEmpty) {
+    return _normalizeAbsolutePath(_joinPath(home, '.op'));
+  }
+
+  return _normalizeAbsolutePath(_joinPath(connectCurrentRootProvider(), '.op'));
+}
+
+String _defaultWorkingDirectory(String path, String binaryPath) {
+  final packageDir = Directory(path);
+  if (packageDir.existsSync()) {
+    return packageDir.absolute.path;
+  }
+  return Directory(binaryPath).parent.absolute.path;
+}
 
 String _defaultUnixSocketURI(String slug, String portFile) {
   final label = _socketLabel(slug);
@@ -781,4 +831,9 @@ String _basename(String path) {
       : normalized;
   final index = trimmed.lastIndexOf('/');
   return index >= 0 ? trimmed.substring(index + 1) : trimmed;
+}
+
+String _normalizeAbsolutePath(String path) {
+  final candidate = path.trim().isEmpty ? '.' : path;
+  return Directory(candidate).absolute.path;
 }

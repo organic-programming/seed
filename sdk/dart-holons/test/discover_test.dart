@@ -12,6 +12,48 @@ void main() {
   tearDown(discover_impl.resetDiscoveryTestOverrides);
 
   group('Discover', () {
+    test('default siblings root finds macOS app resources', () {
+      final sandbox = Directory.systemTemp.createTempSync(
+        'dart-holons-published-app-',
+      );
+      addTearDown(() => sandbox.deleteSync(recursive: true));
+
+      final executableDir = Directory(
+        '${sandbox.path}/Gabriel.app/Contents/MacOS',
+      )..createSync(recursive: true);
+      final holonsDir = Directory(
+        '${sandbox.path}/Gabriel.app/Contents/Resources/Holons',
+      )..createSync(recursive: true);
+
+      discover_impl.discoverResolvedExecutableProvider =
+          () => '${executableDir.path}/gabriel';
+
+      expect(
+        discover_impl.discoverSiblingsRootProvider(),
+        equals(holonsDir.path),
+      );
+    });
+
+    test('default siblings root finds packaged data holons', () {
+      final sandbox = Directory.systemTemp.createTempSync(
+        'dart-holons-published-data-',
+      );
+      addTearDown(() => sandbox.deleteSync(recursive: true));
+
+      final runtimeDir = Directory('${sandbox.path}/package/bin/darwin_arm64')
+        ..createSync(recursive: true);
+      final holonsDir = Directory('${runtimeDir.path}/data/Holons')
+        ..createSync(recursive: true);
+
+      discover_impl.discoverResolvedExecutableProvider =
+          () => '${runtimeDir.path}/gabriel';
+
+      expect(
+        discover_impl.discoverSiblingsRootProvider(),
+        equals(holonsDir.path),
+      );
+    });
+
     test('discover all layers', () {
       final fixture = createRuntimeFixture(sdkRoot);
       addTearDown(() => deleteFixture(fixture));
@@ -79,6 +121,175 @@ void main() {
           'cached-epsilon',
         ]),
       );
+    });
+
+    test('published macOS app discovery uses only bundled holons', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture, currentRoot: fixture.root.path);
+
+      final sandbox = Directory.systemTemp.createTempSync(
+        'dart-holons-published-macos-all-',
+      );
+      addTearDown(() => sandbox.deleteSync(recursive: true));
+
+      final executableDir = Directory(
+        '${sandbox.path}/Gabriel.app/Contents/MacOS',
+      )..createSync(recursive: true);
+      final holonsDir = Directory(
+        '${sandbox.path}/Gabriel.app/Contents/Resources/Holons',
+      )..createSync(recursive: true);
+
+      discover_impl.discoverResolvedExecutableProvider =
+          () => '${executableDir.path}/gabriel';
+
+      writePackageHolon(
+        Directory('${holonsDir.path}/published-alpha.holon'),
+        slug: 'published-alpha',
+        uuid: 'uuid-published-alpha',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/cwd-beta.holon'),
+        slug: 'cwd-beta',
+        uuid: 'uuid-cwd-beta',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/.op/build/built-gamma.holon'),
+        slug: 'built-gamma',
+        uuid: 'uuid-built-gamma',
+      );
+      writePackageHolon(
+        Directory('${fixture.opBin.path}/installed-delta.holon'),
+        slug: 'installed-delta',
+        uuid: 'uuid-installed-delta',
+      );
+      writePackageHolon(
+        Directory('${fixture.cache.path}/deps/cached-epsilon.holon'),
+        slug: 'cached-epsilon',
+        uuid: 'uuid-cached-epsilon',
+      );
+
+      final result = Discover(LOCAL, null, null, ALL, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['published-alpha']));
+    });
+
+    test('published Linux/Windows-style discovery uses only data holons', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture, currentRoot: fixture.root.path);
+
+      final sandbox = Directory.systemTemp.createTempSync(
+        'dart-holons-published-data-all-',
+      );
+      addTearDown(() => sandbox.deleteSync(recursive: true));
+
+      final runtimeDir = Directory('${sandbox.path}/package/bin/linux_x64')
+        ..createSync(recursive: true);
+      final holonsDir = Directory('${sandbox.path}/package/data/Holons')
+        ..createSync(recursive: true);
+
+      discover_impl.discoverResolvedExecutableProvider =
+          () => '${runtimeDir.path}/gabriel';
+
+      writePackageHolon(
+        Directory('${holonsDir.path}/published-alpha.holon'),
+        slug: 'published-alpha',
+        uuid: 'uuid-published-alpha',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/cwd-beta.holon'),
+        slug: 'cwd-beta',
+        uuid: 'uuid-cwd-beta',
+      );
+      writePackageHolon(
+        Directory('${fixture.opBin.path}/installed-delta.holon'),
+        slug: 'installed-delta',
+        uuid: 'uuid-installed-delta',
+      );
+
+      final result = Discover(LOCAL, null, null, ALL, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['published-alpha']));
+    });
+
+    test('published discovery still resolves bundled slug lookups', () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture, currentRoot: fixture.root.path);
+
+      final sandbox = Directory.systemTemp.createTempSync(
+        'dart-holons-published-slug-',
+      );
+      addTearDown(() => sandbox.deleteSync(recursive: true));
+
+      final executableDir = Directory(
+        '${sandbox.path}/Gabriel.app/Contents/MacOS',
+      )..createSync(recursive: true);
+      final holonsDir = Directory(
+        '${sandbox.path}/Gabriel.app/Contents/Resources/Holons',
+      )..createSync(recursive: true);
+
+      discover_impl.discoverResolvedExecutableProvider =
+          () => '${executableDir.path}/gabriel';
+
+      writePackageHolon(
+        Directory('${holonsDir.path}/published-alpha.holon'),
+        slug: 'published-alpha',
+        uuid: 'uuid-published-alpha',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/cwd-beta.holon'),
+        slug: 'cwd-beta',
+        uuid: 'uuid-cwd-beta',
+      );
+
+      final result =
+          Discover(LOCAL, 'published-alpha', null, ALL, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['published-alpha']));
+    });
+
+    test('explicit root still uses source-mode discovery even in published app',
+        () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture, currentRoot: fixture.root.path);
+
+      final sandbox = Directory.systemTemp.createTempSync(
+        'dart-holons-published-explicit-root-',
+      );
+      addTearDown(() => sandbox.deleteSync(recursive: true));
+
+      final executableDir = Directory(
+        '${sandbox.path}/Gabriel.app/Contents/MacOS',
+      )..createSync(recursive: true);
+      final holonsDir = Directory(
+        '${sandbox.path}/Gabriel.app/Contents/Resources/Holons',
+      )..createSync(recursive: true);
+
+      discover_impl.discoverResolvedExecutableProvider =
+          () => '${executableDir.path}/gabriel';
+
+      writePackageHolon(
+        Directory('${holonsDir.path}/published-alpha.holon'),
+        slug: 'published-alpha',
+        uuid: 'uuid-published-alpha',
+      );
+      writePackageHolon(
+        Directory('${fixture.root.path}/cwd-beta.holon'),
+        slug: 'cwd-beta',
+        uuid: 'uuid-cwd-beta',
+      );
+
+      final result =
+          Discover(LOCAL, null, fixture.root.path, CWD, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(slugs(result), equals(<String>['cwd-beta']));
     });
 
     test('filter by specifiers', () {

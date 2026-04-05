@@ -58,7 +58,7 @@ func TestInvoke_CLI_ExamplesAcrossTransports(t *testing.T) {
 	}
 }
 
-func TestInvoke_CLI_CompositeSwiftUIAcrossTransports(t *testing.T) {
+func TestInvoke_CLI_CompositeAcrossTransports(t *testing.T) {
 	composites := integration.CompositeTestHolons(t)
 	methods := []struct {
 		name    string

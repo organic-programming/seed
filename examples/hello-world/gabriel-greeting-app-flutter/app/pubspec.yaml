@@ -1,0 +1,28 @@
+name: gabriel_greeting_app_flutter
+description: "Gabriel greeting Flutter desktop app."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  collection: ^1.19.1
+  flutter:
+    sdk: flutter
+  grpc: ^5.1.0
+  holons:
+    path: ../../../../sdk/dart-holons
+  path: ^1.9.1
+  protobuf: ^6.0.0
+  shadcn_flutter: ^0.0.52
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

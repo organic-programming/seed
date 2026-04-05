@@ -215,35 +215,31 @@ func TestRunNewListTemplates(t *testing.T) {
 }
 
 func TestRunNewTemplateCreatesScaffold(t *testing.T) {
-	t.Skip("template rendering is covered in internal/scaffold; CLI template catalog wiring is outside discovery migration")
-
 	root := t.TempDir()
 	chdirForTest(t, root)
 
 	output := captureStdout(t, func() {
-		code := Run([]string{"new", "--template", "go-daemon", "delta-engine", "--set", "service=EchoService"}, "0.1.0-test")
+		code := Run([]string{"new", "--template", "composite-dart-flutter", "delta-engine"}, "0.1.0-test")
 		if code != 0 {
 			t.Fatalf("template new returned %d, want 0", code)
 		}
 	})
 
-	if !strings.Contains(output, "Created delta-engine from go-daemon") {
+	if !strings.Contains(output, "Created delta-engine from composite-dart-flutter") {
 		t.Fatalf("stdout missing creation summary: %q", output)
 	}
 
-	mainPath := filepath.Join(root, "delta-engine", "cmd", "delta-engine", "main.go")
-	data, err := os.ReadFile(mainPath)
+	manifestPath := filepath.Join(root, "delta-engine", "api", "v1", identity.ManifestFileName)
+	data, err := os.ReadFile(manifestPath)
 	if err != nil {
-		t.Fatalf("ReadFile(%s) failed: %v", mainPath, err)
+		t.Fatalf("ReadFile(%s) failed: %v", manifestPath, err)
 	}
-	if !strings.Contains(string(data), "EchoService ready for delta-engine") {
-		t.Fatalf("generated main.go missing override: %s", string(data))
+	if !strings.Contains(string(data), `motto: "dart + flutter composite."`) {
+		t.Fatalf("generated manifest missing dart/flutter alias wiring: %s", string(data))
 	}
 }
 
 func TestRunNewTemplateJSONOutput(t *testing.T) {
-	t.Skip("template rendering is covered in internal/scaffold; CLI template catalog wiring is outside discovery migration")
-
 	root := t.TempDir()
 	chdirForTest(t, root)
 
@@ -469,6 +465,65 @@ func TestCommandForInstalledArtifactIncludesCompositeAssemblyEnv(t *testing.T) {
 	}
 }
 
+func TestCommandForArtifactLaunchesCompositeHolonPackage(t *testing.T) {
+	root := t.TempDir()
+	packageDir := filepath.Join(root, "build", "gudule-greeting-flutter-rust.holon")
+	entrypoint := hostTestExecutableName("gudule-greeting-flutter-rust")
+	binaryPath := writeTestHolonPackage(t, packageDir, entrypoint)
+
+	manifest := &holons.LoadedManifest{
+		Dir:  root,
+		Name: "gudule-greeting-flutter-rust",
+		Manifest: holons.Manifest{
+			Kind:       holons.KindComposite,
+			FamilyName: "Greeting-Flutter-Rust",
+			Transport:  "stdio",
+			Artifacts:  holons.ArtifactPaths{Primary: "build/gudule-greeting-flutter-rust.holon"},
+		},
+	}
+
+	cmd, err := commandForArtifact(manifest, holons.BuildContext{Target: hostTestTarget()}, "stdio://")
+	if err != nil {
+		t.Fatalf("commandForArtifact returned error: %v", err)
+	}
+	if cmd.Path != binaryPath {
+		t.Fatalf("cmd.Path = %q, want %q", cmd.Path, binaryPath)
+	}
+	if cmd.Dir != filepath.Dir(binaryPath) {
+		t.Fatalf("cmd.Dir = %q, want %q", cmd.Dir, filepath.Dir(binaryPath))
+	}
+}
+
+func TestCommandForInstalledArtifactLaunchesCompositeHolonPackage(t *testing.T) {
+	root := t.TempDir()
+	packageDir := filepath.Join(root, "gudule-greeting-flutter-rust.holon")
+	entrypoint := hostTestExecutableName("gudule-greeting-flutter-rust")
+	binaryPath := writeTestHolonPackage(t, packageDir, entrypoint)
+
+	target := &holons.Target{
+		Manifest: &holons.LoadedManifest{
+			Dir:  root,
+			Name: "gudule-greeting-flutter-rust",
+			Manifest: holons.Manifest{
+				Kind:       holons.KindComposite,
+				FamilyName: "Greeting-Flutter-Rust",
+				Transport:  "stdio",
+			},
+		},
+	}
+
+	cmd, err := commandForInstalledArtifact(packageDir, target, "stdio://")
+	if err != nil {
+		t.Fatalf("commandForInstalledArtifact returned error: %v", err)
+	}
+	if cmd.Path != binaryPath {
+		t.Fatalf("cmd.Path = %q, want %q", cmd.Path, binaryPath)
+	}
+	if cmd.Dir != filepath.Dir(binaryPath) {
+		t.Fatalf("cmd.Dir = %q, want %q", cmd.Dir, filepath.Dir(binaryPath))
+	}
+}
+
 func TestCommandForArtifactDoesNotAddAssemblyEnvForNativeHolons(t *testing.T) {
 	root := t.TempDir()
 	binaryPath := filepath.Join(root, ".op", "build", "gudule-daemon-greeting-rust.holon", "bin", runtime.GOOS+"_"+runtime.GOARCH, "gudule-daemon-greeting-rust")
@@ -601,6 +656,21 @@ func TestCompositeDisplayFamilyLabelsWebAssemblies(t *testing.T) {
 	}
 }
 
+func TestCompositeBundleDisplayNameUsesHumanTitleForGreetingApps(t *testing.T) {
+	manifest := &holons.LoadedManifest{
+		Name: "gabriel-greeting-app-flutter",
+		Manifest: holons.Manifest{
+			Kind:       holons.KindComposite,
+			GivenName:  "Gabriel",
+			FamilyName: "Greeting-App-Flutter",
+		},
+	}
+
+	if got := compositeBundleDisplayName(manifest); got != "Gabriel Greeting" {
+		t.Fatalf("compositeBundleDisplayName = %q, want %q", got, "Gabriel Greeting")
+	}
+}
+
 func TestCommandForArtifactPreservesTransportOverrideFromEnvironment(t *testing.T) {
 	t.Setenv("OP_ASSEMBLY_TRANSPORT", "stdio")
 
@@ -692,6 +762,50 @@ func envValue(env []string, key string) string {
 		}
 	}
 	return ""
+}
+
+func writeTestHolonPackage(t *testing.T, packageDir string, entrypoint string) string {
+	t.Helper()
+
+	binaryPath := filepath.Join(packageDir, "bin", runtime.GOOS+"_"+runtime.GOARCH, entrypoint)
+	if err := os.MkdirAll(filepath.Dir(binaryPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(binaryPath, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload := map[string]any{
+		"schema":        "holon-package/v1",
+		"slug":          strings.TrimSuffix(filepath.Base(packageDir), ".holon"),
+		"entrypoint":    entrypoint,
+		"architectures": []string{runtime.GOOS + "_" + runtime.GOARCH},
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageDir, ".holon.json"), append(data, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return binaryPath
+}
+
+func hostTestExecutableName(name string) string {
+	if runtime.GOOS == "windows" && filepath.Ext(name) == "" {
+		return name + ".exe"
+	}
+	return name
+}
+
+func hostTestTarget() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "macos"
+	case "windows":
+		return "windows"
+	default:
+		return "linux"
+	}
 }
 
 func TestDiscoverCommandJSONFormat(t *testing.T) {
@@ -1782,8 +1896,6 @@ func TestCompletionWithGlobalFlagSuppressesDirectiveText(t *testing.T) {
 		t.Fatalf("stderr should not leak completion directive text: %q", stderr)
 	}
 }
-
-
 
 func TestUninstallCommand(t *testing.T) {
 	root := t.TempDir()

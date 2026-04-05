@@ -142,14 +142,19 @@ func TestCheck_05_Composite(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
 
-	cmd := exec.Command(opBin, "check", "gabriel-greeting-app-swiftui", "--root", rootPath)
-	cmd.Env = envVars
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Composite check failed: %v\nOutput: %s", err, string(out))
-	}
+	for _, spec := range integration.CompositeTestHolons(t) {
+		spec := spec
+		t.Run(spec.Slug, func(t *testing.T) {
+			cmd := exec.Command(opBin, "check", spec.Slug, "--root", rootPath)
+			cmd.Env = envVars
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("Composite check failed for %s: %v\nOutput: %s", spec.Slug, err, string(out))
+			}
 
-	if !strings.Contains(string(out), "Operation: check") {
-		t.Fatalf("Failed to parse SwiftUI composite graph: %s", string(out))
+			if !strings.Contains(string(out), "Operation: check") {
+				t.Fatalf("Failed to parse composite graph for %s: %s", spec.Slug, string(out))
+			}
+		})
 	}
 }

@@ -1,0 +1,38 @@
+schema: holon/v0
+uuid: "{{ .UUID }}"
+given_name: "{{ .GivenTitle }}"
+family_name: "{{ .FamilyTitle }}"
+motto: "{{ .DaemonKind }} + {{ .HostUIKind }} composite."
+composer: "op new"
+status: draft
+born: "{{ .Date }}"
+description: "{{ .Slug }} scaffold generated from {{ .Template }}."
+lang: "{{ .Lang }}"
+kind: composite
+build:
+  runner: recipe
+  defaults:
+    target: macos
+    mode: debug
+  members:
+    - id: daemon
+      path: daemon
+      type: component
+    - id: app
+      path: app
+      type: component
+  targets:
+    macos:
+      steps:
+        - assert_file:
+            path: app/app.txt
+    linux:
+      steps:
+        - assert_file:
+            path: app/app.txt
+    windows:
+      steps:
+        - assert_file:
+            path: app/app.txt
+artifacts:
+  primary: app/app.txt

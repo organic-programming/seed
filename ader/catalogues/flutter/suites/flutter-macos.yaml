@@ -1,0 +1,64 @@
+description: macOS desktop validation for the Gabriel Flutter HostUI
+defaults:
+  profile: full
+steps:
+  sdk-dart-unit:
+    check: sdk-dart-unit
+    lane: progression
+  example-dart-unit:
+    check: example-dart-unit
+    lane: progression
+  flutter-app-analyze:
+    check: flutter-app-analyze
+    lane: progression
+  flutter-app-unit:
+    check: flutter-app-unit
+    lane: progression
+  flutter-app-integration-smoke-macos:
+    check: flutter-app-integration-smoke-macos
+    lane: progression
+  integration-check-composite-flutter:
+    check: integration-check-composite-flutter
+    lane: progression
+  integration-build-composite-flutter:
+    check: integration-build-composite-flutter
+    lane: progression
+  integration-rebuild-composite-flutter:
+    check: integration-rebuild-composite-flutter
+    lane: progression
+  integration-invoke-composite-flutter-stdio:
+    check: integration-invoke-composite-flutter-stdio
+    lane: progression
+  integration-invoke-composite-flutter-tcp:
+    check: integration-invoke-composite-flutter-tcp
+    lane: progression
+  integration-invoke-composite-flutter-unix:
+    check: integration-invoke-composite-flutter-unix
+    lane: progression
+profiles:
+  smoke:
+    description: fast macOS confidence pass
+    archive: never
+    steps:
+    - sdk-dart-unit
+    - example-dart-unit
+    - flutter-app-analyze
+    - flutter-app-unit
+    - flutter-app-integration-smoke-macos
+    - integration-check-composite-flutter
+    - integration-invoke-composite-flutter-stdio
+  full:
+    description: full macOS desktop proof
+    archive: auto
+    steps:
+    - sdk-dart-unit
+    - example-dart-unit
+    - flutter-app-analyze
+    - flutter-app-unit
+    - flutter-app-integration-smoke-macos
+    - integration-check-composite-flutter
+    - integration-build-composite-flutter
+    - integration-rebuild-composite-flutter
+    - integration-invoke-composite-flutter-stdio
+    - integration-invoke-composite-flutter-tcp
+    - integration-invoke-composite-flutter-unix

@@ -16,7 +16,11 @@ String Function() discoverCurrentRootProvider =
     () => _normalizeAbsolutePath(Directory.current.path);
 Map<String, String> Function() discoverEnvironmentProvider =
     () => Platform.environment;
+String? Function() discoverPublishedHolonsRootProvider =
+    _defaultPublishedHolonsRoot;
 String? Function() discoverSiblingsRootProvider = _defaultSiblingsRoot;
+String Function() discoverResolvedExecutableProvider =
+    () => Platform.resolvedExecutable;
 String Function() discoverDartRunWorkingDirectoryProvider =
     () => Directory.current.path;
 SourceDiscoverBridge discoverSourceBridge = _defaultSourceDiscoverBridge;
@@ -25,7 +29,9 @@ void resetDiscoveryTestOverrides() {
   discoverCurrentRootProvider =
       () => _normalizeAbsolutePath(Directory.current.path);
   discoverEnvironmentProvider = () => Platform.environment;
+  discoverPublishedHolonsRootProvider = _defaultPublishedHolonsRoot;
   discoverSiblingsRootProvider = _defaultSiblingsRoot;
+  discoverResolvedExecutableProvider = () => Platform.resolvedExecutable;
   discoverDartRunWorkingDirectoryProvider = () => Directory.current.path;
   discoverSourceBridge = _defaultSourceDiscoverBridge;
 }
@@ -83,6 +89,16 @@ DiscoverResult Discover(
           found: _applyRefLimit(pathResult.found, limit),
         );
       }
+    }
+
+    final publishedRoot = _publishedHolonsRoot(root);
+    if (publishedRoot != null) {
+      return _discoverPublishedPackages(
+        publishedRoot,
+        normalizedExpression,
+        limit,
+        timeout,
+      );
     }
 
     final rootResult = _resolveDiscoverRoot(root);
@@ -199,6 +215,54 @@ DiscoverResult Discover(
     }
   }
 
+  return DiscoverResult(found: found);
+}
+
+String? _publishedHolonsRoot(String? explicitRoot) {
+  if (explicitRoot != null) {
+    return null;
+  }
+  final publishedRoot = discoverPublishedHolonsRootProvider()?.trim() ?? '';
+  if (publishedRoot.isEmpty) {
+    return null;
+  }
+  final normalized = _normalizeAbsolutePath(publishedRoot);
+  if (!Directory(normalized).existsSync()) {
+    return null;
+  }
+  return normalized;
+}
+
+DiscoverResult _discoverPublishedPackages(
+  String publishedRoot,
+  String? expression,
+  int limit,
+  int timeout,
+) {
+  final result = _discoverPackageLayer(
+    publishedRoot,
+    'published',
+    recursive: false,
+    timeout: timeout,
+  );
+  if (result.error != null) {
+    return result;
+  }
+  final found = <HolonRef>[];
+  final seen = <String>{};
+  for (final ref in result.found) {
+    final key = _refKey(ref);
+    if (!seen.add(key)) {
+      continue;
+    }
+    if (!_matchesExpression(ref, expression)) {
+      continue;
+    }
+    found.add(ref);
+    if (limit > 0 && found.length >= limit) {
+      break;
+    }
+  }
   return DiscoverResult(found: found);
 }
 
@@ -750,12 +814,18 @@ String _readNestedString(
 }
 
 String? _defaultSiblingsRoot() {
-  final executable = Platform.resolvedExecutable;
+  return _defaultPublishedHolonsRoot();
+}
+
+String? _defaultPublishedHolonsRoot() {
+  final executable = discoverResolvedExecutableProvider().trim();
+  if (executable.isEmpty) {
+    return null;
+  }
   var current = Directory(_dirname(executable));
   while (true) {
     final path = _normalizeAbsolutePath(current.path);
-    if (_basename(path).toLowerCase().endsWith('.app')) {
-      final candidate = _joinPath(path, 'Contents/Resources/Holons');
+    for (final candidate in _publishedSiblingsCandidates(path)) {
       if (Directory(candidate).existsSync()) {
         return candidate;
       }
@@ -767,6 +837,13 @@ String? _defaultSiblingsRoot() {
     current = parent;
   }
   return null;
+}
+
+Iterable<String> _publishedSiblingsCandidates(String path) sync* {
+  if (_basename(path).toLowerCase().endsWith('.app')) {
+    yield _joinPath(path, 'Contents/Resources/Holons');
+  }
+  yield _joinPath(path, 'data/Holons');
 }
 
 String _oppath() {

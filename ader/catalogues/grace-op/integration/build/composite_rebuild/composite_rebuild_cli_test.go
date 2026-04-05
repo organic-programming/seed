@@ -38,22 +38,28 @@ func TestBuild_08_CompositeRebuildsTouchedMember(t *testing.T) {
 		_ = os.Remove(rebuildTrigger)
 	}()
 
-	cmd := exec.Command(opBin, "build", "gabriel-greeting-app-swiftui", "--root", rootPath)
-	cmd.Env = envVars
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Failed to rebuild composite after touching member source: %v\nOutput: %s", err, string(out))
-	}
+	for _, spec := range integration.CompositeTestHolons(t) {
+		spec := spec
+		t.Run(spec.Slug, func(t *testing.T) {
+			cmd := exec.Command(opBin, "build", spec.Slug, "--root", rootPath)
+			cmd.Env = envVars
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("Failed to rebuild composite %s after touching member source: %v\nOutput: %s", spec.Slug, err, string(out))
+			}
 
-	afterInfo, err := os.Stat(childBinary)
-	if err != nil {
-		t.Fatalf("stat child binary after composite build: %v", err)
-	}
-	if !afterInfo.ModTime().After(beforeInfo.ModTime()) {
-		t.Fatalf("expected composite build to rebuild %s after source change; binary mtime stayed %s\nOutput: %s", childHolon, afterInfo.ModTime(), string(out))
-	}
-	if _, err := os.Stat(appBundlePath(rootPath, "gabriel-greeting-app-swiftui")); err != nil {
-		t.Fatalf("expected rebuilt composite app bundle: %v", err)
+			afterInfo, err := os.Stat(childBinary)
+			if err != nil {
+				t.Fatalf("stat child binary after composite build: %v", err)
+			}
+			if !afterInfo.ModTime().After(beforeInfo.ModTime()) {
+				t.Fatalf("expected composite build to rebuild %s after source change; binary mtime stayed %s\nOutput: %s", childHolon, afterInfo.ModTime(), string(out))
+			}
+			if _, err := os.Stat(integration.CompositeArtifactPath(rootPath, spec.Slug)); err != nil {
+				t.Fatalf("expected rebuilt composite artifact for %s: %v", spec.Slug, err)
+			}
+			beforeInfo = afterInfo
+		})
 	}
 }
 
@@ -70,8 +76,4 @@ func buildArtifactPath(rootPath string, holon string) string {
 		runtime.GOOS+"_"+runtime.GOARCH,
 		holon,
 	)
-}
-
-func appBundlePath(rootPath string, app string) string {
-	return filepath.Join(rootPath, "examples", "hello-world", app, ".op", "build", "GabrielGreetingApp.app")
 }

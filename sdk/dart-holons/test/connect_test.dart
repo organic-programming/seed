@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:holons/holons.dart';
 import 'package:holons/gen/holons/v1/describe.pb.dart';
 import 'package:holons/gen/holons/v1/describe.pbgrpc.dart';
+import 'package:holons/src/connect.dart' as connect_impl;
 import 'package:holons/src/discover.dart' as discover_impl;
 import 'package:test/test.dart';
 
@@ -11,7 +12,10 @@ import 'test_support/discovery_fixture.dart';
 void main() {
   final sdkRoot = Directory.current.path;
 
-  tearDown(discover_impl.resetDiscoveryTestOverrides);
+  tearDown(() {
+    discover_impl.resetDiscoveryTestOverrides();
+    connect_impl.resetConnectTestOverrides();
+  });
 
   group('connect', () {
     test('unresolvable target', () async {
@@ -132,5 +136,30 @@ void main() {
           ? 'fixture binary uses a POSIX shell launcher'
           : false,
     );
+
+    test('default port file path prefers OPPATH over cwd root', () {
+      connect_impl.connectEnvironmentProvider = () => <String, String>{
+            'OPPATH': '/tmp/op-home',
+            'HOME': '/Users/example',
+          };
+      connect_impl.connectCurrentRootProvider = () => '/';
+
+      expect(
+        connect_impl.defaultPortFilePathForTest('gabriel-greeting-go'),
+        equals('/tmp/op-home/run/gabriel-greeting-go.port'),
+      );
+    });
+
+    test('default port file path falls back to HOME/.op', () {
+      connect_impl.connectEnvironmentProvider = () => <String, String>{
+            'HOME': '/Users/example',
+          };
+      connect_impl.connectCurrentRootProvider = () => '/';
+
+      expect(
+        connect_impl.defaultPortFilePathForTest('gabriel-greeting-go'),
+        equals('/Users/example/.op/run/gabriel-greeting-go.port'),
+      );
+    });
   });
 }

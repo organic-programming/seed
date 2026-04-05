@@ -669,7 +669,9 @@ func commandForInstalledArtifact(path string, target *holons.Target, listenURI s
 		return withCompositeRunEnv(cmd, manifest), nil
 	}
 	if target != nil && target.Manifest != nil && target.Manifest.Manifest.Kind == holons.KindComposite {
-		return withCompositeRunEnv(exec.Command(path), manifest), nil
+		cmd := withCompositeRunEnv(exec.Command(path), manifest)
+		cmd.Dir = runCommandDir(target, manifest, path)
+		return cmd, nil
 	}
 	cmd := exec.Command(path, serveArgs(listenURI)...)
 	cmd.Dir = runCommandDir(target, manifest, path)
@@ -761,7 +763,7 @@ func commandForArtifact(manifest *holons.LoadedManifest, ctx holons.BuildContext
 		return nil, fmt.Errorf("manifest required")
 	}
 	if manifest.Manifest.Kind == holons.KindComposite {
-		artifactPath := manifest.ArtifactPath(ctx)
+		artifactPath := holons.LaunchableArtifactPath(manifest.ArtifactPath(ctx), manifest)
 		info, err := os.Stat(artifactPath)
 		if err != nil {
 			return nil, err
@@ -780,7 +782,9 @@ func commandForArtifact(manifest *holons.LoadedManifest, ctx holons.BuildContext
 			}
 			return withCompositeRunEnv(cmd, manifest), nil
 		}
-		return withCompositeRunEnv(exec.Command(artifactPath), manifest), nil
+		cmd := withCompositeRunEnv(exec.Command(artifactPath), manifest)
+		cmd.Dir = runCommandDir(nil, manifest, artifactPath)
+		return cmd, nil
 	}
 
 	binaryPath := manifest.BinaryPath()
@@ -797,6 +801,14 @@ func serveArgs(listenURI string) []string {
 }
 
 func runCommandDir(target *holons.Target, manifest *holons.LoadedManifest, artifactPath string) string {
+	if trimmed := strings.TrimSpace(artifactPath); trimmed != "" {
+		if packageRoot := holonPackageRoot(trimmed); packageRoot != "" {
+			if filepath.Clean(trimmed) == filepath.Clean(packageRoot) {
+				return filepath.Dir(trimmed)
+			}
+			return filepath.Dir(trimmed)
+		}
+	}
 	if manifest != nil && strings.TrimSpace(manifest.Dir) != "" {
 		return manifest.Dir
 	}
@@ -807,6 +819,23 @@ func runCommandDir(target *holons.Target, manifest *holons.LoadedManifest, artif
 		return filepath.Dir(trimmed)
 	}
 	return ""
+}
+
+func holonPackageRoot(path string) string {
+	current := filepath.Clean(strings.TrimSpace(path))
+	if current == "" {
+		return ""
+	}
+	for {
+		if strings.HasSuffix(strings.ToLower(current), ".holon") {
+			return current
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return ""
+		}
+		current = parent
+	}
 }
 
 func isMacAppBundle(path string) bool {
@@ -920,6 +949,14 @@ func normalizeMacOSAppBundleMetadata(path string, manifest *holons.LoadedManifes
 }
 
 func compositeBundleDisplayName(manifest *holons.LoadedManifest) string {
+	if manifest != nil {
+		given := strings.TrimSpace(manifest.Manifest.GivenName)
+		family := strings.TrimSpace(manifest.Manifest.FamilyName)
+		if given != "" && (family == "Greeting-App-Flutter" || family == "Greeting-App-SwiftUI") {
+			return strings.TrimSpace(given + " Greeting")
+		}
+	}
+
 	family := compositeDisplayFamily(manifest)
 	if family == "" {
 		return ""

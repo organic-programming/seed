@@ -354,7 +354,12 @@ func connectLaunchedComposite(target *holons.Target, listenURI string, timeout t
 		return activeConnection{}, fmt.Errorf("composite artifact path is empty for %s", target.Manifest.Name)
 	}
 
-	cmd, cleanup, err := compositeServeCommand(target.Manifest, artifactPath, listenURI)
+	effectiveListenURI, err := materializeCompositeListenURI(listenURI)
+	if err != nil {
+		return activeConnection{}, err
+	}
+
+	cmd, cleanup, err := compositeServeCommand(target.Manifest, artifactPath, effectiveListenURI)
 	if err != nil {
 		return activeConnection{}, err
 	}
@@ -388,6 +393,9 @@ func connectLaunchedComposite(target *holons.Target, listenURI string, timeout t
 
 	addressCh := make(chan string, 1)
 	readErrCh := make(chan error, 2)
+	knownAddress := compositeKnownAddress(effectiveListenURI)
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
 	streamReader := func(reader io.Reader, mirror *strings.Builder) {
 		buffered := bufio.NewReader(reader)
 		for {
@@ -420,22 +428,15 @@ func connectLaunchedComposite(target *holons.Target, listenURI string, timeout t
 	for {
 		select {
 		case address := <-addressCh:
-			conn, err := dialReadyAddress(ctx, normalizeDialTarget(address))
-			if err == nil {
-				return activeConnection{
-					conn: conn,
-					disconnect: func() error {
-						closeErr := conn.Close()
-						killErr := stopCommand(cmd)
-						if cleanup != nil {
-							_ = cleanup()
-						}
-						if closeErr != nil {
-							return closeErr
-						}
-						return killErr
-					},
-				}, nil
+			if conn := tryDialCompositeAddress(ctx, cmd, cleanup, normalizeDialTarget(address)); conn.conn != nil {
+				return conn, nil
+			}
+		case <-ticker.C:
+			if knownAddress == "" {
+				continue
+			}
+			if conn := tryDialCompositeAddress(ctx, cmd, cleanup, normalizeDialTarget(knownAddress)); conn.conn != nil {
+				return conn, nil
 			}
 		case readErr := <-readErrCh:
 			if readErr == nil && cmd.ProcessState == nil {
@@ -447,14 +448,40 @@ func connectLaunchedComposite(target *holons.Target, listenURI string, timeout t
 			if readErr != nil {
 				return activeConnection{}, fmt.Errorf("composite server stream error: %w: %s%s", readErr, stdout.String(), stderr.String())
 			}
-			return activeConnection{}, fmt.Errorf("composite server exited before accepting connections: %s%s", stdout.String(), stderr.String())
+			return activeConnection{}, fmt.Errorf("composite server exited before accepting connections on %s: %s%s", effectiveListenURI, stdout.String(), stderr.String())
 		case <-ctx.Done():
 			_ = stopCommand(cmd)
 			if cleanup != nil {
 				_ = cleanup()
 			}
-			return activeConnection{}, fmt.Errorf("composite server startup timeout for %s: %s%s", listenURI, stdout.String(), stderr.String())
+			return activeConnection{}, fmt.Errorf("composite server startup timeout for %s: %s%s", effectiveListenURI, stdout.String(), stderr.String())
 		}
+	}
+}
+
+func tryDialCompositeAddress(
+	ctx context.Context,
+	cmd *exec.Cmd,
+	cleanup func() error,
+	address string,
+) activeConnection {
+	conn, err := dialReadyAddress(ctx, address)
+	if err != nil {
+		return activeConnection{}
+	}
+	return activeConnection{
+		conn: conn,
+		disconnect: func() error {
+			closeErr := conn.Close()
+			killErr := stopCommand(cmd)
+			if cleanup != nil {
+				_ = cleanup()
+			}
+			if closeErr != nil {
+				return closeErr
+			}
+			return killErr
+		},
 	}
 }
 
@@ -479,14 +506,18 @@ func dialReadyAddress(ctx context.Context, address string) (*grpc.ClientConn, er
 }
 
 func compositeServeCommand(manifest *holons.LoadedManifest, artifactPath string, listenURI string) (*exec.Cmd, func() error, error) {
-	trimmedArtifact := strings.TrimSpace(artifactPath)
+	trimmedArtifact := strings.TrimSpace(holons.LaunchableArtifactPath(artifactPath, manifest))
 	if manifest == nil || trimmedArtifact == "" {
 		return nil, nil, fmt.Errorf("composite artifact is not launchable")
 	}
 
-	bundleID, err := resolveCompositeBundleIdentifier(manifest, trimmedArtifact)
-	if err != nil {
-		return nil, nil, err
+	bundleID := ""
+	if isMacAppBundle(trimmedArtifact) {
+		var err error
+		bundleID, err = resolveCompositeBundleIdentifier(manifest, trimmedArtifact)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	tempHome, cleanup, err := writeCompositeCoaxPreferences(bundleID, listenURI)
@@ -495,25 +526,60 @@ func compositeServeCommand(manifest *holons.LoadedManifest, artifactPath string,
 	}
 
 	if isMacAppBundle(trimmedArtifact) && runtime.GOOS == "darwin" {
-		executableName, err := appBundleInfoValue(filepath.Join(trimmedArtifact, "Contents", "Info.plist"), "CFBundleExecutable")
+		normalizeMacOSAppBundleMetadata(trimmedArtifact, manifest)
+		executableName, err := appBundleInfoValue(
+			filepath.Join(trimmedArtifact, "Contents", "Info.plist"),
+			"CFBundleExecutable",
+		)
 		if err != nil {
-			_ = cleanup()
+			if cleanup != nil {
+				_ = cleanup()
+			}
 			return nil, nil, err
 		}
-		cmd := exec.Command(filepath.Join(trimmedArtifact, "Contents", "MacOS", executableName))
+		executablePath := filepath.Join(
+			trimmedArtifact,
+			"Contents",
+			"MacOS",
+			strings.TrimSpace(executableName),
+		)
+		cmd := exec.Command(executablePath)
 		cmd = withCompositeRunEnv(cmd, manifest)
+		cmd = withCompositeCoaxEnv(cmd, listenURI)
+		cmd.Dir = runCommandDir(nil, manifest, executablePath)
 		cmd.Env = replaceCommandEnv(cmd.Env, "HOME", tempHome)
 		cmd.Env = replaceCommandEnv(cmd.Env, "CFFIXED_USER_HOME", tempHome)
 		cmd.Env = replaceCommandEnv(cmd.Env, "TMPDIR", filepath.Join(tempHome, "tmp"))
-		cmd.Env = replaceCommandEnv(cmd.Env, "__CFBundleIdentifier", bundleID)
+		if strings.TrimSpace(bundleID) != "" {
+			cmd.Env = replaceCommandEnv(cmd.Env, "__CFBundleIdentifier", bundleID)
+		}
 		return cmd, cleanup, nil
 	}
 
 	cmd := exec.Command(trimmedArtifact)
 	cmd = withCompositeRunEnv(cmd, manifest)
+	cmd = withCompositeCoaxEnv(cmd, listenURI)
+	cmd.Dir = runCommandDir(nil, manifest, trimmedArtifact)
 	cmd.Env = replaceCommandEnv(cmd.Env, "HOME", tempHome)
+	cmd.Env = replaceCommandEnv(cmd.Env, "XDG_CONFIG_HOME", filepath.Join(tempHome, ".config"))
+	cmd.Env = replaceCommandEnv(cmd.Env, "APPDATA", filepath.Join(tempHome, "AppData", "Roaming"))
+	cmd.Env = replaceCommandEnv(cmd.Env, "USERPROFILE", tempHome)
 	cmd.Env = replaceCommandEnv(cmd.Env, "TMPDIR", filepath.Join(tempHome, "tmp"))
 	return cmd, cleanup, nil
+}
+
+func withCompositeCoaxEnv(cmd *exec.Cmd, listenURI string) *exec.Cmd {
+	if cmd == nil {
+		return nil
+	}
+	env := cmd.Env
+	if len(env) == 0 {
+		env = os.Environ()
+	}
+	env = replaceCommandEnv(env, "OP_COAX_SERVER_ENABLED", "1")
+	env = replaceCommandEnv(env, "OP_COAX_SERVER_LISTEN_URI", strings.TrimSpace(listenURI))
+	cmd.Env = env
+	return cmd
 }
 
 func writeCompositeCoaxPreferences(bundleID string, listenURI string) (string, func() error, error) {
@@ -542,13 +608,18 @@ func writeCompositeCoaxPreferences(bundleID string, listenURI string) (string, f
 		return "", nil, err
 	}
 
-	prefsDir := filepath.Join(tempHome, "Library", "Preferences")
 	tmpDir := filepath.Join(tempHome, "tmp")
-	if err := os.MkdirAll(prefsDir, 0o755); err != nil {
+	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
 		_ = os.RemoveAll(tempHome)
 		return "", nil, err
 	}
-	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
+
+	if strings.TrimSpace(bundleID) == "" {
+		return tempHome, func() error { return os.RemoveAll(tempHome) }, nil
+	}
+
+	prefsDir := filepath.Join(tempHome, "Library", "Preferences")
+	if err := os.MkdirAll(prefsDir, 0o755); err != nil {
 		_ = os.RemoveAll(tempHome)
 		return "", nil, err
 	}
@@ -640,6 +711,34 @@ func compositeListenSnapshot(listenURI string) (transport string, host string, p
 		return "tcp", hostPart, portPart, "/tmp/gabriel-greeting-coax.sock"
 	default:
 		return "tcp", "127.0.0.1", "60000", "/tmp/gabriel-greeting-coax.sock"
+	}
+}
+
+func materializeCompositeListenURI(listenURI string) (string, error) {
+	trimmed := strings.TrimSpace(listenURI)
+	if !strings.HasPrefix(trimmed, "tcp://") {
+		return trimmed, nil
+	}
+	_, _, portText, _ := compositeListenSnapshot(trimmed)
+	if portText != "0" {
+		return trimmed, nil
+	}
+	return nextLoopbackAddress()
+}
+
+func compositeKnownAddress(listenURI string) string {
+	trimmed := strings.TrimSpace(listenURI)
+	switch {
+	case strings.HasPrefix(trimmed, "tcp://"):
+		_, _, portText, _ := compositeListenSnapshot(trimmed)
+		if portText == "0" {
+			return ""
+		}
+		return trimmed
+	case strings.HasPrefix(trimmed, "unix://"):
+		return trimmed
+	default:
+		return ""
 	}
 }
 

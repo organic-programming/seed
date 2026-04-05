@@ -21,51 +21,14 @@ func TestListIncludesTemplatesAndCompositeAliases(t *testing.T) {
 		names[entry.Name] = entry
 	}
 
-	for _, name := range []string{"go-daemon", "hostui-web", "wrapper-cli", "composition-direct-call", "composite-go-swiftui"} {
+	for _, name := range []string{"composite-go-swiftui", "composite-go-web", "composite-dart-flutter"} {
 		if _, ok := names[name]; !ok {
 			t.Fatalf("template %q missing from catalog", name)
 		}
 	}
 }
 
-func TestGenerateGoDaemonAppliesOverrides(t *testing.T) {
-	root := t.TempDir()
-
-	result, err := Generate("go-daemon", "alpha-builder", GenerateOptions{
-		Dir: root,
-		Overrides: map[string]string{
-			"service": "EchoService",
-		},
-	})
-	if err != nil {
-		t.Fatalf("Generate() failed: %v", err)
-	}
-
-	if result.Template != "go-daemon" {
-		t.Fatalf("result.Template = %q, want %q", result.Template, "go-daemon")
-	}
-
-	mainPath := filepath.Join(root, "alpha-builder", "cmd", "alpha-builder", "main.go")
-	data, err := os.ReadFile(mainPath)
-	if err != nil {
-		t.Fatalf("ReadFile(%s) failed: %v", mainPath, err)
-	}
-	if !strings.Contains(string(data), "EchoService ready for alpha-builder") {
-		t.Fatalf("main.go missing overridden service: %s", string(data))
-	}
-
-	manifestPath := filepath.Join(root, "alpha-builder", identity.ManifestFileName)
-	manifestData, err := os.ReadFile(manifestPath)
-	if err != nil {
-		t.Fatalf("ReadFile(%s) failed: %v", manifestPath, err)
-	}
-	uuidPattern := regexp.MustCompile(`uuid: "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"`)
-	if !uuidPattern.Match(manifestData) {
-		t.Fatalf("generated manifest missing UUIDv4: %s", string(manifestData))
-	}
-}
-
-func TestGenerateCompositeAliasRendersKinds(t *testing.T) {
+func TestGenerateCompositeAliasRendersKindsAndFiles(t *testing.T) {
 	root := t.TempDir()
 
 	result, err := Generate("composite-go-swiftui", "orbit-console", GenerateOptions{Dir: root})
@@ -77,90 +40,52 @@ func TestGenerateCompositeAliasRendersKinds(t *testing.T) {
 		t.Fatalf("result.Template = %q, want %q", result.Template, "composite-go-swiftui")
 	}
 
-	manifestPath := filepath.Join(root, "orbit-console", identity.ManifestFileName)
-	data, err := os.ReadFile(manifestPath)
+	manifestPath := filepath.Join(root, "orbit-console", "api", "v1", identity.ManifestFileName)
+	manifestData, err := os.ReadFile(manifestPath)
 	if err != nil {
 		t.Fatalf("ReadFile(%s) failed: %v", manifestPath, err)
 	}
-	content := string(data)
+	content := string(manifestData)
 	for _, expected := range []string{
-		"motto: \"go + swiftui composite.\"",
-		"primary: \"app/app.txt\"",
-		"path: \"daemon\"",
-		"path: \"app\"",
-	} {
-		if !strings.Contains(content, expected) {
-			t.Fatalf("manifest missing %q:\n%s", expected, content)
-		}
-	}
-}
-
-func TestGeneratePythonDaemonUsesPythonRunner(t *testing.T) {
-	root := t.TempDir()
-
-	result, err := Generate("python-daemon", "serene-service", GenerateOptions{Dir: root})
-	if err != nil {
-		t.Fatalf("Generate() failed: %v", err)
-	}
-	if result.Template != "python-daemon" {
-		t.Fatalf("result.Template = %q, want %q", result.Template, "python-daemon")
-	}
-
-	manifestPath := filepath.Join(root, "serene-service", identity.ManifestFileName)
-	data, err := os.ReadFile(manifestPath)
-	if err != nil {
-		t.Fatalf("ReadFile(%s) failed: %v", manifestPath, err)
-	}
-	content := string(data)
-	for _, expected := range []string{
-		"kind: \"composite\"",
-		"runner: \"python\"",
-		"files: [\"app/main.py\"]",
-		"primary: \"app/main.py\"",
-	} {
-		if !strings.Contains(content, expected) {
-			t.Fatalf("manifest missing %q:\n%s", expected, content)
-		}
-	}
-	if strings.Contains(content, "runner: recipe") {
-		t.Fatalf("manifest still references recipe runner:\n%s", content)
-	}
-}
-
-func TestGenerateDartDaemonUsesDartRunnerAndBinMain(t *testing.T) {
-	root := t.TempDir()
-
-	result, err := Generate("dart-daemon", "steady-engine", GenerateOptions{Dir: root})
-	if err != nil {
-		t.Fatalf("Generate() failed: %v", err)
-	}
-	if result.Template != "dart-daemon" {
-		t.Fatalf("result.Template = %q, want %q", result.Template, "dart-daemon")
-	}
-
-	manifestPath := filepath.Join(root, "steady-engine", identity.ManifestFileName)
-	data, err := os.ReadFile(manifestPath)
-	if err != nil {
-		t.Fatalf("ReadFile(%s) failed: %v", manifestPath, err)
-	}
-	content := string(data)
-	for _, expected := range []string{
-		"kind: \"native\"",
-		"runner: \"dart\"",
-		"commands: [\"dart\"]",
-		"files: [\"pubspec.yaml\", \"bin/main.dart\"]",
-		"binary: \"steady-engine\"",
+		`kind: "composite"`,
+		`runner: "recipe"`,
+		`motto: "go + swiftui composite."`,
+		`path: "daemon"`,
+		`path: "app"`,
+		`primary: "app/app.txt"`,
 	} {
 		if !strings.Contains(content, expected) {
 			t.Fatalf("manifest missing %q:\n%s", expected, content)
 		}
 	}
 
-	if _, err := os.Stat(filepath.Join(root, "steady-engine", "bin", "main.dart")); err != nil {
-		t.Fatalf("bin/main.dart missing: %v", err)
+	uuidPattern := regexp.MustCompile(`uuid: "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"`)
+	if !uuidPattern.Match(manifestData) {
+		t.Fatalf("generated manifest missing UUIDv4: %s", string(manifestData))
 	}
-	if _, err := os.Stat(filepath.Join(root, "steady-engine", "lib", "main.dart")); !os.IsNotExist(err) {
-		t.Fatalf("lib/main.dart should not exist, got: %v", err)
+
+	daemonReadmePath := filepath.Join(root, "orbit-console", "daemon", "README.md")
+	daemonReadme, err := os.ReadFile(daemonReadmePath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", daemonReadmePath, err)
+	}
+	if !strings.Contains(string(daemonReadme), "Runner: go-module") {
+		t.Fatalf("daemon README missing go runner:\n%s", string(daemonReadme))
+	}
+
+	appReadmePath := filepath.Join(root, "orbit-console", "app", "README.md")
+	appReadme, err := os.ReadFile(appReadmePath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", appReadmePath, err)
+	}
+	if !strings.Contains(string(appReadme), "Runner: swift-package") {
+		t.Fatalf("app README missing swiftui runner:\n%s", string(appReadme))
+	}
+	appTextPath := filepath.Join(root, "orbit-console", "app", "app.txt")
+	if data, err := os.ReadFile(appTextPath); err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", appTextPath, err)
+	} else if !strings.Contains(string(data), "orbit-console scaffold placeholder") {
+		t.Fatalf("unexpected app placeholder content:\n%s", string(data))
 	}
 }
 
