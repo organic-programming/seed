@@ -1,0 +1,49 @@
+description: Kotlin Compose desktop regression surface for the Gabriel HostUI
+defaults:
+  profile: smoke
+steps:
+  kotlin-compose-app-unit:
+    check: kotlin-compose-app-unit
+    lane: progression
+  kotlin-compose-app-smoke:
+    check: kotlin-compose-app-smoke
+    lane: progression
+  integration-check-composite-kotlin-compose:
+    check: integration-check-composite-kotlin-compose
+    lane: progression
+  integration-build-composite-kotlin-compose:
+    check: integration-build-composite-kotlin-compose
+    lane: progression
+  integration-rebuild-composite-kotlin-compose:
+    check: integration-rebuild-composite-kotlin-compose
+    lane: progression
+  integration-invoke-composite-kotlin-compose-stdio:
+    check: integration-invoke-composite-kotlin-compose-stdio
+    lane: progression
+  integration-invoke-composite-kotlin-compose-tcp:
+    check: integration-invoke-composite-kotlin-compose-tcp
+    lane: progression
+  integration-invoke-composite-kotlin-compose-unix:
+    check: integration-invoke-composite-kotlin-compose-unix
+    lane: progression
+profiles:
+  smoke:
+    description: macOS-first Kotlin Compose hostui proof
+    archive: never
+    steps:
+    - kotlin-compose-app-unit
+    - kotlin-compose-app-smoke
+    - integration-check-composite-kotlin-compose
+    - integration-invoke-composite-kotlin-compose-stdio
+  full:
+    description: full macOS-first Kotlin Compose hostui proof
+    archive: auto
+    steps:
+    - kotlin-compose-app-unit
+    - kotlin-compose-app-smoke
+    - integration-check-composite-kotlin-compose
+    - integration-build-composite-kotlin-compose
+    - integration-rebuild-composite-kotlin-compose
+    - integration-invoke-composite-kotlin-compose-stdio
+    - integration-invoke-composite-kotlin-compose-tcp
+    - integration-invoke-composite-kotlin-compose-unix

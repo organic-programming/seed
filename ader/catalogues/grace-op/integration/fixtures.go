@@ -116,6 +116,17 @@ var compositeHolons = []HolonSpec{
 			"ruby", "bundle",
 		},
 	},
+	{
+		Slug:      "gabriel-greeting-app-kotlin-compose",
+		Runner:    "recipe",
+		Platform:  "darwin",
+		Composite: true,
+		Requires: []string{
+			"go", "swift", "cargo", "python3",
+			"cmake", "dotnet", "dart", "java", "gradle", "node", "npm",
+			"ruby", "bundle",
+		},
+	},
 }
 
 var localTransports = []TransportSpec{

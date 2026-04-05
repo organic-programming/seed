@@ -1,0 +1,83 @@
+checks:
+  kotlin-compose-app-unit:
+    workdir: examples/hello-world/gabriel-greeting-app-kotlin-compose/app
+    prereqs:
+    - java
+    - gradle
+    command: gradle test
+    description: Kotlin Compose HostUI unit and RPC tests
+  kotlin-compose-app-smoke:
+    workdir: examples/hello-world/gabriel-greeting-app-kotlin-compose/app
+    prereqs:
+    - java
+    - gradle
+    command: gradle composeSmokeTest
+    description: Kotlin Compose HostUI smoke UI test
+  integration-check-composite-kotlin-compose:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - java
+    - gradle
+    command: go test -v -count=1 -timeout 15m -run "^TestCheck_05_Composite$/^gabriel-greeting-app-kotlin-compose$" ./...
+    description: composite graph check for Kotlin Compose hostui
+  integration-build-composite-kotlin-compose:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -v -count=1 -timeout 45m -run "^TestBuild_07_Composite$/^gabriel-greeting-app-kotlin-compose$" ./...
+    description: composite build for Kotlin Compose hostui
+  integration-rebuild-composite-kotlin-compose:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -v -count=1 -timeout 45m -run "^TestBuild_08_CompositeRebuildsTouchedMember$/^gabriel-greeting-app-kotlin-compose$" ./...
+    description: composite rebuild propagation for Kotlin Compose hostui
+  integration-invoke-composite-kotlin-compose-stdio:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - java
+    - gradle
+    command: go test -v -count=1 -timeout 20m -run "^TestInvoke_CLI_CompositeAcrossTransports$/^gabriel-greeting-app-kotlin-compose$/^stdio$" ./...
+    description: composite invoke over stdio for Kotlin Compose hostui
+  integration-invoke-composite-kotlin-compose-tcp:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - java
+    - gradle
+    command: go test -v -count=1 -timeout 20m -run "^TestInvoke_CLI_CompositeAcrossTransports$/^gabriel-greeting-app-kotlin-compose$/^tcp$" ./...
+    description: composite invoke over tcp for Kotlin Compose hostui
+  integration-invoke-composite-kotlin-compose-unix:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - java
+    - gradle
+    command: go test -v -count=1 -timeout 20m -run "^TestInvoke_CLI_CompositeAcrossTransports$/^gabriel-greeting-app-kotlin-compose$/^unix$" ./...
+    description: composite invoke over unix for Kotlin Compose hostui

@@ -35,5 +35,10 @@ let package = Package(
             ],
             path: "Sources/GreetingKit"
         ),
+        .testTarget(
+            name: "GreetingKitTests",
+            dependencies: ["GreetingKit"],
+            path: "Tests/GreetingKitTests"
+        ),
     ]
 )

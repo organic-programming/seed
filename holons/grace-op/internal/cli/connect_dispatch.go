@@ -35,6 +35,7 @@ import (
 // Slow first-run backends such as Python/Ruby may need several minutes to
 // install or initialize their runtime before they can advertise a transport.
 const connectDispatchTimeout = 5 * time.Minute
+
 const nativeStdioProbeTimeout = 20 * time.Second
 
 type activeConnection struct {
@@ -311,7 +312,7 @@ func connectCompositeTarget(target *holons.Target, transport string, timeout tim
 
 	switch transport {
 	case "", "auto", "stdio":
-		return connectCompositeTarget(target, "tcp", timeout)
+		return connectCompositeTargetStdio(target, timeout)
 	case "tcp":
 		address, err := nextLoopbackAddress()
 		if err != nil {
@@ -346,6 +347,27 @@ func connectCompositeTarget(target *holons.Target, transport string, timeout tim
 	default:
 		return activeConnection{}, fmt.Errorf("unsupported forced transport %q", transport)
 	}
+}
+
+func connectCompositeTargetStdio(target *holons.Target, timeout time.Duration) (activeConnection, error) {
+	address, err := nextLoopbackAddress()
+	if err != nil {
+		return activeConnection{}, err
+	}
+	conn, err := connectLaunchedComposite(target, address, timeout)
+	if err == nil || !isCompositeStartupTimeout(err) {
+		return conn, err
+	}
+
+	retryAddress, retryAddressErr := nextLoopbackAddress()
+	if retryAddressErr != nil {
+		return activeConnection{}, err
+	}
+	retryConn, retryErr := connectLaunchedComposite(target, retryAddress, timeout)
+	if retryErr == nil {
+		return retryConn, nil
+	}
+	return activeConnection{}, fmt.Errorf("%v; retry failed: %w", err, retryErr)
 }
 
 func connectLaunchedComposite(target *holons.Target, listenURI string, timeout time.Duration) (activeConnection, error) {
@@ -457,6 +479,10 @@ func connectLaunchedComposite(target *holons.Target, listenURI string, timeout t
 			return activeConnection{}, fmt.Errorf("composite server startup timeout for %s: %s%s", effectiveListenURI, stdout.String(), stderr.String())
 		}
 	}
+}
+
+func isCompositeStartupTimeout(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "composite server startup timeout")
 }
 
 func tryDialCompositeAddress(

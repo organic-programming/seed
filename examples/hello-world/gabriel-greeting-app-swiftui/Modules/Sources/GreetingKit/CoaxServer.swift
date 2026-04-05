@@ -135,11 +135,13 @@ public final class CoaxServer: ObservableObject {
     private static let settingsKey = "coax.server.settings"
 
     public init(holon: HolonProcess) {
-        let snapshot = CoaxServer.loadSnapshot()
+        let overrides = coaxLaunchOverrides()
+        let snapshot = overrides.snapshot ?? CoaxServer.loadSnapshot()
+        let storedEnabled = UserDefaults.standard.bool(forKey: CoaxServer.enabledKey)
 
         self.holon = holon
 
-        self.isEnabled = UserDefaults.standard.bool(forKey: CoaxServer.enabledKey)
+        self.isEnabled = resolvedCoaxEnabled(storedValue: storedEnabled, overrides: overrides)
         self.serverEnabled = snapshot.serverEnabled
         self.serverTransport = snapshot.serverTransport
         self.serverHost = snapshot.serverHost

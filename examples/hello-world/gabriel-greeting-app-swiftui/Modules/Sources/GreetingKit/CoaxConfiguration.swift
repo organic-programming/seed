@@ -1,5 +1,8 @@
 import Foundation
 
+private let coaxServerEnabledEnv = "OP_COAX_SERVER_ENABLED"
+private let coaxServerListenURIEnv = "OP_COAX_SERVER_LISTEN_URI"
+
 public enum CoaxServerTransport: String, Codable, CaseIterable, Identifiable, Sendable {
     case tcp
     case unix
@@ -62,5 +65,74 @@ struct CoaxSettingsSnapshot: Codable, Sendable {
         serverHost: defaultHost,
         serverPortText: String(CoaxServerTransport.tcp.defaultPort),
         serverUnixPath: defaultUnixPath
+    )
+}
+
+struct CoaxLaunchOverrides: Sendable {
+    let isEnabled: Bool?
+    let snapshot: CoaxSettingsSnapshot?
+}
+
+func coaxLaunchOverrides(
+    environment: [String: String] = ProcessInfo.processInfo.environment
+) -> CoaxLaunchOverrides {
+    let listenURI = environment[coaxServerListenURIEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    let enabled = parseBoolOverride(environment[coaxServerEnabledEnv])
+    let snapshot = snapshotFromListenURI(listenURI)
+    return CoaxLaunchOverrides(isEnabled: enabled, snapshot: snapshot)
+}
+
+func resolvedCoaxEnabled(
+    storedValue: Bool,
+    overrides: CoaxLaunchOverrides
+) -> Bool {
+    if let enabled = overrides.isEnabled {
+        return enabled
+    }
+    if overrides.snapshot != nil {
+        return true
+    }
+    return storedValue
+}
+
+private func parseBoolOverride(_ value: String?) -> Bool? {
+    switch value?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+    case "1", "true", "yes", "on":
+        return true
+    case "0", "false", "no", "off":
+        return false
+    default:
+        return nil
+    }
+}
+
+private func snapshotFromListenURI(_ listenURI: String) -> CoaxSettingsSnapshot? {
+    guard !listenURI.isEmpty else {
+        return nil
+    }
+
+    if listenURI.hasPrefix("unix://") {
+        return CoaxSettingsSnapshot(
+            serverEnabled: true,
+            serverTransport: .unix,
+            serverHost: CoaxSettingsSnapshot.defaultHost,
+            serverPortText: CoaxSettingsSnapshot.defaults.serverPortText,
+            serverUnixPath: String(listenURI.dropFirst("unix://".count))
+        )
+    }
+
+    guard listenURI.hasPrefix("tcp://"),
+          let components = URLComponents(string: listenURI) else {
+        return nil
+    }
+
+    let host = components.host?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let port = components.port.map(String.init)
+    return CoaxSettingsSnapshot(
+        serverEnabled: true,
+        serverTransport: .tcp,
+        serverHost: (host?.isEmpty == false ? host! : CoaxSettingsSnapshot.defaultHost),
+        serverPortText: port ?? CoaxSettingsSnapshot.defaults.serverPortText,
+        serverUnixPath: CoaxSettingsSnapshot.defaultUnixPath
     )
 }
