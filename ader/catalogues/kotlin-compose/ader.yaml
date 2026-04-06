@@ -1,8 +1,0 @@
-storage:
-  reports: reports
-  archives: archives
-  artifacts: .artifacts
-  temp_alias: .snapshot_alias
-defaults:
-  source: committed
-  lane: regression

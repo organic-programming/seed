@@ -16,6 +16,3 @@ entries:
 - catalogue: flutter
   suite: flutter-smoke
   profile: smoke
-- catalogue: kotlin-compose
-  suite: kotlin-compose-smoke
-  profile: smoke
