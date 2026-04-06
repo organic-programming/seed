@@ -13,7 +13,7 @@ option (holons.v1.manifest) = {
     composer: "Codex"
     status: "draft"
     born: "2026-04-04"
-    version: "0.1.24"
+    version: "0.1.29"
   }
   description: "A standalone Flutter desktop app that connects to all 12 Gabriel greeting holons and presents a multilingual greeting UI with COAX support."
   lang: "dart"
@@ -234,7 +234,7 @@ option (holons.v1.manifest) = {
   }
   requires: {
     commands: ["flutter", "dart", "go", "swift", "cargo", "python3", "cmake", "dotnet", "java", "gradle", "node", "npm", "ruby", "bundle"]
-    files: ["app/pubspec.yaml", "scripts/generate_proto.sh"]
+    files: ["app/pubspec.yaml"]
     platforms: ["macos", "windows", "linux"]
   }
   artifacts: {

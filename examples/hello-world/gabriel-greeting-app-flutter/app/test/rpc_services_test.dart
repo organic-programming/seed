@@ -261,6 +261,64 @@ void main() {
     );
   });
 
+  test('SelectLanguage rejects invalid codes and preserves the current selection', () async {
+    final greetingController = GreetingController(
+      catalog: FakeHolonCatalog([holon('gabriel-greeting-swift')]),
+      connector: FakeHolonConnector(
+        factories: <String, FakeGreetingHolonConnection Function(String)>{
+          'gabriel-greeting-swift': (_) => FakeGreetingHolonConnection(
+            languages: [
+              language(code: 'en', name: 'English', native: 'English'),
+              language(code: 'fr', name: 'French', native: 'Francais'),
+            ],
+            greetingBuilder: ({required name, required langCode}) =>
+                '$langCode:$name',
+          ),
+        },
+      ),
+    );
+    final coaxController = CoaxController(
+      greetingController: greetingController,
+      settingsStore: MemorySettingsStore(),
+    );
+
+    await greetingController.initialize();
+    final port = await reserveTcpPort();
+    await coaxController.setServerPortText(port.toString());
+    await coaxController.setIsEnabled(true);
+
+    final channel = clientChannelFromListenUri(coaxController.listenUri!);
+    addTearDown(() async {
+      await channel.shutdown();
+      await coaxController.shutdown();
+      await greetingController.shutdown();
+    });
+
+    final appClient = GreetingAppServiceClient(channel);
+    final selected = await appClient.selectLanguage(
+      SelectLanguageRequest(code: 'fr'),
+    );
+
+    expect(selected.code, 'fr');
+    expect(greetingController.selectedLanguageCode, 'fr');
+
+    await expectLater(
+      appClient.selectLanguage(SelectLanguageRequest(code: 'zz')),
+      throwsA(
+        isA<GrpcError>().having(
+          (error) => error.code,
+          'code',
+          StatusCode.invalidArgument,
+        ),
+      ),
+    );
+
+    expect(greetingController.selectedLanguageCode, 'fr');
+
+    final greeting = await appClient.greet(GreetRequest(name: 'Alice'));
+    expect(greeting.greeting, 'fr:Alice');
+  });
+
   test('SelectTransport rejects unix when the platform does not support it', () async {
     final greetingController = GreetingController(
       catalog: FakeHolonCatalog([holon('gabriel-greeting-swift')]),

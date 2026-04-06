@@ -199,8 +199,18 @@ exec ${_shellQuote(helper)} --slug connect-entrypoint "\$@"
       connect_impl.connectCurrentRootProvider = () => '/';
 
       expect(
-        connect_impl.defaultPortFilePathForTest('gabriel-greeting-go'),
-        equals('/tmp/op-home/run/gabriel-greeting-go.port'),
+        connect_impl.defaultPortFilePathForTest(
+          'gabriel-greeting-go',
+          transport: 'tcp',
+        ),
+        equals('/tmp/op-home/run/gabriel-greeting-go.tcp.port'),
+      );
+      expect(
+        connect_impl.defaultPortFilePathForTest(
+          'gabriel-greeting-go',
+          transport: 'unix',
+        ),
+        equals('/tmp/op-home/run/gabriel-greeting-go.unix.port'),
       );
     });
 
@@ -211,8 +221,11 @@ exec ${_shellQuote(helper)} --slug connect-entrypoint "\$@"
       connect_impl.connectCurrentRootProvider = () => '/';
 
       expect(
-        connect_impl.defaultPortFilePathForTest('gabriel-greeting-go'),
-        equals('/Users/example/.op/run/gabriel-greeting-go.port'),
+        connect_impl.defaultPortFilePathForTest(
+          'gabriel-greeting-go',
+          transport: 'tcp',
+        ),
+        equals('/Users/example/.op/run/gabriel-greeting-go.tcp.port'),
       );
     });
 
@@ -222,12 +235,93 @@ exec ${_shellQuote(helper)} --slug connect-entrypoint "\$@"
       connect_impl.connectCurrentRootProvider = () => '/';
 
       expect(
-        connect_impl.defaultPortFilePathForTest('gabriel-greeting-go'),
+        connect_impl.defaultPortFilePathForTest(
+          'gabriel-greeting-go',
+          transport: 'tcp',
+        ),
         equals(
-          '${Directory.systemTemp.path}/.op/run/gabriel-greeting-go.port',
+          '${Directory.systemTemp.path}/.op/run/gabriel-greeting-go.tcp.port',
         ),
       );
     });
+
+    test(
+      'persistent tcp and unix transports use separate cache files',
+      () async {
+        if (Platform.isWindows) {
+          return;
+        }
+
+        final helper = buildDescribeHelper(sdkRoot);
+        if (helper == null) {
+          return;
+        }
+
+        final fixture = createRuntimeFixture(sdkRoot);
+        addTearDown(() => deleteFixture(fixture));
+        configureDiscoveryRuntime(fixture);
+        connect_impl.connectEnvironmentProvider = () => <String, String>{
+              'HOME': fixture.sandbox.path,
+              'OPPATH': fixture.opHome.path,
+            };
+        connect_impl.connectCurrentRootProvider = () => fixture.root.path;
+
+        writePackageHolon(
+          Directory('${fixture.root.path}/transport-alpha.holon'),
+          slug: 'transport-alpha',
+          uuid: 'uuid-transport-alpha',
+          entrypoint: 'transport-alpha',
+        );
+        writeDescribePackageHolon(
+          Directory('${fixture.root.path}/transport-alpha.holon'),
+          executablePath: helper,
+          slug: 'transport-alpha',
+          entrypoint: 'transport-alpha',
+        );
+
+        final tcpChannel = await connect(
+          'transport-alpha',
+          const ConnectOptions(transport: 'tcp'),
+        );
+        addTearDown(() => disconnect(tcpChannel));
+        final tcpDescribe =
+            await HolonMetaClient(tcpChannel).describe(DescribeRequest());
+        expect(tcpDescribe.manifest.identity.givenName, equals('transport-alpha'));
+
+        final tcpPortFile = File(
+          connect_impl.defaultPortFilePathForTest(
+            'transport-alpha',
+            transport: 'tcp',
+          ),
+        );
+        expect(tcpPortFile.existsSync(), isTrue);
+        expect(
+          tcpPortFile.readAsStringSync().trim(),
+          startsWith('tcp://127.0.0.1:'),
+        );
+
+        final unixChannel = await connect(
+          'transport-alpha',
+          const ConnectOptions(transport: 'unix'),
+        );
+        addTearDown(() => disconnect(unixChannel));
+        final unixDescribe =
+            await HolonMetaClient(unixChannel).describe(DescribeRequest());
+        expect(unixDescribe.manifest.identity.givenName, equals('transport-alpha'));
+
+        final unixPortFile = File(
+          connect_impl.defaultPortFilePathForTest(
+            'transport-alpha',
+            transport: 'unix',
+          ),
+        );
+        expect(unixPortFile.existsSync(), isTrue);
+        expect(
+          unixPortFile.readAsStringSync().trim(),
+          startsWith('unix:///tmp/holons-'),
+        );
+      },
+    );
   });
 }
 

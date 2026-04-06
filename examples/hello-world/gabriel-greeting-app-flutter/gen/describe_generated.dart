@@ -15,7 +15,7 @@ DescribeResponse staticDescribeResponse() {
       composer: "Codex",
       status: "draft",
       born: "2026-04-04",
-      version: "0.1.24",
+      version: "0.1.29",
     ),
     description: "A standalone Flutter desktop app that connects to all 12 Gabriel greeting holons and presents a multilingual greeting UI with COAX support.",
     lang: "dart",
@@ -26,7 +26,6 @@ DescribeResponse staticDescribeResponse() {
     requires: HolonManifest_Requires(
       files: [
         "app/pubspec.yaml",
-        "scripts/generate_proto.sh",
       ],
     ),
     artifacts: HolonManifest_Artifacts(

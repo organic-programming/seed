@@ -50,7 +50,10 @@ void resetConnectTestOverrides() {
   connectEnvironmentProvider = () => Platform.environment;
 }
 
-String defaultPortFilePathForTest(String slug) => _defaultPortFilePath(slug);
+String defaultPortFilePathForTest(
+  String slug, {
+  String transport = 'tcp',
+}) => _defaultPortFilePath(slug, transport: transport);
 
 class _StdioClientChannel extends ClientChannel {
   final StdioTransportConnector _connector;
@@ -61,6 +64,16 @@ class _StdioClientChannel extends ClientChannel {
   @override
   ClientConnection createConnection() =>
       Http2ClientConnection.fromClientTransportConnector(_connector, options);
+}
+
+class _ReusableTarget {
+  final ClientChannel channel;
+  final String target;
+
+  const _ReusableTarget({
+    required this.channel,
+    required this.target,
+  });
 }
 
 Future<dynamic> connect(
@@ -148,8 +161,14 @@ Future<ConnectResult> _connectLegacy(
       );
     }
 
-    final resolved =
-        resolve(LOCAL, trimmed, null, ALL, _timeoutMillis(normalized.timeout));
+    final root = connectCurrentRootProvider().trim();
+    final resolved = resolve(
+      LOCAL,
+      trimmed,
+      root.isEmpty ? null : root,
+      ALL,
+      _timeoutMillis(normalized.timeout),
+    );
     if (resolved.error != null) {
       return ConnectResult(origin: resolved.ref, error: resolved.error);
     }
@@ -194,12 +213,18 @@ Future<ConnectResult> _connectResolvedWithOptions(
         return ConnectResult(channel: started.$1, origin: ref);
 
       case 'tcp':
+        final slug = _refSlug(ref, path);
         final portFile = options.portFile.isNotEmpty
             ? options.portFile
-            : _defaultPortFilePath(_refSlug(ref, path));
-        final reusable = await _usablePortFile(portFile, options.timeout);
+            : _defaultPortFilePath(slug, transport: 'tcp');
+        final reusable = await _reusablePersistentTarget(
+          slug: slug,
+          transport: 'tcp',
+          portFile: options.portFile,
+          timeout: options.timeout,
+        );
         if (reusable != null) {
-          return ConnectResult(channel: reusable, origin: ref);
+          return ConnectResult(channel: reusable.channel, origin: ref);
         }
         if (!options.start) {
           return ConnectResult(origin: ref, error: 'target unreachable');
@@ -219,12 +244,18 @@ Future<ConnectResult> _connectResolvedWithOptions(
             origin: HolonRef(url: started.$1, info: ref.info));
 
       case 'unix':
+        final slug = _refSlug(ref, path);
         final portFile = options.portFile.isNotEmpty
             ? options.portFile
-            : _defaultPortFilePath(_refSlug(ref, path));
-        final reusable = await _usablePortFile(portFile, options.timeout);
+            : _defaultPortFilePath(slug, transport: 'unix');
+        final reusable = await _reusablePersistentTarget(
+          slug: slug,
+          transport: 'unix',
+          portFile: options.portFile,
+          timeout: options.timeout,
+        );
         if (reusable != null) {
-          return ConnectResult(channel: reusable, origin: ref);
+          return ConnectResult(channel: reusable.channel, origin: ref);
         }
         if (!options.start) {
           return ConnectResult(origin: ref, error: 'target unreachable');
@@ -327,12 +358,13 @@ Future<ClientChannel> _dialReady(String target, Duration timeout) async {
 
 Future<void> _waitForTcpReady(String host, int port, Duration timeout) async {
   final deadline = DateTime.now().add(timeout);
+  final attemptTimeout = _probeAttemptTimeout(timeout);
   while (DateTime.now().isBefore(deadline)) {
     try {
       final socket = await Socket.connect(
         host,
         port,
-        timeout: const Duration(milliseconds: 200),
+        timeout: attemptTimeout,
       );
       socket.destroy();
       return;
@@ -345,8 +377,9 @@ Future<void> _waitForTcpReady(String host, int port, Duration timeout) async {
 
 Future<void> _waitForUnixReady(String path, Duration timeout) async {
   final deadline = DateTime.now().add(timeout);
+  final attemptTimeout = _probeAttemptTimeout(timeout);
   while (DateTime.now().isBefore(deadline)) {
-    if (await _probeUnixReady(path)) {
+    if (await _probeUnixReady(path, attemptTimeout)) {
       return;
     }
     await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -354,12 +387,12 @@ Future<void> _waitForUnixReady(String path, Duration timeout) async {
   throw StateError('timed out waiting for unix gRPC readiness');
 }
 
-Future<bool> _probeUnixReady(String path) async {
+Future<bool> _probeUnixReady(String path, Duration timeout) async {
   try {
     final socket = await Socket.connect(
       InternetAddress(path, type: InternetAddressType.unix),
       0,
-      timeout: const Duration(milliseconds: 200),
+      timeout: timeout,
     );
     socket.destroy();
     return true;
@@ -368,8 +401,50 @@ Future<bool> _probeUnixReady(String path) async {
   }
 }
 
-Future<ClientChannel?> _usablePortFile(
+Duration _probeAttemptTimeout(Duration timeout) {
+  if (timeout <= Duration.zero) {
+    return const Duration(seconds: 1);
+  }
+  final milliseconds = timeout.inMilliseconds ~/ 4;
+  if (milliseconds <= 200) {
+    return const Duration(milliseconds: 200);
+  }
+  if (milliseconds >= 1000) {
+    return const Duration(seconds: 1);
+  }
+  return Duration(milliseconds: milliseconds);
+}
+
+Future<_ReusableTarget?> _reusablePersistentTarget({
+  required String slug,
+  required String transport,
+  required String portFile,
+  required Duration timeout,
+}) async {
+  final overridePath = portFile.trim();
+  if (overridePath.isNotEmpty) {
+    return _usablePortFile(overridePath, transport, timeout);
+  }
+
+  final primary = _defaultPortFilePath(slug, transport: transport);
+  final reusable = await _usablePortFile(primary, transport, timeout);
+  if (reusable != null) {
+    return reusable;
+  }
+
+  final legacy = _legacyPortFilePath(slug);
+  final migrated = await _usablePortFile(legacy, transport, timeout);
+  if (migrated == null) {
+    return null;
+  }
+
+  await _writePortFile(primary, migrated.target);
+  return migrated;
+}
+
+Future<_ReusableTarget?> _usablePortFile(
   String portFile,
+  String expectedTransport,
   Duration timeout,
 ) async {
   try {
@@ -378,12 +453,17 @@ Future<ClientChannel?> _usablePortFile(
       await File(portFile).delete();
       return null;
     }
-    return _dialReady(
+    if (!_targetMatchesTransport(raw, expectedTransport)) {
+      await File(portFile).delete();
+      return null;
+    }
+    final channel = await _dialReady(
       _normalizeDialTarget(raw),
       timeout < const Duration(seconds: 1)
           ? timeout
           : const Duration(seconds: 1),
     );
+    return _ReusableTarget(channel: channel, target: raw);
   } on Object {
     final file = File(portFile);
     if (file.existsSync()) {
@@ -527,6 +607,7 @@ Future<(String, Process)> _startUnixHolon(
 
   var exited = false;
   var exitCode = 0;
+  final attemptTimeout = _probeAttemptTimeout(timeout);
   unawaited(process.exitCode.then((code) {
     exited = true;
     exitCode = code;
@@ -534,7 +615,8 @@ Future<(String, Process)> _startUnixHolon(
 
   final deadline = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(deadline)) {
-    if (socketFile.existsSync() && await _probeUnixReady(socketPath)) {
+    if (socketFile.existsSync() &&
+        await _probeUnixReady(socketPath, attemptTimeout)) {
       return (uri, process);
     }
     if (exited) {
@@ -609,7 +691,12 @@ String _resolveBinaryPath(HolonRef ref, String path) {
   throw StateError('built binary not found for holon "${_refSlug(ref, path)}"');
 }
 
-String _defaultPortFilePath(String slug) =>
+String _defaultPortFilePath(
+  String slug, {
+  required String transport,
+}) => '${_connectRunDirectory()}${Platform.pathSeparator}$slug.${_transportPortFileSuffix(transport)}.port';
+
+String _legacyPortFilePath(String slug) =>
     '${_connectRunDirectory()}${Platform.pathSeparator}$slug.port';
 
 String _connectRunDirectory() => _joinPath(_connectOpPath(), 'run');
@@ -641,10 +728,34 @@ String _defaultWorkingDirectory(String path, String binaryPath) {
   return Directory(binaryPath).parent.absolute.path;
 }
 
+String _transportPortFileSuffix(String transport) {
+  switch (transport.trim().toLowerCase()) {
+    case 'unix':
+      return 'unix';
+    case 'tcp':
+    case 'auto':
+    default:
+      return 'tcp';
+  }
+}
+
 String _defaultUnixSocketURI(String slug, String portFile) {
   final label = _socketLabel(slug);
   final hash = _fnv1a64(utf8.encode(portFile)) & 0xFFFFFFFFFFFF;
   return 'unix:///tmp/holons-$label-${hash.toRadixString(16).padLeft(12, '0')}.sock';
+}
+
+bool _targetMatchesTransport(String target, String expectedTransport) {
+  final normalized = expectedTransport.trim().toLowerCase();
+  final trimmed = target.trim().toLowerCase();
+  switch (normalized) {
+    case 'unix':
+      return trimmed.startsWith('unix://');
+    case 'tcp':
+      return !trimmed.startsWith('unix://');
+    default:
+      return true;
+  }
 }
 
 Future<void> _writePortFile(String portFile, String uri) async {

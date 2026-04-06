@@ -9,6 +9,20 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
 
   final GreetingController _controller;
 
+  String _validatedLanguageCode(String value) {
+    final code = value.trim();
+    if (code.isEmpty) {
+      throw GrpcError.invalidArgument('Language code is required');
+    }
+    final supported = _controller.availableLanguages.any(
+      (language) => language.code == code,
+    );
+    if (!supported) {
+      throw GrpcError.invalidArgument('Unsupported language "$code"');
+    }
+    return code;
+  }
+
   @override
   Future<SelectHolonResponse> selectHolon(
     ServiceCall call,
@@ -63,8 +77,9 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
     ServiceCall call,
     SelectLanguageRequest request,
   ) async {
-    await _controller.setSelectedLanguage(request.code, greetNow: false);
-    return SelectLanguageResponse(code: request.code);
+    final code = _validatedLanguageCode(request.code);
+    await _controller.setSelectedLanguage(code, greetNow: false);
+    return SelectLanguageResponse(code: code);
   }
 
   @override
@@ -73,7 +88,8 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
       await _controller.setUserName(request.name, greetNow: false);
     }
     if (request.langCode.trim().isNotEmpty) {
-      await _controller.setSelectedLanguage(request.langCode, greetNow: false);
+      final code = _validatedLanguageCode(request.langCode);
+      await _controller.setSelectedLanguage(code, greetNow: false);
     }
     if (_controller.selectedLanguageCode.trim().isEmpty) {
       throw GrpcError.invalidArgument('No language selected');
