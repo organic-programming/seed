@@ -20,9 +20,9 @@ public final class HolonProcess: ObservableObject {
     @Published public var userName: String = ""
     @Published public var greeting: String = ""
     @Published public var transport: String = {
-        let value = ProcessInfo.processInfo.environment["OP_ASSEMBLY_TRANSPORT"]?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return value?.isEmpty == false ? value! : "stdio"
+        GreetingTransportName.normalizedSelection(
+            ProcessInfo.processInfo.environment["OP_ASSEMBLY_TRANSPORT"]
+        ).rawValue
     }() {
         didSet {
             guard oldValue != transport else { return }
@@ -164,7 +164,7 @@ public final class HolonProcess: ObservableObject {
     }
 
     private func connectionTarget() -> String {
-        transport == "stdio" ? "stdio" : transport
+        GreetingTransportName.normalizedSelection(transport).rawValue
     }
 
     private func logHostUI(_ line: String) {

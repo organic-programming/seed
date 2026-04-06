@@ -19,7 +19,7 @@ Catalogue-owned scenario source may also live inside the catalogue itself. The c
 
 - [`ader/catalogues/grace-op/integration/`](./catalogues/grace-op/integration)
 
-`grace-op`, `swiftui`, and `flutter` suites currently reuse that package through their local checks.
+`grace-op`, `gabriel-greeting-app-swiftui`, and `gabriel-greeting-app-flutter` suites currently reuse that package through their local checks.
 
 
 # Examples : 

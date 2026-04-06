@@ -15,14 +15,14 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-03-15"
-    version: "0.1.115"
+    version: "0.1.116"
   }
   description: "A standalone SwiftUI app that connects to all 12 Gabriel greeting holon written in 12 programming languages and presents a multilingual greeting UI."
   kind: "composite"
   contract: {
     proto: "api/v1/holon.proto"
     service: "greeting.v1.GreetingAppService"
-    rpcs: ["SelectHolon", "SelectLanguage", "Greet"]
+    rpcs: ["SelectHolon", "SelectTransport", "SelectLanguage", "Greet"]
   }
   build: {
     runner: "recipe"
@@ -264,6 +264,9 @@ service GreetingAppService {
   // Select which greeting holon to use (by slug).
   rpc SelectHolon(SelectHolonRequest) returns (SelectHolonResponse);
 
+  // Select which transport the greeting holon connection should use.
+  rpc SelectTransport(SelectTransportRequest) returns (SelectTransportResponse);
+
   // Select a language for the greeting.
   rpc SelectLanguage(SelectLanguageRequest) returns (SelectLanguageResponse);
 
@@ -279,6 +282,14 @@ message SelectHolonResponse {
   // Returns the identity of the now-selected holon.
   string slug = 1;
   string display_name = 2;
+}
+
+message SelectTransportRequest {
+  string transport = 1;
+}
+
+message SelectTransportResponse {
+  string transport = 1;
 }
 
 message SelectLanguageRequest {

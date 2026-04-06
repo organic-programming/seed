@@ -275,6 +275,19 @@ String normalizedTransportSelection(String? value) {
   }
 }
 
+String? canonicalTransportName(String value) {
+  switch (value.trim().toLowerCase()) {
+    case 'stdio':
+      return 'stdio';
+    case 'unix':
+      return 'unix';
+    case 'tcp':
+      return 'tcp';
+    default:
+      return null;
+  }
+}
+
 String transportTitle(String value) {
   switch (normalizedTransportSelection(value)) {
     case 'unix':

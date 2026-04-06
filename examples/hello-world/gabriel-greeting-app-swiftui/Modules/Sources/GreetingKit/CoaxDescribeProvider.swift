@@ -4,12 +4,12 @@ import SwiftProtobuf
 
 enum CoaxDescribeRegistration {
     static func register() throws {
-        let payload = try makeDescribeResponse().serializedData().base64EncodedString()
+        let payload = try makeCoaxDescribeResponse().serializedData().base64EncodedString()
         try Describe.useStaticResponse(StaticDescribeResponse(payloadBase64: payload))
     }
 }
 
-private func makeDescribeResponse() -> Holons_V1_DescribeResponse {
+func makeCoaxDescribeResponse() -> Holons_V1_DescribeResponse {
     var response = Holons_V1_DescribeResponse()
     response.manifest = makeManifest()
     response.services = [
@@ -229,6 +229,31 @@ private func greetingAppServiceDoc() -> Holons_V1_ServiceDoc {
                 )
             ],
             exampleInput: "{\"slug\":\"gabriel-greeting-rust\"}"
+        ),
+        methodDoc(
+            name: "SelectTransport",
+            description: "Select which transport the greeting holon connection should use.",
+            inputType: "greeting.v1.SelectTransportRequest",
+            outputType: "greeting.v1.SelectTransportResponse",
+            inputFields: [
+                fieldDoc(
+                    name: "transport",
+                    type: "string",
+                    number: 1,
+                    description: "Canonical transport name: stdio, tcp, or unix.",
+                    required: true,
+                    example: "\"tcp\""
+                )
+            ],
+            outputFields: [
+                fieldDoc(
+                    name: "transport",
+                    type: "string",
+                    number: 1,
+                    description: "The canonical transport now selected by the UI."
+                )
+            ],
+            exampleInput: "{\"transport\":\"tcp\"}"
         ),
         methodDoc(
             name: "SelectLanguage",

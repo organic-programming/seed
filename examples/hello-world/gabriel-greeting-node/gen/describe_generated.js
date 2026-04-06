@@ -17,7 +17,7 @@ function staticDescribeResponse() {
                 composer: "B. ALTER",
                 status: "draft",
                 born: "2026-03-16",
-                version: "0.1.100",
+                version: "0.1.103",
             },
             description: "A Node.js gRPC daemon that greets users in 56 languages.",
             lang: "js",

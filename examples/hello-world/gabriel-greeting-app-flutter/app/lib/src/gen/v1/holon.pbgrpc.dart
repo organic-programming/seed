@@ -42,6 +42,14 @@ class GreetingAppServiceClient extends $grpc.Client {
     return $createUnaryCall(_$selectHolon, request, options: options);
   }
 
+  /// Select which transport the greeting holon connection should use.
+  $grpc.ResponseFuture<$0.SelectTransportResponse> selectTransport(
+    $0.SelectTransportRequest request, {
+    $grpc.CallOptions? options,
+  }) {
+    return $createUnaryCall(_$selectTransport, request, options: options);
+  }
+
   /// Select a language for the greeting.
   $grpc.ResponseFuture<$0.SelectLanguageResponse> selectLanguage(
     $0.SelectLanguageRequest request, {
@@ -65,6 +73,11 @@ class GreetingAppServiceClient extends $grpc.Client {
           '/greeting.v1.GreetingAppService/SelectHolon',
           ($0.SelectHolonRequest value) => value.writeToBuffer(),
           $0.SelectHolonResponse.fromBuffer);
+  static final _$selectTransport =
+      $grpc.ClientMethod<$0.SelectTransportRequest, $0.SelectTransportResponse>(
+          '/greeting.v1.GreetingAppService/SelectTransport',
+          ($0.SelectTransportRequest value) => value.writeToBuffer(),
+          $0.SelectTransportResponse.fromBuffer);
   static final _$selectLanguage =
       $grpc.ClientMethod<$0.SelectLanguageRequest, $0.SelectLanguageResponse>(
           '/greeting.v1.GreetingAppService/SelectLanguage',
@@ -90,6 +103,15 @@ abstract class GreetingAppServiceBase extends $grpc.Service {
             ($core.List<$core.int> value) =>
                 $0.SelectHolonRequest.fromBuffer(value),
             ($0.SelectHolonResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.SelectTransportRequest,
+            $0.SelectTransportResponse>(
+        'SelectTransport',
+        selectTransport_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) =>
+            $0.SelectTransportRequest.fromBuffer(value),
+        ($0.SelectTransportResponse value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.SelectLanguageRequest,
             $0.SelectLanguageResponse>(
         'SelectLanguage',
@@ -115,6 +137,15 @@ abstract class GreetingAppServiceBase extends $grpc.Service {
 
   $async.Future<$0.SelectHolonResponse> selectHolon(
       $grpc.ServiceCall call, $0.SelectHolonRequest request);
+
+  $async.Future<$0.SelectTransportResponse> selectTransport_Pre(
+      $grpc.ServiceCall $call,
+      $async.Future<$0.SelectTransportRequest> $request) async {
+    return selectTransport($call, await $request);
+  }
+
+  $async.Future<$0.SelectTransportResponse> selectTransport(
+      $grpc.ServiceCall call, $0.SelectTransportRequest request);
 
   $async.Future<$0.SelectLanguageResponse> selectLanguage_Pre(
       $grpc.ServiceCall $call,

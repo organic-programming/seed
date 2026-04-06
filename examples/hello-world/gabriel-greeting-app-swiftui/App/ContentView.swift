@@ -17,26 +17,15 @@ struct ContentView: View {
     @State private var isShowingCoaxSettings = false
     @FocusState private var isNameFieldFocused: Bool
 
-    private func normalizedTransportSelection(_ value: String) -> String {
-        switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-        case "", "auto", "stdio", "stdio://":
-            return "stdio"
-        case "unix", "unix://":
-            return "unix"
-        case "tcp", "tcp://":
-            return "tcp"
-        default:
-            return "stdio"
-        }
-    }
-
     private var transportSelection: Binding<String> {
         Binding(
-            get: { normalizedTransportSelection(holon.transport) },
+            get: { GreetingTransportName.normalizedSelection(holon.transport).rawValue },
             set: { newValue in
-                let normalized = normalizedTransportSelection(newValue)
-                guard normalized != normalizedTransportSelection(holon.transport) else { return }
-                holon.transport = normalized
+                guard let transport = GreetingTransportName.validatedRPCName(newValue) else { return }
+                guard transport.rawValue != GreetingTransportName.normalizedSelection(holon.transport).rawValue else {
+                    return
+                }
+                holon.transport = transport.rawValue
             }
         )
     }
@@ -102,7 +91,7 @@ struct ContentView: View {
                     holon.userName = initialNameValue
                 }
             }
-            let normalized = normalizedTransportSelection(holon.transport)
+            let normalized = GreetingTransportName.normalizedSelection(holon.transport).rawValue
             if holon.transport != normalized {
                 holon.transport = normalized
             }
@@ -122,7 +111,7 @@ struct ContentView: View {
             isLoading = false
             return
         }
-        let retryDelays: [UInt64] = normalizedTransportSelection(holon.transport) == "stdio"
+        let retryDelays: [UInt64] = GreetingTransportName.normalizedSelection(holon.transport) == .stdio
             ? [0, 80_000_000, 180_000_000]
             : [120_000_000, 300_000_000, 600_000_000]
 
@@ -228,9 +217,9 @@ struct ContentView: View {
                     .foregroundStyle(.primary)
 
                 Picker("", selection: transportSelection) {
-                    Text("stdio").tag("stdio")
-                    Text("unix").tag("unix")
-                    Text("tcp").tag("tcp")
+                    ForEach(GreetingTransportName.allCases) { transport in
+                        Text(transport.rawValue).tag(transport.rawValue)
+                    }
                 }
                 .labelsHidden()
                 .frame(width: 140)

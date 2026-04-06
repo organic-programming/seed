@@ -136,6 +136,116 @@ class SelectHolonResponse extends $pb.GeneratedMessage {
   void clearDisplayName() => $_clearField(2);
 }
 
+class SelectTransportRequest extends $pb.GeneratedMessage {
+  factory SelectTransportRequest({
+    $core.String? transport,
+  }) {
+    final result = create();
+    if (transport != null) result.transport = transport;
+    return result;
+  }
+
+  SelectTransportRequest._();
+
+  factory SelectTransportRequest.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SelectTransportRequest.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SelectTransportRequest',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'greeting.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'transport')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SelectTransportRequest clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SelectTransportRequest copyWith(
+          void Function(SelectTransportRequest) updates) =>
+      super.copyWith((message) => updates(message as SelectTransportRequest))
+          as SelectTransportRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SelectTransportRequest create() => SelectTransportRequest._();
+  @$core.override
+  SelectTransportRequest createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SelectTransportRequest getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SelectTransportRequest>(create);
+  static SelectTransportRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get transport => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set transport($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTransport() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTransport() => $_clearField(1);
+}
+
+class SelectTransportResponse extends $pb.GeneratedMessage {
+  factory SelectTransportResponse({
+    $core.String? transport,
+  }) {
+    final result = create();
+    if (transport != null) result.transport = transport;
+    return result;
+  }
+
+  SelectTransportResponse._();
+
+  factory SelectTransportResponse.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory SelectTransportResponse.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SelectTransportResponse',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'greeting.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'transport')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SelectTransportResponse clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SelectTransportResponse copyWith(
+          void Function(SelectTransportResponse) updates) =>
+      super.copyWith((message) => updates(message as SelectTransportResponse))
+          as SelectTransportResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SelectTransportResponse create() => SelectTransportResponse._();
+  @$core.override
+  SelectTransportResponse createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static SelectTransportResponse getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SelectTransportResponse>(create);
+  static SelectTransportResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get transport => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set transport($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTransport() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTransport() => $_clearField(1);
+}
+
 class SelectLanguageRequest extends $pb.GeneratedMessage {
   factory SelectLanguageRequest({
     $core.String? code,

@@ -9,7 +9,7 @@ The seed now uses `ader` as a local proof runner built around four levels:
 
 The active root is [`ader/`](ader/README.md).
 
-The current shared black-box scenario source for `op`, `swiftui`, and `flutter` lives under:
+The current shared black-box scenario source for `op`, `gabriel-greeting-app-swiftui`, and `gabriel-greeting-app-flutter` lives under:
 
 - [`ader/catalogues/grace-op/integration/`](ader/catalogues/grace-op/integration)
 

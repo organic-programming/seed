@@ -15,7 +15,7 @@ DescribeResponse staticDescribeResponse() {
       composer: "Codex",
       status: "draft",
       born: "2026-04-04",
-      version: "0.1.22",
+      version: "0.1.24",
     ),
     description: "A standalone Flutter desktop app that connects to all 12 Gabriel greeting holons and presents a multilingual greeting UI with COAX support.",
     lang: "dart",
@@ -62,6 +62,28 @@ DescribeResponse staticDescribeResponse() {
               name: "display_name",
               type: "string",
               number: 2,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+          ],
+        ),
+        MethodDoc(
+          name: "SelectTransport",
+          description: "Select which transport the greeting holon connection should use.",
+          inputType: "greeting.v1.SelectTransportRequest",
+          outputType: "greeting.v1.SelectTransportResponse",
+          inputFields: [
+            FieldDoc(
+              name: "transport",
+              type: "string",
+              number: 1,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+          ],
+          outputFields: [
+            FieldDoc(
+              name: "transport",
+              type: "string",
+              number: 1,
               label: FieldLabel.FIELD_LABEL_OPTIONAL,
             ),
           ],

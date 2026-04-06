@@ -41,6 +41,33 @@ final $typed_data.Uint8List selectHolonResponseDescriptor = $convert.base64Decod
     'ChNTZWxlY3RIb2xvblJlc3BvbnNlEhIKBHNsdWcYASABKAlSBHNsdWcSIQoMZGlzcGxheV9uYW'
     '1lGAIgASgJUgtkaXNwbGF5TmFtZQ==');
 
+@$core.Deprecated('Use selectTransportRequestDescriptor instead')
+const SelectTransportRequest$json = {
+  '1': 'SelectTransportRequest',
+  '2': [
+    {'1': 'transport', '3': 1, '4': 1, '5': 9, '10': 'transport'},
+  ],
+};
+
+/// Descriptor for `SelectTransportRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List selectTransportRequestDescriptor =
+    $convert.base64Decode(
+        'ChZTZWxlY3RUcmFuc3BvcnRSZXF1ZXN0EhwKCXRyYW5zcG9ydBgBIAEoCVIJdHJhbnNwb3J0');
+
+@$core.Deprecated('Use selectTransportResponseDescriptor instead')
+const SelectTransportResponse$json = {
+  '1': 'SelectTransportResponse',
+  '2': [
+    {'1': 'transport', '3': 1, '4': 1, '5': 9, '10': 'transport'},
+  ],
+};
+
+/// Descriptor for `SelectTransportResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List selectTransportResponseDescriptor =
+    $convert.base64Decode(
+        'ChdTZWxlY3RUcmFuc3BvcnRSZXNwb25zZRIcCgl0cmFuc3BvcnQYASABKAlSCXRyYW5zcG9ydA'
+        '==');
+
 @$core.Deprecated('Use selectLanguageRequestDescriptor instead')
 const SelectLanguageRequest$json = {
   '1': 'SelectLanguageRequest',

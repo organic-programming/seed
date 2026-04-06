@@ -19,7 +19,7 @@ object DescribeGenerated {
                     .setComposer("B. ALTER")
                     .setStatus("draft")
                     .setBorn("2026-03-16")
-                    .setVersion("8.8.121")
+                    .setVersion("8.8.124")
                     .build()
             )
             .setDescription("A Kotlin gRPC daemon that greets users in 56 languages.")

@@ -10,9 +10,9 @@ entries:
 - catalogue: clem-ader
   suite: ader-core
   profile: full
-- catalogue: swiftui
+- catalogue: gabriel-greeting-app-swiftui
   suite: swiftui-smoke
   profile: full
-- catalogue: flutter
+- catalogue: gabriel-greeting-app-flutter
   suite: flutter-smoke
   profile: full

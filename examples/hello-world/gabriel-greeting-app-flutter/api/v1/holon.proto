@@ -13,7 +13,7 @@ option (holons.v1.manifest) = {
     composer: "Codex"
     status: "draft"
     born: "2026-04-04"
-    version: "0.1.22"
+    version: "0.1.24"
   }
   description: "A standalone Flutter desktop app that connects to all 12 Gabriel greeting holons and presents a multilingual greeting UI with COAX support."
   lang: "dart"
@@ -23,7 +23,7 @@ option (holons.v1.manifest) = {
   contract: {
     proto: "api/v1/holon.proto"
     service: "greeting.v1.GreetingAppService"
-    rpcs: ["SelectHolon", "SelectLanguage", "Greet"]
+    rpcs: ["SelectHolon", "SelectTransport", "SelectLanguage", "Greet"]
   }
   build: {
     runner: "recipe"
@@ -248,6 +248,9 @@ service GreetingAppService {
   // Select which greeting holon to use (by slug).
   rpc SelectHolon(SelectHolonRequest) returns (SelectHolonResponse);
 
+  // Select which transport the greeting holon connection should use.
+  rpc SelectTransport(SelectTransportRequest) returns (SelectTransportResponse);
+
   // Select a language for the greeting.
   rpc SelectLanguage(SelectLanguageRequest) returns (SelectLanguageResponse);
 
@@ -262,6 +265,14 @@ message SelectHolonRequest {
 message SelectHolonResponse {
   string slug = 1;
   string display_name = 2;
+}
+
+message SelectTransportRequest {
+  string transport = 1;
+}
+
+message SelectTransportResponse {
+  string transport = 1;
 }
 
 message SelectLanguageRequest {

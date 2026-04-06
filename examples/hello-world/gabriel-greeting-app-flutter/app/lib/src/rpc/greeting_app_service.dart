@@ -2,6 +2,7 @@ import 'package:grpc/grpc.dart';
 
 import '../controller/greeting_controller.dart';
 import '../gen/v1/holon.pbgrpc.dart';
+import '../model/app_model.dart';
 
 class GreetingAppRpcService extends GreetingAppServiceBase {
   GreetingAppRpcService(this._controller);
@@ -28,6 +29,33 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
     } on Object catch (error) {
       throw GrpcError.notFound('$error');
     }
+  }
+
+  @override
+  Future<SelectTransportResponse> selectTransport(
+    ServiceCall call,
+    SelectTransportRequest request,
+  ) async {
+    final transport = canonicalTransportName(request.transport);
+    if (transport == null) {
+      throw GrpcError.invalidArgument(
+        'Unsupported transport "${request.transport}". Expected one of: stdio, tcp, unix',
+      );
+    }
+    if (!_controller.capabilities.appTransports.contains(transport)) {
+      throw GrpcError.invalidArgument(
+        'Transport "$transport" is not available on this platform',
+      );
+    }
+
+    await _controller.setTransport(transport, reload: true);
+    if (_controller.connectionError != null) {
+      throw GrpcError.unavailable(_controller.connectionError!);
+    }
+    if (_controller.error != null) {
+      throw GrpcError.unavailable(_controller.error!);
+    }
+    return SelectTransportResponse(transport: transport);
   }
 
   @override

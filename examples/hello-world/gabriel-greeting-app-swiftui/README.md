@@ -143,25 +143,25 @@ The UI exposes the server surface only. The embedded runtime is available over `
 
 ```shell 
 // Working
-op tcp://127.0.0.1:51311 ListMembers
-op tcp://127.0.0.1:51311 TurnOffCoax
+op tcp://127.0.0.1:60000 ListMembers
+op tcp://127.0.0.1:60000 TurnOffCoax
 
 // Available explicitly not implemented : 
-op tcp://127.0.0.1:51311 Tell       
+op tcp://127.0.0.1:60000 Tell       
 op grpc: call /holons.v1.CoaxService/Tell: rpc error: code = Unimplemented desc = Tell is not yet implemented
 ```
 
 ## Greet 
 
 ```
-op tcp://127.0.0.1:62704 Greet '{"name":"Bob"}'
+op tcp://127.0.0.1:60000 Greet '{"name":"Bob"}'
 ```
 
 ## Select Holon from the holon selector 
 
 ```shell
 // Working
- op tcp://127.0.0.1:51311 SelectHolon '{"slug":"gabriel-greeting-go"}'
+ op tcp://127.0.0.1:60000 SelectHolon '{"slug":"gabriel-greeting-go"}'
 // Selects the holon in the GUI
 {
   "slug": "gabriel-greeting-go",
@@ -173,9 +173,15 @@ op tcp://127.0.0.1:62704 Greet '{"name":"Bob"}'
 
 ```shell
  // Does respond but does not select the language
-op tcp://127.0.0.1:51311 SelectLanguage '{"code":"fr"}'
+op tcp://127.0.0.1:60000 SelectLanguage '{"code":"fr"}'
 // Selects the language in the GUI
 {
   "code": "fr"
 }
+```
+
+## Select Transport from the transport selector 
+
+```shell
+op invoke tcp://127.0.0.1:60000 SelectTransport '{"transport":"stdio"}'
 ```

@@ -25,6 +25,14 @@ final class GreetingAppServiceProvider: CallHandlerProvider, @unchecked Sendable
                 interceptors: [],
                 userFunction: selectHolon(request:context:)
             )
+        case "SelectTransport":
+            return UnaryServerHandler(
+                context: context,
+                requestDeserializer: ProtobufDeserializer<Greeting_V1_SelectTransportRequest>(),
+                responseSerializer: ProtobufSerializer<Greeting_V1_SelectTransportResponse>(),
+                interceptors: [],
+                userFunction: selectTransport(request:context:)
+            )
         case "SelectLanguage":
             return UnaryServerHandler(
                 context: context,
@@ -63,6 +71,48 @@ final class GreetingAppServiceProvider: CallHandlerProvider, @unchecked Sendable
             var response = Greeting_V1_SelectHolonResponse()
             response.slug = identity.slug
             response.displayName = identity.displayName
+            promise.succeed(response)
+        }
+        return promise.futureResult
+    }
+
+    private func selectTransport(
+        request: Greeting_V1_SelectTransportRequest,
+        context: StatusOnlyCallContext
+    ) -> EventLoopFuture<Greeting_V1_SelectTransportResponse> {
+        let promise = context.eventLoop.makePromise(of: Greeting_V1_SelectTransportResponse.self)
+        Task { @MainActor [holon] in
+            guard let transport = GreetingTransportName.validatedRPCName(request.transport) else {
+                promise.fail(
+                    GRPCStatus(
+                        code: .invalidArgument,
+                        message: "Unsupported transport '\(request.transport)'. Expected one of: stdio, tcp, unix"
+                    )
+                )
+                return
+            }
+            holon.transport = transport.rawValue
+            await holon.start()
+            if let connectionError = holon.connectionError {
+                promise.fail(
+                    GRPCStatus(
+                        code: .unavailable,
+                        message: connectionError
+                    )
+                )
+                return
+            }
+            guard holon.isRunning else {
+                promise.fail(
+                    GRPCStatus(
+                        code: .unavailable,
+                        message: "Holon did not become ready"
+                    )
+                )
+                return
+            }
+            var response = Greeting_V1_SelectTransportResponse()
+            response.transport = transport.rawValue
             promise.succeed(response)
         }
         return promise.futureResult
