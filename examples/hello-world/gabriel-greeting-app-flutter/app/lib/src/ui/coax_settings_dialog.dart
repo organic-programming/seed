@@ -36,13 +36,7 @@ class CoaxSettingsDialog extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Switch(
-                          value: controller.serverEnabled,
-                          onChanged: (value) {
-                            controller.setServerEnabled(value);
-                          },
-                          trailing: const Text('Enable this surface'),
-                        ),
+
                         _LabeledRow(
                           label: 'Transport',
                           child: Select<CoaxServerTransport>(

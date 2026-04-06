@@ -194,7 +194,6 @@ CoaxSettingsSnapshot _snapshotFromListenUri(String listenUri) {
   final trimmed = listenUri.trim();
   if (trimmed.startsWith('unix://')) {
     return CoaxSettingsSnapshot(
-      serverEnabled: true,
       serverTransport: CoaxServerTransport.unix,
       serverHost: CoaxSettingsSnapshot.defaultHost,
       serverPortText: CoaxSettingsSnapshot.defaults.serverPortText,
@@ -211,7 +210,6 @@ CoaxSettingsSnapshot _snapshotFromListenUri(String listenUri) {
         ? parsed!.port.toString()
         : CoaxSettingsSnapshot.defaults.serverPortText;
     return CoaxSettingsSnapshot(
-      serverEnabled: true,
       serverTransport: CoaxServerTransport.tcp,
       serverHost: host,
       serverPortText: port,

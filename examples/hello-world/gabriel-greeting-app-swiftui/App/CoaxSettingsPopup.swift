@@ -50,16 +50,6 @@ struct CoaxSettingsPopup: View {
 
             Spacer(minLength: 12)
 
-            HStack(spacing: 10) {
-                Text("Enabled")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-
-                Toggle("", isOn: $coaxServer.isEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-            }
-
             Button("Done") {
                 isPresented = false
             }
@@ -69,12 +59,7 @@ struct CoaxSettingsPopup: View {
     }
 
     private var serverPage: some View {
-        surfacePage(
-            title: "Server",
-            subtitle: "Expose the embedded runtime directly.",
-            state: coaxServer.serverStatus.state,
-            isEnabled: $coaxServer.serverEnabled
-        ) {
+        VStack(alignment: .leading, spacing: 16) {
             settingsSection("Connection") {
                 pickerRow(
                     "Transport",
@@ -109,39 +94,10 @@ struct CoaxSettingsPopup: View {
                 value: coaxServer.serverStatus.endpoint ?? coaxServer.serverPreviewEndpoint
             )
         }
-    }
-
-    private func surfacePage<Content: View>(
-        title: String,
-        subtitle: String,
-        state: CoaxSurfaceState,
-        isEnabled: Binding<Bool>,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.system(size: 18, weight: .semibold))
-
-                    Text(subtitle)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 12)
-
-                statusBadge(state)
-            }
-
-            Toggle("Enable this surface", isOn: isEnabled)
-                .toggleStyle(.switch)
-
-            content()
-        }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .padding(.bottom, 6)
     }
+
 
     private func settingsSection<Content: View>(
         _ title: String,
@@ -244,37 +200,10 @@ struct CoaxSettingsPopup: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func statusBadge(_ state: CoaxSurfaceState) -> some View {
-        Text(state.badgeTitle)
-            .font(.system(size: 11, weight: .bold, design: .monospaced))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .foregroundStyle(statusColor(for: state))
-            .background(
-                Capsule(style: .continuous)
-                    .fill(statusColor(for: state).opacity(0.14))
-            )
-    }
-
     private func titleFor<Value>(_ value: Value) -> String where Value: RawRepresentable, Value.RawValue == String {
         if let transport = value as? CoaxServerTransport {
             return transport.title
         }
         return value.rawValue
-    }
-
-    private func statusColor(for state: CoaxSurfaceState) -> Color {
-        switch state {
-        case .off:
-            return .secondary
-        case .saved:
-            return .blue
-        case .announced:
-            return .orange
-        case .live:
-            return .green
-        case .error:
-            return .red
-        }
     }
 }

@@ -50,7 +50,6 @@ public enum CoaxServerTransport: String, Codable, CaseIterable, Identifiable, Se
 }
 
 struct CoaxSettingsSnapshot: Codable, Sendable {
-    var serverEnabled: Bool
     var serverTransport: CoaxServerTransport
     var serverHost: String
     var serverPortText: String
@@ -60,7 +59,6 @@ struct CoaxSettingsSnapshot: Codable, Sendable {
     static let defaultUnixPath = "/tmp/gabriel-greeting-coax.sock"
 
     static let defaults = CoaxSettingsSnapshot(
-        serverEnabled: true,
         serverTransport: .tcp,
         serverHost: defaultHost,
         serverPortText: String(CoaxServerTransport.tcp.defaultPort),
@@ -113,7 +111,6 @@ private func snapshotFromListenURI(_ listenURI: String) -> CoaxSettingsSnapshot?
 
     if listenURI.hasPrefix("unix://") {
         return CoaxSettingsSnapshot(
-            serverEnabled: true,
             serverTransport: .unix,
             serverHost: CoaxSettingsSnapshot.defaultHost,
             serverPortText: CoaxSettingsSnapshot.defaults.serverPortText,
@@ -129,7 +126,6 @@ private func snapshotFromListenURI(_ listenURI: String) -> CoaxSettingsSnapshot?
     let host = components.host?.trimmingCharacters(in: .whitespacesAndNewlines)
     let port = components.port.map(String.init)
     return CoaxSettingsSnapshot(
-        serverEnabled: true,
         serverTransport: .tcp,
         serverHost: (host?.isEmpty == false ? host! : CoaxSettingsSnapshot.defaultHost),
         serverPortText: port ?? CoaxSettingsSnapshot.defaults.serverPortText,

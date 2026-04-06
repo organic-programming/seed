@@ -46,14 +46,6 @@ public final class CoaxServer: ObservableObject {
         }
     }
 
-    @Published public var serverEnabled: Bool {
-        didSet {
-            guard oldValue != serverEnabled else { return }
-            persistSettings()
-            reconfigureRuntime()
-        }
-    }
-
     @Published public var serverTransport: CoaxServerTransport {
         didSet {
             guard oldValue != serverTransport else { return }
@@ -62,7 +54,7 @@ public final class CoaxServer: ObservableObject {
                 return
             }
             persistSettings()
-            reconfigureRuntimeIfNeeded()
+            reconfigureRuntime()
         }
     }
 
@@ -70,7 +62,7 @@ public final class CoaxServer: ObservableObject {
         didSet {
             guard oldValue != serverHost else { return }
             persistSettings()
-            reconfigureRuntimeIfNeeded()
+            reconfigureRuntime()
         }
     }
 
@@ -78,7 +70,7 @@ public final class CoaxServer: ObservableObject {
         didSet {
             guard oldValue != serverPortText else { return }
             persistSettings()
-            reconfigureRuntimeIfNeeded()
+            reconfigureRuntime()
         }
     }
 
@@ -86,7 +78,7 @@ public final class CoaxServer: ObservableObject {
         didSet {
             guard oldValue != serverUnixPath else { return }
             persistSettings()
-            reconfigureRuntimeIfNeeded()
+            reconfigureRuntime()
         }
     }
 
@@ -122,7 +114,7 @@ public final class CoaxServer: ObservableObject {
         CoaxSurfaceStatus(
             id: "server",
             title: "Server",
-            endpoint: serverEnabled ? (listenURI ?? serverPreviewEndpoint) : serverPreviewEndpoint,
+            endpoint: isEnabled ? (listenURI ?? serverPreviewEndpoint) : serverPreviewEndpoint,
             state: serverSurfaceState
         )
     }
@@ -142,7 +134,6 @@ public final class CoaxServer: ObservableObject {
         self.holon = holon
 
         self.isEnabled = resolvedCoaxEnabled(storedValue: storedEnabled, overrides: overrides)
-        self.serverEnabled = snapshot.serverEnabled
         self.serverTransport = snapshot.serverTransport
         self.serverHost = snapshot.serverHost
         self.serverPortText = snapshot.serverPortText
@@ -162,17 +153,14 @@ public final class CoaxServer: ObservableObject {
     }
 
     private var serverSurfaceState: CoaxSurfaceState {
-        if !serverEnabled {
+        if !isEnabled {
             return .off
         }
-        if let _ = statusDetail, isEnabled {
+        if let _ = statusDetail {
             return .error
         }
         if listenURI != nil {
             return .live
-        }
-        if !isEnabled {
-            return .saved
         }
         return .announced
     }
@@ -205,15 +193,10 @@ public final class CoaxServer: ObservableObject {
         return Self.sanitizedPort(from: trimmed, fallback: oldTransport.defaultPort) == oldTransport.defaultPort
     }
 
-    private func reconfigureRuntimeIfNeeded() {
-        guard serverEnabled else { return }
-        reconfigureRuntime()
-    }
-
     private func reconfigureRuntime() {
         pendingStartID = nil
 
-        guard isEnabled, serverEnabled else {
+        guard isEnabled else {
             stopServer(clearStatus: true)
             return
         }
@@ -257,7 +240,6 @@ public final class CoaxServer: ObservableObject {
 
                     guard self.pendingStartID == startID,
                           self.isEnabled,
-                          self.serverEnabled,
                           self.runtimeListenURI == listenTarget else {
                         let staleServer = RunningServerBox(server)
                         DispatchQueue.global(qos: .utility).async {
@@ -301,7 +283,6 @@ public final class CoaxServer: ObservableObject {
 
     private func persistSettings() {
         let snapshot = CoaxSettingsSnapshot(
-            serverEnabled: serverEnabled,
             serverTransport: serverTransport,
             serverHost: serverHost,
             serverPortText: serverPortText,

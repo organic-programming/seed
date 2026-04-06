@@ -39,7 +39,6 @@ enum CoaxServerTransport {
 
 class CoaxSettingsSnapshot {
   const CoaxSettingsSnapshot({
-    required this.serverEnabled,
     required this.serverTransport,
     required this.serverHost,
     required this.serverPortText,
@@ -49,21 +48,18 @@ class CoaxSettingsSnapshot {
   static const defaultHost = '127.0.0.1';
   static const defaultUnixPath = '/tmp/gabriel-greeting-coax.sock';
   static const defaults = CoaxSettingsSnapshot(
-    serverEnabled: true,
     serverTransport: CoaxServerTransport.tcp,
     serverHost: defaultHost,
     serverPortText: '60000',
     serverUnixPath: defaultUnixPath,
   );
 
-  final bool serverEnabled;
   final CoaxServerTransport serverTransport;
   final String serverHost;
   final String serverPortText;
   final String serverUnixPath;
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'serverEnabled': serverEnabled,
     'serverTransport': serverTransport.name,
     'serverHost': serverHost,
     'serverPortText': serverPortText,
@@ -72,7 +68,6 @@ class CoaxSettingsSnapshot {
 
   factory CoaxSettingsSnapshot.fromJson(Map<String, dynamic> json) {
     return CoaxSettingsSnapshot(
-      serverEnabled: json['serverEnabled'] == true,
       serverTransport: CoaxServerTransport.fromRaw(
         (json['serverTransport'] as String?) ?? '',
       ),

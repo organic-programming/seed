@@ -44,7 +44,6 @@ class CoaxController extends ChangeNotifier {
   int _startGeneration = 0;
 
   bool get isEnabled => _isEnabled;
-  bool get serverEnabled => _snapshot.serverEnabled;
   CoaxServerTransport get serverTransport => _snapshot.serverTransport;
   String get serverHost => _snapshot.serverHost;
   String get serverPortText => _snapshot.serverPortText;
@@ -87,7 +86,7 @@ class CoaxController extends ChangeNotifier {
     return CoaxSurfaceStatus(
       id: 'server',
       title: 'Server',
-      endpoint: serverEnabled
+      endpoint: isEnabled
           ? (listenUri ?? serverPreviewEndpoint)
           : serverPreviewEndpoint,
       state: _serverSurfaceState,
@@ -95,17 +94,14 @@ class CoaxController extends ChangeNotifier {
   }
 
   CoaxSurfaceState get _serverSurfaceState {
-    if (!serverEnabled) {
+    if (!isEnabled) {
       return CoaxSurfaceState.off;
     }
-    if (statusDetail != null && isEnabled) {
+    if (statusDetail != null) {
       return CoaxSurfaceState.error;
     }
     if (listenUri != null) {
       return CoaxSurfaceState.live;
-    }
-    if (!isEnabled) {
-      return CoaxSurfaceState.saved;
     }
     return CoaxSurfaceState.announced;
   }
@@ -127,22 +123,6 @@ class CoaxController extends ChangeNotifier {
     await _reconfigureRuntime();
   }
 
-  Future<void> setServerEnabled(bool value) async {
-    if (serverEnabled == value) {
-      return;
-    }
-    _snapshot = CoaxSettingsSnapshot(
-      serverEnabled: value,
-      serverTransport: serverTransport,
-      serverHost: serverHost,
-      serverPortText: serverPortText,
-      serverUnixPath: serverUnixPath,
-    );
-    await _persistSnapshot();
-    _safeNotify();
-    await _reconfigureRuntime();
-  }
-
   Future<void> setServerTransport(CoaxServerTransport value) async {
     if (value == serverTransport) {
       return;
@@ -151,7 +131,6 @@ class CoaxController extends ChangeNotifier {
         ? value.defaultPort.toString()
         : serverPortText;
     _snapshot = CoaxSettingsSnapshot(
-      serverEnabled: serverEnabled,
       serverTransport: value,
       serverHost: serverHost,
       serverPortText: nextPortText,
@@ -159,7 +138,7 @@ class CoaxController extends ChangeNotifier {
     );
     await _persistSnapshot();
     _safeNotify();
-    if (serverEnabled) {
+    if (isEnabled) {
       await _reconfigureRuntime();
     }
   }
@@ -169,7 +148,6 @@ class CoaxController extends ChangeNotifier {
       return;
     }
     _snapshot = CoaxSettingsSnapshot(
-      serverEnabled: serverEnabled,
       serverTransport: serverTransport,
       serverHost: value,
       serverPortText: serverPortText,
@@ -177,7 +155,7 @@ class CoaxController extends ChangeNotifier {
     );
     await _persistSnapshot();
     _safeNotify();
-    if (serverEnabled) {
+    if (isEnabled) {
       await _reconfigureRuntime();
     }
   }
@@ -187,7 +165,6 @@ class CoaxController extends ChangeNotifier {
       return;
     }
     _snapshot = CoaxSettingsSnapshot(
-      serverEnabled: serverEnabled,
       serverTransport: serverTransport,
       serverHost: serverHost,
       serverPortText: value,
@@ -195,7 +172,7 @@ class CoaxController extends ChangeNotifier {
     );
     await _persistSnapshot();
     _safeNotify();
-    if (serverEnabled) {
+    if (isEnabled) {
       await _reconfigureRuntime();
     }
   }
@@ -205,7 +182,6 @@ class CoaxController extends ChangeNotifier {
       return;
     }
     _snapshot = CoaxSettingsSnapshot(
-      serverEnabled: serverEnabled,
       serverTransport: serverTransport,
       serverHost: serverHost,
       serverPortText: serverPortText,
@@ -213,7 +189,7 @@ class CoaxController extends ChangeNotifier {
     );
     await _persistSnapshot();
     _safeNotify();
-    if (serverEnabled) {
+    if (isEnabled) {
       await _reconfigureRuntime();
     }
   }
@@ -232,7 +208,7 @@ class CoaxController extends ChangeNotifier {
     _startGeneration += 1;
     final generation = _startGeneration;
 
-    if (!_isEnabled || !serverEnabled) {
+    if (!_isEnabled) {
       await _stopServer(clearStatus: true);
       return;
     }
@@ -258,7 +234,7 @@ class CoaxController extends ChangeNotifier {
         <Service>[coaxService, appService],
         options: const holons.ServeOptions(describe: true, logger: _ignoreLog),
       );
-      if (generation != _startGeneration || !_isEnabled || !serverEnabled) {
+      if (generation != _startGeneration || !_isEnabled) {
         await server.stop();
         return;
       }
