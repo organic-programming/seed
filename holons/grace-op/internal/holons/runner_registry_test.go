@@ -131,7 +131,14 @@ func TestPythonRunnerDryRunBuildUsesFallbackInterpreter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("python dry-run build failed: %v", err)
 	}
-	if len(report.Commands) != 1 || !strings.Contains(report.Commands[0], "python -m pip install -r requirements.txt") {
+	if len(report.Commands) != 2 {
+		t.Fatalf("unexpected python commands: %v", report.Commands)
+	}
+	if !strings.Contains(report.Commands[0], "python -m venv .venv") {
+		t.Fatalf("unexpected python venv command: %v", report.Commands)
+	}
+	if !strings.Contains(report.Commands[1], pythonVenvInterpreterPath(filepath.Join(root, ".op", "build", "python"))) ||
+		!strings.Contains(report.Commands[1], "-m pip install -r requirements.txt") {
 		t.Fatalf("unexpected python commands: %v", report.Commands)
 	}
 }

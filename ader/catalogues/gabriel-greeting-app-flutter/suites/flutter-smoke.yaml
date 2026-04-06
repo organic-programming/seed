@@ -17,6 +17,15 @@ steps:
   integration-build-composite-flutter:
     check: integration-build-composite-flutter
     lane: progression
+  integration-coax-business-cold-build-flutter:
+    check: integration-coax-business-cold-build-flutter
+    lane: progression
+  integration-coax-business-surface-flutter:
+    check: integration-coax-business-surface-flutter
+    lane: progression
+  integration-coax-business-matrix-flutter:
+    check: integration-coax-business-matrix-flutter
+    lane: progression
   integration-rebuild-composite-flutter:
     check: integration-rebuild-composite-flutter
     lane: progression
@@ -115,6 +124,9 @@ profiles:
     - flutter-app-integration-smoke-macos
     - integration-check-composite-flutter
     - integration-build-composite-flutter
+    - integration-coax-business-cold-build-flutter
+    - integration-coax-business-surface-flutter
+    - integration-coax-business-matrix-flutter
     - integration-rebuild-composite-flutter
     - integration-invoke-composite-flutter-stdio
     - integration-invoke-composite-flutter-tcp

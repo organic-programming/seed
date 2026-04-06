@@ -18,7 +18,7 @@ def static_describe_response() -> describe_pb2.DescribeResponse:
             composer="B. ALTER",
             status="draft",
             born="2026-03-16",
-            version="0.1.110",
+            version="0.1.117",
         ),
         description="A Python gRPC daemon that greets users in 56 languages.",
         lang="python",
@@ -43,6 +43,7 @@ def static_describe_response() -> describe_pb2.DescribeResponse:
             files=[
                 "cmd/main.py",
                 "pyproject.toml",
+                "requirements.txt",
             ],
         ),
         artifacts=manifest_pb2.HolonManifest.Artifacts(

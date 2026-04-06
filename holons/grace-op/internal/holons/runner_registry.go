@@ -247,13 +247,20 @@ func pythonProjectInterpreterPath(manifest *LoadedManifest) string {
 	if manifest == nil {
 		return ""
 	}
+	return pythonProjectInterpreterPathAt(manifest.Dir)
+}
+
+func pythonProjectInterpreterPathAt(root string) string {
+	if strings.TrimSpace(root) == "" {
+		return ""
+	}
 	for _, rel := range []string{
 		filepath.Join(".venv", "bin", "python"),
 		filepath.Join(".venv", "bin", "python3"),
 		filepath.Join("venv", "bin", "python"),
 		filepath.Join("venv", "bin", "python3"),
 	} {
-		candidate := filepath.Join(manifest.Dir, rel)
+		candidate := filepath.Join(root, rel)
 		if info, err := os.Stat(candidate); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
 			return candidate
 		}
@@ -372,15 +379,27 @@ const pythonInterpreterProbeScript = "" +
 	"):\n" +
 	"    importlib.import_module(name)\n"
 
-func pythonBuildArgs(manifest *LoadedManifest) ([]string, bool, error) {
+func pythonVenvInterpreterPath(root string) string {
+	if runtime.GOOS == "windows" {
+		return filepath.Join(root, ".venv", "Scripts", "python.exe")
+	}
+	return filepath.Join(root, ".venv", "bin", "python")
+}
+
+func pythonBuildArgs(manifest *LoadedManifest, isolatedDir string) ([][]string, string, bool, error) {
 	interpreter, err := pythonInterpreterForManifest(manifest)
 	if err != nil {
-		return nil, false, err
+		return nil, "", false, err
 	}
-	if !fileExists(filepath.Join(manifest.Dir, "requirements.txt")) {
-		return nil, false, nil
+	if !fileExists(filepath.Join(isolatedDir, "requirements.txt")) &&
+		!fileExists(filepath.Join(manifest.Dir, "requirements.txt")) {
+		return nil, "", false, nil
 	}
-	return []string{interpreter, "-m", "pip", "install", "-r", "requirements.txt"}, true, nil
+	venvPython := pythonVenvInterpreterPath(isolatedDir)
+	return [][]string{
+		{interpreter, "-m", "venv", ".venv"},
+		{venvPython, "-m", "pip", "install", "-r", "requirements.txt"},
+	}, venvPython, true, nil
 }
 
 func pythonEntrypoint(manifest *LoadedManifest, searchDir string) (string, error) {
@@ -829,21 +848,23 @@ func (pythonRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 		}
 	}
 
-	args, ok, err := pythonBuildArgs(manifest)
+	buildArgs, runtimePython, ok, err := pythonBuildArgs(manifest, isolatedDir)
 	if err != nil {
 		return err
 	}
 	if !ok {
 		report.Notes = append(report.Notes, "no requirements.txt; skipping dependency install")
 	} else {
-		report.Commands = append(report.Commands, commandString(args))
-		ctx.Progress.Step(commandString(args))
-		if !ctx.DryRun {
-			if output, err := runCommand(isolatedDir, args); err != nil {
-				return fmt.Errorf("%s\n%s", err, output)
+		for _, args := range buildArgs {
+			report.Commands = append(report.Commands, commandString(args))
+			ctx.Progress.Step(commandString(args))
+			if !ctx.DryRun {
+				if output, err := runCommand(isolatedDir, args); err != nil {
+					return fmt.Errorf("%s\n%s", err, output)
+				}
 			}
-			report.Notes = append(report.Notes, "python dependencies installed")
 		}
+		report.Notes = append(report.Notes, "python dependencies installed in isolated venv")
 	}
 
 	if manifestHasPrimaryArtifact(manifest) || ctx.DryRun {
@@ -857,9 +878,13 @@ func (pythonRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 	if err := os.MkdirAll(filepath.Dir(manifest.BinaryPath()), 0o755); err != nil {
 		return err
 	}
+	pythonPath := runtimePython
+	if strings.TrimSpace(pythonPath) == "" {
+		pythonPath = argsOrDefaultPythonPathForManifest(manifest)
+	}
 	wrapper := fmt.Sprintf(
 		"#!/bin/sh\nset -eu\nexec %q %q \"$@\"\n",
-		argsOrDefaultPythonPathForManifest(manifest),
+		pythonPath,
 		filepath.Join(isolatedDir, filepath.FromSlash(entrypoint)),
 	)
 	if err := os.WriteFile(manifest.BinaryPath(), []byte(wrapper), 0o755); err != nil {

@@ -56,22 +56,41 @@ final class GreetingAppServiceProvider: CallHandlerProvider, @unchecked Sendable
 
     // MARK: - RPC Implementations
 
+    private func grpcStatus(for error: Error) -> GRPCStatus {
+        if let status = error as? GRPCStatus {
+            return status
+        }
+        if let selectionError = error as? GreetingSelectionError {
+            switch selectionError {
+            case .holonNotFound:
+                return GRPCStatus(code: .notFound, message: selectionError.localizedDescription)
+            case .unsupportedTransport, .unsupportedLanguage, .noLanguageSelected:
+                return GRPCStatus(code: .invalidArgument, message: selectionError.localizedDescription)
+            case .noHolonsFound:
+                return GRPCStatus(code: .unavailable, message: selectionError.localizedDescription)
+            }
+        }
+        if let holonError = error as? HolonError {
+            return GRPCStatus(code: .unavailable, message: holonError.localizedDescription)
+        }
+        return GRPCStatus(code: .unavailable, message: error.localizedDescription)
+    }
+
     private func selectHolon(
         request: Greeting_V1_SelectHolonRequest,
         context: StatusOnlyCallContext
     ) -> EventLoopFuture<Greeting_V1_SelectHolonResponse> {
         let promise = context.eventLoop.makePromise(of: Greeting_V1_SelectHolonResponse.self)
         Task { @MainActor [holon] in
-            guard let identity = holon.availableHolons.first(where: { $0.slug == request.slug }) else {
-                promise.fail(GRPCStatus(code: .notFound, message: "Holon '\(request.slug)' not found"))
-                return
+            do {
+                let identity = try await holon.selectHolon(slug: request.slug, greetAfterLoad: false)
+                var response = Greeting_V1_SelectHolonResponse()
+                response.slug = identity.slug
+                response.displayName = identity.displayName
+                promise.succeed(response)
+            } catch {
+                promise.fail(grpcStatus(for: error))
             }
-            holon.selectedHolon = identity
-            await holon.start()
-            var response = Greeting_V1_SelectHolonResponse()
-            response.slug = identity.slug
-            response.displayName = identity.displayName
-            promise.succeed(response)
         }
         return promise.futureResult
     }
@@ -82,38 +101,14 @@ final class GreetingAppServiceProvider: CallHandlerProvider, @unchecked Sendable
     ) -> EventLoopFuture<Greeting_V1_SelectTransportResponse> {
         let promise = context.eventLoop.makePromise(of: Greeting_V1_SelectTransportResponse.self)
         Task { @MainActor [holon] in
-            guard let transport = GreetingTransportName.validatedRPCName(request.transport) else {
-                promise.fail(
-                    GRPCStatus(
-                        code: .invalidArgument,
-                        message: "Unsupported transport '\(request.transport)'. Expected one of: stdio, tcp, unix"
-                    )
-                )
-                return
+            do {
+                let transport = try await holon.selectTransport(request.transport, greetAfterLoad: false)
+                var response = Greeting_V1_SelectTransportResponse()
+                response.transport = transport
+                promise.succeed(response)
+            } catch {
+                promise.fail(grpcStatus(for: error))
             }
-            holon.transport = transport.rawValue
-            await holon.start()
-            if let connectionError = holon.connectionError {
-                promise.fail(
-                    GRPCStatus(
-                        code: .unavailable,
-                        message: connectionError
-                    )
-                )
-                return
-            }
-            guard holon.isRunning else {
-                promise.fail(
-                    GRPCStatus(
-                        code: .unavailable,
-                        message: "Holon did not become ready"
-                    )
-                )
-                return
-            }
-            var response = Greeting_V1_SelectTransportResponse()
-            response.transport = transport.rawValue
-            promise.succeed(response)
         }
         return promise.futureResult
     }
@@ -124,10 +119,14 @@ final class GreetingAppServiceProvider: CallHandlerProvider, @unchecked Sendable
     ) -> EventLoopFuture<Greeting_V1_SelectLanguageResponse> {
         let promise = context.eventLoop.makePromise(of: Greeting_V1_SelectLanguageResponse.self)
         Task { @MainActor [holon] in
-            holon.selectedLanguageCode = request.code
-            var response = Greeting_V1_SelectLanguageResponse()
-            response.code = request.code
-            promise.succeed(response)
+            do {
+                let code = try await holon.selectLanguage(request.code)
+                var response = Greeting_V1_SelectLanguageResponse()
+                response.code = code
+                promise.succeed(response)
+            } catch {
+                promise.fail(grpcStatus(for: error))
+            }
         }
         return promise.futureResult
     }
@@ -139,26 +138,15 @@ final class GreetingAppServiceProvider: CallHandlerProvider, @unchecked Sendable
         let promise = context.eventLoop.makePromise(of: Greeting_V1_GreetResponse.self)
         Task { @MainActor [holon] in
             do {
-                if !request.name.isEmpty {
-                    holon.userName = request.name
-                }
-                if !request.langCode.isEmpty {
-                    holon.selectedLanguageCode = request.langCode
-                }
-
-                let name = request.name.isEmpty ? holon.userName : request.name
-                let langCode = holon.selectedLanguageCode
-                guard !langCode.isEmpty else {
-                    promise.fail(GRPCStatus(code: .invalidArgument, message: "No language selected"))
-                    return
-                }
-                let greeting = try await holon.sayHello(name: name, langCode: langCode)
-                holon.greeting = greeting
+                let greeting = try await holon.greetCurrentSelection(
+                    name: request.name.isEmpty ? nil : request.name,
+                    langCode: request.langCode.isEmpty ? nil : request.langCode
+                )
                 var response = Greeting_V1_GreetResponse()
                 response.greeting = greeting
                 promise.succeed(response)
             } catch {
-                promise.fail(GRPCStatus(code: .unavailable, message: error.localizedDescription))
+                promise.fail(grpcStatus(for: error))
             }
         }
         return promise.futureResult

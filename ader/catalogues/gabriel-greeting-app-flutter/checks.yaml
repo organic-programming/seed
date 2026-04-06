@@ -42,6 +42,7 @@ checks:
     prereqs:
     - go
     - flutter
+    - xcodebuild
     - swift
     - cargo
     - python3
@@ -56,6 +57,66 @@ checks:
     - bundle
     command: go test -v -count=1 -timeout 45m -run "^TestBuild_07_Composite$/^gabriel-greeting-app-flutter$" ./...
     description: composite build for flutter hostui
+  integration-coax-business-cold-build-flutter:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - flutter
+    - xcodebuild
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -v -count=1 -timeout 90m -run "^TestCOAXBusiness_ColdBuild$/^gabriel-greeting-app-flutter$" ./coax
+    description: COAX business cold build for flutter hostui
+  integration-coax-business-surface-flutter:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - flutter
+    - xcodebuild
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -v -count=1 -timeout 120m -run "^TestCOAXBusiness_RuntimeSurface$/^gabriel-greeting-app-flutter$" ./coax
+    description: COAX runtime surface for flutter hostui
+  integration-coax-business-matrix-flutter:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - flutter
+    - xcodebuild
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -v -count=1 -timeout 150m -run "^TestCOAXBusiness_DomainMatrix$/^gabriel-greeting-app-flutter$" ./coax
+    description: COAX business matrix for flutter hostui
   integration-rebuild-composite-flutter:
     workdir: ader/catalogues/grace-op/integration
     prereqs:

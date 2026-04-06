@@ -9,14 +9,62 @@ checks:
     workdir: ader/catalogues/grace-op/integration
     prereqs:
     - go
-    command: go test -v -count=1 -timeout 5m -run "^TestCOAX_BuildRecipeApp$" ./...
-    description: coax build recipe app
+    - xcodebuild
+    - xcodegen
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -v -count=1 -timeout 90m -run "^TestCOAXBusiness_ColdBuild$/^gabriel-greeting-app-swiftui$" ./coax
+    description: COAX business cold build for swiftui app
   integration-coax-runtime-surface:
     workdir: ader/catalogues/grace-op/integration
     prereqs:
     - go
-    command: go test -v -count=1 -timeout 5m -run "^TestCOAX_RuntimeSurface$" ./...
-    description: coax runtime surface
+    - xcodebuild
+    - xcodegen
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -v -count=1 -timeout 120m -run "^TestCOAXBusiness_RuntimeSurface$/^gabriel-greeting-app-swiftui$" ./coax
+    description: COAX runtime surface for swiftui app
+  integration-coax-business-matrix-swiftui:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - xcodebuild
+    - xcodegen
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -v -count=1 -timeout 150m -run "^TestCOAXBusiness_DomainMatrix$/^gabriel-greeting-app-swiftui$" ./coax
+    description: COAX business matrix for swiftui app
   integration-dispatch-jsonoutput-swift:
     workdir: ader/catalogues/grace-op/integration
     prereqs:

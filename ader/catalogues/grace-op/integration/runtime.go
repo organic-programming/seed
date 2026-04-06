@@ -335,6 +335,19 @@ func (p *ProcessHandle) WaitForListenAddress(t *testing.T, timeout time.Duration
 	return p.waitForPattern(t, pattern, timeout)
 }
 
+func (p *ProcessHandle) WaitForCOAXListenAddress(t *testing.T, timeout time.Duration) string {
+	t.Helper()
+	pattern := regexp.MustCompile(`\[COAX\] server listening on ((?:tcp|unix)://\S+)`)
+	return p.waitForPattern(t, pattern, timeout)
+}
+
+func (p *ProcessHandle) Wait(timeout time.Duration) error {
+	if p == nil {
+		return nil
+	}
+	return p.wait(timeout)
+}
+
 func (p *ProcessHandle) Stdout() string { return p.stdout.String() }
 
 func (p *ProcessHandle) Stderr() string { return p.stderr.String() }

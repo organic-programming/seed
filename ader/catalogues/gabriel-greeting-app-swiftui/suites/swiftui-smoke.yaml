@@ -11,6 +11,9 @@ steps:
   integration-coax-runtime-surface:
     check: integration-coax-runtime-surface
     lane: progression
+  integration-coax-business-matrix-swiftui:
+    check: integration-coax-business-matrix-swiftui
+    lane: progression
   integration-dispatch-jsonoutput-swift:
     check: integration-dispatch-jsonoutput-swift
     lane: progression
@@ -67,6 +70,7 @@ profiles:
     - example-swift-unit
     - integration-coax-build-recipe-app
     - integration-coax-runtime-surface
+    - integration-coax-business-matrix-swiftui
     - integration-dispatch-jsonoutput-swift
     - integration-dispatch-list-languages-swift
     - integration-inspect-local-holons-swift

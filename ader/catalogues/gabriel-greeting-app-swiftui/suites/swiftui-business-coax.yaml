@@ -1,0 +1,27 @@
+description: Dedicated COAX business regression matrix for the Gabriel SwiftUI app
+defaults:
+  profile: full
+steps:
+  integration-coax-build-recipe-app:
+    check: integration-coax-build-recipe-app
+    lane: progression
+  integration-coax-runtime-surface:
+    check: integration-coax-runtime-surface
+    lane: progression
+  integration-coax-business-matrix-swiftui:
+    check: integration-coax-business-matrix-swiftui
+    lane: progression
+profiles:
+  smoke:
+    description: cold build plus COAX surface
+    archive: never
+    steps:
+    - integration-coax-build-recipe-app
+    - integration-coax-runtime-surface
+  full:
+    description: full COAX business matrix
+    archive: auto
+    steps:
+    - integration-coax-build-recipe-app
+    - integration-coax-runtime-surface
+    - integration-coax-business-matrix-swiftui

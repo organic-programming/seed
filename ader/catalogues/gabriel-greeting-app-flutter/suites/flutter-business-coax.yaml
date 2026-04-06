@@ -1,0 +1,27 @@
+description: Dedicated COAX business regression matrix for the Gabriel Flutter HostUI
+defaults:
+  profile: full
+steps:
+  integration-coax-business-cold-build-flutter:
+    check: integration-coax-business-cold-build-flutter
+    lane: progression
+  integration-coax-business-surface-flutter:
+    check: integration-coax-business-surface-flutter
+    lane: progression
+  integration-coax-business-matrix-flutter:
+    check: integration-coax-business-matrix-flutter
+    lane: progression
+profiles:
+  smoke:
+    description: cold build plus COAX surface
+    archive: never
+    steps:
+    - integration-coax-business-cold-build-flutter
+    - integration-coax-business-surface-flutter
+  full:
+    description: full COAX business matrix
+    archive: auto
+    steps:
+    - integration-coax-business-cold-build-flutter
+    - integration-coax-business-surface-flutter
+    - integration-coax-business-matrix-flutter

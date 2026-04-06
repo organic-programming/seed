@@ -17,15 +17,30 @@ struct ContentView: View {
     @State private var isShowingCoaxSettings = false
     @FocusState private var isNameFieldFocused: Bool
 
+    private var holonSelection: Binding<GabrielHolonIdentity?> {
+        Binding(
+            get: { holon.selectedHolon },
+            set: { newValue in
+                guard let identity = newValue else { return }
+                Task { await selectHolon(identity) }
+            }
+        )
+    }
+
     private var transportSelection: Binding<String> {
         Binding(
             get: { GreetingTransportName.normalizedSelection(holon.transport).rawValue },
             set: { newValue in
-                guard let transport = GreetingTransportName.validatedRPCName(newValue) else { return }
-                guard transport.rawValue != GreetingTransportName.normalizedSelection(holon.transport).rawValue else {
-                    return
-                }
-                holon.transport = transport.rawValue
+                Task { await selectTransport(named: newValue) }
+            }
+        )
+    }
+
+    private var languageSelection: Binding<String> {
+        Binding(
+            get: { holon.selectedLanguageCode },
+            set: { newValue in
+                Task { await selectLanguage(code: newValue) }
             }
         )
     }
@@ -102,59 +117,69 @@ struct ContentView: View {
     private func loadLanguages() async {
         isLoading = true
         error = nil
-        holon.greeting = ""
-        holon.availableLanguages = []
-        await holon.start()
-        guard holon.isRunning else {
-            let detail = holon.connectionError ?? "Holon did not become ready"
-            error = "Failed to load languages: \(detail)"
-            isLoading = false
-            return
+        do {
+            try await holon.reloadLanguages(greetAfterLoad: true)
+        } catch {
+            self.error = "Failed to load languages: \(message(for: error))"
         }
-        let retryDelays: [UInt64] = GreetingTransportName.normalizedSelection(holon.transport) == .stdio
-            ? [0, 80_000_000, 180_000_000]
-            : [120_000_000, 300_000_000, 600_000_000]
+        isLoading = false
+    }
 
-        for (attempt, delay) in retryDelays.enumerated() {
-            do {
-#if os(macOS)
-                if delay > 0 {
-                    try await Task.sleep(nanoseconds: delay)
-                }
-#endif
-                holon.availableLanguages = try await holon.listLanguages()
-                let preferredCode = holon.selectedLanguageCode
-                holon.selectedLanguageCode =
-                    holon.availableLanguages.first(where: { $0.code == preferredCode })?.code
-                    ?? holon.availableLanguages.first(where: { $0.code == "en" })?.code
-                    ?? holon.availableLanguages.first?.code
-                    ?? ""
-                error = nil
-                isLoading = false
-                if !holon.selectedLanguageCode.isEmpty {
-                    Task { await greet(code: holon.selectedLanguageCode) }
-                }
-                return
-            } catch {
-                if attempt == retryDelays.count - 1 {
-                    let detail = holon.connectionError ?? error.localizedDescription
-                    self.error = "Failed to load languages: \(detail)"
-                    isLoading = false
-                }
-            }
+    private func selectHolon(_ identity: GabrielHolonIdentity) async {
+        guard holon.selectedHolon != identity else { return }
+        isLoading = true
+        error = nil
+        do {
+            try await holon.selectHolon(slug: identity.slug, greetAfterLoad: true)
+        } catch {
+            self.error = "Failed to load languages: \(message(for: error))"
+        }
+        isLoading = false
+    }
+
+    private func selectTransport(named value: String) async {
+        let normalized = GreetingTransportName.normalizedSelection(holon.transport).rawValue
+        guard value != normalized else { return }
+        isLoading = true
+        error = nil
+        do {
+            try await holon.selectTransport(value, greetAfterLoad: true)
+        } catch {
+            self.error = "Failed to load languages: \(message(for: error))"
+        }
+        isLoading = false
+    }
+
+    private func selectLanguage(code: String) async {
+        guard code != holon.selectedLanguageCode else { return }
+        error = nil
+        do {
+            try await holon.selectLanguage(code)
+            await greet()
+        } catch {
+            self.error = "Greeting failed: \(message(for: error))"
         }
     }
 
-    private func greet(code: String) async {
-        guard !code.isEmpty else { return }
+    private func greet() async {
+        guard !holon.selectedLanguageCode.isEmpty else { return }
         isGreeting = true
         do {
-            holon.greeting = try await holon.sayHello(name: holon.userName, langCode: code)
+            try await holon.greetCurrentSelection(name: holon.userName)
             error = nil
         } catch {
-            self.error = "Greeting failed: \(error.localizedDescription)"
+            self.error = "Greeting failed: \(message(for: error))"
         }
         isGreeting = false
+    }
+
+    private func message(for error: Error) -> String {
+        if let localized = error as? LocalizedError,
+           let description = localized.errorDescription,
+           !description.isEmpty {
+            return description
+        }
+        return error.localizedDescription
     }
 
     private var topHeaderArea: some View {
@@ -183,7 +208,7 @@ struct ContentView: View {
 
     private var holonHeaderGroup: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Picker("", selection: $holon.selectedHolon) {
+            Picker("", selection: holonSelection) {
                 if holon.availableHolons.isEmpty {
                     Text("Loading holons...").tag(nil as GabrielHolonIdentity?)
                 } else {
@@ -194,9 +219,6 @@ struct ContentView: View {
             }
             .labelsHidden()
             .frame(width: 250)
-            .onChange(of: holon.selectedHolon?.id) {
-                Task { await loadLanguages() }
-            }
 
             if let slug = holon.selectedHolon?.slug {
                 Text(slug)
@@ -223,9 +245,6 @@ struct ContentView: View {
                 }
                 .labelsHidden()
                 .frame(width: 140)
-                .onChange(of: holon.transport) {
-                    Task { await loadLanguages() }
-                }
             }
 
             HStack(spacing: 8) {
@@ -305,7 +324,7 @@ struct ContentView: View {
                     .textFieldStyle(.roundedBorder)
                     .focused($isNameFieldFocused)
                     .onChange(of: holon.userName) {
-                        Task { await greet(code: holon.selectedLanguageCode) }
+                        Task { await greet() }
                     }
                     .frame(width: inputColumnWidth)
             } else {
@@ -320,7 +339,7 @@ struct ContentView: View {
                     TextEditor(text: $holon.userName)
                         .focused($isNameFieldFocused)
                         .onChange(of: holon.userName) {
-                            Task { await greet(code: holon.selectedLanguageCode) }
+                            Task { await greet() }
                         }
                 }
                 .frame(width: inputColumnWidth, height: 100)
@@ -330,7 +349,7 @@ struct ContentView: View {
     }
 
     private var languagePicker: some View {
-        Picker("", selection: $holon.selectedLanguageCode) {
+        Picker("", selection: languageSelection) {
             if isLoading {
                 Text("Loading...").tag("")
             } else {
@@ -341,9 +360,6 @@ struct ContentView: View {
         }
         .labelsHidden()
         .frame(width: languagePickerWidth)
-        .onChange(of: holon.selectedLanguageCode) {
-            Task { await greet(code: holon.selectedLanguageCode) }
-        }
     }
 
     private var bubbleColumn: some View {
