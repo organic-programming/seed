@@ -163,6 +163,35 @@ static void handle_signal(int signo) {
   holons_request_stop();
 }
 
+static int install_backend_signal_handlers(struct sigaction *old_int,
+                                           struct sigaction *old_term) {
+  struct sigaction action;
+  int saved_errno;
+
+  memset(&action, 0, sizeof(action));
+  action.sa_handler = handle_signal;
+  (void)sigemptyset(&action.sa_mask);
+  /* Keep accept() interruptible so SIGTERM breaks the serve loop immediately. */
+  action.sa_flags = 0;
+
+  if (sigaction(SIGINT, &action, old_int) != 0) {
+    return -1;
+  }
+  if (sigaction(SIGTERM, &action, old_term) != 0) {
+    saved_errno = errno;
+    (void)sigaction(SIGINT, old_int, NULL);
+    errno = saved_errno;
+    return -1;
+  }
+  return 0;
+}
+
+static void restore_backend_signal_handlers(const struct sigaction *old_int,
+                                            const struct sigaction *old_term) {
+  (void)sigaction(SIGINT, old_int, NULL);
+  (void)sigaction(SIGTERM, old_term, NULL);
+}
+
 static void write_json_string(FILE *output, const char *data, size_t size) {
   size_t i;
   fputc('"', output);
@@ -442,8 +471,9 @@ int gabriel_greeting_c_backend_serve(const char *listen_uri, FILE *stdout_stream
   holons_listener_t listener;
   holons_conn_t conn;
   char err[256];
-  void (*old_int)(int);
-  void (*old_term)(int);
+  struct sigaction old_int;
+  struct sigaction old_term;
+  int handlers_installed = 0;
 
   register_static_describe_response();
   if (holons_listen(listen_uri, &listener, err, sizeof(err)) != 0) {
@@ -456,8 +486,12 @@ int gabriel_greeting_c_backend_serve(const char *listen_uri, FILE *stdout_stream
   fflush(stdout_stream);
 
   *holons_stop_token() = 0;
-  old_int = signal(SIGINT, handle_signal);
-  old_term = signal(SIGTERM, handle_signal);
+  if (install_backend_signal_handlers(&old_int, &old_term) != 0) {
+    fprintf(stderr_stream, "backend signal install error: %s\n", strerror(errno));
+    holons_close_listener(&listener);
+    return 1;
+  }
+  handlers_installed = 1;
 
   for (;;) {
     if (*holons_stop_token()) {
@@ -468,23 +502,26 @@ int gabriel_greeting_c_backend_serve(const char *listen_uri, FILE *stdout_stream
         break;
       }
       fprintf(stderr_stream, "backend accept error: %s\n", err);
-      signal(SIGINT, old_int);
-      signal(SIGTERM, old_term);
+      if (handlers_installed) {
+        restore_backend_signal_handlers(&old_int, &old_term);
+      }
       holons_close_listener(&listener);
       return 1;
     }
     if (handle_connection(&conn, NULL) != 0) {
       holons_conn_close(&conn);
-      signal(SIGINT, old_int);
-      signal(SIGTERM, old_term);
+      if (handlers_installed) {
+        restore_backend_signal_handlers(&old_int, &old_term);
+      }
       holons_close_listener(&listener);
       return 1;
     }
     holons_conn_close(&conn);
   }
 
-  signal(SIGINT, old_int);
-  signal(SIGTERM, old_term);
+  if (handlers_installed) {
+    restore_backend_signal_handlers(&old_int, &old_term);
+  }
   holons_close_listener(&listener);
   return 0;
 }

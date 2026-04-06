@@ -16,7 +16,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 				Composer:   "B. ALTER",
 				Status:     "draft",
 				Born:       "2026-02-20",
-				Version:    "0.4.712",
+				Version:    "0.4.722",
 			},
 			Description: "A Go gRPC daemon that greets users in 56 languages. Designed to be embedded in a Flutter HostUI but also usable standalone.",
 			Lang:        "go",

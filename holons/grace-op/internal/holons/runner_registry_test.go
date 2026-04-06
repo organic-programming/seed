@@ -219,6 +219,49 @@ func TestPythonRunnerBuildEmbedsResolvedInterpreterPath(t *testing.T) {
 	}
 }
 
+func TestPythonRunnerBuildPrefersInterpreterWithSDKDependencies(t *testing.T) {
+	root := t.TempDir()
+	toolDir := t.TempDir()
+	t.Setenv("PATH", toolDir)
+
+	writeFakePythonProbeCommand(t, toolDir, "python3", "/opt/test/python3-missing-sdk", false)
+	goodPython := writeFakePythonProbeCommand(t, toolDir, "python", "/opt/test/python-with-sdk", true)
+
+	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "bin", "main.py"), []byte("print('ok')\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeRunnerManifest(t, root, "schema: holon/v0\nkind: native\nbuild:\n  runner: python\nartifacts:\n  binary: python-demo\n")
+
+	manifest, err := LoadManifest(root)
+	if err != nil {
+		t.Fatalf("LoadManifest failed: %v", err)
+	}
+
+	var report Report
+	err = (pythonRunner{}).build(manifest, BuildContext{
+		Target:   canonicalRuntimeTarget(),
+		Mode:     buildModeDebug,
+		Progress: progress.Silence(),
+	}, &report)
+	if err != nil {
+		t.Fatalf("python build failed: %v", err)
+	}
+
+	wrapper, err := os.ReadFile(manifest.BinaryPath())
+	if err != nil {
+		t.Fatalf("ReadFile(%q) failed: %v", manifest.BinaryPath(), err)
+	}
+	if !strings.Contains(string(wrapper), goodPython) {
+		t.Fatalf("wrapper did not prefer python with sdk runtime %q: %s", goodPython, string(wrapper))
+	}
+	if strings.Contains(string(wrapper), "/opt/test/python3-missing-sdk") {
+		t.Fatalf("wrapper unexpectedly used interpreter missing sdk runtime: %s", string(wrapper))
+	}
+}
+
 func TestRubyRunnerDryRunBuild(t *testing.T) {
 	root := t.TempDir()
 	toolDir := t.TempDir()
@@ -1160,6 +1203,33 @@ func writeFakeCommand(t *testing.T, dir, name string) {
 	if err := os.WriteFile(path, data, mode); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func writeFakePythonProbeCommand(t *testing.T, dir, name, reportedPath string, ready bool) string {
+	t.Helper()
+
+	path := filepath.Join(dir, name)
+	mode := os.FileMode(0o755)
+	var data []byte
+	if runtime.GOOS == "windows" {
+		path += ".bat"
+		mode = 0o644
+		status := "0"
+		if !ready {
+			status = "1"
+		}
+		data = []byte(fmt.Sprintf("@echo off\r\nif \"%%1\"==\"-c\" (\r\n  echo __holons_python__=%s\r\n  exit /b %s\r\n)\r\nexit /b 0\r\n", reportedPath, status))
+	} else {
+		status := "0"
+		if !ready {
+			status = "1"
+		}
+		data = []byte(fmt.Sprintf("#!/bin/sh\nif [ \"$#\" -ge 2 ] && [ \"$1\" = \"-c\" ]; then\n  printf '%%s\\n' %s\n  exit %s\nfi\nexit 0\n", shellQuote("__holons_python__="+reportedPath), status))
+	}
+	if err := os.WriteFile(path, data, mode); err != nil {
+		t.Fatal(err)
+	}
+	return reportedPath
 }
 
 func writeRecordingNodeCommand(t *testing.T, dir, logPath string) {

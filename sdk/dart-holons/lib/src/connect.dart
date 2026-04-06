@@ -433,11 +433,9 @@ Future<(ClientChannel, Process)> _startStdioHolon(
 
 Future<(String, Process)> _startTcpHolon(
   String binaryPath,
-  Duration timeout,
-  {
+  Duration timeout, {
   required String workingDirectory,
-}
-) async {
+}) async {
   final process = await Process.start(
     binaryPath,
     const <String>['serve', '--listen', 'tcp://127.0.0.1:0'],
@@ -445,27 +443,38 @@ Future<(String, Process)> _startTcpHolon(
   );
 
   final completer = Completer<String>();
+  String? fallbackUri;
+  Timer? fallbackTimer;
+  void handleLine(String line) {
+    final uri = _firstUri(line);
+    if (uri.isEmpty || completer.isCompleted) {
+      return;
+    }
+    if (_prefersStartupUriLine(line)) {
+      fallbackTimer?.cancel();
+      completer.complete(uri);
+      return;
+    }
+    fallbackUri ??= uri;
+    fallbackTimer ??= Timer(const Duration(milliseconds: 200), () {
+      if (!completer.isCompleted && fallbackUri != null) {
+        completer.complete(fallbackUri!);
+      }
+    });
+  }
+
   utf8.decoder
       .bind(process.stdout)
       .transform(const LineSplitter())
-      .listen((line) {
-    final uri = _firstUri(line);
-    if (uri.isNotEmpty && !completer.isCompleted) {
-      completer.complete(uri);
-    }
-  });
+      .listen(handleLine);
   utf8.decoder
       .bind(process.stderr)
       .transform(const LineSplitter())
-      .listen((line) {
-    final uri = _firstUri(line);
-    if (uri.isNotEmpty && !completer.isCompleted) {
-      completer.complete(uri);
-    }
-  });
+      .listen(handleLine);
 
   process.exitCode.then((code) {
     if (!completer.isCompleted) {
+      fallbackTimer?.cancel();
       completer.completeError(
         StateError('holon exited before advertising an address ($code)'),
       );
@@ -474,8 +483,10 @@ Future<(String, Process)> _startTcpHolon(
 
   try {
     final uri = await completer.future.timeout(timeout);
+    fallbackTimer?.cancel();
     return (uri, process);
   } on Object {
+    fallbackTimer?.cancel();
     await _stopProcess(process);
     rethrow;
   }
@@ -485,11 +496,9 @@ Future<(String, Process)> _startUnixHolon(
   String binaryPath,
   String slug,
   String portFile,
-  Duration timeout,
-  {
+  Duration timeout, {
   required String workingDirectory,
-}
-) async {
+}) async {
   final uri = _defaultUnixSocketURI(slug, portFile);
   final socketPath = uri.substring('unix://'.length);
   final socketFile = File(socketPath);
@@ -612,12 +621,16 @@ String _connectOpPath() {
     return _normalizeAbsolutePath(configured);
   }
 
-  final home = (env['HOME'] ?? '').trim();
-  if (home.isNotEmpty) {
-    return _normalizeAbsolutePath(_joinPath(home, '.op'));
+  for (final key in <String>['HOME', 'USERPROFILE']) {
+    final home = (env[key] ?? '').trim();
+    if (home.isNotEmpty) {
+      return _normalizeAbsolutePath(_joinPath(home, '.op'));
+    }
   }
 
-  return _normalizeAbsolutePath(_joinPath(connectCurrentRootProvider(), '.op'));
+  return _normalizeAbsolutePath(
+    _joinPath(Directory.systemTemp.path, '.op'),
+  );
 }
 
 String _defaultWorkingDirectory(String path, String binaryPath) {
@@ -766,6 +779,24 @@ bool _isUriTrimChar(int codeUnit) {
       codeUnit == 93 ||
       codeUnit == 123 ||
       codeUnit == 125;
+}
+
+bool _prefersStartupUriLine(String line) {
+  final normalized = line.trim().toLowerCase();
+  if (normalized.isEmpty) {
+    return false;
+  }
+  if (normalized.contains('grpc bridge listening on')) {
+    return true;
+  }
+  if (normalized.contains('backend stdout') ||
+      normalized.contains('backend stderr') ||
+      normalized.contains(' backend ')) {
+    return false;
+  }
+  return normalized.contains('listening on') ||
+      normalized.contains('serving on') ||
+      normalized.contains('public uri');
 }
 
 String? _pathFromFileUrl(String raw) {

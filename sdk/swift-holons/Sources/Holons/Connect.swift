@@ -961,6 +961,9 @@ private func startUnixHolon(
 ) throws -> StartedHolon {
     let socketURI = defaultUnixSocketURI(slug: slug, portFile: portFile)
     let socketPath = String(socketURI.dropFirst("unix://".count))
+    if FileManager.default.fileExists(atPath: socketPath) {
+        try? FileManager.default.removeItem(atPath: socketPath)
+    }
     let process = makeLaunchProcess(launchTarget, listenURI: socketURI)
 
     let stdout = Pipe()

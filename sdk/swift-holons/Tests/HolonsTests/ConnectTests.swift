@@ -246,6 +246,43 @@ final class ConnectTests: XCTestCase {
     try disconnect(channel)
     try waitForProcessExit(pid)
   }
+
+  func testConnectWithUnixTransportRemovesStaleSocketFileBeforeLaunch() throws {
+    #if os(Windows)
+      throw XCTSkip("unix transport is not supported on Windows")
+    #else
+      let sandbox = try makeSandbox(prefix: "connect-unix-stale")
+      defer { try? FileManager.default.removeItem(at: sandbox.root) }
+
+      let fixture = try sandbox.makeHolonFixture(
+        slug: "connect-unix-stale",
+        launchDelaySeconds: 0.4
+      )
+      let previousDirectory = FileManager.default.currentDirectoryPath
+      defer {
+        XCTAssertTrue(FileManager.default.changeCurrentDirectoryPath(previousDirectory))
+      }
+      XCTAssertTrue(FileManager.default.changeCurrentDirectoryPath(sandbox.root.path))
+
+      let socketPath = expectedUnixSocketPath(slug: fixture.slug, portFile: fixture.portFile.path)
+      let socketURL = URL(fileURLWithPath: socketPath)
+      try FileManager.default.createDirectory(
+        at: socketURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+      )
+      try Data("stale".utf8).write(to: socketURL)
+
+      let channel = try connect(
+        fixture.slug,
+        options: ConnectOptions(timeout: 5.0, transport: "unix", lifecycle: "ephemeral")
+      )
+      let pid = try waitForPID(at: fixture.pidFile)
+      XCTAssertEqual(try describeSlug(channel, timeout: 2.0), fixture.slug)
+
+      try disconnect(channel)
+      try waitForProcessExit(pid)
+    #endif
+  }
 }
 
 private struct ConnectSandbox {
@@ -263,7 +300,7 @@ private struct ConnectSandbox {
     let holonDir: URL
   }
 
-  func makeHolonFixture(slug: String) throws -> Fixture {
+  func makeHolonFixture(slug: String, launchDelaySeconds: Double = 0) throws -> Fixture {
     let holonDir =
       root
       .appendingPathComponent("holons")
@@ -278,11 +315,15 @@ private struct ConnectSandbox {
     let pidFile = root.appendingPathComponent("\(slug).pid")
     let cwdFile = root.appendingPathComponent("\(slug).cwd")
     let wrapper = binaryDir.appendingPathComponent("holon-helper")
+    let delayLine =
+      launchDelaySeconds > 0
+      ? "sleep \(String(format: "%.3f", launchDelaySeconds))\n"
+      : ""
     let script = """
       #!/bin/sh
       printf '%s\n' "$$" > \(shellQuote(pidFile.path))
       pwd > \(shellQuote(cwdFile.path))
-      exec \(shellQuote(helperExecutable.path)) --slug \(shellQuote(slug)) "$@"
+      \(delayLine)exec \(shellQuote(helperExecutable.path)) --slug \(shellQuote(slug)) "$@"
       """
     try script.write(to: wrapper, atomically: true, encoding: .utf8)
     try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
@@ -600,6 +641,53 @@ private func testCurrentArchDirectory() -> String {
   #endif
 
   return "\(osName)_\(archName)"
+}
+
+private func expectedUnixSocketPath(slug: String, portFile: String) -> String {
+  String(expectedUnixSocketURI(slug: slug, portFile: portFile).dropFirst("unix://".count))
+}
+
+private func expectedUnixSocketURI(slug: String, portFile: String) -> String {
+  let hash = testFNV1a64(Array(portFile.utf8))
+  let label = testSocketLabel(slug)
+  return "unix:///tmp/holons-\(label)-\(String(format: "%012llx", hash & 0xffffffffffff)).sock"
+}
+
+private func testSocketLabel(_ slug: String) -> String {
+  var label = ""
+  var lastWasDash = false
+
+  for scalar in slug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().unicodeScalars {
+    switch scalar.value {
+    case 97 ... 122, 48 ... 57:
+      label.unicodeScalars.append(scalar)
+      lastWasDash = false
+    case 45 where !label.isEmpty && !lastWasDash:
+      label.append("-")
+      lastWasDash = true
+    case 95 where !label.isEmpty && !lastWasDash:
+      label.append("-")
+      lastWasDash = true
+    default:
+      continue
+    }
+
+    if label.count >= 24 {
+      break
+    }
+  }
+
+  label = label.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+  return label.isEmpty ? "socket" : label
+}
+
+private func testFNV1a64(_ bytes: [UInt8]) -> UInt64 {
+  var hash: UInt64 = 0xcbf29ce484222325
+  for byte in bytes {
+    hash ^= UInt64(byte)
+    hash &*= 0x100000001b3
+  }
+  return hash
 }
 
 private func readStartupLine(

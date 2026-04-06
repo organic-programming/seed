@@ -22,7 +22,7 @@ public final class describe_generated {
                     .setComposer("B. ALTER")
                     .setStatus("draft")
                     .setBorn("2026-03-16")
-                    .setVersion("0.1.89")
+                    .setVersion("0.1.99")
                     .build()
             )
             .setDescription("A Java gRPC daemon that greets users in 56 languages.")

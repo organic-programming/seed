@@ -269,29 +269,108 @@ func pythonInterpreterForManifest(manifest *LoadedManifest) (string, error) {
 }
 
 func pythonInterpreterPath() (string, error) {
-	for _, candidate := range []string{"python3", "python"} {
-		resolved, err := exec.LookPath(candidate)
-		if err == nil {
-			cmd := exec.Command(resolved, "-c", "import sys; print(sys.executable)")
-			output, outputErr := cmd.Output()
-			if outputErr == nil {
-				actual := strings.TrimSpace(string(output))
-				if actual != "" {
-					return actual, nil
-				}
-			}
-			return resolved, nil
+	return pythonInterpreterPathForManifest(nil)
+}
+
+func pythonInterpreterPathForManifest(manifest *LoadedManifest) (string, error) {
+	candidates := pythonInterpreterCandidates(manifest)
+	if len(candidates) == 0 {
+		return "", fmt.Errorf("python runner requires python3 or python on PATH")
+	}
+
+	fallback := ""
+	for _, candidate := range candidates {
+		actual, ready, err := probePythonInterpreter(candidate)
+		if actual == "" {
+			actual = candidate
 		}
+		if fallback == "" {
+			fallback = actual
+		}
+		if err == nil && ready {
+			return actual, nil
+		}
+	}
+
+	if fallback != "" {
+		return fallback, nil
 	}
 	return "", fmt.Errorf("python runner requires python3 or python on PATH")
 }
 
-func pythonInterpreterPathForManifest(manifest *LoadedManifest) (string, error) {
-	if local := pythonProjectInterpreterPath(manifest); local != "" {
-		return local, nil
+func pythonInterpreterCandidates(manifest *LoadedManifest) []string {
+	var candidates []string
+	seen := map[string]struct{}{}
+
+	add := func(candidate string) {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			return
+		}
+		if resolved, err := exec.LookPath(candidate); err == nil {
+			candidate = resolved
+		}
+		if _, ok := seen[candidate]; ok {
+			return
+		}
+		seen[candidate] = struct{}{}
+		candidates = append(candidates, candidate)
 	}
-	return pythonInterpreterPath()
+
+	if local := pythonProjectInterpreterPath(manifest); local != "" {
+		add(local)
+	}
+	add("python3")
+	add("python")
+	if runtime.GOOS == "darwin" {
+		for _, candidate := range []string{
+			"/usr/bin/python3",
+			"/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+		} {
+			if info, err := os.Stat(candidate); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
+				add(candidate)
+			}
+		}
+	}
+	return candidates
 }
+
+func probePythonInterpreter(candidate string) (string, bool, error) {
+	cmd := exec.Command(candidate, "-c", pythonInterpreterProbeScript)
+	output, err := cmd.CombinedOutput()
+
+	actual := ""
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, pythonInterpreterProbePrefix) {
+			actual = strings.TrimPrefix(line, pythonInterpreterProbePrefix)
+			break
+		}
+	}
+	if actual == "" {
+		actual = candidate
+	}
+
+	if err != nil {
+		return actual, false, err
+	}
+	return actual, true, nil
+}
+
+const pythonInterpreterProbePrefix = "__holons_python__="
+
+const pythonInterpreterProbeScript = "" +
+	"import importlib\n" +
+	"import sys\n" +
+	"print('" + pythonInterpreterProbePrefix + "' + sys.executable)\n" +
+	"for name in (\n" +
+	"    'grpc',\n" +
+	"    'google.protobuf.json_format',\n" +
+	"    'grpc_reflection.v1alpha.reflection',\n" +
+	"    'yaml',\n" +
+	"    'websockets',\n" +
+	"):\n" +
+	"    importlib.import_module(name)\n"
 
 func pythonBuildArgs(manifest *LoadedManifest) ([]string, bool, error) {
 	interpreter, err := pythonInterpreterForManifest(manifest)

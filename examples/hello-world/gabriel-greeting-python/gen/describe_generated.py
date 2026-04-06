@@ -18,7 +18,7 @@ def static_describe_response() -> describe_pb2.DescribeResponse:
             composer="B. ALTER",
             status="draft",
             born="2026-03-16",
-            version="0.1.94",
+            version="0.1.107",
         ),
         description="A Python gRPC daemon that greets users in 56 languages.",
         lang="python",

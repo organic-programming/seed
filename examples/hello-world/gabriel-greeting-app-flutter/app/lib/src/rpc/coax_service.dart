@@ -72,9 +72,8 @@ class CoaxRpcService extends CoaxServiceBase {
       await _greetingController.setTransport(request.transport, reload: false);
     }
     await _greetingController.selectHolonBySlug(identity.slug, reload: false);
-    try {
-      await _greetingController.ensureStarted();
-    } on Object {
+    await _greetingController.loadLanguages(greetAfterLoad: false);
+    if (!_greetingController.isRunning || _greetingController.error != null) {
       return ConnectMemberResponse(
         member: _memberForIdentity(
           identity,

@@ -59,13 +59,70 @@ String? findPackageBinary(String packageDir) {
     return null;
   }
 
+  final manifestEntrypoint = _packageEntrypoint(packageDir);
+  if (manifestEntrypoint.isNotEmpty) {
+    final preferred =
+        '$archDir${Platform.pathSeparator}${_basename(manifestEntrypoint)}';
+    if (File(preferred).existsSync()) {
+      return preferred;
+    }
+  }
+
   final candidates = directory
       .listSync(followLinks: false)
       .whereType<File>()
       .map((file) => file.path)
       .toList()
     ..sort();
+
+  for (final candidate in candidates) {
+    if (_looksLikeRunnableBinary(candidate)) {
+      return candidate;
+    }
+  }
   return candidates.isEmpty ? null : candidates.first;
+}
+
+String _packageEntrypoint(String packageDir) {
+  final manifestFile = File('$packageDir${Platform.pathSeparator}.holon.json');
+  if (!manifestFile.existsSync()) {
+    return '';
+  }
+
+  try {
+    final decoded = jsonDecode(manifestFile.readAsStringSync());
+    if (decoded is! Map) {
+      return '';
+    }
+    final entrypoint = decoded['entrypoint'];
+    return entrypoint is String ? entrypoint.trim() : '';
+  } on Object {
+    return '';
+  }
+}
+
+bool _looksLikeRunnableBinary(String path) {
+  final name = _basename(path).toLowerCase();
+  if (name.endsWith('.json') ||
+      name.endsWith('.pb') ||
+      name.endsWith('.proto') ||
+      name.endsWith('.txt') ||
+      name.endsWith('.md')) {
+    return false;
+  }
+  if (name.startsWith('describe_generated.')) {
+    return false;
+  }
+  return true;
+}
+
+String _basename(String path) {
+  final normalized = path.replaceAll('\\', Platform.pathSeparator);
+  final index = normalized.lastIndexOf(Platform.pathSeparator);
+  if (index < 0) {
+    return normalized;
+  }
+  return normalized.substring(index + 1);
 }
 
 HolonInfo holonInfoFromDescribeResponse(DescribeResponse response) {

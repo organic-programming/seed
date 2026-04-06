@@ -321,20 +321,50 @@ class GreetingController extends ChangeNotifier {
   }
 
   Future<void> _connect(int generation, GabrielHolonIdentity holon) async {
+    final retryDelays = transport == 'stdio'
+        ? const <Duration>[Duration.zero]
+        : const <Duration>[
+            Duration.zero,
+            Duration(milliseconds: 150),
+            Duration(milliseconds: 400),
+            Duration(milliseconds: 800),
+          ];
+    Object? lastError;
+
     try {
-      _log(
-        '[HostUI] assembly=Gabriel-Greeting-App-Flutter holon=${holon.binaryName} transport=$transport',
-      );
-      final connection = await _connector.connect(holon, transport: transport);
-      if (generation != _connectionGeneration || _disposed) {
-        await connection.close();
-        return;
+      for (var index = 0; index < retryDelays.length; index += 1) {
+        final delay = retryDelays[index];
+        if (delay > Duration.zero) {
+          await Future<void>.delayed(delay);
+        }
+        _log(
+          '[HostUI] assembly=Gabriel-Greeting-App-Flutter holon=${holon.binaryName} transport=$transport',
+        );
+        try {
+          final connection = await _connector.connect(
+            holon,
+            transport: transport,
+          );
+          if (generation != _connectionGeneration || _disposed) {
+            await connection.close();
+            return;
+          }
+          _connection = connection;
+          isRunning = true;
+          connectionError = null;
+          _log('[HostUI] connected to ${holon.binaryName} on $transport');
+          _safeNotify();
+          return;
+        } on Object catch (error) {
+          lastError = error;
+          if (index < retryDelays.length - 1) {
+            _log(
+              '[HostUI] retrying ${holon.binaryName} on $transport after connect failure: $error',
+            );
+          }
+        }
       }
-      _connection = connection;
-      isRunning = true;
-      connectionError = null;
-      _log('[HostUI] connected to ${holon.binaryName} on $transport');
-      _safeNotify();
+      throw lastError ?? StateError('Holon connection failed');
     } on Object catch (error) {
       if (generation != _connectionGeneration || _disposed) {
         return;

@@ -160,21 +160,16 @@ void main() {
       await controller.setTransport('tcp', reload: false);
       await controller.ensureStarted();
 
-      expect(
-        connector.connectCalls,
-        <(String, String)>[
-          ('gabriel-greeting-swift', 'stdio'),
-          ('gabriel-greeting-swift', 'tcp'),
-        ],
-      );
+      expect(connector.connectCalls, <(String, String)>[
+        ('gabriel-greeting-swift', 'stdio'),
+        ('gabriel-greeting-swift', 'tcp'),
+      ]);
       expect(controller.transport, 'tcp');
       expect(controller.isRunning, isTrue);
 
       stdioCompleter.complete(
         FakeGreetingHolonConnection(
-          languages: [
-            language(code: 'en', name: 'English', native: 'English'),
-          ],
+          languages: [language(code: 'en', name: 'English', native: 'English')],
           greetingBuilder: ({required name, required langCode}) =>
               'Hello $name from stdio',
         ),
@@ -184,6 +179,43 @@ void main() {
       expect(controller.transport, 'tcp');
       expect(controller.isRunning, isTrue);
     });
+
+    test(
+      'retries non-stdio connection startup once before surfacing failure',
+      () async {
+        var tcpAttempts = 0;
+        final controller = GreetingController(
+          catalog: FakeHolonCatalog(<GabrielHolonIdentity>[
+            holon('gabriel-greeting-c'),
+          ]),
+          connector: FakeHolonConnector(
+            factories: <String, FakeGreetingHolonConnection Function(String)>{
+              'gabriel-greeting-c': (transport) {
+                if (transport == 'tcp' && tcpAttempts++ == 0) {
+                  throw StateError('temporary tcp startup race');
+                }
+                return FakeGreetingHolonConnection(
+                  languages: [
+                    language(code: 'en', name: 'English', native: 'English'),
+                  ],
+                  greetingBuilder: ({required name, required langCode}) =>
+                      'Hello $name',
+                );
+              },
+            },
+          ),
+          initialTransport: 'tcp',
+        );
+
+        await controller.initialize();
+        await waitForCoaxUpdate();
+
+        expect(controller.isRunning, isTrue);
+        expect(controller.connectionError, isNull);
+        expect(controller.greeting, 'Hello World');
+        expect(tcpAttempts, 2);
+      },
+    );
   });
 }
 
