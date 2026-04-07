@@ -559,6 +559,21 @@ func rubyGemPath(rubyPath string) string {
 	return "gem"
 }
 
+func rubyBundlerNativePlatform(goos, goarch string) string {
+	switch {
+	case goos == "darwin" && goarch == "arm64":
+		return "arm64-darwin"
+	case goos == "darwin" && goarch == "amd64":
+		return "x86_64-darwin"
+	default:
+		return ""
+	}
+}
+
+func rubyForceSourcePlatform(goos, goarch string) bool {
+	return rubyBundlerNativePlatform(goos, goarch) == ""
+}
+
 func rubyBase64LibPath(searchDir string) string {
 	if searchDir == "" {
 		return ""
@@ -578,31 +593,24 @@ func sharedCacheBaseDir() string {
 	return os.TempDir()
 }
 
-func rubySharedCacheRoot(manifest *LoadedManifest) string {
+func rubySharedCacheRoot(manifest *LoadedManifest, rubyPath, bundlePath string) string {
 	baseDir := sharedCacheBaseDir()
-	name, fingerprint := rubySharedCacheKey(manifest)
-	return filepath.Join(baseDir, "grace-op-ruby-cache", fmt.Sprintf("%s-%x", name, fingerprint))
+	fingerprint := rubySharedCacheKey(manifest, rubyPath, bundlePath)
+	return filepath.Join(baseDir, "grace-op-sdk-cache", "ruby", fmt.Sprintf("%x", fingerprint))
 }
 
-func rubySharedCacheKey(manifest *LoadedManifest) (string, uint64) {
-	name := "ruby"
-	if manifest != nil {
-		if slug := strings.TrimSpace(manifestSlug(manifest)); slug != "" {
-			name = slug
-		} else if manifest.Name != "" {
-			name = strings.TrimSpace(manifest.Name)
-		}
-	}
-
+func rubySharedCacheKey(manifest *LoadedManifest, rubyPath, bundlePath string) uint64 {
 	hasher := fnv.New64a()
 	writeRubyCacheHashPart := func(value string) {
 		_, _ = hasher.Write([]byte(value))
 		_, _ = hasher.Write([]byte{0})
 	}
 
-	writeRubyCacheHashPart(name)
+	writeRubyCacheHashPart("ruby-sdk")
 	writeRubyCacheHashPart(runtime.GOOS)
 	writeRubyCacheHashPart(runtime.GOARCH)
+	writeRubyCacheHashPart(strings.TrimSpace(rubyPath))
+	writeRubyCacheHashPart(strings.TrimSpace(bundlePath))
 
 	if manifest != nil {
 		for _, rel := range []string{"Gemfile", "Gemfile.lock"} {
@@ -617,18 +625,18 @@ func rubySharedCacheKey(manifest *LoadedManifest) (string, uint64) {
 		}
 	}
 
-	return name, hasher.Sum64()
+	return hasher.Sum64()
 }
 
-func rubySharedBundleDir(manifest *LoadedManifest) string {
-	return filepath.Join(rubySharedCacheRoot(manifest), "bundle")
+func rubySharedBundleDir(manifest *LoadedManifest, rubyPath, bundlePath string) string {
+	return filepath.Join(rubySharedCacheRoot(manifest, rubyPath, bundlePath), "bundle")
 }
 
-func rubySharedBase64Dir(manifest *LoadedManifest) string {
-	return filepath.Join(rubySharedCacheRoot(manifest), "base64")
+func rubySharedBase64Dir(manifest *LoadedManifest, rubyPath, bundlePath string) string {
+	return filepath.Join(rubySharedCacheRoot(manifest, rubyPath, bundlePath), "base64")
 }
 
-func prepareRubySharedCache(isolatedDir string, manifest *LoadedManifest) error {
+func prepareRubySharedCache(isolatedDir string, manifest *LoadedManifest, rubyPath, bundlePath string) error {
 	if err := os.MkdirAll(filepath.Join(isolatedDir, ".op"), 0o755); err != nil {
 		return err
 	}
@@ -639,11 +647,11 @@ func prepareRubySharedCache(isolatedDir string, manifest *LoadedManifest) error 
 	}{
 		{
 			linkPath:   filepath.Join(isolatedDir, ".op", "bundle"),
-			targetPath: rubySharedBundleDir(manifest),
+			targetPath: rubySharedBundleDir(manifest, rubyPath, bundlePath),
 		},
 		{
 			linkPath:   filepath.Join(isolatedDir, ".op", "base64"),
-			targetPath: rubySharedBase64Dir(manifest),
+			targetPath: rubySharedBase64Dir(manifest, rubyPath, bundlePath),
 		},
 	}
 
@@ -665,7 +673,7 @@ func prepareRubySharedCache(isolatedDir string, manifest *LoadedManifest) error 
 	return nil
 }
 
-func prepareRubyIsolatedWorkspace(isolatedDir string, manifest *LoadedManifest) error {
+func prepareRubyIsolatedWorkspace(isolatedDir string, manifest *LoadedManifest, rubyPath, bundlePath string) error {
 	// Re-anchor relative SDK dependencies to absolute paths to survive inner execution.
 	supportPath := filepath.Join(isolatedDir, "support.rb")
 	if b, err := os.ReadFile(supportPath); err == nil {
@@ -674,19 +682,36 @@ func prepareRubyIsolatedWorkspace(isolatedDir string, manifest *LoadedManifest) 
 			return err
 		}
 	}
-	if err := prepareRubySharedCache(isolatedDir, manifest); err != nil {
+	if err := prepareRubySharedCache(isolatedDir, manifest, rubyPath, bundlePath); err != nil {
 		return fmt.Errorf("prepare ruby cache: %w", err)
 	}
 	return nil
 }
 
 func rubySetupCommands(bundlePath, gemPath string) [][]string {
-	return [][]string{
-		{"env", "BUNDLE_FORCE_RUBY_PLATFORM=true", bundlePath, "lock", "--add-platform", "arm64-darwin"},
-		{bundlePath, "config", "set", "--local", "path", ".op/bundle"},
-		{"env", "BUNDLE_FORCE_RUBY_PLATFORM=true", bundlePath, "install"},
-		{gemPath, "install", "base64", "--install-dir", ".op/base64", "--no-document"},
+	return rubySetupCommandsForPlatform(bundlePath, gemPath, runtime.GOOS, runtime.GOARCH)
+}
+
+func rubySetupCommandsForPlatform(bundlePath, gemPath, goos, goarch string) [][]string {
+	commands := make([][]string, 0, 4)
+	if platform := rubyBundlerNativePlatform(goos, goarch); platform != "" {
+		commands = append(commands, []string{bundlePath, "lock", "--add-platform", platform})
 	}
+	commands = append(commands, []string{bundlePath, "config", "set", "--local", "path", ".op/bundle"})
+	if rubyForceSourcePlatform(goos, goarch) {
+		commands = append(commands, []string{"env", "BUNDLE_FORCE_RUBY_PLATFORM=true", bundlePath, "install"})
+	} else {
+		commands = append(commands, []string{bundlePath, "install"})
+	}
+	commands = append(commands, []string{gemPath, "install", "base64", "--install-dir", ".op/base64", "--no-document"})
+	return commands
+}
+
+func rubyWrapperPlatformExports(goos, goarch string) string {
+	if rubyForceSourcePlatform(goos, goarch) {
+		return "export BUNDLE_FORCE_RUBY_PLATFORM=true\n"
+	}
+	return ""
 }
 
 func rubyTestArgs(manifest *LoadedManifest) ([]string, error) {
@@ -1090,7 +1115,7 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 		if err := copyWorkspaceIsolated(manifest.Dir, isolatedDir); err != nil {
 			return fmt.Errorf("isolate ruby workspace: %w", err)
 		}
-		if err := prepareRubyIsolatedWorkspace(isolatedDir, manifest); err != nil {
+		if err := prepareRubyIsolatedWorkspace(isolatedDir, manifest, rubyPath, bundlePath); err != nil {
 			return err
 		}
 	}
@@ -1128,11 +1153,12 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 	}
 	sourceEntrypoint := filepath.Join(manifest.Dir, filepath.FromSlash(entrypoint))
 	wrapper := fmt.Sprintf(
-		"#!/bin/sh\nset -eu\n%s\n%s\n_OP_BASE=%q\n_OP_SOURCE_ENTRYPOINT=%q\nexport BUNDLE_GEMFILE=\"$_OP_BASE/Gemfile\"\nexport BUNDLE_PATH=\"$_OP_BASE/.op/bundle\"\nexport BUNDLE_DISABLE_SHARED_GEMS=true\nexport BUNDLE_FORCE_RUBY_PLATFORM=true\n%s\nexec %q exec %q \"$_OP_BASE/%s\" \"$@\"\n",
+		"#!/bin/sh\nset -eu\n%s\n%s\n_OP_BASE=%q\n_OP_SOURCE_ENTRYPOINT=%q\nexport BUNDLE_GEMFILE=\"$_OP_BASE/Gemfile\"\nexport BUNDLE_PATH=\"$_OP_BASE/.op/bundle\"\nexport BUNDLE_DISABLE_SHARED_GEMS=true\n%s%s\nexec %q exec %q \"$_OP_BASE/%s\" \"$@\"\n",
 		launcherPATHExports(),
 		launcherUTF8LocaleExports(),
 		isolatedDir,
 		sourceEntrypoint,
+		rubyWrapperPlatformExports(runtime.GOOS, runtime.GOARCH),
 		rubyLibExport,
 		bundlePath,
 		rubyPath,
@@ -1161,7 +1187,7 @@ func (rubyRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Repor
 		if err := copyWorkspaceIsolated(manifest.Dir, isolatedDir); err != nil {
 			return fmt.Errorf("isolate ruby workspace: %w", err)
 		}
-		if err := prepareRubyIsolatedWorkspace(isolatedDir, manifest); err != nil {
+		if err := prepareRubyIsolatedWorkspace(isolatedDir, manifest, rubyPath, bundlePath); err != nil {
 			return err
 		}
 	}

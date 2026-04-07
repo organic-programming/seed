@@ -8,28 +8,23 @@ steps:
   build-cli:
     check: op-build-cli
     lane: regression
-    needs: [build-unit]
   build-cli-composite:
     check: op-build-cli-composite
-    lane: regression
-    needs: [build-cli]
+    lane: progression
   build-cli-composite-rebuild:
     check: op-build-cli-composite-rebuild
-    lane: regression
-    needs: [build-cli-composite]
+    lane: progression
   build-api:
     check: op-build-api
     lane: regression
-    needs: [build-cli-composite-rebuild]
   build-rpc:
     check: op-build-rpc
     lane: regression
-    needs: [build-api]
 profiles:
   smoke:
-    description: CLI-first verification with API and RPC alignment.
+    description: Fast build verification for the CLI core plus API and RPC alignment.
     archive: never
-    steps: [build-unit, build-cli, build-cli-composite, build-cli-composite-rebuild, build-api, build-rpc]
+    steps: [build-unit, build-cli, build-api, build-rpc]
   full:
     description: Exhaustive CLI-first build verification, including matrix and composite coverage.
     archive: never

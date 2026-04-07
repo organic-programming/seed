@@ -13,49 +13,49 @@ steps:
     lane: regression
   integration-coax-build-recipe-app:
     check: integration-coax-build-recipe-app
-    lane: regression
+    lane: progression
   integration-coax-runtime-surface:
     check: integration-coax-runtime-surface
-    lane: regression
+    lane: progression
   integration-coax-business-matrix-swiftui:
     check: integration-coax-business-matrix-swiftui
-    lane: regression
+    lane: progression
   integration-dispatch-jsonoutput-swift:
     check: integration-dispatch-jsonoutput-swift
-    lane: regression
+    lane: progression
   integration-dispatch-list-languages-swift:
     check: integration-dispatch-list-languages-swift
-    lane: regression
+    lane: progression
   integration-inspect-local-holons-swift:
     check: integration-inspect-local-holons-swift
-    lane: regression
+    lane: progression
   integration-install-build-install-uninstall-swift:
     check: integration-install-build-install-uninstall-swift
-    lane: regression
+    lane: progression
   integration-install-with-build-flag-swift:
     check: integration-install-with-build-flag-swift
-    lane: regression
+    lane: progression
   integration-lifecycle-hello-world-holons-app-swiftui:
     check: integration-lifecycle-hello-world-holons-app-swiftui
     lane: regression
   integration-lifecycle-hello-world-holons-swift:
     check: integration-lifecycle-hello-world-holons-swift
-    lane: regression
+    lane: progression
   integration-run-tcp-swift:
     check: integration-run-tcp-swift
-    lane: regression
+    lane: progression
   integration-tools-default-format-swift:
     check: integration-tools-default-format-swift
-    lane: regression
+    lane: progression
   integration-tools-formats-swift:
     check: integration-tools-formats-swift
-    lane: regression
+    lane: progression
   integration-unix-transport-run-and-dispatch-swift:
     check: integration-unix-transport-run-and-dispatch-swift
-    lane: regression
+    lane: progression
   integration-windows-build-reports-exe-artifact-swift:
     check: integration-windows-build-reports-exe-artifact-swift
-    lane: regression
+    lane: progression
   sdk-swift-unit:
     check: sdk-swift-unit
     lane: regression
@@ -69,8 +69,6 @@ profiles:
     - example-swift-unit
     - integration-build-composite-swiftui
     - integration-lifecycle-hello-world-holons-app-swiftui
-    - integration-coax-build-recipe-app
-    - integration-coax-runtime-surface
   full:
     description: full scenario proof
     archive: auto

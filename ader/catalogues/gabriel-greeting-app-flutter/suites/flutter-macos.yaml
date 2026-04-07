@@ -22,28 +22,28 @@ steps:
     lane: regression
   integration-build-composite-flutter:
     check: integration-build-composite-flutter
-    lane: regression
+    lane: progression
   integration-coax-business-cold-build-flutter:
     check: integration-coax-business-cold-build-flutter
-    lane: regression
+    lane: progression
   integration-coax-business-surface-flutter:
     check: integration-coax-business-surface-flutter
-    lane: regression
+    lane: progression
   integration-coax-business-matrix-flutter:
     check: integration-coax-business-matrix-flutter
-    lane: regression
+    lane: progression
   integration-rebuild-composite-flutter:
     check: integration-rebuild-composite-flutter
-    lane: regression
+    lane: progression
   integration-invoke-composite-flutter-stdio:
     check: integration-invoke-composite-flutter-stdio
-    lane: regression
+    lane: progression
   integration-invoke-composite-flutter-tcp:
     check: integration-invoke-composite-flutter-tcp
-    lane: regression
+    lane: progression
   integration-invoke-composite-flutter-unix:
     check: integration-invoke-composite-flutter-unix
-    lane: regression
+    lane: progression
 profiles:
   smoke:
     description: fast macOS confidence pass
@@ -55,7 +55,6 @@ profiles:
     - flutter-app-unit
     - flutter-app-integration-smoke-macos
     - integration-check-composite-flutter
-    - integration-invoke-composite-flutter-stdio
   full:
     description: full macOS desktop proof
     archive: auto

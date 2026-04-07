@@ -379,6 +379,8 @@ func TestRubyRunnerBuildCreatesNativeLauncher(t *testing.T) {
 
 func TestRubySharedCacheRootStableAcrossSnapshots(t *testing.T) {
 	t.Setenv("GRACE_OP_SHARED_CACHE_DIR", t.TempDir())
+	rubyPath := "/opt/homebrew/bin/ruby"
+	bundlePath := "/opt/homebrew/bin/bundle"
 
 	makeManifest := func(root string) *LoadedManifest {
 		t.Helper()
@@ -406,8 +408,8 @@ func TestRubySharedCacheRootStableAcrossSnapshots(t *testing.T) {
 	first := makeManifest(filepath.Join(t.TempDir(), "run-a", "examples", "hello-world", "gabriel-greeting-ruby"))
 	second := makeManifest(filepath.Join(t.TempDir(), "run-b", "examples", "hello-world", "gabriel-greeting-ruby"))
 
-	firstRoot := rubySharedCacheRoot(first)
-	secondRoot := rubySharedCacheRoot(second)
+	firstRoot := rubySharedCacheRoot(first, rubyPath, bundlePath)
+	secondRoot := rubySharedCacheRoot(second, rubyPath, bundlePath)
 	if firstRoot != secondRoot {
 		t.Fatalf("rubySharedCacheRoot should be stable across snapshots:\nfirst:  %s\nsecond: %s", firstRoot, secondRoot)
 	}
@@ -415,6 +417,8 @@ func TestRubySharedCacheRootStableAcrossSnapshots(t *testing.T) {
 
 func TestRubySharedCacheRootChangesWhenDependenciesChange(t *testing.T) {
 	t.Setenv("GRACE_OP_SHARED_CACHE_DIR", t.TempDir())
+	rubyPath := "/opt/homebrew/bin/ruby"
+	bundlePath := "/opt/homebrew/bin/bundle"
 
 	makeManifest := func(root string, lockfile string) *LoadedManifest {
 		t.Helper()
@@ -442,10 +446,81 @@ func TestRubySharedCacheRootChangesWhenDependenciesChange(t *testing.T) {
 	first := makeManifest(filepath.Join(t.TempDir(), "run-a", "examples", "hello-world", "gabriel-greeting-ruby"), "GEM\n  specs:\n    grpc (1.78.1-arm64-darwin)\n")
 	second := makeManifest(filepath.Join(t.TempDir(), "run-b", "examples", "hello-world", "gabriel-greeting-ruby"), "GEM\n  specs:\n    grpc (1.79.0-arm64-darwin)\n")
 
-	firstRoot := rubySharedCacheRoot(first)
-	secondRoot := rubySharedCacheRoot(second)
+	firstRoot := rubySharedCacheRoot(first, rubyPath, bundlePath)
+	secondRoot := rubySharedCacheRoot(second, rubyPath, bundlePath)
 	if firstRoot == secondRoot {
 		t.Fatalf("rubySharedCacheRoot should change when Gemfile.lock changes: %s", firstRoot)
+	}
+}
+
+func TestRubySharedCacheRootSharedAcrossHolonsWithSameDependencies(t *testing.T) {
+	t.Setenv("GRACE_OP_SHARED_CACHE_DIR", t.TempDir())
+	rubyPath := "/opt/homebrew/bin/ruby"
+	bundlePath := "/opt/homebrew/bin/bundle"
+
+	makeManifest := func(root string, slug string) *LoadedManifest {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(root, "app"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "Gemfile"), []byte("source 'https://example.test'\ngem 'grpc', '~> 1.58'\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "Gemfile.lock"), []byte("GEM\n  specs:\n    grpc (1.78.1-arm64-darwin)\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "app", "main.rb"), []byte("puts 'ok'\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		writeRunnerManifest(t, root, fmt.Sprintf("schema: holon/v0\nkind: composite\nidentity:\n  given_name: %q\nbuild:\n  runner: ruby\nartifacts:\n  primary: app/main.rb\n", slug))
+
+		manifest, err := LoadManifest(root)
+		if err != nil {
+			t.Fatalf("LoadManifest failed: %v", err)
+		}
+		return manifest
+	}
+
+	first := makeManifest(filepath.Join(t.TempDir(), "run-a", "examples", "hello-world", "gabriel-greeting-ruby"), "gabriel-greeting-ruby")
+	second := makeManifest(filepath.Join(t.TempDir(), "run-b", "examples", "hello-world", "another-ruby-holon"), "another-ruby-holon")
+
+	firstRoot := rubySharedCacheRoot(first, rubyPath, bundlePath)
+	secondRoot := rubySharedCacheRoot(second, rubyPath, bundlePath)
+	if firstRoot != secondRoot {
+		t.Fatalf("rubySharedCacheRoot should be shared across holons with identical dependencies:\nfirst:  %s\nsecond: %s", firstRoot, secondRoot)
+	}
+}
+
+func TestRubySetupCommandsPreferNativeDarwinPackages(t *testing.T) {
+	got := rubySetupCommandsForPlatform("/opt/homebrew/bin/bundle", "/opt/homebrew/bin/gem", "darwin", "arm64")
+	joined := make([]string, 0, len(got))
+	for _, args := range got {
+		joined = append(joined, strings.Join(args, " "))
+	}
+	commands := strings.Join(joined, "\n")
+	if strings.Contains(commands, "BUNDLE_FORCE_RUBY_PLATFORM=true") {
+		t.Fatalf("rubySetupCommandsForPlatform() unexpectedly forced source gems:\n%s", commands)
+	}
+	if !strings.Contains(commands, "bundle lock --add-platform arm64-darwin") {
+		t.Fatalf("rubySetupCommandsForPlatform() missing native platform lock:\n%s", commands)
+	}
+	if !strings.Contains(commands, "bundle install") {
+		t.Fatalf("rubySetupCommandsForPlatform() missing bundle install:\n%s", commands)
+	}
+}
+
+func TestRubySetupCommandsFallbackToSourcePlatformOutsideDarwin(t *testing.T) {
+	got := rubySetupCommandsForPlatform("/usr/bin/bundle", "/usr/bin/gem", "linux", "amd64")
+	joined := make([]string, 0, len(got))
+	for _, args := range got {
+		joined = append(joined, strings.Join(args, " "))
+	}
+	commands := strings.Join(joined, "\n")
+	if !strings.Contains(commands, "BUNDLE_FORCE_RUBY_PLATFORM=true /usr/bin/bundle install") {
+		t.Fatalf("rubySetupCommandsForPlatform() should force source gems outside native darwin packaging:\n%s", commands)
+	}
+	if strings.Contains(commands, "--add-platform arm64-darwin") || strings.Contains(commands, "--add-platform x86_64-darwin") {
+		t.Fatalf("rubySetupCommandsForPlatform() should not add darwin bundle platforms on linux:\n%s", commands)
 	}
 }
 
@@ -1071,6 +1146,13 @@ func TestRubyRunnerBuildWritesUTF8Wrapper(t *testing.T) {
 	}
 	if !strings.Contains(wrapper, `export LC_ALL="$LANG"`) {
 		t.Fatalf("wrapper missing LC_ALL bootstrap: %s", wrapper)
+	}
+	if rubyForceSourcePlatform(runtime.GOOS, runtime.GOARCH) {
+		if !strings.Contains(wrapper, `export BUNDLE_FORCE_RUBY_PLATFORM=true`) {
+			t.Fatalf("wrapper missing BUNDLE_FORCE_RUBY_PLATFORM export: %s", wrapper)
+		}
+	} else if strings.Contains(wrapper, `export BUNDLE_FORCE_RUBY_PLATFORM=true`) {
+		t.Fatalf("wrapper should not force source gems on native darwin packages: %s", wrapper)
 	}
 }
 
