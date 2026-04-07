@@ -3,6 +3,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -302,6 +303,48 @@ func TestRunCLITestSilentSuppressesLiveProgress(t *testing.T) {
 		}
 		if stderr.Len() != 0 {
 			t.Fatalf("silent stderr = %q, want empty", stderr.String())
+		}
+	})
+}
+
+func TestRunCLIContextCancellationStopsRun(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
+	withWorkingDir(t, root, func() {
+		t.Setenv("ADER_TEST_SILENT_STEP_SLEEP", "30")
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		done := make(chan int, 1)
+		go func() {
+			done <- runCLIContext(ctx, []string{
+				"test",
+				configDir,
+				"--suite", "fixture",
+				"--profile", "unit",
+				"--lane", "progression",
+				"--step-filter", "^quiet-script$",
+				"--source", "workspace",
+				"--archive", "never",
+			}, &stdout, &stderr)
+		}()
+
+		time.Sleep(250 * time.Millisecond)
+		cancel()
+
+		select {
+		case code := <-done:
+			if code == 0 {
+				t.Fatalf("runCLIContext() = %d, want non-zero on cancellation", code)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatal("CLI run did not stop after context cancellation")
+		}
+
+		if !strings.Contains(stderr.String(), "context canceled") {
+			t.Fatalf("stderr = %q, want cancellation error", stderr.String())
 		}
 	})
 }

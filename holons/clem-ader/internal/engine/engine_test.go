@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -574,6 +575,66 @@ func TestRunScriptStepWithArgs(t *testing.T) {
 	})
 }
 
+func TestRunStepCommandTerminatesBackgroundProcesses(t *testing.T) {
+	root := t.TempDir()
+	scriptPath := filepath.Join(root, "linger-step.sh")
+	pidPath := filepath.Join(root, "linger.pid")
+	termPath := filepath.Join(root, "linger.term")
+	logPath := filepath.Join(root, "linger.log")
+	script := `#!/usr/bin/env bash
+set -euo pipefail
+pid_file="$1"
+term_file="$2"
+(
+  trap 'printf term > "$term_file"; exit 0' TERM
+  printf '%s' "${BASHPID:-$$}" > "$pid_file"
+  while :; do sleep 1; done
+) &
+while [ ! -f "$pid_file" ]; do sleep 0.01; done
+printf 'spawned\n'
+`
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write lingering script: %v", err)
+	}
+
+	code, err := runStepCommand(context.Background(), StepSpec{
+		ID:      "linger",
+		Workdir: root,
+		Script:  scriptPath,
+		Args:    []string{pidPath, termPath},
+	}, os.Environ(), logPath, nil)
+	if err != nil {
+		t.Fatalf("runStepCommand() error = %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("runStepCommand() exit code = %d, want 0", code)
+	}
+
+	waitForCondition(t, 2*time.Second, func() bool {
+		_, err := os.Stat(termPath)
+		return err == nil
+	}, "background child did not observe SIGTERM")
+
+	data, err := os.ReadFile(pidPath)
+	if err != nil {
+		t.Fatalf("read child pid: %v", err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		t.Fatalf("parse child pid %q: %v", string(data), err)
+	}
+	if processRunning(pid) {
+		t.Fatalf("background child %d is still running", pid)
+	}
+	termData, err := os.ReadFile(termPath)
+	if err != nil {
+		t.Fatalf("read SIGTERM marker: %v", err)
+	}
+	if got := strings.TrimSpace(string(termData)); got != "term" {
+		t.Fatalf("SIGTERM marker = %q, want %q", got, "term")
+	}
+}
+
 func TestCatalogueLockWaitsForRelease(t *testing.T) {
 	artifactsDir := t.TempDir()
 	unlock, err := acquireCatalogueLock(context.Background(), artifactsDir)
@@ -697,4 +758,16 @@ func withWorkingDir(t *testing.T, dir string, fn func()) {
 		_ = os.Chdir(cwd)
 	}()
 	fn()
+}
+
+func waitForCondition(t *testing.T, timeout time.Duration, fn func() bool, message string) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if fn() {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	t.Fatal(message)
 }

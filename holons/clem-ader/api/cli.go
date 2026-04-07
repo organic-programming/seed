@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -19,6 +20,12 @@ import (
 
 // RunCLI executes the CLI facet and returns the process exit code.
 func RunCLI(args []string, outputs ...io.Writer) int {
+	ctx, stop := signal.NotifyContext(context.Background(), cliTerminationSignals()...)
+	defer stop()
+	return runCLIContext(ctx, args, outputs...)
+}
+
+func runCLIContext(ctx context.Context, args []string, outputs ...io.Writer) int {
 	stdout := io.Writer(os.Stdout)
 	stderr := io.Writer(os.Stderr)
 	if len(outputs) > 0 && outputs[0] != nil {
@@ -28,8 +35,9 @@ func RunCLI(args []string, outputs ...io.Writer) int {
 		stderr = outputs[1]
 	}
 	cmd := newRootCommand(stdout, stderr)
+	cmd.SetContext(ctx)
 	cmd.SetArgs(args)
-	if err := cmd.Execute(); err != nil {
+	if err := cmd.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
@@ -127,13 +135,13 @@ func newTestCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 				KeepSnapshot:  cfg.GetBool("test.keep-snapshot"),
 			}
 			if cfg.GetBool("test.silent") {
-				result, err := Test(req)
+				result, err := testContext(commandContext(cmd), req)
 				if err != nil {
 					return err
 				}
 				return printRunResult(stdout, result.GetManifest())
 			}
-			result, err := engine.RunWithProgress(context.Background(), engine.RunOptions{
+			result, err := engine.RunWithProgress(commandContext(cmd), engine.RunOptions{
 				ConfigDir:     req.GetConfigDir(),
 				Suite:         req.GetSuite(),
 				Profile:       req.GetProfile(),
@@ -191,7 +199,7 @@ func newTestBouquetCommand(stdout io.Writer) *cobra.Command {
 			if strings.TrimSpace(name) == "" {
 				return fmt.Errorf("test-bouquet requires --name")
 			}
-			result, err := TestBouquet(&aderv1.BouquetRequest{
+			result, err := testBouquetContext(commandContext(cmd), &aderv1.BouquetRequest{
 				AderRoot: args[0],
 				Name:     name,
 			})
@@ -217,7 +225,7 @@ func newArchiveCommand(stdout io.Writer) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			result, err := Archive(&aderv1.ArchiveRequest{
+			result, err := archiveContext(commandContext(cmd), &aderv1.ArchiveRequest{
 				ConfigDir: args[0],
 				HistoryId: cfg.GetString("archive.id"),
 				Latest:    cfg.GetBool("archive.latest"),
@@ -244,7 +252,7 @@ func newArchiveBouquetCommand(stdout io.Writer) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			historyID, _ := cmd.Flags().GetString("id")
 			latest, _ := cmd.Flags().GetBool("latest")
-			result, err := ArchiveBouquet(&aderv1.ArchiveBouquetRequest{
+			result, err := archiveBouquetContext(commandContext(cmd), &aderv1.ArchiveBouquetRequest{
 				AderRoot:  args[0],
 				HistoryId: historyID,
 				Latest:    latest,
@@ -272,7 +280,7 @@ func newCleanupCommand(stdout io.Writer) *cobra.Command {
 			if _, err := commandViper(cmd, args[0]); err != nil {
 				return err
 			}
-			result, err := Cleanup(&aderv1.CleanupRequest{ConfigDir: args[0]})
+			result, err := cleanupContext(commandContext(cmd), &aderv1.CleanupRequest{ConfigDir: args[0]})
 			if err != nil {
 				return err
 			}
@@ -298,7 +306,7 @@ func newPromoteCommand(stdout io.Writer) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			result, err := Promote(&aderv1.PromoteRequest{
+			result, err := promoteContext(commandContext(cmd), &aderv1.PromoteRequest{
 				ConfigDir: args[0],
 				Suite:     cfg.GetString("promote.suite"),
 				StepIds:   cfg.GetStringSlice("promote.step"),
@@ -330,7 +338,7 @@ func newDowngradeCommand(stdout io.Writer) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			result, err := Downgrade(&aderv1.DowngradeRequest{
+			result, err := downgradeContext(commandContext(cmd), &aderv1.DowngradeRequest{
 				ConfigDir: args[0],
 				Suite:     cfg.GetString("downgrade.suite"),
 				StepIds:   cfg.GetStringSlice("downgrade.step"),
@@ -361,7 +369,7 @@ func newHistoryCommand(stdout io.Writer) *cobra.Command {
 			if _, err := commandViper(cmd, args[0]); err != nil {
 				return err
 			}
-			response, err := History(&aderv1.HistoryRequest{ConfigDir: args[0]})
+			response, err := historyContext(commandContext(cmd), &aderv1.HistoryRequest{ConfigDir: args[0]})
 			if err != nil {
 				return err
 			}
@@ -397,7 +405,7 @@ func newHistoryBouquetCommand(stdout io.Writer) *cobra.Command {
 		Short: "List extracted and archived bouquet history",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			response, err := BouquetHistory(&aderv1.BouquetHistoryRequest{AderRoot: args[0]})
+			response, err := bouquetHistoryContext(commandContext(cmd), &aderv1.BouquetHistoryRequest{AderRoot: args[0]})
 			if err != nil {
 				return err
 			}
@@ -438,7 +446,7 @@ func newShowCommand(stdout io.Writer) *cobra.Command {
 			if historyID == "" {
 				return fmt.Errorf("show requires --id")
 			}
-			response, err := ShowHistory(&aderv1.ShowHistoryRequest{
+			response, err := showHistoryContext(commandContext(cmd), &aderv1.ShowHistoryRequest{
 				ConfigDir: args[0],
 				HistoryId: historyID,
 			})
@@ -465,7 +473,7 @@ func newShowBouquetCommand(stdout io.Writer) *cobra.Command {
 			if strings.TrimSpace(historyID) == "" {
 				return fmt.Errorf("show-bouquet requires --id")
 			}
-			response, err := ShowBouquetHistory(&aderv1.ShowBouquetHistoryRequest{
+			response, err := showBouquetHistoryContext(commandContext(cmd), &aderv1.ShowBouquetHistoryRequest{
 				AderRoot:  args[0],
 				HistoryId: historyID,
 			})
@@ -624,6 +632,13 @@ func findCommand(root *cobra.Command, name string) *cobra.Command {
 		}
 	}
 	return nil
+}
+
+func commandContext(cmd *cobra.Command) context.Context {
+	if cmd != nil && cmd.Context() != nil {
+		return cmd.Context()
+	}
+	return context.Background()
 }
 
 func completeConfigDirs(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {

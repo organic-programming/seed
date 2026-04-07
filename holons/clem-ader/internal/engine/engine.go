@@ -181,6 +181,9 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 
 	results := make([]StepResult, 0, len(steps))
 	for index, step := range steps {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		logPath := filepath.Join(logDir, step.ID+".log")
 		result := StepResult{
 			StepID:      step.ID,
@@ -232,6 +235,9 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 		start := time.Now().UTC()
 		result.StartedAt = start.Format(time.RFC3339)
 		code, err := runStepCommand(ctx, step, env, logPath, reporter)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
 		end := time.Now().UTC()
 		result.FinishedAt = end.Format(time.RFC3339)
 		result.DurationSeconds = int64(end.Sub(start).Seconds())
@@ -577,6 +583,9 @@ func runEnvironment(paths repoPaths, repoRoot string, snapshotRoot string, runAr
 }
 
 func runStepCommand(ctx context.Context, step StepSpec, env []string, logPath string, progress *progressReporter) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 1, err
+	}
 	logFile, err := os.Create(logPath)
 	if err != nil {
 		return 1, err
@@ -589,7 +598,7 @@ func runStepCommand(ctx context.Context, step StepSpec, env []string, logPath st
 		defer monitor.stop()
 		writer = io.MultiWriter(logFile, monitor.writer())
 	}
-	cmd, err := buildStepCommand(ctx, step)
+	cmd, err := buildStepCommand(step)
 	if err != nil {
 		return 1, err
 	}
@@ -597,20 +606,45 @@ func runStepCommand(ctx context.Context, step StepSpec, env []string, logPath st
 	cmd.Env = env
 	cmd.Stdout = writer
 	cmd.Stderr = writer
-	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-				return status.ExitStatus(), nil
-			}
-			return exitErr.ExitCode(), nil
-		}
+	handle, err := startStepProcess(cmd)
+	if err != nil {
 		return 1, err
+	}
+	waitCh := make(chan error, 1)
+	go func() {
+		waitCh <- cmd.Wait()
+	}()
+
+	var waitErr error
+	select {
+	case waitErr = <-waitCh:
+	case <-ctx.Done():
+		waitErr = handle.terminateAndWait(waitCh)
+	}
+	cleanupErr := handle.cleanup()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		if cleanupErr != nil {
+			return 1, errors.Join(ctxErr, cleanupErr)
+		}
+		return 1, ctxErr
+	}
+	if cleanupErr != nil && waitErr == nil {
+		waitErr = cleanupErr
+	}
+	if waitErr != nil {
+		var exitErr *exec.ExitError
+		if errors.As(waitErr, &exitErr) {
+			if code := exitErr.ExitCode(); code >= 0 {
+				return code, nil
+			}
+			return 1, nil
+		}
+		return 1, waitErr
 	}
 	return 0, nil
 }
 
-func buildStepCommand(ctx context.Context, step StepSpec) (*exec.Cmd, error) {
+func buildStepCommand(step StepSpec) (*exec.Cmd, error) {
 	if strings.TrimSpace(step.Script) != "" {
 		info, err := os.Stat(step.Script)
 		if err != nil {
@@ -622,9 +656,9 @@ func buildStepCommand(ctx context.Context, step StepSpec) (*exec.Cmd, error) {
 		if info.Mode()&0o111 == 0 {
 			return nil, fmt.Errorf("script %s is not executable", step.Script)
 		}
-		return exec.CommandContext(ctx, step.Script, step.Args...), nil
+		return exec.Command(step.Script, step.Args...), nil
 	}
-	return exec.CommandContext(ctx, "bash", "-lc", step.Command), nil
+	return exec.Command("bash", "-lc", step.Command), nil
 }
 
 func displayStepCommand(step StepSpec) string {
