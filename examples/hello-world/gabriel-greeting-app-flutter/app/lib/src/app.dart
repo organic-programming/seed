@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show AppExitResponse;
 
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
@@ -59,12 +60,18 @@ class GabrielGreetingHomePage extends StatefulWidget {
 }
 
 class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
+  late final AppLifecycleListener _appLifecycleListener;
   late final TextEditingController _nameController;
   late final Listenable _listenable;
+  Future<void>? _shutdownFuture;
+  bool _syncListenerAttached = false;
 
   @override
   void initState() {
     super.initState();
+    _appLifecycleListener = AppLifecycleListener(
+      onExitRequested: _handleExitRequested,
+    );
     _nameController = TextEditingController(
       text: widget.greetingController.userName,
     );
@@ -73,19 +80,53 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
       widget.coaxController,
     ]);
     widget.greetingController.addListener(_syncNameField);
+    _syncListenerAttached = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _shutdownFuture != null) {
+        return;
+      }
       await widget.greetingController.initialize();
+      if (!mounted || _shutdownFuture != null) {
+        return;
+      }
       await widget.coaxController.startIfEnabled();
     });
   }
 
   @override
   void dispose() {
-    widget.greetingController.removeListener(_syncNameField);
-    unawaited(widget.coaxController.shutdown());
-    unawaited(widget.greetingController.shutdown());
+    _appLifecycleListener.dispose();
+    _detachSyncListener();
+    unawaited(_shutdownControllers());
     _nameController.dispose();
     super.dispose();
+  }
+
+  Future<AppExitResponse> _handleExitRequested() async {
+    await _shutdownControllers();
+    return AppExitResponse.exit;
+  }
+
+  Future<void> _shutdownControllers() {
+    final existing = _shutdownFuture;
+    if (existing != null) {
+      return existing;
+    }
+    final future = () async {
+      _detachSyncListener();
+      await widget.coaxController.shutdown();
+      await widget.greetingController.shutdown();
+    }();
+    _shutdownFuture = future;
+    return future;
+  }
+
+  void _detachSyncListener() {
+    if (!_syncListenerAttached) {
+      return;
+    }
+    widget.greetingController.removeListener(_syncNameField);
+    _syncListenerAttached = false;
   }
 
   void _syncNameField() {

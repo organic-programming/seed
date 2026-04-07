@@ -45,6 +45,7 @@ class FakeGreetingHolonConnection implements GreetingHolonConnection {
     required this.greetingBuilder,
     this.listLanguagesError,
     this.sayHelloError,
+    this.closeFuture,
   });
 
   final List<Language> languages;
@@ -52,6 +53,7 @@ class FakeGreetingHolonConnection implements GreetingHolonConnection {
   greetingBuilder;
   final Object? listLanguagesError;
   final Object? sayHelloError;
+  final Future<void>? closeFuture;
   final List<(String name, String langCode)> sayHelloCalls =
       <(String, String)>[];
   bool closed = false;
@@ -79,6 +81,7 @@ class FakeGreetingHolonConnection implements GreetingHolonConnection {
   @override
   Future<void> close() async {
     closed = true;
+    await closeFuture;
   }
 }
 

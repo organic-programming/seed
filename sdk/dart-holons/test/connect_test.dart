@@ -387,6 +387,102 @@ exec ${_shellQuote(helper)} --slug connect-entrypoint "\$@"
         );
       },
     );
+
+    test(
+      'disconnectAsync stops owned tcp child processes and clears their port file',
+      () async {
+        if (Platform.isWindows) {
+          return;
+        }
+
+        final helper = buildDescribeHelper(sdkRoot);
+        if (helper == null) {
+          return;
+        }
+
+        final fixture = createRuntimeFixture(sdkRoot);
+        addTearDown(() => deleteFixture(fixture));
+        configureDiscoveryRuntime(fixture);
+        connect_impl.connectEnvironmentProvider = () => <String, String>{
+              'HOME': fixture.sandbox.path,
+              'OPPATH': fixture.opHome.path,
+            };
+        connect_impl.connectCurrentRootProvider = () => fixture.root.path;
+
+        writeDescribePackageHolon(
+          Directory('${fixture.root.path}/disconnect-tcp-alpha.holon'),
+          executablePath: helper,
+          slug: 'disconnect-tcp-alpha',
+          entrypoint: 'disconnect-tcp-alpha',
+        );
+
+        final tcpChannel = await connect(
+          'disconnect-tcp-alpha',
+          const ConnectOptions(transport: 'tcp'),
+        );
+        final tcpPortFile = File(
+          connect_impl.defaultPortFilePathForTest(
+            'disconnect-tcp-alpha',
+            transport: 'tcp',
+          ),
+        );
+        final listenUri = tcpPortFile.readAsStringSync().trim();
+        final endpoint = Uri.parse(listenUri);
+
+        await connect_impl.disconnectAsync(tcpChannel);
+
+        await _waitForFileToDisappear(tcpPortFile);
+        await _waitForTcpEndpointToClose(endpoint.host, endpoint.port);
+      },
+    );
+
+    test(
+      'disconnectAsync stops owned unix child processes and clears their artifacts',
+      () async {
+        if (Platform.isWindows) {
+          return;
+        }
+
+        final helper = buildDescribeHelper(sdkRoot);
+        if (helper == null) {
+          return;
+        }
+
+        final fixture = createRuntimeFixture(sdkRoot);
+        addTearDown(() => deleteFixture(fixture));
+        configureDiscoveryRuntime(fixture);
+        connect_impl.connectEnvironmentProvider = () => <String, String>{
+              'HOME': fixture.sandbox.path,
+              'OPPATH': fixture.opHome.path,
+            };
+        connect_impl.connectCurrentRootProvider = () => fixture.root.path;
+
+        writeDescribePackageHolon(
+          Directory('${fixture.root.path}/disconnect-unix-alpha.holon'),
+          executablePath: helper,
+          slug: 'disconnect-unix-alpha',
+          entrypoint: 'disconnect-unix-alpha',
+        );
+
+        final unixChannel = await connect(
+          'disconnect-unix-alpha',
+          const ConnectOptions(transport: 'unix'),
+        );
+        final unixPortFile = File(
+          connect_impl.defaultPortFilePathForTest(
+            'disconnect-unix-alpha',
+            transport: 'unix',
+          ),
+        );
+        final listenUri = unixPortFile.readAsStringSync().trim();
+        final socketPath = listenUri.substring('unix://'.length);
+
+        await connect_impl.disconnectAsync(unixChannel);
+
+        await _waitForFileToDisappear(unixPortFile);
+        await _waitForFileToDisappear(File(socketPath));
+      },
+    );
   });
 }
 
@@ -407,4 +503,39 @@ bool _isWithinTempHierarchy(String path) {
 
 String _shellQuote(String value) {
   return "'${value.replaceAll("'", "'\"'\"'")}'";
+}
+
+Future<void> _waitForFileToDisappear(
+  File file, {
+  Duration timeout = const Duration(seconds: 5),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (file.existsSync()) {
+    if (DateTime.now().isAfter(deadline)) {
+      fail('Timed out waiting for ${file.path} to disappear');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+}
+
+Future<void> _waitForTcpEndpointToClose(
+  String host,
+  int port, {
+  Duration timeout = const Duration(seconds: 5),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    try {
+      final socket = await Socket.connect(
+        host,
+        port,
+        timeout: const Duration(milliseconds: 200),
+      );
+      socket.destroy();
+    } on SocketException {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+  fail('Timed out waiting for tcp://$host:$port to stop accepting connections');
 }

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:ui' show AppExitResponse;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -156,6 +159,54 @@ void main() {
       (fieldRect.center.dy - bubbleTextRect.center.dy).abs(),
       lessThan(80),
     );
+  });
+
+  testWidgets('app exit waits for controller shutdown before terminating', (
+    tester,
+  ) async {
+    final closeCompleter = Completer<void>();
+    final connection = FakeGreetingHolonConnection(
+      languages: [language(code: 'en', name: 'English', native: 'English')],
+      greetingBuilder: ({required name, required langCode}) => 'Hello $name',
+      closeFuture: closeCompleter.future,
+    );
+    final greetingController = GreetingController(
+      catalog: FakeHolonCatalog([holon('gabriel-greeting-swift')]),
+      connector: FakeHolonConnector(
+        factories: <String, FakeGreetingHolonConnection Function(String)>{
+          'gabriel-greeting-swift': (_) => connection,
+        },
+      ),
+    );
+    final coaxController = CoaxController(
+      greetingController: greetingController,
+      settingsStore: MemorySettingsStore(),
+    );
+
+    await tester.pumpWidget(
+      GabrielGreetingApp(
+        greetingController: greetingController,
+        coaxController: coaxController,
+      ),
+    );
+    await _settleApp(tester);
+
+    var completed = false;
+    late AppExitResponse response;
+    final exitFuture = tester.binding.handleRequestAppExit().then((value) {
+      response = value;
+      completed = true;
+    });
+
+    await tester.pump();
+    expect(connection.closed, isTrue);
+    expect(completed, isFalse);
+
+    closeCompleter.complete();
+    await exitFuture;
+
+    expect(completed, isTrue);
+    expect(response, AppExitResponse.exit);
   });
 }
 

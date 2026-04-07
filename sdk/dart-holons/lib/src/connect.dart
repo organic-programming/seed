@@ -33,9 +33,9 @@ class ConnectOptions {
 
 class _StartedHandle {
   final Process process;
-  final bool ephemeral;
+  final List<String> cleanupPaths;
 
-  const _StartedHandle(this.process, this.ephemeral);
+  const _StartedHandle(this.process, {this.cleanupPaths = const <String>[]});
 }
 
 final Expando<_StartedHandle> _started = Expando<_StartedHandle>('connect');
@@ -116,8 +116,10 @@ Future<dynamic> connect(
 }
 
 void disconnect(dynamic result) {
-  unawaited(_disconnectAsync(result));
+  unawaited(disconnectAsync(result));
 }
+
+Future<void> disconnectAsync(dynamic result) => _disconnectAsync(result);
 
 Future<ConnectResult> _connectUniform(
   int scope,
@@ -217,7 +219,7 @@ Future<ConnectResult> _connectResolvedWithOptions(
           binaryPath,
           workingDirectory: workingDirectory,
         );
-        _started[started.$1] = _StartedHandle(started.$2, true);
+        _started[started.$1] = _StartedHandle(started.$2);
         return ConnectResult(channel: started.$1, origin: ref);
 
       case 'tcp':
@@ -246,7 +248,10 @@ Future<ConnectResult> _connectResolvedWithOptions(
         final channel =
             await _dialReady(_normalizeDialTarget(started.$1), options.timeout);
         await _writePortFile(portFile, started.$1);
-        _started[channel] = _StartedHandle(started.$2, false);
+        _started[channel] = _StartedHandle(
+          started.$2,
+          cleanupPaths: <String>[portFile],
+        );
         return ConnectResult(
             channel: channel,
             origin: HolonRef(url: started.$1, info: ref.info));
@@ -278,7 +283,13 @@ Future<ConnectResult> _connectResolvedWithOptions(
         );
         final channel = await _dialReady(started.$1, options.timeout);
         await _writePortFile(portFile, started.$1);
-        _started[channel] = _StartedHandle(started.$2, false);
+        _started[channel] = _StartedHandle(
+          started.$2,
+          cleanupPaths: <String>[
+            portFile,
+            started.$1.substring('unix://'.length),
+          ],
+        );
         return ConnectResult(
             channel: channel,
             origin: HolonRef(url: started.$1, info: ref.info));
@@ -316,8 +327,9 @@ Future<void> _disconnectAsync(dynamic value) async {
       }
     }
   } finally {
-    if (handle != null && handle.ephemeral) {
+    if (handle != null) {
       await _stopProcess(handle.process);
+      await _cleanupOwnedArtifacts(handle.cleanupPaths);
     }
   }
 }
@@ -860,6 +872,24 @@ Future<void> _stopProcess(Process process) async {
       return process.exitCode;
     },
   );
+}
+
+Future<void> _cleanupOwnedArtifacts(List<String> paths) async {
+  for (final path in paths) {
+    final trimmed = path.trim();
+    if (trimmed.isEmpty) {
+      continue;
+    }
+    final file = File(trimmed);
+    if (!file.existsSync()) {
+      continue;
+    }
+    try {
+      await file.delete();
+    } on FileSystemException {
+      // Ignore cleanup failures after process shutdown.
+    }
+  }
 }
 
 String _recentLineDetails(List<String> recentLines) {

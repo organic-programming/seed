@@ -97,6 +97,6 @@ class DesktopGreetingHolonConnection implements GreetingHolonConnection {
 
   @override
   Future<void> close() async {
-    holons.disconnect(_channel);
+    await holons.disconnectAsync(_channel);
   }
 }
