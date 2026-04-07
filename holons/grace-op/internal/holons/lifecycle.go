@@ -165,6 +165,19 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 		report.Notes = append(report.Notes, "manifest and prerequisites validated")
 		return report, nil
 	case OperationBuild:
+		if !ctx.DryRun {
+			if reason := buildContextChangeCleanReason(target.Manifest, ctx); reason != "" {
+				reporter.Step(reason)
+				report.Notes = append(report.Notes, reason)
+				cleanCtx := ctx
+				cleanCtx.DryRun = false
+				cleanCtx.Progress = reporter.Child()
+				if err := r.clean(target.Manifest, cleanCtx, &Report{}); err != nil {
+					return report, fmt.Errorf("clean for build state change: %w", err)
+				}
+			}
+		}
+
 		if shouldPrebuildCompositeDependencies(target.Manifest, ctx) {
 			session, childReports, prepErr := prebuildCompositeDependencies(target.Manifest, ctx)
 			report.Children = append(report.Children, childReports...)
@@ -225,7 +238,7 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 
 		err = r.build(target.Manifest, ctx, &report)
 		if err == nil && !ctx.DryRun && !isAggregateBuildTarget(ctx.Target) {
-			err = writeHolonJSON(target.Manifest)
+			err = persistBuildMetadata(target.Manifest, ctx)
 		}
 		if err == nil && !isAggregateBuildTarget(ctx.Target) {
 			reporter.Step("verifying artifact...")
@@ -610,6 +623,9 @@ func dependencyIsFresh(manifest *LoadedManifest, ctx BuildContext) bool {
 	if manifest == nil {
 		return false
 	}
+	if reason := buildContextChangeCleanReason(manifest, ctx); reason != "" {
+		return false
+	}
 	sourceModTime, err := latestSourceTreeModTime(manifest.Dir)
 	if err != nil {
 		return false
@@ -617,6 +633,7 @@ func dependencyIsFresh(manifest *LoadedManifest, ctx BuildContext) bool {
 
 	for _, markerPath := range []string{
 		sharedHolonPackageMarker(manifest),
+		buildStatePath(manifest),
 		buildFreshnessMarker(manifest, ctx),
 	} {
 		if markerPath == "" {

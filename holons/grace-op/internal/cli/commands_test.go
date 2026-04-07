@@ -67,6 +67,9 @@ func TestHelpBuildTopicIncludesCleanFlag(t *testing.T) {
 	if !strings.Contains(output, "--clean") {
 		t.Fatalf("help build missing --clean flag:\n%s", output)
 	}
+	if !strings.Contains(output, "App Sandbox") {
+		t.Fatalf("help build missing App Sandbox wording for --hardened:\n%s", output)
+	}
 	if !strings.Contains(output, "cannot be combined with --dry-run") {
 		t.Fatalf("help build missing dry-run restriction:\n%s", output)
 	}
@@ -1960,6 +1963,15 @@ func TestBuildCommandDryRunAcceptsHardened(t *testing.T) {
 	if err := os.MkdirAll(nativeDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(nativeDir, "go.mod"), []byte("module example.com/native\n\ngo 1.25.1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(nativeDir, "cmd", "native"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nativeDir, "cmd", "native", "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := writeCLIManifestFile(filepath.Join(nativeDir, identity.ManifestFileName), "schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nartifacts:\n  binary: native\n"); err != nil {
 		t.Fatal(err)
 	}
@@ -2000,6 +2012,59 @@ func TestBuildCommandDryRunAcceptsHardened(t *testing.T) {
 	}
 	if strings.Contains(stdout, "build_member python") {
 		t.Fatalf("stdout should not plan build_member python in hardened mode:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
+func TestBuildCommandHardenedCleansStaleCompositeOutputs(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+
+	pythonDir := filepath.Join(root, "python")
+	if err := os.MkdirAll(filepath.Join(pythonDir, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pythonDir, "bin", "main.py"), []byte("print('ok')\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeCLIManifestFile(filepath.Join(pythonDir, identity.ManifestFileName), "schema: holon/v0\nkind: native\nbuild:\n  runner: python\nartifacts:\n  binary: python-demo\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	appDir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(filepath.Join(appDir, "app"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(appDir, "app", "ready.txt"), []byte("ok"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	target := runtimeTargetForRunTest()
+	manifest := fmt.Sprintf("schema: holon/v0\nkind: composite\nbuild:\n  runner: recipe\n  members:\n    - id: python\n      path: ../python\n      type: holon\n    - id: app\n      path: app\n      type: component\n  targets:\n    %s:\n      steps:\n        - build_member: python\n        - copy:\n            from: app/ready.txt\n            to: .op/build/demo.holon/ready.txt\n        - copy_artifact:\n            from: python\n            to: .op/build/demo.holon/Holons/python.holon\n        - assert_file:\n            path: .op/build/demo.holon/ready.txt\nartifacts:\n  primary: .op/build/demo.holon\n", target)
+	if err := writeCLIManifestFile(filepath.Join(appDir, identity.ManifestFileName), manifest); err != nil {
+		t.Fatal(err)
+	}
+
+	staleMarker := filepath.Join(appDir, ".op", "build", "demo.holon", "Holons", "python.holon", "stale.txt")
+	if err := os.MkdirAll(filepath.Dir(staleMarker), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(staleMarker, []byte("stale\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		code := Run([]string{"build", "--hardened", "--target", target, appDir}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("build --hardened returned %d, want 0", code)
+		}
+	})
+
+	if _, err := os.Stat(staleMarker); !os.IsNotExist(err) {
+		t.Fatalf("stale copied member still exists after hardened build: %v", err)
+	}
+	if !strings.Contains(stdout, "cleaning before hardened rebuild for sandbox-safe packaging") &&
+		!strings.Contains(stdout, "predates hardened metadata") {
+		t.Fatalf("stdout missing implicit clean note:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 }
 
@@ -2064,7 +2129,8 @@ func TestLifecycleCommandsRejectBuildOnlyFlagsOutsideBuild(t *testing.T) {
 					}
 				})
 
-				if !strings.Contains(stderr, fmt.Sprintf("op %s: unknown flag %q", operation, flag)) {
+				if !strings.Contains(stderr, fmt.Sprintf("op %s: unknown flag %q", operation, flag)) &&
+					!strings.Contains(stderr, fmt.Sprintf("op: unknown flag: %s", flag)) {
 					t.Fatalf("stderr missing unknown-flag message for %s: %q", flag, stderr)
 				}
 			}

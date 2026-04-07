@@ -163,7 +163,7 @@ func addLifecycleExecutionFlags(cmd *cobra.Command, includeBuildOnly bool) {
 	addDiscoveryFlags(cmd)
 	if includeBuildOnly {
 		cmd.Flags().Bool("clean", false, "clean before building (cannot be combined with --dry-run)")
-		cmd.Flags().Bool("hardened", false, "exclude interpreter-dependent members from composite builds")
+		cmd.Flags().Bool("hardened", false, "prepare composite builds for macOS App Sandbox by excluding interpreter-dependent members")
 		cmd.Flags().Bool("no-sign", false, "skip automatic ad-hoc signing for bundle artifacts")
 		return
 	}

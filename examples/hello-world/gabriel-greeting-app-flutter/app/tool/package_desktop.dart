@@ -86,6 +86,7 @@ Future<void> main(List<String> args) async {
         preferredBundleName: '$_entryBase.app',
       );
       final destination = Directory(p.join(runtimeDir.path, '$_entryBase.app'));
+      final entitlements = await _extractCodeSignEntitlements(source.path);
       await _copyEntity(source, destination);
       await _copyMemberHolons(
         examplesDir,
@@ -97,14 +98,15 @@ Future<void> main(List<String> args) async {
           p.join(destination.path, 'Contents', 'Resources', 'AppProto'),
         ),
       );
-      final codesignResult = await Process.run('codesign', <String>[
-        '--force',
-        '--deep',
-        '--preserve-metadata=entitlements',
-        '--sign',
-        '-',
-        destination.path,
-      ]);
+      final codesignArgs = <String>['--force', '--deep', '--sign', '-'];
+      if (entitlements != null) {
+        codesignArgs.addAll(<String>['--entitlements', entitlements.path]);
+      }
+      codesignArgs.add(destination.path);
+      final codesignResult = await Process.run('codesign', codesignArgs);
+      if (entitlements != null && entitlements.existsSync()) {
+        entitlements.deleteSync();
+      }
       if (codesignResult.exitCode != 0) {
         stderr.writeln('codesign warning: ${codesignResult.stderr}');
       }
@@ -408,4 +410,40 @@ Future<void> _copyModeIfNeeded(
       'failed to preserve mode on $destinationPath: ${result.stderr}',
     );
   }
+}
+
+Future<File?> _extractCodeSignEntitlements(String appPath) async {
+  final result = await Process.run('codesign', <String>[
+    '-d',
+    '--entitlements',
+    ':-',
+    appPath,
+  ]);
+  if (result.exitCode != 0) {
+    stderr.writeln(
+      'codesign warning: failed to read entitlements from $appPath: ${result.stderr}',
+    );
+    return null;
+  }
+
+  final stdoutText = result.stdout is String
+      ? result.stdout as String
+      : utf8.decode(result.stdout as List<int>);
+  final start = stdoutText.indexOf('<?xml');
+  if (start < 0) {
+    return null;
+  }
+  final plist = stdoutText.substring(start).trim();
+  if (plist.isEmpty) {
+    return null;
+  }
+
+  final file = File(
+    p.join(
+      Directory.systemTemp.path,
+      '$_slug-entitlements-${DateTime.now().microsecondsSinceEpoch}.plist',
+    ),
+  );
+  await file.writeAsString('$plist\n');
+  return file;
 }

@@ -22,6 +22,7 @@ type HolonPackageJSON struct {
 	Transport     string            `json:"transport"`
 	Entrypoint    string            `json:"entrypoint"`
 	Architectures []string          `json:"architectures"`
+	Hardened      bool              `json:"hardened"`
 	Standalone    bool              `json:"standalone"`
 	HasDist       bool              `json:"has_dist"`
 	HasSource     bool              `json:"has_source"`
@@ -40,7 +41,7 @@ func shouldWriteHolonJSON(manifest *LoadedManifest) bool {
 	return strings.TrimSpace(manifest.BinaryName()) != ""
 }
 
-func writeHolonJSON(manifest *LoadedManifest) error {
+func writeHolonJSON(manifest *LoadedManifest, ctx BuildContext) error {
 	if !shouldWriteHolonJSON(manifest) {
 		return nil
 	}
@@ -72,6 +73,7 @@ func writeHolonJSON(manifest *LoadedManifest) error {
 		Transport:     strings.TrimSpace(manifest.Manifest.Transport),
 		Entrypoint:    strings.TrimSpace(manifest.BinaryName()),
 		Architectures: packageArchitectures(pkgDir),
+		Hardened:      ctx.Hardened,
 		Standalone:    runnerProducesStandaloneArtifact(manifest.Manifest.Build.Runner),
 		HasDist:       dirExists(filepath.Join(pkgDir, "dist")),
 		HasSource:     dirExists(filepath.Join(pkgDir, "git")),
@@ -136,6 +138,7 @@ func writeHolonJSONForInstall(manifest *LoadedManifest, pkgDir string) error {
 		Transport:     strings.TrimSpace(manifest.Manifest.Transport),
 		Entrypoint:    entrypoint,
 		Architectures: packageArchitectures(pkgDir),
+		Hardened:      false,
 		Standalone:    runnerProducesStandaloneArtifact(manifest.Manifest.Build.Runner),
 		HasDist:       dirExists(filepath.Join(pkgDir, "dist")),
 		HasSource:     dirExists(filepath.Join(pkgDir, "git")),
@@ -147,4 +150,48 @@ func writeHolonJSONForInstall(manifest *LoadedManifest, pkgDir string) error {
 	}
 	data = append(data, '\n')
 	return os.WriteFile(filepath.Join(pkgDir, ".holon.json"), data, 0o644)
+}
+
+func updateArtifactHolonJSON(manifest *LoadedManifest, ctx BuildContext) error {
+	if manifest == nil {
+		return nil
+	}
+	for _, pkgDir := range []string{manifest.ArtifactPath(ctx), manifest.HolonPackageDir()} {
+		if pkgDir == "" {
+			continue
+		}
+		if err := updateHolonJSONHardened(pkgDir, ctx.Hardened); err == nil {
+			return nil
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+func updateHolonJSONHardened(pkgDir string, hardened bool) error {
+	holonJSONPath := pkgDir
+	if info, err := os.Stat(pkgDir); err == nil && info.IsDir() {
+		holonJSONPath = filepath.Join(pkgDir, ".holon.json")
+	} else if filepath.Base(pkgDir) != ".holon.json" {
+		return os.ErrNotExist
+	}
+
+	data, err := os.ReadFile(holonJSONPath)
+	if err != nil {
+		return err
+	}
+
+	var payload HolonPackageJSON
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
+	payload.Hardened = hardened
+
+	data, err = json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	return os.WriteFile(holonJSONPath, data, 0o644)
 }

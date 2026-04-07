@@ -90,7 +90,7 @@ artifacts:
 		t.Fatal(err)
 	}
 
-	if err := writeHolonJSON(manifest); err != nil {
+	if err := writeHolonJSON(manifest, BuildContext{Hardened: true}); err != nil {
 		t.Fatalf("writeHolonJSON failed: %v", err)
 	}
 
@@ -122,6 +122,9 @@ artifacts:
 	if payload.Entrypoint != "demo-holon" {
 		t.Fatalf("Entrypoint = %q, want demo-holon", payload.Entrypoint)
 	}
+	if !payload.Hardened {
+		t.Fatal("Hardened = false, want true")
+	}
 	if !payload.Standalone {
 		t.Fatal("Standalone = false, want true for go-module")
 	}
@@ -147,11 +150,11 @@ family_name: Holon
 motto: Interpreter-backed test holon.
 status: draft
 lang: python
-kind: wrapper
+kind: native
 build:
   runner: python
 artifacts:
-  primary: app/main.py
+  binary: python-demo
 `)
 
 	manifest, err := LoadManifest(dir)
@@ -179,7 +182,10 @@ artifacts:
 	if payload.Standalone {
 		t.Fatal("Standalone = true, want false for python")
 	}
-	if payload.Entrypoint != "main.py" {
-		t.Fatalf("Entrypoint = %q, want main.py", payload.Entrypoint)
+	if payload.Hardened {
+		t.Fatal("Hardened = true, want false for install metadata")
+	}
+	if payload.Entrypoint != "python-demo" {
+		t.Fatalf("Entrypoint = %q, want python-demo", payload.Entrypoint)
 	}
 }

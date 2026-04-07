@@ -1052,7 +1052,7 @@ artifacts:
 	if err := os.WriteFile(childManifest.BinaryPath(), []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := writeHolonJSON(childManifest); err != nil {
+	if err := writeHolonJSON(childManifest, BuildContext{}); err != nil {
 		t.Fatalf("writeHolonJSON(child) failed: %v", err)
 	}
 
@@ -1285,6 +1285,15 @@ func TestExecuteLifecycleBuildCompositeHardenedSkipsNonStandaloneMembers(t *test
 	if err := os.MkdirAll(nativeDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(nativeDir, "go.mod"), []byte("module example.com/native\n\ngo 1.25.1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(nativeDir, "cmd", "native"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nativeDir, "cmd", "native", "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	writeRecipeManifest(t, nativeDir, `schema: holon/v0
 kind: native
 build:
@@ -1484,6 +1493,128 @@ artifacts:
 	}
 	if dependencyIsFresh(manifest, BuildContext{}) {
 		t.Fatal("dependency should become stale when the source tree changes after the shared cache is populated")
+	}
+}
+
+func TestDependencyFreshnessTracksHardenedState(t *testing.T) {
+	if _, err := execLookPath("go"); err != nil {
+		t.Skip("go command not available")
+	}
+
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+
+	childDir := filepath.Join(root, "child")
+	if err := os.MkdirAll(filepath.Join(childDir, "cmd", "child"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(childDir, "go.mod"), []byte("module example.com/child\n\ngo 1.25.1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(childDir, "cmd", "child", "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeRecipeManifest(t, childDir, `schema: holon/v0
+kind: native
+build:
+  runner: go-module
+requires:
+  commands: [go]
+  files: [go.mod]
+artifacts:
+  binary: child
+`)
+
+	if _, err := ExecuteLifecycle(OperationBuild, childDir, BuildOptions{Hardened: true}); err != nil {
+		t.Fatalf("initial hardened build failed: %v", err)
+	}
+
+	manifest, err := LoadManifest(childDir)
+	if err != nil {
+		t.Fatalf("load manifest: %v", err)
+	}
+	if !dependencyIsFresh(manifest, BuildContext{Hardened: true}) {
+		t.Fatal("dependency should be fresh for the matching hardened build state")
+	}
+	if dependencyIsFresh(manifest, BuildContext{}) {
+		t.Fatal("dependency should be stale when the requested hardened state changes")
+	}
+}
+
+func TestRecipeBuildHardenedCleansStaleCompositeOutputs(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+
+	pythonDir := filepath.Join(root, "python")
+	if err := os.MkdirAll(filepath.Join(pythonDir, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pythonDir, "bin", "main.py"), []byte("print('ok')\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeRecipeManifest(t, pythonDir, `schema: holon/v0
+kind: native
+build:
+  runner: python
+artifacts:
+  binary: python-demo
+`)
+
+	if err := os.MkdirAll(filepath.Join(root, "app"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "app", "ready.txt"), []byte("ok"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	writeRecipeManifest(t, root, `schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: python
+      path: python
+      type: holon
+    - id: app
+      path: app
+      type: component
+  targets:
+    `+canonicalRuntimeTarget()+`:
+      steps:
+        - build_member: python
+        - copy:
+            from: app/ready.txt
+            to: .op/build/demo.holon/ready.txt
+        - copy_artifact:
+            from: python
+            to: .op/build/demo.holon/Holons/python.holon
+        - assert_file:
+            path: .op/build/demo.holon/ready.txt
+artifacts:
+  primary: .op/build/demo.holon
+`)
+
+	staleMarker := filepath.Join(root, ".op", "build", "demo.holon", "Holons", "python.holon", "stale.txt")
+	if err := os.MkdirAll(filepath.Dir(staleMarker), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(staleMarker, []byte("stale\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := ExecuteLifecycle(OperationBuild, root, BuildOptions{Hardened: true})
+	if err != nil {
+		t.Fatalf("hardened build failed: %v", err)
+	}
+	if _, err := os.Stat(staleMarker); !os.IsNotExist(err) {
+		t.Fatalf("stale copied member still exists after hardened rebuild: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".op", "build", "demo.holon", "ready.txt")); err != nil {
+		t.Fatalf("primary artifact was not recreated: %v", err)
+	}
+	if !hasEntryContaining(report.Notes, "cleaning before hardened rebuild for sandbox-safe packaging") &&
+		!hasEntryContaining(report.Notes, "predates hardened metadata") {
+		t.Fatalf("build report should mention the implicit clean: %v", report.Notes)
 	}
 }
 
