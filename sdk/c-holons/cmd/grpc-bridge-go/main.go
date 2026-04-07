@@ -125,7 +125,7 @@ func main() {
 		log.Fatalf("grpc-bridge: %v", err)
 	}
 
-	methods, err := loadMethodRegistry(cfg.protoDir)
+	methods, err := loadMethodRegistry(cfg.protoDir, cfg.describeStatic)
 	if err != nil {
 		log.Fatalf("grpc-bridge: load methods: %v", err)
 	}
@@ -216,8 +216,8 @@ func parseArgs(args []string) (config, error) {
 	if strings.TrimSpace(cfg.backend) == "" {
 		return cfg, fmt.Errorf("--backend is required")
 	}
-	if strings.TrimSpace(cfg.protoDir) == "" {
-		return cfg, fmt.Errorf("--proto-dir is required")
+	if strings.TrimSpace(cfg.protoDir) == "" && strings.TrimSpace(cfg.describeStatic) == "" {
+		return cfg, fmt.Errorf("--proto-dir is required unless --describe-static is set")
 	}
 	if strings.TrimSpace(cfg.describeStatic) == "" && strings.TrimSpace(cfg.manifest) == "" {
 		return cfg, fmt.Errorf("--manifest is required")
@@ -256,7 +256,15 @@ func loadStaticDescribeResponse(path string) (*holonsv1.DescribeResponse, error)
 	return response, nil
 }
 
-func loadMethodRegistry(protoDir string) (map[string]protoreflect.MethodDescriptor, error) {
+func loadMethodRegistry(protoDir string, describeStatic string) (map[string]protoreflect.MethodDescriptor, error) {
+	if strings.TrimSpace(protoDir) == "" {
+		response, err := loadStaticDescribeResponse(describeStatic)
+		if err != nil {
+			return nil, err
+		}
+		return loadMethodRegistryFromDescribeResponse(response)
+	}
+
 	absDir, err := filepath.Abs(protoDir)
 	if err != nil {
 		return nil, fmt.Errorf("resolve proto dir %s: %w", protoDir, err)

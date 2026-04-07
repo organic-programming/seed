@@ -31,8 +31,12 @@ set(GABRIEL_GREETING_C_RELOCATE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../_scripts/
 file(MAKE_DIRECTORY "${GABRIEL_GREETING_C_RUNTIME_DIR}")
 add_custom_command(
   OUTPUT "${GABRIEL_GREETING_C_BRIDGE_BINARY}"
-  COMMAND "${GO_EXECUTABLE}" build -o "${GABRIEL_GREETING_C_BRIDGE_BINARY}" "${HOLONS_SDK_ROOT}/cmd/grpc-bridge-go/main.go"
-  DEPENDS "${HOLONS_SDK_ROOT}/cmd/grpc-bridge-go/main.go"
+  COMMAND "${GO_EXECUTABLE}" build -o "${GABRIEL_GREETING_C_BRIDGE_BINARY}"
+          "${HOLONS_SDK_ROOT}/cmd/grpc-bridge-go/main.go"
+          "${HOLONS_SDK_ROOT}/cmd/grpc-bridge-go/static_registry.go"
+  DEPENDS
+    "${HOLONS_SDK_ROOT}/cmd/grpc-bridge-go/main.go"
+    "${HOLONS_SDK_ROOT}/cmd/grpc-bridge-go/static_registry.go"
   WORKING_DIRECTORY "${HOLONS_SDK_ROOT}/../go-holons"
   VERBATIM
 )

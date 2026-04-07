@@ -28,10 +28,6 @@
 #error "GABRIEL_GREETING_C_BRIDGE_BINARY must be defined"
 #endif
 
-#ifndef GABRIEL_GREETING_C_PROTO_DIR
-#error "GABRIEL_GREETING_C_PROTO_DIR must be defined"
-#endif
-
 #ifndef GABRIEL_GREETING_C_MANIFEST_PATH
 #error "GABRIEL_GREETING_C_MANIFEST_PATH must be defined"
 #endif
@@ -122,19 +118,6 @@ static const char *resolve_bridge_binary(char *buffer, size_t buffer_len) {
     return buffer;
   }
   return GABRIEL_GREETING_C_BRIDGE_BINARY;
-}
-
-static const char *resolve_proto_dir(char *buffer, size_t buffer_len) {
-  if (copy_path(buffer, buffer_len, "protos") == 0 && dir_exists(buffer)) {
-    return buffer;
-  }
-  if (copy_path(buffer, buffer_len, "_protos") == 0 && dir_exists(buffer)) {
-    return buffer;
-  }
-  if (copy_path(buffer, buffer_len, GABRIEL_GREETING_C_PROTO_DIR) == 0 && dir_exists(buffer)) {
-    return buffer;
-  }
-  return GABRIEL_GREETING_C_PROTO_DIR;
 }
 
 static const char *resolve_describe_static_path(char *buffer, size_t buffer_len) {
@@ -445,14 +428,11 @@ static int handle_connection(const holons_conn_t *conn, void *ctx) {
 int gabriel_greeting_c_exec_bridge(const char *listen_uri, FILE *stderr_stream) {
   char bridge_binary[PATH_MAX];
   char backend_binary[PATH_MAX];
-  char proto_dir[PATH_MAX];
   char describe_static_path[PATH_MAX];
   char *const argv[] = {
       (char *)resolve_bridge_binary(bridge_binary, sizeof(bridge_binary)),
       (char *)"--backend",
       (char *)resolve_backend_binary(backend_binary, sizeof(backend_binary)),
-      (char *)"--proto-dir",
-      (char *)resolve_proto_dir(proto_dir, sizeof(proto_dir)),
       (char *)"--describe-static",
       (char *)resolve_describe_static_path(describe_static_path, sizeof(describe_static_path)),
       (char *)"--listen",
