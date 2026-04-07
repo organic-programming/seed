@@ -937,6 +937,7 @@ pub mod coax_service_client {
         /// may be intentionally omitted to keep the exposure surface minimal.
         /// Organism Kits provide built-in exposure strategies (all, filtered,
         /// or none) — the organism picks one, no custom filtering needed.
+        /// @example {}
         pub async fn list_members(
             &mut self,
             request: impl tonic::IntoRequest<super::ListMembersRequest>,
@@ -962,6 +963,7 @@ pub mod coax_service_client {
             self.inner.unary(req, path, codec).await
         }
         /// Query the runtime status of a specific member.
+        /// @example {"slug":"gabriel-greeting-go"}
         pub async fn member_status(
             &mut self,
             request: impl tonic::IntoRequest<super::MemberStatusRequest>,
@@ -990,6 +992,7 @@ pub mod coax_service_client {
         /// The organism resolves the member, launches its process if necessary,
         /// and establishes a gRPC channel — identical to a user selecting a
         /// holon in a picker.
+        /// @example {"slug":"gabriel-greeting-go","transport":"tcp"}
         pub async fn connect_member(
             &mut self,
             request: impl tonic::IntoRequest<super::ConnectMemberRequest>,
@@ -1015,6 +1018,7 @@ pub mod coax_service_client {
             self.inner.unary(req, path, codec).await
         }
         /// Disconnect a member holon.
+        /// @example {"slug":"gabriel-greeting-go"}
         pub async fn disconnect_member(
             &mut self,
             request: impl tonic::IntoRequest<super::DisconnectMemberRequest>,
@@ -1049,6 +1053,7 @@ pub mod coax_service_client {
         /// Tell operates at the organism level: it is the single entry point
         /// for an external caller to interact with any member without needing
         /// to discover and connect to each one separately.
+        /// @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
         pub async fn tell(
             &mut self,
             request: impl tonic::IntoRequest<super::TellRequest>,
@@ -1077,6 +1082,7 @@ pub mod coax_service_client {
         /// call an RPC on a server that is not running. The COAX server is
         /// started by the organism itself (UI toggle, launch argument, or
         /// startup configuration).
+        /// @example {}
         pub async fn turn_off_coax(
             &mut self,
             request: impl tonic::IntoRequest<super::TurnOffCoaxRequest>,
@@ -1122,6 +1128,7 @@ pub mod coax_service_server {
         /// may be intentionally omitted to keep the exposure surface minimal.
         /// Organism Kits provide built-in exposure strategies (all, filtered,
         /// or none) — the organism picks one, no custom filtering needed.
+        /// @example {}
         async fn list_members(
             &self,
             request: tonic::Request<super::ListMembersRequest>,
@@ -1130,6 +1137,7 @@ pub mod coax_service_server {
             tonic::Status,
         >;
         /// Query the runtime status of a specific member.
+        /// @example {"slug":"gabriel-greeting-go"}
         async fn member_status(
             &self,
             request: tonic::Request<super::MemberStatusRequest>,
@@ -1141,6 +1149,7 @@ pub mod coax_service_server {
         /// The organism resolves the member, launches its process if necessary,
         /// and establishes a gRPC channel — identical to a user selecting a
         /// holon in a picker.
+        /// @example {"slug":"gabriel-greeting-go","transport":"tcp"}
         async fn connect_member(
             &self,
             request: tonic::Request<super::ConnectMemberRequest>,
@@ -1149,6 +1158,7 @@ pub mod coax_service_server {
             tonic::Status,
         >;
         /// Disconnect a member holon.
+        /// @example {"slug":"gabriel-greeting-go"}
         async fn disconnect_member(
             &self,
             request: tonic::Request<super::DisconnectMemberRequest>,
@@ -1166,6 +1176,7 @@ pub mod coax_service_server {
         /// Tell operates at the organism level: it is the single entry point
         /// for an external caller to interact with any member without needing
         /// to discover and connect to each one separately.
+        /// @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
         async fn tell(
             &self,
             request: tonic::Request<super::TellRequest>,
@@ -1177,6 +1188,7 @@ pub mod coax_service_server {
         /// call an RPC on a server that is not running. The COAX server is
         /// started by the organism itself (UI toggle, launch argument, or
         /// startup configuration).
+        /// @example {}
         async fn turn_off_coax(
             &self,
             request: tonic::Request<super::TurnOffCoaxRequest>,

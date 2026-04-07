@@ -60,6 +60,78 @@ func TestProtoStageWritesReferenceDoc(t *testing.T) {
 	}
 }
 
+func TestProtoStageWritesCOAXReferenceDocWithTCPExamples(t *testing.T) {
+	if _, err := execLookPath("go"); err != nil {
+		t.Skip("go command not available")
+	}
+
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+	dir := writeProtoGoHolonFixture(t, root, "proto-coax-doc-test")
+	writeSharedHolonCoaxProto(t, root)
+
+	const appProto = `syntax = "proto3";
+
+package greeting.v1;
+
+import "holons/v1/coax.proto";
+
+// GreetingAppService is the COAX-facing domain surface for the app.
+service GreetingAppService {
+  // Select which greeting holon to use (by slug).
+  // @example {"slug":"gabriel-greeting-go"}
+  rpc SelectHolon(SelectHolonRequest) returns (SelectHolonResponse);
+
+  // Greet using the current selection.
+  // @example {"name":"Bob","lang_code":"fr"}
+  rpc Greet(GreetRequest) returns (GreetResponse);
+}
+
+message SelectHolonRequest {
+  string slug = 1;
+}
+
+message SelectHolonResponse {
+  string slug = 1;
+}
+
+message GreetRequest {
+  string name = 1;
+  string lang_code = 2;
+}
+
+message GreetResponse {
+  string greeting = 1;
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "api", "v1", "app.proto"), []byte(appProto), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ExecuteLifecycle(OperationBuild, dir); err != nil {
+		t.Fatalf("build failed: %v", err)
+	}
+
+	refPath := filepath.Join(dir, ".op", "doc", "REFERENCE.md")
+	data, err := os.ReadFile(refPath)
+	if err != nil {
+		t.Fatalf("REFERENCE.md not written: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "Call this COAX surface over `tcp://127.0.0.1:60000` by default.") {
+		t.Fatal("REFERENCE.md missing COAX transport note")
+	}
+	if !strings.Contains(content, "op tcp://127.0.0.1:60000 ListMembers '{}'") {
+		t.Fatal("REFERENCE.md missing COAX ListMembers tcp example")
+	}
+	if !strings.Contains(content, "op tcp://127.0.0.1:60000 SelectHolon '{\"slug\":\"gabriel-greeting-go\"}'") {
+		t.Fatal("REFERENCE.md missing GreetingAppService SelectHolon tcp example")
+	}
+	if !strings.Contains(content, "`Greet(greeting.v1.GreetRequest) -> greeting.v1.GreetResponse`") {
+		t.Fatal("REFERENCE.md missing method signature")
+	}
+}
+
 func TestProtoStageFailsOnBrokenProto(t *testing.T) {
 	root := t.TempDir()
 

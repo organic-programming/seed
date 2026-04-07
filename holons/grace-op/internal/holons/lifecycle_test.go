@@ -561,6 +561,24 @@ func writeSharedHolonManifestProto(t *testing.T, root string) {
 	}
 }
 
+func writeSharedHolonCoaxProto(t *testing.T, root string) {
+	t.Helper()
+
+	source := filepath.Join(holonsRepoRoot(t), "holons", "grace-op", "_protos", "holons", "v1", "coax.proto")
+	data, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatalf("read %s: %v", source, err)
+	}
+
+	targetDir := filepath.Join(root, "_protos", "holons", "v1")
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", targetDir, err)
+	}
+	if err := os.WriteFile(filepath.Join(targetDir, "coax.proto"), data, 0o644); err != nil {
+		t.Fatalf("write coax.proto: %v", err)
+	}
+}
+
 func holonsRepoRoot(t *testing.T) string {
 	t.Helper()
 

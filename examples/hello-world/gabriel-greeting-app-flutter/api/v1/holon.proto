@@ -2,6 +2,7 @@ syntax = "proto3";
 package greeting.v1;
 
 import "holons/v1/manifest.proto";
+import "holons/v1/coax.proto";
 
 option (holons.v1.manifest) = {
   identity: {
@@ -246,15 +247,19 @@ option (holons.v1.manifest) = {
 // These methods drive the same state transitions a human performs through the UI.
 service GreetingAppService {
   // Select which greeting holon to use (by slug).
+  // @example {"slug":"gabriel-greeting-go"}
   rpc SelectHolon(SelectHolonRequest) returns (SelectHolonResponse);
 
   // Select which transport the greeting holon connection should use.
+  // @example {"transport":"tcp"}
   rpc SelectTransport(SelectTransportRequest) returns (SelectTransportResponse);
 
   // Select a language for the greeting.
+  // @example {"code":"fr"}
   rpc SelectLanguage(SelectLanguageRequest) returns (SelectLanguageResponse);
 
   // Greet using the current selection.
+  // @example {"name":"Bob","lang_code":"fr"}
   rpc Greet(GreetRequest) returns (GreetResponse);
 }
 

@@ -34,6 +34,123 @@ DescribeResponse staticDescribeResponse() {
   ),
   services: [
     ServiceDoc(
+      name: "holons.v1.CoaxService",
+      methods: [
+        MethodDoc(
+          name: "ListMembers",
+          inputType: "holons.v1.ListMembersRequest",
+          outputType: "holons.v1.ListMembersResponse",
+          outputFields: [
+            FieldDoc(
+              name: "members",
+              type: "holons.v1.MemberInfo",
+              number: 1,
+              label: FieldLabel.FIELD_LABEL_REPEATED,
+            ),
+          ],
+        ),
+        MethodDoc(
+          name: "MemberStatus",
+          inputType: "holons.v1.MemberStatusRequest",
+          outputType: "holons.v1.MemberStatusResponse",
+          inputFields: [
+            FieldDoc(
+              name: "slug",
+              type: "string",
+              number: 1,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+          ],
+          outputFields: [
+            FieldDoc(
+              name: "member",
+              type: "holons.v1.MemberInfo",
+              number: 1,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+          ],
+        ),
+        MethodDoc(
+          name: "ConnectMember",
+          inputType: "holons.v1.ConnectMemberRequest",
+          outputType: "holons.v1.ConnectMemberResponse",
+          inputFields: [
+            FieldDoc(
+              name: "slug",
+              type: "string",
+              number: 1,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+            FieldDoc(
+              name: "transport",
+              type: "string",
+              number: 2,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+          ],
+          outputFields: [
+            FieldDoc(
+              name: "member",
+              type: "holons.v1.MemberInfo",
+              number: 1,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+          ],
+        ),
+        MethodDoc(
+          name: "DisconnectMember",
+          inputType: "holons.v1.DisconnectMemberRequest",
+          outputType: "holons.v1.DisconnectMemberResponse",
+          inputFields: [
+            FieldDoc(
+              name: "slug",
+              type: "string",
+              number: 1,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+          ],
+        ),
+        MethodDoc(
+          name: "Tell",
+          inputType: "holons.v1.TellRequest",
+          outputType: "holons.v1.TellResponse",
+          inputFields: [
+            FieldDoc(
+              name: "member_slug",
+              type: "string",
+              number: 1,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+            FieldDoc(
+              name: "method",
+              type: "string",
+              number: 2,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+            FieldDoc(
+              name: "payload",
+              type: "bytes",
+              number: 3,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+          ],
+          outputFields: [
+            FieldDoc(
+              name: "payload",
+              type: "bytes",
+              number: 1,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+          ],
+        ),
+        MethodDoc(
+          name: "TurnOffCoax",
+          inputType: "holons.v1.TurnOffCoaxRequest",
+          outputType: "holons.v1.TurnOffCoaxResponse",
+        ),
+      ],
+    ),
+    ServiceDoc(
       name: "greeting.v1.GreetingAppService",
       description: "GreetingAppService is the COAX-facing domain surface for the Flutter app. These methods drive the same state transitions a human performs through the UI.",
       methods: [
@@ -64,6 +181,7 @@ DescribeResponse staticDescribeResponse() {
               label: FieldLabel.FIELD_LABEL_OPTIONAL,
             ),
           ],
+          exampleInput: "{\"slug\":\"gabriel-greeting-go\"}",
         ),
         MethodDoc(
           name: "SelectTransport",
@@ -86,6 +204,7 @@ DescribeResponse staticDescribeResponse() {
               label: FieldLabel.FIELD_LABEL_OPTIONAL,
             ),
           ],
+          exampleInput: "{\"transport\":\"tcp\"}",
         ),
         MethodDoc(
           name: "SelectLanguage",
@@ -108,6 +227,7 @@ DescribeResponse staticDescribeResponse() {
               label: FieldLabel.FIELD_LABEL_OPTIONAL,
             ),
           ],
+          exampleInput: "{\"code\":\"fr\"}",
         ),
         MethodDoc(
           name: "Greet",
@@ -136,6 +256,7 @@ DescribeResponse staticDescribeResponse() {
               label: FieldLabel.FIELD_LABEL_OPTIONAL,
             ),
           ],
+          exampleInput: "{\"name\":\"Bob\",\"lang_code\":\"fr\"}",
         ),
       ],
     ),

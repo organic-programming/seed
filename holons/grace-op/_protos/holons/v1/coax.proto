@@ -29,9 +29,11 @@ service CoaxService {
   // may be intentionally omitted to keep the exposure surface minimal.
   // Organism Kits provide built-in exposure strategies (all, filtered,
   // or none) — the organism picks one, no custom filtering needed.
+  // @example {}
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
 
   // Query the runtime status of a specific member.
+  // @example {"slug":"gabriel-greeting-go"}
   rpc MemberStatus(MemberStatusRequest) returns (MemberStatusResponse);
 
   // ── Member lifecycle ─────────────────────────────────────
@@ -40,9 +42,11 @@ service CoaxService {
   // The organism resolves the member, launches its process if necessary,
   // and establishes a gRPC channel — identical to a user selecting a
   // holon in a picker.
+  // @example {"slug":"gabriel-greeting-go","transport":"tcp"}
   rpc ConnectMember(ConnectMemberRequest) returns (ConnectMemberResponse);
 
   // Disconnect a member holon.
+  // @example {"slug":"gabriel-greeting-go"}
   rpc DisconnectMember(DisconnectMemberRequest) returns (DisconnectMemberResponse);
 
   // ── Tell ─────────────────────────────────────────────────
@@ -57,6 +61,7 @@ service CoaxService {
   // Tell operates at the organism level: it is the single entry point
   // for an external caller to interact with any member without needing
   // to discover and connect to each one separately.
+  // @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
   rpc Tell(TellRequest) returns (TellResponse);
 
   // ── Server lifecycle ──────────────────────────────────────
@@ -68,6 +73,7 @@ service CoaxService {
   // call an RPC on a server that is not running. The COAX server is
   // started by the organism itself (UI toggle, launch argument, or
   // startup configuration).
+  // @example {}
   rpc TurnOffCoax(TurnOffCoaxRequest) returns (TurnOffCoaxResponse);
 }
 

@@ -1,6 +1,8 @@
 package holons
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +11,8 @@ import (
 	"github.com/jhump/protoreflect/desc"
 	"github.com/organic-programming/grace-op/internal/progress"
 )
+
+const defaultCoaxReferenceTarget = "tcp://127.0.0.1:60000"
 
 // generateDocumentation produces .op/doc/REFERENCE.md from parsed
 // proto descriptors and the holon manifest.
@@ -50,6 +54,9 @@ func generateDocumentation(manifest *LoadedManifest, fds []*desc.FileDescriptor,
 			if comment != "" {
 				buf.WriteString(comment + "\n\n")
 			}
+			if isCOAXReferenceService(svc, comment) {
+				buf.WriteString("Call this COAX surface over `tcp://127.0.0.1:60000` by default. The app must be running with COAX enabled, and the port can be changed from the interface.\n\n")
+			}
 
 			for _, m := range svc.GetMethods() {
 				buf.WriteString(fmt.Sprintf("### %s\n\n", m.GetName()))
@@ -57,10 +64,18 @@ func generateDocumentation(manifest *LoadedManifest, fds []*desc.FileDescriptor,
 				if mComment != "" {
 					buf.WriteString(mComment + "\n\n")
 				}
+				buf.WriteString(fmt.Sprintf("`%s(%s) -> %s`\n\n",
+					m.GetName(),
+					m.GetInputType().GetFullyQualifiedName(),
+					m.GetOutputType().GetFullyQualifiedName()))
+				if messageHasBytesFields(m.GetInputType(), map[string]bool{}) {
+					buf.WriteString("_Bytes fields use base64 in JSON examples._\n\n")
+				}
 
-				example := extractExample(m)
-				buf.WriteString(fmt.Sprintf("```\nop stdio://%s %s '%s'\n```\n\n",
-					slug, m.GetName(), example))
+				example := exampleInputForMethod(m)
+				target := referenceInvocationTarget(slug, svc, comment)
+				buf.WriteString(fmt.Sprintf("```\nop %s %s '%s'\n```\n\n",
+					target, m.GetName(), example))
 			}
 		}
 	}
@@ -102,7 +117,7 @@ func sourceComment(d desc.Descriptor) string {
 func extractExample(m *desc.MethodDescriptor) string {
 	info := m.GetSourceInfo()
 	if info == nil {
-		return "{}"
+		return ""
 	}
 	comment := info.GetLeadingComments()
 	for _, line := range strings.Split(comment, "\n") {
@@ -111,7 +126,7 @@ func extractExample(m *desc.MethodDescriptor) string {
 			return strings.TrimPrefix(line, "@example ")
 		}
 	}
-	return "{}"
+	return ""
 }
 
 // collectAllDescriptors flattens the transitive dependency tree into a
@@ -135,4 +150,229 @@ func collectAllDescriptors(roots []*desc.FileDescriptor) []*desc.FileDescriptor 
 		walk(fd)
 	}
 	return result
+}
+
+func referenceInvocationTarget(slug string, svc *desc.ServiceDescriptor, comment string) string {
+	if isCOAXReferenceService(svc, comment) {
+		return defaultCoaxReferenceTarget
+	}
+	return "stdio://" + slug
+}
+
+func isCOAXReferenceService(svc *desc.ServiceDescriptor, comment string) bool {
+	if svc == nil {
+		return false
+	}
+	name := strings.ToLower(strings.TrimSpace(svc.GetFullyQualifiedName()))
+	if name == "holons.v1.coaxservice" {
+		return true
+	}
+	return strings.Contains(strings.ToLower(comment), "coax")
+}
+
+func exampleInputForMethod(m *desc.MethodDescriptor) string {
+	if m == nil {
+		return "{}"
+	}
+	if example := strings.TrimSpace(extractExample(m)); example != "" {
+		return example
+	}
+	if input := m.GetInputType(); input != nil {
+		if example := exampleJSONForMessage(input, map[string]bool{}); example != "" {
+			return example
+		}
+	}
+	return "{}"
+}
+
+func exampleJSONForMessage(msg *desc.MessageDescriptor, seen map[string]bool) string {
+	if msg == nil {
+		return "{}"
+	}
+	key := strings.TrimSpace(msg.GetFullyQualifiedName())
+	if key != "" {
+		if seen[key] {
+			return "{}"
+		}
+		seen[key] = true
+		defer delete(seen, key)
+	}
+
+	fields := msg.GetFields()
+	if len(fields) == 0 {
+		return "{}"
+	}
+
+	parts := make([]string, 0, len(fields))
+	for _, field := range fields {
+		value, ok := exampleJSONForField(field, seen)
+		if !ok {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%q:%s", field.GetName(), value))
+	}
+	if len(parts) == 0 {
+		return "{}"
+	}
+	return "{" + strings.Join(parts, ",") + "}"
+}
+
+func exampleJSONForField(field *desc.FieldDescriptor, seen map[string]bool) (string, bool) {
+	if field == nil {
+		return "", false
+	}
+	if example := strings.TrimSpace(extractFieldExample(field)); example != "" {
+		return normalizeExampleJSON(field, example), true
+	}
+	if field.IsMap() {
+		keyJSON := normalizeExampleJSON(field.GetMapKeyType(), defaultScalarExample(field.GetMapKeyType()))
+		valueJSON, ok := exampleJSONForSingularField(field.GetMapValueType(), seen)
+		if !ok {
+			return "{}", true
+		}
+		return "{" + keyJSON + ":" + valueJSON + "}", true
+	}
+	if field.IsRepeated() {
+		valueJSON, ok := exampleJSONForSingularField(field, seen)
+		if !ok {
+			return "[]", true
+		}
+		return "[" + valueJSON + "]", true
+	}
+	return exampleJSONForSingularField(field, seen)
+}
+
+func exampleJSONForSingularField(field *desc.FieldDescriptor, seen map[string]bool) (string, bool) {
+	if field == nil {
+		return "", false
+	}
+	switch field.GetType().String() {
+	case "TYPE_MESSAGE":
+		return exampleJSONForMessage(field.GetMessageType(), seen), true
+	case "TYPE_ENUM":
+		name := enumExampleName(field)
+		encoded, err := json.Marshal(name)
+		if err != nil {
+			return "", false
+		}
+		return string(encoded), true
+	default:
+		return normalizeExampleJSON(field, defaultScalarExample(field)), true
+	}
+}
+
+func extractFieldExample(field *desc.FieldDescriptor) string {
+	info := field.GetSourceInfo()
+	if info == nil {
+		return ""
+	}
+	comment := info.GetLeadingComments()
+	for _, line := range strings.Split(comment, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "@example ") {
+			return strings.TrimPrefix(line, "@example ")
+		}
+	}
+	return ""
+}
+
+func normalizeExampleJSON(field *desc.FieldDescriptor, raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return `""`
+	}
+	if json.Valid([]byte(trimmed)) {
+		return trimmed
+	}
+	switch field.GetType().String() {
+	case "TYPE_BYTES":
+		encoded, _ := json.Marshal(base64.StdEncoding.EncodeToString([]byte(trimmed)))
+		return string(encoded)
+	default:
+		encoded, _ := json.Marshal(trimmed)
+		return string(encoded)
+	}
+}
+
+func defaultScalarExample(field *desc.FieldDescriptor) string {
+	if field == nil {
+		return ""
+	}
+	name := strings.ToLower(strings.TrimSpace(field.GetName()))
+	switch field.GetType().String() {
+	case "TYPE_STRING":
+		switch name {
+		case "slug", "member_slug":
+			return "gabriel-greeting-go"
+		case "transport":
+			return "tcp"
+		case "code", "lang_code":
+			return "fr"
+		case "name":
+			return "Bob"
+		case "method":
+			return "greeting.v1.GreetingService/SayHello"
+		case "display_name":
+			return "Gabriel (Go)"
+		default:
+			if strings.Contains(name, "port") {
+				return "60000"
+			}
+			if strings.HasSuffix(name, "_uri") || strings.HasSuffix(name, "uri") {
+				return defaultCoaxReferenceTarget
+			}
+			return "example"
+		}
+	case "TYPE_BOOL":
+		return "true"
+	case "TYPE_DOUBLE", "TYPE_FLOAT":
+		return "1.0"
+	case "TYPE_INT64", "TYPE_UINT64", "TYPE_INT32", "TYPE_FIXED64", "TYPE_FIXED32",
+		"TYPE_UINT32", "TYPE_SFIXED32", "TYPE_SFIXED64", "TYPE_SINT32", "TYPE_SINT64":
+		return "1"
+	case "TYPE_BYTES":
+		payload := `{"name":"Bob","lang_code":"fr"}`
+		if name != "payload" {
+			payload = "example"
+		}
+		return base64.StdEncoding.EncodeToString([]byte(payload))
+	default:
+		return "example"
+	}
+}
+
+func enumExampleName(field *desc.FieldDescriptor) string {
+	enumDesc := field.GetEnumType()
+	if enumDesc == nil || len(enumDesc.GetValues()) == 0 {
+		return ""
+	}
+	for _, value := range enumDesc.GetValues() {
+		if value.GetNumber() != 0 {
+			return value.GetName()
+		}
+	}
+	return enumDesc.GetValues()[0].GetName()
+}
+
+func messageHasBytesFields(msg *desc.MessageDescriptor, seen map[string]bool) bool {
+	if msg == nil {
+		return false
+	}
+	key := strings.TrimSpace(msg.GetFullyQualifiedName())
+	if key != "" {
+		if seen[key] {
+			return false
+		}
+		seen[key] = true
+		defer delete(seen, key)
+	}
+	for _, field := range msg.GetFields() {
+		if field.GetType().String() == "TYPE_BYTES" {
+			return true
+		}
+		if field.GetType().String() == "TYPE_MESSAGE" && messageHasBytesFields(field.GetMessageType(), seen) {
+			return true
+		}
+	}
+	return false
 }
