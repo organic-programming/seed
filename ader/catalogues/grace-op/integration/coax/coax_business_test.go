@@ -218,7 +218,9 @@ func businessMatrixSlugs(t *testing.T, appSlug string) []string {
 	filtered := make([]string, 0, len(all))
 	for _, slug := range all {
 		switch slug {
-		case "gabriel-greeting-dart",
+		case "gabriel-greeting-c",
+			"gabriel-greeting-cpp",
+			"gabriel-greeting-dart",
 			"gabriel-greeting-go",
 			"gabriel-greeting-rust",
 			"gabriel-greeting-swift":

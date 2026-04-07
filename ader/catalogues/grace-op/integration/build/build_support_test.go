@@ -536,6 +536,40 @@ func copyBinaryBundle(t *testing.T, holon, dstDir string) string {
 	return filepath.Join(dstDir, runtime.GOOS+"_"+runtime.GOARCH, holon)
 }
 
+func assertBundledDarwinDeps(t *testing.T, binaryPath string) {
+	t.Helper()
+
+	frameworksDir := filepath.Join(filepath.Dir(binaryPath), "Frameworks")
+	entries, err := os.ReadDir(frameworksDir)
+	if err != nil {
+		t.Fatalf("read bundled frameworks %s: %v", frameworksDir, err)
+	}
+	if len(entries) == 0 {
+		t.Fatalf("expected bundled dylibs in %s", frameworksDir)
+	}
+
+	assertNoExternalDarwinDeps(t, binaryPath)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		assertNoExternalDarwinDeps(t, filepath.Join(frameworksDir, entry.Name()))
+	}
+}
+
+func assertNoExternalDarwinDeps(t *testing.T, path string) {
+	t.Helper()
+
+	out, err := exec.Command("otool", "-L", path).CombinedOutput()
+	if err != nil {
+		t.Fatalf("otool -L %s: %v\nOutput: %s", path, err, string(out))
+	}
+	text := string(out)
+	if strings.Contains(text, "/opt/homebrew/") || strings.Contains(text, "/usr/local/") {
+		t.Fatalf("expected %s to be self-contained, found external dylib refs:\n%s", path, text)
+	}
+}
+
 func envValue(envVars []string, key string) string {
 	prefix := key + "="
 	for _, entry := range envVars {

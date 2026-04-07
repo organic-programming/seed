@@ -10,6 +10,7 @@ enable_testing()
 find_package(Protobuf CONFIG REQUIRED)
 find_package(utf8_range CONFIG REQUIRED)
 find_program(GO_EXECUTABLE NAMES go REQUIRED)
+find_program(BASH_EXECUTABLE NAMES bash REQUIRED)
 
 get_target_property(PROTOBUF_INCLUDE_DIRS protobuf::libprotobuf INTERFACE_INCLUDE_DIRECTORIES)
 find_library(UPB_LIBRARY NAMES upb REQUIRED)
@@ -25,6 +26,7 @@ set(GABRIEL_GREETING_C_BRIDGE_BINARY "${GABRIEL_GREETING_C_RUNTIME_DIR}/grpc-bri
 set(GABRIEL_GREETING_C_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../_protos")
 set(GABRIEL_GREETING_C_MANIFEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/api/v1/holon.proto")
 set(GABRIEL_GREETING_C_DESCRIBE_STATIC_PATH "${GABRIEL_GREETING_C_RUNTIME_DIR}/describe_generated.json")
+set(GABRIEL_GREETING_C_RELOCATE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../_scripts/relocate-macos-dylibs.sh")
 
 file(MAKE_DIRECTORY "${GABRIEL_GREETING_C_RUNTIME_DIR}")
 add_custom_command(
@@ -91,6 +93,18 @@ add_executable(gabriel-greeting-c-backend cmd/backend_main.c)
 target_link_libraries(gabriel-greeting-c-backend PRIVATE gabriel_greeting_c_lib)
 add_dependencies(gabriel-greeting-c gabriel-greeting-c-backend gabriel_greeting_c_bridge gabriel_greeting_c_static_describe)
 add_dependencies(gabriel-greeting-c-backend gabriel_greeting_c_static_describe)
+
+if(APPLE)
+  set(GABRIEL_GREETING_C_RELOCATE_STAMP "${GABRIEL_GREETING_C_RUNTIME_DIR}/.dylibs-relocated")
+  add_custom_command(
+    OUTPUT "${GABRIEL_GREETING_C_RELOCATE_STAMP}"
+    COMMAND "${BASH_EXECUTABLE}" "${GABRIEL_GREETING_C_RELOCATE_SCRIPT}" "${GABRIEL_GREETING_C_RUNTIME_DIR}" gabriel-greeting-c gabriel-greeting-c-backend
+    COMMAND "${CMAKE_COMMAND}" -E touch "${GABRIEL_GREETING_C_RELOCATE_STAMP}"
+    DEPENDS gabriel-greeting-c gabriel-greeting-c-backend "${GABRIEL_GREETING_C_RELOCATE_SCRIPT}"
+    VERBATIM
+  )
+  add_custom_target(gabriel_greeting_c_relocate ALL DEPENDS "${GABRIEL_GREETING_C_RELOCATE_STAMP}")
+endif()
 
 add_executable(gabriel_greeting_c_public_test api/public_test.c)
 target_link_libraries(gabriel_greeting_c_public_test PRIVATE gabriel_greeting_c_lib)

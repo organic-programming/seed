@@ -243,6 +243,10 @@ func TestBuild_06_Matrix(t *testing.T) {
 				finalVersion := runInstalledBinary(t, binaryPath, "version")
 				t.Logf("[%s] Final runtime output: %s", ex, finalVersion)
 
+				if runtime.GOOS == "darwin" && (ex == "gabriel-greeting-c" || ex == "gabriel-greeting-cpp") {
+					assertBundledDarwinDeps(t, binaryPath)
+				}
+
 				if !strings.Contains(finalVersion, "8.8.89") {
 					t.Fatalf("Regression! Auto-increment backend failed on %s.\nExpected contain: 8.8.89\nGot: %s", ex, finalVersion)
 				}

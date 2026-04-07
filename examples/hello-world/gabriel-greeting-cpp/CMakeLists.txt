@@ -9,8 +9,15 @@ enable_testing()
 
 find_package(Protobuf CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
+find_program(BASH_EXECUTABLE NAMES bash REQUIRED)
 
 set(HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/cpp-holons")
+set(GABRIEL_GREETING_CPP_RELOCATE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../_scripts/relocate-macos-dylibs.sh")
+if(CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+  set(GABRIEL_GREETING_CPP_RUNTIME_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+else()
+  set(GABRIEL_GREETING_CPP_RUNTIME_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+endif()
 
 add_library(gabriel_greeting_cpp_lib
   api/public.cpp
@@ -43,6 +50,18 @@ add_executable(gabriel-greeting-cpp
   cmd/main.cpp
 )
 target_link_libraries(gabriel-greeting-cpp PRIVATE gabriel_greeting_cpp_lib)
+
+if(APPLE)
+  set(GABRIEL_GREETING_CPP_RELOCATE_STAMP "${GABRIEL_GREETING_CPP_RUNTIME_DIR}/.dylibs-relocated")
+  add_custom_command(
+    OUTPUT "${GABRIEL_GREETING_CPP_RELOCATE_STAMP}"
+    COMMAND "${BASH_EXECUTABLE}" "${GABRIEL_GREETING_CPP_RELOCATE_SCRIPT}" "${GABRIEL_GREETING_CPP_RUNTIME_DIR}" gabriel-greeting-cpp
+    COMMAND "${CMAKE_COMMAND}" -E touch "${GABRIEL_GREETING_CPP_RELOCATE_STAMP}"
+    DEPENDS gabriel-greeting-cpp "${GABRIEL_GREETING_CPP_RELOCATE_SCRIPT}"
+    VERBATIM
+  )
+  add_custom_target(gabriel_greeting_cpp_relocate ALL DEPENDS "${GABRIEL_GREETING_CPP_RELOCATE_STAMP}")
+endif()
 
 add_executable(gabriel_greeting_cpp_public_test api/public_test.cpp)
 target_link_libraries(gabriel_greeting_cpp_public_test PRIVATE gabriel_greeting_cpp_lib)
