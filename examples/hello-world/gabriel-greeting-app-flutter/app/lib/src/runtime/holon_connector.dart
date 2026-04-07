@@ -1,10 +1,14 @@
+import 'dart:io';
+
 import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart' as holons;
 
 import '../gen/v1/greeting.pbgrpc.dart';
 import '../model/app_model.dart';
 
-final _callOptions = CallOptions(timeout: const Duration(seconds: 2));
+const _holonConnectTimeout = Duration(seconds: 7);
+const _holonRpcTimeout = Duration(seconds: 20);
+final _callOptions = CallOptions(timeout: _holonRpcTimeout);
 
 abstract interface class GreetingHolonConnection {
   Future<List<Language>> listLanguages();
@@ -19,18 +23,43 @@ abstract interface class HolonConnector {
   });
 }
 
+String effectiveHolonTransport(
+  GabrielHolonIdentity holon,
+  String requestedTransport,
+) {
+  final normalized = normalizedTransportSelection(requestedTransport);
+  if (!_isBundledMacOSHost()) {
+    return normalized;
+  }
+  if (normalized == 'unix') {
+    return 'tcp';
+  }
+  if (normalized == 'stdio' && holon.buildRunner == 'cmake') {
+    return 'tcp';
+  }
+  return normalized;
+}
+
+bool _isBundledMacOSHost() {
+  if (!Platform.isMacOS) {
+    return false;
+  }
+  return Platform.resolvedExecutable.contains('.app/Contents/');
+}
+
 class DesktopHolonConnector implements HolonConnector {
   @override
   Future<GreetingHolonConnection> connect(
     GabrielHolonIdentity holon, {
     required String transport,
   }) async {
+    final effectiveTransport = effectiveHolonTransport(holon, transport);
     final channel =
         await holons.connect(
               holon.slug,
               holons.ConnectOptions(
-                transport: normalizedTransportSelection(transport),
-                timeout: const Duration(seconds: 5),
+                transport: effectiveTransport,
+                timeout: _holonConnectTimeout,
               ),
             )
             as ClientChannel;

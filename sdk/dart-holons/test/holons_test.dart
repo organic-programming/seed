@@ -1,8 +1,9 @@
 import 'dart:io';
 
-import 'package:test/test.dart';
 import 'package:holons/holons.dart';
+import 'package:holons/src/connect.dart' as connect_impl;
 import 'package:holons/src/identity.dart' as identity;
+import 'package:test/test.dart';
 
 void main() {
   group('transport', () {
@@ -93,8 +94,12 @@ void main() {
         return;
       }
 
-      final socketPath =
-          '${Directory.systemTemp.path}/holons_dart_${DateTime.now().microsecondsSinceEpoch}.sock';
+      final socketPath = connect_impl
+          .defaultUnixSocketURIForTest(
+            'runtime-unix-test',
+            '${Directory.systemTemp.path}/holons_dart_runtime.port',
+          )
+          .substring('unix://'.length);
       RuntimeTransportListener runtime;
       try {
         runtime = await listenRuntime('unix://$socketPath');

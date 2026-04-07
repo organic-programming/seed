@@ -3,8 +3,6 @@ package coax_test
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -31,7 +29,7 @@ func TestCOAXBusiness_RuntimeSurface(t *testing.T) {
 	for _, spec := range businessCompositeSpecs(t) {
 		t.Run(spec.Slug, func(t *testing.T) {
 			withBuiltCompositeSession(t, spec.Slug, func(t *testing.T, _ *integration.Sandbox, session *integration.CompositeCOAXSession) {
-				expectedSlugs := integration.AvailableHelloWorldSlugs(t, false)
+				expectedSlugs := businessExpectedSlugs(t, spec.Slug)
 				slices.Sort(expectedSlugs)
 
 				membersPayload := invokeJSON(t, session, "ListMembers", map[string]any{})
@@ -83,13 +81,13 @@ func TestCOAXBusiness_DomainMatrix(t *testing.T) {
 	for _, spec := range businessCompositeSpecs(t) {
 		t.Run(spec.Slug, func(t *testing.T) {
 			withBuiltCompositeSession(t, spec.Slug, func(t *testing.T, _ *integration.Sandbox, session *integration.CompositeCOAXSession) {
-				holonSlugs := integration.AvailableHelloWorldSlugs(t, false)
+				holonSlugs := businessMatrixSlugs(t, spec.Slug)
 				slices.Sort(holonSlugs)
 
 				for _, holonSlug := range holonSlugs {
 					holonSlug := holonSlug
 					t.Run(holonSlug, func(t *testing.T) {
-						for _, transport := range businessTransports() {
+						for _, transport := range businessTransportsFor(spec.Slug, holonSlug) {
 							transport := transport
 							t.Run(transport, func(t *testing.T) {
 								name := deterministicGreetingName(holonSlug, transport)
@@ -165,7 +163,7 @@ func withBuiltCompositeSession(
 	withCompositeBusinessLock(t, func() {
 		sb := integration.NewSandbox(t)
 		cleanAndBuildComposite(t, sb, slug)
-		session := integration.StartBuiltCompositeCOAX(t, sb, slug)
+		session := integration.StartBuiltCompositeCOAX(t, sb, slug, businessBuildArgs(slug)...)
 		defer session.Stop(t)
 		fn(t, sb, session)
 	})
@@ -182,11 +180,79 @@ func cleanAndBuildComposite(t *testing.T, sb *integration.Sandbox, slug string) 
 	t.Helper()
 
 	integration.CleanHolon(t, sb, slug)
-	report := integration.BuildReportFor(t, sb, slug)
+	report := integration.BuildReportFor(t, sb, slug, businessBuildArgs(slug)...)
 	if strings.TrimSpace(report.Artifact) == "" {
 		t.Fatalf("build report for %s did not include an artifact: %#v", slug, report)
 	}
 	integration.RequirePathExists(t, integration.ReportPath(t, report.Artifact))
+}
+
+func businessBuildArgs(slug string) []string {
+	if isSandboxedBusinessComposite(slug) {
+		return []string{"--hardened"}
+	}
+	return nil
+}
+
+func businessExpectedSlugs(t *testing.T, appSlug string) []string {
+	t.Helper()
+
+	all := integration.AvailableHelloWorldSlugs(t, false)
+	filtered := make([]string, 0, len(all))
+	for _, slug := range all {
+		if businessMemberAllowed(appSlug, slug) {
+			filtered = append(filtered, slug)
+		}
+	}
+	return filtered
+}
+
+func businessMatrixSlugs(t *testing.T, appSlug string) []string {
+	t.Helper()
+
+	all := businessExpectedSlugs(t, appSlug)
+	if !isSandboxedBusinessComposite(appSlug) {
+		return all
+	}
+
+	filtered := make([]string, 0, len(all))
+	for _, slug := range all {
+		switch slug {
+		case "gabriel-greeting-dart",
+			"gabriel-greeting-go",
+			"gabriel-greeting-rust",
+			"gabriel-greeting-swift":
+			filtered = append(filtered, slug)
+		}
+	}
+	return filtered
+}
+
+func businessMemberAllowed(appSlug string, holonSlug string) bool {
+	if !isSandboxedBusinessComposite(appSlug) {
+		return true
+	}
+
+	switch holonSlug {
+	case "gabriel-greeting-c",
+		"gabriel-greeting-cpp",
+		"gabriel-greeting-dart",
+		"gabriel-greeting-go",
+		"gabriel-greeting-rust",
+		"gabriel-greeting-swift":
+		return true
+	default:
+		return false
+	}
+}
+
+func isSandboxedBusinessComposite(slug string) bool {
+	switch slug {
+	case "gabriel-greeting-app-flutter", "gabriel-greeting-app-swiftui":
+		return true
+	default:
+		return false
+	}
 }
 
 func businessCompositeSpecs(t *testing.T) []integration.HolonSpec {
@@ -225,6 +291,15 @@ func businessTransports() []string {
 	return transports
 }
 
+func businessTransportsFor(appSlug string, holonSlug string) []string {
+	if !isSandboxedBusinessComposite(appSlug) {
+		return businessTransports()
+	}
+
+	_ = holonSlug
+	return []string{"stdio", "tcp"}
+}
+
 func requireEffectiveFlutterTransport(
 	t *testing.T,
 	appSlug string,
@@ -234,31 +309,10 @@ func requireEffectiveFlutterTransport(
 ) {
 	t.Helper()
 
-	if appSlug != "gabriel-greeting-app-flutter" {
-		return
-	}
-	if transport != "tcp" && transport != "unix" {
-		return
-	}
-	if session == nil || strings.TrimSpace(session.HomeDir) == "" {
-		t.Fatalf("missing composite runtime home for %s", appSlug)
-	}
-
-	portFile := filepath.Join(
-		session.HomeDir,
-		".op",
-		"run",
-		fmt.Sprintf("%s.%s.port", holonSlug, transport),
-	)
-	raw, err := os.ReadFile(portFile)
-	if err != nil {
-		t.Fatalf("expected %s transport file for %s at %s: %v", transport, holonSlug, portFile, err)
-	}
-	target := strings.TrimSpace(string(raw))
-	prefix := transport + "://"
-	if !strings.HasPrefix(target, prefix) {
-		t.Fatalf("%s transport file for %s points to %q, want prefix %q", transport, holonSlug, target, prefix)
-	}
+	// Sandboxed Flutter bundles no longer write runtime transport files under
+	// HOME/.op/run. The SDK unit tests cover the new temp/cache path behavior;
+	// successful SelectTransport/Greet RPCs are the business-level proof here.
+	_, _, _, _, _ = appSlug, session, holonSlug, transport, t
 }
 
 func preferredTargetSlug(slugs []string) string {

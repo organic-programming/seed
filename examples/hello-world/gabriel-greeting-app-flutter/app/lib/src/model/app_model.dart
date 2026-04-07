@@ -46,8 +46,8 @@ class CoaxSettingsSnapshot {
   });
 
   static const defaultHost = '127.0.0.1';
-  static const defaultUnixPath = '/tmp/gabriel-greeting-coax.sock';
-  static const defaults = CoaxSettingsSnapshot(
+  static final String defaultUnixPath = _defaultCoaxUnixPath();
+  static final defaults = CoaxSettingsSnapshot(
     serverTransport: CoaxServerTransport.tcp,
     serverHost: defaultHost,
     serverPortText: '60000',
@@ -88,6 +88,45 @@ class CoaxSettingsSnapshot {
       return defaults;
     }
     return CoaxSettingsSnapshot.fromJson(decoded);
+  }
+}
+
+const int _unixSocketPathMaxBytes = 100;
+
+String _defaultCoaxUnixPath() {
+  const socketName = 'gabriel-greeting-coax.sock';
+  var current = Directory.systemTemp.absolute.path;
+  final seen = <String>{};
+  while (seen.add(current)) {
+    final candidate = '$current${Platform.pathSeparator}$socketName';
+    if (_isWritableDirectory(current) &&
+        candidate.codeUnits.length <= _unixSocketPathMaxBytes) {
+      return candidate;
+    }
+    final parent = Directory(current).parent.absolute.path;
+    if (parent == current) {
+      break;
+    }
+    current = parent;
+  }
+  return '${Directory.systemTemp.path}${Platform.pathSeparator}$socketName';
+}
+
+bool _isWritableDirectory(String path) {
+  final directory = Directory(path);
+  if (!directory.existsSync()) {
+    return false;
+  }
+
+  final probe = File(
+    '${directory.path}${Platform.pathSeparator}.coax-write-probe-$pid-${DateTime.now().microsecondsSinceEpoch}',
+  );
+  try {
+    probe.writeAsStringSync('probe');
+    probe.deleteSync();
+    return true;
+  } on FileSystemException {
+    return false;
   }
 }
 

@@ -36,7 +36,6 @@ class CoaxSettingsDialog extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-
                         _LabeledRow(
                           label: 'Transport',
                           child: Select<CoaxServerTransport>(
@@ -83,8 +82,8 @@ class CoaxSettingsDialog extends StatelessWidget {
                             label: 'Socket path',
                             child: TextField(
                               initialValue: controller.serverUnixPath,
-                              placeholder: const Text(
-                                '/tmp/gabriel-greeting-coax.sock',
+                              placeholder: Text(
+                                CoaxSettingsSnapshot.defaultUnixPath,
                               ),
                               onChanged: controller.setServerUnixPath,
                             ),

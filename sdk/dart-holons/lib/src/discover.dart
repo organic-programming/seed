@@ -712,7 +712,6 @@ List<String> _packageDirsRecursive(String root) {
 
   while (stack.isNotEmpty) {
     final current = stack.removeLast();
-    final currentPath = _normalizeAbsolutePath(current.path);
 
     List<FileSystemEntity> children;
     try {

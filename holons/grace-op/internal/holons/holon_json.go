@@ -22,6 +22,7 @@ type HolonPackageJSON struct {
 	Transport     string            `json:"transport"`
 	Entrypoint    string            `json:"entrypoint"`
 	Architectures []string          `json:"architectures"`
+	Standalone    bool              `json:"standalone"`
 	HasDist       bool              `json:"has_dist"`
 	HasSource     bool              `json:"has_source"`
 }
@@ -71,6 +72,7 @@ func writeHolonJSON(manifest *LoadedManifest) error {
 		Transport:     strings.TrimSpace(manifest.Manifest.Transport),
 		Entrypoint:    strings.TrimSpace(manifest.BinaryName()),
 		Architectures: packageArchitectures(pkgDir),
+		Standalone:    runnerProducesStandaloneArtifact(manifest.Manifest.Build.Runner),
 		HasDist:       dirExists(filepath.Join(pkgDir, "dist")),
 		HasSource:     dirExists(filepath.Join(pkgDir, "git")),
 	}
@@ -134,6 +136,7 @@ func writeHolonJSONForInstall(manifest *LoadedManifest, pkgDir string) error {
 		Transport:     strings.TrimSpace(manifest.Manifest.Transport),
 		Entrypoint:    entrypoint,
 		Architectures: packageArchitectures(pkgDir),
+		Standalone:    runnerProducesStandaloneArtifact(manifest.Manifest.Build.Runner),
 		HasDist:       dirExists(filepath.Join(pkgDir, "dist")),
 		HasSource:     dirExists(filepath.Join(pkgDir, "git")),
 	}

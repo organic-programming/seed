@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import '../gen/holons/v1/describe.pb.dart';
 import '../gen/holons/v1/describe.pbgrpc.dart';
 import 'discovery_types.dart';
 import 'grpcclient.dart';

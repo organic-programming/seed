@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart';
-import 'package:holons/gen/holons/v1/describe.pb.dart';
 import 'package:holons/gen/holons/v1/describe.pbgrpc.dart';
 import 'package:holons/gen/holons/v1/manifest.pb.dart' as manifestpb;
 import 'package:test/test.dart';

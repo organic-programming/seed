@@ -1064,10 +1064,23 @@ private func makeLaunchProcess(_ launchTarget: LaunchTarget, listenURI: String) 
     let process = Process()
     process.executableURL = URL(fileURLWithPath: launchTarget.executablePath)
     process.arguments = launchTarget.arguments + ["serve", "--listen", listenURI]
-    if let workingDirectory = launchTarget.workingDirectory, !workingDirectory.isEmpty {
-        process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory, isDirectory: true)
+    if let directoryURL = launchWorkingDirectoryURL(launchTarget.workingDirectory) {
+        process.currentDirectoryURL = directoryURL
     }
     return process
+}
+
+func launchWorkingDirectoryURL(_ workingDirectory: String?) -> URL? {
+    guard let workingDirectory, !workingDirectory.isEmpty else {
+        return nil
+    }
+
+    let directoryURL = URL(fileURLWithPath: workingDirectory, isDirectory: true)
+    if FileManager.default.isWritableFile(atPath: directoryURL.path) {
+        return directoryURL
+    }
+
+    return URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
 }
 
 private func usablePortFile(_ path: String, timeout: TimeInterval) throws -> String? {
@@ -1494,10 +1507,19 @@ private func isDirectory(_ url: URL) -> Bool {
     return isDirectory.boolValue
 }
 
-private func normalizedPortFilePath(_ override: String?, slug: String) -> String {
+func normalizedPortFilePath(_ override: String?, slug: String) -> String {
     let trimmed = override?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     if !trimmed.isEmpty {
         return trimmed
+    }
+
+    if bundledHolonsRootURLForConnect() != nil,
+       let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+        return caches
+            .appendingPathComponent("holons")
+            .appendingPathComponent("run")
+            .appendingPathComponent("\(slug).port")
+            .path
     }
 
     return URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
@@ -1507,38 +1529,21 @@ private func normalizedPortFilePath(_ override: String?, slug: String) -> String
         .path
 }
 
-private func defaultUnixSocketURI(slug: String, portFile: String) -> String {
-    let hash = fnv1a64(Array(portFile.utf8))
-    let label = socketLabel(slug)
-    return "unix:///tmp/holons-\(label)-\(String(format: "%012llx", hash & 0xffffffffffff)).sock"
+private func bundledHolonsRootURLForConnect() -> URL? {
+    guard let resourceURL = discoverBundleResourceURLProvider()?.standardizedFileURL else {
+        return nil
+    }
+    let holonsRoot = resourceURL.appendingPathComponent("Holons", isDirectory: true)
+    return isDirectory(holonsRoot) ? holonsRoot : nil
 }
 
-private func socketLabel(_ slug: String) -> String {
-    var label = ""
-    var lastWasDash = false
-
-    for scalar in slug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().unicodeScalars {
-        switch scalar.value {
-        case 97 ... 122, 48 ... 57:
-            label.unicodeScalars.append(scalar)
-            lastWasDash = false
-        case 45 where !label.isEmpty && !lastWasDash:
-            label.append("-")
-            lastWasDash = true
-        case 95 where !label.isEmpty && !lastWasDash:
-            label.append("-")
-            lastWasDash = true
-        default:
-            continue
-        }
-
-        if label.count >= 24 {
-            break
-        }
+func defaultUnixSocketURI(slug: String, portFile: String) -> String {
+    let hash = fnv1a64(Array(portFile.utf8))
+    var tempDir = NSTemporaryDirectory()
+    if tempDir.hasSuffix("/") {
+        tempDir = String(tempDir.dropLast())
     }
-
-    label = label.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
-    return label.isEmpty ? "socket" : label
+    return "unix://\(tempDir)/h\(String(format: "%08llx", hash & 0xffffffff)).s"
 }
 
 private func fnv1a64(_ bytes: [UInt8]) -> UInt64 {

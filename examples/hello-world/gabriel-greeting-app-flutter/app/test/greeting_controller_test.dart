@@ -104,7 +104,7 @@ void main() {
       },
     );
 
-    test('surfaces connector failures as connection errors', () async {
+    test('surfaces language-load failures and drops the bad connection', () async {
       final controller = GreetingController(
         catalog: FakeHolonCatalog(<GabrielHolonIdentity>[
           holon('gabriel-greeting-swift'),
@@ -125,7 +125,7 @@ void main() {
 
       expect(controller.connectionError, isNull);
       expect(controller.error, contains('Failed to load languages'));
-      expect(controller.isRunning, isTrue);
+      expect(controller.isRunning, isFalse);
     });
 
     test('transport change invalidates an in-flight start', () async {

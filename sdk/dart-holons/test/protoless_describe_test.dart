@@ -3,9 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:grpc/grpc.dart';
-import 'package:holons/gen/holons/v1/describe.pb.dart';
 import 'package:holons/gen/holons/v1/describe.pbgrpc.dart';
-import 'package:holons/gen/holons/v1/manifest.pb.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -185,31 +183,6 @@ DescribeResponse staticDescribeResponse() {
     );
 }
 ''');
-}
-
-DescribeResponse _sampleResponse() {
-  return DescribeResponse()
-    ..manifest = (HolonManifest()
-      ..identity = (HolonManifest_Identity()
-        ..schema = 'holon/v1'
-        ..uuid = 'static-holon-0000'
-        ..givenName = 'Static'
-        ..familyName = 'Holon'
-        ..motto = 'Registered from generated code.'
-        ..composer = 'describe-test'
-        ..status = 'draft'
-        ..born = '2026-03-23')
-      ..lang = 'dart')
-    ..services.add(
-      ServiceDoc()
-        ..name = 'static.v1.Echo'
-        ..description = 'Static test service.'
-        ..methods.add(
-          MethodDoc()
-            ..name = 'Ping'
-            ..description = 'Replies with the payload.',
-        ),
-    );
 }
 
 Future<bool> _canBindLoopbackTcp() async {

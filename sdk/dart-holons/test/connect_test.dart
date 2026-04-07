@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:holons/holons.dart';
-import 'package:holons/gen/holons/v1/describe.pb.dart';
 import 'package:holons/gen/holons/v1/describe.pbgrpc.dart';
 import 'package:holons/src/connect.dart' as connect_impl;
 import 'package:holons/src/discover.dart' as discover_impl;
@@ -245,6 +244,65 @@ exec ${_shellQuote(helper)} --slug connect-entrypoint "\$@"
       );
     });
 
+    test('default port file path uses system temp when running from a bundle',
+        () {
+      final publishedRoot =
+          Directory.systemTemp.createTempSync('holons-bundle-');
+      addTearDown(() => publishedRoot.deleteSync(recursive: true));
+      discover_impl.discoverPublishedHolonsRootProvider =
+          () => publishedRoot.path;
+      connect_impl.connectEnvironmentProvider = () => <String, String>{
+            'OPPATH': '/tmp/op-home',
+            'HOME': '/Users/example',
+          };
+
+      expect(
+        connect_impl.defaultPortFilePathForTest(
+          'gabriel-greeting-go',
+          transport: 'unix',
+        ),
+        equals(
+          '${Directory.systemTemp.path}${Platform.pathSeparator}holons${Platform.pathSeparator}run${Platform.pathSeparator}gabriel-greeting-go.unix.port',
+        ),
+      );
+    });
+
+    test('default unix socket URI uses system temp', () {
+      final uri = connect_impl.defaultUnixSocketURIForTest(
+        'gabriel-greeting-go',
+        '/tmp/gabriel-greeting-go.port',
+      );
+      final path = uri.substring('unix://'.length);
+      expect(
+        uri,
+        startsWith('unix://'),
+      );
+      expect(path, endsWith('.s'));
+      expect(_isWithinTempHierarchy(path), isTrue);
+    });
+
+    test('default working directory falls back to system temp when read only',
+        () {
+      final sandbox = Directory.systemTemp.createTempSync('holons-cwd-');
+      final readOnly =
+          Directory('${sandbox.path}${Platform.pathSeparator}readonly')
+            ..createSync(recursive: true);
+      Process.runSync('chmod', <String>['555', readOnly.path]);
+      addTearDown(() {
+        Process.runSync('chmod', <String>['755', readOnly.path]);
+        sandbox.deleteSync(recursive: true);
+      });
+
+      final resolved = connect_impl.defaultWorkingDirectoryForTest(
+        readOnly.path,
+        '${readOnly.path}${Platform.pathSeparator}bin${Platform.pathSeparator}demo',
+      );
+      expect(resolved, equals(Directory.systemTemp.absolute.path));
+    },
+        skip: Platform.isWindows
+            ? 'chmod-based writability check is POSIX only'
+            : false);
+
     test(
       'persistent tcp and unix transports use separate cache files',
       () async {
@@ -286,7 +344,8 @@ exec ${_shellQuote(helper)} --slug connect-entrypoint "\$@"
         addTearDown(() => disconnect(tcpChannel));
         final tcpDescribe =
             await HolonMetaClient(tcpChannel).describe(DescribeRequest());
-        expect(tcpDescribe.manifest.identity.givenName, equals('transport-alpha'));
+        expect(
+            tcpDescribe.manifest.identity.givenName, equals('transport-alpha'));
 
         final tcpPortFile = File(
           connect_impl.defaultPortFilePathForTest(
@@ -307,7 +366,8 @@ exec ${_shellQuote(helper)} --slug connect-entrypoint "\$@"
         addTearDown(() => disconnect(unixChannel));
         final unixDescribe =
             await HolonMetaClient(unixChannel).describe(DescribeRequest());
-        expect(unixDescribe.manifest.identity.givenName, equals('transport-alpha'));
+        expect(unixDescribe.manifest.identity.givenName,
+            equals('transport-alpha'));
 
         final unixPortFile = File(
           connect_impl.defaultPortFilePathForTest(
@@ -318,11 +378,31 @@ exec ${_shellQuote(helper)} --slug connect-entrypoint "\$@"
         expect(unixPortFile.existsSync(), isTrue);
         expect(
           unixPortFile.readAsStringSync().trim(),
-          startsWith('unix:///tmp/holons-'),
+          equals(
+            connect_impl.defaultUnixSocketURIForTest(
+              'transport-alpha',
+              unixPortFile.path,
+            ),
+          ),
         );
       },
     );
   });
+}
+
+bool _isWithinTempHierarchy(String path) {
+  final socketDir = File(path).parent.absolute.path;
+  var current = Directory.systemTemp.absolute.path;
+  while (true) {
+    if (socketDir == current) {
+      return true;
+    }
+    final parent = Directory(current).parent.absolute.path;
+    if (parent == current) {
+      return false;
+    }
+    current = parent;
+  }
 }
 
 String _shellQuote(String value) {

@@ -122,10 +122,64 @@ artifacts:
 	if payload.Entrypoint != "demo-holon" {
 		t.Fatalf("Entrypoint = %q, want demo-holon", payload.Entrypoint)
 	}
+	if !payload.Standalone {
+		t.Fatal("Standalone = false, want true for go-module")
+	}
 	if !payload.HasDist || !payload.HasSource {
 		t.Fatalf("HasDist/HasSource = %v/%v, want true/true", payload.HasDist, payload.HasSource)
 	}
 	if got, want := payload.Architectures, []string{runtimeArchitecture()}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("Architectures = %v, want %v", got, want)
+	}
+}
+
+func TestWriteHolonJSONForInstallIncludesStandaloneFlag(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "python-holon")
+	if err := os.MkdirAll(filepath.Join(dir, "app"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	writeRunnerManifest(t, dir, `schema: holon/v0
+uuid: abcdefab-cdef-cdef-cdef-abcdefabcdef
+given_name: Python
+family_name: Holon
+motto: Interpreter-backed test holon.
+status: draft
+lang: python
+kind: wrapper
+build:
+  runner: python
+artifacts:
+  primary: app/main.py
+`)
+
+	manifest, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("LoadManifest failed: %v", err)
+	}
+	pkgDir := filepath.Join(root, "install", "python-holon.holon")
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := writeHolonJSONForInstall(manifest, pkgDir); err != nil {
+		t.Fatalf("writeHolonJSONForInstall failed: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(pkgDir, ".holon.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var payload HolonPackageJSON
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("json.Unmarshal failed: %v", err)
+	}
+	if payload.Standalone {
+		t.Fatal("Standalone = true, want false for python")
+	}
+	if payload.Entrypoint != "main.py" {
+		t.Fatalf("Entrypoint = %q, want main.py", payload.Entrypoint)
 	}
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart';
 import 'package:holons/gen/holons/v1/describe.pbgrpc.dart';
+import 'package:holons/src/connect.dart' as connect_impl;
 import 'package:holons/src/gen/grpc/reflection/v1alpha/reflection.pbgrpc.dart';
 import 'package:test/test.dart';
 
@@ -58,7 +59,12 @@ void main() {
         useStaticResponse(
           buildDescribeResponse(protoDir: '${root.path}/protos'),
         );
-        final socketPath = '${root.path}/serve.sock';
+        final socketPath = connect_impl
+            .defaultUnixSocketURIForTest(
+              'serve-test',
+              '${root.path}/serve.port',
+            )
+            .substring('unix://'.length);
         final running = await startWithOptions(
           'unix://$socketPath',
           const <Service>[],

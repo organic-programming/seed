@@ -156,46 +156,21 @@ class GreetingController extends ChangeNotifier {
 
   Future<void> loadLanguages({bool greetAfterLoad = true}) async {
     final generation = ++_loadGeneration;
+    final effectiveTransport = selectedHolon == null
+        ? transport
+        : effectiveHolonTransport(selectedHolon!, transport);
     isLoading = true;
     error = null;
     greeting = '';
     availableLanguages = const <Language>[];
     _safeNotify();
 
-    try {
-      await ensureStarted();
-    } on Object catch (_) {
-      if (_loadGeneration != generation) {
-        return;
-      }
-      error =
-          'Failed to load languages: ${connectionError ?? 'Holon did not become ready'}';
-      isLoading = false;
-      _safeNotify();
-      return;
-    }
-
-    if (isRunning == false) {
-      if (_loadGeneration != generation) {
-        return;
-      }
-      error =
-          'Failed to load languages: ${connectionError ?? 'Holon did not become ready'}';
-      isLoading = false;
-      _safeNotify();
-      return;
-    }
-
-    final retryDelays = transport == 'stdio'
-        ? const <Duration>[
-            Duration.zero,
-            Duration(milliseconds: 80),
-            Duration(milliseconds: 180),
-          ]
+    final retryDelays = effectiveTransport == 'stdio'
+        ? const <Duration>[Duration.zero, Duration(milliseconds: 400)]
         : const <Duration>[
-            Duration(milliseconds: 120),
-            Duration(milliseconds: 300),
-            Duration(milliseconds: 600),
+            Duration.zero,
+            Duration(milliseconds: 200),
+            Duration(milliseconds: 800),
           ];
 
     for (var index = 0; index < retryDelays.length; index += 1) {
@@ -203,6 +178,10 @@ class GreetingController extends ChangeNotifier {
         final delay = retryDelays[index];
         if (delay > Duration.zero) {
           await Future<void>.delayed(delay);
+        }
+        await ensureStarted();
+        if (!isRunning || _connection == null) {
+          throw StateError(connectionError ?? 'Holon did not become ready');
         }
         final languages = await _connection!.listLanguages();
         if (_loadGeneration != generation) {
@@ -237,6 +216,7 @@ class GreetingController extends ChangeNotifier {
         }
         return;
       } on Object catch (loadError) {
+        await _dropConnection();
         if (index == retryDelays.length - 1 && _loadGeneration == generation) {
           error =
               'Failed to load languages: ${connectionError ?? loadError.toString()}';
@@ -321,7 +301,8 @@ class GreetingController extends ChangeNotifier {
   }
 
   Future<void> _connect(int generation, GabrielHolonIdentity holon) async {
-    final retryDelays = transport == 'stdio'
+    final effectiveTransport = effectiveHolonTransport(holon, transport);
+    final retryDelays = effectiveTransport == 'stdio'
         ? const <Duration>[Duration.zero]
         : const <Duration>[
             Duration.zero,
@@ -337,13 +318,16 @@ class GreetingController extends ChangeNotifier {
         if (delay > Duration.zero) {
           await Future<void>.delayed(delay);
         }
+        final transportLabel = effectiveTransport == transport
+            ? transport
+            : '$transport -> $effectiveTransport';
         _log(
-          '[HostUI] assembly=Gabriel-Greeting-App-Flutter holon=${holon.binaryName} transport=$transport',
+          '[HostUI] assembly=Gabriel-Greeting-App-Flutter holon=${holon.binaryName} transport=$transportLabel',
         );
         try {
           final connection = await _connector.connect(
             holon,
-            transport: transport,
+            transport: effectiveTransport,
           );
           if (generation != _connectionGeneration || _disposed) {
             await connection.close();
@@ -352,14 +336,14 @@ class GreetingController extends ChangeNotifier {
           _connection = connection;
           isRunning = true;
           connectionError = null;
-          _log('[HostUI] connected to ${holon.binaryName} on $transport');
+          _log('[HostUI] connected to ${holon.binaryName} on $transportLabel');
           _safeNotify();
           return;
         } on Object catch (error) {
           lastError = error;
           if (index < retryDelays.length - 1) {
             _log(
-              '[HostUI] retrying ${holon.binaryName} on $transport after connect failure: $error',
+              '[HostUI] retrying ${holon.binaryName} on $transportLabel after connect failure: $error',
             );
           }
         }
@@ -380,20 +364,22 @@ class GreetingController extends ChangeNotifier {
   Future<void> stop() async {
     _connectionGeneration += 1;
     _startFuture = null;
-    final currentConnection = _connection;
-    _connection = null;
-    isRunning = false;
-    if (currentConnection == null) {
-      _safeNotify();
-      return;
-    }
-
     try {
-      await currentConnection.close();
+      await _dropConnection();
     } on Object catch (error) {
       connectionError = 'Failed to stop Gabriel holon connection: $error';
     }
     _safeNotify();
+  }
+
+  Future<void> _dropConnection() async {
+    final currentConnection = _connection;
+    _connection = null;
+    isRunning = false;
+    if (currentConnection == null) {
+      return;
+    }
+    await currentConnection.close();
   }
 
   Future<void> shutdown() async {

@@ -56,7 +56,7 @@ struct CoaxSettingsSnapshot: Codable, Sendable {
     var serverUnixPath: String
 
     static let defaultHost = "127.0.0.1"
-    static let defaultUnixPath = "/tmp/gabriel-greeting-coax.sock"
+    static let defaultUnixPath = NSTemporaryDirectory() + "gabriel-greeting-coax.sock"
 
     static let defaults = CoaxSettingsSnapshot(
         serverTransport: .tcp,

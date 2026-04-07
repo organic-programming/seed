@@ -366,9 +366,22 @@ func filterAvailableHolons(specs []HolonSpec) []HolonSpec {
 		if !toolsAvailable(spec.Requires...) {
 			continue
 		}
+		if !helloWorldHolonExists(spec.Slug) {
+			continue
+		}
 		out = append(out, spec)
 	}
 	return out
+}
+
+func helloWorldHolonExists(slug string) bool {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		return true
+	}
+	holonDir := filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", "examples", "hello-world", slug)
+	info, err := os.Stat(holonDir)
+	return err == nil && info.IsDir()
 }
 
 func filterAvailableTransports(specs []TransportSpec) []TransportSpec {

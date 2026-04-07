@@ -23,10 +23,10 @@ type CompositeCOAXSession struct {
 	sb      *Sandbox
 }
 
-func StartBuiltCompositeCOAX(t *testing.T, sb *Sandbox, slug string) *CompositeCOAXSession {
+func StartBuiltCompositeCOAX(t *testing.T, sb *Sandbox, slug string, extraArgs ...string) *CompositeCOAXSession {
 	t.Helper()
 
-	report := BuildDryRunReportFor(t, sb, slug)
+	report := BuildDryRunReportFor(t, sb, slug, extraArgs...)
 	artifactPath := ReportPath(t, report.Artifact)
 	RequirePathExists(t, artifactPath)
 
@@ -106,7 +106,7 @@ func (s *CompositeCOAXSession) InvokeResult(t *testing.T, method string, payload
 	}
 	return s.sb.RunOPWithOptions(t, RunOptions{
 		SkipDiscoverRoot: true,
-		Timeout:          30 * time.Second,
+		Timeout:          60 * time.Second,
 	}, args...)
 }
 

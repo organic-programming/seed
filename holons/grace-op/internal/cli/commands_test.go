@@ -1952,6 +1952,57 @@ func TestBuildCommandDryRunAcceptsNoSign(t *testing.T) {
 	}
 }
 
+func TestBuildCommandDryRunAcceptsHardened(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+
+	nativeDir := filepath.Join(root, "native")
+	if err := os.MkdirAll(nativeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeCLIManifestFile(filepath.Join(nativeDir, identity.ManifestFileName), "schema: holon/v0\nkind: native\nbuild:\n  runner: go-module\nartifacts:\n  binary: native\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	pythonDir := filepath.Join(root, "python")
+	if err := os.MkdirAll(filepath.Join(pythonDir, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pythonDir, "bin", "main.py"), []byte("print('ok')\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeCLIManifestFile(filepath.Join(pythonDir, identity.ManifestFileName), "schema: holon/v0\nkind: native\nbuild:\n  runner: python\nartifacts:\n  binary: python-demo\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	appDir := filepath.Join(root, "demo")
+	if err := os.MkdirAll(filepath.Join(appDir, "app"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(appDir, "app", "ready.txt"), []byte("ok"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	target := runtimeTargetForRunTest()
+	manifest := fmt.Sprintf("schema: holon/v0\nkind: composite\nbuild:\n  runner: recipe\n  members:\n    - id: native\n      path: ../native\n      type: holon\n    - id: python\n      path: ../python\n      type: holon\n    - id: app\n      path: app\n      type: component\n  targets:\n    %s:\n      steps:\n        - build_member: native\n        - build_member: python\n        - copy_artifact:\n            from: python\n            to: app/Holons/python.holon\n        - assert_file:\n            path: app/ready.txt\nartifacts:\n  primary: app/ready.txt\n", target)
+	if err := writeCLIManifestFile(filepath.Join(appDir, identity.ManifestFileName), manifest); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		code := Run([]string{"build", "--dry-run", "--hardened", "--target", target, appDir}, "0.1.0-test")
+		if code != 0 {
+			t.Fatalf("build --dry-run --hardened returned %d, want 0", code)
+		}
+	})
+
+	if !strings.Contains(stdout, `hardened: skipped build_member "python" (runner "python" not standalone)`) {
+		t.Fatalf("stdout missing hardened skip note:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if strings.Contains(stdout, "build_member python") {
+		t.Fatalf("stdout should not plan build_member python in hardened mode:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
 func TestBuildCommandCleanRemovesStaleOutputsBeforeBuild(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go command not available")
@@ -2002,18 +2053,20 @@ func TestBuildCommandCleanRejectsDryRun(t *testing.T) {
 	}
 }
 
-func TestLifecycleCommandsRejectNoSignOutsideBuild(t *testing.T) {
+func TestLifecycleCommandsRejectBuildOnlyFlagsOutsideBuild(t *testing.T) {
 	for _, operation := range []string{"check", "test", "clean"} {
 		t.Run(operation, func(t *testing.T) {
-			stderr := captureStderr(t, func() {
-				code := Run([]string{operation, "--no-sign"}, "0.1.0-test")
-				if code != 1 {
-					t.Fatalf("%s returned %d, want 1", operation, code)
-				}
-			})
+			for _, flag := range []string{"--no-sign", "--hardened"} {
+				stderr := captureStderr(t, func() {
+					code := Run([]string{operation, flag}, "0.1.0-test")
+					if code != 1 {
+						t.Fatalf("%s %s returned %d, want 1", operation, flag, code)
+					}
+				})
 
-			if !strings.Contains(stderr, fmt.Sprintf("op %s: unknown flag %q", operation, "--no-sign")) {
-				t.Fatalf("stderr missing unknown-flag message: %q", stderr)
+				if !strings.Contains(stderr, fmt.Sprintf("op %s: unknown flag %q", operation, flag)) {
+					t.Fatalf("stderr missing unknown-flag message for %s: %q", flag, stderr)
+				}
 			}
 		})
 	}

@@ -23,6 +23,8 @@ func (c cliState) runLifecycleCommand(format Format, quiet bool, operation strin
 			i++
 		case args[i] == "--dry-run":
 			build.DryRun = true
+		case args[i] == "--hardened" && operation == "build":
+			build.Hardened = true
 		case args[i] == "--no-sign" && operation == "build":
 			build.NoSign = true
 		case strings.HasPrefix(args[i], "--"):

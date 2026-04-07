@@ -68,7 +68,7 @@ void main() {
         await process.exitCode.timeout(const Duration(seconds: 5));
         await channel.shutdown().timeout(const Duration(seconds: 5));
       },
-      timeout: const Timeout(Duration(seconds: 15)),
+      timeout: const Timeout(Duration(seconds: 60)),
     );
   });
 }

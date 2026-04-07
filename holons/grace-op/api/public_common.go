@@ -99,10 +99,11 @@ func buildOptionsFromProto(options *opv1.BuildOptions) holons.BuildOptions {
 		return holons.BuildOptions{}
 	}
 	return holons.BuildOptions{
-		Target: options.GetTarget(),
-		Mode:   options.GetMode(),
-		DryRun: options.GetDryRun(),
-		NoSign: options.GetNoSign(),
+		Target:   options.GetTarget(),
+		Mode:     options.GetMode(),
+		Hardened: options.GetHardened(),
+		DryRun:   options.GetDryRun(),
+		NoSign:   options.GetNoSign(),
 	}
 }
 

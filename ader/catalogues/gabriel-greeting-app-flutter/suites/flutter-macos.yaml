@@ -4,46 +4,46 @@ defaults:
 steps:
   sdk-dart-unit:
     check: sdk-dart-unit
-    lane: progression
+    lane: regression
   example-dart-unit:
     check: example-dart-unit
-    lane: progression
+    lane: regression
   flutter-app-analyze:
     check: flutter-app-analyze
-    lane: progression
+    lane: regression
   flutter-app-unit:
     check: flutter-app-unit
-    lane: progression
+    lane: regression
   flutter-app-integration-smoke-macos:
     check: flutter-app-integration-smoke-macos
-    lane: progression
+    lane: regression
   integration-check-composite-flutter:
     check: integration-check-composite-flutter
-    lane: progression
+    lane: regression
   integration-build-composite-flutter:
     check: integration-build-composite-flutter
-    lane: progression
+    lane: regression
   integration-coax-business-cold-build-flutter:
     check: integration-coax-business-cold-build-flutter
-    lane: progression
+    lane: regression
   integration-coax-business-surface-flutter:
     check: integration-coax-business-surface-flutter
-    lane: progression
+    lane: regression
   integration-coax-business-matrix-flutter:
     check: integration-coax-business-matrix-flutter
-    lane: progression
+    lane: regression
   integration-rebuild-composite-flutter:
     check: integration-rebuild-composite-flutter
-    lane: progression
+    lane: regression
   integration-invoke-composite-flutter-stdio:
     check: integration-invoke-composite-flutter-stdio
-    lane: progression
+    lane: regression
   integration-invoke-composite-flutter-tcp:
     check: integration-invoke-composite-flutter-tcp
-    lane: progression
+    lane: regression
   integration-invoke-composite-flutter-unix:
     check: integration-invoke-composite-flutter-unix
-    lane: progression
+    lane: regression
 profiles:
   smoke:
     description: fast macOS confidence pass

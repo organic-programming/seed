@@ -44,6 +44,7 @@ const ChannelOptions _stdioChannelOptions = ChannelOptions(
   idleTimeout: null,
 );
 const Duration _stdioStartupProbeWindow = Duration(milliseconds: 500);
+const int _unixSocketPathMaxBytes = 103;
 
 void resetConnectTestOverrides() {
   connectCurrentRootProvider = () => Directory.current.path;
@@ -53,7 +54,14 @@ void resetConnectTestOverrides() {
 String defaultPortFilePathForTest(
   String slug, {
   String transport = 'tcp',
-}) => _defaultPortFilePath(slug, transport: transport);
+}) =>
+    _defaultPortFilePath(slug, transport: transport);
+
+String defaultUnixSocketURIForTest(String slug, String portFile) =>
+    _defaultUnixSocketURI(slug, portFile);
+
+String defaultWorkingDirectoryForTest(String path, String binaryPath) =>
+    _defaultWorkingDirectory(path, binaryPath);
 
 class _StdioClientChannel extends ClientChannel {
   final StdioTransportConnector _connector;
@@ -300,7 +308,7 @@ Future<void> _disconnectAsync(dynamic value) async {
       await channel.shutdown();
     } else if (channel is ClientTransportConnectorChannel) {
       await channel.shutdown();
-    } else if (channel is dynamic) {
+    } else {
       try {
         await channel.shutdown();
       } on Object {
@@ -694,12 +702,28 @@ String _resolveBinaryPath(HolonRef ref, String path) {
 String _defaultPortFilePath(
   String slug, {
   required String transport,
-}) => '${_connectRunDirectory()}${Platform.pathSeparator}$slug.${_transportPortFileSuffix(transport)}.port';
+}) =>
+    '${_connectRunDirectory()}${Platform.pathSeparator}$slug.${_transportPortFileSuffix(transport)}.port';
 
 String _legacyPortFilePath(String slug) =>
     '${_connectRunDirectory()}${Platform.pathSeparator}$slug.port';
 
-String _connectRunDirectory() => _joinPath(_connectOpPath(), 'run');
+String _connectRunDirectory() {
+  if (_isPublishedBundleMode()) {
+    return _normalizeAbsolutePath(
+      _joinPath(_joinPath(Directory.systemTemp.path, 'holons'), 'run'),
+    );
+  }
+  return _joinPath(_connectOpPath(), 'run');
+}
+
+bool _isPublishedBundleMode() {
+  final publishedRoot = discoverPublishedHolonsRootProvider()?.trim() ?? '';
+  if (publishedRoot.isEmpty) {
+    return false;
+  }
+  return Directory(_normalizeAbsolutePath(publishedRoot)).existsSync();
+}
 
 String _connectOpPath() {
   final env = connectEnvironmentProvider();
@@ -722,10 +746,39 @@ String _connectOpPath() {
 
 String _defaultWorkingDirectory(String path, String binaryPath) {
   final packageDir = Directory(path);
-  if (packageDir.existsSync()) {
-    return packageDir.absolute.path;
+  final candidate = packageDir.existsSync()
+      ? packageDir.absolute.path
+      : Directory(binaryPath).parent.absolute.path;
+  return _writableWorkingDirectory(candidate);
+}
+
+String _writableWorkingDirectory(String path) {
+  final normalized = _normalizeAbsolutePath(path);
+  if (_isWritableDirectory(normalized)) {
+    return normalized;
   }
-  return Directory(binaryPath).parent.absolute.path;
+  return _normalizeAbsolutePath(Directory.systemTemp.path);
+}
+
+bool _isWritableDirectory(String path) {
+  final directory = Directory(path);
+  if (!directory.existsSync()) {
+    return false;
+  }
+
+  final probe = File(
+    _joinPath(
+      directory.path,
+      '.holons-write-probe-${pid}-${DateTime.now().microsecondsSinceEpoch}',
+    ),
+  );
+  try {
+    probe.writeAsStringSync('probe');
+    probe.deleteSync();
+    return true;
+  } on FileSystemException {
+    return false;
+  }
 }
 
 String _transportPortFileSuffix(String transport) {
@@ -740,10 +793,44 @@ String _transportPortFileSuffix(String transport) {
 }
 
 String _defaultUnixSocketURI(String slug, String portFile) {
-  final label = _socketLabel(slug);
-  final hash = _fnv1a64(utf8.encode(portFile)) & 0xFFFFFFFFFFFF;
-  return 'unix:///tmp/holons-$label-${hash.toRadixString(16).padLeft(12, '0')}.sock';
+  final hash = _fnv1a64(utf8.encode(portFile)) & 0xFFFFFFFF;
+  final socketPath = _socketPathInTempHierarchy(
+    'h${hash.toRadixString(16).padLeft(8, '0')}.s',
+  );
+  return 'unix://${_normalizeAbsolutePath(socketPath)}';
 }
+
+String _socketPathInTempHierarchy(String socketName) {
+  final tempDir = _normalizeAbsolutePath(Directory.systemTemp.path);
+  for (final candidateDir in _socketDirectoryCandidates(tempDir)) {
+    if (!_isWritableDirectory(candidateDir)) {
+      continue;
+    }
+    final candidatePath = _normalizeAbsolutePath(
+      _joinPath(candidateDir, socketName),
+    );
+    if (_fitsUnixSocketPath(candidatePath)) {
+      return candidatePath;
+    }
+  }
+  return _normalizeAbsolutePath(_joinPath(tempDir, socketName));
+}
+
+Iterable<String> _socketDirectoryCandidates(String startPath) sync* {
+  var current = _normalizeAbsolutePath(startPath);
+  final seen = <String>{};
+  while (seen.add(current)) {
+    yield current;
+    final parent = _normalizeAbsolutePath(Directory(current).parent.path);
+    if (parent == current) {
+      break;
+    }
+    current = parent;
+  }
+}
+
+bool _fitsUnixSocketPath(String path) =>
+    utf8.encode(path).length <= _unixSocketPathMaxBytes;
 
 bool _targetMatchesTransport(String target, String expectedTransport) {
   final normalized = expectedTransport.trim().toLowerCase();
@@ -780,33 +867,6 @@ String _recentLineDetails(List<String> recentLines) {
     return '';
   }
   return ': ${recentLines.join(' | ')}';
-}
-
-String _socketLabel(String slug) {
-  final buffer = StringBuffer();
-  var lastWasDash = false;
-
-  for (final rune in slug.trim().toLowerCase().runes) {
-    final char = String.fromCharCode(rune);
-    final isAsciiLetter = rune >= 97 && rune <= 122;
-    final isDigit = rune >= 48 && rune <= 57;
-    if (isAsciiLetter || isDigit) {
-      buffer.write(char);
-      lastWasDash = false;
-    } else if ((char == '-' || char == '_') &&
-        buffer.isNotEmpty &&
-        !lastWasDash) {
-      buffer.write('-');
-      lastWasDash = true;
-    }
-
-    if (buffer.length >= 24) {
-      break;
-    }
-  }
-
-  final label = buffer.toString().replaceAll(RegExp(r'^-+|-+$'), '');
-  return label.isEmpty ? 'socket' : label;
 }
 
 int _fnv1a64(List<int> bytes) {

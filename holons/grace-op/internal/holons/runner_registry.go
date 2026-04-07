@@ -33,6 +33,19 @@ func isSupportedRunner(name string) bool {
 	return ok
 }
 
+// runnerProducesStandaloneArtifact reports whether a runner produces a
+// self-contained native binary that executes without an external
+// interpreter at runtime. Used by hardened composite builds to decide
+// which members to include.
+func runnerProducesStandaloneArtifact(runner string) bool {
+	switch strings.TrimSpace(strings.ToLower(runner)) {
+	case "go-module", "swift-package", "cargo", "cmake", "qt-cmake", "dart":
+		return true
+	default:
+		return false
+	}
+}
+
 func supportedRunnerList() string {
 	names := make([]string, 0, len(runnerRegistry))
 	for name := range runnerRegistry {

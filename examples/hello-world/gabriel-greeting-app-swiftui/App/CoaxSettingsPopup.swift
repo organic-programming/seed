@@ -1,6 +1,8 @@
 import SwiftUI
 import GreetingKit
 
+private let defaultCoaxUnixPath = NSTemporaryDirectory() + "gabriel-greeting-coax.sock"
+
 struct CoaxSettingsPopup: View {
     @ObservedObject var coaxServer: CoaxServer
     @Binding var isPresented: Bool
@@ -80,7 +82,7 @@ struct CoaxSettingsPopup: View {
                     textFieldRow(
                         "Socket path",
                         text: $coaxServer.serverUnixPath,
-                        placeholder: "/tmp/gabriel-greeting-coax.sock"
+                        placeholder: defaultCoaxUnixPath
                     )
                 }
             }

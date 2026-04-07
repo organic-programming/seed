@@ -38,6 +38,7 @@ const (
 type BuildOptions struct {
 	Target            string
 	Mode              string
+	Hardened          bool
 	DryRun            bool
 	NoSign            bool
 	Progress          progress.Reporter
@@ -51,6 +52,7 @@ type BuildOptions struct {
 type BuildContext struct {
 	Target    string
 	Mode      string
+	Hardened  bool
 	DryRun    bool
 	NoSign    bool
 	Progress  progress.Reporter
@@ -350,7 +352,7 @@ func prebuildCompositeDependencies(manifest *LoadedManifest, ctx BuildContext) (
 		completed: make(map[string]Report),
 	}
 
-	order, err := resolveCompositeDependencyOrder(manifest, session)
+	order, err := resolveCompositeDependencyOrder(manifest, ctx, session)
 	if err != nil {
 		return session, nil, err
 	}
@@ -380,6 +382,7 @@ func prebuildCompositeDependencies(manifest *LoadedManifest, ctx BuildContext) (
 		childReport, buildErr := ExecuteLifecycle(OperationBuild, node.dir, BuildOptions{
 			Target:    ctx.Target,
 			Mode:      ctx.Mode,
+			Hardened:  ctx.Hardened,
 			DryRun:    ctx.DryRun,
 			NoSign:    ctx.NoSign,
 			Progress:  depReporter,
@@ -398,7 +401,7 @@ func prebuildCompositeDependencies(manifest *LoadedManifest, ctx BuildContext) (
 	return session, reports, nil
 }
 
-func resolveCompositeDependencyOrder(manifest *LoadedManifest, session *compositeBuildSession) ([]*compositeDependencyNode, error) {
+func resolveCompositeDependencyOrder(manifest *LoadedManifest, ctx BuildContext, session *compositeBuildSession) ([]*compositeDependencyNode, error) {
 	if manifest == nil {
 		return nil, nil
 	}
@@ -441,7 +444,7 @@ func resolveCompositeDependencyOrder(manifest *LoadedManifest, session *composit
 		return nil
 	}
 
-	directMembers, err := compositeHolonMembers(manifest, session)
+	directMembers, err := compositeHolonMembers(manifest, ctx, session)
 	if err != nil {
 		return nil, err
 	}
@@ -454,17 +457,21 @@ func resolveCompositeDependencyOrder(manifest *LoadedManifest, session *composit
 	return order, nil
 }
 
-func compositeHolonMembers(manifest *LoadedManifest, session *compositeBuildSession) ([]*compositeDependencyNode, error) {
+func compositeHolonMembers(manifest *LoadedManifest, ctx BuildContext, session *compositeBuildSession) ([]*compositeDependencyNode, error) {
 	nodes := make([]*compositeDependencyNode, 0)
+	excludedMembers := resolveHardenedExcludedMembers(manifest, ctx)
 	for _, member := range manifest.Manifest.Build.Members {
 		if member.Type != "holon" {
+			continue
+		}
+		if _, excluded := excludedMembers[member.ID]; excluded {
 			continue
 		}
 		memberDir, err := manifest.ResolveManifestPath(member.Path)
 		if err != nil {
 			return nil, fmt.Errorf("recipe member %q path: %w", member.ID, err)
 		}
-		node, err := compositeNodeForDir(memberDir, session)
+		node, err := compositeNodeForDir(memberDir, ctx, session)
 		if err != nil {
 			return nil, err
 		}
@@ -473,7 +480,7 @@ func compositeHolonMembers(manifest *LoadedManifest, session *compositeBuildSess
 	return nodes, nil
 }
 
-func compositeNodeForDir(dir string, session *compositeBuildSession) (*compositeDependencyNode, error) {
+func compositeNodeForDir(dir string, ctx BuildContext, session *compositeBuildSession) (*compositeDependencyNode, error) {
 	memberManifest, err := LoadManifest(dir)
 	if err != nil {
 		return nil, err
@@ -495,7 +502,7 @@ func compositeNodeForDir(dir string, session *compositeBuildSession) (*composite
 	}
 	session.nodes[key] = node
 
-	dependencies, err := compositeHolonMembers(memberManifest, session)
+	dependencies, err := compositeHolonMembers(memberManifest, ctx, session)
 	if err != nil {
 		return nil, err
 	}
@@ -538,6 +545,53 @@ func manifestSlug(manifest *LoadedManifest) string {
 		return name
 	}
 	return filepath.Base(manifest.Dir)
+}
+
+func resolveHardenedExcludedMembers(manifest *LoadedManifest, ctx BuildContext) map[string]string {
+	if manifest == nil || !ctx.Hardened {
+		return nil
+	}
+
+	excluded := make(map[string]string)
+	for _, member := range manifest.Manifest.Build.Members {
+		if member.Type != "holon" {
+			continue
+		}
+		memberDir, err := manifest.ResolveManifestPath(member.Path)
+		if err != nil {
+			continue
+		}
+		memberManifest, loadErr := LoadManifest(memberDir)
+		if loadErr != nil {
+			continue
+		}
+		runnerName := strings.TrimSpace(memberManifest.Manifest.Build.Runner)
+		if runnerProducesStandaloneArtifact(runnerName) {
+			continue
+		}
+		excluded[member.ID] = runnerName
+		if ctx.Progress != nil {
+			ctx.Progress.Step(fmt.Sprintf("hardened: skipping %s (runner %q not standalone)", member.ID, runnerName))
+		}
+	}
+	return excluded
+}
+
+func recipeExcludedStepReason(step RecipeStep, excludedMembers map[string]string) string {
+	if len(excludedMembers) == 0 {
+		return ""
+	}
+	if step.BuildMember != "" {
+		if runnerName, excluded := excludedMembers[step.BuildMember]; excluded {
+			return fmt.Sprintf(`hardened: skipped build_member %q (runner %q not standalone)`, step.BuildMember, runnerName)
+		}
+	}
+	if step.CopyArtifact != nil {
+		if runnerName, excluded := excludedMembers[step.CopyArtifact.From]; excluded {
+			return fmt.Sprintf(`hardened: skipped copy_artifact from %q (runner %q not standalone)`, step.CopyArtifact.From, runnerName)
+		}
+	}
+	return ""
 }
 
 func dependencyFreshReport(node *compositeDependencyNode, ctx BuildContext) Report {
@@ -954,6 +1008,7 @@ func resolveBuildContext(manifest *LoadedManifest, opts BuildOptions) (BuildCont
 	return BuildContext{
 		Target:    target,
 		Mode:      mode,
+		Hardened:  opts.Hardened,
 		DryRun:    opts.DryRun,
 		NoSign:    opts.NoSign,
 		Progress:  opts.Progress,
@@ -1178,6 +1233,7 @@ func (r recipeRunner) build(manifest *LoadedManifest, ctx BuildContext, report *
 			childReport, err := ExecuteLifecycle(OperationBuild, manifest.Dir, BuildOptions{
 				Target:   name,
 				Mode:     ctx.Mode,
+				Hardened: ctx.Hardened,
 				DryRun:   ctx.DryRun,
 				NoSign:   ctx.NoSign,
 				Progress: ctx.Progress.Child(),
@@ -1205,6 +1261,7 @@ func (r recipeRunner) build(manifest *LoadedManifest, ctx BuildContext, report *
 	for _, m := range manifest.Manifest.Build.Members {
 		memberMap[m.ID] = m
 	}
+	excludedMembers := resolveHardenedExcludedMembers(manifest, ctx)
 
 	signer := newRecipeBundleSigner(manifest, ctx)
 	for i, step := range target.Steps {
@@ -1214,6 +1271,11 @@ func (r recipeRunner) build(manifest *LoadedManifest, ctx BuildContext, report *
 			}
 		}
 		stepLabel := fmt.Sprintf("step %d", i+1)
+		if reason := recipeExcludedStepReason(step, excludedMembers); reason != "" {
+			ctx.Progress.Step(reason)
+			report.Notes = append(report.Notes, reason)
+			continue
+		}
 		if err := r.executeStep(manifest, ctx, step, memberMap, report, stepLabel); err != nil {
 			return fmt.Errorf("target %q %s: %w", ctx.Target, stepLabel, err)
 		}
@@ -1265,7 +1327,7 @@ func (recipeRunner) stepBuildMember(manifest *LoadedManifest, ctx BuildContext, 
 	report.Commands = append(report.Commands, "build_member "+memberID)
 
 	if ctx.composite != nil && ctx.composite.skipDependencyPrebuild {
-		node, nodeErr := compositeNodeForDir(memberDir, ctx.composite.session)
+		node, nodeErr := compositeNodeForDir(memberDir, ctx, ctx.composite.session)
 		if nodeErr != nil {
 			return fmt.Errorf("build_member %q manifest: %w", memberID, nodeErr)
 		}
@@ -1282,6 +1344,7 @@ func (recipeRunner) stepBuildMember(manifest *LoadedManifest, ctx BuildContext, 
 	childReport, err := ExecuteLifecycle(OperationBuild, memberDir, BuildOptions{
 		Target:   ctx.Target,
 		Mode:     ctx.Mode,
+		Hardened: ctx.Hardened,
 		DryRun:   ctx.DryRun,
 		NoSign:   ctx.NoSign,
 		Progress: ctx.Progress.Child(),
@@ -1539,7 +1602,7 @@ func isSignableBundleArtifact(path string) bool {
 }
 
 func bundleCodesignArgs(artifactRef string) []string {
-	return []string{"codesign", "--force", "--deep", "--sign", "-", artifactRef}
+	return []string{"codesign", "--force", "--deep", "--preserve-metadata=entitlements", "--sign", "-", artifactRef}
 }
 
 func normalizedTarget(ref string) string {

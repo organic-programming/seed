@@ -33,6 +33,8 @@ func cmdLifecycle(format Format, runtimeOpts commandRuntimeOptions, operation ho
 			opts.DryRun = true
 		case args[i] == "--clean" && operation == holons.OperationBuild:
 			cleanFirst = true
+		case args[i] == "--hardened" && operation == holons.OperationBuild:
+			opts.Hardened = true
 		case args[i] == "--no-sign" && operation == holons.OperationBuild:
 			opts.NoSign = true
 		case isDiscoveryFlag(args[i]):
@@ -257,6 +259,8 @@ func parseBuildCommandArgs(args []string) (string, holons.BuildOptions, bool, bo
 			opts.DryRun = true
 		case args[i] == "--clean":
 			cleanFirst = true
+		case args[i] == "--hardened":
+			opts.Hardened = true
 		case args[i] == "--no-sign":
 			opts.NoSign = true
 		case args[i] == "--symlink":

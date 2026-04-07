@@ -76,6 +76,30 @@ func TestRunnerRegistryAcceptsPythonDartAndRuby(t *testing.T) {
 	}
 }
 
+func TestRunnerProducesStandaloneArtifact(t *testing.T) {
+	tests := []struct {
+		runner string
+		want   bool
+	}{
+		{runner: "go-module", want: true},
+		{runner: "swift-package", want: true},
+		{runner: "cargo", want: true},
+		{runner: "cmake", want: true},
+		{runner: "qt-cmake", want: true},
+		{runner: "dart", want: true},
+		{runner: "python", want: false},
+		{runner: "ruby", want: false},
+		{runner: "npm", want: false},
+		{runner: "recipe", want: false},
+	}
+
+	for _, tc := range tests {
+		if got := runnerProducesStandaloneArtifact(tc.runner); got != tc.want {
+			t.Fatalf("runnerProducesStandaloneArtifact(%q) = %v, want %v", tc.runner, got, tc.want)
+		}
+	}
+}
+
 func TestCargoRunnerDryRunBuild(t *testing.T) {
 	root := t.TempDir()
 	writeRunnerManifest(t, root, "schema: holon/v0\nkind: native\nbuild:\n  runner: cargo\nartifacts:\n  binary: cargo-demo\n")

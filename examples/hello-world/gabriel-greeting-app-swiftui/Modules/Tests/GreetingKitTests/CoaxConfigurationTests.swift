@@ -2,6 +2,13 @@ import XCTest
 @testable import GreetingKit
 
 final class CoaxConfigurationTests: XCTestCase {
+    func testDefaultUnixPathUsesTemporaryDirectory() {
+        XCTAssertEqual(
+            CoaxSettingsSnapshot.defaultUnixPath,
+            NSTemporaryDirectory() + "gabriel-greeting-coax.sock"
+        )
+    }
+
     func testTCPLaunchOverridesHonorEnvironment() {
         let overrides = coaxLaunchOverrides(environment: [
             "OP_COAX_SERVER_ENABLED": "1",

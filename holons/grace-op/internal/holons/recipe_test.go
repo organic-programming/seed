@@ -73,11 +73,11 @@ func writeFakeCodesignCommand(t *testing.T, dir string) {
 	t.Helper()
 
 	path := filepath.Join(dir, "codesign")
-	data := []byte("#!/bin/sh\nbundle=\"$5\"\nmkdir -p \"$bundle/Contents/_CodeSignature\"\nprintf 'signed\\n' > \"$bundle/Contents/_CodeSignature/CodeResources\"\n")
+	data := []byte("#!/bin/sh\nfor last; do bundle=\"$last\"; done\nmkdir -p \"$bundle/Contents/_CodeSignature\"\nprintf 'signed\\n' > \"$bundle/Contents/_CodeSignature/CodeResources\"\n")
 	mode := os.FileMode(0o755)
 	if runtimePlatform() == "windows" {
 		path += ".bat"
-		data = []byte("@echo off\r\nset bundle=%~5\r\nmkdir \"%bundle%\\Contents\\_CodeSignature\" >nul 2>nul\r\necho signed> \"%bundle%\\Contents\\_CodeSignature\\CodeResources\"\r\n")
+		data = []byte("@echo off\r\nset bundle=%~6\r\nmkdir \"%bundle%\\Contents\\_CodeSignature\" >nul 2>nul\r\necho signed> \"%bundle%\\Contents\\_CodeSignature\\CodeResources\"\r\n")
 		mode = 0o644
 	}
 	if err := os.WriteFile(path, data, mode); err != nil {
@@ -1277,6 +1277,167 @@ artifacts:
 	}
 }
 
+func TestExecuteLifecycleBuildCompositeHardenedSkipsNonStandaloneMembers(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+
+	nativeDir := filepath.Join(root, "native")
+	if err := os.MkdirAll(nativeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeRecipeManifest(t, nativeDir, `schema: holon/v0
+kind: native
+build:
+  runner: go-module
+artifacts:
+  binary: native
+`)
+
+	pythonDir := filepath.Join(root, "python")
+	if err := os.MkdirAll(filepath.Join(pythonDir, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pythonDir, "bin", "main.py"), []byte("print('ok')\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeRecipeManifest(t, pythonDir, `schema: holon/v0
+kind: native
+build:
+  runner: python
+artifacts:
+  binary: python-demo
+`)
+
+	appDir := filepath.Join(root, "app")
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(appDir, "ready.txt"), []byte("ok"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	writeRecipeManifest(t, root, `schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: native
+      path: native
+      type: holon
+    - id: python
+      path: python
+      type: holon
+    - id: app
+      path: app
+      type: component
+  targets:
+    `+canonicalRuntimeTarget()+`:
+      steps:
+        - build_member: native
+        - build_member: python
+        - copy_artifact:
+            from: python
+            to: app/Holons/python.holon
+        - assert_file:
+            path: app/ready.txt
+artifacts:
+  primary: app/ready.txt
+`)
+
+	report, err := ExecuteLifecycle(OperationBuild, root, BuildOptions{DryRun: true, Hardened: true})
+	if err != nil {
+		t.Fatalf("hardened dry run failed: %v", err)
+	}
+	if len(report.Children) != 1 {
+		t.Fatalf("children = %d, want 1 prebuilt standalone dependency", len(report.Children))
+	}
+	if report.Children[0].Holon != "native" {
+		t.Fatalf("child holon = %q, want native", report.Children[0].Holon)
+	}
+	if hasEntryContaining(report.Commands, "build_member python") {
+		t.Fatalf("commands should skip python build_member in hardened mode: %v", report.Commands)
+	}
+	if hasEntryContaining(report.Commands, "copy_artifact python") {
+		t.Fatalf("commands should skip python copy_artifact in hardened mode: %v", report.Commands)
+	}
+	if !slices.Contains(report.Notes, `hardened: skipped build_member "python" (runner "python" not standalone)`) {
+		t.Fatalf("notes missing hardened build_member skip: %v", report.Notes)
+	}
+	if !slices.Contains(report.Notes, `hardened: skipped copy_artifact from "python" (runner "python" not standalone)`) {
+		t.Fatalf("notes missing hardened copy_artifact skip: %v", report.Notes)
+	}
+}
+
+func TestRecipeRunnerAggregateBuildPropagatesHardenedMode(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+
+	pythonDir := filepath.Join(root, "python")
+	if err := os.MkdirAll(filepath.Join(pythonDir, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pythonDir, "bin", "main.py"), []byte("print('ok')\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeRecipeManifest(t, pythonDir, `schema: holon/v0
+kind: native
+build:
+  runner: python
+artifacts:
+  binary: python-demo
+`)
+
+	appDir := filepath.Join(root, "app")
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(appDir, "linux.txt"), []byte("linux"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(appDir, "macos.txt"), []byte("macos"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	writeRecipeManifest(t, root, `schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: python
+      path: python
+      type: holon
+    - id: app
+      path: app
+      type: component
+  targets:
+    linux:
+      steps:
+        - build_member: python
+        - assert_file:
+            path: app/linux.txt
+    macos:
+      steps:
+        - build_member: python
+        - assert_file:
+            path: app/macos.txt
+artifacts:
+  primary: app/linux.txt
+`)
+
+	report, err := ExecuteLifecycle(OperationBuild, root, BuildOptions{Target: "all", DryRun: true, Hardened: true})
+	if err != nil {
+		t.Fatalf("aggregate hardened dry run failed: %v", err)
+	}
+	if len(report.Children) != 2 {
+		t.Fatalf("children = %d, want 2 target reports", len(report.Children))
+	}
+	for _, child := range report.Children {
+		if !slices.Contains(child.Notes, `hardened: skipped build_member "python" (runner "python" not standalone)`) {
+			t.Fatalf("child notes missing hardened skip for target %q: %v", child.BuildTarget, child.Notes)
+		}
+	}
+}
+
 func TestDependencyIsFreshRejectsStaleSharedCache(t *testing.T) {
 	if _, err := execLookPath("go"); err != nil {
 		t.Skip("go command not available")
@@ -1599,7 +1760,7 @@ artifacts:
 	if _, err := os.Stat(filepath.Join(root, "app", "Demo.app", "Contents", "_CodeSignature", "CodeResources")); err != nil {
 		t.Fatalf("signed bundle missing CodeResources: %v", err)
 	}
-	if len(report.Commands) == 0 || report.Commands[0] != "codesign --force --deep --sign - app/Demo.app" {
+	if len(report.Commands) == 0 || report.Commands[0] != "codesign --force --deep --preserve-metadata=entitlements --sign - app/Demo.app" {
 		t.Fatalf("expected first command to be codesign, got %v", report.Commands)
 	}
 	if !hasEntryContaining(report.Notes, "signed (ad-hoc): app/Demo.app") {
@@ -1638,7 +1799,7 @@ artifacts:
 	if err != nil {
 		t.Fatalf("build failed: %v", err)
 	}
-	if hasEntryContaining(report.Commands, "codesign --force --deep --sign - app/Demo.app") {
+	if hasEntryContaining(report.Commands, "codesign --force --deep --preserve-metadata=entitlements --sign - app/Demo.app") {
 		t.Fatalf("did not expect codesign command, got %v", report.Commands)
 	}
 	if !hasEntryContaining(report.Notes, "skip signing (--no-sign): app/Demo.app") {
@@ -1764,7 +1925,7 @@ artifacts:
 	if hasEntryContaining(report.Notes, "signed (ad-hoc):") {
 		t.Fatalf("did not expect success note in dry run, got %v", report.Notes)
 	}
-	if !hasEntryContaining(report.Commands, "codesign --force --deep --sign - app/Demo.app") {
+	if !hasEntryContaining(report.Commands, "codesign --force --deep --preserve-metadata=entitlements --sign - app/Demo.app") {
 		t.Fatalf("expected planned codesign command, got %v", report.Commands)
 	}
 	if _, err := os.Stat(filepath.Join(root, "app", "Demo.app", "Contents", "_CodeSignature", "CodeResources")); !os.IsNotExist(err) {

@@ -5,6 +5,33 @@ checks:
     - swift
     command: swift test
     description: Swift example unit tests
+  swiftui-modules-unit:
+    workdir: examples/hello-world/gabriel-greeting-app-swiftui/Modules
+    prereqs:
+    - swift
+    command: swift test
+    description: SwiftUI GreetingKit unit tests
+  integration-build-composite-swiftui:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - xcodebuild
+    - xcodegen
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    - codesign
+    command: go test -v -count=1 -timeout 45m -run "^TestBuild_07_Composite$/^gabriel-greeting-app-swiftui$" ./build/composite
+    description: composite build for swiftui app with sandbox verification
   integration-coax-build-recipe-app:
     workdir: ader/catalogues/grace-op/integration
     prereqs:

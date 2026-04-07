@@ -24,6 +24,14 @@ const _memberSlugs = <String>[
   'gabriel-greeting-node',
   'gabriel-greeting-ruby',
 ];
+const _standaloneRunners = <String>{
+  'go-module',
+  'swift-package',
+  'cargo',
+  'cmake',
+  'qt-cmake',
+  'dart',
+};
 
 Future<void> main(List<String> args) async {
   if (args.length != 2) {
@@ -89,6 +97,17 @@ Future<void> main(List<String> args) async {
           p.join(destination.path, 'Contents', 'Resources', 'AppProto'),
         ),
       );
+      final codesignResult = await Process.run('codesign', <String>[
+        '--force',
+        '--deep',
+        '--preserve-metadata=entitlements',
+        '--sign',
+        '-',
+        destination.path,
+      ]);
+      if (codesignResult.exitCode != 0) {
+        stderr.writeln('codesign warning: ${codesignResult.stderr}');
+      }
       entrypoint = '$_entryBase.app';
       break;
     case 'linux':
@@ -234,7 +253,13 @@ Future<void> _copyMemberHolons(
       p.join(examplesDir.path, slug, '.op', 'build', '$slug.holon'),
     );
     if (!source.existsSync()) {
-      throw StateError('missing built member package: ${source.path}');
+      if (_memberProducesStandaloneArtifact(examplesDir, slug)) {
+        throw StateError('missing built member package: ${source.path}');
+      }
+      stderr.writeln(
+        'skipping missing non-standalone member package: ${source.path}',
+      );
+      continue;
     }
     await _copyEntity(
       source,
@@ -272,6 +297,7 @@ Future<void> _writeHolonPackageJson({
     'transport': 'stdio',
     'entrypoint': entrypoint,
     'architectures': <String>[runtimeArchitecture],
+    'standalone': true,
     'has_dist': false,
     'has_source': false,
   };
@@ -292,6 +318,41 @@ Future<void> _copyDirectoryContents(
     final name = p.basename(entity.path);
     await _copyEntity(entity, Directory(p.join(destination.path, name)));
   }
+}
+
+bool _memberProducesStandaloneArtifact(Directory examplesDir, String slug) {
+  final packageMetadata = File(
+    p.join(
+      examplesDir.path,
+      slug,
+      '.op',
+      'build',
+      '$slug.holon',
+      '.holon.json',
+    ),
+  );
+  if (packageMetadata.existsSync()) {
+    final decoded = jsonDecode(packageMetadata.readAsStringSync());
+    if (decoded is Map<String, dynamic>) {
+      final standalone = decoded['standalone'];
+      if (standalone is bool) {
+        return standalone;
+      }
+    }
+  }
+
+  final manifest = File(
+    p.join(examplesDir.path, slug, 'api', 'v1', 'holon.proto'),
+  );
+  if (!manifest.existsSync()) {
+    return true;
+  }
+
+  final runnerMatch = RegExp(
+    r'runner:\s*"([^"]+)"',
+  ).firstMatch(manifest.readAsStringSync());
+  final runner = runnerMatch?.group(1)?.trim().toLowerCase() ?? '';
+  return _standaloneRunners.contains(runner);
 }
 
 Future<void> _copyEntity(

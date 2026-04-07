@@ -1417,6 +1417,7 @@ type BuildOptions struct {
 	Mode          string                 `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
 	DryRun        bool                   `protobuf:"varint,3,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	NoSign        bool                   `protobuf:"varint,4,opt,name=no_sign,json=noSign,proto3" json:"no_sign,omitempty"`
+	Hardened      bool                   `protobuf:"varint,5,opt,name=hardened,proto3" json:"hardened,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1475,6 +1476,13 @@ func (x *BuildOptions) GetDryRun() bool {
 func (x *BuildOptions) GetNoSign() bool {
 	if x != nil {
 		return x.NoSign
+	}
+	return false
+}
+
+func (x *BuildOptions) GetHardened() bool {
+	if x != nil {
+		return x.Hardened
 	}
 	return false
 }
@@ -4440,12 +4448,13 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x0fVersionResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x16\n" +
-	"\x06banner\x18\x03 \x01(\tR\x06banner\"l\n" +
+	"\x06banner\x18\x03 \x01(\tR\x06banner\"\x88\x01\n" +
 	"\fBuildOptions\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12\x12\n" +
 	"\x04mode\x18\x02 \x01(\tR\x04mode\x12\x17\n" +
 	"\adry_run\x18\x03 \x01(\bR\x06dryRun\x12\x17\n" +
-	"\ano_sign\x18\x04 \x01(\bR\x06noSign\"U\n" +
+	"\ano_sign\x18\x04 \x01(\bR\x06noSign\x12\x1a\n" +
+	"\bhardened\x18\x05 \x01(\bR\bhardened\"U\n" +
 	"\x10LifecycleRequest\x12\x16\n" +
 	"\x06target\x18\x01 \x01(\tR\x06target\x12)\n" +
 	"\x05build\x18\x02 \x01(\v2\x13.op.v1.BuildOptionsR\x05build\"\x93\x03\n" +
@@ -4725,7 +4734,7 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x03Env\x12\x11.op.v1.EnvRequest\x1a\x12.op.v1.EnvResponseB\xc8\x14\x82\xb5\x18\x88\x14\n" +
 	"\x80\x01\n" +
 	"\bholon/v1\x12$28f22ab5-c62d-41f8-9ada-e34333060ff9\x1a\x05Grace\"\x02OP*\x19One command, every holon.2\bB. ALTERB\x05draftJ\n" +
-	"2026-02-12R\a0.5.107Z\x02op\x1a\xa5\x02OP is the unified entry point to the Organic Programming ecosystem. It discovers holons — locally or over the network — and dispatches commands to them through a single interface. The actant installs one binary and gets access to every holon. OP does not implement domain logic. It routes.\"\x02go*\x84\x03\n" +
+	"2026-02-12R\a0.5.695Z\x02op\x1a\xa5\x02OP is the unified entry point to the Organic Programming ecosystem. It discovers holons — locally or over the network — and dispatches commands to them through a single interface. The actant installs one binary and gets access to every holon. OP does not implement domain logic. It routes.\"\x02go*\x84\x03\n" +
 	"\x12discover-and-build\x12=Discover a holon, inspect its contract, and build it locally.\x1aQUser wants to find a holon in the workspace and turn it into a runnable artifact.\"7Discover local holons with `op list .` or `op discover`\".Inspect the contract with `op inspect <holon>`\".Validate prerequisites with `op check <holon>`\"CBuild and install with `op build <holon>` then `op install <holon>`*\xc0\x03\n" +
 	"\x0efull-lifecycle\x12@Drive a holon through validation, build, test, run, and cleanup.\x1aLUser wants the complete Organic Programming lifecycle for a holon or recipe.\"9Validate manifest and environment with `op check <holon>`\"IBuild and test the artifact with `op build <holon>` and `op test <holon>`\"BLaunch or dispatch with `op run <holon>` or `op <holon> <command>`\"TClean and uninstall when finished with `op clean <holon>` and `op uninstall <holon>`*\xcb\x02\n" +
 	"\x10introspect-holon\x12;Inspect a holon's RPC contract, fields, and skills offline.\x1a:User wants to understand a holon's API without running it.\"6Run `op inspect <holon>` for human-readable proto docs\";Use `op inspect <holon> --json` for machine-readable output\"IFallback to `op inspect <host:port>` for a running holon via Describe RPC*\xa4\x02\n" +

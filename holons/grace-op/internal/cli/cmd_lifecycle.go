@@ -163,6 +163,7 @@ func addLifecycleExecutionFlags(cmd *cobra.Command, includeBuildOnly bool) {
 	addDiscoveryFlags(cmd)
 	if includeBuildOnly {
 		cmd.Flags().Bool("clean", false, "clean before building (cannot be combined with --dry-run)")
+		cmd.Flags().Bool("hardened", false, "exclude interpreter-dependent members from composite builds")
 		cmd.Flags().Bool("no-sign", false, "skip automatic ad-hoc signing for bundle artifacts")
 		return
 	}
@@ -183,6 +184,9 @@ func lifecycleArgsFromCommand(cmd *cobra.Command, positional []string) []string 
 	}
 	if clean, err := cmd.Flags().GetBool("clean"); err == nil && clean {
 		args = append(args, "--clean")
+	}
+	if hardened, err := cmd.Flags().GetBool("hardened"); err == nil && hardened {
+		args = append(args, "--hardened")
 	}
 	if noSign, err := cmd.Flags().GetBool("no-sign"); err == nil && noSign {
 		args = append(args, "--no-sign")

@@ -3,6 +3,7 @@ package build_test
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -34,6 +35,38 @@ func TestBuildAPI_BuildDryRunNoSign_GabrielGreetingAppSwiftUI(t *testing.T) {
 	}
 	if report.Holon != "gabriel-greeting-app-swiftui" {
 		t.Fatalf("holon = %q, want gabriel-greeting-app-swiftui", report.Holon)
+	}
+}
+
+func TestBuildAPI_BuildDryRunHardened_GabrielGreetingAppFlutter(t *testing.T) {
+	env := newBuildTestEnv(t)
+
+	report := buildViaAPI(t, env, "gabriel-greeting-app-flutter", &opv1.BuildOptions{
+		DryRun:   true,
+		Hardened: true,
+	})
+
+	if report == nil {
+		t.Fatal("expected lifecycle report")
+	}
+	children := lifecycleChildHolons(report)
+	for _, excluded := range []string{
+		"gabriel-greeting-python",
+		"gabriel-greeting-csharp",
+		"gabriel-greeting-java",
+		"gabriel-greeting-kotlin",
+		"gabriel-greeting-node",
+		"gabriel-greeting-ruby",
+	} {
+		if slices.Contains(children, excluded) {
+			t.Fatalf("hardened build should exclude %s, got children %v", excluded, children)
+		}
+	}
+	if !lifecycleHasNote(report, `hardened: skipped build_member "greeting-python" (runner "python" not standalone)`) {
+		t.Fatalf("notes missing hardened python skip: %v", report.Notes)
+	}
+	if !lifecycleHasNote(report, `hardened: skipped build_member "greeting-node" (runner "npm" not standalone)`) {
+		t.Fatalf("notes missing hardened node skip: %v", report.Notes)
 	}
 }
 

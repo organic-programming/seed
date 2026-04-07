@@ -39,6 +39,22 @@ func TestBuildRPC_BuildDryRunNoSignMatchesAPIAndCLI_GabrielGreetingAppSwiftUI(t 
 	assertLifecycleEqual(t, "RPC no-sign", rpcReport, "API no-sign", apiReport)
 }
 
+func TestBuildRPC_BuildDryRunHardenedMatchesAPIAndCLI_GabrielGreetingAppFlutter(t *testing.T) {
+	opts := &opv1.BuildOptions{DryRun: true, Hardened: true}
+
+	apiEnv := newBuildTestEnv(t)
+	apiReport := buildViaAPI(t, apiEnv, "gabriel-greeting-app-flutter", opts)
+
+	cliEnv := newBuildTestEnv(t)
+	cliReport := buildViaCLIJSON(t, cliEnv, "gabriel-greeting-app-flutter", opts, false)
+
+	rpcEnv := newBuildTestEnv(t)
+	rpcReport := buildViaRPC(t, rpcEnv, "gabriel-greeting-app-flutter", opts)
+
+	assertLifecycleEqual(t, "CLI hardened", cliReport, "API hardened", apiReport)
+	assertLifecycleEqual(t, "RPC hardened", rpcReport, "API hardened", apiReport)
+}
+
 func TestBuildRPC_BuildPrefersSourceOverOPBINMatchesAPIAndCLI_GabrielGreetingGo(t *testing.T) {
 	apiEnv := newBuildTestEnv(t)
 	runOP(t, apiEnv.OpBin, apiEnv.EnvVars, "--root", apiEnv.AbsRoot, "build", "gabriel-greeting-go", "--install")

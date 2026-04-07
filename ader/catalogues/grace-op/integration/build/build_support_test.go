@@ -234,7 +234,7 @@ func buildAndInstallViaCLIJSON(t *testing.T, env buildTestEnv, target string, bu
 }
 
 func buildFlagsFromProto(build *opv1.BuildOptions) []string {
-	args := make([]string, 0, 6)
+	args := make([]string, 0, 8)
 	if build == nil {
 		return args
 	}
@@ -250,6 +250,9 @@ func buildFlagsFromProto(build *opv1.BuildOptions) []string {
 	if build.GetNoSign() {
 		args = append(args, "--no-sign")
 	}
+	if build.GetHardened() {
+		args = append(args, "--hardened")
+	}
 	return args
 }
 
@@ -258,10 +261,11 @@ func cloneBuildOptions(build *opv1.BuildOptions) *opv1.BuildOptions {
 		return nil
 	}
 	return &opv1.BuildOptions{
-		Target: build.GetTarget(),
-		Mode:   build.GetMode(),
-		DryRun: build.GetDryRun(),
-		NoSign: build.GetNoSign(),
+		Target:   build.GetTarget(),
+		Mode:     build.GetMode(),
+		DryRun:   build.GetDryRun(),
+		NoSign:   build.GetNoSign(),
+		Hardened: build.GetHardened(),
 	}
 }
 
@@ -319,6 +323,29 @@ func rpcInstallSnapshot(report *opv1.InstallReport) *installSnapshot {
 		Installed:   report.GetInstalled(),
 		Notes:       append([]string(nil), report.GetNotes()...),
 	})
+}
+
+func lifecycleChildHolons(snapshot *lifecycleSnapshot) []string {
+	if snapshot == nil {
+		return nil
+	}
+	out := make([]string, 0, len(snapshot.Children))
+	for _, child := range snapshot.Children {
+		out = append(out, child.Holon)
+	}
+	return out
+}
+
+func lifecycleHasNote(snapshot *lifecycleSnapshot, needle string) bool {
+	if snapshot == nil {
+		return false
+	}
+	for _, note := range snapshot.Notes {
+		if note == needle {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeInstallSnapshot(snapshot *installSnapshot) *installSnapshot {

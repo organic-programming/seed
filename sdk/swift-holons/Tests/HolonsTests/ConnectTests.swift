@@ -210,7 +210,10 @@ final class ConnectTests: XCTestCase {
 
     let portTarget = try String(contentsOf: fixture.portFile, encoding: .utf8)
       .trimmingCharacters(in: .whitespacesAndNewlines)
-    XCTAssertTrue(portTarget.hasPrefix("unix:///tmp/holons-"))
+    XCTAssertEqual(
+      portTarget,
+      defaultUnixSocketURI(slug: fixture.slug, portFile: normalizedPortFilePath(nil, slug: fixture.slug))
+    )
 
     let reused = try connect(fixture.slug)
     XCTAssertEqual(try describeSlug(reused, timeout: 2.0), fixture.slug)
@@ -219,6 +222,42 @@ final class ConnectTests: XCTestCase {
     XCTAssertTrue(pidExists(pid))
     terminateProcess(pid)
     try waitForProcessExit(pid)
+  }
+
+  func testNormalizedPortFilePathUsesCachesWhenBundleHolonsArePresent() throws {
+    let sandbox = try makeSandbox(prefix: "connect-bundle-port")
+    defer { try? FileManager.default.removeItem(at: sandbox.root) }
+
+    let resourceRoot = sandbox.root.appendingPathComponent("Resources", isDirectory: true)
+    let holonsRoot = resourceRoot.appendingPathComponent("Holons", isDirectory: true)
+    try FileManager.default.createDirectory(at: holonsRoot, withIntermediateDirectories: true)
+
+    let previousProvider = discoverBundleResourceURLProvider
+    defer { discoverBundleResourceURLProvider = previousProvider }
+    discoverBundleResourceURLProvider = { resourceRoot }
+
+    let expected = try XCTUnwrap(FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first)
+      .appendingPathComponent("holons")
+      .appendingPathComponent("run")
+      .appendingPathComponent("bundle-slug.port")
+      .path
+
+    XCTAssertEqual(normalizedPortFilePath(nil, slug: "bundle-slug"), expected)
+  }
+
+  func testLaunchWorkingDirectoryURLFallsBackToTemporaryDirectoryWhenNotWritable() throws {
+    let sandbox = try makeSandbox(prefix: "connect-readonly-cwd")
+    defer { try? FileManager.default.removeItem(at: sandbox.root) }
+
+    let readOnly = sandbox.root.appendingPathComponent("readonly", isDirectory: true)
+    try FileManager.default.createDirectory(at: readOnly, withIntermediateDirectories: true)
+    try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: readOnly.path)
+    defer {
+      try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: readOnly.path)
+    }
+
+    let resolved = try XCTUnwrap(launchWorkingDirectoryURL(readOnly.path))
+    XCTAssertEqual(resolved.standardizedFileURL.path, URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true).standardizedFileURL.path)
   }
 
   func testConnectRemovesStalePortFileAndStartsFresh() throws {
@@ -649,36 +688,16 @@ private func expectedUnixSocketPath(slug: String, portFile: String) -> String {
 
 private func expectedUnixSocketURI(slug: String, portFile: String) -> String {
   let hash = testFNV1a64(Array(portFile.utf8))
-  let label = testSocketLabel(slug)
-  return "unix:///tmp/holons-\(label)-\(String(format: "%012llx", hash & 0xffffffffffff)).sock"
+  _ = slug
+  return "unix://\(testTemporaryDirectoryPath())/h\(String(format: "%08llx", hash & 0xffffffff)).s"
 }
 
-private func testSocketLabel(_ slug: String) -> String {
-  var label = ""
-  var lastWasDash = false
-
-  for scalar in slug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().unicodeScalars {
-    switch scalar.value {
-    case 97 ... 122, 48 ... 57:
-      label.unicodeScalars.append(scalar)
-      lastWasDash = false
-    case 45 where !label.isEmpty && !lastWasDash:
-      label.append("-")
-      lastWasDash = true
-    case 95 where !label.isEmpty && !lastWasDash:
-      label.append("-")
-      lastWasDash = true
-    default:
-      continue
-    }
-
-    if label.count >= 24 {
-      break
-    }
+private func testTemporaryDirectoryPath() -> String {
+  var tempDir = NSTemporaryDirectory()
+  if tempDir.hasSuffix("/") {
+    tempDir.removeLast()
   }
-
-  label = label.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
-  return label.isEmpty ? "socket" : label
+  return tempDir
 }
 
 private func testFNV1a64(_ bytes: [UInt8]) -> UInt64 {
