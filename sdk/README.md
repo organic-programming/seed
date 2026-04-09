@@ -20,6 +20,12 @@ The following languages `c, c++, c#, dart, go, java, js, js-web, kotlin, python,
 - [rust-holons](./rust-holons/README.md)
 - [swift-holons](./swift-holons/README.md)
 
+## Canonical Protocol Generation
+
+The core `holons.v1` schema definitions (`manifest.proto`, `describe.proto`, `coax.proto`) are embedded in the `op` binary for runtime distribution. However, the exact code bindings (Go structs, Swift classes, Dart definitions, etc.) required by these SDKs are statically compiled from those schemas.
+
+Maintainers use [`./generate-protos.sh`](./generate-protos.sh) to invoke the various language-specific `protoc` compilers and update the native libraries uniformly across all 13 supported languages.
+
 ## Every SDK implements:
 
 - **`serve`**: Orchestrates startup — binds a listener, wires the RPC server, registers `Describe`, handles graceful shutdown.

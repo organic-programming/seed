@@ -52,7 +52,7 @@ record_summary() {
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/generate-protos.sh [--sdk=<name>]
+Usage: ./sdk/generate-protos.sh [--sdk=<name>]
 
 SDK names:
   c, cpp, csharp, dart, go, java, js, js-web, kotlin, python, ruby, rust, swift
