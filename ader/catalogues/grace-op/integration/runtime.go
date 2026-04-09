@@ -604,6 +604,7 @@ func prepareWorkspaceMirror(rt *runtimeState) (string, error) {
 		{src: filepath.Join(rt.seedRoot, "examples"), dst: filepath.Join(root, "examples")},
 		{src: filepath.Join(rt.seedRoot, "examples", "_protos"), dst: filepath.Join(root, "_protos")},
 		{src: filepath.Join(rt.seedRoot, "holons", "grace-op", "_protos"), dst: filepath.Join(root, "_protos")},
+		{src: filepath.Join(rt.seedRoot, "organism_kits"), dst: filepath.Join(root, "organism_kits")},
 		{src: filepath.Join(rt.seedRoot, "protos"), dst: filepath.Join(root, "protos")},
 		{src: filepath.Join(rt.seedRoot, "sdk"), dst: filepath.Join(root, "sdk")},
 		{src: filepath.Join(rt.seedRoot, "holons"), dst: filepath.Join(root, "holons")},
