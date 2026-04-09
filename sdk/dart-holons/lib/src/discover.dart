@@ -534,18 +534,19 @@ _PathCandidate _pathExpressionCandidate(
 }
 
 HolonInfo _probeHelper(String command, String path, int timeout) {
+  final workingDirectory = discoverDartRunWorkingDirectoryProvider();
   final args = <String>[
     'run',
-    'holons:discovery_probe',
+    _discoveryProbeEntrypoint(workingDirectory),
     command,
     path,
     '$timeout',
   ];
 
   final result = Process.runSync(
-    Platform.resolvedExecutable,
+    discoverResolvedExecutableProvider(),
     args,
-    workingDirectory: discoverDartRunWorkingDirectoryProvider(),
+    workingDirectory: workingDirectory,
   );
   if (result.exitCode != 0) {
     final stderr = result.stderr.toString().trim();
@@ -564,6 +565,18 @@ HolonInfo _probeHelper(String command, String path, int timeout) {
   return HolonInfo.fromJson(
     decoded.map((key, dynamic value) => MapEntry(key.toString(), value)),
   );
+}
+
+String _discoveryProbeEntrypoint(String workingDirectory) {
+  final normalizedWorkingDirectory =
+      _normalizeAbsolutePath(workingDirectory.trim());
+  final libDir = _joinPath(normalizedWorkingDirectory, 'lib');
+  final srcDir = _joinPath(libDir, 'src');
+  final helperPath = _joinPath(srcDir, 'discovery_probe.dart');
+  if (File(helperPath).existsSync()) {
+    return helperPath;
+  }
+  return 'package:holons/src/discovery_probe.dart';
 }
 
 DiscoverResult _defaultSourceDiscoverBridge(

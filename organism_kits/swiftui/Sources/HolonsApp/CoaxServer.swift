@@ -1,7 +1,7 @@
 import Foundation
 #if os(macOS)
-@preconcurrency import Holons
 @preconcurrency import GRPC
+@preconcurrency import Holons
 
 public enum CoaxSurfaceState: String, Sendable {
     case off
@@ -31,17 +31,21 @@ public struct CoaxSurfaceStatus: Identifiable, Hashable, Sendable {
     public let title: String
     public let endpoint: String?
     public let state: CoaxSurfaceState
+
+    public init(id: String, title: String, endpoint: String?, state: CoaxSurfaceState) {
+        self.id = id
+        self.title = title
+        self.endpoint = endpoint
+        self.state = state
+    }
 }
 
-// CoaxServer manages the embedded gRPC surface shown in the HostUI.
-// The server surface can start the transports the current Swift runtime
-// serves directly here: tcp:// and unix://.
 @MainActor
 public final class CoaxServer: ObservableObject {
     @Published public var isEnabled: Bool {
         didSet {
             guard oldValue != isEnabled else { return }
-            UserDefaults.standard.set(isEnabled, forKey: CoaxServer.enabledKey)
+            defaults.set(isEnabled, forKey: enabledKey)
             reconfigureRuntime()
         }
     }
@@ -119,20 +123,37 @@ public final class CoaxServer: ObservableObject {
         )
     }
 
-    private let holon: HolonProcess
+    private let providers: () -> [CallHandlerProvider]
+    private let registerDescribe: @Sendable () throws -> Void
+    private let coaxDefaults: CoaxSettingsDefaults
+    private let defaults: UserDefaults
+    private let enabledKey: String
+    private let settingsKey: String
     private var runningServer: Serve.RunningServer?
     private var pendingStartID: UUID?
 
-    private static let enabledKey = "coax.server.enabled"
-    private static let settingsKey = "coax.server.settings"
+    public init(
+        providers: @escaping () -> [CallHandlerProvider],
+        registerDescribe: @escaping @Sendable () throws -> Void,
+        coaxDefaults: CoaxSettingsDefaults = .standard(),
+        defaults: UserDefaults = .standard,
+        enabledKey: String = "coax.server.enabled",
+        settingsKey: String = "coax.server.settings"
+    ) {
+        let overrides = coaxLaunchOverrides(defaults: coaxDefaults)
+        let snapshot = overrides.snapshot ?? CoaxServer.loadSnapshot(
+            defaults: defaults,
+            settingsKey: settingsKey,
+            coaxDefaults: coaxDefaults
+        )
+        let storedEnabled = defaults.bool(forKey: enabledKey)
 
-    public init(holon: HolonProcess) {
-        let overrides = coaxLaunchOverrides()
-        let snapshot = overrides.snapshot ?? CoaxServer.loadSnapshot()
-        let storedEnabled = UserDefaults.standard.bool(forKey: CoaxServer.enabledKey)
-
-        self.holon = holon
-
+        self.providers = providers
+        self.registerDescribe = registerDescribe
+        self.coaxDefaults = coaxDefaults
+        self.defaults = defaults
+        self.enabledKey = enabledKey
+        self.settingsKey = settingsKey
         self.isEnabled = resolvedCoaxEnabled(storedValue: storedEnabled, overrides: overrides)
         self.serverTransport = snapshot.serverTransport
         self.serverHost = snapshot.serverHost
@@ -152,6 +173,10 @@ public final class CoaxServer: ObservableObject {
         stopServer(clearStatus: true)
     }
 
+    public var defaultUnixPath: String {
+        coaxDefaults.serverUnixPath
+    }
+
     private var serverSurfaceState: CoaxSurfaceState {
         if !isEnabled {
             return .off
@@ -167,12 +192,12 @@ public final class CoaxServer: ObservableObject {
 
     private var normalizedServerHost: String {
         let trimmed = serverHost.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? CoaxSettingsSnapshot.defaultHost : trimmed
+        return trimmed.isEmpty ? coaxDefaults.serverHost : trimmed
     }
 
     private var normalizedServerUnixPath: String {
         let trimmed = serverUnixPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? CoaxSettingsSnapshot.defaultUnixPath : trimmed
+        return trimmed.isEmpty ? coaxDefaults.serverUnixPath : trimmed
     }
 
     private var runtimeListenURI: String {
@@ -206,12 +231,10 @@ public final class CoaxServer: ObservableObject {
     }
 
     private func startServer() {
-        let coaxProvider = CoaxServiceProvider(holon: holon, coaxServer: self)
-        let appProvider = GreetingAppServiceProvider(holon: holon)
-        let providers: [CallHandlerProvider] = [coaxProvider, appProvider]
-        let providersBox = CallHandlerProvidersBox(providers)
+        let providersBox = CallHandlerProvidersBox(value: providers())
         let listenTarget = runtimeListenURI
         let startID = UUID()
+        let registerDescribe = self.registerDescribe
 
         pendingStartID = startID
         listenURI = nil
@@ -219,19 +242,17 @@ public final class CoaxServer: ObservableObject {
 
         DispatchQueue.global(qos: .utility).async { [weak self] in
             do {
-                try CoaxDescribeRegistration.register()
+                try registerDescribe()
                 let server = try Serve.startWithOptions(
                     listenTarget,
                     serviceProviders: providersBox.value,
-                    options: Serve.Options(
-                        logger: { _ in }
-                    )
+                    options: Serve.Options(logger: { _ in })
                 )
                 let publicURI = server.publicURI
 
                 DispatchQueue.main.async { [weak self] in
                     guard let self else {
-                        let staleServer = RunningServerBox(server)
+                        let staleServer = RunningServerBox(value: server)
                         DispatchQueue.global(qos: .utility).async {
                             staleServer.value.stop()
                         }
@@ -241,7 +262,7 @@ public final class CoaxServer: ObservableObject {
                     guard self.pendingStartID == startID,
                           self.isEnabled,
                           self.runtimeListenURI == listenTarget else {
-                        let staleServer = RunningServerBox(server)
+                        let staleServer = RunningServerBox(value: server)
                         DispatchQueue.global(qos: .utility).async {
                             staleServer.value.stop()
                         }
@@ -275,7 +296,7 @@ public final class CoaxServer: ObservableObject {
         guard let server else { return }
 
         logCoax("[COAX] server stopped")
-        let runningServer = RunningServerBox(server)
+        let runningServer = RunningServerBox(value: server)
         DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + .milliseconds(250)) {
             runningServer.value.stop()
         }
@@ -291,13 +312,17 @@ public final class CoaxServer: ObservableObject {
 
         let encoder = JSONEncoder()
         guard let data = try? encoder.encode(snapshot) else { return }
-        UserDefaults.standard.set(data, forKey: CoaxServer.settingsKey)
+        defaults.set(data, forKey: settingsKey)
     }
 
-    private static func loadSnapshot() -> CoaxSettingsSnapshot {
-        guard let data = UserDefaults.standard.data(forKey: settingsKey),
+    private static func loadSnapshot(
+        defaults: UserDefaults,
+        settingsKey: String,
+        coaxDefaults: CoaxSettingsDefaults
+    ) -> CoaxSettingsSnapshot {
+        guard let data = defaults.data(forKey: settingsKey),
               let snapshot = try? JSONDecoder().decode(CoaxSettingsSnapshot.self, from: data) else {
-            return .defaults
+            return coaxDefaults.snapshot
         }
         return snapshot
     }
@@ -318,17 +343,9 @@ public final class CoaxServer: ObservableObject {
 
 private struct CallHandlerProvidersBox: @unchecked Sendable {
     let value: [CallHandlerProvider]
-
-    init(_ value: [CallHandlerProvider]) {
-        self.value = value
-    }
 }
 
-private final class RunningServerBox: @unchecked Sendable {
+private struct RunningServerBox: @unchecked Sendable {
     let value: Serve.RunningServer
-
-    init(_ value: Serve.RunningServer) {
-        self.value = value
-    }
 }
 #endif

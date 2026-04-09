@@ -1,9 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:gabriel_greeting_app_flutter/src/app.dart';
-import 'package:gabriel_greeting_app_flutter/src/controller/coax_controller.dart';
 import 'package:gabriel_greeting_app_flutter/src/controller/greeting_controller.dart';
-import 'package:gabriel_greeting_app_flutter/src/settings_store.dart';
 
 import '../test/support/fakes.dart';
 
@@ -21,9 +19,8 @@ void main() {
         },
       ),
     );
-    final coaxController = CoaxController(
+    final coaxController = buildCoaxController(
       greetingController: greetingController,
-      settingsStore: MemorySettingsStore(),
     );
 
     await greetingController.initialize();

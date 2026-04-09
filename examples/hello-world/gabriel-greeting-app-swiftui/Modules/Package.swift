@@ -11,6 +11,12 @@ private let swiftHolonsPath = URL(
 )
     .standardizedFileURL
     .path
+private let holonsAppPath = URL(
+    fileURLWithPath: "../../../../organism_kits/swiftui",
+    relativeTo: packageDirectory
+)
+    .standardizedFileURL
+    .path
 
 let package = Package(
     name: "Modules",
@@ -20,6 +26,7 @@ let package = Package(
     ],
     dependencies: [
         .package(path: swiftHolonsPath),
+        .package(path: holonsAppPath),
         .package(url: "https://github.com/grpc/grpc-swift.git", exact: "1.9.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.36.0"),
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.35.0"),
@@ -29,6 +36,7 @@ let package = Package(
             name: "GreetingKit",
             dependencies: [
                 .product(name: "Holons", package: "swift-holons", condition: .when(platforms: [.macOS])),
+                .product(name: "HolonsApp", package: "swiftui"),
                 .product(name: "GRPC", package: "grpc-swift"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "SwiftProtobuf", package: "swift-protobuf"),

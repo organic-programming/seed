@@ -1,7 +1,7 @@
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import '../controller/coax_controller.dart';
-import '../model/app_model.dart';
+import '../coax_configuration.dart';
+import '../coax_controller.dart';
 
 class CoaxSettingsDialog extends StatelessWidget {
   const CoaxSettingsDialog({super.key, required this.controller});
@@ -83,7 +83,7 @@ class CoaxSettingsDialog extends StatelessWidget {
                             child: TextField(
                               initialValue: controller.serverUnixPath,
                               placeholder: Text(
-                                CoaxSettingsSnapshot.defaultUnixPath,
+                                controller.defaultUnixPath,
                               ),
                               onChanged: controller.setServerUnixPath,
                             ),

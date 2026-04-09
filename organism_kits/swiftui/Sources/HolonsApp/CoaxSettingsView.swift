@@ -1,14 +1,16 @@
 import SwiftUI
-import GreetingKit
 
-private let defaultCoaxUnixPath = NSTemporaryDirectory() + "gabriel-greeting-coax.sock"
-
-struct CoaxSettingsPopup: View {
+public struct CoaxSettingsView: View {
     @ObservedObject var coaxServer: CoaxServer
     @Binding var isPresented: Bool
 
     private let sheetWidth: CGFloat = 780
     private let rowLabelWidth: CGFloat = 110
+
+    public init(coaxServer: CoaxServer, isPresented: Binding<Bool>) {
+        self.coaxServer = coaxServer
+        self._isPresented = isPresented
+    }
 
     private var sheetHeight: CGFloat {
         var height: CGFloat = coaxServer.serverTransport == .unix ? 560 : 588
@@ -18,7 +20,7 @@ struct CoaxSettingsPopup: View {
         return height
     }
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 0) {
             header
                 .padding(.horizontal, 20)
@@ -82,7 +84,7 @@ struct CoaxSettingsPopup: View {
                     textFieldRow(
                         "Socket path",
                         text: $coaxServer.serverUnixPath,
-                        placeholder: defaultCoaxUnixPath
+                        placeholder: coaxServer.defaultUnixPath
                     )
                 }
             }
@@ -99,7 +101,6 @@ struct CoaxSettingsPopup: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .padding(.bottom, 6)
     }
-
 
     private func settingsSection<Content: View>(
         _ title: String,

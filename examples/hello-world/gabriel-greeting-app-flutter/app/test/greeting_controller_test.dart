@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holons_app/holons_app.dart';
 
 import 'package:gabriel_greeting_app_flutter/src/controller/greeting_controller.dart';
 import 'package:gabriel_greeting_app_flutter/src/model/app_model.dart';
-import 'package:gabriel_greeting_app_flutter/src/runtime/holon_connector.dart';
+import 'package:gabriel_greeting_app_flutter/src/runtime/greeting_holon_connection.dart';
 
 import 'support/fakes.dart';
 
@@ -219,7 +220,7 @@ void main() {
   });
 }
 
-class _DeferredHolonConnector implements HolonConnector {
+class _DeferredHolonConnector implements GreetingHolonConnectionFactory {
   _DeferredHolonConnector({required this.onConnect});
 
   final Future<GreetingHolonConnection> Function(String transport) onConnect;

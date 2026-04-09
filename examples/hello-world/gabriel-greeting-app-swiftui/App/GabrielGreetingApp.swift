@@ -1,5 +1,6 @@
 import SwiftUI
 import GreetingKit
+import HolonsApp
 #if os(macOS)
 import AppKit
 #endif
@@ -11,8 +12,22 @@ struct GabrielGreetingApp: App {
 
     init() {
         let h = HolonProcess()
+        let coaxServerBox = WeakCoaxServerBox()
+        let server = CoaxServer(
+            providers: {
+                [
+                    CoaxServiceProvider(organism: h, coaxServer: coaxServerBox.value!),
+                    GreetingAppServiceProvider(holon: h),
+                ]
+            },
+            registerDescribe: {
+                try CoaxDescribeRegistration.register()
+            },
+            coaxDefaults: .standard(socketName: "gabriel-greeting-coax.sock")
+        )
+        coaxServerBox.value = server
         _holon = StateObject(wrappedValue: h)
-        _coaxServer = StateObject(wrappedValue: CoaxServer(holon: h))
+        _coaxServer = StateObject(wrappedValue: server)
     }
 
     var body: some Scene {
@@ -39,6 +54,10 @@ struct GabrielGreetingApp: App {
 #endif
         }
     }
+}
+
+private final class WeakCoaxServerBox {
+    weak var value: CoaxServer?
 }
 
 #if os(macOS)

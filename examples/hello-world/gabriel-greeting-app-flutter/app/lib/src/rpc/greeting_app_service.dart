@@ -1,8 +1,8 @@
 import 'package:grpc/grpc.dart';
+import 'package:holons_app/holons_app.dart' show canonicalTransportName;
 
 import '../controller/greeting_controller.dart';
 import '../gen/v1/holon.pbgrpc.dart';
-import '../model/app_model.dart';
 
 class GreetingAppRpcService extends GreetingAppServiceBase {
   GreetingAppRpcService(this._controller);

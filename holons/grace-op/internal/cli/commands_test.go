@@ -210,7 +210,13 @@ func TestRunNewListTemplates(t *testing.T) {
 		}
 	})
 
-	for _, expected := range []string{"composite-go-swiftui", "composite-go-web", "composite-python-web"} {
+	for _, expected := range []string{
+		"coax-flutter",
+		"coax-swiftui",
+		"composite-go-swiftui",
+		"composite-go-web",
+		"composite-python-web",
+	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("template list missing %q: %q", expected, output)
 		}

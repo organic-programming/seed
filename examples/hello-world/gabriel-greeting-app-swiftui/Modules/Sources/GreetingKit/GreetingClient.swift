@@ -7,6 +7,15 @@ import Holons
 #endif
 
 final class GreetingClient: GRPCClient, @unchecked Sendable {
+    private static let methodRegistry = UnaryJSONMethodRegistry([
+        UnaryJSONMethodDescriptor<Greeting_V1_ListLanguagesRequest, Greeting_V1_ListLanguagesResponse>(
+            path: "/greeting.v1.GreetingService/ListLanguages"
+        ),
+        UnaryJSONMethodDescriptor<Greeting_V1_SayHelloRequest, Greeting_V1_SayHelloResponse>(
+            path: "/greeting.v1.GreetingService/SayHello"
+        ),
+    ])
+
     let channel: GRPCChannel
     var defaultCallOptions = CallOptions(timeLimit: .timeout(.seconds(2)))
     private let closeAction: () throws -> Void
@@ -47,6 +56,16 @@ final class GreetingClient: GRPCClient, @unchecked Sendable {
             responseType: ProtobufPayload<Greeting_V1_SayHelloResponse>.self
         )
         return response.message.greeting
+    }
+
+    func tell(method: String, payloadJSON: Data) async throws -> Data {
+        try await invokeUnaryJSON(
+            channel: channel,
+            method: method,
+            payloadJSON: payloadJSON,
+            registry: Self.methodRegistry,
+            callOptions: defaultCallOptions
+        )
     }
 
     func close() throws {

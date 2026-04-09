@@ -1,4 +1,5 @@
 import Foundation
+import HolonsApp
 
 enum GreetingSelectionError: LocalizedError {
     case holonNotFound(String)

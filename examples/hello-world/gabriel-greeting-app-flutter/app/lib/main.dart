@@ -1,25 +1,51 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:grpc/grpc.dart';
+import 'package:holons_app/holons_app.dart';
 
 import 'src/app.dart';
-import 'src/controller/coax_controller.dart';
 import 'src/controller/greeting_controller.dart';
-import 'src/runtime/holon_catalog.dart';
-import 'src/runtime/holon_connector.dart';
-import 'src/settings_store.dart';
+import 'src/model/app_model.dart';
+import 'src/rpc/greeting_app_service.dart';
+import 'src/runtime/describe_registration.dart';
+import 'src/runtime/greeting_holon_connection.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final settingsStore = await FileSettingsStore.create();
-  await applyLaunchEnvironmentOverrides(settingsStore);
-  final greetingController = GreetingController(
-    catalog: DesktopHolonCatalog(),
-    connector: DesktopHolonConnector(),
+  final coaxDefaults = CoaxSettingsDefaults.standard(
+    socketName: 'gabriel-greeting-coax.sock',
   );
-  final coaxController = CoaxController(
-    greetingController: greetingController,
+  final settingsStore = await FileSettingsStore.create(
+    applicationId: 'gabriel-greeting-app-flutter',
+    applicationName: 'Gabriel Greeting App Flutter',
+  );
+  await applyLaunchEnvironmentOverrides(settingsStore, defaults: coaxDefaults);
+
+  final greetingController = GreetingController(
+    catalog: DesktopHolonCatalog<GabrielHolonIdentity>(
+      fromDiscovered: GabrielHolonIdentity.fromDiscovered,
+      slugOf: (holon) => holon.slug,
+      sortRankOf: (holon) => holon.sortRank,
+      displayNameOf: (holon) => holon.displayName,
+    ),
+    connector: DesktopGreetingHolonConnectionFactory(),
+  );
+
+  late final CoaxController coaxController;
+  coaxController = CoaxController(
     settingsStore: settingsStore,
+    defaults: coaxDefaults,
+    serviceFactory: () => <Service>[
+      CoaxRpcService(
+        organismController: greetingController,
+        coaxController: coaxController,
+      ),
+      GreetingAppRpcService(greetingController),
+    ],
+    prepareDescribe: () async {
+      ensureAppDescribeRegistered();
+    },
   );
 
   runApp(

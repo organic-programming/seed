@@ -13,6 +13,8 @@ dependencies:
   grpc: ^5.1.0
   holons:
     path: ../../../../sdk/dart-holons
+  holons_app:
+    path: ../../../../organism_kits/flutter
   path: ^1.9.1
   protobuf: ^6.0.0
   shadcn_flutter: ^0.0.52

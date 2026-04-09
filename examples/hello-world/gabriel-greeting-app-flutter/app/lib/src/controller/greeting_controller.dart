@@ -2,16 +2,21 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:holons/gen/holons/v1/coax.pb.dart';
+import 'package:holons/gen/holons/v1/manifest.pb.dart';
+import 'package:holons_app/holons_app.dart';
 
 import '../gen/v1/greeting.pb.dart';
 import '../model/app_model.dart';
-import '../runtime/holon_catalog.dart';
-import '../runtime/holon_connector.dart';
+import '../runtime/greeting_holon_connection.dart';
 
-class GreetingController extends ChangeNotifier {
+class GreetingController extends ChangeNotifier implements OrganismController {
+  static const listLanguagesMethod = 'greeting.v1.GreetingService/ListLanguages';
+  static const sayHelloMethod = 'greeting.v1.GreetingService/SayHello';
+
   GreetingController({
-    required HolonCatalog catalog,
-    required HolonConnector connector,
+    required HolonCatalog<GabrielHolonIdentity> catalog,
+    required GreetingHolonConnectionFactory connector,
     AppPlatformCapabilities? capabilities,
     String? initialTransport,
   }) : _catalog = catalog,
@@ -21,8 +26,8 @@ class GreetingController extends ChangeNotifier {
          initialTransport ?? Platform.environment['OP_ASSEMBLY_TRANSPORT'],
        );
 
-  final HolonCatalog _catalog;
-  final HolonConnector _connector;
+  final HolonCatalog<GabrielHolonIdentity> _catalog;
+  final GreetingHolonConnectionFactory _connector;
   final AppPlatformCapabilities capabilities;
 
   GreetingHolonConnection? _connection;
@@ -158,7 +163,10 @@ class GreetingController extends ChangeNotifier {
     final generation = ++_loadGeneration;
     final effectiveTransport = selectedHolon == null
         ? transport
-        : effectiveHolonTransport(selectedHolon!, transport);
+        : effectiveHolonTransport(
+            requestedTransport: transport,
+            buildRunner: selectedHolon!.buildRunner,
+          );
     isLoading = true;
     error = null;
     greeting = '';
@@ -261,6 +269,96 @@ class GreetingController extends ChangeNotifier {
     }
   }
 
+  @override
+  Future<List<MemberInfo>> listMembers() async {
+    return availableHolons
+        .map(_memberForIdentity)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<MemberInfo?> memberStatus(String slug) async {
+    for (final identity in availableHolons) {
+      if (identity.slug == slug) {
+        return _memberForIdentity(identity);
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<MemberInfo> connectMember(
+    String slug, {
+    String transport = '',
+  }) async {
+    final identity = availableHolons.firstWhere(
+      (item) => item.slug == slug,
+      orElse: () => throw StateError("Member '$slug' not found"),
+    );
+    if (transport.trim().isNotEmpty) {
+      await setTransport(transport, reload: false);
+    }
+    await selectHolonBySlug(identity.slug, reload: false);
+    await loadLanguages(greetAfterLoad: false);
+    return _memberForIdentity(
+      identity,
+      overrideState: isRunning && error == null
+          ? MemberState.MEMBER_STATE_CONNECTED
+          : MemberState.MEMBER_STATE_ERROR,
+    );
+  }
+
+  @override
+  Future<void> disconnectMember(String slug) async {
+    if (slug.trim().isNotEmpty && selectedHolon?.slug != slug) {
+      return;
+    }
+    await stop();
+  }
+
+  @override
+  Future<Object?> tellMember({
+    required String memberSlug,
+    required String method,
+    Object? payload,
+  }) async {
+    final canonicalMethod = _canonicalMethod(method);
+    final decodedPayload = payload ?? const <String, Object?>{};
+
+    if (selectedHolon?.slug != memberSlug) {
+      await selectHolonBySlug(memberSlug, reload: false);
+    }
+
+    switch (canonicalMethod) {
+      case listLanguagesMethod:
+        await loadLanguages(greetAfterLoad: false);
+        return ListLanguagesResponse(
+          languages: availableLanguages,
+        ).toProto3Json();
+
+      case sayHelloMethod:
+        final request = SayHelloRequest()..mergeFromProto3Json(decodedPayload);
+        if (request.name.isNotEmpty) {
+          await setUserName(request.name, greetNow: false);
+        }
+        if (request.langCode.isNotEmpty) {
+          await setSelectedLanguage(request.langCode, greetNow: false);
+        }
+        await greet(
+          name: request.name.isEmpty ? null : request.name,
+          langCode: request.langCode.isEmpty ? null : request.langCode,
+        );
+        return SayHelloResponse(greeting: greeting).toProto3Json();
+    }
+
+    await ensureStarted();
+    final connection = _connection;
+    if (connection == null) {
+      throw StateError(connectionError ?? 'Holon did not become ready');
+    }
+    return connection.tell(method: canonicalMethod, payload: decodedPayload);
+  }
+
   Future<void> ensureStarted() async {
     if (_connection != null) {
       return;
@@ -301,7 +399,10 @@ class GreetingController extends ChangeNotifier {
   }
 
   Future<void> _connect(int generation, GabrielHolonIdentity holon) async {
-    final effectiveTransport = effectiveHolonTransport(holon, transport);
+    final effectiveTransport = effectiveHolonTransport(
+      requestedTransport: transport,
+      buildRunner: holon.buildRunner,
+    );
     final retryDelays = effectiveTransport == 'stdio'
         ? const <Duration>[Duration.zero]
         : const <Duration>[
@@ -327,7 +428,7 @@ class GreetingController extends ChangeNotifier {
         try {
           final connection = await _connector.connect(
             holon,
-            transport: effectiveTransport,
+            transport: transport,
           );
           if (generation != _connectionGeneration || _disposed) {
             await connection.close();
@@ -391,6 +492,36 @@ class GreetingController extends ChangeNotifier {
     if (!_disposed) {
       notifyListeners();
     }
+  }
+
+  static String _canonicalMethod(String method) {
+    final trimmed = method.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError.value(method, 'method', 'Method must not be empty');
+    }
+    return trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
+  }
+
+  MemberInfo _memberForIdentity(
+    GabrielHolonIdentity identity, {
+    MemberState? overrideState,
+  }) {
+    return MemberInfo(
+      slug: identity.slug,
+      identity: HolonManifest_Identity(
+        familyName: identity.familyName,
+        givenName: identity.displayName,
+      ),
+      state: overrideState ?? _memberStateFor(identity),
+      isOrganism: false,
+    );
+  }
+
+  MemberState _memberStateFor(GabrielHolonIdentity identity) {
+    if (selectedHolon?.slug == identity.slug && isRunning) {
+      return MemberState.MEMBER_STATE_CONNECTED;
+    }
+    return MemberState.MEMBER_STATE_AVAILABLE;
   }
 
   void _log(String message) {

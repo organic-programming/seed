@@ -1,13 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:gabriel_greeting_app_flutter/src/model/app_model.dart';
-import 'package:gabriel_greeting_app_flutter/src/settings_store.dart';
+import 'package:holons_app/holons_app.dart';
 
 void main() {
   test('default unix path uses system temp', () {
-    final path = CoaxSettingsSnapshot.defaultUnixPath;
+    final path = CoaxSettingsDefaults.standard(
+      socketName: 'gabriel-greeting-coax.sock',
+    ).serverUnixPath;
     expect(
       path,
       endsWith('${Platform.pathSeparator}gabriel-greeting-coax.sock'),
@@ -17,9 +17,13 @@ void main() {
 
   test('launch environment overrides seed coax settings', () async {
     final store = MemorySettingsStore();
+    final defaults = CoaxSettingsDefaults.standard(
+      socketName: 'gabriel-greeting-coax.sock',
+    );
 
     await applyLaunchEnvironmentOverrides(
       store,
+      defaults: defaults,
       environment: const <String, String>{
         'OP_COAX_SERVER_ENABLED': 'true',
         'OP_COAX_SERVER_LISTEN_URI': 'tcp://127.0.0.1:61000',

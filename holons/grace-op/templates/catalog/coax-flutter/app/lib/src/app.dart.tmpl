@@ -1,0 +1,601 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:ui' show AppExitResponse;
+
+import 'package:holons/gen/holons/v1/coax.pb.dart';
+import 'package:holons/gen/holons/v1/manifest.pb.dart';
+import 'package:holons_app/holons_app.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
+
+class {{ .PascalSlug }}App extends StatelessWidget {
+  const {{ .PascalSlug }}App({
+    super.key,
+    required this.organismController,
+    required this.coaxController,
+  });
+
+  final {{ .PascalSlug }}OrganismController organismController;
+  final CoaxController coaxController;
+
+  @override
+  Widget build(BuildContext context) {
+    return ShadcnApp(
+      title: '{{ .GivenTitle }} {{ .FamilyTitle }}',
+      debugShowCheckedModeBanner: false,
+      theme: const ThemeData(
+        colorScheme: ColorSchemes.lightSlate,
+        radius: 0.9,
+        scaling: 1.0,
+      ),
+      darkTheme: const ThemeData(
+        colorScheme: ColorSchemes.darkSlate,
+        radius: 0.9,
+        scaling: 1.0,
+      ),
+      themeMode: ThemeMode.system,
+      home: {{ .PascalSlug }}HomePage(
+        organismController: organismController,
+        coaxController: coaxController,
+      ),
+    );
+  }
+}
+
+class {{ .PascalSlug }}HomePage extends StatefulWidget {
+  const {{ .PascalSlug }}HomePage({
+    super.key,
+    required this.organismController,
+    required this.coaxController,
+  });
+
+  final {{ .PascalSlug }}OrganismController organismController;
+  final CoaxController coaxController;
+
+  @override
+  State<{{ .PascalSlug }}HomePage> createState() =>
+      _{{ .PascalSlug }}HomePageState();
+}
+
+class _{{ .PascalSlug }}HomePageState extends State<{{ .PascalSlug }}HomePage> {
+  late final AppLifecycleListener _appLifecycleListener;
+  late final Listenable _listenable;
+  Future<void>? _shutdownFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _appLifecycleListener = AppLifecycleListener(
+      onExitRequested: _handleExitRequested,
+    );
+    _listenable = Listenable.merge(<Listenable>[
+      widget.organismController,
+      widget.coaxController,
+    ]);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _shutdownFuture != null) {
+        return;
+      }
+      await widget.organismController.initialize();
+      if (!mounted || _shutdownFuture != null) {
+        return;
+      }
+      await widget.coaxController.startIfEnabled();
+    });
+  }
+
+  @override
+  void dispose() {
+    _appLifecycleListener.dispose();
+    unawaited(_shutdownControllers());
+    super.dispose();
+  }
+
+  Future<AppExitResponse> _handleExitRequested() async {
+    await _shutdownControllers();
+    return AppExitResponse.exit;
+  }
+
+  Future<void> _shutdownControllers() {
+    final existing = _shutdownFuture;
+    if (existing != null) {
+      return existing;
+    }
+    final future = () async {
+      await widget.coaxController.shutdown();
+      await widget.organismController.shutdown();
+    }();
+    _shutdownFuture = future;
+    return future;
+  }
+
+  Future<void> _showCoaxSettings(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (_) => CoaxSettingsDialog(controller: widget.coaxController),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _listenable,
+      builder: (context, _) {
+        final organism = widget.organismController;
+        final coax = widget.coaxController;
+        final theme = Theme.of(context);
+        final darkMode = theme.brightness == Brightness.dark;
+
+        return Scaffold(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[
+                  theme.colorScheme.background,
+                  theme.colorScheme.accent.withValues(
+                    alpha: darkMode ? 0.28 : 0.72,
+                  ),
+                  theme.colorScheme.muted.withValues(
+                    alpha: darkMode ? 0.34 : 0.88,
+                  ),
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(32, 16, 32, 16),
+                    child: CoaxControlBar(
+                      controller: coax,
+                      onOpenSettings: () => _showCoaxSettings(context),
+                    ),
+                  ),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: theme.colorScheme.border.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                    child: const SizedBox(height: 0),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _WorkspaceBar(controller: organism),
+                          const SizedBox(height: 32),
+                          Expanded(
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 760),
+                                child: _PreviewCard(controller: organism),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _WorkspaceBar extends StatelessWidget {
+  const _WorkspaceBar({required this.controller});
+
+  final {{ .PascalSlug }}OrganismController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final holonItems = controller.availableHolons
+        .map(
+          (identity) => SelectItemButton<_TemplateHolonIdentity>(
+            value: identity,
+            child: Text(identity.displayName),
+          ),
+        )
+        .toList(growable: false);
+    final transportItems = controller.capabilities.appTransports
+        .map(
+          (value) => SelectItemButton<String>(
+            value: value,
+            child: Text(transportTitle(value)),
+          ),
+        )
+        .toList(growable: false);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Select<_TemplateHolonIdentity>(
+                value: controller.selectedHolon,
+                onChanged: (value) {
+                  if (value != null) {
+                    unawaited(controller.selectHolon(value.slug));
+                  }
+                },
+                itemBuilder: (context, value) => Text(value.displayName),
+                popup: (context) => SelectPopup(
+                  items: SelectItemList(children: holonItems),
+                ),
+              ),
+              if (controller.selectedHolon != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: SelectableText(
+                    controller.selectedHolon!.slug,
+                  ).small().muted(),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 24),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Row(
+              children: [
+                const Text('mode:').small().semiBold(),
+                SizedBox(
+                  width: 180,
+                  child: Select<String>(
+                    value: controller.transport,
+                    onChanged: (value) {
+                      if (value != null) {
+                        unawaited(controller.setTransport(value));
+                      }
+                    },
+                    itemBuilder: (context, value) => Text(transportTitle(value)),
+                    popup: (context) => SelectPopup(
+                      items: SelectItemList(children: transportItems),
+                    ),
+                  ),
+                ),
+              ],
+            ).gap(8),
+            Row(
+              children: [
+                Text(controller.statusTitle).small().semiBold(),
+                SizedBox(
+                  width: 10,
+                  height: 10,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: controller.statusColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            ).gap(8),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PreviewCard extends StatelessWidget {
+  const _PreviewCard({required this.controller});
+
+  final {{ .PascalSlug }}OrganismController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('{{ .GivenTitle }} {{ .FamilyTitle }}').xLarge().semiBold(),
+          const Text(
+            'This scaffold already exposes COAX and keeps the state shared '
+            'between the human UI and the remote Tell entrypoint.',
+          ).small().muted(),
+          const Divider(),
+          Text(controller.greeting).large(),
+          Text(controller.detail).small().muted(),
+          Card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Demo member').semiBold(),
+                SelectableText(controller.demoCommand).small(),
+                const Text(
+                  'Use the button below or send the same method through COAX '
+                  'to mutate the visible state.',
+                ).small().muted(),
+              ],
+            ).gap(8),
+          ),
+          Row(
+            children: [
+              OutlineButton(
+                onPressed: () {
+                  unawaited(controller.applyHumanGreeting());
+                },
+                child: const Text('Apply Sample Greeting'),
+              ),
+              OutlineButton(
+                onPressed: () {
+                  unawaited(controller.disconnectMember('holon'));
+                },
+                child: const Text('Disconnect Member'),
+              ),
+            ],
+          ).gap(12),
+        ],
+      ).gap(16),
+    );
+  }
+}
+
+class {{ .PascalSlug }}OrganismController extends ChangeNotifier
+    implements OrganismController {
+  {{ .PascalSlug }}OrganismController({
+    AppPlatformCapabilities? capabilities,
+    String? initialTransport,
+  }) : capabilities = capabilities ?? AppPlatformCapabilities.desktopCurrent(),
+       transport = normalizedTransportSelection(
+         initialTransport ?? Platform.environment['OP_ASSEMBLY_TRANSPORT'],
+       );
+
+  final AppPlatformCapabilities capabilities;
+
+  final List<_TemplateHolonIdentity> availableHolons = const <_TemplateHolonIdentity>[
+    _TemplateHolonIdentity(
+      slug: 'holon',
+      displayName: '{{ .PascalSlug }} Holon',
+      familyName: '{{ .FamilyTitle }}-Holon',
+    ),
+  ];
+
+  bool _initialized = false;
+  bool _disposed = false;
+
+  bool isRunning = false;
+  String greeting = 'Wire your business holon into this organism app.';
+  String detail =
+      'COAX is ready. The scaffolded member `holon` is a local demo bridge '
+      'until you replace it with a real runtime.';
+  String transport;
+  _TemplateHolonIdentity? selectedHolon;
+
+  String get statusTitle => isRunning ? 'Ready' : 'Offline';
+
+  Color get statusColor => isRunning
+      ? const Color(0xFF66B85E)
+      : const Color(0xFFD96A6A);
+
+  String get demoCommand =>
+      'sample.v1.SampleHolon/SetGreeting {\"text\":\"Hello from COAX\"}';
+
+  Future<void> initialize() async {
+    if (_initialized) {
+      return;
+    }
+    _initialized = true;
+    selectedHolon = availableHolons.first;
+    _safeNotify();
+  }
+
+  Future<void> shutdown() async {}
+
+  Future<void> selectHolon(String slug) async {
+    final holon = availableHolons.firstWhere(
+      (value) => value.slug == slug,
+      orElse: () => throw StateError("Holon '$slug' not found"),
+    );
+    selectedHolon = holon;
+    detail = 'Selected ${holon.displayName}.';
+    _safeNotify();
+  }
+
+  Future<void> setTransport(String value) async {
+    final normalized = normalizedTransportSelection(value);
+    if (!capabilities.appTransports.contains(normalized)) {
+      throw StateError('Transport "$normalized" is not available here.');
+    }
+    transport = normalized;
+    detail = 'Transport set to ${transportTitle(transport)}.';
+    _safeNotify();
+  }
+
+  Future<void> applyHumanGreeting() async {
+    await _setGreetingText(
+      'Hello from {{ .GivenTitle }} {{ .FamilyTitle }}.',
+      detail:
+          'The human button and COAX Tell both flow through the same state.',
+    );
+  }
+
+  @override
+  Future<List<MemberInfo>> listMembers() async {
+    return availableHolons.map(_memberInfo).toList(growable: false);
+  }
+
+  @override
+  Future<MemberInfo?> memberStatus(String slug) async {
+    final match = availableHolons.where((item) => item.slug == slug).firstOrNull;
+    if (match == null) {
+      return null;
+    }
+    return _memberInfo(match);
+  }
+
+  @override
+  Future<MemberInfo> connectMember(
+    String slug, {
+    String transport = '',
+  }) async {
+    if (transport.trim().isNotEmpty) {
+      await setTransport(transport);
+    }
+    await selectHolon(slug);
+    isRunning = true;
+    detail = 'Connected ${selectedHolon!.displayName} over ${transportTitle(this.transport)}.';
+    _safeNotify();
+    return _memberInfo(
+      selectedHolon!,
+      overrideState: MemberState.MEMBER_STATE_CONNECTED,
+    );
+  }
+
+  @override
+  Future<void> disconnectMember(String slug) async {
+    if (slug.trim().isNotEmpty && selectedHolon?.slug != slug) {
+      return;
+    }
+    isRunning = false;
+    detail = 'Disconnected member ${selectedHolon?.displayName ?? 'holon'}.';
+    _safeNotify();
+  }
+
+  @override
+  Future<Object?> tellMember({
+    required String memberSlug,
+    required String method,
+    Object? payload,
+  }) async {
+    final canonicalMethod = _canonicalMethod(method);
+    if (selectedHolon?.slug != memberSlug) {
+      await selectHolon(memberSlug);
+    }
+    isRunning = true;
+
+    final payloadMap = switch (payload) {
+      Map<Object?, Object?> value => value.map(
+        (key, value) => MapEntry(key.toString(), value),
+      ),
+      null => const <String, Object?>{},
+      _ => throw ArgumentError.value(payload, 'payload', 'Expected a JSON object'),
+    };
+
+    switch (canonicalMethod) {
+      case 'sample.v1.SampleHolon/Ping':
+        detail =
+            'Received Ping for ${selectedHolon!.displayName} over ${transportTitle(transport)}.';
+        _safeNotify();
+        return <String, Object?>{
+          'message': 'pong',
+          'memberSlug': memberSlug,
+          'transport': transport,
+        };
+
+      case 'sample.v1.SampleHolon/SetGreeting':
+        final text = payloadMap['text']?.toString().trim();
+        final nextDetail = payloadMap['detail']?.toString().trim();
+        await _setGreetingText(
+          text == null || text.isEmpty ? greeting : text,
+          detail: nextDetail?.isNotEmpty == true
+              ? nextDetail!
+              : 'Updated through COAX Tell.',
+        );
+        return <String, Object?>{
+          'greeting': greeting,
+          'detail': detail,
+        };
+    }
+
+    throw ArgumentError.value(
+      method,
+      'method',
+      'Unsupported demo method for the scaffolded member',
+    );
+  }
+
+  Future<void> _setGreetingText(
+    String value, {
+    required String detail,
+  }) async {
+    greeting = value;
+    this.detail = detail;
+    isRunning = true;
+    _safeNotify();
+  }
+
+  MemberInfo _memberInfo(
+    _TemplateHolonIdentity holon, {
+    MemberState? overrideState,
+  }) {
+    return MemberInfo(
+      slug: holon.slug,
+      identity: HolonManifest_Identity(
+        familyName: holon.familyName,
+        givenName: holon.displayName,
+      ),
+      state: overrideState ??
+          (selectedHolon?.slug == holon.slug && isRunning
+              ? MemberState.MEMBER_STATE_CONNECTED
+              : MemberState.MEMBER_STATE_AVAILABLE),
+      isOrganism: false,
+    );
+  }
+
+  void _safeNotify() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
+  static String _canonicalMethod(String method) {
+    final trimmed = method.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError.value(method, 'method', 'Method must not be empty');
+    }
+    return trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+}
+
+class _TemplateHolonIdentity {
+  const _TemplateHolonIdentity({
+    required this.slug,
+    required this.displayName,
+    required this.familyName,
+  });
+
+  final String slug;
+  final String displayName;
+  final String familyName;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _TemplateHolonIdentity && other.slug == slug;
+
+  @override
+  int get hashCode => slug.hashCode;
+}
+
+extension on Iterable<_TemplateHolonIdentity> {
+  _TemplateHolonIdentity? get firstOrNull {
+    final iterator = this.iterator;
+    if (!iterator.moveNext()) {
+      return null;
+    }
+    return iterator.current;
+  }
+}

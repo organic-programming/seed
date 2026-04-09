@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import 'model/app_model.dart';
+import 'coax_configuration.dart';
 
 const _coaxEnabledKey = 'coax.server.enabled';
 const _coaxSettingsKey = 'coax.server.settings';
@@ -23,8 +23,16 @@ class FileSettingsStore implements SettingsStore {
   final File _file;
   final Map<String, Object?> _values;
 
-  static Future<FileSettingsStore> create() async {
-    final directory = Directory(_settingsDirectoryPath());
+  static Future<FileSettingsStore> create({
+    String applicationId = 'holons-app',
+    String applicationName = 'Holons App',
+  }) async {
+    final directory = Directory(
+      _settingsDirectoryPath(
+        applicationId: applicationId,
+        applicationName: applicationName,
+      ),
+    );
     directory.createSync(recursive: true);
 
     final file = File(p.join(directory.path, 'settings.json'));
@@ -76,77 +84,6 @@ class FileSettingsStore implements SettingsStore {
   }
 }
 
-Future<void> applyLaunchEnvironmentOverrides(
-  SettingsStore store, {
-  Map<String, String>? environment,
-}) async {
-  final env = environment ?? Platform.environment;
-  final listenUri = (env[_coaxServerListenUriEnv] ?? '').trim();
-  final enabled = _parseBoolOverride(env[_coaxServerEnabledEnv]);
-
-  if (listenUri.isEmpty && enabled == null) {
-    return;
-  }
-
-  if (listenUri.isNotEmpty) {
-    await store.writeString(
-      _coaxSettingsKey,
-      _snapshotFromListenUri(listenUri).encode(),
-    );
-  }
-
-  if (enabled != null) {
-    await store.writeBool(_coaxEnabledKey, enabled);
-    return;
-  }
-
-  if (listenUri.isNotEmpty) {
-    await store.writeBool(_coaxEnabledKey, true);
-  }
-}
-
-String _settingsDirectoryPath() {
-  final home = Platform.environment['HOME']?.trim();
-
-  if (Platform.isWindows) {
-    final appData = Platform.environment['APPDATA']?.trim();
-    if (appData != null && appData.isNotEmpty) {
-      return p.join(
-        appData,
-        'Organic Programming',
-        'Gabriel Greeting App Flutter',
-      );
-    }
-  }
-
-  if (Platform.isMacOS && home != null && home.isNotEmpty) {
-    return p.join(
-      home,
-      'Library',
-      'Application Support',
-      'Organic Programming',
-      'Gabriel Greeting App Flutter',
-    );
-  }
-
-  if (Platform.isLinux) {
-    final xdg = Platform.environment['XDG_CONFIG_HOME']?.trim();
-    if (xdg != null && xdg.isNotEmpty) {
-      return p.join(xdg, 'organic-programming', 'gabriel-greeting-app-flutter');
-    }
-    if (home != null && home.isNotEmpty) {
-      return p.join(
-        home,
-        '.config',
-        'organic-programming',
-        'gabriel-greeting-app-flutter',
-      );
-    }
-  }
-
-  return p.join(Directory.current.path, '.gabriel-greeting-app-flutter');
-}
-
 class MemorySettingsStore implements SettingsStore {
   final Map<String, Object?> _values = <String, Object?>{};
 
@@ -173,6 +110,73 @@ class MemorySettingsStore implements SettingsStore {
   }
 }
 
+Future<void> applyLaunchEnvironmentOverrides(
+  SettingsStore store, {
+  Map<String, String>? environment,
+  CoaxSettingsDefaults? defaults,
+}) async {
+  final env = environment ?? Platform.environment;
+  final coaxDefaults = defaults ?? CoaxSettingsDefaults.standard();
+  final listenUri = (env[_coaxServerListenUriEnv] ?? '').trim();
+  final enabled = _parseBoolOverride(env[_coaxServerEnabledEnv]);
+
+  if (listenUri.isEmpty && enabled == null) {
+    return;
+  }
+
+  if (listenUri.isNotEmpty) {
+    await store.writeString(
+      _coaxSettingsKey,
+      _snapshotFromListenUri(listenUri, defaults: coaxDefaults).encode(),
+    );
+  }
+
+  if (enabled != null) {
+    await store.writeBool(_coaxEnabledKey, enabled);
+    return;
+  }
+
+  if (listenUri.isNotEmpty) {
+    await store.writeBool(_coaxEnabledKey, true);
+  }
+}
+
+String _settingsDirectoryPath({
+  required String applicationId,
+  required String applicationName,
+}) {
+  final home = Platform.environment['HOME']?.trim();
+
+  if (Platform.isWindows) {
+    final appData = Platform.environment['APPDATA']?.trim();
+    if (appData != null && appData.isNotEmpty) {
+      return p.join(appData, 'Organic Programming', applicationName);
+    }
+  }
+
+  if (Platform.isMacOS && home != null && home.isNotEmpty) {
+    return p.join(
+      home,
+      'Library',
+      'Application Support',
+      'Organic Programming',
+      applicationName,
+    );
+  }
+
+  if (Platform.isLinux) {
+    final xdg = Platform.environment['XDG_CONFIG_HOME']?.trim();
+    if (xdg != null && xdg.isNotEmpty) {
+      return p.join(xdg, 'organic-programming', applicationId);
+    }
+    if (home != null && home.isNotEmpty) {
+      return p.join(home, '.config', 'organic-programming', applicationId);
+    }
+  }
+
+  return p.join(Directory.current.path, '.${applicationId.trim()}');
+}
+
 bool? _parseBoolOverride(String? value) {
   switch ((value ?? '').trim().toLowerCase()) {
     case '1':
@@ -190,13 +194,16 @@ bool? _parseBoolOverride(String? value) {
   }
 }
 
-CoaxSettingsSnapshot _snapshotFromListenUri(String listenUri) {
+CoaxSettingsSnapshot _snapshotFromListenUri(
+  String listenUri, {
+  required CoaxSettingsDefaults defaults,
+}) {
   final trimmed = listenUri.trim();
   if (trimmed.startsWith('unix://')) {
     return CoaxSettingsSnapshot(
       serverTransport: CoaxServerTransport.unix,
-      serverHost: CoaxSettingsSnapshot.defaultHost,
-      serverPortText: CoaxSettingsSnapshot.defaults.serverPortText,
+      serverHost: defaults.serverHost,
+      serverPortText: defaults.serverPortText,
       serverUnixPath: trimmed.substring('unix://'.length),
     );
   }
@@ -205,17 +212,17 @@ CoaxSettingsSnapshot _snapshotFromListenUri(String listenUri) {
     final parsed = Uri.tryParse(trimmed);
     final host = parsed?.host.trim().isNotEmpty == true
         ? parsed!.host.trim()
-        : CoaxSettingsSnapshot.defaultHost;
+        : defaults.serverHost;
     final port = parsed?.hasPort == true
         ? parsed!.port.toString()
-        : CoaxSettingsSnapshot.defaults.serverPortText;
+        : defaults.serverPortText;
     return CoaxSettingsSnapshot(
       serverTransport: CoaxServerTransport.tcp,
       serverHost: host,
       serverPortText: port,
-      serverUnixPath: CoaxSettingsSnapshot.defaultUnixPath,
+      serverUnixPath: defaults.serverUnixPath,
     );
   }
 
-  return CoaxSettingsSnapshot.defaults;
+  return defaults.snapshot();
 }

@@ -1,13 +1,14 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:grpc/grpc.dart';
 import 'package:holons/gen/holons/v1/coax.pbgrpc.dart';
+import 'package:holons_app/holons_app.dart';
 
-import 'package:gabriel_greeting_app_flutter/src/controller/coax_controller.dart';
 import 'package:gabriel_greeting_app_flutter/src/controller/greeting_controller.dart';
 import 'package:gabriel_greeting_app_flutter/src/gen/v1/holon.pbgrpc.dart';
 import 'package:gabriel_greeting_app_flutter/src/model/app_model.dart';
-import 'package:gabriel_greeting_app_flutter/src/runtime/holon_connector.dart';
-import 'package:gabriel_greeting_app_flutter/src/settings_store.dart';
+import 'package:gabriel_greeting_app_flutter/src/runtime/greeting_holon_connection.dart';
 
 import 'support/fakes.dart';
 
@@ -37,9 +38,8 @@ void main() {
         },
       ),
     );
-    final coaxController = CoaxController(
+    final coaxController = buildCoaxController(
       greetingController: greetingController,
-      settingsStore: MemorySettingsStore(),
     );
 
     await greetingController.initialize();
@@ -84,15 +84,20 @@ void main() {
     );
     expect(status.member.state, MemberState.MEMBER_STATE_CONNECTED);
 
-    await expectLater(
-      coaxClient.tell(
-        TellRequest(
-          memberSlug: 'gabriel-greeting-go',
-          method: 'greeting.v1.GreetingService/SayHello',
-        ),
+    final tell = await coaxClient.tell(
+      TellRequest(
+        memberSlug: 'gabriel-greeting-go',
+        method: 'greeting.v1.GreetingService/SayHello',
+        payload: utf8.encode('{"name":"Alice","langCode":"fr"}'),
       ),
-      throwsA(isA<GrpcError>()),
     );
+    expect(
+      jsonDecode(utf8.decode(tell.payload)),
+      <String, Object?>{'greeting': 'Bonjour Alice from Gabriel'},
+    );
+    expect(greetingController.userName, 'Alice');
+    expect(greetingController.selectedLanguageCode, 'fr');
+    expect(greetingController.greeting, 'Bonjour Alice from Gabriel');
 
     await coaxClient.turnOffCoax(TurnOffCoaxRequest());
     await waitForCoaxUpdate();
@@ -127,9 +132,8 @@ void main() {
         }),
         initialTransport: 'stdio',
       );
-      final coaxController = CoaxController(
+      final coaxController = buildCoaxController(
         greetingController: greetingController,
-        settingsStore: MemorySettingsStore(),
       );
 
       await greetingController.initialize();
@@ -181,9 +185,8 @@ void main() {
       connector: connector,
       initialTransport: 'stdio',
     );
-    final coaxController = CoaxController(
+    final coaxController = buildCoaxController(
       greetingController: greetingController,
-      settingsStore: MemorySettingsStore(),
     );
 
     await greetingController.initialize();
@@ -231,9 +234,8 @@ void main() {
         },
       ),
     );
-    final coaxController = CoaxController(
+    final coaxController = buildCoaxController(
       greetingController: greetingController,
-      settingsStore: MemorySettingsStore(),
     );
 
     await greetingController.initialize();
@@ -277,9 +279,8 @@ void main() {
         },
       ),
     );
-    final coaxController = CoaxController(
+    final coaxController = buildCoaxController(
       greetingController: greetingController,
-      settingsStore: MemorySettingsStore(),
     );
 
     await greetingController.initialize();
@@ -335,9 +336,8 @@ void main() {
       ),
       capabilities: const AppPlatformCapabilities(supportsUnixSockets: false),
     );
-    final coaxController = CoaxController(
+    final coaxController = buildCoaxController(
       greetingController: greetingController,
-      settingsStore: MemorySettingsStore(),
     );
 
     await greetingController.initialize();
@@ -386,9 +386,8 @@ void main() {
       ),
       initialTransport: 'stdio',
     );
-    final coaxController = CoaxController(
+    final coaxController = buildCoaxController(
       greetingController: greetingController,
-      settingsStore: MemorySettingsStore(),
     );
 
     await greetingController.initialize();
@@ -423,7 +422,7 @@ void main() {
   });
 }
 
-class _ScriptedHolonConnector implements HolonConnector {
+class _ScriptedHolonConnector implements GreetingHolonConnectionFactory {
   _ScriptedHolonConnector(this._onConnect);
 
   final GreetingHolonConnection Function(

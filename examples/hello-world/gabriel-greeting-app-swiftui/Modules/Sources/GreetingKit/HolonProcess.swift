@@ -1,11 +1,15 @@
 import Combine
 import Foundation
+import HolonsApp
 #if os(macOS)
 import Holons
 #endif
 
 @MainActor
 public final class HolonProcess: ObservableObject {
+    public static let listLanguagesMethod = "/greeting.v1.GreetingService/ListLanguages"
+    public static let sayHelloMethod = "/greeting.v1.GreetingService/SayHello"
+
     @Published public var isRunning = false
     @Published public var connectionError: String?
     @Published public var availableHolons: [GabrielHolonIdentity] = []
@@ -257,6 +261,58 @@ public final class HolonProcess: ObservableObject {
         return try await client.sayHello(name: name, langCode: langCode)
     }
 
+    public func tellMember(
+        slug: String,
+        method: String,
+        payloadJSON: Data
+    ) async throws -> Data {
+        let canonicalMethod = canonicalGRPCMethodPath(method)
+        let normalizedPayload = payloadJSON.isEmpty ? Data("{}".utf8) : payloadJSON
+
+#if os(macOS)
+        if availableHolons.isEmpty {
+            refreshHolons()
+        }
+#endif
+
+        if selectedHolon?.slug != slug {
+            _ = try await selectHolon(slug: slug, greetAfterLoad: false)
+        }
+
+        switch canonicalMethod {
+        case Self.listLanguagesMethod:
+            let languages = try await reloadLanguages(greetAfterLoad: false)
+            var response = Greeting_V1_ListLanguagesResponse()
+            response.languages = languages
+            return try response.jsonUTF8Data()
+
+        case Self.sayHelloMethod:
+            let request = try Greeting_V1_SayHelloRequest(jsonUTF8Data: normalizedPayload)
+            if !request.name.isEmpty {
+                userName = request.name
+            }
+            if !request.langCode.isEmpty {
+                _ = try await selectLanguage(request.langCode)
+            }
+            let greeting = try await greetCurrentSelection(
+                name: request.name.isEmpty ? nil : request.name,
+                langCode: request.langCode.isEmpty ? nil : request.langCode
+            )
+            var response = Greeting_V1_SayHelloResponse()
+            response.greeting = greeting
+            return try response.jsonUTF8Data()
+
+        default:
+            if client == nil {
+                await start()
+            }
+            guard let client else {
+                throw connectionFailure(HolonError.notConnected)
+            }
+            return try await client.tell(method: canonicalMethod, payloadJSON: normalizedPayload)
+        }
+    }
+
     deinit {
         try? client?.close()
     }
@@ -299,6 +355,77 @@ public final class HolonProcess: ObservableObject {
         FileHandle.standardError.write(data)
     }
 }
+
+#if os(macOS)
+extension HolonProcess: OrganismState {
+    public var coaxMembers: [CoaxMember] {
+        availableHolons.map { coaxMember(for: $0) }
+    }
+
+    public func connectCoaxMember(slug: String, transport: String) async throws -> CoaxMember {
+        if availableHolons.isEmpty {
+            refreshHolons()
+        }
+        guard let identity = availableHolons.first(where: { $0.slug == slug }) else {
+            throw GreetingSelectionError.holonNotFound(slug)
+        }
+
+        if !transport.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            self.transport = try validatedTransportSelection(transport).rawValue
+        }
+        if selectedHolon != identity {
+            selectedHolon = identity
+        }
+
+        await start()
+        return coaxMember(
+            for: identity,
+            overrideState: isRunning ? .connected : .error
+        )
+    }
+
+    public func disconnectCoaxMember(slug: String) async {
+        if !slug.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           selectedHolon?.slug != slug {
+            return
+        }
+        stop()
+    }
+
+    public func tellCoaxMember(
+        slug: String,
+        method: String,
+        payloadJSON: Data
+    ) async throws -> Data {
+        try await tellMember(
+            slug: slug,
+            method: method,
+            payloadJSON: payloadJSON
+        )
+    }
+
+    private func coaxMember(
+        for identity: GabrielHolonIdentity,
+        overrideState: CoaxMemberState? = nil
+    ) -> CoaxMember {
+        CoaxMember(
+            slug: identity.slug,
+            familyName: identity.familyName,
+            displayName: identity.displayName,
+            state: overrideState ?? memberState(for: identity)
+        )
+    }
+
+    private func memberState(
+        for identity: GabrielHolonIdentity
+    ) -> CoaxMemberState {
+        if selectedHolon?.slug == identity.slug && isRunning {
+            return .connected
+        }
+        return .available
+    }
+}
+#endif
 
 private let connectClientLock = NSLock()
 

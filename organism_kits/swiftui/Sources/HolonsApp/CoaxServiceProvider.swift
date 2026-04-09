@@ -1,23 +1,21 @@
 import Foundation
 import GRPC
+import Holons
 import NIOCore
 import SwiftProtobuf
 
-// CoaxServiceProvider implements the COAX interaction surface (holons.v1.CoaxService)
-// for the Gabriel Greeting App organism. It drives the same HolonProcess state
-// that the SwiftUI views observe — agent actions appear in the UI in real time.
-final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable {
-    let serviceName: Substring = "holons.v1.CoaxService"
+public final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable {
+    public let serviceName: Substring = "holons.v1.CoaxService"
 
-    private let holon: HolonProcess
+    private let organism: any OrganismState
     private weak var coaxServer: CoaxServer?
 
-    init(holon: HolonProcess, coaxServer: CoaxServer) {
-        self.holon = holon
+    public init(organism: any OrganismState, coaxServer: CoaxServer) {
+        self.organism = organism
         self.coaxServer = coaxServer
     }
 
-    func handle(method name: Substring, context: CallHandlerContext) -> GRPCServerHandlerProtocol? {
+    public func handle(method name: Substring, context: CallHandlerContext) -> GRPCServerHandlerProtocol? {
         switch name {
         case "ListMembers":
             return UnaryServerHandler(
@@ -62,8 +60,8 @@ final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable {
         case "TurnOffCoax":
             return UnaryServerHandler(
                 context: context,
-                requestDeserializer: ProtobufDeserializer<Holons_V1_ListMembersRequest>(),
-                responseSerializer: ProtobufSerializer<Holons_V1_DisconnectMemberResponse>(),
+                requestDeserializer: ProtobufDeserializer<Holons_V1_TurnOffCoaxRequest>(),
+                responseSerializer: ProtobufSerializer<Holons_V1_TurnOffCoaxResponse>(),
                 interceptors: [],
                 userFunction: turnOffCoax(request:context:)
             )
@@ -72,29 +70,15 @@ final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable {
         }
     }
 
-    // MARK: - RPC Implementations
-
     private func listMembers(
         request: Holons_V1_ListMembersRequest,
         context: StatusOnlyCallContext
     ) -> EventLoopFuture<Holons_V1_ListMembersResponse> {
+        _ = request
         let promise = context.eventLoop.makePromise(of: Holons_V1_ListMembersResponse.self)
-        Task { @MainActor [holon] in
+        Task { @MainActor [organism] in
             var response = Holons_V1_ListMembersResponse()
-            response.members = holon.availableHolons.map { identity in
-                var member = Holons_V1_MemberInfo()
-                member.slug = identity.slug
-                var mid = Holons_V1_HolonManifest.Identity()
-                mid.familyName = identity.familyName
-                mid.givenName = identity.displayName
-                member.identity = mid
-                if holon.selectedHolon?.slug == identity.slug && holon.isRunning {
-                    member.state = .connected
-                } else {
-                    member.state = .available
-                }
-                return member
-            }
+            response.members = organism.coaxMembers.map(memberInfo(for:))
             promise.succeed(response)
         }
         return promise.futureResult
@@ -105,17 +89,10 @@ final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable {
         context: StatusOnlyCallContext
     ) -> EventLoopFuture<Holons_V1_MemberStatusResponse> {
         let promise = context.eventLoop.makePromise(of: Holons_V1_MemberStatusResponse.self)
-        Task { @MainActor [holon] in
+        Task { @MainActor [organism] in
             var response = Holons_V1_MemberStatusResponse()
-            if let identity = holon.availableHolons.first(where: { $0.slug == request.slug }) {
-                var member = Holons_V1_MemberInfo()
-                member.slug = identity.slug
-                if holon.selectedHolon?.slug == identity.slug && holon.isRunning {
-                    member.state = .connected
-                } else {
-                    member.state = .available
-                }
-                response.member = member
+            if let member = organism.coaxMembers.first(where: { $0.slug == request.slug }) {
+                response.member = memberInfo(for: member)
             }
             promise.succeed(response)
         }
@@ -127,22 +104,18 @@ final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable {
         context: StatusOnlyCallContext
     ) -> EventLoopFuture<Holons_V1_ConnectMemberResponse> {
         let promise = context.eventLoop.makePromise(of: Holons_V1_ConnectMemberResponse.self)
-        Task { @MainActor [holon] in
-            guard let identity = holon.availableHolons.first(where: { $0.slug == request.slug }) else {
-                promise.fail(GRPCStatus(code: .notFound, message: "Member '\(request.slug)' not found"))
-                return
+        Task { @MainActor [organism] in
+            do {
+                let member = try await organism.connectCoaxMember(
+                    slug: request.slug,
+                    transport: request.transport
+                )
+                var response = Holons_V1_ConnectMemberResponse()
+                response.member = memberInfo(for: member)
+                promise.succeed(response)
+            } catch {
+                promise.fail(grpcStatus(for: error))
             }
-            if !request.transport.isEmpty {
-                holon.transport = request.transport
-            }
-            holon.selectedHolon = identity
-            await holon.start()
-            var response = Holons_V1_ConnectMemberResponse()
-            var member = Holons_V1_MemberInfo()
-            member.slug = identity.slug
-            member.state = holon.isRunning ? .connected : .error
-            response.member = member
-            promise.succeed(response)
         }
         return promise.futureResult
     }
@@ -152,8 +125,8 @@ final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable {
         context: StatusOnlyCallContext
     ) -> EventLoopFuture<Holons_V1_DisconnectMemberResponse> {
         let promise = context.eventLoop.makePromise(of: Holons_V1_DisconnectMemberResponse.self)
-        Task { @MainActor [holon] in
-            holon.stop()
+        Task { @MainActor [organism] in
+            await organism.disconnectCoaxMember(slug: request.slug)
             promise.succeed(Holons_V1_DisconnectMemberResponse())
         }
         return promise.futureResult
@@ -163,28 +136,65 @@ final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable {
         request: Holons_V1_TellRequest,
         context: StatusOnlyCallContext
     ) -> EventLoopFuture<Holons_V1_TellResponse> {
-        // Tell is not implemented in this initial wiring — domain verbs
-        // (GreetingAppService) cover the primary use cases.
-        return context.eventLoop.makeFailedFuture(
-            GRPCStatus(code: .unimplemented, message: "Tell is not yet implemented")
-        )
+        let promise = context.eventLoop.makePromise(of: Holons_V1_TellResponse.self)
+        Task { @MainActor [organism] in
+            do {
+                let payload = try await organism.tellCoaxMember(
+                    slug: request.memberSlug,
+                    method: request.method,
+                    payloadJSON: Data(request.payload)
+                )
+                var response = Holons_V1_TellResponse()
+                response.payload = payload
+                promise.succeed(response)
+            } catch {
+                promise.fail(grpcStatus(for: error))
+            }
+        }
+        return promise.futureResult
     }
 
     private func turnOffCoax(
-        request: Holons_V1_ListMembersRequest,
+        request: Holons_V1_TurnOffCoaxRequest,
         context: StatusOnlyCallContext
-    ) -> EventLoopFuture<Holons_V1_DisconnectMemberResponse> {
+    ) -> EventLoopFuture<Holons_V1_TurnOffCoaxResponse> {
         _ = request
-        let promise = context.eventLoop.makePromise(of: Holons_V1_DisconnectMemberResponse.self)
+        let promise = context.eventLoop.makePromise(of: Holons_V1_TurnOffCoaxResponse.self)
         let eventLoop = context.eventLoop
         Task { @MainActor [weak coaxServer] in
             eventLoop.execute {
-                promise.succeed(Holons_V1_DisconnectMemberResponse())
+                promise.succeed(Holons_V1_TurnOffCoaxResponse())
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) {
                 coaxServer?.isEnabled = false
             }
         }
         return promise.futureResult
+    }
+
+    private func memberInfo(for member: CoaxMember) -> Holons_V1_MemberInfo {
+        var info = Holons_V1_MemberInfo()
+        info.slug = member.slug
+        info.identity = .with {
+            $0.familyName = member.familyName
+            $0.givenName = member.displayName
+        }
+        info.state = switch member.state {
+        case .available:
+            .available
+        case .connected:
+            .connected
+        case .error:
+            .error
+        }
+        info.isOrganism = member.isOrganism
+        return info
+    }
+
+    private func grpcStatus(for error: Error) -> GRPCStatus {
+        if let status = error as? GRPCStatus {
+            return status
+        }
+        return GRPCStatus(code: .unavailable, message: error.localizedDescription)
     }
 }

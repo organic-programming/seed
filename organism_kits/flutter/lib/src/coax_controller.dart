@@ -5,35 +5,43 @@ import 'package:flutter/foundation.dart';
 import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart' as holons;
 
-import '../model/app_model.dart';
-import '../rpc/coax_service.dart';
-import '../rpc/greeting_app_service.dart';
-import '../runtime/describe_registration.dart';
-import '../settings_store.dart';
-import 'greeting_controller.dart';
+import 'coax_configuration.dart';
+import 'platform_capabilities.dart';
+import 'settings_store.dart';
 
 class CoaxController extends ChangeNotifier {
   CoaxController({
-    required GreetingController greetingController,
     required SettingsStore settingsStore,
+    required List<Service> Function() serviceFactory,
+    Future<void> Function()? prepareDescribe,
     AppPlatformCapabilities? capabilities,
-  }) : _greetingController = greetingController,
-       _settingsStore = settingsStore,
+    CoaxSettingsDefaults? defaults,
+    this.enabledKey = 'coax.server.enabled',
+    this.settingsKey = 'coax.server.settings',
+  }) : _settingsStore = settingsStore,
+       _serviceFactory = serviceFactory,
+       _prepareDescribe = prepareDescribe,
        capabilities = capabilities ?? AppPlatformCapabilities.desktopCurrent(),
-       _isEnabled = settingsStore.readBool(_enabledKey),
-       _snapshot = _loadSnapshot(settingsStore) {
+       defaults = defaults ?? CoaxSettingsDefaults.standard(),
+       _isEnabled = settingsStore.readBool(enabledKey),
+       _snapshot = _loadSnapshot(
+         settingsStore,
+         settingsKey,
+         defaults ?? CoaxSettingsDefaults.standard(),
+       ) {
     if (!this.capabilities.supportsUnixSockets &&
         _snapshot.serverTransport == CoaxServerTransport.unix) {
-      _snapshot = CoaxSettingsSnapshot.defaults;
+      _snapshot = this.defaults.snapshot();
     }
   }
 
-  static const _enabledKey = 'coax.server.enabled';
-  static const _settingsKey = 'coax.server.settings';
-
-  final GreetingController _greetingController;
   final SettingsStore _settingsStore;
+  final List<Service> Function() _serviceFactory;
+  final Future<void> Function()? _prepareDescribe;
   final AppPlatformCapabilities capabilities;
+  final CoaxSettingsDefaults defaults;
+  final String enabledKey;
+  final String settingsKey;
 
   holons.RunningServer? _runningServer;
   bool _disposed = false;
@@ -48,6 +56,7 @@ class CoaxController extends ChangeNotifier {
   String get serverHost => _snapshot.serverHost;
   String get serverPortText => _snapshot.serverPortText;
   String get serverUnixPath => _snapshot.serverUnixPath;
+  String get defaultUnixPath => defaults.serverUnixPath;
 
   int get serverPort =>
       sanitizedPort(serverPortText, serverTransport.defaultPort);
@@ -71,12 +80,12 @@ class CoaxController extends ChangeNotifier {
     switch (serverTransport) {
       case CoaxServerTransport.tcp:
         final host = serverHost.trim().isEmpty
-            ? CoaxSettingsSnapshot.defaultHost
+            ? defaults.serverHost
             : serverHost.trim();
         return 'tcp://$host:$serverPort';
       case CoaxServerTransport.unix:
         final path = serverUnixPath.trim().isEmpty
-            ? CoaxSettingsSnapshot.defaultUnixPath
+            ? defaults.serverUnixPath
             : serverUnixPath.trim();
         return 'unix://$path';
     }
@@ -118,7 +127,7 @@ class CoaxController extends ChangeNotifier {
       return;
     }
     _isEnabled = value;
-    await _settingsStore.writeBool(_enabledKey, value);
+    await _settingsStore.writeBool(enabledKey, value);
     _safeNotify();
     await _reconfigureRuntime();
   }
@@ -218,20 +227,15 @@ class CoaxController extends ChangeNotifier {
   }
 
   Future<void> _startServer(int generation) async {
-    final appService = GreetingAppRpcService(_greetingController);
-    final coaxService = CoaxRpcService(
-      greetingController: _greetingController,
-      coaxController: this,
-    );
     listenUri = null;
     statusDetail = null;
     _safeNotify();
 
     try {
-      ensureAppDescribeRegistered();
+      await _prepareDescribe?.call();
       final server = await holons.startWithOptions(
         _runtimeListenUri(),
-        <Service>[coaxService, appService],
+        _serviceFactory(),
         options: const holons.ServeOptions(describe: true, logger: _ignoreLog),
       );
       if (generation != _startGeneration || !_isEnabled) {
@@ -271,19 +275,19 @@ class CoaxController extends ChangeNotifier {
   }
 
   Future<void> _persistSnapshot() async {
-    await _settingsStore.writeString(_settingsKey, _snapshot.encode());
+    await _settingsStore.writeString(settingsKey, _snapshot.encode());
   }
 
   String _runtimeListenUri() {
     switch (serverTransport) {
       case CoaxServerTransport.tcp:
         final host = serverHost.trim().isEmpty
-            ? CoaxSettingsSnapshot.defaultHost
+            ? defaults.serverHost
             : serverHost.trim();
         return 'tcp://$host:$serverPort';
       case CoaxServerTransport.unix:
         final path = serverUnixPath.trim().isEmpty
-            ? CoaxSettingsSnapshot.defaultUnixPath
+            ? defaults.serverUnixPath
             : serverUnixPath.trim();
         return 'unix://$path';
     }
@@ -301,15 +305,19 @@ class CoaxController extends ChangeNotifier {
         transport.defaultPort;
   }
 
-  static CoaxSettingsSnapshot _loadSnapshot(SettingsStore store) {
-    final rawValue = store.readString(_settingsKey);
+  static CoaxSettingsSnapshot _loadSnapshot(
+    SettingsStore store,
+    String settingsKey,
+    CoaxSettingsDefaults defaults,
+  ) {
+    final rawValue = store.readString(settingsKey);
     if (rawValue.trim().isEmpty) {
-      return CoaxSettingsSnapshot.defaults;
+      return defaults.snapshot();
     }
     try {
       return CoaxSettingsSnapshot.decode(rawValue);
     } on Object {
-      return CoaxSettingsSnapshot.defaults;
+      return defaults.snapshot();
     }
   }
 

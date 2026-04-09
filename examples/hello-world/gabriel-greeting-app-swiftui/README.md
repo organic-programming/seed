@@ -1,6 +1,6 @@
 # Gabriel Greeting App SwiftUI
 
-SwiftUI HostUI for the Gabriel greeting holons. Discovers sibling Gabriel daemons, connects over the Holons transport layer, and renders an interactive multilingual greeting UI (56 languages).
+SwiftUI HostUI for the Gabriel greeting holons. Discovers sibling Gabriel holons, connects over the Holons transport layer, and renders an interactive multilingual greeting UI (56 languages).
 
 ## Discovery
 
@@ -59,7 +59,7 @@ protoc --proto_path=../../_protos \
 
 ## Build
 
-From the repository root (builds all 12 daemons + the app):
+From the repository root (builds all 12 holons + the app):
 
 ```sh
 op build gabriel-greeting-app-swiftui
@@ -94,7 +94,7 @@ The built app bundle lives at `.op/build/GabrielGreetingApp.app`.
 op run gabriel-greeting-app-swiftui
 ```
 
-The app reveals an 800×600 window titled "Gabriel Greeting", discovers built sibling backends, loads the language picker, and refreshes the greeting as you edit the name, switch languages, change transports, or switch daemons.
+The app reveals an 800×600 window titled "Gabriel Greeting", discovers built sibling holons, loads the language picker, and refreshes the greeting as you edit the name, switch languages, change transports, or switch holons.
 
 ## Transport modes
 
@@ -102,7 +102,7 @@ The UI transport picker supports:
 
 | Mode | Description |
 |------|-------------|
-| `stdio` | Default. Stdin/stdout pipes to the daemon process. |
+| `stdio` | Default. Stdin/stdout pipes to the member holon process. |
 | `unix` | Unix domain socket. |
 | `tcp` | TCP connection. |
 
@@ -146,9 +146,8 @@ The UI exposes the server surface only. The embedded runtime is available over `
 op tcp://127.0.0.1:60000 ListMembers
 op tcp://127.0.0.1:60000 TurnOffCoax
 
-// Available explicitly not implemented : 
-op tcp://127.0.0.1:60000 Tell       
-op grpc: call /holons.v1.CoaxService/Tell: rpc error: code = Unimplemented desc = Tell is not yet implemented
+// Working
+op tcp://127.0.0.1:60000 Tell '{"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"{\"name\":\"Bob\",\"langCode\":\"fr\"}"}'
 ```
 
 ## Greet 

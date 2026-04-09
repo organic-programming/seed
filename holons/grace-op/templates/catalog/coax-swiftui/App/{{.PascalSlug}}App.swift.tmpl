@@ -1,0 +1,57 @@
+import Foundation
+import SwiftUI
+import Holons
+import HolonsApp
+import OrganismKit
+
+@main
+struct {{ .PascalSlug }}App: App {
+    @StateObject private var holon: HolonProcess
+    @StateObject private var coaxServer: CoaxServer
+
+    init() {
+        let holon = HolonProcess()
+        let coaxServerBox = WeakCoaxServerBox()
+        let server = CoaxServer(
+            providers: {
+                [
+                    CoaxServiceProvider(organism: holon, coaxServer: coaxServerBox.value!)
+                ]
+            },
+            registerDescribe: {
+                try registerDescribeResponse()
+            },
+            coaxDefaults: .standard(socketName: "{{ .Slug }}-coax.sock")
+        )
+        coaxServerBox.value = server
+        _holon = StateObject(wrappedValue: holon)
+        _coaxServer = StateObject(wrappedValue: server)
+    }
+
+    var body: some Scene {
+        WindowGroup("{{ .GivenTitle }} {{ .FamilyTitle }}") {
+            ContentView(holon: holon, coaxServer: coaxServer)
+                .frame(minWidth: 800, minHeight: 600)
+                .task {
+                    coaxServer.startIfEnabled()
+                }
+                .onDisappear {
+                    coaxServer.stop()
+                }
+        }
+    }
+}
+
+private final class WeakCoaxServerBox {
+    weak var value: CoaxServer?
+}
+
+private func registerDescribeResponse() throws {
+    let fileURL = URL(fileURLWithPath: #filePath)
+    let rootDirectory = fileURL
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let protoDirectory = rootDirectory.appendingPathComponent("api", isDirectory: true)
+    let response = try Describe.buildResponse(protoDir: protoDirectory.path)
+    try Describe.useStaticResponse(response)
+}

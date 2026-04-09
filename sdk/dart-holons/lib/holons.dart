@@ -11,3 +11,4 @@ export 'src/connect.dart';
 export 'src/holonrpc.dart';
 export 'src/holonrpc_server_cli.dart';
 export 'src/grpcclient.dart';
+export 'src/grpc_json.dart';

@@ -1,0 +1,25 @@
+name: holons_app
+description: Reusable COAX runtime and UI kit for Flutter organism holons.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  collection: ^1.19.1
+  flutter:
+    sdk: flutter
+  grpc: ^5.1.0
+  holons:
+    path: ../../sdk/dart-holons
+  path: ^1.9.1
+  protobuf: ^6.0.0
+  shadcn_flutter: ^0.0.52
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

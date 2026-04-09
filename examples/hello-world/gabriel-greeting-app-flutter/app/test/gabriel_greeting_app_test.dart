@@ -3,12 +3,10 @@ import 'dart:ui' show AppExitResponse;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holons_app/holons_app.dart';
 
 import 'package:gabriel_greeting_app_flutter/src/app.dart';
-import 'package:gabriel_greeting_app_flutter/src/controller/coax_controller.dart';
 import 'package:gabriel_greeting_app_flutter/src/controller/greeting_controller.dart';
-import 'package:gabriel_greeting_app_flutter/src/model/app_model.dart';
-import 'package:gabriel_greeting_app_flutter/src/settings_store.dart';
 
 import 'support/fakes.dart';
 
@@ -28,9 +26,8 @@ void main() {
         },
       ),
     );
-    final coaxController = CoaxController(
+    final coaxController = buildCoaxController(
       greetingController: greetingController,
-      settingsStore: MemorySettingsStore(),
     );
 
     final app = GabrielGreetingApp(
@@ -74,9 +71,8 @@ void main() {
       ),
       capabilities: const AppPlatformCapabilities(supportsUnixSockets: true),
     );
-    final coaxController = CoaxController(
+    final coaxController = buildCoaxController(
       greetingController: greetingController,
-      settingsStore: MemorySettingsStore(),
       capabilities: const AppPlatformCapabilities(supportsUnixSockets: true),
     );
 
@@ -136,9 +132,8 @@ void main() {
         },
       ),
     );
-    final coaxController = CoaxController(
+    final coaxController = buildCoaxController(
       greetingController: greetingController,
-      settingsStore: MemorySettingsStore(),
     );
 
     await tester.pumpWidget(
@@ -178,9 +173,8 @@ void main() {
         },
       ),
     );
-    final coaxController = CoaxController(
+    final coaxController = buildCoaxController(
       greetingController: greetingController,
-      settingsStore: MemorySettingsStore(),
     );
 
     await tester.pumpWidget(

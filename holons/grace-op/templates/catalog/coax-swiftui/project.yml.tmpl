@@ -1,0 +1,29 @@
+name: "{{ .PascalSlug }}App"
+options:
+  bundleIdPrefix: com.organicprogramming.{{ .SnakeSlug }}
+  deploymentTarget:
+    macOS: "15.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+packages:
+  Modules:
+    path: Modules
+targets:
+  "{{ .PascalSlug }}App":
+    type: application
+    platform: macOS
+    sources:
+      - App
+    dependencies:
+      - package: Modules
+        product: OrganismKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.organicprogramming.{{ .SnakeSlug }}.app
+        INFOPLIST_FILE: App/Info.plist
+{{ "{{ if .Hardened }}" }}
+        CODE_SIGN_ENTITLEMENTS: App/{{ .PascalSlug }}.entitlements
+{{ "{{ end }}" }}
+        SWIFT_VERSION: "6.0"
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+        PRODUCT_NAME: "{{ .PascalSlug }}App"

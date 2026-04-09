@@ -1,9 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holons_app/holons_app.dart';
 
-import 'package:gabriel_greeting_app_flutter/src/controller/coax_controller.dart';
 import 'package:gabriel_greeting_app_flutter/src/controller/greeting_controller.dart';
 import 'package:gabriel_greeting_app_flutter/src/model/app_model.dart';
-import 'package:gabriel_greeting_app_flutter/src/settings_store.dart';
 
 import 'support/fakes.dart';
 
@@ -24,7 +23,7 @@ void main() {
       ),
     );
     final store = MemorySettingsStore();
-    final coaxController = CoaxController(
+    final coaxController = buildCoaxController(
       greetingController: greetingController,
       settingsStore: store,
       capabilities: const AppPlatformCapabilities(supportsUnixSockets: false),

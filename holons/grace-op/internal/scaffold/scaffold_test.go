@@ -21,7 +21,13 @@ func TestListIncludesTemplatesAndCompositeAliases(t *testing.T) {
 		names[entry.Name] = entry
 	}
 
-	for _, name := range []string{"composite-go-swiftui", "composite-go-web", "composite-dart-flutter"} {
+	for _, name := range []string{
+		"coax-flutter",
+		"coax-swiftui",
+		"composite-go-swiftui",
+		"composite-go-web",
+		"composite-dart-flutter",
+	} {
 		if _, ok := names[name]; !ok {
 			t.Fatalf("template %q missing from catalog", name)
 		}
@@ -115,5 +121,101 @@ func TestGenerateCompositeAliasesUseUpdatedHolonRunners(t *testing.T) {
 				t.Fatalf("holon README missing runner %q:\n%s", tc.wantRunner, string(data))
 			}
 		})
+	}
+}
+
+func TestGenerateCoaxFlutterTemplateRendersScaffold(t *testing.T) {
+	root := t.TempDir()
+
+	result, err := Generate("coax-flutter", "henri-nobody", GenerateOptions{Dir: root})
+	if err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+	if result.Template != "coax-flutter" {
+		t.Fatalf("result.Template = %q, want %q", result.Template, "coax-flutter")
+	}
+
+	pubspecPath := filepath.Join(root, "henri-nobody", "app", "pubspec.yaml")
+	pubspec, err := os.ReadFile(pubspecPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", pubspecPath, err)
+	}
+	for _, expected := range []string{
+		`name: henri_nobody_app`,
+		`path: ../../organism_kits/flutter`,
+		`path: ../../sdk/dart-holons`,
+	} {
+		if !strings.Contains(string(pubspec), expected) {
+			t.Fatalf("pubspec missing %q:\n%s", expected, string(pubspec))
+		}
+	}
+
+	appPath := filepath.Join(root, "henri-nobody", "app", "lib", "src", "app.dart")
+	appData, err := os.ReadFile(appPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", appPath, err)
+	}
+	if !strings.Contains(string(appData), "sample.v1.SampleHolon/SetGreeting") {
+		t.Fatalf("app scaffold missing demo COAX wiring:\n%s", string(appData))
+	}
+
+	packagerPath := filepath.Join(root, "henri-nobody", "app", "tool", "package_desktop.dart")
+	packagerData, err := os.ReadFile(packagerPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", packagerPath, err)
+	}
+	if !strings.Contains(string(packagerData), "// TODO: list your member holons") {
+		t.Fatalf("packager missing member TODO:\n%s", string(packagerData))
+	}
+}
+
+func TestGenerateCoaxSwiftUITemplateRendersScaffold(t *testing.T) {
+	root := t.TempDir()
+
+	result, err := Generate("coax-swiftui", "henri-nobody", GenerateOptions{Dir: root})
+	if err != nil {
+		t.Fatalf("Generate() failed: %v", err)
+	}
+	if result.Template != "coax-swiftui" {
+		t.Fatalf("result.Template = %q, want %q", result.Template, "coax-swiftui")
+	}
+
+	projectPath := filepath.Join(root, "henri-nobody", "project.yml")
+	projectData, err := os.ReadFile(projectPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", projectPath, err)
+	}
+	for _, expected := range []string{
+		`{{ if .Hardened }}`,
+		`CODE_SIGN_ENTITLEMENTS: App/HenriNobody.entitlements`,
+		`product: OrganismKit`,
+	} {
+		if !strings.Contains(string(projectData), expected) {
+			t.Fatalf("project.yml missing %q:\n%s", expected, string(projectData))
+		}
+	}
+
+	packagePath := filepath.Join(root, "henri-nobody", "Modules", "Package.swift")
+	packageData, err := os.ReadFile(packagePath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", packagePath, err)
+	}
+	for _, expected := range []string{
+		`fileURLWithPath: "../../organism_kits/swiftui"`,
+		`fileURLWithPath: "../../sdk/swift-holons"`,
+		`name: "OrganismKit"`,
+	} {
+		if !strings.Contains(string(packageData), expected) {
+			t.Fatalf("Package.swift missing %q:\n%s", expected, string(packageData))
+		}
+	}
+
+	processPath := filepath.Join(root, "henri-nobody", "Modules", "Sources", "AppKit", "HolonProcess.swift")
+	processData, err := os.ReadFile(processPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", processPath, err)
+	}
+	if !strings.Contains(string(processData), "sample.v1.SampleHolon/SetGreeting") {
+		t.Fatalf("HolonProcess missing demo COAX method:\n%s", string(processData))
 	}
 }

@@ -2,13 +2,16 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:grpc/grpc.dart';
+import 'package:holons_app/holons_app.dart';
 
+import 'package:gabriel_greeting_app_flutter/src/controller/greeting_controller.dart';
 import 'package:gabriel_greeting_app_flutter/src/gen/v1/greeting.pb.dart';
 import 'package:gabriel_greeting_app_flutter/src/model/app_model.dart';
-import 'package:gabriel_greeting_app_flutter/src/runtime/holon_catalog.dart';
-import 'package:gabriel_greeting_app_flutter/src/runtime/holon_connector.dart';
+import 'package:gabriel_greeting_app_flutter/src/rpc/greeting_app_service.dart';
+import 'package:gabriel_greeting_app_flutter/src/runtime/describe_registration.dart';
+import 'package:gabriel_greeting_app_flutter/src/runtime/greeting_holon_connection.dart';
 
-class FakeHolonCatalog implements HolonCatalog {
+class FakeHolonCatalog implements HolonCatalog<GabrielHolonIdentity> {
   FakeHolonCatalog(this.holons);
 
   final List<GabrielHolonIdentity> holons;
@@ -17,7 +20,7 @@ class FakeHolonCatalog implements HolonCatalog {
   Future<List<GabrielHolonIdentity>> discover() async => holons;
 }
 
-class FakeHolonConnector implements HolonConnector {
+class FakeHolonConnector implements GreetingHolonConnectionFactory {
   final List<(String slug, String transport)> connectCalls =
       <(String, String)>[];
   final Map<String, FakeGreetingHolonConnection Function(String transport)>
@@ -45,6 +48,7 @@ class FakeGreetingHolonConnection implements GreetingHolonConnection {
     required this.greetingBuilder,
     this.listLanguagesError,
     this.sayHelloError,
+    this.tellHandler,
     this.closeFuture,
   });
 
@@ -53,6 +57,7 @@ class FakeGreetingHolonConnection implements GreetingHolonConnection {
   greetingBuilder;
   final Object? listLanguagesError;
   final Object? sayHelloError;
+  final FutureOr<Object?> Function(String method, Object? payload)? tellHandler;
   final Future<void>? closeFuture;
   final List<(String name, String langCode)> sayHelloCalls =
       <(String, String)>[];
@@ -76,6 +81,40 @@ class FakeGreetingHolonConnection implements GreetingHolonConnection {
       throw sayHelloError!;
     }
     return greetingBuilder(name: name, langCode: langCode);
+  }
+
+  @override
+  Future<Object?> tell({required String method, Object? payload}) async {
+    if (tellHandler != null) {
+      return await tellHandler!(method, payload);
+    }
+
+    final canonical = method.startsWith('/') ? method.substring(1) : method;
+    switch (canonical) {
+      case 'greeting.v1.GreetingService/ListLanguages':
+        return <String, Object?>{
+          'languages': languages
+              .map(
+                (language) => <String, Object?>{
+                  'code': language.code,
+                  'name': language.name,
+                  'native': language.native,
+                },
+              )
+              .toList(growable: false),
+        };
+      case 'greeting.v1.GreetingService/SayHello':
+        final json = payload is Map<String, Object?>
+            ? payload
+            : (payload as Map).cast<String, Object?>();
+        final greeting = await sayHello(
+          name: (json['name'] ?? '') as String,
+          langCode: (json['langCode'] ?? json['lang_code'] ?? '') as String,
+        );
+        return <String, Object?>{'greeting': greeting};
+      default:
+        throw UnsupportedError('No fake Tell handler registered for $method');
+    }
   }
 
   @override
@@ -107,6 +146,34 @@ GabrielHolonIdentity holon(String slug, {int? rank}) {
     discoveryPath: '/tmp/$slug.holon',
     hasSource: true,
   );
+}
+
+CoaxController buildCoaxController({
+  required GreetingController greetingController,
+  SettingsStore? settingsStore,
+  AppPlatformCapabilities? capabilities,
+  CoaxSettingsDefaults? defaults,
+}) {
+  final coaxDefaults =
+      defaults ??
+      CoaxSettingsDefaults.standard(socketName: 'gabriel-greeting-coax.sock');
+  late final CoaxController coaxController;
+  coaxController = CoaxController(
+    settingsStore: settingsStore ?? MemorySettingsStore(),
+    defaults: coaxDefaults,
+    capabilities: capabilities,
+    prepareDescribe: () async {
+      ensureAppDescribeRegistered();
+    },
+    serviceFactory: () => [
+      CoaxRpcService(
+        organismController: greetingController,
+        coaxController: coaxController,
+      ),
+      GreetingAppRpcService(greetingController),
+    ],
+  );
+  return coaxController;
 }
 
 Future<int> reserveTcpPort() async {

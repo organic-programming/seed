@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:ui' show AppExitResponse;
 
+import 'package:holons_app/holons_app.dart'
+    show CoaxControlBar, CoaxController, CoaxSettingsDialog, transportTitle;
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import 'controller/coax_controller.dart';
 import 'controller/greeting_controller.dart';
 import 'gen/v1/greeting.pb.dart';
 import 'model/app_model.dart';
-import 'ui/coax_settings_dialog.dart';
 import 'ui/speech_bubble.dart';
 
 class GabrielGreetingApp extends StatelessWidget {
@@ -173,8 +173,8 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(32, 16, 32, 16),
-                    child: _TopHeader(
-                      coaxController: coax,
+                    child: CoaxControlBar(
+                      controller: coax,
                       onOpenSettings: () => _showCoaxSettings(context),
                     ),
                   ),
@@ -261,64 +261,6 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
       context: context,
       builder: (context) =>
           CoaxSettingsDialog(controller: widget.coaxController),
-    );
-  }
-}
-
-class _TopHeader extends StatelessWidget {
-  const _TopHeader({
-    required this.coaxController,
-    required this.onOpenSettings,
-  });
-
-  final CoaxController coaxController;
-  final VoidCallback onOpenSettings;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Spacer(),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Row(
-              children: [
-                Switch(
-                  value: coaxController.isEnabled,
-                  onChanged: (value) {
-                    coaxController.setIsEnabled(value);
-                  },
-                  trailing: const Text('COAX').small().semiBold(),
-                ),
-                GhostButton(
-                  onPressed: onOpenSettings,
-                  density: ButtonDensity.icon,
-                  child: const Icon(LucideIcons.settings2),
-                ),
-              ],
-            ).gap(8),
-            if (coaxController.serverStatus.endpoint != null)
-              Row(
-                children: [
-                  const Text('Server:').small().muted(),
-                  SelectableText(
-                    coaxController.serverStatus.endpoint!,
-                  ).small().muted(),
-                  _SurfaceBadge(state: coaxController.serverStatus.state),
-                ],
-              ).gap(8),
-            if (coaxController.statusDetail != null)
-              SizedBox(
-                width: 360,
-                child: Text(
-                  coaxController.statusDetail!,
-                  textAlign: TextAlign.right,
-                ).small().muted(),
-              ),
-          ],
-        ),
-      ],
     );
   }
 }
@@ -648,58 +590,5 @@ class _RuntimeDot extends StatelessWidget {
       height: 10,
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
-  }
-}
-
-class _SurfaceBadge extends StatelessWidget {
-  const _SurfaceBadge({required this.state});
-
-  final CoaxSurfaceState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = switch (state) {
-      CoaxSurfaceState.live => const Color(0xFF66B85E),
-      CoaxSurfaceState.error => const Color(0xFFD96A6A),
-      CoaxSurfaceState.announced => theme.colorScheme.mutedForeground,
-      CoaxSurfaceState.saved => theme.colorScheme.mutedForeground,
-      CoaxSurfaceState.off => theme.colorScheme.mutedForeground,
-    };
-    switch (state) {
-      case CoaxSurfaceState.live:
-        return Text(
-          state.badgeTitle,
-          style: theme.typography.small.copyWith(
-            fontWeight: FontWeight.w600,
-            color: color,
-          ),
-        );
-      case CoaxSurfaceState.error:
-        return Text(
-          state.badgeTitle,
-          style: theme.typography.small.copyWith(
-            fontWeight: FontWeight.w600,
-            color: color,
-          ),
-        );
-      case CoaxSurfaceState.announced:
-      case CoaxSurfaceState.saved:
-        return Text(
-          state.badgeTitle,
-          style: theme.typography.small.copyWith(
-            fontWeight: FontWeight.w600,
-            color: color,
-          ),
-        );
-      case CoaxSurfaceState.off:
-        return Text(
-          state.badgeTitle,
-          style: theme.typography.small.copyWith(
-            fontWeight: FontWeight.w600,
-            color: color,
-          ),
-        );
-    }
   }
 }

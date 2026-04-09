@@ -237,6 +237,7 @@ func buildContext(entry Entry, slug string, overrides map[string]string) (map[st
 	ctx := map[string]string{
 		"UUID":        newUUID(),
 		"Slug":        slug,
+		"SnakeSlug":   snakeCase(slug),
 		"GivenName":   given,
 		"FamilyName":  family,
 		"GivenTitle":  titleCase(given),
@@ -319,6 +320,32 @@ func titleCase(value string) string {
 		parts[i] = strings.ToUpper(part[:1]) + strings.ToLower(part[1:])
 	}
 	return strings.Join(parts, " ")
+}
+
+func snakeCase(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if value == "" {
+		return value
+	}
+	var builder strings.Builder
+	lastUnderscore := false
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			builder.WriteRune(r)
+			lastUnderscore = false
+		case r == '_' || r == '-' || r == ' ':
+			if !lastUnderscore {
+				builder.WriteRune('_')
+				lastUnderscore = true
+			}
+		}
+	}
+	result := strings.Trim(builder.String(), "_")
+	if result == "" {
+		return "holon"
+	}
+	return result
 }
 
 func pascalCase(value string) string {

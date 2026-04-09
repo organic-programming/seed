@@ -1,4 +1,5 @@
 import XCTest
+import HolonsApp
 @testable import GreetingKit
 
 final class TransportSelectionTests: XCTestCase {

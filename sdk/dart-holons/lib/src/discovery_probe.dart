@@ -9,6 +9,10 @@ import 'grpcclient.dart';
 const Duration defaultDiscoveryProbeTimeout = Duration(seconds: 5);
 const Duration _stdioStartupProbeWindow = Duration(milliseconds: 500);
 
+Future<void> main(List<String> args) async {
+  exitCode = await runDiscoveryProbeCli(args);
+}
+
 Future<HolonInfo> describeBinary(
   String binaryPath, {
   Duration timeout = defaultDiscoveryProbeTimeout,
