@@ -2,6 +2,33 @@
 
 set -euo pipefail
 
+# ==============================================================================
+# Canonical Proto Compiler for Core Holon SDKs
+# ==============================================================================
+#
+# PURPOSE:
+# This script is a maintainer tool. It compiles the foundational protobuf schemas
+# (manifest, describe, coax) into native code bindings for all 13 supported SDKs 
+# (Go, Swift, Dart, Python, etc.) and places them in their respective `sdk/*` directories.
+#
+# WHY IT'S NEEDED EVEN WITH `embed.go`:
+# The `op` binary statically embeds the raw `.proto` definitions via `embed.go`.
+# That allows `op` to read or serve the plain-text schemas at runtime (e.g., 
+# when scaffolding a new holon via `op new`). However, the SDK codebases need 
+# the actual *compiled code* (Go structs, Swift classes) to function. Embedding 
+# the raw schemas does not magically translate them into Swift or Dart files 
+# for the framework code.
+#
+# WHY NOT HAVE `OP` DO THIS?
+# 1. The Bootstrap Chicken-and-Egg: `op` is written in Go and depends on the
+#    `go-holons` SDK to even compile. If we relied on `op` to generate the 
+#    base protos, we wouldn't be able to build `op` in the first place.
+# 2. Maintainer Environment Load: Running this operation requires all 13 
+#    `protoc` language plugins installed on the host machine. It is a heavy,
+#    infrastructure-level maintenance chore, fundamentally different from `op`'s
+#    mission which is to compile isolated user-domain applications and holons.
+# ==============================================================================
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROTO_ROOT="$ROOT/holons/grace-op/_protos"
 CANONICAL_DESCRIBE="$PROTO_ROOT/holons/v1/describe.proto"
