@@ -2,7 +2,7 @@ schema: holon/v0
 uuid: "{{ .UUID }}"
 given_name: "{{ .GivenTitle }}"
 family_name: "{{ .FamilyTitle }}"
-motto: "{{ .DaemonKind }} + {{ .HostUIKind }} composite."
+motto: "{{ .HolonKind }} + {{ .HostUIKind }} holon composite."
 composer: "op new"
 status: draft
 born: "{{ .Date }}"
@@ -15,9 +15,9 @@ build:
     target: macos
     mode: debug
   members:
-    - id: daemon
-      path: daemon
-      type: component
+    - id: holon
+      path: holon
+      type: holon
     - id: app
       path: app
       type: component

@@ -49,8 +49,8 @@ func TestGenerateCompositeAliasRendersKindsAndFiles(t *testing.T) {
 	for _, expected := range []string{
 		`kind: "composite"`,
 		`runner: "recipe"`,
-		`motto: "go + swiftui composite."`,
-		`path: "daemon"`,
+		`motto: "go + swiftui holon composite."`,
+		`path: "holon"`,
 		`path: "app"`,
 		`primary: "app/app.txt"`,
 	} {
@@ -64,13 +64,13 @@ func TestGenerateCompositeAliasRendersKindsAndFiles(t *testing.T) {
 		t.Fatalf("generated manifest missing UUIDv4: %s", string(manifestData))
 	}
 
-	daemonReadmePath := filepath.Join(root, "orbit-console", "daemon", "README.md")
-	daemonReadme, err := os.ReadFile(daemonReadmePath)
+	holonReadmePath := filepath.Join(root, "orbit-console", "holon", "README.md")
+	holonReadme, err := os.ReadFile(holonReadmePath)
 	if err != nil {
-		t.Fatalf("ReadFile(%s) failed: %v", daemonReadmePath, err)
+		t.Fatalf("ReadFile(%s) failed: %v", holonReadmePath, err)
 	}
-	if !strings.Contains(string(daemonReadme), "Runner: go-module") {
-		t.Fatalf("daemon README missing go runner:\n%s", string(daemonReadme))
+	if !strings.Contains(string(holonReadme), "Runner: go-module") {
+		t.Fatalf("holon README missing go runner:\n%s", string(holonReadme))
 	}
 
 	appReadmePath := filepath.Join(root, "orbit-console", "app", "README.md")
@@ -89,7 +89,7 @@ func TestGenerateCompositeAliasRendersKindsAndFiles(t *testing.T) {
 	}
 }
 
-func TestGenerateCompositeAliasesUseUpdatedDaemonRunners(t *testing.T) {
+func TestGenerateCompositeAliasesUseUpdatedHolonRunners(t *testing.T) {
 	tests := []struct {
 		template   string
 		slug       string
@@ -106,13 +106,13 @@ func TestGenerateCompositeAliasesUseUpdatedDaemonRunners(t *testing.T) {
 				t.Fatalf("Generate() failed: %v", err)
 			}
 
-			readmePath := filepath.Join(root, tc.slug, "daemon", "README.md")
+			readmePath := filepath.Join(root, tc.slug, "holon", "README.md")
 			data, err := os.ReadFile(readmePath)
 			if err != nil {
 				t.Fatalf("ReadFile(%s) failed: %v", readmePath, err)
 			}
 			if !strings.Contains(string(data), "Runner: "+tc.wantRunner) {
-				t.Fatalf("daemon README missing runner %q:\n%s", tc.wantRunner, string(data))
+				t.Fatalf("holon README missing runner %q:\n%s", tc.wantRunner, string(data))
 			}
 		})
 	}

@@ -97,7 +97,7 @@ message HolonManifest {
     }
 
     message Member {
-      string id = 1;       // e.g. "daemon", "app"
+      string id = 1;       // e.g. "holon", "app"
       string path = 2;     // relative path to the member
       string type = 3;     // holon | component
     }

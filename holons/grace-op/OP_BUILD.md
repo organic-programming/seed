@@ -490,10 +490,10 @@ Composite holons that produce `.app` bundles embed child holons as
 `.holon` packages under `Contents/Resources/Holons/`.
 
 ```protobuf
-steps: {build_member: "daemon"}
+steps: {build_member: "holon"}
 steps: {
   copy_artifact: {
-    from: "daemon"
+    from: "holon"
     to: "build/MyApp.app/Contents/Resources/Holons/gabriel-greeting-go.holon"
   }
 }

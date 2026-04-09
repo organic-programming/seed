@@ -67,8 +67,8 @@ func TestHelpBuildTopicIncludesCleanFlag(t *testing.T) {
 	if !strings.Contains(output, "--clean") {
 		t.Fatalf("help build missing --clean flag:\n%s", output)
 	}
-	if !strings.Contains(output, "App Sandbox") {
-		t.Fatalf("help build missing App Sandbox wording for --hardened:\n%s", output)
+	if !strings.Contains(output, "sandboxed or constrained targets") {
+		t.Fatalf("help build missing generic hardened wording for --hardened:\n%s", output)
 	}
 	if !strings.Contains(output, "cannot be combined with --dry-run") {
 		t.Fatalf("help build missing dry-run restriction:\n%s", output)
@@ -237,7 +237,7 @@ func TestRunNewTemplateCreatesScaffold(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(%s) failed: %v", manifestPath, err)
 	}
-	if !strings.Contains(string(data), `motto: "dart + flutter composite."`) {
+	if !strings.Contains(string(data), `motto: "dart + flutter holon composite."`) {
 		t.Fatalf("generated manifest missing dart/flutter alias wiring: %s", string(data))
 	}
 }
@@ -529,7 +529,7 @@ func TestCommandForInstalledArtifactLaunchesCompositeHolonPackage(t *testing.T) 
 
 func TestCommandForArtifactDoesNotAddAssemblyEnvForNativeHolons(t *testing.T) {
 	root := t.TempDir()
-	binaryPath := filepath.Join(root, ".op", "build", "gudule-daemon-greeting-rust.holon", "bin", runtime.GOOS+"_"+runtime.GOARCH, "gudule-daemon-greeting-rust")
+	binaryPath := filepath.Join(root, ".op", "build", "gudule-holon-greeting-rust.holon", "bin", runtime.GOOS+"_"+runtime.GOARCH, "gudule-holon-greeting-rust")
 	if err := os.MkdirAll(filepath.Dir(binaryPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -539,11 +539,11 @@ func TestCommandForArtifactDoesNotAddAssemblyEnvForNativeHolons(t *testing.T) {
 
 	manifest := &holons.LoadedManifest{
 		Dir:  root,
-		Name: "gudule-daemon-greeting-rust",
+		Name: "gudule-holon-greeting-rust",
 		Manifest: holons.Manifest{
 			Kind: holons.KindNative,
 			Artifacts: holons.ArtifactPaths{
-				Binary: "gudule-daemon-greeting-rust",
+				Binary: "gudule-holon-greeting-rust",
 			},
 		},
 	}

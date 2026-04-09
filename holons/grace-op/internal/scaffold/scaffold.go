@@ -57,7 +57,7 @@ type compositeSpec struct {
 	runner string
 }
 
-var compositeDaemons = map[string]compositeSpec{
+var compositeHolons = map[string]compositeSpec{
 	"go":     {lang: "go", runner: "go-module"},
 	"rust":   {lang: "rust", runner: "cargo"},
 	"python": {lang: "python", runner: "python"},
@@ -97,13 +97,13 @@ func List() ([]Entry, error) {
 		}
 		entries = append(entries, entry)
 	}
-	for daemon := range compositeDaemons {
+	for holon := range compositeHolons {
 		for hostui := range compositeHostUIs {
-			name := fmt.Sprintf("composite-%s-%s", daemon, hostui)
+			name := fmt.Sprintf("composite-%s-%s", holon, hostui)
 			entries = append(entries, Entry{
 				Name:        name,
-				Description: fmt.Sprintf("Composite %s daemon + %s host UI assembly", daemon, hostui),
-				Lang:        compositeDaemons[daemon].lang + "+" + compositeHostUIs[hostui].lang,
+				Description: fmt.Sprintf("Composite %s holon + %s app holon assembly", holon, hostui),
+				Lang:        compositeHolons[holon].lang + "+" + compositeHostUIs[hostui].lang,
 				dir:         "composite-generic",
 				alias:       name,
 			})
@@ -196,12 +196,12 @@ func resolveEntry(name string) (Entry, error) {
 	}
 	parts := strings.Split(strings.TrimPrefix(name, "composite-"), "-")
 	if len(parts) == 2 && strings.HasPrefix(name, "composite-") {
-		if _, ok := compositeDaemons[parts[0]]; ok {
+		if _, ok := compositeHolons[parts[0]]; ok {
 			if _, ok := compositeHostUIs[parts[1]]; ok {
 				return Entry{
 					Name:        name,
-					Description: fmt.Sprintf("Composite %s daemon + %s host UI assembly", parts[0], parts[1]),
-					Lang:        compositeDaemons[parts[0]].lang + "+" + compositeHostUIs[parts[1]].lang,
+					Description: fmt.Sprintf("Composite %s holon + %s app holon assembly", parts[0], parts[1]),
+					Lang:        compositeHolons[parts[0]].lang + "+" + compositeHostUIs[parts[1]].lang,
 					dir:         "composite-generic",
 					alias:       name,
 				}, nil
@@ -266,9 +266,9 @@ func buildContext(entry Entry, slug string, overrides map[string]string) (map[st
 	}
 	if entry.alias != "" && strings.HasPrefix(entry.alias, "composite-") {
 		parts := strings.Split(strings.TrimPrefix(entry.alias, "composite-"), "-")
-		ctx["DaemonKind"] = parts[0]
+		ctx["HolonKind"] = parts[0]
 		ctx["HostUIKind"] = parts[1]
-		ctx["DaemonRunner"] = compositeDaemons[parts[0]].runner
+		ctx["HolonRunner"] = compositeHolons[parts[0]].runner
 		ctx["HostUIRunner"] = compositeHostUIs[parts[1]].runner
 	}
 	if _, ok := ctx["service"]; !ok {

@@ -415,9 +415,9 @@ file which describes **what** each RPC does individually.
 - **`composite`** — assembled from multiple buildable parts into a
   single deliverable.
   Examples:
-  - `gudule-greeting-godart` — Go daemon + Flutter (Dart) UI
-  - `gudule-greeting-swift` — Go daemon + SwiftUI frontend
-  - `gudule-greeting-rust-dart` — Rust daemon + Flutter (Dart) UI
+  - `gudule-greeting-godart` — Go holon + Flutter (Dart) app holon
+  - `gudule-greeting-swift` — Go holon + SwiftUI app holon
+  - `gudule-greeting-rust-dart` — Rust holon + Flutter (Dart) app holon
 
 ### Wrapper delegation
 
@@ -857,8 +857,8 @@ build:
     target: macos
     mode: debug
   members:
-    - id: daemon
-      path: greeting-daemon
+    - id: holon
+      path: greeting-holon
       type: holon
     - id: app
       path: greeting-godart
@@ -866,10 +866,10 @@ build:
   targets:
     macos:
       steps:
-        - build_member: daemon
+        - build_member: holon
         - copy:
-            from: greeting-daemon/gudule-daemon
-            to: build/gudule-daemon
+            from: greeting-holon/gudule-holon
+            to: build/gudule-holon
         - exec:
             cwd: greeting-godart
             argv: ["flutter", "pub", "get"]
@@ -1265,7 +1265,7 @@ All commands follow the same pattern:
 | Unsupported target | `op build: target "android" not supported by go-module runner` |
 | Missing prerequisite command | `op check: missing required command "go" on PATH; install it with...` |
 | Missing prerequisite file | `op check: missing required file "go.mod"` |
-| Failed child build | `op build: child build "daemon" failed` |
+| Failed child build | `op build: child build "holon" failed` |
 | Failed command step | `op build: exec step failed: flutter build macos` |
 | Missing primary artifact | `op build: artifact not found at .op/build/bin/rob-go` |
 | Holon not found | `op: holon "foo" not found` |

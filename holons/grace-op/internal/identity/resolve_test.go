@@ -36,16 +36,16 @@ option (holons.v1.manifest) = {
   kind: "composite"
   build: {
     runner: "recipe"
-    members: { id: "daemon" path: "../daemon" type: "holon" }
+    members: { id: "holon" path: "../holon" type: "holon" }
     members: { id: "app" path: "." type: "component" }
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "daemon" }
+        steps: { build_member: "holon" }
         steps: {
           copy_artifact: {
-            from: "daemon"
-            to: "build/MyApp.app/Contents/Resources/Holons/daemon.holon"
+            from: "holon"
+            to: "build/MyApp.app/Contents/Resources/Holons/holon.holon"
           }
         }
       }
@@ -72,10 +72,10 @@ option (holons.v1.manifest) = {
 	if target.Steps[1].CopyArtifact == nil {
 		t.Fatal("expected copy_artifact step to be resolved")
 	}
-	if got := target.Steps[1].CopyArtifact.From; got != "daemon" {
-		t.Fatalf("CopyArtifact.From = %q, want daemon", got)
+	if got := target.Steps[1].CopyArtifact.From; got != "holon" {
+		t.Fatalf("CopyArtifact.From = %q, want holon", got)
 	}
-	if got := target.Steps[1].CopyArtifact.To; got != "build/MyApp.app/Contents/Resources/Holons/daemon.holon" {
+	if got := target.Steps[1].CopyArtifact.To; got != "build/MyApp.app/Contents/Resources/Holons/holon.holon" {
 		t.Fatalf("CopyArtifact.To = %q", got)
 	}
 }

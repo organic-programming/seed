@@ -102,7 +102,7 @@ avoiding any manual CLI wiring:
 
 ```yaml
 members:
-  - id: daemon
+  - id: holon
     path: rob-go
     proxy:
       as: rest+sse
