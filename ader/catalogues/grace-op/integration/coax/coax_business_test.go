@@ -1,6 +1,7 @@
 package coax_test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -63,11 +64,18 @@ func TestCOAXBusiness_RuntimeSurface(t *testing.T) {
 					})
 					requireConnectedState(t, requireMemberResponse(t, statusConnected, targetSlug)["state"])
 
-					tellResult := invokeResult(t, session, "Tell", map[string]any{
+					tellPayload := requireTellPayload(t, invokeJSON(t, session, "Tell", map[string]any{
 						"member_slug": targetSlug,
 						"method":      "greeting.v1.GreetingService/SayHello",
-					})
-					requireUnimplementedFailure(t, tellResult)
+						"payload": jsonPayloadBase64(t, map[string]any{
+							"name": "Agent-COAX",
+						}),
+					}))
+					tellGreeting := requireGreetingPayload(t, tellPayload, "Agent-COAX")
+					mirroredGreeting := requireGreetingPayload(t, invokeJSON(t, session, "Greet", map[string]any{}), "Agent-COAX")
+					if mirroredGreeting != tellGreeting {
+						t.Fatalf("Tell did not update the shared UI state: Tell=%q Greet=%q", tellGreeting, mirroredGreeting)
+					}
 
 					integration.RequireSuccess(t, invokeResult(t, session, "DisconnectMember", map[string]any{
 						"slug": targetSlug,
@@ -369,6 +377,11 @@ func jsonPayload(t *testing.T, payload map[string]any) string {
 	return string(raw)
 }
 
+func jsonPayloadBase64(t *testing.T, payload map[string]any) string {
+	t.Helper()
+	return base64.StdEncoding.EncodeToString([]byte(jsonPayload(t, payload)))
+}
+
 func requireMemberSet(t *testing.T, payload map[string]any, expectedSlugs []string) {
 	t.Helper()
 
@@ -419,6 +432,22 @@ func requireGreetingPayload(t *testing.T, payload map[string]any, wantName strin
 	return greeting
 }
 
+func requireTellPayload(t *testing.T, payload map[string]any) map[string]any {
+	t.Helper()
+
+	encoded := jsonString(t, payload["payload"], "Tell.payload")
+	raw, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		t.Fatalf("Tell.payload is not valid base64: %v", err)
+	}
+
+	var decoded map[string]any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatalf("Tell.payload did not decode to JSON: %v\npayload:\n%s", err, string(raw))
+	}
+	return decoded
+}
+
 func requireConnectedState(t *testing.T, value any) {
 	t.Helper()
 	if !memberStateIsConnected(value) {
@@ -456,15 +485,6 @@ func memberStateIsError(value any) bool {
 		return typed == 4
 	default:
 		return false
-	}
-}
-
-func requireUnimplementedFailure(t *testing.T, result integration.CmdResult) {
-	t.Helper()
-	integration.RequireFailure(t, result)
-	combined := strings.ToLower(result.Combined)
-	if !strings.Contains(combined, "unimplemented") {
-		t.Fatalf("expected unimplemented failure, got:\nstdout:\n%s\nstderr:\n%s", result.Stdout, result.Stderr)
 	}
 }
 
