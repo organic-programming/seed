@@ -26,15 +26,15 @@ struct {{ .PascalSlug }}App: App {
         coaxServerBox.value = server
         _holon = StateObject(wrappedValue: holon)
         _coaxServer = StateObject(wrappedValue: server)
+        Task { @MainActor [server] in
+            server.startIfEnabled()
+        }
     }
 
     var body: some Scene {
         WindowGroup("{{ .GivenTitle }} {{ .FamilyTitle }}") {
             ContentView(holon: holon, coaxServer: coaxServer)
                 .frame(minWidth: 800, minHeight: 600)
-                .task {
-                    coaxServer.startIfEnabled()
-                }
                 .onDisappear {
                     coaxServer.stop()
                 }

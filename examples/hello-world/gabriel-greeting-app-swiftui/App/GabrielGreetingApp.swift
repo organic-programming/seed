@@ -28,6 +28,9 @@ struct GabrielGreetingApp: App {
         coaxServerBox.value = server
         _holon = StateObject(wrappedValue: h)
         _coaxServer = StateObject(wrappedValue: server)
+        Task { @MainActor [server] in
+            server.startIfEnabled()
+        }
     }
 
     var body: some Scene {
@@ -39,7 +42,6 @@ struct GabrielGreetingApp: App {
                     DispatchQueue.main.async {
                         revealAppWindow()
                     }
-                    coaxServer.startIfEnabled()
                 }
                 .onDisappear {
                     holon.stop()

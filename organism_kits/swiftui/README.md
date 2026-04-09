@@ -124,6 +124,9 @@ let server = CoaxServer(
     },
     coaxDefaults: .standard(socketName: "henri-nobody-coax.sock")
 )
+Task { @MainActor [server] in
+    server.startIfEnabled()
+}
 ```
 
 Your organism model should conform to `OrganismState`:
