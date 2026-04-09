@@ -1064,6 +1064,9 @@ private func makeLaunchProcess(_ launchTarget: LaunchTarget, listenURI: String) 
     let process = Process()
     process.executableURL = URL(fileURLWithPath: launchTarget.executablePath)
     process.arguments = launchTarget.arguments + ["serve", "--listen", listenURI]
+    var environment = ProcessInfo.processInfo.environment
+    environment["HOLONS_PARENT_PID"] = String(ProcessInfo.processInfo.processIdentifier)
+    process.environment = environment
     if let directoryURL = launchWorkingDirectoryURL(launchTarget.workingDirectory) {
         process.currentDirectoryURL = directoryURL
     }

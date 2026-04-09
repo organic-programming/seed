@@ -3,8 +3,7 @@
 #include "api/public.hpp"
 #include "gen/describe_generated.hpp"
 
-#include <chrono>
-#include <thread>
+#include <atomic>
 
 namespace gabriel::greeting::cppholon::internal {
 

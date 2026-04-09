@@ -16,154 +16,179 @@ var compositeBusinessLock sync.Mutex
 
 func TestCOAXBusiness_ColdBuild(t *testing.T) {
 	for _, spec := range businessCompositeSpecs(t) {
-		t.Run(spec.Slug, func(t *testing.T) {
-			withCompositeBusinessLock(t, func() {
-				sb := integration.NewSandbox(t)
-				cleanAndBuildComposite(t, sb, spec.Slug)
+		for _, variant := range businessBuildVariants() {
+			spec := spec
+			variant := variant
+			t.Run(spec.Slug+"/"+variant.Name, func(t *testing.T) {
+				withCompositeBusinessLock(t, func() {
+					sb := integration.NewSandbox(t)
+					cleanAndBuildComposite(t, sb, spec.Slug, variant.Hardened)
+				})
 			})
-		})
+		}
 	}
 }
 
 func TestCOAXBusiness_RuntimeSurface(t *testing.T) {
 	for _, spec := range businessCompositeSpecs(t) {
-		t.Run(spec.Slug, func(t *testing.T) {
-			withBuiltCompositeSession(t, spec.Slug, func(t *testing.T, _ *integration.Sandbox, session *integration.CompositeCOAXSession) {
-				expectedSlugs := businessExpectedSlugs(t, spec.Slug)
-				slices.Sort(expectedSlugs)
+		for _, variant := range businessBuildVariants() {
+			spec := spec
+			variant := variant
+			t.Run(spec.Slug+"/"+variant.Name, func(t *testing.T) {
+				withBuiltCompositeSession(t, spec.Slug, variant.Hardened, func(t *testing.T, _ *integration.Sandbox, session *integration.CompositeCOAXSession) {
+					expectedSlugs := businessExpectedSlugs(t, spec.Slug, variant.Hardened)
+					slices.Sort(expectedSlugs)
 
-				membersPayload := invokeJSON(t, session, "ListMembers", map[string]any{})
-				requireMemberSet(t, membersPayload, expectedSlugs)
+					membersPayload := invokeJSON(t, session, "ListMembers", map[string]any{})
+					requireMemberSet(t, membersPayload, expectedSlugs)
 
-				targetSlug := preferredTargetSlug(expectedSlugs)
-				statusBefore := invokeJSON(t, session, "MemberStatus", map[string]any{
-					"slug": targetSlug,
+					targetSlug := preferredTargetSlug(expectedSlugs)
+					statusBefore := invokeJSON(t, session, "MemberStatus", map[string]any{
+						"slug": targetSlug,
+					})
+					memberBefore := requireMemberResponse(t, statusBefore, targetSlug)
+					if memberStateIsError(memberBefore["state"]) {
+						t.Fatalf("member %q starts in error state: %#v", targetSlug, memberBefore)
+					}
+
+					connectPayload := invokeJSON(t, session, "ConnectMember", map[string]any{
+						"slug":      targetSlug,
+						"transport": "tcp",
+					})
+					memberConnected := requireMemberResponse(t, connectPayload, targetSlug)
+					requireConnectedState(t, memberConnected["state"])
+
+					statusConnected := invokeJSON(t, session, "MemberStatus", map[string]any{
+						"slug": targetSlug,
+					})
+					requireConnectedState(t, requireMemberResponse(t, statusConnected, targetSlug)["state"])
+
+					tellResult := invokeResult(t, session, "Tell", map[string]any{
+						"member_slug": targetSlug,
+						"method":      "greeting.v1.GreetingService/SayHello",
+					})
+					requireUnimplementedFailure(t, tellResult)
+
+					integration.RequireSuccess(t, invokeResult(t, session, "DisconnectMember", map[string]any{
+						"slug": targetSlug,
+					}))
+					statusDisconnected := invokeJSON(t, session, "MemberStatus", map[string]any{
+						"slug": targetSlug,
+					})
+					requireNotConnectedState(t, requireMemberResponse(t, statusDisconnected, targetSlug)["state"])
+
+					integration.RequireSuccess(t, invokeResult(t, session, "TurnOffCoax", map[string]any{}))
+					waitForCoaxShutdown(t, session)
 				})
-				memberBefore := requireMemberResponse(t, statusBefore, targetSlug)
-				if memberStateIsError(memberBefore["state"]) {
-					t.Fatalf("member %q starts in error state: %#v", targetSlug, memberBefore)
-				}
-
-				connectPayload := invokeJSON(t, session, "ConnectMember", map[string]any{
-					"slug":      targetSlug,
-					"transport": "tcp",
-				})
-				memberConnected := requireMemberResponse(t, connectPayload, targetSlug)
-				requireConnectedState(t, memberConnected["state"])
-
-				statusConnected := invokeJSON(t, session, "MemberStatus", map[string]any{
-					"slug": targetSlug,
-				})
-				requireConnectedState(t, requireMemberResponse(t, statusConnected, targetSlug)["state"])
-
-				tellResult := invokeResult(t, session, "Tell", map[string]any{
-					"member_slug": targetSlug,
-					"method":      "greeting.v1.GreetingService/SayHello",
-				})
-				requireUnimplementedFailure(t, tellResult)
-
-				integration.RequireSuccess(t, invokeResult(t, session, "DisconnectMember", map[string]any{
-					"slug": targetSlug,
-				}))
-				statusDisconnected := invokeJSON(t, session, "MemberStatus", map[string]any{
-					"slug": targetSlug,
-				})
-				requireNotConnectedState(t, requireMemberResponse(t, statusDisconnected, targetSlug)["state"])
-
-				integration.RequireSuccess(t, invokeResult(t, session, "TurnOffCoax", map[string]any{}))
-				waitForCoaxShutdown(t, session)
 			})
-		})
+		}
 	}
 }
 
 func TestCOAXBusiness_DomainMatrix(t *testing.T) {
 	for _, spec := range businessCompositeSpecs(t) {
-		t.Run(spec.Slug, func(t *testing.T) {
-			withBuiltCompositeSession(t, spec.Slug, func(t *testing.T, _ *integration.Sandbox, session *integration.CompositeCOAXSession) {
-				holonSlugs := businessMatrixSlugs(t, spec.Slug)
-				slices.Sort(holonSlugs)
+		for _, variant := range businessBuildVariants() {
+			spec := spec
+			variant := variant
+			t.Run(spec.Slug+"/"+variant.Name, func(t *testing.T) {
+				withBuiltCompositeSession(t, spec.Slug, variant.Hardened, func(t *testing.T, _ *integration.Sandbox, session *integration.CompositeCOAXSession) {
+					holonSlugs := businessMatrixSlugs(t, spec.Slug, variant.Hardened)
+					slices.Sort(holonSlugs)
 
-				for _, holonSlug := range holonSlugs {
-					holonSlug := holonSlug
-					t.Run(holonSlug, func(t *testing.T) {
-						for _, transport := range businessTransportsFor(spec.Slug, holonSlug) {
-							transport := transport
-							t.Run(transport, func(t *testing.T) {
-								name := deterministicGreetingName(holonSlug, transport)
+					for _, holonSlug := range holonSlugs {
+						holonSlug := holonSlug
+						t.Run(holonSlug, func(t *testing.T) {
+							for _, transport := range businessTransportsFor(variant.Hardened, holonSlug) {
+								transport := transport
+								t.Run(transport, func(t *testing.T) {
+									name := deterministicGreetingName(holonSlug, transport)
 
-								selectHolon := invokeJSON(t, session, "SelectHolon", map[string]any{
-									"slug": holonSlug,
+									selectHolon := invokeJSON(t, session, "SelectHolon", map[string]any{
+										"slug": holonSlug,
+									})
+									if got := jsonString(t, selectHolon["slug"], "SelectHolon.slug"); got != holonSlug {
+										t.Fatalf("SelectHolon.slug = %q, want %q", got, holonSlug)
+									}
+
+									selectTransport := invokeJSON(t, session, "SelectTransport", map[string]any{
+										"transport": transport,
+									})
+									if got := jsonString(t, selectTransport["transport"], "SelectTransport.transport"); got != transport {
+										t.Fatalf("SelectTransport.transport = %q, want %q", got, transport)
+									}
+
+									selectEnglish := invokeJSON(t, session, "SelectLanguage", map[string]any{
+										"code": "en",
+									})
+									if got := jsonString(t, selectEnglish["code"], "SelectLanguage.code"); got != "en" {
+										t.Fatalf("SelectLanguage.code = %q, want %q", got, "en")
+									}
+
+									englishGreeting := requireGreetingPayload(t, invokeJSON(t, session, "Greet", map[string]any{
+										"name": name,
+									}), name)
+
+									selectFrench := invokeJSON(t, session, "SelectLanguage", map[string]any{
+										"code": "fr",
+									})
+									if got := jsonString(t, selectFrench["code"], "SelectLanguage.code"); got != "fr" {
+										t.Fatalf("SelectLanguage.code = %q, want %q", got, "fr")
+									}
+
+									frenchGreeting := requireGreetingPayload(t, invokeJSON(t, session, "Greet", map[string]any{
+										"name": name,
+									}), name)
+									if englishGreeting == frenchGreeting {
+										t.Fatalf("language change had no visible effect for %s over %s: %q", holonSlug, transport, frenchGreeting)
+									}
+
+									invalidLanguage := invokeResult(t, session, "SelectLanguage", map[string]any{
+										"code": "zz",
+									})
+									requireInvalidArgumentFailure(t, invalidLanguage)
+
+									stillFrenchGreeting := requireGreetingPayload(t, invokeJSON(t, session, "Greet", map[string]any{
+										"name": name,
+									}), name)
+									if stillFrenchGreeting != frenchGreeting {
+										t.Fatalf("invalid language changed the selected state for %s over %s: got %q want %q", holonSlug, transport, stillFrenchGreeting, frenchGreeting)
+									}
+
+									requireEffectiveFlutterTransport(t, spec.Slug, session, holonSlug, transport)
 								})
-								if got := jsonString(t, selectHolon["slug"], "SelectHolon.slug"); got != holonSlug {
-									t.Fatalf("SelectHolon.slug = %q, want %q", got, holonSlug)
-								}
-
-								selectTransport := invokeJSON(t, session, "SelectTransport", map[string]any{
-									"transport": transport,
-								})
-								if got := jsonString(t, selectTransport["transport"], "SelectTransport.transport"); got != transport {
-									t.Fatalf("SelectTransport.transport = %q, want %q", got, transport)
-								}
-
-								selectEnglish := invokeJSON(t, session, "SelectLanguage", map[string]any{
-									"code": "en",
-								})
-								if got := jsonString(t, selectEnglish["code"], "SelectLanguage.code"); got != "en" {
-									t.Fatalf("SelectLanguage.code = %q, want %q", got, "en")
-								}
-
-								englishGreeting := requireGreetingPayload(t, invokeJSON(t, session, "Greet", map[string]any{
-									"name": name,
-								}), name)
-
-								selectFrench := invokeJSON(t, session, "SelectLanguage", map[string]any{
-									"code": "fr",
-								})
-								if got := jsonString(t, selectFrench["code"], "SelectLanguage.code"); got != "fr" {
-									t.Fatalf("SelectLanguage.code = %q, want %q", got, "fr")
-								}
-
-								frenchGreeting := requireGreetingPayload(t, invokeJSON(t, session, "Greet", map[string]any{
-									"name": name,
-								}), name)
-								if englishGreeting == frenchGreeting {
-									t.Fatalf("language change had no visible effect for %s over %s: %q", holonSlug, transport, frenchGreeting)
-								}
-
-								invalidLanguage := invokeResult(t, session, "SelectLanguage", map[string]any{
-									"code": "zz",
-								})
-								requireInvalidArgumentFailure(t, invalidLanguage)
-
-								stillFrenchGreeting := requireGreetingPayload(t, invokeJSON(t, session, "Greet", map[string]any{
-									"name": name,
-								}), name)
-								if stillFrenchGreeting != frenchGreeting {
-									t.Fatalf("invalid language changed the selected state for %s over %s: got %q want %q", holonSlug, transport, stillFrenchGreeting, frenchGreeting)
-								}
-
-								requireEffectiveFlutterTransport(t, spec.Slug, session, holonSlug, transport)
-							})
-						}
-					})
-				}
+							}
+						})
+					}
+				})
 			})
-		})
+		}
+	}
+}
+
+type businessBuildVariant struct {
+	Name     string
+	Hardened bool
+}
+
+func businessBuildVariants() []businessBuildVariant {
+	return []businessBuildVariant{
+		{Name: "normal", Hardened: false},
+		{Name: "hardened", Hardened: true},
 	}
 }
 
 func withBuiltCompositeSession(
 	t *testing.T,
 	slug string,
+	hardened bool,
 	fn func(*testing.T, *integration.Sandbox, *integration.CompositeCOAXSession),
 ) {
 	t.Helper()
 
 	withCompositeBusinessLock(t, func() {
 		sb := integration.NewSandbox(t)
-		cleanAndBuildComposite(t, sb, slug)
-		session := integration.StartBuiltCompositeCOAX(t, sb, slug, businessBuildArgs(slug)...)
+		cleanAndBuildComposite(t, sb, slug, hardened)
+		session := integration.StartBuiltCompositeCOAX(t, sb, slug, businessBuildArgs(hardened)...)
 		defer session.Stop(t)
 		fn(t, sb, session)
 	})
@@ -176,42 +201,42 @@ func withCompositeBusinessLock(t *testing.T, fn func()) {
 	fn()
 }
 
-func cleanAndBuildComposite(t *testing.T, sb *integration.Sandbox, slug string) {
+func cleanAndBuildComposite(t *testing.T, sb *integration.Sandbox, slug string, hardened bool) {
 	t.Helper()
 
 	integration.CleanHolon(t, sb, slug)
-	report := integration.BuildReportFor(t, sb, slug, businessBuildArgs(slug)...)
+	report := integration.BuildReportFor(t, sb, slug, businessBuildArgs(hardened)...)
 	if strings.TrimSpace(report.Artifact) == "" {
 		t.Fatalf("build report for %s did not include an artifact: %#v", slug, report)
 	}
 	integration.RequirePathExists(t, integration.ReportPath(t, report.Artifact))
 }
 
-func businessBuildArgs(slug string) []string {
-	if isSandboxedBusinessComposite(slug) {
+func businessBuildArgs(hardened bool) []string {
+	if hardened {
 		return []string{"--hardened"}
 	}
 	return nil
 }
 
-func businessExpectedSlugs(t *testing.T, appSlug string) []string {
+func businessExpectedSlugs(t *testing.T, appSlug string, hardened bool) []string {
 	t.Helper()
 
 	all := integration.AvailableHelloWorldSlugs(t, false)
 	filtered := make([]string, 0, len(all))
 	for _, slug := range all {
-		if businessMemberAllowed(appSlug, slug) {
+		if businessMemberAllowed(appSlug, slug, hardened) {
 			filtered = append(filtered, slug)
 		}
 	}
 	return filtered
 }
 
-func businessMatrixSlugs(t *testing.T, appSlug string) []string {
+func businessMatrixSlugs(t *testing.T, appSlug string, hardened bool) []string {
 	t.Helper()
 
-	all := businessExpectedSlugs(t, appSlug)
-	if !isSandboxedBusinessComposite(appSlug) {
+	all := businessExpectedSlugs(t, appSlug, hardened)
+	if !hardened {
 		return all
 	}
 
@@ -230,8 +255,9 @@ func businessMatrixSlugs(t *testing.T, appSlug string) []string {
 	return filtered
 }
 
-func businessMemberAllowed(appSlug string, holonSlug string) bool {
-	if !isSandboxedBusinessComposite(appSlug) {
+func businessMemberAllowed(appSlug string, holonSlug string, hardened bool) bool {
+	_ = appSlug
+	if !hardened {
 		return true
 	}
 
@@ -242,15 +268,6 @@ func businessMemberAllowed(appSlug string, holonSlug string) bool {
 		"gabriel-greeting-go",
 		"gabriel-greeting-rust",
 		"gabriel-greeting-swift":
-		return true
-	default:
-		return false
-	}
-}
-
-func isSandboxedBusinessComposite(slug string) bool {
-	switch slug {
-	case "gabriel-greeting-app-flutter", "gabriel-greeting-app-swiftui":
 		return true
 	default:
 		return false
@@ -293,8 +310,8 @@ func businessTransports() []string {
 	return transports
 }
 
-func businessTransportsFor(appSlug string, holonSlug string) []string {
-	if !isSandboxedBusinessComposite(appSlug) {
+func businessTransportsFor(hardened bool, holonSlug string) []string {
+	if !hardened {
 		return businessTransports()
 	}
 

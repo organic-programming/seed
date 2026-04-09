@@ -21,7 +21,9 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.compilons.gabriel.greeting-app
         INFOPLIST_FILE: App/Info.plist
+{{ if .Hardened }}
         CODE_SIGN_ENTITLEMENTS: App/GabrielGreetingApp.entitlements
+{{ end }}
         SWIFT_VERSION: "6.0"
         MACOSX_DEPLOYMENT_TARGET: "15.0"
         PRODUCT_NAME: GabrielGreetingApp

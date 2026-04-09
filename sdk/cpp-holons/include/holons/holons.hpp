@@ -3608,6 +3608,15 @@ inline bool process_alive(pid_t pid) {
   return ::kill(pid, 0) == 0 || errno == EPERM;
 }
 
+inline void export_parent_pid_env() {
+  auto parent = ::getppid();
+  if (parent <= 1) {
+    return;
+  }
+  auto value = std::to_string(parent);
+  ::setenv("HOLONS_PARENT_PID", value.c_str(), 1);
+}
+
 inline void close_pipe_fd(int *fd) {
   if (*fd >= 0) {
     ::close(*fd);
@@ -3871,6 +3880,7 @@ inline startup_result start_tcp_holon(const std::string &binary_path,
         const_cast<char *>(binary_path.c_str()), const_cast<char *>("serve"),
         const_cast<char *>("--listen"),
         const_cast<char *>("tcp://127.0.0.1:0"), nullptr};
+    export_parent_pid_env();
     ::execv(binary_path.c_str(), argv.data());
     std::perror("execv");
     ::_exit(127);
@@ -4046,6 +4056,7 @@ inline startup_result start_stdio_holon(const std::string &binary_path,
         const_cast<char *>(binary_path.c_str()), const_cast<char *>("serve"),
         const_cast<char *>("--listen"), const_cast<char *>("stdio://"),
         nullptr};
+    export_parent_pid_env();
     ::execv(binary_path.c_str(), argv.data());
     std::perror("execv");
     ::_exit(127);
@@ -4181,6 +4192,7 @@ inline startup_result start_stdio_holon(const std::string &binary_path,
         const_cast<char *>(binary_path.c_str()), const_cast<char *>("serve"),
         const_cast<char *>("--listen"), const_cast<char *>("stdio://"),
         nullptr};
+    export_parent_pid_env();
     ::execv(binary_path.c_str(), argv.data());
     std::perror("execv");
     ::_exit(127);

@@ -16,7 +16,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 				Composer:   "B. ALTER",
 				Status:     "draft",
 				Born:       "2026-02-12",
-				Version:    "0.5.696",
+				Version:    "0.5.700",
 				Aliases: []string{
 					"op",
 				},

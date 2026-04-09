@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-const char *gabriel_greeting_c_version = "gabriel-greeting-c 0.1.121";
+const char *gabriel_greeting_c_version = "gabriel-greeting-c 0.1.147";
 
 typedef enum {
   GABRIEL_GREETING_C_FORMAT_TEXT = 0,
@@ -305,7 +305,7 @@ int gabriel_greeting_c_run_cli(int argc, char **argv, FILE *stdout_stream,
     }
     fflush(stdout_stream);
     fflush(stderr_stream);
-    return gabriel_greeting_c_exec_bridge(listen_uri, stderr_stream);
+    return gabriel_greeting_c_serve(listen_uri, stderr_stream);
   }
   if (strcmp(command, "version") == 0) {
     fprintf(stdout_stream, "%s\n", gabriel_greeting_c_version);

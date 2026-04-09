@@ -822,6 +822,9 @@ func (cargoRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Rep
 	if ctx.DryRun {
 		return nil
 	}
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		return fmt.Errorf("create cargo target dir: %w", err)
+	}
 	if output, err := runCommand(manifest.Dir, args); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
@@ -1874,20 +1877,39 @@ func (qtCMakeRunner) build(manifest *LoadedManifest, ctx BuildContext, report *R
 		return err
 	}
 	config := cmakeBuildConfig(ctx.Mode)
-	binDir := filepath.Dir(manifest.BinaryPath())
 	configureArgs := []string{
 		"cmake",
 		"-S", ".",
 		"-B", manifest.CMakeBuildDir(),
 		"-DCMAKE_BUILD_TYPE=" + config,
 		"-DCMAKE_PREFIX_PATH=" + qtDir,
-		"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=" + binDir,
-		"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG=" + binDir,
-		"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=" + binDir,
-		"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO=" + binDir,
+		"-DOP_PACKAGE_ARCH=" + runtimeArchitecture(),
 	}
 	buildArgs := []string{"cmake", "--build", manifest.CMakeBuildDir(), "--config", config}
-	report.Commands = append(report.Commands, commandString(configureArgs), commandString(buildArgs))
+	installMode := cmakeProjectUsesInstallRules(manifest.Dir)
+	var installArgs []string
+	if installMode {
+		installPrefix := manifest.ArtifactPath(ctx)
+		if installPrefix == "" {
+			return fmt.Errorf("qt-cmake install requires an artifact path")
+		}
+		configureArgs = append(configureArgs,
+			"-DCMAKE_INSTALL_PREFIX="+installPrefix,
+			"-DOP_USE_INSTALL_LAYOUT=ON",
+		)
+		installArgs = []string{"cmake", "--install", manifest.CMakeBuildDir(), "--config", config}
+		report.Commands = append(report.Commands, commandString(configureArgs), commandString(buildArgs), commandString(installArgs))
+	} else {
+		binDir := filepath.Dir(manifest.BinaryPath())
+		configureArgs = append(configureArgs,
+			"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY="+binDir,
+			"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG="+binDir,
+			"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE="+binDir,
+			"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO="+binDir,
+			"-DOP_USE_INSTALL_LAYOUT=OFF",
+		)
+		report.Commands = append(report.Commands, commandString(configureArgs), commandString(buildArgs))
+	}
 	if ctx.DryRun {
 		return nil
 	}
@@ -1901,6 +1923,21 @@ func (qtCMakeRunner) build(manifest *LoadedManifest, ctx BuildContext, report *R
 	ctx.Progress.Step(commandString(buildArgs))
 	if output, err := runCommand(manifest.Dir, buildArgs); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
+	}
+	if installMode {
+		installPrefix := manifest.ArtifactPath(ctx)
+		if err := os.RemoveAll(installPrefix); err != nil {
+			return fmt.Errorf("clear install prefix: %w", err)
+		}
+		if err := os.MkdirAll(installPrefix, 0o755); err != nil {
+			return fmt.Errorf("create install prefix: %w", err)
+		}
+		ctx.Progress.Step(commandString(installArgs))
+		if output, err := runCommand(manifest.Dir, installArgs); err != nil {
+			return fmt.Errorf("%s\n%s", err, output)
+		}
+		report.Notes = append(report.Notes, "qt-cmake install complete")
+		return nil
 	}
 	report.Notes = append(report.Notes, "qt-cmake build complete")
 	return nil

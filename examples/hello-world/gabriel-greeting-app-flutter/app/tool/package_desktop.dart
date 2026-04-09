@@ -34,9 +34,9 @@ const _standaloneRunners = <String>{
 };
 
 Future<void> main(List<String> args) async {
-  if (args.length != 2) {
+  if (args.length < 2 || args.length > 3) {
     stderr.writeln(
-      'usage: dart run tool/package_desktop.dart <macos|windows|linux> <debug|release|profile>',
+      'usage: dart run tool/package_desktop.dart <macos|windows|linux> <debug|release|profile> [normal|hardened]',
     );
     exitCode = 64;
     return;
@@ -54,6 +54,7 @@ Future<void> main(List<String> args) async {
     exitCode = 64;
     return;
   }
+  final hardened = _isHardenedBuild(args.length == 3 ? args[2] : null);
 
   final appDir = Directory.current;
   final rootDir = appDir.parent;
@@ -87,6 +88,8 @@ Future<void> main(List<String> args) async {
       );
       final destination = Directory(p.join(runtimeDir.path, '$_entryBase.app'));
       final entitlements = await _extractCodeSignEntitlements(source.path);
+      _purgePackagedResources(source);
+      _purgePackagedResources(destination);
       await _copyEntity(source, destination);
       await _copyMemberHolons(
         examplesDir,
@@ -99,7 +102,7 @@ Future<void> main(List<String> args) async {
         ),
       );
       final codesignArgs = <String>['--force', '--deep', '--sign', '-'];
-      if (entitlements != null) {
+      if (hardened && entitlements != null) {
         codesignArgs.addAll(<String>['--entitlements', entitlements.path]);
       }
       codesignArgs.add(destination.path);
@@ -155,6 +158,21 @@ Future<void> main(List<String> args) async {
   );
 
   stdout.writeln(packageDir.path);
+}
+
+bool _isHardenedBuild(String? arg) {
+  final normalizedArg = (arg ?? '').trim().toLowerCase();
+  if (normalizedArg == 'hardened') {
+    return true;
+  }
+  if (normalizedArg == 'normal') {
+    return false;
+  }
+
+  final env = (Platform.environment['OP_BUILD_HARDENED'] ?? '')
+      .trim()
+      .toLowerCase();
+  return env == '1' || env == 'true' || env == 'yes' || env == 'on';
 }
 
 String _macosMode(String mode) {
@@ -276,6 +294,22 @@ Future<void> _copyAppProto(Directory rootDir, Directory destination) async {
     throw StateError('missing app proto directory: ${source.path}');
   }
   await _copyEntity(source, destination);
+}
+
+void _purgePackagedResources(Directory appBundle) {
+  if (!appBundle.existsSync()) {
+    return;
+  }
+  for (final relativePath in <String>[
+    p.join('Contents', 'Resources', 'Holons'),
+    p.join('Contents', 'Resources', 'AppProto'),
+  ]) {
+    final path = p.join(appBundle.path, relativePath);
+    final directory = Directory(path);
+    if (directory.existsSync()) {
+      directory.deleteSync(recursive: true);
+    }
+  }
 }
 
 Future<void> _writeHolonPackageJson({

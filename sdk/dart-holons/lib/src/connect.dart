@@ -501,6 +501,7 @@ Future<(ClientChannel, Process)> _startStdioHolon(
     binaryPath,
     const <String>['serve', '--listen', 'stdio://'],
     workingDirectory: workingDirectory,
+    environment: _launchEnvironment(),
   );
   final recentLines = <String>[];
   utf8.decoder
@@ -540,6 +541,7 @@ Future<(String, Process)> _startTcpHolon(
     binaryPath,
     const <String>['serve', '--listen', 'tcp://127.0.0.1:0'],
     workingDirectory: workingDirectory,
+    environment: _launchEnvironment(),
   );
 
   final completer = Completer<String>();
@@ -612,6 +614,7 @@ Future<(String, Process)> _startUnixHolon(
     binaryPath,
     <String>['serve', '--listen', uri],
     workingDirectory: workingDirectory,
+    environment: _launchEnvironment(),
   );
 
   final recentLines = <String>[];
@@ -890,6 +893,12 @@ Future<void> _cleanupOwnedArtifacts(List<String> paths) async {
       // Ignore cleanup failures after process shutdown.
     }
   }
+}
+
+Map<String, String> _launchEnvironment() {
+  final environment = Map<String, String>.from(Platform.environment);
+  environment['HOLONS_PARENT_PID'] = '$pid';
+  return environment;
 }
 
 String _recentLineDetails(List<String> recentLines) {

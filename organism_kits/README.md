@@ -1,12 +1,5 @@
 # Organic Programming — Organism Kits Design Document
 
-> **Status:** Discussion draft
->
-> **Prerequisite reading:**
-> - [PACKAGE.md](../PACKAGE.md) — The `.holon` package format and Bundle Integration
-> - [HOLON_BUILD.md](../holons/grace-op/HOLON_BUILD.md) — `op build` and the recipe runner
-> - [COAX.md](../holons/grace-op/COAX.md) — COAX principle and Organism definition
-> - [CONVENTIONS.md](../holons/grace-op/CONVENTIONS.md) — Per-language structure (⚠️ outdated)
 
 ---
 

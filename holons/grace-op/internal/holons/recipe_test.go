@@ -54,7 +54,7 @@ option (holons.v1.manifest) = {
 	}
 }
 
-func withBundleSigningTestSeams(t *testing.T, hostPlatform string, runner func(dir, artifactRef string) (string, error)) {
+func withBundleSigningTestSeams(t *testing.T, hostPlatform string, runner func(dir, artifactRef string, hardened bool) (string, error)) {
 	t.Helper()
 
 	prevHostPlatform := bundleSigningHostPlatform
@@ -1891,11 +1891,47 @@ artifacts:
 	if _, err := os.Stat(filepath.Join(root, "app", "Demo.app", "Contents", "_CodeSignature", "CodeResources")); err != nil {
 		t.Fatalf("signed bundle missing CodeResources: %v", err)
 	}
-	if len(report.Commands) == 0 || report.Commands[0] != "codesign --force --deep --preserve-metadata=entitlements --sign - app/Demo.app" {
+	if len(report.Commands) == 0 || report.Commands[0] != "codesign --force --deep --sign - app/Demo.app" {
 		t.Fatalf("expected first command to be codesign, got %v", report.Commands)
 	}
 	if !hasEntryContaining(report.Notes, "signed (ad-hoc): app/Demo.app") {
 		t.Fatalf("expected signing note, got %v", report.Notes)
+	}
+}
+
+func TestRecipeRunnerPreservesEntitlementsWhenHardened(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+	writeBundleFixture(t, root, "app/Demo.app")
+
+	toolDir := t.TempDir()
+	writeFakeCodesignCommand(t, toolDir)
+	t.Setenv("PATH", toolDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	withBundleSigningTestSeams(t, "darwin", nil)
+
+	writeRecipeManifest(t, root, `schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: app
+      path: app
+      type: component
+  targets:
+    macos:
+      steps:
+        - assert_file:
+            path: app/Demo.app/Contents/_CodeSignature/CodeResources
+artifacts:
+  primary: app/Demo.app
+`)
+
+	report, err := ExecuteLifecycle(OperationBuild, root, BuildOptions{Target: "macos", Hardened: true})
+	if err != nil {
+		t.Fatalf("build failed: %v", err)
+	}
+	if len(report.Commands) == 0 || report.Commands[0] != "codesign --force --deep --preserve-metadata=entitlements --sign - app/Demo.app" {
+		t.Fatalf("expected hardened codesign command, got %v", report.Commands)
 	}
 }
 
@@ -1904,7 +1940,7 @@ func TestRecipeRunnerSkipsBundleSigningWhenNoSignSet(t *testing.T) {
 	chdirForHolonTest(t, root)
 	writeBundleFixture(t, root, "app/Demo.app")
 
-	withBundleSigningTestSeams(t, "darwin", func(dir, artifactRef string) (string, error) {
+	withBundleSigningTestSeams(t, "darwin", func(dir, artifactRef string, hardened bool) (string, error) {
 		t.Fatalf("runBundleCodesign should not be called for --no-sign")
 		return "", nil
 	})
@@ -1930,7 +1966,8 @@ artifacts:
 	if err != nil {
 		t.Fatalf("build failed: %v", err)
 	}
-	if hasEntryContaining(report.Commands, "codesign --force --deep --preserve-metadata=entitlements --sign - app/Demo.app") {
+	if hasEntryContaining(report.Commands, "codesign --force --deep --sign - app/Demo.app") ||
+		hasEntryContaining(report.Commands, "codesign --force --deep --preserve-metadata=entitlements --sign - app/Demo.app") {
 		t.Fatalf("did not expect codesign command, got %v", report.Commands)
 	}
 	if !hasEntryContaining(report.Notes, "skip signing (--no-sign): app/Demo.app") {
@@ -1943,7 +1980,7 @@ func TestRecipeRunnerSkipsBundleSigningOffDarwin(t *testing.T) {
 	chdirForHolonTest(t, root)
 	writeBundleFixture(t, root, "app/Demo.app")
 
-	withBundleSigningTestSeams(t, "linux", func(dir, artifactRef string) (string, error) {
+	withBundleSigningTestSeams(t, "linux", func(dir, artifactRef string, hardened bool) (string, error) {
 		t.Fatalf("runBundleCodesign should not be called off Darwin")
 		return "", nil
 	})
@@ -1984,7 +2021,7 @@ func TestRecipeRunnerDoesNotAttemptSigningForNonBundleArtifacts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	withBundleSigningTestSeams(t, "darwin", func(dir, artifactRef string) (string, error) {
+	withBundleSigningTestSeams(t, "darwin", func(dir, artifactRef string, hardened bool) (string, error) {
 		t.Fatalf("runBundleCodesign should not be called for non-bundle artifacts")
 		return "", nil
 	})
@@ -2024,7 +2061,7 @@ func TestRecipeRunnerDryRunPlansBundleSigningWithoutExecuting(t *testing.T) {
 	writeBundleFixture(t, root, "app/Demo.app")
 
 	called := false
-	withBundleSigningTestSeams(t, "darwin", func(dir, artifactRef string) (string, error) {
+	withBundleSigningTestSeams(t, "darwin", func(dir, artifactRef string, hardened bool) (string, error) {
 		called = true
 		return "", fmt.Errorf("unexpected bundle signing call for %s", artifactRef)
 	})
@@ -2056,7 +2093,7 @@ artifacts:
 	if hasEntryContaining(report.Notes, "signed (ad-hoc):") {
 		t.Fatalf("did not expect success note in dry run, got %v", report.Notes)
 	}
-	if !hasEntryContaining(report.Commands, "codesign --force --deep --preserve-metadata=entitlements --sign - app/Demo.app") {
+	if !hasEntryContaining(report.Commands, "codesign --force --deep --sign - app/Demo.app") {
 		t.Fatalf("expected planned codesign command, got %v", report.Commands)
 	}
 	if _, err := os.Stat(filepath.Join(root, "app", "Demo.app", "Contents", "_CodeSignature", "CodeResources")); !os.IsNotExist(err) {

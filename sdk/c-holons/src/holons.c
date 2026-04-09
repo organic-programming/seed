@@ -68,6 +68,17 @@ static const char *holons_no_incode_description_error =
 
 void holons_free_entries(holon_entry_t *entries);
 
+static void export_parent_pid_env(void) {
+  pid_t parent = getppid();
+  char value[32];
+
+  if (parent <= 1) {
+    return;
+  }
+  (void)snprintf(value, sizeof(value), "%ld", (long)parent);
+  (void)setenv("HOLONS_PARENT_PID", value, 1);
+}
+
 static void set_err(char *err, size_t err_len, const char *fmt, ...) {
   va_list ap;
 
@@ -2380,6 +2391,7 @@ static int start_tcp_holon(const char *binary_path,
     if (pipefd[1] != STDOUT_FILENO && pipefd[1] != STDERR_FILENO) {
       (void)close(pipefd[1]);
     }
+    export_parent_pid_env();
     execl(binary_path, binary_path, "serve", "--listen", "tcp://127.0.0.1:0", (char *)NULL);
     _exit(127);
   }
@@ -2453,6 +2465,7 @@ static int start_stdio_holon(const char *binary_path,
     if (devnull_fd != STDOUT_FILENO && devnull_fd != STDERR_FILENO) {
       (void)close(devnull_fd);
     }
+    export_parent_pid_env();
     execl(binary_path, binary_path, "serve", "--listen", "stdio://", (char *)NULL);
     _exit(127);
   }

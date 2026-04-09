@@ -153,7 +153,106 @@ inline volatile std::sig_atomic_t &shutdown_requested() {
   return requested;
 }
 
+inline bool debug_parent_watch_enabled() {
+  const char *raw = std::getenv("HOLONS_DEBUG_PARENT_WATCH");
+  return raw != nullptr && *raw != '\0' && std::strcmp(raw, "0") != 0;
+}
+
+template <typename... Args>
+inline void debug_parent_watch_log(const char *fmt, Args... args) {
+  if (!debug_parent_watch_enabled()) {
+    return;
+  }
+  char message[512];
+  std::snprintf(message, sizeof(message), fmt, args...);
+  std::fprintf(stderr, "[holons parent-watch pid=%d] ", static_cast<int>(::getpid()));
+  std::fputs(message, stderr);
+  std::fputc('\n', stderr);
+  std::fflush(stderr);
+}
+
 inline void signal_handler(int) { shutdown_requested() = 1; }
+
+inline void request_shutdown(const char *reason, pid_t expected_parent = 0) {
+  if (reason != nullptr) {
+    debug_parent_watch_log("%s expected_parent=%d", reason,
+                           static_cast<int>(expected_parent));
+  }
+  shutdown_requested() = 1;
+}
+
+inline pid_t configured_parent_pid() {
+#ifdef _WIN32
+  return 0;
+#else
+  const char *raw = std::getenv("HOLONS_PARENT_PID");
+  if (raw == nullptr || *raw == '\0') {
+    return 0;
+  }
+  char *end = nullptr;
+  long long value = std::strtoll(raw, &end, 10);
+  if (end == raw || (end != nullptr && *end != '\0') || value <= 1) {
+    debug_parent_watch_log("ignoring HOLONS_PARENT_PID=%s", raw);
+    return 0;
+  }
+  debug_parent_watch_log("configured HOLONS_PARENT_PID=%lld", value);
+  return static_cast<pid_t>(value);
+#endif
+}
+
+inline bool parent_process_gone(pid_t expected_parent) {
+#ifdef _WIN32
+  (void)expected_parent;
+  return false;
+#else
+  if (expected_parent <= 1) {
+    return false;
+  }
+  if (::getppid() != expected_parent) {
+    return true;
+  }
+  if (::kill(expected_parent, 0) != 0 && errno == ESRCH) {
+    return true;
+  }
+  return false;
+#endif
+}
+
+class parent_watch {
+public:
+  parent_watch() : expected_parent_(configured_parent_pid()) {
+#ifdef _WIN32
+    expected_parent_ = 0;
+#endif
+    debug_parent_watch_log("parent watch ctor expected_parent=%d",
+                           static_cast<int>(expected_parent_));
+    if (expected_parent_ <= 1) {
+      return;
+    }
+    thread_ = std::thread([this]() {
+      while (!stop_.load(std::memory_order_relaxed)) {
+        if (parent_process_gone(expected_parent_)) {
+          request_shutdown("parent watch detected parent exit", expected_parent_);
+          return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+      }
+      debug_parent_watch_log("parent watch thread stopping cleanly");
+    });
+  }
+
+  ~parent_watch() {
+    stop_.store(true, std::memory_order_relaxed);
+    if (thread_.joinable()) {
+      thread_.join();
+    }
+  }
+
+private:
+  pid_t expected_parent_ = 0;
+  std::atomic<bool> stop_{false};
+  std::thread thread_;
+};
 
 class scoped_signal_handlers {
 public:
@@ -454,9 +553,10 @@ inline std::shared_ptr<grpc::Service> maybe_make_holon_meta_service(
 
 } // namespace detail
 
-inline server_handle start(const std::vector<std::string> &listen_uris,
-                           const register_fn &register_services,
-                           options opts = {}) {
+inline server_handle start(
+    const std::vector<std::string> &listen_uris,
+    const register_fn &register_services, options opts = {},
+    std::vector<std::shared_ptr<void>> extra_owned_objects = {}) {
 #if !HOLONS_HAS_GRPCPP
   (void)listen_uris;
   (void)register_services;
@@ -503,7 +603,8 @@ inline server_handle start(const std::vector<std::string> &listen_uris,
     throw std::invalid_argument("serve() supports at most one stdio:// listener");
   }
 
-  std::vector<std::shared_ptr<void>> owned_objects;
+  std::vector<std::shared_ptr<void>> owned_objects =
+      std::move(extra_owned_objects);
   try {
     auto holon_meta_service = detail::maybe_make_holon_meta_service(opts);
     if (holon_meta_service) {
@@ -561,15 +662,23 @@ inline server_handle start(const std::vector<std::string> &listen_uris,
 
 inline server_handle start(const std::string &listen_uri,
                            const register_fn &register_services,
-                           options opts = {}) {
+                           options opts = {},
+                           std::vector<std::shared_ptr<void>> extra_owned_objects = {}) {
   return start(std::vector<std::string>{listen_uri}, register_services,
-               std::move(opts));
+               std::move(opts), std::move(extra_owned_objects));
 }
 
 inline void serve(const std::vector<std::string> &listen_uris,
-                  const register_fn &register_services, options opts = {}) {
+                  const register_fn &register_services, options opts = {},
+                  std::vector<std::shared_ptr<void>> extra_owned_objects = {}) {
   detail::scoped_signal_handlers signals;
-  auto handle = start(listen_uris, register_services, opts);
+  detail::parent_watch parent_watch;
+  const pid_t expected_parent = detail::configured_parent_pid();
+  detail::debug_parent_watch_log("serve start expected_parent=%d listeners=%zu",
+                                 static_cast<int>(expected_parent),
+                                 listen_uris.size());
+  auto handle =
+      start(listen_uris, register_services, opts, std::move(extra_owned_objects));
 
   std::thread waiter([&handle]() {
     handle.wait();
@@ -577,17 +686,25 @@ inline void serve(const std::vector<std::string> &listen_uris,
   });
 
   while (!detail::shutdown_requested()) {
+    if (detail::parent_process_gone(expected_parent)) {
+      detail::request_shutdown("serve loop detected parent exit",
+                               expected_parent);
+      break;
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
 
+  detail::debug_parent_watch_log("serve stopping server");
   handle.stop(opts.graceful_shutdown_timeout_ms);
   connect_detail::join_thread(&waiter);
+  detail::debug_parent_watch_log("serve finished");
 }
 
 inline void serve(const std::string &listen_uri,
-                  const register_fn &register_services, options opts = {}) {
+                  const register_fn &register_services, options opts = {},
+                  std::vector<std::shared_ptr<void>> extra_owned_objects = {}) {
   serve(std::vector<std::string>{listen_uri}, register_services,
-        std::move(opts));
+        std::move(opts), std::move(extra_owned_objects));
 }
 
 } // namespace holons::serve

@@ -14,6 +14,7 @@ import (
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	godescribe "github.com/organic-programming/go-holons/pkg/describe"
 	"github.com/organic-programming/grace-op/internal/progress"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -1017,6 +1018,11 @@ type cDescribeEmitter struct {
 func cDescribeSource(response *holonsv1.DescribeResponse) string {
 	emitter := &cDescribeEmitter{}
 	servicesName, serviceCount := emitter.writeServiceArray(response.GetServices())
+	describeBytes, _ := proto.Marshal(response)
+	describeArrayLen := len(describeBytes)
+	if describeArrayLen == 0 {
+		describeArrayLen = 1
+	}
 
 	var buf strings.Builder
 	for _, definition := range emitter.definitions {
@@ -1024,11 +1030,28 @@ func cDescribeSource(response *holonsv1.DescribeResponse) string {
 		buf.WriteString("\n\n")
 	}
 
+	writeCLine(&buf, 0, fmt.Sprintf("static const unsigned char holons_generated_describe_response_bytes_value[%d] = {", describeArrayLen))
+	if len(describeBytes) == 0 {
+		writeCLine(&buf, 1, "0x00,")
+	} else {
+		for _, b := range describeBytes {
+			writeCLine(&buf, 1, fmt.Sprintf("0x%02x,", b))
+		}
+	}
+	writeCLine(&buf, 0, "};")
+	buf.WriteString("\n")
 	writeCLine(&buf, 0, "static holons_describe_response_t holons_generated_describe_response_value = {")
 	buf.WriteString(cManifestInitializer(response.GetManifest(), 1))
 	writeCLine(&buf, 1, fmt.Sprintf(".services = %s,", cArrayPointer(servicesName)))
 	writeCLine(&buf, 1, fmt.Sprintf(".service_count = %d,", serviceCount))
 	writeCLine(&buf, 0, "};")
+	buf.WriteString("\n")
+	writeCLine(&buf, 0, "const unsigned char *holons_generated_describe_response_bytes(size_t *len) {")
+	writeCLine(&buf, 1, "if (len != NULL) {")
+	writeCLine(&buf, 2, fmt.Sprintf("*len = %d;", len(describeBytes)))
+	writeCLine(&buf, 1, "}")
+	writeCLine(&buf, 1, "return holons_generated_describe_response_bytes_value;")
+	writeCLine(&buf, 0, "}")
 	buf.WriteString("\n")
 	writeCLine(&buf, 0, "const holons_describe_response_t *holons_generated_describe_response(void) {")
 	writeCLine(&buf, 1, "return &holons_generated_describe_response_value;")

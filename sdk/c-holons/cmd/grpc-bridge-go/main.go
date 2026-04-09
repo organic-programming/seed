@@ -78,6 +78,8 @@ type deferredLogLine struct {
 	line  string
 }
 
+type parentPIDProvider func() int
+
 func (c *lineCollector) append(line string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -182,15 +184,50 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	defer signal.Stop(sigCh)
 
+	parentWatchStop := make(chan struct{})
+	parentGoneCh := watchParentExit(os.Getppid(), 250*time.Millisecond, os.Getppid, parentWatchStop)
+	defer close(parentWatchStop)
+
 	select {
 	case sig := <-sigCh:
 		log.Printf("grpc-bridge: shutting down on %s", sig)
+		stopGracefully(server)
+	case <-parentGoneCh:
+		log.Printf("grpc-bridge: parent exited, shutting down")
 		stopGracefully(server)
 	case err := <-serveErrCh:
 		if err != nil && !errors.Is(err, net.ErrClosed) {
 			log.Fatalf("grpc-bridge: serve failed: %v", err)
 		}
 	}
+}
+
+func watchParentExit(parentPID int, interval time.Duration, currentParent parentPIDProvider, stop <-chan struct{}) <-chan struct{} {
+	done := make(chan struct{})
+	if parentPID <= 1 || interval <= 0 || currentParent == nil {
+		close(done)
+		return done
+	}
+
+	go func() {
+		defer close(done)
+
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+				if currentParent() <= 1 {
+					return
+				}
+			}
+		}
+	}()
+
+	return done
 }
 
 func parseArgs(args []string) (config, error) {

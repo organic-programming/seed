@@ -174,6 +174,26 @@ typedef struct {
   int reserved;
 } holons_describe_request_t;
 
+typedef int (*holons_grpc_unary_handler_t)(const unsigned char *request_data,
+                                           size_t request_len,
+                                           void *ctx,
+                                           unsigned char **response_data,
+                                           size_t *response_len,
+                                           char *err,
+                                           size_t err_len);
+
+typedef struct {
+  const char *full_method;
+  holons_grpc_unary_handler_t handler;
+  void *ctx;
+} holons_grpc_unary_registration_t;
+
+typedef struct {
+  int announce;
+  int enable_reflection;
+  int graceful_shutdown_timeout_ms;
+} holons_grpc_serve_options_t;
+
 typedef struct {
   char service_name[HOLONS_MAX_FIELD_LEN];
   char method_name[HOLONS_MAX_FIELD_LEN];
@@ -256,6 +276,12 @@ int holons_serve(const char *listen_uri,
                  int install_signal_handlers,
                  char *err,
                  size_t err_len);
+int holons_serve_grpc(const char *listen_uri,
+                      const holons_grpc_unary_registration_t *registrations,
+                      size_t registration_count,
+                      const holons_grpc_serve_options_t *options,
+                      char *err,
+                      size_t err_len);
 
 int holons_resolve_manifest(const char *path,
                             holons_manifest_t *out,

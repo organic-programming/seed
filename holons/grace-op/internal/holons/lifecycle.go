@@ -227,9 +227,20 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 					restoreDescribeSource()
 				}
 			}()
+
+			restoreServeSource, serveErr := generateServeSource(target.Manifest, reporter)
+			if serveErr != nil {
+				err = fmt.Errorf("serve source: %w", serveErr)
+				break
+			}
+			defer func() {
+				if err != nil {
+					restoreServeSource()
+				}
+			}()
 		}
 
-		restoreFn, tmplErr := processTemplates(target.Manifest, reporter)
+		restoreFn, tmplErr := processTemplates(target.Manifest, ctx, reporter)
 		if tmplErr != nil {
 			err = fmt.Errorf("template processing: %w", tmplErr)
 			break
@@ -828,11 +839,12 @@ type templateData struct {
 	Composer   string
 	Status     string
 	Born       string
+	Hardened   bool
 }
 
 // processTemplates resolves Go template expressions in declared build template files.
 // Returns a restore function that writes back the original bytes (always call via defer).
-func processTemplates(manifest *LoadedManifest, reporter progress.Reporter) (restore func(), err error) {
+func processTemplates(manifest *LoadedManifest, ctx BuildContext, reporter progress.Reporter) (restore func(), err error) {
 	templates := manifest.Manifest.Build.Templates
 	if len(templates) == 0 {
 		return func() {}, nil
@@ -847,6 +859,7 @@ func processTemplates(manifest *LoadedManifest, reporter progress.Reporter) (res
 		Composer:   manifest.Manifest.Composer,
 		Status:     manifest.Manifest.Status,
 		Born:       manifest.Manifest.Born,
+		Hardened:   ctx.Hardened,
 	}
 
 	// Read originals into memory and write resolved content.
@@ -1123,20 +1136,38 @@ func (r cmakeRunner) build(manifest *LoadedManifest, ctx BuildContext, report *R
 	}
 
 	config := cmakeBuildConfig(ctx.Mode)
-	binDir := filepath.Dir(manifest.BinaryPath())
 	configureArgs := []string{
 		"cmake",
 		"-S", ".",
 		"-B", manifest.CMakeBuildDir(),
 		"-DCMAKE_BUILD_TYPE=" + config,
-		"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=" + binDir,
-		"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG=" + binDir,
-		"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=" + binDir,
-		"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO=" + binDir,
+		"-DOP_PACKAGE_ARCH=" + runtimeArchitecture(),
 	}
-	report.Commands = append(report.Commands, commandString(configureArgs))
 	buildArgs := []string{"cmake", "--build", manifest.CMakeBuildDir(), "--config", config}
-	report.Commands = append(report.Commands, commandString(buildArgs))
+	installMode := cmakeProjectUsesInstallRules(manifest.Dir)
+	var installArgs []string
+	if installMode {
+		installPrefix := manifest.ArtifactPath(ctx)
+		if installPrefix == "" {
+			return fmt.Errorf("cmake install requires an artifact path")
+		}
+		configureArgs = append(configureArgs,
+			"-DCMAKE_INSTALL_PREFIX="+installPrefix,
+			"-DOP_USE_INSTALL_LAYOUT=ON",
+		)
+		installArgs = []string{"cmake", "--install", manifest.CMakeBuildDir(), "--config", config}
+		report.Commands = append(report.Commands, commandString(configureArgs), commandString(buildArgs), commandString(installArgs))
+	} else {
+		binDir := filepath.Dir(manifest.BinaryPath())
+		configureArgs = append(configureArgs,
+			"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY="+binDir,
+			"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG="+binDir,
+			"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE="+binDir,
+			"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO="+binDir,
+			"-DOP_USE_INSTALL_LAYOUT=OFF",
+		)
+		report.Commands = append(report.Commands, commandString(configureArgs), commandString(buildArgs))
+	}
 	if ctx.DryRun {
 		return nil
 	}
@@ -1150,6 +1181,21 @@ func (r cmakeRunner) build(manifest *LoadedManifest, ctx BuildContext, report *R
 	ctx.Progress.Step(commandString(buildArgs))
 	if output, err := runCommand(manifest.Dir, buildArgs); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
+	}
+	if installMode {
+		installPrefix := manifest.ArtifactPath(ctx)
+		if err := os.RemoveAll(installPrefix); err != nil {
+			return fmt.Errorf("clear install prefix: %w", err)
+		}
+		if err := os.MkdirAll(installPrefix, 0o755); err != nil {
+			return fmt.Errorf("create install prefix: %w", err)
+		}
+		ctx.Progress.Step(commandString(installArgs))
+		if output, err := runCommand(manifest.Dir, installArgs); err != nil {
+			return fmt.Errorf("%s\n%s", err, output)
+		}
+		report.Notes = append(report.Notes, "cmake install complete")
+		return nil
 	}
 
 	report.Notes = append(report.Notes, "cmake build complete")
@@ -1192,6 +1238,36 @@ func (cmakeRunner) clean(manifest *LoadedManifest, _ BuildContext, report *Repor
 	return nil
 }
 
+func cmakeProjectUsesInstallRules(root string) bool {
+	found := false
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || found {
+			return err
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case ".git", ".op", ".build", "build", "vendor", "node_modules":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		name := d.Name()
+		if name != "CMakeLists.txt" && filepath.Ext(name) != ".cmake" {
+			return nil
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
+		}
+		if strings.Contains(strings.ToLower(string(data)), "install(") {
+			found = true
+			return fs.SkipAll
+		}
+		return nil
+	})
+	return found
+}
+
 // --- Recipe runner (composite holons) ---
 
 type recipeRunner struct{}
@@ -1205,8 +1281,8 @@ type recipeBundleSigner struct {
 
 var bundleSigningHostPlatform = runtimePlatform
 
-var runBundleCodesign = func(dir, artifactRef string) (string, error) {
-	return runCommand(dir, bundleCodesignArgs(artifactRef))
+var runBundleCodesign = func(dir, artifactRef string, hardened bool) (string, error) {
+	return runCommand(dir, bundleCodesignArgs(artifactRef, hardened))
 }
 
 func (recipeRunner) check(manifest *LoadedManifest, ctx BuildContext) error {
@@ -1392,7 +1468,7 @@ func (recipeRunner) stepExec(manifest *LoadedManifest, ctx BuildContext, e *Reci
 	if ctx.DryRun {
 		return nil
 	}
-	if output, err := runCommand(cwd, e.Argv); err != nil {
+	if output, err := runCommandWithEnv(cwd, e.Argv, recipeExecEnv(ctx)); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
 
@@ -1551,13 +1627,33 @@ func (recipeRunner) clean(manifest *LoadedManifest, ctx BuildContext, report *Re
 }
 
 func runCommand(dir string, args []string) (string, error) {
+	return runCommandWithEnv(dir, args, nil)
+}
+
+func runCommandWithEnv(dir string, args []string, extraEnv []string) (string, error) {
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = dir
+	if len(extraEnv) != 0 {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return string(output), fmt.Errorf("%s failed: %w", commandString(args), err)
 	}
 	return string(output), nil
+}
+
+func recipeExecEnv(ctx BuildContext) []string {
+	env := []string{
+		"OP_BUILD_TARGET=" + ctx.Target,
+		"OP_BUILD_MODE=" + ctx.Mode,
+	}
+	if ctx.Hardened {
+		env = append(env, "OP_BUILD_HARDENED=true")
+	} else {
+		env = append(env, "OP_BUILD_HARDENED=false")
+	}
+	return env
 }
 
 func commandString(args []string) string {
@@ -1599,13 +1695,13 @@ func (recipeRunner) signBundleArtifact(manifest *LoadedManifest, ctx BuildContex
 		return nil
 	}
 
-	args := bundleCodesignArgs(signer.artifactRef)
+	args := bundleCodesignArgs(signer.artifactRef, ctx.Hardened)
 	report.Commands = append(report.Commands, commandString(args))
 	ctx.Progress.Step(commandString(args))
 	if ctx.DryRun {
 		return nil
 	}
-	if output, err := runBundleCodesign(manifest.Dir, signer.artifactRef); err != nil {
+	if output, err := runBundleCodesign(manifest.Dir, signer.artifactRef, ctx.Hardened); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
 
@@ -1618,8 +1714,13 @@ func isSignableBundleArtifact(path string) bool {
 	return strings.HasSuffix(lower, ".app") || strings.HasSuffix(lower, ".framework")
 }
 
-func bundleCodesignArgs(artifactRef string) []string {
-	return []string{"codesign", "--force", "--deep", "--preserve-metadata=entitlements", "--sign", "-", artifactRef}
+func bundleCodesignArgs(artifactRef string, hardened bool) []string {
+	args := []string{"codesign", "--force", "--deep"}
+	if hardened {
+		args = append(args, "--preserve-metadata=entitlements")
+	}
+	args = append(args, "--sign", "-", artifactRef)
+	return args
 }
 
 func normalizedTarget(ref string) string {

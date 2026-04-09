@@ -52,27 +52,57 @@ func TestBuild_07_Composite(t *testing.T) {
 		}
 	})
 
-	for _, spec := range integration.CompositeTestHolons(t) {
+	for _, spec := range supportedCompositeAppSpecs(t) {
 		spec := spec
-		t.Run(spec.Slug, func(t *testing.T) {
-			t.Logf("Building composite app %s from a clean state...", spec.Slug)
-			cmd := exec.Command(opBin, "build", spec.Slug, "--root", rootPath)
-			cmd.Env = envVars
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				t.Fatalf("Failed to build composite %s: %v\nOutput: %s", spec.Slug, err, string(out))
-			}
-
-			if _, err := os.Stat(integration.CompositeArtifactPath(rootPath, spec.Slug)); err != nil {
-				t.Fatalf("expected built composite artifact for %s: %v", spec.Slug, err)
-			}
-
-			verifySandboxedCompositeApp(t, rootPath, spec.Slug)
+		t.Run(spec.Slug+"/normal", func(t *testing.T) {
+			buildCompositeApp(t, opBin, envVars, rootPath, spec.Slug, false)
+			verifyCompositeAppSandbox(t, rootPath, spec.Slug, false)
+		})
+		t.Run(spec.Slug+"/hardened", func(t *testing.T) {
+			buildCompositeApp(t, opBin, envVars, rootPath, spec.Slug, true)
+			verifyCompositeAppSandbox(t, rootPath, spec.Slug, true)
 		})
 	}
 }
 
-func verifySandboxedCompositeApp(t *testing.T, rootPath string, slug string) {
+func supportedCompositeAppSpecs(t *testing.T) []integration.HolonSpec {
+	t.Helper()
+
+	specs := make([]integration.HolonSpec, 0, 2)
+	for _, spec := range integration.CompositeTestHolons(t) {
+		switch spec.Slug {
+		case "gabriel-greeting-app-swiftui", "gabriel-greeting-app-flutter":
+			specs = append(specs, spec)
+		}
+	}
+	if len(specs) == 0 {
+		t.Skip("no supported composite app specs available")
+	}
+	return specs
+}
+
+func buildCompositeApp(t *testing.T, opBin string, envVars []string, rootPath string, slug string, hardened bool) {
+	t.Helper()
+
+	t.Logf("Building composite app %s (hardened=%v) from a clean state...", slug, hardened)
+	args := []string{"build", "--clean", "--root", rootPath}
+	if hardened {
+		args = append(args, "--hardened")
+	}
+	args = append(args, slug)
+	cmd := exec.Command(opBin, args...)
+	cmd.Env = envVars
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to build composite %s (hardened=%v): %v\nOutput: %s", slug, hardened, err, string(out))
+	}
+
+	if _, err := os.Stat(integration.CompositeArtifactPath(rootPath, slug)); err != nil {
+		t.Fatalf("expected built composite artifact for %s: %v", slug, err)
+	}
+}
+
+func verifyCompositeAppSandbox(t *testing.T, rootPath string, slug string, hardened bool) {
 	t.Helper()
 
 	bundlePath, err := compositeAppBundlePath(rootPath, slug)
@@ -81,9 +111,16 @@ func verifySandboxedCompositeApp(t *testing.T, rootPath string, slug string) {
 	}
 
 	verifyCodeSignature(t, bundlePath)
-	verifyEntitlementEnabled(t, bundlePath, "com.apple.security.app-sandbox")
-	verifyEntitlementEnabled(t, bundlePath, "com.apple.security.network.client")
-	verifyEntitlementEnabled(t, bundlePath, "com.apple.security.network.server")
+	if hardened {
+		verifyEntitlementEnabled(t, bundlePath, "com.apple.security.app-sandbox")
+		verifyEntitlementEnabled(t, bundlePath, "com.apple.security.network.client")
+		verifyEntitlementEnabled(t, bundlePath, "com.apple.security.network.server")
+	} else {
+		verifyEntitlementDisabled(t, bundlePath, "com.apple.security.app-sandbox")
+	}
+	if slug == "gabriel-greeting-app-flutter" {
+		verifyFlutterHolonsLayout(t, bundlePath)
+	}
 }
 
 func compositeAppBundlePath(rootPath string, slug string) (string, error) {
@@ -144,5 +181,32 @@ func verifyEntitlementEnabled(t *testing.T, bundlePath string, key string) {
 	matches := pattern.FindStringSubmatch(string(out))
 	if len(matches) == 0 {
 		t.Fatalf("expected %s enabled in %s entitlements:\n%s", key, bundlePath, string(out))
+	}
+}
+
+func verifyEntitlementDisabled(t *testing.T, bundlePath string, key string) {
+	t.Helper()
+
+	cmd := exec.Command("codesign", "-d", "--entitlements=-", bundlePath)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("codesign entitlements %s: %v\nOutput: %s", bundlePath, err, string(out))
+	}
+
+	pattern := regexp.MustCompile(fmt.Sprintf(`(?s)\[Key\]\s+%s\s+\[Value\]\s+\[Bool\]\s+true`, regexp.QuoteMeta(key)))
+	if pattern.Match(out) {
+		t.Fatalf("did not expect %s enabled in %s entitlements:\n%s", key, bundlePath, string(out))
+	}
+}
+
+func verifyFlutterHolonsLayout(t *testing.T, bundlePath string) {
+	t.Helper()
+
+	holonsRoot := filepath.Join(bundlePath, "Contents", "Resources", "Holons")
+	if _, err := os.Stat(filepath.Join(holonsRoot, ".holon.json")); err == nil {
+		t.Fatalf("did not expect root Holons/.holon.json in %s", holonsRoot)
+	}
+	if _, err := os.Stat(filepath.Join(holonsRoot, "bin")); err == nil {
+		t.Fatalf("did not expect root Holons/bin in %s", holonsRoot)
 	}
 }

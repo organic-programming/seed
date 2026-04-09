@@ -245,6 +245,15 @@ inline std::vector<char *> build_exec_argv(const std::vector<std::string> &comma
   return argv;
 }
 
+inline void export_parent_pid_env() {
+  auto parent = ::getppid();
+  if (parent <= 1) {
+    return;
+  }
+  auto value = std::to_string(parent);
+  ::setenv("HOLONS_PARENT_PID", value.c_str(), 1);
+}
+
 inline connect_detail::startup_result
 start_command_tcp(const launch_target &target, int timeout_ms) {
   if (target.command.empty()) {
@@ -290,6 +299,7 @@ start_command_tcp(const launch_target &target, int timeout_ms) {
     command.push_back("serve");
     command.push_back("--listen");
     command.push_back("tcp://127.0.0.1:0");
+    export_parent_pid_env();
     auto argv = build_exec_argv(command);
     ::execvp(command.front().c_str(), argv.data());
     std::perror("execvp");
@@ -419,6 +429,7 @@ start_command_stdio(const launch_target &target, int timeout_ms) {
     command.push_back("serve");
     command.push_back("--listen");
     command.push_back("stdio://");
+    export_parent_pid_env();
     auto argv = build_exec_argv(command);
     ::execvp(command.front().c_str(), argv.data());
     std::perror("execvp");
