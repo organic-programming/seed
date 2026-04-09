@@ -2,8 +2,8 @@ import Foundation
 import Holons
 import SwiftProtobuf
 
-enum CoaxDescribeRegistration {
-    static func register() throws {
+public enum CoaxDescribeRegistration {
+    public static func register() throws {
         let payload = try makeCoaxDescribeResponse().serializedData().base64EncodedString()
         try Describe.useStaticResponse(StaticDescribeResponse(payloadBase64: payload))
     }

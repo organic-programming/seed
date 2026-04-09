@@ -6,16 +6,16 @@ import SwiftProtobuf
 // (greeting.v1.GreetingAppService) for the Gabriel Greeting App.
 // These are the same actions a human performs through the UI,
 // expressed as RPCs an agent can call equivalently.
-final class GreetingAppServiceProvider: CallHandlerProvider, @unchecked Sendable {
-    let serviceName: Substring = "greeting.v1.GreetingAppService"
+public final class GreetingAppServiceProvider: CallHandlerProvider, @unchecked Sendable {
+    public let serviceName: Substring = "greeting.v1.GreetingAppService"
 
     private let holon: HolonProcess
 
-    init(holon: HolonProcess) {
+    public init(holon: HolonProcess) {
         self.holon = holon
     }
 
-    func handle(method name: Substring, context: CallHandlerContext) -> GRPCServerHandlerProtocol? {
+    public func handle(method name: Substring, context: CallHandlerContext) -> GRPCServerHandlerProtocol? {
         switch name {
         case "SelectHolon":
             return UnaryServerHandler(
