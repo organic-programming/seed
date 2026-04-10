@@ -24,7 +24,7 @@ The following languages `c, c++, c#, dart, go, java, js, js-web, kotlin, python,
 
 The core `holons.v1` schema definitions (`manifest.proto`, `describe.proto`, `coax.proto`) are embedded in the `op` binary for runtime distribution. However, the exact code bindings (Go structs, Swift classes, Dart definitions, etc.) required by these SDKs are statically compiled from those schemas.
 
-Maintainers use [`./generate-protos.sh`](./generate-protos.sh) to invoke the various language-specific `protoc` compilers and update the native libraries uniformly across all 13 supported languages.
+Maintainers use [`./scripts/generate-protos.sh`](./scripts/generate-protos.sh) to invoke the various language-specific `protoc` compilers and update the native libraries uniformly across all 13 supported languages.
 
 ## Every SDK implements:
 

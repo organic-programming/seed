@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+#
+# This script bundles non-system dynamic libraries (.dylib) into a macOS executable's folder.
+# It makes the application portable by relinking the binary to its local Frameworks/ directory
+# and re-signing all modified files. It can be used by any compiled macOS native binary.
+#
 set -euo pipefail
 
 if [[ "${OSTYPE:-}" != darwin* ]]; then
