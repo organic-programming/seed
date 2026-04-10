@@ -1,6 +1,7 @@
 import SwiftUI
 import GreetingKit
 import HolonsApp
+import Holons
 #if os(macOS)
 import AppKit
 #endif
@@ -21,7 +22,8 @@ struct GabrielGreetingApp: App {
                 ]
             },
             registerDescribe: {
-                try CoaxDescribeRegistration.register()
+                let payload = try DescribeGenerated.staticDescribeResponse().serializedData().base64EncodedString()
+                try Describe.useStaticResponse(StaticDescribeResponse(payloadBase64: payload))
             },
             coaxDefaults: .standard(socketName: "gabriel-greeting-coax.sock")
         )

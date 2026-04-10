@@ -20,7 +20,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-03-16"
-    version: "8.8.175"
+    version: "8.8.176"
   }
   description: "A Rust gRPC daemon that greets users in 56 languages."
   lang: "rust"

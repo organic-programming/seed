@@ -174,7 +174,7 @@ pub mod holon_manifest {
         }
         #[derive(Clone, PartialEq, ::prost::Message)]
         pub struct Member {
-            /// e.g. "daemon", "app"
+            /// e.g. "holon", "app"
             #[prost(string, tag = "1")]
             pub id: ::prost::alloc::string::String,
             /// relative path to the member

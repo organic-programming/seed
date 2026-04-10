@@ -15,9 +15,10 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-03-15"
-    version: "0.1.132"
+    version: "0.1.133"
   }
   description: "A standalone SwiftUI app that connects to all 12 Gabriel greeting holon written in 12 programming languages and presents a multilingual greeting UI."
+  lang: "swift"
   kind: "composite"
   contract: {
     proto: "api/v1/holon.proto"
@@ -138,7 +139,7 @@ option (holons.v1.manifest) = {
         steps: {
           exec: {
             cwd: "."
-            argv: ["bash", "-lc", 'set -euo pipefail\nrm -rf GabrielGreetingApp.xcodeproj .build build .op/build/xcode/GabrielGreetingApp.xcodeproj\nmkdir -p .op/build/xcode/source-packages/checkouts .op/build/xcode/source-packages/repositories\nrm -f .op/build/xcode/project.yml .op/build/xcode/App .op/build/xcode/Modules\nln -s ../../../project.yml .op/build/xcode/project.yml\nln -s ../../../App .op/build/xcode/App\nln -s ../../../Modules .op/build/xcode/Modules']
+            argv: ["bash", "-lc", 'set -euo pipefail\nrm -rf GabrielGreetingApp.xcodeproj .build build .op/build/xcode/GabrielGreetingApp.xcodeproj\nmkdir -p .op/build/xcode/source-packages/checkouts .op/build/xcode/source-packages/repositories\nrm -f .op/build/xcode/project.yml .op/build/xcode/App .op/build/xcode/Modules .op/build/xcode/gen\nln -s ../../../project.yml .op/build/xcode/project.yml\nln -s ../../../App .op/build/xcode/App\nln -s ../../../Modules .op/build/xcode/Modules\nln -s ../../../gen .op/build/xcode/gen']
           }
         }
         steps: {
