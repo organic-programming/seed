@@ -17,7 +17,7 @@ public struct TemplateHolon: Identifiable, Hashable, Sendable {
 }
 
 @MainActor
-public final class HolonProcess: ObservableObject, OrganismState {
+public final class AppHolonManager: ObservableObject, HolonManager {
     @Published public var availableHolons: [TemplateHolon]
     @Published public var selectedHolonSlug: String
     @Published public var transport: String
@@ -34,7 +34,7 @@ public final class HolonProcess: ObservableObject, OrganismState {
             )
         ]
         self.selectedHolonSlug = "holon"
-        self.transport = GreetingTransportName.normalizedSelection(
+        self.transport = HolonTransportName.normalize(
             ProcessInfo.processInfo.environment["OP_ASSEMBLY_TRANSPORT"]
         ).rawValue
         self.greeting = "Wire your business holon into this organism app."
@@ -61,7 +61,7 @@ public final class HolonProcess: ObservableObject, OrganismState {
     }
 
     public func setTransport(_ value: String) {
-        guard let normalized = GreetingTransportName.validatedRPCName(value) else { return }
+        guard let normalized = HolonTransportName.parseCanonical(value) else { return }
         transport = normalized.rawValue
         detail = "Transport set to \(normalized.rawValue)."
     }
@@ -78,7 +78,7 @@ public final class HolonProcess: ObservableObject, OrganismState {
         detail = "Disconnected member \(selectedHolon?.displayName ?? "holon")."
     }
 
-    public var coaxMembers: [CoaxMember] {
+    public func listMembers() async -> [CoaxMember] {
         availableHolons.map { member in
             CoaxMember(
                 slug: member.slug,
@@ -89,27 +89,38 @@ public final class HolonProcess: ObservableObject, OrganismState {
         }
     }
 
-    public func connectCoaxMember(slug: String, transport: String) async throws -> CoaxMember {
+    public func memberStatus(slug: String) async -> CoaxMember? {
+        availableHolons.first(where: { $0.slug == slug }).map { member in
+            CoaxMember(
+                slug: member.slug,
+                familyName: member.familyName,
+                displayName: member.displayName,
+                state: selectedHolonSlug == member.slug && isConnected ? .connected : .available
+            )
+        }
+    }
+
+    public func connectMember(slug: String, transport: String) async throws -> CoaxMember {
         selectHolon(slug: slug)
         if !transport.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             setTransport(transport)
         }
         isConnected = true
         detail = "Connected \(selectedHolon?.displayName ?? slug) over \(self.transport)."
-        guard let member = coaxMembers.first(where: { $0.slug == slug }) else {
-            throw HolonProcessError.memberNotFound(slug)
+        guard let member = await memberStatus(slug: slug) else {
+            throw AppHolonManagerError.memberNotFound(slug)
         }
         return member
     }
 
-    public func disconnectCoaxMember(slug: String) async {
+    public func disconnectMember(slug: String) async {
         guard slug.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || slug == selectedHolonSlug else {
             return
         }
         disconnectActiveMember()
     }
 
-    public func tellCoaxMember(slug: String, method: String, payloadJSON: Data) async throws -> Data {
+    public func tellMember(slug: String, method: String, payloadJSON: Data) async throws -> Data {
         selectHolon(slug: slug)
         isConnected = true
 
@@ -120,7 +131,7 @@ public final class HolonProcess: ObservableObject, OrganismState {
             object = try JSONSerialization.jsonObject(with: payloadJSON)
         }
         guard let payload = object as? [String: Any] else {
-            throw HolonProcessError.invalidPayload
+            throw AppHolonManagerError.invalidPayload
         }
 
         switch canonicalMethod(method) {
@@ -149,7 +160,7 @@ public final class HolonProcess: ObservableObject, OrganismState {
             )
 
         default:
-            throw HolonProcessError.unsupportedMethod(method)
+            throw AppHolonManagerError.unsupportedMethod(method)
         }
     }
 
@@ -172,7 +183,7 @@ public final class HolonProcess: ObservableObject, OrganismState {
     }
 }
 
-public enum HolonProcessError: LocalizedError {
+public enum AppHolonManagerError: LocalizedError {
     case invalidPayload
     case memberNotFound(String)
     case unsupportedMethod(String)

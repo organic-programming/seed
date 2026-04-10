@@ -12,8 +12,8 @@ abstract interface class HolonConnector<T> {
   });
 }
 
-class DesktopHolonConnector<T> implements HolonConnector<T> {
-  DesktopHolonConnector({
+class BundledHolonConnector<T> implements HolonConnector<T> {
+  BundledHolonConnector({
     required this.slugOf,
     this.buildRunnerOf,
   });
@@ -45,7 +45,7 @@ String effectiveHolonTransport({
   required String requestedTransport,
   String? buildRunner,
 }) {
-  final normalized = normalizedTransportSelection(requestedTransport);
+  final normalized = HolonTransportName.normalize(requestedTransport).rawValue;
   if (!_isBundledMacOSHost()) {
     return normalized;
   }
@@ -64,3 +64,6 @@ bool _isBundledMacOSHost() {
   }
   return Platform.resolvedExecutable.contains('.app/Contents/');
 }
+
+@Deprecated('Use BundledHolonConnector<T>')
+typedef DesktopHolonConnector<T> = BundledHolonConnector<T>;

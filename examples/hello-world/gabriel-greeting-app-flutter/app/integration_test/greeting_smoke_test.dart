@@ -19,7 +19,7 @@ void main() {
         },
       ),
     );
-    final coaxController = buildCoaxController(
+    final coaxManager = buildCoaxManager(
       greetingController: greetingController,
     );
 
@@ -28,7 +28,7 @@ void main() {
     await tester.pumpWidget(
       GabrielGreetingApp(
         greetingController: greetingController,
-        coaxController: coaxController,
+        coaxManager: coaxManager,
       ),
     );
     await tester.pump(const Duration(milliseconds: 400));

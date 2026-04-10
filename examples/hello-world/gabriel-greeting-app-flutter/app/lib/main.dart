@@ -23,23 +23,23 @@ Future<void> main() async {
   await applyLaunchEnvironmentOverrides(settingsStore, defaults: coaxDefaults);
 
   final greetingController = GreetingController(
-    catalog: DesktopHolonCatalog<GabrielHolonIdentity>(
+    holons: BundledHolons<GabrielHolonIdentity>(
       fromDiscovered: GabrielHolonIdentity.fromDiscovered,
       slugOf: (holon) => holon.slug,
       sortRankOf: (holon) => holon.sortRank,
       displayNameOf: (holon) => holon.displayName,
     ),
-    connector: DesktopGreetingHolonConnectionFactory(),
+    connector: BundledGreetingHolonConnectionFactory(),
   );
 
-  late final CoaxController coaxController;
-  coaxController = CoaxController(
+  late final CoaxManager coaxManager;
+  coaxManager = CoaxManager(
     settingsStore: settingsStore,
     defaults: coaxDefaults,
     serviceFactory: () => <Service>[
       CoaxRpcService(
-        organismController: greetingController,
-        coaxController: coaxController,
+        holonManager: greetingController,
+        coaxManager: coaxManager,
       ),
       GreetingAppRpcService(greetingController),
     ],
@@ -51,7 +51,7 @@ Future<void> main() async {
   runApp(
     GabrielGreetingApp(
       greetingController: greetingController,
-      coaxController: coaxController,
+      coaxManager: coaxManager,
     ),
   );
 }

@@ -11,10 +11,13 @@ import 'package:gabriel_greeting_app_flutter/src/rpc/greeting_app_service.dart';
 import 'package:gabriel_greeting_app_flutter/src/runtime/describe_registration.dart';
 import 'package:gabriel_greeting_app_flutter/src/runtime/greeting_holon_connection.dart';
 
-class FakeHolonCatalog implements HolonCatalog<GabrielHolonIdentity> {
+class FakeHolonCatalog implements Holons<GabrielHolonIdentity> {
   FakeHolonCatalog(this.holons);
 
   final List<GabrielHolonIdentity> holons;
+
+  @override
+  Future<List<GabrielHolonIdentity>> list() async => holons;
 
   @override
   Future<List<GabrielHolonIdentity>> discover() async => holons;
@@ -148,7 +151,7 @@ GabrielHolonIdentity holon(String slug, {int? rank}) {
   );
 }
 
-CoaxController buildCoaxController({
+CoaxManager buildCoaxManager({
   required GreetingController greetingController,
   SettingsStore? settingsStore,
   AppPlatformCapabilities? capabilities,
@@ -157,8 +160,8 @@ CoaxController buildCoaxController({
   final coaxDefaults =
       defaults ??
       CoaxSettingsDefaults.standard(socketName: 'gabriel-greeting-coax.sock');
-  late final CoaxController coaxController;
-  coaxController = CoaxController(
+  late final CoaxManager coaxManager;
+  coaxManager = CoaxManager(
     settingsStore: settingsStore ?? MemorySettingsStore(),
     defaults: coaxDefaults,
     capabilities: capabilities,
@@ -167,13 +170,28 @@ CoaxController buildCoaxController({
     },
     serviceFactory: () => [
       CoaxRpcService(
-        organismController: greetingController,
-        coaxController: coaxController,
+        holonManager: greetingController,
+        coaxManager: coaxManager,
       ),
       GreetingAppRpcService(greetingController),
     ],
   );
-  return coaxController;
+  return coaxManager;
+}
+
+@Deprecated('Use buildCoaxManager')
+CoaxController buildCoaxController({
+  required GreetingController greetingController,
+  SettingsStore? settingsStore,
+  AppPlatformCapabilities? capabilities,
+  CoaxSettingsDefaults? defaults,
+}) {
+  return buildCoaxManager(
+    greetingController: greetingController,
+    settingsStore: settingsStore,
+    capabilities: capabilities,
+    defaults: defaults,
+  );
 }
 
 Future<int> reserveTcpPort() async {

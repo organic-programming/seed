@@ -7,22 +7,22 @@ import '../model/app_model.dart';
 
 const _holonRpcTimeout = Duration(seconds: 20);
 final _callOptions = CallOptions(timeout: _holonRpcTimeout);
-final _greetingMethodRegistry = holons.UnaryJsonMethodRegistry(
-  <holons.UnaryJsonMethodDescriptor<dynamic, dynamic>>[
-    holons.UnaryJsonMethodDescriptor<ListLanguagesRequest, ListLanguagesResponse>(
-      path: '/greeting.v1.GreetingService/ListLanguages',
-      createRequest: ListLanguagesRequest.new,
-      createResponse: ListLanguagesResponse.new,
-      defaultCallOptions: _callOptions,
-    ),
-    holons.UnaryJsonMethodDescriptor<SayHelloRequest, SayHelloResponse>(
-      path: '/greeting.v1.GreetingService/SayHello',
-      createRequest: SayHelloRequest.new,
-      createResponse: SayHelloResponse.new,
-      defaultCallOptions: _callOptions,
-    ),
-  ],
-);
+final _greetingMethodRegistry = holons.UnaryJsonMethodRegistry(<
+  holons.UnaryJsonMethodDescriptor<dynamic, dynamic>
+>[
+  holons.UnaryJsonMethodDescriptor<ListLanguagesRequest, ListLanguagesResponse>(
+    path: '/greeting.v1.GreetingService/ListLanguages',
+    createRequest: ListLanguagesRequest.new,
+    createResponse: ListLanguagesResponse.new,
+    defaultCallOptions: _callOptions,
+  ),
+  holons.UnaryJsonMethodDescriptor<SayHelloRequest, SayHelloResponse>(
+    path: '/greeting.v1.GreetingService/SayHello',
+    createRequest: SayHelloRequest.new,
+    createResponse: SayHelloResponse.new,
+    defaultCallOptions: _callOptions,
+  ),
+]);
 
 abstract interface class GreetingHolonConnection {
   Future<List<Language>> listLanguages();
@@ -38,13 +38,13 @@ abstract interface class GreetingHolonConnectionFactory {
   });
 }
 
-class DesktopGreetingHolonConnectionFactory
+class BundledGreetingHolonConnectionFactory
     implements GreetingHolonConnectionFactory {
-  DesktopGreetingHolonConnectionFactory({
+  BundledGreetingHolonConnectionFactory({
     HolonConnector<GabrielHolonIdentity>? connector,
   }) : _connector =
            connector ??
-           DesktopHolonConnector<GabrielHolonIdentity>(
+           BundledHolonConnector<GabrielHolonIdentity>(
              slugOf: (holon) => holon.slug,
              buildRunnerOf: (holon) => holon.buildRunner,
            );
@@ -60,6 +60,10 @@ class DesktopGreetingHolonConnectionFactory
     return DesktopGreetingHolonConnection(channel);
   }
 }
+
+@Deprecated('Use BundledGreetingHolonConnectionFactory')
+typedef DesktopGreetingHolonConnectionFactory =
+    BundledGreetingHolonConnectionFactory;
 
 class DesktopGreetingHolonConnection implements GreetingHolonConnection {
   DesktopGreetingHolonConnection(this._channel)

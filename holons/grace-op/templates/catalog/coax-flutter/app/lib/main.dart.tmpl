@@ -19,16 +19,16 @@ Future<void> main() async {
   );
   await applyLaunchEnvironmentOverrides(settingsStore, defaults: coaxDefaults);
 
-  final organismController = {{ .PascalSlug }}OrganismController();
+  final appHolonManager = AppHolonManager();
 
-  late final CoaxController coaxController;
-  coaxController = CoaxController(
+  late final CoaxManager coaxManager;
+  coaxManager = CoaxManager(
     settingsStore: settingsStore,
     defaults: coaxDefaults,
     serviceFactory: () => <Service>[
       CoaxRpcService(
-        organismController: organismController,
-        coaxController: coaxController,
+        holonManager: appHolonManager,
+        coaxManager: coaxManager,
       ),
     ],
     prepareDescribe: () async {
@@ -44,8 +44,8 @@ Future<void> main() async {
 
   runApp(
     {{ .PascalSlug }}App(
-      organismController: organismController,
-      coaxController: coaxController,
+      appHolonManager: appHolonManager,
+      coaxManager: coaxManager,
     ),
   );
 }

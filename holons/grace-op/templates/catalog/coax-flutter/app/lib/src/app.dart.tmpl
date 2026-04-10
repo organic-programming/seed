@@ -10,12 +10,12 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 class {{ .PascalSlug }}App extends StatelessWidget {
   const {{ .PascalSlug }}App({
     super.key,
-    required this.organismController,
-    required this.coaxController,
+    required this.appHolonManager,
+    required this.coaxManager,
   });
 
-  final {{ .PascalSlug }}OrganismController organismController;
-  final CoaxController coaxController;
+  final AppHolonManager appHolonManager;
+  final CoaxManager coaxManager;
 
   @override
   Widget build(BuildContext context) {
@@ -34,8 +34,8 @@ class {{ .PascalSlug }}App extends StatelessWidget {
       ),
       themeMode: ThemeMode.system,
       home: {{ .PascalSlug }}HomePage(
-        organismController: organismController,
-        coaxController: coaxController,
+        appHolonManager: appHolonManager,
+        coaxManager: coaxManager,
       ),
     );
   }
@@ -44,12 +44,12 @@ class {{ .PascalSlug }}App extends StatelessWidget {
 class {{ .PascalSlug }}HomePage extends StatefulWidget {
   const {{ .PascalSlug }}HomePage({
     super.key,
-    required this.organismController,
-    required this.coaxController,
+    required this.appHolonManager,
+    required this.coaxManager,
   });
 
-  final {{ .PascalSlug }}OrganismController organismController;
-  final CoaxController coaxController;
+  final AppHolonManager appHolonManager;
+  final CoaxManager coaxManager;
 
   @override
   State<{{ .PascalSlug }}HomePage> createState() =>
@@ -68,18 +68,18 @@ class _{{ .PascalSlug }}HomePageState extends State<{{ .PascalSlug }}HomePage> {
       onExitRequested: _handleExitRequested,
     );
     _listenable = Listenable.merge(<Listenable>[
-      widget.organismController,
-      widget.coaxController,
+      widget.appHolonManager,
+      widget.coaxManager,
     ]);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted || _shutdownFuture != null) {
         return;
       }
-      await widget.organismController.initialize();
+      await widget.appHolonManager.initialize();
       if (!mounted || _shutdownFuture != null) {
         return;
       }
-      await widget.coaxController.startIfEnabled();
+      await widget.coaxManager.startIfEnabled();
     });
   }
 
@@ -101,8 +101,8 @@ class _{{ .PascalSlug }}HomePageState extends State<{{ .PascalSlug }}HomePage> {
       return existing;
     }
     final future = () async {
-      await widget.coaxController.shutdown();
-      await widget.organismController.shutdown();
+      await widget.coaxManager.shutdown();
+      await widget.appHolonManager.shutdown();
     }();
     _shutdownFuture = future;
     return future;
@@ -111,7 +111,7 @@ class _{{ .PascalSlug }}HomePageState extends State<{{ .PascalSlug }}HomePage> {
   Future<void> _showCoaxSettings(BuildContext context) {
     return showDialog<void>(
       context: context,
-      builder: (_) => CoaxSettingsDialog(controller: widget.coaxController),
+      builder: (_) => CoaxSettingsView(coaxManager: widget.coaxManager),
     );
   }
 
@@ -120,8 +120,8 @@ class _{{ .PascalSlug }}HomePageState extends State<{{ .PascalSlug }}HomePage> {
     return AnimatedBuilder(
       animation: _listenable,
       builder: (context, _) {
-        final organism = widget.organismController;
-        final coax = widget.coaxController;
+        final organism = widget.appHolonManager;
+        final coax = widget.coaxManager;
         final theme = Theme.of(context);
         final darkMode = theme.brightness == Brightness.dark;
 
@@ -148,8 +148,8 @@ class _{{ .PascalSlug }}HomePageState extends State<{{ .PascalSlug }}HomePage> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(32, 16, 32, 16),
-                    child: CoaxControlBar(
-                      controller: coax,
+                    child: CoaxControlsView(
+                      coaxManager: coax,
                       onOpenSettings: () => _showCoaxSettings(context),
                     ),
                   ),
@@ -198,7 +198,7 @@ class _{{ .PascalSlug }}HomePageState extends State<{{ .PascalSlug }}HomePage> {
 class _WorkspaceBar extends StatelessWidget {
   const _WorkspaceBar({required this.controller});
 
-  final {{ .PascalSlug }}OrganismController controller;
+  final AppHolonManager controller;
 
   @override
   Widget build(BuildContext context) {
@@ -210,11 +210,11 @@ class _WorkspaceBar extends StatelessWidget {
           ),
         )
         .toList(growable: false);
-    final transportItems = controller.capabilities.appTransports
+    final transportItems = controller.capabilities.holonTransportNames
         .map(
           (value) => SelectItemButton<String>(
-            value: value,
-            child: Text(transportTitle(value)),
+            value: value.rawValue,
+            child: Text(value.title),
           ),
         )
         .toList(growable: false);
@@ -260,11 +260,12 @@ class _WorkspaceBar extends StatelessWidget {
                   child: Select<String>(
                     value: controller.transport,
                     onChanged: (value) {
-                      if (value != null) {
-                        unawaited(controller.setTransport(value));
-                      }
-                    },
-                    itemBuilder: (context, value) => Text(transportTitle(value)),
+                    if (value != null) {
+                      unawaited(controller.setTransport(value));
+                    }
+                  },
+                    itemBuilder: (context, value) =>
+                        Text(HolonTransportName.normalize(value).title),
                     popup: (context) => SelectPopup(
                       items: SelectItemList(children: transportItems),
                     ),
@@ -297,7 +298,7 @@ class _WorkspaceBar extends StatelessWidget {
 class _PreviewCard extends StatelessWidget {
   const _PreviewCard({required this.controller});
 
-  final {{ .PascalSlug }}OrganismController controller;
+  final AppHolonManager controller;
 
   @override
   Widget build(BuildContext context) {
@@ -348,15 +349,14 @@ class _PreviewCard extends StatelessWidget {
   }
 }
 
-class {{ .PascalSlug }}OrganismController extends ChangeNotifier
-    implements OrganismController {
-  {{ .PascalSlug }}OrganismController({
+class AppHolonManager extends ChangeNotifier implements HolonManager {
+  AppHolonManager({
     AppPlatformCapabilities? capabilities,
     String? initialTransport,
   }) : capabilities = capabilities ?? AppPlatformCapabilities.desktopCurrent(),
-       transport = normalizedTransportSelection(
+       transport = HolonTransportName.normalize(
          initialTransport ?? Platform.environment['OP_ASSEMBLY_TRANSPORT'],
-       );
+       ).rawValue;
 
   final AppPlatformCapabilities capabilities;
 
@@ -410,12 +410,14 @@ class {{ .PascalSlug }}OrganismController extends ChangeNotifier
   }
 
   Future<void> setTransport(String value) async {
-    final normalized = normalizedTransportSelection(value);
-    if (!capabilities.appTransports.contains(normalized)) {
-      throw StateError('Transport "$normalized" is not available here.');
+    final normalized = HolonTransportName.normalize(value);
+    if (!capabilities.holonTransportNames.contains(normalized)) {
+      throw StateError(
+        'Transport "${normalized.rawValue}" is not available here.',
+      );
     }
-    transport = normalized;
-    detail = 'Transport set to ${transportTitle(transport)}.';
+    transport = normalized.rawValue;
+    detail = 'Transport set to ${normalized.title}.';
     _safeNotify();
   }
 
@@ -451,7 +453,8 @@ class {{ .PascalSlug }}OrganismController extends ChangeNotifier
     }
     await selectHolon(slug);
     isRunning = true;
-    detail = 'Connected ${selectedHolon!.displayName} over ${transportTitle(this.transport)}.';
+    detail =
+        'Connected ${selectedHolon!.displayName} over ${HolonTransportName.normalize(transport).title}.';
     _safeNotify();
     return _memberInfo(
       selectedHolon!,
@@ -471,32 +474,36 @@ class {{ .PascalSlug }}OrganismController extends ChangeNotifier
 
   @override
   Future<Object?> tellMember({
-    required String memberSlug,
+    required String slug,
     required String method,
-    Object? payload,
+    Object? payloadJson,
   }) async {
     final canonicalMethod = _canonicalMethod(method);
-    if (selectedHolon?.slug != memberSlug) {
-      await selectHolon(memberSlug);
+    if (selectedHolon?.slug != slug) {
+      await selectHolon(slug);
     }
     isRunning = true;
 
-    final payloadMap = switch (payload) {
+    final payloadMap = switch (payloadJson) {
       Map<Object?, Object?> value => value.map(
         (key, value) => MapEntry(key.toString(), value),
       ),
       null => const <String, Object?>{},
-      _ => throw ArgumentError.value(payload, 'payload', 'Expected a JSON object'),
+      _ => throw ArgumentError.value(
+        payloadJson,
+        'payloadJson',
+        'Expected a JSON object',
+      ),
     };
 
     switch (canonicalMethod) {
       case 'sample.v1.SampleHolon/Ping':
         detail =
-            'Received Ping for ${selectedHolon!.displayName} over ${transportTitle(transport)}.';
+            'Received Ping for ${selectedHolon!.displayName} over ${HolonTransportName.normalize(transport).title}.';
         _safeNotify();
         return <String, Object?>{
           'message': 'pong',
-          'memberSlug': memberSlug,
+          'memberSlug': slug,
           'transport': transport,
         };
 

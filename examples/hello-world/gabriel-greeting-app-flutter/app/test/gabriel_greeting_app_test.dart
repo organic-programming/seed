@@ -26,17 +26,17 @@ void main() {
         },
       ),
     );
-    final coaxController = buildCoaxController(
+    final coaxManager = buildCoaxManager(
       greetingController: greetingController,
     );
 
     final app = GabrielGreetingApp(
       greetingController: greetingController,
-      coaxController: coaxController,
+      coaxManager: coaxManager,
     );
 
     expect(app.greetingController, same(greetingController));
-    expect(app.coaxController, same(coaxController));
+    expect(app.coaxManager, same(coaxManager));
   });
 
   testWidgets('select popups apply holon, runtime, and language changes', (
@@ -71,7 +71,7 @@ void main() {
       ),
       capabilities: const AppPlatformCapabilities(supportsUnixSockets: true),
     );
-    final coaxController = buildCoaxController(
+    final coaxManager = buildCoaxManager(
       greetingController: greetingController,
       capabilities: const AppPlatformCapabilities(supportsUnixSockets: true),
     );
@@ -79,7 +79,7 @@ void main() {
     await tester.pumpWidget(
       GabrielGreetingApp(
         greetingController: greetingController,
-        coaxController: coaxController,
+        coaxManager: coaxManager,
       ),
     );
     await _settleApp(tester);
@@ -132,14 +132,14 @@ void main() {
         },
       ),
     );
-    final coaxController = buildCoaxController(
+    final coaxManager = buildCoaxManager(
       greetingController: greetingController,
     );
 
     await tester.pumpWidget(
       GabrielGreetingApp(
         greetingController: greetingController,
-        coaxController: coaxController,
+        coaxManager: coaxManager,
       ),
     );
     await _settleApp(tester);
@@ -173,14 +173,14 @@ void main() {
         },
       ),
     );
-    final coaxController = buildCoaxController(
+    final coaxManager = buildCoaxManager(
       greetingController: greetingController,
     );
 
     await tester.pumpWidget(
       GabrielGreetingApp(
         greetingController: greetingController,
-        coaxController: coaxController,
+        coaxManager: coaxManager,
       ),
     );
     await _settleApp(tester);

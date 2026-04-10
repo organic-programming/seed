@@ -23,7 +23,7 @@ void main() {
       ),
     );
     final store = MemorySettingsStore();
-    final coaxController = buildCoaxController(
+    final coaxManager = buildCoaxManager(
       greetingController: greetingController,
       settingsStore: store,
       capabilities: const AppPlatformCapabilities(supportsUnixSockets: false),
@@ -31,18 +31,18 @@ void main() {
 
     await greetingController.initialize();
     final port = await reserveTcpPort();
-    await coaxController.setServerPortText(port.toString());
-    await coaxController.setIsEnabled(true);
+    await coaxManager.setServerPortText(port.toString());
+    await coaxManager.setEnabled(true);
 
-    expect(coaxController.listenUri, 'tcp://127.0.0.1:$port');
-    expect(coaxController.serverStatus.state, CoaxSurfaceState.live);
+    expect(coaxManager.listenUri, 'tcp://127.0.0.1:$port');
+    expect(coaxManager.serverStatus.state, CoaxSurfaceState.live);
     expect(store.readBool('coax.server.enabled'), isTrue);
     expect(
       store.readString('coax.server.settings'),
       contains('"serverPortText":"$port"'),
     );
 
-    await coaxController.shutdown();
+    await coaxManager.shutdown();
     await greetingController.shutdown();
   });
 }

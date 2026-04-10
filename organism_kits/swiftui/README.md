@@ -3,11 +3,15 @@
 `HolonsApp` is the reusable SwiftUI organism kit for COAX-enabled app holons.
 It owns the reusable COAX runtime and the reusable SwiftUI COAX UI:
 
-- `CoaxServer`
-- `CoaxServiceProvider`
-- `OrganismState`
+- `CoaxManager`
+- `CoaxRpcServiceProvider`
+- `HolonManager`
+- `HolonTransportName`
+- `Holons<T>` / `BundledHolons<T>`
+- `HolonConnector<T>` / `BundledHolonConnector<T>`
 - `CoaxControlsView`
 - `CoaxSettingsView`
+- `SettingsStore`
 
 `sdk/swift-holons` remains the pure Swift SDK. This package is the SwiftUI
 layer on top of that SDK.
@@ -51,21 +55,22 @@ henri-nobody/
 │   ├── Package.swift
 │   └── Sources/AppKit/
 │       ├── .gitkeep
-│       └── HolonProcess.swift
+│       └── AppHolonManager.swift
 └── .op/build/.gitkeep
 ```
 
 ## What The Scaffold Already Wires
 
 - `App/{{PascalSlug}}App.swift` creates:
-  - `CoaxServer`
-  - `CoaxServiceProvider`
+  - `FileSettingsStore`
+  - `CoaxManager`
+  - `CoaxRpcServiceProvider`
   - a Describe registration based on `api/v1/holon.proto`
 - `App/ContentView.swift` mounts:
   - `CoaxControlsView`
   - `CoaxSettingsView`
-  - a local demo organism model
-- `Modules/Sources/AppKit/HolonProcess.swift` exposes one member slug: `holon`
+  - a local demo `AppHolonManager`
+- `Modules/Sources/AppKit/AppHolonManager.swift` exposes one member slug: `holon`
 - the local demo model implements all six COAX RPC behaviors
 
 The COAX server remains opt-in:
@@ -96,13 +101,13 @@ Expected behavior:
 ## Replacing The Demo Member With A Real Holon
 
 1. Replace `henri-nobody/holon/` with your real business holon.
-2. Replace `HolonProcess` in `henri-nobody/Modules/Sources/AppKit/HolonProcess.swift`.
+2. Replace `AppHolonManager` in `henri-nobody/Modules/Sources/AppKit/AppHolonManager.swift`.
    Swap the local in-memory member bridge for your real connection logic.
 3. Keep the COAX server integration unchanged in `App/{{PascalSlug}}App.swift`.
    The intended wiring remains:
-   - `CoaxServer`
-   - `CoaxServiceProvider`
-   - your `OrganismState` implementation
+   - `CoaxManager`
+   - `CoaxRpcServiceProvider`
+   - your `HolonManager` implementation
 4. Keep the COAX UI views unchanged in `App/ContentView.swift`.
    The supported public surface is:
    - `CoaxControlsView`
@@ -111,33 +116,43 @@ Expected behavior:
 ## Minimal Real-App Wiring Pattern
 
 ```swift
-let holon = MyOrganismModel()
-let coaxServerBox = WeakCoaxServerBox()
-let server = CoaxServer(
+let holonManager = MyHolonManager()
+let settingsStore = FileSettingsStore.create(
+    applicationId: "henri-nobody",
+    applicationName: "Henri Nobody"
+)
+var turnOffCoax: (@MainActor @Sendable () -> Void)?
+let coaxManager = CoaxManager(
     providers: {
         [
-            CoaxServiceProvider(organism: holon, coaxServer: coaxServerBox.value!)
+            CoaxRpcServiceProvider(
+                holonManager: holonManager,
+                turnOffCoax: { turnOffCoax?() }
+            )
         ]
     },
     registerDescribe: {
         try registerDescribeResponse()
     },
+    settingsStore: settingsStore,
     coaxDefaults: .standard(socketName: "henri-nobody-coax.sock")
 )
-Task { @MainActor [server] in
-    server.startIfEnabled()
+turnOffCoax = { coaxManager.turnOffAfterRpc() }
+Task { @MainActor [coaxManager] in
+    coaxManager.startIfEnabled()
 }
 ```
 
-Your organism model should conform to `OrganismState`:
+Your organism model should conform to `HolonManager`:
 
 ```swift
 @MainActor
-final class MyOrganismModel: ObservableObject, OrganismState {
-    var coaxMembers: [CoaxMember] { ... }
-    func connectCoaxMember(slug: String, transport: String) async throws -> CoaxMember { ... }
-    func disconnectCoaxMember(slug: String) async { ... }
-    func tellCoaxMember(slug: String, method: String, payloadJSON: Data) async throws -> Data { ... }
+final class MyHolonManager: ObservableObject, HolonManager {
+    func listMembers() async -> [CoaxMember] { ... }
+    func memberStatus(slug: String) async -> CoaxMember? { ... }
+    func connectMember(slug: String, transport: String) async throws -> CoaxMember { ... }
+    func disconnectMember(slug: String) async { ... }
+    func tellMember(slug: String, method: String, payloadJSON: Data) async throws -> Data { ... }
 }
 ```
 
@@ -147,12 +162,12 @@ Keep the generated SwiftUI surface:
 
 ```swift
 CoaxControlsView(
-    coaxServer: coaxServer,
+    coaxManager: coaxManager,
     isShowingSettings: $isShowingCoaxSettings
 )
 .sheet(isPresented: $isShowingCoaxSettings) {
     CoaxSettingsView(
-        coaxServer: coaxServer,
+        coaxManager: coaxManager,
         isPresented: $isShowingCoaxSettings
     )
 }

@@ -4,15 +4,32 @@ import Holons
 import NIOCore
 import SwiftProtobuf
 
-public final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable {
+public final class CoaxRpcServiceProvider: CallHandlerProvider, @unchecked Sendable {
     public let serviceName: Substring = "holons.v1.CoaxService"
 
-    private let organism: any OrganismState
-    private weak var coaxServer: CoaxServer?
+    private let holonManager: any HolonManager
+    private let turnOffCoax: @MainActor @Sendable () -> Void
 
-    public init(organism: any OrganismState, coaxServer: CoaxServer) {
-        self.organism = organism
-        self.coaxServer = coaxServer
+    public init(
+        holonManager: any HolonManager,
+        turnOffCoax: @escaping @MainActor @Sendable () -> Void
+    ) {
+        self.holonManager = holonManager
+        self.turnOffCoax = turnOffCoax
+    }
+
+    @available(*, deprecated, message: "Use init(holonManager:coaxManager:)")
+    public convenience init(holonManager: any HolonManager, coaxManager: CoaxManager) {
+        self.init(holonManager: holonManager) {
+            coaxManager.turnOffAfterRpc()
+        }
+    }
+
+    @available(*, deprecated, message: "Use init(holonManager:turnOffCoax:)")
+    public convenience init(organism: any OrganismState, coaxServer: CoaxServer) {
+        self.init(holonManager: organism) {
+            coaxServer.turnOffAfterRpc()
+        }
     }
 
     public func handle(method name: Substring, context: CallHandlerContext) -> GRPCServerHandlerProtocol? {
@@ -76,9 +93,9 @@ public final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable
     ) -> EventLoopFuture<Holons_V1_ListMembersResponse> {
         _ = request
         let promise = context.eventLoop.makePromise(of: Holons_V1_ListMembersResponse.self)
-        Task { @MainActor [organism] in
+        Task { @MainActor [holonManager] in
             var response = Holons_V1_ListMembersResponse()
-            response.members = organism.coaxMembers.map(memberInfo(for:))
+            response.members = await holonManager.listMembers().map(memberInfo(for:))
             promise.succeed(response)
         }
         return promise.futureResult
@@ -89,9 +106,9 @@ public final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable
         context: StatusOnlyCallContext
     ) -> EventLoopFuture<Holons_V1_MemberStatusResponse> {
         let promise = context.eventLoop.makePromise(of: Holons_V1_MemberStatusResponse.self)
-        Task { @MainActor [organism] in
+        Task { @MainActor [holonManager] in
             var response = Holons_V1_MemberStatusResponse()
-            if let member = organism.coaxMembers.first(where: { $0.slug == request.slug }) {
+            if let member = await holonManager.memberStatus(slug: request.slug) {
                 response.member = memberInfo(for: member)
             }
             promise.succeed(response)
@@ -104,9 +121,9 @@ public final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable
         context: StatusOnlyCallContext
     ) -> EventLoopFuture<Holons_V1_ConnectMemberResponse> {
         let promise = context.eventLoop.makePromise(of: Holons_V1_ConnectMemberResponse.self)
-        Task { @MainActor [organism] in
+        Task { @MainActor [holonManager] in
             do {
-                let member = try await organism.connectCoaxMember(
+                let member = try await holonManager.connectMember(
                     slug: request.slug,
                     transport: request.transport
                 )
@@ -125,8 +142,8 @@ public final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable
         context: StatusOnlyCallContext
     ) -> EventLoopFuture<Holons_V1_DisconnectMemberResponse> {
         let promise = context.eventLoop.makePromise(of: Holons_V1_DisconnectMemberResponse.self)
-        Task { @MainActor [organism] in
-            await organism.disconnectCoaxMember(slug: request.slug)
+        Task { @MainActor [holonManager] in
+            await holonManager.disconnectMember(slug: request.slug)
             promise.succeed(Holons_V1_DisconnectMemberResponse())
         }
         return promise.futureResult
@@ -137,9 +154,9 @@ public final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable
         context: StatusOnlyCallContext
     ) -> EventLoopFuture<Holons_V1_TellResponse> {
         let promise = context.eventLoop.makePromise(of: Holons_V1_TellResponse.self)
-        Task { @MainActor [organism] in
+        Task { @MainActor [holonManager] in
             do {
-                let payload = try await organism.tellCoaxMember(
+                let payload = try await holonManager.tellMember(
                     slug: request.memberSlug,
                     method: request.method,
                     payloadJSON: Data(request.payload)
@@ -160,14 +177,10 @@ public final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable
     ) -> EventLoopFuture<Holons_V1_TurnOffCoaxResponse> {
         _ = request
         let promise = context.eventLoop.makePromise(of: Holons_V1_TurnOffCoaxResponse.self)
-        let eventLoop = context.eventLoop
-        Task { @MainActor [weak coaxServer] in
-            eventLoop.execute {
-                promise.succeed(Holons_V1_TurnOffCoaxResponse())
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) {
-                coaxServer?.isEnabled = false
-            }
+        let turnOffCoax = self.turnOffCoax
+        Task { @MainActor in
+            turnOffCoax()
+            promise.succeed(Holons_V1_TurnOffCoaxResponse())
         }
         return promise.futureResult
     }
@@ -198,3 +211,6 @@ public final class CoaxServiceProvider: CallHandlerProvider, @unchecked Sendable
         return GRPCStatus(code: .unavailable, message: error.localizedDescription)
     }
 }
+
+@available(*, deprecated, renamed: "CoaxRpcServiceProvider")
+public typealias CoaxServiceProvider = CoaxRpcServiceProvider

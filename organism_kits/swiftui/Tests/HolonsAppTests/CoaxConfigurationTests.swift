@@ -16,20 +16,21 @@ final class CoaxConfigurationTests: XCTestCase {
     }
 
     @MainActor
-    func testCoaxServerExposesDefaultPreviewEndpoint() {
-        let server = CoaxServer(
+    func testCoaxManagerExposesDefaultPreviewEndpoint() {
+        let manager = CoaxManager(
             providers: { [] },
             registerDescribe: {},
+            settingsStore: MemorySettingsStore(),
             coaxDefaults: .standard(socketName: "henri-nobody.sock")
         )
 
-        XCTAssertEqual(server.serverPreviewEndpoint, "tcp://127.0.0.1:60000")
-        XCTAssertEqual(server.defaultUnixPath, defaultCoaxUnixPath(socketName: "henri-nobody.sock"))
+        XCTAssertEqual(manager.serverPreviewEndpoint, "tcp://127.0.0.1:60000")
+        XCTAssertEqual(manager.defaultUnixPath, defaultCoaxUnixPath(socketName: "henri-nobody.sock"))
     }
 
     func testTransportSelectionNormalizesAutoToStdio() {
-        XCTAssertEqual(GreetingTransportName.normalizedSelection("auto"), .stdio)
-        XCTAssertEqual(GreetingTransportName.normalizedSelection("tcp://"), .tcp)
-        XCTAssertEqual(GreetingTransportName.normalizedSelection("unix"), .unix)
+        XCTAssertEqual(HolonTransportName.normalize("auto"), .stdio)
+        XCTAssertEqual(HolonTransportName.normalize("tcp://"), .tcp)
+        XCTAssertEqual(HolonTransportName.normalize("unix"), .unix)
     }
 }

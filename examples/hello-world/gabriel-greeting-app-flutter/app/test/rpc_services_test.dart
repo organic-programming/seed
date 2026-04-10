@@ -38,14 +38,14 @@ void main() {
         },
       ),
     );
-    final coaxController = buildCoaxController(
+    final coaxController = buildCoaxManager(
       greetingController: greetingController,
     );
 
     await greetingController.initialize();
     final port = await reserveTcpPort();
     await coaxController.setServerPortText(port.toString());
-    await coaxController.setIsEnabled(true);
+    await coaxController.setEnabled(true);
 
     final channel = clientChannelFromListenUri(coaxController.listenUri!);
     addTearDown(() async {
@@ -91,10 +91,9 @@ void main() {
         payload: utf8.encode('{"name":"Alice","langCode":"fr"}'),
       ),
     );
-    expect(
-      jsonDecode(utf8.decode(tell.payload)),
-      <String, Object?>{'greeting': 'Bonjour Alice from Gabriel'},
-    );
+    expect(jsonDecode(utf8.decode(tell.payload)), <String, Object?>{
+      'greeting': 'Bonjour Alice from Gabriel',
+    });
     expect(greetingController.userName, 'Alice');
     expect(greetingController.selectedLanguageCode, 'fr');
     expect(greetingController.greeting, 'Bonjour Alice from Gabriel');
@@ -132,14 +131,14 @@ void main() {
         }),
         initialTransport: 'stdio',
       );
-      final coaxController = buildCoaxController(
+      final coaxController = buildCoaxManager(
         greetingController: greetingController,
       );
 
       await greetingController.initialize();
       final port = await reserveTcpPort();
       await coaxController.setServerPortText(port.toString());
-      await coaxController.setIsEnabled(true);
+      await coaxController.setEnabled(true);
 
       final channel = clientChannelFromListenUri(coaxController.listenUri!);
       addTearDown(() async {
@@ -167,57 +166,60 @@ void main() {
     },
   );
 
-  test('SelectTransport switches the active transport and reloads the holon', () async {
-    final connector = FakeHolonConnector(
-      factories: <String, FakeGreetingHolonConnection Function(String)>{
-        'gabriel-greeting-swift': (transport) => FakeGreetingHolonConnection(
-          languages: [
-            language(code: 'en', name: 'English', native: 'English'),
-            language(code: 'fr', name: 'French', native: 'Francais'),
-          ],
-          greetingBuilder: ({required name, required langCode}) =>
-              '$transport:$langCode:$name',
-        ),
-      },
-    );
-    final greetingController = GreetingController(
-      catalog: FakeHolonCatalog([holon('gabriel-greeting-swift')]),
-      connector: connector,
-      initialTransport: 'stdio',
-    );
-    final coaxController = buildCoaxController(
-      greetingController: greetingController,
-    );
+  test(
+    'SelectTransport switches the active transport and reloads the holon',
+    () async {
+      final connector = FakeHolonConnector(
+        factories: <String, FakeGreetingHolonConnection Function(String)>{
+          'gabriel-greeting-swift': (transport) => FakeGreetingHolonConnection(
+            languages: [
+              language(code: 'en', name: 'English', native: 'English'),
+              language(code: 'fr', name: 'French', native: 'Francais'),
+            ],
+            greetingBuilder: ({required name, required langCode}) =>
+                '$transport:$langCode:$name',
+          ),
+        },
+      );
+      final greetingController = GreetingController(
+        catalog: FakeHolonCatalog([holon('gabriel-greeting-swift')]),
+        connector: connector,
+        initialTransport: 'stdio',
+      );
+      final coaxController = buildCoaxManager(
+        greetingController: greetingController,
+      );
 
-    await greetingController.initialize();
-    final port = await reserveTcpPort();
-    await coaxController.setServerPortText(port.toString());
-    await coaxController.setIsEnabled(true);
+      await greetingController.initialize();
+      final port = await reserveTcpPort();
+      await coaxController.setServerPortText(port.toString());
+      await coaxController.setEnabled(true);
 
-    final channel = clientChannelFromListenUri(coaxController.listenUri!);
-    addTearDown(() async {
-      await channel.shutdown();
-      await coaxController.shutdown();
-      await greetingController.shutdown();
-    });
+      final channel = clientChannelFromListenUri(coaxController.listenUri!);
+      addTearDown(() async {
+        await channel.shutdown();
+        await coaxController.shutdown();
+        await greetingController.shutdown();
+      });
 
-    final appClient = GreetingAppServiceClient(channel);
-    final response = await appClient.selectTransport(
-      SelectTransportRequest(transport: 'tcp'),
-    );
+      final appClient = GreetingAppServiceClient(channel);
+      final response = await appClient.selectTransport(
+        SelectTransportRequest(transport: 'tcp'),
+      );
 
-    expect(response.transport, 'tcp');
-    expect(greetingController.transport, 'tcp');
-    expect(greetingController.isRunning, isTrue);
-    expect(greetingController.availableLanguages, isNotEmpty);
-    expect(
-      connector.connectCalls,
-      containsAllInOrder(<(String, String)>[
-        ('gabriel-greeting-swift', 'stdio'),
-        ('gabriel-greeting-swift', 'tcp'),
-      ]),
-    );
-  });
+      expect(response.transport, 'tcp');
+      expect(greetingController.transport, 'tcp');
+      expect(greetingController.isRunning, isTrue);
+      expect(greetingController.availableLanguages, isNotEmpty);
+      expect(
+        connector.connectCalls,
+        containsAllInOrder(<(String, String)>[
+          ('gabriel-greeting-swift', 'stdio'),
+          ('gabriel-greeting-swift', 'tcp'),
+        ]),
+      );
+    },
+  );
 
   test('SelectTransport rejects invalid transport names', () async {
     final greetingController = GreetingController(
@@ -234,14 +236,14 @@ void main() {
         },
       ),
     );
-    final coaxController = buildCoaxController(
+    final coaxController = buildCoaxManager(
       greetingController: greetingController,
     );
 
     await greetingController.initialize();
     final port = await reserveTcpPort();
     await coaxController.setServerPortText(port.toString());
-    await coaxController.setIsEnabled(true);
+    await coaxController.setEnabled(true);
 
     final channel = clientChannelFromListenUri(coaxController.listenUri!);
     addTearDown(() async {
@@ -263,163 +265,168 @@ void main() {
     );
   });
 
-  test('SelectLanguage rejects invalid codes and preserves the current selection', () async {
-    final greetingController = GreetingController(
-      catalog: FakeHolonCatalog([holon('gabriel-greeting-swift')]),
-      connector: FakeHolonConnector(
-        factories: <String, FakeGreetingHolonConnection Function(String)>{
-          'gabriel-greeting-swift': (_) => FakeGreetingHolonConnection(
-            languages: [
-              language(code: 'en', name: 'English', native: 'English'),
-              language(code: 'fr', name: 'French', native: 'Francais'),
-            ],
-            greetingBuilder: ({required name, required langCode}) =>
-                '$langCode:$name',
-          ),
-        },
-      ),
-    );
-    final coaxController = buildCoaxController(
-      greetingController: greetingController,
-    );
-
-    await greetingController.initialize();
-    final port = await reserveTcpPort();
-    await coaxController.setServerPortText(port.toString());
-    await coaxController.setIsEnabled(true);
-
-    final channel = clientChannelFromListenUri(coaxController.listenUri!);
-    addTearDown(() async {
-      await channel.shutdown();
-      await coaxController.shutdown();
-      await greetingController.shutdown();
-    });
-
-    final appClient = GreetingAppServiceClient(channel);
-    final selected = await appClient.selectLanguage(
-      SelectLanguageRequest(code: 'fr'),
-    );
-
-    expect(selected.code, 'fr');
-    expect(greetingController.selectedLanguageCode, 'fr');
-
-    await expectLater(
-      appClient.selectLanguage(SelectLanguageRequest(code: 'zz')),
-      throwsA(
-        isA<GrpcError>().having(
-          (error) => error.code,
-          'code',
-          StatusCode.invalidArgument,
+  test(
+    'SelectLanguage rejects invalid codes and preserves the current selection',
+    () async {
+      final greetingController = GreetingController(
+        catalog: FakeHolonCatalog([holon('gabriel-greeting-swift')]),
+        connector: FakeHolonConnector(
+          factories: <String, FakeGreetingHolonConnection Function(String)>{
+            'gabriel-greeting-swift': (_) => FakeGreetingHolonConnection(
+              languages: [
+                language(code: 'en', name: 'English', native: 'English'),
+                language(code: 'fr', name: 'French', native: 'Francais'),
+              ],
+              greetingBuilder: ({required name, required langCode}) =>
+                  '$langCode:$name',
+            ),
+          },
         ),
-      ),
-    );
+      );
+      final coaxController = buildCoaxManager(
+        greetingController: greetingController,
+      );
 
-    expect(greetingController.selectedLanguageCode, 'fr');
+      await greetingController.initialize();
+      final port = await reserveTcpPort();
+      await coaxController.setServerPortText(port.toString());
+      await coaxController.setEnabled(true);
 
-    final greeting = await appClient.greet(GreetRequest(name: 'Alice'));
-    expect(greeting.greeting, 'fr:Alice');
-  });
+      final channel = clientChannelFromListenUri(coaxController.listenUri!);
+      addTearDown(() async {
+        await channel.shutdown();
+        await coaxController.shutdown();
+        await greetingController.shutdown();
+      });
 
-  test('SelectTransport rejects unix when the platform does not support it', () async {
-    final greetingController = GreetingController(
-      catalog: FakeHolonCatalog([holon('gabriel-greeting-swift')]),
-      connector: FakeHolonConnector(
-        factories: <String, FakeGreetingHolonConnection Function(String)>{
-          'gabriel-greeting-swift': (_) => FakeGreetingHolonConnection(
-            languages: [
-              language(code: 'en', name: 'English', native: 'English'),
-            ],
-            greetingBuilder: ({required name, required langCode}) =>
-                'Hello $name',
+      final appClient = GreetingAppServiceClient(channel);
+      final selected = await appClient.selectLanguage(
+        SelectLanguageRequest(code: 'fr'),
+      );
+
+      expect(selected.code, 'fr');
+      expect(greetingController.selectedLanguageCode, 'fr');
+
+      await expectLater(
+        appClient.selectLanguage(SelectLanguageRequest(code: 'zz')),
+        throwsA(
+          isA<GrpcError>().having(
+            (error) => error.code,
+            'code',
+            StatusCode.invalidArgument,
           ),
-        },
-      ),
-      capabilities: const AppPlatformCapabilities(supportsUnixSockets: false),
-    );
-    final coaxController = buildCoaxController(
-      greetingController: greetingController,
-    );
-
-    await greetingController.initialize();
-    final port = await reserveTcpPort();
-    await coaxController.setServerPortText(port.toString());
-    await coaxController.setIsEnabled(true);
-
-    final channel = clientChannelFromListenUri(coaxController.listenUri!);
-    addTearDown(() async {
-      await channel.shutdown();
-      await coaxController.shutdown();
-      await greetingController.shutdown();
-    });
-
-    final appClient = GreetingAppServiceClient(channel);
-    await expectLater(
-      appClient.selectTransport(SelectTransportRequest(transport: 'unix')),
-      throwsA(
-        isA<GrpcError>().having(
-          (error) => error.code,
-          'code',
-          StatusCode.invalidArgument,
         ),
-      ),
-    );
-  });
+      );
 
-  test('SelectTransport returns the connection error when reconnect fails', () async {
-    final greetingController = GreetingController(
-      catalog: FakeHolonCatalog([holon('gabriel-greeting-swift')]),
-      connector: FakeHolonConnector(
-        factories: <String, FakeGreetingHolonConnection Function(String)>{
-          'gabriel-greeting-swift': (transport) {
-            if (transport == 'tcp') {
-              throw StateError('tcp dial failed');
-            }
-            return FakeGreetingHolonConnection(
+      expect(greetingController.selectedLanguageCode, 'fr');
+
+      final greeting = await appClient.greet(GreetRequest(name: 'Alice'));
+      expect(greeting.greeting, 'fr:Alice');
+    },
+  );
+
+  test(
+    'SelectTransport rejects unix when the platform does not support it',
+    () async {
+      final greetingController = GreetingController(
+        catalog: FakeHolonCatalog([holon('gabriel-greeting-swift')]),
+        connector: FakeHolonConnector(
+          factories: <String, FakeGreetingHolonConnection Function(String)>{
+            'gabriel-greeting-swift': (_) => FakeGreetingHolonConnection(
               languages: [
                 language(code: 'en', name: 'English', native: 'English'),
               ],
               greetingBuilder: ({required name, required langCode}) =>
                   'Hello $name',
-            );
-          },
-        },
-      ),
-      initialTransport: 'stdio',
-    );
-    final coaxController = buildCoaxController(
-      greetingController: greetingController,
-    );
-
-    await greetingController.initialize();
-    final port = await reserveTcpPort();
-    await coaxController.setServerPortText(port.toString());
-    await coaxController.setIsEnabled(true);
-
-    final channel = clientChannelFromListenUri(coaxController.listenUri!);
-    addTearDown(() async {
-      await channel.shutdown();
-      await coaxController.shutdown();
-      await greetingController.shutdown();
-    });
-
-    final appClient = GreetingAppServiceClient(channel);
-    await expectLater(
-      appClient.selectTransport(SelectTransportRequest(transport: 'tcp')),
-      throwsA(
-        isA<GrpcError>()
-            .having(
-              (error) => error.code,
-              'code',
-              StatusCode.unavailable,
-            )
-            .having(
-              (error) => error.message,
-              'message',
-              contains('Failed to start Gabriel holon'),
             ),
-      ),
-    );
-  });
+          },
+        ),
+        capabilities: const AppPlatformCapabilities(supportsUnixSockets: false),
+      );
+      final coaxController = buildCoaxManager(
+        greetingController: greetingController,
+      );
+
+      await greetingController.initialize();
+      final port = await reserveTcpPort();
+      await coaxController.setServerPortText(port.toString());
+      await coaxController.setEnabled(true);
+
+      final channel = clientChannelFromListenUri(coaxController.listenUri!);
+      addTearDown(() async {
+        await channel.shutdown();
+        await coaxController.shutdown();
+        await greetingController.shutdown();
+      });
+
+      final appClient = GreetingAppServiceClient(channel);
+      await expectLater(
+        appClient.selectTransport(SelectTransportRequest(transport: 'unix')),
+        throwsA(
+          isA<GrpcError>().having(
+            (error) => error.code,
+            'code',
+            StatusCode.invalidArgument,
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'SelectTransport returns the connection error when reconnect fails',
+    () async {
+      final greetingController = GreetingController(
+        catalog: FakeHolonCatalog([holon('gabriel-greeting-swift')]),
+        connector: FakeHolonConnector(
+          factories: <String, FakeGreetingHolonConnection Function(String)>{
+            'gabriel-greeting-swift': (transport) {
+              if (transport == 'tcp') {
+                throw StateError('tcp dial failed');
+              }
+              return FakeGreetingHolonConnection(
+                languages: [
+                  language(code: 'en', name: 'English', native: 'English'),
+                ],
+                greetingBuilder: ({required name, required langCode}) =>
+                    'Hello $name',
+              );
+            },
+          },
+        ),
+        initialTransport: 'stdio',
+      );
+      final coaxController = buildCoaxManager(
+        greetingController: greetingController,
+      );
+
+      await greetingController.initialize();
+      final port = await reserveTcpPort();
+      await coaxController.setServerPortText(port.toString());
+      await coaxController.setEnabled(true);
+
+      final channel = clientChannelFromListenUri(coaxController.listenUri!);
+      addTearDown(() async {
+        await channel.shutdown();
+        await coaxController.shutdown();
+        await greetingController.shutdown();
+      });
+
+      final appClient = GreetingAppServiceClient(channel);
+      await expectLater(
+        appClient.selectTransport(SelectTransportRequest(transport: 'tcp')),
+        throwsA(
+          isA<GrpcError>()
+              .having((error) => error.code, 'code', StatusCode.unavailable)
+              .having(
+                (error) => error.message,
+                'message',
+                contains('Failed to start Gabriel holon'),
+              ),
+        ),
+      );
+    },
+  );
 }
 
 class _ScriptedHolonConnector implements GreetingHolonConnectionFactory {

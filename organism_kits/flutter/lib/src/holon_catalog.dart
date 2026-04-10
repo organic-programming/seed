@@ -29,12 +29,15 @@ class HolonRef {
   final bool hasSource;
 }
 
-abstract interface class HolonCatalog<T> {
-  Future<List<T>> discover();
+abstract class Holons<T> {
+  Future<List<T>> list();
+
+  @Deprecated('Use list()')
+  Future<List<T>> discover() => list();
 }
 
-class DesktopHolonCatalog<T> implements HolonCatalog<T> {
-  DesktopHolonCatalog({
+class BundledHolons<T> extends Holons<T> {
+  BundledHolons({
     required this.fromDiscovered,
     required this.slugOf,
     this.sortRankOf,
@@ -47,7 +50,7 @@ class DesktopHolonCatalog<T> implements HolonCatalog<T> {
   final String Function(T holon)? displayNameOf;
 
   @override
-  Future<List<T>> discover() async {
+  Future<List<T>> list() async {
     final result = holons.Discover(
       holons.LOCAL,
       null,
@@ -82,3 +85,9 @@ class DesktopHolonCatalog<T> implements HolonCatalog<T> {
     });
   }
 }
+
+@Deprecated('Use Holons<T>')
+typedef HolonCatalog<T> = Holons<T>;
+
+@Deprecated('Use BundledHolons<T>')
+typedef DesktopHolonCatalog<T> = BundledHolons<T>;

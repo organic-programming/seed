@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui' show AppExitResponse;
 
 import 'package:holons_app/holons_app.dart'
-    show CoaxControlBar, CoaxController, CoaxSettingsDialog, transportTitle;
+    show CoaxControlsView, CoaxManager, CoaxSettingsView, HolonTransportName;
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import 'controller/greeting_controller.dart';
@@ -14,11 +14,11 @@ class GabrielGreetingApp extends StatelessWidget {
   const GabrielGreetingApp({
     super.key,
     required this.greetingController,
-    required this.coaxController,
+    required this.coaxManager,
   });
 
   final GreetingController greetingController;
-  final CoaxController coaxController;
+  final CoaxManager coaxManager;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +38,7 @@ class GabrielGreetingApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       home: GabrielGreetingHomePage(
         greetingController: greetingController,
-        coaxController: coaxController,
+        coaxManager: coaxManager,
       ),
     );
   }
@@ -48,11 +48,11 @@ class GabrielGreetingHomePage extends StatefulWidget {
   const GabrielGreetingHomePage({
     super.key,
     required this.greetingController,
-    required this.coaxController,
+    required this.coaxManager,
   });
 
   final GreetingController greetingController;
-  final CoaxController coaxController;
+  final CoaxManager coaxManager;
 
   @override
   State<GabrielGreetingHomePage> createState() =>
@@ -77,7 +77,7 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
     );
     _listenable = Listenable.merge(<Listenable>[
       widget.greetingController,
-      widget.coaxController,
+      widget.coaxManager,
     ]);
     widget.greetingController.addListener(_syncNameField);
     _syncListenerAttached = true;
@@ -89,7 +89,7 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
       if (!mounted || _shutdownFuture != null) {
         return;
       }
-      await widget.coaxController.startIfEnabled();
+      await widget.coaxManager.startIfEnabled();
     });
   }
 
@@ -114,7 +114,7 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
     }
     final future = () async {
       _detachSyncListener();
-      await widget.coaxController.shutdown();
+      await widget.coaxManager.shutdown();
       await widget.greetingController.shutdown();
     }();
     _shutdownFuture = future;
@@ -146,7 +146,7 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
       animation: _listenable,
       builder: (context, _) {
         final controller = widget.greetingController;
-        final coax = widget.coaxController;
+        final coax = widget.coaxManager;
         final theme = Theme.of(context);
         final darkMode = theme.brightness == Brightness.dark;
 
@@ -173,8 +173,8 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(32, 16, 32, 16),
-                    child: CoaxControlBar(
-                      controller: coax,
+                    child: CoaxControlsView(
+                      coaxManager: coax,
                       onOpenSettings: () => _showCoaxSettings(context),
                     ),
                   ),
@@ -259,8 +259,7 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
   Future<void> _showCoaxSettings(BuildContext context) {
     return showDialog<void>(
       context: context,
-      builder: (context) =>
-          CoaxSettingsDialog(controller: widget.coaxController),
+      builder: (context) => CoaxSettingsView(coaxManager: widget.coaxManager),
     );
   }
 }
@@ -356,14 +355,15 @@ class _RuntimeHeaderGroup extends StatelessWidget {
                       controller.setTransport(value);
                     }
                   },
-                  itemBuilder: (context, value) => Text(transportTitle(value)),
+                  itemBuilder: (context, value) =>
+                      Text(HolonTransportName.normalize(value).title),
                   popup: (context) => SelectPopup(
                     items: SelectItemList(
-                      children: controller.capabilities.appTransports
+                      children: controller.capabilities.holonTransportNames
                           .map(
                             (transport) => SelectItemButton<String>(
-                              value: transport,
-                              child: Text(transportTitle(transport)),
+                              value: transport.rawValue,
+                              child: Text(transport.title),
                             ),
                           )
                           .toList(growable: false),

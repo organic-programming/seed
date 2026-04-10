@@ -6,26 +6,34 @@ import OrganismKit
 
 @main
 struct {{ .PascalSlug }}App: App {
-    @StateObject private var holon: HolonProcess
-    @StateObject private var coaxServer: CoaxServer
+    @StateObject private var holonManager: AppHolonManager
+    @StateObject private var coaxManager: CoaxManager
 
     init() {
-        let holon = HolonProcess()
-        let coaxServerBox = WeakCoaxServerBox()
-        let server = CoaxServer(
+        let holonManager = AppHolonManager()
+        let settingsStore = FileSettingsStore.create(
+            applicationId: "{{ .Slug }}",
+            applicationName: "{{ .GivenTitle }} {{ .FamilyTitle }}"
+        )
+        var turnOffCoax: (@MainActor @Sendable () -> Void)?
+        let server = CoaxManager(
             providers: {
                 [
-                    CoaxServiceProvider(organism: holon, coaxServer: coaxServerBox.value!)
+                    CoaxRpcServiceProvider(
+                        holonManager: holonManager,
+                        turnOffCoax: { turnOffCoax?() }
+                    )
                 ]
             },
             registerDescribe: {
                 try registerDescribeResponse()
             },
+            settingsStore: settingsStore,
             coaxDefaults: .standard(socketName: "{{ .Slug }}-coax.sock")
         )
-        coaxServerBox.value = server
-        _holon = StateObject(wrappedValue: holon)
-        _coaxServer = StateObject(wrappedValue: server)
+        turnOffCoax = { server.turnOffAfterRpc() }
+        _holonManager = StateObject(wrappedValue: holonManager)
+        _coaxManager = StateObject(wrappedValue: server)
         Task { @MainActor [server] in
             server.startIfEnabled()
         }
@@ -33,17 +41,13 @@ struct {{ .PascalSlug }}App: App {
 
     var body: some Scene {
         WindowGroup("{{ .GivenTitle }} {{ .FamilyTitle }}") {
-            ContentView(holon: holon, coaxServer: coaxServer)
+            ContentView(holonManager: holonManager, coaxManager: coaxManager)
                 .frame(minWidth: 800, minHeight: 600)
                 .onDisappear {
-                    coaxServer.stop()
+                    coaxManager.stop()
                 }
         }
     }
-}
-
-private final class WeakCoaxServerBox {
-    weak var value: CoaxServer?
 }
 
 private func registerDescribeResponse() throws {

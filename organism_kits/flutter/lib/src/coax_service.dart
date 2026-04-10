@@ -6,27 +6,29 @@ import 'package:holons/gen/holons/v1/coax.pbgrpc.dart';
 
 import 'coax_controller.dart';
 
-abstract interface class OrganismController {
+abstract interface class HolonManager {
   Future<List<MemberInfo>> listMembers();
   Future<MemberInfo?> memberStatus(String slug);
   Future<MemberInfo> connectMember(String slug, {String transport = ''});
   Future<void> disconnectMember(String slug);
   Future<Object?> tellMember({
-    required String memberSlug,
+    required String slug,
     required String method,
-    Object? payload,
+    Object? payloadJson,
   });
 }
 
 class CoaxRpcService extends CoaxServiceBase {
   CoaxRpcService({
-    required OrganismController organismController,
-    required CoaxController coaxController,
-  }) : _organismController = organismController,
-       _coaxController = coaxController;
+    HolonManager? holonManager,
+    CoaxManager? coaxManager,
+    @Deprecated('Use holonManager') OrganismController? organismController,
+    @Deprecated('Use coaxManager') CoaxController? coaxController,
+  }) : _holonManager = holonManager ?? organismController!,
+       _coaxManager = coaxManager ?? coaxController!;
 
-  final OrganismController _organismController;
-  final CoaxController _coaxController;
+  final HolonManager _holonManager;
+  final CoaxManager _coaxManager;
 
   @override
   Future<ListMembersResponse> listMembers(
@@ -34,7 +36,7 @@ class CoaxRpcService extends CoaxServiceBase {
     ListMembersRequest request,
   ) async {
     return ListMembersResponse(
-      members: await _organismController.listMembers(),
+      members: await _holonManager.listMembers(),
     );
   }
 
@@ -44,7 +46,7 @@ class CoaxRpcService extends CoaxServiceBase {
     MemberStatusRequest request,
   ) async {
     final response = MemberStatusResponse();
-    final member = await _organismController.memberStatus(request.slug);
+    final member = await _holonManager.memberStatus(request.slug);
     if (member != null) {
       response.member = member;
     }
@@ -57,7 +59,7 @@ class CoaxRpcService extends CoaxServiceBase {
     ConnectMemberRequest request,
   ) async {
     return ConnectMemberResponse(
-      member: await _organismController.connectMember(
+      member: await _holonManager.connectMember(
         request.slug,
         transport: request.transport,
       ),
@@ -69,7 +71,7 @@ class CoaxRpcService extends CoaxServiceBase {
     ServiceCall call,
     DisconnectMemberRequest request,
   ) async {
-    await _organismController.disconnectMember(request.slug);
+    await _holonManager.disconnectMember(request.slug);
     return DisconnectMemberResponse();
   }
 
@@ -83,10 +85,10 @@ class CoaxRpcService extends CoaxServiceBase {
     }
 
     try {
-      final responsePayload = await _organismController.tellMember(
-        memberSlug: request.memberSlug,
+      final responsePayload = await _holonManager.tellMember(
+        slug: request.memberSlug,
         method: request.method,
-        payload: _decodePayloadJson(request.payload),
+        payloadJson: _decodePayloadJson(request.payload),
       );
       final encodedPayload = responsePayload == null
           ? const <String, Object?>{}
@@ -110,7 +112,7 @@ class CoaxRpcService extends CoaxServiceBase {
     ServiceCall call,
     TurnOffCoaxRequest request,
   ) async {
-    unawaited(_coaxController.disableAfterRpc());
+    unawaited(_coaxManager.turnOffAfterRpc());
     return TurnOffCoaxResponse();
   }
 
@@ -126,3 +128,6 @@ class CoaxRpcService extends CoaxServiceBase {
     }
   }
 }
+
+@Deprecated('Use HolonManager')
+typedef OrganismController = HolonManager;

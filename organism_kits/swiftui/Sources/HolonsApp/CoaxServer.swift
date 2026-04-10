@@ -41,11 +41,11 @@ public struct CoaxSurfaceStatus: Identifiable, Hashable, Sendable {
 }
 
 @MainActor
-public final class CoaxServer: ObservableObject {
+public final class CoaxManager: ObservableObject {
     @Published public var isEnabled: Bool {
         didSet {
             guard oldValue != isEnabled else { return }
-            defaults.set(isEnabled, forKey: enabledKey)
+            settingsStore.writeBool(enabledKey, isEnabled)
             reconfigureRuntime()
         }
     }
@@ -125,8 +125,8 @@ public final class CoaxServer: ObservableObject {
 
     private let providers: () -> [CallHandlerProvider]
     private let registerDescribe: @Sendable () throws -> Void
+    private let settingsStore: SettingsStore
     private let coaxDefaults: CoaxSettingsDefaults
-    private let defaults: UserDefaults
     private let enabledKey: String
     private let settingsKey: String
     private var runningServer: Serve.RunningServer?
@@ -135,23 +135,23 @@ public final class CoaxServer: ObservableObject {
     public init(
         providers: @escaping () -> [CallHandlerProvider],
         registerDescribe: @escaping @Sendable () throws -> Void,
+        settingsStore: SettingsStore,
         coaxDefaults: CoaxSettingsDefaults = .standard(),
-        defaults: UserDefaults = .standard,
         enabledKey: String = "coax.server.enabled",
         settingsKey: String = "coax.server.settings"
     ) {
         let overrides = coaxLaunchOverrides(defaults: coaxDefaults)
-        let snapshot = overrides.snapshot ?? CoaxServer.loadSnapshot(
-            defaults: defaults,
+        let snapshot = overrides.snapshot ?? CoaxManager.loadSnapshot(
+            settingsStore: settingsStore,
             settingsKey: settingsKey,
             coaxDefaults: coaxDefaults
         )
-        let storedEnabled = defaults.bool(forKey: enabledKey)
+        let storedEnabled = settingsStore.readBool(enabledKey, defaultValue: false)
 
         self.providers = providers
         self.registerDescribe = registerDescribe
+        self.settingsStore = settingsStore
         self.coaxDefaults = coaxDefaults
-        self.defaults = defaults
         self.enabledKey = enabledKey
         self.settingsKey = settingsKey
         self.isEnabled = resolvedCoaxEnabled(storedValue: storedEnabled, overrides: overrides)
@@ -161,6 +161,24 @@ public final class CoaxServer: ObservableObject {
         self.serverUnixPath = snapshot.serverUnixPath
         self.listenURI = nil
         self.statusDetail = nil
+    }
+
+    public convenience init(
+        providers: @escaping () -> [CallHandlerProvider],
+        registerDescribe: @escaping @Sendable () throws -> Void,
+        coaxDefaults: CoaxSettingsDefaults = .standard(),
+        defaults: UserDefaults = .standard,
+        enabledKey: String = "coax.server.enabled",
+        settingsKey: String = "coax.server.settings"
+    ) {
+        self.init(
+            providers: providers,
+            registerDescribe: registerDescribe,
+            settingsStore: UserDefaultsSettingsStore(defaults: defaults),
+            coaxDefaults: coaxDefaults,
+            enabledKey: enabledKey,
+            settingsKey: settingsKey
+        )
     }
 
     public func startIfEnabled() {
@@ -173,6 +191,12 @@ public final class CoaxServer: ObservableObject {
         stopServer(clearStatus: true)
     }
 
+    public func turnOffAfterRpc() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100)) { [weak self] in
+            self?.isEnabled = false
+        }
+    }
+
     public var defaultUnixPath: String {
         coaxDefaults.serverUnixPath
     }
@@ -181,7 +205,7 @@ public final class CoaxServer: ObservableObject {
         if !isEnabled {
             return .off
         }
-        if let _ = statusDetail {
+        if statusDetail != nil {
             return .error
         }
         if listenURI != nil {
@@ -210,7 +234,9 @@ public final class CoaxServer: ObservableObject {
     }
 
     private func usesDefaultServerPort(for oldTransport: CoaxServerTransport) -> Bool {
-        guard oldTransport != .unix else { return serverPortText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard oldTransport != .unix else {
+            return serverPortText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
         let trimmed = serverPortText.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
             return true
@@ -311,16 +337,20 @@ public final class CoaxServer: ObservableObject {
         )
 
         let encoder = JSONEncoder()
-        guard let data = try? encoder.encode(snapshot) else { return }
-        defaults.set(data, forKey: settingsKey)
+        guard let data = try? encoder.encode(snapshot),
+              let value = String(data: data, encoding: .utf8) else {
+            return
+        }
+        settingsStore.writeString(settingsKey, value)
     }
 
     private static func loadSnapshot(
-        defaults: UserDefaults,
+        settingsStore: SettingsStore,
         settingsKey: String,
         coaxDefaults: CoaxSettingsDefaults
     ) -> CoaxSettingsSnapshot {
-        guard let data = defaults.data(forKey: settingsKey),
+        let value = settingsStore.readString(settingsKey, defaultValue: "")
+        guard let data = value.data(using: .utf8),
               let snapshot = try? JSONDecoder().decode(CoaxSettingsSnapshot.self, from: data) else {
             return coaxDefaults.snapshot
         }
@@ -348,4 +378,7 @@ private struct CallHandlerProvidersBox: @unchecked Sendable {
 private struct RunningServerBox: @unchecked Sendable {
     let value: Serve.RunningServer
 }
+
+@available(*, deprecated, renamed: "CoaxManager")
+public typealias CoaxServer = CoaxManager
 #endif

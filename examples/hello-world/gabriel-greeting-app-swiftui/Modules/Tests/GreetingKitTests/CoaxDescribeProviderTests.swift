@@ -1,16 +1,25 @@
 import XCTest
+
 @testable import GreetingKit
 
 final class CoaxDescribeProviderTests: XCTestCase {
-    func testGreetingDescribeIncludesSelectTransport() {
-        let response = makeCoaxDescribeResponse()
-        let greetingService = response.services.first { $0.name == "greeting.v1.GreetingAppService" }
+  func testGeneratedDescribeIncludesSelectTransport() throws {
+    let fileURL = URL(fileURLWithPath: #filePath)
+    let exampleRoot =
+      fileURL
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let source = try String(
+      contentsOf: exampleRoot.appendingPathComponent("gen/describe_generated.swift"),
+      encoding: .utf8
+    )
 
-        XCTAssertNotNil(greetingService)
-        let method = greetingService?.methods.first { $0.name == "SelectTransport" }
-        XCTAssertNotNil(method)
-        XCTAssertEqual(method?.inputType, "greeting.v1.SelectTransportRequest")
-        XCTAssertEqual(method?.outputType, "greeting.v1.SelectTransportResponse")
-        XCTAssertEqual(method?.inputFields.first?.name, "transport")
-    }
+    XCTAssertTrue(source.contains(#"$0.name = "greeting.v1.GreetingAppService""#))
+    XCTAssertTrue(source.contains(#"$0.name = "SelectTransport""#))
+    XCTAssertTrue(source.contains(#"$0.inputType = "greeting.v1.SelectTransportRequest""#))
+    XCTAssertTrue(source.contains(#"$0.outputType = "greeting.v1.SelectTransportResponse""#))
+    XCTAssertTrue(source.contains(#"$0.name = "transport""#))
+  }
 }

@@ -9,8 +9,8 @@ import 'coax_configuration.dart';
 import 'platform_capabilities.dart';
 import 'settings_store.dart';
 
-class CoaxController extends ChangeNotifier {
-  CoaxController({
+class CoaxManager extends ChangeNotifier {
+  CoaxManager({
     required SettingsStore settingsStore,
     required List<Service> Function() serviceFactory,
     Future<void> Function()? prepareDescribe,
@@ -122,7 +122,7 @@ class CoaxController extends ChangeNotifier {
     await _reconfigureRuntime();
   }
 
-  Future<void> setIsEnabled(bool value) async {
+  Future<void> setEnabled(bool value) async {
     if (_isEnabled == value) {
       return;
     }
@@ -131,6 +131,9 @@ class CoaxController extends ChangeNotifier {
     _safeNotify();
     await _reconfigureRuntime();
   }
+
+  @Deprecated('Use setEnabled()')
+  Future<void> setIsEnabled(bool value) => setEnabled(value);
 
   Future<void> setServerTransport(CoaxServerTransport value) async {
     if (value == serverTransport) {
@@ -203,10 +206,13 @@ class CoaxController extends ChangeNotifier {
     }
   }
 
-  Future<void> disableAfterRpc() async {
+  Future<void> turnOffAfterRpc() async {
     await Future<void>.delayed(const Duration(milliseconds: 100));
-    await setIsEnabled(false);
+    await setEnabled(false);
   }
+
+  @Deprecated('Use turnOffAfterRpc()')
+  Future<void> disableAfterRpc() => turnOffAfterRpc();
 
   Future<void> shutdown() async {
     _disposed = true;
@@ -339,3 +345,6 @@ class CoaxController extends ChangeNotifier {
     super.dispose();
   }
 }
+
+@Deprecated('Use CoaxManager')
+typedef CoaxController = CoaxManager;

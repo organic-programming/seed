@@ -10,23 +10,26 @@ import '../gen/v1/greeting.pb.dart';
 import '../model/app_model.dart';
 import '../runtime/greeting_holon_connection.dart';
 
-class GreetingController extends ChangeNotifier implements OrganismController {
-  static const listLanguagesMethod = 'greeting.v1.GreetingService/ListLanguages';
+class GreetingController extends ChangeNotifier implements HolonManager {
+  static const listLanguagesMethod =
+      'greeting.v1.GreetingService/ListLanguages';
   static const sayHelloMethod = 'greeting.v1.GreetingService/SayHello';
 
   GreetingController({
-    required HolonCatalog<GabrielHolonIdentity> catalog,
+    Holons<GabrielHolonIdentity>? holons,
+    @Deprecated('Use holons') HolonCatalog<GabrielHolonIdentity>? catalog,
     required GreetingHolonConnectionFactory connector,
     AppPlatformCapabilities? capabilities,
     String? initialTransport,
-  }) : _catalog = catalog,
+  }) : assert(holons != null || catalog != null),
+       _holons = holons ?? catalog!,
        _connector = connector,
        capabilities = capabilities ?? AppPlatformCapabilities.desktopCurrent(),
-       transport = normalizedTransportSelection(
+       transport = HolonTransportName.normalize(
          initialTransport ?? Platform.environment['OP_ASSEMBLY_TRANSPORT'],
-       );
+       ).rawValue;
 
-  final HolonCatalog<GabrielHolonIdentity> _catalog;
+  final Holons<GabrielHolonIdentity> _holons;
   final GreetingHolonConnectionFactory _connector;
   final AppPlatformCapabilities capabilities;
 
@@ -80,7 +83,7 @@ class GreetingController extends ChangeNotifier implements OrganismController {
   Future<void> refreshHolons() async {
     final previousSelection = selectedHolon?.slug;
     try {
-      final discovered = await _catalog.discover();
+      final discovered = await _holons.list();
       availableHolons = discovered;
       if (availableHolons.isEmpty) {
         selectedHolon = null;
@@ -120,16 +123,16 @@ class GreetingController extends ChangeNotifier implements OrganismController {
   }
 
   Future<void> setTransport(String value, {bool reload = true}) async {
-    final normalized = normalizedTransportSelection(value);
-    if (!capabilities.appTransports.contains(normalized)) {
+    final normalized = HolonTransportName.normalize(value);
+    if (!capabilities.holonTransportNames.contains(normalized)) {
       throw StateError(
-        'Transport "$normalized" is not available on this platform',
+        'Transport "${normalized.rawValue}" is not available on this platform',
       );
     }
-    if (normalized == transport) {
+    if (normalized.rawValue == transport) {
       return;
     }
-    transport = normalized;
+    transport = normalized.rawValue;
     await stop();
     _safeNotify();
     if (reload) {
@@ -173,7 +176,7 @@ class GreetingController extends ChangeNotifier implements OrganismController {
     availableLanguages = const <Language>[];
     _safeNotify();
 
-    final retryDelays = effectiveTransport == 'stdio'
+    final retryDelays = effectiveTransport == HolonTransportName.stdio.rawValue
         ? const <Duration>[Duration.zero, Duration(milliseconds: 400)]
         : const <Duration>[
             Duration.zero,
@@ -271,9 +274,7 @@ class GreetingController extends ChangeNotifier implements OrganismController {
 
   @override
   Future<List<MemberInfo>> listMembers() async {
-    return availableHolons
-        .map(_memberForIdentity)
-        .toList(growable: false);
+    return availableHolons.map(_memberForIdentity).toList(growable: false);
   }
 
   @override
@@ -287,10 +288,7 @@ class GreetingController extends ChangeNotifier implements OrganismController {
   }
 
   @override
-  Future<MemberInfo> connectMember(
-    String slug, {
-    String transport = '',
-  }) async {
+  Future<MemberInfo> connectMember(String slug, {String transport = ''}) async {
     final identity = availableHolons.firstWhere(
       (item) => item.slug == slug,
       orElse: () => throw StateError("Member '$slug' not found"),
@@ -318,15 +316,15 @@ class GreetingController extends ChangeNotifier implements OrganismController {
 
   @override
   Future<Object?> tellMember({
-    required String memberSlug,
+    required String slug,
     required String method,
-    Object? payload,
+    Object? payloadJson,
   }) async {
     final canonicalMethod = _canonicalMethod(method);
-    final decodedPayload = payload ?? const <String, Object?>{};
+    final decodedPayload = payloadJson ?? const <String, Object?>{};
 
-    if (selectedHolon?.slug != memberSlug) {
-      await selectHolonBySlug(memberSlug, reload: false);
+    if (selectedHolon?.slug != slug) {
+      await selectHolonBySlug(slug, reload: false);
     }
 
     switch (canonicalMethod) {

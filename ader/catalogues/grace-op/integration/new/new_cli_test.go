@@ -128,7 +128,7 @@ func TestNew_CLI_GenerateCoaxSwiftUIHenriNobody(t *testing.T) {
 	generated := filepath.Join(root, "henri-nobody")
 	requireFile(t, filepath.Join(generated, "App", "HenriNobodyApp.swift"))
 	requireFile(t, filepath.Join(generated, "App", "ContentView.swift"))
-	requireFile(t, filepath.Join(generated, "Modules", "Sources", "AppKit", "HolonProcess.swift"))
+	requireFile(t, filepath.Join(generated, "Modules", "Sources", "AppKit", "AppHolonManager.swift"))
 
 	projectYAML, err := os.ReadFile(filepath.Join(generated, "project.yml"))
 	if err != nil {

@@ -3,11 +3,15 @@
 `holons_app` is the reusable Flutter organism kit for COAX-enabled app holons.
 It owns the reusable COAX runtime and the reusable Shadcn COAX UI:
 
-- `CoaxController`
+- `CoaxManager`
 - `CoaxRpcService`
-- `HolonCatalog` / `HolonConnector`
-- `CoaxControlBar`
-- `CoaxSettingsDialog`
+- `HolonManager`
+- `HolonTransportName`
+- `Holons<T>` / `BundledHolons<T>`
+- `HolonConnector<T>` / `BundledHolonConnector<T>`
+- `CoaxControlsView`
+- `CoaxSettingsView`
+- `SettingsStore`
 
 `sdk/dart-holons` remains the pure Dart SDK. This kit is the Flutter layer on
 top of that SDK.
@@ -57,13 +61,13 @@ henri-nobody/
 
 - `app/lib/main.dart` creates:
   - `FileSettingsStore`
-  - `CoaxController`
+  - `CoaxManager`
   - `CoaxRpcService`
   - a Describe registration based on `api/v1/holon.proto`
 - `app/lib/src/app.dart` mounts:
-  - `CoaxControlBar`
-  - `CoaxSettingsDialog`
-  - a local demo organism controller
+  - `CoaxControlsView`
+  - `CoaxSettingsView`
+  - a local demo `AppHolonManager`
 - the local demo controller exposes one member slug: `holon`
 - the local demo controller implements all six COAX RPC behaviors
 
@@ -99,14 +103,14 @@ Expected behavior:
    Add your real member slugs in `_memberSlugs`.
 3. Replace the demo controller in `henri-nobody/app/lib/src/app.dart`.
    Swap the local in-memory member bridge for:
-   - `DesktopHolonCatalog`
+   - `BundledHolons<T>`
    - a real holon identity mapper
-   - a real connector built on `ClientChannel`
+   - `BundledHolonConnector<T>` or your own `HolonConnector<T>`
 4. Keep the COAX UI components unchanged.
    The app should still mount:
-   - `CoaxControlBar`
-   - `CoaxSettingsDialog`
-5. Keep `CoaxController` as the owner of start/stop and settings persistence.
+   - `CoaxControlsView`
+   - `CoaxSettingsView`
+5. Keep `CoaxManager` as the owner of start/stop and settings persistence.
 
 ## Minimal Real-App Wiring Pattern
 
@@ -117,8 +121,8 @@ final settingsStore = await FileSettingsStore.create(
 );
 await applyLaunchEnvironmentOverrides(settingsStore, defaults: coaxDefaults);
 
-final organismController = MyOrganismController(
-  catalog: DesktopHolonCatalog<MyHolonIdentity>(
+final holonManager = MyHolonManager(
+  holons: BundledHolons<MyHolonIdentity>(
     fromDiscovered: MyHolonIdentity.fromDiscovered,
     slugOf: (holon) => holon.slug,
     sortRankOf: (holon) => holon.sortRank,
@@ -127,14 +131,14 @@ final organismController = MyOrganismController(
   connector: MyHolonConnectionFactory(),
 );
 
-late final CoaxController coaxController;
-coaxController = CoaxController(
+late final CoaxManager coaxManager;
+coaxManager = CoaxManager(
   settingsStore: settingsStore,
   defaults: coaxDefaults,
   serviceFactory: () => <Service>[
     CoaxRpcService(
-      organismController: organismController,
-      coaxController: coaxController,
+      holonManager: holonManager,
+      coaxManager: coaxManager,
     ),
   ],
   prepareDescribe: () async {
@@ -154,12 +158,12 @@ coaxController = CoaxController(
 Keep the generated header wiring:
 
 ```dart
-CoaxControlBar(
-  controller: coaxController,
+CoaxControlsView(
+  coaxManager: coaxManager,
   onOpenSettings: () {
     showDialog<void>(
       context: context,
-      builder: (_) => CoaxSettingsDialog(controller: coaxController),
+      builder: (_) => CoaxSettingsView(coaxManager: coaxManager),
     );
   },
 )

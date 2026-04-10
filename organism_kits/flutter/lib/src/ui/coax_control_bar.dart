@@ -3,20 +3,20 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import '../coax_configuration.dart';
 import '../coax_controller.dart';
 
-class CoaxControlBar extends StatelessWidget {
-  const CoaxControlBar({
+class CoaxControlsView extends StatelessWidget {
+  const CoaxControlsView({
     super.key,
-    required this.controller,
+    required this.coaxManager,
     required this.onOpenSettings,
   });
 
-  final CoaxController controller;
+  final CoaxManager coaxManager;
   final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: controller,
+      animation: coaxManager,
       builder: (context, _) {
         return Row(
           children: [
@@ -27,8 +27,8 @@ class CoaxControlBar extends StatelessWidget {
                 Row(
                   children: [
                     Switch(
-                      value: controller.isEnabled,
-                      onChanged: controller.setIsEnabled,
+                      value: coaxManager.isEnabled,
+                      onChanged: coaxManager.setEnabled,
                       trailing: const Text('COAX').small().semiBold(),
                     ),
                     GhostButton(
@@ -38,21 +38,21 @@ class CoaxControlBar extends StatelessWidget {
                     ),
                   ],
                 ).gap(8),
-                if (controller.serverStatus.endpoint != null)
+                if (coaxManager.serverStatus.endpoint != null)
                   Row(
                     children: [
                       const Text('Server:').small().muted(),
                       SelectableText(
-                        controller.serverStatus.endpoint!,
+                        coaxManager.serverStatus.endpoint!,
                       ).small().muted(),
-                      CoaxSurfaceBadge(state: controller.serverStatus.state),
+                      CoaxSurfaceBadge(state: coaxManager.serverStatus.state),
                     ],
                   ).gap(8),
-                if (controller.statusDetail != null)
+                if (coaxManager.statusDetail != null)
                   SizedBox(
                     width: 360,
                     child: Text(
-                      controller.statusDetail!,
+                      coaxManager.statusDetail!,
                       textAlign: TextAlign.right,
                     ).small().muted(),
                   ),
@@ -63,6 +63,18 @@ class CoaxControlBar extends StatelessWidget {
       },
     );
   }
+}
+
+@Deprecated('Use CoaxControlsView')
+class CoaxControlBar extends CoaxControlsView {
+  const CoaxControlBar({
+    super.key,
+    required CoaxController controller,
+    required VoidCallback onOpenSettings,
+  }) : super(
+         coaxManager: controller,
+         onOpenSettings: onOpenSettings,
+       );
 }
 
 class CoaxSurfaceBadge extends StatelessWidget {

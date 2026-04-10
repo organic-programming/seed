@@ -3,14 +3,14 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import '../coax_configuration.dart';
 import '../coax_controller.dart';
 
-class CoaxSettingsDialog extends StatelessWidget {
-  const CoaxSettingsDialog({super.key, required this.controller});
+class CoaxSettingsView extends StatelessWidget {
+  const CoaxSettingsView({super.key, required this.coaxManager});
 
-  final CoaxController controller;
+  final CoaxManager coaxManager;
 
   @override
   Widget build(BuildContext context) {
-    final transportItems = controller.capabilities.coaxServerTransports
+    final transportItems = coaxManager.capabilities.coaxServerTransports
         .map(
           (transport) => SelectItemButton<CoaxServerTransport>(
             value: transport,
@@ -20,7 +20,7 @@ class CoaxSettingsDialog extends StatelessWidget {
         .toList(growable: false);
 
     return AnimatedBuilder(
-      animation: controller,
+      animation: coaxManager,
       builder: (context, _) {
         return AlertDialog(
           title: const Text('COAX'),
@@ -39,10 +39,10 @@ class CoaxSettingsDialog extends StatelessWidget {
                         _LabeledRow(
                           label: 'Transport',
                           child: Select<CoaxServerTransport>(
-                            value: controller.serverTransport,
+                            value: coaxManager.serverTransport,
                             onChanged: (value) {
                               if (value != null) {
-                                controller.setServerTransport(value);
+                                coaxManager.setServerTransport(value);
                               }
                             },
                             itemBuilder: (context, value) {
@@ -53,44 +53,44 @@ class CoaxSettingsDialog extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (controller.serverTransport ==
+                        if (coaxManager.serverTransport ==
                             CoaxServerTransport.tcp)
                           _LabeledRow(
                             label: 'Host',
                             child: TextField(
-                              initialValue: controller.serverHost,
+                              initialValue: coaxManager.serverHost,
                               placeholder: const Text('127.0.0.1'),
-                              onChanged: controller.setServerHost,
+                              onChanged: coaxManager.setServerHost,
                             ),
                           ),
-                        if (controller.serverTransport ==
+                        if (coaxManager.serverTransport ==
                             CoaxServerTransport.tcp)
                           _LabeledRow(
                             label: 'Port',
                             child: TextField(
-                              initialValue: controller.serverPortText,
+                              initialValue: coaxManager.serverPortText,
                               placeholder: Text(
-                                controller.serverTransport.defaultPort
+                                coaxManager.serverTransport.defaultPort
                                     .toString(),
                               ),
-                              onChanged: controller.setServerPortText,
+                              onChanged: coaxManager.setServerPortText,
                             ),
                           ),
-                        if (controller.serverTransport ==
+                        if (coaxManager.serverTransport ==
                             CoaxServerTransport.unix)
                           _LabeledRow(
                             label: 'Socket path',
                             child: TextField(
-                              initialValue: controller.serverUnixPath,
+                              initialValue: coaxManager.serverUnixPath,
                               placeholder: Text(
-                                controller.defaultUnixPath,
+                                coaxManager.defaultUnixPath,
                               ),
-                              onChanged: controller.setServerUnixPath,
+                              onChanged: coaxManager.setServerUnixPath,
                             ),
                           ),
-                        if (controller.serverPortValidationMessage != null)
+                        if (coaxManager.serverPortValidationMessage != null)
                           Text(
-                            controller.serverPortValidationMessage!,
+                            coaxManager.serverPortValidationMessage!,
                           ).small().muted(),
                         const SizedBox(height: 12),
                         Card(
@@ -99,8 +99,8 @@ class CoaxSettingsDialog extends StatelessWidget {
                             children: [
                               const Text('Endpoint').semiBold(),
                               SelectableText(
-                                controller.serverStatus.endpoint ??
-                                    controller.serverPreviewEndpoint,
+                                coaxManager.serverStatus.endpoint ??
+                                    coaxManager.serverPreviewEndpoint,
                               ).small(),
                             ],
                           ).gap(8),
@@ -122,6 +122,14 @@ class CoaxSettingsDialog extends StatelessWidget {
       },
     );
   }
+}
+
+@Deprecated('Use CoaxSettingsView')
+class CoaxSettingsDialog extends CoaxSettingsView {
+  const CoaxSettingsDialog({
+    super.key,
+    required CoaxController controller,
+  }) : super(coaxManager: controller);
 }
 
 class _Section extends StatelessWidget {

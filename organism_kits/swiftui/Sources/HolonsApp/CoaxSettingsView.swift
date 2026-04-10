@@ -1,20 +1,25 @@
 import SwiftUI
 
 public struct CoaxSettingsView: View {
-    @ObservedObject var coaxServer: CoaxServer
+    @ObservedObject var coaxManager: CoaxManager
     @Binding var isPresented: Bool
 
     private let sheetWidth: CGFloat = 780
     private let rowLabelWidth: CGFloat = 110
 
-    public init(coaxServer: CoaxServer, isPresented: Binding<Bool>) {
-        self.coaxServer = coaxServer
+    public init(coaxManager: CoaxManager, isPresented: Binding<Bool>) {
+        self.coaxManager = coaxManager
         self._isPresented = isPresented
     }
 
+    @available(*, deprecated, message: "Use init(coaxManager:isPresented:)")
+    public init(coaxServer: CoaxServer, isPresented: Binding<Bool>) {
+        self.init(coaxManager: coaxServer, isPresented: isPresented)
+    }
+
     private var sheetHeight: CGFloat {
-        var height: CGFloat = coaxServer.serverTransport == .unix ? 560 : 588
-        if coaxServer.serverPortValidationMessage != nil {
+        var height: CGFloat = coaxManager.serverTransport == .unix ? 560 : 588
+        if coaxManager.serverPortValidationMessage != nil {
             height += 28
         }
         return height
@@ -67,35 +72,35 @@ public struct CoaxSettingsView: View {
             settingsSection("Connection") {
                 pickerRow(
                     "Transport",
-                    selection: $coaxServer.serverTransport,
+                    selection: $coaxManager.serverTransport,
                     values: CoaxServerTransport.allCases
                 )
 
-                switch coaxServer.serverTransport {
+                switch coaxManager.serverTransport {
                 case .tcp:
-                    textFieldRow("Host", text: $coaxServer.serverHost, placeholder: "127.0.0.1")
+                    textFieldRow("Host", text: $coaxManager.serverHost, placeholder: "127.0.0.1")
                     textFieldRow(
                         "Port",
-                        text: $coaxServer.serverPortText,
-                        placeholder: String(coaxServer.serverTransport.defaultPort),
+                        text: $coaxManager.serverPortText,
+                        placeholder: String(coaxManager.serverTransport.defaultPort),
                         fieldWidth: 150
                     )
                 case .unix:
                     textFieldRow(
                         "Socket path",
-                        text: $coaxServer.serverUnixPath,
-                        placeholder: coaxServer.defaultUnixPath
+                        text: $coaxManager.serverUnixPath,
+                        placeholder: coaxManager.defaultUnixPath
                     )
                 }
             }
 
-            if let message = coaxServer.serverPortValidationMessage {
+            if let message = coaxManager.serverPortValidationMessage {
                 noteRow(message)
             }
 
             previewSection(
                 "Endpoint",
-                value: coaxServer.serverStatus.endpoint ?? coaxServer.serverPreviewEndpoint
+                value: coaxManager.serverStatus.endpoint ?? coaxManager.serverPreviewEndpoint
             )
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)

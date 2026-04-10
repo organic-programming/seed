@@ -1,18 +1,23 @@
 import SwiftUI
 
 public struct CoaxControlsView: View {
-    @ObservedObject var coaxServer: CoaxServer
+    @ObservedObject var coaxManager: CoaxManager
     @Binding var isShowingSettings: Bool
 
-    public init(coaxServer: CoaxServer, isShowingSettings: Binding<Bool>) {
-        self.coaxServer = coaxServer
+    public init(coaxManager: CoaxManager, isShowingSettings: Binding<Bool>) {
+        self.coaxManager = coaxManager
         self._isShowingSettings = isShowingSettings
+    }
+
+    @available(*, deprecated, message: "Use init(coaxManager:isShowingSettings:)")
+    public init(coaxServer: CoaxServer, isShowingSettings: Binding<Bool>) {
+        self.init(coaxManager: coaxServer, isShowingSettings: isShowingSettings)
     }
 
     public var body: some View {
         VStack(alignment: .trailing, spacing: 8) {
             HStack(spacing: 8) {
-                Toggle("COAX", isOn: $coaxServer.isEnabled)
+                Toggle("COAX", isOn: $coaxManager.isEnabled)
                     .toggleStyle(.switch)
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
 
@@ -36,9 +41,9 @@ public struct CoaxControlsView: View {
             }
 
             Group {
-                if let endpoint = coaxServer.serverStatus.endpoint {
+                if let endpoint = coaxManager.serverStatus.endpoint {
                     HStack(alignment: .top, spacing: 6) {
-                        Text(coaxServer.serverStatus.title + ":")
+                        Text(coaxManager.serverStatus.title + ":")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(.secondary)
 
@@ -48,16 +53,16 @@ public struct CoaxControlsView: View {
                             .textSelection(.enabled)
                             .multilineTextAlignment(.trailing)
 
-                        Text(coaxServer.serverStatus.state.badgeTitle)
+                        Text(coaxManager.serverStatus.state.badgeTitle)
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundStyle(surfaceBadgeColor(coaxServer.serverStatus.state))
+                            .foregroundStyle(surfaceBadgeColor(coaxManager.serverStatus.state))
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
             .frame(maxWidth: 520, alignment: .trailing)
 
-            if let detail = coaxServer.statusDetail {
+            if let detail = coaxManager.statusDetail {
                 Text(detail)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Color.orange)

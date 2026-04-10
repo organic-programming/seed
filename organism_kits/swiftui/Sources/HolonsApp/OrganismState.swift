@@ -32,9 +32,40 @@ public struct CoaxMember: Identifiable, Hashable, Sendable {
 }
 
 @MainActor
-public protocol OrganismState: AnyObject {
+public protocol HolonManager: AnyObject {
+    func listMembers() async -> [CoaxMember]
+    func memberStatus(slug: String) async -> CoaxMember?
+    func connectMember(slug: String, transport: String) async throws -> CoaxMember
+    func disconnectMember(slug: String) async
+    func tellMember(slug: String, method: String, payloadJSON: Data) async throws -> Data
+}
+
+@MainActor
+public protocol OrganismState: HolonManager {
     var coaxMembers: [CoaxMember] { get }
     func connectCoaxMember(slug: String, transport: String) async throws -> CoaxMember
     func disconnectCoaxMember(slug: String) async
     func tellCoaxMember(slug: String, method: String, payloadJSON: Data) async throws -> Data
+}
+
+public extension OrganismState {
+    func listMembers() async -> [CoaxMember] {
+        coaxMembers
+    }
+
+    func memberStatus(slug: String) async -> CoaxMember? {
+        coaxMembers.first(where: { $0.slug == slug })
+    }
+
+    func connectMember(slug: String, transport: String) async throws -> CoaxMember {
+        try await connectCoaxMember(slug: slug, transport: transport)
+    }
+
+    func disconnectMember(slug: String) async {
+        await disconnectCoaxMember(slug: slug)
+    }
+
+    func tellMember(slug: String, method: String, payloadJSON: Data) async throws -> Data {
+        try await tellCoaxMember(slug: slug, method: method, payloadJSON: payloadJSON)
+    }
 }
