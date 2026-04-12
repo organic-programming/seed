@@ -42,14 +42,14 @@ func cmdDirectBinary(format Format, binaryPath string, args []string) int {
 
 	if len(args) == 0 {
 		fmt.Fprintf(os.Stderr, "op: missing method for binary %q\n", binaryPath)
-		fmt.Fprintln(os.Stderr, "usage: op <binary-path> <method> [json]")
+		fmt.Fprintln(os.Stderr, "usage: op <binary-path> <method> [json] [<method> [json] ...]")
 		return 1
 	}
 
-	method := args[0]
-	inputJSON := "{}"
-	if len(args) > 1 && looksLikeJSON(args[1]) {
-		inputJSON = args[1]
+	calls, err := parseInvokeCalls(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "op: %v\n", err)
+		return 1
 	}
 
 	cmd := exec.Command(abs, "serve", "--listen", "stdio://")
@@ -69,12 +69,7 @@ func cmdDirectBinary(format Format, binaryPath string, args []string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	result, err := grpcclient.InvokeConn(ctx, conn, method, inputJSON)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "op: %v\n", err)
-		return 1
-	}
-
-	fmt.Println(formatRPCOutput(format, method, []byte(result.Output)))
-	return 0
+	return emitInvokeResults(format, "op", calls, func(_ int, call invokeCall) (*grpcclient.CallResult, error) {
+		return grpcclient.InvokeConn(ctx, conn, call.method, call.inputJSON)
+	})
 }

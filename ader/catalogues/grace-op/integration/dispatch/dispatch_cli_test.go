@@ -12,6 +12,7 @@ func TestDispatch_CLI_SayHelloAcrossTransports(t *testing.T) {
 		t.Run(spec.Slug, func(t *testing.T) {
 			sb := integration.NewSandbox(t)
 			integration.BuildReportFor(t, sb, spec.Slug)
+			example := integration.PrimaryInvokeExample(spec)
 			for _, transport := range integration.TransportMatrix() {
 				transport := transport
 				t.Run(transport.Name, func(t *testing.T) {
@@ -20,13 +21,11 @@ func TestDispatch_CLI_SayHelloAcrossTransports(t *testing.T) {
 						target = transport.URIPrefix + spec.Slug
 					}
 
-					result := sb.RunOP(t, target, "SayHello", `{"name":"World","lang_code":"en"}`)
+					result := sb.RunOP(t, target, example.Method, example.Payload)
 					integration.RequireSuccess(t, result)
 
 					payload := integration.DecodeJSON[map[string]any](t, result.Stdout)
-					if payload["greeting"] == "" {
-						t.Fatalf("empty greeting payload: %#v", payload)
-					}
+					integration.AssertInvokePayload(t, spec, example.Method, payload)
 				})
 			}
 		})
@@ -38,12 +37,11 @@ func TestDispatch_CLI_JSONOutput(t *testing.T) {
 		t.Run(spec.Slug, func(t *testing.T) {
 			sb := integration.NewSandbox(t)
 			integration.BuildReportFor(t, sb, spec.Slug)
-			result := sb.RunOP(t, "--format", "json", spec.Slug, "SayHello", `{"name":"World","lang_code":"en"}`)
+			example := integration.PrimaryInvokeExample(spec)
+			result := sb.RunOP(t, "--format", "json", spec.Slug, example.Method, example.Payload)
 			integration.RequireSuccess(t, result)
 			payload := integration.DecodeJSON[map[string]any](t, result.Stdout)
-			if payload["langCode"] != "en" {
-				t.Fatalf("langCode = %#v, want en", payload["langCode"])
-			}
+			integration.AssertInvokePayload(t, spec, example.Method, payload)
 		})
 	}
 }
@@ -53,13 +51,16 @@ func TestDispatch_CLI_ListLanguages(t *testing.T) {
 		t.Run(spec.Slug, func(t *testing.T) {
 			sb := integration.NewSandbox(t)
 			integration.BuildReportFor(t, sb, spec.Slug)
-			result := sb.RunOP(t, spec.Slug, "ListLanguages")
+			examples := integration.InvokeExamplesFor(spec)
+			example := examples[len(examples)-1]
+			args := []string{spec.Slug, example.Method}
+			if example.Payload != "" {
+				args = append(args, example.Payload)
+			}
+			result := sb.RunOP(t, args...)
 			integration.RequireSuccess(t, result)
 			payload := integration.DecodeJSON[map[string]any](t, result.Stdout)
-			languages, ok := payload["languages"].([]any)
-			if !ok || len(languages) == 0 {
-				t.Fatalf("languages = %#v, want non-empty array", payload["languages"])
-			}
+			integration.AssertInvokePayload(t, spec, example.Method, payload)
 		})
 	}
 }
@@ -71,7 +72,8 @@ func TestDispatch_CLI_AutoBuild(t *testing.T) {
 	sb := integration.NewSandbox(t)
 	integration.RemoveArtifactFor(t, sb, slug)
 
-	result := sb.RunOP(t, slug, "SayHello", `{"name":"World","lang_code":"en"}`)
+	example := integration.PrimaryInvokeExample(integration.HolonSpec{Slug: slug})
+	result := sb.RunOP(t, slug, example.Method, example.Payload)
 	integration.RequireSuccess(t, result)
 	integration.RequirePathExists(t, integration.ArtifactPathFor(t, sb, slug))
 }
@@ -81,7 +83,8 @@ func TestDispatch_CLI_NoBuildDoesNotBuild(t *testing.T) {
 	integration.RemoveArtifactFor(t, sb, "gabriel-greeting-go")
 	artifactPath := integration.ArtifactPathFor(t, sb, "gabriel-greeting-go")
 
-	result := sb.RunOP(t, "gabriel-greeting-go", "SayHello", "--no-build", `{"name":"World","lang_code":"en"}`)
+	example := integration.PrimaryInvokeExample(integration.HolonSpec{Slug: "gabriel-greeting-go"})
+	result := sb.RunOP(t, "gabriel-greeting-go", example.Method, "--no-build", example.Payload)
 	if result.TimedOut {
 		t.Fatalf("--no-build timed out\nstdout:\n%s\nstderr:\n%s", result.Stdout, result.Stderr)
 	}

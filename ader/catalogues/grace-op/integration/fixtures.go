@@ -70,6 +70,9 @@ type HolonSpec struct {
 	Requires  []string
 	Platform  string
 	Composite bool
+	// HolonPath is the workspace-relative path to the holon directory.
+	// When empty, defaults to "examples/hello-world/<Slug>".
+	HolonPath string
 }
 
 type TransportSpec struct {
@@ -91,6 +94,7 @@ var nativeHolons = []HolonSpec{
 	{Slug: "gabriel-greeting-java", Runner: "gradle", Requires: []string{"java", "gradle"}},
 	{Slug: "gabriel-greeting-kotlin", Runner: "gradle", Requires: []string{"java", "gradle"}},
 	{Slug: "gabriel-greeting-csharp", Runner: "dotnet", Requires: []string{"dotnet"}},
+	{Slug: "matt-calculator-go", Runner: "go-module", Requires: []string{"go"}, HolonPath: "examples/calculator/matt-calculator-go"},
 }
 
 var compositeHolons = []HolonSpec{
@@ -366,7 +370,7 @@ func filterAvailableHolons(specs []HolonSpec) []HolonSpec {
 		if !toolsAvailable(spec.Requires...) {
 			continue
 		}
-		if !helloWorldHolonExists(spec.Slug) {
+		if !exampleHolonExists(spec) {
 			continue
 		}
 		out = append(out, spec)
@@ -374,12 +378,26 @@ func filterAvailableHolons(specs []HolonSpec) []HolonSpec {
 	return out
 }
 
-func helloWorldHolonExists(slug string) bool {
+// exampleHolonExists returns true when the holon directory can be found on
+// disk. For holons with an explicit HolonPath the path is used as-is; for
+// the legacy hello-world holons the slug is looked up under examples/hello-world/.
+func exampleHolonExists(spec HolonSpec) bool {
+	if spec.HolonPath != "" {
+		return holonDirExists(spec.HolonPath)
+	}
+	return holonDirExists(filepath.Join("examples", "hello-world", spec.Slug))
+}
+
+// holonDirExists returns true when relPath (relative to the workspace root)
+// resolves to an existing directory.
+func holonDirExists(relPath string) bool {
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
 		return true
 	}
-	holonDir := filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", "examples", "hello-world", slug)
+	// fixtures.go lives at <root>/ader/catalogues/grace-op/integration/fixtures.go
+	// → go up 4 levels to reach the workspace root.
+	holonDir := filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", filepath.FromSlash(relPath))
 	info, err := os.Stat(holonDir)
 	return err == nil && info.IsDir()
 }

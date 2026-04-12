@@ -137,6 +137,15 @@ checks:
     workdir: ader/catalogues/grace-op/integration/invoke
     command: go test -v -count=1 -timeout 15m -run '^TestInvoke_RPC_' .
     description: Verifies the RPC alignment for invoke.
+  op-invoke-cli-multi-call:
+    workdir: ader/catalogues/grace-op/integration/invoke
+    command: go test -v -count=1 -timeout 30m -run '^TestInvoke_CLI_MultiCall_' .
+    description: Verifies op invoke handles N≥2 method/payload pairs with JSON Lines output (no regression).
+  op-invoke-cli-calculator:
+    workdir: ader/catalogues/grace-op/integration/invoke
+    command: go test -v -count=1 -timeout 30m -run '^TestInvoke_CLI_Calculator_' .
+    description: Verifies the matt-calculator-go accumulator holon end-to-end via op invoke multi-call.
+
 
   op-list-cli:
     workdir: ader/catalogues/grace-op/integration/list

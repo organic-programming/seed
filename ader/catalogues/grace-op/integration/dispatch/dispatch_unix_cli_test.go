@@ -15,17 +15,16 @@ func TestDispatch_CLI_UnixTransport_RunAndDispatch(t *testing.T) {
 		t.Run(spec.Slug, func(t *testing.T) {
 			sb := integration.NewSandbox(t)
 			socketPath := integration.ShortSocketPath(t, spec.Slug)
+			example := integration.PrimaryInvokeExample(spec)
 
 			process := sb.StartProcess(t, integration.RunOptions{}, "run", spec.Slug, "--listen", "unix://"+socketPath)
 			defer process.Stop(t)
 			process.WaitForListenAddress(t, integration.ProcessStartTimeout)
 
-			result := sb.RunOP(t, "unix://"+socketPath, "SayHello", `{"name":"World","lang_code":"en"}`)
+			result := sb.RunOP(t, "unix://"+socketPath, example.Method, example.Payload)
 			integration.RequireSuccess(t, result)
 			payload := integration.DecodeJSON[map[string]any](t, result.Stdout)
-			if payload["greeting"] == "" {
-				t.Fatalf("empty unix payload: %#v", payload)
-			}
+			integration.AssertInvokePayload(t, spec, example.Method, payload)
 		})
 	}
 }

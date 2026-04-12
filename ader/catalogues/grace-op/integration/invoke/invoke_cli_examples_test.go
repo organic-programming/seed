@@ -7,39 +7,12 @@ import (
 )
 
 func TestInvoke_CLI_ExamplesAcrossTransports(t *testing.T) {
-	methods := []struct {
-		name    string
-		payload string
-		assert  func(*testing.T, map[string]any)
-	}{
-		{
-			name:    "SayHello",
-			payload: `{"name":"World","lang_code":"en"}`,
-			assert: func(t *testing.T, payload map[string]any) {
-				t.Helper()
-				if payload["greeting"] == "" {
-					t.Fatalf("empty greeting payload: %#v", payload)
-				}
-			},
-		},
-		{
-			name:    "ListLanguages",
-			payload: "",
-			assert: func(t *testing.T, payload map[string]any) {
-				t.Helper()
-				languages, ok := payload["languages"].([]any)
-				if !ok || len(languages) == 0 {
-					t.Fatalf("languages = %#v, want non-empty array", payload["languages"])
-				}
-			},
-		},
-	}
-
 	for _, spec := range integration.NativeTestHolons(t) {
 		spec := spec
 		t.Run(spec.Slug, func(t *testing.T) {
 			sb := integration.NewSandbox(t)
 			integration.BuildReportFor(t, sb, spec.Slug)
+			methods := integration.InvokeExamplesFor(spec)
 			for _, transport := range exampleInvokeTransports() {
 				transport := transport
 				t.Run(transport.Name, func(t *testing.T) {
@@ -47,9 +20,9 @@ func TestInvoke_CLI_ExamplesAcrossTransports(t *testing.T) {
 					defer cleanup()
 
 					for _, method := range methods {
-						t.Run(method.name, func(t *testing.T) {
-							payload := invokeCLIJSON(t, sb, integration.RunOptions{}, target, method.name, method.payload)
-							method.assert(t, payload)
+						t.Run(method.Method, func(t *testing.T) {
+							payload := invokeCLIJSON(t, sb, integration.RunOptions{}, target, method.Method, method.Payload)
+							integration.AssertInvokePayload(t, spec, method.Method, payload)
 						})
 					}
 				})

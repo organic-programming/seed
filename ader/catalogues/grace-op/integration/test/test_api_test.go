@@ -11,9 +11,17 @@ import (
 func TestTest_API_RepresentativeHolon(t *testing.T) {
 	var target string
 	for _, spec := range integration.NativeTestHolons(t) {
-		if spec.Slug != "gabriel-greeting-go" && integration.SupportsOPTest(spec) {
+		if spec.Slug == "matt-calculator-go" && integration.SupportsOPTest(spec) {
 			target = spec.Slug
 			break
+		}
+	}
+	if target == "" {
+		for _, spec := range integration.NativeTestHolons(t) {
+			if spec.Slug != "gabriel-greeting-go" && integration.SupportsOPTest(spec) {
+				target = spec.Slug
+				break
+			}
 		}
 	}
 	if target == "" {

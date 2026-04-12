@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -51,12 +52,33 @@ func (c activeConnection) close() error {
 	return c.disconnect()
 }
 
+type invokeExecutor func(index int, call invokeCall) (*internalgrpc.CallResult, error)
+
+func emitInvokeResults(format Format, errPrefix string, calls []invokeCall, invoke invokeExecutor) int {
+	for i, call := range calls {
+		result, err := invoke(i, call)
+		if err != nil {
+			if len(calls) > 1 {
+				fmt.Fprintf(os.Stderr, "%s: call %d/%d [%s]: %v\n", errPrefix, i+1, len(calls), call.method, err)
+			} else {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", errPrefix, err)
+			}
+			return 1
+		}
+		if len(calls) == 1 {
+			fmt.Println(formatRPCOutput(format, call.method, []byte(result.Output)))
+			continue
+		}
+		fmt.Println(compactJSON(result.Output))
+	}
+	return 0
+}
+
 func runConnectedRPC(
 	format Format,
 	errPrefix string,
 	holonName string,
-	method string,
-	inputJSON string,
+	calls []invokeCall,
 	transport string,
 	noBuild bool,
 ) int {
@@ -73,20 +95,27 @@ func runConnectedRPC(
 	ctx, cancel := context.WithTimeout(context.Background(), connectDispatchTimeout)
 	defer cancel()
 
-	result, err := internalgrpc.InvokeConn(ctx, conn.conn, method, inputJSON)
-	if err != nil {
-		if localResult, localErr := invokeConnViaLocalCatalog(ctx, conn.conn, holonName, method, inputJSON); localErr == nil {
-			result = localResult
-			err = nil
+	return emitInvokeResults(format, errPrefix, calls, func(_ int, call invokeCall) (*internalgrpc.CallResult, error) {
+		result, callErr := internalgrpc.InvokeConn(ctx, conn.conn, call.method, call.inputJSON)
+		if callErr != nil {
+			if localResult, localErr := invokeConnViaLocalCatalog(ctx, conn.conn, holonName, call.method, call.inputJSON); localErr == nil {
+				result = localResult
+				callErr = nil
+			}
 		}
-	}
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", errPrefix, err)
-		return 1
-	}
+		return result, callErr
+	})
+}
 
-	fmt.Println(formatRPCOutput(format, method, []byte(result.Output)))
-	return 0
+// compactJSON returns a single-line JSON string with no extra whitespace.
+// Falls back to the trimmed raw string when the input is not valid JSON.
+func compactJSON(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	var buf bytes.Buffer
+	if err := json.Compact(&buf, []byte(trimmed)); err != nil {
+		return trimmed
+	}
+	return buf.String()
 }
 
 func invokeConnViaLocalCatalog(ctx context.Context, conn *grpc.ClientConn, holonName string, method string, inputJSON string) (*internalgrpc.CallResult, error) {
@@ -132,33 +161,33 @@ func builtinMethodDescriptor(holonName string, method string) protoreflect.Metho
 	return nil
 }
 
-func parseConnectedRPCArgs(args []string) (method string, inputJSON string, noBuild bool, err error) {
+func parseConnectedRPCArgs(args []string) (calls []invokeCall, noBuild bool, err error) {
 	if len(args) < 1 {
-		return "", "", false, fmt.Errorf("method required")
+		return nil, false, fmt.Errorf("method required")
 	}
 
-	method = args[0]
-	remaining := args[1:]
-	inputJSON = "{}"
-
+	// Strip a leading --no-build flag before parsing method/payload pairs.
+	remaining := args
 	if len(remaining) > 0 && remaining[0] == "--no-build" {
 		noBuild = true
 		remaining = remaining[1:]
 	}
-
-	if len(remaining) > 0 {
-		inputJSON = remaining[0]
+	// Preserve the legacy single-call spelling: <method> --no-build [json].
+	if !noBuild && len(remaining) > 1 && remaining[1] == "--no-build" {
+		noBuild = true
+		remaining = append([]string{remaining[0]}, remaining[2:]...)
 	}
-
-	if len(remaining) > 1 {
-		for _, arg := range remaining[1:] {
-			if strings.TrimSpace(arg) == "--no-build" {
-				return "", "", false, fmt.Errorf("--no-build must come immediately after the method")
-			}
+	for _, arg := range remaining[1:] {
+		if strings.TrimSpace(arg) == "--no-build" {
+			return nil, false, fmt.Errorf("--no-build must come immediately after the method")
 		}
 	}
 
-	return method, inputJSON, noBuild, nil
+	calls, err = parseInvokeCalls(remaining)
+	if err != nil {
+		return nil, false, err
+	}
+	return calls, noBuild, nil
 }
 
 func connectForRPC(holonName string, transport string) (activeConnection, error) {
@@ -1005,13 +1034,13 @@ func autoBuildAndConnect(holonName string, transport string) (activeConnection, 
 }
 
 func cmdGRPCConnected(format Format, uri string, holonName string, args []string, transport string) int {
-	method, inputJSON, noBuild, err := parseConnectedRPCArgs(args)
+	calls, noBuild, err := parseConnectedRPCArgs(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
-		fmt.Fprintf(os.Stderr, "usage: op %s <method> [--no-build] [json]\n", uri)
+		fmt.Fprintf(os.Stderr, "usage: op %s <method> [--no-build] [json] [<method> [json] ...]\n", uri)
 		return 1
 	}
-	return runConnectedRPC(format, "op grpc", holonName, method, inputJSON, transport, noBuild)
+	return runConnectedRPC(format, "op grpc", holonName, calls, transport, noBuild)
 }
 
 func refLocalPath(ref *sdkdiscover.HolonRef) (string, error) {

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -229,3 +230,16 @@ func mustJSON(t *testing.T, value any) string {
 	}
 	return string(data)
 }
+
+// nonEmptyLines splits s on newlines and returns non-empty, trimmed lines.
+// Used to parse JSON Lines output from multi-payload op invoke calls.
+func nonEmptyLines(s string) []string {
+	var out []string
+	for _, line := range strings.Split(s, "\n") {
+		if t := strings.TrimSpace(line); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+

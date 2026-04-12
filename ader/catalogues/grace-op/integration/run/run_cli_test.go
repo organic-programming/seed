@@ -14,16 +14,15 @@ func TestRun_CLI_TCP(t *testing.T) {
 	for _, spec := range integration.NativeTestHolons(t) {
 		t.Run(spec.Slug, func(t *testing.T) {
 			sb := integration.NewSandbox(t)
+			example := integration.PrimaryInvokeExample(spec)
 			process := sb.StartProcess(t, integration.RunOptions{}, "run", spec.Slug, "--listen", "tcp://127.0.0.1:0")
 			defer process.Stop(t)
 
 			address := process.WaitForListenAddress(t, integration.ProcessStartTimeout)
-			result := sb.RunOP(t, address, "SayHello", `{"name":"World","lang_code":"en"}`)
+			result := sb.RunOP(t, address, example.Method, example.Payload)
 			integration.RequireSuccess(t, result)
 			payload := integration.DecodeJSON[map[string]any](t, result.Stdout)
-			if payload["greeting"] == "" {
-				t.Fatalf("empty run payload: %#v", payload)
-			}
+			integration.AssertInvokePayload(t, spec, example.Method, payload)
 		})
 	}
 }
@@ -33,12 +32,13 @@ func TestRun_CLI_AutoBuild(t *testing.T) {
 
 	sb := integration.NewSandbox(t)
 	integration.RemoveArtifactFor(t, sb, "gabriel-greeting-go")
+	example := integration.PrimaryInvokeExample(integration.HolonSpec{Slug: "gabriel-greeting-go"})
 
 	process := sb.StartProcess(t, integration.RunOptions{}, "run", "gabriel-greeting-go", "--listen", "tcp://127.0.0.1:0")
 	defer process.Stop(t)
 
 	address := process.WaitForListenAddress(t, integration.ProcessStartTimeout)
-	result := sb.RunOP(t, address, "SayHello", `{"name":"World","lang_code":"en"}`)
+	result := sb.RunOP(t, address, example.Method, example.Payload)
 	integration.RequireSuccess(t, result)
 	integration.RequirePathExists(t, integration.ArtifactPathFor(t, sb, "gabriel-greeting-go"))
 }
@@ -62,7 +62,8 @@ func TestRun_CLI_CleanRebuildRun(t *testing.T) {
 	defer process.Stop(t)
 
 	address := process.WaitForListenAddress(t, integration.ProcessStartTimeout)
-	result := sb.RunOP(t, address, "SayHello", `{"name":"World","lang_code":"en"}`)
+	example := integration.PrimaryInvokeExample(integration.HolonSpec{Slug: "gabriel-greeting-go"})
+	result := sb.RunOP(t, address, example.Method, example.Payload)
 	integration.RequireSuccess(t, result)
 }
 
@@ -74,8 +75,9 @@ func TestRun_CLI_PortShorthand(t *testing.T) {
 	process := sb.StartProcess(t, integration.RunOptions{}, "run", fmt.Sprintf("gabriel-greeting-go:%d", port))
 	defer process.Stop(t)
 
+	example := integration.PrimaryInvokeExample(integration.HolonSpec{Slug: "gabriel-greeting-go"})
 	integration.WaitUntil(t, integration.ProcessStartTimeout, func() bool {
-		result := sb.RunOPWithOptions(t, integration.RunOptions{Timeout: 2 * time.Second}, fmt.Sprintf("tcp://127.0.0.1:%d", port), "SayHello", `{"name":"World","lang_code":"en"}`)
+		result := sb.RunOPWithOptions(t, integration.RunOptions{Timeout: 2 * time.Second}, fmt.Sprintf("tcp://127.0.0.1:%d", port), example.Method, example.Payload)
 		return result.Err == nil
 	})
 }

@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
 
+	internalgrpc "github.com/organic-programming/grace-op/internal/grpcclient"
 	"github.com/spf13/cobra"
 )
 
@@ -157,4 +159,119 @@ func completionValue(candidate string) string {
 		return candidate[:idx]
 	}
 	return candidate
+}
+
+func TestParseInvokeCalls(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		want    []invokeCall
+		wantErr string
+	}{
+		{
+			name: "single method no payload",
+			args: []string{"Ping"},
+			want: []invokeCall{{method: "Ping", inputJSON: "{}"}},
+		},
+		{
+			name: "single method with payload",
+			args: []string{"Ping", `{"ok":true}`},
+			want: []invokeCall{{method: "Ping", inputJSON: `{"ok":true}`}},
+		},
+		{
+			name: "two methods with payloads",
+			args: []string{"Add", `{"v":1}`, "Add", `{"v":10}`},
+			want: []invokeCall{
+				{method: "Add", inputJSON: `{"v":1}`},
+				{method: "Add", inputJSON: `{"v":10}`},
+			},
+		},
+		{
+			name: "two methods first has no payload",
+			args: []string{"Ping", "Add", `{"v":1}`},
+			want: []invokeCall{
+				{method: "Ping", inputJSON: "{}"},
+				{method: "Add", inputJSON: `{"v":1}`},
+			},
+		},
+		{
+			name: "five-op calculator sequence",
+			args: []string{
+				"Set", `{"value":20.0}`,
+				"Add", `{"value":1.0}`,
+				"Subtract", `{"value":4.0}`,
+				"Divide", `{"by":5.0}`,
+				"Multiply", `{"by":3.0}`,
+			},
+			want: []invokeCall{
+				{method: "Set", inputJSON: `{"value":20.0}`},
+				{method: "Add", inputJSON: `{"value":1.0}`},
+				{method: "Subtract", inputJSON: `{"value":4.0}`},
+				{method: "Divide", inputJSON: `{"by":5.0}`},
+				{method: "Multiply", inputJSON: `{"by":3.0}`},
+			},
+		},
+		{
+			name:    "empty args",
+			args:    []string{},
+			wantErr: "method required",
+		},
+		{
+			name:    "first arg is JSON",
+			args:    []string{`{"v":1}`},
+			wantErr: "first token must be a method name",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := parseInvokeCalls(tc.args)
+			if tc.wantErr != "" {
+				if err == nil {
+					t.Fatalf("parseInvokeCalls(%v) = nil error, want error containing %q", tc.args, tc.wantErr)
+				}
+				if !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("parseInvokeCalls(%v) error = %q, want containing %q", tc.args, err.Error(), tc.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseInvokeCalls(%v) unexpected error: %v", tc.args, err)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("parseInvokeCalls(%v)\ngot:  %+v\nwant: %+v", tc.args, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestMultiCallOutputIsJSONLines(t *testing.T) {
+	calls := []invokeCall{
+		{method: "Ping", inputJSON: `{"value":1}`},
+		{method: "Ping", inputJSON: `{"value":2}`},
+	}
+
+	output := captureStdout(t, func() {
+		code := emitInvokeResults(FormatJSON, "op invoke", calls, func(index int, call invokeCall) (*internalgrpc.CallResult, error) {
+			return &internalgrpc.CallResult{
+				Output: "{\n  \"method\": \"" + call.method + "\",\n  \"value\": " + string('1'+rune(index)) + "\n}\n",
+			}, nil
+		})
+		if code != 0 {
+			t.Fatalf("emitInvokeResults returned %d, want 0", code)
+		}
+	})
+
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 JSON Lines, got %d:\n%s", len(lines), output)
+	}
+	for i, line := range lines {
+		if strings.Contains(line, "\t") || strings.Contains(line, "  ") {
+			t.Fatalf("line %d is not compact JSON: %q", i+1, line)
+		}
+		if !json.Valid([]byte(line)) {
+			t.Fatalf("line %d is not valid JSON: %q", i+1, line)
+		}
+	}
 }

@@ -18,6 +18,38 @@ import (
 
 const invokeCompletionTimeout = 2 * time.Second
 
+// invokeCall holds a single (method, JSON payload) pair for sequential invocation.
+type invokeCall struct {
+	method    string
+	inputJSON string
+}
+
+// parseInvokeCalls converts a flat args slice into a sequence of invokeCall pairs.
+// The first token must be a method name (not JSON). A JSON token immediately following
+// a method name is that method's payload; a non-JSON token opens a new call with
+// the previous call receiving an implicit "{}" payload.
+func parseInvokeCalls(args []string) ([]invokeCall, error) {
+	if len(args) == 0 {
+		return nil, fmt.Errorf("method required")
+	}
+	if looksLikeJSON(args[0]) {
+		return nil, fmt.Errorf("first token must be a method name")
+	}
+
+	var calls []invokeCall
+	current := invokeCall{method: strings.TrimSpace(args[0]), inputJSON: "{}"}
+	for _, arg := range args[1:] {
+		if looksLikeJSON(arg) {
+			current.inputJSON = arg
+		} else {
+			calls = append(calls, current)
+			current = invokeCall{method: strings.TrimSpace(arg), inputJSON: "{}"}
+		}
+	}
+	calls = append(calls, current)
+	return calls, nil
+}
+
 type invokeMethodCandidate struct {
 	service  string
 	method   string
@@ -26,9 +58,9 @@ type invokeMethodCandidate struct {
 
 func newInvokeCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "invoke <holon-or-uri> <method> [json]",
-		Short:             "Invoke a holon's RPC method",
-		Args:              cobra.RangeArgs(2, 3),
+		Use:               "invoke <holon-or-uri> <method> [json] [<method> [json] ...]",
+		Short:             "Invoke a holon's RPC method (supports multiple sequential calls)",
+		Args:              cobra.MinimumNArgs(2),
 		ValidArgsFunction: completeInvokeArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := currentFormat()
@@ -47,41 +79,36 @@ func newInvokeCmd() *cobra.Command {
 
 func runInvokeCommand(format Format, runtimeOpts commandRuntimeOptions, cmd *cobra.Command, args []string) int {
 	target := strings.TrimSpace(args[0])
-	method := strings.TrimSpace(args[1])
-	inputJSON := "{}"
-	if len(args) > 2 {
-		inputJSON = args[2]
+
+	calls, err := parseInvokeCalls(args[1:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "op invoke: %v\n", err)
+		return 1
 	}
 
 	cleanFirst, _ := cmd.Flags().GetBool("clean")
 	noBuild, _ := cmd.Flags().GetBool("no-build")
 
-	return cmdInvoke(format, runtimeOpts, target, method, inputJSON, cleanFirst, noBuild)
+	return cmdInvoke(format, runtimeOpts, target, calls, cleanFirst, noBuild)
 }
 
 func cmdInvoke(
 	format Format,
 	runtimeOpts commandRuntimeOptions,
 	target string,
-	method string,
-	inputJSON string,
+	calls []invokeCall,
 	cleanFirst bool,
 	noBuild bool,
 ) int {
 	target = strings.TrimSpace(target)
-	method = strings.TrimSpace(method)
 	if target == "" {
 		fmt.Fprintln(os.Stderr, "op invoke: target required")
-		return 1
-	}
-	if method == "" {
-		fmt.Fprintln(os.Stderr, "op invoke: method required")
 		return 1
 	}
 
 	switch {
 	case isTransportURI(target):
-		return cmdInvokeTransportTarget(format, target, method, inputJSON, cleanFirst, noBuild)
+		return cmdInvokeTransportTarget(format, target, calls, cleanFirst, noBuild)
 	case isHostPortTarget(target):
 		if cleanFirst {
 			fmt.Fprintln(os.Stderr, "op invoke: --clean is only supported for holon targets")
@@ -91,7 +118,7 @@ func cmdInvoke(
 			fmt.Fprintln(os.Stderr, "op invoke: --no-build is only supported for holon targets")
 			return 1
 		}
-		return cmdGRPCDirect(format, target, invokeDirectArgs(method, inputJSON))
+		return cmdGRPCDirect(format, target, invokeDirectArgs(calls))
 	case isExecutableFile(target):
 		if cleanFirst {
 			fmt.Fprintln(os.Stderr, "op invoke: --clean is only supported for holon targets")
@@ -101,9 +128,9 @@ func cmdInvoke(
 			fmt.Fprintln(os.Stderr, "op invoke: --no-build is only supported for holon targets")
 			return 1
 		}
-		return cmdDirectBinary(format, target, invokeDirectArgs(method, inputJSON))
+		return cmdDirectBinary(format, target, invokeDirectArgs(calls))
 	default:
-		return cmdInvokeHolon(format, runtimeOpts, target, method, inputJSON, cleanFirst, noBuild)
+		return cmdInvokeHolon(format, runtimeOpts, target, calls, cleanFirst, noBuild)
 	}
 }
 
@@ -111,8 +138,7 @@ func cmdInvokeHolon(
 	format Format,
 	runtimeOpts commandRuntimeOptions,
 	holonName string,
-	method string,
-	inputJSON string,
+	calls []invokeCall,
 	cleanFirst bool,
 	noBuild bool,
 ) int {
@@ -132,10 +158,10 @@ func cmdInvokeHolon(
 		}
 	}
 
-	return runConnectedRPC(format, "op invoke", holonName, method, inputJSON, "auto", noBuild)
+	return runConnectedRPC(format, "op invoke", holonName, calls, "auto", noBuild)
 }
 
-func cmdInvokeTransportTarget(format Format, target string, method string, inputJSON string, cleanFirst bool, noBuild bool) int {
+func cmdInvokeTransportTarget(format Format, target string, calls []invokeCall, cleanFirst bool, noBuild bool) int {
 	if cleanFirst {
 		fmt.Fprintln(os.Stderr, "op invoke: --clean is only supported for holon targets")
 		return 1
@@ -150,9 +176,9 @@ func cmdInvokeTransportTarget(format Format, target string, method string, input
 				fmt.Fprintln(os.Stderr, "op invoke: --no-build is only supported for holon targets")
 				return 1
 			}
-			return cmdGRPCDirect(format, remainder, invokeDirectArgs(method, inputJSON))
+			return cmdGRPCDirect(format, remainder, invokeDirectArgs(calls))
 		}
-		return cmdGRPC(format, target, invokeConnectedArgs(method, inputJSON, noBuild))
+		return cmdGRPC(format, target, invokeConnectedArgs(calls, noBuild))
 	case strings.HasPrefix(trimmed, "tcp://"):
 		remainder := trimURIAnyPrefix(trimmed, "tcp://")
 		if isHostPortTarget(remainder) {
@@ -160,11 +186,11 @@ func cmdInvokeTransportTarget(format Format, target string, method string, input
 				fmt.Fprintln(os.Stderr, "op invoke: --no-build is only supported for holon targets")
 				return 1
 			}
-			return cmdGRPCDirect(format, remainder, invokeDirectArgs(method, inputJSON))
+			return cmdGRPCDirect(format, remainder, invokeDirectArgs(calls))
 		}
-		return cmdGRPC(format, target, invokeConnectedArgs(method, inputJSON, noBuild))
+		return cmdGRPC(format, target, invokeConnectedArgs(calls, noBuild))
 	case strings.HasPrefix(trimmed, "stdio://"):
-		return cmdGRPC(format, target, invokeConnectedArgs(method, inputJSON, noBuild))
+		return cmdGRPC(format, target, invokeConnectedArgs(calls, noBuild))
 	case strings.HasPrefix(trimmed, "unix://"):
 		remainder := trimURIAnyPrefix(trimmed, "unix://")
 		if isUnixSocketTarget(remainder) {
@@ -172,40 +198,48 @@ func cmdInvokeTransportTarget(format Format, target string, method string, input
 				fmt.Fprintln(os.Stderr, "op invoke: --no-build is only supported for holon targets")
 				return 1
 			}
-			return cmdGRPC(format, target, invokeDirectArgs(method, inputJSON))
+			return cmdGRPC(format, target, invokeDirectArgs(calls))
 		}
-		return cmdGRPC(format, target, invokeConnectedArgs(method, inputJSON, noBuild))
+		return cmdGRPC(format, target, invokeConnectedArgs(calls, noBuild))
 	case strings.HasPrefix(trimmed, "ws://"),
 		strings.HasPrefix(trimmed, "wss://"):
 		if noBuild {
 			fmt.Fprintln(os.Stderr, "op invoke: --no-build is only supported for holon targets")
 			return 1
 		}
-		return cmdGRPC(format, target, invokeDirectArgs(method, inputJSON))
+		return cmdGRPC(format, target, invokeDirectArgs(calls))
 	default:
 		if noBuild {
 			fmt.Fprintln(os.Stderr, "op invoke: --no-build is only supported for holon targets")
 			return 1
 		}
-		return cmdGRPC(format, target, invokeDirectArgs(method, inputJSON))
+		return cmdGRPC(format, target, invokeDirectArgs(calls))
 	}
 }
 
-func invokeDirectArgs(method string, inputJSON string) []string {
-	args := []string{method}
-	if strings.TrimSpace(inputJSON) != "" && strings.TrimSpace(inputJSON) != "{}" {
-		args = append(args, inputJSON)
+// invokeDirectArgs builds a flat []string suitable for direct transport paths.
+func invokeDirectArgs(calls []invokeCall) []string {
+	args := make([]string, 0, len(calls)*2)
+	for _, call := range calls {
+		args = append(args, call.method)
+		if strings.TrimSpace(call.inputJSON) != "" && strings.TrimSpace(call.inputJSON) != "{}" {
+			args = append(args, call.inputJSON)
+		}
 	}
 	return args
 }
 
-func invokeConnectedArgs(method string, inputJSON string, noBuild bool) []string {
-	args := []string{method}
+// invokeConnectedArgs serialises calls for the connected (cmdGRPC) path.
+func invokeConnectedArgs(calls []invokeCall, noBuild bool) []string {
+	args := make([]string, 0)
 	if noBuild {
 		args = append(args, "--no-build")
 	}
-	if strings.TrimSpace(inputJSON) != "" && strings.TrimSpace(inputJSON) != "{}" {
-		args = append(args, inputJSON)
+	for _, c := range calls {
+		args = append(args, c.method)
+		if strings.TrimSpace(c.inputJSON) != "" && strings.TrimSpace(c.inputJSON) != "{}" {
+			args = append(args, c.inputJSON)
+		}
 	}
 	return args
 }

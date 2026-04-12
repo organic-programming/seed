@@ -14,7 +14,7 @@ func TestInspect_CLI_LocalHolons(t *testing.T) {
 
 			textResult := sb.RunOP(t, "inspect", spec.Slug)
 			integration.RequireSuccess(t, textResult)
-			integration.RequireContains(t, textResult.Stdout, "GreetingService")
+			integration.RequireContains(t, textResult.Stdout, integration.ExpectedServiceName(spec))
 
 			jsonResult := sb.RunOP(t, "inspect", spec.Slug, "--json")
 			integration.RequireSuccess(t, jsonResult)

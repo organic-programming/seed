@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,8 +18,10 @@ import (
 	"strings"
 	"syscall"
 	"text/tabwriter"
+	"time"
 
 	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
+	sdkgrpcclient "github.com/organic-programming/go-holons/pkg/grpcclient"
 	holonserve "github.com/organic-programming/go-holons/pkg/serve"
 	"github.com/organic-programming/grace-op/api"
 	openv "github.com/organic-programming/grace-op/internal/env"
@@ -439,11 +442,11 @@ func cmdGRPCWebSocket(format Format, uri string, args []string) int {
 		fmt.Fprintf(os.Stderr, "usage: op %s <method>\n", uri)
 		return 1
 	}
-
-	method := args[0]
-	inputJSON := "{}"
-	if len(args) > 1 {
-		inputJSON = args[1]
+	calls, err := parseInvokeCalls(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
+		fmt.Fprintf(os.Stderr, "usage: op %s <method> [json] [<method> [json] ...]\n", uri)
+		return 1
 	}
 
 	// Ensure path includes /grpc if not specified
@@ -451,14 +454,19 @@ func cmdGRPCWebSocket(format Format, uri string, args []string) int {
 		wsURI += "/grpc"
 	}
 
-	result, err := grpcclient.DialWebSocket(wsURI, method, inputJSON)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	conn, err := sdkgrpcclient.DialWebSocket(ctx, wsURI)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
 		return 1
 	}
+	defer conn.Close()
 
-	fmt.Println(formatRPCOutput(format, method, []byte(result.Output)))
-	return 0
+	return emitInvokeResults(format, "op grpc", calls, func(_ int, call invokeCall) (*grpcclient.CallResult, error) {
+		return grpcclient.InvokeConn(ctx, conn, call.method, call.inputJSON)
+	})
 }
 
 // cmdGRPCDirect calls an RPC on an existing gRPC server at the given address.
@@ -476,20 +484,26 @@ func cmdGRPCDirect(format Format, address string, args []string) int {
 		return 0
 	}
 
-	method := args[0]
-	inputJSON := "{}"
-	if len(args) > 1 {
-		inputJSON = args[1]
+	calls, err := parseInvokeCalls(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
+		fmt.Fprintf(os.Stderr, "usage: op %s <method> [json] [<method> [json] ...]\n", address)
+		return 1
 	}
 
-	result, err := grpcclient.Dial(address, method, inputJSON)
+	ctx, cancel := context.WithTimeout(context.Background(), connectDispatchTimeout)
+	defer cancel()
+
+	conn, err := sdkgrpcclient.Dial(ctx, normalizeDialTarget(address))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op grpc: %v\n", err)
 		return 1
 	}
+	defer conn.Close()
 
-	fmt.Println(formatRPCOutput(format, method, []byte(result.Output)))
-	return 0
+	return emitInvokeResults(format, "op grpc", calls, func(_ int, call invokeCall) (*grpcclient.CallResult, error) {
+		return grpcclient.InvokeConn(ctx, conn, call.method, call.inputJSON)
+	})
 }
 
 func discoverInPath() []string {
@@ -505,7 +519,12 @@ func cmdHolon(format Format, runtimeOpts commandRuntimeOptions, holon string, ar
 		return 1
 	}
 
-	method, inputJSON, cleanFirst, noBuild, err := mapHolonCommandToRPC(args)
+	normalizedArgs, cleanFirst, noBuild, err := normalizeHolonInvokeArgs(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "op: %v\n", err)
+		return 1
+	}
+	calls, err := parseInvokeCalls(normalizedArgs)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op: %v\n", err)
 		return 1
@@ -523,7 +542,7 @@ func cmdHolon(format Format, runtimeOpts commandRuntimeOptions, holon string, ar
 			return 1
 		}
 	}
-	return runConnectedRPC(format, "op", holon, method, inputJSON, "auto", noBuild)
+	return runConnectedRPC(format, "op", holon, calls, "auto", noBuild)
 }
 
 func isHostPortTarget(target string) bool {
@@ -531,65 +550,97 @@ func isHostPortTarget(target string) bool {
 	return err == nil
 }
 
-func mapHolonCommandToRPC(args []string) (method string, inputJSON string, cleanFirst bool, noBuild bool, err error) {
+func normalizeHolonInvokeArgs(args []string) (normalized []string, cleanFirst bool, noBuild bool, err error) {
 	if len(args) == 0 {
-		return "", "", false, false, fmt.Errorf("method required")
+		return nil, false, false, fmt.Errorf("method required")
 	}
 	if args[0] == "--clean" {
 		cleanFirst = true
 		args = args[1:]
 		if len(args) == 0 {
-			return "", "", false, false, fmt.Errorf("method required")
+			return nil, false, false, fmt.Errorf("method required")
 		}
 	}
 
-	command := strings.TrimSpace(args[0])
-	rest := args[1:]
-
-	method = mapCommandNameToMethod(command)
-	for _, arg := range rest {
-		if strings.TrimSpace(arg) == "--clean" {
-			return "", "", false, false, fmt.Errorf("--clean must come immediately before the method")
-		}
-	}
-	if len(rest) > 0 && rest[0] == "--no-build" {
+	if len(args) > 0 && args[0] == "--no-build" {
 		noBuild = true
-		rest = rest[1:]
-	}
-	if len(rest) > 0 && looksLikeJSON(rest[0]) {
-		for _, arg := range rest[1:] {
-			if strings.TrimSpace(arg) == "--no-build" {
-				return "", "", false, false, fmt.Errorf("--no-build must come immediately after the method")
-			}
+		args = args[1:]
+		if len(args) == 0 {
+			return nil, cleanFirst, false, fmt.Errorf("method required")
 		}
-		return method, rest[0], cleanFirst, noBuild, nil
 	}
 
-	switch strings.ToLower(command) {
-	case "list":
-		if len(rest) > 0 {
-			payload, err := json.Marshal(map[string]string{"rootDir": rest[0]})
-			if err != nil {
-				return "", "", false, false, err
+	for i := 0; i < len(args); {
+		command := strings.TrimSpace(args[i])
+		switch {
+		case command == "--clean":
+			return nil, false, false, fmt.Errorf("--clean must come immediately before the method")
+		case command == "--no-build":
+			return nil, false, false, fmt.Errorf("--no-build must come immediately after the method")
+		case command == "":
+			return nil, false, false, fmt.Errorf("method required")
+		case looksLikeJSON(command):
+			return nil, false, false, fmt.Errorf("first token must be a method name")
+		}
+		i++
+
+		method := mapCommandNameToMethod(command)
+		normalized = append(normalized, method)
+
+		if !noBuild && i < len(args) && strings.TrimSpace(args[i]) == "--no-build" {
+			noBuild = true
+			i++
+		}
+
+		switch strings.ToLower(command) {
+		case "list":
+			if i < len(args) && looksLikeJSON(args[i]) {
+				normalized = append(normalized, args[i])
+				i++
+				continue
 			}
-			return method, string(payload), cleanFirst, noBuild, nil
+			if i < len(args) && !strings.HasPrefix(strings.TrimSpace(args[i]), "--") {
+				payload, err := json.Marshal(map[string]string{"rootDir": args[i]})
+				if err != nil {
+					return nil, false, false, err
+				}
+				normalized = append(normalized, string(payload))
+				i++
+			}
+		case "show":
+			if i >= len(args) || looksLikeJSON(args[i]) || strings.HasPrefix(strings.TrimSpace(args[i]), "--") {
+				return nil, false, false, fmt.Errorf("show requires <uuid>")
+			}
+			payload, err := json.Marshal(map[string]string{"uuid": args[i]})
+			if err != nil {
+				return nil, false, false, err
+			}
+			normalized = append(normalized, string(payload))
+			i++
+		default:
+			if i < len(args) && looksLikeJSON(args[i]) {
+				normalized = append(normalized, args[i])
+				i++
+			}
 		}
-		return method, "{}", cleanFirst, noBuild, nil
-	case "show":
-		if len(rest) < 1 {
-			return "", "", false, false, fmt.Errorf("show requires <uuid>")
-		}
-		payload, err := json.Marshal(map[string]string{"uuid": rest[0]})
-		if err != nil {
-			return "", "", false, false, err
-		}
-		return method, string(payload), cleanFirst, noBuild, nil
-	default:
-		if len(rest) > 0 && rest[0] == "--no-build" {
-			return "", "", false, false, fmt.Errorf("--no-build must come immediately after the method")
-		}
-		return method, "{}", cleanFirst, noBuild, nil
 	}
+
+	return normalized, cleanFirst, noBuild, nil
+}
+
+func mapHolonCommandToRPC(args []string) (method string, inputJSON string, cleanFirst bool, noBuild bool, err error) {
+	normalized, cleanFirst, noBuild, err := normalizeHolonInvokeArgs(args)
+	if err != nil {
+		return "", "", false, false, err
+	}
+	calls, err := parseInvokeCalls(normalized)
+	if err != nil {
+		return "", "", false, false, err
+	}
+	if len(calls) != 1 {
+		return "", "", false, false, fmt.Errorf("multiple calls are not supported in this context")
+	}
+	return calls[0].method, calls[0].inputJSON, cleanFirst, noBuild, nil
 }
 
 func mapCommandNameToMethod(command string) string {
