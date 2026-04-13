@@ -1009,13 +1009,7 @@ func compositeBundleDisplayName(manifest *holons.LoadedManifest) string {
 	}
 
 	family := compositeDisplayFamily(manifest)
-	if family == "" {
-		return ""
-	}
-	if strings.HasPrefix(family, "Gudule ") {
-		return family
-	}
-	return "Gudule " + family
+	return family
 }
 
 func compositeDisplayFamily(manifest *holons.LoadedManifest) string {
