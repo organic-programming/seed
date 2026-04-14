@@ -20,7 +20,7 @@ module Gen
       composer: "B. ALTER",
       status: "draft",
       born: "2026-03-16",
-      version: "8.8.142",
+      version: "8.8.143",
     ),
     description: "A Ruby gRPC daemon that greets users in 56 languages.",
     lang: "ruby",
