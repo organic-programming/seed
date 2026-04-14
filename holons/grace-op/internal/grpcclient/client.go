@@ -420,7 +420,7 @@ func callMethod(ctx context.Context, conn *grpc.ClientConn, svc protoreflect.Ser
 	}
 
 	// Marshal output to JSON
-	outputBytes, err := protojson.MarshalOptions{}.Marshal(outputMsg)
+	outputBytes, err := protojson.MarshalOptions{EmitUnpopulated: true}.Marshal(outputMsg)
 	if err != nil {
 		return nil, fmt.Errorf("marshal output: %w", err)
 	}

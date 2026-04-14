@@ -54,6 +54,9 @@ func (c activeConnection) close() error {
 
 type invokeExecutor func(index int, call invokeCall) (*internalgrpc.CallResult, error)
 
+var invokeRemoteRPC = internalgrpc.InvokeConn
+var invokeLocalCatalogRPC = invokeConnViaLocalCatalog
+
 func emitInvokeResults(format Format, errPrefix string, calls []invokeCall, invoke invokeExecutor) int {
 	for i, call := range calls {
 		result, err := invoke(i, call)
@@ -96,15 +99,22 @@ func runConnectedRPC(
 	defer cancel()
 
 	return emitInvokeResults(format, errPrefix, calls, func(_ int, call invokeCall) (*internalgrpc.CallResult, error) {
-		result, callErr := internalgrpc.InvokeConn(ctx, conn.conn, call.method, call.inputJSON)
-		if callErr != nil {
-			if localResult, localErr := invokeConnViaLocalCatalog(ctx, conn.conn, holonName, call.method, call.inputJSON); localErr == nil {
-				result = localResult
-				callErr = nil
-			}
-		}
-		return result, callErr
+		return invokeConnectedHolonCall(ctx, conn.conn, holonName, call)
 	})
+}
+
+func invokeConnectedHolonCall(
+	ctx context.Context,
+	conn *grpc.ClientConn,
+	holonName string,
+	call invokeCall,
+) (*internalgrpc.CallResult, error) {
+	if holonName != "" {
+		if localResult, localErr := invokeLocalCatalogRPC(ctx, conn, holonName, call.method, call.inputJSON); localErr == nil {
+			return localResult, nil
+		}
+	}
+	return invokeRemoteRPC(ctx, conn, call.method, call.inputJSON)
 }
 
 // compactJSON returns a single-line JSON string with no extra whitespace.
