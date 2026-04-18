@@ -3,7 +3,6 @@ go 1.26.1
 use (
 	./examples/hello-world/gabriel-greeting-go
 	./examples/calculator/matt-calculator-go
-	./holons/james-loops
 	./holons/clem-ader
 	./holons/grace-op
 	./ader/catalogues/grace-op/integration
