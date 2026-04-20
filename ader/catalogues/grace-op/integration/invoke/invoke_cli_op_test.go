@@ -20,7 +20,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "Discover",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"root_dir": f.Workspace}) },
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"root_dir": f.Workspace})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -34,7 +36,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "Invoke",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"holon": "go", "args": []string{"version"}}) },
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"holon": "go", "args": []string{"version"}})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -47,7 +51,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "CreateIdentity",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.ScratchDir },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"given_name": "Alpha", "family_name": "Builder", "motto": "Builds holons.", "composer": "test", "clade": "DETERMINISTIC_IO_BOUND", "lang": "go", "output_dir": filepath.Join(f.ScratchDir, "created")}) },
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"given_name": "Alpha", "family_name": "Builder", "motto": "Builds holons.", "composer": "test", "clade": "DETERMINISTIC_IO_BOUND", "lang": "go", "output_dir": filepath.Join(f.ScratchDir, "created")})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, f invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -63,7 +69,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "ListIdentities",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"root_dir": f.Workspace}) },
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"root_dir": f.Workspace})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -108,7 +116,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "GenerateTemplate",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.ScratchDir },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"template": "composite-go-web", "slug": "my-console", "dir": filepath.Join(f.ScratchDir, "templates")}) },
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"template": "coax-swiftui", "slug": "my-console", "dir": filepath.Join(f.ScratchDir, "templates")})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, f invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -137,7 +147,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "Check",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"target": "gabriel-greeting-go"}) },
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"target": "gabriel-greeting-go"})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -151,7 +163,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "Build",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"target": "gabriel-greeting-go", "build": map[string]any{"dry_run": true}}) },
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"target": "gabriel-greeting-go", "build": map[string]any{"dry_run": true}})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -165,7 +179,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "Test",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"target": f.TestTarget}) },
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"target": f.TestTarget})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, f invokeOPFixture) {
 				t.Helper()
 				if f.TestTarget == "" {
@@ -182,8 +198,12 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "Clean",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
-			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) { integration.BuildReportFor(t, sb, "gabriel-greeting-go") },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"target": "gabriel-greeting-go"}) },
+			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) {
+				integration.BuildReportFor(t, sb, "gabriel-greeting-go")
+			},
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"target": "gabriel-greeting-go"})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -197,7 +217,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "Install",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"target": "gabriel-greeting-go", "build": true}) },
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"target": "gabriel-greeting-go", "build": true})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -211,8 +233,12 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "Uninstall",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
-			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) { integration.InstallReportFor(t, sb, "--build", "gabriel-greeting-go") },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"target": "gabriel-greeting-go.holon"}) },
+			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) {
+				integration.InstallReportFor(t, sb, "--build", "gabriel-greeting-go")
+			},
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"target": "gabriel-greeting-go.holon"})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -226,8 +252,12 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "Run",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
-			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) { integration.RemoveArtifactFor(t, sb, "gabriel-greeting-go") },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"holon": "gabriel-greeting-go", "no_build": true}) },
+			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) {
+				integration.RemoveArtifactFor(t, sb, "gabriel-greeting-go")
+			},
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"holon": "gabriel-greeting-go", "no_build": true})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
 				integration.RequireFailure(t, result)
@@ -237,7 +267,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "Inspect",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"target": "gabriel-greeting-go"}) },
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"target": "gabriel-greeting-go"})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -252,7 +284,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "RunSequence",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"holon": "gabriel-greeting-go", "sequence": "multilingual-greeting", "params": map[string]any{"name": "Alice", "lang_code": "fr"}, "dry_run": true}) },
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"holon": "gabriel-greeting-go", "sequence": "multilingual-greeting", "params": map[string]any{"name": "Alice", "lang_code": "fr"}, "dry_run": true})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -267,7 +301,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "ModInit",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.ModRoot },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"holon_path": "alpha-builder"}) },
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"holon_path": "alpha-builder"})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -280,8 +316,13 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "ModAdd",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.ModRoot },
-			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) { writeInvokeCachedDependencyFixture(t, sb, f.DepPath, f.DepVersion); _ = os.WriteFile(filepath.Join(f.ModRoot, "holon.mod"), []byte("holon alpha-builder\n"), 0o644) },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"module": f.DepPath, "version": f.DepVersion}) },
+			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) {
+				writeInvokeCachedDependencyFixture(t, sb, f.DepPath, f.DepVersion)
+				_ = os.WriteFile(filepath.Join(f.ModRoot, "holon.mod"), []byte("holon alpha-builder\n"), 0o644)
+			},
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"module": f.DepPath, "version": f.DepVersion})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, f invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)
@@ -295,7 +336,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "ModRemove",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.ModRoot },
-			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) { writeInvokeModDependency(t, sb, f) },
+			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) {
+				writeInvokeModDependency(t, sb, f)
+			},
 			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"module": f.DepPath}) },
 			assert: func(t *testing.T, result integration.CmdResult, f invokeOPFixture) {
 				t.Helper()
@@ -327,7 +370,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "ModPull",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.ModRoot },
-			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) { writeInvokeModDependency(t, sb, f) },
+			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) {
+				writeInvokeModDependency(t, sb, f)
+			},
 			payload: func(t *testing.T, f invokeOPFixture) string { return "{}" },
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
@@ -342,7 +387,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "ModUpdate",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.ModRoot },
-			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) { writeInvokeModDependency(t, sb, f) },
+			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) {
+				writeInvokeModDependency(t, sb, f)
+			},
 			payload: func(t *testing.T, f invokeOPFixture) string { return "{}" },
 			assert: func(t *testing.T, result integration.CmdResult, f invokeOPFixture) {
 				t.Helper()
@@ -370,7 +417,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "ModList",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.ModRoot },
-			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) { writeInvokeModDependency(t, sb, f) },
+			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) {
+				writeInvokeModDependency(t, sb, f)
+			},
 			payload: func(t *testing.T, f invokeOPFixture) string { return "{}" },
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
@@ -385,7 +434,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "ModGraph",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.ModRoot },
-			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) { writeInvokeModDependency(t, sb, f) },
+			prepare: func(t *testing.T, sb *integration.Sandbox, transport invokeTransport, f invokeOPFixture) {
+				writeInvokeModDependency(t, sb, f)
+			},
 			payload: func(t *testing.T, f invokeOPFixture) string { return "{}" },
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
@@ -400,7 +451,9 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		{
 			name:    "Tools",
 			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
-			payload: func(t *testing.T, f invokeOPFixture) string { return mustJSON(t, map[string]any{"target": "gabriel-greeting-go", "format": "openai"}) },
+			payload: func(t *testing.T, f invokeOPFixture) string {
+				return mustJSON(t, map[string]any{"target": "gabriel-greeting-go", "format": "openai"})
+			},
 			assert: func(t *testing.T, result integration.CmdResult, _ invokeOPFixture) {
 				t.Helper()
 				integration.RequireSuccess(t, result)

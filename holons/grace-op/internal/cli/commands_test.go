@@ -210,16 +210,13 @@ func TestRunNewListTemplates(t *testing.T) {
 		}
 	})
 
-	for _, expected := range []string{
-		"coax-flutter",
-		"coax-swiftui",
-		"composite-go-swiftui",
-		"composite-go-web",
-		"composite-python-web",
-	} {
-		if !strings.Contains(output, expected) {
-			t.Fatalf("template list missing %q: %q", expected, output)
-		}
+	got := strings.Split(strings.TrimSpace(output), "\n")
+	want := []string{
+		"coax-flutter\tFlutter organism app holon scaffold with reusable COAX runtime and UI.",
+		"coax-swiftui\tSwiftUI organism app holon scaffold with reusable COAX runtime and UI.",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("template list = %v, want %v", got, want)
 	}
 }
 
@@ -228,23 +225,23 @@ func TestRunNewTemplateCreatesScaffold(t *testing.T) {
 	chdirForTest(t, root)
 
 	output := captureStdout(t, func() {
-		code := Run([]string{"new", "--template", "composite-dart-flutter", "delta-engine"}, "0.1.0-test")
+		code := Run([]string{"new", "--template", "coax-flutter", "delta-engine"}, "0.1.0-test")
 		if code != 0 {
 			t.Fatalf("template new returned %d, want 0", code)
 		}
 	})
 
-	if !strings.Contains(output, "Created delta-engine from composite-dart-flutter") {
+	if !strings.Contains(output, "Created delta-engine from coax-flutter") {
 		t.Fatalf("stdout missing creation summary: %q", output)
 	}
 
-	manifestPath := filepath.Join(root, "delta-engine", "api", "v1", identity.ManifestFileName)
-	data, err := os.ReadFile(manifestPath)
+	pubspecPath := filepath.Join(root, "delta-engine", "app", "pubspec.yaml")
+	data, err := os.ReadFile(pubspecPath)
 	if err != nil {
-		t.Fatalf("ReadFile(%s) failed: %v", manifestPath, err)
+		t.Fatalf("ReadFile(%s) failed: %v", pubspecPath, err)
 	}
-	if !strings.Contains(string(data), `motto: "dart + flutter holon composite."`) {
-		t.Fatalf("generated manifest missing dart/flutter alias wiring: %s", string(data))
+	if !strings.Contains(string(data), `name: delta_engine_app`) {
+		t.Fatalf("generated pubspec missing scaffold wiring: %s", string(data))
 	}
 }
 
@@ -253,7 +250,7 @@ func TestRunNewTemplateJSONOutput(t *testing.T) {
 	chdirForTest(t, root)
 
 	output := captureStdout(t, func() {
-		code := Run([]string{"--format", "json", "new", "--template", "composite-go-swiftui", "my-console"}, "0.1.0-test")
+		code := Run([]string{"--format", "json", "new", "--template", "coax-swiftui", "my-console"}, "0.1.0-test")
 		if code != 0 {
 			t.Fatalf("template new json returned %d, want 0", code)
 		}
@@ -266,8 +263,8 @@ func TestRunNewTemplateJSONOutput(t *testing.T) {
 	if err := json.Unmarshal([]byte(output), &payload); err != nil {
 		t.Fatalf("template new json invalid: %v\noutput=%s", err, output)
 	}
-	if payload.Template != "composite-go-swiftui" {
-		t.Fatalf("template = %q, want %q", payload.Template, "composite-go-swiftui")
+	if payload.Template != "coax-swiftui" {
+		t.Fatalf("template = %q, want %q", payload.Template, "coax-swiftui")
 	}
 	gotDir, err := filepath.EvalSymlinks(payload.Dir)
 	if err != nil {
@@ -279,6 +276,22 @@ func TestRunNewTemplateJSONOutput(t *testing.T) {
 	}
 	if gotDir != wantDir {
 		t.Fatalf("dir = %q, want %q", payload.Dir, wantDir)
+	}
+}
+
+func TestRunNewTemplateRejectsRemovedCompositeTemplate(t *testing.T) {
+	root := t.TempDir()
+	chdirForTest(t, root)
+
+	stderr := captureStderr(t, func() {
+		code := Run([]string{"new", "--template", "composite-go-web", "my-console"}, "0.1.0-test")
+		if code == 0 {
+			t.Fatal("template new returned 0, want failure")
+		}
+	})
+
+	if !strings.Contains(stderr, `op new: unknown template "composite-go-web"`) {
+		t.Fatalf("stderr missing unknown-template error: %q", stderr)
 	}
 }
 
@@ -632,7 +645,7 @@ func TestNormalizeMacOSAppBundleMetadataUsesCompositeIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := string(data)
-	if !strings.Contains(content, "<string>Gudule Greeting-Kotlinui-Csharp (Kotlin UI)</string>") {
+	if !strings.Contains(content, "<string>Greeting-Kotlinui-Csharp (Kotlin UI)</string>") {
 		t.Fatalf("normalized plist missing display name: %s", content)
 	}
 	if !strings.Contains(content, "<string>org.organicprogramming.gudule-greeting-kotlinui-csharp</string>") {
@@ -643,7 +656,7 @@ func TestNormalizeMacOSAppBundleMetadataUsesCompositeIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(cfgData), "java-options=-Xdock:name=Gudule Greeting-Kotlinui-Csharp (Kotlin UI)") {
+	if !strings.Contains(string(cfgData), "java-options=-Xdock:name=Greeting-Kotlinui-Csharp (Kotlin UI)") {
 		t.Fatalf("normalized cfg missing dock name: %s", string(cfgData))
 	}
 }
@@ -660,8 +673,8 @@ func TestCompositeDisplayFamilyLabelsWebAssemblies(t *testing.T) {
 	if got := compositeDisplayFamily(manifest); got != "Greeting-Go-Web (Web UI)" {
 		t.Fatalf("compositeDisplayFamily = %q, want %q", got, "Greeting-Go-Web (Web UI)")
 	}
-	if got := compositeBundleDisplayName(manifest); got != "Gudule Greeting-Go-Web (Web UI)" {
-		t.Fatalf("compositeBundleDisplayName = %q, want %q", got, "Gudule Greeting-Go-Web (Web UI)")
+	if got := compositeBundleDisplayName(manifest); got != "Greeting-Go-Web (Web UI)" {
+		t.Fatalf("compositeBundleDisplayName = %q, want %q", got, "Greeting-Go-Web (Web UI)")
 	}
 }
 

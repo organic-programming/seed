@@ -36,21 +36,20 @@ func TestNew_CLI_ListTemplates(t *testing.T) {
 	root := t.TempDir()
 	result := sb.RunOPWithOptions(t, integration.RunOptions{SkipDiscoverRoot: true, WorkDir: root}, "new", "--list")
 	integration.RequireSuccess(t, result)
-	for _, expected := range []string{
-		"coax-flutter",
-		"coax-swiftui",
-		"composite-go-swiftui",
-		"composite-go-web",
-		"composite-python-web",
-	} {
-		integration.RequireContains(t, result.Stdout, expected)
+	got := strings.Split(strings.TrimSpace(result.Stdout), "\n")
+	want := []string{
+		"coax-flutter\tFlutter organism app holon scaffold with reusable COAX runtime and UI.",
+		"coax-swiftui\tSwiftUI organism app holon scaffold with reusable COAX runtime and UI.",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("template list = %v, want %v", got, want)
 	}
 }
 
 func TestNew_CLI_TemplateJSONOutput(t *testing.T) {
 	sb := integration.NewSandbox(t)
 	root := t.TempDir()
-	result := sb.RunOPWithOptions(t, integration.RunOptions{SkipDiscoverRoot: true, WorkDir: root}, "--format", "json", "new", "--template", "composite-go-web", "my-console")
+	result := sb.RunOPWithOptions(t, integration.RunOptions{SkipDiscoverRoot: true, WorkDir: root}, "--format", "json", "new", "--template", "coax-swiftui", "my-console")
 	integration.RequireSuccess(t, result)
 
 	var payload struct {
@@ -61,8 +60,8 @@ func TestNew_CLI_TemplateJSONOutput(t *testing.T) {
 		Template string `json:"template"`
 		Dir      string `json:"dir"`
 	}](t, result.Stdout)
-	if payload.Template != "composite-go-web" {
-		t.Fatalf("template = %q, want composite-go-web", payload.Template)
+	if payload.Template != "coax-swiftui" {
+		t.Fatalf("template = %q, want coax-swiftui", payload.Template)
 	}
 	if !strings.Contains(payload.Dir, "my-console") {
 		t.Fatalf("dir = %q, want generated scaffold path", payload.Dir)

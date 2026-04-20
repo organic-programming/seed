@@ -17,8 +17,9 @@ func TestRunCLIVersion(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("RunCLI returned %d, want 0", code)
 	}
-	if got := strings.TrimSpace(stdout.String()); got != "gabriel-greeting-go {{ .Version }}" {
-		t.Fatalf("version = %q, want %q", got, "gabriel-greeting-go {{ .Version }}")
+	expected := "gabriel-greeting-go " + api.VersionString()
+	if got := strings.TrimSpace(stdout.String()); got != expected {
+		t.Fatalf("version = %q, want %q", got, expected)
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q, want empty", stderr.String())

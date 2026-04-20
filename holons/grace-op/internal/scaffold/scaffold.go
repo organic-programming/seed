@@ -3,6 +3,7 @@ package scaffold
 import (
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -39,7 +40,6 @@ type Entry struct {
 	Lang        string
 	Params      []Param
 	dir         string
-	alias       string
 }
 
 type GenerateOptions struct {
@@ -52,32 +52,6 @@ type GenerateResult struct {
 	Dir      string `json:"dir"`
 }
 
-type compositeSpec struct {
-	lang   string
-	runner string
-}
-
-var compositeHolons = map[string]compositeSpec{
-	"go":     {lang: "go", runner: "go-module"},
-	"rust":   {lang: "rust", runner: "cargo"},
-	"python": {lang: "python", runner: "python"},
-	"swift":  {lang: "swift", runner: "swift-package"},
-	"kotlin": {lang: "kotlin", runner: "gradle"},
-	"dart":   {lang: "dart", runner: "dart"},
-	"csharp": {lang: "csharp", runner: "dotnet"},
-	"node":   {lang: "node", runner: "npm"},
-	"cpp":    {lang: "cpp", runner: "cmake"},
-}
-
-var compositeHostUIs = map[string]compositeSpec{
-	"swiftui": {lang: "swift", runner: "swift-package"},
-	"flutter": {lang: "dart", runner: "flutter"},
-	"kotlin":  {lang: "kotlin", runner: "gradle"},
-	"web":     {lang: "web", runner: "recipe"},
-	"dotnet":  {lang: "csharp", runner: "dotnet"},
-	"qt":      {lang: "cpp", runner: "qt-cmake"},
-}
-
 func List() ([]Entry, error) {
 	dirs, err := fs.ReadDir(templatesfs.FS, catalogRoot)
 	if err != nil {
@@ -88,26 +62,11 @@ func List() ([]Entry, error) {
 		if !dir.IsDir() {
 			continue
 		}
-		if dir.Name() == "composite-generic" {
-			continue
-		}
 		entry, err := loadEntry(dir.Name())
 		if err != nil {
 			return nil, err
 		}
 		entries = append(entries, entry)
-	}
-	for holon := range compositeHolons {
-		for hostui := range compositeHostUIs {
-			name := fmt.Sprintf("composite-%s-%s", holon, hostui)
-			entries = append(entries, Entry{
-				Name:        name,
-				Description: fmt.Sprintf("Composite %s holon + %s app holon assembly", holon, hostui),
-				Lang:        compositeHolons[holon].lang + "+" + compositeHostUIs[hostui].lang,
-				dir:         "composite-generic",
-				alias:       name,
-			})
-		}
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Name < entries[j].Name })
 	return entries, nil
@@ -191,24 +150,14 @@ func Generate(templateName, slug string, opts GenerateOptions) (GenerateResult, 
 }
 
 func resolveEntry(name string) (Entry, error) {
-	if entry, err := loadEntry(name); err == nil {
+	entry, err := loadEntry(name)
+	if err == nil {
 		return entry, nil
 	}
-	parts := strings.Split(strings.TrimPrefix(name, "composite-"), "-")
-	if len(parts) == 2 && strings.HasPrefix(name, "composite-") {
-		if _, ok := compositeHolons[parts[0]]; ok {
-			if _, ok := compositeHostUIs[parts[1]]; ok {
-				return Entry{
-					Name:        name,
-					Description: fmt.Sprintf("Composite %s holon + %s app holon assembly", parts[0], parts[1]),
-					Lang:        compositeHolons[parts[0]].lang + "+" + compositeHostUIs[parts[1]].lang,
-					dir:         "composite-generic",
-					alias:       name,
-				}, nil
-			}
-		}
+	if errors.Is(err, fs.ErrNotExist) {
+		return Entry{}, fmt.Errorf("unknown template %q", name)
 	}
-	return Entry{}, fmt.Errorf("unknown template %q", name)
+	return Entry{}, err
 }
 
 func loadEntry(name string) (Entry, error) {
@@ -264,13 +213,6 @@ func buildContext(entry Entry, slug string, overrides map[string]string) (map[st
 			ctx[param.Name] = value
 			ctx[pascalCase(param.Name)] = value
 		}
-	}
-	if entry.alias != "" && strings.HasPrefix(entry.alias, "composite-") {
-		parts := strings.Split(strings.TrimPrefix(entry.alias, "composite-"), "-")
-		ctx["HolonKind"] = parts[0]
-		ctx["HostUIKind"] = parts[1]
-		ctx["HolonRunner"] = compositeHolons[parts[0]].runner
-		ctx["HostUIRunner"] = compositeHostUIs[parts[1]].runner
 	}
 	if _, ok := ctx["service"]; !ok {
 		ctx["service"] = pascalCase(family) + "Service"

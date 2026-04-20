@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -15,37 +14,37 @@ import (
 
 func TestBuildSuggestionsIncludeTestInstallRunAndDirectLaunch(t *testing.T) {
 	root := t.TempDir()
-	manifest := writeSuggestManifest(t, root, holons.KindNative, "rob-go", map[string]any{"grpc": true})
+	manifest := writeSuggestManifest(t, root, holons.KindNative, "dummy-holon", map[string]any{"grpc": true})
 	restore := currentGOOS
 	currentGOOS = func() string { return "linux" }
 	t.Cleanup(func() { currentGOOS = restore })
-	expectedBinary := filepath.ToSlash(filepath.Join(".op", "build", "rob-go.holon", "bin", runtime.GOOS+"_"+runtime.GOARCH, "rob-go"))
+	expectedBinary := ".op/build/dummy-holon.holon"
 
 	var buf bytes.Buffer
 	Print(&buf, Context{
 		Command:     "build",
-		Holon:       "rob-go",
+		Holon:       "dummy-holon",
 		Manifest:    manifest,
 		BuildTarget: "linux",
-		Artifact:    ".op/build/rob-go.holon",
+		Artifact:    ".op/build/dummy-holon.holon",
 	})
 
 	out := buf.String()
 	for _, expected := range []string{
 		"Next steps:",
-		"op test rob-go",
-		"op install rob-go",
-		"op run rob-go:9090",
+		"op test dummy-holon",
+		"op install dummy-holon",
+		"op run dummy-holon:9090",
 		expectedBinary + " --help",
 	} {
 		if !strings.Contains(out, expected) {
 			t.Fatalf("output missing %q: %q", expected, out)
 		}
 	}
-	if strings.Contains(out, "op test rob-go  run tests") {
+	if strings.Contains(out, "op test dummy-holon  run tests") {
 		t.Fatalf("output still renders command and description on one line: %q", out)
 	}
-	if !strings.Contains(out, "    - run tests\n      op test rob-go\n") {
+	if !strings.Contains(out, "    - run tests\n      op test dummy-holon\n") {
 		t.Fatalf("output missing separated command layout: %q", out)
 	}
 }
@@ -68,7 +67,7 @@ func TestBuildSuggestionsSkipInstallForCompositeAndNoEmptyBlock(t *testing.T) {
 
 func TestTestSuggestionsDependOnArtifactPresence(t *testing.T) {
 	root := t.TempDir()
-	manifest := writeSuggestManifest(t, root, holons.KindNative, "rob-go", nil)
+	manifest := writeSuggestManifest(t, root, holons.KindNative, "dummy-holon", nil)
 	restore := currentGOOS
 	currentGOOS = func() string { return "linux" }
 	t.Cleanup(func() { currentGOOS = restore })
@@ -76,15 +75,15 @@ func TestTestSuggestionsDependOnArtifactPresence(t *testing.T) {
 	var buf bytes.Buffer
 	Print(&buf, Context{
 		Command:     "test",
-		Holon:       "rob-go",
+		Holon:       "dummy-holon",
 		Manifest:    manifest,
 		BuildTarget: "linux",
 	})
 	out := buf.String()
-	if !strings.Contains(out, "op build rob-go") {
+	if !strings.Contains(out, "op build dummy-holon") {
 		t.Fatalf("test suggestions missing build step: %q", out)
 	}
-	if !strings.Contains(out, "op install rob-go") {
+	if !strings.Contains(out, "op install dummy-holon") {
 		t.Fatalf("test suggestions missing install step: %q", out)
 	}
 
@@ -98,19 +97,19 @@ func TestTestSuggestionsDependOnArtifactPresence(t *testing.T) {
 	buf.Reset()
 	Print(&buf, Context{
 		Command:     "test",
-		Holon:       "rob-go",
+		Holon:       "dummy-holon",
 		Manifest:    manifest,
 		BuildTarget: "linux",
 	})
 	out = buf.String()
-	if strings.Contains(out, "op build rob-go") {
+	if strings.Contains(out, "op build dummy-holon") {
 		t.Fatalf("test suggestions still show build after artifact exists: %q", out)
 	}
 }
 
 func TestInstallSuggestionsUseInstalledPath(t *testing.T) {
 	root := t.TempDir()
-	manifest := writeSuggestManifest(t, root, holons.KindWrapper, "rob-go", map[string]any{"grpc": true})
+	manifest := writeSuggestManifest(t, root, holons.KindWrapper, "dummy-holon", map[string]any{"grpc": true})
 	restore := currentGOOS
 	currentGOOS = func() string { return "linux" }
 	t.Cleanup(func() { currentGOOS = restore })
@@ -118,16 +117,16 @@ func TestInstallSuggestionsUseInstalledPath(t *testing.T) {
 	var buf bytes.Buffer
 	Print(&buf, Context{
 		Command:     "install",
-		Holon:       "rob-go",
+		Holon:       "dummy-holon",
 		Manifest:    manifest,
 		BuildTarget: "linux",
-		Installed:   filepath.Join(root, ".op", "bin", "rob-go.holon"),
+		Installed:   filepath.Join(root, ".op", "bin", "dummy-holon.holon"),
 	})
 	out := buf.String()
-	if !strings.Contains(out, "op run rob-go:9090") {
+	if !strings.Contains(out, "op run dummy-holon:9090") {
 		t.Fatalf("install suggestions missing run command: %q", out)
 	}
-	expectedInstalledBinary := filepath.Join(root, ".op", "bin", "rob-go.holon", "bin", runtime.GOOS+"_"+runtime.GOARCH, "rob-go") + " --help"
+	expectedInstalledBinary := filepath.Join(root, ".op", "bin", "dummy-holon.holon") + " --help"
 	if !strings.Contains(out, expectedInstalledBinary) {
 		t.Fatalf("install suggestions missing direct run: %q", out)
 	}
@@ -144,7 +143,7 @@ func TestModAndNewSuggestions(t *testing.T) {
 		{"mod add", "", []string{"op mod pull", "op build"}},
 		{"mod tidy", "", []string{"op mod pull", "op build"}},
 		{"new", "megg-prober", []string{"op check megg-prober", "op build megg-prober"}},
-		{"clean", "rob-go", []string{"op build rob-go"}},
+		{"clean", "dummy-holon", []string{"op build dummy-holon"}},
 	}
 
 	for _, tc := range tests {
@@ -163,7 +162,7 @@ func TestModAndNewSuggestions(t *testing.T) {
 
 func TestPlatformAwareNoteForMismatchedBuildTarget(t *testing.T) {
 	root := t.TempDir()
-	manifest := writeSuggestManifest(t, root, holons.KindNative, "rob-go", nil)
+	manifest := writeSuggestManifest(t, root, holons.KindNative, "dummy-holon", nil)
 
 	restore := currentGOOS
 	currentGOOS = func() string { return "linux" }
@@ -172,16 +171,16 @@ func TestPlatformAwareNoteForMismatchedBuildTarget(t *testing.T) {
 	var buf bytes.Buffer
 	Print(&buf, Context{
 		Command:     "build",
-		Holon:       "rob-go",
+		Holon:       "dummy-holon",
 		Manifest:    manifest,
 		BuildTarget: "macos",
-		Artifact:    ".op/build/rob-go.holon",
+		Artifact:    ".op/build/dummy-holon.holon",
 	})
 	out := buf.String()
 	if !strings.Contains(out, "built for macos, current platform is linux") {
 		t.Fatalf("output missing platform mismatch note: %q", out)
 	}
-	if strings.Contains(out, ".op/build/rob-go.holon/bin/") {
+	if strings.Contains(out, ".op/build/dummy-holon.holon/bin/") {
 		t.Fatalf("output unexpectedly contains direct launch on mismatched platform: %q", out)
 	}
 }
