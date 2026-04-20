@@ -247,8 +247,8 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 		}
 		defer restoreFn()
 
-		if err := executePipelineHooks(target.Manifest, ctx, &report, target.Manifest.Manifest.Build.BeforeCommands); err != nil {
-			err = fmt.Errorf("before commands: %w", err)
+		if hookErr := executePipelineHooks(target.Manifest, ctx, &report, target.Manifest.Manifest.Build.BeforeCommands); hookErr != nil {
+			err = fmt.Errorf("before commands: %w", hookErr)
 			break
 		}
 
@@ -257,8 +257,8 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 			break
 		}
 
-		if err := executePipelineHooks(target.Manifest, ctx, &report, target.Manifest.Manifest.Build.AfterCommands); err != nil {
-			err = fmt.Errorf("after commands: %w", err)
+		if hookErr := executePipelineHooks(target.Manifest, ctx, &report, target.Manifest.Manifest.Build.AfterCommands); hookErr != nil {
+			err = fmt.Errorf("after commands: %w", hookErr)
 			break
 		}
 		if err == nil && !ctx.DryRun && !isAggregateBuildTarget(ctx.Target) {

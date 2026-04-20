@@ -498,7 +498,11 @@ type HolonManifest_Build struct {
 	Targets  map[string]*HolonManifest_Build_Target `protobuf:"bytes,5,rep,name=targets,proto3" json:"targets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Source files containing Go template expressions (e.g. {{ .Version }}).
 	// Resolved with identity data before the language build, restored after.
-	Templates     []string `protobuf:"bytes,6,rep,name=templates,proto3" json:"templates,omitempty"`
+	Templates []string `protobuf:"bytes,6,rep,name=templates,proto3" json:"templates,omitempty"`
+	// Commands to execute sequentially BEFORE the main runner logic.
+	BeforeCommands []*HolonManifest_Step_Exec `protobuf:"bytes,7,rep,name=before_commands,json=beforeCommands,proto3" json:"before_commands,omitempty"`
+	// Commands to execute sequentially AFTER the main runner logic.
+	AfterCommands []*HolonManifest_Step_Exec `protobuf:"bytes,8,rep,name=after_commands,json=afterCommands,proto3" json:"after_commands,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -571,6 +575,20 @@ func (x *HolonManifest_Build) GetTargets() map[string]*HolonManifest_Build_Targe
 func (x *HolonManifest_Build) GetTemplates() []string {
 	if x != nil {
 		return x.Templates
+	}
+	return nil
+}
+
+func (x *HolonManifest_Build) GetBeforeCommands() []*HolonManifest_Step_Exec {
+	if x != nil {
+		return x.BeforeCommands
+	}
+	return nil
+}
+
+func (x *HolonManifest_Build) GetAfterCommands() []*HolonManifest_Step_Exec {
+	if x != nil {
+		return x.AfterCommands
 	}
 	return nil
 }
@@ -947,7 +965,7 @@ func (x *HolonManifest_Build_Defaults) GetMode() string {
 
 type HolonManifest_Build_Member struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`     // e.g. "daemon", "app"
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`     // e.g. "holon", "app"
 	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"` // relative path to the member
 	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"` // holon | component
 	unknownFields protoimpl.UnknownFields
@@ -1330,7 +1348,7 @@ var File_holons_v1_manifest_proto protoreflect.FileDescriptor
 
 const file_holons_v1_manifest_proto_rawDesc = "" +
 	"\n" +
-	"\x18holons/v1/manifest.proto\x12\tholons.v1\x1a google/protobuf/descriptor.proto\"\xb0\x16\n" +
+	"\x18holons/v1/manifest.proto\x12\tholons.v1\x1a google/protobuf/descriptor.proto\"\xc8\x17\n" +
 	"\rHolonManifest\x12=\n" +
 	"\bidentity\x18\x01 \x01(\v2!.holons.v1.HolonManifest.IdentityR\bidentity\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x12\n" +
@@ -1378,14 +1396,16 @@ const file_holons_v1_manifest_proto_rawDesc = "" +
 	"\bContract\x12\x14\n" +
 	"\x05proto\x18\x01 \x01(\tR\x05proto\x12\x18\n" +
 	"\aservice\x18\x02 \x01(\tR\aservice\x12\x12\n" +
-	"\x04rpcs\x18\x03 \x03(\tR\x04rpcs\x1a\xba\x04\n" +
+	"\x04rpcs\x18\x03 \x03(\tR\x04rpcs\x1a\xd2\x05\n" +
 	"\x05Build\x12\x16\n" +
 	"\x06runner\x18\x01 \x01(\tR\x06runner\x12\x12\n" +
 	"\x04main\x18\x02 \x01(\tR\x04main\x12C\n" +
 	"\bdefaults\x18\x03 \x01(\v2'.holons.v1.HolonManifest.Build.DefaultsR\bdefaults\x12?\n" +
 	"\amembers\x18\x04 \x03(\v2%.holons.v1.HolonManifest.Build.MemberR\amembers\x12E\n" +
 	"\atargets\x18\x05 \x03(\v2+.holons.v1.HolonManifest.Build.TargetsEntryR\atargets\x12\x1c\n" +
-	"\ttemplates\x18\x06 \x03(\tR\ttemplates\x1aa\n" +
+	"\ttemplates\x18\x06 \x03(\tR\ttemplates\x12K\n" +
+	"\x0fbefore_commands\x18\a \x03(\v2\".holons.v1.HolonManifest.Step.ExecR\x0ebeforeCommands\x12I\n" +
+	"\x0eafter_commands\x18\b \x03(\v2\".holons.v1.HolonManifest.Step.ExecR\rafterCommands\x1aa\n" +
 	"\fTargetsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12;\n" +
 	"\x05value\x18\x02 \x01(\v2%.holons.v1.HolonManifest.Build.TargetR\x05value:\x028\x01\x1a6\n" +
@@ -1483,21 +1503,23 @@ var file_holons_v1_manifest_proto_depIdxs = []int32{
 	11, // 8: holons.v1.HolonManifest.Build.defaults:type_name -> holons.v1.HolonManifest.Build.Defaults
 	12, // 9: holons.v1.HolonManifest.Build.members:type_name -> holons.v1.HolonManifest.Build.Member
 	10, // 10: holons.v1.HolonManifest.Build.targets:type_name -> holons.v1.HolonManifest.Build.TargetsEntry
-	14, // 11: holons.v1.HolonManifest.Step.exec:type_name -> holons.v1.HolonManifest.Step.Exec
-	15, // 12: holons.v1.HolonManifest.Step.copy:type_name -> holons.v1.HolonManifest.Step.Copy
-	16, // 13: holons.v1.HolonManifest.Step.assert_file:type_name -> holons.v1.HolonManifest.Step.AssertFile
-	17, // 14: holons.v1.HolonManifest.Step.copy_artifact:type_name -> holons.v1.HolonManifest.Step.CopyArtifact
-	18, // 15: holons.v1.HolonManifest.Artifacts.by_target:type_name -> holons.v1.HolonManifest.Artifacts.ByTargetEntry
-	13, // 16: holons.v1.HolonManifest.Build.TargetsEntry.value:type_name -> holons.v1.HolonManifest.Build.Target
-	6,  // 17: holons.v1.HolonManifest.Build.Target.steps:type_name -> holons.v1.HolonManifest.Step
-	19, // 18: holons.v1.HolonManifest.Artifacts.ByTargetEntry.value:type_name -> holons.v1.HolonManifest.Artifacts.TargetArtifacts
-	20, // 19: holons.v1.manifest:extendee -> google.protobuf.FileOptions
-	0,  // 20: holons.v1.manifest:type_name -> holons.v1.HolonManifest
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	20, // [20:21] is the sub-list for extension type_name
-	19, // [19:20] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	14, // 11: holons.v1.HolonManifest.Build.before_commands:type_name -> holons.v1.HolonManifest.Step.Exec
+	14, // 12: holons.v1.HolonManifest.Build.after_commands:type_name -> holons.v1.HolonManifest.Step.Exec
+	14, // 13: holons.v1.HolonManifest.Step.exec:type_name -> holons.v1.HolonManifest.Step.Exec
+	15, // 14: holons.v1.HolonManifest.Step.copy:type_name -> holons.v1.HolonManifest.Step.Copy
+	16, // 15: holons.v1.HolonManifest.Step.assert_file:type_name -> holons.v1.HolonManifest.Step.AssertFile
+	17, // 16: holons.v1.HolonManifest.Step.copy_artifact:type_name -> holons.v1.HolonManifest.Step.CopyArtifact
+	18, // 17: holons.v1.HolonManifest.Artifacts.by_target:type_name -> holons.v1.HolonManifest.Artifacts.ByTargetEntry
+	13, // 18: holons.v1.HolonManifest.Build.TargetsEntry.value:type_name -> holons.v1.HolonManifest.Build.Target
+	6,  // 19: holons.v1.HolonManifest.Build.Target.steps:type_name -> holons.v1.HolonManifest.Step
+	19, // 20: holons.v1.HolonManifest.Artifacts.ByTargetEntry.value:type_name -> holons.v1.HolonManifest.Artifacts.TargetArtifacts
+	20, // 21: holons.v1.manifest:extendee -> google.protobuf.FileOptions
+	0,  // 22: holons.v1.manifest:type_name -> holons.v1.HolonManifest
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	22, // [22:23] is the sub-list for extension type_name
+	21, // [21:22] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_holons_v1_manifest_proto_init() }
