@@ -91,7 +91,7 @@ func TestMCP_CLI_MultipleHolons(t *testing.T) {
 	integration.SkipIfShort(t, integration.ShortTestReason)
 
 	sb := integration.NewSandbox(t)
-	responses, result := integration.MCPConversation(t, sb, []string{"gabriel-greeting-go", "gabriel-greeting-c"}, []map[string]any{
+	responses, result := integration.MCPConversation(t, sb, []string{"gabriel-greeting-go", "matt-calculator-go"}, []map[string]any{
 		{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{}},
 		{"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": map[string]any{}},
 	})
@@ -100,17 +100,17 @@ func TestMCP_CLI_MultipleHolons(t *testing.T) {
 	toolsResult := responses[1]["result"].(map[string]any)
 	tools := toolsResult["tools"].([]any)
 	foundGo := false
-	foundC := false
+	foundCalc := false
 	for _, entry := range tools {
 		name := entry.(map[string]any)["name"].(string)
 		if name == "gabriel-greeting-go.GreetingService.SayHello" {
 			foundGo = true
 		}
-		if name == "gabriel-greeting-c.GreetingService.SayHello" {
-			foundC = true
+		if name == "matt-calculator-go.CalculatorService.Add" {
+			foundCalc = true
 		}
 	}
-	if !foundGo || !foundC {
+	if !foundGo || !foundCalc {
 		t.Fatalf("multi-holon tool list missing expected tools: %#v", tools)
 	}
 }
