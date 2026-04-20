@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/organic-programming/grace-op/internal/identity"
 	"github.com/organic-programming/grace-op/internal/testutil"
@@ -1488,9 +1489,16 @@ artifacts:
 		t.Fatal("dependency should be fresh immediately after build")
 	}
 
-	if err := os.WriteFile(filepath.Join(childDir, "rebuild-trigger.txt"), []byte("touch\n"), 0o644); err != nil {
+	triggerPath := filepath.Join(childDir, "rebuild-trigger.txt")
+	if err := os.WriteFile(triggerPath, []byte("touch\n"), 0o644); err != nil {
 		t.Fatalf("write rebuild trigger: %v", err)
 	}
+
+	// Force the timestamp into the future to completely bypass overlay filesystem
+	// precision loss in Docker/CI loops, where build cache and modifications
+	// can happen in the exact same second.
+	future := time.Now().Add(time.Hour)
+	os.Chtimes(triggerPath, future, future)
 	if dependencyIsFresh(manifest, BuildContext{}) {
 		t.Fatal("dependency should become stale when the source tree changes after the shared cache is populated")
 	}
