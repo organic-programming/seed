@@ -757,6 +757,8 @@ mod tests {
                 members: Vec::new(),
                 targets: std::collections::HashMap::new(),
                 templates: Vec::new(),
+                before_commands: Vec::new(),
+                after_commands: Vec::new(),
             }),
             requires: None,
             artifacts: Some(Artifacts {

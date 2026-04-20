@@ -160,6 +160,12 @@ pub mod holon_manifest {
         /// Resolved with identity data before the language build, restored after.
         #[prost(string, repeated, tag = "6")]
         pub templates: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+        /// Commands to execute sequentially BEFORE the main runner logic.
+        #[prost(message, repeated, tag = "7")]
+        pub before_commands: ::prost::alloc::vec::Vec<step::Exec>,
+        /// Commands to execute sequentially AFTER the main runner logic.
+        #[prost(message, repeated, tag = "8")]
+        pub after_commands: ::prost::alloc::vec::Vec<step::Exec>,
     }
     /// Nested message and enum types in `Build`.
     pub mod build {
