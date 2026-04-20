@@ -83,17 +83,17 @@ type TransportSpec struct {
 
 var nativeHolons = []HolonSpec{
 	{Slug: "gabriel-greeting-go", Runner: "go-module", Requires: []string{"go"}},
-	{Slug: "gabriel-greeting-c", Runner: "cmake", Requires: []string{"cmake"}},
-	{Slug: "gabriel-greeting-cpp", Runner: "cmake", Requires: []string{"cmake"}},
-	{Slug: "gabriel-greeting-rust", Runner: "cargo", Requires: []string{"cargo"}},
-	{Slug: "gabriel-greeting-swift", Runner: "swift-package", Requires: []string{"swift"}},
-	{Slug: "gabriel-greeting-python", Runner: "python", Requires: []string{"python3"}},
-	{Slug: "gabriel-greeting-ruby", Runner: "ruby", Requires: []string{"ruby", "bundle"}},
-	{Slug: "gabriel-greeting-node", Runner: "npm", Requires: []string{"node", "npm"}},
-	{Slug: "gabriel-greeting-dart", Runner: "dart", Requires: []string{"dart"}},
-	{Slug: "gabriel-greeting-java", Runner: "gradle", Requires: []string{"java", "gradle"}},
-	{Slug: "gabriel-greeting-kotlin", Runner: "gradle", Requires: []string{"java", "gradle"}},
-	{Slug: "gabriel-greeting-csharp", Runner: "dotnet", Requires: []string{"dotnet"}},
+	{Slug: "gabriel-greeting-c", Runner: "cmake", Requires: []string{"cmake"}, Platform: "darwin"},
+	{Slug: "gabriel-greeting-cpp", Runner: "cmake", Requires: []string{"cmake"}, Platform: "darwin"},
+	{Slug: "gabriel-greeting-rust", Runner: "cargo", Requires: []string{"cargo"}, Platform: "darwin"},
+	{Slug: "gabriel-greeting-swift", Runner: "swift-package", Requires: []string{"swift"}, Platform: "darwin"},
+	{Slug: "gabriel-greeting-python", Runner: "python", Requires: []string{"python3"}, Platform: "darwin"},
+	{Slug: "gabriel-greeting-ruby", Runner: "ruby", Requires: []string{"ruby", "bundle"}, Platform: "darwin"},
+	{Slug: "gabriel-greeting-node", Runner: "npm", Requires: []string{"node", "npm"}, Platform: "darwin"},
+	{Slug: "gabriel-greeting-dart", Runner: "dart", Requires: []string{"dart"}, Platform: "darwin"},
+	{Slug: "gabriel-greeting-java", Runner: "gradle", Requires: []string{"java", "gradle"}, Platform: "darwin"},
+	{Slug: "gabriel-greeting-kotlin", Runner: "gradle", Requires: []string{"java", "gradle"}, Platform: "darwin"},
+	{Slug: "gabriel-greeting-csharp", Runner: "dotnet", Requires: []string{"dotnet"}, Platform: "darwin"},
 	{Slug: "matt-calculator-go", Runner: "go-module", Requires: []string{"go"}, HolonPath: "examples/calculator/matt-calculator-go"},
 }
 

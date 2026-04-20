@@ -5,6 +5,7 @@ package build_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
@@ -26,6 +27,9 @@ func TestBuildRPC_BuildDryRunMatchesAPIAndCLI_GabrielGreetingGo(t *testing.T) {
 }
 
 func TestBuildRPC_BuildDryRunNoSignMatchesAPIAndCLI_GabrielGreetingAppSwiftUI(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("Composite app builds are limited to macOS dev environments")
+	}
 	opts := &opv1.BuildOptions{DryRun: true, NoSign: true}
 
 	apiEnv := newBuildTestEnv(t)
@@ -42,6 +46,9 @@ func TestBuildRPC_BuildDryRunNoSignMatchesAPIAndCLI_GabrielGreetingAppSwiftUI(t 
 }
 
 func TestBuildRPC_BuildDryRunHardenedMatchesAPIAndCLI_GabrielGreetingAppFlutter(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("Composite app builds are limited to macOS dev environments")
+	}
 	opts := &opv1.BuildOptions{DryRun: true, Hardened: true}
 
 	apiEnv := newBuildTestEnv(t)

@@ -111,20 +111,7 @@ func TestCheck_04_Matrix(t *testing.T) {
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
 
-	examples := []string{
-		"gabriel-greeting-c",
-		"gabriel-greeting-cpp",
-		"gabriel-greeting-csharp",
-		"gabriel-greeting-dart",
-		"gabriel-greeting-go",
-		"gabriel-greeting-java",
-		"gabriel-greeting-kotlin",
-		"gabriel-greeting-node",
-		"gabriel-greeting-python",
-		"gabriel-greeting-ruby",
-		"gabriel-greeting-rust",
-		"gabriel-greeting-swift",
-	}
+	examples := integration.AvailableHelloWorldSlugs(t, false)
 
 	for _, ex := range examples {
 		t.Run(ex, func(t *testing.T) {

@@ -5,6 +5,7 @@ package build_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -25,6 +26,9 @@ func TestBuildAPI_BuildDryRun_GabrielGreetingGo(t *testing.T) {
 }
 
 func TestBuildAPI_BuildDryRunNoSign_GabrielGreetingAppSwiftUI(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("Composite app builds are limited to macOS dev environments")
+	}
 	env := newBuildTestEnv(t)
 
 	report := buildViaAPI(t, env, "gabriel-greeting-app-swiftui", &opv1.BuildOptions{
@@ -41,6 +45,9 @@ func TestBuildAPI_BuildDryRunNoSign_GabrielGreetingAppSwiftUI(t *testing.T) {
 }
 
 func TestBuildAPI_BuildDryRunHardened_GabrielGreetingAppFlutter(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("Composite app builds are limited to macOS dev environments")
+	}
 	env := newBuildTestEnv(t)
 
 	report := buildViaAPI(t, env, "gabriel-greeting-app-flutter", &opv1.BuildOptions{

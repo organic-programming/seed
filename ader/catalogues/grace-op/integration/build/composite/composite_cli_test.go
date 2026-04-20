@@ -9,12 +9,16 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"testing"
 
 	"github.com/organic-programming/seed/ader/catalogues/grace-op/integration"
 )
 
 func TestBuild_07_Composite(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("Composite app builds are limited to macOS dev environments")
+	}
 	rootPath := integration.DefaultWorkspaceDir(t)
 	integration.TeardownHolons(t, rootPath)
 	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
