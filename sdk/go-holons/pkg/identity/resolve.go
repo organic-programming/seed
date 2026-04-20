@@ -445,17 +445,25 @@ func buildImportPaths(dir string) []string {
 	paths := []string{dir}
 	seen := map[string]struct{}{dir: {}}
 
+	// Walk up the tree to find _protos and .op/protos
 	for current := filepath.Dir(dir); current != "" && current != filepath.Dir(current); current = filepath.Dir(current) {
-		candidate := filepath.Join(current, "_protos")
-		info, err := os.Stat(candidate)
-		if err != nil || !info.IsDir() {
-			continue
+		candidates := []string{
+			filepath.Join(current, "_protos"),
+			filepath.Join(current, ".op", "protos"),
+			filepath.Join(current, "seed", "holons", "grace-op", "_protos"),
 		}
-		if _, ok := seen[candidate]; ok {
-			continue
+		
+		for _, candidate := range candidates {
+			info, err := os.Stat(candidate)
+			if err != nil || !info.IsDir() {
+				continue
+			}
+			if _, ok := seen[candidate]; ok {
+				continue
+			}
+			paths = append(paths, candidate)
+			seen[candidate] = struct{}{}
 		}
-		paths = append(paths, candidate)
-		seen[candidate] = struct{}{}
 	}
 
 	return paths
