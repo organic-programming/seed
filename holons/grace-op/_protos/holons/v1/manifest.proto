@@ -91,6 +91,12 @@ message HolonManifest {
     // Resolved with identity data before the language build, restored after.
     repeated string templates = 6;
 
+    // Commands to execute sequentially BEFORE the main runner logic.
+    repeated Step.Exec before_commands = 7;
+    
+    // Commands to execute sequentially AFTER the main runner logic.
+    repeated Step.Exec after_commands = 8;
+
     message Defaults {
       string target = 1;   // e.g. "macos", "linux"
       string mode = 2;     // e.g. "debug", "release"

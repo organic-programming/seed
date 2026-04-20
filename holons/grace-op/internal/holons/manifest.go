@@ -97,8 +97,10 @@ type BuildConfig struct {
 	Main      string
 	Defaults  *RecipeDefaults
 	Members   []RecipeMember
-	Targets   map[string]RecipeTarget
-	Templates []string
+	Targets        map[string]RecipeTarget
+	Templates      []string
+	BeforeCommands []*RecipeStepExec
+	AfterCommands  []*RecipeStepExec
 }
 
 // RecipeDefaults provides default target and mode for recipe builds.
@@ -384,6 +386,26 @@ func manifestBuildFromResolved(resolved *identity.Resolved) BuildConfig {
 				steps = append(steps, recipeStep)
 			}
 			build.Targets[strings.TrimSpace(name)] = RecipeTarget{Steps: steps}
+		}
+	}
+	
+	if len(resolved.BeforeCommands) > 0 {
+		build.BeforeCommands = make([]*RecipeStepExec, 0, len(resolved.BeforeCommands))
+		for _, cmd := range resolved.BeforeCommands {
+			build.BeforeCommands = append(build.BeforeCommands, &RecipeStepExec{
+				Cwd:  cmd.Cwd,
+				Argv: append([]string(nil), cmd.Argv...),
+			})
+		}
+	}
+
+	if len(resolved.AfterCommands) > 0 {
+		build.AfterCommands = make([]*RecipeStepExec, 0, len(resolved.AfterCommands))
+		for _, cmd := range resolved.AfterCommands {
+			build.AfterCommands = append(build.AfterCommands, &RecipeStepExec{
+				Cwd:  cmd.Cwd,
+				Argv: append([]string(nil), cmd.Argv...),
+			})
 		}
 	}
 

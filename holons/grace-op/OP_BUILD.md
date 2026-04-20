@@ -342,6 +342,33 @@ The source file is restored to contain `{{ .Version }}`.
 
 ## Runner Semantics
 
+### Pre and Post Commands
+
+All runners natively support pre-build and post-build shell hooks via `before_commands` and `after_commands`.
+This provides a powerful mechanism to orchestrate side-effects, generate stubs, or compile auxiliary components directly within the manifest without wrapping everything inside a composite `recipe` holon.
+
+```protobuf
+build: {
+  runner: "go-module"
+  before_commands: {
+    cwd: "."
+    argv: ["go", "run", "./tools/generate"]
+  }
+  after_commands: {
+    cwd: "third_party/lib"
+    argv: ["sh", "-c", "go build -tags pro -o $OP_BINARY_DIR/lib ."]
+  }
+}
+```
+
+The execution context inherits the host environment alongside several OP configuration variables:
+
+- `OP_BUILD_TARGET`
+- `OP_BUILD_MODE`
+- `OP_BUILD_HARDENED`
+- `OP_PACKAGE_DIR` (Resolved absolute path to the `.holon` output package format)
+- `OP_BINARY_DIR` (Resolved absolute path to the runtime architecture bin directory where the primary binary resides)
+
 ### `go-module`
 
 `go-module` is a leaf runner.

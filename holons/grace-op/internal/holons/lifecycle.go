@@ -247,7 +247,20 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 		}
 		defer restoreFn()
 
+		if err := executePipelineHooks(target.Manifest, ctx, &report, target.Manifest.Manifest.Build.BeforeCommands); err != nil {
+			err = fmt.Errorf("before commands: %w", err)
+			break
+		}
+
 		err = r.build(target.Manifest, ctx, &report)
+		if err != nil {
+			break
+		}
+
+		if err := executePipelineHooks(target.Manifest, ctx, &report, target.Manifest.Manifest.Build.AfterCommands); err != nil {
+			err = fmt.Errorf("after commands: %w", err)
+			break
+		}
 		if err == nil && !ctx.DryRun && !isAggregateBuildTarget(ctx.Target) {
 			err = persistBuildMetadata(target.Manifest, ctx)
 		}
@@ -1468,7 +1481,7 @@ func (recipeRunner) stepExec(manifest *LoadedManifest, ctx BuildContext, e *Reci
 	if ctx.DryRun {
 		return nil
 	}
-	if output, err := runCommandWithEnv(cwd, e.Argv, recipeExecEnv(ctx)); err != nil {
+	if output, err := runCommandWithEnv(cwd, e.Argv, recipeExecEnv(manifest, ctx)); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
 
@@ -1643,10 +1656,18 @@ func runCommandWithEnv(dir string, args []string, extraEnv []string) (string, er
 	return string(output), nil
 }
 
-func recipeExecEnv(ctx BuildContext) []string {
+func recipeExecEnv(manifest *LoadedManifest, ctx BuildContext) []string {
 	env := []string{
 		"OP_BUILD_TARGET=" + ctx.Target,
 		"OP_BUILD_MODE=" + ctx.Mode,
+	}
+	if manifest != nil {
+		if pkgDir := manifest.HolonPackageDir(); pkgDir != "" {
+			env = append(env, "OP_PACKAGE_DIR="+pkgDir)
+		}
+		if binPath := manifest.BinaryPath(); binPath != "" {
+			env = append(env, "OP_BINARY_DIR="+filepath.Dir(binPath))
+		}
 	}
 	if ctx.Hardened {
 		env = append(env, "OP_BUILD_HARDENED=true")
@@ -1654,6 +1675,25 @@ func recipeExecEnv(ctx BuildContext) []string {
 		env = append(env, "OP_BUILD_HARDENED=false")
 	}
 	return env
+}
+
+func executePipelineHooks(manifest *LoadedManifest, ctx BuildContext, report *Report, hooks []*RecipeStepExec) error {
+	for _, hook := range hooks {
+		cwd, err := manifest.ResolveManifestPath(hook.Cwd)
+		if err != nil {
+			cwd = manifest.Dir
+		}
+		
+		ctx.Progress.Step(commandString(hook.Argv))
+		report.Commands = append(report.Commands, fmt.Sprintf("(cwd=%s) %s", hook.Cwd, commandString(hook.Argv)))
+		
+		if !ctx.DryRun {
+			if out, err := runCommandWithEnv(cwd, hook.Argv, recipeExecEnv(manifest, ctx)); err != nil {
+				return fmt.Errorf("hook %s failed: %s\n%s", commandString(hook.Argv), err, out)
+			}
+		}
+	}
+	return nil
 }
 
 func commandString(args []string) string {

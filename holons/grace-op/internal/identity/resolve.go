@@ -40,6 +40,8 @@ type Resolved struct {
 	BuildMembers     []ResolvedRecipeMember
 	BuildTargets     map[string]ResolvedRecipeTarget
 	BuildTemplates   []string
+	BeforeCommands   []ResolvedRecipeExec
+	AfterCommands    []ResolvedRecipeExec
 	MemberPaths      []string
 	ArtifactBinary   string
 	PrimaryArtifact  string
@@ -343,6 +345,22 @@ func resolvedFromDynamic(manifest *dynamic.Message) *Resolved {
 			}
 		}
 		resolved.BuildTemplates = dynStringSlice(build, 6)
+		
+		resolved.BeforeCommands = make([]ResolvedRecipeExec, 0)
+		for _, hook := range dynSubMessages(build, 7) {
+			resolved.BeforeCommands = append(resolved.BeforeCommands, ResolvedRecipeExec{
+				Cwd:  dynString(hook, 1),
+				Argv: dynStringSlice(hook, 2),
+			})
+		}
+		
+		resolved.AfterCommands = make([]ResolvedRecipeExec, 0)
+		for _, hook := range dynSubMessages(build, 8) {
+			resolved.AfterCommands = append(resolved.AfterCommands, ResolvedRecipeExec{
+				Cwd:  dynString(hook, 1),
+				Argv: dynStringSlice(hook, 2),
+			})
+		}
 	}
 
 	if requires := dynSubMessage(manifest, 11); requires != nil {
