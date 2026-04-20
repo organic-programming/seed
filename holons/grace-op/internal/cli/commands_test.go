@@ -604,6 +604,9 @@ func TestOpenAppBundleCommandPassesAssemblyEnvOnMacOS(t *testing.T) {
 }
 
 func TestNormalizeMacOSAppBundleMetadataUsesCompositeIdentity(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("macOS-specific")
+	}
 	bundle := filepath.Join(t.TempDir(), "Example.app")
 	contents := filepath.Join(bundle, "Contents")
 	appDir := filepath.Join(contents, "app")

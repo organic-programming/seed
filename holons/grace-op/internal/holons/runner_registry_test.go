@@ -1035,6 +1035,10 @@ func TestPythonTestArgsFallBackToPytest(t *testing.T) {
 }
 
 func TestRubyTestArgsPreferRSpec(t *testing.T) {
+	toolDir := t.TempDir()
+	t.Setenv("PATH", toolDir)
+	writeFakeCommand(t, toolDir, "ruby")
+	writeFakeCommand(t, toolDir, "bundle")
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "spec"), 0o755); err != nil {
 		t.Fatal(err)
@@ -1056,6 +1060,10 @@ func TestRubyTestArgsPreferRSpec(t *testing.T) {
 }
 
 func TestRubyTestArgsFallBackToRakeTest(t *testing.T) {
+	toolDir := t.TempDir()
+	t.Setenv("PATH", toolDir)
+	writeFakeCommand(t, toolDir, "ruby")
+	writeFakeCommand(t, toolDir, "bundle")
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "Rakefile"), []byte("task :test\n"), 0o644); err != nil {
 		t.Fatal(err)

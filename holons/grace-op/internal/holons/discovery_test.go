@@ -177,6 +177,9 @@ func TestDiscoverInOPBINStillWorks(t *testing.T) {
 }
 
 func TestResolveInstalledBinaryFindsAppBundleBySlug(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("macOS-specific")
+	}
 	root := t.TempDir()
 	opbin := filepath.Join(root, "bin")
 	t.Setenv("OPPATH", root)
