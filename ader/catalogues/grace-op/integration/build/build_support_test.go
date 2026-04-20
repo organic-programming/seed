@@ -427,8 +427,8 @@ func assertSourceReport(t *testing.T, label string, report *lifecycleSnapshot, h
 	if report == nil {
 		t.Fatalf("%s report is nil", label)
 	}
-	wantDir := filepath.ToSlash(filepath.Join("examples", "hello-world", holon))
-	wantManifest := filepath.ToSlash(filepath.Join("examples", "hello-world", holon, "api", "v1", "holon.proto"))
+	wantDir := filepath.ToSlash(integration.HolonPathForSlug(holon))
+	wantManifest := filepath.ToSlash(filepath.Join(integration.HolonPathForSlug(holon), "api", "v1", "holon.proto"))
 	if report.Dir != wantDir {
 		t.Fatalf("%s dir = %q, want %q", label, report.Dir, wantDir)
 	}
@@ -457,9 +457,7 @@ func buildArtifactPath(t *testing.T, holon string) string {
 	t.Helper()
 	return filepath.Join(
 		absoluteRootPath(t),
-		"examples",
-		"hello-world",
-		holon,
+		integration.HolonPathForSlug(holon),
 		".op",
 		"build",
 		holon+".holon",
@@ -471,23 +469,23 @@ func buildArtifactPath(t *testing.T, holon string) string {
 
 func holonBinDir(t *testing.T, holon string) string {
 	t.Helper()
-	return filepath.Join(absoluteRootPath(t), "examples", "hello-world", holon, ".op", "build", holon+".holon", "bin")
+	return filepath.Join(absoluteRootPath(t), integration.HolonPathForSlug(holon), ".op", "build", holon+".holon", "bin")
 }
 
 func holonOPDir(t *testing.T, holon string) string {
 	t.Helper()
-	return filepath.Join(absoluteRootPath(t), "examples", "hello-world", holon, ".op")
+	return filepath.Join(absoluteRootPath(t), integration.HolonPathForSlug(holon), ".op")
 }
 
 func appBundlePath(t *testing.T, app string) string {
 	t.Helper()
-	return filepath.Join(absoluteRootPath(t), "examples", "hello-world", app, ".op", "build", "GabrielGreetingApp.app")
+	return filepath.Join(absoluteRootPath(t), integration.HolonPathForSlug(app), ".op", "build", "GabrielGreetingApp.app")
 }
 
 func withMutatedHolonVersion(t *testing.T, holon string, version string, fn func()) {
 	t.Helper()
 
-	protoPath := filepath.Join(absoluteRootPath(t), "examples", "hello-world", holon, "api", "v1", "holon.proto")
+	protoPath := filepath.Join(absoluteRootPath(t), integration.HolonPathForSlug(holon), "api", "v1", "holon.proto")
 	content, err := os.ReadFile(protoPath)
 	if err != nil {
 		t.Fatalf("read holon.proto for %s: %v", holon, err)

@@ -197,6 +197,19 @@ func AvailableHelloWorldSlugs(t *testing.T, includeComposite bool) []string {
 	return slugs
 }
 
+func HolonPathForSlug(slug string) string {
+	sources := append(append([]HolonSpec{}, nativeHolons...), compositeHolons...)
+	for _, spec := range sources {
+		if spec.Slug == slug {
+			if spec.HolonPath != "" {
+				return filepath.FromSlash(spec.HolonPath)
+			}
+			break
+		}
+	}
+	return filepath.Join("examples", "hello-world", filepath.FromSlash(slug))
+}
+
 func TransportMatrix() []TransportSpec {
 	return filterAvailableTransports(localTransports)
 }

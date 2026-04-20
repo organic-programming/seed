@@ -42,7 +42,7 @@ func TestShow_CLI_JSON(t *testing.T) {
 	if !ok || filePath == "" {
 		t.Fatalf("filePath = %#v, want non-empty", payload["filePath"])
 	}
-	if !strings.Contains(filePath, "examples/hello-world/") {
-		t.Fatalf("filePath = %#v, want hello-world entry", filePath)
+	if !strings.Contains(filePath, "examples/") {
+		t.Fatalf("filePath = %#v, want examples entry", filePath)
 	}
 }
