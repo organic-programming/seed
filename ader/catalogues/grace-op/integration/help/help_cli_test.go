@@ -1,3 +1,5 @@
+//go:build e2e
+
 package help_test
 
 import (

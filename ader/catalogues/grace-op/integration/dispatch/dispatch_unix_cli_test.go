@@ -1,3 +1,5 @@
+//go:build e2e
+
 //go:build !windows
 
 package dispatch_test

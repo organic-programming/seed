@@ -3,11 +3,11 @@ checks:
     workdir: holons/clem-ader
     prereqs:
     - go
-    command: go test -v -count=1 -timeout 5m ./api
+    command: go test -tags e2e -v -count=1 -timeout 5m ./api
     description: holons-clem-ader package tests (api)
   holons-clem-ader-unit-internal-engine:
     workdir: holons/clem-ader
     prereqs:
     - go
-    command: go test -v -count=1 -timeout 5m ./internal/engine
+    command: go test -tags e2e -v -count=1 -timeout 5m ./internal/engine
     description: holons-clem-ader package tests (internal-engine)
