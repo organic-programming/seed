@@ -1,0 +1,197 @@
+checks:
+  example-swift-unit:
+    workdir: examples/hello-world/gabriel-greeting-swift
+    prereqs:
+    - swift
+    command: swift test
+    description: Swift example unit tests
+  swiftui-modules-unit:
+    workdir: examples/hello-world/gabriel-greeting-app-swiftui/Modules
+    prereqs:
+    - swift
+    command: swift test
+    description: SwiftUI GreetingKit unit tests
+  integration-build-composite-swiftui:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - xcodebuild
+    - xcodegen
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    - codesign
+    command: go test -tags e2e -v -count=1 -timeout 45m -run "^TestBuild_07_Composite$/^gabriel-greeting-app-swiftui$" ./build/composite
+    description: composite build for swiftui app with sandbox verification
+  integration-coax-build-recipe-app:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - xcodebuild
+    - xcodegen
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -tags e2e -v -count=1 -timeout 90m -run "^TestCOAXBusiness_ColdBuild$/^gabriel-greeting-app-swiftui$" ./coax
+    description: COAX business cold build for swiftui app
+  integration-coax-runtime-surface:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - xcodebuild
+    - xcodegen
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -tags e2e -v -count=1 -timeout 120m -run "^TestCOAXBusiness_RuntimeSurface$/^gabriel-greeting-app-swiftui$" ./coax
+    description: COAX runtime surface for swiftui app
+  integration-coax-business-matrix-swiftui:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - xcodebuild
+    - xcodegen
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -tags e2e -v -count=1 -timeout 150m -run "^TestCOAXBusiness_DomainMatrix$/^gabriel-greeting-app-swiftui$" ./coax
+    description: COAX business matrix for swiftui app
+  integration-dispatch-jsonoutput-swift:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - swift
+    command: go test -tags e2e -v -count=1 -timeout 5m -run "^TestDispatch_JSONOutput$/^gabriel-greeting-swift$" ./...
+    description: dispatch jsonoutput swift
+  integration-dispatch-list-languages-swift:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - swift
+    command: go test -tags e2e -v -count=1 -timeout 5m -run "^TestDispatch_ListLanguages$/^gabriel-greeting-swift$" ./...
+    description: dispatch list languages swift
+  integration-inspect-local-holons-swift:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - swift
+    command: go test -tags e2e -v -count=1 -timeout 5m -run "^TestInspect_LocalHolons$/^gabriel-greeting-swift$" ./...
+    description: inspect local holons swift
+  integration-install-build-install-uninstall-swift:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - swift
+    command: go test -tags e2e -v -count=1 -timeout 5m -run "^TestInstall_BuildInstallUninstall$/^gabriel-greeting-swift$" ./...
+    description: install build install uninstall swift
+  integration-install-with-build-flag-swift:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - swift
+    command: go test -tags e2e -v -count=1 -timeout 5m -run "^TestInstall_WithBuildFlag$/^gabriel-greeting-swift$" ./...
+    description: install with build flag swift
+  integration-lifecycle-hello-world-holons-app-swiftui:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - xcodebuild
+    - xcodegen
+    - swift
+    - cargo
+    - python3
+    - cmake
+    - dotnet
+    - dart
+    - java
+    - gradle
+    - node
+    - npm
+    - ruby
+    - bundle
+    command: go test -tags e2e -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-app-swiftui$" ./...
+    description: lifecycle hello world holons app swiftui
+  integration-lifecycle-hello-world-holons-swift:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - swift
+    command: go test -tags e2e -v -count=1 -timeout 5m -run "^TestLifecycle_HelloWorldHolons$/^gabriel-greeting-swift$" ./...
+    description: lifecycle hello world holons swift
+  integration-run-tcp-swift:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - swift
+    command: go test -tags e2e -v -count=1 -timeout 5m -run "^TestRun_TCP$/^gabriel-greeting-swift$" ./...
+    description: run tcp swift
+  integration-tools-default-format-swift:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - swift
+    command: go test -tags e2e -v -count=1 -timeout 5m -run "^TestTools_DefaultFormat$/^gabriel-greeting-swift$" ./...
+    description: tools default format swift
+  integration-tools-formats-swift:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - swift
+    command: go test -tags e2e -v -count=1 -timeout 5m -run "^TestTools_Formats$/^gabriel-greeting-swift$" ./...
+    description: tools formats swift
+  integration-unix-transport-run-and-dispatch-swift:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - swift
+    command: go test -tags e2e -v -count=1 -timeout 5m -run "^TestUnixTransport_RunAndDispatch$/^gabriel-greeting-swift$" ./...
+    description: unix transport run and dispatch swift
+  integration-windows-build-reports-exe-artifact-swift:
+    workdir: ader/catalogues/grace-op/integration
+    prereqs:
+    - go
+    - swift
+    command: go test -tags e2e -v -count=1 -timeout 5m -run "^TestWindows_BuildReportsExeArtifact$/^gabriel-greeting-swift$" ./...
+    description: windows build reports exe artifact swift
+  sdk-swift-unit:
+    workdir: sdk/swift-holons
+    prereqs:
+    - swift
+    command: swift test
+    description: Swift SDK unit tests

@@ -1,0 +1,18 @@
+description: cross-platform regression bouquet
+defaults:
+  source: committed
+  lane: regression
+  archive: never
+entries:
+- catalogue: grace-op
+  suite: op-instances
+  profile: full
+- catalogue: clem-ader
+  suite: ader-core
+  profile: full
+- catalogue: gabriel-greeting-app-swiftui
+  suite: swiftui-smoke
+  profile: full
+- catalogue: gabriel-greeting-app-flutter
+  suite: flutter-smoke
+  profile: full

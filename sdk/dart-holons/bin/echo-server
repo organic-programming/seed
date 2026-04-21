@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+SDK_ROOT="$SCRIPT_DIR/.."
+GO_HOLONS_DIR="$SDK_ROOT/../go-holons"
+HELPER_PATH="$SDK_ROOT/cmd/echo-server-go/main.go"
+
+cd "$GO_HOLONS_DIR"
+
+GO_BIN="${GO_BIN:-}"
+if [[ -z "$GO_BIN" ]]; then
+  if [[ -x "/Users/bpds/go/go1.25.1/bin/go" ]]; then
+    GO_BIN="/Users/bpds/go/go1.25.1/bin/go"
+  else
+    GO_BIN="go"
+  fi
+fi
+
+has_flag() {
+  local name="$1"
+  shift
+  for arg in "$@"; do
+    if [[ "$arg" == "$name" || "$arg" == "$name="* ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+forwarded_signal=0
+
+forward_signal() {
+  local signal="$1"
+  forwarded_signal=1
+  if [[ -n "${child_pid:-}" ]] && kill -0 "$child_pid" 2>/dev/null; then
+    kill "-s" "$signal" "$child_pid" 2>/dev/null || true
+  fi
+}
+
+cmd=("$GO_BIN" run "$HELPER_PATH" "$@")
+if ! has_flag --sdk "$@"; then
+  cmd+=("--sdk" "dart-holons")
+fi
+if ! has_flag --version "$@"; then
+  cmd+=("--version" "0.1.0")
+fi
+
+"${cmd[@]}" &
+child_pid=$!
+trap 'forward_signal TERM' TERM
+trap 'forward_signal INT' INT
+status=0
+if ! wait "$child_pid"; then
+  status=$?
+fi
+
+if [[ "$forwarded_signal" -eq 1 && "$status" -ge 128 ]]; then
+  exit 0
+fi
+
+exit "$status"

@@ -67,12 +67,12 @@ class CliTest {
         ByteArrayOutputStream stderr = new ByteArrayOutputStream();
 
         int exitCode = Cli.run(
-                new String[] { "sayHello", "Alice", "fr" },
+                new String[] { "sayHello", "Bob", "fr" },
                 new PrintStream(stdout),
                 new PrintStream(stderr));
 
         assertEquals(0, exitCode);
-        assertEquals("Bonjour Alice", stdout.toString(StandardCharsets.UTF_8).trim());
+        assertEquals("Bonjour Bob", stdout.toString(StandardCharsets.UTF_8).trim());
         assertEquals("", stderr.toString(StandardCharsets.UTF_8));
     }
 

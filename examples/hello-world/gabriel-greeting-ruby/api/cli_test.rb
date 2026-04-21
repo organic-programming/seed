@@ -52,13 +52,13 @@ class GreetingCliTest < Minitest::Test
     stderr = StringIO.new
 
     code = GabrielGreetingRuby::Api::Cli.run_cli(
-      ["sayHello", "Alice", "fr"],
+      ["sayHello", "Bob", "fr"],
       stdout: stdout,
       stderr: stderr
     )
 
     assert_equal 0, code
-    assert_equal "Bonjour Alice", stdout.string.strip
+    assert_equal "Bonjour Bob", stdout.string.strip
     assert_equal "", stderr.string
   end
 

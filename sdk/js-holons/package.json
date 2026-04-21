@@ -1,0 +1,27 @@
+{
+    "name": "@organic-programming/holons",
+    "version": "0.1.0",
+    "description": "Organic Programming SDK for JavaScript and TypeScript",
+    "main": "src/index.js",
+    "types": "src/index.d.ts",
+    "scripts": {
+        "test": "node --test tests/"
+    },
+    "keywords": [
+        "holons",
+        "grpc",
+        "organic-programming"
+    ],
+    "author": "B. ALTER",
+    "license": "MIT",
+    "dependencies": {
+        "@grpc/grpc-js": "^1.10.0",
+        "@grpc/proto-loader": "^0.7.13",
+        "@grpc/reflection": "^1.0.0",
+        "protobufjs": "^7.5.4",
+        "ws": "^8.16.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.3.0"
+    }
+}

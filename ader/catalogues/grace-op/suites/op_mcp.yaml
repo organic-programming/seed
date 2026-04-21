@@ -1,0 +1,12 @@
+description: Suite validating op mcp as a CLI-only surface.
+defaults:
+  profile: smoke
+steps:
+  mcp-cli:
+    check: op-mcp-cli
+    lane: progression
+profiles:
+  smoke:
+    description: CLI-only verification of the MCP bridge.
+    archive: never
+    steps: [mcp-cli]

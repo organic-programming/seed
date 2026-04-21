@@ -3,9 +3,9 @@ import Holons
 import SwiftProtobuf
 
 public enum CLI {
-    public static let version = "gabriel-greeting-swift v0.1.0"
+    public static let version = "gabriel-greeting-swift 8.8.173"
 
-    public static func run(_ args: [String], serve: ((String) throws -> Void)? = nil) -> Int {
+    public static func run(_ args: [String], serve: ((String, Bool) throws -> Void)? = nil) -> Int {
         var stdout = FileTextOutputStream.standardOutput
         var stderr = FileTextOutputStream.standardError
         return run(args, serve: serve, stdout: &stdout, stderr: &stderr)
@@ -13,7 +13,7 @@ public enum CLI {
 
     public static func run<Stdout: TextOutputStream, Stderr: TextOutputStream>(
         _ args: [String],
-        serve: ((String) throws -> Void)? = nil,
+        serve: ((String, Bool) throws -> Void)? = nil,
         stdout: inout Stdout,
         stderr: inout Stderr
     ) -> Int {
@@ -24,13 +24,13 @@ public enum CLI {
 
         switch canonicalCommand(command) {
         case "serve":
-            let listenURI = Serve.parseFlags(Array(args.dropFirst()))
+            let parsed = Serve.parseOptions(Array(args.dropFirst()))
             guard let serve else {
                 stderr.write("serve: not available\n")
                 return 1
             }
             do {
-                try serve(listenURI)
+                try serve(parsed.listenURI, parsed.reflect)
                 return 0
             } catch {
                 stderr.write("serve: \(error)\n")
@@ -211,7 +211,7 @@ public enum CLI {
         output.write("usage: gabriel-greeting-swift <command> [args] [flags]\n")
         output.write("\n")
         output.write("commands:\n")
-        output.write("  serve [--listen <uri>]                    Start the gRPC server\n")
+        output.write("  serve [--listen <uri>] [--reflect]        Start the gRPC server\n")
         output.write("  version                                  Print version and exit\n")
         output.write("  list-languages [--format text|json]      List supported languages\n")
         output.write("  say-hello [name] [lang_code] [--name <name>] [--lang <code>] [--format text|json]\n")
@@ -220,8 +220,8 @@ public enum CLI {
         output.write("examples:\n")
         output.write("  gabriel-greeting-swift serve --listen stdio\n")
         output.write("  gabriel-greeting-swift list-languages --format json\n")
-        output.write("  gabriel-greeting-swift say-hello Alice fr\n")
-        output.write("  gabriel-greeting-swift say-hello --name Alice --lang fr --format json\n")
+        output.write("  gabriel-greeting-swift say-hello Bob fr\n")
+        output.write("  gabriel-greeting-swift say-hello --name Bob --lang fr --format json\n")
     }
 }
 

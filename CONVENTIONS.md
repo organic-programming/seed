@@ -12,7 +12,9 @@ Regardless of language, every holon repository contains:
 
 ```
 my-holon/
-├── holon.yaml          ← identity + operational manifest (always present)
+├── api/
+│   └── v1/
+│       └── holon.proto ← identity + operational manifest (always present)
 ├── protos/             ← .proto source files
 │   └── <package>/<version>/
 │       └── <service>.proto
@@ -43,7 +45,19 @@ my-holon/
 3. **`cmd/`** contains CLI entry points. Each subdirectory is one binary.
    When a holon has no CLI facet, `cmd/` is absent.
 
-4. **`holon.yaml`** is always at the holon root.
+4. **`api/v1/holon.proto`** is always present at the holon root.
+
+### Surface Symmetry
+
+Every holon follows the golden rule:
+
+> **Code API surface = CLI surface = RPC surface = Test surface**
+
+`contract.rpcs` must exhaustively match the service definition. Every
+public RPC exists in the Code API, CLI, RPC server, and tests. The only
+CLI affordances outside that list are `serve` and `help`. `version` is
+not exempt from symmetry, but it is auto-derived from manifest identity
+instead of being hand-wired separately.
 
 ---
 
@@ -99,7 +113,7 @@ root in the global cache under `OPPATH`:
 
 ```
 $OPPATH/cache/<host>/<owner>/<name>@<version>/
-├── holon.yaml
+├── api/v1/holon.proto
 ├── protos/
 ├── gen/
 └── <idiomatic-src>/
@@ -442,7 +456,7 @@ my-holon/
    is a derived artifact of `protos/`.
 
 3. **Regeneration command.** Each holon should document its protoc
-   invocation (in `holon.yaml` or a `Makefile`/script) so that any
+   invocation (in `holon.proto`, the guide, or a `Makefile`/script) so that any
    actant can regenerate from source protos.
 
 4. **The `gen/` directory mirrors the proto package structure.** If
@@ -504,11 +518,12 @@ Thumbs.db
 
 ---
 
-## 7. Compositing: the Bridge Pattern
+## 7. Compositing: the Code API Pattern
 
-Holons may compose other holons **in-process** via `mem://` — a
-`bufconn`-backed gRPC transport with zero network overhead. The SDK
-provides `transport.NewMemListener()` and `grpcclient.DialMem()`.
+Same-language holons compose **in-process** via the Code API facet —
+direct function calls through generated stubs, with no serialization
+and no network overhead. This is the recommended approach for
+in-process composition.
 
 Go's `internal/` visibility prevents cross-module imports. The
 **bridge pattern** solves this: every holon that serves gRPC **MUST**
@@ -527,7 +542,7 @@ import (
 )
 
 // Register adds the service to a gRPC server.
-// Used by compositor holons for mem:// in-process wiring.
+// Used by same-language compositors for in-process wiring.
 func Register(gs *grpc.Server) {
     pb.RegisterMyHolonServiceServer(gs, server.New())
 }
@@ -538,17 +553,11 @@ func Register(gs *grpc.Server) {
 ```go
 import (
     "github.com/organic-programming/my-holon/pkg/myholon"
-    "github.com/organic-programming/go-holons/pkg/transport"
-    "github.com/organic-programming/go-holons/pkg/grpcclient"
 )
 
-mem := transport.NewMemListener()
-gs := grpc.NewServer()
-myholon.Register(gs)
-go gs.Serve(mem)
-
-conn, _ := grpcclient.DialMem(ctx, mem)
-client := pb.NewMyHolonServiceClient(conn)
+// Direct Code API usage — no transport, no serialization.
+svc := myholon.New()
+resp, err := svc.SayHello(ctx, &pb.SayHelloRequest{Name: "Bob"})
 ```
 
 ### Rules

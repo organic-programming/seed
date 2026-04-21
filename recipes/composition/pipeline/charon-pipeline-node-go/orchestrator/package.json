@@ -1,9 +1,0 @@
-{
-  "name": "charon-pipeline-node-go-orchestrator",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "build": "node scripts/build.js",
-    "test": "node -e \"process.exit(0)\""
-  }
-}

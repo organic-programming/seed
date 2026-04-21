@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package test.v1;
+
+import "holons/v1/manifest.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    uuid: "test-uuid-1234"
+    given_name: "gabriel"
+    family_name: "Greeting-Go"
+    motto: "Test greeting holon."
+    composer: "test"
+    clade: "deterministic/pure"
+    status: "draft"
+    born: "2026-03-15"
+  }
+  lineage: {
+    parents: ["parent-a"]
+    reproduction: "assisted"
+    generated_by: "op"
+  }
+  lang: "go"
+};

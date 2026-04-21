@@ -1,0 +1,25 @@
+name: {{ .SnakeSlug }}_app
+description: "{{ .PascalSlug }} Flutter organism app holon scaffold."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  grpc: ^5.1.0
+  holons:
+    path: ../../sdk/dart-holons
+  holons_app:
+    path: ../../organism_kits/flutter
+  shadcn_flutter: ^0.0.52
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

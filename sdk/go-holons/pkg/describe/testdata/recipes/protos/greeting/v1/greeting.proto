@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package greeting.v1;
+
+service GreetingService {
+  // GreetingService exercises wrapper imports through recipes/protos.
+  rpc SayHello(SayHelloRequest) returns (SayHelloResponse);
+}
+
+message SayHelloRequest {
+  // Name to greet.
+  // @example "Bob"
+  string name = 1;
+}
+
+message SayHelloResponse {
+  // Greeting text.
+  // @required
+  // @example "Hello, Bob!"
+  string greeting = 1;
+}

@@ -1,0 +1,24 @@
+description: Suite validating op tools with CLI-first integration and API/RPC alignment.
+defaults:
+  profile: smoke
+steps:
+  tools-cli:
+    check: op-tools-cli
+    lane: progression
+  tools-api:
+    check: op-tools-api
+    lane: progression
+    needs: [tools-cli]
+  tools-rpc:
+    check: op-tools-rpc
+    lane: progression
+    needs: [tools-api]
+profiles:
+  smoke:
+    description: CLI-first verification with API and RPC alignment.
+    archive: never
+    steps: [tools-cli, tools-api, tools-rpc]
+  full:
+    description: Exhaustive tool export verification across supported formats.
+    archive: never
+    steps: [tools-cli, tools-api, tools-rpc]

@@ -1,9 +1,6 @@
 # Obsidian workspace
 .obsidian
 
-# Agent logs (generated, not committed)
-.agent/logs/
-
 # OS
 .DS_Store
 
@@ -25,3 +22,6 @@ tasks/*
 .sculptor/*CMakeFiles/
 .DRAFT*
 .tmp
+
+prompts/
+.agents

@@ -5,7 +5,7 @@ const pb = require('../gen/node/greeting/v1/greeting_pb.js');
 const { serve } = require('@organic-programming/holons');
 const server = require('../_internal/server');
 
-const VERSION = 'gabriel-greeting-node v0.1.0';
+const VERSION = 'gabriel-greeting-node {{ .Version }}';
 
 async function main(args = process.argv.slice(2), stdout = process.stdout, stderr = process.stderr) {
   if (!args.length) {
@@ -15,9 +15,9 @@ async function main(args = process.argv.slice(2), stdout = process.stdout, stder
 
   switch (canonicalCommand(args[0])) {
     case 'serve': {
-      const listenUri = serve.parseFlags(args.slice(1));
+      const serveOptions = serve.parseOptions(args.slice(1));
       try {
-        await server.listenAndServe(listenUri);
+        await server.listenAndServe(serveOptions.listenUri, serveOptions.reflect);
       } catch (error) {
         stderr.write(`serve: ${error.message}\n`);
         return 1;
@@ -213,8 +213,8 @@ function printUsage(output) {
   output.write('examples:\n');
   output.write('  gabriel-greeting-node serve --listen stdio\n');
   output.write('  gabriel-greeting-node listLanguages --format json\n');
-  output.write('  gabriel-greeting-node sayHello Alice fr\n');
-  output.write('  gabriel-greeting-node sayHello Alice --lang fr --format json\n');
+  output.write('  gabriel-greeting-node sayHello Bob fr\n');
+  output.write('  gabriel-greeting-node sayHello Bob --lang fr --format json\n');
 }
 
 module.exports = {

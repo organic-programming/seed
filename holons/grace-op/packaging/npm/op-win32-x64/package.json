@@ -1,0 +1,19 @@
+{
+  "name": "@organic-programming/op-win32-x64",
+  "version": "0.0.0-development",
+  "description": "Organic Programming CLI binary for Windows x64",
+  "license": "UNLICENSED",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin/op.exe",
+    "README.md"
+  ],
+  "bin": {
+    "op": "bin/op.exe"
+  }
+}

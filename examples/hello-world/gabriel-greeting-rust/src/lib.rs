@@ -1,4 +1,11 @@
 pub mod gen {
+    pub mod describe_generated {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/gen/describe_generated.rs"
+        ));
+    }
+
     pub mod rust {
         pub mod greeting {
             pub mod v1 {

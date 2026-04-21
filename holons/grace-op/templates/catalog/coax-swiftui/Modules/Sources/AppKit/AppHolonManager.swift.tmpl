@@ -1,0 +1,201 @@
+import Combine
+import Foundation
+import HolonsApp
+
+public struct TemplateHolon: Identifiable, Hashable, Sendable {
+    public let slug: String
+    public let displayName: String
+    public let familyName: String
+
+    public var id: String { slug }
+
+    public init(slug: String, displayName: String, familyName: String) {
+        self.slug = slug
+        self.displayName = displayName
+        self.familyName = familyName
+    }
+}
+
+@MainActor
+public final class AppHolonManager: ObservableObject, HolonManager {
+    @Published public var availableHolons: [TemplateHolon]
+    @Published public var selectedHolonSlug: String
+    @Published public var transport: String
+    @Published public var greeting: String
+    @Published public var detail: String
+    @Published public var isConnected: Bool
+
+    public init() {
+        self.availableHolons = [
+            TemplateHolon(
+                slug: "holon",
+                displayName: "{{ .PascalSlug }} Holon",
+                familyName: "{{ .FamilyTitle }}-Holon"
+            )
+        ]
+        self.selectedHolonSlug = "holon"
+        self.transport = HolonTransportName.normalize(
+            ProcessInfo.processInfo.environment["OP_ASSEMBLY_TRANSPORT"]
+        ).rawValue
+        self.greeting = "Wire your business holon into this organism app."
+        self.detail = "COAX is ready. The scaffolded member `holon` is a local demo bridge until you replace it with a real runtime."
+        self.isConnected = false
+    }
+
+    public var selectedHolon: TemplateHolon? {
+        availableHolons.first(where: { $0.slug == selectedHolonSlug })
+    }
+
+    public var statusTitle: String {
+        isConnected ? "Ready" : "Offline"
+    }
+
+    public var demoCommand: String {
+        #"sample.v1.SampleHolon/SetGreeting {"text":"Hello from COAX"}"#
+    }
+
+    public func selectHolon(slug: String) {
+        guard availableHolons.contains(where: { $0.slug == slug }) else { return }
+        selectedHolonSlug = slug
+        detail = "Selected \(selectedHolon?.displayName ?? slug)."
+    }
+
+    public func setTransport(_ value: String) {
+        guard let normalized = HolonTransportName.parseCanonical(value) else { return }
+        transport = normalized.rawValue
+        detail = "Transport set to \(normalized.rawValue)."
+    }
+
+    public func applyHumanGreeting() {
+        setGreeting(
+            text: "Hello from {{ .GivenTitle }} {{ .FamilyTitle }}.",
+            detail: "The human button and COAX Tell both flow through the same state."
+        )
+    }
+
+    public func disconnectActiveMember() {
+        isConnected = false
+        detail = "Disconnected member \(selectedHolon?.displayName ?? "holon")."
+    }
+
+    public func listMembers() async -> [CoaxMember] {
+        availableHolons.map { member in
+            CoaxMember(
+                slug: member.slug,
+                familyName: member.familyName,
+                displayName: member.displayName,
+                state: selectedHolonSlug == member.slug && isConnected ? .connected : .available
+            )
+        }
+    }
+
+    public func memberStatus(slug: String) async -> CoaxMember? {
+        availableHolons.first(where: { $0.slug == slug }).map { member in
+            CoaxMember(
+                slug: member.slug,
+                familyName: member.familyName,
+                displayName: member.displayName,
+                state: selectedHolonSlug == member.slug && isConnected ? .connected : .available
+            )
+        }
+    }
+
+    public func connectMember(slug: String, transport: String) async throws -> CoaxMember {
+        selectHolon(slug: slug)
+        if !transport.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            setTransport(transport)
+        }
+        isConnected = true
+        detail = "Connected \(selectedHolon?.displayName ?? slug) over \(self.transport)."
+        guard let member = await memberStatus(slug: slug) else {
+            throw AppHolonManagerError.memberNotFound(slug)
+        }
+        return member
+    }
+
+    public func disconnectMember(slug: String) async {
+        guard slug.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || slug == selectedHolonSlug else {
+            return
+        }
+        disconnectActiveMember()
+    }
+
+    public func tellMember(slug: String, method: String, payloadJSON: Data) async throws -> Data {
+        selectHolon(slug: slug)
+        isConnected = true
+
+        let object: Any
+        if payloadJSON.isEmpty {
+            object = [String: Any]()
+        } else {
+            object = try JSONSerialization.jsonObject(with: payloadJSON)
+        }
+        guard let payload = object as? [String: Any] else {
+            throw AppHolonManagerError.invalidPayload
+        }
+
+        switch canonicalMethod(method) {
+        case "sample.v1.SampleHolon/Ping":
+            detail = "Received Ping for \(selectedHolon?.displayName ?? slug) over \(transport)."
+            return try data(
+                from: [
+                    "message": "pong",
+                    "memberSlug": slug,
+                    "transport": transport,
+                ]
+            )
+
+        case "sample.v1.SampleHolon/SetGreeting":
+            let text = (payload["text"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let nextDetail = (payload["detail"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            setGreeting(
+                text: text?.isEmpty == false ? text! : greeting,
+                detail: nextDetail?.isEmpty == false ? nextDetail! : "Updated through COAX Tell."
+            )
+            return try data(
+                from: [
+                    "greeting": greeting,
+                    "detail": detail,
+                ]
+            )
+
+        default:
+            throw AppHolonManagerError.unsupportedMethod(method)
+        }
+    }
+
+    private func setGreeting(text: String, detail: String) {
+        greeting = text
+        self.detail = detail
+        isConnected = true
+    }
+
+    private func canonicalMethod(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("/") {
+            return String(trimmed.dropFirst())
+        }
+        return trimmed
+    }
+
+    private func data(from payload: [String: Any]) throws -> Data {
+        try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+    }
+}
+
+public enum AppHolonManagerError: LocalizedError {
+    case invalidPayload
+    case memberNotFound(String)
+    case unsupportedMethod(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidPayload:
+            return "Tell expects a JSON object payload."
+        case .memberNotFound(let slug):
+            return "Member \(slug) was not found."
+        case .unsupportedMethod(let method):
+            return "Unsupported demo method: \(method)"
+        }
+    }
+}

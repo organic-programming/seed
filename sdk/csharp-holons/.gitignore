@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+!/bin/
+!/bin/echo-client
+!/bin/echo-server
+!/bin/holon-rpc-server
+
+obj/
+
+*.suo
+
+*.user

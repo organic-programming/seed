@@ -18,11 +18,11 @@ fn list_languages_includes_english() {
 #[test]
 fn say_hello_uses_requested_language() {
     let response = crate::public::say_hello(pb::SayHelloRequest {
-        name: "Alice".to_string(),
+        name: "Bob".to_string(),
         lang_code: "fr".to_string(),
     });
 
-    assert_eq!(response.greeting, "Bonjour Alice");
+    assert_eq!(response.greeting, "Bonjour Bob");
     assert_eq!(response.language, "French");
     assert_eq!(response.lang_code, "fr");
 }

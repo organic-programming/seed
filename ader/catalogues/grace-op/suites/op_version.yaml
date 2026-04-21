@@ -1,0 +1,24 @@
+description: Suite validating op version and the structural command surface symmetry.
+defaults:
+  profile: smoke
+steps:
+  version-symmetry:
+    check: op-command-symmetry-unit
+    lane: progression
+  version-cli:
+    check: op-version-cli
+    lane: progression
+    needs: [version-symmetry]
+  version-api:
+    check: op-version-api
+    lane: progression
+    needs: [version-cli]
+  version-rpc:
+    check: op-version-rpc
+    lane: progression
+    needs: [version-api]
+profiles:
+  smoke:
+    description: Structural symmetry plus CLI/API/RPC version verification.
+    archive: never
+    steps: [version-symmetry, version-cli, version-api, version-rpc]

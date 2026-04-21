@@ -1,0 +1,69 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: https://registry.npmjs.org
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build Release Artifacts
+        run: go run ./scripts/releaser.go
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/**/*.tar.gz
+            dist/**/*.zip
+            dist/**/*.sha256
+            dist/SHA256SUMS
+            dist/release.json
+            dist/homebrew/*.rb
+            dist/winget/*.yaml
+
+      - name: Publish npm Packages
+        if: ${{ env.NPM_TOKEN != '' }}
+        run: node ./packaging/npm/publish.mjs dist/npm
+
+      - name: Update Homebrew Tap
+        if: ${{ env.HOMEBREW_TAP_TOKEN != '' }}
+        run: |
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/organic-programming/homebrew-tap.git" /tmp/homebrew-tap
+          mkdir -p /tmp/homebrew-tap/Formula
+          cp dist/homebrew/op.rb /tmp/homebrew-tap/Formula/op.rb
+          cd /tmp/homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/op.rb
+          git commit -m "Update op formula for ${GITHUB_REF_NAME}" || exit 0
+          git push origin HEAD:main

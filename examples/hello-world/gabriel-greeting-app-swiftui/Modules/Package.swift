@@ -1,0 +1,52 @@
+// swift-tools-version: 6.0
+import Foundation
+import PackageDescription
+
+private let packageDirectory = URL(fileURLWithPath: #filePath)
+    .resolvingSymlinksInPath()
+    .deletingLastPathComponent()
+private let swiftHolonsPath = URL(
+    fileURLWithPath: "../../../../sdk/swift-holons",
+    relativeTo: packageDirectory
+)
+    .standardizedFileURL
+    .path
+private let holonsAppPath = URL(
+    fileURLWithPath: "../../../../organism_kits/swiftui",
+    relativeTo: packageDirectory
+)
+    .standardizedFileURL
+    .path
+
+let package = Package(
+    name: "Modules",
+    platforms: [.macOS(.v15), .iOS(.v18)],
+    products: [
+        .library(name: "GreetingKit", targets: ["GreetingKit"]),
+    ],
+    dependencies: [
+        .package(path: swiftHolonsPath),
+        .package(path: holonsAppPath),
+        .package(url: "https://github.com/grpc/grpc-swift.git", exact: "1.9.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.36.0"),
+        .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.35.0"),
+    ],
+    targets: [
+        .target(
+            name: "GreetingKit",
+            dependencies: [
+                .product(name: "Holons", package: "swift-holons", condition: .when(platforms: [.macOS])),
+                .product(name: "HolonsApp", package: "swiftui"),
+                .product(name: "GRPC", package: "grpc-swift"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "SwiftProtobuf", package: "swift-protobuf"),
+            ],
+            path: "Sources/GreetingKit"
+        ),
+        .testTarget(
+            name: "GreetingKitTests",
+            dependencies: ["GreetingKit"],
+            path: "Tests/GreetingKitTests"
+        ),
+    ]
+)

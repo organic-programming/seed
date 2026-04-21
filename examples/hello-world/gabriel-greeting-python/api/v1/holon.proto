@@ -17,10 +17,10 @@ option (holons.v1.manifest) = {
     given_name: "Gabriel"
     family_name: "Greeting-Python"
     motto: "Greets users in 56 languages — a Python daemon example."
-    composer: "Codex"
+    composer: "B. ALTER"
     status: "draft"
     born: "2026-03-16"
-    version: "0.1.0"
+    version: "0.1.131"
   }
   description: "A Python gRPC daemon that greets users in 56 languages."
   lang: "python"
@@ -28,10 +28,11 @@ option (holons.v1.manifest) = {
   build: {
     runner: "python"
     main: "./cmd/main.py"
+    templates: ["api/cli.py"]
   }
   requires: {
     commands: ["python3"]
-    files: ["cmd/main.py", "pyproject.toml"]
+    files: ["cmd/main.py", "pyproject.toml", "requirements.txt"]
   }
   artifacts: {
     binary: "gabriel-greeting-python"

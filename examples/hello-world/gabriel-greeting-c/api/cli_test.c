@@ -84,11 +84,11 @@ int main(void) {
   stdout_file = tmpfile();
   stderr_file = tmpfile();
   exit_code = gabriel_greeting_c_run_cli(
-      3, (char *[]){"sayHello", "Alice", "fr"}, stdout_file, stderr_file);
+      3, (char *[]){"sayHello", "Bob", "fr"}, stdout_file, stderr_file);
   stdout_text = read_file(stdout_file);
   if (!expect(exit_code == 0, "sayHello text should succeed") ||
-      !expect(strcmp(stdout_text, "Bonjour Alice\n") == 0,
-              "sayHello text should greet Alice in French")) {
+      !expect(strcmp(stdout_text, "Bonjour Bob\n") == 0,
+              "sayHello text should greet Bob in French")) {
     return 1;
   }
   free(stdout_text);

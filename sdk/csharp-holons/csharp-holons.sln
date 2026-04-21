@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Holons", "Holons\Holons.csproj", "{6EDEA3D5-DD62-4C16-8A87-1B471C5D86A8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Holons.Tests", "Holons.Tests\Holons.Tests.csproj", "{DCDB542A-7BCF-40F2-A4AA-D3F6445A147E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6EDEA3D5-DD62-4C16-8A87-1B471C5D86A8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6EDEA3D5-DD62-4C16-8A87-1B471C5D86A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6EDEA3D5-DD62-4C16-8A87-1B471C5D86A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6EDEA3D5-DD62-4C16-8A87-1B471C5D86A8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DCDB542A-7BCF-40F2-A4AA-D3F6445A147E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DCDB542A-7BCF-40F2-A4AA-D3F6445A147E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DCDB542A-7BCF-40F2-A4AA-D3F6445A147E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DCDB542A-7BCF-40F2-A4AA-D3F6445A147E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package echo.v1;
+
+option go_package = "github.com/organic-programming/grace-op/internal/cli/testsupport/echoholon/protos/echo/v1;echov1";
+
+// Echoes request payloads for MCP integration tests.
+service EchoService {
+  // Echo the request payload.
+  // @example {"message":"hello","tags":["one","two"],"mode":"ECHO_MODE_UPPER"}
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+enum EchoMode {
+  ECHO_MODE_UNSPECIFIED = 0;
+  ECHO_MODE_UPPER = 1;
+  ECHO_MODE_LOWER = 2;
+}
+
+message PingRequest {
+  // Message to echo back.
+  // @required
+  // @example "hello"
+  string message = 1;
+
+  // Tags to include in the response count.
+  // @example ["one","two"]
+  repeated string tags = 2;
+
+  // Output mode.
+  EchoMode mode = 3;
+}
+
+message PingResponse {
+  // Echoed text.
+  string message = 1;
+
+  // Number of tags seen.
+  int32 count = 2;
+
+  // Mode chosen by the caller.
+  EchoMode mode = 3;
+}

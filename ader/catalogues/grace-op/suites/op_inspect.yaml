@@ -1,0 +1,24 @@
+description: Suite validating op inspect with CLI-first integration and API/RPC alignment.
+defaults:
+  profile: smoke
+steps:
+  inspect-cli:
+    check: op-inspect-cli
+    lane: progression
+  inspect-api:
+    check: op-inspect-api
+    lane: progression
+    needs: [inspect-cli]
+  inspect-rpc:
+    check: op-inspect-rpc
+    lane: progression
+    needs: [inspect-api]
+profiles:
+  smoke:
+    description: CLI-first verification with API and RPC alignment.
+    archive: never
+    steps: [inspect-cli, inspect-api, inspect-rpc]
+  full:
+    description: Exhaustive inspect verification, including remote describe coverage.
+    archive: never
+    steps: [inspect-cli, inspect-api, inspect-rpc]

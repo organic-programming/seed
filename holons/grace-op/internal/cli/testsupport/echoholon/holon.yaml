@@ -1,0 +1,29 @@
+schema: holon/v0
+uuid: "mcp-test-echo-server"
+given_name: "echo"
+family_name: "server"
+motto: "Echo what you send."
+composer: "test"
+clade: "deterministic/io_bound"
+status: draft
+born: "2026-03-08"
+parents: []
+reproduction: manual
+aliases: ["echo", "echo-server"]
+generated_by: "test"
+lang: "go"
+proto_status: draft
+description: |
+  Echoes request payloads for MCP integration tests.
+skills:
+  - name: repeat-back
+    description: Echo user text back with optional tags.
+    when: User wants a safe connectivity smoke test.
+    steps:
+      - Call EchoService.Ping with the text to echo.
+      - Inspect the returned message, tag count, and mode.
+kind: native
+build:
+  runner: go-module
+artifacts:
+  binary: echo-server

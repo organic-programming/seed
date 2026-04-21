@@ -20,12 +20,12 @@ class PublicApiTest {
     fun sayHelloUsesRequestedLanguage() {
         val response = PublicApi.sayHello(
             Greeting.SayHelloRequest.newBuilder()
-                .setName("Alice")
+                .setName("Bob")
                 .setLangCode("fr")
                 .build(),
         )
 
-        assertEquals("Bonjour Alice", response.greeting)
+        assertEquals("Bonjour Bob", response.greeting)
         assertEquals("French", response.language)
         assertEquals("fr", response.langCode)
     }

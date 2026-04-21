@@ -1,0 +1,7 @@
+.DS_Store
+.op/
+app/.dart_tool/
+app/.flutter-plugins-dependencies
+app/.pub/
+app/build/
+app/coverage/

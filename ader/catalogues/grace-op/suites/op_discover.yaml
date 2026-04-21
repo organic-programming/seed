@@ -1,0 +1,20 @@
+description: Suite validating op discover with CLI-first integration and API/RPC alignment.
+defaults:
+  profile: smoke
+steps:
+  discover-cli:
+    check: op-discover-cli
+    lane: progression
+  discover-api:
+    check: op-discover-api
+    lane: progression
+    needs: [discover-cli]
+  discover-rpc:
+    check: op-discover-rpc
+    lane: progression
+    needs: [discover-api]
+profiles:
+  smoke:
+    description: CLI-first verification with API and RPC alignment.
+    archive: never
+    steps: [discover-cli, discover-api, discover-rpc]

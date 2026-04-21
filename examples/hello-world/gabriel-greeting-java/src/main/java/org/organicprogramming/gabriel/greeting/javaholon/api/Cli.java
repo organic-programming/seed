@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class Cli {
-    public static final String VERSION = "gabriel-greeting-java v0.1.0";
+    public static final String VERSION = "gabriel-greeting-java 0.1.66";
 
     private Cli() {
     }
@@ -25,7 +25,8 @@ public final class Cli {
         switch (canonicalCommand(args[0])) {
             case "serve":
                 try {
-                    GreetingServer.listenAndServe(Serve.parseFlags(slice(args, 1)));
+                    Serve.ParsedFlags parsed = Serve.parseOptions(slice(args, 1));
+                    GreetingServer.listenAndServe(parsed.listenUri(), parsed.reflect());
                     return 0;
                 } catch (Exception error) {
                     stderr.printf("serve: %s%n", error.getMessage());
@@ -185,8 +186,8 @@ public final class Cli {
         output.println("examples:");
         output.println("  gabriel-greeting-java serve --listen tcp://:9090");
         output.println("  gabriel-greeting-java listLanguages --format json");
-        output.println("  gabriel-greeting-java sayHello Alice fr");
-        output.println("  gabriel-greeting-java sayHello Alice --lang fr --format json");
+        output.println("  gabriel-greeting-java sayHello Bob fr");
+        output.println("  gabriel-greeting-java sayHello Bob --lang fr --format json");
     }
 
     private static String[] slice(String[] args, int offset) {

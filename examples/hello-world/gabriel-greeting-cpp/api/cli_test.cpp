@@ -88,12 +88,12 @@ int main() {
     std::ostringstream stdout_stream;
     std::ostringstream stderr_stream;
     const int exit_code = gabriel::greeting::cppholon::api::RunCLI(
-        {"sayHello", "Alice", "fr"}, stdout_stream, stderr_stream);
+        {"sayHello", "Bob", "fr"}, stdout_stream, stderr_stream);
     if (!Expect(exit_code == 0, "sayHello text should succeed")) {
       return 1;
     }
-    if (!Expect(stdout_stream.str() == "Bonjour Alice\n",
-                "sayHello text should greet Alice in French")) {
+    if (!Expect(stdout_stream.str() == "Bonjour Bob\n",
+                "sayHello text should greet Bob in French")) {
       return 1;
     }
   }

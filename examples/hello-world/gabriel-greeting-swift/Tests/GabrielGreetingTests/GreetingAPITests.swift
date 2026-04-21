@@ -18,12 +18,12 @@ final class GreetingAPITests: XCTestCase {
 
     func testSayHelloUsesRequestedLanguage() {
         var request = Greeting_V1_SayHelloRequest()
-        request.name = "Alice"
+        request.name = "Bob"
         request.langCode = "fr"
 
         let response = GreetingAPI.sayHello(request)
 
-        XCTAssertEqual(response.greeting, "Bonjour Alice")
+        XCTAssertEqual(response.greeting, "Bonjour Bob")
         XCTAssertEqual(response.language, "French")
         XCTAssertEqual(response.langCode, "fr")
     }

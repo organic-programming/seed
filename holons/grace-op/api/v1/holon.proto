@@ -1,0 +1,657 @@
+syntax = "proto3";
+
+package op.v1;
+
+import "holons/v1/manifest.proto";
+
+option go_package = "github.com/organic-programming/grace-op/gen/go/op/v1;opv1";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "28f22ab5-c62d-41f8-9ada-e34333060ff9"
+    given_name: "Grace"
+    family_name: "OP"
+    motto: "One command, every holon."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-02-12"
+    version: "0.5.711"
+    aliases: ["op"]
+  }
+  description: "OP is the unified entry point to the Organic Programming ecosystem. It discovers holons — locally or over the network — and dispatches commands to them through a single interface. The actant installs one binary and gets access to every holon. OP does not implement domain logic. It routes."
+  lang: "go"
+  kind: "native"
+  build: {
+    runner: "go-module"
+    main: "./cmd/op"
+    templates: ["api/version.go"]
+  }
+  requires: {
+    commands: ["go"]
+    files: ["go.mod"]
+  }
+  artifacts: {
+    binary: "op"
+  }
+  contract: {
+    proto: "api/v1/holon.proto"
+    service: "op.v1.OPService"
+    rpcs: [
+      "Discover",
+      "Invoke",
+      "CreateIdentity",
+      "ListIdentities",
+      "ShowIdentity",
+      "ListTemplates",
+      "GenerateTemplate",
+      "Version",
+      "Check",
+      "Build",
+      "Test",
+      "Clean",
+      "Install",
+      "Uninstall",
+      "Run",
+      "Inspect",
+      "RunSequence",
+      "ModInit",
+      "ModAdd",
+      "ModRemove",
+      "ModTidy",
+      "ModPull",
+      "ModUpdate",
+      "ModList",
+      "ModGraph",
+      "Tools",
+      "Env"
+    ]
+  }
+  skills: [{
+    name: "discover-and-build"
+    description: "Discover a holon, inspect its contract, and build it locally."
+    when: "User wants to find a holon in the workspace and turn it into a runnable artifact."
+    steps: [
+      "Discover local holons with `op list .` or `op discover`",
+      "Inspect the contract with `op inspect <holon>`",
+      "Validate prerequisites with `op check <holon>`",
+      "Build and install with `op build <holon>` then `op install <holon>`"
+    ]
+  }, {
+    name: "full-lifecycle"
+    description: "Drive a holon through validation, build, test, run, and cleanup."
+    when: "User wants the complete Organic Programming lifecycle for a holon or recipe."
+    steps: [
+      "Validate manifest and environment with `op check <holon>`",
+      "Build and test the artifact with `op build <holon>` and `op test <holon>`",
+      "Launch or dispatch with `op run <holon>` or `op <holon> <command>`",
+      "Clean and uninstall when finished with `op clean <holon>` and `op uninstall <holon>`"
+    ]
+  }, {
+    name: "introspect-holon"
+    description: "Inspect a holon's RPC contract, fields, and skills offline."
+    when: "User wants to understand a holon's API without running it."
+    steps: [
+      "Run `op inspect <holon>` for human-readable proto docs",
+      "Use `op inspect <holon> --json` for machine-readable output",
+      "Fallback to `op inspect <host:port>` for a running holon via Describe RPC"
+    ]
+  }, {
+    name: "expose-to-llm"
+    description: "Expose any holon as MCP tools for LLM integration."
+    when: "User wants an AI agent to call holon RPCs."
+    steps: [
+      "Start the MCP bridge with `op mcp <holon>`",
+      "Or export tool definitions with `op tools <holon> --format openai`",
+      "Skills from the manifest are exposed as MCP prompts alongside tools"
+    ]
+  }, {
+    name: "manage-dependencies"
+    description: "Manage holon dependencies like Go modules."
+    when: "User needs to add, update, or audit holon deps."
+    steps: [
+      "Initialize with `op mod init <holon-path>`",
+      "Add dependencies with `op mod add <module> [version]`",
+      "Tidy and verify with `op mod tidy`",
+      "Inspect the graph with `op mod graph`"
+    ]
+  }]
+};
+
+// OPService is the unified Organic Programming dispatcher.
+service OPService {
+  // Discover scans for all known holons (local and cached).
+  // @example {"root_dir":"./organic-programming"}
+  rpc Discover (DiscoverRequest) returns (DiscoverResponse);
+
+  // Invoke dispatches a command to a holon by name.
+  // @example {"holon":"rob-go","args":["build","./cmd/rob-go"]}
+  rpc Invoke (InvokeRequest) returns (InvokeResponse);
+
+  // CreateIdentity creates a new holon identity.
+  // @example {"given_name":"Megg","family_name":"FFmpeg","motto":"Cut precisely.","composer":"B. ALTER","clade":"DETERMINISTIC_IO_BOUND","output_dir":"holons/megg-ffmpeg"}
+  rpc CreateIdentity (CreateIdentityRequest) returns (CreateIdentityResponse);
+
+  // ListIdentities lists all known holon identities.
+  // @example {}
+  rpc ListIdentities (ListIdentitiesRequest) returns (ListIdentitiesResponse);
+
+  // ShowIdentity retrieves a holon's identity by UUID.
+  // @example {"uuid":"31d98dfa-c08e-4db5-ab4f-180cecad50ef"}
+  rpc ShowIdentity (ShowIdentityRequest) returns (ShowIdentityResponse);
+
+  // ListTemplates lists built-in scaffold templates.
+  rpc ListTemplates (ListTemplatesRequest) returns (ListTemplatesResponse);
+
+  // GenerateTemplate scaffolds a holon from a built-in template.
+  rpc GenerateTemplate (GenerateTemplateRequest) returns (GenerateTemplateResponse);
+
+  // Version returns the current OP version payload.
+  rpc Version (VersionRequest) returns (VersionResponse);
+
+  // Check validates a holon's manifest and prerequisites.
+  rpc Check (LifecycleRequest) returns (LifecycleResponse);
+
+  // Build resolves and builds a holon artifact.
+  rpc Build (LifecycleRequest) returns (LifecycleResponse);
+
+  // Test runs a holon's test contract.
+  rpc Test (LifecycleRequest) returns (LifecycleResponse);
+
+  // Clean removes build outputs for a holon.
+  rpc Clean (LifecycleRequest) returns (LifecycleResponse);
+
+  // Install builds and installs a holon artifact.
+  rpc Install (InstallRequest) returns (InstallResponse);
+
+  // Uninstall removes an installed holon artifact.
+  rpc Uninstall (UninstallRequest) returns (InstallResponse);
+
+  // Run launches a holon and captures its process result.
+  rpc Run (RunRequest) returns (RunResponse);
+
+  // Inspect describes a holon's contract and skills.
+  rpc Inspect (InspectRequest) returns (InspectResponse);
+
+  // RunSequence executes a declared manifest sequence.
+  rpc RunSequence (RunSequenceRequest) returns (RunSequenceResponse);
+
+  // ModInit initializes holon.mod.
+  rpc ModInit (ModInitRequest) returns (ModInitResponse);
+
+  // ModAdd adds a dependency to holon.mod.
+  rpc ModAdd (ModAddRequest) returns (ModAddResponse);
+
+  // ModRemove removes a dependency from holon.mod.
+  rpc ModRemove (ModRemoveRequest) returns (ModRemoveResponse);
+
+  // ModTidy prunes and refreshes holon.sum.
+  rpc ModTidy (ModTidyRequest) returns (ModTidyResponse);
+
+  // ModPull fetches dependencies into the cache.
+  rpc ModPull (ModPullRequest) returns (ModPullResponse);
+
+  // ModUpdate updates dependencies to latest compatible tags.
+  rpc ModUpdate (ModUpdateRequest) returns (ModUpdateResponse);
+
+  // ModList lists declared dependencies.
+  rpc ModList (ModListRequest) returns (ModListResponse);
+
+  // ModGraph prints the dependency graph.
+  rpc ModGraph (ModGraphRequest) returns (ModGraphResponse);
+
+  // Tools exports LLM tool definitions for a holon.
+  rpc Tools (ToolsRequest) returns (ToolsResponse);
+
+  // Env resolves OP environment paths and shell setup.
+  rpc Env (EnvRequest) returns (EnvResponse);
+}
+
+enum Clade {
+  CLADE_UNSPECIFIED = 0;
+  DETERMINISTIC_PURE = 1;
+  DETERMINISTIC_STATEFUL = 2;
+  DETERMINISTIC_IO_BOUND = 3;
+  PROBABILISTIC_GENERATIVE = 4;
+  PROBABILISTIC_PERCEPTUAL = 5;
+  PROBABILISTIC_ADAPTIVE = 6;
+}
+
+enum ReproductionMode {
+  REPRODUCTION_UNSPECIFIED = 0;
+  MANUAL = 1;
+  ASSISTED = 2;
+  AUTOMATIC = 3;
+  AUTOPOIETIC = 4;
+  BRED = 5;
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  DRAFT = 1;
+  STABLE = 2;
+  DEPRECATED = 3;
+  DEAD = 4;
+}
+
+message HolonIdentity {
+  string uuid = 1;
+  string given_name = 2;
+  string family_name = 3;
+  string motto = 4;
+  string composer = 5;
+  Clade clade = 6;
+  Status status = 7;
+  string born = 8;
+
+  repeated string parents = 9;
+  ReproductionMode reproduction = 10;
+
+  repeated string aliases = 18;
+
+  string generated_by = 20;
+  string lang = 21;
+  Status proto_status = 22;
+}
+
+message DiscoverRequest {
+  // Directory to scan. Defaults to the current working directory.
+  // @example "./organic-programming"
+  string root_dir = 1;
+}
+
+message DiscoverResponse {
+  repeated HolonEntry entries = 1;
+  repeated string path_binaries = 2;
+  repeated string installed_binaries = 3;
+}
+
+message HolonEntry {
+  HolonIdentity identity = 1;
+  string origin = 2;
+  string relative_path = 3;
+}
+
+message InvokeRequest {
+  // Holon name or alias to dispatch to.
+  // @required
+  // @example "rob-go"
+  string holon = 1;
+  // Arguments passed to the holon command.
+  // @example ["build","./cmd/rob-go"]
+  repeated string args = 2;
+}
+
+message InvokeResponse {
+  int32 exit_code = 1;
+  string stdout = 2;
+  string stderr = 3;
+}
+
+message CreateIdentityRequest {
+  string given_name = 1;
+  string family_name = 2;
+  string motto = 3;
+  string composer = 4;
+  Clade clade = 5;
+  ReproductionMode reproduction = 6;
+  string lang = 7;
+  repeated string aliases = 8;
+  string output_dir = 10;
+}
+
+message CreateIdentityResponse {
+  HolonIdentity identity = 1;
+  string file_path = 2;
+}
+
+message ShowIdentityRequest {
+  string uuid = 1;
+}
+
+message ShowIdentityResponse {
+  HolonIdentity identity = 1;
+  string file_path = 2;
+  string raw_content = 3;
+}
+
+message ListIdentitiesRequest {
+  string root_dir = 1;
+}
+
+message ListIdentitiesResponse {
+  repeated HolonEntry entries = 1;
+}
+
+message ListTemplatesRequest {}
+
+message TemplateParam {
+  string name = 1;
+  string description = 2;
+  string default = 3;
+  bool required = 4;
+}
+
+message TemplateEntry {
+  string name = 1;
+  string description = 2;
+  string lang = 3;
+  repeated TemplateParam params = 4;
+}
+
+message ListTemplatesResponse {
+  repeated TemplateEntry entries = 1;
+}
+
+message GenerateTemplateRequest {
+  string template = 1;
+  string slug = 2;
+  string dir = 3;
+  map<string, string> overrides = 4;
+}
+
+message GenerateTemplateResponse {
+  string template = 1;
+  string dir = 2;
+}
+
+message VersionRequest {}
+
+message VersionResponse {
+  string name = 1;
+  string version = 2;
+  string banner = 3;
+}
+
+message BuildOptions {
+  string target = 1;
+  string mode = 2;
+  bool dry_run = 3;
+  bool no_sign = 4;
+  bool hardened = 5;
+}
+
+message LifecycleRequest {
+  string target = 1;
+  BuildOptions build = 2;
+}
+
+message LifecycleReport {
+  string operation = 1;
+  string target = 2;
+  string holon = 3;
+  string dir = 4;
+  string manifest = 5;
+  string runner = 6;
+  string kind = 7;
+  string binary = 8;
+  string build_target = 9;
+  string build_mode = 10;
+  string artifact = 11;
+  repeated string commands = 12;
+  repeated string notes = 13;
+  repeated LifecycleReport children = 14;
+}
+
+message LifecycleResponse {
+  LifecycleReport report = 1;
+}
+
+message InstallRequest {
+  string target = 1;
+  bool build = 2;
+  bool link_applications = 3;
+}
+
+message UninstallRequest {
+  string target = 1;
+}
+
+message InstallReport {
+  string operation = 1;
+  string target = 2;
+  string holon = 3;
+  string dir = 4;
+  string manifest = 5;
+  string binary = 6;
+  string build_target = 7;
+  string build_mode = 8;
+  string artifact = 9;
+  string installed = 10;
+  repeated string notes = 11;
+}
+
+message InstallResponse {
+  InstallReport report = 1;
+}
+
+message RunRequest {
+  string holon = 1;
+  string listen_uri = 2;
+  bool no_build = 3;
+  string target = 4;
+  string mode = 5;
+}
+
+message RunResponse {
+  string holon = 1;
+  string resolved_target = 2;
+  string artifact = 3;
+  string listen_uri = 4;
+  string command = 5;
+  repeated string args = 6;
+  int32 exit_code = 7;
+  string stdout = 8;
+  string stderr = 9;
+}
+
+message InspectRequest {
+  string target = 1;
+}
+
+message InspectEnumValue {
+  string name = 1;
+  int32 number = 2;
+  string description = 3;
+}
+
+message InspectField {
+  string name = 1;
+  string type = 2;
+  int32 number = 3;
+  string description = 4;
+  string label = 5;
+  string map_key_type = 6;
+  string map_value_type = 7;
+  repeated InspectField nested_fields = 8;
+  repeated InspectEnumValue enum_values = 9;
+  bool required = 10;
+  string example = 11;
+}
+
+message InspectMethod {
+  string name = 1;
+  string description = 2;
+  string input_type = 3;
+  string output_type = 4;
+  repeated InspectField input_fields = 5;
+  repeated InspectField output_fields = 6;
+  bool client_streaming = 7;
+  bool server_streaming = 8;
+  string example_input = 9;
+}
+
+message InspectService {
+  string name = 1;
+  string description = 2;
+  repeated InspectMethod methods = 3;
+}
+
+message InspectSkill {
+  string name = 1;
+  string description = 2;
+  string when = 3;
+  repeated string steps = 4;
+}
+
+message InspectSequenceParam {
+  string name = 1;
+  string description = 2;
+  bool required = 3;
+  string default = 4;
+}
+
+message InspectSequence {
+  string name = 1;
+  string description = 2;
+  repeated InspectSequenceParam params = 3;
+  repeated string steps = 4;
+}
+
+message InspectDocument {
+  string slug = 1;
+  string motto = 2;
+  repeated InspectService services = 3;
+  repeated InspectSkill skills = 4;
+  repeated InspectSequence sequences = 5;
+}
+
+message InspectResponse {
+  InspectDocument document = 1;
+}
+
+message RunSequenceRequest {
+  string holon = 1;
+  string sequence = 2;
+  map<string, string> params = 3;
+  bool dry_run = 4;
+  bool continue_on_error = 5;
+}
+
+message SequenceStepResult {
+  int32 index = 1;
+  string command = 2;
+  string output = 3;
+  bool success = 4;
+  string error = 5;
+}
+
+message SequenceResult {
+  string holon = 1;
+  string sequence = 2;
+  string description = 3;
+  string dir = 4;
+  bool dry_run = 5;
+  bool continue_on_error = 6;
+  map<string, string> params = 7;
+  repeated SequenceStepResult steps = 8;
+}
+
+message RunSequenceResponse {
+  SequenceResult result = 1;
+}
+
+message Dependency {
+  string path = 1;
+  string version = 2;
+  string cache_path = 3;
+}
+
+message UpdatedDependency {
+  string path = 1;
+  string old_version = 2;
+  string new_version = 3;
+}
+
+message DependencyEdge {
+  string from = 1;
+  string to = 2;
+  string version = 3;
+}
+
+message ModInitRequest {
+  string holon_path = 1;
+}
+
+message ModInitResponse {
+  string mod_file = 1;
+  string holon_path = 2;
+}
+
+message ModAddRequest {
+  string module = 1;
+  string version = 2;
+}
+
+message ModAddResponse {
+  Dependency dependency = 1;
+  bool deferred = 2;
+}
+
+message ModRemoveRequest {
+  string module = 1;
+}
+
+message ModRemoveResponse {
+  string path = 1;
+}
+
+message ModTidyRequest {}
+
+message ModTidyResponse {
+  string sum_file = 1;
+  repeated string pruned = 2;
+  repeated Dependency current = 3;
+}
+
+message ModPullRequest {}
+
+message ModPullResponse {
+  repeated Dependency fetched = 1;
+}
+
+message ModUpdateRequest {
+  string module = 1;
+}
+
+message ModUpdateResponse {
+  repeated UpdatedDependency updated = 1;
+}
+
+message ModListRequest {}
+
+message ModListResponse {
+  string holon_path = 1;
+  repeated Dependency dependencies = 2;
+}
+
+message ModGraphRequest {}
+
+message ModGraphResponse {
+  string root = 1;
+  repeated DependencyEdge edges = 2;
+}
+
+message ToolsRequest {
+  string target = 1;
+  string format = 2;
+}
+
+message ToolsResponse {
+  string format = 1;
+  bytes payload = 2;
+}
+
+message EnvRequest {
+  bool init = 1;
+  bool shell = 2;
+}
+
+message EnvResponse {
+  string oppath = 1;
+  string opbin = 2;
+  string root = 3;
+  bool initialized = 4;
+  string shell = 5;
+  string cache_dir = 6;
+}

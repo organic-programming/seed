@@ -1,0 +1,7 @@
+.artifacts/
+.bootstrap-op/
+.snapshot_alias 
+.shared-cache/
+reports/
+archives/
+loops/live/

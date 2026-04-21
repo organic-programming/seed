@@ -1,4 +1,5 @@
 use crate::gen::rust::greeting::v1 as pb;
+use std::sync::Once;
 use tonic::{Request, Response, Status};
 
 const DESCRIPTOR_SET: &[u8] = include_bytes!(concat!(
@@ -30,16 +31,29 @@ impl pb::greeting_service_server::GreetingService for GreetingServer {
     }
 }
 
-pub(crate) async fn listen_and_serve(listen_uri: &str) -> holons::serve::Result<()> {
-    let reflection = tonic_reflection::server::Builder::configure()
-        .register_encoded_file_descriptor_set(DESCRIPTOR_SET)
-        .build_v1()?;
+pub(crate) async fn listen_and_serve(
+    listen_uri: &str,
+    reflect: bool,
+) -> holons::serve::Result<()> {
+    register_static_describe();
 
-    holons::serve::run_with_options(
+    holons::serve::run_single_with_options(
         listen_uri,
-        Some(reflection),
         pb::greeting_service_server::GreetingServiceServer::new(GreetingServer),
-        holons::serve::RunOptions::default(),
+        holons::serve::RunOptions {
+            reflect,
+            descriptor_set: Some(DESCRIPTOR_SET.to_vec()),
+            ..holons::serve::RunOptions::default()
+        },
     )
     .await
+}
+
+fn register_static_describe() {
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        holons::describe::use_static_response(
+            crate::gen::describe_generated::static_describe_response(),
+        );
+    });
 }

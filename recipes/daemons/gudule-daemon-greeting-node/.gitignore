@@ -1,9 +1,0 @@
-# Build outputs
-dist/
-.op/
-
-# Dependencies
-node_modules/
-
-# Logs
-*.log

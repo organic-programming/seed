@@ -6,6 +6,22 @@ Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` a
 
 This holon is built with the [Python SDK](https://github.com/organic-programming/python-holons) (`python-holons`).
 
+## Discovery
+
+This holon is source-discoverable from the repo root:
+
+```bash
+op list --source
+```
+
+Programmatically:
+
+```text
+Discover(LOCAL, "gabriel-greeting-python", null, SOURCE, NO_LIMIT, NO_TIMEOUT)
+```
+
+Today this works in the Go SDK. The other non-browser SDKs will support the same source lookup once their Phase 1 discovery tasks land. The browser SDK is excluded because it has no filesystem-based discovery.
+
 # A Proto + 4 facets is all you need.
 
 ## Protos
@@ -52,12 +68,12 @@ Facets split into two contexts:
 
 # Serve
 
-The `serve` sub-command is a rich feature provided by the Python SDK (`holons.serve`). It handles listener negotiation, reflection, and graceful shutdown — the holon only registers its gRPC service.
+The `serve` sub-command is a rich feature provided by the Python SDK (`holons.serve`). It handles listener negotiation, `Describe`, optional `--reflect` debugging, and graceful shutdown — the holon only registers its gRPC service.
 
 When a user runs:
 
 ```bash
-op gabriel-greeting-python SayHello '{"name":"Alice","lang_code":"en"}'
+op gabriel-greeting-python SayHello '{"name":"Bob","lang_code":"en"}'
 ```
 
 `op` performs the following chain:
@@ -110,7 +126,7 @@ Each acquired facet builds on the previous — from exposing individual RPCs, to
 op mcp gabriel-greeting-python
 ```
 
-`op` connects to the holon, introspects its gRPC contract via reflection, and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
+`op` connects to the holon, introspects its gRPC contract via `Describe` (falling back to reflection only when needed), and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
 
 Tools are fully qualified — `gabriel-greeting-python.GreetingService.SayHello` — allowing multiple holons to be served from a single `op mcp` instance.
 
@@ -157,10 +173,9 @@ All three are exposed via `op mcp`. The agent chooses the right level: **MCP** f
 ## How to launch
 
 ```bash
-op gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc://gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc+stdio://gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc+tcp://gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}'
+op gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}
+op stdio://gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}'
+op tcp://gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"en"}'
 ```
 
 ## Currently not supported .

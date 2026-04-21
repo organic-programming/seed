@@ -1,354 +1,52 @@
 #include "internal/server.h"
 
 #include "api/public.h"
-
+#include "gen/serve_generated.h"
 #include "holons/holons.h"
 
 #include <errno.h>
-#include <signal.h>
-#include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
-#ifndef GABRIEL_GREETING_C_BACKEND_BINARY
-#error "GABRIEL_GREETING_C_BACKEND_BINARY must be defined"
-#endif
+const holons_describe_response_t *holons_generated_describe_response(void);
 
-#ifndef GABRIEL_GREETING_C_BRIDGE_BINARY
-#error "GABRIEL_GREETING_C_BRIDGE_BINARY must be defined"
-#endif
-
-#ifndef GABRIEL_GREETING_C_PROTO_DIR
-#error "GABRIEL_GREETING_C_PROTO_DIR must be defined"
-#endif
-
-#ifndef GABRIEL_GREETING_C_MANIFEST_PATH
-#error "GABRIEL_GREETING_C_MANIFEST_PATH must be defined"
-#endif
-
-static void handle_signal(int signo) {
-  (void)signo;
-  holons_request_stop();
-}
-
-static void write_json_string(FILE *output, const char *data, size_t size) {
-  size_t i;
-  fputc('"', output);
-  for (i = 0; i < size; ++i) {
-    unsigned char ch = (unsigned char)data[i];
-    switch (ch) {
-    case '\\':
-      fputs("\\\\", output);
-      break;
-    case '"':
-      fputs("\\\"", output);
-      break;
-    case '\b':
-      fputs("\\b", output);
-      break;
-    case '\f':
-      fputs("\\f", output);
-      break;
-    case '\n':
-      fputs("\\n", output);
-      break;
-    case '\r':
-      fputs("\\r", output);
-      break;
-    case '\t':
-      fputs("\\t", output);
-      break;
-    default:
-      fputc((int)ch, output);
-      break;
-    }
-  }
-  fputc('"', output);
-}
-
-static void write_json_string_view(FILE *output, upb_StringView value) {
-  write_json_string(output, value.data, value.size);
-}
-
-static void write_http_response(const holons_conn_t *conn, int status_code,
-                                const char *status_text, const char *body) {
-  char header[256];
-  const size_t body_len = strlen(body);
-  snprintf(header, sizeof(header),
-           "HTTP/1.1 %d %s\r\nContent-Type: application/json\r\n"
-           "Content-Length: %zu\r\n\r\n",
-           status_code, status_text, body_len);
-  holons_conn_write(conn, header, strlen(header));
-  holons_conn_write(conn, body, body_len);
-}
-
-static void write_not_found(const holons_conn_t *conn) {
-  const char *body = "{\"error\":\"not found\"}";
-  write_http_response(conn, 404, "Not Found", body);
-}
-
-static void write_method_not_allowed(const holons_conn_t *conn) {
-  const char *body = "{\"error\":\"method not allowed\"}";
-  write_http_response(conn, 405, "Method Not Allowed", body);
-}
-
-static void write_internal_error(const holons_conn_t *conn) {
-  const char *body = "{\"error\":\"internal error\"}";
-  write_http_response(conn, 500, "Internal Server Error", body);
-}
-
-static const char *find_body(char *request) {
-  char *body = strstr(request, "\r\n\r\n");
-  if (body == NULL) {
-    return "";
-  }
-  return body + 4;
-}
-
-static void extract_json_field(const char *json, const char *field, char *out,
-                               size_t out_len) {
-  char needle[64];
-  const char *cursor;
-  size_t len = 0;
-
-  if (out_len == 0) {
-    return;
-  }
-  out[0] = '\0';
-
-  snprintf(needle, sizeof(needle), "\"%s\":", field);
-  cursor = strstr(json, needle);
-  if (cursor == NULL) {
-    return;
-  }
-
-  cursor += strlen(needle);
-  while (*cursor == ' ' || *cursor == '\n' || *cursor == '\t' || *cursor == '\r') {
-    ++cursor;
-  }
-  if (*cursor != '"') {
-    return;
-  }
-  ++cursor;
-
-  while (cursor[len] != '\0' && cursor[len] != '"' && len + 1 < out_len) {
-    out[len] = cursor[len];
-    ++len;
-  }
-  out[len] = '\0';
-}
-
-static int write_list_languages_response(const holons_conn_t *conn) {
-  upb_Arena *arena = upb_Arena_New();
-  greeting_v1_ListLanguagesResponse *response =
-      gabriel_greeting_c_list_languages(arena);
-  size_t count = 0;
-  size_t i;
-  const greeting_v1_Language *const *languages;
-  FILE *stream;
-  char *body = NULL;
-  size_t body_len = 0;
-
-  if (arena == NULL || response == NULL) {
-    if (arena != NULL) {
-      upb_Arena_Free(arena);
-    }
-    return -1;
-  }
-
-  languages = greeting_v1_ListLanguagesResponse_languages(response, &count);
-  stream = open_memstream(&body, &body_len);
-  if (stream == NULL) {
-    upb_Arena_Free(arena);
-    return -1;
-  }
-
-  fputs("{\"languages\":[", stream);
-  for (i = 0; i < count; ++i) {
-    if (i != 0) {
-      fputc(',', stream);
-    }
-    fputs("{\"code\":", stream);
-    write_json_string_view(stream, greeting_v1_Language_code(languages[i]));
-    fputs(",\"name\":", stream);
-    write_json_string_view(stream, greeting_v1_Language_name(languages[i]));
-    fputs(",\"native\":", stream);
-    write_json_string_view(stream, greeting_v1_Language_native(languages[i]));
-    fputc('}', stream);
-  }
-  fputs("]}", stream);
-  fclose(stream);
-
-  write_http_response(conn, 200, "OK", body);
-  free(body);
-  upb_Arena_Free(arena);
-  return 0;
-}
-
-static int write_say_hello_response(const holons_conn_t *conn, const char *body_json) {
-  upb_Arena *arena = upb_Arena_New();
-  greeting_v1_SayHelloRequest *request = greeting_v1_SayHelloRequest_new(arena);
-  greeting_v1_SayHelloResponse *response;
-  FILE *stream;
-  char *body = NULL;
-  size_t body_len = 0;
-  char name[256];
-  char lang_code[32];
-
-  if (arena == NULL || request == NULL) {
-    if (arena != NULL) {
-      upb_Arena_Free(arena);
-    }
-    return -1;
-  }
-
-  extract_json_field(body_json, "name", name, sizeof(name));
-  extract_json_field(body_json, "lang_code", lang_code, sizeof(lang_code));
-  if (lang_code[0] == '\0') {
-    strcpy(lang_code, "en");
-  }
-
-  greeting_v1_SayHelloRequest_set_name(request, upb_StringView_FromString(name));
-  greeting_v1_SayHelloRequest_set_lang_code(request,
-                                            upb_StringView_FromString(lang_code));
-
-  response = gabriel_greeting_c_say_hello(request, arena);
-  if (response == NULL) {
-    upb_Arena_Free(arena);
-    return -1;
-  }
-
-  stream = open_memstream(&body, &body_len);
-  if (stream == NULL) {
-    upb_Arena_Free(arena);
-    return -1;
-  }
-
-  fputs("{\"greeting\":", stream);
-  write_json_string_view(stream, greeting_v1_SayHelloResponse_greeting(response));
-  fputs(",\"language\":", stream);
-  write_json_string_view(stream, greeting_v1_SayHelloResponse_language(response));
-  fputs(",\"lang_code\":", stream);
-  write_json_string_view(stream, greeting_v1_SayHelloResponse_lang_code(response));
-  fputs("}", stream);
-  fclose(stream);
-
-  write_http_response(conn, 200, "OK", body);
-  free(body);
-  upb_Arena_Free(arena);
-  return 0;
-}
-
-static int handle_connection(const holons_conn_t *conn, void *ctx) {
-  char request[8192];
-  char method[16];
-  char path[256];
-  char protocol[16];
-  ssize_t read_size;
+static greeting_v1_ListLanguagesResponse *
+gabriel_greeting_c_handle_list_languages(
+    const greeting_v1_ListLanguagesRequest *request, upb_Arena *arena,
+    void *ctx) {
+  (void)request;
   (void)ctx;
-
-  read_size = holons_conn_read(conn, request, sizeof(request) - 1);
-  if (read_size <= 0) {
-    return 0;
-  }
-  request[read_size] = '\0';
-
-  if (sscanf(request, "%15s %255s %15s", method, path, protocol) != 3) {
-    write_not_found(conn);
-    return 0;
-  }
-
-  if (strcmp(method, "POST") != 0) {
-    write_method_not_allowed(conn);
-    return 0;
-  }
-
-  if (strcmp(path, "/greeting.v1.GreetingService/ListLanguages") == 0) {
-    if (write_list_languages_response(conn) != 0) {
-      write_internal_error(conn);
-    }
-    return 0;
-  }
-
-  if (strcmp(path, "/greeting.v1.GreetingService/SayHello") == 0) {
-    if (write_say_hello_response(conn, find_body(request)) != 0) {
-      write_internal_error(conn);
-    }
-    return 0;
-  }
-
-  write_not_found(conn);
-  return 0;
+  return gabriel_greeting_c_list_languages(arena);
 }
 
-int gabriel_greeting_c_exec_bridge(const char *listen_uri, FILE *stderr_stream) {
-  char *const argv[] = {
-      (char *)GABRIEL_GREETING_C_BRIDGE_BINARY,
-      (char *)"--backend",
-      (char *)GABRIEL_GREETING_C_BACKEND_BINARY,
-      (char *)"--proto-dir",
-      (char *)GABRIEL_GREETING_C_PROTO_DIR,
-      (char *)"--manifest",
-      (char *)GABRIEL_GREETING_C_MANIFEST_PATH,
-      (char *)"--listen",
-      (char *)listen_uri,
-      NULL,
-  };
-
-  execv(argv[0], argv);
-  fprintf(stderr_stream, "serve: exec %s failed: %s\n", argv[0], strerror(errno));
-  return 1;
+static greeting_v1_SayHelloResponse *gabriel_greeting_c_handle_say_hello(
+    const greeting_v1_SayHelloRequest *request, upb_Arena *arena, void *ctx) {
+  (void)ctx;
+  return gabriel_greeting_c_say_hello(request, arena);
 }
 
-int gabriel_greeting_c_backend_serve(const char *listen_uri, FILE *stdout_stream,
-                                     FILE *stderr_stream) {
-  holons_listener_t listener;
-  holons_conn_t conn;
+int gabriel_greeting_c_serve(const char *listen_uri, FILE *stderr_stream) {
+  gabriel_greeting_c_handlers_t handlers;
+  holons_grpc_serve_options_t options;
   char err[256];
-  void (*old_int)(int);
-  void (*old_term)(int);
+  int rc;
 
-  if (holons_listen(listen_uri, &listener, err, sizeof(err)) != 0) {
-    fprintf(stderr_stream, "backend listen error: %s\n", err);
+  holons_use_static_describe_response(holons_generated_describe_response());
+
+  handlers.ctx = NULL;
+  handlers.listLanguages = gabriel_greeting_c_handle_list_languages;
+  handlers.sayHello = gabriel_greeting_c_handle_say_hello;
+
+  options.announce = 1;
+  options.enable_reflection = 0;
+  options.graceful_shutdown_timeout_ms = 10000;
+
+  rc = gabriel_greeting_c_generated_serve(listen_uri, &handlers, &options, err,
+                                          sizeof(err));
+
+  if (rc != 0) {
+    fprintf(stderr_stream, "serve: %s\n", err);
     return 1;
   }
-
-  fprintf(stdout_stream, "HTTP backend listening on %s\n",
-          listener.bound_uri[0] != '\0' ? listener.bound_uri : listen_uri);
-  fflush(stdout_stream);
-
-  *holons_stop_token() = 0;
-  old_int = signal(SIGINT, handle_signal);
-  old_term = signal(SIGTERM, handle_signal);
-
-  for (;;) {
-    if (*holons_stop_token()) {
-      break;
-    }
-    if (holons_accept(&listener, &conn, err, sizeof(err)) != 0) {
-      if (*holons_stop_token()) {
-        break;
-      }
-      fprintf(stderr_stream, "backend accept error: %s\n", err);
-      signal(SIGINT, old_int);
-      signal(SIGTERM, old_term);
-      holons_close_listener(&listener);
-      return 1;
-    }
-    if (handle_connection(&conn, NULL) != 0) {
-      holons_conn_close(&conn);
-      signal(SIGINT, old_int);
-      signal(SIGTERM, old_term);
-      holons_close_listener(&listener);
-      return 1;
-    }
-    holons_conn_close(&conn);
-  }
-
-  signal(SIGINT, old_int);
-  signal(SIGTERM, old_term);
-  holons_close_listener(&listener);
   return 0;
 }

@@ -17,17 +17,18 @@ option (holons.v1.manifest) = {
     given_name: "Gabriel"
     family_name: "Greeting-Node"
     motto: "Greets users in 56 languages — a Node.js daemon example."
-    composer: "Codex"
+    composer: "B. ALTER"
     status: "draft"
     born: "2026-03-16"
-    version: "0.1.0"
+    version: "0.1.125"
   }
   description: "A Node.js gRPC daemon that greets users in 56 languages."
-  lang: "node"
+  lang: "js"
   kind: "native"
   build: {
     runner: "npm"
     main: "./cmd/main.js"
+    templates: ["api/cli.js"]
   }
   requires: {
     commands: ["node", "npm"]

@@ -68,7 +68,7 @@ listLanguages: {
     responseDeserialize: deserialize_greeting_v1_ListLanguagesResponse,
   },
   // Greets the user in the chosen language.
-// @example {"name":"Alice","lang_code":"fr"}
+// @example {"name":"Bob","lang_code":"fr"}
 sayHello: {
     path: '/greeting.v1.GreetingService/SayHello',
     requestStream: false,

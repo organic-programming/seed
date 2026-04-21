@@ -1,0 +1,94 @@
+description: Swift and SwiftUI proof, including COAX surfaces
+defaults:
+  profile: smoke
+steps:
+  example-swift-unit:
+    check: example-swift-unit
+    lane: regression
+  swiftui-modules-unit:
+    check: swiftui-modules-unit
+    lane: regression
+  integration-build-composite-swiftui:
+    check: integration-build-composite-swiftui
+    lane: regression
+  integration-coax-build-recipe-app:
+    check: integration-coax-build-recipe-app
+    lane: progression
+  integration-coax-runtime-surface:
+    check: integration-coax-runtime-surface
+    lane: progression
+  integration-coax-business-matrix-swiftui:
+    check: integration-coax-business-matrix-swiftui
+    lane: progression
+  integration-dispatch-jsonoutput-swift:
+    check: integration-dispatch-jsonoutput-swift
+    lane: progression
+  integration-dispatch-list-languages-swift:
+    check: integration-dispatch-list-languages-swift
+    lane: progression
+  integration-inspect-local-holons-swift:
+    check: integration-inspect-local-holons-swift
+    lane: progression
+  integration-install-build-install-uninstall-swift:
+    check: integration-install-build-install-uninstall-swift
+    lane: progression
+  integration-install-with-build-flag-swift:
+    check: integration-install-with-build-flag-swift
+    lane: progression
+  integration-lifecycle-hello-world-holons-app-swiftui:
+    check: integration-lifecycle-hello-world-holons-app-swiftui
+    lane: regression
+  integration-lifecycle-hello-world-holons-swift:
+    check: integration-lifecycle-hello-world-holons-swift
+    lane: progression
+  integration-run-tcp-swift:
+    check: integration-run-tcp-swift
+    lane: progression
+  integration-tools-default-format-swift:
+    check: integration-tools-default-format-swift
+    lane: progression
+  integration-tools-formats-swift:
+    check: integration-tools-formats-swift
+    lane: progression
+  integration-unix-transport-run-and-dispatch-swift:
+    check: integration-unix-transport-run-and-dispatch-swift
+    lane: progression
+  integration-windows-build-reports-exe-artifact-swift:
+    check: integration-windows-build-reports-exe-artifact-swift
+    lane: progression
+  sdk-swift-unit:
+    check: sdk-swift-unit
+    lane: regression
+profiles:
+  smoke:
+    description: canonical path
+    archive: never
+    steps:
+    - sdk-swift-unit
+    - swiftui-modules-unit
+    - example-swift-unit
+    - integration-build-composite-swiftui
+    - integration-lifecycle-hello-world-holons-app-swiftui
+  full:
+    description: full scenario proof
+    archive: auto
+    steps:
+    - sdk-swift-unit
+    - swiftui-modules-unit
+    - example-swift-unit
+    - integration-build-composite-swiftui
+    - integration-coax-build-recipe-app
+    - integration-coax-runtime-surface
+    - integration-coax-business-matrix-swiftui
+    - integration-dispatch-jsonoutput-swift
+    - integration-dispatch-list-languages-swift
+    - integration-inspect-local-holons-swift
+    - integration-install-build-install-uninstall-swift
+    - integration-install-with-build-flag-swift
+    - integration-lifecycle-hello-world-holons-app-swiftui
+    - integration-lifecycle-hello-world-holons-swift
+    - integration-run-tcp-swift
+    - integration-tools-default-format-swift
+    - integration-tools-formats-swift
+    - integration-unix-transport-run-and-dispatch-swift
+    - integration-windows-build-reports-exe-artifact-swift

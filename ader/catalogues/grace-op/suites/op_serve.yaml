@@ -1,0 +1,12 @@
+description: Suite validating op serve as a CLI-only surface.
+defaults:
+  profile: smoke
+steps:
+  serve-cli:
+    check: op-serve-cli
+    lane: progression
+profiles:
+  smoke:
+    description: CLI-only verification of the OP gRPC server entry point.
+    archive: never
+    steps: [serve-cli]

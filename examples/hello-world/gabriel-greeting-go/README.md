@@ -6,6 +6,22 @@ Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` a
 
 This holon is built with the [Go SDK](https://github.com/organic-programming/go-holons) (`go-holons`).
 
+## Discovery
+
+This holon is source-discoverable from the repo root:
+
+```bash
+op list --source
+```
+
+Programmatically:
+
+```text
+Discover(LOCAL, "gabriel-greeting-go", null, SOURCE, NO_LIMIT, NO_TIMEOUT)
+```
+
+Today this works in the Go SDK. The other non-browser SDKs will support the same source lookup once their Phase 1 discovery tasks land. The browser SDK is excluded because it has no filesystem-based discovery.
+
 # A Proto + 4 facets is all you need.
 
 ## Protos 
@@ -60,12 +76,12 @@ Facets split into two contexts:
 
 # Serve
 
-The `serve` sub-command is a rich feature provided by the [Go SDK](https://github.com/organic-programming/go-holons) (`pkg/serve`). It handles listener negotiation, reflection, and graceful shutdown — the holon only registers its gRPC service.
+The `serve` sub-command is a rich feature provided by the [Go SDK](https://github.com/organic-programming/go-holons) (`pkg/serve`). It handles listener negotiation, `Describe`, optional `--reflect` debugging, and graceful shutdown — the holon only registers its gRPC service.
 
 When a user runs:
 
 ```bash
-op gabriel-greeting-go SayHello '{"name":"Alice","lang_code":"en"}'
+op gabriel-greeting-go SayHello '{"name":"Bob","lang_code":"en"}'
 ```
 
 `op` performs the following chain:
@@ -79,12 +95,12 @@ op gabriel-greeting-go SayHello '{"name":"Alice","lang_code":"en"}'
 
 | Platform | Mode | Connect cascade |
 |----------|------|-----------------|
-| macOS | binary | `mem → stdio → unix → tcp → rest+sse` |
-| Linux | binary | `mem → stdio → unix → tcp → rest+sse` |
-| Windows | binary | `mem → stdio → tcp → rest+sse` |
-| iOS | framework | `mem → tcp → rest+sse` |
-| Android | framework | `mem → tcp → rest+sse` |
-| Browser | WASM | `mem → rest+sse` |
+| macOS | binary | `stdio → unix → tcp → rest+sse` |
+| Linux | binary | `stdio → unix → tcp → rest+sse` |
+| Windows | binary | `stdio → tcp → rest+sse` |
+| iOS | framework | `tcp → rest+sse` |
+| Android | framework | `tcp → rest+sse` |
+| Browser | WASM | `rest+sse` |
 
 The holon itself knows nothing about discovery or transport selection — `serve` and `op` handle it.
 
@@ -210,17 +226,15 @@ All three are exposed via `op mcp`. The agent chooses the right level: **MCP** f
 
 ```bash
 op gabriel-greeting-go SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc://gabriel-greeting-go SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc+stdio://gabriel-greeting-go SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc+tcp://gabriel-greeting-go SayHello '{"name":"Maria","lang_code":"en"}'
+op stdio://gabriel-greeting-go SayHello '{"name":"Maria","lang_code":"en"}'
+op tcp://gabriel-greeting-go SayHello '{"name":"Maria","lang_code":"en"}'
 ```
 
 ## Currently not supported .
 
-mem, unix, ws, ws, sse+rest 
+unix, ws, ws, sse+rest 
 
 ```bash
-op grpc+mem://gabriel-greeting-go SayHello '{"name":"Alice","lang_code":"en"}'
 op gabriel-greeting-go SayHello '{"name":"Maria","lang_code":"fr"}'  
 ```
 <!-- don't modify preeceeding section -->

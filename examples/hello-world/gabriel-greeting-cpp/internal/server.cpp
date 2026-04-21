@@ -1,11 +1,20 @@
 #include "internal/server.hpp"
 
 #include "api/public.hpp"
+#include "gen/describe_generated.hpp"
 
-#include <chrono>
-#include <thread>
+#include <atomic>
 
 namespace gabriel::greeting::cppholon::internal {
+
+namespace {
+
+const bool kStaticDescribeRegistered = [] {
+  holons::describe::use_static_response(gen::StaticDescribeResponse());
+  return true;
+}();
+
+} // namespace
 
 grpc::Status Server::ListLanguages(grpc::ServerContext *,
                                    const ::greeting::v1::ListLanguagesRequest *,
@@ -22,13 +31,15 @@ grpc::Status Server::SayHello(grpc::ServerContext *,
 }
 
 RunningServer StartServer(const std::vector<std::string> &listeners,
-                          bool announce) {
+                          bool announce,
+                          bool reflect) {
+  (void)kStaticDescribeRegistered;
   RunningServer running;
   running.service = std::make_shared<Server>();
 
   holons::serve::options options;
-  options.enable_reflection = true;
-  options.auto_register_holon_meta = false;
+  options.enable_reflection = reflect;
+  options.auto_register_holon_meta = true;
   options.announce = announce;
 
   const std::vector<std::string> resolved =
@@ -43,10 +54,11 @@ RunningServer StartServer(const std::vector<std::string> &listeners,
   return running;
 }
 
-void Serve(const std::vector<std::string> &listeners) {
+void Serve(const std::vector<std::string> &listeners, bool reflect) {
+  (void)kStaticDescribeRegistered;
   holons::serve::options options;
-  options.enable_reflection = true;
-  options.auto_register_holon_meta = false;
+  options.enable_reflection = reflect;
+  options.auto_register_holon_meta = true;
   options.announce = true;
 
   auto service = std::make_shared<Server>();

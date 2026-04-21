@@ -19,10 +19,10 @@ option (holons.v1.manifest) = {
     given_name: "Gabriel"
     family_name: "Greeting-Csharp"
     motto: "Greets users in 56 languages — a C# daemon example."
-    composer: "Codex"
+    composer: "B. ALTER"
     status: "draft"
     born: "2026-03-16"
-    version: "0.1.0"
+    version: "8.8.147"
   }
   description: "A C# gRPC daemon that greets users in 56 languages."
   lang: "csharp"
@@ -30,6 +30,7 @@ option (holons.v1.manifest) = {
   build: {
     runner: "dotnet"
     main: "./cmd/Main.cs"
+    templates: ["api/Cli.cs"]
   }
   requires: {
     commands: ["dotnet"]

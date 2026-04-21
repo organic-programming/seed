@@ -46,10 +46,10 @@ class GreetingCLITest(unittest.TestCase):
         stdout = io.StringIO()
         stderr = io.StringIO()
 
-        code = cli.run_cli(["sayHello", "Alice", "fr"], stdout=stdout, stderr=stderr)
+        code = cli.run_cli(["sayHello", "Bob", "fr"], stdout=stdout, stderr=stderr)
 
         self.assertEqual(code, 0)
-        self.assertEqual(stdout.getvalue().strip(), "Bonjour Alice")
+        self.assertEqual(stdout.getvalue().strip(), "Bonjour Bob")
         self.assertEqual(stderr.getvalue(), "")
 
     def test_run_cli_say_hello_defaults_to_english_json(self) -> None:

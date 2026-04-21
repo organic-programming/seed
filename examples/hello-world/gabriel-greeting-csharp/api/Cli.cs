@@ -6,7 +6,7 @@ namespace GabrielGreeting.Csharp.Api;
 
 public static class Cli
 {
-    public const string Version = "gabriel-greeting-csharp v0.1.0";
+    public const string Version = "gabriel-greeting-csharp 8.8.89";
 
     public static async Task<int> RunAsync(
         string[] args,
@@ -27,7 +27,8 @@ public static class Cli
             case "serve":
                 try
                 {
-                    await _Internal.GreetingServer.ListenAndServeAsync(Serve.ParseFlags(args.Skip(1).ToArray()));
+                    var parsed = Serve.ParseOptions(args.Skip(1).ToArray());
+                    await _Internal.GreetingServer.ListenAndServeAsync(parsed.ListenUri, parsed.Reflect);
                     return 0;
                 }
                 catch (Exception error)
@@ -211,8 +212,8 @@ public static class Cli
         await output.WriteLineAsync("examples:");
         await output.WriteLineAsync("  gabriel-greeting-csharp serve --listen tcp://:9090");
         await output.WriteLineAsync("  gabriel-greeting-csharp listLanguages --format json");
-        await output.WriteLineAsync("  gabriel-greeting-csharp sayHello Alice fr");
-        await output.WriteLineAsync("  gabriel-greeting-csharp sayHello Alice --lang fr --format json");
+        await output.WriteLineAsync("  gabriel-greeting-csharp sayHello Bob fr");
+        await output.WriteLineAsync("  gabriel-greeting-csharp sayHello Bob --lang fr --format json");
     }
 
     private sealed class CommandOptions

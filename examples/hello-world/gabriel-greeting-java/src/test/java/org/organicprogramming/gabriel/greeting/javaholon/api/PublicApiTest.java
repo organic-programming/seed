@@ -23,11 +23,11 @@ class PublicApiTest {
     @Test
     void sayHelloUsesRequestedLanguage() {
         Greeting.SayHelloResponse response = PublicApi.sayHello(Greeting.SayHelloRequest.newBuilder()
-                .setName("Alice")
+                .setName("Bob")
                 .setLangCode("fr")
                 .build());
 
-        assertEquals("Bonjour Alice", response.getGreeting());
+        assertEquals("Bonjour Bob", response.getGreeting());
         assertEquals("French", response.getLanguage());
         assertEquals("fr", response.getLangCode());
     }

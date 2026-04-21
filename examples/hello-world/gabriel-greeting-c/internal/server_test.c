@@ -26,6 +26,12 @@ static int expect(int condition, const char *message) {
   return 0;
 }
 
+static long long monotonic_millis(void) {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (long long)ts.tv_sec * 1000LL + (long long)ts.tv_nsec / 1000000LL;
+}
+
 static int pick_port(void) {
   int fd;
   int port;
@@ -102,24 +108,36 @@ static int wait_for_server(int port) {
   return 0;
 }
 
-static void stop_server_group(pid_t pid) {
+static int stop_server_group(pid_t pid, long long *elapsed_ms) {
   int attempt;
   int status;
+  long long started;
 
   if (pid <= 0) {
-    return;
+    if (elapsed_ms != NULL) {
+      *elapsed_ms = 0;
+    }
+    return 0;
   }
 
+  started = monotonic_millis();
   kill(-pid, SIGTERM);
   for (attempt = 0; attempt < 20; ++attempt) {
     if (waitpid(pid, &status, WNOHANG) == pid) {
-      return;
+      if (elapsed_ms != NULL) {
+        *elapsed_ms = monotonic_millis() - started;
+      }
+      return 0;
     }
     usleep(100000);
   }
 
   kill(-pid, SIGKILL);
   waitpid(pid, &status, 0);
+  if (elapsed_ms != NULL) {
+    *elapsed_ms = monotonic_millis() - started;
+  }
+  return 1;
 }
 
 int main(void) {
@@ -140,7 +158,7 @@ int main(void) {
   }
 
   if (!expect(wait_for_server(port), "server failed to start")) {
-    stop_server_group(pid);
+    (void)stop_server_group(pid, NULL);
     return 1;
   }
 
@@ -152,25 +170,39 @@ int main(void) {
   if (!expect(output != NULL && strstr(output, "\"code\": \"en\"") != NULL,
               "ListLanguages grpcurl call failed")) {
     free(output);
-    stop_server_group(pid);
+    (void)stop_server_group(pid, NULL);
     return 1;
   }
   free(output);
 
   snprintf(command, sizeof(command),
            "grpcurl -plaintext -import-path %s -proto v1/greeting.proto "
-           "-d '{\"name\":\"Alice\",\"lang_code\":\"fr\"}' "
+           "-d '{\"name\":\"Bob\",\"lang_code\":\"fr\"}' "
            "127.0.0.1:%d greeting.v1.GreetingService/SayHello 2>/dev/null",
            GABRIEL_GREETING_C_PROTO_DIR, port);
   output = capture_command(command);
-  if (!expect(output != NULL && strstr(output, "Bonjour Alice") != NULL,
+  if (!expect(output != NULL && strstr(output, "Bonjour Bob") != NULL,
               "SayHello grpcurl call failed")) {
     free(output);
-    stop_server_group(pid);
+    (void)stop_server_group(pid, NULL);
     return 1;
   }
   free(output);
 
-  stop_server_group(pid);
+  {
+    long long shutdown_ms = 0;
+    char shutdown_message[128];
+
+    if (!expect(stop_server_group(pid, &shutdown_ms) == 0,
+                "server required SIGKILL to stop")) {
+      return 1;
+    }
+
+    snprintf(shutdown_message, sizeof(shutdown_message),
+             "server shutdown took too long after SIGTERM: %lld ms", shutdown_ms);
+    if (!expect(shutdown_ms < 1000, shutdown_message)) {
+      return 1;
+    }
+  }
   return 0;
 }

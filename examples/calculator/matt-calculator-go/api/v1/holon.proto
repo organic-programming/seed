@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+package calculator.v1;
+
+import "holons/v1/manifest.proto";
+
+// Go-specific holon descriptor for matt-calculator-go.
+// Defines the calculator service contract and holon manifest directly.
+
+option go_package = "matt-calculator-go/gen/go/calculator/v1;calculatorv1";
+
+// Language-neutral calculator service contract.
+// Exposes a stateful in-memory accumulator — zero-initialized per process.
+// Each RPC mutates and returns the current accumulator value.
+//
+// Designed to demonstrate sequential multi-payload invocation via:
+//   op invoke matt-calculator-go \
+//     Set '{"value":20.0}' \
+//     Add '{"value":1.0}'  \
+//     Subtract '{"value":4.0}' \
+//     Divide '{"by":5.0}'  \
+//     Multiply '{"by":3.0}'
+
+service CalculatorService {
+  // Sets the accumulator to an explicit value.
+  // @example {"value": 20.0}
+  rpc Set(SetRequest) returns (CalcResponse);
+
+  // Adds value to the accumulator.
+  // @example {"value": 1.0}
+  // @example {"value": 10.0}
+  rpc Add(AddSubRequest) returns (CalcResponse);
+
+  // Subtracts value from the accumulator.
+  // @example {"value": 4.0}
+  rpc Subtract(AddSubRequest) returns (CalcResponse);
+
+  // Multiplies the accumulator by a factor.
+  // @example {"by": 3.0}
+  rpc Multiply(MulDivRequest) returns (CalcResponse);
+
+  // Divides the accumulator by a divisor. Returns error if by == 0.
+  // @example {"by": 5.0}
+  rpc Divide(MulDivRequest) returns (CalcResponse);
+}
+
+message SetRequest {
+  // New accumulator value.
+  // @required
+  // @example 20.0
+  double value = 1;
+}
+
+message AddSubRequest {
+  // Operand to add or subtract.
+  // @required
+  // @example 1.0
+  double value = 1;
+}
+
+message MulDivRequest {
+  // Factor or divisor.
+  // @required
+  // @example 3.0
+  double by = 1;
+}
+
+message CalcResponse {
+  // Current accumulator value after the operation.
+  // @required
+  // @example 21.0
+  double result = 1;
+
+  // Human-readable description of the operation, e.g. "20 + 1 = 21".
+  // @example "20 + 1 = 21"
+  string expression = 2;
+}
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "c7a2e1f3-9d4b-4e2a-b715-8f3c6a1d9e0b"
+    given_name: "Matt"
+    family_name: "Calculator-Go"
+    motto: "A stateful in-memory accumulator — demonstrates sequential multi-payload invocation."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-04-12"
+    version: "0.1.3"
+  }
+  description: "A Go gRPC daemon exposing an in-memory float64 accumulator. Designed to demonstrate op invoke multi-payload JSON Lines output. The accumulator is zero-initialized per process."
+  lang: "go"
+  kind: "native"
+  build: {
+    runner: "go-module"
+    main: "./cmd"
+    templates: ["api/version.go"]
+  }
+  requires: {
+    commands: ["go"]
+    files: ["go.mod"]
+  }
+  artifacts: {
+    binary: "matt-calculator-go"
+  }
+  skills: [{
+    name: "accumulator-calculator"
+    description: "Apply a sequence of arithmetic operations to an in-memory accumulator and stream results as JSON Lines."
+    when: "The user wants to compute a multi-step arithmetic expression and inspect each intermediate result."
+    steps: [
+      "Call Set to initialise the accumulator",
+      "Chain Add, Subtract, Multiply, Divide calls in a single op invoke command",
+      "Read each JSON Lines response for the intermediate result and expression"
+    ]
+  }]
+  sequences: [{
+    name: "demo-accumulator"
+    description: "Sets 20, adds 1, subtracts 4, divides by 5, multiplies by 3 — streams 5 JSON Lines results."
+    steps: [
+      "op invoke matt-calculator-go Set '{\"value\":20.0}' Add '{\"value\":1.0}' Subtract '{\"value\":4.0}' Divide '{\"by\":5.0}' Multiply '{\"by\":3.0}'"
+    ]
+  }]
+};
+
+// ── Usage ──────────────────────────────────────────────────────────────
+//
+//  # Build the holon
+//  op build matt-calculator-go
+//
+//  # Run the full demo sequence (JSON Lines output)
+//  op invoke matt-calculator-go \
+//    Set '{"value":20.0}' \
+//    Add '{"value":1.0}'  \
+//    Subtract '{"value":4.0}' \
+//    Divide '{"by":5.0}'  \
+//    Multiply '{"by":3.0}'
+//
+//  # Expected output:
+//  # {"result":20,"expression":"set → 20"}
+//  # {"result":21,"expression":"20 + 1 = 21"}
+//  # {"result":17,"expression":"21 - 4 = 17"}
+//  # {"result":3.4,"expression":"17 / 5 = 3.4"}
+//  # {"result":10.2,"expression":"3.4 × 3 = 10.2"}

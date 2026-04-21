@@ -2,7 +2,7 @@ use crate::gen::rust::greeting::v1 as pb;
 use serde_json::json;
 use std::io::Write;
 
-pub const VERSION: &str = concat!("gabriel-greeting-rust v", env!("CARGO_PKG_VERSION"));
+pub const VERSION: &str = "gabriel-greeting-rust 8.8.163";
 
 pub fn run_cli(args: &[String], stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
     if args.is_empty() {
@@ -12,7 +12,7 @@ pub fn run_cli(args: &[String], stdout: &mut dyn Write, stderr: &mut dyn Write) 
 
     match canonical_command(&args[0]).as_str() {
         "serve" => {
-            let listen_uri = holons::serve::parse_flags(&args[1..]);
+            let parsed = holons::serve::parse_options(&args[1..]);
             let runtime = match tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
@@ -24,7 +24,10 @@ pub fn run_cli(args: &[String], stdout: &mut dyn Write, stderr: &mut dyn Write) 
                 }
             };
 
-            match runtime.block_on(crate::internal::listen_and_serve(&listen_uri)) {
+            match runtime.block_on(crate::internal::listen_and_serve(
+                &parsed.listen_uri,
+                parsed.reflect,
+            )) {
                 Ok(()) => 0,
                 Err(error) => {
                     let _ = writeln!(stderr, "serve: {error}");
@@ -237,7 +240,7 @@ fn print_usage(output: &mut dyn Write) -> std::io::Result<()> {
     writeln!(output, "commands:")?;
     writeln!(
         output,
-        "  serve [--listen <uri>]                    Start the gRPC server"
+        "  serve [--listen <uri>] [--reflect]        Start the gRPC server"
     )?;
     writeln!(
         output,
@@ -262,10 +265,10 @@ fn print_usage(output: &mut dyn Write) -> std::io::Result<()> {
         output,
         "  gabriel-greeting-rust listLanguages --format json"
     )?;
-    writeln!(output, "  gabriel-greeting-rust sayHello Alice fr")?;
+    writeln!(output, "  gabriel-greeting-rust sayHello Bob fr")?;
     writeln!(
         output,
-        "  gabriel-greeting-rust sayHello Alice --lang fr --format json"
+        "  gabriel-greeting-rust sayHello Bob --lang fr --format json"
     )?;
     Ok(())
 }

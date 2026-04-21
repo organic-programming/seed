@@ -1,0 +1,18 @@
+description: local development bouquet
+defaults:
+  source: workspace
+  lane: progression
+  archive: never
+entries:
+- catalogue: grace-op
+  suite: op-proxy
+  profile: smoke
+- catalogue: clem-ader
+  suite: ader-self
+  profile: smoke
+- catalogue: gabriel-greeting-app-swiftui
+  suite: swiftui-smoke
+  profile: smoke
+- catalogue: gabriel-greeting-app-flutter
+  suite: flutter-smoke
+  profile: smoke

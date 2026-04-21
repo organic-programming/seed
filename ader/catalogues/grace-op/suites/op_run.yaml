@@ -1,0 +1,24 @@
+description: Suite validating op run with CLI-first integration and API/RPC alignment.
+defaults:
+  profile: smoke
+steps:
+  run-cli:
+    check: op-run-cli
+    lane: progression
+  run-api:
+    check: op-run-api
+    lane: progression
+    needs: [run-cli]
+  run-rpc:
+    check: op-run-rpc
+    lane: progression
+    needs: [run-api]
+profiles:
+  smoke:
+    description: CLI-first verification with API and RPC alignment.
+    archive: never
+    steps: [run-cli, run-api, run-rpc]
+  full:
+    description: Exhaustive run verification across rebuild and transport flows.
+    archive: never
+    steps: [run-cli, run-api, run-rpc]

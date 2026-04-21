@@ -1,0 +1,152 @@
+import SwiftUI
+import HolonsApp
+import OrganismKit
+
+struct ContentView: View {
+    @ObservedObject var holonManager: AppHolonManager
+    @ObservedObject var coaxManager: CoaxManager
+    @State private var isShowingCoaxSettings = false
+
+    private var holonSelection: Binding<String> {
+        Binding(
+            get: { holonManager.selectedHolonSlug },
+            set: { holonManager.selectHolon(slug: $0) }
+        )
+    }
+
+    private var transportSelection: Binding<String> {
+        Binding(
+            get: { holonManager.transport },
+            set: { holonManager.setTransport($0) }
+        )
+    }
+
+    private var statusColor: Color {
+        holonManager.isConnected ? .green : .red
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top) {
+                Spacer(minLength: 0)
+                CoaxControlsView(
+                    coaxManager: coaxManager,
+                    isShowingSettings: $isShowingCoaxSettings
+                )
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.horizontal, 32)
+            .padding(.vertical, 16)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .overlay(
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(Color.primary.opacity(0.06)),
+                alignment: .bottom
+            )
+
+            VStack(spacing: 24) {
+                HStack(alignment: .bottom) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Picker("", selection: holonSelection) {
+                            ForEach(holonManager.availableHolons) { member in
+                                Text(member.displayName).tag(member.slug)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 250)
+
+                        Text(holonManager.selectedHolon?.slug ?? "holon")
+                            .font(.system(size: 11, weight: .regular, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Text("mode:")
+                                .font(.system(size: 14, weight: .medium))
+
+                            Picker("", selection: transportSelection) {
+                                ForEach(HolonTransportName.allCases) { transport in
+                                    Text(transport.rawValue).tag(transport.rawValue)
+                                }
+                            }
+                            .labelsHidden()
+                            .frame(width: 140)
+                        }
+
+                        HStack(spacing: 8) {
+                            Text(holonManager.statusTitle)
+                                .font(.system(size: 14, weight: .medium))
+                            Circle()
+                                .fill(statusColor)
+                                .frame(width: 10, height: 10)
+                        }
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("{{ .GivenTitle }} {{ .FamilyTitle }}")
+                        .font(.system(size: 32, weight: .bold))
+
+                    Text(
+                        "This scaffold already exposes COAX and keeps the state shared between the human UI and the remote Tell entrypoint."
+                    )
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                    Divider()
+
+                    Text(holonManager.greeting)
+                        .font(.system(size: 22, weight: .semibold))
+
+                    Text(holonManager.detail)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Demo member")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(holonManager.demoCommand)
+                            .font(.system(size: 12, weight: .regular, design: .monospaced))
+                            .textSelection(.enabled)
+                        Text(
+                            "Use the button below or send the same method through COAX to mutate the visible state."
+                        )
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color(nsColor: .controlBackgroundColor))
+                    )
+
+                    HStack(spacing: 12) {
+                        Button("Apply Sample Greeting") {
+                            holonManager.applyHumanGreeting()
+                        }
+                        Button("Disconnect Member") {
+                            holonManager.disconnectActiveMember()
+                        }
+                    }
+                }
+                .frame(maxWidth: 760, alignment: .leading)
+
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(32)
+        }
+        .frame(minWidth: 800, minHeight: 600, alignment: .topLeading)
+        .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+        .sheet(isPresented: $isShowingCoaxSettings) {
+            CoaxSettingsView(coaxManager: coaxManager, isPresented: $isShowingCoaxSettings)
+        }
+    }
+}

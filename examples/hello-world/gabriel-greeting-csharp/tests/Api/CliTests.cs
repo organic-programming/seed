@@ -55,10 +55,10 @@ public class CliTests
         using var stdout = new StringWriter();
         using var stderr = new StringWriter();
 
-        var exitCode = await Cli.RunAsync(["sayHello", "Alice", "fr"], stdout, stderr);
+        var exitCode = await Cli.RunAsync(["sayHello", "Bob", "fr"], stdout, stderr);
 
         Assert.Equal(0, exitCode);
-        Assert.Equal("Bonjour Alice", stdout.ToString().Trim());
+        Assert.Equal("Bonjour Bob", stdout.ToString().Trim());
         Assert.Equal(string.Empty, stderr.ToString());
     }
 

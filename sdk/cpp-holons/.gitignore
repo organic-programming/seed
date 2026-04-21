@@ -1,0 +1,16 @@
+test_runner
+build/
+
+bin/
+
+*.o
+
+*.a
+
+*.so
+
+*.dylib
+
+*.obj
+
+*.lib

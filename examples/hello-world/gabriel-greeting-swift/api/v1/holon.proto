@@ -22,13 +22,14 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-03-15"
-    version: "0.1.0"
+    version: "8.8.185"
   }
   description: "A Swift gRPC daemon that greets users in 56 languages."
   lang: "swift"
   kind: "native"
   build: {
     runner: "swift-package"
+    templates: ["Sources/GabrielGreeting/CLI.swift"]
   }
   requires: {
     commands: ["swift"]

@@ -8,7 +8,7 @@ import org.organicprogramming.holons.Serve
 import java.io.PrintStream
 
 object Cli {
-    const val VERSION = "gabriel-greeting-kotlin v0.1.0"
+    const val VERSION = "gabriel-greeting-kotlin 8.8.89"
 
     fun run(args: Array<String>, stdout: PrintStream = System.out, stderr: PrintStream = System.err): Int {
         if (args.isEmpty()) {
@@ -19,7 +19,8 @@ object Cli {
         return when (canonicalCommand(args[0])) {
             "serve" -> {
                 try {
-                    GreetingServer.listenAndServe(Serve.parseFlags(args.drop(1).toTypedArray()))
+                    val parsed = Serve.parseOptions(args.drop(1).toTypedArray())
+                    GreetingServer.listenAndServe(parsed.listenUri, parsed.reflect)
                     0
                 } catch (error: Exception) {
                     stderr.println("serve: ${error.message}")
@@ -164,8 +165,8 @@ object Cli {
         output.println("examples:")
         output.println("  gabriel-greeting-kotlin serve --listen tcp://:9090")
         output.println("  gabriel-greeting-kotlin listLanguages --format json")
-        output.println("  gabriel-greeting-kotlin sayHello Alice fr")
-        output.println("  gabriel-greeting-kotlin sayHello Alice --lang fr --format json")
+        output.println("  gabriel-greeting-kotlin sayHello Bob fr")
+        output.println("  gabriel-greeting-kotlin sayHello Bob --lang fr --format json")
     }
 
     private data class CommandOptions(

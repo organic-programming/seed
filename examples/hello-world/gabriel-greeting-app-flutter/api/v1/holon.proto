@@ -1,0 +1,298 @@
+syntax = "proto3";
+package greeting.v1;
+
+import "holons/v1/manifest.proto";
+import "holons/v1/coax.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "2eb763d5-879c-43c1-8e23-9b87c9b4d2a6"
+    given_name: "Gabriel"
+    family_name: "Greeting-App-Flutter"
+    motto: "Flutter HostUI for the Gabriel greeting service."
+    composer: "Codex"
+    status: "draft"
+    born: "2026-04-04"
+    version: "0.1.47"
+  }
+  description: "A standalone Flutter desktop app that connects to all 12 Gabriel greeting holons and presents a multilingual greeting UI with COAX support."
+  lang: "dart"
+  kind: "composite"
+  transport: "stdio"
+  platforms: ["macos", "windows", "linux"]
+  contract: {
+    proto: "api/v1/holon.proto"
+    service: "greeting.v1.GreetingAppService"
+    rpcs: ["SelectHolon", "SelectTransport", "SelectLanguage", "Greet"]
+  }
+  build: {
+    runner: "recipe"
+    defaults: {
+      target: "macos"
+      mode: "debug"
+    }
+    members: {
+      id: "greeting-go"
+      path: "../gabriel-greeting-go"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-swift"
+      path: "../gabriel-greeting-swift"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-rust"
+      path: "../gabriel-greeting-rust"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-python"
+      path: "../gabriel-greeting-python"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-c"
+      path: "../gabriel-greeting-c"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-cpp"
+      path: "../gabriel-greeting-cpp"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-csharp"
+      path: "../gabriel-greeting-csharp"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-dart"
+      path: "../gabriel-greeting-dart"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-java"
+      path: "../gabriel-greeting-java"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-kotlin"
+      path: "../gabriel-greeting-kotlin"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-node"
+      path: "../gabriel-greeting-node"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-ruby"
+      path: "../gabriel-greeting-ruby"
+      type: "holon"
+    }
+    members: {
+      id: "app"
+      path: "app"
+      type: "component"
+    }
+    targets: {
+      key: "macos"
+      value: {
+        steps: { build_member: "greeting-go" }
+        steps: { build_member: "greeting-swift" }
+        steps: { build_member: "greeting-rust" }
+        steps: { build_member: "greeting-python" }
+        steps: { build_member: "greeting-c" }
+        steps: { build_member: "greeting-cpp" }
+        steps: { build_member: "greeting-csharp" }
+        steps: { build_member: "greeting-dart" }
+        steps: { build_member: "greeting-java" }
+        steps: { build_member: "greeting-kotlin" }
+        steps: { build_member: "greeting-node" }
+        steps: { build_member: "greeting-ruby" }
+        steps: {
+          exec: {
+            cwd: "app"
+            argv: ["flutter", "pub", "get"]
+          }
+        }
+        steps: {
+          exec: {
+            cwd: "app"
+            argv: ["flutter", "build", "macos", "--debug"]
+          }
+        }
+        steps: {
+          exec: {
+            cwd: "app"
+            argv: ["dart", "run", "tool/package_desktop.dart", "macos", "debug"]
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/gabriel-greeting-app-flutter.holon"
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/gabriel-greeting-app-flutter.holon/.holon.json"
+          }
+        }
+      }
+    }
+    targets: {
+      key: "windows"
+      value: {
+        steps: { build_member: "greeting-go" }
+        steps: { build_member: "greeting-swift" }
+        steps: { build_member: "greeting-rust" }
+        steps: { build_member: "greeting-python" }
+        steps: { build_member: "greeting-c" }
+        steps: { build_member: "greeting-cpp" }
+        steps: { build_member: "greeting-csharp" }
+        steps: { build_member: "greeting-dart" }
+        steps: { build_member: "greeting-java" }
+        steps: { build_member: "greeting-kotlin" }
+        steps: { build_member: "greeting-node" }
+        steps: { build_member: "greeting-ruby" }
+        steps: {
+          exec: {
+            cwd: "app"
+            argv: ["flutter", "pub", "get"]
+          }
+        }
+        steps: {
+          exec: {
+            cwd: "app"
+            argv: ["flutter", "build", "windows", "--debug"]
+          }
+        }
+        steps: {
+          exec: {
+            cwd: "app"
+            argv: ["dart", "run", "tool/package_desktop.dart", "windows", "debug"]
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/gabriel-greeting-app-flutter.holon"
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/gabriel-greeting-app-flutter.holon/.holon.json"
+          }
+        }
+      }
+    }
+    targets: {
+      key: "linux"
+      value: {
+        steps: { build_member: "greeting-go" }
+        steps: { build_member: "greeting-swift" }
+        steps: { build_member: "greeting-rust" }
+        steps: { build_member: "greeting-python" }
+        steps: { build_member: "greeting-c" }
+        steps: { build_member: "greeting-cpp" }
+        steps: { build_member: "greeting-csharp" }
+        steps: { build_member: "greeting-dart" }
+        steps: { build_member: "greeting-java" }
+        steps: { build_member: "greeting-kotlin" }
+        steps: { build_member: "greeting-node" }
+        steps: { build_member: "greeting-ruby" }
+        steps: {
+          exec: {
+            cwd: "app"
+            argv: ["flutter", "pub", "get"]
+          }
+        }
+        steps: {
+          exec: {
+            cwd: "app"
+            argv: ["flutter", "build", "linux", "--debug"]
+          }
+        }
+        steps: {
+          exec: {
+            cwd: "app"
+            argv: ["dart", "run", "tool/package_desktop.dart", "linux", "debug"]
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/gabriel-greeting-app-flutter.holon"
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/gabriel-greeting-app-flutter.holon/.holon.json"
+          }
+        }
+      }
+    }
+  }
+  requires: {
+    commands: ["flutter", "dart", "go", "swift", "cargo", "python3", "cmake", "dotnet", "java", "gradle", "node", "npm", "ruby", "bundle"]
+    files: ["app/pubspec.yaml"]
+    platforms: ["macos", "windows", "linux"]
+  }
+  artifacts: {
+    primary: ".op/build/gabriel-greeting-app-flutter.holon"
+  }
+};
+
+// GreetingAppService is the COAX-facing domain surface for the Flutter app.
+// These methods drive the same state transitions a human performs through the UI.
+service GreetingAppService {
+  // Select which greeting holon to use (by slug).
+  // @example {"slug":"gabriel-greeting-go"}
+  rpc SelectHolon(SelectHolonRequest) returns (SelectHolonResponse);
+
+  // Select which transport the greeting holon connection should use.
+  // @example {"transport":"tcp"}
+  rpc SelectTransport(SelectTransportRequest) returns (SelectTransportResponse);
+
+  // Select a language for the greeting.
+  // @example {"code":"fr"}
+  rpc SelectLanguage(SelectLanguageRequest) returns (SelectLanguageResponse);
+
+  // Greet using the current selection.
+  // @example {"name":"Bob","lang_code":"fr"}
+  rpc Greet(GreetRequest) returns (GreetResponse);
+}
+
+message SelectHolonRequest {
+  string slug = 1;
+}
+
+message SelectHolonResponse {
+  string slug = 1;
+  string display_name = 2;
+}
+
+message SelectTransportRequest {
+  string transport = 1;
+}
+
+message SelectTransportResponse {
+  string transport = 1;
+}
+
+message SelectLanguageRequest {
+  string code = 1;
+}
+
+message SelectLanguageResponse {
+  string code = 1;
+}
+
+message GreetRequest {
+  string name = 1;
+  string lang_code = 2;
+}
+
+message GreetResponse {
+  string greeting = 1;
+}

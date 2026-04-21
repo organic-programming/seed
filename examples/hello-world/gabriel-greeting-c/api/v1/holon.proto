@@ -17,10 +17,10 @@ option (holons.v1.manifest) = {
     given_name: "Gabriel"
     family_name: "Greeting-C"
     motto: "Greets users in 56 languages — a C daemon example."
-    composer: "Codex"
+    composer: "B. ALTER"
     status: "draft"
     born: "2026-03-16"
-    version: "0.1.0"
+    version: "0.1.152"
   }
   description: "A C gRPC daemon that greets users in 56 languages using the c-holons bridge."
   lang: "c"
@@ -28,6 +28,7 @@ option (holons.v1.manifest) = {
   build: {
     runner: "cmake"
     main: "./cmd/main.c"
+    templates: ["api/cli.c"]
   }
   requires: {
     commands: ["cmake"]

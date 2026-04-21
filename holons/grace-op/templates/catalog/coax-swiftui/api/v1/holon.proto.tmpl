@@ -1,0 +1,72 @@
+syntax = "proto3";
+package holons.v1;
+
+import "holons/v1/coax.proto";
+import "holons/v1/manifest.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "{{ .UUID }}"
+    given_name: "{{ .GivenTitle }}"
+    family_name: "{{ .FamilyTitle }}"
+    motto: "SwiftUI app holon scaffold with COAX support."
+    composer: "op new"
+    status: "draft"
+    born: "{{ .Date }}"
+    version: "0.1.0"
+  }
+  description: "{{ .Slug }} scaffold generated from {{ .Template }}."
+  lang: "swift"
+  kind: "composite"
+  transport: "stdio"
+  platforms: ["macos"]
+  contract: {
+    proto: "api/v1/holon.proto"
+    service: "holons.v1.CoaxService"
+    rpcs: [
+      "ListMembers",
+      "MemberStatus",
+      "ConnectMember",
+      "DisconnectMember",
+      "Tell",
+      "TurnOffCoax"
+    ]
+  }
+  build: {
+    runner: "recipe"
+    templates: ["App/Info.plist", "project.yml"]
+    defaults: {
+      target: "macos"
+      mode: "debug"
+    }
+    members: {
+      id: "holon"
+      path: "holon"
+      type: "holon"
+    }
+    members: {
+      id: "app"
+      path: "."
+      type: "component"
+    }
+    targets: {
+      key: "macos"
+      value: {
+        steps: {
+          assert_file: {
+            path: "App/{{ .PascalSlug }}App.swift"
+          }
+        }
+        steps: {
+          assert_file: {
+            path: "project.yml"
+          }
+        }
+      }
+    }
+  }
+  artifacts: {
+    primary: "App/{{ .PascalSlug }}App.swift"
+  }
+};

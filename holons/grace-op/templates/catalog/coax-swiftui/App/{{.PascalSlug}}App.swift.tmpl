@@ -1,0 +1,61 @@
+import Foundation
+import SwiftUI
+import Holons
+import HolonsApp
+import OrganismKit
+
+@main
+struct {{ .PascalSlug }}App: App {
+    @StateObject private var holonManager: AppHolonManager
+    @StateObject private var coaxManager: CoaxManager
+
+    init() {
+        let holonManager = AppHolonManager()
+        let settingsStore = FileSettingsStore.create(
+            applicationId: "{{ .Slug }}",
+            applicationName: "{{ .GivenTitle }} {{ .FamilyTitle }}"
+        )
+        var turnOffCoax: (@MainActor @Sendable () -> Void)?
+        let server = CoaxManager(
+            providers: {
+                [
+                    CoaxRpcServiceProvider(
+                        holonManager: holonManager,
+                        turnOffCoax: { turnOffCoax?() }
+                    )
+                ]
+            },
+            registerDescribe: {
+                try registerDescribeResponse()
+            },
+            settingsStore: settingsStore,
+            coaxDefaults: .standard(socketName: "{{ .Slug }}-coax.sock")
+        )
+        turnOffCoax = { server.turnOffAfterRpc() }
+        _holonManager = StateObject(wrappedValue: holonManager)
+        _coaxManager = StateObject(wrappedValue: server)
+        Task { @MainActor [server] in
+            server.startIfEnabled()
+        }
+    }
+
+    var body: some Scene {
+        WindowGroup("{{ .GivenTitle }} {{ .FamilyTitle }}") {
+            ContentView(holonManager: holonManager, coaxManager: coaxManager)
+                .frame(minWidth: 800, minHeight: 600)
+                .onDisappear {
+                    coaxManager.stop()
+                }
+        }
+    }
+}
+
+private func registerDescribeResponse() throws {
+    let fileURL = URL(fileURLWithPath: #filePath)
+    let rootDirectory = fileURL
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let protoDirectory = rootDirectory.appendingPathComponent("api", isDirectory: true)
+    let response = try Describe.buildResponse(protoDir: protoDirectory.path)
+    try Describe.useStaticResponse(response)
+}

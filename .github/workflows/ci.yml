@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [dev, master]
+  pull_request:
+    branches: [dev, master]
+
+env:
+  GOTOOLCHAIN: auto
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - holons/grace-op
+          - holons/clem-ader
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.1'
+          cache-dependency-path: '**/go.sum'
+      - name: go build
+        working-directory: ${{ matrix.target }}
+        run: go build -v ./...
+
+  test-seed-op:
+    name: test-seed-op (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: holons/grace-op
+            test_args: ''
+          - target: ader/catalogues/grace-op/integration
+            test_args: '-tags e2e'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.1'
+          cache-dependency-path: '**/go.sum'
+      - name: go test
+        working-directory: ${{ matrix.target }}
+        run: go test -v ${{ matrix.test_args }} ./...
+
+  test-seed-modules:
+    name: test-seed-modules (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - examples/hello-world/gabriel-greeting-go
+          - examples/calculator/matt-calculator-go
+          - holons/clem-ader
+          - sdk/go-holons
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.1'
+          cache-dependency-path: '**/go.sum'
+      - name: go test
+        working-directory: ${{ matrix.target }}
+        run: go test -v ./...

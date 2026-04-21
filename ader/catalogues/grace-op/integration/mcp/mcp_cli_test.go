@@ -1,0 +1,123 @@
+//go:build e2e
+
+package mcp_test
+
+import (
+	"testing"
+
+	"github.com/organic-programming/seed/ader/catalogues/grace-op/integration"
+)
+
+func TestMCP_CLI_LocalHolonHandshakeAndTools(t *testing.T) {
+	integration.SkipIfShort(t, integration.ShortTestReason)
+
+	sb := integration.NewSandbox(t)
+	responses, result := integration.MCPConversation(t, sb, []string{"gabriel-greeting-go"}, []map[string]any{
+		{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{}},
+		{"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": map[string]any{}},
+		{"jsonrpc": "2.0", "id": 3, "method": "prompts/list", "params": map[string]any{}},
+	})
+	integration.RequireSuccess(t, result)
+	if len(responses) != 3 {
+		t.Fatalf("responses = %d, want 3", len(responses))
+	}
+
+	toolsResult, ok := responses[1]["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("tools/list result = %#v", responses[1]["result"])
+	}
+	tools, ok := toolsResult["tools"].([]any)
+	if !ok || len(tools) == 0 {
+		t.Fatalf("tools/list tools = %#v", toolsResult["tools"])
+	}
+
+	foundSequence := false
+	for _, entry := range tools {
+		tool := entry.(map[string]any)
+		if tool["name"] == "gabriel-greeting-go.sequence.multilingual-greeting" {
+			foundSequence = true
+			break
+		}
+	}
+	if !foundSequence {
+		t.Fatalf("sequence tool missing from tools/list: %#v", tools)
+	}
+
+	promptsResult, ok := responses[2]["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("prompts/list result = %#v", responses[2]["result"])
+	}
+	prompts, ok := promptsResult["prompts"].([]any)
+	if !ok || len(prompts) == 0 {
+		t.Fatalf("prompts/list prompts = %#v", promptsResult["prompts"])
+	}
+}
+
+func TestMCP_CLI_ToolCall(t *testing.T) {
+	integration.SkipIfShort(t, integration.ShortTestReason)
+
+	sb := integration.NewSandbox(t)
+	responses, result := integration.MCPConversation(t, sb, []string{"gabriel-greeting-go"}, []map[string]any{
+		{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{}},
+		{
+			"jsonrpc": "2.0",
+			"id":      2,
+			"method":  "tools/call",
+			"params": map[string]any{
+				"name": "gabriel-greeting-go.GreetingService.SayHello",
+				"arguments": map[string]any{
+					"name":      "World",
+					"lang_code": "en",
+				},
+			},
+		},
+	})
+	integration.RequireSuccess(t, result)
+
+	callResult, ok := responses[1]["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("tools/call result = %#v", responses[1]["result"])
+	}
+	structured, ok := callResult["structuredContent"].(map[string]any)
+	if !ok {
+		t.Fatalf("structuredContent = %#v", callResult["structuredContent"])
+	}
+	if structured["greeting"] == "" {
+		t.Fatalf("empty greeting in structuredContent: %#v", structured)
+	}
+}
+
+func TestMCP_CLI_MultipleHolons(t *testing.T) {
+	integration.SkipIfShort(t, integration.ShortTestReason)
+
+	sb := integration.NewSandbox(t)
+	responses, result := integration.MCPConversation(t, sb, []string{"gabriel-greeting-go", "matt-calculator-go"}, []map[string]any{
+		{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{}},
+		{"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": map[string]any{}},
+	})
+	integration.RequireSuccess(t, result)
+
+	toolsResult := responses[1]["result"].(map[string]any)
+	tools := toolsResult["tools"].([]any)
+	foundGo := false
+	foundCalc := false
+	for _, entry := range tools {
+		name := entry.(map[string]any)["name"].(string)
+		if name == "gabriel-greeting-go.GreetingService.SayHello" {
+			foundGo = true
+		}
+		if name == "matt-calculator-go.CalculatorService.Add" {
+			foundCalc = true
+		}
+	}
+	if !foundGo || !foundCalc {
+		t.Fatalf("multi-holon tool list missing expected tools: %#v", tools)
+	}
+}
+
+func TestMCP_CLI_NoArgsFails(t *testing.T) {
+	sb := integration.NewSandbox(t)
+	result := sb.RunOP(t, "mcp")
+	integration.RequireFailure(t, result)
+	integration.RequireContains(t, result.Stderr, "requires at least 1 arg")
+}

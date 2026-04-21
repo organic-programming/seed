@@ -21,10 +21,10 @@ option (holons.v1.manifest) = {
     given_name: "Gabriel"
     family_name: "Greeting-Java"
     motto: "Greets users in 56 languages — a Java daemon example."
-    composer: "Codex"
+    composer: "B. ALTER"
     status: "draft"
     born: "2026-03-16"
-    version: "0.1.0"
+    version: "0.1.124"
   }
   description: "A Java gRPC daemon that greets users in 56 languages."
   lang: "java"
@@ -32,6 +32,7 @@ option (holons.v1.manifest) = {
   build: {
     runner: "gradle"
     main: "./src/main/java/org/organicprogramming/gabriel/greeting/javaholon/cmd/Main.java"
+    templates: ["src/main/java/org/organicprogramming/gabriel/greeting/javaholon/api/Cli.java"]
   }
   requires: {
     commands: ["java", "gradle"]

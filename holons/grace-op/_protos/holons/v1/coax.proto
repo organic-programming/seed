@@ -1,0 +1,177 @@
+syntax = "proto3";
+
+package holons.v1;
+
+import "holons/v1/manifest.proto";
+
+// CoaxService is the COAX (coaccessibility) interaction surface for any
+// organism — a composite holon that assembles member holons.
+//
+// It enables programmatic discovery, connection, and interaction with
+// the organism's members: the same operations a human performs through
+// the UI, driven through the same shared state. Agent-initiated actions
+// (selecting a member, invoking a method) must be reflected in the
+// organism's interface in real time — COAX does not bypass the UI,
+// it drives through it.
+//
+// This service is recursive: a member that is itself an organism
+// exposes its own CoaxService at its own level.
+//
+// See CONSTITUTION.md Article 1 for the COAX principle.
+// See apps_kits/DESIGN.md for how App Kits implement this surface.
+service CoaxService {
+
+  // ── Member discovery ─────────────────────────────────────
+
+  // List the organism's available member holons.
+  // Equivalent to browsing the holon picker in the UI.
+  // The organism controls which members are listed — internal holons
+  // may be intentionally omitted to keep the exposure surface minimal.
+  // Organism Kits provide built-in exposure strategies (all, filtered,
+  // or none) — the organism picks one, no custom filtering needed.
+  // @example {}
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+
+  // Query the runtime status of a specific member.
+  // @example {"slug":"gabriel-greeting-go"}
+  rpc MemberStatus(MemberStatusRequest) returns (MemberStatusResponse);
+
+  // ── Member lifecycle ─────────────────────────────────────
+
+  // Connect a member holon (start it if needed).
+  // The organism resolves the member, launches its process if necessary,
+  // and establishes a gRPC channel — identical to a user selecting a
+  // holon in a picker.
+  // @example {"slug":"gabriel-greeting-go","transport":"tcp"}
+  rpc ConnectMember(ConnectMemberRequest) returns (ConnectMemberResponse);
+
+  // Disconnect a member holon.
+  // @example {"slug":"gabriel-greeting-go"}
+  rpc DisconnectMember(DisconnectMemberRequest) returns (DisconnectMemberResponse);
+
+  // ── Tell ─────────────────────────────────────────────────
+
+  // Forward a command to a member holon by slug.
+  // The organism resolves, connects if needed, and relays the call.
+  //
+  // This is the generalized equivalent of AppleScript's
+  //   tell application "X" to do Y
+  // but universal (proto-based), typed, and platform-independent.
+  //
+  // Tell operates at the organism level: it is the single entry point
+  // for an external caller to interact with any member without needing
+  // to discover and connect to each one separately.
+  // @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
+  rpc Tell(TellRequest) returns (TellResponse);
+
+  // ── Server lifecycle ──────────────────────────────────────
+
+  // Shut down the COAX server gracefully.
+  // The response is sent before the server stops accepting new calls.
+  //
+  // TurnOn does not exist — it is impossible by design: one cannot
+  // call an RPC on a server that is not running. The COAX server is
+  // started by the organism itself (UI toggle, launch argument, or
+  // startup configuration).
+  // @example {}
+  rpc TurnOffCoax(TurnOffCoaxRequest) returns (TurnOffCoaxResponse);
+}
+
+// ── Messages ───────────────────────────────────────────────
+
+// ListMembers
+
+message ListMembersRequest {}
+
+message ListMembersResponse {
+  repeated MemberInfo members = 1;
+}
+
+// MemberInfo describes a member holon visible to the organism.
+message MemberInfo {
+  // The member's slug (used for Tell and Connect).
+  string slug = 1;
+
+  // Identity from the member's manifest.
+  HolonManifest.Identity identity = 2;
+
+  // Current runtime status.
+  MemberState state = 3;
+
+  // Whether this member is itself an organism (recursive COAX).
+  bool is_organism = 4;
+}
+
+// MemberState represents the runtime lifecycle of a member.
+enum MemberState {
+  MEMBER_STATE_UNSPECIFIED = 0;
+
+  // Known but not running.
+  MEMBER_STATE_AVAILABLE   = 1;
+
+  // Process starting, not yet ready.
+  MEMBER_STATE_CONNECTING  = 2;
+
+  // Connected and ready for RPC.
+  MEMBER_STATE_CONNECTED   = 3;
+
+  // Connection or process error.
+  MEMBER_STATE_ERROR       = 4;
+}
+
+// MemberStatus
+
+message MemberStatusRequest {
+  string slug = 1;
+}
+
+message MemberStatusResponse {
+  MemberInfo member = 1;
+}
+
+// ConnectMember
+
+message ConnectMemberRequest {
+  string slug = 1;
+
+  // Optional transport override (default: organism decides).
+  string transport = 2;
+}
+
+message ConnectMemberResponse {
+  MemberInfo member = 1;
+}
+
+// DisconnectMember
+
+message DisconnectMemberRequest {
+  string slug = 1;
+}
+
+message DisconnectMemberResponse {}
+
+// Tell
+
+message TellRequest {
+  // Which member to address (by slug).
+  string member_slug = 1;
+
+  // Fully qualified RPC method name
+  // (e.g. "greeting.v1.GreetingService/SayHello").
+  string method = 2;
+
+  // JSON-encoded request payload.
+  // The organism deserializes and forwards as protobuf to the member.
+  bytes payload = 3;
+}
+
+message TellResponse {
+  // JSON-encoded response from the member.
+  bytes payload = 1;
+}
+
+// TurnOffCoax
+
+message TurnOffCoaxRequest {}
+
+message TurnOffCoaxResponse {}

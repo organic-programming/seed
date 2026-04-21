@@ -47,11 +47,11 @@ int main(void) {
     return 1;
   }
 
-  greeting_v1_SayHelloRequest_set_name(request, upb_StringView_FromString("Alice"));
+  greeting_v1_SayHelloRequest_set_name(request, upb_StringView_FromString("Bob"));
   greeting_v1_SayHelloRequest_set_lang_code(request, upb_StringView_FromString("xx"));
   response = gabriel_greeting_c_say_hello(request, arena);
   if (!expect(equals_cstr(greeting_v1_SayHelloResponse_greeting(response),
-                          "Hello Alice"),
+                          "Hello Bob"),
               "expected English fallback greeting")) {
     return 1;
   }

@@ -1,0 +1,28 @@
+syntax = "proto3";
+package echo.v1;
+
+// Echo echoes request payloads for documentation tests.
+service Echo {
+  // Ping echoes the inbound message.
+  // @example {"message":"hello","sdk":"go-holons"}
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+message PingRequest {
+  // Message to echo back.
+  // @required
+  // @example "hello"
+  string message = 1;
+
+  // SDK marker included in the response.
+  // @example "go-holons"
+  string sdk = 2;
+}
+
+message PingResponse {
+  // Echoed message.
+  string message = 1;
+
+  // SDK marker from the server.
+  string sdk = 2;
+}

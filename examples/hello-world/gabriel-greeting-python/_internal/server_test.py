@@ -9,6 +9,7 @@ from support import ensure_import_paths
 
 ensure_import_paths()
 
+from holons import describe
 from v1 import greeting_pb2, greeting_pb2_grpc
 
 from _internal.server import GreetingService, normalize_listen_uri
@@ -43,10 +44,10 @@ class GreetingServerTest(unittest.TestCase):
 
     def test_say_hello_uses_requested_language(self) -> None:
         response = self.stub.SayHello(
-            greeting_pb2.SayHelloRequest(name="Alice", lang_code="fr"),
+            greeting_pb2.SayHelloRequest(name="Bob", lang_code="fr"),
             timeout=5,
         )
-        self.assertEqual(response.greeting, "Bonjour Alice")
+        self.assertEqual(response.greeting, "Bonjour Bob")
         self.assertEqual(response.language, "French")
         self.assertEqual(response.lang_code, "fr")
 
@@ -69,6 +70,12 @@ class GreetingServerTest(unittest.TestCase):
     def test_normalize_listen_uri_expands_empty_tcp_host(self) -> None:
         self.assertEqual(normalize_listen_uri("tcp://:9090"), "tcp://0.0.0.0:9090")
         self.assertEqual(normalize_listen_uri("tcp://127.0.0.1:9090"), "tcp://127.0.0.1:9090")
+
+    def test_static_describe_response_is_registered(self) -> None:
+        response = describe.static_response()
+        self.assertEqual(response.manifest.identity.given_name, "Gabriel")
+        self.assertEqual(response.manifest.lang, "python")
+        self.assertEqual(response.manifest.build.runner, "python")
 
 
 if __name__ == "__main__":

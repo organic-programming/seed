@@ -6,12 +6,11 @@ A bio-inspired, Unix-inspired paradigm for a hybrid human–agent world.
 A `.proto` at the center, facets radiating from it — and legacy code,
 new code, humans, and agents naturally interoperate.
 
-> For the full motivation, see [Why?](./WHY.md).
-> For the full specification, see [AGENT.md](./AGENT.md).
+> For the full specification, see [CONSTITUTION.md](./CONSTITUTION.md).
 
 ---
 
-## Five core ideas
+## Core ideas
 
 ### The Holon[^1]
 
@@ -75,31 +74,39 @@ interlock like Lego bricks: one serves, the other dials.
 
 ### Try it
 
-These ideas are not theoretical. Working SDKs and functional examples
-are available to experiment with:
+These ideas are not theoretical
 
-- **[sdk/](./sdk/)** — language SDKs built around the shared
-  `serve` / `transport` / `identity` / `discover` / `connect`
-  architecture:
-  [C](https://github.com/organic-programming/c-holons),
-  [C++](https://github.com/organic-programming/cpp-holons),
-  [C#](https://github.com/organic-programming/csharp-holons),
-  [Dart](https://github.com/organic-programming/dart-holons),
-  [Go](https://github.com/organic-programming/go-holons),
-  [Java](https://github.com/organic-programming/java-holons),
-  [JavaScript](https://github.com/organic-programming/js-holons),
-  [JavaScript Web](https://github.com/organic-programming/js-web-holons),
-  [Kotlin](https://github.com/organic-programming/kotlin-holons),
-  [Python](https://github.com/organic-programming/python-holons),
-  [Ruby](https://github.com/organic-programming/ruby-holons),
-  [Rust](https://github.com/organic-programming/rust-holons),
-  [Swift](https://github.com/organic-programming/swift-holons).
-- **[examples/](./examples/)** — runnable hello-world holons in 13
-  languages. Some already import their matching SDK; others are still
-  raw gRPC baselines. See [`sdk/SDK_GUIDE.md`](./sdk/SDK_GUIDE.md) for
-  the current audit.
-- **[holons/](./holons/)** — the blueprint toolchain (`op`).
-  Installation notes for `op` live in [holons/grace-op/INSTALL.md](./holons/grace-op/INSTALL.md).
+### Examples
+
+
+[SwiftUI Organism](./examples/hello-world/gabriel-greeting-app-swiftui/) — composite organism: recipe-driven build, COAX interaction, and native macOS host UI.
+
+![Gabriel Greeting App SwiftUI greets Mary](./assets/images/gabriel-greeting-app-swiftui-mary.png
+
+
+
+Greeting holons — the same `GreetingService` contract implemented
+in every supported language:
+
+- [Go](./examples/hello-world/gabriel-greeting-go/) — the reference implementation
+- [C](./examples/hello-world/gabriel-greeting-c/)
+- [C++](./examples/hello-world/gabriel-greeting-cpp/)
+- [C#](./examples/hello-world/gabriel-greeting-csharp/)
+- [Dart](./examples/hello-world/gabriel-greeting-dart/)
+- [Java](./examples/hello-world/gabriel-greeting-java/)
+- [Kotlin](./examples/hello-world/gabriel-greeting-kotlin/)
+- [Node](./examples/hello-world/gabriel-greeting-node/)
+- [Python](./examples/hello-world/gabriel-greeting-python/)
+- [Ruby](./examples/hello-world/gabriel-greeting-ruby/)
+- [Rust](./examples/hello-world/gabriel-greeting-rust/)
+- [Swift](./examples/hello-world/gabriel-greeting-swift/)
+
+
+SDKs and toolchain:
+
+- **[sdk/](./sdk/)** — language SDKs (`serve`, `transport`, `identity`, `discover`, `connect`)
+- **[holons/grace-op/](./holons/grace-op/)** — the `op` orchestrator
+- **[holons/clem-ader/](./holons/clem-ader/)** — the local proof holon (`ader`): freeze a snapshot, run a configured proof, keep reports, archive evidence
 
 ---
 
@@ -110,17 +117,24 @@ which the ecosystem grows.
 
 | Document | What it answers |
 |----------|----------------|
-| [Constitution](./AGENT.md) | What is a holon? |
-| [Protocol](./PROTOCOL.md) | How do holons communicate? |
+| [Constitution](./CONSTITUTION.md) | What is a holon? |
+| [Coax](./COAX.md)| coaccessibility. |
 | [Conventions](./CONVENTIONS.md) | How is a holon structured per language? |
-| [Index](./INDEX.md) | Full list of all documents |
+| [Holon discovery](./holons/grace-op/HOLON_DISCOVERY.md) | How do holons discover each other? |
+| [Holon build](./holons/grace-op/HOLON_BUILD.md) | How do holons build each other? |
+| [.proto](./PROTO.md) | How do holons use the `.proto` manifest? |
+| [Holon package](./holons/grace-op/HOLON_PACKAGE.md) | How do holons package each other? |
+| [OP](./holons/grace-op/README.md) |  Op is the CLI tool. |
+| [Ader](./ader/README.md) | How the seed defines `ader` catalogues, suites, bouquets, reports, and archives. |
+| [Protocol](./COMMUNICATION.md) | How do holons communicate? |
+
 
 © 2026 Benoit Pereira da Silva. All rights reserved.
 
 ---
 
-[^1]: See [AGENT.md — Article 1](./AGENT.md#article-1--the-holon)
-[^2]: See [AGENT.md — Article 2](./AGENT.md#article-2--the-contract-protocol-buffers)
-[^3]: See [AGENT.md — Article 5](./AGENT.md#article-5--composition)
-[^4]: See [AGENT.md — Article 9](./AGENT.md#article-9--mimesis)
-[^5]: See [AGENT.md — Article 11](./AGENT.md#article-11--the-serve--dial-convention)
+[^1]: See [CONSTITUTION.md — Article 1](./CONSTITUTION.md#article-1--the-holon)
+[^2]: See [CONSTITUTION.md — Article 2](./CONSTITUTION.md#article-2--the-contract-protocol-buffers)
+[^3]: See [CONSTITUTION.md — Article 5](./CONSTITUTION.md#article-5--composition)
+[^4]: See [CONSTITUTION.md — Article 9](./CONSTITUTION.md#article-9--mimesis)
+[^5]: See [CONSTITUTION.md — Article 11](./CONSTITUTION.md#article-11--the-serve--dial-convention)

@@ -31,11 +31,11 @@ public class ServerTests
 
         var response = await client.SayHelloAsync(new SayHelloRequest
         {
-            Name = "Alice",
+            Name = "Bob",
             LangCode = "fr",
         });
 
-        Assert.Equal("Bonjour Alice", response.Greeting);
+        Assert.Equal("Bonjour Bob", response.Greeting);
         Assert.Equal("French", response.Language);
         Assert.Equal("fr", response.LangCode);
     }

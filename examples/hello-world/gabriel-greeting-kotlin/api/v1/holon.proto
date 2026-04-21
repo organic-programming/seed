@@ -21,10 +21,10 @@ option (holons.v1.manifest) = {
     given_name: "Gabriel"
     family_name: "Greeting-Kotlin"
     motto: "Greets users in 56 languages — a Kotlin daemon example."
-    composer: "Codex"
+    composer: "B. ALTER"
     status: "draft"
     born: "2026-03-16"
-    version: "0.1.0"
+    version: "8.8.146"
   }
   description: "A Kotlin gRPC daemon that greets users in 56 languages."
   lang: "kotlin"
@@ -32,6 +32,7 @@ option (holons.v1.manifest) = {
   build: {
     runner: "gradle"
     main: "./src/main/kotlin/org/organicprogramming/gabriel/greeting/kotlinholon/cmd/Main.kt"
+    templates: ["src/main/kotlin/org/organicprogramming/gabriel/greeting/kotlinholon/api/Cli.kt"]
   }
   requires: {
     commands: ["java", "gradle"]

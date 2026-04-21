@@ -1,0 +1,225 @@
+// These tests verify the public Code API operations of clem-ader against a tiny synthetic Git repository and config-dir suite.
+package api
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	aderv1 "github.com/organic-programming/clem-ader/gen/go/v1"
+	"github.com/organic-programming/clem-ader/internal/testrepo"
+)
+
+func TestPublicTestOperation(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
+	withWorkingDir(t, root, func() {
+		response, err := Test(&aderv1.TestRequest{
+			ConfigDir:     configDir,
+			Suite:         "fixture",
+			Profile:       "integration",
+			Source:        "workspace",
+			ArchivePolicy: "never",
+		})
+		if err != nil {
+			t.Fatalf("Test() error = %v", err)
+		}
+		if response.GetManifest().GetFinalStatus() != "PASS" {
+			t.Fatalf("final status = %q, want PASS", response.GetManifest().GetFinalStatus())
+		}
+		if response.GetManifest().GetHistoryId() == "" {
+			t.Fatal("expected history id")
+		}
+		if response.GetManifest().GetSuite() != "fixture" {
+			t.Fatalf("suite = %q, want fixture", response.GetManifest().GetSuite())
+		}
+	})
+}
+
+func TestPublicArchiveOperation(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
+	withWorkingDir(t, root, func() {
+		if _, err := Test(&aderv1.TestRequest{
+			ConfigDir:     configDir,
+			Suite:         "fixture",
+			Profile:       "integration",
+			Source:        "workspace",
+			ArchivePolicy: "never",
+			KeepSnapshot:  true,
+		}); err != nil {
+			t.Fatalf("Test() setup error = %v", err)
+		}
+		response, err := Archive(&aderv1.ArchiveRequest{
+			ConfigDir: configDir,
+			Latest:    true,
+		})
+		if err != nil {
+			t.Fatalf("Archive() error = %v", err)
+		}
+		if response.GetArchivePath() == "" {
+			t.Fatal("expected archive path")
+		}
+		if _, err := os.Stat(response.GetArchivePath()); err != nil {
+			t.Fatalf("archive stat: %v", err)
+		}
+	})
+}
+
+func TestPublicCleanupOperation(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
+	withWorkingDir(t, root, func() {
+		stale := filepath.Join(configDir, ".artifacts", "local-suite", "stale")
+		if err := os.MkdirAll(stale, 0o755); err != nil {
+			t.Fatalf("mkdir stale: %v", err)
+		}
+		response, err := Cleanup(&aderv1.CleanupRequest{ConfigDir: configDir})
+		if err != nil {
+			t.Fatalf("Cleanup() error = %v", err)
+		}
+		if response.GetRemovedLocalSuiteDirs() == 0 {
+			t.Fatal("expected cleanup to remove at least one local-suite dir")
+		}
+	})
+}
+
+func TestPublicPromoteOperation(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
+	withWorkingDir(t, root, func() {
+		response, err := Promote(&aderv1.PromoteRequest{
+			ConfigDir: configDir,
+			Suite:     "fixture",
+			StepIds:   []string{"fixture-script"},
+		})
+		if err != nil {
+			t.Fatalf("Promote() error = %v", err)
+		}
+		if response.GetSuite() != "fixture" {
+			t.Fatalf("suite = %q, want fixture", response.GetSuite())
+		}
+		if len(response.GetPromotedSteps()) != 1 || response.GetPromotedSteps()[0] != "fixture-script" {
+			t.Fatalf("promoted steps = %v, want [fixture-script]", response.GetPromotedSteps())
+		}
+	})
+}
+
+func TestPublicDowngradeOperation(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
+	withWorkingDir(t, root, func() {
+		response, err := Downgrade(&aderv1.DowngradeRequest{
+			ConfigDir: configDir,
+			Suite:     "fixture",
+			StepIds:   []string{"holons-grace-op-unit-root"},
+		})
+		if err != nil {
+			t.Fatalf("Downgrade() error = %v", err)
+		}
+		if response.GetSuite() != "fixture" {
+			t.Fatalf("suite = %q, want fixture", response.GetSuite())
+		}
+		if len(response.GetDowngradedSteps()) != 1 || response.GetDowngradedSteps()[0] != "holons-grace-op-unit-root" {
+			t.Fatalf("downgraded steps = %v, want [holons-grace-op-unit-root]", response.GetDowngradedSteps())
+		}
+	})
+}
+
+func TestPublicHistoryAndShowHistoryOperations(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
+	withWorkingDir(t, root, func() {
+		testResponse, err := Test(&aderv1.TestRequest{
+			ConfigDir:     configDir,
+			Suite:         "fixture",
+			Profile:       "integration",
+			Source:        "workspace",
+			ArchivePolicy: "always",
+		})
+		if err != nil {
+			t.Fatalf("Test() error = %v", err)
+		}
+		listResponse, err := History(&aderv1.HistoryRequest{ConfigDir: configDir})
+		if err != nil {
+			t.Fatalf("History() error = %v", err)
+		}
+		if len(listResponse.GetEntries()) != 1 {
+			t.Fatalf("History() count = %d, want 1", len(listResponse.GetEntries()))
+		}
+		showResponse, err := ShowHistory(&aderv1.ShowHistoryRequest{
+			ConfigDir: configDir,
+			HistoryId: testResponse.GetManifest().GetHistoryId(),
+		})
+		if err != nil {
+			t.Fatalf("ShowHistory() error = %v", err)
+		}
+		if showResponse.GetManifest().GetHistoryId() != testResponse.GetManifest().GetHistoryId() {
+			t.Fatalf("ShowHistory() history id = %q, want %q", showResponse.GetManifest().GetHistoryId(), testResponse.GetManifest().GetHistoryId())
+		}
+		if showResponse.GetSummaryMarkdown() == "" {
+			t.Fatal("expected summary markdown")
+		}
+	})
+}
+
+func TestPublicBouquetOperations(t *testing.T) {
+	root := testrepo.Create(t)
+	aderRoot := filepath.Join(root, "ader")
+	withWorkingDir(t, root, func() {
+		testResponse, err := TestBouquet(&aderv1.BouquetRequest{
+			AderRoot: aderRoot,
+			Name:     "local-dev",
+		})
+		if err != nil {
+			t.Fatalf("TestBouquet() error = %v", err)
+		}
+		if testResponse.GetManifest().GetHistoryId() == "" {
+			t.Fatal("expected bouquet history id")
+		}
+		historyResponse, err := BouquetHistory(&aderv1.BouquetHistoryRequest{
+			AderRoot: aderRoot,
+		})
+		if err != nil {
+			t.Fatalf("BouquetHistory() error = %v", err)
+		}
+		if len(historyResponse.GetEntries()) != 1 {
+			t.Fatalf("BouquetHistory() count = %d, want 1", len(historyResponse.GetEntries()))
+		}
+		showResponse, err := ShowBouquetHistory(&aderv1.ShowBouquetHistoryRequest{
+			AderRoot:  aderRoot,
+			HistoryId: testResponse.GetManifest().GetHistoryId(),
+		})
+		if err != nil {
+			t.Fatalf("ShowBouquetHistory() error = %v", err)
+		}
+		if showResponse.GetSummaryMarkdown() == "" {
+			t.Fatal("expected bouquet summary markdown")
+		}
+		archiveResponse, err := ArchiveBouquet(&aderv1.ArchiveBouquetRequest{
+			AderRoot: aderRoot,
+			Latest:   true,
+		})
+		if err != nil {
+			t.Fatalf("ArchiveBouquet() error = %v", err)
+		}
+		if archiveResponse.GetArchivePath() == "" {
+			t.Fatal("expected bouquet archive path")
+		}
+	})
+}
+
+func withWorkingDir(t *testing.T, dir string, fn func()) {
+	t.Helper()
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir %s: %v", dir, err)
+	}
+	defer func() {
+		_ = os.Chdir(cwd)
+	}()
+	fn()
+}

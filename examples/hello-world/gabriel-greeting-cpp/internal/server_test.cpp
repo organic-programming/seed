@@ -1,5 +1,7 @@
 #include "internal/server.hpp"
 
+#include "holons/v1/describe.grpc.pb.h"
+
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -41,6 +43,7 @@ int main() {
   }
 
   auto stub = greeting::v1::GreetingService::NewStub(channel);
+  auto meta_stub = holons::v1::HolonMeta::NewStub(channel);
 
   grpc::ClientContext list_context;
   greeting::v1::ListLanguagesRequest list_request;
@@ -50,6 +53,19 @@ int main() {
     return 1;
   }
   if (!Expect(list_response.languages_size() == 56, "ListLanguages should return 56 entries")) {
+    return 1;
+  }
+
+  grpc::ClientContext describe_context;
+  holons::v1::DescribeRequest describe_request;
+  holons::v1::DescribeResponse describe_response;
+  auto describe_status =
+      meta_stub->Describe(&describe_context, describe_request, &describe_response);
+  if (!Expect(describe_status.ok(), "Describe RPC failed")) {
+    return 1;
+  }
+  if (!Expect(describe_response.manifest().identity().given_name() == "Gabriel",
+              "Describe should serve the generated static manifest")) {
     return 1;
   }
 

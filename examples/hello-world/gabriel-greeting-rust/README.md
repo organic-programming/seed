@@ -6,6 +6,22 @@ Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` a
 
 This holon is built with the [Rust SDK](https://github.com/organic-programming/rust-holons) (`rust-holons`).
 
+## Discovery
+
+This holon is source-discoverable from the repo root:
+
+```bash
+op list --source
+```
+
+Programmatically:
+
+```text
+Discover(LOCAL, "gabriel-greeting-rust", null, SOURCE, NO_LIMIT, NO_TIMEOUT)
+```
+
+Today this works in the Go SDK. The other non-browser SDKs will support the same source lookup once their Phase 1 discovery tasks land. The browser SDK is excluded because it has no filesystem-based discovery.
+
 # A Proto + 4 facets is all you need.
 
 ## Protos
@@ -52,12 +68,12 @@ Facets split into two contexts:
 
 # Serve
 
-The `serve` sub-command is provided by the Rust SDK (`holons::serve`). It handles listener negotiation and graceful shutdown — the holon only registers its gRPC service and reflection.
+The `serve` sub-command is provided by the Rust SDK (`holons::serve`). It handles listener negotiation, `Describe`, optional `--reflect` debugging, and graceful shutdown — the holon only registers its gRPC service.
 
 When a user runs:
 
 ```bash
-op gabriel-greeting-rust SayHello '{"name":"Alice","lang_code":"en"}'
+op gabriel-greeting-rust SayHello '{"name":"Bob","lang_code":"en"}'
 ```
 
 `op` performs the following chain:
@@ -71,12 +87,12 @@ op gabriel-greeting-rust SayHello '{"name":"Alice","lang_code":"en"}'
 
 | Platform | Mode | Connect cascade |
 |----------|------|-----------------|
-| macOS | binary | `mem → stdio → unix → tcp → rest+sse` |
-| Linux | binary | `mem → stdio → unix → tcp → rest+sse` |
-| Windows | binary | `mem → stdio → tcp → rest+sse` |
-| iOS | framework | `mem → tcp → rest+sse` |
-| Android | framework | `mem → tcp → rest+sse` |
-| Browser | WASM | `mem → rest+sse` |
+| macOS | binary | `stdio → unix → tcp → rest+sse` |
+| Linux | binary | `stdio → unix → tcp → rest+sse` |
+| Windows | binary | `stdio → tcp → rest+sse` |
+| iOS | framework | `tcp → rest+sse` |
+| Android | framework | `tcp → rest+sse` |
+| Browser | WASM | `rest+sse` |
 
 The holon itself knows nothing about discovery or transport selection — `serve` and `op` handle it.
 
@@ -93,7 +109,6 @@ api/v1/holon.proto                          Identity manifest — proto-based ho
 internal/server.rs                          RPC server — gRPC implementation.
 internal/greetings.rs                       Greeting data — 56 languages.
 gen/rust/greeting/v1/greeting.v1.rs         Generated protobuf and gRPC code (do not edit).
-gen/rust/greeting/v1/greeting_descriptor.bin Generated descriptor set used for reflection.
 ```
 
 `internal/` is not a facet — it is an **encapsulation practice**: private domain data and transport glue, never imported by external consumers.
@@ -110,7 +125,7 @@ Each acquired facet builds on the previous — from exposing individual RPCs, to
 op mcp gabriel-greeting-rust
 ```
 
-`op` connects to the holon, introspects its gRPC contract via reflection, and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
+`op` connects to the holon, introspects its gRPC contract via `Describe` (falling back to reflection only when needed), and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
 
 Tools are fully qualified — `gabriel-greeting-rust.GreetingService.SayHello` — allowing multiple holons to be served from a single `op mcp` instance.
 
@@ -158,17 +173,15 @@ All three are exposed via `op mcp`. The agent chooses the right level: **MCP** f
 
 ```bash
 op gabriel-greeting-rust SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc://gabriel-greeting-rust SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc+stdio://gabriel-greeting-rust SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc+tcp://gabriel-greeting-rust SayHello '{"name":"Maria","lang_code":"en"}'
+op stdio://gabriel-greeting-rust SayHello '{"name":"Maria","lang_code":"en"}'
+op tcp://gabriel-greeting-rust SayHello '{"name":"Maria","lang_code":"en"}'
 ```
 
 ## Currently not supported .
 
-mem, unix, ws, ws, sse+rest
+unix, ws, ws, sse+rest
 
 ```bash
-op grpc+mem://gabriel-greeting-rust SayHello '{"name":"Alice","lang_code":"en"}'
 op gabriel-greeting-rust SayHello '{"name":"Maria","lang_code":"fr"}'
 ```
 

@@ -2,6 +2,7 @@ syntax = "proto3";
 package greeting.v1;
 
 import "holons/v1/manifest.proto";
+import "holons/v1/coax.proto";
 import "v1/greeting.proto";
 
 option (holons.v1.manifest) = {
@@ -11,15 +12,22 @@ option (holons.v1.manifest) = {
     given_name: "Gabriel"
     family_name: "Greeting-App-SwiftUI"
     motto: "SwiftUI HostUI for the Gabriel greeting service."
-    composer: "Codex"
+    composer: "B. ALTER"
     status: "draft"
     born: "2026-03-15"
-    version: "0.1.0"
+    version: "0.1.134"
   }
-  description: "A standalone SwiftUI app that connects to all 12 Gabriel greeting daemon variants and presents a multilingual greeting UI."
+  description: "A standalone SwiftUI app that connects to all 12 Gabriel greeting holon written in 12 programming languages and presents a multilingual greeting UI."
+  lang: "swift"
   kind: "composite"
+  contract: {
+    proto: "api/v1/holon.proto"
+    service: "greeting.v1.GreetingAppService"
+    rpcs: ["SelectHolon", "SelectTransport", "SelectLanguage", "Greet"]
+  }
   build: {
     runner: "recipe"
+    templates: ["App/Info.plist", "project.yml"]
     defaults: {
       target: "macos"
       mode: "debug"
@@ -131,105 +139,174 @@ option (holons.v1.manifest) = {
         steps: {
           exec: {
             cwd: "."
-            argv: ["xcodebuild", "-scheme", "GabrielGreetingApp", "-configuration", "Debug", "-destination", "generic/platform=macOS", "-derivedDataPath", ".build/xcode/macos", "-clonedSourcePackagesDirPath", ".build/xcode/source-packages", "build"]
+            argv: ["bash", "-lc", 'set -euo pipefail\nrm -rf GabrielGreetingApp.xcodeproj .build build .op/build/xcode/GabrielGreetingApp.xcodeproj\nmkdir -p .op/build/xcode/source-packages/checkouts .op/build/xcode/source-packages/repositories\nrm -f .op/build/xcode/project.yml .op/build/xcode/App .op/build/xcode/Modules .op/build/xcode/gen\nln -s ../../../project.yml .op/build/xcode/project.yml\nln -s ../../../App .op/build/xcode/App\nln -s ../../../Modules .op/build/xcode/Modules\nln -s ../../../gen .op/build/xcode/gen']
           }
         }
         steps: {
           exec: {
             cwd: "."
-            argv: ["bash", "-lc", 'set -euo pipefail\nproducts_dir=".build/xcode/macos/Build/Products/Debug"\napp_dir="build/GabrielGreetingApp.app"\nrm -rf "$app_dir"\nmkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources" "$app_dir/Contents/Resources/Holons" "$app_dir/Contents/lib"\ncp "$products_dir/GabrielGreetingApp" "$app_dir/Contents/MacOS/GabrielGreetingApp"\n\nshopt -s nullglob\nfor bundle in "$products_dir"/*.bundle; do\n  cp -R "$bundle" "$app_dir/Contents/Resources/"\ndone\nif [ -d "$products_dir/PackageFrameworks" ]; then\n  cp -R "$products_dir/PackageFrameworks/." "$app_dir/Contents/lib/"\nfi\ncat > "$app_dir/Contents/Info.plist" <<EOF\n<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n  <key>CFBundleDevelopmentRegion</key>\n  <string>en</string>\n  <key>CFBundleDisplayName</key>\n  <string>GabrielGreetingApp</string>\n  <key>CFBundleExecutable</key>\n  <string>GabrielGreetingApp</string>\n  <key>CFBundleIdentifier</key>\n  <string>org.organicprogramming.gabriel-greeting-app-swiftui</string>\n  <key>CFBundleInfoDictionaryVersion</key>\n  <string>6.0</string>\n  <key>CFBundleName</key>\n  <string>GabrielGreetingApp</string>\n  <key>CFBundlePackageType</key>\n  <string>APPL</string>\n  <key>CFBundleShortVersionString</key>\n  <string>1.0</string>\n  <key>CFBundleVersion</key>\n  <string>1</string>\n  <key>LSMinimumSystemVersion</key>\n  <string>15.0</string>\n  <key>NSHighResolutionCapable</key>\n  <true/>\n</dict>\n</plist>\nEOF']
+            argv: ["xcodegen", "generate", "--spec", ".op/build/xcode/project.yml", "--project", ".op/build/xcode"]
+          }
+        }
+        steps: {
+          exec: {
+            cwd: "."
+            argv: ["xcodebuild", "-project", ".op/build/xcode/GabrielGreetingApp.xcodeproj", "-scheme", "GabrielGreetingApp", "-configuration", "Debug", "-destination", "generic/platform=macOS", "-derivedDataPath", ".op/build/xcode/macos", "-clonedSourcePackagesDirPath", ".op/build/xcode/source-packages", "build"]
+          }
+        }
+        steps: {
+          exec: {
+            cwd: "."
+            argv: ["bash", "-lc", 'set -euo pipefail\nproducts_dir=".op/build/xcode/macos/Build/Products/Debug"\napp_dir=".op/build/GabrielGreetingApp.app"\nmkdir -p "$(dirname "$app_dir")"\nrm -rf "$app_dir"\ncp -R "$products_dir/GabrielGreetingApp.app" "$app_dir"\nmkdir -p "$app_dir/Contents/Resources/Holons"\ncp App/Info.plist "$app_dir/Contents/Info.plist"']
           }
         }
         steps: {
           copy_artifact: {
             from: "greeting-go"
-            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-go.holon"
+            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-go.holon"
           }
         }
         steps: {
           copy_artifact: {
             from: "greeting-swift"
-            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-swift.holon"
+            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-swift.holon"
           }
         }
         steps: {
           copy_artifact: {
             from: "greeting-rust"
-            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-rust.holon"
+            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-rust.holon"
           }
         }
         steps: {
           copy_artifact: {
             from: "greeting-python"
-            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-python.holon"
+            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-python.holon"
           }
         }
         steps: {
           copy_artifact: {
             from: "greeting-c"
-            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-c.holon"
+            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-c.holon"
           }
         }
         steps: {
           copy_artifact: {
             from: "greeting-cpp"
-            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-cpp.holon"
+            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-cpp.holon"
           }
         }
         steps: {
           copy_artifact: {
             from: "greeting-csharp"
-            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-csharp.holon"
+            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-csharp.holon"
           }
         }
         steps: {
           copy_artifact: {
             from: "greeting-dart"
-            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-dart.holon"
+            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-dart.holon"
           }
         }
         steps: {
           copy_artifact: {
             from: "greeting-java"
-            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-java.holon"
+            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-java.holon"
           }
         }
         steps: {
           copy_artifact: {
             from: "greeting-kotlin"
-            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-kotlin.holon"
+            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-kotlin.holon"
           }
         }
         steps: {
           copy_artifact: {
             from: "greeting-node"
-            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-node.holon"
+            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-node.holon"
           }
         }
         steps: {
           copy_artifact: {
             from: "greeting-ruby"
-            to: "build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-ruby.holon"
+            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-ruby.holon"
           }
         }
         steps: {
           assert_file: {
-            path: "build/GabrielGreetingApp.app"
+            path: ".op/build/GabrielGreetingApp.app"
           }
         }
         steps: {
           assert_file: {
-            path: "build/GabrielGreetingApp.app/Contents/_CodeSignature/CodeResources"
+            path: ".op/build/GabrielGreetingApp.app/Contents/_CodeSignature/CodeResources"
           }
         }
       }
     }
   }
   requires: {
-    commands: ["xcodebuild", "cargo", "python3"]
-    files: ["Package.swift"]
+    commands: ["xcodebuild", "xcodegen", "go", "swift", "cargo", "python3", "cmake", "dotnet", "dart", "java", "gradle", "node", "npm", "ruby", "bundle"]
+    files: ["project.yml"]
   }
   artifacts: {
-    primary: "build/GabrielGreetingApp.app"
+    primary: ".op/build/GabrielGreetingApp.app"
   }
 };
+
+// GreetingAppService is the COAX domain surface for this organism.
+// These are the high-level actions a human performs through the UI,
+// expressed as RPCs an agent can call equivalently.
+//
+// An agent calling SelectHolon + SelectLanguage + Greet achieves the
+// same result as a human clicking the dropdown, picking a language,
+// and typing a name — and the UI reflects every step in real time.
+service GreetingAppService {
+  // Select which greeting holon to use (by slug).
+  rpc SelectHolon(SelectHolonRequest) returns (SelectHolonResponse);
+
+  // Select which transport the greeting holon connection should use.
+  rpc SelectTransport(SelectTransportRequest) returns (SelectTransportResponse);
+
+  // Select a language for the greeting.
+  rpc SelectLanguage(SelectLanguageRequest) returns (SelectLanguageResponse);
+
+  // Greet using the current selection.
+  rpc Greet(GreetRequest) returns (GreetResponse);
+}
+
+message SelectHolonRequest {
+  string slug = 1;
+}
+
+message SelectHolonResponse {
+  // Returns the identity of the now-selected holon.
+  string slug = 1;
+  string display_name = 2;
+}
+
+message SelectTransportRequest {
+  string transport = 1;
+}
+
+message SelectTransportResponse {
+  string transport = 1;
+}
+
+message SelectLanguageRequest {
+  string code = 1;
+}
+
+message SelectLanguageResponse {
+  string code = 1;
+}
+
+message GreetRequest {
+  string name = 1;
+  // Optional: override current language. If empty, uses current selection.
+  string lang_code = 2;
+}
+
+message GreetResponse {
+  string greeting = 1;
+}

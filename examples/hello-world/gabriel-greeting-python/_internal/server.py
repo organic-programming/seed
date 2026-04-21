@@ -2,16 +2,19 @@ from __future__ import annotations
 
 from typing import Callable
 
-from grpc_reflection.v1alpha import reflection
-
 from support import ensure_import_paths
 
 ensure_import_paths()
 
+from holons import describe
 from holons.serve import run_with_options
-from v1 import greeting_pb2, greeting_pb2_grpc
+from gen import describe_generated
+from v1 import greeting_pb2_grpc
 
 from api import public
+
+# Register the generated Incode Description at startup.
+describe.use_static_response(describe_generated.static_describe_response())
 
 
 class GreetingService(greeting_pb2_grpc.GreetingServiceServicer):
@@ -26,23 +29,17 @@ class GreetingService(greeting_pb2_grpc.GreetingServiceServicer):
 
 def _register(server) -> None:
     greeting_pb2_grpc.add_GreetingServiceServicer_to_server(GreetingService(), server)
-    reflection.enable_server_reflection(
-        (
-            greeting_pb2.DESCRIPTOR.services_by_name["GreetingService"].full_name,
-            reflection.SERVICE_NAME,
-        ),
-        server,
-    )
 
 
 def listen_and_serve(
     listen_uri: str,
+    reflect: bool = False,
     on_listen: Callable[[str], None] | None = None,
 ) -> None:
     run_with_options(
         normalize_listen_uri(listen_uri),
         _register,
-        reflect=False,
+        reflect=reflect,
         on_listen=on_listen,
     )
 

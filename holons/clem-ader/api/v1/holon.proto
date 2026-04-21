@@ -1,0 +1,335 @@
+syntax = "proto3";
+
+package ader.v1;
+
+import "holons/v1/manifest.proto";
+
+option go_package = "github.com/organic-programming/clem-ader/gen/go/v1;aderv1";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "0dc655fd-d130-41d3-b332-cf1cf334f61d"
+    given_name: "Clem"
+    family_name: "Ader"
+    motto: "Freeze the repo, run the proof, archive the evidence."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-04-01"
+    version: "0.3.0"
+    aliases: ["ader"]
+  }
+  description: "Clem Ader is the local proof holon of the seed. It loads catalogue-local checks and suites, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, orchestrates bouquets across several catalogues, and keeps promotion scoped to each suite scenario."
+  lang: "go"
+  kind: "native"
+  build: {
+    runner: "go-module"
+    main: "./cmd"
+    templates: ["api/version.go"]
+  }
+  requires: {
+    commands: ["go"]
+    files: ["go.mod"]
+  }
+  artifacts: {
+    binary: "ader"
+  }
+  contract: {
+    proto: "api/v1/holon.proto"
+    service: "ader.v1.AderService"
+    rpcs: [
+      "Test",
+      "TestBouquet",
+      "Archive",
+      "ArchiveBouquet",
+      "Cleanup",
+      "Promote",
+      "Downgrade",
+      "History",
+      "BouquetHistory",
+      "ShowHistory",
+      "ShowBouquetHistory"
+    ]
+  }
+  skills: [{
+    name: "regression-proof"
+    description: "Freeze a committed snapshot, execute a broad proof pass, and archive the evidence."
+    when: "A commit must be validated locally before merge or release."
+    steps: [
+      "Run `ader test ader/catalogues/grace-op --suite op-proxy --profile full`",
+      "Inspect the archived report for the commit hash",
+      "Use `ader history ader/catalogues/grace-op` and `ader show ader/catalogues/grace-op --id <history-id>` to revisit the exact evidence later"
+    ]
+  }, {
+    name: "progression-proof"
+    description: "Freeze the current workspace for a local TDD proof pass and propose promotion from progression to regression after a clean run."
+    when: "The user is iterating quickly on a change and wants a frozen local proof."
+    steps: [
+      "Run `ader test ader/catalogues/clem-ader --suite ader-self --profile smoke --lane progression --source workspace`",
+      "Inspect `ader/catalogues/clem-ader/reports/<history-id>/summary.md` and `promotion.md`",
+      "Run the suggested `ader promote ader/catalogues/clem-ader --suite ader-self --step ...` command once the proof is accepted"
+    ]
+  }, {
+    name: "promote-after-proof"
+    description: "Promote progression steps to regression after a clean proof."
+    when: "A progression run passed and the step should now become part of the regression baseline."
+    steps: [
+      "Inspect `promotion.md` to confirm the suggested `ader promote ...` command",
+      "Run `ader promote ader/catalogues/clem-ader --suite ader-self --step <step-id>` or `--all` as needed",
+      "Review the suite diff and commit deliberately"
+    ]
+  }, {
+    name: "downgrade-and-rebuild"
+    description: "Move regression steps back to progression, rerun the proof, and review the new promotion evidence."
+    when: "A profile or step should be reset to TDD without editing the suite YAML by hand."
+    steps: [
+      "Run `ader downgrade ader/catalogues/grace-op --suite op-proxy --all` or target specific steps with `--step`",
+      "Run `ader test ader/catalogues/grace-op --suite op-proxy --profile smoke --lane progression --source workspace`",
+      "Review the new `promotion.json` and `promotion.md` before re-promoting"
+    ]
+  }, {
+    name: "report-hygiene"
+    description: "Archive the useful evidence and remove deterministic run residue."
+    when: "Old snapshots, temp stores, or extracted reports should be pruned safely."
+    steps: [
+      "Run `ader archive ader/catalogues/grace-op --latest` if the report must be preserved historically",
+      "Run `ader cleanup ader/catalogues/grace-op` to delete deterministic catalogue residue",
+      "Keep archives under `ader/catalogues/grace-op/archives/<commit-hash>/`"
+    ]
+  }]
+};
+
+service AderService {
+  rpc Test (TestRequest) returns (TestResponse);
+  rpc TestBouquet (BouquetRequest) returns (BouquetResponse);
+  rpc Archive (ArchiveRequest) returns (ArchiveResponse);
+  rpc ArchiveBouquet (ArchiveBouquetRequest) returns (ArchiveBouquetResponse);
+  rpc Cleanup (CleanupRequest) returns (CleanupResponse);
+  rpc Promote (PromoteRequest) returns (PromoteResponse);
+  rpc Downgrade (DowngradeRequest) returns (DowngradeResponse);
+  rpc History (HistoryRequest) returns (HistoryResponse);
+  rpc BouquetHistory (BouquetHistoryRequest) returns (BouquetHistoryResponse);
+  rpc ShowHistory (ShowHistoryRequest) returns (ShowHistoryResponse);
+  rpc ShowBouquetHistory (ShowBouquetHistoryRequest) returns (ShowBouquetHistoryResponse);
+}
+
+message TestRequest {
+  string config_dir = 1;
+  string suite = 2;
+  string profile = 3;
+  string lane = 4;
+  string step_filter = 5;
+  string source = 6;
+  string archive_policy = 7;
+  bool keep_report = 8;
+  bool keep_snapshot = 9;
+}
+
+message TestResponse {
+  HistoryRecord manifest = 1;
+  repeated StepResult steps = 2;
+}
+
+message BouquetRequest {
+  string ader_root = 1;
+  string name = 2;
+}
+
+message BouquetResponse {
+  BouquetRecord manifest = 1;
+  repeated BouquetEntryResult entries = 2;
+}
+
+message ArchiveRequest {
+  string config_dir = 1;
+  string history_id = 2;
+  bool latest = 3;
+}
+
+message ArchiveResponse {
+  HistoryRecord manifest = 1;
+  string archive_path = 2;
+}
+
+message ArchiveBouquetRequest {
+  string ader_root = 1;
+  string history_id = 2;
+  bool latest = 3;
+}
+
+message ArchiveBouquetResponse {
+  BouquetRecord manifest = 1;
+  string archive_path = 2;
+}
+
+message CleanupRequest {
+  string config_dir = 1;
+}
+
+message CleanupResponse {
+  uint32 removed_local_suite_dirs = 1;
+  uint32 removed_temp_stores = 2;
+  uint32 removed_temp_aliases = 3;
+  repeated string removed_paths = 4;
+}
+
+message PromoteRequest {
+  string config_dir = 1;
+  string suite = 2;
+  repeated string step_ids = 3;
+  bool all = 4;
+}
+
+message PromoteResponse {
+  string suite = 1;
+  string suite_file = 2;
+  repeated string promoted_steps = 3;
+  repeated string ignored_steps = 4;
+}
+
+message DowngradeRequest {
+  string config_dir = 1;
+  string suite = 2;
+  repeated string step_ids = 3;
+  bool all = 4;
+}
+
+message DowngradeResponse {
+  string suite = 1;
+  string suite_file = 2;
+  repeated string downgraded_steps = 3;
+  repeated string ignored_steps = 4;
+}
+
+message HistoryRequest {
+  string config_dir = 1;
+}
+
+message HistoryResponse {
+  repeated HistoryEntry entries = 1;
+}
+
+message BouquetHistoryRequest {
+  string ader_root = 1;
+}
+
+message BouquetHistoryResponse {
+  repeated BouquetHistoryEntry entries = 1;
+}
+
+message ShowHistoryRequest {
+  string config_dir = 1;
+  string history_id = 2;
+}
+
+message ShowHistoryResponse {
+  HistoryRecord manifest = 1;
+  repeated StepResult steps = 2;
+  string summary_markdown = 3;
+  string summary_tsv = 4;
+}
+
+message ShowBouquetHistoryRequest {
+  string ader_root = 1;
+  string history_id = 2;
+}
+
+message ShowBouquetHistoryResponse {
+  BouquetRecord manifest = 1;
+  repeated BouquetEntryResult entries = 2;
+  string summary_markdown = 3;
+}
+
+message HistoryEntry {
+  string history_id = 1;
+  string suite = 2;
+  string profile = 3;
+  string lane = 4;
+  string source = 5;
+  string final_status = 6;
+  string commit_hash = 7;
+  bool dirty = 8;
+  string started_at = 9;
+  string finished_at = 10;
+  string report_dir = 11;
+  string archive_path = 12;
+}
+
+message BouquetHistoryEntry {
+  string history_id = 1;
+  string bouquet = 2;
+  string final_status = 3;
+  string started_at = 4;
+  string finished_at = 5;
+  string report_dir = 6;
+  string archive_path = 7;
+}
+
+message HistoryRecord {
+  string config_dir = 1;
+  string suite = 2;
+  string history_id = 3;
+  string profile = 4;
+  string lane = 5;
+  string source = 6;
+  string archive_policy = 7;
+  string step_filter = 8;
+  string repo_root = 9;
+  string snapshot_root = 10;
+  string report_dir = 11;
+  string archive_path = 12;
+  string commit_hash = 13;
+  string branch = 14;
+  bool dirty = 15;
+  string started_at = 16;
+  string finished_at = 17;
+  string final_status = 18;
+  uint32 pass_count = 19;
+  uint32 fail_count = 20;
+  uint32 skip_count = 21;
+}
+
+message BouquetRecord {
+  string ader_root = 1;
+  string bouquet = 2;
+  string history_id = 3;
+  string report_dir = 4;
+  string archive_path = 5;
+  string started_at = 6;
+  string finished_at = 7;
+  string final_status = 8;
+  uint32 pass_count = 9;
+  uint32 fail_count = 10;
+  uint32 skip_count = 11;
+}
+
+message StepResult {
+  string step_id = 1;
+  string lane = 2;
+  string description = 3;
+  string workdir = 4;
+  string command = 5;
+  string status = 6;
+  string reason = 7;
+  string log_path = 8;
+  string started_at = 9;
+  string finished_at = 10;
+  uint64 duration_seconds = 11;
+}
+
+message BouquetEntryResult {
+  string catalogue = 1;
+  string config_dir = 2;
+  string suite = 3;
+  string profile = 4;
+  string lane = 5;
+  string source = 6;
+  string archive_policy = 7;
+  string final_status = 8;
+  string reason = 9;
+  string child_history_id = 10;
+  string child_report_dir = 11;
+  string child_archive = 12;
+  string started_at = 13;
+  string finished_at = 14;
+}

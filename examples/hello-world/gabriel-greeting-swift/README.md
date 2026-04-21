@@ -6,6 +6,22 @@ Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` a
 
 This holon is built with the [Swift SDK](https://github.com/organic-programming/swift-holons) (`swift-holons`).
 
+## Discovery
+
+This holon is source-discoverable from the repo root:
+
+```bash
+op list --source
+```
+
+Programmatically:
+
+```text
+Discover(LOCAL, "gabriel-greeting-swift", null, SOURCE, NO_LIMIT, NO_TIMEOUT)
+```
+
+Today this works in the Go SDK. The other non-browser SDKs will support the same source lookup once their Phase 1 discovery tasks land. The browser SDK is excluded because it has no filesystem-based discovery.
+
 # A Proto + 4 facets is all you need.
 
 ## Protos
@@ -57,7 +73,7 @@ The `serve` sub-command is a rich feature provided by the Swift SDK (`Holons.Ser
 When a user runs:
 
 ```bash
-op gabriel-greeting-swift SayHello '{"name":"Alice","lang_code":"en"}'
+op gabriel-greeting-swift SayHello '{"name":"Bob","lang_code":"en"}'
 ```
 
 `op` performs the following chain:
@@ -71,12 +87,12 @@ op gabriel-greeting-swift SayHello '{"name":"Alice","lang_code":"en"}'
 
 | Platform | Mode | Connect cascade |
 |----------|------|-----------------|
-| macOS | binary | `mem → stdio → unix → tcp → rest+sse` |
-| Linux | binary | `mem → stdio → unix → tcp → rest+sse` |
-| Windows | binary | `mem → stdio → tcp → rest+sse` |
-| iOS | framework | `mem → tcp → rest+sse` |
-| Android | framework | `mem → tcp → rest+sse` |
-| Browser | WASM | `mem → rest+sse` |
+| macOS | binary | `stdio → unix → tcp → rest+sse` |
+| Linux | binary | `stdio → unix → tcp → rest+sse` |
+| Windows | binary | `stdio → tcp → rest+sse` |
+| iOS | framework | `tcp → rest+sse` |
+| Android | framework | `tcp → rest+sse` |
+| Browser | WASM | `rest+sse` |
 
 The holon itself knows nothing about discovery or transport selection — `Serve` and `op` handle it.
 
@@ -107,7 +123,7 @@ Each acquired facet builds on the previous — from exposing individual RPCs, to
 op mcp gabriel-greeting-swift
 ```
 
-`op` connects to the holon, introspects its gRPC contract via reflection, and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
+`op` connects to the holon, introspects its gRPC contract via `Describe` (falling back to reflection only when needed), and exposes each RPC as an MCP tool over stdio. Proto comments (`@example`, `@required`) become the tool's JSON Schema descriptions and examples automatically.
 
 Tools are fully qualified — `gabriel-greeting-swift.GreetingService.SayHello` — allowing multiple holons to be served from a single `op mcp` instance.
 
@@ -203,17 +219,15 @@ All three are exposed via `op mcp`. The agent chooses the right level: **MCP** f
 
 ```bash
 op gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc://gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc+stdio://gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"en"}'
-op grpc+tcp://gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"en"}'
+stdio://gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"en"}'
+op tcp://gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"en"}'
 ```
 
 ## Currently not supported .
 
-mem, unix, ws, ws, sse+rest
+unix, ws, ws, sse+rest
 
 ```bash
-op grpc+mem://gabriel-greeting-swift SayHello '{"name":"Alice","lang_code":"en"}'
 op gabriel-greeting-swift SayHello '{"name":"Maria","lang_code":"fr"}'
 ```
 

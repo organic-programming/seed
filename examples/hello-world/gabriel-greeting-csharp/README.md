@@ -2,7 +2,23 @@
 
 Reference implementation of a C# holon — a programmatic creature designed for the agentic age. Strict layered architecture, fully tested.
 
-Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` and `ListLanguages` — over a shared protobuf contract. The greeting table covers 56 languages with localized templates and culturally appropriate default names such as `Marie`, `マリア`, and `Мария`. This example demonstrates proto-based identity, a 4-facet split, committed generated C# stubs, and SDK-backed gRPC serving with reflection.
+Gabriel is a multilingual greeting service. It exposes two RPCs — `SayHello` and `ListLanguages` — over a shared protobuf contract. The greeting table covers 56 languages with localized templates and culturally appropriate default names such as `Marie`, `マリア`, and `Мария`. This example demonstrates proto-based identity, a 4-facet split, committed generated C# stubs, and SDK-backed gRPC serving with `Describe` by default plus optional `--reflect` debugging.
+
+## Discovery
+
+This holon is source-discoverable from the repo root:
+
+```bash
+op list --source
+```
+
+Programmatically:
+
+```text
+Discover(LOCAL, "gabriel-greeting-csharp", null, SOURCE, NO_LIMIT, NO_TIMEOUT)
+```
+
+Today this works in the Go SDK. The other non-browser SDKs will support the same source lookup once their Phase 1 discovery tasks land. The browser SDK is excluded because it has no filesystem-based discovery.
 
 ## Facets
 
@@ -33,8 +49,8 @@ tests/*.csproj                   Test project.
 dotnet test tests/Gabriel.Greeting.Csharp.Tests.csproj
 dotnet run --project gabriel-greeting-csharp.csproj -- version
 dotnet run --project gabriel-greeting-csharp.csproj -- listLanguages --format json
-dotnet run --project gabriel-greeting-csharp.csproj -- sayHello Alice fr
-dotnet run --project gabriel-greeting-csharp.csproj -- serve --port 9090
+dotnet run --project gabriel-greeting-csharp.csproj -- sayHello Bob fr
+dotnet run --project gabriel-greeting-csharp.csproj -- serve --port 9090 --reflect
 grpcurl -plaintext 127.0.0.1:9090 list
-grpcurl -plaintext -d '{"name":"Alice","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
+grpcurl -plaintext -d '{"name":"Bob","lang_code":"fr"}' 127.0.0.1:9090 greeting.v1.GreetingService/SayHello
 ```

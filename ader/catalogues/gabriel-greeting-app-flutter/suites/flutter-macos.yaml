@@ -1,0 +1,75 @@
+description: macOS desktop validation for the Gabriel Flutter HostUI
+defaults:
+  profile: full
+steps:
+  sdk-dart-unit:
+    check: sdk-dart-unit
+    lane: regression
+  example-dart-unit:
+    check: example-dart-unit
+    lane: regression
+  flutter-app-analyze:
+    check: flutter-app-analyze
+    lane: regression
+  flutter-app-unit:
+    check: flutter-app-unit
+    lane: regression
+  flutter-app-integration-smoke-macos:
+    check: flutter-app-integration-smoke-macos
+    lane: regression
+  integration-check-composite-flutter:
+    check: integration-check-composite-flutter
+    lane: regression
+  integration-build-composite-flutter:
+    check: integration-build-composite-flutter
+    lane: progression
+  integration-coax-business-cold-build-flutter:
+    check: integration-coax-business-cold-build-flutter
+    lane: progression
+  integration-coax-business-surface-flutter:
+    check: integration-coax-business-surface-flutter
+    lane: progression
+  integration-coax-business-matrix-flutter:
+    check: integration-coax-business-matrix-flutter
+    lane: progression
+  integration-rebuild-composite-flutter:
+    check: integration-rebuild-composite-flutter
+    lane: progression
+  integration-invoke-composite-flutter-stdio:
+    check: integration-invoke-composite-flutter-stdio
+    lane: progression
+  integration-invoke-composite-flutter-tcp:
+    check: integration-invoke-composite-flutter-tcp
+    lane: progression
+  integration-invoke-composite-flutter-unix:
+    check: integration-invoke-composite-flutter-unix
+    lane: progression
+profiles:
+  smoke:
+    description: fast macOS confidence pass
+    archive: never
+    steps:
+    - sdk-dart-unit
+    - example-dart-unit
+    - flutter-app-analyze
+    - flutter-app-unit
+    - flutter-app-integration-smoke-macos
+    - integration-check-composite-flutter
+  full:
+    description: full macOS desktop proof
+    archive: auto
+    steps:
+    - sdk-dart-unit
+    - example-dart-unit
+    - flutter-app-analyze
+    - flutter-app-unit
+    - flutter-app-integration-smoke-macos
+    - integration-check-composite-flutter
+    - integration-build-composite-flutter
+    - integration-coax-business-cold-build-flutter
+    - integration-coax-business-surface-flutter
+    - integration-coax-business-matrix-flutter
+    - integration-rebuild-composite-flutter
+    - integration-invoke-composite-flutter-stdio
+    - integration-invoke-composite-flutter-tcp
+    - integration-invoke-composite-flutter-unix

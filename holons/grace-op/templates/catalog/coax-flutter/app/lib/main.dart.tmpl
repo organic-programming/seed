@@ -1,0 +1,51 @@
+import 'dart:async';
+
+import 'package:flutter/widgets.dart';
+import 'package:grpc/grpc.dart';
+import 'package:holons/holons.dart' as holons;
+import 'package:holons_app/holons_app.dart';
+
+import 'src/app.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final coaxDefaults = CoaxSettingsDefaults.standard(
+    socketName: '{{ .Slug }}-coax.sock',
+  );
+  final settingsStore = await FileSettingsStore.create(
+    applicationId: '{{ .Slug }}',
+    applicationName: '{{ .GivenTitle }} {{ .FamilyTitle }}',
+  );
+  await applyLaunchEnvironmentOverrides(settingsStore, defaults: coaxDefaults);
+
+  final appHolonManager = AppHolonManager();
+
+  late final CoaxManager coaxManager;
+  coaxManager = CoaxManager(
+    settingsStore: settingsStore,
+    defaults: coaxDefaults,
+    serviceFactory: () => <Service>[
+      CoaxRpcService(
+        holonManager: appHolonManager,
+        coaxManager: coaxManager,
+      ),
+    ],
+    prepareDescribe: () async {
+      final protoDir = findAppProtoDir();
+      if (protoDir == null) {
+        throw StateError('Could not locate api/v1/holon.proto for {{ .Slug }}');
+      }
+      holons.useStaticResponse(
+        holons.buildDescribeResponse(protoDir: protoDir),
+      );
+    },
+  );
+
+  runApp(
+    {{ .PascalSlug }}App(
+      appHolonManager: appHolonManager,
+      coaxManager: coaxManager,
+    ),
+  );
+}

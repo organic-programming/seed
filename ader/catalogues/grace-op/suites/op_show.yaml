@@ -1,0 +1,20 @@
+description: Suite validating op show with CLI-first integration and API/RPC alignment.
+defaults:
+  profile: smoke
+steps:
+  show-cli:
+    check: op-show-cli
+    lane: progression
+  show-api:
+    check: op-show-api
+    lane: progression
+    needs: [show-cli]
+  show-rpc:
+    check: op-show-rpc
+    lane: progression
+    needs: [show-api]
+profiles:
+  smoke:
+    description: CLI-first verification with API and RPC alignment.
+    archive: never
+    steps: [show-cli, show-api, show-rpc]

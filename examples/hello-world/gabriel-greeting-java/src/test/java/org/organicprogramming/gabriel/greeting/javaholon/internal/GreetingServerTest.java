@@ -50,10 +50,10 @@ class GreetingServerTest {
             try {
                 GreetingServiceGrpc.GreetingServiceBlockingStub stub = GreetingServiceGrpc.newBlockingStub(channel);
                 Greeting.SayHelloResponse response = stub.sayHello(Greeting.SayHelloRequest.newBuilder()
-                        .setName("Alice")
+                        .setName("Bob")
                         .setLangCode("fr")
                         .build());
-                assertEquals("Bonjour Alice", response.getGreeting());
+                assertEquals("Bonjour Bob", response.getGreeting());
                 assertEquals("French", response.getLanguage());
                 assertEquals("fr", response.getLangCode());
             } finally {

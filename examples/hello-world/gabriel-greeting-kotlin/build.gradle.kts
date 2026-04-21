@@ -40,7 +40,7 @@ dependencies {
 
 sourceSets {
     main {
-        java.srcDirs("src/main/kotlin", "gen/kotlin")
+        java.srcDirs("src/main/kotlin", "gen", "gen/kotlin")
     }
     test {
         java.srcDirs("src/test/kotlin")

@@ -17,10 +17,10 @@ option (holons.v1.manifest) = {
     given_name: "Gabriel"
     family_name: "Greeting-Ruby"
     motto: "Greets users in 56 languages — a Ruby daemon example."
-    composer: "Codex"
+    composer: "B. ALTER"
     status: "draft"
     born: "2026-03-16"
-    version: "0.1.0"
+    version: "8.8.143"
   }
   description: "A Ruby gRPC daemon that greets users in 56 languages."
   lang: "ruby"
@@ -28,6 +28,7 @@ option (holons.v1.manifest) = {
   build: {
     runner: "ruby"
     main: "./cmd/main.rb"
+    templates: ["api/cli.rb"]
   }
   requires: {
     commands: ["ruby", "bundle"]

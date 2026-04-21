@@ -10,13 +10,13 @@ from support import ensure_import_paths
 
 ensure_import_paths()
 
-from holons.serve import parse_flags
+from holons.serve import parse_options
 from v1 import greeting_pb2
 
 from _internal import server as server_impl
 from api import public
 
-VERSION = "gabriel-greeting-python v0.1.0"
+VERSION = "gabriel-greeting-python 0.1.125"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -38,9 +38,9 @@ def run_cli(
 
     command = canonical_command(args[0])
     if command == "serve":
-        listen_uri = parse_flags(args[1:])
+        options = parse_options(args[1:])
         try:
-            server_impl.listen_and_serve(listen_uri)
+            server_impl.listen_and_serve(options.listen_uri, reflect=options.reflect)
         except Exception as exc:
             print(f"serve: {exc}", file=stderr)
             return 1
@@ -198,9 +198,9 @@ def print_usage(output: TextIO) -> None:
     print("examples:", file=output)
     print("  gabriel-greeting-python serve --listen stdio", file=output)
     print("  gabriel-greeting-python listLanguages --format json", file=output)
-    print("  gabriel-greeting-python sayHello Alice fr", file=output)
+    print("  gabriel-greeting-python sayHello Bob fr", file=output)
     print(
-        "  gabriel-greeting-python sayHello Alice --lang fr --format json",
+        "  gabriel-greeting-python sayHello Bob --lang fr --format json",
         file=output,
     )
 

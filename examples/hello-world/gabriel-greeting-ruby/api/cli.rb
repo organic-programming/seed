@@ -10,7 +10,7 @@ require_relative "../internal/server"
 module GabrielGreetingRuby
   module Api
     module Cli
-      VERSION = "gabriel-greeting-ruby v0.1.0"
+      VERSION = "gabriel-greeting-ruby 8.8.89"
       CommandOptions = Struct.new(:format, :lang, keyword_init: true)
 
       class << self
@@ -171,15 +171,15 @@ module GabrielGreetingRuby
           output.puts("examples:")
           output.puts("  gabriel-greeting-ruby serve --listen stdio://")
           output.puts("  gabriel-greeting-ruby listLanguages --format json")
-          output.puts("  gabriel-greeting-ruby sayHello Alice fr")
-          output.puts("  gabriel-greeting-ruby sayHello Alice --lang fr --format json")
+          output.puts("  gabriel-greeting-ruby sayHello Bob fr")
+          output.puts("  gabriel-greeting-ruby sayHello Bob --lang fr --format json")
         end
 
         private
 
         def run_serve(args, stderr)
-          listen_uri = Holons::Serve.parse_flags(args)
-          Internal::Server.listen_and_serve(listen_uri)
+          parsed = Holons::Serve.parse_options(args)
+          Internal::Server.listen_and_serve(parsed.listen_uri, reflect: parsed.reflect)
           0
         rescue StandardError => e
           stderr.puts("serve: #{e.message}")
