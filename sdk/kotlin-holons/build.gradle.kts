@@ -7,7 +7,7 @@ plugins {
 
 group = "org.organicprogramming"
 version = "0.1.0"
-val libraryJvmTarget = 20
+val libraryJvmTarget = 21
 
 
 

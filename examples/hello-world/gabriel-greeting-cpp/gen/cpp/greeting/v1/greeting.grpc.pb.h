@@ -52,6 +52,7 @@ class GreetingService final {
     }
     // Greets the user in the chosen language.
     // @example {"name":"Bob","lang_code":"fr"}
+    // @example {"name":"Bob","lang_code":"fr"} --origin
     virtual ::grpc::Status SayHello(::grpc::ClientContext* context, const ::greeting::v1::SayHelloRequest& request, ::greeting::v1::SayHelloResponse* response) = 0;
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::greeting::v1::SayHelloResponse>> AsyncSayHello(::grpc::ClientContext* context, const ::greeting::v1::SayHelloRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::greeting::v1::SayHelloResponse>>(AsyncSayHelloRaw(context, request, cq));
@@ -68,6 +69,7 @@ class GreetingService final {
       virtual void ListLanguages(::grpc::ClientContext* context, const ::greeting::v1::ListLanguagesRequest* request, ::greeting::v1::ListLanguagesResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
       // Greets the user in the chosen language.
       // @example {"name":"Bob","lang_code":"fr"}
+      // @example {"name":"Bob","lang_code":"fr"} --origin
       virtual void SayHello(::grpc::ClientContext* context, const ::greeting::v1::SayHelloRequest* request, ::greeting::v1::SayHelloResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void SayHello(::grpc::ClientContext* context, const ::greeting::v1::SayHelloRequest* request, ::greeting::v1::SayHelloResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
@@ -133,6 +135,7 @@ class GreetingService final {
     virtual ::grpc::Status ListLanguages(::grpc::ServerContext* context, const ::greeting::v1::ListLanguagesRequest* request, ::greeting::v1::ListLanguagesResponse* response);
     // Greets the user in the chosen language.
     // @example {"name":"Bob","lang_code":"fr"}
+    // @example {"name":"Bob","lang_code":"fr"} --origin
     virtual ::grpc::Status SayHello(::grpc::ServerContext* context, const ::greeting::v1::SayHelloRequest* request, ::greeting::v1::SayHelloResponse* response);
   };
   template <class BaseClass>

@@ -8,7 +8,7 @@ plugins {
 
 group = "org.organicprogramming"
 version = "0.1.0"
-val sharedJvmTarget = JavaVersion.VERSION_20
+val sharedJvmTarget = JavaVersion.VERSION_21
 
 repositories {
     mavenCentral()

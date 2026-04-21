@@ -334,7 +334,7 @@ static const unsigned char holons_generated_describe_response_bytes_value[2458] 
   0x2e,
   0x31,
   0x35,
-  0x32,
+  0x37,
   0x1a,
   0x4c,
   0x41,

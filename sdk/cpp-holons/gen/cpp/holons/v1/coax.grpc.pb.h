@@ -42,7 +42,7 @@ namespace v1 {
 // This service is recursive: a member that is itself an organism
 // exposes its own CoaxService at its own level.
 //
-// See AGENT.md Article 1 for the COAX principle.
+// See CONSTITUTION.md Article 1 for the COAX principle.
 // See apps_kits/DESIGN.md for how App Kits implement this surface.
 class CoaxService final {
  public:
@@ -58,6 +58,9 @@ class CoaxService final {
     // Equivalent to browsing the holon picker in the UI.
     // The organism controls which members are listed — internal holons
     // may be intentionally omitted to keep the exposure surface minimal.
+    // Organism Kits provide built-in exposure strategies (all, filtered,
+    // or none) — the organism picks one, no custom filtering needed.
+    // @example {}
     virtual ::grpc::Status ListMembers(::grpc::ClientContext* context, const ::holons::v1::ListMembersRequest& request, ::holons::v1::ListMembersResponse* response) = 0;
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::ListMembersResponse>> AsyncListMembers(::grpc::ClientContext* context, const ::holons::v1::ListMembersRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::ListMembersResponse>>(AsyncListMembersRaw(context, request, cq));
@@ -66,6 +69,7 @@ class CoaxService final {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::ListMembersResponse>>(PrepareAsyncListMembersRaw(context, request, cq));
     }
     // Query the runtime status of a specific member.
+    // @example {"slug":"gabriel-greeting-go"}
     virtual ::grpc::Status MemberStatus(::grpc::ClientContext* context, const ::holons::v1::MemberStatusRequest& request, ::holons::v1::MemberStatusResponse* response) = 0;
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::MemberStatusResponse>> AsyncMemberStatus(::grpc::ClientContext* context, const ::holons::v1::MemberStatusRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::MemberStatusResponse>>(AsyncMemberStatusRaw(context, request, cq));
@@ -79,6 +83,7 @@ class CoaxService final {
     // The organism resolves the member, launches its process if necessary,
     // and establishes a gRPC channel — identical to a user selecting a
     // holon in a picker.
+    // @example {"slug":"gabriel-greeting-go","transport":"tcp"}
     virtual ::grpc::Status ConnectMember(::grpc::ClientContext* context, const ::holons::v1::ConnectMemberRequest& request, ::holons::v1::ConnectMemberResponse* response) = 0;
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::ConnectMemberResponse>> AsyncConnectMember(::grpc::ClientContext* context, const ::holons::v1::ConnectMemberRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::ConnectMemberResponse>>(AsyncConnectMemberRaw(context, request, cq));
@@ -87,6 +92,7 @@ class CoaxService final {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::ConnectMemberResponse>>(PrepareAsyncConnectMemberRaw(context, request, cq));
     }
     // Disconnect a member holon.
+    // @example {"slug":"gabriel-greeting-go"}
     virtual ::grpc::Status DisconnectMember(::grpc::ClientContext* context, const ::holons::v1::DisconnectMemberRequest& request, ::holons::v1::DisconnectMemberResponse* response) = 0;
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::DisconnectMemberResponse>> AsyncDisconnectMember(::grpc::ClientContext* context, const ::holons::v1::DisconnectMemberRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::DisconnectMemberResponse>>(AsyncDisconnectMemberRaw(context, request, cq));
@@ -106,6 +112,7 @@ class CoaxService final {
     // Tell operates at the organism level: it is the single entry point
     // for an external caller to interact with any member without needing
     // to discover and connect to each one separately.
+    // @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
     virtual ::grpc::Status Tell(::grpc::ClientContext* context, const ::holons::v1::TellRequest& request, ::holons::v1::TellResponse* response) = 0;
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::TellResponse>> AsyncTell(::grpc::ClientContext* context, const ::holons::v1::TellRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::TellResponse>>(AsyncTellRaw(context, request, cq));
@@ -122,6 +129,7 @@ class CoaxService final {
     // call an RPC on a server that is not running. The COAX server is
     // started by the organism itself (UI toggle, launch argument, or
     // startup configuration).
+    // @example {}
     virtual ::grpc::Status TurnOffCoax(::grpc::ClientContext* context, const ::holons::v1::TurnOffCoaxRequest& request, ::holons::v1::TurnOffCoaxResponse* response) = 0;
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::TurnOffCoaxResponse>> AsyncTurnOffCoax(::grpc::ClientContext* context, const ::holons::v1::TurnOffCoaxRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::holons::v1::TurnOffCoaxResponse>>(AsyncTurnOffCoaxRaw(context, request, cq));
@@ -138,9 +146,13 @@ class CoaxService final {
       // Equivalent to browsing the holon picker in the UI.
       // The organism controls which members are listed — internal holons
       // may be intentionally omitted to keep the exposure surface minimal.
+      // Organism Kits provide built-in exposure strategies (all, filtered,
+      // or none) — the organism picks one, no custom filtering needed.
+      // @example {}
       virtual void ListMembers(::grpc::ClientContext* context, const ::holons::v1::ListMembersRequest* request, ::holons::v1::ListMembersResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void ListMembers(::grpc::ClientContext* context, const ::holons::v1::ListMembersRequest* request, ::holons::v1::ListMembersResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
       // Query the runtime status of a specific member.
+      // @example {"slug":"gabriel-greeting-go"}
       virtual void MemberStatus(::grpc::ClientContext* context, const ::holons::v1::MemberStatusRequest* request, ::holons::v1::MemberStatusResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void MemberStatus(::grpc::ClientContext* context, const ::holons::v1::MemberStatusRequest* request, ::holons::v1::MemberStatusResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
       // ── Member lifecycle ─────────────────────────────────────
@@ -149,9 +161,11 @@ class CoaxService final {
       // The organism resolves the member, launches its process if necessary,
       // and establishes a gRPC channel — identical to a user selecting a
       // holon in a picker.
+      // @example {"slug":"gabriel-greeting-go","transport":"tcp"}
       virtual void ConnectMember(::grpc::ClientContext* context, const ::holons::v1::ConnectMemberRequest* request, ::holons::v1::ConnectMemberResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void ConnectMember(::grpc::ClientContext* context, const ::holons::v1::ConnectMemberRequest* request, ::holons::v1::ConnectMemberResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
       // Disconnect a member holon.
+      // @example {"slug":"gabriel-greeting-go"}
       virtual void DisconnectMember(::grpc::ClientContext* context, const ::holons::v1::DisconnectMemberRequest* request, ::holons::v1::DisconnectMemberResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void DisconnectMember(::grpc::ClientContext* context, const ::holons::v1::DisconnectMemberRequest* request, ::holons::v1::DisconnectMemberResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
       // ── Tell ─────────────────────────────────────────────────
@@ -166,6 +180,7 @@ class CoaxService final {
       // Tell operates at the organism level: it is the single entry point
       // for an external caller to interact with any member without needing
       // to discover and connect to each one separately.
+      // @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
       virtual void Tell(::grpc::ClientContext* context, const ::holons::v1::TellRequest* request, ::holons::v1::TellResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void Tell(::grpc::ClientContext* context, const ::holons::v1::TellRequest* request, ::holons::v1::TellResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
       // ── Server lifecycle ──────────────────────────────────────
@@ -177,6 +192,7 @@ class CoaxService final {
       // call an RPC on a server that is not running. The COAX server is
       // started by the organism itself (UI toggle, launch argument, or
       // startup configuration).
+      // @example {}
       virtual void TurnOffCoax(::grpc::ClientContext* context, const ::holons::v1::TurnOffCoaxRequest* request, ::holons::v1::TurnOffCoaxResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void TurnOffCoax(::grpc::ClientContext* context, const ::holons::v1::TurnOffCoaxRequest* request, ::holons::v1::TurnOffCoaxResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
@@ -299,8 +315,12 @@ class CoaxService final {
     // Equivalent to browsing the holon picker in the UI.
     // The organism controls which members are listed — internal holons
     // may be intentionally omitted to keep the exposure surface minimal.
+    // Organism Kits provide built-in exposure strategies (all, filtered,
+    // or none) — the organism picks one, no custom filtering needed.
+    // @example {}
     virtual ::grpc::Status ListMembers(::grpc::ServerContext* context, const ::holons::v1::ListMembersRequest* request, ::holons::v1::ListMembersResponse* response);
     // Query the runtime status of a specific member.
+    // @example {"slug":"gabriel-greeting-go"}
     virtual ::grpc::Status MemberStatus(::grpc::ServerContext* context, const ::holons::v1::MemberStatusRequest* request, ::holons::v1::MemberStatusResponse* response);
     // ── Member lifecycle ─────────────────────────────────────
     //
@@ -308,8 +328,10 @@ class CoaxService final {
     // The organism resolves the member, launches its process if necessary,
     // and establishes a gRPC channel — identical to a user selecting a
     // holon in a picker.
+    // @example {"slug":"gabriel-greeting-go","transport":"tcp"}
     virtual ::grpc::Status ConnectMember(::grpc::ServerContext* context, const ::holons::v1::ConnectMemberRequest* request, ::holons::v1::ConnectMemberResponse* response);
     // Disconnect a member holon.
+    // @example {"slug":"gabriel-greeting-go"}
     virtual ::grpc::Status DisconnectMember(::grpc::ServerContext* context, const ::holons::v1::DisconnectMemberRequest* request, ::holons::v1::DisconnectMemberResponse* response);
     // ── Tell ─────────────────────────────────────────────────
     //
@@ -323,6 +345,7 @@ class CoaxService final {
     // Tell operates at the organism level: it is the single entry point
     // for an external caller to interact with any member without needing
     // to discover and connect to each one separately.
+    // @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
     virtual ::grpc::Status Tell(::grpc::ServerContext* context, const ::holons::v1::TellRequest* request, ::holons::v1::TellResponse* response);
     // ── Server lifecycle ──────────────────────────────────────
     //
@@ -333,6 +356,7 @@ class CoaxService final {
     // call an RPC on a server that is not running. The COAX server is
     // started by the organism itself (UI toggle, launch argument, or
     // startup configuration).
+    // @example {}
     virtual ::grpc::Status TurnOffCoax(::grpc::ServerContext* context, const ::holons::v1::TurnOffCoaxRequest* request, ::holons::v1::TurnOffCoaxResponse* response);
   };
   template <class BaseClass>

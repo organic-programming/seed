@@ -29,7 +29,7 @@ set -euo pipefail
 #    mission which is to compile isolated user-domain applications and holons.
 # ==============================================================================
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PROTO_ROOT="$ROOT/holons/grace-op/_protos"
 CANONICAL_DESCRIBE="$PROTO_ROOT/holons/v1/describe.proto"
 PROTO_FILES=(

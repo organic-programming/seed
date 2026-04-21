@@ -21,7 +21,7 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
       identity->set_composer("B. ALTER");
       identity->set_status("draft");
       identity->set_born("2026-03-16");
-      identity->set_version("0.1.147");
+      identity->set_version("0.1.152");
     }
     manifest->set_description("A C++ gRPC daemon that greets users in 56 languages.");
     manifest->set_lang("cpp");
