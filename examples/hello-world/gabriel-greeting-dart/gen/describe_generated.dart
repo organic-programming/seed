@@ -15,7 +15,7 @@ DescribeResponse staticDescribeResponse() {
       composer: "B. ALTER",
       status: "draft",
       born: "2026-03-16",
-      version: "0.1.151",
+      version: "0.1.152",
     ),
     description: "A Dart gRPC daemon that greets users in 56 languages.",
     lang: "dart",
