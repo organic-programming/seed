@@ -14,7 +14,11 @@ import 'dart:core' as $core;
 
 import 'package:protobuf/protobuf.dart' as $pb;
 
+import 'manifest.pbenum.dart';
+
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
+
+export 'manifest.pbenum.dart';
 
 class HolonManifest_Identity extends $pb.GeneratedMessage {
   factory HolonManifest_Identity({
@@ -712,6 +716,8 @@ class HolonManifest_Build extends $pb.GeneratedMessage {
     $core.Iterable<$core.MapEntry<$core.String, HolonManifest_Build_Target>>?
         targets,
     $core.Iterable<$core.String>? templates,
+    $core.Iterable<HolonManifest_Step_Exec>? beforeCommands,
+    $core.Iterable<HolonManifest_Step_Exec>? afterCommands,
   }) {
     final result = create();
     if (runner != null) result.runner = runner;
@@ -720,6 +726,8 @@ class HolonManifest_Build extends $pb.GeneratedMessage {
     if (members != null) result.members.addAll(members);
     if (targets != null) result.targets.addEntries(targets);
     if (templates != null) result.templates.addAll(templates);
+    if (beforeCommands != null) result.beforeCommands.addAll(beforeCommands);
+    if (afterCommands != null) result.afterCommands.addAll(afterCommands);
     return result;
   }
 
@@ -751,6 +759,10 @@ class HolonManifest_Build extends $pb.GeneratedMessage {
         valueDefaultOrMaker: HolonManifest_Build_Target.getDefault,
         packageName: const $pb.PackageName('holons.v1'))
     ..pPS(6, _omitFieldNames ? '' : 'templates')
+    ..pPM<HolonManifest_Step_Exec>(7, _omitFieldNames ? '' : 'beforeCommands',
+        subBuilder: HolonManifest_Step_Exec.create)
+    ..pPM<HolonManifest_Step_Exec>(8, _omitFieldNames ? '' : 'afterCommands',
+        subBuilder: HolonManifest_Step_Exec.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -819,6 +831,14 @@ class HolonManifest_Build extends $pb.GeneratedMessage {
   /// Resolved with identity data before the language build, restored after.
   @$pb.TagNumber(6)
   $pb.PbList<$core.String> get templates => $_getList(5);
+
+  /// Commands to execute sequentially BEFORE the main runner logic.
+  @$pb.TagNumber(7)
+  $pb.PbList<HolonManifest_Step_Exec> get beforeCommands => $_getList(6);
+
+  /// Commands to execute sequentially AFTER the main runner logic.
+  @$pb.TagNumber(8)
+  $pb.PbList<HolonManifest_Step_Exec> get afterCommands => $_getList(7);
 }
 
 class HolonManifest_Step_Exec extends $pb.GeneratedMessage {
@@ -1475,6 +1495,8 @@ class HolonManifest extends $pb.GeneratedMessage {
     HolonManifest_Artifacts? artifacts,
     $core.Iterable<HolonManifest_Sequence>? sequences,
     $core.String? guide,
+    ObservabilityVisibility? sessionVisibility,
+    $core.Iterable<ListenerVisibilityOverride>? sessionVisibilityOverrides,
   }) {
     final result = create();
     if (identity != null) result.identity = identity;
@@ -1490,6 +1512,9 @@ class HolonManifest extends $pb.GeneratedMessage {
     if (artifacts != null) result.artifacts = artifacts;
     if (sequences != null) result.sequences.addAll(sequences);
     if (guide != null) result.guide = guide;
+    if (sessionVisibility != null) result.sessionVisibility = sessionVisibility;
+    if (sessionVisibilityOverrides != null)
+      result.sessionVisibilityOverrides.addAll(sessionVisibilityOverrides);
     return result;
   }
 
@@ -1526,6 +1551,12 @@ class HolonManifest extends $pb.GeneratedMessage {
     ..pPM<HolonManifest_Sequence>(14, _omitFieldNames ? '' : 'sequences',
         subBuilder: HolonManifest_Sequence.create)
     ..aOS(15, _omitFieldNames ? '' : 'guide')
+    ..aE<ObservabilityVisibility>(
+        16, _omitFieldNames ? '' : 'sessionVisibility',
+        enumValues: ObservabilityVisibility.values)
+    ..pPM<ListenerVisibilityOverride>(
+        17, _omitFieldNames ? '' : 'sessionVisibilityOverrides',
+        subBuilder: ListenerVisibilityOverride.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1655,6 +1686,97 @@ class HolonManifest extends $pb.GeneratedMessage {
   $core.bool hasGuide() => $_has(12);
   @$pb.TagNumber(15)
   void clearGuide() => $_clearField(15);
+
+  /// ── Observability visibility ─────────────────────────
+  /// Single dial gating HolonSession.* and HolonObservability.* exposure.
+  /// UNSPECIFIED defers to the per-listener default the SDK infers from
+  /// the listener's scheme and security mode. See SESSIONS.md §Security
+  /// and OBSERVABILITY.md §Security Considerations.
+  @$pb.TagNumber(16)
+  ObservabilityVisibility get sessionVisibility => $_getN(13);
+  @$pb.TagNumber(16)
+  set sessionVisibility(ObservabilityVisibility value) => $_setField(16, value);
+  @$pb.TagNumber(16)
+  $core.bool hasSessionVisibility() => $_has(13);
+  @$pb.TagNumber(16)
+  void clearSessionVisibility() => $_clearField(16);
+
+  /// Per-listener overrides. Each override's listener_uri must match a
+  /// listener declared in the holon's build/serve config.
+  @$pb.TagNumber(17)
+  $pb.PbList<ListenerVisibilityOverride> get sessionVisibilityOverrides =>
+      $_getList(14);
+}
+
+class ListenerVisibilityOverride extends $pb.GeneratedMessage {
+  factory ListenerVisibilityOverride({
+    $core.String? listenerUri,
+    ObservabilityVisibility? visibility,
+  }) {
+    final result = create();
+    if (listenerUri != null) result.listenerUri = listenerUri;
+    if (visibility != null) result.visibility = visibility;
+    return result;
+  }
+
+  ListenerVisibilityOverride._();
+
+  factory ListenerVisibilityOverride.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory ListenerVisibilityOverride.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ListenerVisibilityOverride',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'holons.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'listenerUri')
+    ..aE<ObservabilityVisibility>(2, _omitFieldNames ? '' : 'visibility',
+        enumValues: ObservabilityVisibility.values)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ListenerVisibilityOverride clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ListenerVisibilityOverride copyWith(
+          void Function(ListenerVisibilityOverride) updates) =>
+      super.copyWith(
+              (message) => updates(message as ListenerVisibilityOverride))
+          as ListenerVisibilityOverride;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static ListenerVisibilityOverride create() => ListenerVisibilityOverride._();
+  @$core.override
+  ListenerVisibilityOverride createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static ListenerVisibilityOverride getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ListenerVisibilityOverride>(create);
+  static ListenerVisibilityOverride? _defaultInstance;
+
+  /// Listener URI to apply the override to. Matches a listener declared
+  /// in the holon's serve config.
+  @$pb.TagNumber(1)
+  $core.String get listenerUri => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set listenerUri($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasListenerUri() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearListenerUri() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  ObservabilityVisibility get visibility => $_getN(1);
+  @$pb.TagNumber(2)
+  set visibility(ObservabilityVisibility value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasVisibility() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearVisibility() => $_clearField(2);
 }
 
 class Manifest {

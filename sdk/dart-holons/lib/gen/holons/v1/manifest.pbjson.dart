@@ -15,6 +15,24 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
+@$core.Deprecated('Use observabilityVisibilityDescriptor instead')
+const ObservabilityVisibility$json = {
+  '1': 'ObservabilityVisibility',
+  '2': [
+    {'1': 'OBSERVABILITY_VISIBILITY_UNSPECIFIED', '2': 0},
+    {'1': 'OBSERVABILITY_VISIBILITY_OFF', '2': 1},
+    {'1': 'OBSERVABILITY_VISIBILITY_SUMMARY', '2': 2},
+    {'1': 'OBSERVABILITY_VISIBILITY_FULL', '2': 3},
+  ],
+};
+
+/// Descriptor for `ObservabilityVisibility`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List observabilityVisibilityDescriptor = $convert.base64Decode(
+    'ChdPYnNlcnZhYmlsaXR5VmlzaWJpbGl0eRIoCiRPQlNFUlZBQklMSVRZX1ZJU0lCSUxJVFlfVU'
+    '5TUEVDSUZJRUQQABIgChxPQlNFUlZBQklMSVRZX1ZJU0lCSUxJVFlfT0ZGEAESJAogT0JTRVJW'
+    'QUJJTElUWV9WSVNJQklMSVRZX1NVTU1BUlkQAhIhCh1PQlNFUlZBQklMSVRZX1ZJU0lCSUxJVF'
+    'lfRlVMTBAD');
+
 @$core.Deprecated('Use holonManifestDescriptor instead')
 const HolonManifest$json = {
   '1': 'HolonManifest',
@@ -81,6 +99,22 @@ const HolonManifest$json = {
       '10': 'sequences'
     },
     {'1': 'guide', '3': 15, '4': 1, '5': 9, '10': 'guide'},
+    {
+      '1': 'session_visibility',
+      '3': 16,
+      '4': 1,
+      '5': 14,
+      '6': '.holons.v1.ObservabilityVisibility',
+      '10': 'sessionVisibility'
+    },
+    {
+      '1': 'session_visibility_overrides',
+      '3': 17,
+      '4': 3,
+      '5': 11,
+      '6': '.holons.v1.ListenerVisibilityOverride',
+      '10': 'sessionVisibilityOverrides'
+    },
   ],
   '3': [
     HolonManifest_Identity$json,
@@ -200,6 +234,22 @@ const HolonManifest_Build$json = {
       '10': 'targets'
     },
     {'1': 'templates', '3': 6, '4': 3, '5': 9, '10': 'templates'},
+    {
+      '1': 'before_commands',
+      '3': 7,
+      '4': 3,
+      '5': 11,
+      '6': '.holons.v1.HolonManifest.Step.Exec',
+      '10': 'beforeCommands'
+    },
+    {
+      '1': 'after_commands',
+      '3': 8,
+      '4': 3,
+      '5': 11,
+      '6': '.holons.v1.HolonManifest.Step.Exec',
+      '10': 'afterCommands'
+    },
   ],
   '3': [
     HolonManifest_Build_TargetsEntry$json,
@@ -418,45 +468,74 @@ final $typed_data.Uint8List holonManifestDescriptor = $convert.base64Decode(
     'hyZXF1aXJlcxgLIAEoCzIhLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0LlJlcXVpcmVzUghyZXF1'
     'aXJlcxJACglhcnRpZmFjdHMYDSABKAsyIi5ob2xvbnMudjEuSG9sb25NYW5pZmVzdC5BcnRpZm'
     'FjdHNSCWFydGlmYWN0cxI/CglzZXF1ZW5jZXMYDiADKAsyIS5ob2xvbnMudjEuSG9sb25NYW5p'
-    'ZmVzdC5TZXF1ZW5jZVIJc2VxdWVuY2VzEhQKBWd1aWRlGA8gASgJUgVndWlkZRqOAgoISWRlbn'
-    'RpdHkSFgoGc2NoZW1hGAEgASgJUgZzY2hlbWESEgoEdXVpZBgCIAEoCVIEdXVpZBIdCgpnaXZl'
-    'bl9uYW1lGAMgASgJUglnaXZlbk5hbWUSHwoLZmFtaWx5X25hbWUYBCABKAlSCmZhbWlseU5hbW'
-    'USFAoFbW90dG8YBSABKAlSBW1vdHRvEhoKCGNvbXBvc2VyGAYgASgJUghjb21wb3NlchIWCgZz'
-    'dGF0dXMYCCABKAlSBnN0YXR1cxISCgRib3JuGAkgASgJUgRib3JuEhgKB3ZlcnNpb24YCiABKA'
-    'lSB3ZlcnNpb24SGAoHYWxpYXNlcxgLIAMoCVIHYWxpYXNlc0oECAcQCBpnCgVTa2lsbBISCgRu'
-    'YW1lGAEgASgJUgRuYW1lEiAKC2Rlc2NyaXB0aW9uGAIgASgJUgtkZXNjcmlwdGlvbhISCgR3aG'
-    'VuGAMgASgJUgR3aGVuEhQKBXN0ZXBzGAQgAygJUgVzdGVwcxqMAgoIU2VxdWVuY2USEgoEbmFt'
-    'ZRgBIAEoCVIEbmFtZRIgCgtkZXNjcmlwdGlvbhgCIAEoCVILZGVzY3JpcHRpb24SPwoGcGFyYW'
-    '1zGAMgAygLMicuaG9sb25zLnYxLkhvbG9uTWFuaWZlc3QuU2VxdWVuY2UuUGFyYW1SBnBhcmFt'
-    'cxIUCgVzdGVwcxgEIAMoCVIFc3RlcHMacwoFUGFyYW0SEgoEbmFtZRgBIAEoCVIEbmFtZRIgCg'
-    'tkZXNjcmlwdGlvbhgCIAEoCVILZGVzY3JpcHRpb24SGgoIcmVxdWlyZWQYAyABKAhSCHJlcXVp'
-    'cmVkEhgKB2RlZmF1bHQYBCABKAlSB2RlZmF1bHQaTgoIQ29udHJhY3QSFAoFcHJvdG8YASABKA'
-    'lSBXByb3RvEhgKB3NlcnZpY2UYAiABKAlSB3NlcnZpY2USEgoEcnBjcxgDIAMoCVIEcnBjcxq6'
-    'BAoFQnVpbGQSFgoGcnVubmVyGAEgASgJUgZydW5uZXISEgoEbWFpbhgCIAEoCVIEbWFpbhJDCg'
-    'hkZWZhdWx0cxgDIAEoCzInLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0LkJ1aWxkLkRlZmF1bHRz'
-    'UghkZWZhdWx0cxI/CgdtZW1iZXJzGAQgAygLMiUuaG9sb25zLnYxLkhvbG9uTWFuaWZlc3QuQn'
-    'VpbGQuTWVtYmVyUgdtZW1iZXJzEkUKB3RhcmdldHMYBSADKAsyKy5ob2xvbnMudjEuSG9sb25N'
-    'YW5pZmVzdC5CdWlsZC5UYXJnZXRzRW50cnlSB3RhcmdldHMSHAoJdGVtcGxhdGVzGAYgAygJUg'
-    'l0ZW1wbGF0ZXMaYQoMVGFyZ2V0c0VudHJ5EhAKA2tleRgBIAEoCVIDa2V5EjsKBXZhbHVlGAIg'
-    'ASgLMiUuaG9sb25zLnYxLkhvbG9uTWFuaWZlc3QuQnVpbGQuVGFyZ2V0UgV2YWx1ZToCOAEaNg'
-    'oIRGVmYXVsdHMSFgoGdGFyZ2V0GAEgASgJUgZ0YXJnZXQSEgoEbW9kZRgCIAEoCVIEbW9kZRpA'
-    'CgZNZW1iZXISDgoCaWQYASABKAlSAmlkEhIKBHBhdGgYAiABKAlSBHBhdGgSEgoEdHlwZRgDIA'
-    'EoCVIEdHlwZRo9CgZUYXJnZXQSMwoFc3RlcHMYASADKAsyHS5ob2xvbnMudjEuSG9sb25NYW5p'
-    'ZmVzdC5TdGVwUgVzdGVwcxr5AwoEU3RlcBI4CgRleGVjGAEgASgLMiIuaG9sb25zLnYxLkhvbG'
-    '9uTWFuaWZlc3QuU3RlcC5FeGVjSABSBGV4ZWMSOAoEY29weRgCIAEoCzIiLmhvbG9ucy52MS5I'
-    'b2xvbk1hbmlmZXN0LlN0ZXAuQ29weUgAUgRjb3B5EiMKDGJ1aWxkX21lbWJlchgDIAEoCUgAUg'
-    'tidWlsZE1lbWJlchJLCgthc3NlcnRfZmlsZRgEIAEoCzIoLmhvbG9ucy52MS5Ib2xvbk1hbmlm'
-    'ZXN0LlN0ZXAuQXNzZXJ0RmlsZUgAUgphc3NlcnRGaWxlElEKDWNvcHlfYXJ0aWZhY3QYBSABKA'
-    'syKi5ob2xvbnMudjEuSG9sb25NYW5pZmVzdC5TdGVwLkNvcHlBcnRpZmFjdEgAUgxjb3B5QXJ0'
-    'aWZhY3QaLAoERXhlYxIQCgNjd2QYASABKAlSA2N3ZBISCgRhcmd2GAIgAygJUgRhcmd2GioKBE'
-    'NvcHkSEgoEZnJvbRgBIAEoCVIEZnJvbRIOCgJ0bxgCIAEoCVICdG8aIAoKQXNzZXJ0RmlsZRIS'
-    'CgRwYXRoGAEgASgJUgRwYXRoGjIKDENvcHlBcnRpZmFjdBISCgRmcm9tGAEgASgJUgRmcm9tEg'
-    '4KAnRvGAIgASgJUgJ0b0IICgZhY3Rpb24aWgoIUmVxdWlyZXMSGgoIY29tbWFuZHMYASADKAlS'
-    'CGNvbW1hbmRzEhQKBWZpbGVzGAIgAygJUgVmaWxlcxIcCglwbGF0Zm9ybXMYAyADKAlSCXBsYX'
-    'Rmb3JtcxraAgoJQXJ0aWZhY3RzEhYKBmJpbmFyeRgBIAEoCVIGYmluYXJ5EhgKB3ByaW1hcnkY'
-    'AiABKAlSB3ByaW1hcnkSTQoJYnlfdGFyZ2V0GAMgAygLMjAuaG9sb25zLnYxLkhvbG9uTWFuaW'
-    'Zlc3QuQXJ0aWZhY3RzLkJ5VGFyZ2V0RW50cnlSCGJ5VGFyZ2V0Gm8KDUJ5VGFyZ2V0RW50cnkS'
-    'EAoDa2V5GAEgASgJUgNrZXkSSAoFdmFsdWUYAiABKAsyMi5ob2xvbnMudjEuSG9sb25NYW5pZm'
-    'VzdC5BcnRpZmFjdHMuVGFyZ2V0QXJ0aWZhY3RzUgV2YWx1ZToCOAEaWwoPVGFyZ2V0QXJ0aWZh'
-    'Y3RzEhQKBWRlYnVnGAEgASgJUgVkZWJ1ZxIYCgdyZWxlYXNlGAIgASgJUgdyZWxlYXNlEhgKB3'
-    'Byb2ZpbGUYAyABKAlSB3Byb2ZpbGVKBAgCEANKBAgMEA0=');
+    'ZmVzdC5TZXF1ZW5jZVIJc2VxdWVuY2VzEhQKBWd1aWRlGA8gASgJUgVndWlkZRJRChJzZXNzaW'
+    '9uX3Zpc2liaWxpdHkYECABKA4yIi5ob2xvbnMudjEuT2JzZXJ2YWJpbGl0eVZpc2liaWxpdHlS'
+    'EXNlc3Npb25WaXNpYmlsaXR5EmcKHHNlc3Npb25fdmlzaWJpbGl0eV9vdmVycmlkZXMYESADKA'
+    'syJS5ob2xvbnMudjEuTGlzdGVuZXJWaXNpYmlsaXR5T3ZlcnJpZGVSGnNlc3Npb25WaXNpYmls'
+    'aXR5T3ZlcnJpZGVzGo4CCghJZGVudGl0eRIWCgZzY2hlbWEYASABKAlSBnNjaGVtYRISCgR1dW'
+    'lkGAIgASgJUgR1dWlkEh0KCmdpdmVuX25hbWUYAyABKAlSCWdpdmVuTmFtZRIfCgtmYW1pbHlf'
+    'bmFtZRgEIAEoCVIKZmFtaWx5TmFtZRIUCgVtb3R0bxgFIAEoCVIFbW90dG8SGgoIY29tcG9zZX'
+    'IYBiABKAlSCGNvbXBvc2VyEhYKBnN0YXR1cxgIIAEoCVIGc3RhdHVzEhIKBGJvcm4YCSABKAlS'
+    'BGJvcm4SGAoHdmVyc2lvbhgKIAEoCVIHdmVyc2lvbhIYCgdhbGlhc2VzGAsgAygJUgdhbGlhc2'
+    'VzSgQIBxAIGmcKBVNraWxsEhIKBG5hbWUYASABKAlSBG5hbWUSIAoLZGVzY3JpcHRpb24YAiAB'
+    'KAlSC2Rlc2NyaXB0aW9uEhIKBHdoZW4YAyABKAlSBHdoZW4SFAoFc3RlcHMYBCADKAlSBXN0ZX'
+    'BzGowCCghTZXF1ZW5jZRISCgRuYW1lGAEgASgJUgRuYW1lEiAKC2Rlc2NyaXB0aW9uGAIgASgJ'
+    'UgtkZXNjcmlwdGlvbhI/CgZwYXJhbXMYAyADKAsyJy5ob2xvbnMudjEuSG9sb25NYW5pZmVzdC'
+    '5TZXF1ZW5jZS5QYXJhbVIGcGFyYW1zEhQKBXN0ZXBzGAQgAygJUgVzdGVwcxpzCgVQYXJhbRIS'
+    'CgRuYW1lGAEgASgJUgRuYW1lEiAKC2Rlc2NyaXB0aW9uGAIgASgJUgtkZXNjcmlwdGlvbhIaCg'
+    'hyZXF1aXJlZBgDIAEoCFIIcmVxdWlyZWQSGAoHZGVmYXVsdBgEIAEoCVIHZGVmYXVsdBpOCghD'
+    'b250cmFjdBIUCgVwcm90bxgBIAEoCVIFcHJvdG8SGAoHc2VydmljZRgCIAEoCVIHc2VydmljZR'
+    'ISCgRycGNzGAMgAygJUgRycGNzGtIFCgVCdWlsZBIWCgZydW5uZXIYASABKAlSBnJ1bm5lchIS'
+    'CgRtYWluGAIgASgJUgRtYWluEkMKCGRlZmF1bHRzGAMgASgLMicuaG9sb25zLnYxLkhvbG9uTW'
+    'FuaWZlc3QuQnVpbGQuRGVmYXVsdHNSCGRlZmF1bHRzEj8KB21lbWJlcnMYBCADKAsyJS5ob2xv'
+    'bnMudjEuSG9sb25NYW5pZmVzdC5CdWlsZC5NZW1iZXJSB21lbWJlcnMSRQoHdGFyZ2V0cxgFIA'
+    'MoCzIrLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0LkJ1aWxkLlRhcmdldHNFbnRyeVIHdGFyZ2V0'
+    'cxIcCgl0ZW1wbGF0ZXMYBiADKAlSCXRlbXBsYXRlcxJLCg9iZWZvcmVfY29tbWFuZHMYByADKA'
+    'syIi5ob2xvbnMudjEuSG9sb25NYW5pZmVzdC5TdGVwLkV4ZWNSDmJlZm9yZUNvbW1hbmRzEkkK'
+    'DmFmdGVyX2NvbW1hbmRzGAggAygLMiIuaG9sb25zLnYxLkhvbG9uTWFuaWZlc3QuU3RlcC5FeG'
+    'VjUg1hZnRlckNvbW1hbmRzGmEKDFRhcmdldHNFbnRyeRIQCgNrZXkYASABKAlSA2tleRI7CgV2'
+    'YWx1ZRgCIAEoCzIlLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0LkJ1aWxkLlRhcmdldFIFdmFsdW'
+    'U6AjgBGjYKCERlZmF1bHRzEhYKBnRhcmdldBgBIAEoCVIGdGFyZ2V0EhIKBG1vZGUYAiABKAlS'
+    'BG1vZGUaQAoGTWVtYmVyEg4KAmlkGAEgASgJUgJpZBISCgRwYXRoGAIgASgJUgRwYXRoEhIKBH'
+    'R5cGUYAyABKAlSBHR5cGUaPQoGVGFyZ2V0EjMKBXN0ZXBzGAEgAygLMh0uaG9sb25zLnYxLkhv'
+    'bG9uTWFuaWZlc3QuU3RlcFIFc3RlcHMa+QMKBFN0ZXASOAoEZXhlYxgBIAEoCzIiLmhvbG9ucy'
+    '52MS5Ib2xvbk1hbmlmZXN0LlN0ZXAuRXhlY0gAUgRleGVjEjgKBGNvcHkYAiABKAsyIi5ob2xv'
+    'bnMudjEuSG9sb25NYW5pZmVzdC5TdGVwLkNvcHlIAFIEY29weRIjCgxidWlsZF9tZW1iZXIYAy'
+    'ABKAlIAFILYnVpbGRNZW1iZXISSwoLYXNzZXJ0X2ZpbGUYBCABKAsyKC5ob2xvbnMudjEuSG9s'
+    'b25NYW5pZmVzdC5TdGVwLkFzc2VydEZpbGVIAFIKYXNzZXJ0RmlsZRJRCg1jb3B5X2FydGlmYW'
+    'N0GAUgASgLMiouaG9sb25zLnYxLkhvbG9uTWFuaWZlc3QuU3RlcC5Db3B5QXJ0aWZhY3RIAFIM'
+    'Y29weUFydGlmYWN0GiwKBEV4ZWMSEAoDY3dkGAEgASgJUgNjd2QSEgoEYXJndhgCIAMoCVIEYX'
+    'JndhoqCgRDb3B5EhIKBGZyb20YASABKAlSBGZyb20SDgoCdG8YAiABKAlSAnRvGiAKCkFzc2Vy'
+    'dEZpbGUSEgoEcGF0aBgBIAEoCVIEcGF0aBoyCgxDb3B5QXJ0aWZhY3QSEgoEZnJvbRgBIAEoCV'
+    'IEZnJvbRIOCgJ0bxgCIAEoCVICdG9CCAoGYWN0aW9uGloKCFJlcXVpcmVzEhoKCGNvbW1hbmRz'
+    'GAEgAygJUghjb21tYW5kcxIUCgVmaWxlcxgCIAMoCVIFZmlsZXMSHAoJcGxhdGZvcm1zGAMgAy'
+    'gJUglwbGF0Zm9ybXMa2gIKCUFydGlmYWN0cxIWCgZiaW5hcnkYASABKAlSBmJpbmFyeRIYCgdw'
+    'cmltYXJ5GAIgASgJUgdwcmltYXJ5Ek0KCWJ5X3RhcmdldBgDIAMoCzIwLmhvbG9ucy52MS5Ib2'
+    'xvbk1hbmlmZXN0LkFydGlmYWN0cy5CeVRhcmdldEVudHJ5UghieVRhcmdldBpvCg1CeVRhcmdl'
+    'dEVudHJ5EhAKA2tleRgBIAEoCVIDa2V5EkgKBXZhbHVlGAIgASgLMjIuaG9sb25zLnYxLkhvbG'
+    '9uTWFuaWZlc3QuQXJ0aWZhY3RzLlRhcmdldEFydGlmYWN0c1IFdmFsdWU6AjgBGlsKD1Rhcmdl'
+    'dEFydGlmYWN0cxIUCgVkZWJ1ZxgBIAEoCVIFZGVidWcSGAoHcmVsZWFzZRgCIAEoCVIHcmVsZW'
+    'FzZRIYCgdwcm9maWxlGAMgASgJUgdwcm9maWxlSgQIAhADSgQIDBAN');
+
+@$core.Deprecated('Use listenerVisibilityOverrideDescriptor instead')
+const ListenerVisibilityOverride$json = {
+  '1': 'ListenerVisibilityOverride',
+  '2': [
+    {'1': 'listener_uri', '3': 1, '4': 1, '5': 9, '10': 'listenerUri'},
+    {
+      '1': 'visibility',
+      '3': 2,
+      '4': 1,
+      '5': 14,
+      '6': '.holons.v1.ObservabilityVisibility',
+      '10': 'visibility'
+    },
+  ],
+};
+
+/// Descriptor for `ListenerVisibilityOverride`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List listenerVisibilityOverrideDescriptor =
+    $convert.base64Decode(
+        'ChpMaXN0ZW5lclZpc2liaWxpdHlPdmVycmlkZRIhCgxsaXN0ZW5lcl91cmkYASABKAlSC2xpc3'
+        'RlbmVyVXJpEkIKCnZpc2liaWxpdHkYAiABKA4yIi5ob2xvbnMudjEuT2JzZXJ2YWJpbGl0eVZp'
+        'c2liaWxpdHlSCnZpc2liaWxpdHk=');

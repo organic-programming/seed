@@ -33,7 +33,7 @@ export 'coax.pb.dart';
 /// This service is recursive: a member that is itself an organism
 /// exposes its own CoaxService at its own level.
 ///
-/// See AGENT.md Article 1 for the COAX principle.
+/// See CONSTITUTION.md Article 1 for the COAX principle.
 /// See apps_kits/DESIGN.md for how App Kits implement this surface.
 @$pb.GrpcServiceName('holons.v1.CoaxService')
 class CoaxServiceClient extends $grpc.Client {
@@ -51,6 +51,9 @@ class CoaxServiceClient extends $grpc.Client {
   /// Equivalent to browsing the holon picker in the UI.
   /// The organism controls which members are listed — internal holons
   /// may be intentionally omitted to keep the exposure surface minimal.
+  /// Organism Kits provide built-in exposure strategies (all, filtered,
+  /// or none) — the organism picks one, no custom filtering needed.
+  /// @example {}
   $grpc.ResponseFuture<$0.ListMembersResponse> listMembers(
     $0.ListMembersRequest request, {
     $grpc.CallOptions? options,
@@ -59,6 +62,7 @@ class CoaxServiceClient extends $grpc.Client {
   }
 
   /// Query the runtime status of a specific member.
+  /// @example {"slug":"gabriel-greeting-go"}
   $grpc.ResponseFuture<$0.MemberStatusResponse> memberStatus(
     $0.MemberStatusRequest request, {
     $grpc.CallOptions? options,
@@ -70,6 +74,7 @@ class CoaxServiceClient extends $grpc.Client {
   /// The organism resolves the member, launches its process if necessary,
   /// and establishes a gRPC channel — identical to a user selecting a
   /// holon in a picker.
+  /// @example {"slug":"gabriel-greeting-go","transport":"tcp"}
   $grpc.ResponseFuture<$0.ConnectMemberResponse> connectMember(
     $0.ConnectMemberRequest request, {
     $grpc.CallOptions? options,
@@ -78,6 +83,7 @@ class CoaxServiceClient extends $grpc.Client {
   }
 
   /// Disconnect a member holon.
+  /// @example {"slug":"gabriel-greeting-go"}
   $grpc.ResponseFuture<$0.DisconnectMemberResponse> disconnectMember(
     $0.DisconnectMemberRequest request, {
     $grpc.CallOptions? options,
@@ -95,6 +101,7 @@ class CoaxServiceClient extends $grpc.Client {
   /// Tell operates at the organism level: it is the single entry point
   /// for an external caller to interact with any member without needing
   /// to discover and connect to each one separately.
+  /// @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
   $grpc.ResponseFuture<$0.TellResponse> tell(
     $0.TellRequest request, {
     $grpc.CallOptions? options,
@@ -109,6 +116,7 @@ class CoaxServiceClient extends $grpc.Client {
   /// call an RPC on a server that is not running. The COAX server is
   /// started by the organism itself (UI toggle, launch argument, or
   /// startup configuration).
+  /// @example {}
   $grpc.ResponseFuture<$0.TurnOffCoaxResponse> turnOffCoax(
     $0.TurnOffCoaxRequest request, {
     $grpc.CallOptions? options,
