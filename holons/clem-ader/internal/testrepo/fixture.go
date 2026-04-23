@@ -30,6 +30,17 @@ entries:
     profile: smoke
 `)
 
+	writeFile(t, filepath.Join(root, "ader", "bouquets", "fail-bouquet.yaml"), `description: bouquet with a deterministic failure
+defaults:
+  source: workspace
+  lane: progression
+  archive: never
+entries:
+  - catalogue: fixture
+    suite: failing
+    profile: fail
+`)
+
 	writeFile(t, filepath.Join(root, "ader", "catalogues", "fixture", "ader.yaml"), `storage:
   reports: reports
   archives: archives
@@ -74,6 +85,10 @@ defaults:
     prereqs: [go]
     command: go test -v -count=1 -timeout 5m -run '^TestSmoke$' ./...
     description: integration smoke proof
+  failing-check:
+    workdir: holons/clem-ader
+    command: "false"
+    description: deterministic failing check for exit-code coverage
 `)
 	writeFile(t, filepath.Join(root, "ader", "catalogues", "fixture", "suites", "fixture.yaml"), `description: fixture suite
 defaults:
@@ -138,6 +153,20 @@ profiles:
     description: Opt-in black-box fuzz and stress only
     archive: never
     steps: []
+`)
+
+	writeFile(t, filepath.Join(root, "ader", "catalogues", "fixture", "suites", "failing.yaml"), `description: deterministic failing suite for exit-code coverage
+defaults:
+  profile: fail
+steps:
+  failing-step:
+    check: failing-check
+    lane: progression
+profiles:
+  fail:
+    description: Single failing step
+    archive: never
+    steps: [failing-step]
 `)
 	writeFile(t, filepath.Join(root, "ader", "catalogues", "fixture", "suites", "reuse.yaml"), `description: reuse suite
 defaults:

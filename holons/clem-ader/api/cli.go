@@ -134,28 +134,42 @@ func newTestCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 				KeepReport:    cfg.GetBool("test.keep-report"),
 				KeepSnapshot:  cfg.GetBool("test.keep-snapshot"),
 			}
+			var manifest *aderv1.HistoryRecord
 			if cfg.GetBool("test.silent") {
 				result, err := testContext(commandContext(cmd), req)
 				if err != nil {
 					return err
 				}
-				return printRunResult(stdout, result.GetManifest())
+				manifest = result.GetManifest()
+			} else {
+				result, err := engine.RunWithProgress(commandContext(cmd), engine.RunOptions{
+					ConfigDir:     req.GetConfigDir(),
+					Suite:         req.GetSuite(),
+					Profile:       req.GetProfile(),
+					Lane:          req.GetLane(),
+					StepFilter:    req.GetStepFilter(),
+					Source:        req.GetSource(),
+					ArchivePolicy: req.GetArchivePolicy(),
+					KeepReport:    req.GetKeepReport(),
+					KeepSnapshot:  req.GetKeepSnapshot(),
+				}, stderr)
+				if err != nil {
+					return err
+				}
+				manifest = manifestToProto(result.Manifest)
 			}
-			result, err := engine.RunWithProgress(commandContext(cmd), engine.RunOptions{
-				ConfigDir:     req.GetConfigDir(),
-				Suite:         req.GetSuite(),
-				Profile:       req.GetProfile(),
-				Lane:          req.GetLane(),
-				StepFilter:    req.GetStepFilter(),
-				Source:        req.GetSource(),
-				ArchivePolicy: req.GetArchivePolicy(),
-				KeepReport:    req.GetKeepReport(),
-				KeepSnapshot:  req.GetKeepSnapshot(),
-			}, stderr)
-			if err != nil {
+			if err := printRunResult(stdout, manifest); err != nil {
 				return err
 			}
-			return printRunResult(stdout, manifestToProto(result.Manifest))
+			if manifest.GetFailCount() > 0 {
+				return fmt.Errorf("suite %s failed (pass=%d fail=%d skip=%d)",
+					manifest.GetSuite(),
+					manifest.GetPassCount(),
+					manifest.GetFailCount(),
+					manifest.GetSkipCount(),
+				)
+			}
+			return nil
 		},
 	}
 	cmd.Flags().String("suite", "", "suite name from <config-dir>/suites")
@@ -206,7 +220,19 @@ func newTestBouquetCommand(stdout io.Writer) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return printBouquetRunResult(stdout, result.GetManifest())
+			manifest := result.GetManifest()
+			if err := printBouquetRunResult(stdout, manifest); err != nil {
+				return err
+			}
+			if manifest.GetFailCount() > 0 {
+				return fmt.Errorf("bouquet %s failed (pass=%d fail=%d skip=%d)",
+					manifest.GetBouquet(),
+					manifest.GetPassCount(),
+					manifest.GetFailCount(),
+					manifest.GetSkipCount(),
+				)
+			}
+			return nil
 		},
 	}
 	cmd.Flags().String("name", "", "bouquet name from <ader-root>/bouquets")

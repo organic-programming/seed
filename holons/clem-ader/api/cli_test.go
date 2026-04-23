@@ -516,3 +516,43 @@ func completionsToStrings(values []cobra.Completion) []string {
 	}
 	return out
 }
+
+func TestRunCLITestReturnsNonZeroWhenStepsFail(t *testing.T) {
+	root := testrepo.Create(t)
+	configDir := filepath.Join(root, "ader", "catalogues", "fixture")
+	withWorkingDir(t, root, func() {
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+
+		code := RunCLI([]string{"test", configDir, "--suite", "failing", "--profile", "fail", "--lane", "progression", "--source", "workspace", "--archive", "never"}, &stdout, &stderr)
+		if code == 0 {
+			t.Fatalf("RunCLI(test fail) = 0, want non-zero\nstdout=%s\nstderr=%s", stdout.String(), stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "summary: pass=0 fail=1") {
+			t.Fatalf("stdout missing failing summary: %q", stdout.String())
+		}
+		if !strings.Contains(stderr.String(), "suite failing failed") {
+			t.Fatalf("stderr missing failure diagnostic: %q", stderr.String())
+		}
+	})
+}
+
+func TestRunCLITestBouquetReturnsNonZeroWhenEntriesFail(t *testing.T) {
+	root := testrepo.Create(t)
+	aderRoot := filepath.Join(root, "ader")
+	withWorkingDir(t, root, func() {
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+
+		code := RunCLI([]string{"test-bouquet", aderRoot, "--name", "fail-bouquet"}, &stdout, &stderr)
+		if code == 0 {
+			t.Fatalf("RunCLI(test-bouquet fail) = 0, want non-zero\nstdout=%s\nstderr=%s", stdout.String(), stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "summary: pass=0 fail=1") {
+			t.Fatalf("stdout missing failing summary: %q", stdout.String())
+		}
+		if !strings.Contains(stderr.String(), "bouquet fail-bouquet failed") {
+			t.Fatalf("stderr missing failure diagnostic: %q", stderr.String())
+		}
+	})
+}
