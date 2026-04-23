@@ -26,6 +26,7 @@ import (
 	"github.com/organic-programming/go-holons/pkg/describe"
 	"github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/holonrpc"
+	"github.com/organic-programming/go-holons/pkg/observability"
 	"github.com/organic-programming/go-holons/pkg/transport"
 
 	"google.golang.org/grpc"
@@ -104,7 +105,18 @@ func Run(listenURI string, register RegisterFunc, moreListenURIs ...string) erro
 // URIs allow one holon process to expose multiple transports at once.
 func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreListenURIs ...string) (runErr error) {
 	listenURIs := normalizeListenURIs(listenURI, moreListenURIs)
-	s := grpc.NewServer()
+
+	// Observability: fail-fast on unknown OP_OBS tokens, then install
+	// the singleton (safe no-op when OP_OBS is empty).
+	if err := observability.CheckEnv(); err != nil {
+		return fmt.Errorf("observability env: %w", err)
+	}
+	observability.FromEnv(observability.Config{})
+
+	grpcOptions := []grpc.ServerOption{
+		grpc.UnaryInterceptor(observability.UnaryServerInterceptor()),
+	}
+	s := grpc.NewServer(grpcOptions...)
 	if register != nil {
 		register(s)
 	}
@@ -112,8 +124,29 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 		log.Printf("HolonMeta registration failed: %v", err)
 		return fmt.Errorf("register HolonMeta: %w", err)
 	}
+	observability.Register(s)
 	if reflect {
 		reflection.Register(s)
+	}
+
+	// Prometheus /metrics HTTP endpoint when OP_OBS=prom. Bound on an
+	// ephemeral port; per the binding rule in OBSERVABILITY.md
+	// §Transport Constraints, HTTP-capable transports would reuse the
+	// gRPC listener — a refinement we can add later without changing
+	// the public surface.
+	var promServer *observability.PromServer
+	if observability.Current().Enabled(observability.FamilyProm) {
+		addr := os.Getenv("OP_PROM_ADDR")
+		if addr == "" {
+			addr = ":0"
+		}
+		ps := observability.NewPromServer(addr)
+		if bound, err := ps.Start(); err != nil {
+			log.Printf("warning: prom HTTP bind failed: %v", err)
+		} else {
+			log.Printf("Prometheus /metrics listening on %s", bound)
+			promServer = ps
+		}
 	}
 
 	type grpcEndpoint struct {
@@ -221,6 +254,12 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 		log.Printf("gRPC server listening on %s (%s)", advertisedURI(endpoint.uri, endpoint.lis.Addr()), mode)
 	}
 
+	// Announce INSTANCE_READY as soon as the first listener is bound,
+	// even when events are disabled the call is a no-op.
+	if len(grpcEndpoints) > 0 {
+		observability.EmitReady(context.Background(), advertisedURI(grpcEndpoints[0].uri, grpcEndpoints[0].lis.Addr()))
+	}
+
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 	defer signal.Stop(sigCh)
@@ -236,6 +275,8 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 			}
 		}
 
+		observability.EmitExited(shutdownCtx, reason)
+
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
@@ -250,6 +291,9 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 		}
 		if bridgeConn != nil {
 			_ = bridgeConn.Close()
+		}
+		if promServer != nil {
+			_ = promServer.Close(shutdownCtx)
 		}
 	}
 
