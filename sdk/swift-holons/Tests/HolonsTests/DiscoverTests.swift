@@ -310,7 +310,14 @@ final class DiscoverContractTests: XCTestCase {
     let result = Discover(scope: LOCAL, expression: nil, root: sandbox.cwdPackageRoot.path, specifiers: CWD | BUILT, limit: NO_LIMIT, timeout: NO_TIMEOUT)
     XCTAssertNil(result.error)
     XCTAssertEqual(result.found.count, 1)
-    XCTAssertEqual(result.found.first?.url, cwdDir.standardizedFileURL.absoluteString)
+    // `.holon` packages are directories on disk, but Discover emits their URL
+    // with `isDirectory: false` (no trailing slash). `standardizedFileURL`
+    // on newer macOS keeps the trailing slash, older versions strip it.
+    // Compare trailing-slash-insensitively to be robust across hosts.
+    XCTAssertEqual(
+      trimmingTrailingSlash(result.found.first?.url),
+      trimmingTrailingSlash(cwdDir.standardizedFileURL.absoluteString)
+    )
   }
 
   func testHolonJSONFastPath() throws {
@@ -479,4 +486,9 @@ private func makeContext(
 
 private func slugs(in result: DiscoverResult) -> [String] {
   result.found.compactMap { $0.info?.slug }
+}
+
+private func trimmingTrailingSlash(_ value: String?) -> String? {
+  guard let value else { return nil }
+  return value.hasSuffix("/") ? String(value.dropLast()) : value
 }
