@@ -39,7 +39,7 @@ class CoaxServiceStub(object):
     This service is recursive: a member that is itself an organism
     exposes its own CoaxService at its own level.
 
-    See AGENT.md Article 1 for the COAX principle.
+    See CONSTITUTION.md Article 1 for the COAX principle.
     See apps_kits/DESIGN.md for how App Kits implement this surface.
     """
 
@@ -95,7 +95,7 @@ class CoaxServiceServicer(object):
     This service is recursive: a member that is itself an organism
     exposes its own CoaxService at its own level.
 
-    See AGENT.md Article 1 for the COAX principle.
+    See CONSTITUTION.md Article 1 for the COAX principle.
     See apps_kits/DESIGN.md for how App Kits implement this surface.
     """
 
@@ -106,6 +106,9 @@ class CoaxServiceServicer(object):
         Equivalent to browsing the holon picker in the UI.
         The organism controls which members are listed — internal holons
         may be intentionally omitted to keep the exposure surface minimal.
+        Organism Kits provide built-in exposure strategies (all, filtered,
+        or none) — the organism picks one, no custom filtering needed.
+        @example {}
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -113,6 +116,7 @@ class CoaxServiceServicer(object):
 
     def MemberStatus(self, request, context):
         """Query the runtime status of a specific member.
+        @example {"slug":"gabriel-greeting-go"}
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -125,6 +129,7 @@ class CoaxServiceServicer(object):
         The organism resolves the member, launches its process if necessary,
         and establishes a gRPC channel — identical to a user selecting a
         holon in a picker.
+        @example {"slug":"gabriel-greeting-go","transport":"tcp"}
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -132,6 +137,7 @@ class CoaxServiceServicer(object):
 
     def DisconnectMember(self, request, context):
         """Disconnect a member holon.
+        @example {"slug":"gabriel-greeting-go"}
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -150,6 +156,7 @@ class CoaxServiceServicer(object):
         Tell operates at the organism level: it is the single entry point
         for an external caller to interact with any member without needing
         to discover and connect to each one separately.
+        @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -165,6 +172,7 @@ class CoaxServiceServicer(object):
         call an RPC on a server that is not running. The COAX server is
         started by the organism itself (UI toggle, launch argument, or
         startup configuration).
+        @example {}
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -225,7 +233,7 @@ class CoaxService(object):
     This service is recursive: a member that is itself an organism
     exposes its own CoaxService at its own level.
 
-    See AGENT.md Article 1 for the COAX principle.
+    See CONSTITUTION.md Article 1 for the COAX principle.
     See apps_kits/DESIGN.md for how App Kits implement this surface.
     """
 
