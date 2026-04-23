@@ -190,6 +190,11 @@ func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int
 	ui, args, _ := extractQuietFlag(args)
 	quiet := runtimeOpts.quiet || ui.Quiet
 
+	// Extract observability flags (--observe, --prom, --otel, --sessions, --json).
+	// These are not passed through to parseRunArgs; applyRunObservability
+	// consumes them right before spawn.
+	args, observeOpts := extractRunObserveFlags(args)
+
 	holonName, opts, err := parseRunArgs(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op run: %v\n", err)
@@ -212,6 +217,11 @@ func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int
 			printer.Step("launching " + holonName + "...")
 			cmd, err := commandForInstalledArtifact(binary, resolvedTarget, opts.ListenURI)
 			if err != nil {
+				printer.Done("run failed", err)
+				fmt.Fprintf(os.Stderr, "op run: %v\n", err)
+				return 1
+			}
+			if _, _, err := applyRunObservability(cmd, holonName, observeOpts); err != nil {
 				printer.Done("run failed", err)
 				fmt.Fprintf(os.Stderr, "op run: %v\n", err)
 				return 1
@@ -329,6 +339,11 @@ func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int
 
 	cmd, err := commandForArtifact(target.Manifest, ctx, opts.ListenURI)
 	if err != nil {
+		printer.Done("run failed", err)
+		fmt.Fprintf(os.Stderr, "op run: %v\n", err)
+		return 1
+	}
+	if _, _, err := applyRunObservability(cmd, holonName, observeOpts); err != nil {
 		printer.Done("run failed", err)
 		fmt.Fprintf(os.Stderr, "op run: %v\n", err)
 		return 1
