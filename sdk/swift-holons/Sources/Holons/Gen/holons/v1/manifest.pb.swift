@@ -20,6 +20,57 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
+/// ObservabilityVisibility gates the HolonSession and HolonObservability
+/// services. Declared at file level so protos that need to reference it
+/// outside the manifest (manifest extensions, tooling) can import it.
+public enum Holons_V1_ObservabilityVisibility: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case unspecified // = 0
+
+  /// PERMISSION_DENIED on all RPCs
+  case off // = 1
+
+  /// Counts/states only; no payloads
+  case summary // = 2
+
+  /// All fields returned
+  case full // = 3
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unspecified
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unspecified
+    case 1: self = .off
+    case 2: self = .summary
+    case 3: self = .full
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unspecified: return 0
+    case .off: return 1
+    case .summary: return 2
+    case .full: return 3
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Holons_V1_ObservabilityVisibility] = [
+    .unspecified,
+    .off,
+    .summary,
+    .full,
+  ]
+
+}
+
 /// HolonManifest is the single source of truth for a holon's identity,
 /// contract, skills, documentation, and operational metadata.
 /// Any .proto file can carry this manifest via:
@@ -121,6 +172,23 @@ public struct Holons_V1_HolonManifest: @unchecked Sendable {
   public var guide: String {
     get {_storage._guide}
     set {_uniqueStorage()._guide = newValue}
+  }
+
+  /// ── Observability visibility ─────────────────────────
+  /// Single dial gating HolonSession.* and HolonObservability.* exposure.
+  /// UNSPECIFIED defers to the per-listener default the SDK infers from
+  /// the listener's scheme and security mode. See SESSIONS.md §Security
+  /// and OBSERVABILITY.md §Security Considerations.
+  public var sessionVisibility: Holons_V1_ObservabilityVisibility {
+    get {_storage._sessionVisibility}
+    set {_uniqueStorage()._sessionVisibility = newValue}
+  }
+
+  /// Per-listener overrides. Each override's listener_uri must match a
+  /// listener declared in the holon's build/serve config.
+  public var sessionVisibilityOverrides: [Holons_V1_ListenerVisibilityOverride] {
+    get {_storage._sessionVisibilityOverrides}
+    set {_uniqueStorage()._sessionVisibilityOverrides = newValue}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -281,6 +349,12 @@ public struct Holons_V1_HolonManifest: @unchecked Sendable {
     /// Resolved with identity data before the language build, restored after.
     public var templates: [String] = []
 
+    /// Commands to execute sequentially BEFORE the main runner logic.
+    public var beforeCommands: [Holons_V1_HolonManifest.Step.Exec] = []
+
+    /// Commands to execute sequentially AFTER the main runner logic.
+    public var afterCommands: [Holons_V1_HolonManifest.Step.Exec] = []
+
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
     public struct Defaults: Sendable {
@@ -304,7 +378,7 @@ public struct Holons_V1_HolonManifest: @unchecked Sendable {
       // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
       // methods supported on all messages.
 
-      /// e.g. "daemon", "app"
+      /// e.g. "holon", "app"
       public var id: String = String()
 
       /// relative path to the member
@@ -511,6 +585,22 @@ public struct Holons_V1_HolonManifest: @unchecked Sendable {
   fileprivate var _storage = _StorageClass.defaultInstance
 }
 
+public struct Holons_V1_ListenerVisibilityOverride: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Listener URI to apply the override to. Matches a listener declared
+  /// in the holon's serve config.
+  public var listenerUri: String = String()
+
+  public var visibility: Holons_V1_ObservabilityVisibility = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 // MARK: - Extension support defined in manifest.proto.
 
 // MARK: - Extension Properties
@@ -562,9 +652,13 @@ public let Holons_V1_Extensions_manifest = SwiftProtobuf.MessageExtension<SwiftP
 
 fileprivate let _protobuf_package = "holons.v1"
 
+extension Holons_V1_ObservabilityVisibility: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OBSERVABILITY_VISIBILITY_UNSPECIFIED\0\u{1}OBSERVABILITY_VISIBILITY_OFF\0\u{1}OBSERVABILITY_VISIBILITY_SUMMARY\0\u{1}OBSERVABILITY_VISIBILITY_FULL\0")
+}
+
 extension Holons_V1_HolonManifest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".HolonManifest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}identity\0\u{2}\u{2}description\0\u{1}lang\0\u{1}skills\0\u{1}contract\0\u{1}kind\0\u{1}platforms\0\u{1}transport\0\u{1}build\0\u{1}requires\0\u{2}\u{2}artifacts\0\u{1}sequences\0\u{1}guide\0\u{c}\u{2}\u{1}\u{c}\u{c}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}identity\0\u{2}\u{2}description\0\u{1}lang\0\u{1}skills\0\u{1}contract\0\u{1}kind\0\u{1}platforms\0\u{1}transport\0\u{1}build\0\u{1}requires\0\u{2}\u{2}artifacts\0\u{1}sequences\0\u{1}guide\0\u{3}session_visibility\0\u{3}session_visibility_overrides\0\u{c}\u{2}\u{1}\u{c}\u{c}\u{1}")
 
   fileprivate class _StorageClass {
     var _identity: Holons_V1_HolonManifest.Identity? = nil
@@ -580,6 +674,8 @@ extension Holons_V1_HolonManifest: SwiftProtobuf.Message, SwiftProtobuf._Message
     var _artifacts: Holons_V1_HolonManifest.Artifacts? = nil
     var _sequences: [Holons_V1_HolonManifest.Sequence] = []
     var _guide: String = String()
+    var _sessionVisibility: Holons_V1_ObservabilityVisibility = .unspecified
+    var _sessionVisibilityOverrides: [Holons_V1_ListenerVisibilityOverride] = []
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -603,6 +699,8 @@ extension Holons_V1_HolonManifest: SwiftProtobuf.Message, SwiftProtobuf._Message
       _artifacts = source._artifacts
       _sequences = source._sequences
       _guide = source._guide
+      _sessionVisibility = source._sessionVisibility
+      _sessionVisibilityOverrides = source._sessionVisibilityOverrides
     }
   }
 
@@ -634,6 +732,8 @@ extension Holons_V1_HolonManifest: SwiftProtobuf.Message, SwiftProtobuf._Message
         case 13: try { try decoder.decodeSingularMessageField(value: &_storage._artifacts) }()
         case 14: try { try decoder.decodeRepeatedMessageField(value: &_storage._sequences) }()
         case 15: try { try decoder.decodeSingularStringField(value: &_storage._guide) }()
+        case 16: try { try decoder.decodeSingularEnumField(value: &_storage._sessionVisibility) }()
+        case 17: try { try decoder.decodeRepeatedMessageField(value: &_storage._sessionVisibilityOverrides) }()
         default: break
         }
       }
@@ -685,6 +785,12 @@ extension Holons_V1_HolonManifest: SwiftProtobuf.Message, SwiftProtobuf._Message
       if !_storage._guide.isEmpty {
         try visitor.visitSingularStringField(value: _storage._guide, fieldNumber: 15)
       }
+      if _storage._sessionVisibility != .unspecified {
+        try visitor.visitSingularEnumField(value: _storage._sessionVisibility, fieldNumber: 16)
+      }
+      if !_storage._sessionVisibilityOverrides.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._sessionVisibilityOverrides, fieldNumber: 17)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -707,6 +813,8 @@ extension Holons_V1_HolonManifest: SwiftProtobuf.Message, SwiftProtobuf._Message
         if _storage._artifacts != rhs_storage._artifacts {return false}
         if _storage._sequences != rhs_storage._sequences {return false}
         if _storage._guide != rhs_storage._guide {return false}
+        if _storage._sessionVisibility != rhs_storage._sessionVisibility {return false}
+        if _storage._sessionVisibilityOverrides != rhs_storage._sessionVisibilityOverrides {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -968,7 +1076,7 @@ extension Holons_V1_HolonManifest.Contract: SwiftProtobuf.Message, SwiftProtobuf
 
 extension Holons_V1_HolonManifest.Build: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Holons_V1_HolonManifest.protoMessageName + ".Build"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}runner\0\u{1}main\0\u{1}defaults\0\u{1}members\0\u{1}targets\0\u{1}templates\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}runner\0\u{1}main\0\u{1}defaults\0\u{1}members\0\u{1}targets\0\u{1}templates\0\u{3}before_commands\0\u{3}after_commands\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -982,6 +1090,8 @@ extension Holons_V1_HolonManifest.Build: SwiftProtobuf.Message, SwiftProtobuf._M
       case 4: try { try decoder.decodeRepeatedMessageField(value: &self.members) }()
       case 5: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Holons_V1_HolonManifest.Build.Target>.self, value: &self.targets) }()
       case 6: try { try decoder.decodeRepeatedStringField(value: &self.templates) }()
+      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.beforeCommands) }()
+      case 8: try { try decoder.decodeRepeatedMessageField(value: &self.afterCommands) }()
       default: break
       }
     }
@@ -1010,6 +1120,12 @@ extension Holons_V1_HolonManifest.Build: SwiftProtobuf.Message, SwiftProtobuf._M
     if !self.templates.isEmpty {
       try visitor.visitRepeatedStringField(value: self.templates, fieldNumber: 6)
     }
+    if !self.beforeCommands.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.beforeCommands, fieldNumber: 7)
+    }
+    if !self.afterCommands.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.afterCommands, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1020,6 +1136,8 @@ extension Holons_V1_HolonManifest.Build: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.members != rhs.members {return false}
     if lhs.targets != rhs.targets {return false}
     if lhs.templates != rhs.templates {return false}
+    if lhs.beforeCommands != rhs.beforeCommands {return false}
+    if lhs.afterCommands != rhs.afterCommands {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1493,6 +1611,41 @@ extension Holons_V1_HolonManifest.Artifacts.TargetArtifacts: SwiftProtobuf.Messa
     if lhs.debug != rhs.debug {return false}
     if lhs.release != rhs.release {return false}
     if lhs.profile != rhs.profile {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Holons_V1_ListenerVisibilityOverride: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ListenerVisibilityOverride"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}listener_uri\0\u{1}visibility\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.listenerUri) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.visibility) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.listenerUri.isEmpty {
+      try visitor.visitSingularStringField(value: self.listenerUri, fieldNumber: 1)
+    }
+    if self.visibility != .unspecified {
+      try visitor.visitSingularEnumField(value: self.visibility, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Holons_V1_ListenerVisibilityOverride, rhs: Holons_V1_ListenerVisibilityOverride) -> Bool {
+    if lhs.listenerUri != rhs.listenerUri {return false}
+    if lhs.visibility != rhs.visibility {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
