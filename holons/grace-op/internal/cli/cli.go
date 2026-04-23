@@ -297,6 +297,7 @@ func registerRootCommands(root *cobra.Command, version string) {
 	addIdentityCommands(root)
 	addModCommands(root)
 	addMiscCommands(root, version)
+	addObservabilityCommands(root)
 }
 
 func currentFormat() (Format, error) {
