@@ -25,10 +25,10 @@ jobs:
     # manual dispatches are allowed to land on popok-noctambule.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
 
-    # Route by the unique custom label only. GitHub automatically assigns
-    # `self-hosted` to every self-hosted runner but that's broader than we
-    # need — `popok-noctambule` pins the job to the right machine directly.
-    runs-on: popok-noctambule
+    # Routes to the runner carrying the `popok` custom label. The runner is
+    # *named* popok-noctambule but its label is `popok` — matching is by
+    # label, not by runner name.
+    runs-on: popok
 
     timeout-minutes: 240
 
