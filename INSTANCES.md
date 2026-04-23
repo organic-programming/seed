@@ -256,7 +256,11 @@ A port (TCP or Unix socket) is a transport detail of an instance.
 The instance-id is the stable handle. The same instance may be reachable
 over stdio *or* a TCP port depending on how it was started.
 
-Muxing multiple callers to one instance is the responsibility of `op proxy` (see `PROXY.md`).
+Muxing multiple callers to a single stdio-monovalent instance is the
+responsibility of `op proxy` (see [holons/grace-op/OP_PROXY.md](holons/grace-op/OP_PROXY.md))
+— a v2 feature. In v1, multivalent transports (`tcp://`, `unix://`,
+`ws://`, `wss://`) accept concurrent connections natively; the
+proxy only adds routing/fan-in on top.
 
 ---
 

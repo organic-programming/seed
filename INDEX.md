@@ -18,7 +18,7 @@
 | ⚠️ | ? | [CONSTITUTION.md](CONSTITUTION.md) | Organic Programming paradigm — axiomatic foundation |
 | ⚠️ | ? | [CONVENTIONS.md](CONVENTIONS.md) | Per-language holon directory structure |
 | ✅ | - | [DISCOVERY.md](DISCOVERY.md) | Cross-SDK discovery algorithm and API |
-| ? | - | [INSTANCES.md](INSTANCES.md) | Instance lifecycle and registry |
+| ✅ | - | [INSTANCES.md](INSTANCES.md) | Instance lifecycle and registry |
 | ? | ? | [MCP.md](MCP.md) | MCP exposure via `op mcp` |
 | ? | - | [OBSERVABILITY.md](OBSERVABILITY.md) | Structured logs, metrics, lifecycle events; Prometheus & OTLP interop |
 | ? | - | [OBSERVABILITY_HANDBOOK.md](OBSERVABILITY_HANDBOOK.md) | User-facing cookbook: recipes for tailing, multilog, Loki/Grafana, post-mortem |

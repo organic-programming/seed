@@ -317,7 +317,16 @@ diff <(jq -c '.[]' a.json) <(jq -c '.[]' b.json)
 
 ## 5. Exporting
 
-### 5.1 OTLP to an existing collector
+### 5.1 OTLP to an existing collector (v2)
+
+> **v2.** OTLP push is not wired in v1. The `otel` token and
+> `--otel=...` flag are reserved and produce a startup error on
+> current SDKs. Use the Prometheus `/metrics` endpoint (§1.3)
+> in the meantime — Grafana Agent and OTel Collector both support
+> Prometheus scrape as an ingest source for OTLP backends.
+
+When the OTLP exporter ships (tracked in [OBSERVABILITY.md §Phasing](OBSERVABILITY.md#phasing)),
+the recipe becomes:
 
 ```bash
 op run gabriel-greeting-app --observe --otel=otel-collector:4317
@@ -330,7 +339,7 @@ OP_OBS=all,otel OP_OTEL_ENDPOINT=otel-collector:4317 \
   op run gabriel-greeting-app
 ```
 
-The SDK pushes every 15 seconds (override with
+The SDK will push every 15 seconds (override with
 `OP_OTEL_INTERVAL=30s`). Metrics map to OTLP Metrics; logs and events
 map to OTLP LogRecords.
 
@@ -359,7 +368,7 @@ OP_OBS=metrics               # metrics collection only
 OP_OBS=events                # lifecycle events only
 OP_OBS=logs,metrics,events   # combined signal capture
 OP_OBS=all                   # alias for logs,metrics,events,prom
-OP_OBS=all,otel              # plus OTLP push (needs OP_OTEL_ENDPOINT)
+OP_OBS=all,otel              # v2 only — plus OTLP push; rejected in v1
 ```
 
 ### 6.2 `op` flag table

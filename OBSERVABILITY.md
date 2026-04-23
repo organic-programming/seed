@@ -46,10 +46,12 @@ itself, and an OTLP push exporter for collectors.
    overhead when disabled: no collectors, no interceptors, no
    `HolonObservability` service registration. Identical discipline to
    SESSIONS.md.
-2. **Parent-controlled activation** — the decision to enable logs,
-   metrics, or events belongs to whoever launches the holon
-   (typically `op run`). A holon cannot self-enable observability via
-   its own config.
+2. **Parent-controlled family activation** — the decision to turn a
+   family of signals (logs, metrics, events) **on or off** belongs to
+   whoever launches the holon (typically `op run`), via `OP_OBS`.
+   Within an enabled family, the developer's Code API tunes the
+   granularity (logger levels, metric inclusion, redaction). A holon
+   cannot silently promote a family from off to on at runtime.
 3. **SDK-managed, not protocol-level** — observability is bookkeeping
    inside the SDK; the gRPC/Holon-RPC stream is unchanged. Metrics and
    logs travel over their own RPCs, not as wire metadata.
@@ -94,53 +96,64 @@ Every join key is visible on both sides of every join.
 
 ## Activation
 
-Same three-layer priority model as SESSIONS.md §Activation.
+Three layers, each with a distinct scope. Unlike a simple override
+chain, they compose by scope: Layer 3 (per-holon) gates the families
+on or off; Layer 1 (per-site) tunes the granularity within what
+Layer 3 allowed. A family that Layer 3 has not enabled cannot be
+turned on by Layer 1.
 
-| Priority | Layer | Scope | When it's decided |
-|:---:|---|---|---|
-| **1 (highest)** | **Code API** | Per-logger, per-gatherer | At process init or handler entry |
-| **2** | **RPC** | *(reserved for v2)* | — |
-| **3 (lowest)** | **Config** | Per-holon, static | `OP_OBS` env or `holon.proto` |
+| Layer | Scope | Decides | Set at |
+|---|---|---|---|
+| **Layer 3 — Config** | Per-holon, whole process | Which families (`logs` / `metrics` / `events` / `prom` / `otel`) are active | `OP_OBS` env by the parent launcher; `holon.proto` static defaults |
+| **Layer 2 — RPC** | Per-listener, runtime | *(reserved for v2)* | — |
+| **Layer 1 — Code API** | Per-logger, per-metric, per-gauge | Logger levels, metric inclusion, redaction, exposition addresses | Process init or per-site |
 
 Layer 2 (runtime toggle via RPC) is intentionally deferred to v2.
 Observability cost is low enough that a runtime toggle is not worth
-the extra protocol surface; operators can already turn it on by
-restarting with `--observe` or by setting `OP_OBS=all` before starting.
+the extra protocol surface; operators turn it on by restarting with
+`--observe` or by setting `OP_OBS=all` before starting.
 
 ### Layer 1 — Code API
 
-The holon developer can attach observability per site. Typical pattern
-in the Go SDK:
+The developer wires fine-grained configuration for when the parent
+has enabled a family. When `OP_OBS` is empty, every call below
+degenerates into a no-op at zero cost — see §Cost when disabled.
+
+Typical Go pattern:
 
 ```go
 import "github.com/organic-programming/go-holons/pkg/observability"
 
 func main() {
-    obs, err := observability.Enable(observability.Config{
-        Logs:    observability.LogLevel("info"),
-        Metrics: true,
-        Events:  true,
-        Prom:    ":0",  // ephemeral port
+    // Configure runs at startup. On/off per family is read from
+    // OP_OBS; this call supplies the knobs for when a family IS on.
+    obs := observability.Configure(observability.Config{
+        LogLevel:     observability.INFO,     // default level when logs=on
+        PromAddr:     ":0",                    // ephemeral when OP_OBS=prom
+        OTLPInterval: 15 * time.Second,        // cadence when OP_OBS=otel
     })
-    if err != nil { /* … */ }
     defer obs.Close()
 
     // The serve runner reads obs from context and auto-registers
-    // HolonObservability alongside HolonMeta.
+    // HolonObservability alongside HolonMeta when OP_OBS is non-empty.
     serve.Run(ctx, /* service impl */)
 }
 ```
 
-Per-site control:
+Per-site control within what OP_OBS allowed:
 
 ```go
 logger := obs.Logger("recipe.runner")
+logger.SetLevel(observability.DEBUG)          // per-logger override
 logger.Info("recipe started", "recipe", name, "members", len(members))
+
+obs.Counter("recipe_starts_total").Add(1)      // no-op if metrics off
+obs.RedactFields("password", "api_key")        // apply globally
 ```
 
-Code API does not pretend to be fine-grained. The knob is "on" or
-"off" per logger/gauge. Selective tracing of a single RPC is handled
-by filtering at the consumer side (e.g. `op logs --session=<id>`).
+Selective tracing of a single RPC is handled by filtering at the
+consumer side (e.g. `op logs --session=<id>`), not by per-call
+toggles in the handler.
 
 ### Layer 3 — Config (static defaults)
 
@@ -155,11 +168,14 @@ OP_OBS=events                # lifecycle events only
 OP_OBS=logs,metrics          # logs + metrics
 OP_OBS=logs,metrics,prom     # logs + metrics + /metrics endpoint
 OP_OBS=all                   # shorthand for logs,metrics,events,prom
-OP_OBS=all,otel              # add OTLP push
+OP_OBS=all,otel              # add OTLP push — reserved, v2 only
 ```
 
-Valid tokens: `logs | metrics | events | prom | otel | all`.
-Unknown tokens are a startup error (fail-fast), not a silent warning.
+Valid tokens in v1: `logs | metrics | events | prom | all`.
+The token `otel` is **reserved** for v2 (see §Push — OTLP below)
+and is a startup error in v1 until the OTLP exporter ships.
+Any other unknown token is also a startup error (fail-fast), not
+a silent warning.
 
 The `OP_OBS` env var is set by the **parent launcher** — the holon
 itself never decides to self-activate via config. Same discipline as
@@ -170,12 +186,18 @@ itself never decides to self-activate via config. Same discipline as
 | `op run <slug> --observe` | `op` sets `OP_OBS=logs,metrics,events` |
 | `op run <slug> --observe=metrics,prom` | explicit subset |
 | `op run <slug> --prom` | implies `--metrics`; sets `OP_OBS=metrics,prom` |
-| `op run <slug> --otel=otel-collector:4317` | implies `--metrics`; sets `OP_OBS=metrics,otel` plus `OP_OTEL_ENDPOINT` |
+| `op run <slug> --otel=otel-collector:4317` | **v2 only** — implies `--metrics`; sets `OP_OBS=metrics,otel` plus `OP_OTEL_ENDPOINT`. Rejected in v1 |
 | Manual launch | `OP_OBS=all ./my-holon serve --listen tcp://:9090` |
 
 `OP_OBS` propagates naturally: if `op run` launches a composite
-recipe with `--observe`, all child holons inherit `OP_OBS` unchanged
-and `OP_INSTANCE_UID` per-child (see [INSTANCES.md](INSTANCES.md)).
+recipe with `--observe`, every child holon inherits `OP_OBS` unchanged
+and, from the launcher, also receives:
+
+- `OP_INSTANCE_UID` — distinct per child (see [INSTANCES.md §Registry](INSTANCES.md#registry))
+- `OP_RUN_DIR` — the chosen registry root (same across the tree)
+- `OP_ORGANISM_UID`, `OP_ORGANISM_SLUG` — invariant across every hop
+  of the tree (see [INSTANCES.md §Organism Hierarchy](INSTANCES.md#organism-hierarchy)). These unlock the hierarchical
+  registry layout and the root's `multilog.jsonl`.
 
 ### Composition with `OP_SESSIONS`
 
@@ -372,26 +394,52 @@ No new RPC, no new dial direction, no `Ingest`:
   declared organism members from the mesh.
 - It polls `child.Metrics()` on a configurable interval (default 15s).
 - The child's stream handler is a long-lived emitter: it pushes local
-  signals as they happen **and** re-emits signals it received from its
-  own grandchildren streams after appending one `ChainHop`.
+  signals as they happen **and** re-emits signals it received from
+  its own direct children's streams after appending one `ChainHop`.
 
 ### Chain semantics
 
-`LogEntry.chain`, `EventInfo.chain`, `MetricSample.chain` trace the
-relay path from the originator up to (and not including) the emitter
-of the stream the reader is currently consuming.
+`LogEntry.chain`, `EventInfo.chain`, `MetricSample.chain` are the
+**wire chain** — the ordered hops from the originator up to but
+**not including** the emitter of the stream the reader is consuming.
+Two rules, applied by the SDK on every re-emission:
 
-- Signal emitted locally → `chain = []`.
-- Signal relayed from grandchild `G` → SDK appends
-  `(G.slug, G.instance_uid)` before re-emitting upward.
+- **Local emission** — the signal was produced by this holon →
+  `chain = []` on its own `Logs/Events/Metrics` stream.
+- **Relay from a direct child `C`** — a signal arrived via
+  `C.Logs`/`C.Events`/`C.Metrics`. The SDK **appends**
+  `(C.slug, C.instance_uid)` to the chain it received, then re-emits
+  the signal on its own stream.
 
-The reader reconstructs the full path by combining `chain` with the
-identity of the stream being read:
+A reader of a stream from emitter `E` thus sees, for every entry:
+
+- `slug`, `instance_uid` — the **originator** (where the signal was
+  first produced, always preserved through every relay).
+- `chain` — the ordered hops between originator and `E`, exclusive
+  of `E`. Empty if the originator is `E` itself.
+
+Full path reconstruction at the reader:
 
 ```
-originator = chain[0].slug  (or reader's direct child if chain is empty)
-path       = chain → [current stream source] → [reader]
+originator  = <slug of the entry>
+path (wire) = originator → chain[0] → chain[1] → … → chain[-1] → E (stream source) → reader
 ```
+
+### Multilog chain enrichment
+
+When an organism root (or any consumer writing the stream to a
+persistent log) records an entry it just read from stream source
+`E`, it **appends** `(E.slug, E.instance_uid)` to the entry's chain
+before serialising. This produces the **enriched chain**:
+
+```
+chain (enriched) = chain (wire) ++ [E]
+```
+
+so the serialised record stands alone — the full relay path is
+preserved without needing to remember which stream produced it.
+The [Multilog Contract](#multilog-contract) below shows enriched
+entries.
 
 ### Example: three-level organism
 
@@ -410,17 +458,20 @@ root: gabriel-greeting-app (Dart, organism UID 4a7b8c9d…)
 
 `phill-files` emits a log `"opened file"`:
 
-1. `phill-files.Logs` stream → `{ts, level, slug=phill-files, uid=1c2d…, chain=[], message="opened file"}`
-2. `gabriel-greeting-go` receives on its client stream → appends its
-   own **child hop** (the source of the relay) to the chain:
-   `chain=[{slug=phill-files, uid=1c2d…}]`. Emits upward via its own
-   `Logs` handler.
-3. Root reads `gabriel-greeting-go.Logs` → sees the entry with
-   `slug=phill-files`, `chain=[{slug=phill-files, uid=1c2d…}]`,
-   knows it arrived via `gabriel-greeting-go` (the stream it's
-   consuming).
-
-The root assembles the full lineage as it writes to the multilog.
+1. On `phill-files.Logs` (local emission) →
+   `{slug=phill-files, uid=1c2d…, chain=[], message="opened file"}`.
+2. `gabriel-greeting-go` receives it from `phill-files.Logs` and
+   appends that stream source to the chain before re-emitting on its
+   own `Logs` stream →
+   `{slug=phill-files, uid=1c2d…, chain=[{slug=phill-files, uid=1c2d…}]}`.
+3. Root reads the entry on `gabriel-greeting-go.Logs`. Wire view:
+   `chain=[{phill-files}]`; the stream source (`gabriel-greeting-go`)
+   is implicit because the root is reading that stream.
+4. Before writing to `multilog.jsonl`, the root applies
+   [multilog chain enrichment](#multilog-chain-enrichment) — it
+   appends the stream source (`gabriel-greeting-go`) →
+   `chain=[{phill-files}, {gabriel-greeting-go}]`. The serialised
+   multilog line stands alone and carries the full relay path.
 
 ### Transports without outbound dial
 
@@ -443,31 +494,39 @@ Location:
 
 ```
 <run_root>/<organism_slug>/<organism_uid>/
-  multilog.jsonl          # every signal arriving at the root, merged by ts
+  multilog.jsonl          # every signal observed by the root, local or relayed
   multilog.jsonl.1        # rotated (16 MB × ring of 4, same as stdout.log)
-  stdout.log              # the root's OWN logs only
-  events.jsonl            # the root's OWN events only
+  stdout.log              # the root's OWN logs only (not enriched)
+  events.jsonl            # the root's OWN events only (not enriched)
   members/
     gabriel-greeting-go/ea346efb…/
       stdout.log          # written by the child itself (local copy)
       events.jsonl
       members/
         phill-files/1c2d…/
-          stdout.log      # written by the grandchild itself
+          stdout.log      # written by the direct-child holon itself
 ```
 
 Format: **JSON lines**, one object per line. Each object carries a
 `kind` discriminant (`"log"`, `"event"`, `"metric_sample"`), the
-union of fields from the corresponding proto message, and the `chain`
-as structured data.
+union of fields from the corresponding proto message, and the **enriched
+`chain`** described in [§Multilog chain enrichment](#multilog-chain-enrichment):
+when the root records a signal it read from stream source `E`, it
+appends `(E.slug, E.instance_uid)` to the wire chain. For a signal
+the root emitted itself, the enriched chain is also empty.
 
-Example lines:
+Example lines (three-level organism, using the worked example above):
 
 ```jsonl
 {"kind":"log","ts":"2026-04-23T18:42:03.112Z","level":"INFO","slug":"phill-files","instance_uid":"1c2d3e4f","chain":[{"slug":"phill-files","instance_uid":"1c2d3e4f"},{"slug":"gabriel-greeting-go","instance_uid":"ea346efb"}],"session_id":"d9e0f1a2","rpc_method":"Read","message":"opened file","fields":{"path":"/tmp/out.mp4","bytes":"4096"},"caller":"reader.go:123"}
 {"kind":"event","ts":"2026-04-23T18:42:03.200Z","type":"SESSION_STARTED","slug":"gabriel-greeting-go","instance_uid":"ea346efb","chain":[{"slug":"gabriel-greeting-go","instance_uid":"ea346efb"}],"session_id":"f3a4b5c6","payload":{"remote_slug":"phill-files","transport":"stdio"}}
 {"kind":"metric_sample","ts":"2026-04-23T18:42:15.000Z","name":"holon_handler_in_flight","labels":{"slug":"gabriel-greeting-go","method":"SayHello"},"value":2.0,"chain":[{"slug":"gabriel-greeting-go","instance_uid":"ea346efb"}]}
 ```
+
+In the first line, `phill-files` is the originator; its wire chain at
+the root was `[{phill-files}]`; enrichment appended
+`{gabriel-greeting-go}` (the stream the root was reading) to produce
+the two-element chain shown.
 
 Merge order: the root's emitter writes strictly in arrival order,
 **not** in timestamp order. Clock skew between holons is the reader's
@@ -497,28 +556,34 @@ new schemes. Per-transport properties for observability endpoints:
 
 | Scheme | Carries `HolonObservability` gRPC | Carries Prometheus `/metrics` | Notes |
 |---|:---:|:---:|---|
-| `tcp://` | ✓ | ✓ (as HTTP/1.1 on ephemeral port) | Standard case |
+| `tcp://` | ✓ | ✓ (on a dedicated HTTP/1.1 port) | gRPC and `/metrics` on distinct listeners |
 | `unix://` | ✓ | ✗ | Prometheus scrapers speak TCP; UNIX sockets force socket-path mode on the scraper side |
-| `stdio://` | ✓ (via parent mux) | ✗ | `/metrics` meaningless over stdio; scrape via gRPC `Metrics()` |
+| `stdio://` | ✓ (via parent mux) | ✗ | `/metrics` is a no-op over stdio; `OP_OBS=prom` is silently ignored with a WARN log |
 | `ws://` | ✓ (Holon-RPC) | ✗ | Prometheus scrape uses pure HTTP; not WebSocket |
 | `wss://` | ✓ (Holon-RPC) | ✗ | Same as `ws://` |
-| `http://` | ✓ (Holon-RPC) | ✓ (same listener) | Natural Prometheus host |
-| `https://` | ✓ (Holon-RPC) | ✓ (same listener) | TLS Prometheus |
+| `http://` | ✓ (Holon-RPC) | ✓ (same HTTP listener, different route) | gRPC and `/metrics` share the HTTP server; `metrics_addr` reports the same address |
+| `https://` | ✓ (Holon-RPC) | ✓ (same TLS listener, different route) | Same as `http://`, TLS |
 
-The Prometheus endpoint is bound on a **separate ephemeral port** in
-v1 — distinct from the gRPC listener. The bound address is recorded
-in `.op/run/<address>/<uid>/meta.json` as `metrics_addr`. Multiplex
-onto the gRPC port via HTTP/2 routing is an optimisation for v2.
+Binding rule: when the listener's scheme is HTTP-capable (`http://` /
+`https://`), the SDK serves gRPC and `/metrics` on the same listener
+and `metrics_addr` echoes that listener's address. For any other
+scheme, enabling `prom` binds a **dedicated ephemeral HTTP/1.1 port**
+distinct from the holon's primary listener, and its address is
+recorded in `.op/run/<address>/<uid>/meta.json` as `metrics_addr`.
+Multiplexing gRPC and HTTP on a single non-HTTP listener via
+HTTP/2 routing is an optimisation deferred to v2.
 
 ### Valence and cross-transport observability
 
 For `stdio://` holons (monovalent per [SESSIONS.md §Transport
 Constraints](SESSIONS.md#per-transport-session-behavior)), the single
 session also carries observability traffic: the parent mux demultiplexes
-`HolonObservability.Logs` streams from regular handler RPCs. The holon
-is still a single process with a single session, so no Prometheus
-endpoint is bound; the parent (`op`) reads metrics over gRPC and
-exposes them on behalf of the child if needed.
+`HolonObservability.Logs` streams from regular handler RPCs. No
+Prometheus endpoint is bound regardless of `OP_OBS`; if the operator
+includes `prom` in the env, the SDK emits one WARN log
+(`"prom ignored on stdio:// transport"`) and continues. `op` can
+still read metrics over gRPC and re-expose them on behalf of the
+child via its own aggregator when one is configured.
 
 ---
 
@@ -548,7 +613,15 @@ exposition formatter; individual metrics do not need to declare them.
 
 ### Push — OpenTelemetry Protocol (OTLP)
 
-When `OP_OBS` contains `otel`, the SDK pushes metrics, logs, and
+> **v2.** The OTLP exporter is specified here for implementers
+> planning ahead; the v1 delivery ships only the in-holon Prometheus
+> `/metrics` endpoint described above. In v1, including `otel` in
+> `OP_OBS` or passing `--otel=...` to `op run` is a **startup error**
+> (unknown token — see fail-fast rule in §Layer 3) on every SDK until
+> this section becomes implemented. The flag and env tokens are
+> reserved so that existing usages do not need to migrate.
+
+When `OP_OBS` contains `otel` (v2), the SDK pushes metrics, logs, and
 events to `OP_OTEL_ENDPOINT` on an interval (default 15s, override
 with `OP_OTEL_INTERVAL=<duration>`). The mapping is:
 
@@ -561,7 +634,7 @@ with `OP_OTEL_INTERVAL=<duration>`). The mapping is:
   the accepted vehicle.
 
 Distributed tracing (OTLP spans with W3C trace-context propagation)
-is deferred to v3. The v1 export contract is metrics + logs + events
+is deferred to v3. The v2 export contract is metrics + logs + events
 only.
 
 ### Grafana
@@ -686,9 +759,9 @@ message MetricSample {
   string help = 6;
 
   // Relay path (see LogEntry.chain). Typically empty for metrics:
-  // the root asks `child.Metrics()` directly on each child, so the
-  // stream identifies the source. Populated only when a holon
-  // relays cached grandchild metrics inside its own snapshot.
+  // the caller asks `child.Metrics()` directly on each direct child,
+  // so the stream identifies the source. Populated only when a holon
+  // folds a direct child's cached samples into its own snapshot.
   repeated ChainHop chain = 7;
 }
 
@@ -889,10 +962,12 @@ Flags: `--type <type>` (repeatable), `--since <duration>`,
 
 ### `op ps`
 
-Lists every running instance discovered through `.op/run/` (see
-[INSTANCES.md §CLI](INSTANCES.md#cli--op-ps-and-op-instances)). Columns
-include `UID`, `SLUG`, `PID`, `STARTED`, `MODE`, `TRANSPORT`,
-`ADDRESS`, `METRICS_ADDR`. Supports `--json` and `--all`.
+Full surface (flags, tree rendering, remote-member walk) is owned by
+[INSTANCES.md §CLI — `op ps` and `op instances`](INSTANCES.md#cli--op-ps-and-op-instances).
+For observability purposes, the relevant additions are the
+`METRICS_ADDR` column (populated from `meta.json` when the holon bound
+a Prometheus endpoint) and the `--tree` / `--flat` rendering used by
+`op logs <organism>` to scope the multilog and per-member files.
 
 ---
 

@@ -158,14 +158,18 @@ sides keep their own store.
 
 ### Identity Fields
 
+Each session carries a single `remote_slug` that names the peer
+seen from this holon's point of view — the caller for `INBOUND`
+sessions, the dialed target for `OUTBOUND` sessions. The direction
+field disambiguates.
+
 | Field | Type | Source | Description |
 |---|---|---|---|
 | `session_id` | `string` (UUID v4) | Generated at dial or accept time | Unique per connection |
-| `caller_slug` | `string` | `x-holon-slug` gRPC metadata header | Who initiated |
-| `target_slug` | `string` | From holon.proto or `--listen` URI | Who was dialed |
+| `remote_slug` | `string` | `x-holon-slug` gRPC metadata header (inbound) or `holon.proto` / `--listen` URI (outbound); `"anonymous"` when no header is present | The peer's slug, interpreted per `direction` |
 | `transport` | `string` | `"stdio"`, `"tcp"`, `"unix"`, `"ws"`, `"wss"` | Wire transport |
 | `address` | `string` | `"stdio://"`, `"tcp://127.0.0.1:54321"`, etc. | Concrete endpoint |
-| `direction` | `enum` | `INBOUND` / `OUTBOUND` | Server-side or client-side |
+| `direction` | `enum` | `INBOUND` / `OUTBOUND` | Server-side or client-side; picks which peer `remote_slug` names |
 | `started_at` | `Timestamp` | Clock at gRPC channel ready | When the session became active |
 | `ended_at` | `Timestamp` | Clock at session close | When the session reached `CLOSED` (zero if still open) |
 | `instance_uid` | `string` | `OP_INSTANCE_UID` env (from supervisor, see [INSTANCES.md](INSTANCES.md)) | Owning process UID; empty for manually launched holons |
@@ -174,9 +178,12 @@ sides keep their own store.
 
 The caller SDK injects its holon slug as a gRPC metadata header
 (`x-holon-slug`) on every outbound dial. The server SDK extracts it
-from the first incoming RPC and populates `remote_slug`. If no header is
-present (e.g. a raw gRPC client, a browser, a third-party tool),
-`remote_slug` is `"anonymous"`.
+from the first incoming RPC and populates the `INBOUND` session's
+`remote_slug`. For `OUTBOUND` sessions, `remote_slug` is set from
+the dial target (slug from `holon.proto` or the `--listen` URI). If
+no `x-holon-slug` header is present on an inbound dial (e.g. a raw
+gRPC client, a browser, a third-party tool), `remote_slug` is
+`"anonymous"`.
 
 This is lightweight (no handshake RPC), interceptor-friendly, and aligned
 with standard gRPC metadata patterns.
