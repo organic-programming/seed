@@ -498,7 +498,15 @@ func initializeRuntime(rt *runtimeState) error {
 	rt.toolCacheRoot = filepath.Join(rt.artifactsBaseRoot, "tool-cache")
 	rt.bootstrapRoot = filepath.Join(rt.artifactsBaseRoot, "bootstrap")
 	rt.artifactsRoot = filepath.Join(rt.runsRoot, "run-"+strconv.FormatInt(time.Now().UnixNano(), 10))
-	rt.sharedCacheRoot = filepath.Join(rt.artifactsRoot, "shared")
+	// Slow SDK bootstraps (Ruby grpc gem, Swift packages, …) are keyed by their
+	// own content-hash and must outlive any single test-binary invocation. Default
+	// to a persistent path under artifactsBaseRoot, and honor an outer
+	// GRACE_OP_SHARED_CACHE_DIR so an orchestrator (ader) can redirect it to a
+	// catalogue-scoped cache.
+	rt.sharedCacheRoot = filepath.Join(rt.artifactsBaseRoot, "shared")
+	if outer := strings.TrimSpace(os.Getenv("GRACE_OP_SHARED_CACHE_DIR")); outer != "" {
+		rt.sharedCacheRoot = outer
+	}
 	rt.tempBaseRoot = filepath.Join(os.TempDir(), "seed-int-store-"+strconv.Itoa(os.Getpid()))
 	rt.graceOpRoot = filepath.Join(rt.seedRoot, "holons", "grace-op")
 

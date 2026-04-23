@@ -771,3 +771,21 @@ func waitForCondition(t *testing.T, timeout time.Duration, fn func() bool, messa
 	}
 	t.Fatal(message)
 }
+
+func TestRunEnvironmentExportsPersistentSharedSDKCache(t *testing.T) {
+	toolCache := t.TempDir()
+	paths := repoPaths{ToolCacheDir: toolCache}
+	env := runEnvironment(paths, t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir())
+
+	want := "GRACE_OP_SHARED_CACHE_DIR=" + filepath.Join(toolCache, "grace-op-shared")
+	found := false
+	for _, entry := range env {
+		if entry == want {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("runEnvironment did not export %q; env=%v", want, env)
+	}
+}

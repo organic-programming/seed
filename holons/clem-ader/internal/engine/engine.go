@@ -103,7 +103,7 @@ func run(ctx context.Context, opts RunOptions, progress io.Writer) (*RunResult, 
 	reportDir := filepath.Join(paths.ReportsDir, runID)
 	logDir := filepath.Join(reportDir, reportLogsDir)
 
-	for _, dir := range []string{runArtifactsDir, snapshotRoot, reportDir, logDir, tmpStore, filepath.Join(paths.ToolCacheDir, "go-build"), filepath.Join(paths.ToolCacheDir, "go-mod"), filepath.Join(paths.ToolCacheDir, "gradle"), filepath.Join(paths.ToolCacheDir, "npm"), filepath.Join(paths.ToolCacheDir, "bundle"), filepath.Join(paths.ToolCacheDir, "dart-pub"), filepath.Join(paths.ToolCacheDir, "nuget"), filepath.Join(paths.ToolCacheDir, "dotnet-home")} {
+	for _, dir := range []string{runArtifactsDir, snapshotRoot, reportDir, logDir, tmpStore, filepath.Join(paths.ToolCacheDir, "go-build"), filepath.Join(paths.ToolCacheDir, "go-mod"), filepath.Join(paths.ToolCacheDir, "gradle"), filepath.Join(paths.ToolCacheDir, "npm"), filepath.Join(paths.ToolCacheDir, "bundle"), filepath.Join(paths.ToolCacheDir, "dart-pub"), filepath.Join(paths.ToolCacheDir, "nuget"), filepath.Join(paths.ToolCacheDir, "dotnet-home"), filepath.Join(paths.ToolCacheDir, "grace-op-shared")} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return nil, err
 		}
@@ -579,6 +579,7 @@ func runEnvironment(paths repoPaths, repoRoot string, snapshotRoot string, runAr
 	setEnv("NUGET_PACKAGES", filepath.Join(paths.ToolCacheDir, "nuget"))
 	setEnv("CARGO_TARGET_DIR", filepath.Join(runArtifactsDir, "cargo", "default"))
 	setEnv("PYTHONDONTWRITEBYTECODE", "1")
+	setEnv("GRACE_OP_SHARED_CACHE_DIR", filepath.Join(paths.ToolCacheDir, "grace-op-shared"))
 	return env
 }
 
