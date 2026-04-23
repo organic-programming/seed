@@ -41,6 +41,12 @@ jobs:
           # ader reads commit/branch metadata via git; shallow clones can
           # misreport. Full history is cheap and accurate.
           fetch-depth: 0
+          # Default `git clean -ffdx` wipes untracked/gitignored files —
+          # that includes `ader/catalogues/*/.artifacts/tool-cache/`, which
+          # is the whole point of cross-run persistence. It also fails with
+          # EACCES on Go module cache files (installed read-only). Disable
+          # the clean; tracked files are still refreshed by git checkout.
+          clean: false
 
       - name: Verify toolchain presence
         run: |
