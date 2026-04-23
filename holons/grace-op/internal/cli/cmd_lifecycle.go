@@ -165,6 +165,7 @@ func addLifecycleExecutionFlags(cmd *cobra.Command, includeBuildOnly bool) {
 		cmd.Flags().Bool("clean", false, "clean before building (cannot be combined with --dry-run)")
 		cmd.Flags().Bool("hardened", false, "prepare hardened composite builds for sandboxed or constrained targets by excluding interpreter-dependent members")
 		cmd.Flags().Bool("no-sign", false, "skip automatic ad-hoc signing for bundle artifacts")
+		cmd.Flags().Bool("bump", false, "increment the patch component of identity.version in the proto before building")
 		return
 	}
 	cmd.Flags().Bool("no-sign", false, "skip automatic ad-hoc signing for bundle artifacts")
@@ -190,6 +191,9 @@ func lifecycleArgsFromCommand(cmd *cobra.Command, positional []string) []string 
 	}
 	if noSign, err := cmd.Flags().GetBool("no-sign"); err == nil && noSign {
 		args = append(args, "--no-sign")
+	}
+	if bump, err := cmd.Flags().GetBool("bump"); err == nil && bump {
+		args = append(args, "--bump")
 	}
 	if symlink, err := cmd.Flags().GetBool("symlink"); err == nil && symlink {
 		args = append(args, "--symlink")

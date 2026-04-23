@@ -37,7 +37,7 @@ Language tools and platform tools remain the actual builders.
 ## CLI Contract
 
 ```text
-op build [<holon-or-path>] [--target <target>] [--mode <mode>] [--config <config>] [--dry-run] [--no-sign]
+op build [<holon-or-path>] [--target <target>] [--mode <mode>] [--config <config>] [--bump] [--dry-run] [--no-sign]
 ```
 
 Rules:
@@ -46,6 +46,7 @@ Rules:
 - `--target` selects the platform recipe or runner target
 - `--mode` defaults to `debug` (also: `release`, `profile`).
 - `--config` selects a named build configuration from `build.configs`. Defaults to `build.default_config`.
+- `--bump` opts in to incrementing the patch component of `identity.version` before the build (see Versioning below). Off by default.
 - `--dry-run` prints the resolved build plan without executing it.
 - `--no-sign` skips automatic ad-hoc signing for `.app` and `.framework` bundle artifacts.
 - `op build` does not run tests
@@ -224,25 +225,26 @@ Runner injection:
 
 ## Versioning
 
-`op build` auto-increments the **patch** component of `identity.version`
-on every successful build. Major and minor versions are only changed by
-human or agent action — `op` never touches them.
+`op build` **does not** touch `identity.version` by default. Every
+component of the version — major, minor, and patch — is a human or
+agent decision. Pass `--bump` to opt in to a patch increment before
+the build.
 
 ### Semantics
 
 ```
 identity.version: "1.4.7"
-                   │ │ └── patch: auto-incremented by op build
+                   │ │ └── patch: human/agent sets, or op build --bump increments
                    │ └──── minor: human/agent sets (new feature, backward-compatible)
                    └────── major: human/agent sets (breaking change)
 ```
 
-### Build Flow
+### Build Flow with `--bump`
 
 ```
 proto: version: "1.4.7"
         ↓
-op build:
+op build --bump:
   1. Read version from proto   → 1.4.7
   2. Increment patch           → 1.4.8
   3. Write new version to proto
@@ -253,15 +255,19 @@ op build:
   7. Source template files restored (always)
 ```
 
+Without `--bump`, steps 1–3 and 6 are skipped. Step 4 still resolves
+templates, using whatever version is currently in the proto.
+
 ### Rules
 
 | Rule | Detail |
 |------|--------|
-| **Patch = build counter** | Monotonically incremented by `op build`. |
-| **Major/minor = human decision** | A human writes `version: "2.0.0"` in the proto. The next successful build makes it `2.0.1`. |
-| **No dry-run increment** | `op build --dry-run` does not bump the version. |
-| **Failure-safe** | On build failure, the proto is restored to the original version. |
-| **Git-friendly** | The version bump shows up in `git status` — commit it alongside the build. |
+| **Patch = opt-in bump counter** | Incremented only when `--bump` is passed. |
+| **Major/minor = human decision** | A human writes `version: "2.0.0"` in the proto; nothing in `op` ever touches major or minor. |
+| **Dry-run previews, never writes** | `op build --bump --dry-run` emits a `would bump version: X → Y` note without mutating the proto. |
+| **Failure-safe** | On build failure with `--bump`, the proto is restored to the original version — a failed build never burns a patch number. |
+| **Git-friendly** | The bump shows up in `git status` — commit it alongside the build. |
+| **Member-local** | `--bump` on a composite holon bumps only the composite itself; it does not propagate to `build_member` children. Bump members explicitly by invoking `op build <member> --bump`. |
 | **Universal** | Applies to all runners and all languages. |
 
 ### Resetting the Base
@@ -274,15 +280,16 @@ identity: {
 }
 ```
 
-The next `op build` produces `2.0.1`, then `2.0.2`, etc.
+The next `op build --bump` produces `2.0.1`, then `2.0.2`, etc.
 
 ### No Version Constants in Code
 
 With build-time templates, no holon maintains a hand-written
-version constant. The version flows from the proto through templates:
+version constant. The version flows from the proto through templates,
+whether or not `--bump` was used:
 
 ```
-proto (source of truth) → op build (auto-patch) → template ({{ .Version }}) → built artifact
+proto (source of truth) → [op build --bump increments] → template ({{ .Version }}) → built artifact
 ```
 
 ## Build-Time Templates

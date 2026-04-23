@@ -41,6 +41,7 @@ type BuildOptions struct {
 	Hardened          bool
 	DryRun            bool
 	NoSign            bool
+	Bump              bool
 	Progress          progress.Reporter
 	ResolveRoot       *string
 	ResolveSpecifiers int
@@ -55,6 +56,7 @@ type BuildContext struct {
 	Hardened  bool
 	DryRun    bool
 	NoSign    bool
+	Bump      bool
 	Progress  progress.Reporter
 	composite *compositeBuildExecution
 }
@@ -199,10 +201,11 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 			}
 		}
 
-		// Auto-increment patch version in the proto before build.
-		// On failure the original version is restored; on success it sticks.
-		if !ctx.DryRun {
-			keepVersion, restoreVersion, patchErr := autoIncrementPatch(target.Manifest, reporter)
+		// Opt-in patch bump: only when --bump is set. On failure the original
+		// version is restored; on success it sticks. Under --dry-run the
+		// intended bump is previewed as a report note without writing.
+		if ctx.Bump {
+			keepVersion, restoreVersion, patchErr := autoIncrementPatch(target.Manifest, reporter, &report, ctx.DryRun)
 			if patchErr != nil {
 				err = fmt.Errorf("version increment: %w", patchErr)
 				break
@@ -948,10 +951,35 @@ func renderBuildTemplate(relPath string, original []byte, data templateData) ([]
 }
 
 // autoIncrementPatch bumps the patch component of identity.version in the proto
-// file and updates the in-memory manifest. Returns two closures:
+// file and updates the in-memory manifest. When previewOnly is true, it
+// computes the next version and records a preview note on the report without
+// touching disk or the in-memory manifest. Returns two closures:
 //   - keep: no-op (the bumped proto stays as-is)
 //   - restore: writes back the original proto bytes
-func autoIncrementPatch(manifest *LoadedManifest, reporter progress.Reporter) (keep, restore func(), err error) {
+func autoIncrementPatch(manifest *LoadedManifest, reporter progress.Reporter, report *Report, previewOnly bool) (keep, restore func(), err error) {
+	oldVersion := strings.TrimSpace(manifest.Manifest.Version)
+	parts := strings.SplitN(oldVersion, ".", 3)
+	if len(parts) != 3 {
+		// No valid semver — skip bump silently.
+		return func() {}, func() {}, nil
+	}
+
+	patch, convErr := strconv.Atoi(parts[2])
+	if convErr != nil {
+		return func() {}, func() {}, nil
+	}
+
+	newVersion := parts[0] + "." + parts[1] + "." + strconv.Itoa(patch+1)
+
+	if previewOnly {
+		note := fmt.Sprintf("would bump version: %s → %s", oldVersion, newVersion)
+		reporter.Step(note)
+		if report != nil {
+			report.Notes = append(report.Notes, note)
+		}
+		return func() {}, func() {}, nil
+	}
+
 	protoPath := manifest.Path
 	original, readErr := os.ReadFile(protoPath)
 	if readErr != nil {
@@ -962,20 +990,6 @@ func autoIncrementPatch(manifest *LoadedManifest, reporter progress.Reporter) (k
 	if statErr != nil {
 		return nil, nil, fmt.Errorf("stat proto: %w", statErr)
 	}
-
-	oldVersion := strings.TrimSpace(manifest.Manifest.Version)
-	parts := strings.SplitN(oldVersion, ".", 3)
-	if len(parts) != 3 {
-		// No valid semver — skip auto-patch silently.
-		return func() {}, func() {}, nil
-	}
-
-	patch, convErr := strconv.Atoi(parts[2])
-	if convErr != nil {
-		return func() {}, func() {}, nil
-	}
-
-	newVersion := parts[0] + "." + parts[1] + "." + strconv.Itoa(patch+1)
 
 	// Replace the first occurrence of the version in the proto text.
 	updated := versionLineRe.ReplaceAllFunc(original, func(match []byte) []byte {
@@ -1054,6 +1068,7 @@ func resolveBuildContext(manifest *LoadedManifest, opts BuildOptions) (BuildCont
 		Hardened:  opts.Hardened,
 		DryRun:    opts.DryRun,
 		NoSign:    opts.NoSign,
+		Bump:      opts.Bump,
 		Progress:  opts.Progress,
 		composite: opts.composite,
 	}, nil

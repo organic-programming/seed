@@ -37,6 +37,8 @@ func cmdLifecycle(format Format, runtimeOpts commandRuntimeOptions, operation ho
 			opts.Hardened = true
 		case args[i] == "--no-sign" && operation == holons.OperationBuild:
 			opts.NoSign = true
+		case args[i] == "--bump" && operation == holons.OperationBuild:
+			opts.Bump = true
 		case isDiscoveryFlag(args[i]):
 			discoverySpecs = addDiscoverySpecifier(discoverySpecs, args[i])
 		case strings.HasPrefix(args[i], "--"):
@@ -263,6 +265,8 @@ func parseBuildCommandArgs(args []string) (string, holons.BuildOptions, bool, bo
 			opts.Hardened = true
 		case args[i] == "--no-sign":
 			opts.NoSign = true
+		case args[i] == "--bump":
+			opts.Bump = true
 		case args[i] == "--symlink":
 			symlink = true
 		case isDiscoveryFlag(args[i]):

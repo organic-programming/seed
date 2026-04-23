@@ -104,6 +104,7 @@ func buildOptionsFromProto(options *opv1.BuildOptions) holons.BuildOptions {
 		Hardened: options.GetHardened(),
 		DryRun:   options.GetDryRun(),
 		NoSign:   options.GetNoSign(),
+		Bump:     options.GetBump(),
 	}
 }
 

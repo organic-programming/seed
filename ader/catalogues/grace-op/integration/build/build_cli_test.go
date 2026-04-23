@@ -201,8 +201,8 @@ func TestBuild_05_SymlinkOverwrite(t *testing.T) {
 	finalVersion := strings.TrimSpace(string(outVersion2))
 	t.Logf("Final version output: %s", finalVersion)
 
-	if !strings.Contains(finalVersion, "9.9.100") {
-		t.Fatalf("Regression! Symlink version not updated.\nExpected: 9.9.100 (auto-incremented from 9.9.99 due to dirty tree)\nGot: %s", finalVersion)
+	if !strings.Contains(finalVersion, "9.9.99") {
+		t.Fatalf("Regression! Symlink did not pick up the mutated version.\nExpected: 9.9.99 (no --bump, proto version is authoritative)\nGot: %s", finalVersion)
 	}
 }
 
@@ -236,10 +236,102 @@ func TestBuild_06_Matrix(t *testing.T) {
 					assertBundledDarwinDeps(t, binaryPath)
 				}
 
-				if !strings.Contains(finalVersion, "8.8.89") {
-					t.Fatalf("Regression! Auto-increment backend failed on %s.\nExpected contain: 8.8.89\nGot: %s", ex, finalVersion)
+				if !strings.Contains(finalVersion, "8.8.88") {
+					t.Fatalf("Regression! Template substitution failed on %s.\nExpected contain: 8.8.88 (no --bump, proto version is authoritative)\nGot: %s", ex, finalVersion)
 				}
 			})
 		})
 	}
+}
+
+// TestBuild_07_BumpFlag verifies that --bump increments the patch component of
+// identity.version in the holon.proto and that the built binary reports the
+// new version, while a build without --bump leaves the proto untouched.
+func TestBuild_07_BumpFlag(t *testing.T) {
+	rootPath := absoluteRootPath(t)
+	integration.TeardownHolons(t, rootPath)
+	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
+	testHolon := "gabriel-greeting-go"
+
+	withMutatedHolonVersion(t, testHolon, "7.7.77", func() {
+		protoPath := filepath.Join(rootPath, "examples/hello-world", testHolon, "api/v1/holon.proto")
+		versionRe := regexp.MustCompile(`version:\s*"([^"]+)"`)
+
+		readProtoVersion := func() string {
+			content, err := os.ReadFile(protoPath)
+			if err != nil {
+				t.Fatalf("read holon.proto: %v", err)
+			}
+			match := versionRe.FindStringSubmatch(string(content))
+			if len(match) != 2 {
+				t.Fatalf("could not find version in holon.proto")
+			}
+			return match[1]
+		}
+
+		// Build without --bump: proto version must stay 7.7.77.
+		t.Log("Action 1: build without --bump — proto must not mutate")
+		cmd1 := exec.Command(opBin, "build", testHolon, "--install", "--symlink", "--root", rootPath)
+		cmd1.Env = envVars
+		if out, err := cmd1.CombinedOutput(); err != nil {
+			t.Fatalf("build without --bump failed: %v\nOutput: %s", err, string(out))
+		}
+		if got := readProtoVersion(); got != "7.7.77" {
+			t.Fatalf("Regression! Build without --bump mutated the proto.\nExpected: 7.7.77\nGot: %s", got)
+		}
+
+		// Build with --bump: proto version must advance to 7.7.78, and the
+		// installed binary must report that same version.
+		t.Log("Action 2: build with --bump — patch must advance to 7.7.78")
+		cmd2 := exec.Command(opBin, "build", testHolon, "--bump", "--install", "--symlink", "--root", rootPath)
+		cmd2.Env = envVars
+		if out, err := cmd2.CombinedOutput(); err != nil {
+			t.Fatalf("build with --bump failed: %v\nOutput: %s", err, string(out))
+		}
+		if got := readProtoVersion(); got != "7.7.78" {
+			t.Fatalf("Regression! --bump did not advance the patch.\nExpected: 7.7.78\nGot: %s", got)
+		}
+
+		opBinDir := filepath.Dir(opBin)
+		installedBin := filepath.Join(opBinDir, testHolon)
+		runtimeOut, err := exec.Command(installedBin, "version").CombinedOutput()
+		if err != nil {
+			t.Fatalf("run installed binary: %v", err)
+		}
+		if !strings.Contains(strings.TrimSpace(string(runtimeOut)), "7.7.78") {
+			t.Fatalf("Regression! --bump not reflected in built binary.\nExpected contain: 7.7.78\nGot: %s", string(runtimeOut))
+		}
+	})
+}
+
+// TestBuild_08_BumpDryRun verifies that --bump --dry-run previews the intended
+// version in the progress output without mutating the proto on disk.
+func TestBuild_08_BumpDryRun(t *testing.T) {
+	rootPath := absoluteRootPath(t)
+	integration.TeardownHolons(t, rootPath)
+	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
+	testHolon := "gabriel-greeting-go"
+
+	withMutatedHolonVersion(t, testHolon, "6.6.66", func() {
+		protoPath := filepath.Join(rootPath, "examples/hello-world", testHolon, "api/v1/holon.proto")
+
+		cmd := exec.Command(opBin, "build", testHolon, "--bump", "--dry-run", "--root", rootPath)
+		cmd.Env = envVars
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("dry-run build with --bump failed: %v\nOutput: %s", err, string(out))
+		}
+
+		if !strings.Contains(string(out), "would bump version: 6.6.66 → 6.6.67") {
+			t.Fatalf("Regression! --dry-run --bump did not emit the preview note.\nGot: %s", string(out))
+		}
+
+		content, err := os.ReadFile(protoPath)
+		if err != nil {
+			t.Fatalf("read holon.proto: %v", err)
+		}
+		if !strings.Contains(string(content), `version: "6.6.66"`) {
+			t.Fatalf("Regression! --dry-run --bump mutated the proto.\nExpected proto still contains version: \"6.6.66\"\nGot: %s", string(content))
+		}
+	})
 }

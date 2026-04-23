@@ -27,6 +27,8 @@ func (c cliState) runLifecycleCommand(format Format, quiet bool, operation strin
 			build.Hardened = true
 		case args[i] == "--no-sign" && operation == "build":
 			build.NoSign = true
+		case args[i] == "--bump" && operation == "build":
+			build.Bump = true
 		case strings.HasPrefix(args[i], "--"):
 			fmt.Fprintf(c.stderr, "op %s: unknown flag %q\n", operation, args[i])
 			return 1

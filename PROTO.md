@@ -214,11 +214,13 @@ It is a [semver](https://semver.org) string stored without a `v` prefix
 (e.g. `"0.4.1"`, not `"v0.4.1"`). The `v` is a display convention added
 by CLIs; the datum stays clean.
 
-**Auto-patch**: `op build` auto-increments the patch component on every
-successful build. Major and minor versions are only changed by human or
-agent action. On build failure, the version is restored. See
-[HOLON_BUILD.md § Versioning](./HOLON_BUILD.md#versioning) for the full
-specification.
+**Opt-in patch bump**: `op build` leaves the version untouched by
+default. Pass `--bump` to increment the patch component before the
+build; on failure the proto is restored. Major and minor are never
+touched by `op` — both are human or agent decisions made directly in
+the proto. See
+[holons/grace-op/OP_BUILD.md § Versioning](./holons/grace-op/OP_BUILD.md#versioning)
+for the full specification.
 
 | Facet | How version is surfaced |
 |-------|------------------------|
@@ -230,7 +232,7 @@ specification.
 Version lifecycle:
 
 ```
-0.1.0  →  0.1.1  →  0.1.2  →  ...  (patch: auto-incremented by each op build)
+0.1.0  →  0.1.1  →  0.1.2  →  ...  (patch: incremented by `op build --bump`)
        →  0.2.0 (minor: human sets — new feature, backward-compatible)
        →  1.0.0 (major: human sets — breaking contract change)
 ```
