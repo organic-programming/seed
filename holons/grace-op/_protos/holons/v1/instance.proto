@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package holons.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// HolonInstance is auto-registered by the parent supervisor
+// (typically `op`). It is NOT registered by individual holons —
+// listing instances is a supervisor concern. See INSTANCES.md.
+service HolonInstance {
+  rpc List(ListInstancesRequest) returns (ListInstancesResponse);
+  rpc Get(GetInstanceRequest) returns (InstanceInfo);
+}
+
+message ListInstancesRequest {
+  // Filter by slug. Empty = all slugs.
+  repeated string slugs = 1;
+
+  // Include instances whose PID liveness check failed (stale entries).
+  bool include_stale = 2;
+}
+
+message ListInstancesResponse {
+  repeated InstanceInfo instances = 1;
+}
+
+message GetInstanceRequest {
+  // Full or prefix UID.
+  string uid = 1;
+}
+
+message InstanceInfo {
+  string slug = 1;
+  string uid = 2;
+  int32 pid = 3;
+  google.protobuf.Timestamp started_at = 4;
+  string mode = 5;              // "volatile" | "persistent" | "attached"
+  string transport = 6;         // "stdio" | "tcp" | "unix" | ...
+  string address = 7;           // concrete endpoint
+  string metrics_addr = 8;      // Prometheus /metrics bind, if any
+  string log_path = 9;          // current stdout.log absolute path
+  bool default = 10;            // marked default in registry
+  bool stale = 11;              // PID liveness check failed
+
+  // Organism membership, when set (see INSTANCES.md §Organism Hierarchy).
+  string organism_uid = 12;
+  string organism_slug = 13;
+}

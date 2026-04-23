@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package holons.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "holons/v1/session.proto";
+
+// HolonObservability is auto-registered by the SDK's serve runner
+// when OP_OBS is set. Provides structured logs, metrics snapshots,
+// and lifecycle events. See OBSERVABILITY.md.
+service HolonObservability {
+  // Logs streams log entries. If follow=true, the stream stays open
+  // and emits new entries as they arrive. If follow=false, drains
+  // the current ring buffer and ends.
+  rpc Logs(LogsRequest) returns (stream LogEntry);
+
+  // Metrics returns a point-in-time snapshot of all current metrics.
+  // Unary, not streaming — scraping cadence is the caller's concern.
+  rpc Metrics(MetricsRequest) returns (MetricsSnapshot);
+
+  // Events streams lifecycle events. If follow=true, stays open.
+  rpc Events(EventsRequest) returns (stream EventInfo);
+}
+
+message LogsRequest {
+  LogLevel min_level = 1;
+  repeated string session_ids = 2;
+  repeated string rpc_methods = 3;
+  google.protobuf.Duration since = 4;
+  bool follow = 5;
+}
+
+message LogEntry {
+  google.protobuf.Timestamp ts = 1;
+  LogLevel level = 2;
+  string slug = 3;
+  string instance_uid = 4;
+  string session_id = 5;
+  string rpc_method = 6;
+  string message = 7;
+  map<string, string> fields = 8;
+  string caller = 9;
+
+  // Relay path: ordered hops from the originator up through each
+  // relay before arriving on the stream being read. Empty when the
+  // entry was emitted by the holon whose stream the reader is
+  // consuming. See OBSERVABILITY.md §Organism Relay.
+  repeated ChainHop chain = 10;
+}
+
+message ChainHop {
+  string slug = 1;
+  string instance_uid = 2;
+}
+
+enum LogLevel {
+  LOG_LEVEL_UNSPECIFIED = 0;
+  TRACE = 1;
+  DEBUG = 2;
+  INFO = 3;
+  WARN = 4;
+  ERROR = 5;
+  FATAL = 6;
+}
+
+message MetricsRequest {
+  repeated string name_prefixes = 1;
+  bool include_session_rollup = 2;
+}
+
+message MetricsSnapshot {
+  google.protobuf.Timestamp captured_at = 1;
+  string slug = 2;
+  string instance_uid = 3;
+  repeated MetricSample samples = 4;
+
+  // Populated only when OP_SESSIONS=metrics and the request asks for it.
+  SessionMetrics session_rollup = 5;
+}
+
+message MetricSample {
+  string name = 1;
+  map<string, string> labels = 2;
+  oneof value {
+    int64 counter = 3;
+    double gauge = 4;
+    HistogramSample histogram = 5;
+  }
+  string help = 6;
+
+  // Relay path (see LogEntry.chain). Typically empty for metrics:
+  // the caller asks `child.Metrics()` directly on each direct child,
+  // so the stream identifies the source. Populated only when a holon
+  // folds a direct child's cached samples into its own snapshot.
+  repeated ChainHop chain = 7;
+}
+
+message HistogramSample {
+  // Cumulative buckets — bucket.count includes all samples
+  // where value <= bucket.upper_bound. Prometheus semantics.
+  repeated Bucket buckets = 1;
+  int64 count = 2;
+  double sum = 3;
+}
+
+message Bucket {
+  double upper_bound = 1;
+  int64 count = 2;
+}
+
+message EventsRequest {
+  repeated EventType types = 1;
+  google.protobuf.Duration since = 2;
+  bool follow = 3;
+}
+
+message EventInfo {
+  google.protobuf.Timestamp ts = 1;
+  EventType type = 2;
+  string slug = 3;
+  string instance_uid = 4;
+  string session_id = 5;
+  map<string, string> payload = 6;
+
+  // Relay path (see LogEntry.chain, same semantics).
+  repeated ChainHop chain = 7;
+}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  INSTANCE_SPAWNED = 1;
+  INSTANCE_READY = 2;
+  INSTANCE_EXITED = 3;
+  INSTANCE_CRASHED = 4;
+  SESSION_STARTED = 5;
+  SESSION_ENDED = 6;
+  HANDLER_PANIC = 7;
+  CONFIG_RELOADED = 8;
+}

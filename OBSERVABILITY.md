@@ -659,9 +659,10 @@ Auto-registered by every SDK's serve runner, like `HolonMeta` and
 
 ```protobuf
 syntax = "proto3";
-package holonobservability.v1;
+package holons.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 import "holons/v1/session.proto";  // for SessionMetrics reuse
 
 // HolonObservability is auto-registered by the SDK's serve runner

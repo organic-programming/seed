@@ -186,6 +186,35 @@ message HolonManifest {
   Artifacts artifacts = 13;
   repeated Sequence sequences = 14;
   string guide = 15;             // user-facing documentation in markdown (rendered by `op man`)
+
+  // ── Observability visibility ─────────────────────────
+  // Single dial gating HolonSession.* and HolonObservability.* exposure.
+  // UNSPECIFIED defers to the per-listener default the SDK infers from
+  // the listener's scheme and security mode. See SESSIONS.md §Security
+  // and OBSERVABILITY.md §Security Considerations.
+  ObservabilityVisibility session_visibility = 16;
+
+  // Per-listener overrides. Each override's listener_uri must match a
+  // listener declared in the holon's build/serve config.
+  repeated ListenerVisibilityOverride session_visibility_overrides = 17;
+}
+
+// ObservabilityVisibility gates the HolonSession and HolonObservability
+// services. Declared at file level so protos that need to reference it
+// outside the manifest (manifest extensions, tooling) can import it.
+enum ObservabilityVisibility {
+  OBSERVABILITY_VISIBILITY_UNSPECIFIED = 0;
+  OBSERVABILITY_VISIBILITY_OFF = 1;       // PERMISSION_DENIED on all RPCs
+  OBSERVABILITY_VISIBILITY_SUMMARY = 2;   // Counts/states only; no payloads
+  OBSERVABILITY_VISIBILITY_FULL = 3;      // All fields returned
+}
+
+message ListenerVisibilityOverride {
+  // Listener URI to apply the override to. Matches a listener declared
+  // in the holon's serve config.
+  string listener_uri = 1;
+
+  ObservabilityVisibility visibility = 2;
 }
 
 // Register the manifest as a file-level option.

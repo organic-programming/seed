@@ -1,0 +1,189 @@
+syntax = "proto3";
+
+package holons.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// HolonSession is auto-registered by the SDK's serve runner
+// when OP_SESSIONS is enabled. Provides session introspection.
+// See SESSIONS.md for the full specification.
+service HolonSession {
+  // Sessions returns active and optionally past sessions.
+  rpc Sessions(SessionsRequest) returns (SessionsResponse);
+
+  // WatchSessions streams session lifecycle events as they happen.
+  // Used by `op sessions --watch` and by tooling that needs live
+  // visibility without polling.
+  rpc WatchSessions(WatchSessionsRequest) returns (stream SessionEvent);
+}
+
+message SessionsRequest {
+  // Filter by state. Empty = all non-CLOSED sessions.
+  repeated SessionState state_filter = 1;
+
+  // Filter by direction. UNSPECIFIED = both.
+  SessionDirection direction_filter = 2;
+
+  // Include closed sessions from the history ring buffer.
+  bool include_closed = 3;
+
+  // Maximum number of sessions to return. 0 = server default (100).
+  int32 limit = 4;
+
+  // Opaque continuation token from a previous response.
+  // Empty = start from the beginning.
+  string page_token = 5;
+}
+
+message SessionsResponse {
+  // The holon's own slug.
+  string slug = 1;
+
+  // Matching sessions, ordered by started_at descending.
+  repeated SessionInfo sessions = 2;
+
+  // Continuation token for the next page. Empty = no more results.
+  string next_page_token = 3;
+
+  // Total number of sessions matching the filter (across all pages).
+  int32 total_count = 4;
+}
+
+message SessionInfo {
+  // Unique session identifier (UUID v4).
+  string session_id = 1;
+
+  // Slug of the remote peer. Interpretation depends on direction:
+  // the caller for INBOUND, the dialed target for OUTBOUND.
+  // "anonymous" when no x-holon-slug header was presented on inbound.
+  string remote_slug = 2;
+
+  // Transport scheme used for this session.
+  string transport = 3;
+
+  // Concrete transport address.
+  string address = 4;
+
+  // Whether this holon is the server or client side.
+  SessionDirection direction = 5;
+
+  // Current lifecycle state.
+  SessionState state = 6;
+
+  // When the session was created (dial or accept).
+  google.protobuf.Timestamp started_at = 7;
+
+  // When the state last changed.
+  google.protobuf.Timestamp state_changed_at = 8;
+
+  // When the session reached CLOSED (zero if still open).
+  google.protobuf.Timestamp ended_at = 9;
+
+  // Number of RPCs completed in this session.
+  int64 rpc_count = 10;
+
+  // Last RPC completed timestamp (zero if none).
+  google.protobuf.Timestamp last_rpc_at = 11;
+
+  // Optional per-session metrics (only when OP_SESSIONS=metrics).
+  SessionMetrics metrics = 20;
+
+  // Mesh host name (only on mTLS connections, empty otherwise).
+  string mesh_host = 21;
+
+  // Owning instance UID (see INSTANCES.md). Populated from
+  // OP_INSTANCE_UID set by the parent supervisor. Empty for
+  // manually launched holons. Join key for observability signals
+  // (OBSERVABILITY.md).
+  string instance_uid = 22;
+}
+
+// SessionMetrics is populated only when OP_SESSIONS=metrics.
+// Time is decomposed into four phases: wire_out, queue, work, wire_in.
+message SessionMetrics {
+  int64 total_p50_us = 1;
+  int64 total_p99_us = 2;
+
+  int64 wire_out_p50_us = 3;
+  int64 wire_out_p99_us = 4;
+
+  int64 queue_p50_us = 5;
+  int64 queue_p99_us = 6;
+
+  int64 work_p50_us = 7;
+  int64 work_p99_us = 8;
+
+  int64 wire_in_p50_us = 9;
+  int64 wire_in_p99_us = 10;
+
+  int64 error_count = 11;
+  int64 bytes_sent = 12;
+  int64 bytes_received = 13;
+  int32 in_flight = 14;
+
+  int64 messages_sent = 15;
+  int64 messages_received = 16;
+
+  map<string, MethodMetrics> methods = 20;
+}
+
+message MethodMetrics {
+  int64 call_count = 1;
+  int64 error_count = 2;
+  int32 in_flight = 3;
+
+  int64 total_p50_us = 10;
+  int64 total_p99_us = 11;
+  int64 wire_out_p50_us = 12;
+  int64 wire_out_p99_us = 13;
+  int64 queue_p50_us = 14;
+  int64 queue_p99_us = 15;
+  int64 work_p50_us = 16;
+  int64 work_p99_us = 17;
+  int64 wire_in_p50_us = 18;
+  int64 wire_in_p99_us = 19;
+}
+
+message WatchSessionsRequest {
+  repeated SessionState state_filter = 1;
+  SessionDirection direction_filter = 2;
+
+  // If true, a SessionEvent with kind=SNAPSHOT is emitted for every
+  // currently matching session before the stream transitions to live
+  // events. Useful for clients that need a consistent view.
+  bool send_initial_snapshot = 3;
+}
+
+message SessionEvent {
+  google.protobuf.Timestamp ts = 1;
+  SessionEventKind kind = 2;
+  SessionInfo session = 3;
+
+  // For STATE_CHANGED: the previous state. Zero for other kinds.
+  SessionState previous_state = 4;
+}
+
+enum SessionEventKind {
+  SESSION_EVENT_KIND_UNSPECIFIED = 0;
+  SNAPSHOT = 1;
+  SESSION_CREATED = 2;
+  STATE_CHANGED = 3;
+  METRICS_UPDATED = 4;
+  SESSION_CLOSED = 5;
+}
+
+enum SessionState {
+  SESSION_STATE_UNSPECIFIED = 0;
+  CONNECTING = 1;
+  ACTIVE = 2;
+  STALE = 3;
+  DRAINING = 4;
+  FAILED = 5;
+  CLOSED = 6;
+}
+
+enum SessionDirection {
+  SESSION_DIRECTION_UNSPECIFIED = 0;
+  INBOUND = 1;
+  OUTBOUND = 2;
+}

@@ -22,6 +22,61 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// ObservabilityVisibility gates the HolonSession and HolonObservability
+// services. Declared at file level so protos that need to reference it
+// outside the manifest (manifest extensions, tooling) can import it.
+type ObservabilityVisibility int32
+
+const (
+	ObservabilityVisibility_OBSERVABILITY_VISIBILITY_UNSPECIFIED ObservabilityVisibility = 0
+	ObservabilityVisibility_OBSERVABILITY_VISIBILITY_OFF         ObservabilityVisibility = 1 // PERMISSION_DENIED on all RPCs
+	ObservabilityVisibility_OBSERVABILITY_VISIBILITY_SUMMARY     ObservabilityVisibility = 2 // Counts/states only; no payloads
+	ObservabilityVisibility_OBSERVABILITY_VISIBILITY_FULL        ObservabilityVisibility = 3 // All fields returned
+)
+
+// Enum value maps for ObservabilityVisibility.
+var (
+	ObservabilityVisibility_name = map[int32]string{
+		0: "OBSERVABILITY_VISIBILITY_UNSPECIFIED",
+		1: "OBSERVABILITY_VISIBILITY_OFF",
+		2: "OBSERVABILITY_VISIBILITY_SUMMARY",
+		3: "OBSERVABILITY_VISIBILITY_FULL",
+	}
+	ObservabilityVisibility_value = map[string]int32{
+		"OBSERVABILITY_VISIBILITY_UNSPECIFIED": 0,
+		"OBSERVABILITY_VISIBILITY_OFF":         1,
+		"OBSERVABILITY_VISIBILITY_SUMMARY":     2,
+		"OBSERVABILITY_VISIBILITY_FULL":        3,
+	}
+)
+
+func (x ObservabilityVisibility) Enum() *ObservabilityVisibility {
+	p := new(ObservabilityVisibility)
+	*p = x
+	return p
+}
+
+func (x ObservabilityVisibility) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ObservabilityVisibility) Descriptor() protoreflect.EnumDescriptor {
+	return file_holons_v1_manifest_proto_enumTypes[0].Descriptor()
+}
+
+func (ObservabilityVisibility) Type() protoreflect.EnumType {
+	return &file_holons_v1_manifest_proto_enumTypes[0]
+}
+
+func (x ObservabilityVisibility) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ObservabilityVisibility.Descriptor instead.
+func (ObservabilityVisibility) EnumDescriptor() ([]byte, []int) {
+	return file_holons_v1_manifest_proto_rawDescGZIP(), []int{0}
+}
+
 // HolonManifest is the single source of truth for a holon's identity,
 // contract, skills, documentation, and operational metadata.
 // Any .proto file can carry this manifest via:
@@ -31,22 +86,31 @@ const (
 // See HOLON_PROTO.md for the full authoring specification.
 // See HOLON_PACKAGE.md for how the package is produced from this manifest.
 type HolonManifest struct {
-	state         protoimpl.MessageState    `protogen:"open.v1"`
-	Identity      *HolonManifest_Identity   `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
-	Description   string                    `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"` // what this holon does, plain language
-	Lang          string                    `protobuf:"bytes,4,opt,name=lang,proto3" json:"lang,omitempty"`               // primary implementation language (go, swift, dart, rust…)
-	Skills        []*HolonManifest_Skill    `protobuf:"bytes,5,rep,name=skills,proto3" json:"skills,omitempty"`
-	Contract      *HolonManifest_Contract   `protobuf:"bytes,6,opt,name=contract,proto3" json:"contract,omitempty"`
-	Kind          string                    `protobuf:"bytes,7,opt,name=kind,proto3" json:"kind,omitempty"`           // native | wrapper | composite
-	Platforms     []string                  `protobuf:"bytes,8,rep,name=platforms,proto3" json:"platforms,omitempty"` // supported platforms
-	Transport     string                    `protobuf:"bytes,9,opt,name=transport,proto3" json:"transport,omitempty"` // default transport hint (stdio, tcp)
-	Build         *HolonManifest_Build      `protobuf:"bytes,10,opt,name=build,proto3" json:"build,omitempty"`
-	Requires      *HolonManifest_Requires   `protobuf:"bytes,11,opt,name=requires,proto3" json:"requires,omitempty"`
-	Artifacts     *HolonManifest_Artifacts  `protobuf:"bytes,13,opt,name=artifacts,proto3" json:"artifacts,omitempty"`
-	Sequences     []*HolonManifest_Sequence `protobuf:"bytes,14,rep,name=sequences,proto3" json:"sequences,omitempty"`
-	Guide         string                    `protobuf:"bytes,15,opt,name=guide,proto3" json:"guide,omitempty"` // user-facing documentation in markdown (rendered by `op man`)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState    `protogen:"open.v1"`
+	Identity    *HolonManifest_Identity   `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
+	Description string                    `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"` // what this holon does, plain language
+	Lang        string                    `protobuf:"bytes,4,opt,name=lang,proto3" json:"lang,omitempty"`               // primary implementation language (go, swift, dart, rust…)
+	Skills      []*HolonManifest_Skill    `protobuf:"bytes,5,rep,name=skills,proto3" json:"skills,omitempty"`
+	Contract    *HolonManifest_Contract   `protobuf:"bytes,6,opt,name=contract,proto3" json:"contract,omitempty"`
+	Kind        string                    `protobuf:"bytes,7,opt,name=kind,proto3" json:"kind,omitempty"`           // native | wrapper | composite
+	Platforms   []string                  `protobuf:"bytes,8,rep,name=platforms,proto3" json:"platforms,omitempty"` // supported platforms
+	Transport   string                    `protobuf:"bytes,9,opt,name=transport,proto3" json:"transport,omitempty"` // default transport hint (stdio, tcp)
+	Build       *HolonManifest_Build      `protobuf:"bytes,10,opt,name=build,proto3" json:"build,omitempty"`
+	Requires    *HolonManifest_Requires   `protobuf:"bytes,11,opt,name=requires,proto3" json:"requires,omitempty"`
+	Artifacts   *HolonManifest_Artifacts  `protobuf:"bytes,13,opt,name=artifacts,proto3" json:"artifacts,omitempty"`
+	Sequences   []*HolonManifest_Sequence `protobuf:"bytes,14,rep,name=sequences,proto3" json:"sequences,omitempty"`
+	Guide       string                    `protobuf:"bytes,15,opt,name=guide,proto3" json:"guide,omitempty"` // user-facing documentation in markdown (rendered by `op man`)
+	// ── Observability visibility ─────────────────────────
+	// Single dial gating HolonSession.* and HolonObservability.* exposure.
+	// UNSPECIFIED defers to the per-listener default the SDK infers from
+	// the listener's scheme and security mode. See SESSIONS.md §Security
+	// and OBSERVABILITY.md §Security Considerations.
+	SessionVisibility ObservabilityVisibility `protobuf:"varint,16,opt,name=session_visibility,json=sessionVisibility,proto3,enum=holons.v1.ObservabilityVisibility" json:"session_visibility,omitempty"`
+	// Per-listener overrides. Each override's listener_uri must match a
+	// listener declared in the holon's build/serve config.
+	SessionVisibilityOverrides []*ListenerVisibilityOverride `protobuf:"bytes,17,rep,name=session_visibility_overrides,json=sessionVisibilityOverrides,proto3" json:"session_visibility_overrides,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *HolonManifest) Reset() {
@@ -170,6 +234,74 @@ func (x *HolonManifest) GetGuide() string {
 	return ""
 }
 
+func (x *HolonManifest) GetSessionVisibility() ObservabilityVisibility {
+	if x != nil {
+		return x.SessionVisibility
+	}
+	return ObservabilityVisibility_OBSERVABILITY_VISIBILITY_UNSPECIFIED
+}
+
+func (x *HolonManifest) GetSessionVisibilityOverrides() []*ListenerVisibilityOverride {
+	if x != nil {
+		return x.SessionVisibilityOverrides
+	}
+	return nil
+}
+
+type ListenerVisibilityOverride struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Listener URI to apply the override to. Matches a listener declared
+	// in the holon's serve config.
+	ListenerUri   string                  `protobuf:"bytes,1,opt,name=listener_uri,json=listenerUri,proto3" json:"listener_uri,omitempty"`
+	Visibility    ObservabilityVisibility `protobuf:"varint,2,opt,name=visibility,proto3,enum=holons.v1.ObservabilityVisibility" json:"visibility,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListenerVisibilityOverride) Reset() {
+	*x = ListenerVisibilityOverride{}
+	mi := &file_holons_v1_manifest_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListenerVisibilityOverride) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListenerVisibilityOverride) ProtoMessage() {}
+
+func (x *ListenerVisibilityOverride) ProtoReflect() protoreflect.Message {
+	mi := &file_holons_v1_manifest_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListenerVisibilityOverride.ProtoReflect.Descriptor instead.
+func (*ListenerVisibilityOverride) Descriptor() ([]byte, []int) {
+	return file_holons_v1_manifest_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ListenerVisibilityOverride) GetListenerUri() string {
+	if x != nil {
+		return x.ListenerUri
+	}
+	return ""
+}
+
+func (x *ListenerVisibilityOverride) GetVisibility() ObservabilityVisibility {
+	if x != nil {
+		return x.Visibility
+	}
+	return ObservabilityVisibility_OBSERVABILITY_VISIBILITY_UNSPECIFIED
+}
+
 type HolonManifest_Identity struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Schema        string                 `protobuf:"bytes,1,opt,name=schema,proto3" json:"schema,omitempty"`                           // always "holon/v1"
@@ -188,7 +320,7 @@ type HolonManifest_Identity struct {
 
 func (x *HolonManifest_Identity) Reset() {
 	*x = HolonManifest_Identity{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[1]
+	mi := &file_holons_v1_manifest_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -200,7 +332,7 @@ func (x *HolonManifest_Identity) String() string {
 func (*HolonManifest_Identity) ProtoMessage() {}
 
 func (x *HolonManifest_Identity) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[1]
+	mi := &file_holons_v1_manifest_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -298,7 +430,7 @@ type HolonManifest_Skill struct {
 
 func (x *HolonManifest_Skill) Reset() {
 	*x = HolonManifest_Skill{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[2]
+	mi := &file_holons_v1_manifest_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -310,7 +442,7 @@ func (x *HolonManifest_Skill) String() string {
 func (*HolonManifest_Skill) ProtoMessage() {}
 
 func (x *HolonManifest_Skill) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[2]
+	mi := &file_holons_v1_manifest_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -366,7 +498,7 @@ type HolonManifest_Sequence struct {
 
 func (x *HolonManifest_Sequence) Reset() {
 	*x = HolonManifest_Sequence{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[3]
+	mi := &file_holons_v1_manifest_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -378,7 +510,7 @@ func (x *HolonManifest_Sequence) String() string {
 func (*HolonManifest_Sequence) ProtoMessage() {}
 
 func (x *HolonManifest_Sequence) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[3]
+	mi := &file_holons_v1_manifest_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -433,7 +565,7 @@ type HolonManifest_Contract struct {
 
 func (x *HolonManifest_Contract) Reset() {
 	*x = HolonManifest_Contract{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[4]
+	mi := &file_holons_v1_manifest_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -445,7 +577,7 @@ func (x *HolonManifest_Contract) String() string {
 func (*HolonManifest_Contract) ProtoMessage() {}
 
 func (x *HolonManifest_Contract) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[4]
+	mi := &file_holons_v1_manifest_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -509,7 +641,7 @@ type HolonManifest_Build struct {
 
 func (x *HolonManifest_Build) Reset() {
 	*x = HolonManifest_Build{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[5]
+	mi := &file_holons_v1_manifest_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -521,7 +653,7 @@ func (x *HolonManifest_Build) String() string {
 func (*HolonManifest_Build) ProtoMessage() {}
 
 func (x *HolonManifest_Build) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[5]
+	mi := &file_holons_v1_manifest_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -609,7 +741,7 @@ type HolonManifest_Step struct {
 
 func (x *HolonManifest_Step) Reset() {
 	*x = HolonManifest_Step{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[6]
+	mi := &file_holons_v1_manifest_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -621,7 +753,7 @@ func (x *HolonManifest_Step) String() string {
 func (*HolonManifest_Step) ProtoMessage() {}
 
 func (x *HolonManifest_Step) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[6]
+	mi := &file_holons_v1_manifest_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -734,7 +866,7 @@ type HolonManifest_Requires struct {
 
 func (x *HolonManifest_Requires) Reset() {
 	*x = HolonManifest_Requires{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[7]
+	mi := &file_holons_v1_manifest_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -746,7 +878,7 @@ func (x *HolonManifest_Requires) String() string {
 func (*HolonManifest_Requires) ProtoMessage() {}
 
 func (x *HolonManifest_Requires) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[7]
+	mi := &file_holons_v1_manifest_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -794,7 +926,7 @@ type HolonManifest_Artifacts struct {
 
 func (x *HolonManifest_Artifacts) Reset() {
 	*x = HolonManifest_Artifacts{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[8]
+	mi := &file_holons_v1_manifest_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -806,7 +938,7 @@ func (x *HolonManifest_Artifacts) String() string {
 func (*HolonManifest_Artifacts) ProtoMessage() {}
 
 func (x *HolonManifest_Artifacts) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[8]
+	mi := &file_holons_v1_manifest_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -855,7 +987,7 @@ type HolonManifest_Sequence_Param struct {
 
 func (x *HolonManifest_Sequence_Param) Reset() {
 	*x = HolonManifest_Sequence_Param{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[9]
+	mi := &file_holons_v1_manifest_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -867,7 +999,7 @@ func (x *HolonManifest_Sequence_Param) String() string {
 func (*HolonManifest_Sequence_Param) ProtoMessage() {}
 
 func (x *HolonManifest_Sequence_Param) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[9]
+	mi := &file_holons_v1_manifest_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -921,7 +1053,7 @@ type HolonManifest_Build_Defaults struct {
 
 func (x *HolonManifest_Build_Defaults) Reset() {
 	*x = HolonManifest_Build_Defaults{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[11]
+	mi := &file_holons_v1_manifest_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -933,7 +1065,7 @@ func (x *HolonManifest_Build_Defaults) String() string {
 func (*HolonManifest_Build_Defaults) ProtoMessage() {}
 
 func (x *HolonManifest_Build_Defaults) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[11]
+	mi := &file_holons_v1_manifest_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -974,7 +1106,7 @@ type HolonManifest_Build_Member struct {
 
 func (x *HolonManifest_Build_Member) Reset() {
 	*x = HolonManifest_Build_Member{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[12]
+	mi := &file_holons_v1_manifest_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -986,7 +1118,7 @@ func (x *HolonManifest_Build_Member) String() string {
 func (*HolonManifest_Build_Member) ProtoMessage() {}
 
 func (x *HolonManifest_Build_Member) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[12]
+	mi := &file_holons_v1_manifest_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1032,7 +1164,7 @@ type HolonManifest_Build_Target struct {
 
 func (x *HolonManifest_Build_Target) Reset() {
 	*x = HolonManifest_Build_Target{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[13]
+	mi := &file_holons_v1_manifest_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1044,7 +1176,7 @@ func (x *HolonManifest_Build_Target) String() string {
 func (*HolonManifest_Build_Target) ProtoMessage() {}
 
 func (x *HolonManifest_Build_Target) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[13]
+	mi := &file_holons_v1_manifest_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1077,7 +1209,7 @@ type HolonManifest_Step_Exec struct {
 
 func (x *HolonManifest_Step_Exec) Reset() {
 	*x = HolonManifest_Step_Exec{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[14]
+	mi := &file_holons_v1_manifest_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1089,7 +1221,7 @@ func (x *HolonManifest_Step_Exec) String() string {
 func (*HolonManifest_Step_Exec) ProtoMessage() {}
 
 func (x *HolonManifest_Step_Exec) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[14]
+	mi := &file_holons_v1_manifest_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1129,7 +1261,7 @@ type HolonManifest_Step_Copy struct {
 
 func (x *HolonManifest_Step_Copy) Reset() {
 	*x = HolonManifest_Step_Copy{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[15]
+	mi := &file_holons_v1_manifest_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1141,7 +1273,7 @@ func (x *HolonManifest_Step_Copy) String() string {
 func (*HolonManifest_Step_Copy) ProtoMessage() {}
 
 func (x *HolonManifest_Step_Copy) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[15]
+	mi := &file_holons_v1_manifest_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1180,7 +1312,7 @@ type HolonManifest_Step_AssertFile struct {
 
 func (x *HolonManifest_Step_AssertFile) Reset() {
 	*x = HolonManifest_Step_AssertFile{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[16]
+	mi := &file_holons_v1_manifest_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1192,7 +1324,7 @@ func (x *HolonManifest_Step_AssertFile) String() string {
 func (*HolonManifest_Step_AssertFile) ProtoMessage() {}
 
 func (x *HolonManifest_Step_AssertFile) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[16]
+	mi := &file_holons_v1_manifest_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1225,7 +1357,7 @@ type HolonManifest_Step_CopyArtifact struct {
 
 func (x *HolonManifest_Step_CopyArtifact) Reset() {
 	*x = HolonManifest_Step_CopyArtifact{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[17]
+	mi := &file_holons_v1_manifest_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1237,7 +1369,7 @@ func (x *HolonManifest_Step_CopyArtifact) String() string {
 func (*HolonManifest_Step_CopyArtifact) ProtoMessage() {}
 
 func (x *HolonManifest_Step_CopyArtifact) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[17]
+	mi := &file_holons_v1_manifest_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1278,7 +1410,7 @@ type HolonManifest_Artifacts_TargetArtifacts struct {
 
 func (x *HolonManifest_Artifacts_TargetArtifacts) Reset() {
 	*x = HolonManifest_Artifacts_TargetArtifacts{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[19]
+	mi := &file_holons_v1_manifest_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1290,7 +1422,7 @@ func (x *HolonManifest_Artifacts_TargetArtifacts) String() string {
 func (*HolonManifest_Artifacts_TargetArtifacts) ProtoMessage() {}
 
 func (x *HolonManifest_Artifacts_TargetArtifacts) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[19]
+	mi := &file_holons_v1_manifest_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1348,7 +1480,7 @@ var File_holons_v1_manifest_proto protoreflect.FileDescriptor
 
 const file_holons_v1_manifest_proto_rawDesc = "" +
 	"\n" +
-	"\x18holons/v1/manifest.proto\x12\tholons.v1\x1a google/protobuf/descriptor.proto\"\xc8\x17\n" +
+	"\x18holons/v1/manifest.proto\x12\tholons.v1\x1a google/protobuf/descriptor.proto\"\x84\x19\n" +
 	"\rHolonManifest\x12=\n" +
 	"\bidentity\x18\x01 \x01(\v2!.holons.v1.HolonManifest.IdentityR\bidentity\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x12\n" +
@@ -1363,7 +1495,9 @@ const file_holons_v1_manifest_proto_rawDesc = "" +
 	"\brequires\x18\v \x01(\v2!.holons.v1.HolonManifest.RequiresR\brequires\x12@\n" +
 	"\tartifacts\x18\r \x01(\v2\".holons.v1.HolonManifest.ArtifactsR\tartifacts\x12?\n" +
 	"\tsequences\x18\x0e \x03(\v2!.holons.v1.HolonManifest.SequenceR\tsequences\x12\x14\n" +
-	"\x05guide\x18\x0f \x01(\tR\x05guide\x1a\x8e\x02\n" +
+	"\x05guide\x18\x0f \x01(\tR\x05guide\x12Q\n" +
+	"\x12session_visibility\x18\x10 \x01(\x0e2\".holons.v1.ObservabilityVisibilityR\x11sessionVisibility\x12g\n" +
+	"\x1csession_visibility_overrides\x18\x11 \x03(\v2%.holons.v1.ListenerVisibilityOverrideR\x1asessionVisibilityOverrides\x1a\x8e\x02\n" +
 	"\bIdentity\x12\x16\n" +
 	"\x06schema\x18\x01 \x01(\tR\x06schema\x12\x12\n" +
 	"\x04uuid\x18\x02 \x01(\tR\x04uuid\x12\x1d\n" +
@@ -1452,7 +1586,17 @@ const file_holons_v1_manifest_proto_rawDesc = "" +
 	"\x0fTargetArtifacts\x12\x14\n" +
 	"\x05debug\x18\x01 \x01(\tR\x05debug\x12\x18\n" +
 	"\arelease\x18\x02 \x01(\tR\arelease\x12\x18\n" +
-	"\aprofile\x18\x03 \x01(\tR\aprofileJ\x04\b\x02\x10\x03J\x04\b\f\x10\r:T\n" +
+	"\aprofile\x18\x03 \x01(\tR\aprofileJ\x04\b\x02\x10\x03J\x04\b\f\x10\r\"\x83\x01\n" +
+	"\x1aListenerVisibilityOverride\x12!\n" +
+	"\flistener_uri\x18\x01 \x01(\tR\vlistenerUri\x12B\n" +
+	"\n" +
+	"visibility\x18\x02 \x01(\x0e2\".holons.v1.ObservabilityVisibilityR\n" +
+	"visibility*\xae\x01\n" +
+	"\x17ObservabilityVisibility\x12(\n" +
+	"$OBSERVABILITY_VISIBILITY_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cOBSERVABILITY_VISIBILITY_OFF\x10\x01\x12$\n" +
+	" OBSERVABILITY_VISIBILITY_SUMMARY\x10\x02\x12!\n" +
+	"\x1dOBSERVABILITY_VISIBILITY_FULL\x10\x03:T\n" +
 	"\bmanifest\x12\x1c.google.protobuf.FileOptions\x18І\x03 \x01(\v2\x18.holons.v1.HolonManifestR\bmanifestb\x06proto3"
 
 var (
@@ -1467,59 +1611,65 @@ func file_holons_v1_manifest_proto_rawDescGZIP() []byte {
 	return file_holons_v1_manifest_proto_rawDescData
 }
 
-var file_holons_v1_manifest_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_holons_v1_manifest_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_holons_v1_manifest_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_holons_v1_manifest_proto_goTypes = []any{
-	(*HolonManifest)(nil),                           // 0: holons.v1.HolonManifest
-	(*HolonManifest_Identity)(nil),                  // 1: holons.v1.HolonManifest.Identity
-	(*HolonManifest_Skill)(nil),                     // 2: holons.v1.HolonManifest.Skill
-	(*HolonManifest_Sequence)(nil),                  // 3: holons.v1.HolonManifest.Sequence
-	(*HolonManifest_Contract)(nil),                  // 4: holons.v1.HolonManifest.Contract
-	(*HolonManifest_Build)(nil),                     // 5: holons.v1.HolonManifest.Build
-	(*HolonManifest_Step)(nil),                      // 6: holons.v1.HolonManifest.Step
-	(*HolonManifest_Requires)(nil),                  // 7: holons.v1.HolonManifest.Requires
-	(*HolonManifest_Artifacts)(nil),                 // 8: holons.v1.HolonManifest.Artifacts
-	(*HolonManifest_Sequence_Param)(nil),            // 9: holons.v1.HolonManifest.Sequence.Param
-	nil,                                             // 10: holons.v1.HolonManifest.Build.TargetsEntry
-	(*HolonManifest_Build_Defaults)(nil),            // 11: holons.v1.HolonManifest.Build.Defaults
-	(*HolonManifest_Build_Member)(nil),              // 12: holons.v1.HolonManifest.Build.Member
-	(*HolonManifest_Build_Target)(nil),              // 13: holons.v1.HolonManifest.Build.Target
-	(*HolonManifest_Step_Exec)(nil),                 // 14: holons.v1.HolonManifest.Step.Exec
-	(*HolonManifest_Step_Copy)(nil),                 // 15: holons.v1.HolonManifest.Step.Copy
-	(*HolonManifest_Step_AssertFile)(nil),           // 16: holons.v1.HolonManifest.Step.AssertFile
-	(*HolonManifest_Step_CopyArtifact)(nil),         // 17: holons.v1.HolonManifest.Step.CopyArtifact
-	nil,                                             // 18: holons.v1.HolonManifest.Artifacts.ByTargetEntry
-	(*HolonManifest_Artifacts_TargetArtifacts)(nil), // 19: holons.v1.HolonManifest.Artifacts.TargetArtifacts
-	(*descriptorpb.FileOptions)(nil),                // 20: google.protobuf.FileOptions
+	(ObservabilityVisibility)(0),                    // 0: holons.v1.ObservabilityVisibility
+	(*HolonManifest)(nil),                           // 1: holons.v1.HolonManifest
+	(*ListenerVisibilityOverride)(nil),              // 2: holons.v1.ListenerVisibilityOverride
+	(*HolonManifest_Identity)(nil),                  // 3: holons.v1.HolonManifest.Identity
+	(*HolonManifest_Skill)(nil),                     // 4: holons.v1.HolonManifest.Skill
+	(*HolonManifest_Sequence)(nil),                  // 5: holons.v1.HolonManifest.Sequence
+	(*HolonManifest_Contract)(nil),                  // 6: holons.v1.HolonManifest.Contract
+	(*HolonManifest_Build)(nil),                     // 7: holons.v1.HolonManifest.Build
+	(*HolonManifest_Step)(nil),                      // 8: holons.v1.HolonManifest.Step
+	(*HolonManifest_Requires)(nil),                  // 9: holons.v1.HolonManifest.Requires
+	(*HolonManifest_Artifacts)(nil),                 // 10: holons.v1.HolonManifest.Artifacts
+	(*HolonManifest_Sequence_Param)(nil),            // 11: holons.v1.HolonManifest.Sequence.Param
+	nil,                                             // 12: holons.v1.HolonManifest.Build.TargetsEntry
+	(*HolonManifest_Build_Defaults)(nil),            // 13: holons.v1.HolonManifest.Build.Defaults
+	(*HolonManifest_Build_Member)(nil),              // 14: holons.v1.HolonManifest.Build.Member
+	(*HolonManifest_Build_Target)(nil),              // 15: holons.v1.HolonManifest.Build.Target
+	(*HolonManifest_Step_Exec)(nil),                 // 16: holons.v1.HolonManifest.Step.Exec
+	(*HolonManifest_Step_Copy)(nil),                 // 17: holons.v1.HolonManifest.Step.Copy
+	(*HolonManifest_Step_AssertFile)(nil),           // 18: holons.v1.HolonManifest.Step.AssertFile
+	(*HolonManifest_Step_CopyArtifact)(nil),         // 19: holons.v1.HolonManifest.Step.CopyArtifact
+	nil,                                             // 20: holons.v1.HolonManifest.Artifacts.ByTargetEntry
+	(*HolonManifest_Artifacts_TargetArtifacts)(nil), // 21: holons.v1.HolonManifest.Artifacts.TargetArtifacts
+	(*descriptorpb.FileOptions)(nil),                // 22: google.protobuf.FileOptions
 }
 var file_holons_v1_manifest_proto_depIdxs = []int32{
-	1,  // 0: holons.v1.HolonManifest.identity:type_name -> holons.v1.HolonManifest.Identity
-	2,  // 1: holons.v1.HolonManifest.skills:type_name -> holons.v1.HolonManifest.Skill
-	4,  // 2: holons.v1.HolonManifest.contract:type_name -> holons.v1.HolonManifest.Contract
-	5,  // 3: holons.v1.HolonManifest.build:type_name -> holons.v1.HolonManifest.Build
-	7,  // 4: holons.v1.HolonManifest.requires:type_name -> holons.v1.HolonManifest.Requires
-	8,  // 5: holons.v1.HolonManifest.artifacts:type_name -> holons.v1.HolonManifest.Artifacts
-	3,  // 6: holons.v1.HolonManifest.sequences:type_name -> holons.v1.HolonManifest.Sequence
-	9,  // 7: holons.v1.HolonManifest.Sequence.params:type_name -> holons.v1.HolonManifest.Sequence.Param
-	11, // 8: holons.v1.HolonManifest.Build.defaults:type_name -> holons.v1.HolonManifest.Build.Defaults
-	12, // 9: holons.v1.HolonManifest.Build.members:type_name -> holons.v1.HolonManifest.Build.Member
-	10, // 10: holons.v1.HolonManifest.Build.targets:type_name -> holons.v1.HolonManifest.Build.TargetsEntry
-	14, // 11: holons.v1.HolonManifest.Build.before_commands:type_name -> holons.v1.HolonManifest.Step.Exec
-	14, // 12: holons.v1.HolonManifest.Build.after_commands:type_name -> holons.v1.HolonManifest.Step.Exec
-	14, // 13: holons.v1.HolonManifest.Step.exec:type_name -> holons.v1.HolonManifest.Step.Exec
-	15, // 14: holons.v1.HolonManifest.Step.copy:type_name -> holons.v1.HolonManifest.Step.Copy
-	16, // 15: holons.v1.HolonManifest.Step.assert_file:type_name -> holons.v1.HolonManifest.Step.AssertFile
-	17, // 16: holons.v1.HolonManifest.Step.copy_artifact:type_name -> holons.v1.HolonManifest.Step.CopyArtifact
-	18, // 17: holons.v1.HolonManifest.Artifacts.by_target:type_name -> holons.v1.HolonManifest.Artifacts.ByTargetEntry
-	13, // 18: holons.v1.HolonManifest.Build.TargetsEntry.value:type_name -> holons.v1.HolonManifest.Build.Target
-	6,  // 19: holons.v1.HolonManifest.Build.Target.steps:type_name -> holons.v1.HolonManifest.Step
-	19, // 20: holons.v1.HolonManifest.Artifacts.ByTargetEntry.value:type_name -> holons.v1.HolonManifest.Artifacts.TargetArtifacts
-	20, // 21: holons.v1.manifest:extendee -> google.protobuf.FileOptions
-	0,  // 22: holons.v1.manifest:type_name -> holons.v1.HolonManifest
-	23, // [23:23] is the sub-list for method output_type
-	23, // [23:23] is the sub-list for method input_type
-	22, // [22:23] is the sub-list for extension type_name
-	21, // [21:22] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	3,  // 0: holons.v1.HolonManifest.identity:type_name -> holons.v1.HolonManifest.Identity
+	4,  // 1: holons.v1.HolonManifest.skills:type_name -> holons.v1.HolonManifest.Skill
+	6,  // 2: holons.v1.HolonManifest.contract:type_name -> holons.v1.HolonManifest.Contract
+	7,  // 3: holons.v1.HolonManifest.build:type_name -> holons.v1.HolonManifest.Build
+	9,  // 4: holons.v1.HolonManifest.requires:type_name -> holons.v1.HolonManifest.Requires
+	10, // 5: holons.v1.HolonManifest.artifacts:type_name -> holons.v1.HolonManifest.Artifacts
+	5,  // 6: holons.v1.HolonManifest.sequences:type_name -> holons.v1.HolonManifest.Sequence
+	0,  // 7: holons.v1.HolonManifest.session_visibility:type_name -> holons.v1.ObservabilityVisibility
+	2,  // 8: holons.v1.HolonManifest.session_visibility_overrides:type_name -> holons.v1.ListenerVisibilityOverride
+	0,  // 9: holons.v1.ListenerVisibilityOverride.visibility:type_name -> holons.v1.ObservabilityVisibility
+	11, // 10: holons.v1.HolonManifest.Sequence.params:type_name -> holons.v1.HolonManifest.Sequence.Param
+	13, // 11: holons.v1.HolonManifest.Build.defaults:type_name -> holons.v1.HolonManifest.Build.Defaults
+	14, // 12: holons.v1.HolonManifest.Build.members:type_name -> holons.v1.HolonManifest.Build.Member
+	12, // 13: holons.v1.HolonManifest.Build.targets:type_name -> holons.v1.HolonManifest.Build.TargetsEntry
+	16, // 14: holons.v1.HolonManifest.Build.before_commands:type_name -> holons.v1.HolonManifest.Step.Exec
+	16, // 15: holons.v1.HolonManifest.Build.after_commands:type_name -> holons.v1.HolonManifest.Step.Exec
+	16, // 16: holons.v1.HolonManifest.Step.exec:type_name -> holons.v1.HolonManifest.Step.Exec
+	17, // 17: holons.v1.HolonManifest.Step.copy:type_name -> holons.v1.HolonManifest.Step.Copy
+	18, // 18: holons.v1.HolonManifest.Step.assert_file:type_name -> holons.v1.HolonManifest.Step.AssertFile
+	19, // 19: holons.v1.HolonManifest.Step.copy_artifact:type_name -> holons.v1.HolonManifest.Step.CopyArtifact
+	20, // 20: holons.v1.HolonManifest.Artifacts.by_target:type_name -> holons.v1.HolonManifest.Artifacts.ByTargetEntry
+	15, // 21: holons.v1.HolonManifest.Build.TargetsEntry.value:type_name -> holons.v1.HolonManifest.Build.Target
+	8,  // 22: holons.v1.HolonManifest.Build.Target.steps:type_name -> holons.v1.HolonManifest.Step
+	21, // 23: holons.v1.HolonManifest.Artifacts.ByTargetEntry.value:type_name -> holons.v1.HolonManifest.Artifacts.TargetArtifacts
+	22, // 24: holons.v1.manifest:extendee -> google.protobuf.FileOptions
+	1,  // 25: holons.v1.manifest:type_name -> holons.v1.HolonManifest
+	26, // [26:26] is the sub-list for method output_type
+	26, // [26:26] is the sub-list for method input_type
+	25, // [25:26] is the sub-list for extension type_name
+	24, // [24:25] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_holons_v1_manifest_proto_init() }
@@ -1527,7 +1677,7 @@ func file_holons_v1_manifest_proto_init() {
 	if File_holons_v1_manifest_proto != nil {
 		return
 	}
-	file_holons_v1_manifest_proto_msgTypes[6].OneofWrappers = []any{
+	file_holons_v1_manifest_proto_msgTypes[7].OneofWrappers = []any{
 		(*HolonManifest_Step_Exec_)(nil),
 		(*HolonManifest_Step_Copy_)(nil),
 		(*HolonManifest_Step_BuildMember)(nil),
@@ -1539,13 +1689,14 @@ func file_holons_v1_manifest_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_holons_v1_manifest_proto_rawDesc), len(file_holons_v1_manifest_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   20,
+			NumEnums:      1,
+			NumMessages:   21,
 			NumExtensions: 1,
 			NumServices:   0,
 		},
 		GoTypes:           file_holons_v1_manifest_proto_goTypes,
 		DependencyIndexes: file_holons_v1_manifest_proto_depIdxs,
+		EnumInfos:         file_holons_v1_manifest_proto_enumTypes,
 		MessageInfos:      file_holons_v1_manifest_proto_msgTypes,
 		ExtensionInfos:    file_holons_v1_manifest_proto_extTypes,
 	}.Build()

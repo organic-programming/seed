@@ -36,6 +36,9 @@ PROTO_FILES=(
   "$PROTO_ROOT/holons/v1/manifest.proto"
   "$PROTO_ROOT/holons/v1/describe.proto"
   "$PROTO_ROOT/holons/v1/coax.proto"
+  "$PROTO_ROOT/holons/v1/session.proto"
+  "$PROTO_ROOT/holons/v1/observability.proto"
+  "$PROTO_ROOT/holons/v1/instance.proto"
 )
 PROTO_INCLUDES=(-I "$PROTO_ROOT")
 SUMMARY=()
@@ -104,11 +107,17 @@ generate_go() {
     --go_opt=Mholons/v1/manifest.proto="$go_package" \
     --go_opt=Mholons/v1/describe.proto="$go_package" \
     --go_opt=Mholons/v1/coax.proto="$go_package" \
+    --go_opt=Mholons/v1/session.proto="$go_package" \
+    --go_opt=Mholons/v1/observability.proto="$go_package" \
+    --go_opt=Mholons/v1/instance.proto="$go_package" \
     --go-grpc_out=sdk/go-holons/gen/go \
     --go-grpc_opt=paths=source_relative \
     --go-grpc_opt=Mholons/v1/manifest.proto="$go_package" \
     --go-grpc_opt=Mholons/v1/describe.proto="$go_package" \
     --go-grpc_opt=Mholons/v1/coax.proto="$go_package" \
+    --go-grpc_opt=Mholons/v1/session.proto="$go_package" \
+    --go-grpc_opt=Mholons/v1/observability.proto="$go_package" \
+    --go-grpc_opt=Mholons/v1/instance.proto="$go_package" \
     "${PROTO_FILES[@]}"
   record_summary "go -> sdk/go-holons/gen/go/holons/v1"
 }

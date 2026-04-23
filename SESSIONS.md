@@ -859,14 +859,14 @@ same enum gates both `HolonSession.*` and `HolonObservability.*`.
 
 enum ObservabilityVisibility {
   OBSERVABILITY_VISIBILITY_UNSPECIFIED = 0;
-  OFF = 1;       // Sessions / Metrics / Logs / Events return PERMISSION_DENIED
-  SUMMARY = 2;   // Counts and states only; no payloads, no session/method ids
-  FULL = 3;      // All fields returned
+  OBSERVABILITY_VISIBILITY_OFF = 1;       // All RPCs return PERMISSION_DENIED
+  OBSERVABILITY_VISIBILITY_SUMMARY = 2;   // Counts and states only; no payloads
+  OBSERVABILITY_VISIBILITY_FULL = 3;      // All fields returned
 }
 
 message ListenerVisibilityOverride {
-  // Listener URI to apply the override to. Matches the listener's
-  // `uri` field in the manifest's `serve.listeners` list.
+  // Listener URI to apply the override to. Matches a listener declared
+  // in the holon's serve config.
   string listener_uri = 1;
 
   ObservabilityVisibility visibility = 2;
@@ -878,6 +878,9 @@ message ListenerVisibilityOverride {
 //
 // When `session_visibility` is UNSPECIFIED, the SDK infers the default
 // from the active listener's transport scheme (see the table above).
+// Enum values are prefixed with OBSERVABILITY_VISIBILITY_ to prevent
+// collisions with other package-scoped identifiers; prose in the docs
+// uses the short labels (OFF, SUMMARY, FULL) for readability.
 ```
 
 The field is named `session_visibility` for continuity with this
