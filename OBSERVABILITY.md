@@ -443,35 +443,40 @@ entries.
 
 ### Example: three-level organism
 
-A Flutter organism `gabriel-greeting-app` spawns `gabriel-greeting-go`,
-which in turn dials `phill-files` as a subprocess for local I/O.
+An illustrative Flutter organism `gabriel-greeting-app` spawns
+`gabriel-greeting-go`, which in turn dials `gabriel-greeting-rust`
+for a CPU-bound rendering subtask. In real composite apps, two
+levels (root + direct members) is the common case; three levels
+exercises the relay machinery most cleanly.
 
 ```
 root: gabriel-greeting-app (Dart, organism UID 4a7b8c9d…)
    │  opens gabriel-greeting-go.Logs(follow=true)
    │
    └── gabriel-greeting-go (Go, instance UID ea346efb…)
-         │  opens phill-files.Logs(follow=true)
+         │  opens gabriel-greeting-rust.Logs(follow=true)
          │
-         └── phill-files (Go, instance UID 1c2d3e4f…)
+         └── gabriel-greeting-rust (Rust, instance UID 1c2d3e4f…)
 ```
 
-`phill-files` emits a log `"opened file"`:
+`gabriel-greeting-rust` emits a log `"rendered banner"`:
 
-1. On `phill-files.Logs` (local emission) →
-   `{slug=phill-files, uid=1c2d…, chain=[], message="opened file"}`.
-2. `gabriel-greeting-go` receives it from `phill-files.Logs` and
-   appends that stream source to the chain before re-emitting on its
-   own `Logs` stream →
-   `{slug=phill-files, uid=1c2d…, chain=[{slug=phill-files, uid=1c2d…}]}`.
+1. On `gabriel-greeting-rust.Logs` (local emission) →
+   `{slug=gabriel-greeting-rust, uid=1c2d…, chain=[], message="rendered banner"}`.
+2. `gabriel-greeting-go` receives it from
+   `gabriel-greeting-rust.Logs` and appends that stream source to
+   the chain before re-emitting on its own `Logs` stream →
+   `{slug=gabriel-greeting-rust, uid=1c2d…, chain=[{slug=gabriel-greeting-rust, uid=1c2d…}]}`.
 3. Root reads the entry on `gabriel-greeting-go.Logs`. Wire view:
-   `chain=[{phill-files}]`; the stream source (`gabriel-greeting-go`)
-   is implicit because the root is reading that stream.
+   `chain=[{gabriel-greeting-rust}]`; the stream source
+   (`gabriel-greeting-go`) is implicit because the root is reading
+   that stream.
 4. Before writing to `multilog.jsonl`, the root applies
    [multilog chain enrichment](#multilog-chain-enrichment) — it
    appends the stream source (`gabriel-greeting-go`) →
-   `chain=[{phill-files}, {gabriel-greeting-go}]`. The serialised
-   multilog line stands alone and carries the full relay path.
+   `chain=[{gabriel-greeting-rust}, {gabriel-greeting-go}]`. The
+   serialised multilog line stands alone and carries the full relay
+   path.
 
 ### Transports without outbound dial
 
@@ -503,7 +508,7 @@ Location:
       stdout.log          # written by the child itself (local copy)
       events.jsonl
       members/
-        phill-files/1c2d…/
+        gabriel-greeting-rust/1c2d…/
           stdout.log      # written by the direct-child holon itself
 ```
 
@@ -518,15 +523,15 @@ the root emitted itself, the enriched chain is also empty.
 Example lines (three-level organism, using the worked example above):
 
 ```jsonl
-{"kind":"log","ts":"2026-04-23T18:42:03.112Z","level":"INFO","slug":"phill-files","instance_uid":"1c2d3e4f","chain":[{"slug":"phill-files","instance_uid":"1c2d3e4f"},{"slug":"gabriel-greeting-go","instance_uid":"ea346efb"}],"session_id":"d9e0f1a2","rpc_method":"Read","message":"opened file","fields":{"path":"/tmp/out.mp4","bytes":"4096"},"caller":"reader.go:123"}
-{"kind":"event","ts":"2026-04-23T18:42:03.200Z","type":"SESSION_STARTED","slug":"gabriel-greeting-go","instance_uid":"ea346efb","chain":[{"slug":"gabriel-greeting-go","instance_uid":"ea346efb"}],"session_id":"f3a4b5c6","payload":{"remote_slug":"phill-files","transport":"stdio"}}
+{"kind":"log","ts":"2026-04-23T18:42:03.112Z","level":"INFO","slug":"gabriel-greeting-rust","instance_uid":"1c2d3e4f","chain":[{"slug":"gabriel-greeting-rust","instance_uid":"1c2d3e4f"},{"slug":"gabriel-greeting-go","instance_uid":"ea346efb"}],"session_id":"d9e0f1a2","rpc_method":"SayHello","message":"rendered banner","fields":{"name":"Bob","lang":"en"},"caller":"greeting.rs:42"}
+{"kind":"event","ts":"2026-04-23T18:42:03.200Z","type":"SESSION_STARTED","slug":"gabriel-greeting-go","instance_uid":"ea346efb","chain":[{"slug":"gabriel-greeting-go","instance_uid":"ea346efb"}],"session_id":"f3a4b5c6","payload":{"remote_slug":"gabriel-greeting-rust","transport":"stdio"}}
 {"kind":"metric_sample","ts":"2026-04-23T18:42:15.000Z","name":"holon_handler_in_flight","labels":{"slug":"gabriel-greeting-go","method":"SayHello"},"value":2.0,"chain":[{"slug":"gabriel-greeting-go","instance_uid":"ea346efb"}]}
 ```
 
-In the first line, `phill-files` is the originator; its wire chain at
-the root was `[{phill-files}]`; enrichment appended
-`{gabriel-greeting-go}` (the stream the root was reading) to produce
-the two-element chain shown.
+In the first line, `gabriel-greeting-rust` is the originator; its
+wire chain at the root was `[{gabriel-greeting-rust}]`; enrichment
+appended `{gabriel-greeting-go}` (the stream the root was reading)
+to produce the two-element chain shown.
 
 Merge order: the root's emitter writes strictly in arrival order,
 **not** in timestamp order. Clock skew between holons is the reader's

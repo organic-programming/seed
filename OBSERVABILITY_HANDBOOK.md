@@ -93,7 +93,7 @@ pretty-print it:
 op logs gabriel-greeting-app --json --follow \
   | jq -r '"\(.ts) \(.level) [\(.chain | map(.slug) | join(" ← "))] \(.message)"'
 
-# 2026-04-23T18:42:03.112Z INFO [phill-files ← gabriel-greeting-go] opened file
+# 2026-04-23T18:42:03.112Z INFO [gabriel-greeting-rust ← gabriel-greeting-go] rendered banner
 # 2026-04-23T18:42:03.200Z INFO [gabriel-greeting-go] handled greeting
 ```
 
@@ -132,7 +132,7 @@ op logs gabriel-greeting-app --follow --json
 op logs gabriel-greeting-app --since 1h --follow=false
 
 # Filter by origin (any depth)
-op logs gabriel-greeting-app --chain-origin phill-files --follow
+op logs gabriel-greeting-app --chain-origin gabriel-greeting-rust --follow
 ```
 
 ### 3.2 Reconstruct signal genealogy

@@ -389,10 +389,10 @@ credentials.
 ```
 $ op sessions --all --mesh
 paris.example.com:
-  rob-go:      3 active (1 from lyon, 2 local)
-  phill-files:  1 active (1 from lyon)
+  rob-go:             3 active (1 from lyon, 2 local)
+  matt-calculator-go: 1 active (1 from lyon)
 lyon.example.com:
-  wisupaa:     2 active (2 from paris)
+  wisupaa:            2 active (2 from paris)
 
 Total: 6 active across 2 hosts, 3 holons
 ```
@@ -514,7 +514,7 @@ Each phase tracks independent P50/P99 histograms per method.
 | Holon | Typical RPC | wire | queue | work | Diagnosis |
 |---|---|:---:|:---:|:---:|---|
 | `rob-go` | `Build()` | 1ms | 0ms | 800ms | Work-bound — build is the bottleneck |
-| `phill-files` | `Read()` | 1ms | 0ms | 3ms | Wire-bound — I/O is fast |
+| `matt-calculator-go` | `Probe()` | 1ms | 0ms | 3ms | Wire-bound — lightweight handler |
 | `gudule-greeting` | `SayHello()` | 1ms | 0ms | 0.1ms | Wire-dominated — trivial handler |
 
 Without decomposition, `Transcode()` at P99 = 180s tells you nothing.

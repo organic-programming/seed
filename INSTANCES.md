@@ -344,7 +344,7 @@ layout rooted at the organism:
             pid  meta.json
             stdout.log  events.jsonl  # member's OWN signals, written locally
             members/                  # only present if this member has children
-              phill-files/
+              gabriel-greeting-rust/
                 1c2d3e4f.../
                   pid  meta.json
                   stdout.log  events.jsonl
