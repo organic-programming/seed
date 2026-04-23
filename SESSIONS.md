@@ -96,7 +96,13 @@ the feature out of production unless the operator wants it.
 | Manual launch | `OP_SESSIONS=1 ./my-holon serve --listen tcp://:9090` |
 
 The env var propagates naturally: if `op` launches a composite recipe
-with `--sessions`, all child daemons inherit `OP_SESSIONS=1`.
+with `--sessions`, all child daemons inherit `OP_SESSIONS=1`. Each
+child also receives its **own distinct** `OP_INSTANCE_UID` (see
+[INSTANCES.md §Instance ↔ Session Linkage](INSTANCES.md#instance--session-linkage)),
+so sessions from different recipe members can be disambiguated by
+their owning `instance_uid`. Rolling session metrics up to the
+recipe as a whole is a v2 concern handled by `op proxy`; v1 leaves
+per-child sessions as the finest granularity.
 
 ### Override Semantics
 
@@ -112,6 +118,11 @@ When multiple layers disagree, the higher-priority layer wins:
 When no layer has an explicit opinion, the default is **off**.
 
 ### `op proxy` — Network-Level Activation
+
+> **v2 (requires `op proxy`).** `op proxy` is NOT IMPLEMENTED in v1 (see
+> [OP_PROXY.md](holons/grace-op/OP_PROXY.md)). This subsection describes
+> the intended integration once the proxy ships; nothing in v1 depends
+> on it.
 
 `op proxy` is the transparent routing daemon that sits between caller and target instances. It sees every connection and every RPC — which makes it a natural session activation point.
 
@@ -157,6 +168,7 @@ sides keep their own store.
 | `direction` | `enum` | `INBOUND` / `OUTBOUND` | Server-side or client-side |
 | `started_at` | `Timestamp` | Clock at gRPC channel ready | When the session became active |
 | `ended_at` | `Timestamp` | Clock at session close | When the session reached `CLOSED` (zero if still open) |
+| `instance_uid` | `string` | `OP_INSTANCE_UID` env (from supervisor, see [INSTANCES.md](INSTANCES.md)) | Owning process UID; empty for manually launched holons |
 
 ### Caller Identification
 
@@ -586,6 +598,13 @@ structured logging. But they can **feed into** those systems.
 
 #### `op proxy` as Metrics Collector
 
+> **v2 (requires `op proxy`).** In v1, the Prometheus `/metrics`
+> endpoint lives **in the holon itself** (see
+> [OBSERVABILITY.md §Collection & Export](OBSERVABILITY.md#collection--export)),
+> not in the proxy. When `op proxy` ships, it will aggregate child
+> `/metrics` endpoints and expose a unified surface, but the per-holon
+> exposition is load-bearing on its own.
+
 Because `op proxy` governs network topology, it is the
 natural bridge between session metrics and production observability. It
 already collects per-method latency, error rates, and call counts.
@@ -629,6 +648,12 @@ import "google/protobuf/timestamp.proto";
 service HolonSession {
   // Sessions returns active and optionally past sessions.
   rpc Sessions(SessionsRequest) returns (SessionsResponse);
+
+  // WatchSessions streams session lifecycle events as they happen.
+  // Used by `op sessions --watch` and by tooling that needs live
+  // visibility without polling. When the client disconnects, the
+  // server-side subscription is torn down.
+  rpc WatchSessions(WatchSessionsRequest) returns (stream SessionEvent);
 }
 
 message SessionsRequest {
@@ -703,6 +728,11 @@ message SessionInfo {
 
   // Mesh host name (only on mTLS connections, empty otherwise).
   string mesh_host = 21;
+
+  // Owning instance UID (see INSTANCES.md). Populated from OP_INSTANCE_UID
+  // set by the parent supervisor. Empty for manually launched holons.
+  // This is the join key for observability signals (OBSERVABILITY.md).
+  string instance_uid = 22;
 }
 
 // SessionMetrics is populated only when OP_SESSIONS=metrics.
@@ -758,6 +788,42 @@ message MethodMetrics {
   int64 wire_in_p99_us = 19;
 }
 
+message WatchSessionsRequest {
+  // Filter by state. Empty = all non-CLOSED sessions.
+  repeated SessionState state_filter = 1;
+
+  // Filter by direction. UNSPECIFIED = both.
+  SessionDirection direction_filter = 2;
+
+  // If true, an initial SessionEvent with kind=SNAPSHOT is emitted
+  // for every currently matching session before the stream transitions
+  // to live events. Useful for clients that need a consistent view.
+  bool send_initial_snapshot = 3;
+}
+
+message SessionEvent {
+  // When the event was observed.
+  google.protobuf.Timestamp ts = 1;
+
+  // What kind of change occurred.
+  SessionEventKind kind = 2;
+
+  // The session involved. Always populated.
+  SessionInfo session = 3;
+
+  // For STATE_CHANGED: the previous state. Zero for other kinds.
+  SessionState previous_state = 4;
+}
+
+enum SessionEventKind {
+  SESSION_EVENT_KIND_UNSPECIFIED = 0;
+  SNAPSHOT = 1;          // replay of pre-existing session at stream start
+  SESSION_CREATED = 2;   // new SessionInfo entered the store
+  STATE_CHANGED = 3;     // transition between lifecycle states
+  METRICS_UPDATED = 4;   // rpc_count / last_rpc_at changed (rate-limited)
+  SESSION_CLOSED = 5;    // transitioned to CLOSED and moved to history
+}
+
 enum SessionState {
   SESSION_STATE_UNSPECIFIED = 0;
   CONNECTING = 1;
@@ -774,6 +840,43 @@ enum SessionDirection {
   OUTBOUND = 2;
 }
 ```
+
+### Manifest additions
+
+The visibility vocabulary needs a home in the manifest proto. These
+additions are shared with [OBSERVABILITY.md](OBSERVABILITY.md) — the
+same enum gates both `HolonSession.*` and `HolonObservability.*`.
+
+```protobuf
+// Added to holons/v1/manifest.proto
+
+enum ObservabilityVisibility {
+  OBSERVABILITY_VISIBILITY_UNSPECIFIED = 0;
+  OFF = 1;       // Sessions / Metrics / Logs / Events return PERMISSION_DENIED
+  SUMMARY = 2;   // Counts and states only; no payloads, no session/method ids
+  FULL = 3;      // All fields returned
+}
+
+message ListenerVisibilityOverride {
+  // Listener URI to apply the override to. Matches the listener's
+  // `uri` field in the manifest's `serve.listeners` list.
+  string listener_uri = 1;
+
+  ObservabilityVisibility visibility = 2;
+}
+
+// HolonManifest gains two optional fields:
+//   ObservabilityVisibility session_visibility = 16;
+//   repeated ListenerVisibilityOverride session_visibility_overrides = 17;
+//
+// When `session_visibility` is UNSPECIFIED, the SDK infers the default
+// from the active listener's transport scheme (see the table above).
+```
+
+The field is named `session_visibility` for continuity with this
+spec; the enum type `ObservabilityVisibility` signals that the same
+dial applies to logs, metrics, and events in `HolonObservability`.
+A single knob, a single source of truth.
 
 ---
 
@@ -904,16 +1007,21 @@ Showing 100 of 347 sessions. Next page: --page=eyJvZmZzZXQiOjEwMH0=
 
 Each SDK implements the same model. Key considerations:
 
-| SDK | Session store | Interceptor mechanism |
-|---|---|---|
-| **Go** | `sync.Mutex` + `map` + ring buffer | gRPC `UnaryServerInterceptor` |
-| **Swift** | Actor-based store | `ServerInterceptorFactory` |
-| **Dart** | `Map` + `StreamController` | gRPC interceptor |
-| **Rust** | `Arc<Mutex<HashMap>>` + `VecDeque` | tonic `Interceptor` |
-| **Kotlin** | `ConcurrentHashMap` + `ArrayDeque` | gRPC `ServerInterceptor` |
-| **C#** | `ConcurrentDictionary` + bounded channel | gRPC interceptor |
-| **Python** | `dict` + `deque(maxlen=N)` | gRPC interceptor |
-| **Node.js** | `Map` + circular buffer | gRPC middleware |
+| SDK | Session store | Interceptor mechanism | HDR histogram library |
+|---|---|---|---|
+| **Go** | `sync.Mutex` + `map` + ring buffer | gRPC `UnaryServerInterceptor` | `HdrHistogram/hdrhistogram-go` |
+| **Swift** | Actor-based store | `ServerInterceptorFactory` | `HdrHistogram.swift` |
+| **Dart** | `Map` + `StreamController` | gRPC interceptor | `hdr_histogram` (pub) |
+| **Rust** | `Arc<Mutex<HashMap>>` + `VecDeque` | tonic `Interceptor` | `hdrhistogram` crate |
+| **Kotlin** | `ConcurrentHashMap` + `ArrayDeque` | gRPC `ServerInterceptor` | `HdrHistogram` (JVM) |
+| **C#** | `ConcurrentDictionary` + bounded channel | gRPC interceptor | `HdrHistogram.NET` |
+| **Python** | `dict` + `deque(maxlen=N)` | gRPC interceptor | `hdrh` |
+| **Node.js** | `Map` + circular buffer | gRPC middleware | `hdr-histogram-js` |
+| **Java** | `ConcurrentHashMap` + `ArrayDeque` | gRPC `ServerInterceptor` | `HdrHistogram` |
+| **Ruby** | `Hash` + bounded array | gRPC interceptor | `hdrhistogram` gem |
+| **C** | hash table + ring buffer | interceptor via bridge | `HdrHistogram_c` |
+| **C++** | `std::unordered_map` + mutex | gRPC interceptor | `HdrHistogram_c` |
+| **JS-web** | `Map` + circular buffer | gRPC-web middleware | `hdr-histogram-js` |
 
 The proto definition is canonical. All SDKs implement the same states and
 the same `Sessions` RPC response shape.
@@ -977,9 +1085,16 @@ privileged backdoor.
 ## Open Questions
 
 1. **Persistent history** — is the in-memory ring buffer sufficient for
-   v1, or should a file-backed log (`~/.op/sessions.log`) be considered?
-2. **Session events stream** — should there be a `WatchSessions` streaming
-   RPC for real-time monitoring (useful for `op sessions --watch`)?
-3. **Holon-RPC sessions** — WebSocket connections via Holon-RPC binding
+   v1, or should a file-backed log be considered? Note:
+   [INSTANCES.md §Log Contract](INSTANCES.md#log-contract) already
+   defines `events.jsonl` per-instance on disk, and `SESSION_STARTED` /
+   `SESSION_ENDED` events are emitted into it; this gives post-mortem
+   reconstruction without a dedicated sessions log. The question
+   remains whether `HolonSession.Sessions --history` should read the
+   disk store as a fallback when the in-memory ring is exhausted.
+2. **Holon-RPC sessions** — WebSocket connections via Holon-RPC binding
    should have sessions too. Same model, different transport metadata. Is
    this in scope for v1?
+
+*Open Question #2 from an earlier draft — `WatchSessions` streaming RPC
+— has been adopted and is part of the service definition above.*

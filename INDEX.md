@@ -20,6 +20,8 @@
 | ✅ | - | [DISCOVERY.md](DISCOVERY.md) | Cross-SDK discovery algorithm and API |
 | ? | - | [INSTANCES.md](INSTANCES.md) | Instance lifecycle and registry |
 | ? | ? | [MCP.md](MCP.md) | MCP exposure via `op mcp` |
+| ? | - | [OBSERVABILITY.md](OBSERVABILITY.md) | Structured logs, metrics, lifecycle events; Prometheus & OTLP interop |
+| ? | - | [OBSERVABILITY_HANDBOOK.md](OBSERVABILITY_HANDBOOK.md) | User-facing cookbook: recipes for tailing, multilog, Loki/Grafana, post-mortem |
 | ✅ | ? | [PACKAGE.md](PACKAGE.md) | `.holon` package format |
 | ? | ? | [PROTO.md](PROTO.md) | `holon.proto` — the holon descriptor format |
 | ? | ? | [README.md](README.md) | Root repository overview |
