@@ -22,7 +22,7 @@ namespace Holons.V1 {
   /// This service is recursive: a member that is itself an organism
   /// exposes its own CoaxService at its own level.
   ///
-  /// See AGENT.md Article 1 for the COAX principle.
+  /// See CONSTITUTION.md Article 1 for the COAX principle.
   /// See apps_kits/DESIGN.md for how App Kits implement this surface.
   /// </summary>
   public static partial class CoaxService
@@ -150,6 +150,9 @@ namespace Holons.V1 {
       /// Equivalent to browsing the holon picker in the UI.
       /// The organism controls which members are listed — internal holons
       /// may be intentionally omitted to keep the exposure surface minimal.
+      /// Organism Kits provide built-in exposure strategies (all, filtered,
+      /// or none) — the organism picks one, no custom filtering needed.
+      /// @example {}
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -162,6 +165,7 @@ namespace Holons.V1 {
 
       /// <summary>
       /// Query the runtime status of a specific member.
+      /// @example {"slug":"gabriel-greeting-go"}
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -177,6 +181,7 @@ namespace Holons.V1 {
       /// The organism resolves the member, launches its process if necessary,
       /// and establishes a gRPC channel — identical to a user selecting a
       /// holon in a picker.
+      /// @example {"slug":"gabriel-greeting-go","transport":"tcp"}
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -189,6 +194,7 @@ namespace Holons.V1 {
 
       /// <summary>
       /// Disconnect a member holon.
+      /// @example {"slug":"gabriel-greeting-go"}
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -210,6 +216,7 @@ namespace Holons.V1 {
       /// Tell operates at the organism level: it is the single entry point
       /// for an external caller to interact with any member without needing
       /// to discover and connect to each one separately.
+      /// @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -228,6 +235,7 @@ namespace Holons.V1 {
       /// call an RPC on a server that is not running. The COAX server is
       /// started by the organism itself (UI toggle, launch argument, or
       /// startup configuration).
+      /// @example {}
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -272,6 +280,9 @@ namespace Holons.V1 {
       /// Equivalent to browsing the holon picker in the UI.
       /// The organism controls which members are listed — internal holons
       /// may be intentionally omitted to keep the exposure surface minimal.
+      /// Organism Kits provide built-in exposure strategies (all, filtered,
+      /// or none) — the organism picks one, no custom filtering needed.
+      /// @example {}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -288,6 +299,9 @@ namespace Holons.V1 {
       /// Equivalent to browsing the holon picker in the UI.
       /// The organism controls which members are listed — internal holons
       /// may be intentionally omitted to keep the exposure surface minimal.
+      /// Organism Kits provide built-in exposure strategies (all, filtered,
+      /// or none) — the organism picks one, no custom filtering needed.
+      /// @example {}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -302,6 +316,9 @@ namespace Holons.V1 {
       /// Equivalent to browsing the holon picker in the UI.
       /// The organism controls which members are listed — internal holons
       /// may be intentionally omitted to keep the exposure surface minimal.
+      /// Organism Kits provide built-in exposure strategies (all, filtered,
+      /// or none) — the organism picks one, no custom filtering needed.
+      /// @example {}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -318,6 +335,9 @@ namespace Holons.V1 {
       /// Equivalent to browsing the holon picker in the UI.
       /// The organism controls which members are listed — internal holons
       /// may be intentionally omitted to keep the exposure surface minimal.
+      /// Organism Kits provide built-in exposure strategies (all, filtered,
+      /// or none) — the organism picks one, no custom filtering needed.
+      /// @example {}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -329,6 +349,7 @@ namespace Holons.V1 {
       }
       /// <summary>
       /// Query the runtime status of a specific member.
+      /// @example {"slug":"gabriel-greeting-go"}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -342,6 +363,7 @@ namespace Holons.V1 {
       }
       /// <summary>
       /// Query the runtime status of a specific member.
+      /// @example {"slug":"gabriel-greeting-go"}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -353,6 +375,7 @@ namespace Holons.V1 {
       }
       /// <summary>
       /// Query the runtime status of a specific member.
+      /// @example {"slug":"gabriel-greeting-go"}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -366,6 +389,7 @@ namespace Holons.V1 {
       }
       /// <summary>
       /// Query the runtime status of a specific member.
+      /// @example {"slug":"gabriel-greeting-go"}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -380,6 +404,7 @@ namespace Holons.V1 {
       /// The organism resolves the member, launches its process if necessary,
       /// and establishes a gRPC channel — identical to a user selecting a
       /// holon in a picker.
+      /// @example {"slug":"gabriel-greeting-go","transport":"tcp"}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -396,6 +421,7 @@ namespace Holons.V1 {
       /// The organism resolves the member, launches its process if necessary,
       /// and establishes a gRPC channel — identical to a user selecting a
       /// holon in a picker.
+      /// @example {"slug":"gabriel-greeting-go","transport":"tcp"}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -410,6 +436,7 @@ namespace Holons.V1 {
       /// The organism resolves the member, launches its process if necessary,
       /// and establishes a gRPC channel — identical to a user selecting a
       /// holon in a picker.
+      /// @example {"slug":"gabriel-greeting-go","transport":"tcp"}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -426,6 +453,7 @@ namespace Holons.V1 {
       /// The organism resolves the member, launches its process if necessary,
       /// and establishes a gRPC channel — identical to a user selecting a
       /// holon in a picker.
+      /// @example {"slug":"gabriel-greeting-go","transport":"tcp"}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -437,6 +465,7 @@ namespace Holons.V1 {
       }
       /// <summary>
       /// Disconnect a member holon.
+      /// @example {"slug":"gabriel-greeting-go"}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -450,6 +479,7 @@ namespace Holons.V1 {
       }
       /// <summary>
       /// Disconnect a member holon.
+      /// @example {"slug":"gabriel-greeting-go"}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -461,6 +491,7 @@ namespace Holons.V1 {
       }
       /// <summary>
       /// Disconnect a member holon.
+      /// @example {"slug":"gabriel-greeting-go"}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -474,6 +505,7 @@ namespace Holons.V1 {
       }
       /// <summary>
       /// Disconnect a member holon.
+      /// @example {"slug":"gabriel-greeting-go"}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -494,6 +526,7 @@ namespace Holons.V1 {
       /// Tell operates at the organism level: it is the single entry point
       /// for an external caller to interact with any member without needing
       /// to discover and connect to each one separately.
+      /// @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -516,6 +549,7 @@ namespace Holons.V1 {
       /// Tell operates at the organism level: it is the single entry point
       /// for an external caller to interact with any member without needing
       /// to discover and connect to each one separately.
+      /// @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -536,6 +570,7 @@ namespace Holons.V1 {
       /// Tell operates at the organism level: it is the single entry point
       /// for an external caller to interact with any member without needing
       /// to discover and connect to each one separately.
+      /// @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -558,6 +593,7 @@ namespace Holons.V1 {
       /// Tell operates at the organism level: it is the single entry point
       /// for an external caller to interact with any member without needing
       /// to discover and connect to each one separately.
+      /// @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -575,6 +611,7 @@ namespace Holons.V1 {
       /// call an RPC on a server that is not running. The COAX server is
       /// started by the organism itself (UI toggle, launch argument, or
       /// startup configuration).
+      /// @example {}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -594,6 +631,7 @@ namespace Holons.V1 {
       /// call an RPC on a server that is not running. The COAX server is
       /// started by the organism itself (UI toggle, launch argument, or
       /// startup configuration).
+      /// @example {}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -611,6 +649,7 @@ namespace Holons.V1 {
       /// call an RPC on a server that is not running. The COAX server is
       /// started by the organism itself (UI toggle, launch argument, or
       /// startup configuration).
+      /// @example {}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -630,6 +669,7 @@ namespace Holons.V1 {
       /// call an RPC on a server that is not running. The COAX server is
       /// started by the organism itself (UI toggle, launch argument, or
       /// startup configuration).
+      /// @example {}
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>

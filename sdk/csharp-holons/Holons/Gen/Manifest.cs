@@ -25,7 +25,7 @@ namespace Holons.V1 {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "Chhob2xvbnMvdjEvbWFuaWZlc3QucHJvdG8SCWhvbG9ucy52MRogZ29vZ2xl",
-            "L3Byb3RvYnVmL2Rlc2NyaXB0b3IucHJvdG8iyREKDUhvbG9uTWFuaWZlc3QS",
+            "L3Byb3RvYnVmL2Rlc2NyaXB0b3IucHJvdG8izxMKDUhvbG9uTWFuaWZlc3QS",
             "MwoIaWRlbnRpdHkYASABKAsyIS5ob2xvbnMudjEuSG9sb25NYW5pZmVzdC5J",
             "ZGVudGl0eRITCgtkZXNjcmlwdGlvbhgDIAEoCRIMCgRsYW5nGAQgASgJEi4K",
             "BnNraWxscxgFIAMoCzIeLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0LlNraWxs",
@@ -36,56 +36,68 @@ namespace Holons.V1 {
             "djEuSG9sb25NYW5pZmVzdC5SZXF1aXJlcxI1CglhcnRpZmFjdHMYDSABKAsy",
             "Ii5ob2xvbnMudjEuSG9sb25NYW5pZmVzdC5BcnRpZmFjdHMSNAoJc2VxdWVu",
             "Y2VzGA4gAygLMiEuaG9sb25zLnYxLkhvbG9uTWFuaWZlc3QuU2VxdWVuY2US",
-            "DQoFZ3VpZGUYDyABKAkauAEKCElkZW50aXR5Eg4KBnNjaGVtYRgBIAEoCRIM",
-            "CgR1dWlkGAIgASgJEhIKCmdpdmVuX25hbWUYAyABKAkSEwoLZmFtaWx5X25h",
-            "bWUYBCABKAkSDQoFbW90dG8YBSABKAkSEAoIY29tcG9zZXIYBiABKAkSDgoG",
-            "c3RhdHVzGAggASgJEgwKBGJvcm4YCSABKAkSDwoHdmVyc2lvbhgKIAEoCRIP",
-            "CgdhbGlhc2VzGAsgAygJSgQIBxAIGkcKBVNraWxsEgwKBG5hbWUYASABKAkS",
-            "EwoLZGVzY3JpcHRpb24YAiABKAkSDAoEd2hlbhgDIAEoCRINCgVzdGVwcxgE",
-            "IAMoCRrEAQoIU2VxdWVuY2USDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlv",
-            "bhgCIAEoCRI3CgZwYXJhbXMYAyADKAsyJy5ob2xvbnMudjEuSG9sb25NYW5p",
-            "ZmVzdC5TZXF1ZW5jZS5QYXJhbRINCgVzdGVwcxgEIAMoCRpNCgVQYXJhbRIM",
-            "CgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEhAKCHJlcXVpcmVk",
-            "GAMgASgIEg8KB2RlZmF1bHQYBCABKAkaOAoIQ29udHJhY3QSDQoFcHJvdG8Y",
-            "ASABKAkSDwoHc2VydmljZRgCIAEoCRIMCgRycGNzGAMgAygJGtQDCgVCdWls",
-            "ZBIOCgZydW5uZXIYASABKAkSDAoEbWFpbhgCIAEoCRI5CghkZWZhdWx0cxgD",
-            "IAEoCzInLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0LkJ1aWxkLkRlZmF1bHRz",
-            "EjYKB21lbWJlcnMYBCADKAsyJS5ob2xvbnMudjEuSG9sb25NYW5pZmVzdC5C",
-            "dWlsZC5NZW1iZXISPAoHdGFyZ2V0cxgFIAMoCzIrLmhvbG9ucy52MS5Ib2xv",
-            "bk1hbmlmZXN0LkJ1aWxkLlRhcmdldHNFbnRyeRIRCgl0ZW1wbGF0ZXMYBiAD",
-            "KAkaVQoMVGFyZ2V0c0VudHJ5EgsKA2tleRgBIAEoCRI0CgV2YWx1ZRgCIAEo",
-            "CzIlLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0LkJ1aWxkLlRhcmdldDoCOAEa",
-            "KAoIRGVmYXVsdHMSDgoGdGFyZ2V0GAEgASgJEgwKBG1vZGUYAiABKAkaMAoG",
-            "TWVtYmVyEgoKAmlkGAEgASgJEgwKBHBhdGgYAiABKAkSDAoEdHlwZRgDIAEo",
-            "CRo2CgZUYXJnZXQSLAoFc3RlcHMYASADKAsyHS5ob2xvbnMudjEuSG9sb25N",
-            "YW5pZmVzdC5TdGVwGqEDCgRTdGVwEjIKBGV4ZWMYASABKAsyIi5ob2xvbnMu",
-            "djEuSG9sb25NYW5pZmVzdC5TdGVwLkV4ZWNIABIyCgRjb3B5GAIgASgLMiIu",
-            "aG9sb25zLnYxLkhvbG9uTWFuaWZlc3QuU3RlcC5Db3B5SAASFgoMYnVpbGRf",
-            "bWVtYmVyGAMgASgJSAASPwoLYXNzZXJ0X2ZpbGUYBCABKAsyKC5ob2xvbnMu",
-            "djEuSG9sb25NYW5pZmVzdC5TdGVwLkFzc2VydEZpbGVIABJDCg1jb3B5X2Fy",
-            "dGlmYWN0GAUgASgLMiouaG9sb25zLnYxLkhvbG9uTWFuaWZlc3QuU3RlcC5D",
-            "b3B5QXJ0aWZhY3RIABohCgRFeGVjEgsKA2N3ZBgBIAEoCRIMCgRhcmd2GAIg",
-            "AygJGiAKBENvcHkSDAoEZnJvbRgBIAEoCRIKCgJ0bxgCIAEoCRoaCgpBc3Nl",
-            "cnRGaWxlEgwKBHBhdGgYASABKAkaKAoMQ29weUFydGlmYWN0EgwKBGZyb20Y",
-            "ASABKAkSCgoCdG8YAiABKAlCCAoGYWN0aW9uGj4KCFJlcXVpcmVzEhAKCGNv",
-            "bW1hbmRzGAEgAygJEg0KBWZpbGVzGAIgAygJEhEKCXBsYXRmb3JtcxgDIAMo",
-            "CRqaAgoJQXJ0aWZhY3RzEg4KBmJpbmFyeRgBIAEoCRIPCgdwcmltYXJ5GAIg",
-            "ASgJEkMKCWJ5X3RhcmdldBgDIAMoCzIwLmhvbG9ucy52MS5Ib2xvbk1hbmlm",
-            "ZXN0LkFydGlmYWN0cy5CeVRhcmdldEVudHJ5GmMKDUJ5VGFyZ2V0RW50cnkS",
-            "CwoDa2V5GAEgASgJEkEKBXZhbHVlGAIgASgLMjIuaG9sb25zLnYxLkhvbG9u",
-            "TWFuaWZlc3QuQXJ0aWZhY3RzLlRhcmdldEFydGlmYWN0czoCOAEaQgoPVGFy",
-            "Z2V0QXJ0aWZhY3RzEg0KBWRlYnVnGAEgASgJEg8KB3JlbGVhc2UYAiABKAkS",
-            "DwoHcHJvZmlsZRgDIAEoCUoECAIQA0oECAwQDTpKCghtYW5pZmVzdBIcLmdv",
-            "b2dsZS5wcm90b2J1Zi5GaWxlT3B0aW9ucxjQhgMgASgLMhguaG9sb25zLnYx",
-            "LkhvbG9uTWFuaWZlc3RiBnByb3RvMw=="));
+            "DQoFZ3VpZGUYDyABKAkSPgoSc2Vzc2lvbl92aXNpYmlsaXR5GBAgASgOMiIu",
+            "aG9sb25zLnYxLk9ic2VydmFiaWxpdHlWaXNpYmlsaXR5EksKHHNlc3Npb25f",
+            "dmlzaWJpbGl0eV9vdmVycmlkZXMYESADKAsyJS5ob2xvbnMudjEuTGlzdGVu",
+            "ZXJWaXNpYmlsaXR5T3ZlcnJpZGUauAEKCElkZW50aXR5Eg4KBnNjaGVtYRgB",
+            "IAEoCRIMCgR1dWlkGAIgASgJEhIKCmdpdmVuX25hbWUYAyABKAkSEwoLZmFt",
+            "aWx5X25hbWUYBCABKAkSDQoFbW90dG8YBSABKAkSEAoIY29tcG9zZXIYBiAB",
+            "KAkSDgoGc3RhdHVzGAggASgJEgwKBGJvcm4YCSABKAkSDwoHdmVyc2lvbhgK",
+            "IAEoCRIPCgdhbGlhc2VzGAsgAygJSgQIBxAIGkcKBVNraWxsEgwKBG5hbWUY",
+            "ASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSDAoEd2hlbhgDIAEoCRINCgVz",
+            "dGVwcxgEIAMoCRrEAQoIU2VxdWVuY2USDAoEbmFtZRgBIAEoCRITCgtkZXNj",
+            "cmlwdGlvbhgCIAEoCRI3CgZwYXJhbXMYAyADKAsyJy5ob2xvbnMudjEuSG9s",
+            "b25NYW5pZmVzdC5TZXF1ZW5jZS5QYXJhbRINCgVzdGVwcxgEIAMoCRpNCgVQ",
+            "YXJhbRIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEhAKCHJl",
+            "cXVpcmVkGAMgASgIEg8KB2RlZmF1bHQYBCABKAkaOAoIQ29udHJhY3QSDQoF",
+            "cHJvdG8YASABKAkSDwoHc2VydmljZRgCIAEoCRIMCgRycGNzGAMgAygJGs0E",
+            "CgVCdWlsZBIOCgZydW5uZXIYASABKAkSDAoEbWFpbhgCIAEoCRI5CghkZWZh",
+            "dWx0cxgDIAEoCzInLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0LkJ1aWxkLkRl",
+            "ZmF1bHRzEjYKB21lbWJlcnMYBCADKAsyJS5ob2xvbnMudjEuSG9sb25NYW5p",
+            "ZmVzdC5CdWlsZC5NZW1iZXISPAoHdGFyZ2V0cxgFIAMoCzIrLmhvbG9ucy52",
+            "MS5Ib2xvbk1hbmlmZXN0LkJ1aWxkLlRhcmdldHNFbnRyeRIRCgl0ZW1wbGF0",
+            "ZXMYBiADKAkSOwoPYmVmb3JlX2NvbW1hbmRzGAcgAygLMiIuaG9sb25zLnYx",
+            "LkhvbG9uTWFuaWZlc3QuU3RlcC5FeGVjEjoKDmFmdGVyX2NvbW1hbmRzGAgg",
+            "AygLMiIuaG9sb25zLnYxLkhvbG9uTWFuaWZlc3QuU3RlcC5FeGVjGlUKDFRh",
+            "cmdldHNFbnRyeRILCgNrZXkYASABKAkSNAoFdmFsdWUYAiABKAsyJS5ob2xv",
+            "bnMudjEuSG9sb25NYW5pZmVzdC5CdWlsZC5UYXJnZXQ6AjgBGigKCERlZmF1",
+            "bHRzEg4KBnRhcmdldBgBIAEoCRIMCgRtb2RlGAIgASgJGjAKBk1lbWJlchIK",
+            "CgJpZBgBIAEoCRIMCgRwYXRoGAIgASgJEgwKBHR5cGUYAyABKAkaNgoGVGFy",
+            "Z2V0EiwKBXN0ZXBzGAEgAygLMh0uaG9sb25zLnYxLkhvbG9uTWFuaWZlc3Qu",
+            "U3RlcBqhAwoEU3RlcBIyCgRleGVjGAEgASgLMiIuaG9sb25zLnYxLkhvbG9u",
+            "TWFuaWZlc3QuU3RlcC5FeGVjSAASMgoEY29weRgCIAEoCzIiLmhvbG9ucy52",
+            "MS5Ib2xvbk1hbmlmZXN0LlN0ZXAuQ29weUgAEhYKDGJ1aWxkX21lbWJlchgD",
+            "IAEoCUgAEj8KC2Fzc2VydF9maWxlGAQgASgLMiguaG9sb25zLnYxLkhvbG9u",
+            "TWFuaWZlc3QuU3RlcC5Bc3NlcnRGaWxlSAASQwoNY29weV9hcnRpZmFjdBgF",
+            "IAEoCzIqLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0LlN0ZXAuQ29weUFydGlm",
+            "YWN0SAAaIQoERXhlYxILCgNjd2QYASABKAkSDAoEYXJndhgCIAMoCRogCgRD",
+            "b3B5EgwKBGZyb20YASABKAkSCgoCdG8YAiABKAkaGgoKQXNzZXJ0RmlsZRIM",
+            "CgRwYXRoGAEgASgJGigKDENvcHlBcnRpZmFjdBIMCgRmcm9tGAEgASgJEgoK",
+            "AnRvGAIgASgJQggKBmFjdGlvbho+CghSZXF1aXJlcxIQCghjb21tYW5kcxgB",
+            "IAMoCRINCgVmaWxlcxgCIAMoCRIRCglwbGF0Zm9ybXMYAyADKAkamgIKCUFy",
+            "dGlmYWN0cxIOCgZiaW5hcnkYASABKAkSDwoHcHJpbWFyeRgCIAEoCRJDCgli",
+            "eV90YXJnZXQYAyADKAsyMC5ob2xvbnMudjEuSG9sb25NYW5pZmVzdC5BcnRp",
+            "ZmFjdHMuQnlUYXJnZXRFbnRyeRpjCg1CeVRhcmdldEVudHJ5EgsKA2tleRgB",
+            "IAEoCRJBCgV2YWx1ZRgCIAEoCzIyLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0",
+            "LkFydGlmYWN0cy5UYXJnZXRBcnRpZmFjdHM6AjgBGkIKD1RhcmdldEFydGlm",
+            "YWN0cxINCgVkZWJ1ZxgBIAEoCRIPCgdyZWxlYXNlGAIgASgJEg8KB3Byb2Zp",
+            "bGUYAyABKAlKBAgCEANKBAgMEA0iagoaTGlzdGVuZXJWaXNpYmlsaXR5T3Zl",
+            "cnJpZGUSFAoMbGlzdGVuZXJfdXJpGAEgASgJEjYKCnZpc2liaWxpdHkYAiAB",
+            "KA4yIi5ob2xvbnMudjEuT2JzZXJ2YWJpbGl0eVZpc2liaWxpdHkqrgEKF09i",
+            "c2VydmFiaWxpdHlWaXNpYmlsaXR5EigKJE9CU0VSVkFCSUxJVFlfVklTSUJJ",
+            "TElUWV9VTlNQRUNJRklFRBAAEiAKHE9CU0VSVkFCSUxJVFlfVklTSUJJTElU",
+            "WV9PRkYQARIkCiBPQlNFUlZBQklMSVRZX1ZJU0lCSUxJVFlfU1VNTUFSWRAC",
+            "EiEKHU9CU0VSVkFCSUxJVFlfVklTSUJJTElUWV9GVUxMEAM6SgoIbWFuaWZl",
+            "c3QSHC5nb29nbGUucHJvdG9idWYuRmlsZU9wdGlvbnMY0IYDIAEoCzIYLmhv",
+            "bG9ucy52MS5Ib2xvbk1hbmlmZXN0YgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Google.Protobuf.Reflection.DescriptorReflection.Descriptor, },
-          new pbr::GeneratedClrTypeInfo(null, new pb::Extension[] { ManifestExtensions.Manifest }, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest), global::Holons.V1.HolonManifest.Parser, new[]{ "Identity", "Description", "Lang", "Skills", "Contract", "Kind", "Platforms", "Transport", "Build", "Requires", "Artifacts", "Sequences", "Guide" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Identity), global::Holons.V1.HolonManifest.Types.Identity.Parser, new[]{ "Schema", "Uuid", "GivenName", "FamilyName", "Motto", "Composer", "Status", "Born", "Version", "Aliases" }, null, null, null, null),
+          new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Holons.V1.ObservabilityVisibility), }, new pb::Extension[] { ManifestExtensions.Manifest }, new pbr::GeneratedClrTypeInfo[] {
+            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest), global::Holons.V1.HolonManifest.Parser, new[]{ "Identity", "Description", "Lang", "Skills", "Contract", "Kind", "Platforms", "Transport", "Build", "Requires", "Artifacts", "Sequences", "Guide", "SessionVisibility", "SessionVisibilityOverrides" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Identity), global::Holons.V1.HolonManifest.Types.Identity.Parser, new[]{ "Schema", "Uuid", "GivenName", "FamilyName", "Motto", "Composer", "Status", "Born", "Version", "Aliases" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Skill), global::Holons.V1.HolonManifest.Types.Skill.Parser, new[]{ "Name", "Description", "When", "Steps" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Sequence), global::Holons.V1.HolonManifest.Types.Sequence.Parser, new[]{ "Name", "Description", "Params", "Steps" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Sequence.Types.Param), global::Holons.V1.HolonManifest.Types.Sequence.Types.Param.Parser, new[]{ "Name", "Description", "Required", "Default" }, null, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Contract), global::Holons.V1.HolonManifest.Types.Contract.Parser, new[]{ "Proto", "Service", "Rpcs" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build), global::Holons.V1.HolonManifest.Types.Build.Parser, new[]{ "Runner", "Main", "Defaults", "Members", "Targets", "Templates" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { null, new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build.Types.Defaults), global::Holons.V1.HolonManifest.Types.Build.Types.Defaults.Parser, new[]{ "Target", "Mode" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build), global::Holons.V1.HolonManifest.Types.Build.Parser, new[]{ "Runner", "Main", "Defaults", "Members", "Targets", "Templates", "BeforeCommands", "AfterCommands" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { null, new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build.Types.Defaults), global::Holons.V1.HolonManifest.Types.Build.Types.Defaults.Parser, new[]{ "Target", "Mode" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build.Types.Member), global::Holons.V1.HolonManifest.Types.Build.Types.Member.Parser, new[]{ "Id", "Path", "Type" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build.Types.Target), global::Holons.V1.HolonManifest.Types.Build.Types.Target.Parser, new[]{ "Steps" }, null, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Step), global::Holons.V1.HolonManifest.Types.Step.Parser, new[]{ "Exec", "Copy", "BuildMember", "AssertFile", "CopyArtifact" }, new[]{ "Action" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Step.Types.Exec), global::Holons.V1.HolonManifest.Types.Step.Types.Exec.Parser, new[]{ "Cwd", "Argv" }, null, null, null, null),
@@ -93,7 +105,8 @@ namespace Holons.V1 {
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Step.Types.AssertFile), global::Holons.V1.HolonManifest.Types.Step.Types.AssertFile.Parser, new[]{ "Path" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Step.Types.CopyArtifact), global::Holons.V1.HolonManifest.Types.Step.Types.CopyArtifact.Parser, new[]{ "From", "To" }, null, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Requires), global::Holons.V1.HolonManifest.Types.Requires.Parser, new[]{ "Commands", "Files", "Platforms" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Artifacts), global::Holons.V1.HolonManifest.Types.Artifacts.Parser, new[]{ "Binary", "Primary", "ByTarget" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { null, new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Artifacts.Types.TargetArtifacts), global::Holons.V1.HolonManifest.Types.Artifacts.Types.TargetArtifacts.Parser, new[]{ "Debug", "Release", "Profile" }, null, null, null, null)})})
+            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Artifacts), global::Holons.V1.HolonManifest.Types.Artifacts.Parser, new[]{ "Binary", "Primary", "ByTarget" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { null, new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Artifacts.Types.TargetArtifacts), global::Holons.V1.HolonManifest.Types.Artifacts.Types.TargetArtifacts.Parser, new[]{ "Debug", "Release", "Profile" }, null, null, null, null)})}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.ListenerVisibilityOverride), global::Holons.V1.ListenerVisibilityOverride.Parser, new[]{ "ListenerUri", "Visibility" }, null, null, null, null)
           }));
     }
     #endregion
@@ -104,6 +117,30 @@ namespace Holons.V1 {
     public static readonly pb::Extension<global::Google.Protobuf.Reflection.FileOptions, global::Holons.V1.HolonManifest> Manifest =
       new pb::Extension<global::Google.Protobuf.Reflection.FileOptions, global::Holons.V1.HolonManifest>(50000, pb::FieldCodec.ForMessage(400002, global::Holons.V1.HolonManifest.Parser));
   }
+
+  #region Enums
+  /// <summary>
+  /// ObservabilityVisibility gates the HolonSession and HolonObservability
+  /// services. Declared at file level so protos that need to reference it
+  /// outside the manifest (manifest extensions, tooling) can import it.
+  /// </summary>
+  public enum ObservabilityVisibility {
+    [pbr::OriginalName("OBSERVABILITY_VISIBILITY_UNSPECIFIED")] Unspecified = 0,
+    /// <summary>
+    /// PERMISSION_DENIED on all RPCs
+    /// </summary>
+    [pbr::OriginalName("OBSERVABILITY_VISIBILITY_OFF")] Off = 1,
+    /// <summary>
+    /// Counts/states only; no payloads
+    /// </summary>
+    [pbr::OriginalName("OBSERVABILITY_VISIBILITY_SUMMARY")] Summary = 2,
+    /// <summary>
+    /// All fields returned
+    /// </summary>
+    [pbr::OriginalName("OBSERVABILITY_VISIBILITY_FULL")] Full = 3,
+  }
+
+  #endregion
 
   #region Messages
   /// <summary>
@@ -163,6 +200,8 @@ namespace Holons.V1 {
       artifacts_ = other.artifacts_ != null ? other.artifacts_.Clone() : null;
       sequences_ = other.sequences_.Clone();
       guide_ = other.guide_;
+      sessionVisibility_ = other.sessionVisibility_;
+      sessionVisibilityOverrides_ = other.sessionVisibilityOverrides_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -343,6 +382,40 @@ namespace Holons.V1 {
       }
     }
 
+    /// <summary>Field number for the "session_visibility" field.</summary>
+    public const int SessionVisibilityFieldNumber = 16;
+    private global::Holons.V1.ObservabilityVisibility sessionVisibility_ = global::Holons.V1.ObservabilityVisibility.Unspecified;
+    /// <summary>
+    /// ── Observability visibility ─────────────────────────
+    /// Single dial gating HolonSession.* and HolonObservability.* exposure.
+    /// UNSPECIFIED defers to the per-listener default the SDK infers from
+    /// the listener's scheme and security mode. See SESSIONS.md §Security
+    /// and OBSERVABILITY.md §Security Considerations.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Holons.V1.ObservabilityVisibility SessionVisibility {
+      get { return sessionVisibility_; }
+      set {
+        sessionVisibility_ = value;
+      }
+    }
+
+    /// <summary>Field number for the "session_visibility_overrides" field.</summary>
+    public const int SessionVisibilityOverridesFieldNumber = 17;
+    private static readonly pb::FieldCodec<global::Holons.V1.ListenerVisibilityOverride> _repeated_sessionVisibilityOverrides_codec
+        = pb::FieldCodec.ForMessage(138, global::Holons.V1.ListenerVisibilityOverride.Parser);
+    private readonly pbc::RepeatedField<global::Holons.V1.ListenerVisibilityOverride> sessionVisibilityOverrides_ = new pbc::RepeatedField<global::Holons.V1.ListenerVisibilityOverride>();
+    /// <summary>
+    /// Per-listener overrides. Each override's listener_uri must match a
+    /// listener declared in the holon's build/serve config.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::Holons.V1.ListenerVisibilityOverride> SessionVisibilityOverrides {
+      get { return sessionVisibilityOverrides_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -371,6 +444,8 @@ namespace Holons.V1 {
       if (!object.Equals(Artifacts, other.Artifacts)) return false;
       if(!sequences_.Equals(other.sequences_)) return false;
       if (Guide != other.Guide) return false;
+      if (SessionVisibility != other.SessionVisibility) return false;
+      if(!sessionVisibilityOverrides_.Equals(other.sessionVisibilityOverrides_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -391,6 +466,8 @@ namespace Holons.V1 {
       if (artifacts_ != null) hash ^= Artifacts.GetHashCode();
       hash ^= sequences_.GetHashCode();
       if (Guide.Length != 0) hash ^= Guide.GetHashCode();
+      if (SessionVisibility != global::Holons.V1.ObservabilityVisibility.Unspecified) hash ^= SessionVisibility.GetHashCode();
+      hash ^= sessionVisibilityOverrides_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -452,6 +529,11 @@ namespace Holons.V1 {
         output.WriteRawTag(122);
         output.WriteString(Guide);
       }
+      if (SessionVisibility != global::Holons.V1.ObservabilityVisibility.Unspecified) {
+        output.WriteRawTag(128, 1);
+        output.WriteEnum((int) SessionVisibility);
+      }
+      sessionVisibilityOverrides_.WriteTo(output, _repeated_sessionVisibilityOverrides_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -505,6 +587,11 @@ namespace Holons.V1 {
         output.WriteRawTag(122);
         output.WriteString(Guide);
       }
+      if (SessionVisibility != global::Holons.V1.ObservabilityVisibility.Unspecified) {
+        output.WriteRawTag(128, 1);
+        output.WriteEnum((int) SessionVisibility);
+      }
+      sessionVisibilityOverrides_.WriteTo(ref output, _repeated_sessionVisibilityOverrides_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -548,6 +635,10 @@ namespace Holons.V1 {
       if (Guide.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(Guide);
       }
+      if (SessionVisibility != global::Holons.V1.ObservabilityVisibility.Unspecified) {
+        size += 2 + pb::CodedOutputStream.ComputeEnumSize((int) SessionVisibility);
+      }
+      size += sessionVisibilityOverrides_.CalculateSize(_repeated_sessionVisibilityOverrides_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -608,6 +699,10 @@ namespace Holons.V1 {
       if (other.Guide.Length != 0) {
         Guide = other.Guide;
       }
+      if (other.SessionVisibility != global::Holons.V1.ObservabilityVisibility.Unspecified) {
+        SessionVisibility = other.SessionVisibility;
+      }
+      sessionVisibilityOverrides_.Add(other.sessionVisibilityOverrides_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -694,6 +789,14 @@ namespace Holons.V1 {
             Guide = input.ReadString();
             break;
           }
+          case 128: {
+            SessionVisibility = (global::Holons.V1.ObservabilityVisibility) input.ReadEnum();
+            break;
+          }
+          case 138: {
+            sessionVisibilityOverrides_.AddEntriesFrom(input, _repeated_sessionVisibilityOverrides_codec);
+            break;
+          }
         }
       }
     #endif
@@ -778,6 +881,14 @@ namespace Holons.V1 {
           }
           case 122: {
             Guide = input.ReadString();
+            break;
+          }
+          case 128: {
+            SessionVisibility = (global::Holons.V1.ObservabilityVisibility) input.ReadEnum();
+            break;
+          }
+          case 138: {
+            sessionVisibilityOverrides_.AddEntriesFrom(ref input, _repeated_sessionVisibilityOverrides_codec);
             break;
           }
         }
@@ -2580,6 +2691,8 @@ namespace Holons.V1 {
           members_ = other.members_.Clone();
           targets_ = other.targets_.Clone();
           templates_ = other.templates_.Clone();
+          beforeCommands_ = other.beforeCommands_.Clone();
+          afterCommands_ = other.afterCommands_.Clone();
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
@@ -2676,6 +2789,34 @@ namespace Holons.V1 {
           get { return templates_; }
         }
 
+        /// <summary>Field number for the "before_commands" field.</summary>
+        public const int BeforeCommandsFieldNumber = 7;
+        private static readonly pb::FieldCodec<global::Holons.V1.HolonManifest.Types.Step.Types.Exec> _repeated_beforeCommands_codec
+            = pb::FieldCodec.ForMessage(58, global::Holons.V1.HolonManifest.Types.Step.Types.Exec.Parser);
+        private readonly pbc::RepeatedField<global::Holons.V1.HolonManifest.Types.Step.Types.Exec> beforeCommands_ = new pbc::RepeatedField<global::Holons.V1.HolonManifest.Types.Step.Types.Exec>();
+        /// <summary>
+        /// Commands to execute sequentially BEFORE the main runner logic.
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public pbc::RepeatedField<global::Holons.V1.HolonManifest.Types.Step.Types.Exec> BeforeCommands {
+          get { return beforeCommands_; }
+        }
+
+        /// <summary>Field number for the "after_commands" field.</summary>
+        public const int AfterCommandsFieldNumber = 8;
+        private static readonly pb::FieldCodec<global::Holons.V1.HolonManifest.Types.Step.Types.Exec> _repeated_afterCommands_codec
+            = pb::FieldCodec.ForMessage(66, global::Holons.V1.HolonManifest.Types.Step.Types.Exec.Parser);
+        private readonly pbc::RepeatedField<global::Holons.V1.HolonManifest.Types.Step.Types.Exec> afterCommands_ = new pbc::RepeatedField<global::Holons.V1.HolonManifest.Types.Step.Types.Exec>();
+        /// <summary>
+        /// Commands to execute sequentially AFTER the main runner logic.
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public pbc::RepeatedField<global::Holons.V1.HolonManifest.Types.Step.Types.Exec> AfterCommands {
+          get { return afterCommands_; }
+        }
+
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override bool Equals(object other) {
@@ -2697,6 +2838,8 @@ namespace Holons.V1 {
           if(!members_.Equals(other.members_)) return false;
           if (!Targets.Equals(other.Targets)) return false;
           if(!templates_.Equals(other.templates_)) return false;
+          if(!beforeCommands_.Equals(other.beforeCommands_)) return false;
+          if(!afterCommands_.Equals(other.afterCommands_)) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -2710,6 +2853,8 @@ namespace Holons.V1 {
           hash ^= members_.GetHashCode();
           hash ^= Targets.GetHashCode();
           hash ^= templates_.GetHashCode();
+          hash ^= beforeCommands_.GetHashCode();
+          hash ^= afterCommands_.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -2743,6 +2888,8 @@ namespace Holons.V1 {
           members_.WriteTo(output, _repeated_members_codec);
           targets_.WriteTo(output, _map_targets_codec);
           templates_.WriteTo(output, _repeated_templates_codec);
+          beforeCommands_.WriteTo(output, _repeated_beforeCommands_codec);
+          afterCommands_.WriteTo(output, _repeated_afterCommands_codec);
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -2768,6 +2915,8 @@ namespace Holons.V1 {
           members_.WriteTo(ref output, _repeated_members_codec);
           targets_.WriteTo(ref output, _map_targets_codec);
           templates_.WriteTo(ref output, _repeated_templates_codec);
+          beforeCommands_.WriteTo(ref output, _repeated_beforeCommands_codec);
+          afterCommands_.WriteTo(ref output, _repeated_afterCommands_codec);
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -2790,6 +2939,8 @@ namespace Holons.V1 {
           size += members_.CalculateSize(_repeated_members_codec);
           size += targets_.CalculateSize(_map_targets_codec);
           size += templates_.CalculateSize(_repeated_templates_codec);
+          size += beforeCommands_.CalculateSize(_repeated_beforeCommands_codec);
+          size += afterCommands_.CalculateSize(_repeated_afterCommands_codec);
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
           }
@@ -2817,6 +2968,8 @@ namespace Holons.V1 {
           members_.Add(other.members_);
           targets_.MergeFrom(other.targets_);
           templates_.Add(other.templates_);
+          beforeCommands_.Add(other.beforeCommands_);
+          afterCommands_.Add(other.afterCommands_);
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
 
@@ -2863,6 +3016,14 @@ namespace Holons.V1 {
                 templates_.AddEntriesFrom(input, _repeated_templates_codec);
                 break;
               }
+              case 58: {
+                beforeCommands_.AddEntriesFrom(input, _repeated_beforeCommands_codec);
+                break;
+              }
+              case 66: {
+                afterCommands_.AddEntriesFrom(input, _repeated_afterCommands_codec);
+                break;
+              }
             }
           }
         #endif
@@ -2907,6 +3068,14 @@ namespace Holons.V1 {
               }
               case 50: {
                 templates_.AddEntriesFrom(ref input, _repeated_templates_codec);
+                break;
+              }
+              case 58: {
+                beforeCommands_.AddEntriesFrom(ref input, _repeated_beforeCommands_codec);
+                break;
+              }
+              case 66: {
+                afterCommands_.AddEntriesFrom(ref input, _repeated_afterCommands_codec);
                 break;
               }
             }
@@ -3211,7 +3380,7 @@ namespace Holons.V1 {
             public const int IdFieldNumber = 1;
             private string id_ = "";
             /// <summary>
-            /// e.g. "daemon", "app"
+            /// e.g. "holon", "app"
             /// </summary>
             [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
             [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -5790,6 +5959,245 @@ namespace Holons.V1 {
 
     }
     #endregion
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class ListenerVisibilityOverride : pb::IMessage<ListenerVisibilityOverride>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<ListenerVisibilityOverride> _parser = new pb::MessageParser<ListenerVisibilityOverride>(() => new ListenerVisibilityOverride());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<ListenerVisibilityOverride> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Holons.V1.ManifestReflection.Descriptor.MessageTypes[1]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ListenerVisibilityOverride() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ListenerVisibilityOverride(ListenerVisibilityOverride other) : this() {
+      listenerUri_ = other.listenerUri_;
+      visibility_ = other.visibility_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public ListenerVisibilityOverride Clone() {
+      return new ListenerVisibilityOverride(this);
+    }
+
+    /// <summary>Field number for the "listener_uri" field.</summary>
+    public const int ListenerUriFieldNumber = 1;
+    private string listenerUri_ = "";
+    /// <summary>
+    /// Listener URI to apply the override to. Matches a listener declared
+    /// in the holon's serve config.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string ListenerUri {
+      get { return listenerUri_; }
+      set {
+        listenerUri_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "visibility" field.</summary>
+    public const int VisibilityFieldNumber = 2;
+    private global::Holons.V1.ObservabilityVisibility visibility_ = global::Holons.V1.ObservabilityVisibility.Unspecified;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public global::Holons.V1.ObservabilityVisibility Visibility {
+      get { return visibility_; }
+      set {
+        visibility_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as ListenerVisibilityOverride);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(ListenerVisibilityOverride other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (ListenerUri != other.ListenerUri) return false;
+      if (Visibility != other.Visibility) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (ListenerUri.Length != 0) hash ^= ListenerUri.GetHashCode();
+      if (Visibility != global::Holons.V1.ObservabilityVisibility.Unspecified) hash ^= Visibility.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (ListenerUri.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(ListenerUri);
+      }
+      if (Visibility != global::Holons.V1.ObservabilityVisibility.Unspecified) {
+        output.WriteRawTag(16);
+        output.WriteEnum((int) Visibility);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (ListenerUri.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(ListenerUri);
+      }
+      if (Visibility != global::Holons.V1.ObservabilityVisibility.Unspecified) {
+        output.WriteRawTag(16);
+        output.WriteEnum((int) Visibility);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (ListenerUri.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(ListenerUri);
+      }
+      if (Visibility != global::Holons.V1.ObservabilityVisibility.Unspecified) {
+        size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Visibility);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(ListenerVisibilityOverride other) {
+      if (other == null) {
+        return;
+      }
+      if (other.ListenerUri.Length != 0) {
+        ListenerUri = other.ListenerUri;
+      }
+      if (other.Visibility != global::Holons.V1.ObservabilityVisibility.Unspecified) {
+        Visibility = other.Visibility;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            ListenerUri = input.ReadString();
+            break;
+          }
+          case 16: {
+            Visibility = (global::Holons.V1.ObservabilityVisibility) input.ReadEnum();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            ListenerUri = input.ReadString();
+            break;
+          }
+          case 16: {
+            Visibility = (global::Holons.V1.ObservabilityVisibility) input.ReadEnum();
+            break;
+          }
+        }
+      }
+    }
+    #endif
 
   }
 
