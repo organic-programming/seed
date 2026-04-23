@@ -122,12 +122,12 @@ void main() {
             await stdoutLines.first.timeout(const Duration(seconds: 20));
         expect(wsURL.startsWith('ws://'), isTrue);
 
-        client = HolonRPCClient(
-          heartbeatIntervalMs: 250,
-          heartbeatTimeoutMs: 250,
-          reconnectMinDelayMs: 100,
-          reconnectMaxDelayMs: 400,
-        );
+        // Defaults (interval 15s, timeout 5s) are appropriate here — this
+        // test exercises the echo roundtrip, not heartbeat behavior. The
+        // previous 250ms/250ms heartbeat timeout raced with `--once` mode
+        // teardown on loaded CI runners, closing the client-side connection
+        // before the invoke response arrived.
+        client = HolonRPCClient();
         await client.connect(wsURL);
 
         final out = await client.invoke(
