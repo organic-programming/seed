@@ -40,6 +40,19 @@ pub struct HolonManifest {
     /// user-facing documentation in markdown (rendered by `op man`)
     #[prost(string, tag = "15")]
     pub guide: ::prost::alloc::string::String,
+    /// ── Observability visibility ─────────────────────────
+    /// Single dial gating HolonSession.* and HolonObservability.* exposure.
+    /// UNSPECIFIED defers to the per-listener default the SDK infers from
+    /// the listener's scheme and security mode. See SESSIONS.md §Security
+    /// and OBSERVABILITY.md §Security Considerations.
+    #[prost(enumeration = "ObservabilityVisibility", tag = "16")]
+    pub session_visibility: i32,
+    /// Per-listener overrides. Each override's listener_uri must match a
+    /// listener declared in the holon's build/serve config.
+    #[prost(message, repeated, tag = "17")]
+    pub session_visibility_overrides: ::prost::alloc::vec::Vec<
+        ListenerVisibilityOverride,
+    >,
 }
 /// Nested message and enum types in `HolonManifest`.
 pub mod holon_manifest {
@@ -281,6 +294,53 @@ pub mod holon_manifest {
             pub release: ::prost::alloc::string::String,
             #[prost(string, tag = "3")]
             pub profile: ::prost::alloc::string::String,
+        }
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListenerVisibilityOverride {
+    /// Listener URI to apply the override to. Matches a listener declared
+    /// in the holon's serve config.
+    #[prost(string, tag = "1")]
+    pub listener_uri: ::prost::alloc::string::String,
+    #[prost(enumeration = "ObservabilityVisibility", tag = "2")]
+    pub visibility: i32,
+}
+/// ObservabilityVisibility gates the HolonSession and HolonObservability
+/// services. Declared at file level so protos that need to reference it
+/// outside the manifest (manifest extensions, tooling) can import it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ObservabilityVisibility {
+    Unspecified = 0,
+    /// PERMISSION_DENIED on all RPCs
+    Off = 1,
+    /// Counts/states only; no payloads
+    Summary = 2,
+    /// All fields returned
+    Full = 3,
+}
+impl ObservabilityVisibility {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "OBSERVABILITY_VISIBILITY_UNSPECIFIED",
+            Self::Off => "OBSERVABILITY_VISIBILITY_OFF",
+            Self::Summary => "OBSERVABILITY_VISIBILITY_SUMMARY",
+            Self::Full => "OBSERVABILITY_VISIBILITY_FULL",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "OBSERVABILITY_VISIBILITY_UNSPECIFIED" => Some(Self::Unspecified),
+            "OBSERVABILITY_VISIBILITY_OFF" => Some(Self::Off),
+            "OBSERVABILITY_VISIBILITY_SUMMARY" => Some(Self::Summary),
+            "OBSERVABILITY_VISIBILITY_FULL" => Some(Self::Full),
+            _ => None,
         }
     }
 }
@@ -1597,6 +1657,1828 @@ pub mod coax_service_server {
     /// Generated gRPC service name
     pub const SERVICE_NAME: &str = "holons.v1.CoaxService";
     impl<T> tonic::server::NamedService for CoaxServiceServer<T> {
+        const NAME: &'static str = SERVICE_NAME;
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SessionsRequest {
+    /// Filter by state. Empty = all non-CLOSED sessions.
+    #[prost(enumeration = "SessionState", repeated, tag = "1")]
+    pub state_filter: ::prost::alloc::vec::Vec<i32>,
+    /// Filter by direction. UNSPECIFIED = both.
+    #[prost(enumeration = "SessionDirection", tag = "2")]
+    pub direction_filter: i32,
+    /// Include closed sessions from the history ring buffer.
+    #[prost(bool, tag = "3")]
+    pub include_closed: bool,
+    /// Maximum number of sessions to return. 0 = server default (100).
+    #[prost(int32, tag = "4")]
+    pub limit: i32,
+    /// Opaque continuation token from a previous response.
+    /// Empty = start from the beginning.
+    #[prost(string, tag = "5")]
+    pub page_token: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SessionsResponse {
+    /// The holon's own slug.
+    #[prost(string, tag = "1")]
+    pub slug: ::prost::alloc::string::String,
+    /// Matching sessions, ordered by started_at descending.
+    #[prost(message, repeated, tag = "2")]
+    pub sessions: ::prost::alloc::vec::Vec<SessionInfo>,
+    /// Continuation token for the next page. Empty = no more results.
+    #[prost(string, tag = "3")]
+    pub next_page_token: ::prost::alloc::string::String,
+    /// Total number of sessions matching the filter (across all pages).
+    #[prost(int32, tag = "4")]
+    pub total_count: i32,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SessionInfo {
+    /// Unique session identifier (UUID v4).
+    #[prost(string, tag = "1")]
+    pub session_id: ::prost::alloc::string::String,
+    /// Slug of the remote peer. Interpretation depends on direction:
+    /// the caller for INBOUND, the dialed target for OUTBOUND.
+    /// "anonymous" when no x-holon-slug header was presented on inbound.
+    #[prost(string, tag = "2")]
+    pub remote_slug: ::prost::alloc::string::String,
+    /// Transport scheme used for this session.
+    #[prost(string, tag = "3")]
+    pub transport: ::prost::alloc::string::String,
+    /// Concrete transport address.
+    #[prost(string, tag = "4")]
+    pub address: ::prost::alloc::string::String,
+    /// Whether this holon is the server or client side.
+    #[prost(enumeration = "SessionDirection", tag = "5")]
+    pub direction: i32,
+    /// Current lifecycle state.
+    #[prost(enumeration = "SessionState", tag = "6")]
+    pub state: i32,
+    /// When the session was created (dial or accept).
+    #[prost(message, optional, tag = "7")]
+    pub started_at: ::core::option::Option<::prost_types::Timestamp>,
+    /// When the state last changed.
+    #[prost(message, optional, tag = "8")]
+    pub state_changed_at: ::core::option::Option<::prost_types::Timestamp>,
+    /// When the session reached CLOSED (zero if still open).
+    #[prost(message, optional, tag = "9")]
+    pub ended_at: ::core::option::Option<::prost_types::Timestamp>,
+    /// Number of RPCs completed in this session.
+    #[prost(int64, tag = "10")]
+    pub rpc_count: i64,
+    /// Last RPC completed timestamp (zero if none).
+    #[prost(message, optional, tag = "11")]
+    pub last_rpc_at: ::core::option::Option<::prost_types::Timestamp>,
+    /// Optional per-session metrics (only when OP_SESSIONS=metrics).
+    #[prost(message, optional, tag = "20")]
+    pub metrics: ::core::option::Option<SessionMetrics>,
+    /// Mesh host name (only on mTLS connections, empty otherwise).
+    #[prost(string, tag = "21")]
+    pub mesh_host: ::prost::alloc::string::String,
+    /// Owning instance UID (see INSTANCES.md). Populated from
+    /// OP_INSTANCE_UID set by the parent supervisor. Empty for
+    /// manually launched holons. Join key for observability signals
+    /// (OBSERVABILITY.md).
+    #[prost(string, tag = "22")]
+    pub instance_uid: ::prost::alloc::string::String,
+}
+/// SessionMetrics is populated only when OP_SESSIONS=metrics.
+/// Time is decomposed into four phases: wire_out, queue, work, wire_in.
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SessionMetrics {
+    #[prost(int64, tag = "1")]
+    pub total_p50_us: i64,
+    #[prost(int64, tag = "2")]
+    pub total_p99_us: i64,
+    #[prost(int64, tag = "3")]
+    pub wire_out_p50_us: i64,
+    #[prost(int64, tag = "4")]
+    pub wire_out_p99_us: i64,
+    #[prost(int64, tag = "5")]
+    pub queue_p50_us: i64,
+    #[prost(int64, tag = "6")]
+    pub queue_p99_us: i64,
+    #[prost(int64, tag = "7")]
+    pub work_p50_us: i64,
+    #[prost(int64, tag = "8")]
+    pub work_p99_us: i64,
+    #[prost(int64, tag = "9")]
+    pub wire_in_p50_us: i64,
+    #[prost(int64, tag = "10")]
+    pub wire_in_p99_us: i64,
+    #[prost(int64, tag = "11")]
+    pub error_count: i64,
+    #[prost(int64, tag = "12")]
+    pub bytes_sent: i64,
+    #[prost(int64, tag = "13")]
+    pub bytes_received: i64,
+    #[prost(int32, tag = "14")]
+    pub in_flight: i32,
+    #[prost(int64, tag = "15")]
+    pub messages_sent: i64,
+    #[prost(int64, tag = "16")]
+    pub messages_received: i64,
+    #[prost(map = "string, message", tag = "20")]
+    pub methods: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        MethodMetrics,
+    >,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct MethodMetrics {
+    #[prost(int64, tag = "1")]
+    pub call_count: i64,
+    #[prost(int64, tag = "2")]
+    pub error_count: i64,
+    #[prost(int32, tag = "3")]
+    pub in_flight: i32,
+    #[prost(int64, tag = "10")]
+    pub total_p50_us: i64,
+    #[prost(int64, tag = "11")]
+    pub total_p99_us: i64,
+    #[prost(int64, tag = "12")]
+    pub wire_out_p50_us: i64,
+    #[prost(int64, tag = "13")]
+    pub wire_out_p99_us: i64,
+    #[prost(int64, tag = "14")]
+    pub queue_p50_us: i64,
+    #[prost(int64, tag = "15")]
+    pub queue_p99_us: i64,
+    #[prost(int64, tag = "16")]
+    pub work_p50_us: i64,
+    #[prost(int64, tag = "17")]
+    pub work_p99_us: i64,
+    #[prost(int64, tag = "18")]
+    pub wire_in_p50_us: i64,
+    #[prost(int64, tag = "19")]
+    pub wire_in_p99_us: i64,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct WatchSessionsRequest {
+    #[prost(enumeration = "SessionState", repeated, tag = "1")]
+    pub state_filter: ::prost::alloc::vec::Vec<i32>,
+    #[prost(enumeration = "SessionDirection", tag = "2")]
+    pub direction_filter: i32,
+    /// If true, a SessionEvent with kind=SNAPSHOT is emitted for every
+    /// currently matching session before the stream transitions to live
+    /// events. Useful for clients that need a consistent view.
+    #[prost(bool, tag = "3")]
+    pub send_initial_snapshot: bool,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SessionEvent {
+    #[prost(message, optional, tag = "1")]
+    pub ts: ::core::option::Option<::prost_types::Timestamp>,
+    #[prost(enumeration = "SessionEventKind", tag = "2")]
+    pub kind: i32,
+    #[prost(message, optional, tag = "3")]
+    pub session: ::core::option::Option<SessionInfo>,
+    /// For STATE_CHANGED: the previous state. Zero for other kinds.
+    #[prost(enumeration = "SessionState", tag = "4")]
+    pub previous_state: i32,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum SessionEventKind {
+    Unspecified = 0,
+    Snapshot = 1,
+    SessionCreated = 2,
+    StateChanged = 3,
+    MetricsUpdated = 4,
+    SessionClosed = 5,
+}
+impl SessionEventKind {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "SESSION_EVENT_KIND_UNSPECIFIED",
+            Self::Snapshot => "SNAPSHOT",
+            Self::SessionCreated => "SESSION_CREATED",
+            Self::StateChanged => "STATE_CHANGED",
+            Self::MetricsUpdated => "METRICS_UPDATED",
+            Self::SessionClosed => "SESSION_CLOSED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SESSION_EVENT_KIND_UNSPECIFIED" => Some(Self::Unspecified),
+            "SNAPSHOT" => Some(Self::Snapshot),
+            "SESSION_CREATED" => Some(Self::SessionCreated),
+            "STATE_CHANGED" => Some(Self::StateChanged),
+            "METRICS_UPDATED" => Some(Self::MetricsUpdated),
+            "SESSION_CLOSED" => Some(Self::SessionClosed),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum SessionState {
+    Unspecified = 0,
+    Connecting = 1,
+    Active = 2,
+    Stale = 3,
+    Draining = 4,
+    Failed = 5,
+    Closed = 6,
+}
+impl SessionState {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "SESSION_STATE_UNSPECIFIED",
+            Self::Connecting => "CONNECTING",
+            Self::Active => "ACTIVE",
+            Self::Stale => "STALE",
+            Self::Draining => "DRAINING",
+            Self::Failed => "FAILED",
+            Self::Closed => "CLOSED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SESSION_STATE_UNSPECIFIED" => Some(Self::Unspecified),
+            "CONNECTING" => Some(Self::Connecting),
+            "ACTIVE" => Some(Self::Active),
+            "STALE" => Some(Self::Stale),
+            "DRAINING" => Some(Self::Draining),
+            "FAILED" => Some(Self::Failed),
+            "CLOSED" => Some(Self::Closed),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum SessionDirection {
+    Unspecified = 0,
+    Inbound = 1,
+    Outbound = 2,
+}
+impl SessionDirection {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "SESSION_DIRECTION_UNSPECIFIED",
+            Self::Inbound => "INBOUND",
+            Self::Outbound => "OUTBOUND",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SESSION_DIRECTION_UNSPECIFIED" => Some(Self::Unspecified),
+            "INBOUND" => Some(Self::Inbound),
+            "OUTBOUND" => Some(Self::Outbound),
+            _ => None,
+        }
+    }
+}
+/// Generated client implementations.
+pub mod holon_session_client {
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
+    use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
+    /// HolonSession is auto-registered by the SDK's serve runner
+    /// when OP_SESSIONS is enabled. Provides session introspection.
+    /// See SESSIONS.md for the full specification.
+    #[derive(Debug, Clone)]
+    pub struct HolonSessionClient<T> {
+        inner: tonic::client::Grpc<T>,
+    }
+    impl HolonSessionClient<tonic::transport::Channel> {
+        /// Attempt to create a new client by connecting to a given endpoint.
+        pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+        where
+            D: TryInto<tonic::transport::Endpoint>,
+            D::Error: Into<StdError>,
+        {
+            let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
+            Ok(Self::new(conn))
+        }
+    }
+    impl<T> HolonSessionClient<T>
+    where
+        T: tonic::client::GrpcService<tonic::body::BoxBody>,
+        T::Error: Into<StdError>,
+        T::ResponseBody: Body<Data = Bytes> + std::marker::Send + 'static,
+        <T::ResponseBody as Body>::Error: Into<StdError> + std::marker::Send,
+    {
+        pub fn new(inner: T) -> Self {
+            let inner = tonic::client::Grpc::new(inner);
+            Self { inner }
+        }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> HolonSessionClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T::ResponseBody: Default,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+        {
+            HolonSessionClient::new(InterceptedService::new(inner, interceptor))
+        }
+        /// Compress requests with the given encoding.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
+            self
+        }
+        /// Enable decompressing responses.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
+            self
+        }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_decoding_message_size(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_encoding_message_size(limit);
+            self
+        }
+        /// Sessions returns active and optionally past sessions.
+        pub async fn sessions(
+            &mut self,
+            request: impl tonic::IntoRequest<super::SessionsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::SessionsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/holons.v1.HolonSession/Sessions",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("holons.v1.HolonSession", "Sessions"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// WatchSessions streams session lifecycle events as they happen.
+        /// Used by `op sessions --watch` and by tooling that needs live
+        /// visibility without polling.
+        pub async fn watch_sessions(
+            &mut self,
+            request: impl tonic::IntoRequest<super::WatchSessionsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<tonic::codec::Streaming<super::SessionEvent>>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/holons.v1.HolonSession/WatchSessions",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("holons.v1.HolonSession", "WatchSessions"));
+            self.inner.server_streaming(req, path, codec).await
+        }
+    }
+}
+/// Generated server implementations.
+pub mod holon_session_server {
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
+    use tonic::codegen::*;
+    /// Generated trait containing gRPC methods that should be implemented for use with HolonSessionServer.
+    #[async_trait]
+    pub trait HolonSession: std::marker::Send + std::marker::Sync + 'static {
+        /// Sessions returns active and optionally past sessions.
+        async fn sessions(
+            &self,
+            request: tonic::Request<super::SessionsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::SessionsResponse>,
+            tonic::Status,
+        >;
+        /// Server streaming response type for the WatchSessions method.
+        type WatchSessionsStream: tonic::codegen::tokio_stream::Stream<
+                Item = std::result::Result<super::SessionEvent, tonic::Status>,
+            >
+            + std::marker::Send
+            + 'static;
+        /// WatchSessions streams session lifecycle events as they happen.
+        /// Used by `op sessions --watch` and by tooling that needs live
+        /// visibility without polling.
+        async fn watch_sessions(
+            &self,
+            request: tonic::Request<super::WatchSessionsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<Self::WatchSessionsStream>,
+            tonic::Status,
+        >;
+    }
+    /// HolonSession is auto-registered by the SDK's serve runner
+    /// when OP_SESSIONS is enabled. Provides session introspection.
+    /// See SESSIONS.md for the full specification.
+    #[derive(Debug)]
+    pub struct HolonSessionServer<T> {
+        inner: Arc<T>,
+        accept_compression_encodings: EnabledCompressionEncodings,
+        send_compression_encodings: EnabledCompressionEncodings,
+        max_decoding_message_size: Option<usize>,
+        max_encoding_message_size: Option<usize>,
+    }
+    impl<T> HolonSessionServer<T> {
+        pub fn new(inner: T) -> Self {
+            Self::from_arc(Arc::new(inner))
+        }
+        pub fn from_arc(inner: Arc<T>) -> Self {
+            Self {
+                inner,
+                accept_compression_encodings: Default::default(),
+                send_compression_encodings: Default::default(),
+                max_decoding_message_size: None,
+                max_encoding_message_size: None,
+            }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
+        where
+            F: tonic::service::Interceptor,
+        {
+            InterceptedService::new(Self::new(inner), interceptor)
+        }
+        /// Enable decompressing requests with the given encoding.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.accept_compression_encodings.enable(encoding);
+            self
+        }
+        /// Compress responses with the given encoding, if the client supports it.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.send_compression_encodings.enable(encoding);
+            self
+        }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.max_decoding_message_size = Some(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.max_encoding_message_size = Some(limit);
+            self
+        }
+    }
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for HolonSessionServer<T>
+    where
+        T: HolonSession,
+        B: Body + std::marker::Send + 'static,
+        B::Error: Into<StdError> + std::marker::Send + 'static,
+    {
+        type Response = http::Response<tonic::body::BoxBody>;
+        type Error = std::convert::Infallible;
+        type Future = BoxFuture<Self::Response, Self::Error>;
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<std::result::Result<(), Self::Error>> {
+            Poll::Ready(Ok(()))
+        }
+        fn call(&mut self, req: http::Request<B>) -> Self::Future {
+            match req.uri().path() {
+                "/holons.v1.HolonSession/Sessions" => {
+                    #[allow(non_camel_case_types)]
+                    struct SessionsSvc<T: HolonSession>(pub Arc<T>);
+                    impl<
+                        T: HolonSession,
+                    > tonic::server::UnaryService<super::SessionsRequest>
+                    for SessionsSvc<T> {
+                        type Response = super::SessionsResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::SessionsRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as HolonSession>::sessions(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = SessionsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/holons.v1.HolonSession/WatchSessions" => {
+                    #[allow(non_camel_case_types)]
+                    struct WatchSessionsSvc<T: HolonSession>(pub Arc<T>);
+                    impl<
+                        T: HolonSession,
+                    > tonic::server::ServerStreamingService<super::WatchSessionsRequest>
+                    for WatchSessionsSvc<T> {
+                        type Response = super::SessionEvent;
+                        type ResponseStream = T::WatchSessionsStream;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::ResponseStream>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::WatchSessionsRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as HolonSession>::watch_sessions(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = WatchSessionsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.server_streaming(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                _ => {
+                    Box::pin(async move {
+                        let mut response = http::Response::new(empty_body());
+                        let headers = response.headers_mut();
+                        headers
+                            .insert(
+                                tonic::Status::GRPC_STATUS,
+                                (tonic::Code::Unimplemented as i32).into(),
+                            );
+                        headers
+                            .insert(
+                                http::header::CONTENT_TYPE,
+                                tonic::metadata::GRPC_CONTENT_TYPE,
+                            );
+                        Ok(response)
+                    })
+                }
+            }
+        }
+    }
+    impl<T> Clone for HolonSessionServer<T> {
+        fn clone(&self) -> Self {
+            let inner = self.inner.clone();
+            Self {
+                inner,
+                accept_compression_encodings: self.accept_compression_encodings,
+                send_compression_encodings: self.send_compression_encodings,
+                max_decoding_message_size: self.max_decoding_message_size,
+                max_encoding_message_size: self.max_encoding_message_size,
+            }
+        }
+    }
+    /// Generated gRPC service name
+    pub const SERVICE_NAME: &str = "holons.v1.HolonSession";
+    impl<T> tonic::server::NamedService for HolonSessionServer<T> {
+        const NAME: &'static str = SERVICE_NAME;
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct LogsRequest {
+    #[prost(enumeration = "LogLevel", tag = "1")]
+    pub min_level: i32,
+    #[prost(string, repeated, tag = "2")]
+    pub session_ids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, repeated, tag = "3")]
+    pub rpc_methods: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(message, optional, tag = "4")]
+    pub since: ::core::option::Option<::prost_types::Duration>,
+    #[prost(bool, tag = "5")]
+    pub follow: bool,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct LogEntry {
+    #[prost(message, optional, tag = "1")]
+    pub ts: ::core::option::Option<::prost_types::Timestamp>,
+    #[prost(enumeration = "LogLevel", tag = "2")]
+    pub level: i32,
+    #[prost(string, tag = "3")]
+    pub slug: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub instance_uid: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub rpc_method: ::prost::alloc::string::String,
+    #[prost(string, tag = "7")]
+    pub message: ::prost::alloc::string::String,
+    #[prost(map = "string, string", tag = "8")]
+    pub fields: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
+    #[prost(string, tag = "9")]
+    pub caller: ::prost::alloc::string::String,
+    /// Relay path: ordered hops from the originator up through each
+    /// relay before arriving on the stream being read. Empty when the
+    /// entry was emitted by the holon whose stream the reader is
+    /// consuming. See OBSERVABILITY.md §Organism Relay.
+    #[prost(message, repeated, tag = "10")]
+    pub chain: ::prost::alloc::vec::Vec<ChainHop>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ChainHop {
+    #[prost(string, tag = "1")]
+    pub slug: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub instance_uid: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MetricsRequest {
+    #[prost(string, repeated, tag = "1")]
+    pub name_prefixes: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(bool, tag = "2")]
+    pub include_session_rollup: bool,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MetricsSnapshot {
+    #[prost(message, optional, tag = "1")]
+    pub captured_at: ::core::option::Option<::prost_types::Timestamp>,
+    #[prost(string, tag = "2")]
+    pub slug: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub instance_uid: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "4")]
+    pub samples: ::prost::alloc::vec::Vec<MetricSample>,
+    /// Populated only when OP_SESSIONS=metrics and the request asks for it.
+    #[prost(message, optional, tag = "5")]
+    pub session_rollup: ::core::option::Option<SessionMetrics>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MetricSample {
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(map = "string, string", tag = "2")]
+    pub labels: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
+    #[prost(string, tag = "6")]
+    pub help: ::prost::alloc::string::String,
+    /// Relay path (see LogEntry.chain). Typically empty for metrics:
+    /// the caller asks `child.Metrics()` directly on each direct child,
+    /// so the stream identifies the source. Populated only when a holon
+    /// folds a direct child's cached samples into its own snapshot.
+    #[prost(message, repeated, tag = "7")]
+    pub chain: ::prost::alloc::vec::Vec<ChainHop>,
+    #[prost(oneof = "metric_sample::Value", tags = "3, 4, 5")]
+    pub value: ::core::option::Option<metric_sample::Value>,
+}
+/// Nested message and enum types in `MetricSample`.
+pub mod metric_sample {
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Value {
+        #[prost(int64, tag = "3")]
+        Counter(i64),
+        #[prost(double, tag = "4")]
+        Gauge(f64),
+        #[prost(message, tag = "5")]
+        Histogram(super::HistogramSample),
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HistogramSample {
+    /// Cumulative buckets — bucket.count includes all samples
+    /// where value <= bucket.upper_bound. Prometheus semantics.
+    #[prost(message, repeated, tag = "1")]
+    pub buckets: ::prost::alloc::vec::Vec<Bucket>,
+    #[prost(int64, tag = "2")]
+    pub count: i64,
+    #[prost(double, tag = "3")]
+    pub sum: f64,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct Bucket {
+    #[prost(double, tag = "1")]
+    pub upper_bound: f64,
+    #[prost(int64, tag = "2")]
+    pub count: i64,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EventsRequest {
+    #[prost(enumeration = "EventType", repeated, tag = "1")]
+    pub types: ::prost::alloc::vec::Vec<i32>,
+    #[prost(message, optional, tag = "2")]
+    pub since: ::core::option::Option<::prost_types::Duration>,
+    #[prost(bool, tag = "3")]
+    pub follow: bool,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EventInfo {
+    #[prost(message, optional, tag = "1")]
+    pub ts: ::core::option::Option<::prost_types::Timestamp>,
+    #[prost(enumeration = "EventType", tag = "2")]
+    pub r#type: i32,
+    #[prost(string, tag = "3")]
+    pub slug: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub instance_uid: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub session_id: ::prost::alloc::string::String,
+    #[prost(map = "string, string", tag = "6")]
+    pub payload: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
+    /// Relay path (see LogEntry.chain, same semantics).
+    #[prost(message, repeated, tag = "7")]
+    pub chain: ::prost::alloc::vec::Vec<ChainHop>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum LogLevel {
+    Unspecified = 0,
+    Trace = 1,
+    Debug = 2,
+    Info = 3,
+    Warn = 4,
+    Error = 5,
+    Fatal = 6,
+}
+impl LogLevel {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "LOG_LEVEL_UNSPECIFIED",
+            Self::Trace => "TRACE",
+            Self::Debug => "DEBUG",
+            Self::Info => "INFO",
+            Self::Warn => "WARN",
+            Self::Error => "ERROR",
+            Self::Fatal => "FATAL",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "LOG_LEVEL_UNSPECIFIED" => Some(Self::Unspecified),
+            "TRACE" => Some(Self::Trace),
+            "DEBUG" => Some(Self::Debug),
+            "INFO" => Some(Self::Info),
+            "WARN" => Some(Self::Warn),
+            "ERROR" => Some(Self::Error),
+            "FATAL" => Some(Self::Fatal),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum EventType {
+    Unspecified = 0,
+    InstanceSpawned = 1,
+    InstanceReady = 2,
+    InstanceExited = 3,
+    InstanceCrashed = 4,
+    SessionStarted = 5,
+    SessionEnded = 6,
+    HandlerPanic = 7,
+    ConfigReloaded = 8,
+}
+impl EventType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "EVENT_TYPE_UNSPECIFIED",
+            Self::InstanceSpawned => "INSTANCE_SPAWNED",
+            Self::InstanceReady => "INSTANCE_READY",
+            Self::InstanceExited => "INSTANCE_EXITED",
+            Self::InstanceCrashed => "INSTANCE_CRASHED",
+            Self::SessionStarted => "SESSION_STARTED",
+            Self::SessionEnded => "SESSION_ENDED",
+            Self::HandlerPanic => "HANDLER_PANIC",
+            Self::ConfigReloaded => "CONFIG_RELOADED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "EVENT_TYPE_UNSPECIFIED" => Some(Self::Unspecified),
+            "INSTANCE_SPAWNED" => Some(Self::InstanceSpawned),
+            "INSTANCE_READY" => Some(Self::InstanceReady),
+            "INSTANCE_EXITED" => Some(Self::InstanceExited),
+            "INSTANCE_CRASHED" => Some(Self::InstanceCrashed),
+            "SESSION_STARTED" => Some(Self::SessionStarted),
+            "SESSION_ENDED" => Some(Self::SessionEnded),
+            "HANDLER_PANIC" => Some(Self::HandlerPanic),
+            "CONFIG_RELOADED" => Some(Self::ConfigReloaded),
+            _ => None,
+        }
+    }
+}
+/// Generated client implementations.
+pub mod holon_observability_client {
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
+    use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
+    /// HolonObservability is auto-registered by the SDK's serve runner
+    /// when OP_OBS is set. Provides structured logs, metrics snapshots,
+    /// and lifecycle events. See OBSERVABILITY.md.
+    #[derive(Debug, Clone)]
+    pub struct HolonObservabilityClient<T> {
+        inner: tonic::client::Grpc<T>,
+    }
+    impl HolonObservabilityClient<tonic::transport::Channel> {
+        /// Attempt to create a new client by connecting to a given endpoint.
+        pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+        where
+            D: TryInto<tonic::transport::Endpoint>,
+            D::Error: Into<StdError>,
+        {
+            let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
+            Ok(Self::new(conn))
+        }
+    }
+    impl<T> HolonObservabilityClient<T>
+    where
+        T: tonic::client::GrpcService<tonic::body::BoxBody>,
+        T::Error: Into<StdError>,
+        T::ResponseBody: Body<Data = Bytes> + std::marker::Send + 'static,
+        <T::ResponseBody as Body>::Error: Into<StdError> + std::marker::Send,
+    {
+        pub fn new(inner: T) -> Self {
+            let inner = tonic::client::Grpc::new(inner);
+            Self { inner }
+        }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> HolonObservabilityClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T::ResponseBody: Default,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+        {
+            HolonObservabilityClient::new(InterceptedService::new(inner, interceptor))
+        }
+        /// Compress requests with the given encoding.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
+            self
+        }
+        /// Enable decompressing responses.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
+            self
+        }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_decoding_message_size(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_encoding_message_size(limit);
+            self
+        }
+        /// Logs streams log entries. If follow=true, the stream stays open
+        /// and emits new entries as they arrive. If follow=false, drains
+        /// the current ring buffer and ends.
+        pub async fn logs(
+            &mut self,
+            request: impl tonic::IntoRequest<super::LogsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<tonic::codec::Streaming<super::LogEntry>>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/holons.v1.HolonObservability/Logs",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("holons.v1.HolonObservability", "Logs"));
+            self.inner.server_streaming(req, path, codec).await
+        }
+        /// Metrics returns a point-in-time snapshot of all current metrics.
+        /// Unary, not streaming — scraping cadence is the caller's concern.
+        pub async fn metrics(
+            &mut self,
+            request: impl tonic::IntoRequest<super::MetricsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::MetricsSnapshot>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/holons.v1.HolonObservability/Metrics",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("holons.v1.HolonObservability", "Metrics"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Events streams lifecycle events. If follow=true, stays open.
+        pub async fn events(
+            &mut self,
+            request: impl tonic::IntoRequest<super::EventsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<tonic::codec::Streaming<super::EventInfo>>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/holons.v1.HolonObservability/Events",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("holons.v1.HolonObservability", "Events"));
+            self.inner.server_streaming(req, path, codec).await
+        }
+    }
+}
+/// Generated server implementations.
+pub mod holon_observability_server {
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
+    use tonic::codegen::*;
+    /// Generated trait containing gRPC methods that should be implemented for use with HolonObservabilityServer.
+    #[async_trait]
+    pub trait HolonObservability: std::marker::Send + std::marker::Sync + 'static {
+        /// Server streaming response type for the Logs method.
+        type LogsStream: tonic::codegen::tokio_stream::Stream<
+                Item = std::result::Result<super::LogEntry, tonic::Status>,
+            >
+            + std::marker::Send
+            + 'static;
+        /// Logs streams log entries. If follow=true, the stream stays open
+        /// and emits new entries as they arrive. If follow=false, drains
+        /// the current ring buffer and ends.
+        async fn logs(
+            &self,
+            request: tonic::Request<super::LogsRequest>,
+        ) -> std::result::Result<tonic::Response<Self::LogsStream>, tonic::Status>;
+        /// Metrics returns a point-in-time snapshot of all current metrics.
+        /// Unary, not streaming — scraping cadence is the caller's concern.
+        async fn metrics(
+            &self,
+            request: tonic::Request<super::MetricsRequest>,
+        ) -> std::result::Result<tonic::Response<super::MetricsSnapshot>, tonic::Status>;
+        /// Server streaming response type for the Events method.
+        type EventsStream: tonic::codegen::tokio_stream::Stream<
+                Item = std::result::Result<super::EventInfo, tonic::Status>,
+            >
+            + std::marker::Send
+            + 'static;
+        /// Events streams lifecycle events. If follow=true, stays open.
+        async fn events(
+            &self,
+            request: tonic::Request<super::EventsRequest>,
+        ) -> std::result::Result<tonic::Response<Self::EventsStream>, tonic::Status>;
+    }
+    /// HolonObservability is auto-registered by the SDK's serve runner
+    /// when OP_OBS is set. Provides structured logs, metrics snapshots,
+    /// and lifecycle events. See OBSERVABILITY.md.
+    #[derive(Debug)]
+    pub struct HolonObservabilityServer<T> {
+        inner: Arc<T>,
+        accept_compression_encodings: EnabledCompressionEncodings,
+        send_compression_encodings: EnabledCompressionEncodings,
+        max_decoding_message_size: Option<usize>,
+        max_encoding_message_size: Option<usize>,
+    }
+    impl<T> HolonObservabilityServer<T> {
+        pub fn new(inner: T) -> Self {
+            Self::from_arc(Arc::new(inner))
+        }
+        pub fn from_arc(inner: Arc<T>) -> Self {
+            Self {
+                inner,
+                accept_compression_encodings: Default::default(),
+                send_compression_encodings: Default::default(),
+                max_decoding_message_size: None,
+                max_encoding_message_size: None,
+            }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
+        where
+            F: tonic::service::Interceptor,
+        {
+            InterceptedService::new(Self::new(inner), interceptor)
+        }
+        /// Enable decompressing requests with the given encoding.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.accept_compression_encodings.enable(encoding);
+            self
+        }
+        /// Compress responses with the given encoding, if the client supports it.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.send_compression_encodings.enable(encoding);
+            self
+        }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.max_decoding_message_size = Some(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.max_encoding_message_size = Some(limit);
+            self
+        }
+    }
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for HolonObservabilityServer<T>
+    where
+        T: HolonObservability,
+        B: Body + std::marker::Send + 'static,
+        B::Error: Into<StdError> + std::marker::Send + 'static,
+    {
+        type Response = http::Response<tonic::body::BoxBody>;
+        type Error = std::convert::Infallible;
+        type Future = BoxFuture<Self::Response, Self::Error>;
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<std::result::Result<(), Self::Error>> {
+            Poll::Ready(Ok(()))
+        }
+        fn call(&mut self, req: http::Request<B>) -> Self::Future {
+            match req.uri().path() {
+                "/holons.v1.HolonObservability/Logs" => {
+                    #[allow(non_camel_case_types)]
+                    struct LogsSvc<T: HolonObservability>(pub Arc<T>);
+                    impl<
+                        T: HolonObservability,
+                    > tonic::server::ServerStreamingService<super::LogsRequest>
+                    for LogsSvc<T> {
+                        type Response = super::LogEntry;
+                        type ResponseStream = T::LogsStream;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::ResponseStream>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::LogsRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as HolonObservability>::logs(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = LogsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.server_streaming(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/holons.v1.HolonObservability/Metrics" => {
+                    #[allow(non_camel_case_types)]
+                    struct MetricsSvc<T: HolonObservability>(pub Arc<T>);
+                    impl<
+                        T: HolonObservability,
+                    > tonic::server::UnaryService<super::MetricsRequest>
+                    for MetricsSvc<T> {
+                        type Response = super::MetricsSnapshot;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::MetricsRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as HolonObservability>::metrics(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = MetricsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/holons.v1.HolonObservability/Events" => {
+                    #[allow(non_camel_case_types)]
+                    struct EventsSvc<T: HolonObservability>(pub Arc<T>);
+                    impl<
+                        T: HolonObservability,
+                    > tonic::server::ServerStreamingService<super::EventsRequest>
+                    for EventsSvc<T> {
+                        type Response = super::EventInfo;
+                        type ResponseStream = T::EventsStream;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::ResponseStream>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::EventsRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as HolonObservability>::events(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = EventsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.server_streaming(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                _ => {
+                    Box::pin(async move {
+                        let mut response = http::Response::new(empty_body());
+                        let headers = response.headers_mut();
+                        headers
+                            .insert(
+                                tonic::Status::GRPC_STATUS,
+                                (tonic::Code::Unimplemented as i32).into(),
+                            );
+                        headers
+                            .insert(
+                                http::header::CONTENT_TYPE,
+                                tonic::metadata::GRPC_CONTENT_TYPE,
+                            );
+                        Ok(response)
+                    })
+                }
+            }
+        }
+    }
+    impl<T> Clone for HolonObservabilityServer<T> {
+        fn clone(&self) -> Self {
+            let inner = self.inner.clone();
+            Self {
+                inner,
+                accept_compression_encodings: self.accept_compression_encodings,
+                send_compression_encodings: self.send_compression_encodings,
+                max_decoding_message_size: self.max_decoding_message_size,
+                max_encoding_message_size: self.max_encoding_message_size,
+            }
+        }
+    }
+    /// Generated gRPC service name
+    pub const SERVICE_NAME: &str = "holons.v1.HolonObservability";
+    impl<T> tonic::server::NamedService for HolonObservabilityServer<T> {
+        const NAME: &'static str = SERVICE_NAME;
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListInstancesRequest {
+    /// Filter by slug. Empty = all slugs.
+    #[prost(string, repeated, tag = "1")]
+    pub slugs: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    /// Include instances whose PID liveness check failed (stale entries).
+    #[prost(bool, tag = "2")]
+    pub include_stale: bool,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListInstancesResponse {
+    #[prost(message, repeated, tag = "1")]
+    pub instances: ::prost::alloc::vec::Vec<InstanceInfo>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetInstanceRequest {
+    /// Full or prefix UID.
+    #[prost(string, tag = "1")]
+    pub uid: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct InstanceInfo {
+    #[prost(string, tag = "1")]
+    pub slug: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub uid: ::prost::alloc::string::String,
+    #[prost(int32, tag = "3")]
+    pub pid: i32,
+    #[prost(message, optional, tag = "4")]
+    pub started_at: ::core::option::Option<::prost_types::Timestamp>,
+    /// "volatile" | "persistent" | "attached"
+    #[prost(string, tag = "5")]
+    pub mode: ::prost::alloc::string::String,
+    /// "stdio" | "tcp" | "unix" | ...
+    #[prost(string, tag = "6")]
+    pub transport: ::prost::alloc::string::String,
+    /// concrete endpoint
+    #[prost(string, tag = "7")]
+    pub address: ::prost::alloc::string::String,
+    /// Prometheus /metrics bind, if any
+    #[prost(string, tag = "8")]
+    pub metrics_addr: ::prost::alloc::string::String,
+    /// current stdout.log absolute path
+    #[prost(string, tag = "9")]
+    pub log_path: ::prost::alloc::string::String,
+    /// marked default in registry
+    #[prost(bool, tag = "10")]
+    pub default: bool,
+    /// PID liveness check failed
+    #[prost(bool, tag = "11")]
+    pub stale: bool,
+    /// Organism membership, when set (see INSTANCES.md §Organism Hierarchy).
+    #[prost(string, tag = "12")]
+    pub organism_uid: ::prost::alloc::string::String,
+    #[prost(string, tag = "13")]
+    pub organism_slug: ::prost::alloc::string::String,
+}
+/// Generated client implementations.
+pub mod holon_instance_client {
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
+    use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
+    /// HolonInstance is auto-registered by the parent supervisor
+    /// (typically `op`). It is NOT registered by individual holons —
+    /// listing instances is a supervisor concern. See INSTANCES.md.
+    #[derive(Debug, Clone)]
+    pub struct HolonInstanceClient<T> {
+        inner: tonic::client::Grpc<T>,
+    }
+    impl HolonInstanceClient<tonic::transport::Channel> {
+        /// Attempt to create a new client by connecting to a given endpoint.
+        pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+        where
+            D: TryInto<tonic::transport::Endpoint>,
+            D::Error: Into<StdError>,
+        {
+            let conn = tonic::transport::Endpoint::new(dst)?.connect().await?;
+            Ok(Self::new(conn))
+        }
+    }
+    impl<T> HolonInstanceClient<T>
+    where
+        T: tonic::client::GrpcService<tonic::body::BoxBody>,
+        T::Error: Into<StdError>,
+        T::ResponseBody: Body<Data = Bytes> + std::marker::Send + 'static,
+        <T::ResponseBody as Body>::Error: Into<StdError> + std::marker::Send,
+    {
+        pub fn new(inner: T) -> Self {
+            let inner = tonic::client::Grpc::new(inner);
+            Self { inner }
+        }
+        pub fn with_origin(inner: T, origin: Uri) -> Self {
+            let inner = tonic::client::Grpc::with_origin(inner, origin);
+            Self { inner }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> HolonInstanceClient<InterceptedService<T, F>>
+        where
+            F: tonic::service::Interceptor,
+            T::ResponseBody: Default,
+            T: tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
+                >,
+            >,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+        {
+            HolonInstanceClient::new(InterceptedService::new(inner, interceptor))
+        }
+        /// Compress requests with the given encoding.
+        ///
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.send_compressed(encoding);
+            self
+        }
+        /// Enable decompressing responses.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.inner = self.inner.accept_compressed(encoding);
+            self
+        }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_decoding_message_size(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.inner = self.inner.max_encoding_message_size(limit);
+            self
+        }
+        pub async fn list(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListInstancesRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListInstancesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/holons.v1.HolonInstance/List",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("holons.v1.HolonInstance", "List"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn get(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetInstanceRequest>,
+        ) -> std::result::Result<tonic::Response<super::InstanceInfo>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/holons.v1.HolonInstance/Get",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("holons.v1.HolonInstance", "Get"));
+            self.inner.unary(req, path, codec).await
+        }
+    }
+}
+/// Generated server implementations.
+pub mod holon_instance_server {
+    #![allow(
+        unused_variables,
+        dead_code,
+        missing_docs,
+        clippy::wildcard_imports,
+        clippy::let_unit_value,
+    )]
+    use tonic::codegen::*;
+    /// Generated trait containing gRPC methods that should be implemented for use with HolonInstanceServer.
+    #[async_trait]
+    pub trait HolonInstance: std::marker::Send + std::marker::Sync + 'static {
+        async fn list(
+            &self,
+            request: tonic::Request<super::ListInstancesRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListInstancesResponse>,
+            tonic::Status,
+        >;
+        async fn get(
+            &self,
+            request: tonic::Request<super::GetInstanceRequest>,
+        ) -> std::result::Result<tonic::Response<super::InstanceInfo>, tonic::Status>;
+    }
+    /// HolonInstance is auto-registered by the parent supervisor
+    /// (typically `op`). It is NOT registered by individual holons —
+    /// listing instances is a supervisor concern. See INSTANCES.md.
+    #[derive(Debug)]
+    pub struct HolonInstanceServer<T> {
+        inner: Arc<T>,
+        accept_compression_encodings: EnabledCompressionEncodings,
+        send_compression_encodings: EnabledCompressionEncodings,
+        max_decoding_message_size: Option<usize>,
+        max_encoding_message_size: Option<usize>,
+    }
+    impl<T> HolonInstanceServer<T> {
+        pub fn new(inner: T) -> Self {
+            Self::from_arc(Arc::new(inner))
+        }
+        pub fn from_arc(inner: Arc<T>) -> Self {
+            Self {
+                inner,
+                accept_compression_encodings: Default::default(),
+                send_compression_encodings: Default::default(),
+                max_decoding_message_size: None,
+                max_encoding_message_size: None,
+            }
+        }
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
+        where
+            F: tonic::service::Interceptor,
+        {
+            InterceptedService::new(Self::new(inner), interceptor)
+        }
+        /// Enable decompressing requests with the given encoding.
+        #[must_use]
+        pub fn accept_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.accept_compression_encodings.enable(encoding);
+            self
+        }
+        /// Compress responses with the given encoding, if the client supports it.
+        #[must_use]
+        pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
+            self.send_compression_encodings.enable(encoding);
+            self
+        }
+        /// Limits the maximum size of a decoded message.
+        ///
+        /// Default: `4MB`
+        #[must_use]
+        pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+            self.max_decoding_message_size = Some(limit);
+            self
+        }
+        /// Limits the maximum size of an encoded message.
+        ///
+        /// Default: `usize::MAX`
+        #[must_use]
+        pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+            self.max_encoding_message_size = Some(limit);
+            self
+        }
+    }
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for HolonInstanceServer<T>
+    where
+        T: HolonInstance,
+        B: Body + std::marker::Send + 'static,
+        B::Error: Into<StdError> + std::marker::Send + 'static,
+    {
+        type Response = http::Response<tonic::body::BoxBody>;
+        type Error = std::convert::Infallible;
+        type Future = BoxFuture<Self::Response, Self::Error>;
+        fn poll_ready(
+            &mut self,
+            _cx: &mut Context<'_>,
+        ) -> Poll<std::result::Result<(), Self::Error>> {
+            Poll::Ready(Ok(()))
+        }
+        fn call(&mut self, req: http::Request<B>) -> Self::Future {
+            match req.uri().path() {
+                "/holons.v1.HolonInstance/List" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListSvc<T: HolonInstance>(pub Arc<T>);
+                    impl<
+                        T: HolonInstance,
+                    > tonic::server::UnaryService<super::ListInstancesRequest>
+                    for ListSvc<T> {
+                        type Response = super::ListInstancesResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ListInstancesRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as HolonInstance>::list(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ListSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/holons.v1.HolonInstance/Get" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetSvc<T: HolonInstance>(pub Arc<T>);
+                    impl<
+                        T: HolonInstance,
+                    > tonic::server::UnaryService<super::GetInstanceRequest>
+                    for GetSvc<T> {
+                        type Response = super::InstanceInfo;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetInstanceRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as HolonInstance>::get(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = GetSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                _ => {
+                    Box::pin(async move {
+                        let mut response = http::Response::new(empty_body());
+                        let headers = response.headers_mut();
+                        headers
+                            .insert(
+                                tonic::Status::GRPC_STATUS,
+                                (tonic::Code::Unimplemented as i32).into(),
+                            );
+                        headers
+                            .insert(
+                                http::header::CONTENT_TYPE,
+                                tonic::metadata::GRPC_CONTENT_TYPE,
+                            );
+                        Ok(response)
+                    })
+                }
+            }
+        }
+    }
+    impl<T> Clone for HolonInstanceServer<T> {
+        fn clone(&self) -> Self {
+            let inner = self.inner.clone();
+            Self {
+                inner,
+                accept_compression_encodings: self.accept_compression_encodings,
+                send_compression_encodings: self.send_compression_encodings,
+                max_decoding_message_size: self.max_decoding_message_size,
+                max_encoding_message_size: self.max_encoding_message_size,
+            }
+        }
+    }
+    /// Generated gRPC service name
+    pub const SERVICE_NAME: &str = "holons.v1.HolonInstance";
+    impl<T> tonic::server::NamedService for HolonInstanceServer<T> {
         const NAME: &'static str = SERVICE_NAME;
     }
 }

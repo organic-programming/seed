@@ -768,6 +768,8 @@ mod tests {
             }),
             sequences: Vec::new(),
             guide: String::new(),
+            session_visibility: 0,
+            session_visibility_overrides: Vec::new(),
         }
     }
 

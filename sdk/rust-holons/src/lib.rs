@@ -16,6 +16,7 @@ pub mod gen {
     }
 }
 pub mod identity;
+pub mod observability;
 pub mod serve;
 pub mod transport;
 

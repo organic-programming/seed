@@ -174,6 +174,8 @@ fn proto_manifest(resolved: &identity::ResolvedManifest) -> HolonManifest {
             })
             .collect(),
         guide: String::new(),
+        session_visibility: 0, // OBSERVABILITY_VISIBILITY_UNSPECIFIED
+        session_visibility_overrides: Vec::new(),
     }
 }
 
@@ -851,6 +853,8 @@ mod tests {
                 artifacts: None,
                 sequences: vec![],
                 guide: String::new(),
+                session_visibility: 0,
+                session_visibility_overrides: Vec::new(),
             }),
             services: vec![ServiceDoc {
                 name: "static.v1.Echo".to_string(),

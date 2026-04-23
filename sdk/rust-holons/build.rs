@@ -5,6 +5,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         proto_root.join("holons/v1/manifest.proto"),
         proto_root.join("holons/v1/describe.proto"),
         proto_root.join("holons/v1/coax.proto"),
+        proto_root.join("holons/v1/session.proto"),
+        proto_root.join("holons/v1/observability.proto"),
+        proto_root.join("holons/v1/instance.proto"),
     ];
     std::fs::create_dir_all(&out_dir)?;
 
@@ -14,18 +17,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .out_dir(&out_dir)
         .compile_protos(&protos, &[proto_root.clone()])?;
 
-    println!(
-        "cargo:rerun-if-changed={}",
-        proto_root.join("holons/v1/manifest.proto").display()
-    );
-    println!(
-        "cargo:rerun-if-changed={}",
-        proto_root.join("holons/v1/describe.proto").display()
-    );
-    println!(
-        "cargo:rerun-if-changed={}",
-        proto_root.join("holons/v1/coax.proto").display()
-    );
+    for name in [
+        "manifest.proto",
+        "describe.proto",
+        "coax.proto",
+        "session.proto",
+        "observability.proto",
+        "instance.proto",
+    ] {
+        println!(
+            "cargo:rerun-if-changed={}",
+            proto_root.join(format!("holons/v1/{}", name)).display()
+        );
+    }
     Ok(())
 }
 
