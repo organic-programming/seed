@@ -772,20 +772,46 @@ func waitForCondition(t *testing.T, timeout time.Duration, fn func() bool, messa
 	t.Fatal(message)
 }
 
+func envValue(env []string, key string) (string, bool) {
+	prefix := key + "="
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			return strings.TrimPrefix(entry, prefix), true
+		}
+	}
+	return "", false
+}
+
 func TestRunEnvironmentExportsPersistentSharedSDKCache(t *testing.T) {
+	t.Setenv("GRACE_OP_SHARED_CACHE_DIR", "")
 	toolCache := t.TempDir()
 	paths := repoPaths{ToolCacheDir: toolCache}
 	env := runEnvironment(paths, t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir())
 
-	want := "GRACE_OP_SHARED_CACHE_DIR=" + filepath.Join(toolCache, "grace-op-shared")
-	found := false
-	for _, entry := range env {
-		if entry == want {
-			found = true
-			break
-		}
+	got, ok := envValue(env, "GRACE_OP_SHARED_CACHE_DIR")
+	want := filepath.Join(toolCache, "grace-op-shared")
+	if !ok || got != want {
+		t.Fatalf("GRACE_OP_SHARED_CACHE_DIR = %q (present=%v), want %q", got, ok, want)
 	}
-	if !found {
-		t.Fatalf("runEnvironment did not export %q; env=%v", want, env)
+}
+
+func TestRunEnvironmentHonorsOuterSharedCacheAndCacheDirs(t *testing.T) {
+	outer := t.TempDir()
+	t.Setenv("GRACE_OP_SHARED_CACHE_DIR", outer)
+	t.Setenv("GOMODCACHE", filepath.Join(outer, "go-mod"))
+	t.Setenv("BUNDLE_PATH", filepath.Join(outer, "bundle"))
+
+	paths := repoPaths{ToolCacheDir: t.TempDir()}
+	env := runEnvironment(paths, t.TempDir(), t.TempDir(), t.TempDir(), t.TempDir())
+
+	for key, want := range map[string]string{
+		"GRACE_OP_SHARED_CACHE_DIR": outer,
+		"GOMODCACHE":                filepath.Join(outer, "go-mod"),
+		"BUNDLE_PATH":               filepath.Join(outer, "bundle"),
+	} {
+		got, ok := envValue(env, key)
+		if !ok || got != want {
+			t.Fatalf("%s = %q (present=%v), want outer value %q", key, got, ok, want)
+		}
 	}
 }

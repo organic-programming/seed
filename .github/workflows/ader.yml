@@ -34,19 +34,38 @@ jobs:
 
     env:
       BOUQUET: ${{ github.event.inputs.bouquet || 'local-dev' }}
+      # Persist slow SDK bootstraps (Ruby grpc gem, Swift packages, Go
+      # modules, etc.) OUTSIDE the workspace. `actions/checkout@v4` wipes
+      # the workspace on every run; caches placed here survive. ader's
+      # `runEnvironment` honors these outer values.
+      ADER_CI_CACHE_BASE: /Users/popok/.ader-ci-cache
+      GRACE_OP_SHARED_CACHE_DIR: /Users/popok/.ader-ci-cache/grace-op-shared
+      GOMODCACHE: /Users/popok/.ader-ci-cache/go-mod
+      GOCACHE: /Users/popok/.ader-ci-cache/go-build
+      BUNDLE_PATH: /Users/popok/.ader-ci-cache/bundle
+      PUB_CACHE: /Users/popok/.ader-ci-cache/dart-pub
+      npm_config_cache: /Users/popok/.ader-ci-cache/npm
+      GRADLE_USER_HOME: /Users/popok/.ader-ci-cache/gradle
+      NUGET_PACKAGES: /Users/popok/.ader-ci-cache/nuget
+      DOTNET_CLI_HOME: /Users/popok/.ader-ci-cache/dotnet-home
 
     steps:
+      # Go module cache files are installed read-only. When checkout tries
+      # to delete the previous run's workspace contents, `rmdir`/`unlink`
+      # fails with EACCES on those files. Loosen permissions first so the
+      # delete succeeds. No-op on the very first run (workspace missing).
+      - name: Loosen permissions on previous workspace
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          mkdir -p "$ADER_CI_CACHE_BASE"
+
       - uses: actions/checkout@v4
         with:
           # ader reads commit/branch metadata via git; shallow clones can
           # misreport. Full history is cheap and accurate.
           fetch-depth: 0
-          # Default `git clean -ffdx` wipes untracked/gitignored files —
-          # that includes `ader/catalogues/*/.artifacts/tool-cache/`, which
-          # is the whole point of cross-run persistence. It also fails with
-          # EACCES on Go module cache files (installed read-only). Disable
-          # the clean; tracked files are still refreshed by git checkout.
-          clean: false
 
       - name: Verify toolchain presence
         run: |
@@ -59,13 +78,14 @@ jobs:
           bundle --version
           echo "::endgroup::"
 
-      # Self-hosted runners typically persist the workspace between runs, so
-      # this cache is a defensive restore for the case where the runner is
-      # recreated. Key changes invalidate only when SDK-level dependencies move.
+      # Self-hosted runners persist ADER_CI_CACHE_BASE naturally between
+      # runs, so this is a defensive restore for the case where the runner
+      # is recreated. The cache path is outside $GITHUB_WORKSPACE so it
+      # survives checkout wiping the workspace.
       - name: Restore op-managed SDK cache
         uses: actions/cache@v4
         with:
-          path: ader/catalogues/*/.artifacts/tool-cache/grace-op-shared
+          path: /Users/popok/.ader-ci-cache/grace-op-shared
           key: ader-sdk-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('examples/hello-world/*/Gemfile.lock', 'sdk/**/Gemfile') }}
           restore-keys: |
             ader-sdk-${{ runner.os }}-${{ runner.arch }}-

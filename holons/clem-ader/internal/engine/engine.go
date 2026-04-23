@@ -561,6 +561,20 @@ func runEnvironment(paths repoPaths, repoRoot string, snapshotRoot string, runAr
 		}
 		env = append(env, key+"="+value)
 	}
+	// setEnvIfUnset preserves a caller-provided value (e.g. from CI) so cache
+	// directories can live outside the workspace when the outer environment
+	// requests it. Used for caches, never for ader-owned config.
+	setEnvIfUnset := func(key, value string) {
+		for _, entry := range env {
+			if !strings.HasPrefix(entry, key+"=") {
+				continue
+			}
+			if strings.TrimSpace(strings.TrimPrefix(entry, key+"=")) != "" {
+				return
+			}
+		}
+		setEnv(key, value)
+	}
 	setEnv("ADER_LIVE_REPO_ROOT", repoRoot)
 	setEnv("ADER_REPO_ROOT", snapshotRoot)
 	setEnv("ADER_CONFIG_DIR", paths.ConfigDir)
@@ -569,17 +583,17 @@ func runEnvironment(paths repoPaths, repoRoot string, snapshotRoot string, runAr
 	setEnv("TMPDIR", tmpStore)
 	setEnv("TMP", tmpStore)
 	setEnv("TEMP", tmpStore)
-	setEnv("GOCACHE", filepath.Join(paths.ToolCacheDir, "go-build"))
-	setEnv("GOMODCACHE", filepath.Join(paths.ToolCacheDir, "go-mod"))
-	setEnv("GRADLE_USER_HOME", filepath.Join(paths.ToolCacheDir, "gradle"))
-	setEnv("npm_config_cache", filepath.Join(paths.ToolCacheDir, "npm"))
-	setEnv("BUNDLE_PATH", filepath.Join(paths.ToolCacheDir, "bundle"))
-	setEnv("PUB_CACHE", filepath.Join(paths.ToolCacheDir, "dart-pub"))
-	setEnv("DOTNET_CLI_HOME", filepath.Join(paths.ToolCacheDir, "dotnet-home"))
-	setEnv("NUGET_PACKAGES", filepath.Join(paths.ToolCacheDir, "nuget"))
+	setEnvIfUnset("GOCACHE", filepath.Join(paths.ToolCacheDir, "go-build"))
+	setEnvIfUnset("GOMODCACHE", filepath.Join(paths.ToolCacheDir, "go-mod"))
+	setEnvIfUnset("GRADLE_USER_HOME", filepath.Join(paths.ToolCacheDir, "gradle"))
+	setEnvIfUnset("npm_config_cache", filepath.Join(paths.ToolCacheDir, "npm"))
+	setEnvIfUnset("BUNDLE_PATH", filepath.Join(paths.ToolCacheDir, "bundle"))
+	setEnvIfUnset("PUB_CACHE", filepath.Join(paths.ToolCacheDir, "dart-pub"))
+	setEnvIfUnset("DOTNET_CLI_HOME", filepath.Join(paths.ToolCacheDir, "dotnet-home"))
+	setEnvIfUnset("NUGET_PACKAGES", filepath.Join(paths.ToolCacheDir, "nuget"))
 	setEnv("CARGO_TARGET_DIR", filepath.Join(runArtifactsDir, "cargo", "default"))
 	setEnv("PYTHONDONTWRITEBYTECODE", "1")
-	setEnv("GRACE_OP_SHARED_CACHE_DIR", filepath.Join(paths.ToolCacheDir, "grace-op-shared"))
+	setEnvIfUnset("GRACE_OP_SHARED_CACHE_DIR", filepath.Join(paths.ToolCacheDir, "grace-op-shared"))
 	return env
 }
 
