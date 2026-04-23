@@ -1,0 +1,16 @@
+description: Suite validating op metrics snapshot against a running holon.
+defaults:
+  profile: smoke
+steps:
+  metrics-cli:
+    check: op-metrics-cli
+    lane: progression
+profiles:
+  smoke:
+    description: Fetch a metrics snapshot and render table / Prom / JSON.
+    archive: never
+    steps: [metrics-cli]
+  full:
+    description: Full metrics exercise including prefix filtering + session rollup.
+    archive: never
+    steps: [metrics-cli]

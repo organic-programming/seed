@@ -282,3 +282,20 @@ checks:
     workdir: ader/catalogues/grace-op/integration/dispatch
     command: go test -tags e2e -v -count=1 -timeout 30m -run '^TestDispatch_CLI_' .
     description: Verifies the root dispatch surface across supported transports.
+
+  op-ps-cli:
+    workdir: ader/catalogues/grace-op/integration/ps
+    command: go test -tags e2e -v -count=1 -timeout 10m -run '^TestPs_CLI_' .
+    description: Verifies op ps / op instances discovery against .op/run/ registry entries.
+  op-logs-cli:
+    workdir: ader/catalogues/grace-op/integration/logs
+    command: go test -tags e2e -v -count=1 -timeout 10m -run '^TestLogs_CLI_' .
+    description: Verifies op logs streams and drains from a running observability holon.
+  op-metrics-cli:
+    workdir: ader/catalogues/grace-op/integration/metrics
+    command: go test -tags e2e -v -count=1 -timeout 10m -run '^TestMetrics_CLI_' .
+    description: Verifies op metrics snapshot against a running observability holon.
+  op-events-cli:
+    workdir: ader/catalogues/grace-op/integration/events
+    command: go test -tags e2e -v -count=1 -timeout 10m -run '^TestEvents_CLI_' .
+    description: Verifies op events streaming from a running observability holon.

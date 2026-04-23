@@ -1,0 +1,16 @@
+description: Suite validating op logs streaming from a running observability-enabled holon.
+defaults:
+  profile: smoke
+steps:
+  logs-cli:
+    check: op-logs-cli
+    lane: progression
+profiles:
+  smoke:
+    description: Happy-path tail + filters + --json + --chain-origin.
+    archive: never
+    steps: [logs-cli]
+  full:
+    description: Full tailing exercise including replay and follow.
+    archive: never
+    steps: [logs-cli]

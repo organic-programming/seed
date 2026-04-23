@@ -1,0 +1,16 @@
+description: Suite validating op events streaming of lifecycle events.
+defaults:
+  profile: smoke
+steps:
+  events-cli:
+    check: op-events-cli
+    lane: progression
+profiles:
+  smoke:
+    description: Drain replay + optional --follow exit on transport close.
+    archive: never
+    steps: [events-cli]
+  full:
+    description: Full event exercise including type filters and JSON.
+    archive: never
+    steps: [events-cli]

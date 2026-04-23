@@ -1,0 +1,16 @@
+description: Suite validating op ps / op instances discovery of running holons.
+defaults:
+  profile: smoke
+steps:
+  ps-cli:
+    check: op-ps-cli
+    lane: progression
+profiles:
+  smoke:
+    description: Baseline `op ps` surface — empty, populated, JSON, stale.
+    archive: never
+    steps: [ps-cli]
+  full:
+    description: Full `op ps` and `op instances` exercise.
+    archive: never
+    steps: [ps-cli]
