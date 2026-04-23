@@ -1,11 +1,15 @@
 description: local development bouquet
 defaults:
   source: workspace
-  lane: progression
+  # Each suite's "smoke" profile is a curated selection by its author,
+  # mixing progression and regression steps. `both` runs every step the
+  # profile lists regardless of lane — the canonical semantic for a
+  # smoke bouquet.
+  lane: both
   archive: never
 entries:
 - catalogue: grace-op
-  suite: op-proxy
+  suite: op_version
   profile: smoke
 - catalogue: clem-ader
   suite: ader-self
