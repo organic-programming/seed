@@ -20,7 +20,7 @@ module Holons
       # This service is recursive: a member that is itself an organism
       # exposes its own CoaxService at its own level.
       #
-      # See AGENT.md Article 1 for the COAX principle.
+      # See CONSTITUTION.md Article 1 for the COAX principle.
       # See apps_kits/DESIGN.md for how App Kits implement this surface.
       class Service
 
@@ -36,8 +36,12 @@ module Holons
         # Equivalent to browsing the holon picker in the UI.
         # The organism controls which members are listed — internal holons
         # may be intentionally omitted to keep the exposure surface minimal.
+        # Organism Kits provide built-in exposure strategies (all, filtered,
+        # or none) — the organism picks one, no custom filtering needed.
+        # @example {}
         rpc :ListMembers, ::Holons::V1::ListMembersRequest, ::Holons::V1::ListMembersResponse
         # Query the runtime status of a specific member.
+        # @example {"slug":"gabriel-greeting-go"}
         rpc :MemberStatus, ::Holons::V1::MemberStatusRequest, ::Holons::V1::MemberStatusResponse
         # ── Member lifecycle ─────────────────────────────────────
         #
@@ -45,8 +49,10 @@ module Holons
         # The organism resolves the member, launches its process if necessary,
         # and establishes a gRPC channel — identical to a user selecting a
         # holon in a picker.
+        # @example {"slug":"gabriel-greeting-go","transport":"tcp"}
         rpc :ConnectMember, ::Holons::V1::ConnectMemberRequest, ::Holons::V1::ConnectMemberResponse
         # Disconnect a member holon.
+        # @example {"slug":"gabriel-greeting-go"}
         rpc :DisconnectMember, ::Holons::V1::DisconnectMemberRequest, ::Holons::V1::DisconnectMemberResponse
         # ── Tell ─────────────────────────────────────────────────
         #
@@ -60,6 +66,7 @@ module Holons
         # Tell operates at the organism level: it is the single entry point
         # for an external caller to interact with any member without needing
         # to discover and connect to each one separately.
+        # @example {"member_slug":"gabriel-greeting-go","method":"greeting.v1.GreetingService/SayHello","payload":"eyJuYW1lIjoiQm9iIiwibGFuZ19jb2RlIjoiZnIifQ=="}
         rpc :Tell, ::Holons::V1::TellRequest, ::Holons::V1::TellResponse
         # ── Server lifecycle ──────────────────────────────────────
         #
@@ -70,6 +77,7 @@ module Holons
         # call an RPC on a server that is not running. The COAX server is
         # started by the organism itself (UI toggle, launch argument, or
         # startup configuration).
+        # @example {}
         rpc :TurnOffCoax, ::Holons::V1::TurnOffCoaxRequest, ::Holons::V1::TurnOffCoaxResponse
       end
 
