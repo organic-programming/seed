@@ -1,0 +1,119 @@
+name: ader
+
+on:
+  push:
+    branches: [master, dev]
+  pull_request:
+    branches: [master, dev]
+  workflow_dispatch:
+    inputs:
+      bouquet:
+        description: bouquet name under ader/bouquets/
+        required: false
+        default: local-dev
+
+# Ader takes a per-catalogue filesystem lock; queueing two runs on the same ref
+# wastes runner time. Cancel any in-flight run on the same ref before starting.
+concurrency:
+  group: ader-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bouquet:
+    # Self-hosted runners executing code from a forked PR are a classic RCE
+    # vector. Block it unconditionally here; only same-repo PRs, pushes, and
+    # manual dispatches are allowed to land on popok-noctambule.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+
+    # Runner must carry both labels. Add `popok-noctambule` to the runner's
+    # label set in GitHub → Settings → Actions → Runners if missing.
+    runs-on: [self-hosted, popok-noctambule]
+
+    timeout-minutes: 240
+
+    env:
+      BOUQUET: ${{ github.event.inputs.bouquet || 'local-dev' }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # ader reads commit/branch metadata via git; shallow clones can
+          # misreport. Full history is cheap and accurate.
+          fetch-depth: 0
+
+      - name: Verify toolchain presence
+        run: |
+          set -euo pipefail
+          echo "::group::go"
+          go version
+          echo "::endgroup::"
+          echo "::group::ruby"
+          ruby --version
+          bundle --version
+          echo "::endgroup::"
+
+      # Self-hosted runners typically persist the workspace between runs, so
+      # this cache is a defensive restore for the case where the runner is
+      # recreated. Key changes invalidate only when SDK-level dependencies move.
+      - name: Restore op-managed SDK cache
+        uses: actions/cache@v4
+        with:
+          path: ader/catalogues/*/.artifacts/tool-cache/grace-op-shared
+          key: ader-sdk-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('examples/hello-world/*/Gemfile.lock', 'sdk/**/Gemfile') }}
+          restore-keys: |
+            ader-sdk-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Bootstrap op and ader
+        # Fresh checkout has no installed op; use the canonical escape hatch
+        # for the first compile, then every subsequent build goes through
+        # `op build ... --install`.
+        run: |
+          set -euo pipefail
+          go run ./holons/grace-op/cmd/op env --init
+          go run ./holons/grace-op/cmd/op build op --install
+          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
+          op build clem-ader --install
+          echo "$OPBIN" >> "$GITHUB_PATH"
+          {
+            echo "OPPATH=$OPPATH"
+            echo "OPBIN=$OPBIN"
+          } >> "$GITHUB_ENV"
+
+      - name: Run ader bouquet
+        # Non-zero exit when any entry fails. GitHub then marks the run red,
+        # which triggers the standard failure notifications (email + mobile).
+        run: ader test-bouquet ader --name "$BOUQUET"
+
+      - name: Publish bouquet summary
+        if: always()
+        run: |
+          set -euo pipefail
+          latest="$(ls -1dt ader/reports/bouquets/* 2>/dev/null | head -n1 || true)"
+          if [ -n "$latest" ] && [ -f "$latest/summary.md" ]; then
+            {
+              echo "## ader bouquet: $BOUQUET"
+              echo
+              cat "$latest/summary.md"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ader-reports-${{ github.run_id }}
+          path: |
+            ader/reports/bouquets/**
+            ader/catalogues/*/reports/**
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Cleanup per-run artifacts
+        # Prunes tmp stores and orphan snapshots; preserves tool-cache/ so
+        # grace-op-shared survives for the next run.
+        if: always()
+        run: |
+          set -euo pipefail
+          for cat in ader/catalogues/*/; do
+            ader cleanup "$cat" || true
+          done
