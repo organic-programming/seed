@@ -13,6 +13,20 @@ struct GabrielGreetingApp: App {
   @StateObject private var coaxManager: CoaxManager
 
   init() {
+    // Cross-SDK observability bootstrap: reads OP_OBS from the env
+    // the launcher injected. Fail-fast on otel (v2) or unknown tokens
+    // per OBSERVABILITY.md §Activation Layer 3. Safe no-op when OP_OBS
+    // is empty.
+    do {
+      try checkEnv()
+    } catch {
+      FileHandle.standardError.write(
+        "OP_OBS misconfigured: \(error)\n".data(using: .utf8) ?? Data())
+    }
+    _ = fromEnv(ObsConfig(slug: "gabriel-greeting-app"))
+    current().emit(.instanceSpawned, payload: ["runtime": "swiftui"])
+    current().logger("app").info("SwiftUI app starting")
+
     let holonManager = GreetingHolonManager()
     let settingsStore = FileSettingsStore.create(
       applicationId: "gabriel-greeting-app-swiftui",

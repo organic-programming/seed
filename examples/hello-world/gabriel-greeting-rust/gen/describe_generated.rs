@@ -119,6 +119,8 @@ pub fn static_describe_response() -> DescribeResponse {
                 ,
             ],
             guide: "".to_string(),
+            session_visibility: 0,
+            session_visibility_overrides: vec![],
         }
     ),
     services: vec![

@@ -795,6 +795,8 @@ func writeRustHolonManifestLiteral(buf *strings.Builder, manifest *holonsv1.Holo
 		writeRustSequenceLiteral(buf, manifest.GetSequences()[index], indent)
 	})
 	writeRustStringField(buf, indent+1, "guide", manifest.GetGuide())
+	writeRustLine(buf, indent+1, "session_visibility: 0,")
+	writeRustLine(buf, indent+1, "session_visibility_overrides: vec![],")
 	writeRustLine(buf, indent, "}")
 }
 
