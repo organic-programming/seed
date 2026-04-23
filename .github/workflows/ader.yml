@@ -71,9 +71,9 @@ jobs:
         run: |
           set -euo pipefail
           go run ./holons/grace-op/cmd/op env --init
-          go run ./holons/grace-op/cmd/op build op --install
+          go run ./holons/grace-op/cmd/op build op --install --symlink
           eval "$(go run ./holons/grace-op/cmd/op env --shell)"
-          op build clem-ader --install
+          op build clem-ader --install --symlink
           echo "$OPBIN" >> "$GITHUB_PATH"
           {
             echo "OPPATH=$OPPATH"
