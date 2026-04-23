@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
@@ -604,13 +605,8 @@ func isPidAlive(pid int) bool {
 		return false
 	}
 	// On Unix, Signal(0) checks liveness without side effects.
-	return proc.Signal(os.Signal(nil)) == nil || proc.Signal(syscallSignalZero()) == nil
+	return proc.Signal(syscall.Signal(0)) == nil
 }
-
-// syscallSignalZero returns the platform's zero-signal constant. Kept
-// in a helper so we can satisfy `golang.org/x/sys/unix` vs stdlib syscall
-// differences later without touching callers.
-func syscallSignalZero() os.Signal { return nil }
 
 func dialInstance(ctx context.Context, inst instanceRow) (*grpc.ClientConn, error) {
 	addr := inst.meta.Address
