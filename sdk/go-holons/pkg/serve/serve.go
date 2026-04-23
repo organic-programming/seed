@@ -135,6 +135,7 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 	// gRPC listener — a refinement we can add later without changing
 	// the public surface.
 	var promServer *observability.PromServer
+	var metricsAddr string
 	if observability.Current().Enabled(observability.FamilyProm) {
 		addr := os.Getenv("OP_PROM_ADDR")
 		if addr == "" {
@@ -146,6 +147,18 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 		} else {
 			log.Printf("Prometheus /metrics listening on %s", bound)
 			promServer = ps
+			metricsAddr = bound
+		}
+	}
+
+	// Disk writers under .op/run/<slug>/<uid>/ when OP_RUN_DIR is set
+	// (typically by `op run`; manual launches can set OP_RUN_DIR
+	// explicitly or skip disk by leaving it empty). Safe no-op when
+	// neither logs nor events families are enabled.
+	runDir := os.Getenv("OP_RUN_DIR")
+	if runDir != "" {
+		if err := observability.EnableDiskWriters(runDir); err != nil {
+			log.Printf("warning: observability disk writers: %v", err)
 		}
 	}
 
@@ -257,7 +270,31 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 	// Announce INSTANCE_READY as soon as the first listener is bound,
 	// even when events are disabled the call is a no-op.
 	if len(grpcEndpoints) > 0 {
-		observability.EmitReady(context.Background(), advertisedURI(grpcEndpoints[0].uri, grpcEndpoints[0].lis.Addr()))
+		firstURI := advertisedURI(grpcEndpoints[0].uri, grpcEndpoints[0].lis.Addr())
+		observability.EmitReady(context.Background(), firstURI)
+		// Write meta.json for `op ps` / HolonInstance.List when we
+		// have a run directory. Skips silently when OP_RUN_DIR is
+		// empty (manual launch without `op run`).
+		if runDir != "" {
+			meta := observability.MetaJSON{
+				Slug:         observability.Current().Slug(),
+				UID:          observability.Current().InstanceUID(),
+				PID:          os.Getpid(),
+				StartedAt:    time.Now(),
+				Mode:         "persistent",
+				Transport:    transport.Scheme(grpcEndpoints[0].uri),
+				Address:      firstURI,
+				MetricsAddr:  metricsAddr,
+				OrganismUID:  observability.Current().OrganismUID(),
+				OrganismSlug: observability.Current().OrganismSlug(),
+			}
+			if observability.Current().Enabled(observability.FamilyLogs) {
+				meta.LogPath = runDir + "/stdout.log"
+			}
+			if err := observability.WriteMetaJSON(runDir, meta); err != nil {
+				log.Printf("warning: meta.json write failed: %v", err)
+			}
+		}
 	}
 
 	sigCh := make(chan os.Signal, 1)

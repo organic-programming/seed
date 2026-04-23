@@ -2,6 +2,7 @@ package observability
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc"
@@ -107,25 +108,15 @@ func sessionIDFromMetadata(ctx context.Context) string {
 
 // generateSessionID returns a best-effort unique id for an RPC when no
 // client-provided session id is available. Uses time-based monotonicity
-// plus a package-scope counter; adequate for log correlation, not
-// guaranteed to be globally unique.
-var sessionCounter uint64
+// plus a package-scope atomic counter so concurrent handlers never
+// collide; adequate for log correlation, not guaranteed to be globally
+// unique across processes.
+var sessionCounter atomic.Uint64
 
 func generateSessionID(method string) string {
-	// Use nanoseconds + atomic counter to keep it cheap and unique
-	// within a process. Caller correlation across processes relies
-	// on the client providing x-holon-session-id.
 	n := time.Now().UnixNano()
 	_ = method
-	return formatID(n, incrementSession())
-}
-
-func incrementSession() uint64 {
-	// Avoid importing sync/atomic just for this: the counter is
-	// approximate; duplicates are acceptable at the cost of one
-	// rebuilt histogram bucket.
-	sessionCounter++
-	return sessionCounter
+	return formatID(n, sessionCounter.Add(1))
 }
 
 func formatID(n int64, ctr uint64) string {
