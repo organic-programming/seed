@@ -24,6 +24,7 @@ import (
 	"github.com/organic-programming/go-holons/pkg/describe"
 	"github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/holonrpc"
+	"github.com/organic-programming/go-holons/pkg/observability"
 	"github.com/organic-programming/go-holons/pkg/serve"
 
 	"google.golang.org/grpc"
@@ -139,6 +140,17 @@ func TestServeHelperProcess(t *testing.T) {
 	case "run-with-options":
 		describe.UseStaticResponse(serveStaticDescribeResponse())
 		err = serve.RunWithOptions(listenURIs[0], register, reflectEnabled, listenURIs[1:]...)
+	case "run-with-member":
+		describe.UseStaticResponse(serveStaticDescribeResponse())
+		options := serve.ServeOptions{Reflect: reflectEnabled}
+		if address := os.Getenv("GO_SERVE_MEMBER_ADDRESS"); address != "" {
+			options.MemberEndpoints = append(options.MemberEndpoints, serve.MemberRef{
+				Slug:    os.Getenv("GO_SERVE_MEMBER_SLUG"),
+				UID:     os.Getenv("GO_SERVE_MEMBER_UID"),
+				Address: address,
+			})
+		}
+		err = serve.RunWithServeOptions(listenURIs[0], register, options, listenURIs[1:]...)
 	case "run-empty":
 		err = serve.RunWithOptions(listenURIs[0], func(*grpc.Server) {}, reflectEnabled, listenURIs[1:]...)
 	case "run-empty-static":
@@ -244,6 +256,68 @@ func TestRunServesGRPCAndHTTPConcurrently(t *testing.T) {
 	requireHTTPDescribeEventually(t, client, "echo-server")
 	requireHTTPUnaryEchoEventually(t, client, "serve-multi-http")
 	requireHTTPStreamEchoEventually(t, client, "serve-multi-stream")
+}
+
+func TestRunWithServeOptionsStartsRelayAndMultilog(t *testing.T) {
+	observability.Reset()
+	defer observability.Reset()
+	t.Setenv("OP_OBS", "logs,events")
+	childObs := observability.Configure(observability.Config{
+		Slug:        "child-holon",
+		InstanceUID: "child-uid",
+	})
+	defer childObs.Close()
+	childObs.Logger("child").Info("child ready")
+
+	childServer := grpc.NewServer()
+	holonsv1.RegisterHolonObservabilityServer(childServer, observability.NewService(childObs, observability.VisibilityFull))
+	childLis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("child listen: %v", err)
+	}
+	go childServer.Serve(childLis)
+	defer childServer.Stop()
+
+	runRoot := t.TempDir()
+	rootUID := "root-uid"
+	rootSlug := filepath.Base(os.Args[0])
+	t.Setenv("OP_OBS", "logs,events")
+	t.Setenv("OP_RUN_DIR", runRoot)
+	t.Setenv("OP_INSTANCE_UID", rootUID)
+	t.Setenv("OP_ORGANISM_UID", rootUID)
+	t.Setenv("OP_ORGANISM_SLUG", rootSlug)
+	t.Setenv("GO_SERVE_MEMBER_SLUG", "child-holon")
+	t.Setenv("GO_SERVE_MEMBER_UID", "child-uid")
+	t.Setenv("GO_SERVE_MEMBER_ADDRESS", "tcp://"+childLis.Addr().String())
+
+	cmd, logs := startServeProcess(t, "run-with-member", "tcp://127.0.0.1:0", false)
+	defer stopServeProcess(t, cmd, logs)
+	_ = waitForAdvertisedAddress(t, logs, "tcp://127.0.0.1:")
+
+	multilogPath := filepath.Join(runRoot, rootSlug, rootUID, "multilog.jsonl")
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		records, err := observability.ReadMultilog(multilogPath)
+		if err == nil && multilogHasChainDepth(records, "child-holon", 2) && multilogHasChainDepth(records, rootSlug, 1) {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	records, _ := observability.ReadMultilog(multilogPath)
+	t.Fatalf("multilog missing relayed/root enriched chains at %s; logs:\n%s\nrecords:%+v", multilogPath, logs.String(), records)
+}
+
+func multilogHasChainDepth(records []map[string]any, slug string, depth int) bool {
+	for _, rec := range records {
+		if rec["slug"] != slug {
+			continue
+		}
+		chain, ok := rec["chain"].([]any)
+		if ok && len(chain) == depth {
+			return true
+		}
+	}
+	return false
 }
 
 func TestParseFlags(t *testing.T) {

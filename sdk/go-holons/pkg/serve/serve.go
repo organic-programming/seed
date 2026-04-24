@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -42,6 +43,21 @@ type CLIOptions struct {
 	ListenURI  string
 	ListenURIs []string
 	Reflect    bool
+}
+
+// MemberRef identifies a direct organism child whose observability
+// stream should be relayed into this process when the corresponding
+// families are enabled.
+type MemberRef struct {
+	Slug    string
+	UID     string
+	Address string
+}
+
+// ServeOptions contains non-CLI serve runner settings.
+type ServeOptions struct {
+	Reflect         bool
+	MemberEndpoints []MemberRef
 }
 
 // ParseFlags extracts --listen and --port from command-line args.
@@ -105,6 +121,12 @@ func Run(listenURI string, register RegisterFunc, moreListenURIs ...string) erro
 // RunWithOptions is like Run but lets you control reflection. Repeated listen
 // URIs allow one holon process to expose multiple transports at once.
 func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreListenURIs ...string) (runErr error) {
+	return RunWithServeOptions(listenURI, register, ServeOptions{Reflect: reflect}, moreListenURIs...)
+}
+
+// RunWithServeOptions is like RunWithOptions and also accepts direct
+// organism member endpoints for observability relay.
+func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeOptions, moreListenURIs ...string) (runErr error) {
 	listenURIs := normalizeListenURIs(listenURI, moreListenURIs)
 
 	// Observability: fail-fast on unknown OP_OBS tokens, then install
@@ -126,7 +148,7 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 		return fmt.Errorf("register HolonMeta: %w", err)
 	}
 	observability.Register(s)
-	if reflect {
+	if options.Reflect {
 		reflection.Register(s)
 	}
 
@@ -165,6 +187,30 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 		}
 	}
 
+	var multilogWriter *observability.MultilogWriter
+	if mw, err := observability.StartOrganismMultilog(); err != nil {
+		log.Printf("warning: observability multilog: %v", err)
+	} else {
+		multilogWriter = mw
+	}
+
+	relayCtx, cancelRelays := context.WithCancel(context.Background())
+	relays, relayConns := startMemberRelays(relayCtx, options.MemberEndpoints)
+	cleanupObservability := func() {
+		cancelRelays()
+		for _, relay := range relays {
+			relay.Stop()
+		}
+		for _, conn := range relayConns {
+			_ = conn.Close()
+		}
+		if multilogWriter != nil {
+			if err := multilogWriter.Stop(); err != nil {
+				log.Printf("warning: observability multilog close: %v", err)
+			}
+		}
+	}
+
 	type grpcEndpoint struct {
 		uri string
 		lis net.Listener
@@ -191,6 +237,7 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 		if internalBridge != nil {
 			_ = internalBridge.Close()
 		}
+		cleanupObservability()
 		s.Stop()
 		for _, endpoint := range grpcEndpoints {
 			_ = endpoint.lis.Close()
@@ -252,7 +299,7 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 	}
 
 	mode := "reflection ON"
-	if !reflect {
+	if !options.Reflect {
 		mode = "reflection OFF"
 	}
 	for _, endpoint := range grpcEndpoints {
@@ -316,6 +363,7 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 		}
 
 		observability.EmitExited(shutdownCtx, reason)
+		cleanupObservability()
 
 		done := make(chan struct{})
 		go func() {
@@ -398,4 +446,63 @@ func normalizeListenURIs(listenURI string, moreListenURIs []string) []string {
 
 func isHTTPListenURI(uri string) bool {
 	return strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://")
+}
+
+func startMemberRelays(ctx context.Context, members []MemberRef) ([]*observability.Relay, []*grpc.ClientConn) {
+	obs := observability.Current()
+	if obs == nil || (!obs.Enabled(observability.FamilyLogs) && !obs.Enabled(observability.FamilyEvents)) {
+		return nil, nil
+	}
+	relays := make([]*observability.Relay, 0, len(members))
+	conns := make([]*grpc.ClientConn, 0, len(members))
+	for _, member := range members {
+		member.Slug = strings.TrimSpace(member.Slug)
+		member.UID = strings.TrimSpace(member.UID)
+		member.Address = strings.TrimSpace(member.Address)
+		if member.Slug == "" || member.UID == "" || member.Address == "" {
+			log.Printf("warning: observability relay skipped incomplete member ref: slug=%q uid=%q address=%q", member.Slug, member.UID, member.Address)
+			continue
+		}
+		conn, err := grpcclient.Dial(ctx, normalizeRelayDialTarget(member.Address))
+		if err != nil {
+			log.Printf("warning: observability relay dial %s/%s: %v", member.Slug, member.UID, err)
+			continue
+		}
+		relay := observability.NewRelay(member.Slug, member.UID, conn)
+		if err := relay.Start(ctx); err != nil {
+			_ = conn.Close()
+			log.Printf("warning: observability relay start %s/%s: %v", member.Slug, member.UID, err)
+			continue
+		}
+		relays = append(relays, relay)
+		conns = append(conns, conn)
+	}
+	return relays, conns
+}
+
+func normalizeRelayDialTarget(target string) string {
+	trimmed := strings.TrimSpace(target)
+	if !strings.Contains(trimmed, "://") {
+		return trimmed
+	}
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return trimmed
+	}
+	switch parsed.Scheme {
+	case "tcp":
+		host := parsed.Hostname()
+		if host == "" || host == "0.0.0.0" || host == "::" {
+			host = "127.0.0.1"
+		}
+		port := parsed.Port()
+		if port == "" {
+			return trimmed
+		}
+		return net.JoinHostPort(host, port)
+	case "unix", "ws", "wss":
+		return trimmed
+	default:
+		return trimmed
+	}
 }
