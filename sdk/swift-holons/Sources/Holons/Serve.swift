@@ -182,7 +182,7 @@ public enum Serve {
     try checkEnv(env)
     let obs = (env["OP_OBS"] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
       ? nil
-      : fromEnv(ObsConfig(), env: env)
+      : try fromEnv(ObsConfig(), env: env)
     let describeEnabled: Bool
     do {
       describeEnabled = try maybeAddDescribe(&providers)

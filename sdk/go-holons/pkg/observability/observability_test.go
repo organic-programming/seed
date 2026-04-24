@@ -20,12 +20,12 @@ func TestParseOPOBS_Basic(t *testing.T) {
 		{"logs", map[Family]bool{FamilyLogs: true}},
 		{"logs,metrics", map[Family]bool{FamilyLogs: true, FamilyMetrics: true}},
 		{"all", map[Family]bool{FamilyLogs: true, FamilyMetrics: true, FamilyEvents: true, FamilyProm: true}},
-		{"all,otel", map[Family]bool{FamilyLogs: true, FamilyMetrics: true, FamilyEvents: true, FamilyProm: true}},
-		{"all,sessions", map[Family]bool{FamilyLogs: true, FamilyMetrics: true, FamilyEvents: true, FamilyProm: true}},
-		{"unknown", map[Family]bool{}},
 	}
 	for _, tc := range tests {
-		got := parseOPOBS(tc.in)
+		got, err := parseOPOBS(tc.in)
+		if err != nil {
+			t.Fatalf("parseOPOBS(%q) error: %v", tc.in, err)
+		}
 		if len(got) != len(tc.want) {
 			t.Errorf("parseOPOBS(%q) len=%d, want %d; got=%v", tc.in, len(got), len(tc.want), got)
 			continue
@@ -34,6 +34,11 @@ func TestParseOPOBS_Basic(t *testing.T) {
 			if got[k] != v {
 				t.Errorf("parseOPOBS(%q)[%v]=%v, want %v", tc.in, k, got[k], v)
 			}
+		}
+	}
+	for _, input := range []string{"all,otel", "all,sessions", "unknown"} {
+		if _, err := parseOPOBS(input); err == nil {
+			t.Fatalf("parseOPOBS(%q) expected error", input)
 		}
 	}
 }

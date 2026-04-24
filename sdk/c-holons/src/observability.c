@@ -103,7 +103,7 @@ uint32_t holon_obs_parse_families(const char *raw) {
         size_t len = strlen(tok);
         while (len > 0 && (tok[len - 1] == ' ' || tok[len - 1] == '\t')) tok[--len] = '\0';
         if (!*tok) continue;
-        if (tok_matches(tok, "otel") || tok_matches(tok, "sessions")) continue;
+        if (tok_matches(tok, "otel") || tok_matches(tok, "sessions")) return 0;
         if (tok_matches(tok, "all")) {
             out |= HOLON_FAMILY_LOGS | HOLON_FAMILY_METRICS | HOLON_FAMILY_EVENTS | HOLON_FAMILY_PROM;
         } else if (tok_matches(tok, "logs")) {
@@ -114,6 +114,8 @@ uint32_t holon_obs_parse_families(const char *raw) {
             out |= HOLON_FAMILY_EVENTS;
         } else if (tok_matches(tok, "prom")) {
             out |= HOLON_FAMILY_PROM;
+        } else {
+            return 0;
         }
     }
     return out;
@@ -207,6 +209,9 @@ static void obs_free(holon_obs_t *o) {
 }
 
 int holon_obs_configure(const holon_obs_config_t *cfg) {
+    char token[HOLON_OBS_TOKEN_MAX];
+    if (holon_obs_check_env(NULL, token) != 0) return 0;
+
     const char *raw = getenv("OP_OBS");
     uint32_t families = holon_obs_parse_families(raw ? raw : "");
 

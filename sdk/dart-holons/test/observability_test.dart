@@ -29,25 +29,12 @@ void main() {
         obs.Family.prom
       }),
     );
-    expect(obs.parseOpObs('unknown'), isEmpty);
     expect(
-      obs.parseOpObs('all,otel'),
-      equals({
-        obs.Family.logs,
-        obs.Family.metrics,
-        obs.Family.events,
-        obs.Family.prom
-      }),
-    );
-    expect(
-      obs.parseOpObs('all,sessions'),
-      equals({
-        obs.Family.logs,
-        obs.Family.metrics,
-        obs.Family.events,
-        obs.Family.prom
-      }),
-    );
+        () => obs.parseOpObs('unknown'), throwsA(isA<obs.InvalidTokenError>()));
+    expect(() => obs.parseOpObs('all,otel'),
+        throwsA(isA<obs.InvalidTokenError>()));
+    expect(() => obs.parseOpObs('all,sessions'),
+        throwsA(isA<obs.InvalidTokenError>()));
   });
 
   test('checkEnv rejects otel and unknown', () {

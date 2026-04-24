@@ -116,7 +116,10 @@ var (
 // and the event bus keep working against the previous instance until
 // it is closed.
 func Configure(cfg Config) *Observability {
-	families := parseOPOBS(os.Getenv("OP_OBS"))
+	families, err := parseOPOBS(os.Getenv("OP_OBS"))
+	if err != nil {
+		panic(err)
+	}
 
 	// Defaults.
 	if cfg.LogsRingSize <= 0 {
@@ -273,26 +276,26 @@ func (o *Observability) Close() error {
 
 // parseOPOBS turns the comma-separated env value into a family set.
 // "all" expands to logs+metrics+events+prom. Unknown and v2-only
-// tokens are dropped here so Configure can stay panic-free; CheckEnv
-// applies the fail-fast startup policy.
-func parseOPOBS(v string) map[Family]bool {
+// tokens are rejected in v1.
+func parseOPOBS(v string) (map[Family]bool, error) {
 	out := map[Family]bool{}
 	v = strings.TrimSpace(v)
 	if v == "" {
-		return out
+		return out, nil
 	}
 	for _, raw := range strings.Split(v, ",") {
 		tok := strings.TrimSpace(raw)
 		if tok == "" {
 			continue
 		}
-		if isV2OnlyToken(tok) {
-			continue
+		if tok == "otel" {
+			return nil, &InvalidTokenError{Token: tok, Reason: "otel export is reserved for v2; not implemented in v1"}
+		}
+		if tok == "sessions" {
+			return nil, &InvalidTokenError{Token: tok, Reason: "sessions are reserved for v2; not implemented in v1"}
 		}
 		if !v1Tokens[tok] {
-			// Unknown token. Same policy as above — the serve runner
-			// surfaces this as a startup error via CheckEnv.
-			continue
+			return nil, &InvalidTokenError{Token: tok, Reason: "unknown OP_OBS token"}
 		}
 		switch tok {
 		case "all":
@@ -304,7 +307,7 @@ func parseOPOBS(v string) map[Family]bool {
 			out[Family(tok)] = true
 		}
 	}
-	return out
+	return out, nil
 }
 
 // CheckEnv returns a non-nil error if OP_OBS contains an unknown or

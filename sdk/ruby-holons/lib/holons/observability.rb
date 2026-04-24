@@ -61,8 +61,9 @@ module Holons
       raw.split(',').each do |p|
         tok = p.strip
         next if tok.empty?
-        next if tok == 'otel' || tok == 'sessions'
-        next unless V1_TOKENS.include?(tok)
+        raise InvalidTokenError.new(tok, 'otel export is reserved for v2; not implemented in v1') if tok == 'otel'
+        raise InvalidTokenError.new(tok, 'sessions are reserved for v2; not implemented in v1') if tok == 'sessions'
+        raise InvalidTokenError.new(tok, 'unknown OP_OBS token') unless V1_TOKENS.include?(tok)
         if tok == 'all'
           out.merge(%i[logs metrics events prom])
         else

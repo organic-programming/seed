@@ -24,12 +24,12 @@ def test_parse_op_obs_basic():
         ("logs", {obs.Family.LOGS}),
         ("logs,metrics", {obs.Family.LOGS, obs.Family.METRICS}),
         ("all", {obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM}),
-        ("all,otel", {obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM}),
-        ("all,sessions", {obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM}),
-        ("unknown", set()),
     ]
     for raw, want in cases:
         assert obs._parse_op_obs(raw) == want, raw
+    for raw in ("all,otel", "all,sessions", "unknown"):
+        with pytest.raises(obs.InvalidTokenError):
+            obs._parse_op_obs(raw)
 
 
 def test_check_env_otel_rejected():

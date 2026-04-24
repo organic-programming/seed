@@ -2773,12 +2773,18 @@ static void test_observability_env(void) {
   char token[HOLON_OBS_TOKEN_MAX];
   uint32_t all = HOLON_FAMILY_LOGS | HOLON_FAMILY_METRICS | HOLON_FAMILY_EVENTS | HOLON_FAMILY_PROM;
 
-  check_int(holon_obs_parse_families("all,otel") == all, "observability parse drops otel");
-  check_int(holon_obs_parse_families("all,sessions") == all, "observability parse drops sessions");
+  check_int(holon_obs_parse_families("all") == all, "observability parse all families");
+  check_int(holon_obs_parse_families("all,otel") == 0, "observability parse rejects otel");
+  check_int(holon_obs_parse_families("all,sessions") == 0, "observability parse rejects sessions");
+  check_int(holon_obs_parse_families("unknown") == 0, "observability parse rejects unknown");
   check_int(holon_obs_check_env("logs,otel", token) != 0, "observability rejects otel");
   check_int(holon_obs_check_env("logs,sessions", token) != 0, "observability rejects sessions token");
+  setenv("OP_OBS", "logs,otel", 1);
+  check_int(holon_obs_configure(NULL) == 0, "observability configure rejects otel");
+  unsetenv("OP_OBS");
   setenv("OP_SESSIONS", "metrics", 1);
   check_int(holon_obs_check_env(NULL, token) != 0, "observability rejects OP_SESSIONS");
+  check_int(holon_obs_configure(NULL) == 0, "observability configure rejects OP_SESSIONS");
   unsetenv("OP_SESSIONS");
 }
 

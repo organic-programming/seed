@@ -22,14 +22,16 @@ import static org.junit.jupiter.api.Assertions.*;
 
 final class ObservabilityTest {
     @Test
-    void parseOpObsDropsV2Tokens() {
+    void parseOpObsRejectsV2Tokens() {
         Set<Observability.Family> all = Set.of(
                 Observability.Family.LOGS,
                 Observability.Family.METRICS,
                 Observability.Family.EVENTS,
                 Observability.Family.PROM);
-        assertEquals(all, Observability.parseOpObs("all,otel"));
-        assertEquals(all, Observability.parseOpObs("all,sessions"));
+        assertEquals(all, Observability.parseOpObs("all"));
+        assertThrows(Observability.InvalidTokenException.class, () -> Observability.parseOpObs("all,otel"));
+        assertThrows(Observability.InvalidTokenException.class, () -> Observability.parseOpObs("all,sessions"));
+        assertThrows(Observability.InvalidTokenException.class, () -> Observability.parseOpObs("unknown"));
     }
 
     @Test

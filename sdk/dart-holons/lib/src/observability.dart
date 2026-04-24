@@ -45,8 +45,17 @@ Set<Family> parseOpObs(String raw) {
   for (final part in raw.split(',')) {
     final tok = part.trim();
     if (tok.isEmpty) continue;
-    if (tok == 'otel' || tok == 'sessions') continue;
-    if (!_v1Tokens.contains(tok)) continue;
+    if (tok == 'otel') {
+      throw InvalidTokenError(
+          tok, 'otel export is reserved for v2; not implemented in v1');
+    }
+    if (tok == 'sessions') {
+      throw InvalidTokenError(
+          tok, 'sessions are reserved for v2; not implemented in v1');
+    }
+    if (!_v1Tokens.contains(tok)) {
+      throw InvalidTokenError(tok, 'unknown OP_OBS token');
+    }
     if (tok == 'all') {
       out.addAll({Family.logs, Family.metrics, Family.events, Family.prom});
     } else {

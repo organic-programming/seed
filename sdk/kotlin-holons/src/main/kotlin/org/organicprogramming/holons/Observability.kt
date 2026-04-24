@@ -86,8 +86,11 @@ object Observability {
         for (part in raw.split(",")) {
             val tok = part.trim()
             if (tok.isEmpty()) continue
-            if (tok == "otel" || tok == "sessions") continue
-            if (tok !in V1_TOKENS) continue
+            if (tok == "otel") throw InvalidTokenException(tok,
+                "otel export is reserved for v2; not implemented in v1")
+            if (tok == "sessions") throw InvalidTokenException(tok,
+                "sessions are reserved for v2; not implemented in v1")
+            if (tok !in V1_TOKENS) throw InvalidTokenException(tok, "unknown OP_OBS token")
             when (tok) {
                 "all" -> {
                     out.add(Family.LOGS); out.add(Family.METRICS)

@@ -279,7 +279,8 @@ fn observability_from_options(
     if env.get("OP_OBS").map(|s| s.trim()).unwrap_or("").is_empty() {
         return Ok(None);
     }
-    let obs = observability::from_env_map(observability::Config::default(), &env);
+    let obs = observability::from_env_map(observability::Config::default(), &env)
+        .map_err(|err| boxed_err(err.to_string()))?;
     Ok((!obs.families.is_empty()).then_some(obs))
 }
 

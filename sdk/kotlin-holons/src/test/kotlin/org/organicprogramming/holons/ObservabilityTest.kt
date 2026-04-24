@@ -16,15 +16,23 @@ import kotlin.test.assertTrue
 
 class ObservabilityTest {
     @Test
-    fun parseOpObsDropsV2Tokens() {
+    fun parseOpObsRejectsV2Tokens() {
         val all = setOf(
             Observability.Family.LOGS,
             Observability.Family.METRICS,
             Observability.Family.EVENTS,
             Observability.Family.PROM,
         )
-        assertEquals(all, Observability.parseOpObs("all,otel"))
-        assertEquals(all, Observability.parseOpObs("all,sessions"))
+        assertEquals(all, Observability.parseOpObs("all"))
+        assertFailsWith<Observability.InvalidTokenException> {
+            Observability.parseOpObs("all,otel")
+        }
+        assertFailsWith<Observability.InvalidTokenException> {
+            Observability.parseOpObs("all,sessions")
+        }
+        assertFailsWith<Observability.InvalidTokenException> {
+            Observability.parseOpObs("unknown")
+        }
     }
 
     @Test

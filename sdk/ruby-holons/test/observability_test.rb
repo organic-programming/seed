@@ -6,10 +6,18 @@ require_relative "../lib/holons"
 require_relative "../lib/holons/observability"
 
 class ObservabilityTest < Minitest::Test
-  def test_parse_op_obs_drops_v2_tokens
+  def test_parse_op_obs_rejects_v2_tokens
     all = Set[:logs, :metrics, :events, :prom]
-    assert_equal all, Holons::Observability.parse_op_obs("all,otel")
-    assert_equal all, Holons::Observability.parse_op_obs("all,sessions")
+    assert_equal all, Holons::Observability.parse_op_obs("all")
+    assert_raises(Holons::Observability::InvalidTokenError) do
+      Holons::Observability.parse_op_obs("all,otel")
+    end
+    assert_raises(Holons::Observability::InvalidTokenError) do
+      Holons::Observability.parse_op_obs("all,sessions")
+    end
+    assert_raises(Holons::Observability::InvalidTokenError) do
+      Holons::Observability.parse_op_obs("unknown")
+    end
   end
 
   def test_check_env_rejects_v2_tokens_and_op_sessions

@@ -71,8 +71,12 @@ public static class Env
         if (string.IsNullOrWhiteSpace(raw)) return families;
         foreach (var p in raw.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
         {
-            if (p == "otel" || p == "sessions") continue;
-            if (!V1Tokens.Contains(p)) continue;
+            if (p == "otel")
+                throw new InvalidTokenException(p, "otel export is reserved for v2; not implemented in v1");
+            if (p == "sessions")
+                throw new InvalidTokenException(p, "sessions are reserved for v2; not implemented in v1");
+            if (!V1Tokens.Contains(p))
+                throw new InvalidTokenException(p, "unknown OP_OBS token");
             if (p == "all")
             {
                 families.Add(Family.Logs); families.Add(Family.Metrics);

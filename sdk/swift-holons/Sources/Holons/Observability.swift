@@ -34,15 +34,22 @@ public struct InvalidTokenError: Error, CustomStringConvertible {
     public var description: String { "\(variable): \(reason): \(token)" }
 }
 
-public func parseOpObs(_ raw: String) -> Set<Family> {
+public func parseOpObs(_ raw: String) throws -> Set<Family> {
     var out = Set<Family>()
     let trimmed = raw.trimmingCharacters(in: .whitespaces)
     if trimmed.isEmpty { return out }
     for part in trimmed.split(separator: ",") {
         let tok = part.trimmingCharacters(in: .whitespaces)
         guard !tok.isEmpty else { continue }
-        if tok == "otel" || tok == "sessions" { continue } // dropped by parser
-        guard v1Tokens.contains(tok) else { continue }    // unknown dropped
+        if tok == "otel" {
+            throw InvalidTokenError(token: tok, reason: "otel export is reserved for v2; not implemented in v1")
+        }
+        if tok == "sessions" {
+            throw InvalidTokenError(token: tok, reason: "sessions are reserved for v2; not implemented in v1")
+        }
+        guard v1Tokens.contains(tok) else {
+            throw InvalidTokenError(token: tok, reason: "unknown OP_OBS token")
+        }
         if tok == "all" {
             out.formUnion([.logs, .metrics, .events, .prom])
         } else if let fam = Family(rawValue: tok) {
@@ -653,8 +660,8 @@ private let obsLock = NSLock()
 private nonisolated(unsafe) var _current: Observability?
 
 @discardableResult
-public func configure(_ cfg: ObsConfig, env: [String: String] = ProcessInfo.processInfo.environment) -> Observability {
-    let families = parseOpObs(env["OP_OBS"] ?? "")
+public func configure(_ cfg: ObsConfig, env: [String: String] = ProcessInfo.processInfo.environment) throws -> Observability {
+    let families = try parseOpObs(env["OP_OBS"] ?? "")
     var normalized = cfg
     if normalized.slug.isEmpty {
         normalized.slug = CommandLine.arguments.first.map { (($0 as NSString).lastPathComponent) } ?? ""
@@ -673,14 +680,14 @@ public func configure(_ cfg: ObsConfig, env: [String: String] = ProcessInfo.proc
 }
 
 @discardableResult
-public func fromEnv(_ base: ObsConfig = ObsConfig(), env: [String: String] = ProcessInfo.processInfo.environment) -> Observability {
+public func fromEnv(_ base: ObsConfig = ObsConfig(), env: [String: String] = ProcessInfo.processInfo.environment) throws -> Observability {
     var cfg = base
     if cfg.instanceUid.isEmpty { cfg.instanceUid = env["OP_INSTANCE_UID"] ?? "" }
     if cfg.organismUid.isEmpty { cfg.organismUid = env["OP_ORGANISM_UID"] ?? "" }
     if cfg.organismSlug.isEmpty { cfg.organismSlug = env["OP_ORGANISM_SLUG"] ?? "" }
     if cfg.promAddr.isEmpty { cfg.promAddr = env["OP_PROM_ADDR"] ?? "" }
     if cfg.runDir.isEmpty { cfg.runDir = env["OP_RUN_DIR"] ?? "" }
-    return configure(cfg, env: env)
+    return try configure(cfg, env: env)
 }
 
 public func current() -> Observability {

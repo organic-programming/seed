@@ -31,14 +31,14 @@ test('parseOpObs basic', () => {
     ['logs', new Set([obs.Family.LOGS])],
     ['logs,metrics', new Set([obs.Family.LOGS, obs.Family.METRICS])],
     ['all', new Set([obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM])],
-    ['all,otel', new Set([obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM])],
-    ['all,sessions', new Set([obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM])],
-    ['unknown', new Set()],
   ];
   for (const [input, want] of cases) {
     const got = obs.parseOpObs(input);
     assert.equal(got.size, want.size, input);
     for (const f of want) assert.ok(got.has(f), `${input}: missing ${f}`);
+  }
+  for (const input of ['all,otel', 'all,sessions', 'unknown']) {
+    assert.throws(() => obs.parseOpObs(input), obs.InvalidTokenError);
   }
 });
 

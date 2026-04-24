@@ -46,8 +46,15 @@ function parseOpObs(raw) {
   for (const tokRaw of raw.split(',')) {
     const tok = tokRaw.trim();
     if (!tok) continue;
-    if (tok === 'otel' || tok === 'sessions') continue; // swallowed here, rejected by checkEnv
-    if (!V1_TOKENS.has(tok)) continue;
+    if (tok === 'otel') {
+      throw new InvalidTokenError('otel', 'otel export is reserved for v2; not implemented in v1');
+    }
+    if (tok === 'sessions') {
+      throw new InvalidTokenError('sessions', 'sessions are reserved for v2; not implemented in v1');
+    }
+    if (!V1_TOKENS.has(tok)) {
+      throw new InvalidTokenError(tok, 'unknown OP_OBS token');
+    }
     if (tok === 'all') {
       out.add(Family.LOGS);
       out.add(Family.METRICS);

@@ -61,11 +61,10 @@ typedef struct {
 } holon_obs_config_t;
 
 /*
- * Parses OP_OBS (the second argument takes precedence over getenv).
- * Returns a bitmask of HOLON_FAMILY_*. V2-only tokens such as "otel"
- * and "sessions" are dropped in v1; "all" expands to
- * logs|metrics|events|prom. Unknown tokens are dropped by this
- * function; call holon_obs_check_env to fail-fast on them.
+ * Parses an already-validated OP_OBS string into a bitmask of
+ * HOLON_FAMILY_*. "all" expands to logs|metrics|events|prom.
+ * Returns 0 for empty or invalid input; call holon_obs_check_env before
+ * parsing untrusted environment input when the caller needs diagnostics.
  */
 uint32_t holon_obs_parse_families(const char *raw);
 

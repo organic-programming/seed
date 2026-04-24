@@ -53,11 +53,16 @@ def _parse_op_obs(raw: str) -> set[Family]:
     for tok in (t.strip() for t in raw.split(",")):
         if not tok:
             continue
-        if tok in {"otel", "sessions"}:
-            # v2 reserved token; swallowed silently here, rejected by check_env.
-            continue
+        if tok == "otel":
+            raise InvalidTokenError(
+                "otel export is reserved for v2; not implemented in v1"
+            )
+        if tok == "sessions":
+            raise InvalidTokenError(
+                "sessions are reserved for v2; not implemented in v1"
+            )
         if tok not in _V1_TOKENS:
-            continue
+            raise InvalidTokenError(f"unknown OP_OBS token: {tok}")
         if tok == "all":
             out.update({Family.LOGS, Family.METRICS, Family.EVENTS, Family.PROM})
         else:

@@ -63,22 +63,37 @@ impl std::error::Error for InvalidTokenError {}
 
 const V1_TOKENS: &[&str] = &["logs", "metrics", "events", "prom", "all"];
 
-pub fn parse_op_obs(raw: &str) -> HashSet<Family> {
+pub fn parse_op_obs(raw: &str) -> Result<HashSet<Family>, InvalidTokenError> {
     let mut out = HashSet::new();
     let trimmed = raw.trim();
     if trimmed.is_empty() {
-        return out;
+        return Ok(out);
     }
     for part in trimmed.split(',') {
         let tok = part.trim();
         if tok.is_empty() {
             continue;
         }
-        if tok == "otel" || tok == "sessions" {
-            continue;
+        if tok == "otel" {
+            return Err(InvalidTokenError {
+                variable: "OP_OBS",
+                token: tok.to_string(),
+                reason: "otel export is reserved for v2; not implemented in v1",
+            });
+        }
+        if tok == "sessions" {
+            return Err(InvalidTokenError {
+                variable: "OP_OBS",
+                token: tok.to_string(),
+                reason: "sessions are reserved for v2; not implemented in v1",
+            });
         }
         if !V1_TOKENS.contains(&tok) {
-            continue;
+            return Err(InvalidTokenError {
+                variable: "OP_OBS",
+                token: tok.to_string(),
+                reason: "unknown OP_OBS token",
+            });
         }
         if tok == "all" {
             out.insert(Family::Logs);
@@ -89,7 +104,7 @@ pub fn parse_op_obs(raw: &str) -> HashSet<Family> {
             out.insert(f);
         }
     }
-    out
+    Ok(out)
 }
 
 fn family_from_str(s: &str) -> Option<Family> {
@@ -873,13 +888,16 @@ fn slot() -> &'static RwLock<Option<Arc<Observability>>> {
     CURRENT.get_or_init(|| RwLock::new(None))
 }
 
-pub fn configure(cfg: Config) -> Arc<Observability> {
+pub fn configure(cfg: Config) -> Result<Arc<Observability>, InvalidTokenError> {
     let env = std::env::vars().collect::<HashMap<_, _>>();
     configure_from_env(cfg, &env)
 }
 
-pub fn configure_from_env(mut cfg: Config, env: &HashMap<String, String>) -> Arc<Observability> {
-    let families = parse_op_obs(env.get("OP_OBS").map(String::as_str).unwrap_or(""));
+pub fn configure_from_env(
+    mut cfg: Config,
+    env: &HashMap<String, String>,
+) -> Result<Arc<Observability>, InvalidTokenError> {
+    let families = parse_op_obs(env.get("OP_OBS").map(String::as_str).unwrap_or(""))?;
     if cfg.slug.is_empty() {
         cfg.slug = std::env::args()
             .next()
@@ -927,15 +945,18 @@ pub fn configure_from_env(mut cfg: Config, env: &HashMap<String, String>) -> Arc
         loggers: Mutex::new(HashMap::new()),
     });
     *slot().write().unwrap() = Some(obs.clone());
-    obs
+    Ok(obs)
 }
 
-pub fn from_env(base: Config) -> Arc<Observability> {
+pub fn from_env(base: Config) -> Result<Arc<Observability>, InvalidTokenError> {
     let env = std::env::vars().collect::<HashMap<_, _>>();
     from_env_map(base, &env)
 }
 
-pub fn from_env_map(base: Config, env: &HashMap<String, String>) -> Arc<Observability> {
+pub fn from_env_map(
+    base: Config,
+    env: &HashMap<String, String>,
+) -> Result<Arc<Observability>, InvalidTokenError> {
     let mut cfg = base;
     if cfg.instance_uid.is_empty() {
         cfg.instance_uid = env.get("OP_INSTANCE_UID").cloned().unwrap_or_default();
@@ -1510,15 +1531,18 @@ mod tests {
 
     #[test]
     fn parse_op_obs_basic() {
-        assert_eq!(parse_op_obs("").len(), 0);
-        assert_eq!(parse_op_obs("logs"), [Family::Logs].into_iter().collect());
+        assert_eq!(parse_op_obs("").unwrap().len(), 0);
+        assert_eq!(
+            parse_op_obs("logs").unwrap(),
+            [Family::Logs].into_iter().collect()
+        );
         let all: HashSet<Family> = [Family::Logs, Family::Metrics, Family::Events, Family::Prom]
             .into_iter()
             .collect();
-        assert_eq!(parse_op_obs("all"), all);
-        assert_eq!(parse_op_obs("all,otel"), all);
-        assert_eq!(parse_op_obs("all,sessions"), all);
-        assert_eq!(parse_op_obs("unknown").len(), 0);
+        assert_eq!(parse_op_obs("all").unwrap(), all);
+        assert!(parse_op_obs("all,otel").is_err());
+        assert!(parse_op_obs("all,sessions").is_err());
+        assert!(parse_op_obs("unknown").is_err());
     }
 
     #[test]
@@ -1547,7 +1571,8 @@ mod tests {
         let o = configure(Config {
             slug: "t".to_string(),
             ..Default::default()
-        });
+        })
+        .unwrap();
         assert!(!o.enabled(Family::Logs));
         assert!(o.counter("t_total", "", BTreeMap::new()).is_none());
     }
@@ -1621,7 +1646,8 @@ mod tests {
             instance_uid: "x".to_string(),
             organism_uid: "x".to_string(),
             ..Default::default()
-        });
+        })
+        .unwrap();
         assert!(o1.is_organism_root());
         reset();
         let o2 = configure(Config {
@@ -1629,7 +1655,8 @@ mod tests {
             instance_uid: "x".to_string(),
             organism_uid: "y".to_string(),
             ..Default::default()
-        });
+        })
+        .unwrap();
         assert!(!o2.is_organism_root());
     }
 
@@ -1647,7 +1674,8 @@ mod tests {
                 ..Default::default()
             },
             &env,
-        );
+        )
+        .unwrap();
 
         assert_eq!(
             obs.cfg.run_dir,
@@ -1672,7 +1700,8 @@ mod tests {
                 ..Default::default()
             },
             &env,
-        );
+        )
+        .unwrap();
 
         enable_disk_writers(&obs.cfg.run_dir);
         obs.logger("test").info("ready", &[("phase", "unit")]);
@@ -1725,7 +1754,8 @@ mod tests {
                 ..Default::default()
             },
             &env,
-        );
+        )
+        .unwrap();
         obs.logger("test")
             .info("service-log", &[("component", "rust")]);
         obs.counter("rust_requests_total", "", BTreeMap::new())

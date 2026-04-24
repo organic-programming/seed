@@ -16,14 +16,14 @@ final class ObservabilityTests: XCTestCase {
         super.tearDown()
     }
 
-    func testParseOpObs() {
-        XCTAssertEqual(parseOpObs(""), [])
-        XCTAssertEqual(parseOpObs("logs"), [.logs])
-        XCTAssertEqual(parseOpObs("logs,metrics"), [.logs, .metrics])
-        XCTAssertEqual(parseOpObs("all"), [.logs, .metrics, .events, .prom])
-        XCTAssertEqual(parseOpObs("all,otel"), [.logs, .metrics, .events, .prom])
-        XCTAssertEqual(parseOpObs("all,sessions"), [.logs, .metrics, .events, .prom])
-        XCTAssertEqual(parseOpObs("unknown"), [])
+    func testParseOpObs() throws {
+        XCTAssertEqual(try parseOpObs(""), [])
+        XCTAssertEqual(try parseOpObs("logs"), [.logs])
+        XCTAssertEqual(try parseOpObs("logs,metrics"), [.logs, .metrics])
+        XCTAssertEqual(try parseOpObs("all"), [.logs, .metrics, .events, .prom])
+        XCTAssertThrowsError(try parseOpObs("all,otel"))
+        XCTAssertThrowsError(try parseOpObs("all,sessions"))
+        XCTAssertThrowsError(try parseOpObs("unknown"))
     }
 
     func testCheckEnvRejectsOtelAndUnknown() {
@@ -34,8 +34,8 @@ final class ObservabilityTests: XCTestCase {
         XCTAssertNoThrow(try checkEnv(["OP_OBS": "logs,metrics,events,prom,all"]))
     }
 
-    func testDisabledIsNoOp() {
-        let o = configure(ObsConfig(slug: "t"))
+    func testDisabledIsNoOp() throws {
+        let o = try configure(ObsConfig(slug: "t"))
         XCTAssertFalse(o.enabled(.logs))
         o.logger("x").info("drop", ["k": "v"])
         XCTAssertNil(o.counter("t_total"))
@@ -88,20 +88,20 @@ final class ObservabilityTests: XCTestCase {
         XCTAssertEqual(c1.count, 1)
     }
 
-    func testIsOrganismRoot() {
-        let o1 = configure(ObsConfig(slug: "g", instanceUid: "x", organismUid: "x"))
+    func testIsOrganismRoot() throws {
+        let o1 = try configure(ObsConfig(slug: "g", instanceUid: "x", organismUid: "x"))
         XCTAssertTrue(o1.isOrganismRoot)
         reset()
-        let o2 = configure(ObsConfig(slug: "g", instanceUid: "x", organismUid: "y"))
+        let o2 = try configure(ObsConfig(slug: "g", instanceUid: "x", organismUid: "y"))
         XCTAssertFalse(o2.isOrganismRoot)
     }
 
-    func testRunDirDerivesFromRegistryRoot() {
+    func testRunDirDerivesFromRegistryRoot() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("swift-obs-root-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
 
-        let o = configure(
+        let o = try configure(
             ObsConfig(slug: "gabriel", runDir: root.path, instanceUid: "uid-1"),
             env: ["OP_OBS": "logs"]
         )
@@ -117,7 +117,7 @@ final class ObservabilityTests: XCTestCase {
             .appendingPathComponent("swift-obs-disk-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
 
-        let o = configure(
+        let o = try configure(
             ObsConfig(slug: "gabriel", runDir: root.path, instanceUid: "uid-1"),
             env: ["OP_OBS": "logs,events"]
         )

@@ -79,8 +79,15 @@ public final class Observability {
         for (String part : t.split(",")) {
             String tok = part.trim();
             if (tok.isEmpty()) continue;
-            if (tok.equals("otel") || tok.equals("sessions")) continue;
-            if (!V1_TOKENS.contains(tok)) continue;
+            if (tok.equals("otel")) {
+                throw new InvalidTokenException(tok, "otel export is reserved for v2; not implemented in v1");
+            }
+            if (tok.equals("sessions")) {
+                throw new InvalidTokenException(tok, "sessions are reserved for v2; not implemented in v1");
+            }
+            if (!V1_TOKENS.contains(tok)) {
+                throw new InvalidTokenException(tok, "unknown OP_OBS token");
+            }
             if (tok.equals("all")) {
                 out.add(Family.LOGS); out.add(Family.METRICS);
                 out.add(Family.EVENTS); out.add(Family.PROM);

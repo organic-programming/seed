@@ -8,11 +8,13 @@ namespace Holons.Tests;
 public class ObservabilityTests
 {
     [Fact]
-    public void ParseOpObsDropsV2Tokens()
+    public void ParseOpObsRejectsV2Tokens()
     {
         var all = new HashSet<Family> { Family.Logs, Family.Metrics, Family.Events, Family.Prom };
-        Assert.True(all.SetEquals(Env.ParseOpObs("all,otel")));
-        Assert.True(all.SetEquals(Env.ParseOpObs("all,sessions")));
+        Assert.True(all.SetEquals(Env.ParseOpObs("all")));
+        Assert.Throws<InvalidTokenException>(() => Env.ParseOpObs("all,otel"));
+        Assert.Throws<InvalidTokenException>(() => Env.ParseOpObs("all,sessions"));
+        Assert.Throws<InvalidTokenException>(() => Env.ParseOpObs("unknown"));
     }
 
     [Fact]
