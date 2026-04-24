@@ -68,7 +68,14 @@ The holon package itself is never mutated by instance state.
 
 ### Path Resolution
 
-The root directory for the registry is resolved with this priority:
+`OP_RUN_DIR` is the **registry root**, not a per-instance path.
+Every running holon's files live under a derived subpath:
+
+```
+<OP_RUN_DIR>/<slug>/<uid>/       # per-instance directory
+```
+
+The registry root is resolved with this priority:
 
 1. `$OP_RUN_DIR` — explicit override; honoured verbatim when set.
 2. `$OPPATH/run` — user-local default when `OPPATH` is set.
@@ -76,9 +83,29 @@ The root directory for the registry is resolved with this priority:
 4. `./.op/run` — fallback, relative to the current working directory.
 
 `op run` writes to the first path that resolves to a writable directory
-it can create. The chosen path is recorded in the child's environment as
-`OP_RUN_DIR` so downstream tooling (e.g. `HolonInstance.List` callers,
-`op ps`) can find the registry without re-deriving it.
+it can create. That path — the **root** — is recorded in the child's
+environment as `OP_RUN_DIR`. Both the SDK's disk writers and discovery
+tooling (`HolonInstance.List`, `op ps`) derive their paths from the
+same root:
+
+- **SDK side** (writer): given `OP_RUN_DIR` + `OP_INSTANCE_UID` + the
+  holon's own slug (from the manifest), the SDK writes to
+  `$OP_RUN_DIR/$slug/$OP_INSTANCE_UID/`. It creates the subpath if
+  missing.
+- **Tooling side** (reader): `op ps` scans `$OP_RUN_DIR/*/*/meta.json`;
+  every `$slug/$uid` directory that carries a valid `meta.json` is a
+  candidate instance, filtered by PID liveness.
+
+Consumers that need the exact per-instance directory (e.g. organism
+kits assembling an `ObservabilityPanel` export bundle) can read
+`meta.json`'s `log_path` field, whose parent directory is the
+instance directory.
+
+> **Migration note.** Older versions of this document described
+> `OP_RUN_DIR` as the per-instance directory. That interpretation is
+> wrong: `op ps` cannot enumerate when every `OP_RUN_DIR` points at a
+> single instance. The correct semantic is root-level, as specified
+> here.
 
 ### Log Contract
 

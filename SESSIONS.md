@@ -1,5 +1,25 @@
 # Sessions — Transport-Level Connection Identification & Introspection
 
+> **Status: DEFERRED TO v2.** The session layer (`OP_SESSIONS`,
+> `HolonSession`, four-phase decomposition, session metrics rollup,
+> session ring history) ships in the v2 release of the observability
+> cycle. In v1, the token `OP_SESSIONS` is **rejected at startup**
+> exactly like `otel` in OBSERVABILITY.md §Layer 3; the Go SDK's
+> `HolonObservability.Metrics` response leaves `session_rollup` empty;
+> the four-phase interceptor emits only the `total` phase; and the
+> `HolonSession` service is neither auto-registered nor callable.
+>
+> This document is retained as-is so the v2 design can land
+> incrementally; readers who need v1 behaviour should skip to §Transport
+> Constraints sub-sections that remain independently useful (REST+SSE,
+> Mesh, Public — they describe the transport itself, not the session
+> store).
+>
+> v1 users who need per-RPC latency and call counts today can use the
+> tier-1 observability interceptor's `holon_session_rpc_duration_seconds`
+> / `holon_session_rpc_total` metrics without the session store
+> (OBSERVABILITY.md §Metrics Model).
+
 ## Problem
 
 Holons communicate over gRPC connections — but today, no one tracks

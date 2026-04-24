@@ -161,6 +161,83 @@ Each app:
 
 ---
 
+## Observability (tier 1)
+
+Each kit ships the **full observability chain** alongside its COAX
+plumbing. Tier-1 obligations per OBSERVABILITY.md §Tier scope matrix:
+
+| Surface | Flutter (`holons_app`) | SwiftUI (`HolonsApp`) |
+|---|---|---|
+| `ObservabilityKit.standalone(...)` | `lib/observability/observability_kit.dart` | `Sources/HolonsApp/Observability/ObservabilityKit.swift` |
+| Per-family runtime gate | `RuntimeGate` (`ValueNotifier`) | `RuntimeGate` (`ObservableObject`) |
+| Per-member relay gate (master + overrides) | `RelayController` | `RelayController` |
+| Console controller (filtered LogRing view) | `ConsoleController` | `ConsoleController` |
+| Metrics controller (snapshot + sparkline history) | `MetricsController` | `MetricsController` |
+| Events controller (filtered event stream) | `EventsController` | `EventsController` |
+| In-memory Prometheus `/metrics` HTTP toggle | `HttpServer.bind(...)` via `dart:io` | `NWListener` via Network.framework |
+| Export snapshot bundle | `ExportController` (JSONL + Prom text + metadata) | `ExportController` (same fields) |
+
+### Reusable widgets
+
+Each kit provides atomic, minimalist widgets designed to be embedded
+in any app that depends on the kit. The widgets carry **no external
+styling dependency** — they render on primitive `Material` (Flutter)
+and `SwiftUI` primitives only. Apps customise the appearance by
+wrapping in their own theme.
+
+| Widget (Flutter) | SwiftUI equivalent | Role |
+|---|---|---|
+| `ObservabilityPanel` | `ObservabilityPanel` | 4-tab aggregator: Settings / Logs / Metrics / Events |
+| `LogConsoleView` | `LogConsoleView` | Virtualised list with filters, pause, export |
+| `MetricsView` | `MetricsView` | Counters table + gauges with sparklines + histograms |
+| `EventsView` | `EventsView` | Lifecycle event timeline |
+| `RelaySettingsView` | `RelaySettingsView` | Master + per-member overrides |
+| `SparklineView` | `SparklineView` | Custom painter / custom renderer for gauge history |
+| `HistogramChart` | `HistogramChart` | Bucket distribution bar chart |
+
+Each widget has its own README.md next to the source file. The
+README documents:
+
+1. **Public API** — constructor parameters (kit instance, initial
+   filters, refresh interval).
+2. **Visual customisation points** — theme overrides (`ThemeData`
+   inheritance in Flutter; `Environment(\.colorScheme)` and custom
+   modifiers in SwiftUI), colour palettes for level badges / origin
+   slugs / event-type badges, typography, icon set swap.
+3. **Sizing contract** — minimum / preferred dimensions, whether the
+   widget flexes or is fixed.
+4. **Embedding recipes** — example of nesting inside the app's own
+   navigation (tab, drawer, sheet, split-view).
+
+### App-level customisation expectation
+
+The reference apps (`gabriel-greeting-app-flutter` and
+`gabriel-greeting-app-swiftui`) are expected to customise the widgets
+so their visual identity stays intact after adding the observability
+panel. The customisation lives entirely in the app, not in the kit:
+the kit ships a neutral default; the app wraps the widgets in its
+own theme. The two reference apps serve as end-to-end examples of
+the theming contract.
+
+### Settings persistence
+
+All toggles (master, per-family, per-level, per-member relay,
+prom on/off, prom addr) persist through the existing
+`SettingsStore` API the kit already uses for COAX, under the
+`observability.*` namespace. No second persistence mechanism.
+
+### COAX widget parity
+
+The existing COAX control bar and settings dialog
+(`flutter/lib/src/ui/coax_control_bar.dart`,
+`flutter/lib/src/ui/coax_settings_dialog.dart`, and the SwiftUI
+equivalents) follow the same widget contract: minimalist defaults,
+theming documented in a neighbouring README, apps override to
+preserve their look. They are first-class reusable widgets, not
+app-local components.
+
+---
+
 ## Regression Tests
 
 Both example apps have dedicated [ader](../ader/README.md) catalogues that are the

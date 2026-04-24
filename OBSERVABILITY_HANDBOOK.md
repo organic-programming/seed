@@ -68,6 +68,11 @@ four-phase latency (wire_out / queue / work / wire_in).
 
 ### 2.1 Launching an organism with centralized logs
 
+There are two distinct launch modes, with the same end result but
+very different UIs.
+
+#### Case A — CLI-driven via `op run --observe`
+
 A Flutter app spawning a Go backend, a Rust file helper, and a Python
 worker:
 
@@ -75,14 +80,76 @@ worker:
 op run gabriel-greeting-app --observe
 ```
 
-`op run` sets `OP_ORGANISM_UID` / `OP_ORGANISM_SLUG` in every
-member's env. Members don't need to know about the organism — their
-streams are consumed by the root, which writes the aggregated
+`op run` sets `OP_ORGANISM_UID` / `OP_ORGANISM_SLUG` / `OP_OBS` in
+every member's env. Members don't need to know about the organism —
+their streams are consumed by the root, which writes the aggregated
 multilog to `.op/run/gabriel-greeting-app/<uid>/multilog.jsonl`.
 
-```bash
-op logs gabriel-greeting-app --follow    # tail the multilog
+With `--observe`, `op run` **stays resident** after the spawn and
+tails `HolonObservability.Logs(follow=true)` on the launched holon.
+Every entry — the app's own logs plus every relayed entry from each
+member, carrying its `chain` — lands on `op`'s stdout in real time:
+
 ```
+2026-04-23T18:42:03.112Z INFO  [gabriel-greeting-rust ← gabriel-greeting-go] rendered banner
+2026-04-23T18:42:03.200Z INFO  [gabriel-greeting-go]                          handled greeting
+2026-04-23T18:42:03.320Z INFO  [gabriel-greeting-app]                         tab changed
+```
+
+One stdout, all languages, ordered by arrival.
+
+Passing `--json` prints one JSON object per line so downstream tools
+(`jq`, `fluentd`, `promtail`) can consume the stream unchanged:
+
+```bash
+op run gabriel-greeting-app --observe --json | jq 'select(.level=="ERROR")'
+```
+
+The same multilog is also persisted on disk for post-mortem:
+
+```bash
+op logs gabriel-greeting-app --since 1h    # replay from the on-disk multilog
+```
+
+#### Case B — GUI-driven, double-clicking the app
+
+The app is launched directly (double-click the `.app` bundle, tap the
+icon on the dock, etc.). There is no parent launcher — no `OP_OBS`,
+no `OP_INSTANCE_UID`. The app still offers full observability via an
+in-app panel.
+
+On first run the panel is OFF. Opening it reveals:
+
+1. **Master switch** — `Enable observability`. Flipping it on turns
+   every declared family on at the SDK level (the rings were
+   always-allocated; see OBSERVABILITY.md §Runtime Gates).
+2. **Per-family toggles** — Logs, Metrics, Events, Prom. Independent.
+3. **Log level slider** — TRACE … FATAL.
+4. **Relay settings** — master `Relay all members` + one row per
+   bundled member with a tri-valued override (`default` / `on` / `off`).
+5. **Console** tab — live view of the aggregated LogRing (own logs
+   + relayed entries), filters by origin `chain[0].slug`, level,
+   free text; pause / resume; export as JSONL.
+6. **Metrics** tab — counters, gauges (with inline sparklines),
+   histograms (expandable to bucket distribution); refresh interval
+   slider; export as Prometheus text.
+7. **Events** tab — timeline of lifecycle events.
+8. **Prometheus endpoint** toggle — when ON, the kit binds a local
+   HTTP listener on an ephemeral port and shows the address for
+   `curl http://127.0.0.1:<port>/metrics`. No `op run` required.
+9. **Export snapshot** button — writes a bundle
+   (`observability-<slug>-<ts>/`) containing `logs.jsonl`,
+   `events.jsonl`, `metrics.prom`, `metadata.json` (app version, OS,
+   SDK versions, gate state at snapshot time) to a location chosen
+   by the user.
+
+All choices persist via the app's `SettingsStore` under the
+`observability.*` namespace, so the next launch of the app re-enters
+the exact state the user had left.
+
+The console view reads the same ring buffers that `op run --observe`
+would scrape remotely in Case A. The behaviour is identical; only the
+UX differs.
 
 ### 2.2 Debugging "which child emitted this?"
 

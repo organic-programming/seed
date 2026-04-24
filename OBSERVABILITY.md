@@ -46,12 +46,17 @@ itself, and an OTLP push exporter for collectors.
    overhead when disabled: no collectors, no interceptors, no
    `HolonObservability` service registration. Identical discipline to
    SESSIONS.md.
-2. **Parent-controlled family activation** — the decision to turn a
-   family of signals (logs, metrics, events) **on or off** belongs to
-   whoever launches the holon (typically `op run`), via `OP_OBS`.
-   Within an enabled family, the developer's Code API tunes the
-   granularity (logger levels, metric inclusion, redaction). A holon
-   cannot silently promote a family from off to on at runtime.
+2. **Explicit activation, never silent** — a family of signals (logs,
+   metrics, events) is turned on in exactly one of two explicit ways:
+   **(a) parent-controlled** via `OP_OBS` when a launcher spawns the
+   holon (typically `op run`), or **(b) developer-controlled** via the
+   SDK's Code API in standalone GUI apps where no parent launcher is
+   present (no `OP_OBS` and no `OP_INSTANCE_UID` in the environment).
+   In both cases the activation is visible — in the launcher command
+   line or in the app's own source. No family ever enables itself
+   silently at runtime; the runtime gates described in
+   §Runtime Gates flip pre-declared families on/off from the UI but
+   cannot promote a family that was never declared.
 3. **SDK-managed, not protocol-level** — observability is bookkeeping
    inside the SDK; the gRPC/Holon-RPC stream is unchanged. Metrics and
    logs travel over their own RPCs, not as wire metadata.
@@ -91,6 +96,25 @@ op run gabriel-greeting-go:9090 --observe
 Every join key is visible on both sides of every join.
 `instance_uid` bridges INSTANCES.md ↔ SESSIONS.md ↔ OBSERVABILITY.md;
 `session_id` bridges SESSIONS.md ↔ OBSERVABILITY.md.
+
+---
+
+## Tier scope matrix
+
+Not every SDK carries the same obligations. Organic Programming hosts
+full-stack observability in the organism root (`op`, composite app
+kits, the Go reference SDK) and a minimal emitter-only surface on
+leaf-language SDKs. Each tier has explicit responsibilities:
+
+| Tier | Components | Obligations |
+|---|---|---|
+| **Tier 1 — full chain** | `sdk/go-holons` (reference), `organism_kits/flutter`, `organism_kits/swiftui`, `op` | Logger + Counter + Gauge + Histogram + EventBus + chain + auto-register `HolonObservability` + `HolonMeta.Describe` exclusions + `.op/run/` disk writers + `meta.json` + **Prometheus `/metrics` HTTP endpoint** + **OTLP push (v2 reserved)** + **Organism Relay** (parent ↔ child streams, ChainHop append) + **Multilog writer** at the root + **four-phase interceptor** + session rollup (when session layer ships) + **runtime toggle UI** (kits only) |
+| **Tier 2 — minimal emitter** | `sdk/python-holons`, `sdk/js-holons`, `sdk/dart-holons`, `sdk/swift-holons`, `sdk/rust-holons`, `sdk/java-holons`, `sdk/kotlin-holons`, `sdk/csharp-holons`, `sdk/ruby-holons`, `sdk/c-holons`, `sdk/cpp-holons` | Logger + Counter + Gauge + Histogram + EventBus + chain propagation + auto-register `HolonObservability` + `.op/run/` disk writers + `meta.json`. **No Prometheus HTTP server, no OTLP push, no multilog writer, no relay.** The root in tier 1 pulls from these SDKs via their auto-registered service. |
+| **Tier 3 — dial-only** | `sdk/js-web-holons` | Logger + Counter + Gauge + Histogram + EventBus + chain. **Served over the existing WebSocket channel to the Hub**, not a local gRPC listener. No disk writers (browser sandbox). The Hub pulls via Holon-RPC using the bidirectional WS semantics of COMMUNICATION.md §4.1. |
+
+Rationale: centralising Prometheus / OTLP / multilog in tier 1 keeps
+the cross-SDK port tractable and avoids 13 parallel HTTP / OTLP
+implementations drifting. Tier-2 emits; tier-1 aggregates and exposes.
 
 ---
 
@@ -201,6 +225,17 @@ and, from the launcher, also receives:
 
 ### Composition with `OP_SESSIONS`
 
+> **v2 only.** `OP_SESSIONS` and the `HolonSession` service are
+> deferred to v2 (see [SESSIONS.md](SESSIONS.md) header note). In v1,
+> `OP_SESSIONS` is **rejected at startup** as an unknown token, and
+> `HolonObservability.MetricsSnapshot.session_rollup` is always empty.
+> The v1 interceptor emits only the `total` phase of
+> `holon_session_rpc_duration_seconds`; `wire_out` / `queue` / `work`
+> / `wire_in` phases arrive in v2 alongside the session store.
+>
+> The text below describes the intended v2 composition; nothing in
+> v1 depends on it.
+
 `OP_SESSIONS` and `OP_OBS` compose; neither replaces the other.
 
 - `OP_SESSIONS=1` alone: session identity + state + `rpc_count`
@@ -222,6 +257,84 @@ NOT IMPLEMENTED) will act as a cross-holon aggregator: scraping each
 child `/metrics` endpoint, merging per-method latency across the
 mesh, and publishing a unified Prometheus surface. Nothing in this v1
 spec depends on `op proxy` being present.
+
+---
+
+## Runtime gates
+
+In tier 1 GUI apps (Flutter / SwiftUI composite apps built on
+`organism_kits/*`), the observability layer is declared at startup
+but gated at runtime by the user through an in-app panel. This gives
+a true opt-in console without requiring the user to restart the app
+or re-launch via `op run`.
+
+### Gate model
+
+Runtime gates are **always-allocated, gated-at-emit**. When the kit
+boots, the rings (LogRing ≈ 512 KB, EventBus ≈ 80 KB) and the metric
+registry are allocated unconditionally; each `Logger.Info(...)` /
+`Counter.Inc(...)` / `Bus.Emit(...)` consults an atomic gate before
+pushing a record. Memory cost is a fixed ~600 KB — negligible next
+to any Flutter/SwiftUI runtime — in exchange for instantaneous
+toggle-on with zero data-loss window.
+
+Two gate shapes:
+
+| Gate | Scope | Default |
+|---|---|---|
+| Family gate | `logs` / `metrics` / `events` / `prom` | OFF |
+| Relay gate | per direct-child member slug | tri-valued (`default` / `force-on` / `force-off`); master OFF |
+
+Relay gates override the master: a member flagged `force-on` relays
+even when the master is OFF; `force-off` suppresses a member even
+when the master is ON; `default` follows the master.
+
+### Promotion rules
+
+Runtime gates can only flip **families that were declared** at
+`Configure(...)` time. A family not declared at boot cannot be
+promoted from the UI — this preserves Design Principle #2
+(no silent promotion) and makes the boot-time declaration the
+source of truth for what the app ever plans to observe. A kit with
+`declaredFamilies: [logs, metrics, events, prom]` ships with the
+widest boot surface; the user narrows it at runtime via the panel.
+
+### Declaring a standalone app
+
+Tier-1 GUI apps that boot without a parent launcher declare
+observability explicitly. In Go-equivalent pseudocode:
+
+```go
+kit := observability.ConfigureStandalone(observability.Config{
+    Slug: "gabriel-greeting-app",
+    DeclaredFamilies: []Family{Logs, Metrics, Events, Prom},
+    InitialGates: GatesFromPersistedSettings(store),
+    // Relay discovery happens later, as the app launches members.
+})
+```
+
+`ConfigureStandalone` is the analogue of `FromEnv` but signals intent
+to offer a runtime-toggle UI; it installs the always-allocated rings
+and the per-family gates that the UI can flip. When the kit detects
+`OP_OBS`/`OP_INSTANCE_UID` in the environment, it falls back to
+launcher-driven activation automatically — the same app binary can
+run under `op run` or as a standalone GUI.
+
+### Persistence
+
+Gate states are persisted through the app's `SettingsStore`
+(`applicationId` namespaced under `observability.*` keys):
+
+- `observability.master` : bool
+- `observability.family.<name>` : bool
+- `observability.level` : enum
+- `observability.relay.master` : bool
+- `observability.relay.override.<member_slug>` : enum (`default` / `on` / `off`)
+- `observability.prom.enabled` : bool
+- `observability.prom.addr` : string (last bound address; informative)
+
+The kit's `ObservabilityPanel` widget binds to these keys; reset-to-defaults
+is a single call that clears the `observability.*` prefix.
 
 ---
 
