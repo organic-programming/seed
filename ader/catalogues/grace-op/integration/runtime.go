@@ -272,6 +272,10 @@ func (s *Sandbox) commandEnv(t *testing.T, extra []string) []string {
 	if rt.opBinary != "" {
 		pathValue = filepath.Dir(rt.opBinary) + string(os.PathListSeparator) + pathValue
 	}
+	if javaHome := integrationJavaHome(); javaHome != "" {
+		env = withEnvValue(env, "JAVA_HOME", javaHome)
+		pathValue = prependPathEntry(pathValue, filepath.Join(javaHome, "bin"))
+	}
 	env = withEnvValue(env, "PATH", pathValue)
 	env = append(env,
 		"OPPATH="+s.OPPATH,
