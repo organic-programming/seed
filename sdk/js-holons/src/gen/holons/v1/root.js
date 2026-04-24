@@ -27,7 +27,10 @@ if (!PROTO_ROOT) {
 
 const PROTO_FILES = [
     path.join(PROTO_ROOT, 'holons/v1/manifest.proto'),
+    path.join(PROTO_ROOT, 'holons/v1/session.proto'),
     path.join(PROTO_ROOT, 'holons/v1/describe.proto'),
+    path.join(PROTO_ROOT, 'holons/v1/instance.proto'),
+    path.join(PROTO_ROOT, 'holons/v1/observability.proto'),
     path.join(PROTO_ROOT, 'holons/v1/coax.proto'),
 ];
 

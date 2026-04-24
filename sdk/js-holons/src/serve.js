@@ -9,6 +9,7 @@ const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
 
 const describe = require('./describe');
+const observability = require('./observability');
 const transport = require('./transport');
 
 const DEFAULT_URI = transport.DEFAULT_URI;
@@ -43,12 +44,19 @@ async function runWithOptions(listenUri, registerFn, reflectOrOptions = false) {
         'grpc.max_receive_message_length': MAX_GRPC_MESSAGE_BYTES,
         'grpc.max_send_message_length': MAX_GRPC_MESSAGE_BYTES,
     });
+    observability.checkEnv();
+    const obs = (process.env.OP_OBS || '').trim()
+        ? observability.fromEnv({})
+        : null;
     registerFn(server);
     try {
         autoRegisterHolonMeta(server);
     } catch (err) {
         logger.error(`HolonMeta registration failed: ${err.message}`);
         throw err;
+    }
+    if (obs && obs.families && obs.families.size > 0) {
+        observability.registerService(server, obs);
     }
 
     const reflectionEnabled = maybeEnableReflection(server, options);
@@ -67,6 +75,9 @@ async function runWithOptions(listenUri, registerFn, reflectOrOptions = false) {
         throw new Error(`unsupported serve transport: ${parsed.scheme}://`);
     }
 
+    if (obs && obs.families && obs.families.size > 0) {
+        startObservabilityRuntime(obs, runtime.publicURI, parsed.scheme);
+    }
     attachRuntime(server, runtime, options.logger || console);
 
     const mode = reflectionEnabled ? 'reflection ON' : 'reflection OFF';
@@ -77,6 +88,28 @@ async function runWithOptions(listenUri, registerFn, reflectOrOptions = false) {
 
 function autoRegisterHolonMeta(server) {
     describe.register(server);
+}
+
+function startObservabilityRuntime(obs, publicURI, transportName) {
+    if (!obs.cfg.runDir) return;
+    observability.enableDiskWriters(obs.cfg.runDir);
+    if (obs.enabled(observability.Family.EVENTS)) {
+        obs.emit(observability.EventType.INSTANCE_READY, { listener: publicURI });
+    }
+    observability.writeMetaJson(obs.cfg.runDir, {
+        slug: obs.cfg.slug || '',
+        uid: obs.cfg.instanceUid || '',
+        pid: process.pid,
+        started_at: new Date().toISOString(),
+        mode: 'persistent',
+        transport: transportName || '',
+        address: publicURI || '',
+        ...(obs.enabled(observability.Family.LOGS)
+            ? { log_path: path.join(obs.cfg.runDir, 'stdout.log') }
+            : {}),
+        ...(obs.cfg.organismUid ? { organism_uid: obs.cfg.organismUid } : {}),
+        ...(obs.cfg.organismSlug ? { organism_slug: obs.cfg.organismSlug } : {}),
+    });
 }
 
 function pathJoin(...parts) {
