@@ -3,6 +3,13 @@
 
 package org.organicprogramming.holons
 
+import com.google.protobuf.Duration
+import com.google.protobuf.Timestamp
+import io.grpc.MethodDescriptor
+import io.grpc.ServerServiceDefinition
+import io.grpc.Status
+import io.grpc.protobuf.ProtoUtils
+import io.grpc.stub.ServerCalls
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -19,6 +26,31 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 object Observability {
+    private const val HOLON_OBSERVABILITY_SERVICE = "holons.v1.HolonObservability"
+
+    val logsMethod: MethodDescriptor<holons.v1.Observability.LogsRequest, holons.v1.Observability.LogEntry> =
+        MethodDescriptor.newBuilder<holons.v1.Observability.LogsRequest, holons.v1.Observability.LogEntry>()
+            .setType(MethodDescriptor.MethodType.SERVER_STREAMING)
+            .setFullMethodName(MethodDescriptor.generateFullMethodName(HOLON_OBSERVABILITY_SERVICE, "Logs"))
+            .setRequestMarshaller(ProtoUtils.marshaller(holons.v1.Observability.LogsRequest.getDefaultInstance()))
+            .setResponseMarshaller(ProtoUtils.marshaller(holons.v1.Observability.LogEntry.getDefaultInstance()))
+            .build()
+
+    val metricsMethod: MethodDescriptor<holons.v1.Observability.MetricsRequest, holons.v1.Observability.MetricsSnapshot> =
+        MethodDescriptor.newBuilder<holons.v1.Observability.MetricsRequest, holons.v1.Observability.MetricsSnapshot>()
+            .setType(MethodDescriptor.MethodType.UNARY)
+            .setFullMethodName(MethodDescriptor.generateFullMethodName(HOLON_OBSERVABILITY_SERVICE, "Metrics"))
+            .setRequestMarshaller(ProtoUtils.marshaller(holons.v1.Observability.MetricsRequest.getDefaultInstance()))
+            .setResponseMarshaller(ProtoUtils.marshaller(holons.v1.Observability.MetricsSnapshot.getDefaultInstance()))
+            .build()
+
+    val eventsMethod: MethodDescriptor<holons.v1.Observability.EventsRequest, holons.v1.Observability.EventInfo> =
+        MethodDescriptor.newBuilder<holons.v1.Observability.EventsRequest, holons.v1.Observability.EventInfo>()
+            .setType(MethodDescriptor.MethodType.SERVER_STREAMING)
+            .setFullMethodName(MethodDescriptor.generateFullMethodName(HOLON_OBSERVABILITY_SERVICE, "Events"))
+            .setRequestMarshaller(ProtoUtils.marshaller(holons.v1.Observability.EventsRequest.getDefaultInstance()))
+            .setResponseMarshaller(ProtoUtils.marshaller(holons.v1.Observability.EventInfo.getDefaultInstance()))
+            .build()
 
     enum class Family { LOGS, METRICS, EVENTS, PROM, OTEL }
 
@@ -40,10 +72,10 @@ object Observability {
         }
     }
 
-    enum class EventType {
-        UNSPECIFIED,
-        INSTANCE_SPAWNED, INSTANCE_READY, INSTANCE_EXITED, INSTANCE_CRASHED,
-        SESSION_STARTED, SESSION_ENDED, HANDLER_PANIC, CONFIG_RELOADED
+    enum class EventType(val code: Int) {
+        UNSPECIFIED(0),
+        INSTANCE_SPAWNED(1), INSTANCE_READY(2), INSTANCE_EXITED(3), INSTANCE_CRASHED(4),
+        SESSION_STARTED(5), SESSION_ENDED(6), HANDLER_PANIC(7), CONFIG_RELOADED(8)
     }
 
     data class Hop(val slug: String, val instanceUid: String)
@@ -331,24 +363,33 @@ object Observability {
     private val DISABLED = Instance(Config(), EnumSet.noneOf(Family::class.java))
     private val DISABLED_LOGGER = Logger(DISABLED, "")
 
-    fun configure(cfg: Config): Instance {
-        val families = parseOpObs(System.getenv("OP_OBS"))
+    fun configure(cfg: Config): Instance = configureFromEnv(cfg, System.getenv())
+
+    fun configureFromEnv(cfg: Config, env: Map<String, String> = System.getenv()): Instance {
+        val families = parseOpObs(env["OP_OBS"])
         if (cfg.slug.isEmpty()) {
             cfg.slug = System.getProperty("sun.java.command", "").split(" ").firstOrNull().orEmpty()
+        }
+        if (cfg.instanceUid.isEmpty()) {
+            cfg.instanceUid = newInstanceUid()
+        }
+        if (cfg.runDir.isNotEmpty()) {
+            cfg.runDir = deriveRunDir(cfg.runDir, cfg.slug, cfg.instanceUid)
         }
         val inst = Instance(cfg, families)
         CURRENT.set(inst)
         return inst
     }
 
-    fun fromEnv(base: Config = Config()): Instance {
-        val env = System.getenv()
+    fun fromEnv(base: Config = Config()): Instance = fromEnvMap(base, System.getenv())
+
+    fun fromEnvMap(base: Config = Config(), env: Map<String, String> = System.getenv()): Instance {
         if (base.instanceUid.isEmpty()) base.instanceUid = env["OP_INSTANCE_UID"].orEmpty()
         if (base.organismUid.isEmpty()) base.organismUid = env["OP_ORGANISM_UID"].orEmpty()
         if (base.organismSlug.isEmpty()) base.organismSlug = env["OP_ORGANISM_SLUG"].orEmpty()
         if (base.promAddr.isEmpty()) base.promAddr = env["OP_PROM_ADDR"].orEmpty()
         if (base.runDir.isEmpty()) base.runDir = env["OP_RUN_DIR"].orEmpty()
-        return configure(base)
+        return configureFromEnv(base, env)
     }
 
     fun current(): Instance = CURRENT.get() ?: DISABLED
@@ -356,6 +397,187 @@ object Observability {
     fun reset() {
         CURRENT.getAndSet(null)?.close()
     }
+
+    fun deriveRunDir(root: String, slug: String, uid: String): String {
+        if (root.isEmpty() || slug.isEmpty() || uid.isEmpty()) return root
+        return Paths.get(root, slug, uid).toString()
+    }
+
+    private fun newInstanceUid(): String =
+        "${ProcessHandle.current().pid()}-${System.nanoTime()}"
+
+    // --- gRPC service ---
+
+    fun service(inst: Instance = current()): ServerServiceDefinition =
+        ServerServiceDefinition.builder(HOLON_OBSERVABILITY_SERVICE)
+            .addMethod(
+                logsMethod,
+                ServerCalls.asyncServerStreamingCall { request, observer ->
+                    if (!inst.enabled(Family.LOGS) || inst.logRing == null) {
+                        observer.onError(
+                            Status.FAILED_PRECONDITION
+                                .withDescription("logs family is not enabled (OP_OBS)")
+                                .asRuntimeException(),
+                        )
+                        return@asyncServerStreamingCall
+                    }
+                    val minLevel = if (request.getMinLevelValue() == 0) Level.INFO.code else request.getMinLevelValue()
+                    val entries = if (request.hasSince()) {
+                        inst.logRing.drainSince(cutoffFromDuration(request.getSince()))
+                    } else {
+                        inst.logRing.drain()
+                    }
+                    entries
+                        .asSequence()
+                        .filter {
+                            it.level.code >= minLevel &&
+                                (request.sessionIdsList.isEmpty() || request.sessionIdsList.contains(it.sessionId)) &&
+                                (request.rpcMethodsList.isEmpty() || request.rpcMethodsList.contains(it.rpcMethod))
+                        }
+                        .forEach { observer.onNext(toProtoLogEntry(it)) }
+                    observer.onCompleted()
+                },
+            )
+            .addMethod(
+                metricsMethod,
+                ServerCalls.asyncUnaryCall { request, observer ->
+                    val registry = inst.registry
+                    if (!inst.enabled(Family.METRICS) || registry == null) {
+                        observer.onError(
+                            Status.FAILED_PRECONDITION
+                                .withDescription("metrics family is not enabled (OP_OBS)")
+                                .asRuntimeException(),
+                        )
+                        return@asyncUnaryCall
+                    }
+                    val snapshot = holons.v1.Observability.MetricsSnapshot.newBuilder()
+                        .setCapturedAt(timestamp(Instant.now()))
+                        .setSlug(inst.cfg.slug)
+                        .setInstanceUid(inst.cfg.instanceUid)
+                    toProtoMetricSamples(registry)
+                        .filter { sample ->
+                            request.namePrefixesList.isEmpty() ||
+                                request.namePrefixesList.any { prefix -> sample.name.startsWith(prefix) }
+                        }
+                        .forEach { snapshot.addSamples(it) }
+                    observer.onNext(snapshot.build())
+                    observer.onCompleted()
+                },
+            )
+            .addMethod(
+                eventsMethod,
+                ServerCalls.asyncServerStreamingCall { request, observer ->
+                    val bus = inst.eventBus
+                    if (!inst.enabled(Family.EVENTS) || bus == null) {
+                        observer.onError(
+                            Status.FAILED_PRECONDITION
+                                .withDescription("events family is not enabled (OP_OBS)")
+                                .asRuntimeException(),
+                        )
+                        return@asyncServerStreamingCall
+                    }
+                    val wanted = request.typesValueList.toSet()
+                    val events = if (request.hasSince()) {
+                        bus.drainSince(cutoffFromDuration(request.getSince()))
+                    } else {
+                        bus.drain()
+                    }
+                    events
+                        .asSequence()
+                        .filter { wanted.isEmpty() || it.type.code in wanted }
+                        .forEach { observer.onNext(toProtoEvent(it)) }
+                    observer.onCompleted()
+                },
+            )
+            .build()
+
+    private fun timestamp(instant: Instant): Timestamp =
+        Timestamp.newBuilder()
+            .setSeconds(instant.epochSecond)
+            .setNanos(instant.nano)
+            .build()
+
+    private fun cutoffFromDuration(duration: Duration): Instant =
+        Instant.now()
+            .minusSeconds(duration.seconds.coerceAtLeast(0))
+            .minusNanos(duration.nanos.coerceAtLeast(0).toLong())
+
+    fun toProtoLogEntry(entry: LogEntry): holons.v1.Observability.LogEntry {
+        val builder = holons.v1.Observability.LogEntry.newBuilder()
+            .setTs(timestamp(entry.timestamp))
+            .setLevelValue(entry.level.code)
+            .setSlug(entry.slug)
+            .setInstanceUid(entry.instanceUid)
+            .setSessionId(entry.sessionId)
+            .setRpcMethod(entry.rpcMethod)
+            .setMessage(entry.message)
+            .putAllFields(entry.fields)
+            .setCaller(entry.caller)
+        entry.chain.forEach { builder.addChain(toProtoHop(it)) }
+        return builder.build()
+    }
+
+    fun toProtoMetricSamples(registry: Registry): List<holons.v1.Observability.MetricSample> {
+        val samples = mutableListOf<holons.v1.Observability.MetricSample>()
+        registry.counters().forEach { counter ->
+            samples += holons.v1.Observability.MetricSample.newBuilder()
+                .setName(counter.name)
+                .putAllLabels(counter.labels)
+                .setHelp(counter.help)
+                .setCounter(counter.value())
+                .build()
+        }
+        registry.gauges().forEach { gauge ->
+            samples += holons.v1.Observability.MetricSample.newBuilder()
+                .setName(gauge.name)
+                .putAllLabels(gauge.labels)
+                .setHelp(gauge.help)
+                .setGauge(gauge.value())
+                .build()
+        }
+        registry.histograms().forEach { histogram ->
+            samples += holons.v1.Observability.MetricSample.newBuilder()
+                .setName(histogram.name)
+                .putAllLabels(histogram.labels)
+                .setHelp(histogram.help)
+                .setHistogram(toProtoHistogram(histogram.snapshot()))
+                .build()
+        }
+        return samples
+    }
+
+    private fun toProtoHistogram(snapshot: HistogramSnapshot): holons.v1.Observability.HistogramSample {
+        val builder = holons.v1.Observability.HistogramSample.newBuilder()
+            .setCount(snapshot.total)
+            .setSum(snapshot.sum)
+        snapshot.bounds.indices.forEach { index ->
+            builder.addBuckets(
+                holons.v1.Observability.Bucket.newBuilder()
+                    .setUpperBound(snapshot.bounds[index])
+                    .setCount(snapshot.counts[index])
+                    .build(),
+            )
+        }
+        return builder.build()
+    }
+
+    fun toProtoEvent(event: Event): holons.v1.Observability.EventInfo {
+        val builder = holons.v1.Observability.EventInfo.newBuilder()
+            .setTs(timestamp(event.timestamp))
+            .setTypeValue(event.type.code)
+            .setSlug(event.slug)
+            .setInstanceUid(event.instanceUid)
+            .setSessionId(event.sessionId)
+            .putAllPayload(event.payload)
+        event.chain.forEach { builder.addChain(toProtoHop(it)) }
+        return builder.build()
+    }
+
+    private fun toProtoHop(hop: Hop): holons.v1.Observability.ChainHop =
+        holons.v1.Observability.ChainHop.newBuilder()
+            .setSlug(hop.slug)
+            .setInstanceUid(hop.instanceUid)
+            .build()
 
     // --- Disk writers ---
 

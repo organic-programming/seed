@@ -27,6 +27,7 @@ object Serve {
         val logger: (String) -> Unit = { message -> System.err.println(message) },
         val onListen: ((String) -> Unit)? = null,
         val shutdownGracePeriodSeconds: Long = 10,
+        val env: Map<String, String>? = null,
     )
 
     data class ParsedFlags(
@@ -125,12 +126,14 @@ object Serve {
                 throw error
             }
         val reflectionEnabled = maybeAddReflection(extraDefinitions, options)
+        val obs = maybeAddObservability(extraDefinitions, options)
 
         return when (parsed.scheme) {
             "tcp" -> {
                 val host = parsed.host ?: "0.0.0.0"
                 val port = parsed.port ?: 9090
                 val bound = bindTcpServer(host, port, resolvedServices, extraDefinitions)
+                startObservabilityRuntime(obs, bound.publicUri, "tcp")
                 announce(bound.publicUri, describeEnabled, reflectionEnabled, options)
                 RunningServer(bound.server, bound.publicUri, options.logger)
             }
@@ -147,6 +150,7 @@ object Serve {
                     auxiliaryStop = { bridge.close() },
                 )
                 bridge.start()
+                startObservabilityRuntime(obs, "stdio://", "stdio")
                 announce("stdio://", describeEnabled, reflectionEnabled, options)
                 running
             }
@@ -157,6 +161,7 @@ object Serve {
                 val publicUri = "unix://$path"
                 val bridge = UnixServerBridge(path, host, port)
                 bridge.start()
+                startObservabilityRuntime(obs, publicUri, "unix")
                 announce(publicUri, describeEnabled, reflectionEnabled, options)
                 RunningServer(
                     bound.server,
@@ -212,6 +217,45 @@ object Serve {
         }
         definitions += ProtoReflectionService.newInstance().bindService()
         return true
+    }
+
+    private fun maybeAddObservability(definitions: MutableList<ServerServiceDefinition>, options: Options): Observability.Instance? {
+        val env = options.env ?: System.getenv()
+        Observability.checkEnv(env)
+        if (env["OP_OBS"].orEmpty().isBlank()) {
+            return null
+        }
+        val obs = Observability.fromEnvMap(Observability.Config(), env)
+        if (obs.families.isEmpty()) {
+            return null
+        }
+        definitions += Observability.service(obs)
+        return obs
+    }
+
+    private fun startObservabilityRuntime(obs: Observability.Instance?, publicUri: String, transport: String) {
+        if (obs == null || obs.cfg.runDir.isEmpty()) {
+            return
+        }
+        Observability.enableDiskWriters(obs.cfg.runDir)
+        if (obs.enabled(Observability.Family.EVENTS)) {
+            obs.emit(Observability.EventType.INSTANCE_READY, mapOf("listener" to publicUri))
+        }
+        val meta = Observability.MetaJson(
+            slug = obs.cfg.slug,
+            uid = obs.cfg.instanceUid,
+            pid = ProcessHandle.current().pid(),
+            transport = transport,
+            address = publicUri,
+            logPath = if (obs.enabled(Observability.Family.LOGS)) {
+                Path.of(obs.cfg.runDir, "stdout.log").toString()
+            } else {
+                ""
+            },
+            organismUid = obs.cfg.organismUid,
+            organismSlug = obs.cfg.organismSlug,
+        )
+        runCatching { Observability.writeMetaJson(obs.cfg.runDir, meta) }
     }
 
     private fun advertisedHost(host: String): String =
