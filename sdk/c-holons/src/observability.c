@@ -26,6 +26,37 @@ static char *dup_or_null(const char *s) {
     return c;
 }
 
+static char *derive_run_dir(const char *root, const char *slug, const char *uid) {
+    if (!root || !*root || !slug || !*slug || !uid || !*uid) {
+        return dup_or_null(root);
+    }
+    size_t nroot = strlen(root);
+    size_t nslug = strlen(slug);
+    size_t nuid = strlen(uid);
+    size_t need = nroot + 1 + nslug + 1 + nuid + 1;
+    char *out = (char *)malloc(need);
+    if (!out) return NULL;
+    snprintf(out, need, "%s/%s/%s", root, slug, uid);
+    return out;
+}
+
+static int mkdir_p(const char *path) {
+    if (!path || !*path) return 0;
+    char buf[4096];
+    size_t len = strlen(path);
+    if (len >= sizeof(buf)) return -ENAMETOOLONG;
+    memcpy(buf, path, len + 1);
+
+    for (char *p = buf + 1; *p; ++p) {
+        if (*p != '/') continue;
+        *p = '\0';
+        if (mkdir(buf, 0755) != 0 && errno != EEXIST) return -errno;
+        *p = '/';
+    }
+    if (mkdir(buf, 0755) != 0 && errno != EEXIST) return -errno;
+    return 0;
+}
+
 static const char *level_label(holon_level_t l) {
     switch (l) {
         case HOLON_LEVEL_TRACE: return "TRACE";
@@ -188,7 +219,9 @@ int holon_obs_configure(const holon_obs_config_t *cfg) {
     o->instance_uid = dup_or_null(cfg && cfg->instance_uid ? cfg->instance_uid : getenv("OP_INSTANCE_UID"));
     o->organism_uid = dup_or_null(cfg && cfg->organism_uid ? cfg->organism_uid : getenv("OP_ORGANISM_UID"));
     o->organism_slug = dup_or_null(cfg && cfg->organism_slug ? cfg->organism_slug : getenv("OP_ORGANISM_SLUG"));
-    o->run_dir = dup_or_null(cfg && cfg->run_dir ? cfg->run_dir : getenv("OP_RUN_DIR"));
+    o->run_dir = derive_run_dir(cfg && cfg->run_dir ? cfg->run_dir : getenv("OP_RUN_DIR"),
+                                o->slug ? o->slug : "",
+                                o->instance_uid ? o->instance_uid : "");
 
     pthread_mutex_lock(&g_obs_lock);
     holon_obs_t *old = g_obs;
@@ -206,6 +239,20 @@ uint32_t holon_obs_families(void) {
 }
 
 int holon_obs_enabled(uint32_t family) { return (holon_obs_families() & family) != 0; }
+
+int holon_obs_current_run_dir(char *out, size_t out_len) {
+    if (!out || out_len == 0) return -EINVAL;
+    pthread_mutex_lock(&g_obs_lock);
+    const char *run_dir = g_obs && g_obs->run_dir ? g_obs->run_dir : "";
+    size_t n = strlen(run_dir);
+    if (n + 1 > out_len) {
+        pthread_mutex_unlock(&g_obs_lock);
+        return -ENOSPC;
+    }
+    memcpy(out, run_dir, n + 1);
+    pthread_mutex_unlock(&g_obs_lock);
+    return 0;
+}
 
 /* -------- JSON helpers -------- */
 
@@ -446,10 +493,8 @@ double holon_obs_gauge_value(const char *name, const char *const *labels) {
 
 int holon_obs_enable_disk_writers(const char *run_dir) {
     if (!run_dir || !*run_dir) return 0;
-    struct stat st;
-    if (stat(run_dir, &st) != 0) {
-        if (mkdir(run_dir, 0755) != 0) return -errno;
-    }
+    int mkerr = mkdir_p(run_dir);
+    if (mkerr != 0) return mkerr;
     pthread_mutex_lock(&g_obs_lock);
     holon_obs_t *o = g_obs;
     if (!o) { pthread_mutex_unlock(&g_obs_lock); return -EINVAL; }
@@ -466,10 +511,8 @@ int holon_obs_enable_disk_writers(const char *run_dir) {
 
 int holon_obs_write_meta_json(const char *run_dir, const holon_meta_t *meta) {
     if (!run_dir || !meta) return -EINVAL;
-    struct stat st;
-    if (stat(run_dir, &st) != 0) {
-        if (mkdir(run_dir, 0755) != 0) return -errno;
-    }
+    int mkerr = mkdir_p(run_dir);
+    if (mkerr != 0) return mkerr;
     char path[4096], tmp[4096];
     snprintf(path, sizeof(path), "%s/meta.json", run_dir);
     snprintf(tmp, sizeof(tmp), "%s.tmp", path);

@@ -2782,8 +2782,76 @@ static void test_observability_env(void) {
   unsetenv("OP_SESSIONS");
 }
 
+static void test_observability_disk_outputs(void) {
+  char root[PATH_MAX];
+  char expected[PATH_MAX];
+  char run_dir[PATH_MAX];
+  char path[PATH_MAX];
+  char buf[4096];
+  char cleanup[PATH_MAX + 32];
+  char *old_obs = getenv("OP_OBS") ? strdup(getenv("OP_OBS")) : NULL;
+  char *old_sessions = getenv("OP_SESSIONS") ? strdup(getenv("OP_SESSIONS")) : NULL;
+  holon_obs_config_t cfg;
+  const char *fields[] = {"component", "c", NULL};
+  const char *payload[] = {"listener", "tcp://127.0.0.1:1", NULL};
+  holon_meta_t meta;
+
+  snprintf(root, sizeof(root), "/tmp/c-holons-obs-XXXXXX");
+  check_int(make_temp_dir(root) == 0, "observability temp dir");
+  canonicalize_temp_dir(root, sizeof(root));
+  setenv("OP_OBS", "logs,metrics,events", 1);
+  unsetenv("OP_SESSIONS");
+
+  memset(&cfg, 0, sizeof(cfg));
+  cfg.slug = "gabriel-greeting-c";
+  cfg.instance_uid = "uid-1";
+  cfg.run_dir = root;
+  cfg.default_log_level = HOLON_LEVEL_INFO;
+
+  holon_obs_reset();
+  check_int(holon_obs_configure(&cfg) == 1, "observability configure enabled");
+  snprintf(expected, sizeof(expected), "%s/gabriel-greeting-c/uid-1", root);
+  check_int(holon_obs_current_run_dir(run_dir, sizeof(run_dir)) == 0, "observability current run dir");
+  check_int(strcmp(run_dir, expected) == 0, "observability derives run dir from registry root");
+  check_int(holon_obs_enable_disk_writers(run_dir) == 0, "observability disk writers");
+
+  holon_obs_log(HOLON_LEVEL_INFO, "service-log", fields);
+  check_int(holon_obs_counter_inc("c_requests_total", NULL) == 1, "observability counter inc");
+  holon_obs_gauge_set("c_live_gauge", NULL, 2.5);
+  check_int(holon_obs_gauge_value("c_live_gauge", NULL) == 2.5, "observability gauge value");
+  holon_obs_emit(HOLON_EVENT_INSTANCE_READY, payload);
+
+  memset(&meta, 0, sizeof(meta));
+  meta.slug = cfg.slug;
+  meta.uid = cfg.instance_uid;
+  meta.pid = 123;
+  meta.started_at_epoch = (int64_t)time(NULL);
+  meta.transport = "tcp";
+  meta.address = "tcp://127.0.0.1:1";
+  snprintf(path, sizeof(path), "%s/stdout.log", run_dir);
+  meta.log_path = path;
+  check_int(holon_obs_write_meta_json(run_dir, &meta) == 0, "observability meta json");
+
+  snprintf(path, sizeof(path), "%s/stdout.log", run_dir);
+  check_int(read_file(path, buf, sizeof(buf)) == 0 && strstr(buf, "\"message\":\"service-log\"") != NULL,
+            "observability stdout log");
+  snprintf(path, sizeof(path), "%s/events.jsonl", run_dir);
+  check_int(read_file(path, buf, sizeof(buf)) == 0 && strstr(buf, "\"type\":\"INSTANCE_READY\"") != NULL,
+            "observability events log");
+  snprintf(path, sizeof(path), "%s/meta.json", run_dir);
+  check_int(read_file(path, buf, sizeof(buf)) == 0 && strstr(buf, "\"uid\":\"uid-1\"") != NULL,
+            "observability meta uid");
+
+  holon_obs_reset();
+  restore_env("OP_OBS", old_obs);
+  restore_env("OP_SESSIONS", old_sessions);
+  snprintf(cleanup, sizeof(cleanup), "rm -rf %s", root);
+  (void)system(cleanup);
+}
+
 int main(void) {
   test_observability_env();
+  test_observability_disk_outputs();
   test_discover();
   test_connect_direct_dial();
   test_connect_starts_slug_ephemerally();

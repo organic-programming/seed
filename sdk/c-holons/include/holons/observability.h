@@ -88,6 +88,13 @@ int holon_obs_configure(const holon_obs_config_t *cfg);
 /* Returns the active family bitmask, or 0 when disabled. */
 uint32_t holon_obs_families(void);
 
+/*
+ * Copies the currently configured instance run directory into out.
+ * The SDK derives this from <OP_RUN_DIR or cfg.run_dir>/<slug>/<uid>.
+ * Returns 0 on success, or -EINVAL / -ENOSPC.
+ */
+int holon_obs_current_run_dir(char *out, size_t out_len);
+
 /* Returns non-zero when the family is enabled. */
 int holon_obs_enabled(uint32_t family);
 
