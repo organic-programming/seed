@@ -6,6 +6,7 @@ require "thread"
 require "tmpdir"
 
 require_relative "describe"
+require_relative "observability"
 require_relative "transport"
 
 module Holons
@@ -37,7 +38,7 @@ module Holons
         run_with_options(listen_uri, register, false)
       end
 
-      def run_with_options(listen_uri, register, reflect = false, on_listen: nil)
+      def run_with_options(listen_uri, register, reflect = false, on_listen: nil, env: ENV)
         ensure_grpc_runtime!
         raise ArgumentError, "register callback is required" unless register.respond_to?(:call)
 
@@ -45,10 +46,12 @@ module Holons
         server = GRPC::RpcServer.new
         register.call(server)
         auto_register_describe(server)
+        observability = auto_register_observability(server, env)
         reflection_enabled = maybe_register_reflection(server, reflect)
 
         actual_uri, cleanup, stdio_bridge = prepare_runtime(parsed, server)
         mode = reflection_mode(reflection_enabled)
+        start_observability_runtime(observability, actual_uri, parsed.scheme)
 
         begin
           with_signal_handlers(server) do
@@ -80,6 +83,44 @@ module Holons
       rescue StandardError => e
         warn("HolonMeta registration failed: #{e.message}")
         raise
+      end
+
+      def auto_register_observability(server, env)
+        Observability.check_env(env)
+        raw = (env["OP_OBS"] || "").strip
+        return nil if raw.empty?
+
+        inst = Observability.from_env(Observability::Config.new, env: env)
+        return nil if inst.families.empty?
+
+        Observability.register_grpc_service(server, inst)
+        inst
+      end
+
+      def start_observability_runtime(inst, actual_uri, transport)
+        return if inst.nil?
+
+        run_dir = inst.cfg.run_dir.to_s
+        Observability.enable_disk_writers(run_dir) unless run_dir.empty?
+        inst.emit(Observability::EVENT_TYPES[:instance_ready], "listener" => actual_uri) if inst.enabled?(:events)
+        return if run_dir.empty?
+
+        Observability.write_meta_json(
+          run_dir,
+          Observability::MetaJson.new(
+            slug: inst.cfg.slug,
+            uid: inst.cfg.instance_uid,
+            pid: Process.pid,
+            started_at: Time.now,
+            transport: transport,
+            address: actual_uri,
+            log_path: inst.enabled?(:logs) ? File.join(run_dir, "stdout.log") : "",
+            organism_uid: inst.cfg.organism_uid,
+            organism_slug: inst.cfg.organism_slug
+          )
+        )
+      rescue StandardError
+        nil
       end
 
 
