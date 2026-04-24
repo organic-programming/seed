@@ -13,8 +13,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	sdkgrpcclient "github.com/organic-programming/go-holons/pkg/grpcclient"
 	v1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
+	sdkgrpcclient "github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/observability"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -76,9 +76,9 @@ func newInstancesCmd() *cobra.Command {
 }
 
 type instanceRow struct {
-	meta    observability.MetaJSON
-	runDir  string
-	alive   bool
+	meta   observability.MetaJSON
+	runDir string
+	alive  bool
 }
 
 // --- op logs -----------------------------------------------------------------
@@ -204,6 +204,9 @@ func renderLogEntry(e *v1.LogEntry, jsonOut bool) {
 	if e.RpcMethod != "" {
 		fmt.Printf(" method=%s", e.RpcMethod)
 	}
+	if chain := formatChain(e.Chain); chain != "" {
+		fmt.Printf(" chain=%s", chain)
+	}
 	fmt.Printf(" msg=%q", e.Message)
 	keys := make([]string, 0, len(e.Fields))
 	for k := range e.Fields {
@@ -240,13 +243,39 @@ func logEntryJSON(e *v1.LogEntry) map[string]any {
 		out["caller"] = e.Caller
 	}
 	if len(e.Chain) > 0 {
-		hops := make([]map[string]string, len(e.Chain))
-		for i, h := range e.Chain {
-			hops[i] = map[string]string{"slug": h.Slug, "instance_uid": h.InstanceUid}
-		}
-		out["chain"] = hops
+		out["chain"] = chainHopsJSON(e.Chain)
 	}
 	return out
+}
+
+func chainHopsJSON(chain []*v1.ChainHop) []map[string]string {
+	hops := make([]map[string]string, len(chain))
+	for i, h := range chain {
+		if h == nil {
+			hops[i] = map[string]string{}
+			continue
+		}
+		hops[i] = map[string]string{"slug": h.Slug, "instance_uid": h.InstanceUid}
+	}
+	return hops
+}
+
+func formatChain(chain []*v1.ChainHop) string {
+	if len(chain) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(chain))
+	for _, h := range chain {
+		if h == nil || h.Slug == "" {
+			continue
+		}
+		if h.InstanceUid == "" {
+			parts = append(parts, h.Slug)
+			continue
+		}
+		parts = append(parts, h.Slug+"/"+h.InstanceUid)
+	}
+	return strings.Join(parts, ">")
 }
 
 func logLevelLabel(l v1.LogLevel) string {
@@ -506,7 +535,7 @@ func parseEventType(s string) (v1.EventType, bool) {
 
 func renderEvent(e *v1.EventInfo, jsonOut bool) {
 	if jsonOut {
-		b, _ := json.Marshal(map[string]any{
+		out := map[string]any{
 			"kind":         "event",
 			"ts":           e.Ts.AsTime().UTC().Format(time.RFC3339Nano),
 			"type":         e.Type.String(),
@@ -514,12 +543,19 @@ func renderEvent(e *v1.EventInfo, jsonOut bool) {
 			"instance_uid": e.InstanceUid,
 			"session_id":   e.SessionId,
 			"payload":      e.Payload,
-		})
+		}
+		if len(e.Chain) > 0 {
+			out["chain"] = chainHopsJSON(e.Chain)
+		}
+		b, _ := json.Marshal(out)
 		fmt.Println(string(b))
 		return
 	}
 	fmt.Printf("%s %-20s slug=%s instance_uid=%s", e.Ts.AsTime().UTC().Format(time.RFC3339Nano),
 		e.Type.String(), e.Slug, e.InstanceUid)
+	if chain := formatChain(e.Chain); chain != "" {
+		fmt.Printf(" chain=%s", chain)
+	}
 	for k, v := range e.Payload {
 		fmt.Printf(" %s=%q", k, v)
 	}
