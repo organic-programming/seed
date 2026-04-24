@@ -31,7 +31,7 @@ Check it's on: `op metrics gabriel-greeting-go` should print a table;
 | In-memory ring buffer (1024 entries) | always, while holon is running |
 | `.op/run/<slug>/<uid>/stdout.log` | when `OP_OBS` contains `logs` |
 | Prometheus `/metrics` endpoint | when `OP_OBS` contains `prom` |
-| OTLP collector | when `OP_OBS` contains `otel` + `OP_OTEL_ENDPOINT` |
+| OTLP collector | v2 reserved; `otel` is rejected in v1 |
 
 `op logs <slug>` reads the gRPC stream. `cat .op/run/.../stdout.log`
 reads the disk. Both contain the same JSON lines.
