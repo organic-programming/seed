@@ -345,8 +345,9 @@ public final class ObservabilityKit: ObservableObject {
         settings: SettingsStore,
         bundledHolons: [ObservabilityMemberRef] = []
     ) throws -> ObservabilityKit {
-        let env = ["OP_OBS": declaredFamilies.map(\.rawValue).joined(separator: ",")]
-        let obs = try configure(ObsConfig(
+        var env = ProcessInfo.processInfo.environment
+        env["OP_OBS"] = declaredFamilies.map(\.rawValue).joined(separator: ",")
+        let obs = try fromEnv(ObsConfig(
             slug: slug,
             instanceUid: "kit-\(Date().timeIntervalSince1970)"
         ), env: env)

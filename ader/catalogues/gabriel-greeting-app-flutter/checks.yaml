@@ -21,13 +21,13 @@ checks:
     workdir: examples/hello-world/gabriel-greeting-app-flutter/app
     prereqs:
     - flutter
-    command: flutter test integration_test/greeting_smoke_test.dart
+    command: flutter test -r expanded integration_test/greeting_smoke_test.dart
     description: Flutter hostui desktop integration smoke
   flutter-app-integration-smoke-macos:
     workdir: examples/hello-world/gabriel-greeting-app-flutter/app
     prereqs:
     - flutter
-    command: PATH="$HOME/.gem/ruby/2.6.0/bin:$PATH" flutter test integration_test/greeting_smoke_test.dart
+    command: PATH="$HOME/.gem/ruby/2.6.0/bin:$PATH" flutter test -r expanded integration_test/greeting_smoke_test.dart
     description: Flutter hostui macOS desktop integration smoke
   integration-check-composite-flutter:
     workdir: ader/catalogues/grace-op/integration

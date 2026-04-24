@@ -118,7 +118,7 @@ Future<void> main(List<String> args) async {
     case 'linux':
       final bundle = _findBundleDirectory(
         Directory(p.join(appDir.path, 'build', 'linux')),
-        '$_entryBase',
+        _entryBase,
         requiredSidecarDir: 'data',
       );
       await _copyDirectoryContents(bundle, runtimeDir);
@@ -341,7 +341,7 @@ Future<void> _writeHolonPackageJson({
   final file = File(p.join(packageDir.path, '.holon.json'));
   file.parent.createSync(recursive: true);
   await file.writeAsString(
-    const JsonEncoder.withIndent('  ').convert(payload) + '\n',
+    '${const JsonEncoder.withIndent('  ').convert(payload)}\n',
   );
 }
 
@@ -426,6 +426,9 @@ Future<void> _copyEntity(
       break;
     case FileSystemEntityType.notFound:
       throw StateError('missing source entity: ${source.path}');
+    case FileSystemEntityType.pipe:
+    case FileSystemEntityType.unixDomainSock:
+      throw StateError('unsupported source entity: ${source.path}');
   }
 }
 

@@ -41,6 +41,10 @@ public final class GreetingHolonManager: ObservableObject {
   private var startTaskID: UUID?
   #if os(macOS)
     private let holons: BundledHolons<GabrielHolonIdentity>
+    private var observability: Observability?
+    private var logger: HolonLogger?
+    private var sayHelloTotal: Counter?
+    private var sayHelloDuration: Histogram?
   #endif
 
   #if os(macOS)
@@ -57,6 +61,23 @@ public final class GreetingHolonManager: ObservableObject {
     }
   #else
     public init() {
+    }
+  #endif
+
+  #if os(macOS)
+    public func attachObservability(_ observability: Observability) {
+      self.observability = observability
+      self.logger = observability.logger("greeting-controller")
+      self.sayHelloTotal = observability.counter(
+        "gabriel_greeting_say_hello_total",
+        help: "Greeting requests sent from the SwiftUI app",
+        labels: ["origin": "app"]
+      )
+      self.sayHelloDuration = observability.histogram(
+        "gabriel_greeting_say_hello_duration_seconds",
+        help: "Greeting request duration observed by the SwiftUI app",
+        labels: ["origin": "app"]
+      )
     }
   #endif
 
@@ -163,9 +184,38 @@ public final class GreetingHolonManager: ObservableObject {
       throw connectionFailure(HolonError.notConnected)
     }
 
-    let response = try await sayHello(name: userName, langCode: selectedLanguageCode)
-    greeting = response
-    return response
+    #if os(macOS)
+      let startedAt = Date()
+      logger?.info("Greeting request started", [
+        "method": Self.sayHelloMethod,
+        "lang": selectedLanguageCode,
+        "holon": selectedHolon?.slug ?? "",
+      ])
+    #endif
+    do {
+      let response = try await sayHello(name: userName, langCode: selectedLanguageCode)
+      greeting = response
+      #if os(macOS)
+        sayHelloTotal?.inc()
+        sayHelloDuration?.observe(Date().timeIntervalSince(startedAt))
+        logger?.info("Greeting response received", [
+          "method": Self.sayHelloMethod,
+          "lang": selectedLanguageCode,
+          "holon": selectedHolon?.slug ?? "",
+        ])
+      #endif
+      return response
+    } catch {
+      #if os(macOS)
+        logger?.error("Greeting request failed", [
+          "method": Self.sayHelloMethod,
+          "lang": selectedLanguageCode,
+          "holon": selectedHolon?.slug ?? "",
+          "error": error.localizedDescription,
+        ])
+      #endif
+      throw error
+    }
   }
 
   public func start() async {

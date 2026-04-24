@@ -1,8 +1,15 @@
 import 'dart:async';
 import 'dart:ui' show AppExitResponse;
 
+import 'package:flutter/material.dart' as material;
 import 'package:holons_app/holons_app.dart'
-    show CoaxControlsView, CoaxManager, CoaxSettingsView, HolonTransportName;
+    show
+        CoaxControlsView,
+        CoaxManager,
+        CoaxSettingsView,
+        HolonTransportName,
+        ObservabilityKit,
+        ObservabilityPanel;
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import 'controller/greeting_controller.dart';
@@ -15,10 +22,12 @@ class GabrielGreetingApp extends StatelessWidget {
     super.key,
     required this.greetingController,
     required this.coaxManager,
+    required this.observabilityKit,
   });
 
   final GreetingController greetingController;
   final CoaxManager coaxManager;
+  final ObservabilityKit observabilityKit;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +48,7 @@ class GabrielGreetingApp extends StatelessWidget {
       home: GabrielGreetingHomePage(
         greetingController: greetingController,
         coaxManager: coaxManager,
+        observabilityKit: observabilityKit,
       ),
     );
   }
@@ -49,10 +59,12 @@ class GabrielGreetingHomePage extends StatefulWidget {
     super.key,
     required this.greetingController,
     required this.coaxManager,
+    required this.observabilityKit,
   });
 
   final GreetingController greetingController;
   final CoaxManager coaxManager;
+  final ObservabilityKit observabilityKit;
 
   @override
   State<GabrielGreetingHomePage> createState() =>
@@ -65,6 +77,7 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
   late final Listenable _listenable;
   Future<void>? _shutdownFuture;
   bool _syncListenerAttached = false;
+  bool _isObservabilityOpen = false;
 
   @override
   void initState() {
@@ -116,6 +129,7 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
       _detachSyncListener();
       await widget.coaxManager.shutdown();
       await widget.greetingController.shutdown();
+      widget.observabilityKit.dispose();
     }();
     _shutdownFuture = future;
     return future;
@@ -173,9 +187,33 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(32, 16, 32, 16),
-                    child: CoaxControlsView(
-                      coaxManager: coax,
-                      onOpenSettings: () => _showCoaxSettings(context),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        material.IconButton(
+                          key: const ValueKey<String>('observability-toggle'),
+                          tooltip: 'Observability',
+                          isSelected: _isObservabilityOpen,
+                          onPressed: () {
+                            setState(() {
+                              _isObservabilityOpen = !_isObservabilityOpen;
+                            });
+                          },
+                          icon: const material.Icon(
+                            material.Icons.monitor_heart_outlined,
+                          ),
+                          selectedIcon: const material.Icon(
+                            material.Icons.monitor_heart,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: CoaxControlsView(
+                            coaxManager: coax,
+                            onOpenSettings: () => _showCoaxSettings(context),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   DecoratedBox(
@@ -191,61 +229,76 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
                     child: const SizedBox(height: 0),
                   ),
                   Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _WorkspaceBar(controller: controller),
-                          const SizedBox(height: 32),
-                          Expanded(
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final inputWidth = (constraints.maxWidth * 0.27)
-                                    .clamp(220.0, 320.0);
-                                final gapWidth = (constraints.maxWidth * 0.03)
-                                    .clamp(18.0, 32.0);
-                                return Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    SizedBox(
-                                      width: inputWidth,
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
+                    child: _isObservabilityOpen
+                        ? _ObservabilityWorkspace(
+                            kit: widget.observabilityKit,
+                            theme: theme,
+                          )
+                        : Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _WorkspaceBar(controller: controller),
+                                const SizedBox(height: 32),
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final inputWidth =
+                                          (constraints.maxWidth * 0.27).clamp(
+                                            220.0,
+                                            320.0,
+                                          );
+                                      final gapWidth =
+                                          (constraints.maxWidth * 0.03).clamp(
+                                            18.0,
+                                            32.0,
+                                          );
+                                      return Row(
                                         crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                            CrossAxisAlignment.center,
                                         children: [
-                                          _InputColumn(
-                                            controller: controller,
-                                            nameController: _nameController,
+                                          SizedBox(
                                             width: inputWidth,
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                _InputColumn(
+                                                  controller: controller,
+                                                  nameController:
+                                                      _nameController,
+                                                  width: inputWidth,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          SizedBox(width: gapWidth),
+                                          Expanded(
+                                            child: _BubbleColumn(
+                                              controller: controller,
+                                            ),
                                           ),
                                         ],
-                                      ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(height: 28),
+                                Align(
+                                  alignment: Alignment.center,
+                                  child: SizedBox(
+                                    width: 260,
+                                    child: _LanguagePicker(
+                                      controller: controller,
                                     ),
-                                    SizedBox(width: gapWidth),
-                                    Expanded(
-                                      child: _BubbleColumn(
-                                        controller: controller,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 28),
-                          Align(
-                            alignment: Alignment.center,
-                            child: SizedBox(
-                              width: 260,
-                              child: _LanguagePicker(controller: controller),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 ],
               ),
@@ -259,9 +312,43 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
   Future<void> _showCoaxSettings(BuildContext context) {
     return showDialog<void>(
       context: context,
-      builder: (context) => CoaxSettingsView(coaxManager: widget.coaxManager),
+      builder: (context) => material.Theme(
+        data: _materialThemeFor(Theme.of(context)),
+        child: CoaxSettingsView(coaxManager: widget.coaxManager),
+      ),
     );
   }
+}
+
+class _ObservabilityWorkspace extends StatelessWidget {
+  const _ObservabilityWorkspace({required this.kit, required this.theme});
+
+  final ObservabilityKit kit;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return material.MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: _materialThemeFor(theme),
+      home: material.Scaffold(body: ObservabilityPanel(kit: kit)),
+    );
+  }
+}
+
+material.ThemeData _materialThemeFor(ThemeData theme) {
+  final brightness = theme.brightness == Brightness.dark
+      ? material.Brightness.dark
+      : material.Brightness.light;
+  return material.ThemeData(
+    useMaterial3: true,
+    brightness: brightness,
+    colorScheme: material.ColorScheme.fromSeed(
+      seedColor: theme.colorScheme.accent,
+      brightness: brightness,
+    ),
+    scaffoldBackgroundColor: theme.colorScheme.background,
+  );
 }
 
 class _WorkspaceBar extends StatelessWidget {

@@ -5,6 +5,7 @@ import SwiftUI
 struct ContentView: View {
   @ObservedObject var holonManager: GreetingHolonManager
   @ObservedObject var coaxManager: CoaxManager
+  @ObservedObject var observabilityKit: ObservabilityKit
   private let initialNameValue = "World"
   private let defaultNamePrompt = "Mary"
   private let inputColumnWidth: CGFloat = 300
@@ -16,6 +17,7 @@ struct ContentView: View {
   @State private var isGreeting = false
   @State private var didSeedInitialName = false
   @State private var isShowingCoaxSettings = false
+  @State private var isShowingObservability = false
   @FocusState private var isNameFieldFocused: Bool
 
   private var holonSelection: Binding<GabrielHolonIdentity?> {
@@ -99,6 +101,10 @@ struct ContentView: View {
     .animation(.easeInOut(duration: 0.2), value: error)
     .sheet(isPresented: $isShowingCoaxSettings) {
       CoaxSettingsView(coaxManager: coaxManager, isPresented: $isShowingCoaxSettings)
+    }
+    .sheet(isPresented: $isShowingObservability) {
+      ObservabilityPanel(kit: observabilityKit)
+        .frame(minWidth: 900, minHeight: 640)
     }
     .task {
       if !didSeedInitialName {
@@ -187,6 +193,15 @@ struct ContentView: View {
   private var topHeaderArea: some View {
     HStack(alignment: .top) {
       Spacer(minLength: 0)
+      Button {
+        isShowingObservability = true
+      } label: {
+        Image(systemName: "waveform.path.ecg")
+          .font(.system(size: 15, weight: .medium))
+      }
+      .buttonStyle(.borderless)
+      .help("Observability")
+      .padding(.trailing, 10)
       coaxHeaderGroup
     }
     .frame(maxWidth: .infinity, alignment: .center)

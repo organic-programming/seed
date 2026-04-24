@@ -401,6 +401,7 @@ class ObservabilityKit extends ChangeNotifier {
   final RelayController relay;
   final PrometheusController prometheus;
   late final ExportController export;
+  bool _disposed = false;
 
   static ObservabilityKit standalone({
     required String slug,
@@ -409,12 +410,14 @@ class ObservabilityKit extends ChangeNotifier {
     Iterable<ObservabilityMemberRef> bundledHolons = const [],
   }) {
     final families = declaredFamilies.map((family) => family.name).join(',');
-    final obs = holons.configure(
+    final env = Map<String, String>.from(Platform.environment)
+      ..['OP_OBS'] = families;
+    final obs = holons.fromEnv(
       holons.Config(
         slug: slug,
         instanceUid: 'kit-${DateTime.now().microsecondsSinceEpoch}',
       ),
-      env: {'OP_OBS': families},
+      env,
     );
     final gate = RuntimeGate(settings: settings, members: bundledHolons);
     late final ObservabilityKit kit;
@@ -434,6 +437,8 @@ class ObservabilityKit extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     logs.dispose();
     metrics.dispose();
     events.dispose();

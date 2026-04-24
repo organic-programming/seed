@@ -454,6 +454,7 @@ dependencies = [
  "hyper-util",
  "libc",
  "prost",
+ "prost-types",
  "regex",
  "reqwest",
  "serde",

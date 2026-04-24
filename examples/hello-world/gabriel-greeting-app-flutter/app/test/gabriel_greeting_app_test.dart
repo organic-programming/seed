@@ -29,10 +29,14 @@ void main() {
     final coaxManager = buildCoaxManager(
       greetingController: greetingController,
     );
+    final observabilityKit = buildObservabilityKit();
+    addTearDown(observabilityKit.dispose);
+    greetingController.attachObservability(observabilityKit.obs);
 
     final app = GabrielGreetingApp(
       greetingController: greetingController,
       coaxManager: coaxManager,
+      observabilityKit: observabilityKit,
     );
 
     expect(app.greetingController, same(greetingController));
@@ -75,11 +79,15 @@ void main() {
       greetingController: greetingController,
       capabilities: const AppPlatformCapabilities(supportsUnixSockets: true),
     );
+    final observabilityKit = buildObservabilityKit();
+    addTearDown(observabilityKit.dispose);
+    greetingController.attachObservability(observabilityKit.obs);
 
     await tester.pumpWidget(
       GabrielGreetingApp(
         greetingController: greetingController,
         coaxManager: coaxManager,
+        observabilityKit: observabilityKit,
       ),
     );
     await _settleApp(tester);
@@ -135,11 +143,15 @@ void main() {
     final coaxManager = buildCoaxManager(
       greetingController: greetingController,
     );
+    final observabilityKit = buildObservabilityKit();
+    addTearDown(observabilityKit.dispose);
+    greetingController.attachObservability(observabilityKit.obs);
 
     await tester.pumpWidget(
       GabrielGreetingApp(
         greetingController: greetingController,
         coaxManager: coaxManager,
+        observabilityKit: observabilityKit,
       ),
     );
     await _settleApp(tester);
@@ -176,11 +188,15 @@ void main() {
     final coaxManager = buildCoaxManager(
       greetingController: greetingController,
     );
+    final observabilityKit = buildObservabilityKit();
+    addTearDown(observabilityKit.dispose);
+    greetingController.attachObservability(observabilityKit.obs);
 
     await tester.pumpWidget(
       GabrielGreetingApp(
         greetingController: greetingController,
         coaxManager: coaxManager,
+        observabilityKit: observabilityKit,
       ),
     );
     await _settleApp(tester);
@@ -201,6 +217,55 @@ void main() {
 
     expect(completed, isTrue);
     expect(response, AppExitResponse.exit);
+  });
+
+  testWidgets('observability panel opens and reads kit state', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1100);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final greetingController = GreetingController(
+      catalog: FakeHolonCatalog([holon('gabriel-greeting-swift')]),
+      connector: FakeHolonConnector(
+        factories: <String, FakeGreetingHolonConnection Function(String)>{
+          'gabriel-greeting-swift': (_) => FakeGreetingHolonConnection(
+            languages: [
+              language(code: 'en', name: 'English', native: 'English'),
+            ],
+            greetingBuilder: ({required name, required langCode}) =>
+                'Hello $name',
+          ),
+        },
+      ),
+    );
+    final coaxManager = buildCoaxManager(
+      greetingController: greetingController,
+    );
+    final observabilityKit = buildObservabilityKit();
+    addTearDown(observabilityKit.dispose);
+    greetingController.attachObservability(observabilityKit.obs);
+
+    await tester.pumpWidget(
+      GabrielGreetingApp(
+        greetingController: greetingController,
+        coaxManager: coaxManager,
+        observabilityKit: observabilityKit,
+      ),
+    );
+    await _settleApp(tester);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('observability-toggle')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Logs'), findsWidgets);
+    expect(find.text('Metrics'), findsWidgets);
+    expect(find.text('Prometheus /metrics'), findsOneWidget);
+    expect(observabilityKit.gate.masterEnabled, isTrue);
   });
 }
 

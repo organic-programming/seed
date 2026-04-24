@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import XCTest
 
 @testable import Holons
@@ -105,6 +106,13 @@ private struct GoHolonRPCTransportServer {
     func stop() {
         if process.isRunning {
             process.terminate()
+            let deadline = Date().addingTimeInterval(2)
+            while process.isRunning && Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.05)
+            }
+            if process.isRunning {
+                kill(process.processIdentifier, SIGKILL)
+            }
             process.waitUntilExit()
         }
         try? FileManager.default.removeItem(at: helperPath)
@@ -146,15 +154,22 @@ private func startGoHolonRPCTransportServer(mode: String) throws -> GoHolonRPCTr
 
     let helperPath = goRepo.appendingPathComponent("tmp-holonrpc-transport-\(UUID().uuidString).go")
     try Data(contentsOf: fixtureSource).write(to: helperPath)
+    let helperBinary = temporaryRoot.appendingPathComponent("go-holonrpc-transport")
+    try buildGoHolonRPCTransportHelper(
+        goBinary: resolveGoBinary(),
+        source: helperPath,
+        output: helperBinary,
+        workingDirectory: goRepo
+    )
 
     let stdout = Pipe()
     let stderr = Pipe()
 
     let process = Process()
     process.currentDirectoryURL = goRepo
-    process.executableURL = URL(fileURLWithPath: resolveGoBinary())
+    process.executableURL = helperBinary
 
-    var arguments = ["run", helperPath.path, mode]
+    var arguments = [mode]
     if mode == "wss" || mode == "https" {
         let certFile = temporaryRoot.appendingPathComponent("server-cert.pem")
         let keyFile = temporaryRoot.appendingPathComponent("server-key.pem")
@@ -209,6 +224,36 @@ private func startGoHolonRPCTransportServer(mode: String) throws -> GoHolonRPCTr
         temporaryRoot: temporaryRoot,
         url: url
     )
+}
+
+private func buildGoHolonRPCTransportHelper(
+    goBinary: String,
+    source: URL,
+    output: URL,
+    workingDirectory: URL
+) throws {
+    let stderr = Pipe()
+    let process = Process()
+    process.currentDirectoryURL = workingDirectory
+    process.executableURL = URL(fileURLWithPath: goBinary)
+    process.arguments = ["build", "-o", output.path, source.path]
+    process.standardOutput = Pipe()
+    process.standardError = stderr
+
+    do {
+        try process.run()
+        process.waitUntilExit()
+    } catch {
+        throw GoHolonRPCTransportHelperError.unavailable("unable to build go helper: \(error)")
+    }
+
+    if process.terminationStatus != 0 {
+        let stderrText = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        throw GoHolonRPCTransportHelperError.unavailable(
+            "unable to build go helper: exit \(process.terminationStatus)\n\(stderrText)"
+        )
+    }
 }
 
 private enum GoHolonRPCTransportHelperError: Error, CustomStringConvertible {
