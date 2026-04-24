@@ -1,6 +1,7 @@
 //! Standard gRPC server runner for Rust holons.
 
 use crate::describe;
+use crate::observability;
 use crate::transport::{self, Listener, StdioTransport, DEFAULT_URI};
 use std::convert::Infallible;
 use std::env;
@@ -34,6 +35,7 @@ pub struct RunOptions {
     pub manifest_path: Option<String>,
     pub describe_response: Option<crate::gen::holons::v1::DescribeResponse>,
     pub descriptor_set: Option<Vec<u8>>,
+    pub env: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,14 +45,16 @@ pub struct ParsedFlags {
 }
 
 macro_rules! serve_router {
-    ($router:expr, $listen_uri:expr, $options:expr) => {{
+    ($router:expr, $listen_uri:expr, $options:expr, $obs:expr) => {{
         let router = $router;
         let options = $options;
         let listen_uri = $listen_uri;
+        let obs = $obs;
 
         match transport::listen(listen_uri).await? {
             Listener::Tcp(listener) => {
                 let actual_uri = bound_tcp_uri(listen_uri, &listener)?;
+                start_observability_runtime(obs.as_ref(), &actual_uri, "tcp");
                 announce_bound_uri(&actual_uri, options);
                 router
                     .serve_with_incoming_shutdown(
@@ -62,6 +66,7 @@ macro_rules! serve_router {
             #[cfg(unix)]
             Listener::Unix(listener) => {
                 let cleanup = unix_socket_path(listen_uri)?;
+                start_observability_runtime(obs.as_ref(), listen_uri, "unix");
                 announce_bound_uri(listen_uri, options);
                 let result = router
                     .serve_with_incoming_shutdown(
@@ -73,6 +78,7 @@ macro_rules! serve_router {
                 result?;
             }
             Listener::Stdio => {
+                start_observability_runtime(obs.as_ref(), "stdio://", "stdio");
                 announce_bound_uri("stdio://", options);
                 router
                     .serve_with_incoming_shutdown(
@@ -148,6 +154,8 @@ where
     Svc::Future: Send + 'static,
 {
     let mut builder = Server::builder().accept_http1(options.accept_http1);
+    let obs = observability_from_options(&options)?;
+    let obs_service = obs.as_ref().map(|obs| observability::service(obs.clone()));
     let meta_service = registered_holon_meta_service(&options)?;
     if options.reflect {
         let descriptor_set = auto_reflection_descriptor_set(&options)?
@@ -158,12 +166,16 @@ where
             .map_err(|err| boxed_err(format!("failed to build reflection service: {err}")))?;
         let router = builder
             .add_service(meta_service)
+            .add_optional_service(obs_service)
             .add_service(reflection)
             .add_service(service);
-        serve_router!(router, listen_uri, options)
+        serve_router!(router, listen_uri, options, obs)
     } else {
-        let router = builder.add_service(meta_service).add_service(service);
-        serve_router!(router, listen_uri, options)
+        let router = builder
+            .add_service(meta_service)
+            .add_optional_service(obs_service)
+            .add_service(service);
+        serve_router!(router, listen_uri, options, obs)
     }
 }
 
@@ -212,6 +224,8 @@ where
     Svc::Future: Send + 'static,
 {
     let mut builder = Server::builder().accept_http1(options.accept_http1);
+    let obs = observability_from_options(&options)?;
+    let obs_service = obs.as_ref().map(|obs| observability::service(obs.clone()));
     let meta_service = registered_holon_meta_service(&options)?;
     if options.reflect {
         let descriptor_set = auto_reflection_descriptor_set(&options)?
@@ -223,15 +237,17 @@ where
         let router = builder
             .add_service(meta_service)
             .add_optional_service(extra_service)
+            .add_optional_service(obs_service)
             .add_service(reflection)
             .add_service(service);
-        serve_router!(router, listen_uri, options)
+        serve_router!(router, listen_uri, options, obs)
     } else {
         let router = builder
             .add_service(meta_service)
             .add_optional_service(extra_service)
+            .add_optional_service(obs_service)
             .add_service(service);
-        serve_router!(router, listen_uri, options)
+        serve_router!(router, listen_uri, options, obs)
     }
 }
 
@@ -250,6 +266,64 @@ fn registered_holon_meta_service(
             Err(boxed_err(format!("register HolonMeta: {err}")))
         }
     }
+}
+
+fn observability_from_options(
+    options: &RunOptions,
+) -> Result<Option<std::sync::Arc<observability::Observability>>> {
+    let env = options
+        .env
+        .clone()
+        .unwrap_or_else(|| std::env::vars().collect());
+    observability::check_env_from(&env).map_err(|err| boxed_err(err.to_string()))?;
+    if env.get("OP_OBS").map(|s| s.trim()).unwrap_or("").is_empty() {
+        return Ok(None);
+    }
+    let obs = observability::from_env_map(observability::Config::default(), &env);
+    Ok((!obs.families.is_empty()).then_some(obs))
+}
+
+fn start_observability_runtime(
+    obs: Option<&std::sync::Arc<observability::Observability>>,
+    public_uri: &str,
+    transport: &str,
+) {
+    let Some(obs) = obs else { return };
+    if obs.cfg.run_dir.is_empty() {
+        return;
+    }
+    observability::enable_disk_writers(&obs.cfg.run_dir);
+    if obs.enabled(observability::Family::Events) {
+        let mut payload = std::collections::BTreeMap::new();
+        payload.insert("listener".to_string(), public_uri.to_string());
+        obs.emit(observability::EventType::InstanceReady, payload);
+    }
+    let log_path = if obs.enabled(observability::Family::Logs) {
+        Path::new(&obs.cfg.run_dir)
+            .join("stdout.log")
+            .to_string_lossy()
+            .into_owned()
+    } else {
+        String::new()
+    };
+    let _ = observability::write_meta_json(
+        &obs.cfg.run_dir,
+        &observability::MetaJson {
+            slug: obs.cfg.slug.clone(),
+            uid: obs.cfg.instance_uid.clone(),
+            pid: std::process::id() as i32,
+            started_at: std::time::SystemTime::now(),
+            mode: "persistent".to_string(),
+            transport: transport.to_string(),
+            address: public_uri.to_string(),
+            metrics_addr: String::new(),
+            log_path,
+            log_bytes_rotated: 0,
+            organism_uid: obs.cfg.organism_uid.clone(),
+            organism_slug: obs.cfg.organism_slug.clone(),
+            is_default: false,
+        },
+    );
 }
 
 fn announce_bound_uri(uri: &str, options: RunOptions) {
@@ -444,7 +518,9 @@ mod tests {
     use crate::gen::holons::v1::{
         holon_manifest::{Artifacts, Build, Identity},
         holon_meta_client::HolonMetaClient,
-        DescribeRequest, DescribeResponse, HolonManifest,
+        holon_observability_client::HolonObservabilityClient,
+        DescribeRequest, DescribeResponse, EventsRequest, HolonManifest, LogsRequest,
+        MetricsRequest,
     };
     use crate::test_support::{acquire_process_guard, ProcessStateGuard};
     use std::fs;
@@ -639,6 +715,124 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_run_single_with_options_registers_observability_service() {
+        let _lock = acquire_process_guard().await;
+        let _state = ProcessStateGuard::capture();
+        crate::describe::clear_static_response();
+        observability::reset();
+        let empty = TempDir::new().unwrap();
+        env::set_current_dir(empty.path()).unwrap();
+
+        let registry = TempDir::new().unwrap();
+        let mut obs_env = std::collections::HashMap::new();
+        obs_env.insert("OP_OBS".to_string(), "logs,metrics,events".to_string());
+        obs_env.insert(
+            "OP_RUN_DIR".to_string(),
+            registry.path().to_string_lossy().into_owned(),
+        );
+        obs_env.insert("OP_INSTANCE_UID".to_string(), "rust-obs-1".to_string());
+
+        let port = free_port();
+        let listen_uri = format!("tcp://127.0.0.1:{port}");
+
+        let server = tokio::spawn(async move {
+            run_single_with_options(
+                &listen_uri,
+                UnimplementedService,
+                RunOptions {
+                    env: Some(obs_env),
+                    describe_response: Some(DescribeResponse {
+                        manifest: Some(embedded_manifest(
+                            "Observable",
+                            "Holon",
+                            "Registers HolonObservability.",
+                            "1.0.0",
+                        )),
+                        services: Vec::new(),
+                    }),
+                    ..RunOptions::default()
+                },
+            )
+            .await
+            .unwrap();
+        });
+
+        let endpoint = format!("http://127.0.0.1:{port}");
+        let mut client = wait_for_holon_observability_client(&endpoint).await;
+        let obs = observability::current();
+        obs.logger("serve-test")
+            .info("serve-log", &[("sdk", "rust")]);
+        obs.counter(
+            "serve_requests_total",
+            "",
+            std::collections::BTreeMap::new(),
+        )
+        .unwrap()
+        .inc();
+        obs.emit(
+            observability::EventType::InstanceReady,
+            std::collections::BTreeMap::new(),
+        );
+
+        let logs = client
+            .logs(LogsRequest {
+                min_level: observability::Level::Info as i32,
+                session_ids: Vec::new(),
+                rpc_methods: Vec::new(),
+                since: None,
+                follow: false,
+            })
+            .await
+            .unwrap()
+            .into_inner()
+            .collect::<Vec<_>>()
+            .await;
+        assert!(logs
+            .iter()
+            .any(|entry| entry.as_ref().unwrap().message == "serve-log"));
+
+        let metrics = client
+            .metrics(MetricsRequest {
+                name_prefixes: Vec::new(),
+                include_session_rollup: false,
+            })
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(metrics
+            .samples
+            .iter()
+            .any(|sample| sample.name == "serve_requests_total"));
+
+        let events = client
+            .events(EventsRequest {
+                types: Vec::new(),
+                since: None,
+                follow: false,
+            })
+            .await
+            .unwrap()
+            .into_inner()
+            .collect::<Vec<_>>()
+            .await;
+        assert!(events.iter().any(|event| {
+            event.as_ref().unwrap().r#type == observability::EventType::InstanceReady as i32
+        }));
+
+        let meta_path = registry
+            .path()
+            .join(&obs.cfg.slug)
+            .join("rust-obs-1")
+            .join("meta.json");
+        assert!(meta_path.is_file());
+
+        observability::reset();
+        crate::describe::clear_static_response();
+        server.abort();
+        let _ = server.await;
+    }
+
+    #[tokio::test]
     async fn test_run_single_with_options_rejects_ws_and_wss() {
         let _lock = acquire_process_guard().await;
         let _state = ProcessStateGuard::capture();
@@ -715,6 +909,22 @@ mod tests {
                     tokio::time::sleep(Duration::from_millis(25)).await;
                 }
                 Err(err) => panic!("timed out waiting for HolonMeta client: {err}"),
+            }
+        }
+    }
+
+    async fn wait_for_holon_observability_client(
+        endpoint: &str,
+    ) -> HolonObservabilityClient<tonic::transport::Channel> {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+        loop {
+            match HolonObservabilityClient::connect(endpoint.to_string()).await {
+                Ok(client) => return client,
+                Err(err) if tokio::time::Instant::now() < deadline => {
+                    let _ = err;
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+                Err(err) => panic!("timed out waiting for HolonObservability client: {err}"),
             }
         }
     }
