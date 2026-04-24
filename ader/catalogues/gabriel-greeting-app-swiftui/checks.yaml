@@ -10,7 +10,7 @@ checks:
     prereqs:
     - swift
     command: swift test
-    description: SwiftUI GreetingKit unit tests
+    description: SwiftUI GreetingKit unit tests, including ObservabilityPanel state wiring
   integration-build-composite-swiftui:
     workdir: ader/catalogues/grace-op/integration
     prereqs:

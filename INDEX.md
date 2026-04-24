@@ -68,6 +68,28 @@
 | ? | ? | [ruby-holons](sdk/ruby-holons/README.md) | auto-indexed |
 | ? | ? | [rust-holons](sdk/rust-holons/README.md) | auto-indexed |
 
+## Cross-SDK Observability Conformance
+
+Tier 1 owns aggregation and export; tier 2 emits local signals and exposes
+`HolonObservability`; tier 3 serves the same pull surface over its existing
+WebSocket binding.
+
+| SDK | Logs | Metrics | Events | Register | DiskWriters | Prom | Relay | Multilog |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| [go-holons](sdk/go-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| [python-holons](sdk/python-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
+| [js-holons](sdk/js-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
+| [dart-holons](sdk/dart-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
+| [swift-holons](sdk/swift-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
+| [rust-holons](sdk/rust-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
+| [java-holons](sdk/java-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
+| [kotlin-holons](sdk/kotlin-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
+| [csharp-holons](sdk/csharp-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
+| [ruby-holons](sdk/ruby-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
+| [c-holons](sdk/c-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
+| [cpp-holons](sdk/cpp-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
+| [js-web-holons](sdk/js-web-holons/README.md) | ✅ | ✅ | ✅ | WS pull | - | - | - | - |
+
 ## Examples Hello-World
 
 | ? | ? | [gabriel-greeting-app-swiftui](examples/hello-world/gabriel-greeting-app-swiftui/README.md) | auto-indexed |

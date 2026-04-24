@@ -7,7 +7,7 @@ Prometheus, Grafana, and OpenTelemetry.
 
 ## Problem
 
-Holons speak to each other over `.proto`-defined RPCs, across 14 SDKs,
+Holons speak to each other over `.proto`-defined RPCs, across 13 SDKs,
 and compose into organisms. When something misbehaves — a handler
 panics, a session hangs, a recipe child quietly errors — the operator
 has no uniform way to see what happened. Today the state is:
@@ -36,9 +36,9 @@ Every holon exposes a single auto-registered `HolonObservability` gRPC
 service with three RPCs — `Logs`, `Metrics`, `Events` — carrying
 structured signals with enough identity to join across specs
 (`slug`, `instance_uid`, `session_id`, `rpc_method`). On top of this
-canonical RPC, two optional sidecars connect to external systems: a
+canonical RPC, optional sidecars connect to external systems: a
 Prometheus text-format `/metrics` HTTP endpoint living in the holon
-itself, and an OTLP push exporter for collectors.
+itself, and a v2 OTLP push exporter for collectors.
 
 ### Design Principles
 
@@ -108,7 +108,7 @@ leaf-language SDKs. Each tier has explicit responsibilities:
 
 | Tier | Components | Obligations |
 |---|---|---|
-| **Tier 1 — full chain** | `sdk/go-holons` (reference), `organism_kits/flutter`, `organism_kits/swiftui`, `op` | Logger + Counter + Gauge + Histogram + EventBus + chain + auto-register `HolonObservability` + `HolonMeta.Describe` exclusions + `.op/run/` disk writers + `meta.json` + **Prometheus `/metrics` HTTP endpoint** + **OTLP push (v2 reserved)** + **Organism Relay** (parent ↔ child streams, ChainHop append) + **Multilog writer** at the root + **four-phase interceptor** + session rollup (when session layer ships) + **runtime toggle UI** (kits only) |
+| **Tier 1 — full chain** | `sdk/go-holons` (reference), `organism_kits/flutter`, `organism_kits/swiftui`, `op` | Logger + Counter + Gauge + Histogram + EventBus + chain + auto-register `HolonObservability` + `HolonMeta.Describe` exclusions + `.op/run/` disk writers + `meta.json` + **Prometheus `/metrics` HTTP endpoint** + **OTLP push (v2 reserved)** + **Organism Relay** (parent ↔ child streams, ChainHop append) + **Multilog writer** at the root + **total-phase RPC interceptor in v1** + four-phase session decomposition and session rollup when the v2 session layer ships + **runtime toggle UI** (kits only) |
 | **Tier 2 — minimal emitter** | `sdk/python-holons`, `sdk/js-holons`, `sdk/dart-holons`, `sdk/swift-holons`, `sdk/rust-holons`, `sdk/java-holons`, `sdk/kotlin-holons`, `sdk/csharp-holons`, `sdk/ruby-holons`, `sdk/c-holons`, `sdk/cpp-holons` | Logger + Counter + Gauge + Histogram + EventBus + chain propagation + auto-register `HolonObservability` + `.op/run/` disk writers + `meta.json`. **No Prometheus HTTP server, no OTLP push, no multilog writer, no relay.** The root in tier 1 pulls from these SDKs via their auto-registered service. |
 | **Tier 3 — dial-only** | `sdk/js-web-holons` | Logger + Counter + Gauge + Histogram + EventBus + chain. **Served over the existing WebSocket channel to the Hub**, not a local gRPC listener. No disk writers (browser sandbox). The Hub pulls via Holon-RPC using the bidirectional WS semantics of COMMUNICATION.md §4.1. |
 
@@ -154,7 +154,7 @@ func main() {
     obs := observability.Configure(observability.Config{
         LogLevel:     observability.INFO,     // default level when logs=on
         PromAddr:     ":0",                    // ephemeral when OP_OBS=prom
-        OTLPInterval: 15 * time.Second,        // cadence when OP_OBS=otel
+        OTLPInterval: 15 * time.Second,        // v2 cadence when OP_OBS=otel
     })
     defer obs.Close()
 
@@ -203,7 +203,7 @@ a silent warning.
 
 The `OP_OBS` env var is set by the **parent launcher** — the holon
 itself never decides to self-activate via config. Same discipline as
-`OP_SESSIONS` in SESSIONS.md.
+the reserved `OP_SESSIONS` switch in SESSIONS.md.
 
 | Launcher | Mechanism |
 |---|---|
@@ -236,7 +236,8 @@ and, from the launcher, also receives:
 > The text below describes the intended v2 composition; nothing in
 > v1 depends on it.
 
-`OP_SESSIONS` and `OP_OBS` compose; neither replaces the other.
+When v2 ships, `OP_SESSIONS` and `OP_OBS` compose; neither replaces
+the other.
 
 - `OP_SESSIONS=1` alone: session identity + state + `rpc_count`
   tracked; no metrics; no `HolonObservability` service.
@@ -247,8 +248,8 @@ and, from the launcher, also receives:
   in-flight, memory, build info) exposed via
   `HolonObservability.Metrics`. No session rollup.
 - `OP_OBS=metrics` **+** `OP_SESSIONS=metrics`:
-  `MetricsSnapshot.session_rollup` is populated by quantile-merging
-  session histograms.
+  `MetricsSnapshot.session_rollup` will be populated by
+  quantile-merging session histograms.
 
 ### `op proxy` — deferred to v2
 
@@ -386,7 +387,7 @@ the wire format flat and JSON-safe.
   --since=<duration>` replay without disk reads.
 - **Disk copy**: when `OP_OBS` contains `logs`, every entry is also
   written as a JSON object on its own line to
-  `.op/run/<address>/<uid>/stdout.log` (see
+  `.op/run/<slug>/<uid>/stdout.log` (see
   [INSTANCES.md §Log Contract](INSTANCES.md#log-contract)). Rotated at
   16 MB, ring of 4 files.
 - **Disk is the durable store**, ring buffer is the replay cache.
@@ -440,20 +441,21 @@ Emitted by every holon when `OP_OBS` contains `metrics`:
 | `holon_goroutines` | Gauge | — | Go only; analogous field per-SDK |
 | `holon_handler_in_flight` | Gauge | `method` | Currently executing RPCs |
 | `holon_handler_panics_total` | Counter | `method` | Recovered panics per method |
-| `holon_session_rpc_total` | Counter | `method, direction, phase, remote_slug` | Session-scoped count |
-| `holon_session_rpc_duration_seconds` | Histogram | `method, direction, phase` | Four-phase decomposition |
+| `holon_session_rpc_total` | Counter | `method, direction, phase, remote_slug` | RPC count; v1 emits `phase=total` only |
+| `holon_session_rpc_duration_seconds` | Histogram | `method, direction, phase` | RPC duration; v1 emits `phase=total` only |
 
-The `phase` label takes values `wire_out`, `queue`, `work`, `wire_in`,
-`total` — folding SESSIONS.md's four-phase decomposition into a
-label dimension rather than separate metrics.
+In v1, the `phase` label is always `total`. In v2, it also takes
+`wire_out`, `queue`, `work`, and `wire_in`, folding SESSIONS.md's
+four-phase decomposition into a label dimension rather than separate
+metrics.
 
 ### `MetricsSnapshot.session_rollup`
 
-When `OP_SESSIONS=metrics` and `OP_OBS=metrics` are both enabled,
-`MetricsSnapshot.session_rollup` contains a quantile-merged view
-across all live sessions. Closed sessions (in the ring buffer) are
-not included in the rollup but remain accessible via
-`HolonSession.Sessions --history`.
+This field is empty in v1. In v2, when `OP_SESSIONS=metrics` and
+`OP_OBS=metrics` are both enabled, `MetricsSnapshot.session_rollup`
+contains a quantile-merged view across all live sessions. Closed
+sessions (in the ring buffer) are not included in the rollup but
+remain accessible via `HolonSession.Sessions --history`.
 
 The rollup reuses the `SessionMetrics` message from SESSIONS.md by
 proto import; no duplication.
@@ -480,7 +482,7 @@ initial enum is narrow; new types are added by amendment.
 Events ride a bounded in-memory buffer (default 256 entries). They
 are emitted over `HolonObservability.Events(stream)` and — when
 `OP_OBS` contains `events` — appended to
-`.op/run/<address>/<uid>/events.jsonl` (see
+`.op/run/<slug>/<uid>/events.jsonl` (see
 [INSTANCES.md §Log Contract](INSTANCES.md#log-contract)).
 
 `EventInfo.payload` is a `map<string,string>` for event-specific
@@ -687,7 +689,7 @@ Binding rule: when the listener's scheme is HTTP-capable (`http://` /
 and `metrics_addr` echoes that listener's address. For any other
 scheme, enabling `prom` binds a **dedicated ephemeral HTTP/1.1 port**
 distinct from the holon's primary listener, and its address is
-recorded in `.op/run/<address>/<uid>/meta.json` as `metrics_addr`.
+recorded in `.op/run/<slug>/<uid>/meta.json` as `metrics_addr`.
 Multiplexing gRPC and HTTP on a single non-HTTP listener via
 HTTP/2 routing is an optimisation deferred to v2.
 
@@ -767,8 +769,8 @@ are designed to partition cleanly in Grafana dashboards.
 ## Proto Definition
 
 New file: `holons/grace-op/_protos/holons/v1/observability.proto`.
-Auto-registered by every SDK's serve runner, like `HolonMeta` and
-`HolonSession`. Holons don't import or implement it.
+Auto-registered by every SDK's serve runner, like `HolonMeta` and the
+v2 `HolonSession`. Holons don't import or implement it.
 
 ```protobuf
 syntax = "proto3";
@@ -851,7 +853,7 @@ message MetricsRequest {
   // Filter: return only metric names matching these prefixes.
   repeated string name_prefixes = 1;
 
-  // If true, include the session rollup (requires OP_SESSIONS=metrics).
+  // v2 only: include the session rollup (requires OP_SESSIONS=metrics).
   bool include_session_rollup = 2;
 }
 
@@ -861,7 +863,7 @@ message MetricsSnapshot {
   string instance_uid = 3;
   repeated MetricSample samples = 4;
 
-  // Populated only when OP_SESSIONS=metrics and the request asks for it.
+  // v2 only: populated when OP_SESSIONS=metrics and the request asks for it.
   // Merged across all live sessions; closed sessions excluded.
   holons.v1.SessionMetrics session_rollup = 5;
 }
@@ -960,14 +962,14 @@ sdk/go-holons/
       logger.go             // public Logger type; Info/Warn/Error/… methods
       ringbuffer.go         // bounded ring
       interceptor.go        // UnaryServerInterceptor injecting session_id + method
-      writer.go             // JSON-lines writer to .op/run/<uid>/stdout.log
+      writer.go             // JSON-lines writer to .op/run/<slug>/<uid>/stdout.log
     metrics/
       registry.go           // Counter/Gauge/Histogram types + registry
       histogram.go          // HDR sketch wrapper (hdrhistogram-go)
       collector.go          // baseline metrics collector (process, runtime)
     events/
       bus.go                // bounded event buffer, pub/sub
-      writer.go             // JSON-lines writer to .op/run/<uid>/events.jsonl
+      writer.go             // JSON-lines writer to .op/run/<slug>/<uid>/events.jsonl
     prom/
       exposition.go         // text-format encoder
       http_handler.go       // net/http.Handler for /metrics
@@ -984,23 +986,24 @@ sdk/go-holons/
 
 `sdk/go-holons/pkg/serve/serve.go` inspects `OP_OBS` at startup. If
 non-empty, it constructs a singleton `observability.Config`, starts
-the requested sidecars (prom/otel), and registers
-`HolonObservability` on the gRPC server alongside `HolonMeta` and
-(when `OP_SESSIONS` is set) `HolonSession`.
+the requested v1 sidecars (`prom`; `otel` is rejected until v2), and
+registers `HolonObservability` on the gRPC server alongside
+`HolonMeta`. `HolonSession` registration is deferred to v2 when
+`OP_SESSIONS` ships.
 
 ### Interceptors
 
-- `UnaryServerInterceptor` injects `session_id` and `rpc_method` into
-  the context before calling the handler. The logger picks them up
-  via context.
+- `UnaryServerInterceptor` injects `rpc_method` and, when the v2
+  session layer is present, `session_id` into the context before
+  calling the handler. The logger picks them up via context.
 - `UnaryClientInterceptor` does the same for outbound calls, with
   `direction=OUTBOUND`.
 
 ### Exclusions from `HolonMeta.Describe`
 
-`HolonObservability`, like `HolonMeta` and `HolonSession`, is
-excluded from `Describe` output. Introspection tooling finds it
-through the fixed service name, not through the manifest.
+`HolonObservability`, like `HolonMeta` and the v2 `HolonSession`, is
+excluded from `Describe` output. Introspection tooling finds it through
+the fixed service name, not through the manifest.
 
 ### Cost when disabled
 
@@ -1130,11 +1133,11 @@ Cross-SDK invariants that the proto cannot encode:
 
 ## Security Considerations
 
-`HolonObservability` is auto-registered on every holon, and like
-`HolonSession` is reachable by any peer that can connect. Logs,
-metrics, and events may leak operational secrets (structured
-fields, remote slugs, internal IPs). The security model extends
-SESSIONS.md's visibility discipline.
+`HolonObservability` is auto-registered on every observable holon and
+is reachable by any peer that can connect. Logs, metrics, and events
+may leak operational secrets (structured fields, remote slugs,
+internal IPs). The security model extends SESSIONS.md's visibility
+discipline; the `HolonSession` peer surface arrives in v2.
 
 ### Unified visibility enum
 
@@ -1218,11 +1221,11 @@ backend that provides them.
 | Concept | Owner | Used here |
 |---|---|---|
 | `instance_uid` | [INSTANCES.md](INSTANCES.md) | Injected on every `LogEntry`, `MetricSample`, `EventInfo` via `OP_INSTANCE_UID` |
-| `.op/run/<uid>/stdout.log` / `events.jsonl` | INSTANCES.md | Disk target for ring buffer flush |
-| `session_id` | [SESSIONS.md](SESSIONS.md) | Join key on logs and handler metrics |
-| `SessionMetrics` (four-phase) | SESSIONS.md | Imported into `MetricsSnapshot.session_rollup` |
+| `.op/run/<slug>/<uid>/stdout.log` / `events.jsonl` | INSTANCES.md | Disk target for ring buffer flush |
+| `session_id` | [SESSIONS.md](SESSIONS.md) | v2 join key on logs and handler metrics |
+| `SessionMetrics` (four-phase) | SESSIONS.md | v2 import into `MetricsSnapshot.session_rollup` |
 | `ObservabilityVisibility` enum | SESSIONS.md (declares) / here (reuses) | Single security dial |
-| `OP_SESSIONS` | SESSIONS.md | Orthogonal to `OP_OBS`, composes |
+| `OP_SESSIONS` | SESSIONS.md | v2-only; rejected at startup in v1 |
 | `HolonInstance.List` RPC | INSTANCES.md | Called by `op ps` / `op metrics --all` |
 
 If SESSIONS.md's `instance_uid` addition is deferred, observability

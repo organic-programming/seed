@@ -1,4 +1,4 @@
-description: Swift and SwiftUI proof, including COAX surfaces
+description: Swift and SwiftUI proof, including COAX surfaces and ObservabilityPanel wiring
 defaults:
   profile: smoke
 steps:
