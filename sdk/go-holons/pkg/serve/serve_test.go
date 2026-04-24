@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -256,6 +258,61 @@ func TestRunServesGRPCAndHTTPConcurrently(t *testing.T) {
 	requireHTTPDescribeEventually(t, client, "echo-server")
 	requireHTTPUnaryEchoEventually(t, client, "serve-multi-http")
 	requireHTTPStreamEchoEventually(t, client, "serve-multi-stream")
+}
+
+func TestRunPrometheusSharesHTTPListener(t *testing.T) {
+	runRoot := t.TempDir()
+	uid := "prom-http-uid"
+	rootSlug := filepath.Base(os.Args[0])
+	t.Setenv("OP_OBS", "metrics,prom")
+	t.Setenv("OP_RUN_DIR", runRoot)
+	t.Setenv("OP_INSTANCE_UID", uid)
+	t.Setenv("OP_PROM_ADDR", "bad-address")
+
+	cmd, logs := startServeProcess(t, "run", "http://127.0.0.1:0/api/v1/rpc", false)
+	defer stopServeProcess(t, cmd, logs)
+
+	address := waitForAdvertisedAddress(t, logs, "http://127.0.0.1:")
+	metricsURL := metricsURLFromHTTPAddress(t, address)
+	resp, err := http.Get(metricsURL)
+	if err != nil {
+		t.Fatalf("GET shared /metrics: %v\nlogs:\n%s", err, logs.String())
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET shared /metrics status=%d body=%s\nlogs:\n%s", resp.StatusCode, string(body), logs.String())
+	}
+	if !strings.Contains(string(body), "holon_build_info") {
+		t.Fatalf("shared /metrics missing baseline metric; body=%s", string(body))
+	}
+
+	metaDir := filepath.Join(runRoot, rootSlug, uid)
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		meta, err := observability.ReadMetaJSON(metaDir)
+		if err == nil && meta.Address == address && meta.Transport == "http" && meta.MetricsAddr == metricsURL {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	meta, err := observability.ReadMetaJSON(metaDir)
+	if err != nil {
+		t.Fatalf("read HTTP meta.json: %v\nlogs:\n%s", err, logs.String())
+	}
+	t.Fatalf("meta = %+v, want address=%q transport=http metrics_addr=%q", meta, address, metricsURL)
+}
+
+func metricsURLFromHTTPAddress(t *testing.T, address string) string {
+	t.Helper()
+	parsed, err := url.Parse(address)
+	if err != nil {
+		t.Fatalf("parse HTTP address %q: %v", address, err)
+	}
+	parsed.Path = "/metrics"
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
 }
 
 func TestRunWithServeOptionsStartsRelayAndMultilog(t *testing.T) {

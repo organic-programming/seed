@@ -60,6 +60,11 @@ type ServeOptions struct {
 	MemberEndpoints []MemberRef
 }
 
+type grpcEndpoint struct {
+	uri string
+	lis net.Listener
+}
+
 // ParseFlags extracts --listen and --port from command-line args.
 // Returns a transport URI. If neither flag is present, returns the default.
 func ParseFlags(args []string) string {
@@ -152,14 +157,14 @@ func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeO
 		reflection.Register(s)
 	}
 
-	// Prometheus /metrics HTTP endpoint when OP_OBS=prom. Bound on an
-	// ephemeral port; per the binding rule in OBSERVABILITY.md
-	// §Transport Constraints, HTTP-capable transports would reuse the
-	// gRPC listener — a refinement we can add later without changing
-	// the public surface.
+	// Prometheus /metrics endpoint when OP_OBS=prom. HTTP-capable
+	// transports share their existing listener; non-HTTP transports keep
+	// the dedicated ephemeral sidecar.
 	var promServer *observability.PromServer
 	var metricsAddr string
-	if obs.Enabled(observability.FamilyProm) {
+	promEnabled := obs.Enabled(observability.FamilyProm)
+	promSharesHTTP := promEnabled && hasHTTPListenURI(listenURIs)
+	if promEnabled && !promSharesHTTP {
 		addr := os.Getenv("OP_PROM_ADDR")
 		if addr == "" {
 			addr = ":0"
@@ -211,15 +216,11 @@ func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeO
 		}
 	}
 
-	type grpcEndpoint struct {
-		uri string
-		lis net.Listener
-	}
-
 	grpcEndpoints := make([]grpcEndpoint, 0, len(listenURIs))
 	httpServers := make([]*holonrpc.HTTPServer, 0, len(listenURIs))
 	var bridgeConn *grpc.ClientConn
 	var internalBridge net.Listener
+	httpAddresses := make([]string, 0, len(listenURIs))
 
 	defer func() {
 		if runErr == nil {
@@ -237,6 +238,9 @@ func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeO
 		if internalBridge != nil {
 			_ = internalBridge.Close()
 		}
+		if promServer != nil {
+			_ = promServer.Close(shutdownCtx)
+		}
 		cleanupObservability()
 		s.Stop()
 		for _, endpoint := range grpcEndpoints {
@@ -246,7 +250,11 @@ func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeO
 
 	for _, uri := range listenURIs {
 		if isHTTPListenURI(uri) {
-			httpServers = append(httpServers, holonrpc.NewHTTPServer(uri))
+			server := holonrpc.NewHTTPServer(uri)
+			if promSharesHTTP {
+				server.Handle("/metrics", observability.PromHandler())
+			}
+			httpServers = append(httpServers, server)
 			continue
 		}
 
@@ -294,7 +302,15 @@ func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeO
 			if err != nil {
 				return fmt.Errorf("start HTTP+SSE server %s: %w", server.Address(), err)
 			}
+			httpAddresses = append(httpAddresses, address)
 			log.Printf("HTTP+SSE server listening on %s", address)
+			if promSharesHTTP {
+				sharedMetricsAddr := metricsURLForHTTPAddress(address)
+				log.Printf("Prometheus /metrics sharing HTTP listener on %s", sharedMetricsAddr)
+				if metricsAddr == "" {
+					metricsAddr = sharedMetricsAddr
+				}
+			}
 		}
 	}
 
@@ -319,9 +335,9 @@ func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeO
 
 	// Announce INSTANCE_READY as soon as the first listener is bound,
 	// even when events are disabled the call is a no-op.
-	if len(grpcEndpoints) > 0 {
-		firstURI := advertisedURI(grpcEndpoints[0].uri, grpcEndpoints[0].lis.Addr())
-		observability.EmitReady(context.Background(), firstURI)
+	readyAddress, readyTransport := firstReadyEndpoint(grpcEndpoints, httpAddresses)
+	if readyAddress != "" {
+		observability.EmitReady(context.Background(), readyAddress)
 		// Write meta.json for `op ps` / HolonInstance.List when we
 		// have a run directory. Skips silently when OP_RUN_DIR is
 		// empty (manual launch without `op run`).
@@ -332,8 +348,8 @@ func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeO
 				PID:          os.Getpid(),
 				StartedAt:    time.Now(),
 				Mode:         "persistent",
-				Transport:    transport.Scheme(grpcEndpoints[0].uri),
-				Address:      firstURI,
+				Transport:    readyTransport,
+				Address:      readyAddress,
 				MetricsAddr:  metricsAddr,
 				OrganismUID:  obs.OrganismUID(),
 				OrganismSlug: obs.OrganismSlug(),
@@ -446,6 +462,38 @@ func normalizeListenURIs(listenURI string, moreListenURIs []string) []string {
 
 func isHTTPListenURI(uri string) bool {
 	return strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://")
+}
+
+func hasHTTPListenURI(uris []string) bool {
+	for _, uri := range uris {
+		if isHTTPListenURI(uri) {
+			return true
+		}
+	}
+	return false
+}
+
+func metricsURLForHTTPAddress(address string) string {
+	parsed, err := url.Parse(address)
+	if err != nil {
+		return strings.TrimRight(address, "/") + "/metrics"
+	}
+	parsed.Path = "/metrics"
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
+}
+
+func firstReadyEndpoint(grpcEndpoints []grpcEndpoint, httpAddresses []string) (address, scheme string) {
+	if len(grpcEndpoints) > 0 {
+		endpoint := grpcEndpoints[0]
+		return advertisedURI(endpoint.uri, endpoint.lis.Addr()), transport.Scheme(endpoint.uri)
+	}
+	if len(httpAddresses) > 0 {
+		address := httpAddresses[0]
+		return address, transport.Scheme(address)
+	}
+	return "", ""
 }
 
 func startMemberRelays(ctx context.Context, members []MemberRef) ([]*observability.Relay, []*grpc.ClientConn) {
