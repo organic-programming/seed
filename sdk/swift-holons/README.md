@@ -45,3 +45,9 @@ let entry = try findBySlug("gabriel-greeting-swift")
 ```swift
 let channel = try connect("gabriel-greeting-swift")
 ```
+
+## Build and test
+
+```sh
+swift test
+```

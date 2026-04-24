@@ -61,3 +61,10 @@ entry, err := discover.FindBySlug("gabriel-greeting-go")
 ```go
 conn, err := connect.Connect("gabriel-greeting-go")
 ```
+
+## Build and test
+
+```sh
+go build ./...
+go test ./...
+```

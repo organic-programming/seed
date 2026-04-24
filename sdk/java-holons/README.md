@@ -49,3 +49,9 @@ var entry = Discover.findBySlug("gabriel-greeting-java");
 ```java
 var channel = Connect.connect("gabriel-greeting-java");
 ```
+
+## Build and test
+
+```sh
+./gradlew test
+```

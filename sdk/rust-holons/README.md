@@ -58,3 +58,9 @@ let entry = holons::discover::find_by_slug("gabriel-greeting-rust")?;
 ```rust
 let channel = holons::connect::connect("gabriel-greeting-rust").await?;
 ```
+
+## Build and test
+
+```sh
+cargo test
+```

@@ -49,3 +49,9 @@ entry = Holons::Discover.find_by_slug("gabriel-greeting-ruby")
 ```ruby
 channel = Holons.connect("gabriel-greeting-ruby")
 ```
+
+## Build and test
+
+```sh
+rake test
+```

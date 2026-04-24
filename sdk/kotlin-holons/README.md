@@ -48,3 +48,11 @@ val entry = Discover.findBySlug("gabriel-greeting-kotlin")
 ```kotlin
 val channel = kotlinx.coroutines.runBlocking { Connect.connect("gabriel-greeting-kotlin") }
 ```
+
+## Build and test
+
+Kotlin SDK tests require a JDK 21 toolchain.
+
+```sh
+./gradlew test
+```
