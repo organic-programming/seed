@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:grpc/grpc.dart';
 
 import 'describe.dart';
+import 'observability.dart' as observability;
 import 'reflection.dart';
 import 'transport.dart';
 
@@ -44,6 +45,7 @@ class ServeOptions {
     this.onListen,
     this.logger = _defaultLogger,
     this.protoDir,
+    this.environment,
   });
 
   final bool describe;
@@ -51,6 +53,7 @@ class ServeOptions {
   final void Function(String publicUri)? onListen;
   final void Function(String message) logger;
   final String? protoDir;
+  final Map<String, String>? environment;
 }
 
 class RunningServer {
@@ -124,14 +127,22 @@ Future<RunningServer> startWithOptions(
 }) async {
   final parsed = parseUri(listenUri.isEmpty ? defaultUri : listenUri);
   final resolvedServices = List<Service>.from(services);
+  final env = options.environment ?? Platform.environment;
+  observability.checkEnv(env);
+  final obs = (env['OP_OBS'] ?? '').trim().isEmpty
+      ? null
+      : observability.fromEnv(const observability.Config(), env);
   final describeEnabled = _maybeAddDescribe(resolvedServices, options);
+  if (obs != null && obs.families.isNotEmpty) {
+    resolvedServices.add(observability.registerService(obs));
+  }
   final reflectionEnabled = _maybeAddReflection(resolvedServices, options);
 
   switch (parsed.scheme) {
     case 'tcp':
       final host = parsed.host ?? '0.0.0.0';
       final port = parsed.port ?? 9090;
-      return _startTcpServer(
+      final running = await _startTcpServer(
         host: host,
         port: port,
         publicUri: null,
@@ -140,6 +151,8 @@ Future<RunningServer> startWithOptions(
         reflectionEnabled: reflectionEnabled,
         options: options,
       );
+      _startObservabilityRuntime(obs, running.publicUri, parsed.scheme);
+      return running;
     case 'stdio':
       final backing = await _startTcpServer(
         host: '127.0.0.1',
@@ -171,6 +184,7 @@ Future<RunningServer> startWithOptions(
       );
       bridge.start();
       final mode = _formatMode(describeEnabled, reflectionEnabled);
+      _startObservabilityRuntime(obs, 'stdio://', parsed.scheme);
       options.onListen?.call('stdio://');
       options.logger('gRPC server listening on stdio:// ($mode)');
       return running;
@@ -194,6 +208,7 @@ Future<RunningServer> startWithOptions(
       );
       final publicUri = 'unix://$path';
       final mode = _formatMode(describeEnabled, reflectionEnabled);
+      _startObservabilityRuntime(obs, publicUri, parsed.scheme);
       options.onListen?.call(publicUri);
       options.logger('gRPC server listening on $publicUri ($mode)');
       return RunningServer._(
@@ -250,6 +265,35 @@ Future<RunningServer> _startTcpServer({
         completion.complete();
       }
     },
+  );
+}
+
+void _startObservabilityRuntime(
+  observability.Observability? obs,
+  String publicUri,
+  String transportName,
+) {
+  if (obs == null || obs.families.isEmpty || obs.cfg.runDir.isEmpty) return;
+  observability.enableDiskWriters(obs.cfg.runDir);
+  if (obs.enabled(observability.Family.events)) {
+    obs.emit(observability.EventType.instanceReady,
+        payload: {'listener': publicUri});
+  }
+  observability.writeMetaJson(
+    obs.cfg.runDir,
+    observability.MetaJson(
+      slug: obs.cfg.slug,
+      uid: obs.cfg.instanceUid,
+      pid: pid,
+      startedAt: DateTime.now(),
+      transport: transportName,
+      address: publicUri,
+      logPath: obs.enabled(observability.Family.logs)
+          ? '${obs.cfg.runDir}${Platform.pathSeparator}stdout.log'
+          : '',
+      organismUid: obs.cfg.organismUid,
+      organismSlug: obs.cfg.organismSlug,
+    ),
   );
 }
 
