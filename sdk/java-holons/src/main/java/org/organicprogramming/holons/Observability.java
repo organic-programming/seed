@@ -3,6 +3,14 @@
 
 package org.organicprogramming.holons;
 
+import com.google.protobuf.Duration;
+import com.google.protobuf.Timestamp;
+import io.grpc.MethodDescriptor;
+import io.grpc.ServerServiceDefinition;
+import io.grpc.Status;
+import io.grpc.protobuf.ProtoUtils;
+import io.grpc.stub.ServerCalls;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -16,6 +24,31 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 public final class Observability {
+    private static final String HOLON_OBSERVABILITY_SERVICE = "holons.v1.HolonObservability";
+
+    private static final MethodDescriptor<holons.v1.Observability.LogsRequest, holons.v1.Observability.LogEntry> LOGS_METHOD =
+            MethodDescriptor.<holons.v1.Observability.LogsRequest, holons.v1.Observability.LogEntry>newBuilder()
+                    .setType(MethodDescriptor.MethodType.SERVER_STREAMING)
+                    .setFullMethodName(MethodDescriptor.generateFullMethodName(HOLON_OBSERVABILITY_SERVICE, "Logs"))
+                    .setRequestMarshaller(ProtoUtils.marshaller(holons.v1.Observability.LogsRequest.getDefaultInstance()))
+                    .setResponseMarshaller(ProtoUtils.marshaller(holons.v1.Observability.LogEntry.getDefaultInstance()))
+                    .build();
+
+    private static final MethodDescriptor<holons.v1.Observability.MetricsRequest, holons.v1.Observability.MetricsSnapshot> METRICS_METHOD =
+            MethodDescriptor.<holons.v1.Observability.MetricsRequest, holons.v1.Observability.MetricsSnapshot>newBuilder()
+                    .setType(MethodDescriptor.MethodType.UNARY)
+                    .setFullMethodName(MethodDescriptor.generateFullMethodName(HOLON_OBSERVABILITY_SERVICE, "Metrics"))
+                    .setRequestMarshaller(ProtoUtils.marshaller(holons.v1.Observability.MetricsRequest.getDefaultInstance()))
+                    .setResponseMarshaller(ProtoUtils.marshaller(holons.v1.Observability.MetricsSnapshot.getDefaultInstance()))
+                    .build();
+
+    private static final MethodDescriptor<holons.v1.Observability.EventsRequest, holons.v1.Observability.EventInfo> EVENTS_METHOD =
+            MethodDescriptor.<holons.v1.Observability.EventsRequest, holons.v1.Observability.EventInfo>newBuilder()
+                    .setType(MethodDescriptor.MethodType.SERVER_STREAMING)
+                    .setFullMethodName(MethodDescriptor.generateFullMethodName(HOLON_OBSERVABILITY_SERVICE, "Events"))
+                    .setRequestMarshaller(ProtoUtils.marshaller(holons.v1.Observability.EventsRequest.getDefaultInstance()))
+                    .setResponseMarshaller(ProtoUtils.marshaller(holons.v1.Observability.EventInfo.getDefaultInstance()))
+                    .build();
 
     // --- Families & tokens ---
 
@@ -460,9 +493,21 @@ public final class Observability {
     private static final Logger DISABLED_LOGGER = new Logger(DISABLED, "");
 
     public static Observability configure(Config cfg) {
-        Set<Family> families = parseOpObs(System.getenv("OP_OBS"));
+        return configureFromEnv(cfg, System.getenv());
+    }
+
+    public static Observability configureFromEnv(Config cfg, Map<String, String> env) {
+        if (cfg == null) cfg = new Config();
+        Map<String, String> source = env != null ? env : System.getenv();
+        Set<Family> families = parseOpObs(source.get("OP_OBS"));
         if (cfg.slug == null || cfg.slug.isEmpty()) {
             cfg.slug = System.getProperty("sun.java.command", "").split(" ")[0];
+        }
+        if (cfg.instanceUid == null || cfg.instanceUid.isEmpty()) {
+            cfg.instanceUid = newInstanceUid();
+        }
+        if (cfg.runDir != null && !cfg.runDir.isEmpty()) {
+            cfg.runDir = deriveRunDir(cfg.runDir, cfg.slug, cfg.instanceUid);
         }
         Observability obs = new Observability(cfg, families);
         CURRENT.set(obs);
@@ -470,14 +515,18 @@ public final class Observability {
     }
 
     public static Observability fromEnv(Config base) {
+        return fromEnvMap(base, System.getenv());
+    }
+
+    public static Observability fromEnvMap(Config base, Map<String, String> env) {
         if (base == null) base = new Config();
-        Map<String, String> env = System.getenv();
-        if (base.instanceUid.isEmpty()) base.instanceUid = env.getOrDefault("OP_INSTANCE_UID", "");
-        if (base.organismUid.isEmpty()) base.organismUid = env.getOrDefault("OP_ORGANISM_UID", "");
-        if (base.organismSlug.isEmpty()) base.organismSlug = env.getOrDefault("OP_ORGANISM_SLUG", "");
-        if (base.promAddr.isEmpty()) base.promAddr = env.getOrDefault("OP_PROM_ADDR", "");
-        if (base.runDir.isEmpty()) base.runDir = env.getOrDefault("OP_RUN_DIR", "");
-        return configure(base);
+        Map<String, String> source = env != null ? env : System.getenv();
+        if (base.instanceUid.isEmpty()) base.instanceUid = source.getOrDefault("OP_INSTANCE_UID", "");
+        if (base.organismUid.isEmpty()) base.organismUid = source.getOrDefault("OP_ORGANISM_UID", "");
+        if (base.organismSlug.isEmpty()) base.organismSlug = source.getOrDefault("OP_ORGANISM_SLUG", "");
+        if (base.promAddr.isEmpty()) base.promAddr = source.getOrDefault("OP_PROM_ADDR", "");
+        if (base.runDir.isEmpty()) base.runDir = source.getOrDefault("OP_RUN_DIR", "");
+        return configureFromEnv(base, source);
     }
 
     public static Observability current() {
@@ -488,6 +537,198 @@ public final class Observability {
     public static void reset() {
         Observability o = CURRENT.getAndSet(null);
         if (o != null) o.close();
+    }
+
+    public static String deriveRunDir(String root, String slug, String uid) {
+        if (root == null || root.isEmpty() || slug == null || slug.isEmpty() || uid == null || uid.isEmpty()) {
+            return root == null ? "" : root;
+        }
+        return Paths.get(root, slug, uid).toString();
+    }
+
+    private static String newInstanceUid() {
+        return ProcessHandle.current().pid() + "-" + System.nanoTime();
+    }
+
+    // --- gRPC service ---
+
+    public static MethodDescriptor<holons.v1.Observability.LogsRequest, holons.v1.Observability.LogEntry> logsMethod() {
+        return LOGS_METHOD;
+    }
+
+    public static MethodDescriptor<holons.v1.Observability.MetricsRequest, holons.v1.Observability.MetricsSnapshot> metricsMethod() {
+        return METRICS_METHOD;
+    }
+
+    public static MethodDescriptor<holons.v1.Observability.EventsRequest, holons.v1.Observability.EventInfo> eventsMethod() {
+        return EVENTS_METHOD;
+    }
+
+    public static ServerServiceDefinition service() {
+        return service(current());
+    }
+
+    public static ServerServiceDefinition service(Observability obs) {
+        Objects.requireNonNull(obs, "obs");
+        return ServerServiceDefinition.builder(HOLON_OBSERVABILITY_SERVICE)
+                .addMethod(LOGS_METHOD, ServerCalls.asyncServerStreamingCall((request, observer) -> {
+                    if (!obs.enabled(Family.LOGS) || obs.logRing == null) {
+                        observer.onError(Status.FAILED_PRECONDITION
+                                .withDescription("logs family is not enabled (OP_OBS)")
+                                .asRuntimeException());
+                        return;
+                    }
+                    int minLevel = request.getMinLevelValue() == 0 ? Level.INFO.code : request.getMinLevelValue();
+                    List<LogEntry> entries = request.hasSince()
+                            ? obs.logRing.drainSince(cutoffFromDuration(request.getSince()))
+                            : obs.logRing.drain();
+                    for (LogEntry entry : entries) {
+                        if (matchesLog(entry, minLevel, request.getSessionIdsList(), request.getRpcMethodsList())) {
+                            observer.onNext(toProtoLogEntry(entry));
+                        }
+                    }
+                    observer.onCompleted();
+                }))
+                .addMethod(METRICS_METHOD, ServerCalls.asyncUnaryCall((request, observer) -> {
+                    if (!obs.enabled(Family.METRICS) || obs.registry == null) {
+                        observer.onError(Status.FAILED_PRECONDITION
+                                .withDescription("metrics family is not enabled (OP_OBS)")
+                                .asRuntimeException());
+                        return;
+                    }
+                    holons.v1.Observability.MetricsSnapshot.Builder snapshot =
+                            holons.v1.Observability.MetricsSnapshot.newBuilder()
+                                    .setCapturedAt(timestamp(Instant.now()))
+                                    .setSlug(obs.cfg.slug)
+                                    .setInstanceUid(obs.cfg.instanceUid);
+                    for (holons.v1.Observability.MetricSample sample : toProtoMetricSamples(obs.registry)) {
+                        if (request.getNamePrefixesCount() == 0
+                                || request.getNamePrefixesList().stream().anyMatch(prefix -> sample.getName().startsWith(prefix))) {
+                            snapshot.addSamples(sample);
+                        }
+                    }
+                    observer.onNext(snapshot.build());
+                    observer.onCompleted();
+                }))
+                .addMethod(EVENTS_METHOD, ServerCalls.asyncServerStreamingCall((request, observer) -> {
+                    if (!obs.enabled(Family.EVENTS) || obs.eventBus == null) {
+                        observer.onError(Status.FAILED_PRECONDITION
+                                .withDescription("events family is not enabled (OP_OBS)")
+                                .asRuntimeException());
+                        return;
+                    }
+                    Set<Integer> wanted = new HashSet<>(request.getTypesValueList());
+                    List<Event> events = request.hasSince()
+                            ? obs.eventBus.drainSince(cutoffFromDuration(request.getSince()))
+                            : obs.eventBus.drain();
+                    for (Event event : events) {
+                        if (wanted.isEmpty() || wanted.contains(event.type.code)) {
+                            observer.onNext(toProtoEvent(event));
+                        }
+                    }
+                    observer.onCompleted();
+                }))
+                .build();
+    }
+
+    private static Timestamp timestamp(Instant instant) {
+        return Timestamp.newBuilder()
+                .setSeconds(instant.getEpochSecond())
+                .setNanos(instant.getNano())
+                .build();
+    }
+
+    private static Instant cutoffFromDuration(Duration duration) {
+        long seconds = Math.max(0, duration.getSeconds());
+        int nanos = Math.max(0, duration.getNanos());
+        return Instant.now().minusSeconds(seconds).minusNanos(nanos);
+    }
+
+    private static boolean matchesLog(LogEntry entry, int minLevel, List<String> sessionIds, List<String> rpcMethods) {
+        if (entry.level.code < minLevel) return false;
+        if (!sessionIds.isEmpty() && !sessionIds.contains(entry.sessionId)) return false;
+        return rpcMethods.isEmpty() || rpcMethods.contains(entry.rpcMethod);
+    }
+
+    public static holons.v1.Observability.LogEntry toProtoLogEntry(LogEntry entry) {
+        holons.v1.Observability.LogEntry.Builder builder = holons.v1.Observability.LogEntry.newBuilder()
+                .setTs(timestamp(entry.timestamp))
+                .setLevelValue(entry.level.code)
+                .setSlug(entry.slug)
+                .setInstanceUid(entry.instanceUid)
+                .setSessionId(entry.sessionId)
+                .setRpcMethod(entry.rpcMethod)
+                .setMessage(entry.message)
+                .putAllFields(entry.fields)
+                .setCaller(entry.caller);
+        for (Hop hop : entry.chain) {
+            builder.addChain(toProtoHop(hop));
+        }
+        return builder.build();
+    }
+
+    public static List<holons.v1.Observability.MetricSample> toProtoMetricSamples(Registry registry) {
+        List<holons.v1.Observability.MetricSample> samples = new ArrayList<>();
+        for (Counter counter : registry.counters()) {
+            samples.add(holons.v1.Observability.MetricSample.newBuilder()
+                    .setName(counter.name)
+                    .putAllLabels(counter.labels)
+                    .setHelp(counter.help)
+                    .setCounter(counter.value())
+                    .build());
+        }
+        for (Gauge gauge : registry.gauges()) {
+            samples.add(holons.v1.Observability.MetricSample.newBuilder()
+                    .setName(gauge.name)
+                    .putAllLabels(gauge.labels)
+                    .setHelp(gauge.help)
+                    .setGauge(gauge.value())
+                    .build());
+        }
+        for (Histogram histogram : registry.histograms()) {
+            samples.add(holons.v1.Observability.MetricSample.newBuilder()
+                    .setName(histogram.name)
+                    .putAllLabels(histogram.labels)
+                    .setHelp(histogram.help)
+                    .setHistogram(toProtoHistogram(histogram.snapshot()))
+                    .build());
+        }
+        return samples;
+    }
+
+    private static holons.v1.Observability.HistogramSample toProtoHistogram(HistogramSnapshot snapshot) {
+        holons.v1.Observability.HistogramSample.Builder builder =
+                holons.v1.Observability.HistogramSample.newBuilder()
+                        .setCount(snapshot.total)
+                        .setSum(snapshot.sum);
+        for (int i = 0; i < snapshot.bounds.length; i++) {
+            builder.addBuckets(holons.v1.Observability.Bucket.newBuilder()
+                    .setUpperBound(snapshot.bounds[i])
+                    .setCount(snapshot.counts[i])
+                    .build());
+        }
+        return builder.build();
+    }
+
+    public static holons.v1.Observability.EventInfo toProtoEvent(Event event) {
+        holons.v1.Observability.EventInfo.Builder builder = holons.v1.Observability.EventInfo.newBuilder()
+                .setTs(timestamp(event.timestamp))
+                .setTypeValue(event.type.code)
+                .setSlug(event.slug)
+                .setInstanceUid(event.instanceUid)
+                .setSessionId(event.sessionId)
+                .putAllPayload(event.payload);
+        for (Hop hop : event.chain) {
+            builder.addChain(toProtoHop(hop));
+        }
+        return builder.build();
+    }
+
+    private static holons.v1.Observability.ChainHop toProtoHop(Hop hop) {
+        return holons.v1.Observability.ChainHop.newBuilder()
+                .setSlug(hop.slug)
+                .setInstanceUid(hop.instanceUid)
+                .build();
     }
 
     // --- Disk writers ---

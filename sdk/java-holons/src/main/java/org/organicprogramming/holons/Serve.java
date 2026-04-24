@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -38,6 +39,7 @@ public final class Serve {
         private Consumer<String> onListen;
         private long shutdownGracePeriodSeconds = 10;
         private Path protoDir;
+        private Map<String, String> env;
 
         public boolean describe() {
             return describe;
@@ -90,6 +92,15 @@ public final class Serve {
 
         public Options withProtoDir(Path protoDir) {
             this.protoDir = protoDir;
+            return this;
+        }
+
+        public Map<String, String> env() {
+            return env;
+        }
+
+        public Options withEnv(Map<String, String> env) {
+            this.env = env;
             return this;
         }
     }
@@ -234,12 +245,14 @@ public final class Serve {
             throw new IOException("register HolonMeta: " + error.getMessage(), error);
         }
         boolean reflectionEnabled = maybeAddReflection(extraDefinitions, resolvedOptions);
+        Observability obs = maybeAddObservability(extraDefinitions, resolvedOptions);
 
         return switch (parsed.scheme()) {
             case "tcp" -> {
                 String host = parsed.host() != null ? parsed.host() : "0.0.0.0";
                 int port = parsed.port() != null ? parsed.port() : 9090;
                 BoundServer bound = bindTcpServer(host, port, bindableServices, extraDefinitions);
+                startObservabilityRuntime(obs, bound.publicUri(), "tcp");
                 announce(bound.publicUri(), describeEnabled, reflectionEnabled, resolvedOptions);
                 yield new RunningServer(bound.server(), bound.publicUri(), resolvedOptions.logger(), null);
             }
@@ -264,6 +277,7 @@ public final class Serve {
                         bridge::close);
                 runningRef[0] = running;
                 bridge.start();
+                startObservabilityRuntime(obs, "stdio://", "stdio");
                 announce("stdio://", describeEnabled, reflectionEnabled, resolvedOptions);
                 yield running;
             }
@@ -278,6 +292,7 @@ public final class Serve {
                         resolvedOptions.logger(),
                         bridge::close);
                 bridge.start();
+                startObservabilityRuntime(obs, publicUri, "unix");
                 announce(publicUri, describeEnabled, reflectionEnabled, resolvedOptions);
                 yield running;
             }
@@ -329,6 +344,47 @@ public final class Serve {
         }
         definitions.add(ProtoReflectionService.newInstance().bindService());
         return true;
+    }
+
+    private static Observability maybeAddObservability(List<ServerServiceDefinition> definitions, Options options) {
+        Map<String, String> env = options.env() != null ? options.env() : System.getenv();
+        Observability.checkEnv(env);
+        String raw = env.getOrDefault("OP_OBS", "").trim();
+        if (raw.isEmpty()) {
+            return null;
+        }
+        Observability obs = Observability.fromEnvMap(new Observability.Config(), env);
+        if (obs.families.isEmpty()) {
+            return null;
+        }
+        definitions.add(Observability.service(obs));
+        return obs;
+    }
+
+    private static void startObservabilityRuntime(Observability obs, String publicUri, String transport) {
+        if (obs == null || obs.cfg.runDir == null || obs.cfg.runDir.isEmpty()) {
+            return;
+        }
+        Observability.enableDiskWriters(obs.cfg.runDir);
+        if (obs.enabled(Observability.Family.EVENTS)) {
+            obs.emit(Observability.EventType.INSTANCE_READY, Map.of("listener", publicUri));
+        }
+        Observability.MetaJson meta = new Observability.MetaJson();
+        meta.slug = obs.cfg.slug;
+        meta.uid = obs.cfg.instanceUid;
+        meta.pid = ProcessHandle.current().pid();
+        meta.transport = transport;
+        meta.address = publicUri;
+        meta.organismUid = obs.cfg.organismUid;
+        meta.organismSlug = obs.cfg.organismSlug;
+        if (obs.enabled(Observability.Family.LOGS)) {
+            meta.logPath = Path.of(obs.cfg.runDir, "stdout.log").toString();
+        }
+        try {
+            Observability.writeMetaJson(obs.cfg.runDir, meta);
+        } catch (IOException ignored) {
+            // Best-effort metadata mirrors the other tier-2 SDKs.
+        }
     }
 
     private static Path resolveProtoDir(Options options) {
