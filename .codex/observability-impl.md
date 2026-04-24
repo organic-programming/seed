@@ -7,6 +7,42 @@ them from specified to shipped.
 
 ---
 
+## Do not stop until complete
+
+This is a single, contiguous engagement. You run in a loop — commit,
+push, verify, move to the next item — until every acceptance criterion
+below holds. Stopping conditions:
+
+- **You MAY stop only when** every box in §Acceptance criteria and
+  §Final sanity check is honestly ticked, every phase (R, A, SDK, K,
+  E, D) has landed at least one commit, every test listed passes, and
+  both composite apps build and launch with the panel functional.
+- **You MUST NOT stop** because the work is hard, because you hit a
+  compile error you have not yet diagnosed, because a test is
+  intermittently flaky, because context feels tight, because a single
+  SDK port is taking longer than expected, or because you are tempted
+  to summarise progress instead of shipping the next commit. Long
+  running work is expected. Push intermediate commits aggressively so
+  progress is preserved across any runtime interruption; each commit
+  is a resumable checkpoint.
+- **If a spec ambiguity blocks forward progress**, do not silently
+  guess. Surface it in the PR description (even in draft), propose
+  two or three concrete resolutions, pick the lowest-risk one, and
+  keep moving. The composer reviews at merge time, not at every fork.
+- **If an environmental blocker appears** (missing toolchain,
+  permissions, network), diagnose, document, and work around — do
+  not abandon the loop. If a genuine dead-end is reached on one
+  phase, jump to the next independent phase and come back.
+- **If context budget runs out** mid-phase, ensure the in-flight
+  changes are committed and pushed first, then hand back control
+  with a single line naming the exact next step. The next invocation
+  resumes from that checkpoint.
+
+The loop terminates only when the work is done. That is the only
+acceptable exit.
+
+---
+
 ## Ground truth (read first, in this order)
 
 1. `OBSERVABILITY.md` — main spec. Pay special attention to:
