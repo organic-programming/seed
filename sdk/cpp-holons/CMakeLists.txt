@@ -178,6 +178,7 @@ holons_generate_grpc_cpp(echo_grpc
 )
 
 if (TARGET holons_proto_grpc)
+  target_include_directories(test_runner BEFORE PRIVATE "${HOLONS_GENERATED_DIR}")
   target_link_libraries(test_runner PRIVATE holons_proto_grpc)
 endif()
 
