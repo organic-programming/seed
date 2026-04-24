@@ -10,6 +10,7 @@ import socket
 import sys
 import tempfile
 import threading
+import time
 from concurrent import futures
 from typing import Callable
 from dataclasses import dataclass
@@ -18,6 +19,7 @@ import grpc
 from grpc_reflection.v1alpha import reflection
 
 from holons import describe
+from holons import observability
 from holons.transport import DEFAULT_URI, scheme
 
 logger = logging.getLogger("holons.serve")
@@ -77,8 +79,12 @@ def run_with_options(
             ("grpc.max_send_message_length", _MAX_GRPC_MESSAGE_BYTES),
         ],
     )
+    observability.check_env()
+    obs = observability.from_env(observability.Config()) if os.environ.get("OP_OBS", "").strip() else None
     register_fn(server)
     _register_holon_meta(server)
+    if obs is not None and obs.families:
+        observability.register_service(server, obs)
 
     reflection_enabled = False
     if reflect:
@@ -118,6 +124,8 @@ def run_with_options(
         )
 
     mode = "reflection ON" if reflection_enabled else "reflection OFF"
+    if obs is not None and obs.families:
+        _start_observability_runtime(obs, actual_uri, transport)
     if on_listen is not None:
         on_listen(actual_uri)
     logger.info("gRPC server listening on %s (%s)", actual_uri, mode)
@@ -142,6 +150,28 @@ def run_with_options(
     finally:
         if stdio_bridge is not None:
             stdio_bridge.close()
+
+
+def _start_observability_runtime(obs: observability.Observability, actual_uri: str, transport: str) -> None:
+    if not obs.cfg.run_dir:
+        return
+    observability.enable_disk_writers(obs.cfg.run_dir)
+    if obs.enabled(observability.Family.EVENTS):
+        obs.emit(observability.EventType.INSTANCE_READY, {"listener": actual_uri})
+    observability.write_meta_json(
+        obs.cfg.run_dir,
+        observability.MetaJSON(
+            slug=obs.cfg.slug,
+            uid=obs.cfg.instance_uid,
+            pid=os.getpid(),
+            started_at=time.time(),
+            transport=transport,
+            address=actual_uri,
+            log_path=os.path.join(obs.cfg.run_dir, "stdout.log") if obs.enabled(observability.Family.LOGS) else "",
+            organism_uid=obs.cfg.organism_uid,
+            organism_slug=obs.cfg.organism_slug,
+        ),
+    )
 
 
 def _register_holon_meta(server: grpc.Server) -> None:

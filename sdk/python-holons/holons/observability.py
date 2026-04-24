@@ -13,12 +13,19 @@ import inspect
 import json
 import math
 import os
+import queue
 import sys
 import threading
 import time
 import typing
+import uuid
 from collections import deque
 from dataclasses import dataclass, field
+
+import grpc
+from google.protobuf.timestamp_pb2 import Timestamp
+
+from holons.v1 import observability_pb2, observability_pb2_grpc
 
 
 # --- OP_OBS parsing -----------------------------------------------------------
@@ -103,6 +110,15 @@ _LEVEL_NAMES = {
     Level.WARN: "WARN",
     Level.ERROR: "ERROR",
     Level.FATAL: "FATAL",
+}
+
+_PROTO_LOG_LEVEL = {
+    Level.TRACE: observability_pb2.TRACE,
+    Level.DEBUG: observability_pb2.DEBUG,
+    Level.INFO: observability_pb2.INFO,
+    Level.WARN: observability_pb2.WARN,
+    Level.ERROR: observability_pb2.ERROR,
+    Level.FATAL: observability_pb2.FATAL,
 }
 
 
@@ -385,6 +401,18 @@ class EventType(enum.IntEnum):
     CONFIG_RELOADED = 8
 
 
+_PROTO_EVENT_TYPE = {
+    EventType.INSTANCE_SPAWNED: observability_pb2.INSTANCE_SPAWNED,
+    EventType.INSTANCE_READY: observability_pb2.INSTANCE_READY,
+    EventType.INSTANCE_EXITED: observability_pb2.INSTANCE_EXITED,
+    EventType.INSTANCE_CRASHED: observability_pb2.INSTANCE_CRASHED,
+    EventType.SESSION_STARTED: observability_pb2.SESSION_STARTED,
+    EventType.SESSION_ENDED: observability_pb2.SESSION_ENDED,
+    EventType.HANDLER_PANIC: observability_pb2.HANDLER_PANIC,
+    EventType.CONFIG_RELOADED: observability_pb2.CONFIG_RELOADED,
+}
+
+
 @dataclass
 class Event:
     timestamp: float = 0.0
@@ -597,9 +625,14 @@ _current: typing.Optional[Observability] = None
 
 
 def configure(cfg: Config) -> Observability:
+    check_env()
     families = _parse_op_obs(os.environ.get("OP_OBS", ""))
     if not cfg.slug:
         cfg.slug = os.path.basename(sys.argv[0]) if sys.argv else ""
+    if not cfg.instance_uid:
+        cfg.instance_uid = str(uuid.uuid4())
+    if cfg.run_dir:
+        cfg.run_dir = derive_run_dir(cfg.run_dir, cfg.slug, cfg.instance_uid)
     obs = Observability(cfg, families)
     global _current
     with _current_lock:
@@ -638,11 +671,321 @@ def reset() -> None:
         _current = None
 
 
+def derive_run_dir(root: str, slug: str, uid: str) -> str:
+    """Return the v1 instance directory under the OP_RUN_DIR registry root."""
+    if not root or not slug or not uid:
+        return root
+    return os.path.join(root, slug, uid)
+
+
+# --- Proto conversion + gRPC service -----------------------------------------
+
+
+def _timestamp(unix_seconds: float) -> Timestamp:
+    ts = Timestamp()
+    ts.FromSeconds(int(unix_seconds))
+    ts.nanos = int((unix_seconds - int(unix_seconds)) * 1_000_000_000)
+    return ts
+
+
+def _hop_to_proto(hop: Hop) -> observability_pb2.ChainHop:
+    return observability_pb2.ChainHop(slug=hop.slug, instance_uid=hop.instance_uid)
+
+
+def to_proto_log_entry(entry: LogEntry) -> observability_pb2.LogEntry:
+    return observability_pb2.LogEntry(
+        ts=_timestamp(entry.timestamp),
+        level=_PROTO_LOG_LEVEL.get(entry.level, observability_pb2.LOG_LEVEL_UNSPECIFIED),
+        slug=entry.slug,
+        instance_uid=entry.instance_uid,
+        session_id=entry.session_id,
+        rpc_method=entry.rpc_method,
+        message=entry.message,
+        fields=dict(entry.fields),
+        caller=entry.caller,
+        chain=[_hop_to_proto(h) for h in entry.chain],
+    )
+
+
+def _histogram_to_proto(snapshot: HistogramSnapshot) -> observability_pb2.HistogramSample:
+    return observability_pb2.HistogramSample(
+        buckets=[
+            observability_pb2.Bucket(upper_bound=upper, count=count)
+            for upper, count in zip(snapshot.bounds, snapshot.counts)
+        ],
+        count=snapshot.total,
+        sum=snapshot.sum,
+    )
+
+
+def to_proto_metric_samples(snapshot: dict[str, typing.Any]) -> list[observability_pb2.MetricSample]:
+    samples: list[observability_pb2.MetricSample] = []
+    for name, help_, labels, value in snapshot.get("counters", []):
+        samples.append(observability_pb2.MetricSample(
+            name=name,
+            help=help_,
+            labels=labels,
+            counter=value,
+        ))
+    for name, help_, labels, value in snapshot.get("gauges", []):
+        samples.append(observability_pb2.MetricSample(
+            name=name,
+            help=help_,
+            labels=labels,
+            gauge=value,
+        ))
+    for name, help_, labels, hist in snapshot.get("histograms", []):
+        samples.append(observability_pb2.MetricSample(
+            name=name,
+            help=help_,
+            labels=labels,
+            histogram=_histogram_to_proto(hist),
+        ))
+    return samples
+
+
+def to_proto_event(event: Event) -> observability_pb2.EventInfo:
+    return observability_pb2.EventInfo(
+        ts=_timestamp(event.timestamp),
+        type=_PROTO_EVENT_TYPE.get(event.type, observability_pb2.EVENT_TYPE_UNSPECIFIED),
+        slug=event.slug,
+        instance_uid=event.instance_uid,
+        session_id=event.session_id,
+        payload=dict(event.payload),
+        chain=[_hop_to_proto(h) for h in event.chain],
+    )
+
+
+class HolonObservabilityService(observability_pb2_grpc.HolonObservabilityServicer):
+    def __init__(self, obs: Observability):
+        self._obs = obs
+
+    def Logs(self, request, context):
+        if not self._obs.enabled(Family.LOGS) or self._obs.log_ring is None:
+            context.abort(grpc.StatusCode.FAILED_PRECONDITION, "logs family is not enabled (OP_OBS)")
+        min_level = Level(request.min_level or observability_pb2.INFO)
+        cutoff = time.time() - (request.since.seconds + request.since.nanos / 1e9) if request.HasField("since") else 0
+        entries = self._obs.log_ring.drain_since(cutoff) if cutoff else self._obs.log_ring.drain()
+        for entry in entries:
+            if _match_log(entry, min_level, request.session_ids, request.rpc_methods):
+                yield to_proto_log_entry(entry)
+        if not request.follow:
+            return
+        q: queue.Queue[LogEntry | None] = queue.Queue(maxsize=128)
+        stop = self._obs.log_ring.subscribe(lambda e: _offer(q, e))
+        try:
+            while context.is_active():
+                try:
+                    entry = q.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+                if entry is not None and _match_log(entry, min_level, request.session_ids, request.rpc_methods):
+                    yield to_proto_log_entry(entry)
+        finally:
+            stop()
+
+    def Metrics(self, request, context):
+        if not self._obs.enabled(Family.METRICS) or self._obs.registry is None:
+            context.abort(grpc.StatusCode.FAILED_PRECONDITION, "metrics family is not enabled (OP_OBS)")
+        snapshot = self._obs.registry.snapshot()
+        samples = to_proto_metric_samples(snapshot)
+        if request.name_prefixes:
+            prefixes = tuple(p for p in request.name_prefixes if p)
+            samples = [s for s in samples if s.name.startswith(prefixes)]
+        return observability_pb2.MetricsSnapshot(
+            captured_at=_timestamp(snapshot["captured_at"]),
+            slug=self._obs.cfg.slug,
+            instance_uid=self._obs.cfg.instance_uid,
+            samples=samples,
+        )
+
+    def Events(self, request, context):
+        if not self._obs.enabled(Family.EVENTS) or self._obs.event_bus is None:
+            context.abort(grpc.StatusCode.FAILED_PRECONDITION, "events family is not enabled (OP_OBS)")
+        wanted = set(request.types)
+        cutoff = time.time() - (request.since.seconds + request.since.nanos / 1e9) if request.HasField("since") else 0
+        events = self._obs.event_bus.drain_since(cutoff) if cutoff else self._obs.event_bus.drain()
+        for event in events:
+            if _match_event(event, wanted):
+                yield to_proto_event(event)
+        if not request.follow:
+            return
+        q: queue.Queue[Event | None] = queue.Queue(maxsize=64)
+        stop = self._obs.event_bus.subscribe(lambda e: _offer(q, e))
+        try:
+            while context.is_active():
+                try:
+                    event = q.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+                if event is not None and _match_event(event, wanted):
+                    yield to_proto_event(event)
+        finally:
+            stop()
+
+
+def register_service(server, obs: typing.Optional[Observability] = None) -> None:
+    observability_pb2_grpc.add_HolonObservabilityServicer_to_server(
+        HolonObservabilityService(obs or current()),
+        server,
+    )
+
+
+def _offer(q: queue.Queue[typing.Any], value: typing.Any) -> None:
+    try:
+        q.put_nowait(value)
+    except queue.Full:
+        pass
+
+
+def _match_log(entry: LogEntry, min_level: Level, session_ids, rpc_methods) -> bool:
+    if entry.level < min_level:
+        return False
+    if session_ids and entry.session_id not in set(session_ids):
+        return False
+    if rpc_methods and entry.rpc_method not in set(rpc_methods):
+        return False
+    return True
+
+
+def _match_event(event: Event, wanted: set[int]) -> bool:
+    if not wanted:
+        return True
+    return _PROTO_EVENT_TYPE.get(event.type, observability_pb2.EVENT_TYPE_UNSPECIFIED) in wanted
+
+
+# --- Disk writers + meta.json -------------------------------------------------
+
+
+def enable_disk_writers(run_dir: str) -> None:
+    obs = current()
+    if run_dir:
+        obs.cfg.run_dir = run_dir
+    if obs is None or not obs.cfg.run_dir:
+        return
+    os.makedirs(obs.cfg.run_dir, exist_ok=True)
+    if obs.enabled(Family.LOGS) and obs.log_ring is not None:
+        fp = os.path.join(obs.cfg.run_dir, "stdout.log")
+        obs.log_ring.subscribe(lambda e, fp=fp: _append_jsonl(fp, _log_json(e)))
+    if obs.enabled(Family.EVENTS) and obs.event_bus is not None:
+        fp = os.path.join(obs.cfg.run_dir, "events.jsonl")
+        obs.event_bus.subscribe(lambda e, fp=fp: _append_jsonl(fp, _event_json(e)))
+
+
+@dataclass
+class MetaJSON:
+    slug: str
+    uid: str
+    pid: int
+    started_at: float
+    mode: str = "persistent"
+    transport: str = ""
+    address: str = ""
+    metrics_addr: str = ""
+    log_path: str = ""
+    log_bytes_rotated: int = 0
+    organism_uid: str = ""
+    organism_slug: str = ""
+    is_default: bool = False
+
+
+def write_meta_json(run_dir: str, meta: MetaJSON) -> None:
+    if not run_dir:
+        raise ValueError("write_meta_json: empty run_dir")
+    os.makedirs(run_dir, exist_ok=True)
+    payload: dict[str, typing.Any] = {
+        "slug": meta.slug,
+        "uid": meta.uid,
+        "pid": meta.pid,
+        "started_at": _iso8601(meta.started_at),
+        "mode": meta.mode,
+        "transport": meta.transport,
+        "address": meta.address,
+    }
+    if meta.metrics_addr:
+        payload["metrics_addr"] = meta.metrics_addr
+    if meta.log_path:
+        payload["log_path"] = meta.log_path
+    if meta.log_bytes_rotated:
+        payload["log_bytes_rotated"] = meta.log_bytes_rotated
+    if meta.organism_uid:
+        payload["organism_uid"] = meta.organism_uid
+    if meta.organism_slug:
+        payload["organism_slug"] = meta.organism_slug
+    if meta.is_default:
+        payload["default"] = True
+    path = os.path.join(run_dir, "meta.json")
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+    os.replace(tmp, path)
+
+
+def read_meta_json(run_dir: str) -> dict[str, typing.Any]:
+    with open(os.path.join(run_dir, "meta.json"), encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _log_json(entry: LogEntry) -> dict[str, typing.Any]:
+    rec: dict[str, typing.Any] = {
+        "kind": "log",
+        "ts": _iso8601(entry.timestamp),
+        "level": _LEVEL_NAMES.get(entry.level, "UNSPECIFIED"),
+        "slug": entry.slug,
+        "instance_uid": entry.instance_uid,
+        "message": entry.message,
+    }
+    if entry.session_id:
+        rec["session_id"] = entry.session_id
+    if entry.rpc_method:
+        rec["rpc_method"] = entry.rpc_method
+    if entry.fields:
+        rec["fields"] = entry.fields
+    if entry.caller:
+        rec["caller"] = entry.caller
+    if entry.chain:
+        rec["chain"] = [h.__dict__ for h in entry.chain]
+    return rec
+
+
+def _event_json(event: Event) -> dict[str, typing.Any]:
+    rec: dict[str, typing.Any] = {
+        "kind": "event",
+        "ts": _iso8601(event.timestamp),
+        "type": event.type.name,
+        "slug": event.slug,
+        "instance_uid": event.instance_uid,
+    }
+    if event.session_id:
+        rec["session_id"] = event.session_id
+    if event.payload:
+        rec["payload"] = event.payload
+    if event.chain:
+        rec["chain"] = [h.__dict__ for h in event.chain]
+    return rec
+
+
+def _append_jsonl(path: str, rec: dict[str, typing.Any]) -> None:
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, separators=(",", ":")) + "\n")
+    except OSError:
+        pass
+
+
+def _iso8601(unix_seconds: float) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(unix_seconds)) + (
+        ".%09dZ" % int((unix_seconds - int(unix_seconds)) * 1_000_000_000)
+    )
+
+
 __all__ = [
     "Config", "Observability", "Family", "Level", "EventType", "LogEntry", "Event",
     "Counter", "Gauge", "Histogram", "Registry", "HistogramSnapshot",
     "LogRing", "EventBus", "Hop", "Logger",
     "configure", "from_env", "current", "reset",
     "check_env", "parse_level", "append_direct_child", "enrich_for_multilog",
+    "derive_run_dir", "enable_disk_writers", "write_meta_json", "read_meta_json",
+    "register_service", "HolonObservabilityService", "MetaJSON",
     "DEFAULT_BUCKETS", "InvalidTokenError",
 ]
