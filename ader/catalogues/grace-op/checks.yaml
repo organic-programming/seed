@@ -303,3 +303,7 @@ checks:
     workdir: ader/catalogues/grace-op/integration/events
     command: go test -tags e2e -v -count=1 -timeout 10m -run '^TestEvents_CLI_' .
     description: Verifies op events streaming from a running observability holon.
+  multilog-live:
+    workdir: ader/catalogues/grace-op/integration/multilog
+    command: go test -tags e2e -v -count=1 -timeout 10m -run '^TestMultilog_' .
+    description: Verifies multilog relay chain enrichment with a live Go root and children.

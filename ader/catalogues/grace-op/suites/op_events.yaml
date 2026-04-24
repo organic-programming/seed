@@ -7,10 +7,10 @@ steps:
     lane: progression
 profiles:
   smoke:
-    description: Drain replay + optional --follow exit on transport close.
+    description: Verifies no-instance handling, help text, and JSON lifecycle events from a live observable holon.
     archive: never
     steps: [events-cli]
   full:
-    description: Full event exercise including type filters and JSON.
+    description: Same live `op events --json` coverage as smoke for now.
     archive: never
     steps: [events-cli]

@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 // SessionIDMetadataKey is the gRPC metadata header that optionally
@@ -88,6 +89,10 @@ func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 				"phase":     "total",
 			},
 			nil).ObserveDuration(elapsed)
+
+		obs.Logger("rpc").InfoContext(ctx, "rpc handled",
+			"status", status.Code(err).String(),
+			"duration_ms", elapsed.Milliseconds())
 
 		return resp, err
 	}

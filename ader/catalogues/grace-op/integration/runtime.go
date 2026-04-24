@@ -149,8 +149,9 @@ func NewSandbox(t *testing.T) *Sandbox {
 	oppath := filepath.Join(root, ".op")
 	opbin := filepath.Join(oppath, "bin")
 	cacheDir := filepath.Join(oppath, "cache")
+	runDir := filepath.Join(oppath, "run")
 	tmpDir := filepath.Join(root, "tmp")
-	for _, dir := range []string{oppath, opbin, cacheDir, tmpDir} {
+	for _, dir := range []string{oppath, opbin, cacheDir, runDir, tmpDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
@@ -275,6 +276,7 @@ func (s *Sandbox) commandEnv(t *testing.T, extra []string) []string {
 	env = append(env,
 		"OPPATH="+s.OPPATH,
 		"OPBIN="+s.OPBIN,
+		"OP_RUN_DIR="+filepath.Join(s.OPPATH, "run"),
 		"GOCACHE="+filepath.Join(rt.toolCacheRoot, "go-build"),
 		"GOMODCACHE="+filepath.Join(rt.toolCacheRoot, "go-mod"),
 		"GRACE_OP_SHARED_CACHE_DIR="+rt.sharedCacheRoot,
