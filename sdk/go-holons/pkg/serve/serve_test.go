@@ -601,12 +601,12 @@ func responseManifestSlug(response *holonsv1.DescribeResponse) string {
 	return strings.ToLower(strings.Trim(strings.ReplaceAll(ident.GetGivenName()+"-"+strings.TrimSuffix(ident.GetFamilyName(), "?"), " ", "-"), "-"))
 }
 
-func startServeProcess(t *testing.T, mode, listenURI string, reflectEnabled bool, moreListenURIs ...string) (*exec.Cmd, *bytes.Buffer) {
+func startServeProcess(t *testing.T, mode, listenURI string, reflectEnabled bool, moreListenURIs ...string) (*exec.Cmd, *lockedBuffer) {
 	t.Helper()
 	return startServeProcessInDir(t, "", mode, listenURI, reflectEnabled, moreListenURIs...)
 }
 
-func startServeProcessInDir(t *testing.T, dir, mode, listenURI string, reflectEnabled bool, moreListenURIs ...string) (*exec.Cmd, *bytes.Buffer) {
+func startServeProcessInDir(t *testing.T, dir, mode, listenURI string, reflectEnabled bool, moreListenURIs ...string) (*exec.Cmd, *lockedBuffer) {
 	t.Helper()
 
 	args := []string{"-test.run=TestServeHelperProcess", "--", mode, listenURI, strconv.FormatBool(reflectEnabled)}
@@ -617,15 +617,15 @@ func startServeProcessInDir(t *testing.T, dir, mode, listenURI string, reflectEn
 		cmd.Dir = dir
 	}
 
-	var logs bytes.Buffer
-	cmd.Stdout = &logs
-	cmd.Stderr = &logs
+	logs := &lockedBuffer{}
+	cmd.Stdout = logs
+	cmd.Stderr = logs
 
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start serve helper: %v", err)
 	}
 
-	return cmd, &logs
+	return cmd, logs
 }
 
 func runServeProcessOnceInDir(t *testing.T, dir, mode, listenURI string, reflectEnabled bool, moreListenURIs ...string) (string, error) {
@@ -646,7 +646,7 @@ func runServeProcessOnceInDir(t *testing.T, dir, mode, listenURI string, reflect
 	return output.String(), err
 }
 
-func waitForAdvertisedAddress(t *testing.T, logs *bytes.Buffer, prefix string) string {
+func waitForAdvertisedAddress(t *testing.T, logs *lockedBuffer, prefix string) string {
 	t.Helper()
 
 	deadline := time.Now().Add(6 * time.Second)
@@ -663,7 +663,7 @@ func waitForAdvertisedAddress(t *testing.T, logs *bytes.Buffer, prefix string) s
 	return ""
 }
 
-func stopServeProcess(t *testing.T, cmd *exec.Cmd, logs *bytes.Buffer) {
+func stopServeProcess(t *testing.T, cmd *exec.Cmd, logs *lockedBuffer) {
 	t.Helper()
 
 	if cmd == nil || cmd.Process == nil {
@@ -676,6 +676,23 @@ func stopServeProcess(t *testing.T, cmd *exec.Cmd, logs *bytes.Buffer) {
 		_ = cmd.Wait()
 		t.Fatalf("stop serve helper: %v\nlogs:\n%s", err, logs.String())
 	}
+}
+
+type lockedBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.b.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.b.String()
 }
 
 func waitProcessExit(cmd *exec.Cmd, timeout time.Duration) error {

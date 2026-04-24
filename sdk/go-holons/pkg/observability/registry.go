@@ -16,6 +16,7 @@ type Registry struct {
 	counters   map[string]*Counter
 	gauges     map[string]*Gauge
 	histograms map[string]*Histogram
+	refresh    func()
 }
 
 // NewRegistry constructs an empty registry.
@@ -144,6 +145,9 @@ type HistogramItem struct {
 func (r *Registry) Snapshot() RegistrySnapshot {
 	if r == nil {
 		return RegistrySnapshot{CapturedAt: time.Now()}
+	}
+	if r.refresh != nil {
+		r.refresh()
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()

@@ -144,6 +144,7 @@ func Configure(cfg Config) *Observability {
 	}
 	if obs.families[FamilyMetrics] {
 		obs.registry = NewRegistry()
+		obs.initBaselineMetrics()
 	}
 	if obs.families[FamilyEvents] {
 		obs.bus = NewEventBus(cfg.EventsRingSize)
