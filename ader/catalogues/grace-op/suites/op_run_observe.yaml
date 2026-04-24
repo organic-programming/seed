@@ -1,0 +1,16 @@
+description: Suite validating op run --observe lifecycle tailing.
+defaults:
+  profile: smoke
+steps:
+  run-observe-cli:
+    check: op-run-observe-cli
+    lane: progression
+profiles:
+  smoke:
+    description: Starts a real Go holon with --observe and verifies ready/exit lifecycle output.
+    archive: never
+    steps: [run-observe-cli]
+  full:
+    description: Same lifecycle tailing check as smoke.
+    archive: never
+    steps: [run-observe-cli]

@@ -329,6 +329,16 @@ func (p *ProcessHandle) Stop(t *testing.T) {
 	_ = p.wait(10 * time.Second)
 }
 
+func (p *ProcessHandle) Signal(t *testing.T, sig os.Signal) {
+	t.Helper()
+	if p == nil || p.cmd == nil || p.cmd.Process == nil {
+		t.Fatalf("cannot signal nil process")
+	}
+	if err := p.cmd.Process.Signal(sig); err != nil {
+		t.Fatalf("signal process %v: %v", sig, err)
+	}
+}
+
 func (p *ProcessHandle) WaitForListenAddress(t *testing.T, timeout time.Duration) string {
 	t.Helper()
 	pattern := regexp.MustCompile(`gRPC (?:server|bridge) listening on ((?:tcp|unix)://\S+)`)
@@ -339,6 +349,23 @@ func (p *ProcessHandle) WaitForCOAXListenAddress(t *testing.T, timeout time.Dura
 	t.Helper()
 	pattern := regexp.MustCompile(`\[COAX\] server listening on ((?:tcp|unix)://\S+)`)
 	return p.waitForPattern(t, pattern, timeout)
+}
+
+func (p *ProcessHandle) WaitForStdoutContains(t *testing.T, needle string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if strings.Contains(p.Stdout(), needle) {
+			return
+		}
+		select {
+		case err := <-p.done:
+			t.Fatalf("process exited before stdout contained %q: %v\nstdout:\n%s\nstderr:\n%s", needle, err, p.Stdout(), p.Stderr())
+		default:
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for stdout to contain %q\nstdout:\n%s\nstderr:\n%s", needle, p.Stdout(), p.Stderr())
 }
 
 func (p *ProcessHandle) Wait(timeout time.Duration) error {

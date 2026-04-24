@@ -20,6 +20,9 @@ type runObserveOptions struct {
 	// Empty means inherit OP_OBS from the parent env (or no observability).
 	Observe string
 
+	// Tail streams observability logs/events to op's stdout after spawn.
+	Tail bool
+
 	// Prom is either an address to bind (":9091") or the magic ":0" for
 	// ephemeral. Empty means don't force prom (if OP_OBS already has it
 	// in --observe, the SDK picks an ephemeral port itself).
@@ -49,8 +52,10 @@ func extractRunObserveFlags(args []string) ([]string, runObserveOptions) {
 		switch {
 		case a == "--observe":
 			opts.Observe = "logs,metrics,events"
+			opts.Tail = true
 		case strings.HasPrefix(a, "--observe="):
 			opts.Observe = strings.TrimPrefix(a, "--observe=")
+			opts.Tail = true
 		case a == "--prom":
 			opts.Prom = ":0"
 			if opts.Observe == "" {

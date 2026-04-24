@@ -53,6 +53,9 @@ entries:
   suite: op_run
   profile: full
 - catalogue: grace-op
+  suite: op_run_observe
+  profile: smoke
+- catalogue: grace-op
   suite: op_serve
   profile: smoke
 - catalogue: grace-op
