@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
+import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
@@ -201,7 +202,7 @@ class ServeTest {
             assertTrue(!Files.exists(workDir.resolve("holon.proto")))
 
             BufferedReader(InputStreamReader(process.inputStream, StandardCharsets.UTF_8)).use { reader ->
-                val publicUri = readLineWithTimeout(reader, Duration.ofSeconds(20))
+                val publicUri = readUriWithTimeout(reader, Duration.ofSeconds(20))
                 assertNotNull(publicUri, "static describe server did not advertise a listen URI")
 
                 val (host, port) = parseTarget(publicUri)
@@ -248,10 +249,18 @@ class ServeTest {
         }
     }
 
-    private fun readLineWithTimeout(reader: BufferedReader, timeout: Duration): String? {
+    private fun readUriWithTimeout(reader: BufferedReader, timeout: Duration): String? {
         val executor = Executors.newSingleThreadExecutor()
         try {
-            val future: Future<String?> = executor.submit<String?> { reader.readLine() }
+            val future: Future<String?> = executor.submit(Callable<String?> {
+                while (true) {
+                    val line = reader.readLine() ?: return@Callable null
+                    if (line.startsWith("tcp://")) {
+                        return@Callable line
+                    }
+                }
+                null
+            })
             return future.get(timeout.toMillis(), TimeUnit.MILLISECONDS)
         } finally {
             executor.shutdownNow()
