@@ -26,9 +26,9 @@ dependencies {
     implementation("io.grpc:grpc-stub:1.60.0")
     implementation("io.grpc:grpc-netty-shaded:1.60.0")
     implementation("io.grpc:grpc-services:1.60.0")
-    implementation("com.google.protobuf:protobuf-java:4.34.0")
-    implementation("com.google.protobuf:protobuf-java-util:4.34.0")
-    implementation("com.google.protobuf:protobuf-kotlin:4.34.0")
+    implementation("com.google.protobuf:protobuf-java:4.34.1")
+    implementation("com.google.protobuf:protobuf-java-util:4.34.1")
+    implementation("com.google.protobuf:protobuf-kotlin:4.34.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("javax.annotation:javax.annotation-api:1.3.2")
 

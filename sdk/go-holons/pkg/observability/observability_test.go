@@ -3,6 +3,7 @@ package observability
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -57,6 +58,36 @@ func TestCheckEnv_Valid(t *testing.T) {
 	t.Setenv("OP_OBS", "logs,metrics,events,prom,all")
 	if err := CheckEnv(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestInstanceRunDirDerivesRootSlugUID(t *testing.T) {
+	root := t.TempDir()
+	dir, err := EnsureInstanceRunDir(root, "gabriel-greeting-go", "uid123")
+	if err != nil {
+		t.Fatalf("EnsureInstanceRunDir: %v", err)
+	}
+	want := filepath.Join(root, "gabriel-greeting-go", "uid123")
+	if dir != want {
+		t.Fatalf("run dir = %q, want %q", dir, want)
+	}
+	if info, err := os.Stat(want); err != nil || !info.IsDir() {
+		t.Fatalf("expected derived directory to exist: info=%v err=%v", info, err)
+	}
+}
+
+func TestFromEnvDerivesRunDirFromRegistryRoot(t *testing.T) {
+	Reset()
+	t.Setenv("OP_OBS", "logs")
+	t.Setenv("OP_RUN_DIR", t.TempDir())
+	t.Setenv("OP_INSTANCE_UID", "uid456")
+
+	obs := FromEnv(Config{Slug: "gabriel-greeting-go"})
+	defer obs.Close()
+
+	want := filepath.Join(os.Getenv("OP_RUN_DIR"), "gabriel-greeting-go", "uid456")
+	if got := obs.RunDir(); got != want {
+		t.Fatalf("RunDir = %q, want %q", got, want)
 	}
 }
 

@@ -69,8 +69,8 @@ type Config struct {
 	EventsRingSize int
 
 	// Run directory where stdout.log / events.jsonl / meta.json are
-	// written. If empty, the SDK skips disk writes; P3 wires this up
-	// from the resolved .op/run/<uid>/ path.
+	// written. FromEnv derives this from OP_RUN_DIR + Slug +
+	// InstanceUID because OP_RUN_DIR is the registry root.
 	RunDir string
 
 	// Instance identity from the supervisor. FromEnv fills these from
@@ -161,6 +161,9 @@ func Configure(cfg Config) *Observability {
 // fields in base override the env.
 func FromEnv(base Config) *Observability {
 	cfg := base
+	if cfg.Slug == "" {
+		cfg.Slug = defaultSlug()
+	}
 	if cfg.InstanceUID == "" {
 		cfg.InstanceUID = os.Getenv("OP_INSTANCE_UID")
 	}
@@ -174,7 +177,11 @@ func FromEnv(base Config) *Observability {
 		cfg.PromAddr = os.Getenv("OP_PROM_ADDR")
 	}
 	if cfg.RunDir == "" {
-		cfg.RunDir = os.Getenv("OP_RUN_DIR")
+		if runRoot := os.Getenv("OP_RUN_DIR"); runRoot != "" && cfg.Slug != "" && cfg.InstanceUID != "" {
+			if runDir, err := InstanceRunDir(runRoot, cfg.Slug, cfg.InstanceUID); err == nil {
+				cfg.RunDir = runDir
+			}
+		}
 	}
 	return Configure(cfg)
 }
@@ -225,6 +232,14 @@ func (o *Observability) InstanceUID() string {
 		return ""
 	}
 	return o.cfg.InstanceUID
+}
+
+// RunDir returns the per-instance registry directory, when configured.
+func (o *Observability) RunDir() string {
+	if o == nil {
+		return ""
+	}
+	return o.cfg.RunDir
 }
 
 // OrganismUID returns the organism UID set on this instance.

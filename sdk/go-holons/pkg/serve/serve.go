@@ -18,6 +18,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -111,7 +112,7 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 	if err := observability.CheckEnv(); err != nil {
 		return fmt.Errorf("observability env: %w", err)
 	}
-	observability.FromEnv(observability.Config{})
+	obs := observability.FromEnv(observability.Config{})
 
 	grpcOptions := []grpc.ServerOption{
 		grpc.UnaryInterceptor(observability.UnaryServerInterceptor()),
@@ -136,7 +137,7 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 	// the public surface.
 	var promServer *observability.PromServer
 	var metricsAddr string
-	if observability.Current().Enabled(observability.FamilyProm) {
+	if obs.Enabled(observability.FamilyProm) {
 		addr := os.Getenv("OP_PROM_ADDR")
 		if addr == "" {
 			addr = ":0"
@@ -151,12 +152,14 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 		}
 	}
 
-	// Disk writers under .op/run/<slug>/<uid>/ when OP_RUN_DIR is set
-	// (typically by `op run`; manual launches can set OP_RUN_DIR
-	// explicitly or skip disk by leaving it empty). Safe no-op when
-	// neither logs nor events families are enabled.
-	runDir := os.Getenv("OP_RUN_DIR")
+	// Disk writers under <OP_RUN_DIR>/<slug>/<uid>/ when OP_RUN_DIR is
+	// set (typically by `op run`). OP_RUN_DIR itself is the registry
+	// root; observability.FromEnv derives the per-instance path.
+	runDir := obs.RunDir()
 	if runDir != "" {
+		if err := os.MkdirAll(runDir, 0o755); err != nil {
+			log.Printf("warning: observability run directory: %v", err)
+		}
 		if err := observability.EnableDiskWriters(runDir); err != nil {
 			log.Printf("warning: observability disk writers: %v", err)
 		}
@@ -277,19 +280,19 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 		// empty (manual launch without `op run`).
 		if runDir != "" {
 			meta := observability.MetaJSON{
-				Slug:         observability.Current().Slug(),
-				UID:          observability.Current().InstanceUID(),
+				Slug:         obs.Slug(),
+				UID:          obs.InstanceUID(),
 				PID:          os.Getpid(),
 				StartedAt:    time.Now(),
 				Mode:         "persistent",
 				Transport:    transport.Scheme(grpcEndpoints[0].uri),
 				Address:      firstURI,
 				MetricsAddr:  metricsAddr,
-				OrganismUID:  observability.Current().OrganismUID(),
-				OrganismSlug: observability.Current().OrganismSlug(),
+				OrganismUID:  obs.OrganismUID(),
+				OrganismSlug: obs.OrganismSlug(),
 			}
-			if observability.Current().Enabled(observability.FamilyLogs) {
-				meta.LogPath = runDir + "/stdout.log"
+			if obs.Enabled(observability.FamilyLogs) {
+				meta.LogPath = filepath.Join(runDir, "stdout.log")
 			}
 			if err := observability.WriteMetaJSON(runDir, meta); err != nil {
 				log.Printf("warning: meta.json write failed: %v", err)

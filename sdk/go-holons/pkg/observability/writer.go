@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -31,8 +32,8 @@ type DiskWriter struct {
 }
 
 // NewDiskWriter prepares a writer for the given JSONL path with the
-// spec's default rotation policy. The parent directory must exist
-// (P3 op-side is responsible for creating it before the SDK starts).
+// spec's default rotation policy. The writer creates the parent
+// directory on open.
 func NewDiskWriter(path string) *DiskWriter {
 	return &DiskWriter{path: path, maxSize: DefaultRotateSize, keep: DefaultRotateKeep}
 }
@@ -169,18 +170,51 @@ func (w *DiskWriter) Path() string { return w.path }
 
 // ==== integration with Observability ====
 
+// InstanceRunDir derives the per-instance registry path from the
+// registry root injected as OP_RUN_DIR plus the holon's own slug and
+// OP_INSTANCE_UID.
+func InstanceRunDir(runRoot, slug, uid string) (string, error) {
+	runRoot = filepath.Clean(strings.TrimSpace(runRoot))
+	slug = strings.TrimSpace(slug)
+	uid = strings.TrimSpace(uid)
+	if runRoot == "" || runRoot == "." {
+		return "", fmt.Errorf("InstanceRunDir: empty run root")
+	}
+	if slug == "" {
+		return "", fmt.Errorf("InstanceRunDir: empty slug")
+	}
+	if uid == "" {
+		return "", fmt.Errorf("InstanceRunDir: empty instance uid")
+	}
+	return filepath.Join(runRoot, slug, uid), nil
+}
+
+// EnsureInstanceRunDir derives and creates the per-instance registry
+// path. It is the SDK side of INSTANCES.md §Path Resolution:
+// OP_RUN_DIR is the root, not the instance directory.
+func EnsureInstanceRunDir(runRoot, slug, uid string) (string, error) {
+	dir, err := InstanceRunDir(runRoot, slug, uid)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("mkdir %s: %w", dir, err)
+	}
+	return dir, nil
+}
+
 // EnableDiskWriters wires disk writers into the active Observability,
-// writing logs to <runDir>/stdout.log and events to
-// <runDir>/events.jsonl when the respective families are enabled.
+// writing logs to <instanceRunDir>/stdout.log and events to
+// <instanceRunDir>/events.jsonl when the respective families are enabled.
 // Safe to call from the SDK startup path; subsequent calls replace the
 // writers and close the previous ones.
-func EnableDiskWriters(runDir string) error {
+func EnableDiskWriters(instanceRunDir string) error {
 	obs := Current()
-	if obs == nil || runDir == "" {
+	if obs == nil || instanceRunDir == "" {
 		return nil
 	}
 	if obs.Enabled(FamilyLogs) {
-		lw := NewDiskWriter(filepath.Join(runDir, "stdout.log"))
+		lw := NewDiskWriter(filepath.Join(instanceRunDir, "stdout.log"))
 		if err := lw.Open(); err != nil {
 			return err
 		}
@@ -194,7 +228,7 @@ func EnableDiskWriters(runDir string) error {
 		}()
 	}
 	if obs.Enabled(FamilyEvents) {
-		ew := NewDiskWriter(filepath.Join(runDir, "events.jsonl"))
+		ew := NewDiskWriter(filepath.Join(instanceRunDir, "events.jsonl"))
 		if err := ew.Open(); err != nil {
 			return err
 		}
@@ -272,19 +306,19 @@ func eventDiskRecord(e Event) map[string]any {
 // MetaJSON describes a running instance on disk. Written by the op
 // spawn path into <runDir>/meta.json; read by op ps / op instances.
 type MetaJSON struct {
-	Slug             string    `json:"slug"`
-	UID              string    `json:"uid"`
-	PID              int       `json:"pid"`
-	StartedAt        time.Time `json:"started_at"`
-	Mode             string    `json:"mode"`
-	Transport        string    `json:"transport"`
-	Address          string    `json:"address"`
-	MetricsAddr      string    `json:"metrics_addr,omitempty"`
-	LogPath          string    `json:"log_path,omitempty"`
-	LogBytesRotated  int64     `json:"log_bytes_rotated,omitempty"`
-	OrganismUID      string    `json:"organism_uid,omitempty"`
-	OrganismSlug     string    `json:"organism_slug,omitempty"`
-	Default          bool      `json:"default,omitempty"`
+	Slug            string    `json:"slug"`
+	UID             string    `json:"uid"`
+	PID             int       `json:"pid"`
+	StartedAt       time.Time `json:"started_at"`
+	Mode            string    `json:"mode"`
+	Transport       string    `json:"transport"`
+	Address         string    `json:"address"`
+	MetricsAddr     string    `json:"metrics_addr,omitempty"`
+	LogPath         string    `json:"log_path,omitempty"`
+	LogBytesRotated int64     `json:"log_bytes_rotated,omitempty"`
+	OrganismUID     string    `json:"organism_uid,omitempty"`
+	OrganismSlug    string    `json:"organism_slug,omitempty"`
+	Default         bool      `json:"default,omitempty"`
 }
 
 // WriteMetaJSON serialises m to <runDir>/meta.json atomically.

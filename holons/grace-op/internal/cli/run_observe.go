@@ -105,8 +105,8 @@ func newInstanceUID() string {
 //
 //	$OP_RUN_DIR → $OPPATH/run → <OPROOT>/.op/run → ./.op/run
 //
-// Returns the first writable candidate. The caller can create the
-// per-instance subdirectory afterwards.
+// Returns the first writable candidate. This is the registry root
+// injected into children; SDKs derive <root>/<slug>/<uid>/ themselves.
 func resolveRunRoot() (string, error) {
 	candidates := []string{
 		os.Getenv("OP_RUN_DIR"),
@@ -135,20 +135,10 @@ func resolveRunRoot() (string, error) {
 	return "", fmt.Errorf("no writable run root candidate")
 }
 
-// prepareInstanceRunDir allocates a UID, creates the per-instance
-// directory (<runRoot>/<slug>/<uid>/), and returns the absolute path.
-func prepareInstanceRunDir(runRoot, slug, uid string) (string, error) {
-	dir := filepath.Join(runRoot, slug, uid)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", fmt.Errorf("mkdir %s: %w", dir, err)
-	}
-	return dir, nil
-}
-
 // injectObservabilityEnv sets OP_INSTANCE_UID, OP_RUN_DIR and the
 // observability family env vars on the given command. Leaves the
 // caller's cmd.Env untouched if empty (inherits parent env).
-func injectObservabilityEnv(cmd *exec.Cmd, uid, runDir string, opts runObserveOptions) {
+func injectObservabilityEnv(cmd *exec.Cmd, uid, runRoot string, opts runObserveOptions) {
 	env := cmd.Env
 	if env == nil {
 		env = os.Environ()
@@ -164,7 +154,7 @@ func injectObservabilityEnv(cmd *exec.Cmd, uid, runDir string, opts runObserveOp
 		env = append(env, prefix+value)
 	}
 	set("OP_INSTANCE_UID", uid)
-	set("OP_RUN_DIR", runDir)
+	set("OP_RUN_DIR", runRoot)
 	if opts.Observe != "" {
 		set("OP_OBS", opts.Observe)
 	}
@@ -204,27 +194,22 @@ func emitUIDReturn(uid, slug, address string, pid int, metricsAddr string, jsonM
 
 // applyRunObservability is called between commandForArtifact and
 // runForeground. When opts requests observability or the UID-return
-// contract, it allocates a UID, creates the per-instance registry
-// directory, injects the env vars into cmd, and emits the `uid:` line
-// (or JSON). Returns the allocated UID and run directory for later
-// use (e.g. meta.json prefill, op ps discovery). Returns ("", "") as
-// a no-op signal when observability is not requested.
-func applyRunObservability(cmd *exec.Cmd, slug string, opts runObserveOptions) (uid, runDir string, err error) {
+// contract, it allocates a UID, resolves the registry root, injects
+// the env vars into cmd, and emits the `uid:` line (or JSON). Returns
+// the allocated UID and registry root for later use. Returns ("", "")
+// as a no-op signal when observability is not requested.
+func applyRunObservability(cmd *exec.Cmd, slug string, opts runObserveOptions) (uid, runRoot string, err error) {
 	// Fast path: no observability requested and no JSON UID contract
 	// needed — leave the command untouched to preserve existing behaviour.
 	if opts.Observe == "" && opts.Prom == "" && opts.OTel == "" && opts.Sessions == "" && !opts.JSON {
 		return "", "", nil
 	}
-	runRoot, err := resolveRunRoot()
+	runRoot, err = resolveRunRoot()
 	if err != nil {
 		return "", "", err
 	}
 	uid = newInstanceUID()
-	runDir, err = prepareInstanceRunDir(runRoot, slug, uid)
-	if err != nil {
-		return "", "", err
-	}
-	injectObservabilityEnv(cmd, uid, runDir, opts)
+	injectObservabilityEnv(cmd, uid, runRoot, opts)
 	emitUIDReturn(uid, slug, "", 0, "", opts.JSON)
-	return uid, runDir, nil
+	return uid, runRoot, nil
 }

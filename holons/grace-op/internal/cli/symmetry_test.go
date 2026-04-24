@@ -38,7 +38,7 @@ func TestCommandSurfaceSymmetry(t *testing.T) {
 		{Command: "uninstall", RPCs: []string{"Uninstall"}},
 		{Command: "version", RPCs: []string{"Version"}},
 	}
-	cliOnly := []string{"completion", "mcp", "serve"}
+	cliOnly := []string{"completion", "events", "instances", "logs", "mcp", "metrics", "ps", "serve"}
 
 	wantCLI := append([]string{}, cliOnly...)
 	wantRPC := make([]string, 0, len(symmetric))
