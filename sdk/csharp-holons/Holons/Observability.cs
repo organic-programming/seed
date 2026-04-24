@@ -1,6 +1,8 @@
 // C# reference implementation of the cross-SDK observability layer.
 // Mirrors sdk/go-holons/pkg/observability.
 
+using Google.Protobuf.WellKnownTypes;
+using Grpc.Core;
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
@@ -76,7 +78,7 @@ public static class Env
                 families.Add(Family.Logs); families.Add(Family.Metrics);
                 families.Add(Family.Events); families.Add(Family.Prom);
             }
-            else if (Enum.TryParse<Family>(char.ToUpper(p[0]) + p[1..], out var f))
+            else if (System.Enum.TryParse<Family>(char.ToUpper(p[0]) + p[1..], out var f))
             {
                 families.Add(f);
             }
@@ -511,30 +513,38 @@ public static class ObservabilityRegistry
     private static Observability? _current;
     private static readonly object _lock = new();
 
-    public static Observability Configure(ObsConfig cfg)
+    public static Observability Configure(ObsConfig cfg) => ConfigureFromEnv(cfg);
+
+    public static Observability ConfigureFromEnv(ObsConfig cfg, IDictionary<string, string>? env = null)
     {
-        var families = Env.ParseOpObs(Environment.GetEnvironmentVariable("OP_OBS"));
+        Env.CheckEnv(env);
+        var families = Env.ParseOpObs(Read(env, "OP_OBS"));
         var normalized = cfg with { };
         if (string.IsNullOrEmpty(normalized.Slug))
             normalized = normalized with { Slug = AppDomain.CurrentDomain.FriendlyName };
+        if (string.IsNullOrEmpty(normalized.InstanceUid))
+            normalized = normalized with { InstanceUid = NewInstanceUid() };
+        if (!string.IsNullOrEmpty(normalized.RunDir))
+            normalized = normalized with { RunDir = DeriveRunDir(normalized.RunDir, normalized.Slug, normalized.InstanceUid) };
         var obs = new Observability(normalized, families);
         lock (_lock) _current = obs;
         return obs;
     }
 
-    public static Observability FromEnv(ObsConfig? baseCfg = null)
+    public static Observability FromEnv(ObsConfig? baseCfg = null) => FromEnvMap(baseCfg);
+
+    public static Observability FromEnvMap(ObsConfig? baseCfg = null, IDictionary<string, string>? env = null)
     {
         var b = baseCfg ?? new ObsConfig();
-        static string Read(string k) => Environment.GetEnvironmentVariable(k) ?? "";
         var cfg = b with
         {
-            InstanceUid = string.IsNullOrEmpty(b.InstanceUid) ? Read("OP_INSTANCE_UID") : b.InstanceUid,
-            OrganismUid = string.IsNullOrEmpty(b.OrganismUid) ? Read("OP_ORGANISM_UID") : b.OrganismUid,
-            OrganismSlug = string.IsNullOrEmpty(b.OrganismSlug) ? Read("OP_ORGANISM_SLUG") : b.OrganismSlug,
-            PromAddr = string.IsNullOrEmpty(b.PromAddr) ? Read("OP_PROM_ADDR") : b.PromAddr,
-            RunDir = string.IsNullOrEmpty(b.RunDir) ? Read("OP_RUN_DIR") : b.RunDir,
+            InstanceUid = string.IsNullOrEmpty(b.InstanceUid) ? Read(env, "OP_INSTANCE_UID") : b.InstanceUid,
+            OrganismUid = string.IsNullOrEmpty(b.OrganismUid) ? Read(env, "OP_ORGANISM_UID") : b.OrganismUid,
+            OrganismSlug = string.IsNullOrEmpty(b.OrganismSlug) ? Read(env, "OP_ORGANISM_SLUG") : b.OrganismSlug,
+            PromAddr = string.IsNullOrEmpty(b.PromAddr) ? Read(env, "OP_PROM_ADDR") : b.PromAddr,
+            RunDir = string.IsNullOrEmpty(b.RunDir) ? Read(env, "OP_RUN_DIR") : b.RunDir,
         };
-        return Configure(cfg);
+        return ConfigureFromEnv(cfg, env);
     }
 
     public static Observability Current()
@@ -546,6 +556,200 @@ public static class ObservabilityRegistry
     {
         lock (_lock) { _current?.Close(); _current = null; }
     }
+
+    public static string DeriveRunDir(string root, string slug, string uid)
+    {
+        if (string.IsNullOrEmpty(root) || string.IsNullOrEmpty(slug) || string.IsNullOrEmpty(uid))
+            return root;
+        return Path.Combine(root, slug, uid);
+    }
+
+    private static string NewInstanceUid() =>
+        $"{Environment.ProcessId}-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{Guid.NewGuid():N}";
+
+    private static string Read(IDictionary<string, string>? env, string key)
+    {
+        if (env != null && env.TryGetValue(key, out var value))
+            return value;
+        return Environment.GetEnvironmentVariable(key) ?? "";
+    }
+}
+
+public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservability.HolonObservabilityBase
+{
+    private readonly Observability _obs;
+
+    public ObservabilityGrpcService(Observability obs)
+    {
+        _obs = obs;
+    }
+
+    public override async Task Logs(
+        global::Holons.V1.LogsRequest request,
+        IServerStreamWriter<global::Holons.V1.LogEntry> responseStream,
+        ServerCallContext context)
+    {
+        if (!_obs.Enabled(Family.Logs) || _obs.LogRing == null)
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, "logs family is not enabled (OP_OBS)"));
+
+        var minLevel = request.MinLevel == global::Holons.V1.LogLevel.Unspecified
+            ? (int)Level.Info
+            : (int)request.MinLevel;
+        var entries = request.Since is null
+            ? _obs.LogRing.Drain()
+            : _obs.LogRing.DrainSince(DateTime.UtcNow - request.Since.ToTimeSpan());
+        foreach (var entry in entries)
+        {
+            if ((int)entry.Level < minLevel)
+                continue;
+            if (request.SessionIds.Count > 0 && !request.SessionIds.Contains(entry.SessionId))
+                continue;
+            if (request.RpcMethods.Count > 0 && !request.RpcMethods.Contains(entry.RpcMethod))
+                continue;
+            await responseStream.WriteAsync(ToProtoLogEntry(entry)).ConfigureAwait(false);
+        }
+    }
+
+    public override Task<global::Holons.V1.MetricsSnapshot> Metrics(
+        global::Holons.V1.MetricsRequest request,
+        ServerCallContext context)
+    {
+        if (!_obs.Enabled(Family.Metrics) || _obs.Registry == null)
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, "metrics family is not enabled (OP_OBS)"));
+
+        var snapshot = new global::Holons.V1.MetricsSnapshot
+        {
+            CapturedAt = Timestamp.FromDateTime(DateTime.UtcNow),
+            Slug = _obs.Config.Slug,
+            InstanceUid = _obs.Config.InstanceUid,
+        };
+        foreach (var sample in ToProtoMetricSamples(_obs.Registry))
+        {
+            if (request.NamePrefixes.Count == 0 || request.NamePrefixes.Any(prefix => sample.Name.StartsWith(prefix, StringComparison.Ordinal)))
+                snapshot.Samples.Add(sample);
+        }
+        return Task.FromResult(snapshot);
+    }
+
+    public override async Task Events(
+        global::Holons.V1.EventsRequest request,
+        IServerStreamWriter<global::Holons.V1.EventInfo> responseStream,
+        ServerCallContext context)
+    {
+        if (!_obs.Enabled(Family.Events) || _obs.EventBus == null)
+            throw new RpcException(new Status(StatusCode.FailedPrecondition, "events family is not enabled (OP_OBS)"));
+
+        var wanted = request.Types_.Select(t => (int)t).ToHashSet();
+        var events = request.Since is null
+            ? _obs.EventBus.Drain()
+            : _obs.EventBus.DrainSince(DateTime.UtcNow - request.Since.ToTimeSpan());
+        foreach (var ev in events)
+        {
+            if (wanted.Count > 0 && !wanted.Contains((int)ev.Type))
+                continue;
+            await responseStream.WriteAsync(ToProtoEvent(ev)).ConfigureAwait(false);
+        }
+    }
+
+    public static global::Holons.V1.LogEntry ToProtoLogEntry(LogEntry entry)
+    {
+        var proto = new global::Holons.V1.LogEntry
+        {
+            Ts = Timestamp.FromDateTime(DateTime.SpecifyKind(entry.Timestamp, DateTimeKind.Utc)),
+            Level = (global::Holons.V1.LogLevel)entry.Level,
+            Slug = entry.Slug,
+            InstanceUid = entry.InstanceUid,
+            SessionId = entry.SessionId,
+            RpcMethod = entry.RpcMethod,
+            Message = entry.Message,
+            Caller = entry.Caller,
+        };
+        proto.Fields.Add(entry.Fields);
+        proto.Chain.Add(entry.Chain.Select(ToProtoHop));
+        return proto;
+    }
+
+    public static IReadOnlyList<global::Holons.V1.MetricSample> ToProtoMetricSamples(Registry registry)
+    {
+        var samples = new List<global::Holons.V1.MetricSample>();
+        foreach (var counter in registry.Counters)
+        {
+            var sample = new global::Holons.V1.MetricSample
+            {
+                Name = counter.Name,
+                Help = counter.Help,
+                Counter = counter.Value,
+            };
+            foreach (var (key, value) in counter.Labels)
+                sample.Labels[key] = value;
+            samples.Add(sample);
+        }
+        foreach (var gauge in registry.Gauges)
+        {
+            var sample = new global::Holons.V1.MetricSample
+            {
+                Name = gauge.Name,
+                Help = gauge.Help,
+                Gauge = gauge.Value,
+            };
+            foreach (var (key, value) in gauge.Labels)
+                sample.Labels[key] = value;
+            samples.Add(sample);
+        }
+        foreach (var histogram in registry.Histograms)
+        {
+            var sample = new global::Holons.V1.MetricSample
+            {
+                Name = histogram.Name,
+                Help = histogram.Help,
+                Histogram = ToProtoHistogram(histogram.Snapshot()),
+            };
+            foreach (var (key, value) in histogram.Labels)
+                sample.Labels[key] = value;
+            samples.Add(sample);
+        }
+        return samples;
+    }
+
+    public static global::Holons.V1.EventInfo ToProtoEvent(Event ev)
+    {
+        var proto = new global::Holons.V1.EventInfo
+        {
+            Ts = Timestamp.FromDateTime(DateTime.SpecifyKind(ev.Timestamp, DateTimeKind.Utc)),
+            Type = (global::Holons.V1.EventType)ev.Type,
+            Slug = ev.Slug,
+            InstanceUid = ev.InstanceUid,
+            SessionId = ev.SessionId,
+        };
+        proto.Payload.Add(ev.Payload);
+        proto.Chain.Add(ev.Chain.Select(ToProtoHop));
+        return proto;
+    }
+
+    private static global::Holons.V1.HistogramSample ToProtoHistogram(HistogramSnapshot snapshot)
+    {
+        var proto = new global::Holons.V1.HistogramSample
+        {
+            Count = snapshot.Total,
+            Sum = snapshot.Sum,
+        };
+        for (var i = 0; i < snapshot.Bounds.Count; i++)
+        {
+            proto.Buckets.Add(new global::Holons.V1.Bucket
+            {
+                UpperBound = snapshot.Bounds[i],
+                Count = snapshot.Counts[i],
+            });
+        }
+        return proto;
+    }
+
+    private static global::Holons.V1.ChainHop ToProtoHop(Hop hop) =>
+        new()
+        {
+            Slug = hop.Slug,
+            InstanceUid = hop.InstanceUid,
+        };
 }
 
 public static class DiskWriters
