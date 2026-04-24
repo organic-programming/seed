@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:ui' show AppExitResponse;
 
+import 'package:flutter/material.dart' show SwitchListTile, Tab;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holons/holons.dart' as holons;
 import 'package:holons_app/holons_app.dart';
 
 import 'package:gabriel_greeting_app_flutter/src/app.dart';
@@ -247,6 +249,8 @@ void main() {
     final observabilityKit = buildObservabilityKit();
     addTearDown(observabilityKit.dispose);
     greetingController.attachObservability(observabilityKit.obs);
+    await observabilityKit.gate.setMaster(false);
+    await observabilityKit.gate.setFamily(holons.Family.logs, false);
 
     await tester.pumpWidget(
       GabrielGreetingApp(
@@ -265,7 +269,35 @@ void main() {
     expect(find.text('Logs'), findsWidgets);
     expect(find.text('Metrics'), findsWidgets);
     expect(find.text('Prometheus /metrics'), findsOneWidget);
+    expect(observabilityKit.gate.masterEnabled, isFalse);
+
+    await tester.tap(find.widgetWithText(SwitchListTile, 'Master'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(SwitchListTile, 'Logs'));
+    await tester.pumpAndSettle();
+
     expect(observabilityKit.gate.masterEnabled, isTrue);
+    expect(observabilityKit.gate.logsEnabled, isTrue);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('observability-toggle')),
+    );
+    await _settleApp(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('name-input')),
+      'Ada',
+    );
+    await _settleApp(tester);
+    expect(find.text('Hello Ada'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('observability-toggle')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(Tab, 'Logs'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Greeting response received'), findsWidgets);
   });
 }
 
