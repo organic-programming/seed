@@ -72,7 +72,7 @@ uint32_t holon_obs_parse_families(const char *raw) {
         size_t len = strlen(tok);
         while (len > 0 && (tok[len - 1] == ' ' || tok[len - 1] == '\t')) tok[--len] = '\0';
         if (!*tok) continue;
-        if (tok_matches(tok, "otel")) continue;
+        if (tok_matches(tok, "otel") || tok_matches(tok, "sessions")) continue;
         if (tok_matches(tok, "all")) {
             out |= HOLON_FAMILY_LOGS | HOLON_FAMILY_METRICS | HOLON_FAMILY_EVENTS | HOLON_FAMILY_PROM;
         } else if (tok_matches(tok, "logs")) {
@@ -89,6 +89,16 @@ uint32_t holon_obs_parse_families(const char *raw) {
 }
 
 int holon_obs_check_env(const char *env_or_null, char out_token[HOLON_OBS_TOKEN_MAX]) {
+    if (!env_or_null) {
+        const char *sessions = getenv("OP_SESSIONS");
+        if (sessions && *sessions) {
+            if (out_token) {
+                strncpy(out_token, sessions, HOLON_OBS_TOKEN_MAX - 1);
+                out_token[HOLON_OBS_TOKEN_MAX - 1] = '\0';
+            }
+            return -EINVAL;
+        }
+    }
     const char *raw = env_or_null ? env_or_null : getenv("OP_OBS");
     if (!raw || !*raw) return 0;
     char buf[1024];
@@ -100,7 +110,8 @@ int holon_obs_check_env(const char *env_or_null, char out_token[HOLON_OBS_TOKEN_
         size_t len = strlen(tok);
         while (len > 0 && (tok[len - 1] == ' ' || tok[len - 1] == '\t')) tok[--len] = '\0';
         if (!*tok) continue;
-        if (streq(tok, "otel") || (!streq(tok, "logs") && !streq(tok, "metrics") &&
+        if (streq(tok, "otel") || streq(tok, "sessions") ||
+            (!streq(tok, "logs") && !streq(tok, "metrics") &&
              !streq(tok, "events") && !streq(tok, "prom") && !streq(tok, "all"))) {
             if (out_token) {
                 strncpy(out_token, tok, HOLON_OBS_TOKEN_MAX - 1);

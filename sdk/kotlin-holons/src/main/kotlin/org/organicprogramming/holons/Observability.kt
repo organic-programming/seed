@@ -24,8 +24,11 @@ object Observability {
 
     private val V1_TOKENS = setOf("logs", "metrics", "events", "prom", "all")
 
-    class InvalidTokenException(val token: String, reason: String) :
-        RuntimeException("OP_OBS: $reason: $token")
+    class InvalidTokenException(
+        val token: String,
+        reason: String,
+        val variable: String = "OP_OBS",
+    ) : RuntimeException("$variable: $reason: $token")
 
     enum class Level(val code: Int) {
         UNSET(0), TRACE(1), DEBUG(2), INFO(3), WARN(4), ERROR(5), FATAL(6);
@@ -51,7 +54,7 @@ object Observability {
         for (part in raw.split(",")) {
             val tok = part.trim()
             if (tok.isEmpty()) continue
-            if (tok == "otel") continue
+            if (tok == "otel" || tok == "sessions") continue
             if (tok !in V1_TOKENS) continue
             when (tok) {
                 "all" -> {
@@ -66,6 +69,12 @@ object Observability {
 
     @JvmOverloads
     fun checkEnv(env: Map<String, String>? = null) {
+        val sessions = (env?.get("OP_SESSIONS") ?: System.getenv("OP_SESSIONS") ?: "").trim()
+        if (sessions.isNotEmpty()) {
+            throw InvalidTokenException(sessions,
+                "sessions are reserved for v2; not implemented in v1",
+                "OP_SESSIONS")
+        }
         val raw = (env?.get("OP_OBS") ?: System.getenv("OP_OBS") ?: "").trim()
         if (raw.isEmpty()) return
         for (part in raw.split(",")) {
@@ -73,6 +82,8 @@ object Observability {
             if (tok.isEmpty()) continue
             if (tok == "otel") throw InvalidTokenException(tok,
                 "otel export is reserved for v2; not implemented in v1")
+            if (tok == "sessions") throw InvalidTokenException(tok,
+                "sessions are reserved for v2; not implemented in v1")
             if (tok !in V1_TOKENS) throw InvalidTokenException(tok, "unknown OP_OBS token")
         }
     }

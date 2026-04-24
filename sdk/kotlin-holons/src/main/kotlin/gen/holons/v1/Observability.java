@@ -5391,7 +5391,7 @@ java.lang.String defaultValue) {
 
     /**
      * <pre>
-     * Populated only when OP_SESSIONS=metrics and the request asks for it.
+     * Reserved for v2; always empty in v1.
      * </pre>
      *
      * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -5400,7 +5400,7 @@ java.lang.String defaultValue) {
     boolean hasSessionRollup();
     /**
      * <pre>
-     * Populated only when OP_SESSIONS=metrics and the request asks for it.
+     * Reserved for v2; always empty in v1.
      * </pre>
      *
      * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -5409,7 +5409,7 @@ java.lang.String defaultValue) {
     holons.v1.Session.SessionMetrics getSessionRollup();
     /**
      * <pre>
-     * Populated only when OP_SESSIONS=metrics and the request asks for it.
+     * Reserved for v2; always empty in v1.
      * </pre>
      *
      * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -5611,7 +5611,7 @@ java.lang.String defaultValue) {
     private holons.v1.Session.SessionMetrics sessionRollup_;
     /**
      * <pre>
-     * Populated only when OP_SESSIONS=metrics and the request asks for it.
+     * Reserved for v2; always empty in v1.
      * </pre>
      *
      * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -5623,7 +5623,7 @@ java.lang.String defaultValue) {
     }
     /**
      * <pre>
-     * Populated only when OP_SESSIONS=metrics and the request asks for it.
+     * Reserved for v2; always empty in v1.
      * </pre>
      *
      * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -5635,7 +5635,7 @@ java.lang.String defaultValue) {
     }
     /**
      * <pre>
-     * Populated only when OP_SESSIONS=metrics and the request asks for it.
+     * Reserved for v2; always empty in v1.
      * </pre>
      *
      * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -6634,7 +6634,7 @@ java.lang.String defaultValue) {
           holons.v1.Session.SessionMetrics, holons.v1.Session.SessionMetrics.Builder, holons.v1.Session.SessionMetricsOrBuilder> sessionRollupBuilder_;
       /**
        * <pre>
-       * Populated only when OP_SESSIONS=metrics and the request asks for it.
+       * Reserved for v2; always empty in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -6645,7 +6645,7 @@ java.lang.String defaultValue) {
       }
       /**
        * <pre>
-       * Populated only when OP_SESSIONS=metrics and the request asks for it.
+       * Reserved for v2; always empty in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -6660,7 +6660,7 @@ java.lang.String defaultValue) {
       }
       /**
        * <pre>
-       * Populated only when OP_SESSIONS=metrics and the request asks for it.
+       * Reserved for v2; always empty in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -6680,7 +6680,7 @@ java.lang.String defaultValue) {
       }
       /**
        * <pre>
-       * Populated only when OP_SESSIONS=metrics and the request asks for it.
+       * Reserved for v2; always empty in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -6698,7 +6698,7 @@ java.lang.String defaultValue) {
       }
       /**
        * <pre>
-       * Populated only when OP_SESSIONS=metrics and the request asks for it.
+       * Reserved for v2; always empty in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -6723,7 +6723,7 @@ java.lang.String defaultValue) {
       }
       /**
        * <pre>
-       * Populated only when OP_SESSIONS=metrics and the request asks for it.
+       * Reserved for v2; always empty in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -6740,7 +6740,7 @@ java.lang.String defaultValue) {
       }
       /**
        * <pre>
-       * Populated only when OP_SESSIONS=metrics and the request asks for it.
+       * Reserved for v2; always empty in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -6752,7 +6752,7 @@ java.lang.String defaultValue) {
       }
       /**
        * <pre>
-       * Populated only when OP_SESSIONS=metrics and the request asks for it.
+       * Reserved for v2; always empty in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>
@@ -6767,7 +6767,7 @@ java.lang.String defaultValue) {
       }
       /**
        * <pre>
-       * Populated only when OP_SESSIONS=metrics and the request asks for it.
+       * Reserved for v2; always empty in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics session_rollup = 5;</code>

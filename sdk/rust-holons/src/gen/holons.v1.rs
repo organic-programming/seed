@@ -1731,7 +1731,7 @@ pub struct SessionInfo {
     /// Last RPC completed timestamp (zero if none).
     #[prost(message, optional, tag = "11")]
     pub last_rpc_at: ::core::option::Option<::prost_types::Timestamp>,
-    /// Optional per-session metrics (only when OP_SESSIONS=metrics).
+    /// Reserved for v2; not emitted in v1.
     #[prost(message, optional, tag = "20")]
     pub metrics: ::core::option::Option<SessionMetrics>,
     /// Mesh host name (only on mTLS connections, empty otherwise).
@@ -1744,7 +1744,7 @@ pub struct SessionInfo {
     #[prost(string, tag = "22")]
     pub instance_uid: ::prost::alloc::string::String,
 }
-/// SessionMetrics is populated only when OP_SESSIONS=metrics.
+/// SessionMetrics is reserved for v2; empty in v1.
 /// Time is decomposed into four phases: wire_out, queue, work, wire_in.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SessionMetrics {
@@ -2408,7 +2408,7 @@ pub struct MetricsSnapshot {
     pub instance_uid: ::prost::alloc::string::String,
     #[prost(message, repeated, tag = "4")]
     pub samples: ::prost::alloc::vec::Vec<MetricSample>,
-    /// Populated only when OP_SESSIONS=metrics and the request asks for it.
+    /// Reserved for v2; always empty in v1.
     #[prost(message, optional, tag = "5")]
     pub session_rollup: ::core::option::Option<SessionMetrics>,
 }

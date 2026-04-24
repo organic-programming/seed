@@ -20,9 +20,15 @@ public enum Family: String, CaseIterable, Sendable {
 private let v1Tokens: Set<String> = ["logs", "metrics", "events", "prom", "all"]
 
 public struct InvalidTokenError: Error, CustomStringConvertible {
+    public let variable: String
     public let token: String
     public let reason: String
-    public var description: String { "OP_OBS: \(reason): \(token)" }
+    public init(token: String, reason: String, variable: String = "OP_OBS") {
+        self.variable = variable
+        self.token = token
+        self.reason = reason
+    }
+    public var description: String { "\(variable): \(reason): \(token)" }
 }
 
 public func parseOpObs(_ raw: String) -> Set<Family> {
@@ -32,7 +38,7 @@ public func parseOpObs(_ raw: String) -> Set<Family> {
     for part in trimmed.split(separator: ",") {
         let tok = part.trimmingCharacters(in: .whitespaces)
         guard !tok.isEmpty else { continue }
-        if tok == "otel" { continue }                     // dropped by parser
+        if tok == "otel" || tok == "sessions" { continue } // dropped by parser
         guard v1Tokens.contains(tok) else { continue }    // unknown dropped
         if tok == "all" {
             out.formUnion([.logs, .metrics, .events, .prom])
@@ -44,6 +50,10 @@ public func parseOpObs(_ raw: String) -> Set<Family> {
 }
 
 public func checkEnv(_ env: [String: String] = ProcessInfo.processInfo.environment) throws {
+    let sessions = (env["OP_SESSIONS"] ?? "").trimmingCharacters(in: .whitespaces)
+    if !sessions.isEmpty {
+        throw InvalidTokenError(token: sessions, reason: "sessions are reserved for v2; not implemented in v1", variable: "OP_SESSIONS")
+    }
     let raw = (env["OP_OBS"] ?? "").trimmingCharacters(in: .whitespaces)
     if raw.isEmpty { return }
     for part in raw.split(separator: ",") {
@@ -51,6 +61,9 @@ public func checkEnv(_ env: [String: String] = ProcessInfo.processInfo.environme
         guard !tok.isEmpty else { continue }
         if tok == "otel" {
             throw InvalidTokenError(token: tok, reason: "otel export is reserved for v2; not implemented in v1")
+        }
+        if tok == "sessions" {
+            throw InvalidTokenError(token: tok, reason: "sessions are reserved for v2; not implemented in v1")
         }
         if !v1Tokens.contains(tok) {
             throw InvalidTokenError(token: tok, reason: "unknown OP_OBS token")

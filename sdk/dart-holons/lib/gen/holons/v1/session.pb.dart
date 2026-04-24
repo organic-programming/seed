@@ -429,7 +429,7 @@ class SessionInfo extends $pb.GeneratedMessage {
   @$pb.TagNumber(11)
   $1.Timestamp ensureLastRpcAt() => $_ensure(10);
 
-  /// Optional per-session metrics (only when OP_SESSIONS=metrics).
+  /// Reserved for v2; not emitted in v1.
   @$pb.TagNumber(20)
   SessionMetrics get metrics => $_getN(11);
   @$pb.TagNumber(20)
@@ -465,7 +465,7 @@ class SessionInfo extends $pb.GeneratedMessage {
   void clearInstanceUid() => $_clearField(22);
 }
 
-/// SessionMetrics is populated only when OP_SESSIONS=metrics.
+/// SessionMetrics is reserved for v2; empty in v1.
 /// Time is decomposed into four phases: wire_out, queue, work, wire_in.
 class SessionMetrics extends $pb.GeneratedMessage {
   factory SessionMetrics({

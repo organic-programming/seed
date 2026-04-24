@@ -46,7 +46,7 @@ def _parse_op_obs(raw: str) -> set[Family]:
     for tok in (t.strip() for t in raw.split(",")):
         if not tok:
             continue
-        if tok == "otel":
+        if tok in {"otel", "sessions"}:
             # v2 reserved token; swallowed silently here, rejected by check_env.
             continue
         if tok not in _V1_TOKENS:
@@ -60,6 +60,11 @@ def _parse_op_obs(raw: str) -> set[Family]:
 
 def check_env() -> None:
     """Raise InvalidTokenError if OP_OBS contains an unknown or v2 token."""
+    sessions = os.environ.get("OP_SESSIONS", "").strip()
+    if sessions:
+        raise InvalidTokenError(
+            f"OP_SESSIONS is reserved for v2; not implemented in v1: {sessions}"
+        )
     raw = os.environ.get("OP_OBS", "").strip()
     if not raw:
         return
@@ -69,6 +74,10 @@ def check_env() -> None:
         if tok == "otel":
             raise InvalidTokenError(
                 "otel export is reserved for v2; not implemented in v1"
+            )
+        if tok == "sessions":
+            raise InvalidTokenError(
+                "sessions are reserved for v2; not implemented in v1"
             )
         if tok not in _V1_TOKENS:
             raise InvalidTokenError(f"unknown OP_OBS token: {tok}")

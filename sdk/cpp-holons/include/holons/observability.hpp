@@ -103,7 +103,7 @@ inline std::uint32_t parse_op_obs(std::string_view raw) {
         while (!tok.empty() && (tok.front() == ' ' || tok.front() == '\t')) tok.erase(tok.begin());
         while (!tok.empty() && (tok.back() == ' ' || tok.back() == '\t')) tok.pop_back();
         if (tok.empty()) continue;
-        if (tok == "otel") continue;
+        if (tok == "otel" || tok == "sessions") continue;
         if (tok == "all") {
             out |= static_cast<std::uint32_t>(Family::Logs) |
                    static_cast<std::uint32_t>(Family::Metrics) |
@@ -118,6 +118,15 @@ inline std::uint32_t parse_op_obs(std::string_view raw) {
 }
 
 inline void check_env(const std::map<std::string, std::string>& env = {}) {
+    std::string sessions;
+    auto sit = env.find("OP_SESSIONS");
+    if (sit != env.end()) sessions = sit->second;
+    else { const char* v = std::getenv("OP_SESSIONS"); if (v) sessions = v; }
+    while (!sessions.empty() && (sessions.front() == ' ' || sessions.front() == '\t')) sessions.erase(sessions.begin());
+    while (!sessions.empty() && (sessions.back() == ' ' || sessions.back() == '\t')) sessions.pop_back();
+    if (!sessions.empty())
+        throw InvalidTokenError(sessions, "sessions are reserved for v2; not implemented in v1");
+
     std::string raw;
     auto it = env.find("OP_OBS");
     if (it != env.end()) raw = it->second;
@@ -137,6 +146,8 @@ inline void check_env(const std::map<std::string, std::string>& env = {}) {
         if (tok.empty()) continue;
         if (tok == "otel")
             throw InvalidTokenError(tok, "otel export is reserved for v2; not implemented in v1");
+        if (tok == "sessions")
+            throw InvalidTokenError(tok, "sessions are reserved for v2; not implemented in v1");
         if (tok != "logs" && tok != "metrics" && tok != "events" && tok != "prom" && tok != "all")
             throw InvalidTokenError(tok, "unknown OP_OBS token");
     }

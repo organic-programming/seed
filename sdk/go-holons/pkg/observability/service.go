@@ -170,8 +170,7 @@ func (s *service) Metrics(ctx context.Context, req *v1.MetricsRequest) (*v1.Metr
 		Slug:        s.obs.Slug(),
 		InstanceUid: s.obs.InstanceUID(),
 		Samples:     samples,
-		// SessionRollup is populated in P5 when the session metrics
-		// store is wired into observability.
+		// SessionRollup stays empty in v1; OP_SESSIONS is rejected at startup.
 	}, nil
 }
 

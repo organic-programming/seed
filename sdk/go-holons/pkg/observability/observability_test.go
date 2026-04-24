@@ -18,7 +18,8 @@ func TestParseOPOBS_Basic(t *testing.T) {
 		{"logs", map[Family]bool{FamilyLogs: true}},
 		{"logs,metrics", map[Family]bool{FamilyLogs: true, FamilyMetrics: true}},
 		{"all", map[Family]bool{FamilyLogs: true, FamilyMetrics: true, FamilyEvents: true, FamilyProm: true}},
-		{"all,otel", map[Family]bool{FamilyLogs: true, FamilyMetrics: true, FamilyEvents: true, FamilyProm: true}}, // otel silently dropped in v1
+		{"all,otel", map[Family]bool{FamilyLogs: true, FamilyMetrics: true, FamilyEvents: true, FamilyProm: true}},
+		{"all,sessions", map[Family]bool{FamilyLogs: true, FamilyMetrics: true, FamilyEvents: true, FamilyProm: true}},
 		{"unknown", map[Family]bool{}},
 	}
 	for _, tc := range tests {
@@ -51,6 +52,28 @@ func TestCheckEnv_UnknownRejected(t *testing.T) {
 	err := CheckEnv()
 	if err == nil {
 		t.Fatal("expected error for unknown token")
+	}
+}
+
+func TestCheckEnv_SessionsRejected(t *testing.T) {
+	t.Setenv("OP_OBS", "logs,sessions")
+	err := CheckEnv()
+	if err == nil {
+		t.Fatal("expected error for sessions token in v1")
+	}
+	if ite, ok := err.(*InvalidTokenError); !ok || ite.Token != "sessions" {
+		t.Fatalf("expected InvalidTokenError{Token:sessions}, got %v", err)
+	}
+}
+
+func TestCheckEnv_OPSessionsRejected(t *testing.T) {
+	t.Setenv("OP_SESSIONS", "metrics")
+	err := CheckEnv()
+	if err == nil {
+		t.Fatal("expected error for OP_SESSIONS in v1")
+	}
+	if ite, ok := err.(*InvalidTokenError); !ok || ite.Var != "OP_SESSIONS" {
+		t.Fatalf("expected InvalidTokenError{Var:OP_SESSIONS}, got %v", err)
 	}
 }
 

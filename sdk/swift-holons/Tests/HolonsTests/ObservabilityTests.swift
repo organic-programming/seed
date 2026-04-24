@@ -13,11 +13,14 @@ final class ObservabilityTests: XCTestCase {
         XCTAssertEqual(parseOpObs("logs,metrics"), [.logs, .metrics])
         XCTAssertEqual(parseOpObs("all"), [.logs, .metrics, .events, .prom])
         XCTAssertEqual(parseOpObs("all,otel"), [.logs, .metrics, .events, .prom])
+        XCTAssertEqual(parseOpObs("all,sessions"), [.logs, .metrics, .events, .prom])
         XCTAssertEqual(parseOpObs("unknown"), [])
     }
 
     func testCheckEnvRejectsOtelAndUnknown() {
         XCTAssertThrowsError(try checkEnv(["OP_OBS": "logs,otel"]))
+        XCTAssertThrowsError(try checkEnv(["OP_OBS": "logs,sessions"]))
+        XCTAssertThrowsError(try checkEnv(["OP_SESSIONS": "metrics"]))
         XCTAssertThrowsError(try checkEnv(["OP_OBS": "bogus"]))
         XCTAssertNoThrow(try checkEnv(["OP_OBS": "logs,metrics,events,prom,all"]))
     }

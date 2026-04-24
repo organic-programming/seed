@@ -62,17 +62,18 @@ typedef struct {
 
 /*
  * Parses OP_OBS (the second argument takes precedence over getenv).
- * Returns a bitmask of HOLON_FAMILY_*. The token "otel" is silently
- * dropped in v1; "all" expands to logs|metrics|events|prom. Unknown
- * tokens are dropped by this function; call holon_obs_check_env to
- * fail-fast on them.
+ * Returns a bitmask of HOLON_FAMILY_*. V2-only tokens such as "otel"
+ * and "sessions" are dropped in v1; "all" expands to
+ * logs|metrics|events|prom. Unknown tokens are dropped by this
+ * function; call holon_obs_check_env to fail-fast on them.
  */
 uint32_t holon_obs_parse_families(const char *raw);
 
 /*
  * Returns 0 on success, or a negative error code when OP_OBS contains
- * an otel (v2) or unknown token. The offending token is copied into
- * @out_token (caller provides, HOLON_OBS_TOKEN_MAX bytes).
+ * a v2-only or unknown token, or when OP_SESSIONS is set in v1. The
+ * offending token is copied into @out_token (caller provides,
+ * HOLON_OBS_TOKEN_MAX bytes).
  */
 #define HOLON_OBS_TOKEN_MAX 64
 int holon_obs_check_env(const char *env_or_null, char out_token[HOLON_OBS_TOKEN_MAX]);

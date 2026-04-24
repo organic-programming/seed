@@ -16,15 +16,22 @@ void main() {
       equals({obs.Family.logs, obs.Family.metrics, obs.Family.events, obs.Family.prom}),
     );
     expect(obs.parseOpObs('unknown'), isEmpty);
-    // otel silently dropped in v1:
     expect(
       obs.parseOpObs('all,otel'),
+      equals({obs.Family.logs, obs.Family.metrics, obs.Family.events, obs.Family.prom}),
+    );
+    expect(
+      obs.parseOpObs('all,sessions'),
       equals({obs.Family.logs, obs.Family.metrics, obs.Family.events, obs.Family.prom}),
     );
   });
 
   test('checkEnv rejects otel and unknown', () {
     expect(() => obs.checkEnv({'OP_OBS': 'logs,otel'}),
+        throwsA(isA<obs.InvalidTokenError>()));
+    expect(() => obs.checkEnv({'OP_OBS': 'logs,sessions'}),
+        throwsA(isA<obs.InvalidTokenError>()));
+    expect(() => obs.checkEnv({'OP_SESSIONS': 'metrics'}),
         throwsA(isA<obs.InvalidTokenError>()));
     expect(() => obs.checkEnv({'OP_OBS': 'bogus'}),
         throwsA(isA<obs.InvalidTokenError>()));

@@ -38,7 +38,7 @@ Set<Family> parseOpObs(String raw) {
   for (final part in raw.split(',')) {
     final tok = part.trim();
     if (tok.isEmpty) continue;
-    if (tok == 'otel') continue;
+    if (tok == 'otel' || tok == 'sessions') continue;
     if (!_v1Tokens.contains(tok)) continue;
     if (tok == 'all') {
       out.addAll({Family.logs, Family.metrics, Family.events, Family.prom});
@@ -51,6 +51,10 @@ Set<Family> parseOpObs(String raw) {
 
 void checkEnv([Map<String, String>? env]) {
   env ??= Platform.environment;
+  final sessions = (env['OP_SESSIONS'] ?? '').trim();
+  if (sessions.isNotEmpty) {
+    throw InvalidTokenError(sessions, 'sessions are reserved for v2; not implemented in v1');
+  }
   final raw = (env['OP_OBS'] ?? '').trim();
   if (raw.isEmpty) return;
   for (final part in raw.split(',')) {
@@ -58,6 +62,9 @@ void checkEnv([Map<String, String>? env]) {
     if (tok.isEmpty) continue;
     if (tok == 'otel') {
       throw InvalidTokenError(tok, 'otel export is reserved for v2; not implemented in v1');
+    }
+    if (tok == 'sessions') {
+      throw InvalidTokenError(tok, 'sessions are reserved for v2; not implemented in v1');
     }
     if (!_v1Tokens.contains(tok)) {
       throw InvalidTokenError(tok, 'unknown OP_OBS token');

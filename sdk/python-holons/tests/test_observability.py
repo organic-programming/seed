@@ -14,6 +14,7 @@ from holons import observability as obs
 def setup_function(_):
     obs.reset()
     os.environ.pop("OP_OBS", None)
+    os.environ.pop("OP_SESSIONS", None)
 
 
 def test_parse_op_obs_basic():
@@ -23,6 +24,7 @@ def test_parse_op_obs_basic():
         ("logs,metrics", {obs.Family.LOGS, obs.Family.METRICS}),
         ("all", {obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM}),
         ("all,otel", {obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM}),
+        ("all,sessions", {obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM}),
         ("unknown", set()),
     ]
     for raw, want in cases:
@@ -37,6 +39,18 @@ def test_check_env_otel_rejected():
 
 def test_check_env_unknown_rejected():
     os.environ["OP_OBS"] = "bogus"
+    with pytest.raises(obs.InvalidTokenError):
+        obs.check_env()
+
+
+def test_check_env_sessions_rejected():
+    os.environ["OP_OBS"] = "logs,sessions"
+    with pytest.raises(obs.InvalidTokenError):
+        obs.check_env()
+
+
+def test_check_env_op_sessions_rejected():
+    os.environ["OP_SESSIONS"] = "metrics"
     with pytest.raises(obs.InvalidTokenError):
         obs.check_env()
 

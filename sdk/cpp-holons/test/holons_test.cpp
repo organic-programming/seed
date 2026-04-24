@@ -2,6 +2,7 @@
 #include "../include/holons/describe.hpp"
 #include "../include/holons/holons.hpp"
 #include "../include/holons/identity.hpp"
+#include "../include/holons/observability.hpp"
 #include "../include/holons/serve.hpp"
 
 namespace {
@@ -1703,6 +1704,34 @@ int main() {
   int passed = 0;
   std::string bind_reason;
   bool bind_restricted = loopback_bind_restricted(bind_reason);
+
+  // --- observability env parsing ---
+  {
+    namespace obs = holons::observability;
+    std::uint32_t all = static_cast<std::uint32_t>(obs::Family::Logs) |
+                        static_cast<std::uint32_t>(obs::Family::Metrics) |
+                        static_cast<std::uint32_t>(obs::Family::Events) |
+                        static_cast<std::uint32_t>(obs::Family::Prom);
+    assert(obs::parse_op_obs("all,otel") == all);
+    ++passed;
+    assert(obs::parse_op_obs("all,sessions") == all);
+    ++passed;
+    assert(([] {
+      try { obs::check_env({{"OP_OBS", "logs,otel"}}); } catch (const obs::InvalidTokenError &) { return true; }
+      return false;
+    })());
+    ++passed;
+    assert(([] {
+      try { obs::check_env({{"OP_OBS", "logs,sessions"}}); } catch (const obs::InvalidTokenError &) { return true; }
+      return false;
+    })());
+    ++passed;
+    assert(([] {
+      try { obs::check_env({{"OP_SESSIONS", "metrics"}}); } catch (const obs::InvalidTokenError &) { return true; }
+      return false;
+    })());
+    ++passed;
+  }
 
   // --- echo wrapper scripts ---
   {

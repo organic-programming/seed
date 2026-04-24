@@ -51,8 +51,11 @@ public static class EventTypeExt
 public sealed class InvalidTokenException : Exception
 {
     public string Token { get; }
+    public string Variable { get; }
     public InvalidTokenException(string token, string reason)
-        : base($"OP_OBS: {reason}: {token}") { Token = token; }
+        : this("OP_OBS", token, reason) { }
+    public InvalidTokenException(string variable, string token, string reason)
+        : base($"{variable}: {reason}: {token}") { Variable = variable; Token = token; }
 }
 
 public static class Env
@@ -66,7 +69,7 @@ public static class Env
         if (string.IsNullOrWhiteSpace(raw)) return families;
         foreach (var p in raw.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
         {
-            if (p == "otel") continue;
+            if (p == "otel" || p == "sessions") continue;
             if (!V1Tokens.Contains(p)) continue;
             if (p == "all")
             {
@@ -83,6 +86,12 @@ public static class Env
 
     public static void CheckEnv(IDictionary<string, string>? env = null)
     {
+        var sessions = env != null
+            ? (env.TryGetValue("OP_SESSIONS", out var sv) ? sv : "")
+            : (Environment.GetEnvironmentVariable("OP_SESSIONS") ?? "");
+        if (!string.IsNullOrWhiteSpace(sessions))
+            throw new InvalidTokenException("OP_SESSIONS", sessions.Trim(), "sessions are reserved for v2; not implemented in v1");
+
         string raw;
         if (env != null)
         {
@@ -97,6 +106,8 @@ public static class Env
         {
             if (p == "otel")
                 throw new InvalidTokenException(p, "otel export is reserved for v2; not implemented in v1");
+            if (p == "sessions")
+                throw new InvalidTokenException(p, "sessions are reserved for v2; not implemented in v1");
             if (!V1Tokens.Contains(p))
                 throw new InvalidTokenException(p, "unknown OP_OBS token");
         }

@@ -8,6 +8,7 @@ const obs = require('../src/observability');
 test.beforeEach(() => {
   obs.reset();
   delete process.env.OP_OBS;
+  delete process.env.OP_SESSIONS;
 });
 
 test('parseOpObs basic', () => {
@@ -17,6 +18,7 @@ test('parseOpObs basic', () => {
     ['logs,metrics', new Set([obs.Family.LOGS, obs.Family.METRICS])],
     ['all', new Set([obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM])],
     ['all,otel', new Set([obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM])],
+    ['all,sessions', new Set([obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM])],
     ['unknown', new Set()],
   ];
   for (const [input, want] of cases) {
@@ -32,6 +34,14 @@ test('checkEnv rejects otel and unknown', () => {
 
   process.env.OP_OBS = 'bogus';
   assert.throws(() => obs.checkEnv(), obs.InvalidTokenError);
+
+  process.env.OP_OBS = 'logs,sessions';
+  assert.throws(() => obs.checkEnv(), obs.InvalidTokenError);
+
+  process.env.OP_OBS = '';
+  process.env.OP_SESSIONS = 'metrics';
+  assert.throws(() => obs.checkEnv(), obs.InvalidTokenError);
+  delete process.env.OP_SESSIONS;
 
   process.env.OP_OBS = 'logs,metrics,events,prom,all';
   obs.checkEnv();

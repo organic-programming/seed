@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "holons/holons.h"
+#include "holons/observability.h"
 
 #include <assert.h>
 #include <arpa/inet.h>
@@ -2768,7 +2769,21 @@ static void test_serve_stdio(void) {
   check_int(handler_calls == 1, "serve handler call count");
 }
 
+static void test_observability_env(void) {
+  char token[HOLON_OBS_TOKEN_MAX];
+  uint32_t all = HOLON_FAMILY_LOGS | HOLON_FAMILY_METRICS | HOLON_FAMILY_EVENTS | HOLON_FAMILY_PROM;
+
+  check_int(holon_obs_parse_families("all,otel") == all, "observability parse drops otel");
+  check_int(holon_obs_parse_families("all,sessions") == all, "observability parse drops sessions");
+  check_int(holon_obs_check_env("logs,otel", token) != 0, "observability rejects otel");
+  check_int(holon_obs_check_env("logs,sessions", token) != 0, "observability rejects sessions token");
+  setenv("OP_SESSIONS", "metrics", 1);
+  check_int(holon_obs_check_env(NULL, token) != 0, "observability rejects OP_SESSIONS");
+  unsetenv("OP_SESSIONS");
+}
+
 int main(void) {
+  test_observability_env();
   test_discover();
   test_connect_direct_dial();
   test_connect_starts_slug_ephemerally();

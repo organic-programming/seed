@@ -39,13 +39,14 @@ impl Family {
 
 #[derive(Debug)]
 pub struct InvalidTokenError {
+    pub variable: &'static str,
     pub token: String,
     pub reason: &'static str,
 }
 
 impl std::fmt::Display for InvalidTokenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "OP_OBS: {}: {}", self.reason, self.token)
+        write!(f, "{}: {}: {}", self.variable, self.reason, self.token)
     }
 }
 
@@ -64,7 +65,7 @@ pub fn parse_op_obs(raw: &str) -> HashSet<Family> {
         if tok.is_empty() {
             continue;
         }
-        if tok == "otel" {
+        if tok == "otel" || tok == "sessions" {
             continue;
         }
         if !V1_TOKENS.contains(&tok) {
@@ -95,6 +96,14 @@ fn family_from_str(s: &str) -> Option<Family> {
 
 pub fn check_env_from(env: &HashMap<String, String>) -> Result<(), InvalidTokenError> {
     let default = String::new();
+    let sessions = env.get("OP_SESSIONS").unwrap_or(&default).trim();
+    if !sessions.is_empty() {
+        return Err(InvalidTokenError {
+            variable: "OP_SESSIONS",
+            token: sessions.to_string(),
+            reason: "sessions are reserved for v2; not implemented in v1",
+        });
+    }
     let raw = env.get("OP_OBS").unwrap_or(&default).trim();
     if raw.is_empty() {
         return Ok(());
@@ -106,12 +115,21 @@ pub fn check_env_from(env: &HashMap<String, String>) -> Result<(), InvalidTokenE
         }
         if tok == "otel" {
             return Err(InvalidTokenError {
+                variable: "OP_OBS",
                 token: tok.to_string(),
                 reason: "otel export is reserved for v2; not implemented in v1",
             });
         }
+        if tok == "sessions" {
+            return Err(InvalidTokenError {
+                variable: "OP_OBS",
+                token: tok.to_string(),
+                reason: "sessions are reserved for v2; not implemented in v1",
+            });
+        }
         if !V1_TOKENS.contains(&tok) {
             return Err(InvalidTokenError {
+                variable: "OP_OBS",
                 token: tok.to_string(),
                 reason: "unknown OP_OBS token",
             });
@@ -1195,7 +1213,8 @@ mod tests {
             .into_iter()
             .collect();
         assert_eq!(parse_op_obs("all"), all);
-        assert_eq!(parse_op_obs("all,otel"), all); // otel dropped
+        assert_eq!(parse_op_obs("all,otel"), all);
+        assert_eq!(parse_op_obs("all,sessions"), all);
         assert_eq!(parse_op_obs("unknown").len(), 0);
     }
 
@@ -1204,6 +1223,12 @@ mod tests {
         let mut env = HashMap::new();
         env.insert("OP_OBS".to_string(), "logs,otel".to_string());
         assert!(check_env_from(&env).is_err());
+        env.insert("OP_OBS".to_string(), "logs,sessions".to_string());
+        assert!(check_env_from(&env).is_err());
+        env.insert("OP_OBS".to_string(), "".to_string());
+        env.insert("OP_SESSIONS".to_string(), "metrics".to_string());
+        assert!(check_env_from(&env).is_err());
+        env.remove("OP_SESSIONS");
         env.insert("OP_OBS".to_string(), "bogus".to_string());
         assert!(check_env_from(&env).is_err());
         env.insert(

@@ -31,7 +31,7 @@ export function parseOpObs(raw) {
   for (const p of raw.split(',')) {
     const tok = p.trim();
     if (!tok) continue;
-    if (tok === 'otel') continue;
+    if (tok === 'otel' || tok === 'sessions') continue;
     if (!V1_TOKENS.has(tok)) continue;
     if (tok === 'all') {
       out.add(Family.LOGS); out.add(Family.METRICS);
@@ -44,12 +44,16 @@ export function parseOpObs(raw) {
 }
 
 export function checkEnv(env = {}) {
+  if ((env.OP_SESSIONS || '').trim()) {
+    throw new InvalidTokenError(env.OP_SESSIONS.trim(), 'sessions are reserved for v2; not implemented in v1');
+  }
   const raw = (env.OP_OBS || '').trim();
   if (!raw) return;
   for (const p of raw.split(',')) {
     const tok = p.trim();
     if (!tok) continue;
     if (tok === 'otel') throw new InvalidTokenError(tok, 'otel export is reserved for v2; not implemented in v1');
+    if (tok === 'sessions') throw new InvalidTokenError(tok, 'sessions are reserved for v2; not implemented in v1');
     if (!V1_TOKENS.has(tok)) throw new InvalidTokenError(tok, 'unknown OP_OBS token');
   }
 }

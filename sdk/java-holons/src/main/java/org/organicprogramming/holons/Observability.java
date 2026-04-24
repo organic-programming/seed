@@ -27,8 +27,13 @@ public final class Observability {
 
     public static final class InvalidTokenException extends RuntimeException {
         public final String token;
+        public final String variable;
         public InvalidTokenException(String token, String reason) {
-            super("OP_OBS: " + reason + ": " + token);
+            this("OP_OBS", token, reason);
+        }
+        public InvalidTokenException(String variable, String token, String reason) {
+            super(variable + ": " + reason + ": " + token);
+            this.variable = variable;
             this.token = token;
         }
     }
@@ -41,7 +46,7 @@ public final class Observability {
         for (String part : t.split(",")) {
             String tok = part.trim();
             if (tok.isEmpty()) continue;
-            if (tok.equals("otel")) continue;
+            if (tok.equals("otel") || tok.equals("sessions")) continue;
             if (!V1_TOKENS.contains(tok)) continue;
             if (tok.equals("all")) {
                 out.add(Family.LOGS); out.add(Family.METRICS);
@@ -54,6 +59,11 @@ public final class Observability {
     }
 
     public static void checkEnv(Map<String, String> env) {
+        String sessions = (env != null ? env.getOrDefault("OP_SESSIONS", "") :
+                System.getenv().getOrDefault("OP_SESSIONS", "")).trim();
+        if (!sessions.isEmpty()) {
+            throw new InvalidTokenException("OP_SESSIONS", sessions, "sessions are reserved for v2; not implemented in v1");
+        }
         String raw = (env != null ? env.getOrDefault("OP_OBS", "") :
                 System.getenv().getOrDefault("OP_OBS", "")).trim();
         if (raw.isEmpty()) return;
@@ -62,6 +72,9 @@ public final class Observability {
             if (tok.isEmpty()) continue;
             if (tok.equals("otel")) {
                 throw new InvalidTokenException(tok, "otel export is reserved for v2; not implemented in v1");
+            }
+            if (tok.equals("sessions")) {
+                throw new InvalidTokenException(tok, "sessions are reserved for v2; not implemented in v1");
             }
             if (!V1_TOKENS.contains(tok)) {
                 throw new InvalidTokenException(tok, "unknown OP_OBS token");

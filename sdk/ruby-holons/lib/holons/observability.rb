@@ -50,7 +50,7 @@ module Holons
       raw.split(',').each do |p|
         tok = p.strip
         next if tok.empty?
-        next if tok == 'otel'
+        next if tok == 'otel' || tok == 'sessions'
         next unless V1_TOKENS.include?(tok)
         if tok == 'all'
           out.merge(%i[logs metrics events prom])
@@ -62,12 +62,15 @@ module Holons
     end
 
     def self.check_env(env = ENV)
+      sessions = (env['OP_SESSIONS'] || '').strip
+      raise InvalidTokenError.new(sessions, 'sessions are reserved for v2; not implemented in v1') unless sessions.empty?
       raw = (env['OP_OBS'] || '').strip
       return if raw.empty?
       raw.split(',').each do |p|
         tok = p.strip
         next if tok.empty?
         raise InvalidTokenError.new(tok, 'otel export is reserved for v2; not implemented in v1') if tok == 'otel'
+        raise InvalidTokenError.new(tok, 'sessions are reserved for v2; not implemented in v1') if tok == 'sessions'
         raise InvalidTokenError.new(tok, 'unknown OP_OBS token') unless V1_TOKENS.include?(tok)
       end
     end
