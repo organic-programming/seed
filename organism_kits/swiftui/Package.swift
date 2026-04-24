@@ -33,7 +33,18 @@ let package = Package(
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "SwiftProtobuf", package: "swift-protobuf"),
             ],
-            path: "Sources/HolonsApp"
+            path: "Sources/HolonsApp",
+            exclude: [
+                "Views/CoaxControlsView.README.md",
+                "Views/CoaxSettingsView.README.md",
+                "Views/EventsView.README.md",
+                "Views/HistogramChart.README.md",
+                "Views/LogConsoleView.README.md",
+                "Views/MetricsView.README.md",
+                "Views/ObservabilityPanel.README.md",
+                "Views/RelaySettingsView.README.md",
+                "Views/SparklineView.README.md",
+            ]
         ),
         .testTarget(
             name: "HolonsAppTests",

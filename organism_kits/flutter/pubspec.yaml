@@ -15,7 +15,6 @@ dependencies:
     path: ../../sdk/dart-holons
   path: ^1.9.1
   protobuf: ^6.0.0
-  shadcn_flutter: ^0.0.52
 
 dev_dependencies:
   flutter_test:
