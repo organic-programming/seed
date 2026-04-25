@@ -362,6 +362,70 @@ pub fn build(b: *std.Build) void {
     );
     test_step.dependOn(&run_serve_stdio_tests.step);
 
+    const transport_ws_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/transport_ws_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    transport_ws_tests.step.dependOn(vendor_step);
+    const run_transport_ws_tests = b.addRunArtifact(transport_ws_tests);
+    const test_ws_step = b.step("test-ws", "Run ws:// Holon-RPC dial tests");
+    test_ws_step.dependOn(&run_transport_ws_tests.step);
+    test_step.dependOn(&run_transport_ws_tests.step);
+
+    const transport_wss_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/transport_wss_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    transport_wss_tests.step.dependOn(vendor_step);
+    const run_transport_wss_tests = b.addRunArtifact(transport_wss_tests);
+    const test_wss_step = b.step("test-wss", "Run wss:// Holon-RPC dial tests");
+    test_wss_step.dependOn(&run_transport_wss_tests.step);
+    test_step.dependOn(&run_transport_wss_tests.step);
+
+    const transport_rest_sse_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/transport_rest_sse_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    transport_rest_sse_tests.step.dependOn(vendor_step);
+    const run_transport_rest_sse_tests = b.addRunArtifact(transport_rest_sse_tests);
+    const test_rest_sse_step = b.step("test-rest-sse", "Run rest+sse:// Holon-RPC dial tests");
+    test_rest_sse_step.dependOn(&run_transport_rest_sse_tests.step);
+    test_step.dependOn(&run_transport_rest_sse_tests.step);
+
+    const hub_client_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/hub_client_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    hub_client_tests.step.dependOn(vendor_step);
+    const run_hub_client_tests = b.addRunArtifact(hub_client_tests);
+    const test_hub_client_step = b.step("test-hub-client", "Run hub-api client tests");
+    test_hub_client_step.dependOn(&run_hub_client_tests.step);
+    test_step.dependOn(&run_hub_client_tests.step);
+
     const clean_vendor = sh(b,
         \\set -euo pipefail
         \\rm -rf .zig-vendor .zig-cache/cmake zig-out
