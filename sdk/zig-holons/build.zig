@@ -3,6 +3,109 @@ const std = @import("std");
 const vendor_root = ".zig-vendor/native";
 const grpc_build_dir = ".zig-cache/cmake/grpc-native";
 const protobuf_c_build_dir = ".zig-cache/cmake/protobuf-c-native";
+const gen_root = "gen/c";
+
+const generated_c_sources = [_][]const u8{
+    "google/protobuf/descriptor.pb-c.c",
+    "holons/v1/manifest.pb-c.c",
+    "holons/v1/describe.pb-c.c",
+    "v1/greeting.pb-c.c",
+};
+
+const grpc_unsecure_static_libs = [_][]const u8{
+    "grpc_unsecure",
+    "address_sorting",
+    "upb_textformat_lib",
+    "upb_reflection_lib",
+    "upb_wire_lib",
+    "upb_message_lib",
+    "utf8_range_lib",
+    "upb_mini_descriptor_lib",
+    "upb_mini_table_lib",
+    "upb_hash_lib",
+    "upb_mem_lib",
+    "upb_base_lib",
+    "upb_lex_lib",
+    "absl_statusor",
+    "gpr",
+    "absl_log_internal_check_op",
+    "absl_flags_internal",
+    "absl_flags_reflection",
+    "absl_flags_private_handle_accessor",
+    "absl_flags_commandlineflag",
+    "absl_flags_commandlineflag_internal",
+    "absl_flags_config",
+    "absl_flags_program_name",
+    "absl_raw_hash_set",
+    "absl_hashtablez_sampler",
+    "absl_flags_marshalling",
+    "absl_log_internal_conditions",
+    "absl_log_internal_message",
+    "absl_examine_stack",
+    "absl_log_internal_format",
+    "absl_log_internal_nullguard",
+    "absl_log_internal_structured_proto",
+    "absl_log_internal_proto",
+    "absl_log_internal_log_sink_set",
+    "absl_log_internal_globals",
+    "absl_log_sink",
+    "absl_log_globals",
+    "absl_hash",
+    "absl_city",
+    "absl_low_level_hash",
+    "absl_vlog_config_internal",
+    "absl_log_internal_fnmatch",
+    "absl_random_distributions",
+    "absl_random_seed_sequences",
+    "absl_random_internal_entropy_pool",
+    "absl_random_internal_randen",
+    "absl_random_internal_randen_hwaes",
+    "absl_random_internal_randen_hwaes_impl",
+    "absl_random_internal_randen_slow",
+    "absl_random_internal_platform",
+    "absl_random_internal_seed_material",
+    "absl_random_seed_gen_exception",
+    "absl_status",
+    "absl_cord",
+    "absl_cordz_info",
+    "absl_cord_internal",
+    "absl_cordz_functions",
+    "absl_exponential_biased",
+    "absl_cordz_handle",
+    "absl_crc_cord_state",
+    "absl_crc32c",
+    "absl_crc_internal",
+    "absl_crc_cpu_detect",
+    "absl_leak_check",
+    "absl_strerror",
+    "absl_str_format_internal",
+    "absl_synchronization",
+    "absl_graphcycles_internal",
+    "absl_kernel_timeout_internal",
+    "absl_stacktrace",
+    "absl_symbolize",
+    "absl_debugging_internal",
+    "absl_demangle_internal",
+    "absl_demangle_rust",
+    "absl_decode_rust_punycode",
+    "absl_utf8_for_code_point",
+    "absl_malloc_internal",
+    "absl_tracing_internal",
+    "absl_time",
+    "absl_civil_time",
+    "absl_strings",
+    "absl_strings_internal",
+    "absl_string_view",
+    "absl_int128",
+    "absl_base",
+    "absl_spinlock_wait",
+    "absl_throw_delegate",
+    "absl_raw_logging_internal",
+    "absl_log_severity",
+    "absl_time_zone",
+    "cares",
+    "z",
+};
 
 fn sh(b: *std.Build, script: []const u8) *std.Build.Step.Run {
     return b.addSystemCommand(&.{ "bash", "-lc", script });
@@ -59,6 +162,23 @@ fn configureModule(b: *std.Build, target: std.Build.ResolvedTarget, optimize: st
         .optimize = optimize,
     });
     mod.addIncludePath(b.path(vendor_root ++ "/include"));
+    mod.addIncludePath(b.path(gen_root));
+    mod.addCSourceFiles(.{
+        .root = b.path(gen_root),
+        .files = &generated_c_sources,
+        .flags = &.{ "-std=c99", "-Wno-unused-parameter" },
+    });
+    mod.addLibraryPath(b.path(vendor_root ++ "/lib"));
+    mod.link_libc = true;
+    mod.linkSystemLibrary("protobuf-c", .{ .use_pkg_config = .no, .preferred_link_mode = .static });
+    for (grpc_unsecure_static_libs) |name| {
+        mod.linkSystemLibrary(name, .{ .use_pkg_config = .no, .preferred_link_mode = .static });
+    }
+    mod.linkSystemLibrary("resolv", .{ .use_pkg_config = .no });
+    mod.linkSystemLibrary("c++", .{ .use_pkg_config = .no });
+    if (target.result.os.tag == .macos) {
+        mod.linkFramework("CoreFoundation", .{});
+    }
     return mod;
 }
 
@@ -71,6 +191,26 @@ pub fn build(b: *std.Build) void {
 
     const vendor_step = b.step("vendor", "Build vendored gRPC Core and protobuf-c for the host target");
     vendor_step.dependOn(&protobuf_c_step.step);
+
+    const generate_protos = sh(b,
+        \\set -euo pipefail
+        \\rm -rf gen/c
+        \\mkdir -p gen/c
+        \\"$PWD/.zig-vendor/native/bin/protoc-31.1.0" \
+        \\  --plugin=protoc-gen-c="$PWD/.zig-vendor/native/bin/protoc-gen-c" \
+        \\  -I ../../holons/grace-op/_protos \
+        \\  -I ../../examples/_protos \
+        \\  -I third_party/grpc/third_party/protobuf/src \
+        \\  third_party/grpc/third_party/protobuf/src/google/protobuf/descriptor.proto \
+        \\  ../../holons/grace-op/_protos/holons/v1/manifest.proto \
+        \\  ../../holons/grace-op/_protos/holons/v1/describe.proto \
+        \\  ../../examples/_protos/v1/greeting.proto \
+        \\  --c_out=gen/c
+    );
+    generate_protos.step.dependOn(vendor_step);
+
+    const proto_step = b.step("generate-protos", "Regenerate committed protobuf-c output");
+    proto_step.dependOn(&generate_protos.step);
 
     const mod = configureModule(b, target, optimize);
 
@@ -104,6 +244,34 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run Zig SDK tests");
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_integration_tests.step);
+
+    const dial_tcp_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/dial_tcp_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    dial_tcp_tests.step.dependOn(vendor_step);
+    const run_dial_tcp_tests = b.addRunArtifact(dial_tcp_tests);
+    test_step.dependOn(&run_dial_tcp_tests.step);
+
+    const dial_stdio_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/dial_stdio_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    dial_stdio_tests.step.dependOn(vendor_step);
+    const run_dial_stdio_tests = b.addRunArtifact(dial_stdio_tests);
+    test_step.dependOn(&run_dial_stdio_tests.step);
 
     const clean_vendor = sh(b,
         \\set -euo pipefail
