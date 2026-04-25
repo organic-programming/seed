@@ -1374,8 +1374,26 @@ func shouldSkipWorkspacePath(rel string, entry fs.DirEntry, configRelDir string)
 	}
 	base := entry.Name()
 	switch base {
-	case ".git", ".gradle", ".kotlin", ".build", "target", "obj", "__pycache__", "node_modules":
+	case ".git", ".gradle", ".kotlin", ".build", "target", "__pycache__", "node_modules":
 		return true
+	case "obj":
+		return isLikelyBuildObjDir(normalized)
+	}
+	return false
+}
+
+func isLikelyBuildObjDir(normalized string) bool {
+	parts := strings.Split(normalized, "/")
+	for i, part := range parts {
+		if part != "obj" {
+			continue
+		}
+		if i == 0 {
+			return true
+		}
+		if i <= 3 && (parts[0] == "examples" || parts[0] == "sdk" || parts[0] == "holons") {
+			return true
+		}
 	}
 	return false
 }

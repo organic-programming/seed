@@ -17,6 +17,7 @@ func Create(t testing.TB) string {
 	writeFile(t, filepath.Join(root, "ader", ".gitignore"), ".artifacts/\n.t\nreports/\narchives/\n")
 
 	writeFile(t, filepath.Join(root, "ader", "bouquets", "local-dev.yaml"), `description: local dev bouquet
+max_parallel: 1
 defaults:
   source: workspace
   lane: progression

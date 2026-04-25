@@ -84,7 +84,7 @@ pub fn connect(allocator: std.mem.Allocator, raw_uri: []const u8) !Channel {
     return switch (endpoint.scheme) {
         .tcp => connectTcpEndpoint(allocator, endpoint),
         .stdio => error.StdioCommandRequired,
-        .unix => error.UnimplementedUnixDial,
+        .unix => connectUnixEndpoint(allocator, endpoint),
         .ws, .wss, .rest_sse => error.UnsupportedScheme,
     };
 }
@@ -127,6 +127,27 @@ fn connectTcpEndpoint(allocator: std.mem.Allocator, endpoint: transport.Endpoint
     defer allocator.free(target);
     const raw = core.c.grpc_channel_create(target.ptr, creds, null) orelse return error.ChannelCreateFailed;
     return .{ .allocator = allocator, .endpoint = endpoint, .raw = raw };
+}
+
+fn connectUnixEndpoint(allocator: std.mem.Allocator, endpoint: transport.Endpoint) !Channel {
+    core.init();
+    errdefer core.shutdown();
+
+    const creds = core.c.grpc_insecure_credentials_create() orelse return error.CredentialsCreateFailed;
+    defer core.c.grpc_channel_credentials_release(creds);
+
+    const target = try unixTarget(allocator, endpoint.address);
+    defer allocator.free(target);
+    const raw = core.c.grpc_channel_create(target.ptr, creds, null) orelse return error.ChannelCreateFailed;
+    return .{ .allocator = allocator, .endpoint = endpoint, .raw = raw };
+}
+
+fn unixTarget(allocator: std.mem.Allocator, path: []const u8) ![:0]u8 {
+    const prefix = "unix:";
+    const target = try allocator.allocSentinel(u8, prefix.len + path.len, 0);
+    @memcpy(target[0..prefix.len], prefix);
+    @memcpy(target[prefix.len..], path);
+    return target;
 }
 
 fn unaryAllocRaw(

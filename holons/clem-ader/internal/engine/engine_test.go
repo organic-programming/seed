@@ -107,6 +107,8 @@ func TestCopyWorkspaceTreeSkipsSiblingCatalogueRuntimeState(t *testing.T) {
 
 	keepPath := filepath.Join(srcRoot, "ader", "catalogues", "grace-op", "integration", "discover_test.go")
 	keepBuildPath := filepath.Join(srcRoot, "ader", "catalogues", "grace-op", "integration", "build", "build_cli_test.go")
+	keepThirdPartyObjPath := filepath.Join(srcRoot, "sdk", "zig-holons", "third_party", "grpc", "third_party", "boringssl-with-bazel", "src", "crypto", "obj", "obj.cc")
+	skipObjPath := filepath.Join(srcRoot, "examples", "hello-world", "gabriel-greeting-csharp", "obj", "cache.txt")
 	skipPath := filepath.Join(srcRoot, "ader", "catalogues", "clem-ader", ".artifacts", "tool-cache", "go-mod", "cache.txt")
 	skipAliasPath := filepath.Join(srcRoot, "ader", "catalogues", "grace-op", ".snapshot_alias", "tmp.txt")
 
@@ -115,6 +117,12 @@ func TestCopyWorkspaceTreeSkipsSiblingCatalogueRuntimeState(t *testing.T) {
 	}
 	if err := os.MkdirAll(filepath.Dir(keepBuildPath), 0o755); err != nil {
 		t.Fatalf("mkdir keep build path: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(keepThirdPartyObjPath), 0o755); err != nil {
+		t.Fatalf("mkdir third-party obj path: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(skipObjPath), 0o755); err != nil {
+		t.Fatalf("mkdir build obj path: %v", err)
 	}
 	if err := os.MkdirAll(filepath.Dir(skipPath), 0o755); err != nil {
 		t.Fatalf("mkdir skip path: %v", err)
@@ -127,6 +135,12 @@ func TestCopyWorkspaceTreeSkipsSiblingCatalogueRuntimeState(t *testing.T) {
 	}
 	if err := os.WriteFile(keepBuildPath, []byte("package build_test\n"), 0o644); err != nil {
 		t.Fatalf("write keep build path: %v", err)
+	}
+	if err := os.WriteFile(keepThirdPartyObjPath, []byte("source\n"), 0o644); err != nil {
+		t.Fatalf("write third-party obj path: %v", err)
+	}
+	if err := os.WriteFile(skipObjPath, []byte("build cache\n"), 0o644); err != nil {
+		t.Fatalf("write build obj path: %v", err)
 	}
 	if err := os.WriteFile(skipPath, []byte("cache\n"), 0o644); err != nil {
 		t.Fatalf("write skip path: %v", err)
@@ -144,6 +158,12 @@ func TestCopyWorkspaceTreeSkipsSiblingCatalogueRuntimeState(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dstRoot, "ader", "catalogues", "grace-op", "integration", "build", "build_cli_test.go")); err != nil {
 		t.Fatalf("expected copied integration build file: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dstRoot, "sdk", "zig-holons", "third_party", "grpc", "third_party", "boringssl-with-bazel", "src", "crypto", "obj", "obj.cc")); err != nil {
+		t.Fatalf("expected third-party obj source to be copied: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dstRoot, "examples", "hello-world", "gabriel-greeting-csharp", "obj", "cache.txt")); !os.IsNotExist(err) {
+		t.Fatalf("expected example build obj cache to be skipped, stat err = %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dstRoot, "ader", "catalogues", "clem-ader", ".artifacts", "tool-cache", "go-mod", "cache.txt")); !os.IsNotExist(err) {
 		t.Fatalf("expected sibling catalogue artifact cache to be skipped, stat err = %v", err)
@@ -672,6 +692,14 @@ func TestRunBouquetHistoryShowAndArchive(t *testing.T) {
 	aderRoot := filepath.Join(root, "ader")
 
 	withWorkingDir(t, root, func() {
+		cfg, err := readBouquetConfig(aderRoot, "local-dev")
+		if err != nil {
+			t.Fatalf("readBouquetConfig() error = %v", err)
+		}
+		if cfg.MaxParallel != 1 {
+			t.Fatalf("max_parallel = %d, want 1", cfg.MaxParallel)
+		}
+
 		result, err := RunBouquet(context.Background(), BouquetOptions{
 			AderRoot: aderRoot,
 			Name:     "local-dev",

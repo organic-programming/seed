@@ -111,9 +111,31 @@ fn sh(b: *std.Build, script: []const u8) *std.Build.Step.Run {
     return b.addSystemCommand(&.{ "bash", "-lc", script });
 }
 
-fn vendorGrpc(b: *std.Build) *std.Build.Step.Run {
-    return sh(b,
+fn lockedVendorSh(b: *std.Build, comptime script: []const u8) *std.Build.Step.Run {
+    const prefix =
         \\set -euo pipefail
+        \\mkdir -p .zig-cache
+        \\lock_dir=".zig-cache/vendor.lock"
+        \\while ! mkdir "$lock_dir" 2>/dev/null; do
+        \\  sleep 1
+        \\done
+        \\cleanup_lock() {
+        \\  rmdir "$lock_dir" 2>/dev/null || true
+        \\}
+        \\trap cleanup_lock EXIT
+    ;
+    return sh(b, prefix ++ "\n" ++ script);
+}
+
+fn vendorGrpc(b: *std.Build) *std.Build.Step.Run {
+    return lockedVendorSh(b,
+        \\set -euo pipefail
+        \\if [ -f .zig-cache/cmake/grpc-native/CMakeCache.txt ]; then
+        \\  cache_home="$(grep '^CMAKE_HOME_DIRECTORY:INTERNAL=' .zig-cache/cmake/grpc-native/CMakeCache.txt | cut -d= -f2- || true)"
+        \\  if [ "$cache_home" != "$PWD/third_party/grpc" ]; then
+        \\    rm -rf .zig-cache/cmake/grpc-native
+        \\  fi
+        \\fi
         \\cmake -S third_party/grpc -B .zig-cache/cmake/grpc-native -G Ninja \
         \\  -DCMAKE_BUILD_TYPE=Release \
         \\  -DCMAKE_INSTALL_PREFIX="$PWD/.zig-vendor/native" \
@@ -139,8 +161,14 @@ fn vendorGrpc(b: *std.Build) *std.Build.Step.Run {
 }
 
 fn vendorProtobufC(b: *std.Build, grpc_step: *std.Build.Step.Run) *std.Build.Step.Run {
-    const step = sh(b,
+    const step = lockedVendorSh(b,
         \\set -euo pipefail
+        \\if [ -f .zig-cache/cmake/protobuf-c-native/CMakeCache.txt ]; then
+        \\  cache_home="$(grep '^CMAKE_HOME_DIRECTORY:INTERNAL=' .zig-cache/cmake/protobuf-c-native/CMakeCache.txt | cut -d= -f2- || true)"
+        \\  if [ "$cache_home" != "$PWD/third_party/protobuf-c/build-cmake" ]; then
+        \\    rm -rf .zig-cache/cmake/protobuf-c-native
+        \\  fi
+        \\fi
         \\cmake -S third_party/protobuf-c/build-cmake -B .zig-cache/cmake/protobuf-c-native -G Ninja \
         \\  -DCMAKE_BUILD_TYPE=Release \
         \\  -DCMAKE_INSTALL_PREFIX="$PWD/.zig-vendor/native" \
@@ -272,6 +300,67 @@ pub fn build(b: *std.Build) void {
     dial_stdio_tests.step.dependOn(vendor_step);
     const run_dial_stdio_tests = b.addRunArtifact(dial_stdio_tests);
     test_step.dependOn(&run_dial_stdio_tests.step);
+
+    const serve_tcp_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/serve_tcp_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    serve_tcp_tests.step.dependOn(vendor_step);
+    const run_serve_tcp_tests = b.addRunArtifact(serve_tcp_tests);
+    test_step.dependOn(&run_serve_tcp_tests.step);
+
+    const serve_unix_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/serve_unix_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    serve_unix_tests.step.dependOn(vendor_step);
+    const run_serve_unix_tests = b.addRunArtifact(serve_unix_tests);
+    test_step.dependOn(&run_serve_unix_tests.step);
+
+    const serve_fixture = b.addExecutable(.{
+        .name = "zig-holons-serve-fixture",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/support/serve_fixture_main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    serve_fixture.step.dependOn(vendor_step);
+    const install_serve_fixture = b.addInstallArtifact(serve_fixture, .{});
+
+    const serve_stdio_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/serve_stdio_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    serve_stdio_tests.step.dependOn(vendor_step);
+    const run_serve_stdio_tests = b.addRunArtifact(serve_stdio_tests);
+    run_serve_stdio_tests.step.dependOn(&install_serve_fixture.step);
+    run_serve_stdio_tests.setEnvironmentVariable(
+        "ZIG_HOLONS_SERVE_FIXTURE",
+        b.pathJoin(&.{ b.install_path, "bin", serve_fixture.out_filename }),
+    );
+    test_step.dependOn(&run_serve_stdio_tests.step);
 
     const clean_vendor = sh(b,
         \\set -euo pipefail

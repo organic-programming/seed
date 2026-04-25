@@ -5,7 +5,8 @@ pub const Error = error{
 };
 
 pub const StaticDescribe = struct {
-    json: []const u8,
+    json: []const u8 = "",
+    proto_builder: ?*const fn (std.mem.Allocator) anyerror![]u8 = null,
 };
 
 var registered: ?StaticDescribe = null;
@@ -24,6 +25,12 @@ pub fn current() Error!StaticDescribe {
 
 pub fn currentJson() Error![]const u8 {
     return (try current()).json;
+}
+
+pub fn currentProtoAlloc(allocator: std.mem.Allocator) ![]u8 {
+    const response = try current();
+    const builder = response.proto_builder orelse return error.NoDescriptionRegistered;
+    return builder(allocator);
 }
 
 test "register static describe response" {

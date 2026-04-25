@@ -21,6 +21,10 @@ build/
 target/
 Cargo.lock
 
+# Zig
+.zig-cache/
+zig-out/
+
 # Node.js
 node_modules/
 package-lock.json

@@ -23,6 +23,7 @@ const (
 
 type bouquetConfig struct {
 	Description string               `yaml:"description"`
+	MaxParallel int                  `yaml:"max_parallel"`
 	Defaults    bouquetDefaults      `yaml:"defaults"`
 	Entries     []bouquetEntryConfig `yaml:"entries"`
 }
@@ -218,12 +219,22 @@ func runBouquet(ctx context.Context, opts BouquetOptions, progress io.Writer) (*
 
 	results := make([]BouquetEntryResult, len(cfg.Entries))
 	var wg sync.WaitGroup
+	var sem chan struct{}
+	if cfg.MaxParallel > 0 && cfg.MaxParallel < len(groupOrder) {
+		sem = make(chan struct{}, cfg.MaxParallel)
+	}
 
 	for _, catalogue := range groupOrder {
 		items := grouped[catalogue]
+		if sem != nil {
+			sem <- struct{}{}
+		}
 		wg.Add(1)
 		go func(catalogue string, items []indexedEntry) {
 			defer wg.Done()
+			if sem != nil {
+				defer func() { <-sem }()
+			}
 			blocked := false
 			for _, indexed := range items {
 				entry := indexed.entry

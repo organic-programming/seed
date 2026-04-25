@@ -4,6 +4,7 @@ pub const c = @cImport({
     @cInclude("grpc/byte_buffer_reader.h");
     @cInclude("grpc/credentials.h");
     @cInclude("grpc/grpc_posix.h");
+    @cInclude("grpc/slice.h");
 });
 
 pub fn init() void {
