@@ -116,6 +116,12 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().Bool("no-build", false, "fail if the artifact is missing instead of building")
 	cmd.Flags().String("target", "", "pass the build target through if a build is needed")
 	cmd.Flags().String("mode", "", "pass the build mode through if a build is needed")
+	cmd.Flags().String("observe", "", "enable observability and tail logs/events (default: logs,metrics,events)")
+	cmd.Flags().Lookup("observe").NoOptDefVal = "logs,metrics,events"
+	cmd.Flags().String("prom", "", "enable metrics,prom and optionally set the Prometheus bind address")
+	cmd.Flags().Lookup("prom").NoOptDefVal = ":0"
+	cmd.Flags().String("otel", "", "reserved for observability v2")
+	cmd.Flags().Bool("json", false, "emit JSON UID and observability stream output")
 	return cmd
 }
 
@@ -219,6 +225,20 @@ func runArgsFromCommand(cmd *cobra.Command, holon string) []string {
 	}
 	if mode, _ := cmd.Flags().GetString("mode"); mode != "" {
 		args = append(args, "--mode", mode)
+	}
+	if cmd.Flags().Changed("observe") {
+		observe, _ := cmd.Flags().GetString("observe")
+		args = append(args, "--observe="+observe)
+	}
+	if cmd.Flags().Changed("prom") {
+		prom, _ := cmd.Flags().GetString("prom")
+		args = append(args, "--prom="+prom)
+	}
+	if otel, _ := cmd.Flags().GetString("otel"); otel != "" {
+		args = append(args, "--otel="+otel)
+	}
+	if jsonOut, _ := cmd.Flags().GetBool("json"); jsonOut {
+		args = append(args, "--json")
 	}
 	args = append(args, holon)
 	return args

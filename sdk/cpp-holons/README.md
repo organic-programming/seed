@@ -77,3 +77,12 @@ auto holon = holons::find_nearby_by_slug(".", "gabriel-greeting-cpp");
 ```cpp
 auto channel = holons::connect("gabriel-greeting-cpp");
 ```
+
+## Build and test
+
+```sh
+make test
+cmake --build build --target uniform_echo_holon
+cmake --build build --target uniform_contract_test
+ctest --test-dir build --output-on-failure
+```

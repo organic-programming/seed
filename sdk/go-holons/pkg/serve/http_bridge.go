@@ -54,6 +54,25 @@ func newHTTPBridge(server *grpc.Server, conn *grpc.ClientConn, response *holonsv
 			OutputType: "holons.v1.DescribeResponse",
 		},
 	}
+	documented["holons.v1.HolonObservability"] = map[string]*holonsv1.MethodDoc{
+		"Logs": {
+			Name:            "Logs",
+			InputType:       "holons.v1.LogsRequest",
+			OutputType:      "holons.v1.LogEntry",
+			ServerStreaming: true,
+		},
+		"Metrics": {
+			Name:       "Metrics",
+			InputType:  "holons.v1.MetricsRequest",
+			OutputType: "holons.v1.MetricsSnapshot",
+		},
+		"Events": {
+			Name:            "Events",
+			InputType:       "holons.v1.EventsRequest",
+			OutputType:      "holons.v1.EventInfo",
+			ServerStreaming: true,
+		},
+	}
 
 	for serviceName, info := range server.GetServiceInfo() {
 		if strings.HasPrefix(serviceName, "grpc.reflection.") {

@@ -2,7 +2,7 @@ CC ?= clang
 CFLAGS ?= -std=c11 -Wall -Wextra -pedantic -I include
 
 TEST_BIN := test_runner
-SRC := src/holons.c src/discovery_api.c
+SRC := src/holons.c src/discovery_api.c src/observability.c
 TEST_SRC := test/holons_test.c
 DESCRIBE_HELPER_BIN := describe-static-helper
 DESCRIBE_HELPER_SRC := test/describe_static_helper.c test/describe_generated_fixture.c
@@ -12,10 +12,10 @@ DESCRIBE_HELPER_SRC := test/describe_static_helper.c test/describe_generated_fix
 test: $(TEST_BIN) $(DESCRIBE_HELPER_BIN)
 	./$(TEST_BIN)
 
-$(TEST_BIN): $(SRC) $(TEST_SRC) include/holons/holons.h
+$(TEST_BIN): $(SRC) $(TEST_SRC) include/holons/holons.h include/holons/observability.h
 	$(CC) $(CFLAGS) $(SRC) $(TEST_SRC) -o $(TEST_BIN)
 
-$(DESCRIBE_HELPER_BIN): $(SRC) $(DESCRIBE_HELPER_SRC) include/holons/holons.h
+$(DESCRIBE_HELPER_BIN): $(SRC) $(DESCRIBE_HELPER_SRC) include/holons/holons.h include/holons/observability.h
 	$(CC) $(CFLAGS) $(SRC) $(DESCRIBE_HELPER_SRC) -o $(DESCRIBE_HELPER_BIN)
 
 clean:

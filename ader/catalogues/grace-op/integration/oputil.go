@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -115,7 +116,12 @@ func isolatedOPEnv(t *testing.T, opPath, opBin string) []string {
 
 	envVars := withEnv(os.Environ(), "OPPATH", opPath)
 	envVars = withEnv(envVars, "OPBIN", opBin)
-	envVars = withEnv(envVars, "PATH", integrationToolPath())
+	pathValue := integrationToolPath()
+	if javaHome := integrationJavaHome(); javaHome != "" {
+		envVars = withEnv(envVars, "JAVA_HOME", javaHome)
+		pathValue = prependPathEntry(pathValue, filepath.Join(javaHome, "bin"))
+	}
+	envVars = withEnv(envVars, "PATH", pathValue)
 	envVars = withEnv(envVars, "GOCACHE", filepath.Join(rt.toolCacheRoot, "go-build"))
 	envVars = withEnv(envVars, "GOMODCACHE", filepath.Join(rt.toolCacheRoot, "go-mod"))
 	envVars = withEnv(envVars, "GRACE_OP_SHARED_CACHE_DIR", rt.sharedCacheRoot)
@@ -137,6 +143,104 @@ func integrationToolPath() string {
 		paths = append(paths, base)
 	}
 	return strings.Join(paths, string(os.PathListSeparator))
+}
+
+func integrationJavaHome() string {
+	candidates := make([]string, 0, 16)
+	add := func(home string) {
+		home = strings.TrimSpace(home)
+		if home == "" {
+			return
+		}
+		candidates = append(candidates, filepath.Clean(home))
+	}
+
+	add(os.Getenv("JAVA_HOME"))
+	for _, home := range []string{
+		"/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
+		"/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
+		"/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home",
+		"/usr/local/opt/openjdk/libexec/openjdk.jdk/Contents/Home",
+		"/usr/lib/jvm/java-21-openjdk",
+		"/usr/lib/jvm/java-21-openjdk-amd64",
+		"/usr/lib/jvm/temurin-21-jdk-amd64",
+		"/usr/lib/jvm/jdk-21",
+		"/usr/lib/jvm/default-java",
+	} {
+		add(home)
+	}
+	for _, pattern := range []string{
+		"/Library/Java/JavaVirtualMachines/*/Contents/Home",
+		"/usr/lib/jvm/*",
+		filepath.Join(os.Getenv("HOME"), ".gradle", "jdks", "*"),
+	} {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			continue
+		}
+		sort.Strings(matches)
+		for _, match := range matches {
+			add(match)
+		}
+	}
+
+	seen := make(map[string]struct{}, len(candidates))
+	for _, home := range candidates {
+		if _, ok := seen[home]; ok {
+			continue
+		}
+		seen[home] = struct{}{}
+		if major, ok := javaHomeMajor(home); ok && major >= 21 {
+			return home
+		}
+	}
+	return ""
+}
+
+func javaHomeMajor(home string) (int, bool) {
+	info, err := os.Stat(filepath.Join(home, "bin", "java"))
+	if err != nil || info.IsDir() {
+		return 0, false
+	}
+	data, err := os.ReadFile(filepath.Join(home, "release"))
+	if err != nil {
+		return 0, false
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if !ok || strings.TrimSpace(key) != "JAVA_VERSION" {
+			continue
+		}
+		major, ok := parseJavaMajor(strings.Trim(value, `"`))
+		if ok {
+			return major, true
+		}
+	}
+	return 0, false
+}
+
+func parseJavaMajor(version string) (int, bool) {
+	parts := strings.Split(strings.TrimSpace(version), ".")
+	if len(parts) == 0 {
+		return 0, false
+	}
+	if parts[0] == "1" && len(parts) > 1 {
+		major, err := strconv.Atoi(parts[1])
+		return major, err == nil
+	}
+	major, err := strconv.Atoi(parts[0])
+	return major, err == nil
+}
+
+func prependPathEntry(pathValue, entry string) string {
+	entry = strings.TrimSpace(entry)
+	if entry == "" {
+		return pathValue
+	}
+	if strings.TrimSpace(pathValue) == "" {
+		return entry
+	}
+	return entry + string(os.PathListSeparator) + pathValue
 }
 
 func userGemBinDirs() []string {

@@ -8,9 +8,18 @@ use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio_stream::Stream;
+use tonic::{Request, Response, Status};
+
+use crate::gen::holons::v1::{
+    holon_observability_server::{HolonObservability, HolonObservabilityServer},
+    metric_sample, Bucket, ChainHop, EventInfo, EventsRequest, HistogramSample,
+    LogEntry as ProtoLogEntry, LogsRequest, MetricSample, MetricsRequest, MetricsSnapshot,
+};
 
 // ---------------------------------------------------------------------------
 // Families & environment
@@ -39,13 +48,14 @@ impl Family {
 
 #[derive(Debug)]
 pub struct InvalidTokenError {
+    pub variable: &'static str,
     pub token: String,
     pub reason: &'static str,
 }
 
 impl std::fmt::Display for InvalidTokenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "OP_OBS: {}: {}", self.reason, self.token)
+        write!(f, "{}: {}: {}", self.variable, self.reason, self.token)
     }
 }
 
@@ -53,11 +63,11 @@ impl std::error::Error for InvalidTokenError {}
 
 const V1_TOKENS: &[&str] = &["logs", "metrics", "events", "prom", "all"];
 
-pub fn parse_op_obs(raw: &str) -> HashSet<Family> {
+pub fn parse_op_obs(raw: &str) -> Result<HashSet<Family>, InvalidTokenError> {
     let mut out = HashSet::new();
     let trimmed = raw.trim();
     if trimmed.is_empty() {
-        return out;
+        return Ok(out);
     }
     for part in trimmed.split(',') {
         let tok = part.trim();
@@ -65,10 +75,25 @@ pub fn parse_op_obs(raw: &str) -> HashSet<Family> {
             continue;
         }
         if tok == "otel" {
-            continue;
+            return Err(InvalidTokenError {
+                variable: "OP_OBS",
+                token: tok.to_string(),
+                reason: "otel export is reserved for v2; not implemented in v1",
+            });
+        }
+        if tok == "sessions" {
+            return Err(InvalidTokenError {
+                variable: "OP_OBS",
+                token: tok.to_string(),
+                reason: "sessions are reserved for v2; not implemented in v1",
+            });
         }
         if !V1_TOKENS.contains(&tok) {
-            continue;
+            return Err(InvalidTokenError {
+                variable: "OP_OBS",
+                token: tok.to_string(),
+                reason: "unknown OP_OBS token",
+            });
         }
         if tok == "all" {
             out.insert(Family::Logs);
@@ -79,7 +104,7 @@ pub fn parse_op_obs(raw: &str) -> HashSet<Family> {
             out.insert(f);
         }
     }
-    out
+    Ok(out)
 }
 
 fn family_from_str(s: &str) -> Option<Family> {
@@ -95,6 +120,14 @@ fn family_from_str(s: &str) -> Option<Family> {
 
 pub fn check_env_from(env: &HashMap<String, String>) -> Result<(), InvalidTokenError> {
     let default = String::new();
+    let sessions = env.get("OP_SESSIONS").unwrap_or(&default).trim();
+    if !sessions.is_empty() {
+        return Err(InvalidTokenError {
+            variable: "OP_SESSIONS",
+            token: sessions.to_string(),
+            reason: "sessions are reserved for v2; not implemented in v1",
+        });
+    }
     let raw = env.get("OP_OBS").unwrap_or(&default).trim();
     if raw.is_empty() {
         return Ok(());
@@ -106,12 +139,21 @@ pub fn check_env_from(env: &HashMap<String, String>) -> Result<(), InvalidTokenE
         }
         if tok == "otel" {
             return Err(InvalidTokenError {
+                variable: "OP_OBS",
                 token: tok.to_string(),
                 reason: "otel export is reserved for v2; not implemented in v1",
             });
         }
+        if tok == "sessions" {
+            return Err(InvalidTokenError {
+                variable: "OP_OBS",
+                token: tok.to_string(),
+                reason: "sessions are reserved for v2; not implemented in v1",
+            });
+        }
         if !V1_TOKENS.contains(&tok) {
             return Err(InvalidTokenError {
+                variable: "OP_OBS",
                 token: tok.to_string(),
                 reason: "unknown OP_OBS token",
             });
@@ -621,6 +663,24 @@ impl Registry {
         w.insert(key, h.clone());
         h
     }
+
+    pub fn list_counters(&self) -> Vec<Arc<Counter>> {
+        let mut out: Vec<_> = self.counters.read().unwrap().values().cloned().collect();
+        out.sort_by(|a, b| a.name.cmp(&b.name));
+        out
+    }
+
+    pub fn list_gauges(&self) -> Vec<Arc<Gauge>> {
+        let mut out: Vec<_> = self.gauges.read().unwrap().values().cloned().collect();
+        out.sort_by(|a, b| a.name.cmp(&b.name));
+        out
+    }
+
+    pub fn list_histograms(&self) -> Vec<Arc<Histogram>> {
+        let mut out: Vec<_> = self.histograms.read().unwrap().values().cloned().collect();
+        out.sort_by(|a, b| a.name.cmp(&b.name));
+        out
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -678,7 +738,11 @@ impl Logger {
             if k.is_empty() {
                 continue;
             }
-            let value = if redact.contains(*k) { "<redacted>" } else { *v };
+            let value = if redact.contains(*k) {
+                "<redacted>"
+            } else {
+                *v
+            };
             out.insert((*k).to_string(), value.to_string());
         }
         let entry = LogEntry {
@@ -785,7 +849,12 @@ impl Observability {
         let Some(ref bus) = self.event_bus else {
             return;
         };
-        let redact: HashSet<&str> = self.cfg.redacted_fields.iter().map(|s| s.as_str()).collect();
+        let redact: HashSet<&str> = self
+            .cfg
+            .redacted_fields
+            .iter()
+            .map(|s| s.as_str())
+            .collect();
         let mut p = BTreeMap::new();
         for (k, v) in payload {
             let value = if redact.contains(k.as_str()) {
@@ -819,8 +888,16 @@ fn slot() -> &'static RwLock<Option<Arc<Observability>>> {
     CURRENT.get_or_init(|| RwLock::new(None))
 }
 
-pub fn configure(mut cfg: Config) -> Arc<Observability> {
-    let families = parse_op_obs(std::env::var("OP_OBS").as_deref().unwrap_or(""));
+pub fn configure(cfg: Config) -> Result<Arc<Observability>, InvalidTokenError> {
+    let env = std::env::vars().collect::<HashMap<_, _>>();
+    configure_from_env(cfg, &env)
+}
+
+pub fn configure_from_env(
+    mut cfg: Config,
+    env: &HashMap<String, String>,
+) -> Result<Arc<Observability>, InvalidTokenError> {
+    let families = parse_op_obs(env.get("OP_OBS").map(String::as_str).unwrap_or(""))?;
     if cfg.slug.is_empty() {
         cfg.slug = std::env::args()
             .next()
@@ -829,6 +906,12 @@ pub fn configure(mut cfg: Config) -> Arc<Observability> {
             .next()
             .unwrap_or_default()
             .to_string();
+    }
+    if cfg.instance_uid.is_empty() {
+        cfg.instance_uid = new_instance_uid();
+    }
+    if !cfg.run_dir.is_empty() {
+        cfg.run_dir = derive_run_dir(&cfg.run_dir, &cfg.slug, &cfg.instance_uid);
     }
     let log_ring = if families.contains(&Family::Logs) {
         Some(Arc::new(LogRing::new(if cfg.logs_ring_size == 0 {
@@ -862,12 +945,19 @@ pub fn configure(mut cfg: Config) -> Arc<Observability> {
         loggers: Mutex::new(HashMap::new()),
     });
     *slot().write().unwrap() = Some(obs.clone());
-    obs
+    Ok(obs)
 }
 
-pub fn from_env(base: Config) -> Arc<Observability> {
-    let mut cfg = base;
+pub fn from_env(base: Config) -> Result<Arc<Observability>, InvalidTokenError> {
     let env = std::env::vars().collect::<HashMap<_, _>>();
+    from_env_map(base, &env)
+}
+
+pub fn from_env_map(
+    base: Config,
+    env: &HashMap<String, String>,
+) -> Result<Arc<Observability>, InvalidTokenError> {
+    let mut cfg = base;
     if cfg.instance_uid.is_empty() {
         cfg.instance_uid = env.get("OP_INSTANCE_UID").cloned().unwrap_or_default();
     }
@@ -883,7 +973,7 @@ pub fn from_env(base: Config) -> Arc<Observability> {
     if cfg.run_dir.is_empty() {
         cfg.run_dir = env.get("OP_RUN_DIR").cloned().unwrap_or_default();
     }
-    configure(cfg)
+    configure_from_env(cfg, env)
 }
 
 pub fn current() -> Arc<Observability> {
@@ -906,6 +996,251 @@ pub fn reset() {
     if let Some(obs) = guard.take() {
         obs.close();
     }
+}
+
+pub fn derive_run_dir(root: &str, slug: &str, uid: &str) -> String {
+    if root.is_empty() || slug.is_empty() || uid.is_empty() {
+        return root.to_string();
+    }
+    Path::new(root)
+        .join(slug)
+        .join(uid)
+        .to_string_lossy()
+        .into_owned()
+}
+
+fn new_instance_uid() -> String {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    format!("{}-{}", std::process::id(), nanos)
+}
+
+// ---------------------------------------------------------------------------
+// Proto conversion + gRPC service
+// ---------------------------------------------------------------------------
+
+fn timestamp(t: SystemTime) -> prost_types::Timestamp {
+    let d = t.duration_since(UNIX_EPOCH).unwrap_or_default();
+    prost_types::Timestamp {
+        seconds: d.as_secs() as i64,
+        nanos: d.subsec_nanos() as i32,
+    }
+}
+
+fn hop_to_proto(h: &Hop) -> ChainHop {
+    ChainHop {
+        slug: h.slug.clone(),
+        instance_uid: h.instance_uid.clone(),
+    }
+}
+
+pub fn to_proto_log_entry(e: &LogEntry) -> ProtoLogEntry {
+    ProtoLogEntry {
+        ts: Some(timestamp(e.timestamp)),
+        level: e.level as i32,
+        slug: e.slug.clone(),
+        instance_uid: e.instance_uid.clone(),
+        session_id: e.session_id.clone(),
+        rpc_method: e.rpc_method.clone(),
+        message: e.message.clone(),
+        fields: e.fields.clone().into_iter().collect(),
+        caller: e.caller.clone(),
+        chain: e.chain.iter().map(hop_to_proto).collect(),
+    }
+}
+
+fn histogram_to_proto(snapshot: HistogramSnapshot) -> HistogramSample {
+    HistogramSample {
+        buckets: snapshot
+            .bounds
+            .into_iter()
+            .zip(snapshot.counts)
+            .map(|(upper_bound, count)| Bucket { upper_bound, count })
+            .collect(),
+        count: snapshot.total,
+        sum: snapshot.sum,
+    }
+}
+
+pub fn to_proto_metric_samples(registry: &Registry) -> Vec<MetricSample> {
+    let mut samples = Vec::new();
+    for counter in registry.list_counters() {
+        samples.push(MetricSample {
+            name: counter.name.clone(),
+            labels: counter.labels.clone().into_iter().collect(),
+            value: Some(metric_sample::Value::Counter(counter.value())),
+            help: counter.help.clone(),
+            chain: Vec::new(),
+        });
+    }
+    for gauge in registry.list_gauges() {
+        samples.push(MetricSample {
+            name: gauge.name.clone(),
+            labels: gauge.labels.clone().into_iter().collect(),
+            value: Some(metric_sample::Value::Gauge(gauge.value())),
+            help: gauge.help.clone(),
+            chain: Vec::new(),
+        });
+    }
+    for histogram in registry.list_histograms() {
+        samples.push(MetricSample {
+            name: histogram.name.clone(),
+            labels: histogram.labels.clone().into_iter().collect(),
+            value: Some(metric_sample::Value::Histogram(histogram_to_proto(
+                histogram.snapshot(),
+            ))),
+            help: histogram.help.clone(),
+            chain: Vec::new(),
+        });
+    }
+    samples
+}
+
+pub fn to_proto_event(e: &Event) -> EventInfo {
+    EventInfo {
+        ts: Some(timestamp(e.timestamp)),
+        r#type: e.event_type as i32,
+        slug: e.slug.clone(),
+        instance_uid: e.instance_uid.clone(),
+        session_id: e.session_id.clone(),
+        payload: e.payload.clone().into_iter().collect(),
+        chain: e.chain.iter().map(hop_to_proto).collect(),
+    }
+}
+
+#[derive(Clone)]
+pub struct ObservabilityService {
+    obs: Arc<Observability>,
+}
+
+impl ObservabilityService {
+    pub fn new(obs: Arc<Observability>) -> Self {
+        Self { obs }
+    }
+}
+
+pub fn service(obs: Arc<Observability>) -> HolonObservabilityServer<ObservabilityService> {
+    HolonObservabilityServer::new(ObservabilityService::new(obs))
+}
+
+#[tonic::async_trait]
+impl HolonObservability for ObservabilityService {
+    type LogsStream = Pin<Box<dyn Stream<Item = Result<ProtoLogEntry, Status>> + Send + 'static>>;
+
+    async fn logs(
+        &self,
+        request: Request<LogsRequest>,
+    ) -> Result<Response<Self::LogsStream>, Status> {
+        let req = request.into_inner();
+        let Some(ring) = self.obs.log_ring.as_ref() else {
+            return Err(Status::failed_precondition(
+                "logs family is not enabled (OP_OBS)",
+            ));
+        };
+        if !self.obs.enabled(Family::Logs) {
+            return Err(Status::failed_precondition(
+                "logs family is not enabled (OP_OBS)",
+            ));
+        }
+        let min_level = if req.min_level == 0 {
+            Level::Info as i32
+        } else {
+            req.min_level
+        };
+        let entries = if let Some(since) = req.since {
+            ring.drain_since(cutoff_from_duration(since))
+        } else {
+            ring.drain()
+        };
+        let out = entries
+            .into_iter()
+            .filter(|e| match_log(e, min_level, &req.session_ids, &req.rpc_methods))
+            .map(|e| Ok(to_proto_log_entry(&e)))
+            .collect::<Vec<_>>();
+        Ok(Response::new(Box::pin(tokio_stream::iter(out))))
+    }
+
+    async fn metrics(
+        &self,
+        request: Request<MetricsRequest>,
+    ) -> Result<Response<MetricsSnapshot>, Status> {
+        let req = request.into_inner();
+        let Some(registry) = self.obs.registry.as_ref() else {
+            return Err(Status::failed_precondition(
+                "metrics family is not enabled (OP_OBS)",
+            ));
+        };
+        if !self.obs.enabled(Family::Metrics) {
+            return Err(Status::failed_precondition(
+                "metrics family is not enabled (OP_OBS)",
+            ));
+        }
+        let mut samples = to_proto_metric_samples(registry);
+        if !req.name_prefixes.is_empty() {
+            samples.retain(|s| req.name_prefixes.iter().any(|p| s.name.starts_with(p)));
+        }
+        Ok(Response::new(MetricsSnapshot {
+            captured_at: Some(timestamp(SystemTime::now())),
+            slug: self.obs.cfg.slug.clone(),
+            instance_uid: self.obs.cfg.instance_uid.clone(),
+            samples,
+            session_rollup: None,
+        }))
+    }
+
+    type EventsStream = Pin<Box<dyn Stream<Item = Result<EventInfo, Status>> + Send + 'static>>;
+
+    async fn events(
+        &self,
+        request: Request<EventsRequest>,
+    ) -> Result<Response<Self::EventsStream>, Status> {
+        let req = request.into_inner();
+        let Some(bus) = self.obs.event_bus.as_ref() else {
+            return Err(Status::failed_precondition(
+                "events family is not enabled (OP_OBS)",
+            ));
+        };
+        if !self.obs.enabled(Family::Events) {
+            return Err(Status::failed_precondition(
+                "events family is not enabled (OP_OBS)",
+            ));
+        }
+        let wanted: HashSet<i32> = req.types.into_iter().collect();
+        let events = if let Some(since) = req.since {
+            bus.drain_since(cutoff_from_duration(since))
+        } else {
+            bus.drain()
+        };
+        let out = events
+            .into_iter()
+            .filter(|e| wanted.is_empty() || wanted.contains(&(e.event_type as i32)))
+            .map(|e| Ok(to_proto_event(&e)))
+            .collect::<Vec<_>>();
+        Ok(Response::new(Box::pin(tokio_stream::iter(out))))
+    }
+}
+
+fn cutoff_from_duration(duration: prost_types::Duration) -> SystemTime {
+    let secs = duration.seconds.max(0) as u64;
+    let nanos = duration.nanos.max(0) as u32;
+    SystemTime::now()
+        .checked_sub(Duration::new(secs, nanos))
+        .unwrap_or(UNIX_EPOCH)
+}
+
+fn match_log(e: &LogEntry, min_level: i32, session_ids: &[String], rpc_methods: &[String]) -> bool {
+    if (e.level as i32) < min_level {
+        return false;
+    }
+    if !session_ids.is_empty() && !session_ids.contains(&e.session_id) {
+        return false;
+    }
+    if !rpc_methods.is_empty() && !rpc_methods.contains(&e.rpc_method) {
+        return false;
+    }
+    true
 }
 
 // ---------------------------------------------------------------------------
@@ -1101,7 +1436,11 @@ mod humantime {
         let second = (rem % 60) as u32;
         // Date from days (1970-01-01 is day 0).
         let mut z = days + 719_468;
-        let era = if z >= 0 { z / 146_097 } else { (z - 146_096) / 146_097 };
+        let era = if z >= 0 {
+            z / 146_097
+        } else {
+            (z - 146_096) / 146_097
+        };
         z -= era * 146_097;
         let doe = z as u64;
         let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
@@ -1181,22 +1520,29 @@ pub fn write_meta_json(run_dir: &str, m: &MetaJson) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gen::holons::v1::holon_observability_server::HolonObservability;
+    use tokio_stream::StreamExt;
 
     fn fresh() {
         reset();
         std::env::remove_var("OP_OBS");
+        std::env::remove_var("OP_SESSIONS");
     }
 
     #[test]
     fn parse_op_obs_basic() {
-        assert_eq!(parse_op_obs("").len(), 0);
-        assert_eq!(parse_op_obs("logs"), [Family::Logs].into_iter().collect());
+        assert_eq!(parse_op_obs("").unwrap().len(), 0);
+        assert_eq!(
+            parse_op_obs("logs").unwrap(),
+            [Family::Logs].into_iter().collect()
+        );
         let all: HashSet<Family> = [Family::Logs, Family::Metrics, Family::Events, Family::Prom]
             .into_iter()
             .collect();
-        assert_eq!(parse_op_obs("all"), all);
-        assert_eq!(parse_op_obs("all,otel"), all); // otel dropped
-        assert_eq!(parse_op_obs("unknown").len(), 0);
+        assert_eq!(parse_op_obs("all").unwrap(), all);
+        assert!(parse_op_obs("all,otel").is_err());
+        assert!(parse_op_obs("all,sessions").is_err());
+        assert!(parse_op_obs("unknown").is_err());
     }
 
     #[test]
@@ -1204,6 +1550,12 @@ mod tests {
         let mut env = HashMap::new();
         env.insert("OP_OBS".to_string(), "logs,otel".to_string());
         assert!(check_env_from(&env).is_err());
+        env.insert("OP_OBS".to_string(), "logs,sessions".to_string());
+        assert!(check_env_from(&env).is_err());
+        env.insert("OP_OBS".to_string(), "".to_string());
+        env.insert("OP_SESSIONS".to_string(), "metrics".to_string());
+        assert!(check_env_from(&env).is_err());
+        env.remove("OP_SESSIONS");
         env.insert("OP_OBS".to_string(), "bogus".to_string());
         assert!(check_env_from(&env).is_err());
         env.insert(
@@ -1219,7 +1571,8 @@ mod tests {
         let o = configure(Config {
             slug: "t".to_string(),
             ..Default::default()
-        });
+        })
+        .unwrap();
         assert!(!o.enabled(Family::Logs));
         assert!(o.counter("t_total", "", BTreeMap::new()).is_none());
     }
@@ -1293,7 +1646,8 @@ mod tests {
             instance_uid: "x".to_string(),
             organism_uid: "x".to_string(),
             ..Default::default()
-        });
+        })
+        .unwrap();
         assert!(o1.is_organism_root());
         reset();
         let o2 = configure(Config {
@@ -1301,7 +1655,167 @@ mod tests {
             instance_uid: "x".to_string(),
             organism_uid: "y".to_string(),
             ..Default::default()
-        });
+        })
+        .unwrap();
         assert!(!o2.is_organism_root());
+    }
+
+    #[test]
+    fn run_dir_derives_from_registry_root() {
+        fresh();
+        let dir = tempfile::tempdir().unwrap();
+        let mut env = HashMap::new();
+        env.insert("OP_OBS".to_string(), "logs".to_string());
+        let obs = configure_from_env(
+            Config {
+                slug: "gabriel-greeting-rust".to_string(),
+                instance_uid: "uid-1".to_string(),
+                run_dir: dir.path().to_string_lossy().into_owned(),
+                ..Default::default()
+            },
+            &env,
+        )
+        .unwrap();
+
+        assert_eq!(
+            obs.cfg.run_dir,
+            dir.path()
+                .join("gabriel-greeting-rust")
+                .join("uid-1")
+                .to_string_lossy()
+        );
+    }
+
+    #[test]
+    fn disk_writers_and_meta_json_use_derived_run_dir() {
+        fresh();
+        let dir = tempfile::tempdir().unwrap();
+        let mut env = HashMap::new();
+        env.insert("OP_OBS".to_string(), "logs,events".to_string());
+        let obs = configure_from_env(
+            Config {
+                slug: "gabriel-greeting-rust".to_string(),
+                instance_uid: "uid-2".to_string(),
+                run_dir: dir.path().to_string_lossy().into_owned(),
+                ..Default::default()
+            },
+            &env,
+        )
+        .unwrap();
+
+        enable_disk_writers(&obs.cfg.run_dir);
+        obs.logger("test").info("ready", &[("phase", "unit")]);
+        let mut payload = BTreeMap::new();
+        payload.insert("listener".to_string(), "tcp://127.0.0.1:1".to_string());
+        obs.emit(EventType::InstanceReady, payload);
+        write_meta_json(
+            &obs.cfg.run_dir,
+            &MetaJson {
+                slug: obs.cfg.slug.clone(),
+                uid: obs.cfg.instance_uid.clone(),
+                pid: 123,
+                started_at: SystemTime::now(),
+                mode: "persistent".to_string(),
+                transport: "tcp".to_string(),
+                address: "tcp://127.0.0.1:1".to_string(),
+                metrics_addr: String::new(),
+                log_path: Path::new(&obs.cfg.run_dir)
+                    .join("stdout.log")
+                    .to_string_lossy()
+                    .into_owned(),
+                log_bytes_rotated: 0,
+                organism_uid: String::new(),
+                organism_slug: String::new(),
+                is_default: false,
+            },
+        )
+        .unwrap();
+
+        let run_dir = dir.path().join("gabriel-greeting-rust").join("uid-2");
+        let stdout = std::fs::read_to_string(run_dir.join("stdout.log")).unwrap();
+        let events = std::fs::read_to_string(run_dir.join("events.jsonl")).unwrap();
+        let meta = std::fs::read_to_string(run_dir.join("meta.json")).unwrap();
+
+        assert!(stdout.contains("\"message\":\"ready\""));
+        assert!(events.contains("\"type\":\"INSTANCE_READY\""));
+        assert!(meta.contains("\"slug\":\"gabriel-greeting-rust\""));
+        assert!(meta.contains("\"uid\":\"uid-2\""));
+    }
+
+    #[tokio::test]
+    async fn service_replays_logs_metrics_and_events() {
+        fresh();
+        let mut env = HashMap::new();
+        env.insert("OP_OBS".to_string(), "logs,metrics,events".to_string());
+        let obs = configure_from_env(
+            Config {
+                slug: "gabriel-greeting-rust".to_string(),
+                instance_uid: "uid-3".to_string(),
+                ..Default::default()
+            },
+            &env,
+        )
+        .unwrap();
+        obs.logger("test")
+            .info("service-log", &[("component", "rust")]);
+        obs.counter("rust_requests_total", "", BTreeMap::new())
+            .unwrap()
+            .inc();
+        let mut payload = BTreeMap::new();
+        payload.insert("listener".to_string(), "tcp://127.0.0.1:2".to_string());
+        obs.emit(EventType::InstanceReady, payload);
+
+        let svc = ObservabilityService::new(obs);
+        let logs = HolonObservability::logs(
+            &svc,
+            Request::new(LogsRequest {
+                min_level: Level::Info as i32,
+                session_ids: Vec::new(),
+                rpc_methods: Vec::new(),
+                since: None,
+                follow: false,
+            }),
+        )
+        .await
+        .unwrap()
+        .into_inner()
+        .collect::<Vec<_>>()
+        .await;
+        assert!(logs
+            .iter()
+            .any(|entry| entry.as_ref().unwrap().message == "service-log"));
+
+        let metrics = HolonObservability::metrics(
+            &svc,
+            Request::new(MetricsRequest {
+                name_prefixes: Vec::new(),
+                include_session_rollup: false,
+            }),
+        )
+        .await
+        .unwrap()
+        .into_inner();
+        assert!(metrics
+            .samples
+            .iter()
+            .any(|sample| sample.name == "rust_requests_total"));
+        assert!(metrics.session_rollup.is_none());
+
+        let events = HolonObservability::events(
+            &svc,
+            Request::new(EventsRequest {
+                types: Vec::new(),
+                since: None,
+                follow: false,
+            }),
+        )
+        .await
+        .unwrap()
+        .into_inner()
+        .collect::<Vec<_>>()
+        .await;
+        assert!(events
+            .iter()
+            .any(|event| event.as_ref().unwrap().r#type == EventType::InstanceReady as i32));
     }
 }

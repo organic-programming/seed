@@ -4,7 +4,9 @@
 require 'fileutils'
 require 'json'
 require 'monitor'
+require 'securerandom'
 require 'set'
+require 'thread'
 require 'time'
 
 module Holons
@@ -26,6 +28,10 @@ module Holons
     LEVELS = { trace: 1, debug: 2, info: 3, warn: 4, error: 5, fatal: 6 }.freeze
     LEVEL_LABELS = { 1 => 'TRACE', 2 => 'DEBUG', 3 => 'INFO',
                      4 => 'WARN', 5 => 'ERROR', 6 => 'FATAL' }.freeze
+    PROTO_LOG_LEVEL_NUMBERS = {
+      LOG_LEVEL_UNSPECIFIED: 0, TRACE: 1, DEBUG: 2, INFO: 3,
+      WARN: 4, ERROR: 5, FATAL: 6
+    }.freeze
 
     EVENT_TYPES = {
       unspecified: 0, instance_spawned: 1, instance_ready: 2, instance_exited: 3,
@@ -36,6 +42,11 @@ module Holons
       1 => 'INSTANCE_SPAWNED', 2 => 'INSTANCE_READY', 3 => 'INSTANCE_EXITED',
       4 => 'INSTANCE_CRASHED', 5 => 'SESSION_STARTED', 6 => 'SESSION_ENDED',
       7 => 'HANDLER_PANIC', 8 => 'CONFIG_RELOADED'
+    }.freeze
+    PROTO_EVENT_TYPE_NUMBERS = {
+      EVENT_TYPE_UNSPECIFIED: 0, INSTANCE_SPAWNED: 1, INSTANCE_READY: 2,
+      INSTANCE_EXITED: 3, INSTANCE_CRASHED: 4, SESSION_STARTED: 5,
+      SESSION_ENDED: 6, HANDLER_PANIC: 7, CONFIG_RELOADED: 8
     }.freeze
 
     DEFAULT_BUCKETS = [
@@ -50,8 +61,9 @@ module Holons
       raw.split(',').each do |p|
         tok = p.strip
         next if tok.empty?
-        next if tok == 'otel'
-        next unless V1_TOKENS.include?(tok)
+        raise InvalidTokenError.new(tok, 'otel export is reserved for v2; not implemented in v1') if tok == 'otel'
+        raise InvalidTokenError.new(tok, 'sessions are reserved for v2; not implemented in v1') if tok == 'sessions'
+        raise InvalidTokenError.new(tok, 'unknown OP_OBS token') unless V1_TOKENS.include?(tok)
         if tok == 'all'
           out.merge(%i[logs metrics events prom])
         else
@@ -62,12 +74,15 @@ module Holons
     end
 
     def self.check_env(env = ENV)
+      sessions = (env['OP_SESSIONS'] || '').strip
+      raise InvalidTokenError.new(sessions, 'sessions are reserved for v2; not implemented in v1') unless sessions.empty?
       raw = (env['OP_OBS'] || '').strip
       return if raw.empty?
       raw.split(',').each do |p|
         tok = p.strip
         next if tok.empty?
         raise InvalidTokenError.new(tok, 'otel export is reserved for v2; not implemented in v1') if tok == 'otel'
+        raise InvalidTokenError.new(tok, 'sessions are reserved for v2; not implemented in v1') if tok == 'sessions'
         raise InvalidTokenError.new(tok, 'unknown OP_OBS token') unless V1_TOKENS.include?(tok)
       end
     end
@@ -361,21 +376,24 @@ module Holons
     @current = nil
     @mu = Monitor.new
 
-    def self.configure(cfg = Config.new)
-      families = parse_op_obs(ENV['OP_OBS'])
+    def self.configure(cfg = Config.new, env: ENV)
+      check_env(env)
+      families = parse_op_obs(env['OP_OBS'])
       cfg.slug = File.basename($PROGRAM_NAME) if cfg.slug.nil? || cfg.slug.empty?
+      cfg.instance_uid = SecureRandom.uuid if cfg.instance_uid.nil? || cfg.instance_uid.empty?
+      cfg.run_dir = derive_run_dir(cfg.run_dir, cfg.slug, cfg.instance_uid) unless cfg.run_dir.to_s.empty?
       inst = Instance.new(cfg, families)
       @mu.synchronize { @current = inst }
       inst
     end
 
-    def self.from_env(base = Config.new)
-      base.instance_uid = ENV['OP_INSTANCE_UID'] || '' if base.instance_uid.empty?
-      base.organism_uid = ENV['OP_ORGANISM_UID'] || '' if base.organism_uid.empty?
-      base.organism_slug = ENV['OP_ORGANISM_SLUG'] || '' if base.organism_slug.empty?
-      base.prom_addr = ENV['OP_PROM_ADDR'] || '' if base.prom_addr.empty?
-      base.run_dir = ENV['OP_RUN_DIR'] || '' if base.run_dir.empty?
-      configure(base)
+    def self.from_env(base = Config.new, env: ENV)
+      base.instance_uid = env['OP_INSTANCE_UID'] || '' if base.instance_uid.empty?
+      base.organism_uid = env['OP_ORGANISM_UID'] || '' if base.organism_uid.empty?
+      base.organism_slug = env['OP_ORGANISM_SLUG'] || '' if base.organism_slug.empty?
+      base.prom_addr = env['OP_PROM_ADDR'] || '' if base.prom_addr.empty?
+      base.run_dir = env['OP_RUN_DIR'] || '' if base.run_dir.empty?
+      configure(base, env: env)
     end
 
     def self.current
@@ -389,6 +407,231 @@ module Holons
       end
     end
 
+    def self.derive_run_dir(root, slug, uid)
+      return root if root.to_s.empty? || slug.to_s.empty? || uid.to_s.empty?
+
+      File.join(root, slug, uid)
+    end
+
+    def self.register_grpc_service(server, inst = current)
+      raise ArgumentError, 'grpc server is required' if server.nil?
+
+      require_grpc_observability_support!
+      server.handle(observability_service_class.new(inst))
+    end
+
+    def self.observability_service_class
+      return @observability_service_class if defined?(@observability_service_class) && !@observability_service_class.nil?
+
+      require_grpc_observability_support!
+      @observability_service_class = Class.new(::Holons::V1::HolonObservability::Service) do
+        def initialize(inst)
+          @inst = inst
+        end
+
+        def logs(request, call)
+          raise ::GRPC::FailedPrecondition, 'logs family is not enabled (OP_OBS)' unless @inst.enabled?(:logs) && @inst.log_ring
+
+          entries = request.since.nil? ? @inst.log_ring.drain : @inst.log_ring.drain_since(Time.now - Holons::Observability.duration_seconds(request.since))
+          Enumerator.new do |y|
+            Holons::Observability.write_matching_logs(y, entries, request)
+            next unless request.follow
+
+            q = Queue.new
+            unsubscribe = @inst.log_ring.subscribe { |entry| q << entry }
+            begin
+              loop do
+                break if call.respond_to?(:cancelled?) && call.cancelled?
+
+                entry = Holons::Observability.queue_pop(q)
+                next if entry.nil?
+
+                Holons::Observability.write_matching_logs(y, [entry], request)
+              end
+            ensure
+              unsubscribe.call
+            end
+          end
+        end
+
+        def metrics(request, _call)
+          raise ::GRPC::FailedPrecondition, 'metrics family is not enabled (OP_OBS)' unless @inst.enabled?(:metrics) && @inst.registry
+
+          samples = Holons::Observability.to_proto_metric_samples(@inst.registry).select do |sample|
+            request.name_prefixes.empty? || request.name_prefixes.any? { |prefix| sample.name.start_with?(prefix) }
+          end
+          ::Holons::V1::MetricsSnapshot.new(
+            captured_at: Holons::Observability.to_proto_timestamp(Time.now),
+            slug: @inst.cfg.slug,
+            instance_uid: @inst.cfg.instance_uid,
+            samples: samples
+          )
+        end
+
+        def events(request, call)
+          raise ::GRPC::FailedPrecondition, 'events family is not enabled (OP_OBS)' unless @inst.enabled?(:events) && @inst.event_bus
+
+          events = request.since.nil? ? @inst.event_bus.drain : @inst.event_bus.drain_since(Time.now - Holons::Observability.duration_seconds(request.since))
+          Enumerator.new do |y|
+            Holons::Observability.write_matching_events(y, events, request)
+            next unless request.follow
+
+            q = Queue.new
+            unsubscribe = @inst.event_bus.subscribe { |event| q << event }
+            begin
+              loop do
+                break if call.respond_to?(:cancelled?) && call.cancelled?
+
+                event = Holons::Observability.queue_pop(q)
+                next if event.nil?
+
+                Holons::Observability.write_matching_events(y, [event], request)
+              end
+            ensure
+              unsubscribe.call
+            end
+          end
+        end
+      end
+    end
+
+    def self.write_matching_logs(stream, entries, request)
+      min_level = log_level_number(request.min_level)
+      min_level = LEVELS[:info] if min_level.zero?
+      entries.each do |entry|
+        next if entry[:level] < min_level
+        next if !request.session_ids.empty? && !request.session_ids.include?(entry[:session_id])
+        next if !request.rpc_methods.empty? && !request.rpc_methods.include?(entry[:rpc_method])
+
+        stream << to_proto_log_entry(entry)
+      end
+    end
+
+    def self.write_matching_events(stream, events, request)
+      wanted = request.types.map { |type| event_type_number(type) }.to_set
+      events.each do |event|
+        next if !wanted.empty? && !wanted.include?(event[:type])
+
+        stream << to_proto_event(event)
+      end
+    end
+
+    def self.queue_pop(queue)
+      queue.pop(true)
+    rescue ThreadError
+      sleep 0.05
+      nil
+    end
+
+    def self.to_proto_log_entry(entry)
+      ::Holons::V1::LogEntry.new(
+        ts: to_proto_timestamp(entry[:timestamp]),
+        level: entry[:level],
+        slug: entry[:slug],
+        instance_uid: entry[:instance_uid],
+        session_id: entry[:session_id],
+        rpc_method: entry[:rpc_method],
+        message: entry[:message],
+        fields: entry[:fields],
+        caller: entry[:caller],
+        chain: entry[:chain].map { |hop| to_proto_hop(hop) }
+      )
+    end
+
+    def self.to_proto_metric_samples(registry)
+      samples = []
+      registry.counters.each do |counter|
+        samples << ::Holons::V1::MetricSample.new(
+          name: counter.name,
+          help: counter.help,
+          labels: counter.labels,
+          counter: counter.value
+        )
+      end
+      registry.gauges.each do |gauge|
+        samples << ::Holons::V1::MetricSample.new(
+          name: gauge.name,
+          help: gauge.help,
+          labels: gauge.labels,
+          gauge: gauge.value
+        )
+      end
+      registry.histograms.each do |histogram|
+        samples << ::Holons::V1::MetricSample.new(
+          name: histogram.name,
+          help: histogram.help,
+          labels: histogram.labels,
+          histogram: to_proto_histogram(histogram.snapshot)
+        )
+      end
+      samples
+    end
+
+    def self.to_proto_event(event)
+      ::Holons::V1::EventInfo.new(
+        ts: to_proto_timestamp(event[:timestamp]),
+        type: event[:type],
+        slug: event[:slug],
+        instance_uid: event[:instance_uid],
+        session_id: event[:session_id],
+        payload: event[:payload],
+        chain: event[:chain].map { |hop| to_proto_hop(hop) }
+      )
+    end
+
+    def self.to_proto_histogram(snapshot)
+      ::Holons::V1::HistogramSample.new(
+        count: snapshot.total,
+        sum: snapshot.sum,
+        buckets: snapshot.bounds.each_with_index.map do |bound, idx|
+          ::Holons::V1::Bucket.new(upper_bound: bound, count: snapshot.counts[idx])
+        end
+      )
+    end
+
+    def self.to_proto_hop(hop)
+      ::Holons::V1::ChainHop.new(
+        slug: hop[:slug] || hop['slug'] || '',
+        instance_uid: hop[:instance_uid] || hop['instance_uid'] || ''
+      )
+    end
+
+    def self.to_proto_timestamp(time)
+      utc = time.utc
+      ::Google::Protobuf::Timestamp.new(seconds: utc.to_i, nanos: utc.nsec)
+    end
+
+    def self.duration_seconds(duration)
+      duration.seconds.to_f + (duration.nanos.to_f / 1_000_000_000.0)
+    end
+
+    def self.log_level_number(value)
+      return value.to_i unless value.is_a?(Symbol)
+
+      PROTO_LOG_LEVEL_NUMBERS.fetch(value, 0)
+    end
+
+    def self.event_type_number(value)
+      return value.to_i unless value.is_a?(Symbol)
+
+      PROTO_EVENT_TYPE_NUMBERS.fetch(value, 0)
+    end
+
+    def self.require_grpc_observability_support!
+      return if defined?(@grpc_observability_loaded) && @grpc_observability_loaded
+
+      ensure_generated_proto_load_path!
+      require 'google/protobuf/timestamp_pb'
+      require_relative '../gen/holons/v1/observability_pb'
+      require_relative '../gen/holons/v1/observability_services_pb'
+      @grpc_observability_loaded = true
+    end
+
+    def self.ensure_generated_proto_load_path!
+      gen_root = File.expand_path('../gen', __dir__)
+      $LOAD_PATH.unshift(gen_root) unless $LOAD_PATH.include?(gen_root)
+    end
+
     # --- Disk writers ---
 
     def self.enable_disk_writers(run_dir)
@@ -397,12 +640,12 @@ module Holons
       FileUtils.mkdir_p(run_dir)
 
       if inst.enabled?(:logs) && inst.log_ring
-        fp = File.join(run_dir, 'stdout.log')
-        inst.log_ring.subscribe { |e| append_log(fp, e) }
+        log_fp = File.join(run_dir, 'stdout.log')
+        inst.log_ring.subscribe { |e| append_log(log_fp, e) }
       end
       if inst.enabled?(:events) && inst.event_bus
-        fp = File.join(run_dir, 'events.jsonl')
-        inst.event_bus.subscribe { |e| append_event(fp, e) }
+        event_fp = File.join(run_dir, 'events.jsonl')
+        inst.event_bus.subscribe { |e| append_event(event_fp, e) }
       end
     end
 

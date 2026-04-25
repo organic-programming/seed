@@ -54,3 +54,9 @@ var holon = Discover.FindBySlug("gabriel-greeting-csharp");
 ```csharp
 using var channel = Connect.ConnectTarget("gabriel-greeting-csharp");
 ```
+
+## Build and test
+
+```sh
+dotnet test csharp-holons.sln
+```

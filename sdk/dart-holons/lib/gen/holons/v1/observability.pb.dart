@@ -499,7 +499,7 @@ class MetricsSnapshot extends $pb.GeneratedMessage {
   @$pb.TagNumber(4)
   $pb.PbList<MetricSample> get samples => $_getList(3);
 
-  /// Populated only when OP_SESSIONS=metrics and the request asks for it.
+  /// Reserved for v2; always empty in v1.
   @$pb.TagNumber(5)
   $3.SessionMetrics get sessionRollup => $_getN(4);
   @$pb.TagNumber(5)

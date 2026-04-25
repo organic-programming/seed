@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SDK_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+GO_HOLONS_DIR="${SDK_DIR}/../go-holons"
+HELPER_PATH="${SDK_DIR}/cmd/echo-client-go/main.go"
+
+resolve_go_bin() {
+  if [[ -n "${GO_BIN:-}" ]]; then
+    printf '%s\n' "${GO_BIN}"
+    return
+  fi
+  if command -v go >/dev/null 2>&1; then
+    command -v go
+    return
+  fi
+  printf '%s\n' "go"
+}
+
+GO_CMD="$(resolve_go_bin)"
+export GOCACHE="${GOCACHE:-/tmp/go-cache-cpp-cert}"
+
+cd "${GO_HOLONS_DIR}"
+exec "${GO_CMD}" run "${HELPER_PATH}" --sdk cpp-holons --server-sdk go-holons "$@"

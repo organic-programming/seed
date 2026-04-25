@@ -7,6 +7,7 @@ const serve = require('./serve');
 const describe = require('./describe');
 const identity = require('./identity');
 const discover = require('./discover');
+const observability = require('./observability');
 const connectApi = require('./connect');
 const discoveryTypes = require('./discovery_types');
 const grpcclient = require('./grpcclient');
@@ -22,6 +23,7 @@ module.exports = {
     transport,
     serve,
     describe,
+    observability,
     identity,
     grpcclient,
     holonrpc,

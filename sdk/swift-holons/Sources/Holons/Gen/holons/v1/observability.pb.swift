@@ -256,7 +256,7 @@ public struct Holons_V1_MetricsSnapshot: Sendable {
 
   public var samples: [Holons_V1_MetricSample] = []
 
-  /// Populated only when OP_SESSIONS=metrics and the request asks for it.
+  /// Reserved for v2; always empty in v1.
   public var sessionRollup: Holons_V1_SessionMetrics {
     get {_sessionRollup ?? Holons_V1_SessionMetrics()}
     set {_sessionRollup = newValue}

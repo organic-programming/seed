@@ -457,7 +457,7 @@ type MetricsSnapshot struct {
 	Slug        string                 `protobuf:"bytes,2,opt,name=slug,proto3" json:"slug,omitempty"`
 	InstanceUid string                 `protobuf:"bytes,3,opt,name=instance_uid,json=instanceUid,proto3" json:"instance_uid,omitempty"`
 	Samples     []*MetricSample        `protobuf:"bytes,4,rep,name=samples,proto3" json:"samples,omitempty"`
-	// Populated only when OP_SESSIONS=metrics and the request asks for it.
+	// Reserved for v2; always empty in v1.
 	SessionRollup *SessionMetrics `protobuf:"bytes,5,opt,name=session_rollup,json=sessionRollup,proto3" json:"session_rollup,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

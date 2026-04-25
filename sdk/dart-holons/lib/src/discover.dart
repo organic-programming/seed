@@ -535,6 +535,13 @@ _PathCandidate _pathExpressionCandidate(
 
 HolonInfo _probeHelper(String command, String path, int timeout) {
   final workingDirectory = discoverDartRunWorkingDirectoryProvider();
+  final executable = discoverResolvedExecutableProvider().trim();
+  if (!_canRunDartCli(executable)) {
+    throw StateError(
+      'cannot run Dart discovery probe with resolved executable "$executable"; '
+      'package discovery without .holon.json requires the Dart CLI',
+    );
+  }
   final args = <String>[
     'run',
     _discoveryProbeEntrypoint(workingDirectory),
@@ -544,7 +551,7 @@ HolonInfo _probeHelper(String command, String path, int timeout) {
   ];
 
   final result = Process.runSync(
-    discoverResolvedExecutableProvider(),
+    executable,
     args,
     workingDirectory: workingDirectory,
   );
@@ -577,6 +584,11 @@ String _discoveryProbeEntrypoint(String workingDirectory) {
     return helperPath;
   }
   return 'package:holons/src/discovery_probe.dart';
+}
+
+bool _canRunDartCli(String executable) {
+  final name = _basename(executable).toLowerCase();
+  return name == 'dart' || name == 'dart.exe';
 }
 
 DiscoverResult _defaultSourceDiscoverBridge(

@@ -49,6 +49,7 @@ type HTTPServer struct {
 	handlersMu     sync.RWMutex
 	handlers       map[string]Handler
 	streamHandlers map[string]StreamHandler
+	httpHandlers   map[string]http.Handler
 
 	nextRequestID int64
 }
@@ -61,6 +62,7 @@ func NewHTTPServer(bindURL string) *HTTPServer {
 		address:        bindURL,
 		handlers:       make(map[string]Handler),
 		streamHandlers: make(map[string]StreamHandler),
+		httpHandlers:   make(map[string]http.Handler),
 	}
 }
 
@@ -84,6 +86,18 @@ func (s *HTTPServer) RegisterStream(method string, handler StreamHandler) {
 	s.handlersMu.Lock()
 	defer s.handlersMu.Unlock()
 	s.streamHandlers[method] = handler
+}
+
+// Handle registers a raw HTTP handler on this server's mux. It must be
+// called before Start; it is intended for sidecar endpoints such as
+// Prometheus /metrics that share the HTTP listener.
+func (s *HTTPServer) Handle(path string, handler http.Handler) {
+	if path == "" || handler == nil {
+		return
+	}
+	s.handlersMu.Lock()
+	defer s.handlersMu.Unlock()
+	s.httpHandlers[path] = handler
 }
 
 // Start starts the HTTP+SSE server.
@@ -128,6 +142,13 @@ func (s *HTTPServer) Start() (string, error) {
 		path = defaultHTTPRPCPath
 	}
 
+	s.handlersMu.RLock()
+	httpHandlers := make(map[string]http.Handler, len(s.httpHandlers))
+	for path, handler := range s.httpHandlers {
+		httpHandlers[path] = handler
+	}
+	s.handlersMu.RUnlock()
+
 	certFile, keyFile, err := httpsCertFiles(parsed, scheme)
 	if err != nil {
 		return "", err
@@ -139,6 +160,9 @@ func (s *HTTPServer) Start() (string, error) {
 	}
 
 	mux := http.NewServeMux()
+	for path, handler := range httpHandlers {
+		mux.Handle(path, handler)
+	}
 	mux.HandleFunc(path, s.handleHTTP)
 	mux.HandleFunc(strings.TrimRight(path, "/")+"/", s.handleHTTP)
 

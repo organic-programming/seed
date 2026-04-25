@@ -370,7 +370,7 @@ type SessionInfo struct {
 	RpcCount int64 `protobuf:"varint,10,opt,name=rpc_count,json=rpcCount,proto3" json:"rpc_count,omitempty"`
 	// Last RPC completed timestamp (zero if none).
 	LastRpcAt *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=last_rpc_at,json=lastRpcAt,proto3" json:"last_rpc_at,omitempty"`
-	// Optional per-session metrics (only when OP_SESSIONS=metrics).
+	// Reserved for v2; not emitted in v1.
 	Metrics *SessionMetrics `protobuf:"bytes,20,opt,name=metrics,proto3" json:"metrics,omitempty"`
 	// Mesh host name (only on mTLS connections, empty otherwise).
 	MeshHost string `protobuf:"bytes,21,opt,name=mesh_host,json=meshHost,proto3" json:"mesh_host,omitempty"`
@@ -511,7 +511,7 @@ func (x *SessionInfo) GetInstanceUid() string {
 	return ""
 }
 
-// SessionMetrics is populated only when OP_SESSIONS=metrics.
+// SessionMetrics is reserved for v2; empty in v1.
 // Time is decomposed into four phases: wire_out, queue, work, wire_in.
 type SessionMetrics struct {
 	state            protoimpl.MessageState    `protogen:"open.v1"`

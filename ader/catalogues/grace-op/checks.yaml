@@ -203,6 +203,10 @@ checks:
     workdir: ader/catalogues/grace-op/integration/run
     command: go test -tags e2e -v -count=1 -timeout 10m -run '^TestRun_RPC_' .
     description: Verifies the RPC alignment for run.
+  op-run-observe-cli:
+    workdir: ader/catalogues/grace-op/integration/run_observe
+    command: go test -tags e2e -v -count=1 -timeout 10m -run '^TestRunObserve_CLI_' .
+    description: Verifies op run --observe tails lifecycle events from a real holon.
 
   op-serve-cli:
     workdir: ader/catalogues/grace-op/integration/serve
@@ -299,3 +303,7 @@ checks:
     workdir: ader/catalogues/grace-op/integration/events
     command: go test -tags e2e -v -count=1 -timeout 10m -run '^TestEvents_CLI_' .
     description: Verifies op events streaming from a running observability holon.
+  multilog-live:
+    workdir: ader/catalogues/grace-op/integration/multilog
+    command: go test -tags e2e -v -count=1 -timeout 10m -run '^TestMultilog_' .
+    description: Verifies multilog relay chain enrichment with a live Go root and children.

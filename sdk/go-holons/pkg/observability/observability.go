@@ -69,8 +69,8 @@ type Config struct {
 	EventsRingSize int
 
 	// Run directory where stdout.log / events.jsonl / meta.json are
-	// written. If empty, the SDK skips disk writes; P3 wires this up
-	// from the resolved .op/run/<uid>/ path.
+	// written. FromEnv derives this from OP_RUN_DIR + Slug +
+	// InstanceUID because OP_RUN_DIR is the registry root.
 	RunDir string
 
 	// Instance identity from the supervisor. FromEnv fills these from
@@ -116,7 +116,10 @@ var (
 // and the event bus keep working against the previous instance until
 // it is closed.
 func Configure(cfg Config) *Observability {
-	families := parseOPOBS(os.Getenv("OP_OBS"))
+	families, err := parseOPOBS(os.Getenv("OP_OBS"))
+	if err != nil {
+		panic(err)
+	}
 
 	// Defaults.
 	if cfg.LogsRingSize <= 0 {
@@ -144,6 +147,7 @@ func Configure(cfg Config) *Observability {
 	}
 	if obs.families[FamilyMetrics] {
 		obs.registry = NewRegistry()
+		obs.initBaselineMetrics()
 	}
 	if obs.families[FamilyEvents] {
 		obs.bus = NewEventBus(cfg.EventsRingSize)
@@ -161,6 +165,9 @@ func Configure(cfg Config) *Observability {
 // fields in base override the env.
 func FromEnv(base Config) *Observability {
 	cfg := base
+	if cfg.Slug == "" {
+		cfg.Slug = defaultSlug()
+	}
 	if cfg.InstanceUID == "" {
 		cfg.InstanceUID = os.Getenv("OP_INSTANCE_UID")
 	}
@@ -174,7 +181,11 @@ func FromEnv(base Config) *Observability {
 		cfg.PromAddr = os.Getenv("OP_PROM_ADDR")
 	}
 	if cfg.RunDir == "" {
-		cfg.RunDir = os.Getenv("OP_RUN_DIR")
+		if runRoot := os.Getenv("OP_RUN_DIR"); runRoot != "" && cfg.Slug != "" && cfg.InstanceUID != "" {
+			if runDir, err := InstanceRunDir(runRoot, cfg.Slug, cfg.InstanceUID); err == nil {
+				cfg.RunDir = runDir
+			}
+		}
 	}
 	return Configure(cfg)
 }
@@ -227,6 +238,14 @@ func (o *Observability) InstanceUID() string {
 	return o.cfg.InstanceUID
 }
 
+// RunDir returns the per-instance registry directory, when configured.
+func (o *Observability) RunDir() string {
+	if o == nil {
+		return ""
+	}
+	return o.cfg.RunDir
+}
+
 // OrganismUID returns the organism UID set on this instance.
 func (o *Observability) OrganismUID() string { return o.cfg.OrganismUID }
 
@@ -256,14 +275,13 @@ func (o *Observability) Close() error {
 }
 
 // parseOPOBS turns the comma-separated env value into a family set.
-// "all" expands to logs+metrics+events+prom. Unknown tokens become
-// a nil map with an error; callers can treat nil as "disabled".
-// In v1 the "otel" token is explicitly rejected (v2-only).
-func parseOPOBS(v string) map[Family]bool {
+// "all" expands to logs+metrics+events+prom. Unknown and v2-only
+// tokens are rejected in v1.
+func parseOPOBS(v string) (map[Family]bool, error) {
 	out := map[Family]bool{}
 	v = strings.TrimSpace(v)
 	if v == "" {
-		return out
+		return out, nil
 	}
 	for _, raw := range strings.Split(v, ",") {
 		tok := strings.TrimSpace(raw)
@@ -271,18 +289,13 @@ func parseOPOBS(v string) map[Family]bool {
 			continue
 		}
 		if tok == "otel" {
-			// v2-only reserved token. Mark the unknown-token error
-			// lazily; we cannot panic here because the package may
-			// be imported from tests that never call Configure. The
-			// fail-fast discipline is applied by the serve runner
-			// when it reads Observability.Enabled(FamilyOTel) and
-			// sees that OTel activation is forbidden in v1.
-			continue
+			return nil, &InvalidTokenError{Token: tok, Reason: "otel export is reserved for v2; not implemented in v1"}
+		}
+		if tok == "sessions" {
+			return nil, &InvalidTokenError{Token: tok, Reason: "sessions are reserved for v2; not implemented in v1"}
 		}
 		if !v1Tokens[tok] {
-			// Unknown token. Same policy as above — the serve runner
-			// surfaces this as a startup error via CheckEnv.
-			continue
+			return nil, &InvalidTokenError{Token: tok, Reason: "unknown OP_OBS token"}
 		}
 		switch tok {
 		case "all":
@@ -294,13 +307,20 @@ func parseOPOBS(v string) map[Family]bool {
 			out[Family(tok)] = true
 		}
 	}
-	return out
+	return out, nil
 }
 
-// CheckEnv returns a non-nil error if OP_OBS contains an unknown
-// token or the v2-only "otel" token. Call once at process start to
-// satisfy the fail-fast rule from OBSERVABILITY.md §Layer 3.
+// CheckEnv returns a non-nil error if OP_OBS contains an unknown or
+// v2-only token, or if OP_SESSIONS is set in v1. Call once at process
+// start to satisfy the fail-fast rule from OBSERVABILITY.md §Layer 3.
 func CheckEnv() error {
+	if v := strings.TrimSpace(os.Getenv("OP_SESSIONS")); v != "" {
+		return &InvalidTokenError{
+			Var:    "OP_SESSIONS",
+			Token:  v,
+			Reason: "sessions are reserved for v2; not implemented in v1",
+		}
+	}
 	v := strings.TrimSpace(os.Getenv("OP_OBS"))
 	if v == "" {
 		return nil
@@ -313,6 +333,9 @@ func CheckEnv() error {
 		if tok == "otel" {
 			return &InvalidTokenError{Token: tok, Reason: "otel export is reserved for v2; not implemented in v1"}
 		}
+		if tok == "sessions" {
+			return &InvalidTokenError{Token: tok, Reason: "sessions are reserved for v2; not implemented in v1"}
+		}
 		if !v1Tokens[tok] {
 			return &InvalidTokenError{Token: tok, Reason: "unknown OP_OBS token"}
 		}
@@ -320,15 +343,24 @@ func CheckEnv() error {
 	return nil
 }
 
+func isV2OnlyToken(tok string) bool {
+	return tok == "otel" || tok == "sessions"
+}
+
 // InvalidTokenError is returned by CheckEnv when OP_OBS contains an
 // invalid token.
 type InvalidTokenError struct {
+	Var    string
 	Token  string
 	Reason string
 }
 
 func (e *InvalidTokenError) Error() string {
-	return "OP_OBS: " + e.Reason + ": " + e.Token
+	name := e.Var
+	if name == "" {
+		name = "OP_OBS"
+	}
+	return name + ": " + e.Reason + ": " + e.Token
 }
 
 func toSet(items []string) map[string]struct{} {

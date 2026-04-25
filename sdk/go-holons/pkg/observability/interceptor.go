@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 // SessionIDMetadataKey is the gRPC metadata header that optionally
@@ -70,9 +71,8 @@ func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 		resp, err = handler(ctx, req)
 		elapsed := time.Since(start)
 
-		// RPC count + four-phase duration (server side sees queue+work;
-		// queue is marker as zero here pending session metrics wiring
-		// in P5 that plugs into pkg/session).
+		// RPC count + duration. v1 reports only phase=total; the
+		// four-phase decomposition belongs to the v2 session metrics store.
 		obs.Counter("holon_session_rpc_total",
 			"Session RPC count by method, direction, phase.",
 			map[string]string{
@@ -89,6 +89,10 @@ func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 				"phase":     "total",
 			},
 			nil).ObserveDuration(elapsed)
+
+		obs.Logger("rpc").InfoContext(ctx, "rpc handled",
+			"status", status.Code(err).String(),
+			"duration_ms", elapsed.Milliseconds())
 
 		return resp, err
 	}

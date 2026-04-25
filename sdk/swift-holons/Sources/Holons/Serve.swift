@@ -26,6 +26,7 @@ public enum Serve {
     public var onListen: ((String) -> Void)?
     public var shutdownGracePeriodSeconds: TimeInterval
     public var protoDir: String?
+    public var environment: [String: String]?
 
     public init(
       reflect: Bool = false,
@@ -37,13 +38,15 @@ public enum Serve {
       },
       onListen: ((String) -> Void)? = nil,
       shutdownGracePeriodSeconds: TimeInterval = 10,
-      protoDir: String? = nil
+      protoDir: String? = nil,
+      environment: [String: String]? = nil
     ) {
       self.reflect = reflect
       self.logger = logger
       self.onListen = onListen
       self.shutdownGracePeriodSeconds = shutdownGracePeriodSeconds
       self.protoDir = protoDir
+      self.environment = environment
     }
   }
 
@@ -175,6 +178,11 @@ public enum Serve {
   ) throws -> RunningServer {
     let parsed = try Transport.parse(listenURI.isEmpty ? Transport.defaultURI : listenURI)
     var providers = serviceProviders
+    let env = options.environment ?? ProcessInfo.processInfo.environment
+    try checkEnv(env)
+    let obs = (env["OP_OBS"] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
+      ? nil
+      : try fromEnv(ObsConfig(), env: env)
     let describeEnabled: Bool
     do {
       describeEnabled = try maybeAddDescribe(&providers)
@@ -182,12 +190,15 @@ public enum Serve {
       options.logger("HolonMeta registration failed: \(error)")
       throw error
     }
+    if let obs, !obs.families.isEmpty {
+      providers.append(registerObservabilityService(obs))
+    }
     let reflectionEnabled = try maybeAddReflection(&providers, options: options)
     switch parsed.scheme {
     case "tcp":
       let host = parsed.host ?? "0.0.0.0"
       let port = parsed.port ?? 9090
-      return try startTCPServer(
+      let running = try startTCPServer(
         host: host,
         port: port,
         publicURI: nil,
@@ -196,6 +207,8 @@ public enum Serve {
         reflectionEnabled: reflectionEnabled,
         options: options
       )
+      startObservabilityRuntime(obs, publicURI: running.publicURI, transport: parsed.scheme)
+      return running
     case "stdio":
       let backing = try startTCPServer(
         host: "127.0.0.1",
@@ -216,6 +229,7 @@ public enum Serve {
       }
       bridge.start()
       let mode = formatMode(describeEnabled: describeEnabled, reflectionEnabled: reflectionEnabled)
+      startObservabilityRuntime(obs, publicURI: "stdio://", transport: parsed.scheme)
       options.onListen?("stdio://")
       options.logger("gRPC server listening on stdio:// (\(mode))")
       return RunningServer(
@@ -247,6 +261,7 @@ public enum Serve {
       bridge.start()
       let publicURI = "unix://\(path)"
       let mode = formatMode(describeEnabled: describeEnabled, reflectionEnabled: reflectionEnabled)
+      startObservabilityRuntime(obs, publicURI: publicURI, transport: parsed.scheme)
       options.onListen?(publicURI)
       options.logger("gRPC server listening on \(publicURI) (\(mode))")
       return RunningServer(
@@ -263,6 +278,35 @@ public enum Serve {
         reason: "Serve.run(...) currently supports tcp://, unix://, and stdio:// only"
       )
     }
+  }
+
+  private static func startObservabilityRuntime(
+    _ obs: Observability?,
+    publicURI: String,
+    transport: String
+  ) {
+    guard let obs, !obs.families.isEmpty, !obs.cfg.runDir.isEmpty else { return }
+    enableDiskWriters(obs.cfg.runDir)
+    if obs.enabled(.events) {
+      obs.emit(.instanceReady, payload: ["listener": publicURI])
+    }
+    let logPath = obs.enabled(.logs)
+      ? (obs.cfg.runDir as NSString).appendingPathComponent("stdout.log")
+      : ""
+    try? writeMetaJson(
+      obs.cfg.runDir,
+      MetaJson(
+        slug: obs.cfg.slug,
+        uid: obs.cfg.instanceUid,
+        pid: Int(getpid()),
+        startedAt: Date(),
+        transport: transport,
+        address: publicURI,
+        logPath: logPath,
+        organismUid: obs.cfg.organismUid,
+        organismSlug: obs.cfg.organismSlug
+      )
+    )
   }
 
   private static func startTCPServer(

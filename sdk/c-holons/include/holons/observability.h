@@ -61,18 +61,18 @@ typedef struct {
 } holon_obs_config_t;
 
 /*
- * Parses OP_OBS (the second argument takes precedence over getenv).
- * Returns a bitmask of HOLON_FAMILY_*. The token "otel" is silently
- * dropped in v1; "all" expands to logs|metrics|events|prom. Unknown
- * tokens are dropped by this function; call holon_obs_check_env to
- * fail-fast on them.
+ * Parses an already-validated OP_OBS string into a bitmask of
+ * HOLON_FAMILY_*. "all" expands to logs|metrics|events|prom.
+ * Returns 0 for empty or invalid input; call holon_obs_check_env before
+ * parsing untrusted environment input when the caller needs diagnostics.
  */
 uint32_t holon_obs_parse_families(const char *raw);
 
 /*
  * Returns 0 on success, or a negative error code when OP_OBS contains
- * an otel (v2) or unknown token. The offending token is copied into
- * @out_token (caller provides, HOLON_OBS_TOKEN_MAX bytes).
+ * a v2-only or unknown token, or when OP_SESSIONS is set in v1. The
+ * offending token is copied into @out_token (caller provides,
+ * HOLON_OBS_TOKEN_MAX bytes).
  */
 #define HOLON_OBS_TOKEN_MAX 64
 int holon_obs_check_env(const char *env_or_null, char out_token[HOLON_OBS_TOKEN_MAX]);
@@ -86,6 +86,13 @@ int holon_obs_configure(const holon_obs_config_t *cfg);
 
 /* Returns the active family bitmask, or 0 when disabled. */
 uint32_t holon_obs_families(void);
+
+/*
+ * Copies the currently configured instance run directory into out.
+ * The SDK derives this from <OP_RUN_DIR or cfg.run_dir>/<slug>/<uid>.
+ * Returns 0 on success, or -EINVAL / -ENOSPC.
+ */
+int holon_obs_current_run_dir(char *out, size_t out_len);
 
 /* Returns non-zero when the family is enabled. */
 int holon_obs_enabled(uint32_t family);

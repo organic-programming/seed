@@ -1535,7 +1535,7 @@ namespace Holons.V1 {
     public const int SessionRollupFieldNumber = 5;
     private global::Holons.V1.SessionMetrics sessionRollup_;
     /// <summary>
-    /// Populated only when OP_SESSIONS=metrics and the request asks for it.
+    /// Reserved for v2; always empty in v1.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

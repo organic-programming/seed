@@ -2,6 +2,7 @@
 #include "../include/holons/describe.hpp"
 #include "../include/holons/holons.hpp"
 #include "../include/holons/identity.hpp"
+#include "../include/holons/observability.hpp"
 #include "../include/holons/serve.hpp"
 
 namespace {
@@ -1703,6 +1704,100 @@ int main() {
   int passed = 0;
   std::string bind_reason;
   bool bind_restricted = loopback_bind_restricted(bind_reason);
+
+  // --- observability env parsing ---
+  {
+    namespace obs = holons::observability;
+    std::uint32_t all = static_cast<std::uint32_t>(obs::Family::Logs) |
+                        static_cast<std::uint32_t>(obs::Family::Metrics) |
+                        static_cast<std::uint32_t>(obs::Family::Events) |
+                        static_cast<std::uint32_t>(obs::Family::Prom);
+    assert(([] {
+      try { obs::parse_op_obs("all,otel"); } catch (const obs::InvalidTokenError &) { return true; }
+      return false;
+    })());
+    ++passed;
+    assert(([] {
+      try { obs::parse_op_obs("all,sessions"); } catch (const obs::InvalidTokenError &) { return true; }
+      return false;
+    })());
+    ++passed;
+    assert(([] {
+      try { obs::parse_op_obs("logs,unknown"); } catch (const obs::InvalidTokenError &) { return true; }
+      return false;
+    })());
+    ++passed;
+    assert(([] {
+      try { obs::check_env({{"OP_OBS", "logs,otel"}}); } catch (const obs::InvalidTokenError &) { return true; }
+      return false;
+    })());
+    ++passed;
+    assert(([] {
+      try { obs::check_env({{"OP_OBS", "logs,sessions"}}); } catch (const obs::InvalidTokenError &) { return true; }
+      return false;
+    })());
+    ++passed;
+    assert(([] {
+      try { obs::check_env({{"OP_SESSIONS", "metrics"}}); } catch (const obs::InvalidTokenError &) { return true; }
+      return false;
+    })());
+    ++passed;
+  }
+
+  // --- observability disk outputs ---
+  {
+    namespace obs = holons::observability;
+    auto previous_sessions = capture_env("OP_SESSIONS");
+    restore_env("OP_SESSIONS", std::nullopt);
+    env_guard obs_env("OP_OBS", "logs,metrics,events");
+    auto root = make_temp_dir("holons_cpp_obs_");
+
+    obs::Config cfg;
+    cfg.slug = "gabriel-greeting-cpp";
+    cfg.instance_uid = "uid-1";
+    cfg.run_dir = root.string();
+    auto &inst = obs::configure(cfg);
+    auto expected = (root / "gabriel-greeting-cpp" / "uid-1").string();
+    assert(inst.cfg.run_dir == expected);
+    ++passed;
+
+    obs::enable_disk_writers(inst.cfg.run_dir);
+    inst.logger("test").info("service-log", {{"component", "cpp"}});
+    auto counter = inst.counter("cpp_requests_total");
+    assert(counter);
+    counter->inc();
+    assert(counter->value() == 1);
+    ++passed;
+    auto gauge = inst.gauge("cpp_live_gauge");
+    assert(gauge);
+    gauge->set(2.5);
+    assert(gauge->value() == 2.5);
+    ++passed;
+    inst.emit(obs::EventType::InstanceReady, {{"listener", "tcp://127.0.0.1:1"}});
+
+    obs::MetaJson meta;
+    meta.slug = cfg.slug;
+    meta.uid = cfg.instance_uid;
+    meta.pid = 123;
+    meta.transport = "tcp";
+    meta.address = "tcp://127.0.0.1:1";
+    meta.log_path = (std::filesystem::path(inst.cfg.run_dir) / "stdout.log").string();
+    obs::write_meta_json(inst.cfg.run_dir, meta);
+
+    auto stdout_log = read_file_text((std::filesystem::path(inst.cfg.run_dir) / "stdout.log").string());
+    assert(stdout_log.find("\"message\":\"service-log\"") != std::string::npos);
+    ++passed;
+    auto events_log = read_file_text((std::filesystem::path(inst.cfg.run_dir) / "events.jsonl").string());
+    assert(events_log.find("\"type\":\"INSTANCE_READY\"") != std::string::npos);
+    ++passed;
+    auto meta_json = read_file_text((std::filesystem::path(inst.cfg.run_dir) / "meta.json").string());
+    assert(meta_json.find("\"uid\":\"uid-1\"") != std::string::npos);
+    ++passed;
+
+    obs::reset();
+    restore_env("OP_SESSIONS", previous_sessions);
+    std::filesystem::remove_all(root);
+  }
 
   // --- echo wrapper scripts ---
   {

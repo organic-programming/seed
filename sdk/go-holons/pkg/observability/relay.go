@@ -44,25 +44,39 @@ func (r *Relay) Start(ctx context.Context) error {
 	if r == nil || r.conn == nil {
 		return fmt.Errorf("observability.Relay: nil")
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	obs := Current()
+	wantLogs := obs != nil && obs.Enabled(FamilyLogs)
+	wantEvents := obs != nil && obs.Enabled(FamilyEvents)
+	if !wantLogs && !wantEvents {
+		return nil
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	r.cancel = cancel
 
 	client := v1.NewHolonObservabilityClient(r.conn)
 
-	logsStream, err := client.Logs(ctx, &v1.LogsRequest{Follow: true})
-	if err != nil {
-		cancel()
-		return fmt.Errorf("observability.Relay: open Logs: %w", err)
+	if wantLogs {
+		logsStream, err := client.Logs(ctx, &v1.LogsRequest{Follow: true})
+		if err != nil {
+			cancel()
+			return fmt.Errorf("observability.Relay: open Logs: %w", err)
+		}
+		r.wg.Add(1)
+		go r.pumpLogs(logsStream)
 	}
-	eventsStream, err := client.Events(ctx, &v1.EventsRequest{Follow: true})
-	if err != nil {
-		cancel()
-		return fmt.Errorf("observability.Relay: open Events: %w", err)
+	if wantEvents {
+		eventsStream, err := client.Events(ctx, &v1.EventsRequest{Follow: true})
+		if err != nil {
+			cancel()
+			r.wg.Wait()
+			return fmt.Errorf("observability.Relay: open Events: %w", err)
+		}
+		r.wg.Add(1)
+		go r.pumpEvents(eventsStream)
 	}
-
-	r.wg.Add(2)
-	go r.pumpLogs(logsStream)
-	go r.pumpEvents(eventsStream)
 	return nil
 }
 
@@ -130,6 +144,7 @@ type MultilogWriter struct {
 	started  bool
 	stopLogs []func()
 	stopEvs  []func()
+	wg       sync.WaitGroup
 }
 
 // NewMultilogWriter prepares a writer rooted at <organismRunDir>.
@@ -165,9 +180,12 @@ func (m *MultilogWriter) Start() error {
 		ring := obs.LogRing()
 		ch, stop := ring.Watch(256)
 		m.stopLogs = append(m.stopLogs, stop)
+		sourceSlug, sourceUID := obs.Slug(), obs.InstanceUID()
+		m.wg.Add(1)
 		go func() {
+			defer m.wg.Done()
 			for e := range ch {
-				rec := multilogLog(e)
+				rec := multilogLog(e, sourceSlug, sourceUID)
 				_, _ = m.writer.WriteJSON(rec)
 			}
 		}()
@@ -176,9 +194,12 @@ func (m *MultilogWriter) Start() error {
 		bus := obs.EventBus()
 		ch, stop := bus.Watch(64)
 		m.stopEvs = append(m.stopEvs, stop)
+		sourceSlug, sourceUID := obs.Slug(), obs.InstanceUID()
+		m.wg.Add(1)
 		go func() {
+			defer m.wg.Done()
 			for e := range ch {
-				rec := multilogEvent(e)
+				rec := multilogEvent(e, sourceSlug, sourceUID)
 				_, _ = m.writer.WriteJSON(rec)
 			}
 		}()
@@ -202,15 +223,17 @@ func (m *MultilogWriter) Stop() error {
 	}
 	m.stopLogs = nil
 	m.stopEvs = nil
+	m.wg.Wait()
 	m.started = false
 	return m.writer.Close()
 }
 
 // multilogLog renders an in-memory LogEntry as the JSONL record the
-// spec requires. The chain is enriched with the ENTRY's originator
-// slug as the stream-source identifier when the entry was relayed.
-// Locally emitted entries keep an empty chain.
-func multilogLog(e LogEntry) map[string]any {
+// spec requires. The chain is enriched with the stream source before
+// serialization so root-local entries carry the root hop and relayed
+// entries carry child hops plus the root hop.
+func multilogLog(e LogEntry, streamSourceSlug, streamSourceUID string) map[string]any {
+	e.Chain = EnrichForMultilog(e.Chain, streamSourceSlug, streamSourceUID)
 	rec := map[string]any{
 		"kind":         "log",
 		"ts":           e.Timestamp.UTC().Format(time.RFC3339Nano),
@@ -241,7 +264,8 @@ func multilogLog(e LogEntry) map[string]any {
 	return rec
 }
 
-func multilogEvent(e Event) map[string]any {
+func multilogEvent(e Event, streamSourceSlug, streamSourceUID string) map[string]any {
+	e.Chain = EnrichForMultilog(e.Chain, streamSourceSlug, streamSourceUID)
 	rec := map[string]any{
 		"kind":         "event",
 		"ts":           e.Timestamp.UTC().Format(time.RFC3339Nano),

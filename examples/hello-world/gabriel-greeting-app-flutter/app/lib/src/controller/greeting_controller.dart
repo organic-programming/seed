@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:holons/gen/holons/v1/coax.pb.dart';
 import 'package:holons/gen/holons/v1/manifest.pb.dart';
+import 'package:holons/holons.dart' as holons_obs;
 import 'package:holons_app/holons_app.dart';
 
 import '../gen/v1/greeting.pb.dart';
@@ -32,6 +33,9 @@ class GreetingController extends ChangeNotifier implements HolonManager {
   final Holons<GabrielHolonIdentity> _holons;
   final GreetingHolonConnectionFactory _connector;
   final AppPlatformCapabilities capabilities;
+  holons_obs.Logger? _logger;
+  holons_obs.Counter? _sayHelloTotal;
+  holons_obs.Histogram? _sayHelloDuration;
 
   GreetingHolonConnection? _connection;
   Future<void>? _startFuture;
@@ -53,6 +57,22 @@ class GreetingController extends ChangeNotifier implements HolonManager {
   List<Language> availableLanguages = const <Language>[];
   List<GabrielHolonIdentity> availableHolons = const <GabrielHolonIdentity>[];
   GabrielHolonIdentity? selectedHolon;
+
+  Holons<GabrielHolonIdentity> get holons => _holons;
+
+  void attachObservability(holons_obs.Observability observability) {
+    _logger = observability.logger('greeting-controller');
+    _sayHelloTotal = observability.counter(
+      'gabriel_greeting_say_hello_total',
+      help: 'Greeting requests sent from the Flutter app',
+      labels: const {'origin': 'app'},
+    );
+    _sayHelloDuration = observability.histogram(
+      'gabriel_greeting_say_hello_duration_seconds',
+      help: 'Greeting request duration observed by the Flutter app',
+      labels: const {'origin': 'app'},
+    );
+  }
 
   String get statusTitle {
     if (isLoading) {
@@ -247,6 +267,12 @@ class GreetingController extends ChangeNotifier implements HolonManager {
     final requestGeneration = ++_greetGeneration;
     isGreeting = true;
     _safeNotify();
+    final startedAt = DateTime.now();
+    _logger?.info('Greeting request started', {
+      'method': sayHelloMethod,
+      'lang': resolvedCode,
+      'holon': selectedHolon?.slug ?? '',
+    });
 
     try {
       await ensureStarted();
@@ -259,11 +285,27 @@ class GreetingController extends ChangeNotifier implements HolonManager {
       }
       greeting = response;
       error = null;
+      _sayHelloTotal?.inc();
+      _sayHelloDuration?.observe(
+        DateTime.now().difference(startedAt).inMicroseconds /
+            Duration.microsecondsPerSecond,
+      );
+      _logger?.info('Greeting response received', {
+        'method': sayHelloMethod,
+        'lang': resolvedCode,
+        'holon': selectedHolon?.slug ?? '',
+      });
     } on Object catch (greetError) {
       if (_greetGeneration != requestGeneration) {
         return;
       }
       error = 'Greeting failed: $greetError';
+      _logger?.error('Greeting request failed', {
+        'method': sayHelloMethod,
+        'lang': resolvedCode,
+        'holon': selectedHolon?.slug ?? '',
+        'error': greetError.toString(),
+      });
     } finally {
       if (_greetGeneration == requestGeneration) {
         isGreeting = false;

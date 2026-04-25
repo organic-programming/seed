@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Obs = Holons.Observability;
 
 namespace Holons;
 
@@ -23,6 +24,7 @@ public static class Serve
         public Action<string> Logger { get; init; } = message => Console.Error.WriteLine(message);
         public Action<string>? OnListen { get; init; }
         public int ShutdownGracePeriodSeconds { get; init; } = 10;
+        public IReadOnlyDictionary<string, string>? Env { get; init; }
     }
 
     public sealed record ParsedFlags(string ListenUri, bool Reflect);
@@ -173,6 +175,7 @@ public static class Serve
         var registrations = services.ToList();
         var describeEnabled = MaybeAddDescribe(registrations, options);
         var reflectionEnabled = MaybeAddReflection(registrations, options);
+        var observability = MaybeAddObservability(registrations, options);
 
         return parsed.Scheme switch
         {
@@ -183,10 +186,11 @@ public static class Serve
                 describeEnabled: describeEnabled,
                 reflectionEnabled: reflectionEnabled,
                 options: options,
+                observability: observability,
                 publicUriOverride: null,
                 suppressAnnouncement: false),
-            "stdio" => StartStdioServer(registrations, describeEnabled, reflectionEnabled, options),
-            "unix" => StartUnixServer(parsed.Path ?? throw new ArgumentException("unix path missing"), registrations, describeEnabled, reflectionEnabled, options),
+            "stdio" => StartStdioServer(registrations, describeEnabled, reflectionEnabled, options, observability),
+            "unix" => StartUnixServer(parsed.Path ?? throw new ArgumentException("unix path missing"), registrations, describeEnabled, reflectionEnabled, options, observability),
             _ => throw new ArgumentException(
                 $"Serve.Run(...) currently supports tcp://, unix://, and stdio:// only: {listenUri}"),
         };
@@ -196,7 +200,8 @@ public static class Serve
         IReadOnlyList<GrpcServiceRegistration> registrations,
         bool describeEnabled,
         bool reflectionEnabled,
-        ServeOptions options)
+        ServeOptions options,
+        Obs.Observability? observability)
     {
         var backing = StartApplication(
             host: "127.0.0.1",
@@ -218,6 +223,7 @@ public static class Serve
             auxiliaryStop: async () => await bridge.DisposeAsync().ConfigureAwait(false));
 
         bridge.Start();
+        StartObservabilityRuntime(observability, "stdio://", "stdio");
         var mode = FormatMode(describeEnabled, reflectionEnabled);
         options.OnListen?.Invoke("stdio://");
         options.Logger($"gRPC server listening on stdio:// ({mode})");
@@ -229,7 +235,8 @@ public static class Serve
         IReadOnlyList<GrpcServiceRegistration> registrations,
         bool describeEnabled,
         bool reflectionEnabled,
-        ServeOptions options)
+        ServeOptions options,
+        Obs.Observability? observability)
     {
         var backing = StartApplication(
             host: "127.0.0.1",
@@ -242,6 +249,7 @@ public static class Serve
         bridge.Start();
 
         var publicUri = $"unix://{path}";
+        StartObservabilityRuntime(observability, publicUri, "unix");
         var mode = FormatMode(describeEnabled, reflectionEnabled);
         options.OnListen?.Invoke(publicUri);
         options.Logger($"gRPC server listening on {publicUri} ({mode})");
@@ -259,10 +267,12 @@ public static class Serve
         bool describeEnabled,
         bool reflectionEnabled,
         ServeOptions options,
+        Obs.Observability? observability,
         string? publicUriOverride,
         bool suppressAnnouncement)
     {
         var started = StartApplication(host, port, registrations, publicUriOverride);
+        StartObservabilityRuntime(observability, started.PublicUri, "tcp");
         if (!suppressAnnouncement)
         {
             var mode = FormatMode(describeEnabled, reflectionEnabled);
@@ -332,6 +342,52 @@ public static class Serve
             services => services.AddGrpcReflection(),
             app => app.MapGrpcReflectionService()));
         return true;
+    }
+
+    private static Obs.Observability? MaybeAddObservability(
+        List<GrpcServiceRegistration> registrations,
+        ServeOptions options)
+    {
+        var env = options.Env;
+        Obs.Env.CheckEnv(env?.ToDictionary(pair => pair.Key, pair => pair.Value));
+        var raw = env != null && env.TryGetValue("OP_OBS", out var value)
+            ? value
+            : Environment.GetEnvironmentVariable("OP_OBS") ?? "";
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        var obs = Obs.ObservabilityRegistry.FromEnvMap(
+            new Obs.ObsConfig(),
+            env?.ToDictionary(pair => pair.Key, pair => pair.Value));
+        if (obs.Families.Count == 0)
+            return null;
+
+        registrations.Add(Service(new Obs.ObservabilityGrpcService(obs)));
+        return obs;
+    }
+
+    private static void StartObservabilityRuntime(Obs.Observability? obs, string publicUri, string transport)
+    {
+        if (obs is null || string.IsNullOrEmpty(obs.Config.RunDir))
+            return;
+
+        Obs.DiskWriters.Enable(obs.Config.RunDir);
+        if (obs.Enabled(Obs.Family.Events))
+            obs.Emit(Obs.EventType.InstanceReady, new Dictionary<string, string> { ["listener"] = publicUri });
+
+        var meta = new Obs.MetaJson
+        {
+            Slug = obs.Config.Slug,
+            Uid = obs.Config.InstanceUid,
+            Pid = Environment.ProcessId,
+            StartedAt = DateTime.UtcNow,
+            Transport = transport,
+            Address = publicUri,
+            LogPath = obs.Enabled(Obs.Family.Logs) ? Path.Combine(obs.Config.RunDir, "stdout.log") : "",
+            OrganismUid = obs.Config.OrganismUid,
+            OrganismSlug = obs.Config.OrganismSlug,
+        };
+        try { Obs.MetaJson.Write(obs.Config.RunDir, meta); } catch { }
     }
 
     private static string FormatMode(bool describeEnabled, bool reflectionEnabled) =>

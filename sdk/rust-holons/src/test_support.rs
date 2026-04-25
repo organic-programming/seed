@@ -117,9 +117,7 @@ pub(crate) fn compiled_fixture_holon_binary() -> PathBuf {
             );
         }
 
-        let binary = target_dir
-            .join("debug")
-            .join(fixture_binary_name());
+        let binary = target_dir.join("debug").join(fixture_binary_name());
         assert!(
             binary.is_file(),
             "missing fixture binary {}",
@@ -280,6 +278,8 @@ pub fn static_describe_response() -> DescribeResponse {
             artifacts: None,
             sequences: vec![],
             guide: String::new(),
+            session_visibility: 0,
+            session_visibility_overrides: vec![],
         }),
         services: vec![ServiceDoc {
             name: "test.v1.Noop".to_string(),

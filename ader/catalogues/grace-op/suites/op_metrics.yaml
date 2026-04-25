@@ -7,10 +7,10 @@ steps:
     lane: progression
 profiles:
   smoke:
-    description: Fetch a metrics snapshot and render table / Prom / JSON.
+    description: Verifies no-instance handling, help text, and JSON metrics from a live observable holon.
     archive: never
     steps: [metrics-cli]
   full:
-    description: Full metrics exercise including prefix filtering + session rollup.
+    description: Same live `op metrics --json` coverage as smoke for now.
     archive: never
     steps: [metrics-cli]

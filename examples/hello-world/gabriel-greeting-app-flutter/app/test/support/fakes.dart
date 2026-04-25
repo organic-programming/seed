@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:grpc/grpc.dart';
+import 'package:holons/holons.dart' as holons;
 import 'package:holons_app/holons_app.dart';
 
 import 'package:gabriel_greeting_app_flutter/src/controller/greeting_controller.dart';
@@ -177,6 +178,21 @@ CoaxManager buildCoaxManager({
     ],
   );
   return coaxManager;
+}
+
+ObservabilityKit buildObservabilityKit({
+  String slug = 'gabriel-greeting-app-flutter-test',
+}) {
+  return ObservabilityKit.standalone(
+    slug: slug,
+    declaredFamilies: const [
+      holons.Family.logs,
+      holons.Family.metrics,
+      holons.Family.events,
+      holons.Family.prom,
+    ],
+    settings: MemorySettingsStore(),
+  );
 }
 
 @Deprecated('Use buildCoaxManager')

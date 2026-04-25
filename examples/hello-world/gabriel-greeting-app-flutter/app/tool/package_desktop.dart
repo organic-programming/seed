@@ -94,6 +94,7 @@ Future<void> main(List<String> args) async {
       await _copyMemberHolons(
         examplesDir,
         Directory(p.join(destination.path, 'Contents', 'Resources', 'Holons')),
+        runtimeArchitecture: runtimeArch,
       );
       await _copyAppProto(
         rootDir,
@@ -118,13 +119,14 @@ Future<void> main(List<String> args) async {
     case 'linux':
       final bundle = _findBundleDirectory(
         Directory(p.join(appDir.path, 'build', 'linux')),
-        '$_entryBase',
+        _entryBase,
         requiredSidecarDir: 'data',
       );
       await _copyDirectoryContents(bundle, runtimeDir);
       await _copyMemberHolons(
         examplesDir,
         Directory(p.join(runtimeDir.path, 'data', 'Holons')),
+        runtimeArchitecture: runtimeArch,
       );
       await _copyAppProto(
         rootDir,
@@ -142,6 +144,7 @@ Future<void> main(List<String> args) async {
       await _copyMemberHolons(
         examplesDir,
         Directory(p.join(runtimeDir.path, 'data', 'Holons')),
+        runtimeArchitecture: runtimeArch,
       );
       await _copyAppProto(
         rootDir,
@@ -265,8 +268,9 @@ Directory _findMacOSAppBundle(
 
 Future<void> _copyMemberHolons(
   Directory examplesDir,
-  Directory destination,
-) async {
+  Directory destination, {
+  required String runtimeArchitecture,
+}) async {
   destination.createSync(recursive: true);
   for (final slug in _memberSlugs) {
     final source = Directory(
@@ -284,6 +288,12 @@ Future<void> _copyMemberHolons(
     await _copyEntity(
       source,
       Directory(p.join(destination.path, '$slug.holon')),
+    );
+    await _ensureMemberPackageJson(
+      examplesDir: examplesDir,
+      packageDir: Directory(p.join(destination.path, '$slug.holon')),
+      slug: slug,
+      runtimeArchitecture: runtimeArchitecture,
     );
   }
 }
@@ -341,8 +351,74 @@ Future<void> _writeHolonPackageJson({
   final file = File(p.join(packageDir.path, '.holon.json'));
   file.parent.createSync(recursive: true);
   await file.writeAsString(
-    const JsonEncoder.withIndent('  ').convert(payload) + '\n',
+    '${const JsonEncoder.withIndent('  ').convert(payload)}\n',
   );
+}
+
+Future<void> _ensureMemberPackageJson({
+  required Directory examplesDir,
+  required Directory packageDir,
+  required String slug,
+  required String runtimeArchitecture,
+}) async {
+  final packageMetadata = File(p.join(packageDir.path, '.holon.json'));
+  if (packageMetadata.existsSync()) {
+    return;
+  }
+
+  final manifest = File(
+    p.join(examplesDir.path, slug, 'api', 'v1', 'holon.proto'),
+  );
+  if (!manifest.existsSync()) {
+    throw StateError('missing member manifest for $slug: ${manifest.path}');
+  }
+
+  final text = manifest.readAsStringSync();
+  final runner = _protoScalar(text, 'runner');
+  final entrypoint = _protoScalar(text, 'binary', fallback: slug);
+  final payload = <String, Object?>{
+    'schema': 'holon-package/v1',
+    'slug': slug,
+    'uuid': _protoScalar(text, 'uuid'),
+    'identity': <String, Object?>{
+      'given_name': _protoScalar(text, 'given_name'),
+      'family_name': _protoScalar(text, 'family_name'),
+      'motto': _protoScalar(text, 'motto'),
+    },
+    'lang': _protoScalar(text, 'lang'),
+    'runner': runner,
+    'status': _protoScalar(text, 'status', fallback: 'draft'),
+    'kind': _protoScalar(text, 'kind', fallback: 'native'),
+    'transport': _protoScalar(text, 'transport', fallback: 'stdio'),
+    'entrypoint': entrypoint,
+    'architectures': <String>[runtimeArchitecture],
+    'standalone': _standaloneRunners.contains(runner.toLowerCase()),
+    'has_dist': false,
+    'has_source': false,
+  };
+
+  await packageMetadata.writeAsString(
+    '${const JsonEncoder.withIndent('  ').convert(payload)}\n',
+  );
+}
+
+String _protoScalar(String text, String field, {String fallback = ''}) {
+  final match = RegExp(
+    r'\b' + RegExp.escape(field) + r'\s*:\s*"((?:[^"\\]|\\.)*)"',
+  ).firstMatch(text);
+  if (match == null) {
+    return fallback;
+  }
+  return _unescapeProtoString(match.group(1) ?? '').trim();
+}
+
+String _unescapeProtoString(String value) {
+  return value
+      .replaceAll(r'\"', '"')
+      .replaceAll(r'\\', '\\')
+      .replaceAll(r'\n', '\n')
+      .replaceAll(r'\r', '\r')
+      .replaceAll(r'\t', '\t');
 }
 
 Future<void> _copyDirectoryContents(
@@ -426,6 +502,9 @@ Future<void> _copyEntity(
       break;
     case FileSystemEntityType.notFound:
       throw StateError('missing source entity: ${source.path}');
+    case FileSystemEntityType.pipe:
+    case FileSystemEntityType.unixDomainSock:
+      throw StateError('unsupported source entity: ${source.path}');
   }
 }
 

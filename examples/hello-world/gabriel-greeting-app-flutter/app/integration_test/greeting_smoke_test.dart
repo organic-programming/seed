@@ -22,6 +22,9 @@ void main() {
     final coaxManager = buildCoaxManager(
       greetingController: greetingController,
     );
+    final observabilityKit = buildObservabilityKit();
+    addTearDown(observabilityKit.dispose);
+    greetingController.attachObservability(observabilityKit.obs);
 
     await greetingController.initialize();
     await waitForCoaxUpdate();
@@ -29,6 +32,7 @@ void main() {
       GabrielGreetingApp(
         greetingController: greetingController,
         coaxManager: coaxManager,
+        observabilityKit: observabilityKit,
       ),
     );
     await tester.pump(const Duration(milliseconds: 400));

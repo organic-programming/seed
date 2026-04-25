@@ -7,10 +7,10 @@ steps:
     lane: progression
 profiles:
   smoke:
-    description: Baseline `op ps` surface — empty, populated, JSON, stale.
+    description: Verifies empty JSON output and one live observable holon in the sandbox registry.
     archive: never
     steps: [ps-cli]
   full:
-    description: Full `op ps` and `op instances` exercise.
+    description: Same live `op ps` coverage as smoke for now.
     archive: never
     steps: [ps-cli]

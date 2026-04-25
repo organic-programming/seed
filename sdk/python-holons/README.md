@@ -62,3 +62,12 @@ from holons.connect import connect
 
 channel = connect("gabriel-greeting-python")
 ```
+
+## Build and test
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e '.[dev]'
+python -m pytest
+```

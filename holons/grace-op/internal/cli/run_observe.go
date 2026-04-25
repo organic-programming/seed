@@ -13,20 +13,23 @@ import (
 )
 
 // runObserveOptions describes the observability-related flags carried
-// by `op run`. They translate to the OP_OBS / OP_PROM_ADDR / OP_OTEL_*
-// env vars the SDK consumes.
+// by `op run`. In v1 they translate to the OP_OBS / OP_PROM_ADDR env
+// vars the SDK consumes; OTLP is parsed only to reject the reserved flag.
 type runObserveOptions struct {
 	// Observe is a comma-separated subset of logs,metrics,events,prom,all.
 	// Empty means inherit OP_OBS from the parent env (or no observability).
 	Observe string
+
+	// Tail streams observability logs/events to op's stdout after spawn.
+	Tail bool
 
 	// Prom is either an address to bind (":9091") or the magic ":0" for
 	// ephemeral. Empty means don't force prom (if OP_OBS already has it
 	// in --observe, the SDK picks an ephemeral port itself).
 	Prom string
 
-	// OTel endpoint ("host:port"). v2 feature; when set in v1 the SDK
-	// rejects it at startup, which op forwards.
+	// OTel endpoint ("host:port"). Reserved for v2 and rejected by op
+	// before spawning in v1.
 	OTel string
 
 	// Session mode. Empty ignores; "1" enables sessions; "metrics"
@@ -49,8 +52,10 @@ func extractRunObserveFlags(args []string) ([]string, runObserveOptions) {
 		switch {
 		case a == "--observe":
 			opts.Observe = "logs,metrics,events"
+			opts.Tail = true
 		case strings.HasPrefix(a, "--observe="):
 			opts.Observe = strings.TrimPrefix(a, "--observe=")
+			opts.Tail = true
 		case a == "--prom":
 			opts.Prom = ":0"
 			if opts.Observe == "" {
@@ -105,8 +110,8 @@ func newInstanceUID() string {
 //
 //	$OP_RUN_DIR → $OPPATH/run → <OPROOT>/.op/run → ./.op/run
 //
-// Returns the first writable candidate. The caller can create the
-// per-instance subdirectory afterwards.
+// Returns the first writable candidate. This is the registry root
+// injected into children; SDKs derive <root>/<slug>/<uid>/ themselves.
 func resolveRunRoot() (string, error) {
 	candidates := []string{
 		os.Getenv("OP_RUN_DIR"),
@@ -135,20 +140,10 @@ func resolveRunRoot() (string, error) {
 	return "", fmt.Errorf("no writable run root candidate")
 }
 
-// prepareInstanceRunDir allocates a UID, creates the per-instance
-// directory (<runRoot>/<slug>/<uid>/), and returns the absolute path.
-func prepareInstanceRunDir(runRoot, slug, uid string) (string, error) {
-	dir := filepath.Join(runRoot, slug, uid)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", fmt.Errorf("mkdir %s: %w", dir, err)
-	}
-	return dir, nil
-}
-
 // injectObservabilityEnv sets OP_INSTANCE_UID, OP_RUN_DIR and the
 // observability family env vars on the given command. Leaves the
 // caller's cmd.Env untouched if empty (inherits parent env).
-func injectObservabilityEnv(cmd *exec.Cmd, uid, runDir string, opts runObserveOptions) {
+func injectObservabilityEnv(cmd *exec.Cmd, uid, runRoot string, opts runObserveOptions) {
 	env := cmd.Env
 	if env == nil {
 		env = os.Environ()
@@ -164,7 +159,7 @@ func injectObservabilityEnv(cmd *exec.Cmd, uid, runDir string, opts runObserveOp
 		env = append(env, prefix+value)
 	}
 	set("OP_INSTANCE_UID", uid)
-	set("OP_RUN_DIR", runDir)
+	set("OP_RUN_DIR", runRoot)
 	if opts.Observe != "" {
 		set("OP_OBS", opts.Observe)
 	}
@@ -204,27 +199,37 @@ func emitUIDReturn(uid, slug, address string, pid int, metricsAddr string, jsonM
 
 // applyRunObservability is called between commandForArtifact and
 // runForeground. When opts requests observability or the UID-return
-// contract, it allocates a UID, creates the per-instance registry
-// directory, injects the env vars into cmd, and emits the `uid:` line
-// (or JSON). Returns the allocated UID and run directory for later
-// use (e.g. meta.json prefill, op ps discovery). Returns ("", "") as
-// a no-op signal when observability is not requested.
-func applyRunObservability(cmd *exec.Cmd, slug string, opts runObserveOptions) (uid, runDir string, err error) {
+// contract, it allocates a UID, resolves the registry root, injects
+// the env vars into cmd, and emits the `uid:` line (or JSON). Returns
+// the allocated UID and registry root for later use. Returns ("", "")
+// as a no-op signal when observability is not requested.
+func applyRunObservability(cmd *exec.Cmd, slug string, opts runObserveOptions) (uid, runRoot string, err error) {
 	// Fast path: no observability requested and no JSON UID contract
 	// needed — leave the command untouched to preserve existing behaviour.
 	if opts.Observe == "" && opts.Prom == "" && opts.OTel == "" && opts.Sessions == "" && !opts.JSON {
 		return "", "", nil
 	}
-	runRoot, err := resolveRunRoot()
+	if err := validateRunObserveV1(opts); err != nil {
+		return "", "", err
+	}
+	runRoot, err = resolveRunRoot()
 	if err != nil {
 		return "", "", err
 	}
 	uid = newInstanceUID()
-	runDir, err = prepareInstanceRunDir(runRoot, slug, uid)
-	if err != nil {
-		return "", "", err
-	}
-	injectObservabilityEnv(cmd, uid, runDir, opts)
+	injectObservabilityEnv(cmd, uid, runRoot, opts)
 	emitUIDReturn(uid, slug, "", 0, "", opts.JSON)
-	return uid, runDir, nil
+	return uid, runRoot, nil
+}
+
+func validateRunObserveV1(opts runObserveOptions) error {
+	if opts.OTel != "" {
+		return fmt.Errorf("--otel is reserved for observability v2; use --prom in v1")
+	}
+	for _, tok := range strings.Split(opts.Observe, ",") {
+		if strings.TrimSpace(tok) == "otel" {
+			return fmt.Errorf("OP_OBS token %q is reserved for observability v2; use --prom in v1", tok)
+		}
+	}
+	return nil
 }

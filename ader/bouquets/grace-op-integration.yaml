@@ -41,6 +41,21 @@ entries:
   suite: op_list
   profile: smoke
 - catalogue: grace-op
+  suite: op_ps
+  profile: smoke
+- catalogue: grace-op
+  suite: op_logs
+  profile: smoke
+- catalogue: grace-op
+  suite: op_metrics
+  profile: smoke
+- catalogue: grace-op
+  suite: op_events
+  profile: smoke
+- catalogue: grace-op
+  suite: multilog_live
+  profile: smoke
+- catalogue: grace-op
   suite: op_mcp
   profile: smoke
 - catalogue: grace-op
@@ -52,6 +67,9 @@ entries:
 - catalogue: grace-op
   suite: op_run
   profile: full
+- catalogue: grace-op
+  suite: op_run_observe
+  profile: smoke
 - catalogue: grace-op
   suite: op_serve
   profile: smoke

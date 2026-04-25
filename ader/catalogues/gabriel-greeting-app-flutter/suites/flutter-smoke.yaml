@@ -1,4 +1,4 @@
-description: Flutter desktop regression surface for the Dart SDK and Gabriel HostUI
+description: Flutter desktop regression surface for the Dart SDK, Gabriel HostUI, and ObservabilityPanel wiring
 defaults:
   profile: smoke
 steps:

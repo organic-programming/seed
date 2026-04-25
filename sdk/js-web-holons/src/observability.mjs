@@ -17,6 +17,12 @@ export const Family = Object.freeze({
 
 const V1_TOKENS = new Set(['logs', 'metrics', 'events', 'prom', 'all']);
 
+export const OBSERVABILITY_METHODS = Object.freeze({
+  Logs: 'holons.v1.HolonObservability/Logs',
+  Metrics: 'holons.v1.HolonObservability/Metrics',
+  Events: 'holons.v1.HolonObservability/Events',
+});
+
 export class InvalidTokenError extends Error {
   constructor(token, reason) {
     super(`OP_OBS: ${reason}: ${token}`);
@@ -31,8 +37,9 @@ export function parseOpObs(raw) {
   for (const p of raw.split(',')) {
     const tok = p.trim();
     if (!tok) continue;
-    if (tok === 'otel') continue;
-    if (!V1_TOKENS.has(tok)) continue;
+    if (tok === 'otel') throw new InvalidTokenError(tok, 'otel export is reserved for v2; not implemented in v1');
+    if (tok === 'sessions') throw new InvalidTokenError(tok, 'sessions are reserved for v2; not implemented in v1');
+    if (!V1_TOKENS.has(tok)) throw new InvalidTokenError(tok, 'unknown OP_OBS token');
     if (tok === 'all') {
       out.add(Family.LOGS); out.add(Family.METRICS);
       out.add(Family.EVENTS); out.add(Family.PROM);
@@ -44,12 +51,16 @@ export function parseOpObs(raw) {
 }
 
 export function checkEnv(env = {}) {
+  if ((env.OP_SESSIONS || '').trim()) {
+    throw new InvalidTokenError(env.OP_SESSIONS.trim(), 'sessions are reserved for v2; not implemented in v1');
+  }
   const raw = (env.OP_OBS || '').trim();
   if (!raw) return;
   for (const p of raw.split(',')) {
     const tok = p.trim();
     if (!tok) continue;
     if (tok === 'otel') throw new InvalidTokenError(tok, 'otel export is reserved for v2; not implemented in v1');
+    if (tok === 'sessions') throw new InvalidTokenError(tok, 'sessions are reserved for v2; not implemented in v1');
     if (!V1_TOKENS.has(tok)) throw new InvalidTokenError(tok, 'unknown OP_OBS token');
   }
 }
@@ -58,6 +69,15 @@ export const Level = Object.freeze({
   UNSET: 0, TRACE: 1, DEBUG: 2, INFO: 3, WARN: 4, ERROR: 5, FATAL: 6,
 });
 const LEVEL_NAMES = { 1: 'TRACE', 2: 'DEBUG', 3: 'INFO', 4: 'WARN', 5: 'ERROR', 6: 'FATAL' };
+const PROTO_LEVEL_NAMES = {
+  0: 'LOG_LEVEL_UNSPECIFIED',
+  1: 'TRACE',
+  2: 'DEBUG',
+  3: 'INFO',
+  4: 'WARN',
+  5: 'ERROR',
+  6: 'FATAL',
+};
 
 export function parseLevel(s) {
   if (!s) return Level.INFO;
@@ -72,6 +92,17 @@ export const EventType = Object.freeze({
   INSTANCE_SPAWNED: 1, INSTANCE_READY: 2, INSTANCE_EXITED: 3, INSTANCE_CRASHED: 4,
   SESSION_STARTED: 5, SESSION_ENDED: 6, HANDLER_PANIC: 7, CONFIG_RELOADED: 8,
 });
+const PROTO_EVENT_TYPE_NAMES = {
+  0: 'EVENT_TYPE_UNSPECIFIED',
+  1: 'INSTANCE_SPAWNED',
+  2: 'INSTANCE_READY',
+  3: 'INSTANCE_EXITED',
+  4: 'INSTANCE_CRASHED',
+  5: 'SESSION_STARTED',
+  6: 'SESSION_ENDED',
+  7: 'HANDLER_PANIC',
+  8: 'CONFIG_RELOADED',
+};
 
 export function appendDirectChild(src, childSlug, childUid) {
   return [...(src || []), { slug: childSlug, instance_uid: childUid }];
@@ -160,6 +191,7 @@ export class Histogram {
     this._sum += v;
     for (let i = 0; i < this._bounds.length; i++) if (v <= this._bounds[i]) this._counts[i] += 1;
   }
+  observeDuration(seconds) { this.observe(seconds); }
   snapshot() { return { bounds: [...this._bounds], counts: [...this._counts], total: this._total, sum: this._sum }; }
   static quantile(snap, q) {
     if (snap.total === 0) return NaN;
@@ -195,6 +227,18 @@ export class Registry {
     let h = this._h.get(k);
     if (!h) { h = new Histogram(name, help, labels, bounds); this._h.set(k, h); }
     return h;
+  }
+  snapshot() {
+    const counters = [...this._c.values()]
+      .map((c) => ({ name: c.name, help: c.help, labels: { ...c.labels }, value: c.value() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const gauges = [...this._g.values()]
+      .map((g) => ({ name: g.name, help: g.help, labels: { ...g.labels }, value: g.value() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const histograms = [...this._h.values()]
+      .map((h) => ({ name: h.name, help: h.help, labels: { ...h.labels }, snap: h.snapshot() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return { capturedAt: new Date(), counters, gauges, histograms };
   }
 }
 
@@ -280,6 +324,7 @@ let _current = null;
 
 export function configure(cfg = {}) {
   const env = (typeof import.meta !== 'undefined' && import.meta.env) || (typeof globalThis !== 'undefined' && globalThis.__HOLON_ENV__) || {};
+  checkEnv(env);
   const families = parseOpObs(env.OP_OBS || '');
   const normalized = {
     slug: cfg.slug || '',
@@ -309,3 +354,182 @@ export function current() {
 }
 
 export function reset() { if (_current) _current.close(); _current = null; }
+
+export function makeHolonObservabilityHandlers(obs = current()) {
+  return {
+    [OBSERVABILITY_METHODS.Logs]: async (request = {}) => {
+      if (!obs.enabled(Family.LOGS) || !obs.logRing) {
+        throw new Error('logs family is not enabled (OP_OBS)');
+      }
+      const minLevel = requestMinLevel(request.min_level);
+      const cutoff = request.since ? Date.now() / 1000 - durationSeconds(request.since) : 0;
+      const entries = cutoff ? obs.logRing.drainSince(cutoff) : obs.logRing.drain();
+      return {
+        entries: entries
+          .filter((entry) => matchLog(entry, minLevel, request.session_ids, request.rpc_methods))
+          .map(toWireLogEntry),
+      };
+    },
+
+    [OBSERVABILITY_METHODS.Metrics]: async (request = {}) => {
+      if (!obs.enabled(Family.METRICS) || !obs.registry) {
+        throw new Error('metrics family is not enabled (OP_OBS)');
+      }
+      const snapshot = obs.registry.snapshot();
+      let samples = toWireMetricSamples(snapshot);
+      if (request.name_prefixes && request.name_prefixes.length) {
+        const prefixes = request.name_prefixes.filter(Boolean);
+        samples = samples.filter((sample) => prefixes.some((prefix) => sample.name.startsWith(prefix)));
+      }
+      return {
+        captured_at: timestamp(snapshot.capturedAt.getTime() / 1000),
+        slug: obs.cfg.slug || '',
+        instance_uid: obs.cfg.instanceUid || '',
+        samples,
+      };
+    },
+
+    [OBSERVABILITY_METHODS.Events]: async (request = {}) => {
+      if (!obs.enabled(Family.EVENTS) || !obs.eventBus) {
+        throw new Error('events family is not enabled (OP_OBS)');
+      }
+      const wanted = new Set((request.types || []).map(normalizeEventType));
+      const cutoff = request.since ? Date.now() / 1000 - durationSeconds(request.since) : 0;
+      const events = cutoff ? obs.eventBus.drainSince(cutoff) : obs.eventBus.drain();
+      return {
+        events: events.filter((event) => matchEvent(event, wanted)).map(toWireEvent),
+      };
+    },
+  };
+}
+
+export function registerObservabilityService(endpoint, obs = current()) {
+  if (!endpoint || typeof endpoint.register !== 'function') {
+    throw new TypeError('registerObservabilityService requires a HolonClient or HolonServer with register()');
+  }
+  const handlers = makeHolonObservabilityHandlers(obs);
+  for (const [method, handler] of Object.entries(handlers)) {
+    endpoint.register(method, handler);
+  }
+  return endpoint;
+}
+
+export function toWireLogEntry(entry) {
+  return {
+    ts: timestamp(entry.timestamp),
+    level: PROTO_LEVEL_NAMES[entry.level] || 'LOG_LEVEL_UNSPECIFIED',
+    slug: entry.slug || '',
+    instance_uid: entry.instance_uid || '',
+    session_id: entry.session_id || '',
+    rpc_method: entry.rpc_method || '',
+    message: entry.message || '',
+    fields: { ...(entry.fields || {}) },
+    caller: entry.caller || '',
+    chain: (entry.chain || []).map((hop) => ({
+      slug: hop.slug || '',
+      instance_uid: hop.instance_uid || '',
+    })),
+  };
+}
+
+export function toWireMetricSamples(snapshot) {
+  const samples = [];
+  for (const c of snapshot.counters || []) {
+    samples.push({
+      name: c.name,
+      help: c.help || '',
+      labels: { ...(c.labels || {}) },
+      counter: Number(c.value || 0),
+    });
+  }
+  for (const g of snapshot.gauges || []) {
+    samples.push({
+      name: g.name,
+      help: g.help || '',
+      labels: { ...(g.labels || {}) },
+      gauge: Number(g.value || 0),
+    });
+  }
+  for (const h of snapshot.histograms || []) {
+    samples.push({
+      name: h.name,
+      help: h.help || '',
+      labels: { ...(h.labels || {}) },
+      histogram: histogramToWire(h.snap || {}),
+    });
+  }
+  return samples;
+}
+
+export function toWireEvent(event) {
+  return {
+    ts: timestamp(event.timestamp),
+    type: PROTO_EVENT_TYPE_NAMES[event.type] || 'EVENT_TYPE_UNSPECIFIED',
+    slug: event.slug || '',
+    instance_uid: event.instance_uid || '',
+    session_id: event.session_id || '',
+    payload: { ...(event.payload || {}) },
+    chain: (event.chain || []).map((hop) => ({
+      slug: hop.slug || '',
+      instance_uid: hop.instance_uid || '',
+    })),
+  };
+}
+
+function timestamp(unixSeconds) {
+  const value = Number(unixSeconds) || 0;
+  const seconds = Math.trunc(value);
+  const nanos = Math.trunc((value - seconds) * 1_000_000_000);
+  return { seconds: String(seconds), nanos };
+}
+
+function durationSeconds(duration) {
+  if (!duration) return 0;
+  return Number(duration.seconds || 0) + Number(duration.nanos || 0) / 1e9;
+}
+
+function histogramToWire(snap) {
+  return {
+    buckets: (snap.bounds || []).map((upper, index) => ({
+      upper_bound: upper,
+      count: Number((snap.counts || [])[index] || 0),
+    })),
+    count: Number(snap.total || 0),
+    sum: Number(snap.sum || 0),
+  };
+}
+
+function requestMinLevel(value) {
+  const level = normalizeLogLevel(value);
+  return level || Level.INFO;
+}
+
+function normalizeLogLevel(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    if (Object.prototype.hasOwnProperty.call(Level, value)) return Level[value];
+    if (value === 'LOG_LEVEL_UNSPECIFIED') return Level.UNSET;
+  }
+  return Level.UNSET;
+}
+
+function normalizeEventType(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    if (Object.prototype.hasOwnProperty.call(EventType, value)) return EventType[value];
+    if (value === 'EVENT_TYPE_UNSPECIFIED') return EventType.UNSPECIFIED;
+  }
+  return EventType.UNSPECIFIED;
+}
+
+function matchLog(entry, minLevel, sessionIds, rpcMethods) {
+  if (entry.level < minLevel) return false;
+  if (sessionIds && sessionIds.length && !sessionIds.includes(entry.session_id || '')) return false;
+  if (rpcMethods && rpcMethods.length && !rpcMethods.includes(entry.rpc_method || '')) return false;
+  return true;
+}
+
+function matchEvent(event, wanted) {
+  if (!wanted || wanted.size === 0) return true;
+  return wanted.has(Number(event.type || 0));
+}

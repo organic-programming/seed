@@ -6,6 +6,9 @@
 // same proto types (holons.v1.HolonObservability). See OBSERVABILITY.md.
 
 import Foundation
+import GRPC
+import NIOCore
+import SwiftProtobuf
 
 // MARK: - Families
 
@@ -20,20 +23,33 @@ public enum Family: String, CaseIterable, Sendable {
 private let v1Tokens: Set<String> = ["logs", "metrics", "events", "prom", "all"]
 
 public struct InvalidTokenError: Error, CustomStringConvertible {
+    public let variable: String
     public let token: String
     public let reason: String
-    public var description: String { "OP_OBS: \(reason): \(token)" }
+    public init(token: String, reason: String, variable: String = "OP_OBS") {
+        self.variable = variable
+        self.token = token
+        self.reason = reason
+    }
+    public var description: String { "\(variable): \(reason): \(token)" }
 }
 
-public func parseOpObs(_ raw: String) -> Set<Family> {
+public func parseOpObs(_ raw: String) throws -> Set<Family> {
     var out = Set<Family>()
     let trimmed = raw.trimmingCharacters(in: .whitespaces)
     if trimmed.isEmpty { return out }
     for part in trimmed.split(separator: ",") {
         let tok = part.trimmingCharacters(in: .whitespaces)
         guard !tok.isEmpty else { continue }
-        if tok == "otel" { continue }                     // dropped by parser
-        guard v1Tokens.contains(tok) else { continue }    // unknown dropped
+        if tok == "otel" {
+            throw InvalidTokenError(token: tok, reason: "otel export is reserved for v2; not implemented in v1")
+        }
+        if tok == "sessions" {
+            throw InvalidTokenError(token: tok, reason: "sessions are reserved for v2; not implemented in v1")
+        }
+        guard v1Tokens.contains(tok) else {
+            throw InvalidTokenError(token: tok, reason: "unknown OP_OBS token")
+        }
         if tok == "all" {
             out.formUnion([.logs, .metrics, .events, .prom])
         } else if let fam = Family(rawValue: tok) {
@@ -44,6 +60,10 @@ public func parseOpObs(_ raw: String) -> Set<Family> {
 }
 
 public func checkEnv(_ env: [String: String] = ProcessInfo.processInfo.environment) throws {
+    let sessions = (env["OP_SESSIONS"] ?? "").trimmingCharacters(in: .whitespaces)
+    if !sessions.isEmpty {
+        throw InvalidTokenError(token: sessions, reason: "sessions are reserved for v2; not implemented in v1", variable: "OP_SESSIONS")
+    }
     let raw = (env["OP_OBS"] ?? "").trimmingCharacters(in: .whitespaces)
     if raw.isEmpty { return }
     for part in raw.split(separator: ",") {
@@ -51,6 +71,9 @@ public func checkEnv(_ env: [String: String] = ProcessInfo.processInfo.environme
         guard !tok.isEmpty else { continue }
         if tok == "otel" {
             throw InvalidTokenError(token: tok, reason: "otel export is reserved for v2; not implemented in v1")
+        }
+        if tok == "sessions" {
+            throw InvalidTokenError(token: tok, reason: "sessions are reserved for v2; not implemented in v1")
         }
         if !v1Tokens.contains(tok) {
             throw InvalidTokenError(token: tok, reason: "unknown OP_OBS token")
@@ -637,12 +660,17 @@ private let obsLock = NSLock()
 private nonisolated(unsafe) var _current: Observability?
 
 @discardableResult
-public func configure(_ cfg: ObsConfig) -> Observability {
-    let env = ProcessInfo.processInfo.environment
-    let families = parseOpObs(env["OP_OBS"] ?? "")
+public func configure(_ cfg: ObsConfig, env: [String: String] = ProcessInfo.processInfo.environment) throws -> Observability {
+    let families = try parseOpObs(env["OP_OBS"] ?? "")
     var normalized = cfg
     if normalized.slug.isEmpty {
         normalized.slug = CommandLine.arguments.first.map { (($0 as NSString).lastPathComponent) } ?? ""
+    }
+    if normalized.instanceUid.isEmpty {
+        normalized.instanceUid = UUID().uuidString
+    }
+    if !normalized.runDir.isEmpty {
+        normalized.runDir = deriveRunDir(root: normalized.runDir, slug: normalized.slug, uid: normalized.instanceUid)
     }
     let obs = Observability(cfg: normalized, families: families)
     obsLock.lock()
@@ -652,15 +680,14 @@ public func configure(_ cfg: ObsConfig) -> Observability {
 }
 
 @discardableResult
-public func fromEnv(_ base: ObsConfig = ObsConfig()) -> Observability {
-    let env = ProcessInfo.processInfo.environment
+public func fromEnv(_ base: ObsConfig = ObsConfig(), env: [String: String] = ProcessInfo.processInfo.environment) throws -> Observability {
     var cfg = base
     if cfg.instanceUid.isEmpty { cfg.instanceUid = env["OP_INSTANCE_UID"] ?? "" }
     if cfg.organismUid.isEmpty { cfg.organismUid = env["OP_ORGANISM_UID"] ?? "" }
     if cfg.organismSlug.isEmpty { cfg.organismSlug = env["OP_ORGANISM_SLUG"] ?? "" }
     if cfg.promAddr.isEmpty { cfg.promAddr = env["OP_PROM_ADDR"] ?? "" }
     if cfg.runDir.isEmpty { cfg.runDir = env["OP_RUN_DIR"] ?? "" }
-    return configure(cfg)
+    return try configure(cfg, env: env)
 }
 
 public func current() -> Observability {
@@ -673,6 +700,191 @@ public func reset() {
     _current?.close()
     _current = nil
     obsLock.unlock()
+}
+
+public func deriveRunDir(root: String, slug: String, uid: String) -> String {
+    if root.isEmpty || slug.isEmpty || uid.isEmpty { return root }
+    return (root as NSString).appendingPathComponent((slug as NSString).appendingPathComponent(uid))
+}
+
+// MARK: - Proto conversion + gRPC service
+
+private func timestamp(_ date: Date) -> Google_Protobuf_Timestamp {
+    Google_Protobuf_Timestamp(date: date)
+}
+
+private func hopToProto(_ hop: Hop) -> Holons_V1_ChainHop {
+    var out = Holons_V1_ChainHop()
+    out.slug = hop.slug
+    out.instanceUid = hop.instanceUid
+    return out
+}
+
+private func levelToProto(_ level: Level) -> Holons_V1_LogLevel {
+    Holons_V1_LogLevel(rawValue: Int(level.rawValue)) ?? .unspecified
+}
+
+private func eventTypeToProto(_ type: EventType) -> Holons_V1_EventType {
+    Holons_V1_EventType(rawValue: Int(type.rawValue)) ?? .unspecified
+}
+
+public func toProtoLogEntry(_ entry: LogEntry) -> Holons_V1_LogEntry {
+    var out = Holons_V1_LogEntry()
+    out.ts = timestamp(entry.timestamp)
+    out.level = levelToProto(entry.level)
+    out.slug = entry.slug
+    out.instanceUid = entry.instanceUid
+    out.sessionID = entry.sessionId
+    out.rpcMethod = entry.rpcMethod
+    out.message = entry.message
+    out.fields = entry.fields
+    out.caller = entry.caller
+    out.chain = entry.chain.map(hopToProto)
+    return out
+}
+
+private func histogramToProto(_ snapshot: HistogramSnapshot) -> Holons_V1_HistogramSample {
+    var out = Holons_V1_HistogramSample()
+    out.buckets = zip(snapshot.bounds, snapshot.counts).map { upper, count in
+        var bucket = Holons_V1_Bucket()
+        bucket.upperBound = upper
+        bucket.count = count
+        return bucket
+    }
+    out.count = snapshot.total
+    out.sum = snapshot.sum
+    return out
+}
+
+public func toProtoMetricSamples(_ registry: Registry) -> [Holons_V1_MetricSample] {
+    var samples: [Holons_V1_MetricSample] = []
+    for counter in registry.listCounters() {
+        var sample = Holons_V1_MetricSample()
+        sample.name = counter.name
+        sample.help = counter.help
+        sample.labels = counter.labels
+        sample.counter = counter.read()
+        samples.append(sample)
+    }
+    for gauge in registry.listGauges() {
+        var sample = Holons_V1_MetricSample()
+        sample.name = gauge.name
+        sample.help = gauge.help
+        sample.labels = gauge.labels
+        sample.gauge = gauge.read()
+        samples.append(sample)
+    }
+    for histogram in registry.listHistograms() {
+        var sample = Holons_V1_MetricSample()
+        sample.name = histogram.name
+        sample.help = histogram.help
+        sample.labels = histogram.labels
+        sample.histogram = histogramToProto(histogram.snapshot())
+        samples.append(sample)
+    }
+    return samples
+}
+
+public func toProtoEvent(_ event: Event) -> Holons_V1_EventInfo {
+    var out = Holons_V1_EventInfo()
+    out.ts = timestamp(event.timestamp)
+    out.type = eventTypeToProto(event.type)
+    out.slug = event.slug
+    out.instanceUid = event.instanceUid
+    out.sessionID = event.sessionId
+    out.payload = event.payload
+    out.chain = event.chain.map(hopToProto)
+    return out
+}
+
+public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvider {
+    private let obs: Observability
+
+    public init(_ obs: Observability = current()) {
+        self.obs = obs
+    }
+
+    public func logs(
+        request: Holons_V1_LogsRequest,
+        context: StreamingResponseCallContext<Holons_V1_LogEntry>
+    ) -> EventLoopFuture<GRPCStatus> {
+        guard obs.enabled(.logs), let ring = obs.logRing else {
+            return context.eventLoop.makeSucceededFuture(
+                GRPCStatus(code: .failedPrecondition, message: "logs family is not enabled (OP_OBS)")
+            )
+        }
+        let minLevel = request.minLevel.rawValue == 0 ? Int(Level.info.rawValue) : request.minLevel.rawValue
+        let entries = request.hasSince
+            ? ring.drainSince(Date().addingTimeInterval(-durationSeconds(request.since)))
+            : ring.drain()
+        var future = context.eventLoop.makeSucceededFuture(())
+        for entry in entries where matchLog(entry, minLevel: minLevel, sessionIds: request.sessionIds, rpcMethods: request.rpcMethods) {
+            future = future.flatMap { context.sendResponse(toProtoLogEntry(entry)) }
+        }
+        return future.map { .ok }
+    }
+
+    public func metrics(
+        request: Holons_V1_MetricsRequest,
+        context: StatusOnlyCallContext
+    ) -> EventLoopFuture<Holons_V1_MetricsSnapshot> {
+        guard obs.enabled(.metrics), let registry = obs.registry else {
+            return context.eventLoop.makeFailedFuture(
+                GRPCStatus(code: .failedPrecondition, message: "metrics family is not enabled (OP_OBS)")
+            )
+        }
+        var samples = toProtoMetricSamples(registry)
+        if !request.namePrefixes.isEmpty {
+            samples = samples.filter { sample in
+                request.namePrefixes.contains { prefix in sample.name.hasPrefix(prefix) }
+            }
+        }
+        var snapshot = Holons_V1_MetricsSnapshot()
+        snapshot.capturedAt = timestamp(Date())
+        snapshot.slug = obs.cfg.slug
+        snapshot.instanceUid = obs.cfg.instanceUid
+        snapshot.samples = samples
+        return context.eventLoop.makeSucceededFuture(snapshot)
+    }
+
+    public func events(
+        request: Holons_V1_EventsRequest,
+        context: StreamingResponseCallContext<Holons_V1_EventInfo>
+    ) -> EventLoopFuture<GRPCStatus> {
+        guard obs.enabled(.events), let bus = obs.eventBus else {
+            return context.eventLoop.makeSucceededFuture(
+                GRPCStatus(code: .failedPrecondition, message: "events family is not enabled (OP_OBS)")
+            )
+        }
+        let wanted = Set(request.types.map { $0.rawValue })
+        let events = request.hasSince
+            ? bus.drainSince(Date().addingTimeInterval(-durationSeconds(request.since)))
+            : bus.drain()
+        var future = context.eventLoop.makeSucceededFuture(())
+        for event in events where matchEvent(event, wanted: wanted) {
+            future = future.flatMap { context.sendResponse(toProtoEvent(event)) }
+        }
+        return future.map { .ok }
+    }
+}
+
+public func registerObservabilityService(_ obs: Observability = current()) -> CallHandlerProvider {
+    HolonObservabilityService(obs)
+}
+
+private func durationSeconds(_ duration: Google_Protobuf_Duration) -> TimeInterval {
+    TimeInterval(duration.seconds) + TimeInterval(duration.nanos) / 1_000_000_000
+}
+
+private func matchLog(_ entry: LogEntry, minLevel: Int, sessionIds: [String], rpcMethods: [String]) -> Bool {
+    if Int(entry.level.rawValue) < minLevel { return false }
+    if !sessionIds.isEmpty && !sessionIds.contains(entry.sessionId) { return false }
+    if !rpcMethods.isEmpty && !rpcMethods.contains(entry.rpcMethod) { return false }
+    return true
+}
+
+private func matchEvent(_ event: Event, wanted: Set<Int>) -> Bool {
+    wanted.isEmpty || wanted.contains(Int(event.type.rawValue))
 }
 
 // MARK: - Disk writers

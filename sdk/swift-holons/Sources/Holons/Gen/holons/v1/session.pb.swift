@@ -299,7 +299,7 @@ public struct Holons_V1_SessionInfo: @unchecked Sendable {
   /// Clears the value of `lastRpcAt`. Subsequent reads from it will return its default value.
   public mutating func clearLastRpcAt() {_uniqueStorage()._lastRpcAt = nil}
 
-  /// Optional per-session metrics (only when OP_SESSIONS=metrics).
+  /// Reserved for v2; not emitted in v1.
   public var metrics: Holons_V1_SessionMetrics {
     get {_storage._metrics ?? Holons_V1_SessionMetrics()}
     set {_uniqueStorage()._metrics = newValue}
@@ -331,7 +331,7 @@ public struct Holons_V1_SessionInfo: @unchecked Sendable {
   fileprivate var _storage = _StorageClass.defaultInstance
 }
 
-/// SessionMetrics is populated only when OP_SESSIONS=metrics.
+/// SessionMetrics is reserved for v2; empty in v1.
 /// Time is decomposed into four phases: wire_out, queue, work, wire_in.
 public struct Holons_V1_SessionMetrics: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the

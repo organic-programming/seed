@@ -65,3 +65,10 @@ final entry = await findBySlug('gabriel-greeting-dart');
 ```dart
 final channel = await connect('gabriel-greeting-dart');
 ```
+
+## Build and test
+
+```sh
+dart pub get
+dart test
+```

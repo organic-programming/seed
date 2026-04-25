@@ -9,11 +9,13 @@ import time
 import pytest
 
 from holons import observability as obs
+from holons.v1 import observability_pb2
 
 
 def setup_function(_):
     obs.reset()
     os.environ.pop("OP_OBS", None)
+    os.environ.pop("OP_SESSIONS", None)
 
 
 def test_parse_op_obs_basic():
@@ -22,11 +24,12 @@ def test_parse_op_obs_basic():
         ("logs", {obs.Family.LOGS}),
         ("logs,metrics", {obs.Family.LOGS, obs.Family.METRICS}),
         ("all", {obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM}),
-        ("all,otel", {obs.Family.LOGS, obs.Family.METRICS, obs.Family.EVENTS, obs.Family.PROM}),
-        ("unknown", set()),
     ]
     for raw, want in cases:
         assert obs._parse_op_obs(raw) == want, raw
+    for raw in ("all,otel", "all,sessions", "unknown"):
+        with pytest.raises(obs.InvalidTokenError):
+            obs._parse_op_obs(raw)
 
 
 def test_check_env_otel_rejected():
@@ -37,6 +40,18 @@ def test_check_env_otel_rejected():
 
 def test_check_env_unknown_rejected():
     os.environ["OP_OBS"] = "bogus"
+    with pytest.raises(obs.InvalidTokenError):
+        obs.check_env()
+
+
+def test_check_env_sessions_rejected():
+    os.environ["OP_OBS"] = "logs,sessions"
+    with pytest.raises(obs.InvalidTokenError):
+        obs.check_env()
+
+
+def test_check_env_op_sessions_rejected():
+    os.environ["OP_SESSIONS"] = "metrics"
     with pytest.raises(obs.InvalidTokenError):
         obs.check_env()
 
@@ -144,3 +159,68 @@ def test_current_stub_when_unset():
     c = obs.current()
     assert c is not None
     c.logger("x").info("safe")
+
+
+def test_run_dir_uses_registry_root(tmp_path):
+    os.environ["OP_OBS"] = "logs"
+    root = tmp_path / "runs"
+    o = obs.configure(obs.Config(slug="gabriel", instance_uid="uid-1", run_dir=str(root)))
+    assert o.cfg.run_dir == str(root / "gabriel" / "uid-1")
+
+
+def test_disk_writers_and_meta_json(tmp_path):
+    os.environ["OP_OBS"] = "logs,events"
+    o = obs.configure(obs.Config(slug="gabriel", instance_uid="uid-1", run_dir=str(tmp_path / "runs")))
+    obs.enable_disk_writers(o.cfg.run_dir)
+    o.logger("test").info("ready", port=123)
+    o.emit(obs.EventType.INSTANCE_READY, {"listener": "tcp://127.0.0.1:123"})
+    obs.write_meta_json(
+        o.cfg.run_dir,
+        obs.MetaJSON(
+            slug="gabriel",
+            uid="uid-1",
+            pid=42,
+            started_at=1.0,
+            transport="tcp",
+            address="tcp://127.0.0.1:123",
+            log_path=os.path.join(o.cfg.run_dir, "stdout.log"),
+        ),
+    )
+
+    assert (tmp_path / "runs" / "gabriel" / "uid-1" / "stdout.log").read_text().count("ready") == 1
+    assert (tmp_path / "runs" / "gabriel" / "uid-1" / "events.jsonl").read_text().count("INSTANCE_READY") == 1
+    meta = obs.read_meta_json(o.cfg.run_dir)
+    assert meta["slug"] == "gabriel"
+    assert meta["uid"] == "uid-1"
+    assert meta["address"] == "tcp://127.0.0.1:123"
+
+
+def test_holon_observability_service_replays_rings():
+    os.environ["OP_OBS"] = "logs,metrics,events"
+    o = obs.configure(obs.Config(slug="gabriel", instance_uid="uid-1"))
+    o.logger("test").info("hello")
+    counter = o.counter("requests_total", "requests")
+    assert counter is not None
+    counter.inc()
+    o.emit(obs.EventType.INSTANCE_READY, {"listener": "stdio://"})
+
+    svc = obs.HolonObservabilityService(o)
+    ctx = _FakeContext()
+
+    logs = list(svc.Logs(observability_pb2.LogsRequest(follow=False), ctx))
+    assert [entry.message for entry in logs] == ["hello"]
+
+    metrics = svc.Metrics(observability_pb2.MetricsRequest(), ctx)
+    assert metrics.slug == "gabriel"
+    assert any(sample.name == "requests_total" and sample.counter == 1 for sample in metrics.samples)
+
+    events = list(svc.Events(observability_pb2.EventsRequest(follow=False), ctx))
+    assert [event.type for event in events] == [observability_pb2.INSTANCE_READY]
+
+
+class _FakeContext:
+    def abort(self, _code, details):
+        raise RuntimeError(details)
+
+    def is_active(self):
+        return False

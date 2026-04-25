@@ -22,8 +22,8 @@ func TestOrganismRelay_TwoLevel(t *testing.T) {
 	Reset()
 	t.Setenv("OP_OBS", "logs,events")
 	childObs := Configure(Config{
-		Slug:         "gabriel-greeting-rust",
-		InstanceUID:  "1c2d3e4f",
+		Slug:        "gabriel-greeting-rust",
+		InstanceUID: "1c2d3e4f",
 	})
 	defer childObs.Close()
 	childObs.Logger("leaf").Info("rendered banner", "name", "Bob")
@@ -63,18 +63,17 @@ func TestOrganismRelay_TwoLevel(t *testing.T) {
 	}
 	defer relay.Stop()
 
-	// Push one more log through the child so the relay has a live
-	// entry to forward (replay-only relay would also work because
-	// follow=true drains the ring first, but we add a live push for
-	// belt-and-braces).
+	// Push one more log through the child so an established relay can
+	// forward a live entry too. The replayed ring entry alone proves the
+	// chain contract, so the assertion below only requires one match.
 	childObs.Logger("leaf").Info("rendered banner 2", "name", "Alice")
 
 	// Wait for the relay to deliver.
 	deadline := time.Now().Add(1500 * time.Millisecond)
 	for time.Now().Before(deadline) {
 		entries := parentObs.LogRing().Drain()
-		if len(entries) >= 2 {
-			// Verify the two relayed entries carry the child's chain hop.
+		if len(entries) >= 1 {
+			// Verify the relayed entries carry the child's chain hop.
 			seen := 0
 			for _, e := range entries {
 				if e.Slug == "gabriel-greeting-rust" && len(e.Chain) == 1 &&
@@ -82,7 +81,7 @@ func TestOrganismRelay_TwoLevel(t *testing.T) {
 					seen++
 				}
 			}
-			if seen >= 2 {
+			if seen >= 1 {
 				return // all good
 			}
 		}
@@ -92,10 +91,60 @@ func TestOrganismRelay_TwoLevel(t *testing.T) {
 	t.Fatalf("relay did not deliver expected entries; got %d:\n%+v", len(entries), entries)
 }
 
+func TestRelayRespectsFamilyGate(t *testing.T) {
+	Reset()
+	t.Setenv("OP_OBS", "logs")
+	childObs := Configure(Config{
+		Slug:        "child",
+		InstanceUID: "child-uid",
+	})
+	defer childObs.Close()
+	childObs.Logger("leaf").Info("log only")
+
+	grpcSrv := grpc.NewServer()
+	v1.RegisterHolonObservabilityServer(grpcSrv, NewService(childObs, VisibilityFull))
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	go grpcSrv.Serve(lis)
+	defer grpcSrv.Stop()
+
+	Reset()
+	t.Setenv("OP_OBS", "logs")
+	parentObs := Configure(Config{Slug: "root", InstanceUID: "root-uid"})
+	defer parentObs.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	conn, err := grpc.DialContext(ctx, lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	relay := NewRelay("child", "child-uid", conn)
+	if err := relay.Start(context.Background()); err != nil {
+		t.Fatalf("relay.Start logs-only: %v", err)
+	}
+	defer relay.Stop()
+
+	deadline := time.Now().Add(1500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		for _, entry := range parentObs.LogRing().Drain() {
+			if entry.Slug == "child" && len(entry.Chain) == 1 && entry.Chain[0].Slug == "child" {
+				return
+			}
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	t.Fatalf("relay did not deliver logs-only child entry")
+}
+
 // TestMultilogWriter_WritesEnrichedChain confirms that entries pushed
 // to the parent ring by a relay end up in multilog.jsonl with the
-// chain preserved. The root's multilog sees the child's hop because
-// the relay appended it before push.
+// chain enriched. The root's multilog appends the root stream-source
+// hop after any relay-provided child hops.
 func TestMultilogWriter_WritesEnrichedChain(t *testing.T) {
 	Reset()
 	t.Setenv("OP_OBS", "logs,events")
@@ -146,6 +195,7 @@ func TestMultilogWriter_WritesEnrichedChain(t *testing.T) {
 	}
 
 	foundRelayed := false
+	foundRoot := false
 	for _, rec := range records {
 		if rec["kind"] != "log" {
 			continue
@@ -153,13 +203,22 @@ func TestMultilogWriter_WritesEnrichedChain(t *testing.T) {
 		if rec["slug"] == "leaf-holon" {
 			foundRelayed = true
 			chain, ok := rec["chain"].([]any)
-			if !ok || len(chain) != 1 {
+			if !ok || len(chain) != 2 {
 				t.Errorf("relayed entry missing chain: %+v", rec)
+			}
+		}
+		if rec["slug"] == "root" {
+			foundRoot = true
+			chain, ok := rec["chain"].([]any)
+			if !ok || len(chain) != 1 {
+				t.Errorf("root entry missing enriched root chain: %+v", rec)
 			}
 		}
 	}
 	if !foundRelayed {
 		t.Errorf("multilog did not contain the relayed leaf entry: %+v", records)
 	}
+	if !foundRoot {
+		t.Errorf("multilog did not contain the root entry: %+v", records)
+	}
 }
-

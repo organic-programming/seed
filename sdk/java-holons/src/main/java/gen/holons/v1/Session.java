@@ -3292,7 +3292,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
 
     /**
      * <pre>
-     * Optional per-session metrics (only when OP_SESSIONS=metrics).
+     * Reserved for v2; not emitted in v1.
      * </pre>
      *
      * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -3301,7 +3301,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
     boolean hasMetrics();
     /**
      * <pre>
-     * Optional per-session metrics (only when OP_SESSIONS=metrics).
+     * Reserved for v2; not emitted in v1.
      * </pre>
      *
      * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -3310,7 +3310,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
     holons.v1.Session.SessionMetrics getMetrics();
     /**
      * <pre>
-     * Optional per-session metrics (only when OP_SESSIONS=metrics).
+     * Reserved for v2; not emitted in v1.
      * </pre>
      *
      * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -3829,7 +3829,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
     private holons.v1.Session.SessionMetrics metrics_;
     /**
      * <pre>
-     * Optional per-session metrics (only when OP_SESSIONS=metrics).
+     * Reserved for v2; not emitted in v1.
      * </pre>
      *
      * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -3841,7 +3841,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
     }
     /**
      * <pre>
-     * Optional per-session metrics (only when OP_SESSIONS=metrics).
+     * Reserved for v2; not emitted in v1.
      * </pre>
      *
      * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -3853,7 +3853,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
     }
     /**
      * <pre>
-     * Optional per-session metrics (only when OP_SESSIONS=metrics).
+     * Reserved for v2; not emitted in v1.
      * </pre>
      *
      * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -5841,7 +5841,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
           holons.v1.Session.SessionMetrics, holons.v1.Session.SessionMetrics.Builder, holons.v1.Session.SessionMetricsOrBuilder> metricsBuilder_;
       /**
        * <pre>
-       * Optional per-session metrics (only when OP_SESSIONS=metrics).
+       * Reserved for v2; not emitted in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -5852,7 +5852,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
       }
       /**
        * <pre>
-       * Optional per-session metrics (only when OP_SESSIONS=metrics).
+       * Reserved for v2; not emitted in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -5867,7 +5867,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
       }
       /**
        * <pre>
-       * Optional per-session metrics (only when OP_SESSIONS=metrics).
+       * Reserved for v2; not emitted in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -5887,7 +5887,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
       }
       /**
        * <pre>
-       * Optional per-session metrics (only when OP_SESSIONS=metrics).
+       * Reserved for v2; not emitted in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -5905,7 +5905,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
       }
       /**
        * <pre>
-       * Optional per-session metrics (only when OP_SESSIONS=metrics).
+       * Reserved for v2; not emitted in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -5930,7 +5930,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
       }
       /**
        * <pre>
-       * Optional per-session metrics (only when OP_SESSIONS=metrics).
+       * Reserved for v2; not emitted in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -5947,7 +5947,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
       }
       /**
        * <pre>
-       * Optional per-session metrics (only when OP_SESSIONS=metrics).
+       * Reserved for v2; not emitted in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -5959,7 +5959,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
       }
       /**
        * <pre>
-       * Optional per-session metrics (only when OP_SESSIONS=metrics).
+       * Reserved for v2; not emitted in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -5974,7 +5974,7 @@ public final class Session extends com.google.protobuf.GeneratedFile {
       }
       /**
        * <pre>
-       * Optional per-session metrics (only when OP_SESSIONS=metrics).
+       * Reserved for v2; not emitted in v1.
        * </pre>
        *
        * <code>.holons.v1.SessionMetrics metrics = 20;</code>
@@ -6379,7 +6379,7 @@ holons.v1.Session.MethodMetrics defaultValue);
   }
   /**
    * <pre>
-   * SessionMetrics is populated only when OP_SESSIONS=metrics.
+   * SessionMetrics is reserved for v2; empty in v1.
    * Time is decomposed into four phases: wire_out, queue, work, wire_in.
    * </pre>
    *
@@ -7052,7 +7052,7 @@ holons.v1.Session.MethodMetrics defaultValue) {
     }
     /**
      * <pre>
-     * SessionMetrics is populated only when OP_SESSIONS=metrics.
+     * SessionMetrics is reserved for v2; empty in v1.
      * Time is decomposed into four phases: wire_out, queue, work, wire_in.
      * </pre>
      *

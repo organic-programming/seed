@@ -47,7 +47,7 @@ func PromHandler() http.Handler {
 }
 
 // PromServer is an HTTP server exposing /metrics. Call Start to bind,
-// Addr to get the effective listen address, and Close to tear it down.
+// Addr to get the effective /metrics URL, and Close to tear it down.
 type PromServer struct {
 	addr string
 
@@ -63,14 +63,14 @@ func NewPromServer(addr string) *PromServer {
 }
 
 // Start binds the configured address and begins serving in a background
-// goroutine. Returns the effective address ("http://host:port") or an
-// error. Idempotent in the sense that calling Start twice returns the
-// previously bound address.
+// goroutine. Returns the effective metrics URL ("http://host:port/metrics")
+// or an error. Idempotent in the sense that calling Start twice returns
+// the previously bound address.
 func (p *PromServer) Start() (string, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.lis != nil {
-		return "http://" + p.lis.Addr().String(), nil
+		return "http://" + p.lis.Addr().String() + "/metrics", nil
 	}
 	lis, err := net.Listen("tcp", p.addr)
 	if err != nil {
@@ -83,17 +83,17 @@ func (p *PromServer) Start() (string, error) {
 	go func() {
 		_ = p.server.Serve(lis)
 	}()
-	return "http://" + lis.Addr().String(), nil
+	return "http://" + lis.Addr().String() + "/metrics", nil
 }
 
-// Addr returns the effective bound address, or empty if not started.
+// Addr returns the effective bound /metrics URL, or empty if not started.
 func (p *PromServer) Addr() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.lis == nil {
 		return ""
 	}
-	return "http://" + p.lis.Addr().String()
+	return "http://" + p.lis.Addr().String() + "/metrics"
 }
 
 // Close tears down the HTTP server and releases the listener. Safe to

@@ -7,10 +7,10 @@ steps:
     lane: progression
 profiles:
   smoke:
-    description: Happy-path tail + filters + --json + --chain-origin.
+    description: Verifies no-instance handling, help text, and JSON log replay from a live observable holon.
     archive: never
     steps: [logs-cli]
   full:
-    description: Full tailing exercise including replay and follow.
+    description: Same live `op logs --json` replay coverage as smoke for now.
     archive: never
     steps: [logs-cli]

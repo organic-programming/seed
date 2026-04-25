@@ -13,7 +13,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -64,6 +66,86 @@ class ServeTest {
             }
         } finally {
             Describe.useStaticResponse(null);
+            if (running != null) {
+                running.stop();
+            }
+        }
+    }
+
+    @Test
+    void startWithOptionsRegistersObservabilityService(@TempDir Path tmp) throws Exception {
+        Describe.useStaticResponse(staticDescribeResponse());
+        Observability.reset();
+        Path registryRoot = tmp.resolve("runs");
+        Map<String, String> env = Map.of(
+                "OP_OBS", "logs,metrics,events",
+                "OP_RUN_DIR", registryRoot.toString(),
+                "OP_INSTANCE_UID", "java-obs-1");
+
+        Serve.RunningServer running = null;
+        try {
+            running = Serve.startWithOptions(
+                    "tcp://127.0.0.1:0",
+                    List.of(new EmptyService()),
+                    new Serve.Options()
+                            .withEnv(env)
+                            .withOnListen(uri -> {
+                            }));
+
+            Observability obs = Observability.current();
+            obs.logger("serve-test").info("serve-log", Map.of("sdk", "java"));
+            obs.counter("serve_requests_total", "", Map.of()).inc();
+            obs.emit(Observability.EventType.INSTANCE_READY, Map.of());
+
+            String target = running.publicUri().substring("tcp://".length());
+            int idx = target.lastIndexOf(':');
+            String host = target.substring(0, idx);
+            int port = Integer.parseInt(target.substring(idx + 1));
+            ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port)
+                    .usePlaintext()
+                    .build();
+
+            try {
+                List<holons.v1.Observability.LogEntry> logs = new ArrayList<>();
+                Iterator<holons.v1.Observability.LogEntry> logIterator = ClientCalls.blockingServerStreamingCall(
+                        channel,
+                        Observability.logsMethod(),
+                        CallOptions.DEFAULT,
+                        holons.v1.Observability.LogsRequest.newBuilder()
+                                .setMinLevel(holons.v1.Observability.LogLevel.INFO)
+                                .build());
+                logIterator.forEachRemaining(logs::add);
+                assertTrue(logs.stream().anyMatch(entry -> entry.getMessage().equals("serve-log")));
+
+                holons.v1.Observability.MetricsSnapshot metrics = ClientCalls.blockingUnaryCall(
+                        channel,
+                        Observability.metricsMethod(),
+                        CallOptions.DEFAULT,
+                        holons.v1.Observability.MetricsRequest.getDefaultInstance());
+                assertTrue(metrics.getSamplesList().stream()
+                        .anyMatch(sample -> sample.getName().equals("serve_requests_total")));
+
+                List<holons.v1.Observability.EventInfo> events = new ArrayList<>();
+                Iterator<holons.v1.Observability.EventInfo> eventIterator = ClientCalls.blockingServerStreamingCall(
+                        channel,
+                        Observability.eventsMethod(),
+                        CallOptions.DEFAULT,
+                        holons.v1.Observability.EventsRequest.getDefaultInstance());
+                eventIterator.forEachRemaining(events::add);
+                assertTrue(events.stream()
+                        .anyMatch(event -> event.getType() == holons.v1.Observability.EventType.INSTANCE_READY));
+            } finally {
+                channel.shutdownNow();
+                channel.awaitTermination(5, TimeUnit.SECONDS);
+            }
+
+            assertTrue(Files.isRegularFile(registryRoot
+                    .resolve(obs.cfg.slug)
+                    .resolve("java-obs-1")
+                    .resolve("meta.json")));
+        } finally {
+            Describe.useStaticResponse(null);
+            Observability.reset();
             if (running != null) {
                 running.stop();
             }

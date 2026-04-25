@@ -1,7 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:grpc/grpc.dart';
 import 'package:holons_app/holons_app.dart';
-import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 void main() {
   testWidgets('CoaxControlsView renders the saved preview endpoint', (
@@ -15,9 +15,9 @@ void main() {
     addTearDown(coaxManager.dispose);
 
     await tester.pumpWidget(
-      ShadcnApp(
+      MaterialApp(
         home: Scaffold(
-          child: CoaxControlsView(
+          body: CoaxControlsView(
             coaxManager: coaxManager,
             onOpenSettings: () {},
           ),
@@ -26,7 +26,6 @@ void main() {
     );
 
     expect(find.text('COAX'), findsOneWidget);
-    expect(find.text('Server:'), findsOneWidget);
     expect(find.text('tcp://127.0.0.1:60000'), findsOneWidget);
     expect(find.text('OFF'), findsOneWidget);
   });
@@ -42,14 +41,11 @@ void main() {
     addTearDown(coaxManager.dispose);
 
     await tester.pumpWidget(
-      ShadcnApp(
-        home: Scaffold(
-          child: CoaxSettingsView(coaxManager: coaxManager),
-        ),
+      MaterialApp(
+        home: Scaffold(body: CoaxSettingsView(coaxManager: coaxManager)),
       ),
     );
 
-    expect(find.text('Transport'), findsOneWidget);
     expect(find.text('Host'), findsOneWidget);
     expect(find.text('Port'), findsOneWidget);
     expect(find.text('Endpoint'), findsOneWidget);

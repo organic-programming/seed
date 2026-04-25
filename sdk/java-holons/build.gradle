@@ -19,7 +19,7 @@ dependencies {
     api 'io.grpc:grpc-protobuf:1.60.0'
     api 'io.grpc:grpc-stub:1.60.0'
     api 'io.grpc:grpc-services:1.60.0'
-    api 'com.google.protobuf:protobuf-java:4.34.0'
+    api 'com.google.protobuf:protobuf-java:4.34.1'
     implementation 'com.google.code.gson:gson:2.11.0'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'

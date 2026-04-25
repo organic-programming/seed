@@ -103,7 +103,10 @@ inline std::uint32_t parse_op_obs(std::string_view raw) {
         while (!tok.empty() && (tok.front() == ' ' || tok.front() == '\t')) tok.erase(tok.begin());
         while (!tok.empty() && (tok.back() == ' ' || tok.back() == '\t')) tok.pop_back();
         if (tok.empty()) continue;
-        if (tok == "otel") continue;
+        if (tok == "otel")
+            throw InvalidTokenError(tok, "otel export is reserved for v2; not implemented in v1");
+        if (tok == "sessions")
+            throw InvalidTokenError(tok, "sessions are reserved for v2; not implemented in v1");
         if (tok == "all") {
             out |= static_cast<std::uint32_t>(Family::Logs) |
                    static_cast<std::uint32_t>(Family::Metrics) |
@@ -113,11 +116,21 @@ inline std::uint32_t parse_op_obs(std::string_view raw) {
         else if (tok == "metrics") out |= static_cast<std::uint32_t>(Family::Metrics);
         else if (tok == "events") out |= static_cast<std::uint32_t>(Family::Events);
         else if (tok == "prom") out |= static_cast<std::uint32_t>(Family::Prom);
+        else throw InvalidTokenError(tok, "unknown OP_OBS token");
     }
     return out;
 }
 
 inline void check_env(const std::map<std::string, std::string>& env = {}) {
+    std::string sessions;
+    auto sit = env.find("OP_SESSIONS");
+    if (sit != env.end()) sessions = sit->second;
+    else { const char* v = std::getenv("OP_SESSIONS"); if (v) sessions = v; }
+    while (!sessions.empty() && (sessions.front() == ' ' || sessions.front() == '\t')) sessions.erase(sessions.begin());
+    while (!sessions.empty() && (sessions.back() == ' ' || sessions.back() == '\t')) sessions.pop_back();
+    if (!sessions.empty())
+        throw InvalidTokenError(sessions, "sessions are reserved for v2; not implemented in v1");
+
     std::string raw;
     auto it = env.find("OP_OBS");
     if (it != env.end()) raw = it->second;
@@ -137,6 +150,8 @@ inline void check_env(const std::map<std::string, std::string>& env = {}) {
         if (tok.empty()) continue;
         if (tok == "otel")
             throw InvalidTokenError(tok, "otel export is reserved for v2; not implemented in v1");
+        if (tok == "sessions")
+            throw InvalidTokenError(tok, "sessions are reserved for v2; not implemented in v1");
         if (tok != "logs" && tok != "metrics" && tok != "events" && tok != "prom" && tok != "all")
             throw InvalidTokenError(tok, "unknown OP_OBS token");
     }
@@ -157,6 +172,13 @@ inline std::vector<Hop> append_direct_child(const std::vector<Hop>& src,
 inline std::vector<Hop> enrich_for_multilog(const std::vector<Hop>& wire,
                                              std::string src_slug, std::string src_uid) {
     return append_direct_child(wire, std::move(src_slug), std::move(src_uid));
+}
+
+inline std::string derive_run_dir(const std::string& root,
+                                  const std::string& slug,
+                                  const std::string& uid) {
+    if (root.empty() || slug.empty() || uid.empty()) return root;
+    return (std::filesystem::path(root) / slug / uid).string();
 }
 
 struct LogEntry {
@@ -547,9 +569,11 @@ inline std::unique_ptr<Observability>& current_ptr() {
 }
 
 inline Observability& configure(Config cfg) {
+    check_env();
     const char* raw = std::getenv("OP_OBS");
     std::uint32_t families = parse_op_obs(raw ? raw : "");
     if (cfg.slug.empty()) cfg.slug = "holon";
+    if (!cfg.run_dir.empty()) cfg.run_dir = derive_run_dir(cfg.run_dir, cfg.slug, cfg.instance_uid);
     auto obs = std::make_unique<Observability>(std::move(cfg), families);
     std::scoped_lock lk(current_mu());
     current_ptr() = std::move(obs);

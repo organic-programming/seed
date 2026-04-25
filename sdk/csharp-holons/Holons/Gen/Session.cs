@@ -1017,7 +1017,7 @@ namespace Holons.V1 {
     public const int MetricsFieldNumber = 20;
     private global::Holons.V1.SessionMetrics metrics_;
     /// <summary>
-    /// Optional per-session metrics (only when OP_SESSIONS=metrics).
+    /// Reserved for v2; not emitted in v1.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1560,7 +1560,7 @@ namespace Holons.V1 {
   }
 
   /// <summary>
-  /// SessionMetrics is populated only when OP_SESSIONS=metrics.
+  /// SessionMetrics is reserved for v2; empty in v1.
   /// Time is decomposed into four phases: wire_out, queue, work, wire_in.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]

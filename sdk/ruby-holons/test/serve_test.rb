@@ -62,6 +62,53 @@ class ServeTest < Minitest::Test
     end
   end
 
+  def test_run_with_options_auto_registers_observability
+    with_serve_fixture do |fixture|
+      Holons::Observability.require_grpc_observability_support!
+      registry_root = File.join(fixture[:workspace], "runs")
+      env = {
+        "OP_OBS" => "logs,metrics,events",
+        "OP_RUN_DIR" => registry_root,
+        "OP_INSTANCE_UID" => "ruby-obs-1"
+      }
+      stdin, stdout, stderr, wait_thr = Open3.popen3(
+        env,
+        RbConfig.ruby,
+        fixture[:script_path],
+        "serve",
+        "--listen",
+        "tcp://127.0.0.1:0",
+        chdir: fixture[:holon_dir]
+      )
+
+      begin
+        uri = read_advertised_uri(stdout, stderr)
+        result = Holons.connect(Holons::LOCAL, uri, nil, Holons::ALL, 5000)
+        begin
+          stub = Holons::V1::HolonObservability::Stub.new(
+            "unused",
+            :this_channel_is_insecure,
+            channel_override: result.channel,
+            timeout: 5
+          )
+          events = stub.events(Holons::V1::EventsRequest.new).to_a
+          assert events.any? { |event| event.type == :INSTANCE_READY }
+        ensure
+          Holons.disconnect(result)
+        end
+
+        meta_paths = Dir.glob(File.join(registry_root, "*", "ruby-obs-1", "meta.json"))
+        assert_equal 1, meta_paths.length
+        assert_equal "ruby-obs-1", JSON.parse(File.read(meta_paths.first)).fetch("uid")
+      ensure
+        terminate_process(wait_thr.pid)
+        stdin.close unless stdin.closed?
+        stdout.close unless stdout.closed?
+        stderr.close unless stderr.closed?
+      end
+    end
+  end
+
   def test_run_with_options_fails_without_registered_static_describe
     with_serve_fixture(register_static: false) do |fixture|
       stdin, stdout, stderr, wait_thr = Open3.popen3(
@@ -88,7 +135,7 @@ class ServeTest < Minitest::Test
   def test_connect_slug_reaches_stdio_serve_helper
     with_serve_fixture do |fixture|
       with_holon_root(fixture[:workspace]) do
-        result = Holons.connect(Holons::LOCAL, fixture[:slug], fixture[:workspace], Holons::CWD, 5000)
+        result = Holons.connect(Holons::LOCAL, fixture[:slug], fixture[:workspace], Holons::SOURCE, 5000)
         begin
           response = describe(result.channel)
           assert_equal "Serve", response.manifest.identity.given_name
@@ -244,15 +291,12 @@ class ServeTest < Minitest::Test
   end
 
   def helper_wrapper(script_path)
-    bundle_path = File.expand_path("../vendor/bundle", __dir__)
-
     <<~SH
       #!/bin/sh
       set -eu
 
       cd #{File.dirname(script_path).inspect}
       export BUNDLE_GEMFILE=#{File.expand_path("../Gemfile", __dir__).inspect}
-      export BUNDLE_PATH=#{bundle_path.inspect}
 
       exec arch -x86_64 bundle exec ruby #{script_path.inspect} "$@"
     SH

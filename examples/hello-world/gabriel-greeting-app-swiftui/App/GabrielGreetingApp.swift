@@ -11,6 +11,7 @@ import SwiftUI
 struct GabrielGreetingApp: App {
   @StateObject private var holonManager: GreetingHolonManager
   @StateObject private var coaxManager: CoaxManager
+  @StateObject private var observabilityKit: ObservabilityKit
 
   init() {
     // Cross-SDK observability bootstrap: reads OP_OBS from the env
@@ -23,15 +24,23 @@ struct GabrielGreetingApp: App {
       FileHandle.standardError.write(
         "OP_OBS misconfigured: \(error)\n".data(using: .utf8) ?? Data())
     }
-    _ = fromEnv(ObsConfig(slug: "gabriel-greeting-app"))
-    current().emit(.instanceSpawned, payload: ["runtime": "swiftui"])
-    current().logger("app").info("SwiftUI app starting")
-
     let holonManager = GreetingHolonManager()
     let settingsStore = FileSettingsStore.create(
       applicationId: "gabriel-greeting-app-swiftui",
       applicationName: "Gabriel Greeting App SwiftUI"
     )
+    let observabilityKit = try! ObservabilityKit.standalone(
+      slug: "gabriel-greeting-app-swiftui",
+      declaredFamilies: [.logs, .metrics, .events, .prom],
+      settings: settingsStore,
+      bundledHolons: holonManager.availableHolons.map {
+        ObservabilityMemberRef(slug: $0.slug, uid: $0.slug, address: $0.discoveryPath)
+      }
+    )
+    holonManager.attachObservability(observabilityKit.obs)
+    observabilityKit.obs.emit(.instanceSpawned, payload: ["runtime": "swiftui"])
+    observabilityKit.obs.logger("app").info("SwiftUI app starting")
+
     var turnOffCoax: (@MainActor @Sendable () -> Void)?
     let server = CoaxManager(
       providers: {
@@ -54,6 +63,7 @@ struct GabrielGreetingApp: App {
     turnOffCoax = { server.turnOffAfterRpc() }
     _holonManager = StateObject(wrappedValue: holonManager)
     _coaxManager = StateObject(wrappedValue: server)
+    _observabilityKit = StateObject(wrappedValue: observabilityKit)
     Task { @MainActor [server] in
       server.startIfEnabled()
     }
@@ -62,7 +72,11 @@ struct GabrielGreetingApp: App {
   var body: some Scene {
     WindowGroup("Gabriel Greeting") {
       #if os(macOS)
-        ContentView(holonManager: holonManager, coaxManager: coaxManager)
+        ContentView(
+          holonManager: holonManager,
+          coaxManager: coaxManager,
+          observabilityKit: observabilityKit
+        )
           .frame(minWidth: 800, minHeight: 600)
           .onAppear {
             DispatchQueue.main.async {
@@ -72,15 +86,21 @@ struct GabrielGreetingApp: App {
           .onDisappear {
             holonManager.stop()
             coaxManager.stop()
+            observabilityKit.obs.close()
           }
           .onReceive(
             NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
           ) { _ in
             holonManager.stop()
             coaxManager.stop()
+            observabilityKit.obs.close()
           }
       #else
-        ContentView(holonManager: holonManager, coaxManager: coaxManager)
+        ContentView(
+          holonManager: holonManager,
+          coaxManager: coaxManager,
+          observabilityKit: observabilityKit
+        )
       #endif
     }
   }

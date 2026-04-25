@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:grpc/grpc.dart';
-import 'package:holons/holons.dart' as obs;
+import 'package:holons/holons.dart' as holons;
 import 'package:holons_app/holons_app.dart';
 
 import 'src/app.dart';
@@ -19,21 +19,13 @@ Future<void> main() async {
   // launcher injected (or the app's own overrides). See
   // OBSERVABILITY.md §Activation. Safe no-op when OP_OBS is empty.
   try {
-    obs.checkEnv();
+    holons.checkEnv();
   } catch (e) {
     // Fail-fast per spec §Layer 3 (otel v2 or unknown token).
     // ignore: avoid_print
     print('OP_OBS misconfigured: $e');
     rethrow;
   }
-  final observability = obs.fromEnv(const obs.Config(
-    slug: 'gabriel-greeting-app',
-    defaultLogLevel: obs.Level.info,
-  ));
-  observability.emit(obs.EventType.instanceSpawned,
-      payload: const {'runtime': 'flutter'});
-  final appLog = observability.logger('app');
-  appLog.info('Flutter main starting');
   final coaxDefaults = CoaxSettingsDefaults.standard(
     socketName: 'gabriel-greeting-coax.sock',
   );
@@ -52,6 +44,24 @@ Future<void> main() async {
     ),
     connector: BundledGreetingHolonConnectionFactory(),
   );
+  final observabilityKit = ObservabilityKit.standalone(
+    slug: 'gabriel-greeting-app-flutter',
+    declaredFamilies: const [
+      holons.Family.logs,
+      holons.Family.metrics,
+      holons.Family.events,
+      holons.Family.prom,
+    ],
+    settings: settingsStore,
+    bundledHolons: await _observabilityMembers(greetingController),
+  );
+  final observability = observabilityKit.obs;
+  greetingController.attachObservability(observability);
+  observability.emit(
+    holons.EventType.instanceSpawned,
+    payload: const {'runtime': 'flutter'},
+  );
+  observability.logger('app').info('Flutter main starting');
 
   late final CoaxManager coaxManager;
   coaxManager = CoaxManager(
@@ -73,6 +83,26 @@ Future<void> main() async {
     GabrielGreetingApp(
       greetingController: greetingController,
       coaxManager: coaxManager,
+      observabilityKit: observabilityKit,
     ),
   );
+}
+
+Future<List<ObservabilityMemberRef>> _observabilityMembers(
+  GreetingController greetingController,
+) async {
+  try {
+    final members = await greetingController.holons.list();
+    return members
+        .map(
+          (member) => ObservabilityMemberRef(
+            slug: member.slug,
+            uid: member.slug,
+            address: member.discoveryPath,
+          ),
+        )
+        .toList(growable: false);
+  } on Object {
+    return const [];
+  }
 }

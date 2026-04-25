@@ -58,3 +58,10 @@ const { connect, LOCAL, INSTALLED, NO_TIMEOUT } = require('@organic-programming/
 
 const result = await connect(LOCAL, 'gabriel-greeting-node', null, INSTALLED, NO_TIMEOUT);
 ```
+
+## Build and test
+
+```sh
+npm install
+npm test
+```

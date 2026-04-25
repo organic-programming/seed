@@ -149,8 +149,9 @@ func NewSandbox(t *testing.T) *Sandbox {
 	oppath := filepath.Join(root, ".op")
 	opbin := filepath.Join(oppath, "bin")
 	cacheDir := filepath.Join(oppath, "cache")
+	runDir := filepath.Join(oppath, "run")
 	tmpDir := filepath.Join(root, "tmp")
-	for _, dir := range []string{oppath, opbin, cacheDir, tmpDir} {
+	for _, dir := range []string{oppath, opbin, cacheDir, runDir, tmpDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
@@ -271,10 +272,15 @@ func (s *Sandbox) commandEnv(t *testing.T, extra []string) []string {
 	if rt.opBinary != "" {
 		pathValue = filepath.Dir(rt.opBinary) + string(os.PathListSeparator) + pathValue
 	}
+	if javaHome := integrationJavaHome(); javaHome != "" {
+		env = withEnvValue(env, "JAVA_HOME", javaHome)
+		pathValue = prependPathEntry(pathValue, filepath.Join(javaHome, "bin"))
+	}
 	env = withEnvValue(env, "PATH", pathValue)
 	env = append(env,
 		"OPPATH="+s.OPPATH,
 		"OPBIN="+s.OPBIN,
+		"OP_RUN_DIR="+filepath.Join(s.OPPATH, "run"),
 		"GOCACHE="+filepath.Join(rt.toolCacheRoot, "go-build"),
 		"GOMODCACHE="+filepath.Join(rt.toolCacheRoot, "go-mod"),
 		"GRACE_OP_SHARED_CACHE_DIR="+rt.sharedCacheRoot,
@@ -329,6 +335,16 @@ func (p *ProcessHandle) Stop(t *testing.T) {
 	_ = p.wait(10 * time.Second)
 }
 
+func (p *ProcessHandle) Signal(t *testing.T, sig os.Signal) {
+	t.Helper()
+	if p == nil || p.cmd == nil || p.cmd.Process == nil {
+		t.Fatalf("cannot signal nil process")
+	}
+	if err := p.cmd.Process.Signal(sig); err != nil {
+		t.Fatalf("signal process %v: %v", sig, err)
+	}
+}
+
 func (p *ProcessHandle) WaitForListenAddress(t *testing.T, timeout time.Duration) string {
 	t.Helper()
 	pattern := regexp.MustCompile(`gRPC (?:server|bridge) listening on ((?:tcp|unix)://\S+)`)
@@ -339,6 +355,23 @@ func (p *ProcessHandle) WaitForCOAXListenAddress(t *testing.T, timeout time.Dura
 	t.Helper()
 	pattern := regexp.MustCompile(`\[COAX\] server listening on ((?:tcp|unix)://\S+)`)
 	return p.waitForPattern(t, pattern, timeout)
+}
+
+func (p *ProcessHandle) WaitForStdoutContains(t *testing.T, needle string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if strings.Contains(p.Stdout(), needle) {
+			return
+		}
+		select {
+		case err := <-p.done:
+			t.Fatalf("process exited before stdout contained %q: %v\nstdout:\n%s\nstderr:\n%s", needle, err, p.Stdout(), p.Stderr())
+		default:
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for stdout to contain %q\nstdout:\n%s\nstderr:\n%s", needle, p.Stdout(), p.Stderr())
 }
 
 func (p *ProcessHandle) Wait(timeout time.Duration) error {

@@ -221,7 +221,8 @@ func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int
 				fmt.Fprintf(os.Stderr, "op run: %v\n", err)
 				return 1
 			}
-			if _, _, err := applyRunObservability(cmd, holonName, observeOpts); err != nil {
+			uid, runRoot, err := applyRunObservability(cmd, holonName, observeOpts)
+			if err != nil {
 				printer.Done("run failed", err)
 				fmt.Fprintf(os.Stderr, "op run: %v\n", err)
 				return 1
@@ -229,7 +230,12 @@ func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int
 			cmd.Stdin = os.Stdin
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
-			if err := runForeground(cmd); err != nil {
+			if observeOpts.Tail {
+				err = runForegroundObserved(cmd, holonName, uid, runRoot, observeOpts.JSON)
+			} else {
+				err = runForeground(cmd)
+			}
+			if err != nil {
 				if code, ok := commandExitCode(err); ok {
 					return code
 				}
@@ -343,7 +349,8 @@ func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int
 		fmt.Fprintf(os.Stderr, "op run: %v\n", err)
 		return 1
 	}
-	if _, _, err := applyRunObservability(cmd, holonName, observeOpts); err != nil {
+	uid, runRoot, err := applyRunObservability(cmd, holonName, observeOpts)
+	if err != nil {
 		printer.Done("run failed", err)
 		fmt.Fprintf(os.Stderr, "op run: %v\n", err)
 		return 1
@@ -358,7 +365,12 @@ func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := runForeground(cmd); err != nil {
+	if observeOpts.Tail {
+		err = runForegroundObserved(cmd, holonName, uid, runRoot, observeOpts.JSON)
+	} else {
+		err = runForeground(cmd)
+	}
+	if err != nil {
 		if code, ok := commandExitCode(err); ok {
 			return code
 		}

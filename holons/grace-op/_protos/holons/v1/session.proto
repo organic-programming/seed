@@ -85,7 +85,7 @@ message SessionInfo {
   // Last RPC completed timestamp (zero if none).
   google.protobuf.Timestamp last_rpc_at = 11;
 
-  // Optional per-session metrics (only when OP_SESSIONS=metrics).
+  // Reserved for v2; not emitted in v1.
   SessionMetrics metrics = 20;
 
   // Mesh host name (only on mTLS connections, empty otherwise).
@@ -98,7 +98,7 @@ message SessionInfo {
   string instance_uid = 22;
 }
 
-// SessionMetrics is populated only when OP_SESSIONS=metrics.
+// SessionMetrics is reserved for v2; empty in v1.
 // Time is decomposed into four phases: wire_out, queue, work, wire_in.
 message SessionMetrics {
   int64 total_p50_us = 1;

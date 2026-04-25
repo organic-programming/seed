@@ -1,0 +1,16 @@
+description: Suite validating live multilog relay chain enrichment.
+defaults:
+  profile: smoke
+steps:
+  multilog-live:
+    check: multilog-live
+    lane: progression
+profiles:
+  smoke:
+    description: Starts a Go root with two observable children and verifies multilog chain depths.
+    archive: never
+    steps: [multilog-live]
+  full:
+    description: Same live multilog chain check as smoke.
+    archive: never
+    steps: [multilog-live]

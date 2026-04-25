@@ -31,7 +31,7 @@ Check it's on: `op metrics gabriel-greeting-go` should print a table;
 | In-memory ring buffer (1024 entries) | always, while holon is running |
 | `.op/run/<slug>/<uid>/stdout.log` | when `OP_OBS` contains `logs` |
 | Prometheus `/metrics` endpoint | when `OP_OBS` contains `prom` |
-| OTLP collector | when `OP_OBS` contains `otel` + `OP_OTEL_ENDPOINT` |
+| OTLP collector | v2 reserved; `otel` is rejected in v1 |
 
 `op logs <slug>` reads the gRPC stream. `cat .op/run/.../stdout.log`
 reads the disk. Both contain the same JSON lines.
@@ -323,12 +323,12 @@ op logs gabriel-greeting-app --method <MethodName> --level=error --json \
 
 ### 4.2 Memory grows over time — who holds?
 
-Session-scoped `holon_session_rpc_in_flight` gauge shows which
-handlers are open. Sort descending:
+The v1 `holon_handler_in_flight` gauge shows which handlers are open.
+Sort descending:
 
 ```bash
 op metrics gabriel-greeting-app --prom \
-  | grep holon_session_rpc_in_flight \
+  | grep holon_handler_in_flight \
   | sort -t'=' -k2 -n -r | head
 ```
 
@@ -336,9 +336,13 @@ For Go holons specifically, `holon_goroutines` gauge indicates
 goroutine growth; pair with `op events --type HANDLER_PANIC --since 1h`
 to catch handlers leaking on panic paths.
 
-### 4.3 Latency spike — queue, work, or wire?
+### 4.3 Latency spike — queue, work, or wire? (v2)
 
-Four-phase decomposition tells you where the time went:
+> **v2.** In v1, the `phase` label is always `total`. The
+> `wire_out` / `queue` / `work` / `wire_in` decomposition and
+> `op sessions` comparison arrive with the v2 session layer.
+
+Four-phase decomposition will tell you where the time went:
 
 ```bash
 op metrics gabriel-greeting-app --prom \
@@ -368,7 +372,11 @@ tail -n 500 .op/run/gabriel-greeting-app/*/members/$slug/$uid/stderr.log
 Every `INSTANCE_CRASHED` event carries `payload.exit_code` and (if
 the holon emitted a FATAL log before dying) `payload.fatal_msg`.
 
-### 4.5 Two holons disagree — compare sessions
+### 4.5 Two holons disagree — compare sessions (v2)
+
+> **v2.** In v1, `OP_SESSIONS` and `op sessions` are reserved and
+> rejected; compare by timestamp, slug, method, and chain fields until
+> the session layer ships.
 
 When an RPC between holon A and holon B gives conflicting diagnoses,
 compare both ends of the session:
@@ -443,7 +451,7 @@ OP_OBS=all,otel              # v2 only — plus OTLP push; rejected in v1
 | Verb | Key flags |
 |---|---|
 | `op logs <slug>` | `--since`, `--level`, `--session`, `--method`, `--follow`, `--json`, `--chain-origin`, `--local`, `--all` |
-| `op metrics <slug>` | `--prom`, `--prefix`, `--include-session-rollup`, `--all` |
+| `op metrics <slug>` | `--prom`, `--prefix`, `--include-session-rollup` (v2), `--all` |
 | `op events <slug>` | `--type`, `--since`, `--follow`, `--json`, `--all` |
 | `op ps` | `--all`, `--slug`, `--stale`, `--json`, `--tree`, `--flat` |
 
@@ -452,16 +460,16 @@ OP_OBS=all,otel              # v2 only — plus OTLP push; rejected in v1
 - Prefix `holon_` for every metric.
 - `_total` suffix → counter.
 - `_seconds` / `_bytes` suffix → unit.
-- `holon_session_` sub-namespace → session-scoped.
-- `phase ∈ {wire_out, queue, work, wire_in, total}` is the label
-  for four-phase decomposition.
+- `holon_session_` sub-namespace → v1 totals now, four-phase sessions in v2.
+- `phase=total` in v1; `wire_out`, `queue`, `work`, and `wire_in`
+  arrive with the v2 four-phase decomposition.
 
 ---
 
 ## 7. When this handbook lies
 
 Recipes assume behavior specified in [OBSERVABILITY.md](OBSERVABILITY.md)
-has actually landed in code. Implementation across the 14 SDKs is
+has actually landed in code. Implementation across the 13 SDKs is
 staged; use [INDEX.md](INDEX.md) to check which SDK currently claims
 conformance. When the spec and the code disagree,
 [CLAUDE.md](CLAUDE.md) rule applies: cross-check doc vs code vs proto,

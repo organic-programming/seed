@@ -66,6 +66,36 @@ const meta = await describe("wss://example.com/api/v1/rpc", {
 });
 ```
 
+## observability
+
+Browser holons expose observability over the existing bidirectional WebSocket
+channel. They do not open a local listener or write run directories.
+
+```js
+import { configure, registerObservabilityService } from "js-web-holons";
+
+globalThis.__HOLON_ENV__ = { OP_OBS: "logs,metrics,events" };
+const obs = configure({ slug: "browser-greeter", instanceUid: "web-1" });
+
+registerObservabilityService(client, obs);
+obs.logger("ui").info("ready");
+```
+
+The registered handlers are:
+
+- `holons.v1.HolonObservability/Logs`
+- `holons.v1.HolonObservability/Metrics`
+- `holons.v1.HolonObservability/Events`
+
+`OP_OBS=otel`, `OP_OBS=sessions`, and `OP_SESSIONS` are rejected in v1.
+
+## build and test
+
+```sh
+npm install
+npm test
+```
+
 ## transport
 
 Supported dial URIs:

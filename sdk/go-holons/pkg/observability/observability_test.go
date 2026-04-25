@@ -3,9 +3,12 @@ package observability
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
+
+	"google.golang.org/grpc"
 )
 
 func TestParseOPOBS_Basic(t *testing.T) {
@@ -17,11 +20,12 @@ func TestParseOPOBS_Basic(t *testing.T) {
 		{"logs", map[Family]bool{FamilyLogs: true}},
 		{"logs,metrics", map[Family]bool{FamilyLogs: true, FamilyMetrics: true}},
 		{"all", map[Family]bool{FamilyLogs: true, FamilyMetrics: true, FamilyEvents: true, FamilyProm: true}},
-		{"all,otel", map[Family]bool{FamilyLogs: true, FamilyMetrics: true, FamilyEvents: true, FamilyProm: true}}, // otel silently dropped in v1
-		{"unknown", map[Family]bool{}},
 	}
 	for _, tc := range tests {
-		got := parseOPOBS(tc.in)
+		got, err := parseOPOBS(tc.in)
+		if err != nil {
+			t.Fatalf("parseOPOBS(%q) error: %v", tc.in, err)
+		}
 		if len(got) != len(tc.want) {
 			t.Errorf("parseOPOBS(%q) len=%d, want %d; got=%v", tc.in, len(got), len(tc.want), got)
 			continue
@@ -30,6 +34,11 @@ func TestParseOPOBS_Basic(t *testing.T) {
 			if got[k] != v {
 				t.Errorf("parseOPOBS(%q)[%v]=%v, want %v", tc.in, k, got[k], v)
 			}
+		}
+	}
+	for _, input := range []string{"all,otel", "all,sessions", "unknown"} {
+		if _, err := parseOPOBS(input); err == nil {
+			t.Fatalf("parseOPOBS(%q) expected error", input)
 		}
 	}
 }
@@ -53,10 +62,62 @@ func TestCheckEnv_UnknownRejected(t *testing.T) {
 	}
 }
 
+func TestCheckEnv_SessionsRejected(t *testing.T) {
+	t.Setenv("OP_OBS", "logs,sessions")
+	err := CheckEnv()
+	if err == nil {
+		t.Fatal("expected error for sessions token in v1")
+	}
+	if ite, ok := err.(*InvalidTokenError); !ok || ite.Token != "sessions" {
+		t.Fatalf("expected InvalidTokenError{Token:sessions}, got %v", err)
+	}
+}
+
+func TestCheckEnv_OPSessionsRejected(t *testing.T) {
+	t.Setenv("OP_SESSIONS", "metrics")
+	err := CheckEnv()
+	if err == nil {
+		t.Fatal("expected error for OP_SESSIONS in v1")
+	}
+	if ite, ok := err.(*InvalidTokenError); !ok || ite.Var != "OP_SESSIONS" {
+		t.Fatalf("expected InvalidTokenError{Var:OP_SESSIONS}, got %v", err)
+	}
+}
+
 func TestCheckEnv_Valid(t *testing.T) {
 	t.Setenv("OP_OBS", "logs,metrics,events,prom,all")
 	if err := CheckEnv(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestInstanceRunDirDerivesRootSlugUID(t *testing.T) {
+	root := t.TempDir()
+	dir, err := EnsureInstanceRunDir(root, "gabriel-greeting-go", "uid123")
+	if err != nil {
+		t.Fatalf("EnsureInstanceRunDir: %v", err)
+	}
+	want := filepath.Join(root, "gabriel-greeting-go", "uid123")
+	if dir != want {
+		t.Fatalf("run dir = %q, want %q", dir, want)
+	}
+	if info, err := os.Stat(want); err != nil || !info.IsDir() {
+		t.Fatalf("expected derived directory to exist: info=%v err=%v", info, err)
+	}
+}
+
+func TestFromEnvDerivesRunDirFromRegistryRoot(t *testing.T) {
+	Reset()
+	t.Setenv("OP_OBS", "logs")
+	t.Setenv("OP_RUN_DIR", t.TempDir())
+	t.Setenv("OP_INSTANCE_UID", "uid456")
+
+	obs := FromEnv(Config{Slug: "gabriel-greeting-go"})
+	defer obs.Close()
+
+	want := filepath.Join(os.Getenv("OP_RUN_DIR"), "gabriel-greeting-go", "uid456")
+	if got := obs.RunDir(); got != want {
+		t.Fatalf("RunDir = %q, want %q", got, want)
 	}
 }
 
@@ -231,6 +292,67 @@ func TestHistogram_Percentile(t *testing.T) {
 	}
 }
 
+func TestBaselineMetricsAfterUnaryRPCs(t *testing.T) {
+	Reset()
+	t.Setenv("OP_OBS", "metrics")
+	obs := Configure(Config{Slug: "g", InstanceUID: "uid"})
+	defer obs.Close()
+
+	interceptor := UnaryServerInterceptor()
+	info := &grpc.UnaryServerInfo{FullMethod: "/hello.v1.Greeting/SayHello"}
+	for i := 0; i < 3; i++ {
+		if _, err := interceptor(context.Background(), nil, info, func(ctx context.Context, req any) (any, error) {
+			return "ok", nil
+		}); err != nil {
+			t.Fatalf("interceptor call %d: %v", i, err)
+		}
+	}
+
+	func() {
+		defer func() {
+			if recover() == nil {
+				t.Fatal("expected panic from handler")
+			}
+		}()
+		_, _ = interceptor(context.Background(), nil, info, func(ctx context.Context, req any) (any, error) {
+			panic("boom")
+		})
+	}()
+
+	snap := obs.Registry().Snapshot()
+	requireGauge(t, snap, metricBuildInfo, map[string]string{"lang": "go"}, "version", "commit")
+	requireGauge(t, snap, metricProcessStartTimeSeconds, nil)
+	requireGauge(t, snap, metricMemoryBytes, map[string]string{"class": "rss"})
+	requireGauge(t, snap, metricMemoryBytes, map[string]string{"class": "heap"})
+	requireGauge(t, snap, metricMemoryBytes, map[string]string{"class": "stack"})
+	requireGauge(t, snap, metricGoroutines, nil)
+
+	inflight := requireGauge(t, snap, "holon_handler_in_flight", map[string]string{"method": info.FullMethod})
+	if inflight.Value != 0 {
+		t.Fatalf("in-flight gauge = %v, want 0", inflight.Value)
+	}
+	panics := requireCounter(t, snap, "holon_handler_panics_total", map[string]string{"method": info.FullMethod})
+	if panics.Value != 1 {
+		t.Fatalf("panic counter = %d, want 1", panics.Value)
+	}
+	total := requireCounter(t, snap, "holon_session_rpc_total", map[string]string{
+		"method":    info.FullMethod,
+		"direction": "inbound",
+		"phase":     "total",
+	})
+	if total.Value != 3 {
+		t.Fatalf("rpc total = %d, want 3", total.Value)
+	}
+	duration := requireHistogram(t, snap, "holon_session_rpc_duration_seconds", map[string]string{
+		"method":    info.FullMethod,
+		"direction": "inbound",
+		"phase":     "total",
+	})
+	if duration.Snap.Total != 3 {
+		t.Fatalf("duration total = %d, want 3", duration.Snap.Total)
+	}
+}
+
 func TestEventBus_FanOut(t *testing.T) {
 	Reset()
 	t.Setenv("OP_OBS", "events")
@@ -312,6 +434,57 @@ func TestCurrent_SafeWhenUnset(t *testing.T) {
 	}
 	c.Logger("anything").Info("no-op call path")
 	c.Emit(nil, EventInstanceReady, nil)
+}
+
+func requireGauge(t *testing.T, snap RegistrySnapshot, name string, labels map[string]string, requiredLabelKeys ...string) GaugeSample {
+	t.Helper()
+	for _, sample := range snap.Gauges {
+		if sample.Name == name && labelsContain(sample.Labels, labels) && hasLabelKeys(sample.Labels, requiredLabelKeys...) {
+			return sample
+		}
+	}
+	t.Fatalf("missing gauge %s labels=%v keys=%v in %+v", name, labels, requiredLabelKeys, snap.Gauges)
+	return GaugeSample{}
+}
+
+func requireCounter(t *testing.T, snap RegistrySnapshot, name string, labels map[string]string) CounterSample {
+	t.Helper()
+	for _, sample := range snap.Counters {
+		if sample.Name == name && labelsContain(sample.Labels, labels) {
+			return sample
+		}
+	}
+	t.Fatalf("missing counter %s labels=%v in %+v", name, labels, snap.Counters)
+	return CounterSample{}
+}
+
+func requireHistogram(t *testing.T, snap RegistrySnapshot, name string, labels map[string]string) HistogramItem {
+	t.Helper()
+	for _, sample := range snap.Histograms {
+		if sample.Name == name && labelsContain(sample.Labels, labels) {
+			return sample
+		}
+	}
+	t.Fatalf("missing histogram %s labels=%v in %+v", name, labels, snap.Histograms)
+	return HistogramItem{}
+}
+
+func labelsContain(got, want map[string]string) bool {
+	for k, v := range want {
+		if got[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+func hasLabelKeys(labels map[string]string, keys ...string) bool {
+	for _, key := range keys {
+		if _, ok := labels[key]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 var _ = time.Second

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,6 +26,7 @@ import (
 	"github.com/organic-programming/go-holons/pkg/describe"
 	"github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/holonrpc"
+	"github.com/organic-programming/go-holons/pkg/observability"
 	"github.com/organic-programming/go-holons/pkg/serve"
 
 	"google.golang.org/grpc"
@@ -139,6 +142,17 @@ func TestServeHelperProcess(t *testing.T) {
 	case "run-with-options":
 		describe.UseStaticResponse(serveStaticDescribeResponse())
 		err = serve.RunWithOptions(listenURIs[0], register, reflectEnabled, listenURIs[1:]...)
+	case "run-with-member":
+		describe.UseStaticResponse(serveStaticDescribeResponse())
+		options := serve.ServeOptions{Reflect: reflectEnabled}
+		if address := os.Getenv("GO_SERVE_MEMBER_ADDRESS"); address != "" {
+			options.MemberEndpoints = append(options.MemberEndpoints, serve.MemberRef{
+				Slug:    os.Getenv("GO_SERVE_MEMBER_SLUG"),
+				UID:     os.Getenv("GO_SERVE_MEMBER_UID"),
+				Address: address,
+			})
+		}
+		err = serve.RunWithServeOptions(listenURIs[0], register, options, listenURIs[1:]...)
 	case "run-empty":
 		err = serve.RunWithOptions(listenURIs[0], func(*grpc.Server) {}, reflectEnabled, listenURIs[1:]...)
 	case "run-empty-static":
@@ -244,6 +258,123 @@ func TestRunServesGRPCAndHTTPConcurrently(t *testing.T) {
 	requireHTTPDescribeEventually(t, client, "echo-server")
 	requireHTTPUnaryEchoEventually(t, client, "serve-multi-http")
 	requireHTTPStreamEchoEventually(t, client, "serve-multi-stream")
+}
+
+func TestRunPrometheusSharesHTTPListener(t *testing.T) {
+	runRoot := t.TempDir()
+	uid := "prom-http-uid"
+	rootSlug := filepath.Base(os.Args[0])
+	t.Setenv("OP_OBS", "metrics,prom")
+	t.Setenv("OP_RUN_DIR", runRoot)
+	t.Setenv("OP_INSTANCE_UID", uid)
+	t.Setenv("OP_PROM_ADDR", "bad-address")
+
+	cmd, logs := startServeProcess(t, "run", "http://127.0.0.1:0/api/v1/rpc", false)
+	defer stopServeProcess(t, cmd, logs)
+
+	address := waitForAdvertisedAddress(t, logs, "http://127.0.0.1:")
+	metricsURL := metricsURLFromHTTPAddress(t, address)
+	resp, err := http.Get(metricsURL)
+	if err != nil {
+		t.Fatalf("GET shared /metrics: %v\nlogs:\n%s", err, logs.String())
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET shared /metrics status=%d body=%s\nlogs:\n%s", resp.StatusCode, string(body), logs.String())
+	}
+	if !strings.Contains(string(body), "holon_build_info") {
+		t.Fatalf("shared /metrics missing baseline metric; body=%s", string(body))
+	}
+
+	metaDir := filepath.Join(runRoot, rootSlug, uid)
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		meta, err := observability.ReadMetaJSON(metaDir)
+		if err == nil && meta.Address == address && meta.Transport == "http" && meta.MetricsAddr == metricsURL {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	meta, err := observability.ReadMetaJSON(metaDir)
+	if err != nil {
+		t.Fatalf("read HTTP meta.json: %v\nlogs:\n%s", err, logs.String())
+	}
+	t.Fatalf("meta = %+v, want address=%q transport=http metrics_addr=%q", meta, address, metricsURL)
+}
+
+func metricsURLFromHTTPAddress(t *testing.T, address string) string {
+	t.Helper()
+	parsed, err := url.Parse(address)
+	if err != nil {
+		t.Fatalf("parse HTTP address %q: %v", address, err)
+	}
+	parsed.Path = "/metrics"
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
+}
+
+func TestRunWithServeOptionsStartsRelayAndMultilog(t *testing.T) {
+	observability.Reset()
+	defer observability.Reset()
+	t.Setenv("OP_OBS", "logs,events")
+	childObs := observability.Configure(observability.Config{
+		Slug:        "child-holon",
+		InstanceUID: "child-uid",
+	})
+	defer childObs.Close()
+	childObs.Logger("child").Info("child ready")
+
+	childServer := grpc.NewServer()
+	holonsv1.RegisterHolonObservabilityServer(childServer, observability.NewService(childObs, observability.VisibilityFull))
+	childLis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("child listen: %v", err)
+	}
+	go childServer.Serve(childLis)
+	defer childServer.Stop()
+
+	runRoot := t.TempDir()
+	rootUID := "root-uid"
+	rootSlug := filepath.Base(os.Args[0])
+	t.Setenv("OP_OBS", "logs,events")
+	t.Setenv("OP_RUN_DIR", runRoot)
+	t.Setenv("OP_INSTANCE_UID", rootUID)
+	t.Setenv("OP_ORGANISM_UID", rootUID)
+	t.Setenv("OP_ORGANISM_SLUG", rootSlug)
+	t.Setenv("GO_SERVE_MEMBER_SLUG", "child-holon")
+	t.Setenv("GO_SERVE_MEMBER_UID", "child-uid")
+	t.Setenv("GO_SERVE_MEMBER_ADDRESS", "tcp://"+childLis.Addr().String())
+
+	cmd, logs := startServeProcess(t, "run-with-member", "tcp://127.0.0.1:0", false)
+	defer stopServeProcess(t, cmd, logs)
+	_ = waitForAdvertisedAddress(t, logs, "tcp://127.0.0.1:")
+
+	multilogPath := filepath.Join(runRoot, rootSlug, rootUID, "multilog.jsonl")
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		records, err := observability.ReadMultilog(multilogPath)
+		if err == nil && multilogHasChainDepth(records, "child-holon", 2) && multilogHasChainDepth(records, rootSlug, 1) {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	records, _ := observability.ReadMultilog(multilogPath)
+	t.Fatalf("multilog missing relayed/root enriched chains at %s; logs:\n%s\nrecords:%+v", multilogPath, logs.String(), records)
+}
+
+func multilogHasChainDepth(records []map[string]any, slug string, depth int) bool {
+	for _, rec := range records {
+		if rec["slug"] != slug {
+			continue
+		}
+		chain, ok := rec["chain"].([]any)
+		if ok && len(chain) == depth {
+			return true
+		}
+	}
+	return false
 }
 
 func TestParseFlags(t *testing.T) {
@@ -601,12 +732,12 @@ func responseManifestSlug(response *holonsv1.DescribeResponse) string {
 	return strings.ToLower(strings.Trim(strings.ReplaceAll(ident.GetGivenName()+"-"+strings.TrimSuffix(ident.GetFamilyName(), "?"), " ", "-"), "-"))
 }
 
-func startServeProcess(t *testing.T, mode, listenURI string, reflectEnabled bool, moreListenURIs ...string) (*exec.Cmd, *bytes.Buffer) {
+func startServeProcess(t *testing.T, mode, listenURI string, reflectEnabled bool, moreListenURIs ...string) (*exec.Cmd, *lockedBuffer) {
 	t.Helper()
 	return startServeProcessInDir(t, "", mode, listenURI, reflectEnabled, moreListenURIs...)
 }
 
-func startServeProcessInDir(t *testing.T, dir, mode, listenURI string, reflectEnabled bool, moreListenURIs ...string) (*exec.Cmd, *bytes.Buffer) {
+func startServeProcessInDir(t *testing.T, dir, mode, listenURI string, reflectEnabled bool, moreListenURIs ...string) (*exec.Cmd, *lockedBuffer) {
 	t.Helper()
 
 	args := []string{"-test.run=TestServeHelperProcess", "--", mode, listenURI, strconv.FormatBool(reflectEnabled)}
@@ -617,15 +748,15 @@ func startServeProcessInDir(t *testing.T, dir, mode, listenURI string, reflectEn
 		cmd.Dir = dir
 	}
 
-	var logs bytes.Buffer
-	cmd.Stdout = &logs
-	cmd.Stderr = &logs
+	logs := &lockedBuffer{}
+	cmd.Stdout = logs
+	cmd.Stderr = logs
 
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start serve helper: %v", err)
 	}
 
-	return cmd, &logs
+	return cmd, logs
 }
 
 func runServeProcessOnceInDir(t *testing.T, dir, mode, listenURI string, reflectEnabled bool, moreListenURIs ...string) (string, error) {
@@ -646,7 +777,7 @@ func runServeProcessOnceInDir(t *testing.T, dir, mode, listenURI string, reflect
 	return output.String(), err
 }
 
-func waitForAdvertisedAddress(t *testing.T, logs *bytes.Buffer, prefix string) string {
+func waitForAdvertisedAddress(t *testing.T, logs *lockedBuffer, prefix string) string {
 	t.Helper()
 
 	deadline := time.Now().Add(6 * time.Second)
@@ -663,7 +794,7 @@ func waitForAdvertisedAddress(t *testing.T, logs *bytes.Buffer, prefix string) s
 	return ""
 }
 
-func stopServeProcess(t *testing.T, cmd *exec.Cmd, logs *bytes.Buffer) {
+func stopServeProcess(t *testing.T, cmd *exec.Cmd, logs *lockedBuffer) {
 	t.Helper()
 
 	if cmd == nil || cmd.Process == nil {
@@ -676,6 +807,23 @@ func stopServeProcess(t *testing.T, cmd *exec.Cmd, logs *bytes.Buffer) {
 		_ = cmd.Wait()
 		t.Fatalf("stop serve helper: %v\nlogs:\n%s", err, logs.String())
 	}
+}
+
+type lockedBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.b.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.b.String()
 }
 
 func waitProcessExit(cmd *exec.Cmd, timeout time.Duration) error {

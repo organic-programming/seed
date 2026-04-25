@@ -1,6 +1,7 @@
 package org.organicprogramming.holons
 
 import holons.v1.Describe as HolonsDescribe
+import holons.v1.Observability as ObsProto
 import io.grpc.CallOptions
 import io.grpc.ManagedChannelBuilder
 import io.grpc.stub.ClientCalls
@@ -11,6 +12,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
+import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
@@ -55,6 +57,77 @@ class ServeTest {
             }
         } finally {
             Describe.useStaticResponse(null)
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun startWithOptionsRegistersObservabilityService() {
+        val root = Files.createTempDirectory("kotlin-holons-observe")
+        try {
+            Describe.useStaticResponse(staticDescribeResponse())
+            Observability.reset()
+            val registryRoot = root.resolve("runs")
+            val env = mapOf(
+                "OP_OBS" to "logs,metrics,events",
+                "OP_RUN_DIR" to registryRoot.toString(),
+                "OP_INSTANCE_UID" to "kotlin-obs-1",
+            )
+            val running = Serve.startWithOptions(
+                "tcp://127.0.0.1:0",
+                emptyList<io.grpc.BindableService>(),
+                Serve.Options(env = env, onListen = {}),
+            )
+            val (host, port) = parseTarget(running.publicUri)
+            val channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build()
+            try {
+                val inst = Observability.current()
+                inst.logger("serve-test").info("serve-log", mapOf("sdk" to "kotlin"))
+                inst.counter("serve_requests_total")!!.inc()
+                inst.emit(Observability.EventType.INSTANCE_READY)
+
+                val logs = ClientCalls.blockingServerStreamingCall(
+                    channel,
+                    Observability.logsMethod,
+                    CallOptions.DEFAULT,
+                    ObsProto.LogsRequest.newBuilder()
+                        .setMinLevel(ObsProto.LogLevel.INFO)
+                        .build(),
+                ).asSequence().toList()
+                assertTrue(logs.any { it.message == "serve-log" })
+
+                val metrics = ClientCalls.blockingUnaryCall(
+                    channel,
+                    Observability.metricsMethod,
+                    CallOptions.DEFAULT,
+                    ObsProto.MetricsRequest.getDefaultInstance(),
+                )
+                assertTrue(metrics.samplesList.any { it.name == "serve_requests_total" })
+
+                val events = ClientCalls.blockingServerStreamingCall(
+                    channel,
+                    Observability.eventsMethod,
+                    CallOptions.DEFAULT,
+                    ObsProto.EventsRequest.getDefaultInstance(),
+                ).asSequence().toList()
+                assertTrue(events.any { it.type == ObsProto.EventType.INSTANCE_READY })
+
+                assertTrue(
+                    Files.isRegularFile(
+                        registryRoot
+                            .resolve(inst.cfg.slug)
+                            .resolve("kotlin-obs-1")
+                            .resolve("meta.json"),
+                    ),
+                )
+            } finally {
+                channel.shutdownNow()
+                channel.awaitTermination(5, TimeUnit.SECONDS)
+                running.stop()
+            }
+        } finally {
+            Describe.useStaticResponse(null)
+            Observability.reset()
             root.toFile().deleteRecursively()
         }
     }
@@ -129,7 +202,7 @@ class ServeTest {
             assertTrue(!Files.exists(workDir.resolve("holon.proto")))
 
             BufferedReader(InputStreamReader(process.inputStream, StandardCharsets.UTF_8)).use { reader ->
-                val publicUri = readLineWithTimeout(reader, Duration.ofSeconds(20))
+                val publicUri = readUriWithTimeout(reader, Duration.ofSeconds(20))
                 assertNotNull(publicUri, "static describe server did not advertise a listen URI")
 
                 val (host, port) = parseTarget(publicUri)
@@ -176,15 +249,39 @@ class ServeTest {
         }
     }
 
-    private fun readLineWithTimeout(reader: BufferedReader, timeout: Duration): String? {
+    private fun readUriWithTimeout(reader: BufferedReader, timeout: Duration): String? {
         val executor = Executors.newSingleThreadExecutor()
         try {
-            val future: Future<String?> = executor.submit<String?> { reader.readLine() }
+            val future: Future<String?> = executor.submit(Callable<String?> {
+                while (true) {
+                    val line = reader.readLine() ?: return@Callable null
+                    if (line.startsWith("tcp://")) {
+                        return@Callable line
+                    }
+                }
+                null
+            })
             return future.get(timeout.toMillis(), TimeUnit.MILLISECONDS)
         } finally {
             executor.shutdownNow()
         }
     }
+
+    private fun staticDescribeResponse(): HolonsDescribe.DescribeResponse =
+        HolonsDescribe.DescribeResponse.newBuilder()
+            .setManifest(
+                holons.v1.Manifest.HolonManifest.newBuilder()
+                    .setIdentity(
+                        holons.v1.Manifest.HolonManifest.Identity.newBuilder()
+                            .setUuid("serve-observe-0001")
+                            .setGivenName("Serve")
+                            .setFamilyName("Observability")
+                            .build(),
+                    )
+                    .setLang("kotlin")
+                    .build(),
+            )
+            .build()
 
     private fun writeEchoHolon(root: Path) {
         val protoDir = root.resolve("protos/echo/v1")

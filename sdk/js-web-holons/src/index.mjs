@@ -12,3 +12,4 @@ export { Discover, resolve } from "./discover.mjs";
 export { HolonClient, HolonError } from "./client.mjs";
 export { HolonHTTPClient, connect, disconnect } from "./connect.mjs";
 export { HOLON_META_METHOD, describe } from "./describe.mjs";
+export * from "./observability.mjs";

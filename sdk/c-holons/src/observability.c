@@ -26,6 +26,37 @@ static char *dup_or_null(const char *s) {
     return c;
 }
 
+static char *derive_run_dir(const char *root, const char *slug, const char *uid) {
+    if (!root || !*root || !slug || !*slug || !uid || !*uid) {
+        return dup_or_null(root);
+    }
+    size_t nroot = strlen(root);
+    size_t nslug = strlen(slug);
+    size_t nuid = strlen(uid);
+    size_t need = nroot + 1 + nslug + 1 + nuid + 1;
+    char *out = (char *)malloc(need);
+    if (!out) return NULL;
+    snprintf(out, need, "%s/%s/%s", root, slug, uid);
+    return out;
+}
+
+static int mkdir_p(const char *path) {
+    if (!path || !*path) return 0;
+    char buf[4096];
+    size_t len = strlen(path);
+    if (len >= sizeof(buf)) return -ENAMETOOLONG;
+    memcpy(buf, path, len + 1);
+
+    for (char *p = buf + 1; *p; ++p) {
+        if (*p != '/') continue;
+        *p = '\0';
+        if (mkdir(buf, 0755) != 0 && errno != EEXIST) return -errno;
+        *p = '/';
+    }
+    if (mkdir(buf, 0755) != 0 && errno != EEXIST) return -errno;
+    return 0;
+}
+
 static const char *level_label(holon_level_t l) {
     switch (l) {
         case HOLON_LEVEL_TRACE: return "TRACE";
@@ -72,7 +103,7 @@ uint32_t holon_obs_parse_families(const char *raw) {
         size_t len = strlen(tok);
         while (len > 0 && (tok[len - 1] == ' ' || tok[len - 1] == '\t')) tok[--len] = '\0';
         if (!*tok) continue;
-        if (tok_matches(tok, "otel")) continue;
+        if (tok_matches(tok, "otel") || tok_matches(tok, "sessions")) return 0;
         if (tok_matches(tok, "all")) {
             out |= HOLON_FAMILY_LOGS | HOLON_FAMILY_METRICS | HOLON_FAMILY_EVENTS | HOLON_FAMILY_PROM;
         } else if (tok_matches(tok, "logs")) {
@@ -83,12 +114,24 @@ uint32_t holon_obs_parse_families(const char *raw) {
             out |= HOLON_FAMILY_EVENTS;
         } else if (tok_matches(tok, "prom")) {
             out |= HOLON_FAMILY_PROM;
+        } else {
+            return 0;
         }
     }
     return out;
 }
 
 int holon_obs_check_env(const char *env_or_null, char out_token[HOLON_OBS_TOKEN_MAX]) {
+    if (!env_or_null) {
+        const char *sessions = getenv("OP_SESSIONS");
+        if (sessions && *sessions) {
+            if (out_token) {
+                strncpy(out_token, sessions, HOLON_OBS_TOKEN_MAX - 1);
+                out_token[HOLON_OBS_TOKEN_MAX - 1] = '\0';
+            }
+            return -EINVAL;
+        }
+    }
     const char *raw = env_or_null ? env_or_null : getenv("OP_OBS");
     if (!raw || !*raw) return 0;
     char buf[1024];
@@ -100,7 +143,8 @@ int holon_obs_check_env(const char *env_or_null, char out_token[HOLON_OBS_TOKEN_
         size_t len = strlen(tok);
         while (len > 0 && (tok[len - 1] == ' ' || tok[len - 1] == '\t')) tok[--len] = '\0';
         if (!*tok) continue;
-        if (streq(tok, "otel") || (!streq(tok, "logs") && !streq(tok, "metrics") &&
+        if (streq(tok, "otel") || streq(tok, "sessions") ||
+            (!streq(tok, "logs") && !streq(tok, "metrics") &&
              !streq(tok, "events") && !streq(tok, "prom") && !streq(tok, "all"))) {
             if (out_token) {
                 strncpy(out_token, tok, HOLON_OBS_TOKEN_MAX - 1);
@@ -165,6 +209,9 @@ static void obs_free(holon_obs_t *o) {
 }
 
 int holon_obs_configure(const holon_obs_config_t *cfg) {
+    char token[HOLON_OBS_TOKEN_MAX];
+    if (holon_obs_check_env(NULL, token) != 0) return 0;
+
     const char *raw = getenv("OP_OBS");
     uint32_t families = holon_obs_parse_families(raw ? raw : "");
 
@@ -177,7 +224,9 @@ int holon_obs_configure(const holon_obs_config_t *cfg) {
     o->instance_uid = dup_or_null(cfg && cfg->instance_uid ? cfg->instance_uid : getenv("OP_INSTANCE_UID"));
     o->organism_uid = dup_or_null(cfg && cfg->organism_uid ? cfg->organism_uid : getenv("OP_ORGANISM_UID"));
     o->organism_slug = dup_or_null(cfg && cfg->organism_slug ? cfg->organism_slug : getenv("OP_ORGANISM_SLUG"));
-    o->run_dir = dup_or_null(cfg && cfg->run_dir ? cfg->run_dir : getenv("OP_RUN_DIR"));
+    o->run_dir = derive_run_dir(cfg && cfg->run_dir ? cfg->run_dir : getenv("OP_RUN_DIR"),
+                                o->slug ? o->slug : "",
+                                o->instance_uid ? o->instance_uid : "");
 
     pthread_mutex_lock(&g_obs_lock);
     holon_obs_t *old = g_obs;
@@ -195,6 +244,20 @@ uint32_t holon_obs_families(void) {
 }
 
 int holon_obs_enabled(uint32_t family) { return (holon_obs_families() & family) != 0; }
+
+int holon_obs_current_run_dir(char *out, size_t out_len) {
+    if (!out || out_len == 0) return -EINVAL;
+    pthread_mutex_lock(&g_obs_lock);
+    const char *run_dir = g_obs && g_obs->run_dir ? g_obs->run_dir : "";
+    size_t n = strlen(run_dir);
+    if (n + 1 > out_len) {
+        pthread_mutex_unlock(&g_obs_lock);
+        return -ENOSPC;
+    }
+    memcpy(out, run_dir, n + 1);
+    pthread_mutex_unlock(&g_obs_lock);
+    return 0;
+}
 
 /* -------- JSON helpers -------- */
 
@@ -435,10 +498,8 @@ double holon_obs_gauge_value(const char *name, const char *const *labels) {
 
 int holon_obs_enable_disk_writers(const char *run_dir) {
     if (!run_dir || !*run_dir) return 0;
-    struct stat st;
-    if (stat(run_dir, &st) != 0) {
-        if (mkdir(run_dir, 0755) != 0) return -errno;
-    }
+    int mkerr = mkdir_p(run_dir);
+    if (mkerr != 0) return mkerr;
     pthread_mutex_lock(&g_obs_lock);
     holon_obs_t *o = g_obs;
     if (!o) { pthread_mutex_unlock(&g_obs_lock); return -EINVAL; }
@@ -455,10 +516,8 @@ int holon_obs_enable_disk_writers(const char *run_dir) {
 
 int holon_obs_write_meta_json(const char *run_dir, const holon_meta_t *meta) {
     if (!run_dir || !meta) return -EINVAL;
-    struct stat st;
-    if (stat(run_dir, &st) != 0) {
-        if (mkdir(run_dir, 0755) != 0) return -errno;
-    }
+    int mkerr = mkdir_p(run_dir);
+    if (mkerr != 0) return mkerr;
     char path[4096], tmp[4096];
     snprintf(path, sizeof(path), "%s/meta.json", run_dir);
     snprintf(tmp, sizeof(tmp), "%s.tmp", path);

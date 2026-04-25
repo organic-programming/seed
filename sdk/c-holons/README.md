@@ -49,3 +49,9 @@ grpc_channel *channel = holons_connect("gabriel-greeting-c");
 ```
 
 Close the channel with `holons_disconnect(channel)`.
+
+## Build and test
+
+```sh
+make test
+```

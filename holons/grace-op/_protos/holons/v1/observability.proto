@@ -75,7 +75,7 @@ message MetricsSnapshot {
   string instance_uid = 3;
   repeated MetricSample samples = 4;
 
-  // Populated only when OP_SESSIONS=metrics and the request asks for it.
+  // Reserved for v2; always empty in v1.
   SessionMetrics session_rollup = 5;
 }
 
