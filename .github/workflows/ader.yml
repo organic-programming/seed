@@ -83,7 +83,7 @@ jobs:
       # is recreated. The cache path is outside $GITHUB_WORKSPACE so it
       # survives checkout wiping the workspace.
       - name: Restore op-managed SDK cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: /Users/popok/.ader-ci-cache/grace-op-shared
           key: ader-sdk-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('examples/hello-world/*/Gemfile.lock', 'sdk/*/Gemfile') }}
