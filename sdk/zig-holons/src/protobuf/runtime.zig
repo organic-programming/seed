@@ -1,5 +1,9 @@
+const std = @import("std");
+
 pub const c = @cImport({
     @cInclude("protobuf-c/protobuf-c.h");
+    @cInclude("holons/v1/describe.pb-c.h");
+    @cInclude("v1/greeting.pb-c.h");
 });
 
 pub const RuntimeVersion = struct {
@@ -14,7 +18,130 @@ pub fn version() RuntimeVersion {
     };
 }
 
+pub const DescribeResponse = struct {
+    raw: *c.Holons__V1__DescribeResponse,
+
+    pub fn deinit(self: *DescribeResponse) void {
+        c.holons__v1__describe_response__free_unpacked(self.raw, null);
+    }
+
+    pub fn familyName(self: DescribeResponse) []const u8 {
+        const manifest = self.raw.*.manifest orelse return "";
+        const identity = manifest.*.identity orelse return "";
+        return cstr(identity.*.family_name);
+    }
+
+    pub fn uuid(self: DescribeResponse) []const u8 {
+        const manifest = self.raw.*.manifest orelse return "";
+        const identity = manifest.*.identity orelse return "";
+        return cstr(identity.*.uuid);
+    }
+
+    pub fn serviceCount(self: DescribeResponse) usize {
+        return self.raw.*.n_services;
+    }
+};
+
+pub const SayHelloResponse = struct {
+    raw: *c.Greeting__V1__SayHelloResponse,
+
+    pub fn deinit(self: *SayHelloResponse) void {
+        c.greeting__v1__say_hello_response__free_unpacked(self.raw, null);
+    }
+
+    pub fn greeting(self: SayHelloResponse) []const u8 {
+        return cstr(self.raw.*.greeting);
+    }
+
+    pub fn language(self: SayHelloResponse) []const u8 {
+        return cstr(self.raw.*.language);
+    }
+
+    pub fn langCode(self: SayHelloResponse) []const u8 {
+        return cstr(self.raw.*.lang_code);
+    }
+};
+
+pub const ListLanguagesResponse = struct {
+    raw: *c.Greeting__V1__ListLanguagesResponse,
+
+    pub fn deinit(self: *ListLanguagesResponse) void {
+        c.greeting__v1__list_languages_response__free_unpacked(self.raw, null);
+    }
+
+    pub fn len(self: ListLanguagesResponse) usize {
+        return self.raw.*.n_languages;
+    }
+};
+
+pub fn packDescribeRequest(allocator: std.mem.Allocator) ![]u8 {
+    var request: c.Holons__V1__DescribeRequest = undefined;
+    c.holons__v1__describe_request__init(&request);
+    return packMessage(
+        allocator,
+        &request.base,
+        c.holons__v1__describe_request__get_packed_size(&request),
+    );
+}
+
+pub fn unpackDescribeResponse(bytes: []const u8) !DescribeResponse {
+    const raw = c.holons__v1__describe_response__unpack(null, bytes.len, bytes.ptr) orelse
+        return error.DecodeDescribeResponseFailed;
+    return .{ .raw = raw };
+}
+
+pub fn packSayHelloRequest(allocator: std.mem.Allocator, name: []const u8, lang_code: []const u8) ![]u8 {
+    const name_z = try allocator.dupeZ(u8, name);
+    defer allocator.free(name_z);
+    const lang_code_z = try allocator.dupeZ(u8, lang_code);
+    defer allocator.free(lang_code_z);
+
+    var request: c.Greeting__V1__SayHelloRequest = undefined;
+    c.greeting__v1__say_hello_request__init(&request);
+    request.name = name_z.ptr;
+    request.lang_code = lang_code_z.ptr;
+    return packMessage(
+        allocator,
+        &request.base,
+        c.greeting__v1__say_hello_request__get_packed_size(&request),
+    );
+}
+
+pub fn unpackSayHelloResponse(bytes: []const u8) !SayHelloResponse {
+    const raw = c.greeting__v1__say_hello_response__unpack(null, bytes.len, bytes.ptr) orelse
+        return error.DecodeSayHelloResponseFailed;
+    return .{ .raw = raw };
+}
+
+pub fn packListLanguagesRequest(allocator: std.mem.Allocator) ![]u8 {
+    var request: c.Greeting__V1__ListLanguagesRequest = undefined;
+    c.greeting__v1__list_languages_request__init(&request);
+    return packMessage(
+        allocator,
+        &request.base,
+        c.greeting__v1__list_languages_request__get_packed_size(&request),
+    );
+}
+
+pub fn unpackListLanguagesResponse(bytes: []const u8) !ListLanguagesResponse {
+    const raw = c.greeting__v1__list_languages_response__unpack(null, bytes.len, bytes.ptr) orelse
+        return error.DecodeListLanguagesResponseFailed;
+    return .{ .raw = raw };
+}
+
+fn packMessage(allocator: std.mem.Allocator, base: *c.ProtobufCMessage, len: usize) ![]u8 {
+    const buf = try allocator.alloc(u8, len);
+    errdefer allocator.free(buf);
+    const encoded_len = c.protobuf_c_message_pack(base, buf.ptr);
+    if (encoded_len != len) return error.EncodeSizeMismatch;
+    return buf;
+}
+
+fn cstr(ptr: [*c]const u8) []const u8 {
+    if (ptr == null) return "";
+    return std.mem.span(ptr);
+}
+
 test "protobuf-c runtime is available" {
-    const std = @import("std");
     try std.testing.expect(version().number >= 1005002);
 }
