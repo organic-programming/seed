@@ -118,6 +118,7 @@ They orchestrate several suite runs:
 
 ```yaml
 description: local dev bouquet
+max_parallel: 1
 
 defaults:
   source: workspace

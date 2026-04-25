@@ -692,6 +692,14 @@ func TestRunBouquetHistoryShowAndArchive(t *testing.T) {
 	aderRoot := filepath.Join(root, "ader")
 
 	withWorkingDir(t, root, func() {
+		cfg, err := readBouquetConfig(aderRoot, "local-dev")
+		if err != nil {
+			t.Fatalf("readBouquetConfig() error = %v", err)
+		}
+		if cfg.MaxParallel != 1 {
+			t.Fatalf("max_parallel = %d, want 1", cfg.MaxParallel)
+		}
+
 		result, err := RunBouquet(context.Background(), BouquetOptions{
 			AderRoot: aderRoot,
 			Name:     "local-dev",

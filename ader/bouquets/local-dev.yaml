@@ -1,4 +1,5 @@
 description: local development bouquet
+max_parallel: 1
 defaults:
   source: workspace
   # Each suite's "smoke" profile is a curated selection by its author,
