@@ -26,7 +26,16 @@ pub const Child = struct {
     }
 };
 
+pub const ServerBridge = struct {
+    socket_fd: c_int,
+
+    pub fn close(self: *ServerBridge) void {
+        _ = c.close(self.socket_fd);
+    }
+};
+
 const c = @cImport({
+    @cInclude("fcntl.h");
     @cInclude("signal.h");
     @cInclude("stdlib.h");
     @cInclude("sys/socket.h");
@@ -98,6 +107,29 @@ pub fn spawnCommand(allocator: std.mem.Allocator, command: Command) !Child {
     output_thread.detach();
 
     return .{ .pid = pid, .socket_fd = sockets[0] };
+}
+
+pub fn openServerBridge() !ServerBridge {
+    var sockets: [2]c_int = undefined;
+    if (c.socketpair(c.AF_UNIX, c.SOCK_STREAM, 0, &sockets) != 0) return error.SocketpairFailed;
+    errdefer {
+        _ = c.close(sockets[0]);
+        _ = c.close(sockets[1]);
+    }
+    try setNonBlock(sockets[0]);
+
+    const input_thread = try std.Thread.spawn(.{}, pump, .{ 0, sockets[1], true });
+    input_thread.detach();
+    const output_thread = try std.Thread.spawn(.{}, pump, .{ sockets[1], 1, false });
+    output_thread.detach();
+
+    return .{ .socket_fd = sockets[0] };
+}
+
+fn setNonBlock(fd: c_int) !void {
+    const flags = c.fcntl(fd, c.F_GETFL, @as(c_int, 0));
+    if (flags < 0) return error.FcntlGetFailed;
+    if (c.fcntl(fd, c.F_SETFL, flags | c.O_NONBLOCK) != 0) return error.FcntlSetFailed;
 }
 
 fn writeAll(fd: c_int, bytes: []const u8) !void {

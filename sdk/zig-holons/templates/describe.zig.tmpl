@@ -1,5 +1,14 @@
 const holons = @import("zig_holons");
+const std = @import("std");
+
+const describe_response_bytes = [_]u8{
+{{ zigDescribeBytes . }}
+};
 
 pub fn staticDescribeResponse() holons.describe.StaticDescribe {
-    return .{ .json = \\{{ .DescribeJSON }}\\ };
+    return .{ .proto_builder = buildDescribe };
+}
+
+pub fn buildDescribe(allocator: std.mem.Allocator) ![]u8 {
+    return allocator.dupe(u8, describe_response_bytes[0..]);
 }

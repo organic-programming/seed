@@ -330,6 +330,11 @@ func describeTemplateFuncs(ext string) template.FuncMap {
 			return rustDescribeResponseLiteral(response)
 		}
 	}
+	if ext == "zig" {
+		funcs["zigDescribeBytes"] = func(response *holonsv1.DescribeResponse) (string, error) {
+			return zigDescribeBytesLiteral(response)
+		}
+	}
 	if ext == "c" {
 		funcs["cDescribeSource"] = func(response *holonsv1.DescribeResponse) string {
 			return cDescribeSource(response)
@@ -341,6 +346,29 @@ func describeTemplateFuncs(ext string) template.FuncMap {
 		}
 	}
 	return funcs
+}
+
+func zigDescribeBytesLiteral(response *holonsv1.DescribeResponse) (string, error) {
+	bytes, err := proto.Marshal(response)
+	if err != nil {
+		return "", fmt.Errorf("marshal Zig describe response: %w", err)
+	}
+	if len(bytes) == 0 {
+		return "    ", nil
+	}
+	var b strings.Builder
+	for i, value := range bytes {
+		if i%12 == 0 {
+			if i != 0 {
+				b.WriteByte('\n')
+			}
+			b.WriteString("    ")
+		} else {
+			b.WriteByte(' ')
+		}
+		b.WriteString(fmt.Sprintf("0x%02x,", value))
+	}
+	return b.String(), nil
 }
 
 func goDescribeResponseLiteral(response *holonsv1.DescribeResponse) string {
