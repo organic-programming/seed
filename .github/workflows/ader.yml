@@ -86,7 +86,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /Users/popok/.ader-ci-cache/grace-op-shared
-          key: ader-sdk-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('examples/hello-world/*/Gemfile.lock', 'sdk/**/Gemfile') }}
+          key: ader-sdk-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('examples/hello-world/*/Gemfile.lock', 'sdk/*/Gemfile') }}
           restore-keys: |
             ader-sdk-${{ runner.os }}-${{ runner.arch }}-
 
