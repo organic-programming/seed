@@ -1,0 +1,5 @@
+const holons = @import("zig_holons");
+
+pub fn staticDescribeResponse() holons.describe.StaticDescribe {
+    return .{ .json = \\{{ .DescribeJSON }}\\ };
+}
