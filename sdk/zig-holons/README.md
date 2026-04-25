@@ -49,15 +49,36 @@ defer allocator.free(found.path);
 ## connect
 
 ```zig
-var conn = try holons.connect.connect("tcp://127.0.0.1:9090");
+var conn = try holons.connect.connect(allocator, "tcp://127.0.0.1:9090");
 defer holons.connect.disconnect(&conn);
+```
+
+## Holon-RPC dial transports
+
+```zig
+var ws = try holons.transport.ws.dial(allocator, "ws://127.0.0.1:8080/rpc");
+defer ws.deinit();
+
+var reply = try ws.invokeAlloc(allocator, "example.v1.Echo/Ping", "{\"message\":\"hello\"}");
+defer reply.deinit(allocator);
+```
+
+```zig
+var rest = try holons.transport.rest_sse.dial(allocator, "rest+sse://127.0.0.1:8080/api/v1/rpc");
+defer rest.deinit();
+
+var events = try rest.streamAlloc(allocator, "example.v1.Echo/Stream", "{\"message\":\"hello\"}");
+defer events.deinit(allocator);
 ```
 
 ## hub client
 
 ```zig
-const hub = try holons.hub.Client.connect("wss://hub.example/holons");
-_ = hub;
+var hub = try holons.hub.Client.connect(allocator, "wss://hub.example/holons");
+defer hub.deinit();
+
+var peers = try hub.invokeAlloc(allocator, "hub.v1.Hub/ListPeers", "{}");
+defer peers.deinit(allocator);
 ```
 
 ## Build and test

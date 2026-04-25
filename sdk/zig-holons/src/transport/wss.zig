@@ -1,11 +1,34 @@
 const uri = @import("uri.zig");
+const holonrpc = @import("../holonrpc.zig");
 
 pub const Client = struct {
-    endpoint: uri.Endpoint,
+    rpc: holonrpc.Client,
+
+    pub fn deinit(self: *Client) void {
+        self.rpc.deinit();
+        self.* = undefined;
+    }
+
+    pub fn invokeAlloc(
+        self: *Client,
+        allocator: @import("std").mem.Allocator,
+        method: []const u8,
+        params_json: []const u8,
+    ) !holonrpc.InvokeResult {
+        return self.rpc.invokeAlloc(allocator, method, params_json);
+    }
 };
 
-pub fn dial(raw: []const u8) uri.ParseError!Client {
+pub fn dial(allocator: @import("std").mem.Allocator, raw: []const u8) !Client {
+    return dialWithOptions(allocator, raw, .{});
+}
+
+pub fn dialWithOptions(
+    allocator: @import("std").mem.Allocator,
+    raw: []const u8,
+    options: holonrpc.ConnectOptions,
+) !Client {
     const endpoint = try uri.parse(raw);
     if (endpoint.scheme != .wss) return error.UnsupportedScheme;
-    return .{ .endpoint = endpoint };
+    return .{ .rpc = try holonrpc.Client.connectWithOptions(allocator, raw, options) };
 }
