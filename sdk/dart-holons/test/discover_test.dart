@@ -628,6 +628,28 @@ void main() {
       expect(result.found.single.info?.entrypoint, equals('fast-binary'));
     });
 
+    test('missing package metadata does not launch packaged app executable',
+        () {
+      final fixture = createRuntimeFixture(sdkRoot);
+      addTearDown(() => deleteFixture(fixture));
+      configureDiscoveryRuntime(fixture);
+
+      final executableDir = Directory(
+        '${fixture.sandbox.path}/Gabriel.app/Contents/MacOS',
+      )..createSync(recursive: true);
+      discover_impl.discoverResolvedExecutableProvider =
+          () => '${executableDir.path}/Gabriel';
+      Directory('${fixture.root.path}/missing-metadata.holon')
+          .createSync(recursive: true);
+
+      final result =
+          Discover(LOCAL, null, fixture.root.path, CWD, NO_LIMIT, NO_TIMEOUT);
+
+      expect(result.error, isNull);
+      expect(result.found, hasLength(1));
+      expect(result.found.single.error, contains('requires the Dart CLI'));
+    });
+
     test(
       'Describe fallback when `.holon.json` is missing',
       () {

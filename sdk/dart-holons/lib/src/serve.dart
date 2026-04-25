@@ -129,9 +129,7 @@ Future<RunningServer> startWithOptions(
   final resolvedServices = List<Service>.from(services);
   final env = options.environment ?? Platform.environment;
   observability.checkEnv(env);
-  final obs = (env['OP_OBS'] ?? '').trim().isEmpty
-      ? null
-      : observability.fromEnv(const observability.Config(), env);
+  final obs = _resolveObservability(env);
   final describeEnabled = _maybeAddDescribe(resolvedServices, options);
   if (obs != null && obs.families.isNotEmpty) {
     resolvedServices.add(observability.registerService(obs));
@@ -227,6 +225,17 @@ Future<RunningServer> startWithOptions(
         'Serve.run(...) currently supports tcp://, unix://, and stdio:// only',
       );
   }
+}
+
+observability.Observability? _resolveObservability(Map<String, String> env) {
+  if ((env['OP_OBS'] ?? '').trim().isEmpty) {
+    return null;
+  }
+  final current = observability.current();
+  if (current.families.isNotEmpty) {
+    return current;
+  }
+  return observability.fromEnv(const observability.Config(), env);
 }
 
 Future<RunningServer> _startTcpServer({

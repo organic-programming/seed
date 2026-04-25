@@ -43,9 +43,14 @@ func runForegroundObserved(cmd *exec.Cmd, slug, uid, runRoot string, jsonOut boo
 	defer signal.Stop(sigCh)
 
 	tailDone := false
+	var forceKill <-chan time.Time
+	shutdownRequested := false
 	for {
 		select {
 		case err := <-waitCh:
+			if shutdownRequested {
+				killObservedRunProcesses(uid, runRoot)
+			}
 			if !tailDone {
 				select {
 				case <-tailErrCh:
@@ -77,6 +82,17 @@ func runForegroundObserved(cmd *exec.Cmd, slug, uid, runRoot string, jsonOut boo
 			if cmd.Process != nil {
 				_ = cmd.Process.Signal(sig)
 			}
+			signalObservedInstanceProcess(slug, uid, runRoot, sig)
+			shutdownRequested = true
+			if forceKill == nil {
+				forceKill = time.After(5 * time.Second)
+			}
+		case <-forceKill:
+			forceKill = nil
+			if cmd.Process != nil {
+				_ = cmd.Process.Kill()
+			}
+			killObservedRunProcesses(uid, runRoot)
 		}
 	}
 }
@@ -207,6 +223,7 @@ func readObservedInstance(slug, uid, runRoot string) (instanceRow, bool) {
 				return instanceRow{meta: meta, runDir: runDir, alive: isPidAlive(meta.PID)}, true
 			}
 		}
+		return instanceRow{}, false
 	}
 	matches, _ := filepath.Glob(filepath.Join(runRoot, "*", uid, "meta.json"))
 	for _, match := range matches {
@@ -217,4 +234,38 @@ func readObservedInstance(slug, uid, runRoot string) (instanceRow, bool) {
 		}
 	}
 	return instanceRow{}, false
+}
+
+func signalObservedInstanceProcess(slug, uid, runRoot string, sig os.Signal) {
+	inst, ok := readObservedInstance(slug, uid, runRoot)
+	if !ok {
+		return
+	}
+	signalPID(inst.meta.PID, sig)
+}
+
+func killObservedRunProcesses(uid, runRoot string) {
+	if uid == "" || runRoot == "" {
+		return
+	}
+	matches, _ := filepath.Glob(filepath.Join(runRoot, "*", uid, "meta.json"))
+	for _, match := range matches {
+		runDir := filepath.Dir(match)
+		meta, err := observability.ReadMetaJSON(runDir)
+		if err != nil {
+			continue
+		}
+		signalPID(meta.PID, os.Kill)
+	}
+}
+
+func signalPID(pid int, sig os.Signal) {
+	if pid <= 0 || sig == nil {
+		return
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return
+	}
+	_ = proc.Signal(sig)
 }

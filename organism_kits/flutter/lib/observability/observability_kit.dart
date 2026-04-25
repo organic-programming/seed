@@ -408,14 +408,18 @@ class ObservabilityKit extends ChangeNotifier {
     required Iterable<holons.Family> declaredFamilies,
     required SettingsStore settings,
     Iterable<ObservabilityMemberRef> bundledHolons = const [],
+    Map<String, String>? environment,
   }) {
     final families = declaredFamilies.map((family) => family.name).join(',');
-    final env = Map<String, String>.from(Platform.environment)
-      ..['OP_OBS'] = families;
+    final baseEnv = environment ?? Platform.environment;
+    final env = Map<String, String>.from(baseEnv)..['OP_OBS'] = families;
+    final launchedUid = (baseEnv['OP_INSTANCE_UID'] ?? '').trim();
     final obs = holons.fromEnv(
       holons.Config(
         slug: slug,
-        instanceUid: 'kit-${DateTime.now().microsecondsSinceEpoch}',
+        instanceUid: launchedUid.isEmpty
+            ? 'kit-${DateTime.now().microsecondsSinceEpoch}'
+            : launchedUid,
       ),
       env,
     );

@@ -31,6 +31,7 @@ import (
 // Dial connects to a gRPC server at the given address.
 // For TCP: "host:port". For Unix: "unix:///path".
 func Dial(ctx context.Context, address string) (*grpc.ClientConn, error) {
+	address = strings.TrimSpace(address)
 	if isWebSocketAddress(address) {
 		return DialWebSocket(ctx, address)
 	}
@@ -48,9 +49,19 @@ func Dial(ctx context.Context, address string) (*grpc.ClientConn, error) {
 			return net.DialTimeout("unix", path, 5*time.Second)
 		}))
 		address = "passthrough:///unix"
+	} else if isPlainTCPAddress(address) {
+		address = "passthrough:///" + address
 	}
 
 	return grpc.NewClient(address, opts...)
+}
+
+func isPlainTCPAddress(address string) bool {
+	if strings.Contains(address, "://") {
+		return false
+	}
+	host, port, err := net.SplitHostPort(address)
+	return err == nil && strings.TrimSpace(host) != "" && strings.TrimSpace(port) != ""
 }
 
 // DialStdio launches a holon binary with `serve --listen stdio://`.

@@ -508,6 +508,7 @@ class Logger {
       message: message,
       fields: out,
       caller: _callerFrame(),
+      chain: _selfChain(_obs.cfg),
     );
     _obs.logRing?.push(entry);
   }
@@ -612,6 +613,7 @@ class Observability {
       slug: cfg.slug,
       instanceUid: cfg.instanceUid,
       payload: p,
+      chain: _selfChain(cfg),
     ));
   }
 
@@ -628,6 +630,13 @@ class _DisabledObs extends Observability {
 // --- Package-scope singleton -----------------------------------------------
 
 Observability? _current;
+
+List<Hop> _selfChain(Config cfg) {
+  if (cfg.slug.isEmpty) {
+    return const [];
+  }
+  return [Hop(slug: cfg.slug, instanceUid: cfg.instanceUid)];
+}
 
 Observability configure(Config cfg, {Map<String, String>? env}) {
   env ??= Platform.environment;

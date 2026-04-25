@@ -78,6 +78,27 @@ void main() {
     );
   });
 
+  test('standalone uses launcher uid and registry root when present', () async {
+    final temp = await Directory.systemTemp.createTemp('obs-kit-run-dir-');
+    addTearDown(() => temp.delete(recursive: true));
+
+    final kit = ObservabilityKit.standalone(
+      slug: 'gabriel-greeting-app-flutter',
+      declaredFamilies: const [holons.Family.logs, holons.Family.events],
+      settings: MemorySettingsStore(),
+      environment: {'OP_INSTANCE_UID': 'uid-1', 'OP_RUN_DIR': temp.path},
+    );
+    addTearDown(kit.dispose);
+
+    expect(kit.obs.cfg.instanceUid, equals('uid-1'));
+    expect(
+      kit.obs.cfg.runDir,
+      equals(
+        '${temp.path}${Platform.pathSeparator}gabriel-greeting-app-flutter${Platform.pathSeparator}uid-1',
+      ),
+    );
+  });
+
   testWidgets('ObservabilityPanel opens tabs and reads kit state', (
     tester,
   ) async {
