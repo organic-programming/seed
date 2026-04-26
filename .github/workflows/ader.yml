@@ -74,10 +74,13 @@ jobs:
       - name: Checkout Zig vendored submodules
         run: |
           set -euo pipefail
+          rm -rf sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
           git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
-          git submodule update --init --recursive --depth 1 --jobs 8 \
+          git submodule update --init --force --recursive --depth 1 --jobs 8 \
             sdk/zig-holons/third_party/grpc \
             sdk/zig-holons/third_party/protobuf-c
+          test -f sdk/zig-holons/third_party/grpc/CMakeLists.txt
+          test -d sdk/zig-holons/third_party/protobuf-c/build-cmake
 
       - name: Install Zig toolchain
         run: |
