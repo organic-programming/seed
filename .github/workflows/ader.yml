@@ -68,6 +68,7 @@ jobs:
           # ader reads commit/branch metadata via git; shallow clones can
           # misreport. Full history is cheap and accurate.
           fetch-depth: 0
+          submodules: recursive
 
       - name: Install Zig toolchain
         run: |
