@@ -821,7 +821,7 @@ func (zigRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repor
 	if ctx.DryRun {
 		return nil
 	}
-	if output, err := runCommand(manifest.Dir, args); err != nil {
+	if output, err := runCommandWithEnv(manifest.Dir, args, sdkPrebuiltEnv(ctx)); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
 	if err := syncBinaryFromCandidates(manifest, zigArtifactCandidates(manifest)); err != nil {
@@ -838,7 +838,7 @@ func (zigRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Report
 	args := []string{"zig", "build", "test", "-Doptimize=" + zigOptimizeMode(ctx.Mode)}
 	report.Commands = append(report.Commands, commandString(args))
 	ctx.Progress.Step(commandString(args))
-	if output, err := runCommand(manifest.Dir, args); err != nil {
+	if output, err := runCommandWithEnv(manifest.Dir, args, sdkPrebuiltEnv(ctx)); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
 	report.Notes = append(report.Notes, "zig tests passed")
@@ -1217,7 +1217,7 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 		return nil
 	}
 	for _, args := range commands {
-		if output, err := runCommand(isolatedDir, args); err != nil {
+		if output, err := runCommandWithEnv(isolatedDir, args, sdkPrebuiltEnv(ctx)); err != nil {
 			return fmt.Errorf("%s\n%s", err, output)
 		}
 	}
@@ -1293,7 +1293,7 @@ func (rubyRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Repor
 		return nil
 	}
 	for _, cmdArgs := range commands {
-		if output, err := runCommand(isolatedDir, cmdArgs); err != nil {
+		if output, err := runCommandWithEnv(isolatedDir, cmdArgs, sdkPrebuiltEnv(ctx)); err != nil {
 			return fmt.Errorf("%s\n%s", err, output)
 		}
 	}
