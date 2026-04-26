@@ -47,6 +47,8 @@ CMakeLists.txt                     Build and test definition.
 
 ```bash
 op sdk install cpp
+op sdk verify cpp
+export OP_SDK_CPP_PATH="$(op sdk path cpp)"
 ./scripts/generate_proto.sh
 cmake -S . -B build
 cmake --build build

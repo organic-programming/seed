@@ -54,9 +54,15 @@ channel = Holons.connect("gabriel-greeting-ruby")
 
 ```sh
 op sdk install ruby
-rake test
+op sdk verify ruby
+export OP_SDK_RUBY_PATH="$(op sdk path ruby)"
+BUNDLE_PATH="$OP_SDK_RUBY_PATH/vendor/bundle" bundle exec rake test
 ```
 
-`OP_SDK_RUBY_PATH`, normally set by `op build` after `op sdk install ruby`,
-points Bundler at a pre-installed `vendor/bundle/` tree with the pinned `grpc`
-and `google-protobuf` native gems plus the matching `grpc-tools` codegen plugin.
+`op build` sets `OP_SDK_RUBY_PATH` automatically for holons that declare
+`requires.sdk_prebuilts: ["ruby"]`. Direct SDK builds set it explicitly with
+`op sdk path ruby`.
+
+`OP_SDK_RUBY_PATH` points Bundler at a pre-installed `vendor/bundle/` tree with
+the pinned `grpc` and `google-protobuf` native gems plus the matching
+`grpc-tools` codegen plugin.

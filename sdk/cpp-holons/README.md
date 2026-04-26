@@ -82,14 +82,19 @@ auto channel = holons::connect("gabriel-greeting-cpp");
 
 ```sh
 op sdk install cpp
+op sdk verify cpp
+export OP_SDK_CPP_PATH="$(op sdk path cpp)"
 make test
 cmake --build build --target uniform_echo_holon
 cmake --build build --target uniform_contract_test
 ctest --test-dir build --output-on-failure
 ```
 
-`OP_SDK_CPP_PATH`, normally set by `op build` after `op sdk install cpp`,
-points CMake at the prebuilt gRPC-C++/Protobuf toolchain. If the variable is
-unset, the SDK falls back to a system gRPC install. The prebuilt also carries
-the SDK's small header-only C++ dependency `nlohmann/json` under
+`op build` sets `OP_SDK_CPP_PATH` automatically for holons that declare
+`requires.sdk_prebuilts: ["cpp"]`. Direct SDK builds set it explicitly with
+`op sdk path cpp`.
+
+`OP_SDK_CPP_PATH` points CMake at the prebuilt gRPC-C++/Protobuf toolchain. If
+the variable is unset, the SDK falls back to a system gRPC install. The prebuilt
+also carries the SDK's small header-only C++ dependency `nlohmann/json` under
 `include/nlohmann/json.hpp`.

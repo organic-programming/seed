@@ -39,6 +39,7 @@
 | ✅ | - | [holons/grace-op/OP_DISCOVERY.md](holons/grace-op/OP_DISCOVERY.md) | `op`-specific discovery expression routing |
 | ? | ? | [holons/grace-op/OP_PROXY.md](holons/grace-op/OP_PROXY.md) | `op proxy` |
 | ? | ? | [holons/grace-op/OP_RUN.md](holons/grace-op/OP_RUN.md) | `op run` |
+| ✅ | ✅ | [holons/grace-op/OP_SDK.md](holons/grace-op/OP_SDK.md) | `op sdk` - native SDK prebuilt install/list/verify/path |
 | ? | ? | [holons/grace-op/README.md](holons/grace-op/README.md) | `op` overview |
 
 ## ader CLI (holons/clem-ader)

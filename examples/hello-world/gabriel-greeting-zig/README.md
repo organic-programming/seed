@@ -4,6 +4,7 @@ Zig implementation of the hello-world GreetingService holon.
 
 ```sh
 op sdk install zig
+op sdk verify zig
 op build gabriel-greeting-zig
 op gabriel-greeting-zig ListLanguages
 op gabriel-greeting-zig SayHello '{"name":"Bob","lang_code":"fr"}'
