@@ -18,12 +18,3 @@ mv "$TMP/v1/greeting.pbenum.dart" "$OUT/greeting.pbenum.dart"
 mv "$TMP/v1/greeting.pbjson.dart" "$OUT/greeting.pbjson.dart"
 mv "$TMP/v1/greeting.pbgrpc.dart" "$OUT/greeting.pbgrpc.dart"
 rm -rf "$TMP"
-
-descriptor_file=$(mktemp)
-protoc \
-  -I "$ROOT/api" \
-  -I "$ROOT/../../_protos" \
-  -I "$ROOT/../../../_protos" \
-  --descriptor_set_out="$descriptor_file" \
-  "v1/holon.proto"
-rm -f "$descriptor_file"
