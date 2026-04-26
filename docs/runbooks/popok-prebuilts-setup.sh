@@ -254,6 +254,63 @@ validate_buildx() {
 # 8. Periodic cleanup launchd job (user-level, no sudo)
 # ──────────────────────────────────────────────────────────────────────────────
 
+pull_tart_vm() {
+  log "Pulling Tart Windows VM image (this is the long step, ~30 GB, 1-2h on first run)..."
+
+  if run_as_popok tart list 2>/dev/null | awk '{print $2}' | grep -qx 'windows-arm64-builder'; then
+    ok "Tart VM 'windows-arm64-builder' already present"
+  else
+    run_as_popok tart clone \
+      ghcr.io/cirruslabs/windows:server-2022-with-buildtools \
+      windows-arm64-builder
+    ok "Tart VM 'windows-arm64-builder' cloned"
+  fi
+
+  # Configure VM resources (idempotent — tart set is safe to re-run)
+  run_as_popok tart set windows-arm64-builder --cpu 4 --memory 8192 --disk 60
+  ok "Tart VM configured (4 CPU, 8 GB RAM, 60 GB disk)"
+}
+
+run_grpc_bench_macos() {
+  log "Running gRPC build benchmark on native macOS (baseline for Path A vs Path B Windows decision)..."
+
+  local bench_dir="${TOOLS_DIR}/grpc-bench"
+  local grpc_src="${bench_dir}/grpc-src"
+  local result_file="${bench_dir}/macos-native-build-time.txt"
+
+  run_as_popok mkdir -p "${bench_dir}"
+
+  if [[ -d "${grpc_src}/.git" ]]; then
+    ok "gRPC source already cloned at ${grpc_src}"
+  else
+    run_as_popok git clone --depth 1 --branch v1.80.0 \
+      https://github.com/grpc/grpc "${grpc_src}"
+    log "Initialising gRPC submodules (~500 MB, 10-15 min)..."
+    run_as_popok git -C "${grpc_src}" submodule update --init --recursive --jobs 4
+    ok "gRPC source + submodules ready"
+  fi
+
+  if [[ -f "${result_file}" ]]; then
+    ok "macOS-native gRPC build already benchmarked: $(cat "${result_file}")"
+    return
+  fi
+
+  log "Building gRPC native macOS arm64 (this takes 10-20 min, please be patient)..."
+  local build_dir="${grpc_src}/build-bench"
+  run_as_popok rm -rf "${build_dir}"
+  run_as_popok mkdir -p "${build_dir}"
+
+  # Capture wall-clock time. Output stored to result_file for later comparison.
+  local start_ts end_ts elapsed
+  start_ts=$(date +%s)
+  run_as_popok bash -c "cd '${build_dir}' && cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DgRPC_BUILD_TESTS=OFF -DgRPC_BUILD_CODEGEN=OFF '${grpc_src}' >/dev/null && cmake --build . --target grpc -j 4 >/dev/null"
+  end_ts=$(date +%s)
+  elapsed=$((end_ts - start_ts))
+
+  run_as_popok bash -c "echo 'macos-arm64-native: ${elapsed}s ('$((elapsed / 60))'m '$((elapsed % 60))'s)' > '${result_file}'"
+  ok "macOS-native gRPC build done in ${elapsed}s ($((elapsed / 60))m $((elapsed % 60))s) — saved to ${result_file}"
+}
+
 install_cleanup_job() {
   log "Installing periodic cleanup launchd job..."
 
@@ -328,27 +385,35 @@ Installed and configured:
   ✓ Validated linux/amd64 + linux/arm64 round-trip
   ✓ Launchd cleanup job (weekly, Sunday 03:00)
 
-Manual steps still required (see docs/runbooks/popok-prebuilts-setup.md):
+Two manual steps remain (cannot be scripted — need GitHub UI tokens or human
+decision):
 
-  § 3  Tart Windows VM image pull (~1-2 hours, interactive)
-       \$ tart clone ghcr.io/cirruslabs/windows:server-2022-with-buildtools \\
-              windows-arm64-builder
-       \$ tart set windows-arm64-builder --cpu 4 --memory 8192 --disk 60
+  1. Re-register the GitHub Actions runner with the new labels.
+     The existing runner is at /Users/popok/code/actions-runner.
+     Get a registration token from GitHub: Settings → Actions → Runners →
+     New self-hosted runner. Then:
 
-  § 3bis Time the gRPC build under Tart vs native macOS to choose
-         Path A (popok+Tart for Windows) vs Path B (GitHub windows-latest fallback)
-
-  § 5  Re-register GitHub Actions runner with the new labels:
-       \$ cd ~/actions-runner
-       \$ ./config.sh remove --token <REMOVAL_TOKEN_FROM_GITHUB_UI>
+       \$ cd /Users/popok/code/actions-runner
+       \$ sudo ./svc.sh stop
        \$ ./config.sh \\
             --url https://github.com/organic-programming/seed \\
-            --token <REGISTRATION_TOKEN_FROM_GITHUB_UI> \\
+            --token <TOKEN_FROM_GITHUB_UI> \\
             --name popok \\
             --labels self-hosted,popok,macos,linux-via-docker,windows-vm \\
-            --work _work --runasservice
+            --work _work \\
+            --replace
+       \$ sudo ./svc.sh start
 
-  § 8  End-to-end smoke validation script (manual run after § 3 and § 5).
+  2. Decide Path A vs Path B for Windows builds.
+     The macOS-native gRPC build time is in:
+       ${TOOLS_DIR}/grpc-bench/macos-native-build-time.txt
+     To get the Windows-side number, boot the VM and run the same build:
+       \$ tart run windows-arm64-builder --no-graphics &
+       \$ ssh Administrator@\$(tart ip windows-arm64-builder)
+       (inside the VM, run a Windows-equivalent gRPC build via vcpkg or cmake)
+     If Windows time ≤ 2× macOS time, choose Path A (popok+Tart for Windows).
+     Otherwise choose Path B (GitHub windows-latest fallback for Windows only).
+     Record decision in docs/adr/sdk-prebuilts-scope.md when Codex's M0 ADR lands.
 
 Logs: ${POPOK_HOME}/Library/Logs/popok-prebuilts-cleanup.log
 
@@ -373,6 +438,8 @@ main() {
   start_colima
   setup_buildx
   validate_buildx
+  pull_tart_vm
+  run_grpc_bench_macos
   install_cleanup_job
   print_summary
 
