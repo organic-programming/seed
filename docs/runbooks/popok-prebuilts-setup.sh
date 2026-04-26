@@ -255,20 +255,32 @@ validate_buildx() {
 # ──────────────────────────────────────────────────────────────────────────────
 
 pull_tart_vm() {
-  log "Pulling Tart Windows VM image (this is the long step, ~30 GB, 1-2h on first run)..."
+  log "Attempting Tart Windows VM image pull (~30 GB if successful)..."
 
   if run_as_popok tart list 2>/dev/null | awk '{print $2}' | grep -qx 'windows-arm64-builder'; then
     ok "Tart VM 'windows-arm64-builder' already present"
-  else
-    run_as_popok tart clone \
-      ghcr.io/cirruslabs/windows:server-2022-with-buildtools \
-      windows-arm64-builder
-    ok "Tart VM 'windows-arm64-builder' cloned"
+    run_as_popok tart set windows-arm64-builder --cpu 4 --memory 8192 --disk 60
+    ok "Tart VM configured (4 CPU, 8 GB RAM, 60 GB disk)"
+    return
   fi
 
-  # Configure VM resources (idempotent — tart set is safe to re-run)
-  run_as_popok tart set windows-arm64-builder --cpu 4 --memory 8192 --disk 60
-  ok "Tart VM configured (4 CPU, 8 GB RAM, 60 GB disk)"
+  # The pre-built `windows:server-2022-with-buildtools` image is Cirrus's
+  # commercial offering and requires a Cirrus Runners subscription. The pull
+  # returns 403 without auth. Treat as non-fatal: the macOS-native bench still
+  # runs, and the Windows decision can default to Path B (GitHub windows-latest
+  # fallback) until/unless a Cirrus subscription or custom Windows VM image is
+  # available.
+  if run_as_popok tart clone \
+       ghcr.io/cirruslabs/windows:server-2022-with-buildtools \
+       windows-arm64-builder 2>/dev/null; then
+    run_as_popok tart set windows-arm64-builder --cpu 4 --memory 8192 --disk 60
+    ok "Tart VM 'windows-arm64-builder' cloned and configured"
+  else
+    warn "Tart pull failed (likely 403: image requires Cirrus subscription)."
+    warn "Skipping Windows VM setup. Path B (GitHub windows-latest) will be the default for the Windows target in the prebuilts chantier."
+    warn "If you obtain a Cirrus subscription later, run: tart login ghcr.io <user> <pat> && bash $(realpath "$0")"
+    warn "Alternative: build a custom Windows 11 ARM64 VM locally with Visual Studio Build Tools (interactive, ~2h manual work)."
+  fi
 }
 
 run_grpc_bench_macos() {
