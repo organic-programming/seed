@@ -30,6 +30,7 @@ jobs:
       NINJA_VERSION: 1.13.1
       ZIG_HOLONS_JOBS: 8
       CPP_HOLONS_JOBS: 8
+      C_HOLONS_JOBS: 8
 
     steps:
       - uses: actions/checkout@v4
@@ -47,13 +48,14 @@ jobs:
             sdk/zig-holons/third_party/protobuf-c
 
       - name: Checkout C++ native dependency submodules
-        if: inputs.sdk == 'cpp'
+        if: inputs.sdk == 'cpp' || inputs.sdk == 'c'
         run: |
           set -euo pipefail
-          rm -rf sdk/zig-holons/third_party/grpc
-          git submodule sync --recursive sdk/zig-holons/third_party/grpc
+          rm -rf sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
           git submodule update --init --force --depth 1 --jobs 8 \
-            sdk/zig-holons/third_party/grpc
+            sdk/zig-holons/third_party/grpc \
+            sdk/zig-holons/third_party/protobuf-c
           git -C sdk/zig-holons/third_party/grpc submodule sync --recursive \
             third_party/abseil-cpp \
             third_party/boringssl-with-bazel \
@@ -113,8 +115,9 @@ jobs:
           path: |
             sdk/zig-holons/.zig-prebuilt/${{ inputs.sdk-target }}
             sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}
+            sdk/c-holons/.c-prebuilt/${{ inputs.sdk-target }}
             dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}
-          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-zig.sh', '.github/scripts/build-prebuilt-cpp.sh', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', '.gitmodules') }}
+          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-zig.sh', '.github/scripts/build-prebuilt-cpp.sh', '.github/scripts/build-prebuilt-c.sh', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', '.gitmodules') }}
           restore-keys: |
             sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-
 
@@ -125,6 +128,10 @@ jobs:
       - name: Build C++ SDK prebuilt
         if: inputs.sdk == 'cpp'
         run: .github/scripts/build-prebuilt-cpp.sh
+
+      - name: Build C SDK prebuilt
+        if: inputs.sdk == 'c'
+        run: .github/scripts/build-prebuilt-c.sh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -140,5 +147,6 @@ jobs:
           path: |
             sdk/zig-holons/.zig-prebuilt/${{ inputs.sdk-target }}
             sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}
+            sdk/c-holons/.c-prebuilt/${{ inputs.sdk-target }}
             dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}
-          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-zig.sh', '.github/scripts/build-prebuilt-cpp.sh', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', '.gitmodules') }}
+          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-zig.sh', '.github/scripts/build-prebuilt-cpp.sh', '.github/scripts/build-prebuilt-c.sh', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', '.gitmodules') }}

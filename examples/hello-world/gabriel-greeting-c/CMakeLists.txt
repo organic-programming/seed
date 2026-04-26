@@ -10,13 +10,38 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 enable_testing()
 
-find_package(Protobuf CONFIG REQUIRED)
-find_package(gRPC CONFIG REQUIRED)
-find_package(utf8_range CONFIG REQUIRED)
+set(GABRIEL_GREETING_C_PREBUILT_ROOT "")
+if(DEFINED ENV{OP_SDK_C_PATH} AND NOT "$ENV{OP_SDK_C_PATH}" STREQUAL "")
+  file(TO_CMAKE_PATH "$ENV{OP_SDK_C_PATH}" GABRIEL_GREETING_C_PREBUILT_ROOT)
+  if(NOT EXISTS "${GABRIEL_GREETING_C_PREBUILT_ROOT}/include" OR
+      NOT EXISTS "${GABRIEL_GREETING_C_PREBUILT_ROOT}/lib")
+    message(FATAL_ERROR
+      "OP_SDK_C_PATH=${GABRIEL_GREETING_C_PREBUILT_ROOT} is not a C SDK prebuilt root; run `op sdk install c`")
+  endif()
+  set(CMAKE_PREFIX_PATH "${GABRIEL_GREETING_C_PREBUILT_ROOT}" ${CMAKE_PREFIX_PATH})
+  set(CMAKE_INCLUDE_PATH "${GABRIEL_GREETING_C_PREBUILT_ROOT}/include" ${CMAKE_INCLUDE_PATH})
+  set(CMAKE_LIBRARY_PATH "${GABRIEL_GREETING_C_PREBUILT_ROOT}/lib" ${CMAKE_LIBRARY_PATH})
+  set(CMAKE_PROGRAM_PATH "${GABRIEL_GREETING_C_PREBUILT_ROOT}/bin" ${CMAKE_PROGRAM_PATH})
+endif()
+
+find_package(Protobuf CONFIG QUIET)
+find_package(gRPC CONFIG QUIET)
+find_package(utf8_range CONFIG QUIET)
+if(NOT Protobuf_FOUND OR NOT gRPC_FOUND OR NOT utf8_range_FOUND)
+  if(GABRIEL_GREETING_C_PREBUILT_ROOT)
+    message(FATAL_ERROR
+      "OP_SDK_C_PATH=${GABRIEL_GREETING_C_PREBUILT_ROOT} is missing gRPC, Protobuf, or utf8_range CMake packages; run `op sdk verify c` or reinstall with `op sdk install c`")
+  else()
+    message(FATAL_ERROR
+      "gabriel-greeting-c requires the C SDK prebuilts. Run `op sdk install c` or install gRPC system-wide.")
+  endif()
+endif()
 find_program(BASH_EXECUTABLE NAMES bash REQUIRED)
 
 get_target_property(PROTOBUF_INCLUDE_DIRS protobuf::libprotobuf INTERFACE_INCLUDE_DIRECTORIES)
-find_library(UPB_LIBRARY NAMES upb REQUIRED)
+find_library(UPB_LIBRARY NAMES upb
+  PATHS "${GABRIEL_GREETING_C_PREBUILT_ROOT}/lib" /opt/homebrew/lib /usr/local/lib
+  REQUIRED)
 
 set(HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/c-holons")
 set(CPP_HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/cpp-holons")
@@ -58,6 +83,12 @@ target_include_directories(gabriel_greeting_c_lib
     "${CPP_HOLONS_SDK_ROOT}/include"
     ${PROTOBUF_INCLUDE_DIRS}
 )
+if(GABRIEL_GREETING_C_PREBUILT_ROOT)
+  target_include_directories(gabriel_greeting_c_lib
+    PUBLIC
+      "${GABRIEL_GREETING_C_PREBUILT_ROOT}/include"
+  )
+endif()
 
 target_link_libraries(gabriel_greeting_c_lib
   PUBLIC

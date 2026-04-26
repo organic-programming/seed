@@ -1,5 +1,6 @@
 test_runner
 describe-static-helper
+.c-prebuilt/
 *.o
 *.a
 *.so

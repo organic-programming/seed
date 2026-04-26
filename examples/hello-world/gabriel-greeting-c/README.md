@@ -47,6 +47,7 @@ CMakeLists.txt                     Build and test definition.
 ## How to launch
 
 ```bash
+op sdk install c
 ./scripts/generate_proto.sh
 cmake -S . -B build
 cmake --build build

@@ -166,6 +166,51 @@ void   holons__v1__holon_manifest__free_unpacked
   assert(message->base.descriptor == &holons__v1__holon_manifest__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
+void   holons__v1__listener_visibility_override__init
+                     (Holons__V1__ListenerVisibilityOverride         *message)
+{
+  static const Holons__V1__ListenerVisibilityOverride init_value = HOLONS__V1__LISTENER_VISIBILITY_OVERRIDE__INIT;
+  *message = init_value;
+}
+size_t holons__v1__listener_visibility_override__get_packed_size
+                     (const Holons__V1__ListenerVisibilityOverride *message)
+{
+  assert(message->base.descriptor == &holons__v1__listener_visibility_override__descriptor);
+  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+}
+size_t holons__v1__listener_visibility_override__pack
+                     (const Holons__V1__ListenerVisibilityOverride *message,
+                      uint8_t       *out)
+{
+  assert(message->base.descriptor == &holons__v1__listener_visibility_override__descriptor);
+  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+}
+size_t holons__v1__listener_visibility_override__pack_to_buffer
+                     (const Holons__V1__ListenerVisibilityOverride *message,
+                      ProtobufCBuffer *buffer)
+{
+  assert(message->base.descriptor == &holons__v1__listener_visibility_override__descriptor);
+  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+}
+Holons__V1__ListenerVisibilityOverride *
+       holons__v1__listener_visibility_override__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data)
+{
+  return (Holons__V1__ListenerVisibilityOverride *)
+     protobuf_c_message_unpack (&holons__v1__listener_visibility_override__descriptor,
+                                allocator, len, data);
+}
+void   holons__v1__listener_visibility_override__free_unpacked
+                     (Holons__V1__ListenerVisibilityOverride *message,
+                      ProtobufCAllocator *allocator)
+{
+  if(!message)
+    return;
+  assert(message->base.descriptor == &holons__v1__listener_visibility_override__descriptor);
+  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+}
 static const ProtobufCFieldDescriptor holons__v1__holon_manifest__identity__field_descriptors[10] =
 {
   {
@@ -821,7 +866,7 @@ const ProtobufCMessageDescriptor holons__v1__holon_manifest__build__target__desc
   (ProtobufCMessageInit) holons__v1__holon_manifest__build__target__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor holons__v1__holon_manifest__build__field_descriptors[6] =
+static const ProtobufCFieldDescriptor holons__v1__holon_manifest__build__field_descriptors[8] =
 {
   {
     "runner",
@@ -895,8 +940,34 @@ static const ProtobufCFieldDescriptor holons__v1__holon_manifest__build__field_d
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "before_commands",
+    7,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(Holons__V1__HolonManifest__Build, n_before_commands),
+    offsetof(Holons__V1__HolonManifest__Build, before_commands),
+    &holons__v1__holon_manifest__step__exec__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "after_commands",
+    8,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(Holons__V1__HolonManifest__Build, n_after_commands),
+    offsetof(Holons__V1__HolonManifest__Build, after_commands),
+    &holons__v1__holon_manifest__step__exec__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned holons__v1__holon_manifest__build__field_indices_by_name[] = {
+  7,   /* field[7] = after_commands */
+  6,   /* field[6] = before_commands */
   2,   /* field[2] = defaults */
   1,   /* field[1] = main */
   3,   /* field[3] = members */
@@ -907,7 +978,7 @@ static const unsigned holons__v1__holon_manifest__build__field_indices_by_name[]
 static const ProtobufCIntRange holons__v1__holon_manifest__build__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 6 }
+  { 0, 8 }
 };
 const ProtobufCMessageDescriptor holons__v1__holon_manifest__build__descriptor =
 {
@@ -917,7 +988,7 @@ const ProtobufCMessageDescriptor holons__v1__holon_manifest__build__descriptor =
   "Holons__V1__HolonManifest__Build",
   "holons.v1",
   sizeof(Holons__V1__HolonManifest__Build),
-  6,
+  8,
   holons__v1__holon_manifest__build__field_descriptors,
   holons__v1__holon_manifest__build__field_indices_by_name,
   1,  holons__v1__holon_manifest__build__number_ranges,
@@ -1205,7 +1276,7 @@ const ProtobufCMessageDescriptor holons__v1__holon_manifest__step__descriptor =
   (ProtobufCMessageInit) holons__v1__holon_manifest__step__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor holons__v1__holon_manifest__requires__field_descriptors[3] =
+static const ProtobufCFieldDescriptor holons__v1__holon_manifest__requires__field_descriptors[4] =
 {
   {
     "commands",
@@ -1243,16 +1314,29 @@ static const ProtobufCFieldDescriptor holons__v1__holon_manifest__requires__fiel
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "sdk_prebuilts",
+    4,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_STRING,
+    offsetof(Holons__V1__HolonManifest__Requires, n_sdk_prebuilts),
+    offsetof(Holons__V1__HolonManifest__Requires, sdk_prebuilts),
+    NULL,
+    &protobuf_c_empty_string,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned holons__v1__holon_manifest__requires__field_indices_by_name[] = {
   0,   /* field[0] = commands */
   1,   /* field[1] = files */
   2,   /* field[2] = platforms */
+  3,   /* field[3] = sdk_prebuilts */
 };
 static const ProtobufCIntRange holons__v1__holon_manifest__requires__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 3 }
+  { 0, 4 }
 };
 const ProtobufCMessageDescriptor holons__v1__holon_manifest__requires__descriptor =
 {
@@ -1262,7 +1346,7 @@ const ProtobufCMessageDescriptor holons__v1__holon_manifest__requires__descripto
   "Holons__V1__HolonManifest__Requires",
   "holons.v1",
   sizeof(Holons__V1__HolonManifest__Requires),
-  3,
+  4,
   holons__v1__holon_manifest__requires__field_descriptors,
   holons__v1__holon_manifest__requires__field_indices_by_name,
   1,  holons__v1__holon_manifest__requires__number_ranges,
@@ -1448,7 +1532,7 @@ const ProtobufCMessageDescriptor holons__v1__holon_manifest__artifacts__descript
   (ProtobufCMessageInit) holons__v1__holon_manifest__artifacts__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor holons__v1__holon_manifest__field_descriptors[13] =
+static const ProtobufCFieldDescriptor holons__v1__holon_manifest__field_descriptors[15] =
 {
   {
     "identity",
@@ -1606,6 +1690,30 @@ static const ProtobufCFieldDescriptor holons__v1__holon_manifest__field_descript
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "session_visibility",
+    16,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_ENUM,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__HolonManifest, session_visibility),
+    &holons__v1__observability_visibility__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "session_visibility_overrides",
+    17,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(Holons__V1__HolonManifest, n_session_visibility_overrides),
+    offsetof(Holons__V1__HolonManifest, session_visibility_overrides),
+    &holons__v1__listener_visibility_override__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned holons__v1__holon_manifest__field_indices_by_name[] = {
   10,   /* field[10] = artifacts */
@@ -1619,6 +1727,8 @@ static const unsigned holons__v1__holon_manifest__field_indices_by_name[] = {
   6,   /* field[6] = platforms */
   9,   /* field[9] = requires */
   11,   /* field[11] = sequences */
+  13,   /* field[13] = session_visibility */
+  14,   /* field[14] = session_visibility_overrides */
   3,   /* field[3] = skills */
   7,   /* field[7] = transport */
 };
@@ -1627,7 +1737,7 @@ static const ProtobufCIntRange holons__v1__holon_manifest__number_ranges[3 + 1] 
   { 1, 0 },
   { 3, 1 },
   { 13, 10 },
-  { 0, 13 }
+  { 0, 15 }
 };
 const ProtobufCMessageDescriptor holons__v1__holon_manifest__descriptor =
 {
@@ -1637,10 +1747,93 @@ const ProtobufCMessageDescriptor holons__v1__holon_manifest__descriptor =
   "Holons__V1__HolonManifest",
   "holons.v1",
   sizeof(Holons__V1__HolonManifest),
-  13,
+  15,
   holons__v1__holon_manifest__field_descriptors,
   holons__v1__holon_manifest__field_indices_by_name,
   3,  holons__v1__holon_manifest__number_ranges,
   (ProtobufCMessageInit) holons__v1__holon_manifest__init,
   NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor holons__v1__listener_visibility_override__field_descriptors[2] =
+{
+  {
+    "listener_uri",
+    1,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__ListenerVisibilityOverride, listener_uri),
+    NULL,
+    &protobuf_c_empty_string,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "visibility",
+    2,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_ENUM,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__ListenerVisibilityOverride, visibility),
+    &holons__v1__observability_visibility__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned holons__v1__listener_visibility_override__field_indices_by_name[] = {
+  0,   /* field[0] = listener_uri */
+  1,   /* field[1] = visibility */
+};
+static const ProtobufCIntRange holons__v1__listener_visibility_override__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 2 }
+};
+const ProtobufCMessageDescriptor holons__v1__listener_visibility_override__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "holons.v1.ListenerVisibilityOverride",
+  "ListenerVisibilityOverride",
+  "Holons__V1__ListenerVisibilityOverride",
+  "holons.v1",
+  sizeof(Holons__V1__ListenerVisibilityOverride),
+  2,
+  holons__v1__listener_visibility_override__field_descriptors,
+  holons__v1__listener_visibility_override__field_indices_by_name,
+  1,  holons__v1__listener_visibility_override__number_ranges,
+  (ProtobufCMessageInit) holons__v1__listener_visibility_override__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCEnumValue holons__v1__observability_visibility__enum_values_by_number[4] =
+{
+  { "OBSERVABILITY_VISIBILITY_UNSPECIFIED", "HOLONS__V1__OBSERVABILITY_VISIBILITY__OBSERVABILITY_VISIBILITY_UNSPECIFIED", 0 },
+  { "OBSERVABILITY_VISIBILITY_OFF", "HOLONS__V1__OBSERVABILITY_VISIBILITY__OBSERVABILITY_VISIBILITY_OFF", 1 },
+  { "OBSERVABILITY_VISIBILITY_SUMMARY", "HOLONS__V1__OBSERVABILITY_VISIBILITY__OBSERVABILITY_VISIBILITY_SUMMARY", 2 },
+  { "OBSERVABILITY_VISIBILITY_FULL", "HOLONS__V1__OBSERVABILITY_VISIBILITY__OBSERVABILITY_VISIBILITY_FULL", 3 },
+};
+static const ProtobufCIntRange holons__v1__observability_visibility__value_ranges[] = {
+{0, 0},{0, 4}
+};
+static const ProtobufCEnumValueIndex holons__v1__observability_visibility__enum_values_by_name[4] =
+{
+  { "OBSERVABILITY_VISIBILITY_FULL", 3 },
+  { "OBSERVABILITY_VISIBILITY_OFF", 1 },
+  { "OBSERVABILITY_VISIBILITY_SUMMARY", 2 },
+  { "OBSERVABILITY_VISIBILITY_UNSPECIFIED", 0 },
+};
+const ProtobufCEnumDescriptor holons__v1__observability_visibility__descriptor =
+{
+  PROTOBUF_C__ENUM_DESCRIPTOR_MAGIC,
+  "holons.v1.ObservabilityVisibility",
+  "ObservabilityVisibility",
+  "Holons__V1__ObservabilityVisibility",
+  "holons.v1",
+  4,
+  holons__v1__observability_visibility__enum_values_by_number,
+  4,
+  holons__v1__observability_visibility__enum_values_by_name,
+  1,
+  holons__v1__observability_visibility__value_ranges,
+  NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
