@@ -59,7 +59,7 @@ protoc --proto_path=../../_protos \
 
 ## Build
 
-From the repository root (builds all 12 holons + the app):
+From the repository root (builds all 13 holons + the app):
 
 ```sh
 op build gabriel-greeting-app-swiftui
@@ -124,6 +124,7 @@ Override the default via `OP_ASSEMBLY_TRANSPORT` environment variable.
 | Ruby | `gabriel-greeting-ruby` |
 | Rust | `gabriel-greeting-rust` |
 | Swift | `gabriel-greeting-swift` |
+| Zig | `gabriel-greeting-zig` |
 
 
 # COAX support 

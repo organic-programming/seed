@@ -19,7 +19,7 @@ public enum DescribeGenerated {
       $0.born = "2026-03-15"
       $0.version = "0.1.136"
     }
-    $0.description_p = "A standalone SwiftUI app that connects to all 12 Gabriel greeting holon written in 12 programming languages and presents a multilingual greeting UI."
+    $0.description_p = "A standalone SwiftUI app that connects to all 13 Gabriel greeting holon written in 13 programming languages and presents a multilingual greeting UI."
     $0.lang = "swift"
     $0.kind = "composite"
     $0.build = Holons_V1_HolonManifest.Build.with {

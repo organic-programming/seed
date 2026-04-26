@@ -36,11 +36,12 @@ public final class GreetingHolonManager: ObservableObject {
     }
   }
 
-  private var client: GreetingClient?
-  private var startTask: Task<GreetingClient, Error>?
+  private var client: GreetingClientProtocol?
+  private var startTask: Task<GreetingClientProtocol, Error>?
   private var startTaskID: UUID?
   #if os(macOS)
     private let holons: BundledHolons<GabrielHolonIdentity>
+    private let clientFactory: GreetingClientFactory
     private var observability: Observability?
     private var logger: HolonLogger?
     private var sayHelloTotal: Counter?
@@ -57,7 +58,25 @@ public final class GreetingHolonManager: ObservableObject {
       )
     ) {
       self.holons = holons
+      self.clientFactory = connectClient
       refreshHolons()
+    }
+
+    init(
+      holons: BundledHolons<GabrielHolonIdentity> = BundledHolons<GabrielHolonIdentity>(
+        fromDiscovered: GabrielHolonIdentity.fromDiscovered,
+        slugOf: { $0.slug },
+        sortRankOf: { $0.sortRank },
+        displayNameOf: { $0.displayName }
+      ),
+      clientFactory: @escaping GreetingClientFactory,
+      autoRefresh: Bool = true
+    ) {
+      self.holons = holons
+      self.clientFactory = clientFactory
+      if autoRefresh {
+        refreshHolons()
+      }
     }
   #else
     public init() {
@@ -256,8 +275,9 @@ public final class GreetingHolonManager: ObservableObject {
 
         let taskID = UUID()
         startTaskID = taskID
+        let factory = clientFactory
         let connectTask = Task.detached(priority: .userInitiated) { [slug = holon.slug, options] in
-          try connectClient(holonSlug: slug, options: options)
+          try factory(slug, options)
         }
         startTask = connectTask
 
@@ -488,12 +508,23 @@ public typealias HolonProcess = GreetingHolonManager
   }
 #endif
 
+protocol GreetingClientProtocol: AnyObject, Sendable {
+  func listLanguages() async throws -> [Greeting_V1_Language]
+  func sayHello(name: String, langCode: String) async throws -> String
+  func tell(method: String, payloadJSON: Data) async throws -> Data
+  func close() throws
+}
+
+extension GreetingClient: GreetingClientProtocol {}
+
+typealias GreetingClientFactory = @Sendable (String, ConnectOptions) throws -> GreetingClientProtocol
+
 private let connectClientLock = NSLock()
 
 private func connectClient(
   holonSlug: String,
   options: ConnectOptions
-) throws -> GreetingClient {
+) throws -> GreetingClientProtocol {
   connectClientLock.lock()
   defer { connectClientLock.unlock() }
   return try GreetingClient.connected(to: holonSlug, options: options)
@@ -619,15 +650,16 @@ public struct GabrielHolonIdentity: Identifiable, Hashable {
         "gabriel-greeting-swift": 0,
         "gabriel-greeting-go": 1,
         "gabriel-greeting-rust": 2,
-        "gabriel-greeting-python": 3,
-        "gabriel-greeting-c": 4,
-        "gabriel-greeting-cpp": 5,
-        "gabriel-greeting-csharp": 6,
-        "gabriel-greeting-dart": 7,
-        "gabriel-greeting-java": 8,
-        "gabriel-greeting-kotlin": 9,
-        "gabriel-greeting-node": 10,
-        "gabriel-greeting-ruby": 11,
+        "gabriel-greeting-zig": 3,
+        "gabriel-greeting-python": 4,
+        "gabriel-greeting-c": 5,
+        "gabriel-greeting-cpp": 6,
+        "gabriel-greeting-csharp": 7,
+        "gabriel-greeting-dart": 8,
+        "gabriel-greeting-java": 9,
+        "gabriel-greeting-kotlin": 10,
+        "gabriel-greeting-node": 11,
+        "gabriel-greeting-ruby": 12,
       ]
       return order[slug] ?? 999
     }
