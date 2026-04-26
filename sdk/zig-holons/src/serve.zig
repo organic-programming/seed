@@ -5,7 +5,6 @@ const transport = @import("transport.zig");
 
 const c = @cImport({
     @cInclude("signal.h");
-    @cInclude("time.h");
 });
 
 var shutdown_signal = std.atomic.Value(bool).init(false);
@@ -84,11 +83,11 @@ fn signalWatcher(server: *grpc_server.Server) void {
 }
 
 fn sleepMillis(ms: c_long) void {
-    var requested = c.timespec{
-        .tv_sec = @divTrunc(ms, 1000),
-        .tv_nsec = @rem(ms, 1000) * std.time.ns_per_ms,
-    };
-    _ = c.nanosleep(&requested, null);
+    std.Io.sleep(
+        std.Io.Threaded.global_single_threaded.io(),
+        std.Io.Duration.fromMilliseconds(@intCast(ms)),
+        .awake,
+    ) catch {};
 }
 
 test "parse listen option" {
