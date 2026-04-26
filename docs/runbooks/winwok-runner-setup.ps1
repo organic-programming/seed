@@ -32,8 +32,8 @@
 [CmdletBinding()]
 param(
   [string]$RunnerToken = "",
-  [string]$RunnerName = "popok-windows",
-  [string]$RunnerLabels = "self-hosted,popok-windows,windows-vm",
+  [string]$RunnerName = "winwok",
+  [string]$RunnerLabels = "self-hosted,winwok,windows",
   [string]$RepoUrl = "https://github.com/organic-programming/seed",
   [string]$RunnerVersion = "2.334.0",
   [string]$InstallRoot = "C:\actions-runner"
