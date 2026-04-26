@@ -5,7 +5,7 @@
 # Idempotent setup script for popok (Apple Silicon Mac, GitHub Actions
 # self-hosted runner) to host the SDK prebuilts CI matrix.
 #
-# Companion to: docs/runbooks/popok-prebuilts-setup.md
+# Companion to: docs/st_emilion/02_popok_setup.md
 #
 # Usage:
 #   bash popok-prebuilts-setup.sh                      # as popok user (preferred)

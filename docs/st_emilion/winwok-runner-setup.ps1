@@ -3,7 +3,7 @@
 # Idempotent setup script for a Windows mini-PC to host the SDK prebuilts
 # CI matrix's Windows target (x86_64-pc-windows-msvc).
 #
-# Companion to: docs/runbooks/popok-prebuilts-setup.md (popok-side, macOS)
+# Companion to: docs/st_emilion/02_popok_setup.md (popok-side, macOS)
 #
 # Usage (PowerShell as Administrator):
 #   .\popok-windows-runner-setup.ps1 [-RunnerToken <token>] [-RunnerName <name>]
