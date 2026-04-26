@@ -1,4 +1,5 @@
 .zig-cache/
+.zig-cross/
 .zig-vendor/
 zig-out/
 build/
