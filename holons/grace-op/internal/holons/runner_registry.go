@@ -15,6 +15,7 @@ import (
 var runnerRegistry = map[string]runner{
 	RunnerGoModule: goModuleRunner{},
 	RunnerCMake:    cmakeRunner{},
+	RunnerZig:      zigRunner{},
 	RunnerCargo:    cargoRunner{},
 	RunnerPython:   pythonRunner{},
 	RunnerDart:     dartRunner{},
@@ -39,7 +40,7 @@ func isSupportedRunner(name string) bool {
 // which members to include.
 func runnerProducesStandaloneArtifact(runner string) bool {
 	switch strings.TrimSpace(strings.ToLower(runner)) {
-	case "go-module", "swift-package", "cargo", "cmake", "qt-cmake", "dart":
+	case "go-module", "swift-package", "zig", "cargo", "cmake", "qt-cmake", "dart":
 		return true
 	default:
 		return false
@@ -793,6 +794,88 @@ func removeNamedDirs(root string, names ...string) error {
 }
 
 type cargoRunner struct{}
+
+type zigRunner struct{}
+
+func (zigRunner) check(manifest *LoadedManifest, _ BuildContext) error {
+	if err := requireRunnerCommands("zig"); err != nil {
+		return err
+	}
+	if manifest == nil {
+		return nil
+	}
+	if !fileExists(filepath.Join(manifest.Dir, "build.zig")) {
+		return fmt.Errorf("zig runner requires build.zig")
+	}
+	return nil
+}
+
+func (zigRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
+	if err := ensureHostBuildTarget(RunnerZig, ctx); err != nil {
+		return err
+	}
+
+	args := []string{"zig", "build", "-Doptimize=" + zigOptimizeMode(ctx.Mode)}
+	report.Commands = append(report.Commands, commandString(args))
+	ctx.Progress.Step(commandString(args))
+	if ctx.DryRun {
+		return nil
+	}
+	if output, err := runCommand(manifest.Dir, args); err != nil {
+		return fmt.Errorf("%s\n%s", err, output)
+	}
+	if err := syncBinaryFromCandidates(manifest, zigArtifactCandidates(manifest)); err != nil {
+		return err
+	}
+	report.Notes = append(report.Notes, "zig build complete")
+	return nil
+}
+
+func (zigRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
+	if err := ensureHostBuildTarget(RunnerZig, ctx); err != nil {
+		return err
+	}
+	args := []string{"zig", "build", "test", "-Doptimize=" + zigOptimizeMode(ctx.Mode)}
+	report.Commands = append(report.Commands, commandString(args))
+	ctx.Progress.Step(commandString(args))
+	if output, err := runCommand(manifest.Dir, args); err != nil {
+		return fmt.Errorf("%s\n%s", err, output)
+	}
+	report.Notes = append(report.Notes, "zig tests passed")
+	return nil
+}
+
+func (zigRunner) clean(manifest *LoadedManifest, _ BuildContext, report *Report) error {
+	for _, rel := range []string{".op", ".zig-cache", "zig-out"} {
+		if err := os.RemoveAll(filepath.Join(manifest.Dir, rel)); err != nil {
+			return err
+		}
+	}
+	report.Notes = append(report.Notes, "removed .op/, .zig-cache/, and zig-out/")
+	return nil
+}
+
+func zigOptimizeMode(mode string) string {
+	switch normalizeBuildMode(mode) {
+	case buildModeRelease:
+		return "ReleaseFast"
+	case buildModeProfile:
+		return "ReleaseSafe"
+	default:
+		return "Debug"
+	}
+}
+
+func zigArtifactCandidates(manifest *LoadedManifest) []string {
+	binary := hostExecutableName(manifest.BinaryName())
+	if strings.TrimSpace(binary) == "" {
+		return nil
+	}
+	return []string{
+		filepath.Join(manifest.Dir, "zig-out", "bin", binary),
+		filepath.Join(manifest.Dir, "zig-out", binary),
+	}
+}
 
 func (cargoRunner) check(manifest *LoadedManifest, _ BuildContext) error {
 	if err := requireRunnerCommands("cargo", "rustc"); err != nil {

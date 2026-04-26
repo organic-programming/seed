@@ -19,6 +19,7 @@ const (
 	KindComposite  = "composite"
 	RunnerGoModule = "go-module"
 	RunnerCMake    = "cmake"
+	RunnerZig      = "zig"
 	RunnerCargo    = "cargo"
 	RunnerPython   = "python"
 	RunnerDart     = "dart"
@@ -93,10 +94,10 @@ type SequenceParam struct {
 }
 
 type BuildConfig struct {
-	Runner    string
-	Main      string
-	Defaults  *RecipeDefaults
-	Members   []RecipeMember
+	Runner         string
+	Main           string
+	Defaults       *RecipeDefaults
+	Members        []RecipeMember
 	Targets        map[string]RecipeTarget
 	Templates      []string
 	BeforeCommands []*RecipeStepExec
@@ -388,7 +389,7 @@ func manifestBuildFromResolved(resolved *identity.Resolved) BuildConfig {
 			build.Targets[strings.TrimSpace(name)] = RecipeTarget{Steps: steps}
 		}
 	}
-	
+
 	if len(resolved.BeforeCommands) > 0 {
 		build.BeforeCommands = make([]*RecipeStepExec, 0, len(resolved.BeforeCommands))
 		for _, cmd := range resolved.BeforeCommands {

@@ -86,7 +86,7 @@ var nativeHolons = []HolonSpec{
 	{Slug: "gabriel-greeting-c", Runner: "cmake", Requires: []string{"cmake"}, Platform: "darwin"},
 	{Slug: "gabriel-greeting-cpp", Runner: "cmake", Requires: []string{"cmake"}, Platform: "darwin"},
 	{Slug: "gabriel-greeting-rust", Runner: "cargo", Requires: []string{"cargo"}, Platform: "darwin"},
-	{Slug: "gabriel-greeting-zig", Runner: "cmake", Requires: []string{"zig", "cmake", "ninja"}, Platform: "darwin"},
+	{Slug: "gabriel-greeting-zig", Runner: "zig", Requires: []string{"zig", "cmake", "ninja"}, Platform: "darwin"},
 	{Slug: "gabriel-greeting-swift", Runner: "swift-package", Requires: []string{"swift"}, Platform: "darwin"},
 	{Slug: "gabriel-greeting-python", Runner: "python", Requires: []string{"python3"}, Platform: "darwin"},
 	{Slug: "gabriel-greeting-ruby", Runner: "ruby", Requires: []string{"ruby", "bundle"}, Platform: "darwin"},
