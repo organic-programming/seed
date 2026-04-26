@@ -53,5 +53,10 @@ channel = Holons.connect("gabriel-greeting-ruby")
 ## Build and test
 
 ```sh
+op sdk install ruby
 rake test
 ```
+
+`OP_SDK_RUBY_PATH`, normally set by `op build` after `op sdk install ruby`,
+points Bundler at a pre-installed `vendor/bundle/` tree with the pinned `grpc`
+and `google-protobuf` native gems plus the matching `grpc-tools` codegen plugin.

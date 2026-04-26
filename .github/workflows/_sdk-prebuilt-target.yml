@@ -31,6 +31,7 @@ jobs:
       ZIG_HOLONS_JOBS: 8
       CPP_HOLONS_JOBS: 8
       C_HOLONS_JOBS: 8
+      RUBY_HOLONS_JOBS: 4
 
     steps:
       - uses: actions/checkout@v4
@@ -85,6 +86,7 @@ jobs:
           brew install cmake ninja pkg-config
 
       - name: Install Zig
+        if: inputs.sdk != 'ruby'
         shell: bash
         run: |
           set -euo pipefail
@@ -105,6 +107,13 @@ jobs:
           echo "$zig_dir" >> "$GITHUB_PATH"
           "$zig_dir/zig" version
 
+      - name: Setup Ruby
+        if: inputs.sdk == 'ruby'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+          bundler-cache: false
+
       - name: Install syft
         uses: anchore/sbom-action/download-syft@v0
 
@@ -116,22 +125,31 @@ jobs:
             sdk/zig-holons/.zig-prebuilt/${{ inputs.sdk-target }}
             sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}
             sdk/c-holons/.c-prebuilt/${{ inputs.sdk-target }}
+            sdk/ruby-holons/.ruby-prebuilt/${{ inputs.sdk-target }}
             dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}
-          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-zig.sh', '.github/scripts/build-prebuilt-cpp.sh', '.github/scripts/build-prebuilt-c.sh', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', '.gitmodules') }}
+          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-zig.sh', '.github/scripts/build-prebuilt-cpp.sh', '.github/scripts/build-prebuilt-c.sh', '.github/scripts/build-prebuilt-ruby.sh', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}
           restore-keys: |
             sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Build Zig SDK prebuilt
         if: inputs.sdk == 'zig'
+        shell: bash
         run: .github/scripts/build-prebuilt-zig.sh
 
       - name: Build C++ SDK prebuilt
         if: inputs.sdk == 'cpp'
+        shell: bash
         run: .github/scripts/build-prebuilt-cpp.sh
 
       - name: Build C SDK prebuilt
         if: inputs.sdk == 'c'
+        shell: bash
         run: .github/scripts/build-prebuilt-c.sh
+
+      - name: Build Ruby SDK prebuilt
+        if: inputs.sdk == 'ruby'
+        shell: bash
+        run: .github/scripts/build-prebuilt-ruby.sh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -148,5 +166,6 @@ jobs:
             sdk/zig-holons/.zig-prebuilt/${{ inputs.sdk-target }}
             sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}
             sdk/c-holons/.c-prebuilt/${{ inputs.sdk-target }}
+            sdk/ruby-holons/.ruby-prebuilt/${{ inputs.sdk-target }}
             dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}
-          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-zig.sh', '.github/scripts/build-prebuilt-cpp.sh', '.github/scripts/build-prebuilt-c.sh', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', '.gitmodules') }}
+          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-zig.sh', '.github/scripts/build-prebuilt-cpp.sh', '.github/scripts/build-prebuilt-c.sh', '.github/scripts/build-prebuilt-ruby.sh', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}

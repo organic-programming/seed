@@ -2,7 +2,9 @@
 
 source "https://rubygems.org"
 
-gem "grpc", "~> 1.58"
-gem "minitest", "~> 5.25"
-gem "rake", "~> 13.2"
-gem "base64"
+gem "grpc", "= 1.58.3"
+gem "grpc-tools", "= 1.58.3"
+gem "base64", "= 0.3.0"
+gem "minitest", "= 5.20.0"
+gem "rake", "= 13.2.1"
+gem "webrick", "= 1.8.2"

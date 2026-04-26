@@ -637,9 +637,28 @@ func rubySharedBase64Dir(manifest *LoadedManifest, rubyPath, bundlePath string) 
 	return filepath.Join(rubySharedCacheRoot(manifest, rubyPath, bundlePath), "base64")
 }
 
-func prepareRubySharedCache(isolatedDir string, manifest *LoadedManifest, rubyPath, bundlePath string) error {
+func rubyPrebuiltBundlePath(ctx BuildContext) string {
+	root := strings.TrimSpace(ctx.SDKPrebuiltPaths["ruby"])
+	if root == "" {
+		root = strings.TrimSpace(os.Getenv("OP_SDK_RUBY_PATH"))
+	}
+	if root == "" {
+		return ""
+	}
+	return filepath.Join(root, "vendor", "bundle")
+}
+
+func prepareRubySharedCache(isolatedDir string, manifest *LoadedManifest, rubyPath, bundlePath, prebuiltBundlePath string) error {
 	if err := os.MkdirAll(filepath.Join(isolatedDir, ".op"), 0o755); err != nil {
 		return err
+	}
+
+	bundleTarget := rubySharedBundleDir(manifest, rubyPath, bundlePath)
+	if prebuiltBundlePath != "" {
+		if !dirExists(prebuiltBundlePath) {
+			return fmt.Errorf("OP_SDK_RUBY_PATH is missing vendor/bundle at %s", prebuiltBundlePath)
+		}
+		bundleTarget = prebuiltBundlePath
 	}
 
 	links := []struct {
@@ -648,7 +667,7 @@ func prepareRubySharedCache(isolatedDir string, manifest *LoadedManifest, rubyPa
 	}{
 		{
 			linkPath:   filepath.Join(isolatedDir, ".op", "bundle"),
-			targetPath: rubySharedBundleDir(manifest, rubyPath, bundlePath),
+			targetPath: bundleTarget,
 		},
 		{
 			linkPath:   filepath.Join(isolatedDir, ".op", "base64"),
@@ -660,8 +679,12 @@ func prepareRubySharedCache(isolatedDir string, manifest *LoadedManifest, rubyPa
 		if err := os.MkdirAll(filepath.Dir(link.targetPath), 0o755); err != nil {
 			return err
 		}
-		if err := os.MkdirAll(link.targetPath, 0o755); err != nil {
-			return err
+		if link.targetPath != prebuiltBundlePath {
+			if err := os.MkdirAll(link.targetPath, 0o755); err != nil {
+				return err
+			}
+		} else if !dirExists(link.targetPath) {
+			return fmt.Errorf("OP_SDK_RUBY_PATH is missing vendor/bundle at %s", link.targetPath)
 		}
 		if err := os.RemoveAll(link.linkPath); err != nil {
 			return err
@@ -674,7 +697,7 @@ func prepareRubySharedCache(isolatedDir string, manifest *LoadedManifest, rubyPa
 	return nil
 }
 
-func prepareRubyIsolatedWorkspace(isolatedDir string, manifest *LoadedManifest, rubyPath, bundlePath string) error {
+func prepareRubyIsolatedWorkspace(isolatedDir string, manifest *LoadedManifest, rubyPath, bundlePath, prebuiltBundlePath string) error {
 	// Re-anchor relative SDK dependencies to absolute paths to survive inner execution.
 	supportPath := filepath.Join(isolatedDir, "support.rb")
 	if b, err := os.ReadFile(supportPath); err == nil {
@@ -683,22 +706,27 @@ func prepareRubyIsolatedWorkspace(isolatedDir string, manifest *LoadedManifest, 
 			return err
 		}
 	}
-	if err := prepareRubySharedCache(isolatedDir, manifest, rubyPath, bundlePath); err != nil {
+	if err := prepareRubySharedCache(isolatedDir, manifest, rubyPath, bundlePath, prebuiltBundlePath); err != nil {
 		return fmt.Errorf("prepare ruby cache: %w", err)
 	}
 	return nil
 }
 
-func rubySetupCommands(bundlePath, gemPath string) [][]string {
-	return rubySetupCommandsForPlatform(bundlePath, gemPath, runtime.GOOS, runtime.GOARCH)
+func rubySetupCommands(bundlePath, gemPath, prebuiltBundlePath string) [][]string {
+	return rubySetupCommandsForPlatform(bundlePath, gemPath, runtime.GOOS, runtime.GOARCH, prebuiltBundlePath)
 }
 
-func rubySetupCommandsForPlatform(bundlePath, gemPath, goos, goarch string) [][]string {
+func rubySetupCommandsForPlatform(bundlePath, gemPath, goos, goarch, prebuiltBundlePath string) [][]string {
 	commands := make([][]string, 0, 4)
 	if platform := rubyBundlerNativePlatform(goos, goarch); platform != "" {
 		commands = append(commands, []string{bundlePath, "lock", "--add-platform", platform})
 	}
 	commands = append(commands, []string{bundlePath, "config", "set", "--local", "path", ".op/bundle"})
+	commands = append(commands, []string{bundlePath, "config", "set", "--local", "disable_shared_gems", "true"})
+	if prebuiltBundlePath != "" {
+		commands = append(commands, []string{bundlePath, "check"})
+		return commands
+	}
 	if rubyForceSourcePlatform(goos, goarch) {
 		commands = append(commands, []string{"env", "BUNDLE_FORCE_RUBY_PLATFORM=true", bundlePath, "install"})
 	} else {
@@ -1194,6 +1222,7 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 		return err
 	}
 	gemPath := rubyGemPath(rubyPath)
+	prebuiltBundlePath := rubyPrebuiltBundlePath(ctx)
 
 	isolatedDir := filepath.Join(manifest.OpRoot(), "build", "ruby")
 	if !ctx.DryRun {
@@ -1201,14 +1230,14 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 		if err := copyWorkspaceIsolated(manifest.Dir, isolatedDir); err != nil {
 			return fmt.Errorf("isolate ruby workspace: %w", err)
 		}
-		if err := prepareRubyIsolatedWorkspace(isolatedDir, manifest, rubyPath, bundlePath); err != nil {
+		if err := prepareRubyIsolatedWorkspace(isolatedDir, manifest, rubyPath, bundlePath, prebuiltBundlePath); err != nil {
 			return err
 		}
 	}
 
 	_ = os.RemoveAll(filepath.Join(isolatedDir, "vendor", "bundle"))
 
-	commands := rubySetupCommands(bundlePath, gemPath)
+	commands := rubySetupCommands(bundlePath, gemPath, prebuiltBundlePath)
 	for _, args := range commands {
 		report.Commands = append(report.Commands, commandString(args))
 		ctx.Progress.Step(commandString(args))
@@ -1266,6 +1295,7 @@ func (rubyRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Repor
 		return err
 	}
 	gemPath := rubyGemPath(rubyPath)
+	prebuiltBundlePath := rubyPrebuiltBundlePath(ctx)
 
 	isolatedDir := filepath.Join(manifest.OpRoot(), "test", "ruby")
 	if !ctx.DryRun {
@@ -1273,7 +1303,7 @@ func (rubyRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Repor
 		if err := copyWorkspaceIsolated(manifest.Dir, isolatedDir); err != nil {
 			return fmt.Errorf("isolate ruby workspace: %w", err)
 		}
-		if err := prepareRubyIsolatedWorkspace(isolatedDir, manifest, rubyPath, bundlePath); err != nil {
+		if err := prepareRubyIsolatedWorkspace(isolatedDir, manifest, rubyPath, bundlePath, prebuiltBundlePath); err != nil {
 			return err
 		}
 	}
@@ -1284,7 +1314,7 @@ func (rubyRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Repor
 		return err
 	}
 
-	commands := append(rubySetupCommands(bundlePath, gemPath), args)
+	commands := append(rubySetupCommands(bundlePath, gemPath, prebuiltBundlePath), args)
 	for _, cmdArgs := range commands {
 		report.Commands = append(report.Commands, commandString(cmdArgs))
 		ctx.Progress.Step(commandString(cmdArgs))

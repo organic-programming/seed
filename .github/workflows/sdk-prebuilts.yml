@@ -9,9 +9,11 @@ on:
       - ".github/scripts/build-prebuilt-zig.sh"
       - ".github/scripts/build-prebuilt-cpp.sh"
       - ".github/scripts/build-prebuilt-c.sh"
+      - ".github/scripts/build-prebuilt-ruby.sh"
       - "sdk/zig-holons/**"
       - "sdk/cpp-holons/**"
       - "sdk/c-holons/**"
+      - "sdk/ruby-holons/**"
       - "holons/grace-op/internal/sdkprebuilts/**"
   workflow_dispatch:
     inputs:
@@ -27,6 +29,10 @@ on:
         description: C SDK prebuilt version
         required: false
         default: "1.80.0"
+      ruby-version:
+        description: Ruby SDK prebuilt version
+        required: false
+        default: "1.58.3"
 
 concurrency:
   group: sdk-prebuilts-${{ github.ref }}
@@ -108,5 +114,31 @@ jobs:
     with:
       sdk: c
       sdk-version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['c-version'] || '1.80.0' }}
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+
+  ruby:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+          - target: x86_64-apple-darwin
+            runs_on: '["macos-14"]'
+          - target: x86_64-unknown-linux-gnu
+            runs_on: '["ubuntu-latest"]'
+          - target: aarch64-unknown-linux-gnu
+            runs_on: '["ubuntu-24.04-arm"]'
+          - target: x86_64-unknown-linux-musl
+            runs_on: '["ubuntu-latest"]'
+          - target: aarch64-unknown-linux-musl
+            runs_on: '["ubuntu-24.04-arm"]'
+          - target: x86_64-windows-gnu
+            runs_on: '["windows-latest"]'
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: ruby
+      sdk-version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['ruby-version'] || '1.58.3' }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
