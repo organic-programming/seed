@@ -113,7 +113,7 @@ $OPPATH/sdk/
 │   └── 1.80.0/
 │       └── aarch64-apple-darwin/
 │           ├── lib/
-│           ├── include/
+│           ├── include/         # grpc/, google/protobuf/, absl/, nlohmann/, ...
 │           ├── bin/             # grpc_cpp_plugin, protoc
 │           ├── manifest.json
 │           └── SBOM.spdx.json
@@ -238,6 +238,13 @@ release-manifest.json                               # lists all assets, hashes, 
 
 V1 artifacts: 7 targets × 4 SDKs = **28 artifacts per release**.
 
+Current v0.x workflow rows:
+
+| SDK | Release stream | Workflow version input | Packaged payload |
+|---|---|---|---|
+| `zig` | `zig-holons-v0.1.0` | `sdk-version` | Zig SDK static library plus gRPC/protobuf-c headers and static libs |
+| `cpp` | `cpp-holons-v1.80.0` | `cpp-version` | gRPC-C++ static libs, transitive headers/libs, `protoc`, and `grpc_cpp_plugin` |
+
 Per-target build cost: ~30-60 min wall time on popok. With matrix parallelism (popok has limited CPU vs GitHub matrix, but no minute quota), total wall time per release is ~2-3 hours sequential or ~60 min if popok hosts ≥4 concurrent builds.
 
 #### Windows fallback decision
@@ -270,19 +277,19 @@ on:
       - '.github/workflows/_sdk-prebuilt-target.yml'  # reusable
   workflow_dispatch:
     inputs:
-      sdk:
-        description: 'zig | c | cpp | ruby | python | all'
-        default: 'all'
-      tier:
-        description: 'T0 | T1 | T2 | all'
-        default: 'all'
+      sdk-version:
+        description: Zig SDK prebuilt version
+        default: '0.1.0'
+      cpp-version:
+        description: C++ SDK prebuilt version
+        default: '1.80.0'
 ```
 
-PR to `master` triggers full matrix. Manual dispatch allows debugging a single SDK or tier.
+PR to `master` triggers the current full matrix. Manual dispatch reruns the current SDK rows with explicit version inputs; Phase 7 promotes this into release-manifest publication.
 
-For v0.x, the workflow ships with both triggers: `pull_request` to `master` for the release validation path and `workflow_dispatch` for composer-initiated full-matrix validation after the workflow exists on the default branch. GitHub Actions only exposes `workflow_dispatch` for workflows present on the default branch, so a chantier PR that introduces this workflow on `dev` relies on local cross-smoke evidence until the first `dev` → `master` PR or manual dispatch after merge.
+For v0.x, the workflow ships with both triggers: `pull_request` to `master` for the release validation path and `workflow_dispatch` for composer-initiated full-matrix validation after the workflow exists on the default branch. GitHub Actions only exposes `workflow_dispatch` for workflows present on the default branch, so a chantier PR that introduces or changes this workflow relies on PR checks plus local cross-smoke evidence until manual dispatch after merge.
 
-Push to `dev`, push to feature branches: **no trigger**. Saves CI compute.
+Push to feature branches: **no trigger**. Saves CI compute.
 
 ### 6.4 Promotion on merge
 

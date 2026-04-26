@@ -104,8 +104,10 @@ utmctl=missing
 No UTM or Tart Windows VM was available, so no comparable local Windows timing
 could be captured. No GitHub-hosted Windows job was run in M0.
 
-The initial workflow therefore uses GitHub-hosted `windows-latest` for
-`x86_64-pc-windows-msvc`, matching the transitional runner policy. When winwok
-is operational at Saint-Émilion and the composer signals readiness, the
-workflow-only transition PR moves the Windows target to
-`[self-hosted, winwok, windows]`.
+Phase 3 arbitration adjusted the initial v1 Windows target to
+`x86_64-windows-gnu`, matching the P12 Zig evidence and avoiding an MSVC
+cross-compile spike before winwok is online. The MSVC path remains a v1.x
+follow-up. When winwok is operational at Saint-Émilion and the composer signals
+readiness, the workflow-only transition PR moves the Windows target to
+`[self-hosted, winwok, windows]` and enables native
+`x86_64-pc-windows-msvc` artifacts.

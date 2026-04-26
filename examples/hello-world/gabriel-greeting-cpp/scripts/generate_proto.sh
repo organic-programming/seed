@@ -4,12 +4,19 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 OUT="$ROOT/gen/cpp/greeting/v1"
 TMP=$(mktemp -d)
-GRPC_PLUGIN=$(command -v grpc_cpp_plugin)
+
+if [[ -n "${OP_SDK_CPP_PATH:-}" ]]; then
+  PROTOC="$OP_SDK_CPP_PATH/bin/protoc"
+  GRPC_PLUGIN="$OP_SDK_CPP_PATH/bin/grpc_cpp_plugin"
+else
+  PROTOC=$(command -v protoc)
+  GRPC_PLUGIN=$(command -v grpc_cpp_plugin)
+fi
 
 mkdir -p "$OUT"
 rm -f "$OUT"/greeting.pb.h "$OUT"/greeting.pb.cc "$OUT"/greeting.grpc.pb.h "$OUT"/greeting.grpc.pb.cc
 
-protoc \
+"$PROTOC" \
   --cpp_out="$TMP" \
   --grpc_out="$TMP" \
   --plugin=protoc-gen-grpc="$GRPC_PLUGIN" \
