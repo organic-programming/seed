@@ -25,11 +25,11 @@ option (holons.v1.manifest) = {
   lang: "zig"
   kind: "native"
   build: {
-    runner: "cmake"
+    runner: "zig"
   }
   requires: {
     commands: ["zig", "cmake", "ninja"]
-    files: ["build.zig", "CMakeLists.txt"]
+    files: ["build.zig"]
   }
   artifacts: {
     binary: "gabriel-greeting-zig"
