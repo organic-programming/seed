@@ -280,6 +280,8 @@ on:
 
 PR to `master` triggers full matrix. Manual dispatch allows debugging a single SDK or tier.
 
+For v0.x, the workflow ships with both triggers: `pull_request` to `master` for the release validation path and `workflow_dispatch` for composer-initiated full-matrix validation after the workflow exists on the default branch. GitHub Actions only exposes `workflow_dispatch` for workflows present on the default branch, so a chantier PR that introduces this workflow on `dev` relies on local cross-smoke evidence until the first `dev` → `master` PR or manual dispatch after merge.
+
 Push to `dev`, push to feature branches: **no trigger**. Saves CI compute.
 
 ### 6.4 Promotion on merge
