@@ -16,7 +16,7 @@ option (holons.v1.manifest) = {
     born: "2026-04-04"
     version: "0.1.48"
   }
-  description: "A standalone Flutter desktop app that connects to all 12 Gabriel greeting holons and presents a multilingual greeting UI with COAX support."
+  description: "A standalone Flutter desktop app that connects to all 13 Gabriel greeting holons and presents a multilingual greeting UI with COAX support."
   lang: "dart"
   kind: "composite"
   transport: "stdio"
@@ -45,6 +45,11 @@ option (holons.v1.manifest) = {
     members: {
       id: "greeting-rust"
       path: "../gabriel-greeting-rust"
+      type: "holon"
+    }
+    members: {
+      id: "greeting-zig"
+      path: "../gabriel-greeting-zig"
       type: "holon"
     }
     members: {
@@ -103,6 +108,7 @@ option (holons.v1.manifest) = {
         steps: { build_member: "greeting-go" }
         steps: { build_member: "greeting-swift" }
         steps: { build_member: "greeting-rust" }
+        steps: { build_member: "greeting-zig" }
         steps: { build_member: "greeting-python" }
         steps: { build_member: "greeting-c" }
         steps: { build_member: "greeting-cpp" }
@@ -148,6 +154,7 @@ option (holons.v1.manifest) = {
         steps: { build_member: "greeting-go" }
         steps: { build_member: "greeting-swift" }
         steps: { build_member: "greeting-rust" }
+        steps: { build_member: "greeting-zig" }
         steps: { build_member: "greeting-python" }
         steps: { build_member: "greeting-c" }
         steps: { build_member: "greeting-cpp" }
@@ -193,6 +200,7 @@ option (holons.v1.manifest) = {
         steps: { build_member: "greeting-go" }
         steps: { build_member: "greeting-swift" }
         steps: { build_member: "greeting-rust" }
+        steps: { build_member: "greeting-zig" }
         steps: { build_member: "greeting-python" }
         steps: { build_member: "greeting-c" }
         steps: { build_member: "greeting-cpp" }
