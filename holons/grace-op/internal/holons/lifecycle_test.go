@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/organic-programming/grace-op/internal/identity"
+	"github.com/organic-programming/grace-op/internal/sdkprebuilts"
 	"github.com/organic-programming/grace-op/internal/testutil"
 )
 
@@ -352,6 +353,68 @@ func TestExecuteLifecycleBuildRejectsCrossTargetGoModule(t *testing.T) {
 	}
 }
 
+func TestExecuteLifecycleSDKPrebuiltMissingIsActionable(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+	t.Setenv("OPPATH", filepath.Join(root, ".op-runtime"))
+
+	dir := writeSDKPrebuiltLifecycleFixture(t, root, "demo-missing-sdk", RunnerGoModule, "cpp")
+
+	_, err := ExecuteLifecycle(OperationBuild, dir, BuildOptions{DryRun: true})
+	if err == nil {
+		t.Fatal("expected missing SDK prebuilt error")
+	}
+	if !strings.Contains(err.Error(), `missing SDK prebuilt "cpp"`) {
+		t.Fatalf("error missing prebuilt context: %v", err)
+	}
+	if !strings.Contains(err.Error(), "op sdk install cpp") {
+		t.Fatalf("error missing install action: %v", err)
+	}
+}
+
+func TestExecuteLifecycleSDKPrebuiltPathIsResolvedForRunner(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+	runtimeHome := filepath.Join(root, ".op-runtime")
+	t.Setenv("OPPATH", runtimeHome)
+	t.Setenv("OP_SDK_CPP_PATH", "original-cpp-path")
+
+	prebuiltPath := writeInstalledSDKPrebuilt(t, runtimeHome, "cpp", "1.80.0")
+	runnerName := "sdk-env-test"
+	sawRunnerContext := false
+	registerLifecycleTestRunner(t, runnerName, lifecycleTestRunner{
+		checkFunc: func(_ *LoadedManifest, ctx BuildContext) error {
+			sawRunnerContext = true
+			if got := ctx.SDKPrebuiltPaths["cpp"]; got != prebuiltPath {
+				return fmt.Errorf("ctx.SDKPrebuiltPaths[cpp] = %q, want %q", got, prebuiltPath)
+			}
+			return nil
+		},
+	})
+	dir := writeSDKPrebuiltLifecycleFixture(t, root, "demo-installed-sdk", runnerName, "cpp")
+
+	if _, err := ExecuteLifecycle(OperationCheck, dir); err != nil {
+		t.Fatalf("check failed: %v", err)
+	}
+	if !sawRunnerContext {
+		t.Fatal("runner check did not observe SDK prebuilt path")
+	}
+	if got := os.Getenv("OP_SDK_CPP_PATH"); got != "original-cpp-path" {
+		t.Fatalf("OP_SDK_CPP_PATH after lifecycle = %q, want original-cpp-path", got)
+	}
+}
+
+func TestBuildExecutionEnvIncludesSDKPrebuiltPath(t *testing.T) {
+	env := buildExecutionEnv(nil, BuildContext{
+		Target:           "macos",
+		Mode:             buildModeDebug,
+		SDKPrebuiltPaths: map[string]string{"cpp": "/tmp/sdk/cpp"},
+	})
+	if got := envValue(env, "OP_SDK_CPP_PATH"); got != "/tmp/sdk/cpp" {
+		t.Fatalf("OP_SDK_CPP_PATH = %q, want /tmp/sdk/cpp in %v", got, env)
+	}
+}
+
 func TestExecuteLifecycleCleanRecursesCompositeMembers(t *testing.T) {
 	root := t.TempDir()
 	chdirForHolonTest(t, root)
@@ -434,6 +497,93 @@ func TestExecuteLifecycleCleanRecursesCompositeMembers(t *testing.T) {
 	if len(nestedReport.Children) != 1 || nestedReport.Children[0].Holon != "leaf" {
 		t.Fatalf("nested child reports = %+v, want one leaf child", nestedReport.Children)
 	}
+}
+
+type lifecycleTestRunner struct {
+	checkFunc func(*LoadedManifest, BuildContext) error
+	buildFunc func(*LoadedManifest, BuildContext, *Report) error
+	testFunc  func(*LoadedManifest, BuildContext, *Report) error
+	cleanFunc func(*LoadedManifest, BuildContext, *Report) error
+}
+
+func (r lifecycleTestRunner) check(manifest *LoadedManifest, ctx BuildContext) error {
+	if r.checkFunc != nil {
+		return r.checkFunc(manifest, ctx)
+	}
+	return nil
+}
+
+func (r lifecycleTestRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
+	if r.buildFunc != nil {
+		return r.buildFunc(manifest, ctx, report)
+	}
+	return nil
+}
+
+func (r lifecycleTestRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
+	if r.testFunc != nil {
+		return r.testFunc(manifest, ctx, report)
+	}
+	return nil
+}
+
+func (r lifecycleTestRunner) clean(manifest *LoadedManifest, ctx BuildContext, report *Report) error {
+	if r.cleanFunc != nil {
+		return r.cleanFunc(manifest, ctx, report)
+	}
+	return nil
+}
+
+func registerLifecycleTestRunner(t *testing.T, name string, r runner) {
+	t.Helper()
+
+	previous, hadPrevious := runnerRegistry[name]
+	runnerRegistry[name] = r
+	t.Cleanup(func() {
+		if hadPrevious {
+			runnerRegistry[name] = previous
+			return
+		}
+		delete(runnerRegistry, name)
+	})
+}
+
+func writeSDKPrebuiltLifecycleFixture(t *testing.T, root, name, runnerName, sdk string) string {
+	t.Helper()
+
+	dir := filepath.Join(root, name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := fmt.Sprintf("schema: holon/v0\nkind: native\nbuild:\n  runner: %s\n  main: ./cmd/%s\nrequires:\n  sdk_prebuilts: [%s]\nartifacts:\n  binary: %s\n", runnerName, name, sdk, name)
+	if err := testutil.WriteManifestFile(filepath.Join(dir, identity.ManifestFileName), manifest); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func writeInstalledSDKPrebuilt(t *testing.T, runtimeHome, lang, version string) string {
+	t.Helper()
+
+	hostTarget, err := sdkprebuilts.HostTriplet()
+	if err != nil {
+		t.Fatalf("host triplet: %v", err)
+	}
+	path := filepath.Join(runtimeHome, "sdk", lang, version, hostTarget)
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func envValue(env []string, key string) string {
+	prefix := key + "="
+	for _, value := range env {
+		if strings.HasPrefix(value, prefix) {
+			return strings.TrimPrefix(value, prefix)
+		}
+	}
+	return ""
 }
 
 func writeProtoGoHolonFixture(t *testing.T, root, name string) string {
