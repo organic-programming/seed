@@ -426,6 +426,54 @@ pub fn build(b: *std.Build) void {
     test_hub_client_step.dependOn(&run_hub_client_tests.step);
     test_step.dependOn(&run_hub_client_tests.step);
 
+    const discover_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/discover_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    discover_tests.step.dependOn(vendor_step);
+    const run_discover_tests = b.addRunArtifact(discover_tests);
+    const test_discover_step = b.step("test-discover", "Run discover tests");
+    test_discover_step.dependOn(&run_discover_tests.step);
+    test_step.dependOn(&run_discover_tests.step);
+
+    const identity_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/identity_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    identity_tests.step.dependOn(vendor_step);
+    const run_identity_tests = b.addRunArtifact(identity_tests);
+    const test_identity_step = b.step("test-identity", "Run identity tests");
+    test_identity_step.dependOn(&run_identity_tests.step);
+    test_step.dependOn(&run_identity_tests.step);
+
+    const observability_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/observability_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    observability_tests.step.dependOn(vendor_step);
+    const run_observability_tests = b.addRunArtifact(observability_tests);
+    const test_observability_step = b.step("test-observability", "Run observability tests");
+    test_observability_step.dependOn(&run_observability_tests.step);
+    test_step.dependOn(&run_observability_tests.step);
+
     const clean_vendor = sh(b,
         \\set -euo pipefail
         \\rm -rf .zig-vendor .zig-cache/cmake zig-out
