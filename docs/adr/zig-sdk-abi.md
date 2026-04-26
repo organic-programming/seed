@@ -39,6 +39,17 @@ sdk/zig-holons/include/holons_sdk.h
 The generated header is committed. It is reviewed as public API, not treated as
 an unimportant build artifact.
 
+The header is generated from the curated `src/cabi.zig` declarations and is
+audited before release for implementation-type leakage. In particular, public C
+consumers must never see protobuf-c or gRPC Core names in the header:
+
+```text
+rg "ProtobufC|grpc_|protobuf|grpc" sdk/zig-holons/include/holons_sdk.h
+```
+
+The expected result is no matches. The public header contains only plain C
+types, SDK status/result structs, and opaque handle typedefs.
+
 ## Versioning
 
 The C ABI has its own semver version. The SDK exports:
@@ -84,15 +95,20 @@ The ABI must be safe to call from plain C with no Zig runtime knowledge.
 ## Test Requirement
 
 `sdk/zig-holons/tests/c_abi/main.c` must compile with `cc`, link
-`libholons_zig.a`, dial a live holon, and print a valid describe payload:
+`libholons_zig.a` plus the vendored static dependency set, dial a live holon,
+and print a valid describe payload. The SDK build wraps the full command line
+because gRPC Core and protobuf-c bring many static archives:
 
 ```text
-cc sdk/zig-holons/tests/c_abi/main.c \
-  -I sdk/zig-holons/include \
-  -L sdk/zig-holons/zig-out/lib \
-  -lholons_zig \
-  -o /tmp/c_smoke
-/tmp/c_smoke
+cd sdk/zig-holons
+zig build test-c-abi
+```
+
+The smoke step starts `examples/hello-world/gabriel-greeting-go`, dials it over
+TCP from a plain C binary, and prints a describe JSON payload similar to:
+
+```text
+{"manifest":{"identity":{"family_name":"Greeting-Go","uuid":"3f08b5c3-8931-46d0-847a-a64d8b9ba57e"},"service_count":1}
 ```
 
 The C smoke test is required before the ABI is considered shippable.
