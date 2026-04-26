@@ -124,8 +124,9 @@ type artifactStep struct {
 }
 
 type requires struct {
-	Commands []string `yaml:"commands"`
-	Files    []string `yaml:"files"`
+	Commands     []string `yaml:"commands"`
+	Files        []string `yaml:"files"`
+	SDKPrebuilts []string `yaml:"sdk_prebuilts"`
 }
 
 type delegates struct {
@@ -378,13 +379,15 @@ func appendStep(b *strings.Builder, indent string, step step) {
 func appendRequires(b *strings.Builder, requires requires, delegates delegates) {
 	commands := compactStrings(append(append([]string(nil), requires.Commands...), delegates.Commands...))
 	files := compactStrings(requires.Files)
-	if len(commands) == 0 && len(files) == 0 {
+	sdkPrebuilts := compactStrings(requires.SDKPrebuilts)
+	if len(commands) == 0 && len(files) == 0 && len(sdkPrebuilts) == 0 {
 		return
 	}
 
 	b.WriteString("  requires: {\n")
 	appendStringSliceField(b, "    ", "commands", commands)
 	appendStringSliceField(b, "    ", "files", files)
+	appendStringSliceField(b, "    ", "sdk_prebuilts", sdkPrebuilts)
 	b.WriteString("  }\n")
 }
 

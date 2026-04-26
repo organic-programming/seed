@@ -149,9 +149,10 @@ message HolonManifest {
   // Preconditions that must be met before build/run.
 
   message Requires {
-    repeated string commands = 1;    // CLI tools required in PATH
-    repeated string files = 2;       // source files that must exist
-    repeated string platforms = 3;   // supported targets (macos, linux, windows…)
+    repeated string commands = 1;        // CLI tools required in PATH
+    repeated string files = 2;           // source files that must exist
+    repeated string platforms = 3;       // supported targets (macos, linux, windows…)
+    repeated string sdk_prebuilts = 4;   // SDK native prebuilts required by `op build`
   }
 
   // ── Artifacts ─────────────────────────────────────────

@@ -47,6 +47,10 @@ func FormatResponse(format Format, resp proto.Message) string {
 		return formatInstallResponseText(typed)
 	case *opv1.InspectResponse:
 		return formatInspectResponseText(typed)
+	case *opv1.SdkPrebuiltResponse:
+		return formatSDKPrebuiltResponseText(typed)
+	case *opv1.ListSdkPrebuiltsResponse:
+		return formatListSDKPrebuiltsText(typed)
 	default:
 		return marshalProtoJSONForOutput(resp)
 	}
@@ -86,6 +90,10 @@ func responseMessageForMethod(method string) proto.Message {
 		return &opv1.InstallResponse{}
 	case "Inspect":
 		return &opv1.InspectResponse{}
+	case "InstallSdkPrebuilt", "UninstallSdkPrebuilt", "VerifySdkPrebuilt", "LocateSdkPrebuilt":
+		return &opv1.SdkPrebuiltResponse{}
+	case "ListSdkPrebuilts":
+		return &opv1.ListSdkPrebuiltsResponse{}
 	default:
 		return nil
 	}
@@ -254,6 +262,67 @@ func formatInstallResponseText(resp *opv1.InstallResponse) string {
 
 func formatInspectResponseText(resp *opv1.InspectResponse) string {
 	return inspectpkg.RenderText(inspectDocumentFromProto(resp.GetDocument()))
+}
+
+func formatSDKPrebuiltResponseText(resp *opv1.SdkPrebuiltResponse) string {
+	if resp == nil || resp.GetPrebuilt() == nil {
+		return ""
+	}
+	prebuilt := resp.GetPrebuilt()
+	var b strings.Builder
+	status := "resolved"
+	switch {
+	case resp.GetVerified():
+		status = "verified"
+	case prebuilt.GetInstalled():
+		status = "installed"
+	case !prebuilt.GetInstalled():
+		status = "removed"
+	}
+	fmt.Fprintf(&b, "%s %s %s %s", status, prebuilt.GetLang(), prebuilt.GetVersion(), prebuilt.GetTarget())
+	if path := strings.TrimSpace(prebuilt.GetPath()); path != "" {
+		fmt.Fprintf(&b, "\nPath: %s", path)
+	}
+	if sha := strings.TrimSpace(prebuilt.GetArchiveSha256()); sha != "" {
+		fmt.Fprintf(&b, "\nArchive SHA-256: %s", sha)
+	}
+	if tree := strings.TrimSpace(prebuilt.GetTreeSha256()); tree != "" {
+		fmt.Fprintf(&b, "\nTree SHA-256: %s", tree)
+	}
+	for _, note := range resp.GetNotes() {
+		if strings.TrimSpace(note) != "" {
+			fmt.Fprintf(&b, "\nNote: %s", strings.TrimSpace(note))
+		}
+	}
+	return strings.TrimSpace(b.String())
+}
+
+func formatListSDKPrebuiltsText(resp *opv1.ListSdkPrebuiltsResponse) string {
+	if resp == nil {
+		return ""
+	}
+	var b strings.Builder
+	if len(resp.GetEntries()) == 0 {
+		b.WriteString("No SDK prebuilts found.")
+	} else {
+		w := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "SDK\tVERSION\tTARGET\tPATH")
+		for _, entry := range resp.GetEntries() {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+				defaultDash(entry.GetLang()),
+				defaultDash(entry.GetVersion()),
+				defaultDash(entry.GetTarget()),
+				defaultDash(entry.GetPath()),
+			)
+		}
+		_ = w.Flush()
+	}
+	for _, note := range resp.GetNotes() {
+		if strings.TrimSpace(note) != "" {
+			fmt.Fprintf(&b, "\nNote: %s", strings.TrimSpace(note))
+		}
+	}
+	return strings.TrimSpace(b.String())
 }
 
 func writeLifecycleText(b *strings.Builder, report *opv1.LifecycleReport, indent string) {

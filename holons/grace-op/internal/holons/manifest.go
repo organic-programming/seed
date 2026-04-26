@@ -155,8 +155,9 @@ type RecipeStepCopyArtifact struct {
 }
 
 type Requires struct {
-	Commands []string
-	Files    []string
+	Commands     []string
+	Files        []string
+	SDKPrebuilts []string
 }
 
 type Delegates struct {
@@ -314,8 +315,9 @@ func manifestFromResolved(resolved *identity.Resolved) Manifest {
 		Platforms:    slices.Clone(resolved.Platforms),
 		Build:        manifestBuildFromResolved(resolved),
 		Requires: Requires{
-			Commands: slices.Clone(resolved.RequiredCommands),
-			Files:    slices.Clone(resolved.RequiredFiles),
+			Commands:     slices.Clone(resolved.RequiredCommands),
+			Files:        slices.Clone(resolved.RequiredFiles),
+			SDKPrebuilts: slices.Clone(resolved.RequiredSDKPrebuilts),
 		},
 		Delegates: Delegates{
 			Commands: slices.Clone(resolved.DelegateCommands),
@@ -598,6 +600,9 @@ func validateManifest(m *LoadedManifest) error {
 		return fmt.Errorf("%s: %w", m.Path, err)
 	}
 	if err := validateList("requires.files", m.Manifest.Requires.Files); err != nil {
+		return fmt.Errorf("%s: %w", m.Path, err)
+	}
+	if err := validateList("requires.sdk_prebuilts", m.Manifest.Requires.SDKPrebuilts); err != nil {
 		return fmt.Errorf("%s: %w", m.Path, err)
 	}
 	for _, requiredFile := range m.Manifest.Requires.Files {

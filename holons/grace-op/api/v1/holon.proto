@@ -64,7 +64,12 @@ option (holons.v1.manifest) = {
       "ModList",
       "ModGraph",
       "Tools",
-      "Env"
+      "Env",
+      "InstallSdkPrebuilt",
+      "ListSdkPrebuilts",
+      "UninstallSdkPrebuilt",
+      "VerifySdkPrebuilt",
+      "LocateSdkPrebuilt"
     ]
   }
   skills: [{
@@ -205,6 +210,21 @@ service OPService {
 
   // Env resolves OP environment paths and shell setup.
   rpc Env (EnvRequest) returns (EnvResponse);
+
+  // InstallSdkPrebuilt installs a native SDK prebuilt into $OPPATH/sdk.
+  rpc InstallSdkPrebuilt (InstallSdkPrebuiltRequest) returns (SdkPrebuiltResponse);
+
+  // ListSdkPrebuilts lists installed or available SDK prebuilts.
+  rpc ListSdkPrebuilts (ListSdkPrebuiltsRequest) returns (ListSdkPrebuiltsResponse);
+
+  // UninstallSdkPrebuilt removes an installed SDK prebuilt.
+  rpc UninstallSdkPrebuilt (UninstallSdkPrebuiltRequest) returns (SdkPrebuiltResponse);
+
+  // VerifySdkPrebuilt verifies an installed SDK prebuilt.
+  rpc VerifySdkPrebuilt (VerifySdkPrebuiltRequest) returns (SdkPrebuiltResponse);
+
+  // LocateSdkPrebuilt resolves the local install path for a SDK prebuilt.
+  rpc LocateSdkPrebuilt (LocateSdkPrebuiltRequest) returns (SdkPrebuiltResponse);
 }
 
 enum Clade {
@@ -655,4 +675,57 @@ message EnvResponse {
   bool initialized = 4;
   string shell = 5;
   string cache_dir = 6;
+}
+
+message SdkPrebuilt {
+  string lang = 1;
+  string version = 2;
+  string target = 3;
+  string path = 4;
+  string source = 5;
+  string archive_sha256 = 6;
+  string tree_sha256 = 7;
+  bool installed = 8;
+}
+
+message InstallSdkPrebuiltRequest {
+  string lang = 1;
+  string target = 2;
+  string version = 3;
+  string source = 4;
+}
+
+message ListSdkPrebuiltsRequest {
+  bool installed = 1;
+  bool available = 2;
+  string lang = 3;
+}
+
+message ListSdkPrebuiltsResponse {
+  repeated SdkPrebuilt entries = 1;
+  repeated string notes = 2;
+}
+
+message UninstallSdkPrebuiltRequest {
+  string lang = 1;
+  string target = 2;
+  string version = 3;
+}
+
+message VerifySdkPrebuiltRequest {
+  string lang = 1;
+  string target = 2;
+  string version = 3;
+}
+
+message LocateSdkPrebuiltRequest {
+  string lang = 1;
+  string target = 2;
+  string version = 3;
+}
+
+message SdkPrebuiltResponse {
+  SdkPrebuilt prebuilt = 1;
+  repeated string notes = 2;
+  bool verified = 3;
 }
