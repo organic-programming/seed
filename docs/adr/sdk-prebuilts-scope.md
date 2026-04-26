@@ -40,11 +40,11 @@ constraints for this chantier:
 
 1. Python OUT of v1. Add as v1.1 only if Alpine demand emerges. Do not include sdk/python-holons in the prebuilts pipeline this chantier.
 
-2. popok-first runner strategy, transitional GitHub-hosted at kickoff. Target state per spec §6.2: popok (self-hosted Apple Silicon Mac) hosts most targets via Docker / containers, and winwok (a separate Windows mini-PC) hosts the Windows target. Both runners live at Saint-Émilion on residential fibre — see docs/st_emilions_runners.md for the deployment plan.
+2. popok-first runner strategy, transitional GitHub-hosted at kickoff. Target state per spec §6.2: popok (self-hosted Apple Silicon Mac) hosts most targets via Docker / containers, and winwok (a separate Windows mini-PC) hosts the Windows target. Both runners live at Saint-Émilion on residential fibre — see docs/st_emilion/01_runners.md for the deployment plan.
 
 Important transitional reality: at the time this chantier kicks off (right after the in-flight Zig P12 merges), the Saint-Émilion physical deployment has NOT yet happened (scheduled Thursday 2026-04-30). Therefore:
 
-All workflows ship initially with GitHub-hosted runners (runs-on: macos-14, ubuntu-latest, ubuntu-24.04-arm, windows-latest). This is the explicit transitional default per docs/st_emilions_runners.md §1.
+All workflows ship initially with GitHub-hosted runners (runs-on: macos-14, ubuntu-latest, ubuntu-24.04-arm, windows-latest). This is the explicit transitional default per docs/st_emilion/01_runners.md §1.
 The first complete release cycle on GitHub-hosted validates the workflow logic itself.
 A separate follow-up PR (small, workflow-YAML-only) swaps runs-on: to the self-hosted labels ([self-hosted, popok, macos], [self-hosted, popok, linux-via-docker], [self-hosted, winwok, windows]) once both runners are operational at Saint-Émilion and the composer signals readiness.
 Do not delay any of the 10 chantier PRs waiting for Saint-Émilion; the transition is orthogonal.

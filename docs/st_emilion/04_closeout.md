@@ -2,7 +2,7 @@
 
 Status: plan  
 Date: 2026-04-26 (Monday)  
-Target activation: after Thursday 2026-04-30 deployment per [`docs/st_emilions_runners.md`](st_emilions_runners.md)
+Target activation: after Thursday 2026-04-30 deployment per [`docs/st_emilion/01_runners.md`](01_runners.md)
 
 This document captures the work to close both the Zig SDK chantier and the SDK prebuilts chantier cleanly once popok + winwok are operational at Saint-Émilion.
 
@@ -32,7 +32,7 @@ gh workflow run zig-sdk.yml --ref dev
 
 If both runners stay `online` and pick up jobs, proceed.
 
-If either is `offline`, debug per [`docs/st_emilions_runners.md`](st_emilions_runners.md) §6 (CGNAT, NDK driver, runner service health).
+If either is `offline`, debug per [`docs/st_emilion/01_runners.md`](01_runners.md) §6 (CGNAT, NDK driver, runner service health).
 
 ---
 
@@ -82,7 +82,7 @@ git checkout -b bpds/prebuilts-self-hosted-transition
 git add .github/workflows/sdk-prebuilts.yml .github/workflows/_sdk-prebuilt-target.yml
 git commit -m "ci(prebuilts): swap GitHub-hosted runners for self-hosted popok + winwok
 
-Saint-Émilion infra deployed per docs/st_emilions_runners.md. Transition
+Saint-Émilion infra deployed per docs/st_emilion/01_runners.md. Transition
 takes effect from this commit forward; release artifacts retain whatever
 runners produced them (no re-build needed)."
 git push -u origin bpds/prebuilts-self-hosted-transition
@@ -240,7 +240,7 @@ These are not required to declare both chantiers done, but track them in a backl
 
 Both chantiers can be marked ✅ when:
 
-- [ ] popok + winwok online with correct labels per `docs/st_emilions_runners.md` §6.
+- [ ] popok + winwok online with correct labels per `docs/st_emilion/01_runners.md` §6.
 - [ ] Self-hosted transition PR for prebuilts merged.
 - [ ] First successful prebuilts release on Saint-Émilion infra (4 SDKs × 7 targets = 28 artifacts).
 - [ ] `op sdk install zig` verified end-to-end on a fresh machine.

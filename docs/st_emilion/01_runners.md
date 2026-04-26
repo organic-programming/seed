@@ -40,8 +40,8 @@ The transition (GitHub-hosted → self-hosted) lands as a follow-up PR after bot
 
 ### Software ready to deploy
 
-- `docs/runbooks/popok-prebuilts-setup.sh` — already run on popok at current location, idempotent.
-- `docs/runbooks/winwok-runner-setup.ps1` — ready to run on the Minisforum after Windows is installed.
+- `docs/st_emilion/popok-prebuilts-setup.sh` — already run on popok at current location, idempotent.
+- `docs/st_emilion/winwok-runner-setup.ps1` — ready to run on the Minisforum after Windows is installed.
 - `.codex/sdk-prebuilts-prompt.md` — Codex chantier prompt, awaiting both runners + Zig P12 merge.
 
 ---
@@ -106,7 +106,7 @@ Estimates; reorder as conditions allow on the day.
   (Git for Windows installer if not already done — but the runbook script will install Git via Chocolatey, so a `git clone` may need to wait for after the script. Alternative: download just the script via `Invoke-WebRequest` and run.)
 - Run the setup:
   ```powershell
-  Invoke-WebRequest -Uri https://raw.githubusercontent.com/organic-programming/seed/dev/docs/runbooks/winwok-runner-setup.ps1 -OutFile $env:TEMP\winwok-runner-setup.ps1
+  Invoke-WebRequest -Uri https://raw.githubusercontent.com/organic-programming/seed/dev/docs/st_emilion/winwok-runner-setup.ps1 -OutFile $env:TEMP\winwok-runner-setup.ps1
   & $env:TEMP\winwok-runner-setup.ps1
   ```
 - Wait for Visual Studio Build Tools install (~30-45 min). Go for a walk.
@@ -123,7 +123,7 @@ Estimates; reorder as conditions allow on the day.
 
 ### 15:00–15:30 — popok runner re-registration with new labels
 
-If popok's labels are still the original (`self-hosted, popok` only), re-register with the granular labels per [`docs/runbooks/popok-prebuilts-setup.md`](runbooks/popok-prebuilts-setup.md) §5:
+If popok's labels are still the original (`self-hosted, popok` only), re-register with the granular labels per [`docs/st_emilion/02_popok_setup.md`](02_popok_setup.md) §5:
 
 ```bash
 ssh popok
