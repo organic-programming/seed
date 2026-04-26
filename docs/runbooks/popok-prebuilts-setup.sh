@@ -211,19 +211,22 @@ start_colima() {
 setup_buildx() {
   log "Configuring docker buildx..."
 
-  if ! run_as_popok docker buildx ls 2>/dev/null | grep -q 'op-prebuilts'; then
-    run_as_popok docker buildx create --name op-prebuilts --driver docker-container --use
-    ok "Created buildx builder 'op-prebuilts'"
-  else
+  # `docker buildx inspect` returns 0 iff the builder exists. More reliable
+  # than parsing `docker buildx ls` (which formats differently under TTY vs
+  # non-TTY).
+  if run_as_popok docker buildx inspect op-prebuilts >/dev/null 2>&1; then
     ok "Buildx builder 'op-prebuilts' already exists"
     run_as_popok docker buildx use op-prebuilts
+  else
+    run_as_popok docker buildx create --name op-prebuilts --driver docker-container --use
+    ok "Created buildx builder 'op-prebuilts'"
   fi
 
   # Register QEMU binfmt handlers (idempotent — re-running is harmless)
   run_as_popok docker run --privileged --rm tonistiigi/binfmt --install all >/dev/null
   ok "QEMU binfmt handlers registered"
 
-  run_as_popok docker buildx inspect --bootstrap >/dev/null
+  run_as_popok docker buildx inspect --bootstrap op-prebuilts >/dev/null
   ok "Buildx builder bootstrapped"
 }
 
