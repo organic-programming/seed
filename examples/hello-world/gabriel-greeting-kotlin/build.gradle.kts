@@ -30,7 +30,6 @@ dependencies {
     implementation("com.google.protobuf:protobuf-java-util:4.34.1")
     implementation("com.google.protobuf:protobuf-kotlin:4.34.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-    implementation("javax.annotation:javax.annotation-api:1.3.2")
 
     testImplementation(kotlin("test"))
     testImplementation("io.grpc:grpc-testing:1.60.0")
