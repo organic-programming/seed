@@ -32,6 +32,7 @@ func TestCommandSurfaceSymmetry(t *testing.T) {
 		{Command: "mod", RPCs: []string{"ModAdd", "ModGraph", "ModInit", "ModList", "ModPull", "ModRemove", "ModTidy", "ModUpdate"}},
 		{Command: "new", RPCs: []string{"CreateIdentity", "GenerateTemplate", "ListTemplates"}},
 		{Command: "run", RPCs: []string{"Run"}},
+		{Command: "sdk", RPCs: []string{"InstallSdkPrebuilt", "ListSdkPrebuilts", "LocateSdkPrebuilt", "UninstallSdkPrebuilt", "VerifySdkPrebuilt"}},
 		{Command: "show", RPCs: []string{"ShowIdentity"}},
 		{Command: "test", RPCs: []string{"Test"}},
 		{Command: "tools", RPCs: []string{"Tools"}},
@@ -128,6 +129,11 @@ func publicAPINames() []string {
 	var _ func(*opv1.ModGraphRequest) (*opv1.ModGraphResponse, error) = api.ModGraph
 	var _ func(*opv1.ToolsRequest) (*opv1.ToolsResponse, error) = api.Tools
 	var _ func(*opv1.EnvRequest) (*opv1.EnvResponse, error) = api.Env
+	var _ func(*opv1.InstallSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) = api.InstallSdkPrebuilt
+	var _ func(*opv1.ListSdkPrebuiltsRequest) (*opv1.ListSdkPrebuiltsResponse, error) = api.ListSdkPrebuilts
+	var _ func(*opv1.UninstallSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) = api.UninstallSdkPrebuilt
+	var _ func(*opv1.VerifySdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) = api.VerifySdkPrebuilt
+	var _ func(*opv1.LocateSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) = api.LocateSdkPrebuilt
 
 	return []string{
 		"Build",
@@ -139,9 +145,12 @@ func publicAPINames() []string {
 		"GenerateTemplate",
 		"Inspect",
 		"Install",
+		"InstallSdkPrebuilt",
 		"Invoke",
 		"ListIdentities",
+		"ListSdkPrebuilts",
 		"ListTemplates",
+		"LocateSdkPrebuilt",
 		"ModAdd",
 		"ModGraph",
 		"ModInit",
@@ -156,6 +165,8 @@ func publicAPINames() []string {
 		"Test",
 		"Tools",
 		"Uninstall",
+		"UninstallSdkPrebuilt",
+		"VerifySdkPrebuilt",
 		"Version",
 	}
 }

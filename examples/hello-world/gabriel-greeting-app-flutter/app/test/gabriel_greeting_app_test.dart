@@ -118,6 +118,93 @@ void main() {
     expect(greetingController.selectedLanguageCode, 'fr');
   });
 
+  testWidgets('selecting the Zig organ drives the greeting RPC', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1100);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final swiftConnection = FakeGreetingHolonConnection(
+      languages: [language(code: 'en', name: 'English', native: 'English')],
+      greetingBuilder: ({required name, required langCode}) =>
+          'Hello $name from Swift',
+    );
+    final zigConnection = FakeGreetingHolonConnection(
+      languages: [
+        language(code: 'en', name: 'English', native: 'English'),
+        language(code: 'fr', name: 'French', native: 'Francais'),
+      ],
+      greetingBuilder: ({required name, required langCode}) {
+        return langCode == 'fr'
+            ? 'Bonjour $name from Zig'
+            : 'Hello $name from Zig';
+      },
+    );
+    final connector = FakeHolonConnector(
+      factories: <String, FakeGreetingHolonConnection Function(String)>{
+        'gabriel-greeting-swift': (_) => swiftConnection,
+        'gabriel-greeting-zig': (_) => zigConnection,
+      },
+    );
+    final greetingController = GreetingController(
+      catalog: FakeHolonCatalog([
+        holon('gabriel-greeting-swift', buildRunner: 'swift-package'),
+        holon('gabriel-greeting-zig', buildRunner: 'zig'),
+      ]),
+      connector: connector,
+      capabilities: const AppPlatformCapabilities(supportsUnixSockets: true),
+    );
+    final coaxManager = buildCoaxManager(
+      greetingController: greetingController,
+      capabilities: const AppPlatformCapabilities(supportsUnixSockets: true),
+    );
+    final observabilityKit = buildObservabilityKit();
+    addTearDown(observabilityKit.dispose);
+    greetingController.attachObservability(observabilityKit.obs);
+
+    await tester.pumpWidget(
+      GabrielGreetingApp(
+        greetingController: greetingController,
+        coaxManager: coaxManager,
+        observabilityKit: observabilityKit,
+      ),
+    );
+    await _settleApp(tester);
+
+    await tester.tap(find.text('Gabriel (Swift)').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Gabriel (Zig)').last);
+    await _settleApp(tester);
+
+    await tester.tap(find.text('English (English)').first);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Francais (French)').last);
+    await tester.tap(find.text('Francais (French)').last);
+    await _settleApp(tester);
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('name-input')),
+      'Bob',
+    );
+    await _settleApp(tester);
+
+    expect(greetingController.selectedHolon?.slug, 'gabriel-greeting-zig');
+    expect(greetingController.greeting, 'Bonjour Bob from Zig');
+    expect(find.text('Bonjour Bob from Zig'), findsOneWidget);
+    expect(
+      connector.connectCalls,
+      containsAllInOrder(<(String, String)>[
+        ('gabriel-greeting-swift', 'stdio'),
+        ('gabriel-greeting-zig', 'stdio'),
+      ]),
+    );
+    expect(zigConnection.sayHelloCalls.last, ('Bob', 'fr'));
+  });
+
   testWidgets('name field stays beside the bubble on a narrow window', (
     tester,
   ) async {

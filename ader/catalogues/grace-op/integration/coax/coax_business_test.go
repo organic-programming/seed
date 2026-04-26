@@ -258,7 +258,8 @@ func businessMatrixSlugs(t *testing.T, appSlug string, hardened bool) []string {
 			"gabriel-greeting-dart",
 			"gabriel-greeting-go",
 			"gabriel-greeting-rust",
-			"gabriel-greeting-swift":
+			"gabriel-greeting-swift",
+			"gabriel-greeting-zig":
 			filtered = append(filtered, slug)
 		}
 	}
@@ -277,7 +278,8 @@ func businessMemberAllowed(appSlug string, holonSlug string, hardened bool) bool
 		"gabriel-greeting-dart",
 		"gabriel-greeting-go",
 		"gabriel-greeting-rust",
-		"gabriel-greeting-swift":
+		"gabriel-greeting-swift",
+		"gabriel-greeting-zig":
 		return true
 	default:
 		return false

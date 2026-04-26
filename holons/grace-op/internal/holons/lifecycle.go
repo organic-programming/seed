@@ -19,6 +19,7 @@ import (
 	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	"github.com/organic-programming/grace-op/internal/identity"
 	"github.com/organic-programming/grace-op/internal/progress"
+	"github.com/organic-programming/grace-op/internal/sdkprebuilts"
 )
 
 type Operation string
@@ -51,14 +52,15 @@ type BuildOptions struct {
 
 // BuildContext is the canonical build request used by runners and artifact resolution.
 type BuildContext struct {
-	Target    string
-	Mode      string
-	Hardened  bool
-	DryRun    bool
-	NoSign    bool
-	Bump      bool
-	Progress  progress.Reporter
-	composite *compositeBuildExecution
+	Target           string
+	Mode             string
+	Hardened         bool
+	DryRun           bool
+	NoSign           bool
+	Bump             bool
+	Progress         progress.Reporter
+	SDKPrebuiltPaths map[string]string
+	composite        *compositeBuildExecution
 }
 
 type Report struct {
@@ -154,7 +156,7 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 	if op != OperationClean {
 		reporter.Step("checking manifest...")
 		reporter.Step("validating prerequisites...")
-		if err := preflight(target.Manifest, ctx); err != nil {
+		if err := preflight(target.Manifest, &ctx); err != nil {
 			return report, err
 		}
 		if err := r.check(target.Manifest, ctx); err != nil {
@@ -811,7 +813,10 @@ func cleanSuccessLine(label string, elapsed time.Duration) string {
 	return fmt.Sprintf("✓ cleaned %s in %s", strings.TrimSpace(label), progress.FormatElapsed(elapsed))
 }
 
-func preflight(manifest *LoadedManifest, ctx BuildContext) error {
+func preflight(manifest *LoadedManifest, ctx *BuildContext) error {
+	if ctx == nil {
+		return fmt.Errorf("build context required")
+	}
 	if !isAggregateBuildTarget(ctx.Target) && !manifest.SupportsTarget(ctx.Target) {
 		return fmt.Errorf("target %q is not supported by %s", ctx.Target, workspaceRelativePath(manifest.Path))
 	}
@@ -842,7 +847,60 @@ func preflight(manifest *LoadedManifest, ctx BuildContext) error {
 		}
 	}
 
+	if err := resolveRequiredSDKPrebuilts(manifest, ctx); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func resolveRequiredSDKPrebuilts(manifest *LoadedManifest, ctx *BuildContext) error {
+	if manifest == nil || len(manifest.Manifest.Requires.SDKPrebuilts) == 0 {
+		return nil
+	}
+	hostTarget, err := sdkprebuilts.HostTriplet()
+	if err != nil {
+		return fmt.Errorf("resolve SDK prebuilt host target: %w", err)
+	}
+
+	paths := make(map[string]string, len(ctx.SDKPrebuiltPaths)+len(manifest.Manifest.Requires.SDKPrebuilts))
+	for lang, path := range ctx.SDKPrebuiltPaths {
+		paths[lang] = path
+	}
+	for _, required := range manifest.Manifest.Requires.SDKPrebuilts {
+		lang, err := sdkprebuilts.NormalizeLang(required)
+		if err != nil {
+			return fmt.Errorf("requires.sdk_prebuilts: %w", err)
+		}
+		prebuilt, err := sdkprebuilts.Locate(sdkprebuilts.QueryOptions{Lang: lang, Target: hostTarget})
+		if err != nil {
+			return fmt.Errorf("missing SDK prebuilt %q for host target %s; run `op sdk install %s` to install prebuilt native libraries (~30 sec download, no source compilation)", lang, hostTarget, lang)
+		}
+		paths[lang] = prebuilt.Path
+	}
+	ctx.SDKPrebuiltPaths = paths
+	return nil
+}
+
+func sdkPrebuiltEnv(ctx BuildContext) []string {
+	if len(ctx.SDKPrebuiltPaths) == 0 {
+		return nil
+	}
+	langs := make([]string, 0, len(ctx.SDKPrebuiltPaths))
+	for lang := range ctx.SDKPrebuiltPaths {
+		langs = append(langs, lang)
+	}
+	sort.Strings(langs)
+
+	env := make([]string, 0, len(langs))
+	for _, lang := range langs {
+		env = append(env, sdkPrebuiltEnvName(lang)+"="+ctx.SDKPrebuiltPaths[lang])
+	}
+	return env
+}
+
+func sdkPrebuiltEnvName(lang string) string {
+	return "OP_SDK_" + strings.ToUpper(strings.TrimSpace(lang)) + "_PATH"
 }
 
 // templateData is the data available to Go template expressions in build templates.
@@ -1203,11 +1261,11 @@ func (r cmakeRunner) build(manifest *LoadedManifest, ctx BuildContext, report *R
 		return err
 	}
 	ctx.Progress.Step(commandString(configureArgs))
-	if output, err := runCommand(manifest.Dir, configureArgs); err != nil {
+	if output, err := runCommandWithEnv(manifest.Dir, configureArgs, sdkPrebuiltEnv(ctx)); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
 	ctx.Progress.Step(commandString(buildArgs))
-	if output, err := runCommand(manifest.Dir, buildArgs); err != nil {
+	if output, err := runCommandWithEnv(manifest.Dir, buildArgs, sdkPrebuiltEnv(ctx)); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
 	if installMode {
@@ -1219,7 +1277,7 @@ func (r cmakeRunner) build(manifest *LoadedManifest, ctx BuildContext, report *R
 			return fmt.Errorf("create install prefix: %w", err)
 		}
 		ctx.Progress.Step(commandString(installArgs))
-		if output, err := runCommand(manifest.Dir, installArgs); err != nil {
+		if output, err := runCommandWithEnv(manifest.Dir, installArgs, sdkPrebuiltEnv(ctx)); err != nil {
 			return fmt.Errorf("%s\n%s", err, output)
 		}
 		report.Notes = append(report.Notes, "cmake install complete")
@@ -1239,7 +1297,7 @@ func (r cmakeRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Re
 	listArgs := []string{"ctest", "--test-dir", manifest.CMakeBuildDir(), "-N", "-C", config}
 	report.Commands = append(report.Commands, commandString(listArgs))
 	ctx.Progress.Step(commandString(listArgs))
-	listOutput, err := runCommand(manifest.Dir, listArgs)
+	listOutput, err := runCommandWithEnv(manifest.Dir, listArgs, sdkPrebuiltEnv(ctx))
 	if err != nil {
 		return fmt.Errorf("%s\n%s", err, listOutput)
 	}
@@ -1250,7 +1308,7 @@ func (r cmakeRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Re
 	testArgs := []string{"ctest", "--test-dir", manifest.CMakeBuildDir(), "--output-on-failure", "-C", config}
 	report.Commands = append(report.Commands, commandString(testArgs))
 	ctx.Progress.Step(commandString(testArgs))
-	if output, err := runCommand(manifest.Dir, testArgs); err != nil {
+	if output, err := runCommandWithEnv(manifest.Dir, testArgs, sdkPrebuiltEnv(ctx)); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
 
@@ -1496,7 +1554,7 @@ func (recipeRunner) stepExec(manifest *LoadedManifest, ctx BuildContext, e *Reci
 	if ctx.DryRun {
 		return nil
 	}
-	if output, err := runCommandWithEnv(cwd, e.Argv, recipeExecEnv(manifest, ctx)); err != nil {
+	if output, err := runCommandWithEnv(cwd, e.Argv, buildExecutionEnv(manifest, ctx)); err != nil {
 		return fmt.Errorf("%s\n%s", err, output)
 	}
 
@@ -1692,18 +1750,24 @@ func recipeExecEnv(manifest *LoadedManifest, ctx BuildContext) []string {
 	return env
 }
 
+func buildExecutionEnv(manifest *LoadedManifest, ctx BuildContext) []string {
+	env := recipeExecEnv(manifest, ctx)
+	env = append(env, sdkPrebuiltEnv(ctx)...)
+	return env
+}
+
 func executePipelineHooks(manifest *LoadedManifest, ctx BuildContext, report *Report, hooks []*RecipeStepExec) error {
 	for _, hook := range hooks {
 		cwd, err := manifest.ResolveManifestPath(hook.Cwd)
 		if err != nil {
 			cwd = manifest.Dir
 		}
-		
+
 		ctx.Progress.Step(commandString(hook.Argv))
 		report.Commands = append(report.Commands, fmt.Sprintf("(cwd=%s) %s", hook.Cwd, commandString(hook.Argv)))
-		
+
 		if !ctx.DryRun {
-			if out, err := runCommandWithEnv(cwd, hook.Argv, recipeExecEnv(manifest, ctx)); err != nil {
+			if out, err := runCommandWithEnv(cwd, hook.Argv, buildExecutionEnv(manifest, ctx)); err != nil {
 				return fmt.Errorf("hook %s failed: %s\n%s", commandString(hook.Argv), err, out)
 			}
 		}

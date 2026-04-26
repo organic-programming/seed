@@ -19,6 +19,7 @@ const (
 	KindComposite  = "composite"
 	RunnerGoModule = "go-module"
 	RunnerCMake    = "cmake"
+	RunnerZig      = "zig"
 	RunnerCargo    = "cargo"
 	RunnerPython   = "python"
 	RunnerDart     = "dart"
@@ -93,10 +94,10 @@ type SequenceParam struct {
 }
 
 type BuildConfig struct {
-	Runner    string
-	Main      string
-	Defaults  *RecipeDefaults
-	Members   []RecipeMember
+	Runner         string
+	Main           string
+	Defaults       *RecipeDefaults
+	Members        []RecipeMember
 	Targets        map[string]RecipeTarget
 	Templates      []string
 	BeforeCommands []*RecipeStepExec
@@ -154,8 +155,9 @@ type RecipeStepCopyArtifact struct {
 }
 
 type Requires struct {
-	Commands []string
-	Files    []string
+	Commands     []string
+	Files        []string
+	SDKPrebuilts []string
 }
 
 type Delegates struct {
@@ -313,8 +315,9 @@ func manifestFromResolved(resolved *identity.Resolved) Manifest {
 		Platforms:    slices.Clone(resolved.Platforms),
 		Build:        manifestBuildFromResolved(resolved),
 		Requires: Requires{
-			Commands: slices.Clone(resolved.RequiredCommands),
-			Files:    slices.Clone(resolved.RequiredFiles),
+			Commands:     slices.Clone(resolved.RequiredCommands),
+			Files:        slices.Clone(resolved.RequiredFiles),
+			SDKPrebuilts: slices.Clone(resolved.RequiredSDKPrebuilts),
 		},
 		Delegates: Delegates{
 			Commands: slices.Clone(resolved.DelegateCommands),
@@ -388,7 +391,7 @@ func manifestBuildFromResolved(resolved *identity.Resolved) BuildConfig {
 			build.Targets[strings.TrimSpace(name)] = RecipeTarget{Steps: steps}
 		}
 	}
-	
+
 	if len(resolved.BeforeCommands) > 0 {
 		build.BeforeCommands = make([]*RecipeStepExec, 0, len(resolved.BeforeCommands))
 		for _, cmd := range resolved.BeforeCommands {
@@ -597,6 +600,9 @@ func validateManifest(m *LoadedManifest) error {
 		return fmt.Errorf("%s: %w", m.Path, err)
 	}
 	if err := validateList("requires.files", m.Manifest.Requires.Files); err != nil {
+		return fmt.Errorf("%s: %w", m.Path, err)
+	}
+	if err := validateList("requires.sdk_prebuilts", m.Manifest.Requires.SDKPrebuilts); err != nil {
 		return fmt.Errorf("%s: %w", m.Path, err)
 	}
 	for _, requiredFile := range m.Manifest.Requires.Files {

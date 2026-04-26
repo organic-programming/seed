@@ -14,7 +14,7 @@ import (
 	"github.com/organic-programming/grace-op/internal/testutil"
 )
 
-func TestRunnerRegistryAcceptsPythonDartAndRuby(t *testing.T) {
+func TestRunnerRegistryAcceptsPythonDartRubyAndZig(t *testing.T) {
 	tests := []struct {
 		name     string
 		manifest string
@@ -62,6 +62,16 @@ func TestRunnerRegistryAcceptsPythonDartAndRuby(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:     "zig",
+			manifest: "schema: holon/v0\nkind: native\nbuild:\n  runner: zig\nartifacts:\n  binary: zig-demo\n",
+			setup: func(t *testing.T, root string) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(root, "build.zig"), []byte("const std = @import(\"std\");\npub fn build(_: *std.Build) void {}\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -83,6 +93,7 @@ func TestRunnerProducesStandaloneArtifact(t *testing.T) {
 	}{
 		{runner: "go-module", want: true},
 		{runner: "swift-package", want: true},
+		{runner: "zig", want: true},
 		{runner: "cargo", want: true},
 		{runner: "cmake", want: true},
 		{runner: "qt-cmake", want: true},
@@ -121,6 +132,99 @@ func TestCargoRunnerDryRunBuild(t *testing.T) {
 	}
 	if len(report.Commands) != 1 || !strings.Contains(report.Commands[0], "cargo build --target-dir") {
 		t.Fatalf("unexpected cargo commands: %v", report.Commands)
+	}
+}
+
+func TestZigRunnerDryRunBuild(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "build.zig"), []byte("const std = @import(\"std\");\npub fn build(_: *std.Build) void {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeRunnerManifest(t, root, "schema: holon/v0\nkind: native\nbuild:\n  runner: zig\nartifacts:\n  binary: zig-demo\n")
+
+	manifest, err := LoadManifest(root)
+	if err != nil {
+		t.Fatalf("LoadManifest failed: %v", err)
+	}
+
+	var report Report
+	err = (zigRunner{}).build(manifest, BuildContext{
+		Target:   canonicalRuntimeTarget(),
+		Mode:     buildModeRelease,
+		DryRun:   true,
+		Progress: progress.Silence(),
+	}, &report)
+	if err != nil {
+		t.Fatalf("zig dry-run build failed: %v", err)
+	}
+	if len(report.Commands) != 1 || !strings.Contains(report.Commands[0], "zig build -Doptimize=ReleaseFast") {
+		t.Fatalf("unexpected zig commands: %v", report.Commands)
+	}
+}
+
+func TestZigRunnerBuildCopiesZigOutBinary(t *testing.T) {
+	root := t.TempDir()
+	toolDir := t.TempDir()
+	t.Setenv("PATH", toolDir)
+	writeFakeZigBuildCommand(t, toolDir, "zig-demo")
+	if err := os.WriteFile(filepath.Join(root, "build.zig"), []byte("const std = @import(\"std\");\npub fn build(_: *std.Build) void {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeRunnerManifest(t, root, "schema: holon/v0\nkind: native\nbuild:\n  runner: zig\nartifacts:\n  binary: zig-demo\n")
+
+	manifest, err := LoadManifest(root)
+	if err != nil {
+		t.Fatalf("LoadManifest failed: %v", err)
+	}
+
+	var report Report
+	err = (zigRunner{}).build(manifest, BuildContext{
+		Target:   canonicalRuntimeTarget(),
+		Mode:     buildModeDebug,
+		Progress: progress.Silence(),
+	}, &report)
+	if err != nil {
+		t.Fatalf("zig build failed: %v", err)
+	}
+	data, err := os.ReadFile(manifest.BinaryPath())
+	if err != nil {
+		t.Fatalf("expected copied Zig binary at %s: %v", manifest.BinaryPath(), err)
+	}
+	if string(data) != "zig-binary" {
+		t.Fatalf("copied binary contents = %q", string(data))
+	}
+}
+
+func TestZigRunnerCleanRemovesZigOutputs(t *testing.T) {
+	root := t.TempDir()
+	for _, rel := range []string{
+		filepath.Join(".op", "build", "marker"),
+		filepath.Join(".zig-cache", "marker"),
+		filepath.Join("zig-out", "bin", "zig-demo"),
+	} {
+		path := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeRunnerManifest(t, root, "schema: holon/v0\nkind: native\nbuild:\n  runner: zig\nartifacts:\n  binary: zig-demo\n")
+
+	manifest, err := LoadManifest(root)
+	if err != nil {
+		t.Fatalf("LoadManifest failed: %v", err)
+	}
+
+	var report Report
+	if err := (zigRunner{}).clean(manifest, BuildContext{}, &report); err != nil {
+		t.Fatalf("zig clean failed: %v", err)
+	}
+	for _, rel := range []string{".op", ".zig-cache", "zig-out"} {
+		if _, err := os.Stat(filepath.Join(root, rel)); !os.IsNotExist(err) {
+			t.Fatalf("%s should be removed, stat err=%v", rel, err)
+		}
 	}
 }
 
@@ -1164,7 +1268,7 @@ func TestRubyRunnerBuildWritesUTF8Wrapper(t *testing.T) {
 	}
 }
 
-func TestPythonDartAndRubyRunnersRejectCrossTargetBuilds(t *testing.T) {
+func TestPythonDartRubyAndZigRunnersRejectCrossTargetBuilds(t *testing.T) {
 	tests := []struct {
 		name     string
 		runner   runner
@@ -1204,6 +1308,18 @@ func TestPythonDartAndRubyRunnersRejectCrossTargetBuilds(t *testing.T) {
 				}
 			},
 			wantErr: "dart cross-target build not implemented",
+		},
+		{
+			name:     "zig",
+			runner:   zigRunner{},
+			manifest: "schema: holon/v0\nkind: native\nbuild:\n  runner: zig\nartifacts:\n  binary: zig-demo\n",
+			setup: func(t *testing.T, root string) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(root, "build.zig"), []byte("const std = @import(\"std\");\npub fn build(_: *std.Build) void {}\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantErr: "zig cross-target build not implemented",
 		},
 		{
 			name:     "ruby",
@@ -1320,6 +1436,36 @@ func writeFakeCommand(t *testing.T, dir, name string) {
 		path += ".bat"
 		data = []byte("@echo off\r\nexit /b 0\r\n")
 		mode = 0o644
+	}
+	if err := os.WriteFile(path, data, mode); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeFakeZigBuildCommand(t *testing.T, dir, binaryName string) {
+	t.Helper()
+
+	outputName := hostExecutableName(binaryName)
+	path := filepath.Join(dir, "zig")
+	mode := os.FileMode(0o755)
+	data := []byte(fmt.Sprintf(`#!/bin/sh
+set -eu
+if [ "${1:-}" = "build" ] && [ "${2:-}" = "test" ]; then
+  exit 0
+fi
+if [ "${1:-}" = "build" ]; then
+  /bin/mkdir -p zig-out/bin
+  printf 'zig-binary' > zig-out/bin/%s
+  /bin/chmod +x zig-out/bin/%s
+  exit 0
+fi
+echo "unexpected zig args: $*" >&2
+exit 64
+`, outputName, outputName))
+	if runtime.GOOS == "windows" {
+		path += ".bat"
+		mode = 0o644
+		data = []byte(fmt.Sprintf("@echo off\r\nif \"%%1\"==\"build\" if \"%%2\"==\"test\" exit /b 0\r\nif \"%%1\"==\"build\" (\r\n  mkdir zig-out\\bin 2>nul\r\n  > zig-out\\bin\\%s echo zig-binary\r\n  exit /b 0\r\n)\r\necho unexpected zig args: %%*\r\nexit /b 64\r\n", outputName))
 	}
 	if err := os.WriteFile(path, data, mode); err != nil {
 		t.Fatal(err)

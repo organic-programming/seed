@@ -1,0 +1,14 @@
+.zig-cache/
+.zig-cross/
+.zig-vendor/
+zig-out/
+build/
+*.o
+*.a
+*.dylib
+*.so
+*.dll
+*.exe
+*.pdb
+tests/support/holonrpc_server/go.sum
+tests/support/holonrpc_server/.zig-holonrpc-helper-*

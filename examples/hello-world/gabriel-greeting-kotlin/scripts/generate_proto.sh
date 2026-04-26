@@ -13,12 +13,3 @@ protoc \
   --plugin=protoc-gen-grpc-kotlin="$ROOT/scripts/protoc-gen-grpc-kotlin.sh" \
   --grpc-kotlin_out="$ROOT/gen/kotlin" \
   "$ROOT/../../_protos/v1/greeting.proto"
-
-descriptor_file=$(mktemp)
-protoc \
-  -I "$ROOT/api" \
-  -I "$ROOT/../../_protos" \
-  -I "$ROOT/../../../_protos" \
-  --descriptor_set_out="$descriptor_file" \
-  "v1/holon.proto"
-rm -f "$descriptor_file"

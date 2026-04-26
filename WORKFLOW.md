@@ -4,46 +4,73 @@ How work moves through this repository today. Descriptive, not prescriptive — 
 
 ## Branches
 
-- **`master`** — stable snapshots. Updated rarely, only by promotion from `dev`. Treat as "the current reference state of the paradigm."
-- **`dev`** — the working branch. All day-to-day evolution lands here. Push frequency is high (several times per day).
-- **`agent/<short-desc>`** — ephemeral branches used by agents working in git worktrees. Cut from `dev`, merged back into `dev` by the composer, then removed.
+- **`master`** — the trunk. All day-to-day evolution lands here through PRs. Push frequency is high (several times per day, sometimes per hour during active chantiers).
+- **`<actor>/<short-desc>`** — ephemeral feature branches used to deliver work. Examples: `codex/sdk-prebuilts-phase4`, `bpds/post-saint-emilion-closeout`, `agent/<task>`. Cut from the latest `master`, merged back into `master` via PR, then deleted.
 
-No other permanent branches exist.
+No other permanent branches exist. The previous `dev` integration branch was retired in 2026-04 (see [`docs/adr/git-workflow-trunk-based.md`](docs/adr/git-workflow-trunk-based.md)).
 
 ## Who merges what
 
 The composer is the only merge captain. Concretely:
 
-- Agents never merge into `dev` themselves. They commit on their `agent/*` branch inside their worktree and stop there.
-- The composer reviews agent work locally, then performs the merge into `dev`.
-- Promotion from `dev` to `master` is a deliberate, infrequent act by the composer.
+- Agents (Codex sessions, Claude Code, others) never merge into `master` themselves.
+- They push their feature branch to origin, open a PR against `master`, and stop there.
+- The composer reviews the PR (locally, on GitHub UI, or with another agent's help), then admin-merges via `gh pr merge --merge --delete-branch --admin`.
+- Releases are explicit `git tag` events on `master`, not branch promotions.
 
 ## How agents work
 
-Agents operate in isolated git worktrees created from `dev`:
+Agents operate either in isolated git worktrees branched from the latest `master`, or via fresh shallow clones (depending on the agent's preference). The patterns observed in practice:
+
+### Worktree pattern (long-running tasks)
 
 ```bash
-git worktree add ../seed-<short-desc> -b agent/<short-desc> dev
+git worktree add ../seed-<short-desc> -b <actor>/<short-desc> origin/master
+cd ../seed-<short-desc>
+# ... do the work, commit on the feature branch ...
+git push -u origin <actor>/<short-desc>
+gh pr create --base master --head <actor>/<short-desc>
 ```
 
-Each worktree is scoped to one task. When the task is done, the composer reviews the diff, merges into `dev` in the main checkout, and removes the worktree:
+The composer then admin-merges. After merge, the worktree can be removed:
 
 ```bash
 git worktree remove ../seed-<short-desc>
-git branch -d agent/<short-desc>   # after merge
+git branch -d <actor>/<short-desc>     # after the remote branch is auto-deleted by gh pr merge --delete-branch
 ```
 
-Agent worktrees should be synced from `dev` periodically if the task spans multiple days; otherwise drift becomes painful.
+### Shallow-clone pattern (short docs / single-file tweaks)
+
+```bash
+git clone --depth 5 --branch master <repo-url> /tmp/seed-<short-desc>
+cd /tmp/seed-<short-desc>
+git checkout -b <actor>/<short-desc>
+# ... do the work, commit ...
+git push -u origin <actor>/<short-desc>
+gh pr create --base master --head <actor>/<short-desc>
+# ... composer admin-merges ...
+rm -rf /tmp/seed-<short-desc>
+```
+
+Both patterns are valid. The worktree pattern is preferred for multi-day tasks where the agent revisits the same workspace; the shallow-clone pattern is preferred for one-shot deliverables.
+
+Long-running worktrees should be rebased on the latest `origin/master` periodically; otherwise drift becomes painful when the PR is opened.
+
+## CI on PRs
+
+Workflows in `.github/workflows/` trigger on `pull_request: branches: [master]`. Standard checks (Go build, test, examples) run on every PR. Heavier checks (the `bouquet` ader job, prebuilts cross-smoke matrix) run on the popok self-hosted runner and may queue when popok is busy with other chantiers.
+
+The composer admin-merges as soon as the standard checks pass; the heavier checks may complete after merge and are observed as a feedback signal rather than a hard gate. This is a pragmatic choice while the project is in elaboration; it will tighten when external contributors are added.
 
 ## What is intentionally not formalized yet
 
 The following are deferred on purpose. Adding them now would impose rigidity on a paradigm still in trial-and-error:
 
-- **No merge request / pull request process.** The composer reviews locally.
-- **No enforced commit message convention.** Messages are expected to be informative but not formatted.
-- **No branch protection rules on GitHub.** Not needed while the composer is the sole merge captain.
-- **No mandatory CI gate on merge.** CI signals exist but do not block.
-- **No formal attribution scheme for agent commits.** Traceability is handled ad hoc for now.
+- **No mandatory CI gate on merge.** Heavy CI signals exist but do not block (the composer admin-merges through `BLOCKED` status when standard checks are green).
+- **No enforced commit message convention.** Messages are expected to be informative; some PRs use conventional-commits prefixes (`feat(SDK-zig):`, `chore(examples):`) by habit, none enforce it.
+- **No formal attribution scheme for agent commits.** Codex commits use the agent's configured author identity; Claude Code commits use the composer's identity (since the composer drives them). Traceability is handled ad hoc.
+- **Limited branch protection rules on `master`.** A PR is required for merges (no direct push), but admin override is permitted. Required reviewers are not enforced (the composer is the sole captain).
+- **No release automation.** Tags are created manually when a release event warrants it.
 
 These will be revisited when any of the following happens:
 

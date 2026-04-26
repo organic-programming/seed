@@ -117,3 +117,23 @@ func (RPCHandler) Tools(_ context.Context, req *opv1.ToolsRequest) (*opv1.ToolsR
 func (RPCHandler) Env(_ context.Context, req *opv1.EnvRequest) (*opv1.EnvResponse, error) {
 	return Env(req)
 }
+
+func (RPCHandler) InstallSdkPrebuilt(ctx context.Context, req *opv1.InstallSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
+	return installSdkPrebuiltContext(ctx, req)
+}
+
+func (RPCHandler) ListSdkPrebuilts(_ context.Context, req *opv1.ListSdkPrebuiltsRequest) (*opv1.ListSdkPrebuiltsResponse, error) {
+	return ListSdkPrebuilts(req)
+}
+
+func (RPCHandler) UninstallSdkPrebuilt(_ context.Context, req *opv1.UninstallSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
+	return UninstallSdkPrebuilt(req)
+}
+
+func (RPCHandler) VerifySdkPrebuilt(_ context.Context, req *opv1.VerifySdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
+	return VerifySdkPrebuilt(req)
+}
+
+func (RPCHandler) LocateSdkPrebuilt(_ context.Context, req *opv1.LocateSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
+	return LocateSdkPrebuilt(req)
+}
