@@ -129,7 +129,7 @@ Halt and report at the first real doubt per [`CLAUDE.md`](../CLAUDE.md) "doubt i
 
 ## Constraints in force throughout
 
-- PRs target `dev`, never `master` directly.
+- PRs target `master` directly.
 - Same loop policy as prebuilts (10 iterations max on a single root-cause blocker).
 - Do not break existing tests. Every phase keeps the bouquet green; coverage parity is non-negotiable.
 - Do not change the bouquet/catalogue/suite/check schemas (`checks.yaml`, `suites/`, `bouquets/`).
