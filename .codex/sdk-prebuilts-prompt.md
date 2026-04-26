@@ -39,7 +39,14 @@ All written artifacts in English.
 The 8 questions in spec §11 have been arbitrated. Treat each as a binding constraint, not a recommendation. Your M0 ADR (`docs/adr/sdk-prebuilts-scope.md`) records them verbatim.
 
 1. **Python OUT of v1.** Add as v1.1 only if Alpine demand emerges. Do not include `sdk/python-holons` in the prebuilts pipeline this chantier.
-2. **popok-first runner strategy.** popok (the existing self-hosted Apple Silicon Mac at `/Users/popok/.ader-ci-cache/`) hosts most targets via Docker (with QEMU emulation for cross-arch) and via VMs (UTM/Tart) for non-Linux/non-macOS. **GitHub-hosted runners are the last resort.** Per spec §6.2 the only target where a GitHub-hosted fallback is acceptable is `x86_64-pc-windows-msvc` if popok-via-Windows-VM proves too slow or unstable in the M0 spike. Validate at M0 and choose Path A (popok + UTM Windows) or Path B (GitHub `windows-latest` for Windows only). Document the choice in the ADR.
+2. **popok-first runner strategy, transitional GitHub-hosted at kickoff.** Target state per spec §6.2: popok (self-hosted Apple Silicon Mac) hosts most targets via Docker / containers, and `winwok` (a separate Windows mini-PC) hosts the Windows target. Both runners live at Saint-Émilion on residential fibre — see [`docs/st_emilions_runners.md`](../docs/st_emilions_runners.md) for the deployment plan.
+
+   **Important transitional reality**: at the time this chantier kicks off (right after the in-flight Zig P12 merges), the Saint-Émilion physical deployment has NOT yet happened (scheduled Thursday 2026-04-30). Therefore:
+
+   - **All workflows ship initially with GitHub-hosted runners** (`runs-on: macos-14`, `ubuntu-latest`, `ubuntu-24.04-arm`, `windows-latest`). This is the explicit transitional default per `docs/st_emilions_runners.md` §1.
+   - The first complete release cycle on GitHub-hosted validates the workflow logic itself.
+   - **A separate follow-up PR** (small, workflow-YAML-only) swaps `runs-on:` to the self-hosted labels (`[self-hosted, popok, macos]`, `[self-hosted, popok, linux-via-docker]`, `[self-hosted, winwok, windows]`) once both runners are operational at Saint-Émilion and the composer signals readiness.
+   - Do not delay any of the 10 chantier PRs waiting for Saint-Émilion; the transition is orthogonal.
 3. **cosign keyless** signing at v1.0. v0.x ships SHA-256 only.
 4. **Manifest field name `sdk_prebuilts`** as `Requires.sdk_prebuilts: repeated string`. Add to `holons/grace-op/_protos/holons/v1/manifest.proto`.
 5. **T0 + T1 only in v1** (7 targets). T2 mobile (iOS, Android) deferred to v1.5. Do not add iOS/Android workflow stubs in this chantier.
@@ -113,7 +120,7 @@ Verify each deletion with the corresponding grep that returns zero hits (audit �
 
 ### Phase 3 — Zig prebuilts (first SDK shipped)
 - Add `.github/workflows/sdk-prebuilts.yml` (top-level orchestration) and `.github/workflows/_sdk-prebuilt-target.yml` (reusable per (sdk, target)). Triggers per spec §6.3 — PR to master only + workflow_dispatch.
-- **Runner config follows spec §6.2 popok-first policy**: the reusable workflow `runs-on:` is parameterised. macOS-native targets `runs-on: [self-hosted, popok, macos]`. Linux targets `runs-on: [self-hosted, popok]` with a `container:` field configured per target (Docker `linux/amd64`, `linux/arm64`, `alpine:3.x` etc.). Windows: per the M0 ADR's path choice, either `runs-on: [self-hosted, popok, windows-vm]` (Path A) or `runs-on: windows-latest` (Path B, GitHub-hosted fallback).
+- **Runner config (transitional, per the kickoff reality)**: ship the workflow with GitHub-hosted runners — `runs-on: macos-14` for macOS targets, `runs-on: ubuntu-latest` for Linux x86_64 (gnu and musl), `runs-on: ubuntu-24.04-arm` for Linux arm64 (gnu and musl), `runs-on: windows-latest` for Windows. The reusable workflow's `runs-on:` is a parameterised input so a follow-up PR can swap to self-hosted labels (`[self-hosted, popok, macos]`, `[self-hosted, popok, linux-via-docker]`, `[self-hosted, winwok, windows]`) without rewriting the SDK build scripts. Plan the workflow with that swap in mind from the start.
 - Add `.github/scripts/build-prebuilt-zig.sh` parameterised by `$SDK_TARGET` and `$SDK_VERSION`. Builds gRPC + libprotobuf-c + the SDK static lib for the target, packages a tarball, computes SHA-256, generates SBOM via `syft`.
 - Modify `sdk/zig-holons/build.zig` to detect `OP_SDK_ZIG_PATH` first, fall back to `third_party/.zig-vendor/native/`, error otherwise (per spec §5.3).
 - Cover targets: T0 (4) + T1 (3) = 7 targets per resolved §11.5. **T2 mobile is OUT of v1**, do not add iOS/Android workflow stubs.
@@ -165,7 +172,7 @@ Not part of this chantier. Tracking-note only.
 - **PRs target `dev`**, never `master` directly.
 - **No `--no-verify`**, no skipping hooks.
 - **Do not delete `.codex/observability-impl.md`** (still applies, leave the file alone if you encounter it).
-- **popok-first runner policy**: workflows must default to `runs-on: [self-hosted, popok, ...]` for every target where popok can host (with containers/VMs as needed). `windows-latest` is the **only** acceptable GitHub-hosted runner, and only if M0 picks Path B per spec §6.2. Do not introduce other GitHub-hosted runners.
+- **Runner policy (transitional)**: at chantier kickoff the Saint-Émilion self-hosted infra is not yet deployed. Workflows ship with GitHub-hosted runners (`macos-14`, `ubuntu-latest`, `ubuntu-24.04-arm`, `windows-latest`) initially. A small follow-up PR (workflow-YAML-only) swaps to self-hosted labels (`[self-hosted, popok, macos]`, `[self-hosted, popok, linux-via-docker]`, `[self-hosted, winwok, windows]`) once both runners are online at Saint-Émilion. See [`docs/st_emilions_runners.md`](../docs/st_emilions_runners.md) §5 for the transition plan.
 - **Reuse existing infrastructure**: the `actions/cache@v4` already in `ader.yml`, the `OPPATH` / `OPBIN` env vars, the runner registry. Do not introduce parallel mechanisms.
 - **No premature abstraction**: 4 SDKs in scope. Do not generalize the verb to all 14 unless an SDK joins the prebuilt list later.
 - **No T2 mobile in v1**: do not add iOS / Android targets, workflow stubs, or runner labels for mobile. Resolved §11.5.
