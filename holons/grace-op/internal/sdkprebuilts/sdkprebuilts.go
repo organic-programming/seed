@@ -24,7 +24,11 @@ import (
 	openv "github.com/organic-programming/grace-op/internal/env"
 )
 
-const metadataFile = "manifest.json"
+const (
+	metadataFile          = "manifest.json"
+	releasesAPIEnv        = "OP_SDK_RELEASES_URL"
+	defaultReleasesAPIURL = "https://api.github.com/repos/organic-programming/seed/releases"
+)
 
 var defaultVersions = map[string]string{
 	"ruby": "1.58.3",
@@ -40,6 +44,7 @@ var allowedTargets = map[string]struct{}{
 	"aarch64-unknown-linux-gnu":  {},
 	"x86_64-unknown-linux-musl":  {},
 	"aarch64-unknown-linux-musl": {},
+	"x86_64-windows-gnu":         {},
 	"x86_64-pc-windows-msvc":     {},
 }
 
@@ -77,8 +82,22 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 		return Prebuilt{}, nil, err
 	}
 	source := strings.TrimSpace(opts.Source)
+	version := strings.TrimSpace(opts.Version)
+	if version != "" {
+		version, err = NormalizeVersion(version)
+		if err != nil {
+			return Prebuilt{}, nil, err
+		}
+	}
+	expectedSHA := ""
 	if source == "" {
-		return Prebuilt{}, nil, fmt.Errorf("source is required until release manifest lookup lands; pass --source <tarball>")
+		available, err := resolveAvailable(ctx, QueryOptions{Lang: lang, Target: target, Version: version})
+		if err != nil {
+			return Prebuilt{}, nil, err
+		}
+		source = available.Source
+		version = available.Version
+		expectedSHA = available.ArchiveSHA256
 	}
 
 	archivePath, cleanup, err := fetchArchive(ctx, source)
@@ -87,9 +106,11 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 	}
 	defer cleanup()
 
-	expectedSHA, err := fetchExpectedSHA256(ctx, source, archivePath)
-	if err != nil {
-		return Prebuilt{}, nil, err
+	if expectedSHA == "" {
+		expectedSHA, err = fetchExpectedSHA256(ctx, source, archivePath)
+		if err != nil {
+			return Prebuilt{}, nil, err
+		}
 	}
 	actualSHA, err := fileSHA256(archivePath)
 	if err != nil {
@@ -99,7 +120,6 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 		return Prebuilt{}, nil, fmt.Errorf("sha256 mismatch for %s: got %s, want %s", source, actualSHA, expectedSHA)
 	}
 
-	version := strings.TrimSpace(opts.Version)
 	if version == "" {
 		version = inferVersionFromSource(source, lang, target)
 	}
@@ -240,12 +260,172 @@ func ListInstalled(langFilter string) ([]Prebuilt, error) {
 }
 
 func ListAvailable(langFilter string) ([]Prebuilt, []string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	lang := ""
 	if strings.TrimSpace(langFilter) != "" {
-		if _, err := NormalizeLang(langFilter); err != nil {
+		normalized, err := NormalizeLang(langFilter)
+		if err != nil {
 			return nil, nil, err
 		}
+		lang = normalized
 	}
-	return nil, []string{"available release manifest lookup lands in a later phase; use --source with a local tarball for Phase 1"}, nil
+	releases, err := fetchReleases(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	entries := availableFromReleases(releases, lang, "", "")
+	if len(entries) == 0 {
+		return nil, []string{"no SDK prebuilt releases found"}, nil
+	}
+	return entries, nil, nil
+}
+
+type githubRelease struct {
+	TagName string        `json:"tag_name"`
+	Draft   bool          `json:"draft"`
+	Assets  []githubAsset `json:"assets"`
+}
+
+type githubAsset struct {
+	Name               string `json:"name"`
+	BrowserDownloadURL string `json:"browser_download_url"`
+}
+
+func resolveAvailable(ctx context.Context, opts QueryOptions) (Prebuilt, error) {
+	lang, err := NormalizeLang(opts.Lang)
+	if err != nil {
+		return Prebuilt{}, err
+	}
+	target, err := NormalizeTarget(opts.Target)
+	if err != nil {
+		return Prebuilt{}, err
+	}
+	version := strings.TrimSpace(opts.Version)
+	if version != "" {
+		version, err = NormalizeVersion(version)
+		if err != nil {
+			return Prebuilt{}, err
+		}
+	}
+	releases, err := fetchReleases(ctx)
+	if err != nil {
+		return Prebuilt{}, err
+	}
+	entries := availableFromReleases(releases, lang, target, version)
+	if len(entries) == 0 {
+		if version == "" {
+			return Prebuilt{}, fmt.Errorf("no available sdk prebuilt release for %s %s", lang, target)
+		}
+		return Prebuilt{}, fmt.Errorf("no available sdk prebuilt release for %s %s %s", lang, version, target)
+	}
+	return entries[0], nil
+}
+
+func fetchReleases(ctx context.Context) ([]githubRelease, error) {
+	var b strings.Builder
+	if err := download(ctx, releasesAPIURL(), &b); err != nil {
+		return nil, err
+	}
+	var releases []githubRelease
+	if err := json.Unmarshal([]byte(b.String()), &releases); err != nil {
+		return nil, fmt.Errorf("parse SDK release list: %w", err)
+	}
+	return releases, nil
+}
+
+func releasesAPIURL() string {
+	if override := strings.TrimSpace(os.Getenv(releasesAPIEnv)); override != "" {
+		return override
+	}
+	return defaultReleasesAPIURL
+}
+
+func availableFromReleases(releases []githubRelease, langFilter, targetFilter, versionFilter string) []Prebuilt {
+	langFilter = strings.TrimSpace(langFilter)
+	targetFilter = strings.TrimSpace(targetFilter)
+	versionFilter = strings.TrimSpace(versionFilter)
+
+	var out []Prebuilt
+	for _, release := range releases {
+		if release.Draft {
+			continue
+		}
+		releaseLang, releaseVersion, ok := parseReleaseTag(release.TagName)
+		if !ok {
+			continue
+		}
+		if langFilter != "" && releaseLang != langFilter {
+			continue
+		}
+		if versionFilter != "" && releaseVersion != versionFilter {
+			continue
+		}
+		for _, asset := range release.Assets {
+			prebuilt, ok := parseReleaseAsset(asset, releaseLang, releaseVersion)
+			if !ok {
+				continue
+			}
+			if targetFilter != "" && prebuilt.Target != targetFilter {
+				continue
+			}
+			out = append(out, prebuilt)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Lang != out[j].Lang {
+			return out[i].Lang < out[j].Lang
+		}
+		if c := compareVersion(out[i].Version, out[j].Version); c != 0 {
+			return c > 0
+		}
+		return out[i].Target < out[j].Target
+	})
+	return out
+}
+
+func parseReleaseTag(tag string) (string, string, bool) {
+	for lang := range defaultVersions {
+		prefix := lang + "-holons-v"
+		if strings.HasPrefix(tag, prefix) {
+			version := strings.TrimPrefix(tag, prefix)
+			if version == "" {
+				return "", "", false
+			}
+			return lang, version, true
+		}
+	}
+	return "", "", false
+}
+
+func parseReleaseAsset(asset githubAsset, lang, version string) (Prebuilt, bool) {
+	if strings.TrimSpace(asset.BrowserDownloadURL) == "" {
+		return Prebuilt{}, false
+	}
+	name := strings.TrimSpace(asset.Name)
+	if strings.HasSuffix(name, ".sha256") || strings.HasSuffix(name, ".spdx.json") || strings.Contains(name, "-debug.tar.gz") {
+		return Prebuilt{}, false
+	}
+	base := strings.TrimSuffix(name, ".tar.gz")
+	if base == name {
+		return Prebuilt{}, false
+	}
+	prefix := lang + "-holons-v" + version + "-"
+	if !strings.HasPrefix(base, prefix) {
+		return Prebuilt{}, false
+	}
+	target := strings.TrimPrefix(base, prefix)
+	if _, ok := allowedTargets[target]; !ok {
+		return Prebuilt{}, false
+	}
+	return Prebuilt{
+		Lang:      lang,
+		Version:   version,
+		Target:    target,
+		Source:    asset.BrowserDownloadURL,
+		Installed: false,
+	}, true
 }
 
 func Locate(opts QueryOptions) (Prebuilt, error) {
@@ -382,7 +562,7 @@ func HostTripletFor(goos, goarch string, musl bool) (string, error) {
 		if arch != "x86_64" {
 			return "", fmt.Errorf("unsupported Windows SDK prebuilt architecture %q", goarch)
 		}
-		return "x86_64-pc-windows-msvc", nil
+		return "x86_64-windows-gnu", nil
 	default:
 		return "", fmt.Errorf("unsupported host OS %q", goos)
 	}
@@ -714,8 +894,12 @@ func inferVersionFromSource(source, lang, target string) string {
 	if strings.HasSuffix(base, ".tar.gz") {
 		base = strings.TrimSuffix(base, ".tar.gz")
 	}
-	prefix := lang + "-"
 	suffix := "-" + target
+	releasePrefix := lang + "-holons-v"
+	if strings.HasPrefix(base, releasePrefix) && strings.HasSuffix(base, suffix) {
+		return strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(base, releasePrefix), suffix))
+	}
+	prefix := lang + "-"
 	if strings.HasPrefix(base, prefix) && strings.HasSuffix(base, suffix) {
 		return strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(base, prefix), suffix))
 	}

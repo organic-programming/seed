@@ -5,8 +5,9 @@ Zig SDK for Organic Programming holons. The SDK targets parity with
 `ws://`, `wss://`, and `rest+sse://` are dial-only; the hub API is client-only.
 
 The public Zig API owns the orchestration surface. Vendored gRPC Core and
-`libprotobuf-c` are private implementation dependencies, built from source by
-`build.zig`.
+`libprotobuf-c` are private implementation dependencies. Normal holon builds
+consume the native prebuilt installed by `op sdk install zig`; SDK contributors
+can still build the local fallback with `zig build vendor`.
 
 ## serve
 
@@ -84,6 +85,12 @@ defer peers.deinit(allocator);
 ## Build and test
 
 ```sh
+op sdk install zig
 zig build
 zig build test
 ```
+
+`build.zig` resolves native dependencies in this order: `OP_SDK_ZIG_PATH`
+(normally set by `op build` preflight after `op sdk install zig`), then
+`.zig-vendor/native` for SDK contributors, then an actionable error pointing at
+`op sdk install zig`.

@@ -28,7 +28,8 @@ option (holons.v1.manifest) = {
     runner: "zig"
   }
   requires: {
-    commands: ["zig", "cmake", "ninja"]
+    commands: ["zig"]
+    sdk_prebuilts: ["zig"]
     files: ["build.zig"]
   }
   artifacts: {

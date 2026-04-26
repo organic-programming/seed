@@ -1,0 +1,114 @@
+name: sdk-prebuilt-target
+
+on:
+  workflow_call:
+    inputs:
+      sdk:
+        required: true
+        type: string
+      sdk-version:
+        required: true
+        type: string
+      sdk-target:
+        required: true
+        type: string
+      runs-on:
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: ${{ inputs.sdk }} / ${{ inputs.sdk-target }}
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 240
+
+    env:
+      SDK: ${{ inputs.sdk }}
+      SDK_VERSION: ${{ inputs.sdk-version }}
+      SDK_TARGET: ${{ inputs.sdk-target }}
+      ZIG_VERSION: 0.16.0
+      NINJA_VERSION: 1.13.1
+      ZIG_HOLONS_JOBS: 8
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout Zig vendored submodules
+        if: inputs.sdk == 'zig'
+        run: |
+          set -euo pipefail
+          rm -rf sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          git submodule update --init --force --recursive --depth 1 --jobs 8 \
+            sdk/zig-holons/third_party/grpc \
+            sdk/zig-holons/third_party/protobuf-c
+
+      - name: Install Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build pkg-config file
+
+      - name: Install macOS packages
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          brew install cmake ninja pkg-config
+
+      - name: Install Zig
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${RUNNER_OS}-${RUNNER_ARCH}" in
+            Linux-X64) zig_arch="x86_64-linux" ;;
+            Linux-ARM64) zig_arch="aarch64-linux" ;;
+            macOS-X64) zig_arch="x86_64-macos" ;;
+            macOS-ARM64) zig_arch="aarch64-macos" ;;
+            *) echo "unsupported Zig runner: ${RUNNER_OS}-${RUNNER_ARCH}" >&2; exit 1 ;;
+          esac
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          zig_dir="${RUNNER_TEMP}/zig-${zig_arch}-${ZIG_VERSION}"
+          curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-${zig_arch}-${ZIG_VERSION}.tar.xz" -o "$tmp/zig.tar.xz"
+          tar -C "$tmp" -xf "$tmp/zig.tar.xz"
+          rm -rf "$zig_dir"
+          mv "$tmp/zig-${zig_arch}-${ZIG_VERSION}" "$zig_dir"
+          echo "$zig_dir" >> "$GITHUB_PATH"
+          "$zig_dir/zig" version
+
+      - name: Install syft
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Restore SDK prebuilt output cache
+        id: prebuilt-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            sdk/zig-holons/.zig-prebuilt/${{ inputs.sdk-target }}
+            dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}
+          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-zig.sh', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', '.gitmodules') }}
+          restore-keys: |
+            sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Build Zig SDK prebuilt
+        if: inputs.sdk == 'zig'
+        run: .github/scripts/build-prebuilt-zig.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.sdk }}-${{ inputs.sdk-version }}-${{ inputs.sdk-target }}
+          path: dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}/*
+          if-no-files-found: error
+
+      - name: Save SDK prebuilt output cache
+        if: always() && steps.prebuilt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            sdk/zig-holons/.zig-prebuilt/${{ inputs.sdk-target }}
+            dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}
+          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-zig.sh', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', '.gitmodules') }}
