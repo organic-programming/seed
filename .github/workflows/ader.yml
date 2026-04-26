@@ -50,6 +50,8 @@ jobs:
       DOTNET_CLI_HOME: /Users/popok/.ader-ci-cache/dotnet-home
       ZIG_VERSION: 0.16.0
       ZIG_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/zig
+      NINJA_VERSION: 1.13.1
+      NINJA_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/ninja
 
     steps:
       # Go module cache files are installed read-only. When checkout tries
@@ -99,6 +101,24 @@ jobs:
           "$zig_dir/zig" version
           echo "$zig_dir" >> "$GITHUB_PATH"
 
+      - name: Install Ninja build tool
+        run: |
+          set -euo pipefail
+          mkdir -p "$NINJA_TOOLCHAIN_CACHE"
+          ninja_dir="$NINJA_TOOLCHAIN_CACHE/ninja-$NINJA_VERSION"
+          if [ ! -x "$ninja_dir/ninja" ]; then
+            tmp="$(mktemp -d)"
+            trap 'rm -rf "$tmp"' EXIT
+            curl -fsSL "https://github.com/ninja-build/ninja/releases/download/v$NINJA_VERSION/ninja-mac.zip" -o "$tmp/ninja.zip"
+            unzip -q "$tmp/ninja.zip" -d "$tmp"
+            chmod +x "$tmp/ninja"
+            rm -rf "$ninja_dir"
+            mkdir -p "$ninja_dir"
+            mv "$tmp/ninja" "$ninja_dir/ninja"
+          fi
+          "$ninja_dir/ninja" --version
+          echo "$ninja_dir" >> "$GITHUB_PATH"
+
       - name: Verify toolchain presence
         run: |
           set -euo pipefail
@@ -111,6 +131,9 @@ jobs:
           echo "::endgroup::"
           echo "::group::zig"
           zig version
+          echo "::endgroup::"
+          echo "::group::ninja"
+          ninja --version
           echo "::endgroup::"
 
       # Self-hosted runners persist ADER_CI_CACHE_BASE naturally between
