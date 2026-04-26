@@ -136,12 +136,12 @@ Language language({
   return Language(code: code, name: name, native: native);
 }
 
-GabrielHolonIdentity holon(String slug, {int? rank}) {
+GabrielHolonIdentity holon(String slug, {int? rank, String? buildRunner}) {
   return GabrielHolonIdentity(
     slug: slug,
     familyName: GabrielHolonIdentity.displayNameFor(slug),
     binaryName: slug,
-    buildRunner: 'dart',
+    buildRunner: buildRunner ?? 'dart',
     displayName: GabrielHolonIdentity.displayNameFor(slug),
     sortRank: rank ?? GabrielHolonIdentity.sortRankFor(slug),
     holonUuid: '$slug-uuid',

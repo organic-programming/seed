@@ -17,7 +17,7 @@ DescribeResponse staticDescribeResponse() {
       born: "2026-04-04",
       version: "0.1.48",
     ),
-    description: "A standalone Flutter desktop app that connects to all 12 Gabriel greeting holons and presents a multilingual greeting UI with COAX support.",
+    description: "A standalone Flutter desktop app that connects to all 13 Gabriel greeting holons and presents a multilingual greeting UI with COAX support.",
     lang: "dart",
     kind: "composite",
     build: HolonManifest_Build(

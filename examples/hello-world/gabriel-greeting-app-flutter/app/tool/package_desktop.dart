@@ -14,6 +14,7 @@ const _memberSlugs = <String>[
   'gabriel-greeting-go',
   'gabriel-greeting-swift',
   'gabriel-greeting-rust',
+  'gabriel-greeting-zig',
   'gabriel-greeting-python',
   'gabriel-greeting-c',
   'gabriel-greeting-cpp',
@@ -27,6 +28,7 @@ const _memberSlugs = <String>[
 const _standaloneRunners = <String>{
   'go-module',
   'swift-package',
+  'zig',
   'cargo',
   'cmake',
   'qt-cmake',

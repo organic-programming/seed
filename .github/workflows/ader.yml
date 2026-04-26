@@ -48,6 +48,10 @@ jobs:
       GRADLE_USER_HOME: /Users/popok/.ader-ci-cache/gradle
       NUGET_PACKAGES: /Users/popok/.ader-ci-cache/nuget
       DOTNET_CLI_HOME: /Users/popok/.ader-ci-cache/dotnet-home
+      ZIG_VERSION: 0.16.0
+      ZIG_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/zig
+      NINJA_VERSION: 1.13.1
+      NINJA_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/ninja
 
     steps:
       # Go module cache files are installed read-only. When checkout tries
@@ -67,6 +71,57 @@ jobs:
           # misreport. Full history is cheap and accurate.
           fetch-depth: 0
 
+      - name: Checkout Zig vendored submodules
+        run: |
+          set -euo pipefail
+          rm -rf sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          git submodule update --init --force --recursive --depth 1 --jobs 8 \
+            sdk/zig-holons/third_party/grpc \
+            sdk/zig-holons/third_party/protobuf-c
+          test -f sdk/zig-holons/third_party/grpc/CMakeLists.txt
+          test -d sdk/zig-holons/third_party/protobuf-c/build-cmake
+
+      - name: Install Zig toolchain
+        run: |
+          set -euo pipefail
+          mkdir -p "$ZIG_TOOLCHAIN_CACHE"
+          case "$(uname -m)" in
+            arm64|aarch64) zig_arch="aarch64-macos" ;;
+            x86_64|amd64) zig_arch="x86_64-macos" ;;
+            *) echo "unsupported Zig CI architecture: $(uname -m)" >&2; exit 1 ;;
+          esac
+          zig_dir="$ZIG_TOOLCHAIN_CACHE/zig-$zig_arch-$ZIG_VERSION"
+          if [ ! -x "$zig_dir/zig" ]; then
+            tmp="$(mktemp -d)"
+            trap 'rm -rf "$tmp"' EXIT
+            url="https://ziglang.org/download/$ZIG_VERSION/zig-$zig_arch-$ZIG_VERSION.tar.xz"
+            curl -fsSL "$url" -o "$tmp/zig.tar.xz"
+            tar -C "$tmp" -xf "$tmp/zig.tar.xz"
+            rm -rf "$zig_dir"
+            mv "$tmp/zig-$zig_arch-$ZIG_VERSION" "$zig_dir"
+          fi
+          "$zig_dir/zig" version
+          echo "$zig_dir" >> "$GITHUB_PATH"
+
+      - name: Install Ninja build tool
+        run: |
+          set -euo pipefail
+          mkdir -p "$NINJA_TOOLCHAIN_CACHE"
+          ninja_dir="$NINJA_TOOLCHAIN_CACHE/ninja-$NINJA_VERSION"
+          if [ ! -x "$ninja_dir/ninja" ]; then
+            tmp="$(mktemp -d)"
+            trap 'rm -rf "$tmp"' EXIT
+            curl -fsSL "https://github.com/ninja-build/ninja/releases/download/v$NINJA_VERSION/ninja-mac.zip" -o "$tmp/ninja.zip"
+            unzip -q "$tmp/ninja.zip" -d "$tmp"
+            chmod +x "$tmp/ninja"
+            rm -rf "$ninja_dir"
+            mkdir -p "$ninja_dir"
+            mv "$tmp/ninja" "$ninja_dir/ninja"
+          fi
+          "$ninja_dir/ninja" --version
+          echo "$ninja_dir" >> "$GITHUB_PATH"
+
       - name: Verify toolchain presence
         run: |
           set -euo pipefail
@@ -76,6 +131,12 @@ jobs:
           echo "::group::ruby"
           ruby --version
           bundle --version
+          echo "::endgroup::"
+          echo "::group::zig"
+          zig version
+          echo "::endgroup::"
+          echo "::group::ninja"
+          ninja --version
           echo "::endgroup::"
 
       # Self-hosted runners persist ADER_CI_CACHE_BASE naturally between
