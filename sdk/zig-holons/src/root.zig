@@ -23,6 +23,10 @@ pub const protobuf = struct {
 pub const serve = @import("serve.zig");
 pub const transport = @import("transport.zig");
 
+comptime {
+    _ = cabi.exported_symbols;
+}
+
 test {
     const std = @import("std");
     std.testing.refAllDecls(@This());

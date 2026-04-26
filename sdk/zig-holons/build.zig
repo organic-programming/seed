@@ -111,6 +111,12 @@ fn sh(b: *std.Build, script: []const u8) *std.Build.Step.Run {
     return b.addSystemCommand(&.{ "bash", "-lc", script });
 }
 
+fn addStaticArchiveArgs(b: *std.Build, run: *std.Build.Step.Run, names: []const []const u8) void {
+    for (names) |name| {
+        run.addArg(b.fmt(".zig-vendor/native/lib/lib{s}.a", .{name}));
+    }
+}
+
 fn lockedVendorSh(b: *std.Build, comptime script: []const u8) *std.Build.Step.Run {
     const prefix =
         \\set -euo pipefail
@@ -194,7 +200,7 @@ fn configureModule(b: *std.Build, target: std.Build.ResolvedTarget, optimize: st
     mod.addCSourceFiles(.{
         .root = b.path(gen_root),
         .files = &generated_c_sources,
-        .flags = &.{ "-std=c99", "-Wno-unused-parameter" },
+        .flags = &.{ "-std=c99", "-Wno-unused-parameter", "-fno-sanitize=undefined" },
     });
     mod.addLibraryPath(b.path(vendor_root ++ "/lib"));
     mod.link_libc = true;
@@ -249,6 +255,23 @@ pub fn build(b: *std.Build) void {
     });
     lib.step.dependOn(vendor_step);
     b.installArtifact(lib);
+
+    const header_gen = b.addExecutable(.{
+        .name = "zig-holons-headergen",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/emit_headers.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    header_gen.step.dependOn(vendor_step);
+    const run_header_gen = b.addRunArtifact(header_gen);
+    run_header_gen.addArg("include/holons_sdk.h");
+    const headers_step = b.step("headers", "Emit the public C ABI header");
+    headers_step.dependOn(&run_header_gen.step);
 
     const mod_tests = b.addTest(.{
         .root_module = mod,
@@ -473,6 +496,74 @@ pub fn build(b: *std.Build) void {
     const test_observability_step = b.step("test-observability", "Run observability tests");
     test_observability_step.dependOn(&run_observability_tests.step);
     test_step.dependOn(&run_observability_tests.step);
+
+    const prepare_c_abi = sh(b, "mkdir -p zig-out/bin");
+    prepare_c_abi.step.dependOn(b.getInstallStep());
+
+    const compile_c_abi = b.addSystemCommand(&.{"cc"});
+    compile_c_abi.addArgs(&.{
+        "tests/c_abi/main.c",
+        "zig-out/lib/libholons_zig.a",
+        ".zig-vendor/native/lib/libprotobuf-c.a",
+    });
+    addStaticArchiveArgs(b, compile_c_abi, &grpc_unsecure_static_libs);
+    compile_c_abi.addArgs(&.{
+        "-I",
+        "include",
+        "-I",
+        ".zig-vendor/native/include",
+        "-I",
+        "gen/c",
+        "-lc++",
+        "-lresolv",
+    });
+    if (target.result.os.tag == .macos) {
+        compile_c_abi.addArgs(&.{ "-framework", "CoreFoundation" });
+    }
+    compile_c_abi.addArgs(&.{ "-o", "zig-out/bin/holons-c-abi-smoke" });
+    compile_c_abi.step.dependOn(&prepare_c_abi.step);
+    compile_c_abi.step.dependOn(&run_header_gen.step);
+
+    const run_c_abi_smoke = sh(b,
+        \\set -euo pipefail
+        \\PORT="$(python3 - <<'PY'
+        \\import socket
+        \\sock = socket.socket()
+        \\sock.bind(("127.0.0.1", 0))
+        \\print(sock.getsockname()[1])
+        \\sock.close()
+        \\PY
+        \\)"
+        \\(
+        \\  cd ../../examples/hello-world/gabriel-greeting-go
+        \\  exec go run ./cmd serve --listen "tcp://127.0.0.1:${PORT}"
+        \\) &
+        \\PID="$!"
+        \\cleanup() {
+        \\  kill -TERM "$PID" 2>/dev/null || true
+        \\  wait "$PID" 2>/dev/null || true
+        \\}
+        \\trap cleanup EXIT
+        \\python3 - <<PY
+        \\import socket, sys, time
+        \\port = int("${PORT}")
+        \\for _ in range(120):
+        \\    sock = socket.socket()
+        \\    sock.settimeout(0.2)
+        \\    try:
+        \\        sock.connect(("127.0.0.1", port))
+        \\        sock.close()
+        \\        sys.exit(0)
+        \\    except OSError:
+        \\        time.sleep(0.125)
+        \\raise SystemExit("go greeting server did not start")
+        \\PY
+        \\zig-out/bin/holons-c-abi-smoke "tcp://127.0.0.1:${PORT}"
+    );
+    run_c_abi_smoke.step.dependOn(&compile_c_abi.step);
+    const test_c_abi_step = b.step("test-c-abi", "Run the pure-C C ABI smoke test");
+    test_c_abi_step.dependOn(&run_c_abi_smoke.step);
+    test_step.dependOn(&run_c_abi_smoke.step);
 
     const clean_vendor = sh(b,
         \\set -euo pipefail
