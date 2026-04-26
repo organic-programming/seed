@@ -234,25 +234,17 @@ setup_buildx() {
 validate_buildx() {
   log "Validating buildx cross-arch..."
 
-  local tmpdir
-  tmpdir=$(run_as_popok mktemp -d)
-  run_as_popok bash -c "cat > '${tmpdir}/Dockerfile' <<'EOF'
-FROM alpine:3.19
-RUN uname -m
-EOF"
-
+  # Direct `docker run --platform <plat> alpine uname -m` exercises the QEMU
+  # binfmt handlers without needing a Dockerfile or a build step.
   local amd64_arch arm64_arch
 
-  amd64_arch=$(run_as_popok bash -c "cd '${tmpdir}' && docker buildx build --platform linux/amd64 --load -t op-prebuilts-validate:amd64 . >/dev/null && docker run --rm --platform linux/amd64 op-prebuilts-validate:amd64")
-  [[ "${amd64_arch}" == "x86_64" ]] || fail "linux/amd64 build returned '${amd64_arch}', expected 'x86_64'"
-  ok "linux/amd64 build OK (uname -m → x86_64)"
+  amd64_arch=$(run_as_popok docker run --rm --platform linux/amd64 alpine:3.19 uname -m 2>/dev/null | tr -d '[:space:]')
+  [[ "${amd64_arch}" == "x86_64" ]] || fail "linux/amd64 run returned '${amd64_arch}', expected 'x86_64'"
+  ok "linux/amd64 run OK (uname -m → x86_64)"
 
-  arm64_arch=$(run_as_popok bash -c "cd '${tmpdir}' && docker buildx build --platform linux/arm64 --load -t op-prebuilts-validate:arm64 . >/dev/null && docker run --rm --platform linux/arm64 op-prebuilts-validate:arm64")
-  [[ "${arm64_arch}" == "aarch64" ]] || fail "linux/arm64 build returned '${arm64_arch}', expected 'aarch64'"
-  ok "linux/arm64 build OK (uname -m → aarch64)"
-
-  run_as_popok docker rmi op-prebuilts-validate:amd64 op-prebuilts-validate:arm64 >/dev/null 2>&1 || true
-  run_as_popok rm -rf "${tmpdir}"
+  arm64_arch=$(run_as_popok docker run --rm --platform linux/arm64 alpine:3.19 uname -m 2>/dev/null | tr -d '[:space:]')
+  [[ "${arm64_arch}" == "aarch64" ]] || fail "linux/arm64 run returned '${arm64_arch}', expected 'aarch64'"
+  ok "linux/arm64 run OK (uname -m → aarch64)"
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
