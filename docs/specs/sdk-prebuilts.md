@@ -227,13 +227,14 @@ release-manifest.json                               # lists all assets, hashes, 
 | T0 | `aarch64-unknown-linux-gnu` | popok + Docker `linux/arm64` (native, no emulation) | server ARM |
 | T1 | `x86_64-unknown-linux-musl` | popok + Docker `linux/amd64` + Alpine container | container builds |
 | T1 | `aarch64-unknown-linux-musl` | popok + Docker `linux/arm64` + Alpine container | container ARM |
-| T1 | `x86_64-pc-windows-msvc` | popok + UTM/Tart Windows VM **OR** GitHub `windows-latest` (fallback) | dev Windows |
+| T1 | `x86_64-windows-gnu` | GitHub `ubuntu-latest` + Zig bundled MinGW (transitional v1) | dev Windows |
+| T1 follow-up | `x86_64-pc-windows-msvc` | winwok native Windows runner after Saint-Émilion deployment | dev Windows |
 | T2 | `aarch64-apple-ios` | popok (native macOS + Xcode) | iOS device builds |
 | T2 | `aarch64-apple-ios-sim` | popok (native macOS + Xcode iOS simulator SDK) | iOS Apple Silicon simulator |
 | T2 | `aarch64-linux-android` | popok + Docker + Android NDK | Android arm64 |
 | T2 | `x86_64-linux-android` | popok + Docker + Android NDK | Android emulator x86_64 |
 
-11 targets in the full matrix. Per spec §11.5 resolution: **v1 ships T0 + T1 only (7 targets)**. T2 (mobile) deferred to v1.5 once composite hardened builds prove the demand.
+12 targets in the full matrix while Windows is transitional. Per spec §11.5 resolution and Phase 3 arbitration: **v1 ships T0 + T1 only (7 targets)** with `x86_64-windows-gnu` as the Windows target. `x86_64-pc-windows-msvc` is kept visible as a v1.x follow-up once winwok is deployed at Saint-Émilion. T2 (mobile) deferred to v1.5 once composite hardened builds prove the demand.
 
 V1 artifacts: 7 targets × 4 SDKs = **28 artifacts per release**.
 
@@ -241,7 +242,7 @@ Per-target build cost: ~30-60 min wall time on popok. With matrix parallelism (p
 
 #### Windows fallback decision
 
-Windows is the one target where popok-via-VM has a real cost: UTM Windows VM on Apple Silicon is slower than a native Windows runner, and gRPC-C++ on MSVC is the trickiest target. Two acceptable paths:
+Windows is the one target where popok-via-VM has a real cost: UTM Windows VM on Apple Silicon is slower than a native Windows runner, and gRPC-C++ on MSVC is the trickiest target. Phase 3 ships `x86_64-windows-gnu` because P12 validated Zig's bundled MinGW target and winwok is not yet online. The MSVC target is tracked separately for the post-Saint-Émilion native Windows runner. Two acceptable paths remain for that follow-up:
 
 - **Path A (preferred)**: popok + UTM Windows ARM (Apple Silicon → Windows ARM via UTM is fast); cross-compile x86_64-windows from there if MSVC supports it natively, else fall back to Path B.
 - **Path B (fallback)**: GitHub `windows-latest` runner only for `x86_64-pc-windows-msvc`. All other targets stay on popok.
@@ -278,6 +279,8 @@ on:
 ```
 
 PR to `master` triggers full matrix. Manual dispatch allows debugging a single SDK or tier.
+
+For v0.x, the workflow ships with both triggers: `pull_request` to `master` for the release validation path and `workflow_dispatch` for composer-initiated full-matrix validation after the workflow exists on the default branch. GitHub Actions only exposes `workflow_dispatch` for workflows present on the default branch, so a chantier PR that introduces this workflow on `dev` relies on local cross-smoke evidence until the first `dev` → `master` PR or manual dispatch after merge.
 
 Push to `dev`, push to feature branches: **no trigger**. Saves CI compute.
 

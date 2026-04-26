@@ -7,6 +7,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -80,6 +83,33 @@ func TestInstallLocalTarballVerifiesAndLocates(t *testing.T) {
 	}
 }
 
+func TestInstallLocalHolonsReleaseTarballInfersVersion(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+
+	source := filepath.Join(t.TempDir(), "zig-holons-v0.1.0-"+testTarget+".tar.gz")
+	writeTestTarGz(t, source, map[string]testTarEntry{
+		"include/holons_sdk.h": {Mode: 0o644, Body: []byte("/* holons */\n")},
+		"lib/libholons_zig.a":  {Mode: 0o644, Body: []byte("archive\n")},
+	})
+	writeSHA256Sidecar(t, source)
+
+	prebuilt, _, err := Install(context.Background(), InstallOptions{
+		Lang:   "zig",
+		Target: testTarget,
+		Source: source,
+	})
+	if err != nil {
+		t.Fatalf("Install() returned error: %v", err)
+	}
+	if prebuilt.Version != "0.1.0" {
+		t.Fatalf("installed version = %q, want 0.1.0", prebuilt.Version)
+	}
+	if prebuilt.Path != filepath.Join(runtimeHome, "sdk", "zig", "0.1.0", testTarget) {
+		t.Fatalf("installed path = %q", prebuilt.Path)
+	}
+}
+
 func TestListInstalledIteratesRuntimeTree(t *testing.T) {
 	runtimeHome := t.TempDir()
 	t.Setenv("OPPATH", runtimeHome)
@@ -127,11 +157,86 @@ func TestListInstalledIteratesRuntimeTree(t *testing.T) {
 	}
 }
 
+func TestListAvailableReadsGitHubReleases(t *testing.T) {
+	server := newReleaseServer(t, map[string][]byte{})
+	t.Setenv(releasesAPIEnv, server.URL+"/releases")
+
+	entries, notes, err := ListAvailable(" zig ")
+	if err != nil {
+		t.Fatalf("ListAvailable() returned error: %v", err)
+	}
+	if len(notes) != 0 {
+		t.Fatalf("notes = %#v, want none", notes)
+	}
+	if len(entries) != 3 {
+		t.Fatalf("entries = %#v, want three zig artifacts", entries)
+	}
+	if entries[0].Lang != "zig" || entries[0].Version != "0.1.1" || entries[0].Target != "aarch64-apple-darwin" {
+		t.Fatalf("first entry = %#v", entries[0])
+	}
+	if entries[0].Source == "" {
+		t.Fatalf("first entry has empty source")
+	}
+}
+
+func TestInstallWithoutSourceResolvesLatestRelease(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+
+	assets := map[string][]byte{}
+	archiveName := "zig-holons-v0.1.1-" + testTarget + ".tar.gz"
+	archivePath := filepath.Join(t.TempDir(), archiveName)
+	writeTestTarGz(t, archivePath, map[string]testTarEntry{
+		"include/holons_sdk.h": {Mode: 0o644, Body: []byte("/* holons */\n")},
+		"lib/libholons_zig.a":  {Mode: 0o644, Body: []byte("archive\n")},
+	})
+	archiveData, err := os.ReadFile(archivePath)
+	if err != nil {
+		t.Fatalf("read archive: %v", err)
+	}
+	sum := sha256.Sum256(archiveData)
+	assets["/assets/"+archiveName] = archiveData
+	assets["/assets/"+archiveName+".sha256"] = []byte(hex.EncodeToString(sum[:]) + "  " + archiveName + "\n")
+
+	server := newReleaseServer(t, assets)
+	t.Setenv(releasesAPIEnv, server.URL+"/releases")
+
+	prebuilt, notes, err := Install(context.Background(), InstallOptions{
+		Lang:   "zig",
+		Target: testTarget,
+	})
+	if err != nil {
+		t.Fatalf("Install() returned error: %v", err)
+	}
+	if len(notes) != 0 {
+		t.Fatalf("notes = %#v, want none", notes)
+	}
+	if prebuilt.Version != "0.1.1" {
+		t.Fatalf("version = %q, want 0.1.1", prebuilt.Version)
+	}
+	if prebuilt.Source != server.URL+"/assets/"+archiveName {
+		t.Fatalf("source = %q", prebuilt.Source)
+	}
+	if _, err := os.Stat(filepath.Join(prebuilt.Path, "lib/libholons_zig.a")); err != nil {
+		t.Fatalf("installed archive missing: %v", err)
+	}
+}
+
 func TestNormalizeVersionRejectsPathTraversal(t *testing.T) {
 	for _, version := range []string{"../1.80.0", `..\1.80.0`, ".", "1:80:0"} {
 		if _, err := NormalizeVersion(version); err == nil {
 			t.Fatalf("NormalizeVersion(%q) returned nil error", version)
 		}
+	}
+}
+
+func TestHostTripletForWindowsUsesTransitionalGNU(t *testing.T) {
+	got, err := HostTripletFor("windows", "amd64", false)
+	if err != nil {
+		t.Fatalf("HostTripletFor() returned error: %v", err)
+	}
+	if got != "x86_64-windows-gnu" {
+		t.Fatalf("HostTripletFor(windows, amd64) = %q, want x86_64-windows-gnu", got)
 	}
 }
 
@@ -198,4 +303,55 @@ func writeInstalledMetadata(t *testing.T, prebuilt Prebuilt) {
 	if err := os.WriteFile(filepath.Join(prebuilt.Path, metadataFile), data, 0o644); err != nil {
 		t.Fatalf("write metadata: %v", err)
 	}
+}
+
+func newReleaseServer(t *testing.T, assets map[string][]byte) *httptest.Server {
+	t.Helper()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if data, ok := assets[r.URL.Path]; ok {
+			_, _ = w.Write(data)
+			return
+		}
+		if r.URL.Path != "/releases" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `[
+  {
+    "tag_name": "zig-holons-v0.1.0",
+    "draft": false,
+    "assets": [
+      {"name": "zig-holons-v0.1.0-%s.tar.gz", "browser_download_url": "%s/assets/zig-holons-v0.1.0-%s.tar.gz"},
+      {"name": "zig-holons-v0.1.0-%s.tar.gz.sha256", "browser_download_url": "%s/assets/zig-holons-v0.1.0-%s.tar.gz.sha256"},
+      {"name": "zig-holons-v0.1.0-%s-debug.tar.gz", "browser_download_url": "%s/assets/zig-holons-v0.1.0-%s-debug.tar.gz"}
+    ]
+  },
+  {
+    "tag_name": "zig-holons-v0.1.1",
+    "draft": false,
+    "assets": [
+      {"name": "zig-holons-v0.1.1-%s.tar.gz", "browser_download_url": "%s/assets/zig-holons-v0.1.1-%s.tar.gz"},
+      {"name": "zig-holons-v0.1.1-aarch64-apple-darwin.tar.gz", "browser_download_url": "%s/assets/zig-holons-v0.1.1-aarch64-apple-darwin.tar.gz"}
+    ]
+  },
+  {
+    "tag_name": "cpp-holons-v1.80.0",
+    "draft": false,
+    "assets": [
+      {"name": "cpp-holons-v1.80.0-%s.tar.gz", "browser_download_url": "%s/assets/cpp-holons-v1.80.0-%s.tar.gz"}
+    ]
+  }
+]`, testTarget, serverURL(r), testTarget, testTarget, serverURL(r), testTarget, testTarget, serverURL(r), testTarget, testTarget, serverURL(r), testTarget, serverURL(r), testTarget, serverURL(r), testTarget)
+	}))
+	return server
+}
+
+func serverURL(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	return scheme + "://" + r.Host
 }

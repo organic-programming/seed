@@ -103,12 +103,48 @@ const grpc_unsecure_static_libs = [_][]const u8{
     "absl_log_severity",
     "absl_time_zone",
     "cares",
-    "z",
 };
 
-fn sdkVendor(b: *std.Build) *std.Build.Step.Run {
-    const step = b.addSystemCommand(&.{ b.graph.zig_exe, "build", "vendor" });
-    step.setCwd(b.path(sdk_root));
+const NativeRoot = struct {
+    path: []const u8,
+    from_env: bool,
+};
+
+fn selectedNativeRoot(b: *std.Build) NativeRoot {
+    if (b.graph.environ_map.get("OP_SDK_ZIG_PATH")) |value| {
+        const trimmed = std.mem.trim(u8, value, " \t\r\n");
+        if (trimmed.len > 0) {
+            return .{ .path = trimmed, .from_env = true };
+        }
+    }
+    return .{ .path = sdk_vendor_root, .from_env = false };
+}
+
+fn lazyPath(b: *std.Build, path: []const u8) std.Build.LazyPath {
+    if (std.fs.path.isAbsolute(path)) {
+        return .{ .cwd_relative = path };
+    }
+    return b.path(path);
+}
+
+fn nativePath(b: *std.Build, root: NativeRoot, sub_path: []const u8) std.Build.LazyPath {
+    return lazyPath(b, b.pathJoin(&.{ root.path, sub_path }));
+}
+
+fn checkNativeRoot(b: *std.Build, root: NativeRoot) *std.Build.Step.Run {
+    const step = b.addSystemCommand(&.{
+        "bash", "-lc",
+        \\set -euo pipefail
+        \\root="${ZIG_HOLONS_NATIVE_ROOT}"
+        \\if [ -f "$root/include/grpc/grpc.h" ] && [ -f "$root/include/protobuf-c/protobuf-c.h" ] && [ -d "$root/lib" ]; then
+        \\  exit 0
+        \\fi
+        \\echo "Zig SDK native prebuilt not found at $root" >&2
+        \\echo "Run: op sdk install zig" >&2
+        \\echo "SDK contributors can also run: cd sdk/zig-holons && zig build vendor" >&2
+        \\exit 1
+    });
+    step.setEnvironmentVariable("ZIG_HOLONS_NATIVE_ROOT", root.path);
     return step;
 }
 
@@ -116,26 +152,36 @@ fn holonsModule(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
+    native_root: NativeRoot,
 ) *std.Build.Module {
     const mod = b.addModule("zig_holons", .{
         .root_source_file = b.path(sdk_root ++ "/src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
-    mod.addIncludePath(b.path(sdk_vendor_root ++ "/include"));
+    mod.addIncludePath(nativePath(b, native_root, "include"));
     mod.addIncludePath(b.path(sdk_gen_root));
     mod.addCSourceFiles(.{
         .root = b.path(sdk_gen_root),
         .files = &generated_c_sources,
         .flags = &.{ "-std=c99", "-Wno-unused-parameter" },
     });
-    mod.addLibraryPath(b.path(sdk_vendor_root ++ "/lib"));
+    mod.addLibraryPath(nativePath(b, native_root, "lib"));
     mod.link_libc = true;
     mod.linkSystemLibrary("protobuf-c", .{ .use_pkg_config = .no, .preferred_link_mode = .static });
     for (grpc_unsecure_static_libs) |name| {
         mod.linkSystemLibrary(name, .{ .use_pkg_config = .no, .preferred_link_mode = .static });
     }
-    mod.linkSystemLibrary("resolv", .{ .use_pkg_config = .no });
+    if (target.result.os.tag == .windows) {
+        mod.linkSystemLibrary("zlibstatic", .{ .use_pkg_config = .no, .preferred_link_mode = .static });
+        mod.linkSystemLibrary("ws2_32", .{ .use_pkg_config = .no });
+        mod.linkSystemLibrary("iphlpapi", .{ .use_pkg_config = .no });
+        mod.linkSystemLibrary("dbghelp", .{ .use_pkg_config = .no });
+        mod.linkSystemLibrary("bcrypt", .{ .use_pkg_config = .no });
+    } else {
+        mod.linkSystemLibrary("z", .{ .use_pkg_config = .no, .preferred_link_mode = .static });
+        mod.linkSystemLibrary("resolv", .{ .use_pkg_config = .no });
+    }
     mod.linkSystemLibrary("c++", .{ .use_pkg_config = .no });
     if (target.result.os.tag == .macos) {
         mod.linkFramework("CoreFoundation", .{});
@@ -146,8 +192,9 @@ fn holonsModule(
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const vendor_step = sdkVendor(b);
-    const holons_mod = holonsModule(b, target, optimize);
+    const native_root = selectedNativeRoot(b);
+    const native_ready = checkNativeRoot(b, native_root);
+    const holons_mod = holonsModule(b, target, optimize, native_root);
     const describe_mod = b.createModule(.{
         .root_source_file = b.path("gen/describe_generated.zig"),
         .target = target,
@@ -169,7 +216,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    exe.step.dependOn(&vendor_step.step);
+    exe.step.dependOn(&native_ready.step);
     b.installArtifact(exe);
 
     const tests = b.addTest(.{
@@ -182,7 +229,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    tests.step.dependOn(&vendor_step.step);
+    tests.step.dependOn(&native_ready.step);
 
     const run_tests = b.addRunArtifact(tests);
     const test_step = b.step("test", "Run gabriel-greeting-zig tests");

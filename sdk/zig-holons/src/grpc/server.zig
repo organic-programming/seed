@@ -1,9 +1,11 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const core = @import("core.zig");
 const describe = @import("../describe.zig");
 const transport = @import("../transport.zig");
 
-const posix = @cImport({
+const is_windows = builtin.os.tag == .windows;
+const posix = if (is_windows) struct {} else @cImport({
     @cInclude("unistd.h");
 });
 
@@ -239,6 +241,7 @@ fn addressUsesEphemeralPort(address: []const u8) bool {
 }
 
 fn addUnixPort(allocator: std.mem.Allocator, raw: *core.c.grpc_server, path: []const u8) !void {
+    if (is_windows) return error.UnsupportedListenTransport;
     const path_z = try allocator.dupeZ(u8, path);
     defer allocator.free(path_z);
     _ = posix.unlink(path_z.ptr);

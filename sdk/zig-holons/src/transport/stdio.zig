@@ -1,5 +1,8 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const uri = @import("uri.zig");
+
+const is_windows = builtin.os.tag == .windows;
 
 pub const Connection = struct {
     endpoint: uri.Endpoint,
@@ -16,6 +19,7 @@ pub const Child = struct {
     socket_fd: c_int,
 
     pub fn close(self: *Child) void {
+        if (is_windows) return;
         _ = c.close(self.socket_fd);
         if (self.pid > 0) {
             _ = c.kill(self.pid, c.SIGTERM);
@@ -30,11 +34,14 @@ pub const ServerBridge = struct {
     socket_fd: c_int,
 
     pub fn close(self: *ServerBridge) void {
+        if (is_windows) return;
         _ = c.close(self.socket_fd);
     }
 };
 
-const c = @cImport({
+const c = if (is_windows) struct {
+    const pid_t = c_int;
+} else @cImport({
     @cInclude("fcntl.h");
     @cInclude("signal.h");
     @cInclude("stdlib.h");
@@ -54,6 +61,7 @@ pub fn connect(raw: []const u8) uri.ParseError!Connection {
 }
 
 pub fn spawnCommand(allocator: std.mem.Allocator, command: Command) !Child {
+    if (is_windows) return error.UnsupportedStdioTransport;
     if (command.argv.len == 0) return error.EmptyCommand;
 
     var child_stdin: [2]c_int = undefined;
@@ -110,6 +118,7 @@ pub fn spawnCommand(allocator: std.mem.Allocator, command: Command) !Child {
 }
 
 pub fn openServerBridge() !ServerBridge {
+    if (is_windows) return error.UnsupportedStdioTransport;
     var sockets: [2]c_int = undefined;
     if (c.socketpair(c.AF_UNIX, c.SOCK_STREAM, 0, &sockets) != 0) return error.SocketpairFailed;
     errdefer {
@@ -127,12 +136,14 @@ pub fn openServerBridge() !ServerBridge {
 }
 
 fn setNonBlock(fd: c_int) !void {
+    if (is_windows) return error.UnsupportedStdioTransport;
     const flags = c.fcntl(fd, c.F_GETFL, @as(c_int, 0));
     if (flags < 0) return error.FcntlGetFailed;
     if (c.fcntl(fd, c.F_SETFL, flags | c.O_NONBLOCK) != 0) return error.FcntlSetFailed;
 }
 
 fn writeAll(fd: c_int, bytes: []const u8) !void {
+    if (is_windows) return error.UnsupportedStdioTransport;
     var offset: usize = 0;
     while (offset < bytes.len) {
         const n = c.write(fd, bytes.ptr + offset, bytes.len - offset);
@@ -143,6 +154,7 @@ fn writeAll(fd: c_int, bytes: []const u8) !void {
 }
 
 fn pump(reader_fd: c_int, writer_fd: c_int, close_writer_as_socket: bool) void {
+    if (is_windows) return;
     var buf: [8192]u8 = undefined;
     while (true) {
         const n = c.read(reader_fd, &buf, buf.len);

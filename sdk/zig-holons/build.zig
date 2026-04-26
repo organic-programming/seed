@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const vendor_root = ".zig-vendor/native";
+const default_vendor_root = ".zig-vendor/native";
 const grpc_build_dir = ".zig-cache/cmake/grpc-native";
 const protobuf_c_build_dir = ".zig-cache/cmake/protobuf-c-native";
 const gen_root = "gen/c";
@@ -110,16 +110,61 @@ const grpc_unsecure_static_libs = [_][]const u8{
     "absl_log_severity",
     "absl_time_zone",
     "cares",
-    "z",
+};
+
+const NativeRoot = struct {
+    path: []const u8,
+    from_env: bool,
 };
 
 fn sh(b: *std.Build, script: []const u8) *std.Build.Step.Run {
     return b.addSystemCommand(&.{ "bash", "-lc", script });
 }
 
-fn addStaticArchiveArgs(b: *std.Build, run: *std.Build.Step.Run, names: []const []const u8) void {
+fn selectedNativeRoot(b: *std.Build) NativeRoot {
+    if (b.graph.environ_map.get("OP_SDK_ZIG_PATH")) |value| {
+        const trimmed = std.mem.trim(u8, value, " \t\r\n");
+        if (trimmed.len > 0) {
+            return .{ .path = trimmed, .from_env = true };
+        }
+    }
+    return .{ .path = default_vendor_root, .from_env = false };
+}
+
+fn lazyPath(b: *std.Build, path: []const u8) std.Build.LazyPath {
+    if (std.fs.path.isAbsolute(path)) {
+        return .{ .cwd_relative = path };
+    }
+    return b.path(path);
+}
+
+fn nativePath(b: *std.Build, root: NativeRoot, sub_path: []const u8) std.Build.LazyPath {
+    return lazyPath(b, b.pathJoin(&.{ root.path, sub_path }));
+}
+
+fn nativeStringPath(b: *std.Build, root: NativeRoot, sub_path: []const u8) []const u8 {
+    return b.pathJoin(&.{ root.path, sub_path });
+}
+
+fn checkNativeRoot(b: *std.Build, root: NativeRoot) *std.Build.Step.Run {
+    const step = sh(b,
+        \\set -euo pipefail
+        \\root="${ZIG_HOLONS_NATIVE_ROOT}"
+        \\if [ -f "$root/include/grpc/grpc.h" ] && [ -f "$root/include/protobuf-c/protobuf-c.h" ] && [ -d "$root/lib" ]; then
+        \\  exit 0
+        \\fi
+        \\echo "Zig SDK native prebuilt not found at $root" >&2
+        \\echo "Run: op sdk install zig" >&2
+        \\echo "SDK contributors can also run: cd sdk/zig-holons && zig build vendor" >&2
+        \\exit 1
+    );
+    step.setEnvironmentVariable("ZIG_HOLONS_NATIVE_ROOT", root.path);
+    return step;
+}
+
+fn addStaticArchiveArgs(b: *std.Build, run: *std.Build.Step.Run, root: NativeRoot, names: []const []const u8) void {
     for (names) |name| {
-        run.addArg(b.fmt(".zig-vendor/native/lib/lib{s}.a", .{name}));
+        run.addArg(b.fmt("{s}/lib/lib{s}.a", .{ root.path, name }));
     }
 }
 
@@ -195,26 +240,40 @@ fn vendorProtobufC(b: *std.Build, grpc_step: *std.Build.Step.Run) *std.Build.Ste
     return step;
 }
 
-fn configureModule(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
+fn configureModule(
+    b: *std.Build,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    native_root: NativeRoot,
+) *std.Build.Module {
     const mod = b.addModule("zig_holons", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
     });
-    mod.addIncludePath(b.path(vendor_root ++ "/include"));
+    mod.addIncludePath(nativePath(b, native_root, "include"));
     mod.addIncludePath(b.path(gen_root));
     mod.addCSourceFiles(.{
         .root = b.path(gen_root),
         .files = &generated_c_sources,
         .flags = &.{ "-std=c99", "-Wno-unused-parameter", "-fno-sanitize=undefined" },
     });
-    mod.addLibraryPath(b.path(vendor_root ++ "/lib"));
+    mod.addLibraryPath(nativePath(b, native_root, "lib"));
     mod.link_libc = true;
     mod.linkSystemLibrary("protobuf-c", .{ .use_pkg_config = .no, .preferred_link_mode = .static });
     for (grpc_unsecure_static_libs) |name| {
         mod.linkSystemLibrary(name, .{ .use_pkg_config = .no, .preferred_link_mode = .static });
     }
-    mod.linkSystemLibrary("resolv", .{ .use_pkg_config = .no });
+    if (target.result.os.tag == .windows) {
+        mod.linkSystemLibrary("zlibstatic", .{ .use_pkg_config = .no, .preferred_link_mode = .static });
+        mod.linkSystemLibrary("ws2_32", .{ .use_pkg_config = .no });
+        mod.linkSystemLibrary("iphlpapi", .{ .use_pkg_config = .no });
+        mod.linkSystemLibrary("dbghelp", .{ .use_pkg_config = .no });
+        mod.linkSystemLibrary("bcrypt", .{ .use_pkg_config = .no });
+    } else {
+        mod.linkSystemLibrary("z", .{ .use_pkg_config = .no, .preferred_link_mode = .static });
+        mod.linkSystemLibrary("resolv", .{ .use_pkg_config = .no });
+    }
     mod.linkSystemLibrary("c++", .{ .use_pkg_config = .no });
     if (target.result.os.tag == .macos) {
         mod.linkFramework("CoreFoundation", .{});
@@ -225,6 +284,8 @@ fn configureModule(b: *std.Build, target: std.Build.ResolvedTarget, optimize: st
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const native_root = selectedNativeRoot(b);
+    const native_ready = checkNativeRoot(b, native_root);
 
     const grpc_step = vendorGrpc(b);
     const protobuf_c_step = vendorProtobufC(b, grpc_step);
@@ -236,8 +297,12 @@ pub fn build(b: *std.Build) void {
         \\set -euo pipefail
         \\rm -rf gen/c
         \\mkdir -p gen/c
-        \\"$PWD/.zig-vendor/native/bin/protoc-31.1.0" \
-        \\  --plugin=protoc-gen-c="$PWD/.zig-vendor/native/bin/protoc-gen-c" \
+        \\protoc="$ZIG_HOLONS_NATIVE_ROOT/bin/protoc-31.1.0"
+        \\if [ ! -x "$protoc" ]; then
+        \\  protoc="$ZIG_HOLONS_NATIVE_ROOT/bin/protoc"
+        \\fi
+        \\"$protoc" \
+        \\  --plugin=protoc-gen-c="$ZIG_HOLONS_NATIVE_ROOT/bin/protoc-gen-c" \
         \\  -I ../../holons/grace-op/_protos \
         \\  -I ../../examples/_protos \
         \\  -I third_party/grpc/third_party/protobuf/src \
@@ -253,19 +318,20 @@ pub fn build(b: *std.Build) void {
         \\  ../../examples/_protos/v1/greeting.proto \
         \\  --c_out=gen/c
     );
-    generate_protos.step.dependOn(vendor_step);
+    generate_protos.setEnvironmentVariable("ZIG_HOLONS_NATIVE_ROOT", native_root.path);
+    generate_protos.step.dependOn(&native_ready.step);
 
     const proto_step = b.step("generate-protos", "Regenerate committed protobuf-c output");
     proto_step.dependOn(&generate_protos.step);
 
-    const mod = configureModule(b, target, optimize);
+    const mod = configureModule(b, target, optimize, native_root);
 
     const lib = b.addLibrary(.{
         .name = "holons_zig",
         .linkage = .static,
         .root_module = mod,
     });
-    lib.step.dependOn(vendor_step);
+    lib.step.dependOn(&native_ready.step);
     b.installArtifact(lib);
 
     const header_gen = b.addExecutable(.{
@@ -279,7 +345,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    header_gen.step.dependOn(vendor_step);
+    header_gen.step.dependOn(&native_ready.step);
     const run_header_gen = b.addRunArtifact(header_gen);
     run_header_gen.addArg("include/holons_sdk.h");
     const headers_step = b.step("headers", "Emit the public C ABI header");
@@ -288,7 +354,7 @@ pub fn build(b: *std.Build) void {
     const mod_tests = b.addTest(.{
         .root_module = mod,
     });
-    mod_tests.step.dependOn(vendor_step);
+    mod_tests.step.dependOn(&native_ready.step);
 
     const run_mod_tests = b.addRunArtifact(mod_tests);
     const integration_tests = b.addTest(.{
@@ -301,7 +367,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    integration_tests.step.dependOn(vendor_step);
+    integration_tests.step.dependOn(&native_ready.step);
 
     const run_integration_tests = b.addRunArtifact(integration_tests);
     const test_step = b.step("test", "Run Zig SDK tests");
@@ -318,7 +384,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    dial_tcp_tests.step.dependOn(vendor_step);
+    dial_tcp_tests.step.dependOn(&native_ready.step);
     const run_dial_tcp_tests = b.addRunArtifact(dial_tcp_tests);
     test_step.dependOn(&run_dial_tcp_tests.step);
 
@@ -332,7 +398,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    dial_stdio_tests.step.dependOn(vendor_step);
+    dial_stdio_tests.step.dependOn(&native_ready.step);
     const run_dial_stdio_tests = b.addRunArtifact(dial_stdio_tests);
     test_step.dependOn(&run_dial_stdio_tests.step);
 
@@ -346,7 +412,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    serve_tcp_tests.step.dependOn(vendor_step);
+    serve_tcp_tests.step.dependOn(&native_ready.step);
     const run_serve_tcp_tests = b.addRunArtifact(serve_tcp_tests);
     test_step.dependOn(&run_serve_tcp_tests.step);
 
@@ -360,7 +426,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    serve_unix_tests.step.dependOn(vendor_step);
+    serve_unix_tests.step.dependOn(&native_ready.step);
     const run_serve_unix_tests = b.addRunArtifact(serve_unix_tests);
     test_step.dependOn(&run_serve_unix_tests.step);
 
@@ -375,7 +441,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    serve_fixture.step.dependOn(vendor_step);
+    serve_fixture.step.dependOn(&native_ready.step);
     const install_serve_fixture = b.addInstallArtifact(serve_fixture, .{});
 
     const serve_stdio_tests = b.addTest(.{
@@ -388,7 +454,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    serve_stdio_tests.step.dependOn(vendor_step);
+    serve_stdio_tests.step.dependOn(&native_ready.step);
     const run_serve_stdio_tests = b.addRunArtifact(serve_stdio_tests);
     run_serve_stdio_tests.step.dependOn(&install_serve_fixture.step);
     run_serve_stdio_tests.setEnvironmentVariable(
@@ -407,7 +473,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    transport_ws_tests.step.dependOn(vendor_step);
+    transport_ws_tests.step.dependOn(&native_ready.step);
     const run_transport_ws_tests = b.addRunArtifact(transport_ws_tests);
     const test_ws_step = b.step("test-ws", "Run ws:// Holon-RPC dial tests");
     test_ws_step.dependOn(&run_transport_ws_tests.step);
@@ -423,7 +489,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    transport_wss_tests.step.dependOn(vendor_step);
+    transport_wss_tests.step.dependOn(&native_ready.step);
     const run_transport_wss_tests = b.addRunArtifact(transport_wss_tests);
     const test_wss_step = b.step("test-wss", "Run wss:// Holon-RPC dial tests");
     test_wss_step.dependOn(&run_transport_wss_tests.step);
@@ -439,7 +505,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    transport_rest_sse_tests.step.dependOn(vendor_step);
+    transport_rest_sse_tests.step.dependOn(&native_ready.step);
     const run_transport_rest_sse_tests = b.addRunArtifact(transport_rest_sse_tests);
     const test_rest_sse_step = b.step("test-rest-sse", "Run rest+sse:// Holon-RPC dial tests");
     test_rest_sse_step.dependOn(&run_transport_rest_sse_tests.step);
@@ -455,7 +521,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    hub_client_tests.step.dependOn(vendor_step);
+    hub_client_tests.step.dependOn(&native_ready.step);
     const run_hub_client_tests = b.addRunArtifact(hub_client_tests);
     const test_hub_client_step = b.step("test-hub-client", "Run hub-api client tests");
     test_hub_client_step.dependOn(&run_hub_client_tests.step);
@@ -471,7 +537,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    discover_tests.step.dependOn(vendor_step);
+    discover_tests.step.dependOn(&native_ready.step);
     const run_discover_tests = b.addRunArtifact(discover_tests);
     const test_discover_step = b.step("test-discover", "Run discover tests");
     test_discover_step.dependOn(&run_discover_tests.step);
@@ -487,7 +553,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    identity_tests.step.dependOn(vendor_step);
+    identity_tests.step.dependOn(&native_ready.step);
     const run_identity_tests = b.addRunArtifact(identity_tests);
     const test_identity_step = b.step("test-identity", "Run identity tests");
     test_identity_step.dependOn(&run_identity_tests.step);
@@ -503,7 +569,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    observability_tests.step.dependOn(vendor_step);
+    observability_tests.step.dependOn(&native_ready.step);
     const run_observability_tests = b.addRunArtifact(observability_tests);
     const test_observability_step = b.step("test-observability", "Run observability tests");
     test_observability_step.dependOn(&run_observability_tests.step);
@@ -516,19 +582,26 @@ pub fn build(b: *std.Build) void {
     compile_c_abi.addArgs(&.{
         "tests/c_abi/main.c",
         "zig-out/lib/libholons_zig.a",
-        ".zig-vendor/native/lib/libprotobuf-c.a",
+        nativeStringPath(b, native_root, "lib/libprotobuf-c.a"),
     });
-    addStaticArchiveArgs(b, compile_c_abi, &grpc_unsecure_static_libs);
+    addStaticArchiveArgs(b, compile_c_abi, native_root, &grpc_unsecure_static_libs);
+    if (target.result.os.tag == .windows) {
+        compile_c_abi.addArg(nativeStringPath(b, native_root, "lib/libzlibstatic.a"));
+    } else {
+        compile_c_abi.addArg(nativeStringPath(b, native_root, "lib/libz.a"));
+    }
     compile_c_abi.addArgs(&.{
         "-I",
         "include",
         "-I",
-        ".zig-vendor/native/include",
+        nativeStringPath(b, native_root, "include"),
         "-I",
         "gen/c",
         "-lc++",
-        "-lresolv",
     });
+    if (target.result.os.tag != .windows) {
+        compile_c_abi.addArg("-lresolv");
+    }
     if (target.result.os.tag == .macos) {
         compile_c_abi.addArgs(&.{ "-framework", "CoreFoundation" });
     }

@@ -33,7 +33,8 @@ pub fn main(init: std.process.Init.Minimal) !void {
 fn writeAll(fd: c_int, bytes: []const u8) !void {
     var offset: usize = 0;
     while (offset < bytes.len) {
-        const written = c.write(fd, bytes[offset..].ptr, bytes.len - offset);
+        const chunk = @min(bytes.len - offset, std.math.maxInt(c_uint));
+        const written = c.write(fd, bytes[offset..].ptr, @intCast(chunk));
         if (written < 0) return error.WriteFailed;
         if (written == 0) return error.WriteFailed;
         offset += @intCast(written);
