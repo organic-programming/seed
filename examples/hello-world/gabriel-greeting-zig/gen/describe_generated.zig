@@ -208,6 +208,8 @@ const describe_response_bytes = [_]u8{
     0x20, 0x2d, 0x2d, 0x6f, 0x72, 0x69, 0x67, 0x69, 0x6e,
 };
 
+pub const holonVersion = "0.1.0";
+
 pub fn staticDescribeResponse() holons.describe.StaticDescribe {
     return .{ .proto_builder = buildDescribe };
 }

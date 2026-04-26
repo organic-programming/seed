@@ -442,6 +442,7 @@ my-holon/
 | C | `src/` | `gen/c/` | `tests/` | `Makefile` |
 | C++ | `src/` | `gen/cpp/` | `tests/` | `CMakeLists.txt` |
 | Ruby | `lib/` | `lib/gen/` | `test/` | `Gemfile` |
+| Zig | `src/` | `gen/c/` | `tests/` | `build.zig` |
 
 ---
 

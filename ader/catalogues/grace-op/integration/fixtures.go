@@ -105,8 +105,8 @@ var compositeHolons = []HolonSpec{
 		Platform:  "darwin",
 		Composite: true,
 		Requires: []string{
-			"xcodebuild", "xcodegen", "go", "swift", "cargo", "python3",
-			"cmake", "dotnet", "dart", "java", "gradle", "node", "npm",
+			"xcodebuild", "xcodegen", "go", "swift", "cargo", "zig", "python3",
+			"cmake", "ninja", "dotnet", "dart", "java", "gradle", "node", "npm",
 			"ruby", "bundle",
 		},
 	},
@@ -116,8 +116,8 @@ var compositeHolons = []HolonSpec{
 		Platform:  "darwin",
 		Composite: true,
 		Requires: []string{
-			"flutter", "go", "swift", "cargo", "python3",
-			"cmake", "dotnet", "dart", "java", "gradle", "node", "npm",
+			"flutter", "go", "swift", "cargo", "zig", "python3",
+			"cmake", "ninja", "dotnet", "dart", "java", "gradle", "node", "npm",
 			"ruby", "bundle",
 		},
 	},
