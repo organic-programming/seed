@@ -222,6 +222,153 @@ func TestInstallWithoutSourceResolvesLatestRelease(t *testing.T) {
 	}
 }
 
+func TestListAvailableReadsReleaseManifest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/releases":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `[
+  {
+    "tag_name": "cpp-holons-v1.80.0",
+    "draft": false,
+    "assets": [
+      {"name": "release-manifest.json", "browser_download_url": "%s/assets/release-manifest.json"},
+      {"name": "cpp-holons-v1.80.0-%s.tar.gz", "browser_download_url": "%s/assets/legacy.tar.gz"}
+    ]
+  }
+]`, serverURL(r), testTarget, serverURL(r))
+		case "/assets/release-manifest.json":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{
+  "schema": "sdk-prebuilts-release-manifest/v1",
+  "sdk": "cpp",
+  "version": "1.80.0",
+  "tag": "cpp-holons-v1.80.0",
+  "artifacts": [
+    {
+      "target": "%s",
+      "archive": {
+        "name": "cpp-holons-v1.80.0-%s.tar.gz",
+        "url": "%s/assets/from-manifest.tar.gz",
+        "sha256": "abc123"
+      },
+      "debug": {
+        "name": "cpp-holons-v1.80.0-%s-debug.tar.gz",
+        "url": "%s/assets/from-manifest-debug.tar.gz",
+        "sha256": "def456"
+      },
+      "sbom": {
+        "name": "cpp-holons-v1.80.0-%s.tar.gz.spdx.json",
+        "url": "%s/assets/from-manifest.tar.gz.spdx.json",
+        "sha256": "789abc"
+      }
+    }
+  ]
+}`, testTarget, testTarget, serverURL(r), testTarget, serverURL(r), testTarget, serverURL(r))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	t.Setenv(releasesAPIEnv, server.URL+"/releases")
+
+	entries, notes, err := ListAvailable("cpp")
+	if err != nil {
+		t.Fatalf("ListAvailable() returned error: %v", err)
+	}
+	if len(notes) != 0 {
+		t.Fatalf("notes = %#v, want none", notes)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("entries = %#v, want one manifest artifact", entries)
+	}
+	if entries[0].Source != server.URL+"/assets/from-manifest.tar.gz" {
+		t.Fatalf("source = %q, want manifest URL", entries[0].Source)
+	}
+	if entries[0].ArchiveSHA256 != "abc123" {
+		t.Fatalf("archive sha = %q, want abc123", entries[0].ArchiveSHA256)
+	}
+}
+
+func TestInstallWithoutSourceUsesReleaseManifestSHA(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+
+	archiveName := "cpp-holons-v1.80.0-" + testTarget + ".tar.gz"
+	archivePath := filepath.Join(t.TempDir(), archiveName)
+	writeTestTarGz(t, archivePath, map[string]testTarEntry{
+		"include/holons.grpc.pb.h": {Mode: 0o644, Body: []byte("/* holons */\n")},
+		"lib/libholons_cpp.a":      {Mode: 0o644, Body: []byte("archive\n")},
+		"bin/protoc":               {Mode: 0o755, Body: []byte("#!/bin/sh\n")},
+	})
+	archiveData, err := os.ReadFile(archivePath)
+	if err != nil {
+		t.Fatalf("read archive: %v", err)
+	}
+	sum := sha256.Sum256(archiveData)
+	expectedSHA := hex.EncodeToString(sum[:])
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/releases":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `[
+  {
+    "tag_name": "cpp-holons-v1.80.0",
+    "draft": false,
+    "assets": [
+      {"name": "release-manifest.json", "browser_download_url": "%s/assets/release-manifest.json"}
+    ]
+  }
+]`, serverURL(r))
+		case "/assets/release-manifest.json":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{
+  "schema": "sdk-prebuilts-release-manifest/v1",
+  "sdk": "cpp",
+  "version": "1.80.0",
+  "tag": "cpp-holons-v1.80.0",
+  "artifacts": [
+    {
+      "target": "%s",
+      "archive": {
+        "name": "%s",
+        "url": "%s/assets/%s",
+        "sha256": "%s"
+      }
+    }
+  ]
+}`, testTarget, archiveName, serverURL(r), archiveName, expectedSHA)
+		case "/assets/" + archiveName:
+			_, _ = w.Write(archiveData)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	t.Setenv(releasesAPIEnv, server.URL+"/releases")
+
+	prebuilt, notes, err := Install(context.Background(), InstallOptions{
+		Lang:   "cpp",
+		Target: testTarget,
+	})
+	if err != nil {
+		t.Fatalf("Install() returned error: %v", err)
+	}
+	if len(notes) != 0 {
+		t.Fatalf("notes = %#v, want none", notes)
+	}
+	if prebuilt.Source != server.URL+"/assets/"+archiveName {
+		t.Fatalf("source = %q", prebuilt.Source)
+	}
+	if prebuilt.ArchiveSHA256 != expectedSHA {
+		t.Fatalf("archive sha = %q, want %q", prebuilt.ArchiveSHA256, expectedSHA)
+	}
+	if _, err := os.Stat(filepath.Join(prebuilt.Path, "bin/protoc")); err != nil {
+		t.Fatalf("installed archive missing: %v", err)
+	}
+}
+
 func TestNormalizeVersionRejectsPathTraversal(t *testing.T) {
 	for _, version := range []string{"../1.80.0", `..\1.80.0`, ".", "1:80:0"} {
 		if _, err := NormalizeVersion(version); err == nil {

@@ -2,6 +2,7 @@ name: sdk-prebuilts
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, closed]
     branches: [master]
     paths:
       - ".github/workflows/sdk-prebuilts.yml"
@@ -10,6 +11,7 @@ on:
       - ".github/scripts/build-prebuilt-cpp.sh"
       - ".github/scripts/build-prebuilt-c.sh"
       - ".github/scripts/build-prebuilt-ruby.sh"
+      - ".github/scripts/promote-sdk-prebuilts.sh"
       - "sdk/zig-holons/**"
       - "sdk/cpp-holons/**"
       - "sdk/c-holons/**"
@@ -38,8 +40,13 @@ concurrency:
   group: sdk-prebuilts-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  actions: read
+  contents: read
+
 jobs:
   zig:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
     strategy:
       fail-fast: false
       matrix:
@@ -66,6 +73,7 @@ jobs:
       runs-on: ${{ matrix.runs_on }}
 
   cpp:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
     strategy:
       fail-fast: false
       matrix:
@@ -92,6 +100,7 @@ jobs:
       runs-on: ${{ matrix.runs_on }}
 
   c:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
     strategy:
       fail-fast: false
       matrix:
@@ -118,6 +127,7 @@ jobs:
       runs-on: ${{ matrix.runs_on }}
 
   ruby:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
     strategy:
       fail-fast: false
       matrix:
@@ -142,3 +152,45 @@ jobs:
       sdk-version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['ruby-version'] || '1.58.3' }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
+
+  promote:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate successful prebuilt run
+        id: source-run
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(
+            gh run list \
+              --workflow sdk-prebuilts.yml \
+              --json databaseId,headSha,conclusion,event,createdAt \
+              --limit 100 \
+              --jq ".[] | select(.event == \"pull_request\" and .conclusion == \"success\" and .headSha == \"${PR_HEAD_SHA}\") | .databaseId" |
+            head -n 1
+          )"
+          if [[ -z "$run_id" ]]; then
+            echo "No successful sdk-prebuilts pull_request run found for ${PR_HEAD_SHA}" >&2
+            exit 1
+          fi
+          echo "run-id=${run_id}" >>"$GITHUB_OUTPUT"
+
+      - name: Download PR artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/sdk-prebuilt-artifacts"
+          gh run download "${{ steps.source-run.outputs.run-id }}" --dir "$RUNNER_TEMP/sdk-prebuilt-artifacts"
+
+      - name: Publish GitHub Releases
+        shell: bash
+        run: .github/scripts/promote-sdk-prebuilts.sh "$RUNNER_TEMP/sdk-prebuilt-artifacts"

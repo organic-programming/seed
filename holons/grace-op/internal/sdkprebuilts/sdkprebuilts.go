@@ -275,7 +275,13 @@ func ListAvailable(langFilter string) ([]Prebuilt, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	entries := availableFromReleases(releases, lang, "", "")
+	entries, err := availableFromReleaseManifests(ctx, releases, lang, "", "")
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(entries) == 0 {
+		entries = availableFromReleases(releases, lang, "", "")
+	}
 	if len(entries) == 0 {
 		return nil, []string{"no SDK prebuilt releases found"}, nil
 	}
@@ -291,6 +297,27 @@ type githubRelease struct {
 type githubAsset struct {
 	Name               string `json:"name"`
 	BrowserDownloadURL string `json:"browser_download_url"`
+}
+
+type releaseManifest struct {
+	Schema    string                    `json:"schema"`
+	SDK       string                    `json:"sdk"`
+	Version   string                    `json:"version"`
+	Tag       string                    `json:"tag"`
+	Artifacts []releaseManifestArtifact `json:"artifacts"`
+}
+
+type releaseManifestArtifact struct {
+	Target  string               `json:"target"`
+	Archive releaseManifestFile  `json:"archive"`
+	Debug   *releaseManifestFile `json:"debug,omitempty"`
+	SBOM    *releaseManifestFile `json:"sbom,omitempty"`
+}
+
+type releaseManifestFile struct {
+	Name   string `json:"name"`
+	URL    string `json:"url"`
+	SHA256 string `json:"sha256"`
 }
 
 func resolveAvailable(ctx context.Context, opts QueryOptions) (Prebuilt, error) {
@@ -313,7 +340,13 @@ func resolveAvailable(ctx context.Context, opts QueryOptions) (Prebuilt, error) 
 	if err != nil {
 		return Prebuilt{}, err
 	}
-	entries := availableFromReleases(releases, lang, target, version)
+	entries, err := availableFromReleaseManifests(ctx, releases, lang, target, version)
+	if err != nil {
+		return Prebuilt{}, err
+	}
+	if len(entries) == 0 {
+		entries = availableFromReleases(releases, lang, target, version)
+	}
 	if len(entries) == 0 {
 		if version == "" {
 			return Prebuilt{}, fmt.Errorf("no available sdk prebuilt release for %s %s", lang, target)
@@ -321,6 +354,103 @@ func resolveAvailable(ctx context.Context, opts QueryOptions) (Prebuilt, error) 
 		return Prebuilt{}, fmt.Errorf("no available sdk prebuilt release for %s %s %s", lang, version, target)
 	}
 	return entries[0], nil
+}
+
+func availableFromReleaseManifests(ctx context.Context, releases []githubRelease, langFilter, targetFilter, versionFilter string) ([]Prebuilt, error) {
+	langFilter = strings.TrimSpace(langFilter)
+	targetFilter = strings.TrimSpace(targetFilter)
+	versionFilter = strings.TrimSpace(versionFilter)
+
+	var out []Prebuilt
+	for _, release := range releases {
+		if release.Draft {
+			continue
+		}
+		releaseLang, releaseVersion, ok := parseReleaseTag(release.TagName)
+		if !ok {
+			continue
+		}
+		if langFilter != "" && releaseLang != langFilter {
+			continue
+		}
+		if versionFilter != "" && releaseVersion != versionFilter {
+			continue
+		}
+		manifestAsset, ok := releaseManifestAsset(release)
+		if !ok {
+			continue
+		}
+		manifest, err := fetchReleaseManifest(ctx, manifestAsset.BrowserDownloadURL)
+		if err != nil {
+			return nil, err
+		}
+		if manifest.SDK != "" && manifest.SDK != releaseLang {
+			return nil, fmt.Errorf("release manifest %s sdk = %q, want %q", manifestAsset.BrowserDownloadURL, manifest.SDK, releaseLang)
+		}
+		if manifest.Version != "" && manifest.Version != releaseVersion {
+			return nil, fmt.Errorf("release manifest %s version = %q, want %q", manifestAsset.BrowserDownloadURL, manifest.Version, releaseVersion)
+		}
+		for _, artifact := range manifest.Artifacts {
+			target := strings.TrimSpace(artifact.Target)
+			if _, ok := allowedTargets[target]; !ok {
+				continue
+			}
+			if targetFilter != "" && target != targetFilter {
+				continue
+			}
+			source := strings.TrimSpace(artifact.Archive.URL)
+			if source == "" {
+				source = releaseAssetURL(release, artifact.Archive.Name)
+			}
+			if source == "" {
+				continue
+			}
+			out = append(out, Prebuilt{
+				Lang:          releaseLang,
+				Version:       releaseVersion,
+				Target:        target,
+				Source:        source,
+				ArchiveSHA256: strings.TrimSpace(artifact.Archive.SHA256),
+				Installed:     false,
+			})
+		}
+	}
+	sortAvailable(out)
+	return out, nil
+}
+
+func releaseManifestAsset(release githubRelease) (githubAsset, bool) {
+	for _, asset := range release.Assets {
+		if strings.TrimSpace(asset.Name) == "release-manifest.json" && strings.TrimSpace(asset.BrowserDownloadURL) != "" {
+			return asset, true
+		}
+	}
+	return githubAsset{}, false
+}
+
+func fetchReleaseManifest(ctx context.Context, source string) (releaseManifest, error) {
+	var b strings.Builder
+	if err := download(ctx, source, &b); err != nil {
+		return releaseManifest{}, err
+	}
+	var manifest releaseManifest
+	if err := json.Unmarshal([]byte(b.String()), &manifest); err != nil {
+		return releaseManifest{}, fmt.Errorf("parse SDK release manifest %s: %w", source, err)
+	}
+	return manifest, nil
+}
+
+func releaseAssetURL(release githubRelease, name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ""
+	}
+	for _, asset := range release.Assets {
+		if strings.TrimSpace(asset.Name) == name {
+			return strings.TrimSpace(asset.BrowserDownloadURL)
+		}
+	}
+	return ""
 }
 
 func fetchReleases(ctx context.Context) ([]githubRelease, error) {
@@ -373,6 +503,11 @@ func availableFromReleases(releases []githubRelease, langFilter, targetFilter, v
 			out = append(out, prebuilt)
 		}
 	}
+	sortAvailable(out)
+	return out
+}
+
+func sortAvailable(out []Prebuilt) {
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Lang != out[j].Lang {
 			return out[i].Lang < out[j].Lang
@@ -382,7 +517,6 @@ func availableFromReleases(releases []githubRelease, langFilter, targetFilter, v
 		}
 		return out[i].Target < out[j].Target
 	})
-	return out
 }
 
 func parseReleaseTag(tag string) (string, string, bool) {
