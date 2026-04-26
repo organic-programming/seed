@@ -68,7 +68,14 @@ jobs:
           # ader reads commit/branch metadata via git; shallow clones can
           # misreport. Full history is cheap and accurate.
           fetch-depth: 0
-          submodules: recursive
+
+      - name: Checkout Zig vendored submodules
+        run: |
+          set -euo pipefail
+          git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          git submodule update --init --recursive --depth 1 --jobs 8 \
+            sdk/zig-holons/third_party/grpc \
+            sdk/zig-holons/third_party/protobuf-c
 
       - name: Install Zig toolchain
         run: |
