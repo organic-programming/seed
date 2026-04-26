@@ -37,6 +37,11 @@ type Handler interface {
 	ModGraph(context.Context, *opv1.ModGraphRequest) (*opv1.ModGraphResponse, error)
 	Tools(context.Context, *opv1.ToolsRequest) (*opv1.ToolsResponse, error)
 	Env(context.Context, *opv1.EnvRequest) (*opv1.EnvResponse, error)
+	InstallSdkPrebuilt(context.Context, *opv1.InstallSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error)
+	ListSdkPrebuilts(context.Context, *opv1.ListSdkPrebuiltsRequest) (*opv1.ListSdkPrebuiltsResponse, error)
+	UninstallSdkPrebuilt(context.Context, *opv1.UninstallSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error)
+	VerifySdkPrebuilt(context.Context, *opv1.VerifySdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error)
+	LocateSdkPrebuilt(context.Context, *opv1.LocateSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error)
 }
 
 type Server struct {
@@ -154,6 +159,26 @@ func (s *Server) Tools(ctx context.Context, req *opv1.ToolsRequest) (*opv1.Tools
 
 func (s *Server) Env(ctx context.Context, req *opv1.EnvRequest) (*opv1.EnvResponse, error) {
 	return s.handler.Env(ctx, req)
+}
+
+func (s *Server) InstallSdkPrebuilt(ctx context.Context, req *opv1.InstallSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
+	return s.handler.InstallSdkPrebuilt(ctx, req)
+}
+
+func (s *Server) ListSdkPrebuilts(ctx context.Context, req *opv1.ListSdkPrebuiltsRequest) (*opv1.ListSdkPrebuiltsResponse, error) {
+	return s.handler.ListSdkPrebuilts(ctx, req)
+}
+
+func (s *Server) UninstallSdkPrebuilt(ctx context.Context, req *opv1.UninstallSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
+	return s.handler.UninstallSdkPrebuilt(ctx, req)
+}
+
+func (s *Server) VerifySdkPrebuilt(ctx context.Context, req *opv1.VerifySdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
+	return s.handler.VerifySdkPrebuilt(ctx, req)
+}
+
+func (s *Server) LocateSdkPrebuilt(ctx context.Context, req *opv1.LocateSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
+	return s.handler.LocateSdkPrebuilt(ctx, req)
 }
 
 func Register(s *grpc.Server, handler Handler) {

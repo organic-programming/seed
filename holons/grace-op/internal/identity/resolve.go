@@ -23,29 +23,30 @@ const (
 
 // Resolved describes the identity source discovered for a holon.
 type Resolved struct {
-	Identity         Identity
-	SourcePath       string
-	Description      string
-	Skills           []ResolvedSkill
-	Sequences        []ResolvedSequence
-	HasContract      bool
-	Kind             string
-	Transport        string
-	Platforms        []string
-	BuildRunner      string
-	RequiredFiles    []string
-	RequiredCommands []string
-	BuildMain        string
-	BuildDefaults    *ResolvedRecipeDefaults
-	BuildMembers     []ResolvedRecipeMember
-	BuildTargets     map[string]ResolvedRecipeTarget
-	BuildTemplates   []string
-	BeforeCommands   []ResolvedRecipeExec
-	AfterCommands    []ResolvedRecipeExec
-	MemberPaths      []string
-	ArtifactBinary   string
-	PrimaryArtifact  string
-	DelegateCommands []string
+	Identity             Identity
+	SourcePath           string
+	Description          string
+	Skills               []ResolvedSkill
+	Sequences            []ResolvedSequence
+	HasContract          bool
+	Kind                 string
+	Transport            string
+	Platforms            []string
+	BuildRunner          string
+	RequiredFiles        []string
+	RequiredCommands     []string
+	RequiredSDKPrebuilts []string
+	BuildMain            string
+	BuildDefaults        *ResolvedRecipeDefaults
+	BuildMembers         []ResolvedRecipeMember
+	BuildTargets         map[string]ResolvedRecipeTarget
+	BuildTemplates       []string
+	BeforeCommands       []ResolvedRecipeExec
+	AfterCommands        []ResolvedRecipeExec
+	MemberPaths          []string
+	ArtifactBinary       string
+	PrimaryArtifact      string
+	DelegateCommands     []string
 }
 
 type ResolvedRecipeDefaults struct {
@@ -345,7 +346,7 @@ func resolvedFromDynamic(manifest *dynamic.Message) *Resolved {
 			}
 		}
 		resolved.BuildTemplates = dynStringSlice(build, 6)
-		
+
 		resolved.BeforeCommands = make([]ResolvedRecipeExec, 0)
 		for _, hook := range dynSubMessages(build, 7) {
 			resolved.BeforeCommands = append(resolved.BeforeCommands, ResolvedRecipeExec{
@@ -353,7 +354,7 @@ func resolvedFromDynamic(manifest *dynamic.Message) *Resolved {
 				Argv: dynStringSlice(hook, 2),
 			})
 		}
-		
+
 		resolved.AfterCommands = make([]ResolvedRecipeExec, 0)
 		for _, hook := range dynSubMessages(build, 8) {
 			resolved.AfterCommands = append(resolved.AfterCommands, ResolvedRecipeExec{
@@ -366,6 +367,7 @@ func resolvedFromDynamic(manifest *dynamic.Message) *Resolved {
 	if requires := dynSubMessage(manifest, 11); requires != nil {
 		resolved.RequiredCommands = dynStringSlice(requires, 1)
 		resolved.RequiredFiles = dynStringSlice(requires, 2)
+		resolved.RequiredSDKPrebuilts = dynStringSlice(requires, 4)
 	}
 
 	if delegates := dynSubMessage(manifest, 12); delegates != nil {
@@ -410,6 +412,7 @@ func resolvedFromDynamic(manifest *dynamic.Message) *Resolved {
 	resolved.Platforms = compactStrings(resolved.Platforms)
 	resolved.RequiredCommands = compactStrings(resolved.RequiredCommands)
 	resolved.RequiredFiles = compactStrings(resolved.RequiredFiles)
+	resolved.RequiredSDKPrebuilts = compactStrings(resolved.RequiredSDKPrebuilts)
 	resolved.MemberPaths = compactStrings(resolved.MemberPaths)
 	resolved.DelegateCommands = compactStrings(resolved.DelegateCommands)
 	return resolved
