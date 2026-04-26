@@ -7,6 +7,8 @@ const describe_response_bytes = [_]u8{
 {{ zigDescribeBytes . }}
 };
 
+pub const holonVersion = "{{ .Manifest.Identity.Version }}";
+
 pub fn staticDescribeResponse() holons.describe.StaticDescribe {
     return .{ .proto_builder = buildDescribe };
 }

@@ -4,7 +4,7 @@ An SDK provides the native runtime for holons in a given language. It replaces h
 
 ## Language SDKs
 
-The following languages `c, c++, c#, dart, go, java, js, js-web, kotlin, python, ruby, rust, swift` have official SDK implementations in their respective directories:
+The following languages `c, c++, c#, dart, go, java, js, js-web, kotlin, python, ruby, rust, swift, zig` have official SDK implementations in their respective directories:
 
 - [c-holons](./c-holons/README.md)
 - [cpp-holons](./cpp-holons/README.md)
@@ -19,12 +19,13 @@ The following languages `c, c++, c#, dart, go, java, js, js-web, kotlin, python,
 - [ruby-holons](./ruby-holons/README.md)
 - [rust-holons](./rust-holons/README.md)
 - [swift-holons](./swift-holons/README.md)
+- [zig-holons](./zig-holons/README.md)
 
 ## Canonical Protocol Generation
 
 The core `holons.v1` schema definitions (`manifest.proto`, `describe.proto`, `coax.proto`) are embedded in the `op` binary for runtime distribution. However, the exact code bindings (Go structs, Swift classes, Dart definitions, etc.) required by these SDKs are statically compiled from those schemas.
 
-Maintainers use [`./scripts/generate-protos.sh`](./scripts/generate-protos.sh) to invoke the various language-specific `protoc` compilers and update the native libraries uniformly across all 13 supported languages.
+Maintainers use [`./scripts/generate-protos.sh`](./scripts/generate-protos.sh) to invoke the various language-specific `protoc` compilers and update the native libraries uniformly across all 14 supported languages.
 
 ## Every SDK implements:
 
@@ -74,6 +75,7 @@ Transports provide the underlying connection mechanism. Not all SDKs support all
 | `java-holons`     | both     | both      | both       | dial    | dial     | dial       | client    |
 | `python-holons`   | both     | both      | both       | dial    | dial     | dial       | client    |
 | `ruby-holons`     | both     | both      | both       | dial    | dial     | dial       | client    |
+| `zig-holons`      | both     | both      | both       | dial    | dial     | dial       | client    |
 
 > ⚠️ `hub api` not totally implemented has been updated to reflect the changes in [COMMUNICATION.md](../COMMUNICATION.md#43-multiplexing--routing-matrix)
 

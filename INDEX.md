@@ -67,6 +67,7 @@
 | ? | ? | [python-holons](sdk/python-holons/README.md) | auto-indexed |
 | ? | ? | [ruby-holons](sdk/ruby-holons/README.md) | auto-indexed |
 | ? | ? | [rust-holons](sdk/rust-holons/README.md) | auto-indexed |
+| ? | ? | [zig-holons](sdk/zig-holons/README.md) | auto-indexed |
 
 ## Cross-SDK Observability Conformance
 
@@ -82,6 +83,7 @@ WebSocket binding.
 | [dart-holons](sdk/dart-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
 | [swift-holons](sdk/swift-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
 | [rust-holons](sdk/rust-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
+| [zig-holons](sdk/zig-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
 | [java-holons](sdk/java-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
 | [kotlin-holons](sdk/kotlin-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
 | [csharp-holons](sdk/csharp-holons/README.md) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - |
@@ -105,6 +107,7 @@ WebSocket binding.
 | ? | ? | [gabriel-greeting-ruby](examples/hello-world/gabriel-greeting-ruby/README.md) | auto-indexed |
 | ? | ? | [gabriel-greeting-rust](examples/hello-world/gabriel-greeting-rust/README.md) | auto-indexed |
 | ? | ? | [gabriel-greeting-swift](examples/hello-world/gabriel-greeting-swift/README.md) | auto-indexed |
+| ? | ? | [gabriel-greeting-zig](examples/hello-world/gabriel-greeting-zig/README.md) | auto-indexed |
 
 ## Kits & Packaging
 

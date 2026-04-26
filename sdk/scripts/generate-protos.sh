@@ -8,7 +8,7 @@ set -euo pipefail
 #
 # PURPOSE:
 # This script is a maintainer tool. It compiles the foundational protobuf schemas
-# (manifest, describe, coax) into native code bindings for all 13 supported SDKs 
+# (manifest, describe, coax) into native code bindings for all 14 supported SDKs
 # (Go, Swift, Dart, Python, etc.) and places them in their respective `sdk/*` directories.
 #
 # WHY IT'S NEEDED EVEN WITH `embed.go`:
@@ -23,7 +23,7 @@ set -euo pipefail
 # 1. The Bootstrap Chicken-and-Egg: `op` is written in Go and depends on the
 #    `go-holons` SDK to even compile. If we relied on `op` to generate the 
 #    base protos, we wouldn't be able to build `op` in the first place.
-# 2. Maintainer Environment Load: Running this operation requires all 13 
+# 2. Maintainer Environment Load: Running this operation requires all 14
 #    `protoc` language plugins installed on the host machine. It is a heavy,
 #    infrastructure-level maintenance chore, fundamentally different from `op`'s
 #    mission which is to compile isolated user-domain applications and holons.
@@ -58,7 +58,7 @@ usage() {
 Usage: ./sdk/generate-protos.sh [--sdk=<name>]
 
 SDK names:
-  c, cpp, csharp, dart, go, java, js, js-web, kotlin, python, ruby, rust, swift
+  c, cpp, csharp, dart, go, java, js, js-web, kotlin, python, ruby, rust, swift, zig
 EOF
 }
 
@@ -258,6 +258,39 @@ generate_rust() {
   record_summary "rust -> sdk/rust-holons/src/gen/holons.v1.rs"
 }
 
+generate_zig() {
+  require_tool protoc-c
+  local protoc_c_env=()
+  local c_includes=("${PROTO_INCLUDES[@]}")
+  local zig_proto_files=(
+    "${PROTO_FILES[@]}"
+    "google/protobuf/timestamp.proto"
+    "google/protobuf/duration.proto"
+  )
+  local compat_dir=""
+  compat_dir="$(find_compatible_protobuf33 || true)"
+  if [[ -n "$compat_dir" ]]; then
+    protoc_c_env=(env "DYLD_LIBRARY_PATH=${compat_dir}/lib")
+    c_includes=(-I "$PROTO_ROOT" -I "${compat_dir}/include")
+    for include_dir in /opt/homebrew/include /usr/local/include; do
+      if [[ -d "$include_dir/google/protobuf" ]]; then
+        c_includes+=(-I "$include_dir")
+      fi
+    done
+  elif ! protoc-c --version >/dev/null 2>&1; then
+    echo "protoc-c is installed but not runnable, and no protobuf 33.x runtime was found" >&2
+    exit 1
+  fi
+  local protoc_cmd=("protoc-c")
+  if [[ ${#protoc_c_env[@]} -gt 0 ]]; then
+    protoc_cmd=("${protoc_c_env[@]}" "protoc-c")
+  fi
+  run_in_root "${protoc_cmd[@]}" "${c_includes[@]}" \
+    --c_out=sdk/zig-holons/gen/c \
+    "${zig_proto_files[@]}"
+  record_summary "zig -> sdk/zig-holons/gen/c/holons/v1"
+}
+
 run_sdk() {
   local sdk="$1"
   case "$sdk" in
@@ -274,6 +307,7 @@ run_sdk() {
     ruby) generate_ruby ;;
     rust) generate_rust ;;
     swift) generate_swift ;;
+    zig) generate_zig ;;
     *)
       echo "Unknown SDK: $sdk" >&2
       usage >&2
@@ -305,7 +339,7 @@ require_file "$CANONICAL_DESCRIBE"
 if [[ -n "$SDK_FILTER" ]]; then
   run_sdk "$SDK_FILTER"
 else
-  for sdk in go swift python cpp c csharp dart java kotlin js js-web ruby rust; do
+  for sdk in go swift python cpp c csharp dart java kotlin js js-web ruby rust zig; do
     run_sdk "$sdk"
   done
 fi

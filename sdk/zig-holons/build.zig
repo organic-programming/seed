@@ -7,8 +7,14 @@ const gen_root = "gen/c";
 
 const generated_c_sources = [_][]const u8{
     "google/protobuf/descriptor.pb-c.c",
+    "google/protobuf/timestamp.pb-c.c",
+    "google/protobuf/duration.pb-c.c",
     "holons/v1/manifest.pb-c.c",
     "holons/v1/describe.pb-c.c",
+    "holons/v1/coax.pb-c.c",
+    "holons/v1/session.pb-c.c",
+    "holons/v1/observability.pb-c.c",
+    "holons/v1/instance.pb-c.c",
     "v1/greeting.pb-c.c",
 };
 
@@ -236,8 +242,14 @@ pub fn build(b: *std.Build) void {
         \\  -I ../../examples/_protos \
         \\  -I third_party/grpc/third_party/protobuf/src \
         \\  third_party/grpc/third_party/protobuf/src/google/protobuf/descriptor.proto \
+        \\  third_party/grpc/third_party/protobuf/src/google/protobuf/timestamp.proto \
+        \\  third_party/grpc/third_party/protobuf/src/google/protobuf/duration.proto \
         \\  ../../holons/grace-op/_protos/holons/v1/manifest.proto \
         \\  ../../holons/grace-op/_protos/holons/v1/describe.proto \
+        \\  ../../holons/grace-op/_protos/holons/v1/coax.proto \
+        \\  ../../holons/grace-op/_protos/holons/v1/session.proto \
+        \\  ../../holons/grace-op/_protos/holons/v1/observability.proto \
+        \\  ../../holons/grace-op/_protos/holons/v1/instance.proto \
         \\  ../../examples/_protos/v1/greeting.proto \
         \\  --c_out=gen/c
     );

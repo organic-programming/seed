@@ -153,6 +153,10 @@ Both examples are fully working hello-world COAXes:
 | `gabriel-greeting-app-swiftui` | SwiftUI + Swift | tcp or unix | ✓ hardened build |
 | `gabriel-greeting-app-flutter` | Flutter + Dart | tcp or unix | ✓ hardened build |
 
+In development, the examples surface Gabriel member holons written in C, C++,
+C#, Dart, Go, Java, Kotlin, Node, Python, Ruby, Rust, Swift, and Zig. Hardened
+builds package the standalone C, C++, Dart, Go, Rust, Swift, and Zig members.
+
 Each app:
 1. Discovers sibling `gabriel-greeting-*` holons via the SDK.
 2. Connects a selected holon.
