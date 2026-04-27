@@ -38,13 +38,15 @@ Maintainers use [`./scripts/generate-protos.sh`](./scripts/generate-protos.sh) t
 
 ## Native Prebuilts
 
-The `c`, `cpp`, `ruby`, and `zig` SDKs also support native prebuilts through
+The `c`, `cpp`, `ruby`, and `zig` SDKs ship as native prebuilts managed by
 [`op sdk`](../holons/grace-op/OP_SDK.md):
 
 ```sh
-op sdk install <c|cpp|ruby|zig>
+op sdk install <c|cpp|ruby|zig>     # download a published release
+op sdk build   <c|cpp|ruby|zig>     # compile from local sources (~30-60 min cold)
+op sdk list --compilable            # which SDKs build right now? what blocks each?
 op sdk verify <c|cpp|ruby|zig>
-op sdk path <c|cpp|ruby|zig>
+op sdk path   <c|cpp|ruby|zig>
 ```
 
 Installed prebuilts live under `$OPPATH/sdk/<lang>/<version>/<target>/`.
@@ -55,6 +57,11 @@ preflight. When the prebuilt is present, `op build` injects
 
 This is deliberately limited to the SDKs with native cold-build pain. The other
 SDKs remain managed by their language toolchains or upstream package managers.
+
+**See [PREBUILTS.md](./PREBUILTS.md) for the full reference**: install vs build
+trade-off, per-SDK toolchain prerequisites, supported target matrix (with
+suspended targets and how to re-enable them), the macOS toolchain workarounds
+behind `zigcxx`, and maintainer flows.
 
 ## Incode Description
 

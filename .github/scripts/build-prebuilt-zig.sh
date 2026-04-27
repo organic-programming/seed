@@ -45,19 +45,34 @@ prefix="${work_dir}/prefix"
 sdk_out="${work_dir}/sdk-out"
 stage="${work_dir}/stage/zig-holons-v${sdk_version}-${sdk_target}"
 
+macos_framework_flag=""
+if [[ "$sdk_target" == *apple-darwin ]]; then
+  if ! command -v xcrun >/dev/null 2>&1; then
+    echo "xcrun not on PATH; required for macOS framework headers (CoreFoundation, etc.)" >&2
+    exit 2
+  fi
+  macos_sdk_path="$(xcrun --show-sdk-path)"
+  # Zig's clang wrapper does not auto-propagate the macOS SDK paths that real
+  # clang infers from -isysroot:
+  #   - -F SDK/System/Library/Frameworks            so abseil's <CoreFoundation/CFTimeZone.h> resolves
+  #   - -isystem SDK/usr/include                    so Security.h's <libDER/DERItem.h> resolves
+  # Without these, abseil / grpc / c-ares / boringssl all fail at compile.
+  macos_framework_flag="-F${macos_sdk_path}/System/Library/Frameworks -iframework ${macos_sdk_path}/System/Library/Frameworks -isystem ${macos_sdk_path}/usr/include"
+fi
+
 case "$sdk_target" in
   aarch64-apple-darwin)
     cmake_system="Darwin"
     cmake_processor="arm64"
     zig_target="aarch64-macos"
-    extra_cflags="-mmacos-version-min=${MACOSX_DEPLOYMENT_TARGET:-14.0}"
+    extra_cflags="-mmacos-version-min=${MACOSX_DEPLOYMENT_TARGET:-14.0} ${macos_framework_flag}"
     extra_ldflags="$extra_cflags"
     ;;
   x86_64-apple-darwin)
     cmake_system="Darwin"
     cmake_processor="x86_64"
     zig_target="x86_64-macos"
-    extra_cflags="-mmacos-version-min=${MACOSX_DEPLOYMENT_TARGET:-13.0}"
+    extra_cflags="-mmacos-version-min=${MACOSX_DEPLOYMENT_TARGET:-13.0} ${macos_framework_flag}"
     extra_ldflags="$extra_cflags"
     ;;
   x86_64-unknown-linux-gnu)
@@ -258,7 +273,13 @@ cmake -S third_party/protobuf-c/build-cmake -B "$protobuf_c_build" "${protobuf_c
 cmake --build "$protobuf_c_build" --target install --parallel "$jobs"
 
 rm -rf "$sdk_out"
-OP_SDK_ZIG_PATH="$prefix" "$zig_bin" build \
+zig_build_env=(OP_SDK_ZIG_PATH="$prefix")
+if [[ "$sdk_target" == *apple-darwin ]]; then
+  # Zig does not auto-discover the macOS SDK; surface it via SDKROOT so
+  # build.zig can wire the framework + system-library search paths.
+  zig_build_env+=(SDKROOT="$(xcrun --show-sdk-path)")
+fi
+env "${zig_build_env[@]}" "$zig_bin" build \
   -Dtarget="$zig_target" \
   -Doptimize=ReleaseFast \
   --prefix "$sdk_out"

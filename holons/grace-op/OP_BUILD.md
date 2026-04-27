@@ -130,11 +130,22 @@ This artifact is reused by `op inspect`, `op mcp`, and the
 
 ### Stub Generation
 
-Generating language-specific stubs (`.pb.go`, `.pb.swift`,
-`.pb.dart`, etc.) is not `op`'s responsibility. Runners that
-need generated stubs use their own toolchain (`protoc-gen-go`,
-`protoc-gen-swift`, etc.) — the same way they need `go`, `swift`,
-or `xcodebuild` on PATH.
+In organic programming the `.proto` IS the source code; keeping
+language bindings in sync with the proto is part of the build.
+That orchestration is `op`'s responsibility — what `op` does NOT
+ship is the language toolchains themselves.
+
+Today, holons that need regenerated stubs declare a `before_commands`
+hook that invokes their per-holon generator (e.g.
+`go run ./tools/generate`). The generator shells out to PATH tools
+(`protoc`, `protoc-gen-go`, …) declared in `requires.commands`. See
+`holons/grace-op/tools/generate` and `holons/mody-media/tools/generate`
+for the reference pattern.
+
+Future direction: each SDK installed under `$OPPATH/sdk/` will declare
+a regeneration contract in its `manifest.json` (required tools or
+embedded binaries plus an invocation template), and `op build` will
+discover and invoke it directly — no per-holon generator needed.
 
 ## Manifest Model
 

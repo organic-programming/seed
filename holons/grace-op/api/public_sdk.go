@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"os"
 
 	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
 	"github.com/organic-programming/grace-op/internal/sdkprebuilts"
@@ -33,15 +34,17 @@ func installSdkPrebuiltContext(ctx context.Context, req *opv1.InstallSdkPrebuilt
 
 func ListSdkPrebuilts(req *opv1.ListSdkPrebuiltsRequest) (*opv1.ListSdkPrebuiltsResponse, error) {
 	lang := ""
-	installed := true
+	installed := false
 	available := false
+	compilable := false
 	if req != nil {
 		lang = req.GetLang()
 		installed = req.GetInstalled()
 		available = req.GetAvailable()
-		if !installed && !available {
-			installed = true
-		}
+		compilable = req.GetCompilable()
+	}
+	if !installed && !available && !compilable {
+		installed = true
 	}
 
 	resp := &opv1.ListSdkPrebuiltsResponse{}
@@ -64,7 +67,44 @@ func ListSdkPrebuilts(req *opv1.ListSdkPrebuiltsRequest) (*opv1.ListSdkPrebuilts
 		}
 		resp.Notes = append(resp.Notes, notes...)
 	}
+	if compilable {
+		entries, notes, err := sdkprebuilts.ListCompilable(lang)
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range entries {
+			resp.Entries = append(resp.Entries, sdkPrebuiltToProto(entry))
+		}
+		resp.Notes = append(resp.Notes, notes...)
+	}
 	return resp, nil
+}
+
+func BuildSdkPrebuilt(req *opv1.BuildSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
+	return buildSdkPrebuiltContext(context.Background(), req)
+}
+
+func buildSdkPrebuiltContext(ctx context.Context, req *opv1.BuildSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("sdk prebuilt build request is required")
+	}
+	prebuilt, notes, err := sdkprebuilts.Build(ctx, sdkprebuilts.BuildOptions{
+		Lang:              req.GetLang(),
+		Target:            req.GetTarget(),
+		Version:           req.GetVersion(),
+		Jobs:              int(req.GetJobs()),
+		Force:             req.GetForce(),
+		InstallAfterBuild: req.GetInstallAfterBuild(),
+		Stdout:            os.Stdout,
+		Stderr:            os.Stderr,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &opv1.SdkPrebuiltResponse{
+		Prebuilt: sdkPrebuiltToProto(prebuilt),
+		Notes:    notes,
+	}, nil
 }
 
 func UninstallSdkPrebuilt(req *opv1.UninstallSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
@@ -125,5 +165,6 @@ func sdkPrebuiltToProto(prebuilt sdkprebuilts.Prebuilt) *opv1.SdkPrebuilt {
 		ArchiveSha256: prebuilt.ArchiveSHA256,
 		TreeSha256:    prebuilt.TreeSHA256,
 		Installed:     prebuilt.Installed,
+		Blockers:      prebuilt.Blockers,
 	}
 }

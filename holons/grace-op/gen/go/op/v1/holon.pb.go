@@ -4369,6 +4369,9 @@ type SdkPrebuilt struct {
 	ArchiveSha256 string                 `protobuf:"bytes,6,opt,name=archive_sha256,json=archiveSha256,proto3" json:"archive_sha256,omitempty"`
 	TreeSha256    string                 `protobuf:"bytes,7,opt,name=tree_sha256,json=treeSha256,proto3" json:"tree_sha256,omitempty"`
 	Installed     bool                   `protobuf:"varint,8,opt,name=installed,proto3" json:"installed,omitempty"`
+	// blockers lists human-readable reasons compilable=false for this entry.
+	// Empty when the entry is installable, available, or compilable.
+	Blockers      []string `protobuf:"bytes,9,rep,name=blockers,proto3" json:"blockers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4459,6 +4462,13 @@ func (x *SdkPrebuilt) GetInstalled() bool {
 	return false
 }
 
+func (x *SdkPrebuilt) GetBlockers() []string {
+	if x != nil {
+		return x.Blockers
+	}
+	return nil
+}
+
 type InstallSdkPrebuiltRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Lang          string                 `protobuf:"bytes,1,opt,name=lang,proto3" json:"lang,omitempty"`
@@ -4528,10 +4538,13 @@ func (x *InstallSdkPrebuiltRequest) GetSource() string {
 }
 
 type ListSdkPrebuiltsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Installed     bool                   `protobuf:"varint,1,opt,name=installed,proto3" json:"installed,omitempty"`
-	Available     bool                   `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
-	Lang          string                 `protobuf:"bytes,3,opt,name=lang,proto3" json:"lang,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Installed bool                   `protobuf:"varint,1,opt,name=installed,proto3" json:"installed,omitempty"`
+	Available bool                   `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
+	Lang      string                 `protobuf:"bytes,3,opt,name=lang,proto3" json:"lang,omitempty"`
+	// compilable lists SDKs that op sdk compile <lang> can build now
+	// (script present, submodules initialised, prereq binaries on PATH).
+	Compilable    bool `protobuf:"varint,4,opt,name=compilable,proto3" json:"compilable,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4585,6 +4598,13 @@ func (x *ListSdkPrebuiltsRequest) GetLang() string {
 		return x.Lang
 	}
 	return ""
+}
+
+func (x *ListSdkPrebuiltsRequest) GetCompilable() bool {
+	if x != nil {
+		return x.Compilable
+	}
+	return false
 }
 
 type ListSdkPrebuiltsResponse struct {
@@ -4875,6 +4895,97 @@ func (x *SdkPrebuiltResponse) GetNotes() []string {
 func (x *SdkPrebuiltResponse) GetVerified() bool {
 	if x != nil {
 		return x.Verified
+	}
+	return false
+}
+
+type BuildSdkPrebuiltRequest struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Lang    string                 `protobuf:"bytes,1,opt,name=lang,proto3" json:"lang,omitempty"`
+	Target  string                 `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	Version string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	// jobs caps the parallelism passed to cmake/ninja and zig build.
+	// 0 = let the runtime pick (defaults match the env vars in the
+	// current scripts: ZIG_HOLONS_JOBS, CPP_HOLONS_JOBS, etc.).
+	Jobs int32 `protobuf:"varint,4,opt,name=jobs,proto3" json:"jobs,omitempty"`
+	// force re-runs the compile even if the target tarball is already
+	// present in the work dir cache.
+	Force bool `protobuf:"varint,5,opt,name=force,proto3" json:"force,omitempty"`
+	// install_after_build = true (default) installs into $OPPATH/sdk.
+	// false leaves the tarball in dist/ for inspection.
+	InstallAfterBuild bool `protobuf:"varint,6,opt,name=install_after_build,json=installAfterBuild,proto3" json:"install_after_build,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *BuildSdkPrebuiltRequest) Reset() {
+	*x = BuildSdkPrebuiltRequest{}
+	mi := &file_api_v1_holon_proto_msgTypes[75]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BuildSdkPrebuiltRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BuildSdkPrebuiltRequest) ProtoMessage() {}
+
+func (x *BuildSdkPrebuiltRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_holon_proto_msgTypes[75]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BuildSdkPrebuiltRequest.ProtoReflect.Descriptor instead.
+func (*BuildSdkPrebuiltRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{75}
+}
+
+func (x *BuildSdkPrebuiltRequest) GetLang() string {
+	if x != nil {
+		return x.Lang
+	}
+	return ""
+}
+
+func (x *BuildSdkPrebuiltRequest) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *BuildSdkPrebuiltRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *BuildSdkPrebuiltRequest) GetJobs() int32 {
+	if x != nil {
+		return x.Jobs
+	}
+	return 0
+}
+
+func (x *BuildSdkPrebuiltRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
+}
+
+func (x *BuildSdkPrebuiltRequest) GetInstallAfterBuild() bool {
+	if x != nil {
+		return x.InstallAfterBuild
 	}
 	return false
 }
@@ -5208,7 +5319,7 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x04root\x18\x03 \x01(\tR\x04root\x12 \n" +
 	"\vinitialized\x18\x04 \x01(\bR\vinitialized\x12\x14\n" +
 	"\x05shell\x18\x05 \x01(\tR\x05shell\x12\x1b\n" +
-	"\tcache_dir\x18\x06 \x01(\tR\bcacheDir\"\xe5\x01\n" +
+	"\tcache_dir\x18\x06 \x01(\tR\bcacheDir\"\x81\x02\n" +
 	"\vSdkPrebuilt\x12\x12\n" +
 	"\x04lang\x18\x01 \x01(\tR\x04lang\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x16\n" +
@@ -5218,16 +5329,20 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x0earchive_sha256\x18\x06 \x01(\tR\rarchiveSha256\x12\x1f\n" +
 	"\vtree_sha256\x18\a \x01(\tR\n" +
 	"treeSha256\x12\x1c\n" +
-	"\tinstalled\x18\b \x01(\bR\tinstalled\"y\n" +
+	"\tinstalled\x18\b \x01(\bR\tinstalled\x12\x1a\n" +
+	"\bblockers\x18\t \x03(\tR\bblockers\"y\n" +
 	"\x19InstallSdkPrebuiltRequest\x12\x12\n" +
 	"\x04lang\x18\x01 \x01(\tR\x04lang\x12\x16\n" +
 	"\x06target\x18\x02 \x01(\tR\x06target\x12\x18\n" +
 	"\aversion\x18\x03 \x01(\tR\aversion\x12\x16\n" +
-	"\x06source\x18\x04 \x01(\tR\x06source\"i\n" +
+	"\x06source\x18\x04 \x01(\tR\x06source\"\x89\x01\n" +
 	"\x17ListSdkPrebuiltsRequest\x12\x1c\n" +
 	"\tinstalled\x18\x01 \x01(\bR\tinstalled\x12\x1c\n" +
 	"\tavailable\x18\x02 \x01(\bR\tavailable\x12\x12\n" +
-	"\x04lang\x18\x03 \x01(\tR\x04lang\"^\n" +
+	"\x04lang\x18\x03 \x01(\tR\x04lang\x12\x1e\n" +
+	"\n" +
+	"compilable\x18\x04 \x01(\bR\n" +
+	"compilable\"^\n" +
 	"\x18ListSdkPrebuiltsResponse\x12,\n" +
 	"\aentries\x18\x01 \x03(\v2\x12.op.v1.SdkPrebuiltR\aentries\x12\x14\n" +
 	"\x05notes\x18\x02 \x03(\tR\x05notes\"c\n" +
@@ -5246,7 +5361,14 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x13SdkPrebuiltResponse\x12.\n" +
 	"\bprebuilt\x18\x01 \x01(\v2\x12.op.v1.SdkPrebuiltR\bprebuilt\x12\x14\n" +
 	"\x05notes\x18\x02 \x03(\tR\x05notes\x12\x1a\n" +
-	"\bverified\x18\x03 \x01(\bR\bverified*\xc6\x01\n" +
+	"\bverified\x18\x03 \x01(\bR\bverified\"\xb9\x01\n" +
+	"\x17BuildSdkPrebuiltRequest\x12\x12\n" +
+	"\x04lang\x18\x01 \x01(\tR\x04lang\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\tR\x06target\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12\x12\n" +
+	"\x04jobs\x18\x04 \x01(\x05R\x04jobs\x12\x14\n" +
+	"\x05force\x18\x05 \x01(\bR\x05force\x12.\n" +
+	"\x13install_after_build\x18\x06 \x01(\bR\x11installAfterBuild*\xc6\x01\n" +
 	"\x05Clade\x12\x15\n" +
 	"\x11CLADE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12DETERMINISTIC_PURE\x10\x01\x12\x1a\n" +
@@ -5270,7 +5392,7 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x06STABLE\x10\x02\x12\x0e\n" +
 	"\n" +
 	"DEPRECATED\x10\x03\x12\b\n" +
-	"\x04DEAD\x10\x042\xb9\x10\n" +
+	"\x04DEAD\x10\x042\x89\x11\n" +
 	"\tOPService\x12;\n" +
 	"\bDiscover\x12\x16.op.v1.DiscoverRequest\x1a\x17.op.v1.DiscoverResponse\x125\n" +
 	"\x06Invoke\x12\x14.op.v1.InvokeRequest\x1a\x15.op.v1.InvokeResponse\x12M\n" +
@@ -5303,18 +5425,23 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x10ListSdkPrebuilts\x12\x1e.op.v1.ListSdkPrebuiltsRequest\x1a\x1f.op.v1.ListSdkPrebuiltsResponse\x12V\n" +
 	"\x14UninstallSdkPrebuilt\x12\".op.v1.UninstallSdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponse\x12P\n" +
 	"\x11VerifySdkPrebuilt\x12\x1f.op.v1.VerifySdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponse\x12P\n" +
-	"\x11LocateSdkPrebuilt\x12\x1f.op.v1.LocateSdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponseB\xaa\x15\x82\xb5\x18\xea\x14\n" +
+	"\x11LocateSdkPrebuilt\x12\x1f.op.v1.LocateSdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponse\x12N\n" +
+	"\x10BuildSdkPrebuilt\x12\x1e.op.v1.BuildSdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponseB\x87\x16\x82\xb5\x18\xc7\x15\n" +
 	"\x80\x01\n" +
 	"\bholon/v1\x12$28f22ab5-c62d-41f8-9ada-e34333060ff9\x1a\x05Grace\"\x02OP*\x19One command, every holon.2\bB. ALTERB\x05draftJ\n" +
-	"2026-02-12R\a0.5.716Z\x02op\x1a\xa5\x02OP is the unified entry point to the Organic Programming ecosystem. It discovers holons — locally or over the network — and dispatches commands to them through a single interface. The actant installs one binary and gets access to every holon. OP does not implement domain logic. It routes.\"\x02go*\x84\x03\n" +
+	"2026-02-12R\a0.5.717Z\x02op\x1a\xa5\x02OP is the unified entry point to the Organic Programming ecosystem. It discovers holons — locally or over the network — and dispatches commands to them through a single interface. The actant installs one binary and gets access to every holon. OP does not implement domain logic. It routes.\"\x02go*\x84\x03\n" +
 	"\x12discover-and-build\x12=Discover a holon, inspect its contract, and build it locally.\x1aQUser wants to find a holon in the workspace and turn it into a runnable artifact.\"7Discover local holons with `op list .` or `op discover`\".Inspect the contract with `op inspect <holon>`\".Validate prerequisites with `op check <holon>`\"CBuild and install with `op build <holon>` then `op install <holon>`*\xc0\x03\n" +
 	"\x0efull-lifecycle\x12@Drive a holon through validation, build, test, run, and cleanup.\x1aLUser wants the complete Organic Programming lifecycle for a holon or recipe.\"9Validate manifest and environment with `op check <holon>`\"IBuild and test the artifact with `op build <holon>` and `op test <holon>`\"BLaunch or dispatch with `op run <holon>` or `op <holon> <command>`\"TClean and uninstall when finished with `op clean <holon>` and `op uninstall <holon>`*\xcb\x02\n" +
 	"\x10introspect-holon\x12;Inspect a holon's RPC contract, fields, and skills offline.\x1a:User wants to understand a holon's API without running it.\"6Run `op inspect <holon>` for human-readable proto docs\";Use `op inspect <holon> --json` for machine-readable output\"IFallback to `op inspect <host:port>` for a running holon via Describe RPC*\xa4\x02\n" +
 	"\rexpose-to-llm\x122Expose any holon as MCP tools for LLM integration.\x1a*User wants an AI agent to call holon RPCs.\"*Start the MCP bridge with `op mcp <holon>`\"BOr export tool definitions with `op tools <holon> --format openai`\"CSkills from the manifest are exposed as MCP prompts alongside tools*\xa0\x02\n" +
-	"\x13manage-dependencies\x12*Manage holon dependencies like Go modules.\x1a/User needs to add, update, or audit holon deps.\"*Initialize with `op mod init <holon-path>`\"5Add dependencies with `op mod add <module> [version]`\"\"Tidy and verify with `op mod tidy`\"%Inspect the graph with `op mod graph`2\x93\x03\n" +
-	"\x12api/v1/holon.proto\x12\x0fop.v1.OPService\x1a\bDiscover\x1a\x06Invoke\x1a\x0eCreateIdentity\x1a\x0eListIdentities\x1a\fShowIdentity\x1a\rListTemplates\x1a\x10GenerateTemplate\x1a\aVersion\x1a\x05Check\x1a\x05Build\x1a\x04Test\x1a\x05Clean\x1a\aInstall\x1a\tUninstall\x1a\x03Run\x1a\aInspect\x1a\vRunSequence\x1a\aModInit\x1a\x06ModAdd\x1a\tModRemove\x1a\aModTidy\x1a\aModPull\x1a\tModUpdate\x1a\aModList\x1a\bModGraph\x1a\x05Tools\x1a\x03Env\x1a\x12InstallSdkPrebuilt\x1a\x10ListSdkPrebuilts\x1a\x14UninstallSdkPrebuilt\x1a\x11VerifySdkPrebuilt\x1a\x11LocateSdkPrebuilt:\x06nativeR%\n" +
-	"\tgo-module\x12\b./cmd/op2\x0eapi/version.goZ\f\n" +
-	"\x02go\x12\x06go.modj\x04\n" +
+	"\x13manage-dependencies\x12*Manage holon dependencies like Go modules.\x1a/User needs to add, update, or audit holon deps.\"*Initialize with `op mod init <holon-path>`\"5Add dependencies with `op mod add <module> [version]`\"\"Tidy and verify with `op mod tidy`\"%Inspect the graph with `op mod graph`2\xa5\x03\n" +
+	"\x12api/v1/holon.proto\x12\x0fop.v1.OPService\x1a\bDiscover\x1a\x06Invoke\x1a\x0eCreateIdentity\x1a\x0eListIdentities\x1a\fShowIdentity\x1a\rListTemplates\x1a\x10GenerateTemplate\x1a\aVersion\x1a\x05Check\x1a\x05Build\x1a\x04Test\x1a\x05Clean\x1a\aInstall\x1a\tUninstall\x1a\x03Run\x1a\aInspect\x1a\vRunSequence\x1a\aModInit\x1a\x06ModAdd\x1a\tModRemove\x1a\aModTidy\x1a\aModPull\x1a\tModUpdate\x1a\aModList\x1a\bModGraph\x1a\x05Tools\x1a\x03Env\x1a\x12InstallSdkPrebuilt\x1a\x10ListSdkPrebuilts\x1a\x14UninstallSdkPrebuilt\x1a\x11VerifySdkPrebuilt\x1a\x11LocateSdkPrebuilt\x1a\x10BuildSdkPrebuilt:\x06nativeRE\n" +
+	"\tgo-module\x12\b./cmd/op2\x0eapi/version.go:\x1e\n" +
+	"\x01.\x12\x02go\x12\x03run\x12\x10./tools/generateZ7\n" +
+	"\x02go\n" +
+	"\x06protoc\n" +
+	"\rprotoc-gen-go\n" +
+	"\x12protoc-gen-go-grpc\x12\x06go.modj\x04\n" +
 	"\x02opZ9github.com/organic-programming/grace-op/gen/go/op/v1;opv1b\x06proto3"
 
 var (
@@ -5330,7 +5457,7 @@ func file_api_v1_holon_proto_rawDescGZIP() []byte {
 }
 
 var file_api_v1_holon_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_api_v1_holon_proto_msgTypes = make([]protoimpl.MessageInfo, 78)
+var file_api_v1_holon_proto_msgTypes = make([]protoimpl.MessageInfo, 79)
 var file_api_v1_holon_proto_goTypes = []any{
 	(Clade)(0),                          // 0: op.v1.Clade
 	(ReproductionMode)(0),               // 1: op.v1.ReproductionMode
@@ -5410,9 +5537,10 @@ var file_api_v1_holon_proto_goTypes = []any{
 	(*VerifySdkPrebuiltRequest)(nil),    // 75: op.v1.VerifySdkPrebuiltRequest
 	(*LocateSdkPrebuiltRequest)(nil),    // 76: op.v1.LocateSdkPrebuiltRequest
 	(*SdkPrebuiltResponse)(nil),         // 77: op.v1.SdkPrebuiltResponse
-	nil,                                 // 78: op.v1.GenerateTemplateRequest.OverridesEntry
-	nil,                                 // 79: op.v1.RunSequenceRequest.ParamsEntry
-	nil,                                 // 80: op.v1.SequenceResult.ParamsEntry
+	(*BuildSdkPrebuiltRequest)(nil),     // 78: op.v1.BuildSdkPrebuiltRequest
+	nil,                                 // 79: op.v1.GenerateTemplateRequest.OverridesEntry
+	nil,                                 // 80: op.v1.RunSequenceRequest.ParamsEntry
+	nil,                                 // 81: op.v1.SequenceResult.ParamsEntry
 }
 var file_api_v1_holon_proto_depIdxs = []int32{
 	0,  // 0: op.v1.HolonIdentity.clade:type_name -> op.v1.Clade
@@ -5428,7 +5556,7 @@ var file_api_v1_holon_proto_depIdxs = []int32{
 	6,  // 10: op.v1.ListIdentitiesResponse.entries:type_name -> op.v1.HolonEntry
 	16, // 11: op.v1.TemplateEntry.params:type_name -> op.v1.TemplateParam
 	17, // 12: op.v1.ListTemplatesResponse.entries:type_name -> op.v1.TemplateEntry
-	78, // 13: op.v1.GenerateTemplateRequest.overrides:type_name -> op.v1.GenerateTemplateRequest.OverridesEntry
+	79, // 13: op.v1.GenerateTemplateRequest.overrides:type_name -> op.v1.GenerateTemplateRequest.OverridesEntry
 	23, // 14: op.v1.LifecycleRequest.build:type_name -> op.v1.BuildOptions
 	25, // 15: op.v1.LifecycleReport.children:type_name -> op.v1.LifecycleReport
 	25, // 16: op.v1.LifecycleResponse.report:type_name -> op.v1.LifecycleReport
@@ -5443,8 +5571,8 @@ var file_api_v1_holon_proto_depIdxs = []int32{
 	38, // 25: op.v1.InspectDocument.skills:type_name -> op.v1.InspectSkill
 	40, // 26: op.v1.InspectDocument.sequences:type_name -> op.v1.InspectSequence
 	41, // 27: op.v1.InspectResponse.document:type_name -> op.v1.InspectDocument
-	79, // 28: op.v1.RunSequenceRequest.params:type_name -> op.v1.RunSequenceRequest.ParamsEntry
-	80, // 29: op.v1.SequenceResult.params:type_name -> op.v1.SequenceResult.ParamsEntry
+	80, // 28: op.v1.RunSequenceRequest.params:type_name -> op.v1.RunSequenceRequest.ParamsEntry
+	81, // 29: op.v1.SequenceResult.params:type_name -> op.v1.SequenceResult.ParamsEntry
 	44, // 30: op.v1.SequenceResult.steps:type_name -> op.v1.SequenceStepResult
 	45, // 31: op.v1.RunSequenceResponse.result:type_name -> op.v1.SequenceResult
 	47, // 32: op.v1.ModAddResponse.dependency:type_name -> op.v1.Dependency
@@ -5487,40 +5615,42 @@ var file_api_v1_holon_proto_depIdxs = []int32{
 	74, // 69: op.v1.OPService.UninstallSdkPrebuilt:input_type -> op.v1.UninstallSdkPrebuiltRequest
 	75, // 70: op.v1.OPService.VerifySdkPrebuilt:input_type -> op.v1.VerifySdkPrebuiltRequest
 	76, // 71: op.v1.OPService.LocateSdkPrebuilt:input_type -> op.v1.LocateSdkPrebuiltRequest
-	5,  // 72: op.v1.OPService.Discover:output_type -> op.v1.DiscoverResponse
-	8,  // 73: op.v1.OPService.Invoke:output_type -> op.v1.InvokeResponse
-	10, // 74: op.v1.OPService.CreateIdentity:output_type -> op.v1.CreateIdentityResponse
-	14, // 75: op.v1.OPService.ListIdentities:output_type -> op.v1.ListIdentitiesResponse
-	12, // 76: op.v1.OPService.ShowIdentity:output_type -> op.v1.ShowIdentityResponse
-	18, // 77: op.v1.OPService.ListTemplates:output_type -> op.v1.ListTemplatesResponse
-	20, // 78: op.v1.OPService.GenerateTemplate:output_type -> op.v1.GenerateTemplateResponse
-	22, // 79: op.v1.OPService.Version:output_type -> op.v1.VersionResponse
-	26, // 80: op.v1.OPService.Check:output_type -> op.v1.LifecycleResponse
-	26, // 81: op.v1.OPService.Build:output_type -> op.v1.LifecycleResponse
-	26, // 82: op.v1.OPService.Test:output_type -> op.v1.LifecycleResponse
-	26, // 83: op.v1.OPService.Clean:output_type -> op.v1.LifecycleResponse
-	30, // 84: op.v1.OPService.Install:output_type -> op.v1.InstallResponse
-	30, // 85: op.v1.OPService.Uninstall:output_type -> op.v1.InstallResponse
-	32, // 86: op.v1.OPService.Run:output_type -> op.v1.RunResponse
-	42, // 87: op.v1.OPService.Inspect:output_type -> op.v1.InspectResponse
-	46, // 88: op.v1.OPService.RunSequence:output_type -> op.v1.RunSequenceResponse
-	51, // 89: op.v1.OPService.ModInit:output_type -> op.v1.ModInitResponse
-	53, // 90: op.v1.OPService.ModAdd:output_type -> op.v1.ModAddResponse
-	55, // 91: op.v1.OPService.ModRemove:output_type -> op.v1.ModRemoveResponse
-	57, // 92: op.v1.OPService.ModTidy:output_type -> op.v1.ModTidyResponse
-	59, // 93: op.v1.OPService.ModPull:output_type -> op.v1.ModPullResponse
-	61, // 94: op.v1.OPService.ModUpdate:output_type -> op.v1.ModUpdateResponse
-	63, // 95: op.v1.OPService.ModList:output_type -> op.v1.ModListResponse
-	65, // 96: op.v1.OPService.ModGraph:output_type -> op.v1.ModGraphResponse
-	67, // 97: op.v1.OPService.Tools:output_type -> op.v1.ToolsResponse
-	69, // 98: op.v1.OPService.Env:output_type -> op.v1.EnvResponse
-	77, // 99: op.v1.OPService.InstallSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
-	73, // 100: op.v1.OPService.ListSdkPrebuilts:output_type -> op.v1.ListSdkPrebuiltsResponse
-	77, // 101: op.v1.OPService.UninstallSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
-	77, // 102: op.v1.OPService.VerifySdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
-	77, // 103: op.v1.OPService.LocateSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
-	72, // [72:104] is the sub-list for method output_type
-	40, // [40:72] is the sub-list for method input_type
+	78, // 72: op.v1.OPService.BuildSdkPrebuilt:input_type -> op.v1.BuildSdkPrebuiltRequest
+	5,  // 73: op.v1.OPService.Discover:output_type -> op.v1.DiscoverResponse
+	8,  // 74: op.v1.OPService.Invoke:output_type -> op.v1.InvokeResponse
+	10, // 75: op.v1.OPService.CreateIdentity:output_type -> op.v1.CreateIdentityResponse
+	14, // 76: op.v1.OPService.ListIdentities:output_type -> op.v1.ListIdentitiesResponse
+	12, // 77: op.v1.OPService.ShowIdentity:output_type -> op.v1.ShowIdentityResponse
+	18, // 78: op.v1.OPService.ListTemplates:output_type -> op.v1.ListTemplatesResponse
+	20, // 79: op.v1.OPService.GenerateTemplate:output_type -> op.v1.GenerateTemplateResponse
+	22, // 80: op.v1.OPService.Version:output_type -> op.v1.VersionResponse
+	26, // 81: op.v1.OPService.Check:output_type -> op.v1.LifecycleResponse
+	26, // 82: op.v1.OPService.Build:output_type -> op.v1.LifecycleResponse
+	26, // 83: op.v1.OPService.Test:output_type -> op.v1.LifecycleResponse
+	26, // 84: op.v1.OPService.Clean:output_type -> op.v1.LifecycleResponse
+	30, // 85: op.v1.OPService.Install:output_type -> op.v1.InstallResponse
+	30, // 86: op.v1.OPService.Uninstall:output_type -> op.v1.InstallResponse
+	32, // 87: op.v1.OPService.Run:output_type -> op.v1.RunResponse
+	42, // 88: op.v1.OPService.Inspect:output_type -> op.v1.InspectResponse
+	46, // 89: op.v1.OPService.RunSequence:output_type -> op.v1.RunSequenceResponse
+	51, // 90: op.v1.OPService.ModInit:output_type -> op.v1.ModInitResponse
+	53, // 91: op.v1.OPService.ModAdd:output_type -> op.v1.ModAddResponse
+	55, // 92: op.v1.OPService.ModRemove:output_type -> op.v1.ModRemoveResponse
+	57, // 93: op.v1.OPService.ModTidy:output_type -> op.v1.ModTidyResponse
+	59, // 94: op.v1.OPService.ModPull:output_type -> op.v1.ModPullResponse
+	61, // 95: op.v1.OPService.ModUpdate:output_type -> op.v1.ModUpdateResponse
+	63, // 96: op.v1.OPService.ModList:output_type -> op.v1.ModListResponse
+	65, // 97: op.v1.OPService.ModGraph:output_type -> op.v1.ModGraphResponse
+	67, // 98: op.v1.OPService.Tools:output_type -> op.v1.ToolsResponse
+	69, // 99: op.v1.OPService.Env:output_type -> op.v1.EnvResponse
+	77, // 100: op.v1.OPService.InstallSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
+	73, // 101: op.v1.OPService.ListSdkPrebuilts:output_type -> op.v1.ListSdkPrebuiltsResponse
+	77, // 102: op.v1.OPService.UninstallSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
+	77, // 103: op.v1.OPService.VerifySdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
+	77, // 104: op.v1.OPService.LocateSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
+	77, // 105: op.v1.OPService.BuildSdkPrebuilt:output_type -> op.v1.SdkPrebuiltResponse
+	73, // [73:106] is the sub-list for method output_type
+	40, // [40:73] is the sub-list for method input_type
 	40, // [40:40] is the sub-list for extension type_name
 	40, // [40:40] is the sub-list for extension extendee
 	0,  // [0:40] is the sub-list for field type_name
@@ -5537,7 +5667,7 @@ func file_api_v1_holon_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_holon_proto_rawDesc), len(file_api_v1_holon_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   78,
+			NumMessages:   79,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -276,6 +276,17 @@ fn configureModule(
     }
     mod.linkSystemLibrary("c++", .{ .use_pkg_config = .no });
     if (target.result.os.tag == .macos) {
+        // Zig does not auto-discover the macOS SDK paths the way real clang
+        // does from -isysroot. Honour SDKROOT (set by xcrun, or by the build
+        // script via `SDKROOT=$(xcrun --show-sdk-path)`) so libresolv and
+        // CoreFoundation resolve at link time.
+        if (b.graph.environ_map.get("SDKROOT")) |sdk| {
+            const trimmed = std.mem.trim(u8, sdk, " \t\r\n");
+            if (trimmed.len > 0) {
+                mod.addFrameworkPath(.{ .cwd_relative = b.pathJoin(&.{ trimmed, "System", "Library", "Frameworks" }) });
+                mod.addLibraryPath(.{ .cwd_relative = b.pathJoin(&.{ trimmed, "usr", "lib" }) });
+            }
+        }
         mod.linkFramework("CoreFoundation", .{});
     }
     return mod;

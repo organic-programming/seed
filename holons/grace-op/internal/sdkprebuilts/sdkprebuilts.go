@@ -48,15 +48,27 @@ var allowedTargets = map[string]struct{}{
 	"x86_64-pc-windows-msvc":     {},
 }
 
+// suspendedPrebuilts marks specific (lang, target) pairs as temporarily
+// unsupported. Different from allowedTargets, which is system-wide.
+// Build() rejects these with a clear error; ListCompilable() reports them
+// as blockers. To re-enable, remove the entry AND verify the build script
+// case is valid for that target.
+var suspendedPrebuilts = map[string]map[string]string{
+	"ruby": {
+		"x86_64-apple-darwin": "ruby SDK macOS Intel build is suspended pending toolchain fix",
+	},
+}
+
 type Prebuilt struct {
-	Lang          string `json:"lang"`
-	Version       string `json:"version"`
-	Target        string `json:"target"`
-	Path          string `json:"path"`
-	Source        string `json:"source,omitempty"`
-	ArchiveSHA256 string `json:"archive_sha256,omitempty"`
-	TreeSHA256    string `json:"tree_sha256,omitempty"`
-	Installed     bool   `json:"installed"`
+	Lang          string   `json:"lang"`
+	Version       string   `json:"version"`
+	Target        string   `json:"target"`
+	Path          string   `json:"path"`
+	Source        string   `json:"source,omitempty"`
+	ArchiveSHA256 string   `json:"archive_sha256,omitempty"`
+	TreeSHA256    string   `json:"tree_sha256,omitempty"`
+	Installed     bool     `json:"installed"`
+	Blockers      []string `json:"blockers,omitempty"`
 }
 
 type InstallOptions struct {
@@ -622,6 +634,25 @@ func Verify(opts QueryOptions) (Prebuilt, bool, error) {
 
 func SDKRoot() string {
 	return filepath.Join(openv.OPPATH(), "sdk")
+}
+
+// AllowedTargets returns the supported target triplets in deterministic order.
+// Used by CLI completion and any caller that needs to enumerate targets.
+func AllowedTargets() []string {
+	out := make([]string, 0, len(allowedTargets))
+	for t := range allowedTargets {
+		out = append(out, t)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// DefaultVersion returns the pinned default version for a SDK lang and ok=true,
+// or "" and ok=false for unknown langs. Caller should NormalizeLang first if
+// the input may be uppercase or untrusted.
+func DefaultVersion(lang string) (string, bool) {
+	v, ok := defaultVersions[strings.ToLower(strings.TrimSpace(lang))]
+	return v, ok
 }
 
 func InstallPath(lang, version, target string) string {

@@ -42,6 +42,7 @@ type Handler interface {
 	UninstallSdkPrebuilt(context.Context, *opv1.UninstallSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error)
 	VerifySdkPrebuilt(context.Context, *opv1.VerifySdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error)
 	LocateSdkPrebuilt(context.Context, *opv1.LocateSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error)
+	BuildSdkPrebuilt(context.Context, *opv1.BuildSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error)
 }
 
 type Server struct {
@@ -179,6 +180,10 @@ func (s *Server) VerifySdkPrebuilt(ctx context.Context, req *opv1.VerifySdkPrebu
 
 func (s *Server) LocateSdkPrebuilt(ctx context.Context, req *opv1.LocateSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
 	return s.handler.LocateSdkPrebuilt(ctx, req)
+}
+
+func (s *Server) BuildSdkPrebuilt(ctx context.Context, req *opv1.BuildSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
+	return s.handler.BuildSdkPrebuilt(ctx, req)
 }
 
 func Register(s *grpc.Server, handler Handler) {
