@@ -81,7 +81,7 @@ These ideas are not theoretical
 
 [SwiftUI Organism](./examples/hello-world/gabriel-greeting-app-swiftui/) — composite organism: recipe-driven build, COAX interaction, and native macOS host UI.
 
-![Gabriel Greeting App SwiftUI greets Mary](./assets/images/gabriel-greeting-app-swiftui-mary.png
+![Gabriel Greeting App SwiftUI greets Mary](./assets/images/gabriel-greeting-app-swiftui-mary.png)
 
 
 
@@ -100,6 +100,7 @@ in every supported language:
 - [Ruby](./examples/hello-world/gabriel-greeting-ruby/)
 - [Rust](./examples/hello-world/gabriel-greeting-rust/)
 - [Swift](./examples/hello-world/gabriel-greeting-swift/)
+- [Zig](./examples/hello-world/gabriel-greeting-zig/)
 
 
 SDKs and toolchain:
