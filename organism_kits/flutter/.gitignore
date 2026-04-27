@@ -1,0 +1,23 @@
+# Flutter / Dart build artifacts
+.dart_tool/
+.flutter-plugins-dependencies
+.flutter-plugins
+.packages
+.pub-cache/
+build/
+ephemeral/
+
+# Per CLAUDE.md rule #8 — no lock files committed
+pubspec.lock
+
+# Native plugin caches
+linux/flutter/ephemeral/
+macos/Flutter/ephemeral/
+windows/flutter/ephemeral/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# Test outputs
+test/.test_coverage.dart
+test/coverage/

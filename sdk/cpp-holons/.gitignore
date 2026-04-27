@@ -1,17 +1,28 @@
-test_runner
-build/
+# Prebuilts vendored builds
 .cpp-prebuilt/
+.cpp-vendor/
+build/
+build-cmake/
+cmake-build*/
+out/
 
-bin/
-
+# Compile artifacts
 *.o
-
 *.a
-
 *.so
-
 *.dylib
+*.dll
+*.exe
+*.pdb
 
-*.obj
+# CMake working state
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
 
-*.lib
+# macOS debug bundles
+*.dSYM/
+
+# Generated descriptor outputs not consumed
+*_descriptor.bin
