@@ -177,7 +177,32 @@ exec "${zig_bin}" rc /:target "${cmake_processor}" "\${args[@]}" -- "\$input" "\
 EOF
 chmod +x "${toolchain_dir}/zigcc" "${toolchain_dir}/zigcxx" "${toolchain_dir}/zigar" "${toolchain_dir}/zigranlib" "${toolchain_dir}/zigrc"
 
-cat >"${toolchain_dir}/${sdk_target}.cmake" <<EOF
+if [[ "$cmake_system" == Darwin ]]; then
+  darwin_sdkroot="$(xcrun --sdk macosx --show-sdk-path)"
+  darwin_cc="$(xcrun --sdk macosx --find clang)"
+  darwin_cxx="$(xcrun --sdk macosx --find clang++)"
+  darwin_ar="$(xcrun --sdk macosx --find ar)"
+  darwin_ranlib="$(xcrun --sdk macosx --find ranlib)"
+  cat >"${toolchain_dir}/${sdk_target}.cmake" <<EOF
+set(CMAKE_SYSTEM_NAME Darwin)
+set(CMAKE_SYSTEM_PROCESSOR ${cmake_processor})
+set(CMAKE_C_COMPILER "${darwin_cc}")
+set(CMAKE_CXX_COMPILER "${darwin_cxx}")
+set(CMAKE_AR "${darwin_ar}")
+set(CMAKE_RANLIB "${darwin_ranlib}")
+set(CMAKE_OSX_SYSROOT "${darwin_sdkroot}")
+set(CMAKE_OSX_ARCHITECTURES "${cmake_processor}")
+set(CMAKE_OSX_DEPLOYMENT_TARGET "${MACOSX_DEPLOYMENT_TARGET:-13.0}")
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+set(CMAKE_CROSSCOMPILING TRUE)
+set(CMAKE_FIND_ROOT_PATH "${prefix}")
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+EOF
+else
+  cat >"${toolchain_dir}/${sdk_target}.cmake" <<EOF
 set(CMAKE_SYSTEM_NAME ${cmake_system})
 set(CMAKE_SYSTEM_PROCESSOR ${cmake_processor})
 set(CMAKE_C_COMPILER "${toolchain_dir}/zigcc")
@@ -193,6 +218,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 EOF
+fi
 
 grpc_flags=(
   -G Ninja
