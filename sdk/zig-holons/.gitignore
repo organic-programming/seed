@@ -1,6 +1,7 @@
 .zig-cache/
 .zig-cross/
 .zig-vendor/
+.zig-prebuilt/
 zig-out/
 build/
 *.o
