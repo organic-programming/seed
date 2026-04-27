@@ -125,11 +125,12 @@ type RecipeTarget struct {
 // RecipeStep is one step in a recipe build plan.
 // Exactly one field should be set.
 type RecipeStep struct {
-	BuildMember  string
-	Exec         *RecipeStepExec
-	Copy         *RecipeStepCopy
-	AssertFile   *RecipeStepFile
-	CopyArtifact *RecipeStepCopyArtifact
+	BuildMember   string
+	Exec          *RecipeStepExec
+	Copy          *RecipeStepCopy
+	AssertFile    *RecipeStepFile
+	CopyArtifact  *RecipeStepCopyArtifact
+	CopyAllHolons *RecipeStepCopyAllHolons
 }
 
 // RecipeStepExec runs a command with an explicit argv and working directory.
@@ -152,6 +153,10 @@ type RecipeStepFile struct {
 type RecipeStepCopyArtifact struct {
 	From string
 	To   string
+}
+
+type RecipeStepCopyAllHolons struct {
+	To string
 }
 
 type Requires struct {
@@ -384,6 +389,11 @@ func manifestBuildFromResolved(resolved *identity.Resolved) BuildConfig {
 					recipeStep.CopyArtifact = &RecipeStepCopyArtifact{
 						From: strings.TrimSpace(step.CopyArtifact.From),
 						To:   strings.TrimSpace(step.CopyArtifact.To),
+					}
+				}
+				if step.CopyAllHolons != nil {
+					recipeStep.CopyAllHolons = &RecipeStepCopyAllHolons{
+						To: strings.TrimSpace(step.CopyAllHolons.To),
 					}
 				}
 				steps = append(steps, recipeStep)
@@ -708,6 +718,11 @@ func validateRecipe(m *LoadedManifest) error {
 					return err
 				}
 			}
+			if step.CopyAllHolons != nil {
+				if err := validateManifestRelativeField(m, fmt.Sprintf("build.targets[%q].steps[%d].copy_all_holons.to", targetName, i+1), step.CopyAllHolons.To); err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -867,6 +882,9 @@ func (s RecipeStep) actionCount() int {
 		count++
 	}
 	if s.CopyArtifact != nil {
+		count++
+	}
+	if s.CopyAllHolons != nil {
 		count++
 	}
 	return count

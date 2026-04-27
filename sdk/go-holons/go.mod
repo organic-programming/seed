@@ -1,6 +1,6 @@
 module github.com/organic-programming/go-holons
 
-go 1.24.0
+go 1.24
 
 require (
 	github.com/jhump/protoreflect v1.18.0

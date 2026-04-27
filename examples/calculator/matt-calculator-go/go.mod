@@ -1,6 +1,6 @@
 module matt-calculator-go
 
-go 1.25.1
+go 1.24
 
 require (
 	github.com/organic-programming/go-holons v0.2.0

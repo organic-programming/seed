@@ -734,6 +734,7 @@ type HolonManifest_Step struct {
 	//	*HolonManifest_Step_BuildMember
 	//	*HolonManifest_Step_AssertFile_
 	//	*HolonManifest_Step_CopyArtifact_
+	//	*HolonManifest_Step_CopyAllHolons_
 	Action        isHolonManifest_Step_Action `protobuf_oneof:"action"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -821,6 +822,15 @@ func (x *HolonManifest_Step) GetCopyArtifact() *HolonManifest_Step_CopyArtifact 
 	return nil
 }
 
+func (x *HolonManifest_Step) GetCopyAllHolons() *HolonManifest_Step_CopyAllHolons {
+	if x != nil {
+		if x, ok := x.Action.(*HolonManifest_Step_CopyAllHolons_); ok {
+			return x.CopyAllHolons
+		}
+	}
+	return nil
+}
+
 type isHolonManifest_Step_Action interface {
 	isHolonManifest_Step_Action()
 }
@@ -845,6 +855,10 @@ type HolonManifest_Step_CopyArtifact_ struct {
 	CopyArtifact *HolonManifest_Step_CopyArtifact `protobuf:"bytes,5,opt,name=copy_artifact,json=copyArtifact,proto3,oneof"`
 }
 
+type HolonManifest_Step_CopyAllHolons_ struct {
+	CopyAllHolons *HolonManifest_Step_CopyAllHolons `protobuf:"bytes,6,opt,name=copy_all_holons,json=copyAllHolons,proto3,oneof"`
+}
+
 func (*HolonManifest_Step_Exec_) isHolonManifest_Step_Action() {}
 
 func (*HolonManifest_Step_Copy_) isHolonManifest_Step_Action() {}
@@ -854,6 +868,8 @@ func (*HolonManifest_Step_BuildMember) isHolonManifest_Step_Action() {}
 func (*HolonManifest_Step_AssertFile_) isHolonManifest_Step_Action() {}
 
 func (*HolonManifest_Step_CopyArtifact_) isHolonManifest_Step_Action() {}
+
+func (*HolonManifest_Step_CopyAllHolons_) isHolonManifest_Step_Action() {}
 
 type HolonManifest_Requires struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1407,6 +1423,50 @@ func (x *HolonManifest_Step_CopyArtifact) GetTo() string {
 	return ""
 }
 
+type HolonManifest_Step_CopyAllHolons struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	To            string                 `protobuf:"bytes,1,opt,name=to,proto3" json:"to,omitempty"` // destination directory, manifest-relative
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HolonManifest_Step_CopyAllHolons) Reset() {
+	*x = HolonManifest_Step_CopyAllHolons{}
+	mi := &file_holons_v1_manifest_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HolonManifest_Step_CopyAllHolons) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HolonManifest_Step_CopyAllHolons) ProtoMessage() {}
+
+func (x *HolonManifest_Step_CopyAllHolons) ProtoReflect() protoreflect.Message {
+	mi := &file_holons_v1_manifest_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HolonManifest_Step_CopyAllHolons.ProtoReflect.Descriptor instead.
+func (*HolonManifest_Step_CopyAllHolons) Descriptor() ([]byte, []int) {
+	return file_holons_v1_manifest_proto_rawDescGZIP(), []int{0, 5, 4}
+}
+
+func (x *HolonManifest_Step_CopyAllHolons) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
 type HolonManifest_Artifacts_TargetArtifacts struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Debug         string                 `protobuf:"bytes,1,opt,name=debug,proto3" json:"debug,omitempty"`
@@ -1418,7 +1478,7 @@ type HolonManifest_Artifacts_TargetArtifacts struct {
 
 func (x *HolonManifest_Artifacts_TargetArtifacts) Reset() {
 	*x = HolonManifest_Artifacts_TargetArtifacts{}
-	mi := &file_holons_v1_manifest_proto_msgTypes[20]
+	mi := &file_holons_v1_manifest_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1430,7 +1490,7 @@ func (x *HolonManifest_Artifacts_TargetArtifacts) String() string {
 func (*HolonManifest_Artifacts_TargetArtifacts) ProtoMessage() {}
 
 func (x *HolonManifest_Artifacts_TargetArtifacts) ProtoReflect() protoreflect.Message {
-	mi := &file_holons_v1_manifest_proto_msgTypes[20]
+	mi := &file_holons_v1_manifest_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1488,7 +1548,7 @@ var File_holons_v1_manifest_proto protoreflect.FileDescriptor
 
 const file_holons_v1_manifest_proto_rawDesc = "" +
 	"\n" +
-	"\x18holons/v1/manifest.proto\x12\tholons.v1\x1a google/protobuf/descriptor.proto\"\xa9\x19\n" +
+	"\x18holons/v1/manifest.proto\x12\tholons.v1\x1a google/protobuf/descriptor.proto\"\xa1\x1a\n" +
 	"\rHolonManifest\x12=\n" +
 	"\bidentity\x18\x01 \x01(\v2!.holons.v1.HolonManifest.IdentityR\bidentity\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x12\n" +
@@ -1559,14 +1619,15 @@ const file_holons_v1_manifest_proto_rawDesc = "" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +
 	"\x04type\x18\x03 \x01(\tR\x04type\x1a=\n" +
 	"\x06Target\x123\n" +
-	"\x05steps\x18\x01 \x03(\v2\x1d.holons.v1.HolonManifest.StepR\x05steps\x1a\xf9\x03\n" +
+	"\x05steps\x18\x01 \x03(\v2\x1d.holons.v1.HolonManifest.StepR\x05steps\x1a\xf1\x04\n" +
 	"\x04Step\x128\n" +
 	"\x04exec\x18\x01 \x01(\v2\".holons.v1.HolonManifest.Step.ExecH\x00R\x04exec\x128\n" +
 	"\x04copy\x18\x02 \x01(\v2\".holons.v1.HolonManifest.Step.CopyH\x00R\x04copy\x12#\n" +
 	"\fbuild_member\x18\x03 \x01(\tH\x00R\vbuildMember\x12K\n" +
 	"\vassert_file\x18\x04 \x01(\v2(.holons.v1.HolonManifest.Step.AssertFileH\x00R\n" +
 	"assertFile\x12Q\n" +
-	"\rcopy_artifact\x18\x05 \x01(\v2*.holons.v1.HolonManifest.Step.CopyArtifactH\x00R\fcopyArtifact\x1a,\n" +
+	"\rcopy_artifact\x18\x05 \x01(\v2*.holons.v1.HolonManifest.Step.CopyArtifactH\x00R\fcopyArtifact\x12U\n" +
+	"\x0fcopy_all_holons\x18\x06 \x01(\v2+.holons.v1.HolonManifest.Step.CopyAllHolonsH\x00R\rcopyAllHolons\x1a,\n" +
 	"\x04Exec\x12\x10\n" +
 	"\x03cwd\x18\x01 \x01(\tR\x03cwd\x12\x12\n" +
 	"\x04argv\x18\x02 \x03(\tR\x04argv\x1a*\n" +
@@ -1578,7 +1639,9 @@ const file_holons_v1_manifest_proto_rawDesc = "" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x1a2\n" +
 	"\fCopyArtifact\x12\x12\n" +
 	"\x04from\x18\x01 \x01(\tR\x04from\x12\x0e\n" +
-	"\x02to\x18\x02 \x01(\tR\x02toB\b\n" +
+	"\x02to\x18\x02 \x01(\tR\x02to\x1a\x1f\n" +
+	"\rCopyAllHolons\x12\x0e\n" +
+	"\x02to\x18\x01 \x01(\tR\x02toB\b\n" +
 	"\x06action\x1a\x7f\n" +
 	"\bRequires\x12\x1a\n" +
 	"\bcommands\x18\x01 \x03(\tR\bcommands\x12\x14\n" +
@@ -1621,7 +1684,7 @@ func file_holons_v1_manifest_proto_rawDescGZIP() []byte {
 }
 
 var file_holons_v1_manifest_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_holons_v1_manifest_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_holons_v1_manifest_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_holons_v1_manifest_proto_goTypes = []any{
 	(ObservabilityVisibility)(0),                    // 0: holons.v1.ObservabilityVisibility
 	(*HolonManifest)(nil),                           // 1: holons.v1.HolonManifest
@@ -1643,9 +1706,10 @@ var file_holons_v1_manifest_proto_goTypes = []any{
 	(*HolonManifest_Step_Copy)(nil),                 // 17: holons.v1.HolonManifest.Step.Copy
 	(*HolonManifest_Step_AssertFile)(nil),           // 18: holons.v1.HolonManifest.Step.AssertFile
 	(*HolonManifest_Step_CopyArtifact)(nil),         // 19: holons.v1.HolonManifest.Step.CopyArtifact
-	nil,                                             // 20: holons.v1.HolonManifest.Artifacts.ByTargetEntry
-	(*HolonManifest_Artifacts_TargetArtifacts)(nil), // 21: holons.v1.HolonManifest.Artifacts.TargetArtifacts
-	(*descriptorpb.FileOptions)(nil),                // 22: google.protobuf.FileOptions
+	(*HolonManifest_Step_CopyAllHolons)(nil),        // 20: holons.v1.HolonManifest.Step.CopyAllHolons
+	nil,                                             // 21: holons.v1.HolonManifest.Artifacts.ByTargetEntry
+	(*HolonManifest_Artifacts_TargetArtifacts)(nil), // 22: holons.v1.HolonManifest.Artifacts.TargetArtifacts
+	(*descriptorpb.FileOptions)(nil),                // 23: google.protobuf.FileOptions
 }
 var file_holons_v1_manifest_proto_depIdxs = []int32{
 	3,  // 0: holons.v1.HolonManifest.identity:type_name -> holons.v1.HolonManifest.Identity
@@ -1668,17 +1732,18 @@ var file_holons_v1_manifest_proto_depIdxs = []int32{
 	17, // 17: holons.v1.HolonManifest.Step.copy:type_name -> holons.v1.HolonManifest.Step.Copy
 	18, // 18: holons.v1.HolonManifest.Step.assert_file:type_name -> holons.v1.HolonManifest.Step.AssertFile
 	19, // 19: holons.v1.HolonManifest.Step.copy_artifact:type_name -> holons.v1.HolonManifest.Step.CopyArtifact
-	20, // 20: holons.v1.HolonManifest.Artifacts.by_target:type_name -> holons.v1.HolonManifest.Artifacts.ByTargetEntry
-	15, // 21: holons.v1.HolonManifest.Build.TargetsEntry.value:type_name -> holons.v1.HolonManifest.Build.Target
-	8,  // 22: holons.v1.HolonManifest.Build.Target.steps:type_name -> holons.v1.HolonManifest.Step
-	21, // 23: holons.v1.HolonManifest.Artifacts.ByTargetEntry.value:type_name -> holons.v1.HolonManifest.Artifacts.TargetArtifacts
-	22, // 24: holons.v1.manifest:extendee -> google.protobuf.FileOptions
-	1,  // 25: holons.v1.manifest:type_name -> holons.v1.HolonManifest
-	26, // [26:26] is the sub-list for method output_type
-	26, // [26:26] is the sub-list for method input_type
-	25, // [25:26] is the sub-list for extension type_name
-	24, // [24:25] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	20, // 20: holons.v1.HolonManifest.Step.copy_all_holons:type_name -> holons.v1.HolonManifest.Step.CopyAllHolons
+	21, // 21: holons.v1.HolonManifest.Artifacts.by_target:type_name -> holons.v1.HolonManifest.Artifacts.ByTargetEntry
+	15, // 22: holons.v1.HolonManifest.Build.TargetsEntry.value:type_name -> holons.v1.HolonManifest.Build.Target
+	8,  // 23: holons.v1.HolonManifest.Build.Target.steps:type_name -> holons.v1.HolonManifest.Step
+	22, // 24: holons.v1.HolonManifest.Artifacts.ByTargetEntry.value:type_name -> holons.v1.HolonManifest.Artifacts.TargetArtifacts
+	23, // 25: holons.v1.manifest:extendee -> google.protobuf.FileOptions
+	1,  // 26: holons.v1.manifest:type_name -> holons.v1.HolonManifest
+	27, // [27:27] is the sub-list for method output_type
+	27, // [27:27] is the sub-list for method input_type
+	26, // [26:27] is the sub-list for extension type_name
+	25, // [25:26] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_holons_v1_manifest_proto_init() }
@@ -1692,6 +1757,7 @@ func file_holons_v1_manifest_proto_init() {
 		(*HolonManifest_Step_BuildMember)(nil),
 		(*HolonManifest_Step_AssertFile_)(nil),
 		(*HolonManifest_Step_CopyArtifact_)(nil),
+		(*HolonManifest_Step_CopyAllHolons_)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1699,7 +1765,7 @@ func file_holons_v1_manifest_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_holons_v1_manifest_proto_rawDesc), len(file_holons_v1_manifest_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   21,
+			NumMessages:   22,
 			NumExtensions: 1,
 			NumServices:   0,
 		},

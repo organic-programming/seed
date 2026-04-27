@@ -169,81 +169,8 @@ option (holons.v1.manifest) = {
           }
         }
         steps: {
-          copy_artifact: {
-            from: "greeting-go"
-            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-go.holon"
-          }
-        }
-        steps: {
-          copy_artifact: {
-            from: "greeting-swift"
-            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-swift.holon"
-          }
-        }
-        steps: {
-          copy_artifact: {
-            from: "greeting-rust"
-            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-rust.holon"
-          }
-        }
-        steps: {
-          copy_artifact: {
-            from: "greeting-zig"
-            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-zig.holon"
-          }
-        }
-        steps: {
-          copy_artifact: {
-            from: "greeting-python"
-            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-python.holon"
-          }
-        }
-        steps: {
-          copy_artifact: {
-            from: "greeting-c"
-            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-c.holon"
-          }
-        }
-        steps: {
-          copy_artifact: {
-            from: "greeting-cpp"
-            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-cpp.holon"
-          }
-        }
-        steps: {
-          copy_artifact: {
-            from: "greeting-csharp"
-            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-csharp.holon"
-          }
-        }
-        steps: {
-          copy_artifact: {
-            from: "greeting-dart"
-            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-dart.holon"
-          }
-        }
-        steps: {
-          copy_artifact: {
-            from: "greeting-java"
-            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-java.holon"
-          }
-        }
-        steps: {
-          copy_artifact: {
-            from: "greeting-kotlin"
-            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-kotlin.holon"
-          }
-        }
-        steps: {
-          copy_artifact: {
-            from: "greeting-node"
-            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-node.holon"
-          }
-        }
-        steps: {
-          copy_artifact: {
-            from: "greeting-ruby"
-            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons/gabriel-greeting-ruby.holon"
+          copy_all_holons: {
+            to: ".op/build/GabrielGreetingApp.app/Contents/Resources/Holons"
           }
         }
         steps: {

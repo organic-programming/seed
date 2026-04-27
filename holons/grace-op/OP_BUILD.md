@@ -130,11 +130,22 @@ This artifact is reused by `op inspect`, `op mcp`, and the
 
 ### Stub Generation
 
-Generating language-specific stubs (`.pb.go`, `.pb.swift`,
-`.pb.dart`, etc.) is not `op`'s responsibility. Runners that
-need generated stubs use their own toolchain (`protoc-gen-go`,
-`protoc-gen-swift`, etc.) — the same way they need `go`, `swift`,
-or `xcodebuild` on PATH.
+In organic programming the `.proto` IS the source code; keeping
+language bindings in sync with the proto is part of the build.
+That orchestration is `op`'s responsibility — what `op` does NOT
+ship is the language toolchains themselves.
+
+Today, holons that need regenerated stubs declare a `before_commands`
+hook that invokes their per-holon generator (e.g.
+`go run ./tools/generate`). The generator shells out to PATH tools
+(`protoc`, `protoc-gen-go`, …) declared in `requires.commands`. See
+`holons/grace-op/tools/generate` and `holons/mody-media/tools/generate`
+for the reference pattern.
+
+Future direction: each SDK installed under `$OPPATH/sdk/` will declare
+a regeneration contract in its `manifest.json` (required tools or
+embedded binaries plus an invocation template), and `op build` will
+discover and invoke it directly — no per-holon generator needed.
 
 ## Manifest Model
 
@@ -536,6 +547,12 @@ artifacts: {
 - has explicit `cwd`
 - no shell interpolation
 
+Before invoking an `exec` step in a composite recipe, `op` injects
+`OP_HOLON_<MEMBER_SLUG_UPPER_SNAKE>_PATH` for each holon member; for example,
+`gabriel-greeting-zig` becomes `OP_HOLON_GABRIEL_GREETING_ZIG_PATH`. The value
+is the resolved `.holon` package path, local or shared cache. External scripts
+should prefer these variables over hardcoded `.op/build/` paths.
+
 `copy`
 
 - copies a file from one manifest-relative path to another
@@ -548,6 +565,13 @@ artifacts: {
 - `to` is a manifest-relative destination path
 - copies the entire `.holon` package directory (`.holon.json`, `bin/<arch>/`, etc.)
 - used to embed child holons into composite bundles (see `HOLON_PACKAGE.md` "Bundle Integration")
+
+`copy_all_holons`
+
+- copies the `.holon` package of every `type: "holon"` member of the current composite to `<to>/<member-slug>.holon/`
+- recurses into sub-composites: their member holons land flat in the same destination dir
+- slug collisions across recursion levels are a hard error
+- replaces the boilerplate of N× `copy_artifact` blocks per composite
 
 `assert_file`
 

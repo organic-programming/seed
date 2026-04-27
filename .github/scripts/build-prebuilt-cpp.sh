@@ -105,18 +105,29 @@ do
   fi
 done
 
+macos_framework_flag=""
+if [[ "$sdk_target" == *apple-darwin ]]; then
+  if ! command -v xcrun >/dev/null 2>&1; then
+    echo "xcrun not on PATH; required for macOS framework headers" >&2
+    exit 2
+  fi
+  macos_sdk_path="$(xcrun --show-sdk-path)"
+  # See sdk/PREBUILTS.md "macOS toolchain workarounds (zigcxx + zig build)".
+  macos_framework_flag="-F${macos_sdk_path}/System/Library/Frameworks -iframework ${macos_sdk_path}/System/Library/Frameworks -isystem ${macos_sdk_path}/usr/include"
+fi
+
 case "$sdk_target" in
   aarch64-apple-darwin)
     cmake_system="Darwin"
     cmake_processor="arm64"
     zig_target="aarch64-macos"
-    extra_cflags="-mmacos-version-min=${MACOSX_DEPLOYMENT_TARGET:-14.0}"
+    extra_cflags="-mmacos-version-min=${MACOSX_DEPLOYMENT_TARGET:-14.0} ${macos_framework_flag}"
     ;;
   x86_64-apple-darwin)
     cmake_system="Darwin"
     cmake_processor="x86_64"
     zig_target="x86_64-macos"
-    extra_cflags="-mmacos-version-min=${MACOSX_DEPLOYMENT_TARGET:-13.0}"
+    extra_cflags="-mmacos-version-min=${MACOSX_DEPLOYMENT_TARGET:-13.0} ${macos_framework_flag}"
     ;;
   x86_64-unknown-linux-gnu)
     cmake_system="Linux"

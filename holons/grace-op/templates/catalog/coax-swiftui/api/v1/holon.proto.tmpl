@@ -43,7 +43,7 @@ option (holons.v1.manifest) = {
     members: {
       id: "holon"
       path: "holon"
-      type: "holon"
+      type: "component"
     }
     members: {
       id: "app"
@@ -61,6 +61,11 @@ option (holons.v1.manifest) = {
         steps: {
           assert_file: {
             path: "project.yml"
+          }
+        }
+        steps: {
+          copy_all_holons: {
+            to: ".op/build/{{ .PascalSlug }}App.app/Contents/Resources/Holons"
           }
         }
       }

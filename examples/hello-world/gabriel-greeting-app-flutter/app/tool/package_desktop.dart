@@ -275,8 +275,10 @@ Future<void> _copyMemberHolons(
 }) async {
   destination.createSync(recursive: true);
   for (final slug in _memberSlugs) {
+    final envKey = 'OP_HOLON_${slug.toUpperCase().replaceAll('-', '_')}_PATH';
     final source = Directory(
-      p.join(examplesDir.path, slug, '.op', 'build', '$slug.holon'),
+      Platform.environment[envKey] ??
+          p.join(examplesDir.path, slug, '.op', 'build', '$slug.holon'),
     );
     if (!source.existsSync()) {
       if (_memberProducesStandaloneArtifact(examplesDir, slug)) {

@@ -1,6 +1,6 @@
 module zig-holons-holonrpc-test
 
-go 1.24.0
+go 1.24
 
 require (
 	github.com/organic-programming/go-holons v0.0.0

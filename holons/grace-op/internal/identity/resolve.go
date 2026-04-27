@@ -65,11 +65,12 @@ type ResolvedRecipeTarget struct {
 }
 
 type ResolvedRecipeStep struct {
-	BuildMember  string
-	Exec         *ResolvedRecipeExec
-	Copy         *ResolvedRecipeCopy
-	AssertFile   *ResolvedRecipeFile
-	CopyArtifact *ResolvedRecipeCopyArtifact
+	BuildMember   string
+	Exec          *ResolvedRecipeExec
+	Copy          *ResolvedRecipeCopy
+	AssertFile    *ResolvedRecipeFile
+	CopyArtifact  *ResolvedRecipeCopyArtifact
+	CopyAllHolons *ResolvedRecipeCopyAllHolons
 }
 
 type ResolvedRecipeExec struct {
@@ -89,6 +90,10 @@ type ResolvedRecipeFile struct {
 type ResolvedRecipeCopyArtifact struct {
 	From string
 	To   string
+}
+
+type ResolvedRecipeCopyAllHolons struct {
+	To string
 }
 
 type ResolvedSkill struct {
@@ -453,6 +458,11 @@ func resolvedRecipeStepFromDynamic(step *dynamic.Message) ResolvedRecipeStep {
 		resolved.CopyArtifact = &ResolvedRecipeCopyArtifact{
 			From: dynString(copyArtifact, 1),
 			To:   dynString(copyArtifact, 2),
+		}
+	}
+	if copyAllHolons := dynSubMessage(step, 6); copyAllHolons != nil {
+		resolved.CopyAllHolons = &ResolvedRecipeCopyAllHolons{
+			To: dynString(copyAllHolons, 1),
 		}
 	}
 	return resolved

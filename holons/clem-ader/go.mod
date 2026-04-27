@@ -1,6 +1,6 @@
 module github.com/organic-programming/clem-ader
 
-go 1.25.1
+go 1.24
 
 require (
 	github.com/organic-programming/go-holons v0.2.1-0.20260212114054-8fbeaa095fb9

@@ -137,3 +137,7 @@ func (RPCHandler) VerifySdkPrebuilt(_ context.Context, req *opv1.VerifySdkPrebui
 func (RPCHandler) LocateSdkPrebuilt(_ context.Context, req *opv1.LocateSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
 	return LocateSdkPrebuilt(req)
 }
+
+func (RPCHandler) BuildSdkPrebuilt(ctx context.Context, req *opv1.BuildSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
+	return buildSdkPrebuiltContext(ctx, req)
+}

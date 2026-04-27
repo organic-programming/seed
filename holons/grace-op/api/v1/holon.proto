@@ -16,7 +16,7 @@ option (holons.v1.manifest) = {
     composer: "B. ALTER"
     status: "draft"
     born: "2026-02-12"
-    version: "0.5.716"
+    version: "0.5.717"
     aliases: ["op"]
   }
   description: "OP is the unified entry point to the Organic Programming ecosystem. It discovers holons — locally or over the network — and dispatches commands to them through a single interface. The actant installs one binary and gets access to every holon. OP does not implement domain logic. It routes."
@@ -26,9 +26,16 @@ option (holons.v1.manifest) = {
     runner: "go-module"
     main: "./cmd/op"
     templates: ["api/version.go"]
+    // In organic programming the .proto IS the source code. Regenerate
+    // gen/go/op/v1/ from api/v1/holon.proto on every build via tools/generate.
+    // See OP_BUILD.md "Pre and Post Commands" and holons/mody-media/tools/generate.
+    before_commands: {
+      cwd: "."
+      argv: ["go", "run", "./tools/generate"]
+    }
   }
   requires: {
-    commands: ["go"]
+    commands: ["go", "protoc", "protoc-gen-go", "protoc-gen-go-grpc"]
     files: ["go.mod"]
   }
   artifacts: {
@@ -69,7 +76,8 @@ option (holons.v1.manifest) = {
       "ListSdkPrebuilts",
       "UninstallSdkPrebuilt",
       "VerifySdkPrebuilt",
-      "LocateSdkPrebuilt"
+      "LocateSdkPrebuilt",
+      "BuildSdkPrebuilt"
     ]
   }
   skills: [{
@@ -225,6 +233,10 @@ service OPService {
 
   // LocateSdkPrebuilt resolves the local install path for a SDK prebuilt.
   rpc LocateSdkPrebuilt (LocateSdkPrebuiltRequest) returns (SdkPrebuiltResponse);
+
+  // BuildSdkPrebuilt builds a SDK prebuilt from local sources and installs
+  // the resulting tarball into $OPPATH/sdk. Long-running (~30-60 min cold).
+  rpc BuildSdkPrebuilt (BuildSdkPrebuiltRequest) returns (SdkPrebuiltResponse);
 }
 
 enum Clade {
@@ -686,6 +698,9 @@ message SdkPrebuilt {
   string archive_sha256 = 6;
   string tree_sha256 = 7;
   bool installed = 8;
+  // blockers lists human-readable reasons compilable=false for this entry.
+  // Empty when the entry is installable, available, or compilable.
+  repeated string blockers = 9;
 }
 
 message InstallSdkPrebuiltRequest {
@@ -699,6 +714,9 @@ message ListSdkPrebuiltsRequest {
   bool installed = 1;
   bool available = 2;
   string lang = 3;
+  // compilable lists SDKs that op sdk compile <lang> can build now
+  // (script present, submodules initialised, prereq binaries on PATH).
+  bool compilable = 4;
 }
 
 message ListSdkPrebuiltsResponse {
@@ -728,4 +746,20 @@ message SdkPrebuiltResponse {
   SdkPrebuilt prebuilt = 1;
   repeated string notes = 2;
   bool verified = 3;
+}
+
+message BuildSdkPrebuiltRequest {
+  string lang = 1;
+  string target = 2;
+  string version = 3;
+  // jobs caps the parallelism passed to cmake/ninja and zig build.
+  // 0 = let the runtime pick (defaults match the env vars in the
+  // current scripts: ZIG_HOLONS_JOBS, CPP_HOLONS_JOBS, etc.).
+  int32 jobs = 4;
+  // force re-runs the compile even if the target tarball is already
+  // present in the work dir cache.
+  bool force = 5;
+  // install_after_build = true (default) installs into $OPPATH/sdk.
+  // false leaves the tarball in dist/ for inspection.
+  bool install_after_build = 6;
 }

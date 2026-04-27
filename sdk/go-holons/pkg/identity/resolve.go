@@ -444,15 +444,16 @@ func collectProtoFiles(dir string) ([]string, error) {
 func buildImportPaths(dir string) []string {
 	paths := []string{dir}
 	seen := map[string]struct{}{dir: {}}
+	staged := make([]string, 0)
 
-	// Walk up the tree to find _protos and .op/protos
+	// Walk up the tree to find source proto roots first. Staged .op/protos
+	// can be stale after schema edits, so keep them as a fallback.
 	for current := filepath.Dir(dir); current != "" && current != filepath.Dir(current); current = filepath.Dir(current) {
 		candidates := []string{
 			filepath.Join(current, "_protos"),
-			filepath.Join(current, ".op", "protos"),
 			filepath.Join(current, "seed", "holons", "grace-op", "_protos"),
 		}
-		
+
 		for _, candidate := range candidates {
 			info, err := os.Stat(candidate)
 			if err != nil || !info.IsDir() {
@@ -464,6 +465,20 @@ func buildImportPaths(dir string) []string {
 			paths = append(paths, candidate)
 			seen[candidate] = struct{}{}
 		}
+
+		staged = append(staged, filepath.Join(current, ".op", "protos"))
+	}
+
+	for _, candidate := range staged {
+		info, err := os.Stat(candidate)
+		if err != nil || !info.IsDir() {
+			continue
+		}
+		if _, ok := seen[candidate]; ok {
+			continue
+		}
+		paths = append(paths, candidate)
+		seen[candidate] = struct{}{}
 	}
 
 	return paths
