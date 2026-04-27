@@ -55,6 +55,22 @@ jobs:
             runs_on: '["macos-14"]'
           - target: x86_64-apple-darwin
             runs_on: '["macos-14"]'
+          - target: x86_64-unknown-linux-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: aarch64-unknown-linux-gnu
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: x86_64-unknown-linux-musl
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: aarch64-unknown-linux-musl
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: x86_64-windows-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true  # paused: target needs validation
+    continue-on-error: ${{ matrix.continue_on_error || false }}
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: zig
@@ -72,6 +88,22 @@ jobs:
             runs_on: '["macos-14"]'
           - target: x86_64-apple-darwin
             runs_on: '["macos-14"]'
+          - target: x86_64-unknown-linux-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: aarch64-unknown-linux-gnu
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: x86_64-unknown-linux-musl
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: aarch64-unknown-linux-musl
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: x86_64-windows-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true  # paused: target needs validation
+    continue-on-error: ${{ matrix.continue_on_error || false }}
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: cpp
@@ -89,6 +121,22 @@ jobs:
             runs_on: '["macos-14"]'
           - target: x86_64-apple-darwin
             runs_on: '["macos-14"]'
+          - target: x86_64-unknown-linux-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: aarch64-unknown-linux-gnu
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: x86_64-unknown-linux-musl
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: aarch64-unknown-linux-musl
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: x86_64-windows-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true  # paused: target needs validation
+    continue-on-error: ${{ matrix.continue_on_error || false }}
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: c
@@ -106,6 +154,22 @@ jobs:
             runs_on: '["macos-14"]'
           - target: x86_64-apple-darwin
             runs_on: '["macos-14"]'
+          - target: x86_64-unknown-linux-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: aarch64-unknown-linux-gnu
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: x86_64-unknown-linux-musl
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: aarch64-unknown-linux-musl
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true  # paused: target needs validation
+          - target: x86_64-windows-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true  # paused: target needs validation
+    continue-on-error: ${{ matrix.continue_on_error || false }}
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: ruby
