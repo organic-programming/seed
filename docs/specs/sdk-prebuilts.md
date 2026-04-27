@@ -245,6 +245,7 @@ Current v0.x workflow rows:
 | `zig` | `zig-holons-v0.1.0` | `sdk-version` | Zig SDK static library plus gRPC/protobuf-c headers and static libs |
 | `cpp` | `cpp-holons-v1.80.0` | `cpp-version` | gRPC-C++ static libs, transitive headers/libs, `protoc`, and `grpc_cpp_plugin` |
 | `c` | `c-holons-v1.80.0` | `c-version` | C SDK native bundle with gRPC/upb/protobuf-c headers/libs, `protoc`, upb generators, and `protoc-c` |
+| `ruby` | `ruby-holons-v1.58.3` | `ruby-version` | Vendored Bundler `vendor/bundle/` tree for pinned `grpc` and transitive native gems |
 
 Per-target build cost: ~30-60 min wall time on popok. With matrix parallelism (popok has limited CPU vs GitHub matrix, but no minute quota), total wall time per release is ~2-3 hours sequential or ~60 min if popok hosts ≥4 concurrent builds.
 

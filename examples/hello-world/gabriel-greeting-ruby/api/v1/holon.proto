@@ -32,6 +32,7 @@ option (holons.v1.manifest) = {
   }
   requires: {
     commands: ["ruby", "bundle"]
+    sdk_prebuilts: ["ruby"]
     files: ["cmd/main.rb", "Gemfile"]
   }
   artifacts: {

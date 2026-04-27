@@ -5,4 +5,4 @@ bin/*
 
 .bundle/
 vendor/bundle/
-Gemfile.lock
+.ruby-prebuilt/

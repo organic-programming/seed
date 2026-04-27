@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 begin
+  if ENV["OP_SDK_RUBY_PATH"] && !ENV["OP_SDK_RUBY_PATH"].empty?
+    prebuilt_bundle = File.join(ENV["OP_SDK_RUBY_PATH"], "vendor", "bundle")
+    if Dir.exist?(prebuilt_bundle)
+      ENV["BUNDLE_PATH"] ||= prebuilt_bundle
+      ENV["BUNDLE_DISABLE_SHARED_GEMS"] ||= "true"
+    end
+  end
   require "bundler/setup"
 rescue LoadError
   nil

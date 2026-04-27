@@ -60,7 +60,9 @@ matching SDK version, target triplet, and SDK build integration.
 
 For `ruby`, archives contain a vendored `vendor/bundle/` tree for the Ruby gem
 platform. Compatibility is limited to the matching Ruby ABI/platform and pinned
-gem versions, especially `grpc` `1.58.3` and `google-protobuf`.
+gem versions, especially `grpc` `1.58.3` and `google-protobuf`. The workflow
+builds these archives with Ruby 3.1; consumers with a different Ruby ABI must
+fall back to Bundler until a matching Ruby prebuilt stream is added.
 
 For `zig`, archives contain the SDK static library plus gRPC and protobuf-c
 native dependencies. The public C ABI is governed by

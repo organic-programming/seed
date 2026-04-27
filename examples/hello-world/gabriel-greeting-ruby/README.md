@@ -47,7 +47,7 @@ scripts/generate_proto.sh            Regenerates Ruby protobuf stubs.
 
 ```bash
 cd /Users/bpds/Documents/Entrepot/Git/Compilons/videosteno/organic-programming/examples/hello-world/gabriel-greeting-ruby
-BUNDLE_PATH=vendor/bundle bundle install
+op sdk install ruby
 ./scripts/generate_proto.sh
 bundle exec ruby -I. -e 'Dir["api/*_test.rb", "internal/*_test.rb"].sort.each { |file| load File.expand_path(file) }'
 .op/build/bin/gabriel-greeting-ruby version

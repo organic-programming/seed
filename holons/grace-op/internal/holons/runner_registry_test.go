@@ -596,7 +596,7 @@ func TestRubySharedCacheRootSharedAcrossHolonsWithSameDependencies(t *testing.T)
 }
 
 func TestRubySetupCommandsPreferNativeDarwinPackages(t *testing.T) {
-	got := rubySetupCommandsForPlatform("/opt/homebrew/bin/bundle", "/opt/homebrew/bin/gem", "darwin", "arm64")
+	got := rubySetupCommandsForPlatform("/opt/homebrew/bin/bundle", "/opt/homebrew/bin/gem", "darwin", "arm64", "")
 	joined := make([]string, 0, len(got))
 	for _, args := range got {
 		joined = append(joined, strings.Join(args, " "))
@@ -614,7 +614,7 @@ func TestRubySetupCommandsPreferNativeDarwinPackages(t *testing.T) {
 }
 
 func TestRubySetupCommandsFallbackToSourcePlatformOutsideDarwin(t *testing.T) {
-	got := rubySetupCommandsForPlatform("/usr/bin/bundle", "/usr/bin/gem", "linux", "amd64")
+	got := rubySetupCommandsForPlatform("/usr/bin/bundle", "/usr/bin/gem", "linux", "amd64", "")
 	joined := make([]string, 0, len(got))
 	for _, args := range got {
 		joined = append(joined, strings.Join(args, " "))
@@ -625,6 +625,21 @@ func TestRubySetupCommandsFallbackToSourcePlatformOutsideDarwin(t *testing.T) {
 	}
 	if strings.Contains(commands, "--add-platform arm64-darwin") || strings.Contains(commands, "--add-platform x86_64-darwin") {
 		t.Fatalf("rubySetupCommandsForPlatform() should not add darwin bundle platforms on linux:\n%s", commands)
+	}
+}
+
+func TestRubySetupCommandsUsePrebuiltBundle(t *testing.T) {
+	got := rubySetupCommandsForPlatform("/opt/homebrew/bin/bundle", "/opt/homebrew/bin/gem", "darwin", "arm64", "/sdk/ruby/vendor/bundle")
+	joined := make([]string, 0, len(got))
+	for _, args := range got {
+		joined = append(joined, strings.Join(args, " "))
+	}
+	commands := strings.Join(joined, "\n")
+	if !strings.Contains(commands, "bundle check") {
+		t.Fatalf("rubySetupCommandsForPlatform() missing bundle check:\n%s", commands)
+	}
+	if strings.Contains(commands, "bundle install") || strings.Contains(commands, "gem install") {
+		t.Fatalf("rubySetupCommandsForPlatform() should not install gems when a prebuilt bundle is present:\n%s", commands)
 	}
 }
 
