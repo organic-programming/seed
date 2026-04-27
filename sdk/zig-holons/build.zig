@@ -272,10 +272,15 @@ fn configureModule(
         mod.linkSystemLibrary("bcrypt", .{ .use_pkg_config = .no });
     } else {
         mod.linkSystemLibrary("z", .{ .use_pkg_config = .no, .preferred_link_mode = .static });
-        mod.linkSystemLibrary("resolv", .{ .use_pkg_config = .no });
+        if (target.result.os.tag != .macos) {
+            mod.linkSystemLibrary("resolv", .{ .use_pkg_config = .no });
+        }
     }
     mod.linkSystemLibrary("c++", .{ .use_pkg_config = .no });
     if (target.result.os.tag == .macos) {
+        if (b.graph.environ_map.get("SDKROOT")) |sdk| {
+            mod.addFrameworkPath(.{ .cwd_relative = b.fmt("{s}/System/Library/Frameworks", .{sdk}) });
+        }
         mod.linkFramework("CoreFoundation", .{});
     }
     return mod;
@@ -599,10 +604,13 @@ pub fn build(b: *std.Build) void {
         "gen/c",
         "-lc++",
     });
-    if (target.result.os.tag != .windows) {
+    if (target.result.os.tag != .windows and target.result.os.tag != .macos) {
         compile_c_abi.addArg("-lresolv");
     }
     if (target.result.os.tag == .macos) {
+        if (b.graph.environ_map.get("SDKROOT")) |sdk| {
+            compile_c_abi.addArgs(&.{ "-F", b.fmt("{s}/System/Library/Frameworks", .{sdk}) });
+        }
         compile_c_abi.addArgs(&.{ "-framework", "CoreFoundation" });
     }
     compile_c_abi.addArgs(&.{ "-o", "zig-out/bin/holons-c-abi-smoke" });

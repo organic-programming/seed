@@ -341,9 +341,12 @@ on:
       target: { required: true, type: string }
       runner: { required: true, type: string }
       container: { required: false, type: string }
+      continue-on-error: { required: false, type: boolean, default: false }
 ```
 
 Called by `sdk-prebuilts.yml` once per (sdk × target) pair.
+
+`continue-on-error` is plumbed onto the inner `build` job and lets `sdk-prebuilts.yml` mark targets as paused without blocking the overall workflow. The flag must live on the inner job: GitHub Actions rejects `continue-on-error` at the job level on jobs that call a reusable workflow with `uses:` (only `name`, `uses`, `with`, `secrets`, `needs`, `if`, `permissions`, `strategy` are accepted there), which would fail the workflow at load time before any job runs.
 
 Per-SDK build script lives at `.github/scripts/build-prebuilt-<sdk>.sh` and is parameterised by `$SDK_TARGET`. Each script:
 

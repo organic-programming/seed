@@ -15,12 +15,17 @@ on:
       runs-on:
         required: true
         type: string
+      continue-on-error:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
     name: ${{ inputs.sdk }} / ${{ inputs.sdk-target }}
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     timeout-minutes: 240
+    continue-on-error: ${{ inputs.continue-on-error }}
 
     env:
       SDK: ${{ inputs.sdk }}
