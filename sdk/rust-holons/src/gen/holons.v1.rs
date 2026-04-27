@@ -268,6 +268,9 @@ pub mod holon_manifest {
         /// supported targets (macos, linux, windows…)
         #[prost(string, repeated, tag = "3")]
         pub platforms: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+        /// SDK native prebuilts required by `op build`
+        #[prost(string, repeated, tag = "4")]
+        pub sdk_prebuilts: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     }
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Artifacts {
