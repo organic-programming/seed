@@ -70,13 +70,13 @@ jobs:
           - target: x86_64-windows-gnu
             runs_on: '["ubuntu-latest"]'
             continue_on_error: true  # paused: target needs validation
-    continue-on-error: ${{ matrix.continue_on_error || false }}
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: zig
       sdk-version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['sdk-version'] || '0.1.0' }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
+      continue-on-error: ${{ matrix.continue_on_error || false }}
 
   cpp:
     if: github.event_name != 'pull_request' || github.event.action != 'closed'
@@ -103,13 +103,13 @@ jobs:
           - target: x86_64-windows-gnu
             runs_on: '["ubuntu-latest"]'
             continue_on_error: true  # paused: target needs validation
-    continue-on-error: ${{ matrix.continue_on_error || false }}
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: cpp
       sdk-version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['cpp-version'] || '1.80.0' }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
+      continue-on-error: ${{ matrix.continue_on_error || false }}
 
   c:
     if: github.event_name != 'pull_request' || github.event.action != 'closed'
@@ -136,13 +136,13 @@ jobs:
           - target: x86_64-windows-gnu
             runs_on: '["ubuntu-latest"]'
             continue_on_error: true  # paused: target needs validation
-    continue-on-error: ${{ matrix.continue_on_error || false }}
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: c
       sdk-version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['c-version'] || '1.80.0' }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
+      continue-on-error: ${{ matrix.continue_on_error || false }}
 
   ruby:
     if: github.event_name != 'pull_request' || github.event.action != 'closed'
@@ -154,6 +154,7 @@ jobs:
             runs_on: '["macos-14"]'
           - target: x86_64-apple-darwin
             runs_on: '["macos-14"]'
+            continue_on_error: true  # paused: grpc-1.58.3 native gem build fails on Intel mac (rb_channel.c -Werror=incompatible-function-pointer-types)
           - target: x86_64-unknown-linux-gnu
             runs_on: '["ubuntu-latest"]'
             continue_on_error: true  # paused: target needs validation
@@ -169,13 +170,13 @@ jobs:
           - target: x86_64-windows-gnu
             runs_on: '["ubuntu-latest"]'
             continue_on_error: true  # paused: target needs validation
-    continue-on-error: ${{ matrix.continue_on_error || false }}
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: ruby
       sdk-version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['ruby-version'] || '1.58.3' }}
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
+      continue-on-error: ${{ matrix.continue_on_error || false }}
 
   promote:
     if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
