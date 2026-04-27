@@ -272,7 +272,9 @@ fn configureModule(
         mod.linkSystemLibrary("bcrypt", .{ .use_pkg_config = .no });
     } else {
         mod.linkSystemLibrary("z", .{ .use_pkg_config = .no, .preferred_link_mode = .static });
-        mod.linkSystemLibrary("resolv", .{ .use_pkg_config = .no });
+        if (target.result.os.tag != .macos) {
+            mod.linkSystemLibrary("resolv", .{ .use_pkg_config = .no });
+        }
     }
     mod.linkSystemLibrary("c++", .{ .use_pkg_config = .no });
     if (target.result.os.tag == .macos) {
@@ -599,7 +601,7 @@ pub fn build(b: *std.Build) void {
         "gen/c",
         "-lc++",
     });
-    if (target.result.os.tag != .windows) {
+    if (target.result.os.tag != .windows and target.result.os.tag != .macos) {
         compile_c_abi.addArg("-lresolv");
     }
     if (target.result.os.tag == .macos) {
