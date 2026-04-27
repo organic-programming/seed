@@ -23,24 +23,26 @@ All written artifacts in English.
 
 ## Kickoff gate — do not start until prebuilts chantier is done
 
-This chantier touches `holons/grace-op/internal/holons/lifecycle.go` (Phase B1) and `runner_registry.go` (Phase B1). The prebuilts chantier also touches both files. To avoid rebase conflicts, **wait until the prebuilts chantier has shipped its Phase 8 PR and merged onto `dev`**.
+This chantier touches `holons/grace-op/internal/holons/lifecycle.go` (Phase B1) and `runner_registry.go` (Phase B1). The prebuilts chantier also touches both files. To avoid rebase conflicts, **wait until the prebuilts chantier has shipped its Phase 8 PR and merged onto `master`**.
 
 Verify before starting:
 
 ```bash
-git fetch origin dev
-gh release list | grep -E 'zig-holons-v|cpp-holons-v|c-holons-v|ruby-holons-v'
+git fetch origin master
+git fetch origin master
+git log --oneline origin/master | head -3
 ```
 
-You should see the four prebuilts releases (zig, cpp, c, ruby). If not, halt and wait — the prebuilts chantier is still in flight.
+You should see a `Merge pull request #45` (Phase 8 docs) commit at or near the top of master. If not, the prebuilts chantier is still in flight — halt and wait.
 
+Note: as of 2026-04-27, the prebuilts code is merged on master but GitHub Releases (`zig-holons-v0.1.0`, `cpp-holons-v1.80.0`, `c-holons-v1.80.0`, `ruby-holons-v1.58.3`) have not yet been published due to a workflow issue post-merge (tracked separately). This does NOT block this chantier — the code coordination required is satisfied by Phase 8 being on master. Phase B2 hash gracefully degrades when `op sdk path <lang>` returns no prebuilt (per resolved §4).
 ---
 
 ## Required reading (do not skip)
 
 1. [`docs/specs/ader-acceleration.md`](../docs/specs/ader-acceleration.md) — the spec, all 9 sections.
 2. [`docs/specs/sdk-prebuilts.md`](../docs/specs/sdk-prebuilts.md) — the prebuilts spec (Phase B2 hash key depends on prebuilts version pins).
-3. [`CLAUDE.md`](../CLAUDE.md) — repo invariants, "doubt is the method", PRs target `dev`.
+3. [`CLAUDE.md`](../CLAUDE.md) — repo invariants, "doubt is the method", PRs target `master`.
 4. [`holons/clem-ader/README.md`](../holons/clem-ader/README.md) — ader concepts, locks, bouquets.
 5. [`ader/catalogues/grace-op/integration/runtime.go`](../ader/catalogues/grace-op/integration/runtime.go) — `prepareWorkspaceMirror` (line ~635), the source of Issue #25.
 6. [`holons/clem-ader/internal/engine/engine.go`](../holons/clem-ader/internal/engine/engine.go) — `copyTree` (line ~1395), `snapshotWorkspace` (line ~510).
@@ -67,7 +69,7 @@ Do not relitigate these. If implementation surfaces a contradiction, halt and re
 
 ## Phasing
 
-Sequential PRs against `dev`. One PR per phase. Same operating mode as the prebuilts chantier: continuous progression (composer admin-merges fast), halt only at real doubts.
+Sequential PRs against `master`. One PR per phase. Same operating mode as the prebuilts chantier: continuous progression (composer admin-merges fast), halt only at real doubts.
 
 ### Phase A1 — Issue #25 workspace mirror cleanup
 - Edit `prepareWorkspaceMirror` in `ader/catalogues/grace-op/integration/runtime.go` to `os.RemoveAll(root)` before `MkdirAll(root)`.
