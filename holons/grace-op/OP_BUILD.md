@@ -347,6 +347,45 @@ func VersionString() string { return "{{ .Version }}" }
 After `op build`, the binary returns `"0.5.2"`.
 The source file is restored to contain `{{ .Version }}`.
 
+## Preflight
+
+After the proto stage and before runner execution, `op build` performs manifest
+preflight checks. This is where declared prerequisites are verified while the
+failure can still be reported as a single actionable setup problem.
+
+Preflight validates:
+
+- `requires.commands`
+- `requires.files`
+- `requires.sdk_prebuilts`
+
+`requires.sdk_prebuilts` accepts the v1 native prebuilt SDK names:
+
+```protobuf
+requires: {
+  commands: ["zig"]
+  sdk_prebuilts: ["zig"]
+}
+```
+
+For every requested SDK, `op build` locates the installed prebuilt for the host
+triplet under `$OPPATH/sdk/<lang>/<version>/<target>/`. On success it injects a
+runner environment variable:
+
+| SDK | Environment variable |
+|---|---|
+| `c` | `OP_SDK_C_PATH` |
+| `cpp` | `OP_SDK_CPP_PATH` |
+| `ruby` | `OP_SDK_RUBY_PATH` |
+| `zig` | `OP_SDK_ZIG_PATH` |
+
+On a miss, preflight fails before invoking the runner and reports the install
+command, for example `op sdk install cpp`.
+
+`op build` does not install prebuilts implicitly. Installation remains an
+explicit `op sdk install <lang>` step so CI, local development, and release
+promotion can control network access and cache state.
+
 ## Runner Semantics
 
 ### Pre and Post Commands

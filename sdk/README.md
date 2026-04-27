@@ -36,6 +36,26 @@ Maintainers use [`./scripts/generate-protos.sh`](./scripts/generate-protos.sh) t
 - **`resolve`**: First match — `(scope, expression, root, specifiers) → HolonRef` — thin helper over `Discover`. 
 - **`connect`**: Resolves a slug[^1], starts the daemon if needed, and returns a ready channel — wraps `resolve`.
 
+## Native Prebuilts
+
+The `c`, `cpp`, `ruby`, and `zig` SDKs also support native prebuilts through
+[`op sdk`](../holons/grace-op/OP_SDK.md):
+
+```sh
+op sdk install <c|cpp|ruby|zig>
+op sdk verify <c|cpp|ruby|zig>
+op sdk path <c|cpp|ruby|zig>
+```
+
+Installed prebuilts live under `$OPPATH/sdk/<lang>/<version>/<target>/`.
+Holons that declare `requires.sdk_prebuilts` are checked during `op build`
+preflight. When the prebuilt is present, `op build` injects
+`OP_SDK_C_PATH`, `OP_SDK_CPP_PATH`, `OP_SDK_RUBY_PATH`, or
+`OP_SDK_ZIG_PATH` into the runner environment.
+
+This is deliberately limited to the SDKs with native cold-build pain. The other
+SDKs remain managed by their language toolchains or upstream package managers.
+
 ## Incode Description
 
 Each SDK ships a language-specific template (e.g., [go-holons/templates/describe.go.tmpl](./go-holons/templates/describe.go.tmpl)). During `op build`, the proto stage feeds the parsed manifest and service schema into this template, generating a native source file with a static [`DescribeResponse`](../holons/grace-op/_protos/holons/v1/describe.proto) — identity, services, and RPCs baked directly into the binary (e.g., [describe_generated.go](../examples/hello-world/gabriel-greeting-go/gen/describe_generated.go)).

@@ -48,6 +48,8 @@ CMakeLists.txt                     Build and test definition.
 
 ```bash
 op sdk install c
+op sdk verify c
+export OP_SDK_C_PATH="$(op sdk path c)"
 ./scripts/generate_proto.sh
 cmake -S . -B build
 cmake --build build

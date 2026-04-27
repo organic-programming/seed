@@ -54,6 +54,7 @@ OP commands:
   op clean [<holon-or-path>]             remove .op/ build outputs
   op install [<holon-or-path>] [flags]   install a pre-built artifact into $OPBIN
   op uninstall <holon>                   remove an installed artifact from $OPBIN
+  op sdk <command>                       manage native SDK prebuilts
   op mod <command>                       manage holon.mod and holon.sum
   op env [--init] [--shell]              print resolved OPPATH / OPBIN / ROOT
 
@@ -164,6 +165,7 @@ everything is built into the `op` binary, just like `go` integrates
 |---|---|
 | Identity | `op new`, `op list`, `op show` |
 | Dependencies | `op mod init`, `op mod add`, `op mod pull`, etc. |
+| SDK prebuilts | `op sdk install`, `op sdk list`, `op sdk verify`, `op sdk path` |
 | Lifecycle | `op check`, `op build`, `op test`, `op clean`, `op install` |
 | Discovery | `op discover` |
 | Runtime | `op run`, `op serve` |

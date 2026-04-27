@@ -54,9 +54,15 @@ Close the channel with `holons_disconnect(channel)`.
 
 ```sh
 op sdk install c
+op sdk verify c
+export OP_SDK_C_PATH="$(op sdk path c)"
 make test
 ```
 
-`OP_SDK_C_PATH`, normally set by `op build` after `op sdk install c`, points
-Make and CMake consumers at the prebuilt gRPC/Protobuf/upb/protobuf-c toolchain.
-The prebuilt also carries `nlohmann/json` for the SDK's C++ bridge header.
+`op build` sets `OP_SDK_C_PATH` automatically for holons that declare
+`requires.sdk_prebuilts: ["c"]`. Direct SDK builds set it explicitly with
+`op sdk path c`.
+
+`OP_SDK_C_PATH` points Make and CMake consumers at the prebuilt
+gRPC/Protobuf/upb/protobuf-c toolchain. The prebuilt also carries
+`nlohmann/json` for the SDK's C++ bridge header.

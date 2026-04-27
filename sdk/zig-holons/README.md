@@ -86,11 +86,16 @@ defer peers.deinit(allocator);
 
 ```sh
 op sdk install zig
+op sdk verify zig
+export OP_SDK_ZIG_PATH="$(op sdk path zig)"
 zig build
 zig build test
 ```
 
-`build.zig` resolves native dependencies in this order: `OP_SDK_ZIG_PATH`
-(normally set by `op build` preflight after `op sdk install zig`), then
+`op build` sets `OP_SDK_ZIG_PATH` automatically for holons that declare
+`requires.sdk_prebuilts: ["zig"]`. Direct SDK builds set it explicitly with
+`op sdk path zig`.
+
+`build.zig` resolves native dependencies in this order: `OP_SDK_ZIG_PATH`, then
 `.zig-vendor/native` for SDK contributors, then an actionable error pointing at
 `op sdk install zig`.
