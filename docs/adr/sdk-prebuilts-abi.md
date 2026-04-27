@@ -45,7 +45,10 @@ The v1 targets are T0 + T1 only:
 - `aarch64-unknown-linux-gnu`
 - `x86_64-unknown-linux-musl`
 - `aarch64-unknown-linux-musl`
-- `x86_64-pc-windows-msvc`
+- `x86_64-windows-gnu`
+
+`x86_64-pc-windows-msvc` remains the v1.x Windows follow-up once winwok is
+deployed and native MSVC builds are available.
 
 ## SDK-Specific ABI Boundaries
 
@@ -63,6 +66,23 @@ For `zig`, archives contain the SDK static library plus gRPC and protobuf-c
 native dependencies. The public C ABI is governed by
 `docs/adr/zig-sdk-abi.md`; the prebuilt archive version tracks the Zig SDK
 release stream.
+
+## Protoc-Generated Code
+
+For each native SDK that ships protoc-generated code, protoc version is
+anchored on the prebuilt. Committed gencode in `sdk/<lang>-holons/gen/` MUST be
+produced by the protoc shipped in the corresponding prebuilt. Bumping the
+prebuilt's protobuf version requires regenerating committed gencode in the same
+PR.
+
+## Bundled Third-Party Headers
+
+Small header-only third-party dependencies that the SDK needs at compile time
+are bundled in the corresponding prebuilt when doing so keeps the prebuilt
+self-contained without adding a native ABI surface. The C++ prebuilt bundles
+`nlohmann/json` `3.11.3` under `include/nlohmann/json.hpp`. Larger dependencies
+or dependencies with compiled artifacts remain part of the native dependency
+bundle or the documented system fallback, case by case.
 
 ## Versioning
 

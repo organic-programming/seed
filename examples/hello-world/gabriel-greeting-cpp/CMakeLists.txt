@@ -7,8 +7,31 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 enable_testing()
 
-find_package(Protobuf CONFIG REQUIRED)
-find_package(gRPC CONFIG REQUIRED)
+set(GABRIEL_GREETING_CPP_PREBUILT_ROOT "")
+if(DEFINED ENV{OP_SDK_CPP_PATH} AND NOT "$ENV{OP_SDK_CPP_PATH}" STREQUAL "")
+  file(TO_CMAKE_PATH "$ENV{OP_SDK_CPP_PATH}" GABRIEL_GREETING_CPP_PREBUILT_ROOT)
+  if(NOT EXISTS "${GABRIEL_GREETING_CPP_PREBUILT_ROOT}/include" OR
+      NOT EXISTS "${GABRIEL_GREETING_CPP_PREBUILT_ROOT}/lib")
+    message(FATAL_ERROR
+      "OP_SDK_CPP_PATH=${GABRIEL_GREETING_CPP_PREBUILT_ROOT} is not a C++ SDK prebuilt root; run `op sdk install cpp`")
+  endif()
+  set(CMAKE_PREFIX_PATH "${GABRIEL_GREETING_CPP_PREBUILT_ROOT}" ${CMAKE_PREFIX_PATH})
+  set(CMAKE_INCLUDE_PATH "${GABRIEL_GREETING_CPP_PREBUILT_ROOT}/include" ${CMAKE_INCLUDE_PATH})
+  set(CMAKE_LIBRARY_PATH "${GABRIEL_GREETING_CPP_PREBUILT_ROOT}/lib" ${CMAKE_LIBRARY_PATH})
+  set(CMAKE_PROGRAM_PATH "${GABRIEL_GREETING_CPP_PREBUILT_ROOT}/bin" ${CMAKE_PROGRAM_PATH})
+endif()
+
+find_package(Protobuf CONFIG QUIET)
+find_package(gRPC CONFIG QUIET)
+if(NOT Protobuf_FOUND OR NOT gRPC_FOUND)
+  if(GABRIEL_GREETING_CPP_PREBUILT_ROOT)
+    message(FATAL_ERROR
+      "OP_SDK_CPP_PATH=${GABRIEL_GREETING_CPP_PREBUILT_ROOT} is missing gRPC or Protobuf CMake packages; run `op sdk verify cpp` or reinstall with `op sdk install cpp`")
+  else()
+    message(FATAL_ERROR
+      "gabriel-greeting-cpp requires the C++ SDK prebuilts. Run `op sdk install cpp` or install gRPC system-wide.")
+  endif()
+endif()
 find_program(BASH_EXECUTABLE NAMES bash REQUIRED)
 
 set(HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/cpp-holons")
@@ -48,6 +71,12 @@ target_include_directories(gabriel_greeting_cpp_lib
     "${HOLONS_SDK_ROOT}/include"
     "${HOLONS_SDK_ROOT}/gen/cpp"
 )
+if(GABRIEL_GREETING_CPP_PREBUILT_ROOT)
+  target_include_directories(gabriel_greeting_cpp_lib
+    PUBLIC
+      "${GABRIEL_GREETING_CPP_PREBUILT_ROOT}/include"
+  )
+endif()
 
 target_link_libraries(gabriel_greeting_cpp_lib
   PUBLIC
