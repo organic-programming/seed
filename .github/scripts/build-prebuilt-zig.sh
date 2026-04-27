@@ -284,14 +284,18 @@ cmake -S third_party/protobuf-c/build-cmake -B "$protobuf_c_build" "${protobuf_c
 cmake --build "$protobuf_c_build" --target install --parallel "$jobs"
 
 rm -rf "$sdk_out"
-zig_build_env=(OP_SDK_ZIG_PATH="$prefix")
 if [[ "$cmake_system" == Darwin ]]; then
-  zig_build_env+=(SDKROOT="$darwin_sdkroot")
+  env OP_SDK_ZIG_PATH="$prefix" SDKROOT="$darwin_sdkroot" "$zig_bin" build \
+    --sysroot "$darwin_sdkroot" \
+    -Dtarget="$zig_target" \
+    -Doptimize=ReleaseFast \
+    --prefix "$sdk_out"
+else
+  OP_SDK_ZIG_PATH="$prefix" "$zig_bin" build \
+    -Dtarget="$zig_target" \
+    -Doptimize=ReleaseFast \
+    --prefix "$sdk_out"
 fi
-env "${zig_build_env[@]}" "$zig_bin" build \
-  -Dtarget="$zig_target" \
-  -Doptimize=ReleaseFast \
-  --prefix "$sdk_out"
 
 rm -rf "${work_dir}/stage"
 mkdir -p "$stage/include" "$stage/lib" "$stage/share" "$stage/debug"
