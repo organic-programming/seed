@@ -286,8 +286,6 @@ cmake --build "$protobuf_c_build" --target install --parallel "$jobs"
 rm -rf "$sdk_out"
 if [[ "$cmake_system" == Darwin ]]; then
   env OP_SDK_ZIG_PATH="$prefix" SDKROOT="$darwin_sdkroot" "$zig_bin" build \
-    --sysroot "$darwin_sdkroot" \
-    --search-prefix "$prefix" \
     -Dtarget="$zig_target" \
     -Doptimize=ReleaseFast \
     --prefix "$sdk_out"
