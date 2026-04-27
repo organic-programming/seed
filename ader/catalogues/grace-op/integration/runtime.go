@@ -634,6 +634,9 @@ func ensureTempAlias(rt *runtimeState) (string, error) {
 
 func prepareWorkspaceMirror(rt *runtimeState) (string, error) {
 	root := filepath.Join(rt.artifactsRoot, "workspace")
+	if err := os.RemoveAll(root); err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return "", err
 	}

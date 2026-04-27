@@ -151,6 +151,13 @@ jobs:
           restore-keys: |
             ader-sdk-${{ runner.os }}-${{ runner.arch }}-
 
+      - name: Install Go proto generators
+        run: |
+          set -euo pipefail
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
       - name: Bootstrap op and ader
         # Fresh checkout has no installed op; use the canonical escape hatch
         # for the first compile, then every subsequent build goes through
@@ -166,6 +173,56 @@ jobs:
             echo "OPPATH=$OPPATH"
             echo "OPBIN=$OPBIN"
           } >> "$GITHUB_ENV"
+
+      - name: Install native SDK prebuilts
+        id: sdk-prebuilts
+        run: |
+          set -euo pipefail
+          for sdk in zig c cpp ruby; do
+            op sdk install "$sdk"
+            sdk_path="$(op sdk path "$sdk")"
+            sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
+            echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
+            if [ "$sdk" = ruby ]; then
+              ruby_version="$(awk -F= '$1 == "ruby_version" { print $2 }' "$sdk_path/share/prebuilt.env")"
+              echo "ruby_version=$ruby_version" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
+      - name: Select Ruby runtime for SDK prebuilt
+        if: steps.sdk-prebuilts.outputs.ruby_version != ''
+        run: |
+          set -euo pipefail
+          ruby_version="${{ steps.sdk-prebuilts.outputs.ruby_version }}"
+          ruby_minor="$(printf '%s\n' "$ruby_version" | awk -F. '{ print $1 "." $2 }')"
+          formula="ruby@$ruby_minor"
+          if ! command -v brew >/dev/null 2>&1; then
+            echo "Homebrew is required to select $formula for the Ruby SDK prebuilt" >&2
+            exit 1
+          fi
+          ruby_dir=""
+          for prefix in "$(brew --prefix)" /opt/homebrew /usr/local; do
+            if [ -x "$prefix/opt/$formula/bin/ruby" ] && [ -x "$prefix/opt/$formula/bin/bundle" ]; then
+              ruby_dir="$prefix/opt/$formula/bin"
+              break
+            fi
+          done
+          if [ -z "$ruby_dir" ]; then
+            brew install "$formula"
+            for prefix in "$(brew --prefix)" /opt/homebrew /usr/local; do
+              if [ -x "$prefix/opt/$formula/bin/ruby" ] && [ -x "$prefix/opt/$formula/bin/bundle" ]; then
+                ruby_dir="$prefix/opt/$formula/bin"
+                break
+              fi
+            done
+          fi
+          if [ -z "$ruby_dir" ]; then
+            echo "Could not locate $formula after installation" >&2
+            exit 1
+          fi
+          "$ruby_dir/ruby" -e 'minor = ARGV.fetch(0); abort("Ruby #{RUBY_VERSION} does not match #{minor}.x") unless RUBY_VERSION.start_with?("#{minor}.")' "$ruby_minor"
+          "$ruby_dir/bundle" --version
+          echo "$ruby_dir" >> "$GITHUB_PATH"
 
       - name: Run ader bouquet
         # Non-zero exit when any entry fails. GitHub then marks the run red,
