@@ -147,6 +147,7 @@ fn proto_manifest(resolved: &identity::ResolvedManifest) -> HolonManifest {
             commands: Vec::new(),
             files: resolved.required_files.clone(),
             platforms: Vec::new(),
+            sdk_prebuilts: Vec::new(),
         }),
         artifacts: (!resolved.artifact_binary.is_empty() || !resolved.artifact_primary.is_empty())
             .then(|| Artifacts {
