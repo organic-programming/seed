@@ -211,7 +211,7 @@ pub mod holon_manifest {
     }
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Step {
-        #[prost(oneof = "step::Action", tags = "1, 2, 3, 4, 5")]
+        #[prost(oneof = "step::Action", tags = "1, 2, 3, 4, 5, 6")]
         pub action: ::core::option::Option<step::Action>,
     }
     /// Nested message and enum types in `Step`.
@@ -242,6 +242,12 @@ pub mod holon_manifest {
             #[prost(string, tag = "2")]
             pub to: ::prost::alloc::string::String,
         }
+        #[derive(Clone, PartialEq, ::prost::Message)]
+        pub struct CopyAllHolons {
+            /// destination directory, manifest-relative
+            #[prost(string, tag = "1")]
+            pub to: ::prost::alloc::string::String,
+        }
         #[derive(Clone, PartialEq, ::prost::Oneof)]
         pub enum Action {
             #[prost(message, tag = "1")]
@@ -255,6 +261,8 @@ pub mod holon_manifest {
             AssertFile(AssertFile),
             #[prost(message, tag = "5")]
             CopyArtifact(CopyArtifact),
+            #[prost(message, tag = "6")]
+            CopyAllHolons(CopyAllHolons),
         }
     }
     #[derive(Clone, PartialEq, ::prost::Message)]

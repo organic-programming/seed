@@ -77,8 +77,17 @@ func TestGenerateCoaxFlutterTemplateRendersScaffold(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(%s) failed: %v", packagerPath, err)
 	}
-	if !strings.Contains(string(packagerData), "// TODO: list your member holons") {
-		t.Fatalf("packager missing member TODO:\n%s", string(packagerData))
+	if strings.Contains(string(packagerData), "_copyMemberHolons") {
+		t.Fatalf("packager should not copy member holons directly:\n%s", string(packagerData))
+	}
+
+	manifestPath := filepath.Join(root, "henri-nobody", "api", "v1", "holon.proto")
+	manifestData, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", manifestPath, err)
+	}
+	if !strings.Contains(string(manifestData), "copy_all_holons") {
+		t.Fatalf("manifest missing copy_all_holons:\n%s", string(manifestData))
 	}
 }
 
@@ -130,5 +139,14 @@ func TestGenerateCoaxSwiftUITemplateRendersScaffold(t *testing.T) {
 	}
 	if !strings.Contains(string(processData), "sample.v1.SampleHolon/SetGreeting") {
 		t.Fatalf("AppHolonManager missing demo COAX method:\n%s", string(processData))
+	}
+
+	manifestPath := filepath.Join(root, "henri-nobody", "api", "v1", "holon.proto")
+	manifestData, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%s) failed: %v", manifestPath, err)
+	}
+	if !strings.Contains(string(manifestData), "copy_all_holons") {
+		t.Fatalf("manifest missing copy_all_holons:\n%s", string(manifestData))
 	}
 }

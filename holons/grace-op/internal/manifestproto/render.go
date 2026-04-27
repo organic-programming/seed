@@ -97,11 +97,12 @@ type buildTarget struct {
 }
 
 type step struct {
-	BuildMember  string        `yaml:"build_member"`
-	Exec         *execStep     `yaml:"exec"`
-	Copy         *copyStep     `yaml:"copy"`
-	AssertFile   *fileStep     `yaml:"assert_file"`
-	CopyArtifact *artifactStep `yaml:"copy_artifact"`
+	BuildMember   string         `yaml:"build_member"`
+	Exec          *execStep      `yaml:"exec"`
+	Copy          *copyStep      `yaml:"copy"`
+	AssertFile    *fileStep      `yaml:"assert_file"`
+	CopyArtifact  *artifactStep  `yaml:"copy_artifact"`
+	CopyAllHolons *allHolonsStep `yaml:"copy_all_holons"`
 }
 
 type execStep struct {
@@ -121,6 +122,10 @@ type fileStep struct {
 type artifactStep struct {
 	From string `yaml:"from"`
 	To   string `yaml:"to"`
+}
+
+type allHolonsStep struct {
+	To string `yaml:"to"`
 }
 
 type requires struct {
@@ -370,6 +375,11 @@ func appendStep(b *strings.Builder, indent string, step step) {
 		b.WriteString(indent + "  copy_artifact: {\n")
 		appendStringField(b, indent+"    ", "from", step.CopyArtifact.From)
 		appendStringField(b, indent+"    ", "to", step.CopyArtifact.To)
+		b.WriteString(indent + "  }\n")
+	}
+	if step.CopyAllHolons != nil {
+		b.WriteString(indent + "  copy_all_holons: {\n")
+		appendStringField(b, indent+"    ", "to", step.CopyAllHolons.To)
 		b.WriteString(indent + "  }\n")
 	}
 	b.WriteString(indent)

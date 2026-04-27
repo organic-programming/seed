@@ -547,6 +547,12 @@ artifacts: {
 - has explicit `cwd`
 - no shell interpolation
 
+Before invoking an `exec` step in a composite recipe, `op` injects
+`OP_HOLON_<MEMBER_SLUG_UPPER_SNAKE>_PATH` for each holon member; for example,
+`gabriel-greeting-zig` becomes `OP_HOLON_GABRIEL_GREETING_ZIG_PATH`. The value
+is the resolved `.holon` package path, local or shared cache. External scripts
+should prefer these variables over hardcoded `.op/build/` paths.
+
 `copy`
 
 - copies a file from one manifest-relative path to another
@@ -559,6 +565,13 @@ artifacts: {
 - `to` is a manifest-relative destination path
 - copies the entire `.holon` package directory (`.holon.json`, `bin/<arch>/`, etc.)
 - used to embed child holons into composite bundles (see `HOLON_PACKAGE.md` "Bundle Integration")
+
+`copy_all_holons`
+
+- copies the `.holon` package of every `type: "holon"` member of the current composite to `<to>/<member-slug>.holon/`
+- recurses into sub-composites: their member holons land flat in the same destination dir
+- slug collisions across recursion levels are a hard error
+- replaces the boilerplate of N× `copy_artifact` blocks per composite
 
 `assert_file`
 

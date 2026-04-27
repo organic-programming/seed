@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/organic-programming/grace-op/internal/identity"
+	"github.com/organic-programming/grace-op/internal/progress"
 	"github.com/organic-programming/grace-op/internal/testutil"
 )
 
@@ -105,6 +106,33 @@ func hasEntryContaining(values []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+func mustLoadManifestForTest(t *testing.T, dir string) *LoadedManifest {
+	t.Helper()
+	manifest, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("LoadManifest(%s) failed: %v", dir, err)
+	}
+	return manifest
+}
+
+func writeFakeHolonPackage(t *testing.T, manifest *LoadedManifest) {
+	t.Helper()
+	packageDir := manifest.HolonPackageDir()
+	if err := os.MkdirAll(filepath.Join(packageDir, "bin", runtimeArchitecture()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageDir, ".holon.json"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	binaryName := manifest.BinaryName()
+	if binaryName == "" {
+		binaryName = manifestSlug(manifest)
+	}
+	if err := os.WriteFile(filepath.Join(packageDir, "bin", runtimeArchitecture(), binaryName), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestLoadManifestAcceptsCompositeRecipe(t *testing.T) {
@@ -1098,6 +1126,188 @@ artifacts:
 	}
 	if !hasEntryContaining(report.Commands, "copy_artifact child -> app/Holons/child.holon") {
 		t.Fatalf("expected copy_artifact command, got %v", report.Commands)
+	}
+}
+
+func TestRecipeRunnerCopyAllHolonsCopiesRecursiveFlat(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+
+	childDir := filepath.Join(root, "child")
+	writeRecipeManifest(t, childDir, `schema: holon/v0
+kind: native
+build:
+  runner: go-module
+artifacts:
+  binary: child
+`)
+	childManifest := mustLoadManifestForTest(t, childDir)
+	writeFakeHolonPackage(t, childManifest)
+
+	leafDir := filepath.Join(root, "leaf")
+	writeRecipeManifest(t, leafDir, `schema: holon/v0
+kind: native
+build:
+  runner: go-module
+artifacts:
+  binary: leaf
+`)
+	leafManifest := mustLoadManifestForTest(t, leafDir)
+	writeFakeHolonPackage(t, leafManifest)
+
+	parentDir := filepath.Join(root, "parent")
+	writeRecipeManifest(t, parentDir, `schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: leaf
+      path: ../leaf
+      type: holon
+  targets:
+    `+canonicalRuntimeTarget()+`:
+      steps:
+        - assert_file:
+            path: .op/build/parent.holon/.holon.json
+artifacts:
+  primary: .op/build/parent.holon
+`)
+	parentManifest := mustLoadManifestForTest(t, parentDir)
+	writeFakeHolonPackage(t, parentManifest)
+
+	writeRecipeManifest(t, root, `schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: child
+      path: child
+      type: holon
+    - id: parent
+      path: parent
+      type: holon
+    - id: app
+      path: app
+      type: component
+  targets:
+    `+canonicalRuntimeTarget()+`:
+      steps:
+        - copy_all_holons:
+            to: app/Holons
+artifacts:
+  primary: app/Holons
+`)
+
+	manifest := mustLoadManifestForTest(t, root)
+	var report Report
+	err := (recipeRunner{}).stepCopyAllHolons(manifest, BuildContext{Progress: progress.Silence()}, &RecipeStepCopyAllHolons{To: "app/Holons"}, &report)
+	if err != nil {
+		t.Fatalf("copy_all_holons failed: %v", err)
+	}
+
+	for _, slug := range []string{"child", "parent", "leaf"} {
+		if _, err := os.Stat(filepath.Join(root, "app", "Holons", slug+".holon", ".holon.json")); err != nil {
+			t.Fatalf("copied %s package missing: %v", slug, err)
+		}
+	}
+	if !hasEntryContaining(report.Commands, "copy_all_holons -> app/Holons") {
+		t.Fatalf("expected copy_all_holons command, got %v", report.Commands)
+	}
+}
+
+func TestRecipeRunnerCopyAllHolonsRejectsSlugCollision(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+
+	for _, dir := range []string{"first", "second"} {
+		memberDir := filepath.Join(root, dir)
+		writeRecipeManifest(t, memberDir, `schema: holon/v0
+kind: native
+build:
+  runner: go-module
+artifacts:
+  binary: dup
+`)
+		writeFakeHolonPackage(t, mustLoadManifestForTest(t, memberDir))
+	}
+
+	writeRecipeManifest(t, root, `schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: first
+      path: first
+      type: holon
+    - id: second
+      path: second
+      type: holon
+  targets:
+    `+canonicalRuntimeTarget()+`:
+      steps:
+        - copy_all_holons:
+            to: app/Holons
+artifacts:
+  primary: app/Holons
+`)
+
+	manifest := mustLoadManifestForTest(t, root)
+	err := (recipeRunner{}).stepCopyAllHolons(manifest, BuildContext{Progress: progress.Silence()}, &RecipeStepCopyAllHolons{To: "app/Holons"}, &Report{})
+	if err == nil {
+		t.Fatal("expected slug collision error")
+	}
+	if !strings.Contains(err.Error(), `slug collision "dup"`) {
+		t.Fatalf("error = %q, want slug collision", err.Error())
+	}
+}
+
+func TestRecipeRunnerCopyAllHolonsRejectsCompositeCycle(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+
+	childDir := filepath.Join(root, "child")
+	writeRecipeManifest(t, childDir, `schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: root
+      path: ..
+      type: holon
+  targets:
+    `+canonicalRuntimeTarget()+`:
+      steps:
+        - assert_file:
+            path: .op/build/child.holon/.holon.json
+artifacts:
+  primary: .op/build/child.holon
+`)
+	writeFakeHolonPackage(t, mustLoadManifestForTest(t, childDir))
+
+	writeRecipeManifest(t, root, `schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: child
+      path: child
+      type: holon
+  targets:
+    `+canonicalRuntimeTarget()+`:
+      steps:
+        - copy_all_holons:
+            to: app/Holons
+artifacts:
+  primary: app/Holons
+`)
+
+	manifest := mustLoadManifestForTest(t, root)
+	err := (recipeRunner{}).stepCopyAllHolons(manifest, BuildContext{Progress: progress.Silence()}, &RecipeStepCopyAllHolons{To: "app/Holons"}, &Report{})
+	if err == nil {
+		t.Fatal("expected cycle error")
+	}
+	if !strings.Contains(err.Error(), "composite dependency cycle") {
+		t.Fatalf("error = %q, want cycle", err.Error())
 	}
 }
 

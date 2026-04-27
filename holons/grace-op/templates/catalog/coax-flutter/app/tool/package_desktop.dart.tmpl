@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -10,17 +9,6 @@ const _givenName = '{{ .GivenTitle }}';
 const _familyName = '{{ .FamilyTitle }}';
 const _motto = 'Flutter app holon scaffold with COAX support.';
 const _uuid = '{{ .UUID }}';
-const _memberSlugs = <String>[
-  // TODO: list your member holons
-];
-const _standaloneRunners = <String>{
-  'go-module',
-  'swift-package',
-  'cargo',
-  'cmake',
-  'qt-cmake',
-  'dart',
-};
 
 Future<void> main(List<String> args) async {
   if (args.length < 2 || args.length > 3) {
@@ -76,13 +64,8 @@ Future<void> main(List<String> args) async {
       );
       final destination = Directory(p.join(runtimeDir.path, '$_entryBase.app'));
       final entitlements = await _extractCodeSignEntitlements(source.path);
-      _purgePackagedResources(source);
       _purgePackagedResources(destination);
       await _copyEntity(source, destination);
-      await _copyMemberHolons(
-        rootDir.parent,
-        Directory(p.join(destination.path, 'Contents', 'Resources', 'Holons')),
-      );
       await _copyAppProto(
         rootDir,
         Directory(
@@ -110,10 +93,6 @@ Future<void> main(List<String> args) async {
         requiredSidecarDir: 'data',
       );
       await _copyDirectoryContents(bundle, runtimeDir);
-      await _copyMemberHolons(
-        rootDir.parent,
-        Directory(p.join(runtimeDir.path, 'data', 'Holons')),
-      );
       await _copyAppProto(
         rootDir,
         Directory(p.join(runtimeDir.path, 'data', 'AppProto')),
@@ -127,10 +106,6 @@ Future<void> main(List<String> args) async {
         requiredSidecarDir: 'data',
       );
       await _copyDirectoryContents(bundle, runtimeDir);
-      await _copyMemberHolons(
-        rootDir.parent,
-        Directory(p.join(runtimeDir.path, 'data', 'Holons')),
-      );
       await _copyAppProto(
         rootDir,
         Directory(p.join(runtimeDir.path, 'data', 'AppProto')),
@@ -251,31 +226,6 @@ Directory _findMacOSAppBundle(
   );
 }
 
-Future<void> _copyMemberHolons(
-  Directory examplesDir,
-  Directory destination,
-) async {
-  destination.createSync(recursive: true);
-  for (final slug in _memberSlugs) {
-    final source = Directory(
-      p.join(examplesDir.path, slug, '.op', 'build', '$slug.holon'),
-    );
-    if (!source.existsSync()) {
-      if (_memberProducesStandaloneArtifact(examplesDir, slug)) {
-        throw StateError('missing built member package: ${source.path}');
-      }
-      stderr.writeln(
-        'skipping missing non-standalone member package: ${source.path}',
-      );
-      continue;
-    }
-    await _copyEntity(
-      source,
-      Directory(p.join(destination.path, '$slug.holon')),
-    );
-  }
-}
-
 Future<void> _copyAppProto(Directory rootDir, Directory destination) async {
   final source = Directory(p.join(rootDir.path, 'api'));
   if (!source.existsSync()) {
@@ -342,41 +292,6 @@ Future<void> _copyDirectoryContents(
     final name = p.basename(entity.path);
     await _copyEntity(entity, Directory(p.join(destination.path, name)));
   }
-}
-
-bool _memberProducesStandaloneArtifact(Directory examplesDir, String slug) {
-  final packageMetadata = File(
-    p.join(
-      examplesDir.path,
-      slug,
-      '.op',
-      'build',
-      '$slug.holon',
-      '.holon.json',
-    ),
-  );
-  if (packageMetadata.existsSync()) {
-    final decoded = jsonDecode(packageMetadata.readAsStringSync());
-    if (decoded is Map<String, dynamic>) {
-      final standalone = decoded['standalone'];
-      if (standalone is bool) {
-        return standalone;
-      }
-    }
-  }
-
-  final manifest = File(
-    p.join(examplesDir.path, slug, 'api', 'v1', 'holon.proto'),
-  );
-  if (!manifest.existsSync()) {
-    return true;
-  }
-
-  final runnerMatch = RegExp(
-    r'runner:\s*"([^"]+)"',
-  ).firstMatch(manifest.readAsStringSync());
-  final runner = runnerMatch?.group(1)?.trim().toLowerCase() ?? '';
-  return _standaloneRunners.contains(runner);
 }
 
 Future<void> _copyEntity(

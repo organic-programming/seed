@@ -78,6 +78,22 @@ The COAX server remains opt-in:
 - overridden by `OP_COAX_SERVER_ENABLED`
 - overridden by `OP_COAX_SERVER_LISTEN_URI`
 
+## Bundling member holons
+
+Composite apps embed their member holons via the `copy_all_holons` recipe step.
+Op iterates `type: "holon"` members of the composite (recursively into
+sub-composites) and copies each `.holon` package to the destination dir.
+
+Example in the composite manifest:
+
+```protobuf
+steps: {
+  copy_all_holons: {
+    to: ".op/build/MyApp.app/Contents/Resources/Holons"
+  }
+}
+```
+
 ## Verifying COAX Immediately
 
 Run the app, enable COAX in the header, then exercise the demo member:
@@ -99,18 +115,16 @@ Expected behavior:
 ## Replacing The Demo Member With A Real Holon
 
 1. Replace `henri-nobody/holon/` with your real business holon.
-2. Update `henri-nobody/app/tool/package_desktop.dart`.
-   Add your real member slugs in `_memberSlugs`.
-3. Replace the demo controller in `henri-nobody/app/lib/src/app.dart`.
+2. Replace the demo controller in `henri-nobody/app/lib/src/app.dart`.
    Swap the local in-memory member bridge for:
    - `BundledHolons<T>`
    - a real holon identity mapper
    - `BundledHolonConnector<T>` or your own `HolonConnector<T>`
-4. Keep the COAX UI components unchanged.
+3. Keep the COAX UI components unchanged.
    The app should still mount:
    - `CoaxControlsView`
    - `CoaxSettingsView`
-5. Keep `CoaxManager` as the owner of start/stop and settings persistence.
+4. Keep `CoaxManager` as the owner of start/stop and settings persistence.
 
 ## Minimal Real-App Wiring Pattern
 

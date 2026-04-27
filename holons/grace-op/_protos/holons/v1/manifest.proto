@@ -123,6 +123,7 @@ message HolonManifest {
       string build_member = 3;    // member id to build
       AssertFile assert_file = 4;
       CopyArtifact copy_artifact = 5;
+      CopyAllHolons copy_all_holons = 6;
     }
 
     message Exec {
@@ -142,6 +143,10 @@ message HolonManifest {
     message CopyArtifact {
       string from = 1;
       string to = 2;
+    }
+
+    message CopyAllHolons {
+      string to = 1;  // destination directory, manifest-relative
     }
   }
 

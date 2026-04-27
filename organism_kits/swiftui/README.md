@@ -80,6 +80,22 @@ The COAX server remains opt-in:
 - overridden by `OP_COAX_SERVER_ENABLED`
 - overridden by `OP_COAX_SERVER_LISTEN_URI`
 
+## Bundling member holons
+
+Composite apps embed their member holons via the `copy_all_holons` recipe step.
+Op iterates `type: "holon"` members of the composite (recursively into
+sub-composites) and copies each `.holon` package to the destination dir.
+
+Example in the composite manifest:
+
+```protobuf
+steps: {
+  copy_all_holons: {
+    to: ".op/build/MyApp.app/Contents/Resources/Holons"
+  }
+}
+```
+
 ## Verifying COAX Immediately
 
 Run the app, enable COAX in the header, then exercise the demo member:

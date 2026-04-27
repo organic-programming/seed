@@ -1479,6 +1479,8 @@ func (r recipeRunner) executeStep(manifest *LoadedManifest, ctx BuildContext, st
 		return r.stepCopy(manifest, ctx, step.Copy, report)
 	case step.CopyArtifact != nil:
 		return r.stepCopyArtifact(manifest, ctx, step.CopyArtifact, members, report)
+	case step.CopyAllHolons != nil:
+		return r.stepCopyAllHolons(manifest, ctx, step.CopyAllHolons, report)
 	case step.AssertFile != nil:
 		return r.stepAssertFile(manifest, ctx, step.AssertFile, report)
 	default:
@@ -1636,6 +1638,89 @@ func (recipeRunner) stepCopyArtifact(manifest *LoadedManifest, ctx BuildContext,
 	return nil
 }
 
+func (recipeRunner) stepCopyAllHolons(manifest *LoadedManifest, ctx BuildContext, ca *RecipeStepCopyAllHolons, report *Report) error {
+	dstRoot, err := manifest.ResolveManifestPath(ca.To)
+	if err != nil {
+		return fmt.Errorf("copy_all_holons to %q: %w", ca.To, err)
+	}
+
+	report.Commands = append(report.Commands, fmt.Sprintf("copy_all_holons -> %s", ca.To))
+	ctx.Progress.Step(fmt.Sprintf("copy_all_holons -> %s", ca.To))
+	if ctx.DryRun {
+		return nil
+	}
+
+	if err := os.RemoveAll(dstRoot); err != nil {
+		return fmt.Errorf("copy_all_holons: clear destination %s: %w", workspaceRelativePath(dstRoot), err)
+	}
+	if err := os.MkdirAll(dstRoot, 0o755); err != nil {
+		return fmt.Errorf("copy_all_holons: create destination %s: %w", workspaceRelativePath(dstRoot), err)
+	}
+
+	seen := make(map[string]string)
+	visiting := map[string]bool{compositeDependencyKey(manifest): true}
+
+	var collect func(*LoadedManifest) error
+	collect = func(parent *LoadedManifest) error {
+		for _, member := range parent.Manifest.Build.Members {
+			if member.Type != "holon" {
+				continue
+			}
+			memberDir, err := parent.ResolveManifestPath(member.Path)
+			if err != nil {
+				return fmt.Errorf("copy_all_holons member %q path: %w", member.ID, err)
+			}
+			memberManifest, err := LoadManifest(memberDir)
+			if err != nil {
+				return fmt.Errorf("copy_all_holons member %q manifest: %w", member.ID, err)
+			}
+			if resolved, err := filepath.EvalSymlinks(memberManifest.Dir); err == nil {
+				memberManifest.Dir = resolved
+			}
+
+			slug := manifestSlug(memberManifest)
+			if memberManifest.Manifest.Kind == KindComposite {
+				key := compositeDependencyKey(memberManifest)
+				if visiting[key] {
+					return fmt.Errorf("copy_all_holons: composite dependency cycle at %q", slug)
+				}
+			}
+			srcDir := availableHolonPackageDir(memberManifest)
+			if info, err := os.Stat(srcDir); err != nil || !info.IsDir() {
+				return fmt.Errorf("copy_all_holons source missing for %q: %s", slug, workspaceRelativePath(srcDir))
+			}
+			if existingSrc, dup := seen[slug]; dup {
+				return fmt.Errorf("copy_all_holons: slug collision %q from %s and %s", slug, workspaceRelativePath(existingSrc), workspaceRelativePath(srcDir))
+			}
+			seen[slug] = srcDir
+
+			dstDir := filepath.Join(dstRoot, slug+".holon")
+			if err := os.RemoveAll(dstDir); err != nil {
+				return fmt.Errorf("copy_all_holons: clear destination %s: %w", workspaceRelativePath(dstDir), err)
+			}
+			if err := copyDir(srcDir, dstDir); err != nil {
+				return fmt.Errorf("copy_all_holons: copy %s: %w", slug, err)
+			}
+
+			if memberManifest.Manifest.Kind == KindComposite {
+				key := compositeDependencyKey(memberManifest)
+				visiting[key] = true
+				if err := collect(memberManifest); err != nil {
+					return err
+				}
+				delete(visiting, key)
+			}
+		}
+		return nil
+	}
+	if err := collect(manifest); err != nil {
+		return err
+	}
+
+	report.Notes = append(report.Notes, fmt.Sprintf("copied %d holon artifacts → %s", len(seen), ca.To))
+	return nil
+}
+
 // stepAssertFile verifies a manifest-relative file exists.
 func (recipeRunner) stepAssertFile(manifest *LoadedManifest, ctx BuildContext, a *RecipeStepFile, report *Report) error {
 	path, err := manifest.ResolveManifestPath(a.Path)
@@ -1750,8 +1835,39 @@ func recipeExecEnv(manifest *LoadedManifest, ctx BuildContext) []string {
 	return env
 }
 
+func compositeMemberPackageEnv(manifest *LoadedManifest) []string {
+	if manifest == nil || manifest.Manifest.Kind != KindComposite || len(manifest.Manifest.Build.Members) == 0 {
+		return nil
+	}
+	env := make([]string, 0, len(manifest.Manifest.Build.Members))
+	for _, member := range manifest.Manifest.Build.Members {
+		if member.Type != "holon" {
+			continue
+		}
+		memberDir, err := manifest.ResolveManifestPath(member.Path)
+		if err != nil {
+			continue
+		}
+		memberManifest, err := LoadManifest(memberDir)
+		if err != nil {
+			continue
+		}
+		if resolved, err := filepath.EvalSymlinks(memberManifest.Dir); err == nil {
+			memberManifest.Dir = resolved
+		}
+		slug := strings.TrimSpace(manifestSlug(memberManifest))
+		if slug == "" {
+			continue
+		}
+		envKey := "OP_HOLON_" + strings.ReplaceAll(strings.ToUpper(slug), "-", "_") + "_PATH"
+		env = append(env, envKey+"="+availableHolonPackageDir(memberManifest))
+	}
+	return env
+}
+
 func buildExecutionEnv(manifest *LoadedManifest, ctx BuildContext) []string {
 	env := recipeExecEnv(manifest, ctx)
+	env = append(env, compositeMemberPackageEnv(manifest)...)
 	env = append(env, sdkPrebuiltEnv(ctx)...)
 	return env
 }
