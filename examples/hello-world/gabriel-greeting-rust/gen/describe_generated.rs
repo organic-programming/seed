@@ -61,6 +61,7 @@ pub fn static_describe_response() -> DescribeResponse {
                         "Cargo.toml".to_string(),
                     ],
                     platforms: vec![],
+                    sdk_prebuilts: vec![],
                 }
             ),
             artifacts: Some(

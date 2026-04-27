@@ -890,6 +890,7 @@ func writeRustRequiresLiteral(buf *strings.Builder, requires *holonsv1.HolonMani
 	writeRustStringVecField(buf, indent+1, "commands", requires.GetCommands())
 	writeRustStringVecField(buf, indent+1, "files", requires.GetFiles())
 	writeRustStringVecField(buf, indent+1, "platforms", requires.GetPlatforms())
+	writeRustStringVecField(buf, indent+1, "sdk_prebuilts", requires.GetSdkPrebuilts())
 	writeRustLine(buf, indent, "}")
 }
 
