@@ -19,10 +19,15 @@ extern "C" {
 #endif
 
 extern const upb_MiniTable greeting__v1__ListLanguagesRequest_msg_init;
+extern const upb_MiniTable* greeting__v1__ListLanguagesRequest_msg_init_ptr;
 extern const upb_MiniTable greeting__v1__ListLanguagesResponse_msg_init;
+extern const upb_MiniTable* greeting__v1__ListLanguagesResponse_msg_init_ptr;
 extern const upb_MiniTable greeting__v1__Language_msg_init;
+extern const upb_MiniTable* greeting__v1__Language_msg_init_ptr;
 extern const upb_MiniTable greeting__v1__SayHelloRequest_msg_init;
+extern const upb_MiniTable* greeting__v1__SayHelloRequest_msg_init_ptr;
 extern const upb_MiniTable greeting__v1__SayHelloResponse_msg_init;
+extern const upb_MiniTable* greeting__v1__SayHelloResponse_msg_init_ptr;
 
 extern const upb_MiniTableFile greeting_proto_upb_file_layout;
 

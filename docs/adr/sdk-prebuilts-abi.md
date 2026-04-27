@@ -80,9 +80,11 @@ PR.
 Small header-only third-party dependencies that the SDK needs at compile time
 are bundled in the corresponding prebuilt when doing so keeps the prebuilt
 self-contained without adding a native ABI surface. The C++ prebuilt bundles
-`nlohmann/json` `3.11.3` under `include/nlohmann/json.hpp`. Larger dependencies
-or dependencies with compiled artifacts remain part of the native dependency
-bundle or the documented system fallback, case by case.
+`nlohmann/json` `3.11.3` under `include/nlohmann/json.hpp`. The C prebuilt
+also bundles that header because the current C SDK serve bridge includes the C++
+SDK bridge header. Larger dependencies or dependencies with compiled artifacts
+remain part of the native dependency bundle or the documented system fallback,
+case by case.
 
 ## Versioning
 

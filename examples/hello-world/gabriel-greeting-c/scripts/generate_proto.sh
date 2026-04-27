@@ -5,14 +5,23 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 OUT="$ROOT/gen/c/greeting/v1"
 TMP=$(mktemp -d)
 
+if [[ -n "${OP_SDK_C_PATH:-}" ]]; then
+  PROTOC="$OP_SDK_C_PATH/bin/protoc"
+  UPB_PLUGIN="$OP_SDK_C_PATH/bin/protoc-gen-upb"
+  UPBDEFS_PLUGIN="$OP_SDK_C_PATH/bin/protoc-gen-upbdefs"
+else
+  PROTOC=$(command -v protoc)
+  UPB_PLUGIN=$(command -v protoc-gen-upb)
+  UPBDEFS_PLUGIN=$(command -v protoc-gen-upbdefs)
+fi
+
 mkdir -p "$OUT"
 rm -f "$OUT"/greeting.upb.h "$OUT"/greeting.upb.c "$OUT"/greeting.upb_minitable.h \
   "$OUT"/greeting.upb_minitable.c "$OUT"/greeting.upbdefs.h "$OUT"/greeting.upbdefs.c
 
-protoc \
-  --plugin=protoc-gen-upb="$(command -v protoc-gen-upb)" \
-  --plugin=protoc-gen-upbdefs="$(command -v protoc-gen-upbdefs)" \
-  --plugin=protoc-gen-upb_minitable="$(command -v protoc-gen-upb_minitable)" \
+"$PROTOC" \
+  --plugin=protoc-gen-upb="$UPB_PLUGIN" \
+  --plugin=protoc-gen-upbdefs="$UPBDEFS_PLUGIN" \
   --upb_out="$TMP" \
   --upbdefs_out="$TMP" \
   --upb_minitable_out="$TMP" \

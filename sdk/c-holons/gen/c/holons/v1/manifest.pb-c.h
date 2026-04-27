@@ -36,10 +36,32 @@ typedef struct Holons__V1__HolonManifest__Requires Holons__V1__HolonManifest__Re
 typedef struct Holons__V1__HolonManifest__Artifacts Holons__V1__HolonManifest__Artifacts;
 typedef struct Holons__V1__HolonManifest__Artifacts__ByTargetEntry Holons__V1__HolonManifest__Artifacts__ByTargetEntry;
 typedef struct Holons__V1__HolonManifest__Artifacts__TargetArtifacts Holons__V1__HolonManifest__Artifacts__TargetArtifacts;
+typedef struct Holons__V1__ListenerVisibilityOverride Holons__V1__ListenerVisibilityOverride;
 
 
 /* --- enums --- */
 
+/*
+ * ObservabilityVisibility gates the HolonSession and HolonObservability
+ * services. Declared at file level so protos that need to reference it
+ * outside the manifest (manifest extensions, tooling) can import it.
+ */
+typedef enum _Holons__V1__ObservabilityVisibility {
+  HOLONS__V1__OBSERVABILITY_VISIBILITY__OBSERVABILITY_VISIBILITY_UNSPECIFIED = 0,
+  /*
+   * PERMISSION_DENIED on all RPCs
+   */
+  HOLONS__V1__OBSERVABILITY_VISIBILITY__OBSERVABILITY_VISIBILITY_OFF = 1,
+  /*
+   * Counts/states only; no payloads
+   */
+  HOLONS__V1__OBSERVABILITY_VISIBILITY__OBSERVABILITY_VISIBILITY_SUMMARY = 2,
+  /*
+   * All fields returned
+   */
+  HOLONS__V1__OBSERVABILITY_VISIBILITY__OBSERVABILITY_VISIBILITY_FULL = 3
+    PROTOBUF_C__FORCE_ENUM_TO_BE_INT_SIZE(HOLONS__V1__OBSERVABILITY_VISIBILITY)
+} Holons__V1__ObservabilityVisibility;
 
 /* --- messages --- */
 
@@ -216,7 +238,7 @@ struct  Holons__V1__HolonManifest__Build__Member
 {
   ProtobufCMessage base;
   /*
-   * e.g. "daemon", "app"
+   * e.g. "holon", "app"
    */
   char *id;
   /*
@@ -274,10 +296,20 @@ struct  Holons__V1__HolonManifest__Build
    */
   size_t n_templates;
   char **templates;
+  /*
+   * Commands to execute sequentially BEFORE the main runner logic.
+   */
+  size_t n_before_commands;
+  Holons__V1__HolonManifest__Step__Exec **before_commands;
+  /*
+   * Commands to execute sequentially AFTER the main runner logic.
+   */
+  size_t n_after_commands;
+  Holons__V1__HolonManifest__Step__Exec **after_commands;
 };
 #define HOLONS__V1__HOLON_MANIFEST__BUILD__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&holons__v1__holon_manifest__build__descriptor) \
-, (char *)protobuf_c_empty_string, (char *)protobuf_c_empty_string, NULL, 0,NULL, 0,NULL, 0,NULL }
+, (char *)protobuf_c_empty_string, (char *)protobuf_c_empty_string, NULL, 0,NULL, 0,NULL, 0,NULL, 0,NULL, 0,NULL }
 
 
 struct  Holons__V1__HolonManifest__Step__Exec
@@ -372,10 +404,15 @@ struct  Holons__V1__HolonManifest__Requires
    */
   size_t n_platforms;
   char **platforms;
+  /*
+   * SDK native prebuilts required by `op build`
+   */
+  size_t n_sdk_prebuilts;
+  char **sdk_prebuilts;
 };
 #define HOLONS__V1__HOLON_MANIFEST__REQUIRES__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&holons__v1__holon_manifest__requires__descriptor) \
-, 0,NULL, 0,NULL, 0,NULL }
+, 0,NULL, 0,NULL, 0,NULL, 0,NULL }
 
 
 struct  Holons__V1__HolonManifest__Artifacts__ByTargetEntry
@@ -468,10 +505,39 @@ struct  Holons__V1__HolonManifest
    * user-facing documentation in markdown (rendered by `op man`)
    */
   char *guide;
+  /*
+   * ── Observability visibility ─────────────────────────
+   * Single dial gating HolonSession.* and HolonObservability.* exposure.
+   * UNSPECIFIED defers to the per-listener default the SDK infers from
+   * the listener's scheme and security mode. See SESSIONS.md §Security
+   * and OBSERVABILITY.md §Security Considerations.
+   */
+  Holons__V1__ObservabilityVisibility session_visibility;
+  /*
+   * Per-listener overrides. Each override's listener_uri must match a
+   * listener declared in the holon's build/serve config.
+   */
+  size_t n_session_visibility_overrides;
+  Holons__V1__ListenerVisibilityOverride **session_visibility_overrides;
 };
 #define HOLONS__V1__HOLON_MANIFEST__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&holons__v1__holon_manifest__descriptor) \
-, NULL, (char *)protobuf_c_empty_string, (char *)protobuf_c_empty_string, 0,NULL, NULL, (char *)protobuf_c_empty_string, 0,NULL, (char *)protobuf_c_empty_string, NULL, NULL, NULL, 0,NULL, (char *)protobuf_c_empty_string }
+, NULL, (char *)protobuf_c_empty_string, (char *)protobuf_c_empty_string, 0,NULL, NULL, (char *)protobuf_c_empty_string, 0,NULL, (char *)protobuf_c_empty_string, NULL, NULL, NULL, 0,NULL, (char *)protobuf_c_empty_string, HOLONS__V1__OBSERVABILITY_VISIBILITY__OBSERVABILITY_VISIBILITY_UNSPECIFIED, 0,NULL }
+
+
+struct  Holons__V1__ListenerVisibilityOverride
+{
+  ProtobufCMessage base;
+  /*
+   * Listener URI to apply the override to. Matches a listener declared
+   * in the holon's serve config.
+   */
+  char *listener_uri;
+  Holons__V1__ObservabilityVisibility visibility;
+};
+#define HOLONS__V1__LISTENER_VISIBILITY_OVERRIDE__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&holons__v1__listener_visibility_override__descriptor) \
+, (char *)protobuf_c_empty_string, HOLONS__V1__OBSERVABILITY_VISIBILITY__OBSERVABILITY_VISIBILITY_UNSPECIFIED }
 
 
 /* Holons__V1__HolonManifest__Identity methods */
@@ -550,6 +616,25 @@ Holons__V1__HolonManifest *
 void   holons__v1__holon_manifest__free_unpacked
                      (Holons__V1__HolonManifest *message,
                       ProtobufCAllocator *allocator);
+/* Holons__V1__ListenerVisibilityOverride methods */
+void   holons__v1__listener_visibility_override__init
+                     (Holons__V1__ListenerVisibilityOverride         *message);
+size_t holons__v1__listener_visibility_override__get_packed_size
+                     (const Holons__V1__ListenerVisibilityOverride   *message);
+size_t holons__v1__listener_visibility_override__pack
+                     (const Holons__V1__ListenerVisibilityOverride   *message,
+                      uint8_t             *out);
+size_t holons__v1__listener_visibility_override__pack_to_buffer
+                     (const Holons__V1__ListenerVisibilityOverride   *message,
+                      ProtobufCBuffer     *buffer);
+Holons__V1__ListenerVisibilityOverride *
+       holons__v1__listener_visibility_override__unpack
+                     (ProtobufCAllocator  *allocator,
+                      size_t               len,
+                      const uint8_t       *data);
+void   holons__v1__listener_visibility_override__free_unpacked
+                     (Holons__V1__ListenerVisibilityOverride *message,
+                      ProtobufCAllocator *allocator);
 /* --- per-message closures --- */
 
 typedef void (*Holons__V1__HolonManifest__Identity_Closure)
@@ -612,12 +697,16 @@ typedef void (*Holons__V1__HolonManifest__Artifacts_Closure)
 typedef void (*Holons__V1__HolonManifest_Closure)
                  (const Holons__V1__HolonManifest *message,
                   void *closure_data);
+typedef void (*Holons__V1__ListenerVisibilityOverride_Closure)
+                 (const Holons__V1__ListenerVisibilityOverride *message,
+                  void *closure_data);
 
 /* --- services --- */
 
 
 /* --- descriptors --- */
 
+extern const ProtobufCEnumDescriptor    holons__v1__observability_visibility__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__identity__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__skill__descriptor;
@@ -638,6 +727,7 @@ extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__requires__de
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__artifacts__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__artifacts__by_target_entry__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__artifacts__target_artifacts__descriptor;
+extern const ProtobufCMessageDescriptor holons__v1__listener_visibility_override__descriptor;
 
 PROTOBUF_C__END_DECLS
 

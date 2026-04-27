@@ -53,5 +53,10 @@ Close the channel with `holons_disconnect(channel)`.
 ## Build and test
 
 ```sh
+op sdk install c
 make test
 ```
+
+`OP_SDK_C_PATH`, normally set by `op build` after `op sdk install c`, points
+Make and CMake consumers at the prebuilt gRPC/Protobuf/upb/protobuf-c toolchain.
+The prebuilt also carries `nlohmann/json` for the SDK's C++ bridge header.

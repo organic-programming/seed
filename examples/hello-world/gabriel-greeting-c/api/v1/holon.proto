@@ -32,6 +32,7 @@ option (holons.v1.manifest) = {
   }
   requires: {
     commands: ["cmake"]
+    sdk_prebuilts: ["c"]
     files: ["CMakeLists.txt", "cmd/main.c"]
   }
   artifacts: {
