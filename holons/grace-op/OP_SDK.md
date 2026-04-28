@@ -73,6 +73,27 @@ Each install writes a local `manifest.json` with the archive SHA-256 and tree
 SHA-256. `op sdk verify <lang>` recomputes the installed tree hash and fails if
 the tree no longer matches the recorded metadata.
 
+Distributions that provide proto generators also advertise them in the same
+local manifest:
+
+```json
+{
+  "codegen": {
+    "plugins": [
+      {
+        "name": "go",
+        "binary": "bin/protoc-gen-go",
+        "out_subdir": "go"
+      }
+    ]
+  }
+}
+```
+
+`op build` resolves `build.codegen.languages` through this block and runs the
+plugin binary from the installed distribution, so proto generation does not
+depend on generators being present on `PATH`.
+
 ## Targets
 
 The v1 target set is T0 + T1:

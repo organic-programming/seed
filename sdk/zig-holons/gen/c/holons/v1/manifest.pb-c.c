@@ -61,6 +61,12 @@ void   holons__v1__holon_manifest__build__target__init
   static const Holons__V1__HolonManifest__Build__Target init_value = HOLONS__V1__HOLON_MANIFEST__BUILD__TARGET__INIT;
   *message = init_value;
 }
+void   holons__v1__holon_manifest__build__codegen__init
+                     (Holons__V1__HolonManifest__Build__Codegen         *message)
+{
+  static const Holons__V1__HolonManifest__Build__Codegen init_value = HOLONS__V1__HOLON_MANIFEST__BUILD__CODEGEN__INIT;
+  *message = init_value;
+}
 void   holons__v1__holon_manifest__build__init
                      (Holons__V1__HolonManifest__Build         *message)
 {
@@ -89,6 +95,12 @@ void   holons__v1__holon_manifest__step__copy_artifact__init
                      (Holons__V1__HolonManifest__Step__CopyArtifact         *message)
 {
   static const Holons__V1__HolonManifest__Step__CopyArtifact init_value = HOLONS__V1__HOLON_MANIFEST__STEP__COPY_ARTIFACT__INIT;
+  *message = init_value;
+}
+void   holons__v1__holon_manifest__step__copy_all_holons__init
+                     (Holons__V1__HolonManifest__Step__CopyAllHolons         *message)
+{
+  static const Holons__V1__HolonManifest__Step__CopyAllHolons init_value = HOLONS__V1__HOLON_MANIFEST__STEP__COPY_ALL_HOLONS__INIT;
   *message = init_value;
 }
 void   holons__v1__holon_manifest__step__init
@@ -866,7 +878,45 @@ const ProtobufCMessageDescriptor holons__v1__holon_manifest__build__target__desc
   (ProtobufCMessageInit) holons__v1__holon_manifest__build__target__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor holons__v1__holon_manifest__build__field_descriptors[8] =
+static const ProtobufCFieldDescriptor holons__v1__holon_manifest__build__codegen__field_descriptors[1] =
+{
+  {
+    "languages",
+    1,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_STRING,
+    offsetof(Holons__V1__HolonManifest__Build__Codegen, n_languages),
+    offsetof(Holons__V1__HolonManifest__Build__Codegen, languages),
+    NULL,
+    &protobuf_c_empty_string,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned holons__v1__holon_manifest__build__codegen__field_indices_by_name[] = {
+  0,   /* field[0] = languages */
+};
+static const ProtobufCIntRange holons__v1__holon_manifest__build__codegen__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 1 }
+};
+const ProtobufCMessageDescriptor holons__v1__holon_manifest__build__codegen__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "holons.v1.HolonManifest.Build.Codegen",
+  "Codegen",
+  "Holons__V1__HolonManifest__Build__Codegen",
+  "holons.v1",
+  sizeof(Holons__V1__HolonManifest__Build__Codegen),
+  1,
+  holons__v1__holon_manifest__build__codegen__field_descriptors,
+  holons__v1__holon_manifest__build__codegen__field_indices_by_name,
+  1,  holons__v1__holon_manifest__build__codegen__number_ranges,
+  (ProtobufCMessageInit) holons__v1__holon_manifest__build__codegen__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor holons__v1__holon_manifest__build__field_descriptors[9] =
 {
   {
     "runner",
@@ -964,10 +1014,23 @@ static const ProtobufCFieldDescriptor holons__v1__holon_manifest__build__field_d
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "codegen",
+    9,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_MESSAGE,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__HolonManifest__Build, codegen),
+    &holons__v1__holon_manifest__build__codegen__descriptor,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned holons__v1__holon_manifest__build__field_indices_by_name[] = {
   7,   /* field[7] = after_commands */
   6,   /* field[6] = before_commands */
+  8,   /* field[8] = codegen */
   2,   /* field[2] = defaults */
   1,   /* field[1] = main */
   3,   /* field[3] = members */
@@ -978,7 +1041,7 @@ static const unsigned holons__v1__holon_manifest__build__field_indices_by_name[]
 static const ProtobufCIntRange holons__v1__holon_manifest__build__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 8 }
+  { 0, 9 }
 };
 const ProtobufCMessageDescriptor holons__v1__holon_manifest__build__descriptor =
 {
@@ -988,7 +1051,7 @@ const ProtobufCMessageDescriptor holons__v1__holon_manifest__build__descriptor =
   "Holons__V1__HolonManifest__Build",
   "holons.v1",
   sizeof(Holons__V1__HolonManifest__Build),
-  8,
+  9,
   holons__v1__holon_manifest__build__field_descriptors,
   holons__v1__holon_manifest__build__field_indices_by_name,
   1,  holons__v1__holon_manifest__build__number_ranges,
@@ -1186,7 +1249,45 @@ const ProtobufCMessageDescriptor holons__v1__holon_manifest__step__copy_artifact
   (ProtobufCMessageInit) holons__v1__holon_manifest__step__copy_artifact__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor holons__v1__holon_manifest__step__field_descriptors[5] =
+static const ProtobufCFieldDescriptor holons__v1__holon_manifest__step__copy_all_holons__field_descriptors[1] =
+{
+  {
+    "to",
+    1,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(Holons__V1__HolonManifest__Step__CopyAllHolons, to),
+    NULL,
+    &protobuf_c_empty_string,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+};
+static const unsigned holons__v1__holon_manifest__step__copy_all_holons__field_indices_by_name[] = {
+  0,   /* field[0] = to */
+};
+static const ProtobufCIntRange holons__v1__holon_manifest__step__copy_all_holons__number_ranges[1 + 1] =
+{
+  { 1, 0 },
+  { 0, 1 }
+};
+const ProtobufCMessageDescriptor holons__v1__holon_manifest__step__copy_all_holons__descriptor =
+{
+  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+  "holons.v1.HolonManifest.Step.CopyAllHolons",
+  "CopyAllHolons",
+  "Holons__V1__HolonManifest__Step__CopyAllHolons",
+  "holons.v1",
+  sizeof(Holons__V1__HolonManifest__Step__CopyAllHolons),
+  1,
+  holons__v1__holon_manifest__step__copy_all_holons__field_descriptors,
+  holons__v1__holon_manifest__step__copy_all_holons__field_indices_by_name,
+  1,  holons__v1__holon_manifest__step__copy_all_holons__number_ranges,
+  (ProtobufCMessageInit) holons__v1__holon_manifest__step__copy_all_holons__init,
+  NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCFieldDescriptor holons__v1__holon_manifest__step__field_descriptors[6] =
 {
   {
     "exec",
@@ -1248,18 +1349,31 @@ static const ProtobufCFieldDescriptor holons__v1__holon_manifest__step__field_de
     PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "copy_all_holons",
+    6,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_MESSAGE,
+    offsetof(Holons__V1__HolonManifest__Step, action_case),
+    offsetof(Holons__V1__HolonManifest__Step, copy_all_holons),
+    &holons__v1__holon_manifest__step__copy_all_holons__descriptor,
+    NULL,
+    PROTOBUF_C_FIELD_FLAG_ONEOF,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned holons__v1__holon_manifest__step__field_indices_by_name[] = {
   3,   /* field[3] = assert_file */
   2,   /* field[2] = build_member */
   1,   /* field[1] = copy */
+  5,   /* field[5] = copy_all_holons */
   4,   /* field[4] = copy_artifact */
   0,   /* field[0] = exec */
 };
 static const ProtobufCIntRange holons__v1__holon_manifest__step__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 5 }
+  { 0, 6 }
 };
 const ProtobufCMessageDescriptor holons__v1__holon_manifest__step__descriptor =
 {
@@ -1269,14 +1383,14 @@ const ProtobufCMessageDescriptor holons__v1__holon_manifest__step__descriptor =
   "Holons__V1__HolonManifest__Step",
   "holons.v1",
   sizeof(Holons__V1__HolonManifest__Step),
-  5,
+  6,
   holons__v1__holon_manifest__step__field_descriptors,
   holons__v1__holon_manifest__step__field_indices_by_name,
   1,  holons__v1__holon_manifest__step__number_ranges,
   (ProtobufCMessageInit) holons__v1__holon_manifest__step__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor holons__v1__holon_manifest__requires__field_descriptors[3] =
+static const ProtobufCFieldDescriptor holons__v1__holon_manifest__requires__field_descriptors[4] =
 {
   {
     "commands",
@@ -1314,16 +1428,29 @@ static const ProtobufCFieldDescriptor holons__v1__holon_manifest__requires__fiel
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "sdk_prebuilts",
+    4,
+    PROTOBUF_C_LABEL_REPEATED,
+    PROTOBUF_C_TYPE_STRING,
+    offsetof(Holons__V1__HolonManifest__Requires, n_sdk_prebuilts),
+    offsetof(Holons__V1__HolonManifest__Requires, sdk_prebuilts),
+    NULL,
+    &protobuf_c_empty_string,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned holons__v1__holon_manifest__requires__field_indices_by_name[] = {
   0,   /* field[0] = commands */
   1,   /* field[1] = files */
   2,   /* field[2] = platforms */
+  3,   /* field[3] = sdk_prebuilts */
 };
 static const ProtobufCIntRange holons__v1__holon_manifest__requires__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 3 }
+  { 0, 4 }
 };
 const ProtobufCMessageDescriptor holons__v1__holon_manifest__requires__descriptor =
 {
@@ -1333,7 +1460,7 @@ const ProtobufCMessageDescriptor holons__v1__holon_manifest__requires__descripto
   "Holons__V1__HolonManifest__Requires",
   "holons.v1",
   sizeof(Holons__V1__HolonManifest__Requires),
-  3,
+  4,
   holons__v1__holon_manifest__requires__field_descriptors,
   holons__v1__holon_manifest__requires__field_indices_by_name,
   1,  holons__v1__holon_manifest__requires__number_ranges,

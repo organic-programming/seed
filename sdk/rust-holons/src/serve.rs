@@ -970,6 +970,7 @@ mod tests {
                 templates: Vec::new(),
                 before_commands: Vec::new(),
                 after_commands: Vec::new(),
+                codegen: None,
             }),
             requires: None,
             artifacts: Some(Artifacts {

@@ -76,9 +76,14 @@ type contract struct {
 type build struct {
 	Runner   string                 `yaml:"runner"`
 	Main     string                 `yaml:"main"`
+	Codegen  codegen                `yaml:"codegen"`
 	Defaults *defaults              `yaml:"defaults"`
 	Members  []member               `yaml:"members"`
 	Targets  map[string]buildTarget `yaml:"targets"`
+}
+
+type codegen struct {
+	Languages []string `yaml:"languages"`
 }
 
 type defaults struct {
@@ -306,6 +311,7 @@ func appendContract(b *strings.Builder, contract *contract) {
 func appendBuild(b *strings.Builder, build build) {
 	if strings.TrimSpace(build.Runner) == "" &&
 		strings.TrimSpace(build.Main) == "" &&
+		len(compactStrings(build.Codegen.Languages)) == 0 &&
 		build.Defaults == nil &&
 		len(build.Members) == 0 &&
 		len(build.Targets) == 0 {
@@ -315,6 +321,11 @@ func appendBuild(b *strings.Builder, build build) {
 	b.WriteString("  build: {\n")
 	appendStringField(b, "    ", "runner", build.Runner)
 	appendStringField(b, "    ", "main", build.Main)
+	if languages := compactStrings(build.Codegen.Languages); len(languages) > 0 {
+		b.WriteString("    codegen: {\n")
+		appendStringSliceField(b, "      ", "languages", languages)
+		b.WriteString("    }\n")
+	}
 	if build.Defaults != nil {
 		b.WriteString("    defaults: {\n")
 		appendStringField(b, "      ", "target", build.Defaults.Target)

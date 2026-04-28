@@ -142,6 +142,7 @@ fn proto_manifest(resolved: &identity::ResolvedManifest) -> HolonManifest {
             templates: Vec::new(),
             before_commands: Vec::new(),
             after_commands: Vec::new(),
+            codegen: None,
         }),
         requires: (!resolved.required_files.is_empty()).then(|| Requires {
             commands: Vec::new(),

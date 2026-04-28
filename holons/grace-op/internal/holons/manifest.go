@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -102,6 +103,11 @@ type BuildConfig struct {
 	Templates      []string
 	BeforeCommands []*RecipeStepExec
 	AfterCommands  []*RecipeStepExec
+	Codegen        CodegenConfig
+}
+
+type CodegenConfig struct {
+	Languages []string
 }
 
 // RecipeDefaults provides default target and mode for recipe builds.
@@ -337,8 +343,11 @@ func manifestFromResolved(resolved *identity.Resolved) Manifest {
 
 func manifestBuildFromResolved(resolved *identity.Resolved) BuildConfig {
 	build := BuildConfig{
-		Runner:    resolved.BuildRunner,
-		Main:      resolved.BuildMain,
+		Runner: resolved.BuildRunner,
+		Main:   resolved.BuildMain,
+		Codegen: CodegenConfig{
+			Languages: slices.Clone(resolved.BuildCodegenLanguages),
+		},
 		Templates: resolved.BuildTemplates,
 	}
 
@@ -615,6 +624,12 @@ func validateManifest(m *LoadedManifest) error {
 	if err := validateList("requires.sdk_prebuilts", m.Manifest.Requires.SDKPrebuilts); err != nil {
 		return fmt.Errorf("%s: %w", m.Path, err)
 	}
+	if err := validateList("build.codegen.languages", m.Manifest.Build.Codegen.Languages); err != nil {
+		return fmt.Errorf("%s: %w", m.Path, err)
+	}
+	if err := validateCodegenBeforeCommands(m); err != nil {
+		return err
+	}
 	for _, requiredFile := range m.Manifest.Requires.Files {
 		if err := validateManifestRelativeField(m, "requires.files", requiredFile); err != nil {
 			return err
@@ -742,6 +757,78 @@ func validateList(field string, values []string) error {
 		seen[trimmed] = struct{}{}
 	}
 	return nil
+}
+
+func validateCodegenBeforeCommands(m *LoadedManifest) error {
+	languages := normalizedCodegenLanguages(m)
+	if len(languages) == 0 {
+		return nil
+	}
+	for _, hook := range m.Manifest.Build.BeforeCommands {
+		if hook == nil {
+			continue
+		}
+		if language := codegenLanguageMentionedByHook(hook, languages); language != "" {
+			return fmt.Errorf("%s: build.codegen.languages %q conflicts with build.before_commands; remove the legacy proto generation hook", m.Path, language)
+		}
+		if hookLooksLikeProtoGeneration(hook) {
+			return fmt.Errorf("%s: build.codegen.languages conflicts with build.before_commands proto generation hook; remove the legacy proto generation hook", m.Path)
+		}
+	}
+	return nil
+}
+
+func codegenLanguageMentionedByHook(hook *RecipeStepExec, languages []string) string {
+	tokens := normalizedHookTokens(hook)
+	for _, language := range languages {
+		underscore := strings.ReplaceAll(language, "-", "_")
+		patterns := []string{
+			"protoc-gen-" + language,
+			"--" + language + "_out",
+			"--" + language + "-out",
+			"--" + underscore + "_out",
+		}
+		for _, token := range tokens {
+			for _, pattern := range patterns {
+				if strings.Contains(token, pattern) {
+					return language
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func hookLooksLikeProtoGeneration(hook *RecipeStepExec) bool {
+	for _, token := range normalizedHookTokens(hook) {
+		slash := strings.ReplaceAll(token, "\\", "/")
+		base := strings.TrimSuffix(path.Base(slash), ".exe")
+		switch {
+		case base == "protoc" || strings.HasPrefix(base, "protoc-gen-"):
+			return true
+		case strings.Contains(slash, "tools/generate") || strings.Contains(slash, "scripts/generate_proto"):
+			return true
+		case base == "generate_proto.sh":
+			return true
+		}
+	}
+	return false
+}
+
+func normalizedHookTokens(hook *RecipeStepExec) []string {
+	if hook == nil {
+		return nil
+	}
+	tokens := make([]string, 0, len(hook.Argv)+1)
+	if cwd := strings.TrimSpace(hook.Cwd); cwd != "" {
+		tokens = append(tokens, strings.ToLower(cwd))
+	}
+	for _, arg := range hook.Argv {
+		if trimmed := strings.TrimSpace(arg); trimmed != "" {
+			tokens = append(tokens, strings.ToLower(trimmed))
+		}
+	}
+	return tokens
 }
 
 func validateSequences(m *LoadedManifest) error {

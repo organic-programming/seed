@@ -149,12 +149,22 @@ generate_python() {
 }
 
 generate_cpp() {
-  require_tool protoc
-  require_tool grpc_cpp_plugin
-  run_in_root protoc "${PROTO_INCLUDES[@]}" \
+  local protoc_bin="protoc"
+  local grpc_plugin="grpc_cpp_plugin"
+  if [[ -n "${OP_SDK_CPP_PATH:-}" ]]; then
+    protoc_bin="${OP_SDK_CPP_PATH}/bin/protoc"
+    grpc_plugin="${OP_SDK_CPP_PATH}/bin/grpc_cpp_plugin"
+    require_file "$protoc_bin"
+    require_file "$grpc_plugin"
+  else
+    require_tool "$protoc_bin"
+    require_tool "$grpc_plugin"
+    grpc_plugin="$(command -v "$grpc_plugin")"
+  fi
+  run_in_root "$protoc_bin" "${PROTO_INCLUDES[@]}" \
     --cpp_out=sdk/cpp-holons/gen/cpp \
     --grpc_out=sdk/cpp-holons/gen/cpp \
-    --plugin=protoc-gen-grpc="$(command -v grpc_cpp_plugin)" \
+    --plugin=protoc-gen-grpc="$grpc_plugin" \
     "${PROTO_FILES[@]}"
   record_summary "cpp -> sdk/cpp-holons/gen/cpp/holons/v1"
 }
@@ -177,7 +187,11 @@ generate_c() {
     echo "protoc-c is installed but not runnable, and no protobuf 33.x runtime was found" >&2
     exit 1
   fi
-  run_in_root "${protoc_c_env[@]}" protoc-c "${c_includes[@]}" \
+  local protoc_cmd=("protoc-c")
+  if [[ ${#protoc_c_env[@]} -gt 0 ]]; then
+    protoc_cmd=("${protoc_c_env[@]}" "protoc-c")
+  fi
+  run_in_root "${protoc_cmd[@]}" "${c_includes[@]}" \
     --c_out=sdk/c-holons/gen/c \
     "${PROTO_FILES[@]}"
   record_summary "c -> sdk/c-holons/gen/c/holons/v1"
