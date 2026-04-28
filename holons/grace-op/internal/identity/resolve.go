@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	ProtoManifestFileName = "holon.proto"
+	ProtoManifestFileName   = "holon.proto"
+	manifestExtensionNumber = 50000
 )
 
 // Resolved describes the identity source discovered for a holon.
@@ -212,17 +213,8 @@ func extractResolved(fd protoreflect.FileDescriptor) (*Resolved, bool) {
 		return nil, false
 	}
 
-	optsMsg := opts.ProtoReflect()
-	manifestField := holonsv1.E_Manifest.TypeDescriptor()
-	if !optsMsg.Has(manifestField) {
-		return nil, false
-	}
-	manifestBytes, err := proto.Marshal(optsMsg.Get(manifestField).Message().Interface())
-	if err != nil {
-		return nil, false
-	}
-	manifest := &holonsv1.HolonManifest{}
-	if err := proto.Unmarshal(manifestBytes, manifest); err != nil {
+	manifest, ok := manifestFromFileOptions(fd, opts)
+	if !ok {
 		return nil, false
 	}
 
@@ -232,6 +224,101 @@ func extractResolved(fd protoreflect.FileDescriptor) (*Resolved, bool) {
 	}
 
 	return resolved, true
+}
+
+func manifestFromFileOptions(fd protoreflect.FileDescriptor, opts *descriptorpb.FileOptions) (*holonsv1.HolonManifest, bool) {
+	if opts == nil {
+		return nil, false
+	}
+	if ext := findExtension(fd, manifestExtensionNumber); ext != nil {
+		if manifest, ok := manifestFromReflectExtension(opts, ext); ok {
+			return manifest, true
+		}
+	}
+	return manifestFromGeneratedExtension(opts)
+}
+
+func manifestFromReflectExtension(opts *descriptorpb.FileOptions, ext protoreflect.FieldDescriptor) (manifest *holonsv1.HolonManifest, ok bool) {
+	defer func() {
+		if recover() != nil {
+			manifest = nil
+			ok = false
+		}
+	}()
+	optsMsg := opts.ProtoReflect()
+	if !optsMsg.Has(ext) {
+		return nil, false
+	}
+	value := optsMsg.Get(ext)
+	message := value.Message()
+	if !message.IsValid() {
+		return nil, false
+	}
+	data, err := proto.Marshal(message.Interface())
+	if err != nil {
+		return nil, false
+	}
+	manifest = &holonsv1.HolonManifest{}
+	if err := proto.Unmarshal(data, manifest); err != nil {
+		return nil, false
+	}
+	return manifest, true
+}
+
+func manifestFromGeneratedExtension(opts *descriptorpb.FileOptions) (manifest *holonsv1.HolonManifest, ok bool) {
+	defer func() {
+		if recover() != nil {
+			manifest = nil
+			ok = false
+		}
+	}()
+	if !proto.HasExtension(opts, holonsv1.E_Manifest) {
+		return nil, false
+	}
+	value := proto.GetExtension(opts, holonsv1.E_Manifest)
+	if manifest, ok := value.(*holonsv1.HolonManifest); ok {
+		return manifest, true
+	}
+	message, ok := value.(proto.Message)
+	if !ok {
+		return nil, false
+	}
+	data, err := proto.Marshal(message)
+	if err != nil {
+		return nil, false
+	}
+	manifest = &holonsv1.HolonManifest{}
+	if err := proto.Unmarshal(data, manifest); err != nil {
+		return nil, false
+	}
+	return manifest, true
+}
+
+func findExtension(fd protoreflect.FileDescriptor, fieldNum int32) protoreflect.FieldDescriptor {
+	seen := map[string]bool{}
+	return findExtensionRecursive(fd, fieldNum, seen)
+}
+
+func findExtensionRecursive(fd protoreflect.FileDescriptor, fieldNum int32, seen map[string]bool) protoreflect.FieldDescriptor {
+	if fd == nil || seen[fd.Path()] {
+		return nil
+	}
+	seen[fd.Path()] = true
+
+	extensions := fd.Extensions()
+	for i := 0; i < extensions.Len(); i++ {
+		ext := extensions.Get(i)
+		if ext.Number() == protoreflect.FieldNumber(fieldNum) {
+			return ext
+		}
+	}
+	imports := fd.Imports()
+	for i := 0; i < imports.Len(); i++ {
+		if ext := findExtensionRecursive(imports.Get(i).FileDescriptor, fieldNum, seen); ext != nil {
+			return ext
+		}
+	}
+	return nil
 }
 
 func resolvedFromManifest(manifest *holonsv1.HolonManifest) *Resolved {
