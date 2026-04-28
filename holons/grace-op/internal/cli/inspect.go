@@ -15,21 +15,24 @@ import (
 	openv "github.com/organic-programming/grace-op/internal/env"
 	"github.com/organic-programming/grace-op/internal/holons"
 	inspectpkg "github.com/organic-programming/grace-op/internal/inspect"
+	"github.com/organic-programming/grace-op/internal/progress"
 )
 
 func cmdInspect(format Format, runtimeOpts commandRuntimeOptions, args []string) int {
-	format, target, specifiers, err := parseInspectArgs(format, args)
+	format, target, specifiers, noAutoInstall, err := parseInspectArgs(format, args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op inspect: %v\n", err)
 		return 1
 	}
+	printer := commandProgress(format, runtimeOpts.quiet)
+	defer printer.Close()
 
 	var doc *inspectpkg.Document
 	if strings.Contains(target, ":") {
 		doc, err = inspectRemote(target)
 	} else {
 		emitOriginForExpression(runtimeOpts, target, specifiers)
-		doc, err = inspectLocalWithOptions(target, runtimeOpts.timeout, specifiers)
+		doc, err = inspectLocalWithOptions(target, runtimeOpts.timeout, specifiers, noAutoInstall, printer)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "op inspect: %v\n", err)
@@ -50,10 +53,11 @@ func cmdInspect(format Format, runtimeOpts commandRuntimeOptions, args []string)
 	return 0
 }
 
-func parseInspectArgs(format Format, args []string) (Format, string, int, error) {
+func parseInspectArgs(format Format, args []string) (Format, string, int, bool, error) {
 	currentFormat := format
 	positional := make([]string, 0, len(args))
 	specifiers := 0
+	noAutoInstall := false
 
 	for i := 0; i < len(args); i++ {
 		switch {
@@ -61,20 +65,22 @@ func parseInspectArgs(format Format, args []string) (Format, string, int, error)
 			currentFormat = FormatJSON
 		case args[i] == "--format":
 			if i+1 >= len(args) {
-				return "", "", 0, fmt.Errorf("--format requires a value")
+				return "", "", 0, false, fmt.Errorf("--format requires a value")
 			}
 			parsed, err := parseFormat(args[i+1])
 			if err != nil {
-				return "", "", 0, err
+				return "", "", 0, false, err
 			}
 			currentFormat = parsed
 			i++
 		case strings.HasPrefix(args[i], "--format="):
 			parsed, err := parseFormat(strings.TrimPrefix(args[i], "--format="))
 			if err != nil {
-				return "", "", 0, err
+				return "", "", 0, false, err
 			}
 			currentFormat = parsed
+		case args[i] == "--no-auto-install":
+			noAutoInstall = true
 		case isDiscoveryFlag(args[i]):
 			specifiers = addDiscoverySpecifier(specifiers, args[i])
 		default:
@@ -83,20 +89,39 @@ func parseInspectArgs(format Format, args []string) (Format, string, int, error)
 	}
 
 	if len(positional) != 1 {
-		return "", "", 0, fmt.Errorf("requires exactly one <slug> or <host:port>")
+		return "", "", 0, false, fmt.Errorf("requires exactly one <slug> or <host:port>")
 	}
 	if specifiers == 0 {
 		specifiers = sdkdiscover.ALL
 	}
-	return currentFormat, positional[0], specifiers, nil
+	return currentFormat, positional[0], specifiers, noAutoInstall, nil
 }
 
 func inspectLocal(ref string) (*inspectpkg.Document, error) {
-	return inspectLocalWithOptions(ref, sdkdiscover.NO_TIMEOUT, sdkdiscover.ALL)
+	return inspectLocalWithOptions(ref, sdkdiscover.NO_TIMEOUT, sdkdiscover.ALL, false, progress.Silence())
 }
 
-func inspectLocalWithOptions(ref string, timeout int, specifiers int) (*inspectpkg.Document, error) {
+func inspectLocalWithOptions(ref string, timeout int, specifiers int, noAutoInstall bool, reporter progress.Reporter) (*inspectpkg.Document, error) {
 	root := openv.Root()
+	target, err := holons.ResolveTargetWithOptions(ref, &root, specifiers, timeout)
+	if err != nil {
+		return nil, err
+	}
+	if target.ManifestErr != nil {
+		return nil, target.ManifestErr
+	}
+	if target.Manifest != nil {
+		ctx, err := holons.ResolveBuildContext(target.Manifest, holons.BuildOptions{
+			NoAutoInstall: noAutoInstall,
+			Progress:      reporter,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if err := holons.ResolveRequiredSDKPrebuilts(target.Manifest, &ctx); err != nil {
+			return nil, err
+		}
+	}
 	catalog, err := inspectpkg.LoadLocalWithOptions(ref, &root, specifiers, timeout)
 	if err != nil {
 		return nil, err

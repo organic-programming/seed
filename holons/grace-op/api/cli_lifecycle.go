@@ -12,6 +12,7 @@ import (
 
 func (c cliState) runLifecycleCommand(format Format, quiet bool, operation string, args []string) int {
 	var build opv1.BuildOptions
+	noAutoInstall := false
 	var positional []string
 	for i := 0; i < len(args); i++ {
 		switch {
@@ -29,6 +30,8 @@ func (c cliState) runLifecycleCommand(format Format, quiet bool, operation strin
 			build.NoSign = true
 		case args[i] == "--bump" && operation == "build":
 			build.Bump = true
+		case args[i] == "--no-auto-install":
+			noAutoInstall = true
 		case strings.HasPrefix(args[i], "--"):
 			fmt.Fprintf(c.stderr, "op %s: unknown flag %q\n", operation, args[i])
 			return 1
@@ -50,6 +53,7 @@ func (c cliState) runLifecycleCommand(format Format, quiet bool, operation strin
 	defer printer.Close()
 
 	buildOpts := buildOptionsFromProto(&build)
+	buildOpts.NoAutoInstall = noAutoInstall
 	switch operation {
 	case "build", "test", "clean":
 		if !buildOpts.DryRun {
@@ -178,6 +182,7 @@ type runOptions struct {
 	ListenURI      string
 	ListenExplicit bool
 	NoBuild        bool
+	NoAutoInstall  bool
 	Target         string
 	Mode           string
 }

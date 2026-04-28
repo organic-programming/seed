@@ -114,6 +114,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().String("listen", "", "listen address for service holons (default: tcp://127.0.0.1:0)")
 	cmd.Flags().Bool("clean", false, "clean before building and running (cannot be combined with --no-build)")
 	cmd.Flags().Bool("no-build", false, "fail if the artifact is missing instead of building")
+	cmd.Flags().Bool("no-auto-install", false, "fail instead of auto-installing missing SDK prebuilts when a build is needed")
 	cmd.Flags().String("target", "", "pass the build target through if a build is needed")
 	cmd.Flags().String("mode", "", "pass the build mode through if a build is needed")
 	cmd.Flags().String("observe", "", "enable observability and tail logs/events (default: logs,metrics,events)")
@@ -166,6 +167,7 @@ func addLifecycleExecutionFlags(cmd *cobra.Command, includeBuildOnly bool) {
 	cmd.Flags().String("target", "", "build target to resolve")
 	cmd.Flags().String("mode", "", "build mode to resolve")
 	cmd.Flags().Bool("dry-run", false, "print the resolved plan without executing it")
+	cmd.Flags().Bool("no-auto-install", false, "fail instead of auto-installing missing SDK prebuilts")
 	addDiscoveryFlags(cmd)
 	if includeBuildOnly {
 		cmd.Flags().Bool("clean", false, "clean before building (cannot be combined with --dry-run)")
@@ -201,6 +203,9 @@ func lifecycleArgsFromCommand(cmd *cobra.Command, positional []string) []string 
 	if bump, err := cmd.Flags().GetBool("bump"); err == nil && bump {
 		args = append(args, "--bump")
 	}
+	if noAutoInstall, err := cmd.Flags().GetBool("no-auto-install"); err == nil && noAutoInstall {
+		args = append(args, "--no-auto-install")
+	}
 	if symlink, err := cmd.Flags().GetBool("symlink"); err == nil && symlink {
 		args = append(args, "--symlink")
 	}
@@ -219,6 +224,9 @@ func runArgsFromCommand(cmd *cobra.Command, holon string) []string {
 	}
 	if noBuild, _ := cmd.Flags().GetBool("no-build"); noBuild {
 		args = append(args, "--no-build")
+	}
+	if noAutoInstall, _ := cmd.Flags().GetBool("no-auto-install"); noAutoInstall {
+		args = append(args, "--no-auto-install")
 	}
 	if target, _ := cmd.Flags().GetString("target"); target != "" {
 		args = append(args, "--target", target)

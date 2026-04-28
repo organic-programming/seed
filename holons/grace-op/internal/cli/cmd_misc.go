@@ -52,6 +52,7 @@ func newInspectCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Bool("json", false, "render inspect output as JSON")
+	cmd.Flags().Bool("no-auto-install", false, "fail instead of auto-installing missing SDK prebuilts")
 	addDiscoveryFlags(cmd)
 	return cmd
 }
@@ -154,6 +155,9 @@ func inspectArgsFromCommand(cmd *cobra.Command, target string) []string {
 	args := make([]string, 0, 10)
 	if jsonOutput, _ := cmd.Flags().GetBool("json"); jsonOutput {
 		args = append(args, "--json")
+	}
+	if noAutoInstall, _ := cmd.Flags().GetBool("no-auto-install"); noAutoInstall {
+		args = append(args, "--no-auto-install")
 	}
 	args = append(args, selectedDiscoveryArgs(cmd)...)
 	args = append(args, target)
