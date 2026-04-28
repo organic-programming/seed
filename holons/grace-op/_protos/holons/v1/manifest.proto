@@ -97,6 +97,9 @@ message HolonManifest {
     // Commands to execute sequentially AFTER the main runner logic.
     repeated Step.Exec after_commands = 8;
 
+    // Proto code generation languages to run after descriptor production.
+    Codegen codegen = 9;
+
     message Defaults {
       string target = 1;   // e.g. "macos", "linux"
       string mode = 2;     // e.g. "debug", "release"
@@ -110,6 +113,10 @@ message HolonManifest {
 
     message Target {
       repeated Step steps = 1;
+    }
+
+    message Codegen {
+      repeated string languages = 1;
     }
   }
 

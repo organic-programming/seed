@@ -69,6 +69,17 @@ type Prebuilt struct {
 	TreeSHA256    string   `json:"tree_sha256,omitempty"`
 	Installed     bool     `json:"installed"`
 	Blockers      []string `json:"blockers,omitempty"`
+	Codegen       *Codegen `json:"codegen,omitempty"`
+}
+
+type Codegen struct {
+	Plugins []CodegenPlugin `json:"plugins,omitempty"`
+}
+
+type CodegenPlugin struct {
+	Name      string `json:"name"`
+	Binary    string `json:"binary"`
+	OutSubdir string `json:"out_subdir"`
 }
 
 type InstallOptions struct {
@@ -167,6 +178,10 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 	if err := extractTarGz(archivePath, tmp); err != nil {
 		return Prebuilt{}, nil, err
 	}
+	archiveMetadata, err := metadataForPath(tmp)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return Prebuilt{}, nil, err
+	}
 	treeSHA, err := treeSHA256(tmp)
 	if err != nil {
 		return Prebuilt{}, nil, err
@@ -181,6 +196,7 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 		ArchiveSHA256: actualSHA,
 		TreeSHA256:    treeSHA,
 		Installed:     true,
+		Codegen:       archiveMetadata.Codegen,
 	}
 	if err := writeMetadata(tmp, prebuilt); err != nil {
 		return Prebuilt{}, nil, err

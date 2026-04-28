@@ -6,9 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/organic-programming/grace-op/internal/identity"
 	"github.com/organic-programming/grace-op/internal/progress"
-	"github.com/organic-programming/grace-op/internal/testutil"
 )
 
 func TestProtoStageWritesDescriptor(t *testing.T) {
@@ -157,7 +155,7 @@ message Broken {
 		t.Fatal(err)
 	}
 
-	err := protoStage(manifest, progress.Silence())
+	_, err := protoStage(manifest, progress.Silence())
 	if err == nil {
 		t.Fatal("expected proto stage failure for broken proto")
 	}
@@ -168,31 +166,22 @@ message Broken {
 
 func TestProtoStageSkipsWhenNoProtos(t *testing.T) {
 	root := t.TempDir()
-	chdirForHolonTest(t, root)
 
-	dir := filepath.Join(root, "yaml-only")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := testutil.WriteManifestFile(filepath.Join(dir, identity.ManifestFileName), `schema: holon/v0
-kind: native
-build:
-  runner: go-module
-artifacts:
-  binary: test-holon
-`); err != nil {
-		t.Fatal(err)
+	manifest := &LoadedManifest{
+		Dir: root,
+		Manifest: Manifest{
+			Kind:  KindNative,
+			Build: BuildConfig{Runner: RunnerGoModule},
+		},
 	}
 
-	_, err := ExecuteLifecycle(OperationBuild, dir)
-	// Build may fail (no Go code), but proto stage must NOT fail.
-	if err != nil && strings.Contains(err.Error(), "proto stage") {
-		t.Fatalf("proto stage should be a no-op for YAML holons: %v", err)
+	if _, err := protoStage(manifest, progress.Silence()); err != nil {
+		t.Fatalf("proto stage should be a no-op without proto files: %v", err)
 	}
 
 	// Descriptor should NOT exist.
-	descriptorPath := filepath.Join(dir, ".op", "pb", "descriptors.binpb")
+	descriptorPath := filepath.Join(root, ".op", "pb", "descriptors.binpb")
 	if _, statErr := os.Stat(descriptorPath); statErr == nil {
-		t.Fatal("descriptor should not exist for YAML-only holon")
+		t.Fatal("descriptor should not exist when no protos are staged")
 	}
 }

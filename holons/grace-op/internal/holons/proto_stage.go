@@ -25,47 +25,63 @@ import (
 //  5. Write a FileDescriptorSet to .op/pb/descriptors.binpb
 //
 // Parse failure stops the build — proto breakage is caught here.
-func protoStage(manifest *LoadedManifest, reporter progress.Reporter) error {
+type protoStageResult struct {
+	ProtosDir      string
+	DescriptorPath string
+	HolonProtos    []string
+	Files          []protoreflect.FileDescriptor
+}
+
+func (r *protoStageResult) hasProtos() bool {
+	return r != nil && len(r.HolonProtos) > 0
+}
+
+func protoStage(manifest *LoadedManifest, reporter progress.Reporter) (*protoStageResult, error) {
 	opRoot := manifest.OpRoot()
 	protosDir := filepath.Join(opRoot, "protos")
 	pbDir := filepath.Join(opRoot, "pb")
+	result := &protoStageResult{
+		ProtosDir:      protosDir,
+		DescriptorPath: filepath.Join(pbDir, "descriptors.binpb"),
+	}
 
 	reporter.Step("proto stage: staging protos...")
 
 	// Wipe previous staging.
 	if err := os.RemoveAll(protosDir); err != nil {
-		return fmt.Errorf("proto stage: clean protos: %w", err)
+		return nil, fmt.Errorf("proto stage: clean protos: %w", err)
 	}
 	if err := os.RemoveAll(pbDir); err != nil {
-		return fmt.Errorf("proto stage: clean pb: %w", err)
+		return nil, fmt.Errorf("proto stage: clean pb: %w", err)
 	}
 	if err := os.MkdirAll(protosDir, 0755); err != nil {
-		return fmt.Errorf("proto stage: create protos dir: %w", err)
+		return nil, fmt.Errorf("proto stage: create protos dir: %w", err)
 	}
 	if err := os.MkdirAll(pbDir, 0755); err != nil {
-		return fmt.Errorf("proto stage: create pb dir: %w", err)
+		return nil, fmt.Errorf("proto stage: create pb dir: %w", err)
 	}
 
 	// Stage the holon's own proto files first (they take precedence).
 	holopProtos, err := stageHolonProtos(manifest, protosDir)
 	if err != nil {
-		return fmt.Errorf("proto stage: holon protos: %w", err)
+		return nil, fmt.Errorf("proto stage: holon protos: %w", err)
 	}
+	result.HolonProtos = holopProtos
 
 	// No holon protos → skip the rest (legacy YAML-based holons).
 	if len(holopProtos) == 0 {
-		return nil
+		return result, nil
 	}
 
 	// Stage shared _protos/ directories from ancestor paths.
 	// This handles shared contract protos (e.g., examples/_protos/v1/greeting.proto).
 	if err := stageAncestorProtos(manifest.Dir, protosDir); err != nil {
-		return fmt.Errorf("proto stage: ancestor protos: %w", err)
+		return nil, fmt.Errorf("proto stage: ancestor protos: %w", err)
 	}
 
 	// Stage embedded canonical protos, skipping any already provided by the holon.
 	if err := stageEmbeddedProtos(protosDir); err != nil {
-		return fmt.Errorf("proto stage: embed: %w", err)
+		return nil, fmt.Errorf("proto stage: embed: %w", err)
 	}
 
 	reporter.Step("proto stage: parsing...")
@@ -73,22 +89,22 @@ func protoStage(manifest *LoadedManifest, reporter progress.Reporter) error {
 	// Parse all staged protos.
 	fds, err := parseStaged(protosDir, holopProtos)
 	if err != nil {
-		return fmt.Errorf("proto stage: %w", err)
+		return nil, fmt.Errorf("proto stage: %w", err)
 	}
+	result.Files = fds
 
 	// Write the FileDescriptorSet.
-	descriptorPath := filepath.Join(pbDir, "descriptors.binpb")
-	if err := writeDescriptorSet(fds, descriptorPath); err != nil {
-		return fmt.Errorf("proto stage: %w", err)
+	if err := writeDescriptorSet(fds, result.DescriptorPath); err != nil {
+		return nil, fmt.Errorf("proto stage: %w", err)
 	}
 
 	// Generate reference documentation from proto comments.
 	if err := generateDocumentation(manifest, fds, reporter); err != nil {
-		return fmt.Errorf("proto stage: %w", err)
+		return nil, fmt.Errorf("proto stage: %w", err)
 	}
 
-	reporter.Step(fmt.Sprintf("proto stage: %s", workspaceRelativePath(descriptorPath)))
-	return nil
+	reporter.Step(fmt.Sprintf("proto stage: %s", workspaceRelativePath(result.DescriptorPath)))
+	return result, nil
 }
 
 // stageEmbeddedProtos copies all .proto files from the embedded FS to the staging directory.

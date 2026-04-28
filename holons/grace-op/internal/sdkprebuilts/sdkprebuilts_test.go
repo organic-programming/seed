@@ -110,6 +110,52 @@ func TestInstallLocalHolonsReleaseTarballInfersVersion(t *testing.T) {
 	}
 }
 
+func TestInstallPreservesCodegenManifestBlock(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+
+	source := filepath.Join(t.TempDir(), "cpp-1.80.0-"+testTarget+".tar.gz")
+	writeTestTarGz(t, source, map[string]testTarEntry{
+		"bin/protoc-gen-cpp": {Mode: 0o755, Body: []byte("#!/bin/sh\n")},
+		metadataFile: {Mode: 0o644, Body: []byte(`{
+  "codegen": {
+    "plugins": [
+      {
+        "name": "cpp",
+        "binary": "bin/protoc-gen-cpp",
+        "out_subdir": "cpp"
+      }
+    ]
+  }
+}
+`)},
+	})
+	writeSHA256Sidecar(t, source)
+
+	prebuilt, _, err := Install(context.Background(), InstallOptions{
+		Lang:   "cpp",
+		Target: testTarget,
+		Source: source,
+	})
+	if err != nil {
+		t.Fatalf("Install() returned error: %v", err)
+	}
+	if prebuilt.Codegen == nil || len(prebuilt.Codegen.Plugins) != 1 {
+		t.Fatalf("Codegen metadata = %#v, want one plugin", prebuilt.Codegen)
+	}
+	if prebuilt.Codegen.Plugins[0].Name != "cpp" {
+		t.Fatalf("plugin name = %q, want cpp", prebuilt.Codegen.Plugins[0].Name)
+	}
+
+	metadata, err := metadataForPath(prebuilt.Path)
+	if err != nil {
+		t.Fatalf("read installed metadata: %v", err)
+	}
+	if metadata.Codegen == nil || len(metadata.Codegen.Plugins) != 1 {
+		t.Fatalf("installed metadata codegen = %#v, want one plugin", metadata.Codegen)
+	}
+}
+
 func TestListInstalledIteratesRuntimeTree(t *testing.T) {
 	runtimeHome := t.TempDir()
 	t.Setenv("OPPATH", runtimeHome)

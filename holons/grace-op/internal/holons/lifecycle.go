@@ -153,7 +153,7 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 		return report, err
 	}
 
-	if op != OperationClean {
+	if op != OperationClean && op != OperationBuild {
 		reporter.Step("checking manifest...")
 		reporter.Step("validating prerequisites...")
 		if err := preflight(target.Manifest, &ctx); err != nil {
@@ -169,6 +169,7 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 		report.Notes = append(report.Notes, "manifest and prerequisites validated")
 		return report, nil
 	case OperationBuild:
+		reporter.Step("checking manifest...")
 		if !ctx.DryRun {
 			if reason := buildContextChangeCleanReason(target.Manifest, ctx); reason != "" {
 				reporter.Step(reason)
@@ -197,10 +198,25 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 		}
 
 		// Proto stage: stage, parse, and compile descriptors.
+		var stage *protoStageResult
 		if !ctx.DryRun {
-			if err := protoStage(target.Manifest, reporter); err != nil {
-				return report, err
+			var stageErr error
+			stage, stageErr = protoStage(target.Manifest, reporter)
+			if stageErr != nil {
+				return report, stageErr
 			}
+		}
+		if codegenErr := runCodegen(target.Manifest, ctx, stage, reporter, &report); codegenErr != nil {
+			err = codegenErr
+			break
+		}
+
+		reporter.Step("validating prerequisites...")
+		if err := preflight(target.Manifest, &ctx); err != nil {
+			return report, err
+		}
+		if err := r.check(target.Manifest, ctx); err != nil {
+			return report, err
 		}
 
 		// Opt-in patch bump: only when --bump is set. On failure the original
@@ -848,6 +864,9 @@ func preflight(manifest *LoadedManifest, ctx *BuildContext) error {
 	}
 
 	if err := resolveRequiredSDKPrebuilts(manifest, ctx); err != nil {
+		return err
+	}
+	if err := validateCodegenPlugins(manifest); err != nil {
 		return err
 	}
 
