@@ -12,12 +12,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/bufbuild/protocompile"
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	"github.com/organic-programming/go-holons/pkg/identity"
 
-	"github.com/jhump/protoreflect/desc"
-	"github.com/jhump/protoreflect/desc/protoparse"
-	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
 const holonMetaServiceName = "holons.v1.HolonMeta"
@@ -73,27 +73,35 @@ func parseServices(protoDir string) ([]*holonsv1.ServiceDoc, error) {
 	if len(relFiles) == 0 {
 		return nil, nil
 	}
+	primaryRelFiles := primaryProtoFiles(relFiles)
+	if len(primaryRelFiles) == 0 {
+		return nil, nil
+	}
 
 	schemaRoots := discoverProtoImportPaths(absDir)
-	parseFiles := relFiles
+	parseFiles := primaryRelFiles
 	importPaths := append([]string(nil), schemaRoots...)
-	collision := hasSharedProtoCollision(absDir, relFiles, schemaRoots[1:])
+	collision := hasSharedProtoCollision(absDir, primaryRelFiles, schemaRoots[1:])
 	if collision {
-		parseFiles = prefixImportRoot(filepath.Base(absDir), relFiles)
+		parseFiles = prefixImportRoot(filepath.Base(absDir), primaryRelFiles)
 		importPaths = append([]string{filepath.Dir(absDir)}, schemaRoots[1:]...)
 		importPaths = append(importPaths, absDir)
 	}
 
-	parser := protoparse.Parser{
-		ImportPaths:               importPaths,
-		InferImportPaths:          true,
-		IncludeSourceCodeInfo:     true,
-		LookupImport:              desc.LoadFileDescriptor,
-		AllowExperimentalEditions: true,
+	compiler := protocompile.Compiler{
+		Resolver: protocompile.WithStandardImports(protocompile.CompositeResolver{
+			&protocompile.SourceResolver{ImportPaths: importPaths},
+			protocompile.ResolverFunc(globalProtoResolver),
+		}),
+		SourceInfoMode: protocompile.SourceInfoStandard,
 	}
-	files, err := parser.ParseFiles(parseFiles...)
+	compiled, err := compiler.Compile(context.Background(), parseFiles...)
 	if err != nil {
 		return nil, fmt.Errorf("parse proto files in %s: %w", absDir, err)
+	}
+	files := make([]protoreflect.FileDescriptor, 0, len(compiled))
+	for _, file := range compiled {
+		files = append(files, file)
 	}
 
 	expandableFiles, err := collectExpandableFiles(absDir, schemaRoots, collision)
@@ -104,11 +112,19 @@ func parseServices(protoDir string) ([]*holonsv1.ServiceDoc, error) {
 	return responseBuilder{expandableFiles: expandableFiles}.buildServices(files), nil
 }
 
+func globalProtoResolver(path string) (protocompile.SearchResult, error) {
+	fd, err := protoregistry.GlobalFiles.FindFileByPath(path)
+	if err != nil {
+		return protocompile.SearchResult{}, err
+	}
+	return protocompile.SearchResult{Desc: fd}, nil
+}
+
 type responseBuilder struct {
 	expandableFiles map[string]struct{}
 }
 
-func (b responseBuilder) buildServices(files []*desc.FileDescriptor) []*holonsv1.ServiceDoc {
+func (b responseBuilder) buildServices(files []protoreflect.FileDescriptor) []*holonsv1.ServiceDoc {
 	seen := make(map[string]bool)
 	serviceSeen := make(map[string]bool)
 	services := make([]*holonsv1.ServiceDoc, 0)
@@ -124,23 +140,26 @@ func (b responseBuilder) buildServices(files []*desc.FileDescriptor) []*holonsv1
 	return services
 }
 
-func (b responseBuilder) buildServicesFromFile(file *desc.FileDescriptor, seen map[string]bool) []*holonsv1.ServiceDoc {
+func (b responseBuilder) buildServicesFromFile(file protoreflect.FileDescriptor, seen map[string]bool) []*holonsv1.ServiceDoc {
 	if file == nil {
 		return nil
 	}
 
-	name := filepath.ToSlash(file.GetName())
+	name := filepath.ToSlash(file.Path())
 	if seen[name] {
 		return nil
 	}
 	seen[name] = true
 
-	services := make([]*holonsv1.ServiceDoc, 0, len(file.GetServices()))
-	for _, dep := range file.GetDependencies() {
-		services = append(services, b.buildServicesFromFile(dep, seen)...)
+	serviceDescriptors := file.Services()
+	services := make([]*holonsv1.ServiceDoc, 0, serviceDescriptors.Len())
+	imports := file.Imports()
+	for i := 0; i < imports.Len(); i++ {
+		services = append(services, b.buildServicesFromFile(imports.Get(i).FileDescriptor, seen)...)
 	}
-	for _, service := range file.GetServices() {
-		if service.GetFullyQualifiedName() == holonMetaServiceName {
+	for i := 0; i < serviceDescriptors.Len(); i++ {
+		service := serviceDescriptors.Get(i)
+		if service.FullName() == holonMetaServiceName {
 			continue
 		}
 		services = append(services, b.buildService(service))
@@ -148,41 +167,43 @@ func (b responseBuilder) buildServicesFromFile(file *desc.FileDescriptor, seen m
 	return services
 }
 
-func (b responseBuilder) buildService(service *desc.ServiceDescriptor) *holonsv1.ServiceDoc {
-	meta := parseCommentBlock(sourceComments(service.GetSourceInfo()))
-	methods := make([]*holonsv1.MethodDoc, 0, len(service.GetMethods()))
-	for _, method := range service.GetMethods() {
+func (b responseBuilder) buildService(service protoreflect.ServiceDescriptor) *holonsv1.ServiceDoc {
+	meta := parseCommentBlock(descriptorComments(service))
+	methodDescriptors := service.Methods()
+	methods := make([]*holonsv1.MethodDoc, 0, methodDescriptors.Len())
+	for i := 0; i < methodDescriptors.Len(); i++ {
+		method := methodDescriptors.Get(i)
 		methods = append(methods, b.buildMethod(method))
 	}
 
 	return &holonsv1.ServiceDoc{
-		Name:        service.GetFullyQualifiedName(),
+		Name:        string(service.FullName()),
 		Description: meta.Description,
 		Methods:     methods,
 	}
 }
 
-func (b responseBuilder) buildMethod(method *desc.MethodDescriptor) *holonsv1.MethodDoc {
-	meta := parseCommentBlock(sourceComments(method.GetSourceInfo()))
+func (b responseBuilder) buildMethod(method protoreflect.MethodDescriptor) *holonsv1.MethodDoc {
+	meta := parseCommentBlock(descriptorComments(method))
 	return &holonsv1.MethodDoc{
-		Name:            method.GetName(),
+		Name:            string(method.Name()),
 		Description:     meta.Description,
-		InputType:       method.GetInputType().GetFullyQualifiedName(),
-		OutputType:      method.GetOutputType().GetFullyQualifiedName(),
-		InputFields:     b.buildFields(method.GetInputType(), map[string]bool{}),
-		OutputFields:    b.buildFields(method.GetOutputType(), map[string]bool{}),
-		ClientStreaming: method.IsClientStreaming(),
-		ServerStreaming: method.IsServerStreaming(),
+		InputType:       string(method.Input().FullName()),
+		OutputType:      string(method.Output().FullName()),
+		InputFields:     b.buildFields(method.Input(), map[string]bool{}),
+		OutputFields:    b.buildFields(method.Output(), map[string]bool{}),
+		ClientStreaming: method.IsStreamingClient(),
+		ServerStreaming: method.IsStreamingServer(),
 		ExampleInput:    meta.Example,
 	}
 }
 
-func (b responseBuilder) buildFields(message *desc.MessageDescriptor, seen map[string]bool) []*holonsv1.FieldDoc {
+func (b responseBuilder) buildFields(message protoreflect.MessageDescriptor, seen map[string]bool) []*holonsv1.FieldDoc {
 	if message == nil {
 		return nil
 	}
 
-	name := message.GetFullyQualifiedName()
+	name := string(message.FullName())
 	if seen[name] {
 		return nil
 	}
@@ -190,19 +211,20 @@ func (b responseBuilder) buildFields(message *desc.MessageDescriptor, seen map[s
 	nextSeen := cloneSeen(seen)
 	nextSeen[name] = true
 
-	fields := make([]*holonsv1.FieldDoc, 0, len(message.GetFields()))
-	for _, field := range message.GetFields() {
-		fields = append(fields, b.buildField(field, nextSeen))
+	fieldDescriptors := message.Fields()
+	fields := make([]*holonsv1.FieldDoc, 0, fieldDescriptors.Len())
+	for i := 0; i < fieldDescriptors.Len(); i++ {
+		fields = append(fields, b.buildField(fieldDescriptors.Get(i), nextSeen))
 	}
 	return fields
 }
 
-func (b responseBuilder) buildField(field *desc.FieldDescriptor, seen map[string]bool) *holonsv1.FieldDoc {
-	meta := parseCommentBlock(sourceComments(field.GetSourceInfo()))
+func (b responseBuilder) buildField(field protoreflect.FieldDescriptor, seen map[string]bool) *holonsv1.FieldDoc {
+	meta := parseCommentBlock(descriptorComments(field))
 	doc := &holonsv1.FieldDoc{
-		Name:        field.GetName(),
+		Name:        string(field.Name()),
 		Type:        descriptorTypeName(field),
-		Number:      int32(field.GetNumber()),
+		Number:      int32(field.Number()),
 		Description: meta.Description,
 		Label:       fieldLabel(field),
 		Required:    meta.Required,
@@ -210,35 +232,37 @@ func (b responseBuilder) buildField(field *desc.FieldDescriptor, seen map[string
 	}
 
 	if field.IsMap() {
-		doc.MapKeyType = descriptorTypeName(field.GetMapKeyType())
-		doc.MapValueType = descriptorTypeName(field.GetMapValueType())
-		if enumType := field.GetMapValueType().GetEnumType(); enumType != nil && b.shouldExpand(enumType.GetFile().GetName()) {
+		doc.MapKeyType = descriptorTypeName(field.MapKey())
+		doc.MapValueType = descriptorTypeName(field.MapValue())
+		if enumType := field.MapValue().Enum(); enumType != nil && b.shouldExpand(enumType.ParentFile().Path()) {
 			doc.EnumValues = buildEnumValues(enumType)
 		}
-		if msgType := field.GetMapValueType().GetMessageType(); msgType != nil && !msgType.IsMapEntry() && b.shouldExpand(msgType.GetFile().GetName()) {
+		if msgType := field.MapValue().Message(); msgType != nil && !msgType.IsMapEntry() && b.shouldExpand(msgType.ParentFile().Path()) {
 			doc.NestedFields = b.buildFields(msgType, seen)
 		}
 		return doc
 	}
 
-	if enumType := field.GetEnumType(); enumType != nil && b.shouldExpand(enumType.GetFile().GetName()) {
+	if enumType := field.Enum(); enumType != nil && b.shouldExpand(enumType.ParentFile().Path()) {
 		doc.EnumValues = buildEnumValues(enumType)
 	}
 
-	if msgType := field.GetMessageType(); msgType != nil && !msgType.IsMapEntry() && b.shouldExpand(msgType.GetFile().GetName()) {
+	if msgType := field.Message(); msgType != nil && !msgType.IsMapEntry() && b.shouldExpand(msgType.ParentFile().Path()) {
 		doc.NestedFields = b.buildFields(msgType, seen)
 	}
 
 	return doc
 }
 
-func buildEnumValues(enumType *desc.EnumDescriptor) []*holonsv1.EnumValueDoc {
-	values := make([]*holonsv1.EnumValueDoc, 0, len(enumType.GetValues()))
-	for _, value := range enumType.GetValues() {
-		meta := parseCommentBlock(sourceComments(value.GetSourceInfo()))
+func buildEnumValues(enumType protoreflect.EnumDescriptor) []*holonsv1.EnumValueDoc {
+	enumValues := enumType.Values()
+	values := make([]*holonsv1.EnumValueDoc, 0, enumValues.Len())
+	for i := 0; i < enumValues.Len(); i++ {
+		value := enumValues.Get(i)
+		meta := parseCommentBlock(descriptorComments(value))
 		values = append(values, &holonsv1.EnumValueDoc{
-			Name:        value.GetName(),
-			Number:      int32(value.GetNumber()),
+			Name:        string(value.Name()),
+			Number:      int32(value.Number()),
 			Description: meta.Description,
 		})
 	}
@@ -299,6 +323,18 @@ func collectProtoFiles(dir string) ([]string, error) {
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+func primaryProtoFiles(files []string) []string {
+	primary := make([]string, 0, len(files))
+	for _, file := range files {
+		rel := filepath.ToSlash(file)
+		if strings.HasPrefix(rel, "_protos/") || strings.HasPrefix(rel, "recipes/protos/") {
+			continue
+		}
+		primary = append(primary, rel)
+	}
+	return primary
 }
 
 func resolveManifest(manifestPath string) (*holonsv1.HolonManifest, error) {
@@ -497,14 +533,15 @@ func parseCommentBlock(raw string) commentMeta {
 	}
 }
 
-func sourceComments(location *descriptorpb.SourceCodeInfo_Location) string {
-	if location == nil {
+func descriptorComments(desc protoreflect.Descriptor) string {
+	if desc == nil || desc.ParentFile() == nil {
 		return ""
 	}
-	if leading := strings.TrimSpace(location.GetLeadingComments()); leading != "" {
+	location := desc.ParentFile().SourceLocations().ByDescriptor(desc)
+	if leading := strings.TrimSpace(location.LeadingComments); leading != "" {
 		return leading
 	}
-	return strings.TrimSpace(location.GetTrailingComments())
+	return strings.TrimSpace(location.TrailingComments)
 }
 
 func cloneSeen(seen map[string]bool) map[string]bool {
@@ -515,64 +552,64 @@ func cloneSeen(seen map[string]bool) map[string]bool {
 	return next
 }
 
-func fieldLabel(field *desc.FieldDescriptor) holonsv1.FieldLabel {
+func fieldLabel(field protoreflect.FieldDescriptor) holonsv1.FieldLabel {
 	if field.IsMap() {
 		return holonsv1.FieldLabel_FIELD_LABEL_MAP
 	}
-	if field.IsRepeated() {
+	if field.IsList() {
 		return holonsv1.FieldLabel_FIELD_LABEL_REPEATED
 	}
 	return holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL
 }
 
-func descriptorTypeName(field *desc.FieldDescriptor) string {
+func descriptorTypeName(field protoreflect.FieldDescriptor) string {
 	if field == nil {
 		return ""
 	}
 	if field.IsMap() {
-		return fmt.Sprintf("map<%s, %s>", descriptorTypeName(field.GetMapKeyType()), descriptorTypeName(field.GetMapValueType()))
+		return fmt.Sprintf("map<%s, %s>", descriptorTypeName(field.MapKey()), descriptorTypeName(field.MapValue()))
 	}
-	if enumType := field.GetEnumType(); enumType != nil {
-		return enumType.GetFullyQualifiedName()
+	if enumType := field.Enum(); enumType != nil {
+		return string(enumType.FullName())
 	}
-	if msgType := field.GetMessageType(); msgType != nil {
-		return msgType.GetFullyQualifiedName()
+	if msgType := field.Message(); msgType != nil {
+		return string(msgType.FullName())
 	}
 
-	switch field.GetType() {
-	case descriptorpb.FieldDescriptorProto_TYPE_DOUBLE:
+	switch field.Kind() {
+	case protoreflect.DoubleKind:
 		return "double"
-	case descriptorpb.FieldDescriptorProto_TYPE_FLOAT:
+	case protoreflect.FloatKind:
 		return "float"
-	case descriptorpb.FieldDescriptorProto_TYPE_INT64:
+	case protoreflect.Int64Kind:
 		return "int64"
-	case descriptorpb.FieldDescriptorProto_TYPE_UINT64:
+	case protoreflect.Uint64Kind:
 		return "uint64"
-	case descriptorpb.FieldDescriptorProto_TYPE_INT32:
+	case protoreflect.Int32Kind:
 		return "int32"
-	case descriptorpb.FieldDescriptorProto_TYPE_FIXED64:
+	case protoreflect.Fixed64Kind:
 		return "fixed64"
-	case descriptorpb.FieldDescriptorProto_TYPE_FIXED32:
+	case protoreflect.Fixed32Kind:
 		return "fixed32"
-	case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
+	case protoreflect.BoolKind:
 		return "bool"
-	case descriptorpb.FieldDescriptorProto_TYPE_STRING:
+	case protoreflect.StringKind:
 		return "string"
-	case descriptorpb.FieldDescriptorProto_TYPE_GROUP:
+	case protoreflect.GroupKind:
 		return "group"
-	case descriptorpb.FieldDescriptorProto_TYPE_BYTES:
+	case protoreflect.BytesKind:
 		return "bytes"
-	case descriptorpb.FieldDescriptorProto_TYPE_UINT32:
+	case protoreflect.Uint32Kind:
 		return "uint32"
-	case descriptorpb.FieldDescriptorProto_TYPE_SFIXED32:
+	case protoreflect.Sfixed32Kind:
 		return "sfixed32"
-	case descriptorpb.FieldDescriptorProto_TYPE_SFIXED64:
+	case protoreflect.Sfixed64Kind:
 		return "sfixed64"
-	case descriptorpb.FieldDescriptorProto_TYPE_SINT32:
+	case protoreflect.Sint32Kind:
 		return "sint32"
-	case descriptorpb.FieldDescriptorProto_TYPE_SINT64:
+	case protoreflect.Sint64Kind:
 		return "sint64"
 	default:
-		return strings.TrimPrefix(field.GetType().String(), "TYPE_")
+		return field.Kind().String()
 	}
 }

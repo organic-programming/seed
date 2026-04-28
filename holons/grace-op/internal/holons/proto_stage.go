@@ -1,17 +1,19 @@
 package holons
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/jhump/protoreflect/desc"
-	"github.com/jhump/protoreflect/desc/protoparse"
+	"github.com/bufbuild/protocompile"
 	protosfs "github.com/organic-programming/grace-op/_protos"
 	"github.com/organic-programming/grace-op/internal/progress"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
 
@@ -19,7 +21,7 @@ import (
 //  1. Wipe .op/protos/ and .op/pb/
 //  2. Copy embedded canonical protos to .op/protos/
 //  3. Copy the holon's own proto files to .op/protos/
-//  4. Parse all staged protos via protoparse
+//  4. Parse all staged protos via protocompile
 //  5. Write a FileDescriptorSet to .op/pb/descriptors.binpb
 //
 // Parse failure stops the build — proto breakage is caught here.
@@ -219,42 +221,51 @@ func stageHolonProtos(manifest *LoadedManifest, destDir string) ([]string, error
 }
 
 // parseStaged compiles all staged protos, returning the parsed file descriptors.
-func parseStaged(protosDir string, holonProtos []string) ([]*desc.FileDescriptor, error) {
+func parseStaged(protosDir string, holonProtos []string) ([]protoreflect.FileDescriptor, error) {
 	if len(holonProtos) == 0 {
 		return nil, nil
 	}
 
-	parser := protoparse.Parser{
-		ImportPaths:               []string{protosDir},
-		IncludeSourceCodeInfo:     true,
-		LookupImport:             desc.LoadFileDescriptor,
-		AllowExperimentalEditions: true,
+	compiler := protocompile.Compiler{
+		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{
+			ImportPaths: []string{protosDir},
+		}),
+		SourceInfoMode: protocompile.SourceInfoStandard,
 	}
 
-	fds, err := parser.ParseFiles(holonProtos...)
+	compiled, err := compiler.Compile(context.Background(), holonProtos...)
 	if err != nil {
 		return nil, fmt.Errorf("parse: %w", err)
+	}
+
+	fds := make([]protoreflect.FileDescriptor, 0, len(compiled))
+	for _, fd := range compiled {
+		fds = append(fds, fd)
 	}
 	return fds, nil
 }
 
 // writeDescriptorSet serializes the file descriptors to a FileDescriptorSet binary.
-func writeDescriptorSet(fds []*desc.FileDescriptor, path string) error {
+func writeDescriptorSet(fds []protoreflect.FileDescriptor, path string) error {
 	fdSet := &descriptorpb.FileDescriptorSet{}
 
 	// Collect all transitive dependencies (deduplicated).
 	seen := make(map[string]bool)
-	var collect func(fd *desc.FileDescriptor)
-	collect = func(fd *desc.FileDescriptor) {
-		name := fd.GetName()
+	var collect func(fd protoreflect.FileDescriptor)
+	collect = func(fd protoreflect.FileDescriptor) {
+		if fd == nil {
+			return
+		}
+		name := fd.Path()
 		if seen[name] {
 			return
 		}
 		seen[name] = true
-		for _, dep := range fd.GetDependencies() {
-			collect(dep)
+		imports := fd.Imports()
+		for i := 0; i < imports.Len(); i++ {
+			collect(imports.Get(i).FileDescriptor)
 		}
-		fdSet.File = append(fdSet.File, fd.AsFileDescriptorProto())
+		fdSet.File = append(fdSet.File, protodesc.ToFileDescriptorProto(fd))
 	}
 	for _, fd := range fds {
 		collect(fd)

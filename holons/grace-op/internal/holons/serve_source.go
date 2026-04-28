@@ -9,10 +9,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jhump/protoreflect/desc"
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	"github.com/organic-programming/grace-op/internal/progress"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 )
 
@@ -75,7 +76,7 @@ func generateServeSource(manifest *LoadedManifest, reporter progress.Reporter) (
 	return restore, nil
 }
 
-func loadDescriptorFiles(path string) (map[string]*desc.FileDescriptor, error) {
+func loadDescriptorFiles(path string) (map[string]protoreflect.FileDescriptor, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -86,14 +87,19 @@ func loadDescriptorFiles(path string) (map[string]*desc.FileDescriptor, error) {
 		return nil, fmt.Errorf("unmarshal descriptor set: %w", err)
 	}
 
-	files, err := desc.CreateFileDescriptorsFromSet(&fdSet)
+	files, err := protodesc.NewFiles(&fdSet)
 	if err != nil {
 		return nil, fmt.Errorf("create file descriptors: %w", err)
 	}
-	return files, nil
+	out := make(map[string]protoreflect.FileDescriptor)
+	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
+		out[fd.Path()] = fd
+		return true
+	})
+	return out, nil
 }
 
-func renderCServeSource(manifest *LoadedManifest, _ *holonsv1.DescribeResponse, files map[string]*desc.FileDescriptor) ([]byte, []byte, error) {
+func renderCServeSource(manifest *LoadedManifest, _ *holonsv1.DescribeResponse, files map[string]protoreflect.FileDescriptor) ([]byte, []byte, error) {
 	methods, err := collectCServeMethods(files)
 	if err != nil {
 		return nil, nil, err
@@ -110,58 +116,64 @@ func renderCServeSource(manifest *LoadedManifest, _ *holonsv1.DescribeResponse, 
 	return header, source, nil
 }
 
-func collectCServeMethods(files map[string]*desc.FileDescriptor) ([]cServeMethod, error) {
+func collectCServeMethods(files map[string]protoreflect.FileDescriptor) ([]cServeMethod, error) {
 	if len(files) == 0 {
 		return nil, nil
 	}
 
-	var serviceDescriptors []*desc.ServiceDescriptor
+	var serviceDescriptors []protoreflect.ServiceDescriptor
 	for _, fd := range files {
-		serviceDescriptors = append(serviceDescriptors, fd.GetServices()...)
+		services := fd.Services()
+		for i := 0; i < services.Len(); i++ {
+			serviceDescriptors = append(serviceDescriptors, services.Get(i))
+		}
 	}
 	sort.Slice(serviceDescriptors, func(i, j int) bool {
-		return serviceDescriptors[i].GetFullyQualifiedName() < serviceDescriptors[j].GetFullyQualifiedName()
+		return serviceDescriptors[i].FullName() < serviceDescriptors[j].FullName()
 	})
 
 	nameCounts := map[string]int{}
 	for _, service := range serviceDescriptors {
-		if service.GetFullyQualifiedName() == "holons.v1.HolonMeta" {
+		if service.FullName() == "holons.v1.HolonMeta" {
 			continue
 		}
-		for _, method := range service.GetMethods() {
-			nameCounts[sanitizeCIdentifier(method.GetName())]++
+		methods := service.Methods()
+		for i := 0; i < methods.Len(); i++ {
+			nameCounts[sanitizeCIdentifier(string(methods.Get(i).Name()))]++
 		}
 	}
 
 	methods := make([]cServeMethod, 0)
 	for _, service := range serviceDescriptors {
-		if service.GetFullyQualifiedName() == "holons.v1.HolonMeta" {
+		if service.FullName() == "holons.v1.HolonMeta" {
 			continue
 		}
 
-		serviceSymbol := sanitizeCIdentifier(service.GetName())
-		for _, method := range service.GetMethods() {
-			if method.IsClientStreaming() || method.IsServerStreaming() {
-				return nil, fmt.Errorf("c native serve does not support streaming RPC %s/%s", service.GetFullyQualifiedName(), method.GetName())
+		serviceSymbol := sanitizeCIdentifier(string(service.Name()))
+		serviceMethods := service.Methods()
+		for i := 0; i < serviceMethods.Len(); i++ {
+			method := serviceMethods.Get(i)
+			if method.IsStreamingClient() || method.IsStreamingServer() {
+				return nil, fmt.Errorf("c native serve does not support streaming RPC %s/%s", service.FullName(), method.Name())
 			}
 
-			handlerField := sanitizeCIdentifier(method.GetName())
+			handlerField := sanitizeCIdentifier(string(method.Name()))
 			if nameCounts[handlerField] > 1 {
 				handlerField = serviceSymbol + "_" + handlerField
 			}
 
 			methods = append(methods, cServeMethod{
-				ServiceName:     service.GetName(),
+				ServiceName:     string(service.Name()),
 				ServiceSymbol:   serviceSymbol,
-				MethodName:      method.GetName(),
+				MethodName:      string(method.Name()),
 				HandlerField:    handlerField,
-				FullMethodPath:  "/" + service.GetFullyQualifiedName() + "/" + method.GetName(),
-				InputSymbol:     cProtoSymbol(method.GetInputType().GetFullyQualifiedName()),
-				OutputSymbol:    cProtoSymbol(method.GetOutputType().GetFullyQualifiedName()),
-				InputHeader:     cUPBHeaderName(method.GetInputType()),
-				OutputHeader:    cUPBHeaderName(method.GetOutputType()),
-				InputProtoFile:  method.GetInputType().GetFile().GetName(),
-				OutputProtoFile: method.GetOutputType().GetFile().GetName(),
+				FullMethodPath:  "/" + string(service.FullName()) + "/" + string(method.Name()),
+				InputSymbol:     cProtoSymbol(string(method.Input().FullName())),
+				OutputSymbol:    cProtoSymbol(string(method.Output().FullName())),
+				InputHeader:     cUPBHeaderName(method.Input()),
+				OutputHeader:    cUPBHeaderName(method.Output()),
+				InputProtoFile:  method.Input().ParentFile().Path(),
+				OutputProtoFile: method.Output().ParentFile().Path(),
 			})
 		}
 	}
@@ -467,11 +479,11 @@ func cProtoSymbol(fullName string) string {
 	return strings.Join(parts, "_")
 }
 
-func cUPBHeaderName(message *desc.MessageDescriptor) string {
-	if message == nil || message.GetFile() == nil {
+func cUPBHeaderName(message protoreflect.MessageDescriptor) string {
+	if message == nil || message.ParentFile() == nil {
 		return ""
 	}
-	base := strings.TrimSuffix(filepath.Base(message.GetFile().GetName()), filepath.Ext(message.GetFile().GetName()))
+	base := strings.TrimSuffix(filepath.Base(message.ParentFile().Path()), filepath.Ext(message.ParentFile().Path()))
 	if base == "" {
 		return ""
 	}
