@@ -156,6 +156,29 @@ func TestInstallPreservesCodegenManifestBlock(t *testing.T) {
 	}
 }
 
+func TestLocalSourceTreeSHA256TreatsNonGitWorkspaceAsNoSource(t *testing.T) {
+	repoRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repoRoot, "go.work"), []byte("go 1.26.1\n"), 0o644); err != nil {
+		t.Fatalf("write go.work: %v", err)
+	}
+	sourceDir := filepath.Join(repoRoot, "sdk", "c-holons")
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		t.Fatalf("create sdk source dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceDir, "README.md"), []byte("fixture\n"), 0o644); err != nil {
+		t.Fatalf("write sdk source fixture: %v", err)
+	}
+	t.Chdir(repoRoot)
+
+	got, ok, err := LocalSourceTreeSHA256("c")
+	if err != nil {
+		t.Fatalf("LocalSourceTreeSHA256() returned error: %v", err)
+	}
+	if got != "" || ok {
+		t.Fatalf("LocalSourceTreeSHA256() = %q, %v, want empty hash and ok=false", got, ok)
+	}
+}
+
 func TestListInstalledIteratesRuntimeTree(t *testing.T) {
 	runtimeHome := t.TempDir()
 	t.Setenv("OPPATH", runtimeHome)

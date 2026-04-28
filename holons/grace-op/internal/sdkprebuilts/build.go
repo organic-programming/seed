@@ -151,15 +151,18 @@ func localSourceTreeSHA256(repoRoot, lang string) (string, bool, error) {
 	if !info.IsDir() {
 		return "", true, fmt.Errorf("%s is not a directory", sourceDir)
 	}
+	if _, err := exec.Command("git", "-C", repoRoot, "rev-parse", "--git-dir").Output(); err != nil {
+		return "", false, nil
+	}
 
 	scriptRel := filepath.ToSlash(filepath.Join(".github", "scripts", "build-prebuilt-"+lang+".sh"))
 	sdkRel := filepath.ToSlash(filepath.Join("sdk", lang+"-holons"))
 	files, err := sourceTreeFiles(repoRoot, sdkRel, scriptRel)
 	if err != nil {
-		return "", true, err
+		return "", false, nil
 	}
 	if len(files) == 0 {
-		return "", true, fmt.Errorf("no files selected for %s source tree hash", lang)
+		return "", false, nil
 	}
 	return hashSourceTreeFiles(repoRoot, files)
 }
