@@ -293,6 +293,7 @@ func TestListAvailableReadsReleaseManifest(t *testing.T) {
   "artifacts": [
     {
       "target": "%s",
+      "source_tree_sha256": "source-tree-abc",
       "archive": {
         "name": "cpp-holons-v1.80.0-%s.tar.gz",
         "url": "%s/assets/from-manifest.tar.gz",
@@ -333,6 +334,9 @@ func TestListAvailableReadsReleaseManifest(t *testing.T) {
 	}
 	if entries[0].ArchiveSHA256 != "abc123" {
 		t.Fatalf("archive sha = %q, want abc123", entries[0].ArchiveSHA256)
+	}
+	if entries[0].SourceTreeSHA256 != "source-tree-abc" {
+		t.Fatalf("source tree sha = %q, want source-tree-abc", entries[0].SourceTreeSHA256)
 	}
 }
 

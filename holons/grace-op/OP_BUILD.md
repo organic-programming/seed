@@ -390,12 +390,26 @@ runner environment variable:
 | `ruby` | `OP_SDK_RUBY_PATH` |
 | `zig` | `OP_SDK_ZIG_PATH` |
 
-On a miss, preflight fails before invoking the runner and reports the install
-command, for example `op sdk install cpp`.
+### Auto-resolution of SDK prebuilts
 
-`op build` does not install prebuilts implicitly. Installation remains an
-explicit `op sdk install <lang>` step so CI, local development, and release
-promotion can control network access and cache state.
+On a miss, preflight auto-resolves the SDK before invoking the runner. If no
+local `sdk/<lang>-holons/` source tree exists, `op build` uses the same path as
+`op sdk install <lang>` and downloads the released prebuilt. If local SDK source
+exists, `op build` compares its source tree hash with installed or released
+prebuilt metadata. Matching source uses the released install path; diverged
+source uses the same path as `op sdk build <lang>` and installs the local build.
+
+Progress is explicit:
+
+```text
+auto-installing SDK prebuilt "zig" v0.1.0...
+installed in 32s
+auto-resolved zig via install (download v0.1.0)
+```
+
+Use `--no-auto-install` for strict, reproducible, or air-gapped builds. With
+that flag, a missing SDK prebuilt fails with the original actionable error, for
+example `op sdk install cpp`.
 
 ## Runner Semantics
 

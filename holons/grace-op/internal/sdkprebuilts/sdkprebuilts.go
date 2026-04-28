@@ -60,16 +60,17 @@ var suspendedPrebuilts = map[string]map[string]string{
 }
 
 type Prebuilt struct {
-	Lang          string   `json:"lang"`
-	Version       string   `json:"version"`
-	Target        string   `json:"target"`
-	Path          string   `json:"path"`
-	Source        string   `json:"source,omitempty"`
-	ArchiveSHA256 string   `json:"archive_sha256,omitempty"`
-	TreeSHA256    string   `json:"tree_sha256,omitempty"`
-	Installed     bool     `json:"installed"`
-	Blockers      []string `json:"blockers,omitempty"`
-	Codegen       *Codegen `json:"codegen,omitempty"`
+	Lang             string   `json:"lang"`
+	Version          string   `json:"version"`
+	Target           string   `json:"target"`
+	Path             string   `json:"path"`
+	Source           string   `json:"source,omitempty"`
+	ArchiveSHA256    string   `json:"archive_sha256,omitempty"`
+	TreeSHA256       string   `json:"tree_sha256,omitempty"`
+	SourceTreeSHA256 string   `json:"source_tree_sha256,omitempty"`
+	Installed        bool     `json:"installed"`
+	Blockers         []string `json:"blockers,omitempty"`
+	Codegen          *Codegen `json:"codegen,omitempty"`
 }
 
 type Codegen struct {
@@ -83,10 +84,11 @@ type CodegenPlugin struct {
 }
 
 type InstallOptions struct {
-	Lang    string
-	Target  string
-	Version string
-	Source  string
+	Lang             string
+	Target           string
+	Version          string
+	Source           string
+	SourceTreeSHA256 string
 }
 
 type QueryOptions struct {
@@ -188,15 +190,16 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 	}
 
 	prebuilt := Prebuilt{
-		Lang:          lang,
-		Version:       version,
-		Target:        target,
-		Path:          dest,
-		Source:        source,
-		ArchiveSHA256: actualSHA,
-		TreeSHA256:    treeSHA,
-		Installed:     true,
-		Codegen:       archiveMetadata.Codegen,
+		Lang:             lang,
+		Version:          version,
+		Target:           target,
+		Path:             dest,
+		Source:           source,
+		ArchiveSHA256:    actualSHA,
+		TreeSHA256:       treeSHA,
+		SourceTreeSHA256: firstNonEmpty(opts.SourceTreeSHA256, archiveMetadata.SourceTreeSHA256),
+		Installed:        true,
+		Codegen:          archiveMetadata.Codegen,
 	}
 	if err := writeMetadata(tmp, prebuilt); err != nil {
 		return Prebuilt{}, nil, err
@@ -336,16 +339,19 @@ type releaseManifest struct {
 }
 
 type releaseManifestArtifact struct {
-	Target  string               `json:"target"`
-	Archive releaseManifestFile  `json:"archive"`
-	Debug   *releaseManifestFile `json:"debug,omitempty"`
-	SBOM    *releaseManifestFile `json:"sbom,omitempty"`
+	Target           string               `json:"target"`
+	SourceTreeSHA256 string               `json:"source_tree_sha256,omitempty"`
+	TreeSHA256       string               `json:"tree_sha256,omitempty"`
+	Archive          releaseManifestFile  `json:"archive"`
+	Debug            *releaseManifestFile `json:"debug,omitempty"`
+	SBOM             *releaseManifestFile `json:"sbom,omitempty"`
 }
 
 type releaseManifestFile struct {
-	Name   string `json:"name"`
-	URL    string `json:"url"`
-	SHA256 string `json:"sha256"`
+	Name       string `json:"name"`
+	URL        string `json:"url"`
+	SHA256     string `json:"sha256"`
+	TreeSHA256 string `json:"tree_sha256,omitempty"`
 }
 
 func resolveAvailable(ctx context.Context, opts QueryOptions) (Prebuilt, error) {
@@ -434,12 +440,13 @@ func availableFromReleaseManifests(ctx context.Context, releases []githubRelease
 				continue
 			}
 			out = append(out, Prebuilt{
-				Lang:          releaseLang,
-				Version:       releaseVersion,
-				Target:        target,
-				Source:        source,
-				ArchiveSHA256: strings.TrimSpace(artifact.Archive.SHA256),
-				Installed:     false,
+				Lang:             releaseLang,
+				Version:          releaseVersion,
+				Target:           target,
+				Source:           source,
+				ArchiveSHA256:    strings.TrimSpace(artifact.Archive.SHA256),
+				SourceTreeSHA256: firstNonEmpty(artifact.SourceTreeSHA256, artifact.TreeSHA256, artifact.Archive.TreeSHA256),
+				Installed:        false,
 			})
 		}
 	}
@@ -1068,6 +1075,15 @@ func fileTypeTag(mode os.FileMode) string {
 		return "symlink"
 	}
 	return "file"
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func inferVersionFromSource(source, lang, target string) string {

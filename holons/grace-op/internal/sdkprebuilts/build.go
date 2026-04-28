@@ -3,6 +3,8 @@ package sdkprebuilts
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -60,6 +62,10 @@ func Build(ctx context.Context, opts BuildOptions) (Prebuilt, []string, error) {
 	if err != nil {
 		return Prebuilt{}, nil, fmt.Errorf("locate repo root: %w", err)
 	}
+	sourceTreeSHA, _, err := localSourceTreeSHA256(repoRoot, lang)
+	if err != nil {
+		return Prebuilt{}, nil, fmt.Errorf("hash SDK source tree: %w", err)
+	}
 
 	scriptPath := filepath.Join(repoRoot, ".github", "scripts", "build-prebuilt-"+lang+".sh")
 	if _, err := os.Stat(scriptPath); err != nil {
@@ -105,16 +111,144 @@ install:
 	}
 
 	prebuilt, installNotes, err := Install(ctx, InstallOptions{
-		Lang:    lang,
-		Target:  target,
-		Version: version,
-		Source:  tarballPath,
+		Lang:             lang,
+		Target:           target,
+		Version:          version,
+		Source:           tarballPath,
+		SourceTreeSHA256: sourceTreeSHA,
 	})
 	notes = append(notes, installNotes...)
 	if err != nil {
 		return Prebuilt{}, notes, err
 	}
 	return prebuilt, notes, nil
+}
+
+// LocalSourceTreeSHA256 returns a hash of the local SDK source tree and the
+// matching build script. The file set is selected with git's standard ignore
+// rules when available, matching the release manifest producer.
+func LocalSourceTreeSHA256(lang string) (string, bool, error) {
+	normalized, err := NormalizeLang(lang)
+	if err != nil {
+		return "", false, err
+	}
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		return "", false, nil
+	}
+	return localSourceTreeSHA256(repoRoot, normalized)
+}
+
+func localSourceTreeSHA256(repoRoot, lang string) (string, bool, error) {
+	sourceDir := filepath.Join(repoRoot, "sdk", lang+"-holons")
+	info, err := os.Stat(sourceDir)
+	if errors.Is(err, os.ErrNotExist) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", true, err
+	}
+	if !info.IsDir() {
+		return "", true, fmt.Errorf("%s is not a directory", sourceDir)
+	}
+
+	scriptRel := filepath.ToSlash(filepath.Join(".github", "scripts", "build-prebuilt-"+lang+".sh"))
+	sdkRel := filepath.ToSlash(filepath.Join("sdk", lang+"-holons"))
+	files, err := sourceTreeFiles(repoRoot, sdkRel, scriptRel)
+	if err != nil {
+		return "", true, err
+	}
+	if len(files) == 0 {
+		return "", true, fmt.Errorf("no files selected for %s source tree hash", lang)
+	}
+	return hashSourceTreeFiles(repoRoot, files)
+}
+
+func sourceTreeFiles(repoRoot string, roots ...string) ([]string, error) {
+	args := []string{"-C", repoRoot, "ls-files", "-co", "--exclude-standard", "-z", "--"}
+	args = append(args, roots...)
+	out, err := exec.Command("git", args...).Output()
+	if err != nil {
+		return nil, fmt.Errorf("list SDK source files with git: %w", err)
+	}
+	return parseNULTerminatedPaths(out), nil
+}
+
+func parseNULTerminatedPaths(out []byte) []string {
+	parts := bytes.Split(out, []byte{0})
+	paths := make([]string, 0, len(parts))
+	seen := map[string]struct{}{}
+	for _, part := range parts {
+		if len(part) == 0 {
+			continue
+		}
+		path := filepath.ToSlash(string(part))
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		seen[path] = struct{}{}
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+func hashSourceTreeFiles(repoRoot string, paths []string) (string, bool, error) {
+	h := sha256.New()
+	for _, rel := range paths {
+		path := filepath.Join(repoRoot, filepath.FromSlash(rel))
+		info, err := os.Lstat(path)
+		if errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintf(h, "%s\x00missing\x00", rel)
+			continue
+		}
+		if err != nil {
+			return "", true, err
+		}
+		if info.IsDir() {
+			if object, ok := gitIndexObject(repoRoot, rel); ok {
+				fmt.Fprintf(h, "%s\x00gitlink\x00%s\x00", rel, object)
+				continue
+			}
+			fmt.Fprintf(h, "%s\x00dir\x00%o\x00", rel, info.Mode().Perm())
+			continue
+		}
+		fmt.Fprintf(h, "%s\x00%s\x00%o\x00", rel, fileTypeTag(info.Mode()), info.Mode().Perm())
+		if info.Mode()&os.ModeSymlink != 0 {
+			link, err := os.Readlink(path)
+			if err != nil {
+				return "", true, err
+			}
+			_, _ = h.Write([]byte(link))
+			_, _ = h.Write([]byte{0})
+			continue
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			return "", true, err
+		}
+		if _, err := io.Copy(h, f); err != nil {
+			_ = f.Close()
+			return "", true, err
+		}
+		if err := f.Close(); err != nil {
+			return "", true, err
+		}
+		_, _ = h.Write([]byte{0})
+	}
+	return hex.EncodeToString(h.Sum(nil)), true, nil
+}
+
+func gitIndexObject(repoRoot, rel string) (string, bool) {
+	out, err := exec.Command("git", "-C", repoRoot, "rev-parse", "HEAD:"+rel).Output()
+	if err != nil {
+		return "", false
+	}
+	object := strings.TrimSpace(string(out))
+	if object == "" {
+		return "", false
+	}
+	return object, true
 }
 
 func runBuildScript(ctx context.Context, scriptPath, lang, target, version string, opts BuildOptions, repoRoot string) error {

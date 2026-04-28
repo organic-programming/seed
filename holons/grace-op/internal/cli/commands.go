@@ -181,6 +181,7 @@ type runOptions struct {
 	ListenExplicit bool
 	Clean          bool
 	NoBuild        bool
+	NoAutoInstall  bool
 	Target         string
 	Mode           string
 }
@@ -325,9 +326,10 @@ func cmdRun(format Format, runtimeOpts commandRuntimeOptions, args []string) int
 
 	if needBuild {
 		if _, err := holons.ExecuteLifecycle(holons.OperationBuild, target.Dir, holons.BuildOptions{
-			Target:   opts.Target,
-			Mode:     opts.Mode,
-			Progress: printer,
+			Target:        opts.Target,
+			Mode:          opts.Mode,
+			NoAutoInstall: opts.NoAutoInstall,
+			Progress:      printer,
 		}); err != nil {
 			printer.Done("run failed", err)
 			fmt.Fprintf(os.Stderr, "op run: %v\n", err)
@@ -773,6 +775,8 @@ func parseRunArgs(args []string) (string, runOptions, error) {
 			opts.Clean = true
 		case args[i] == "--no-build":
 			opts.NoBuild = true
+		case args[i] == "--no-auto-install":
+			opts.NoAutoInstall = true
 		case args[i] == "--target":
 			if i+1 >= len(args) {
 				return "", opts, fmt.Errorf("--target requires a value")
