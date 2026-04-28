@@ -874,12 +874,36 @@ func resolveRequiredSDKPrebuilts(manifest *LoadedManifest, ctx *BuildContext) er
 		}
 		prebuilt, err := sdkprebuilts.Locate(sdkprebuilts.QueryOptions{Lang: lang, Target: hostTarget})
 		if err != nil {
+			envPath, envErr := explicitSDKPrebuiltPath(lang)
+			if envErr != nil {
+				return envErr
+			}
+			if envPath != "" {
+				paths[lang] = envPath
+				continue
+			}
 			return fmt.Errorf("missing SDK prebuilt %q for host target %s; run `op sdk install %s` to install prebuilt native libraries (~30 sec download, no source compilation)", lang, hostTarget, lang)
 		}
 		paths[lang] = prebuilt.Path
 	}
 	ctx.SDKPrebuiltPaths = paths
 	return nil
+}
+
+func explicitSDKPrebuiltPath(lang string) (string, error) {
+	envName := sdkPrebuiltEnvName(lang)
+	path := strings.TrimSpace(os.Getenv(envName))
+	if path == "" {
+		return "", nil
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("%s points at unavailable SDK prebuilt path %q: %w", envName, path, err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("%s is not a directory: %s", envName, path)
+	}
+	return path, nil
 }
 
 func sdkPrebuiltEnv(ctx BuildContext) []string {
@@ -1662,8 +1686,17 @@ func (recipeRunner) stepCopyAllHolons(manifest *LoadedManifest, ctx BuildContext
 
 	var collect func(*LoadedManifest) error
 	collect = func(parent *LoadedManifest) error {
+		excludedCtx := ctx
+		excludedCtx.Progress = nil
+		excludedMembers := resolveHardenedExcludedMembers(parent, excludedCtx)
 		for _, member := range parent.Manifest.Build.Members {
 			if member.Type != "holon" {
+				continue
+			}
+			if runnerName, excluded := excludedMembers[member.ID]; excluded {
+				note := fmt.Sprintf("hardened: skipped copy_all_holons member %q (runner %q not standalone)", member.ID, runnerName)
+				ctx.Progress.Step(note)
+				report.Notes = append(report.Notes, note)
 				continue
 			}
 			memberDir, err := parent.ResolveManifestPath(member.Path)

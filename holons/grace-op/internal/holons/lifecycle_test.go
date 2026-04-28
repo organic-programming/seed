@@ -404,6 +404,34 @@ func TestExecuteLifecycleSDKPrebuiltPathIsResolvedForRunner(t *testing.T) {
 	}
 }
 
+func TestExecuteLifecycleSDKPrebuiltEnvPathIsResolvedForRunner(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+	t.Setenv("OPPATH", filepath.Join(root, ".op-runtime"))
+
+	prebuiltPath := writeInstalledSDKPrebuilt(t, filepath.Join(root, "external-op-runtime"), "cpp", "1.80.0")
+	t.Setenv("OP_SDK_CPP_PATH", prebuiltPath)
+	runnerName := "sdk-env-path-test"
+	sawRunnerContext := false
+	registerLifecycleTestRunner(t, runnerName, lifecycleTestRunner{
+		checkFunc: func(_ *LoadedManifest, ctx BuildContext) error {
+			sawRunnerContext = true
+			if got := ctx.SDKPrebuiltPaths["cpp"]; got != prebuiltPath {
+				return fmt.Errorf("ctx.SDKPrebuiltPaths[cpp] = %q, want %q", got, prebuiltPath)
+			}
+			return nil
+		},
+	})
+	dir := writeSDKPrebuiltLifecycleFixture(t, root, "demo-env-sdk", runnerName, "cpp")
+
+	if _, err := ExecuteLifecycle(OperationCheck, dir); err != nil {
+		t.Fatalf("check failed: %v", err)
+	}
+	if !sawRunnerContext {
+		t.Fatal("runner check did not observe SDK prebuilt path")
+	}
+}
+
 func TestBuildExecutionEnvIncludesSDKPrebuiltPath(t *testing.T) {
 	env := buildExecutionEnv(nil, BuildContext{
 		Target:           "macos",
