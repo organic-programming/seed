@@ -35,7 +35,7 @@ option (holons.v1.manifest) = {
     }
   }
   requires: {
-    commands: ["go", "protoc", "protoc-gen-go", "protoc-gen-go-grpc"]
+    commands: ["go"]
     files: ["go.mod"]
   }
   artifacts: {

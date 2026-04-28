@@ -4,7 +4,7 @@
 // Invoked automatically by `op build op` via the holon manifest's
 // before_commands hook. Can also be run directly:
 //
-//     cd holons/grace-op && go run ./tools/generate
+//	cd holons/grace-op && go run ./tools/generate
 //
 // In organic programming the .proto IS the source code. This generator
 // keeps the .pb.go bindings under gen/go/op/v1/ in sync with the
@@ -34,6 +34,10 @@ const (
 func main() {
 	for _, tool := range []string{"protoc", "protoc-gen-go", "protoc-gen-go-grpc"} {
 		if _, err := exec.LookPath(tool); err != nil {
+			if generatedStubsPresent() {
+				log.Printf("missing %s on PATH; keeping committed protobuf stubs", tool)
+				return
+			}
 			log.Fatalf("missing %s on PATH: %s", tool, installHint(tool))
 		}
 	}
@@ -62,6 +66,18 @@ func main() {
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("protoc failed: %v", err)
 	}
+}
+
+func generatedStubsPresent() bool {
+	for _, path := range []string{
+		"gen/go/op/v1/holon.pb.go",
+		"gen/go/op/v1/holon_grpc.pb.go",
+	} {
+		if info, err := os.Stat(path); err != nil || info.IsDir() {
+			return false
+		}
+	}
+	return true
 }
 
 func installHint(tool string) string {
