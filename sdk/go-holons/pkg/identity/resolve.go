@@ -11,6 +11,7 @@ import (
 
 	"github.com/bufbuild/protocompile"
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -165,18 +166,8 @@ func extractResolvedFromFileOptions(fd protoreflect.FileDescriptor) (*ResolvedMa
 		return nil, false
 	}
 
-	manifestExt := findExtension(fd, manifestExtensionNumber)
-	if manifestExt == nil {
-		return nil, false
-	}
-
-	optsMsg := opts.ProtoReflect()
-	if !optsMsg.Has(manifestExt) {
-		return nil, false
-	}
-
-	manifest := optsMsg.Get(manifestExt).Message()
-	if !manifest.IsValid() {
+	manifest, ok := manifestMessageFromFileOptions(fd, opts)
+	if !ok {
 		return nil, false
 	}
 
@@ -186,6 +177,58 @@ func extractResolvedFromFileOptions(fd protoreflect.FileDescriptor) (*ResolvedMa
 	}
 
 	return resolved, true
+}
+
+func manifestMessageFromFileOptions(fd protoreflect.FileDescriptor, opts *descriptorpb.FileOptions) (protoreflect.Message, bool) {
+	if opts == nil {
+		return nil, false
+	}
+	if ext := findExtension(fd, manifestExtensionNumber); ext != nil {
+		if manifest, ok := manifestMessageFromReflectExtension(opts, ext); ok {
+			return manifest, true
+		}
+	}
+	return manifestMessageFromGeneratedExtension(opts)
+}
+
+func manifestMessageFromReflectExtension(opts *descriptorpb.FileOptions, ext protoreflect.FieldDescriptor) (manifest protoreflect.Message, ok bool) {
+	defer func() {
+		if recover() != nil {
+			manifest = nil
+			ok = false
+		}
+	}()
+	optsMsg := opts.ProtoReflect()
+	if !optsMsg.Has(ext) {
+		return nil, false
+	}
+	manifest = optsMsg.Get(ext).Message()
+	if !manifest.IsValid() {
+		return nil, false
+	}
+	return manifest, true
+}
+
+func manifestMessageFromGeneratedExtension(opts *descriptorpb.FileOptions) (manifest protoreflect.Message, ok bool) {
+	defer func() {
+		if recover() != nil {
+			manifest = nil
+			ok = false
+		}
+	}()
+	if !proto.HasExtension(opts, holonsv1.E_Manifest) {
+		return nil, false
+	}
+	value := proto.GetExtension(opts, holonsv1.E_Manifest)
+	message, ok := value.(proto.Message)
+	if !ok {
+		return nil, false
+	}
+	manifest = message.ProtoReflect()
+	if !manifest.IsValid() {
+		return nil, false
+	}
+	return manifest, true
 }
 
 func findExtension(fd protoreflect.FileDescriptor, fieldNum int32) protoreflect.FieldDescriptor {
