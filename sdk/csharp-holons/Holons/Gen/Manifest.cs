@@ -25,7 +25,7 @@ namespace Holons.V1 {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "Chhob2xvbnMvdjEvbWFuaWZlc3QucHJvdG8SCWhvbG9ucy52MRogZ29vZ2xl",
-            "L3Byb3RvYnVmL2Rlc2NyaXB0b3IucHJvdG8izxMKDUhvbG9uTWFuaWZlc3QS",
+            "L3Byb3RvYnVmL2Rlc2NyaXB0b3IucHJvdG8iohUKDUhvbG9uTWFuaWZlc3QS",
             "MwoIaWRlbnRpdHkYASABKAsyIS5ob2xvbnMudjEuSG9sb25NYW5pZmVzdC5J",
             "ZGVudGl0eRITCgtkZXNjcmlwdGlvbhgDIAEoCRIMCgRsYW5nGAQgASgJEi4K",
             "BnNraWxscxgFIAMoCzIeLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0LlNraWxs",
@@ -50,7 +50,7 @@ namespace Holons.V1 {
             "b25NYW5pZmVzdC5TZXF1ZW5jZS5QYXJhbRINCgVzdGVwcxgEIAMoCRpNCgVQ",
             "YXJhbRIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEhAKCHJl",
             "cXVpcmVkGAMgASgIEg8KB2RlZmF1bHQYBCABKAkaOAoIQ29udHJhY3QSDQoF",
-            "cHJvdG8YASABKAkSDwoHc2VydmljZRgCIAEoCRIMCgRycGNzGAMgAygJGs0E",
+            "cHJvdG8YASABKAkSDwoHc2VydmljZRgCIAEoCRIMCgRycGNzGAMgAygJGqQF",
             "CgVCdWlsZBIOCgZydW5uZXIYASABKAkSDAoEbWFpbhgCIAEoCRI5CghkZWZh",
             "dWx0cxgDIAEoCzInLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0LkJ1aWxkLkRl",
             "ZmF1bHRzEjYKB21lbWJlcnMYBCADKAsyJS5ob2xvbnMudjEuSG9sb25NYW5p",
@@ -58,38 +58,43 @@ namespace Holons.V1 {
             "MS5Ib2xvbk1hbmlmZXN0LkJ1aWxkLlRhcmdldHNFbnRyeRIRCgl0ZW1wbGF0",
             "ZXMYBiADKAkSOwoPYmVmb3JlX2NvbW1hbmRzGAcgAygLMiIuaG9sb25zLnYx",
             "LkhvbG9uTWFuaWZlc3QuU3RlcC5FeGVjEjoKDmFmdGVyX2NvbW1hbmRzGAgg",
-            "AygLMiIuaG9sb25zLnYxLkhvbG9uTWFuaWZlc3QuU3RlcC5FeGVjGlUKDFRh",
-            "cmdldHNFbnRyeRILCgNrZXkYASABKAkSNAoFdmFsdWUYAiABKAsyJS5ob2xv",
-            "bnMudjEuSG9sb25NYW5pZmVzdC5CdWlsZC5UYXJnZXQ6AjgBGigKCERlZmF1",
-            "bHRzEg4KBnRhcmdldBgBIAEoCRIMCgRtb2RlGAIgASgJGjAKBk1lbWJlchIK",
-            "CgJpZBgBIAEoCRIMCgRwYXRoGAIgASgJEgwKBHR5cGUYAyABKAkaNgoGVGFy",
-            "Z2V0EiwKBXN0ZXBzGAEgAygLMh0uaG9sb25zLnYxLkhvbG9uTWFuaWZlc3Qu",
-            "U3RlcBqhAwoEU3RlcBIyCgRleGVjGAEgASgLMiIuaG9sb25zLnYxLkhvbG9u",
-            "TWFuaWZlc3QuU3RlcC5FeGVjSAASMgoEY29weRgCIAEoCzIiLmhvbG9ucy52",
-            "MS5Ib2xvbk1hbmlmZXN0LlN0ZXAuQ29weUgAEhYKDGJ1aWxkX21lbWJlchgD",
-            "IAEoCUgAEj8KC2Fzc2VydF9maWxlGAQgASgLMiguaG9sb25zLnYxLkhvbG9u",
-            "TWFuaWZlc3QuU3RlcC5Bc3NlcnRGaWxlSAASQwoNY29weV9hcnRpZmFjdBgF",
-            "IAEoCzIqLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0LlN0ZXAuQ29weUFydGlm",
-            "YWN0SAAaIQoERXhlYxILCgNjd2QYASABKAkSDAoEYXJndhgCIAMoCRogCgRD",
-            "b3B5EgwKBGZyb20YASABKAkSCgoCdG8YAiABKAkaGgoKQXNzZXJ0RmlsZRIM",
-            "CgRwYXRoGAEgASgJGigKDENvcHlBcnRpZmFjdBIMCgRmcm9tGAEgASgJEgoK",
-            "AnRvGAIgASgJQggKBmFjdGlvbho+CghSZXF1aXJlcxIQCghjb21tYW5kcxgB",
-            "IAMoCRINCgVmaWxlcxgCIAMoCRIRCglwbGF0Zm9ybXMYAyADKAkamgIKCUFy",
-            "dGlmYWN0cxIOCgZiaW5hcnkYASABKAkSDwoHcHJpbWFyeRgCIAEoCRJDCgli",
-            "eV90YXJnZXQYAyADKAsyMC5ob2xvbnMudjEuSG9sb25NYW5pZmVzdC5BcnRp",
-            "ZmFjdHMuQnlUYXJnZXRFbnRyeRpjCg1CeVRhcmdldEVudHJ5EgsKA2tleRgB",
-            "IAEoCRJBCgV2YWx1ZRgCIAEoCzIyLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0",
-            "LkFydGlmYWN0cy5UYXJnZXRBcnRpZmFjdHM6AjgBGkIKD1RhcmdldEFydGlm",
-            "YWN0cxINCgVkZWJ1ZxgBIAEoCRIPCgdyZWxlYXNlGAIgASgJEg8KB3Byb2Zp",
-            "bGUYAyABKAlKBAgCEANKBAgMEA0iagoaTGlzdGVuZXJWaXNpYmlsaXR5T3Zl",
-            "cnJpZGUSFAoMbGlzdGVuZXJfdXJpGAEgASgJEjYKCnZpc2liaWxpdHkYAiAB",
-            "KA4yIi5ob2xvbnMudjEuT2JzZXJ2YWJpbGl0eVZpc2liaWxpdHkqrgEKF09i",
-            "c2VydmFiaWxpdHlWaXNpYmlsaXR5EigKJE9CU0VSVkFCSUxJVFlfVklTSUJJ",
-            "TElUWV9VTlNQRUNJRklFRBAAEiAKHE9CU0VSVkFCSUxJVFlfVklTSUJJTElU",
-            "WV9PRkYQARIkCiBPQlNFUlZBQklMSVRZX1ZJU0lCSUxJVFlfU1VNTUFSWRAC",
-            "EiEKHU9CU0VSVkFCSUxJVFlfVklTSUJJTElUWV9GVUxMEAM6SgoIbWFuaWZl",
-            "c3QSHC5nb29nbGUucHJvdG9idWYuRmlsZU9wdGlvbnMY0IYDIAEoCzIYLmhv",
-            "bG9ucy52MS5Ib2xvbk1hbmlmZXN0YgZwcm90bzM="));
+            "AygLMiIuaG9sb25zLnYxLkhvbG9uTWFuaWZlc3QuU3RlcC5FeGVjEjcKB2Nv",
+            "ZGVnZW4YCSABKAsyJi5ob2xvbnMudjEuSG9sb25NYW5pZmVzdC5CdWlsZC5D",
+            "b2RlZ2VuGlUKDFRhcmdldHNFbnRyeRILCgNrZXkYASABKAkSNAoFdmFsdWUY",
+            "AiABKAsyJS5ob2xvbnMudjEuSG9sb25NYW5pZmVzdC5CdWlsZC5UYXJnZXQ6",
+            "AjgBGigKCERlZmF1bHRzEg4KBnRhcmdldBgBIAEoCRIMCgRtb2RlGAIgASgJ",
+            "GjAKBk1lbWJlchIKCgJpZBgBIAEoCRIMCgRwYXRoGAIgASgJEgwKBHR5cGUY",
+            "AyABKAkaNgoGVGFyZ2V0EiwKBXN0ZXBzGAEgAygLMh0uaG9sb25zLnYxLkhv",
+            "bG9uTWFuaWZlc3QuU3RlcBocCgdDb2RlZ2VuEhEKCWxhbmd1YWdlcxgBIAMo",
+            "CRqGBAoEU3RlcBIyCgRleGVjGAEgASgLMiIuaG9sb25zLnYxLkhvbG9uTWFu",
+            "aWZlc3QuU3RlcC5FeGVjSAASMgoEY29weRgCIAEoCzIiLmhvbG9ucy52MS5I",
+            "b2xvbk1hbmlmZXN0LlN0ZXAuQ29weUgAEhYKDGJ1aWxkX21lbWJlchgDIAEo",
+            "CUgAEj8KC2Fzc2VydF9maWxlGAQgASgLMiguaG9sb25zLnYxLkhvbG9uTWFu",
+            "aWZlc3QuU3RlcC5Bc3NlcnRGaWxlSAASQwoNY29weV9hcnRpZmFjdBgFIAEo",
+            "CzIqLmhvbG9ucy52MS5Ib2xvbk1hbmlmZXN0LlN0ZXAuQ29weUFydGlmYWN0",
+            "SAASRgoPY29weV9hbGxfaG9sb25zGAYgASgLMisuaG9sb25zLnYxLkhvbG9u",
+            "TWFuaWZlc3QuU3RlcC5Db3B5QWxsSG9sb25zSAAaIQoERXhlYxILCgNjd2QY",
+            "ASABKAkSDAoEYXJndhgCIAMoCRogCgRDb3B5EgwKBGZyb20YASABKAkSCgoC",
+            "dG8YAiABKAkaGgoKQXNzZXJ0RmlsZRIMCgRwYXRoGAEgASgJGigKDENvcHlB",
+            "cnRpZmFjdBIMCgRmcm9tGAEgASgJEgoKAnRvGAIgASgJGhsKDUNvcHlBbGxI",
+            "b2xvbnMSCgoCdG8YASABKAlCCAoGYWN0aW9uGlUKCFJlcXVpcmVzEhAKCGNv",
+            "bW1hbmRzGAEgAygJEg0KBWZpbGVzGAIgAygJEhEKCXBsYXRmb3JtcxgDIAMo",
+            "CRIVCg1zZGtfcHJlYnVpbHRzGAQgAygJGpoCCglBcnRpZmFjdHMSDgoGYmlu",
+            "YXJ5GAEgASgJEg8KB3ByaW1hcnkYAiABKAkSQwoJYnlfdGFyZ2V0GAMgAygL",
+            "MjAuaG9sb25zLnYxLkhvbG9uTWFuaWZlc3QuQXJ0aWZhY3RzLkJ5VGFyZ2V0",
+            "RW50cnkaYwoNQnlUYXJnZXRFbnRyeRILCgNrZXkYASABKAkSQQoFdmFsdWUY",
+            "AiABKAsyMi5ob2xvbnMudjEuSG9sb25NYW5pZmVzdC5BcnRpZmFjdHMuVGFy",
+            "Z2V0QXJ0aWZhY3RzOgI4ARpCCg9UYXJnZXRBcnRpZmFjdHMSDQoFZGVidWcY",
+            "ASABKAkSDwoHcmVsZWFzZRgCIAEoCRIPCgdwcm9maWxlGAMgASgJSgQIAhAD",
+            "SgQIDBANImoKGkxpc3RlbmVyVmlzaWJpbGl0eU92ZXJyaWRlEhQKDGxpc3Rl",
+            "bmVyX3VyaRgBIAEoCRI2Cgp2aXNpYmlsaXR5GAIgASgOMiIuaG9sb25zLnYx",
+            "Lk9ic2VydmFiaWxpdHlWaXNpYmlsaXR5Kq4BChdPYnNlcnZhYmlsaXR5Vmlz",
+            "aWJpbGl0eRIoCiRPQlNFUlZBQklMSVRZX1ZJU0lCSUxJVFlfVU5TUEVDSUZJ",
+            "RUQQABIgChxPQlNFUlZBQklMSVRZX1ZJU0lCSUxJVFlfT0ZGEAESJAogT0JT",
+            "RVJWQUJJTElUWV9WSVNJQklMSVRZX1NVTU1BUlkQAhIhCh1PQlNFUlZBQklM",
+            "SVRZX1ZJU0lCSUxJVFlfRlVMTBADOkoKCG1hbmlmZXN0EhwuZ29vZ2xlLnBy",
+            "b3RvYnVmLkZpbGVPcHRpb25zGNCGAyABKAsyGC5ob2xvbnMudjEuSG9sb25N",
+            "YW5pZmVzdGIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Google.Protobuf.Reflection.DescriptorReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::Holons.V1.ObservabilityVisibility), }, new pb::Extension[] { ManifestExtensions.Manifest }, new pbr::GeneratedClrTypeInfo[] {
@@ -97,14 +102,16 @@ namespace Holons.V1 {
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Skill), global::Holons.V1.HolonManifest.Types.Skill.Parser, new[]{ "Name", "Description", "When", "Steps" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Sequence), global::Holons.V1.HolonManifest.Types.Sequence.Parser, new[]{ "Name", "Description", "Params", "Steps" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Sequence.Types.Param), global::Holons.V1.HolonManifest.Types.Sequence.Types.Param.Parser, new[]{ "Name", "Description", "Required", "Default" }, null, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Contract), global::Holons.V1.HolonManifest.Types.Contract.Parser, new[]{ "Proto", "Service", "Rpcs" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build), global::Holons.V1.HolonManifest.Types.Build.Parser, new[]{ "Runner", "Main", "Defaults", "Members", "Targets", "Templates", "BeforeCommands", "AfterCommands" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { null, new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build.Types.Defaults), global::Holons.V1.HolonManifest.Types.Build.Types.Defaults.Parser, new[]{ "Target", "Mode" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build), global::Holons.V1.HolonManifest.Types.Build.Parser, new[]{ "Runner", "Main", "Defaults", "Members", "Targets", "Templates", "BeforeCommands", "AfterCommands", "Codegen" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { null, new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build.Types.Defaults), global::Holons.V1.HolonManifest.Types.Build.Types.Defaults.Parser, new[]{ "Target", "Mode" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build.Types.Member), global::Holons.V1.HolonManifest.Types.Build.Types.Member.Parser, new[]{ "Id", "Path", "Type" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build.Types.Target), global::Holons.V1.HolonManifest.Types.Build.Types.Target.Parser, new[]{ "Steps" }, null, null, null, null)}),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Step), global::Holons.V1.HolonManifest.Types.Step.Parser, new[]{ "Exec", "Copy", "BuildMember", "AssertFile", "CopyArtifact" }, new[]{ "Action" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Step.Types.Exec), global::Holons.V1.HolonManifest.Types.Step.Types.Exec.Parser, new[]{ "Cwd", "Argv" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build.Types.Target), global::Holons.V1.HolonManifest.Types.Build.Types.Target.Parser, new[]{ "Steps" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Build.Types.Codegen), global::Holons.V1.HolonManifest.Types.Build.Types.Codegen.Parser, new[]{ "Languages" }, null, null, null, null)}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Step), global::Holons.V1.HolonManifest.Types.Step.Parser, new[]{ "Exec", "Copy", "BuildMember", "AssertFile", "CopyArtifact", "CopyAllHolons" }, new[]{ "Action" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Step.Types.Exec), global::Holons.V1.HolonManifest.Types.Step.Types.Exec.Parser, new[]{ "Cwd", "Argv" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Step.Types.Copy), global::Holons.V1.HolonManifest.Types.Step.Types.Copy.Parser, new[]{ "From", "To" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Step.Types.AssertFile), global::Holons.V1.HolonManifest.Types.Step.Types.AssertFile.Parser, new[]{ "Path" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Step.Types.CopyArtifact), global::Holons.V1.HolonManifest.Types.Step.Types.CopyArtifact.Parser, new[]{ "From", "To" }, null, null, null, null)}),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Requires), global::Holons.V1.HolonManifest.Types.Requires.Parser, new[]{ "Commands", "Files", "Platforms" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Step.Types.CopyArtifact), global::Holons.V1.HolonManifest.Types.Step.Types.CopyArtifact.Parser, new[]{ "From", "To" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Step.Types.CopyAllHolons), global::Holons.V1.HolonManifest.Types.Step.Types.CopyAllHolons.Parser, new[]{ "To" }, null, null, null, null)}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Requires), global::Holons.V1.HolonManifest.Types.Requires.Parser, new[]{ "Commands", "Files", "Platforms", "SdkPrebuilts" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Artifacts), global::Holons.V1.HolonManifest.Types.Artifacts.Parser, new[]{ "Binary", "Primary", "ByTarget" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { null, new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.HolonManifest.Types.Artifacts.Types.TargetArtifacts), global::Holons.V1.HolonManifest.Types.Artifacts.Types.TargetArtifacts.Parser, new[]{ "Debug", "Release", "Profile" }, null, null, null, null)})}),
             new pbr::GeneratedClrTypeInfo(typeof(global::Holons.V1.ListenerVisibilityOverride), global::Holons.V1.ListenerVisibilityOverride.Parser, new[]{ "ListenerUri", "Visibility" }, null, null, null, null)
           }));
@@ -2693,6 +2700,7 @@ namespace Holons.V1 {
           templates_ = other.templates_.Clone();
           beforeCommands_ = other.beforeCommands_.Clone();
           afterCommands_ = other.afterCommands_.Clone();
+          codegen_ = other.codegen_ != null ? other.codegen_.Clone() : null;
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
@@ -2817,6 +2825,21 @@ namespace Holons.V1 {
           get { return afterCommands_; }
         }
 
+        /// <summary>Field number for the "codegen" field.</summary>
+        public const int CodegenFieldNumber = 9;
+        private global::Holons.V1.HolonManifest.Types.Build.Types.Codegen codegen_;
+        /// <summary>
+        /// Proto code generation languages to run after descriptor production.
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public global::Holons.V1.HolonManifest.Types.Build.Types.Codegen Codegen {
+          get { return codegen_; }
+          set {
+            codegen_ = value;
+          }
+        }
+
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override bool Equals(object other) {
@@ -2840,6 +2863,7 @@ namespace Holons.V1 {
           if(!templates_.Equals(other.templates_)) return false;
           if(!beforeCommands_.Equals(other.beforeCommands_)) return false;
           if(!afterCommands_.Equals(other.afterCommands_)) return false;
+          if (!object.Equals(Codegen, other.Codegen)) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -2855,6 +2879,7 @@ namespace Holons.V1 {
           hash ^= templates_.GetHashCode();
           hash ^= beforeCommands_.GetHashCode();
           hash ^= afterCommands_.GetHashCode();
+          if (codegen_ != null) hash ^= Codegen.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -2890,6 +2915,10 @@ namespace Holons.V1 {
           templates_.WriteTo(output, _repeated_templates_codec);
           beforeCommands_.WriteTo(output, _repeated_beforeCommands_codec);
           afterCommands_.WriteTo(output, _repeated_afterCommands_codec);
+          if (codegen_ != null) {
+            output.WriteRawTag(74);
+            output.WriteMessage(Codegen);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -2917,6 +2946,10 @@ namespace Holons.V1 {
           templates_.WriteTo(ref output, _repeated_templates_codec);
           beforeCommands_.WriteTo(ref output, _repeated_beforeCommands_codec);
           afterCommands_.WriteTo(ref output, _repeated_afterCommands_codec);
+          if (codegen_ != null) {
+            output.WriteRawTag(74);
+            output.WriteMessage(Codegen);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -2941,6 +2974,9 @@ namespace Holons.V1 {
           size += templates_.CalculateSize(_repeated_templates_codec);
           size += beforeCommands_.CalculateSize(_repeated_beforeCommands_codec);
           size += afterCommands_.CalculateSize(_repeated_afterCommands_codec);
+          if (codegen_ != null) {
+            size += 1 + pb::CodedOutputStream.ComputeMessageSize(Codegen);
+          }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
           }
@@ -2970,6 +3006,12 @@ namespace Holons.V1 {
           templates_.Add(other.templates_);
           beforeCommands_.Add(other.beforeCommands_);
           afterCommands_.Add(other.afterCommands_);
+          if (other.codegen_ != null) {
+            if (codegen_ == null) {
+              Codegen = new global::Holons.V1.HolonManifest.Types.Build.Types.Codegen();
+            }
+            Codegen.MergeFrom(other.Codegen);
+          }
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
 
@@ -3024,6 +3066,13 @@ namespace Holons.V1 {
                 afterCommands_.AddEntriesFrom(input, _repeated_afterCommands_codec);
                 break;
               }
+              case 74: {
+                if (codegen_ == null) {
+                  Codegen = new global::Holons.V1.HolonManifest.Types.Build.Types.Codegen();
+                }
+                input.ReadMessage(Codegen);
+                break;
+              }
             }
           }
         #endif
@@ -3076,6 +3125,13 @@ namespace Holons.V1 {
               }
               case 66: {
                 afterCommands_.AddEntriesFrom(ref input, _repeated_afterCommands_codec);
+                break;
+              }
+              case 74: {
+                if (codegen_ == null) {
+                  Codegen = new global::Holons.V1.HolonManifest.Types.Build.Types.Codegen();
+                }
+                input.ReadMessage(Codegen);
                 break;
               }
             }
@@ -3797,6 +3853,193 @@ namespace Holons.V1 {
 
           }
 
+          [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+          public sealed partial class Codegen : pb::IMessage<Codegen>
+          #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+              , pb::IBufferMessage
+          #endif
+          {
+            private static readonly pb::MessageParser<Codegen> _parser = new pb::MessageParser<Codegen>(() => new Codegen());
+            private pb::UnknownFieldSet _unknownFields;
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public static pb::MessageParser<Codegen> Parser { get { return _parser; } }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public static pbr::MessageDescriptor Descriptor {
+              get { return global::Holons.V1.HolonManifest.Types.Build.Descriptor.NestedTypes[4]; }
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            pbr::MessageDescriptor pb::IMessage.Descriptor {
+              get { return Descriptor; }
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public Codegen() {
+              OnConstruction();
+            }
+
+            partial void OnConstruction();
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public Codegen(Codegen other) : this() {
+              languages_ = other.languages_.Clone();
+              _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public Codegen Clone() {
+              return new Codegen(this);
+            }
+
+            /// <summary>Field number for the "languages" field.</summary>
+            public const int LanguagesFieldNumber = 1;
+            private static readonly pb::FieldCodec<string> _repeated_languages_codec
+                = pb::FieldCodec.ForString(10);
+            private readonly pbc::RepeatedField<string> languages_ = new pbc::RepeatedField<string>();
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public pbc::RepeatedField<string> Languages {
+              get { return languages_; }
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public override bool Equals(object other) {
+              return Equals(other as Codegen);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public bool Equals(Codegen other) {
+              if (ReferenceEquals(other, null)) {
+                return false;
+              }
+              if (ReferenceEquals(other, this)) {
+                return true;
+              }
+              if(!languages_.Equals(other.languages_)) return false;
+              return Equals(_unknownFields, other._unknownFields);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public override int GetHashCode() {
+              int hash = 1;
+              hash ^= languages_.GetHashCode();
+              if (_unknownFields != null) {
+                hash ^= _unknownFields.GetHashCode();
+              }
+              return hash;
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public override string ToString() {
+              return pb::JsonFormatter.ToDiagnosticString(this);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public void WriteTo(pb::CodedOutputStream output) {
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+              output.WriteRawMessage(this);
+            #else
+              languages_.WriteTo(output, _repeated_languages_codec);
+              if (_unknownFields != null) {
+                _unknownFields.WriteTo(output);
+              }
+            #endif
+            }
+
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+              languages_.WriteTo(ref output, _repeated_languages_codec);
+              if (_unknownFields != null) {
+                _unknownFields.WriteTo(ref output);
+              }
+            }
+            #endif
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public int CalculateSize() {
+              int size = 0;
+              size += languages_.CalculateSize(_repeated_languages_codec);
+              if (_unknownFields != null) {
+                size += _unknownFields.CalculateSize();
+              }
+              return size;
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public void MergeFrom(Codegen other) {
+              if (other == null) {
+                return;
+              }
+              languages_.Add(other.languages_);
+              _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public void MergeFrom(pb::CodedInputStream input) {
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+              input.ReadRawMessage(this);
+            #else
+              uint tag;
+              while ((tag = input.ReadTag()) != 0) {
+              if ((tag & 7) == 4) {
+                // Abort on any end group tag.
+                return;
+              }
+              switch(tag) {
+                  default:
+                    _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+                    break;
+                  case 10: {
+                    languages_.AddEntriesFrom(input, _repeated_languages_codec);
+                    break;
+                  }
+                }
+              }
+            #endif
+            }
+
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+              uint tag;
+              while ((tag = input.ReadTag()) != 0) {
+              if ((tag & 7) == 4) {
+                // Abort on any end group tag.
+                return;
+              }
+              switch(tag) {
+                  default:
+                    _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+                    break;
+                  case 10: {
+                    languages_.AddEntriesFrom(ref input, _repeated_languages_codec);
+                    break;
+                  }
+                }
+              }
+            }
+            #endif
+
+          }
+
         }
         #endregion
 
@@ -3852,6 +4095,9 @@ namespace Holons.V1 {
               break;
             case ActionOneofCase.CopyArtifact:
               CopyArtifact = other.CopyArtifact.Clone();
+              break;
+            case ActionOneofCase.CopyAllHolons:
+              CopyAllHolons = other.CopyAllHolons.Clone();
               break;
           }
 
@@ -3941,6 +4187,18 @@ namespace Holons.V1 {
           }
         }
 
+        /// <summary>Field number for the "copy_all_holons" field.</summary>
+        public const int CopyAllHolonsFieldNumber = 6;
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public global::Holons.V1.HolonManifest.Types.Step.Types.CopyAllHolons CopyAllHolons {
+          get { return actionCase_ == ActionOneofCase.CopyAllHolons ? (global::Holons.V1.HolonManifest.Types.Step.Types.CopyAllHolons) action_ : null; }
+          set {
+            action_ = value;
+            actionCase_ = value == null ? ActionOneofCase.None : ActionOneofCase.CopyAllHolons;
+          }
+        }
+
         private object action_;
         /// <summary>Enum of possible cases for the "action" oneof.</summary>
         public enum ActionOneofCase {
@@ -3950,6 +4208,7 @@ namespace Holons.V1 {
           BuildMember = 3,
           AssertFile = 4,
           CopyArtifact = 5,
+          CopyAllHolons = 6,
         }
         private ActionOneofCase actionCase_ = ActionOneofCase.None;
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3985,6 +4244,7 @@ namespace Holons.V1 {
           if (BuildMember != other.BuildMember) return false;
           if (!object.Equals(AssertFile, other.AssertFile)) return false;
           if (!object.Equals(CopyArtifact, other.CopyArtifact)) return false;
+          if (!object.Equals(CopyAllHolons, other.CopyAllHolons)) return false;
           if (ActionCase != other.ActionCase) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
@@ -3998,6 +4258,7 @@ namespace Holons.V1 {
           if (HasBuildMember) hash ^= BuildMember.GetHashCode();
           if (actionCase_ == ActionOneofCase.AssertFile) hash ^= AssertFile.GetHashCode();
           if (actionCase_ == ActionOneofCase.CopyArtifact) hash ^= CopyArtifact.GetHashCode();
+          if (actionCase_ == ActionOneofCase.CopyAllHolons) hash ^= CopyAllHolons.GetHashCode();
           hash ^= (int) actionCase_;
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
@@ -4037,6 +4298,10 @@ namespace Holons.V1 {
             output.WriteRawTag(42);
             output.WriteMessage(CopyArtifact);
           }
+          if (actionCase_ == ActionOneofCase.CopyAllHolons) {
+            output.WriteRawTag(50);
+            output.WriteMessage(CopyAllHolons);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -4067,6 +4332,10 @@ namespace Holons.V1 {
             output.WriteRawTag(42);
             output.WriteMessage(CopyArtifact);
           }
+          if (actionCase_ == ActionOneofCase.CopyAllHolons) {
+            output.WriteRawTag(50);
+            output.WriteMessage(CopyAllHolons);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -4091,6 +4360,9 @@ namespace Holons.V1 {
           }
           if (actionCase_ == ActionOneofCase.CopyArtifact) {
             size += 1 + pb::CodedOutputStream.ComputeMessageSize(CopyArtifact);
+          }
+          if (actionCase_ == ActionOneofCase.CopyAllHolons) {
+            size += 1 + pb::CodedOutputStream.ComputeMessageSize(CopyAllHolons);
           }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
@@ -4131,6 +4403,12 @@ namespace Holons.V1 {
                 CopyArtifact = new global::Holons.V1.HolonManifest.Types.Step.Types.CopyArtifact();
               }
               CopyArtifact.MergeFrom(other.CopyArtifact);
+              break;
+            case ActionOneofCase.CopyAllHolons:
+              if (CopyAllHolons == null) {
+                CopyAllHolons = new global::Holons.V1.HolonManifest.Types.Step.Types.CopyAllHolons();
+              }
+              CopyAllHolons.MergeFrom(other.CopyAllHolons);
               break;
           }
 
@@ -4193,6 +4471,15 @@ namespace Holons.V1 {
                 CopyArtifact = subBuilder;
                 break;
               }
+              case 50: {
+                global::Holons.V1.HolonManifest.Types.Step.Types.CopyAllHolons subBuilder = new global::Holons.V1.HolonManifest.Types.Step.Types.CopyAllHolons();
+                if (actionCase_ == ActionOneofCase.CopyAllHolons) {
+                  subBuilder.MergeFrom(CopyAllHolons);
+                }
+                input.ReadMessage(subBuilder);
+                CopyAllHolons = subBuilder;
+                break;
+              }
             }
           }
         #endif
@@ -4250,6 +4537,15 @@ namespace Holons.V1 {
                 }
                 input.ReadMessage(subBuilder);
                 CopyArtifact = subBuilder;
+                break;
+              }
+              case 50: {
+                global::Holons.V1.HolonManifest.Types.Step.Types.CopyAllHolons subBuilder = new global::Holons.V1.HolonManifest.Types.Step.Types.CopyAllHolons();
+                if (actionCase_ == ActionOneofCase.CopyAllHolons) {
+                  subBuilder.MergeFrom(CopyAllHolons);
+                }
+                input.ReadMessage(subBuilder);
+                CopyAllHolons = subBuilder;
                 break;
               }
             }
@@ -5154,6 +5450,207 @@ namespace Holons.V1 {
 
           }
 
+          [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+          public sealed partial class CopyAllHolons : pb::IMessage<CopyAllHolons>
+          #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+              , pb::IBufferMessage
+          #endif
+          {
+            private static readonly pb::MessageParser<CopyAllHolons> _parser = new pb::MessageParser<CopyAllHolons>(() => new CopyAllHolons());
+            private pb::UnknownFieldSet _unknownFields;
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public static pb::MessageParser<CopyAllHolons> Parser { get { return _parser; } }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public static pbr::MessageDescriptor Descriptor {
+              get { return global::Holons.V1.HolonManifest.Types.Step.Descriptor.NestedTypes[4]; }
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            pbr::MessageDescriptor pb::IMessage.Descriptor {
+              get { return Descriptor; }
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public CopyAllHolons() {
+              OnConstruction();
+            }
+
+            partial void OnConstruction();
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public CopyAllHolons(CopyAllHolons other) : this() {
+              to_ = other.to_;
+              _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public CopyAllHolons Clone() {
+              return new CopyAllHolons(this);
+            }
+
+            /// <summary>Field number for the "to" field.</summary>
+            public const int ToFieldNumber = 1;
+            private string to_ = "";
+            /// <summary>
+            /// destination directory, manifest-relative
+            /// </summary>
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public string To {
+              get { return to_; }
+              set {
+                to_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+              }
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public override bool Equals(object other) {
+              return Equals(other as CopyAllHolons);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public bool Equals(CopyAllHolons other) {
+              if (ReferenceEquals(other, null)) {
+                return false;
+              }
+              if (ReferenceEquals(other, this)) {
+                return true;
+              }
+              if (To != other.To) return false;
+              return Equals(_unknownFields, other._unknownFields);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public override int GetHashCode() {
+              int hash = 1;
+              if (To.Length != 0) hash ^= To.GetHashCode();
+              if (_unknownFields != null) {
+                hash ^= _unknownFields.GetHashCode();
+              }
+              return hash;
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public override string ToString() {
+              return pb::JsonFormatter.ToDiagnosticString(this);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public void WriteTo(pb::CodedOutputStream output) {
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+              output.WriteRawMessage(this);
+            #else
+              if (To.Length != 0) {
+                output.WriteRawTag(10);
+                output.WriteString(To);
+              }
+              if (_unknownFields != null) {
+                _unknownFields.WriteTo(output);
+              }
+            #endif
+            }
+
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+              if (To.Length != 0) {
+                output.WriteRawTag(10);
+                output.WriteString(To);
+              }
+              if (_unknownFields != null) {
+                _unknownFields.WriteTo(ref output);
+              }
+            }
+            #endif
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public int CalculateSize() {
+              int size = 0;
+              if (To.Length != 0) {
+                size += 1 + pb::CodedOutputStream.ComputeStringSize(To);
+              }
+              if (_unknownFields != null) {
+                size += _unknownFields.CalculateSize();
+              }
+              return size;
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public void MergeFrom(CopyAllHolons other) {
+              if (other == null) {
+                return;
+              }
+              if (other.To.Length != 0) {
+                To = other.To;
+              }
+              _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public void MergeFrom(pb::CodedInputStream input) {
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+              input.ReadRawMessage(this);
+            #else
+              uint tag;
+              while ((tag = input.ReadTag()) != 0) {
+              if ((tag & 7) == 4) {
+                // Abort on any end group tag.
+                return;
+              }
+              switch(tag) {
+                  default:
+                    _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+                    break;
+                  case 10: {
+                    To = input.ReadString();
+                    break;
+                  }
+                }
+              }
+            #endif
+            }
+
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+              uint tag;
+              while ((tag = input.ReadTag()) != 0) {
+              if ((tag & 7) == 4) {
+                // Abort on any end group tag.
+                return;
+              }
+              switch(tag) {
+                  default:
+                    _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+                    break;
+                  case 10: {
+                    To = input.ReadString();
+                    break;
+                  }
+                }
+              }
+            }
+            #endif
+
+          }
+
         }
         #endregion
 
@@ -5197,6 +5694,7 @@ namespace Holons.V1 {
           commands_ = other.commands_.Clone();
           files_ = other.files_.Clone();
           platforms_ = other.platforms_.Clone();
+          sdkPrebuilts_ = other.sdkPrebuilts_.Clone();
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
@@ -5248,6 +5746,20 @@ namespace Holons.V1 {
           get { return platforms_; }
         }
 
+        /// <summary>Field number for the "sdk_prebuilts" field.</summary>
+        public const int SdkPrebuiltsFieldNumber = 4;
+        private static readonly pb::FieldCodec<string> _repeated_sdkPrebuilts_codec
+            = pb::FieldCodec.ForString(34);
+        private readonly pbc::RepeatedField<string> sdkPrebuilts_ = new pbc::RepeatedField<string>();
+        /// <summary>
+        /// SDK native prebuilts required by `op build`
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public pbc::RepeatedField<string> SdkPrebuilts {
+          get { return sdkPrebuilts_; }
+        }
+
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override bool Equals(object other) {
@@ -5266,6 +5778,7 @@ namespace Holons.V1 {
           if(!commands_.Equals(other.commands_)) return false;
           if(!files_.Equals(other.files_)) return false;
           if(!platforms_.Equals(other.platforms_)) return false;
+          if(!sdkPrebuilts_.Equals(other.sdkPrebuilts_)) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -5276,6 +5789,7 @@ namespace Holons.V1 {
           hash ^= commands_.GetHashCode();
           hash ^= files_.GetHashCode();
           hash ^= platforms_.GetHashCode();
+          hash ^= sdkPrebuilts_.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -5297,6 +5811,7 @@ namespace Holons.V1 {
           commands_.WriteTo(output, _repeated_commands_codec);
           files_.WriteTo(output, _repeated_files_codec);
           platforms_.WriteTo(output, _repeated_platforms_codec);
+          sdkPrebuilts_.WriteTo(output, _repeated_sdkPrebuilts_codec);
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -5310,6 +5825,7 @@ namespace Holons.V1 {
           commands_.WriteTo(ref output, _repeated_commands_codec);
           files_.WriteTo(ref output, _repeated_files_codec);
           platforms_.WriteTo(ref output, _repeated_platforms_codec);
+          sdkPrebuilts_.WriteTo(ref output, _repeated_sdkPrebuilts_codec);
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -5323,6 +5839,7 @@ namespace Holons.V1 {
           size += commands_.CalculateSize(_repeated_commands_codec);
           size += files_.CalculateSize(_repeated_files_codec);
           size += platforms_.CalculateSize(_repeated_platforms_codec);
+          size += sdkPrebuilts_.CalculateSize(_repeated_sdkPrebuilts_codec);
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
           }
@@ -5338,6 +5855,7 @@ namespace Holons.V1 {
           commands_.Add(other.commands_);
           files_.Add(other.files_);
           platforms_.Add(other.platforms_);
+          sdkPrebuilts_.Add(other.sdkPrebuilts_);
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
 
@@ -5369,6 +5887,10 @@ namespace Holons.V1 {
                 platforms_.AddEntriesFrom(input, _repeated_platforms_codec);
                 break;
               }
+              case 34: {
+                sdkPrebuilts_.AddEntriesFrom(input, _repeated_sdkPrebuilts_codec);
+                break;
+              }
             }
           }
         #endif
@@ -5398,6 +5920,10 @@ namespace Holons.V1 {
               }
               case 26: {
                 platforms_.AddEntriesFrom(ref input, _repeated_platforms_codec);
+                break;
+              }
+              case 34: {
+                sdkPrebuilts_.AddEntriesFrom(ref input, _repeated_sdkPrebuilts_codec);
                 break;
               }
             }

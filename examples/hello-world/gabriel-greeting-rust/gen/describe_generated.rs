@@ -52,6 +52,7 @@ pub fn static_describe_response() -> DescribeResponse {
                     templates: vec![],
                     before_commands: vec![],
                     after_commands: vec![],
+                    codegen: None,
                 }
             ),
             requires: Some(
