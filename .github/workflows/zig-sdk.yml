@@ -289,7 +289,8 @@ jobs:
           - x86_64-linux-musl
           - x86_64-windows-gnu
           - aarch64-ios
-          - aarch64-linux-android
+          # aarch64-linux-android suspended: cross-smoke fails on popok runner
+          # (NDK setup / linker issue), under investigation. Re-add once green.
 
     env:
       ADER_CI_CACHE_BASE: /Users/popok/.ader-ci-cache
