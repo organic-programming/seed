@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -8,10 +9,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jhump/protoreflect/desc"
-	"github.com/jhump/protoreflect/desc/protoparse"
+	"github.com/bufbuild/protocompile"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/reflect/protoregistry"
 )
 
 // ParseProtoDir parses all .proto files under protoDir and returns a normalized
@@ -63,17 +63,20 @@ func ParseCatalog(protoDir string) (*Catalog, error) {
 		return nil, fmt.Errorf("no .proto files found in %s", absDir)
 	}
 
-	parser := protoparse.Parser{
-		ImportPaths:               discoverProtoImportPaths(absDir),
-		InferImportPaths:          true,
-		IncludeSourceCodeInfo:     true,
-		LookupImport:              desc.LoadFileDescriptor,
-		LookupImportProto:         nil,
-		AllowExperimentalEditions: true,
+	compiler := protocompile.Compiler{
+		Resolver: protocompile.WithStandardImports(protocompile.CompositeResolver{
+			&protocompile.SourceResolver{ImportPaths: discoverProtoImportPaths(absDir)},
+			protocompile.ResolverFunc(globalProtoResolver),
+		}),
+		SourceInfoMode: protocompile.SourceInfoStandard,
 	}
-	files, err := parser.ParseFiles(relFiles...)
+	compiled, err := compiler.Compile(context.Background(), relFiles...)
 	if err != nil {
 		return nil, fmt.Errorf("parse proto files in %s: %w", absDir, err)
+	}
+	files := make([]protoreflect.FileDescriptor, 0, len(compiled))
+	for _, file := range compiled {
+		files = append(files, file)
 	}
 
 	inputFiles := make(map[string]struct{}, len(relFiles))
@@ -92,11 +95,19 @@ func ParseCatalog(protoDir string) (*Catalog, error) {
 	}, nil
 }
 
+func globalProtoResolver(path string) (protocompile.SearchResult, error) {
+	fd, err := protoregistry.GlobalFiles.FindFileByPath(path)
+	if err != nil {
+		return protocompile.SearchResult{}, err
+	}
+	return protocompile.SearchResult{Desc: fd}, nil
+}
+
 type parserBuilder struct {
 	inputFiles map[string]struct{}
 }
 
-func (b parserBuilder) buildCatalog(files []*desc.FileDescriptor) (*Document, []MethodBinding, error) {
+func (b parserBuilder) buildCatalog(files []protoreflect.FileDescriptor) (*Document, []MethodBinding, error) {
 	document := &Document{
 		Services: make([]Service, 0),
 	}
@@ -115,7 +126,7 @@ func (b parserBuilder) buildCatalog(files []*desc.FileDescriptor) (*Document, []
 }
 
 func (b parserBuilder) buildCatalogFromFile(
-	file *desc.FileDescriptor,
+	file protoreflect.FileDescriptor,
 	fileSeen map[string]bool,
 	serviceSeen map[string]bool,
 ) ([]Service, []MethodBinding, error) {
@@ -123,27 +134,31 @@ func (b parserBuilder) buildCatalogFromFile(
 		return nil, nil, nil
 	}
 
-	name := filepath.ToSlash(file.GetName())
+	name := filepath.ToSlash(file.Path())
 	if fileSeen[name] {
 		return nil, nil, nil
 	}
 	fileSeen[name] = true
 
-	services := make([]Service, 0, len(file.GetServices()))
+	servicesList := file.Services()
+	services := make([]Service, 0, servicesList.Len())
 	methods := make([]MethodBinding, 0)
-	for _, dep := range file.GetDependencies() {
-		depServices, depMethods, err := b.buildCatalogFromFile(dep, fileSeen, serviceSeen)
+	imports := file.Imports()
+	for i := 0; i < imports.Len(); i++ {
+		depServices, depMethods, err := b.buildCatalogFromFile(imports.Get(i).FileDescriptor, fileSeen, serviceSeen)
 		if err != nil {
 			return nil, nil, err
 		}
 		services = append(services, depServices...)
 		methods = append(methods, depMethods...)
 	}
-	for _, service := range file.GetServices() {
-		if serviceSeen[service.GetFullyQualifiedName()] {
+	for i := 0; i < servicesList.Len(); i++ {
+		service := servicesList.Get(i)
+		serviceName := string(service.FullName())
+		if serviceSeen[serviceName] {
 			continue
 		}
-		serviceSeen[service.GetFullyQualifiedName()] = true
+		serviceSeen[serviceName] = true
 		serviceDoc, serviceMethods, err := b.buildService(service)
 		if err != nil {
 			return nil, nil, err
@@ -154,73 +169,76 @@ func (b parserBuilder) buildCatalogFromFile(
 	return services, methods, nil
 }
 
-func (b parserBuilder) buildService(service *desc.ServiceDescriptor) (Service, []MethodBinding, error) {
-	meta := parseCommentBlock(sourceComments(service.GetSourceInfo()))
-	methods := make([]Method, 0, len(service.GetMethods()))
-	bindings := make([]MethodBinding, 0, len(service.GetMethods()))
-	for _, method := range service.GetMethods() {
+func (b parserBuilder) buildService(service protoreflect.ServiceDescriptor) (Service, []MethodBinding, error) {
+	meta := parseCommentBlock(descriptorComments(service))
+	methodDescriptors := service.Methods()
+	methods := make([]Method, 0, methodDescriptors.Len())
+	bindings := make([]MethodBinding, 0, methodDescriptors.Len())
+	for i := 0; i < methodDescriptors.Len(); i++ {
+		method := methodDescriptors.Get(i)
 		methodDoc, err := b.buildMethod(method)
 		if err != nil {
 			return Service{}, nil, err
 		}
 		methods = append(methods, methodDoc)
 		bindings = append(bindings, MethodBinding{
-			ServiceName:      service.GetFullyQualifiedName(),
-			ServiceShortName: ShortName(service.GetFullyQualifiedName()),
+			ServiceName:      string(service.FullName()),
+			ServiceShortName: ShortName(string(service.FullName())),
 			Method:           methodDoc,
-			Descriptor:       method.UnwrapMethod(),
+			Descriptor:       method,
 		})
 	}
 	return Service{
-		Name:        service.GetFullyQualifiedName(),
+		Name:        string(service.FullName()),
 		Description: meta.Description,
 		Methods:     methods,
 	}, bindings, nil
 }
 
-func (b parserBuilder) buildMethod(method *desc.MethodDescriptor) (Method, error) {
-	meta := parseCommentBlock(sourceComments(method.GetSourceInfo()))
-	examples, err := parseMethodExamples(method.GetFullyQualifiedName(), meta.ExampleLines)
+func (b parserBuilder) buildMethod(method protoreflect.MethodDescriptor) (Method, error) {
+	meta := parseCommentBlock(descriptorComments(method))
+	examples, err := parseMethodExamples(string(method.FullName()), meta.ExampleLines)
 	if err != nil {
 		return Method{}, err
 	}
 	return Method{
-		Name:            method.GetName(),
+		Name:            string(method.Name()),
 		Description:     meta.Description,
-		InputType:       method.GetInputType().GetFullyQualifiedName(),
-		OutputType:      method.GetOutputType().GetFullyQualifiedName(),
-		InputFields:     b.buildFields(method.GetInputType(), map[string]bool{}),
-		OutputFields:    b.buildFields(method.GetOutputType(), map[string]bool{}),
-		ClientStreaming: method.IsClientStreaming(),
-		ServerStreaming: method.IsServerStreaming(),
+		InputType:       string(method.Input().FullName()),
+		OutputType:      string(method.Output().FullName()),
+		InputFields:     b.buildFields(method.Input(), map[string]bool{}),
+		OutputFields:    b.buildFields(method.Output(), map[string]bool{}),
+		ClientStreaming: method.IsStreamingClient(),
+		ServerStreaming: method.IsStreamingServer(),
 		Examples:        examples,
 	}, nil
 }
 
-func (b parserBuilder) buildFields(message *desc.MessageDescriptor, seen map[string]bool) []Field {
+func (b parserBuilder) buildFields(message protoreflect.MessageDescriptor, seen map[string]bool) []Field {
 	if message == nil {
 		return nil
 	}
-	name := message.GetFullyQualifiedName()
+	name := string(message.FullName())
 	if seen[name] {
 		return nil
 	}
 	nextSeen := cloneSeen(seen)
 	nextSeen[name] = true
 
-	out := make([]Field, 0, len(message.GetFields()))
-	for _, field := range message.GetFields() {
-		out = append(out, b.buildField(field, nextSeen))
+	fields := message.Fields()
+	out := make([]Field, 0, fields.Len())
+	for i := 0; i < fields.Len(); i++ {
+		out = append(out, b.buildField(fields.Get(i), nextSeen))
 	}
 	return out
 }
 
-func (b parserBuilder) buildField(field *desc.FieldDescriptor, seen map[string]bool) Field {
-	meta := parseCommentBlock(sourceComments(field.GetSourceInfo()))
+func (b parserBuilder) buildField(field protoreflect.FieldDescriptor, seen map[string]bool) Field {
+	meta := parseCommentBlock(descriptorComments(field))
 	out := Field{
-		Name:        field.GetName(),
+		Name:        string(field.Name()),
 		Type:        descriptorTypeName(field),
-		Number:      field.GetNumber(),
+		Number:      int32(field.Number()),
 		Description: meta.Description,
 		Label:       fieldLabel(field),
 		Required:    meta.Required,
@@ -228,35 +246,37 @@ func (b parserBuilder) buildField(field *desc.FieldDescriptor, seen map[string]b
 	}
 
 	if field.IsMap() {
-		out.MapKeyType = descriptorTypeName(field.GetMapKeyType())
-		out.MapValueType = descriptorTypeName(field.GetMapValueType())
-		if enumType := field.GetMapValueType().GetEnumType(); enumType != nil && b.shouldExpand(enumType.GetFile().GetName()) {
+		out.MapKeyType = descriptorTypeName(field.MapKey())
+		out.MapValueType = descriptorTypeName(field.MapValue())
+		if enumType := field.MapValue().Enum(); enumType != nil && b.shouldExpand(enumType.ParentFile().Path()) {
 			out.EnumValues = buildEnumValues(enumType)
 		}
-		if msgType := field.GetMapValueType().GetMessageType(); msgType != nil && !msgType.IsMapEntry() && b.shouldExpand(msgType.GetFile().GetName()) {
+		if msgType := field.MapValue().Message(); msgType != nil && !msgType.IsMapEntry() && b.shouldExpand(msgType.ParentFile().Path()) {
 			out.NestedFields = b.buildFields(msgType, seen)
 		}
 		return out
 	}
 
-	if enumType := field.GetEnumType(); enumType != nil && b.shouldExpand(enumType.GetFile().GetName()) {
+	if enumType := field.Enum(); enumType != nil && b.shouldExpand(enumType.ParentFile().Path()) {
 		out.EnumValues = buildEnumValues(enumType)
 	}
 
-	if msgType := field.GetMessageType(); msgType != nil && !msgType.IsMapEntry() && b.shouldExpand(msgType.GetFile().GetName()) {
+	if msgType := field.Message(); msgType != nil && !msgType.IsMapEntry() && b.shouldExpand(msgType.ParentFile().Path()) {
 		out.NestedFields = b.buildFields(msgType, seen)
 	}
 
 	return out
 }
 
-func buildEnumValues(enumType *desc.EnumDescriptor) []EnumValue {
-	out := make([]EnumValue, 0, len(enumType.GetValues()))
-	for _, value := range enumType.GetValues() {
-		meta := parseCommentBlock(sourceComments(value.GetSourceInfo()))
+func buildEnumValues(enumType protoreflect.EnumDescriptor) []EnumValue {
+	values := enumType.Values()
+	out := make([]EnumValue, 0, values.Len())
+	for i := 0; i < values.Len(); i++ {
+		value := values.Get(i)
+		meta := parseCommentBlock(descriptorComments(value))
 		out = append(out, EnumValue{
-			Name:        value.GetName(),
-			Number:      value.GetNumber(),
+			Name:        string(value.Name()),
+			Number:      int32(value.Number()),
 			Description: meta.Description,
 		})
 	}
@@ -483,14 +503,15 @@ func matchingClose(open byte) byte {
 	return ']'
 }
 
-func sourceComments(location *descriptorpb.SourceCodeInfo_Location) string {
-	if location == nil {
+func descriptorComments(desc protoreflect.Descriptor) string {
+	if desc == nil || desc.ParentFile() == nil {
 		return ""
 	}
-	if leading := strings.TrimSpace(location.GetLeadingComments()); leading != "" {
+	location := desc.ParentFile().SourceLocations().ByDescriptor(desc)
+	if leading := strings.TrimSpace(location.LeadingComments); leading != "" {
 		return leading
 	}
-	return strings.TrimSpace(location.GetTrailingComments())
+	return strings.TrimSpace(location.TrailingComments)
 }
 
 func cloneSeen(in map[string]bool) map[string]bool {
@@ -501,68 +522,68 @@ func cloneSeen(in map[string]bool) map[string]bool {
 	return out
 }
 
-func fieldLabel(field *desc.FieldDescriptor) string {
+func fieldLabel(field protoreflect.FieldDescriptor) string {
 	if field.IsMap() {
 		return FieldLabelMap
 	}
-	if field.IsRepeated() {
+	if field.IsList() {
 		return FieldLabelRepeated
 	}
-	if field.IsRequired() {
+	if field.Cardinality() == protoreflect.Required {
 		return FieldLabelRequired
 	}
 	return FieldLabelOptional
 }
 
-func descriptorTypeName(field *desc.FieldDescriptor) string {
+func descriptorTypeName(field protoreflect.FieldDescriptor) string {
 	if field == nil {
 		return ""
 	}
 	if field.IsMap() {
-		return fmt.Sprintf("map<%s, %s>", descriptorTypeName(field.GetMapKeyType()), descriptorTypeName(field.GetMapValueType()))
+		return fmt.Sprintf("map<%s, %s>", descriptorTypeName(field.MapKey()), descriptorTypeName(field.MapValue()))
 	}
-	if enumType := field.GetEnumType(); enumType != nil {
-		return enumType.GetFullyQualifiedName()
+	if enumType := field.Enum(); enumType != nil {
+		return string(enumType.FullName())
 	}
-	if msgType := field.GetMessageType(); msgType != nil {
-		return msgType.GetFullyQualifiedName()
+	if msgType := field.Message(); msgType != nil {
+		return string(msgType.FullName())
 	}
 
-	switch field.GetType() {
-	case descriptorpb.FieldDescriptorProto_TYPE_DOUBLE:
+	switch field.Kind() {
+	case protoreflect.DoubleKind:
 		return "double"
-	case descriptorpb.FieldDescriptorProto_TYPE_FLOAT:
+	case protoreflect.FloatKind:
 		return "float"
-	case descriptorpb.FieldDescriptorProto_TYPE_INT64:
+	case protoreflect.Int64Kind:
 		return "int64"
-	case descriptorpb.FieldDescriptorProto_TYPE_UINT64:
+	case protoreflect.Uint64Kind:
 		return "uint64"
-	case descriptorpb.FieldDescriptorProto_TYPE_INT32:
+	case protoreflect.Int32Kind:
 		return "int32"
-	case descriptorpb.FieldDescriptorProto_TYPE_FIXED64:
+	case protoreflect.Fixed64Kind:
 		return "fixed64"
-	case descriptorpb.FieldDescriptorProto_TYPE_FIXED32:
+	case protoreflect.Fixed32Kind:
 		return "fixed32"
-	case descriptorpb.FieldDescriptorProto_TYPE_BOOL:
+	case protoreflect.BoolKind:
 		return "bool"
-	case descriptorpb.FieldDescriptorProto_TYPE_STRING:
+	case protoreflect.StringKind:
 		return "string"
-	case descriptorpb.FieldDescriptorProto_TYPE_GROUP:
+	case protoreflect.GroupKind:
 		return "group"
-	case descriptorpb.FieldDescriptorProto_TYPE_BYTES:
+	case protoreflect.BytesKind:
 		return "bytes"
-	case descriptorpb.FieldDescriptorProto_TYPE_UINT32:
+	case protoreflect.Uint32Kind:
 		return "uint32"
-	case descriptorpb.FieldDescriptorProto_TYPE_SFIXED32:
+	case protoreflect.Sfixed32Kind:
 		return "sfixed32"
-	case descriptorpb.FieldDescriptorProto_TYPE_SFIXED64:
+	case protoreflect.Sfixed64Kind:
 		return "sfixed64"
-	case descriptorpb.FieldDescriptorProto_TYPE_SINT32:
+	case protoreflect.Sint32Kind:
 		return "sint32"
-	case descriptorpb.FieldDescriptorProto_TYPE_SINT64:
+	case protoreflect.Sint64Kind:
 		return "sint64"
 	default:
-		return strings.TrimPrefix(field.GetType().String(), "TYPE_")
+		return field.Kind().String()
 	}
 }
 

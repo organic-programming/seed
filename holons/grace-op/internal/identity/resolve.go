@@ -1,24 +1,26 @@
 package identity
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strings"
 
-	"github.com/jhump/protoreflect/desc"
-	"github.com/jhump/protoreflect/desc/protoparse"
-	"github.com/jhump/protoreflect/dynamic"
+	"github.com/bufbuild/protocompile"
+	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	protosfs "github.com/organic-programming/grace-op/_protos"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 const (
-	ProtoManifestFileName   = "holon.proto"
-	manifestExtensionNumber = 50000
+	ProtoManifestFileName = "holon.proto"
 )
 
 // Resolved describes the identity source discovered for a holon.
@@ -167,7 +169,7 @@ func resolveFromProto(absDir string) (*Resolved, error) {
 
 	for _, fd := range files {
 		if resolved, ok := extractResolved(fd); ok {
-			resolved.SourcePath = filepath.Join(absDir, filepath.FromSlash(fd.GetName()))
+			resolved.SourcePath = filepath.Join(absDir, filepath.FromSlash(fd.Path()))
 			return resolved, nil
 		}
 	}
@@ -175,81 +177,56 @@ func resolveFromProto(absDir string) (*Resolved, error) {
 	return nil, fmt.Errorf("no manifest extension found in %s under %s", ProtoManifestFileName, absDir)
 }
 
-func parseProtoFiles(baseDir string, relFiles []string) ([]*desc.FileDescriptor, error) {
-	parser := protoparse.Parser{
-		ImportPaths:               buildImportPaths(baseDir),
-		InferImportPaths:          true,
-		IncludeSourceCodeInfo:     false,
-		LookupImport:              lookupImportWithEmbed,
-		AllowExperimentalEditions: true,
+func parseProtoFiles(baseDir string, relFiles []string) ([]protoreflect.FileDescriptor, error) {
+	compiler := protocompile.Compiler{
+		Resolver: protocompile.WithStandardImports(protocompile.CompositeResolver{
+			protocompile.ResolverFunc(embeddedProtoResolver),
+			&protocompile.SourceResolver{ImportPaths: buildImportPaths(baseDir)},
+		}),
 	}
 
-	files, err := parser.ParseFiles(relFiles...)
+	compiled, err := compiler.Compile(context.Background(), relFiles...)
 	if err != nil {
 		return nil, fmt.Errorf("parse proto files in %s: %w", baseDir, err)
+	}
+	files := make([]protoreflect.FileDescriptor, 0, len(compiled))
+	for _, file := range compiled {
+		files = append(files, file)
 	}
 	return files, nil
 }
 
-// lookupImportWithEmbed resolves imports by first checking the embedded
-// canonical protos, then falling back to the standard descriptor registry.
-// This eliminates the need for a _protos/ directory on disk.
-func lookupImportWithEmbed(path string) (*desc.FileDescriptor, error) {
-	// Try embedded canonical protos first.
+// embeddedProtoResolver resolves canonical protos from the binary so identity
+// parsing does not require a _protos/ directory on disk.
+func embeddedProtoResolver(path string) (protocompile.SearchResult, error) {
 	data, err := protosfs.FS.ReadFile(path)
-	if err == nil {
-		p := protoparse.Parser{
-			Accessor: protoparse.FileContentsFromMap(map[string]string{path: string(data)}),
-		}
-		fds, parseErr := p.ParseFiles(path)
-		if parseErr == nil && len(fds) > 0 {
-			return fds[0], nil
-		}
+	if err != nil {
+		return protocompile.SearchResult{}, protoregistry.NotFound
 	}
-	// Fall back to the standard well-known proto registry.
-	return desc.LoadFileDescriptor(path)
+	return protocompile.SearchResult{Source: bytes.NewReader(data)}, nil
 }
 
-func extractResolved(fd *desc.FileDescriptor) (*Resolved, bool) {
-	opts := fd.GetFileOptions()
-	if opts == nil {
+func extractResolved(fd protoreflect.FileDescriptor) (*Resolved, bool) {
+	opts, ok := fd.Options().(*descriptorpb.FileOptions)
+	if !ok || opts == nil {
 		return nil, false
 	}
 
-	manifestExt := findExtension(fd, manifestExtensionNumber)
-	if manifestExt == nil {
+	optsMsg := opts.ProtoReflect()
+	manifestField := holonsv1.E_Manifest.TypeDescriptor()
+	if !optsMsg.Has(manifestField) {
 		return nil, false
 	}
-
-	optsBytes, err := proto.Marshal(opts)
+	manifestBytes, err := proto.Marshal(optsMsg.Get(manifestField).Message().Interface())
 	if err != nil {
 		return nil, false
 	}
-
-	reg := newExtensionRegistry(fd)
-	mf := dynamic.NewMessageFactoryWithExtensionRegistry(reg)
-
-	fileOptsMd, err := desc.LoadMessageDescriptorForMessage(opts)
-	if err != nil {
+	manifest := &holonsv1.HolonManifest{}
+	if err := proto.Unmarshal(manifestBytes, manifest); err != nil {
 		return nil, false
 	}
 
-	dynOpts := mf.NewDynamicMessage(fileOptsMd)
-	if err := dynOpts.Unmarshal(optsBytes); err != nil {
-		return nil, false
-	}
-
-	manifestVal, err := dynOpts.TryGetFieldByNumber(manifestExtensionNumber)
-	if err != nil || manifestVal == nil {
-		return nil, false
-	}
-
-	manifest, ok := manifestVal.(*dynamic.Message)
-	if !ok {
-		return nil, false
-	}
-
-	resolved := resolvedFromDynamic(manifest)
+	resolved := resolvedFromManifest(manifest)
 	if resolved.Identity.GivenName == "" && resolved.Identity.FamilyName == "" {
 		return nil, false
 	}
@@ -257,160 +234,112 @@ func extractResolved(fd *desc.FileDescriptor) (*Resolved, bool) {
 	return resolved, true
 }
 
-func findExtension(fd *desc.FileDescriptor, fieldNum int32) *desc.FieldDescriptor {
-	seen := map[string]bool{}
-	return findExtensionRecursive(fd, fieldNum, seen)
-}
-
-func findExtensionRecursive(fd *desc.FileDescriptor, fieldNum int32, seen map[string]bool) *desc.FieldDescriptor {
-	if fd == nil || seen[fd.GetName()] {
-		return nil
-	}
-	seen[fd.GetName()] = true
-
-	for _, ext := range fd.GetExtensions() {
-		if ext.GetNumber() == fieldNum {
-			return ext
-		}
-	}
-	for _, dep := range fd.GetDependencies() {
-		if ext := findExtensionRecursive(dep, fieldNum, seen); ext != nil {
-			return ext
-		}
-	}
-	return nil
-}
-
-func newExtensionRegistry(fd *desc.FileDescriptor) *dynamic.ExtensionRegistry {
-	reg := dynamic.NewExtensionRegistryWithDefaults()
-	addExtensions(reg, fd, map[string]bool{})
-	return reg
-}
-
-func addExtensions(reg *dynamic.ExtensionRegistry, fd *desc.FileDescriptor, seen map[string]bool) {
-	if fd == nil || seen[fd.GetName()] {
-		return
-	}
-	seen[fd.GetName()] = true
-
-	for _, ext := range fd.GetExtensions() {
-		reg.AddExtension(ext)
-	}
-	for _, dep := range fd.GetDependencies() {
-		addExtensions(reg, dep, seen)
-	}
-}
-
-func resolvedFromDynamic(manifest *dynamic.Message) *Resolved {
+func resolvedFromManifest(manifest *holonsv1.HolonManifest) *Resolved {
 	resolved := &Resolved{}
-	resolved.Description = dynString(manifest, 3)
-	resolved.Identity.Lang = dynString(manifest, 4)
-	resolved.Kind = dynString(manifest, 7)
-	resolved.Platforms = dynStringSlice(manifest, 8)
-	resolved.Transport = dynString(manifest, 9)
+	resolved.Description = manifest.GetDescription()
+	resolved.Identity.Lang = manifest.GetLang()
+	resolved.Kind = manifest.GetKind()
+	resolved.Platforms = manifest.GetPlatforms()
+	resolved.Transport = manifest.GetTransport()
 
-	if ident := dynSubMessage(manifest, 1); ident != nil {
-		resolved.Identity.Schema = dynString(ident, 1)
-		resolved.Identity.UUID = dynString(ident, 2)
-		resolved.Identity.GivenName = dynString(ident, 3)
-		resolved.Identity.FamilyName = dynString(ident, 4)
-		resolved.Identity.Motto = dynString(ident, 5)
-		resolved.Identity.Composer = dynString(ident, 6)
-		resolved.Identity.Status = dynString(ident, 8)
-		resolved.Identity.Born = dynString(ident, 9)
-		resolved.Identity.Version = dynString(ident, 10)
-		resolved.Identity.Aliases = dynStringSlice(ident, 11)
+	if ident := manifest.GetIdentity(); ident != nil {
+		resolved.Identity.Schema = ident.GetSchema()
+		resolved.Identity.UUID = ident.GetUuid()
+		resolved.Identity.GivenName = ident.GetGivenName()
+		resolved.Identity.FamilyName = ident.GetFamilyName()
+		resolved.Identity.Motto = ident.GetMotto()
+		resolved.Identity.Composer = ident.GetComposer()
+		resolved.Identity.Status = ident.GetStatus()
+		resolved.Identity.Born = ident.GetBorn()
+		resolved.Identity.Version = ident.GetVersion()
+		resolved.Identity.Aliases = ident.GetAliases()
 	}
 
-	if build := dynSubMessage(manifest, 10); build != nil {
-		resolved.BuildRunner = dynString(build, 1)
-		resolved.BuildMain = dynString(build, 2)
-		if defaults := dynSubMessage(build, 3); defaults != nil {
+	if build := manifest.GetBuild(); build != nil {
+		resolved.BuildRunner = build.GetRunner()
+		resolved.BuildMain = build.GetMain()
+		if defaults := build.GetDefaults(); defaults != nil {
 			resolved.BuildDefaults = &ResolvedRecipeDefaults{
-				Target: dynString(defaults, 1),
-				Mode:   dynString(defaults, 2),
+				Target: defaults.GetTarget(),
+				Mode:   defaults.GetMode(),
 			}
 		}
 		resolved.BuildMembers = make([]ResolvedRecipeMember, 0)
 		resolved.MemberPaths = make([]string, 0)
-		for _, member := range dynSubMessages(build, 4) {
+		for _, member := range build.GetMembers() {
 			resolvedMember := ResolvedRecipeMember{
-				ID:   dynString(member, 1),
-				Path: dynString(member, 2),
-				Type: dynString(member, 3),
+				ID:   member.GetId(),
+				Path: member.GetPath(),
+				Type: member.GetType(),
 			}
 			resolved.BuildMembers = append(resolved.BuildMembers, resolvedMember)
 			if path := strings.TrimSpace(resolvedMember.Path); path != "" {
 				resolved.MemberPaths = append(resolved.MemberPaths, path)
 			}
 		}
-		if targets := dynStringMessageMap(build, 5); len(targets) > 0 {
+		if targets := build.GetTargets(); len(targets) > 0 {
 			resolved.BuildTargets = make(map[string]ResolvedRecipeTarget, len(targets))
 			for key, target := range targets {
-				resolved.BuildTargets[key] = resolvedRecipeTargetFromDynamic(target)
+				resolved.BuildTargets[key] = resolvedRecipeTargetFromManifest(target)
 			}
 		}
-		resolved.BuildTemplates = dynStringSlice(build, 6)
+		resolved.BuildTemplates = build.GetTemplates()
 
 		resolved.BeforeCommands = make([]ResolvedRecipeExec, 0)
-		for _, hook := range dynSubMessages(build, 7) {
+		for _, hook := range build.GetBeforeCommands() {
 			resolved.BeforeCommands = append(resolved.BeforeCommands, ResolvedRecipeExec{
-				Cwd:  dynString(hook, 1),
-				Argv: dynStringSlice(hook, 2),
+				Cwd:  hook.GetCwd(),
+				Argv: hook.GetArgv(),
 			})
 		}
 
 		resolved.AfterCommands = make([]ResolvedRecipeExec, 0)
-		for _, hook := range dynSubMessages(build, 8) {
+		for _, hook := range build.GetAfterCommands() {
 			resolved.AfterCommands = append(resolved.AfterCommands, ResolvedRecipeExec{
-				Cwd:  dynString(hook, 1),
-				Argv: dynStringSlice(hook, 2),
+				Cwd:  hook.GetCwd(),
+				Argv: hook.GetArgv(),
 			})
 		}
 	}
 
-	if requires := dynSubMessage(manifest, 11); requires != nil {
-		resolved.RequiredCommands = dynStringSlice(requires, 1)
-		resolved.RequiredFiles = dynStringSlice(requires, 2)
-		resolved.RequiredSDKPrebuilts = dynStringSlice(requires, 4)
+	if requires := manifest.GetRequires(); requires != nil {
+		resolved.RequiredCommands = requires.GetCommands()
+		resolved.RequiredFiles = requires.GetFiles()
+		resolved.RequiredSDKPrebuilts = requires.GetSdkPrebuilts()
 	}
 
-	if delegates := dynSubMessage(manifest, 12); delegates != nil {
-		resolved.DelegateCommands = dynStringSlice(delegates, 1)
-	}
-
-	if artifacts := dynSubMessage(manifest, 13); artifacts != nil {
-		resolved.ArtifactBinary = dynString(artifacts, 1)
-		resolved.PrimaryArtifact = dynString(artifacts, 2)
+	if artifacts := manifest.GetArtifacts(); artifacts != nil {
+		resolved.ArtifactBinary = artifacts.GetBinary()
+		resolved.PrimaryArtifact = artifacts.GetPrimary()
 	}
 
 	resolved.Skills = make([]ResolvedSkill, 0)
-	for _, skill := range dynSubMessages(manifest, 5) {
+	for _, skill := range manifest.GetSkills() {
 		resolved.Skills = append(resolved.Skills, ResolvedSkill{
-			Name:        dynString(skill, 1),
-			Description: dynString(skill, 2),
-			When:        dynString(skill, 3),
-			Steps:       trimNonEmptyStrings(dynStringSlice(skill, 4)),
+			Name:        skill.GetName(),
+			Description: skill.GetDescription(),
+			When:        skill.GetWhen(),
+			Steps:       trimNonEmptyStrings(skill.GetSteps()),
 		})
 	}
-	resolved.HasContract = dynSubMessage(manifest, 6) != nil
+	resolved.HasContract = manifest.GetContract() != nil
 
 	resolved.Sequences = make([]ResolvedSequence, 0)
-	for _, sequence := range dynSubMessages(manifest, 14) {
+	for _, sequence := range manifest.GetSequences() {
 		params := make([]ResolvedSequenceParam, 0)
-		for _, param := range dynSubMessages(sequence, 3) {
+		for _, param := range sequence.GetParams() {
 			params = append(params, ResolvedSequenceParam{
-				Name:        dynString(param, 1),
-				Description: dynString(param, 2),
-				Required:    dynBool(param, 3),
-				Default:     dynString(param, 4),
+				Name:        param.GetName(),
+				Description: param.GetDescription(),
+				Required:    param.GetRequired(),
+				Default:     param.GetDefault(),
 			})
 		}
 		resolved.Sequences = append(resolved.Sequences, ResolvedSequence{
-			Name:        dynString(sequence, 1),
-			Description: dynString(sequence, 2),
+			Name:        sequence.GetName(),
+			Description: sequence.GetDescription(),
 			Params:      params,
-			Steps:       trimNonEmptyStrings(dynStringSlice(sequence, 4)),
+			Steps:       trimNonEmptyStrings(sequence.GetSteps()),
 		})
 	}
 
@@ -423,162 +352,49 @@ func resolvedFromDynamic(manifest *dynamic.Message) *Resolved {
 	return resolved
 }
 
-func resolvedRecipeTargetFromDynamic(target *dynamic.Message) ResolvedRecipeTarget {
+func resolvedRecipeTargetFromManifest(target *holonsv1.HolonManifest_Build_Target) ResolvedRecipeTarget {
 	resolved := ResolvedRecipeTarget{
 		Steps: make([]ResolvedRecipeStep, 0),
 	}
-	for _, step := range dynSubMessages(target, 1) {
-		resolved.Steps = append(resolved.Steps, resolvedRecipeStepFromDynamic(step))
+	for _, step := range target.GetSteps() {
+		resolved.Steps = append(resolved.Steps, resolvedRecipeStepFromManifest(step))
 	}
 	return resolved
 }
 
-func resolvedRecipeStepFromDynamic(step *dynamic.Message) ResolvedRecipeStep {
+func resolvedRecipeStepFromManifest(step *holonsv1.HolonManifest_Step) ResolvedRecipeStep {
 	resolved := ResolvedRecipeStep{
-		BuildMember: dynString(step, 3),
+		BuildMember: step.GetBuildMember(),
 	}
-	if exec := dynSubMessage(step, 1); exec != nil {
+	if exec := step.GetExec(); exec != nil {
 		resolved.Exec = &ResolvedRecipeExec{
-			Cwd:  dynString(exec, 1),
-			Argv: dynStringSlice(exec, 2),
+			Cwd:  exec.GetCwd(),
+			Argv: exec.GetArgv(),
 		}
 	}
-	if copy := dynSubMessage(step, 2); copy != nil {
+	if copyStep := step.GetCopy(); copyStep != nil {
 		resolved.Copy = &ResolvedRecipeCopy{
-			From: dynString(copy, 1),
-			To:   dynString(copy, 2),
+			From: copyStep.GetFrom(),
+			To:   copyStep.GetTo(),
 		}
 	}
-	if assertFile := dynSubMessage(step, 4); assertFile != nil {
+	if assertFile := step.GetAssertFile(); assertFile != nil {
 		resolved.AssertFile = &ResolvedRecipeFile{
-			Path: dynString(assertFile, 1),
+			Path: assertFile.GetPath(),
 		}
 	}
-	if copyArtifact := dynSubMessage(step, 5); copyArtifact != nil {
+	if copyArtifact := step.GetCopyArtifact(); copyArtifact != nil {
 		resolved.CopyArtifact = &ResolvedRecipeCopyArtifact{
-			From: dynString(copyArtifact, 1),
-			To:   dynString(copyArtifact, 2),
+			From: copyArtifact.GetFrom(),
+			To:   copyArtifact.GetTo(),
 		}
 	}
-	if copyAllHolons := dynSubMessage(step, 6); copyAllHolons != nil {
+	if copyAllHolons := step.GetCopyAllHolons(); copyAllHolons != nil {
 		resolved.CopyAllHolons = &ResolvedRecipeCopyAllHolons{
-			To: dynString(copyAllHolons, 1),
+			To: copyAllHolons.GetTo(),
 		}
 	}
 	return resolved
-}
-
-func dynBool(msg *dynamic.Message, fieldNum int32) bool {
-	val, err := msg.TryGetFieldByNumber(int(fieldNum))
-	if err != nil {
-		return false
-	}
-	b, _ := val.(bool)
-	return b
-}
-
-func dynString(msg *dynamic.Message, fieldNum int32) string {
-	val, err := msg.TryGetFieldByNumber(int(fieldNum))
-	if err != nil {
-		return ""
-	}
-	s, _ := val.(string)
-	return s
-}
-
-func dynSubMessage(msg *dynamic.Message, fieldNum int32) *dynamic.Message {
-	val, err := msg.TryGetFieldByNumber(int(fieldNum))
-	if err != nil {
-		return nil
-	}
-	sub, _ := val.(*dynamic.Message)
-	return sub
-}
-
-func dynSubMessages(msg *dynamic.Message, fieldNum int32) []*dynamic.Message {
-	val, err := msg.TryGetFieldByNumber(int(fieldNum))
-	if err != nil || val == nil {
-		return nil
-	}
-
-	switch typed := val.(type) {
-	case []*dynamic.Message:
-		return typed
-	case []interface{}:
-		out := make([]*dynamic.Message, 0, len(typed))
-		for _, item := range typed {
-			if sub, ok := item.(*dynamic.Message); ok {
-				out = append(out, sub)
-			}
-		}
-		return out
-	default:
-		return nil
-	}
-}
-
-func dynStringMessageMap(msg *dynamic.Message, fieldNum int32) map[string]*dynamic.Message {
-	val, err := msg.TryGetFieldByNumber(int(fieldNum))
-	if err != nil || val == nil {
-		return nil
-	}
-
-	rv := reflect.ValueOf(val)
-	if !rv.IsValid() || rv.Kind() != reflect.Map {
-		return nil
-	}
-
-	out := make(map[string]*dynamic.Message, rv.Len())
-	iter := rv.MapRange()
-	for iter.Next() {
-		key, ok := iter.Key().Interface().(string)
-		if !ok {
-			continue
-		}
-		sub := dynMessageValue(iter.Value().Interface())
-		if sub == nil {
-			continue
-		}
-		out[key] = sub
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-func dynMessageValue(value any) *dynamic.Message {
-	switch typed := value.(type) {
-	case *dynamic.Message:
-		return typed
-	case dynamic.Message:
-		copy := typed
-		return &copy
-	default:
-		return nil
-	}
-}
-
-func dynStringSlice(msg *dynamic.Message, fieldNum int32) []string {
-	val, err := msg.TryGetFieldByNumber(int(fieldNum))
-	if err != nil || val == nil {
-		return nil
-	}
-
-	switch typed := val.(type) {
-	case []string:
-		return compactStrings(typed)
-	case []interface{}:
-		out := make([]string, 0, len(typed))
-		for _, item := range typed {
-			if s, ok := item.(string); ok {
-				out = append(out, s)
-			}
-		}
-		return compactStrings(out)
-	default:
-		return nil
-	}
 }
 
 func collectProtoFiles(dir string) ([]string, error) {

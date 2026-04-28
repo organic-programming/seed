@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -8,10 +9,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jhump/protoreflect/desc"
-	"github.com/jhump/protoreflect/desc/protoparse"
-	"github.com/jhump/protoreflect/dynamic"
-	"google.golang.org/protobuf/proto"
+	"github.com/bufbuild/protocompile"
+	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 const (
@@ -129,25 +131,37 @@ func resolveFromProto(absDir string) (*ResolvedManifest, error) {
 	return nil, fmt.Errorf("no manifest extension found in %s files under %s", ProtoManifestFileName, absDir)
 }
 
-func parseProtoFiles(baseDir string, relFiles []string) ([]*desc.FileDescriptor, error) {
-	parser := protoparse.Parser{
-		ImportPaths:               buildImportPaths(baseDir),
-		InferImportPaths:          true,
-		IncludeSourceCodeInfo:     false,
-		LookupImport:              desc.LoadFileDescriptor,
-		AllowExperimentalEditions: true,
+func parseProtoFiles(baseDir string, relFiles []string) ([]protoreflect.FileDescriptor, error) {
+	compiler := protocompile.Compiler{
+		Resolver: protocompile.WithStandardImports(protocompile.CompositeResolver{
+			&protocompile.SourceResolver{ImportPaths: buildImportPaths(baseDir)},
+			protocompile.ResolverFunc(globalProtoResolver),
+		}),
 	}
 
-	files, err := parser.ParseFiles(relFiles...)
+	compiled, err := compiler.Compile(context.Background(), relFiles...)
 	if err != nil {
 		return nil, fmt.Errorf("parse proto files: %w", err)
+	}
+	files := make([]protoreflect.FileDescriptor, 0, len(compiled))
+	for _, file := range compiled {
+		files = append(files, file)
 	}
 	return files, nil
 }
 
-func extractResolvedFromFileOptions(fd *desc.FileDescriptor) (*ResolvedManifest, bool) {
-	opts := fd.GetFileOptions()
-	if opts == nil {
+func globalProtoResolver(path string) (protocompile.SearchResult, error) {
+	_ = holonsv1.File_holons_v1_manifest_proto
+	fd, err := protoregistry.GlobalFiles.FindFileByPath(path)
+	if err != nil {
+		return protocompile.SearchResult{}, err
+	}
+	return protocompile.SearchResult{Desc: fd}, nil
+}
+
+func extractResolvedFromFileOptions(fd protoreflect.FileDescriptor) (*ResolvedManifest, bool) {
+	opts, ok := fd.Options().(*descriptorpb.FileOptions)
+	if !ok || opts == nil {
 		return nil, false
 	}
 
@@ -156,30 +170,13 @@ func extractResolvedFromFileOptions(fd *desc.FileDescriptor) (*ResolvedManifest,
 		return nil, false
 	}
 
-	optsBytes, err := proto.Marshal(opts)
-	if err != nil {
+	optsMsg := opts.ProtoReflect()
+	if !optsMsg.Has(manifestExt) {
 		return nil, false
 	}
 
-	reg := newExtensionRegistry(fd)
-	mf := dynamic.NewMessageFactoryWithExtensionRegistry(reg)
-
-	fileOptsMd, err := desc.LoadMessageDescriptorForMessage(opts)
-	if err != nil {
-		return nil, false
-	}
-	dynOpts := mf.NewDynamicMessage(fileOptsMd)
-	if err := dynOpts.Unmarshal(optsBytes); err != nil {
-		return nil, false
-	}
-
-	manifestVal, err := dynOpts.TryGetFieldByNumber(int(manifestExtensionNumber))
-	if err != nil || manifestVal == nil {
-		return nil, false
-	}
-
-	manifest, ok := manifestVal.(*dynamic.Message)
-	if !ok {
+	manifest := optsMsg.Get(manifestExt).Message()
+	if !manifest.IsValid() {
 		return nil, false
 	}
 
@@ -191,51 +188,34 @@ func extractResolvedFromFileOptions(fd *desc.FileDescriptor) (*ResolvedManifest,
 	return resolved, true
 }
 
-func findExtension(fd *desc.FileDescriptor, fieldNum int32) *desc.FieldDescriptor {
+func findExtension(fd protoreflect.FileDescriptor, fieldNum int32) protoreflect.FieldDescriptor {
 	seen := map[string]bool{}
 	return findExtensionRecursive(fd, fieldNum, seen)
 }
 
-func findExtensionRecursive(fd *desc.FileDescriptor, fieldNum int32, seen map[string]bool) *desc.FieldDescriptor {
-	if fd == nil || seen[fd.GetName()] {
+func findExtensionRecursive(fd protoreflect.FileDescriptor, fieldNum int32, seen map[string]bool) protoreflect.FieldDescriptor {
+	if fd == nil || seen[fd.Path()] {
 		return nil
 	}
-	seen[fd.GetName()] = true
+	seen[fd.Path()] = true
 
-	for _, ext := range fd.GetExtensions() {
-		if ext.GetNumber() == fieldNum {
+	extensions := fd.Extensions()
+	for i := 0; i < extensions.Len(); i++ {
+		ext := extensions.Get(i)
+		if ext.Number() == protoreflect.FieldNumber(fieldNum) {
 			return ext
 		}
 	}
-	for _, dep := range fd.GetDependencies() {
-		if ext := findExtensionRecursive(dep, fieldNum, seen); ext != nil {
+	imports := fd.Imports()
+	for i := 0; i < imports.Len(); i++ {
+		if ext := findExtensionRecursive(imports.Get(i).FileDescriptor, fieldNum, seen); ext != nil {
 			return ext
 		}
 	}
 	return nil
 }
 
-func newExtensionRegistry(fd *desc.FileDescriptor) *dynamic.ExtensionRegistry {
-	reg := dynamic.NewExtensionRegistryWithDefaults()
-	addExtensions(reg, fd, map[string]bool{})
-	return reg
-}
-
-func addExtensions(reg *dynamic.ExtensionRegistry, fd *desc.FileDescriptor, seen map[string]bool) {
-	if fd == nil || seen[fd.GetName()] {
-		return
-	}
-	seen[fd.GetName()] = true
-
-	for _, ext := range fd.GetExtensions() {
-		reg.AddExtension(ext)
-	}
-	for _, dep := range fd.GetDependencies() {
-		addExtensions(reg, dep, seen)
-	}
-}
-
-func resolvedFromDynamic(manifest *dynamic.Message) *ResolvedManifest {
+func resolvedFromDynamic(manifest protoreflect.Message) *ResolvedManifest {
 	resolved := &ResolvedManifest{}
 	resolved.Description = dynString(manifest, 3)
 	resolved.Identity.Lang = dynString(manifest, 4)
@@ -287,7 +267,7 @@ func resolvedFromDynamic(manifest *dynamic.Message) *ResolvedManifest {
 	return resolved
 }
 
-func resolvedSkillsFromDynamic(manifest *dynamic.Message) []ResolvedSkill {
+func resolvedSkillsFromDynamic(manifest protoreflect.Message) []ResolvedSkill {
 	messages := dynSubMessages(manifest, 5)
 	out := make([]ResolvedSkill, 0, len(messages))
 	for _, message := range messages {
@@ -304,7 +284,7 @@ func resolvedSkillsFromDynamic(manifest *dynamic.Message) []ResolvedSkill {
 	return out
 }
 
-func resolvedSequencesFromDynamic(manifest *dynamic.Message) []ResolvedSequence {
+func resolvedSequencesFromDynamic(manifest protoreflect.Message) []ResolvedSequence {
 	messages := dynSubMessages(manifest, 14)
 	out := make([]ResolvedSequence, 0, len(messages))
 	for _, message := range messages {
@@ -335,79 +315,74 @@ func resolvedSequencesFromDynamic(manifest *dynamic.Message) []ResolvedSequence 
 	return out
 }
 
-func dynString(msg *dynamic.Message, fieldNum int) string {
-	val, err := msg.TryGetFieldByNumber(fieldNum)
-	if err != nil {
+func dynString(msg protoreflect.Message, fieldNum int) string {
+	field := fieldByNumber(msg, fieldNum)
+	if field == nil || !msg.Has(field) {
 		return ""
 	}
-	s, _ := val.(string)
-	return s
+	return msg.Get(field).String()
 }
 
-func dynSubMessage(msg *dynamic.Message, fieldNum int) *dynamic.Message {
-	val, err := msg.TryGetFieldByNumber(fieldNum)
-	if err != nil {
+func dynSubMessage(msg protoreflect.Message, fieldNum int) protoreflect.Message {
+	field := fieldByNumber(msg, fieldNum)
+	if field == nil || !msg.Has(field) {
 		return nil
 	}
-	sub, _ := val.(*dynamic.Message)
+	sub := msg.Get(field).Message()
+	if !sub.IsValid() {
+		return nil
+	}
 	return sub
 }
 
-func dynSubMessages(msg *dynamic.Message, fieldNum int) []*dynamic.Message {
-	val, err := msg.TryGetFieldByNumber(fieldNum)
-	if err != nil || val == nil {
+func dynSubMessages(msg protoreflect.Message, fieldNum int) []protoreflect.Message {
+	field := fieldByNumber(msg, fieldNum)
+	if field == nil || !msg.Has(field) {
 		return nil
 	}
 
-	switch typed := val.(type) {
-	case []*dynamic.Message:
-		return typed
-	case []interface{}:
-		out := make([]*dynamic.Message, 0, len(typed))
-		for _, item := range typed {
-			if sub, ok := item.(*dynamic.Message); ok {
-				out = append(out, sub)
-			}
+	list := msg.Get(field).List()
+	out := make([]protoreflect.Message, 0, list.Len())
+	for i := 0; i < list.Len(); i++ {
+		sub := list.Get(i).Message()
+		if sub.IsValid() {
+			out = append(out, sub)
 		}
-		return out
-	default:
-		return nil
 	}
+	return out
 }
 
-func dynBool(msg *dynamic.Message, fieldNum int) bool {
-	val, err := msg.TryGetFieldByNumber(fieldNum)
-	if err != nil {
+func dynBool(msg protoreflect.Message, fieldNum int) bool {
+	field := fieldByNumber(msg, fieldNum)
+	if field == nil || !msg.Has(field) {
 		return false
 	}
-	b, _ := val.(bool)
-	return b
+	return msg.Get(field).Bool()
 }
 
-func dynStringSlice(msg *dynamic.Message, fieldNum int) []string {
+func dynStringSlice(msg protoreflect.Message, fieldNum int) []string {
 	return compactStrings(dynStringSliceRaw(msg, fieldNum))
 }
 
-func dynStringSliceRaw(msg *dynamic.Message, fieldNum int) []string {
-	val, err := msg.TryGetFieldByNumber(fieldNum)
-	if err != nil || val == nil {
+func dynStringSliceRaw(msg protoreflect.Message, fieldNum int) []string {
+	field := fieldByNumber(msg, fieldNum)
+	if field == nil || !msg.Has(field) {
 		return nil
 	}
 
-	switch typed := val.(type) {
-	case []string:
-		return typed
-	case []interface{}:
-		out := make([]string, 0, len(typed))
-		for _, item := range typed {
-			if s, ok := item.(string); ok {
-				out = append(out, s)
-			}
-		}
-		return out
-	default:
+	list := msg.Get(field).List()
+	out := make([]string, 0, list.Len())
+	for i := 0; i < list.Len(); i++ {
+		out = append(out, list.Get(i).String())
+	}
+	return out
+}
+
+func fieldByNumber(msg protoreflect.Message, fieldNum int) protoreflect.FieldDescriptor {
+	if msg == nil || !msg.IsValid() {
 		return nil
 	}
+	return msg.Descriptor().Fields().ByNumber(protoreflect.FieldNumber(fieldNum))
 }
 
 func collectProtoFiles(dir string) ([]string, error) {

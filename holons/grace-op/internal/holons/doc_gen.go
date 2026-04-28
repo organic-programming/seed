@@ -8,15 +8,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jhump/protoreflect/desc"
 	"github.com/organic-programming/grace-op/internal/progress"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 const defaultCoaxReferenceTarget = "tcp://127.0.0.1:60000"
 
 // generateDocumentation produces .op/doc/REFERENCE.md from parsed
 // proto descriptors and the holon manifest.
-func generateDocumentation(manifest *LoadedManifest, fds []*desc.FileDescriptor, reporter progress.Reporter) error {
+func generateDocumentation(manifest *LoadedManifest, fds []protoreflect.FileDescriptor, reporter progress.Reporter) error {
 	if len(fds) == 0 {
 		return nil
 	}
@@ -42,8 +42,10 @@ func generateDocumentation(manifest *LoadedManifest, fds []*desc.FileDescriptor,
 	// RPC Catalog — collect services from all transitive dependencies.
 	allFds := collectAllDescriptors(fds)
 	for _, fd := range allFds {
-		for _, svc := range fd.GetServices() {
-			fqn := svc.GetFullyQualifiedName()
+		services := fd.Services()
+		for i := 0; i < services.Len(); i++ {
+			svc := services.Get(i)
+			fqn := string(svc.FullName())
 			// Skip HolonMeta service — internal infrastructure.
 			if strings.HasSuffix(fqn, "HolonMeta") {
 				continue
@@ -58,24 +60,26 @@ func generateDocumentation(manifest *LoadedManifest, fds []*desc.FileDescriptor,
 				buf.WriteString("Call this COAX surface over `tcp://127.0.0.1:60000` by default. The app must be running with COAX enabled, and the port can be changed from the interface.\n\n")
 			}
 
-			for _, m := range svc.GetMethods() {
-				buf.WriteString(fmt.Sprintf("### %s\n\n", m.GetName()))
+			methods := svc.Methods()
+			for j := 0; j < methods.Len(); j++ {
+				m := methods.Get(j)
+				buf.WriteString(fmt.Sprintf("### %s\n\n", m.Name()))
 				mComment := sourceComment(m)
 				if mComment != "" {
 					buf.WriteString(mComment + "\n\n")
 				}
 				buf.WriteString(fmt.Sprintf("`%s(%s) -> %s`\n\n",
-					m.GetName(),
-					m.GetInputType().GetFullyQualifiedName(),
-					m.GetOutputType().GetFullyQualifiedName()))
-				if messageHasBytesFields(m.GetInputType(), map[string]bool{}) {
+					m.Name(),
+					m.Input().FullName(),
+					m.Output().FullName()))
+				if messageHasBytesFields(m.Input(), map[string]bool{}) {
 					buf.WriteString("_Bytes fields use base64 in JSON examples._\n\n")
 				}
 
 				example := exampleInputForMethod(m)
 				target := referenceInvocationTarget(slug, svc, comment)
 				buf.WriteString(fmt.Sprintf("```\nop %s %s '%s'\n```\n\n",
-					target, m.GetName(), example))
+					target, m.Name(), example))
 			}
 		}
 	}
@@ -90,12 +94,12 @@ func generateDocumentation(manifest *LoadedManifest, fds []*desc.FileDescriptor,
 }
 
 // sourceComment returns the leading comment for a descriptor, cleaned up.
-func sourceComment(d desc.Descriptor) string {
-	info := d.GetSourceInfo()
-	if info == nil {
+func sourceComment(d protoreflect.Descriptor) string {
+	if d == nil || d.ParentFile() == nil {
 		return ""
 	}
-	comment := strings.TrimSpace(info.GetLeadingComments())
+	location := d.ParentFile().SourceLocations().ByDescriptor(d)
+	comment := strings.TrimSpace(location.LeadingComments)
 	// Strip leading "// " style prefixes line by line.
 	lines := strings.Split(comment, "\n")
 	var cleaned []string
@@ -114,12 +118,12 @@ func sourceComment(d desc.Descriptor) string {
 
 // extractExample pulls the @example annotation from a method's comment,
 // or returns an empty JSON object as a fallback.
-func extractExample(m *desc.MethodDescriptor) string {
-	info := m.GetSourceInfo()
-	if info == nil {
+func extractExample(m protoreflect.MethodDescriptor) string {
+	if m == nil || m.ParentFile() == nil {
 		return ""
 	}
-	comment := info.GetLeadingComments()
+	location := m.ParentFile().SourceLocations().ByDescriptor(m)
+	comment := location.LeadingComments
 	for _, line := range strings.Split(comment, "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "@example ") {
@@ -131,18 +135,22 @@ func extractExample(m *desc.MethodDescriptor) string {
 
 // collectAllDescriptors flattens the transitive dependency tree into a
 // deduplicated slice, so doc gen can discover services from imported protos.
-func collectAllDescriptors(roots []*desc.FileDescriptor) []*desc.FileDescriptor {
+func collectAllDescriptors(roots []protoreflect.FileDescriptor) []protoreflect.FileDescriptor {
 	seen := make(map[string]bool)
-	var result []*desc.FileDescriptor
-	var walk func(fd *desc.FileDescriptor)
-	walk = func(fd *desc.FileDescriptor) {
-		name := fd.GetName()
+	var result []protoreflect.FileDescriptor
+	var walk func(fd protoreflect.FileDescriptor)
+	walk = func(fd protoreflect.FileDescriptor) {
+		if fd == nil {
+			return
+		}
+		name := fd.Path()
 		if seen[name] {
 			return
 		}
 		seen[name] = true
-		for _, dep := range fd.GetDependencies() {
-			walk(dep)
+		imports := fd.Imports()
+		for i := 0; i < imports.Len(); i++ {
+			walk(imports.Get(i).FileDescriptor)
 		}
 		result = append(result, fd)
 	}
@@ -152,32 +160,32 @@ func collectAllDescriptors(roots []*desc.FileDescriptor) []*desc.FileDescriptor 
 	return result
 }
 
-func referenceInvocationTarget(slug string, svc *desc.ServiceDescriptor, comment string) string {
+func referenceInvocationTarget(slug string, svc protoreflect.ServiceDescriptor, comment string) string {
 	if isCOAXReferenceService(svc, comment) {
 		return defaultCoaxReferenceTarget
 	}
 	return "stdio://" + slug
 }
 
-func isCOAXReferenceService(svc *desc.ServiceDescriptor, comment string) bool {
+func isCOAXReferenceService(svc protoreflect.ServiceDescriptor, comment string) bool {
 	if svc == nil {
 		return false
 	}
-	name := strings.ToLower(strings.TrimSpace(svc.GetFullyQualifiedName()))
+	name := strings.ToLower(strings.TrimSpace(string(svc.FullName())))
 	if name == "holons.v1.coaxservice" {
 		return true
 	}
 	return strings.Contains(strings.ToLower(comment), "coax")
 }
 
-func exampleInputForMethod(m *desc.MethodDescriptor) string {
+func exampleInputForMethod(m protoreflect.MethodDescriptor) string {
 	if m == nil {
 		return "{}"
 	}
 	if example := strings.TrimSpace(extractExample(m)); example != "" {
 		return example
 	}
-	if input := m.GetInputType(); input != nil {
+	if input := m.Input(); input != nil {
 		if example := exampleJSONForMessage(input, map[string]bool{}); example != "" {
 			return example
 		}
@@ -185,11 +193,11 @@ func exampleInputForMethod(m *desc.MethodDescriptor) string {
 	return "{}"
 }
 
-func exampleJSONForMessage(msg *desc.MessageDescriptor, seen map[string]bool) string {
+func exampleJSONForMessage(msg protoreflect.MessageDescriptor, seen map[string]bool) string {
 	if msg == nil {
 		return "{}"
 	}
-	key := strings.TrimSpace(msg.GetFullyQualifiedName())
+	key := strings.TrimSpace(string(msg.FullName()))
 	if key != "" {
 		if seen[key] {
 			return "{}"
@@ -198,18 +206,19 @@ func exampleJSONForMessage(msg *desc.MessageDescriptor, seen map[string]bool) st
 		defer delete(seen, key)
 	}
 
-	fields := msg.GetFields()
-	if len(fields) == 0 {
+	fields := msg.Fields()
+	if fields.Len() == 0 {
 		return "{}"
 	}
 
-	parts := make([]string, 0, len(fields))
-	for _, field := range fields {
+	parts := make([]string, 0, fields.Len())
+	for i := 0; i < fields.Len(); i++ {
+		field := fields.Get(i)
 		value, ok := exampleJSONForField(field, seen)
 		if !ok {
 			continue
 		}
-		parts = append(parts, fmt.Sprintf("%q:%s", field.GetName(), value))
+		parts = append(parts, fmt.Sprintf("%q:%s", field.Name(), value))
 	}
 	if len(parts) == 0 {
 		return "{}"
@@ -217,7 +226,7 @@ func exampleJSONForMessage(msg *desc.MessageDescriptor, seen map[string]bool) st
 	return "{" + strings.Join(parts, ",") + "}"
 }
 
-func exampleJSONForField(field *desc.FieldDescriptor, seen map[string]bool) (string, bool) {
+func exampleJSONForField(field protoreflect.FieldDescriptor, seen map[string]bool) (string, bool) {
 	if field == nil {
 		return "", false
 	}
@@ -225,14 +234,14 @@ func exampleJSONForField(field *desc.FieldDescriptor, seen map[string]bool) (str
 		return normalizeExampleJSON(field, example), true
 	}
 	if field.IsMap() {
-		keyJSON := normalizeExampleJSON(field.GetMapKeyType(), defaultScalarExample(field.GetMapKeyType()))
-		valueJSON, ok := exampleJSONForSingularField(field.GetMapValueType(), seen)
+		keyJSON := normalizeExampleJSON(field.MapKey(), defaultScalarExample(field.MapKey()))
+		valueJSON, ok := exampleJSONForSingularField(field.MapValue(), seen)
 		if !ok {
 			return "{}", true
 		}
 		return "{" + keyJSON + ":" + valueJSON + "}", true
 	}
-	if field.IsRepeated() {
+	if field.IsList() {
 		valueJSON, ok := exampleJSONForSingularField(field, seen)
 		if !ok {
 			return "[]", true
@@ -242,14 +251,14 @@ func exampleJSONForField(field *desc.FieldDescriptor, seen map[string]bool) (str
 	return exampleJSONForSingularField(field, seen)
 }
 
-func exampleJSONForSingularField(field *desc.FieldDescriptor, seen map[string]bool) (string, bool) {
+func exampleJSONForSingularField(field protoreflect.FieldDescriptor, seen map[string]bool) (string, bool) {
 	if field == nil {
 		return "", false
 	}
-	switch field.GetType().String() {
-	case "TYPE_MESSAGE":
-		return exampleJSONForMessage(field.GetMessageType(), seen), true
-	case "TYPE_ENUM":
+	switch field.Kind() {
+	case protoreflect.MessageKind, protoreflect.GroupKind:
+		return exampleJSONForMessage(field.Message(), seen), true
+	case protoreflect.EnumKind:
 		name := enumExampleName(field)
 		encoded, err := json.Marshal(name)
 		if err != nil {
@@ -261,12 +270,12 @@ func exampleJSONForSingularField(field *desc.FieldDescriptor, seen map[string]bo
 	}
 }
 
-func extractFieldExample(field *desc.FieldDescriptor) string {
-	info := field.GetSourceInfo()
-	if info == nil {
+func extractFieldExample(field protoreflect.FieldDescriptor) string {
+	if field == nil || field.ParentFile() == nil {
 		return ""
 	}
-	comment := info.GetLeadingComments()
+	location := field.ParentFile().SourceLocations().ByDescriptor(field)
+	comment := location.LeadingComments
 	for _, line := range strings.Split(comment, "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "@example ") {
@@ -276,7 +285,7 @@ func extractFieldExample(field *desc.FieldDescriptor) string {
 	return ""
 }
 
-func normalizeExampleJSON(field *desc.FieldDescriptor, raw string) string {
+func normalizeExampleJSON(field protoreflect.FieldDescriptor, raw string) string {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
 		return `""`
@@ -284,8 +293,8 @@ func normalizeExampleJSON(field *desc.FieldDescriptor, raw string) string {
 	if json.Valid([]byte(trimmed)) {
 		return trimmed
 	}
-	switch field.GetType().String() {
-	case "TYPE_BYTES":
+	switch field.Kind() {
+	case protoreflect.BytesKind:
 		encoded, _ := json.Marshal(base64.StdEncoding.EncodeToString([]byte(trimmed)))
 		return string(encoded)
 	default:
@@ -294,13 +303,13 @@ func normalizeExampleJSON(field *desc.FieldDescriptor, raw string) string {
 	}
 }
 
-func defaultScalarExample(field *desc.FieldDescriptor) string {
+func defaultScalarExample(field protoreflect.FieldDescriptor) string {
 	if field == nil {
 		return ""
 	}
-	name := strings.ToLower(strings.TrimSpace(field.GetName()))
-	switch field.GetType().String() {
-	case "TYPE_STRING":
+	name := strings.ToLower(strings.TrimSpace(string(field.Name())))
+	switch field.Kind() {
+	case protoreflect.StringKind:
 		switch name {
 		case "slug", "member_slug":
 			return "gabriel-greeting-go"
@@ -323,14 +332,14 @@ func defaultScalarExample(field *desc.FieldDescriptor) string {
 			}
 			return "example"
 		}
-	case "TYPE_BOOL":
+	case protoreflect.BoolKind:
 		return "true"
-	case "TYPE_DOUBLE", "TYPE_FLOAT":
+	case protoreflect.DoubleKind, protoreflect.FloatKind:
 		return "1.0"
-	case "TYPE_INT64", "TYPE_UINT64", "TYPE_INT32", "TYPE_FIXED64", "TYPE_FIXED32",
-		"TYPE_UINT32", "TYPE_SFIXED32", "TYPE_SFIXED64", "TYPE_SINT32", "TYPE_SINT64":
+	case protoreflect.Int64Kind, protoreflect.Uint64Kind, protoreflect.Int32Kind, protoreflect.Fixed64Kind, protoreflect.Fixed32Kind,
+		protoreflect.Uint32Kind, protoreflect.Sfixed32Kind, protoreflect.Sfixed64Kind, protoreflect.Sint32Kind, protoreflect.Sint64Kind:
 		return "1"
-	case "TYPE_BYTES":
+	case protoreflect.BytesKind:
 		payload := `{"name":"Bob","lang_code":"fr"}`
 		if name != "payload" {
 			payload = "example"
@@ -341,24 +350,26 @@ func defaultScalarExample(field *desc.FieldDescriptor) string {
 	}
 }
 
-func enumExampleName(field *desc.FieldDescriptor) string {
-	enumDesc := field.GetEnumType()
-	if enumDesc == nil || len(enumDesc.GetValues()) == 0 {
+func enumExampleName(field protoreflect.FieldDescriptor) string {
+	enumDesc := field.Enum()
+	if enumDesc == nil || enumDesc.Values().Len() == 0 {
 		return ""
 	}
-	for _, value := range enumDesc.GetValues() {
-		if value.GetNumber() != 0 {
-			return value.GetName()
+	values := enumDesc.Values()
+	for i := 0; i < values.Len(); i++ {
+		value := values.Get(i)
+		if value.Number() != 0 {
+			return string(value.Name())
 		}
 	}
-	return enumDesc.GetValues()[0].GetName()
+	return string(values.Get(0).Name())
 }
 
-func messageHasBytesFields(msg *desc.MessageDescriptor, seen map[string]bool) bool {
+func messageHasBytesFields(msg protoreflect.MessageDescriptor, seen map[string]bool) bool {
 	if msg == nil {
 		return false
 	}
-	key := strings.TrimSpace(msg.GetFullyQualifiedName())
+	key := strings.TrimSpace(string(msg.FullName()))
 	if key != "" {
 		if seen[key] {
 			return false
@@ -366,11 +377,13 @@ func messageHasBytesFields(msg *desc.MessageDescriptor, seen map[string]bool) bo
 		seen[key] = true
 		defer delete(seen, key)
 	}
-	for _, field := range msg.GetFields() {
-		if field.GetType().String() == "TYPE_BYTES" {
+	fields := msg.Fields()
+	for i := 0; i < fields.Len(); i++ {
+		field := fields.Get(i)
+		if field.Kind() == protoreflect.BytesKind {
 			return true
 		}
-		if field.GetType().String() == "TYPE_MESSAGE" && messageHasBytesFields(field.GetMessageType(), seen) {
+		if (field.Kind() == protoreflect.MessageKind || field.Kind() == protoreflect.GroupKind) && messageHasBytesFields(field.Message(), seen) {
 			return true
 		}
 	}
