@@ -1,10 +1,13 @@
+# Integration layer: ader bouquet over grace-op + clem-ader + composite app catalogues.
+# Triggers: push/pull_request on master, plus manual workflow_dispatch with bouquet input.
+# Owns: end-to-end CLI/API/RPC symmetry proof on the popok self-hosted runner.
 name: ader
 
 on:
   push:
-    branches: [master, dev]
+    branches: [master]
   pull_request:
-    branches: [master, dev]
+    branches: [master]
   workflow_dispatch:
     inputs:
       bouquet:

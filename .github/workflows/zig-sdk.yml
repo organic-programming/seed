@@ -1,10 +1,13 @@
+# Zig SDK layer: host build + cross-smoke + composites on the popok self-hosted runner.
+# Triggers: push/pull_request on master, plus manual workflow_dispatch.
+# Owns: zig SDK depth tests and Flutter/SwiftUI composite hardened builds.
 name: zig-sdk
 
 on:
   push:
-    branches: [dev, master]
+    branches: [master]
   pull_request:
-    branches: [dev, master]
+    branches: [master]
   workflow_dispatch:
 
 concurrency:

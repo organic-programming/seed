@@ -1,3 +1,6 @@
+# SDK prebuilt publish: builds tarballs for c/cpp/ruby/zig per (host_target) matrix and
+# promotes them to GitHub Releases on master merge. No op/ader bootstrap dependency.
+# Triggers: pull_request on master + manual workflow_dispatch with version overrides.
 name: sdk-prebuilts
 
 on:
