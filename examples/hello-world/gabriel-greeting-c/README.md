@@ -40,7 +40,6 @@ api/v1/holon.proto                 Proto manifest.
 internal/greetings.*               56-language greeting catalog.
 internal/server.*                  Backend server and bridge launcher.
 gen/c/greeting/v1/                 Generated upb C code.
-scripts/generate_proto.sh          Regenerates stubs and validates holon.proto.
 CMakeLists.txt                     Build and test definition.
 ```
 
@@ -50,7 +49,6 @@ CMakeLists.txt                     Build and test definition.
 op sdk install c
 op sdk verify c
 export OP_SDK_C_PATH="$(op sdk path c)"
-./scripts/generate_proto.sh
 cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure
