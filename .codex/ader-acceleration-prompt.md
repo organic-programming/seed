@@ -1,173 +1,151 @@
-# Codex prompt — implement ader CI acceleration chantier
+# Codex prompt — ader CI acceleration chantier (phases A2 → C)
 
-> Hand this prompt to Codex. Self-contained: Codex has filesystem access to the `seed` repo and must read the referenced files to learn the conventions. Do not assume Codex has seen the planning conversation that produced this prompt.
+> Fresh Codex session. Self-contained. Phase A1 shipped in PR #59
+> (workspace mirror cleanup, Issue #25 closed). Five phases remain.
 
 ---
 
 ## Mission
 
-Implement the ader CI acceleration chantier specified in [`docs/specs/ader-acceleration.md`](../docs/specs/ader-acceleration.md). The chantier brings the standard `local-dev` ader bouquet wall-clock from ~3-4 hours to ≤ 60 minutes, and the `cross-platform` bouquet from 15+ hours to ≤ 6 hours, on warm popok cache.
+Ship phases A2, A3, B1, B2, C of [`docs/specs/ader-acceleration.md`](../docs/specs/ader-acceleration.md).
 
-The chantier is **complementary to the prebuilts chantier** (which addresses native compile time). This chantier addresses ader's own architectural costs:
+**Wall-clock targets on warm popok cache:**
+- `local-dev` bouquet ≤ 60 min (vs ~3-4 h baseline)
+- `cross-platform` bouquet ≤ 6 h (vs 15+ h baseline)
 
-- workspace mirror cleanup (Issue #25)
-- xcodebuild / SPM / Gradle / Dart / npm cross-run caching
-- parallel COAX recipe member builds
-- source-content hash skip for unchanged members
-
-5 phases, ~10 days agent time.
-
-All written artifacts in English.
+Sequential PRs against `master`. Composer admin-merges fast on green CI **and** measured target hit. All written artifacts in English.
 
 ---
 
-## Kickoff gate — do not start until prebuilts chantier is done
+## Context discipline — non-negotiable
 
-This chantier touches `holons/grace-op/internal/holons/lifecycle.go` (Phase B1) and `runner_registry.go` (Phase B1). The prebuilts chantier also touches both files. To avoid rebase conflicts, **wait until the prebuilts chantier has shipped its Phase 8 PR and merged onto `master`**.
+The previous session hit `Codex ran out of room in the model's context window`. Do not repeat that failure mode.
 
-Verify before starting:
-
-```bash
-git fetch origin master
-git fetch origin master
-git log --oneline origin/master | head -3
-```
-
-You should see a `Merge pull request #45` (Phase 8 docs) commit at or near the top of master. If not, the prebuilts chantier is still in flight — halt and wait.
-
-Note: as of 2026-04-27, the prebuilts code is merged on master but GitHub Releases (`zig-holons-v0.1.0`, `cpp-holons-v1.80.0`, `c-holons-v1.80.0`, `ruby-holons-v1.58.3`) have not yet been published due to a workflow issue post-merge (tracked separately). This does NOT block this chantier — the code coordination required is satisfied by Phase 8 being on master. Phase B2 hash gracefully degrades when `op sdk path <lang>` returns no prebuilt (per resolved §4).
----
-
-## Required reading (do not skip)
-
-1. [`docs/specs/ader-acceleration.md`](../docs/specs/ader-acceleration.md) — the spec, all 9 sections.
-2. [`docs/specs/sdk-prebuilts.md`](../docs/specs/sdk-prebuilts.md) — the prebuilts spec (Phase B2 hash key depends on prebuilts version pins).
-3. [`CLAUDE.md`](../CLAUDE.md) — repo invariants, "doubt is the method", PRs target `master`.
-4. [`holons/clem-ader/README.md`](../holons/clem-ader/README.md) — ader concepts, locks, bouquets.
-5. [`ader/catalogues/grace-op/integration/runtime.go`](../ader/catalogues/grace-op/integration/runtime.go) — `prepareWorkspaceMirror` (line ~635), the source of Issue #25.
-6. [`holons/clem-ader/internal/engine/engine.go`](../holons/clem-ader/internal/engine/engine.go) — `copyTree` (line ~1395), `snapshotWorkspace` (line ~510).
-7. [`holons/grace-op/OP_BUILD.md`](../holons/grace-op/OP_BUILD.md) — runner semantics, recipe runner spec.
-8. [`holons/grace-op/internal/holons/runner_registry.go`](../holons/grace-op/internal/holons/runner_registry.go) — the `recipe` runner (Phase B1).
-9. [`.github/workflows/ader.yml`](../.github/workflows/ader.yml) — current bouquet workflow, cache structure.
-10. Issue #25 — workspace mirror bit-rot tracking.
+- Do **not** read whole files when grep / focused read suffices. Use offset+limit on Read.
+- Do **not** paste large logs (build output, test verbose output, full diffs) back into your context — extract the few lines that matter, discard the rest.
+- Do **not** re-read a file you already have in context.
+- If a file is > 500 lines and you need part of it, locate the relevant region with grep first, then read only that region.
+- Keep your scratchpad / planning text terse. Implementation details belong in code, not in prose to yourself.
+- Between phases, drop everything you no longer need (file contents, intermediate analysis). Carry forward only the spec + invariants + the next phase's exit criterion.
 
 ---
 
-## Composer decisions (resolved, treat as immutable)
+## Read first (focused, not full)
 
-The 5 questions in spec §7 have been arbitrated. Treat each as binding constraint, not recommendation:
+1. [`docs/specs/ader-acceleration.md`](../docs/specs/ader-acceleration.md) — phases A2 onward; skip the A1 section (shipped).
+2. [`CLAUDE.md`](../CLAUDE.md) — repo invariants, "doubt is the method", PRs target `master`.
+3. [`holons/grace-op/OP_BUILD.md`](../holons/grace-op/OP_BUILD.md) — recipe runner spec, `copy_all_holons` step, `OP_HOLON_<SLUG>_PATH` injection.
+4. [`.github/workflows/ader.yml`](../.github/workflows/ader.yml) — bouquet workflow, current cache layout.
+5. [`holons/grace-op/internal/holons/runner_registry.go`](../holons/grace-op/internal/holons/runner_registry.go) — recipe runner (Phase B1 lives here).
+6. [`holons/grace-op/internal/holons/lifecycle.go`](../holons/grace-op/internal/holons/lifecycle.go) — `stepCopyAllHolons`, composite loop, `dependencyIsFresh` (Phase B2 cache reuse must respect this contract).
 
-1. **Default recipe parallelism**: `runtime.NumCPU() / 2`, env-overridable via `OP_BUILD_PARALLELISM`. Document the env var in `OP_BUILD.md`.
-2. **Source-content hash inputs (Phase B2)**: manifest hash + `op` binary hash (sha256 of installed `op` binary) + Go toolchain version + `op sdk path <lang>` output for any sdk_prebuilts dependency. **Exclude** OS minor version (too fragile, makes cache thrash).
-3. **GitHub Actions cache eviction**: a scheduled workflow `.github/workflows/cache-prune.yml` runs nightly, deleting cache entries older than 7 days using `gh actions-cache delete --all`. Cache budget per repo is 10 GB; we want to stay under 8 GB.
-4. **Coordination with prebuilts**: Phase B2 hash explicitly includes `op sdk path <lang>` output. When prebuilts version bumps, all consumer holons cache invalidates correctly. If `op sdk path <lang>` errors (no prebuilt installed), exclude that lang from the hash and emit a warning.
-5. **Issue #25 fix scope**: `os.RemoveAll(root)` before `MkdirAll(root)` in `prepareWorkspaceMirror`. Simple, correct, low-risk. Full rsync-with-delete is v2 if I/O cost on popok APFS becomes observable (it shouldn't — APFS handles `RemoveAll` of GB-scale trees in seconds).
-
-Do not relitigate these. If implementation surfaces a contradiction, halt and report.
-
----
-
-## Phasing
-
-Sequential PRs against `master`. One PR per phase. Same operating mode as the prebuilts chantier: continuous progression (composer admin-merges fast), halt only at real doubts.
-
-### Phase A1 — Issue #25 workspace mirror cleanup
-- Edit `prepareWorkspaceMirror` in `ader/catalogues/grace-op/integration/runtime.go` to `os.RemoveAll(root)` before `MkdirAll(root)`.
-- Add a regression test in `runtime_test.go` (or wherever fits) that creates a fake stale file in the mirror, runs prepareWorkspaceMirror, and asserts the stale file is gone.
-- Verify by running `go test ./ader/catalogues/grace-op/integration/...` and the full ader smoke profile end-to-end (should pass cleanly without the SwiftUI duplicate that blocked Zig P12).
-- Close Issue #25 in the PR description.
-- **Exit:** mirror is provably clean per run; smoke green.
-
-### Phase A2 — xcodebuild DerivedData cache
-- Add a cache block in `.github/workflows/ader.yml` for `~/Library/Developer/Xcode/DerivedData/`, `~/Library/Caches/org.swift.swiftpm/`, `${{ runner.workspace }}/**/.build/`.
-- Cache key includes `Package.resolved`, `Package.swift` files, and `xcodebuild -version` output.
-- Capture wall-clock for SwiftUI composite build before/after; report in PR.
-- **Exit:** SwiftUI composite build wall-clock cut by ≥ 40% on warm cache.
-
-### Phase A3 — SPM/Gradle/Dart/npm cache key tightening
-- Add explicit `actions/cache@v4` blocks for Gradle, SPM, Dart pub, npm, alongside the existing Ruby gemfile cache. Per-ecosystem keys hashing the relevant lockfiles.
-- Each cache restored before the bouquet runs; populated after.
-- **Exit:** cold-runner bouquet wall-clock cut by ≥ 30%; warm-popok unchanged or marginally better.
-
-### Phase B1 — parallel COAX recipe member builds
-- Add `parallel: true` field to the `build_member` recipe step (proto + bindings + manifest validation).
-- Implement the parallel scheduler in the recipe runner (`runner_registry.go`): when `parallel: true`, schedule independent member builds concurrently up to `OP_BUILD_PARALLELISM` (default `runtime.NumCPU() / 2`). Members declaring `depends_on:` other members run after their dependencies.
-- Update existing COAX recipe manifests (gabriel-greeting-app-flutter, gabriel-greeting-app-swiftui) to use `parallel: true` for independent members.
-- Document the new field in `OP_BUILD.md`.
-- Tests: add a recipe with mixed dependencies + intentional ordering checks.
-- **Exit:** COAX composite wall-clock cut by ≥ 40%.
-
-### Phase B2 — source-content hash skip for build_member
-- Implement the hash logic in the recipe runner: compute SHA-256 of (member source tree minus `.op/` and gen dirs) + manifest hash + `op` binary hash + Go toolchain version + `op sdk path <lang>` output for sdk_prebuilts deps.
-- Cache the artifact at `.op/build-cache/<member>-<hash>.holon` after a successful build.
-- On subsequent recipe runs, if the hash matches an existing cache entry, skip the rebuild and reuse the cached `.holon`.
-- Add `--no-cache` flag to `op build` for forced rebuild.
-- Tests: cache hit, cache miss on source change, cache miss on prebuilt version bump, `--no-cache` flag.
-- Document in `OP_BUILD.md`.
-- **Exit:** repeat ader run on unchanged sources cut by ≥ 60%.
-
-### Phase C — documentation + benchmark report
-- Add `.github/workflows/ader-bench.yml`: runs the standard `local-dev` bouquet, captures wall-clock per check, uploads timing report as workflow artifact.
-- Update `INDEX.md` with the new spec and the chantier close-out.
-- Update `OP_BUILD.md` with `parallel:`, `--no-cache`, and `OP_BUILD_PARALLELISM`.
-- Generate a final benchmark report comparing bouquet wall-clocks before vs after this chantier; commit under `docs/benchmarks/ader-acceleration-2026-04.md`.
-- **Exit:** all docs reflect the new state; benchmark report shows the targeted reductions.
+PR #58 sets the hard precedent for the "materialize the .holon at the standard local path" contract referenced in B2.
 
 ---
 
-## Operating mode
+## Composer decisions (immutable)
 
-Same as the prebuilts chantier: continuous progression with composer admin-merging each phase PR within minutes. Do not halt at merge gates when confidence is high.
+Resolved arbitrations from spec §7. Do not relitigate.
 
-Halt and report at the first real doubt per [`CLAUDE.md`](../CLAUDE.md) "doubt is the method":
-- Spec ambiguity that materially changes implementation.
-- Existing repo invariant in tension with the phase's needs.
-- Test passes but you are not sure it covers the spec's intent.
-- Doc-vs-code-vs-proto drift on a point this phase touches.
-- Library/version pin choice that benefits from explicit composer arbitration.
-- Merge conflict resolution requiring a non-trivial judgment call.
+1. **Default recipe parallelism**: `runtime.NumCPU() / 2`, env override `OP_BUILD_PARALLELISM`. Document in `OP_BUILD.md`.
+2. **B2 source-content hash inputs**: manifest hash + `op` binary sha256 + Go toolchain version + `op sdk path <lang>` output for each `sdk_prebuilts` dep. **Exclude** OS minor version.
+3. **Cache eviction**: nightly `.github/workflows/cache-prune.yml` deletes entries older than 7 d via `gh actions-cache delete --all`. Budget 10 GB; stay under 8.
+4. **Prebuilts coordination**: B2 hash includes `op sdk path <lang>`. If that errors (no prebuilt installed), exclude the lang from the hash and emit a warning — don't fail the build.
 
 ---
 
-## Constraints in force throughout
+## Iterate until target met
+
+Each phase has a quantitative exit criterion. **Do not advance if missed.** Loop: re-measure precisely → profile what's slow → identify the next bottleneck → adjust → re-measure → repeat.
+
+**Zero-regression contract**: every commit keeps the ader smoke profile green. If your phase change breaks an unrelated test, back off and find a non-breaking path.
+
+NOT blockers (keep iterating): target missed by < 20% on first attempt; a test you wrote fails; CI flake; two equally-defensible designs (pick the simpler).
+
+True blockers (halt + report): spec ambiguity with no defensible default; existing invariant in fundamental tension with phase needs; ≥ 10 iterations missing the target with distinct hypotheses each measured.
+
+---
+
+## Phases
+
+### A2 — xcodebuild DerivedData cache
+
+Add `actions/cache@v4` block in `ader.yml` covering `~/Library/Developer/Xcode/DerivedData/`, `~/Library/Caches/org.swift.swiftpm/`, `${{ runner.workspace }}/**/.build/`. Key: hash of `Package.resolved` + `Package.swift` files + `xcodebuild -version` output.
+
+**Exit (measured)**: SwiftUI composite build ≥ **40% faster** on warm cache. Capture before/after numbers in PR body. If missed, expand cache scope (ModuleCache, signed framework caches) and re-measure.
+
+### A3 — SPM/Gradle/Dart/npm cache key tightening
+
+Add per-ecosystem `actions/cache@v4` blocks: Gradle (`~/.gradle/caches/`), SPM (verify A2 covers), Dart pub (`~/.pub-cache/`), npm (`~/.npm/`), alongside the existing Ruby gemfile cache. Per-ecosystem key hashes the relevant lockfile.
+
+**Exit (measured)**: cold-runner bouquet ≥ **30% faster**; warm popok unchanged or marginally better.
+
+### B1 — parallel COAX recipe member builds
+
+Add `parallel: true` field to the `build_member` recipe step (proto + bindings + manifest validation). Implement the parallel scheduler in `runner_registry.go`: when set, schedule independent members concurrently up to `OP_BUILD_PARALLELISM`. Members declaring `depends_on:` run after their deps.
+
+Update `gabriel-greeting-app-flutter` and `gabriel-greeting-app-swiftui` recipe manifests to use `parallel: true` for independent members. Document the field in `OP_BUILD.md`. `go test -race` clean. Add a recipe test with mixed deps + ordering checks.
+
+**Exit (measured)**: COAX composite ≥ **40% faster**. If missed, profile which members serialize unexpectedly (suspects: shared GOCACHE lock, ruby bundle path, disk).
+
+### B2 — source-content hash skip for build_member
+
+Compute SHA-256 of (member source tree minus `.op/` and gen dirs) + the inputs from composer decision #2. Cache the artifact at `.op/build-cache/<member>-<hash>.holon` after a successful build.
+
+**On cache hit, materialize the `.holon` at the standard local path** (`<member>/.op/build/<member>.holon/`) by symlink or copy. **Hard contract** — `copy_all_holons` and `OP_HOLON_<SLUG>_PATH` consumers depend on it. PR #58 sets the precedent; don't break it.
+
+Add `--no-cache` flag to `op build`. Tests: cache hit; cache miss on source change; cache miss on prebuilt version bump; `--no-cache` flag; **end-to-end that a cache-hit `build_member` produces a workable `.holon` at the standard local path that `copy_all_holons` finds**. Document in `OP_BUILD.md`.
+
+**Exit (measured)**: repeat ader run on unchanged sources ≥ **60% faster**. If missed, profile (hash compute time, copy/symlink overhead).
+
+### C — documentation + benchmark report
+
+- Add `.github/workflows/ader-bench.yml`: runs `local-dev` bouquet, captures wall-clock per check, uploads timing artifact.
+- Update `INDEX.md` with the new spec entry and chantier close-out.
+- Update `OP_BUILD.md` with `parallel:`, `--no-cache`, `OP_BUILD_PARALLELISM`.
+- Commit `docs/benchmarks/ader-acceleration-2026-04.md` comparing baseline vs final wall-clocks for both bouquets.
+
+**Exit (measured)**: all five prior phase targets met and reflected in the report. If any was missed, go back and finish that phase first — do not declare the chantier done.
+
+---
+
+## Operating mode — overnight marathon
+
+Run continuously, including overnight. Do not pause for "is this OK ?". Do not soft-fail on phase N then move to N+1; each phase blocks the next. Composer is asleep — push through on green CI + measured target hit.
+
+---
+
+## Hard constraints
 
 - PRs target `master` directly.
-- Same loop policy as prebuilts (10 iterations max on a single root-cause blocker).
-- Do not break existing tests. Every phase keeps the bouquet green; coverage parity is non-negotiable.
-- Do not change the bouquet/catalogue/suite/check schemas (`checks.yaml`, `suites/`, `bouquets/`).
-- Do not change per-language SDK runners (those land in their own chantiers).
+- 10 iterations max on a single root-cause blocker before halting.
+- Do not change bouquet/catalogue/suite/check schemas (`checks.yaml`, `suites/`, `bouquets/`).
+- Do not change per-language SDK runners (separate chantier).
 - Do not eliminate xcodebuild as the macOS composite driver.
 - Do not implement distributed ader (multi-machine bouquet split) — out of scope.
-- Do not commit `.codex/observability-impl.md` deletion that may show up in worktrees.
+- Do not commit transient files in `.codex/` or `.bpds/`.
+- B2 must materialize the cache-hit `.holon` at the standard local path. Non-negotiable.
 
 ---
 
 ## Reporting cadence
 
-After each phase merges:
-- Reply with: PR URL, commit SHA range, `git diff --stat`, exit-criteria checklist (each ✅ or ⚠️), wall-clock measurement before/after, non-trivial decisions with 2-3 line rationale.
-- Then immediately start the next phase. Do not wait for acknowledgement.
+After each phase merges, reply with: PR URL, commit range, `git diff --stat`, exit-criteria checklist (each ✅ or ⚠️ with measured number), wall-clock before/after, iteration log if you needed > 1 attempt. Then start the next phase immediately.
 
-After Phase C merges (final delivery):
-- Reply with: list of all 6 PR URLs, the final benchmark report URL, the closed Issue #25 link, updated `INDEX.md` reference.
-- Halt — chantier closed.
+After Phase C merges (final): list of all 5 PR URLs, benchmark report URL, updated `INDEX.md` reference, **table comparing baseline vs final wall-clocks for both bouquets with absolute numbers**. Halt — chantier closed.
 
-If you halt mid-chantier:
-- Reply with: phase, blocker classification, everything tried, reproduction steps, recommendation for resolution (do not act on it without composer approval).
+If you halt mid-chantier: phase, blocker classification, every iteration tried with measured outcome, reproduction steps, recommendation (do not act on it without composer approval).
 
 ---
 
 ## Definition of done
 
-- All 6 phase PRs merged.
-- `local-dev` bouquet wall-clock ≤ 60 min on warm popok (vs ~3-4 h baseline).
-- `cross-platform` bouquet wall-clock ≤ 6 h on warm popok (vs 15+ h baseline).
-- Issue #25 closed.
-- `ader-bench.yml` workflow in place reporting wall-clock per run.
-- `OP_BUILD.md` documents `parallel:`, `--no-cache`, and `OP_BUILD_PARALLELISM`.
-- `INDEX.md` reflects the close-out.
-- A benchmark report committed showing measured improvements.
+- 5 PRs merged (A2, A3, B1, B2, C).
+- `local-dev` bouquet ≤ 60 min on warm popok — **measured**.
+- `cross-platform` bouquet ≤ 6 h on warm popok — **measured**.
+- `ader-bench.yml` in place.
+- `OP_BUILD.md` documents `parallel:`, `--no-cache`, `OP_BUILD_PARALLELISM`.
+- `INDEX.md` reflects close-out.
+- Benchmark report committed.
 
-When this chantier closes, combined with the prebuilts chantier (already done), the cross-platform bouquet should be in the 3-4 h range — practical for full coverage.
-
-Go (after the kickoff gate per §1).
+Go.
