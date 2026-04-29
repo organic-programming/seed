@@ -64,11 +64,14 @@ EOF
 )
     ;;
   swift)
+    swift_version="${SWIFT_PROTOBUF_VERSION:-1.33.0}"
     swift_src="${work_dir}/swift-protobuf"
     if [[ ! -d "$swift_src/.git" ]]; then
       rm -rf "$swift_src"
-      git clone --depth 1 --recurse-submodules --shallow-submodules --branch 1.35.0 https://github.com/apple/swift-protobuf.git "$swift_src"
+      git clone --depth 1 --recurse-submodules --shallow-submodules --branch "$swift_version" https://github.com/apple/swift-protobuf.git "$swift_src"
     else
+      git -C "$swift_src" fetch --depth 1 origin "refs/tags/${swift_version}:refs/tags/${swift_version}"
+      git -C "$swift_src" checkout -f "$swift_version"
       git -C "$swift_src" submodule update --init --recursive --depth 1
     fi
     swift build --package-path "$swift_src" -c release --product protoc-gen-swift

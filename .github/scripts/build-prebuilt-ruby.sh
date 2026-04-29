@@ -121,9 +121,13 @@ install_protoc_release "$sdk_target" "$stage"
 build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" ruby
 (
   cd "$work_dir/work"
-  grpc_plugin="$(BUNDLE_GEMFILE="$PWD/Gemfile" BUNDLE_PATH="${stage}/vendor/bundle" "$bundle_bin" exec "$ruby_bin" -e 'print Gem.bin_path("grpc-tools", "grpc_ruby_plugin")')"
-  cp "$grpc_plugin" "$stage/bin/grpc_ruby_plugin"
-  chmod +x "$stage/bin/grpc_ruby_plugin"
+  grpc_plugin="$(BUNDLE_GEMFILE="$PWD/Gemfile" BUNDLE_PATH="${stage}/vendor/bundle" "$bundle_bin" exec "$ruby_bin" -e 'begin; path = Gem.bin_path("grpc-tools", "grpc_ruby_plugin"); print path if File.executable?(path); rescue Gem::Exception; end')"
+  if [[ -n "$grpc_plugin" ]]; then
+    cp "$grpc_plugin" "$stage/bin/grpc_ruby_plugin"
+    chmod +x "$stage/bin/grpc_ruby_plugin"
+  else
+    echo "grpc_ruby_plugin not present in grpc-tools for ${sdk_target}; ruby adapter will emit message stubs only" >&2
+  fi
 )
 
 cat >"$stage/manifest.json" <<EOF
