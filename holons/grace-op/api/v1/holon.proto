@@ -26,13 +26,6 @@ option (holons.v1.manifest) = {
     runner: "go-module"
     main: "./cmd/op"
     templates: ["api/version.go"]
-    // In organic programming the .proto IS the source code. Regenerate
-    // gen/go/op/v1/ from api/v1/holon.proto on every build via tools/generate.
-    // See OP_BUILD.md "Pre and Post Commands" and holons/mody-media/tools/generate.
-    before_commands: {
-      cwd: "."
-      argv: ["go", "run", "./tools/generate"]
-    }
   }
   requires: {
     commands: ["go"]
