@@ -1,0 +1,639 @@
+# Pre-merge pipeline: organic-programming tool gate, conditional SDK rebuilds, composites, and SDK deep tests.
+# Triggers: push/pull_request on master plus manual dispatch; runs on popok and hosted runners.
+# Owns: pre-merge validation order. See .github/workflows/README.md for pipeline order.
+name: pipeline
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      bouquet:
+        description: bouquet name under ader/bouquets/
+        required: false
+        default: local-dev
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  GOTOOLCHAIN: auto
+  ADER_CI_CACHE_BASE: /Users/popok/.ader-ci-cache
+  GRACE_OP_SHARED_CACHE_DIR: /Users/popok/.ader-ci-cache/grace-op-shared
+  GOMODCACHE: /Users/popok/.ader-ci-cache/go-mod
+  GOCACHE: /Users/popok/.ader-ci-cache/go-build
+  BUNDLE_PATH: /Users/popok/.ader-ci-cache/bundle
+  PUB_CACHE: /Users/popok/.ader-ci-cache/dart-pub
+  npm_config_cache: /Users/popok/.ader-ci-cache/npm
+  GRADLE_USER_HOME: /Users/popok/.ader-ci-cache/gradle
+  NUGET_PACKAGES: /Users/popok/.ader-ci-cache/nuget
+  DOTNET_CLI_HOME: /Users/popok/.ader-ci-cache/dotnet-home
+  ZIG_VERSION: 0.16.0
+  ZIG_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/zig
+  NINJA_VERSION: 1.13.1
+  NINJA_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/ninja
+  ZIG_HOLONS_JOBS: 8
+
+jobs:
+  gate-1-go-build-op:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: popok
+    timeout-minutes: 20
+    steps:
+      - name: Loosen permissions on previous workspace
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          mkdir -p "$ADER_CI_CACHE_BASE"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Go build op
+        run: go build ./holons/grace-op/...
+
+  gate-2-op-self-build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: popok
+    needs: gate-1-go-build-op
+    timeout-minutes: 30
+    steps:
+      - name: Loosen permissions on previous workspace
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          mkdir -p "$ADER_CI_CACHE_BASE"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Go proto generators
+        run: |
+          set -euo pipefail
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Op self-build
+        run: |
+          set -euo pipefail
+          go run ./holons/grace-op/cmd/op env --init
+          go run ./holons/grace-op/cmd/op build op --install --symlink
+
+  gate-3-op-core-tests:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: popok
+    needs: gate-2-op-self-build
+    timeout-minutes: 30
+    steps:
+      - name: Loosen permissions on previous workspace
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          mkdir -p "$ADER_CI_CACHE_BASE"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Go test op
+        run: go test ./holons/grace-op/...
+
+  gate-4-op-build-ader:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: popok
+    needs: gate-3-op-core-tests
+    timeout-minutes: 30
+    steps:
+      - name: Loosen permissions on previous workspace
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          mkdir -p "$ADER_CI_CACHE_BASE"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Bootstrap op and build ader
+        run: |
+          set -euo pipefail
+          go run ./holons/grace-op/cmd/op env --init
+          go run ./holons/grace-op/cmd/op build op --install --symlink
+          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
+          op build clem-ader --install --symlink
+
+  gate-5-ader-core-tests:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: popok
+    needs: gate-4-op-build-ader
+    timeout-minutes: 30
+    steps:
+      - name: Loosen permissions on previous workspace
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          mkdir -p "$ADER_CI_CACHE_BASE"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Go test ader
+        run: go test ./holons/clem-ader/...
+
+  gate-6-smoke-suite:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: popok
+    needs: gate-5-ader-core-tests
+    timeout-minutes: 45
+    steps:
+      - name: Loosen permissions on previous workspace
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          mkdir -p "$ADER_CI_CACHE_BASE"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Bootstrap op and ader
+        run: |
+          set -euo pipefail
+          go run ./holons/grace-op/cmd/op env --init
+          go run ./holons/grace-op/cmd/op build op --install --symlink
+          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
+          op build clem-ader --install --symlink
+          echo "$OPBIN" >> "$GITHUB_PATH"
+          {
+            echo "OPPATH=$OPPATH"
+            echo "OPBIN=$OPBIN"
+          } >> "$GITHUB_ENV"
+      - name: Run smoke suites
+        run: |
+          set -euo pipefail
+          ader test ader/catalogues/grace-op --suite op_version --profile smoke --source workspace
+          ader test ader/catalogues/clem-ader --suite ader-self --profile smoke --source workspace
+
+  detect-sdk-changes:
+    runs-on: ubuntu-latest
+    needs: gate-6-smoke-suite
+    outputs:
+      any: ${{ steps.detect.outputs.any }}
+      zig: ${{ steps.detect.outputs.zig }}
+      cpp: ${{ steps.detect.outputs.cpp }}
+      c: ${{ steps.detect.outputs.c }}
+      ruby: ${{ steps.detect.outputs.ruby }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect SDK-affecting paths
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch origin "${{ github.base_ref }}" --depth=1
+            git diff --name-only "origin/${{ github.base_ref }}...HEAD" > "$RUNNER_TEMP/changed-files"
+          elif [[ "${{ github.event.before }}" != "" && "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]]; then
+            git diff --name-only "${{ github.event.before }}..${{ github.sha }}" > "$RUNNER_TEMP/changed-files"
+          else
+            git diff --name-only HEAD^..HEAD > "$RUNNER_TEMP/changed-files"
+          fi
+
+          shared='^(\.github/workflows/(pipeline|sdk-prebuilts|_sdk-prebuilt-target)\.yml|\.github/scripts/promote-sdk-prebuilts\.sh|holons/grace-op/internal/sdkprebuilts/)'
+          any=false
+          mark() {
+            local name="$1"
+            local pattern="$2"
+            if grep -Eq "$shared" "$RUNNER_TEMP/changed-files" || grep -Eq "$pattern" "$RUNNER_TEMP/changed-files"; then
+              echo "$name=true" >> "$GITHUB_OUTPUT"
+              any=true
+            else
+              echo "$name=false" >> "$GITHUB_OUTPUT"
+            fi
+          }
+          mark zig '^(\.github/scripts/build-prebuilt-zig\.sh|sdk/zig-holons/)'
+          mark cpp '^(\.github/scripts/build-prebuilt-cpp\.sh|sdk/cpp-holons/)'
+          mark c '^(\.github/scripts/build-prebuilt-c\.sh|sdk/c-holons/)'
+          mark ruby '^(\.github/scripts/build-prebuilt-ruby\.sh|sdk/ruby-holons/)'
+          echo "any=$any" >> "$GITHUB_OUTPUT"
+
+  sdk-prebuilt-zig:
+    if: needs.detect-sdk-changes.outputs.zig == 'true'
+    needs: detect-sdk-changes
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+          - target: x86_64-unknown-linux-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true
+          - target: aarch64-unknown-linux-gnu
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true
+          - target: x86_64-unknown-linux-musl
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true
+          - target: aarch64-unknown-linux-musl
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true
+          - target: x86_64-windows-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: zig
+      sdk-version: '0.1.0'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+      continue-on-error: ${{ matrix.continue_on_error || false }}
+
+  sdk-prebuilt-cpp:
+    if: needs.detect-sdk-changes.outputs.cpp == 'true'
+    needs: detect-sdk-changes
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+          - target: x86_64-unknown-linux-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true
+          - target: aarch64-unknown-linux-gnu
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true
+          - target: x86_64-unknown-linux-musl
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true
+          - target: aarch64-unknown-linux-musl
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true
+          - target: x86_64-windows-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: cpp
+      sdk-version: '1.80.0'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+      continue-on-error: ${{ matrix.continue_on_error || false }}
+
+  sdk-prebuilt-c:
+    if: needs.detect-sdk-changes.outputs.c == 'true'
+    needs: detect-sdk-changes
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+          - target: x86_64-unknown-linux-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true
+          - target: aarch64-unknown-linux-gnu
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true
+          - target: x86_64-unknown-linux-musl
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true
+          - target: aarch64-unknown-linux-musl
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true
+          - target: x86_64-windows-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: c
+      sdk-version: '1.80.0'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+      continue-on-error: ${{ matrix.continue_on_error || false }}
+
+  sdk-prebuilt-ruby:
+    if: needs.detect-sdk-changes.outputs.ruby == 'true'
+    needs: detect-sdk-changes
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+          - target: x86_64-unknown-linux-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true
+          - target: aarch64-unknown-linux-gnu
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true
+          - target: x86_64-unknown-linux-musl
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true
+          - target: aarch64-unknown-linux-musl
+            runs_on: '["ubuntu-24.04-arm"]'
+            continue_on_error: true
+          - target: x86_64-windows-gnu
+            runs_on: '["ubuntu-latest"]'
+            continue_on_error: true
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: ruby
+      sdk-version: '1.58.3'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+      continue-on-error: ${{ matrix.continue_on_error || false }}
+
+  sdk-prebuilts-fresh:
+    runs-on: ubuntu-latest
+    needs:
+      - detect-sdk-changes
+      - sdk-prebuilt-zig
+      - sdk-prebuilt-cpp
+      - sdk-prebuilt-c
+      - sdk-prebuilt-ruby
+    if: always()
+    steps:
+      - name: Summarize tier 1 result
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          bad = [name for name, meta in needs.items() if meta["result"] in {"failure", "cancelled"}]
+          if bad:
+            print("Tier 1 failed:", ", ".join(bad), file=sys.stderr)
+            sys.exit(1)
+          changed = needs["detect-sdk-changes"]["outputs"].get("any") == "true"
+          print("Tier 1 SDK rebuilds:", "triggered" if changed else "not required")
+          PY
+
+  composite-swiftui-full:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: popok
+    needs: [detect-sdk-changes, sdk-prebuilts-fresh]
+    timeout-minutes: 240
+    steps:
+      - name: Loosen permissions on previous workspace
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          mkdir -p "$ADER_CI_CACHE_BASE"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        if: needs.detect-sdk-changes.outputs.any == 'true'
+        with:
+          path: ${{ runner.temp }}/sdk-prebuilt-artifacts
+      - name: Bootstrap op and SDK prebuilts
+        run: |
+          set -euo pipefail
+          go run ./holons/grace-op/cmd/op env --init
+          go run ./holons/grace-op/cmd/op build op --install --symlink
+          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
+          echo "$OPBIN" >> "$GITHUB_PATH"
+          if [ -d "$RUNNER_TEMP/sdk-prebuilt-artifacts" ]; then
+            while IFS= read -r archive; do
+              sdk="$(basename "$archive" | sed -E 's/-holons-v.*//')"
+              op sdk install "$sdk" --source "$archive"
+            done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
+          fi
+          for sdk in zig c cpp ruby; do
+            if ! op sdk path "$sdk" >/dev/null 2>&1; then
+              op sdk install "$sdk"
+            fi
+            sdk_path="$(op sdk path "$sdk")"
+            sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
+            echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
+          done
+          {
+            echo "OPPATH=$OPPATH"
+            echo "OPBIN=$OPBIN"
+          } >> "$GITHUB_ENV"
+      - name: Build SwiftUI composite
+        run: |
+          set -euo pipefail
+          op build gabriel-greeting-app-swiftui --hardened
+          ader test ader/catalogues/gabriel-greeting-app-swiftui --suite swiftui-smoke --profile smoke --source workspace
+
+  composite-flutter-full:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: popok
+    needs: [detect-sdk-changes, sdk-prebuilts-fresh]
+    timeout-minutes: 240
+    steps:
+      - name: Loosen permissions on previous workspace
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          mkdir -p "$ADER_CI_CACHE_BASE"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        if: needs.detect-sdk-changes.outputs.any == 'true'
+        with:
+          path: ${{ runner.temp }}/sdk-prebuilt-artifacts
+      - name: Bootstrap op and SDK prebuilts
+        run: |
+          set -euo pipefail
+          go run ./holons/grace-op/cmd/op env --init
+          go run ./holons/grace-op/cmd/op build op --install --symlink
+          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
+          echo "$OPBIN" >> "$GITHUB_PATH"
+          if [ -d "$RUNNER_TEMP/sdk-prebuilt-artifacts" ]; then
+            while IFS= read -r archive; do
+              sdk="$(basename "$archive" | sed -E 's/-holons-v.*//')"
+              op sdk install "$sdk" --source "$archive"
+            done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
+          fi
+          for sdk in zig c cpp ruby; do
+            if ! op sdk path "$sdk" >/dev/null 2>&1; then
+              op sdk install "$sdk"
+            fi
+            sdk_path="$(op sdk path "$sdk")"
+            sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
+            echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
+          done
+          {
+            echo "OPPATH=$OPPATH"
+            echo "OPBIN=$OPBIN"
+          } >> "$GITHUB_ENV"
+      - name: Build Flutter composite
+        run: |
+          set -euo pipefail
+          op build gabriel-greeting-app-flutter --hardened
+          ader test ader/catalogues/gabriel-greeting-app-flutter --suite flutter-smoke --profile smoke --source workspace
+
+  ader-bouquet-full:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: popok
+    needs: [detect-sdk-changes, sdk-prebuilts-fresh]
+    timeout-minutes: 240
+    env:
+      BOUQUET: ${{ github.event.inputs.bouquet || 'local-dev' }}
+    steps:
+      - name: Loosen permissions on previous workspace
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          mkdir -p "$ADER_CI_CACHE_BASE"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        if: needs.detect-sdk-changes.outputs.any == 'true'
+        with:
+          path: ${{ runner.temp }}/sdk-prebuilt-artifacts
+      - name: Checkout Zig vendored submodules
+        run: |
+          set -euo pipefail
+          rm -rf sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          git submodule update --init --force --recursive --depth 1 --jobs 8 \
+            sdk/zig-holons/third_party/grpc \
+            sdk/zig-holons/third_party/protobuf-c
+      - name: Bootstrap op, ader, and SDK prebuilts
+        run: |
+          set -euo pipefail
+          go run ./holons/grace-op/cmd/op env --init
+          go run ./holons/grace-op/cmd/op build op --install --symlink
+          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
+          op build clem-ader --install --symlink
+          echo "$OPBIN" >> "$GITHUB_PATH"
+          if [ -d "$RUNNER_TEMP/sdk-prebuilt-artifacts" ]; then
+            while IFS= read -r archive; do
+              sdk="$(basename "$archive" | sed -E 's/-holons-v.*//')"
+              op sdk install "$sdk" --source "$archive"
+            done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
+          fi
+          for sdk in zig c cpp ruby; do
+            if ! op sdk path "$sdk" >/dev/null 2>&1; then
+              op sdk install "$sdk"
+            fi
+            sdk_path="$(op sdk path "$sdk")"
+            sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
+            echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
+          done
+          {
+            echo "OPPATH=$OPPATH"
+            echo "OPBIN=$OPBIN"
+          } >> "$GITHUB_ENV"
+      - name: Run ader bouquet
+        run: ader test-bouquet ader --name "$BOUQUET"
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ader-reports-${{ github.run_id }}
+          path: |
+            ader/reports/bouquets/**
+            ader/catalogues/*/reports/**
+          retention-days: 14
+          if-no-files-found: warn
+
+  sdk-deep-tests:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: popok
+    needs: [detect-sdk-changes, sdk-prebuilts-fresh]
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lang: zig
+            mode: host
+          - lang: zig
+            mode: cross
+            target: aarch64-linux-musl
+          - lang: zig
+            mode: cross
+            target: x86_64-linux-musl
+          - lang: zig
+            mode: cross
+            target: x86_64-windows-gnu
+          - lang: zig
+            mode: cross
+            target: aarch64-ios
+    steps:
+      - name: Loosen permissions on previous workspace
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          mkdir -p "$ADER_CI_CACHE_BASE"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout Zig vendored submodules
+        run: |
+          set -euo pipefail
+          rm -rf sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          git submodule update --init --force --recursive --depth 1 --jobs 8 \
+            sdk/zig-holons/third_party/grpc \
+            sdk/zig-holons/third_party/protobuf-c
+      - name: Install Go proto generators
+        if: matrix.mode == 'host'
+        run: |
+          set -euo pipefail
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Run Zig host deep tests
+        if: matrix.mode == 'host'
+        run: |
+          set -euo pipefail
+          find sdk/zig-holons examples/hello-world/gabriel-greeting-zig \
+            -name '*.zig' \
+            -not -path '*/.zig-cache/*' \
+            -not -path '*/zig-out/*' \
+            -print0 | xargs -0 zig fmt --check
+          go run ./holons/grace-op/cmd/op env --init
+          go run ./holons/grace-op/cmd/op build op --install --symlink
+          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
+          op build clem-ader --install --symlink
+          echo "$OPBIN" >> "$GITHUB_PATH"
+          cd sdk/zig-holons
+          zig build vendor
+          zig build test
+          zig build test-c-abi
+          cd ../..
+          op build gabriel-greeting-zig
+          op test gabriel-greeting-zig
+          op clean gabriel-greeting-zig
+          op build gabriel-greeting-zig
+          ader test ader/catalogues/grace-op --suite op_invoke --profile smoke --lane progression --source workspace
+      - name: Restore cross-smoke cache
+        if: matrix.mode == 'cross'
+        id: cross-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: sdk/zig-holons/.zig-cross/${{ matrix.target }}
+          key: zig-sdk-cross-${{ matrix.target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('sdk/zig-holons/tools/cross_smoke.sh', '.gitmodules') }}
+          restore-keys: |
+            zig-sdk-cross-${{ matrix.target }}-${{ runner.os }}-${{ runner.arch }}-
+      - name: Run Zig cross-smoke
+        if: matrix.mode == 'cross'
+        run: sdk/zig-holons/tools/cross_smoke.sh "${{ matrix.target }}"
+      - name: Save cross-smoke cache
+        if: matrix.mode == 'cross' && always() && steps.cross-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: sdk/zig-holons/.zig-cross/${{ matrix.target }}
+          key: zig-sdk-cross-${{ matrix.target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('sdk/zig-holons/tools/cross_smoke.sh', '.gitmodules') }}

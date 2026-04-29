@@ -58,9 +58,9 @@ Long-running worktrees should be rebased on the latest `origin/master` periodica
 
 ## CI on PRs
 
-Workflows in `.github/workflows/` trigger on `pull_request: branches: [master]`. Standard checks (Go build, test, examples) run on every PR. Heavier checks (the `bouquet` ader job, prebuilts cross-smoke matrix) run on the popok self-hosted runner and may queue when popok is busy with other chantiers.
+Workflows in `.github/workflows/` trigger on `pull_request: branches: [master]`. The main pre-merge path is `.github/workflows/pipeline.yml`: six sequential tool-gate jobs, conditional SDK prebuilt rebuilds, composite coverage, and per-SDK deep tests. Popok-bound jobs may queue when popok is busy with other chantiers; hosted jobs continue to run normally.
 
-The composer admin-merges as soon as the standard checks pass; the heavier checks may complete after merge and are observed as a feedback signal rather than a hard gate. This is a pragmatic choice while the project is in elaboration; it will tighten when external contributors are added.
+The composer can still admin-merge when operationally necessary, especially while popok is offline, but the expected signal is the ordered pipeline. This is a pragmatic choice while the project is in elaboration; it will tighten when external contributors are added.
 
 ## What is intentionally not formalized yet
 
