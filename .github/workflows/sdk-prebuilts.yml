@@ -1,4 +1,5 @@
-# SDK prebuilt publish: builds tarballs for c/cpp/ruby/zig per (host_target) matrix and
+# SDK prebuilt publish: builds tarballs for native/runtime SDKs plus codegen-only
+# distributions per (sdk, host_target) matrix and
 # promotes them to GitHub Releases on master merge. No op/ader bootstrap dependency.
 # Triggers: pull_request on master + manual workflow_dispatch with version overrides.
 name: sdk-prebuilts
@@ -14,12 +15,36 @@ on:
       - ".github/scripts/build-prebuilt-cpp.sh"
       - ".github/scripts/build-prebuilt-c.sh"
       - ".github/scripts/build-prebuilt-ruby.sh"
+      - ".github/scripts/build-prebuilt-codegen-light.sh"
+      - ".github/scripts/build-prebuilt-go.sh"
+      - ".github/scripts/build-prebuilt-rust.sh"
+      - ".github/scripts/build-prebuilt-dart.sh"
+      - ".github/scripts/build-prebuilt-swift.sh"
+      - ".github/scripts/build-prebuilt-js-web.sh"
+      - ".github/scripts/build-prebuilt-java.sh"
+      - ".github/scripts/build-prebuilt-python.sh"
+      - ".github/scripts/build-prebuilt-csharp.sh"
+      - ".github/scripts/build-prebuilt-kotlin.sh"
+      - ".github/scripts/build-prebuilt-js.sh"
+      - ".github/scripts/lib-codegen-prebuilt.sh"
       - ".github/scripts/promote-sdk-prebuilts.sh"
       - "sdk/zig-holons/**"
       - "sdk/cpp-holons/**"
       - "sdk/c-holons/**"
       - "sdk/ruby-holons/**"
+      - "sdk/go-holons/**"
+      - "sdk/rust-holons/**"
+      - "sdk/dart-holons/**"
+      - "sdk/swift-holons/**"
+      - "sdk/js-web-holons/**"
+      - "sdk/java-holons/**"
+      - "sdk/python-holons/**"
+      - "sdk/csharp-holons/**"
+      - "sdk/kotlin-holons/**"
+      - "sdk/js-holons/**"
       - "holons/grace-op/internal/sdkprebuilts/**"
+      - "holons/grace-op/cmd/protoc-gen-op-adapter/**"
+      - "holons/grace-op/cmd/protoc-gen-op-noop/**"
   workflow_dispatch:
     inputs:
       sdk-version:
@@ -187,6 +212,20 @@ jobs:
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       continue-on-error: ${{ matrix.continue_on_error || false }}
+
+  codegen-light:
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: [go, python, java, csharp, kotlin, rust, dart, swift, js-web, js]
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: ${{ matrix.sdk }}
+      sdk-version: '0.1.0'
+      sdk-target: aarch64-apple-darwin
+      runs-on: '["macos-14"]'
+      continue-on-error: false
 
   promote:
     if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true

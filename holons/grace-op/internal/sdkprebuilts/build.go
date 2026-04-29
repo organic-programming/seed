@@ -328,7 +328,7 @@ func (t *tailBuffer) String() string {
 }
 
 func langJobsEnv(lang string) string {
-	return strings.ToUpper(lang) + "_HOLONS_JOBS"
+	return strings.ToUpper(strings.NewReplacer("-", "_").Replace(lang)) + "_HOLONS_JOBS"
 }
 
 func orDevNull(w io.Writer) io.Writer {
@@ -449,6 +449,8 @@ func submoduleMarkers(lang string) []string {
 		}
 	case "ruby":
 		return nil
+	case "csharp", "dart", "go", "java", "js", "js-web", "kotlin", "python", "rust", "swift":
+		return nil
 	}
 	return nil
 }
@@ -465,6 +467,16 @@ func requiredBinaries(lang, target string) []string {
 		return bins
 	case "ruby":
 		return []string{"ruby", "bundle"}
+	case "go", "js-web":
+		return []string{"go"}
+	case "java", "js", "python", "csharp", "kotlin":
+		return []string{"go", "curl", "unzip"}
+	case "dart":
+		return []string{"dart"}
+	case "rust":
+		return []string{"cargo"}
+	case "swift":
+		return []string{"git", "swift"}
 	}
 	return nil
 }

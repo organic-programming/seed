@@ -31,10 +31,20 @@ const (
 )
 
 var defaultVersions = map[string]string{
-	"ruby": "1.58.3",
-	"c":    "1.80.0",
-	"cpp":  "1.80.0",
-	"zig":  "0.1.0",
+	"c":      "1.80.0",
+	"cpp":    "1.80.0",
+	"csharp": "0.1.0",
+	"dart":   "0.1.0",
+	"go":     "0.1.0",
+	"java":   "0.1.0",
+	"js":     "0.1.0",
+	"js-web": "0.1.0",
+	"kotlin": "0.1.0",
+	"python": "0.1.0",
+	"ruby":   "1.58.3",
+	"rust":   "0.1.0",
+	"swift":  "0.1.0",
+	"zig":    "0.1.0",
 }
 
 var allowedTargets = map[string]struct{}{
@@ -685,9 +695,18 @@ func InstallPath(lang, version, target string) string {
 func NormalizeLang(lang string) (string, error) {
 	normalized := strings.ToLower(strings.TrimSpace(lang))
 	if _, ok := defaultVersions[normalized]; !ok {
-		return "", fmt.Errorf("unsupported sdk prebuilt %q (supported: c, cpp, ruby, zig)", strings.TrimSpace(lang))
+		return "", fmt.Errorf("unsupported sdk prebuilt %q (supported: %s)", strings.TrimSpace(lang), strings.Join(supportedLangs(), ", "))
 	}
 	return normalized, nil
+}
+
+func supportedLangs() []string {
+	langs := make([]string, 0, len(defaultVersions))
+	for lang := range defaultVersions {
+		langs = append(langs, lang)
+	}
+	sort.Strings(langs)
+	return langs
 }
 
 func NormalizeTarget(target string) (string, error) {

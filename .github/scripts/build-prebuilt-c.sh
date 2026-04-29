@@ -40,6 +40,8 @@ strip_archive() {
 }
 
 repo_root="$(git rev-parse --show-toplevel)"
+# shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
+source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
 c_sdk_dir="${repo_root}/sdk/c-holons"
 cpp_sdk_dir="${repo_root}/sdk/cpp-holons"
 protobuf_c_source="${PROTOBUF_C_SOURCE_DIR:-${repo_root}/sdk/zig-holons/third_party/protobuf-c}"
@@ -173,6 +175,21 @@ protobuf_c_commit="$(git -C "$protobuf_c_source" rev-parse HEAD 2>/dev/null || e
   echo "zig=$("$zig_bin" version)"
 } >"$stage/share/prebuilt.env"
 
+cat >"$stage/manifest.json" <<EOF
+{
+  "lang": "c",
+  "version": "${sdk_version}",
+  "target": "${sdk_target}",
+  "codegen": {
+    "plugins": [
+      {"name": "c", "binary": "bin/protoc-gen-upb$(target_exe_suffix "$sdk_target")", "out_subdir": "c"},
+      {"name": "c-upbdefs", "binary": "bin/protoc-gen-upbdefs$(target_exe_suffix "$sdk_target")", "out_subdir": "c"},
+      {"name": "c-upb-minitable", "binary": "bin/protoc-gen-upb_minitable$(target_exe_suffix "$sdk_target")", "out_subdir": "c"}
+    ]
+  }
+}
+EOF
+
 find "$stage/lib" -type f \( -name '*.a' -o -name '*.lib' \) -print0 | while IFS= read -r -d '' archive_file; do
   strip_archive "$archive_file"
 done
@@ -181,7 +198,7 @@ printf 'No separate debug sidecar files were emitted for %s.\n' "$sdk_target" >"
 tar -C "$stage" -czf "${dist_dir}/c-holons-v${sdk_version}-${sdk_target}-debug.tar.gz" debug
 
 archive="${dist_dir}/c-holons-v${sdk_version}-${sdk_target}.tar.gz"
-tar -C "$stage" -czf "$archive" include lib bin share
+tar -C "$stage" -czf "$archive" include lib bin share manifest.json
 
 if command -v syft >/dev/null 2>&1; then
   syft "dir:${stage}" -o "spdx-json=${archive}.spdx.json"

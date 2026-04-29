@@ -1,16 +1,23 @@
 # `op sdk` - SDK Prebuilt Management
 
-`op sdk` manages native SDK prebuilts for the SDKs whose cold builds otherwise
-compile native runtime dependencies from source:
+`op sdk` manages SDK distributions. Some carry native runtime dependencies;
+all official language SDKs may carry proto codegen plugins used by
+`build.codegen`:
 
 - `c`
 - `cpp`
+- `csharp`
+- `dart`
+- `go`
+- `java`
+- `js`
+- `js-web`
+- `kotlin`
+- `python`
 - `ruby`
+- `rust`
+- `swift`
 - `zig`
-
-Other SDKs are intentionally out of scope for the v1 prebuilt pipeline. They
-are pure-language at build time or already use upstream package managers for
-their runtime/tooling dependencies.
 
 ## Commands
 
@@ -54,10 +61,15 @@ binaries, or the build script itself.
 
 | SDK | Required commands on PATH | Required submodules |
 |---|---|---|
-| `zig` | `zig`, `cmake`, `ninja`, `xcrun` (darwin) | `sdk/zig-holons/third_party/grpc`, `sdk/zig-holons/third_party/protobuf-c` |
+| `c` | `zig`, `cmake`, `ninja`, `xcrun` (darwin only) | `sdk/zig-holons/third_party/grpc`, `sdk/zig-holons/third_party/protobuf-c`, `sdk/cpp-holons/third_party/nlohmann-json` |
 | `cpp` | `zig`, `cmake`, `ninja`, `xcrun` (darwin) | `sdk/zig-holons/third_party/grpc`, `sdk/cpp-holons/third_party/nlohmann-json` |
-| `c` | `zig`, `cmake`, `ninja`, `xcrun` (darwin) | both above |
+| `go`, `js-web` | `go` | none |
+| `csharp`, `java`, `js`, `kotlin`, `python` | `go`, `curl`, `unzip` | none |
+| `dart` | `dart` | none |
 | `ruby` | `ruby` (3.1.x), `bundle` | none |
+| `rust` | `cargo` | none |
+| `swift` | `git`, `swift` | none |
+| `zig` | `zig`, `cmake`, `ninja`, `xcrun` (darwin only) | `sdk/zig-holons/third_party/grpc`, `sdk/zig-holons/third_party/protobuf-c` |
 
 Initialise missing submodules with `git submodule update --init --recursive`.
 
@@ -131,7 +143,17 @@ the runner:
 |---|---|
 | `c` | `OP_SDK_C_PATH` |
 | `cpp` | `OP_SDK_CPP_PATH` |
+| `csharp` | `OP_SDK_CSHARP_PATH` |
+| `dart` | `OP_SDK_DART_PATH` |
+| `go` | `OP_SDK_GO_PATH` |
+| `java` | `OP_SDK_JAVA_PATH` |
+| `js` | `OP_SDK_JS_PATH` |
+| `js-web` | `OP_SDK_JS_WEB_PATH` |
+| `kotlin` | `OP_SDK_KOTLIN_PATH` |
+| `python` | `OP_SDK_PYTHON_PATH` |
 | `ruby` | `OP_SDK_RUBY_PATH` |
+| `rust` | `OP_SDK_RUST_PATH` |
+| `swift` | `OP_SDK_SWIFT_PATH` |
 | `zig` | `OP_SDK_ZIG_PATH` |
 
 Use `--no-auto-install` to restore the strict behavior where a missing prebuilt
