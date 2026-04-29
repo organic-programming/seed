@@ -35,6 +35,8 @@ strip_archive() {
 }
 
 repo_root="$(git rev-parse --show-toplevel)"
+# shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
+source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
 sdk_dir="${repo_root}/sdk/zig-holons"
 dist_dir="${repo_root}/dist/sdk-prebuilts/zig/${sdk_target}"
 work_dir="${sdk_dir}/.zig-prebuilt/${sdk_target}"
@@ -284,7 +286,7 @@ protobuf_c_flags=(
   -DCMAKE_INSTALL_PREFIX="${prefix}"
   -DCMAKE_PREFIX_PATH="${prefix}"
   -DBUILD_SHARED_LIBS=OFF
-  -DBUILD_PROTOC=OFF
+  -DBUILD_PROTOC=ON
   -DBUILD_TESTS=OFF
 )
 
@@ -312,10 +314,15 @@ else
 fi
 
 rm -rf "${work_dir}/stage"
-mkdir -p "$stage/include" "$stage/lib" "$stage/share" "$stage/debug"
+mkdir -p "$stage/include" "$stage/lib" "$stage/bin" "$stage/share" "$stage/debug"
 cp -R "$prefix/include/." "$stage/include/"
 cp -R include/. "$stage/include/"
 cp -R "$prefix/lib/." "$stage/lib/"
+if [[ -d "$prefix/bin" ]]; then
+  cp -R "$prefix/bin/." "$stage/bin/"
+fi
+install_protoc_release "$sdk_target" "$stage"
+build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" zig
 if [[ -f "$sdk_out/lib/libholons_zig.a" ]]; then
   cp "$sdk_out/lib/libholons_zig.a" "$stage/lib/"
 elif [[ -f "$sdk_out/lib/holons_zig.lib" ]]; then
@@ -334,6 +341,19 @@ fi
   echo "zig=$("$zig_bin" version)"
 } >"$stage/share/prebuilt.env"
 
+cat >"$stage/manifest.json" <<EOF
+{
+  "lang": "zig",
+  "version": "${sdk_version}",
+  "target": "${sdk_target}",
+  "codegen": {
+    "plugins": [
+      {"name": "zig", "binary": "bin/protoc-gen-zig$(target_exe_suffix "$sdk_target")", "out_subdir": "c"}
+    ]
+  }
+}
+EOF
+
 find "$stage/lib" -type f \( -name '*.a' -o -name '*.lib' \) -print0 | while IFS= read -r -d '' archive; do
   strip_archive "$archive"
 done
@@ -342,7 +362,7 @@ printf 'No separate debug sidecar files were emitted for %s.\n' "$sdk_target" >"
 tar -C "$stage" -czf "${dist_dir}/zig-holons-v${sdk_version}-${sdk_target}-debug.tar.gz" debug
 
 archive="${dist_dir}/zig-holons-v${sdk_version}-${sdk_target}.tar.gz"
-tar -C "$stage" -czf "$archive" include lib share
+tar -C "$stage" -czf "$archive" include lib bin share manifest.json
 
 if command -v syft >/dev/null 2>&1; then
   syft "dir:${stage}" -o "spdx-json=${archive}.spdx.json"

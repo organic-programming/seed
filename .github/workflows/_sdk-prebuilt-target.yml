@@ -46,6 +46,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.1'
+          cache-dependency-path: '**/go.sum'
+
       - name: Checkout Zig vendored submodules
         if: inputs.sdk == 'zig'
         run: |
@@ -94,7 +99,7 @@ jobs:
           brew install cmake ninja pkg-config
 
       - name: Install Zig
-        if: inputs.sdk != 'ruby'
+        if: inputs.sdk == 'zig' || inputs.sdk == 'cpp' || inputs.sdk == 'c'
         shell: bash
         run: |
           set -euo pipefail
@@ -122,6 +127,12 @@ jobs:
           ruby-version: '3.1'
           bundler-cache: false
 
+      - name: Setup Dart
+        if: inputs.sdk == 'dart'
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
       - name: Install syft
         uses: anchore/sbom-action/download-syft@v0
 
@@ -134,8 +145,9 @@ jobs:
             sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}
             sdk/c-holons/.c-prebuilt/${{ inputs.sdk-target }}
             sdk/ruby-holons/.ruby-prebuilt/${{ inputs.sdk-target }}
+            sdk/${{ inputs.sdk }}-holons/.codegen-prebuilt/${{ inputs.sdk-target }}
             dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}
-          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-zig.sh', '.github/scripts/build-prebuilt-cpp.sh', '.github/scripts/build-prebuilt-c.sh', '.github/scripts/build-prebuilt-ruby.sh', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}
+          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-*.sh', '.github/scripts/lib-codegen-prebuilt.sh', 'holons/grace-op/cmd/protoc-gen-op-adapter/**', 'holons/grace-op/cmd/protoc-gen-op-noop/**', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}
           restore-keys: |
             sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-
 
@@ -168,5 +180,6 @@ jobs:
             sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}
             sdk/c-holons/.c-prebuilt/${{ inputs.sdk-target }}
             sdk/ruby-holons/.ruby-prebuilt/${{ inputs.sdk-target }}
+            sdk/${{ inputs.sdk }}-holons/.codegen-prebuilt/${{ inputs.sdk-target }}
             dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}
-          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-zig.sh', '.github/scripts/build-prebuilt-cpp.sh', '.github/scripts/build-prebuilt-c.sh', '.github/scripts/build-prebuilt-ruby.sh', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}
+          key: sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.github/scripts/build-prebuilt-*.sh', '.github/scripts/lib-codegen-prebuilt.sh', 'holons/grace-op/cmd/protoc-gen-op-adapter/**', 'holons/grace-op/cmd/protoc-gen-op-noop/**', 'sdk/zig-holons/build.zig', 'sdk/zig-holons/tools/cross_smoke.sh', 'sdk/cpp-holons/CMakeLists.txt', 'sdk/c-holons/Makefile', 'sdk/ruby-holons/Gemfile', 'sdk/ruby-holons/Gemfile.lock', '.gitmodules') }}
