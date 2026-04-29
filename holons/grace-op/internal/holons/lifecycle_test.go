@@ -610,6 +610,39 @@ func TestExecuteLifecycleCleanRecursesCompositeMembers(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	cacheManifestDirs := []string{root}
+	for _, dir := range []string{nestedDir, leafDir, siblingDir} {
+		resolved, err := filepath.EvalSymlinks(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cacheManifestDirs = append(cacheManifestDirs, resolved)
+	}
+	manifests := make([]*LoadedManifest, 0, len(cacheManifestDirs))
+	for _, dir := range cacheManifestDirs {
+		manifest, err := LoadManifest(dir)
+		if err != nil {
+			t.Fatalf("LoadManifest(%s) failed: %v", dir, err)
+		}
+		cacheDir := sharedHolonPackageDir(manifest)
+		if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(cacheDir, ".holon.json"), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.RemoveAll(cacheDir) })
+		manifests = append(manifests, manifest)
+	}
+	unrelatedCacheDir := filepath.Join(os.TempDir(), "grace-op-holon-cache", "unrelated-"+filepath.Base(root)+".holon")
+	if err := os.MkdirAll(unrelatedCacheDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(unrelatedCacheDir, ".holon.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(unrelatedCacheDir) })
+
 	for _, marker := range []string{
 		filepath.Join(root, ".op", "stale.txt"),
 		filepath.Join(nestedDir, ".op", "stale.txt"),
@@ -638,6 +671,16 @@ func TestExecuteLifecycleCleanRecursesCompositeMembers(t *testing.T) {
 		if _, err := os.Stat(dir); !os.IsNotExist(err) {
 			t.Fatalf("%s still exists after recursive clean: %v", dir, err)
 		}
+	}
+
+	for _, manifest := range manifests {
+		cacheDir := sharedHolonPackageDir(manifest)
+		if _, err := os.Stat(cacheDir); !os.IsNotExist(err) {
+			t.Fatalf("%s still exists after recursive clean: %v", cacheDir, err)
+		}
+	}
+	if _, err := os.Stat(unrelatedCacheDir); err != nil {
+		t.Fatalf("unrelated cache should survive clean: %v", err)
 	}
 
 	if len(report.Children) != 2 {

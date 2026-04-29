@@ -313,6 +313,9 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 		err = r.test(target.Manifest, ctx, &report)
 	case OperationClean:
 		err = r.clean(target.Manifest, ctx, &report)
+		if err == nil {
+			err = cleanSharedHolonPackageCache(target.Manifest, &report)
+		}
 	default:
 		err = fmt.Errorf("unsupported operation %q", op)
 	}
@@ -742,6 +745,28 @@ func syncSharedHolonPackageCache(manifest *LoadedManifest) error {
 		return nil
 	}
 	return copyArtifact(srcDir, sharedHolonPackageDir(manifest))
+}
+
+func cleanSharedHolonPackageCache(manifest *LoadedManifest, report *Report) error {
+	if manifest == nil {
+		return nil
+	}
+	cacheDir := sharedHolonPackageDir(manifest)
+	if info, err := os.Stat(cacheDir); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	} else if !info.IsDir() {
+		return os.Remove(cacheDir)
+	}
+	if err := os.RemoveAll(cacheDir); err != nil {
+		return err
+	}
+	if report != nil {
+		report.Notes = append(report.Notes, "removed shared holon package cache")
+	}
+	return nil
 }
 
 func sharedHolonPackageDir(manifest *LoadedManifest) string {
@@ -2011,14 +2036,24 @@ func (recipeRunner) clean(manifest *LoadedManifest, ctx BuildContext, report *Re
 			memberDir = resolved
 		}
 
+		memberManifest, err := LoadManifest(memberDir)
+		if err != nil {
+			return fmt.Errorf("clean member %q manifest: %w", member.ID, err)
+		}
+
 		cleanStart := time.Now()
 		childReport, err := ExecuteLifecycle(OperationClean, memberDir, BuildOptions{
 			Progress: ctx.Progress.Child(),
 		})
-		report.Children = append(report.Children, childReport)
 		if err != nil {
+			report.Children = append(report.Children, childReport)
 			return fmt.Errorf("clean member %q: %w", member.ID, err)
 		}
+		if err := cleanSharedHolonPackageCache(memberManifest, &childReport); err != nil {
+			report.Children = append(report.Children, childReport)
+			return fmt.Errorf("clean member %q shared cache: %w", member.ID, err)
+		}
+		report.Children = append(report.Children, childReport)
 		if writer != nil {
 			writer.FreezeAt(cleanSuccessLine(childReport.Holon, time.Since(cleanStart)), cleanStart)
 		}
