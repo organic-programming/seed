@@ -39,7 +39,6 @@ api/v1/holon.proto                 Proto manifest.
 internal/greetings.*               56-language greeting catalog.
 internal/server.*                  gRPC service implementation.
 gen/cpp/greeting/v1/               Generated protobuf and gRPC C++ code.
-scripts/generate_proto.sh          Regenerates stubs and validates holon.proto.
 CMakeLists.txt                     Build and test definition.
 ```
 
@@ -49,7 +48,6 @@ CMakeLists.txt                     Build and test definition.
 op sdk install cpp
 op sdk verify cpp
 export OP_SDK_CPP_PATH="$(op sdk path cpp)"
-./scripts/generate_proto.sh
 cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure

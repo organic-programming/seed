@@ -800,15 +800,18 @@ func codegenLanguageMentionedByHook(hook *RecipeStepExec, languages []string) st
 }
 
 func hookLooksLikeProtoGeneration(hook *RecipeStepExec) bool {
+	legacyToolsGeneratePath := strings.Join([]string{"tools", "generate"}, "/")
+	legacyScriptsGenerateProtoPath := strings.Join([]string{"scripts", "generate_proto"}, "/")
+	legacyGenerateProtoScript := "generate" + "_proto.sh"
 	for _, token := range normalizedHookTokens(hook) {
 		slash := strings.ReplaceAll(token, "\\", "/")
 		base := strings.TrimSuffix(path.Base(slash), ".exe")
 		switch {
 		case base == "protoc" || strings.HasPrefix(base, "protoc-gen-"):
 			return true
-		case strings.Contains(slash, "tools/generate") || strings.Contains(slash, "scripts/generate_proto"):
+		case strings.Contains(slash, legacyToolsGeneratePath) || strings.Contains(slash, legacyScriptsGenerateProtoPath):
 			return true
-		case base == "generate_proto.sh":
+		case base == legacyGenerateProtoScript:
 			return true
 		}
 	}

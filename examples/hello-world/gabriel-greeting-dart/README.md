@@ -53,7 +53,6 @@ api/v1/holon.proto             Identity manifest — proto-based holon descripto
 _internal/server.dart          RPC server — gRPC implementation.
 _internal/greetings.dart       Greeting data — 56 languages with default names.
 gen/dart/greeting/v1/          Generated protobuf code (do not edit).
-scripts/generate_proto.sh      Regenerates protobuf code and validates holon.proto.
 ```
 
 `_internal/` keeps the server and greeting catalog off the public import surface.
@@ -62,7 +61,6 @@ scripts/generate_proto.sh      Regenerates protobuf code and validates holon.pro
 
 ```bash
 dart pub get
-./scripts/generate_proto.sh
 dart cmd/main.dart version
 dart cmd/main.dart listLanguages --format json
 dart cmd/main.dart sayHello Bob fr

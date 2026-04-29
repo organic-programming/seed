@@ -5,7 +5,6 @@
   "description": "Gabriel greeting holon in Node.js.",
   "main": "cmd/main.js",
   "scripts": {
-    "generate-proto": "node scripts/generate_proto.js",
     "test": "node --test api/public_test.js api/cli_test.js _internal/server_test.js"
   },
   "dependencies": {

@@ -135,17 +135,15 @@ language bindings in sync with the proto is part of the build.
 That orchestration is `op`'s responsibility — what `op` does NOT
 ship is the language toolchains themselves.
 
-Today, holons that need regenerated stubs declare a `before_commands`
-hook that invokes their per-holon generator (e.g.
-`go run ./tools/generate`). The generator shells out to PATH tools
-(`protoc`, `protoc-gen-go`, …) declared in `requires.commands`. See
-`holons/grace-op/tools/generate` and `holons/mody-media/tools/generate`
-for the reference pattern.
+New holons should declare `build.codegen.languages` and let `op`
+resolve plugin binaries from installed SDK distributions. Legacy
+`before_commands` proto generators are deprecated and should not be
+added to new manifests.
 
-Future direction: each SDK installed under `$OPPATH/sdk/` will declare
-a regeneration contract in its `manifest.json` (required tools or
-embedded binaries plus an invocation template), and `op build` will
-discover and invoke it directly — no per-holon generator needed.
+`op` itself is the bootstrap exception: it builds from committed
+`gen/` and never sets `build.codegen`. When `api/v1/holon.proto`
+changes, regenerate its stubs explicitly with
+`holons/grace-op/scripts/regen-stubs.sh`.
 
 ## Manifest Model
 
@@ -413,18 +411,18 @@ example `op sdk install cpp`.
 
 ## Runner Semantics
 
-### Pre and Post Commands
+### Legacy Pre and Post Commands
 
-All runners natively support pre-build and post-build shell hooks via `before_commands` and `after_commands`.
-This provides a powerful mechanism to orchestrate side-effects, generate stubs, or compile auxiliary components directly within the manifest without wrapping everything inside a composite `recipe` holon.
+All runners still support pre-build and post-build shell hooks via
+`before_commands` and `after_commands`, but `before_commands` is a
+legacy escape hatch for proto generation. Prefer `build.codegen` for
+stubs so SDK distributions own the plugin binaries and output layout.
+Reserve hooks for non-codegen side effects that cannot be modeled by a
+runner, composite target, or SDK prebuilt.
 
 ```protobuf
 build: {
   runner: "go-module"
-  before_commands: {
-    cwd: "."
-    argv: ["go", "run", "./tools/generate"]
-  }
   after_commands: {
     cwd: "third_party/lib"
     argv: ["sh", "-c", "go build -tags pro -o $OP_BINARY_DIR/lib ."]
