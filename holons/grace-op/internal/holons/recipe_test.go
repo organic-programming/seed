@@ -1311,6 +1311,66 @@ artifacts:
 	}
 }
 
+func TestRecipeRunnerCopyAllHolonsSkipsNonStandaloneMembersWhenHardened(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+
+	goDir := filepath.Join(root, "go")
+	writeRecipeManifest(t, goDir, `schema: holon/v0
+kind: native
+build:
+  runner: go-module
+artifacts:
+  binary: go-demo
+`)
+	writeFakeHolonPackage(t, mustLoadManifestForTest(t, goDir))
+
+	rubyDir := filepath.Join(root, "ruby")
+	writeRecipeManifest(t, rubyDir, `schema: holon/v0
+kind: native
+build:
+  runner: ruby
+artifacts:
+  binary: ruby-demo
+`)
+
+	writeRecipeManifest(t, root, `schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: go
+      path: go
+      type: holon
+    - id: ruby
+      path: ruby
+      type: holon
+  targets:
+    `+canonicalRuntimeTarget()+`:
+      steps:
+        - copy_all_holons:
+            to: app/Holons
+artifacts:
+  primary: app/Holons
+`)
+
+	manifest := mustLoadManifestForTest(t, root)
+	var report Report
+	err := (recipeRunner{}).stepCopyAllHolons(manifest, BuildContext{Hardened: true, Progress: progress.Silence()}, &RecipeStepCopyAllHolons{To: "app/Holons"}, &report)
+	if err != nil {
+		t.Fatalf("copy_all_holons hardened failed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "app", "Holons", "go-demo.holon", ".holon.json")); err != nil {
+		t.Fatalf("copied standalone package missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "app", "Holons", "ruby-demo.holon")); !os.IsNotExist(err) {
+		t.Fatalf("non-standalone package should be skipped, stat err: %v", err)
+	}
+	if !slices.Contains(report.Notes, `hardened: skipped copy_all_holons member "ruby" (runner "ruby" not standalone)`) {
+		t.Fatalf("notes missing hardened copy_all_holons skip: %v", report.Notes)
+	}
+}
+
 func TestExecuteLifecycleBuildCompositeDependenciesReportTopologicalOrder(t *testing.T) {
 	root := t.TempDir()
 	chdirForHolonTest(t, root)

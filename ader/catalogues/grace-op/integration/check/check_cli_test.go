@@ -128,13 +128,14 @@ func TestCheck_04_Matrix(t *testing.T) {
 
 // TestCheck_05_Composite verifies graph resolution for non-native compositional structures.
 func TestCheck_05_Composite(t *testing.T) {
-	integration.TeardownHolons(t, rootPath)
-	envVars, opBin := integration.SetupIsolatedOP(t, rootPath)
+	workspaceRoot := integration.DefaultWorkspaceDir(t)
+	integration.TeardownHolons(t, workspaceRoot)
+	envVars, opBin := integration.SetupIsolatedOP(t, workspaceRoot)
 
 	for _, spec := range integration.CompositeTestHolons(t) {
 		spec := spec
 		t.Run(spec.Slug, func(t *testing.T) {
-			cmd := exec.Command(opBin, "check", spec.Slug, "--root", rootPath)
+			cmd := exec.Command(opBin, "check", spec.Slug, "--root", workspaceRoot)
 			cmd.Env = envVars
 			out, err := cmd.CombinedOutput()
 			if err != nil {

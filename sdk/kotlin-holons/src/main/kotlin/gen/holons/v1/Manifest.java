@@ -254,7 +254,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .holons.v1.HolonManifest.Skill skills = 5;</code>
      */
-    java.util.List<holons.v1.Manifest.HolonManifest.Skill> 
+    java.util.List<holons.v1.Manifest.HolonManifest.Skill>
         getSkillsList();
     /**
      * <code>repeated .holons.v1.HolonManifest.Skill skills = 5;</code>
@@ -267,7 +267,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .holons.v1.HolonManifest.Skill skills = 5;</code>
      */
-    java.util.List<? extends holons.v1.Manifest.HolonManifest.SkillOrBuilder> 
+    java.util.List<? extends holons.v1.Manifest.HolonManifest.SkillOrBuilder>
         getSkillsOrBuilderList();
     /**
      * <code>repeated .holons.v1.HolonManifest.Skill skills = 5;</code>
@@ -419,7 +419,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .holons.v1.HolonManifest.Sequence sequences = 14;</code>
      */
-    java.util.List<holons.v1.Manifest.HolonManifest.Sequence> 
+    java.util.List<holons.v1.Manifest.HolonManifest.Sequence>
         getSequencesList();
     /**
      * <code>repeated .holons.v1.HolonManifest.Sequence sequences = 14;</code>
@@ -432,7 +432,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .holons.v1.HolonManifest.Sequence sequences = 14;</code>
      */
-    java.util.List<? extends holons.v1.Manifest.HolonManifest.SequenceOrBuilder> 
+    java.util.List<? extends holons.v1.Manifest.HolonManifest.SequenceOrBuilder>
         getSequencesOrBuilderList();
     /**
      * <code>repeated .holons.v1.HolonManifest.Sequence sequences = 14;</code>
@@ -495,7 +495,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
      *
      * <code>repeated .holons.v1.ListenerVisibilityOverride session_visibility_overrides = 17;</code>
      */
-    java.util.List<holons.v1.Manifest.ListenerVisibilityOverride> 
+    java.util.List<holons.v1.Manifest.ListenerVisibilityOverride>
         getSessionVisibilityOverridesList();
     /**
      * <pre>
@@ -523,7 +523,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
      *
      * <code>repeated .holons.v1.ListenerVisibilityOverride session_visibility_overrides = 17;</code>
      */
-    java.util.List<? extends holons.v1.Manifest.ListenerVisibilityOverrideOrBuilder> 
+    java.util.List<? extends holons.v1.Manifest.ListenerVisibilityOverrideOrBuilder>
         getSessionVisibilityOverridesOrBuilderList();
     /**
      * <pre>
@@ -894,7 +894,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           schema_ = s;
@@ -914,7 +914,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getSchemaBytes() {
         java.lang.Object ref = schema_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           schema_ = b;
@@ -941,7 +941,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           uuid_ = s;
@@ -961,7 +961,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getUuidBytes() {
         java.lang.Object ref = uuid_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           uuid_ = b;
@@ -988,7 +988,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           givenName_ = s;
@@ -1008,7 +1008,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getGivenNameBytes() {
         java.lang.Object ref = givenName_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           givenName_ = b;
@@ -1035,7 +1035,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           familyName_ = s;
@@ -1055,7 +1055,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getFamilyNameBytes() {
         java.lang.Object ref = familyName_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           familyName_ = b;
@@ -1082,7 +1082,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           motto_ = s;
@@ -1102,7 +1102,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getMottoBytes() {
         java.lang.Object ref = motto_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           motto_ = b;
@@ -1129,7 +1129,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           composer_ = s;
@@ -1149,7 +1149,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getComposerBytes() {
         java.lang.Object ref = composer_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           composer_ = b;
@@ -1176,7 +1176,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           status_ = s;
@@ -1196,7 +1196,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getStatusBytes() {
         java.lang.Object ref = status_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           status_ = b;
@@ -1223,7 +1223,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           born_ = s;
@@ -1243,7 +1243,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getBornBytes() {
         java.lang.Object ref = born_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           born_ = b;
@@ -1270,7 +1270,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           version_ = s;
@@ -1290,7 +1290,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getVersionBytes() {
         java.lang.Object ref = version_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           version_ = b;
@@ -1910,7 +1910,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getSchemaBytes() {
           java.lang.Object ref = schema_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             schema_ = b;
@@ -2002,7 +2002,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getUuidBytes() {
           java.lang.Object ref = uuid_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             uuid_ = b;
@@ -2094,7 +2094,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getGivenNameBytes() {
           java.lang.Object ref = givenName_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             givenName_ = b;
@@ -2186,7 +2186,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getFamilyNameBytes() {
           java.lang.Object ref = familyName_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             familyName_ = b;
@@ -2278,7 +2278,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getMottoBytes() {
           java.lang.Object ref = motto_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             motto_ = b;
@@ -2370,7 +2370,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getComposerBytes() {
           java.lang.Object ref = composer_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             composer_ = b;
@@ -2462,7 +2462,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getStatusBytes() {
           java.lang.Object ref = status_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             status_ = b;
@@ -2554,7 +2554,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getBornBytes() {
           java.lang.Object ref = born_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             born_ = b;
@@ -2646,7 +2646,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getVersionBytes() {
           java.lang.Object ref = version_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             version_ = b;
@@ -3072,7 +3072,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           name_ = s;
@@ -3092,7 +3092,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -3119,7 +3119,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           description_ = s;
@@ -3139,7 +3139,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getDescriptionBytes() {
         java.lang.Object ref = description_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           description_ = b;
@@ -3166,7 +3166,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           when_ = s;
@@ -3186,7 +3186,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getWhenBytes() {
         java.lang.Object ref = when_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           when_ = b;
@@ -3662,7 +3662,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getNameBytes() {
           java.lang.Object ref = name_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             name_ = b;
@@ -3754,7 +3754,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getDescriptionBytes() {
           java.lang.Object ref = description_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             description_ = b;
@@ -3846,7 +3846,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getWhenBytes() {
           java.lang.Object ref = when_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             when_ = b;
@@ -4154,7 +4154,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
        *
        * <code>repeated .holons.v1.HolonManifest.Sequence.Param params = 3;</code>
        */
-      java.util.List<holons.v1.Manifest.HolonManifest.Sequence.Param> 
+      java.util.List<holons.v1.Manifest.HolonManifest.Sequence.Param>
           getParamsList();
       /**
        * <pre>
@@ -4179,7 +4179,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
        *
        * <code>repeated .holons.v1.HolonManifest.Sequence.Param params = 3;</code>
        */
-      java.util.List<? extends holons.v1.Manifest.HolonManifest.Sequence.ParamOrBuilder> 
+      java.util.List<? extends holons.v1.Manifest.HolonManifest.Sequence.ParamOrBuilder>
           getParamsOrBuilderList();
       /**
        * <pre>
@@ -4391,7 +4391,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             name_ = s;
@@ -4407,7 +4407,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getNameBytes() {
           java.lang.Object ref = name_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             name_ = b;
@@ -4430,7 +4430,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             description_ = s;
@@ -4446,7 +4446,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getDescriptionBytes() {
           java.lang.Object ref = description_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             description_ = b;
@@ -4484,7 +4484,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             default_ = s;
@@ -4504,7 +4504,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getDefaultBytes() {
           java.lang.Object ref = default_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             default_ = b;
@@ -4905,7 +4905,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
               getNameBytes() {
             java.lang.Object ref = name_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               name_ = b;
@@ -4977,7 +4977,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
               getDescriptionBytes() {
             java.lang.Object ref = description_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               description_ = b;
@@ -5089,7 +5089,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
               getDefaultBytes() {
             java.lang.Object ref = default_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               default_ = b;
@@ -5216,7 +5216,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           name_ = s;
@@ -5236,7 +5236,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -5263,7 +5263,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           description_ = s;
@@ -5283,7 +5283,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getDescriptionBytes() {
         java.lang.Object ref = description_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           description_ = b;
@@ -5315,7 +5315,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
        * <code>repeated .holons.v1.HolonManifest.Sequence.Param params = 3;</code>
        */
       @java.lang.Override
-      public java.util.List<? extends holons.v1.Manifest.HolonManifest.Sequence.ParamOrBuilder> 
+      public java.util.List<? extends holons.v1.Manifest.HolonManifest.Sequence.ParamOrBuilder>
           getParamsOrBuilderList() {
         return params_;
       }
@@ -5751,7 +5751,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
                 paramsBuilder_ = null;
                 params_ = other.params_;
                 bitField0_ = (bitField0_ & ~0x00000004);
-                paramsBuilder_ = 
+                paramsBuilder_ =
                   com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                      internalGetParamsFieldBuilder() : null;
               } else {
@@ -5873,7 +5873,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getNameBytes() {
           java.lang.Object ref = name_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             name_ = b;
@@ -5965,7 +5965,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getDescriptionBytes() {
           java.lang.Object ref = description_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             description_ = b;
@@ -6279,7 +6279,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
          *
          * <code>repeated .holons.v1.HolonManifest.Sequence.Param params = 3;</code>
          */
-        public java.util.List<? extends holons.v1.Manifest.HolonManifest.Sequence.ParamOrBuilder> 
+        public java.util.List<? extends holons.v1.Manifest.HolonManifest.Sequence.ParamOrBuilder>
              getParamsOrBuilderList() {
           if (paramsBuilder_ != null) {
             return paramsBuilder_.getMessageOrBuilderList();
@@ -6317,12 +6317,12 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
          *
          * <code>repeated .holons.v1.HolonManifest.Sequence.Param params = 3;</code>
          */
-        public java.util.List<holons.v1.Manifest.HolonManifest.Sequence.Param.Builder> 
+        public java.util.List<holons.v1.Manifest.HolonManifest.Sequence.Param.Builder>
              getParamsBuilderList() {
           return internalGetParamsFieldBuilder().getBuilderList();
         }
         private com.google.protobuf.RepeatedFieldBuilder<
-            holons.v1.Manifest.HolonManifest.Sequence.Param, holons.v1.Manifest.HolonManifest.Sequence.Param.Builder, holons.v1.Manifest.HolonManifest.Sequence.ParamOrBuilder> 
+            holons.v1.Manifest.HolonManifest.Sequence.Param, holons.v1.Manifest.HolonManifest.Sequence.Param.Builder, holons.v1.Manifest.HolonManifest.Sequence.ParamOrBuilder>
             internalGetParamsFieldBuilder() {
           if (paramsBuilder_ == null) {
             paramsBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -6682,7 +6682,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           proto_ = s;
@@ -6702,7 +6702,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getProtoBytes() {
         java.lang.Object ref = proto_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           proto_ = b;
@@ -6729,7 +6729,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           service_ = s;
@@ -6749,7 +6749,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
           getServiceBytes() {
         java.lang.Object ref = service_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           service_ = b;
@@ -7201,7 +7201,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getProtoBytes() {
           java.lang.Object ref = proto_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             proto_ = b;
@@ -7293,7 +7293,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
             getServiceBytes() {
           java.lang.Object ref = service_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             service_ = b;
@@ -7634,7 +7634,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .holons.v1.HolonManifest.Build.Member members = 4;</code>
        */
-      java.util.List<holons.v1.Manifest.HolonManifest.Build.Member> 
+      java.util.List<holons.v1.Manifest.HolonManifest.Build.Member>
           getMembersList();
       /**
        * <code>repeated .holons.v1.HolonManifest.Build.Member members = 4;</code>
@@ -7647,7 +7647,7 @@ public final class Manifest extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .holons.v1.HolonManifest.Build.Member members = 4;</code>
        */
-      java.util.List<? extends holons.v1.Manifest.HolonManifest.Build.MemberOrBuilder> 
+      java.util.List<? extends holons.v1.Manifest.HolonManifest.Build.MemberOrBuilder>
           getMembersOrBuilderList();
       /**
        * <code>repeated .holons.v1.HolonManifest.Build.Member members = 4;</code>
@@ -7741,7 +7741,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
        *
        * <code>repeated .holons.v1.HolonManifest.Step.Exec before_commands = 7;</code>
        */
-      java.util.List<holons.v1.Manifest.HolonManifest.Step.Exec> 
+      java.util.List<holons.v1.Manifest.HolonManifest.Step.Exec>
           getBeforeCommandsList();
       /**
        * <pre>
@@ -7766,7 +7766,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
        *
        * <code>repeated .holons.v1.HolonManifest.Step.Exec before_commands = 7;</code>
        */
-      java.util.List<? extends holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder> 
+      java.util.List<? extends holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder>
           getBeforeCommandsOrBuilderList();
       /**
        * <pre>
@@ -7785,7 +7785,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
        *
        * <code>repeated .holons.v1.HolonManifest.Step.Exec after_commands = 8;</code>
        */
-      java.util.List<holons.v1.Manifest.HolonManifest.Step.Exec> 
+      java.util.List<holons.v1.Manifest.HolonManifest.Step.Exec>
           getAfterCommandsList();
       /**
        * <pre>
@@ -7810,7 +7810,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
        *
        * <code>repeated .holons.v1.HolonManifest.Step.Exec after_commands = 8;</code>
        */
-      java.util.List<? extends holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder> 
+      java.util.List<? extends holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder>
           getAfterCommandsOrBuilderList();
       /**
        * <pre>
@@ -7821,6 +7821,33 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
        */
       holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder getAfterCommandsOrBuilder(
           int index);
+
+      /**
+       * <pre>
+       * Proto code generation languages to run after descriptor production.
+       * </pre>
+       *
+       * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+       * @return Whether the codegen field is set.
+       */
+      boolean hasCodegen();
+      /**
+       * <pre>
+       * Proto code generation languages to run after descriptor production.
+       * </pre>
+       *
+       * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+       * @return The codegen.
+       */
+      holons.v1.Manifest.HolonManifest.Build.Codegen getCodegen();
+      /**
+       * <pre>
+       * Proto code generation languages to run after descriptor production.
+       * </pre>
+       *
+       * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+       */
+      holons.v1.Manifest.HolonManifest.Build.CodegenOrBuilder getCodegenOrBuilder();
     }
     /**
      * Protobuf type {@code holons.v1.HolonManifest.Build}
@@ -7988,7 +8015,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             target_ = s;
@@ -8008,7 +8035,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
             getTargetBytes() {
           java.lang.Object ref = target_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             target_ = b;
@@ -8035,7 +8062,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             mode_ = s;
@@ -8055,7 +8082,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
             getModeBytes() {
           java.lang.Object ref = mode_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             mode_ = b;
@@ -8416,7 +8443,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
               getTargetBytes() {
             java.lang.Object ref = target_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               target_ = b;
@@ -8508,7 +8535,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
               getModeBytes() {
             java.lang.Object ref = mode_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               mode_ = b;
@@ -8744,7 +8771,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             id_ = s;
@@ -8764,7 +8791,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
             getIdBytes() {
           java.lang.Object ref = id_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             id_ = b;
@@ -8791,7 +8818,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             path_ = s;
@@ -8811,7 +8838,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
             getPathBytes() {
           java.lang.Object ref = path_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             path_ = b;
@@ -8838,7 +8865,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             type_ = s;
@@ -8858,7 +8885,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
             getTypeBytes() {
           java.lang.Object ref = type_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             type_ = b;
@@ -9243,7 +9270,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
               getIdBytes() {
             java.lang.Object ref = id_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               id_ = b;
@@ -9335,7 +9362,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
               getPathBytes() {
             java.lang.Object ref = path_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               path_ = b;
@@ -9427,7 +9454,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
               getTypeBytes() {
             java.lang.Object ref = type_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               type_ = b;
@@ -9544,7 +9571,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
         /**
          * <code>repeated .holons.v1.HolonManifest.Step steps = 1;</code>
          */
-        java.util.List<holons.v1.Manifest.HolonManifest.Step> 
+        java.util.List<holons.v1.Manifest.HolonManifest.Step>
             getStepsList();
         /**
          * <code>repeated .holons.v1.HolonManifest.Step steps = 1;</code>
@@ -9557,7 +9584,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
         /**
          * <code>repeated .holons.v1.HolonManifest.Step steps = 1;</code>
          */
-        java.util.List<? extends holons.v1.Manifest.HolonManifest.StepOrBuilder> 
+        java.util.List<? extends holons.v1.Manifest.HolonManifest.StepOrBuilder>
             getStepsOrBuilderList();
         /**
          * <code>repeated .holons.v1.HolonManifest.Step steps = 1;</code>
@@ -9622,7 +9649,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
          * <code>repeated .holons.v1.HolonManifest.Step steps = 1;</code>
          */
         @java.lang.Override
-        public java.util.List<? extends holons.v1.Manifest.HolonManifest.StepOrBuilder> 
+        public java.util.List<? extends holons.v1.Manifest.HolonManifest.StepOrBuilder>
             getStepsOrBuilderList() {
           return steps_;
         }
@@ -9932,7 +9959,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
                   stepsBuilder_ = null;
                   steps_ = other.steps_;
                   bitField0_ = (bitField0_ & ~0x00000001);
-                  stepsBuilder_ = 
+                  stepsBuilder_ =
                     com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                        internalGetStepsFieldBuilder() : null;
                 } else {
@@ -10191,7 +10218,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
           /**
            * <code>repeated .holons.v1.HolonManifest.Step steps = 1;</code>
            */
-          public java.util.List<? extends holons.v1.Manifest.HolonManifest.StepOrBuilder> 
+          public java.util.List<? extends holons.v1.Manifest.HolonManifest.StepOrBuilder>
                getStepsOrBuilderList() {
             if (stepsBuilder_ != null) {
               return stepsBuilder_.getMessageOrBuilderList();
@@ -10217,12 +10244,12 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
           /**
            * <code>repeated .holons.v1.HolonManifest.Step steps = 1;</code>
            */
-          public java.util.List<holons.v1.Manifest.HolonManifest.Step.Builder> 
+          public java.util.List<holons.v1.Manifest.HolonManifest.Step.Builder>
                getStepsBuilderList() {
             return internalGetStepsFieldBuilder().getBuilderList();
           }
           private com.google.protobuf.RepeatedFieldBuilder<
-              holons.v1.Manifest.HolonManifest.Step, holons.v1.Manifest.HolonManifest.Step.Builder, holons.v1.Manifest.HolonManifest.StepOrBuilder> 
+              holons.v1.Manifest.HolonManifest.Step, holons.v1.Manifest.HolonManifest.Step.Builder, holons.v1.Manifest.HolonManifest.StepOrBuilder>
               internalGetStepsFieldBuilder() {
             if (stepsBuilder_ == null) {
               stepsBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -10287,6 +10314,586 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
 
       }
 
+      public interface CodegenOrBuilder extends
+          // @@protoc_insertion_point(interface_extends:holons.v1.HolonManifest.Build.Codegen)
+          com.google.protobuf.MessageOrBuilder {
+
+        /**
+         * <code>repeated string languages = 1;</code>
+         * @return A list containing the languages.
+         */
+        java.util.List<java.lang.String>
+            getLanguagesList();
+        /**
+         * <code>repeated string languages = 1;</code>
+         * @return The count of languages.
+         */
+        int getLanguagesCount();
+        /**
+         * <code>repeated string languages = 1;</code>
+         * @param index The index of the element to return.
+         * @return The languages at the given index.
+         */
+        java.lang.String getLanguages(int index);
+        /**
+         * <code>repeated string languages = 1;</code>
+         * @param index The index of the value to return.
+         * @return The bytes of the languages at the given index.
+         */
+        com.google.protobuf.ByteString
+            getLanguagesBytes(int index);
+      }
+      /**
+       * Protobuf type {@code holons.v1.HolonManifest.Build.Codegen}
+       */
+      public static final class Codegen extends
+          com.google.protobuf.GeneratedMessage implements
+          // @@protoc_insertion_point(message_implements:holons.v1.HolonManifest.Build.Codegen)
+          CodegenOrBuilder {
+      private static final long serialVersionUID = 0L;
+        static {
+          com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+            com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+            /* major= */ 4,
+            /* minor= */ 34,
+            /* patch= */ 1,
+            /* suffix= */ "",
+            "Codegen");
+        }
+        // Use Codegen.newBuilder() to construct.
+        private Codegen(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+          super(builder);
+        }
+        private Codegen() {
+          languages_ =
+              com.google.protobuf.LazyStringArrayList.emptyList();
+        }
+
+        public static final com.google.protobuf.Descriptors.Descriptor
+            getDescriptor() {
+          return holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Build_Codegen_descriptor;
+        }
+
+        @java.lang.Override
+        public com.google.protobuf.Descriptors.Descriptor getDescriptorForType() {
+          return holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Build_Codegen_descriptor;
+        }
+
+        @java.lang.Override
+        protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+            internalGetFieldAccessorTable() {
+          return holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Build_Codegen_fieldAccessorTable
+              .ensureFieldAccessorsInitialized(
+                  holons.v1.Manifest.HolonManifest.Build.Codegen.class, holons.v1.Manifest.HolonManifest.Build.Codegen.Builder.class);
+        }
+
+        public static final int LANGUAGES_FIELD_NUMBER = 1;
+        @SuppressWarnings("serial")
+        private com.google.protobuf.LazyStringArrayList languages_ =
+            com.google.protobuf.LazyStringArrayList.emptyList();
+        /**
+         * <code>repeated string languages = 1;</code>
+         * @return A list containing the languages.
+         */
+        public com.google.protobuf.ProtocolStringList
+            getLanguagesList() {
+          return languages_;
+        }
+        /**
+         * <code>repeated string languages = 1;</code>
+         * @return The count of languages.
+         */
+        public int getLanguagesCount() {
+          return languages_.size();
+        }
+        /**
+         * <code>repeated string languages = 1;</code>
+         * @param index The index of the element to return.
+         * @return The languages at the given index.
+         */
+        public java.lang.String getLanguages(int index) {
+          return languages_.get(index);
+        }
+        /**
+         * <code>repeated string languages = 1;</code>
+         * @param index The index of the value to return.
+         * @return The bytes of the languages at the given index.
+         */
+        public com.google.protobuf.ByteString
+            getLanguagesBytes(int index) {
+          return languages_.getByteString(index);
+        }
+
+        private byte memoizedIsInitialized = -1;
+        @java.lang.Override
+        public final boolean isInitialized() {
+          byte isInitialized = memoizedIsInitialized;
+          if (isInitialized == 1) return true;
+          if (isInitialized == 0) return false;
+
+          memoizedIsInitialized = 1;
+          return true;
+        }
+
+        @java.lang.Override
+        public void writeTo(com.google.protobuf.CodedOutputStream output)
+                            throws java.io.IOException {
+          for (int i = 0; i < languages_.size(); i++) {
+            com.google.protobuf.GeneratedMessage.writeString(output, 1, languages_.getRaw(i));
+          }
+          getUnknownFields().writeTo(output);
+        }
+
+        @java.lang.Override
+        public int getSerializedSize() {
+          int size = memoizedSize;
+          if (size != -1) return size;
+
+          size = 0;
+          {
+            int dataSize = 0;
+            for (int i = 0; i < languages_.size(); i++) {
+              dataSize += computeStringSizeNoTag(languages_.getRaw(i));
+            }
+            size += dataSize;
+            size += 1 * getLanguagesList().size();
+          }
+          size += getUnknownFields().getSerializedSize();
+          memoizedSize = size;
+          return size;
+        }
+
+        @java.lang.Override
+        public boolean equals(final java.lang.Object obj) {
+          if (obj == this) {
+           return true;
+          }
+          if (!(obj instanceof holons.v1.Manifest.HolonManifest.Build.Codegen)) {
+            return super.equals(obj);
+          }
+          holons.v1.Manifest.HolonManifest.Build.Codegen other = (holons.v1.Manifest.HolonManifest.Build.Codegen) obj;
+
+          if (!getLanguagesList()
+              .equals(other.getLanguagesList())) return false;
+          if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+          return true;
+        }
+
+        @java.lang.Override
+        public int hashCode() {
+          if (memoizedHashCode != 0) {
+            return memoizedHashCode;
+          }
+          int hash = 41;
+          hash = (19 * hash) + getDescriptor().hashCode();
+          if (getLanguagesCount() > 0) {
+            hash = (37 * hash) + LANGUAGES_FIELD_NUMBER;
+            hash = (53 * hash) + getLanguagesList().hashCode();
+          }
+          hash = (29 * hash) + getUnknownFields().hashCode();
+          memoizedHashCode = hash;
+          return hash;
+        }
+
+        public static holons.v1.Manifest.HolonManifest.Build.Codegen parseFrom(
+            java.nio.ByteBuffer data)
+            throws com.google.protobuf.InvalidProtocolBufferException {
+          return PARSER.parseFrom(data);
+        }
+        public static holons.v1.Manifest.HolonManifest.Build.Codegen parseFrom(
+            java.nio.ByteBuffer data,
+            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+            throws com.google.protobuf.InvalidProtocolBufferException {
+          return PARSER.parseFrom(data, extensionRegistry);
+        }
+        public static holons.v1.Manifest.HolonManifest.Build.Codegen parseFrom(
+            com.google.protobuf.ByteString data)
+            throws com.google.protobuf.InvalidProtocolBufferException {
+          return PARSER.parseFrom(data);
+        }
+        public static holons.v1.Manifest.HolonManifest.Build.Codegen parseFrom(
+            com.google.protobuf.ByteString data,
+            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+            throws com.google.protobuf.InvalidProtocolBufferException {
+          return PARSER.parseFrom(data, extensionRegistry);
+        }
+        public static holons.v1.Manifest.HolonManifest.Build.Codegen parseFrom(byte[] data)
+            throws com.google.protobuf.InvalidProtocolBufferException {
+          return PARSER.parseFrom(data);
+        }
+        public static holons.v1.Manifest.HolonManifest.Build.Codegen parseFrom(
+            byte[] data,
+            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+            throws com.google.protobuf.InvalidProtocolBufferException {
+          return PARSER.parseFrom(data, extensionRegistry);
+        }
+        public static holons.v1.Manifest.HolonManifest.Build.Codegen parseFrom(java.io.InputStream input)
+            throws java.io.IOException {
+          return com.google.protobuf.GeneratedMessage
+              .parseWithIOException(PARSER, input);
+        }
+        public static holons.v1.Manifest.HolonManifest.Build.Codegen parseFrom(
+            java.io.InputStream input,
+            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+            throws java.io.IOException {
+          return com.google.protobuf.GeneratedMessage
+              .parseWithIOException(PARSER, input, extensionRegistry);
+        }
+
+        public static holons.v1.Manifest.HolonManifest.Build.Codegen parseDelimitedFrom(java.io.InputStream input)
+            throws java.io.IOException {
+          return com.google.protobuf.GeneratedMessage
+              .parseDelimitedWithIOException(PARSER, input);
+        }
+
+        public static holons.v1.Manifest.HolonManifest.Build.Codegen parseDelimitedFrom(
+            java.io.InputStream input,
+            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+            throws java.io.IOException {
+          return com.google.protobuf.GeneratedMessage
+              .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+        }
+        public static holons.v1.Manifest.HolonManifest.Build.Codegen parseFrom(
+            com.google.protobuf.CodedInputStream input)
+            throws java.io.IOException {
+          return com.google.protobuf.GeneratedMessage
+              .parseWithIOException(PARSER, input);
+        }
+        public static holons.v1.Manifest.HolonManifest.Build.Codegen parseFrom(
+            com.google.protobuf.CodedInputStream input,
+            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+            throws java.io.IOException {
+          return com.google.protobuf.GeneratedMessage
+              .parseWithIOException(PARSER, input, extensionRegistry);
+        }
+
+        @java.lang.Override
+        public Builder newBuilderForType() { return newBuilder(); }
+        public static Builder newBuilder() {
+          return DEFAULT_INSTANCE.toBuilder();
+        }
+        public static Builder newBuilder(holons.v1.Manifest.HolonManifest.Build.Codegen prototype) {
+          return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+        }
+        @java.lang.Override
+        public Builder toBuilder() {
+          return this == DEFAULT_INSTANCE
+              ? new Builder() : new Builder().mergeFrom(this);
+        }
+
+        @java.lang.Override
+        protected Builder newBuilderForType(
+            com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+          Builder builder = new Builder(parent);
+          return builder;
+        }
+        /**
+         * Protobuf type {@code holons.v1.HolonManifest.Build.Codegen}
+         */
+        public static final class Builder extends
+            com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+            // @@protoc_insertion_point(builder_implements:holons.v1.HolonManifest.Build.Codegen)
+            holons.v1.Manifest.HolonManifest.Build.CodegenOrBuilder {
+          public static final com.google.protobuf.Descriptors.Descriptor
+              getDescriptor() {
+            return holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Build_Codegen_descriptor;
+          }
+
+          @java.lang.Override
+          protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+              internalGetFieldAccessorTable() {
+            return holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Build_Codegen_fieldAccessorTable
+                .ensureFieldAccessorsInitialized(
+                    holons.v1.Manifest.HolonManifest.Build.Codegen.class, holons.v1.Manifest.HolonManifest.Build.Codegen.Builder.class);
+          }
+
+          // Construct using holons.v1.Manifest.HolonManifest.Build.Codegen.newBuilder()
+          private Builder() {
+
+          }
+
+          private Builder(
+              com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+            super(parent);
+
+          }
+          @java.lang.Override
+          public Builder clear() {
+            super.clear();
+            bitField0_ = 0;
+            languages_ =
+                com.google.protobuf.LazyStringArrayList.emptyList();
+            return this;
+          }
+
+          @java.lang.Override
+          public com.google.protobuf.Descriptors.Descriptor
+              getDescriptorForType() {
+            return holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Build_Codegen_descriptor;
+          }
+
+          @java.lang.Override
+          public holons.v1.Manifest.HolonManifest.Build.Codegen getDefaultInstanceForType() {
+            return holons.v1.Manifest.HolonManifest.Build.Codegen.getDefaultInstance();
+          }
+
+          @java.lang.Override
+          public holons.v1.Manifest.HolonManifest.Build.Codegen build() {
+            holons.v1.Manifest.HolonManifest.Build.Codegen result = buildPartial();
+            if (!result.isInitialized()) {
+              throw newUninitializedMessageException(result);
+            }
+            return result;
+          }
+
+          @java.lang.Override
+          public holons.v1.Manifest.HolonManifest.Build.Codegen buildPartial() {
+            holons.v1.Manifest.HolonManifest.Build.Codegen result = new holons.v1.Manifest.HolonManifest.Build.Codegen(this);
+            if (bitField0_ != 0) { buildPartial0(result); }
+            onBuilt();
+            return result;
+          }
+
+          private void buildPartial0(holons.v1.Manifest.HolonManifest.Build.Codegen result) {
+            int from_bitField0_ = bitField0_;
+            if (((from_bitField0_ & 0x00000001) != 0)) {
+              languages_.makeImmutable();
+              result.languages_ = languages_;
+            }
+          }
+
+          @java.lang.Override
+          public Builder mergeFrom(com.google.protobuf.Message other) {
+            if (other instanceof holons.v1.Manifest.HolonManifest.Build.Codegen) {
+              return mergeFrom((holons.v1.Manifest.HolonManifest.Build.Codegen)other);
+            } else {
+              super.mergeFrom(other);
+              return this;
+            }
+          }
+
+          public Builder mergeFrom(holons.v1.Manifest.HolonManifest.Build.Codegen other) {
+            if (other == holons.v1.Manifest.HolonManifest.Build.Codegen.getDefaultInstance()) return this;
+            if (!other.languages_.isEmpty()) {
+              if (languages_.isEmpty()) {
+                languages_ = other.languages_;
+                bitField0_ |= 0x00000001;
+              } else {
+                ensureLanguagesIsMutable();
+                languages_.addAll(other.languages_);
+              }
+              onChanged();
+            }
+            this.mergeUnknownFields(other.getUnknownFields());
+            onChanged();
+            return this;
+          }
+
+          @java.lang.Override
+          public final boolean isInitialized() {
+            return true;
+          }
+
+          @java.lang.Override
+          public Builder mergeFrom(
+              com.google.protobuf.CodedInputStream input,
+              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+              throws java.io.IOException {
+            if (extensionRegistry == null) {
+              throw new java.lang.NullPointerException();
+            }
+            try {
+              boolean done = false;
+              while (!done) {
+                int tag = input.readTag();
+                switch (tag) {
+                  case 0:
+                    done = true;
+                    break;
+                  case 10: {
+                    ensureLanguagesIsMutable();
+                    languages_.add(input.readStringRequireUtf8());
+                    break;
+                  } // case 10
+                  default: {
+                    if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                      done = true; // was an endgroup tag
+                    }
+                    break;
+                  } // default:
+                } // switch (tag)
+              } // while (!done)
+            } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+              throw e.unwrapIOException();
+            } finally {
+              onChanged();
+            } // finally
+            return this;
+          }
+          private int bitField0_;
+
+          private com.google.protobuf.LazyStringArrayList languages_ =
+              com.google.protobuf.LazyStringArrayList.emptyList();
+          private void ensureLanguagesIsMutable() {
+            if (!languages_.isModifiable()) {
+              languages_ = new com.google.protobuf.LazyStringArrayList(languages_);
+            }
+            bitField0_ |= 0x00000001;
+          }
+          /**
+           * <code>repeated string languages = 1;</code>
+           * @return A list containing the languages.
+           */
+          public com.google.protobuf.ProtocolStringList
+              getLanguagesList() {
+            languages_.makeImmutable();
+            return languages_;
+          }
+          /**
+           * <code>repeated string languages = 1;</code>
+           * @return The count of languages.
+           */
+          public int getLanguagesCount() {
+            return languages_.size();
+          }
+          /**
+           * <code>repeated string languages = 1;</code>
+           * @param index The index of the element to return.
+           * @return The languages at the given index.
+           */
+          public java.lang.String getLanguages(int index) {
+            return languages_.get(index);
+          }
+          /**
+           * <code>repeated string languages = 1;</code>
+           * @param index The index of the value to return.
+           * @return The bytes of the languages at the given index.
+           */
+          public com.google.protobuf.ByteString
+              getLanguagesBytes(int index) {
+            return languages_.getByteString(index);
+          }
+          /**
+           * <code>repeated string languages = 1;</code>
+           * @param index The index to set the value at.
+           * @param value The languages to set.
+           * @return This builder for chaining.
+           */
+          public Builder setLanguages(
+              int index, java.lang.String value) {
+            if (value == null) { throw new NullPointerException(); }
+            ensureLanguagesIsMutable();
+            languages_.set(index, value);
+            bitField0_ |= 0x00000001;
+            onChanged();
+            return this;
+          }
+          /**
+           * <code>repeated string languages = 1;</code>
+           * @param value The languages to add.
+           * @return This builder for chaining.
+           */
+          public Builder addLanguages(
+              java.lang.String value) {
+            if (value == null) { throw new NullPointerException(); }
+            ensureLanguagesIsMutable();
+            languages_.add(value);
+            bitField0_ |= 0x00000001;
+            onChanged();
+            return this;
+          }
+          /**
+           * <code>repeated string languages = 1;</code>
+           * @param values The languages to add.
+           * @return This builder for chaining.
+           */
+          public Builder addAllLanguages(
+              java.lang.Iterable<java.lang.String> values) {
+            ensureLanguagesIsMutable();
+            com.google.protobuf.AbstractMessageLite.Builder.addAll(
+                values, languages_);
+            bitField0_ |= 0x00000001;
+            onChanged();
+            return this;
+          }
+          /**
+           * <code>repeated string languages = 1;</code>
+           * @return This builder for chaining.
+           */
+          public Builder clearLanguages() {
+            languages_ =
+              com.google.protobuf.LazyStringArrayList.emptyList();
+            bitField0_ = (bitField0_ & ~0x00000001);;
+            onChanged();
+            return this;
+          }
+          /**
+           * <code>repeated string languages = 1;</code>
+           * @param value The bytes of the languages to add.
+           * @return This builder for chaining.
+           */
+          public Builder addLanguagesBytes(
+              com.google.protobuf.ByteString value) {
+            if (value == null) { throw new NullPointerException(); }
+            checkByteStringIsUtf8(value);
+            ensureLanguagesIsMutable();
+            languages_.add(value);
+            bitField0_ |= 0x00000001;
+            onChanged();
+            return this;
+          }
+
+          // @@protoc_insertion_point(builder_scope:holons.v1.HolonManifest.Build.Codegen)
+        }
+
+        // @@protoc_insertion_point(class_scope:holons.v1.HolonManifest.Build.Codegen)
+        private static final holons.v1.Manifest.HolonManifest.Build.Codegen DEFAULT_INSTANCE;
+        static {
+          DEFAULT_INSTANCE = new holons.v1.Manifest.HolonManifest.Build.Codegen();
+        }
+
+        public static holons.v1.Manifest.HolonManifest.Build.Codegen getDefaultInstance() {
+          return DEFAULT_INSTANCE;
+        }
+
+        private static final com.google.protobuf.Parser<Codegen>
+            PARSER = new com.google.protobuf.AbstractParser<Codegen>() {
+          @java.lang.Override
+          public Codegen parsePartialFrom(
+              com.google.protobuf.CodedInputStream input,
+              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+              throws com.google.protobuf.InvalidProtocolBufferException {
+            Builder builder = newBuilder();
+            try {
+              builder.mergeFrom(input, extensionRegistry);
+            } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+              throw e.setUnfinishedMessage(builder.buildPartial());
+            } catch (com.google.protobuf.UninitializedMessageException e) {
+              throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+            } catch (java.io.IOException e) {
+              throw new com.google.protobuf.InvalidProtocolBufferException(e)
+                  .setUnfinishedMessage(builder.buildPartial());
+            }
+            return builder.buildPartial();
+          }
+        };
+
+        public static com.google.protobuf.Parser<Codegen> parser() {
+          return PARSER;
+        }
+
+        @java.lang.Override
+        public com.google.protobuf.Parser<Codegen> getParserForType() {
+          return PARSER;
+        }
+
+        @java.lang.Override
+        public holons.v1.Manifest.HolonManifest.Build.Codegen getDefaultInstanceForType() {
+          return DEFAULT_INSTANCE;
+        }
+
+      }
+
       private int bitField0_;
       public static final int RUNNER_FIELD_NUMBER = 1;
       @SuppressWarnings("serial")
@@ -10310,7 +10917,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           runner_ = s;
@@ -10335,7 +10942,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
           getRunnerBytes() {
         java.lang.Object ref = runner_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           runner_ = b;
@@ -10362,7 +10969,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           main_ = s;
@@ -10382,7 +10989,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
           getMainBytes() {
         java.lang.Object ref = main_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           main_ = b;
@@ -10444,7 +11051,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
        * <code>repeated .holons.v1.HolonManifest.Build.Member members = 4;</code>
        */
       @java.lang.Override
-      public java.util.List<? extends holons.v1.Manifest.HolonManifest.Build.MemberOrBuilder> 
+      public java.util.List<? extends holons.v1.Manifest.HolonManifest.Build.MemberOrBuilder>
           getMembersOrBuilderList() {
         return members_;
       }
@@ -10477,7 +11084,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue);
             java.lang.String, holons.v1.Manifest.HolonManifest.Build.Target> defaultEntry =
                 com.google.protobuf.MapEntry
                 .<java.lang.String, holons.v1.Manifest.HolonManifest.Build.Target>newDefaultInstance(
-                    holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Build_TargetsEntry_descriptor, 
+                    holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Build_TargetsEntry_descriptor,
                     com.google.protobuf.WireFormat.FieldType.STRING,
                     "",
                     com.google.protobuf.WireFormat.FieldType.MESSAGE,
@@ -10629,7 +11236,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
        * <code>repeated .holons.v1.HolonManifest.Step.Exec before_commands = 7;</code>
        */
       @java.lang.Override
-      public java.util.List<? extends holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder> 
+      public java.util.List<? extends holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder>
           getBeforeCommandsOrBuilderList() {
         return beforeCommands_;
       }
@@ -10690,7 +11297,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
        * <code>repeated .holons.v1.HolonManifest.Step.Exec after_commands = 8;</code>
        */
       @java.lang.Override
-      public java.util.List<? extends holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder> 
+      public java.util.List<? extends holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder>
           getAfterCommandsOrBuilderList() {
         return afterCommands_;
       }
@@ -10727,6 +11334,44 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
       public holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder getAfterCommandsOrBuilder(
           int index) {
         return afterCommands_.get(index);
+      }
+
+      public static final int CODEGEN_FIELD_NUMBER = 9;
+      private holons.v1.Manifest.HolonManifest.Build.Codegen codegen_;
+      /**
+       * <pre>
+       * Proto code generation languages to run after descriptor production.
+       * </pre>
+       *
+       * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+       * @return Whether the codegen field is set.
+       */
+      @java.lang.Override
+      public boolean hasCodegen() {
+        return ((bitField0_ & 0x00000002) != 0);
+      }
+      /**
+       * <pre>
+       * Proto code generation languages to run after descriptor production.
+       * </pre>
+       *
+       * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+       * @return The codegen.
+       */
+      @java.lang.Override
+      public holons.v1.Manifest.HolonManifest.Build.Codegen getCodegen() {
+        return codegen_ == null ? holons.v1.Manifest.HolonManifest.Build.Codegen.getDefaultInstance() : codegen_;
+      }
+      /**
+       * <pre>
+       * Proto code generation languages to run after descriptor production.
+       * </pre>
+       *
+       * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+       */
+      @java.lang.Override
+      public holons.v1.Manifest.HolonManifest.Build.CodegenOrBuilder getCodegenOrBuilder() {
+        return codegen_ == null ? holons.v1.Manifest.HolonManifest.Build.Codegen.getDefaultInstance() : codegen_;
       }
 
       private byte memoizedIsInitialized = -1;
@@ -10769,6 +11414,9 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         }
         for (int i = 0; i < afterCommands_.size(); i++) {
           output.writeMessage(8, afterCommands_.get(i));
+        }
+        if (((bitField0_ & 0x00000002) != 0)) {
+          output.writeMessage(9, getCodegen());
         }
         getUnknownFields().writeTo(output);
       }
@@ -10834,6 +11482,10 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
               }
               size += 1 * count;
             }
+        if (((bitField0_ & 0x00000002) != 0)) {
+          size += com.google.protobuf.CodedOutputStream
+            .computeMessageSize(9, getCodegen());
+        }
         size += getUnknownFields().getSerializedSize();
         memoizedSize = size;
         return size;
@@ -10868,6 +11520,11 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             .equals(other.getBeforeCommandsList())) return false;
         if (!getAfterCommandsList()
             .equals(other.getAfterCommandsList())) return false;
+        if (hasCodegen() != other.hasCodegen()) return false;
+        if (hasCodegen()) {
+          if (!getCodegen()
+              .equals(other.getCodegen())) return false;
+        }
         if (!getUnknownFields().equals(other.getUnknownFields())) return false;
         return true;
       }
@@ -10906,6 +11563,10 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         if (getAfterCommandsCount() > 0) {
           hash = (37 * hash) + AFTER_COMMANDS_FIELD_NUMBER;
           hash = (53 * hash) + getAfterCommandsList().hashCode();
+        }
+        if (hasCodegen()) {
+          hash = (37 * hash) + CODEGEN_FIELD_NUMBER;
+          hash = (53 * hash) + getCodegen().hashCode();
         }
         hash = (29 * hash) + getUnknownFields().hashCode();
         memoizedHashCode = hash;
@@ -11063,6 +11724,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             internalGetMembersFieldBuilder();
             internalGetBeforeCommandsFieldBuilder();
             internalGetAfterCommandsFieldBuilder();
+            internalGetCodegenFieldBuilder();
           }
         }
         @java.lang.Override
@@ -11100,6 +11762,11 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             afterCommandsBuilder_.clear();
           }
           bitField0_ = (bitField0_ & ~0x00000080);
+          codegen_ = null;
+          if (codegenBuilder_ != null) {
+            codegenBuilder_.dispose();
+            codegenBuilder_ = null;
+          }
           return this;
         }
 
@@ -11184,6 +11851,12 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             templates_.makeImmutable();
             result.templates_ = templates_;
           }
+          if (((from_bitField0_ & 0x00000100) != 0)) {
+            result.codegen_ = codegenBuilder_ == null
+                ? codegen_
+                : codegenBuilder_.build();
+            to_bitField0_ |= 0x00000002;
+          }
           result.bitField0_ |= to_bitField0_;
         }
 
@@ -11230,7 +11903,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
                 membersBuilder_ = null;
                 members_ = other.members_;
                 bitField0_ = (bitField0_ & ~0x00000008);
-                membersBuilder_ = 
+                membersBuilder_ =
                   com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                      internalGetMembersFieldBuilder() : null;
               } else {
@@ -11269,7 +11942,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
                 beforeCommandsBuilder_ = null;
                 beforeCommands_ = other.beforeCommands_;
                 bitField0_ = (bitField0_ & ~0x00000040);
-                beforeCommandsBuilder_ = 
+                beforeCommandsBuilder_ =
                   com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                      internalGetBeforeCommandsFieldBuilder() : null;
               } else {
@@ -11295,13 +11968,16 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
                 afterCommandsBuilder_ = null;
                 afterCommands_ = other.afterCommands_;
                 bitField0_ = (bitField0_ & ~0x00000080);
-                afterCommandsBuilder_ = 
+                afterCommandsBuilder_ =
                   com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                      internalGetAfterCommandsFieldBuilder() : null;
               } else {
                 afterCommandsBuilder_.addAllMessages(other.afterCommands_);
               }
             }
+          }
+          if (other.hasCodegen()) {
+            mergeCodegen(other.getCodegen());
           }
           this.mergeUnknownFields(other.getUnknownFields());
           onChanged();
@@ -11399,6 +12075,13 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
                   }
                   break;
                 } // case 66
+                case 74: {
+                  input.readMessage(
+                      internalGetCodegenFieldBuilder().getBuilder(),
+                      extensionRegistry);
+                  bitField0_ |= 0x00000100;
+                  break;
+                } // case 74
                 default: {
                   if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                     done = true; // was an endgroup tag
@@ -11459,7 +12142,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             getRunnerBytes() {
           java.lang.Object ref = runner_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             runner_ = b;
@@ -11566,7 +12249,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             getMainBytes() {
           java.lang.Object ref = main_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             main_ = b;
@@ -11769,7 +12452,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
          * <code>.holons.v1.HolonManifest.Build.Defaults defaults = 3;</code>
          */
         private com.google.protobuf.SingleFieldBuilder<
-            holons.v1.Manifest.HolonManifest.Build.Defaults, holons.v1.Manifest.HolonManifest.Build.Defaults.Builder, holons.v1.Manifest.HolonManifest.Build.DefaultsOrBuilder> 
+            holons.v1.Manifest.HolonManifest.Build.Defaults, holons.v1.Manifest.HolonManifest.Build.Defaults.Builder, holons.v1.Manifest.HolonManifest.Build.DefaultsOrBuilder>
             internalGetDefaultsFieldBuilder() {
           if (defaultsBuilder_ == null) {
             defaultsBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -11977,7 +12660,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         /**
          * <code>repeated .holons.v1.HolonManifest.Build.Member members = 4;</code>
          */
-        public java.util.List<? extends holons.v1.Manifest.HolonManifest.Build.MemberOrBuilder> 
+        public java.util.List<? extends holons.v1.Manifest.HolonManifest.Build.MemberOrBuilder>
              getMembersOrBuilderList() {
           if (membersBuilder_ != null) {
             return membersBuilder_.getMessageOrBuilderList();
@@ -12003,12 +12686,12 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         /**
          * <code>repeated .holons.v1.HolonManifest.Build.Member members = 4;</code>
          */
-        public java.util.List<holons.v1.Manifest.HolonManifest.Build.Member.Builder> 
+        public java.util.List<holons.v1.Manifest.HolonManifest.Build.Member.Builder>
              getMembersBuilderList() {
           return internalGetMembersFieldBuilder().getBuilderList();
         }
         private com.google.protobuf.RepeatedFieldBuilder<
-            holons.v1.Manifest.HolonManifest.Build.Member, holons.v1.Manifest.HolonManifest.Build.Member.Builder, holons.v1.Manifest.HolonManifest.Build.MemberOrBuilder> 
+            holons.v1.Manifest.HolonManifest.Build.Member, holons.v1.Manifest.HolonManifest.Build.Member.Builder, holons.v1.Manifest.HolonManifest.Build.MemberOrBuilder>
             internalGetMembersFieldBuilder() {
           if (membersBuilder_ == null) {
             membersBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -12588,7 +13271,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
          *
          * <code>repeated .holons.v1.HolonManifest.Step.Exec before_commands = 7;</code>
          */
-        public java.util.List<? extends holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder> 
+        public java.util.List<? extends holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder>
              getBeforeCommandsOrBuilderList() {
           if (beforeCommandsBuilder_ != null) {
             return beforeCommandsBuilder_.getMessageOrBuilderList();
@@ -12626,12 +13309,12 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
          *
          * <code>repeated .holons.v1.HolonManifest.Step.Exec before_commands = 7;</code>
          */
-        public java.util.List<holons.v1.Manifest.HolonManifest.Step.Exec.Builder> 
+        public java.util.List<holons.v1.Manifest.HolonManifest.Step.Exec.Builder>
              getBeforeCommandsBuilderList() {
           return internalGetBeforeCommandsFieldBuilder().getBuilderList();
         }
         private com.google.protobuf.RepeatedFieldBuilder<
-            holons.v1.Manifest.HolonManifest.Step.Exec, holons.v1.Manifest.HolonManifest.Step.Exec.Builder, holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder> 
+            holons.v1.Manifest.HolonManifest.Step.Exec, holons.v1.Manifest.HolonManifest.Step.Exec.Builder, holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder>
             internalGetBeforeCommandsFieldBuilder() {
           if (beforeCommandsBuilder_ == null) {
             beforeCommandsBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -12900,7 +13583,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
          *
          * <code>repeated .holons.v1.HolonManifest.Step.Exec after_commands = 8;</code>
          */
-        public java.util.List<? extends holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder> 
+        public java.util.List<? extends holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder>
              getAfterCommandsOrBuilderList() {
           if (afterCommandsBuilder_ != null) {
             return afterCommandsBuilder_.getMessageOrBuilderList();
@@ -12938,12 +13621,12 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
          *
          * <code>repeated .holons.v1.HolonManifest.Step.Exec after_commands = 8;</code>
          */
-        public java.util.List<holons.v1.Manifest.HolonManifest.Step.Exec.Builder> 
+        public java.util.List<holons.v1.Manifest.HolonManifest.Step.Exec.Builder>
              getAfterCommandsBuilderList() {
           return internalGetAfterCommandsFieldBuilder().getBuilderList();
         }
         private com.google.protobuf.RepeatedFieldBuilder<
-            holons.v1.Manifest.HolonManifest.Step.Exec, holons.v1.Manifest.HolonManifest.Step.Exec.Builder, holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder> 
+            holons.v1.Manifest.HolonManifest.Step.Exec, holons.v1.Manifest.HolonManifest.Step.Exec.Builder, holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder>
             internalGetAfterCommandsFieldBuilder() {
           if (afterCommandsBuilder_ == null) {
             afterCommandsBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -12955,6 +13638,163 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             afterCommands_ = null;
           }
           return afterCommandsBuilder_;
+        }
+
+        private holons.v1.Manifest.HolonManifest.Build.Codegen codegen_;
+        private com.google.protobuf.SingleFieldBuilder<
+            holons.v1.Manifest.HolonManifest.Build.Codegen, holons.v1.Manifest.HolonManifest.Build.Codegen.Builder, holons.v1.Manifest.HolonManifest.Build.CodegenOrBuilder> codegenBuilder_;
+        /**
+         * <pre>
+         * Proto code generation languages to run after descriptor production.
+         * </pre>
+         *
+         * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+         * @return Whether the codegen field is set.
+         */
+        public boolean hasCodegen() {
+          return ((bitField0_ & 0x00000100) != 0);
+        }
+        /**
+         * <pre>
+         * Proto code generation languages to run after descriptor production.
+         * </pre>
+         *
+         * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+         * @return The codegen.
+         */
+        public holons.v1.Manifest.HolonManifest.Build.Codegen getCodegen() {
+          if (codegenBuilder_ == null) {
+            return codegen_ == null ? holons.v1.Manifest.HolonManifest.Build.Codegen.getDefaultInstance() : codegen_;
+          } else {
+            return codegenBuilder_.getMessage();
+          }
+        }
+        /**
+         * <pre>
+         * Proto code generation languages to run after descriptor production.
+         * </pre>
+         *
+         * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+         */
+        public Builder setCodegen(holons.v1.Manifest.HolonManifest.Build.Codegen value) {
+          if (codegenBuilder_ == null) {
+            if (value == null) {
+              throw new NullPointerException();
+            }
+            codegen_ = value;
+          } else {
+            codegenBuilder_.setMessage(value);
+          }
+          bitField0_ |= 0x00000100;
+          onChanged();
+          return this;
+        }
+        /**
+         * <pre>
+         * Proto code generation languages to run after descriptor production.
+         * </pre>
+         *
+         * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+         */
+        public Builder setCodegen(
+            holons.v1.Manifest.HolonManifest.Build.Codegen.Builder builderForValue) {
+          if (codegenBuilder_ == null) {
+            codegen_ = builderForValue.build();
+          } else {
+            codegenBuilder_.setMessage(builderForValue.build());
+          }
+          bitField0_ |= 0x00000100;
+          onChanged();
+          return this;
+        }
+        /**
+         * <pre>
+         * Proto code generation languages to run after descriptor production.
+         * </pre>
+         *
+         * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+         */
+        public Builder mergeCodegen(holons.v1.Manifest.HolonManifest.Build.Codegen value) {
+          if (codegenBuilder_ == null) {
+            if (((bitField0_ & 0x00000100) != 0) &&
+              codegen_ != null &&
+              codegen_ != holons.v1.Manifest.HolonManifest.Build.Codegen.getDefaultInstance()) {
+              getCodegenBuilder().mergeFrom(value);
+            } else {
+              codegen_ = value;
+            }
+          } else {
+            codegenBuilder_.mergeFrom(value);
+          }
+          if (codegen_ != null) {
+            bitField0_ |= 0x00000100;
+            onChanged();
+          }
+          return this;
+        }
+        /**
+         * <pre>
+         * Proto code generation languages to run after descriptor production.
+         * </pre>
+         *
+         * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+         */
+        public Builder clearCodegen() {
+          bitField0_ = (bitField0_ & ~0x00000100);
+          codegen_ = null;
+          if (codegenBuilder_ != null) {
+            codegenBuilder_.dispose();
+            codegenBuilder_ = null;
+          }
+          onChanged();
+          return this;
+        }
+        /**
+         * <pre>
+         * Proto code generation languages to run after descriptor production.
+         * </pre>
+         *
+         * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+         */
+        public holons.v1.Manifest.HolonManifest.Build.Codegen.Builder getCodegenBuilder() {
+          bitField0_ |= 0x00000100;
+          onChanged();
+          return internalGetCodegenFieldBuilder().getBuilder();
+        }
+        /**
+         * <pre>
+         * Proto code generation languages to run after descriptor production.
+         * </pre>
+         *
+         * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+         */
+        public holons.v1.Manifest.HolonManifest.Build.CodegenOrBuilder getCodegenOrBuilder() {
+          if (codegenBuilder_ != null) {
+            return codegenBuilder_.getMessageOrBuilder();
+          } else {
+            return codegen_ == null ?
+                holons.v1.Manifest.HolonManifest.Build.Codegen.getDefaultInstance() : codegen_;
+          }
+        }
+        /**
+         * <pre>
+         * Proto code generation languages to run after descriptor production.
+         * </pre>
+         *
+         * <code>.holons.v1.HolonManifest.Build.Codegen codegen = 9;</code>
+         */
+        private com.google.protobuf.SingleFieldBuilder<
+            holons.v1.Manifest.HolonManifest.Build.Codegen, holons.v1.Manifest.HolonManifest.Build.Codegen.Builder, holons.v1.Manifest.HolonManifest.Build.CodegenOrBuilder>
+            internalGetCodegenFieldBuilder() {
+          if (codegenBuilder_ == null) {
+            codegenBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+                holons.v1.Manifest.HolonManifest.Build.Codegen, holons.v1.Manifest.HolonManifest.Build.Codegen.Builder, holons.v1.Manifest.HolonManifest.Build.CodegenOrBuilder>(
+                    getCodegen(),
+                    getParentForChildren(),
+                    isClean());
+            codegen_ = null;
+          }
+          return codegenBuilder_;
         }
 
         // @@protoc_insertion_point(builder_scope:holons.v1.HolonManifest.Build)
@@ -13101,6 +13941,21 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
        */
       holons.v1.Manifest.HolonManifest.Step.CopyArtifactOrBuilder getCopyArtifactOrBuilder();
 
+      /**
+       * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+       * @return Whether the copyAllHolons field is set.
+       */
+      boolean hasCopyAllHolons();
+      /**
+       * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+       * @return The copyAllHolons.
+       */
+      holons.v1.Manifest.HolonManifest.Step.CopyAllHolons getCopyAllHolons();
+      /**
+       * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+       */
+      holons.v1.Manifest.HolonManifest.Step.CopyAllHolonsOrBuilder getCopyAllHolonsOrBuilder();
+
       holons.v1.Manifest.HolonManifest.Step.ActionCase getActionCase();
     }
     /**
@@ -13244,7 +14099,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             cwd_ = s;
@@ -13260,7 +14115,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             getCwdBytes() {
           java.lang.Object ref = cwd_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             cwd_ = b;
@@ -13664,7 +14519,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
               getCwdBytes() {
             java.lang.Object ref = cwd_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               cwd_ = b;
@@ -13958,7 +14813,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             from_ = s;
@@ -13974,7 +14829,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             getFromBytes() {
           java.lang.Object ref = from_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             from_ = b;
@@ -13997,7 +14852,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             to_ = s;
@@ -14013,7 +14868,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             getToBytes() {
           java.lang.Object ref = to_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             to_ = b;
@@ -14366,7 +15221,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
               getFromBytes() {
             java.lang.Object ref = from_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               from_ = b;
@@ -14438,7 +15293,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
               getToBytes() {
             java.lang.Object ref = to_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               to_ = b;
@@ -14608,7 +15463,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             path_ = s;
@@ -14624,7 +15479,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             getPathBytes() {
           java.lang.Object ref = path_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             path_ = b;
@@ -14953,7 +15808,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
               getPathBytes() {
             java.lang.Object ref = path_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               path_ = b;
@@ -15136,7 +15991,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             from_ = s;
@@ -15152,7 +16007,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             getFromBytes() {
           java.lang.Object ref = from_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             from_ = b;
@@ -15175,7 +16030,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             to_ = s;
@@ -15191,7 +16046,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             getToBytes() {
           java.lang.Object ref = to_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             to_ = b;
@@ -15544,7 +16399,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
               getFromBytes() {
             java.lang.Object ref = from_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               from_ = b;
@@ -15616,7 +16471,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
               getToBytes() {
             java.lang.Object ref = to_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               to_ = b;
@@ -15714,6 +16569,557 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
 
       }
 
+      public interface CopyAllHolonsOrBuilder extends
+          // @@protoc_insertion_point(interface_extends:holons.v1.HolonManifest.Step.CopyAllHolons)
+          com.google.protobuf.MessageOrBuilder {
+
+        /**
+         * <pre>
+         * destination directory, manifest-relative
+         * </pre>
+         *
+         * <code>string to = 1;</code>
+         * @return The to.
+         */
+        java.lang.String getTo();
+        /**
+         * <pre>
+         * destination directory, manifest-relative
+         * </pre>
+         *
+         * <code>string to = 1;</code>
+         * @return The bytes for to.
+         */
+        com.google.protobuf.ByteString
+            getToBytes();
+      }
+      /**
+       * Protobuf type {@code holons.v1.HolonManifest.Step.CopyAllHolons}
+       */
+      public static final class CopyAllHolons extends
+          com.google.protobuf.GeneratedMessage implements
+          // @@protoc_insertion_point(message_implements:holons.v1.HolonManifest.Step.CopyAllHolons)
+          CopyAllHolonsOrBuilder {
+      private static final long serialVersionUID = 0L;
+        static {
+          com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+            com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+            /* major= */ 4,
+            /* minor= */ 34,
+            /* patch= */ 1,
+            /* suffix= */ "",
+            "CopyAllHolons");
+        }
+        // Use CopyAllHolons.newBuilder() to construct.
+        private CopyAllHolons(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+          super(builder);
+        }
+        private CopyAllHolons() {
+          to_ = "";
+        }
+
+        public static final com.google.protobuf.Descriptors.Descriptor
+            getDescriptor() {
+          return holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Step_CopyAllHolons_descriptor;
+        }
+
+        @java.lang.Override
+        public com.google.protobuf.Descriptors.Descriptor getDescriptorForType() {
+          return holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Step_CopyAllHolons_descriptor;
+        }
+
+        @java.lang.Override
+        protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+            internalGetFieldAccessorTable() {
+          return holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Step_CopyAllHolons_fieldAccessorTable
+              .ensureFieldAccessorsInitialized(
+                  holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.class, holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.Builder.class);
+        }
+
+        public static final int TO_FIELD_NUMBER = 1;
+        @SuppressWarnings("serial")
+        private volatile java.lang.Object to_ = "";
+        /**
+         * <pre>
+         * destination directory, manifest-relative
+         * </pre>
+         *
+         * <code>string to = 1;</code>
+         * @return The to.
+         */
+        @java.lang.Override
+        public java.lang.String getTo() {
+          java.lang.Object ref = to_;
+          if (ref instanceof java.lang.String) {
+            return (java.lang.String) ref;
+          } else {
+            com.google.protobuf.ByteString bs =
+                (com.google.protobuf.ByteString) ref;
+            java.lang.String s = bs.toStringUtf8();
+            to_ = s;
+            return s;
+          }
+        }
+        /**
+         * <pre>
+         * destination directory, manifest-relative
+         * </pre>
+         *
+         * <code>string to = 1;</code>
+         * @return The bytes for to.
+         */
+        @java.lang.Override
+        public com.google.protobuf.ByteString
+            getToBytes() {
+          java.lang.Object ref = to_;
+          if (ref instanceof java.lang.String) {
+            com.google.protobuf.ByteString b =
+                com.google.protobuf.ByteString.copyFromUtf8(
+                    (java.lang.String) ref);
+            to_ = b;
+            return b;
+          } else {
+            return (com.google.protobuf.ByteString) ref;
+          }
+        }
+
+        private byte memoizedIsInitialized = -1;
+        @java.lang.Override
+        public final boolean isInitialized() {
+          byte isInitialized = memoizedIsInitialized;
+          if (isInitialized == 1) return true;
+          if (isInitialized == 0) return false;
+
+          memoizedIsInitialized = 1;
+          return true;
+        }
+
+        @java.lang.Override
+        public void writeTo(com.google.protobuf.CodedOutputStream output)
+                            throws java.io.IOException {
+          if (!com.google.protobuf.GeneratedMessage.isStringEmpty(to_)) {
+            com.google.protobuf.GeneratedMessage.writeString(output, 1, to_);
+          }
+          getUnknownFields().writeTo(output);
+        }
+
+        @java.lang.Override
+        public int getSerializedSize() {
+          int size = memoizedSize;
+          if (size != -1) return size;
+
+          size = 0;
+          if (!com.google.protobuf.GeneratedMessage.isStringEmpty(to_)) {
+            size += com.google.protobuf.GeneratedMessage.computeStringSize(1, to_);
+          }
+          size += getUnknownFields().getSerializedSize();
+          memoizedSize = size;
+          return size;
+        }
+
+        @java.lang.Override
+        public boolean equals(final java.lang.Object obj) {
+          if (obj == this) {
+           return true;
+          }
+          if (!(obj instanceof holons.v1.Manifest.HolonManifest.Step.CopyAllHolons)) {
+            return super.equals(obj);
+          }
+          holons.v1.Manifest.HolonManifest.Step.CopyAllHolons other = (holons.v1.Manifest.HolonManifest.Step.CopyAllHolons) obj;
+
+          if (!getTo()
+              .equals(other.getTo())) return false;
+          if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+          return true;
+        }
+
+        @java.lang.Override
+        public int hashCode() {
+          if (memoizedHashCode != 0) {
+            return memoizedHashCode;
+          }
+          int hash = 41;
+          hash = (19 * hash) + getDescriptor().hashCode();
+          hash = (37 * hash) + TO_FIELD_NUMBER;
+          hash = (53 * hash) + getTo().hashCode();
+          hash = (29 * hash) + getUnknownFields().hashCode();
+          memoizedHashCode = hash;
+          return hash;
+        }
+
+        public static holons.v1.Manifest.HolonManifest.Step.CopyAllHolons parseFrom(
+            java.nio.ByteBuffer data)
+            throws com.google.protobuf.InvalidProtocolBufferException {
+          return PARSER.parseFrom(data);
+        }
+        public static holons.v1.Manifest.HolonManifest.Step.CopyAllHolons parseFrom(
+            java.nio.ByteBuffer data,
+            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+            throws com.google.protobuf.InvalidProtocolBufferException {
+          return PARSER.parseFrom(data, extensionRegistry);
+        }
+        public static holons.v1.Manifest.HolonManifest.Step.CopyAllHolons parseFrom(
+            com.google.protobuf.ByteString data)
+            throws com.google.protobuf.InvalidProtocolBufferException {
+          return PARSER.parseFrom(data);
+        }
+        public static holons.v1.Manifest.HolonManifest.Step.CopyAllHolons parseFrom(
+            com.google.protobuf.ByteString data,
+            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+            throws com.google.protobuf.InvalidProtocolBufferException {
+          return PARSER.parseFrom(data, extensionRegistry);
+        }
+        public static holons.v1.Manifest.HolonManifest.Step.CopyAllHolons parseFrom(byte[] data)
+            throws com.google.protobuf.InvalidProtocolBufferException {
+          return PARSER.parseFrom(data);
+        }
+        public static holons.v1.Manifest.HolonManifest.Step.CopyAllHolons parseFrom(
+            byte[] data,
+            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+            throws com.google.protobuf.InvalidProtocolBufferException {
+          return PARSER.parseFrom(data, extensionRegistry);
+        }
+        public static holons.v1.Manifest.HolonManifest.Step.CopyAllHolons parseFrom(java.io.InputStream input)
+            throws java.io.IOException {
+          return com.google.protobuf.GeneratedMessage
+              .parseWithIOException(PARSER, input);
+        }
+        public static holons.v1.Manifest.HolonManifest.Step.CopyAllHolons parseFrom(
+            java.io.InputStream input,
+            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+            throws java.io.IOException {
+          return com.google.protobuf.GeneratedMessage
+              .parseWithIOException(PARSER, input, extensionRegistry);
+        }
+
+        public static holons.v1.Manifest.HolonManifest.Step.CopyAllHolons parseDelimitedFrom(java.io.InputStream input)
+            throws java.io.IOException {
+          return com.google.protobuf.GeneratedMessage
+              .parseDelimitedWithIOException(PARSER, input);
+        }
+
+        public static holons.v1.Manifest.HolonManifest.Step.CopyAllHolons parseDelimitedFrom(
+            java.io.InputStream input,
+            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+            throws java.io.IOException {
+          return com.google.protobuf.GeneratedMessage
+              .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+        }
+        public static holons.v1.Manifest.HolonManifest.Step.CopyAllHolons parseFrom(
+            com.google.protobuf.CodedInputStream input)
+            throws java.io.IOException {
+          return com.google.protobuf.GeneratedMessage
+              .parseWithIOException(PARSER, input);
+        }
+        public static holons.v1.Manifest.HolonManifest.Step.CopyAllHolons parseFrom(
+            com.google.protobuf.CodedInputStream input,
+            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+            throws java.io.IOException {
+          return com.google.protobuf.GeneratedMessage
+              .parseWithIOException(PARSER, input, extensionRegistry);
+        }
+
+        @java.lang.Override
+        public Builder newBuilderForType() { return newBuilder(); }
+        public static Builder newBuilder() {
+          return DEFAULT_INSTANCE.toBuilder();
+        }
+        public static Builder newBuilder(holons.v1.Manifest.HolonManifest.Step.CopyAllHolons prototype) {
+          return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+        }
+        @java.lang.Override
+        public Builder toBuilder() {
+          return this == DEFAULT_INSTANCE
+              ? new Builder() : new Builder().mergeFrom(this);
+        }
+
+        @java.lang.Override
+        protected Builder newBuilderForType(
+            com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+          Builder builder = new Builder(parent);
+          return builder;
+        }
+        /**
+         * Protobuf type {@code holons.v1.HolonManifest.Step.CopyAllHolons}
+         */
+        public static final class Builder extends
+            com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+            // @@protoc_insertion_point(builder_implements:holons.v1.HolonManifest.Step.CopyAllHolons)
+            holons.v1.Manifest.HolonManifest.Step.CopyAllHolonsOrBuilder {
+          public static final com.google.protobuf.Descriptors.Descriptor
+              getDescriptor() {
+            return holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Step_CopyAllHolons_descriptor;
+          }
+
+          @java.lang.Override
+          protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+              internalGetFieldAccessorTable() {
+            return holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Step_CopyAllHolons_fieldAccessorTable
+                .ensureFieldAccessorsInitialized(
+                    holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.class, holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.Builder.class);
+          }
+
+          // Construct using holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.newBuilder()
+          private Builder() {
+
+          }
+
+          private Builder(
+              com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+            super(parent);
+
+          }
+          @java.lang.Override
+          public Builder clear() {
+            super.clear();
+            bitField0_ = 0;
+            to_ = "";
+            return this;
+          }
+
+          @java.lang.Override
+          public com.google.protobuf.Descriptors.Descriptor
+              getDescriptorForType() {
+            return holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Step_CopyAllHolons_descriptor;
+          }
+
+          @java.lang.Override
+          public holons.v1.Manifest.HolonManifest.Step.CopyAllHolons getDefaultInstanceForType() {
+            return holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.getDefaultInstance();
+          }
+
+          @java.lang.Override
+          public holons.v1.Manifest.HolonManifest.Step.CopyAllHolons build() {
+            holons.v1.Manifest.HolonManifest.Step.CopyAllHolons result = buildPartial();
+            if (!result.isInitialized()) {
+              throw newUninitializedMessageException(result);
+            }
+            return result;
+          }
+
+          @java.lang.Override
+          public holons.v1.Manifest.HolonManifest.Step.CopyAllHolons buildPartial() {
+            holons.v1.Manifest.HolonManifest.Step.CopyAllHolons result = new holons.v1.Manifest.HolonManifest.Step.CopyAllHolons(this);
+            if (bitField0_ != 0) { buildPartial0(result); }
+            onBuilt();
+            return result;
+          }
+
+          private void buildPartial0(holons.v1.Manifest.HolonManifest.Step.CopyAllHolons result) {
+            int from_bitField0_ = bitField0_;
+            if (((from_bitField0_ & 0x00000001) != 0)) {
+              result.to_ = to_;
+            }
+          }
+
+          @java.lang.Override
+          public Builder mergeFrom(com.google.protobuf.Message other) {
+            if (other instanceof holons.v1.Manifest.HolonManifest.Step.CopyAllHolons) {
+              return mergeFrom((holons.v1.Manifest.HolonManifest.Step.CopyAllHolons)other);
+            } else {
+              super.mergeFrom(other);
+              return this;
+            }
+          }
+
+          public Builder mergeFrom(holons.v1.Manifest.HolonManifest.Step.CopyAllHolons other) {
+            if (other == holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.getDefaultInstance()) return this;
+            if (!other.getTo().isEmpty()) {
+              to_ = other.to_;
+              bitField0_ |= 0x00000001;
+              onChanged();
+            }
+            this.mergeUnknownFields(other.getUnknownFields());
+            onChanged();
+            return this;
+          }
+
+          @java.lang.Override
+          public final boolean isInitialized() {
+            return true;
+          }
+
+          @java.lang.Override
+          public Builder mergeFrom(
+              com.google.protobuf.CodedInputStream input,
+              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+              throws java.io.IOException {
+            if (extensionRegistry == null) {
+              throw new java.lang.NullPointerException();
+            }
+            try {
+              boolean done = false;
+              while (!done) {
+                int tag = input.readTag();
+                switch (tag) {
+                  case 0:
+                    done = true;
+                    break;
+                  case 10: {
+                    to_ = input.readStringRequireUtf8();
+                    bitField0_ |= 0x00000001;
+                    break;
+                  } // case 10
+                  default: {
+                    if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                      done = true; // was an endgroup tag
+                    }
+                    break;
+                  } // default:
+                } // switch (tag)
+              } // while (!done)
+            } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+              throw e.unwrapIOException();
+            } finally {
+              onChanged();
+            } // finally
+            return this;
+          }
+          private int bitField0_;
+
+          private java.lang.Object to_ = "";
+          /**
+           * <pre>
+           * destination directory, manifest-relative
+           * </pre>
+           *
+           * <code>string to = 1;</code>
+           * @return The to.
+           */
+          public java.lang.String getTo() {
+            java.lang.Object ref = to_;
+            if (!(ref instanceof java.lang.String)) {
+              com.google.protobuf.ByteString bs =
+                  (com.google.protobuf.ByteString) ref;
+              java.lang.String s = bs.toStringUtf8();
+              to_ = s;
+              return s;
+            } else {
+              return (java.lang.String) ref;
+            }
+          }
+          /**
+           * <pre>
+           * destination directory, manifest-relative
+           * </pre>
+           *
+           * <code>string to = 1;</code>
+           * @return The bytes for to.
+           */
+          public com.google.protobuf.ByteString
+              getToBytes() {
+            java.lang.Object ref = to_;
+            if (ref instanceof String) {
+              com.google.protobuf.ByteString b =
+                  com.google.protobuf.ByteString.copyFromUtf8(
+                      (java.lang.String) ref);
+              to_ = b;
+              return b;
+            } else {
+              return (com.google.protobuf.ByteString) ref;
+            }
+          }
+          /**
+           * <pre>
+           * destination directory, manifest-relative
+           * </pre>
+           *
+           * <code>string to = 1;</code>
+           * @param value The to to set.
+           * @return This builder for chaining.
+           */
+          public Builder setTo(
+              java.lang.String value) {
+            if (value == null) { throw new NullPointerException(); }
+            to_ = value;
+            bitField0_ |= 0x00000001;
+            onChanged();
+            return this;
+          }
+          /**
+           * <pre>
+           * destination directory, manifest-relative
+           * </pre>
+           *
+           * <code>string to = 1;</code>
+           * @return This builder for chaining.
+           */
+          public Builder clearTo() {
+            to_ = getDefaultInstance().getTo();
+            bitField0_ = (bitField0_ & ~0x00000001);
+            onChanged();
+            return this;
+          }
+          /**
+           * <pre>
+           * destination directory, manifest-relative
+           * </pre>
+           *
+           * <code>string to = 1;</code>
+           * @param value The bytes for to to set.
+           * @return This builder for chaining.
+           */
+          public Builder setToBytes(
+              com.google.protobuf.ByteString value) {
+            if (value == null) { throw new NullPointerException(); }
+            checkByteStringIsUtf8(value);
+            to_ = value;
+            bitField0_ |= 0x00000001;
+            onChanged();
+            return this;
+          }
+
+          // @@protoc_insertion_point(builder_scope:holons.v1.HolonManifest.Step.CopyAllHolons)
+        }
+
+        // @@protoc_insertion_point(class_scope:holons.v1.HolonManifest.Step.CopyAllHolons)
+        private static final holons.v1.Manifest.HolonManifest.Step.CopyAllHolons DEFAULT_INSTANCE;
+        static {
+          DEFAULT_INSTANCE = new holons.v1.Manifest.HolonManifest.Step.CopyAllHolons();
+        }
+
+        public static holons.v1.Manifest.HolonManifest.Step.CopyAllHolons getDefaultInstance() {
+          return DEFAULT_INSTANCE;
+        }
+
+        private static final com.google.protobuf.Parser<CopyAllHolons>
+            PARSER = new com.google.protobuf.AbstractParser<CopyAllHolons>() {
+          @java.lang.Override
+          public CopyAllHolons parsePartialFrom(
+              com.google.protobuf.CodedInputStream input,
+              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+              throws com.google.protobuf.InvalidProtocolBufferException {
+            Builder builder = newBuilder();
+            try {
+              builder.mergeFrom(input, extensionRegistry);
+            } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+              throw e.setUnfinishedMessage(builder.buildPartial());
+            } catch (com.google.protobuf.UninitializedMessageException e) {
+              throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+            } catch (java.io.IOException e) {
+              throw new com.google.protobuf.InvalidProtocolBufferException(e)
+                  .setUnfinishedMessage(builder.buildPartial());
+            }
+            return builder.buildPartial();
+          }
+        };
+
+        public static com.google.protobuf.Parser<CopyAllHolons> parser() {
+          return PARSER;
+        }
+
+        @java.lang.Override
+        public com.google.protobuf.Parser<CopyAllHolons> getParserForType() {
+          return PARSER;
+        }
+
+        @java.lang.Override
+        public holons.v1.Manifest.HolonManifest.Step.CopyAllHolons getDefaultInstanceForType() {
+          return DEFAULT_INSTANCE;
+        }
+
+      }
+
       private int actionCase_ = 0;
       @SuppressWarnings("serial")
       private java.lang.Object action_;
@@ -15725,6 +17131,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         BUILD_MEMBER(3),
         ASSERT_FILE(4),
         COPY_ARTIFACT(5),
+        COPY_ALL_HOLONS(6),
         ACTION_NOT_SET(0);
         private final int value;
         private ActionCase(int value) {
@@ -15747,6 +17154,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             case 3: return BUILD_MEMBER;
             case 4: return ASSERT_FILE;
             case 5: return COPY_ARTIFACT;
+            case 6: return COPY_ALL_HOLONS;
             case 0: return ACTION_NOT_SET;
             default: return null;
           }
@@ -15852,7 +17260,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           action_ = s;
@@ -15874,7 +17282,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         }
         java.lang.Object ref = action_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           action_ = b;
@@ -15946,6 +17354,37 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         return holons.v1.Manifest.HolonManifest.Step.CopyArtifact.getDefaultInstance();
       }
 
+      public static final int COPY_ALL_HOLONS_FIELD_NUMBER = 6;
+      /**
+       * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+       * @return Whether the copyAllHolons field is set.
+       */
+      @java.lang.Override
+      public boolean hasCopyAllHolons() {
+        return actionCase_ == 6;
+      }
+      /**
+       * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+       * @return The copyAllHolons.
+       */
+      @java.lang.Override
+      public holons.v1.Manifest.HolonManifest.Step.CopyAllHolons getCopyAllHolons() {
+        if (actionCase_ == 6) {
+           return (holons.v1.Manifest.HolonManifest.Step.CopyAllHolons) action_;
+        }
+        return holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.getDefaultInstance();
+      }
+      /**
+       * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+       */
+      @java.lang.Override
+      public holons.v1.Manifest.HolonManifest.Step.CopyAllHolonsOrBuilder getCopyAllHolonsOrBuilder() {
+        if (actionCase_ == 6) {
+           return (holons.v1.Manifest.HolonManifest.Step.CopyAllHolons) action_;
+        }
+        return holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.getDefaultInstance();
+      }
+
       private byte memoizedIsInitialized = -1;
       @java.lang.Override
       public final boolean isInitialized() {
@@ -15975,6 +17414,9 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         if (actionCase_ == 5) {
           output.writeMessage(5, (holons.v1.Manifest.HolonManifest.Step.CopyArtifact) action_);
         }
+        if (actionCase_ == 6) {
+          output.writeMessage(6, (holons.v1.Manifest.HolonManifest.Step.CopyAllHolons) action_);
+        }
         getUnknownFields().writeTo(output);
       }
 
@@ -16002,6 +17444,10 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         if (actionCase_ == 5) {
           size += com.google.protobuf.CodedOutputStream
             .computeMessageSize(5, (holons.v1.Manifest.HolonManifest.Step.CopyArtifact) action_);
+        }
+        if (actionCase_ == 6) {
+          size += com.google.protobuf.CodedOutputStream
+            .computeMessageSize(6, (holons.v1.Manifest.HolonManifest.Step.CopyAllHolons) action_);
         }
         size += getUnknownFields().getSerializedSize();
         memoizedSize = size;
@@ -16040,6 +17486,10 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             if (!getCopyArtifact()
                 .equals(other.getCopyArtifact())) return false;
             break;
+          case 6:
+            if (!getCopyAllHolons()
+                .equals(other.getCopyAllHolons())) return false;
+            break;
           case 0:
           default:
         }
@@ -16074,6 +17524,10 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
           case 5:
             hash = (37 * hash) + COPY_ARTIFACT_FIELD_NUMBER;
             hash = (53 * hash) + getCopyArtifact().hashCode();
+            break;
+          case 6:
+            hash = (37 * hash) + COPY_ALL_HOLONS_FIELD_NUMBER;
+            hash = (53 * hash) + getCopyAllHolons().hashCode();
             break;
           case 0:
           default:
@@ -16221,6 +17675,9 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
           if (copyArtifactBuilder_ != null) {
             copyArtifactBuilder_.clear();
           }
+          if (copyAllHolonsBuilder_ != null) {
+            copyAllHolonsBuilder_.clear();
+          }
           actionCase_ = 0;
           action_ = null;
           return this;
@@ -16278,6 +17735,10 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
               copyArtifactBuilder_ != null) {
             result.action_ = copyArtifactBuilder_.build();
           }
+          if (actionCase_ == 6 &&
+              copyAllHolonsBuilder_ != null) {
+            result.action_ = copyAllHolonsBuilder_.build();
+          }
         }
 
         @java.lang.Override
@@ -16313,6 +17774,10 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             }
             case COPY_ARTIFACT: {
               mergeCopyArtifact(other.getCopyArtifact());
+              break;
+            }
+            case COPY_ALL_HOLONS: {
+              mergeCopyAllHolons(other.getCopyAllHolons());
               break;
             }
             case ACTION_NOT_SET: {
@@ -16378,6 +17843,13 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
                   actionCase_ = 5;
                   break;
                 } // case 42
+                case 50: {
+                  input.readMessage(
+                      internalGetCopyAllHolonsFieldBuilder().getBuilder(),
+                      extensionRegistry);
+                  actionCase_ = 6;
+                  break;
+                } // case 50
                 default: {
                   if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                     done = true; // was an endgroup tag
@@ -16534,7 +18006,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
          * <code>.holons.v1.HolonManifest.Step.Exec exec = 1;</code>
          */
         private com.google.protobuf.SingleFieldBuilder<
-            holons.v1.Manifest.HolonManifest.Step.Exec, holons.v1.Manifest.HolonManifest.Step.Exec.Builder, holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder> 
+            holons.v1.Manifest.HolonManifest.Step.Exec, holons.v1.Manifest.HolonManifest.Step.Exec.Builder, holons.v1.Manifest.HolonManifest.Step.ExecOrBuilder>
             internalGetExecFieldBuilder() {
           if (execBuilder_ == null) {
             if (!(actionCase_ == 1)) {
@@ -16676,7 +18148,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
          * <code>.holons.v1.HolonManifest.Step.Copy copy = 2;</code>
          */
         private com.google.protobuf.SingleFieldBuilder<
-            holons.v1.Manifest.HolonManifest.Step.Copy, holons.v1.Manifest.HolonManifest.Step.Copy.Builder, holons.v1.Manifest.HolonManifest.Step.CopyOrBuilder> 
+            holons.v1.Manifest.HolonManifest.Step.Copy, holons.v1.Manifest.HolonManifest.Step.Copy.Builder, holons.v1.Manifest.HolonManifest.Step.CopyOrBuilder>
             internalGetCopyFieldBuilder() {
           if (copyBuilder_ == null) {
             if (!(actionCase_ == 2)) {
@@ -16746,7 +18218,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
           }
           java.lang.Object ref = action_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             action_ = b;
@@ -16931,7 +18403,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
          * <code>.holons.v1.HolonManifest.Step.AssertFile assert_file = 4;</code>
          */
         private com.google.protobuf.SingleFieldBuilder<
-            holons.v1.Manifest.HolonManifest.Step.AssertFile, holons.v1.Manifest.HolonManifest.Step.AssertFile.Builder, holons.v1.Manifest.HolonManifest.Step.AssertFileOrBuilder> 
+            holons.v1.Manifest.HolonManifest.Step.AssertFile, holons.v1.Manifest.HolonManifest.Step.AssertFile.Builder, holons.v1.Manifest.HolonManifest.Step.AssertFileOrBuilder>
             internalGetAssertFileFieldBuilder() {
           if (assertFileBuilder_ == null) {
             if (!(actionCase_ == 4)) {
@@ -17073,7 +18545,7 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
          * <code>.holons.v1.HolonManifest.Step.CopyArtifact copy_artifact = 5;</code>
          */
         private com.google.protobuf.SingleFieldBuilder<
-            holons.v1.Manifest.HolonManifest.Step.CopyArtifact, holons.v1.Manifest.HolonManifest.Step.CopyArtifact.Builder, holons.v1.Manifest.HolonManifest.Step.CopyArtifactOrBuilder> 
+            holons.v1.Manifest.HolonManifest.Step.CopyArtifact, holons.v1.Manifest.HolonManifest.Step.CopyArtifact.Builder, holons.v1.Manifest.HolonManifest.Step.CopyArtifactOrBuilder>
             internalGetCopyArtifactFieldBuilder() {
           if (copyArtifactBuilder_ == null) {
             if (!(actionCase_ == 5)) {
@@ -17089,6 +18561,148 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
           actionCase_ = 5;
           onChanged();
           return copyArtifactBuilder_;
+        }
+
+        private com.google.protobuf.SingleFieldBuilder<
+            holons.v1.Manifest.HolonManifest.Step.CopyAllHolons, holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.Builder, holons.v1.Manifest.HolonManifest.Step.CopyAllHolonsOrBuilder> copyAllHolonsBuilder_;
+        /**
+         * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+         * @return Whether the copyAllHolons field is set.
+         */
+        @java.lang.Override
+        public boolean hasCopyAllHolons() {
+          return actionCase_ == 6;
+        }
+        /**
+         * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+         * @return The copyAllHolons.
+         */
+        @java.lang.Override
+        public holons.v1.Manifest.HolonManifest.Step.CopyAllHolons getCopyAllHolons() {
+          if (copyAllHolonsBuilder_ == null) {
+            if (actionCase_ == 6) {
+              return (holons.v1.Manifest.HolonManifest.Step.CopyAllHolons) action_;
+            }
+            return holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.getDefaultInstance();
+          } else {
+            if (actionCase_ == 6) {
+              return copyAllHolonsBuilder_.getMessage();
+            }
+            return holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.getDefaultInstance();
+          }
+        }
+        /**
+         * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+         */
+        public Builder setCopyAllHolons(holons.v1.Manifest.HolonManifest.Step.CopyAllHolons value) {
+          if (copyAllHolonsBuilder_ == null) {
+            if (value == null) {
+              throw new NullPointerException();
+            }
+            action_ = value;
+            onChanged();
+          } else {
+            copyAllHolonsBuilder_.setMessage(value);
+          }
+          actionCase_ = 6;
+          return this;
+        }
+        /**
+         * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+         */
+        public Builder setCopyAllHolons(
+            holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.Builder builderForValue) {
+          if (copyAllHolonsBuilder_ == null) {
+            action_ = builderForValue.build();
+            onChanged();
+          } else {
+            copyAllHolonsBuilder_.setMessage(builderForValue.build());
+          }
+          actionCase_ = 6;
+          return this;
+        }
+        /**
+         * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+         */
+        public Builder mergeCopyAllHolons(holons.v1.Manifest.HolonManifest.Step.CopyAllHolons value) {
+          if (copyAllHolonsBuilder_ == null) {
+            if (actionCase_ == 6 &&
+                action_ != holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.getDefaultInstance()) {
+              action_ = holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.newBuilder((holons.v1.Manifest.HolonManifest.Step.CopyAllHolons) action_)
+                  .mergeFrom(value).buildPartial();
+            } else {
+              action_ = value;
+            }
+            onChanged();
+          } else {
+            if (actionCase_ == 6) {
+              copyAllHolonsBuilder_.mergeFrom(value);
+            } else {
+              copyAllHolonsBuilder_.setMessage(value);
+            }
+          }
+          actionCase_ = 6;
+          return this;
+        }
+        /**
+         * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+         */
+        public Builder clearCopyAllHolons() {
+          if (copyAllHolonsBuilder_ == null) {
+            if (actionCase_ == 6) {
+              actionCase_ = 0;
+              action_ = null;
+              onChanged();
+            }
+          } else {
+            if (actionCase_ == 6) {
+              actionCase_ = 0;
+              action_ = null;
+            }
+            copyAllHolonsBuilder_.clear();
+          }
+          return this;
+        }
+        /**
+         * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+         */
+        public holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.Builder getCopyAllHolonsBuilder() {
+          return internalGetCopyAllHolonsFieldBuilder().getBuilder();
+        }
+        /**
+         * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+         */
+        @java.lang.Override
+        public holons.v1.Manifest.HolonManifest.Step.CopyAllHolonsOrBuilder getCopyAllHolonsOrBuilder() {
+          if ((actionCase_ == 6) && (copyAllHolonsBuilder_ != null)) {
+            return copyAllHolonsBuilder_.getMessageOrBuilder();
+          } else {
+            if (actionCase_ == 6) {
+              return (holons.v1.Manifest.HolonManifest.Step.CopyAllHolons) action_;
+            }
+            return holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.getDefaultInstance();
+          }
+        }
+        /**
+         * <code>.holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;</code>
+         */
+        private com.google.protobuf.SingleFieldBuilder<
+            holons.v1.Manifest.HolonManifest.Step.CopyAllHolons, holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.Builder, holons.v1.Manifest.HolonManifest.Step.CopyAllHolonsOrBuilder>
+            internalGetCopyAllHolonsFieldBuilder() {
+          if (copyAllHolonsBuilder_ == null) {
+            if (!(actionCase_ == 6)) {
+              action_ = holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.getDefaultInstance();
+            }
+            copyAllHolonsBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+                holons.v1.Manifest.HolonManifest.Step.CopyAllHolons, holons.v1.Manifest.HolonManifest.Step.CopyAllHolons.Builder, holons.v1.Manifest.HolonManifest.Step.CopyAllHolonsOrBuilder>(
+                    (holons.v1.Manifest.HolonManifest.Step.CopyAllHolons) action_,
+                    getParentForChildren(),
+                    isClean());
+            action_ = null;
+          }
+          actionCase_ = 6;
+          onChanged();
+          return copyAllHolonsBuilder_;
         }
 
         // @@protoc_insertion_point(builder_scope:holons.v1.HolonManifest.Step)
@@ -17268,6 +18882,47 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
        */
       com.google.protobuf.ByteString
           getPlatformsBytes(int index);
+
+      /**
+       * <pre>
+       * SDK native prebuilts required by `op build`
+       * </pre>
+       *
+       * <code>repeated string sdk_prebuilts = 4;</code>
+       * @return A list containing the sdkPrebuilts.
+       */
+      java.util.List<java.lang.String>
+          getSdkPrebuiltsList();
+      /**
+       * <pre>
+       * SDK native prebuilts required by `op build`
+       * </pre>
+       *
+       * <code>repeated string sdk_prebuilts = 4;</code>
+       * @return The count of sdkPrebuilts.
+       */
+      int getSdkPrebuiltsCount();
+      /**
+       * <pre>
+       * SDK native prebuilts required by `op build`
+       * </pre>
+       *
+       * <code>repeated string sdk_prebuilts = 4;</code>
+       * @param index The index of the element to return.
+       * @return The sdkPrebuilts at the given index.
+       */
+      java.lang.String getSdkPrebuilts(int index);
+      /**
+       * <pre>
+       * SDK native prebuilts required by `op build`
+       * </pre>
+       *
+       * <code>repeated string sdk_prebuilts = 4;</code>
+       * @param index The index of the value to return.
+       * @return The bytes of the sdkPrebuilts at the given index.
+       */
+      com.google.protobuf.ByteString
+          getSdkPrebuiltsBytes(int index);
     }
     /**
      * Protobuf type {@code holons.v1.HolonManifest.Requires}
@@ -17296,6 +18951,8 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         files_ =
             com.google.protobuf.LazyStringArrayList.emptyList();
         platforms_ =
+            com.google.protobuf.LazyStringArrayList.emptyList();
+        sdkPrebuilts_ =
             com.google.protobuf.LazyStringArrayList.emptyList();
       }
 
@@ -17476,6 +19133,59 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         return platforms_.getByteString(index);
       }
 
+      public static final int SDK_PREBUILTS_FIELD_NUMBER = 4;
+      @SuppressWarnings("serial")
+      private com.google.protobuf.LazyStringArrayList sdkPrebuilts_ =
+          com.google.protobuf.LazyStringArrayList.emptyList();
+      /**
+       * <pre>
+       * SDK native prebuilts required by `op build`
+       * </pre>
+       *
+       * <code>repeated string sdk_prebuilts = 4;</code>
+       * @return A list containing the sdkPrebuilts.
+       */
+      public com.google.protobuf.ProtocolStringList
+          getSdkPrebuiltsList() {
+        return sdkPrebuilts_;
+      }
+      /**
+       * <pre>
+       * SDK native prebuilts required by `op build`
+       * </pre>
+       *
+       * <code>repeated string sdk_prebuilts = 4;</code>
+       * @return The count of sdkPrebuilts.
+       */
+      public int getSdkPrebuiltsCount() {
+        return sdkPrebuilts_.size();
+      }
+      /**
+       * <pre>
+       * SDK native prebuilts required by `op build`
+       * </pre>
+       *
+       * <code>repeated string sdk_prebuilts = 4;</code>
+       * @param index The index of the element to return.
+       * @return The sdkPrebuilts at the given index.
+       */
+      public java.lang.String getSdkPrebuilts(int index) {
+        return sdkPrebuilts_.get(index);
+      }
+      /**
+       * <pre>
+       * SDK native prebuilts required by `op build`
+       * </pre>
+       *
+       * <code>repeated string sdk_prebuilts = 4;</code>
+       * @param index The index of the value to return.
+       * @return The bytes of the sdkPrebuilts at the given index.
+       */
+      public com.google.protobuf.ByteString
+          getSdkPrebuiltsBytes(int index) {
+        return sdkPrebuilts_.getByteString(index);
+      }
+
       private byte memoizedIsInitialized = -1;
       @java.lang.Override
       public final boolean isInitialized() {
@@ -17498,6 +19208,9 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         }
         for (int i = 0; i < platforms_.size(); i++) {
           com.google.protobuf.GeneratedMessage.writeString(output, 3, platforms_.getRaw(i));
+        }
+        for (int i = 0; i < sdkPrebuilts_.size(); i++) {
+          com.google.protobuf.GeneratedMessage.writeString(output, 4, sdkPrebuilts_.getRaw(i));
         }
         getUnknownFields().writeTo(output);
       }
@@ -17532,6 +19245,14 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
           size += dataSize;
           size += 1 * getPlatformsList().size();
         }
+        {
+          int dataSize = 0;
+          for (int i = 0; i < sdkPrebuilts_.size(); i++) {
+            dataSize += computeStringSizeNoTag(sdkPrebuilts_.getRaw(i));
+          }
+          size += dataSize;
+          size += 1 * getSdkPrebuiltsList().size();
+        }
         size += getUnknownFields().getSerializedSize();
         memoizedSize = size;
         return size;
@@ -17553,6 +19274,8 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             .equals(other.getFilesList())) return false;
         if (!getPlatformsList()
             .equals(other.getPlatformsList())) return false;
+        if (!getSdkPrebuiltsList()
+            .equals(other.getSdkPrebuiltsList())) return false;
         if (!getUnknownFields().equals(other.getUnknownFields())) return false;
         return true;
       }
@@ -17575,6 +19298,10 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
         if (getPlatformsCount() > 0) {
           hash = (37 * hash) + PLATFORMS_FIELD_NUMBER;
           hash = (53 * hash) + getPlatformsList().hashCode();
+        }
+        if (getSdkPrebuiltsCount() > 0) {
+          hash = (37 * hash) + SDK_PREBUILTS_FIELD_NUMBER;
+          hash = (53 * hash) + getSdkPrebuiltsList().hashCode();
         }
         hash = (29 * hash) + getUnknownFields().hashCode();
         memoizedHashCode = hash;
@@ -17713,6 +19440,8 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
               com.google.protobuf.LazyStringArrayList.emptyList();
           platforms_ =
               com.google.protobuf.LazyStringArrayList.emptyList();
+          sdkPrebuilts_ =
+              com.google.protobuf.LazyStringArrayList.emptyList();
           return this;
         }
 
@@ -17758,6 +19487,10 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             platforms_.makeImmutable();
             result.platforms_ = platforms_;
           }
+          if (((from_bitField0_ & 0x00000008) != 0)) {
+            sdkPrebuilts_.makeImmutable();
+            result.sdkPrebuilts_ = sdkPrebuilts_;
+          }
         }
 
         @java.lang.Override
@@ -17802,6 +19535,16 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
             }
             onChanged();
           }
+          if (!other.sdkPrebuilts_.isEmpty()) {
+            if (sdkPrebuilts_.isEmpty()) {
+              sdkPrebuilts_ = other.sdkPrebuilts_;
+              bitField0_ |= 0x00000008;
+            } else {
+              ensureSdkPrebuiltsIsMutable();
+              sdkPrebuilts_.addAll(other.sdkPrebuilts_);
+            }
+            onChanged();
+          }
           this.mergeUnknownFields(other.getUnknownFields());
           onChanged();
           return this;
@@ -17843,6 +19586,11 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
                   platforms_.add(input.readStringRequireUtf8());
                   break;
                 } // case 26
+                case 34: {
+                  ensureSdkPrebuiltsIsMutable();
+                  sdkPrebuilts_.add(input.readStringRequireUtf8());
+                  break;
+                } // case 34
                 default: {
                   if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                     done = true; // was an endgroup tag
@@ -18301,6 +20049,153 @@ holons.v1.Manifest.HolonManifest.Build.Target defaultValue) {
           return this;
         }
 
+        private com.google.protobuf.LazyStringArrayList sdkPrebuilts_ =
+            com.google.protobuf.LazyStringArrayList.emptyList();
+        private void ensureSdkPrebuiltsIsMutable() {
+          if (!sdkPrebuilts_.isModifiable()) {
+            sdkPrebuilts_ = new com.google.protobuf.LazyStringArrayList(sdkPrebuilts_);
+          }
+          bitField0_ |= 0x00000008;
+        }
+        /**
+         * <pre>
+         * SDK native prebuilts required by `op build`
+         * </pre>
+         *
+         * <code>repeated string sdk_prebuilts = 4;</code>
+         * @return A list containing the sdkPrebuilts.
+         */
+        public com.google.protobuf.ProtocolStringList
+            getSdkPrebuiltsList() {
+          sdkPrebuilts_.makeImmutable();
+          return sdkPrebuilts_;
+        }
+        /**
+         * <pre>
+         * SDK native prebuilts required by `op build`
+         * </pre>
+         *
+         * <code>repeated string sdk_prebuilts = 4;</code>
+         * @return The count of sdkPrebuilts.
+         */
+        public int getSdkPrebuiltsCount() {
+          return sdkPrebuilts_.size();
+        }
+        /**
+         * <pre>
+         * SDK native prebuilts required by `op build`
+         * </pre>
+         *
+         * <code>repeated string sdk_prebuilts = 4;</code>
+         * @param index The index of the element to return.
+         * @return The sdkPrebuilts at the given index.
+         */
+        public java.lang.String getSdkPrebuilts(int index) {
+          return sdkPrebuilts_.get(index);
+        }
+        /**
+         * <pre>
+         * SDK native prebuilts required by `op build`
+         * </pre>
+         *
+         * <code>repeated string sdk_prebuilts = 4;</code>
+         * @param index The index of the value to return.
+         * @return The bytes of the sdkPrebuilts at the given index.
+         */
+        public com.google.protobuf.ByteString
+            getSdkPrebuiltsBytes(int index) {
+          return sdkPrebuilts_.getByteString(index);
+        }
+        /**
+         * <pre>
+         * SDK native prebuilts required by `op build`
+         * </pre>
+         *
+         * <code>repeated string sdk_prebuilts = 4;</code>
+         * @param index The index to set the value at.
+         * @param value The sdkPrebuilts to set.
+         * @return This builder for chaining.
+         */
+        public Builder setSdkPrebuilts(
+            int index, java.lang.String value) {
+          if (value == null) { throw new NullPointerException(); }
+          ensureSdkPrebuiltsIsMutable();
+          sdkPrebuilts_.set(index, value);
+          bitField0_ |= 0x00000008;
+          onChanged();
+          return this;
+        }
+        /**
+         * <pre>
+         * SDK native prebuilts required by `op build`
+         * </pre>
+         *
+         * <code>repeated string sdk_prebuilts = 4;</code>
+         * @param value The sdkPrebuilts to add.
+         * @return This builder for chaining.
+         */
+        public Builder addSdkPrebuilts(
+            java.lang.String value) {
+          if (value == null) { throw new NullPointerException(); }
+          ensureSdkPrebuiltsIsMutable();
+          sdkPrebuilts_.add(value);
+          bitField0_ |= 0x00000008;
+          onChanged();
+          return this;
+        }
+        /**
+         * <pre>
+         * SDK native prebuilts required by `op build`
+         * </pre>
+         *
+         * <code>repeated string sdk_prebuilts = 4;</code>
+         * @param values The sdkPrebuilts to add.
+         * @return This builder for chaining.
+         */
+        public Builder addAllSdkPrebuilts(
+            java.lang.Iterable<java.lang.String> values) {
+          ensureSdkPrebuiltsIsMutable();
+          com.google.protobuf.AbstractMessageLite.Builder.addAll(
+              values, sdkPrebuilts_);
+          bitField0_ |= 0x00000008;
+          onChanged();
+          return this;
+        }
+        /**
+         * <pre>
+         * SDK native prebuilts required by `op build`
+         * </pre>
+         *
+         * <code>repeated string sdk_prebuilts = 4;</code>
+         * @return This builder for chaining.
+         */
+        public Builder clearSdkPrebuilts() {
+          sdkPrebuilts_ =
+            com.google.protobuf.LazyStringArrayList.emptyList();
+          bitField0_ = (bitField0_ & ~0x00000008);;
+          onChanged();
+          return this;
+        }
+        /**
+         * <pre>
+         * SDK native prebuilts required by `op build`
+         * </pre>
+         *
+         * <code>repeated string sdk_prebuilts = 4;</code>
+         * @param value The bytes of the sdkPrebuilts to add.
+         * @return This builder for chaining.
+         */
+        public Builder addSdkPrebuiltsBytes(
+            com.google.protobuf.ByteString value) {
+          if (value == null) { throw new NullPointerException(); }
+          checkByteStringIsUtf8(value);
+          ensureSdkPrebuiltsIsMutable();
+          sdkPrebuilts_.add(value);
+          bitField0_ |= 0x00000008;
+          onChanged();
+          return this;
+        }
+
         // @@protoc_insertion_point(builder_scope:holons.v1.HolonManifest.Requires)
       }
 
@@ -18604,7 +20499,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             debug_ = s;
@@ -18620,7 +20515,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
             getDebugBytes() {
           java.lang.Object ref = debug_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             debug_ = b;
@@ -18643,7 +20538,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             release_ = s;
@@ -18659,7 +20554,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
             getReleaseBytes() {
           java.lang.Object ref = release_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             release_ = b;
@@ -18682,7 +20577,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
           if (ref instanceof java.lang.String) {
             return (java.lang.String) ref;
           } else {
-            com.google.protobuf.ByteString bs = 
+            com.google.protobuf.ByteString bs =
                 (com.google.protobuf.ByteString) ref;
             java.lang.String s = bs.toStringUtf8();
             profile_ = s;
@@ -18698,7 +20593,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
             getProfileBytes() {
           java.lang.Object ref = profile_;
           if (ref instanceof java.lang.String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             profile_ = b;
@@ -19075,7 +20970,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
               getDebugBytes() {
             java.lang.Object ref = debug_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               debug_ = b;
@@ -19147,7 +21042,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
               getReleaseBytes() {
             java.lang.Object ref = release_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               release_ = b;
@@ -19219,7 +21114,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
               getProfileBytes() {
             java.lang.Object ref = profile_;
             if (ref instanceof String) {
-              com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString b =
                   com.google.protobuf.ByteString.copyFromUtf8(
                       (java.lang.String) ref);
               profile_ = b;
@@ -19334,7 +21229,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           binary_ = s;
@@ -19354,7 +21249,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
           getBinaryBytes() {
         java.lang.Object ref = binary_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           binary_ = b;
@@ -19381,7 +21276,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           primary_ = s;
@@ -19401,7 +21296,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
           getPrimaryBytes() {
         java.lang.Object ref = primary_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           primary_ = b;
@@ -19417,7 +21312,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue);
             java.lang.String, holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts> defaultEntry =
                 com.google.protobuf.MapEntry
                 .<java.lang.String, holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts>newDefaultInstance(
-                    holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Artifacts_ByTargetEntry_descriptor, 
+                    holons.v1.Manifest.internal_static_holons_v1_HolonManifest_Artifacts_ByTargetEntry_descriptor,
                     com.google.protobuf.WireFormat.FieldType.STRING,
                     "",
                     com.google.protobuf.WireFormat.FieldType.MESSAGE,
@@ -19917,7 +21812,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
             getBinaryBytes() {
           java.lang.Object ref = binary_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             binary_ = b;
@@ -20009,7 +21904,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
             getPrimaryBytes() {
           java.lang.Object ref = primary_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             primary_ = b;
@@ -20350,7 +22245,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         description_ = s;
@@ -20370,7 +22265,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
         getDescriptionBytes() {
       java.lang.Object ref = description_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         description_ = b;
@@ -20397,7 +22292,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         lang_ = s;
@@ -20417,7 +22312,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
         getLangBytes() {
       java.lang.Object ref = lang_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         lang_ = b;
@@ -20441,7 +22336,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
      * <code>repeated .holons.v1.HolonManifest.Skill skills = 5;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends holons.v1.Manifest.HolonManifest.SkillOrBuilder> 
+    public java.util.List<? extends holons.v1.Manifest.HolonManifest.SkillOrBuilder>
         getSkillsOrBuilderList() {
       return skills_;
     }
@@ -20511,7 +22406,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         kind_ = s;
@@ -20531,7 +22426,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
         getKindBytes() {
       java.lang.Object ref = kind_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         kind_ = b;
@@ -20611,7 +22506,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         transport_ = s;
@@ -20631,7 +22526,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
         getTransportBytes() {
       java.lang.Object ref = transport_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         transport_ = b;
@@ -20733,7 +22628,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
      * <code>repeated .holons.v1.HolonManifest.Sequence sequences = 14;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends holons.v1.Manifest.HolonManifest.SequenceOrBuilder> 
+    public java.util.List<? extends holons.v1.Manifest.HolonManifest.SequenceOrBuilder>
         getSequencesOrBuilderList() {
       return sequences_;
     }
@@ -20777,7 +22672,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         guide_ = s;
@@ -20797,7 +22692,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
         getGuideBytes() {
       java.lang.Object ref = guide_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         guide_ = b;
@@ -20865,7 +22760,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
      * <code>repeated .holons.v1.ListenerVisibilityOverride session_visibility_overrides = 17;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends holons.v1.Manifest.ListenerVisibilityOverrideOrBuilder> 
+    public java.util.List<? extends holons.v1.Manifest.ListenerVisibilityOverrideOrBuilder>
         getSessionVisibilityOverridesOrBuilderList() {
       return sessionVisibilityOverrides_;
     }
@@ -21538,7 +23433,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
               skillsBuilder_ = null;
               skills_ = other.skills_;
               bitField0_ = (bitField0_ & ~0x00000008);
-              skillsBuilder_ = 
+              skillsBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetSkillsFieldBuilder() : null;
             } else {
@@ -21596,7 +23491,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
               sequencesBuilder_ = null;
               sequences_ = other.sequences_;
               bitField0_ = (bitField0_ & ~0x00000800);
-              sequencesBuilder_ = 
+              sequencesBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetSequencesFieldBuilder() : null;
             } else {
@@ -21630,7 +23525,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
               sessionVisibilityOverridesBuilder_ = null;
               sessionVisibilityOverrides_ = other.sessionVisibilityOverrides_;
               bitField0_ = (bitField0_ & ~0x00004000);
-              sessionVisibilityOverridesBuilder_ = 
+              sessionVisibilityOverridesBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetSessionVisibilityOverridesFieldBuilder() : null;
             } else {
@@ -21898,7 +23793,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
        * <code>.holons.v1.HolonManifest.Identity identity = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          holons.v1.Manifest.HolonManifest.Identity, holons.v1.Manifest.HolonManifest.Identity.Builder, holons.v1.Manifest.HolonManifest.IdentityOrBuilder> 
+          holons.v1.Manifest.HolonManifest.Identity, holons.v1.Manifest.HolonManifest.Identity.Builder, holons.v1.Manifest.HolonManifest.IdentityOrBuilder>
           internalGetIdentityFieldBuilder() {
         if (identityBuilder_ == null) {
           identityBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -21944,7 +23839,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
           getDescriptionBytes() {
         java.lang.Object ref = description_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           description_ = b;
@@ -22036,7 +23931,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
           getLangBytes() {
         java.lang.Object ref = lang_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           lang_ = b;
@@ -22290,7 +24185,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       /**
        * <code>repeated .holons.v1.HolonManifest.Skill skills = 5;</code>
        */
-      public java.util.List<? extends holons.v1.Manifest.HolonManifest.SkillOrBuilder> 
+      public java.util.List<? extends holons.v1.Manifest.HolonManifest.SkillOrBuilder>
            getSkillsOrBuilderList() {
         if (skillsBuilder_ != null) {
           return skillsBuilder_.getMessageOrBuilderList();
@@ -22316,12 +24211,12 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       /**
        * <code>repeated .holons.v1.HolonManifest.Skill skills = 5;</code>
        */
-      public java.util.List<holons.v1.Manifest.HolonManifest.Skill.Builder> 
+      public java.util.List<holons.v1.Manifest.HolonManifest.Skill.Builder>
            getSkillsBuilderList() {
         return internalGetSkillsFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          holons.v1.Manifest.HolonManifest.Skill, holons.v1.Manifest.HolonManifest.Skill.Builder, holons.v1.Manifest.HolonManifest.SkillOrBuilder> 
+          holons.v1.Manifest.HolonManifest.Skill, holons.v1.Manifest.HolonManifest.Skill.Builder, holons.v1.Manifest.HolonManifest.SkillOrBuilder>
           internalGetSkillsFieldBuilder() {
         if (skillsBuilder_ == null) {
           skillsBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -22443,7 +24338,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
        * <code>.holons.v1.HolonManifest.Contract contract = 6;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          holons.v1.Manifest.HolonManifest.Contract, holons.v1.Manifest.HolonManifest.Contract.Builder, holons.v1.Manifest.HolonManifest.ContractOrBuilder> 
+          holons.v1.Manifest.HolonManifest.Contract, holons.v1.Manifest.HolonManifest.Contract.Builder, holons.v1.Manifest.HolonManifest.ContractOrBuilder>
           internalGetContractFieldBuilder() {
         if (contractBuilder_ == null) {
           contractBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -22489,7 +24384,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
           getKindBytes() {
         java.lang.Object ref = kind_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           kind_ = b;
@@ -22728,7 +24623,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
           getTransportBytes() {
         java.lang.Object ref = transport_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           transport_ = b;
@@ -22895,7 +24790,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
        * <code>.holons.v1.HolonManifest.Build build = 10;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          holons.v1.Manifest.HolonManifest.Build, holons.v1.Manifest.HolonManifest.Build.Builder, holons.v1.Manifest.HolonManifest.BuildOrBuilder> 
+          holons.v1.Manifest.HolonManifest.Build, holons.v1.Manifest.HolonManifest.Build.Builder, holons.v1.Manifest.HolonManifest.BuildOrBuilder>
           internalGetBuildFieldBuilder() {
         if (buildBuilder_ == null) {
           buildBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -23016,7 +24911,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
        * <code>.holons.v1.HolonManifest.Requires requires = 11;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          holons.v1.Manifest.HolonManifest.Requires, holons.v1.Manifest.HolonManifest.Requires.Builder, holons.v1.Manifest.HolonManifest.RequiresOrBuilder> 
+          holons.v1.Manifest.HolonManifest.Requires, holons.v1.Manifest.HolonManifest.Requires.Builder, holons.v1.Manifest.HolonManifest.RequiresOrBuilder>
           internalGetRequiresFieldBuilder() {
         if (requiresBuilder_ == null) {
           requiresBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -23137,7 +25032,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
        * <code>.holons.v1.HolonManifest.Artifacts artifacts = 13;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          holons.v1.Manifest.HolonManifest.Artifacts, holons.v1.Manifest.HolonManifest.Artifacts.Builder, holons.v1.Manifest.HolonManifest.ArtifactsOrBuilder> 
+          holons.v1.Manifest.HolonManifest.Artifacts, holons.v1.Manifest.HolonManifest.Artifacts.Builder, holons.v1.Manifest.HolonManifest.ArtifactsOrBuilder>
           internalGetArtifactsFieldBuilder() {
         if (artifactsBuilder_ == null) {
           artifactsBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -23345,7 +25240,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       /**
        * <code>repeated .holons.v1.HolonManifest.Sequence sequences = 14;</code>
        */
-      public java.util.List<? extends holons.v1.Manifest.HolonManifest.SequenceOrBuilder> 
+      public java.util.List<? extends holons.v1.Manifest.HolonManifest.SequenceOrBuilder>
            getSequencesOrBuilderList() {
         if (sequencesBuilder_ != null) {
           return sequencesBuilder_.getMessageOrBuilderList();
@@ -23371,12 +25266,12 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       /**
        * <code>repeated .holons.v1.HolonManifest.Sequence sequences = 14;</code>
        */
-      public java.util.List<holons.v1.Manifest.HolonManifest.Sequence.Builder> 
+      public java.util.List<holons.v1.Manifest.HolonManifest.Sequence.Builder>
            getSequencesBuilderList() {
         return internalGetSequencesFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          holons.v1.Manifest.HolonManifest.Sequence, holons.v1.Manifest.HolonManifest.Sequence.Builder, holons.v1.Manifest.HolonManifest.SequenceOrBuilder> 
+          holons.v1.Manifest.HolonManifest.Sequence, holons.v1.Manifest.HolonManifest.Sequence.Builder, holons.v1.Manifest.HolonManifest.SequenceOrBuilder>
           internalGetSequencesFieldBuilder() {
         if (sequencesBuilder_ == null) {
           sequencesBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -23423,7 +25318,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
           getGuideBytes() {
         java.lang.Object ref = guide_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           guide_ = b;
@@ -23844,7 +25739,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
        *
        * <code>repeated .holons.v1.ListenerVisibilityOverride session_visibility_overrides = 17;</code>
        */
-      public java.util.List<? extends holons.v1.Manifest.ListenerVisibilityOverrideOrBuilder> 
+      public java.util.List<? extends holons.v1.Manifest.ListenerVisibilityOverrideOrBuilder>
            getSessionVisibilityOverridesOrBuilderList() {
         if (sessionVisibilityOverridesBuilder_ != null) {
           return sessionVisibilityOverridesBuilder_.getMessageOrBuilderList();
@@ -23885,12 +25780,12 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
        *
        * <code>repeated .holons.v1.ListenerVisibilityOverride session_visibility_overrides = 17;</code>
        */
-      public java.util.List<holons.v1.Manifest.ListenerVisibilityOverride.Builder> 
+      public java.util.List<holons.v1.Manifest.ListenerVisibilityOverride.Builder>
            getSessionVisibilityOverridesBuilderList() {
         return internalGetSessionVisibilityOverridesFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          holons.v1.Manifest.ListenerVisibilityOverride, holons.v1.Manifest.ListenerVisibilityOverride.Builder, holons.v1.Manifest.ListenerVisibilityOverrideOrBuilder> 
+          holons.v1.Manifest.ListenerVisibilityOverride, holons.v1.Manifest.ListenerVisibilityOverride.Builder, holons.v1.Manifest.ListenerVisibilityOverrideOrBuilder>
           internalGetSessionVisibilityOverridesFieldBuilder() {
         if (sessionVisibilityOverridesBuilder_ == null) {
           sessionVisibilityOverridesBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -24054,7 +25949,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         listenerUri_ = s;
@@ -24075,7 +25970,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
         getListenerUriBytes() {
       java.lang.Object ref = listenerUri_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         listenerUri_ = b;
@@ -24454,7 +26349,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
           getListenerUriBytes() {
         java.lang.Object ref = listenerUri_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           listenerUri_ = b;
@@ -24632,107 +26527,117 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
         holons.v1.Manifest.HolonManifest.getDefaultInstance());
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Identity_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Identity_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Skill_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Skill_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Sequence_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Sequence_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Sequence_Param_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Sequence_Param_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Contract_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Contract_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Build_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Build_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Build_TargetsEntry_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Build_TargetsEntry_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Build_Defaults_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Build_Defaults_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Build_Member_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Build_Member_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Build_Target_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Build_Target_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_holons_v1_HolonManifest_Build_Codegen_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_holons_v1_HolonManifest_Build_Codegen_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Step_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Step_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Step_Exec_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Step_Exec_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Step_Copy_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Step_Copy_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Step_AssertFile_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Step_AssertFile_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Step_CopyArtifact_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Step_CopyArtifact_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_holons_v1_HolonManifest_Step_CopyAllHolons_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_holons_v1_HolonManifest_Step_CopyAllHolons_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Requires_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Requires_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Artifacts_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Artifacts_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Artifacts_ByTargetEntry_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Artifacts_ByTargetEntry_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_HolonManifest_Artifacts_TargetArtifacts_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_HolonManifest_Artifacts_TargetArtifacts_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_holons_v1_ListenerVisibilityOverride_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_holons_v1_ListenerVisibilityOverride_fieldAccessorTable;
 
@@ -24745,7 +26650,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
   static {
     java.lang.String[] descriptorData = {
       "\n\030holons/v1/manifest.proto\022\tholons.v1\032 g" +
-      "oogle/protobuf/descriptor.proto\"\317\023\n\rHolo" +
+      "oogle/protobuf/descriptor.proto\"\242\025\n\rHolo" +
       "nManifest\0223\n\010identity\030\001 \001(\0132!.holons.v1." +
       "HolonManifest.Identity\022\023\n\013description\030\003 " +
       "\001(\t\022\014\n\004lang\030\004 \001(\t\022.\n\006skills\030\005 \003(\0132\036.holo" +
@@ -24774,7 +26679,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       "aram\022\014\n\004name\030\001 \001(\t\022\023\n\013description\030\002 \001(\t\022" +
       "\020\n\010required\030\003 \001(\010\022\017\n\007default\030\004 \001(\t\0328\n\010Co" +
       "ntract\022\r\n\005proto\030\001 \001(\t\022\017\n\007service\030\002 \001(\t\022\014" +
-      "\n\004rpcs\030\003 \003(\t\032\315\004\n\005Build\022\016\n\006runner\030\001 \001(\t\022\014" +
+      "\n\004rpcs\030\003 \003(\t\032\244\005\n\005Build\022\016\n\006runner\030\001 \001(\t\022\014" +
       "\n\004main\030\002 \001(\t\0229\n\010defaults\030\003 \001(\0132\'.holons." +
       "v1.HolonManifest.Build.Defaults\0226\n\007membe" +
       "rs\030\004 \003(\0132%.holons.v1.HolonManifest.Build" +
@@ -24783,41 +26688,47 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       "es\030\006 \003(\t\022;\n\017before_commands\030\007 \003(\0132\".holo" +
       "ns.v1.HolonManifest.Step.Exec\022:\n\016after_c" +
       "ommands\030\010 \003(\0132\".holons.v1.HolonManifest." +
-      "Step.Exec\032U\n\014TargetsEntry\022\013\n\003key\030\001 \001(\t\0224" +
-      "\n\005value\030\002 \001(\0132%.holons.v1.HolonManifest." +
-      "Build.Target:\0028\001\032(\n\010Defaults\022\016\n\006target\030\001" +
-      " \001(\t\022\014\n\004mode\030\002 \001(\t\0320\n\006Member\022\n\n\002id\030\001 \001(\t" +
-      "\022\014\n\004path\030\002 \001(\t\022\014\n\004type\030\003 \001(\t\0326\n\006Target\022," +
-      "\n\005steps\030\001 \003(\0132\035.holons.v1.HolonManifest." +
-      "Step\032\241\003\n\004Step\0222\n\004exec\030\001 \001(\0132\".holons.v1." +
-      "HolonManifest.Step.ExecH\000\0222\n\004copy\030\002 \001(\0132" +
-      "\".holons.v1.HolonManifest.Step.CopyH\000\022\026\n" +
-      "\014build_member\030\003 \001(\tH\000\022?\n\013assert_file\030\004 \001" +
-      "(\0132(.holons.v1.HolonManifest.Step.Assert" +
-      "FileH\000\022C\n\rcopy_artifact\030\005 \001(\0132*.holons.v" +
-      "1.HolonManifest.Step.CopyArtifactH\000\032!\n\004E" +
-      "xec\022\013\n\003cwd\030\001 \001(\t\022\014\n\004argv\030\002 \003(\t\032 \n\004Copy\022\014" +
-      "\n\004from\030\001 \001(\t\022\n\n\002to\030\002 \001(\t\032\032\n\nAssertFile\022\014" +
-      "\n\004path\030\001 \001(\t\032(\n\014CopyArtifact\022\014\n\004from\030\001 \001" +
-      "(\t\022\n\n\002to\030\002 \001(\tB\010\n\006action\032>\n\010Requires\022\020\n\010" +
-      "commands\030\001 \003(\t\022\r\n\005files\030\002 \003(\t\022\021\n\tplatfor" +
-      "ms\030\003 \003(\t\032\232\002\n\tArtifacts\022\016\n\006binary\030\001 \001(\t\022\017" +
-      "\n\007primary\030\002 \001(\t\022C\n\tby_target\030\003 \003(\01320.hol" +
-      "ons.v1.HolonManifest.Artifacts.ByTargetE" +
-      "ntry\032c\n\rByTargetEntry\022\013\n\003key\030\001 \001(\t\022A\n\005va" +
-      "lue\030\002 \001(\01322.holons.v1.HolonManifest.Arti" +
-      "facts.TargetArtifacts:\0028\001\032B\n\017TargetArtif" +
-      "acts\022\r\n\005debug\030\001 \001(\t\022\017\n\007release\030\002 \001(\t\022\017\n\007" +
-      "profile\030\003 \001(\tJ\004\010\002\020\003J\004\010\014\020\r\"j\n\032ListenerVis" +
-      "ibilityOverride\022\024\n\014listener_uri\030\001 \001(\t\0226\n" +
-      "\nvisibility\030\002 \001(\0162\".holons.v1.Observabil" +
-      "ityVisibility*\256\001\n\027ObservabilityVisibilit" +
-      "y\022(\n$OBSERVABILITY_VISIBILITY_UNSPECIFIE" +
-      "D\020\000\022 \n\034OBSERVABILITY_VISIBILITY_OFF\020\001\022$\n" +
-      " OBSERVABILITY_VISIBILITY_SUMMARY\020\002\022!\n\035O" +
-      "BSERVABILITY_VISIBILITY_FULL\020\003:J\n\010manife" +
-      "st\022\034.google.protobuf.FileOptions\030\320\206\003 \001(\013" +
-      "2\030.holons.v1.HolonManifestb\006proto3"
+      "Step.Exec\0227\n\007codegen\030\t \001(\0132&.holons.v1.H" +
+      "olonManifest.Build.Codegen\032U\n\014TargetsEnt" +
+      "ry\022\013\n\003key\030\001 \001(\t\0224\n\005value\030\002 \001(\0132%.holons." +
+      "v1.HolonManifest.Build.Target:\0028\001\032(\n\010Def" +
+      "aults\022\016\n\006target\030\001 \001(\t\022\014\n\004mode\030\002 \001(\t\0320\n\006M" +
+      "ember\022\n\n\002id\030\001 \001(\t\022\014\n\004path\030\002 \001(\t\022\014\n\004type\030" +
+      "\003 \001(\t\0326\n\006Target\022,\n\005steps\030\001 \003(\0132\035.holons." +
+      "v1.HolonManifest.Step\032\034\n\007Codegen\022\021\n\tlang" +
+      "uages\030\001 \003(\t\032\206\004\n\004Step\0222\n\004exec\030\001 \001(\0132\".hol" +
+      "ons.v1.HolonManifest.Step.ExecH\000\0222\n\004copy" +
+      "\030\002 \001(\0132\".holons.v1.HolonManifest.Step.Co" +
+      "pyH\000\022\026\n\014build_member\030\003 \001(\tH\000\022?\n\013assert_f" +
+      "ile\030\004 \001(\0132(.holons.v1.HolonManifest.Step" +
+      ".AssertFileH\000\022C\n\rcopy_artifact\030\005 \001(\0132*.h" +
+      "olons.v1.HolonManifest.Step.CopyArtifact" +
+      "H\000\022F\n\017copy_all_holons\030\006 \001(\0132+.holons.v1." +
+      "HolonManifest.Step.CopyAllHolonsH\000\032!\n\004Ex" +
+      "ec\022\013\n\003cwd\030\001 \001(\t\022\014\n\004argv\030\002 \003(\t\032 \n\004Copy\022\014\n" +
+      "\004from\030\001 \001(\t\022\n\n\002to\030\002 \001(\t\032\032\n\nAssertFile\022\014\n" +
+      "\004path\030\001 \001(\t\032(\n\014CopyArtifact\022\014\n\004from\030\001 \001(" +
+      "\t\022\n\n\002to\030\002 \001(\t\032\033\n\rCopyAllHolons\022\n\n\002to\030\001 \001" +
+      "(\tB\010\n\006action\032U\n\010Requires\022\020\n\010commands\030\001 \003" +
+      "(\t\022\r\n\005files\030\002 \003(\t\022\021\n\tplatforms\030\003 \003(\t\022\025\n\r" +
+      "sdk_prebuilts\030\004 \003(\t\032\232\002\n\tArtifacts\022\016\n\006bin" +
+      "ary\030\001 \001(\t\022\017\n\007primary\030\002 \001(\t\022C\n\tby_target\030" +
+      "\003 \003(\01320.holons.v1.HolonManifest.Artifact" +
+      "s.ByTargetEntry\032c\n\rByTargetEntry\022\013\n\003key\030" +
+      "\001 \001(\t\022A\n\005value\030\002 \001(\01322.holons.v1.HolonMa" +
+      "nifest.Artifacts.TargetArtifacts:\0028\001\032B\n\017" +
+      "TargetArtifacts\022\r\n\005debug\030\001 \001(\t\022\017\n\007releas" +
+      "e\030\002 \001(\t\022\017\n\007profile\030\003 \001(\tJ\004\010\002\020\003J\004\010\014\020\r\"j\n\032" +
+      "ListenerVisibilityOverride\022\024\n\014listener_u" +
+      "ri\030\001 \001(\t\0226\n\nvisibility\030\002 \001(\0162\".holons.v1" +
+      ".ObservabilityVisibility*\256\001\n\027Observabili" +
+      "tyVisibility\022(\n$OBSERVABILITY_VISIBILITY" +
+      "_UNSPECIFIED\020\000\022 \n\034OBSERVABILITY_VISIBILI" +
+      "TY_OFF\020\001\022$\n OBSERVABILITY_VISIBILITY_SUM" +
+      "MARY\020\002\022!\n\035OBSERVABILITY_VISIBILITY_FULL\020" +
+      "\003:J\n\010manifest\022\034.google.protobuf.FileOpti" +
+      "ons\030\320\206\003 \001(\0132\030.holons.v1.HolonManifestb\006p" +
+      "roto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -24865,7 +26776,7 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
     internal_static_holons_v1_HolonManifest_Build_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_holons_v1_HolonManifest_Build_descriptor,
-        new java.lang.String[] { "Runner", "Main", "Defaults", "Members", "Targets", "Templates", "BeforeCommands", "AfterCommands", });
+        new java.lang.String[] { "Runner", "Main", "Defaults", "Members", "Targets", "Templates", "BeforeCommands", "AfterCommands", "Codegen", });
     internal_static_holons_v1_HolonManifest_Build_TargetsEntry_descriptor =
       internal_static_holons_v1_HolonManifest_Build_descriptor.getNestedType(0);
     internal_static_holons_v1_HolonManifest_Build_TargetsEntry_fieldAccessorTable = new
@@ -24890,12 +26801,18 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_holons_v1_HolonManifest_Build_Target_descriptor,
         new java.lang.String[] { "Steps", });
+    internal_static_holons_v1_HolonManifest_Build_Codegen_descriptor =
+      internal_static_holons_v1_HolonManifest_Build_descriptor.getNestedType(4);
+    internal_static_holons_v1_HolonManifest_Build_Codegen_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_holons_v1_HolonManifest_Build_Codegen_descriptor,
+        new java.lang.String[] { "Languages", });
     internal_static_holons_v1_HolonManifest_Step_descriptor =
       internal_static_holons_v1_HolonManifest_descriptor.getNestedType(5);
     internal_static_holons_v1_HolonManifest_Step_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_holons_v1_HolonManifest_Step_descriptor,
-        new java.lang.String[] { "Exec", "Copy", "BuildMember", "AssertFile", "CopyArtifact", "Action", });
+        new java.lang.String[] { "Exec", "Copy", "BuildMember", "AssertFile", "CopyArtifact", "CopyAllHolons", "Action", });
     internal_static_holons_v1_HolonManifest_Step_Exec_descriptor =
       internal_static_holons_v1_HolonManifest_Step_descriptor.getNestedType(0);
     internal_static_holons_v1_HolonManifest_Step_Exec_fieldAccessorTable = new
@@ -24920,12 +26837,18 @@ holons.v1.Manifest.HolonManifest.Artifacts.TargetArtifacts defaultValue) {
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_holons_v1_HolonManifest_Step_CopyArtifact_descriptor,
         new java.lang.String[] { "From", "To", });
+    internal_static_holons_v1_HolonManifest_Step_CopyAllHolons_descriptor =
+      internal_static_holons_v1_HolonManifest_Step_descriptor.getNestedType(4);
+    internal_static_holons_v1_HolonManifest_Step_CopyAllHolons_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_holons_v1_HolonManifest_Step_CopyAllHolons_descriptor,
+        new java.lang.String[] { "To", });
     internal_static_holons_v1_HolonManifest_Requires_descriptor =
       internal_static_holons_v1_HolonManifest_descriptor.getNestedType(6);
     internal_static_holons_v1_HolonManifest_Requires_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_holons_v1_HolonManifest_Requires_descriptor,
-        new java.lang.String[] { "Commands", "Files", "Platforms", });
+        new java.lang.String[] { "Commands", "Files", "Platforms", "SdkPrebuilts", });
     internal_static_holons_v1_HolonManifest_Artifacts_descriptor =
       internal_static_holons_v1_HolonManifest_descriptor.getNestedType(7);
     internal_static_holons_v1_HolonManifest_Artifacts_fieldAccessorTable = new

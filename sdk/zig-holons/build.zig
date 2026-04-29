@@ -583,7 +583,7 @@ pub fn build(b: *std.Build) void {
     const prepare_c_abi = sh(b, "mkdir -p zig-out/bin");
     prepare_c_abi.step.dependOn(b.getInstallStep());
 
-    const compile_c_abi = b.addSystemCommand(&.{"cc"});
+    const compile_c_abi = b.addSystemCommand(&.{ b.graph.zig_exe, "cc" });
     compile_c_abi.addArgs(&.{
         "tests/c_abi/main.c",
         "zig-out/lib/libholons_zig.a",

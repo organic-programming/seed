@@ -2,6 +2,7 @@ package holons
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"hash/fnv"
 	"io/fs"
@@ -43,6 +44,7 @@ type BuildOptions struct {
 	DryRun            bool
 	NoSign            bool
 	Bump              bool
+	NoAutoInstall     bool
 	Progress          progress.Reporter
 	ResolveRoot       *string
 	ResolveSpecifiers int
@@ -58,10 +60,19 @@ type BuildContext struct {
 	DryRun           bool
 	NoSign           bool
 	Bump             bool
+	NoAutoInstall    bool
 	Progress         progress.Reporter
 	SDKPrebuiltPaths map[string]string
 	composite        *compositeBuildExecution
 }
+
+var (
+	sdkPrebuiltLocate              = sdkprebuilts.Locate
+	sdkPrebuiltInstall             = sdkprebuilts.Install
+	sdkPrebuiltBuild               = sdkprebuilts.Build
+	sdkPrebuiltListAvailable       = sdkprebuilts.ListAvailable
+	sdkPrebuiltLocalSourceTreeHash = sdkprebuilts.LocalSourceTreeSHA256
+)
 
 type Report struct {
 	Operation   string   `json:"operation"`
@@ -153,7 +164,7 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 		return report, err
 	}
 
-	if op != OperationClean {
+	if op != OperationClean && op != OperationBuild {
 		reporter.Step("checking manifest...")
 		reporter.Step("validating prerequisites...")
 		if err := preflight(target.Manifest, &ctx); err != nil {
@@ -169,6 +180,7 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 		report.Notes = append(report.Notes, "manifest and prerequisites validated")
 		return report, nil
 	case OperationBuild:
+		reporter.Step("checking manifest...")
 		if !ctx.DryRun {
 			if reason := buildContextChangeCleanReason(target.Manifest, ctx); reason != "" {
 				reporter.Step(reason)
@@ -197,10 +209,25 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 		}
 
 		// Proto stage: stage, parse, and compile descriptors.
+		var stage *protoStageResult
 		if !ctx.DryRun {
-			if err := protoStage(target.Manifest, reporter); err != nil {
-				return report, err
+			var stageErr error
+			stage, stageErr = protoStage(target.Manifest, reporter)
+			if stageErr != nil {
+				return report, stageErr
 			}
+		}
+		if codegenErr := runCodegen(target.Manifest, ctx, stage, reporter, &report); codegenErr != nil {
+			err = codegenErr
+			break
+		}
+
+		reporter.Step("validating prerequisites...")
+		if err := preflight(target.Manifest, &ctx); err != nil {
+			return report, err
+		}
+		if err := r.check(target.Manifest, ctx); err != nil {
+			return report, err
 		}
 
 		// Opt-in patch bump: only when --bump is set. On failure the original
@@ -850,6 +877,9 @@ func preflight(manifest *LoadedManifest, ctx *BuildContext) error {
 	if err := resolveRequiredSDKPrebuilts(manifest, ctx); err != nil {
 		return err
 	}
+	if err := validateCodegenPlugins(manifest); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -872,14 +902,208 @@ func resolveRequiredSDKPrebuilts(manifest *LoadedManifest, ctx *BuildContext) er
 		if err != nil {
 			return fmt.Errorf("requires.sdk_prebuilts: %w", err)
 		}
-		prebuilt, err := sdkprebuilts.Locate(sdkprebuilts.QueryOptions{Lang: lang, Target: hostTarget})
+		// Explicit env-var override (OP_SDK_<LANG>_PATH) wins over auto-install:
+		// it expresses an explicit dev-time choice to use a path the user
+		// controls, bypassing any locate/install/build logic.
+		envPath, envErr := explicitSDKPrebuiltPath(lang)
+		if envErr != nil {
+			return envErr
+		}
+		if envPath != "" {
+			paths[lang] = envPath
+			continue
+		}
+		prebuilt, err := resolveRequiredSDKPrebuilt(context.Background(), lang, hostTarget, ctx)
 		if err != nil {
-			return fmt.Errorf("missing SDK prebuilt %q for host target %s; run `op sdk install %s` to install prebuilt native libraries (~30 sec download, no source compilation)", lang, hostTarget, lang)
+			return err
 		}
 		paths[lang] = prebuilt.Path
 	}
 	ctx.SDKPrebuiltPaths = paths
 	return nil
+}
+
+func explicitSDKPrebuiltPath(lang string) (string, error) {
+	envName := sdkPrebuiltEnvName(lang)
+	path := strings.TrimSpace(os.Getenv(envName))
+	if path == "" {
+		return "", nil
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		// Env var set but path is invalid: ignore silently and fall through to
+		// the standard locate/auto-install path. The user may have a stale
+		// override from a previous run; we don't want to fail loudly when a
+		// valid installed prebuilt is otherwise reachable.
+		return "", nil
+	}
+	if !info.IsDir() {
+		return "", nil
+	}
+	return path, nil
+}
+
+// ResolveRequiredSDKPrebuilts applies the SDK prebuilt preflight resolver for
+// commands such as inspect that need SDK availability without running the full
+// lifecycle preflight.
+func ResolveRequiredSDKPrebuilts(manifest *LoadedManifest, ctx *BuildContext) error {
+	return resolveRequiredSDKPrebuilts(manifest, ctx)
+}
+
+const (
+	sdkPrebuiltActionSkip    = "skip"
+	sdkPrebuiltActionInstall = "install"
+	sdkPrebuiltActionBuild   = "build"
+)
+
+func resolveRequiredSDKPrebuilt(ctx context.Context, lang, hostTarget string, buildCtx *BuildContext) (sdkprebuilts.Prebuilt, error) {
+	installed, installedErr := sdkPrebuiltLocate(sdkprebuilts.QueryOptions{Lang: lang, Target: hostTarget})
+	if buildCtx.NoAutoInstall {
+		if installedErr == nil {
+			return installed, nil
+		}
+		return sdkprebuilts.Prebuilt{}, missingSDKPrebuiltError(lang, hostTarget)
+	}
+
+	sourceHash, sourceExists, sourceErr := sdkPrebuiltLocalSourceTreeHash(lang)
+	if sourceErr != nil {
+		return sdkprebuilts.Prebuilt{}, fmt.Errorf("hash local SDK source for %s: %w", lang, sourceErr)
+	}
+	if installedErr == nil && installedSDKPrebuiltSatisfiesSource(installed, sourceHash, sourceExists) {
+		return installed, nil
+	}
+
+	unlock, err := lockSDKPrebuiltInstall(lang)
+	if err != nil {
+		return sdkprebuilts.Prebuilt{}, err
+	}
+	defer unlock()
+
+	installed, installedErr = sdkPrebuiltLocate(sdkprebuilts.QueryOptions{Lang: lang, Target: hostTarget})
+	sourceHash, sourceExists, sourceErr = sdkPrebuiltLocalSourceTreeHash(lang)
+	if sourceErr != nil {
+		return sdkprebuilts.Prebuilt{}, fmt.Errorf("hash local SDK source for %s: %w", lang, sourceErr)
+	}
+	if installedErr == nil && installedSDKPrebuiltSatisfiesSource(installed, sourceHash, sourceExists) {
+		return installed, nil
+	}
+
+	action, version, detail, err := decideSDKPrebuiltAutoResolution(lang, hostTarget, installed, installedErr == nil, sourceHash, sourceExists)
+	if err != nil {
+		return sdkprebuilts.Prebuilt{}, err
+	}
+	if action == sdkPrebuiltActionSkip && installedErr == nil {
+		return installed, nil
+	}
+
+	started := time.Now()
+	reporter := buildCtx.Progress
+	if reporter == nil {
+		reporter = progress.Silence()
+	}
+	switch action {
+	case sdkPrebuiltActionInstall:
+		reporter.Step(fmt.Sprintf("auto-installing SDK prebuilt %q v%s...", lang, version))
+		prebuilt, _, err := sdkPrebuiltInstall(ctx, sdkprebuilts.InstallOptions{
+			Lang:    lang,
+			Target:  hostTarget,
+			Version: version,
+		})
+		if err != nil {
+			return sdkprebuilts.Prebuilt{}, err
+		}
+		reporter.Step(fmt.Sprintf("installed in %s", progress.FormatElapsed(time.Since(started))))
+		reporter.Step(fmt.Sprintf("auto-resolved %s via install (%s)", lang, detail))
+		return prebuilt, nil
+	case sdkPrebuiltActionBuild:
+		reporter.Step(fmt.Sprintf("auto-building SDK prebuilt %q v%s...", lang, version))
+		prebuilt, _, err := sdkPrebuiltBuild(ctx, sdkprebuilts.BuildOptions{
+			Lang:              lang,
+			Target:            hostTarget,
+			Version:           version,
+			Force:             true,
+			InstallAfterBuild: true,
+		})
+		if err != nil {
+			return sdkprebuilts.Prebuilt{}, err
+		}
+		reporter.Step(fmt.Sprintf("installed in %s", progress.FormatElapsed(time.Since(started))))
+		reporter.Step(fmt.Sprintf("auto-resolved %s via build (%s)", lang, detail))
+		return prebuilt, nil
+	default:
+		return sdkprebuilts.Prebuilt{}, missingSDKPrebuiltError(lang, hostTarget)
+	}
+}
+
+func decideSDKPrebuiltAutoResolution(lang, hostTarget string, installed sdkprebuilts.Prebuilt, installedOK bool, sourceHash string, sourceExists bool) (string, string, string, error) {
+	version, _ := sdkprebuilts.DefaultVersion(lang)
+	releases, releaseErr := releasedSDKPrebuilts(lang, hostTarget)
+	if !sourceExists {
+		if releaseErr == nil && len(releases) > 0 {
+			version = releases[0].Version
+		}
+		return sdkPrebuiltActionInstall, version, fmt.Sprintf("download v%s", version), nil
+	}
+
+	if releaseErr == nil {
+		for _, release := range releases {
+			if strings.TrimSpace(release.SourceTreeSHA256) == "" ||
+				!strings.EqualFold(strings.TrimSpace(release.SourceTreeSHA256), strings.TrimSpace(sourceHash)) {
+				continue
+			}
+			if installedOK && strings.TrimSpace(installed.Version) == strings.TrimSpace(release.Version) {
+				return sdkPrebuiltActionSkip, release.Version, "", nil
+			}
+			return sdkPrebuiltActionInstall, release.Version, fmt.Sprintf("download v%s", release.Version), nil
+		}
+	}
+
+	detail := "source diverges from published releases"
+	if releaseErr == nil && len(releases) > 0 {
+		version = releases[0].Version
+		detail = fmt.Sprintf("source diverges from published v%s", releases[0].Version)
+	}
+	return sdkPrebuiltActionBuild, version, detail, nil
+}
+
+func installedSDKPrebuiltSatisfiesSource(prebuilt sdkprebuilts.Prebuilt, sourceHash string, sourceExists bool) bool {
+	if !sourceExists {
+		return true
+	}
+	return strings.TrimSpace(prebuilt.SourceTreeSHA256) != "" &&
+		strings.EqualFold(strings.TrimSpace(prebuilt.SourceTreeSHA256), strings.TrimSpace(sourceHash))
+}
+
+func releasedSDKPrebuilts(lang, hostTarget string) ([]sdkprebuilts.Prebuilt, error) {
+	available, _, err := sdkPrebuiltListAvailable(lang)
+	if err != nil {
+		return nil, err
+	}
+	releases := make([]sdkprebuilts.Prebuilt, 0, len(available))
+	for _, prebuilt := range available {
+		if strings.TrimSpace(prebuilt.Target) == hostTarget {
+			releases = append(releases, prebuilt)
+		}
+	}
+	return releases, nil
+}
+
+func lockSDKPrebuiltInstall(lang string) (func(), error) {
+	dir := filepath.Join(sdkprebuilts.SDKRoot(), lang)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("create SDK prebuilt lock dir %s: %w", dir, err)
+	}
+	f, err := lockFileExclusive(filepath.Join(dir, ".install.lock"))
+	if err != nil {
+		return nil, err
+	}
+	return func() {
+		_ = unlockFileExclusive(f)
+	}, nil
+}
+
+func missingSDKPrebuiltError(lang, hostTarget string) error {
+	return fmt.Errorf("missing SDK prebuilt %q for host target %s; run `op sdk install %s` to install prebuilt native libraries (~30 sec download, no source compilation)", lang, hostTarget, lang)
 }
 
 func sdkPrebuiltEnv(ctx BuildContext) []string {
@@ -1121,14 +1345,15 @@ func resolveBuildContext(manifest *LoadedManifest, opts BuildOptions) (BuildCont
 	}
 
 	return BuildContext{
-		Target:    target,
-		Mode:      mode,
-		Hardened:  opts.Hardened,
-		DryRun:    opts.DryRun,
-		NoSign:    opts.NoSign,
-		Bump:      opts.Bump,
-		Progress:  opts.Progress,
-		composite: opts.composite,
+		Target:        target,
+		Mode:          mode,
+		Hardened:      opts.Hardened,
+		DryRun:        opts.DryRun,
+		NoSign:        opts.NoSign,
+		Bump:          opts.Bump,
+		NoAutoInstall: opts.NoAutoInstall,
+		Progress:      opts.Progress,
+		composite:     opts.composite,
 	}, nil
 }
 
@@ -1662,8 +1887,17 @@ func (recipeRunner) stepCopyAllHolons(manifest *LoadedManifest, ctx BuildContext
 
 	var collect func(*LoadedManifest) error
 	collect = func(parent *LoadedManifest) error {
+		excludedCtx := ctx
+		excludedCtx.Progress = nil
+		excludedMembers := resolveHardenedExcludedMembers(parent, excludedCtx)
 		for _, member := range parent.Manifest.Build.Members {
 			if member.Type != "holon" {
+				continue
+			}
+			if runnerName, excluded := excludedMembers[member.ID]; excluded {
+				note := fmt.Sprintf("hardened: skipped copy_all_holons member %q (runner %q not standalone)", member.ID, runnerName)
+				ctx.Progress.Step(note)
+				report.Notes = append(report.Notes, note)
 				continue
 			}
 			memberDir, err := parent.ResolveManifestPath(member.Path)

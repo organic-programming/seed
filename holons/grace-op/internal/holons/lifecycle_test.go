@@ -1,13 +1,17 @@
 package holons
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/organic-programming/grace-op/internal/identity"
 	"github.com/organic-programming/grace-op/internal/sdkprebuilts"
@@ -360,7 +364,7 @@ func TestExecuteLifecycleSDKPrebuiltMissingIsActionable(t *testing.T) {
 
 	dir := writeSDKPrebuiltLifecycleFixture(t, root, "demo-missing-sdk", RunnerGoModule, "cpp")
 
-	_, err := ExecuteLifecycle(OperationBuild, dir, BuildOptions{DryRun: true})
+	_, err := ExecuteLifecycle(OperationBuild, dir, BuildOptions{DryRun: true, NoAutoInstall: true})
 	if err == nil {
 		t.Fatal("expected missing SDK prebuilt error")
 	}
@@ -369,6 +373,134 @@ func TestExecuteLifecycleSDKPrebuiltMissingIsActionable(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "op sdk install cpp") {
 		t.Fatalf("error missing install action: %v", err)
+	}
+}
+
+func TestExecuteLifecycleSDKPrebuiltAutoResolution(t *testing.T) {
+	cases := []struct {
+		name         string
+		installed    bool
+		installedSHA string
+		sourceSHA    string
+		sourceExists bool
+		wantInstall  int
+		wantBuild    int
+	}{
+		{name: "missing no local source installs", wantInstall: 1},
+		{name: "present skips", installed: true},
+		{name: "matching source release installs", sourceSHA: "source-match", sourceExists: true, wantInstall: 1},
+		{name: "diverged source builds", sourceSHA: "source-diverged", sourceExists: true, wantBuild: 1},
+		{name: "installed matching source skips", installed: true, installedSHA: "source-match", sourceSHA: "source-match", sourceExists: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			chdirForHolonTest(t, root)
+			t.Setenv("OPPATH", filepath.Join(root, ".op-runtime"))
+
+			restore := stubSDKPrebuiltAutoResolution(t)
+			defer restore()
+
+			installCalls := 0
+			buildCalls := 0
+			sdkPrebuiltLocalSourceTreeHash = func(string) (string, bool, error) {
+				return tc.sourceSHA, tc.sourceExists, nil
+			}
+			sdkPrebuiltLocate = func(opts sdkprebuilts.QueryOptions) (sdkprebuilts.Prebuilt, error) {
+				if !tc.installed {
+					return sdkprebuilts.Prebuilt{}, errors.New("missing")
+				}
+				return sdkprebuilts.Prebuilt{Lang: opts.Lang, Version: "0.1.0", Target: opts.Target, Path: "/fake/zig", SourceTreeSHA256: tc.installedSHA}, nil
+			}
+			sdkPrebuiltInstall = func(_ context.Context, opts sdkprebuilts.InstallOptions) (sdkprebuilts.Prebuilt, []string, error) {
+				installCalls++
+				return sdkprebuilts.Prebuilt{Lang: opts.Lang, Version: opts.Version, Target: opts.Target, Path: "/fake/zig"}, nil, nil
+			}
+			sdkPrebuiltBuild = func(_ context.Context, opts sdkprebuilts.BuildOptions) (sdkprebuilts.Prebuilt, []string, error) {
+				buildCalls++
+				if !opts.Force || !opts.InstallAfterBuild {
+					t.Fatalf("build Force=%v InstallAfterBuild=%v, want true true", opts.Force, opts.InstallAfterBuild)
+				}
+				return sdkprebuilts.Prebuilt{Lang: opts.Lang, Version: opts.Version, Target: opts.Target, Path: "/fake/zig"}, nil, nil
+			}
+
+			runnerName := "sdk-auto-resolution-test-" + strings.ReplaceAll(tc.name, " ", "-")
+			checked := false
+			registerLifecycleTestRunner(t, runnerName, lifecycleTestRunner{
+				checkFunc: func(_ *LoadedManifest, ctx BuildContext) error {
+					checked = true
+					if got := ctx.SDKPrebuiltPaths["zig"]; got != "/fake/zig" {
+						return fmt.Errorf("SDK path = %q, want /fake/zig", got)
+					}
+					return nil
+				},
+			})
+			dir := writeSDKPrebuiltLifecycleFixture(t, root, "demo-auto-sdk", runnerName, "zig")
+			if _, err := ExecuteLifecycle(OperationCheck, dir); err != nil {
+				t.Fatalf("check failed: %v", err)
+			}
+			if installCalls != tc.wantInstall || buildCalls != tc.wantBuild {
+				t.Fatalf("install calls = %d, build calls = %d; want %d, %d", installCalls, buildCalls, tc.wantInstall, tc.wantBuild)
+			}
+			if !checked {
+				t.Fatal("runner check did not continue after SDK resolution")
+			}
+		})
+	}
+}
+
+func TestExecuteLifecycleSDKPrebuiltConcurrentAutoInstallWaits(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+	t.Setenv("OPPATH", filepath.Join(root, ".op-runtime"))
+
+	restore := stubSDKPrebuiltAutoResolution(t)
+	defer restore()
+
+	var mu sync.Mutex
+	installed := false
+	installCalls := 0
+	sdkPrebuiltLocate = func(opts sdkprebuilts.QueryOptions) (sdkprebuilts.Prebuilt, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if installed {
+			return sdkprebuilts.Prebuilt{Lang: opts.Lang, Version: "0.1.0", Target: opts.Target, Path: "/fake/zig"}, nil
+		}
+		return sdkprebuilts.Prebuilt{}, errors.New("missing")
+	}
+	sdkPrebuiltInstall = func(_ context.Context, opts sdkprebuilts.InstallOptions) (sdkprebuilts.Prebuilt, []string, error) {
+		time.Sleep(150 * time.Millisecond)
+		mu.Lock()
+		defer mu.Unlock()
+		installCalls++
+		installed = true
+		return sdkprebuilts.Prebuilt{Lang: opts.Lang, Version: opts.Version, Target: opts.Target, Path: "/fake/zig"}, nil, nil
+	}
+
+	runnerName := "sdk-concurrent-test"
+	registerLifecycleTestRunner(t, runnerName, lifecycleTestRunner{})
+	dir := writeSDKPrebuiltLifecycleFixture(t, root, "demo-concurrent-sdk", runnerName, "zig")
+
+	errs := make(chan error, 2)
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := ExecuteLifecycle(OperationCheck, dir)
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent check failed: %v", err)
+		}
+	}
+	if installCalls != 1 {
+		t.Fatalf("install calls = %d, want 1", installCalls)
 	}
 }
 
@@ -401,6 +533,34 @@ func TestExecuteLifecycleSDKPrebuiltPathIsResolvedForRunner(t *testing.T) {
 	}
 	if got := os.Getenv("OP_SDK_CPP_PATH"); got != "original-cpp-path" {
 		t.Fatalf("OP_SDK_CPP_PATH after lifecycle = %q, want original-cpp-path", got)
+	}
+}
+
+func TestExecuteLifecycleSDKPrebuiltEnvPathIsResolvedForRunner(t *testing.T) {
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+	t.Setenv("OPPATH", filepath.Join(root, ".op-runtime"))
+
+	prebuiltPath := writeInstalledSDKPrebuilt(t, filepath.Join(root, "external-op-runtime"), "cpp", "1.80.0")
+	t.Setenv("OP_SDK_CPP_PATH", prebuiltPath)
+	runnerName := "sdk-env-path-test"
+	sawRunnerContext := false
+	registerLifecycleTestRunner(t, runnerName, lifecycleTestRunner{
+		checkFunc: func(_ *LoadedManifest, ctx BuildContext) error {
+			sawRunnerContext = true
+			if got := ctx.SDKPrebuiltPaths["cpp"]; got != prebuiltPath {
+				return fmt.Errorf("ctx.SDKPrebuiltPaths[cpp] = %q, want %q", got, prebuiltPath)
+			}
+			return nil
+		},
+	})
+	dir := writeSDKPrebuiltLifecycleFixture(t, root, "demo-env-sdk", runnerName, "cpp")
+
+	if _, err := ExecuteLifecycle(OperationCheck, dir); err != nil {
+		t.Fatalf("check failed: %v", err)
+	}
+	if !sawRunnerContext {
+		t.Fatal("runner check did not observe SDK prebuilt path")
 	}
 }
 
@@ -546,6 +706,49 @@ func registerLifecycleTestRunner(t *testing.T, name string, r runner) {
 		}
 		delete(runnerRegistry, name)
 	})
+}
+
+func stubSDKPrebuiltAutoResolution(t *testing.T) func() {
+	t.Helper()
+
+	oldLocate := sdkPrebuiltLocate
+	oldInstall := sdkPrebuiltInstall
+	oldBuild := sdkPrebuiltBuild
+	oldListAvailable := sdkPrebuiltListAvailable
+	oldLocalSourceHash := sdkPrebuiltLocalSourceTreeHash
+
+	sdkPrebuiltLocate = func(sdkprebuilts.QueryOptions) (sdkprebuilts.Prebuilt, error) {
+		return sdkprebuilts.Prebuilt{}, errors.New("missing")
+	}
+	sdkPrebuiltInstall = func(_ context.Context, opts sdkprebuilts.InstallOptions) (sdkprebuilts.Prebuilt, []string, error) {
+		return sdkprebuilts.Prebuilt{Lang: opts.Lang, Version: opts.Version, Target: opts.Target, Path: "/fake/" + opts.Lang}, nil, nil
+	}
+	sdkPrebuiltBuild = func(_ context.Context, opts sdkprebuilts.BuildOptions) (sdkprebuilts.Prebuilt, []string, error) {
+		return sdkprebuilts.Prebuilt{Lang: opts.Lang, Version: opts.Version, Target: opts.Target, Path: "/fake/" + opts.Lang}, nil, nil
+	}
+	sdkPrebuiltListAvailable = func(lang string) ([]sdkprebuilts.Prebuilt, []string, error) {
+		hostTarget, err := sdkprebuilts.HostTriplet()
+		if err != nil {
+			return nil, nil, err
+		}
+		return []sdkprebuilts.Prebuilt{{
+			Lang:             lang,
+			Version:          "0.1.0",
+			Target:           hostTarget,
+			SourceTreeSHA256: "source-match",
+		}}, nil, nil
+	}
+	sdkPrebuiltLocalSourceTreeHash = func(string) (string, bool, error) {
+		return "", false, nil
+	}
+
+	return func() {
+		sdkPrebuiltLocate = oldLocate
+		sdkPrebuiltInstall = oldInstall
+		sdkPrebuiltBuild = oldBuild
+		sdkPrebuiltListAvailable = oldListAvailable
+		sdkPrebuiltLocalSourceTreeHash = oldLocalSourceHash
+	}
 }
 
 func writeSDKPrebuiltLifecycleFixture(t *testing.T, root, name, runnerName, sdk string) string {

@@ -1,3 +1,6 @@
+# Reusable workflow: builds one (sdk, target) prebuilt tarball.
+# Triggers: workflow_call only — invoked by sdk-prebuilts.yml.
+# Owns: per-target build script execution + artifact upload.
 name: sdk-prebuilt-target
 
 on:
@@ -136,27 +139,20 @@ jobs:
           restore-keys: |
             sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-
 
-      - name: Build Zig SDK prebuilt
-        if: inputs.sdk == 'zig'
+      - name: Build SDK prebuilt
+        id: build_prebuilt
         shell: bash
-        run: .github/scripts/build-prebuilt-zig.sh
+        continue-on-error: ${{ inputs.continue-on-error }}
+        run: .github/scripts/build-prebuilt-${SDK}.sh
 
-      - name: Build C++ SDK prebuilt
-        if: inputs.sdk == 'cpp'
+      - name: Record allowed prebuilt failure
+        if: inputs.continue-on-error && steps.build_prebuilt.outcome == 'failure'
         shell: bash
-        run: .github/scripts/build-prebuilt-cpp.sh
-
-      - name: Build C SDK prebuilt
-        if: inputs.sdk == 'c'
-        shell: bash
-        run: .github/scripts/build-prebuilt-c.sh
-
-      - name: Build Ruby SDK prebuilt
-        if: inputs.sdk == 'ruby'
-        shell: bash
-        run: .github/scripts/build-prebuilt-ruby.sh
+        run: |
+          echo "::warning::${SDK}/${SDK_TARGET} prebuilt build failed on an allowed-failure matrix leg."
 
       - name: Upload artifacts
+        if: steps.build_prebuilt.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.sdk }}-${{ inputs.sdk-version }}-${{ inputs.sdk-target }}
@@ -164,7 +160,7 @@ jobs:
           if-no-files-found: error
 
       - name: Save SDK prebuilt output cache
-        if: always() && steps.prebuilt-cache.outputs.cache-hit != 'true'
+        if: steps.build_prebuilt.outcome == 'success' && steps.prebuilt-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |

@@ -73,6 +73,27 @@ Each install writes a local `manifest.json` with the archive SHA-256 and tree
 SHA-256. `op sdk verify <lang>` recomputes the installed tree hash and fails if
 the tree no longer matches the recorded metadata.
 
+Distributions that provide proto generators also advertise them in the same
+local manifest:
+
+```json
+{
+  "codegen": {
+    "plugins": [
+      {
+        "name": "go",
+        "binary": "bin/protoc-gen-go",
+        "out_subdir": "go"
+      }
+    ]
+  }
+}
+```
+
+`op build` resolves `build.codegen.languages` through this block and runs the
+plugin binary from the installed distribution, so proto generation does not
+depend on generators being present on `PATH`.
+
 ## Targets
 
 The v1 target set is T0 + T1:
@@ -99,9 +120,12 @@ requires: {
 }
 ```
 
-During `op build`, preflight locates every requested prebuilt for the host
-triplet. On success it injects the corresponding environment variable into the
-runner:
+During `op build`, `op test`, `op run`, and local `op inspect`, preflight
+locates every requested prebuilt for the host triplet. Missing prebuilts are
+auto-resolved by default: release-matching SDK source uses the `op sdk install`
+path, while diverged local SDK source uses the `op sdk build` path and installs
+the result. On success it injects the corresponding environment variable into
+the runner:
 
 | SDK | Runner environment variable |
 |---|---|
@@ -110,8 +134,8 @@ runner:
 | `ruby` | `OP_SDK_RUBY_PATH` |
 | `zig` | `OP_SDK_ZIG_PATH` |
 
-On a miss, `op build` fails before invoking the runner and points at
-`op sdk install <lang>`.
+Use `--no-auto-install` to restore the strict behavior where a missing prebuilt
+fails before invoking the runner and points at `op sdk install <lang>`.
 
 ## Integrity
 

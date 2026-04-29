@@ -355,6 +355,16 @@ public struct Holons_V1_HolonManifest: @unchecked Sendable {
     /// Commands to execute sequentially AFTER the main runner logic.
     public var afterCommands: [Holons_V1_HolonManifest.Step.Exec] = []
 
+    /// Proto code generation languages to run after descriptor production.
+    public var codegen: Holons_V1_HolonManifest.Build.Codegen {
+      get {_codegen ?? Holons_V1_HolonManifest.Build.Codegen()}
+      set {_codegen = newValue}
+    }
+    /// Returns true if `codegen` has been explicitly set.
+    public var hasCodegen: Bool {self._codegen != nil}
+    /// Clears the value of `codegen`. Subsequent reads from it will return its default value.
+    public mutating func clearCodegen() {self._codegen = nil}
+
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
     public struct Defaults: Sendable {
@@ -404,9 +414,22 @@ public struct Holons_V1_HolonManifest: @unchecked Sendable {
       public init() {}
     }
 
+    public struct Codegen: Sendable {
+      // SwiftProtobuf.Message conformance is added in an extension below. See the
+      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+      // methods supported on all messages.
+
+      public var languages: [String] = []
+
+      public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+      public init() {}
+    }
+
     public init() {}
 
     fileprivate var _defaults: Holons_V1_HolonManifest.Build.Defaults? = nil
+    fileprivate var _codegen: Holons_V1_HolonManifest.Build.Codegen? = nil
   }
 
   public struct Step: Sendable {
@@ -457,6 +480,14 @@ public struct Holons_V1_HolonManifest: @unchecked Sendable {
       set {action = .copyArtifact(newValue)}
     }
 
+    public var copyAllHolons: Holons_V1_HolonManifest.Step.CopyAllHolons {
+      get {
+        if case .copyAllHolons(let v)? = action {return v}
+        return Holons_V1_HolonManifest.Step.CopyAllHolons()
+      }
+      set {action = .copyAllHolons(newValue)}
+    }
+
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
     public enum OneOf_Action: Equatable, Sendable {
@@ -466,6 +497,7 @@ public struct Holons_V1_HolonManifest: @unchecked Sendable {
       case buildMember(String)
       case assertFile(Holons_V1_HolonManifest.Step.AssertFile)
       case copyArtifact(Holons_V1_HolonManifest.Step.CopyArtifact)
+      case copyAllHolons(Holons_V1_HolonManifest.Step.CopyAllHolons)
 
     }
 
@@ -523,6 +555,19 @@ public struct Holons_V1_HolonManifest: @unchecked Sendable {
       public init() {}
     }
 
+    public struct CopyAllHolons: Sendable {
+      // SwiftProtobuf.Message conformance is added in an extension below. See the
+      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+      // methods supported on all messages.
+
+      /// destination directory, manifest-relative
+      public var to: String = String()
+
+      public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+      public init() {}
+    }
+
     public init() {}
   }
 
@@ -539,6 +584,9 @@ public struct Holons_V1_HolonManifest: @unchecked Sendable {
 
     /// supported targets (macos, linux, windows…)
     public var platforms: [String] = []
+
+    /// SDK native prebuilts required by `op build`
+    public var sdkPrebuilts: [String] = []
 
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1076,7 +1124,7 @@ extension Holons_V1_HolonManifest.Contract: SwiftProtobuf.Message, SwiftProtobuf
 
 extension Holons_V1_HolonManifest.Build: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Holons_V1_HolonManifest.protoMessageName + ".Build"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}runner\0\u{1}main\0\u{1}defaults\0\u{1}members\0\u{1}targets\0\u{1}templates\0\u{3}before_commands\0\u{3}after_commands\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}runner\0\u{1}main\0\u{1}defaults\0\u{1}members\0\u{1}targets\0\u{1}templates\0\u{3}before_commands\0\u{3}after_commands\0\u{1}codegen\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1092,6 +1140,7 @@ extension Holons_V1_HolonManifest.Build: SwiftProtobuf.Message, SwiftProtobuf._M
       case 6: try { try decoder.decodeRepeatedStringField(value: &self.templates) }()
       case 7: try { try decoder.decodeRepeatedMessageField(value: &self.beforeCommands) }()
       case 8: try { try decoder.decodeRepeatedMessageField(value: &self.afterCommands) }()
+      case 9: try { try decoder.decodeSingularMessageField(value: &self._codegen) }()
       default: break
       }
     }
@@ -1126,6 +1175,9 @@ extension Holons_V1_HolonManifest.Build: SwiftProtobuf.Message, SwiftProtobuf._M
     if !self.afterCommands.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.afterCommands, fieldNumber: 8)
     }
+    try { if let v = self._codegen {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1138,6 +1190,7 @@ extension Holons_V1_HolonManifest.Build: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.templates != rhs.templates {return false}
     if lhs.beforeCommands != rhs.beforeCommands {return false}
     if lhs.afterCommands != rhs.afterCommands {return false}
+    if lhs._codegen != rhs._codegen {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1248,9 +1301,39 @@ extension Holons_V1_HolonManifest.Build.Target: SwiftProtobuf.Message, SwiftProt
   }
 }
 
+extension Holons_V1_HolonManifest.Build.Codegen: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Holons_V1_HolonManifest.Build.protoMessageName + ".Codegen"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}languages\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedStringField(value: &self.languages) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.languages.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.languages, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Holons_V1_HolonManifest.Build.Codegen, rhs: Holons_V1_HolonManifest.Build.Codegen) -> Bool {
+    if lhs.languages != rhs.languages {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Holons_V1_HolonManifest.Step: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Holons_V1_HolonManifest.protoMessageName + ".Step"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}exec\0\u{1}copy\0\u{3}build_member\0\u{3}assert_file\0\u{3}copy_artifact\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}exec\0\u{1}copy\0\u{3}build_member\0\u{3}assert_file\0\u{3}copy_artifact\0\u{3}copy_all_holons\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1318,6 +1401,19 @@ extension Holons_V1_HolonManifest.Step: SwiftProtobuf.Message, SwiftProtobuf._Me
           self.action = .copyArtifact(v)
         }
       }()
+      case 6: try {
+        var v: Holons_V1_HolonManifest.Step.CopyAllHolons?
+        var hadOneofValue = false
+        if let current = self.action {
+          hadOneofValue = true
+          if case .copyAllHolons(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.action = .copyAllHolons(v)
+        }
+      }()
       default: break
       }
     }
@@ -1348,6 +1444,10 @@ extension Holons_V1_HolonManifest.Step: SwiftProtobuf.Message, SwiftProtobuf._Me
     case .copyArtifact?: try {
       guard case .copyArtifact(let v)? = self.action else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case .copyAllHolons?: try {
+      guard case .copyAllHolons(let v)? = self.action else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     }()
     case nil: break
     }
@@ -1496,9 +1596,39 @@ extension Holons_V1_HolonManifest.Step.CopyArtifact: SwiftProtobuf.Message, Swif
   }
 }
 
+extension Holons_V1_HolonManifest.Step.CopyAllHolons: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Holons_V1_HolonManifest.Step.protoMessageName + ".CopyAllHolons"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}to\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.to) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.to.isEmpty {
+      try visitor.visitSingularStringField(value: self.to, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Holons_V1_HolonManifest.Step.CopyAllHolons, rhs: Holons_V1_HolonManifest.Step.CopyAllHolons) -> Bool {
+    if lhs.to != rhs.to {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Holons_V1_HolonManifest.Requires: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = Holons_V1_HolonManifest.protoMessageName + ".Requires"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}commands\0\u{1}files\0\u{1}platforms\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}commands\0\u{1}files\0\u{1}platforms\0\u{3}sdk_prebuilts\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1509,6 +1639,7 @@ extension Holons_V1_HolonManifest.Requires: SwiftProtobuf.Message, SwiftProtobuf
       case 1: try { try decoder.decodeRepeatedStringField(value: &self.commands) }()
       case 2: try { try decoder.decodeRepeatedStringField(value: &self.files) }()
       case 3: try { try decoder.decodeRepeatedStringField(value: &self.platforms) }()
+      case 4: try { try decoder.decodeRepeatedStringField(value: &self.sdkPrebuilts) }()
       default: break
       }
     }
@@ -1524,6 +1655,9 @@ extension Holons_V1_HolonManifest.Requires: SwiftProtobuf.Message, SwiftProtobuf
     if !self.platforms.isEmpty {
       try visitor.visitRepeatedStringField(value: self.platforms, fieldNumber: 3)
     }
+    if !self.sdkPrebuilts.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.sdkPrebuilts, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1531,6 +1665,7 @@ extension Holons_V1_HolonManifest.Requires: SwiftProtobuf.Message, SwiftProtobuf
     if lhs.commands != rhs.commands {return false}
     if lhs.files != rhs.files {return false}
     if lhs.platforms != rhs.platforms {return false}
+    if lhs.sdkPrebuilts != rhs.sdkPrebuilts {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

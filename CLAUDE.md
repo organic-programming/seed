@@ -40,7 +40,7 @@ op tcp://127.0.0.1:9090 SayHello '{"name":"Bob"}'                    # force tra
 op stdio://gabriel-greeting-go SayHello '{…}'
 ```
 
-Path expressions (`../sibling`, `./subdir`, absolute) go through the same discovery — reserve them for the parent-traversal case. Build flags that matter: `--target`, `--mode <debug|release|profile>`, `--config <name>` (sets `OP_CONFIG`), `--dry-run`, `--no-sign`.
+Path expressions (`../sibling`, `./subdir`, absolute) go through the same discovery — reserve them for the parent-traversal case. Build flags that matter: `--target`, `--mode <debug|release|profile>`, `--config <name>` (sets `OP_CONFIG`), `--dry-run`, `--no-sign`, `--no-auto-install` (strict mode for SDK prebuilts).
 
 Rebuild `op` itself (canonical, when `op` already works):
 

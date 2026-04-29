@@ -113,6 +113,33 @@ struct HolonManifest_Step_CopyArtifactDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 HolonManifest_Step_CopyArtifactDefaultTypeInternal _HolonManifest_Step_CopyArtifact_default_instance_;
 
+inline constexpr HolonManifest_Step_CopyAllHolons::Impl_::Impl_(
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        to_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()) {}
+
+template <typename>
+PROTOBUF_CONSTEXPR HolonManifest_Step_CopyAllHolons::HolonManifest_Step_CopyAllHolons(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(HolonManifest_Step_CopyAllHolons_class_data_.base()),
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(),
+#endif  // PROTOBUF_CUSTOM_VTABLE
+      _impl_(::_pbi::ConstantInitialized()) {
+}
+struct HolonManifest_Step_CopyAllHolonsDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR HolonManifest_Step_CopyAllHolonsDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~HolonManifest_Step_CopyAllHolonsDefaultTypeInternal() {}
+  union {
+    HolonManifest_Step_CopyAllHolons _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 HolonManifest_Step_CopyAllHolonsDefaultTypeInternal _HolonManifest_Step_CopyAllHolons_default_instance_;
+
 inline constexpr HolonManifest_Step_Copy::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
@@ -412,6 +439,31 @@ struct HolonManifest_Build_DefaultsDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 HolonManifest_Build_DefaultsDefaultTypeInternal _HolonManifest_Build_Defaults_default_instance_;
 
+inline constexpr HolonManifest_Build_Codegen::Impl_::Impl_(
+    ::_pbi::ConstantInitialized) noexcept
+      : languages_{},
+        _cached_size_{0} {}
+
+template <typename>
+PROTOBUF_CONSTEXPR HolonManifest_Build_Codegen::HolonManifest_Build_Codegen(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(HolonManifest_Build_Codegen_class_data_.base()),
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(),
+#endif  // PROTOBUF_CUSTOM_VTABLE
+      _impl_(::_pbi::ConstantInitialized()) {
+}
+struct HolonManifest_Build_CodegenDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR HolonManifest_Build_CodegenDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~HolonManifest_Build_CodegenDefaultTypeInternal() {}
+  union {
+    HolonManifest_Build_Codegen _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 HolonManifest_Build_CodegenDefaultTypeInternal _HolonManifest_Build_Codegen_default_instance_;
+
 inline constexpr HolonManifest_Artifacts_TargetArtifacts::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
@@ -609,7 +661,8 @@ inline constexpr HolonManifest_Build::Impl_::Impl_(
         main_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
-        defaults_{nullptr} {}
+        defaults_{nullptr},
+        codegen_{nullptr} {}
 
 template <typename>
 PROTOBUF_CONSTEXPR HolonManifest_Build::HolonManifest_Build(::_pbi::ConstantInitialized)
@@ -778,9 +831,11 @@ const ::uint32_t
         2,
         0x000, // bitmap
         PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Build_Target, _impl_.steps_),
+        0x000, // bitmap
+        PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Build_Codegen, _impl_.languages_),
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Build, _impl_._has_bits_),
-        11, // hasbit index offset
+        12, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Build, _impl_.runner_),
         PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Build, _impl_.main_),
         PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Build, _impl_.defaults_),
@@ -789,6 +844,7 @@ const ::uint32_t
         PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Build, _impl_.templates_),
         PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Build, _impl_.before_commands_),
         PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Build, _impl_.after_commands_),
+        PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Build, _impl_.codegen_),
         0,
         1,
         2,
@@ -797,6 +853,7 @@ const ::uint32_t
         ~0u,
         ~0u,
         ~0u,
+        3,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Step_Exec, _impl_._has_bits_),
         5, // hasbit index offset
@@ -823,8 +880,14 @@ const ::uint32_t
         PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Step_CopyArtifact, _impl_.to_),
         0,
         1,
+        0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Step_CopyAllHolons, _impl_._has_bits_),
+        4, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Step_CopyAllHolons, _impl_.to_),
+        0,
         0x004, // bitmap
         PROTOBUF_FIELD_OFFSET(::holons::v1::HolonManifest_Step, _impl_._oneof_case_[0]),
+        ::_pbi::kInvalidFieldOffsetTag,
         ::_pbi::kInvalidFieldOffsetTag,
         ::_pbi::kInvalidFieldOffsetTag,
         ::_pbi::kInvalidFieldOffsetTag,
@@ -914,18 +977,20 @@ static const ::_pbi::MigrationSchema
         {72, sizeof(::holons::v1::HolonManifest_Build_Defaults)},
         {79, sizeof(::holons::v1::HolonManifest_Build_Member)},
         {88, sizeof(::holons::v1::HolonManifest_Build_Target)},
-        {90, sizeof(::holons::v1::HolonManifest_Build)},
-        {109, sizeof(::holons::v1::HolonManifest_Step_Exec)},
-        {116, sizeof(::holons::v1::HolonManifest_Step_Copy)},
-        {123, sizeof(::holons::v1::HolonManifest_Step_AssertFile)},
-        {128, sizeof(::holons::v1::HolonManifest_Step_CopyArtifact)},
-        {135, sizeof(::holons::v1::HolonManifest_Step)},
-        {143, sizeof(::holons::v1::HolonManifest_Requires)},
-        {148, sizeof(::holons::v1::HolonManifest_Artifacts_ByTargetEntry_DoNotUse)},
-        {155, sizeof(::holons::v1::HolonManifest_Artifacts_TargetArtifacts)},
-        {164, sizeof(::holons::v1::HolonManifest_Artifacts)},
-        {173, sizeof(::holons::v1::HolonManifest)},
-        {206, sizeof(::holons::v1::ListenerVisibilityOverride)},
+        {90, sizeof(::holons::v1::HolonManifest_Build_Codegen)},
+        {92, sizeof(::holons::v1::HolonManifest_Build)},
+        {113, sizeof(::holons::v1::HolonManifest_Step_Exec)},
+        {120, sizeof(::holons::v1::HolonManifest_Step_Copy)},
+        {127, sizeof(::holons::v1::HolonManifest_Step_AssertFile)},
+        {132, sizeof(::holons::v1::HolonManifest_Step_CopyArtifact)},
+        {139, sizeof(::holons::v1::HolonManifest_Step_CopyAllHolons)},
+        {144, sizeof(::holons::v1::HolonManifest_Step)},
+        {153, sizeof(::holons::v1::HolonManifest_Requires)},
+        {158, sizeof(::holons::v1::HolonManifest_Artifacts_ByTargetEntry_DoNotUse)},
+        {165, sizeof(::holons::v1::HolonManifest_Artifacts_TargetArtifacts)},
+        {174, sizeof(::holons::v1::HolonManifest_Artifacts)},
+        {183, sizeof(::holons::v1::HolonManifest)},
+        {216, sizeof(::holons::v1::ListenerVisibilityOverride)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::holons::v1::_HolonManifest_Identity_default_instance_._instance,
@@ -937,11 +1002,13 @@ static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::holons::v1::_HolonManifest_Build_Defaults_default_instance_._instance,
     &::holons::v1::_HolonManifest_Build_Member_default_instance_._instance,
     &::holons::v1::_HolonManifest_Build_Target_default_instance_._instance,
+    &::holons::v1::_HolonManifest_Build_Codegen_default_instance_._instance,
     &::holons::v1::_HolonManifest_Build_default_instance_._instance,
     &::holons::v1::_HolonManifest_Step_Exec_default_instance_._instance,
     &::holons::v1::_HolonManifest_Step_Copy_default_instance_._instance,
     &::holons::v1::_HolonManifest_Step_AssertFile_default_instance_._instance,
     &::holons::v1::_HolonManifest_Step_CopyArtifact_default_instance_._instance,
+    &::holons::v1::_HolonManifest_Step_CopyAllHolons_default_instance_._instance,
     &::holons::v1::_HolonManifest_Step_default_instance_._instance,
     &::holons::v1::_HolonManifest_Requires_default_instance_._instance,
     &::holons::v1::_HolonManifest_Artifacts_ByTargetEntry_DoNotUse_default_instance_._instance,
@@ -953,7 +1020,7 @@ static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
 const char descriptor_table_protodef_holons_2fv1_2fmanifest_2eproto[] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     protodesc_cold) = {
     "\n\030holons/v1/manifest.proto\022\tholons.v1\032 g"
-    "oogle/protobuf/descriptor.proto\"\346\023\n\rHolo"
+    "oogle/protobuf/descriptor.proto\"\242\025\n\rHolo"
     "nManifest\0223\n\010identity\030\001 \001(\0132!.holons.v1."
     "HolonManifest.Identity\022\023\n\013description\030\003 "
     "\001(\t\022\014\n\004lang\030\004 \001(\t\022.\n\006skills\030\005 \003(\0132\036.holo"
@@ -982,7 +1049,7 @@ const char descriptor_table_protodef_holons_2fv1_2fmanifest_2eproto[] ABSL_ATTRI
     "aram\022\014\n\004name\030\001 \001(\t\022\023\n\013description\030\002 \001(\t\022"
     "\020\n\010required\030\003 \001(\010\022\017\n\007default\030\004 \001(\t\0328\n\010Co"
     "ntract\022\r\n\005proto\030\001 \001(\t\022\017\n\007service\030\002 \001(\t\022\014"
-    "\n\004rpcs\030\003 \003(\t\032\315\004\n\005Build\022\016\n\006runner\030\001 \001(\t\022\014"
+    "\n\004rpcs\030\003 \003(\t\032\244\005\n\005Build\022\016\n\006runner\030\001 \001(\t\022\014"
     "\n\004main\030\002 \001(\t\0229\n\010defaults\030\003 \001(\0132\'.holons."
     "v1.HolonManifest.Build.Defaults\0226\n\007membe"
     "rs\030\004 \003(\0132%.holons.v1.HolonManifest.Build"
@@ -991,42 +1058,47 @@ const char descriptor_table_protodef_holons_2fv1_2fmanifest_2eproto[] ABSL_ATTRI
     "es\030\006 \003(\t\022;\n\017before_commands\030\007 \003(\0132\".holo"
     "ns.v1.HolonManifest.Step.Exec\022:\n\016after_c"
     "ommands\030\010 \003(\0132\".holons.v1.HolonManifest."
-    "Step.Exec\032U\n\014TargetsEntry\022\013\n\003key\030\001 \001(\t\0224"
-    "\n\005value\030\002 \001(\0132%.holons.v1.HolonManifest."
-    "Build.Target:\0028\001\032(\n\010Defaults\022\016\n\006target\030\001"
-    " \001(\t\022\014\n\004mode\030\002 \001(\t\0320\n\006Member\022\n\n\002id\030\001 \001(\t"
-    "\022\014\n\004path\030\002 \001(\t\022\014\n\004type\030\003 \001(\t\0326\n\006Target\022,"
-    "\n\005steps\030\001 \003(\0132\035.holons.v1.HolonManifest."
-    "Step\032\241\003\n\004Step\0222\n\004exec\030\001 \001(\0132\".holons.v1."
-    "HolonManifest.Step.ExecH\000\0222\n\004copy\030\002 \001(\0132"
-    "\".holons.v1.HolonManifest.Step.CopyH\000\022\026\n"
-    "\014build_member\030\003 \001(\tH\000\022\?\n\013assert_file\030\004 \001"
-    "(\0132(.holons.v1.HolonManifest.Step.Assert"
-    "FileH\000\022C\n\rcopy_artifact\030\005 \001(\0132*.holons.v"
-    "1.HolonManifest.Step.CopyArtifactH\000\032!\n\004E"
-    "xec\022\013\n\003cwd\030\001 \001(\t\022\014\n\004argv\030\002 \003(\t\032 \n\004Copy\022\014"
-    "\n\004from\030\001 \001(\t\022\n\n\002to\030\002 \001(\t\032\032\n\nAssertFile\022\014"
-    "\n\004path\030\001 \001(\t\032(\n\014CopyArtifact\022\014\n\004from\030\001 \001"
-    "(\t\022\n\n\002to\030\002 \001(\tB\010\n\006action\032U\n\010Requires\022\020\n\010"
-    "commands\030\001 \003(\t\022\r\n\005files\030\002 \003(\t\022\021\n\tplatfor"
-    "ms\030\003 \003(\t\022\025\n\rsdk_prebuilts\030\004 \003(\t\032\232\002\n\tArti"
-    "facts\022\016\n\006binary\030\001 \001(\t\022\017\n\007primary\030\002 \001(\t\022C"
-    "\n\tby_target\030\003 \003(\01320.holons.v1.HolonManif"
-    "est.Artifacts.ByTargetEntry\032c\n\rByTargetE"
-    "ntry\022\013\n\003key\030\001 \001(\t\022A\n\005value\030\002 \001(\01322.holon"
-    "s.v1.HolonManifest.Artifacts.TargetArtif"
-    "acts:\0028\001\032B\n\017TargetArtifacts\022\r\n\005debug\030\001 \001"
-    "(\t\022\017\n\007release\030\002 \001(\t\022\017\n\007profile\030\003 \001(\tJ\004\010\002"
-    "\020\003J\004\010\014\020\r\"j\n\032ListenerVisibilityOverride\022\024"
-    "\n\014listener_uri\030\001 \001(\t\0226\n\nvisibility\030\002 \001(\016"
-    "2\".holons.v1.ObservabilityVisibility*\256\001\n"
-    "\027ObservabilityVisibility\022(\n$OBSERVABILIT"
-    "Y_VISIBILITY_UNSPECIFIED\020\000\022 \n\034OBSERVABIL"
-    "ITY_VISIBILITY_OFF\020\001\022$\n OBSERVABILITY_VI"
-    "SIBILITY_SUMMARY\020\002\022!\n\035OBSERVABILITY_VISI"
-    "BILITY_FULL\020\003:J\n\010manifest\022\034.google.proto"
-    "buf.FileOptions\030\320\206\003 \001(\0132\030.holons.v1.Holo"
-    "nManifestb\006proto3"
+    "Step.Exec\0227\n\007codegen\030\t \001(\0132&.holons.v1.H"
+    "olonManifest.Build.Codegen\032U\n\014TargetsEnt"
+    "ry\022\013\n\003key\030\001 \001(\t\0224\n\005value\030\002 \001(\0132%.holons."
+    "v1.HolonManifest.Build.Target:\0028\001\032(\n\010Def"
+    "aults\022\016\n\006target\030\001 \001(\t\022\014\n\004mode\030\002 \001(\t\0320\n\006M"
+    "ember\022\n\n\002id\030\001 \001(\t\022\014\n\004path\030\002 \001(\t\022\014\n\004type\030"
+    "\003 \001(\t\0326\n\006Target\022,\n\005steps\030\001 \003(\0132\035.holons."
+    "v1.HolonManifest.Step\032\034\n\007Codegen\022\021\n\tlang"
+    "uages\030\001 \003(\t\032\206\004\n\004Step\0222\n\004exec\030\001 \001(\0132\".hol"
+    "ons.v1.HolonManifest.Step.ExecH\000\0222\n\004copy"
+    "\030\002 \001(\0132\".holons.v1.HolonManifest.Step.Co"
+    "pyH\000\022\026\n\014build_member\030\003 \001(\tH\000\022\?\n\013assert_f"
+    "ile\030\004 \001(\0132(.holons.v1.HolonManifest.Step"
+    ".AssertFileH\000\022C\n\rcopy_artifact\030\005 \001(\0132*.h"
+    "olons.v1.HolonManifest.Step.CopyArtifact"
+    "H\000\022F\n\017copy_all_holons\030\006 \001(\0132+.holons.v1."
+    "HolonManifest.Step.CopyAllHolonsH\000\032!\n\004Ex"
+    "ec\022\013\n\003cwd\030\001 \001(\t\022\014\n\004argv\030\002 \003(\t\032 \n\004Copy\022\014\n"
+    "\004from\030\001 \001(\t\022\n\n\002to\030\002 \001(\t\032\032\n\nAssertFile\022\014\n"
+    "\004path\030\001 \001(\t\032(\n\014CopyArtifact\022\014\n\004from\030\001 \001("
+    "\t\022\n\n\002to\030\002 \001(\t\032\033\n\rCopyAllHolons\022\n\n\002to\030\001 \001"
+    "(\tB\010\n\006action\032U\n\010Requires\022\020\n\010commands\030\001 \003"
+    "(\t\022\r\n\005files\030\002 \003(\t\022\021\n\tplatforms\030\003 \003(\t\022\025\n\r"
+    "sdk_prebuilts\030\004 \003(\t\032\232\002\n\tArtifacts\022\016\n\006bin"
+    "ary\030\001 \001(\t\022\017\n\007primary\030\002 \001(\t\022C\n\tby_target\030"
+    "\003 \003(\01320.holons.v1.HolonManifest.Artifact"
+    "s.ByTargetEntry\032c\n\rByTargetEntry\022\013\n\003key\030"
+    "\001 \001(\t\022A\n\005value\030\002 \001(\01322.holons.v1.HolonMa"
+    "nifest.Artifacts.TargetArtifacts:\0028\001\032B\n\017"
+    "TargetArtifacts\022\r\n\005debug\030\001 \001(\t\022\017\n\007releas"
+    "e\030\002 \001(\t\022\017\n\007profile\030\003 \001(\tJ\004\010\002\020\003J\004\010\014\020\r\"j\n\032"
+    "ListenerVisibilityOverride\022\024\n\014listener_u"
+    "ri\030\001 \001(\t\0226\n\nvisibility\030\002 \001(\0162\".holons.v1"
+    ".ObservabilityVisibility*\256\001\n\027Observabili"
+    "tyVisibility\022(\n$OBSERVABILITY_VISIBILITY"
+    "_UNSPECIFIED\020\000\022 \n\034OBSERVABILITY_VISIBILI"
+    "TY_OFF\020\001\022$\n OBSERVABILITY_VISIBILITY_SUM"
+    "MARY\020\002\022!\n\035OBSERVABILITY_VISIBILITY_FULL\020"
+    "\003:J\n\010manifest\022\034.google.protobuf.FileOpti"
+    "ons\030\320\206\003 \001(\0132\030.holons.v1.HolonManifestb\006p"
+    "roto3"
 };
 static const ::_pbi::DescriptorTable* PROTOBUF_NONNULL const
     descriptor_table_holons_2fv1_2fmanifest_2eproto_deps[1] = {
@@ -1036,13 +1108,13 @@ static ::absl::once_flag descriptor_table_holons_2fv1_2fmanifest_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_holons_2fv1_2fmanifest_2eproto = {
     false,
     false,
-    2977,
+    3165,
     descriptor_table_protodef_holons_2fv1_2fmanifest_2eproto,
     "holons/v1/manifest.proto",
     &descriptor_table_holons_2fv1_2fmanifest_2eproto_once,
     descriptor_table_holons_2fv1_2fmanifest_2eproto_deps,
     1,
-    21,
+    23,
     schemas,
     file_default_instances,
     TableStruct_holons_2fv1_2fmanifest_2eproto::offsets,
@@ -4207,6 +4279,257 @@ void HolonManifest_Build_Target::InternalSwap(HolonManifest_Build_Target* PROTOB
 }
 // ===================================================================
 
+class HolonManifest_Build_Codegen::_Internal {
+ public:
+};
+
+HolonManifest_Build_Codegen::HolonManifest_Build_Codegen(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, HolonManifest_Build_Codegen_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:holons.v1.HolonManifest.Build.Codegen)
+}
+PROTOBUF_NDEBUG_INLINE HolonManifest_Build_Codegen::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    const ::holons::v1::HolonManifest_Build_Codegen& from_msg)
+      : languages_{visibility, arena, from.languages_},
+        _cached_size_{0} {}
+
+HolonManifest_Build_Codegen::HolonManifest_Build_Codegen(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const HolonManifest_Build_Codegen& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, HolonManifest_Build_Codegen_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  HolonManifest_Build_Codegen* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+
+  // @@protoc_insertion_point(copy_constructor:holons.v1.HolonManifest.Build.Codegen)
+}
+PROTOBUF_NDEBUG_INLINE HolonManifest_Build_Codegen::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : languages_{visibility, arena},
+        _cached_size_{0} {}
+
+inline void HolonManifest_Build_Codegen::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+}
+HolonManifest_Build_Codegen::~HolonManifest_Build_Codegen() {
+  // @@protoc_insertion_point(destructor:holons.v1.HolonManifest.Build.Codegen)
+  SharedDtor(*this);
+}
+inline void HolonManifest_Build_Codegen::SharedDtor(MessageLite& self) {
+  HolonManifest_Build_Codegen& this_ = static_cast<HolonManifest_Build_Codegen&>(self);
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.~Impl_();
+}
+
+inline void* PROTOBUF_NONNULL HolonManifest_Build_Codegen::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) HolonManifest_Build_Codegen(arena);
+}
+constexpr auto HolonManifest_Build_Codegen::InternalNewImpl_() {
+  constexpr auto arena_bits = ::google::protobuf::internal::EncodePlacementArenaOffsets({
+      PROTOBUF_FIELD_OFFSET(HolonManifest_Build_Codegen, _impl_.languages_) +
+          decltype(HolonManifest_Build_Codegen::_impl_.languages_)::
+              InternalGetArenaOffset(
+                  ::google::protobuf::Message::internal_visibility()),
+  });
+  if (arena_bits.has_value()) {
+    return ::google::protobuf::internal::MessageCreator::ZeroInit(
+        sizeof(HolonManifest_Build_Codegen), alignof(HolonManifest_Build_Codegen), *arena_bits);
+  } else {
+    return ::google::protobuf::internal::MessageCreator(&HolonManifest_Build_Codegen::PlacementNew_,
+                                 sizeof(HolonManifest_Build_Codegen),
+                                 alignof(HolonManifest_Build_Codegen));
+  }
+}
+constexpr auto HolonManifest_Build_Codegen::InternalGenerateClassData_() {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &_HolonManifest_Build_Codegen_default_instance_._instance,
+          &_table_.header,
+          nullptr,  // OnDemandRegisterArenaDtor
+          nullptr,  // IsInitialized
+          &HolonManifest_Build_Codegen::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<HolonManifest_Build_Codegen>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &HolonManifest_Build_Codegen::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<HolonManifest_Build_Codegen>(), &HolonManifest_Build_Codegen::ByteSizeLong,
+              &HolonManifest_Build_Codegen::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(HolonManifest_Build_Codegen, _impl_._cached_size_),
+          false,
+      },
+      &HolonManifest_Build_Codegen::kDescriptorMethods,
+      &descriptor_table_holons_2fv1_2fmanifest_2eproto,
+      nullptr,  // tracker
+  };
+}
+
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull HolonManifest_Build_Codegen_class_data_ =
+        HolonManifest_Build_Codegen::InternalGenerateClassData_();
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+HolonManifest_Build_Codegen::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&HolonManifest_Build_Codegen_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(HolonManifest_Build_Codegen_class_data_.tc_table);
+  return HolonManifest_Build_Codegen_class_data_.base();
+}
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::_pbi::TcParseTable<0, 1, 0, 55, 2>
+HolonManifest_Build_Codegen::_table_ = {
+  {
+    0,  // no _has_bits_
+    0, // no _extensions_
+    1, 0,  // max_field_number, fast_idx_mask
+    offsetof(decltype(_table_), field_lookup_table),
+    4294967294,  // skipmap
+    offsetof(decltype(_table_), field_entries),
+    1,  // num_field_entries
+    0,  // num_aux_entries
+    offsetof(decltype(_table_), field_names),  // no aux_entries
+    HolonManifest_Build_Codegen_class_data_.base(),
+    nullptr,  // post_loop_handler
+    ::_pbi::TcParser::GenericFallback,  // fallback
+    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+    ::_pbi::TcParser::GetTable<::holons::v1::HolonManifest_Build_Codegen>(),  // to_prefetch
+    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+  }, {{
+    // repeated string languages = 1;
+    {::_pbi::TcParser::FastUR1,
+     {10, 63, 0, PROTOBUF_FIELD_OFFSET(HolonManifest_Build_Codegen, _impl_.languages_)}},
+  }}, {{
+    65535, 65535
+  }}, {{
+    // repeated string languages = 1;
+    {PROTOBUF_FIELD_OFFSET(HolonManifest_Build_Codegen, _impl_.languages_), 0, 0,
+    (0 | ::_fl::kFcRepeated | ::_fl::kUtf8String | ::_fl::kRepSString)},
+  }},
+  // no aux_entries
+  {{
+    "\45\11\0\0\0\0\0\0"
+    "holons.v1.HolonManifest.Build.Codegen"
+    "languages"
+  }},
+};
+PROTOBUF_NOINLINE void HolonManifest_Build_Codegen::Clear() {
+// @@protoc_insertion_point(message_clear_start:holons.v1.HolonManifest.Build.Codegen)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.languages_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL HolonManifest_Build_Codegen::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const HolonManifest_Build_Codegen& this_ = static_cast<const HolonManifest_Build_Codegen&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL HolonManifest_Build_Codegen::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const HolonManifest_Build_Codegen& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(serialize_to_array_start:holons.v1.HolonManifest.Build.Codegen)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  // repeated string languages = 1;
+  for (int i = 0, n = this_._internal_languages_size(); i < n; ++i) {
+    const auto& s = this_._internal_languages().Get(i);
+    ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+        s.data(), static_cast<int>(s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "holons.v1.HolonManifest.Build.Codegen.languages");
+    target = stream->WriteString(1, s, target);
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:holons.v1.HolonManifest.Build.Codegen)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t HolonManifest_Build_Codegen::ByteSizeLong(const MessageLite& base) {
+  const HolonManifest_Build_Codegen& this_ = static_cast<const HolonManifest_Build_Codegen&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t HolonManifest_Build_Codegen::ByteSizeLong() const {
+  const HolonManifest_Build_Codegen& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:holons.v1.HolonManifest.Build.Codegen)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+   {
+    // repeated string languages = 1;
+    {
+      total_size +=
+          1 * ::google::protobuf::internal::FromIntSize(this_._internal_languages().size());
+      for (int i = 0, n = this_._internal_languages().size(); i < n; ++i) {
+        total_size += ::google::protobuf::internal::WireFormatLite::StringSize(
+            this_._internal_languages().Get(i));
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void HolonManifest_Build_Codegen::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::google::protobuf::MessageLite& from_msg) {
+  auto* const _this = static_cast<HolonManifest_Build_Codegen*>(&to_msg);
+  auto& from = static_cast<const HolonManifest_Build_Codegen&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:holons.v1.HolonManifest.Build.Codegen)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_internal_mutable_languages()->MergeFrom(from._internal_languages());
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void HolonManifest_Build_Codegen::CopyFrom(const HolonManifest_Build_Codegen& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:holons.v1.HolonManifest.Build.Codegen)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void HolonManifest_Build_Codegen::InternalSwap(HolonManifest_Build_Codegen* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _impl_.languages_.InternalSwap(&other->_impl_.languages_);
+}
+
+::google::protobuf::Metadata HolonManifest_Build_Codegen::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
 class HolonManifest_Build::_Internal {
  public:
   using HasBits =
@@ -4255,6 +4578,9 @@ HolonManifest_Build::HolonManifest_Build(
   _impl_.defaults_ = ((cached_has_bits & 0x00000004u) != 0)
                 ? ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.defaults_)
                 : nullptr;
+  _impl_.codegen_ = ((cached_has_bits & 0x00000008u) != 0)
+                ? ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.codegen_)
+                : nullptr;
 
   // @@protoc_insertion_point(copy_constructor:holons.v1.HolonManifest.Build)
 }
@@ -4272,7 +4598,12 @@ PROTOBUF_NDEBUG_INLINE HolonManifest_Build::Impl_::Impl_(
 
 inline void HolonManifest_Build::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   new (&_impl_) Impl_(internal_visibility(), arena);
-  _impl_.defaults_ = {};
+  ::memset(reinterpret_cast<char *>(&_impl_) +
+               offsetof(Impl_, defaults_),
+           0,
+           offsetof(Impl_, codegen_) -
+               offsetof(Impl_, defaults_) +
+               sizeof(Impl_::codegen_));
 }
 HolonManifest_Build::~HolonManifest_Build() {
   // @@protoc_insertion_point(destructor:holons.v1.HolonManifest.Build)
@@ -4285,6 +4616,7 @@ inline void HolonManifest_Build::SharedDtor(MessageLite& self) {
   this_._impl_.runner_.Destroy();
   this_._impl_.main_.Destroy();
   delete this_._impl_.defaults_;
+  delete this_._impl_.codegen_;
   this_._impl_.~Impl_();
 }
 
@@ -4363,17 +4695,17 @@ HolonManifest_Build::GetClassData() const {
   return HolonManifest_Build_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<3, 8, 6, 72, 2>
+const ::_pbi::TcParseTable<4, 9, 7, 72, 2>
 HolonManifest_Build::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_._has_bits_),
     0, // no _extensions_
-    8, 56,  // max_field_number, fast_idx_mask
+    9, 120,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967040,  // skipmap
+    4294966784,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    8,  // num_field_entries
-    6,  // num_aux_entries
+    9,  // num_field_entries
+    7,  // num_aux_entries
     offsetof(decltype(_table_), aux_entries),
     HolonManifest_Build_class_data_.base(),
     nullptr,  // post_loop_handler
@@ -4382,9 +4714,7 @@ HolonManifest_Build::_table_ = {
     ::_pbi::TcParser::GetTable<::holons::v1::HolonManifest_Build>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
-    // repeated .holons.v1.HolonManifest.Step.Exec after_commands = 8;
-    {::_pbi::TcParser::FastMtR1,
-     {66, 63, 3, PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_.after_commands_)}},
+    {::_pbi::TcParser::MiniParse, {}},
     // string runner = 1;
     {::_pbi::TcParser::FastUS1,
      {10, 0, 0, PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_.runner_)}},
@@ -4404,6 +4734,18 @@ HolonManifest_Build::_table_ = {
     // repeated .holons.v1.HolonManifest.Step.Exec before_commands = 7;
     {::_pbi::TcParser::FastMtR1,
      {58, 63, 2, PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_.before_commands_)}},
+    // repeated .holons.v1.HolonManifest.Step.Exec after_commands = 8;
+    {::_pbi::TcParser::FastMtR1,
+     {66, 63, 3, PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_.after_commands_)}},
+    // .holons.v1.HolonManifest.Build.Codegen codegen = 9;
+    {::_pbi::TcParser::FastMtS1,
+     {74, 3, 4, PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_.codegen_)}},
+    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::MiniParse, {}},
   }}, {{
     65535, 65535
   }}, {{
@@ -4420,7 +4762,7 @@ HolonManifest_Build::_table_ = {
     {PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_.members_), -1, 1,
     (0 | ::_fl::kFcRepeated | ::_fl::kMessage | ::_fl::kTvTable)},
     // map<string, .holons.v1.HolonManifest.Build.Target> targets = 5;
-    {PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_.targets_), -1, 4,
+    {PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_.targets_), -1, 5,
     (0 | ::_fl::kFcRepeated | ::_fl::kMap)},
     // repeated string templates = 6;
     {PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_.templates_), -1, 0,
@@ -4431,12 +4773,16 @@ HolonManifest_Build::_table_ = {
     // repeated .holons.v1.HolonManifest.Step.Exec after_commands = 8;
     {PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_.after_commands_), -1, 3,
     (0 | ::_fl::kFcRepeated | ::_fl::kMessage | ::_fl::kTvTable)},
+    // .holons.v1.HolonManifest.Build.Codegen codegen = 9;
+    {PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_.codegen_), _Internal::kHasBitsOffset + 3, 4,
+    (0 | ::_fl::kFcOptional | ::_fl::kMessage | ::_fl::kTvTable)},
   }},
   {{
       {::_pbi::TcParser::GetTable<::holons::v1::HolonManifest_Build_Defaults>()},
       {::_pbi::TcParser::GetTable<::holons::v1::HolonManifest_Build_Member>()},
       {::_pbi::TcParser::GetTable<::holons::v1::HolonManifest_Step_Exec>()},
       {::_pbi::TcParser::GetTable<::holons::v1::HolonManifest_Step_Exec>()},
+      {::_pbi::TcParser::GetTable<::holons::v1::HolonManifest_Build_Codegen>()},
       {::_pbi::TcParser::GetMapAuxInfo(1, 0, 0,
                                        9, 11,
                                        0)},
@@ -4464,7 +4810,7 @@ PROTOBUF_NOINLINE void HolonManifest_Build::Clear() {
   _impl_.before_commands_.Clear();
   _impl_.after_commands_.Clear();
   cached_has_bits = _impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000007u) != 0) {
+  if ((cached_has_bits & 0x0000000fu) != 0) {
     if ((cached_has_bits & 0x00000001u) != 0) {
       _impl_.runner_.ClearNonDefaultToEmpty();
     }
@@ -4474,6 +4820,10 @@ PROTOBUF_NOINLINE void HolonManifest_Build::Clear() {
     if ((cached_has_bits & 0x00000004u) != 0) {
       ABSL_DCHECK(_impl_.defaults_ != nullptr);
       _impl_.defaults_->Clear();
+    }
+    if ((cached_has_bits & 0x00000008u) != 0) {
+      ABSL_DCHECK(_impl_.codegen_ != nullptr);
+      _impl_.codegen_->Clear();
     }
   }
   _impl_._has_bits_.Clear();
@@ -4591,6 +4941,13 @@ PROTOBUF_NOINLINE void HolonManifest_Build::Clear() {
             target, stream);
   }
 
+  // .holons.v1.HolonManifest.Build.Codegen codegen = 9;
+  if ((cached_has_bits & 0x00000008u) != 0) {
+    target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+        9, *this_._impl_.codegen_, this_._impl_.codegen_->GetCachedSize(), target,
+        stream);
+  }
+
   if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
     target =
         ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
@@ -4658,7 +5015,7 @@ PROTOBUF_NOINLINE void HolonManifest_Build::Clear() {
     }
   }
   cached_has_bits = this_._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000007u) != 0) {
+  if ((cached_has_bits & 0x0000000fu) != 0) {
     // string runner = 1;
     if ((cached_has_bits & 0x00000001u) != 0) {
       if (!this_._internal_runner().empty()) {
@@ -4677,6 +5034,11 @@ PROTOBUF_NOINLINE void HolonManifest_Build::Clear() {
     if ((cached_has_bits & 0x00000004u) != 0) {
       total_size += 1 +
                     ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.defaults_);
+    }
+    // .holons.v1.HolonManifest.Build.Codegen codegen = 9;
+    if ((cached_has_bits & 0x00000008u) != 0) {
+      total_size += 1 +
+                    ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.codegen_);
     }
   }
   return this_.MaybeComputeUnknownFieldsSize(total_size,
@@ -4701,7 +5063,7 @@ void HolonManifest_Build::MergeImpl(::google::protobuf::MessageLite& to_msg, con
   _this->_internal_mutable_after_commands()->MergeFrom(
       from._internal_after_commands());
   cached_has_bits = from._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000007u) != 0) {
+  if ((cached_has_bits & 0x0000000fu) != 0) {
     if ((cached_has_bits & 0x00000001u) != 0) {
       if (!from._internal_runner().empty()) {
         _this->_internal_set_runner(from._internal_runner());
@@ -4726,6 +5088,14 @@ void HolonManifest_Build::MergeImpl(::google::protobuf::MessageLite& to_msg, con
         _this->_impl_.defaults_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.defaults_);
       } else {
         _this->_impl_.defaults_->MergeFrom(*from._impl_.defaults_);
+      }
+    }
+    if ((cached_has_bits & 0x00000008u) != 0) {
+      ABSL_DCHECK(from._impl_.codegen_ != nullptr);
+      if (_this->_impl_.codegen_ == nullptr) {
+        _this->_impl_.codegen_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.codegen_);
+      } else {
+        _this->_impl_.codegen_->MergeFrom(*from._impl_.codegen_);
       }
     }
   }
@@ -4754,7 +5124,12 @@ void HolonManifest_Build::InternalSwap(HolonManifest_Build* PROTOBUF_RESTRICT PR
   _impl_.after_commands_.InternalSwap(&other->_impl_.after_commands_);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.runner_, &other->_impl_.runner_, arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.main_, &other->_impl_.main_, arena);
-  swap(_impl_.defaults_, other->_impl_.defaults_);
+  ::google::protobuf::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_.codegen_)
+      + sizeof(HolonManifest_Build::_impl_.codegen_)
+      - PROTOBUF_FIELD_OFFSET(HolonManifest_Build, _impl_.defaults_)>(
+          reinterpret_cast<char*>(&_impl_.defaults_),
+          reinterpret_cast<char*>(&other->_impl_.defaults_));
 }
 
 ::google::protobuf::Metadata HolonManifest_Build::GetMetadata() const {
@@ -5944,6 +6319,268 @@ void HolonManifest_Step_CopyArtifact::InternalSwap(HolonManifest_Step_CopyArtifa
 }
 // ===================================================================
 
+class HolonManifest_Step_CopyAllHolons::_Internal {
+ public:
+  using HasBits =
+      decltype(::std::declval<HolonManifest_Step_CopyAllHolons>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(HolonManifest_Step_CopyAllHolons, _impl_._has_bits_);
+};
+
+HolonManifest_Step_CopyAllHolons::HolonManifest_Step_CopyAllHolons(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, HolonManifest_Step_CopyAllHolons_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:holons.v1.HolonManifest.Step.CopyAllHolons)
+}
+PROTOBUF_NDEBUG_INLINE HolonManifest_Step_CopyAllHolons::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    const ::holons::v1::HolonManifest_Step_CopyAllHolons& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        to_(arena, from.to_) {}
+
+HolonManifest_Step_CopyAllHolons::HolonManifest_Step_CopyAllHolons(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const HolonManifest_Step_CopyAllHolons& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, HolonManifest_Step_CopyAllHolons_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  HolonManifest_Step_CopyAllHolons* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+
+  // @@protoc_insertion_point(copy_constructor:holons.v1.HolonManifest.Step.CopyAllHolons)
+}
+PROTOBUF_NDEBUG_INLINE HolonManifest_Step_CopyAllHolons::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        to_(arena) {}
+
+inline void HolonManifest_Step_CopyAllHolons::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+}
+HolonManifest_Step_CopyAllHolons::~HolonManifest_Step_CopyAllHolons() {
+  // @@protoc_insertion_point(destructor:holons.v1.HolonManifest.Step.CopyAllHolons)
+  SharedDtor(*this);
+}
+inline void HolonManifest_Step_CopyAllHolons::SharedDtor(MessageLite& self) {
+  HolonManifest_Step_CopyAllHolons& this_ = static_cast<HolonManifest_Step_CopyAllHolons&>(self);
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.to_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+inline void* PROTOBUF_NONNULL HolonManifest_Step_CopyAllHolons::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) HolonManifest_Step_CopyAllHolons(arena);
+}
+constexpr auto HolonManifest_Step_CopyAllHolons::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(HolonManifest_Step_CopyAllHolons),
+                                            alignof(HolonManifest_Step_CopyAllHolons));
+}
+constexpr auto HolonManifest_Step_CopyAllHolons::InternalGenerateClassData_() {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &_HolonManifest_Step_CopyAllHolons_default_instance_._instance,
+          &_table_.header,
+          nullptr,  // OnDemandRegisterArenaDtor
+          nullptr,  // IsInitialized
+          &HolonManifest_Step_CopyAllHolons::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<HolonManifest_Step_CopyAllHolons>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &HolonManifest_Step_CopyAllHolons::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<HolonManifest_Step_CopyAllHolons>(), &HolonManifest_Step_CopyAllHolons::ByteSizeLong,
+              &HolonManifest_Step_CopyAllHolons::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(HolonManifest_Step_CopyAllHolons, _impl_._cached_size_),
+          false,
+      },
+      &HolonManifest_Step_CopyAllHolons::kDescriptorMethods,
+      &descriptor_table_holons_2fv1_2fmanifest_2eproto,
+      nullptr,  // tracker
+  };
+}
+
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull HolonManifest_Step_CopyAllHolons_class_data_ =
+        HolonManifest_Step_CopyAllHolons::InternalGenerateClassData_();
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+HolonManifest_Step_CopyAllHolons::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&HolonManifest_Step_CopyAllHolons_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(HolonManifest_Step_CopyAllHolons_class_data_.tc_table);
+  return HolonManifest_Step_CopyAllHolons_class_data_.base();
+}
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::_pbi::TcParseTable<0, 1, 0, 53, 2>
+HolonManifest_Step_CopyAllHolons::_table_ = {
+  {
+    PROTOBUF_FIELD_OFFSET(HolonManifest_Step_CopyAllHolons, _impl_._has_bits_),
+    0, // no _extensions_
+    1, 0,  // max_field_number, fast_idx_mask
+    offsetof(decltype(_table_), field_lookup_table),
+    4294967294,  // skipmap
+    offsetof(decltype(_table_), field_entries),
+    1,  // num_field_entries
+    0,  // num_aux_entries
+    offsetof(decltype(_table_), field_names),  // no aux_entries
+    HolonManifest_Step_CopyAllHolons_class_data_.base(),
+    nullptr,  // post_loop_handler
+    ::_pbi::TcParser::GenericFallback,  // fallback
+    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+    ::_pbi::TcParser::GetTable<::holons::v1::HolonManifest_Step_CopyAllHolons>(),  // to_prefetch
+    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+  }, {{
+    // string to = 1;
+    {::_pbi::TcParser::FastUS1,
+     {10, 0, 0, PROTOBUF_FIELD_OFFSET(HolonManifest_Step_CopyAllHolons, _impl_.to_)}},
+  }}, {{
+    65535, 65535
+  }}, {{
+    // string to = 1;
+    {PROTOBUF_FIELD_OFFSET(HolonManifest_Step_CopyAllHolons, _impl_.to_), _Internal::kHasBitsOffset + 0, 0,
+    (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+  }},
+  // no aux_entries
+  {{
+    "\52\2\0\0\0\0\0\0"
+    "holons.v1.HolonManifest.Step.CopyAllHolons"
+    "to"
+  }},
+};
+PROTOBUF_NOINLINE void HolonManifest_Step_CopyAllHolons::Clear() {
+// @@protoc_insertion_point(message_clear_start:holons.v1.HolonManifest.Step.CopyAllHolons)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if ((cached_has_bits & 0x00000001u) != 0) {
+    _impl_.to_.ClearNonDefaultToEmpty();
+  }
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL HolonManifest_Step_CopyAllHolons::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const HolonManifest_Step_CopyAllHolons& this_ = static_cast<const HolonManifest_Step_CopyAllHolons&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL HolonManifest_Step_CopyAllHolons::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const HolonManifest_Step_CopyAllHolons& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(serialize_to_array_start:holons.v1.HolonManifest.Step.CopyAllHolons)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  // string to = 1;
+  if ((this_._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    if (!this_._internal_to().empty()) {
+      const ::std::string& _s = this_._internal_to();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "holons.v1.HolonManifest.Step.CopyAllHolons.to");
+      target = stream->WriteStringMaybeAliased(1, _s, target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:holons.v1.HolonManifest.Step.CopyAllHolons)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t HolonManifest_Step_CopyAllHolons::ByteSizeLong(const MessageLite& base) {
+  const HolonManifest_Step_CopyAllHolons& this_ = static_cast<const HolonManifest_Step_CopyAllHolons&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t HolonManifest_Step_CopyAllHolons::ByteSizeLong() const {
+  const HolonManifest_Step_CopyAllHolons& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:holons.v1.HolonManifest.Step.CopyAllHolons)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+   {
+    // string to = 1;
+    cached_has_bits = this_._impl_._has_bits_[0];
+    if ((cached_has_bits & 0x00000001u) != 0) {
+      if (!this_._internal_to().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_to());
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void HolonManifest_Step_CopyAllHolons::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::google::protobuf::MessageLite& from_msg) {
+  auto* const _this = static_cast<HolonManifest_Step_CopyAllHolons*>(&to_msg);
+  auto& from = static_cast<const HolonManifest_Step_CopyAllHolons&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:holons.v1.HolonManifest.Step.CopyAllHolons)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if ((cached_has_bits & 0x00000001u) != 0) {
+    if (!from._internal_to().empty()) {
+      _this->_internal_set_to(from._internal_to());
+    } else {
+      if (_this->_impl_.to_.IsDefault()) {
+        _this->_internal_set_to("");
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void HolonManifest_Step_CopyAllHolons::CopyFrom(const HolonManifest_Step_CopyAllHolons& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:holons.v1.HolonManifest.Step.CopyAllHolons)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void HolonManifest_Step_CopyAllHolons::InternalSwap(HolonManifest_Step_CopyAllHolons* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.to_, &other->_impl_.to_, arena);
+}
+
+::google::protobuf::Metadata HolonManifest_Step_CopyAllHolons::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
 class HolonManifest_Step::_Internal {
  public:
   static constexpr ::int32_t kOneofCaseOffset =
@@ -6002,6 +6639,19 @@ void HolonManifest_Step::set_allocated_copy_artifact(::holons::v1::HolonManifest
   }
   // @@protoc_insertion_point(field_set_allocated:holons.v1.HolonManifest.Step.copy_artifact)
 }
+void HolonManifest_Step::set_allocated_copy_all_holons(::holons::v1::HolonManifest_Step_CopyAllHolons* PROTOBUF_NULLABLE copy_all_holons) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  clear_action();
+  if (copy_all_holons) {
+    ::google::protobuf::Arena* submessage_arena = copy_all_holons->GetArena();
+    if (message_arena != submessage_arena) {
+      copy_all_holons = ::google::protobuf::internal::GetOwnedMessage(message_arena, copy_all_holons, submessage_arena);
+    }
+    set_has_copy_all_holons();
+    _impl_.action_.copy_all_holons_ = copy_all_holons;
+  }
+  // @@protoc_insertion_point(field_set_allocated:holons.v1.HolonManifest.Step.copy_all_holons)
+}
 HolonManifest_Step::HolonManifest_Step(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
 #if defined(PROTOBUF_CUSTOM_VTABLE)
     : ::google::protobuf::Message(arena, HolonManifest_Step_class_data_.base()) {
@@ -6049,6 +6699,9 @@ HolonManifest_Step::HolonManifest_Step(
         break;
       case kCopyArtifact:
         _impl_.action_.copy_artifact_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.action_.copy_artifact_);
+        break;
+      case kCopyAllHolons:
+        _impl_.action_.copy_all_holons_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.action_.copy_all_holons_);
         break;
   }
 
@@ -6118,6 +6771,14 @@ void HolonManifest_Step::clear_action() {
       }
       break;
     }
+    case kCopyAllHolons: {
+      if (GetArena() == nullptr) {
+        delete _impl_.action_.copy_all_holons_;
+      } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
+        ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.action_.copy_all_holons_);
+      }
+      break;
+    }
     case ACTION_NOT_SET: {
       break;
     }
@@ -6169,17 +6830,17 @@ HolonManifest_Step::GetClassData() const {
   return HolonManifest_Step_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<0, 5, 4, 49, 2>
+const ::_pbi::TcParseTable<0, 6, 5, 49, 2>
 HolonManifest_Step::_table_ = {
   {
     0,  // no _has_bits_
     0, // no _extensions_
-    5, 0,  // max_field_number, fast_idx_mask
+    6, 0,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967264,  // skipmap
+    4294967232,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    5,  // num_field_entries
-    4,  // num_aux_entries
+    6,  // num_field_entries
+    5,  // num_aux_entries
     offsetof(decltype(_table_), aux_entries),
     HolonManifest_Step_class_data_.base(),
     nullptr,  // post_loop_handler
@@ -6207,12 +6868,16 @@ HolonManifest_Step::_table_ = {
     // .holons.v1.HolonManifest.Step.CopyArtifact copy_artifact = 5;
     {PROTOBUF_FIELD_OFFSET(HolonManifest_Step, _impl_.action_.copy_artifact_), _Internal::kOneofCaseOffset + 0, 3,
     (0 | ::_fl::kFcOneof | ::_fl::kMessage | ::_fl::kTvTable)},
+    // .holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;
+    {PROTOBUF_FIELD_OFFSET(HolonManifest_Step, _impl_.action_.copy_all_holons_), _Internal::kOneofCaseOffset + 0, 4,
+    (0 | ::_fl::kFcOneof | ::_fl::kMessage | ::_fl::kTvTable)},
   }},
   {{
       {::_pbi::TcParser::GetTable<::holons::v1::HolonManifest_Step_Exec>()},
       {::_pbi::TcParser::GetTable<::holons::v1::HolonManifest_Step_Copy>()},
       {::_pbi::TcParser::GetTable<::holons::v1::HolonManifest_Step_AssertFile>()},
       {::_pbi::TcParser::GetTable<::holons::v1::HolonManifest_Step_CopyArtifact>()},
+      {::_pbi::TcParser::GetTable<::holons::v1::HolonManifest_Step_CopyAllHolons>()},
   }},
   {{
     "\34\0\0\14\0\0\0\0"
@@ -6278,6 +6943,12 @@ PROTOBUF_NOINLINE void HolonManifest_Step::Clear() {
           stream);
       break;
     }
+    case kCopyAllHolons: {
+      target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+          6, *this_._impl_.action_.copy_all_holons_, this_._impl_.action_.copy_all_holons_->GetCachedSize(), target,
+          stream);
+      break;
+    }
     default:
       break;
   }
@@ -6333,6 +7004,12 @@ PROTOBUF_NOINLINE void HolonManifest_Step::Clear() {
     case kCopyArtifact: {
       total_size += 1 +
                     ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.action_.copy_artifact_);
+      break;
+    }
+    // .holons.v1.HolonManifest.Step.CopyAllHolons copy_all_holons = 6;
+    case kCopyAllHolons: {
+      total_size += 1 +
+                    ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.action_.copy_all_holons_);
       break;
     }
     case ACTION_NOT_SET: {
@@ -6399,6 +7076,14 @@ void HolonManifest_Step::MergeImpl(::google::protobuf::MessageLite& to_msg, cons
           _this->_impl_.action_.copy_artifact_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.action_.copy_artifact_);
         } else {
           _this->_impl_.action_.copy_artifact_->MergeFrom(*from._impl_.action_.copy_artifact_);
+        }
+        break;
+      }
+      case kCopyAllHolons: {
+        if (oneof_needs_init) {
+          _this->_impl_.action_.copy_all_holons_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.action_.copy_all_holons_);
+        } else {
+          _this->_impl_.action_.copy_all_holons_->MergeFrom(*from._impl_.action_.copy_all_holons_);
         }
         break;
       }

@@ -471,11 +471,17 @@ func executableFile(path string) bool {
 	return info.Mode()&0o111 != 0
 }
 
-func rubyToolchainPaths() (string, string, error) {
+func rubyToolchainPaths(prebuiltRootOverride ...string) (string, string, error) {
 	type candidate struct {
 		rubyPath   string
 		bundlePath string
 	}
+
+	prebuiltRoot := strings.TrimSpace(os.Getenv("OP_SDK_RUBY_PATH"))
+	if len(prebuiltRootOverride) > 0 {
+		prebuiltRoot = strings.TrimSpace(prebuiltRootOverride[0])
+	}
+	requiredMajorMinor := rubyMajorMinor(rubyPrebuiltRubyVersion(prebuiltRoot))
 
 	addCandidate := func(dst *[]candidate, rubyPath string, bundlePath string) {
 		rubyPath = strings.TrimSpace(rubyPath)
@@ -492,10 +498,16 @@ func rubyToolchainPaths() (string, string, error) {
 		if !executableFile(bundlePath) {
 			return
 		}
+		if requiredMajorMinor != "" && rubyExecutableMajorMinor(rubyPath) != requiredMajorMinor {
+			return
+		}
 		*dst = append(*dst, candidate{rubyPath: rubyPath, bundlePath: bundlePath})
 	}
 
 	var candidates []candidate
+	for _, base := range rubyPrebuiltToolchainBasesForRoot(prebuiltRoot) {
+		addCandidate(&candidates, filepath.Join(base, "ruby"), filepath.Join(base, "bundle"))
+	}
 	if rubyPath, err := exec.LookPath("ruby"); err == nil && rubyPath != "" && rubyPath != "/usr/bin/ruby" {
 		bundlePath, _ := exec.LookPath("bundle")
 		addCandidate(&candidates, rubyPath, bundlePath)
@@ -549,7 +561,63 @@ func rubyToolchainPaths() (string, string, error) {
 		return candidate.rubyPath, candidate.bundlePath, nil
 	}
 
+	if requiredMajorMinor != "" {
+		return "", "", fmt.Errorf("ruby prebuilt at %s requires Ruby %s.x with bundle; install/select ruby@%s before building", prebuiltRoot, requiredMajorMinor, requiredMajorMinor)
+	}
 	return "", "", fmt.Errorf("ruby runner requires ruby and bundle (PATH or a local toolchain)")
+}
+
+func rubyPrebuiltToolchainBases() []string {
+	return rubyPrebuiltToolchainBasesForRoot(strings.TrimSpace(os.Getenv("OP_SDK_RUBY_PATH")))
+}
+
+func rubyPrebuiltToolchainBasesForRoot(root string) []string {
+	version := rubyPrebuiltRubyVersion(root)
+	majorMinor := rubyMajorMinor(version)
+	if majorMinor == "" {
+		return nil
+	}
+	return []string{
+		filepath.Join("/opt/homebrew/opt", "ruby@"+majorMinor, "bin"),
+		filepath.Join("/usr/local/opt", "ruby@"+majorMinor, "bin"),
+	}
+}
+
+func rubyPrebuiltRubyVersion(root string) string {
+	root = strings.TrimSpace(root)
+	if root == "" {
+		return ""
+	}
+	data, err := os.ReadFile(filepath.Join(root, "share", "prebuilt.env"))
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		if strings.TrimSpace(key) == "ruby_version" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+var rubyExecutableMajorMinor = func(rubyPath string) string {
+	output, err := exec.Command(rubyPath, "-e", "print RUBY_VERSION").Output()
+	if err != nil {
+		return ""
+	}
+	return rubyMajorMinor(string(output))
+}
+
+func rubyMajorMinor(version string) string {
+	parts := strings.Split(strings.TrimSpace(version), ".")
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return ""
+	}
+	return parts[0] + "." + parts[1]
 }
 
 func rubyGemPath(rubyPath string) string {
@@ -637,11 +705,16 @@ func rubySharedBase64Dir(manifest *LoadedManifest, rubyPath, bundlePath string) 
 	return filepath.Join(rubySharedCacheRoot(manifest, rubyPath, bundlePath), "base64")
 }
 
-func rubyPrebuiltBundlePath(ctx BuildContext) string {
+func rubyPrebuiltRoot(ctx BuildContext) string {
 	root := strings.TrimSpace(ctx.SDKPrebuiltPaths["ruby"])
 	if root == "" {
 		root = strings.TrimSpace(os.Getenv("OP_SDK_RUBY_PATH"))
 	}
+	return root
+}
+
+func rubyPrebuiltBundlePath(ctx BuildContext) string {
+	root := rubyPrebuiltRoot(ctx)
 	if root == "" {
 		return ""
 	}
@@ -743,11 +816,7 @@ func rubyWrapperPlatformExports(goos, goarch string) string {
 	return ""
 }
 
-func rubyTestArgs(manifest *LoadedManifest) ([]string, error) {
-	_, bundlePath, err := rubyToolchainPaths()
-	if err != nil {
-		return nil, err
-	}
+func rubyTestArgs(manifest *LoadedManifest, bundlePath string) ([]string, error) {
 	if dirExists(filepath.Join(manifest.Dir, "spec")) {
 		return []string{bundlePath, "exec", "rspec"}, nil
 	}
@@ -1205,11 +1274,11 @@ func (dartRunner) clean(manifest *LoadedManifest, _ BuildContext, report *Report
 
 type rubyRunner struct{}
 
-func (rubyRunner) check(manifest *LoadedManifest, _ BuildContext) error {
+func (rubyRunner) check(manifest *LoadedManifest, ctx BuildContext) error {
 	if !fileExists(filepath.Join(manifest.Dir, "Gemfile")) {
 		return fmt.Errorf("ruby runner requires Gemfile")
 	}
-	_, _, err := rubyToolchainPaths()
+	_, _, err := rubyToolchainPaths(rubyPrebuiltRoot(ctx))
 	return err
 }
 
@@ -1217,7 +1286,7 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 	if err := ensureHostBuildTarget(RunnerRuby, ctx); err != nil {
 		return err
 	}
-	rubyPath, bundlePath, err := rubyToolchainPaths()
+	rubyPath, bundlePath, err := rubyToolchainPaths(rubyPrebuiltRoot(ctx))
 	if err != nil {
 		return err
 	}
@@ -1290,7 +1359,7 @@ func (rubyRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Repor
 	if err := ensureHostBuildTarget(RunnerRuby, ctx); err != nil {
 		return err
 	}
-	rubyPath, bundlePath, err := rubyToolchainPaths()
+	rubyPath, bundlePath, err := rubyToolchainPaths(rubyPrebuiltRoot(ctx))
 	if err != nil {
 		return err
 	}
@@ -1309,7 +1378,7 @@ func (rubyRunner) test(manifest *LoadedManifest, ctx BuildContext, report *Repor
 	}
 	_ = os.RemoveAll(filepath.Join(isolatedDir, "vendor", "bundle"))
 
-	args, err := rubyTestArgs(manifest)
+	args, err := rubyTestArgs(manifest, bundlePath)
 	if err != nil {
 		return err
 	}

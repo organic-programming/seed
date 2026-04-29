@@ -26,30 +26,31 @@ const (
 
 // Resolved describes the identity source discovered for a holon.
 type Resolved struct {
-	Identity             Identity
-	SourcePath           string
-	Description          string
-	Skills               []ResolvedSkill
-	Sequences            []ResolvedSequence
-	HasContract          bool
-	Kind                 string
-	Transport            string
-	Platforms            []string
-	BuildRunner          string
-	RequiredFiles        []string
-	RequiredCommands     []string
-	RequiredSDKPrebuilts []string
-	BuildMain            string
-	BuildDefaults        *ResolvedRecipeDefaults
-	BuildMembers         []ResolvedRecipeMember
-	BuildTargets         map[string]ResolvedRecipeTarget
-	BuildTemplates       []string
-	BeforeCommands       []ResolvedRecipeExec
-	AfterCommands        []ResolvedRecipeExec
-	MemberPaths          []string
-	ArtifactBinary       string
-	PrimaryArtifact      string
-	DelegateCommands     []string
+	Identity              Identity
+	SourcePath            string
+	Description           string
+	Skills                []ResolvedSkill
+	Sequences             []ResolvedSequence
+	HasContract           bool
+	Kind                  string
+	Transport             string
+	Platforms             []string
+	BuildRunner           string
+	RequiredFiles         []string
+	RequiredCommands      []string
+	RequiredSDKPrebuilts  []string
+	BuildMain             string
+	BuildDefaults         *ResolvedRecipeDefaults
+	BuildMembers          []ResolvedRecipeMember
+	BuildTargets          map[string]ResolvedRecipeTarget
+	BuildTemplates        []string
+	BuildCodegenLanguages []string
+	BeforeCommands        []ResolvedRecipeExec
+	AfterCommands         []ResolvedRecipeExec
+	MemberPaths           []string
+	ArtifactBinary        string
+	PrimaryArtifact       string
+	DelegateCommands      []string
 }
 
 type ResolvedRecipeDefaults struct {
@@ -293,7 +294,6 @@ func manifestFromGeneratedExtension(opts *descriptorpb.FileOptions) (manifest *h
 	}
 	return manifest, true
 }
-
 func findExtension(fd protoreflect.FileDescriptor, fieldNum int32) protoreflect.FieldDescriptor {
 	seen := map[string]bool{}
 	return findExtensionRecursive(fd, fieldNum, seen)
@@ -371,6 +371,9 @@ func resolvedFromManifest(manifest *holonsv1.HolonManifest) *Resolved {
 			}
 		}
 		resolved.BuildTemplates = build.GetTemplates()
+		if codegen := build.GetCodegen(); codegen != nil {
+			resolved.BuildCodegenLanguages = codegen.GetLanguages()
+		}
 
 		resolved.BeforeCommands = make([]ResolvedRecipeExec, 0)
 		for _, hook := range build.GetBeforeCommands() {
@@ -434,6 +437,7 @@ func resolvedFromManifest(manifest *holonsv1.HolonManifest) *Resolved {
 	resolved.RequiredCommands = compactStrings(resolved.RequiredCommands)
 	resolved.RequiredFiles = compactStrings(resolved.RequiredFiles)
 	resolved.RequiredSDKPrebuilts = compactStrings(resolved.RequiredSDKPrebuilts)
+	resolved.BuildCodegenLanguages = compactStrings(resolved.BuildCodegenLanguages)
 	resolved.MemberPaths = compactStrings(resolved.MemberPaths)
 	resolved.DelegateCommands = compactStrings(resolved.DelegateCommands)
 	return resolved

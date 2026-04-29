@@ -45,7 +45,24 @@ Both flows use the same plugin set per language. Once distributions
 ship plugins, A and B can converge onto the same dispatch
 mechanism — the maintainer script becomes a thin caller of the same
 driver that `op build` uses. Convergence is in §13 (open question);
-Flow A stays untouched until a follow-up RFC.
+Flow A stays outside the `op build` driver until a follow-up RFC.
+
+### 0.1. Flow A compatibility when `manifest.proto` changes
+
+Although the new `op build` codegen driver targets Flow B, any change
+to canonical protos used by SDKs still touches Flow A. In particular,
+evolving `holons.v1.HolonManifest` or nested messages such as
+`HolonManifest.Build` requires maintainers to run
+`sdk/scripts/generate-protos.sh` and commit the refreshed SDK
+bindings in the same change.
+
+The `Build` field set is a forward-compatibility concern for SDKs that
+construct generated messages with explicit struct or object literals.
+When a field is added to `HolonManifest.Build`, those hand-written
+initializers must include the language's zero value (`None`, `null`,
+empty list, or equivalent) so older construction sites keep compiling
+and keep preserving unknown future fields where the runtime supports
+them.
 
 ### Scope expansion of the prebuilt layer
 

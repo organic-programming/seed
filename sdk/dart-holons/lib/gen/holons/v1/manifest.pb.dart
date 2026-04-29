@@ -707,6 +707,57 @@ class HolonManifest_Build_Target extends $pb.GeneratedMessage {
   $pb.PbList<HolonManifest_Step> get steps => $_getList(0);
 }
 
+class HolonManifest_Build_Codegen extends $pb.GeneratedMessage {
+  factory HolonManifest_Build_Codegen({
+    $core.Iterable<$core.String>? languages,
+  }) {
+    final result = create();
+    if (languages != null) result.languages.addAll(languages);
+    return result;
+  }
+
+  HolonManifest_Build_Codegen._();
+
+  factory HolonManifest_Build_Codegen.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory HolonManifest_Build_Codegen.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'HolonManifest.Build.Codegen',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'holons.v1'),
+      createEmptyInstance: create)
+    ..pPS(1, _omitFieldNames ? '' : 'languages')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  HolonManifest_Build_Codegen clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  HolonManifest_Build_Codegen copyWith(
+          void Function(HolonManifest_Build_Codegen) updates) =>
+      super.copyWith(
+              (message) => updates(message as HolonManifest_Build_Codegen))
+          as HolonManifest_Build_Codegen;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static HolonManifest_Build_Codegen create() =>
+      HolonManifest_Build_Codegen._();
+  @$core.override
+  HolonManifest_Build_Codegen createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static HolonManifest_Build_Codegen getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<HolonManifest_Build_Codegen>(create);
+  static HolonManifest_Build_Codegen? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<$core.String> get languages => $_getList(0);
+}
+
 class HolonManifest_Build extends $pb.GeneratedMessage {
   factory HolonManifest_Build({
     $core.String? runner,
@@ -718,6 +769,7 @@ class HolonManifest_Build extends $pb.GeneratedMessage {
     $core.Iterable<$core.String>? templates,
     $core.Iterable<HolonManifest_Step_Exec>? beforeCommands,
     $core.Iterable<HolonManifest_Step_Exec>? afterCommands,
+    HolonManifest_Build_Codegen? codegen,
   }) {
     final result = create();
     if (runner != null) result.runner = runner;
@@ -728,6 +780,7 @@ class HolonManifest_Build extends $pb.GeneratedMessage {
     if (templates != null) result.templates.addAll(templates);
     if (beforeCommands != null) result.beforeCommands.addAll(beforeCommands);
     if (afterCommands != null) result.afterCommands.addAll(afterCommands);
+    if (codegen != null) result.codegen = codegen;
     return result;
   }
 
@@ -763,6 +816,8 @@ class HolonManifest_Build extends $pb.GeneratedMessage {
         subBuilder: HolonManifest_Step_Exec.create)
     ..pPM<HolonManifest_Step_Exec>(8, _omitFieldNames ? '' : 'afterCommands',
         subBuilder: HolonManifest_Step_Exec.create)
+    ..aOM<HolonManifest_Build_Codegen>(9, _omitFieldNames ? '' : 'codegen',
+        subBuilder: HolonManifest_Build_Codegen.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -839,6 +894,18 @@ class HolonManifest_Build extends $pb.GeneratedMessage {
   /// Commands to execute sequentially AFTER the main runner logic.
   @$pb.TagNumber(8)
   $pb.PbList<HolonManifest_Step_Exec> get afterCommands => $_getList(7);
+
+  /// Proto code generation languages to run after descriptor production.
+  @$pb.TagNumber(9)
+  HolonManifest_Build_Codegen get codegen => $_getN(8);
+  @$pb.TagNumber(9)
+  set codegen(HolonManifest_Build_Codegen value) => $_setField(9, value);
+  @$pb.TagNumber(9)
+  $core.bool hasCodegen() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearCodegen() => $_clearField(9);
+  @$pb.TagNumber(9)
+  HolonManifest_Build_Codegen ensureCodegen() => $_ensure(8);
 }
 
 class HolonManifest_Step_Exec extends $pb.GeneratedMessage {
@@ -1096,12 +1163,72 @@ class HolonManifest_Step_CopyArtifact extends $pb.GeneratedMessage {
   void clearTo() => $_clearField(2);
 }
 
+class HolonManifest_Step_CopyAllHolons extends $pb.GeneratedMessage {
+  factory HolonManifest_Step_CopyAllHolons({
+    $core.String? to,
+  }) {
+    final result = create();
+    if (to != null) result.to = to;
+    return result;
+  }
+
+  HolonManifest_Step_CopyAllHolons._();
+
+  factory HolonManifest_Step_CopyAllHolons.fromBuffer(
+          $core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromBuffer(data, registry);
+  factory HolonManifest_Step_CopyAllHolons.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'HolonManifest.Step.CopyAllHolons',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'holons.v1'),
+      createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'to')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  HolonManifest_Step_CopyAllHolons clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  HolonManifest_Step_CopyAllHolons copyWith(
+          void Function(HolonManifest_Step_CopyAllHolons) updates) =>
+      super.copyWith(
+              (message) => updates(message as HolonManifest_Step_CopyAllHolons))
+          as HolonManifest_Step_CopyAllHolons;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static HolonManifest_Step_CopyAllHolons create() =>
+      HolonManifest_Step_CopyAllHolons._();
+  @$core.override
+  HolonManifest_Step_CopyAllHolons createEmptyInstance() => create();
+  @$core.pragma('dart2js:noInline')
+  static HolonManifest_Step_CopyAllHolons getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<HolonManifest_Step_CopyAllHolons>(
+          create);
+  static HolonManifest_Step_CopyAllHolons? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get to => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set to($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTo() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTo() => $_clearField(1);
+}
+
 enum HolonManifest_Step_Action {
   exec,
   copy,
   buildMember,
   assertFile,
   copyArtifact,
+  copyAllHolons,
   notSet
 }
 
@@ -1112,6 +1239,7 @@ class HolonManifest_Step extends $pb.GeneratedMessage {
     $core.String? buildMember,
     HolonManifest_Step_AssertFile? assertFile,
     HolonManifest_Step_CopyArtifact? copyArtifact,
+    HolonManifest_Step_CopyAllHolons? copyAllHolons,
   }) {
     final result = create();
     if (exec != null) result.exec = exec;
@@ -1119,6 +1247,7 @@ class HolonManifest_Step extends $pb.GeneratedMessage {
     if (buildMember != null) result.buildMember = buildMember;
     if (assertFile != null) result.assertFile = assertFile;
     if (copyArtifact != null) result.copyArtifact = copyArtifact;
+    if (copyAllHolons != null) result.copyAllHolons = copyAllHolons;
     return result;
   }
 
@@ -1138,13 +1267,14 @@ class HolonManifest_Step extends $pb.GeneratedMessage {
     3: HolonManifest_Step_Action.buildMember,
     4: HolonManifest_Step_Action.assertFile,
     5: HolonManifest_Step_Action.copyArtifact,
+    6: HolonManifest_Step_Action.copyAllHolons,
     0: HolonManifest_Step_Action.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'HolonManifest.Step',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'holons.v1'),
       createEmptyInstance: create)
-    ..oo(0, [1, 2, 3, 4, 5])
+    ..oo(0, [1, 2, 3, 4, 5, 6])
     ..aOM<HolonManifest_Step_Exec>(1, _omitFieldNames ? '' : 'exec',
         subBuilder: HolonManifest_Step_Exec.create)
     ..aOM<HolonManifest_Step_Copy>(2, _omitFieldNames ? '' : 'copy',
@@ -1155,6 +1285,9 @@ class HolonManifest_Step extends $pb.GeneratedMessage {
     ..aOM<HolonManifest_Step_CopyArtifact>(
         5, _omitFieldNames ? '' : 'copyArtifact',
         subBuilder: HolonManifest_Step_CopyArtifact.create)
+    ..aOM<HolonManifest_Step_CopyAllHolons>(
+        6, _omitFieldNames ? '' : 'copyAllHolons',
+        subBuilder: HolonManifest_Step_CopyAllHolons.create)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1181,6 +1314,7 @@ class HolonManifest_Step extends $pb.GeneratedMessage {
   @$pb.TagNumber(3)
   @$pb.TagNumber(4)
   @$pb.TagNumber(5)
+  @$pb.TagNumber(6)
   HolonManifest_Step_Action whichAction() =>
       _HolonManifest_Step_ActionByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(1)
@@ -1188,6 +1322,7 @@ class HolonManifest_Step extends $pb.GeneratedMessage {
   @$pb.TagNumber(3)
   @$pb.TagNumber(4)
   @$pb.TagNumber(5)
+  @$pb.TagNumber(6)
   void clearAction() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -1243,6 +1378,18 @@ class HolonManifest_Step extends $pb.GeneratedMessage {
   void clearCopyArtifact() => $_clearField(5);
   @$pb.TagNumber(5)
   HolonManifest_Step_CopyArtifact ensureCopyArtifact() => $_ensure(4);
+
+  @$pb.TagNumber(6)
+  HolonManifest_Step_CopyAllHolons get copyAllHolons => $_getN(5);
+  @$pb.TagNumber(6)
+  set copyAllHolons(HolonManifest_Step_CopyAllHolons value) =>
+      $_setField(6, value);
+  @$pb.TagNumber(6)
+  $core.bool hasCopyAllHolons() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearCopyAllHolons() => $_clearField(6);
+  @$pb.TagNumber(6)
+  HolonManifest_Step_CopyAllHolons ensureCopyAllHolons() => $_ensure(5);
 }
 
 class HolonManifest_Requires extends $pb.GeneratedMessage {
@@ -1250,11 +1397,13 @@ class HolonManifest_Requires extends $pb.GeneratedMessage {
     $core.Iterable<$core.String>? commands,
     $core.Iterable<$core.String>? files,
     $core.Iterable<$core.String>? platforms,
+    $core.Iterable<$core.String>? sdkPrebuilts,
   }) {
     final result = create();
     if (commands != null) result.commands.addAll(commands);
     if (files != null) result.files.addAll(files);
     if (platforms != null) result.platforms.addAll(platforms);
+    if (sdkPrebuilts != null) result.sdkPrebuilts.addAll(sdkPrebuilts);
     return result;
   }
 
@@ -1274,6 +1423,7 @@ class HolonManifest_Requires extends $pb.GeneratedMessage {
     ..pPS(1, _omitFieldNames ? '' : 'commands')
     ..pPS(2, _omitFieldNames ? '' : 'files')
     ..pPS(3, _omitFieldNames ? '' : 'platforms')
+    ..pPS(4, _omitFieldNames ? '' : 'sdkPrebuilts')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1304,6 +1454,9 @@ class HolonManifest_Requires extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(3)
   $pb.PbList<$core.String> get platforms => $_getList(2);
+
+  @$pb.TagNumber(4)
+  $pb.PbList<$core.String> get sdkPrebuilts => $_getList(3);
 }
 
 class HolonManifest_Artifacts_TargetArtifacts extends $pb.GeneratedMessage {

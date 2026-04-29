@@ -110,6 +110,75 @@ func TestInstallLocalHolonsReleaseTarballInfersVersion(t *testing.T) {
 	}
 }
 
+func TestInstallPreservesCodegenManifestBlock(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+
+	source := filepath.Join(t.TempDir(), "cpp-1.80.0-"+testTarget+".tar.gz")
+	writeTestTarGz(t, source, map[string]testTarEntry{
+		"bin/protoc-gen-cpp": {Mode: 0o755, Body: []byte("#!/bin/sh\n")},
+		metadataFile: {Mode: 0o644, Body: []byte(`{
+  "codegen": {
+    "plugins": [
+      {
+        "name": "cpp",
+        "binary": "bin/protoc-gen-cpp",
+        "out_subdir": "cpp"
+      }
+    ]
+  }
+}
+`)},
+	})
+	writeSHA256Sidecar(t, source)
+
+	prebuilt, _, err := Install(context.Background(), InstallOptions{
+		Lang:   "cpp",
+		Target: testTarget,
+		Source: source,
+	})
+	if err != nil {
+		t.Fatalf("Install() returned error: %v", err)
+	}
+	if prebuilt.Codegen == nil || len(prebuilt.Codegen.Plugins) != 1 {
+		t.Fatalf("Codegen metadata = %#v, want one plugin", prebuilt.Codegen)
+	}
+	if prebuilt.Codegen.Plugins[0].Name != "cpp" {
+		t.Fatalf("plugin name = %q, want cpp", prebuilt.Codegen.Plugins[0].Name)
+	}
+
+	metadata, err := metadataForPath(prebuilt.Path)
+	if err != nil {
+		t.Fatalf("read installed metadata: %v", err)
+	}
+	if metadata.Codegen == nil || len(metadata.Codegen.Plugins) != 1 {
+		t.Fatalf("installed metadata codegen = %#v, want one plugin", metadata.Codegen)
+	}
+}
+
+func TestLocalSourceTreeSHA256TreatsNonGitWorkspaceAsNoSource(t *testing.T) {
+	repoRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repoRoot, "go.work"), []byte("go 1.26.1\n"), 0o644); err != nil {
+		t.Fatalf("write go.work: %v", err)
+	}
+	sourceDir := filepath.Join(repoRoot, "sdk", "c-holons")
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		t.Fatalf("create sdk source dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceDir, "README.md"), []byte("fixture\n"), 0o644); err != nil {
+		t.Fatalf("write sdk source fixture: %v", err)
+	}
+	t.Chdir(repoRoot)
+
+	got, ok, err := LocalSourceTreeSHA256("c")
+	if err != nil {
+		t.Fatalf("LocalSourceTreeSHA256() returned error: %v", err)
+	}
+	if got != "" || ok {
+		t.Fatalf("LocalSourceTreeSHA256() = %q, %v, want empty hash and ok=false", got, ok)
+	}
+}
+
 func TestListInstalledIteratesRuntimeTree(t *testing.T) {
 	runtimeHome := t.TempDir()
 	t.Setenv("OPPATH", runtimeHome)
@@ -247,6 +316,7 @@ func TestListAvailableReadsReleaseManifest(t *testing.T) {
   "artifacts": [
     {
       "target": "%s",
+      "source_tree_sha256": "source-tree-abc",
       "archive": {
         "name": "cpp-holons-v1.80.0-%s.tar.gz",
         "url": "%s/assets/from-manifest.tar.gz",
@@ -287,6 +357,9 @@ func TestListAvailableReadsReleaseManifest(t *testing.T) {
 	}
 	if entries[0].ArchiveSHA256 != "abc123" {
 		t.Fatalf("archive sha = %q, want abc123", entries[0].ArchiveSHA256)
+	}
+	if entries[0].SourceTreeSHA256 != "source-tree-abc" {
+		t.Fatalf("source tree sha = %q, want source-tree-abc", entries[0].SourceTreeSHA256)
 	}
 }
 

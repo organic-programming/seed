@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -643,6 +644,85 @@ func TestRubySetupCommandsUsePrebuiltBundle(t *testing.T) {
 	}
 }
 
+func TestRubyPrebuiltToolchainBasesMatchPrebuiltRubyVersion(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "share"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "share", "prebuilt.env"), []byte("ruby_version=3.1.7\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("OP_SDK_RUBY_PATH", root)
+
+	got := rubyPrebuiltToolchainBases()
+	want := []string{
+		"/opt/homebrew/opt/ruby@3.1/bin",
+		"/usr/local/opt/ruby@3.1/bin",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("rubyPrebuiltToolchainBases() = %#v, want %#v", got, want)
+	}
+}
+
+func TestRubyToolchainPathsRejectsIncompatiblePrebuiltRuby(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "share"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "share", "prebuilt.env"), []byte("ruby_version=3.1.7\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	toolDir := t.TempDir()
+	t.Setenv("PATH", toolDir)
+	writeFakeCommand(t, toolDir, "ruby")
+	writeFakeCommand(t, toolDir, "bundle")
+
+	previous := rubyExecutableMajorMinor
+	rubyExecutableMajorMinor = func(string) string { return "4.0" }
+	t.Cleanup(func() { rubyExecutableMajorMinor = previous })
+
+	_, _, err := rubyToolchainPaths(root)
+	if err == nil {
+		t.Fatal("rubyToolchainPaths() succeeded with an incompatible prebuilt Ruby")
+	}
+	if !strings.Contains(err.Error(), "requires Ruby 3.1.x") {
+		t.Fatalf("rubyToolchainPaths() error = %v", err)
+	}
+}
+
+func TestRubyToolchainPathsAcceptsMatchingPrebuiltRubyFromPath(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "share"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "share", "prebuilt.env"), []byte("ruby_version=3.1.7\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	toolDir := t.TempDir()
+	t.Setenv("PATH", toolDir)
+	writeFakeCommand(t, toolDir, "ruby")
+	writeFakeCommand(t, toolDir, "bundle")
+
+	previous := rubyExecutableMajorMinor
+	rubyExecutableMajorMinor = func(path string) string {
+		if strings.HasPrefix(path, toolDir+string(os.PathSeparator)) {
+			return "3.1"
+		}
+		return "4.0"
+	}
+	t.Cleanup(func() { rubyExecutableMajorMinor = previous })
+
+	rubyPath, bundlePath, err := rubyToolchainPaths(root)
+	if err != nil {
+		t.Fatalf("rubyToolchainPaths() failed: %v", err)
+	}
+	if rubyPath != filepath.Join(toolDir, "ruby") || bundlePath != filepath.Join(toolDir, "bundle") {
+		t.Fatalf("rubyToolchainPaths() = (%q, %q), want toolDir commands", rubyPath, bundlePath)
+	}
+}
+
 func TestSwiftPackageRunnerDryRunBuild(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "Package.swift"), []byte("// swift-tools-version: 6.0\n"), 0o644); err != nil {
@@ -1169,7 +1249,7 @@ func TestRubyTestArgsPreferRSpec(t *testing.T) {
 		t.Fatalf("LoadManifest failed: %v", err)
 	}
 
-	got, err := rubyTestArgs(manifest)
+	got, err := rubyTestArgs(manifest, filepath.Join(toolDir, "bundle"))
 	if err != nil {
 		t.Fatalf("rubyTestArgs() failed: %v", err)
 	}
@@ -1194,7 +1274,7 @@ func TestRubyTestArgsFallBackToRakeTest(t *testing.T) {
 		t.Fatalf("LoadManifest failed: %v", err)
 	}
 
-	got, err := rubyTestArgs(manifest)
+	got, err := rubyTestArgs(manifest, filepath.Join(toolDir, "bundle"))
 	if err != nil {
 		t.Fatalf("rubyTestArgs() failed: %v", err)
 	}

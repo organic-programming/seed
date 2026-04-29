@@ -27,11 +27,13 @@ typedef struct Holons__V1__HolonManifest__Build__TargetsEntry Holons__V1__HolonM
 typedef struct Holons__V1__HolonManifest__Build__Defaults Holons__V1__HolonManifest__Build__Defaults;
 typedef struct Holons__V1__HolonManifest__Build__Member Holons__V1__HolonManifest__Build__Member;
 typedef struct Holons__V1__HolonManifest__Build__Target Holons__V1__HolonManifest__Build__Target;
+typedef struct Holons__V1__HolonManifest__Build__Codegen Holons__V1__HolonManifest__Build__Codegen;
 typedef struct Holons__V1__HolonManifest__Step Holons__V1__HolonManifest__Step;
 typedef struct Holons__V1__HolonManifest__Step__Exec Holons__V1__HolonManifest__Step__Exec;
 typedef struct Holons__V1__HolonManifest__Step__Copy Holons__V1__HolonManifest__Step__Copy;
 typedef struct Holons__V1__HolonManifest__Step__AssertFile Holons__V1__HolonManifest__Step__AssertFile;
 typedef struct Holons__V1__HolonManifest__Step__CopyArtifact Holons__V1__HolonManifest__Step__CopyArtifact;
+typedef struct Holons__V1__HolonManifest__Step__CopyAllHolons Holons__V1__HolonManifest__Step__CopyAllHolons;
 typedef struct Holons__V1__HolonManifest__Requires Holons__V1__HolonManifest__Requires;
 typedef struct Holons__V1__HolonManifest__Artifacts Holons__V1__HolonManifest__Artifacts;
 typedef struct Holons__V1__HolonManifest__Artifacts__ByTargetEntry Holons__V1__HolonManifest__Artifacts__ByTargetEntry;
@@ -266,6 +268,17 @@ struct  Holons__V1__HolonManifest__Build__Target
 , 0,NULL }
 
 
+struct  Holons__V1__HolonManifest__Build__Codegen
+{
+  ProtobufCMessage base;
+  size_t n_languages;
+  char **languages;
+};
+#define HOLONS__V1__HOLON_MANIFEST__BUILD__CODEGEN__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&holons__v1__holon_manifest__build__codegen__descriptor) \
+, 0,NULL }
+
+
 struct  Holons__V1__HolonManifest__Build
 {
   ProtobufCMessage base;
@@ -306,10 +319,14 @@ struct  Holons__V1__HolonManifest__Build
    */
   size_t n_after_commands;
   Holons__V1__HolonManifest__Step__Exec **after_commands;
+  /*
+   * Proto code generation languages to run after descriptor production.
+   */
+  Holons__V1__HolonManifest__Build__Codegen *codegen;
 };
 #define HOLONS__V1__HOLON_MANIFEST__BUILD__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&holons__v1__holon_manifest__build__descriptor) \
-, (char *)protobuf_c_empty_string, (char *)protobuf_c_empty_string, NULL, 0,NULL, 0,NULL, 0,NULL, 0,NULL, 0,NULL }
+, (char *)protobuf_c_empty_string, (char *)protobuf_c_empty_string, NULL, 0,NULL, 0,NULL, 0,NULL, 0,NULL, 0,NULL, NULL }
 
 
 struct  Holons__V1__HolonManifest__Step__Exec
@@ -356,13 +373,27 @@ struct  Holons__V1__HolonManifest__Step__CopyArtifact
 , (char *)protobuf_c_empty_string, (char *)protobuf_c_empty_string }
 
 
+struct  Holons__V1__HolonManifest__Step__CopyAllHolons
+{
+  ProtobufCMessage base;
+  /*
+   * destination directory, manifest-relative
+   */
+  char *to;
+};
+#define HOLONS__V1__HOLON_MANIFEST__STEP__COPY_ALL_HOLONS__INIT \
+ { PROTOBUF_C_MESSAGE_INIT (&holons__v1__holon_manifest__step__copy_all_holons__descriptor) \
+, (char *)protobuf_c_empty_string }
+
+
 typedef enum {
   HOLONS__V1__HOLON_MANIFEST__STEP__ACTION__NOT_SET = 0,
   HOLONS__V1__HOLON_MANIFEST__STEP__ACTION_EXEC = 1,
   HOLONS__V1__HOLON_MANIFEST__STEP__ACTION_COPY = 2,
   HOLONS__V1__HOLON_MANIFEST__STEP__ACTION_BUILD_MEMBER = 3,
   HOLONS__V1__HOLON_MANIFEST__STEP__ACTION_ASSERT_FILE = 4,
-  HOLONS__V1__HOLON_MANIFEST__STEP__ACTION_COPY_ARTIFACT = 5
+  HOLONS__V1__HOLON_MANIFEST__STEP__ACTION_COPY_ARTIFACT = 5,
+  HOLONS__V1__HOLON_MANIFEST__STEP__ACTION_COPY_ALL_HOLONS = 6
     PROTOBUF_C__FORCE_ENUM_TO_BE_INT_SIZE(HOLONS__V1__HOLON_MANIFEST__STEP__ACTION__CASE)
 } Holons__V1__HolonManifest__Step__ActionCase;
 
@@ -377,6 +408,7 @@ struct  Holons__V1__HolonManifest__Step
     char *build_member;
     Holons__V1__HolonManifest__Step__AssertFile *assert_file;
     Holons__V1__HolonManifest__Step__Copy *copy;
+    Holons__V1__HolonManifest__Step__CopyAllHolons *copy_all_holons;
     Holons__V1__HolonManifest__Step__CopyArtifact *copy_artifact;
     Holons__V1__HolonManifest__Step__Exec *exec;
   };
@@ -567,6 +599,9 @@ void   holons__v1__holon_manifest__build__member__init
 /* Holons__V1__HolonManifest__Build__Target methods */
 void   holons__v1__holon_manifest__build__target__init
                      (Holons__V1__HolonManifest__Build__Target         *message);
+/* Holons__V1__HolonManifest__Build__Codegen methods */
+void   holons__v1__holon_manifest__build__codegen__init
+                     (Holons__V1__HolonManifest__Build__Codegen         *message);
 /* Holons__V1__HolonManifest__Build methods */
 void   holons__v1__holon_manifest__build__init
                      (Holons__V1__HolonManifest__Build         *message);
@@ -582,6 +617,9 @@ void   holons__v1__holon_manifest__step__assert_file__init
 /* Holons__V1__HolonManifest__Step__CopyArtifact methods */
 void   holons__v1__holon_manifest__step__copy_artifact__init
                      (Holons__V1__HolonManifest__Step__CopyArtifact         *message);
+/* Holons__V1__HolonManifest__Step__CopyAllHolons methods */
+void   holons__v1__holon_manifest__step__copy_all_holons__init
+                     (Holons__V1__HolonManifest__Step__CopyAllHolons         *message);
 /* Holons__V1__HolonManifest__Step methods */
 void   holons__v1__holon_manifest__step__init
                      (Holons__V1__HolonManifest__Step         *message);
@@ -664,6 +702,9 @@ typedef void (*Holons__V1__HolonManifest__Build__Member_Closure)
 typedef void (*Holons__V1__HolonManifest__Build__Target_Closure)
                  (const Holons__V1__HolonManifest__Build__Target *message,
                   void *closure_data);
+typedef void (*Holons__V1__HolonManifest__Build__Codegen_Closure)
+                 (const Holons__V1__HolonManifest__Build__Codegen *message,
+                  void *closure_data);
 typedef void (*Holons__V1__HolonManifest__Build_Closure)
                  (const Holons__V1__HolonManifest__Build *message,
                   void *closure_data);
@@ -678,6 +719,9 @@ typedef void (*Holons__V1__HolonManifest__Step__AssertFile_Closure)
                   void *closure_data);
 typedef void (*Holons__V1__HolonManifest__Step__CopyArtifact_Closure)
                  (const Holons__V1__HolonManifest__Step__CopyArtifact *message,
+                  void *closure_data);
+typedef void (*Holons__V1__HolonManifest__Step__CopyAllHolons_Closure)
+                 (const Holons__V1__HolonManifest__Step__CopyAllHolons *message,
                   void *closure_data);
 typedef void (*Holons__V1__HolonManifest__Step_Closure)
                  (const Holons__V1__HolonManifest__Step *message,
@@ -718,11 +762,13 @@ extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__build__targe
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__build__defaults__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__build__member__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__build__target__descriptor;
+extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__build__codegen__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__step__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__step__exec__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__step__copy__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__step__assert_file__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__step__copy_artifact__descriptor;
+extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__step__copy_all_holons__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__requires__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__artifacts__descriptor;
 extern const ProtobufCMessageDescriptor holons__v1__holon_manifest__artifacts__by_target_entry__descriptor;

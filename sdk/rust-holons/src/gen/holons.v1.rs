@@ -179,6 +179,9 @@ pub mod holon_manifest {
         /// Commands to execute sequentially AFTER the main runner logic.
         #[prost(message, repeated, tag = "8")]
         pub after_commands: ::prost::alloc::vec::Vec<step::Exec>,
+        /// Proto code generation languages to run after descriptor production.
+        #[prost(message, optional, tag = "9")]
+        pub codegen: ::core::option::Option<build::Codegen>,
     }
     /// Nested message and enum types in `Build`.
     pub mod build {
@@ -207,6 +210,11 @@ pub mod holon_manifest {
         pub struct Target {
             #[prost(message, repeated, tag = "1")]
             pub steps: ::prost::alloc::vec::Vec<super::Step>,
+        }
+        #[derive(Clone, PartialEq, ::prost::Message)]
+        pub struct Codegen {
+            #[prost(string, repeated, tag = "1")]
+            pub languages: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
         }
     }
     #[derive(Clone, PartialEq, ::prost::Message)]

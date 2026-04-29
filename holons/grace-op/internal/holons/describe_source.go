@@ -882,6 +882,7 @@ func writeRustBuildLiteral(buf *strings.Builder, build *holonsv1.HolonManifest_B
 	writeRustStringVecField(buf, indent+1, "templates", build.GetTemplates())
 	writeRustRepeatedField(buf, indent+1, "before_commands", 0, func(_ int, _ *strings.Builder, _ int) {})
 	writeRustRepeatedField(buf, indent+1, "after_commands", 0, func(_ int, _ *strings.Builder, _ int) {})
+	writeRustLine(buf, indent+1, "codegen: None,")
 	writeRustLine(buf, indent, "}")
 }
 
