@@ -1,6 +1,6 @@
 # Reusable workflow: builds one (sdk, target) prebuilt tarball.
-# Triggers: workflow_call only — invoked by sdk-prebuilts.yml.
-# Owns: per-target build script execution + artifact upload.
+# Triggers: workflow_call only; runs on the caller-selected runner.
+# Owns: per-target build script execution + artifact upload. See .github/workflows/README.md for pipeline order.
 name: sdk-prebuilt-target
 
 on:

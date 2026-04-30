@@ -5426,7 +5426,7 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x14UninstallSdkPrebuilt\x12\".op.v1.UninstallSdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponse\x12P\n" +
 	"\x11VerifySdkPrebuilt\x12\x1f.op.v1.VerifySdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponse\x12P\n" +
 	"\x11LocateSdkPrebuilt\x12\x1f.op.v1.LocateSdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponse\x12N\n" +
-	"\x10BuildSdkPrebuilt\x12\x1e.op.v1.BuildSdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponseB\xbc\x15\x82\xb5\x18\xfc\x14\n" +
+	"\x10BuildSdkPrebuilt\x12\x1e.op.v1.BuildSdkPrebuiltRequest\x1a\x1a.op.v1.SdkPrebuiltResponseB\xdc\x15\x82\xb5\x18\x9c\x15\n" +
 	"\x80\x01\n" +
 	"\bholon/v1\x12$28f22ab5-c62d-41f8-9ada-e34333060ff9\x1a\x05Grace\"\x02OP*\x19One command, every holon.2\bB. ALTERB\x05draftJ\n" +
 	"2026-02-12R\a0.5.717Z\x02op\x1a\xa5\x02OP is the unified entry point to the Organic Programming ecosystem. It discovers holons — locally or over the network — and dispatches commands to them through a single interface. The actant installs one binary and gets access to every holon. OP does not implement domain logic. It routes.\"\x02go*\x84\x03\n" +
@@ -5435,8 +5435,9 @@ const file_api_v1_holon_proto_rawDesc = "" +
 	"\x10introspect-holon\x12;Inspect a holon's RPC contract, fields, and skills offline.\x1a:User wants to understand a holon's API without running it.\"6Run `op inspect <holon>` for human-readable proto docs\";Use `op inspect <holon> --json` for machine-readable output\"IFallback to `op inspect <host:port>` for a running holon via Describe RPC*\xa4\x02\n" +
 	"\rexpose-to-llm\x122Expose any holon as MCP tools for LLM integration.\x1a*User wants an AI agent to call holon RPCs.\"*Start the MCP bridge with `op mcp <holon>`\"BOr export tool definitions with `op tools <holon> --format openai`\"CSkills from the manifest are exposed as MCP prompts alongside tools*\xa0\x02\n" +
 	"\x13manage-dependencies\x12*Manage holon dependencies like Go modules.\x1a/User needs to add, update, or audit holon deps.\"*Initialize with `op mod init <holon-path>`\"5Add dependencies with `op mod add <module> [version]`\"\"Tidy and verify with `op mod tidy`\"%Inspect the graph with `op mod graph`2\xa5\x03\n" +
-	"\x12api/v1/holon.proto\x12\x0fop.v1.OPService\x1a\bDiscover\x1a\x06Invoke\x1a\x0eCreateIdentity\x1a\x0eListIdentities\x1a\fShowIdentity\x1a\rListTemplates\x1a\x10GenerateTemplate\x1a\aVersion\x1a\x05Check\x1a\x05Build\x1a\x04Test\x1a\x05Clean\x1a\aInstall\x1a\tUninstall\x1a\x03Run\x1a\aInspect\x1a\vRunSequence\x1a\aModInit\x1a\x06ModAdd\x1a\tModRemove\x1a\aModTidy\x1a\aModPull\x1a\tModUpdate\x1a\aModList\x1a\bModGraph\x1a\x05Tools\x1a\x03Env\x1a\x12InstallSdkPrebuilt\x1a\x10ListSdkPrebuilts\x1a\x14UninstallSdkPrebuilt\x1a\x11VerifySdkPrebuilt\x1a\x11LocateSdkPrebuilt\x1a\x10BuildSdkPrebuilt:\x06nativeR%\n" +
-	"\tgo-module\x12\b./cmd/op2\x0eapi/version.goZ\f\n" +
+	"\x12api/v1/holon.proto\x12\x0fop.v1.OPService\x1a\bDiscover\x1a\x06Invoke\x1a\x0eCreateIdentity\x1a\x0eListIdentities\x1a\fShowIdentity\x1a\rListTemplates\x1a\x10GenerateTemplate\x1a\aVersion\x1a\x05Check\x1a\x05Build\x1a\x04Test\x1a\x05Clean\x1a\aInstall\x1a\tUninstall\x1a\x03Run\x1a\aInspect\x1a\vRunSequence\x1a\aModInit\x1a\x06ModAdd\x1a\tModRemove\x1a\aModTidy\x1a\aModPull\x1a\tModUpdate\x1a\aModList\x1a\bModGraph\x1a\x05Tools\x1a\x03Env\x1a\x12InstallSdkPrebuilt\x1a\x10ListSdkPrebuilts\x1a\x14UninstallSdkPrebuilt\x1a\x11VerifySdkPrebuilt\x1a\x11LocateSdkPrebuilt\x1a\x10BuildSdkPrebuilt:\x06nativeRE\n" +
+	"\tgo-module\x12\b./cmd/op2\x0eapi/version.go:\x1e\n" +
+	"\x01.\x12\x02go\x12\x03run\x12\x10./tools/generateZ\f\n" +
 	"\x02go\x12\x06go.modj\x04\n" +
 	"\x02opZ9github.com/organic-programming/grace-op/gen/go/op/v1;opv1b\x06proto3"
 
