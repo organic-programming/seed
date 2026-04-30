@@ -1,14 +1,14 @@
-# SDK prebuilt publish: builds tarballs for native/runtime SDKs plus codegen-only
-# distributions per (sdk, host_target) matrix and
-# promotes them to GitHub Releases on master merge. No op/ader bootstrap dependency.
-# Triggers: pull_request on master + manual workflow_dispatch with version overrides.
+# SDK prebuilt publish: promotes artifacts produced by pipeline.yml tier 1 after a merged PR.
+# Triggers: pull_request closed on master; runs on ubuntu-latest.
+# Owns: post-merge GitHub Release publication. See .github/workflows/README.md for pipeline order.
 name: sdk-prebuilts
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [closed]
     branches: [master]
     paths:
+      - ".github/workflows/pipeline.yml"
       - ".github/workflows/sdk-prebuilts.yml"
       - ".github/workflows/_sdk-prebuilt-target.yml"
       - ".github/scripts/build-prebuilt-zig.sh"
@@ -45,215 +45,40 @@ on:
       - "holons/grace-op/internal/sdkprebuilts/**"
       - "holons/grace-op/cmd/protoc-gen-op-adapter/**"
       - "holons/grace-op/cmd/protoc-gen-op-noop/**"
-  workflow_dispatch:
-    inputs:
-      sdk-version:
-        description: Zig SDK prebuilt version
-        required: false
-        default: "0.1.0"
-      cpp-version:
-        description: C++ SDK prebuilt version
-        required: false
-        default: "1.80.0"
-      c-version:
-        description: C SDK prebuilt version
-        required: false
-        default: "1.80.0"
-      ruby-version:
-        description: Ruby SDK prebuilt version
-        required: false
-        default: "1.58.3"
 
 concurrency:
-  group: sdk-prebuilts-${{ github.ref }}
-  cancel-in-progress: true
+  group: sdk-prebuilts-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
 
 permissions:
   actions: read
-  contents: read
+  contents: write
 
 jobs:
-  zig:
-    if: github.event_name != 'pull_request' || github.event.action != 'closed'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: aarch64-apple-darwin
-            runs_on: '["macos-14"]'
-          # x86_64-apple-darwin suspended: see suspendedPrebuilts in
-          # holons/grace-op/internal/sdkprebuilts/sdkprebuilts.go and
-          # sdk/PREBUILTS.md "Per-SDK suspended pairs". Re-add the matrix
-          # entry once the target has been validated end-to-end.
-          - target: x86_64-unknown-linux-gnu
-            runs_on: '["ubuntu-latest"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: aarch64-unknown-linux-gnu
-            runs_on: '["ubuntu-24.04-arm"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: x86_64-unknown-linux-musl
-            runs_on: '["ubuntu-latest"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: aarch64-unknown-linux-musl
-            runs_on: '["ubuntu-24.04-arm"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: x86_64-windows-gnu
-            runs_on: '["ubuntu-latest"]'
-            continue_on_error: true  # paused: target needs validation
-    uses: ./.github/workflows/_sdk-prebuilt-target.yml
-    with:
-      sdk: zig
-      sdk-version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['sdk-version'] || '0.1.0' }}
-      sdk-target: ${{ matrix.target }}
-      runs-on: ${{ matrix.runs_on }}
-      continue-on-error: ${{ matrix.continue_on_error || false }}
-
-  cpp:
-    if: github.event_name != 'pull_request' || github.event.action != 'closed'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: aarch64-apple-darwin
-            runs_on: '["macos-14"]'
-          # x86_64-apple-darwin suspended: see suspendedPrebuilts in
-          # holons/grace-op/internal/sdkprebuilts/sdkprebuilts.go and
-          # sdk/PREBUILTS.md "Per-SDK suspended pairs". Re-add the matrix
-          # entry once the target has been validated end-to-end.
-          - target: x86_64-unknown-linux-gnu
-            runs_on: '["ubuntu-latest"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: aarch64-unknown-linux-gnu
-            runs_on: '["ubuntu-24.04-arm"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: x86_64-unknown-linux-musl
-            runs_on: '["ubuntu-latest"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: aarch64-unknown-linux-musl
-            runs_on: '["ubuntu-24.04-arm"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: x86_64-windows-gnu
-            runs_on: '["ubuntu-latest"]'
-            continue_on_error: true  # paused: target needs validation
-    uses: ./.github/workflows/_sdk-prebuilt-target.yml
-    with:
-      sdk: cpp
-      sdk-version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['cpp-version'] || '1.80.0' }}
-      sdk-target: ${{ matrix.target }}
-      runs-on: ${{ matrix.runs_on }}
-      continue-on-error: ${{ matrix.continue_on_error || false }}
-
-  c:
-    if: github.event_name != 'pull_request' || github.event.action != 'closed'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: aarch64-apple-darwin
-            runs_on: '["macos-14"]'
-          # x86_64-apple-darwin suspended: see suspendedPrebuilts in
-          # holons/grace-op/internal/sdkprebuilts/sdkprebuilts.go and
-          # sdk/PREBUILTS.md "Per-SDK suspended pairs". Re-add the matrix
-          # entry once the target has been validated end-to-end.
-          - target: x86_64-unknown-linux-gnu
-            runs_on: '["ubuntu-latest"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: aarch64-unknown-linux-gnu
-            runs_on: '["ubuntu-24.04-arm"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: x86_64-unknown-linux-musl
-            runs_on: '["ubuntu-latest"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: aarch64-unknown-linux-musl
-            runs_on: '["ubuntu-24.04-arm"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: x86_64-windows-gnu
-            runs_on: '["ubuntu-latest"]'
-            continue_on_error: true  # paused: target needs validation
-    uses: ./.github/workflows/_sdk-prebuilt-target.yml
-    with:
-      sdk: c
-      sdk-version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['c-version'] || '1.80.0' }}
-      sdk-target: ${{ matrix.target }}
-      runs-on: ${{ matrix.runs_on }}
-      continue-on-error: ${{ matrix.continue_on_error || false }}
-
-  ruby:
-    if: github.event_name != 'pull_request' || github.event.action != 'closed'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: aarch64-apple-darwin
-            runs_on: '["macos-14"]'
-          # x86_64-apple-darwin suspended: grpc-1.58.3 native gem build fails on
-          # Intel mac (rb_channel.c -Werror=incompatible-function-pointer-types).
-          # Tracked in suspendedPrebuilts in
-          # holons/grace-op/internal/sdkprebuilts/sdkprebuilts.go.
-          - target: x86_64-unknown-linux-gnu
-            runs_on: '["ubuntu-latest"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: aarch64-unknown-linux-gnu
-            runs_on: '["ubuntu-24.04-arm"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: x86_64-unknown-linux-musl
-            runs_on: '["ubuntu-latest"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: aarch64-unknown-linux-musl
-            runs_on: '["ubuntu-24.04-arm"]'
-            continue_on_error: true  # paused: target needs validation
-          - target: x86_64-windows-gnu
-            runs_on: '["ubuntu-latest"]'
-            continue_on_error: true  # paused: target needs validation
-    uses: ./.github/workflows/_sdk-prebuilt-target.yml
-    with:
-      sdk: ruby
-      sdk-version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs['ruby-version'] || '1.58.3' }}
-      sdk-target: ${{ matrix.target }}
-      runs-on: ${{ matrix.runs_on }}
-      continue-on-error: ${{ matrix.continue_on_error || false }}
-
-  codegen-light:
-    if: github.event_name != 'pull_request' || github.event.action != 'closed'
-    strategy:
-      fail-fast: false
-      matrix:
-        sdk: [go, python, java, csharp, kotlin, rust, dart, swift, js-web, js]
-    uses: ./.github/workflows/_sdk-prebuilt-target.yml
-    with:
-      sdk: ${{ matrix.sdk }}
-      sdk-version: '0.1.0'
-      sdk-target: aarch64-apple-darwin
-      runs-on: '["macos-14"]'
-      continue-on-error: false
-
   promote:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: write
     env:
       GH_TOKEN: ${{ github.token }}
       PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Locate successful prebuilt run
+      - name: Locate successful pipeline run
         id: source-run
         shell: bash
         run: |
           set -euo pipefail
           run_id="$(
             gh run list \
-              --workflow sdk-prebuilts.yml \
+              --workflow pipeline.yml \
               --json databaseId,headSha,conclusion,event,createdAt \
               --limit 100 \
               --jq ".[] | select(.event == \"pull_request\" and .conclusion == \"success\" and .headSha == \"${PR_HEAD_SHA}\") | .databaseId" |
             head -n 1
           )"
           if [[ -z "$run_id" ]]; then
-            echo "No successful sdk-prebuilts pull_request run found for ${PR_HEAD_SHA}" >&2
+            echo "No successful pipeline pull_request run found for ${PR_HEAD_SHA}" >&2
             exit 1
           fi
           echo "run-id=${run_id}" >>"$GITHUB_OUTPUT"
@@ -267,4 +92,14 @@ jobs:
 
       - name: Publish GitHub Releases
         shell: bash
-        run: .github/scripts/promote-sdk-prebuilts.sh "$RUNNER_TEMP/sdk-prebuilt-artifacts"
+        run: |
+          set -euo pipefail
+          if ! find "$RUNNER_TEMP/sdk-prebuilt-artifacts" \
+            -type f \
+            -name '*-holons-v*.tar.gz' \
+            ! -name '*-debug.tar.gz' \
+            -print -quit | grep -q .; then
+            echo "No SDK prebuilt archives found; nothing to promote."
+            exit 0
+          fi
+          .github/scripts/promote-sdk-prebuilts.sh "$RUNNER_TEMP/sdk-prebuilt-artifacts"
