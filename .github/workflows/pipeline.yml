@@ -175,8 +175,8 @@ jobs:
       - name: Run smoke suites
         run: |
           set -euo pipefail
-          ader test ader/catalogues/grace-op --suite op_version --profile smoke --source workspace
-          ader test ader/catalogues/clem-ader --suite ader-self --profile smoke --source workspace
+          ader test ader/catalogues/grace-op --suite op_version --profile smoke --lane both --source workspace
+          ader test ader/catalogues/clem-ader --suite ader-self --profile smoke --lane both --source workspace
 
   detect-sdk-changes:
     runs-on: ubuntu-latest
@@ -427,7 +427,7 @@ jobs:
         run: |
           set -euo pipefail
           op build gabriel-greeting-app-swiftui --hardened
-          ader test ader/catalogues/gabriel-greeting-app-swiftui --suite swiftui-smoke --profile smoke --source workspace
+          ader test ader/catalogues/gabriel-greeting-app-swiftui --suite swiftui-smoke --profile smoke --lane both --source workspace
 
   composite-flutter-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -477,7 +477,7 @@ jobs:
         run: |
           set -euo pipefail
           op build gabriel-greeting-app-flutter --hardened
-          ader test ader/catalogues/gabriel-greeting-app-flutter --suite flutter-smoke --profile smoke --source workspace
+          ader test ader/catalogues/gabriel-greeting-app-flutter --suite flutter-smoke --profile smoke --lane both --source workspace
 
   ader-bouquet-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
