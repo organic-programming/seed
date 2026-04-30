@@ -109,7 +109,6 @@ _internal/server.py                         RPC server — gRPC implementation.
 _internal/greetings.py                      Greeting data — 56 languages.
 gen/python/greeting/v1/greeting_pb2.py      Generated protobuf code (do not edit).
 gen/python/greeting/v1/greeting_pb2_grpc.py Generated gRPC code (do not edit).
-scripts/generate_proto.sh                   Deterministic protobuf regeneration helper.
 ```
 
 `_internal/` is the Python equivalent of a private implementation module: domain data and transport glue live there, not in the public API surface.

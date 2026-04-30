@@ -40,7 +40,6 @@ api/v1/holon.proto                   Local proto manifest.
 internal/greetings.rb                Private 56-language greeting table.
 internal/server.rb                   RPC server facet.
 gen/ruby/greeting/v1/                Generated protobuf code.
-scripts/generate_proto.sh            Regenerates Ruby protobuf stubs.
 ```
 
 ## How to launch
@@ -49,7 +48,6 @@ scripts/generate_proto.sh            Regenerates Ruby protobuf stubs.
 op sdk install ruby
 op sdk verify ruby
 export OP_SDK_RUBY_PATH="$(op sdk path ruby)"
-./scripts/generate_proto.sh
 BUNDLE_PATH="$OP_SDK_RUBY_PATH/vendor/bundle" bundle exec ruby -I. -e 'Dir["api/*_test.rb", "internal/*_test.rb"].sort.each { |file| load File.expand_path(file) }'
 .op/build/bin/gabriel-greeting-ruby version
 .op/build/bin/gabriel-greeting-ruby listLanguages --format json

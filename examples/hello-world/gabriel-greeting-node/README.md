@@ -63,7 +63,6 @@ api/v1/holon.proto             Identity manifest — proto-based holon descripto
 _internal/server.js            RPC server — gRPC implementation.
 _internal/greetings.js         Greeting data — 56 languages with default names.
 gen/node/greeting/v1/          Generated protobuf code (do not edit).
-scripts/generate_proto.js      Regenerates protobuf code and validates holon.proto.
 ```
 
 `_internal/` is a privacy convention: server glue and greeting data stay out of the public import surface.
@@ -72,7 +71,6 @@ scripts/generate_proto.js      Regenerates protobuf code and validates holon.pro
 
 ```bash
 npm ci
-npm run generate-proto
 node cmd/main.js version
 node cmd/main.js listLanguages --format json
 node cmd/main.js sayHello Bob fr

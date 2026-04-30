@@ -1124,7 +1124,8 @@ func sdkPrebuiltEnv(ctx BuildContext) []string {
 }
 
 func sdkPrebuiltEnvName(lang string) string {
-	return "OP_SDK_" + strings.ToUpper(strings.TrimSpace(lang)) + "_PATH"
+	normalized := strings.NewReplacer("-", "_").Replace(strings.TrimSpace(lang))
+	return "OP_SDK_" + strings.ToUpper(normalized) + "_PATH"
 }
 
 // templateData is the data available to Go template expressions in build templates.

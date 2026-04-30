@@ -48,7 +48,7 @@ groups_file="${tmp}/groups.txt"
 while IFS= read -r -d '' archive; do
   name="$(basename "$archive")"
   [[ "$name" == *-debug.tar.gz ]] && continue
-  [[ "$name" =~ ^([a-z]+)-holons-v([0-9][0-9A-Za-z.+]*)-.+\.tar\.gz$ ]] || continue
+  [[ "$name" =~ ^([a-z][a-z0-9-]*)-holons-v([0-9][0-9A-Za-z.+]*)-.+\.tar\.gz$ ]] || continue
   sdk="${BASH_REMATCH[1]}"
   version="${BASH_REMATCH[2]}"
   printf '%s|%s\n' "$sdk" "$version" >>"$groups_file"

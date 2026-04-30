@@ -50,6 +50,8 @@ docker_platform_for_target() {
 if ! repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
   repo_root="${GITHUB_WORKSPACE:-$PWD}"
 fi
+# shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
+source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
 ruby_sdk_dir="${repo_root}/sdk/ruby-holons"
 dist_dir="${repo_root}/dist/sdk-prebuilts/ruby/${sdk_target}"
 work_dir="${ruby_sdk_dir}/.ruby-prebuilt/${sdk_target}"
@@ -115,11 +117,37 @@ ruby_platform="$("$ruby_bin" -e 'print RUBY_PLATFORM')"
   echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } >"$stage/share/prebuilt.env"
 
+install_protoc_release "$sdk_target" "$stage"
+build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" ruby
+(
+  cd "$work_dir/work"
+  grpc_plugin="$(BUNDLE_GEMFILE="$PWD/Gemfile" BUNDLE_PATH="${stage}/vendor/bundle" "$bundle_bin" exec "$ruby_bin" -e 'begin; path = Gem.bin_path("grpc-tools", "grpc_ruby_plugin"); print path if File.executable?(path); rescue Gem::Exception; end')"
+  if [[ -n "$grpc_plugin" ]]; then
+    cp "$grpc_plugin" "$stage/bin/grpc_ruby_plugin"
+    chmod +x "$stage/bin/grpc_ruby_plugin"
+  else
+    echo "grpc_ruby_plugin not present in grpc-tools for ${sdk_target}; ruby adapter will emit message stubs only" >&2
+  fi
+)
+
+cat >"$stage/manifest.json" <<EOF
+{
+  "lang": "ruby",
+  "version": "${sdk_version}",
+  "target": "${sdk_target}",
+  "codegen": {
+    "plugins": [
+      {"name": "ruby", "binary": "bin/protoc-gen-ruby$(target_exe_suffix "$sdk_target")", "out_subdir": "ruby"}
+    ]
+  }
+}
+EOF
+
 printf 'No separate debug sidecar files were emitted for %s.\n' "$sdk_target" >"$stage/debug/README.txt"
 tar -C "$stage" -czf "${dist_dir}/ruby-holons-v${sdk_version}-${sdk_target}-debug.tar.gz" debug
 
 archive="${dist_dir}/ruby-holons-v${sdk_version}-${sdk_target}.tar.gz"
-tar -C "$stage" -czf "$archive" vendor share
+tar -C "$stage" -czf "$archive" vendor bin share manifest.json
 
 if command -v syft >/dev/null 2>&1; then
   syft "dir:${stage}" -o "spdx-json=${archive}.spdx.json"

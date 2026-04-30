@@ -115,7 +115,7 @@ func TestLoadManifestRejectsCodegenWithLegacyBeforeCommand(t *testing.T) {
 	root := t.TempDir()
 	dir := writeProtoCodegenHolonFixtureWithBuildExtra(t, root, "demo-legacy-codegen", []string{"go"}, `    before_commands: {
       cwd: "."
-      argv: ["go", "run", "./tools/generate"]
+      argv: ["protoc", "--go_out=gen/go", "api/v1/holon.proto"]
     }
 `)
 
