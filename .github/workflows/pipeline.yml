@@ -588,12 +588,13 @@ jobs:
           git submodule update --init --force --recursive --depth 1 --jobs 8 \
             sdk/zig-holons/third_party/grpc \
             sdk/zig-holons/third_party/protobuf-c
-      - name: Install Go proto generators
+      - name: Install Go proto generators and grpcurl
         if: matrix.mode == 'host'
         run: |
           set -euo pipefail
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+          go install github.com/fullstorydev/grpcurl/cmd/grpcurl@v1.9.3
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Run Zig host deep tests
         if: matrix.mode == 'host'

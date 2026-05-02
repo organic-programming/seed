@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -107,6 +108,160 @@ func TestInstallLocalHolonsReleaseTarballInfersVersion(t *testing.T) {
 	}
 	if prebuilt.Path != filepath.Join(runtimeHome, "sdk", "zig", "0.1.0", testTarget) {
 		t.Fatalf("installed path = %q", prebuilt.Path)
+	}
+}
+
+func TestInstallSourceUsesManifestTargetAndVersionWhenUnset(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+
+	host, err := HostTriplet()
+	if err != nil {
+		t.Fatalf("HostTriplet() returned error: %v", err)
+	}
+	archiveTarget := targetOtherThan(t, host)
+	source := filepath.Join(t.TempDir(), "zig-holons-v0.2.0-"+archiveTarget+".tar.gz")
+	writeTestTarGz(t, source, map[string]testTarEntry{
+		"include/holons_sdk.h": {Mode: 0o644, Body: []byte("/* holons */\n")},
+		"lib/libholons_zig.a":  {Mode: 0o644, Body: []byte("archive\n")},
+		metadataFile: {Mode: 0o644, Body: []byte(fmt.Sprintf(`{
+  "lang": "zig",
+  "version": "0.2.0",
+  "target": %q
+}
+`, archiveTarget))},
+	})
+	writeSHA256Sidecar(t, source)
+
+	prebuilt, notes, err := Install(context.Background(), InstallOptions{
+		Lang:   "zig",
+		Source: source,
+	})
+	if err != nil {
+		t.Fatalf("Install() returned error: %v", err)
+	}
+	if len(notes) != 0 {
+		t.Fatalf("Install() notes = %#v, want none", notes)
+	}
+	wantPath := filepath.Join(runtimeHome, "sdk", "zig", "0.2.0", archiveTarget)
+	if prebuilt.Path != wantPath {
+		t.Fatalf("installed path = %q, want %q", prebuilt.Path, wantPath)
+	}
+	if prebuilt.Target != archiveTarget {
+		t.Fatalf("installed target = %q, want %q", prebuilt.Target, archiveTarget)
+	}
+	if prebuilt.Version != "0.2.0" {
+		t.Fatalf("installed version = %q, want 0.2.0", prebuilt.Version)
+	}
+	hostPath := filepath.Join(runtimeHome, "sdk", "zig", "0.2.0", host)
+	if _, err := os.Stat(hostPath); err == nil {
+		t.Fatalf("host path %s was created for cross-target source archive", hostPath)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat host path: %v", err)
+	}
+
+	metadata, err := metadataForPath(prebuilt.Path)
+	if err != nil {
+		t.Fatalf("read installed metadata: %v", err)
+	}
+	if metadata.Target != archiveTarget || metadata.Version != "0.2.0" {
+		t.Fatalf("installed metadata target/version = %q/%q, want %q/0.2.0", metadata.Target, metadata.Version, archiveTarget)
+	}
+}
+
+func TestInstallSourceRejectsTargetMismatch(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+
+	archiveTarget := "x86_64-unknown-linux-musl"
+	requestedTarget := "aarch64-apple-darwin"
+	source := filepath.Join(t.TempDir(), "zig-holons-v0.2.0-"+archiveTarget+".tar.gz")
+	writeTestTarGz(t, source, map[string]testTarEntry{
+		"include/holons_sdk.h": {Mode: 0o644, Body: []byte("/* holons */\n")},
+		metadataFile: {Mode: 0o644, Body: []byte(fmt.Sprintf(`{
+  "lang": "zig",
+  "version": "0.2.0",
+  "target": %q
+}
+`, archiveTarget))},
+	})
+	writeSHA256Sidecar(t, source)
+
+	_, _, err := Install(context.Background(), InstallOptions{
+		Lang:   "zig",
+		Target: requestedTarget,
+		Source: source,
+	})
+	if err == nil {
+		t.Fatalf("Install() returned nil error, want target mismatch")
+	}
+	for _, want := range []string{archiveTarget, requestedTarget} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("Install() error = %q, want it to contain %q", err.Error(), want)
+		}
+	}
+}
+
+func TestInstallSourceRejectsVersionMismatch(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+
+	archiveTarget := "x86_64-unknown-linux-musl"
+	source := filepath.Join(t.TempDir(), "zig-holons-v0.2.0-"+archiveTarget+".tar.gz")
+	writeTestTarGz(t, source, map[string]testTarEntry{
+		"include/holons_sdk.h": {Mode: 0o644, Body: []byte("/* holons */\n")},
+		metadataFile: {Mode: 0o644, Body: []byte(fmt.Sprintf(`{
+  "lang": "zig",
+  "version": "0.2.0",
+  "target": %q
+}
+`, archiveTarget))},
+	})
+	writeSHA256Sidecar(t, source)
+
+	_, _, err := Install(context.Background(), InstallOptions{
+		Lang:    "zig",
+		Version: "0.3.0",
+		Source:  source,
+	})
+	if err == nil {
+		t.Fatalf("Install() returned nil error, want version mismatch")
+	}
+	for _, want := range []string{"0.2.0", "0.3.0"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("Install() error = %q, want it to contain %q", err.Error(), want)
+		}
+	}
+}
+
+func TestInstallSourceRejectsLangMismatch(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+
+	archiveTarget := "x86_64-unknown-linux-musl"
+	source := filepath.Join(t.TempDir(), "zig-holons-v0.2.0-"+archiveTarget+".tar.gz")
+	writeTestTarGz(t, source, map[string]testTarEntry{
+		"include/holons_sdk.h": {Mode: 0o644, Body: []byte("/* holons */\n")},
+		metadataFile: {Mode: 0o644, Body: []byte(fmt.Sprintf(`{
+  "lang": "cpp",
+  "version": "0.2.0",
+  "target": %q
+}
+`, archiveTarget))},
+	})
+	writeSHA256Sidecar(t, source)
+
+	_, _, err := Install(context.Background(), InstallOptions{
+		Lang:   "zig",
+		Source: source,
+	})
+	if err == nil {
+		t.Fatalf("Install() returned nil error, want lang mismatch")
+	}
+	for _, want := range []string{"cpp", "zig"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("Install() error = %q, want it to contain %q", err.Error(), want)
+		}
 	}
 }
 
@@ -523,6 +678,18 @@ func writeInstalledMetadata(t *testing.T, prebuilt Prebuilt) {
 	if err := os.WriteFile(filepath.Join(prebuilt.Path, metadataFile), data, 0o644); err != nil {
 		t.Fatalf("write metadata: %v", err)
 	}
+}
+
+func targetOtherThan(t *testing.T, target string) string {
+	t.Helper()
+
+	for _, candidate := range AllowedTargets() {
+		if candidate != target {
+			return candidate
+		}
+	}
+	t.Fatalf("no allowed target differs from %q", target)
+	return ""
 }
 
 func newReleaseServer(t *testing.T, assets map[string][]byte) *httptest.Server {

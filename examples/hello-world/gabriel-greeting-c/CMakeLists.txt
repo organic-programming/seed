@@ -37,6 +37,12 @@ if(NOT Protobuf_FOUND OR NOT gRPC_FOUND OR NOT utf8_range_FOUND)
   endif()
 endif()
 find_program(BASH_EXECUTABLE NAMES bash REQUIRED)
+find_program(GRPCURL_EXECUTABLE NAMES grpcurl)
+if(GRPCURL_EXECUTABLE)
+  set(GABRIEL_GREETING_C_GRPCURL "${GRPCURL_EXECUTABLE}")
+else()
+  set(GABRIEL_GREETING_C_GRPCURL "grpcurl")
+endif()
 
 get_target_property(PROTOBUF_INCLUDE_DIRS protobuf::libprotobuf INTERFACE_INCLUDE_DIRECTORIES)
 find_library(UPB_LIBRARY NAMES upb
@@ -127,6 +133,7 @@ add_executable(gabriel_greeting_c_server_test internal/server_test.c)
 target_compile_definitions(gabriel_greeting_c_server_test
   PRIVATE
     GABRIEL_GREETING_C_PUBLIC_BINARY="$<TARGET_FILE:gabriel-greeting-c>"
+    GABRIEL_GREETING_C_GRPCURL="${GABRIEL_GREETING_C_GRPCURL}"
     GABRIEL_GREETING_C_PROTO_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../_protos"
 )
 target_link_libraries(gabriel_greeting_c_server_test PRIVATE gabriel_greeting_c_lib)

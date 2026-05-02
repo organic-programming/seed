@@ -14,6 +14,10 @@
 #error "GABRIEL_GREETING_C_PUBLIC_BINARY must be defined"
 #endif
 
+#ifndef GABRIEL_GREETING_C_GRPCURL
+#error "GABRIEL_GREETING_C_GRPCURL must be defined"
+#endif
+
 #ifndef GABRIEL_GREETING_C_PROTO_DIR
 #error "GABRIEL_GREETING_C_PROTO_DIR must be defined"
 #endif
@@ -86,6 +90,16 @@ static char *capture_command(const char *command) {
   return buffer;
 }
 
+static int grpcurl_available(void) {
+  char command[512];
+  int status;
+
+  snprintf(command, sizeof(command), "%s --version >/dev/null",
+           GABRIEL_GREETING_C_GRPCURL);
+  status = system(command);
+  return status != -1 && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
 static int wait_for_server(int port) {
   int attempt;
   char command[512];
@@ -93,9 +107,10 @@ static int wait_for_server(int port) {
   for (attempt = 0; attempt < 60; ++attempt) {
     char *output;
     snprintf(command, sizeof(command),
-             "grpcurl -plaintext -import-path %s -proto v1/greeting.proto "
-             "-d '{}' 127.0.0.1:%d greeting.v1.GreetingService/ListLanguages 2>/dev/null",
-             GABRIEL_GREETING_C_PROTO_DIR, port);
+             "%s -plaintext -import-path %s -proto v1/greeting.proto "
+             "-d '{}' 127.0.0.1:%d greeting.v1.GreetingService/ListLanguages%s",
+             GABRIEL_GREETING_C_GRPCURL, GABRIEL_GREETING_C_PROTO_DIR, port,
+             attempt == 0 ? "" : " 2>/dev/null");
     output = capture_command(command);
     if (output != NULL && strstr(output, "\"code\": \"en\"") != NULL) {
       free(output);
@@ -149,6 +164,13 @@ int main(void) {
 
   snprintf(port_text, sizeof(port_text), "%d", port);
 
+  if (!expect(grpcurl_available(),
+              "grpcurl is required for gabriel_greeting_c_server_test; install "
+              "with `go install github.com/fullstorydev/grpcurl/cmd/grpcurl@v1.9.3` "
+              "or `brew install grpcurl`")) {
+    return 1;
+  }
+
   pid = fork();
   if (pid == 0) {
     setpgid(0, 0);
@@ -163,9 +185,9 @@ int main(void) {
   }
 
   snprintf(command, sizeof(command),
-           "grpcurl -plaintext -import-path %s -proto v1/greeting.proto "
-           "-d '{}' 127.0.0.1:%d greeting.v1.GreetingService/ListLanguages 2>/dev/null",
-           GABRIEL_GREETING_C_PROTO_DIR, port);
+           "%s -plaintext -import-path %s -proto v1/greeting.proto "
+           "-d '{}' 127.0.0.1:%d greeting.v1.GreetingService/ListLanguages",
+           GABRIEL_GREETING_C_GRPCURL, GABRIEL_GREETING_C_PROTO_DIR, port);
   output = capture_command(command);
   if (!expect(output != NULL && strstr(output, "\"code\": \"en\"") != NULL,
               "ListLanguages grpcurl call failed")) {
@@ -176,10 +198,10 @@ int main(void) {
   free(output);
 
   snprintf(command, sizeof(command),
-           "grpcurl -plaintext -import-path %s -proto v1/greeting.proto "
+           "%s -plaintext -import-path %s -proto v1/greeting.proto "
            "-d '{\"name\":\"Bob\",\"lang_code\":\"fr\"}' "
-           "127.0.0.1:%d greeting.v1.GreetingService/SayHello 2>/dev/null",
-           GABRIEL_GREETING_C_PROTO_DIR, port);
+           "127.0.0.1:%d greeting.v1.GreetingService/SayHello",
+           GABRIEL_GREETING_C_GRPCURL, GABRIEL_GREETING_C_PROTO_DIR, port);
   output = capture_command(command);
   if (!expect(output != NULL && strstr(output, "Bonjour Bob") != NULL,
               "SayHello grpcurl call failed")) {
