@@ -103,6 +103,7 @@ type buildTarget struct {
 
 type step struct {
 	BuildMember   string         `yaml:"build_member"`
+	Parallel      bool           `yaml:"parallel"`
 	Exec          *execStep      `yaml:"exec"`
 	Copy          *copyStep      `yaml:"copy"`
 	AssertFile    *fileStep      `yaml:"assert_file"`
@@ -364,6 +365,9 @@ func appendStep(b *strings.Builder, indent string, step step) {
 	b.WriteString("steps: {\n")
 	if trimmed := strings.TrimSpace(step.BuildMember); trimmed != "" {
 		appendStringField(b, indent+"  ", "build_member", trimmed)
+	}
+	if step.Parallel {
+		fmt.Fprintf(b, "%sparallel: true\n", indent+"  ")
 	}
 	if step.Exec != nil {
 		b.WriteString(indent + "  exec: {\n")

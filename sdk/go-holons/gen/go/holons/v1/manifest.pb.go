@@ -745,6 +745,7 @@ type HolonManifest_Step struct {
 	//	*HolonManifest_Step_CopyArtifact_
 	//	*HolonManifest_Step_CopyAllHolons_
 	Action        isHolonManifest_Step_Action `protobuf_oneof:"action"`
+	Parallel      bool                        `protobuf:"varint,7,opt,name=parallel,proto3" json:"parallel,omitempty"` // for build_member: batch adjacent independent member builds
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -838,6 +839,13 @@ func (x *HolonManifest_Step) GetCopyAllHolons() *HolonManifest_Step_CopyAllHolon
 		}
 	}
 	return nil
+}
+
+func (x *HolonManifest_Step) GetParallel() bool {
+	if x != nil {
+		return x.Parallel
+	}
+	return false
 }
 
 type isHolonManifest_Step_Action interface {
@@ -1601,7 +1609,7 @@ var File_holons_v1_manifest_proto protoreflect.FileDescriptor
 
 const file_holons_v1_manifest_proto_rawDesc = "" +
 	"\n" +
-	"\x18holons/v1/manifest.proto\x12\tholons.v1\x1a google/protobuf/descriptor.proto\"\x8c\x1b\n" +
+	"\x18holons/v1/manifest.proto\x12\tholons.v1\x1a google/protobuf/descriptor.proto\"\xa8\x1b\n" +
 	"\rHolonManifest\x12=\n" +
 	"\bidentity\x18\x01 \x01(\v2!.holons.v1.HolonManifest.IdentityR\bidentity\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x12\n" +
@@ -1675,7 +1683,7 @@ const file_holons_v1_manifest_proto_rawDesc = "" +
 	"\x06Target\x123\n" +
 	"\x05steps\x18\x01 \x03(\v2\x1d.holons.v1.HolonManifest.StepR\x05steps\x1a'\n" +
 	"\aCodegen\x12\x1c\n" +
-	"\tlanguages\x18\x01 \x03(\tR\tlanguages\x1a\xf1\x04\n" +
+	"\tlanguages\x18\x01 \x03(\tR\tlanguages\x1a\x8d\x05\n" +
 	"\x04Step\x128\n" +
 	"\x04exec\x18\x01 \x01(\v2\".holons.v1.HolonManifest.Step.ExecH\x00R\x04exec\x128\n" +
 	"\x04copy\x18\x02 \x01(\v2\".holons.v1.HolonManifest.Step.CopyH\x00R\x04copy\x12#\n" +
@@ -1683,7 +1691,8 @@ const file_holons_v1_manifest_proto_rawDesc = "" +
 	"\vassert_file\x18\x04 \x01(\v2(.holons.v1.HolonManifest.Step.AssertFileH\x00R\n" +
 	"assertFile\x12Q\n" +
 	"\rcopy_artifact\x18\x05 \x01(\v2*.holons.v1.HolonManifest.Step.CopyArtifactH\x00R\fcopyArtifact\x12U\n" +
-	"\x0fcopy_all_holons\x18\x06 \x01(\v2+.holons.v1.HolonManifest.Step.CopyAllHolonsH\x00R\rcopyAllHolons\x1a,\n" +
+	"\x0fcopy_all_holons\x18\x06 \x01(\v2+.holons.v1.HolonManifest.Step.CopyAllHolonsH\x00R\rcopyAllHolons\x12\x1a\n" +
+	"\bparallel\x18\a \x01(\bR\bparallel\x1a,\n" +
 	"\x04Exec\x12\x10\n" +
 	"\x03cwd\x18\x01 \x01(\tR\x03cwd\x12\x12\n" +
 	"\x04argv\x18\x02 \x03(\tR\x04argv\x1a*\n" +

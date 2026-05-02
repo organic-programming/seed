@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -410,9 +411,28 @@ func shouldPrebuildCompositeDependencies(manifest *LoadedManifest, ctx BuildCont
 	if ctx.composite != nil && ctx.composite.skipDependencyPrebuild {
 		return false
 	}
+	if recipeTargetHasParallelBuilds(manifest, ctx.Target) {
+		return false
+	}
 	return manifest.Manifest.Kind == KindComposite &&
 		manifest.Manifest.Build.Runner == RunnerRecipe &&
 		!isAggregateBuildTarget(ctx.Target)
+}
+
+func recipeTargetHasParallelBuilds(manifest *LoadedManifest, targetName string) bool {
+	if manifest == nil || isAggregateBuildTarget(targetName) {
+		return false
+	}
+	target, ok := manifest.Manifest.Build.Targets[targetName]
+	if !ok {
+		return false
+	}
+	for _, step := range target.Steps {
+		if step.BuildMember != "" && step.Parallel {
+			return true
+		}
+	}
+	return false
 }
 
 func prebuildCompositeDependencies(manifest *LoadedManifest, ctx BuildContext) (*compositeBuildSession, []Report, error) {
@@ -1669,21 +1689,46 @@ func (r recipeRunner) build(manifest *LoadedManifest, ctx BuildContext, report *
 	excludedMembers := resolveHardenedExcludedMembers(manifest, ctx)
 
 	signer := newRecipeBundleSigner(manifest, ctx)
-	for i, step := range target.Steps {
+	for i := 0; i < len(target.Steps); {
+		step := target.Steps[i]
 		if step.AssertFile != nil {
 			if err := r.signBundleArtifact(manifest, ctx, report, signer); err != nil {
 				return fmt.Errorf("target %q signing: %w", ctx.Target, err)
 			}
 		}
 		stepLabel := fmt.Sprintf("step %d", i+1)
+		if step.BuildMember != "" && step.Parallel {
+			memberIDs := make([]string, 0)
+			for i < len(target.Steps) {
+				batchStep := target.Steps[i]
+				if batchStep.BuildMember == "" || !batchStep.Parallel {
+					break
+				}
+				if reason := recipeExcludedStepReason(batchStep, excludedMembers); reason != "" {
+					ctx.Progress.Step(reason)
+					report.Notes = append(report.Notes, reason)
+				} else {
+					memberIDs = append(memberIDs, batchStep.BuildMember)
+				}
+				i++
+			}
+			if len(memberIDs) > 0 {
+				if err := r.stepBuildMembersParallel(manifest, ctx, memberIDs, memberMap, report, stepLabel); err != nil {
+					return fmt.Errorf("target %q %s: %w", ctx.Target, stepLabel, err)
+				}
+			}
+			continue
+		}
 		if reason := recipeExcludedStepReason(step, excludedMembers); reason != "" {
 			ctx.Progress.Step(reason)
 			report.Notes = append(report.Notes, reason)
+			i++
 			continue
 		}
 		if err := r.executeStep(manifest, ctx, step, memberMap, report, stepLabel); err != nil {
 			return fmt.Errorf("target %q %s: %w", ctx.Target, stepLabel, err)
 		}
+		i++
 	}
 	if err := r.signBundleArtifact(manifest, ctx, report, signer); err != nil {
 		return fmt.Errorf("target %q signing: %w", ctx.Target, err)
@@ -1715,36 +1760,118 @@ func (r recipeRunner) executeStep(manifest *LoadedManifest, ctx BuildContext, st
 }
 
 // stepBuildMember recursively builds a child holon.
-func (recipeRunner) stepBuildMember(manifest *LoadedManifest, ctx BuildContext, memberID string, members map[string]RecipeMember, report *Report) error {
+func (r recipeRunner) stepBuildMember(manifest *LoadedManifest, ctx BuildContext, memberID string, members map[string]RecipeMember, report *Report) error {
+	childReport, command, note, err := r.buildRecipeMember(manifest, ctx, memberID, members)
+	if command != "" {
+		report.Commands = append(report.Commands, command)
+	}
+	if childReport.Operation != "" {
+		report.Children = append(report.Children, childReport)
+	}
+	if note != "" {
+		report.Notes = append(report.Notes, note)
+	}
+	return err
+}
+
+func (r recipeRunner) stepBuildMembersParallel(manifest *LoadedManifest, ctx BuildContext, memberIDs []string, members map[string]RecipeMember, report *Report, label string) error {
+	parallelism := recipeBuildParallelism()
+	type result struct {
+		command     string
+		note        string
+		childReport Report
+		err         error
+	}
+
+	results := make([]result, len(memberIDs))
+	reporters := make([]progress.Reporter, len(memberIDs))
+	for i := range reporters {
+		reporters[i] = ctx.Progress.Child()
+	}
+	sem := make(chan struct{}, parallelism)
+	var wg sync.WaitGroup
+	for i, memberID := range memberIDs {
+		wg.Add(1)
+		go func(index int, id string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			memberCtx := ctx
+			memberCtx.Progress = reporters[index]
+			childReport, command, note, err := r.buildRecipeMember(manifest, memberCtx, id, members)
+			results[index] = result{
+				command:     command,
+				note:        note,
+				childReport: childReport,
+				err:         err,
+			}
+		}(i, memberID)
+	}
+	wg.Wait()
+
+	for _, result := range results {
+		if result.command != "" {
+			report.Commands = append(report.Commands, result.command)
+		}
+		if result.childReport.Operation != "" {
+			report.Children = append(report.Children, result.childReport)
+		}
+		if result.note != "" {
+			report.Notes = append(report.Notes, result.note)
+		}
+		if result.err != nil {
+			return result.err
+		}
+	}
+	if !ctx.DryRun {
+		report.Notes = append(report.Notes, fmt.Sprintf("%s parallel build_member batch completed (%d members, parallelism %d)", label, len(memberIDs), parallelism))
+	}
+	return nil
+}
+
+func recipeBuildParallelism() int {
+	if raw := strings.TrimSpace(os.Getenv("OP_BUILD_PARALLELISM")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			return parsed
+		}
+	}
+	parallelism := runtime.NumCPU() / 2
+	if parallelism < 1 {
+		return 1
+	}
+	return parallelism
+}
+
+func (recipeRunner) buildRecipeMember(manifest *LoadedManifest, ctx BuildContext, memberID string, members map[string]RecipeMember) (Report, string, string, error) {
 	member, ok := members[memberID]
 	if !ok {
-		return fmt.Errorf("unknown member %q", memberID)
+		return Report{}, "", "", fmt.Errorf("unknown member %q", memberID)
 	}
 	if member.Type != "holon" {
-		return fmt.Errorf("build_member can only target holon members, %q is %q", memberID, member.Type)
+		return Report{}, "", "", fmt.Errorf("build_member can only target holon members, %q is %q", memberID, member.Type)
 	}
 
 	memberDir, err := manifest.ResolveManifestPath(member.Path)
 	if err != nil {
-		return fmt.Errorf("build_member %q path: %w", memberID, err)
+		return Report{}, "", "", fmt.Errorf("build_member %q path: %w", memberID, err)
 	}
 	if resolved, err := filepath.EvalSymlinks(memberDir); err == nil {
 		memberDir = resolved
 	}
-	report.Commands = append(report.Commands, "build_member "+memberID)
+	command := "build_member " + memberID
 
 	if ctx.composite != nil && ctx.composite.skipDependencyPrebuild {
 		node, nodeErr := compositeNodeForDir(memberDir, ctx, ctx.composite.session)
 		if nodeErr != nil {
-			return fmt.Errorf("build_member %q manifest: %w", memberID, nodeErr)
+			return Report{}, command, "", fmt.Errorf("build_member %q manifest: %w", memberID, nodeErr)
 		}
 		if _, ok := ctx.composite.session.completed[node.key]; !ok {
-			return fmt.Errorf("build_member %q has no prebuilt artifact", memberID)
+			return Report{}, command, "", fmt.Errorf("build_member %q has no prebuilt artifact", memberID)
 		}
 		if !ctx.DryRun {
-			report.Notes = append(report.Notes, fmt.Sprintf("used prebuilt member %q", memberID))
+			return Report{}, command, fmt.Sprintf("used prebuilt member %q", memberID), nil
 		}
-		return nil
+		return Report{}, command, "", nil
 	}
 
 	ctx.Progress.Step("building member: " + memberID)
@@ -1756,15 +1883,14 @@ func (recipeRunner) stepBuildMember(manifest *LoadedManifest, ctx BuildContext, 
 		NoSign:   ctx.NoSign,
 		Progress: ctx.Progress.Child(),
 	})
-	report.Children = append(report.Children, childReport)
 	if err != nil {
-		return fmt.Errorf("build_member %q: %w", memberID, err)
+		return childReport, command, "", fmt.Errorf("build_member %q: %w", memberID, err)
 	}
 
 	if !ctx.DryRun {
-		report.Notes = append(report.Notes, fmt.Sprintf("built member %q", memberID))
+		return childReport, command, fmt.Sprintf("built member %q", memberID), nil
 	}
-	return nil
+	return childReport, command, "", nil
 }
 
 // stepExec runs an argv command in an explicit working directory.

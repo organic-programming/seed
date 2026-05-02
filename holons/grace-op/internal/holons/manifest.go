@@ -132,6 +132,7 @@ type RecipeTarget struct {
 // Exactly one field should be set.
 type RecipeStep struct {
 	BuildMember   string
+	Parallel      bool
 	Exec          *RecipeStepExec
 	Copy          *RecipeStepCopy
 	AssertFile    *RecipeStepFile
@@ -376,6 +377,7 @@ func manifestBuildFromResolved(resolved *identity.Resolved) BuildConfig {
 			for _, step := range target.Steps {
 				recipeStep := RecipeStep{
 					BuildMember: strings.TrimSpace(step.BuildMember),
+					Parallel:    step.Parallel,
 				}
 				if step.Exec != nil {
 					recipeStep.Exec = &RecipeStepExec{
@@ -700,6 +702,9 @@ func validateRecipe(m *LoadedManifest) error {
 				if memberTypes[step.BuildMember] != "holon" {
 					return fmt.Errorf("%s: target %q step %d build_member %q must reference a holon member", m.Path, targetName, i+1, step.BuildMember)
 				}
+			}
+			if step.Parallel && step.BuildMember == "" {
+				return fmt.Errorf("%s: target %q step %d parallel may only be set on build_member steps", m.Path, targetName, i+1)
 			}
 			if step.Exec != nil {
 				if len(step.Exec.Argv) == 0 {

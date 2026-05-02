@@ -70,6 +70,7 @@ type ResolvedRecipeTarget struct {
 
 type ResolvedRecipeStep struct {
 	BuildMember   string
+	Parallel      bool
 	Exec          *ResolvedRecipeExec
 	Copy          *ResolvedRecipeCopy
 	AssertFile    *ResolvedRecipeFile
@@ -456,6 +457,7 @@ func resolvedRecipeTargetFromManifest(target *holonsv1.HolonManifest_Build_Targe
 func resolvedRecipeStepFromManifest(step *holonsv1.HolonManifest_Step) ResolvedRecipeStep {
 	resolved := ResolvedRecipeStep{
 		BuildMember: step.GetBuildMember(),
+		Parallel:    step.GetParallel(),
 	}
 	if exec := step.GetExec(); exec != nil {
 		resolved.Exec = &ResolvedRecipeExec{

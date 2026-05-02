@@ -749,6 +749,40 @@ artifacts:
 	}
 }
 
+func TestRecipeValidationRejectsParallelNonBuildMember(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "app"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	writeRecipeManifest(t, root, `schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: app
+      path: app
+      type: component
+  targets:
+    macos:
+      steps:
+        - parallel: true
+          exec:
+            cwd: app
+            argv: ["true"]
+artifacts:
+  primary: app/output
+`)
+
+	_, err := LoadManifest(root)
+	if err == nil {
+		t.Fatal("expected parallel non-build_member error")
+	}
+	if !strings.Contains(err.Error(), "parallel may only be set on build_member steps") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestRecipeValidationRejectsCopyArtifactForComponent(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "component"), 0o755); err != nil {
@@ -1545,6 +1579,101 @@ artifacts:
 	}
 	if !slices.Contains(second.Notes, `used prebuilt member "child"`) {
 		t.Fatalf("second build notes missing prebuilt-member note: %v", second.Notes)
+	}
+}
+
+func TestExecuteLifecycleBuildCompositeParallelBuildMembers(t *testing.T) {
+	if _, err := execLookPath("bash"); err != nil {
+		t.Skip("bash command not available")
+	}
+
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+	t.Setenv("OP_BUILD_PARALLELISM", "2")
+
+	writeBlockingRecipeChild := func(id, peer string) {
+		t.Helper()
+		childDir := filepath.Join(root, id)
+		if err := os.MkdirAll(filepath.Join(childDir, "app"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		writeRecipeManifest(t, childDir, fmt.Sprintf(`schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: app
+      path: app
+      type: component
+  targets:
+    %s:
+      steps:
+        - exec:
+            cwd: "."
+            argv:
+              - bash
+              - -lc
+              - |
+                set -euo pipefail
+                touch ../%s.started
+                for _ in $(seq 1 100); do
+                  if [ -f ../%s.started ]; then
+                    mkdir -p app
+                    echo done > app/done
+                    exit 0
+                  fi
+                  sleep 0.05
+                done
+                echo "peer %s did not start" >&2
+                exit 42
+        - assert_file:
+            path: app/done
+artifacts:
+  primary: app/done
+`, canonicalRuntimeTarget(), id, peer, peer))
+	}
+	writeBlockingRecipeChild("a", "b")
+	writeBlockingRecipeChild("b", "a")
+	if err := os.MkdirAll(filepath.Join(root, "app"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	writeRecipeManifest(t, root, fmt.Sprintf(`schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: a
+      path: a
+      type: holon
+    - id: b
+      path: b
+      type: holon
+    - id: app
+      path: app
+      type: component
+  targets:
+    %s:
+      steps:
+        - build_member: a
+          parallel: true
+        - build_member: b
+          parallel: true
+        - exec:
+            cwd: app
+            argv: ["bash", "-lc", "echo done > done"]
+        - assert_file:
+            path: app/done
+artifacts:
+  primary: app/done
+`, canonicalRuntimeTarget()))
+
+	report, err := ExecuteLifecycle(OperationBuild, root)
+	if err != nil {
+		t.Fatalf("parallel recipe build failed: %v", err)
+	}
+	if !hasEntryContaining(report.Notes, "parallel build_member batch completed") {
+		t.Fatalf("report notes missing parallel batch note: %v", report.Notes)
 	}
 }
 

@@ -107,42 +107,55 @@ option (holons.v1.manifest) = {
       value: {
         steps: {
           build_member: "greeting-go"
+          parallel: true
         }
         steps: {
           build_member: "greeting-swift"
+          parallel: true
         }
         steps: {
           build_member: "greeting-rust"
+          parallel: true
         }
         steps: {
           build_member: "greeting-zig"
+          parallel: true
         }
         steps: {
           build_member: "greeting-python"
+          parallel: true
         }
         steps: {
           build_member: "greeting-c"
+          parallel: true
         }
         steps: {
           build_member: "greeting-cpp"
+          parallel: true
         }
         steps: {
           build_member: "greeting-csharp"
+          parallel: true
         }
         steps: {
           build_member: "greeting-dart"
+          parallel: true
         }
         steps: {
           build_member: "greeting-java"
+          parallel: true
         }
         steps: {
           build_member: "greeting-kotlin"
+          parallel: true
         }
         steps: {
           build_member: "greeting-node"
+          parallel: true
         }
         steps: {
           build_member: "greeting-ruby"
+          parallel: true
         }
         steps: {
           exec: {

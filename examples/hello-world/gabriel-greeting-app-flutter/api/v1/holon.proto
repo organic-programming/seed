@@ -105,19 +105,19 @@ option (holons.v1.manifest) = {
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "greeting-go" }
-        steps: { build_member: "greeting-swift" }
-        steps: { build_member: "greeting-rust" }
-        steps: { build_member: "greeting-zig" }
-        steps: { build_member: "greeting-python" }
-        steps: { build_member: "greeting-c" }
-        steps: { build_member: "greeting-cpp" }
-        steps: { build_member: "greeting-csharp" }
-        steps: { build_member: "greeting-dart" }
-        steps: { build_member: "greeting-java" }
-        steps: { build_member: "greeting-kotlin" }
-        steps: { build_member: "greeting-node" }
-        steps: { build_member: "greeting-ruby" }
+        steps: { build_member: "greeting-go" parallel: true }
+        steps: { build_member: "greeting-swift" parallel: true }
+        steps: { build_member: "greeting-rust" parallel: true }
+        steps: { build_member: "greeting-zig" parallel: true }
+        steps: { build_member: "greeting-python" parallel: true }
+        steps: { build_member: "greeting-c" parallel: true }
+        steps: { build_member: "greeting-cpp" parallel: true }
+        steps: { build_member: "greeting-csharp" parallel: true }
+        steps: { build_member: "greeting-dart" parallel: true }
+        steps: { build_member: "greeting-java" parallel: true }
+        steps: { build_member: "greeting-kotlin" parallel: true }
+        steps: { build_member: "greeting-node" parallel: true }
+        steps: { build_member: "greeting-ruby" parallel: true }
         steps: {
           exec: {
             cwd: "app"
@@ -151,19 +151,19 @@ option (holons.v1.manifest) = {
     targets: {
       key: "windows"
       value: {
-        steps: { build_member: "greeting-go" }
-        steps: { build_member: "greeting-swift" }
-        steps: { build_member: "greeting-rust" }
-        steps: { build_member: "greeting-zig" }
-        steps: { build_member: "greeting-python" }
-        steps: { build_member: "greeting-c" }
-        steps: { build_member: "greeting-cpp" }
-        steps: { build_member: "greeting-csharp" }
-        steps: { build_member: "greeting-dart" }
-        steps: { build_member: "greeting-java" }
-        steps: { build_member: "greeting-kotlin" }
-        steps: { build_member: "greeting-node" }
-        steps: { build_member: "greeting-ruby" }
+        steps: { build_member: "greeting-go" parallel: true }
+        steps: { build_member: "greeting-swift" parallel: true }
+        steps: { build_member: "greeting-rust" parallel: true }
+        steps: { build_member: "greeting-zig" parallel: true }
+        steps: { build_member: "greeting-python" parallel: true }
+        steps: { build_member: "greeting-c" parallel: true }
+        steps: { build_member: "greeting-cpp" parallel: true }
+        steps: { build_member: "greeting-csharp" parallel: true }
+        steps: { build_member: "greeting-dart" parallel: true }
+        steps: { build_member: "greeting-java" parallel: true }
+        steps: { build_member: "greeting-kotlin" parallel: true }
+        steps: { build_member: "greeting-node" parallel: true }
+        steps: { build_member: "greeting-ruby" parallel: true }
         steps: {
           exec: {
             cwd: "app"
@@ -197,19 +197,19 @@ option (holons.v1.manifest) = {
     targets: {
       key: "linux"
       value: {
-        steps: { build_member: "greeting-go" }
-        steps: { build_member: "greeting-swift" }
-        steps: { build_member: "greeting-rust" }
-        steps: { build_member: "greeting-zig" }
-        steps: { build_member: "greeting-python" }
-        steps: { build_member: "greeting-c" }
-        steps: { build_member: "greeting-cpp" }
-        steps: { build_member: "greeting-csharp" }
-        steps: { build_member: "greeting-dart" }
-        steps: { build_member: "greeting-java" }
-        steps: { build_member: "greeting-kotlin" }
-        steps: { build_member: "greeting-node" }
-        steps: { build_member: "greeting-ruby" }
+        steps: { build_member: "greeting-go" parallel: true }
+        steps: { build_member: "greeting-swift" parallel: true }
+        steps: { build_member: "greeting-rust" parallel: true }
+        steps: { build_member: "greeting-zig" parallel: true }
+        steps: { build_member: "greeting-python" parallel: true }
+        steps: { build_member: "greeting-c" parallel: true }
+        steps: { build_member: "greeting-cpp" parallel: true }
+        steps: { build_member: "greeting-csharp" parallel: true }
+        steps: { build_member: "greeting-dart" parallel: true }
+        steps: { build_member: "greeting-java" parallel: true }
+        steps: { build_member: "greeting-kotlin" parallel: true }
+        steps: { build_member: "greeting-node" parallel: true }
+        steps: { build_member: "greeting-ruby" parallel: true }
         steps: {
           exec: {
             cwd: "app"

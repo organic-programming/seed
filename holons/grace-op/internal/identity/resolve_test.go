@@ -41,7 +41,7 @@ option (holons.v1.manifest) = {
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "holon" }
+        steps: { build_member: "holon" parallel: true }
         steps: {
           copy_artifact: {
             from: "holon"
@@ -68,6 +68,9 @@ option (holons.v1.manifest) = {
 	target := resolved.BuildTargets["macos"]
 	if len(target.Steps) != 2 {
 		t.Fatalf("len(target.Steps) = %d, want 2", len(target.Steps))
+	}
+	if !target.Steps[0].Parallel {
+		t.Fatal("expected build_member parallel flag to be resolved")
 	}
 	if target.Steps[1].CopyArtifact == nil {
 		t.Fatal("expected copy_artifact step to be resolved")

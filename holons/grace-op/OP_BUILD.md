@@ -552,6 +552,13 @@ artifacts: {
 - recursively executes `op build` on a member of `type: "holon"`
 - produces a `.holon` package under the member's `.op/build/` directory
 - contributes a child report entry
+- may set `parallel: true` on adjacent independent `build_member` steps to run
+  them concurrently
+
+Parallel recipe builds are capped by `OP_BUILD_PARALLELISM`; when the
+environment variable is unset or invalid, `op` uses `runtime.NumCPU() / 2`
+with a minimum of 1. Steps without `parallel: true` keep the original ordered
+execution semantics.
 
 `exec`
 

@@ -132,6 +132,7 @@ message HolonManifest {
       CopyArtifact copy_artifact = 5;
       CopyAllHolons copy_all_holons = 6;
     }
+    bool parallel = 7;            // for build_member: batch adjacent independent member builds
 
     message Exec {
       string cwd = 1;
