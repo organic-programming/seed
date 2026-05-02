@@ -423,11 +423,34 @@ jobs:
             echo "OPPATH=$OPPATH"
             echo "OPBIN=$OPBIN"
           } >> "$GITHUB_ENV"
+      - name: Compute SwiftUI xcodebuild cache key
+        id: swiftui-xcode-cache-key
+        run: |
+          set -euo pipefail
+          echo "version-sha=$(xcodebuild -version | shasum -a 256 | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: Restore SwiftUI DerivedData cache
+        id: swiftui-deriveddata-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            examples/hello-world/gabriel-greeting-app-swiftui/.op/build/xcode/macos
+            examples/hello-world/gabriel-greeting-app-swiftui/.op/build/xcode/source-packages
+          key: swiftui-deriveddata-${{ runner.os }}-${{ runner.arch }}-${{ steps.swiftui-xcode-cache-key.outputs.version-sha }}-${{ hashFiles('examples/hello-world/gabriel-greeting-app-swiftui/api/v1/holon.proto', 'examples/hello-world/gabriel-greeting-app-swiftui/project.yml', 'examples/hello-world/gabriel-greeting-app-swiftui/Package.swift', 'examples/hello-world/gabriel-greeting-app-swiftui/Package.resolved', 'examples/hello-world/gabriel-greeting-app-swiftui/**/*.swift', 'sdk/swift-holons/Package.swift', 'sdk/swift-holons/Package.resolved', 'sdk/swift-holons/**/*.swift', 'organism_kits/swiftui/**') }}
+          restore-keys: |
+            swiftui-deriveddata-${{ runner.os }}-${{ runner.arch }}-${{ steps.swiftui-xcode-cache-key.outputs.version-sha }}-
       - name: Build SwiftUI composite
         run: |
           set -euo pipefail
           op build gabriel-greeting-app-swiftui --hardened
           ader test ader/catalogues/gabriel-greeting-app-swiftui --suite swiftui-smoke --profile smoke --lane both --source workspace
+      - name: Save SwiftUI DerivedData cache
+        if: steps.swiftui-deriveddata-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            examples/hello-world/gabriel-greeting-app-swiftui/.op/build/xcode/macos
+            examples/hello-world/gabriel-greeting-app-swiftui/.op/build/xcode/source-packages
+          key: swiftui-deriveddata-${{ runner.os }}-${{ runner.arch }}-${{ steps.swiftui-xcode-cache-key.outputs.version-sha }}-${{ hashFiles('examples/hello-world/gabriel-greeting-app-swiftui/api/v1/holon.proto', 'examples/hello-world/gabriel-greeting-app-swiftui/project.yml', 'examples/hello-world/gabriel-greeting-app-swiftui/Package.swift', 'examples/hello-world/gabriel-greeting-app-swiftui/Package.resolved', 'examples/hello-world/gabriel-greeting-app-swiftui/**/*.swift', 'sdk/swift-holons/Package.swift', 'sdk/swift-holons/Package.resolved', 'sdk/swift-holons/**/*.swift', 'organism_kits/swiftui/**') }}
 
   composite-flutter-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
