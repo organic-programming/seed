@@ -36,6 +36,11 @@ pull_request / push on master
 post-merge:
   sdk-prebuilts.yml promote downloads successful tier-1 artifacts from the
   merged PR's pipeline run and publishes only archives that actually exist.
+
+benchmark/maintenance:
+  ader-bench.yml runs timed `ader test-bouquet` measurements on `ader-bench/**`
+  tracking branches or manual dispatch. cache-prune.yml removes Actions cache
+  entries older than 7 days each night.
 ```
 
 ## Jobs
@@ -59,6 +64,8 @@ post-merge:
 | `ader-bouquet-full` | popok | `needs: sdk-prebuilts-fresh` | fail-isolated PR check | 1-3 h |
 | `sdk-deep-tests` | popok | `needs: sdk-prebuilts-fresh` | fail-isolated matrix | 1-3 h |
 | `sdk-prebuilts.yml/promote` | ubuntu-latest | merged PR only | publishes releases | <10 min |
+| `ader-bench.yml/bench` | popok | `ader-bench/**`, dispatch | uploads instrumented bouquet timings | `local-dev` <= 60 min; `cross-platform` <= 6 h |
+| `cache-prune.yml/prune` | ubuntu-latest | nightly, dispatch | deletes Actions caches older than 7 d | <5 min |
 
 ## Failed Check
 

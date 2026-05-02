@@ -1,0 +1,27 @@
+# Nightly GitHub Actions cache eviction for the ader acceleration chantier.
+name: cache-prune
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install actions cache extension
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh extension install actions/gh-actions-cache
+      - name: Prune caches older than 7 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh actions-cache list --repo "$GITHUB_REPOSITORY" --limit 100 --sort last-used --order asc || true
+          gh actions-cache delete --repo "$GITHUB_REPOSITORY" --all --older-than 7d --confirm

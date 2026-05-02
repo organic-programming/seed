@@ -200,7 +200,7 @@ These need composer arbitration before implementation:
 
 This chantier is accepted when:
 
-- All 5 phase PRs merged on `dev`.
+- All 5 phase PRs merged on `master`.
 - `local-dev` bouquet < 60 min on warm popok (vs ~3-4h today).
 - `cross-platform` bouquet < 6 h on warm popok (vs 15+ h today).
 - Issue #25 closed.

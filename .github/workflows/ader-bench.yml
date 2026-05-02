@@ -1,0 +1,146 @@
+# Timed ader bouquet benchmark. Measures wall-clock inside the job steps so
+# self-hosted runner queue time is excluded from the reported durations.
+name: ader-bench
+
+on:
+  push:
+    branches:
+      - "ader-bench/**"
+  workflow_dispatch:
+    inputs:
+      bouquet:
+        description: bouquet name under ader/bouquets/
+        required: false
+        default: local-dev
+
+concurrency:
+  group: ader-bench-${{ github.ref }}-${{ github.event.inputs.bouquet || 'local-dev' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: auto
+  ADER_CI_CACHE_BASE: /Users/popok/.ader-ci-cache
+  GRACE_OP_SHARED_CACHE_DIR: /Users/popok/.ader-ci-cache/grace-op-shared
+  GOMODCACHE: /Users/popok/.ader-ci-cache/go-mod
+  GOCACHE: /Users/popok/.ader-ci-cache/go-build
+  BUNDLE_PATH: /Users/popok/.ader-ci-cache/bundle
+  PUB_CACHE: /Users/popok/.ader-ci-cache/dart-pub
+  npm_config_cache: /Users/popok/.ader-ci-cache/npm
+  GRADLE_USER_HOME: /Users/popok/.ader-ci-cache/gradle
+  NUGET_PACKAGES: /Users/popok/.ader-ci-cache/nuget
+  DOTNET_CLI_HOME: /Users/popok/.ader-ci-cache/dotnet-home
+  ZIG_VERSION: 0.16.0
+  ZIG_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/zig
+  NINJA_VERSION: 1.13.1
+  NINJA_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/ninja
+  ZIG_HOLONS_JOBS: 8
+  BOUQUET: ${{ github.event.inputs.bouquet || 'local-dev' }}
+
+jobs:
+  bench:
+    runs-on: popok
+    timeout-minutes: 480
+    steps:
+      - name: Loosen permissions on previous workspace
+        run: |
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          mkdir -p "$ADER_CI_CACHE_BASE"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Prepare timing report
+        run: |
+          set -euo pipefail
+          report_dir="ader/reports/bench/${GITHUB_RUN_ID}"
+          mkdir -p "$report_dir"
+          {
+            printf 'step\tseconds\tstatus\n'
+          } > "$report_dir/timings.tsv"
+          echo "TIMING_REPORT=$report_dir/timings.tsv" >> "$GITHUB_ENV"
+      - name: Checkout Zig vendored submodules
+        run: |
+          set -euo pipefail
+          start="$(date +%s)"
+          status=0
+          {
+            rm -rf sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+            git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+            git submodule update --init --force --recursive --depth 1 --jobs 8 \
+              sdk/zig-holons/third_party/grpc \
+              sdk/zig-holons/third_party/protobuf-c
+          } || status=$?
+          elapsed="$(( $(date +%s) - start ))"
+          printf 'zig-submodules\t%s\t%s\n' "$elapsed" "$status" >> "$TIMING_REPORT"
+          exit "$status"
+      - name: Bootstrap op, ader, and SDK prebuilts
+        run: |
+          set -euo pipefail
+          start="$(date +%s)"
+          status=0
+          {
+            go run ./holons/grace-op/cmd/op env --init
+            go run ./holons/grace-op/cmd/op build op --install --symlink
+            eval "$(go run ./holons/grace-op/cmd/op env --shell)"
+            op build clem-ader --install --symlink
+            echo "$OPBIN" >> "$GITHUB_PATH"
+            for sdk in zig c cpp ruby; do
+              if ! op sdk path "$sdk" >/dev/null 2>&1; then
+                op sdk install "$sdk"
+              fi
+              sdk_path="$(op sdk path "$sdk")"
+              sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
+              echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
+            done
+            {
+              echo "OPPATH=$OPPATH"
+              echo "OPBIN=$OPBIN"
+            } >> "$GITHUB_ENV"
+          } || status=$?
+          elapsed="$(( $(date +%s) - start ))"
+          printf 'bootstrap\t%s\t%s\n' "$elapsed" "$status" >> "$TIMING_REPORT"
+          exit "$status"
+      - name: Run timed ader bouquet
+        run: |
+          set -euo pipefail
+          start="$(date +%s)"
+          status=0
+          ader test-bouquet ader --name "$BOUQUET" || status=$?
+          elapsed="$(( $(date +%s) - start ))"
+          printf 'ader-bouquet:%s\t%s\t%s\n' "$BOUQUET" "$elapsed" "$status" >> "$TIMING_REPORT"
+          exit "$status"
+      - name: Enforce warm-cache target
+        run: |
+          set -euo pipefail
+          threshold=0
+          case "$BOUQUET" in
+            local-dev) threshold=3600 ;;
+            cross-platform) threshold=21600 ;;
+          esac
+          measured="$(awk -F '\t' -v step="ader-bouquet:${BOUQUET}" '$1 == step { print $2 }' "$TIMING_REPORT" | tail -n 1)"
+          {
+            echo "### ader bench"
+            echo
+            echo "| Step | Seconds | Status |"
+            echo "|---|---:|---:|"
+            awk -F '\t' 'NR > 1 { printf "| `%s` | %s | %s |\n", $1, $2, $3 }' "$TIMING_REPORT"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$threshold" -gt 0 ] && [ "${measured:-0}" -gt "$threshold" ]; then
+            echo "Measured $BOUQUET bouquet ${measured}s exceeds target ${threshold}s." >&2
+            exit 1
+          fi
+      - name: Upload timing report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ader-bench-${{ github.run_id }}-${{ env.BOUQUET }}
+          path: |
+            ader/reports/bench/${{ github.run_id }}/**
+            ader/reports/bouquets/**
+            ader/catalogues/*/reports/**
+          retention-days: 30
+          if-no-files-found: warn
