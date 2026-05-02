@@ -1903,6 +1903,101 @@ artifacts:
 	}
 }
 
+func TestBuildMemberContentHashCacheReusesStaleMTimePackage(t *testing.T) {
+	if _, err := execLookPath("go"); err != nil {
+		t.Skip("go command not available")
+	}
+
+	root := t.TempDir()
+	chdirForHolonTest(t, root)
+
+	childDir := filepath.Join(root, "child")
+	if err := os.MkdirAll(filepath.Join(childDir, "cmd", "child"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(childDir, "go.mod"), []byte("module example.com/child\n\ngo 1.25.1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mainPath := filepath.Join(childDir, "cmd", "child", "main.go")
+	if err := os.WriteFile(mainPath, []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeRecipeManifest(t, childDir, `schema: holon/v0
+kind: native
+build:
+  runner: go-module
+requires:
+  commands: [go]
+  files: [go.mod]
+artifacts:
+  binary: child
+`)
+
+	if err := os.MkdirAll(filepath.Join(root, "app"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeRecipeManifest(t, root, `schema: holon/v0
+kind: composite
+build:
+  runner: recipe
+  members:
+    - id: child
+      path: child
+      type: holon
+    - id: app
+      path: app
+      type: component
+  targets:
+    `+canonicalRuntimeTarget()+`:
+      steps:
+        - build_member: child
+        - copy_artifact:
+            from: child
+            to: app/Holons/child.holon
+        - assert_file:
+            path: app/Holons/child.holon/.holon.json
+artifacts:
+  primary: app/Holons/child.holon/.holon.json
+`)
+
+	if _, err := ExecuteLifecycle(OperationBuild, root); err != nil {
+		t.Fatalf("first build failed: %v", err)
+	}
+	childManifest := mustLoadManifestForTest(t, childDir)
+	cacheEntries, err := filepath.Glob(filepath.Join(childManifest.OpRoot(), "build-cache", "*.holon"))
+	if err != nil {
+		t.Fatalf("glob build cache: %v", err)
+	}
+	if len(cacheEntries) == 0 {
+		t.Fatal("expected first build to save a content-hash package cache")
+	}
+
+	future := time.Now().Add(time.Hour)
+	if err := os.Chtimes(mainPath, future, future); err != nil {
+		t.Fatalf("touch source into future: %v", err)
+	}
+	if err := os.RemoveAll(childManifest.HolonPackageDir()); err != nil {
+		t.Fatalf("remove local holon package: %v", err)
+	}
+
+	second, err := ExecuteLifecycle(OperationBuild, root)
+	if err != nil {
+		t.Fatalf("second build failed: %v", err)
+	}
+	if len(second.Children) != 1 {
+		t.Fatalf("second build children = %d, want 1", len(second.Children))
+	}
+	if !hasEntryContaining(second.Children[0].Notes, "reused content-hash build cache") {
+		t.Fatalf("second build did not report content-hash cache reuse: %v", second.Children[0].Notes)
+	}
+	if _, err := os.Stat(filepath.Join(childManifest.HolonPackageDir(), ".holon.json")); err != nil {
+		t.Fatalf("content-hash cache did not materialize local .holon package: %v", err)
+	}
+	if !dependencyIsFresh(childManifest, BuildContext{}) {
+		t.Fatal("restored content-hash package should satisfy dependencyIsFresh")
+	}
+}
+
 func TestDependencyFreshnessTracksHardenedState(t *testing.T) {
 	if _, err := execLookPath("go"); err != nil {
 		t.Skip("go command not available")

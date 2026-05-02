@@ -3,8 +3,11 @@ package holons
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -463,6 +466,20 @@ func prebuildCompositeDependencies(manifest *LoadedManifest, ctx BuildContext) (
 			continue
 		}
 
+		cacheSpec, cacheNotes := recipeMemberBuildCacheSpec(node.manifest, ctx)
+		if !ctx.DryRun && cacheSpec.valid() {
+			cacheReport, restoredNotes, restored := restoreRecipeMemberBuildCache(node, ctx, cacheSpec, cacheNotes)
+			cacheNotes = restoredNotes
+			if restored {
+				session.completed[node.key] = cacheReport
+				reports = append(reports, cacheReport)
+				if writer != nil {
+					writer.FreezeAt(buildSuccessLine(node.label), dependencyStart)
+				}
+				continue
+			}
+		}
+
 		var depReporter progress.Reporter = progress.Silence()
 		if writer != nil {
 			depReporter = progress.NewBuildReporterWithStart(writer, node.label, dependencyStart)
@@ -477,6 +494,10 @@ func prebuildCompositeDependencies(manifest *LoadedManifest, ctx BuildContext) (
 			Progress:  depReporter,
 			composite: &compositeBuildExecution{session: session, skipDependencyPrebuild: true},
 		})
+		childReport.Notes = append(childReport.Notes, cacheNotes...)
+		if !ctx.DryRun && cacheSpec.valid() {
+			childReport.Notes = append(childReport.Notes, saveRecipeMemberBuildCache(node.manifest, cacheSpec)...)
+		}
 		session.completed[node.key] = childReport
 		reports = append(reports, childReport)
 		if buildErr != nil {
@@ -695,6 +716,18 @@ func dependencyFreshReport(node *compositeDependencyNode, ctx BuildContext) Repo
 	return report
 }
 
+func dependencyContentHashCacheReport(node *compositeDependencyNode, ctx BuildContext, notes []string) Report {
+	target := &Target{
+		Ref:          node.label,
+		Dir:          node.dir,
+		RelativePath: workspaceRelativePath(node.dir),
+		Manifest:     node.manifest,
+	}
+	report := baseReport(OperationBuild, target, ctx)
+	report.Notes = append(report.Notes, notes...)
+	return report
+}
+
 func dependencyIsFresh(manifest *LoadedManifest, ctx BuildContext) bool {
 	if manifest == nil {
 		return false
@@ -725,6 +758,297 @@ func dependencyIsFresh(manifest *LoadedManifest, ctx BuildContext) bool {
 	}
 
 	return false
+}
+
+type recipeMemberBuildCache struct {
+	key  string
+	path string
+}
+
+func (c recipeMemberBuildCache) valid() bool {
+	return c.key != "" && c.path != ""
+}
+
+func recipeMemberBuildCacheSpec(manifest *LoadedManifest, ctx BuildContext) (recipeMemberBuildCache, []string) {
+	if manifest == nil {
+		return recipeMemberBuildCache{}, nil
+	}
+	parts := []string{
+		"recipe-member-cache-v1",
+		"target=" + normalizePlatformName(ctx.Target),
+		"mode=" + normalizeBuildMode(ctx.Mode),
+		fmt.Sprintf("hardened=%t", ctx.Hardened),
+		"go=" + runtime.Version(),
+	}
+
+	if manifestHash, err := fileContentSHA256(manifest.Path); err == nil {
+		parts = append(parts, "manifest="+manifestHash)
+	} else {
+		return recipeMemberBuildCache{}, []string{fmt.Sprintf("content-hash cache disabled: manifest hash failed: %v", err)}
+	}
+	if sourceHash, err := sourceContentSHA256(manifest.Dir); err == nil {
+		parts = append(parts, "source="+sourceHash)
+	} else {
+		return recipeMemberBuildCache{}, []string{fmt.Sprintf("content-hash cache disabled: source hash failed: %v", err)}
+	}
+	if opHash, err := currentExecutableSHA256(); err == nil {
+		parts = append(parts, "op="+opHash)
+	} else {
+		return recipeMemberBuildCache{}, []string{fmt.Sprintf("content-hash cache disabled: op binary hash failed: %v", err)}
+	}
+
+	sdkParts, warnings := sdkPrebuiltSourceHashParts(manifest)
+	parts = append(parts, sdkParts...)
+	sort.Strings(parts)
+	sum := sha256.Sum256([]byte(strings.Join(parts, "\n")))
+	key := hex.EncodeToString(sum[:])
+	cacheName := fmt.Sprintf("%s-%s.holon", sanitizeCacheName(manifestSlug(manifest)), key)
+	return recipeMemberBuildCache{
+		key:  key,
+		path: filepath.Join(manifest.OpRoot(), "build-cache", cacheName),
+	}, warnings
+}
+
+func restoreRecipeMemberBuildCache(node *compositeDependencyNode, ctx BuildContext, cache recipeMemberBuildCache, notes []string) (Report, []string, bool) {
+	restoreNotes, ok := restoreRecipeMemberBuildCachePackage(node.manifest, ctx, cache, notes)
+	if !ok {
+		return Report{}, restoreNotes, false
+	}
+	return dependencyContentHashCacheReport(node, ctx, restoreNotes), restoreNotes, true
+}
+
+func restoreRecipeMemberBuildCachePackage(manifest *LoadedManifest, ctx BuildContext, cache recipeMemberBuildCache, notes []string) ([]string, bool) {
+	if manifest == nil || !cache.valid() {
+		return notes, false
+	}
+	if info, err := os.Stat(cache.path); err != nil || !info.IsDir() {
+		return notes, false
+	}
+	if err := copyArtifact(cache.path, manifest.HolonPackageDir()); err != nil {
+		notes = append(notes, fmt.Sprintf("content-hash cache restore skipped: %v", err))
+		return notes, false
+	}
+	if err := persistBuildMetadata(manifest, ctx); err != nil {
+		notes = append(notes, fmt.Sprintf("content-hash cache metadata refresh skipped: %v", err))
+		return notes, false
+	}
+	_ = syncSharedHolonPackageCache(manifest)
+	if err := touchBuildFreshnessMarkers(manifest, ctx); err != nil {
+		notes = append(notes, fmt.Sprintf("content-hash cache freshness marker warning: %v", err))
+	}
+	notes = append(notes, fmt.Sprintf("reused content-hash build cache %s", shortHash(cache.key)))
+	return notes, true
+}
+
+func saveRecipeMemberBuildCache(manifest *LoadedManifest, cache recipeMemberBuildCache) []string {
+	if manifest == nil || !cache.valid() {
+		return nil
+	}
+	srcDir := manifest.HolonPackageDir()
+	if info, err := os.Stat(srcDir); err != nil || !info.IsDir() {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(cache.path), 0o755); err != nil {
+		return []string{fmt.Sprintf("content-hash cache save skipped: %v", err)}
+	}
+	if err := copyArtifact(srcDir, cache.path); err != nil {
+		return []string{fmt.Sprintf("content-hash cache save skipped: %v", err)}
+	}
+	return []string{fmt.Sprintf("saved content-hash build cache %s", shortHash(cache.key))}
+}
+
+func touchBuildFreshnessMarkers(manifest *LoadedManifest, ctx BuildContext) error {
+	sourceModTime, err := latestSourceTreeModTime(manifest.Dir)
+	if err != nil {
+		return err
+	}
+	freshTime := time.Now()
+	if freshTime.Before(sourceModTime) {
+		freshTime = sourceModTime
+	}
+	for _, markerPath := range []string{
+		buildStatePath(manifest),
+		buildFreshnessMarker(manifest, ctx),
+		sharedHolonPackageMarker(manifest),
+	} {
+		if markerPath == "" {
+			continue
+		}
+		if _, err := os.Stat(markerPath); err == nil {
+			_ = os.Chtimes(markerPath, freshTime, freshTime)
+		}
+	}
+	return nil
+}
+
+func sdkPrebuiltSourceHashParts(manifest *LoadedManifest) ([]string, []string) {
+	if manifest == nil {
+		return nil, nil
+	}
+	langs := compactRecipeCacheStrings(manifest.Manifest.Requires.SDKPrebuilts)
+	sort.Strings(langs)
+	parts := make([]string, 0, len(langs))
+	warnings := make([]string, 0)
+	for _, lang := range langs {
+		hash, ok, err := sdkPrebuiltLocalSourceTreeHash(lang)
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("sdk_prebuilts %q source hash unavailable; excluded from content-hash cache key: %v", lang, err))
+			continue
+		}
+		if !ok || strings.TrimSpace(hash) == "" {
+			warnings = append(warnings, fmt.Sprintf("sdk_prebuilts %q source hash unavailable; excluded from content-hash cache key", lang))
+			continue
+		}
+		parts = append(parts, "sdk:"+lang+"="+strings.TrimSpace(hash))
+	}
+	return parts, warnings
+}
+
+func sourceContentSHA256(root string) (string, error) {
+	paths := make([]string, 0)
+	if err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			if shouldSkipContentHashSourceDir(filepath.Base(path), path, root) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		paths = append(paths, path)
+		return nil
+	}); err != nil {
+		return "", err
+	}
+	sort.Strings(paths)
+
+	h := sha256.New()
+	for _, path := range paths {
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return "", err
+		}
+		rel = filepath.ToSlash(rel)
+		info, err := os.Lstat(path)
+		if err != nil {
+			return "", err
+		}
+		fmt.Fprintf(h, "%s\x00%s\x00%o\x00", rel, contentHashFileTypeTag(info.Mode()), info.Mode().Perm())
+		if info.Mode()&os.ModeSymlink != 0 {
+			linkTarget, err := os.Readlink(path)
+			if err != nil {
+				return "", err
+			}
+			_, _ = h.Write([]byte(linkTarget))
+			_, _ = h.Write([]byte{0})
+			continue
+		}
+		if info.IsDir() {
+			continue
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			return "", err
+		}
+		if _, err := io.Copy(h, f); err != nil {
+			_ = f.Close()
+			return "", err
+		}
+		if err := f.Close(); err != nil {
+			return "", err
+		}
+		_, _ = h.Write([]byte{0})
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func shouldSkipContentHashSourceDir(name, path, root string) bool {
+	if filepath.Clean(path) == filepath.Clean(root) {
+		return false
+	}
+	switch name {
+	case ".git", ".op", ".build", ".dart_tool", ".gradle", ".swiftpm", ".zig-cache",
+		"build", "dist", "gen", "generated", "node_modules", "target", "testdata", "vendor", "zig-out":
+		return true
+	}
+	return strings.HasPrefix(name, ".")
+}
+
+func compactRecipeCacheStrings(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		out = append(out, trimmed)
+	}
+	return out
+}
+
+func currentExecutableSHA256() (string, error) {
+	path, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		path = resolved
+	}
+	return fileContentSHA256(path)
+}
+
+func fileContentSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func contentHashFileTypeTag(mode os.FileMode) string {
+	switch {
+	case mode&os.ModeSymlink != 0:
+		return "symlink"
+	case mode.IsRegular():
+		return "file"
+	default:
+		return mode.Type().String()
+	}
+}
+
+func sanitizeCacheName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = "holon"
+	}
+	var b strings.Builder
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_', r == '.':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('_')
+		}
+	}
+	return b.String()
+}
+
+func shortHash(hash string) string {
+	if len(hash) <= 12 {
+		return hash
+	}
+	return hash[:12]
 }
 
 func buildFreshnessMarker(manifest *LoadedManifest, ctx BuildContext) string {
@@ -1761,16 +2085,14 @@ func (r recipeRunner) executeStep(manifest *LoadedManifest, ctx BuildContext, st
 
 // stepBuildMember recursively builds a child holon.
 func (r recipeRunner) stepBuildMember(manifest *LoadedManifest, ctx BuildContext, memberID string, members map[string]RecipeMember, report *Report) error {
-	childReport, command, note, err := r.buildRecipeMember(manifest, ctx, memberID, members)
+	childReport, command, notes, err := r.buildRecipeMember(manifest, ctx, memberID, members)
 	if command != "" {
 		report.Commands = append(report.Commands, command)
 	}
 	if childReport.Operation != "" {
 		report.Children = append(report.Children, childReport)
 	}
-	if note != "" {
-		report.Notes = append(report.Notes, note)
-	}
+	report.Notes = append(report.Notes, notes...)
 	return err
 }
 
@@ -1778,7 +2100,7 @@ func (r recipeRunner) stepBuildMembersParallel(manifest *LoadedManifest, ctx Bui
 	parallelism := recipeBuildParallelism()
 	type result struct {
 		command     string
-		note        string
+		notes       []string
 		childReport Report
 		err         error
 	}
@@ -1798,10 +2120,10 @@ func (r recipeRunner) stepBuildMembersParallel(manifest *LoadedManifest, ctx Bui
 			defer func() { <-sem }()
 			memberCtx := ctx
 			memberCtx.Progress = reporters[index]
-			childReport, command, note, err := r.buildRecipeMember(manifest, memberCtx, id, members)
+			childReport, command, notes, err := r.buildRecipeMember(manifest, memberCtx, id, members)
 			results[index] = result{
 				command:     command,
-				note:        note,
+				notes:       notes,
 				childReport: childReport,
 				err:         err,
 			}
@@ -1816,9 +2138,7 @@ func (r recipeRunner) stepBuildMembersParallel(manifest *LoadedManifest, ctx Bui
 		if result.childReport.Operation != "" {
 			report.Children = append(report.Children, result.childReport)
 		}
-		if result.note != "" {
-			report.Notes = append(report.Notes, result.note)
-		}
+		report.Notes = append(report.Notes, result.notes...)
 		if result.err != nil {
 			return result.err
 		}
@@ -1842,18 +2162,18 @@ func recipeBuildParallelism() int {
 	return parallelism
 }
 
-func (recipeRunner) buildRecipeMember(manifest *LoadedManifest, ctx BuildContext, memberID string, members map[string]RecipeMember) (Report, string, string, error) {
+func (recipeRunner) buildRecipeMember(manifest *LoadedManifest, ctx BuildContext, memberID string, members map[string]RecipeMember) (Report, string, []string, error) {
 	member, ok := members[memberID]
 	if !ok {
-		return Report{}, "", "", fmt.Errorf("unknown member %q", memberID)
+		return Report{}, "", nil, fmt.Errorf("unknown member %q", memberID)
 	}
 	if member.Type != "holon" {
-		return Report{}, "", "", fmt.Errorf("build_member can only target holon members, %q is %q", memberID, member.Type)
+		return Report{}, "", nil, fmt.Errorf("build_member can only target holon members, %q is %q", memberID, member.Type)
 	}
 
 	memberDir, err := manifest.ResolveManifestPath(member.Path)
 	if err != nil {
-		return Report{}, "", "", fmt.Errorf("build_member %q path: %w", memberID, err)
+		return Report{}, "", nil, fmt.Errorf("build_member %q path: %w", memberID, err)
 	}
 	if resolved, err := filepath.EvalSymlinks(memberDir); err == nil {
 		memberDir = resolved
@@ -1863,15 +2183,32 @@ func (recipeRunner) buildRecipeMember(manifest *LoadedManifest, ctx BuildContext
 	if ctx.composite != nil && ctx.composite.skipDependencyPrebuild {
 		node, nodeErr := compositeNodeForDir(memberDir, ctx, ctx.composite.session)
 		if nodeErr != nil {
-			return Report{}, command, "", fmt.Errorf("build_member %q manifest: %w", memberID, nodeErr)
+			return Report{}, command, nil, fmt.Errorf("build_member %q manifest: %w", memberID, nodeErr)
 		}
 		if _, ok := ctx.composite.session.completed[node.key]; !ok {
-			return Report{}, command, "", fmt.Errorf("build_member %q has no prebuilt artifact", memberID)
+			return Report{}, command, nil, fmt.Errorf("build_member %q has no prebuilt artifact", memberID)
 		}
 		if !ctx.DryRun {
-			return Report{}, command, fmt.Sprintf("used prebuilt member %q", memberID), nil
+			return Report{}, command, []string{fmt.Sprintf("used prebuilt member %q", memberID)}, nil
 		}
-		return Report{}, command, "", nil
+		return Report{}, command, nil, nil
+	}
+
+	memberManifest, loadErr := LoadManifest(memberDir)
+	if loadErr != nil {
+		return Report{}, command, nil, fmt.Errorf("build_member %q manifest: %w", memberID, loadErr)
+	}
+	if resolved, err := filepath.EvalSymlinks(memberManifest.Dir); err == nil {
+		memberManifest.Dir = resolved
+	}
+
+	cacheSpec, notes := recipeMemberBuildCacheSpec(memberManifest, ctx)
+	if !ctx.DryRun && cacheSpec.valid() {
+		restoreNotes, restored := restoreRecipeMemberBuildCachePackage(memberManifest, ctx, cacheSpec, notes)
+		notes = restoreNotes
+		if restored {
+			return Report{}, command, restoreNotes, nil
+		}
 	}
 
 	ctx.Progress.Step("building member: " + memberID)
@@ -1883,14 +2220,18 @@ func (recipeRunner) buildRecipeMember(manifest *LoadedManifest, ctx BuildContext
 		NoSign:   ctx.NoSign,
 		Progress: ctx.Progress.Child(),
 	})
+	childReport.Notes = append(childReport.Notes, notes...)
+	if !ctx.DryRun && cacheSpec.valid() {
+		childReport.Notes = append(childReport.Notes, saveRecipeMemberBuildCache(memberManifest, cacheSpec)...)
+	}
 	if err != nil {
-		return childReport, command, "", fmt.Errorf("build_member %q: %w", memberID, err)
+		return childReport, command, nil, fmt.Errorf("build_member %q: %w", memberID, err)
 	}
 
 	if !ctx.DryRun {
-		return childReport, command, fmt.Sprintf("built member %q", memberID), nil
+		return childReport, command, []string{fmt.Sprintf("built member %q", memberID)}, nil
 	}
-	return childReport, command, "", nil
+	return childReport, command, nil, nil
 }
 
 // stepExec runs an argv command in an explicit working directory.

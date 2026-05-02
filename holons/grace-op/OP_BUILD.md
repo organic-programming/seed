@@ -560,6 +560,15 @@ environment variable is unset or invalid, `op` uses `runtime.NumCPU() / 2`
 with a minimum of 1. Steps without `parallel: true` keep the original ordered
 execution semantics.
 
+After a successful member build, `op` saves the member's local `.holon` package
+under `.op/build-cache/` using a source-content key. Later recipe builds with
+the same key restore that package to the standard `.op/build/<slug>.holon`
+path and skip the rebuild. The key includes the member manifest, source tree
+content (excluding `.op/` and generated/output directories), the current `op`
+binary SHA-256, Go toolchain version, requested target/mode/hardened build
+context, and any available `sdk_prebuilts` source-tree hashes. Missing SDK
+source hashes are reported as warnings and excluded from the key.
+
 `exec`
 
 - runs a command expressed as argv
