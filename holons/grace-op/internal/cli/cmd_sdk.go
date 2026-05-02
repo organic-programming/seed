@@ -78,7 +78,7 @@ func newSdkInstallCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().String("target", "", "target triplet (defaults to host)")
+	cmd.Flags().String("target", "", "target triplet (defaults to host, or to --source manifest target)")
 	cmd.Flags().String("version", "", "SDK prebuilt version")
 	cmd.Flags().String("source", "", "local tarball or URL source")
 	_ = cmd.RegisterFlagCompletionFunc("target", completeAllowedSdkTargets)

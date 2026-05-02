@@ -112,12 +112,15 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 	if err != nil {
 		return Prebuilt{}, nil, err
 	}
+	explicitTarget := strings.TrimSpace(opts.Target) != ""
 	target, err := NormalizeTarget(opts.Target)
 	if err != nil {
 		return Prebuilt{}, nil, err
 	}
 	source := strings.TrimSpace(opts.Source)
+	explicitSource := source != ""
 	version := strings.TrimSpace(opts.Version)
+	explicitVersion := version != ""
 	if version != "" {
 		version, err = NormalizeVersion(version)
 		if err != nil {
@@ -167,9 +170,11 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 	}
 
 	dest := InstallPath(lang, version, target)
-	if existing, err := metadataForPath(dest); err == nil && strings.EqualFold(existing.ArchiveSHA256, actualSHA) {
-		existing.Installed = true
-		return existing, []string{"already installed"}, nil
+	if !explicitSource {
+		if existing, err := metadataForPath(dest); err == nil && strings.EqualFold(existing.ArchiveSHA256, actualSHA) {
+			existing.Installed = true
+			return existing, []string{"already installed"}, nil
+		}
 	}
 
 	parent := filepath.Dir(dest)
@@ -193,6 +198,57 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 	archiveMetadata, err := metadataForPath(tmp)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return Prebuilt{}, nil, err
+	}
+	if archiveMetadata.Lang != "" {
+		archiveLang, err := NormalizeLang(archiveMetadata.Lang)
+		if err != nil {
+			return Prebuilt{}, nil, fmt.Errorf("archive %s declares invalid lang %q: %w", source, archiveMetadata.Lang, err)
+		}
+		if archiveLang != lang {
+			return Prebuilt{}, nil, fmt.Errorf("archive %s declares lang %q but install requested %q", source, archiveLang, lang)
+		}
+	}
+	if archiveMetadata.Target != "" {
+		archiveTarget, err := NormalizeTarget(archiveMetadata.Target)
+		if err != nil {
+			return Prebuilt{}, nil, fmt.Errorf("archive %s declares invalid target %q: %w", source, archiveMetadata.Target, err)
+		}
+		if explicitTarget || !explicitSource {
+			if archiveTarget != target {
+				return Prebuilt{}, nil, fmt.Errorf(
+					"archive %s declares target %q but install requested %q; omit --target to install at %q, or supply an archive built for %q",
+					source, archiveTarget, target, archiveTarget, target)
+			}
+		} else {
+			target = archiveTarget
+		}
+	}
+	if archiveMetadata.Version != "" {
+		archiveVersion, err := NormalizeVersion(archiveMetadata.Version)
+		if err != nil {
+			return Prebuilt{}, nil, fmt.Errorf("archive %s declares invalid version %q: %w", source, archiveMetadata.Version, err)
+		}
+		if explicitVersion || !explicitSource {
+			if archiveVersion != version {
+				return Prebuilt{}, nil, fmt.Errorf(
+					"archive %s declares version %q but install requested %q; omit --version to install version %q, or supply an archive for %q",
+					source, archiveVersion, version, archiveVersion, version)
+			}
+		} else {
+			version = archiveVersion
+		}
+	}
+	dest = InstallPath(lang, version, target)
+	// Source archives need extraction before we can trust their manifest target.
+	// The cache hit therefore happens after manifest validation for --source.
+	if existing, err := metadataForPath(dest); err == nil && strings.EqualFold(existing.ArchiveSHA256, actualSHA) {
+		existing.Installed = true
+		return existing, []string{"already installed"}, nil
+	}
+
+	parent = filepath.Dir(dest)
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return Prebuilt{}, nil, fmt.Errorf("create %s: %w", parent, err)
 	}
 	treeSHA, err := treeSHA256(tmp)
 	if err != nil {

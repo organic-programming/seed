@@ -30,9 +30,12 @@ op sdk path    <lang> [--target <triplet>] [--version <v>]
 op sdk uninstall <lang> [--target <triplet>] [--version <v>]
 ```
 
-`install` without `--target` uses the host triplet. `--source` installs a local
-or explicit archive URL, which is useful for validating a PR artifact before it
-is promoted to a GitHub Release.
+`install` without `--source` and without `--target` uses the host triplet.
+With `--source`, an archive `manifest.json` can declare the target/version;
+when the corresponding flags are omitted, those manifest values choose the
+install path. Explicit `--target` or `--version` values must match the archive
+manifest. This is useful for validating a PR artifact before it is promoted to
+a GitHub Release.
 
 `build` is the source-build counterpart of `install`: it invokes the per-SDK
 script under `.github/scripts/build-prebuilt-<lang>.sh` to compile the prebuilt
