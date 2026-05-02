@@ -1,0 +1,301 @@
+# Objective ader bouquet benchmark report. This workflow measures and
+# diagnoses functional success/failure; it does not enforce performance targets.
+name: ader-bench
+
+on:
+  workflow_dispatch:
+    inputs:
+      bouquet:
+        description: bouquet name under ader/bouquets/
+        required: true
+        default: local-dev
+        type: choice
+        options:
+          - local-dev
+          - cross-platform
+      cache_note:
+        description: free-form cache context for the report
+        required: false
+        default: unspecified
+      run_note:
+        description: free-form run context for the report
+        required: false
+        default: ""
+
+concurrency:
+  group: ader-bench-${{ github.ref }}-${{ inputs.bouquet }}
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+env:
+  GOTOOLCHAIN: auto
+  ADER_CI_CACHE_BASE: /Users/popok/.ader-ci-cache
+  GRACE_OP_SHARED_CACHE_DIR: /Users/popok/.ader-ci-cache/grace-op-shared
+  GOMODCACHE: /Users/popok/.ader-ci-cache/go-mod
+  GOCACHE: /Users/popok/.ader-ci-cache/go-build
+  BUNDLE_PATH: /Users/popok/.ader-ci-cache/bundle
+  PUB_CACHE: /Users/popok/.ader-ci-cache/dart-pub
+  npm_config_cache: /Users/popok/.ader-ci-cache/npm
+  GRADLE_USER_HOME: /Users/popok/.ader-ci-cache/gradle
+  NUGET_PACKAGES: /Users/popok/.ader-ci-cache/nuget
+  DOTNET_CLI_HOME: /Users/popok/.ader-ci-cache/dotnet-home
+  ZIG_VERSION: 0.16.0
+  ZIG_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/zig
+  NINJA_VERSION: 1.13.1
+  NINJA_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/ninja
+  ZIG_HOLONS_JOBS: 8
+  BOUQUET: ${{ inputs.bouquet }}
+  CACHE_NOTE: ${{ inputs.cache_note }}
+  RUN_NOTE: ${{ inputs.run_note }}
+
+jobs:
+  bench:
+    runs-on: popok
+    timeout-minutes: 480
+    steps:
+      - name: Prepare benchmark report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          start_epoch="$(date +%s)"
+          start_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          report_dir="ader/reports/bench/${GITHUB_RUN_ID}"
+          mkdir -p "$report_dir" "$ADER_CI_CACHE_BASE"
+          printf 'block\tstatus\texit_code\tstarted_at\tfinished_at\tseconds\treason\n' > "$report_dir/blocks.tsv"
+          github_created_at="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq '.created_at' 2>/dev/null || true)"
+          end_epoch="$(date +%s)"
+          end_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          printf 'prepare-workspace\tPASS\t0\t%s\t%s\t%s\t\n' "$start_iso" "$end_iso" "$((end_epoch - start_epoch))" >> "$report_dir/blocks.tsv"
+          {
+            echo "ADER_BENCH_REPORT_DIR=$report_dir"
+            echo "RUNNER_ACQUIRED_AT=$start_iso"
+            echo "GITHUB_CREATED_AT=$github_created_at"
+          } >> "$GITHUB_ENV"
+
+      - name: Mark checkout start
+        run: |
+          {
+            echo "CHECKOUT_START_EPOCH=$(date +%s)"
+            echo "CHECKOUT_STARTED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          } >> "$GITHUB_ENV"
+
+      - name: Checkout repository
+        id: checkout
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          fetch-depth: 0
+
+      - name: Record checkout block
+        if: always()
+        run: |
+          set -euo pipefail
+          end_epoch="$(date +%s)"
+          end_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          outcome="${{ steps.checkout.outcome }}"
+          status="PASS"
+          exit_code="0"
+          reason=""
+          if [ "$outcome" != "success" ]; then
+            status="FAIL"
+            exit_code="1"
+            reason="actions/checkout outcome: $outcome"
+          fi
+          printf 'checkout\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$status" "$exit_code" "$CHECKOUT_STARTED_AT" "$end_iso" \
+            "$((end_epoch - CHECKOUT_START_EPOCH))" "$reason" >> "$ADER_BENCH_REPORT_DIR/blocks.tsv"
+          echo "CHECKOUT_EXIT=$exit_code" >> "$GITHUB_ENV"
+
+      - name: Checkout Zig vendored submodules
+        if: always()
+        run: |
+          set -euo pipefail
+          start_epoch="$(date +%s)"
+          start_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          status="PASS"
+          exit_code="0"
+          reason=""
+          if [ "${CHECKOUT_EXIT:-1}" != "0" ]; then
+            status="SKIP"
+            exit_code="125"
+            reason="skipped because checkout failed"
+          else
+            {
+              rm -rf sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+              git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+              git submodule update --init --force --recursive --depth 1 --jobs 8 \
+                sdk/zig-holons/third_party/grpc \
+                sdk/zig-holons/third_party/protobuf-c
+            } || {
+              exit_code="$?"
+              status="FAIL"
+              reason="zig vendored submodule checkout failed"
+            }
+          fi
+          end_epoch="$(date +%s)"
+          end_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          printf 'zig-submodules\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$status" "$exit_code" "$start_iso" "$end_iso" "$((end_epoch - start_epoch))" "$reason" >> "$ADER_BENCH_REPORT_DIR/blocks.tsv"
+          echo "ZIG_SUBMODULES_EXIT=$exit_code" >> "$GITHUB_ENV"
+
+      - name: Bootstrap op, ader, and SDK prebuilts
+        if: always()
+        run: |
+          set -euo pipefail
+          start_epoch="$(date +%s)"
+          start_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          status="PASS"
+          exit_code="0"
+          reason=""
+          if [ "${CHECKOUT_EXIT:-1}" != "0" ] || [ "${ZIG_SUBMODULES_EXIT:-1}" != "0" ]; then
+            status="SKIP"
+            exit_code="125"
+            reason="skipped because a prior infrastructure block failed"
+          else
+            {
+              go run ./holons/grace-op/cmd/op env --init
+              go run ./holons/grace-op/cmd/op build op --install --symlink
+              eval "$(go run ./holons/grace-op/cmd/op env --shell)"
+              op build clem-ader --install --symlink
+              echo "$OPBIN" >> "$GITHUB_PATH"
+              for sdk in zig c cpp ruby; do
+                if ! op sdk path "$sdk" >/dev/null 2>&1; then
+                  op sdk install "$sdk"
+                fi
+                sdk_path="$(op sdk path "$sdk")"
+                sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
+                echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
+              done
+              {
+                echo "OPPATH=$OPPATH"
+                echo "OPBIN=$OPBIN"
+              } >> "$GITHUB_ENV"
+            } || {
+              exit_code="$?"
+              status="FAIL"
+              reason="op/ader/SDK bootstrap failed"
+            }
+          fi
+          end_epoch="$(date +%s)"
+          end_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          printf 'bootstrap\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$status" "$exit_code" "$start_iso" "$end_iso" "$((end_epoch - start_epoch))" "$reason" >> "$ADER_BENCH_REPORT_DIR/blocks.tsv"
+          echo "BOOTSTRAP_EXIT=$exit_code" >> "$GITHUB_ENV"
+
+      - name: Run timed ader bouquet
+        if: always()
+        run: |
+          set -euo pipefail
+          start_epoch="$(date +%s)"
+          start_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          status="PASS"
+          exit_code="0"
+          reason=""
+          if [ "${BOOTSTRAP_EXIT:-1}" != "0" ]; then
+            status="SKIP"
+            exit_code="125"
+            reason="skipped because bootstrap did not complete"
+          else
+            ader test-bouquet ader --name "$BOUQUET" || {
+              exit_code="$?"
+              status="FAIL"
+              reason="ader bouquet failed"
+            }
+          fi
+          end_epoch="$(date +%s)"
+          end_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          printf 'ader-bouquet\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$status" "$exit_code" "$start_iso" "$end_iso" "$((end_epoch - start_epoch))" "$reason" >> "$ADER_BENCH_REPORT_DIR/blocks.tsv"
+          echo "BOUQUET_EXIT=$exit_code" >> "$GITHUB_ENV"
+
+      - name: Generate benchmark report
+        if: always()
+        run: |
+          set -euo pipefail
+          report_started_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          if [ ! -f .github/scripts/ader_bench_report.py ]; then
+            now="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            printf 'report-generation\tFAIL\t1\t%s\t%s\t0\treport generator missing after checkout\n' "$report_started_at" "$now" >> "$ADER_BENCH_REPORT_DIR/blocks.tsv"
+            {
+              echo "# ader Benchmark Report"
+              echo
+              echo "## Outcome"
+              echo
+              echo "- Functional status: \`FAIL\`"
+              echo "- First failure: \`report generator missing after checkout\`"
+              echo
+              echo "## Blocks"
+              echo
+              echo "| block | status | exit_code | seconds | reason |"
+              echo "| --- | --- | --- | ---: | --- |"
+              awk -F '\t' 'NR > 1 { printf "| `%s` | `%s` | `%s` | %s | %s |\n", $1, $2, $3, $6, $7 }' "$ADER_BENCH_REPORT_DIR/blocks.tsv"
+            } > "$ADER_BENCH_REPORT_DIR/summary.md"
+            python3 - "$ADER_BENCH_REPORT_DIR/summary.json" <<'PY'
+          import json
+          import sys
+          payload = {
+              "outcome": {
+                  "functional_status": "FAIL",
+                  "first_failure": "report generator missing after checkout",
+                  "failed_block": "report-generation",
+              }
+          }
+          with open(sys.argv[1], "w", encoding="utf-8") as fh:
+              json.dump(payload, fh, indent=2)
+              fh.write("\n")
+          PY
+            cat "$ADER_BENCH_REPORT_DIR/summary.md" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 .github/scripts/ader_bench_report.py \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --report-dir "$ADER_BENCH_REPORT_DIR" \
+            --bouquet "$BOUQUET" \
+            --run-id "$GITHUB_RUN_ID" \
+            --ref "$GITHUB_REF_NAME" \
+            --sha "$GITHUB_SHA" \
+            --runner-name "$RUNNER_NAME" \
+            --runner-os "$RUNNER_OS" \
+            --runner-arch "$RUNNER_ARCH" \
+            --cache-note "$CACHE_NOTE" \
+            --run-note "$RUN_NOTE" \
+            --github-created-at "$GITHUB_CREATED_AT" \
+            --runner-acquired-at "$RUNNER_ACQUIRED_AT" \
+            --report-started-at "$report_started_at"
+          cat "$ADER_BENCH_REPORT_DIR/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ader-bench-${{ github.run_id }}-${{ env.BOUQUET }}
+          path: |
+            ader/reports/bench/${{ github.run_id }}/**
+            ader/reports/bouquets/**
+            ader/catalogues/*/reports/**
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Finalize functional status
+        if: always()
+        run: |
+          set -euo pipefail
+          summary="$ADER_BENCH_REPORT_DIR/summary.json"
+          if [ ! -f "$summary" ]; then
+            echo "Benchmark summary was not generated." >&2
+            exit 1
+          fi
+          python3 - "$summary" <<'PY'
+          import json
+          import sys
+          with open(sys.argv[1], "r", encoding="utf-8") as fh:
+              data = json.load(fh)
+          status = data.get("outcome", {}).get("functional_status")
+          if status != "PASS":
+              print(f"Benchmark functional status: {status}", file=sys.stderr)
+              sys.exit(1)
+          PY

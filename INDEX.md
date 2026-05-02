@@ -28,6 +28,8 @@
 | ? | - | [SESSIONS.md](SESSIONS.md) | Network connection tracing and metrics |
 | ? | ? | [TDD.md](TDD.md) | TDD promotion pipeline — unit → integration → regression |
 | ⚠️ | ? | [WHY.md](WHY.md) | Rationale and guiding motivations |
+| ? | ✅ | [docs/specs/ader-acceleration.md](docs/specs/ader-acceleration.md) | ader CI acceleration chantier |
+| ? | ✅ | [docs/audit/ader-acceleration-benchmark.md](docs/audit/ader-acceleration-benchmark.md) | ader benchmark diagnostic protocol |
 
 ## op CLI (holons/grace-op)
 
