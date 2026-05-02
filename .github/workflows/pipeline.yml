@@ -423,6 +423,14 @@ jobs:
             echo "OPPATH=$OPPATH"
             echo "OPBIN=$OPBIN"
           } >> "$GITHUB_ENV"
+      - name: Restore SwiftPM package cache
+        id: swiftpm-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}
+          restore-keys: |
+            spm-${{ runner.os }}-${{ runner.arch }}-
       - name: Compute SwiftUI xcodebuild cache key
         id: swiftui-xcode-cache-key
         run: |
@@ -451,6 +459,12 @@ jobs:
             examples/hello-world/gabriel-greeting-app-swiftui/.op/build/xcode/macos
             examples/hello-world/gabriel-greeting-app-swiftui/.op/build/xcode/source-packages
           key: swiftui-deriveddata-${{ runner.os }}-${{ runner.arch }}-${{ steps.swiftui-xcode-cache-key.outputs.version-sha }}-${{ hashFiles('examples/hello-world/gabriel-greeting-app-swiftui/api/v1/holon.proto', 'examples/hello-world/gabriel-greeting-app-swiftui/project.yml', 'examples/hello-world/gabriel-greeting-app-swiftui/Package.swift', 'examples/hello-world/gabriel-greeting-app-swiftui/Package.resolved', 'examples/hello-world/gabriel-greeting-app-swiftui/**/*.swift', 'sdk/swift-holons/Package.swift', 'sdk/swift-holons/Package.resolved', 'sdk/swift-holons/**/*.swift', 'organism_kits/swiftui/**') }}
+      - name: Save SwiftPM package cache
+        if: steps.swiftpm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}
 
   composite-flutter-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -496,11 +510,57 @@ jobs:
             echo "OPPATH=$OPPATH"
             echo "OPBIN=$OPBIN"
           } >> "$GITHUB_ENV"
+      - name: Restore Dart pub cache
+        id: dart-pub-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.PUB_CACHE }}
+          key: dart-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
+          restore-keys: |
+            dart-${{ runner.os }}-${{ runner.arch }}-
+      - name: Restore Gradle cache
+        id: gradle-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.GRADLE_USER_HOME }}/caches
+            ${{ env.GRADLE_USER_HOME }}/wrapper
+          key: gradle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/settings.gradle*') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-${{ runner.arch }}-
+      - name: Restore npm cache
+        id: npm-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.npm_config_cache }}
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/package.json', '**/package-lock.json', '**/npm-shrinkwrap.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-${{ runner.arch }}-
       - name: Build Flutter composite
         run: |
           set -euo pipefail
           op build gabriel-greeting-app-flutter --hardened
           ader test ader/catalogues/gabriel-greeting-app-flutter --suite flutter-smoke --profile smoke --lane both --source workspace
+      - name: Save Dart pub cache
+        if: steps.dart-pub-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.PUB_CACHE }}
+          key: dart-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
+      - name: Save Gradle cache
+        if: steps.gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.GRADLE_USER_HOME }}/caches
+            ${{ env.GRADLE_USER_HOME }}/wrapper
+          key: gradle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/settings.gradle*') }}
+      - name: Save npm cache
+        if: steps.npm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.npm_config_cache }}
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/package.json', '**/package-lock.json', '**/npm-shrinkwrap.json') }}
 
   ader-bouquet-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -557,8 +617,68 @@ jobs:
             echo "OPPATH=$OPPATH"
             echo "OPBIN=$OPBIN"
           } >> "$GITHUB_ENV"
+      - name: Restore SwiftPM package cache
+        id: bouquet-swiftpm-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}
+          restore-keys: |
+            spm-${{ runner.os }}-${{ runner.arch }}-
+      - name: Restore Dart pub cache
+        id: bouquet-dart-pub-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.PUB_CACHE }}
+          key: dart-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
+          restore-keys: |
+            dart-${{ runner.os }}-${{ runner.arch }}-
+      - name: Restore Gradle cache
+        id: bouquet-gradle-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.GRADLE_USER_HOME }}/caches
+            ${{ env.GRADLE_USER_HOME }}/wrapper
+          key: gradle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/settings.gradle*') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-${{ runner.arch }}-
+      - name: Restore npm cache
+        id: bouquet-npm-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.npm_config_cache }}
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/package.json', '**/package-lock.json', '**/npm-shrinkwrap.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-${{ runner.arch }}-
       - name: Run ader bouquet
         run: ader test-bouquet ader --name "$BOUQUET"
+      - name: Save SwiftPM package cache
+        if: steps.bouquet-swiftpm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}
+      - name: Save Dart pub cache
+        if: steps.bouquet-dart-pub-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.PUB_CACHE }}
+          key: dart-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pubspec.yaml', '**/pubspec.lock') }}
+      - name: Save Gradle cache
+        if: steps.bouquet-gradle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.GRADLE_USER_HOME }}/caches
+            ${{ env.GRADLE_USER_HOME }}/wrapper
+          key: gradle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/settings.gradle*') }}
+      - name: Save npm cache
+        if: steps.bouquet-npm-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.npm_config_cache }}
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/package.json', '**/package-lock.json', '**/npm-shrinkwrap.json') }}
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
