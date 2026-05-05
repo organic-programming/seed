@@ -36,6 +36,11 @@ pull_request / push on master
 post-merge:
   sdk-prebuilts.yml promote downloads successful tier-1 artifacts from the
   merged PR's pipeline run and publishes only archives that actually exist.
+
+benchmark/maintenance:
+  ader-bench.yml is a manual diagnostic workflow that runs an ader bouquet,
+  separates runner wait from executed time, and uploads functional success /
+  failure reports. It does not enforce performance targets.
 ```
 
 ## Jobs
@@ -59,6 +64,7 @@ post-merge:
 | `ader-bouquet-full` | popok | `needs: sdk-prebuilts-fresh` | fail-isolated PR check | 1-3 h |
 | `sdk-deep-tests` | popok | `needs: sdk-prebuilts-fresh` | fail-isolated matrix | 1-3 h |
 | `sdk-prebuilts.yml/promote` | ubuntu-latest | merged PR only | publishes releases | <10 min |
+| `ader-bench.yml/bench` | popok | dispatch | uploads objective bouquet timing and failure diagnostics | no performance target |
 
 ## Failed Check
 

@@ -170,7 +170,7 @@ End-of-chantier acceptance:
 - No regression in test coverage (all suites still selected, all checks still asserted).
 - Issue #25 closed.
 
-A benchmarking workflow (`.github/workflows/ader-bench.yml`) runs the standard bouquet and uploads the timing report on every push to a tracking branch, so regressions are visible.
+A manual benchmarking workflow (`.github/workflows/ader-bench.yml`) runs a selected bouquet and uploads an objective diagnostic report. It separates runner wait from executed time and reports functional success/failure without enforcing performance thresholds.
 
 ---
 
@@ -198,14 +198,19 @@ These need composer arbitration before implementation:
 
 ## 9. Acceptance
 
-This chantier is accepted when:
+This spec originally scoped an acceleration chantier with performance targets.
+After the C-only pivot, the mergeable acceptance for this branch is diagnostic
+coverage only:
 
-- All 5 phase PRs merged on `dev`.
-- `local-dev` bouquet < 60 min on warm popok (vs ~3-4h today).
-- `cross-platform` bouquet < 6 h on warm popok (vs 15+ h today).
-- Issue #25 closed.
-- `ader-bench.yml` workflow in place reporting wall-clock per run.
-- `OP_BUILD.md` updated with the new `parallel:` and content-hash skip semantics.
-- `INDEX.md` reflects the close-out.
+- `ader-bench.yml` workflow in place as a manual measurement workflow.
+- Report separates runner wait from executed wall-clock.
+- Report lists infrastructure block status, bouquet entry status, and failed
+  internal steps with log paths.
+- Report is uploaded on functional pass and functional fail.
+- No performance threshold is enforced by the benchmark workflow.
+- `INDEX.md` reflects the diagnostic benchmark protocol.
 
-When the prebuilts chantier ALSO ships the 4 native SDKs as prebuilt artifacts, the combined effect (this chantier + prebuilts) should bring the `cross-platform` bouquet from 15+ h to ~3-4 h. That is the target end state.
+The original acceleration targets (`local-dev` under 60 min and
+`cross-platform` under 6 h) are not validated by this C-only branch. They remain
+future optimization criteria that require separate before/after measurements
+before any optimization phase is merged.
