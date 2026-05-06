@@ -89,6 +89,14 @@ func TestGenerateCoaxFlutterTemplateRendersScaffold(t *testing.T) {
 	if !strings.Contains(string(manifestData), "copy_all_holons") {
 		t.Fatalf("manifest missing copy_all_holons:\n%s", string(manifestData))
 	}
+	for _, expected := range []string{
+		`codegen: { languages: ["dart"] }`,
+		`sdk_prebuilts: ["dart"]`,
+	} {
+		if !strings.Contains(string(manifestData), expected) {
+			t.Fatalf("manifest missing %q:\n%s", expected, string(manifestData))
+		}
+	}
 }
 
 func TestGenerateCoaxSwiftUITemplateRendersScaffold(t *testing.T) {
@@ -148,5 +156,13 @@ func TestGenerateCoaxSwiftUITemplateRendersScaffold(t *testing.T) {
 	}
 	if !strings.Contains(string(manifestData), "copy_all_holons") {
 		t.Fatalf("manifest missing copy_all_holons:\n%s", string(manifestData))
+	}
+	for _, expected := range []string{
+		`languages: ["swift", "swift-grpc"]`,
+		`sdk_prebuilts: ["swift"]`,
+	} {
+		if !strings.Contains(string(manifestData), expected) {
+			t.Fatalf("manifest missing %q:\n%s", expected, string(manifestData))
+		}
 	}
 }
