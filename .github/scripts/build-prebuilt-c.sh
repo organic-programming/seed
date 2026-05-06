@@ -70,7 +70,8 @@ fi
 if [[ ! -f "${cpp_prefix}/lib/cmake/grpc/gRPCConfig.cmake" ||
       ! -x "${cpp_prefix}/bin/protoc" ||
       ! -x "${cpp_prefix}/bin/protoc-gen-upb" ||
-      ! -x "${cpp_prefix}/bin/protoc-gen-upbdefs" ]]; then
+      ! -x "${cpp_prefix}/bin/protoc-gen-upbdefs" ||
+      ! -x "${cpp_prefix}/bin/protoc-gen-upb_minitable" ]]; then
   GRPC_SOURCE_DIR="$grpc_source" SDK_TARGET="$sdk_target" SDK_VERSION="$sdk_version" CPP_HOLONS_JOBS="$jobs" \
     "${repo_root}/.github/scripts/build-prebuilt-cpp.sh"
 fi
