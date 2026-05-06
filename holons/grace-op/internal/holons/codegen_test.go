@@ -11,6 +11,7 @@ import (
 
 	"github.com/organic-programming/grace-op/internal/sdkprebuilts"
 	"google.golang.org/protobuf/proto"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
 )
 
@@ -131,6 +132,65 @@ func TestLoadManifestRejectsCodegenWithLegacyBeforeCommand(t *testing.T) {
 	}
 }
 
+func TestCodegenRequestBytesForPluginRewritesLegacySharedProtoPaths(t *testing.T) {
+	req := &pluginpb.CodeGeneratorRequest{
+		FileToGenerate: []string{"v1/greeting.proto"},
+		ProtoFile: []*descriptorpb.FileDescriptorProto{{
+			Name:    proto.String("v1/greeting.proto"),
+			Package: proto.String("greeting.v1"),
+		}, {
+			Name:       proto.String("api/v1/holon.proto"),
+			Package:    proto.String("greeting.v1"),
+			Dependency: []string{"v1/greeting.proto"},
+		}},
+	}
+	reqBytes, err := proto.Marshal(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, pluginName := range []string{"go", "python"} {
+		t.Run(pluginName, func(t *testing.T) {
+			gotBytes, err := codegenRequestBytesForPlugin(reqBytes, resolvedCodegenPlugin{
+				Name:        pluginName,
+				PathRewrite: codegenPathRewriteRequestLegacy,
+			})
+			if err != nil {
+				t.Fatalf("rewrite request: %v", err)
+			}
+
+			got := &pluginpb.CodeGeneratorRequest{}
+			if err := proto.Unmarshal(gotBytes, got); err != nil {
+				t.Fatalf("decode request: %v", err)
+			}
+			if len(got.FileToGenerate) != 1 || got.FileToGenerate[0] != "greeting/v1/greeting.proto" {
+				t.Fatalf("FileToGenerate = %v, want greeting/v1/greeting.proto", got.FileToGenerate)
+			}
+			if !requestHasProtoPath(got, "greeting/v1/greeting.proto") {
+				t.Fatalf("rewritten descriptor missing: %v", descriptorNames(got))
+			}
+			if !requestHasProtoDependency(got, "v1/holon.proto", "greeting/v1/greeting.proto") {
+				t.Fatalf("rewritten dependency missing from v1/holon.proto")
+			}
+		})
+	}
+}
+
+func TestLegacyCodegenOutputPathRewriteForPython(t *testing.T) {
+	files := map[string]*descriptorpb.FileDescriptorProto{
+		"v1/greeting.proto": {
+			Name:    proto.String("v1/greeting.proto"),
+			Package: proto.String("greeting.v1"),
+		},
+	}
+	rewrites := legacyCodegenOutputRewrites(files, []string{"v1/greeting.proto"})
+
+	got := rewriteLegacyCodegenOutputPath("v1/greeting_pb2.py", rewrites)
+	if got != "greeting/v1/greeting_pb2.py" {
+		t.Fatalf("python output path = %q, want greeting/v1/greeting_pb2.py", got)
+	}
+}
+
 func runCodegenTestPlugin() {
 	data, err := io.ReadAll(os.Stdin)
 	if err != nil {
@@ -162,6 +222,37 @@ func runCodegenTestPlugin() {
 		os.Exit(1)
 	}
 	os.Exit(0)
+}
+
+func requestHasProtoPath(req *pluginpb.CodeGeneratorRequest, path string) bool {
+	for _, file := range req.GetProtoFile() {
+		if file.GetName() == path {
+			return true
+		}
+	}
+	return false
+}
+
+func requestHasProtoDependency(req *pluginpb.CodeGeneratorRequest, filePath, dependency string) bool {
+	for _, file := range req.GetProtoFile() {
+		if file.GetName() != filePath {
+			continue
+		}
+		for _, candidate := range file.Dependency {
+			if candidate == dependency {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func descriptorNames(req *pluginpb.CodeGeneratorRequest) []string {
+	names := make([]string, 0, len(req.GetProtoFile()))
+	for _, file := range req.GetProtoFile() {
+		names = append(names, file.GetName())
+	}
+	return names
 }
 
 func writeInstalledCodegenDistribution(t *testing.T, runtimeHome, sdk, version string, plugins []codegenDistributionPlugin) string {

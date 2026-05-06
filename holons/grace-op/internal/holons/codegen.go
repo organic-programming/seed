@@ -45,15 +45,55 @@ var knownCodegenSDKSlugs = map[string]struct{}{
 	"zig":    {},
 }
 
+type codegenPathRewriteMode string
+
+const (
+	codegenPathRewriteNone            codegenPathRewriteMode = ""
+	codegenPathRewriteRequestLegacy   codegenPathRewriteMode = "request-legacy"
+	codegenPathRewriteRequestBasename codegenPathRewriteMode = "request-basename"
+	codegenPathRewriteOutputLegacy    codegenPathRewriteMode = "output-legacy"
+)
+
+var legacyCodegenPathRewritePlugins = map[string]codegenPathRewriteMode{
+	"c":               codegenPathRewriteRequestBasename,
+	"c-upbdefs":       codegenPathRewriteRequestBasename,
+	"c-upb-minitable": codegenPathRewriteRequestBasename,
+	"cpp":             codegenPathRewriteRequestBasename,
+	"dart":            codegenPathRewriteOutputLegacy,
+	"go":              codegenPathRewriteRequestLegacy,
+	"go-grpc":         codegenPathRewriteRequestLegacy,
+	"python":          codegenPathRewriteOutputLegacy,
+	"ruby":            codegenPathRewriteOutputLegacy,
+	"swift":           codegenPathRewriteOutputLegacy,
+}
+
+var sourceDescriptorCompatibleCodegenPlugins = map[string]struct{}{
+	"c":               {},
+	"c-upbdefs":       {},
+	"c-upb-minitable": {},
+	"cpp":             {},
+	"csharp":          {},
+	"dart":            {},
+	"java":            {},
+	"js":              {},
+	"kotlin":          {},
+	"python":          {},
+	"ruby":            {},
+	"swift":           {},
+}
+
 type resolvedCodegenPlugin struct {
-	Name      string
-	SDK       string
-	Version   string
-	Target    string
-	Root      string
-	Binary    string
-	OutSubdir string
-	Parameter string
+	Name               string
+	SDK                string
+	Version            string
+	Target             string
+	Root               string
+	Binary             string
+	OutSubdir          string
+	Parameter          string
+	PathRewrite        codegenPathRewriteMode
+	OutputPathRewrites map[string]string
+	StripJSONNames     bool
 }
 
 type emittedCodegenFile struct {
@@ -284,6 +324,11 @@ func configureCodegenPlugins(manifest *LoadedManifest, stage *protoStageResult, 
 	configured := make([]resolvedCodegenPlugin, len(plugins))
 	copy(configured, plugins)
 	for i := range configured {
+		configured[i].PathRewrite = codegenPluginPathRewriteMode(configured[i].Name)
+		configured[i].StripJSONNames = codegenPluginNeedsSourceDescriptorCompatibility(configured[i].Name)
+		if codegenPathRewriteRemapsOutput(configured[i].PathRewrite) {
+			configured[i].OutputPathRewrites = legacyCodegenOutputRewrites(files, toGenerate)
+		}
 		switch configured[i].Name {
 		case "go", "go-grpc":
 			parameter, err := goCodegenParameter(manifest, files, toGenerate)
@@ -294,6 +339,22 @@ func configureCodegenPlugins(manifest *LoadedManifest, stage *protoStageResult, 
 		}
 	}
 	return configured, nil
+}
+
+func codegenPluginPathRewriteMode(name string) codegenPathRewriteMode {
+	if mode, ok := legacyCodegenPathRewritePlugins[name]; ok {
+		return mode
+	}
+	return codegenPathRewriteNone
+}
+
+func codegenPluginNeedsSourceDescriptorCompatibility(name string) bool {
+	_, ok := sourceDescriptorCompatibleCodegenPlugins[name]
+	return ok
+}
+
+func codegenPathRewriteRemapsOutput(mode codegenPathRewriteMode) bool {
+	return mode == codegenPathRewriteOutputLegacy || mode == codegenPathRewriteRequestBasename
 }
 
 func normalizedHolonProtos(stage *protoStageResult) []string {
@@ -310,6 +371,44 @@ func normalizedHolonProtos(stage *protoStageResult) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func legacyCodegenOutputRewrites(files map[string]*descriptorpb.FileDescriptorProto, toGenerate []string) map[string]string {
+	rewrites := make(map[string]string)
+	for _, path := range toGenerate {
+		file := files[path]
+		if file == nil {
+			continue
+		}
+		oldPath := filepath.ToSlash(strings.TrimSpace(file.GetName()))
+		if !strings.HasPrefix(oldPath, "v1/") {
+			continue
+		}
+		packagePrefix := legacyCodegenPackagePrefix(file)
+		if packagePrefix == "" {
+			continue
+		}
+		base := strings.TrimSuffix(strings.TrimPrefix(oldPath, "v1/"), ".proto")
+		if base == "" || strings.Contains(base, "/") {
+			continue
+		}
+		newPrefix := packagePrefix + "/v1/" + base
+		rewrites["v1/"+base] = newPrefix
+		rewrites[base] = newPrefix
+	}
+	return rewrites
+}
+
+func legacyCodegenPackagePrefix(file *descriptorpb.FileDescriptorProto) string {
+	protoPackage := strings.TrimSpace(file.GetPackage())
+	if protoPackage == "" {
+		return ""
+	}
+	prefix := strings.Split(protoPackage, ".")[0]
+	if prefix == "" || prefix == "v1" {
+		return ""
+	}
+	return prefix
 }
 
 func goCodegenParameter(manifest *LoadedManifest, files map[string]*descriptorpb.FileDescriptorProto, toGenerate []string) (string, error) {
@@ -337,7 +436,7 @@ func goCodegenParameter(manifest *LoadedManifest, files map[string]*descriptorpb
 		}
 		mapping := importPath + ";" + packageName
 		mappings[path] = mapping
-		if legacyPath := legacyGoCodegenProtoPath(file); legacyPath != "" {
+		if legacyPath := legacyCodegenProtoPath(file); legacyPath != "" {
 			mappings[legacyPath] = mapping
 		}
 	}
@@ -354,14 +453,14 @@ func goCodegenParameter(manifest *LoadedManifest, files map[string]*descriptorpb
 	return strings.Join(params, ","), nil
 }
 
-func legacyGoCodegenProtoPath(file *descriptorpb.FileDescriptorProto) string {
+func legacyCodegenProtoPath(file *descriptorpb.FileDescriptorProto) string {
 	path := filepath.ToSlash(strings.TrimSpace(file.GetName()))
 	protoPackage := strings.TrimSpace(file.GetPackage())
 	if path == "" || protoPackage == "" {
 		return ""
 	}
 	if strings.HasPrefix(path, "api/v1/") {
-		return "v1/" + legacyGoCodegenProtoBase(file) + ".proto"
+		return "v1/" + legacyCodegenProtoBase(file) + ".proto"
 	}
 	if !strings.HasPrefix(path, "v1/") {
 		return ""
@@ -373,7 +472,19 @@ func legacyGoCodegenProtoPath(file *descriptorpb.FileDescriptorProto) string {
 	return prefix + "/" + path
 }
 
-func legacyGoCodegenProtoBase(file *descriptorpb.FileDescriptorProto) string {
+func basenameCodegenProtoPath(file *descriptorpb.FileDescriptorProto) string {
+	path := filepath.ToSlash(strings.TrimSpace(file.GetName()))
+	if path == "" || !strings.HasPrefix(path, "v1/") {
+		return ""
+	}
+	base := strings.TrimPrefix(path, "v1/")
+	if base == "" || strings.Contains(base, "/") {
+		return ""
+	}
+	return base
+}
+
+func legacyCodegenProtoBase(file *descriptorpb.FileDescriptorProto) string {
 	goPackage := strings.TrimSpace(file.GetOptions().GetGoPackage())
 	importPath := strings.Split(goPackage, ";")[0]
 	const marker = "/gen/go/"
@@ -659,10 +770,11 @@ func invokeCodegenPlugin(ctx context.Context, plugin resolvedCodegenPlugin, reqB
 		if strings.TrimSpace(file.GetInsertionPoint()) != "" {
 			return nil, fmt.Errorf("codegen plugin failed: %s: insertion points are not supported for %s", plugin.Name, file.GetName())
 		}
+		name := rewriteLegacyCodegenOutputPath(file.GetName(), plugin.OutputPathRewrites)
 		files = append(files, emittedCodegenFile{
 			Plugin:    plugin.Name,
 			OutSubdir: plugin.OutSubdir,
-			Name:      file.GetName(),
+			Name:      name,
 			Content:   []byte(file.GetContent()),
 		})
 	}
@@ -671,17 +783,25 @@ func invokeCodegenPlugin(ctx context.Context, plugin resolvedCodegenPlugin, reqB
 
 func codegenRequestBytesForPlugin(reqBytes []byte, plugin resolvedCodegenPlugin) ([]byte, error) {
 	parameter := strings.TrimSpace(plugin.Parameter)
-	if parameter == "" {
+	if parameter == "" && !codegenPathRewriteRemapsRequest(plugin.PathRewrite) && !plugin.StripJSONNames {
 		return reqBytes, nil
 	}
 	req := &pluginpb.CodeGeneratorRequest{}
 	if err := proto.Unmarshal(reqBytes, req); err != nil {
 		return nil, fmt.Errorf("codegen plugin failed: %s: decode request: %w", plugin.Name, err)
 	}
-	if plugin.Name == "go" || plugin.Name == "go-grpc" {
-		rewriteGoCodegenRequestPaths(req)
+	if plugin.StripJSONNames {
+		stripCodegenJSONNames(req)
 	}
-	req.Parameter = proto.String(parameter)
+	switch plugin.PathRewrite {
+	case codegenPathRewriteRequestLegacy:
+		rewriteLegacyCodegenRequestPaths(req)
+	case codegenPathRewriteRequestBasename:
+		rewriteBasenameCodegenRequestPaths(req)
+	}
+	if parameter != "" {
+		req.Parameter = proto.String(parameter)
+	}
 	data, err := proto.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("codegen plugin failed: %s: encode request: %w", plugin.Name, err)
@@ -689,13 +809,85 @@ func codegenRequestBytesForPlugin(reqBytes []byte, plugin resolvedCodegenPlugin)
 	return data, nil
 }
 
-func rewriteGoCodegenRequestPaths(req *pluginpb.CodeGeneratorRequest) {
+func stripCodegenJSONNames(req *pluginpb.CodeGeneratorRequest) {
+	if req == nil {
+		return
+	}
+	for _, file := range req.ProtoFile {
+		stripDescriptorJSONNames(file.GetMessageType())
+	}
+}
+
+func stripDescriptorJSONNames(messages []*descriptorpb.DescriptorProto) {
+	for _, message := range messages {
+		for _, field := range message.Field {
+			field.JsonName = nil
+		}
+		stripDescriptorJSONNames(message.GetNestedType())
+	}
+}
+
+func codegenPathRewriteRemapsRequest(mode codegenPathRewriteMode) bool {
+	return mode == codegenPathRewriteRequestLegacy || mode == codegenPathRewriteRequestBasename
+}
+
+func rewriteLegacyCodegenOutputPath(name string, rewrites map[string]string) string {
+	name = filepath.ToSlash(strings.TrimSpace(name))
+	if name == "" || len(rewrites) == 0 {
+		return name
+	}
+	prefixes := make([]string, 0, len(rewrites))
+	for oldPrefix := range rewrites {
+		prefixes = append(prefixes, oldPrefix)
+	}
+	sort.Slice(prefixes, func(i, j int) bool {
+		return len(prefixes[i]) > len(prefixes[j])
+	})
+	for _, oldPrefix := range prefixes {
+		if name == oldPrefix || strings.HasPrefix(name, oldPrefix+".") || strings.HasPrefix(name, oldPrefix+"_") {
+			return rewrites[oldPrefix] + strings.TrimPrefix(name, oldPrefix)
+		}
+	}
+	return name
+}
+
+func rewriteLegacyCodegenRequestPaths(req *pluginpb.CodeGeneratorRequest) {
 	if req == nil {
 		return
 	}
 	rewrites := make(map[string]string)
 	for _, file := range req.GetProtoFile() {
-		if legacyPath := legacyGoCodegenProtoPath(file); legacyPath != "" {
+		if legacyPath := legacyCodegenProtoPath(file); legacyPath != "" {
+			rewrites[file.GetName()] = legacyPath
+		}
+	}
+	if len(rewrites) == 0 {
+		return
+	}
+	for i, path := range req.FileToGenerate {
+		if rewritten, ok := rewrites[path]; ok {
+			req.FileToGenerate[i] = rewritten
+		}
+	}
+	for _, file := range req.ProtoFile {
+		if rewritten, ok := rewrites[file.GetName()]; ok {
+			file.Name = proto.String(rewritten)
+		}
+		for i, dependency := range file.Dependency {
+			if rewritten, ok := rewrites[dependency]; ok {
+				file.Dependency[i] = rewritten
+			}
+		}
+	}
+}
+
+func rewriteBasenameCodegenRequestPaths(req *pluginpb.CodeGeneratorRequest) {
+	if req == nil {
+		return
+	}
+	rewrites := make(map[string]string)
+	for _, file := range req.GetProtoFile() {
+		if legacyPath := basenameCodegenProtoPath(file); legacyPath != "" {
 			rewrites[file.GetName()] = legacyPath
 		}
 	}
