@@ -65,6 +65,7 @@ var legacyCodegenPathRewritePlugins = map[string]codegenPathRewriteMode{
 	"python":          codegenPathRewriteOutputLegacy,
 	"ruby":            codegenPathRewriteOutputLegacy,
 	"swift":           codegenPathRewriteOutputLegacy,
+	"swift-grpc":      codegenPathRewriteOutputLegacy,
 }
 
 type resolvedCodegenPlugin struct {
@@ -359,6 +360,8 @@ func codegenPluginParameter(name string) string {
 	switch name {
 	case "dart":
 		return "grpc"
+	case "swift":
+		return "Visibility=Public"
 	default:
 		return ""
 	}
