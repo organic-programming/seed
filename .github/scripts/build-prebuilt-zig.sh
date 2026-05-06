@@ -119,6 +119,7 @@ case "$sdk_target" in
     ;;
 esac
 
+rm -rf "$grpc_build" "$protobuf_c_build"
 mkdir -p "$toolchain_dir" "$grpc_build" "$protobuf_c_build" "$prefix" "$dist_dir"
 cd "$sdk_dir"
 
