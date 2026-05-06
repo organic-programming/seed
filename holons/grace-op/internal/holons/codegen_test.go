@@ -132,6 +132,42 @@ func TestLoadManifestRejectsCodegenWithLegacyBeforeCommand(t *testing.T) {
 	}
 }
 
+func TestCodegenDescriptorFileOrderEmitsImportsBeforeImporters(t *testing.T) {
+	files := map[string]*descriptorpb.FileDescriptorProto{
+		"api/v1/holon.proto": {
+			Name:       proto.String("api/v1/holon.proto"),
+			Dependency: []string{"holons/v1/manifest.proto", "v1/greeting.proto"},
+		},
+		"google/protobuf/empty.proto": {
+			Name: proto.String("google/protobuf/empty.proto"),
+		},
+		"holons/v1/manifest.proto": {
+			Name: proto.String("holons/v1/manifest.proto"),
+		},
+		"v1/greeting.proto": {
+			Name:       proto.String("v1/greeting.proto"),
+			Dependency: []string{"google/protobuf/empty.proto"},
+		},
+	}
+
+	got := codegenDescriptorFileOrder(files)
+	positions := make(map[string]int, len(got))
+	for i, path := range got {
+		positions[path] = i
+	}
+
+	for importer, deps := range map[string][]string{
+		"api/v1/holon.proto": {"holons/v1/manifest.proto", "v1/greeting.proto"},
+		"v1/greeting.proto":  {"google/protobuf/empty.proto"},
+	} {
+		for _, dep := range deps {
+			if positions[dep] > positions[importer] {
+				t.Fatalf("descriptor order = %v; dependency %s appears after importer %s", got, dep, importer)
+			}
+		}
+	}
+}
+
 func TestCodegenRequestBytesForPluginRewritesLegacySharedProtoPaths(t *testing.T) {
 	req := &pluginpb.CodeGeneratorRequest{
 		FileToGenerate: []string{"v1/greeting.proto"},

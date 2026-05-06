@@ -228,17 +228,12 @@ func buildCodegenRequest(stage *protoStageResult) ([]byte, error) {
 
 	files := codegenDescriptorFiles(stage)
 
-	protoPaths := make([]string, 0, len(files))
-	for path := range files {
-		protoPaths = append(protoPaths, path)
-	}
-	sort.Strings(protoPaths)
-
 	toGenerate := codegenFilesToGenerate(files)
 	if len(toGenerate) == 0 {
 		toGenerate = normalizedHolonProtos(stage)
 	}
 
+	protoPaths := codegenDescriptorFileOrder(files)
 	req := &pluginpb.CodeGeneratorRequest{
 		FileToGenerate: toGenerate,
 		ProtoFile:      make([]*descriptorpb.FileDescriptorProto, 0, len(protoPaths)),
@@ -257,6 +252,41 @@ func buildCodegenRequest(stage *protoStageResult) ([]byte, error) {
 		return nil, fmt.Errorf("codegen: marshal request: %w", err)
 	}
 	return data, nil
+}
+
+func codegenDescriptorFileOrder(files map[string]*descriptorpb.FileDescriptorProto) []string {
+	paths := make([]string, 0, len(files))
+	for path := range files {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+
+	state := make(map[string]int, len(files))
+	out := make([]string, 0, len(files))
+	var visit func(string)
+	visit = func(path string) {
+		switch state[path] {
+		case 1, 2:
+			return
+		}
+		state[path] = 1
+		file := files[path]
+		if file != nil {
+			deps := append([]string(nil), file.Dependency...)
+			sort.Strings(deps)
+			for _, dep := range deps {
+				if _, ok := files[dep]; ok {
+					visit(dep)
+				}
+			}
+		}
+		state[path] = 2
+		out = append(out, path)
+	}
+	for _, path := range paths {
+		visit(path)
+	}
+	return out
 }
 
 func codegenDescriptorFiles(stage *protoStageResult) map[string]*descriptorpb.FileDescriptorProto {
