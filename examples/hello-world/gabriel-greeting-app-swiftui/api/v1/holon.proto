@@ -27,6 +27,9 @@ option (holons.v1.manifest) = {
   }
   build: {
     runner: "recipe"
+    codegen: {
+      languages: ["swift", "swift-grpc"]
+    }
     templates: ["App/Info.plist", "project.yml"]
     defaults: {
       target: "macos"
@@ -188,6 +191,7 @@ option (holons.v1.manifest) = {
   }
   requires: {
     commands: ["xcodebuild", "xcodegen", "go", "swift", "cargo", "zig", "cmake", "ninja", "python3", "dotnet", "dart", "java", "gradle", "node", "npm", "ruby", "bundle"]
+    sdk_prebuilts: ["swift"]
     files: ["project.yml"]
   }
   artifacts: {
