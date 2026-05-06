@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.0
-// source: v1/holon.proto
+// source: api/v1/holon.proto
 
 package aderv1
 
@@ -39,7 +39,7 @@ type TestRequest struct {
 
 func (x *TestRequest) Reset() {
 	*x = TestRequest{}
-	mi := &file_v1_holon_proto_msgTypes[0]
+	mi := &file_api_v1_holon_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -51,7 +51,7 @@ func (x *TestRequest) String() string {
 func (*TestRequest) ProtoMessage() {}
 
 func (x *TestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[0]
+	mi := &file_api_v1_holon_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -64,7 +64,7 @@ func (x *TestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestRequest.ProtoReflect.Descriptor instead.
 func (*TestRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{0}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *TestRequest) GetConfigDir() string {
@@ -140,7 +140,7 @@ type TestResponse struct {
 
 func (x *TestResponse) Reset() {
 	*x = TestResponse{}
-	mi := &file_v1_holon_proto_msgTypes[1]
+	mi := &file_api_v1_holon_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -152,7 +152,7 @@ func (x *TestResponse) String() string {
 func (*TestResponse) ProtoMessage() {}
 
 func (x *TestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[1]
+	mi := &file_api_v1_holon_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -165,7 +165,7 @@ func (x *TestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestResponse.ProtoReflect.Descriptor instead.
 func (*TestResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{1}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *TestResponse) GetManifest() *HistoryRecord {
@@ -192,7 +192,7 @@ type BouquetRequest struct {
 
 func (x *BouquetRequest) Reset() {
 	*x = BouquetRequest{}
-	mi := &file_v1_holon_proto_msgTypes[2]
+	mi := &file_api_v1_holon_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -204,7 +204,7 @@ func (x *BouquetRequest) String() string {
 func (*BouquetRequest) ProtoMessage() {}
 
 func (x *BouquetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[2]
+	mi := &file_api_v1_holon_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -217,7 +217,7 @@ func (x *BouquetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BouquetRequest.ProtoReflect.Descriptor instead.
 func (*BouquetRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{2}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *BouquetRequest) GetAderRoot() string {
@@ -244,7 +244,7 @@ type BouquetResponse struct {
 
 func (x *BouquetResponse) Reset() {
 	*x = BouquetResponse{}
-	mi := &file_v1_holon_proto_msgTypes[3]
+	mi := &file_api_v1_holon_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -256,7 +256,7 @@ func (x *BouquetResponse) String() string {
 func (*BouquetResponse) ProtoMessage() {}
 
 func (x *BouquetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[3]
+	mi := &file_api_v1_holon_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -269,7 +269,7 @@ func (x *BouquetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BouquetResponse.ProtoReflect.Descriptor instead.
 func (*BouquetResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{3}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *BouquetResponse) GetManifest() *BouquetRecord {
@@ -297,7 +297,7 @@ type ArchiveRequest struct {
 
 func (x *ArchiveRequest) Reset() {
 	*x = ArchiveRequest{}
-	mi := &file_v1_holon_proto_msgTypes[4]
+	mi := &file_api_v1_holon_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -309,7 +309,7 @@ func (x *ArchiveRequest) String() string {
 func (*ArchiveRequest) ProtoMessage() {}
 
 func (x *ArchiveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[4]
+	mi := &file_api_v1_holon_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -322,7 +322,7 @@ func (x *ArchiveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveRequest.ProtoReflect.Descriptor instead.
 func (*ArchiveRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{4}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ArchiveRequest) GetConfigDir() string {
@@ -356,7 +356,7 @@ type ArchiveResponse struct {
 
 func (x *ArchiveResponse) Reset() {
 	*x = ArchiveResponse{}
-	mi := &file_v1_holon_proto_msgTypes[5]
+	mi := &file_api_v1_holon_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -368,7 +368,7 @@ func (x *ArchiveResponse) String() string {
 func (*ArchiveResponse) ProtoMessage() {}
 
 func (x *ArchiveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[5]
+	mi := &file_api_v1_holon_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -381,7 +381,7 @@ func (x *ArchiveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveResponse.ProtoReflect.Descriptor instead.
 func (*ArchiveResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{5}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ArchiveResponse) GetManifest() *HistoryRecord {
@@ -409,7 +409,7 @@ type ArchiveBouquetRequest struct {
 
 func (x *ArchiveBouquetRequest) Reset() {
 	*x = ArchiveBouquetRequest{}
-	mi := &file_v1_holon_proto_msgTypes[6]
+	mi := &file_api_v1_holon_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -421,7 +421,7 @@ func (x *ArchiveBouquetRequest) String() string {
 func (*ArchiveBouquetRequest) ProtoMessage() {}
 
 func (x *ArchiveBouquetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[6]
+	mi := &file_api_v1_holon_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -434,7 +434,7 @@ func (x *ArchiveBouquetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveBouquetRequest.ProtoReflect.Descriptor instead.
 func (*ArchiveBouquetRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{6}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ArchiveBouquetRequest) GetAderRoot() string {
@@ -468,7 +468,7 @@ type ArchiveBouquetResponse struct {
 
 func (x *ArchiveBouquetResponse) Reset() {
 	*x = ArchiveBouquetResponse{}
-	mi := &file_v1_holon_proto_msgTypes[7]
+	mi := &file_api_v1_holon_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -480,7 +480,7 @@ func (x *ArchiveBouquetResponse) String() string {
 func (*ArchiveBouquetResponse) ProtoMessage() {}
 
 func (x *ArchiveBouquetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[7]
+	mi := &file_api_v1_holon_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -493,7 +493,7 @@ func (x *ArchiveBouquetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveBouquetResponse.ProtoReflect.Descriptor instead.
 func (*ArchiveBouquetResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{7}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ArchiveBouquetResponse) GetManifest() *BouquetRecord {
@@ -519,7 +519,7 @@ type CleanupRequest struct {
 
 func (x *CleanupRequest) Reset() {
 	*x = CleanupRequest{}
-	mi := &file_v1_holon_proto_msgTypes[8]
+	mi := &file_api_v1_holon_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -531,7 +531,7 @@ func (x *CleanupRequest) String() string {
 func (*CleanupRequest) ProtoMessage() {}
 
 func (x *CleanupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[8]
+	mi := &file_api_v1_holon_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -544,7 +544,7 @@ func (x *CleanupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupRequest.ProtoReflect.Descriptor instead.
 func (*CleanupRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{8}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CleanupRequest) GetConfigDir() string {
@@ -566,7 +566,7 @@ type CleanupResponse struct {
 
 func (x *CleanupResponse) Reset() {
 	*x = CleanupResponse{}
-	mi := &file_v1_holon_proto_msgTypes[9]
+	mi := &file_api_v1_holon_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -578,7 +578,7 @@ func (x *CleanupResponse) String() string {
 func (*CleanupResponse) ProtoMessage() {}
 
 func (x *CleanupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[9]
+	mi := &file_api_v1_holon_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -591,7 +591,7 @@ func (x *CleanupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CleanupResponse.ProtoReflect.Descriptor instead.
 func (*CleanupResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{9}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CleanupResponse) GetRemovedLocalSuiteDirs() uint32 {
@@ -634,7 +634,7 @@ type PromoteRequest struct {
 
 func (x *PromoteRequest) Reset() {
 	*x = PromoteRequest{}
-	mi := &file_v1_holon_proto_msgTypes[10]
+	mi := &file_api_v1_holon_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -646,7 +646,7 @@ func (x *PromoteRequest) String() string {
 func (*PromoteRequest) ProtoMessage() {}
 
 func (x *PromoteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[10]
+	mi := &file_api_v1_holon_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -659,7 +659,7 @@ func (x *PromoteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteRequest.ProtoReflect.Descriptor instead.
 func (*PromoteRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{10}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PromoteRequest) GetConfigDir() string {
@@ -702,7 +702,7 @@ type PromoteResponse struct {
 
 func (x *PromoteResponse) Reset() {
 	*x = PromoteResponse{}
-	mi := &file_v1_holon_proto_msgTypes[11]
+	mi := &file_api_v1_holon_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -714,7 +714,7 @@ func (x *PromoteResponse) String() string {
 func (*PromoteResponse) ProtoMessage() {}
 
 func (x *PromoteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[11]
+	mi := &file_api_v1_holon_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -727,7 +727,7 @@ func (x *PromoteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteResponse.ProtoReflect.Descriptor instead.
 func (*PromoteResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{11}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PromoteResponse) GetSuite() string {
@@ -770,7 +770,7 @@ type DowngradeRequest struct {
 
 func (x *DowngradeRequest) Reset() {
 	*x = DowngradeRequest{}
-	mi := &file_v1_holon_proto_msgTypes[12]
+	mi := &file_api_v1_holon_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -782,7 +782,7 @@ func (x *DowngradeRequest) String() string {
 func (*DowngradeRequest) ProtoMessage() {}
 
 func (x *DowngradeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[12]
+	mi := &file_api_v1_holon_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -795,7 +795,7 @@ func (x *DowngradeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DowngradeRequest.ProtoReflect.Descriptor instead.
 func (*DowngradeRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{12}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DowngradeRequest) GetConfigDir() string {
@@ -838,7 +838,7 @@ type DowngradeResponse struct {
 
 func (x *DowngradeResponse) Reset() {
 	*x = DowngradeResponse{}
-	mi := &file_v1_holon_proto_msgTypes[13]
+	mi := &file_api_v1_holon_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -850,7 +850,7 @@ func (x *DowngradeResponse) String() string {
 func (*DowngradeResponse) ProtoMessage() {}
 
 func (x *DowngradeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[13]
+	mi := &file_api_v1_holon_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -863,7 +863,7 @@ func (x *DowngradeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DowngradeResponse.ProtoReflect.Descriptor instead.
 func (*DowngradeResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{13}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DowngradeResponse) GetSuite() string {
@@ -903,7 +903,7 @@ type HistoryRequest struct {
 
 func (x *HistoryRequest) Reset() {
 	*x = HistoryRequest{}
-	mi := &file_v1_holon_proto_msgTypes[14]
+	mi := &file_api_v1_holon_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -915,7 +915,7 @@ func (x *HistoryRequest) String() string {
 func (*HistoryRequest) ProtoMessage() {}
 
 func (x *HistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[14]
+	mi := &file_api_v1_holon_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -928,7 +928,7 @@ func (x *HistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryRequest.ProtoReflect.Descriptor instead.
 func (*HistoryRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{14}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *HistoryRequest) GetConfigDir() string {
@@ -947,7 +947,7 @@ type HistoryResponse struct {
 
 func (x *HistoryResponse) Reset() {
 	*x = HistoryResponse{}
-	mi := &file_v1_holon_proto_msgTypes[15]
+	mi := &file_api_v1_holon_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -959,7 +959,7 @@ func (x *HistoryResponse) String() string {
 func (*HistoryResponse) ProtoMessage() {}
 
 func (x *HistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[15]
+	mi := &file_api_v1_holon_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -972,7 +972,7 @@ func (x *HistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryResponse.ProtoReflect.Descriptor instead.
 func (*HistoryResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{15}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *HistoryResponse) GetEntries() []*HistoryEntry {
@@ -991,7 +991,7 @@ type BouquetHistoryRequest struct {
 
 func (x *BouquetHistoryRequest) Reset() {
 	*x = BouquetHistoryRequest{}
-	mi := &file_v1_holon_proto_msgTypes[16]
+	mi := &file_api_v1_holon_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1003,7 +1003,7 @@ func (x *BouquetHistoryRequest) String() string {
 func (*BouquetHistoryRequest) ProtoMessage() {}
 
 func (x *BouquetHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[16]
+	mi := &file_api_v1_holon_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1016,7 +1016,7 @@ func (x *BouquetHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BouquetHistoryRequest.ProtoReflect.Descriptor instead.
 func (*BouquetHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{16}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *BouquetHistoryRequest) GetAderRoot() string {
@@ -1035,7 +1035,7 @@ type BouquetHistoryResponse struct {
 
 func (x *BouquetHistoryResponse) Reset() {
 	*x = BouquetHistoryResponse{}
-	mi := &file_v1_holon_proto_msgTypes[17]
+	mi := &file_api_v1_holon_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1047,7 +1047,7 @@ func (x *BouquetHistoryResponse) String() string {
 func (*BouquetHistoryResponse) ProtoMessage() {}
 
 func (x *BouquetHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[17]
+	mi := &file_api_v1_holon_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1060,7 +1060,7 @@ func (x *BouquetHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BouquetHistoryResponse.ProtoReflect.Descriptor instead.
 func (*BouquetHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{17}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *BouquetHistoryResponse) GetEntries() []*BouquetHistoryEntry {
@@ -1080,7 +1080,7 @@ type ShowHistoryRequest struct {
 
 func (x *ShowHistoryRequest) Reset() {
 	*x = ShowHistoryRequest{}
-	mi := &file_v1_holon_proto_msgTypes[18]
+	mi := &file_api_v1_holon_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1092,7 +1092,7 @@ func (x *ShowHistoryRequest) String() string {
 func (*ShowHistoryRequest) ProtoMessage() {}
 
 func (x *ShowHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[18]
+	mi := &file_api_v1_holon_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1105,7 +1105,7 @@ func (x *ShowHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShowHistoryRequest.ProtoReflect.Descriptor instead.
 func (*ShowHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{18}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ShowHistoryRequest) GetConfigDir() string {
@@ -1134,7 +1134,7 @@ type ShowHistoryResponse struct {
 
 func (x *ShowHistoryResponse) Reset() {
 	*x = ShowHistoryResponse{}
-	mi := &file_v1_holon_proto_msgTypes[19]
+	mi := &file_api_v1_holon_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1146,7 +1146,7 @@ func (x *ShowHistoryResponse) String() string {
 func (*ShowHistoryResponse) ProtoMessage() {}
 
 func (x *ShowHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[19]
+	mi := &file_api_v1_holon_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1159,7 +1159,7 @@ func (x *ShowHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShowHistoryResponse.ProtoReflect.Descriptor instead.
 func (*ShowHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{19}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ShowHistoryResponse) GetManifest() *HistoryRecord {
@@ -1200,7 +1200,7 @@ type ShowBouquetHistoryRequest struct {
 
 func (x *ShowBouquetHistoryRequest) Reset() {
 	*x = ShowBouquetHistoryRequest{}
-	mi := &file_v1_holon_proto_msgTypes[20]
+	mi := &file_api_v1_holon_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1212,7 +1212,7 @@ func (x *ShowBouquetHistoryRequest) String() string {
 func (*ShowBouquetHistoryRequest) ProtoMessage() {}
 
 func (x *ShowBouquetHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[20]
+	mi := &file_api_v1_holon_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1225,7 +1225,7 @@ func (x *ShowBouquetHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShowBouquetHistoryRequest.ProtoReflect.Descriptor instead.
 func (*ShowBouquetHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{20}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ShowBouquetHistoryRequest) GetAderRoot() string {
@@ -1253,7 +1253,7 @@ type ShowBouquetHistoryResponse struct {
 
 func (x *ShowBouquetHistoryResponse) Reset() {
 	*x = ShowBouquetHistoryResponse{}
-	mi := &file_v1_holon_proto_msgTypes[21]
+	mi := &file_api_v1_holon_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1265,7 +1265,7 @@ func (x *ShowBouquetHistoryResponse) String() string {
 func (*ShowBouquetHistoryResponse) ProtoMessage() {}
 
 func (x *ShowBouquetHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[21]
+	mi := &file_api_v1_holon_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1278,7 +1278,7 @@ func (x *ShowBouquetHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShowBouquetHistoryResponse.ProtoReflect.Descriptor instead.
 func (*ShowBouquetHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{21}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ShowBouquetHistoryResponse) GetManifest() *BouquetRecord {
@@ -1322,7 +1322,7 @@ type HistoryEntry struct {
 
 func (x *HistoryEntry) Reset() {
 	*x = HistoryEntry{}
-	mi := &file_v1_holon_proto_msgTypes[22]
+	mi := &file_api_v1_holon_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1334,7 +1334,7 @@ func (x *HistoryEntry) String() string {
 func (*HistoryEntry) ProtoMessage() {}
 
 func (x *HistoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[22]
+	mi := &file_api_v1_holon_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1347,7 +1347,7 @@ func (x *HistoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryEntry.ProtoReflect.Descriptor instead.
 func (*HistoryEntry) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{22}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *HistoryEntry) GetHistoryId() string {
@@ -1449,7 +1449,7 @@ type BouquetHistoryEntry struct {
 
 func (x *BouquetHistoryEntry) Reset() {
 	*x = BouquetHistoryEntry{}
-	mi := &file_v1_holon_proto_msgTypes[23]
+	mi := &file_api_v1_holon_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1461,7 +1461,7 @@ func (x *BouquetHistoryEntry) String() string {
 func (*BouquetHistoryEntry) ProtoMessage() {}
 
 func (x *BouquetHistoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[23]
+	mi := &file_api_v1_holon_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1474,7 +1474,7 @@ func (x *BouquetHistoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BouquetHistoryEntry.ProtoReflect.Descriptor instead.
 func (*BouquetHistoryEntry) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{23}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *BouquetHistoryEntry) GetHistoryId() string {
@@ -1555,7 +1555,7 @@ type HistoryRecord struct {
 
 func (x *HistoryRecord) Reset() {
 	*x = HistoryRecord{}
-	mi := &file_v1_holon_proto_msgTypes[24]
+	mi := &file_api_v1_holon_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1567,7 +1567,7 @@ func (x *HistoryRecord) String() string {
 func (*HistoryRecord) ProtoMessage() {}
 
 func (x *HistoryRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[24]
+	mi := &file_api_v1_holon_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1580,7 +1580,7 @@ func (x *HistoryRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HistoryRecord.ProtoReflect.Descriptor instead.
 func (*HistoryRecord) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{24}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *HistoryRecord) GetConfigDir() string {
@@ -1749,7 +1749,7 @@ type BouquetRecord struct {
 
 func (x *BouquetRecord) Reset() {
 	*x = BouquetRecord{}
-	mi := &file_v1_holon_proto_msgTypes[25]
+	mi := &file_api_v1_holon_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1761,7 +1761,7 @@ func (x *BouquetRecord) String() string {
 func (*BouquetRecord) ProtoMessage() {}
 
 func (x *BouquetRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[25]
+	mi := &file_api_v1_holon_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1774,7 +1774,7 @@ func (x *BouquetRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BouquetRecord.ProtoReflect.Descriptor instead.
 func (*BouquetRecord) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{25}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *BouquetRecord) GetAderRoot() string {
@@ -1873,7 +1873,7 @@ type StepResult struct {
 
 func (x *StepResult) Reset() {
 	*x = StepResult{}
-	mi := &file_v1_holon_proto_msgTypes[26]
+	mi := &file_api_v1_holon_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1885,7 +1885,7 @@ func (x *StepResult) String() string {
 func (*StepResult) ProtoMessage() {}
 
 func (x *StepResult) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[26]
+	mi := &file_api_v1_holon_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1898,7 +1898,7 @@ func (x *StepResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepResult.ProtoReflect.Descriptor instead.
 func (*StepResult) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{26}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *StepResult) GetStepId() string {
@@ -2000,7 +2000,7 @@ type BouquetEntryResult struct {
 
 func (x *BouquetEntryResult) Reset() {
 	*x = BouquetEntryResult{}
-	mi := &file_v1_holon_proto_msgTypes[27]
+	mi := &file_api_v1_holon_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2012,7 +2012,7 @@ func (x *BouquetEntryResult) String() string {
 func (*BouquetEntryResult) ProtoMessage() {}
 
 func (x *BouquetEntryResult) ProtoReflect() protoreflect.Message {
-	mi := &file_v1_holon_proto_msgTypes[27]
+	mi := &file_api_v1_holon_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2025,7 +2025,7 @@ func (x *BouquetEntryResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BouquetEntryResult.ProtoReflect.Descriptor instead.
 func (*BouquetEntryResult) Descriptor() ([]byte, []int) {
-	return file_v1_holon_proto_rawDescGZIP(), []int{27}
+	return file_api_v1_holon_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *BouquetEntryResult) GetCatalogue() string {
@@ -2126,11 +2126,11 @@ func (x *BouquetEntryResult) GetFinishedAt() string {
 	return ""
 }
 
-var File_v1_holon_proto protoreflect.FileDescriptor
+var File_api_v1_holon_proto protoreflect.FileDescriptor
 
-const file_v1_holon_proto_rawDesc = "" +
+const file_api_v1_holon_proto_rawDesc = "" +
 	"\n" +
-	"\x0ev1/holon.proto\x12\aader.v1\x1a\x18holons/v1/manifest.proto\"\x96\x02\n" +
+	"\x12api/v1/holon.proto\x12\aader.v1\x1a\x18holons/v1/manifest.proto\"\x96\x02\n" +
 	"\vTestRequest\x12\x1d\n" +
 	"\n" +
 	"config_dir\x18\x01 \x01(\tR\tconfigDir\x12\x14\n" +
@@ -2360,7 +2360,7 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\aHistory\x12\x17.ader.v1.HistoryRequest\x1a\x18.ader.v1.HistoryResponse\x12Q\n" +
 	"\x0eBouquetHistory\x12\x1e.ader.v1.BouquetHistoryRequest\x1a\x1f.ader.v1.BouquetHistoryResponse\x12H\n" +
 	"\vShowHistory\x12\x1b.ader.v1.ShowHistoryRequest\x1a\x1c.ader.v1.ShowHistoryResponse\x12]\n" +
-	"\x12ShowBouquetHistory\x12\".ader.v1.ShowBouquetHistoryRequest\x1a#.ader.v1.ShowBouquetHistoryResponseB\x91\x18\x82\xb5\x18\xd1\x17\n" +
+	"\x12ShowBouquetHistory\x12\".ader.v1.ShowBouquetHistoryRequest\x1a#.ader.v1.ShowBouquetHistoryResponseB\xa4\x18\x82\xb5\x18\xe4\x17\n" +
 	"\x9d\x01\n" +
 	"\bholon/v1\x12$0dc655fd-d130-41d3-b332-cf1cf334f61d\x1a\x04Clem\"\x04Ader*5Freeze the repo, run the proof, archive the evidence.2\bB. ALTERB\x05draftJ\n" +
 	"2026-04-01R\x050.3.0Z\x04ader\x1a\xb8\x02Clem Ader is the local proof holon of the seed. It loads catalogue-local checks and suites, freezes committed or workspace snapshots, runs progression or regression lanes, archives useful evidence by commit hash, orchestrates bouquets across several catalogues, and keeps promotion scoped to each suite scenario.\"\x02go*\xab\x03\n" +
@@ -2369,25 +2369,27 @@ const file_v1_holon_proto_rawDesc = "" +
 	"\x13promote-after-proof\x12<Promote progression steps to regression after a clean proof.\x1aXA progression run passed and the step should now become part of the regression baseline.\"JInspect `promotion.md` to confirm the suggested `ader promote ...` command\"dRun `ader promote ader/catalogues/clem-ader --suite ader-self --step <step-id>` or `--all` as needed\"-Review the suite diff and commit deliberately*\xf3\x03\n" +
 	"\x15downgrade-and-rebuild\x12bMove regression steps back to progression, rerun the proof, and review the new promotion evidence.\x1aPA profile or step should be reset to TDD without editing the suite YAML by hand.\"kRun `ader downgrade ader/catalogues/grace-op --suite op-proxy --all` or target specific steps with `--step`\"oRun `ader test ader/catalogues/grace-op --suite op-proxy --profile smoke --lane progression --source workspace`\"FReview the new `promotion.json` and `promotion.md` before re-promoting*\xa0\x03\n" +
 	"\x0ereport-hygiene\x12AArchive the useful evidence and remove deterministic run residue.\x1aIOld snapshots, temp stores, or extracted reports should be pruned safely.\"aRun `ader archive ader/catalogues/grace-op --latest` if the report must be preserved historically\"URun `ader cleanup ader/catalogues/grace-op` to delete deterministic catalogue residue\"FKeep archives under `ader/catalogues/grace-op/archives/<commit-hash>/`2\xac\x01\n" +
-	"\x12api/v1/holon.proto\x12\x13ader.v1.AderService\x1a\x04Test\x1a\vTestBouquet\x1a\aArchive\x1a\x0eArchiveBouquet\x1a\aCleanup\x1a\aPromote\x1a\tDowngrade\x1a\aHistory\x1a\x0eBouquetHistory\x1a\vShowHistory\x1a\x12ShowBouquetHistory:\x06nativeR\"\n" +
-	"\tgo-module\x12\x05./cmd2\x0eapi/version.goZ\f\n" +
-	"\x02go\x12\x06go.modj\x06\n" +
+	"\x12api/v1/holon.proto\x12\x13ader.v1.AderService\x1a\x04Test\x1a\vTestBouquet\x1a\aArchive\x1a\x0eArchiveBouquet\x1a\aCleanup\x1a\aPromote\x1a\tDowngrade\x1a\aHistory\x1a\x0eBouquetHistory\x1a\vShowHistory\x1a\x12ShowBouquetHistory:\x06nativeR1\n" +
+	"\tgo-module\x12\x05./cmd2\x0eapi/version.goJ\r\n" +
+	"\x02go\n" +
+	"\ago-grpcZ\x10\n" +
+	"\x02go\x12\x06go.mod\"\x02goj\x06\n" +
 	"\x04aderZ9github.com/organic-programming/clem-ader/gen/go/v1;aderv1b\x06proto3"
 
 var (
-	file_v1_holon_proto_rawDescOnce sync.Once
-	file_v1_holon_proto_rawDescData []byte
+	file_api_v1_holon_proto_rawDescOnce sync.Once
+	file_api_v1_holon_proto_rawDescData []byte
 )
 
-func file_v1_holon_proto_rawDescGZIP() []byte {
-	file_v1_holon_proto_rawDescOnce.Do(func() {
-		file_v1_holon_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_v1_holon_proto_rawDesc), len(file_v1_holon_proto_rawDesc)))
+func file_api_v1_holon_proto_rawDescGZIP() []byte {
+	file_api_v1_holon_proto_rawDescOnce.Do(func() {
+		file_api_v1_holon_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_api_v1_holon_proto_rawDesc), len(file_api_v1_holon_proto_rawDesc)))
 	})
-	return file_v1_holon_proto_rawDescData
+	return file_api_v1_holon_proto_rawDescData
 }
 
-var file_v1_holon_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
-var file_v1_holon_proto_goTypes = []any{
+var file_api_v1_holon_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_api_v1_holon_proto_goTypes = []any{
 	(*TestRequest)(nil),                // 0: ader.v1.TestRequest
 	(*TestResponse)(nil),               // 1: ader.v1.TestResponse
 	(*BouquetRequest)(nil),             // 2: ader.v1.BouquetRequest
@@ -2417,7 +2419,7 @@ var file_v1_holon_proto_goTypes = []any{
 	(*StepResult)(nil),                 // 26: ader.v1.StepResult
 	(*BouquetEntryResult)(nil),         // 27: ader.v1.BouquetEntryResult
 }
-var file_v1_holon_proto_depIdxs = []int32{
+var file_api_v1_holon_proto_depIdxs = []int32{
 	24, // 0: ader.v1.TestResponse.manifest:type_name -> ader.v1.HistoryRecord
 	26, // 1: ader.v1.TestResponse.steps:type_name -> ader.v1.StepResult
 	25, // 2: ader.v1.BouquetResponse.manifest:type_name -> ader.v1.BouquetRecord
@@ -2459,26 +2461,26 @@ var file_v1_holon_proto_depIdxs = []int32{
 	0,  // [0:12] is the sub-list for field type_name
 }
 
-func init() { file_v1_holon_proto_init() }
-func file_v1_holon_proto_init() {
-	if File_v1_holon_proto != nil {
+func init() { file_api_v1_holon_proto_init() }
+func file_api_v1_holon_proto_init() {
+	if File_api_v1_holon_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_v1_holon_proto_rawDesc), len(file_v1_holon_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_holon_proto_rawDesc), len(file_api_v1_holon_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_v1_holon_proto_goTypes,
-		DependencyIndexes: file_v1_holon_proto_depIdxs,
-		MessageInfos:      file_v1_holon_proto_msgTypes,
+		GoTypes:           file_api_v1_holon_proto_goTypes,
+		DependencyIndexes: file_api_v1_holon_proto_depIdxs,
+		MessageInfos:      file_api_v1_holon_proto_msgTypes,
 	}.Build()
-	File_v1_holon_proto = out.File
-	file_v1_holon_proto_goTypes = nil
-	file_v1_holon_proto_depIdxs = nil
+	File_api_v1_holon_proto = out.File
+	file_api_v1_holon_proto_goTypes = nil
+	file_api_v1_holon_proto_depIdxs = nil
 }
