@@ -168,6 +168,36 @@ func TestCodegenDescriptorFileOrderEmitsImportsBeforeImporters(t *testing.T) {
 	}
 }
 
+func TestCodegenFilesToGenerateIncludesSharedServiceProto(t *testing.T) {
+	files := map[string]*descriptorpb.FileDescriptorProto{
+		"api/v1/holon.proto": {
+			Name:       proto.String("api/v1/holon.proto"),
+			Package:    proto.String("holons.v1"),
+			Dependency: []string{"v1/greeting.proto"},
+		},
+		"v1/greeting.proto": {
+			Name:    proto.String("v1/greeting.proto"),
+			Package: proto.String("greeting.v1"),
+			Service: []*descriptorpb.ServiceDescriptorProto{{
+				Name: proto.String("GreetingService"),
+			}},
+		},
+		"holons/v1/manifest.proto": {
+			Name:    proto.String("holons/v1/manifest.proto"),
+			Package: proto.String("holons.v1"),
+			MessageType: []*descriptorpb.DescriptorProto{{
+				Name: proto.String("Manifest"),
+			}},
+		},
+	}
+
+	got := codegenFilesToGenerate(files)
+	want := []string{"v1/greeting.proto"}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("codegenFilesToGenerate = %v, want %v", got, want)
+	}
+}
+
 func TestCodegenRequestBytesForPluginRewritesLegacySharedProtoPaths(t *testing.T) {
 	req := &pluginpb.CodeGeneratorRequest{
 		FileToGenerate: []string{"v1/greeting.proto"},
@@ -207,6 +237,36 @@ func TestCodegenRequestBytesForPluginRewritesLegacySharedProtoPaths(t *testing.T
 			}
 			if !requestHasProtoDependency(got, "v1/holon.proto", "greeting/v1/greeting.proto") {
 				t.Fatalf("rewritten dependency missing from v1/holon.proto")
+			}
+		})
+	}
+}
+
+func TestCodegenPluginPathRewriteModesCoverMigratedLanguages(t *testing.T) {
+	for _, tc := range []struct {
+		plugin string
+		want   codegenPathRewriteMode
+	}{
+		{plugin: "c", want: codegenPathRewriteRequestBasename},
+		{plugin: "c-upbdefs", want: codegenPathRewriteRequestBasename},
+		{plugin: "c-upb-minitable", want: codegenPathRewriteRequestBasename},
+		{plugin: "cpp", want: codegenPathRewriteRequestBasename},
+		{plugin: "dart", want: codegenPathRewriteOutputLegacy},
+		{plugin: "go", want: codegenPathRewriteRequestLegacy},
+		{plugin: "go-grpc", want: codegenPathRewriteRequestLegacy},
+		{plugin: "js", want: codegenPathRewriteOutputLegacy},
+		{plugin: "python", want: codegenPathRewriteOutputLegacy},
+		{plugin: "ruby", want: codegenPathRewriteOutputLegacy},
+		{plugin: "swift", want: codegenPathRewriteOutputLegacy},
+		{plugin: "swift-grpc", want: codegenPathRewriteOutputLegacy},
+		{plugin: "zig", want: codegenPathRewriteRequestBasename},
+		{plugin: "java", want: codegenPathRewriteNone},
+		{plugin: "kotlin", want: codegenPathRewriteNone},
+		{plugin: "kotlin-grpc", want: codegenPathRewriteNone},
+	} {
+		t.Run(tc.plugin, func(t *testing.T) {
+			if got := codegenPluginPathRewriteMode(tc.plugin); got != tc.want {
+				t.Fatalf("path rewrite mode = %q, want %q", got, tc.want)
 			}
 		})
 	}
@@ -260,6 +320,28 @@ func TestLegacyCodegenOutputPathRewriteForZig(t *testing.T) {
 	}
 	if got := codegenPluginPathRewriteMode("zig"); got != codegenPathRewriteRequestBasename {
 		t.Fatalf("zig path rewrite mode = %q, want %q", got, codegenPathRewriteRequestBasename)
+	}
+}
+
+func TestCodegenSDKSlugForMultiPluginLanguages(t *testing.T) {
+	for _, tc := range []struct {
+		language string
+		want     string
+	}{
+		{language: "c-upbdefs", want: "c"},
+		{language: "c-upb-minitable", want: "c"},
+		{language: "go-grpc", want: "go"},
+		{language: "kotlin-java", want: "kotlin"},
+		{language: "kotlin-java-grpc", want: "kotlin"},
+		{language: "kotlin-grpc", want: "kotlin"},
+		{language: "swift-grpc", want: "swift"},
+		{language: "js-web", want: "js-web"},
+	} {
+		t.Run(tc.language, func(t *testing.T) {
+			if got := codegenSDKSlug(tc.language); got != tc.want {
+				t.Fatalf("codegenSDKSlug(%q) = %q, want %q", tc.language, got, tc.want)
+			}
+		})
 	}
 }
 
