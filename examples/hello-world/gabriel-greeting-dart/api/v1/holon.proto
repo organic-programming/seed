@@ -29,10 +29,12 @@ option (holons.v1.manifest) = {
     runner: "dart"
     main: "./cmd/main.dart"
     templates: ["api/cli.dart"]
+    codegen: { languages: ["dart"] }
   }
   requires: {
     commands: ["dart"]
     files: ["cmd/main.dart", "pubspec.yaml"]
+    sdk_prebuilts: ["dart"]
   }
   artifacts: {
     binary: "gabriel-greeting-dart"
