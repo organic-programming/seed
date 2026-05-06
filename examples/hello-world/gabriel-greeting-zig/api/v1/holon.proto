@@ -26,6 +26,9 @@ option (holons.v1.manifest) = {
   kind: "native"
   build: {
     runner: "zig"
+    codegen: {
+      languages: ["zig"]
+    }
   }
   requires: {
     commands: ["zig"]
