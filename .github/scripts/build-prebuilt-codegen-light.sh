@@ -118,6 +118,7 @@ EOF
         install_grpc_java_plugin "$stage"
         install_grpc_kotlin_plugin "$stage"
         ;;
+      js) install_node_codegen_plugins "$stage" "$work_dir" ;;
       python) copy_grpc_sibling "$stage" grpc_python_plugin ;;
       csharp) copy_grpc_sibling "$stage" grpc_csharp_plugin ;;
     esac
@@ -127,6 +128,11 @@ EOF
       {"name": "kotlin-java-grpc", "binary": "bin/protoc-gen-kotlin-java-grpc${suffix}", "out_subdir": "kotlin"},
       {"name": "kotlin", "binary": "bin/protoc-gen-kotlin${suffix}", "out_subdir": "kotlin"},
       {"name": "kotlin-grpc", "binary": "bin/protoc-gen-kotlin-grpc${suffix}", "out_subdir": "kotlin"}
+EOF
+)
+    elif [[ "$sdk_lang" == "js" ]]; then
+      plugins=$(cat <<EOF
+      {"name": "js", "binary": "bin/protoc-gen-js${suffix}", "out_subdir": "node"}
 EOF
 )
     else

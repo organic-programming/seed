@@ -62,6 +62,7 @@ var legacyCodegenPathRewritePlugins = map[string]codegenPathRewriteMode{
 	"dart":            codegenPathRewriteOutputLegacy,
 	"go":              codegenPathRewriteRequestLegacy,
 	"go-grpc":         codegenPathRewriteRequestLegacy,
+	"js":              codegenPathRewriteOutputLegacy,
 	"python":          codegenPathRewriteOutputLegacy,
 	"ruby":            codegenPathRewriteOutputLegacy,
 	"swift":           codegenPathRewriteOutputLegacy,

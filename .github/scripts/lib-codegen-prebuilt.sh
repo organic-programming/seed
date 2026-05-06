@@ -197,6 +197,37 @@ EOF
   rm -f "$tmp"
 }
 
+install_node_codegen_plugins() {
+  local stage="$1"
+  local work_dir="$2"
+  local protoc_gen_js_version="${PROTOC_GEN_JS_VERSION:-3.21.4-4}"
+  local grpc_tools_version="${GRPC_TOOLS_VERSION:-1.13.0}"
+  local npm_prefix="${work_dir}/node-codegen"
+  local node_share="${stage}/share/node"
+
+  rm -rf "$npm_prefix"
+  mkdir -p "$npm_prefix" "$node_share" "${stage}/bin"
+  npm install --prefix "$npm_prefix" --omit=dev --no-audit --no-fund \
+    "protoc-gen-js@${protoc_gen_js_version}" \
+    "grpc-tools@${grpc_tools_version}"
+  rm -rf "${node_share}/protoc-gen-js" "${node_share}/grpc-tools"
+  cp -R "${npm_prefix}/node_modules/protoc-gen-js" "${node_share}/protoc-gen-js"
+  cp -R "${npm_prefix}/node_modules/grpc-tools" "${node_share}/grpc-tools"
+  cat >"${stage}/bin/protoc-gen-js" <<'EOF'
+#!/usr/bin/env sh
+set -eu
+bin_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+exec node "${bin_dir}/../share/node/protoc-gen-js/cli.js" "$@"
+EOF
+  cat >"${stage}/bin/grpc_tools_node_protoc_plugin" <<'EOF'
+#!/usr/bin/env sh
+set -eu
+bin_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+exec node "${bin_dir}/../share/node/grpc-tools/bin/protoc_plugin.js" "$@"
+EOF
+  chmod +x "${stage}/bin/protoc-gen-js" "${stage}/bin/grpc_tools_node_protoc_plugin"
+}
+
 archive_codegen_stage() {
   local stage="$1"
   local archive="$2"
