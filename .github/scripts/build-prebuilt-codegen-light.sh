@@ -64,6 +64,7 @@ EOF
 )
     ;;
   swift)
+    install_protoc_release "$sdk_target" "$stage"
     swift_version="${SWIFT_PROTOBUF_VERSION:-1.33.0}"
     swift_src="${work_dir}/swift-protobuf"
     if [[ ! -d "$swift_src/.git" ]]; then
@@ -77,8 +78,22 @@ EOF
     swift build --package-path "$swift_src" -c release --product protoc-gen-swift
     cp "$swift_src/.build/release/protoc-gen-swift" "${stage}/bin/protoc-gen-swift"
     chmod +x "${stage}/bin/protoc-gen-swift"
+    grpc_swift_version="${GRPC_SWIFT_VERSION:-1.27.5}"
+    grpc_swift_src="${work_dir}/grpc-swift"
+    if [[ ! -d "$grpc_swift_src/.git" ]]; then
+      rm -rf "$grpc_swift_src"
+      git clone --depth 1 --recurse-submodules --shallow-submodules --branch "$grpc_swift_version" https://github.com/grpc/grpc-swift.git "$grpc_swift_src"
+    else
+      git -C "$grpc_swift_src" fetch --depth 1 origin "refs/tags/${grpc_swift_version}:refs/tags/${grpc_swift_version}"
+      git -C "$grpc_swift_src" checkout -f "$grpc_swift_version"
+      git -C "$grpc_swift_src" submodule update --init --recursive --depth 1
+    fi
+    swift build --package-path "$grpc_swift_src" -c release --product protoc-gen-grpc-swift
+    cp "$grpc_swift_src/.build/release/protoc-gen-grpc-swift" "${stage}/bin/protoc-gen-grpc-swift"
+    chmod +x "${stage}/bin/protoc-gen-grpc-swift"
     plugins=$(cat <<EOF
-      {"name": "swift", "binary": "bin/protoc-gen-swift", "out_subdir": "swift"}
+      {"name": "swift", "binary": "bin/protoc-gen-swift", "out_subdir": "swift"},
+      {"name": "swift-grpc", "binary": "bin/protoc-gen-grpc-swift", "out_subdir": "swift"}
 EOF
 )
     ;;
