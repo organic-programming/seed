@@ -165,6 +165,38 @@ install_grpc_java_plugin() {
   rm -f "$tmp"
 }
 
+install_grpc_kotlin_plugin() {
+  local stage="$1"
+  local version="${GRPC_KOTLIN_PLUGIN_VERSION:-1.4.3}"
+  local expected_sha="f41827ddcaec57a153afe8fde4cf33bb6496765c5f989056fc4db89314b43621"
+  local tmp
+  local actual_sha
+  local jar
+  local wrapper
+
+  tmp="$(mktemp)"
+  curl -fsSL \
+    "https://repo1.maven.org/maven2/io/grpc/protoc-gen-grpc-kotlin/${version}/protoc-gen-grpc-kotlin-${version}-jdk8.jar" \
+    -o "$tmp"
+  actual_sha="$(sha256_file "$tmp" | awk '{print $1}')"
+  if [[ "$actual_sha" != "$expected_sha" ]]; then
+    echo "protoc-gen-grpc-kotlin sha256 mismatch: got ${actual_sha}, want ${expected_sha}" >&2
+    rm -f "$tmp"
+    return 1
+  fi
+  jar="${stage}/share/kotlin/protoc-gen-grpc-kotlin-${version}-jdk8.jar"
+  wrapper="${stage}/bin/protoc-gen-grpc-kotlin"
+  mkdir -p "$(dirname "$jar")" "${stage}/bin"
+  cp "$tmp" "$jar"
+  cat >"$wrapper" <<EOF
+#!/usr/bin/env sh
+set -eu
+exec java -jar "\$(CDPATH= cd -- "\$(dirname "\$0")" && pwd)/../share/kotlin/protoc-gen-grpc-kotlin-${version}-jdk8.jar" "\$@"
+EOF
+  chmod +x "$wrapper"
+  rm -f "$tmp"
+}
+
 archive_codegen_stage() {
   local stage="$1"
   local archive="$2"
