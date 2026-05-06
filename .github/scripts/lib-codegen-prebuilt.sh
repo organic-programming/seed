@@ -99,6 +99,28 @@ build_adapter_family() {
   done
 }
 
+copy_grpc_sibling() {
+  local stage="$1"
+  local plugin_name="$2"
+  local target="${SDK_TARGET:?SDK_TARGET is required}"
+  local repo_root
+  local suffix
+  local source
+  local dest
+
+  repo_root="$(repo_root_or_pwd)"
+  suffix="$(target_exe_suffix "$target")"
+  source="${repo_root}/sdk/cpp-holons/.cpp-prebuilt/${target}/prefix/bin/${plugin_name}${suffix}"
+  dest="${stage}/bin/${plugin_name}${suffix}"
+  if [[ ! -x "$source" ]]; then
+    echo "gRPC sibling plugin not found or not executable: ${source}" >&2
+    return 1
+  fi
+  mkdir -p "${stage}/bin"
+  cp "$source" "$dest"
+  chmod +x "$dest"
+}
+
 archive_codegen_stage() {
   local stage="$1"
   local archive="$2"
