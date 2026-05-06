@@ -227,6 +227,36 @@ func TestLegacyCodegenOutputPathRewriteForPython(t *testing.T) {
 	}
 }
 
+func TestCodegenRequestBytesForDartUsesGrpcParameter(t *testing.T) {
+	req := &pluginpb.CodeGeneratorRequest{
+		FileToGenerate: []string{"v1/greeting.proto"},
+		ProtoFile: []*descriptorpb.FileDescriptorProto{{
+			Name:    proto.String("v1/greeting.proto"),
+			Package: proto.String("greeting.v1"),
+		}},
+	}
+	reqBytes, err := proto.Marshal(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gotBytes, err := codegenRequestBytesForPlugin(reqBytes, resolvedCodegenPlugin{
+		Name:      "dart",
+		Parameter: codegenPluginParameter("dart"),
+	})
+	if err != nil {
+		t.Fatalf("set dart parameter: %v", err)
+	}
+
+	got := &pluginpb.CodeGeneratorRequest{}
+	if err := proto.Unmarshal(gotBytes, got); err != nil {
+		t.Fatalf("decode request: %v", err)
+	}
+	if got.GetParameter() != "grpc" {
+		t.Fatalf("dart parameter = %q, want grpc", got.GetParameter())
+	}
+}
+
 func runCodegenTestPlugin() {
 	data, err := io.ReadAll(os.Stdin)
 	if err != nil {

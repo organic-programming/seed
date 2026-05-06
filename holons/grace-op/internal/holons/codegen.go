@@ -339,6 +339,7 @@ func configureCodegenPlugins(manifest *LoadedManifest, stage *protoStageResult, 
 	copy(configured, plugins)
 	for i := range configured {
 		configured[i].PathRewrite = codegenPluginPathRewriteMode(configured[i].Name)
+		configured[i].Parameter = codegenPluginParameter(configured[i].Name)
 		if codegenPathRewriteRemapsOutput(configured[i].PathRewrite) {
 			configured[i].OutputPathRewrites = legacyCodegenOutputRewrites(files, toGenerate)
 		}
@@ -352,6 +353,15 @@ func configureCodegenPlugins(manifest *LoadedManifest, stage *protoStageResult, 
 		}
 	}
 	return configured, nil
+}
+
+func codegenPluginParameter(name string) string {
+	switch name {
+	case "dart":
+		return "grpc"
+	default:
+		return ""
+	}
 }
 
 func codegenPluginPathRewriteMode(name string) codegenPathRewriteMode {
