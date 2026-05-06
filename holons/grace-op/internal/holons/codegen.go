@@ -67,6 +67,7 @@ var legacyCodegenPathRewritePlugins = map[string]codegenPathRewriteMode{
 	"ruby":            codegenPathRewriteOutputLegacy,
 	"swift":           codegenPathRewriteOutputLegacy,
 	"swift-grpc":      codegenPathRewriteOutputLegacy,
+	"zig":             codegenPathRewriteRequestBasename,
 }
 
 type resolvedCodegenPlugin struct {

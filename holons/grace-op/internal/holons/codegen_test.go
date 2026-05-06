@@ -245,6 +245,24 @@ func TestLegacyCodegenOutputPathRewriteForSwiftGRPC(t *testing.T) {
 	}
 }
 
+func TestLegacyCodegenOutputPathRewriteForZig(t *testing.T) {
+	files := map[string]*descriptorpb.FileDescriptorProto{
+		"v1/greeting.proto": {
+			Name:    proto.String("v1/greeting.proto"),
+			Package: proto.String("greeting.v1"),
+		},
+	}
+	rewrites := legacyCodegenOutputRewrites(files, []string{"v1/greeting.proto"})
+
+	got := rewriteLegacyCodegenOutputPath("v1/greeting.pb-c.c", rewrites)
+	if got != "greeting/v1/greeting.pb-c.c" {
+		t.Fatalf("zig output path = %q, want greeting/v1/greeting.pb-c.c", got)
+	}
+	if got := codegenPluginPathRewriteMode("zig"); got != codegenPathRewriteRequestBasename {
+		t.Fatalf("zig path rewrite mode = %q, want %q", got, codegenPathRewriteRequestBasename)
+	}
+}
+
 func TestCodegenRequestBytesForPluginUsesParameters(t *testing.T) {
 	req := &pluginpb.CodeGeneratorRequest{
 		FileToGenerate: []string{"v1/greeting.proto"},
