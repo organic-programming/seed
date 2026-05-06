@@ -92,9 +92,10 @@ EOF
   java|python|csharp|kotlin|js)
     install_protoc_release "$sdk_target" "$stage"
     build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" "$sdk_lang"
-    if [[ "$sdk_lang" == "python" ]]; then
-      copy_grpc_sibling "$stage" grpc_python_plugin
-    fi
+    case "$sdk_lang" in
+      python) copy_grpc_sibling "$stage" grpc_python_plugin ;;
+      csharp) copy_grpc_sibling "$stage" grpc_csharp_plugin ;;
+    esac
     plugins=$(cat <<EOF
       {"name": "${sdk_lang}", "binary": "bin/protoc-gen-${sdk_lang}${suffix}", "out_subdir": "${sdk_lang}"}
 EOF
