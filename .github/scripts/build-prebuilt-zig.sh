@@ -37,6 +37,7 @@ strip_archive() {
 repo_root="$(git rev-parse --show-toplevel)"
 # shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
 source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
+trap 'cleanup_grpc_third_party_pollution "$repo_root"' EXIT
 sdk_dir="${repo_root}/sdk/zig-holons"
 dist_dir="${repo_root}/dist/sdk-prebuilts/zig/${sdk_target}"
 work_dir="${sdk_dir}/.zig-prebuilt/${sdk_target}"

@@ -68,6 +68,7 @@ copy_first_executable() {
 repo_root="$(git rev-parse --show-toplevel)"
 # shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
 source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
+trap 'cleanup_grpc_third_party_pollution "$repo_root"' EXIT
 sdk_dir="${repo_root}/sdk/cpp-holons"
 grpc_source="${GRPC_SOURCE_DIR:-${repo_root}/sdk/zig-holons/third_party/grpc}"
 nlohmann_json_header="${sdk_dir}/third_party/nlohmann-json/single_include/nlohmann/json.hpp"

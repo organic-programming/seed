@@ -12,6 +12,12 @@ repo_root_or_pwd() {
   git rev-parse --show-toplevel 2>/dev/null || printf '%s\n' "${GITHUB_WORKSPACE:-$PWD}"
 }
 
+cleanup_grpc_third_party_pollution() {
+  local root="$1"
+  git -C "$root" checkout -- sdk/zig-holons/third_party/grpc/third_party/zlib/ 2>/dev/null || true
+  git -C "$root/sdk/zig-holons/third_party/grpc/third_party/zlib" checkout -- . 2>/dev/null || true
+}
+
 target_goos_goarch() {
   case "$1" in
     aarch64-apple-darwin) echo "darwin arm64" ;;

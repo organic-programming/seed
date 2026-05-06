@@ -53,6 +53,7 @@ if ! repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
 fi
 # shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
 source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
+trap 'cleanup_grpc_third_party_pollution "$repo_root"' EXIT
 ruby_sdk_dir="${repo_root}/sdk/ruby-holons"
 dist_dir="${repo_root}/dist/sdk-prebuilts/ruby/${sdk_target}"
 work_dir="${ruby_sdk_dir}/.ruby-prebuilt/${sdk_target}"
