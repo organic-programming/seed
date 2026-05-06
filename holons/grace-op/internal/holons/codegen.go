@@ -360,7 +360,7 @@ func codegenPluginParameter(name string) string {
 	switch name {
 	case "dart":
 		return "grpc"
-	case "swift":
+	case "swift", "swift-grpc":
 		return "Visibility=Public"
 	default:
 		return ""

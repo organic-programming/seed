@@ -264,6 +264,7 @@ func TestCodegenRequestBytesForPluginUsesParameters(t *testing.T) {
 	}{
 		{plugin: "dart", want: "grpc"},
 		{plugin: "swift", want: "Visibility=Public"},
+		{plugin: "swift-grpc", want: "Visibility=Public"},
 	} {
 		t.Run(tc.plugin, func(t *testing.T) {
 			gotBytes, err := codegenRequestBytesForPlugin(reqBytes, resolvedCodegenPlugin{
