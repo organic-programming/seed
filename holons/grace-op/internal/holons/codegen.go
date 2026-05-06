@@ -357,7 +357,13 @@ func goCodegenParameter(manifest *LoadedManifest, files map[string]*descriptorpb
 func legacyGoCodegenProtoPath(file *descriptorpb.FileDescriptorProto) string {
 	path := filepath.ToSlash(strings.TrimSpace(file.GetName()))
 	protoPackage := strings.TrimSpace(file.GetPackage())
-	if path == "" || protoPackage == "" || !strings.HasPrefix(path, "v1/") {
+	if path == "" || protoPackage == "" {
+		return ""
+	}
+	if strings.HasPrefix(path, "api/v1/") {
+		return "v1/" + legacyGoCodegenProtoBase(file) + ".proto"
+	}
+	if !strings.HasPrefix(path, "v1/") {
 		return ""
 	}
 	prefix := strings.Split(protoPackage, ".")[0]
@@ -365,6 +371,23 @@ func legacyGoCodegenProtoPath(file *descriptorpb.FileDescriptorProto) string {
 		return ""
 	}
 	return prefix + "/" + path
+}
+
+func legacyGoCodegenProtoBase(file *descriptorpb.FileDescriptorProto) string {
+	goPackage := strings.TrimSpace(file.GetOptions().GetGoPackage())
+	importPath := strings.Split(goPackage, ";")[0]
+	const marker = "/gen/go/"
+	if idx := strings.LastIndex(importPath, marker); idx >= 0 {
+		suffix := strings.Trim(importPath[idx+len(marker):], "/")
+		parts := strings.Split(suffix, "/")
+		if len(parts) >= 2 && parts[len(parts)-1] == "v1" {
+			base := strings.TrimSpace(parts[len(parts)-2])
+			if base != "" {
+				return base
+			}
+		}
+	}
+	return "holon"
 }
 
 func goModulePath(manifest *LoadedManifest) (string, error) {
