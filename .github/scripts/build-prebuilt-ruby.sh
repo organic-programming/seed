@@ -3,6 +3,7 @@ set -euo pipefail
 
 sdk_target="${SDK_TARGET:?SDK_TARGET is required}"
 sdk_version="${SDK_VERSION:-1.58.3}"
+export PROTOC_VERSION="${PROTOC_VERSION:-31.1}"
 jobs="${RUBY_HOLONS_JOBS:-4}"
 ruby_bin="${RUBY:-$(command -v ruby || true)}"
 bundle_bin="${BUNDLE:-$(command -v bundle || true)}"
