@@ -24,6 +24,7 @@ module Greeting
         rpc :ListLanguages, ::Greeting::V1::ListLanguagesRequest, ::Greeting::V1::ListLanguagesResponse
         # Greets the user in the chosen language.
         # @example {"name":"Bob","lang_code":"fr"}
+        # @example {"name":"Bob","lang_code":"fr"} --origin
         rpc :SayHello, ::Greeting::V1::SayHelloRequest, ::Greeting::V1::SayHelloResponse
       end
 
