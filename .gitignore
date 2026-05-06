@@ -17,6 +17,11 @@
 .dart_tool/
 .gradle/
 
+# SDK prebuilt staging caches (transient build outputs)
+**/.codegen-prebuilt/
+**/.cpp-prebuilt/
+**/.c-prebuilt/
+
 tasks/*
 
 .sculptor/*CMakeFiles/
