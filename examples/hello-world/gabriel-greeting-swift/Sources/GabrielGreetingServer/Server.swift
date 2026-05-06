@@ -4,6 +4,8 @@ import Holons
 import NIO
 
 public final class GreetingServiceProvider: Greeting_V1_GreetingServiceProvider {
+    public let interceptors: Greeting_V1_GreetingServiceServerInterceptorFactoryProtocol? = nil
+
     public init() {}
 
     public func listLanguages(
