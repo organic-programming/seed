@@ -145,6 +145,32 @@ added to new manifests.
 changes, regenerate its stubs explicitly with
 `holons/grace-op/scripts/regen-stubs.sh`.
 
+## Languages and holons outside build.codegen
+
+Two situations bypass build.codegen, for distinct reasons:
+
+1. **Bootstrap autonomy — `grace-op`** (RFC §12)
+   `op` is the orchestrator that runs build.codegen for every other holon.
+   If `op` itself depended on build.codegen to rebuild, a bug in the codegen
+   driver would brick the toolchain. Therefore:
+   - `holons/grace-op/gen/` is committed as the source of truth.
+   - `op build op --install` compiles from committed stubs, no regen.
+   - `holons/grace-op/scripts/regen-stubs.sh` is the manual escape hatch
+     when canonical protos evolve. It invokes protoc directly without
+     going through `op`.
+
+2. **Native build-time codegen — Rust**
+   Rust's idiomatic pattern is `tonic-build` invoked from `build.rs` during
+   `cargo build`, declared in `[build-dependencies]`. The Rust toolchain
+   regenerates stubs as part of compilation. Forcing build.codegen would
+   duplicate work and break community ergonomics.
+   - The Rust holon's manifest declares `requires.commands: ["cargo"]`
+     and the proto under `requires.files`.
+   - `gen/` content is reproduced by `cargo build` via `build.rs`.
+
+Holons in either category MUST NOT set `build.codegen.languages` and MUST
+keep `gen/` committed.
+
 ## Manifest Model
 
 The proto file `_protos/holons/v1/manifest.proto` is the canonical
