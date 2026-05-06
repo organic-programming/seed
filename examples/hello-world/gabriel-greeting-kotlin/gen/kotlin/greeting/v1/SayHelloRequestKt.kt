@@ -2,7 +2,6 @@
 // NO CHECKED-IN PROTOBUF GENCODE
 // source: v1/greeting.proto
 
-@file:com.google.protobuf.Generated
 // Generated files should ignore deprecation warnings
 @file:Suppress("DEPRECATION")
 package greeting.v1;
@@ -35,7 +34,7 @@ public object SayHelloRequestKt {
      * @example "Bob"
      * ```
      *
-     * `string name = 1;`
+     * `string name = 1 [json_name = "name"];`
      */
     public var name: kotlin.String
       @kotlin.jvm.JvmName("getName")
@@ -50,7 +49,7 @@ public object SayHelloRequestKt {
      * @example "Bob"
      * ```
      *
-     * `string name = 1;`
+     * `string name = 1 [json_name = "name"];`
      */
     public fun clearName() {
       _builder.clearName()
@@ -63,7 +62,7 @@ public object SayHelloRequestKt {
      * @example "fr"
      * ```
      *
-     * `string lang_code = 2;`
+     * `string lang_code = 2 [json_name = "langCode"];`
      */
     public var langCode: kotlin.String
       @kotlin.jvm.JvmName("getLangCode")
@@ -79,7 +78,7 @@ public object SayHelloRequestKt {
      * @example "fr"
      * ```
      *
-     * `string lang_code = 2;`
+     * `string lang_code = 2 [json_name = "langCode"];`
      */
     public fun clearLangCode() {
       _builder.clearLangCode()

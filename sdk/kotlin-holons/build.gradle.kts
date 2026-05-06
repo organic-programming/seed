@@ -7,7 +7,7 @@ plugins {
 
 group = "org.organicprogramming"
 version = "0.1.0"
-val libraryJvmTarget = 21
+val libraryJvmTarget = 20
 
 
 
@@ -41,8 +41,8 @@ tasks.test {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_20
+    targetCompatibility = JavaVersion.VERSION_20
 }
 
 tasks.withType<JavaCompile>().configureEach {

@@ -2,7 +2,6 @@
 // NO CHECKED-IN PROTOBUF GENCODE
 // source: v1/greeting.proto
 
-@file:com.google.protobuf.Generated
 // Generated files should ignore deprecation warnings
 @file:Suppress("DEPRECATION")
 package greeting.v1;
@@ -40,7 +39,7 @@ public object ListLanguagesResponseKt {
      * Languages exposed by the daemon.
      * ```
      *
-     * `repeated .greeting.v1.Language languages = 1;`
+     * `repeated .greeting.v1.Language languages = 1 [json_name = "languages"];`
      */
      public val languages: com.google.protobuf.kotlin.DslList<greeting.v1.Greeting.Language, LanguagesProxy>
       @kotlin.jvm.JvmSynthetic
@@ -52,7 +51,7 @@ public object ListLanguagesResponseKt {
      * Languages exposed by the daemon.
      * ```
      *
-     * `repeated .greeting.v1.Language languages = 1;`
+     * `repeated .greeting.v1.Language languages = 1 [json_name = "languages"];`
      * @param value The languages to add.
      */
     @kotlin.jvm.JvmSynthetic
@@ -65,7 +64,7 @@ public object ListLanguagesResponseKt {
      * Languages exposed by the daemon.
      * ```
      *
-     * `repeated .greeting.v1.Language languages = 1;`
+     * `repeated .greeting.v1.Language languages = 1 [json_name = "languages"];`
      * @param value The languages to add.
      */
     @kotlin.jvm.JvmSynthetic
@@ -79,7 +78,7 @@ public object ListLanguagesResponseKt {
      * Languages exposed by the daemon.
      * ```
      *
-     * `repeated .greeting.v1.Language languages = 1;`
+     * `repeated .greeting.v1.Language languages = 1 [json_name = "languages"];`
      * @param values The languages to add.
      */
     @kotlin.jvm.JvmSynthetic
@@ -92,7 +91,7 @@ public object ListLanguagesResponseKt {
      * Languages exposed by the daemon.
      * ```
      *
-     * `repeated .greeting.v1.Language languages = 1;`
+     * `repeated .greeting.v1.Language languages = 1 [json_name = "languages"];`
      * @param values The languages to add.
      */
     @kotlin.jvm.JvmSynthetic
@@ -106,7 +105,7 @@ public object ListLanguagesResponseKt {
      * Languages exposed by the daemon.
      * ```
      *
-     * `repeated .greeting.v1.Language languages = 1;`
+     * `repeated .greeting.v1.Language languages = 1 [json_name = "languages"];`
      * @param index The index to set the value at.
      * @param value The languages to set.
      */
@@ -120,7 +119,7 @@ public object ListLanguagesResponseKt {
      * Languages exposed by the daemon.
      * ```
      *
-     * `repeated .greeting.v1.Language languages = 1;`
+     * `repeated .greeting.v1.Language languages = 1 [json_name = "languages"];`
      */
     @kotlin.jvm.JvmSynthetic
 @kotlin.jvm.JvmName("clearLanguages")
