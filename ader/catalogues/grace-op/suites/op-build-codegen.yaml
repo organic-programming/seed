@@ -4,7 +4,7 @@ defaults:
 steps:
   codegen-cli:
     check: op-build-codegen-cli
-    lane: progression
+    lane: regression
 profiles:
   smoke:
     description: Builds migrated holons, verifies runtime startup, generated-file restoration, and no-op rebuild stability.
