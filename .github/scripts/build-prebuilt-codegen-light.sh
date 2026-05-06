@@ -105,7 +105,9 @@ EOF
 )
     ;;
   java|python|csharp|kotlin|js)
-    install_protoc_release "$sdk_target" "$stage"
+    if [[ "$sdk_lang" != "js" ]]; then
+      install_protoc_release "$sdk_target" "$stage"
+    fi
     if [[ "$sdk_lang" == "kotlin" ]]; then
       build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" \
         kotlin-java kotlin-java-grpc kotlin kotlin-grpc
