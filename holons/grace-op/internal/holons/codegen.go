@@ -67,21 +67,6 @@ var legacyCodegenPathRewritePlugins = map[string]codegenPathRewriteMode{
 	"swift":           codegenPathRewriteOutputLegacy,
 }
 
-var sourceDescriptorCompatibleCodegenPlugins = map[string]struct{}{
-	"c":               {},
-	"c-upbdefs":       {},
-	"c-upb-minitable": {},
-	"cpp":             {},
-	"csharp":          {},
-	"dart":            {},
-	"java":            {},
-	"js":              {},
-	"kotlin":          {},
-	"python":          {},
-	"ruby":            {},
-	"swift":           {},
-}
-
 type resolvedCodegenPlugin struct {
 	Name               string
 	SDK                string
@@ -93,7 +78,6 @@ type resolvedCodegenPlugin struct {
 	Parameter          string
 	PathRewrite        codegenPathRewriteMode
 	OutputPathRewrites map[string]string
-	StripJSONNames     bool
 }
 
 type emittedCodegenFile struct {
@@ -355,7 +339,6 @@ func configureCodegenPlugins(manifest *LoadedManifest, stage *protoStageResult, 
 	copy(configured, plugins)
 	for i := range configured {
 		configured[i].PathRewrite = codegenPluginPathRewriteMode(configured[i].Name)
-		configured[i].StripJSONNames = codegenPluginNeedsSourceDescriptorCompatibility(configured[i].Name)
 		if codegenPathRewriteRemapsOutput(configured[i].PathRewrite) {
 			configured[i].OutputPathRewrites = legacyCodegenOutputRewrites(files, toGenerate)
 		}
@@ -376,11 +359,6 @@ func codegenPluginPathRewriteMode(name string) codegenPathRewriteMode {
 		return mode
 	}
 	return codegenPathRewriteNone
-}
-
-func codegenPluginNeedsSourceDescriptorCompatibility(name string) bool {
-	_, ok := sourceDescriptorCompatibleCodegenPlugins[name]
-	return ok
 }
 
 func codegenPathRewriteRemapsOutput(mode codegenPathRewriteMode) bool {
@@ -813,15 +791,12 @@ func invokeCodegenPlugin(ctx context.Context, plugin resolvedCodegenPlugin, reqB
 
 func codegenRequestBytesForPlugin(reqBytes []byte, plugin resolvedCodegenPlugin) ([]byte, error) {
 	parameter := strings.TrimSpace(plugin.Parameter)
-	if parameter == "" && !codegenPathRewriteRemapsRequest(plugin.PathRewrite) && !plugin.StripJSONNames {
+	if parameter == "" && !codegenPathRewriteRemapsRequest(plugin.PathRewrite) {
 		return reqBytes, nil
 	}
 	req := &pluginpb.CodeGeneratorRequest{}
 	if err := proto.Unmarshal(reqBytes, req); err != nil {
 		return nil, fmt.Errorf("codegen plugin failed: %s: decode request: %w", plugin.Name, err)
-	}
-	if plugin.StripJSONNames {
-		stripCodegenJSONNames(req)
 	}
 	switch plugin.PathRewrite {
 	case codegenPathRewriteRequestLegacy:
@@ -837,24 +812,6 @@ func codegenRequestBytesForPlugin(reqBytes []byte, plugin resolvedCodegenPlugin)
 		return nil, fmt.Errorf("codegen plugin failed: %s: encode request: %w", plugin.Name, err)
 	}
 	return data, nil
-}
-
-func stripCodegenJSONNames(req *pluginpb.CodeGeneratorRequest) {
-	if req == nil {
-		return
-	}
-	for _, file := range req.ProtoFile {
-		stripDescriptorJSONNames(file.GetMessageType())
-	}
-}
-
-func stripDescriptorJSONNames(messages []*descriptorpb.DescriptorProto) {
-	for _, message := range messages {
-		for _, field := range message.Field {
-			field.JsonName = nil
-		}
-		stripDescriptorJSONNames(message.GetNestedType())
-	}
 }
 
 func codegenPathRewriteRemapsRequest(mode codegenPathRewriteMode) bool {
