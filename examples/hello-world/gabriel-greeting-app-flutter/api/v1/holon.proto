@@ -28,6 +28,7 @@ option (holons.v1.manifest) = {
   }
   build: {
     runner: "recipe"
+    codegen: { languages: ["dart"] }
     defaults: {
       target: "macos"
       mode: "debug"
@@ -244,6 +245,7 @@ option (holons.v1.manifest) = {
   requires: {
     commands: ["flutter", "dart", "go", "swift", "cargo", "python3", "cmake", "dotnet", "java", "gradle", "node", "npm", "ruby", "bundle"]
     files: ["app/pubspec.yaml"]
+    sdk_prebuilts: ["dart"]
     platforms: ["macos", "windows", "linux"]
   }
   artifacts: {
