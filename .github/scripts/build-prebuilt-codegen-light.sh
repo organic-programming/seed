@@ -108,6 +108,7 @@ EOF
     install_protoc_release "$sdk_target" "$stage"
     build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" "$sdk_lang"
     case "$sdk_lang" in
+      java) install_grpc_java_plugin "$stage" ;;
       python) copy_grpc_sibling "$stage" grpc_python_plugin ;;
       csharp) copy_grpc_sibling "$stage" grpc_csharp_plugin ;;
     esac

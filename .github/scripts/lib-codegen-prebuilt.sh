@@ -127,6 +127,44 @@ copy_grpc_sibling() {
   chmod +x "$dest"
 }
 
+install_grpc_java_plugin() {
+  local stage="$1"
+  local target="${SDK_TARGET:?SDK_TARGET is required}"
+  local version="${GRPC_JAVA_PLUGIN_VERSION:-1.60.0}"
+  local classifier
+  local expected_sha
+  local suffix
+  local tmp
+  local actual_sha
+
+  case "$target" in
+    aarch64-apple-darwin)
+      classifier="osx-aarch_64"
+      expected_sha="bb6c0c079998ee7080e66ea122dfb66a34a602482a7ed1760b30b7324fdf8ede"
+      ;;
+    *)
+      echo "unsupported protoc-gen-grpc-java target: ${target}" >&2
+      return 2
+      ;;
+  esac
+
+  suffix="$(target_exe_suffix "$target")"
+  tmp="$(mktemp)"
+  curl -fsSL \
+    "https://repo1.maven.org/maven2/io/grpc/protoc-gen-grpc-java/${version}/protoc-gen-grpc-java-${version}-${classifier}.exe" \
+    -o "$tmp"
+  actual_sha="$(sha256_file "$tmp" | awk '{print $1}')"
+  if [[ "$actual_sha" != "$expected_sha" ]]; then
+    echo "protoc-gen-grpc-java sha256 mismatch: got ${actual_sha}, want ${expected_sha}" >&2
+    rm -f "$tmp"
+    return 1
+  fi
+  mkdir -p "${stage}/bin"
+  cp "$tmp" "${stage}/bin/protoc-gen-grpc-java${suffix}"
+  chmod +x "${stage}/bin/protoc-gen-grpc-java${suffix}"
+  rm -f "$tmp"
+}
+
 archive_codegen_stage() {
   local stage="$1"
   local archive="$2"
