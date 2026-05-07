@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Setup POPOK NOCTAMBULE for codegen distribution builds.
+# Organic Programming — Mac developer setup.
 #
-# Idempotent: safe to re-run on the macOS runner.
+# Idempotent. Optional: this machine can also serve as a GitHub Actions
+# self-hosted runner.
 #
 # Manual prerequisites that this script cannot safely automate:
 # - Xcode or Command Line Tools installation and `sudo xcodebuild -license accept`.
@@ -62,7 +63,7 @@ prepend_path() {
   fi
 }
 
-[[ "$(uname -s)" == "Darwin" ]] || die "POPOK setup expects macOS"
+[[ "$(uname -s)" == "Darwin" ]] || die "Mac developer setup expects macOS"
 require_cmd brew
 
 if ! xcode-select -p >/dev/null 2>&1; then
@@ -131,4 +132,4 @@ cargo --version
 rustc --version
 xcodegen --version
 
-log "POPOK NOCTAMBULE setup complete"
+log "Mac developer setup complete"

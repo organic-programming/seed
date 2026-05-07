@@ -25,9 +25,9 @@ on:
       needs-cpp-prefix:
         description: |
           Set to true for SDKs whose build needs the cpp prebuilt prefix
-          (e.g. ruby, python, csharp, java, kotlin needing grpc_<lang>_plugin).
-          When true, the matching cpp prefix artifact is downloaded and
-          extracted under sdk/cpp-holons/.cpp-prebuilt/<target>/prefix/
+          and toolchain for the same target.
+          When true, the matching cpp artifact is downloaded and
+          extracted under sdk/cpp-holons/.cpp-prebuilt/<target>/
           before the build script runs.
           The caller must set needs: sdk-prebuilt-cpp on the dependent job.
         required: false
@@ -57,10 +57,33 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Load runner-managed CI cache env (self-hosted only)
+        if: runner.environment == 'self-hosted'
+        uses: ./.github/actions/load-mac-runner-env
+
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26.1'
-          cache-dependency-path: '**/go.sum'
+          cache: false
+
+      - name: Resolve Go cache paths
+        id: go-cache-paths
+        shell: bash
+        run: |
+          {
+            echo "gomod=$(go env GOMODCACHE)"
+            echo "gobuild=$(go env GOCACHE)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Cache Go modules and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ steps.go-cache-paths.outputs.gomod }}
+            ${{ steps.go-cache-paths.outputs.gobuild }}
+          key: go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Checkout Zig vendored submodules
         if: inputs.sdk == 'zig'
@@ -167,7 +190,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: cpp-prefix-${{ inputs.sdk-target }}
-          path: sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}/prefix
+          path: sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}
 
       - name: Build SDK prebuilt
         id: build_prebuilt
@@ -189,12 +212,14 @@ jobs:
           path: dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}/*
           if-no-files-found: error
 
-      - name: Upload cpp prefix for downstream adapter SDKs
+      - name: Upload cpp prefix for downstream SDKs
         if: inputs.sdk == 'cpp' && steps.build_prebuilt.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: cpp-prefix-${{ inputs.sdk-target }}
-          path: sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}/prefix
+          path: |
+            sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}/prefix
+            sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}/toolchain
           if-no-files-found: error
           retention-days: 1
 

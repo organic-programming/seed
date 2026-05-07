@@ -32,20 +32,8 @@ permissions:
 
 env:
   GOTOOLCHAIN: auto
-  ADER_CI_CACHE_BASE: /Users/popok/.ader-ci-cache
-  GRACE_OP_SHARED_CACHE_DIR: /Users/popok/.ader-ci-cache/grace-op-shared
-  GOMODCACHE: /Users/popok/.ader-ci-cache/go-mod
-  GOCACHE: /Users/popok/.ader-ci-cache/go-build
-  BUNDLE_PATH: /Users/popok/.ader-ci-cache/bundle
-  PUB_CACHE: /Users/popok/.ader-ci-cache/dart-pub
-  npm_config_cache: /Users/popok/.ader-ci-cache/npm
-  GRADLE_USER_HOME: /Users/popok/.ader-ci-cache/gradle
-  NUGET_PACKAGES: /Users/popok/.ader-ci-cache/nuget
-  DOTNET_CLI_HOME: /Users/popok/.ader-ci-cache/dotnet-home
   ZIG_VERSION: 0.16.0
-  ZIG_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/zig
   NINJA_VERSION: 1.13.1
-  NINJA_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/ninja
   ZIG_HOLONS_JOBS: 8
   BOUQUET: ${{ inputs.bouquet }}
   CACHE_NOTE: ${{ inputs.cache_note }}
@@ -53,7 +41,7 @@ env:
 
 jobs:
   bench:
-    runs-on: popok
+    runs-on: [self-hosted, macOS]
     timeout-minutes: 480
     steps:
       - name: Prepare benchmark report
@@ -64,7 +52,9 @@ jobs:
           start_epoch="$(date +%s)"
           start_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
           report_dir="ader/reports/bench/${GITHUB_RUN_ID}"
-          mkdir -p "$report_dir" "$ADER_CI_CACHE_BASE"
+          mkdir -p "$report_dir"
+          # Cache base mkdir is now centralized in
+          # .github/actions/load-mac-runner-env (called after checkout).
           printf 'block\tstatus\texit_code\tstarted_at\tfinished_at\tseconds\treason\n' > "$report_dir/blocks.tsv"
           github_created_at="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq '.created_at' 2>/dev/null || true)"
           end_epoch="$(date +%s)"
@@ -89,6 +79,8 @@ jobs:
         continue-on-error: true
         with:
           fetch-depth: 0
+
+      - uses: ./.github/actions/load-mac-runner-env
 
       - name: Record checkout block
         if: always()

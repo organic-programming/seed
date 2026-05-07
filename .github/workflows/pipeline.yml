@@ -1,5 +1,5 @@
 # Pre-merge pipeline: organic-programming tool gate, conditional SDK rebuilds, composites, and SDK deep tests.
-# Triggers: push/pull_request on master plus manual dispatch; runs on popok and hosted runners.
+# Triggers: push/pull_request on master plus manual dispatch; runs on self-hosted macOS and hosted runners.
 # Owns: pre-merge validation order. See .github/workflows/README.md for pipeline order.
 name: pipeline
 
@@ -25,26 +25,14 @@ permissions:
 
 env:
   GOTOOLCHAIN: auto
-  ADER_CI_CACHE_BASE: /Users/popok/.ader-ci-cache
-  GRACE_OP_SHARED_CACHE_DIR: /Users/popok/.ader-ci-cache/grace-op-shared
-  GOMODCACHE: /Users/popok/.ader-ci-cache/go-mod
-  GOCACHE: /Users/popok/.ader-ci-cache/go-build
-  BUNDLE_PATH: /Users/popok/.ader-ci-cache/bundle
-  PUB_CACHE: /Users/popok/.ader-ci-cache/dart-pub
-  npm_config_cache: /Users/popok/.ader-ci-cache/npm
-  GRADLE_USER_HOME: /Users/popok/.ader-ci-cache/gradle
-  NUGET_PACKAGES: /Users/popok/.ader-ci-cache/nuget
-  DOTNET_CLI_HOME: /Users/popok/.ader-ci-cache/dotnet-home
   ZIG_VERSION: 0.16.0
-  ZIG_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/zig
   NINJA_VERSION: 1.13.1
-  NINJA_TOOLCHAIN_CACHE: /Users/popok/.ader-ci-cache/ninja
   ZIG_HOLONS_JOBS: 8
 
 jobs:
   gate-1-go-build-op:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: popok
+    runs-on: [self-hosted, macOS]
     timeout-minutes: 20
     steps:
       - name: Loosen permissions on previous workspace
@@ -52,16 +40,16 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
-          mkdir -p "$ADER_CI_CACHE_BASE"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/load-mac-runner-env
       - name: Go build op
         run: go build ./holons/grace-op/...
 
   gate-2-op-self-build:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: popok
+    runs-on: [self-hosted, macOS]
     needs: gate-1-go-build-op
     timeout-minutes: 30
     steps:
@@ -70,10 +58,10 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
-          mkdir -p "$ADER_CI_CACHE_BASE"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/load-mac-runner-env
       - name: Install Go proto generators
         run: |
           set -euo pipefail
@@ -88,7 +76,7 @@ jobs:
 
   gate-3-op-core-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: popok
+    runs-on: [self-hosted, macOS]
     needs: gate-2-op-self-build
     timeout-minutes: 30
     steps:
@@ -97,16 +85,16 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
-          mkdir -p "$ADER_CI_CACHE_BASE"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/load-mac-runner-env
       - name: Go test op
         run: go test ./holons/grace-op/...
 
   gate-4-op-build-ader:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: popok
+    runs-on: [self-hosted, macOS]
     needs: gate-3-op-core-tests
     timeout-minutes: 30
     steps:
@@ -115,10 +103,10 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
-          mkdir -p "$ADER_CI_CACHE_BASE"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/load-mac-runner-env
       - name: Bootstrap op and build ader
         run: |
           set -euo pipefail
@@ -129,7 +117,7 @@ jobs:
 
   gate-5-ader-core-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: popok
+    runs-on: [self-hosted, macOS]
     needs: gate-4-op-build-ader
     timeout-minutes: 30
     steps:
@@ -138,16 +126,16 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
-          mkdir -p "$ADER_CI_CACHE_BASE"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/load-mac-runner-env
       - name: Go test ader
         run: go test ./holons/clem-ader/...
 
   gate-6-smoke-suite:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: popok
+    runs-on: [self-hosted, macOS]
     needs: gate-5-ader-core-tests
     timeout-minutes: 45
     steps:
@@ -156,10 +144,10 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
-          mkdir -p "$ADER_CI_CACHE_BASE"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/load-mac-runner-env
       - name: Bootstrap op and ader
         run: |
           set -euo pipefail
@@ -191,6 +179,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/load-mac-runner-env
       - name: Detect SDK-affecting paths
         id: detect
         shell: bash
@@ -256,7 +245,7 @@ jobs:
       continue-on-error: ${{ matrix.continue_on_error || false }}
 
   sdk-prebuilt-cpp:
-    if: needs.detect-sdk-changes.outputs.cpp == 'true'
+    if: needs.detect-sdk-changes.outputs.cpp == 'true' || needs.detect-sdk-changes.outputs.c == 'true' || needs.detect-sdk-changes.outputs.ruby == 'true'
     needs: detect-sdk-changes
     strategy:
       fail-fast: false
@@ -289,7 +278,9 @@ jobs:
 
   sdk-prebuilt-c:
     if: needs.detect-sdk-changes.outputs.c == 'true'
-    needs: detect-sdk-changes
+    needs:
+      - detect-sdk-changes
+      - sdk-prebuilt-cpp
     strategy:
       fail-fast: false
       matrix:
@@ -318,6 +309,7 @@ jobs:
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       continue-on-error: ${{ matrix.continue_on_error || false }}
+      needs-cpp-prefix: true
 
   sdk-prebuilt-ruby:
     # Depends on sdk-prebuilt-cpp because the ruby adapter SDK needs
@@ -388,7 +380,7 @@ jobs:
 
   composite-swiftui-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: popok
+    runs-on: [self-hosted, macOS]
     needs: [detect-sdk-changes, sdk-prebuilts-fresh]
     timeout-minutes: 240
     steps:
@@ -397,10 +389,10 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
-          mkdir -p "$ADER_CI_CACHE_BASE"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/load-mac-runner-env
       - uses: actions/download-artifact@v4
         if: needs.detect-sdk-changes.outputs.any == 'true'
         with:
@@ -438,7 +430,7 @@ jobs:
 
   composite-flutter-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: popok
+    runs-on: [self-hosted, macOS]
     needs: [detect-sdk-changes, sdk-prebuilts-fresh]
     timeout-minutes: 240
     steps:
@@ -447,10 +439,10 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
-          mkdir -p "$ADER_CI_CACHE_BASE"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/load-mac-runner-env
       - uses: actions/download-artifact@v4
         if: needs.detect-sdk-changes.outputs.any == 'true'
         with:
@@ -488,7 +480,7 @@ jobs:
 
   ader-bouquet-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: popok
+    runs-on: [self-hosted, macOS]
     needs: [detect-sdk-changes, sdk-prebuilts-fresh]
     timeout-minutes: 240
     env:
@@ -499,10 +491,10 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
-          mkdir -p "$ADER_CI_CACHE_BASE"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/load-mac-runner-env
       - uses: actions/download-artifact@v4
         if: needs.detect-sdk-changes.outputs.any == 'true'
         with:
@@ -556,7 +548,7 @@ jobs:
 
   sdk-deep-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: popok
+    runs-on: [self-hosted, macOS]
     needs: [detect-sdk-changes, sdk-prebuilts-fresh]
     timeout-minutes: 240
     strategy:
@@ -583,10 +575,10 @@ jobs:
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
-          mkdir -p "$ADER_CI_CACHE_BASE"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: ./.github/actions/load-mac-runner-env
       - name: Checkout Zig vendored submodules
         run: |
           set -euo pipefail
