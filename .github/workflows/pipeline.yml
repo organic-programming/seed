@@ -598,6 +598,8 @@ jobs:
             sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
             echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
           done
+      - name: Build ader
+        run: op build clem-ader --install --symlink
       - name: Build SwiftUI composite
         run: |
           set -euo pipefail
@@ -676,6 +678,8 @@ jobs:
             sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
             echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
           done
+      - name: Build ader
+        run: op build clem-ader --install --symlink
       - name: Build Flutter composite
         run: |
           set -euo pipefail
