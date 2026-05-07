@@ -4,12 +4,18 @@ import Holons
 public struct ObservabilityPanel: View {
     @ObservedObject private var kit: ObservabilityKit
     @ObservedObject private var gate: RuntimeGate
+    private let onClose: (() -> Void)?
     @State private var tab: PanelTab = .logs
     @State private var exportStatus = ""
 
     public init(kit: ObservabilityKit) {
+        self.init(kit: kit, onClose: nil)
+    }
+
+    public init(kit: ObservabilityKit, onClose: (() -> Void)? = nil) {
         self.kit = kit
         self.gate = kit.gate
+        self.onClose = onClose
     }
 
     public var body: some View {
@@ -33,6 +39,16 @@ public struct ObservabilityPanel: View {
                 .toggleStyle(.switch)
 
                 exportButton
+
+                if let onClose {
+                    Button {
+                        onClose()
+                    } label: {
+                        Label("Close", systemImage: "xmark")
+                    }
+                    .keyboardShortcut(.cancelAction)
+                    .help("Close")
+                }
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 12)

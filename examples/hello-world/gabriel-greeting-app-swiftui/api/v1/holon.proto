@@ -168,7 +168,7 @@ option (holons.v1.manifest) = {
         steps: {
           exec: {
             cwd: "."
-            argv: ["bash", "-lc", 'set -euo pipefail\nproducts_dir=".op/build/xcode/macos/Build/Products/Debug"\napp_dir=".op/build/GabrielGreetingApp.app"\nmkdir -p "$(dirname "$app_dir")"\nrm -rf "$app_dir"\ncp -R "$products_dir/GabrielGreetingApp.app" "$app_dir"\nmkdir -p "$app_dir/Contents/Resources/Holons"\ncp App/Info.plist "$app_dir/Contents/Info.plist"']
+            argv: ["bash", "-lc", 'set -euo pipefail\nproducts_dir=".op/build/xcode/macos/Build/Products/Debug"\napp_dir=".op/build/GabrielGreetingApp.app"\nmkdir -p "$(dirname "$app_dir")"\nrm -rf "$app_dir"\ncp -R "$products_dir/GabrielGreetingApp.app" "$app_dir"\nmkdir -p "$app_dir/Contents/Resources/Holons"']
           }
         }
         steps: {
