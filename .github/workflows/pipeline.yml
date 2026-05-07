@@ -589,8 +589,8 @@ jobs:
             done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
           fi
           for sdk in go c cpp csharp dart java js kotlin python ruby swift zig; do
-            if [ "$sdk" = "swift" ]; then
-              op sdk build swift --jobs 8
+            if [ "$sdk" = "dart" ] || [ "$sdk" = "swift" ]; then
+              op sdk build "$sdk" --jobs 8
             elif ! op sdk path "$sdk" >/dev/null 2>&1; then
               op sdk install "$sdk"
             fi
@@ -667,8 +667,8 @@ jobs:
             done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
           fi
           for sdk in go c cpp csharp dart java js kotlin python ruby swift zig; do
-            if [ "$sdk" = "swift" ]; then
-              op sdk build swift --jobs 8
+            if [ "$sdk" = "dart" ] || [ "$sdk" = "swift" ]; then
+              op sdk build "$sdk" --jobs 8
             elif ! op sdk path "$sdk" >/dev/null 2>&1; then
               op sdk install "$sdk"
             fi
@@ -756,8 +756,8 @@ jobs:
             done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
           fi
           for sdk in go c cpp csharp dart java js kotlin python ruby swift zig; do
-            if [ "$sdk" = "swift" ]; then
-              op sdk build swift --jobs 8
+            if [ "$sdk" = "dart" ] || [ "$sdk" = "swift" ]; then
+              op sdk build "$sdk" --jobs 8
             elif ! op sdk path "$sdk" >/dev/null 2>&1; then
               op sdk install "$sdk"
             fi
