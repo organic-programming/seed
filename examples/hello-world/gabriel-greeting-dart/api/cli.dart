@@ -8,7 +8,7 @@ import '../gen/dart/greeting/v1/greeting.pb.dart';
 import '../_internal/server.dart' as rpc;
 import 'public.dart' as public_api;
 
-const String version = 'gabriel-greeting-dart 8.8.89';
+const String version = 'gabriel-greeting-dart {{ .Version }}';
 
 Future<int> main(List<String> args,
     {StringSink? stdoutSink, StringSink? stderrSink}) async {
