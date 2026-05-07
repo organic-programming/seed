@@ -190,12 +190,25 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/load-mac-runner-env
-      - name: Bootstrap op and build ader
+      - name: Bootstrap op
         run: |
           set -euo pipefail
           go run ./holons/grace-op/cmd/op env --init
           go run ./holons/grace-op/cmd/op build op --install --symlink
           eval "$(go run ./holons/grace-op/cmd/op env --shell)"
+          echo "$OPBIN" >> "$GITHUB_PATH"
+          {
+            echo "OPPATH=$OPPATH"
+            echo "OPBIN=$OPBIN"
+          } >> "$GITHUB_ENV"
+      - name: Install SDKs needed by tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          op sdk install go
+      - name: Build ader
+        run: |
+          set -euo pipefail
           op build clem-ader --install --symlink
       - name: Cleanup OPPATH at end of job
         if: always()
@@ -275,18 +288,26 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/load-mac-runner-env
-      - name: Bootstrap op and ader
+      - name: Bootstrap op
         run: |
           set -euo pipefail
           go run ./holons/grace-op/cmd/op env --init
           go run ./holons/grace-op/cmd/op build op --install --symlink
           eval "$(go run ./holons/grace-op/cmd/op env --shell)"
-          op build clem-ader --install --symlink
           echo "$OPBIN" >> "$GITHUB_PATH"
           {
             echo "OPPATH=$OPPATH"
             echo "OPBIN=$OPBIN"
           } >> "$GITHUB_ENV"
+      - name: Install SDKs needed by tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          op sdk install go
+      - name: Build ader
+        run: |
+          set -euo pipefail
+          op build clem-ader --install --symlink
       - name: Run smoke suites
         run: |
           set -euo pipefail
