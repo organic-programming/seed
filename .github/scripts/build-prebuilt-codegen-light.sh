@@ -64,6 +64,7 @@ EOF
 )
     ;;
   swift)
+    install_protoc_release "$sdk_target" "$stage"
     swift_version="${SWIFT_PROTOBUF_VERSION:-1.33.0}"
     swift_src="${work_dir}/swift-protobuf"
     if [[ ! -d "$swift_src/.git" ]]; then
@@ -77,8 +78,22 @@ EOF
     swift build --package-path "$swift_src" -c release --product protoc-gen-swift
     cp "$swift_src/.build/release/protoc-gen-swift" "${stage}/bin/protoc-gen-swift"
     chmod +x "${stage}/bin/protoc-gen-swift"
+    grpc_swift_version="${GRPC_SWIFT_VERSION:-1.27.5}"
+    grpc_swift_src="${work_dir}/grpc-swift"
+    if [[ ! -d "$grpc_swift_src/.git" ]]; then
+      rm -rf "$grpc_swift_src"
+      git clone --depth 1 --recurse-submodules --shallow-submodules --branch "$grpc_swift_version" https://github.com/grpc/grpc-swift.git "$grpc_swift_src"
+    else
+      git -C "$grpc_swift_src" fetch --depth 1 origin "refs/tags/${grpc_swift_version}:refs/tags/${grpc_swift_version}"
+      git -C "$grpc_swift_src" checkout -f "$grpc_swift_version"
+      git -C "$grpc_swift_src" submodule update --init --recursive --depth 1
+    fi
+    swift build --package-path "$grpc_swift_src" -c release --product protoc-gen-grpc-swift
+    cp "$grpc_swift_src/.build/release/protoc-gen-grpc-swift" "${stage}/bin/protoc-gen-grpc-swift"
+    chmod +x "${stage}/bin/protoc-gen-grpc-swift"
     plugins=$(cat <<EOF
-      {"name": "swift", "binary": "bin/protoc-gen-swift", "out_subdir": "swift"}
+      {"name": "swift", "binary": "bin/protoc-gen-swift", "out_subdir": "swift"},
+      {"name": "swift-grpc", "binary": "bin/protoc-gen-grpc-swift", "out_subdir": "swift"}
 EOF
 )
     ;;
@@ -90,12 +105,44 @@ EOF
 )
     ;;
   java|python|csharp|kotlin|js)
-    install_protoc_release "$sdk_target" "$stage"
-    build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" "$sdk_lang"
-    plugins=$(cat <<EOF
+    if [[ "$sdk_lang" != "js" ]]; then
+      install_protoc_release "$sdk_target" "$stage"
+    fi
+    if [[ "$sdk_lang" == "kotlin" ]]; then
+      build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" \
+        kotlin-java kotlin-java-grpc kotlin kotlin-grpc
+    else
+      build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" "$sdk_lang"
+    fi
+    case "$sdk_lang" in
+      java) install_grpc_java_plugin "$stage" ;;
+      kotlin)
+        install_grpc_java_plugin "$stage"
+        install_grpc_kotlin_plugin "$stage"
+        ;;
+      js) install_node_codegen_plugins "$stage" "$work_dir" ;;
+      python) copy_grpc_sibling "$stage" grpc_python_plugin ;;
+      csharp) copy_grpc_sibling "$stage" grpc_csharp_plugin ;;
+    esac
+    if [[ "$sdk_lang" == "kotlin" ]]; then
+      plugins=$(cat <<EOF
+      {"name": "kotlin-java", "binary": "bin/protoc-gen-kotlin-java${suffix}", "out_subdir": "kotlin"},
+      {"name": "kotlin-java-grpc", "binary": "bin/protoc-gen-kotlin-java-grpc${suffix}", "out_subdir": "kotlin"},
+      {"name": "kotlin", "binary": "bin/protoc-gen-kotlin${suffix}", "out_subdir": "kotlin"},
+      {"name": "kotlin-grpc", "binary": "bin/protoc-gen-kotlin-grpc${suffix}", "out_subdir": "kotlin"}
+EOF
+)
+    elif [[ "$sdk_lang" == "js" ]]; then
+      plugins=$(cat <<EOF
+      {"name": "js", "binary": "bin/protoc-gen-js${suffix}", "out_subdir": "node"}
+EOF
+)
+    else
+      plugins=$(cat <<EOF
       {"name": "${sdk_lang}", "binary": "bin/protoc-gen-${sdk_lang}${suffix}", "out_subdir": "${sdk_lang}"}
 EOF
 )
+    fi
     ;;
   *)
     echo "unsupported light codegen SDK: ${sdk_lang}" >&2

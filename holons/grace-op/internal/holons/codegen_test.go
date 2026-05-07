@@ -11,6 +11,7 @@ import (
 
 	"github.com/organic-programming/grace-op/internal/sdkprebuilts"
 	"google.golang.org/protobuf/proto"
+	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
 )
 
@@ -131,6 +132,260 @@ func TestLoadManifestRejectsCodegenWithLegacyBeforeCommand(t *testing.T) {
 	}
 }
 
+func TestCodegenDescriptorFileOrderEmitsImportsBeforeImporters(t *testing.T) {
+	files := map[string]*descriptorpb.FileDescriptorProto{
+		"api/v1/holon.proto": {
+			Name:       proto.String("api/v1/holon.proto"),
+			Dependency: []string{"holons/v1/manifest.proto", "v1/greeting.proto"},
+		},
+		"google/protobuf/empty.proto": {
+			Name: proto.String("google/protobuf/empty.proto"),
+		},
+		"holons/v1/manifest.proto": {
+			Name: proto.String("holons/v1/manifest.proto"),
+		},
+		"v1/greeting.proto": {
+			Name:       proto.String("v1/greeting.proto"),
+			Dependency: []string{"google/protobuf/empty.proto"},
+		},
+	}
+
+	got := codegenDescriptorFileOrder(files)
+	positions := make(map[string]int, len(got))
+	for i, path := range got {
+		positions[path] = i
+	}
+
+	for importer, deps := range map[string][]string{
+		"api/v1/holon.proto": {"holons/v1/manifest.proto", "v1/greeting.proto"},
+		"v1/greeting.proto":  {"google/protobuf/empty.proto"},
+	} {
+		for _, dep := range deps {
+			if positions[dep] > positions[importer] {
+				t.Fatalf("descriptor order = %v; dependency %s appears after importer %s", got, dep, importer)
+			}
+		}
+	}
+}
+
+func TestCodegenFilesToGenerateIncludesSharedServiceProto(t *testing.T) {
+	files := map[string]*descriptorpb.FileDescriptorProto{
+		"api/v1/holon.proto": {
+			Name:       proto.String("api/v1/holon.proto"),
+			Package:    proto.String("holons.v1"),
+			Dependency: []string{"v1/greeting.proto"},
+		},
+		"v1/greeting.proto": {
+			Name:    proto.String("v1/greeting.proto"),
+			Package: proto.String("greeting.v1"),
+			Service: []*descriptorpb.ServiceDescriptorProto{{
+				Name: proto.String("GreetingService"),
+			}},
+		},
+		"holons/v1/manifest.proto": {
+			Name:    proto.String("holons/v1/manifest.proto"),
+			Package: proto.String("holons.v1"),
+			MessageType: []*descriptorpb.DescriptorProto{{
+				Name: proto.String("Manifest"),
+			}},
+		},
+	}
+
+	got := codegenFilesToGenerate(files)
+	want := []string{"v1/greeting.proto"}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("codegenFilesToGenerate = %v, want %v", got, want)
+	}
+}
+
+func TestCodegenRequestBytesForPluginRewritesLegacySharedProtoPaths(t *testing.T) {
+	req := &pluginpb.CodeGeneratorRequest{
+		FileToGenerate: []string{"v1/greeting.proto"},
+		ProtoFile: []*descriptorpb.FileDescriptorProto{{
+			Name:    proto.String("v1/greeting.proto"),
+			Package: proto.String("greeting.v1"),
+		}, {
+			Name:       proto.String("api/v1/holon.proto"),
+			Package:    proto.String("greeting.v1"),
+			Dependency: []string{"v1/greeting.proto"},
+		}},
+	}
+	reqBytes, err := proto.Marshal(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, pluginName := range []string{"go", "python"} {
+		t.Run(pluginName, func(t *testing.T) {
+			gotBytes, err := codegenRequestBytesForPlugin(reqBytes, resolvedCodegenPlugin{
+				Name:        pluginName,
+				PathRewrite: codegenPathRewriteRequestLegacy,
+			})
+			if err != nil {
+				t.Fatalf("rewrite request: %v", err)
+			}
+
+			got := &pluginpb.CodeGeneratorRequest{}
+			if err := proto.Unmarshal(gotBytes, got); err != nil {
+				t.Fatalf("decode request: %v", err)
+			}
+			if len(got.FileToGenerate) != 1 || got.FileToGenerate[0] != "greeting/v1/greeting.proto" {
+				t.Fatalf("FileToGenerate = %v, want greeting/v1/greeting.proto", got.FileToGenerate)
+			}
+			if !requestHasProtoPath(got, "greeting/v1/greeting.proto") {
+				t.Fatalf("rewritten descriptor missing: %v", descriptorNames(got))
+			}
+			if !requestHasProtoDependency(got, "v1/holon.proto", "greeting/v1/greeting.proto") {
+				t.Fatalf("rewritten dependency missing from v1/holon.proto")
+			}
+		})
+	}
+}
+
+func TestCodegenPluginPathRewriteModesCoverMigratedLanguages(t *testing.T) {
+	for _, tc := range []struct {
+		plugin string
+		want   codegenPathRewriteMode
+	}{
+		{plugin: "c", want: codegenPathRewriteRequestBasename},
+		{plugin: "c-upbdefs", want: codegenPathRewriteRequestBasename},
+		{plugin: "c-upb-minitable", want: codegenPathRewriteRequestBasename},
+		{plugin: "cpp", want: codegenPathRewriteRequestBasename},
+		{plugin: "dart", want: codegenPathRewriteOutputLegacy},
+		{plugin: "go", want: codegenPathRewriteRequestLegacy},
+		{plugin: "go-grpc", want: codegenPathRewriteRequestLegacy},
+		{plugin: "js", want: codegenPathRewriteOutputLegacy},
+		{plugin: "python", want: codegenPathRewriteOutputLegacy},
+		{plugin: "ruby", want: codegenPathRewriteOutputLegacy},
+		{plugin: "swift", want: codegenPathRewriteOutputLegacy},
+		{plugin: "swift-grpc", want: codegenPathRewriteOutputLegacy},
+		{plugin: "zig", want: codegenPathRewriteRequestBasename},
+		{plugin: "java", want: codegenPathRewriteNone},
+		{plugin: "kotlin", want: codegenPathRewriteNone},
+		{plugin: "kotlin-grpc", want: codegenPathRewriteNone},
+	} {
+		t.Run(tc.plugin, func(t *testing.T) {
+			if got := codegenPluginPathRewriteMode(tc.plugin); got != tc.want {
+				t.Fatalf("path rewrite mode = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestLegacyCodegenOutputPathRewriteForPython(t *testing.T) {
+	files := map[string]*descriptorpb.FileDescriptorProto{
+		"v1/greeting.proto": {
+			Name:    proto.String("v1/greeting.proto"),
+			Package: proto.String("greeting.v1"),
+		},
+	}
+	rewrites := legacyCodegenOutputRewrites(files, []string{"v1/greeting.proto"})
+
+	got := rewriteLegacyCodegenOutputPath("v1/greeting_pb2.py", rewrites)
+	if got != "greeting/v1/greeting_pb2.py" {
+		t.Fatalf("python output path = %q, want greeting/v1/greeting_pb2.py", got)
+	}
+}
+
+func TestLegacyCodegenOutputPathRewriteForSwiftGRPC(t *testing.T) {
+	files := map[string]*descriptorpb.FileDescriptorProto{
+		"v1/greeting.proto": {
+			Name:    proto.String("v1/greeting.proto"),
+			Package: proto.String("greeting.v1"),
+		},
+	}
+	rewrites := legacyCodegenOutputRewrites(files, []string{"v1/greeting.proto"})
+
+	got := rewriteLegacyCodegenOutputPath("v1/greeting.grpc.swift", rewrites)
+	if got != "greeting/v1/greeting.grpc.swift" {
+		t.Fatalf("swift-grpc output path = %q, want greeting/v1/greeting.grpc.swift", got)
+	}
+	if got := codegenPluginPathRewriteMode("swift-grpc"); got != codegenPathRewriteOutputLegacy {
+		t.Fatalf("swift-grpc path rewrite mode = %q, want %q", got, codegenPathRewriteOutputLegacy)
+	}
+}
+
+func TestLegacyCodegenOutputPathRewriteForZig(t *testing.T) {
+	files := map[string]*descriptorpb.FileDescriptorProto{
+		"v1/greeting.proto": {
+			Name:    proto.String("v1/greeting.proto"),
+			Package: proto.String("greeting.v1"),
+		},
+	}
+	rewrites := legacyCodegenOutputRewrites(files, []string{"v1/greeting.proto"})
+
+	got := rewriteLegacyCodegenOutputPath("v1/greeting.pb-c.c", rewrites)
+	if got != "greeting/v1/greeting.pb-c.c" {
+		t.Fatalf("zig output path = %q, want greeting/v1/greeting.pb-c.c", got)
+	}
+	if got := codegenPluginPathRewriteMode("zig"); got != codegenPathRewriteRequestBasename {
+		t.Fatalf("zig path rewrite mode = %q, want %q", got, codegenPathRewriteRequestBasename)
+	}
+}
+
+func TestCodegenSDKSlugForMultiPluginLanguages(t *testing.T) {
+	for _, tc := range []struct {
+		language string
+		want     string
+	}{
+		{language: "c-upbdefs", want: "c"},
+		{language: "c-upb-minitable", want: "c"},
+		{language: "go-grpc", want: "go"},
+		{language: "kotlin-java", want: "kotlin"},
+		{language: "kotlin-java-grpc", want: "kotlin"},
+		{language: "kotlin-grpc", want: "kotlin"},
+		{language: "swift-grpc", want: "swift"},
+		{language: "js-web", want: "js-web"},
+	} {
+		t.Run(tc.language, func(t *testing.T) {
+			if got := codegenSDKSlug(tc.language); got != tc.want {
+				t.Fatalf("codegenSDKSlug(%q) = %q, want %q", tc.language, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCodegenRequestBytesForPluginUsesParameters(t *testing.T) {
+	req := &pluginpb.CodeGeneratorRequest{
+		FileToGenerate: []string{"v1/greeting.proto"},
+		ProtoFile: []*descriptorpb.FileDescriptorProto{{
+			Name:    proto.String("v1/greeting.proto"),
+			Package: proto.String("greeting.v1"),
+		}},
+	}
+	reqBytes, err := proto.Marshal(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct {
+		plugin string
+		want   string
+	}{
+		{plugin: "dart", want: "grpc"},
+		{plugin: "swift", want: "Visibility=Public"},
+		{plugin: "swift-grpc", want: "Visibility=Public"},
+	} {
+		t.Run(tc.plugin, func(t *testing.T) {
+			gotBytes, err := codegenRequestBytesForPlugin(reqBytes, resolvedCodegenPlugin{
+				Name:      tc.plugin,
+				Parameter: codegenPluginParameter(tc.plugin),
+			})
+			if err != nil {
+				t.Fatalf("set parameter: %v", err)
+			}
+
+			got := &pluginpb.CodeGeneratorRequest{}
+			if err := proto.Unmarshal(gotBytes, got); err != nil {
+				t.Fatalf("decode request: %v", err)
+			}
+			if got.GetParameter() != tc.want {
+				t.Fatalf("%s parameter = %q, want %q", tc.plugin, got.GetParameter(), tc.want)
+			}
+		})
+	}
+}
+
 func runCodegenTestPlugin() {
 	data, err := io.ReadAll(os.Stdin)
 	if err != nil {
@@ -162,6 +417,37 @@ func runCodegenTestPlugin() {
 		os.Exit(1)
 	}
 	os.Exit(0)
+}
+
+func requestHasProtoPath(req *pluginpb.CodeGeneratorRequest, path string) bool {
+	for _, file := range req.GetProtoFile() {
+		if file.GetName() == path {
+			return true
+		}
+	}
+	return false
+}
+
+func requestHasProtoDependency(req *pluginpb.CodeGeneratorRequest, filePath, dependency string) bool {
+	for _, file := range req.GetProtoFile() {
+		if file.GetName() != filePath {
+			continue
+		}
+		for _, candidate := range file.Dependency {
+			if candidate == dependency {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func descriptorNames(req *pluginpb.CodeGeneratorRequest) []string {
+	names := make([]string, 0, len(req.GetProtoFile()))
+	for _, file := range req.GetProtoFile() {
+		names = append(names, file.GetName())
+	}
+	return names
 }
 
 func writeInstalledCodegenDistribution(t *testing.T, runtimeHome, sdk, version string, plugins []codegenDistributionPlugin) string {

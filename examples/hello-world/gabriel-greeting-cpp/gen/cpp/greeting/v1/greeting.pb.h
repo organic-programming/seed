@@ -237,7 +237,7 @@ class SayHelloResponse final : public ::google::protobuf::Message
     kLanguageFieldNumber = 2,
     kLangCodeFieldNumber = 3,
   };
-  // string greeting = 1;
+  // string greeting = 1 [json_name = "greeting"];
   void clear_greeting() ;
   const ::std::string& greeting() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
@@ -252,7 +252,7 @@ class SayHelloResponse final : public ::google::protobuf::Message
   ::std::string* PROTOBUF_NONNULL _internal_mutable_greeting();
 
   public:
-  // string language = 2;
+  // string language = 2 [json_name = "language"];
   void clear_language() ;
   const ::std::string& language() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
@@ -267,7 +267,7 @@ class SayHelloResponse final : public ::google::protobuf::Message
   ::std::string* PROTOBUF_NONNULL _internal_mutable_language();
 
   public:
-  // string lang_code = 3;
+  // string lang_code = 3 [json_name = "langCode"];
   void clear_lang_code() ;
   const ::std::string& lang_code() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
@@ -466,7 +466,7 @@ class SayHelloRequest final : public ::google::protobuf::Message
     kNameFieldNumber = 1,
     kLangCodeFieldNumber = 2,
   };
-  // string name = 1;
+  // string name = 1 [json_name = "name"];
   void clear_name() ;
   const ::std::string& name() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
@@ -481,7 +481,7 @@ class SayHelloRequest final : public ::google::protobuf::Message
   ::std::string* PROTOBUF_NONNULL _internal_mutable_name();
 
   public:
-  // string lang_code = 2;
+  // string lang_code = 2 [json_name = "langCode"];
   void clear_lang_code() ;
   const ::std::string& lang_code() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
@@ -826,7 +826,7 @@ class Language final : public ::google::protobuf::Message
     kNameFieldNumber = 2,
     kNativeFieldNumber = 3,
   };
-  // string code = 1;
+  // string code = 1 [json_name = "code"];
   void clear_code() ;
   const ::std::string& code() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
@@ -841,7 +841,7 @@ class Language final : public ::google::protobuf::Message
   ::std::string* PROTOBUF_NONNULL _internal_mutable_code();
 
   public:
-  // string name = 2;
+  // string name = 2 [json_name = "name"];
   void clear_name() ;
   const ::std::string& name() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
@@ -856,7 +856,7 @@ class Language final : public ::google::protobuf::Message
   ::std::string* PROTOBUF_NONNULL _internal_mutable_name();
 
   public:
-  // string native = 3;
+  // string native = 3 [json_name = "native"];
   void clear_native() ;
   const ::std::string& native() const;
   template <typename Arg_ = const ::std::string&, typename... Args_>
@@ -1054,7 +1054,7 @@ class ListLanguagesResponse final : public ::google::protobuf::Message
   enum : int {
     kLanguagesFieldNumber = 1,
   };
-  // repeated .greeting.v1.Language languages = 1;
+  // repeated .greeting.v1.Language languages = 1 [json_name = "languages"];
   int languages_size() const;
   private:
   int _internal_languages_size() const;
@@ -1125,7 +1125,7 @@ extern const ::google::protobuf::internal::ClassDataFull ListLanguagesResponse_c
 
 // ListLanguagesResponse
 
-// repeated .greeting.v1.Language languages = 1;
+// repeated .greeting.v1.Language languages = 1 [json_name = "languages"];
 inline int ListLanguagesResponse::_internal_languages_size() const {
   return _internal_languages().size();
 }
@@ -1179,7 +1179,7 @@ ListLanguagesResponse::_internal_mutable_languages() {
 
 // Language
 
-// string code = 1;
+// string code = 1 [json_name = "code"];
 inline void Language::clear_code() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.code_.ClearToEmpty();
@@ -1244,7 +1244,7 @@ inline void Language::set_allocated_code(::std::string* PROTOBUF_NULLABLE value)
   // @@protoc_insertion_point(field_set_allocated:greeting.v1.Language.code)
 }
 
-// string name = 2;
+// string name = 2 [json_name = "name"];
 inline void Language::clear_name() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.name_.ClearToEmpty();
@@ -1309,7 +1309,7 @@ inline void Language::set_allocated_name(::std::string* PROTOBUF_NULLABLE value)
   // @@protoc_insertion_point(field_set_allocated:greeting.v1.Language.name)
 }
 
-// string native = 3;
+// string native = 3 [json_name = "native"];
 inline void Language::clear_native() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.native_.ClearToEmpty();
@@ -1378,7 +1378,7 @@ inline void Language::set_allocated_native(::std::string* PROTOBUF_NULLABLE valu
 
 // SayHelloRequest
 
-// string name = 1;
+// string name = 1 [json_name = "name"];
 inline void SayHelloRequest::clear_name() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.name_.ClearToEmpty();
@@ -1443,7 +1443,7 @@ inline void SayHelloRequest::set_allocated_name(::std::string* PROTOBUF_NULLABLE
   // @@protoc_insertion_point(field_set_allocated:greeting.v1.SayHelloRequest.name)
 }
 
-// string lang_code = 2;
+// string lang_code = 2 [json_name = "langCode"];
 inline void SayHelloRequest::clear_lang_code() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.lang_code_.ClearToEmpty();
@@ -1512,7 +1512,7 @@ inline void SayHelloRequest::set_allocated_lang_code(::std::string* PROTOBUF_NUL
 
 // SayHelloResponse
 
-// string greeting = 1;
+// string greeting = 1 [json_name = "greeting"];
 inline void SayHelloResponse::clear_greeting() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.greeting_.ClearToEmpty();
@@ -1577,7 +1577,7 @@ inline void SayHelloResponse::set_allocated_greeting(::std::string* PROTOBUF_NUL
   // @@protoc_insertion_point(field_set_allocated:greeting.v1.SayHelloResponse.greeting)
 }
 
-// string language = 2;
+// string language = 2 [json_name = "language"];
 inline void SayHelloResponse::clear_language() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.language_.ClearToEmpty();
@@ -1642,7 +1642,7 @@ inline void SayHelloResponse::set_allocated_language(::std::string* PROTOBUF_NUL
   // @@protoc_insertion_point(field_set_allocated:greeting.v1.SayHelloResponse.language)
 }
 
-// string lang_code = 3;
+// string lang_code = 3 [json_name = "langCode"];
 inline void SayHelloResponse::clear_lang_code() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.lang_code_.ClearToEmpty();

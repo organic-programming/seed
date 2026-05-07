@@ -31,11 +31,15 @@ option (holons.v1.manifest) = {
   kind: "native"
   build: {
     runner: "gradle"
+    codegen: {
+      languages: ["kotlin-java", "kotlin-java-grpc", "kotlin", "kotlin-grpc"]
+    }
     main: "./src/main/kotlin/org/organicprogramming/gabriel/greeting/kotlinholon/cmd/Main.kt"
     templates: ["src/main/kotlin/org/organicprogramming/gabriel/greeting/kotlinholon/api/Cli.kt"]
   }
   requires: {
     commands: ["java", "gradle"]
+    sdk_prebuilts: ["kotlin"]
     files: ["build.gradle.kts", "settings.gradle.kts"]
   }
   artifacts: {

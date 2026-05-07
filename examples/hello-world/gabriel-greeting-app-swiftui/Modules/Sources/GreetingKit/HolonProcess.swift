@@ -178,6 +178,13 @@ public final class GreetingHolonManager: ObservableObject {
   }
 
   @discardableResult
+  public func selectLanguageAndGreet(_ value: String) async throws -> String {
+    let code = try await selectLanguage(value)
+    _ = try await greetCurrentSelection()
+    return code
+  }
+
+  @discardableResult
   public func greetCurrentSelection(
     name: String? = nil,
     langCode: String? = nil
@@ -373,12 +380,6 @@ public final class GreetingHolonManager: ObservableObject {
 
     case Self.sayHelloMethod:
       let request = try Greeting_V1_SayHelloRequest(jsonUTF8Data: normalizedPayload)
-      if !request.name.isEmpty {
-        userName = request.name
-      }
-      if !request.langCode.isEmpty {
-        _ = try await selectLanguage(request.langCode)
-      }
       let greeting = try await greetCurrentSelection(
         name: request.name.isEmpty ? nil : request.name,
         langCode: request.langCode.isEmpty ? nil : request.langCode
@@ -469,7 +470,7 @@ public typealias HolonProcess = GreetingHolonManager
         selectedHolon = identity
       }
 
-      await start()
+      try await reloadLanguages(greetAfterLoad: true)
       return coaxMember(
         for: identity,
         overrideState: isRunning ? .connected : .error

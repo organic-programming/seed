@@ -23,6 +23,10 @@ checks:
     workdir: ader/catalogues/grace-op/integration/build
     command: go test -tags e2e -v -count=1 -timeout 15m -run '^TestBuildRPC_' .
     description: Verifies the RPC alignment for build.
+  op-build-codegen-cli:
+    workdir: ader/catalogues/grace-op/integration/codegen
+    command: go test -tags e2e -v -count=1 -timeout 240m -run '^TestCodegen_CLI_' .
+    description: Verifies build.codegen regeneration, runtime startup, negative restoration, and no-op rebuild stability across migrated holons.
 
   op-check-cli:
     workdir: ader/catalogues/grace-op/integration/check

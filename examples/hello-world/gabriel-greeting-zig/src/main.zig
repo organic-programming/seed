@@ -3,6 +3,7 @@ const holons = @import("zig_holons");
 
 const describe_generated = @import("describe_generated");
 const greetings = @import("greetings.zig");
+const holon_version = "{{ .Version }}";
 
 const c = @cImport({
     @cInclude("unistd.h");
@@ -19,7 +20,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
         const output = try std.fmt.allocPrint(
             arena.allocator(),
             "gabriel-greeting-zig {s}\n",
-            .{describe_generated.holonVersion},
+            .{holon_version},
         );
         try writeAll(c.STDOUT_FILENO, output);
         return;

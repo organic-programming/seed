@@ -42,6 +42,7 @@ strip_archive() {
 repo_root="$(git rev-parse --show-toplevel)"
 # shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
 source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
+trap 'cleanup_grpc_third_party_pollution "$repo_root"' EXIT
 c_sdk_dir="${repo_root}/sdk/c-holons"
 cpp_sdk_dir="${repo_root}/sdk/cpp-holons"
 protobuf_c_source="${PROTOBUF_C_SOURCE_DIR:-${repo_root}/sdk/zig-holons/third_party/protobuf-c}"
@@ -67,13 +68,49 @@ if [[ ! -f "${protobuf_c_source}/build-cmake/CMakeLists.txt" ]]; then
   exit 1
 fi
 
-if [[ ! -f "${cpp_prefix}/lib/cmake/grpc/gRPCConfig.cmake" ||
-      ! -x "${cpp_prefix}/bin/protoc" ||
-      ! -x "${cpp_prefix}/bin/protoc-gen-upb" ||
-      ! -x "${cpp_prefix}/bin/protoc-gen-upbdefs" ]]; then
-  GRPC_SOURCE_DIR="$grpc_source" SDK_TARGET="$sdk_target" SDK_VERSION="$sdk_version" CPP_HOLONS_JOBS="$jobs" \
-    "${repo_root}/.github/scripts/build-prebuilt-cpp.sh"
-fi
+assert_cpp_prefix() {
+  local prefix="$cpp_prefix"
+  local suffix
+  local missing=()
+  local required
+  local executable
+
+  suffix="$(target_exe_suffix "$sdk_target")"
+
+  if [[ ! -d "$prefix/bin" ]]; then
+    missing+=("$prefix/bin")
+  fi
+
+  for required in \
+    "${prefix}/lib/cmake/grpc/gRPCConfig.cmake" \
+    "${cpp_toolchain_dir}/${sdk_target}.cmake"
+  do
+    if [[ ! -f "$required" ]]; then
+      missing+=("$required")
+    fi
+  done
+
+  for executable in \
+    "${prefix}/bin/protoc${suffix}" \
+    "${prefix}/bin/protoc-gen-upb${suffix}" \
+    "${prefix}/bin/protoc-gen-upbdefs${suffix}" \
+    "${prefix}/bin/protoc-gen-upb_minitable${suffix}"
+  do
+    if [[ ! -x "$executable" ]]; then
+      missing+=("$executable")
+    fi
+  done
+
+  if (( ${#missing[@]} > 0 )); then
+    echo "error: cpp prefix not found at $prefix" >&2
+    printf '  missing: %s\n' "${missing[@]}" >&2
+    echo "  CI: ensure your job declares needs: sdk-prebuilt-cpp + needs-cpp-prefix: true" >&2
+    echo "  Local: run .github/scripts/build-prebuilt-cpp.sh first" >&2
+    exit 1
+  fi
+}
+
+assert_cpp_prefix
 
 case "$sdk_target" in
   aarch64-apple-darwin|x86_64-apple-darwin)

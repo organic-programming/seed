@@ -69,6 +69,7 @@ listLanguages: {
   },
   // Greets the user in the chosen language.
 // @example {"name":"Bob","lang_code":"fr"}
+// @example {"name":"Bob","lang_code":"fr"} --origin
 sayHello: {
     path: '/greeting.v1.GreetingService/SayHello',
     requestStream: false,

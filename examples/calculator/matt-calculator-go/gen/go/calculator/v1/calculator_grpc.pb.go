@@ -4,7 +4,7 @@
 // - protoc             v7.34.0
 // source: v1/calculator.proto
 
-package v1
+package calculatorv1
 
 import (
 	context "context"

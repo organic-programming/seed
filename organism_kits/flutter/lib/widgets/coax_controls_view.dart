@@ -19,49 +19,71 @@ class CoaxControlsView extends StatelessWidget {
       animation: coaxManager,
       builder: (context, _) {
         final endpoint = coaxManager.serverStatus.endpoint;
-        return Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          alignment: WrapAlignment.end,
-          spacing: 8,
-          runSpacing: 6,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Switch(
-                  value: coaxManager.isEnabled,
-                  onChanged: coaxManager.setEnabled,
-                ),
-                const Text('COAX'),
-                IconButton(
-                  tooltip: 'COAX settings',
-                  onPressed: onOpenSettings,
-                  icon: const Icon(Icons.tune),
-                ),
-              ],
-            ),
-            if (endpoint != null)
+        final textTheme = Theme.of(context).textTheme;
+        return Align(
+          alignment: Alignment.centerRight,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SelectableText(
-                    endpoint,
-                    style: Theme.of(context).textTheme.bodySmall,
+                  Switch(
+                    value: coaxManager.isEnabled,
+                    onChanged: coaxManager.setEnabled,
                   ),
-                  const SizedBox(width: 8),
-                  CoaxSurfaceBadge(state: coaxManager.serverStatus.state),
+                  Text(
+                    'COAX',
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'COAX settings',
+                    onPressed: onOpenSettings,
+                    icon: const Icon(Icons.tune),
+                  ),
                 ],
               ),
-            if (coaxManager.statusDetail != null)
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 360),
-                child: Text(
-                  coaxManager.statusDetail!,
-                  textAlign: TextAlign.end,
-                  style: Theme.of(context).textTheme.bodySmall,
+              if (endpoint != null)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          endpoint,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.end,
+                          style: textTheme.bodySmall?.copyWith(
+                            fontFamily: 'monospace',
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      CoaxSurfaceBadge(state: coaxManager.serverStatus.state),
+                    ],
+                  ),
                 ),
-              ),
-          ],
+              if (coaxManager.statusDetail != null)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      coaxManager.statusDetail!,
+                      textAlign: TextAlign.end,
+                      style: textTheme.bodySmall,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
@@ -93,9 +115,11 @@ class CoaxSurfaceBadge extends StatelessWidget {
     };
     return Text(
       state.badgeTitle,
+      maxLines: 1,
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
         color: color,
         fontWeight: FontWeight.w700,
+        letterSpacing: 0,
       ),
     );
   }

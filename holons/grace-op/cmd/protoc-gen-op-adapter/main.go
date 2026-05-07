@@ -138,11 +138,15 @@ func protocArgs(lang, descPath, outDir string) ([]string, error) {
 		if plugin, err := optionalSiblingExecutable("grpc_tools_node_protoc_plugin"); err == nil {
 			args = append(args, "--grpc_out=grpc_js:"+outDir, "--plugin=protoc-gen-grpc="+plugin)
 		}
-	case "kotlin":
+	case "kotlin-java":
 		args = append(args, "--java_out="+outDir)
-		if plugin, err := optionalSiblingExecutable("protoc-gen-kotlin"); err == nil {
-			args = append(args, "--kotlin_out="+outDir, "--plugin=protoc-gen-kotlin="+plugin)
+	case "kotlin-java-grpc":
+		if plugin, err := optionalSiblingExecutable("protoc-gen-grpc-java"); err == nil {
+			args = append(args, "--grpc-java_out="+outDir, "--plugin=protoc-gen-grpc-java="+plugin)
 		}
+	case "kotlin":
+		args = append(args, "--kotlin_out="+outDir)
+	case "kotlin-grpc":
 		if plugin, err := optionalSiblingExecutable("protoc-gen-grpc-kotlin"); err == nil {
 			args = append(args, "--grpc-kotlin_out="+outDir, "--plugin=protoc-gen-grpc-kotlin="+plugin)
 		}

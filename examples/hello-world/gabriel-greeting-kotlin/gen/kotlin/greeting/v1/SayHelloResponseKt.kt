@@ -2,7 +2,6 @@
 // NO CHECKED-IN PROTOBUF GENCODE
 // source: v1/greeting.proto
 
-@file:com.google.protobuf.Generated
 // Generated files should ignore deprecation warnings
 @file:Suppress("DEPRECATION")
 package greeting.v1;
@@ -36,7 +35,7 @@ public object SayHelloResponseKt {
      * @example "Bonjour, Bob !"
      * ```
      *
-     * `string greeting = 1;`
+     * `string greeting = 1 [json_name = "greeting"];`
      */
     public var greeting: kotlin.String
       @kotlin.jvm.JvmName("getGreeting")
@@ -52,7 +51,7 @@ public object SayHelloResponseKt {
      * @example "Bonjour, Bob !"
      * ```
      *
-     * `string greeting = 1;`
+     * `string greeting = 1 [json_name = "greeting"];`
      */
     public fun clearGreeting() {
       _builder.clearGreeting()
@@ -65,7 +64,7 @@ public object SayHelloResponseKt {
      * @example "French"
      * ```
      *
-     * `string language = 2;`
+     * `string language = 2 [json_name = "language"];`
      */
     public var language: kotlin.String
       @kotlin.jvm.JvmName("getLanguage")
@@ -81,7 +80,7 @@ public object SayHelloResponseKt {
      * @example "French"
      * ```
      *
-     * `string language = 2;`
+     * `string language = 2 [json_name = "language"];`
      */
     public fun clearLanguage() {
       _builder.clearLanguage()
@@ -94,7 +93,7 @@ public object SayHelloResponseKt {
      * @example "fr"
      * ```
      *
-     * `string lang_code = 3;`
+     * `string lang_code = 3 [json_name = "langCode"];`
      */
     public var langCode: kotlin.String
       @kotlin.jvm.JvmName("getLangCode")
@@ -110,7 +109,7 @@ public object SayHelloResponseKt {
      * @example "fr"
      * ```
      *
-     * `string lang_code = 3;`
+     * `string lang_code = 3 [json_name = "langCode"];`
      */
     public fun clearLangCode() {
       _builder.clearLangCode()

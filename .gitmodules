@@ -1,6 +1,6 @@
 [submodule "sdk/zig-holons/third_party/grpc"]
 	path = sdk/zig-holons/third_party/grpc
-	url = https://github.com/grpc/grpc.git
+	url = https://github.com/organic-programming/grpc.git
 [submodule "sdk/zig-holons/third_party/protobuf-c"]
 	path = sdk/zig-holons/third_party/protobuf-c
 	url = https://github.com/protobuf-c/protobuf-c.git

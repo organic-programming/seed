@@ -3,7 +3,7 @@ import Holons
 import SwiftProtobuf
 
 public enum CLI {
-    public static let version = "gabriel-greeting-swift 8.8.173"
+    public static let version = "gabriel-greeting-swift {{ .Version }}"
 
     public static func run(_ args: [String], serve: ((String, Bool) throws -> Void)? = nil) -> Int {
         var stdout = FileTextOutputStream.standardOutput

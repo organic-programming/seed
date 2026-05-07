@@ -222,24 +222,26 @@ static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
 const char descriptor_table_protodef_greeting_2eproto[] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     protodesc_cold) = {
     "\n\016greeting.proto\022\013greeting.v1\"\026\n\024ListLan"
-    "guagesRequest\"A\n\025ListLanguagesResponse\022("
+    "guagesRequest\"L\n\025ListLanguagesResponse\0223"
     "\n\tlanguages\030\001 \003(\0132\025.greeting.v1.Language"
-    "\"6\n\010Language\022\014\n\004code\030\001 \001(\t\022\014\n\004name\030\002 \001(\t"
-    "\022\016\n\006native\030\003 \001(\t\"2\n\017SayHelloRequest\022\014\n\004n"
-    "ame\030\001 \001(\t\022\021\n\tlang_code\030\002 \001(\t\"I\n\020SayHello"
-    "Response\022\020\n\010greeting\030\001 \001(\t\022\020\n\010language\030\002"
-    " \001(\t\022\021\n\tlang_code\030\003 \001(\t2\262\001\n\017GreetingServ"
-    "ice\022V\n\rListLanguages\022!.greeting.v1.ListL"
-    "anguagesRequest\032\".greeting.v1.ListLangua"
-    "gesResponse\022G\n\010SayHello\022\034.greeting.v1.Sa"
-    "yHelloRequest\032\035.greeting.v1.SayHelloResp"
-    "onseb\006proto3"
+    "R\tlanguages\"J\n\010Language\022\022\n\004code\030\001 \001(\tR\004c"
+    "ode\022\022\n\004name\030\002 \001(\tR\004name\022\026\n\006native\030\003 \001(\tR"
+    "\006native\"B\n\017SayHelloRequest\022\022\n\004name\030\001 \001(\t"
+    "R\004name\022\033\n\tlang_code\030\002 \001(\tR\010langCode\"g\n\020S"
+    "ayHelloResponse\022\032\n\010greeting\030\001 \001(\tR\010greet"
+    "ing\022\032\n\010language\030\002 \001(\tR\010language\022\033\n\tlang_"
+    "code\030\003 \001(\tR\010langCode2\262\001\n\017GreetingService"
+    "\022V\n\rListLanguages\022!.greeting.v1.ListLang"
+    "uagesRequest\032\".greeting.v1.ListLanguages"
+    "Response\022G\n\010SayHello\022\034.greeting.v1.SayHe"
+    "lloRequest\032\035.greeting.v1.SayHelloRespons"
+    "eb\006proto3"
 };
 static ::absl::once_flag descriptor_table_greeting_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_greeting_2eproto = {
     false,
     false,
-    492,
+    569,
     descriptor_table_protodef_greeting_2eproto,
     "greeting.proto",
     &descriptor_table_greeting_2eproto_once,
@@ -495,13 +497,13 @@ ListLanguagesResponse::_table_ = {
     ::_pbi::TcParser::GetTable<::greeting::v1::ListLanguagesResponse>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
-    // repeated .greeting.v1.Language languages = 1;
+    // repeated .greeting.v1.Language languages = 1 [json_name = "languages"];
     {::_pbi::TcParser::FastMtR1,
      {10, 63, 0, PROTOBUF_FIELD_OFFSET(ListLanguagesResponse, _impl_.languages_)}},
   }}, {{
     65535, 65535
   }}, {{
-    // repeated .greeting.v1.Language languages = 1;
+    // repeated .greeting.v1.Language languages = 1 [json_name = "languages"];
     {PROTOBUF_FIELD_OFFSET(ListLanguagesResponse, _impl_.languages_), 0, 0,
     (0 | ::_fl::kFcRepeated | ::_fl::kMessage | ::_fl::kTvTable)},
   }},
@@ -537,7 +539,7 @@ PROTOBUF_NOINLINE void ListLanguagesResponse::Clear() {
   ::uint32_t cached_has_bits = 0;
   (void)cached_has_bits;
 
-  // repeated .greeting.v1.Language languages = 1;
+  // repeated .greeting.v1.Language languages = 1 [json_name = "languages"];
   for (unsigned i = 0, n = static_cast<unsigned>(
                            this_._internal_languages_size());
        i < n; i++) {
@@ -573,7 +575,7 @@ PROTOBUF_NOINLINE void ListLanguagesResponse::Clear() {
 
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
    {
-    // repeated .greeting.v1.Language languages = 1;
+    // repeated .greeting.v1.Language languages = 1 [json_name = "languages"];
     {
       total_size += 1UL * this_._internal_languages_size();
       for (const auto& msg : this_._internal_languages()) {
@@ -748,25 +750,25 @@ Language::_table_ = {
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
     {::_pbi::TcParser::MiniParse, {}},
-    // string code = 1;
+    // string code = 1 [json_name = "code"];
     {::_pbi::TcParser::FastUS1,
      {10, 0, 0, PROTOBUF_FIELD_OFFSET(Language, _impl_.code_)}},
-    // string name = 2;
+    // string name = 2 [json_name = "name"];
     {::_pbi::TcParser::FastUS1,
      {18, 1, 0, PROTOBUF_FIELD_OFFSET(Language, _impl_.name_)}},
-    // string native = 3;
+    // string native = 3 [json_name = "native"];
     {::_pbi::TcParser::FastUS1,
      {26, 2, 0, PROTOBUF_FIELD_OFFSET(Language, _impl_.native_)}},
   }}, {{
     65535, 65535
   }}, {{
-    // string code = 1;
+    // string code = 1 [json_name = "code"];
     {PROTOBUF_FIELD_OFFSET(Language, _impl_.code_), _Internal::kHasBitsOffset + 0, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-    // string name = 2;
+    // string name = 2 [json_name = "name"];
     {PROTOBUF_FIELD_OFFSET(Language, _impl_.name_), _Internal::kHasBitsOffset + 1, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-    // string native = 3;
+    // string native = 3 [json_name = "native"];
     {PROTOBUF_FIELD_OFFSET(Language, _impl_.native_), _Internal::kHasBitsOffset + 2, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
   }},
@@ -817,7 +819,7 @@ PROTOBUF_NOINLINE void Language::Clear() {
   ::uint32_t cached_has_bits = 0;
   (void)cached_has_bits;
 
-  // string code = 1;
+  // string code = 1 [json_name = "code"];
   if ((this_._impl_._has_bits_[0] & 0x00000001u) != 0) {
     if (!this_._internal_code().empty()) {
       const ::std::string& _s = this_._internal_code();
@@ -827,7 +829,7 @@ PROTOBUF_NOINLINE void Language::Clear() {
     }
   }
 
-  // string name = 2;
+  // string name = 2 [json_name = "name"];
   if ((this_._impl_._has_bits_[0] & 0x00000002u) != 0) {
     if (!this_._internal_name().empty()) {
       const ::std::string& _s = this_._internal_name();
@@ -837,7 +839,7 @@ PROTOBUF_NOINLINE void Language::Clear() {
     }
   }
 
-  // string native = 3;
+  // string native = 3 [json_name = "native"];
   if ((this_._impl_._has_bits_[0] & 0x00000004u) != 0) {
     if (!this_._internal_native().empty()) {
       const ::std::string& _s = this_._internal_native();
@@ -873,21 +875,21 @@ PROTOBUF_NOINLINE void Language::Clear() {
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
   if ((cached_has_bits & 0x00000007u) != 0) {
-    // string code = 1;
+    // string code = 1 [json_name = "code"];
     if ((cached_has_bits & 0x00000001u) != 0) {
       if (!this_._internal_code().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
                                         this_._internal_code());
       }
     }
-    // string name = 2;
+    // string name = 2 [json_name = "name"];
     if ((cached_has_bits & 0x00000002u) != 0) {
       if (!this_._internal_name().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
                                         this_._internal_name());
       }
     }
-    // string native = 3;
+    // string native = 3 [json_name = "native"];
     if ((cached_has_bits & 0x00000004u) != 0) {
       if (!this_._internal_native().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
@@ -1092,19 +1094,19 @@ SayHelloRequest::_table_ = {
     ::_pbi::TcParser::GetTable<::greeting::v1::SayHelloRequest>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
-    // string lang_code = 2;
+    // string lang_code = 2 [json_name = "langCode"];
     {::_pbi::TcParser::FastUS1,
      {18, 1, 0, PROTOBUF_FIELD_OFFSET(SayHelloRequest, _impl_.lang_code_)}},
-    // string name = 1;
+    // string name = 1 [json_name = "name"];
     {::_pbi::TcParser::FastUS1,
      {10, 0, 0, PROTOBUF_FIELD_OFFSET(SayHelloRequest, _impl_.name_)}},
   }}, {{
     65535, 65535
   }}, {{
-    // string name = 1;
+    // string name = 1 [json_name = "name"];
     {PROTOBUF_FIELD_OFFSET(SayHelloRequest, _impl_.name_), _Internal::kHasBitsOffset + 0, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-    // string lang_code = 2;
+    // string lang_code = 2 [json_name = "langCode"];
     {PROTOBUF_FIELD_OFFSET(SayHelloRequest, _impl_.lang_code_), _Internal::kHasBitsOffset + 1, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
   }},
@@ -1151,7 +1153,7 @@ PROTOBUF_NOINLINE void SayHelloRequest::Clear() {
   ::uint32_t cached_has_bits = 0;
   (void)cached_has_bits;
 
-  // string name = 1;
+  // string name = 1 [json_name = "name"];
   if ((this_._impl_._has_bits_[0] & 0x00000001u) != 0) {
     if (!this_._internal_name().empty()) {
       const ::std::string& _s = this_._internal_name();
@@ -1161,7 +1163,7 @@ PROTOBUF_NOINLINE void SayHelloRequest::Clear() {
     }
   }
 
-  // string lang_code = 2;
+  // string lang_code = 2 [json_name = "langCode"];
   if ((this_._impl_._has_bits_[0] & 0x00000002u) != 0) {
     if (!this_._internal_lang_code().empty()) {
       const ::std::string& _s = this_._internal_lang_code();
@@ -1197,14 +1199,14 @@ PROTOBUF_NOINLINE void SayHelloRequest::Clear() {
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
   if ((cached_has_bits & 0x00000003u) != 0) {
-    // string name = 1;
+    // string name = 1 [json_name = "name"];
     if ((cached_has_bits & 0x00000001u) != 0) {
       if (!this_._internal_name().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
                                         this_._internal_name());
       }
     }
-    // string lang_code = 2;
+    // string lang_code = 2 [json_name = "langCode"];
     if ((cached_has_bits & 0x00000002u) != 0) {
       if (!this_._internal_lang_code().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
@@ -1403,25 +1405,25 @@ SayHelloResponse::_table_ = {
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
     {::_pbi::TcParser::MiniParse, {}},
-    // string greeting = 1;
+    // string greeting = 1 [json_name = "greeting"];
     {::_pbi::TcParser::FastUS1,
      {10, 0, 0, PROTOBUF_FIELD_OFFSET(SayHelloResponse, _impl_.greeting_)}},
-    // string language = 2;
+    // string language = 2 [json_name = "language"];
     {::_pbi::TcParser::FastUS1,
      {18, 1, 0, PROTOBUF_FIELD_OFFSET(SayHelloResponse, _impl_.language_)}},
-    // string lang_code = 3;
+    // string lang_code = 3 [json_name = "langCode"];
     {::_pbi::TcParser::FastUS1,
      {26, 2, 0, PROTOBUF_FIELD_OFFSET(SayHelloResponse, _impl_.lang_code_)}},
   }}, {{
     65535, 65535
   }}, {{
-    // string greeting = 1;
+    // string greeting = 1 [json_name = "greeting"];
     {PROTOBUF_FIELD_OFFSET(SayHelloResponse, _impl_.greeting_), _Internal::kHasBitsOffset + 0, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-    // string language = 2;
+    // string language = 2 [json_name = "language"];
     {PROTOBUF_FIELD_OFFSET(SayHelloResponse, _impl_.language_), _Internal::kHasBitsOffset + 1, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-    // string lang_code = 3;
+    // string lang_code = 3 [json_name = "langCode"];
     {PROTOBUF_FIELD_OFFSET(SayHelloResponse, _impl_.lang_code_), _Internal::kHasBitsOffset + 2, 0,
     (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
   }},
@@ -1472,7 +1474,7 @@ PROTOBUF_NOINLINE void SayHelloResponse::Clear() {
   ::uint32_t cached_has_bits = 0;
   (void)cached_has_bits;
 
-  // string greeting = 1;
+  // string greeting = 1 [json_name = "greeting"];
   if ((this_._impl_._has_bits_[0] & 0x00000001u) != 0) {
     if (!this_._internal_greeting().empty()) {
       const ::std::string& _s = this_._internal_greeting();
@@ -1482,7 +1484,7 @@ PROTOBUF_NOINLINE void SayHelloResponse::Clear() {
     }
   }
 
-  // string language = 2;
+  // string language = 2 [json_name = "language"];
   if ((this_._impl_._has_bits_[0] & 0x00000002u) != 0) {
     if (!this_._internal_language().empty()) {
       const ::std::string& _s = this_._internal_language();
@@ -1492,7 +1494,7 @@ PROTOBUF_NOINLINE void SayHelloResponse::Clear() {
     }
   }
 
-  // string lang_code = 3;
+  // string lang_code = 3 [json_name = "langCode"];
   if ((this_._impl_._has_bits_[0] & 0x00000004u) != 0) {
     if (!this_._internal_lang_code().empty()) {
       const ::std::string& _s = this_._internal_lang_code();
@@ -1528,21 +1530,21 @@ PROTOBUF_NOINLINE void SayHelloResponse::Clear() {
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
   if ((cached_has_bits & 0x00000007u) != 0) {
-    // string greeting = 1;
+    // string greeting = 1 [json_name = "greeting"];
     if ((cached_has_bits & 0x00000001u) != 0) {
       if (!this_._internal_greeting().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
                                         this_._internal_greeting());
       }
     }
-    // string language = 2;
+    // string language = 2 [json_name = "language"];
     if ((cached_has_bits & 0x00000002u) != 0) {
       if (!this_._internal_language().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
                                         this_._internal_language());
       }
     }
-    // string lang_code = 3;
+    // string lang_code = 3 [json_name = "langCode"];
     if ((cached_has_bits & 0x00000004u) != 0) {
       if (!this_._internal_lang_code().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(

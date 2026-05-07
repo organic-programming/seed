@@ -35,6 +35,7 @@ option (holons.v1.manifest) = {
   }
   build: {
     runner: "recipe"
+    codegen: { languages: ["dart"] }
     defaults: {
       target: "macos"
       mode: "debug"
@@ -89,6 +90,9 @@ option (holons.v1.manifest) = {
         }
       }
     }
+  }
+  requires: {
+    sdk_prebuilts: ["dart"]
   }
   artifacts: {
     primary: "app/lib/main.dart"

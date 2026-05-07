@@ -96,6 +96,7 @@ namespace Greeting.V1 {
       /// <summary>
       /// Greets the user in the chosen language.
       /// @example {"name":"Bob","lang_code":"fr"}
+      /// @example {"name":"Bob","lang_code":"fr"} --origin
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -190,6 +191,7 @@ namespace Greeting.V1 {
       /// <summary>
       /// Greets the user in the chosen language.
       /// @example {"name":"Bob","lang_code":"fr"}
+      /// @example {"name":"Bob","lang_code":"fr"} --origin
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -204,6 +206,7 @@ namespace Greeting.V1 {
       /// <summary>
       /// Greets the user in the chosen language.
       /// @example {"name":"Bob","lang_code":"fr"}
+      /// @example {"name":"Bob","lang_code":"fr"} --origin
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -216,6 +219,7 @@ namespace Greeting.V1 {
       /// <summary>
       /// Greets the user in the chosen language.
       /// @example {"name":"Bob","lang_code":"fr"}
+      /// @example {"name":"Bob","lang_code":"fr"} --origin
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -230,6 +234,7 @@ namespace Greeting.V1 {
       /// <summary>
       /// Greets the user in the chosen language.
       /// @example {"name":"Bob","lang_code":"fr"}
+      /// @example {"name":"Bob","lang_code":"fr"} --origin
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
