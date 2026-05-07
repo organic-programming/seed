@@ -152,7 +152,7 @@ jobs:
             "$status" "$exit_code" "$start_iso" "$end_iso" "$((end_epoch - start_epoch))" "$reason" >> "$ADER_BENCH_REPORT_DIR/blocks.tsv"
           echo "ZIG_SUBMODULES_EXIT=$exit_code" >> "$GITHUB_ENV"
 
-      - name: Bootstrap op and ader
+      - name: Bootstrap op
         if: always()
         run: |
           set -euo pipefail
@@ -170,7 +170,6 @@ jobs:
               go run ./holons/grace-op/cmd/op env --init
               go run ./holons/grace-op/cmd/op build op --install --symlink
               eval "$(go run ./holons/grace-op/cmd/op env --shell)"
-              op build clem-ader --install --symlink
               echo "$OPBIN" >> "$GITHUB_PATH"
               {
                 echo "OPPATH=$OPPATH"
@@ -179,7 +178,7 @@ jobs:
             } || {
               exit_code="$?"
               status="FAIL"
-              reason="op/ader/SDK bootstrap failed"
+              reason="op bootstrap failed"
             }
           fi
           end_epoch="$(date +%s)"
@@ -226,8 +225,9 @@ jobs:
             "$status" "$exit_code" "$start_iso" "$end_iso" "$((end_epoch - start_epoch))" "$reason" >> "$ADER_BENCH_REPORT_DIR/blocks.tsv"
           echo "SDK_INSTALL_EXIT=$exit_code" >> "$GITHUB_ENV"
 
-      - name: Run timed ader bouquet
+      - name: Build ader
         if: always()
+        shell: bash
         run: |
           set -euo pipefail
           start_epoch="$(date +%s)"
@@ -239,6 +239,32 @@ jobs:
             status="SKIP"
             exit_code="125"
             reason="skipped because bootstrap or SDK install did not complete"
+          else
+            op build clem-ader --install --symlink || {
+              exit_code="$?"
+              status="FAIL"
+              reason="ader build failed"
+            }
+          fi
+          end_epoch="$(date +%s)"
+          end_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          printf 'build-ader\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$status" "$exit_code" "$start_iso" "$end_iso" "$((end_epoch - start_epoch))" "$reason" >> "$ADER_BENCH_REPORT_DIR/blocks.tsv"
+          echo "ADER_BUILD_EXIT=$exit_code" >> "$GITHUB_ENV"
+
+      - name: Run timed ader bouquet
+        if: always()
+        run: |
+          set -euo pipefail
+          start_epoch="$(date +%s)"
+          start_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          status="PASS"
+          exit_code="0"
+          reason=""
+          if [ "${BOOTSTRAP_EXIT:-1}" != "0" ] || [ "${SDK_INSTALL_EXIT:-1}" != "0" ] || [ "${ADER_BUILD_EXIT:-1}" != "0" ]; then
+            status="SKIP"
+            exit_code="125"
+            reason="skipped because bootstrap, SDK install, or ader build did not complete"
           else
             ader test-bouquet ader --name "$BOUQUET" || {
               exit_code="$?"

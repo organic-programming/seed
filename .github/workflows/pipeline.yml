@@ -733,13 +733,12 @@ jobs:
           git submodule update --init --force --recursive --depth 1 --jobs 8 \
             sdk/zig-holons/third_party/grpc \
             sdk/zig-holons/third_party/protobuf-c
-      - name: Bootstrap op and ader
+      - name: Bootstrap op
         run: |
           set -euo pipefail
           go run ./holons/grace-op/cmd/op env --init
           go run ./holons/grace-op/cmd/op build op --install --symlink
           eval "$(go run ./holons/grace-op/cmd/op env --shell)"
-          op build clem-ader --install --symlink
           echo "$OPBIN" >> "$GITHUB_PATH"
           {
             echo "OPPATH=$OPPATH"
@@ -765,6 +764,8 @@ jobs:
             sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
             echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
           done
+      - name: Build ader
+        run: op build clem-ader --install --symlink
       - name: Run ader bouquet
         run: ader test-bouquet ader --name "$BOUQUET"
       - name: Upload reports
@@ -849,14 +850,13 @@ jobs:
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
           go install github.com/fullstorydev/grpcurl/cmd/grpcurl@v1.9.3
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-      - name: Bootstrap op and ader
+      - name: Bootstrap op
         if: matrix.mode == 'host'
         run: |
           set -euo pipefail
           go run ./holons/grace-op/cmd/op env --init
           go run ./holons/grace-op/cmd/op build op --install --symlink
           eval "$(go run ./holons/grace-op/cmd/op env --shell)"
-          op build clem-ader --install --symlink
           echo "$OPBIN" >> "$GITHUB_PATH"
           {
             echo "OPPATH=$OPPATH"
@@ -875,6 +875,9 @@ jobs:
             sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
             echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
           done
+      - name: Build ader
+        if: matrix.mode == 'host'
+        run: op build clem-ader --install --symlink
       - name: Run Zig host deep tests
         if: matrix.mode == 'host'
         run: |
