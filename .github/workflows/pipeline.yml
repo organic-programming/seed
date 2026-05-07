@@ -320,20 +320,20 @@ jobs:
       continue-on-error: ${{ matrix.continue_on_error || false }}
 
   sdk-prebuilt-ruby:
+    # Depends on sdk-prebuilt-cpp because the ruby adapter SDK needs
+    # grpc_ruby_plugin from the cpp prefix (see workflows/README.md
+    # § Inter-SDK dependency: cpp prefix). Each ruby target downloads the
+    # matching cpp-prefix-<target> artifact before its build script runs.
     if: needs.detect-sdk-changes.outputs.ruby == 'true'
-    needs: detect-sdk-changes
+    needs:
+      - detect-sdk-changes
+      - sdk-prebuilt-cpp
     strategy:
       fail-fast: false
       matrix:
         include:
-          # macOS aarch64 grpc-tools gem does not ship grpc_ruby_plugin;
-          # sibling lookup against the cpp prefix only works on the same
-          # runner, which CI does not provide cross-job. Marked
-          # continue_on_error until a proper cpp→ruby artifact chaining
-          # is wired in the pipeline.
           - target: aarch64-apple-darwin
             runs_on: '["macos-14"]'
-            continue_on_error: true
           - target: x86_64-unknown-linux-gnu
             runs_on: '["ubuntu-latest"]'
             continue_on_error: true
@@ -356,6 +356,7 @@ jobs:
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       continue-on-error: ${{ matrix.continue_on_error || false }}
+      needs-cpp-prefix: true
 
   sdk-prebuilts-fresh:
     runs-on: ubuntu-latest

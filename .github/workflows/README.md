@@ -55,9 +55,9 @@ benchmark/maintenance:
 | `gate-6-smoke-suite` | popok | `needs: gate-5` | blocks all later jobs | 2-3 min |
 | `detect-sdk-changes` | ubuntu-latest | `needs: gate-6` | decides tier-1 SDK jobs | <1 min |
 | `sdk-prebuilt-zig` | hosted/macOS | SDK paths or workflow changed | blocks tier 2/3 if required and failed | 10-30 min |
-| `sdk-prebuilt-cpp` | hosted/macOS | SDK paths or workflow changed | blocks tier 2/3 if required and failed | 10-30 min |
+| `sdk-prebuilt-cpp` | hosted/macOS | SDK paths or workflow changed; uploads `cpp-prefix-<target>` artifact for adapter SDKs | blocks tier 2/3 if required and failed | 10-30 min |
 | `sdk-prebuilt-c` | hosted/macOS | SDK paths or workflow changed | blocks tier 2/3 if required and failed | 10-30 min |
-| `sdk-prebuilt-ruby` | hosted/macOS | SDK paths or workflow changed | blocks tier 2/3 if required and failed | 10-30 min |
+| `sdk-prebuilt-ruby` | hosted/macOS | SDK paths or workflow changed; `needs: sdk-prebuilt-cpp`, downloads `cpp-prefix-<target>` | blocks tier 2/3 if required and failed | 10-30 min |
 | `sdk-prebuilts-fresh` | ubuntu-latest | after tier 1 | pass-through/no-op when no SDK changed | <1 min |
 | `composite-swiftui-full` | popok | `needs: sdk-prebuilts-fresh` | fail-isolated PR check | 1-2 h |
 | `composite-flutter-full` | popok | `needs: sdk-prebuilts-fresh` | fail-isolated PR check | 1-2 h |
@@ -82,6 +82,23 @@ benchmark/maintenance:
 | ruby prebuilt | `x86_64-apple-darwin` | omitted | grpc native gem build fails on Intel mac with incompatible function pointer types |
 | zig/cpp/c/ruby prebuilts | linux and windows matrix entries | `continue-on-error` | target needs validation before gating |
 | zig cross-smoke | `aarch64-linux-android` | omitted | NDK/linker setup is not stable on popok |
+
+## Inter-SDK dependency: cpp prefix
+
+Several adapter SDKs need a gRPC plugin binary that lives next to the cpp toolchain (`grpc_<lang>_plugin`):
+
+- `ruby` needs `grpc_ruby_plugin` because the `grpc-tools arm64-darwin` gem upstream does not ship it.
+- `python`, `csharp`, `java`, `kotlin` adapter SDKs follow the same pattern when their native ecosystem (pip / NuGet / Maven) does not provide the plugin on a given target.
+
+The cpp build configures `gRPC_BUILD_GRPC_<LANG>_PLUGIN=ON` so each plugin lands in `sdk/cpp-holons/.cpp-prebuilt/<target>/prefix/bin/`.
+
+To make these binaries available cross-job in CI:
+
+1. The `sdk-prebuilt-cpp` job uploads the prefix as a dedicated artifact `cpp-prefix-<target>` (retention 1 day, just enough to feed downstream jobs in the same workflow run).
+2. Each dependent adapter job (today: `sdk-prebuilt-ruby`) declares `needs: sdk-prebuilt-cpp` and passes `needs-cpp-prefix: true` to `_sdk-prebuilt-target.yml`.
+3. The reusable workflow downloads `cpp-prefix-<target>` and extracts it under `sdk/cpp-holons/.cpp-prebuilt/<target>/prefix/` before the build script runs, so the existing sibling-lookup logic in `lib-codegen-prebuilt.sh` finds the plugin natively.
+
+When adding a new adapter SDK that needs a cpp-side plugin, mirror the ruby pattern: `needs: sdk-prebuilt-cpp` + `needs-cpp-prefix: true`, and ensure the cpp build enables the matching `gRPC_BUILD_GRPC_<LANG>_PLUGIN` flag.
 
 ## Publish Semantics
 

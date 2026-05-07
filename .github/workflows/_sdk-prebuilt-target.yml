@@ -22,6 +22,17 @@ on:
         required: false
         type: boolean
         default: false
+      needs-cpp-prefix:
+        description: |
+          Set to true for SDKs whose build needs the cpp prebuilt prefix
+          (e.g. ruby, python, csharp, java, kotlin needing grpc_<lang>_plugin).
+          When true, the matching cpp prefix artifact is downloaded and
+          extracted under sdk/cpp-holons/.cpp-prebuilt/<target>/prefix/
+          before the build script runs.
+          The caller must set needs: sdk-prebuilt-cpp on the dependent job.
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -151,6 +162,13 @@ jobs:
           restore-keys: |
             sdk-prebuilt-${{ inputs.sdk }}-${{ inputs.sdk-target }}-${{ runner.os }}-${{ runner.arch }}-
 
+      - name: Download cpp prefix artifact
+        if: inputs.needs-cpp-prefix
+        uses: actions/download-artifact@v4
+        with:
+          name: cpp-prefix-${{ inputs.sdk-target }}
+          path: sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}/prefix
+
       - name: Build SDK prebuilt
         id: build_prebuilt
         shell: bash
@@ -170,6 +188,15 @@ jobs:
           name: ${{ inputs.sdk }}-${{ inputs.sdk-version }}-${{ inputs.sdk-target }}
           path: dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}/*
           if-no-files-found: error
+
+      - name: Upload cpp prefix for downstream adapter SDKs
+        if: inputs.sdk == 'cpp' && steps.build_prebuilt.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpp-prefix-${{ inputs.sdk-target }}
+          path: sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}/prefix
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Save SDK prebuilt output cache
         if: steps.build_prebuilt.outcome == 'success' && steps.prebuilt-cache.outputs.cache-hit != 'true'
