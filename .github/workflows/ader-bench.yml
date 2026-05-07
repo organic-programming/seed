@@ -44,6 +44,24 @@ jobs:
     runs-on: [self-hosted, macOS]
     timeout-minutes: 480
     steps:
+      - name: Reset runner-managed .op state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Cleanup any leftover OPPATH from previous runs/jobs (safety net
+          # in case a job crashed before its own end-of-job cleanup ran).
+          rm -rf /tmp/op-run-* 2>/dev/null || true
+      - name: Set isolated OPPATH for this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+
       - name: Prepare benchmark report
         env:
           GH_TOKEN: ${{ github.token }}
@@ -134,7 +152,7 @@ jobs:
             "$status" "$exit_code" "$start_iso" "$end_iso" "$((end_epoch - start_epoch))" "$reason" >> "$ADER_BENCH_REPORT_DIR/blocks.tsv"
           echo "ZIG_SUBMODULES_EXIT=$exit_code" >> "$GITHUB_ENV"
 
-      - name: Bootstrap op, ader, and SDK prebuilts
+      - name: Bootstrap op and ader
         if: always()
         run: |
           set -euo pipefail
@@ -154,14 +172,6 @@ jobs:
               eval "$(go run ./holons/grace-op/cmd/op env --shell)"
               op build clem-ader --install --symlink
               echo "$OPBIN" >> "$GITHUB_PATH"
-              for sdk in zig c cpp ruby; do
-                if ! op sdk path "$sdk" >/dev/null 2>&1; then
-                  op sdk install "$sdk"
-                fi
-                sdk_path="$(op sdk path "$sdk")"
-                sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
-                echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
-              done
               {
                 echo "OPPATH=$OPPATH"
                 echo "OPBIN=$OPBIN"
@@ -178,8 +188,9 @@ jobs:
             "$status" "$exit_code" "$start_iso" "$end_iso" "$((end_epoch - start_epoch))" "$reason" >> "$ADER_BENCH_REPORT_DIR/blocks.tsv"
           echo "BOOTSTRAP_EXIT=$exit_code" >> "$GITHUB_ENV"
 
-      - name: Run timed ader bouquet
+      - name: Install SDKs needed by tests
         if: always()
+        shell: bash
         run: |
           set -euo pipefail
           start_epoch="$(date +%s)"
@@ -191,6 +202,41 @@ jobs:
             status="SKIP"
             exit_code="125"
             reason="skipped because bootstrap did not complete"
+          else
+            {
+              for sdk in go c cpp csharp dart java js kotlin python ruby swift zig; do
+                if ! op sdk path "$sdk" >/dev/null 2>&1; then
+                  op sdk install "$sdk"
+                fi
+                sdk_path="$(op sdk path "$sdk")"
+                sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
+                echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
+              done
+            } || {
+              exit_code="$?"
+              status="FAIL"
+              reason="SDK install failed"
+            }
+          fi
+          end_epoch="$(date +%s)"
+          end_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          printf 'sdk-install\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$status" "$exit_code" "$start_iso" "$end_iso" "$((end_epoch - start_epoch))" "$reason" >> "$ADER_BENCH_REPORT_DIR/blocks.tsv"
+          echo "SDK_INSTALL_EXIT=$exit_code" >> "$GITHUB_ENV"
+
+      - name: Run timed ader bouquet
+        if: always()
+        run: |
+          set -euo pipefail
+          start_epoch="$(date +%s)"
+          start_iso="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          status="PASS"
+          exit_code="0"
+          reason=""
+          if [ "${BOOTSTRAP_EXIT:-1}" != "0" ] || [ "${SDK_INSTALL_EXIT:-1}" != "0" ]; then
+            status="SKIP"
+            exit_code="125"
+            reason="skipped because bootstrap or SDK install did not complete"
           else
             ader test-bouquet ader --name "$BOUQUET" || {
               exit_code="$?"
@@ -291,3 +337,8 @@ jobs:
               print(f"Benchmark functional status: {status}", file=sys.stderr)
               sys.exit(1)
           PY
+      - name: Cleanup OPPATH at end of job
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}" 2>/dev/null || true

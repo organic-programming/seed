@@ -35,6 +35,23 @@ jobs:
     runs-on: [self-hosted, macOS]
     timeout-minutes: 20
     steps:
+      - name: Reset runner-managed .op state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Cleanup any leftover OPPATH from previous runs/jobs (safety net
+          # in case a job crashed before its own end-of-job cleanup ran).
+          rm -rf /tmp/op-run-* 2>/dev/null || true
+      - name: Set isolated OPPATH for this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
       - name: Loosen permissions on previous workspace
         run: |
           if [ -d "$GITHUB_WORKSPACE" ]; then
@@ -46,6 +63,11 @@ jobs:
       - uses: ./.github/actions/load-mac-runner-env
       - name: Go build op
         run: go build ./holons/grace-op/...
+      - name: Cleanup OPPATH at end of job
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}" 2>/dev/null || true
 
   gate-2-op-self-build:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -53,6 +75,23 @@ jobs:
     needs: gate-1-go-build-op
     timeout-minutes: 30
     steps:
+      - name: Reset runner-managed .op state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Cleanup any leftover OPPATH from previous runs/jobs (safety net
+          # in case a job crashed before its own end-of-job cleanup ran).
+          rm -rf /tmp/op-run-* 2>/dev/null || true
+      - name: Set isolated OPPATH for this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
       - name: Loosen permissions on previous workspace
         run: |
           if [ -d "$GITHUB_WORKSPACE" ]; then
@@ -73,6 +112,11 @@ jobs:
           set -euo pipefail
           go run ./holons/grace-op/cmd/op env --init
           go run ./holons/grace-op/cmd/op build op --install --symlink
+      - name: Cleanup OPPATH at end of job
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}" 2>/dev/null || true
 
   gate-3-op-core-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -80,6 +124,23 @@ jobs:
     needs: gate-2-op-self-build
     timeout-minutes: 30
     steps:
+      - name: Reset runner-managed .op state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Cleanup any leftover OPPATH from previous runs/jobs (safety net
+          # in case a job crashed before its own end-of-job cleanup ran).
+          rm -rf /tmp/op-run-* 2>/dev/null || true
+      - name: Set isolated OPPATH for this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
       - name: Loosen permissions on previous workspace
         run: |
           if [ -d "$GITHUB_WORKSPACE" ]; then
@@ -91,6 +152,11 @@ jobs:
       - uses: ./.github/actions/load-mac-runner-env
       - name: Go test op
         run: go test ./holons/grace-op/...
+      - name: Cleanup OPPATH at end of job
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}" 2>/dev/null || true
 
   gate-4-op-build-ader:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -98,6 +164,23 @@ jobs:
     needs: gate-3-op-core-tests
     timeout-minutes: 30
     steps:
+      - name: Reset runner-managed .op state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Cleanup any leftover OPPATH from previous runs/jobs (safety net
+          # in case a job crashed before its own end-of-job cleanup ran).
+          rm -rf /tmp/op-run-* 2>/dev/null || true
+      - name: Set isolated OPPATH for this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
       - name: Loosen permissions on previous workspace
         run: |
           if [ -d "$GITHUB_WORKSPACE" ]; then
@@ -114,6 +197,11 @@ jobs:
           go run ./holons/grace-op/cmd/op build op --install --symlink
           eval "$(go run ./holons/grace-op/cmd/op env --shell)"
           op build clem-ader --install --symlink
+      - name: Cleanup OPPATH at end of job
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}" 2>/dev/null || true
 
   gate-5-ader-core-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -121,6 +209,23 @@ jobs:
     needs: gate-4-op-build-ader
     timeout-minutes: 30
     steps:
+      - name: Reset runner-managed .op state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Cleanup any leftover OPPATH from previous runs/jobs (safety net
+          # in case a job crashed before its own end-of-job cleanup ran).
+          rm -rf /tmp/op-run-* 2>/dev/null || true
+      - name: Set isolated OPPATH for this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
       - name: Loosen permissions on previous workspace
         run: |
           if [ -d "$GITHUB_WORKSPACE" ]; then
@@ -132,6 +237,11 @@ jobs:
       - uses: ./.github/actions/load-mac-runner-env
       - name: Go test ader
         run: go test ./holons/clem-ader/...
+      - name: Cleanup OPPATH at end of job
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}" 2>/dev/null || true
 
   gate-6-smoke-suite:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -139,6 +249,23 @@ jobs:
     needs: gate-5-ader-core-tests
     timeout-minutes: 45
     steps:
+      - name: Reset runner-managed .op state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Cleanup any leftover OPPATH from previous runs/jobs (safety net
+          # in case a job crashed before its own end-of-job cleanup ran).
+          rm -rf /tmp/op-run-* 2>/dev/null || true
+      - name: Set isolated OPPATH for this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
       - name: Loosen permissions on previous workspace
         run: |
           if [ -d "$GITHUB_WORKSPACE" ]; then
@@ -165,6 +292,11 @@ jobs:
           set -euo pipefail
           ader test ader/catalogues/grace-op --suite op_version --profile smoke --lane both --source workspace
           ader test ader/catalogues/clem-ader --suite ader-self --profile smoke --lane both --source workspace
+      - name: Cleanup OPPATH at end of job
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}" 2>/dev/null || true
 
   detect-sdk-changes:
     runs-on: ubuntu-latest
@@ -384,6 +516,23 @@ jobs:
     needs: [detect-sdk-changes, sdk-prebuilts-fresh]
     timeout-minutes: 240
     steps:
+      - name: Reset runner-managed .op state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Cleanup any leftover OPPATH from previous runs/jobs (safety net
+          # in case a job crashed before its own end-of-job cleanup ran).
+          rm -rf /tmp/op-run-* 2>/dev/null || true
+      - name: Set isolated OPPATH for this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
       - name: Loosen permissions on previous workspace
         run: |
           if [ -d "$GITHUB_WORKSPACE" ]; then
@@ -397,20 +546,28 @@ jobs:
         if: needs.detect-sdk-changes.outputs.any == 'true'
         with:
           path: ${{ runner.temp }}/sdk-prebuilt-artifacts
-      - name: Bootstrap op and SDK prebuilts
+      - name: Bootstrap op
         run: |
           set -euo pipefail
           go run ./holons/grace-op/cmd/op env --init
           go run ./holons/grace-op/cmd/op build op --install --symlink
           eval "$(go run ./holons/grace-op/cmd/op env --shell)"
           echo "$OPBIN" >> "$GITHUB_PATH"
+          {
+            echo "OPPATH=$OPPATH"
+            echo "OPBIN=$OPBIN"
+          } >> "$GITHUB_ENV"
+      - name: Install SDKs needed by tests
+        shell: bash
+        run: |
+          set -euo pipefail
           if [ -d "$RUNNER_TEMP/sdk-prebuilt-artifacts" ]; then
             while IFS= read -r archive; do
               sdk="$(basename "$archive" | sed -E 's/-holons-v.*//')"
               op sdk install "$sdk" --source "$archive"
             done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
           fi
-          for sdk in zig c cpp ruby; do
+          for sdk in go c cpp csharp dart java js kotlin python ruby swift zig; do
             if ! op sdk path "$sdk" >/dev/null 2>&1; then
               op sdk install "$sdk"
             fi
@@ -418,15 +575,16 @@ jobs:
             sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
             echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
           done
-          {
-            echo "OPPATH=$OPPATH"
-            echo "OPBIN=$OPBIN"
-          } >> "$GITHUB_ENV"
       - name: Build SwiftUI composite
         run: |
           set -euo pipefail
           op build gabriel-greeting-app-swiftui --hardened
           ader test ader/catalogues/gabriel-greeting-app-swiftui --suite swiftui-smoke --profile smoke --lane both --source workspace
+      - name: Cleanup OPPATH at end of job
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}" 2>/dev/null || true
 
   composite-flutter-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -434,6 +592,23 @@ jobs:
     needs: [detect-sdk-changes, sdk-prebuilts-fresh]
     timeout-minutes: 240
     steps:
+      - name: Reset runner-managed .op state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Cleanup any leftover OPPATH from previous runs/jobs (safety net
+          # in case a job crashed before its own end-of-job cleanup ran).
+          rm -rf /tmp/op-run-* 2>/dev/null || true
+      - name: Set isolated OPPATH for this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
       - name: Loosen permissions on previous workspace
         run: |
           if [ -d "$GITHUB_WORKSPACE" ]; then
@@ -447,20 +622,28 @@ jobs:
         if: needs.detect-sdk-changes.outputs.any == 'true'
         with:
           path: ${{ runner.temp }}/sdk-prebuilt-artifacts
-      - name: Bootstrap op and SDK prebuilts
+      - name: Bootstrap op
         run: |
           set -euo pipefail
           go run ./holons/grace-op/cmd/op env --init
           go run ./holons/grace-op/cmd/op build op --install --symlink
           eval "$(go run ./holons/grace-op/cmd/op env --shell)"
           echo "$OPBIN" >> "$GITHUB_PATH"
+          {
+            echo "OPPATH=$OPPATH"
+            echo "OPBIN=$OPBIN"
+          } >> "$GITHUB_ENV"
+      - name: Install SDKs needed by tests
+        shell: bash
+        run: |
+          set -euo pipefail
           if [ -d "$RUNNER_TEMP/sdk-prebuilt-artifacts" ]; then
             while IFS= read -r archive; do
               sdk="$(basename "$archive" | sed -E 's/-holons-v.*//')"
               op sdk install "$sdk" --source "$archive"
             done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
           fi
-          for sdk in zig c cpp ruby; do
+          for sdk in go c cpp csharp dart java js kotlin python ruby swift zig; do
             if ! op sdk path "$sdk" >/dev/null 2>&1; then
               op sdk install "$sdk"
             fi
@@ -468,15 +651,16 @@ jobs:
             sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
             echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
           done
-          {
-            echo "OPPATH=$OPPATH"
-            echo "OPBIN=$OPBIN"
-          } >> "$GITHUB_ENV"
       - name: Build Flutter composite
         run: |
           set -euo pipefail
           op build gabriel-greeting-app-flutter --hardened
           ader test ader/catalogues/gabriel-greeting-app-flutter --suite flutter-smoke --profile smoke --lane both --source workspace
+      - name: Cleanup OPPATH at end of job
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}" 2>/dev/null || true
 
   ader-bouquet-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -486,6 +670,23 @@ jobs:
     env:
       BOUQUET: ${{ github.event.inputs.bouquet || 'local-dev' }}
     steps:
+      - name: Reset runner-managed .op state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Cleanup any leftover OPPATH from previous runs/jobs (safety net
+          # in case a job crashed before its own end-of-job cleanup ran).
+          rm -rf /tmp/op-run-* 2>/dev/null || true
+      - name: Set isolated OPPATH for this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
       - name: Loosen permissions on previous workspace
         run: |
           if [ -d "$GITHUB_WORKSPACE" ]; then
@@ -507,7 +708,7 @@ jobs:
           git submodule update --init --force --recursive --depth 1 --jobs 8 \
             sdk/zig-holons/third_party/grpc \
             sdk/zig-holons/third_party/protobuf-c
-      - name: Bootstrap op, ader, and SDK prebuilts
+      - name: Bootstrap op and ader
         run: |
           set -euo pipefail
           go run ./holons/grace-op/cmd/op env --init
@@ -515,13 +716,21 @@ jobs:
           eval "$(go run ./holons/grace-op/cmd/op env --shell)"
           op build clem-ader --install --symlink
           echo "$OPBIN" >> "$GITHUB_PATH"
+          {
+            echo "OPPATH=$OPPATH"
+            echo "OPBIN=$OPBIN"
+          } >> "$GITHUB_ENV"
+      - name: Install SDKs needed by tests
+        shell: bash
+        run: |
+          set -euo pipefail
           if [ -d "$RUNNER_TEMP/sdk-prebuilt-artifacts" ]; then
             while IFS= read -r archive; do
               sdk="$(basename "$archive" | sed -E 's/-holons-v.*//')"
               op sdk install "$sdk" --source "$archive"
             done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
           fi
-          for sdk in zig c cpp ruby; do
+          for sdk in go c cpp csharp dart java js kotlin python ruby swift zig; do
             if ! op sdk path "$sdk" >/dev/null 2>&1; then
               op sdk install "$sdk"
             fi
@@ -529,10 +738,6 @@ jobs:
             sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
             echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
           done
-          {
-            echo "OPPATH=$OPPATH"
-            echo "OPBIN=$OPBIN"
-          } >> "$GITHUB_ENV"
       - name: Run ader bouquet
         run: ader test-bouquet ader --name "$BOUQUET"
       - name: Upload reports
@@ -545,6 +750,11 @@ jobs:
             ader/catalogues/*/reports/**
           retention-days: 14
           if-no-files-found: warn
+      - name: Cleanup OPPATH at end of job
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}" 2>/dev/null || true
 
   sdk-deep-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -570,6 +780,23 @@ jobs:
             mode: cross
             target: aarch64-ios
     steps:
+      - name: Reset runner-managed .op state
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Cleanup any leftover OPPATH from previous runs/jobs (safety net
+          # in case a job crashed before its own end-of-job cleanup ran).
+          rm -rf /tmp/op-run-* 2>/dev/null || true
+      - name: Set isolated OPPATH for this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
       - name: Loosen permissions on previous workspace
         run: |
           if [ -d "$GITHUB_WORKSPACE" ]; then
@@ -595,6 +822,32 @@ jobs:
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
           go install github.com/fullstorydev/grpcurl/cmd/grpcurl@v1.9.3
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Bootstrap op and ader
+        if: matrix.mode == 'host'
+        run: |
+          set -euo pipefail
+          go run ./holons/grace-op/cmd/op env --init
+          go run ./holons/grace-op/cmd/op build op --install --symlink
+          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
+          op build clem-ader --install --symlink
+          echo "$OPBIN" >> "$GITHUB_PATH"
+          {
+            echo "OPPATH=$OPPATH"
+            echo "OPBIN=$OPBIN"
+          } >> "$GITHUB_ENV"
+      - name: Install SDKs needed by tests
+        if: matrix.mode == 'host'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for sdk in go c cpp csharp dart java js kotlin python ruby swift zig; do
+            if ! op sdk path "$sdk" >/dev/null 2>&1; then
+              op sdk install "$sdk"
+            fi
+            sdk_path="$(op sdk path "$sdk")"
+            sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
+            echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
+          done
       - name: Run Zig host deep tests
         if: matrix.mode == 'host'
         run: |
@@ -604,11 +857,6 @@ jobs:
             -not -path '*/.zig-cache/*' \
             -not -path '*/zig-out/*' \
             -print0 | xargs -0 zig fmt --check
-          go run ./holons/grace-op/cmd/op env --init
-          go run ./holons/grace-op/cmd/op build op --install --symlink
-          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
-          op build clem-ader --install --symlink
-          echo "$OPBIN" >> "$GITHUB_PATH"
           cd sdk/zig-holons
           zig build vendor
           zig build test
@@ -637,3 +885,8 @@ jobs:
         with:
           path: sdk/zig-holons/.zig-cross/${{ matrix.target }}
           key: zig-sdk-cross-${{ matrix.target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('sdk/zig-holons/tools/cross_smoke.sh', '.gitmodules') }}
+      - name: Cleanup OPPATH at end of job
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}" 2>/dev/null || true
