@@ -192,6 +192,23 @@ jobs:
           name: cpp-prefix-${{ inputs.sdk-target }}
           path: sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}
 
+      - name: Debug cpp prefix layout
+        if: inputs.needs-cpp-prefix
+        shell: bash
+        run: |
+          set -x
+          target_dir="sdk/cpp-holons/.cpp-prebuilt/${SDK_TARGET}"
+          echo "=== top-level $target_dir ==="
+          ls -la "$target_dir" || true
+          echo "=== prefix/ if present ==="
+          ls -la "$target_dir/prefix" 2>/dev/null || echo "(no prefix/)"
+          echo "=== prefix/bin if present ==="
+          ls -la "$target_dir/prefix/bin" 2>/dev/null || echo "(no prefix/bin)"
+          echo "=== toolchain/ if present ==="
+          ls -la "$target_dir/toolchain" 2>/dev/null || echo "(no toolchain/)"
+          echo "=== full tree (limited) ==="
+          find "$target_dir" -maxdepth 3 -mindepth 1 2>/dev/null | head -50
+
       - name: Build SDK prebuilt
         id: build_prebuilt
         shell: bash
