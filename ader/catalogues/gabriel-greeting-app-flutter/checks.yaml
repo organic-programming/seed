@@ -35,7 +35,12 @@ checks:
     - go
     - flutter
     - dart
-    command: go test -tags e2e -v -count=1 -timeout 15m -run "^TestCheck_05_Composite$/^gabriel-greeting-app-flutter$" ./...
+    command: |
+      if [ -n "${ADER_RUN_ARTIFACTS:-}" ] && [ -n "${OPPATH:-}" ] && [ -d "$OPPATH/sdk" ]; then
+        rm -rf "$ADER_RUN_ARTIFACTS/sdk"
+        ln -s "$OPPATH/sdk" "$ADER_RUN_ARTIFACTS/sdk"
+      fi
+      go test -tags e2e -v -count=1 -timeout 15m -run "^TestCheck_05_Composite$/^gabriel-greeting-app-flutter$" ./...
     description: composite graph check for flutter hostui
   integration-build-composite-flutter:
     workdir: ader/catalogues/grace-op/integration
@@ -142,7 +147,12 @@ checks:
     - go
     - flutter
     - dart
-    command: go test -tags e2e -v -count=1 -timeout 20m -run "^TestInvoke_CLI_CompositeAcrossTransports$/^gabriel-greeting-app-flutter$/^stdio$" ./...
+    command: |
+      if [ -n "${ADER_RUN_ARTIFACTS:-}" ] && [ -n "${OPPATH:-}" ] && [ -d "$OPPATH/sdk" ]; then
+        rm -rf "$ADER_RUN_ARTIFACTS/sdk"
+        ln -s "$OPPATH/sdk" "$ADER_RUN_ARTIFACTS/sdk"
+      fi
+      go test -tags e2e -v -count=1 -timeout 20m -run "^TestInvoke_CLI_CompositeAcrossTransports$/^gabriel-greeting-app-flutter$/^stdio$" ./...
     description: composite invoke over stdio for flutter hostui
   integration-invoke-composite-flutter-tcp:
     workdir: ader/catalogues/grace-op/integration

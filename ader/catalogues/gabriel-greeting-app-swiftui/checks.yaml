@@ -30,7 +30,12 @@ checks:
     - ruby
     - bundle
     - codesign
-    command: go test -tags e2e -v -count=1 -timeout 45m -run "^TestBuild_07_Composite$/^gabriel-greeting-app-swiftui$" ./build/composite
+    command: |
+      if [ -n "${ADER_RUN_ARTIFACTS:-}" ] && [ -n "${OPPATH:-}" ] && [ -d "$OPPATH/sdk" ]; then
+        rm -rf "$ADER_RUN_ARTIFACTS/sdk"
+        ln -s "$OPPATH/sdk" "$ADER_RUN_ARTIFACTS/sdk"
+      fi
+      go test -tags e2e -v -count=1 -timeout 45m -run "^TestBuild_07_Composite$/^gabriel-greeting-app-swiftui$" ./build/composite
     description: composite build for swiftui app with sandbox verification
   integration-coax-build-recipe-app:
     workdir: ader/catalogues/grace-op/integration

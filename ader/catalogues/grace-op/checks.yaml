@@ -131,15 +131,30 @@ checks:
 
   op-invoke-cli:
     workdir: ader/catalogues/grace-op/integration/invoke
-    command: go test -tags e2e -v -count=1 -timeout 90m -run '^TestInvoke_CLI_' .
+    command: |
+      if [ -n "${ADER_RUN_ARTIFACTS:-}" ] && [ -n "${OPPATH:-}" ] && [ -d "$OPPATH/sdk" ]; then
+        rm -rf "$ADER_RUN_ARTIFACTS/sdk"
+        ln -s "$OPPATH/sdk" "$ADER_RUN_ARTIFACTS/sdk"
+      fi
+      go test -tags e2e -v -count=1 -timeout 90m -run '^TestInvoke_CLI_' .
     description: Verifies the exhaustive CLI invoke surface across examples, OPService RPCs, and transports.
   op-invoke-api:
     workdir: ader/catalogues/grace-op/integration/invoke
-    command: go test -tags e2e -v -count=1 -timeout 15m -run '^TestInvoke_API_' .
+    command: |
+      if [ -n "${ADER_RUN_ARTIFACTS:-}" ] && [ -n "${OPPATH:-}" ] && [ -d "$OPPATH/sdk" ]; then
+        rm -rf "$ADER_RUN_ARTIFACTS/sdk"
+        ln -s "$OPPATH/sdk" "$ADER_RUN_ARTIFACTS/sdk"
+      fi
+      go test -tags e2e -v -count=1 -timeout 15m -run '^TestInvoke_API_' .
     description: Verifies the public API alignment for invoke.
   op-invoke-rpc:
     workdir: ader/catalogues/grace-op/integration/invoke
-    command: go test -tags e2e -v -count=1 -timeout 15m -run '^TestInvoke_RPC_' .
+    command: |
+      if [ -n "${ADER_RUN_ARTIFACTS:-}" ] && [ -n "${OPPATH:-}" ] && [ -d "$OPPATH/sdk" ]; then
+        rm -rf "$ADER_RUN_ARTIFACTS/sdk"
+        ln -s "$OPPATH/sdk" "$ADER_RUN_ARTIFACTS/sdk"
+      fi
+      go test -tags e2e -v -count=1 -timeout 15m -run '^TestInvoke_RPC_' .
     description: Verifies the RPC alignment for invoke.
   op-invoke-cli-multi-call:
     workdir: ader/catalogues/grace-op/integration/invoke
