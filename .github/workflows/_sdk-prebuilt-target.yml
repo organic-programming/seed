@@ -192,22 +192,23 @@ jobs:
           name: cpp-prefix-${{ inputs.sdk-target }}
           path: sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}
 
-      - name: Debug cpp prefix layout
+      - name: Restore exec bits on cpp prefix binaries
         if: inputs.needs-cpp-prefix
         shell: bash
         run: |
-          set -x
+          # actions/upload-artifact@v4 zips with the standard ZIP format,
+          # which does not preserve Unix exec bits. Without this step, the
+          # downloaded binaries (protoc, grpc_*_plugin, zigcc/zigcxx wrappers,
+          # etc.) come back as 0644 and the assert_cpp_prefix in the build
+          # script (or any cmake invocation) refuses them.
+          set -euo pipefail
           target_dir="sdk/cpp-holons/.cpp-prebuilt/${SDK_TARGET}"
-          echo "=== top-level $target_dir ==="
-          ls -la "$target_dir" || true
-          echo "=== prefix/ if present ==="
-          ls -la "$target_dir/prefix" 2>/dev/null || echo "(no prefix/)"
-          echo "=== prefix/bin if present ==="
-          ls -la "$target_dir/prefix/bin" 2>/dev/null || echo "(no prefix/bin)"
-          echo "=== toolchain/ if present ==="
-          ls -la "$target_dir/toolchain" 2>/dev/null || echo "(no toolchain/)"
-          echo "=== full tree (limited) ==="
-          find "$target_dir" -maxdepth 3 -mindepth 1 2>/dev/null | head -50
+          for sub in prefix/bin toolchain; do
+            dir="$target_dir/$sub"
+            if [ -d "$dir" ]; then
+              find "$dir" -type f -exec chmod +x {} +
+            fi
+          done
 
       - name: Build SDK prebuilt
         id: build_prebuilt
