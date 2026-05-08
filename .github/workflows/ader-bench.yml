@@ -205,7 +205,10 @@ jobs:
             {
               for sdk in go c cpp csharp dart java js kotlin python ruby swift zig; do
                 case "$sdk" in
-                  dart|kotlin|swift)
+                  kotlin)
+                    op sdk build "$sdk" --jobs 8 --force
+                    ;;
+                  dart|swift)
                     op sdk build "$sdk" --jobs 8
                     ;;
                   *)
@@ -215,6 +218,14 @@ jobs:
                     ;;
                 esac
                 sdk_path="$(op sdk path "$sdk")"
+                if [ -d "$sdk_path/bin" ]; then
+                  chmod -R u+rx "$sdk_path/bin" 2>/dev/null || true
+                fi
+                if [ "$sdk" = "kotlin" ]; then
+                  for exe in protoc-gen-grpc-java protoc-gen-kotlin-java-grpc protoc-gen-kotlin-grpc; do
+                    test -x "$sdk_path/bin/$exe"
+                  done
+                fi
                 sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
                 echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
               done
