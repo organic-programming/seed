@@ -589,11 +589,16 @@ jobs:
             done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
           fi
           for sdk in go c cpp csharp dart java js kotlin python ruby swift zig; do
-            if [ "$sdk" = "dart" ] || [ "$sdk" = "swift" ]; then
-              op sdk build "$sdk" --jobs 8
-            elif ! op sdk path "$sdk" >/dev/null 2>&1; then
-              op sdk install "$sdk"
-            fi
+            case "$sdk" in
+              dart|kotlin|swift)
+                op sdk build "$sdk" --jobs 8
+                ;;
+              *)
+                if ! op sdk path "$sdk" >/dev/null 2>&1; then
+                  op sdk install "$sdk"
+                fi
+                ;;
+            esac
             sdk_path="$(op sdk path "$sdk")"
             sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
             echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
@@ -669,11 +674,16 @@ jobs:
             done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
           fi
           for sdk in go c cpp csharp dart java js kotlin python ruby swift zig; do
-            if [ "$sdk" = "dart" ] || [ "$sdk" = "swift" ]; then
-              op sdk build "$sdk" --jobs 8
-            elif ! op sdk path "$sdk" >/dev/null 2>&1; then
-              op sdk install "$sdk"
-            fi
+            case "$sdk" in
+              dart|kotlin|swift)
+                op sdk build "$sdk" --jobs 8
+                ;;
+              *)
+                if ! op sdk path "$sdk" >/dev/null 2>&1; then
+                  op sdk install "$sdk"
+                fi
+                ;;
+            esac
             sdk_path="$(op sdk path "$sdk")"
             sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
             echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
@@ -759,11 +769,16 @@ jobs:
             done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
           fi
           for sdk in go c cpp csharp dart java js kotlin python ruby swift zig; do
-            if [ "$sdk" = "dart" ] || [ "$sdk" = "swift" ]; then
-              op sdk build "$sdk" --jobs 8
-            elif ! op sdk path "$sdk" >/dev/null 2>&1; then
-              op sdk install "$sdk"
-            fi
+            case "$sdk" in
+              dart|kotlin|swift)
+                op sdk build "$sdk" --jobs 8
+                ;;
+              *)
+                if ! op sdk path "$sdk" >/dev/null 2>&1; then
+                  op sdk install "$sdk"
+                fi
+                ;;
+            esac
             sdk_path="$(op sdk path "$sdk")"
             sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
             echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
@@ -872,9 +887,16 @@ jobs:
         run: |
           set -euo pipefail
           for sdk in go c cpp csharp dart java js kotlin python ruby swift zig; do
-            if ! op sdk path "$sdk" >/dev/null 2>&1; then
-              op sdk install "$sdk"
-            fi
+            case "$sdk" in
+              dart|kotlin|swift)
+                op sdk build "$sdk" --jobs 8
+                ;;
+              *)
+                if ! op sdk path "$sdk" >/dev/null 2>&1; then
+                  op sdk install "$sdk"
+                fi
+                ;;
+            esac
             sdk_path="$(op sdk path "$sdk")"
             sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
             echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"

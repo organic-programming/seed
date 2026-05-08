@@ -156,6 +156,7 @@ func NewSandbox(t *testing.T) *Sandbox {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
 	}
+	inheritParentSDKs(t, oppath)
 
 	return &Sandbox{
 		Root:     root,
@@ -163,6 +164,31 @@ func NewSandbox(t *testing.T) *Sandbox {
 		OPBIN:    opbin,
 		CacheDir: cacheDir,
 		TMPDIR:   tmpDir,
+	}
+}
+
+func inheritParentSDKs(t *testing.T, sandboxOPPATH string) {
+	t.Helper()
+
+	parentOPPATH := strings.TrimSpace(os.Getenv("OPPATH"))
+	if parentOPPATH == "" {
+		return
+	}
+	parentSDK := filepath.Join(parentOPPATH, "sdk")
+	info, err := os.Stat(parentSDK)
+	if err != nil || !info.IsDir() {
+		return
+	}
+
+	sandboxSDK := filepath.Join(sandboxOPPATH, "sdk")
+	if err := os.RemoveAll(sandboxSDK); err != nil {
+		t.Fatalf("reset sandbox SDK dir %s: %v", sandboxSDK, err)
+	}
+	if err := os.Symlink(parentSDK, sandboxSDK); err == nil {
+		return
+	}
+	if err := copyTreeVerbatim(parentSDK, sandboxSDK); err != nil {
+		t.Fatalf("inherit parent SDKs from %s to %s: %v", parentSDK, sandboxSDK, err)
 	}
 }
 
@@ -735,6 +761,34 @@ func copyTree(srcRoot, dstRoot string) error {
 			}
 			return nil
 		}
+		switch {
+		case info.Mode()&os.ModeSymlink != 0:
+			target, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
+				return err
+			}
+			return os.Symlink(target, dstPath)
+		case info.IsDir():
+			return os.MkdirAll(dstPath, info.Mode().Perm())
+		default:
+			return copyFile(path, dstPath, info.Mode())
+		}
+	})
+}
+
+func copyTreeVerbatim(srcRoot, dstRoot string) error {
+	return filepath.Walk(srcRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(srcRoot, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dstRoot, rel)
 		switch {
 		case info.Mode()&os.ModeSymlink != 0:
 			target, err := os.Readlink(path)

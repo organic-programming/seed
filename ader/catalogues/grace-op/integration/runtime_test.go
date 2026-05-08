@@ -42,3 +42,26 @@ func TestPrepareWorkspaceMirrorRemovesStaleFiles(t *testing.T) {
 		t.Fatalf("fresh source file was not mirrored: %v", err)
 	}
 }
+
+func TestNewSandboxInheritsParentOPPATHSDK(t *testing.T) {
+	parentOPPATH := t.TempDir()
+	parentSDKMarker := filepath.Join(parentOPPATH, "sdk", "dummy", "marker.txt")
+	if err := os.MkdirAll(filepath.Dir(parentSDKMarker), 0o755); err != nil {
+		t.Fatalf("mkdir parent sdk: %v", err)
+	}
+	if err := os.WriteFile(parentSDKMarker, []byte("parent-sdk"), 0o644); err != nil {
+		t.Fatalf("write parent sdk marker: %v", err)
+	}
+
+	t.Setenv("OPPATH", parentOPPATH)
+	sb := NewSandbox(t)
+
+	sandboxSDKMarker := filepath.Join(sb.OPPATH, "sdk", "dummy", "marker.txt")
+	got, err := os.ReadFile(sandboxSDKMarker)
+	if err != nil {
+		t.Fatalf("read inherited sdk marker: %v", err)
+	}
+	if string(got) != "parent-sdk" {
+		t.Fatalf("inherited sdk marker = %q, want parent-sdk", got)
+	}
+}
