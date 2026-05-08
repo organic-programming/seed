@@ -1,6 +1,6 @@
 # GitHub Workflows
 
-The pre-merge workflow is intentionally ordered: prove the organic-programming tools first, rebuild changed SDK prebuilts, then run domain coverage.
+The pre-merge workflow is intentionally ordered: prove the organic-programming tools first, build fresh run-local SDK prebuilts, then run domain coverage from artifacts produced by the same run.
 
 ```text
 pull_request / push on master
@@ -19,12 +19,11 @@ pull_request / push on master
   gate-6-smoke-suite (self-hosted macOS, fail-fast)
         |
         v
-  detect-sdk-changes (ubuntu-hosted)
+  tier 1 wave A: sdk-build-{zig,cpp} (hosted/macOS)
         |
-        v
-  tier 1: sdk-prebuilt-{zig,cpp,c,ruby} (hosted/macOS, conditional)
+  tier 1 wave B: sdk-build-{c,ruby,go,python,csharp,java,kotlin,dart,swift,js}
         |
-  sdk-prebuilts-fresh (ubuntu-hosted pass-through gate)
+  fresh-sdk-delivery (ubuntu-hosted pass-through gate)
         |
         +--------------------------+
         |                          |
@@ -53,16 +52,16 @@ benchmark/maintenance:
 | `gate-4-op-build-ader` | self-hosted macOS | `needs: gate-3` | blocks all later jobs | <1 min |
 | `gate-5-ader-core-tests` | self-hosted macOS | `needs: gate-4` | blocks all later jobs | 1-2 min |
 | `gate-6-smoke-suite` | self-hosted macOS | `needs: gate-5` | blocks all later jobs | 2-3 min |
-| `detect-sdk-changes` | ubuntu-latest | `needs: gate-6` | decides tier-1 SDK jobs | <1 min |
-| `sdk-prebuilt-zig` | hosted/macOS | SDK paths or workflow changed | blocks tier 2/3 if required and failed | 10-30 min |
-| `sdk-prebuilt-cpp` | hosted/macOS | SDK paths or workflow changed; uploads `cpp-prefix-<target>` artifact for dependent SDKs | blocks tier 2/3 if required and failed | 10-30 min |
-| `sdk-prebuilt-c` | hosted/macOS | SDK paths or workflow changed; `needs: sdk-prebuilt-cpp`, downloads `cpp-prefix-<target>` | blocks tier 2/3 if required and failed | 10-30 min |
-| `sdk-prebuilt-ruby` | hosted/macOS | SDK paths or workflow changed; `needs: sdk-prebuilt-cpp`, downloads `cpp-prefix-<target>` | blocks tier 2/3 if required and failed | 10-30 min |
-| `sdk-prebuilts-fresh` | ubuntu-latest | after tier 1 | pass-through/no-op when no SDK changed | <1 min |
-| `composite-swiftui-full` | self-hosted macOS | `needs: sdk-prebuilts-fresh` | fail-isolated PR check | 1-2 h |
-| `composite-flutter-full` | self-hosted macOS | `needs: sdk-prebuilts-fresh` | fail-isolated PR check | 1-2 h |
-| `ader-bouquet-full` | self-hosted macOS | `needs: sdk-prebuilts-fresh` | fail-isolated PR check | 1-3 h |
-| `sdk-deep-tests` | self-hosted macOS | `needs: sdk-prebuilts-fresh` | fail-isolated matrix | 1-3 h |
+| `sdk-build-zig` | hosted/macOS | `needs: gate-6` | uploads `sdk-zig-<target>` | 10-30 min |
+| `sdk-build-cpp` | hosted/macOS | `needs: gate-6` | uploads `sdk-cpp-<target>` and `cpp-prefix-<target>` | 10-30 min |
+| `sdk-build-c` | hosted/macOS | `needs: sdk-build-cpp` | downloads `cpp-prefix-<target>`, uploads `sdk-c-<target>` | 10-30 min |
+| `sdk-build-ruby` | hosted/macOS | `needs: sdk-build-cpp` | downloads `cpp-prefix-<target>`, uploads `sdk-ruby-<target>` | 10-30 min |
+| `sdk-build-{go,python,csharp,java,kotlin,dart,swift,js}` | hosted macOS | `needs: sdk-build-cpp` | uploads `sdk-<lang>-<target>` | 5-30 min |
+| `fresh-sdk-delivery` | ubuntu-latest | after tier 1 | pass-through once run-local SDK artifacts exist | <1 min |
+| `composite-swiftui-full` | self-hosted macOS | `needs: fresh-sdk-delivery` | fail-isolated PR check | 1-2 h |
+| `composite-flutter-full` | self-hosted macOS | `needs: fresh-sdk-delivery` | fail-isolated PR check | 1-2 h |
+| `ader-bouquet-full` | self-hosted macOS | `needs: fresh-sdk-delivery` | fail-isolated PR check | 1-3 h |
+| `sdk-deep-tests` | self-hosted macOS | `needs: fresh-sdk-delivery` | fail-isolated matrix | 1-3 h |
 | `sdk-prebuilts.yml/promote` | ubuntu-latest | merged PR only | publishes releases | <10 min |
 | `ader-bench.yml/bench` | self-hosted macOS | dispatch | uploads objective bouquet timing and failure diagnostics | no performance target |
 
@@ -96,11 +95,11 @@ The cpp build configures `gRPC_BUILD_GRPC_<LANG>_PLUGIN=ON` so each plugin lands
 
 To make these files available cross-job in CI:
 
-1. The `sdk-prebuilt-cpp` job uploads `prefix/` and `toolchain/` as a dedicated artifact `cpp-prefix-<target>` (retention 1 day, just enough to feed downstream jobs in the same workflow run).
-2. Each dependent job (today: `sdk-prebuilt-c` and `sdk-prebuilt-ruby`) declares `needs: sdk-prebuilt-cpp` and passes `needs-cpp-prefix: true` to `_sdk-prebuilt-target.yml`.
+1. The `sdk-build-cpp` job uploads `prefix/` and `toolchain/` as a dedicated artifact `cpp-prefix-<target>` (retention 1 day, just enough to feed downstream jobs in the same workflow run).
+2. Each dependent job declares `needs: sdk-build-cpp` and passes `needs-cpp-prefix: true` to `_sdk-prebuilt-target.yml`.
 3. The reusable workflow downloads `cpp-prefix-<target>` and extracts it under `sdk/cpp-holons/.cpp-prebuilt/<target>/` before the build script runs.
 
-When adding a new adapter SDK that needs a cpp-side plugin, mirror the ruby pattern: `needs: sdk-prebuilt-cpp` + `needs-cpp-prefix: true`, and ensure the cpp build enables the matching `gRPC_BUILD_GRPC_<LANG>_PLUGIN` flag.
+When adding a new adapter SDK that needs a cpp-side plugin, mirror the ruby pattern: `needs: sdk-build-cpp` + `needs-cpp-prefix: true`, and ensure the cpp build enables the matching `gRPC_BUILD_GRPC_<LANG>_PLUGIN` flag.
 
 ## CI cache configuration
 

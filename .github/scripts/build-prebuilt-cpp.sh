@@ -108,6 +108,8 @@ do
   fi
 done
 
+target_protobuf_version="$(git -C "${grpc_source}/third_party/protobuf" describe --tags --match 'v[0-9]*' --exclude '*-*' --abbrev=0)"
+
 macos_framework_flag=""
 if [[ "$sdk_target" == *apple-darwin ]]; then
   if ! command -v xcrun >/dev/null 2>&1; then
@@ -169,6 +171,15 @@ case "$sdk_target" in
 esac
 
 mkdir -p "$toolchain_dir" "$host_build" "$host_tools/bin" "$grpc_build" "$prefix" "$dist_dir"
+
+if [[ -x "${host_tools}/bin/protoc" ]]; then
+  cached_protobuf_version="$(cat "${host_tools}/protoc.version" 2>/dev/null || true)"
+  if [[ "$cached_protobuf_version" != "$target_protobuf_version" ]]; then
+    echo "protobuf tag changed for host protoc cache: ${cached_protobuf_version:-<missing>} -> ${target_protobuf_version}; rebuilding host tools"
+    rm -rf "$host_build" "$host_tools"
+    mkdir -p "$host_build" "$host_tools/bin"
+  fi
+fi
 
 cat >"${toolchain_dir}/zigcc" <<EOF
 #!/usr/bin/env bash
@@ -325,6 +336,7 @@ if [[ ! -x "${host_tools}/bin/protoc" || ! -x "${host_tools}/bin/grpc_cpp_plugin
   mkdir -p "${host_tools}/bin"
   copy_first_executable "$host_build" protoc "${host_tools}/bin"
   copy_first_executable "$host_build" grpc_cpp_plugin "${host_tools}/bin"
+  printf '%s\n' "$target_protobuf_version" >"${host_tools}/protoc.version"
 fi
 
 grpc_flags=(
@@ -382,6 +394,7 @@ grpc_commit="$(git -C "$grpc_source" rev-parse HEAD 2>/dev/null || echo unknown)
   echo "target=${sdk_target}"
   echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "grpc_commit=${grpc_commit}"
+  echo "protobuf_version=${target_protobuf_version}"
   echo "nlohmann_json=3.11.3"
   echo "zig=$("$zig_bin" version)"
 } >"$stage/share/prebuilt.env"
