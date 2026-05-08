@@ -81,7 +81,9 @@ jobs:
         run: |
           set -euo pipefail
           for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
-            [ -d "$d" ] && find "$d" -type f -exec chmod +x {} +
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
           done
 
       - uses: actions/checkout@v4
@@ -229,11 +231,15 @@ jobs:
         run: |
           set -euo pipefail
           for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
-            [ -d "$d" ] && find "$d" -type f -exec chmod +x {} +
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
           done
           target_dir="sdk/cpp-holons/.cpp-prebuilt/${SDK_TARGET}"
           for d in "$target_dir/prefix/bin" "$target_dir/toolchain"; do
-            [ -d "$d" ] && find "$d" -type f -exec chmod +x {} +
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
           done
 
       - name: Build SDK prebuilt
