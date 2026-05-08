@@ -302,7 +302,7 @@ pub fn build(b: *std.Build) void {
         \\set -euo pipefail
         \\rm -rf gen/c
         \\mkdir -p gen/c
-        \\protoc="$ZIG_HOLONS_NATIVE_ROOT/bin/protoc-31.1.0"
+        \\protoc="$ZIG_HOLONS_NATIVE_ROOT/bin/protoc-32.0.0"
         \\if [ ! -x "$protoc" ]; then
         \\  protoc="$ZIG_HOLONS_NATIVE_ROOT/bin/protoc"
         \\fi

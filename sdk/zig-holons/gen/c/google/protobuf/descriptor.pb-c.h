@@ -1196,10 +1196,11 @@ struct  Google__Protobuf__FieldOptions
   protobuf_c_boolean has_deprecated;
   protobuf_c_boolean deprecated;
   /*
+   * DEPRECATED. DO NOT USE!
    * For Google-internal migration only. Do not use.
    */
-  protobuf_c_boolean has_weak;
-  protobuf_c_boolean weak;
+  protobuf_c_boolean has_weak PROTOBUF_C__DEPRECATED;
+  protobuf_c_boolean weak PROTOBUF_C__DEPRECATED;
   /*
    * Indicate that the field value should not be printed out when using debug
    * formats, e.g. when the field contains sensitive credentials.

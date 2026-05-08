@@ -3342,7 +3342,7 @@ static const ProtobufCFieldDescriptor google__protobuf__field_options__field_des
     offsetof(Google__Protobuf__FieldOptions, weak),
     NULL,
     &google__protobuf__field_options__weak__default_value,
-    0,             /* flags */
+    PROTOBUF_C_FIELD_FLAG_DEPRECATED,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
   {
