@@ -208,10 +208,84 @@ jobs:
       - name: Go test op
         run: go test ./holons/grace-op/...
 
-  gate-4-op-build-ader:
+  gate-3a-go-codegen-sdk:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS]
     needs: gate-3-op-core-tests
+    timeout-minutes: 20
+    steps:
+      - name: Reset runner-managed state and isolate this run
+        id: op-run
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+          echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
+          echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/load-mac-runner-env
+
+      - name: Resolve host SDK target
+        id: host
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            arm64) target="aarch64-apple-darwin" ;;
+            x86_64) target="x86_64-apple-darwin" ;;
+            *) echo "unsupported macOS runner architecture: $(uname -m)" >&2; exit 2 ;;
+          esac
+          echo "SDK_TARGET=$target" >> "$GITHUB_ENV"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
+      - name: Download op binary
+        uses: actions/download-artifact@v4
+        with:
+          name: op-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Build Go codegen SDK bootstrap artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_TARGET="${{ steps.host.outputs.target }}" SDK_VERSION=0.1.0 .github/scripts/build-prebuilt-go.sh
+
+      - name: Upload Go codegen SDK bootstrap artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-go-bootstrap-${{ steps.host.outputs.target }}
+          path: dist/sdk-prebuilts/go/${{ steps.host.outputs.target }}/*
+          if-no-files-found: error
+          retention-days: 1
+
+  gate-4-op-build-ader:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, macOS]
+    needs: gate-3a-go-codegen-sdk
     timeout-minutes: 30
     steps:
       - name: Reset runner-managed state and isolate this run
@@ -239,11 +313,63 @@ jobs:
 
       - uses: ./.github/actions/load-mac-runner-env
 
+      - name: Resolve host SDK target
+        id: host
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            arm64) target="aarch64-apple-darwin" ;;
+            x86_64) target="x86_64-apple-darwin" ;;
+            *) echo "unsupported macOS runner architecture: $(uname -m)" >&2; exit 2 ;;
+          esac
+          echo "SDK_TARGET=$target" >> "$GITHUB_ENV"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
       - name: Download op binary
         uses: actions/download-artifact@v4
         with:
           name: op-binary
           path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Download Go codegen SDK bootstrap artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-go-bootstrap-${{ steps.host.outputs.target }}
+          path: ${{ runner.temp }}/go-codegen-sdk
+
+      - name: Install Go codegen SDK artifact into isolated OPPATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=0
+          while IFS= read -r archive; do
+            found=1
+            base="$(basename "$archive" .tar.gz)"
+            lang="${base%%-holons-v*}"
+            rest="${base#${lang}-holons-v}"
+            version="${rest%-${SDK_TARGET}}"
+            dest="$OPPATH/sdk/$lang/$version/$SDK_TARGET"
+            rm -rf "$dest"
+            mkdir -p "$dest"
+            tar -C "$dest" -xzf "$archive"
+            env_name="OP_SDK_$(printf '%s' "$lang" | tr '[:lower:]-' '[:upper:]_')_PATH"
+            echo "$env_name=$dest" >> "$GITHUB_ENV"
+          done < <(find "$RUNNER_TEMP/go-codegen-sdk" -type f -name 'go-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
+          if [ "$found" -ne 1 ]; then
+            echo "no Go codegen SDK archive found for $SDK_TARGET" >&2
+            exit 1
+          fi
 
       - name: Restore exec bits on downloaded artifacts
         shell: bash
@@ -262,9 +388,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          chmod +x "$OPBIN/ader"
           mkdir -p "$RUNNER_TEMP/ader-binary"
-          cp "$OPBIN/ader" "$RUNNER_TEMP/ader-binary/ader"
+          if [ -x "$OPBIN/ader" ]; then
+            cp "$OPBIN/ader" "$RUNNER_TEMP/ader-binary/ader"
+          else
+            ader_bin="$(find "$OPBIN/clem-ader.holon/bin" -type f -name ader -print -quit)"
+            if [ -z "$ader_bin" ]; then
+              echo "ader binary not found under $OPBIN" >&2
+              exit 1
+            fi
+            cp "$ader_bin" "$RUNNER_TEMP/ader-binary/ader"
+          fi
           chmod +x "$RUNNER_TEMP/ader-binary/ader"
 
       - name: Upload ader binary

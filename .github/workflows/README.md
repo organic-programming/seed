@@ -12,6 +12,8 @@ pull_request / push on master
         |
   gate-3-op-core-tests (self-hosted macOS, fail-fast)
         |
+  gate-3a-go-codegen-sdk (self-hosted macOS, bootstrap artifact)
+        |
   gate-4-op-build-ader (self-hosted macOS, fail-fast)
         |
   gate-5-ader-core-tests (self-hosted macOS, fail-fast)
@@ -49,7 +51,8 @@ benchmark/maintenance:
 | `gate-1-go-build-op` | self-hosted macOS | same-repo PR, push, dispatch | blocks all later jobs | <1 min |
 | `gate-2-op-self-build` | self-hosted macOS | `needs: gate-1` | blocks all later jobs | <1 min |
 | `gate-3-op-core-tests` | self-hosted macOS | `needs: gate-2` | blocks all later jobs | 1-3 min |
-| `gate-4-op-build-ader` | self-hosted macOS | `needs: gate-3` | blocks all later jobs | <1 min |
+| `gate-3a-go-codegen-sdk` | self-hosted macOS | `needs: gate-3` | uploads `sdk-go-bootstrap-<target>` for the ader build manifest | <1 min |
+| `gate-4-op-build-ader` | self-hosted macOS | `needs: gate-3a-go-codegen-sdk` | blocks all later jobs | <1 min |
 | `gate-5-ader-core-tests` | self-hosted macOS | `needs: gate-4` | blocks all later jobs | 1-2 min |
 | `gate-6-smoke-suite` | self-hosted macOS | `needs: gate-5` | blocks all later jobs | 2-3 min |
 | `sdk-build-zig` | hosted/macOS | `needs: gate-6` | uploads `sdk-zig-<target>` | 10-30 min |
