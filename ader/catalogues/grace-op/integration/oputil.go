@@ -43,6 +43,7 @@ func SetupIsolatedOP(t *testing.T, rootDir string) ([]string, string) {
 	if err := os.MkdirAll(opBin, 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", opBin, err)
 	}
+	linkExternalSDKPrebuilts(t, opPath)
 	envVars := isolatedOPEnv(t, opPath, opBin)
 
 	cachedBinary := bootstrapIsolatedOPBinary(t, absRoot)
@@ -383,6 +384,171 @@ func FilterInstalledHolonsPath(pathValue string) string {
 		filtered = append(filtered, trimmed)
 	}
 	return strings.Join(filtered, string(os.PathListSeparator))
+}
+
+type externalSDKPrebuilt struct {
+	lang    string
+	path    string
+	target  string
+	version string
+}
+
+func linkExternalSDKPrebuilts(t *testing.T, sandboxOPPATH string) {
+	t.Helper()
+
+	// CI installs SDK artifacts into the job OPPATH; e2e tests create nested
+	// OPPATHs, so link only SDK leaves while keeping bin/build/cache isolated.
+	for _, sdk := range externalSDKPrebuilts(sandboxOPPATH) {
+		dst := filepath.Join(sandboxOPPATH, "sdk", sdk.lang, sdk.version, sdk.target)
+		if sameCleanPath(sdk.path, dst) {
+			continue
+		}
+		if info, err := os.Lstat(dst); err == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				if target, readErr := os.Readlink(dst); readErr == nil && sameCleanPath(target, sdk.path) {
+					continue
+				}
+			}
+			continue
+		} else if !os.IsNotExist(err) {
+			t.Fatalf("stat SDK prebuilt destination %s: %v", dst, err)
+		}
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			t.Fatalf("mkdir SDK prebuilt destination %s: %v", filepath.Dir(dst), err)
+		}
+		if err := os.Symlink(sdk.path, dst); err != nil {
+			t.Fatalf("link SDK prebuilt %s -> %s: %v", dst, sdk.path, err)
+		}
+	}
+}
+
+func externalSDKPrebuilts(sandboxOPPATH string) []externalSDKPrebuilt {
+	var out []externalSDKPrebuilt
+	seen := map[string]struct{}{}
+	add := func(sdk externalSDKPrebuilt) {
+		if strings.TrimSpace(sdk.lang) == "" || strings.TrimSpace(sdk.version) == "" || strings.TrimSpace(sdk.target) == "" {
+			return
+		}
+		if strings.TrimSpace(sdk.path) == "" || !pathIsDir(sdk.path) {
+			return
+		}
+		if sameCleanPath(sdk.path, filepath.Join(sandboxOPPATH, "sdk", sdk.lang, sdk.version, sdk.target)) {
+			return
+		}
+		key := sdk.lang + "\x00" + sdk.version + "\x00" + sdk.target
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		out = append(out, sdk)
+	}
+
+	for _, entry := range os.Environ() {
+		key, value, ok := strings.Cut(entry, "=")
+		if !ok || !strings.HasPrefix(key, "OP_SDK_") || !strings.HasSuffix(key, "_PATH") {
+			continue
+		}
+		if sdk, ok := externalSDKPrebuiltFromPath(value, sdkLangFromEnvName(key)); ok {
+			add(sdk)
+		}
+	}
+
+	outerOPPATH := strings.TrimSpace(os.Getenv("OPPATH"))
+	if outerOPPATH != "" && !sameCleanPath(outerOPPATH, sandboxOPPATH) {
+		addExternalSDKRoot(filepath.Join(outerOPPATH, "sdk"), add)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].lang != out[j].lang {
+			return out[i].lang < out[j].lang
+		}
+		if out[i].version != out[j].version {
+			return out[i].version < out[j].version
+		}
+		return out[i].target < out[j].target
+	})
+	return out
+}
+
+func addExternalSDKRoot(root string, add func(externalSDKPrebuilt)) {
+	langs, err := os.ReadDir(root)
+	if err != nil {
+		return
+	}
+	for _, langEntry := range langs {
+		if !langEntry.IsDir() {
+			continue
+		}
+		lang := langEntry.Name()
+		versions, err := os.ReadDir(filepath.Join(root, lang))
+		if err != nil {
+			continue
+		}
+		for _, versionEntry := range versions {
+			if !versionEntry.IsDir() {
+				continue
+			}
+			version := versionEntry.Name()
+			targets, err := os.ReadDir(filepath.Join(root, lang, version))
+			if err != nil {
+				continue
+			}
+			for _, targetEntry := range targets {
+				if !targetEntry.IsDir() {
+					continue
+				}
+				target := targetEntry.Name()
+				add(externalSDKPrebuilt{
+					lang:    lang,
+					version: version,
+					target:  target,
+					path:    filepath.Join(root, lang, version, target),
+				})
+			}
+		}
+	}
+}
+
+func externalSDKPrebuiltFromPath(path, fallbackLang string) (externalSDKPrebuilt, bool) {
+	clean := filepath.Clean(strings.TrimSpace(path))
+	if clean == "." || !pathIsDir(clean) {
+		return externalSDKPrebuilt{}, false
+	}
+	target := filepath.Base(clean)
+	versionDir := filepath.Dir(clean)
+	version := filepath.Base(versionDir)
+	langDir := filepath.Dir(versionDir)
+	lang := filepath.Base(langDir)
+	if strings.TrimSpace(lang) == "." || strings.TrimSpace(lang) == string(filepath.Separator) {
+		lang = fallbackLang
+	}
+	return externalSDKPrebuilt{
+		lang:    lang,
+		version: version,
+		target:  target,
+		path:    clean,
+	}, true
+}
+
+func sdkLangFromEnvName(name string) string {
+	trimmed := strings.TrimPrefix(strings.TrimSuffix(name, "_PATH"), "OP_SDK_")
+	return strings.ToLower(strings.ReplaceAll(trimmed, "_", "-"))
+}
+
+func sameCleanPath(a, b string) bool {
+	if strings.TrimSpace(a) == "" || strings.TrimSpace(b) == "" {
+		return false
+	}
+	absA, errA := filepath.Abs(filepath.Clean(a))
+	absB, errB := filepath.Abs(filepath.Clean(b))
+	if errA == nil && errB == nil {
+		return absA == absB
+	}
+	return filepath.Clean(a) == filepath.Clean(b)
+}
+
+func pathIsDir(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 func withEnv(envVars []string, key, value string) []string {
