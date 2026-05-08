@@ -78,7 +78,8 @@ EOF
     swift build --package-path "$swift_src" -c release --product protoc-gen-swift
     cp "$swift_src/.build/release/protoc-gen-swift" "${stage}/bin/protoc-gen-swift"
     chmod +x "${stage}/bin/protoc-gen-swift"
-    grpc_swift_version="${GRPC_SWIFT_VERSION:-1.27.5}"
+    # macos-14 runners currently ship Swift 5.10; grpc-swift 1.27.x requires 6.1.
+    grpc_swift_version="${GRPC_SWIFT_VERSION:-1.26.2}"
     grpc_swift_src="${work_dir}/grpc-swift"
     if [[ ! -d "$grpc_swift_src/.git" ]]; then
       rm -rf "$grpc_swift_src"
