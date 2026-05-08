@@ -12,9 +12,10 @@ license = "MIT"
 authors = [{name = "B. ALTER"}]
 
 dependencies = [
-    "grpcio>=1.60.0",
-    "grpcio-tools>=1.60.0",
-    "grpcio-reflection>=1.60.0",
+    "protobuf>=6.32.0,<7.0.0",
+    "grpcio>=1.80.0",
+    "grpcio-tools>=1.80.0",
+    "grpcio-reflection>=1.80.0",
     "websockets>=12.0",
 ]
 
