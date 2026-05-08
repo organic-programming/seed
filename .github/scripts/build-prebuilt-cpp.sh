@@ -382,6 +382,8 @@ if [[ ! -x "${host_tools}/bin/protoc" || ! -x "${host_tools}/bin/grpc_cpp_plugin
   printf '%s\n' "$target_protobuf_version" >"${host_tools}/protoc.version"
 fi
 
+OP_SDK_CPP_PATH="$host_tools" "${repo_root}/sdk/scripts/generate-protos.sh" --sdk=cpp
+
 grpc_flags=(
   "${common_grpc_flags[@]}"
   -DCMAKE_TOOLCHAIN_FILE="${toolchain_dir}/${sdk_target}.cmake"
