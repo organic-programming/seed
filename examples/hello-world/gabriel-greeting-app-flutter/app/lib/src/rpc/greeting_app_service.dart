@@ -78,7 +78,10 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
     SelectLanguageRequest request,
   ) async {
     final code = _validatedLanguageCode(request.code);
-    await _controller.setSelectedLanguage(code, greetNow: false);
+    await _controller.setSelectedLanguage(code);
+    if (_controller.error != null) {
+      throw GrpcError.unavailable(_controller.error!);
+    }
     return SelectLanguageResponse(code: code);
   }
 

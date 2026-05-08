@@ -2,7 +2,7 @@ use crate::gen::rust::greeting::v1 as pb;
 use serde_json::json;
 use std::io::Write;
 
-pub const VERSION: &str = "gabriel-greeting-rust 8.8.186";
+pub const VERSION: &str = "gabriel-greeting-rust {{ .Version }}";
 
 pub fn run_cli(args: &[String], stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
     if args.is_empty() {

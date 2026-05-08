@@ -2,7 +2,6 @@
 // NO CHECKED-IN PROTOBUF GENCODE
 // source: v1/greeting.proto
 
-@file:com.google.protobuf.Generated
 // Generated files should ignore deprecation warnings
 @file:Suppress("DEPRECATION")
 package greeting.v1;
@@ -36,7 +35,7 @@ public object LanguageKt {
      * @example "fr"
      * ```
      *
-     * `string code = 1;`
+     * `string code = 1 [json_name = "code"];`
      */
     public var code: kotlin.String
       @kotlin.jvm.JvmName("getCode")
@@ -52,7 +51,7 @@ public object LanguageKt {
      * @example "fr"
      * ```
      *
-     * `string code = 1;`
+     * `string code = 1 [json_name = "code"];`
      */
     public fun clearCode() {
       _builder.clearCode()
@@ -65,7 +64,7 @@ public object LanguageKt {
      * @example "French"
      * ```
      *
-     * `string name = 2;`
+     * `string name = 2 [json_name = "name"];`
      */
     public var name: kotlin.String
       @kotlin.jvm.JvmName("getName")
@@ -81,7 +80,7 @@ public object LanguageKt {
      * @example "French"
      * ```
      *
-     * `string name = 2;`
+     * `string name = 2 [json_name = "name"];`
      */
     public fun clearName() {
       _builder.clearName()
@@ -94,7 +93,7 @@ public object LanguageKt {
      * @example "Français"
      * ```
      *
-     * `string native = 3;`
+     * `string native = 3 [json_name = "native"];`
      */
     public var native: kotlin.String
       @kotlin.jvm.JvmName("getNative")
@@ -110,7 +109,7 @@ public object LanguageKt {
      * @example "Français"
      * ```
      *
-     * `string native = 3;`
+     * `string native = 3 [json_name = "native"];`
      */
     public fun clearNative() {
       _builder.clearNative()

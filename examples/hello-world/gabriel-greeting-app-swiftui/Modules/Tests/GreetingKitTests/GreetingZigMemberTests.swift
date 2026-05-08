@@ -41,6 +41,64 @@ final class GreetingZigMemberTests: XCTestCase {
     XCTAssertEqual(manager.greeting, "Bonjour Bob from Zig")
     XCTAssertEqual(fakeClient.sayHelloCalls, [SayHelloCall(name: "Bob", langCode: "fr")])
   }
+
+  @MainActor
+  func testSelectLanguageAndGreetRefreshesGreeting() async throws {
+    let fakeClient = FakeGreetingClient()
+    let recorder = ConnectRecorder()
+
+    let manager = GreetingHolonManager(
+      clientFactory: { slug, options in
+        recorder.append(slug: slug, transport: options.transport)
+        return fakeClient
+      },
+      autoRefresh: false
+    )
+    manager.availableHolons = [
+      identity(slug: "gabriel-greeting-zig", displayName: "Gabriel (Zig)", sortRank: 3),
+    ]
+    manager.transport = "stdio"
+    manager.userName = "Bob"
+
+    let code = try await manager.selectLanguageAndGreet("fr")
+
+    XCTAssertEqual(code, "fr")
+    XCTAssertEqual(manager.selectedLanguageCode, "fr")
+    XCTAssertEqual(manager.greeting, "Bonjour Bob from Zig")
+    XCTAssertEqual(recorder.calls.map(\.slug), ["gabriel-greeting-zig"])
+    XCTAssertEqual(fakeClient.sayHelloCalls, [SayHelloCall(name: "Bob", langCode: "fr")])
+  }
+
+  @MainActor
+  func testConnectMemberReloadsLanguagesAndGreetsCurrentSelection() async throws {
+    let fakeClient = FakeGreetingClient()
+    let recorder = ConnectRecorder()
+
+    let manager = GreetingHolonManager(
+      clientFactory: { slug, options in
+        recorder.append(slug: slug, transport: options.transport)
+        return fakeClient
+      },
+      autoRefresh: false
+    )
+    manager.availableHolons = [
+      identity(slug: "gabriel-greeting-swift", displayName: "Gabriel (Swift)", sortRank: 0),
+      identity(slug: "gabriel-greeting-zig", displayName: "Gabriel (Zig)", sortRank: 3),
+    ]
+    manager.userName = "Ada"
+
+    let member = try await manager.connectMember(slug: "gabriel-greeting-zig", transport: "tcp")
+
+    XCTAssertEqual(member.slug, "gabriel-greeting-zig")
+    XCTAssertEqual(member.state, .connected)
+    XCTAssertEqual(manager.transport, "tcp")
+    XCTAssertEqual(manager.selectedHolon?.slug, "gabriel-greeting-zig")
+    XCTAssertEqual(manager.selectedLanguageCode, "en")
+    XCTAssertEqual(manager.greeting, "Hello Ada from Zig")
+    XCTAssertEqual(recorder.calls.map(\.slug), ["gabriel-greeting-zig"])
+    XCTAssertEqual(recorder.calls.map(\.transport), ["tcp"])
+    XCTAssertEqual(fakeClient.sayHelloCalls, [SayHelloCall(name: "Ada", langCode: "en")])
+  }
 }
 
 private final class ConnectRecorder: @unchecked Sendable {

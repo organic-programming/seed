@@ -68,6 +68,7 @@ copy_first_executable() {
 repo_root="$(git rev-parse --show-toplevel)"
 # shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
 source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
+trap 'cleanup_grpc_third_party_pollution "$repo_root"' EXIT
 sdk_dir="${repo_root}/sdk/cpp-holons"
 grpc_source="${GRPC_SOURCE_DIR:-${repo_root}/sdk/zig-holons/third_party/grpc}"
 nlohmann_json_header="${sdk_dir}/third_party/nlohmann-json/single_include/nlohmann/json.hpp"
@@ -293,12 +294,12 @@ common_grpc_flags=(
   -DgRPC_BUILD_TESTS=OFF
   -DgRPC_BUILD_CODEGEN=ON
   -DgRPC_BUILD_GRPC_CPP_PLUGIN=ON
-  -DgRPC_BUILD_GRPC_CSHARP_PLUGIN=OFF
-  -DgRPC_BUILD_GRPC_NODE_PLUGIN=OFF
+  -DgRPC_BUILD_GRPC_CSHARP_PLUGIN=ON
+  -DgRPC_BUILD_GRPC_NODE_PLUGIN=ON
   -DgRPC_BUILD_GRPC_OBJECTIVE_C_PLUGIN=OFF
   -DgRPC_BUILD_GRPC_PHP_PLUGIN=OFF
-  -DgRPC_BUILD_GRPC_PYTHON_PLUGIN=OFF
-  -DgRPC_BUILD_GRPC_RUBY_PLUGIN=OFF
+  -DgRPC_BUILD_GRPC_PYTHON_PLUGIN=ON
+  -DgRPC_BUILD_GRPC_RUBY_PLUGIN=ON
   -DgRPC_ABSL_PROVIDER=module
   -DgRPC_CARES_PROVIDER=module
   -DgRPC_PROTOBUF_PROVIDER=module

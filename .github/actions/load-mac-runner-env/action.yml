@@ -1,0 +1,52 @@
+name: Load Mac runner CI cache env
+description: |
+  Source ~/.op-mac.env into $GITHUB_ENV so subsequent steps see the
+  runner-managed cache paths (ADER_CI_CACHE_BASE, GOMODCACHE, etc.).
+  No-op if ~/.op-mac.env is missing — cloud runners and self-hosted
+  runners that did not opt into local caches both keep working.
+
+  This action is the only contract between the pipeline and a Mac
+  self-hosted runner: copy scripts/op-mac.env.example to ~/.op-mac.env
+  on the runner machine and the pipeline picks it up automatically.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        env_file="$HOME/.op-mac.env"
+        if [ ! -f "$env_file" ]; then
+          echo "load-mac-runner-env: $env_file not found, skipping"
+          exit 0
+        fi
+        # Source the file with auto-export so any plain assignments
+        # become exported, then propagate the documented variables to
+        # GITHUB_ENV. Unknown variables in the file are intentionally
+        # ignored to keep the surface small and explicit.
+        set -a
+        # shellcheck disable=SC1090
+        . "$env_file"
+        set +a
+        for var in \
+          ADER_CI_CACHE_BASE \
+          GRACE_OP_SHARED_CACHE_DIR \
+          GOMODCACHE \
+          GOCACHE \
+          BUNDLE_PATH \
+          PUB_CACHE \
+          npm_config_cache \
+          GRADLE_USER_HOME \
+          NUGET_PACKAGES \
+          DOTNET_CLI_HOME
+        do
+          val="${!var:-}"
+          if [ -n "$val" ]; then
+            printf '%s=%s\n' "$var" "$val" >> "$GITHUB_ENV"
+          fi
+        done
+        # Ensure the cache base directory exists once env is loaded.
+        if [ -n "${ADER_CI_CACHE_BASE:-}" ]; then
+          mkdir -p "$ADER_CI_CACHE_BASE"
+        fi
+        echo "load-mac-runner-env: loaded $env_file"

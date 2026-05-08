@@ -85,7 +85,7 @@ public final class GreetingAppServiceProvider: CallHandlerProvider, @unchecked S
     let promise = context.eventLoop.makePromise(of: Greeting_V1_SelectHolonResponse.self)
     Task { @MainActor [holon] in
       do {
-        let identity = try await holon.selectHolon(slug: request.slug, greetAfterLoad: false)
+        let identity = try await holon.selectHolon(slug: request.slug, greetAfterLoad: true)
         var response = Greeting_V1_SelectHolonResponse()
         response.slug = identity.slug
         response.displayName = identity.displayName
@@ -104,7 +104,7 @@ public final class GreetingAppServiceProvider: CallHandlerProvider, @unchecked S
     let promise = context.eventLoop.makePromise(of: Greeting_V1_SelectTransportResponse.self)
     Task { @MainActor [holon] in
       do {
-        let transport = try await holon.selectTransport(request.transport, greetAfterLoad: false)
+        let transport = try await holon.selectTransport(request.transport, greetAfterLoad: true)
         var response = Greeting_V1_SelectTransportResponse()
         response.transport = transport
         promise.succeed(response)
@@ -122,7 +122,7 @@ public final class GreetingAppServiceProvider: CallHandlerProvider, @unchecked S
     let promise = context.eventLoop.makePromise(of: Greeting_V1_SelectLanguageResponse.self)
     Task { @MainActor [holon] in
       do {
-        let code = try await holon.selectLanguage(request.code)
+        let code = try await holon.selectLanguageAndGreet(request.code)
         var response = Greeting_V1_SelectLanguageResponse()
         response.code = code
         promise.succeed(response)

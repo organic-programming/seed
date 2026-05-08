@@ -140,6 +140,7 @@ public final class GreetingServiceGrpc {
      * <pre>
      * Greets the user in the chosen language.
      * &#64;example {"name":"Bob","lang_code":"fr"}
+     * &#64;example {"name":"Bob","lang_code":"fr"} --origin
      * </pre>
      */
     default void sayHello(greeting.v1.Greeting.SayHelloRequest request,
@@ -191,6 +192,7 @@ public final class GreetingServiceGrpc {
      * <pre>
      * Greets the user in the chosen language.
      * &#64;example {"name":"Bob","lang_code":"fr"}
+     * &#64;example {"name":"Bob","lang_code":"fr"} --origin
      * </pre>
      */
     public void sayHello(greeting.v1.Greeting.SayHelloRequest request,
@@ -231,6 +233,7 @@ public final class GreetingServiceGrpc {
      * <pre>
      * Greets the user in the chosen language.
      * &#64;example {"name":"Bob","lang_code":"fr"}
+     * &#64;example {"name":"Bob","lang_code":"fr"} --origin
      * </pre>
      */
     public greeting.v1.Greeting.SayHelloResponse sayHello(greeting.v1.Greeting.SayHelloRequest request) {
@@ -271,6 +274,7 @@ public final class GreetingServiceGrpc {
      * <pre>
      * Greets the user in the chosen language.
      * &#64;example {"name":"Bob","lang_code":"fr"}
+     * &#64;example {"name":"Bob","lang_code":"fr"} --origin
      * </pre>
      */
     public com.google.common.util.concurrent.ListenableFuture<greeting.v1.Greeting.SayHelloResponse> sayHello(

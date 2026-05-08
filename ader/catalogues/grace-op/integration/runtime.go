@@ -646,6 +646,7 @@ func prepareWorkspaceMirror(rt *runtimeState) (string, error) {
 	}
 	for _, spec := range []mirrorSpec{
 		{src: filepath.Join(rt.seedRoot, "examples"), dst: filepath.Join(root, "examples")},
+		{src: filepath.Join(rt.seedRoot, "dist"), dst: filepath.Join(root, "dist")},
 		{src: filepath.Join(rt.seedRoot, "examples", "_protos"), dst: filepath.Join(root, "_protos")},
 		{src: filepath.Join(rt.seedRoot, "holons", "grace-op", "_protos"), dst: filepath.Join(root, "_protos")},
 		{src: filepath.Join(rt.seedRoot, "organism_kits"), dst: filepath.Join(root, "organism_kits")},

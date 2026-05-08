@@ -30,10 +30,12 @@ option (holons.v1.manifest) = {
   build: {
     runner: "swift-package"
     templates: ["Sources/GabrielGreeting/CLI.swift"]
+    codegen: { languages: ["swift", "swift-grpc"] }
   }
   requires: {
     commands: ["swift"]
     files: ["Package.swift"]
+    sdk_prebuilts: ["swift"]
   }
   artifacts: {
     binary: "gabriel-greeting-swift"

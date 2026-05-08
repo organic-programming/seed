@@ -208,9 +208,12 @@ class _GabrielGreetingHomePageState extends State<GabrielGreetingHomePage> {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: CoaxControlsView(
-                            coaxManager: coax,
-                            onOpenSettings: () => _showCoaxSettings(context),
+                          child: material.Theme(
+                            data: _materialThemeFor(theme),
+                            child: CoaxControlsView(
+                              coaxManager: coax,
+                              onOpenSettings: () => _showCoaxSettings(context),
+                            ),
                           ),
                         ),
                       ],
@@ -340,14 +343,94 @@ material.ThemeData _materialThemeFor(ThemeData theme) {
   final brightness = theme.brightness == Brightness.dark
       ? material.Brightness.dark
       : material.Brightness.light;
+  final materialColorScheme =
+      material.ColorScheme.fromSeed(
+        seedColor: theme.colorScheme.accent,
+        brightness: brightness,
+      ).copyWith(
+        surface: theme.colorScheme.card,
+        surfaceContainerHighest: theme.colorScheme.card,
+        outline: theme.colorScheme.border,
+        primary: theme.colorScheme.primary,
+        onPrimary: theme.colorScheme.primaryForeground,
+      );
+  final inputBorder = material.OutlineInputBorder(
+    borderRadius: material.BorderRadius.circular(8),
+    borderSide: material.BorderSide(color: theme.colorScheme.border),
+  );
   return material.ThemeData(
     useMaterial3: true,
     brightness: brightness,
-    colorScheme: material.ColorScheme.fromSeed(
-      seedColor: theme.colorScheme.accent,
-      brightness: brightness,
-    ),
+    colorScheme: materialColorScheme,
     scaffoldBackgroundColor: theme.colorScheme.background,
+    dialogTheme: material.DialogThemeData(
+      backgroundColor: theme.colorScheme.card,
+      elevation: 18,
+      shadowColor: theme.colorScheme.foreground.withValues(
+        alpha: theme.brightness == Brightness.dark ? 0.30 : 0.16,
+      ),
+      surfaceTintColor: material.Colors.transparent,
+      shape: material.RoundedRectangleBorder(
+        borderRadius: material.BorderRadius.circular(8),
+      ),
+      titleTextStyle: theme.typography.x2Large.copyWith(
+        color: theme.colorScheme.foreground,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0,
+      ),
+    ),
+    inputDecorationTheme: material.InputDecorationTheme(
+      filled: true,
+      fillColor: theme.colorScheme.background.withValues(
+        alpha: theme.brightness == Brightness.dark ? 0.30 : 0.62,
+      ),
+      border: inputBorder,
+      enabledBorder: inputBorder,
+      focusedBorder: inputBorder.copyWith(
+        borderSide: material.BorderSide(
+          color: theme.colorScheme.ring,
+          width: 1.5,
+        ),
+      ),
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+    ),
+    segmentedButtonTheme: material.SegmentedButtonThemeData(
+      style: material.ButtonStyle(
+        backgroundColor: material.WidgetStateProperty.resolveWith((states) {
+          if (states.contains(material.WidgetState.selected)) {
+            return theme.colorScheme.accent.withValues(alpha: 0.85);
+          }
+          return theme.colorScheme.card;
+        }),
+        foregroundColor: material.WidgetStatePropertyAll(
+          theme.colorScheme.foreground,
+        ),
+        side: material.WidgetStatePropertyAll(
+          material.BorderSide(color: theme.colorScheme.border),
+        ),
+        shape: material.WidgetStatePropertyAll(
+          material.RoundedRectangleBorder(
+            borderRadius: material.BorderRadius.circular(8),
+          ),
+        ),
+      ),
+    ),
+    switchTheme: material.SwitchThemeData(
+      trackColor: material.WidgetStateProperty.resolveWith((states) {
+        if (states.contains(material.WidgetState.selected)) {
+          return theme.colorScheme.foreground;
+        }
+        return theme.colorScheme.muted;
+      }),
+      thumbColor: material.WidgetStatePropertyAll(theme.colorScheme.card),
+    ),
+    textButtonTheme: material.TextButtonThemeData(
+      style: material.TextButton.styleFrom(
+        foregroundColor: theme.colorScheme.primary,
+        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+    ),
   );
 }
 

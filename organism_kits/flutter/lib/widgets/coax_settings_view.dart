@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../src/coax_configuration.dart';
 import '../src/coax_controller.dart';
 
+const _settingsDialogWidth = 720.0;
+const _settingsDialogContentHeight = 360.0;
+
 class CoaxSettingsView extends StatelessWidget {
   const CoaxSettingsView({super.key, required this.coaxManager});
 
@@ -16,7 +19,8 @@ class CoaxSettingsView extends StatelessWidget {
         return AlertDialog(
           title: const Text('COAX'),
           content: SizedBox(
-            width: 720,
+            width: _settingsDialogWidth,
+            height: _settingsDialogContentHeight,
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,6 +44,7 @@ class CoaxSettingsView extends StatelessWidget {
                     _FieldRow(
                       label: 'Host',
                       child: TextFormField(
+                        key: const ValueKey<String>('coax-tcp-host'),
                         initialValue: coaxManager.serverHost,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
@@ -53,6 +58,7 @@ class CoaxSettingsView extends StatelessWidget {
                     _FieldRow(
                       label: 'Port',
                       child: TextFormField(
+                        key: const ValueKey<String>('coax-tcp-port'),
                         initialValue: coaxManager.serverPortText,
                         decoration: InputDecoration(
                           border: const OutlineInputBorder(),
@@ -67,6 +73,7 @@ class CoaxSettingsView extends StatelessWidget {
                     _FieldRow(
                       label: 'Socket path',
                       child: TextFormField(
+                        key: const ValueKey<String>('coax-unix-path'),
                         initialValue: coaxManager.serverUnixPath,
                         decoration: InputDecoration(
                           border: const OutlineInputBorder(),

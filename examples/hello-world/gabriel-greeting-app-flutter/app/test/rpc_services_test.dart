@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:holons/gen/holons/v1/describe.pbgrpc.dart';
 import 'package:grpc/grpc.dart';
 import 'package:holons/gen/holons/v1/coax.pbgrpc.dart';
 import 'package:holons_app/holons_app.dart';
@@ -56,6 +57,25 @@ void main() {
 
     final coaxClient = CoaxServiceClient(channel);
     final appClient = GreetingAppServiceClient(channel);
+    final metaClient = HolonMetaClient(channel);
+
+    final describe = await metaClient.describe(DescribeRequest());
+    expect(describe.manifest.identity.familyName, 'Greeting-App-Flutter');
+    expect(
+      describe.services.map((service) => service.name),
+      containsAll(<String>[
+        'holons.v1.HolonMeta',
+        'holons.v1.CoaxService',
+        'greeting.v1.GreetingAppService',
+      ]),
+    );
+    expect(
+      describe.services
+          .firstWhere((service) => service.name == 'holons.v1.HolonMeta')
+          .methods
+          .map((method) => method.name),
+      contains('Describe'),
+    );
 
     final members = await coaxClient.listMembers(ListMembersRequest());
     expect(
@@ -67,11 +87,14 @@ void main() {
       SelectHolonRequest(slug: 'gabriel-greeting-go'),
     );
     expect(selectHolon.slug, 'gabriel-greeting-go');
+    expect(greetingController.selectedHolon?.slug, 'gabriel-greeting-go');
+    expect(greetingController.greeting, 'Hello World from Gabriel');
 
     final selectLanguage = await appClient.selectLanguage(
       SelectLanguageRequest(code: 'fr'),
     );
     expect(selectLanguage.code, 'fr');
+    expect(greetingController.greeting, 'Bonjour World from Gabriel');
 
     final greeting = await appClient.greet(
       GreetRequest(name: 'Alice', langCode: 'fr'),
@@ -97,6 +120,16 @@ void main() {
     expect(greetingController.userName, 'Alice');
     expect(greetingController.selectedLanguageCode, 'fr');
     expect(greetingController.greeting, 'Bonjour Alice from Gabriel');
+
+    await coaxClient.disconnectMember(
+      DisconnectMemberRequest(slug: 'gabriel-greeting-go'),
+    );
+    expect(greetingController.isRunning, isFalse);
+
+    final disconnectedStatus = await coaxClient.memberStatus(
+      MemberStatusRequest(slug: 'gabriel-greeting-go'),
+    );
+    expect(disconnectedStatus.member.state, MemberState.MEMBER_STATE_AVAILABLE);
 
     await coaxClient.turnOffCoax(TurnOffCoaxRequest());
     await waitForCoaxUpdate();
@@ -157,6 +190,7 @@ void main() {
       expect(greetingController.selectedHolon?.slug, 'gabriel-greeting-c');
       expect(greetingController.transport, 'tcp');
       expect(greetingController.availableLanguages, isNotEmpty);
+      expect(greetingController.greeting, 'Hello World');
       expect(tcpAttempts, 2);
 
       final greeting = await appClient.greet(
@@ -211,6 +245,7 @@ void main() {
       expect(greetingController.transport, 'tcp');
       expect(greetingController.isRunning, isTrue);
       expect(greetingController.availableLanguages, isNotEmpty);
+      expect(greetingController.greeting, 'tcp:en:World');
       expect(
         connector.connectCalls,
         containsAllInOrder(<(String, String)>[
@@ -306,6 +341,7 @@ void main() {
 
       expect(selected.code, 'fr');
       expect(greetingController.selectedLanguageCode, 'fr');
+      expect(greetingController.greeting, 'fr:World');
 
       await expectLater(
         appClient.selectLanguage(SelectLanguageRequest(code: 'zz')),
@@ -319,6 +355,7 @@ void main() {
       );
 
       expect(greetingController.selectedLanguageCode, 'fr');
+      expect(greetingController.greeting, 'fr:World');
 
       final greeting = await appClient.greet(GreetRequest(name: 'Alice'));
       expect(greeting.greeting, 'fr:Alice');

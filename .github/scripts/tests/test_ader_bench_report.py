@@ -129,7 +129,7 @@ def generate(root: Path, report_dir: Path, bouquet: str, runner_acquired_at: str
         run_id=report_dir.name,
         ref="test-ref",
         sha="abc123",
-        runner_name="popok",
+        runner_name="self-hosted-macos",
         runner_os="macOS",
         runner_arch="ARM64",
         cache_note="fixture",

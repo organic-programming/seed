@@ -173,8 +173,8 @@ func (x *Language) GetNative() string {
 
 type SayHelloRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Name to greet. If empty, the daemon falls back to "World".
-	// @example "Alice"
+	// Name to greet. If empty, the daemon falls back to a localized default (e.g., "Mary", "Maria") or "World".
+	// @example "Bob"
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// ISO 639-1 code chosen by the UI.
 	// @required
@@ -232,7 +232,7 @@ type SayHelloResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Localized greeting text returned by the daemon.
 	// @required
-	// @example "Bonjour, Alice !"
+	// @example "Bonjour, Bob !"
 	Greeting string `protobuf:"bytes,1,opt,name=greeting,proto3" json:"greeting,omitempty"`
 	// English language name used to resolve the greeting.
 	// @required

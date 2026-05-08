@@ -31,10 +31,12 @@ option (holons.v1.manifest) = {
     runner: "dotnet"
     main: "./cmd/Main.cs"
     templates: ["api/Cli.cs"]
+    codegen: { languages: ["csharp"] }
   }
   requires: {
     commands: ["dotnet"]
     files: ["gabriel-greeting-csharp.csproj", "cmd/Main.cs"]
+    sdk_prebuilts: ["csharp"]
   }
   artifacts: {
     binary: "gabriel-greeting-csharp"

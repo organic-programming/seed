@@ -29,6 +29,7 @@ option (holons.v1.manifest) = {
     runner: "ruby"
     main: "./cmd/main.rb"
     templates: ["api/cli.rb"]
+    codegen: { languages: ["ruby"] }
   }
   requires: {
     commands: ["ruby", "bundle"]

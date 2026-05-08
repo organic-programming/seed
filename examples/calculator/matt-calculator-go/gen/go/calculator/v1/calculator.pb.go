@@ -4,9 +4,10 @@
 // 	protoc        v7.34.0
 // source: v1/calculator.proto
 
-package v1
+package calculatorv1
 
 import (
+	_ "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -223,7 +224,7 @@ var File_v1_calculator_proto protoreflect.FileDescriptor
 
 const file_v1_calculator_proto_rawDesc = "" +
 	"\n" +
-	"\x13v1/calculator.proto\x12\rcalculator.v1\"\"\n" +
+	"\x13v1/calculator.proto\x12\rcalculator.v1\x1a\x18holons/v1/manifest.proto\"\"\n" +
 	"\n" +
 	"SetRequest\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\x01R\x05value\"%\n" +
@@ -241,7 +242,17 @@ const file_v1_calculator_proto_rawDesc = "" +
 	"\x03Add\x12\x1c.calculator.v1.AddSubRequest\x1a\x1b.calculator.v1.CalcResponse\x12E\n" +
 	"\bSubtract\x12\x1c.calculator.v1.AddSubRequest\x1a\x1b.calculator.v1.CalcResponse\x12E\n" +
 	"\bMultiply\x12\x1c.calculator.v1.MulDivRequest\x1a\x1b.calculator.v1.CalcResponse\x12C\n" +
-	"\x06Divide\x12\x1c.calculator.v1.MulDivRequest\x1a\x1b.calculator.v1.CalcResponseb\x06proto3"
+	"\x06Divide\x12\x1c.calculator.v1.MulDivRequest\x1a\x1b.calculator.v1.CalcResponseB\xbc\t\x82\xb5\x18\x81\t\n" +
+	"\xc1\x01\n" +
+	"\bholon/v1\x12$c7a2e1f3-9d4b-4e2a-b715-8f3c6a1d9e0b\x1a\x04Matt\"\rCalculator-Go*VA stateful in-memory accumulator — demonstrates sequential multi-payload invocation.2\bB. ALTERB\x05draftJ\n" +
+	"2026-04-12R\x050.1.3\x1a\xaf\x01A Go gRPC daemon exposing an in-memory float64 accumulator. Designed to demonstrate op invoke multi-payload JSON Lines output. The accumulator is zero-initialized per process.\"\x02go*\xa2\x03\n" +
+	"\x16accumulator-calculator\x12gApply a sequence of arithmetic operations to an in-memory accumulator and stream results as JSON Lines.\x1abThe user wants to compute a multi-step arithmetic expression and inspect each intermediate result.\"&Call Set to initialise the accumulator\"IChain Add, Subtract, Multiply, Divide calls in a single op invoke command\"HRead each JSON Lines response for the intermediate result and expression:\x06nativeR1\n" +
+	"\tgo-module\x12\x05./cmd2\x0eapi/version.goJ\r\n" +
+	"\x02go\n" +
+	"\ago-grpcZ\x10\n" +
+	"\x02go\x12\x06go.mod\"\x02goj\x14\n" +
+	"\x12matt-calculator-gor\xfc\x01\n" +
+	"\x10demo-accumulator\x12]Sets 20, adds 1, subtracts 4, divides by 5, multiplies by 3 — streams 5 JSON Lines results.\"\x88\x01op invoke matt-calculator-go Set '{\"value\":20.0}' Add '{\"value\":1.0}' Subtract '{\"value\":4.0}' Divide '{\"by\":5.0}' Multiply '{\"by\":3.0}'Z4matt-calculator-go/gen/go/calculator/v1;calculatorv1b\x06proto3"
 
 var (
 	file_v1_calculator_proto_rawDescOnce sync.Once

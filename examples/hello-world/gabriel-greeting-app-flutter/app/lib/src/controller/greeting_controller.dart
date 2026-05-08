@@ -243,7 +243,7 @@ class GreetingController extends ChangeNotifier implements HolonManager {
         isLoading = false;
         _safeNotify();
         if (greetAfterLoad && selectedLanguageCode.isNotEmpty) {
-          unawaited(greet());
+          await greet();
         }
         return;
       } on Object catch (loadError) {
@@ -339,7 +339,7 @@ class GreetingController extends ChangeNotifier implements HolonManager {
       await setTransport(transport, reload: false);
     }
     await selectHolonBySlug(identity.slug, reload: false);
-    await loadLanguages(greetAfterLoad: false);
+    await loadLanguages();
     return _memberForIdentity(
       identity,
       overrideState: isRunning && error == null

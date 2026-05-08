@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11v1/greeting.proto\x12\x0bgreeting.v1\"\x16\n\x14ListLanguagesRequest\"A\n\x15ListLanguagesResponse\x12(\n\tlanguages\x18\x01 \x03(\x0b\x32\x15.greeting.v1.Language\"6\n\x08Language\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0e\n\x06native\x18\x03 \x01(\t\"2\n\x0fSayHelloRequest\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x11\n\tlang_code\x18\x02 \x01(\t\"I\n\x10SayHelloResponse\x12\x10\n\x08greeting\x18\x01 \x01(\t\x12\x10\n\x08language\x18\x02 \x01(\t\x12\x11\n\tlang_code\x18\x03 \x01(\t2\xb2\x01\n\x0fGreetingService\x12V\n\rListLanguages\x12!.greeting.v1.ListLanguagesRequest\x1a\".greeting.v1.ListLanguagesResponse\x12G\n\x08SayHello\x12\x1c.greeting.v1.SayHelloRequest\x1a\x1d.greeting.v1.SayHelloResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11v1/greeting.proto\x12\x0bgreeting.v1\"\x16\n\x14ListLanguagesRequest\"L\n\x15ListLanguagesResponse\x12\x33\n\tlanguages\x18\x01 \x03(\x0b\x32\x15.greeting.v1.LanguageR\tlanguages\"J\n\x08Language\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n\x06native\x18\x03 \x01(\tR\x06native\"B\n\x0fSayHelloRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n\tlang_code\x18\x02 \x01(\tR\x08langCode\"g\n\x10SayHelloResponse\x12\x1a\n\x08greeting\x18\x01 \x01(\tR\x08greeting\x12\x1a\n\x08language\x18\x02 \x01(\tR\x08language\x12\x1b\n\tlang_code\x18\x03 \x01(\tR\x08langCode2\xb2\x01\n\x0fGreetingService\x12V\n\rListLanguages\x12!.greeting.v1.ListLanguagesRequest\x1a\".greeting.v1.ListLanguagesResponse\x12G\n\x08SayHello\x12\x1c.greeting.v1.SayHelloRequest\x1a\x1d.greeting.v1.SayHelloResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,13 +34,13 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_LISTLANGUAGESREQUEST']._serialized_start=34
   _globals['_LISTLANGUAGESREQUEST']._serialized_end=56
   _globals['_LISTLANGUAGESRESPONSE']._serialized_start=58
-  _globals['_LISTLANGUAGESRESPONSE']._serialized_end=123
-  _globals['_LANGUAGE']._serialized_start=125
-  _globals['_LANGUAGE']._serialized_end=179
-  _globals['_SAYHELLOREQUEST']._serialized_start=181
-  _globals['_SAYHELLOREQUEST']._serialized_end=231
-  _globals['_SAYHELLORESPONSE']._serialized_start=233
-  _globals['_SAYHELLORESPONSE']._serialized_end=306
-  _globals['_GREETINGSERVICE']._serialized_start=309
-  _globals['_GREETINGSERVICE']._serialized_end=487
+  _globals['_LISTLANGUAGESRESPONSE']._serialized_end=134
+  _globals['_LANGUAGE']._serialized_start=136
+  _globals['_LANGUAGE']._serialized_end=210
+  _globals['_SAYHELLOREQUEST']._serialized_start=212
+  _globals['_SAYHELLOREQUEST']._serialized_end=278
+  _globals['_SAYHELLORESPONSE']._serialized_start=280
+  _globals['_SAYHELLORESPONSE']._serialized_end=383
+  _globals['_GREETINGSERVICE']._serialized_start=386
+  _globals['_GREETINGSERVICE']._serialized_end=564
 # @@protoc_insertion_point(module_scope)

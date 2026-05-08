@@ -15,11 +15,35 @@ void ensureAppDescribeRegistered() {
   }
 
   final response = holons.buildDescribeResponse(protoDir: protoDir);
-  if (!response.services.any((service) => service.name == 'holons.v1.CoaxService')) {
+  if (!response.services.any(
+    (service) => service.name == 'holons.v1.CoaxService',
+  )) {
     response.services.add(_coaxServiceDoc());
+  }
+  if (!response.services.any(
+    (service) => service.name == 'holons.v1.HolonMeta',
+  )) {
+    response.services.add(_holonMetaServiceDoc());
   }
   holons.useStaticResponse(response);
   _registered = true;
+}
+
+ServiceDoc _holonMetaServiceDoc() {
+  return ServiceDoc(
+    name: 'holons.v1.HolonMeta',
+    description:
+        'Metadata surface exposed by every organism so op and humans can inspect available RPCs.',
+    methods: <MethodDoc>[
+      MethodDoc(
+        name: 'Describe',
+        description: "Return the organism's manifest and callable API catalog.",
+        inputType: 'holons.v1.DescribeRequest',
+        outputType: 'holons.v1.DescribeResponse',
+        exampleInput: '{}',
+      ),
+    ],
+  );
 }
 
 ServiceDoc _coaxServiceDoc() {
@@ -111,8 +135,7 @@ ServiceDoc _coaxServiceDoc() {
             nestedFields: _memberInfoFields(),
           ),
         ],
-        exampleInput:
-            '{"slug":"gabriel-greeting-rust","transport":"stdio"}',
+        exampleInput: '{"slug":"gabriel-greeting-rust","transport":"stdio"}',
       ),
       MethodDoc(
         name: 'DisconnectMember',

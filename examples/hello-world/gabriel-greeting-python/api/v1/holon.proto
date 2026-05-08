@@ -29,10 +29,12 @@ option (holons.v1.manifest) = {
     runner: "python"
     main: "./cmd/main.py"
     templates: ["api/cli.py"]
+    codegen: { languages: ["python"] }
   }
   requires: {
     commands: ["python3"]
     files: ["cmd/main.py", "pyproject.toml", "requirements.txt"]
+    sdk_prebuilts: ["python"]
   }
   artifacts: {
     binary: "gabriel-greeting-python"

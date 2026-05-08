@@ -26,10 +26,14 @@ option (holons.v1.manifest) = {
     runner: "go-module"
     main: "./cmd"
     templates: ["api/version.go"]
+    codegen: {
+      languages: ["go", "go-grpc"]
+    }
   }
   requires: {
     commands: ["go"]
     files: ["go.mod"]
+    sdk_prebuilts: ["go"]
   }
   artifacts: {
     binary: "ader"

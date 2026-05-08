@@ -29,6 +29,7 @@ option (holons.v1.manifest) = {
     runner: "cmake"
     main: "./cmd/main.c"
     templates: ["api/cli.c"]
+    codegen: { languages: ["c", "c-upbdefs", "c-upb-minitable"] }
   }
   requires: {
     commands: ["cmake"]

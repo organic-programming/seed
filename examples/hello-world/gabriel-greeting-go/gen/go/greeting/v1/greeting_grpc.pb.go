@@ -31,7 +31,8 @@ type GreetingServiceClient interface {
 	// @example {}
 	ListLanguages(ctx context.Context, in *ListLanguagesRequest, opts ...grpc.CallOption) (*ListLanguagesResponse, error)
 	// Greets the user in the chosen language.
-	// @example {"name":"Alice","lang_code":"fr"}
+	// @example {"name":"Bob","lang_code":"fr"}
+	// @example {"name":"Bob","lang_code":"fr"} --origin
 	SayHello(ctx context.Context, in *SayHelloRequest, opts ...grpc.CallOption) (*SayHelloResponse, error)
 }
 
@@ -71,7 +72,8 @@ type GreetingServiceServer interface {
 	// @example {}
 	ListLanguages(context.Context, *ListLanguagesRequest) (*ListLanguagesResponse, error)
 	// Greets the user in the chosen language.
-	// @example {"name":"Alice","lang_code":"fr"}
+	// @example {"name":"Bob","lang_code":"fr"}
+	// @example {"name":"Bob","lang_code":"fr"} --origin
 	SayHello(context.Context, *SayHelloRequest) (*SayHelloResponse, error)
 	mustEmbedUnimplementedGreetingServiceServer()
 }

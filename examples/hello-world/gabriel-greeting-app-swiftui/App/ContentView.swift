@@ -103,7 +103,9 @@ struct ContentView: View {
       CoaxSettingsView(coaxManager: coaxManager, isPresented: $isShowingCoaxSettings)
     }
     .sheet(isPresented: $isShowingObservability) {
-      ObservabilityPanel(kit: observabilityKit)
+      ObservabilityPanel(kit: observabilityKit) {
+        isShowingObservability = false
+      }
         .frame(minWidth: 900, minHeight: 640)
     }
     .task {
@@ -161,8 +163,7 @@ struct ContentView: View {
     guard code != holonManager.selectedLanguageCode else { return }
     error = nil
     do {
-      try await holonManager.selectLanguage(code)
-      await greet()
+      try await holonManager.selectLanguageAndGreet(code)
     } catch {
       self.error = "Greeting failed: \(message(for: error))"
     }
@@ -192,7 +193,6 @@ struct ContentView: View {
 
   private var topHeaderArea: some View {
     HStack(alignment: .top) {
-      Spacer(minLength: 0)
       Button {
         isShowingObservability = true
       } label: {
@@ -201,7 +201,9 @@ struct ContentView: View {
       }
       .buttonStyle(.borderless)
       .help("Observability")
-      .padding(.trailing, 10)
+
+      Spacer(minLength: 0)
+
       coaxHeaderGroup
     }
     .frame(maxWidth: .infinity, alignment: .center)

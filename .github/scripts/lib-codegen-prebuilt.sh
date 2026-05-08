@@ -12,6 +12,12 @@ repo_root_or_pwd() {
   git rev-parse --show-toplevel 2>/dev/null || printf '%s\n' "${GITHUB_WORKSPACE:-$PWD}"
 }
 
+cleanup_grpc_third_party_pollution() {
+  local root="$1"
+  git -C "$root" checkout -- sdk/zig-holons/third_party/grpc/third_party/zlib/ 2>/dev/null || true
+  git -C "$root/sdk/zig-holons/third_party/grpc/third_party/zlib" checkout -- . 2>/dev/null || true
+}
+
 target_goos_goarch() {
   case "$1" in
     aarch64-apple-darwin) echo "darwin arm64" ;;
@@ -97,6 +103,113 @@ build_adapter_family() {
     cp "$adapter" "${bin_dir}/protoc-gen-${name}${suffix}"
     chmod +x "${bin_dir}/protoc-gen-${name}${suffix}"
   done
+}
+
+copy_grpc_sibling() {
+  local stage="$1"
+  local plugin_name="$2"
+  local target="${SDK_TARGET:?SDK_TARGET is required}"
+  local repo_root
+  local suffix
+  local source
+  local dest
+
+  repo_root="$(repo_root_or_pwd)"
+  suffix="$(target_exe_suffix "$target")"
+  source="${repo_root}/sdk/cpp-holons/.cpp-prebuilt/${target}/prefix/bin/${plugin_name}${suffix}"
+  dest="${stage}/bin/${plugin_name}${suffix}"
+  if [[ ! -x "$source" ]]; then
+    echo "gRPC sibling plugin not found or not executable: ${source}" >&2
+    return 1
+  fi
+  mkdir -p "${stage}/bin"
+  cp "$source" "$dest"
+  chmod +x "$dest"
+}
+
+install_grpc_java_plugin() {
+  local stage="$1"
+  local target="${SDK_TARGET:?SDK_TARGET is required}"
+  local version="${GRPC_JAVA_PLUGIN_VERSION:-1.60.0}"
+  local classifier
+  local expected_sha
+  local suffix
+  local tmp
+  local actual_sha
+
+  case "$target" in
+    aarch64-apple-darwin)
+      classifier="osx-aarch_64"
+      expected_sha="bb6c0c079998ee7080e66ea122dfb66a34a602482a7ed1760b30b7324fdf8ede"
+      ;;
+    *)
+      echo "unsupported protoc-gen-grpc-java target: ${target}" >&2
+      return 2
+      ;;
+  esac
+
+  suffix="$(target_exe_suffix "$target")"
+  tmp="$(mktemp)"
+  curl -fsSL \
+    "https://repo1.maven.org/maven2/io/grpc/protoc-gen-grpc-java/${version}/protoc-gen-grpc-java-${version}-${classifier}.exe" \
+    -o "$tmp"
+  actual_sha="$(sha256_file "$tmp" | awk '{print $1}')"
+  if [[ "$actual_sha" != "$expected_sha" ]]; then
+    echo "protoc-gen-grpc-java sha256 mismatch: got ${actual_sha}, want ${expected_sha}" >&2
+    rm -f "$tmp"
+    return 1
+  fi
+  mkdir -p "${stage}/bin"
+  cp "$tmp" "${stage}/bin/protoc-gen-grpc-java${suffix}"
+  chmod +x "${stage}/bin/protoc-gen-grpc-java${suffix}"
+  rm -f "$tmp"
+}
+
+install_grpc_kotlin_plugin() {
+  local stage="$1"
+  local version="${GRPC_KOTLIN_PLUGIN_VERSION:-1.4.3}"
+  local expected_sha="f41827ddcaec57a153afe8fde4cf33bb6496765c5f989056fc4db89314b43621"
+  local tmp
+  local actual_sha
+  local jar
+  local wrapper
+
+  tmp="$(mktemp)"
+  curl -fsSL \
+    "https://repo1.maven.org/maven2/io/grpc/protoc-gen-grpc-kotlin/${version}/protoc-gen-grpc-kotlin-${version}-jdk8.jar" \
+    -o "$tmp"
+  actual_sha="$(sha256_file "$tmp" | awk '{print $1}')"
+  if [[ "$actual_sha" != "$expected_sha" ]]; then
+    echo "protoc-gen-grpc-kotlin sha256 mismatch: got ${actual_sha}, want ${expected_sha}" >&2
+    rm -f "$tmp"
+    return 1
+  fi
+  jar="${stage}/share/kotlin/protoc-gen-grpc-kotlin-${version}-jdk8.jar"
+  wrapper="${stage}/bin/protoc-gen-grpc-kotlin"
+  mkdir -p "$(dirname "$jar")" "${stage}/bin"
+  cp "$tmp" "$jar"
+  cat >"$wrapper" <<EOF
+#!/usr/bin/env sh
+set -eu
+exec java -jar "\$(CDPATH= cd -- "\$(dirname "\$0")" && pwd)/../share/kotlin/protoc-gen-grpc-kotlin-${version}-jdk8.jar" "\$@"
+EOF
+  chmod +x "$wrapper"
+  rm -f "$tmp"
+}
+
+install_node_codegen_plugins() {
+  local stage="$1"
+  local work_dir="$2"
+  local grpc_tools_version="${GRPC_TOOLS_VERSION:-1.13.0}"
+  local npm_prefix="${work_dir}/node-codegen"
+
+  rm -rf "$npm_prefix"
+  mkdir -p "$npm_prefix" "${stage}/bin"
+  npm install --prefix "$npm_prefix" --omit=dev --no-audit --no-fund \
+    "grpc-tools@${grpc_tools_version}"
+  cp "${npm_prefix}/node_modules/grpc-tools/bin/protoc" "${stage}/bin/protoc"
+  cp "${npm_prefix}/node_modules/grpc-tools/bin/grpc_node_plugin" "${stage}/bin/grpc_tools_node_protoc_plugin"
+  chmod +x "${stage}/bin/protoc" "${stage}/bin/grpc_tools_node_protoc_plugin"
 }
 
 archive_codegen_stage() {
