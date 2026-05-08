@@ -31,6 +31,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PROTO_ROOT="$ROOT/holons/grace-op/_protos"
+PROTOBUF_SRC_INCLUDE="$ROOT/sdk/zig-holons/third_party/grpc/third_party/protobuf/src"
 CANONICAL_DESCRIBE="$PROTO_ROOT/holons/v1/describe.proto"
 PROTO_FILES=(
   "$PROTO_ROOT/holons/v1/manifest.proto"
@@ -42,6 +43,10 @@ PROTO_FILES=(
 )
 PROTO_INCLUDES=(-I "$PROTO_ROOT")
 SUMMARY=()
+
+if [[ -d "$PROTOBUF_SRC_INCLUDE/google/protobuf" ]]; then
+  PROTO_INCLUDES+=(-I "$PROTOBUF_SRC_INCLUDE")
+fi
 
 for include_dir in /opt/homebrew/include /usr/local/include; do
   if [[ -d "$include_dir/google/protobuf" ]]; then
@@ -78,11 +83,39 @@ require_tool() {
   fi
 }
 
+protoc_tool() {
+  local candidate
+  if [[ -n "${OP_SDK_PROTOC:-}" ]]; then
+    candidate="$OP_SDK_PROTOC"
+    require_file "$candidate"
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  if [[ -n "${OP_SDK_CPP_PATH:-}" ]]; then
+    candidate="${OP_SDK_CPP_PATH}/bin/protoc"
+    require_file "$candidate"
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  require_tool protoc
+  command -v protoc
+}
+
 run_in_root() {
   (
     cd "$ROOT"
     "$@"
   )
+}
+
+normalize_text_outputs() {
+  local file
+  for file in "$@"; do
+    if [[ -f "$file" ]]; then
+      perl -pi -e 's/[ \t]+$//' "$file"
+      perl -0pi -e 's/\n+\z/\n/' "$file"
+    fi
+  done
 }
 
 find_compatible_protobuf33() {
@@ -97,11 +130,12 @@ find_compatible_protobuf33() {
 }
 
 generate_go() {
-  require_tool protoc
+  local protoc_bin
+  protoc_bin="$(protoc_tool)"
   require_tool protoc-gen-go
   require_tool protoc-gen-go-grpc
   local go_package="github.com/organic-programming/go-holons/gen/go/holons/v1;v1"
-  run_in_root protoc "${PROTO_INCLUDES[@]}" \
+  run_in_root "$protoc_bin" "${PROTO_INCLUDES[@]}" \
     --go_out=sdk/go-holons/gen/go \
     --go_opt=paths=source_relative \
     --go_opt=Mholons/v1/manifest.proto="$go_package" \
@@ -123,9 +157,10 @@ generate_go() {
 }
 
 generate_swift() {
-  require_tool protoc
+  local protoc_bin
+  protoc_bin="$(protoc_tool)"
   require_tool protoc-gen-swift
-  run_in_root protoc "${PROTO_INCLUDES[@]}" \
+  run_in_root "$protoc_bin" "${PROTO_INCLUDES[@]}" \
     --swift_out=sdk/swift-holons/Sources/Holons/Gen \
     --swift_opt=Visibility=Public \
     "${PROTO_FILES[@]}"
@@ -133,18 +168,15 @@ generate_swift() {
 }
 
 generate_python() {
-  local python_bin="${ROOT}/sdk/python-holons/.venv-codex/bin/python"
-  if [[ ! -x "$python_bin" ]]; then
-    python_bin="$(command -v python3 || command -v python)"
-  fi
-  if [[ -z "${python_bin:-}" ]]; then
-    echo "Missing required tool: python3 or python" >&2
-    exit 1
-  fi
-  run_in_root "$python_bin" -m grpc_tools.protoc "${PROTO_INCLUDES[@]}" \
+  local protoc_bin
+  protoc_bin="$(protoc_tool)"
+  require_tool grpc_python_plugin
+  run_in_root "$protoc_bin" "${PROTO_INCLUDES[@]}" \
     --python_out=sdk/python-holons/gen/python \
     --grpc_python_out=sdk/python-holons/gen/python \
+    --plugin=protoc-gen-grpc_python="$(command -v grpc_python_plugin)" \
     "${PROTO_FILES[@]}"
+  normalize_text_outputs "$ROOT"/sdk/python-holons/gen/python/holons/v1/*.py
   record_summary "python -> sdk/python-holons/gen/python/holons/v1"
 }
 
@@ -157,7 +189,7 @@ generate_cpp() {
     require_file "$protoc_bin"
     require_file "$grpc_plugin"
   else
-    require_tool "$protoc_bin"
+    protoc_bin="$(protoc_tool)"
     require_tool "$grpc_plugin"
     grpc_plugin="$(command -v "$grpc_plugin")"
   fi
@@ -198,9 +230,10 @@ generate_c() {
 }
 
 generate_csharp() {
-  require_tool protoc
+  local protoc_bin
+  protoc_bin="$(protoc_tool)"
   require_tool grpc_csharp_plugin
-  run_in_root protoc "${PROTO_INCLUDES[@]}" \
+  run_in_root "$protoc_bin" "${PROTO_INCLUDES[@]}" \
     --csharp_out=sdk/csharp-holons/Holons/Gen \
     --grpc_out=sdk/csharp-holons/Holons/Gen \
     --plugin=protoc-gen-grpc="$(command -v grpc_csharp_plugin)" \
@@ -209,31 +242,36 @@ generate_csharp() {
 }
 
 generate_dart() {
-  require_tool protoc
+  local protoc_bin
+  protoc_bin="$(protoc_tool)"
   local dart_plugin_dir="$HOME/.pub-cache/bin"
   if [[ ! -x "$dart_plugin_dir/protoc-gen-dart" ]]; then
     echo "Missing required tool: protoc-gen-dart (expected at $dart_plugin_dir/protoc-gen-dart)" >&2
     exit 1
   fi
-  run_in_root env PATH="$PATH:$dart_plugin_dir" protoc "${PROTO_INCLUDES[@]}" \
+  run_in_root env PATH="$PATH:$dart_plugin_dir" "$protoc_bin" "${PROTO_INCLUDES[@]}" \
     --dart_out=grpc:sdk/dart-holons/lib/gen \
     "${PROTO_FILES[@]}"
   record_summary "dart -> sdk/dart-holons/lib/gen/holons/v1"
 }
 
 generate_java() {
-  require_tool protoc
-  run_in_root protoc "${PROTO_INCLUDES[@]}" \
+  local protoc_bin
+  protoc_bin="$(protoc_tool)"
+  run_in_root "$protoc_bin" "${PROTO_INCLUDES[@]}" \
     --java_out=sdk/java-holons/src/main/java/gen \
     "${PROTO_FILES[@]}"
+  normalize_text_outputs "$ROOT"/sdk/java-holons/src/main/java/gen/holons/v1/*.java
   record_summary "java -> sdk/java-holons/src/main/java/gen/holons/v1"
 }
 
 generate_kotlin() {
-  require_tool protoc
-  run_in_root protoc "${PROTO_INCLUDES[@]}" \
+  local protoc_bin
+  protoc_bin="$(protoc_tool)"
+  run_in_root "$protoc_bin" "${PROTO_INCLUDES[@]}" \
     --java_out=sdk/kotlin-holons/src/main/kotlin/gen \
     "${PROTO_FILES[@]}"
+  normalize_text_outputs "$ROOT"/sdk/kotlin-holons/src/main/kotlin/gen/holons/v1/*.java
   record_summary "kotlin -> sdk/kotlin-holons/src/main/kotlin/gen/holons/v1"
 }
 
@@ -256,9 +294,10 @@ generate_js_web() {
 }
 
 generate_ruby() {
-  require_tool protoc
+  local protoc_bin
+  protoc_bin="$(protoc_tool)"
   require_tool grpc_ruby_plugin
-  run_in_root protoc "${PROTO_INCLUDES[@]}" \
+  run_in_root "$protoc_bin" "${PROTO_INCLUDES[@]}" \
     --ruby_out=sdk/ruby-holons/lib/gen \
     --grpc_out=sdk/ruby-holons/lib/gen \
     --plugin=protoc-gen-grpc="$(command -v grpc_ruby_plugin)" \
