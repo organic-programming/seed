@@ -87,12 +87,12 @@ benchmark/maintenance:
 
 ## Inter-SDK dependency: cpp prefix
 
-Several SDKs consume files built by the cpp prebuilt job:
+Only SDKs that need native gRPC artifacts consume files built by the cpp prebuilt job:
 
 - `c` needs the cpp prefix libraries, `protoc`/upb generators, and the matching CMake toolchain file.
 - `ruby` needs `grpc_ruby_plugin` because the `grpc-tools arm64-darwin` gem upstream does not ship it.
-- `python`, `csharp`, `java`, `kotlin` adapter SDKs follow the same pattern when their native ecosystem (pip / NuGet / Maven) does not provide the plugin on a given target.
 - `zig` is independent: its prebuilt script builds and consumes its own prefix under `sdk/zig-holons/.zig-prebuilt/<target>/prefix/`.
+- `go`, `python`, `csharp`, `java`, `kotlin`, `dart`, `swift`, and `js` are codegen-light SDKs. They fetch `protoc` and language plugins directly and do not read the cpp prefix.
 
 The cpp build configures `gRPC_BUILD_GRPC_<LANG>_PLUGIN=ON` so each plugin lands in `sdk/cpp-holons/.cpp-prebuilt/<target>/prefix/bin/`, and it writes the target CMake toolchain under `sdk/cpp-holons/.cpp-prebuilt/<target>/toolchain/`.
 
