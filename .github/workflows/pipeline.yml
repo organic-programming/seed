@@ -687,7 +687,7 @@ jobs:
       runs-on: ${{ matrix.runs_on }}
 
   sdk-build-python:
-    needs: gate-6-smoke-suite
+    needs: sdk-build-cpp
     strategy:
       fail-fast: false
       matrix:
@@ -700,9 +700,10 @@ jobs:
       sdk-version: '0.1.0'
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
+      needs-cpp-prefix: true
 
   sdk-build-csharp:
-    needs: gate-6-smoke-suite
+    needs: sdk-build-cpp
     strategy:
       fail-fast: false
       matrix:
@@ -715,6 +716,7 @@ jobs:
       sdk-version: '0.1.0'
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
+      needs-cpp-prefix: true
 
   sdk-build-java:
     needs: gate-6-smoke-suite
