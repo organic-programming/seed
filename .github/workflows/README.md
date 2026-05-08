@@ -21,9 +21,9 @@ pull_request / push on master
   gate-6-smoke-suite (self-hosted macOS, fail-fast)
         |
         v
-  tier 1 wave A: sdk-build-{zig,cpp} (hosted/macOS)
+  tier 1 wave A: sdk-build-{zig,cpp,go,java,kotlin,dart,swift} (hosted/macOS)
         |
-  tier 1 wave B: sdk-build-{c,ruby,go,python,csharp,java,kotlin,dart,swift,js}
+  tier 1 wave B: sdk-build-{c,ruby,python,csharp,js}
         |
   fresh-sdk-delivery (ubuntu-hosted pass-through gate)
         |
@@ -59,7 +59,8 @@ benchmark/maintenance:
 | `sdk-build-cpp` | hosted/macOS | `needs: gate-6` | uploads `sdk-cpp-<target>` and `cpp-prefix-<target>` | 10-30 min |
 | `sdk-build-c` | hosted/macOS | `needs: sdk-build-cpp` | downloads `cpp-prefix-<target>`, uploads `sdk-c-<target>` | 10-30 min |
 | `sdk-build-ruby` | hosted/macOS | `needs: sdk-build-cpp` | downloads `cpp-prefix-<target>`, uploads `sdk-ruby-<target>` | 10-30 min |
-| `sdk-build-{go,python,csharp,java,kotlin,dart,swift,js}` | hosted macOS | `needs: sdk-build-cpp` | uploads `sdk-<lang>-<target>` | 5-30 min |
+| `sdk-build-{go,java,kotlin,dart,swift}` | hosted macOS | `needs: gate-6` | uploads `sdk-<lang>-<target>` | 5-30 min |
+| `sdk-build-{python,csharp,js}` | hosted macOS | `needs: sdk-build-cpp` | downloads `cpp-prefix-<target>`, uploads `sdk-<lang>-<target>` | 5-30 min |
 | `fresh-sdk-delivery` | ubuntu-latest | after tier 1 | pass-through once run-local SDK artifacts exist | <1 min |
 | `composite-swiftui-full` | self-hosted macOS | `needs: fresh-sdk-delivery` | fail-isolated PR check | 1-2 h |
 | `composite-flutter-full` | self-hosted macOS | `needs: fresh-sdk-delivery` | fail-isolated PR check | 1-2 h |
@@ -92,8 +93,9 @@ Only SDKs that need native gRPC artifacts consume files built by the cpp prebuil
 - `c` needs the cpp prefix libraries, `protoc`/upb generators, and the matching CMake toolchain file.
 - `ruby` needs `grpc_ruby_plugin` because the `grpc-tools arm64-darwin` gem upstream does not ship it.
 - `python` and `csharp` need the cpp-built `grpc_python_plugin` and `grpc_csharp_plugin` via `copy_grpc_sibling`.
+- `js` needs the cpp-built `grpc_node_plugin`; its SDK wraps that plugin to provide `@grpc/grpc-js` output on arm64 runners without using the x86_64-only `grpc-tools` binary.
 - `zig` is independent: its prebuilt script builds and consumes its own prefix under `sdk/zig-holons/.zig-prebuilt/<target>/prefix/`.
-- `go`, `java`, `kotlin`, `dart`, `swift`, and `js` are codegen-light SDKs that do not read the cpp prefix.
+- `go`, `java`, `kotlin`, `dart`, and `swift` are codegen-light SDKs that do not read the cpp prefix.
 
 The cpp build configures `gRPC_BUILD_GRPC_<LANG>_PLUGIN=ON` so each plugin lands in `sdk/cpp-holons/.cpp-prebuilt/<target>/prefix/bin/`, and it writes the target CMake toolchain under `sdk/cpp-holons/.cpp-prebuilt/<target>/toolchain/`.
 

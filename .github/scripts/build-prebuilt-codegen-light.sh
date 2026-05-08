@@ -106,10 +106,12 @@ EOF
 )
     ;;
   java|python|csharp|kotlin|js)
-    if [[ "$sdk_lang" != "js" ]]; then
-      install_protoc_release "$sdk_target" "$stage"
-    fi
-    if [[ "$sdk_lang" == "kotlin" ]]; then
+    install_protoc_release "$sdk_target" "$stage"
+    if [[ "$sdk_lang" == "js" ]]; then
+      build_go_tool_for_target "$repo_root" "$sdk_target" ./cmd/protoc-gen-op-adapter \
+        "${stage}/bin/protoc-gen-op-adapter-js${suffix}"
+      chmod +x "${stage}/bin/protoc-gen-op-adapter-js${suffix}"
+    elif [[ "$sdk_lang" == "kotlin" ]]; then
       build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" \
         kotlin-java kotlin-java-grpc kotlin kotlin-grpc
     else
@@ -121,7 +123,11 @@ EOF
         install_grpc_java_plugin "$stage"
         install_grpc_kotlin_plugin "$stage"
         ;;
-      js) install_node_codegen_plugins "$stage" "$work_dir" ;;
+      js)
+        install_js_protoc_plugin "$stage" "$work_dir"
+        install_node_codegen_plugins "$stage" "$work_dir"
+        wrap_protoc_with_sibling_path "$stage"
+        ;;
       python) copy_grpc_sibling "$stage" grpc_python_plugin ;;
       csharp) copy_grpc_sibling "$stage" grpc_csharp_plugin ;;
     esac
@@ -135,7 +141,7 @@ EOF
 )
     elif [[ "$sdk_lang" == "js" ]]; then
       plugins=$(cat <<EOF
-      {"name": "js", "binary": "bin/protoc-gen-js${suffix}", "out_subdir": "node"}
+      {"name": "js", "binary": "bin/protoc-gen-op-adapter-js${suffix}", "out_subdir": "node"}
 EOF
 )
     else

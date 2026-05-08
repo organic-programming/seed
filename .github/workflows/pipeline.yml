@@ -779,7 +779,7 @@ jobs:
       runs-on: ${{ matrix.runs_on }}
 
   sdk-build-js:
-    needs: gate-6-smoke-suite
+    needs: sdk-build-cpp
     strategy:
       fail-fast: false
       matrix:
@@ -792,6 +792,7 @@ jobs:
       sdk-version: '0.1.0'
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
+      needs-cpp-prefix: true
 
   fresh-sdk-delivery:
     runs-on: ubuntu-latest
@@ -943,6 +944,17 @@ jobs:
           op build gabriel-greeting-app-swiftui --hardened
           ader test ader/catalogues/gabriel-greeting-app-swiftui --suite swiftui-smoke --profile smoke --lane both --source workspace
 
+      - name: Upload SwiftUI reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: composite-swiftui-reports-${{ github.run_id }}
+          path: |
+            ader/catalogues/*/reports/**
+            ader/reports/**
+          retention-days: 14
+          if-no-files-found: warn
+
   composite-flutter-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS]
@@ -1073,6 +1085,17 @@ jobs:
           set -euo pipefail
           op build gabriel-greeting-app-flutter --hardened
           ader test ader/catalogues/gabriel-greeting-app-flutter --suite flutter-smoke --profile smoke --lane both --source workspace
+
+      - name: Upload Flutter reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: composite-flutter-reports-${{ github.run_id }}
+          path: |
+            ader/catalogues/*/reports/**
+            ader/reports/**
+          retention-days: 14
+          if-no-files-found: warn
 
   ader-bouquet-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -1214,6 +1237,7 @@ jobs:
         run: ader test-bouquet ader --name "$BOUQUET"
 
       - name: Upload reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ader-reports-${{ github.run_id }}
@@ -1403,6 +1427,17 @@ jobs:
           op clean gabriel-greeting-zig
           op build gabriel-greeting-zig
           ader test ader/catalogues/grace-op --suite op_invoke --profile smoke --lane progression --source workspace
+
+      - name: Upload Zig host deep-test reports
+        if: always() && matrix.mode == 'host'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-deep-zig-host-reports-${{ github.run_id }}
+          path: |
+            ader/catalogues/*/reports/**
+            ader/reports/**
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: Restore cross-smoke cache
         if: matrix.mode == 'cross'
