@@ -65,6 +65,49 @@ copy_first_executable() {
   chmod +x "$dest/$(basename "$found")" 2>/dev/null || true
 }
 
+protobuf_target_version() {
+  local proto_dir="$1"
+  local version=""
+
+  if version="$(git -C "$proto_dir" describe --tags --match 'v[0-9]*' --exclude '*-*' --abbrev=0 2>/dev/null)"; then
+    printf '%s\n' "$version"
+    return 0
+  fi
+
+  git -C "$proto_dir" fetch --tags --quiet origin 2>/dev/null || true
+
+  if version="$(git -C "$proto_dir" describe --tags --match 'v[0-9]*' --exclude '*-*' --abbrev=0 2>/dev/null)"; then
+    printf '%s\n' "$version"
+    return 0
+  fi
+
+  if [[ -f "${proto_dir}/version.json" ]]; then
+    version="$(python3 - "$proto_dir/version.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as fh:
+    data = json.load(fh)
+
+for release in data.values():
+    protoc_version = release.get("protoc_version")
+    if protoc_version:
+        print(f"v{protoc_version}")
+        break
+else:
+    sys.exit(1)
+PY
+)"
+    if [[ -n "$version" ]]; then
+      printf '%s\n' "$version"
+      return 0
+    fi
+  fi
+
+  echo "could not determine protobuf target version from ${proto_dir}" >&2
+  return 1
+}
+
 repo_root="$(git rev-parse --show-toplevel)"
 # shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
 source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
@@ -108,7 +151,7 @@ do
   fi
 done
 
-target_protobuf_version="$(git -C "${grpc_source}/third_party/protobuf" describe --tags --match 'v[0-9]*' --exclude '*-*' --abbrev=0)"
+target_protobuf_version="$(protobuf_target_version "${grpc_source}/third_party/protobuf")"
 
 macos_framework_flag=""
 if [[ "$sdk_target" == *apple-darwin ]]; then
