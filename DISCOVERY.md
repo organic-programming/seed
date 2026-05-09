@@ -247,6 +247,8 @@ Because finding and parsing `holon.proto` securely requires a full Protobuf comp
 - **Other SDKs**: Never walk the local tree for `holon.proto` directly. Instead, if a `source` layer is requested in the bitmask, the SDK natively **offloads** the entire search to the local `op` daemon. It calls `connect(LOCAL, "op", ...)` to spawn or dial `op`, and issues a local RPC `Discover(scope=LOCAL, ...)` against it. The SDK merges the RPC results with any native layer searches it performed.
   > *Note: This local offloading is unrelated to the `DELEGATED` scope network proxying. The SDK issues the RPC with `scope=LOCAL` because `op` shares the exact same filesystem and must return the raw `file://` transport URLs for the source holons.*
 
+LOCAL discovery served by `op` may use an op-internal on-disk resolution cache. This does not change the cross-SDK discovery contract; see [OP_DISCOVERY.md](holons/grace-op/OP_DISCOVERY.md#resolution-cache) for cache layout, flags, and invalidation rules.
+
 ### Exclusions
 
 Source tree walking skips: `.git`, `.op`, `node_modules`, `vendor`, `build`, `testdata`, and any directory starting with `.` (except `*.holon` package directories).

@@ -20,6 +20,8 @@ This document covers `op`-specific CLI behavior.
 | `--root <path>` | override scan root | **preempts any other scoping flag** |
 | `--limit <n>` | limit discovery results | `op list` only; `0` means no limit |
 | `--timeout <ms>` | discovery/connect timeout | applies to all commands; `0` means no timeout |
+| `--no-cache` | resolution cache | disables resolution cache reads and writes for this invocation |
+| `--purge-cache` | resolution cache | deletes `$OPPATH/resolutions/` before continuing; bare `op --purge-cache` exits 0 |
 
 ⚠️ Phase 1 note: Only `LOCAL` scope is supported. `PROXY`, `DELEGATED`, and instance targeting (`:uid`) will be available in a future release.
 
@@ -94,10 +96,75 @@ Because the CLI evaluates the `expression` exactly as defined in [DISCOVERY.md](
 - **Direct URL Expression**: `op tcp://127.0.0.1:4000 <method>` — dials the transport URL directly.
 
 > **A Note on Performance & Caching**  
-> The `op` CLI **strictly refuses** to cache discovery results (such as mapping a slug permanently to a binary path). The ecosystem is intentionally dynamic; caching ruins the ability to hot-swap binaries or gracefully plummet through the auto-build fallback chain.  
-> Performance in Organic Programming is strictly targeted at the *RPC processing layer* (via `Persistent` instances routing multiplexed pipes). The marginal 5-millisecond cost of re-scanning a local directory on connection is utterly irrelevant to the lifecycle of an application.
+> The `op` CLI keeps an internal on-disk resolution cache for local discovery snapshots. It preserves the dynamic behavior expected by Organic Programming: hot-swapped built or installed targets are checked with per-entry stat data before a cached ref is reused; missing slugs are never cached negatively, so the auto-build fallback chain can still discover newly created source holons; and mutating `op` commands invalidate snapshots through a dirty marker. Manual edits to `holon.proto` made outside `op new` are intentionally not watched; use `op --purge-cache` after those edits when immediate cache invalidation is required.
 
 *(Note: Meta-commands like `op serve`, `op new`, `op env`, and `op version` scaffold internal states and do not accept discovery expressions).*
+
+---
+
+## Resolution Cache
+
+The resolution cache is private to `op`. SDKs do not read or write it directly; SDK source-layer discovery that delegates to a local `op` benefits from the cache through the existing local RPC path.
+
+### Flags
+
+- `--no-cache` disables both reads and writes for one invocation. Existing cache files are left untouched.
+- `--purge-cache` removes `$OPPATH/resolutions/` before the command continues. With no subcommand, `op --purge-cache` purges and exits successfully.
+
+Both flags are root-level flags and must appear before any subcommand or dispatch expression, for example:
+
+```bash
+op --no-cache list --source
+op --purge-cache gabriel-greeting-go ListGreetings '{}'
+```
+
+### Layout
+
+```text
+$OPPATH/resolutions/
+├── .dirty
+├── <hash16>.json
+└── ...
+```
+
+`<hash16>` is `sha256(canonical_root_path + "|" + specifiers_bitmask)` truncated to 16 lowercase hex characters. The specifier bitmask is stored and hashed in the same `0xNN` form used in snapshots.
+
+### Snapshot Schema
+
+```jsonc
+{
+  "version": 1,
+  "root": "/canonical/path/to/root",
+  "specifiers": "0x06",
+  "scanned_at": "2026-05-09T14:00:00Z",
+  "entries": [
+    {
+      "url": "file:///path/to/holon",
+      "info": { /* HolonInfo as JSON */ },
+      "target_path": "/path/to/binary_or_holon_dir",
+      "target_mtime_ns": 1731234567890123456
+    }
+  ]
+}
+```
+
+Writes are atomic: `op` writes a temporary file next to the snapshot and renames it into place. There is no lock file; concurrent writers are allowed and the last completed rename wins.
+
+### Invalidation
+
+On a cache hit, every entry is stat-checked against `target_path` and `target_mtime_ns`. If a target disappeared or its mtime changed, `op` ignores the snapshot and performs a fresh walk.
+
+`$OPPATH/resolutions/.dirty` is touched by:
+
+- `op build`
+- `op install`
+- `op clean`
+- `op uninstall`
+- `op new`
+
+If a snapshot is older than `.dirty`, the whole snapshot is ignored. Read-only commands (`op list`, `op test`, `op inspect`, dispatch, and `op serve`) do not touch `.dirty`.
+
+There is no TTL and no negative caching. A missing slug always triggers a fresh walk, even when a snapshot exists for the same root and specifiers.
 
 ---
 
