@@ -25,7 +25,7 @@ The following languages `c, c++, c#, dart, go, java, js, js-web, kotlin, python,
 
 The core `holons.v1` schema definitions (`manifest.proto`, `describe.proto`, `coax.proto`) are embedded in the `op` binary for runtime distribution. However, the exact code bindings (Go structs, Swift classes, Dart definitions, etc.) required by these SDKs are statically compiled from those schemas.
 
-Maintainers use [`./scripts/generate-protos.sh`](./scripts/generate-protos.sh) to invoke the various language-specific `protoc` compilers and update the native libraries uniformly across all 14 supported languages.
+Maintainers use [`./scripts/generate-protos.sh`](./scripts/generate-protos.sh) to update the native libraries uniformly across all 14 supported languages. SDK prebuilt builds resolve protoc through `op`'s shared toolchain pool under `$OPPATH/sdk/shared/`, pinned by the repo-root `seed-toolchain.yaml`, instead of relying on a host `protoc` found on `PATH`.
 
 ## Every SDK implements:
 
@@ -38,25 +38,23 @@ Maintainers use [`./scripts/generate-protos.sh`](./scripts/generate-protos.sh) t
 
 ## Native Prebuilts
 
-The `c`, `cpp`, `ruby`, and `zig` SDKs ship as native prebuilts managed by
+SDK native runtimes and proto codegen plugins ship as prebuilts managed by
 [`op sdk`](../holons/grace-op/OP_SDK.md):
 
 ```sh
-op sdk install <c|cpp|ruby|zig>     # download a published release
-op sdk build   <c|cpp|ruby|zig>     # compile from local sources (~30-60 min cold)
+op sdk install <lang>               # download a published release
+op sdk build   <lang>               # compile from local sources (~30-60 min cold)
 op sdk list --compilable            # which SDKs build right now? what blocks each?
-op sdk verify <c|cpp|ruby|zig>
-op sdk path   <c|cpp|ruby|zig>
+op sdk verify <lang>
+op sdk path   <lang>
 ```
 
 Installed prebuilts live under `$OPPATH/sdk/<lang>/<version>/<target>/`.
+Shared protoc installs live under `$OPPATH/sdk/shared/protoc/<version>/` and
+are self-healed by `op sdk install` when an SDK manifest declares them.
 Holons that declare `requires.sdk_prebuilts` are checked during `op build`
 preflight. When the prebuilt is present, `op build` injects
-`OP_SDK_C_PATH`, `OP_SDK_CPP_PATH`, `OP_SDK_RUBY_PATH`, or
-`OP_SDK_ZIG_PATH` into the runner environment.
-
-This is deliberately limited to the SDKs with native cold-build pain. The other
-SDKs remain managed by their language toolchains or upstream package managers.
+`OP_SDK_<LANG>_PATH` into the runner environment.
 
 **See [PREBUILTS.md](./PREBUILTS.md) for the full reference**: install vs build
 trade-off, per-SDK toolchain prerequisites, supported target matrix (with

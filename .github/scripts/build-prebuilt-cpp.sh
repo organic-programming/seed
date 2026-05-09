@@ -425,6 +425,7 @@ cp -R "$prefix/lib/." "$stage/lib/"
 if [[ -d "$prefix/bin" ]]; then
   cp -R "$prefix/bin/." "$stage/bin/"
 fi
+rm -f "$stage/bin/protoc" "$stage/bin/protoc.exe"
 build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" cpp
 mkdir -p "$stage/include/nlohmann" "$stage/share/licenses/nlohmann-json"
 cp "$nlohmann_json_header" "$stage/include/nlohmann/json.hpp"
@@ -444,6 +445,8 @@ grpc_commit="$(git -C "$grpc_source" rev-parse HEAD 2>/dev/null || echo unknown)
   echo "zig=$("$zig_bin" version)"
 } >"$stage/share/prebuilt.env"
 
+toolchain_json="$(toolchain_manifest_json "$repo_root" cpp "$sdk_target")"
+
 cat >"$stage/manifest.json" <<EOF
 {
   "lang": "cpp",
@@ -453,7 +456,8 @@ cat >"$stage/manifest.json" <<EOF
     "plugins": [
       {"name": "cpp", "binary": "bin/protoc-gen-cpp$(target_exe_suffix "$sdk_target")", "out_subdir": "cpp"}
     ]
-  }
+  },
+  "toolchain": ${toolchain_json}
 }
 EOF
 

@@ -167,6 +167,13 @@ func protocArgs(lang, descPath, outDir string) ([]string, error) {
 }
 
 func siblingExecutable(name string) (string, error) {
+	if name == "protoc" {
+		if path := strings.TrimSpace(os.Getenv("OP_SDK_PROTOC")); path != "" {
+			if info, err := os.Stat(path); err == nil && !info.IsDir() {
+				return path, nil
+			}
+		}
+	}
 	if path, err := optionalSiblingExecutable(name); err == nil {
 		return path, nil
 	}

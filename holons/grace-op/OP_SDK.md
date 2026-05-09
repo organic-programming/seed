@@ -82,11 +82,19 @@ Installed prebuilts live under:
 
 ```text
 $OPPATH/sdk/<lang>/<version>/<target>/
+$OPPATH/sdk/shared/protoc/<version>/
 ```
 
 Each install writes a local `manifest.json` with the archive SHA-256 and tree
 SHA-256. `op sdk verify <lang>` recomputes the installed tree hash and fails if
 the tree no longer matches the recorded metadata.
+
+SDKs that need protoc declare a `toolchain` slice in their archive manifest.
+The slice is derived from the repo-root `seed-toolchain.yaml`; per-SDK manifests
+echo the relevant entries but do not own the version pins. During
+`op sdk install`, `op` materialises missing or sha-mismatched shared toolchain
+entries under `$OPPATH/sdk/shared/` before completing the SDK install. SDKs that
+only ship pure plugins declare no protoc entry and do not touch the shared pool.
 
 Distributions that provide proto generators also advertise them in the same
 local manifest:
@@ -101,13 +109,35 @@ local manifest:
         "out_subdir": "go"
       }
     ]
-  }
+  },
+  "toolchain": [
+    {
+      "name": "protoc",
+      "version": "32.0",
+      "kind": "protoc",
+      "target": "aarch64-apple-darwin",
+      "sha256": "..."
+    }
+  ]
 }
 ```
 
+`op sdk build` exposes shared toolchain paths to build scripts when a manifest
+requires them:
+
+```text
+OP_SDK_PROTOC=$OPPATH/sdk/shared/protoc/<version>/bin/protoc
+OP_SDK_PROTOC_INCLUDE=$OPPATH/sdk/shared/protoc/<version>/include
+```
+
+Scripts consume these variables instead of discovering protoc on `PATH`. `op`
+consumer paths (`op <slug> <rpc>`, `op run`, `op mcp`, `op inspect`, and
+related dispatch flows) use installed SDK metadata and must not resolve host
+protoc.
+
 `op build` resolves `build.codegen.languages` through this block and runs the
 plugin binary from the installed distribution, so proto generation does not
-depend on generators being present on `PATH`.
+depend on generators or protoc being present on `PATH`.
 
 ## Targets
 

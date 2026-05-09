@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -308,6 +309,165 @@ func TestInstallPreservesCodegenManifestBlock(t *testing.T) {
 	}
 	if metadata.Codegen == nil || len(metadata.Codegen.Plugins) != 1 {
 		t.Fatalf("installed metadata codegen = %#v, want one plugin", metadata.Codegen)
+	}
+}
+
+func TestProtocResolvedFromSharedPool(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+
+	repoRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repoRoot, "seed-toolchain.yaml"), []byte(testSeedToolchainYAML(t, "java", testTarget, "32.0", seedSharedProtoc(t, runtimeHome, "32.0", testTarget))), 0o644); err != nil {
+		t.Fatalf("write seed toolchain: %v", err)
+	}
+	envOut := filepath.Join(repoRoot, "env.out")
+	script := filepath.Join(repoRoot, "build.sh")
+	if err := os.WriteFile(script, []byte("#!/usr/bin/env bash\nset -euo pipefail\nprintf '%s\\n%s\\n' \"$OP_SDK_PROTOC\" \"$OP_SDK_PROTOC_INCLUDE\" > "+shellQuote(envOut)+"\n"), 0o755); err != nil {
+		t.Fatalf("write script: %v", err)
+	}
+
+	if err := runBuildScript(context.Background(), script, "java", testTarget, "0.1.0", BuildOptions{}, repoRoot); err != nil {
+		t.Fatalf("runBuildScript() returned error: %v", err)
+	}
+	data, err := os.ReadFile(envOut)
+	if err != nil {
+		t.Fatalf("read env output: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("env output = %q, want two lines", string(data))
+	}
+	if want := SharedProtocBinary("32.0", testTarget); lines[0] != want {
+		t.Fatalf("OP_SDK_PROTOC = %q, want %q", lines[0], want)
+	}
+	if want := SharedProtocInclude("32.0"); lines[1] != want {
+		t.Fatalf("OP_SDK_PROTOC_INCLUDE = %q, want %q", lines[1], want)
+	}
+}
+
+func TestSharedPoolSelfHealsOnInstall(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+	protocSource, protocSHA := writeSharedProtocSource(t, "healthy")
+	source := writeSDKTarballWithToolchain(t, "java", []ToolchainEntry{{
+		Name:    "protoc",
+		Version: "32.0",
+		Target:  testTarget,
+		SHA256:  protocSHA,
+		Source:  protocSource,
+	}})
+
+	if _, _, err := Install(context.Background(), InstallOptions{Lang: "java", Target: testTarget, Source: source}); err != nil {
+		t.Fatalf("Install() returned error: %v", err)
+	}
+	sharedBin := SharedProtocBinary("32.0", testTarget)
+	firstInfo, err := os.Stat(sharedBin)
+	if err != nil {
+		t.Fatalf("shared protoc missing: %v", err)
+	}
+
+	if _, notes, err := Install(context.Background(), InstallOptions{Lang: "java", Target: testTarget, Source: source}); err != nil {
+		t.Fatalf("second Install() returned error: %v", err)
+	} else if len(notes) != 1 || notes[0] != "already installed" {
+		t.Fatalf("second Install() notes = %#v, want already installed only", notes)
+	}
+	secondInfo, err := os.Stat(sharedBin)
+	if err != nil {
+		t.Fatalf("shared protoc missing after second install: %v", err)
+	}
+	if !secondInfo.ModTime().Equal(firstInfo.ModTime()) {
+		t.Fatalf("shared protoc mtime changed on idempotent install: %s -> %s", firstInfo.ModTime(), secondInfo.ModTime())
+	}
+}
+
+func TestSharedPoolSha256Mismatch(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+	protocSource, protocSHA := writeSharedProtocSource(t, "restored")
+	source := writeSDKTarballWithToolchain(t, "java", []ToolchainEntry{{
+		Name:    "protoc",
+		Version: "32.0",
+		Target:  testTarget,
+		SHA256:  protocSHA,
+		Source:  protocSource,
+	}})
+
+	if _, _, err := Install(context.Background(), InstallOptions{Lang: "java", Target: testTarget, Source: source}); err != nil {
+		t.Fatalf("Install() returned error: %v", err)
+	}
+	sharedBin := SharedProtocBinary("32.0", testTarget)
+	if err := os.WriteFile(sharedBin, []byte("corrupt"), 0o755); err != nil {
+		t.Fatalf("corrupt shared protoc: %v", err)
+	}
+	if _, _, err := Install(context.Background(), InstallOptions{Lang: "java", Target: testTarget, Source: source}); err != nil {
+		t.Fatalf("second Install() returned error: %v", err)
+	}
+	data, err := os.ReadFile(sharedBin)
+	if err != nil {
+		t.Fatalf("read shared protoc: %v", err)
+	}
+	if string(data) != "restored" {
+		t.Fatalf("shared protoc body = %q, want restored", string(data))
+	}
+}
+
+func TestPurePluginSdkSkipsProtoc(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+	source := writeSDKTarballWithToolchain(t, "go", []ToolchainEntry{{
+		Name:    "protoc-gen-go",
+		Version: "v1.36.11",
+	}})
+
+	if _, _, err := Install(context.Background(), InstallOptions{Lang: "go", Target: testTarget, Source: source}); err != nil {
+		t.Fatalf("Install() returned error: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(runtimeHome, "sdk", "shared")); !os.IsNotExist(err) {
+		t.Fatalf("shared pool stat err = %v, want not exist", err)
+	}
+}
+
+func TestSdkManifestToolchainEchoesCentralPin(t *testing.T) {
+	repoRoot := testRepoRoot(t)
+	javaToolchain, err := ToolchainForSDK(repoRoot, "java", "aarch64-apple-darwin")
+	if err != nil {
+		t.Fatalf("ToolchainForSDK(java) returned error: %v", err)
+	}
+	if len(javaToolchain) == 0 || javaToolchain[0].Name != "protoc" || javaToolchain[0].Version != "32.0" {
+		t.Fatalf("java toolchain = %#v, want protoc 32.0 first", javaToolchain)
+	}
+	goToolchain, err := ToolchainForSDK(repoRoot, "go", testTarget)
+	if err != nil {
+		t.Fatalf("ToolchainForSDK(go) returned error: %v", err)
+	}
+	for _, entry := range goToolchain {
+		if entry.Name == "protoc" {
+			t.Fatalf("go toolchain declares protoc: %#v", goToolchain)
+		}
+	}
+	if !toolchainContains(goToolchain, "protoc-gen-go", "v1.36.11") {
+		t.Fatalf("go toolchain = %#v, want protoc-gen-go v1.36.11", goToolchain)
+	}
+}
+
+func TestCppSubmoduleMatchesPin(t *testing.T) {
+	repoRoot := testRepoRoot(t)
+	seed, err := LoadSeedToolchain(repoRoot)
+	if err != nil {
+		t.Fatalf("LoadSeedToolchain() returned error: %v", err)
+	}
+	tag := strings.TrimSpace(seed.CPPRuntime.ProtobufSubmoduleTag)
+	if tag == "" {
+		t.Fatal("cpp_runtime.protobuf_submodule_tag is empty")
+	}
+	protobufDir := filepath.Join(repoRoot, "sdk", "zig-holons", "third_party", "grpc", "third_party", "protobuf")
+	if _, err := os.Stat(filepath.Join(protobufDir, ".git")); err != nil {
+		t.Skipf("protobuf submodule is not initialized at %s", protobufDir)
+	}
+	head := gitOutput(t, protobufDir, "rev-parse", "HEAD")
+	tagCommit := gitOutput(t, protobufDir, "rev-list", "-n", "1", tag)
+	if head != tagCommit {
+		t.Fatalf("protobuf submodule HEAD = %s, want %s (%s)", head, tagCommit, tag)
 	}
 }
 
@@ -678,6 +838,121 @@ func writeInstalledMetadata(t *testing.T, prebuilt Prebuilt) {
 	if err := os.WriteFile(filepath.Join(prebuilt.Path, metadataFile), data, 0o644); err != nil {
 		t.Fatalf("write metadata: %v", err)
 	}
+}
+
+func writeSharedProtocSource(t *testing.T, body string) (string, string) {
+	t.Helper()
+	root := t.TempDir()
+	bin := filepath.Join(root, "bin", "protoc")
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		t.Fatalf("create protoc bin dir: %v", err)
+	}
+	if err := os.WriteFile(bin, []byte(body), 0o755); err != nil {
+		t.Fatalf("write protoc: %v", err)
+	}
+	include := filepath.Join(root, "include", "google", "protobuf")
+	if err := os.MkdirAll(include, 0o755); err != nil {
+		t.Fatalf("create include dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(include, "empty.proto"), []byte("syntax = \"proto3\";\n"), 0o644); err != nil {
+		t.Fatalf("write include file: %v", err)
+	}
+	sum := sha256.Sum256([]byte(body))
+	return root, hex.EncodeToString(sum[:])
+}
+
+func seedSharedProtoc(t *testing.T, runtimeHome, version, target string) string {
+	t.Helper()
+	body := "seed-protoc"
+	sum := sha256.Sum256([]byte(body))
+	root := SharedProtocPath(version)
+	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
+		t.Fatalf("create shared protoc bin: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "include"), 0o755); err != nil {
+		t.Fatalf("create shared protoc include: %v", err)
+	}
+	if err := os.WriteFile(SharedProtocBinary(version, target), []byte(body), 0o755); err != nil {
+		t.Fatalf("write shared protoc: %v", err)
+	}
+	_ = runtimeHome
+	return hex.EncodeToString(sum[:])
+}
+
+func writeSDKTarballWithToolchain(t *testing.T, lang string, toolchain []ToolchainEntry) string {
+	t.Helper()
+	source := filepath.Join(t.TempDir(), lang+"-holons-v0.1.0-"+testTarget+".tar.gz")
+	manifest := Prebuilt{
+		Lang:      lang,
+		Version:   "0.1.0",
+		Target:    testTarget,
+		Toolchain: toolchain,
+	}
+	data, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal manifest: %v", err)
+	}
+	writeTestTarGz(t, source, map[string]testTarEntry{
+		metadataFile: {Mode: 0o644, Body: data},
+	})
+	writeSHA256Sidecar(t, source)
+	return source
+}
+
+func testSeedToolchainYAML(t *testing.T, lang, target, version, sha string) string {
+	t.Helper()
+	return fmt.Sprintf(`seed_release: "test"
+protoc:
+  upstream_tag: "v%s"
+  version: "%s"
+  sha256_per_target:
+    %s: "%s"
+cpp_runtime:
+  protobuf_submodule_tag: "v%s"
+plugins:
+  %s:
+    protoc-gen-grpc-java: "1.76.0"
+`, version, version, target, sha, version, lang)
+}
+
+func shellQuote(path string) string {
+	return "'" + strings.ReplaceAll(path, "'", "'\"'\"'") + "'"
+}
+
+func toolchainContains(entries []ToolchainEntry, name, version string) bool {
+	for _, entry := range entries {
+		if entry.Name == name && entry.Version == version {
+			return true
+		}
+	}
+	return false
+}
+
+func testRepoRoot(t *testing.T) string {
+	t.Helper()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for dir := wd; ; dir = filepath.Dir(dir) {
+		if _, err := os.Stat(filepath.Join(dir, "go.work")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("repo root not found")
+		}
+	}
+}
+
+func gitOutput(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git %v failed: %v", args, err)
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func targetOtherThan(t *testing.T, target string) string {

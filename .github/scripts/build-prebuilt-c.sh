@@ -171,6 +171,7 @@ fi
 if [[ -d "$protobuf_c_prefix/bin" ]]; then
   cp -R "$protobuf_c_prefix/bin/." "$stage/bin/"
 fi
+rm -f "$stage/bin/protoc" "$stage/bin/protoc.exe"
 if [[ -x "${stage}/bin/protoc-gen-c" && ! -e "${stage}/bin/protoc-c" ]]; then
   cp "${stage}/bin/protoc-gen-c" "${stage}/bin/protoc-c"
 elif [[ -x "${stage}/bin/protoc-gen-c.exe" && ! -e "${stage}/bin/protoc-c.exe" ]]; then
@@ -184,10 +185,6 @@ fi
 
 if ! find "$stage/lib" \( -name 'libprotobuf-c.a' -o -name 'protobuf-c.lib' \) -print -quit | grep -q .; then
   echo "protobuf-c static library was not installed under ${stage}/lib" >&2
-  exit 1
-fi
-if [[ ! -x "${stage}/bin/protoc" && ! -x "${stage}/bin/protoc.exe" ]]; then
-  echo "protoc was not staged under ${stage}/bin" >&2
   exit 1
 fi
 if ! find "$stage/bin" \( -name 'protoc-c' -o -name 'protoc-c.exe' \) -print -quit | grep -q .; then
@@ -212,6 +209,8 @@ protobuf_c_commit="$(git -C "$protobuf_c_source" rev-parse HEAD 2>/dev/null || e
   echo "zig=$("$zig_bin" version)"
 } >"$stage/share/prebuilt.env"
 
+toolchain_json="$(toolchain_manifest_json "$repo_root" c "$sdk_target")"
+
 cat >"$stage/manifest.json" <<EOF
 {
   "lang": "c",
@@ -223,7 +222,8 @@ cat >"$stage/manifest.json" <<EOF
       {"name": "c-upbdefs", "binary": "bin/protoc-gen-upbdefs$(target_exe_suffix "$sdk_target")", "out_subdir": "c"},
       {"name": "c-upb-minitable", "binary": "bin/protoc-gen-upb_minitable$(target_exe_suffix "$sdk_target")", "out_subdir": "c"}
     ]
-  }
+  },
+  "toolchain": ${toolchain_json}
 }
 EOF
 
