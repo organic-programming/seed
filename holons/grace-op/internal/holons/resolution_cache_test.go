@@ -30,6 +30,150 @@ func TestResolutionCacheRoundTripWriteRead(t *testing.T) {
 	}
 }
 
+func TestGlobalCacheUniqueResolutionPopulatesTier1(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	ref := cacheTestRef(t, filepath.Join(root, "alpha"), "alpha", "alpha-uuid", "source")
+	installResolutionDiscoverHook(t, func(_ *string, _ *string, _ int, _ int, _ int) sdkdiscover.DiscoverResult {
+		return sdkdiscover.DiscoverResult{Found: []sdkdiscover.HolonRef{ref}}
+	})
+
+	expr := "alpha"
+	result := DiscoverRefs(&expr, &root, sdkdiscover.SOURCE, 1, sdkdiscover.NO_TIMEOUT)
+	if result.Error != "" || len(result.Found) != 1 {
+		t.Fatalf("DiscoverRefs = %+v", result)
+	}
+	cached, ok := readResolutionGlobalEntry("alpha")
+	if !ok {
+		t.Fatal("global cache missed unique slug")
+	}
+	if cached.Info == nil || cached.Info.Slug != "alpha" {
+		t.Fatalf("global cache ref = %+v, want alpha", cached)
+	}
+}
+
+func TestGlobalCacheNoPopulationOnZeroMatches(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	installResolutionDiscoverHook(t, func(_ *string, _ *string, _ int, _ int, _ int) sdkdiscover.DiscoverResult {
+		return sdkdiscover.DiscoverResult{}
+	})
+
+	expr := "missing"
+	result := DiscoverRefs(&expr, &root, sdkdiscover.SOURCE, 1, sdkdiscover.NO_TIMEOUT)
+	if result.Error != "" || len(result.Found) != 0 {
+		t.Fatalf("DiscoverRefs = %+v, want zero matches", result)
+	}
+	if _, ok := readResolutionGlobalEntry("missing"); ok {
+		t.Fatal("global cache populated for zero matches")
+	}
+}
+
+func TestGlobalCacheNoPopulationOnMultipleMatches(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	first := cacheTestRef(t, filepath.Join(root, "one"), "alpha", "alpha-one", "source")
+	second := cacheTestRef(t, filepath.Join(root, "two"), "alpha", "alpha-two", "source")
+	installResolutionDiscoverHook(t, func(_ *string, _ *string, _ int, _ int, _ int) sdkdiscover.DiscoverResult {
+		return sdkdiscover.DiscoverResult{Found: []sdkdiscover.HolonRef{first, second}}
+	})
+
+	expr := "alpha"
+	result := DiscoverRefs(&expr, &root, sdkdiscover.SOURCE, sdkdiscover.NO_LIMIT, sdkdiscover.NO_TIMEOUT)
+	if result.Error != "" || len(result.Found) != 2 {
+		t.Fatalf("DiscoverRefs = %+v, want two matches", result)
+	}
+	if _, ok := readResolutionGlobalEntry("alpha"); ok {
+		t.Fatal("global cache populated for multiple matches")
+	}
+}
+
+func TestGlobalCacheHitShortCircuitsWalk(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	ref := cacheTestRef(t, filepath.Join(root, "alpha"), "alpha", "alpha-uuid", "source")
+	if err := writeResolutionGlobalEntry(ref); err != nil {
+		t.Fatal(err)
+	}
+	calls := installResolutionDiscoverHook(t, func(_ *string, _ *string, _ int, _ int, _ int) sdkdiscover.DiscoverResult {
+		return sdkdiscover.DiscoverResult{Error: "walk should not run"}
+	})
+
+	expr := "alpha"
+	result := DiscoverRefs(&expr, &root, sdkdiscover.SOURCE, 1, sdkdiscover.NO_TIMEOUT)
+	if result.Error != "" || len(result.Found) != 1 || result.Found[0].Info.Slug != "alpha" {
+		t.Fatalf("DiscoverRefs = %+v, want global hit", result)
+	}
+	if got := *calls; got != 0 {
+		t.Fatalf("walk calls = %d, want 0", got)
+	}
+}
+
+func TestGlobalCacheStatInvalidationDropsEntry(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	stale := cacheTestRef(t, filepath.Join(root, "stale"), "alpha", "alpha-stale", "source")
+	fresh := cacheTestRef(t, filepath.Join(root, "fresh"), "alpha", "alpha-fresh", "source")
+	if err := writeResolutionGlobalEntry(stale); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(root, "stale")); err != nil {
+		t.Fatal(err)
+	}
+	calls := installResolutionDiscoverHook(t, func(_ *string, _ *string, _ int, _ int, _ int) sdkdiscover.DiscoverResult {
+		return sdkdiscover.DiscoverResult{Found: []sdkdiscover.HolonRef{fresh}}
+	})
+
+	expr := "alpha"
+	result := DiscoverRefs(&expr, &root, sdkdiscover.SOURCE, 1, sdkdiscover.NO_TIMEOUT)
+	if result.Error != "" || len(result.Found) != 1 || result.Found[0].Info.UUID != "alpha-fresh" {
+		t.Fatalf("DiscoverRefs = %+v, want fresh alpha", result)
+	}
+	if got := *calls; got != 1 {
+		t.Fatalf("walk calls = %d, want 1", got)
+	}
+	cached, ok := readResolutionGlobalEntry("alpha")
+	if !ok || cached.Info.UUID != "alpha-fresh" {
+		t.Fatalf("global cache after stale drop = ok:%v ref:%+v, want fresh", ok, cached)
+	}
+}
+
+func TestGlobalCacheMarkerInvalidationIgnoresTier1(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	stale := cacheTestRef(t, filepath.Join(root, "stale"), "alpha", "alpha-stale", "source")
+	fresh := cacheTestRef(t, filepath.Join(root, "fresh"), "alpha", "alpha-fresh", "source")
+	if err := writeResolutionGlobalEntry(stale); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(10 * time.Millisecond)
+	if err := TouchResolutionCacheDirty(); err != nil {
+		t.Fatal(err)
+	}
+	calls := installResolutionDiscoverHook(t, func(_ *string, _ *string, _ int, _ int, _ int) sdkdiscover.DiscoverResult {
+		return sdkdiscover.DiscoverResult{Found: []sdkdiscover.HolonRef{fresh}}
+	})
+
+	expr := "alpha"
+	result := DiscoverRefs(&expr, &root, sdkdiscover.SOURCE, 1, sdkdiscover.NO_TIMEOUT)
+	if result.Error != "" || len(result.Found) != 1 || result.Found[0].Info.UUID != "alpha-fresh" {
+		t.Fatalf("DiscoverRefs = %+v, want fresh alpha", result)
+	}
+	if got := *calls; got != 1 {
+		t.Fatalf("walk calls = %d, want 1", got)
+	}
+}
+
+func TestGlobalCacheLastWriteWinsOnSlugCollision(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	first := cacheTestRef(t, filepath.Join(root, "first"), "alpha", "alpha-first", "source")
+	second := cacheTestRef(t, filepath.Join(root, "second"), "alpha", "alpha-second", "source")
+	if err := writeResolutionGlobalEntry(first); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeResolutionGlobalEntry(second); err != nil {
+		t.Fatal(err)
+	}
+	cached, ok := readResolutionGlobalEntry("alpha")
+	if !ok || cached.Info.UUID != "alpha-second" {
+		t.Fatalf("global cache = ok:%v ref:%+v, want second writer", ok, cached)
+	}
+}
+
 func TestResolutionCacheFullHitAvoidsWalk(t *testing.T) {
 	root := setupResolutionCacheTest(t)
 	ref := cacheTestRef(t, filepath.Join(root, "alpha"), "alpha", "alpha-uuid", "source")
@@ -137,7 +281,7 @@ func TestResolutionCacheMarkerInvalidationIgnoresSnapshot(t *testing.T) {
 	}
 }
 
-func TestResolutionCacheNoCacheBypassesReadAndWrite(t *testing.T) {
+func TestNoCacheBypassesReadButWritesResult(t *testing.T) {
 	root := setupResolutionCacheTest(t)
 	cachedRef := cacheTestRef(t, filepath.Join(root, "cached"), "cached", "cached-uuid", "source")
 	freshRef := cacheTestRef(t, filepath.Join(root, "fresh"), "fresh", "fresh-uuid", "source")
@@ -157,12 +301,32 @@ func TestResolutionCacheNoCacheBypassesReadAndWrite(t *testing.T) {
 	if got := *calls; got != 1 {
 		t.Fatalf("walk calls = %d, want 1", got)
 	}
-	if stats := ResolutionCacheStatsSnapshot(); stats.Bypasses != 1 || stats.Writes != 0 || stats.Hits != 0 {
-		t.Fatalf("stats = %+v, want bypass without read/write", stats)
+	if stats := ResolutionCacheStatsSnapshot(); stats.Bypasses != 1 || stats.Writes != 1 || stats.Hits != 0 {
+		t.Fatalf("stats = %+v, want bypass with write-through", stats)
 	}
 	refs, ok := readResolutionSnapshot(root, sdkdiscover.SOURCE)
-	if !ok || len(refs) != 1 || refs[0].Info.Slug != "cached" {
-		t.Fatalf("snapshot changed under no-cache: ok=%v refs=%+v", ok, refs)
+	if !ok || len(refs) != 1 || refs[0].Info.Slug != "fresh" {
+		t.Fatalf("snapshot was not refreshed under no-cache: ok=%v refs=%+v", ok, refs)
+	}
+}
+
+func TestPathExpressionInvocationPopulatesTier1(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	ref := cacheTestRef(t, filepath.Join(root, "alpha"), "alpha", "alpha-uuid", "source")
+	expr := filepath.Join(root, "alpha")
+	installResolutionDiscoverHook(t, func(expression *string, _ *string, _ int, _ int, _ int) sdkdiscover.DiscoverResult {
+		if expression == nil || *expression != expr {
+			t.Fatalf("expression = %v, want path expression %q", expression, expr)
+		}
+		return sdkdiscover.DiscoverResult{Found: []sdkdiscover.HolonRef{ref}}
+	})
+
+	result := DiscoverRefs(&expr, &root, sdkdiscover.SOURCE, 1, sdkdiscover.NO_TIMEOUT)
+	if result.Error != "" || len(result.Found) != 1 {
+		t.Fatalf("DiscoverRefs = %+v", result)
+	}
+	if _, ok := readResolutionGlobalEntry("alpha"); !ok {
+		t.Fatal("path expression did not populate global cache")
 	}
 }
 
@@ -170,6 +334,9 @@ func TestResolutionCachePurgeDeletesAndSubsequentWalkRepopulates(t *testing.T) {
 	root := setupResolutionCacheTest(t)
 	ref := cacheTestRef(t, filepath.Join(root, "alpha"), "alpha", "alpha-uuid", "source")
 	if err := writeResolutionSnapshot(root, sdkdiscover.SOURCE, []sdkdiscover.HolonRef{ref}); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeResolutionGlobalEntry(ref); err != nil {
 		t.Fatal(err)
 	}
 	if err := TouchResolutionCacheDirty(); err != nil {
@@ -194,6 +361,26 @@ func TestResolutionCachePurgeDeletesAndSubsequentWalkRepopulates(t *testing.T) {
 	}
 	if _, ok := readResolutionSnapshot(root, sdkdiscover.SOURCE); !ok {
 		t.Fatal("snapshot was not repopulated after purge")
+	}
+}
+
+func TestPurgeCacheDeletesTier1AndTier2(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	ref := cacheTestRef(t, filepath.Join(root, "alpha"), "alpha", "alpha-uuid", "source")
+	if err := writeResolutionSnapshot(root, sdkdiscover.SOURCE, []sdkdiscover.HolonRef{ref}); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeResolutionGlobalEntry(ref); err != nil {
+		t.Fatal(err)
+	}
+	if err := PurgeResolutionCache(); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := readResolutionGlobalEntry("alpha"); ok {
+		t.Fatal("tier 1 survived purge")
+	}
+	if _, ok := readResolutionSnapshot(root, sdkdiscover.SOURCE); ok {
+		t.Fatal("tier 2 survived purge")
 	}
 }
 

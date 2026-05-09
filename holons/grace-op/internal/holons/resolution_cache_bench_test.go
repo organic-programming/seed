@@ -43,6 +43,47 @@ func BenchmarkResolutionCacheOpListSourceLayer(b *testing.B) {
 	}
 }
 
+func BenchmarkResolutionCacheOpInvokeSlashTier1(b *testing.B) {
+	seedRoot := benchmarkSeedRoot(b)
+	slashRoot := string(os.PathSeparator)
+	if info, err := os.Stat(slashRoot); err != nil || !info.IsDir() {
+		b.Skipf("root %s is not available", slashRoot)
+	}
+
+	state := prepareResolutionCacheTier1BenchState(b, seedRoot, slashRoot, "grace-op")
+	if state.warmDuration > 50*time.Millisecond {
+		b.Fatalf("tier-1 warm target missed: warm=%s target<=50ms", state.warmDuration)
+	}
+
+	oldOPPATH, hadOPPATH := os.LookupEnv("OPPATH")
+	oldOPBIN, hadOPBIN := os.LookupEnv("OPBIN")
+	_ = os.Setenv("OPPATH", state.oppath)
+	_ = os.Setenv("OPBIN", state.opbin)
+	ResetResolutionCacheOptions()
+	b.Cleanup(func() {
+		restoreBenchEnv("OPPATH", oldOPPATH, hadOPPATH)
+		restoreBenchEnv("OPBIN", oldOPBIN, hadOPBIN)
+		ResetResolutionCacheOptions()
+	})
+
+	expr := "grace-op"
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		result := DiscoverRefs(&expr, &slashRoot, sdkdiscover.SOURCE, 1, sdkdiscover.NO_TIMEOUT)
+		if result.Error != "" {
+			b.Fatalf("tier-1 discover: %s", result.Error)
+		}
+		if len(result.Found) != 1 {
+			b.Fatalf("tier-1 discover refs = %d, want 1", len(result.Found))
+		}
+	}
+	b.StopTimer()
+
+	b.ReportMetric(float64(state.coldDuration.Microseconds())/1000, "cold_ms")
+	b.ReportMetric(float64(state.warmDuration.Microseconds())/1000, "tier1_warm_ms")
+	b.ReportMetric(state.ratio, "cold_tier1_ratio")
+}
+
 type resolutionCacheBenchState struct {
 	oppath          string
 	opbin           string
@@ -52,6 +93,64 @@ type resolutionCacheBenchState struct {
 	stats           ResolutionCacheStats
 	refs            int
 	ratio           float64
+}
+
+func prepareResolutionCacheTier1BenchState(b *testing.B, seedRoot string, slashRoot string, slug string) resolutionCacheBenchState {
+	b.Helper()
+	key := "tier1|" + seedRoot + "|" + slashRoot + "|" + slug
+	if value, ok := resolutionCacheBenchStates.Load(key); ok {
+		return value.(resolutionCacheBenchState)
+	}
+
+	runtimeHome, err := os.MkdirTemp("", "op-resolution-cache-tier1-bench-")
+	if err != nil {
+		b.Fatalf("temp OPPATH: %v", err)
+	}
+	state := resolutionCacheBenchState{
+		oppath: runtimeHome,
+		opbin:  filepath.Join(runtimeHome, "bin"),
+	}
+
+	oldOPPATH, hadOPPATH := os.LookupEnv("OPPATH")
+	oldOPBIN, hadOPBIN := os.LookupEnv("OPBIN")
+	defer func() {
+		restoreBenchEnv("OPPATH", oldOPPATH, hadOPPATH)
+		restoreBenchEnv("OPBIN", oldOPBIN, hadOPBIN)
+		ResetResolutionCacheOptions()
+	}()
+	_ = os.Setenv("OPPATH", state.oppath)
+	_ = os.Setenv("OPBIN", state.opbin)
+	ResetResolutionCacheOptions()
+	ResetResolutionCacheStats()
+	if err := PurgeResolutionCache(); err != nil {
+		b.Fatalf("purge cache: %v", err)
+	}
+
+	expr := slug
+	start := time.Now()
+	cold := DiscoverRefs(&expr, &seedRoot, sdkdiscover.SOURCE, 1, sdkdiscover.NO_TIMEOUT)
+	state.coldDuration = time.Since(start)
+	if cold.Error != "" {
+		b.Fatalf("cold tier-1 populate discover: %s", cold.Error)
+	}
+	if len(cold.Found) != 1 {
+		b.Fatalf("cold tier-1 populate refs = %d, want 1", len(cold.Found))
+	}
+
+	start = time.Now()
+	warm := DiscoverRefs(&expr, &slashRoot, sdkdiscover.SOURCE, 1, sdkdiscover.NO_TIMEOUT)
+	state.warmDuration = time.Since(start)
+	if warm.Error != "" {
+		b.Fatalf("warm tier-1 discover: %s", warm.Error)
+	}
+	if len(warm.Found) != 1 {
+		b.Fatalf("warm tier-1 refs = %d, want 1", len(warm.Found))
+	}
+	if state.warmDuration > 0 {
+		state.ratio = float64(state.coldDuration) / float64(state.warmDuration)
+	}
+	resolutionCacheBenchStates.Store(key, state)
+	return state
 }
 
 func benchmarkResolutionCacheScenario(b *testing.B, root string, enforceRatio bool) {

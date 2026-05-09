@@ -19,6 +19,7 @@ import (
 )
 
 const resolutionCacheVersion = 1
+const resolutionGlobalCacheName = "global.json"
 
 var (
 	resolutionCacheMu       sync.RWMutex
@@ -57,6 +58,11 @@ type resolutionSnapshotEntry struct {
 	Info          *resolutionCacheInfo `json:"info,omitempty"`
 	TargetPath    string               `json:"target_path"`
 	TargetMtimeNS int64                `json:"target_mtime_ns"`
+}
+
+type resolutionGlobalCache struct {
+	Version int                                `json:"version"`
+	Entries map[string]resolutionSnapshotEntry `json:"entries"`
 }
 
 type resolutionCacheInfo struct {
@@ -135,27 +141,45 @@ func TouchResolutionCacheDirty() error {
 func discoverRefsWithResolutionCache(expression *string, root *string, specifiers int, limit int, timeout int) sdkdiscover.DiscoverResult {
 	if limit < 0 || specifiers < 0 || specifiers > sdkdiscover.ALL {
 		resolutionCacheBypassCount.Add(1)
-		return resolutionDiscover(expression, root, specifiers, limit, timeout)
+		return discoverRefsBypassWithWrites(expression, root, specifiers, limit, timeout)
 	}
 	specifiers = normalizeResolutionSpecifiers(specifiers)
 
-	if ResolutionCacheDisabled() || resolutionCacheBypassExpression(expression) {
+	if resolutionCacheBypassExpression(expression) {
 		resolutionCacheBypassCount.Add(1)
-		return resolutionDiscover(expression, root, specifiers, limit, timeout)
+		return discoverRefsBypassWithWrites(expression, root, specifiers, limit, timeout)
 	}
 
 	canonicalRoot, err := canonicalResolutionRoot(root)
 	if err != nil {
 		resolutionCacheBypassCount.Add(1)
-		return resolutionDiscover(expression, root, specifiers, limit, timeout)
+		return discoverRefsBypassWithWrites(expression, root, specifiers, limit, timeout)
 	}
 	canonicalRootPtr := canonicalRoot
 
-	if refs, ok := readResolutionSnapshot(canonicalRoot, specifiers); ok {
+	noCache := ResolutionCacheDisabled()
+	if noCache {
+		resolutionCacheBypassCount.Add(1)
+	} else if slug, ok := resolutionSlugExpression(expression); ok {
+		if ref, ok := readResolutionGlobalEntry(slug); ok {
+			resolutionCacheHitCount.Add(1)
+			return sdkdiscover.DiscoverResult{Found: limitResolutionRefs([]sdkdiscover.HolonRef{ref}, limit)}
+		}
+	} else if refs, ok := readResolutionSnapshot(canonicalRoot, specifiers); ok {
 		filtered := filterResolutionRefs(refs, expression)
 		if expression == nil || len(filtered) > 0 {
 			resolutionCacheHitCount.Add(1)
 			return sdkdiscover.DiscoverResult{Found: limitResolutionRefs(filtered, limit)}
+		}
+	}
+
+	if !noCache {
+		if refs, ok := readResolutionSnapshot(canonicalRoot, specifiers); ok {
+			filtered := filterResolutionRefs(refs, expression)
+			if expression == nil || len(filtered) > 0 {
+				resolutionCacheHitCount.Add(1)
+				return sdkdiscover.DiscoverResult{Found: limitResolutionRefs(filtered, limit)}
+			}
 		}
 	}
 
@@ -165,7 +189,42 @@ func discoverRefsWithResolutionCache(expression *string, root *string, specifier
 		return fresh
 	}
 	_ = writeResolutionSnapshot(canonicalRoot, specifiers, fresh.Found)
-	return sdkdiscover.DiscoverResult{Found: limitResolutionRefs(filterResolutionRefs(fresh.Found, expression), limit)}
+	filtered := filterResolutionRefs(fresh.Found, expression)
+	if _, ok := resolutionSlugExpression(expression); ok && len(filtered) == 1 {
+		_ = writeResolutionGlobalEntry(filtered[0])
+	}
+	return sdkdiscover.DiscoverResult{Found: limitResolutionRefs(filtered, limit)}
+}
+
+func discoverRefsBypassWithWrites(expression *string, root *string, specifiers int, limit int, timeout int) sdkdiscover.DiscoverResult {
+	fresh := resolutionDiscover(expression, root, specifiers, limit, timeout)
+	if fresh.Error != "" {
+		return fresh
+	}
+	if specifiers < 0 || specifiers > sdkdiscover.ALL {
+		return fresh
+	}
+	specifiers = normalizeResolutionSpecifiers(specifiers)
+	if resolutionCacheBypassExpression(expression) {
+		for _, ref := range fresh.Found {
+			if ref.Info != nil && strings.TrimSpace(ref.Info.Slug) != "" {
+				_ = writeResolutionGlobalEntry(ref)
+				break
+			}
+		}
+		return fresh
+	}
+
+	canonicalRoot, err := canonicalResolutionRoot(root)
+	if err != nil {
+		return fresh
+	}
+	_ = writeResolutionSnapshot(canonicalRoot, specifiers, fresh.Found)
+	filtered := filterResolutionRefs(fresh.Found, expression)
+	if _, ok := resolutionSlugExpression(expression); ok && len(filtered) == 1 {
+		_ = writeResolutionGlobalEntry(filtered[0])
+	}
+	return fresh
 }
 
 func normalizeResolutionSpecifiers(specifiers int) int {
@@ -223,6 +282,17 @@ func resolutionCacheBypassExpression(expression *string) bool {
 		strings.Contains(trimmed, "/") ||
 		strings.Contains(trimmed, `\`) ||
 		strings.HasSuffix(strings.ToLower(trimmed), ".holon")
+}
+
+func resolutionSlugExpression(expression *string) (string, bool) {
+	if expression == nil {
+		return "", false
+	}
+	trimmed := strings.TrimSpace(*expression)
+	if trimmed == "" || resolutionCacheBypassExpression(expression) {
+		return "", false
+	}
+	return trimmed, true
 }
 
 func readResolutionSnapshot(root string, specifiers int) ([]sdkdiscover.HolonRef, bool) {
@@ -293,6 +363,115 @@ func writeResolutionSnapshot(root string, specifiers int, refs []sdkdiscover.Hol
 
 	path := resolutionSnapshotPath(root, specifiers)
 	tmpPath := fmt.Sprintf("%s.%d.%d.tmp", path, os.Getpid(), resolutionCacheWriteSeq.Add(1))
+	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	resolutionCacheWriteCount.Add(1)
+	return nil
+}
+
+func readResolutionGlobalEntry(slug string) (sdkdiscover.HolonRef, bool) {
+	slug = strings.TrimSpace(slug)
+	if slug == "" {
+		return sdkdiscover.HolonRef{}, false
+	}
+	path := resolutionGlobalCachePath()
+	cacheInfo, err := os.Stat(path)
+	if err != nil || cacheInfo.IsDir() {
+		return sdkdiscover.HolonRef{}, false
+	}
+	if markerInfo, markerErr := os.Stat(filepath.Join(resolutionCacheDir(), ".dirty")); markerErr == nil {
+		if cacheInfo.ModTime().Before(markerInfo.ModTime()) {
+			return sdkdiscover.HolonRef{}, false
+		}
+	}
+
+	cache, ok := readResolutionGlobalCache()
+	if !ok {
+		return sdkdiscover.HolonRef{}, false
+	}
+	entry, ok := cache.Entries[slug]
+	if !ok {
+		return sdkdiscover.HolonRef{}, false
+	}
+	if !resolutionSnapshotEntryClean(entry) {
+		_ = deleteResolutionGlobalEntry(slug)
+		return sdkdiscover.HolonRef{}, false
+	}
+	return sdkdiscover.HolonRef{
+		URL:  entry.URL,
+		Info: entry.Info.toHolonInfo(),
+	}, true
+}
+
+func writeResolutionGlobalEntry(ref sdkdiscover.HolonRef) error {
+	entry, ok := resolutionSnapshotEntryFromRef(ref)
+	if !ok || entry.Info == nil {
+		return nil
+	}
+	slug := strings.TrimSpace(entry.Info.Slug)
+	if slug == "" {
+		return nil
+	}
+
+	cache, ok := readResolutionGlobalCache()
+	if !ok || cache.Entries == nil {
+		cache = resolutionGlobalCache{
+			Version: resolutionCacheVersion,
+			Entries: map[string]resolutionSnapshotEntry{},
+		}
+	}
+	cache.Version = resolutionCacheVersion
+	cache.Entries[slug] = entry
+	return writeResolutionGlobalCache(cache)
+}
+
+func deleteResolutionGlobalEntry(slug string) error {
+	cache, ok := readResolutionGlobalCache()
+	if !ok || cache.Entries == nil {
+		return nil
+	}
+	delete(cache.Entries, strings.TrimSpace(slug))
+	return writeResolutionGlobalCache(cache)
+}
+
+func readResolutionGlobalCache() (resolutionGlobalCache, bool) {
+	data, err := os.ReadFile(resolutionGlobalCachePath())
+	if err != nil {
+		return resolutionGlobalCache{}, false
+	}
+	var cache resolutionGlobalCache
+	if err := json.Unmarshal(data, &cache); err != nil {
+		return resolutionGlobalCache{}, false
+	}
+	if cache.Version != resolutionCacheVersion {
+		return resolutionGlobalCache{}, false
+	}
+	if cache.Entries == nil {
+		cache.Entries = map[string]resolutionSnapshotEntry{}
+	}
+	return cache, true
+}
+
+func writeResolutionGlobalCache(cache resolutionGlobalCache) error {
+	dir := resolutionCacheDir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	if cache.Entries == nil {
+		cache.Entries = map[string]resolutionSnapshotEntry{}
+	}
+	data, err := json.MarshalIndent(cache, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	path := resolutionGlobalCachePath()
+	tmpPath := fmt.Sprintf("%s.%d.tmp", path, os.Getpid())
 	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
 		return err
 	}
@@ -442,6 +621,10 @@ func resolutionCacheDir() string {
 
 func resolutionSnapshotPath(root string, specifiers int) string {
 	return filepath.Join(resolutionCacheDir(), resolutionSnapshotHash(root, specifiers)+".json")
+}
+
+func resolutionGlobalCachePath() string {
+	return filepath.Join(resolutionCacheDir(), resolutionGlobalCacheName)
 }
 
 func resolutionSnapshotHash(root string, specifiers int) string {

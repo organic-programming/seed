@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/organic-programming/grace-op/api"
@@ -218,7 +219,7 @@ func registerRootPersistentFlags(cmd *cobra.Command) {
 	flags.String("opbin", "", "override OPBIN")
 	flags.Int("timeout", 0, "discovery timeout in milliseconds")
 	flags.Bool("origin", false, "print the resolved origin for matching targets")
-	flags.Bool("no-cache", false, "disable resolution cache reads and writes for this invocation")
+	flags.Bool("no-cache", false, "bypass resolution cache reads and refresh cache on success")
 	flags.Bool("purge-cache", false, "delete the op resolution cache before continuing")
 
 	_ = flags.MarkHidden("path")
@@ -488,18 +489,20 @@ func completeHolonSlugs(cmd *cobra.Command, args []string, toComplete string) ([
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	seen := make(map[string]struct{})
-	out := make([]string, 0)
-	appendSlug := func(value string) {
+	type completionCandidate struct {
+		value string
+		path  string
+	}
+	candidatesByValue := map[string][]completionCandidate{}
+	appendCandidate := func(value string, path string) {
 		value = normalizeHolonCompletionValue(value)
 		if value == "" || !strings.HasPrefix(value, toComplete) {
 			return
 		}
-		if _, ok := seen[value]; ok {
-			return
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
+		candidatesByValue[value] = append(candidatesByValue[value], completionCandidate{
+			value: value,
+			path:  path,
+		})
 	}
 
 	if local, err := holons.DiscoverLocalHolons(); err == nil {
@@ -508,7 +511,9 @@ func completeHolonSlugs(cmd *cobra.Command, args []string, toComplete string) ([
 			if slug == "" {
 				slug = filepath.Base(holon.Dir)
 			}
-			appendHolonCompletionIdentity(appendSlug, slug, holon.Identity.Aliases)
+			appendHolonCompletionIdentity(func(value string) {
+				appendCandidate(value, holon.Dir)
+			}, slug, holon.Identity.Aliases)
 		}
 	}
 	if cached, err := holons.DiscoverCachedHolons(); err == nil {
@@ -517,14 +522,61 @@ func completeHolonSlugs(cmd *cobra.Command, args []string, toComplete string) ([
 			if slug == "" {
 				slug = filepath.Base(holon.Dir)
 			}
-			appendHolonCompletionIdentity(appendSlug, slug, holon.Identity.Aliases)
+			appendHolonCompletionIdentity(func(value string) {
+				appendCandidate(value, holon.Dir)
+			}, slug, holon.Identity.Aliases)
 		}
 	}
 	for _, entry := range holons.DiscoverInOPBIN() {
-		appendInstalledHolonCompletionEntry(appendSlug, entry)
+		appendInstalledHolonCompletionEntry(func(value string) {
+			_, path := splitCompletionEntry(entry)
+			appendCandidate(value, path)
+		}, entry)
 	}
 
+	seen := make(map[string]struct{})
+	out := make([]string, 0, len(candidatesByValue))
+	values := make([]string, 0, len(candidatesByValue))
+	for value := range candidatesByValue {
+		values = append(values, value)
+	}
+	sort.Strings(values)
+	for _, value := range values {
+		candidates := candidatesByValue[value]
+		if len(candidates) == 1 {
+			if _, ok := seen[value]; !ok {
+				seen[value] = struct{}{}
+				out = append(out, value)
+			}
+			continue
+		}
+		for _, candidate := range candidates {
+			path := absoluteCompletionPath(candidate.path)
+			if path == "" {
+				path = candidate.value
+			}
+			if _, ok := seen[path]; ok {
+				continue
+			}
+			seen[path] = struct{}{}
+			out = append(out, path)
+		}
+	}
 	return out, cobra.ShellCompDirectiveNoFileComp
+}
+
+func absoluteCompletionPath(path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return ""
+	}
+	if abs, err := filepath.Abs(trimmed); err == nil {
+		if eval, evalErr := filepath.EvalSymlinks(abs); evalErr == nil {
+			return filepath.Clean(eval)
+		}
+		return filepath.Clean(abs)
+	}
+	return filepath.Clean(trimmed)
 }
 
 func completeCommandFlags(cmd *cobra.Command, toComplete string) []string {
