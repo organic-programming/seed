@@ -22,17 +22,18 @@ java {
 dependencies {
     implementation("org.organicprogramming:kotlin-holons:0.1.0")
     implementation("io.grpc:grpc-kotlin-stub:1.4.3")
-    implementation("io.grpc:grpc-protobuf:1.60.0")
-    implementation("io.grpc:grpc-stub:1.60.0")
-    implementation("io.grpc:grpc-netty-shaded:1.60.0")
-    implementation("io.grpc:grpc-services:1.60.0")
+    implementation("io.grpc:grpc-protobuf:1.76.0")
+    implementation("io.grpc:grpc-stub:1.76.0")
+    implementation("io.grpc:grpc-netty-shaded:1.76.0")
+    implementation("io.grpc:grpc-services:1.76.0")
     implementation("com.google.protobuf:protobuf-java:4.34.1")
     implementation("com.google.protobuf:protobuf-java-util:4.34.1")
     implementation("com.google.protobuf:protobuf-kotlin:4.34.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 
     testImplementation(kotlin("test"))
-    testImplementation("io.grpc:grpc-testing:1.60.0")
+    testImplementation("io.grpc:grpc-inprocess:1.76.0")
+    testImplementation("io.grpc:grpc-testing:1.76.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     testImplementation("com.google.code.gson:gson:2.11.0")
 }
