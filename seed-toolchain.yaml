@@ -4,12 +4,14 @@ protoc:
   upstream_tag: "v32.0"
   version: "32.0"
   required_by:
+    cpp: true
     csharp: true
     java: true
     js: true
     kotlin: true
     python: true
     ruby: true
+    zig: true
   sha256_per_target:
     aarch64-apple-darwin: "96c06aac6eb7e247a78f2ffe8b3aaf4419a6765e3d96d724cc3db0e296e7aa94"
     x86_64-apple-darwin: "91b2b3b5ad84cfed2869c69830c926130d312e357b4f128796504b5448a6534c"
