@@ -35,14 +35,10 @@ static const upb_MiniTableField greeting_v1_ListLanguagesResponse__fields[1] = {
 const upb_MiniTable greeting__v1__ListLanguagesResponse_msg_init = {
   &greeting_v1_ListLanguagesResponse__submsgs[0],
   &greeting_v1_ListLanguagesResponse__fields[0],
-  16, 1, kUpb_ExtMode_NonExtendable, 1, UPB_FASTTABLE_MASK(8), 0,
+  16, 1, kUpb_ExtMode_NonExtendable, 1, UPB_FASTTABLE_MASK(255), 0,
 #ifdef UPB_TRACING_ENABLED
   "greeting.v1.ListLanguagesResponse",
 #endif
-  UPB_FASTTABLE_INIT({
-    {0x0000000000000000, &_upb_FastDecoder_DecodeGeneric},
-    {0x000800003f00000a, &upb_prm_1bt_max64b},
-  })
 };
 
 const upb_MiniTable* greeting__v1__ListLanguagesResponse_msg_init_ptr = &greeting__v1__ListLanguagesResponse_msg_init;
@@ -55,16 +51,10 @@ static const upb_MiniTableField greeting_v1_Language__fields[3] = {
 const upb_MiniTable greeting__v1__Language_msg_init = {
   NULL,
   &greeting_v1_Language__fields[0],
-  UPB_SIZE(32, 56), 3, kUpb_ExtMode_NonExtendable, 3, UPB_FASTTABLE_MASK(24), 0,
+  UPB_SIZE(32, 56), 3, kUpb_ExtMode_NonExtendable, 3, UPB_FASTTABLE_MASK(255), 0,
 #ifdef UPB_TRACING_ENABLED
   "greeting.v1.Language",
 #endif
-  UPB_FASTTABLE_INIT({
-    {0x0000000000000000, &_upb_FastDecoder_DecodeGeneric},
-    {0x000800003f00000a, &upb_pss_1bt},
-    {0x001800003f000012, &upb_pss_1bt},
-    {0x002800003f00001a, &upb_pss_1bt},
-  })
 };
 
 const upb_MiniTable* greeting__v1__Language_msg_init_ptr = &greeting__v1__Language_msg_init;
@@ -76,16 +66,10 @@ static const upb_MiniTableField greeting_v1_SayHelloRequest__fields[2] = {
 const upb_MiniTable greeting__v1__SayHelloRequest_msg_init = {
   NULL,
   &greeting_v1_SayHelloRequest__fields[0],
-  UPB_SIZE(24, 40), 2, kUpb_ExtMode_NonExtendable, 2, UPB_FASTTABLE_MASK(24), 0,
+  UPB_SIZE(24, 40), 2, kUpb_ExtMode_NonExtendable, 2, UPB_FASTTABLE_MASK(255), 0,
 #ifdef UPB_TRACING_ENABLED
   "greeting.v1.SayHelloRequest",
 #endif
-  UPB_FASTTABLE_INIT({
-    {0x0000000000000000, &_upb_FastDecoder_DecodeGeneric},
-    {0x000800003f00000a, &upb_pss_1bt},
-    {0x001800003f000012, &upb_pss_1bt},
-    {0x0000000000000000, &_upb_FastDecoder_DecodeGeneric},
-  })
 };
 
 const upb_MiniTable* greeting__v1__SayHelloRequest_msg_init_ptr = &greeting__v1__SayHelloRequest_msg_init;
@@ -98,16 +82,10 @@ static const upb_MiniTableField greeting_v1_SayHelloResponse__fields[3] = {
 const upb_MiniTable greeting__v1__SayHelloResponse_msg_init = {
   NULL,
   &greeting_v1_SayHelloResponse__fields[0],
-  UPB_SIZE(32, 56), 3, kUpb_ExtMode_NonExtendable, 3, UPB_FASTTABLE_MASK(24), 0,
+  UPB_SIZE(32, 56), 3, kUpb_ExtMode_NonExtendable, 3, UPB_FASTTABLE_MASK(255), 0,
 #ifdef UPB_TRACING_ENABLED
   "greeting.v1.SayHelloResponse",
 #endif
-  UPB_FASTTABLE_INIT({
-    {0x0000000000000000, &_upb_FastDecoder_DecodeGeneric},
-    {0x000800003f00000a, &upb_pss_1bt},
-    {0x001800003f000012, &upb_pss_1bt},
-    {0x002800003f00001a, &upb_pss_1bt},
-  })
 };
 
 const upb_MiniTable* greeting__v1__SayHelloResponse_msg_init_ptr = &greeting__v1__SayHelloResponse_msg_init;

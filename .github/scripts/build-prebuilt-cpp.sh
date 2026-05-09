@@ -65,6 +65,49 @@ copy_first_executable() {
   chmod +x "$dest/$(basename "$found")" 2>/dev/null || true
 }
 
+protobuf_target_version() {
+  local proto_dir="$1"
+  local version=""
+
+  if version="$(git -C "$proto_dir" describe --tags --match 'v[0-9]*' --exclude '*-*' --abbrev=0 2>/dev/null)"; then
+    printf '%s\n' "$version"
+    return 0
+  fi
+
+  git -C "$proto_dir" fetch --tags --quiet origin 2>/dev/null || true
+
+  if version="$(git -C "$proto_dir" describe --tags --match 'v[0-9]*' --exclude '*-*' --abbrev=0 2>/dev/null)"; then
+    printf '%s\n' "$version"
+    return 0
+  fi
+
+  if [[ -f "${proto_dir}/version.json" ]]; then
+    version="$(python3 - "$proto_dir/version.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as fh:
+    data = json.load(fh)
+
+for release in data.values():
+    protoc_version = release.get("protoc_version")
+    if protoc_version:
+        print(f"v{protoc_version}")
+        break
+else:
+    sys.exit(1)
+PY
+)"
+    if [[ -n "$version" ]]; then
+      printf '%s\n' "$version"
+      return 0
+    fi
+  fi
+
+  echo "could not determine protobuf target version from ${proto_dir}" >&2
+  return 1
+}
+
 repo_root="$(git rev-parse --show-toplevel)"
 # shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
 source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
@@ -107,6 +150,8 @@ do
     exit 1
   fi
 done
+
+target_protobuf_version="$(protobuf_target_version "${grpc_source}/third_party/protobuf")"
 
 macos_framework_flag=""
 if [[ "$sdk_target" == *apple-darwin ]]; then
@@ -169,6 +214,15 @@ case "$sdk_target" in
 esac
 
 mkdir -p "$toolchain_dir" "$host_build" "$host_tools/bin" "$grpc_build" "$prefix" "$dist_dir"
+
+if [[ -x "${host_tools}/bin/protoc" ]]; then
+  cached_protobuf_version="$(cat "${host_tools}/protoc.version" 2>/dev/null || true)"
+  if [[ "$cached_protobuf_version" != "$target_protobuf_version" ]]; then
+    echo "protobuf tag changed for host protoc cache: ${cached_protobuf_version:-<missing>} -> ${target_protobuf_version}; rebuilding host tools"
+    rm -rf "$host_build" "$host_tools"
+    mkdir -p "$host_build" "$host_tools/bin"
+  fi
+fi
 
 cat >"${toolchain_dir}/zigcc" <<EOF
 #!/usr/bin/env bash
@@ -325,7 +379,10 @@ if [[ ! -x "${host_tools}/bin/protoc" || ! -x "${host_tools}/bin/grpc_cpp_plugin
   mkdir -p "${host_tools}/bin"
   copy_first_executable "$host_build" protoc "${host_tools}/bin"
   copy_first_executable "$host_build" grpc_cpp_plugin "${host_tools}/bin"
+  printf '%s\n' "$target_protobuf_version" >"${host_tools}/protoc.version"
 fi
+
+OP_SDK_CPP_PATH="$host_tools" "${repo_root}/sdk/scripts/generate-protos.sh" --sdk=cpp
 
 grpc_flags=(
   "${common_grpc_flags[@]}"
@@ -382,6 +439,7 @@ grpc_commit="$(git -C "$grpc_source" rev-parse HEAD 2>/dev/null || echo unknown)
   echo "target=${sdk_target}"
   echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "grpc_commit=${grpc_commit}"
+  echo "protobuf_version=${target_protobuf_version}"
   echo "nlohmann_json=3.11.3"
   echo "zig=$("$zig_bin" version)"
 } >"$stage/share/prebuilt.env"

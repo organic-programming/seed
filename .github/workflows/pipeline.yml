@@ -1,6 +1,4 @@
-# Pre-merge pipeline: organic-programming tool gate, conditional SDK rebuilds, composites, and SDK deep tests.
-# Triggers: push/pull_request on master plus manual dispatch; runs on self-hosted macOS and hosted runners.
-# Owns: pre-merge validation order. See .github/workflows/README.md for pipeline order.
+# Pre-merge pipeline: isolated op/ader gates, run-local SDK artifacts, composites, and SDK deep tests.
 name: pipeline
 
 on:
@@ -28,6 +26,9 @@ env:
   ZIG_VERSION: 0.16.0
   NINJA_VERSION: 1.13.1
   ZIG_HOLONS_JOBS: 8
+  CPP_HOLONS_JOBS: 8
+  C_HOLONS_JOBS: 8
+  RUBY_HOLONS_JOBS: 4
 
 jobs:
   gate-1-go-build-op:
@@ -35,17 +36,49 @@ jobs:
     runs-on: [self-hosted, macOS]
     timeout-minutes: 20
     steps:
-      - name: Loosen permissions on previous workspace
+      - name: Reset runner-managed state and isolate this run
+        id: op-run
+        shell: bash
         run: |
+          set -euo pipefail
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
+          # Ceinture : détruire tout op-run-* de + de 24h (mtime)
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          # Wipe HOME .op courant
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Isoler ce run avec timestamp
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+          echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
+          echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: ./.github/actions/load-mac-runner-env
-      - name: Go build op
-        run: go build ./holons/grace-op/...
+
+      - name: Go build op bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/op-bootstrap-binary"
+          go build -o "$RUNNER_TEMP/op-bootstrap-binary/op" ./holons/grace-op/cmd/op
+          chmod +x "$RUNNER_TEMP/op-bootstrap-binary/op"
+
+      - name: Upload op bootstrap binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: op-bootstrap-binary
+          path: ${{ runner.temp }}/op-bootstrap-binary/op
+          if-no-files-found: error
+          retention-days: 1
 
   gate-2-op-self-build:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -53,26 +86,77 @@ jobs:
     needs: gate-1-go-build-op
     timeout-minutes: 30
     steps:
-      - name: Loosen permissions on previous workspace
+      - name: Reset runner-managed state and isolate this run
+        id: op-run
+        shell: bash
         run: |
+          set -euo pipefail
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+          echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
+          echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: ./.github/actions/load-mac-runner-env
+
+      - name: Download op bootstrap binary
+        uses: actions/download-artifact@v4
+        with:
+          name: op-bootstrap-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
       - name: Install Go proto generators
+        shell: bash
         run: |
           set -euo pipefail
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
       - name: Op self-build
+        shell: bash
         run: |
           set -euo pipefail
-          go run ./holons/grace-op/cmd/op env --init
-          go run ./holons/grace-op/cmd/op build op --install --symlink
+          op build op --install
+          chmod +x "$OPBIN/op"
+
+      - name: Stage op binary artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/op-binary"
+          cp "$OPBIN/op" "$RUNNER_TEMP/op-binary/op"
+          chmod +x "$RUNNER_TEMP/op-binary/op"
+
+      - name: Upload op binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: op-binary
+          path: ${{ runner.temp }}/op-binary/op
+          if-no-files-found: error
+          retention-days: 1
 
   gate-3-op-core-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -80,40 +164,250 @@ jobs:
     needs: gate-2-op-self-build
     timeout-minutes: 30
     steps:
-      - name: Loosen permissions on previous workspace
+      - name: Reset runner-managed state and isolate this run
+        id: op-run
+        shell: bash
         run: |
+          set -euo pipefail
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+          echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
+          echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: ./.github/actions/load-mac-runner-env
+
+      - name: Download op binary
+        uses: actions/download-artifact@v4
+        with:
+          name: op-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
       - name: Go test op
         run: go test ./holons/grace-op/...
+
+  gate-3a-go-codegen-sdk:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, macOS]
+    needs: gate-3-op-core-tests
+    timeout-minutes: 20
+    steps:
+      - name: Reset runner-managed state and isolate this run
+        id: op-run
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+          echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
+          echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/load-mac-runner-env
+
+      - name: Resolve host SDK target
+        id: host
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            arm64) target="aarch64-apple-darwin" ;;
+            x86_64) target="x86_64-apple-darwin" ;;
+            *) echo "unsupported macOS runner architecture: $(uname -m)" >&2; exit 2 ;;
+          esac
+          echo "SDK_TARGET=$target" >> "$GITHUB_ENV"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
+      - name: Download op binary
+        uses: actions/download-artifact@v4
+        with:
+          name: op-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Build Go codegen SDK bootstrap artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_TARGET="${{ steps.host.outputs.target }}" SDK_VERSION=0.1.0 .github/scripts/build-prebuilt-go.sh
+
+      - name: Upload Go codegen SDK bootstrap artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-go-bootstrap-${{ steps.host.outputs.target }}
+          path: dist/sdk-prebuilts/go/${{ steps.host.outputs.target }}/*
+          if-no-files-found: error
+          retention-days: 1
 
   gate-4-op-build-ader:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS]
-    needs: gate-3-op-core-tests
+    needs: gate-3a-go-codegen-sdk
     timeout-minutes: 30
     steps:
-      - name: Loosen permissions on previous workspace
+      - name: Reset runner-managed state and isolate this run
+        id: op-run
+        shell: bash
         run: |
+          set -euo pipefail
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+          echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
+          echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: ./.github/actions/load-mac-runner-env
-      - name: Bootstrap op and build ader
+
+      - name: Resolve host SDK target
+        id: host
+        shell: bash
         run: |
           set -euo pipefail
-          go run ./holons/grace-op/cmd/op env --init
-          go run ./holons/grace-op/cmd/op build op --install --symlink
-          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
-          op build clem-ader --install --symlink
+          case "$(uname -m)" in
+            arm64) target="aarch64-apple-darwin" ;;
+            x86_64) target="x86_64-apple-darwin" ;;
+            *) echo "unsupported macOS runner architecture: $(uname -m)" >&2; exit 2 ;;
+          esac
+          echo "SDK_TARGET=$target" >> "$GITHUB_ENV"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
+      - name: Download op binary
+        uses: actions/download-artifact@v4
+        with:
+          name: op-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Download Go codegen SDK bootstrap artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-go-bootstrap-${{ steps.host.outputs.target }}
+          path: ${{ runner.temp }}/go-codegen-sdk
+
+      - name: Install Go codegen SDK artifact into isolated OPPATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=0
+          while IFS= read -r archive; do
+            found=1
+            base="$(basename "$archive" .tar.gz)"
+            lang="${base%%-holons-v*}"
+            rest="${base#${lang}-holons-v}"
+            version="${rest%-${SDK_TARGET}}"
+            dest="$OPPATH/sdk/$lang/$version/$SDK_TARGET"
+            rm -rf "$dest"
+            mkdir -p "$dest"
+            tar -C "$dest" -xzf "$archive"
+            env_name="OP_SDK_$(printf '%s' "$lang" | tr '[:lower:]-' '[:upper:]_')_PATH"
+            echo "$env_name=$dest" >> "$GITHUB_ENV"
+          done < <(find "$RUNNER_TEMP/go-codegen-sdk" -type f -name 'go-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
+          if [ "$found" -ne 1 ]; then
+            echo "no Go codegen SDK archive found for $SDK_TARGET" >&2
+            exit 1
+          fi
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Build ader
+        run: op build clem-ader --install
+
+      - name: Stage ader binary artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ader-binary"
+          if [ -x "$OPBIN/ader" ]; then
+            cp "$OPBIN/ader" "$RUNNER_TEMP/ader-binary/ader"
+          else
+            ader_bin="$(find "$OPBIN/clem-ader.holon/bin" -type f -name ader -print -quit)"
+            if [ -z "$ader_bin" ]; then
+              echo "ader binary not found under $OPBIN" >&2
+              exit 1
+            fi
+            cp "$ader_bin" "$RUNNER_TEMP/ader-binary/ader"
+          fi
+          chmod +x "$RUNNER_TEMP/ader-binary/ader"
+
+      - name: Upload ader binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ader-binary
+          path: ${{ runner.temp }}/ader-binary/ader
+          if-no-files-found: error
+          retention-days: 1
 
   gate-5-ader-core-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -121,15 +415,63 @@ jobs:
     needs: gate-4-op-build-ader
     timeout-minutes: 30
     steps:
-      - name: Loosen permissions on previous workspace
+      - name: Reset runner-managed state and isolate this run
+        id: op-run
+        shell: bash
         run: |
+          set -euo pipefail
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+          echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
+          echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: ./.github/actions/load-mac-runner-env
+
+      - name: Download op binary
+        uses: actions/download-artifact@v4
+        with:
+          name: op-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Download ader binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ader-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
       - name: Go test ader
         run: go test ./holons/clem-ader/...
 
@@ -139,82 +481,72 @@ jobs:
     needs: gate-5-ader-core-tests
     timeout-minutes: 45
     steps:
-      - name: Loosen permissions on previous workspace
+      - name: Reset runner-managed state and isolate this run
+        id: op-run
+        shell: bash
         run: |
+          set -euo pipefail
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+          echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
+          echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: ./.github/actions/load-mac-runner-env
-      - name: Bootstrap op and ader
+
+      - name: Download op binary
+        uses: actions/download-artifact@v4
+        with:
+          name: op-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
         run: |
           set -euo pipefail
-          go run ./holons/grace-op/cmd/op env --init
-          go run ./holons/grace-op/cmd/op build op --install --symlink
-          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
-          op build clem-ader --install --symlink
-          echo "$OPBIN" >> "$GITHUB_PATH"
-          {
-            echo "OPPATH=$OPPATH"
-            echo "OPBIN=$OPBIN"
-          } >> "$GITHUB_ENV"
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Download ader binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ader-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
       - name: Run smoke suites
+        shell: bash
         run: |
           set -euo pipefail
           ader test ader/catalogues/grace-op --suite op_version --profile smoke --lane both --source workspace
           ader test ader/catalogues/clem-ader --suite ader-self --profile smoke --lane both --source workspace
 
-  detect-sdk-changes:
-    runs-on: ubuntu-latest
+  sdk-build-zig:
     needs: gate-6-smoke-suite
-    outputs:
-      any: ${{ steps.detect.outputs.any }}
-      zig: ${{ steps.detect.outputs.zig }}
-      cpp: ${{ steps.detect.outputs.cpp }}
-      c: ${{ steps.detect.outputs.c }}
-      ruby: ${{ steps.detect.outputs.ruby }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: ./.github/actions/load-mac-runner-env
-      - name: Detect SDK-affecting paths
-        id: detect
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            git fetch origin "${{ github.base_ref }}" --depth=1
-            git diff --name-only "origin/${{ github.base_ref }}...HEAD" > "$RUNNER_TEMP/changed-files"
-          elif [[ "${{ github.event.before }}" != "" && "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]]; then
-            git diff --name-only "${{ github.event.before }}..${{ github.sha }}" > "$RUNNER_TEMP/changed-files"
-          else
-            git diff --name-only HEAD^..HEAD > "$RUNNER_TEMP/changed-files"
-          fi
-
-          shared='^(\.github/workflows/(pipeline|sdk-prebuilts|_sdk-prebuilt-target)\.yml|\.github/scripts/promote-sdk-prebuilts\.sh|holons/grace-op/internal/sdkprebuilts/)'
-          any=false
-          mark() {
-            local name="$1"
-            local pattern="$2"
-            if grep -Eq "$shared" "$RUNNER_TEMP/changed-files" || grep -Eq "$pattern" "$RUNNER_TEMP/changed-files"; then
-              echo "$name=true" >> "$GITHUB_OUTPUT"
-              any=true
-            else
-              echo "$name=false" >> "$GITHUB_OUTPUT"
-            fi
-          }
-          mark zig '^(\.github/scripts/build-prebuilt-zig\.sh|sdk/zig-holons/)'
-          mark cpp '^(\.github/scripts/build-prebuilt-cpp\.sh|sdk/cpp-holons/)'
-          mark c '^(\.github/scripts/build-prebuilt-c\.sh|sdk/c-holons/)'
-          mark ruby '^(\.github/scripts/build-prebuilt-ruby\.sh|sdk/ruby-holons/)'
-          echo "any=$any" >> "$GITHUB_OUTPUT"
-
-  sdk-prebuilt-zig:
-    if: needs.detect-sdk-changes.outputs.zig == 'true'
-    needs: detect-sdk-changes
     strategy:
       fail-fast: false
       matrix:
@@ -244,9 +576,8 @@ jobs:
       runs-on: ${{ matrix.runs_on }}
       continue-on-error: ${{ matrix.continue_on_error || false }}
 
-  sdk-prebuilt-cpp:
-    if: needs.detect-sdk-changes.outputs.cpp == 'true' || needs.detect-sdk-changes.outputs.c == 'true' || needs.detect-sdk-changes.outputs.ruby == 'true'
-    needs: detect-sdk-changes
+  sdk-build-cpp:
+    needs: gate-6-smoke-suite
     strategy:
       fail-fast: false
       matrix:
@@ -276,11 +607,8 @@ jobs:
       runs-on: ${{ matrix.runs_on }}
       continue-on-error: ${{ matrix.continue_on_error || false }}
 
-  sdk-prebuilt-c:
-    if: needs.detect-sdk-changes.outputs.c == 'true'
-    needs:
-      - detect-sdk-changes
-      - sdk-prebuilt-cpp
+  sdk-build-c:
+    needs: sdk-build-cpp
     strategy:
       fail-fast: false
       matrix:
@@ -311,15 +639,8 @@ jobs:
       continue-on-error: ${{ matrix.continue_on_error || false }}
       needs-cpp-prefix: true
 
-  sdk-prebuilt-ruby:
-    # Depends on sdk-prebuilt-cpp because the ruby adapter SDK needs
-    # grpc_ruby_plugin from the cpp prefix (see workflows/README.md
-    # § Inter-SDK dependency: cpp prefix). Each ruby target downloads the
-    # matching cpp-prefix-<target> artifact before its build script runs.
-    if: needs.detect-sdk-changes.outputs.ruby == 'true'
-    needs:
-      - detect-sdk-changes
-      - sdk-prebuilt-cpp
+  sdk-build-ruby:
+    needs: sdk-build-cpp
     strategy:
       fail-fast: false
       matrix:
@@ -350,155 +671,526 @@ jobs:
       continue-on-error: ${{ matrix.continue_on_error || false }}
       needs-cpp-prefix: true
 
-  sdk-prebuilts-fresh:
+  sdk-build-go:
+    needs: gate-6-smoke-suite
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: go
+      sdk-version: '0.1.0'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+
+  sdk-build-python:
+    needs: sdk-build-cpp
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: python
+      sdk-version: '0.1.0'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+      needs-cpp-prefix: true
+
+  sdk-build-csharp:
+    needs: sdk-build-cpp
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: csharp
+      sdk-version: '0.1.0'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+      needs-cpp-prefix: true
+
+  sdk-build-java:
+    needs: gate-6-smoke-suite
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: java
+      sdk-version: '0.1.0'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+
+  sdk-build-kotlin:
+    needs: gate-6-smoke-suite
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: kotlin
+      sdk-version: '0.1.0'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+
+  sdk-build-dart:
+    needs: gate-6-smoke-suite
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: dart
+      sdk-version: '0.1.0'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+
+  sdk-build-swift:
+    needs: gate-6-smoke-suite
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: swift
+      sdk-version: '0.1.0'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+
+  sdk-build-js:
+    needs: sdk-build-cpp
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: js
+      sdk-version: '0.1.0'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+      needs-cpp-prefix: true
+
+  fresh-sdk-delivery:
     runs-on: ubuntu-latest
     needs:
-      - detect-sdk-changes
-      - sdk-prebuilt-zig
-      - sdk-prebuilt-cpp
-      - sdk-prebuilt-c
-      - sdk-prebuilt-ruby
-    if: always()
+      - sdk-build-zig
+      - sdk-build-cpp
+      - sdk-build-c
+      - sdk-build-ruby
+      - sdk-build-go
+      - sdk-build-python
+      - sdk-build-csharp
+      - sdk-build-java
+      - sdk-build-kotlin
+      - sdk-build-dart
+      - sdk-build-swift
+      - sdk-build-js
     steps:
       - name: Summarize tier 1 result
-        env:
-          NEEDS_JSON: ${{ toJson(needs) }}
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-          import sys
-
-          needs = json.loads(os.environ["NEEDS_JSON"])
-          bad = [name for name, meta in needs.items() if meta["result"] in {"failure", "cancelled"}]
-          if bad:
-            print("Tier 1 failed:", ", ".join(bad), file=sys.stderr)
-            sys.exit(1)
-          changed = needs["detect-sdk-changes"]["outputs"].get("any") == "true"
-          print("Tier 1 SDK rebuilds:", "triggered" if changed else "not required")
-          PY
+        run: echo "Tier 1 SDK artifacts are available for this workflow run."
 
   composite-swiftui-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS]
-    needs: [detect-sdk-changes, sdk-prebuilts-fresh]
+    needs: fresh-sdk-delivery
     timeout-minutes: 240
     steps:
-      - name: Loosen permissions on previous workspace
+      - name: Reset runner-managed state and isolate this run
+        id: op-run
+        shell: bash
         run: |
+          set -euo pipefail
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+          echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
+          echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: ./.github/actions/load-mac-runner-env
-      - uses: actions/download-artifact@v4
-        if: needs.detect-sdk-changes.outputs.any == 'true'
-        with:
-          path: ${{ runner.temp }}/sdk-prebuilt-artifacts
-      - name: Bootstrap op and SDK prebuilts
+
+      - name: Resolve host SDK target
+        id: host
+        shell: bash
         run: |
           set -euo pipefail
-          go run ./holons/grace-op/cmd/op env --init
-          go run ./holons/grace-op/cmd/op build op --install --symlink
-          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
-          echo "$OPBIN" >> "$GITHUB_PATH"
-          if [ -d "$RUNNER_TEMP/sdk-prebuilt-artifacts" ]; then
-            while IFS= read -r archive; do
-              sdk="$(basename "$archive" | sed -E 's/-holons-v.*//')"
-              op sdk install "$sdk" --source "$archive"
-            done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
-          fi
-          for sdk in zig c cpp ruby; do
-            if ! op sdk path "$sdk" >/dev/null 2>&1; then
-              op sdk install "$sdk"
+          case "$(uname -m)" in
+            arm64) target="aarch64-apple-darwin" ;;
+            x86_64) target="x86_64-apple-darwin" ;;
+            *) echo "unsupported macOS runner architecture: $(uname -m)" >&2; exit 2 ;;
+          esac
+          echo "SDK_TARGET=$target" >> "$GITHUB_ENV"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
+      - name: Download op binary
+        uses: actions/download-artifact@v4
+        with:
+          name: op-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
             fi
-            sdk_path="$(op sdk path "$sdk")"
-            sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
-            echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
           done
-          {
-            echo "OPPATH=$OPPATH"
-            echo "OPBIN=$OPBIN"
-          } >> "$GITHUB_ENV"
+
+      - name: Download ader binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ader-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Download SDK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sdk-*-${{ steps.host.outputs.target }}
+          path: ${{ runner.temp }}/sdk-artifacts
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Install SDK artifacts into isolated OPPATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=0
+          while IFS= read -r archive; do
+            found=1
+            base="$(basename "$archive" .tar.gz)"
+            lang="${base%%-holons-v*}"
+            rest="${base#${lang}-holons-v}"
+            version="${rest%-${SDK_TARGET}}"
+            dest="$OPPATH/sdk/$lang/$version/$SDK_TARGET"
+            rm -rf "$dest"
+            mkdir -p "$dest"
+            tar -C "$dest" -xzf "$archive"
+            env_name="OP_SDK_$(printf '%s' "$lang" | tr '[:lower:]-' '[:upper:]_')_PATH"
+            echo "$env_name=$dest" >> "$GITHUB_ENV"
+          done < <(find "$RUNNER_TEMP/sdk-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
+          if [ "$found" -ne 1 ]; then
+            echo "no SDK archives found for $SDK_TARGET" >&2
+            exit 1
+          fi
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
       - name: Build SwiftUI composite
         run: |
           set -euo pipefail
           op build gabriel-greeting-app-swiftui --hardened
           ader test ader/catalogues/gabriel-greeting-app-swiftui --suite swiftui-smoke --profile smoke --lane both --source workspace
 
+      - name: Upload SwiftUI reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: composite-swiftui-reports-${{ github.run_id }}
+          path: |
+            ader/catalogues/*/reports/**
+            ader/reports/**
+          retention-days: 14
+          if-no-files-found: warn
+
   composite-flutter-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS]
-    needs: [detect-sdk-changes, sdk-prebuilts-fresh]
+    needs: fresh-sdk-delivery
     timeout-minutes: 240
     steps:
-      - name: Loosen permissions on previous workspace
+      - name: Reset runner-managed state and isolate this run
+        id: op-run
+        shell: bash
         run: |
+          set -euo pipefail
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+          echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
+          echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: ./.github/actions/load-mac-runner-env
-      - uses: actions/download-artifact@v4
-        if: needs.detect-sdk-changes.outputs.any == 'true'
-        with:
-          path: ${{ runner.temp }}/sdk-prebuilt-artifacts
-      - name: Bootstrap op and SDK prebuilts
+
+      - name: Resolve host SDK target
+        id: host
+        shell: bash
         run: |
           set -euo pipefail
-          go run ./holons/grace-op/cmd/op env --init
-          go run ./holons/grace-op/cmd/op build op --install --symlink
-          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
-          echo "$OPBIN" >> "$GITHUB_PATH"
-          if [ -d "$RUNNER_TEMP/sdk-prebuilt-artifacts" ]; then
-            while IFS= read -r archive; do
-              sdk="$(basename "$archive" | sed -E 's/-holons-v.*//')"
-              op sdk install "$sdk" --source "$archive"
-            done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
-          fi
-          for sdk in zig c cpp ruby; do
-            if ! op sdk path "$sdk" >/dev/null 2>&1; then
-              op sdk install "$sdk"
+          case "$(uname -m)" in
+            arm64) target="aarch64-apple-darwin" ;;
+            x86_64) target="x86_64-apple-darwin" ;;
+            *) echo "unsupported macOS runner architecture: $(uname -m)" >&2; exit 2 ;;
+          esac
+          echo "SDK_TARGET=$target" >> "$GITHUB_ENV"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
+      - name: Download op binary
+        uses: actions/download-artifact@v4
+        with:
+          name: op-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
             fi
-            sdk_path="$(op sdk path "$sdk")"
-            sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
-            echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
           done
-          {
-            echo "OPPATH=$OPPATH"
-            echo "OPBIN=$OPBIN"
-          } >> "$GITHUB_ENV"
+
+      - name: Download ader binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ader-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Download SDK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sdk-*-${{ steps.host.outputs.target }}
+          path: ${{ runner.temp }}/sdk-artifacts
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Install SDK artifacts into isolated OPPATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=0
+          while IFS= read -r archive; do
+            found=1
+            base="$(basename "$archive" .tar.gz)"
+            lang="${base%%-holons-v*}"
+            rest="${base#${lang}-holons-v}"
+            version="${rest%-${SDK_TARGET}}"
+            dest="$OPPATH/sdk/$lang/$version/$SDK_TARGET"
+            rm -rf "$dest"
+            mkdir -p "$dest"
+            tar -C "$dest" -xzf "$archive"
+            env_name="OP_SDK_$(printf '%s' "$lang" | tr '[:lower:]-' '[:upper:]_')_PATH"
+            echo "$env_name=$dest" >> "$GITHUB_ENV"
+          done < <(find "$RUNNER_TEMP/sdk-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
+          if [ "$found" -ne 1 ]; then
+            echo "no SDK archives found for $SDK_TARGET" >&2
+            exit 1
+          fi
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
       - name: Build Flutter composite
         run: |
           set -euo pipefail
           op build gabriel-greeting-app-flutter --hardened
           ader test ader/catalogues/gabriel-greeting-app-flutter --suite flutter-smoke --profile smoke --lane both --source workspace
 
+      - name: Upload Flutter reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: composite-flutter-reports-${{ github.run_id }}
+          path: |
+            ader/catalogues/*/reports/**
+            ader/reports/**
+          retention-days: 14
+          if-no-files-found: warn
+
   ader-bouquet-full:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS]
-    needs: [detect-sdk-changes, sdk-prebuilts-fresh]
+    needs: fresh-sdk-delivery
     timeout-minutes: 240
     env:
       BOUQUET: ${{ github.event.inputs.bouquet || 'local-dev' }}
     steps:
-      - name: Loosen permissions on previous workspace
+      - name: Reset runner-managed state and isolate this run
+        id: op-run
+        shell: bash
         run: |
+          set -euo pipefail
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+          echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
+          echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: ./.github/actions/load-mac-runner-env
-      - uses: actions/download-artifact@v4
-        if: needs.detect-sdk-changes.outputs.any == 'true'
+
+      - name: Resolve host SDK target
+        id: host
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            arm64) target="aarch64-apple-darwin" ;;
+            x86_64) target="x86_64-apple-darwin" ;;
+            *) echo "unsupported macOS runner architecture: $(uname -m)" >&2; exit 2 ;;
+          esac
+          echo "SDK_TARGET=$target" >> "$GITHUB_ENV"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
+      - name: Download op binary
+        uses: actions/download-artifact@v4
         with:
-          path: ${{ runner.temp }}/sdk-prebuilt-artifacts
+          name: op-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Download ader binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ader-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Download SDK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sdk-*-${{ steps.host.outputs.target }}
+          path: ${{ runner.temp }}/sdk-artifacts
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
       - name: Checkout Zig vendored submodules
         run: |
           set -euo pipefail
@@ -507,34 +1199,43 @@ jobs:
           git submodule update --init --force --recursive --depth 1 --jobs 8 \
             sdk/zig-holons/third_party/grpc \
             sdk/zig-holons/third_party/protobuf-c
-      - name: Bootstrap op, ader, and SDK prebuilts
+
+      - name: Install SDK artifacts into isolated OPPATH
+        shell: bash
         run: |
           set -euo pipefail
-          go run ./holons/grace-op/cmd/op env --init
-          go run ./holons/grace-op/cmd/op build op --install --symlink
-          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
-          op build clem-ader --install --symlink
-          echo "$OPBIN" >> "$GITHUB_PATH"
-          if [ -d "$RUNNER_TEMP/sdk-prebuilt-artifacts" ]; then
-            while IFS= read -r archive; do
-              sdk="$(basename "$archive" | sed -E 's/-holons-v.*//')"
-              op sdk install "$sdk" --source "$archive"
-            done < <(find "$RUNNER_TEMP/sdk-prebuilt-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
+          found=0
+          while IFS= read -r archive; do
+            found=1
+            base="$(basename "$archive" .tar.gz)"
+            lang="${base%%-holons-v*}"
+            rest="${base#${lang}-holons-v}"
+            version="${rest%-${SDK_TARGET}}"
+            dest="$OPPATH/sdk/$lang/$version/$SDK_TARGET"
+            rm -rf "$dest"
+            mkdir -p "$dest"
+            tar -C "$dest" -xzf "$archive"
+            env_name="OP_SDK_$(printf '%s' "$lang" | tr '[:lower:]-' '[:upper:]_')_PATH"
+            echo "$env_name=$dest" >> "$GITHUB_ENV"
+          done < <(find "$RUNNER_TEMP/sdk-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
+          if [ "$found" -ne 1 ]; then
+            echo "no SDK archives found for $SDK_TARGET" >&2
+            exit 1
           fi
-          for sdk in zig c cpp ruby; do
-            if ! op sdk path "$sdk" >/dev/null 2>&1; then
-              op sdk install "$sdk"
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
             fi
-            sdk_path="$(op sdk path "$sdk")"
-            sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
-            echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
           done
-          {
-            echo "OPPATH=$OPPATH"
-            echo "OPBIN=$OPBIN"
-          } >> "$GITHUB_ENV"
+
       - name: Run ader bouquet
         run: ader test-bouquet ader --name "$BOUQUET"
+
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -549,7 +1250,7 @@ jobs:
   sdk-deep-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, macOS]
-    needs: [detect-sdk-changes, sdk-prebuilts-fresh]
+    needs: fresh-sdk-delivery
     timeout-minutes: 240
     strategy:
       fail-fast: false
@@ -570,15 +1271,92 @@ jobs:
             mode: cross
             target: aarch64-ios
     steps:
-      - name: Loosen permissions on previous workspace
+      - name: Reset runner-managed state and isolate this run
+        id: op-run
+        shell: bash
         run: |
+          set -euo pipefail
           if [ -d "$GITHUB_WORKSPACE" ]; then
             chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
           fi
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+          echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
+          echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: ./.github/actions/load-mac-runner-env
+
+      - name: Resolve host SDK target
+        id: host
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            arm64) target="aarch64-apple-darwin" ;;
+            x86_64) target="x86_64-apple-darwin" ;;
+            *) echo "unsupported macOS runner architecture: $(uname -m)" >&2; exit 2 ;;
+          esac
+          echo "SDK_TARGET=$target" >> "$GITHUB_ENV"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
+      - name: Download op binary
+        uses: actions/download-artifact@v4
+        with:
+          name: op-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Download ader binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ader-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
+      - name: Download SDK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sdk-*-${{ steps.host.outputs.target }}
+          path: ${{ runner.temp }}/sdk-artifacts
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
       - name: Checkout Zig vendored submodules
         run: |
           set -euo pipefail
@@ -587,6 +1365,40 @@ jobs:
           git submodule update --init --force --recursive --depth 1 --jobs 8 \
             sdk/zig-holons/third_party/grpc \
             sdk/zig-holons/third_party/protobuf-c
+
+      - name: Install SDK artifacts into isolated OPPATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=0
+          while IFS= read -r archive; do
+            found=1
+            base="$(basename "$archive" .tar.gz)"
+            lang="${base%%-holons-v*}"
+            rest="${base#${lang}-holons-v}"
+            version="${rest%-${SDK_TARGET}}"
+            dest="$OPPATH/sdk/$lang/$version/$SDK_TARGET"
+            rm -rf "$dest"
+            mkdir -p "$dest"
+            tar -C "$dest" -xzf "$archive"
+            env_name="OP_SDK_$(printf '%s' "$lang" | tr '[:lower:]-' '[:upper:]_')_PATH"
+            echo "$env_name=$dest" >> "$GITHUB_ENV"
+          done < <(find "$RUNNER_TEMP/sdk-artifacts" -type f -name '*-holons-v*.tar.gz' ! -name '*-debug.tar.gz' | sort)
+          if [ "$found" -ne 1 ]; then
+            echo "no SDK archives found for $SDK_TARGET" >&2
+            exit 1
+          fi
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
       - name: Install Go proto generators and grpcurl
         if: matrix.mode == 'host'
         run: |
@@ -595,6 +1407,7 @@ jobs:
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
           go install github.com/fullstorydev/grpcurl/cmd/grpcurl@v1.9.3
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
       - name: Run Zig host deep tests
         if: matrix.mode == 'host'
         run: |
@@ -604,11 +1417,6 @@ jobs:
             -not -path '*/.zig-cache/*' \
             -not -path '*/zig-out/*' \
             -print0 | xargs -0 zig fmt --check
-          go run ./holons/grace-op/cmd/op env --init
-          go run ./holons/grace-op/cmd/op build op --install --symlink
-          eval "$(go run ./holons/grace-op/cmd/op env --shell)"
-          op build clem-ader --install --symlink
-          echo "$OPBIN" >> "$GITHUB_PATH"
           cd sdk/zig-holons
           zig build vendor
           zig build test
@@ -619,6 +1427,18 @@ jobs:
           op clean gabriel-greeting-zig
           op build gabriel-greeting-zig
           ader test ader/catalogues/grace-op --suite op_invoke --profile smoke --lane progression --source workspace
+
+      - name: Upload Zig host deep-test reports
+        if: always() && matrix.mode == 'host'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-deep-zig-host-reports-${{ github.run_id }}
+          path: |
+            ader/catalogues/*/reports/**
+            ader/reports/**
+          retention-days: 14
+          if-no-files-found: warn
+
       - name: Restore cross-smoke cache
         if: matrix.mode == 'cross'
         id: cross-cache
@@ -628,11 +1448,13 @@ jobs:
           key: zig-sdk-cross-${{ matrix.target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('sdk/zig-holons/tools/cross_smoke.sh', '.gitmodules') }}
           restore-keys: |
             zig-sdk-cross-${{ matrix.target }}-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Run Zig cross-smoke
         if: matrix.mode == 'cross'
         run: sdk/zig-holons/tools/cross_smoke.sh "${{ matrix.target }}"
+
       - name: Save cross-smoke cache
-        if: matrix.mode == 'cross' && always() && steps.cross-cache.outputs.cache-hit != 'true'
+        if: matrix.mode == 'cross' && steps.cross-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: sdk/zig-holons/.zig-cross/${{ matrix.target }}

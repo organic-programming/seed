@@ -44,6 +44,25 @@ jobs:
     runs-on: [self-hosted, macOS]
     timeout-minutes: 480
     steps:
+      - name: Reset runner-managed state and isolate this run
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          # Ceinture : détruire tout op-run-* de + de 24h (mtime)
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          # Wipe HOME .op courant
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Isoler ce run avec timestamp
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+
       - name: Prepare benchmark report
         env:
           GH_TOKEN: ${{ github.token }}
@@ -83,7 +102,6 @@ jobs:
       - uses: ./.github/actions/load-mac-runner-env
 
       - name: Record checkout block
-        if: always()
         run: |
           set -euo pipefail
           end_epoch="$(date +%s)"
@@ -103,7 +121,6 @@ jobs:
           echo "CHECKOUT_EXIT=$exit_code" >> "$GITHUB_ENV"
 
       - name: Checkout Zig vendored submodules
-        if: always()
         run: |
           set -euo pipefail
           start_epoch="$(date +%s)"
@@ -135,7 +152,6 @@ jobs:
           echo "ZIG_SUBMODULES_EXIT=$exit_code" >> "$GITHUB_ENV"
 
       - name: Bootstrap op, ader, and SDK prebuilts
-        if: always()
         run: |
           set -euo pipefail
           start_epoch="$(date +%s)"
@@ -154,14 +170,6 @@ jobs:
               eval "$(go run ./holons/grace-op/cmd/op env --shell)"
               op build clem-ader --install --symlink
               echo "$OPBIN" >> "$GITHUB_PATH"
-              for sdk in zig c cpp ruby; do
-                if ! op sdk path "$sdk" >/dev/null 2>&1; then
-                  op sdk install "$sdk"
-                fi
-                sdk_path="$(op sdk path "$sdk")"
-                sdk_env="OP_SDK_$(printf '%s' "$sdk" | tr '[:lower:]' '[:upper:]')_PATH"
-                echo "$sdk_env=$sdk_path" >> "$GITHUB_ENV"
-              done
               {
                 echo "OPPATH=$OPPATH"
                 echo "OPBIN=$OPBIN"
@@ -179,7 +187,6 @@ jobs:
           echo "BOOTSTRAP_EXIT=$exit_code" >> "$GITHUB_ENV"
 
       - name: Run timed ader bouquet
-        if: always()
         run: |
           set -euo pipefail
           start_epoch="$(date +%s)"
@@ -205,7 +212,6 @@ jobs:
           echo "BOUQUET_EXIT=$exit_code" >> "$GITHUB_ENV"
 
       - name: Generate benchmark report
-        if: always()
         run: |
           set -euo pipefail
           report_started_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
@@ -261,7 +267,6 @@ jobs:
           cat "$ADER_BENCH_REPORT_DIR/summary.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload benchmark report
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ader-bench-${{ github.run_id }}-${{ env.BOUQUET }}
@@ -273,7 +278,6 @@ jobs:
           if-no-files-found: warn
 
       - name: Finalize functional status
-        if: always()
         run: |
           set -euo pipefail
           summary="$ADER_BENCH_REPORT_DIR/summary.json"

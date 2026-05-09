@@ -130,17 +130,17 @@ copy_grpc_sibling() {
 install_grpc_java_plugin() {
   local stage="$1"
   local target="${SDK_TARGET:?SDK_TARGET is required}"
-  local version="${GRPC_JAVA_PLUGIN_VERSION:-1.60.0}"
+  local version="${GRPC_JAVA_PLUGIN_VERSION:-1.76.0}"
   local classifier
   local expected_sha
   local suffix
   local tmp
   local actual_sha
+  local url
 
   case "$target" in
     aarch64-apple-darwin)
       classifier="osx-aarch_64"
-      expected_sha="bb6c0c079998ee7080e66ea122dfb66a34a602482a7ed1760b30b7324fdf8ede"
       ;;
     *)
       echo "unsupported protoc-gen-grpc-java target: ${target}" >&2
@@ -150,12 +150,17 @@ install_grpc_java_plugin() {
 
   suffix="$(target_exe_suffix "$target")"
   tmp="$(mktemp)"
-  curl -fsSL \
-    "https://repo1.maven.org/maven2/io/grpc/protoc-gen-grpc-java/${version}/protoc-gen-grpc-java-${version}-${classifier}.exe" \
-    -o "$tmp"
+  url="https://repo1.maven.org/maven2/io/grpc/protoc-gen-grpc-java/${version}/protoc-gen-grpc-java-${version}-${classifier}.exe"
+  curl -fsSL "$url" -o "$tmp"
+  expected_sha="$(curl -fsSL "${url}.sha256" | awk '{print $1}')"
   actual_sha="$(sha256_file "$tmp" | awk '{print $1}')"
   if [[ "$actual_sha" != "$expected_sha" ]]; then
     echo "protoc-gen-grpc-java sha256 mismatch: got ${actual_sha}, want ${expected_sha}" >&2
+    rm -f "$tmp"
+    return 1
+  fi
+  if command -v file >/dev/null 2>&1 && ! file "$tmp" | grep -q 'arm64'; then
+    echo "protoc-gen-grpc-java ${version}/${classifier} is not arm64-capable: $(file "$tmp")" >&2
     rm -f "$tmp"
     return 1
   fi
@@ -197,19 +202,162 @@ EOF
   rm -f "$tmp"
 }
 
-install_node_codegen_plugins() {
+install_js_protoc_plugin() {
   local stage="$1"
   local work_dir="$2"
-  local grpc_tools_version="${GRPC_TOOLS_VERSION:-1.13.0}"
-  local npm_prefix="${work_dir}/node-codegen"
+  local target="${SDK_TARGET:?SDK_TARGET is required}"
+  local version="${PROTOC_GEN_JS_VERSION:-3.21.4-4}"
+  local npm_prefix="${work_dir}/protoc-gen-js"
+  local suffix
+  local source
+  local dest
 
+  suffix="$(target_exe_suffix "$target")"
   rm -rf "$npm_prefix"
   mkdir -p "$npm_prefix" "${stage}/bin"
   npm install --prefix "$npm_prefix" --omit=dev --no-audit --no-fund \
-    "grpc-tools@${grpc_tools_version}"
-  cp "${npm_prefix}/node_modules/grpc-tools/bin/protoc" "${stage}/bin/protoc"
-  cp "${npm_prefix}/node_modules/grpc-tools/bin/grpc_node_plugin" "${stage}/bin/grpc_tools_node_protoc_plugin"
-  chmod +x "${stage}/bin/protoc" "${stage}/bin/grpc_tools_node_protoc_plugin"
+    "protoc-gen-js@${version}"
+  source="${npm_prefix}/node_modules/protoc-gen-js/bin/protoc-gen-js"
+  dest="${stage}/bin/protoc-gen-js${suffix}"
+  cp "$source" "$dest"
+  chmod +x "$dest"
+  if [[ "$target" == "aarch64-apple-darwin" ]] && command -v file >/dev/null 2>&1 && ! file "$dest" | grep -q 'arm64'; then
+    echo "protoc-gen-js ${version} is not arm64-capable: $(file "$dest")" >&2
+    return 1
+  fi
+}
+
+install_node_codegen_plugins() {
+  local stage="$1"
+  local work_dir="$2"
+
+  copy_grpc_sibling "$stage" grpc_node_plugin
+  build_grpc_js_wrapper "$stage" "$work_dir"
+}
+
+build_grpc_js_wrapper() {
+  local stage="$1"
+  local work_dir="$2"
+  local target="${SDK_TARGET:?SDK_TARGET is required}"
+  local src_dir="${work_dir}/grpc-js-wrapper"
+  local suffix
+  local goos
+  local goarch
+
+  suffix="$(target_exe_suffix "$target")"
+  read -r goos goarch < <(target_goos_goarch "$target")
+  rm -rf "$src_dir"
+  mkdir -p "$src_dir"
+  cat >"${src_dir}/go.mod" <<'EOF'
+module op.local/grpcjswrapper
+
+go 1.22
+
+require google.golang.org/protobuf v1.36.11
+EOF
+  cat >"${src_dir}/main.go" <<'EOF'
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/pluginpb"
+)
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	input, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return err
+	}
+	req := &pluginpb.CodeGeneratorRequest{}
+	if err := proto.Unmarshal(input, req); err != nil {
+		return err
+	}
+	req.Parameter = nil
+	rewrittenInput, err := proto.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	plugin := filepath.Join(filepath.Dir(exe), "grpc_node_plugin")
+	cmd := exec.Command(plugin)
+	cmd.Stdin = bytes.NewReader(rewrittenInput)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		if stderr.Len() > 0 {
+			_, _ = os.Stderr.Write(stderr.Bytes())
+		}
+		return fmt.Errorf("grpc_node_plugin failed: %w", err)
+	}
+
+	resp := &pluginpb.CodeGeneratorResponse{}
+	if err := proto.Unmarshal(stdout.Bytes(), resp); err != nil {
+		return err
+	}
+	for _, file := range resp.File {
+		if file.Content == nil || !strings.HasSuffix(file.GetName(), "_grpc_pb.js") {
+			continue
+		}
+		content := file.GetContent()
+		content = strings.ReplaceAll(content, "require('grpc')", "require('@grpc/grpc-js')")
+		content = strings.ReplaceAll(content, "new Buffer(", "Buffer.from(")
+		file.Content = &content
+	}
+	output, err := proto.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	_, err = os.Stdout.Write(output)
+	return err
+}
+EOF
+  (
+    cd "$src_dir"
+    env GOWORK=off CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
+      go build -mod=mod -trimpath -ldflags="-s -w" -o "${stage}/bin/grpc_tools_node_protoc_plugin${suffix}" .
+  )
+  chmod +x "${stage}/bin/grpc_node_plugin${suffix}" "${stage}/bin/grpc_tools_node_protoc_plugin${suffix}"
+}
+
+wrap_protoc_with_sibling_path() {
+  local stage="$1"
+  local target="${SDK_TARGET:?SDK_TARGET is required}"
+  local suffix
+  local protoc
+  local real_protoc
+
+  suffix="$(target_exe_suffix "$target")"
+  protoc="${stage}/bin/protoc${suffix}"
+  real_protoc="${stage}/bin/protoc-real${suffix}"
+  mv "$protoc" "$real_protoc"
+  cat >"$protoc" <<'EOF'
+#!/usr/bin/env sh
+set -eu
+bin_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+PATH="${bin_dir}:${PATH:-}" exec "${bin_dir}/protoc-real" "$@"
+EOF
+  chmod +x "$protoc" "$real_protoc"
 }
 
 archive_codegen_stage() {

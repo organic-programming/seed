@@ -1,6 +1,4 @@
 # Reusable workflow: builds one (sdk, target) prebuilt tarball.
-# Triggers: workflow_call only; runs on the caller-selected runner.
-# Owns: per-target build script execution + artifact upload. See .github/workflows/README.md for pipeline order.
 name: sdk-prebuilt-target
 
 on:
@@ -24,12 +22,9 @@ on:
         default: false
       needs-cpp-prefix:
         description: |
-          Set to true for SDKs whose build needs the cpp prebuilt prefix
-          and toolchain for the same target.
-          When true, the matching cpp artifact is downloaded and
-          extracted under sdk/cpp-holons/.cpp-prebuilt/<target>/
-          before the build script runs.
-          The caller must set needs: sdk-prebuilt-cpp on the dependent job.
+          Set to true for SDKs whose build needs the cpp prefix and
+          target toolchain. The caller must depend on sdk-build-cpp so
+          cpp-prefix-<target> exists before this reusable workflow runs.
         required: false
         type: boolean
         default: false
@@ -53,6 +48,44 @@ jobs:
       RUBY_HOLONS_JOBS: 4
 
     steps:
+      - name: Reset runner-managed state and isolate this run
+        id: op-run
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "$GITHUB_WORKSPACE" ]; then
+            chmod -R u+w "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+          # Ceinture : détruire tout op-run-* de + de 24h (mtime)
+          find /tmp -maxdepth 1 -name "op-run-*" -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          # Wipe HOME .op courant
+          rm -rf "$HOME/.op/sdk" "$HOME/.op/bin" "$HOME/.op/build" "$HOME/.op/cache" 2>/dev/null || true
+          # Isoler ce run avec timestamp
+          timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          op_root="/tmp/op-run-${{ github.run_id }}-${{ github.run_attempt }}-${timestamp}/op"
+          mkdir -p "$op_root/bin" "$op_root/sdk" "$op_root/build" "$op_root/cache"
+          echo "OPPATH=$op_root" >> "$GITHUB_ENV"
+          echo "OPBIN=$op_root/bin" >> "$GITHUB_ENV"
+          echo "$op_root/bin" >> "$GITHUB_PATH"
+          echo "oppath=$op_root" >> "$GITHUB_OUTPUT"
+          echo "opbin=$op_root/bin" >> "$GITHUB_OUTPUT"
+
+      - name: Download op binary
+        uses: actions/download-artifact@v4
+        with:
+          name: op-binary
+          path: ${{ steps.op-run.outputs.opbin }}
+
+      - name: Restore exec bits on downloaded artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -192,21 +225,20 @@ jobs:
           name: cpp-prefix-${{ inputs.sdk-target }}
           path: sdk/cpp-holons/.cpp-prebuilt/${{ inputs.sdk-target }}
 
-      - name: Restore exec bits on cpp prefix binaries
+      - name: Restore exec bits on downloaded artifacts
         if: inputs.needs-cpp-prefix
         shell: bash
         run: |
-          # actions/upload-artifact@v4 zips with the standard ZIP format,
-          # which does not preserve Unix exec bits. Without this step, the
-          # downloaded binaries (protoc, grpc_*_plugin, zigcc/zigcxx wrappers,
-          # etc.) come back as 0644 and the assert_cpp_prefix in the build
-          # script (or any cmake invocation) refuses them.
           set -euo pipefail
+          for d in "$OPPATH/bin" "$OPPATH/sdk"/*/*/*/bin; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
+            fi
+          done
           target_dir="sdk/cpp-holons/.cpp-prebuilt/${SDK_TARGET}"
-          for sub in prefix/bin toolchain; do
-            dir="$target_dir/$sub"
-            if [ -d "$dir" ]; then
-              find "$dir" -type f -exec chmod +x {} +
+          for d in "$target_dir/prefix/bin" "$target_dir/toolchain"; do
+            if [ -d "$d" ]; then
+              find "$d" -type f -exec chmod +x {} +
             fi
           done
 
@@ -222,11 +254,11 @@ jobs:
         run: |
           echo "::warning::${SDK}/${SDK_TARGET} prebuilt build failed on an allowed-failure matrix leg."
 
-      - name: Upload artifacts
+      - name: Upload SDK artifact
         if: steps.build_prebuilt.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.sdk }}-${{ inputs.sdk-version }}-${{ inputs.sdk-target }}
+          name: sdk-${{ inputs.sdk }}-${{ inputs.sdk-target }}
           path: dist/sdk-prebuilts/${{ inputs.sdk }}/${{ inputs.sdk-target }}/*
           if-no-files-found: error
 

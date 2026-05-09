@@ -156,6 +156,7 @@ func NewSandbox(t *testing.T) *Sandbox {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
 	}
+	linkExternalSDKPrebuilts(t, oppath)
 
 	return &Sandbox{
 		Root:     root,
