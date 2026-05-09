@@ -51,17 +51,39 @@ func KnownRootLabels() []string {
 
 func DiscoverRefs(expression *string, root *string, specifiers int, limit int, timeout int) sdkdiscover.DiscoverResult {
 	resolvedRoot := effectiveDiscoverRoot(root)
-	return sdkdiscover.Discover(sdkdiscover.LOCAL, expression, resolvedRoot, specifiers, limit, timeout)
+	return discoverRefsWithResolutionCache(expression, resolvedRoot, specifiers, limit, timeout)
 }
 
 func ResolveRef(expression string, root *string, specifiers int, timeout int) sdkdiscover.ResolveResult {
-	resolvedRoot := effectiveDiscoverRoot(root)
-	return sdkdiscover.Resolve(sdkdiscover.LOCAL, expression, resolvedRoot, specifiers, timeout)
+	expr := expression
+	result := DiscoverRefs(&expr, root, specifiers, 1, timeout)
+	if result.Error != "" {
+		return sdkdiscover.ResolveResult{Error: result.Error}
+	}
+	if len(result.Found) == 0 {
+		return sdkdiscover.ResolveResult{Error: fmt.Sprintf("holon %q not found", expression)}
+	}
+	if result.Found[0].Error != "" {
+		ref := result.Found[0]
+		return sdkdiscover.ResolveResult{Ref: &ref, Error: ref.Error}
+	}
+	return sdkdiscover.ResolveResult{Ref: &result.Found[0]}
 }
 
 func ConnectRef(expression string, root *string, specifiers int, timeout int) sdkconnect.ConnectResult {
 	resolvedRoot := effectiveDiscoverRoot(root)
-	return sdkconnect.Connect(sdkdiscover.LOCAL, expression, resolvedRoot, specifiers, timeout)
+	expr := strings.TrimSpace(expression)
+	if expr == "" || resolutionCacheBypassExpression(&expr) {
+		return sdkconnect.Connect(sdkdiscover.LOCAL, expression, resolvedRoot, specifiers, timeout)
+	}
+	resolved := ResolveRef(expression, resolvedRoot, specifiers, timeout)
+	if resolved.Error != "" {
+		return sdkconnect.ConnectResult{Origin: resolved.Ref, Error: resolved.Error}
+	}
+	if resolved.Ref == nil {
+		return sdkconnect.ConnectResult{Error: fmt.Sprintf("holon %q not found", expression)}
+	}
+	return sdkconnect.Connect(sdkdiscover.LOCAL, resolved.Ref.URL, resolvedRoot, specifiers, timeout)
 }
 
 func DiscoverHolonsWithOptions(root *string, specifiers int, limit int, timeout int) ([]LocalHolon, error) {
@@ -72,6 +94,9 @@ func DiscoverHolonsWithOptions(root *string, specifiers int, limit int, timeout 
 	resolvedRoot := openv.Root()
 	if effective := effectiveDiscoverRoot(root); effective != nil {
 		resolvedRoot = strings.TrimSpace(*effective)
+		if canonicalRoot, err := canonicalResolutionRoot(effective); err == nil {
+			resolvedRoot = canonicalRoot
+		}
 	}
 	return localHolonsFromRefs(result.Found, resolvedRoot)
 }
@@ -120,6 +145,9 @@ func OriginDetails(ref *sdkdiscover.HolonRef, root *string) (string, string, err
 	resolvedRoot := openv.Root()
 	if effective := effectiveDiscoverRoot(root); effective != nil {
 		resolvedRoot = strings.TrimSpace(*effective)
+		if canonicalRoot, err := canonicalResolutionRoot(effective); err == nil {
+			resolvedRoot = canonicalRoot
+		}
 	}
 	layer := inferOrigin(*ref, path, resolvedRoot)
 	return path, layer, nil

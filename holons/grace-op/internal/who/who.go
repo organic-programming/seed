@@ -268,6 +268,9 @@ func Create(req *opv1.CreateIdentityRequest) (*opv1.CreateIdentityResponse, erro
 	if err := writeIdentityProto(id, outputPath); err != nil {
 		return nil, fmt.Errorf("write holon.proto: %w", err)
 	}
+	if err := holons.TouchResolutionCacheDirty(); err != nil {
+		return nil, fmt.Errorf("touch resolution cache marker: %w", err)
+	}
 
 	return &opv1.CreateIdentityResponse{
 		Identity: toProto(id),

@@ -90,6 +90,9 @@ func GenerateTemplate(req *opv1.GenerateTemplateRequest) (*opv1.GenerateTemplate
 	if err != nil {
 		return nil, err
 	}
+	if err := holons.TouchResolutionCacheDirty(); err != nil {
+		return nil, fmt.Errorf("touch resolution cache marker: %w", err)
+	}
 
 	dir := result.Dir
 	if absDir, err := filepath.Abs(dir); err == nil {

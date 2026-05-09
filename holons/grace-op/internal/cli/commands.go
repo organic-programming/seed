@@ -1343,14 +1343,16 @@ func emitOriginForExpression(runtimeOpts commandRuntimeOptions, expression strin
 }
 
 type internalGlobalOptions struct {
-	format  Format
-	quiet   bool
-	root    string
-	path    string
-	opbin   string
-	bin     string
-	timeout int
-	origin  bool
+	format     Format
+	quiet      bool
+	root       string
+	path       string
+	opbin      string
+	bin        string
+	timeout    int
+	origin     bool
+	noCache    bool
+	purgeCache bool
 }
 
 func parseGlobalOptions(args []string) (internalGlobalOptions, []string, error) {
@@ -1381,6 +1383,26 @@ func parseGlobalOptionsConfigured(args []string, defaults internalGlobalOptions,
 			i++
 		case args[i] == "--origin":
 			opts.origin = true
+			i++
+		case args[i] == "--no-cache":
+			opts.noCache = true
+			i++
+		case strings.HasPrefix(args[i], "--no-cache="):
+			value, parseErr := strconv.ParseBool(strings.TrimSpace(strings.TrimPrefix(args[i], "--no-cache=")))
+			if parseErr != nil {
+				return internalGlobalOptions{}, nil, fmt.Errorf("invalid --no-cache %q", strings.TrimPrefix(args[i], "--no-cache="))
+			}
+			opts.noCache = value
+			i++
+		case args[i] == "--purge-cache":
+			opts.purgeCache = true
+			i++
+		case strings.HasPrefix(args[i], "--purge-cache="):
+			value, parseErr := strconv.ParseBool(strings.TrimSpace(strings.TrimPrefix(args[i], "--purge-cache=")))
+			if parseErr != nil {
+				return internalGlobalOptions{}, nil, fmt.Errorf("invalid --purge-cache %q", strings.TrimPrefix(args[i], "--purge-cache="))
+			}
+			opts.purgeCache = value
 			i++
 		case args[i] == "--root":
 			if i+1 >= len(args) {

@@ -40,7 +40,14 @@ type InstallReport struct {
 	Notes       []string `json:"notes,omitempty"`
 }
 
-func Install(ref string, opts InstallOptions) (InstallReport, error) {
+func Install(ref string, opts InstallOptions) (report InstallReport, err error) {
+	defer func() {
+		if err == nil {
+			if touchErr := TouchResolutionCacheDirty(); touchErr != nil {
+				err = fmt.Errorf("touch resolution cache marker: %w", touchErr)
+			}
+		}
+	}()
 	reporter := opts.Progress
 	if reporter == nil {
 		reporter = progress.Silence()
@@ -77,7 +84,7 @@ func Install(ref string, opts InstallOptions) (InstallReport, error) {
 		return baseInstallReport("install", target, BuildContext{}), err
 	}
 
-	report := baseInstallReport("install", target, ctx)
+	report = baseInstallReport("install", target, ctx)
 	artifactPath := target.Manifest.ArtifactPath(ctx)
 	report.Artifact = workspaceRelativePath(artifactPath)
 	report.Binary = target.Manifest.BinaryName()
@@ -232,7 +239,14 @@ func Uninstall(ref string) (InstallReport, error) {
 	return UninstallWithOptions(ref, InstallOptions{})
 }
 
-func UninstallWithOptions(ref string, opts InstallOptions) (InstallReport, error) {
+func UninstallWithOptions(ref string, opts InstallOptions) (report InstallReport, err error) {
+	defer func() {
+		if err == nil {
+			if touchErr := TouchResolutionCacheDirty(); touchErr != nil {
+				err = fmt.Errorf("touch resolution cache marker: %w", touchErr)
+			}
+		}
+	}()
 	reporter := opts.Progress
 	if reporter == nil {
 		reporter = progress.Silence()
@@ -248,7 +262,7 @@ func UninstallWithOptions(ref string, opts InstallOptions) (InstallReport, error
 		return baseInstallReport("uninstall", target, BuildContext{}), target.ManifestErr
 	}
 
-	report := InstallReport{
+	report = InstallReport{
 		Operation: "uninstall",
 		Target:    normalizedTarget(ref),
 	}

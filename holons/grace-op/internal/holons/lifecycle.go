@@ -117,11 +117,18 @@ type runner interface {
 }
 
 // ExecuteLifecycle runs a lifecycle operation on a holon.
-func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, error) {
+func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (report Report, err error) {
 	var bo BuildOptions
 	if len(opts) > 0 {
 		bo = opts[0]
 	}
+	defer func() {
+		if err == nil && lifecycleOperationTouchesResolutionCache(op, bo) {
+			if touchErr := TouchResolutionCacheDirty(); touchErr != nil {
+				err = fmt.Errorf("touch resolution cache marker: %w", touchErr)
+			}
+		}
+	}()
 	reporter := bo.Progress
 	if reporter == nil {
 		reporter = progress.Silence()
@@ -158,7 +165,7 @@ func ExecuteLifecycle(op Operation, ref string, opts ...BuildOptions) (Report, e
 	}
 	ctx.Progress = reporter
 
-	report := baseReport(op, target, ctx)
+	report = baseReport(op, target, ctx)
 	r, err := runnerFor(target.Manifest)
 	if err != nil {
 		return report, err
@@ -1033,6 +1040,13 @@ func resolveRequiredSDKPrebuilt(ctx context.Context, lang, hostTarget string, bu
 	default:
 		return sdkprebuilts.Prebuilt{}, missingSDKPrebuiltError(lang, hostTarget)
 	}
+}
+
+func lifecycleOperationTouchesResolutionCache(op Operation, bo BuildOptions) bool {
+	if bo.DryRun {
+		return false
+	}
+	return op == OperationBuild || op == OperationClean
 }
 
 func decideSDKPrebuiltAutoResolution(lang, hostTarget string, installed sdkprebuilts.Prebuilt, installedOK bool, sourceHash string, sourceExists bool) (string, string, string, error) {
