@@ -55,6 +55,10 @@ def seed_release(seed):
     return str(seed.get("seed_release", ""))
 
 
+def cpp_protobuf_tag(seed):
+    return str(seed.get("cpp_runtime", {}).get("protobuf_submodule_tag", ""))
+
+
 def truthy(value):
     if isinstance(value, bool):
         return value
@@ -129,6 +133,8 @@ def main(argv):
         print(protoc_version(seed))
     elif command == "seed-release":
         print(seed_release(seed))
+    elif command == "cpp-protobuf-tag":
+        print(cpp_protobuf_tag(seed))
     elif command == "plugin-version":
         if len(argv) != 5:
             raise SystemExit("usage: seed_toolchain.py plugin-version <repo-root> <lang> <plugin>")

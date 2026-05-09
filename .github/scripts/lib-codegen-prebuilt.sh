@@ -43,6 +43,11 @@ seed_release() {
   seed_toolchain seed-release "$repo_root"
 }
 
+cpp_protobuf_tag() {
+  local repo_root="$1"
+  seed_toolchain cpp-protobuf-tag "$repo_root"
+}
+
 cleanup_grpc_third_party_pollution() {
   local root="$1"
   git -C "$root" checkout -- sdk/zig-holons/third_party/grpc/third_party/zlib/ 2>/dev/null || true

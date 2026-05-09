@@ -494,6 +494,10 @@ func TestSdkManifestToolchainEchoesCentralPin(t *testing.T) {
 
 func TestSeedToolchainScriptMatchesGoDerivation(t *testing.T) {
 	repoRoot := testRepoRoot(t)
+	seed, err := LoadSeedToolchain(repoRoot)
+	if err != nil {
+		t.Fatalf("LoadSeedToolchain() returned error: %v", err)
+	}
 	goEntries, err := ToolchainForSDK(repoRoot, "java", "aarch64-apple-darwin")
 	if err != nil {
 		t.Fatalf("ToolchainForSDK(java) returned error: %v", err)
@@ -516,6 +520,13 @@ func TestSeedToolchainScriptMatchesGoDerivation(t *testing.T) {
 	}
 	if string(goJSON) != string(scriptJSON) {
 		t.Fatalf("script toolchain = %s, want %s", scriptJSON, goJSON)
+	}
+	tagOut, err := exec.Command("python3", filepath.Join(repoRoot, ".github", "scripts", "seed_toolchain.py"), "cpp-protobuf-tag", repoRoot).Output()
+	if err != nil {
+		t.Fatalf("seed_toolchain.py cpp-protobuf-tag returned error: %v", err)
+	}
+	if got, want := strings.TrimSpace(string(tagOut)), strings.TrimSpace(seed.CPPRuntime.ProtobufSubmoduleTag); got != want {
+		t.Fatalf("cpp-protobuf-tag = %q, want %q", got, want)
 	}
 }
 

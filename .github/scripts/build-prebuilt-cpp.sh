@@ -152,6 +152,15 @@ do
 done
 
 target_protobuf_version="$(protobuf_target_version "${grpc_source}/third_party/protobuf")"
+pinned_protobuf_version="$(cpp_protobuf_tag "$repo_root")"
+if [[ -z "$pinned_protobuf_version" ]]; then
+  echo "seed-toolchain.yaml missing cpp_runtime.protobuf_submodule_tag" >&2
+  exit 1
+fi
+if [[ "$target_protobuf_version" != "$pinned_protobuf_version" ]]; then
+  echo "protobuf submodule tag mismatch: got ${target_protobuf_version}, want ${pinned_protobuf_version} from seed-toolchain.yaml" >&2
+  exit 1
+fi
 
 macos_framework_flag=""
 if [[ "$sdk_target" == *apple-darwin ]]; then
