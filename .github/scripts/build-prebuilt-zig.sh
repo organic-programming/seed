@@ -344,12 +344,14 @@ fi
 } >"$stage/share/prebuilt.env"
 
 toolchain_json="$(toolchain_manifest_json "$repo_root" zig "$sdk_target")"
+seed_release_value="$(seed_release "$repo_root")"
 
 cat >"$stage/manifest.json" <<EOF
 {
   "lang": "zig",
   "version": "${sdk_version}",
   "target": "${sdk_target}",
+  "seed_release": "${seed_release_value}",
   "codegen": {
     "plugins": [
       {"name": "zig", "binary": "bin/protoc-gen-zig$(target_exe_suffix "$sdk_target")", "out_subdir": "c"}

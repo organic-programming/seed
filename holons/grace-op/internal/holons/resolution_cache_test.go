@@ -310,6 +310,38 @@ func TestNoCacheBypassesReadButWritesResult(t *testing.T) {
 	}
 }
 
+func TestNoCacheSlugRefreshWritesContextualSnapshot(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	freshRef := cacheTestRef(t, filepath.Join(root, "fresh"), "fresh", "fresh-uuid", "source")
+	otherRef := cacheTestRef(t, filepath.Join(root, "other"), "other", "other-uuid", "source")
+	expr := "fresh"
+	SetResolutionCacheDisabled(true)
+	calls := installResolutionDiscoverHook(t, func(expression *string, _ *string, _ int, limit int, _ int) sdkdiscover.DiscoverResult {
+		if expression != nil {
+			t.Fatalf("fresh slug refresh expression = %q, want nil contextual walk", *expression)
+		}
+		if limit != sdkdiscover.NO_LIMIT {
+			t.Fatalf("fresh slug refresh limit = %d, want NO_LIMIT", limit)
+		}
+		return sdkdiscover.DiscoverResult{Found: []sdkdiscover.HolonRef{freshRef, otherRef}}
+	})
+
+	result := DiscoverRefs(&expr, &root, sdkdiscover.SOURCE, 1, sdkdiscover.NO_TIMEOUT)
+	if result.Error != "" || len(result.Found) != 1 || result.Found[0].Info.Slug != "fresh" {
+		t.Fatalf("DiscoverRefs with no-cache slug = %+v, want fresh result", result)
+	}
+	if got := *calls; got != 1 {
+		t.Fatalf("walk calls = %d, want 1", got)
+	}
+	refs, ok := readResolutionSnapshot(root, sdkdiscover.SOURCE)
+	if !ok || len(refs) != 2 {
+		t.Fatalf("snapshot = ok:%v refs:%+v, want full contextual snapshot", ok, refs)
+	}
+	if _, ok := readResolutionGlobalEntry("fresh"); !ok {
+		t.Fatal("no-cache slug refresh did not populate tier 1")
+	}
+}
+
 func TestPathExpressionInvocationPopulatesTier1(t *testing.T) {
 	root := setupResolutionCacheTest(t)
 	ref := cacheTestRef(t, filepath.Join(root, "alpha"), "alpha", "alpha-uuid", "source")

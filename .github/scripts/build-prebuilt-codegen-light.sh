@@ -157,12 +157,14 @@ EOF
 esac
 
 toolchain_json="$(toolchain_manifest_json "$repo_root" "$sdk_lang" "$sdk_target")"
+seed_release_value="$(seed_release "$repo_root")"
 
 cat >"${stage}/manifest.json" <<EOF
 {
   "lang": "${sdk_lang}",
   "version": "${sdk_version}",
   "target": "${sdk_target}",
+  "seed_release": "${seed_release_value}",
   "codegen": {
     "plugins": [
 ${plugins}

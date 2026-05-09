@@ -122,12 +122,14 @@ build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" ruby
 copy_grpc_sibling "$stage" grpc_ruby_plugin
 
 toolchain_json="$(toolchain_manifest_json "$repo_root" ruby "$sdk_target")"
+seed_release_value="$(seed_release "$repo_root")"
 
 cat >"$stage/manifest.json" <<EOF
 {
   "lang": "ruby",
   "version": "${sdk_version}",
   "target": "${sdk_target}",
+  "seed_release": "${seed_release_value}",
   "codegen": {
     "plugins": [
       {"name": "ruby", "binary": "bin/protoc-gen-ruby$(target_exe_suffix "$sdk_target")", "out_subdir": "ruby"}

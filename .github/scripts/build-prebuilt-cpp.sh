@@ -446,12 +446,14 @@ grpc_commit="$(git -C "$grpc_source" rev-parse HEAD 2>/dev/null || echo unknown)
 } >"$stage/share/prebuilt.env"
 
 toolchain_json="$(toolchain_manifest_json "$repo_root" cpp "$sdk_target")"
+seed_release_value="$(seed_release "$repo_root")"
 
 cat >"$stage/manifest.json" <<EOF
 {
   "lang": "cpp",
   "version": "${sdk_version}",
   "target": "${sdk_target}",
+  "seed_release": "${seed_release_value}",
   "codegen": {
     "plugins": [
       {"name": "cpp", "binary": "bin/protoc-gen-cpp$(target_exe_suffix "$sdk_target")", "out_subdir": "cpp"}

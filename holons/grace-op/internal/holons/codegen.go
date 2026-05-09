@@ -93,10 +93,11 @@ type emittedCodegenFile struct {
 }
 
 type codegenDistributionManifest struct {
-	Lang    string `json:"lang"`
-	Version string `json:"version"`
-	Target  string `json:"target"`
-	Codegen struct {
+	Lang        string `json:"lang"`
+	Version     string `json:"version"`
+	Target      string `json:"target"`
+	SeedRelease string `json:"seed_release,omitempty"`
+	Codegen     struct {
 		Plugins []codegenDistributionPlugin `json:"plugins"`
 	} `json:"codegen"`
 	Toolchain []sdkprebuilts.ToolchainEntry `json:"toolchain,omitempty"`
@@ -629,6 +630,9 @@ func resolveCodegenPlugin(language, target string) (resolvedCodegenPlugin, error
 		}
 		if _, err := safeCodegenJoin(string(filepath.Separator), outSubdir); err != nil {
 			return resolvedCodegenPlugin{}, fmt.Errorf("codegen plugin %q out_subdir: %w", language, err)
+		}
+		if _, err := sdkprebuilts.EnsureSharedToolchain(context.Background(), dist.Toolchain); err != nil {
+			return resolvedCodegenPlugin{}, err
 		}
 		protocPath, protocInclude, _, err := sdkprebuilts.ProtocFromToolchain(dist.Toolchain)
 		if err != nil {

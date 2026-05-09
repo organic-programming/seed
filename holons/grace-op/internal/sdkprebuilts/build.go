@@ -264,6 +264,11 @@ func runBuildScript(ctx context.Context, scriptPath, lang, target, version strin
 	if _, err := ensureSharedToolchain(ctx, toolchain); err != nil {
 		return err
 	}
+	if seed, err := LoadSeedToolchain(repoRoot); err != nil {
+		return err
+	} else if err := writeSharedSeedReleaseSnapshot(seed.SeedRelease, toolchain); err != nil {
+		return err
+	}
 	env := append(os.Environ(),
 		"SDK_TARGET="+target,
 		"SDK_VERSION="+version,

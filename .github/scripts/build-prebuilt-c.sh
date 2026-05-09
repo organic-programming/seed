@@ -210,12 +210,14 @@ protobuf_c_commit="$(git -C "$protobuf_c_source" rev-parse HEAD 2>/dev/null || e
 } >"$stage/share/prebuilt.env"
 
 toolchain_json="$(toolchain_manifest_json "$repo_root" c "$sdk_target")"
+seed_release_value="$(seed_release "$repo_root")"
 
 cat >"$stage/manifest.json" <<EOF
 {
   "lang": "c",
   "version": "${sdk_version}",
   "target": "${sdk_target}",
+  "seed_release": "${seed_release_value}",
   "codegen": {
     "plugins": [
       {"name": "c", "binary": "bin/protoc-gen-upb$(target_exe_suffix "$sdk_target")", "out_subdir": "c"},

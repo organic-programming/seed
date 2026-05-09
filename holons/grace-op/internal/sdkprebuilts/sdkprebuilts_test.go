@@ -365,6 +365,17 @@ func TestSharedPoolSelfHealsOnInstall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("shared protoc missing: %v", err)
 	}
+	snapshotData, err := os.ReadFile(filepath.Join(runtimeHome, "sdk", "shared", sharedSeedReleaseSnapshotName))
+	if err != nil {
+		t.Fatalf("shared seed release snapshot missing: %v", err)
+	}
+	var snapshot sharedSeedReleaseSnapshot
+	if err := json.Unmarshal(snapshotData, &snapshot); err != nil {
+		t.Fatalf("parse shared seed release snapshot: %v", err)
+	}
+	if snapshot.SeedRelease != "test" || !toolchainContains(snapshot.Toolchain, "protoc", "32.0") {
+		t.Fatalf("shared seed release snapshot = %#v, want test/protoc 32.0", snapshot)
+	}
 
 	if _, notes, err := Install(context.Background(), InstallOptions{Lang: "java", Target: testTarget, Source: source}); err != nil {
 		t.Fatalf("second Install() returned error: %v", err)
@@ -411,6 +422,37 @@ func TestSharedPoolSha256Mismatch(t *testing.T) {
 	}
 }
 
+func TestSharedPoolNonExecutableTriggersRepair(t *testing.T) {
+	runtimeHome := t.TempDir()
+	t.Setenv("OPPATH", runtimeHome)
+	protocSource, protocSHA := writeSharedProtocSource(t, "executable")
+	source := writeSDKTarballWithToolchain(t, "java", []ToolchainEntry{{
+		Name:    "protoc",
+		Version: "32.0",
+		Target:  testTarget,
+		SHA256:  protocSHA,
+		Source:  protocSource,
+	}})
+
+	if _, _, err := Install(context.Background(), InstallOptions{Lang: "java", Target: testTarget, Source: source}); err != nil {
+		t.Fatalf("Install() returned error: %v", err)
+	}
+	sharedBin := SharedProtocBinary("32.0", testTarget)
+	if err := os.Chmod(sharedBin, 0o644); err != nil {
+		t.Fatalf("make shared protoc non-executable: %v", err)
+	}
+	if _, _, err := Install(context.Background(), InstallOptions{Lang: "java", Target: testTarget, Source: source}); err != nil {
+		t.Fatalf("second Install() returned error: %v", err)
+	}
+	info, err := os.Stat(sharedBin)
+	if err != nil {
+		t.Fatalf("stat shared protoc: %v", err)
+	}
+	if info.Mode()&0o111 == 0 {
+		t.Fatalf("shared protoc mode = %v, want executable", info.Mode())
+	}
+}
+
 func TestPurePluginSdkSkipsProtoc(t *testing.T) {
 	runtimeHome := t.TempDir()
 	t.Setenv("OPPATH", runtimeHome)
@@ -447,6 +489,33 @@ func TestSdkManifestToolchainEchoesCentralPin(t *testing.T) {
 	}
 	if !toolchainContains(goToolchain, "protoc-gen-go", "v1.36.11") {
 		t.Fatalf("go toolchain = %#v, want protoc-gen-go v1.36.11", goToolchain)
+	}
+}
+
+func TestSeedToolchainScriptMatchesGoDerivation(t *testing.T) {
+	repoRoot := testRepoRoot(t)
+	goEntries, err := ToolchainForSDK(repoRoot, "java", "aarch64-apple-darwin")
+	if err != nil {
+		t.Fatalf("ToolchainForSDK(java) returned error: %v", err)
+	}
+	out, err := exec.Command("python3", filepath.Join(repoRoot, ".github", "scripts", "seed_toolchain.py"), "manifest-json", repoRoot, "java", "aarch64-apple-darwin").Output()
+	if err != nil {
+		t.Fatalf("seed_toolchain.py manifest-json returned error: %v", err)
+	}
+	var scriptEntries []ToolchainEntry
+	if err := json.Unmarshal(out, &scriptEntries); err != nil {
+		t.Fatalf("parse seed_toolchain.py output: %v\n%s", err, string(out))
+	}
+	goJSON, err := json.Marshal(goEntries)
+	if err != nil {
+		t.Fatalf("marshal Go toolchain: %v", err)
+	}
+	scriptJSON, err := json.Marshal(scriptEntries)
+	if err != nil {
+		t.Fatalf("marshal script toolchain: %v", err)
+	}
+	if string(goJSON) != string(scriptJSON) {
+		t.Fatalf("script toolchain = %s, want %s", scriptJSON, goJSON)
 	}
 }
 
@@ -883,10 +952,11 @@ func writeSDKTarballWithToolchain(t *testing.T, lang string, toolchain []Toolcha
 	t.Helper()
 	source := filepath.Join(t.TempDir(), lang+"-holons-v0.1.0-"+testTarget+".tar.gz")
 	manifest := Prebuilt{
-		Lang:      lang,
-		Version:   "0.1.0",
-		Target:    testTarget,
-		Toolchain: toolchain,
+		Lang:        lang,
+		Version:     "0.1.0",
+		Target:      testTarget,
+		SeedRelease: "test",
+		Toolchain:   toolchain,
 	}
 	data, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
@@ -905,6 +975,8 @@ func testSeedToolchainYAML(t *testing.T, lang, target, version, sha string) stri
 protoc:
   upstream_tag: "v%s"
   version: "%s"
+  required_by:
+    %s: true
   sha256_per_target:
     %s: "%s"
 cpp_runtime:
@@ -912,7 +984,7 @@ cpp_runtime:
 plugins:
   %s:
     protoc-gen-grpc-java: "1.76.0"
-`, version, version, target, sha, version, lang)
+`, version, version, lang, target, sha, version, lang)
 }
 
 func shellQuote(path string) string {

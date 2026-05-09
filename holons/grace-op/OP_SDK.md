@@ -83,6 +83,7 @@ Installed prebuilts live under:
 ```text
 $OPPATH/sdk/<lang>/<version>/<target>/
 $OPPATH/sdk/shared/protoc/<version>/
+$OPPATH/sdk/shared/seed-release.json
 ```
 
 Each install writes a local `manifest.json` with the archive SHA-256 and tree
@@ -91,16 +92,19 @@ the tree no longer matches the recorded metadata.
 
 SDKs that need protoc declare a `toolchain` slice in their archive manifest.
 The slice is derived from the repo-root `seed-toolchain.yaml`; per-SDK manifests
-echo the relevant entries but do not own the version pins. During
-`op sdk install`, `op` materialises missing or sha-mismatched shared toolchain
-entries under `$OPPATH/sdk/shared/` before completing the SDK install. SDKs that
-only ship pure plugins declare no protoc entry and do not touch the shared pool.
+also echo `seed_release`, but do not own the version pins. The central
+`protoc.required_by` map declares which SDKs need the shared protoc entry.
+During `op sdk install`, `op` materialises missing, non-executable, or
+sha-mismatched shared toolchain entries under `$OPPATH/sdk/shared/` before
+completing the SDK install. SDKs that only ship pure plugins declare no protoc
+entry and do not touch the shared pool.
 
 Distributions that provide proto generators also advertise them in the same
 local manifest:
 
 ```json
 {
+  "seed_release": "0.7.0",
   "codegen": {
     "plugins": [
       {
@@ -114,7 +118,6 @@ local manifest:
     {
       "name": "protoc",
       "version": "32.0",
-      "kind": "protoc",
       "target": "aarch64-apple-darwin",
       "sha256": "..."
     }
@@ -135,9 +138,10 @@ consumer paths (`op <slug> <rpc>`, `op run`, `op mcp`, `op inspect`, and
 related dispatch flows) use installed SDK metadata and must not resolve host
 protoc.
 
-`op build` resolves `build.codegen.languages` through this block and runs the
-plugin binary from the installed distribution, so proto generation does not
-depend on generators or protoc being present on `PATH`.
+`op build` resolves `build.codegen.languages` through this block, repairs the
+shared toolchain if needed, and runs the plugin binary from the installed
+distribution, so proto generation does not depend on generators or protoc being
+present on `PATH`.
 
 ## Targets
 

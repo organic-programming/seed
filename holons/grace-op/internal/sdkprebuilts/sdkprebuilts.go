@@ -73,6 +73,7 @@ type Prebuilt struct {
 	Lang             string           `json:"lang"`
 	Version          string           `json:"version"`
 	Target           string           `json:"target"`
+	SeedRelease      string           `json:"seed_release,omitempty"`
 	Path             string           `json:"path"`
 	Source           string           `json:"source,omitempty"`
 	ArchiveSHA256    string           `json:"archive_sha256,omitempty"`
@@ -175,7 +176,7 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 		if existing, err := metadataForPath(dest); err == nil && strings.EqualFold(existing.ArchiveSHA256, actualSHA) {
 			if len(existing.Toolchain) > 0 {
 				existing.Installed = true
-				sharedNotes, err := ensureSharedToolchain(ctx, existing.Toolchain)
+				sharedNotes, err := ensureSharedToolchainForPrebuilt(ctx, existing)
 				if err != nil {
 					return Prebuilt{}, nil, err
 				}
@@ -250,13 +251,21 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 	// The cache hit therefore happens after manifest validation for --source.
 	if existing, err := metadataForPath(dest); err == nil && strings.EqualFold(existing.ArchiveSHA256, actualSHA) {
 		existing.Installed = true
+		metadataChanged := false
 		if len(archiveMetadata.Toolchain) > 0 {
 			existing.Toolchain = archiveMetadata.Toolchain
+			metadataChanged = true
+		}
+		if strings.TrimSpace(archiveMetadata.SeedRelease) != "" {
+			existing.SeedRelease = archiveMetadata.SeedRelease
+			metadataChanged = true
+		}
+		if metadataChanged {
 			if err := writeMetadata(dest, existing); err != nil {
 				return Prebuilt{}, nil, err
 			}
 		}
-		sharedNotes, err := ensureSharedToolchain(ctx, existing.Toolchain)
+		sharedNotes, err := ensureSharedToolchainForPrebuilt(ctx, existing)
 		if err != nil {
 			return Prebuilt{}, nil, err
 		}
@@ -284,8 +293,9 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 		Installed:        true,
 		Codegen:          archiveMetadata.Codegen,
 		Toolchain:        archiveMetadata.Toolchain,
+		SeedRelease:      archiveMetadata.SeedRelease,
 	}
-	sharedNotes, err := ensureSharedToolchain(ctx, prebuilt.Toolchain)
+	sharedNotes, err := ensureSharedToolchainForPrebuilt(ctx, prebuilt)
 	if err != nil {
 		return Prebuilt{}, nil, err
 	}

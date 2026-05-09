@@ -10,6 +10,10 @@ def parse_scalar(value):
         return value[1:-1]
     if value in ("null", "~"):
         return None
+    if value in ("true", "True"):
+        return True
+    if value in ("false", "False"):
+        return False
     return value
 
 
@@ -47,15 +51,32 @@ def protoc_version(seed):
     return str(version).removeprefix("v")
 
 
-def sdk_requires_protoc(lang):
-    return lang in {"csharp", "java", "js", "kotlin", "python", "ruby"}
+def seed_release(seed):
+    return str(seed.get("seed_release", ""))
+
+
+def truthy(value):
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def sdk_requires_protoc(seed, lang):
+    required_by = seed.get("protoc", {}).get("required_by", {})
+    return truthy(required_by.get(lang))
 
 
 def toolchain_manifest(seed, lang, target):
     entries = []
-    if sdk_requires_protoc(lang):
+    if sdk_requires_protoc(seed, lang):
         version = protoc_version(seed)
         sha = seed.get("protoc", {}).get("sha256_per_target", {}).get(target, "")
+        if not version:
+            raise SystemExit("seed-toolchain.yaml missing protoc version")
+        if not sha:
+            raise SystemExit(f"seed-toolchain.yaml missing protoc sha256 for {target}")
         entries.append({
             "name": "protoc",
             "version": version,
@@ -88,6 +109,16 @@ def plugin_version(seed, lang, name):
     return str(raw)
 
 
+def plugin_sha256(seed, lang, name, target):
+    raw = seed.get("plugins", {}).get(lang, {}).get(name)
+    if not isinstance(raw, dict):
+        return ""
+    per_target = raw.get("sha256_per_target")
+    if isinstance(per_target, dict) and per_target.get(target):
+        return per_target[target]
+    return raw.get("sha256", "")
+
+
 def main(argv):
     if len(argv) < 3:
         raise SystemExit("usage: seed_toolchain.py <command> <repo-root> [...]")
@@ -96,10 +127,16 @@ def main(argv):
     seed = seed_toolchain(repo_root)
     if command == "protoc-version":
         print(protoc_version(seed))
+    elif command == "seed-release":
+        print(seed_release(seed))
     elif command == "plugin-version":
         if len(argv) != 5:
             raise SystemExit("usage: seed_toolchain.py plugin-version <repo-root> <lang> <plugin>")
         print(plugin_version(seed, argv[3], argv[4]))
+    elif command == "plugin-sha256":
+        if len(argv) != 6:
+            raise SystemExit("usage: seed_toolchain.py plugin-sha256 <repo-root> <lang> <plugin> <target>")
+        print(plugin_sha256(seed, argv[3], argv[4], argv[5]))
     elif command == "manifest-json":
         if len(argv) != 5:
             raise SystemExit("usage: seed_toolchain.py manifest-json <repo-root> <lang> <target>")

@@ -197,6 +197,25 @@ func discoverRefsWithResolutionCache(expression *string, root *string, specifier
 }
 
 func discoverRefsBypassWithWrites(expression *string, root *string, specifiers int, limit int, timeout int) sdkdiscover.DiscoverResult {
+	if specifiers >= 0 && specifiers <= sdkdiscover.ALL {
+		normalizedSpecifiers := normalizeResolutionSpecifiers(specifiers)
+		if _, ok := resolutionSlugExpression(expression); ok {
+			if canonicalRoot, err := canonicalResolutionRoot(root); err == nil {
+				canonicalRootPtr := canonicalRoot
+				fresh := resolutionDiscover(nil, &canonicalRootPtr, normalizedSpecifiers, sdkdiscover.NO_LIMIT, timeout)
+				if fresh.Error != "" {
+					return fresh
+				}
+				_ = writeResolutionSnapshot(canonicalRoot, normalizedSpecifiers, fresh.Found)
+				filtered := filterResolutionRefs(fresh.Found, expression)
+				if len(filtered) == 1 {
+					_ = writeResolutionGlobalEntry(filtered[0])
+				}
+				return sdkdiscover.DiscoverResult{Found: limitResolutionRefs(filtered, limit)}
+			}
+		}
+	}
+
 	fresh := resolutionDiscover(expression, root, specifiers, limit, timeout)
 	if fresh.Error != "" {
 		return fresh

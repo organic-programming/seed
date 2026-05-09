@@ -18,6 +18,7 @@ import (
 )
 
 const seedToolchainFile = "seed-toolchain.yaml"
+const sharedSeedReleaseSnapshotName = "seed-release.json"
 
 type ToolchainEntry struct {
 	Name    string `json:"name"`
@@ -32,6 +33,7 @@ type SeedToolchain struct {
 	Protoc      struct {
 		UpstreamTag     string            `yaml:"upstream_tag"`
 		Version         string            `yaml:"version"`
+		RequiredBy      map[string]bool   `yaml:"required_by"`
 		SHA256PerTarget map[string]string `yaml:"sha256_per_target"`
 	} `yaml:"protoc"`
 	CPPRuntime struct {
@@ -47,6 +49,12 @@ type sharedToolManifest struct {
 	SHA256      string `json:"sha256,omitempty"`
 	Source      string `json:"source,omitempty"`
 	InstalledAt string `json:"installed_at"`
+}
+
+type sharedSeedReleaseSnapshot struct {
+	SeedRelease string           `json:"seed_release"`
+	Toolchain   []ToolchainEntry `json:"toolchain,omitempty"`
+	UpdatedAt   string           `json:"updated_at"`
 }
 
 func LoadSeedToolchain(repoRoot string) (SeedToolchain, error) {
@@ -77,7 +85,7 @@ func ToolchainForSDK(repoRoot, lang, target string) ([]ToolchainEntry, error) {
 	}
 
 	entries := make([]ToolchainEntry, 0)
-	if sdkRequiresSharedProtoc(normalized) {
+	if sdkRequiresSharedProtoc(seed, normalized) {
 		version := protocVersion(seed)
 		if version == "" {
 			return nil, fmt.Errorf("%s missing protoc version", seedToolchainFile)
@@ -129,13 +137,8 @@ func ToolchainForSDK(repoRoot, lang, target string) ([]ToolchainEntry, error) {
 	return entries, nil
 }
 
-func sdkRequiresSharedProtoc(lang string) bool {
-	switch strings.TrimSpace(lang) {
-	case "csharp", "java", "js", "kotlin", "python", "ruby":
-		return true
-	default:
-		return false
-	}
+func sdkRequiresSharedProtoc(seed SeedToolchain, lang string) bool {
+	return seed.Protoc.RequiredBy[strings.TrimSpace(lang)]
 }
 
 func protocVersion(seed SeedToolchain) string {
@@ -160,6 +163,70 @@ func ensureSharedToolchain(ctx context.Context, entries []ToolchainEntry) ([]str
 		}
 	}
 	return notes, nil
+}
+
+func EnsureSharedToolchain(ctx context.Context, entries []ToolchainEntry) ([]string, error) {
+	return ensureSharedToolchain(ctx, entries)
+}
+
+func ensureSharedToolchainForPrebuilt(ctx context.Context, prebuilt Prebuilt) ([]string, error) {
+	notes, err := ensureSharedToolchain(ctx, prebuilt.Toolchain)
+	if err != nil {
+		return notes, err
+	}
+	if err := writeSharedSeedReleaseSnapshot(prebuilt.SeedRelease, prebuilt.Toolchain); err != nil {
+		return notes, err
+	}
+	return notes, nil
+}
+
+func writeSharedSeedReleaseSnapshot(seedRelease string, entries []ToolchainEntry) error {
+	seedRelease = strings.TrimSpace(seedRelease)
+	if seedRelease == "" || !containsSharedTool(entries) {
+		return nil
+	}
+	root := filepath.Join(SDKRoot(), "shared")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return fmt.Errorf("create %s: %w", root, err)
+	}
+	snapshot := sharedSeedReleaseSnapshot{
+		SeedRelease: seedRelease,
+		Toolchain:   entries,
+		UpdatedAt:   time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	data, err := json.MarshalIndent(snapshot, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	tmp, err := os.CreateTemp(root, sharedSeedReleaseSnapshotName+".*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpName)
+		return err
+	}
+	if err := os.Rename(tmpName, filepath.Join(root, sharedSeedReleaseSnapshotName)); err != nil {
+		_ = os.Remove(tmpName)
+		return err
+	}
+	return nil
+}
+
+func containsSharedTool(entries []ToolchainEntry) bool {
+	for _, entry := range entries {
+		if strings.TrimSpace(entry.Name) == "protoc" {
+			return true
+		}
+	}
+	return false
 }
 
 func ensureSharedProtoc(ctx context.Context, entry ToolchainEntry) (string, error) {
@@ -201,6 +268,9 @@ func ensureSharedProtoc(ctx context.Context, entry ToolchainEntry) (string, erro
 	}()
 
 	if err := materializeProtoc(ctx, entry, tmp); err != nil {
+		return "", err
+	}
+	if err := ensureSharedProtocExecutable(entry, tmp); err != nil {
 		return "", err
 	}
 	if err := verifySharedProtoc(entry, tmp); err != nil {
@@ -388,6 +458,9 @@ func verifySharedProtoc(entry ToolchainEntry, root string) error {
 	if info.IsDir() {
 		return fmt.Errorf("%s is a directory", binary)
 	}
+	if !strings.Contains(strings.TrimSpace(entry.Target), "windows") && info.Mode()&0o111 == 0 {
+		return fmt.Errorf("%s is not executable", binary)
+	}
 	if strings.TrimSpace(entry.SHA256) == "" {
 		return nil
 	}
@@ -399,6 +472,25 @@ func verifySharedProtoc(entry ToolchainEntry, root string) error {
 		return fmt.Errorf("shared protoc sha256 mismatch for %s: got %s, want %s", binary, actual, entry.SHA256)
 	}
 	return nil
+}
+
+func ensureSharedProtocExecutable(entry ToolchainEntry, root string) error {
+	if strings.Contains(strings.TrimSpace(entry.Target), "windows") {
+		return nil
+	}
+	binary := SharedProtocBinaryIn(root, entry.Target)
+	info, err := os.Stat(binary)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return fmt.Errorf("%s is a directory", binary)
+	}
+	mode := info.Mode().Perm()
+	if mode&0o111 != 0 {
+		return nil
+	}
+	return os.Chmod(binary, mode|0o111)
 }
 
 func writeSharedToolManifest(root string, manifest sharedToolManifest) error {
