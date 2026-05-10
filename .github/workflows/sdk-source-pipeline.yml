@@ -1405,6 +1405,14 @@ jobs:
           ruby-version: '3.1'
           bundler-cache: false
 
+      - name: Setup .NET
+        if: matrix.lang == 'csharp'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+
       - name: Resolve host SDK target
         id: host
         shell: bash
