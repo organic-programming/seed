@@ -30,9 +30,9 @@ func completeAvailableSdkLangs(cmd *cobra.Command, args []string, toComplete str
 	}
 	entries, _, err := sdkprebuilts.ListAvailable("")
 	if err != nil {
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return completeWithAll(nil, toComplete), cobra.ShellCompDirectiveNoFileComp
 	}
-	return uniqueLangsMatching(entries, toComplete), cobra.ShellCompDirectiveNoFileComp
+	return completeWithAll(uniqueLangsMatching(entries, toComplete), toComplete), cobra.ShellCompDirectiveNoFileComp
 }
 
 // completeCompilableSdkLangs lists langs whose build script + submodules
@@ -43,7 +43,7 @@ func completeCompilableSdkLangs(cmd *cobra.Command, args []string, toComplete st
 	}
 	entries, _, err := sdkprebuilts.ListCompilable("")
 	if err != nil {
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return completeWithAll(nil, toComplete), cobra.ShellCompDirectiveNoFileComp
 	}
 	out := make([]string, 0, len(entries))
 	seen := make(map[string]struct{})
@@ -61,7 +61,7 @@ func completeCompilableSdkLangs(cmd *cobra.Command, args []string, toComplete st
 		out = append(out, entry.Lang)
 	}
 	sort.Strings(out)
-	return out, cobra.ShellCompDirectiveNoFileComp
+	return completeWithAll(out, toComplete), cobra.ShellCompDirectiveNoFileComp
 }
 
 // completeAllSdkLangs returns the union of installed, available, and
@@ -157,4 +157,12 @@ func uniqueLangsMatching(entries []sdkprebuilts.Prebuilt, toComplete string) []s
 	}
 	sort.Strings(out)
 	return out
+}
+
+func completeWithAll(values []string, toComplete string) []string {
+	if strings.HasPrefix(sdkAllSentinel, toComplete) {
+		values = append(values, sdkAllSentinel)
+	}
+	sort.Strings(values)
+	return values
 }
