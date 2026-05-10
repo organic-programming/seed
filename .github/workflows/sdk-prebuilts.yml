@@ -1,4 +1,4 @@
-# SDK prebuilt publish: promotes artifacts produced by pipeline.yml tier 1 after a merged PR.
+# SDK prebuilt publish: promotes artifacts produced by sdk-source-pipeline after a merged PR.
 # Triggers: pull_request closed on master; runs on ubuntu-latest.
 # Owns: post-merge GitHub Release publication. See .github/workflows/README.md for pipeline order.
 name: sdk-prebuilts
@@ -8,9 +8,9 @@ on:
     types: [closed]
     branches: [master]
     paths:
-      - ".github/workflows/pipeline.yml"
       - ".github/workflows/sdk-prebuilts.yml"
       - ".github/workflows/_sdk-prebuilt-target.yml"
+      - ".github/workflows/sdk-source-pipeline.yml"
       - ".github/scripts/build-prebuilt-zig.sh"
       - ".github/scripts/build-prebuilt-cpp.sh"
       - ".github/scripts/build-prebuilt-c.sh"
@@ -27,7 +27,10 @@ on:
       - ".github/scripts/build-prebuilt-kotlin.sh"
       - ".github/scripts/build-prebuilt-js.sh"
       - ".github/scripts/lib-codegen-prebuilt.sh"
+      - ".github/scripts/seed_toolchain.py"
+      - ".github/scripts/sdk_ci_paths.py"
       - ".github/scripts/promote-sdk-prebuilts.sh"
+      - "seed-toolchain.yaml"
       - "sdk/zig-holons/**"
       - "sdk/cpp-holons/**"
       - "sdk/c-holons/**"
@@ -64,26 +67,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Locate successful pipeline run
+      - name: Resolve SDK publish set
+        id: publish-set
+        shell: bash
+        run: |
+          set -euo pipefail
+          files="$RUNNER_TEMP/changed-files.txt"
+          gh pr diff "${{ github.event.pull_request.number }}" --name-only >"$files"
+          echo "Changed files for PR #${{ github.event.pull_request.number }}:"
+          sed 's/^/changed: /' "$files"
+          publish_set="$(python3 .github/scripts/sdk_ci_paths.py publish-set --files "$files")"
+          echo "sdks=${publish_set}" >>"$GITHUB_OUTPUT"
+          echo "SDK publish set: ${publish_set}"
+
+      - name: Locate successful sdk-source-pipeline run
         id: source-run
         shell: bash
         run: |
           set -euo pipefail
           run_id="$(
             gh run list \
-              --workflow pipeline.yml \
+              --workflow sdk-source-pipeline.yml \
               --json databaseId,headSha,conclusion,event,createdAt \
               --limit 100 \
               --jq ".[] | select(.event == \"pull_request\" and .conclusion == \"success\" and .headSha == \"${PR_HEAD_SHA}\") | .databaseId" |
             head -n 1
           )"
           if [[ -z "$run_id" ]]; then
-            echo "No successful pipeline pull_request run found for ${PR_HEAD_SHA}" >&2
-            exit 1
+            echo "No successful sdk-source-pipeline pull_request run found for ${PR_HEAD_SHA}; nothing to promote."
+            echo "skip=true" >>"$GITHUB_OUTPUT"
+            exit 0
           fi
+          echo "skip=false" >>"$GITHUB_OUTPUT"
           echo "run-id=${run_id}" >>"$GITHUB_OUTPUT"
 
       - name: Download PR artifacts
+        if: steps.source-run.outputs.skip != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -91,7 +110,10 @@ jobs:
           gh run download "${{ steps.source-run.outputs.run-id }}" --dir "$RUNNER_TEMP/sdk-prebuilt-artifacts"
 
       - name: Publish GitHub Releases
+        if: steps.source-run.outputs.skip != 'true'
         shell: bash
+        env:
+          SDK_PREBUILTS_PROMOTE_SDKS_JSON: ${{ steps.publish-set.outputs.sdks }}
         run: |
           set -euo pipefail
           if ! find "$RUNNER_TEMP/sdk-prebuilt-artifacts" \
