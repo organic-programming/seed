@@ -23,7 +23,9 @@ all official language SDKs may carry proto codegen plugins used by
 
 ```text
 op sdk install <lang> [--target <triplet>] [--version <v>] [--source <url-or-file>]
+op sdk install all    [--target <triplet>]
 op sdk build   <lang> [--target <triplet>] [--version <v>] [--jobs <n>] [--force] [--no-install]
+op sdk build   all    [--target <triplet>] [--version <v>] [--jobs <n>] [--force] [--no-install]
 op sdk list           [--installed | --available | --compilable] [--lang <lang>]
 op sdk verify  <lang> [--target <triplet>] [--version <v>]
 op sdk path    <lang> [--target <triplet>] [--version <v>]
@@ -50,6 +52,42 @@ is expensive (~30-60 min cold, fast on cache hit).
 | The release isn't published for your (lang, target) yet | `build` |
 | You're hacking on a SDK and want to validate locally | `build --force` |
 | You just want the tarball, not installation | `build --no-install` |
+
+## Batch Build And Install
+
+`all` is a sentinel positional argument for `op sdk build` and
+`op sdk install`. It expands to every SDK in this fixed order:
+
+```text
+go java kotlin dart swift python csharp js js-web rust ruby zig c cpp
+```
+
+The batch runs sequentially. `op sdk build all --jobs N` forwards `N` to each
+per-SDK build script as compile parallelism; it does not build multiple SDKs at
+once. Inter-SDK parallelism is intentionally deferred.
+
+Failures are tolerant: a failed SDK does not abort the batch, and the command
+continues with the next SDK. The process exits `0` only when every attempted SDK
+succeeds; any `FAIL` yields a non-zero exit. SDKs that the existing
+`op sdk list --compilable` blocker logic reports as not buildable on this host
+are marked `SKIPPED`, include a one-line reason, and do not count as failures.
+When `--target` is supplied to `build all`, SDKs that do not support that target
+are also skipped with a clear reason.
+
+Each batch gets a UTC run ID in `YYYYMMDDTHHMMSSZ` format. Logs are written
+under:
+
+```text
+$OPPATH/logs/sdk-build/<run-id>/<lang>.log
+$OPPATH/logs/sdk-build/<run-id>/summary.txt
+$OPPATH/logs/sdk-install/<run-id>/<lang>.log
+$OPPATH/logs/sdk-install/<run-id>/summary.txt
+```
+
+Stdout stays concise: one progress line before each SDK, one status line after
+it (`OK`, `FAIL`, or `SKIPPED`), then the same consolidated table written to
+`summary.txt`. On failure, `op` prints the last 20 lines of that SDK's log to
+stderr for quick triage; full output remains in the per-SDK log.
 
 `list --available` reads the SDK GitHub Release manifest. When a
 `release-manifest.json` asset is present, it is the source of truth for archive

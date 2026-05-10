@@ -249,10 +249,18 @@ op sdk verify zig                          # tree hash check
 # Re-build after editing SDK sources:
 op sdk build zig --force                   # bypass the cached tarball
 
+# Rebuild every SDK after a shared toolchain bump:
+op sdk build all --force --no-install      # sequential, per-SDK logs under $OPPATH/logs/sdk-build/
+
 # Bump version and ship a release tarball without installing locally:
 op sdk build zig --version 0.2.0 --no-install
 ls dist/sdk-prebuilts/zig/aarch64-apple-darwin/
 ```
+
+Use `op sdk build all` as the canonical local "rebuild everything" flow after
+changes such as a shared `protoc` bump. It uses the documented fixed SDK order,
+continues past individual SDK failures, writes one log per SDK plus
+`summary.txt`, and keeps `--jobs` scoped to per-SDK compile parallelism.
 
 ## Cross-references
 
