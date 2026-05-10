@@ -2,7 +2,6 @@
 set -euo pipefail
 
 sdk_target="${SDK_TARGET:?SDK_TARGET is required}"
-sdk_version="${SDK_VERSION:-1.58.3}"
 jobs="${RUBY_HOLONS_JOBS:-4}"
 ruby_bin="${RUBY:-$(command -v ruby || true)}"
 bundle_bin="${BUNDLE:-$(command -v bundle || true)}"
@@ -53,6 +52,7 @@ fi
 # shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
 source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
 trap 'cleanup_grpc_third_party_pollution "$repo_root"' EXIT
+sdk_version="${SDK_VERSION:-$(seed_release "$repo_root")}"
 ruby_sdk_dir="${repo_root}/sdk/ruby-holons"
 dist_dir="${repo_root}/dist/sdk-prebuilts/ruby/${sdk_target}"
 work_dir="${ruby_sdk_dir}/.ruby-prebuilt/${sdk_target}"

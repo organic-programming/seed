@@ -8,8 +8,9 @@ on:
         required: true
         type: string
       sdk-version:
-        required: true
+        required: false
         type: string
+        default: ''
       sdk-target:
         required: true
         type: string

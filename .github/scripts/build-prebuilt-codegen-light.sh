@@ -3,13 +3,13 @@ set -euo pipefail
 
 sdk_lang="${SDK_LANG:?SDK_LANG is required}"
 sdk_target="${SDK_TARGET:?SDK_TARGET is required}"
-sdk_version="${SDK_VERSION:-0.1.0}"
 
 script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 # shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
 source "${script_dir}/lib-codegen-prebuilt.sh"
 
 repo_root="$(repo_root_or_pwd)"
+sdk_version="${SDK_VERSION:-$(seed_release "$repo_root")}"
 dist_dir="${repo_root}/dist/sdk-prebuilts/${sdk_lang}/${sdk_target}"
 work_dir="${repo_root}/sdk/${sdk_lang}-holons/.codegen-prebuilt/${sdk_target}"
 stage="${work_dir}/stage/${sdk_lang}-holons-v${sdk_version}-${sdk_target}"
