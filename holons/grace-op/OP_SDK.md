@@ -44,6 +44,13 @@ from the local gRPC + per-SDK sources, then installs the resulting tarball into
 alternatives — no silent fallback. `install` is cheap (~30 s download); `build`
 is expensive (~30-60 min cold, fast on cache hit).
 
+CI mirrors that distinction. `sdk-source-pipeline` uses `op sdk build` through
+the SDK prebuilt matrix and feeds run-local artifacts to composites, bouquets,
+and host-only SDK deep tests. `consumer-pipeline` skips SDK source builds and
+validates consumers against published releases via `op sdk install <lang>`.
+Merged SDK-source PRs are promoted by `sdk-prebuilts.yml`, which republishes a
+coherent SDK set when the central toolchain pin or foundation SDKs change.
+
 | Use case | Verb |
 |---|---|
 | You want a published release for your host | `install` |
@@ -92,7 +99,10 @@ the tree no longer matches the recorded metadata.
 
 SDKs that need protoc declare a `toolchain` slice in their archive manifest.
 The slice is derived from the repo-root `seed-toolchain.yaml`; per-SDK manifests
-also echo `seed_release`, but do not own the version pins. The central
+also echo `seed_release`, but do not own the version pins. Official prebuilt
+scripts use `seed_release` as the default SDK archive version, yielding release
+tags of the form `<lang>-holons-v<seed_release>` unless `SDK_VERSION` is
+explicitly supplied. The central
 `protoc.required_by` map declares which SDKs need the shared protoc entry.
 During `op sdk install`, `op` materialises missing, non-executable, or
 sha-mismatched shared toolchain entries under `$OPPATH/sdk/shared/` before

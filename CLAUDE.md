@@ -79,10 +79,20 @@ steps:
 Each check is a `go test -tags e2e` under `ader/catalogues/grace-op/integration/<cmd>/`, using the shared package `github.com/organic-programming/seed/ader/catalogues/grace-op/integration` (`SetupIsolatedOP`, `assertLifecycleEqual`). Run the suite whenever a change touches `op`, `ader`, an SDK, or a holon's external contract:
 
 ```bash
-ader test ader/catalogues/grace-op --suite op-invoke --profile smoke --source workspace
+ader test ader/catalogues/grace-op --suite op_invoke --profile smoke --source workspace
 ```
 
 `ader test` never mutates the tree or the YAML — only `ader promote` / `ader downgrade` rewrite `steps.<id>.lane`. Promotion is suite-local. Full command surface: `TDD.md`, `holons/clem-ader/README.md`. The suites are advanced R&D (self-bootstrapping chains, long timeouts). Use them, flag awkwardness, don't route around them.
+
+CI is split by change type: `sdk-source-pipeline` validates SDK source and
+prebuilt-tooling changes with fresh run-local SDK artifacts and host-only
+`sdk-deep-tests`; `consumer-pipeline` validates non-SDK-source changes against
+published prebuilts installed with `op sdk install`. The `local-dev` bouquet
+owns `op_invoke` smoke coverage so it runs once per workflow, not inside each
+SDK deep-test matrix entry.
+SDK prebuilt scripts derive their default `SDK_VERSION` from
+`seed-toolchain.yaml`'s `seed_release`; only set `SDK_VERSION` explicitly for
+intentional out-of-band builds.
 
 ## Architectural rules
 

@@ -2,7 +2,8 @@
 
 # Organic Programming
 
-[![pipeline](https://github.com/organic-programming/seed/actions/workflows/pipeline.yml/badge.svg)](https://github.com/organic-programming/seed/actions/workflows/pipeline.yml)
+[![sdk-source-pipeline](https://github.com/organic-programming/seed/actions/workflows/sdk-source-pipeline.yml/badge.svg)](https://github.com/organic-programming/seed/actions/workflows/sdk-source-pipeline.yml)
+[![consumer-pipeline](https://github.com/organic-programming/seed/actions/workflows/consumer-pipeline.yml/badge.svg)](https://github.com/organic-programming/seed/actions/workflows/consumer-pipeline.yml)
 
 A bio-inspired, Unix-inspired paradigm for a hybrid human–agent world.
 A `.proto` at the center, facets radiating from it — and legacy code,
