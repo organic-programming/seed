@@ -882,6 +882,15 @@ jobs:
             op sdk install "$lang"
           done
 
+      - name: Install grpcurl for C smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v grpcurl >/dev/null 2>&1; then
+            go install github.com/fullstorydev/grpcurl/cmd/grpcurl@v1.9.3
+          fi
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
       - name: Run ader bouquet
         run: ader test-bouquet ader --name "$BOUQUET"
 

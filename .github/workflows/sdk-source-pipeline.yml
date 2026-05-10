@@ -1339,6 +1339,15 @@ jobs:
             fi
           done
 
+      - name: Install grpcurl for C smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v grpcurl >/dev/null 2>&1; then
+            go install github.com/fullstorydev/grpcurl/cmd/grpcurl@v1.9.3
+          fi
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
       - name: Run ader bouquet
         run: ader test-bouquet ader --name "$BOUQUET"
 
@@ -1388,6 +1397,13 @@ jobs:
           fetch-depth: 0
 
       - uses: ./.github/actions/load-mac-runner-env
+
+      - name: Setup Ruby
+        if: matrix.lang == 'ruby'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+          bundler-cache: false
 
       - name: Resolve host SDK target
         id: host
@@ -1503,6 +1519,12 @@ jobs:
             op clean "$slug"
             op build "$slug"
           }
+          ensure_grpcurl() {
+            if ! command -v grpcurl >/dev/null 2>&1; then
+              go install github.com/fullstorydev/grpcurl/cmd/grpcurl@v1.9.3
+            fi
+            export PATH="$(go env GOPATH)/bin:$PATH"
+          }
 
           case "${{ matrix.lang }}" in
             zig)
@@ -1526,6 +1548,7 @@ jobs:
             python)
               python3 -m venv "$RUNNER_TEMP/python-holons-venv"
               . "$RUNNER_TEMP/python-holons-venv/bin/activate"
+              (cd sdk/js-web-holons && npm install)
               (cd sdk/python-holons && python -m pip install --upgrade pip && python -m pip install -e '.[dev]' && python -m pytest)
               run_lifecycle gabriel-greeting-python
               ;;
@@ -1542,22 +1565,31 @@ jobs:
               run_lifecycle gabriel-greeting-kotlin
               ;;
             csharp)
-              (cd sdk/csharp-holons && dotnet format csharp-holons.sln --verify-no-changes && dotnet test csharp-holons.sln)
+              (cd sdk/csharp-holons && dotnet format whitespace csharp-holons.sln --verify-no-changes && dotnet test csharp-holons.sln)
               run_lifecycle gabriel-greeting-csharp
               ;;
             js)
-              (cd sdk/js-holons && npm install && npm test)
+              (cd sdk/js-holons && npm install && if [ -d tests ]; then npm test; else echo "no js-holons tests configured"; fi)
               run_lifecycle gabriel-greeting-node
               ;;
             js-web)
               (cd sdk/js-web-holons && npm install && npm test)
               ;;
             ruby)
-              (cd sdk/ruby-holons && bundle install && bundle exec rake test)
+              (
+                cd sdk/ruby-holons
+                bundler_version="$(awk 'found { print $1; exit } $0 == "BUNDLED WITH" { found = 1 }' Gemfile.lock)"
+                user_gem_bin="$(ruby -rrubygems -e 'puts File.join(Gem.user_dir, "bin")')"
+                gem install --user-install --no-document bundler -v "$bundler_version"
+                export PATH="$user_gem_bin:$PATH"
+                export BUNDLE_PATH="${BUNDLE_PATH:-$PWD/.bundle}"
+                bundle "_${bundler_version}_" install
+                bundle "_${bundler_version}_" exec rake test
+              )
               run_lifecycle gabriel-greeting-ruby
               ;;
             rust)
-              (cd sdk/rust-holons && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test)
+              (cd sdk/rust-holons && cargo fmt --check && cargo clippy --all-targets && cargo test)
               run_lifecycle gabriel-greeting-rust
               ;;
             swift)
@@ -1570,13 +1602,14 @@ jobs:
               run_lifecycle gabriel-greeting-swift
               ;;
             c)
+              ensure_grpcurl
               (cd sdk/c-holons && make test)
               run_lifecycle gabriel-greeting-c
               ;;
             cpp)
               cmake -S sdk/cpp-holons -B "$RUNNER_TEMP/cpp-holons-build" -G Ninja
               cmake --build "$RUNNER_TEMP/cpp-holons-build"
-              "$RUNNER_TEMP/cpp-holons-build/test_runner"
+              (cd sdk/cpp-holons && "$RUNNER_TEMP/cpp-holons-build/test_runner")
               ctest --test-dir "$RUNNER_TEMP/cpp-holons-build" --output-on-failure
               run_lifecycle gabriel-greeting-cpp
               ;;

@@ -20,8 +20,12 @@ public static class LevelExt
 {
     public static string Name(this Level l) => l switch
     {
-        Level.Trace => "TRACE", Level.Debug => "DEBUG", Level.Info => "INFO",
-        Level.Warn => "WARN", Level.Error => "ERROR", Level.Fatal => "FATAL",
+        Level.Trace => "TRACE",
+        Level.Debug => "DEBUG",
+        Level.Info => "INFO",
+        Level.Warn => "WARN",
+        Level.Error => "ERROR",
+        Level.Fatal => "FATAL",
         _ => "UNSPECIFIED",
     };
 }

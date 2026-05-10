@@ -13,10 +13,8 @@ abstract interface class JsonUnaryMethodDescriptor {
   });
 }
 
-class UnaryJsonMethodDescriptor<
-  Request extends GeneratedMessage,
-  Response extends GeneratedMessage
-> implements JsonUnaryMethodDescriptor {
+class UnaryJsonMethodDescriptor<Request extends GeneratedMessage,
+    Response extends GeneratedMessage> implements JsonUnaryMethodDescriptor {
   const UnaryJsonMethodDescriptor({
     required this.path,
     required this.createRequest,
@@ -60,7 +58,7 @@ class UnaryJsonMethodDescriptor<
 
 class UnaryJsonMethodRegistry {
   UnaryJsonMethodRegistry(Iterable<JsonUnaryMethodDescriptor> methods)
-    : _methodsByPath = _index(methods);
+      : _methodsByPath = _index(methods);
 
   final Map<String, JsonUnaryMethodDescriptor> _methodsByPath;
 
@@ -70,11 +68,9 @@ class UnaryJsonMethodRegistry {
     Object? payload,
     CallOptions? callOptions,
   }) {
-    return resolve(method).invoke(
-      channel,
-      payload: payload,
-      callOptions: callOptions,
-    );
+    return resolve(
+      method,
+    ).invoke(channel, payload: payload, callOptions: callOptions);
   }
 
   JsonUnaryMethodDescriptor resolve(String method) {
@@ -106,7 +102,11 @@ class UnaryJsonMethodRegistry {
 String canonicalGrpcMethodPath(String method) {
   final trimmed = method.trim();
   if (trimmed.isEmpty) {
-    throw ArgumentError.value(method, 'method', 'Method path must not be empty');
+    throw ArgumentError.value(
+      method,
+      'method',
+      'Method path must not be empty',
+    );
   }
   return trimmed.startsWith('/') ? trimmed : '/$trimmed';
 }

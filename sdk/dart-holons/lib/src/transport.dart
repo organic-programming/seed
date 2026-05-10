@@ -70,7 +70,8 @@ abstract class RuntimeTransportListener {
 }
 
 class SocketRuntimeConnection implements RuntimeConnection {
-  SocketRuntimeConnection(this._socket) : _iterator = StreamIterator<List<int>>(_socket);
+  SocketRuntimeConnection(this._socket)
+      : _iterator = StreamIterator<List<int>>(_socket);
 
   final Socket _socket;
   final StreamIterator<List<int>> _iterator;
@@ -177,10 +178,7 @@ class StdioRuntimeConnection implements RuntimeConnection {
 }
 
 class TcpRuntimeListener implements RuntimeTransportListener {
-  TcpRuntimeListener(this.socket)
-      : _subscription = socket.listen(
-          (_) {},
-        ) {
+  TcpRuntimeListener(this.socket) : _subscription = socket.listen((_) {}) {
     _subscription
       ..onData(_onSocket)
       ..onDone(_onDone)
@@ -267,9 +265,7 @@ class TcpRuntimeListener implements RuntimeTransportListener {
 
 class UnixRuntimeListener implements RuntimeTransportListener {
   UnixRuntimeListener(this.socket, this.path)
-      : _subscription = socket.listen(
-          (_) {},
-        ) {
+      : _subscription = socket.listen((_) {}) {
     _subscription
       ..onData(_onSocket)
       ..onDone(_onDone)
@@ -498,7 +494,10 @@ Future<ServerSocket> _listenUnix(String path) async {
     }
   } catch (_) {}
 
-  return ServerSocket.bind(InternetAddress(path, type: InternetAddressType.unix), 0);
+  return ServerSocket.bind(
+    InternetAddress(path, type: InternetAddressType.unix),
+    0,
+  );
 }
 
 (String, int) _splitHostPort(String addr, int defaultPort) {
