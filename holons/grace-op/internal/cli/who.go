@@ -10,6 +10,7 @@ import (
 	sdkdiscover "github.com/organic-programming/go-holons/pkg/discover"
 	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
 	openv "github.com/organic-programming/grace-op/internal/env"
+	"github.com/organic-programming/grace-op/internal/holons"
 	"github.com/organic-programming/grace-op/internal/scaffold"
 	"github.com/organic-programming/grace-op/internal/suggest"
 	"github.com/organic-programming/grace-op/internal/who"
@@ -209,6 +210,11 @@ func cmdTemplateNew(format Format, quiet bool, args []string) int {
 	printer.Step("rendering template " + templateName + "...")
 	result, err := scaffold.Generate(templateName, slug, scaffold.GenerateOptions{Overrides: overrides})
 	if err != nil {
+		printer.Done("template generation failed", err)
+		fmt.Fprintf(os.Stderr, "op new: %v\n", err)
+		return 1
+	}
+	if err := holons.TouchResolutionCacheDirty(); err != nil {
 		printer.Done("template generation failed", err)
 		fmt.Fprintf(os.Stderr, "op new: %v\n", err)
 		return 1

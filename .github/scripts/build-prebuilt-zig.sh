@@ -323,7 +323,7 @@ cp -R "$prefix/lib/." "$stage/lib/"
 if [[ -d "$prefix/bin" ]]; then
   cp -R "$prefix/bin/." "$stage/bin/"
 fi
-install_protoc_release "$sdk_target" "$stage"
+rm -f "$stage/bin/protoc" "$stage/bin/protoc.exe"
 build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" zig
 if [[ -f "$sdk_out/lib/libholons_zig.a" ]]; then
   cp "$sdk_out/lib/libholons_zig.a" "$stage/lib/"
@@ -343,16 +343,21 @@ fi
   echo "zig=$("$zig_bin" version)"
 } >"$stage/share/prebuilt.env"
 
+toolchain_json="$(toolchain_manifest_json "$repo_root" zig "$sdk_target")"
+seed_release_value="$(seed_release "$repo_root")"
+
 cat >"$stage/manifest.json" <<EOF
 {
   "lang": "zig",
   "version": "${sdk_version}",
   "target": "${sdk_target}",
+  "seed_release": "${seed_release_value}",
   "codegen": {
     "plugins": [
       {"name": "zig", "binary": "bin/protoc-gen-zig$(target_exe_suffix "$sdk_target")", "out_subdir": "c"}
     ]
-  }
+  },
+  "toolchain": ${toolchain_json}
 }
 EOF
 

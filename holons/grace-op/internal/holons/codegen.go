@@ -79,6 +79,8 @@ type resolvedCodegenPlugin struct {
 	Binary             string
 	OutSubdir          string
 	Parameter          string
+	ProtocPath         string
+	ProtocInclude      string
 	PathRewrite        codegenPathRewriteMode
 	OutputPathRewrites map[string]string
 }
@@ -91,12 +93,14 @@ type emittedCodegenFile struct {
 }
 
 type codegenDistributionManifest struct {
-	Lang    string `json:"lang"`
-	Version string `json:"version"`
-	Target  string `json:"target"`
-	Codegen struct {
+	Lang        string `json:"lang"`
+	Version     string `json:"version"`
+	Target      string `json:"target"`
+	SeedRelease string `json:"seed_release,omitempty"`
+	Codegen     struct {
 		Plugins []codegenDistributionPlugin `json:"plugins"`
 	} `json:"codegen"`
+	Toolchain []sdkprebuilts.ToolchainEntry `json:"toolchain,omitempty"`
 }
 
 type codegenDistributionPlugin struct {
@@ -627,14 +631,23 @@ func resolveCodegenPlugin(language, target string) (resolvedCodegenPlugin, error
 		if _, err := safeCodegenJoin(string(filepath.Separator), outSubdir); err != nil {
 			return resolvedCodegenPlugin{}, fmt.Errorf("codegen plugin %q out_subdir: %w", language, err)
 		}
+		if _, err := sdkprebuilts.EnsureSharedToolchain(context.Background(), dist.Toolchain); err != nil {
+			return resolvedCodegenPlugin{}, err
+		}
+		protocPath, protocInclude, _, err := sdkprebuilts.ProtocFromToolchain(dist.Toolchain)
+		if err != nil {
+			return resolvedCodegenPlugin{}, err
+		}
 		return resolvedCodegenPlugin{
-			Name:      language,
-			SDK:       sdk,
-			Version:   strings.TrimSpace(dist.Version),
-			Target:    strings.TrimSpace(dist.Target),
-			Root:      root,
-			Binary:    binary,
-			OutSubdir: outSubdir,
+			Name:          language,
+			SDK:           sdk,
+			Version:       strings.TrimSpace(dist.Version),
+			Target:        strings.TrimSpace(dist.Target),
+			Root:          root,
+			Binary:        binary,
+			OutSubdir:     outSubdir,
+			ProtocPath:    protocPath,
+			ProtocInclude: protocInclude,
 		}, nil
 	}
 	sort.Strings(declared)
@@ -772,6 +785,12 @@ func invokeCodegenPlugin(ctx context.Context, plugin resolvedCodegenPlugin, reqB
 
 	cmd := exec.CommandContext(ctx, plugin.Binary)
 	cmd.Dir = tmp
+	if strings.TrimSpace(plugin.ProtocPath) != "" {
+		cmd.Env = append(os.Environ(),
+			"OP_SDK_PROTOC="+plugin.ProtocPath,
+			"OP_SDK_PROTOC_INCLUDE="+plugin.ProtocInclude,
+		)
+	}
 	cmd.Stdin = bytes.NewReader(reqBytes)
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout

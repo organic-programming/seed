@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/organic-programming/grace-op/api"
@@ -27,6 +28,8 @@ const (
 	viperKeyOPBIN   = "runtime_bin"
 	viperKeyTimeout = "resolve_timeout"
 	viperKeyOrigin  = "show_origin"
+	viperKeyNoCache = "resolution_no_cache"
+	viperKeyPurge   = "resolution_purge_cache"
 )
 
 type commandExitError struct {
@@ -50,6 +53,8 @@ func Execute() int {
 func Run(args []string, version string) int {
 	originalEnv := captureGlobalEnv()
 	defer restoreGlobalEnv(originalEnv)
+	holons.ResetResolutionCacheOptions()
+	defer holons.ResetResolutionCacheOptions()
 
 	rootCmd = newRootCmd(version)
 	if isShellCompletionRequest(args) {
@@ -141,11 +146,17 @@ func newRootCmd(version string) *cobra.Command {
 			if _, err := currentFormat(); err != nil {
 				return err
 			}
-			return applyGlobalEnvOverrides(internalGlobalOptions{
-				root:  strings.TrimSpace(viper.GetString(viperKeyRoot)),
-				path:  strings.TrimSpace(viper.GetString(viperKeyPath)),
-				opbin: strings.TrimSpace(viper.GetString(viperKeyOPBIN)),
-			})
+			opts := internalGlobalOptions{
+				root:       strings.TrimSpace(viper.GetString(viperKeyRoot)),
+				path:       strings.TrimSpace(viper.GetString(viperKeyPath)),
+				opbin:      strings.TrimSpace(viper.GetString(viperKeyOPBIN)),
+				noCache:    viper.GetBool(viperKeyNoCache),
+				purgeCache: viper.GetBool(viperKeyPurge),
+			}
+			if err := applyGlobalEnvOverrides(opts); err != nil {
+				return err
+			}
+			return applyResolutionCacheOptions(opts)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return executeRootFallback(cmd, args)
@@ -208,6 +219,8 @@ func registerRootPersistentFlags(cmd *cobra.Command) {
 	flags.String("opbin", "", "override OPBIN")
 	flags.Int("timeout", 0, "discovery timeout in milliseconds")
 	flags.Bool("origin", false, "print the resolved origin for matching targets")
+	flags.Bool("no-cache", false, "bypass resolution cache reads and refresh cache on success")
+	flags.Bool("purge-cache", false, "delete the op resolution cache before continuing")
 
 	_ = flags.MarkHidden("path")
 	_ = flags.MarkHidden("opbin")
@@ -222,6 +235,8 @@ func registerRootPersistentFlags(cmd *cobra.Command) {
 	mustBindPFlag(viperKeyOPBIN, flags.Lookup("opbin"))
 	mustBindPFlag(viperKeyTimeout, flags.Lookup("timeout"))
 	mustBindPFlag(viperKeyOrigin, flags.Lookup("origin"))
+	mustBindPFlag(viperKeyNoCache, flags.Lookup("no-cache"))
+	mustBindPFlag(viperKeyPurge, flags.Lookup("purge-cache"))
 
 	mustBindEnv(viperKeyFormat, "OPFORMAT")
 	mustBindEnv(viperKeyQuiet, "OPQUIET")
@@ -255,6 +270,12 @@ func executeRootFallback(cmd *cobra.Command, rawArgs []string) error {
 	}
 	if err := applyGlobalEnvOverrides(opts); err != nil {
 		return err
+	}
+	if err := applyResolutionCacheOptions(opts); err != nil {
+		return err
+	}
+	if len(args) == 0 && opts.purgeCache {
+		return nil
 	}
 
 	format := opts.format
@@ -330,13 +351,15 @@ func globalOptionsFromEnvironment() (internalGlobalOptions, error) {
 		return internalGlobalOptions{}, err
 	}
 	return internalGlobalOptions{
-		format:  format,
-		quiet:   viper.GetBool(viperKeyQuiet),
-		root:    strings.TrimSpace(viper.GetString(viperKeyRoot)),
-		path:    strings.TrimSpace(viper.GetString(viperKeyPath)),
-		opbin:   strings.TrimSpace(viper.GetString(viperKeyOPBIN)),
-		timeout: viper.GetInt(viperKeyTimeout),
-		origin:  viper.GetBool(viperKeyOrigin),
+		format:     format,
+		quiet:      viper.GetBool(viperKeyQuiet),
+		root:       strings.TrimSpace(viper.GetString(viperKeyRoot)),
+		path:       strings.TrimSpace(viper.GetString(viperKeyPath)),
+		opbin:      strings.TrimSpace(viper.GetString(viperKeyOPBIN)),
+		timeout:    viper.GetInt(viperKeyTimeout),
+		origin:     viper.GetBool(viperKeyOrigin),
+		noCache:    viper.GetBool(viperKeyNoCache),
+		purgeCache: viper.GetBool(viperKeyPurge),
 	}, nil
 }
 
@@ -355,6 +378,14 @@ func applyGlobalEnvOverrides(opts internalGlobalOptions) error {
 		if err := os.Setenv("OPBIN", opts.opbin); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func applyResolutionCacheOptions(opts internalGlobalOptions) error {
+	holons.SetResolutionCacheDisabled(opts.noCache)
+	if opts.purgeCache {
+		return holons.PurgeResolutionCache()
 	}
 	return nil
 }
@@ -383,6 +414,9 @@ func executeRawCommand(cmd *cobra.Command, rawArgs []string, consumeFormat bool,
 		return cmd.Help()
 	}
 	if err := applyGlobalEnvOverrides(opts); err != nil {
+		return err
+	}
+	if err := applyResolutionCacheOptions(opts); err != nil {
 		return err
 	}
 	return runCommandCode(handler(opts.format, opts.runtimeOptions(), args))
@@ -455,18 +489,20 @@ func completeHolonSlugs(cmd *cobra.Command, args []string, toComplete string) ([
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	seen := make(map[string]struct{})
-	out := make([]string, 0)
-	appendSlug := func(value string) {
+	type completionCandidate struct {
+		value string
+		path  string
+	}
+	candidatesByValue := map[string][]completionCandidate{}
+	appendCandidate := func(value string, path string) {
 		value = normalizeHolonCompletionValue(value)
 		if value == "" || !strings.HasPrefix(value, toComplete) {
 			return
 		}
-		if _, ok := seen[value]; ok {
-			return
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
+		candidatesByValue[value] = append(candidatesByValue[value], completionCandidate{
+			value: value,
+			path:  path,
+		})
 	}
 
 	if local, err := holons.DiscoverLocalHolons(); err == nil {
@@ -475,7 +511,9 @@ func completeHolonSlugs(cmd *cobra.Command, args []string, toComplete string) ([
 			if slug == "" {
 				slug = filepath.Base(holon.Dir)
 			}
-			appendHolonCompletionIdentity(appendSlug, slug, holon.Identity.Aliases)
+			appendHolonCompletionIdentity(func(value string) {
+				appendCandidate(value, holon.Dir)
+			}, slug, holon.Identity.Aliases)
 		}
 	}
 	if cached, err := holons.DiscoverCachedHolons(); err == nil {
@@ -484,14 +522,61 @@ func completeHolonSlugs(cmd *cobra.Command, args []string, toComplete string) ([
 			if slug == "" {
 				slug = filepath.Base(holon.Dir)
 			}
-			appendHolonCompletionIdentity(appendSlug, slug, holon.Identity.Aliases)
+			appendHolonCompletionIdentity(func(value string) {
+				appendCandidate(value, holon.Dir)
+			}, slug, holon.Identity.Aliases)
 		}
 	}
 	for _, entry := range holons.DiscoverInOPBIN() {
-		appendInstalledHolonCompletionEntry(appendSlug, entry)
+		appendInstalledHolonCompletionEntry(func(value string) {
+			_, path := splitCompletionEntry(entry)
+			appendCandidate(value, path)
+		}, entry)
 	}
 
+	seen := make(map[string]struct{})
+	out := make([]string, 0, len(candidatesByValue))
+	values := make([]string, 0, len(candidatesByValue))
+	for value := range candidatesByValue {
+		values = append(values, value)
+	}
+	sort.Strings(values)
+	for _, value := range values {
+		candidates := candidatesByValue[value]
+		if len(candidates) == 1 {
+			if _, ok := seen[value]; !ok {
+				seen[value] = struct{}{}
+				out = append(out, value)
+			}
+			continue
+		}
+		for _, candidate := range candidates {
+			path := absoluteCompletionPath(candidate.path)
+			if path == "" {
+				path = candidate.value
+			}
+			if _, ok := seen[path]; ok {
+				continue
+			}
+			seen[path] = struct{}{}
+			out = append(out, path)
+		}
+	}
 	return out, cobra.ShellCompDirectiveNoFileComp
+}
+
+func absoluteCompletionPath(path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return ""
+	}
+	if abs, err := filepath.Abs(trimmed); err == nil {
+		if eval, evalErr := filepath.EvalSymlinks(abs); evalErr == nil {
+			return filepath.Clean(eval)
+		}
+		return filepath.Clean(abs)
+	}
+	return filepath.Clean(trimmed)
 }
 
 func completeCommandFlags(cmd *cobra.Command, toComplete string) []string {

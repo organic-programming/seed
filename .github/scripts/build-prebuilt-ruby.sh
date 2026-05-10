@@ -3,7 +3,6 @@ set -euo pipefail
 
 sdk_target="${SDK_TARGET:?SDK_TARGET is required}"
 sdk_version="${SDK_VERSION:-1.58.3}"
-export PROTOC_VERSION="${PROTOC_VERSION:-32.0}"
 jobs="${RUBY_HOLONS_JOBS:-4}"
 ruby_bin="${RUBY:-$(command -v ruby || true)}"
 bundle_bin="${BUNDLE:-$(command -v bundle || true)}"
@@ -119,20 +118,24 @@ ruby_platform="$("$ruby_bin" -e 'print RUBY_PLATFORM')"
   echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } >"$stage/share/prebuilt.env"
 
-install_protoc_release "$sdk_target" "$stage"
 build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" ruby
 copy_grpc_sibling "$stage" grpc_ruby_plugin
+
+toolchain_json="$(toolchain_manifest_json "$repo_root" ruby "$sdk_target")"
+seed_release_value="$(seed_release "$repo_root")"
 
 cat >"$stage/manifest.json" <<EOF
 {
   "lang": "ruby",
   "version": "${sdk_version}",
   "target": "${sdk_target}",
+  "seed_release": "${seed_release_value}",
   "codegen": {
     "plugins": [
       {"name": "ruby", "binary": "bin/protoc-gen-ruby$(target_exe_suffix "$sdk_target")", "out_subdir": "ruby"}
     ]
-  }
+  },
+  "toolchain": ${toolchain_json}
 }
 EOF
 

@@ -115,49 +115,52 @@ func protocArgs(lang, descPath, outDir string) ([]string, error) {
 	switch lang {
 	case "zig":
 		args = append(args, "--c_out="+outDir)
-		if plugin, err := optionalSiblingExecutable("protoc-gen-c"); err == nil {
+		if plugin, err := findOptionalSiblingExecutable("protoc-gen-c"); err == nil {
 			args = append(args, "--plugin=protoc-gen-c="+plugin)
 		}
 	case "cpp":
 		args = append(args, "--cpp_out="+outDir)
-		if plugin, err := optionalSiblingExecutable("grpc_cpp_plugin"); err == nil {
+		if plugin, err := findOptionalSiblingExecutable("grpc_cpp_plugin"); err == nil {
 			args = append(args, "--grpc_out="+outDir, "--plugin=protoc-gen-grpc="+plugin)
 		}
 	case "csharp":
 		args = append(args, "--csharp_out="+outDir)
-		if plugin, err := optionalSiblingExecutable("grpc_csharp_plugin"); err == nil {
+		if plugin, err := findOptionalSiblingExecutable("grpc_csharp_plugin"); err == nil {
 			args = append(args, "--grpc_out="+outDir, "--plugin=protoc-gen-grpc="+plugin)
 		}
 	case "java":
 		args = append(args, "--java_out="+outDir)
-		if plugin, err := optionalSiblingExecutable("protoc-gen-grpc-java"); err == nil {
+		if plugin, err := findOptionalSiblingExecutable("protoc-gen-grpc-java"); err == nil {
 			args = append(args, "--grpc-java_out="+outDir, "--plugin=protoc-gen-grpc-java="+plugin)
 		}
 	case "js":
 		args = append(args, "--js_out=import_style=commonjs,binary:"+outDir)
-		if plugin, err := optionalSiblingExecutable("grpc_tools_node_protoc_plugin"); err == nil {
+		if plugin, err := findOptionalSiblingExecutable("protoc-gen-js"); err == nil {
+			args = append(args, "--plugin=protoc-gen-js="+plugin)
+		}
+		if plugin, err := findOptionalSiblingExecutable("grpc_tools_node_protoc_plugin"); err == nil {
 			args = append(args, "--grpc_out=grpc_js:"+outDir, "--plugin=protoc-gen-grpc="+plugin)
 		}
 	case "kotlin-java":
 		args = append(args, "--java_out="+outDir)
 	case "kotlin-java-grpc":
-		if plugin, err := optionalSiblingExecutable("protoc-gen-grpc-java"); err == nil {
+		if plugin, err := findOptionalSiblingExecutable("protoc-gen-grpc-java"); err == nil {
 			args = append(args, "--grpc-java_out="+outDir, "--plugin=protoc-gen-grpc-java="+plugin)
 		}
 	case "kotlin":
 		args = append(args, "--kotlin_out="+outDir)
 	case "kotlin-grpc":
-		if plugin, err := optionalSiblingExecutable("protoc-gen-grpc-kotlin"); err == nil {
+		if plugin, err := findOptionalSiblingExecutable("protoc-gen-grpc-kotlin"); err == nil {
 			args = append(args, "--grpc-kotlin_out="+outDir, "--plugin=protoc-gen-grpc-kotlin="+plugin)
 		}
 	case "python":
 		args = append(args, "--python_out="+outDir)
-		if plugin, err := optionalSiblingExecutable("grpc_python_plugin"); err == nil {
+		if plugin, err := findOptionalSiblingExecutable("grpc_python_plugin"); err == nil {
 			args = append(args, "--grpc_python_out="+outDir, "--plugin=protoc-gen-grpc_python="+plugin)
 		}
 	case "ruby":
 		args = append(args, "--ruby_out="+outDir)
-		if plugin, err := optionalSiblingExecutable("grpc_ruby_plugin"); err == nil {
+		if plugin, err := findOptionalSiblingExecutable("grpc_ruby_plugin"); err == nil {
 			args = append(args, "--grpc_out="+outDir, "--plugin=protoc-gen-grpc="+plugin)
 		}
 	default:
@@ -166,7 +169,21 @@ func protocArgs(lang, descPath, outDir string) ([]string, error) {
 	return args, nil
 }
 
+var findOptionalSiblingExecutable = optionalSiblingExecutable
+
 func siblingExecutable(name string) (string, error) {
+	if name == "protoc" {
+		if path := strings.TrimSpace(os.Getenv("OP_SDK_PROTOC")); path != "" {
+			info, err := os.Stat(path)
+			if err != nil {
+				return "", fmt.Errorf("OP_SDK_PROTOC points to unavailable protoc %q: %w", path, err)
+			}
+			if info.IsDir() {
+				return "", fmt.Errorf("OP_SDK_PROTOC points to a directory: %s", path)
+			}
+			return path, nil
+		}
+	}
 	if path, err := optionalSiblingExecutable(name); err == nil {
 		return path, nil
 	}

@@ -152,6 +152,15 @@ do
 done
 
 target_protobuf_version="$(protobuf_target_version "${grpc_source}/third_party/protobuf")"
+pinned_protobuf_version="$(cpp_protobuf_tag "$repo_root")"
+if [[ -z "$pinned_protobuf_version" ]]; then
+  echo "seed-toolchain.yaml missing cpp_runtime.protobuf_submodule_tag" >&2
+  exit 1
+fi
+if [[ "$target_protobuf_version" != "$pinned_protobuf_version" ]]; then
+  echo "protobuf submodule tag mismatch: got ${target_protobuf_version}, want ${pinned_protobuf_version} from seed-toolchain.yaml" >&2
+  exit 1
+fi
 
 macos_framework_flag=""
 if [[ "$sdk_target" == *apple-darwin ]]; then
@@ -425,6 +434,7 @@ cp -R "$prefix/lib/." "$stage/lib/"
 if [[ -d "$prefix/bin" ]]; then
   cp -R "$prefix/bin/." "$stage/bin/"
 fi
+rm -f "$stage/bin/protoc" "$stage/bin/protoc.exe"
 build_adapter_family "$repo_root" "$sdk_target" "$stage/bin" cpp
 mkdir -p "$stage/include/nlohmann" "$stage/share/licenses/nlohmann-json"
 cp "$nlohmann_json_header" "$stage/include/nlohmann/json.hpp"
@@ -444,16 +454,21 @@ grpc_commit="$(git -C "$grpc_source" rev-parse HEAD 2>/dev/null || echo unknown)
   echo "zig=$("$zig_bin" version)"
 } >"$stage/share/prebuilt.env"
 
+toolchain_json="$(toolchain_manifest_json "$repo_root" cpp "$sdk_target")"
+seed_release_value="$(seed_release "$repo_root")"
+
 cat >"$stage/manifest.json" <<EOF
 {
   "lang": "cpp",
   "version": "${sdk_version}",
   "target": "${sdk_target}",
+  "seed_release": "${seed_release_value}",
   "codegen": {
     "plugins": [
       {"name": "cpp", "binary": "bin/protoc-gen-cpp$(target_exe_suffix "$sdk_target")", "out_subdir": "cpp"}
     ]
-  }
+  },
+  "toolchain": ${toolchain_json}
 }
 EOF
 

@@ -156,8 +156,10 @@ func localSourceTreeSHA256(repoRoot, lang string) (string, bool, error) {
 	}
 
 	scriptRel := filepath.ToSlash(filepath.Join(".github", "scripts", "build-prebuilt-"+lang+".sh"))
+	libRel := filepath.ToSlash(filepath.Join(".github", "scripts", "lib-codegen-prebuilt.sh"))
+	toolchainRel := seedToolchainFile
 	sdkRel := filepath.ToSlash(filepath.Join("sdk", lang+"-holons"))
-	files, err := sourceTreeFiles(repoRoot, sdkRel, scriptRel)
+	files, err := sourceTreeFiles(repoRoot, sdkRel, scriptRel, libRel, toolchainRel)
 	if err != nil {
 		return "", false, nil
 	}
@@ -255,10 +257,30 @@ func gitIndexObject(repoRoot, rel string) (string, bool) {
 }
 
 func runBuildScript(ctx context.Context, scriptPath, lang, target, version string, opts BuildOptions, repoRoot string) error {
+	toolchain, err := ToolchainForSDK(repoRoot, lang, target)
+	if err != nil {
+		return err
+	}
+	if _, err := ensureSharedToolchain(ctx, toolchain); err != nil {
+		return err
+	}
+	if seed, err := LoadSeedToolchain(repoRoot); err != nil {
+		return err
+	} else if err := writeSharedSeedReleaseSnapshot(seed.SeedRelease, toolchain); err != nil {
+		return err
+	}
 	env := append(os.Environ(),
 		"SDK_TARGET="+target,
 		"SDK_VERSION="+version,
 	)
+	if protoc, include, ok, err := ProtocFromToolchain(toolchain); err != nil {
+		return err
+	} else if ok {
+		env = append(env,
+			"OP_SDK_PROTOC="+protoc,
+			"OP_SDK_PROTOC_INCLUDE="+include,
+		)
+	}
 	if opts.Jobs > 0 {
 		env = append(env, langJobsEnv(lang)+"="+strconv.Itoa(opts.Jobs))
 	}

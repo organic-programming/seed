@@ -1,0 +1,77 @@
+seed_release: "0.7.0"
+
+protoc:
+  upstream_tag: "v32.0"
+  version: "32.0"
+  required_by:
+    cpp: true
+    csharp: true
+    java: true
+    js: true
+    kotlin: true
+    python: true
+    ruby: true
+    zig: true
+  sha256_per_target:
+    aarch64-apple-darwin: "96c06aac6eb7e247a78f2ffe8b3aaf4419a6765e3d96d724cc3db0e296e7aa94"
+    x86_64-apple-darwin: "91b2b3b5ad84cfed2869c69830c926130d312e357b4f128796504b5448a6534c"
+    x86_64-unknown-linux-gnu: "373c7da2c1cae98ac1a494a8a53e28100af70450ab55c064daa92ba48af5fe23"
+    aarch64-unknown-linux-gnu: "bc95ab180ef088eed3f97c30b213ac6439ccac01989d18f9e908eb5233432136"
+    x86_64-unknown-linux-musl: "373c7da2c1cae98ac1a494a8a53e28100af70450ab55c064daa92ba48af5fe23"
+    aarch64-unknown-linux-musl: "bc95ab180ef088eed3f97c30b213ac6439ccac01989d18f9e908eb5233432136"
+    x86_64-windows-gnu: "a1e25d1b71e805233daefabba72a21566580354a192539cdab43bbf191dbf951"
+    x86_64-pc-windows-msvc: "a1e25d1b71e805233daefabba72a21566580354a192539cdab43bbf191dbf951"
+
+cpp_runtime:
+  protobuf_submodule_tag: "v32.0"
+
+plugins:
+  c:
+    protoc-gen-upb: "grpc-submodule"
+    protoc-gen-upbdefs: "grpc-submodule"
+    protoc-gen-upb_minitable: "grpc-submodule"
+  cpp:
+    protoc-gen-cpp: "grpc-submodule"
+    grpc_cpp_plugin: "grpc-submodule"
+  csharp:
+    grpc_csharp_plugin: "grpc-submodule"
+    protoc-gen-op-adapter: "local"
+  dart:
+    protoc-gen-dart: "25.0.0"
+  go:
+    protoc-gen-go: "v1.36.11"
+    protoc-gen-go-grpc: "v1.6.1"
+  java:
+    protoc-gen-grpc-java:
+      version: "1.76.0"
+      sha256_per_target:
+        aarch64-apple-darwin: "8100c67d1ea547fc34dd638db20876921349df99c42608fdfdcf1cef15c1d6ff"
+    protoc-gen-op-adapter: "local"
+  js:
+    protoc-gen-js: "3.21.4-4"
+    grpc_node_plugin: "grpc-submodule"
+    grpc_tools_node_protoc_plugin: "local"
+    protoc-gen-op-adapter-js: "local"
+  js-web:
+    protoc-gen-js-web: "local"
+  kotlin:
+    protoc-gen-grpc-java: "1.76.0"
+    protoc-gen-grpc-kotlin:
+      version: "1.4.3"
+      sha256: "f41827ddcaec57a153afe8fde4cf33bb6496765c5f989056fc4db89314b43621"
+    protoc-gen-op-adapter: "local"
+  python:
+    grpc_python_plugin: "grpc-submodule"
+    protoc-gen-op-adapter: "local"
+  ruby:
+    grpc_ruby_plugin: "grpc-submodule"
+    grpc-tools: "1.58.3"
+    protoc-gen-op-adapter: "local"
+  rust:
+    protoc-gen-prost: "0.5.0"
+    protoc-gen-tonic: "0.5.0"
+  swift:
+    protoc-gen-swift: "1.33.0"
+    protoc-gen-grpc-swift: "1.26.2"
+  zig:
+    protoc-gen-zig: "grpc-submodule"

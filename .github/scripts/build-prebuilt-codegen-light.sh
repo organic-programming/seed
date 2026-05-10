@@ -24,9 +24,9 @@ case "$sdk_lang" in
     (
       cd "$repo_root"
       env GOWORK=off CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" GOBIN="$stage/bin" \
-        go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+        go install "google.golang.org/protobuf/cmd/protoc-gen-go@$(plugin_version "$repo_root" go protoc-gen-go)"
       env GOWORK=off CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" GOBIN="$stage/bin" \
-        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
+        go install "google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(plugin_version "$repo_root" go protoc-gen-go-grpc)"
     )
     plugins=$(cat <<EOF
       {"name": "go", "binary": "bin/protoc-gen-go${suffix}", "out_subdir": "go"},
@@ -35,7 +35,9 @@ EOF
 )
     ;;
   rust)
-    cargo install --locked --root "$stage" protoc-gen-prost@0.5.0 protoc-gen-tonic@0.5.0
+    cargo install --locked --root "$stage" \
+      "protoc-gen-prost@$(plugin_version "$repo_root" rust protoc-gen-prost)" \
+      "protoc-gen-tonic@$(plugin_version "$repo_root" rust protoc-gen-tonic)"
     plugins=$(cat <<EOF
       {"name": "rust", "binary": "bin/protoc-gen-prost", "out_subdir": "rust"},
       {"name": "rust-tonic", "binary": "bin/protoc-gen-tonic", "out_subdir": "rust"}
@@ -43,7 +45,7 @@ EOF
 )
     ;;
   dart)
-    dart pub global activate protoc_plugin 25.0.0
+    dart pub global activate protoc_plugin "$(plugin_version "$repo_root" dart protoc-gen-dart)"
     dart_snapshot="$(find "${PUB_CACHE:-$HOME/.pub-cache}/global_packages/protoc_plugin/bin" -maxdepth 1 -name 'protoc_plugin.dart-*.snapshot' | sort | tail -n 1)"
     if [[ -z "$dart_snapshot" || ! -f "$dart_snapshot" ]]; then
       echo "protoc_plugin snapshot not found after pub global activate" >&2
@@ -64,8 +66,7 @@ EOF
 )
     ;;
   swift)
-    install_protoc_release "$sdk_target" "$stage"
-    swift_version="${SWIFT_PROTOBUF_VERSION:-1.33.0}"
+    swift_version="$(plugin_version "$repo_root" swift protoc-gen-swift)"
     swift_src="${work_dir}/swift-protobuf"
     if [[ ! -d "$swift_src/.git" ]]; then
       rm -rf "$swift_src"
@@ -79,7 +80,7 @@ EOF
     cp "$swift_src/.build/release/protoc-gen-swift" "${stage}/bin/protoc-gen-swift"
     chmod +x "${stage}/bin/protoc-gen-swift"
     # macos-14 runners currently ship Swift 5.10; grpc-swift 1.27.x requires 6.1.
-    grpc_swift_version="${GRPC_SWIFT_VERSION:-1.26.2}"
+    grpc_swift_version="$(plugin_version "$repo_root" swift protoc-gen-grpc-swift)"
     grpc_swift_src="${work_dir}/grpc-swift"
     if [[ ! -d "$grpc_swift_src/.git" ]]; then
       rm -rf "$grpc_swift_src"
@@ -106,7 +107,6 @@ EOF
 )
     ;;
   java|python|csharp|kotlin|js)
-    install_protoc_release "$sdk_target" "$stage"
     if [[ "$sdk_lang" == "js" ]]; then
       build_go_tool_for_target "$repo_root" "$sdk_target" ./cmd/protoc-gen-op-adapter \
         "${stage}/bin/protoc-gen-op-adapter-js${suffix}"
@@ -126,7 +126,6 @@ EOF
       js)
         install_js_protoc_plugin "$stage" "$work_dir"
         install_node_codegen_plugins "$stage" "$work_dir"
-        wrap_protoc_with_sibling_path "$stage"
         ;;
       python) copy_grpc_sibling "$stage" grpc_python_plugin ;;
       csharp) copy_grpc_sibling "$stage" grpc_csharp_plugin ;;
@@ -157,16 +156,21 @@ EOF
     ;;
 esac
 
+toolchain_json="$(toolchain_manifest_json "$repo_root" "$sdk_lang" "$sdk_target")"
+seed_release_value="$(seed_release "$repo_root")"
+
 cat >"${stage}/manifest.json" <<EOF
 {
   "lang": "${sdk_lang}",
   "version": "${sdk_version}",
   "target": "${sdk_target}",
+  "seed_release": "${seed_release_value}",
   "codegen": {
     "plugins": [
 ${plugins}
     ]
-  }
+  },
+  "toolchain": ${toolchain_json}
 }
 EOF
 

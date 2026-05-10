@@ -70,17 +70,19 @@ var suspendedPrebuilts = map[string]map[string]string{
 }
 
 type Prebuilt struct {
-	Lang             string   `json:"lang"`
-	Version          string   `json:"version"`
-	Target           string   `json:"target"`
-	Path             string   `json:"path"`
-	Source           string   `json:"source,omitempty"`
-	ArchiveSHA256    string   `json:"archive_sha256,omitempty"`
-	TreeSHA256       string   `json:"tree_sha256,omitempty"`
-	SourceTreeSHA256 string   `json:"source_tree_sha256,omitempty"`
-	Installed        bool     `json:"installed"`
-	Blockers         []string `json:"blockers,omitempty"`
-	Codegen          *Codegen `json:"codegen,omitempty"`
+	Lang             string           `json:"lang"`
+	Version          string           `json:"version"`
+	Target           string           `json:"target"`
+	SeedRelease      string           `json:"seed_release,omitempty"`
+	Path             string           `json:"path"`
+	Source           string           `json:"source,omitempty"`
+	ArchiveSHA256    string           `json:"archive_sha256,omitempty"`
+	TreeSHA256       string           `json:"tree_sha256,omitempty"`
+	SourceTreeSHA256 string           `json:"source_tree_sha256,omitempty"`
+	Installed        bool             `json:"installed"`
+	Blockers         []string         `json:"blockers,omitempty"`
+	Codegen          *Codegen         `json:"codegen,omitempty"`
+	Toolchain        []ToolchainEntry `json:"toolchain,omitempty"`
 }
 
 type Codegen struct {
@@ -172,8 +174,14 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 	dest := InstallPath(lang, version, target)
 	if !explicitSource {
 		if existing, err := metadataForPath(dest); err == nil && strings.EqualFold(existing.ArchiveSHA256, actualSHA) {
-			existing.Installed = true
-			return existing, []string{"already installed"}, nil
+			if len(existing.Toolchain) > 0 {
+				existing.Installed = true
+				sharedNotes, err := ensureSharedToolchainForPrebuilt(ctx, existing)
+				if err != nil {
+					return Prebuilt{}, nil, err
+				}
+				return existing, append([]string{"already installed"}, sharedNotes...), nil
+			}
 		}
 	}
 
@@ -243,7 +251,25 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 	// The cache hit therefore happens after manifest validation for --source.
 	if existing, err := metadataForPath(dest); err == nil && strings.EqualFold(existing.ArchiveSHA256, actualSHA) {
 		existing.Installed = true
-		return existing, []string{"already installed"}, nil
+		metadataChanged := false
+		if len(archiveMetadata.Toolchain) > 0 {
+			existing.Toolchain = archiveMetadata.Toolchain
+			metadataChanged = true
+		}
+		if strings.TrimSpace(archiveMetadata.SeedRelease) != "" {
+			existing.SeedRelease = archiveMetadata.SeedRelease
+			metadataChanged = true
+		}
+		if metadataChanged {
+			if err := writeMetadata(dest, existing); err != nil {
+				return Prebuilt{}, nil, err
+			}
+		}
+		sharedNotes, err := ensureSharedToolchainForPrebuilt(ctx, existing)
+		if err != nil {
+			return Prebuilt{}, nil, err
+		}
+		return existing, append([]string{"already installed"}, sharedNotes...), nil
 	}
 
 	parent = filepath.Dir(dest)
@@ -266,6 +292,12 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 		SourceTreeSHA256: firstNonEmpty(opts.SourceTreeSHA256, archiveMetadata.SourceTreeSHA256),
 		Installed:        true,
 		Codegen:          archiveMetadata.Codegen,
+		Toolchain:        archiveMetadata.Toolchain,
+		SeedRelease:      archiveMetadata.SeedRelease,
+	}
+	sharedNotes, err := ensureSharedToolchainForPrebuilt(ctx, prebuilt)
+	if err != nil {
+		return Prebuilt{}, nil, err
 	}
 	if err := writeMetadata(tmp, prebuilt); err != nil {
 		return Prebuilt{}, nil, err
@@ -277,7 +309,7 @@ func Install(ctx context.Context, opts InstallOptions) (Prebuilt, []string, erro
 		return Prebuilt{}, nil, fmt.Errorf("install %s: %w", dest, err)
 	}
 	cleanupTmp = false
-	return prebuilt, nil, nil
+	return prebuilt, sharedNotes, nil
 }
 
 func ListInstalled(langFilter string) ([]Prebuilt, error) {

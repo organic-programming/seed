@@ -7,6 +7,12 @@ SDKs (`c`, `cpp`, `ruby`, `zig`) carry compiled native runtime dependencies
 `rust`, `swift`) carry the proto codegen plugin binaries used by
 `build.codegen`.
 
+The `protoc` binary itself is **not** carried by individual SDKs. It lives
+once per machine under `$OPPATH/sdk/shared/protoc/<version>/` and is
+referenced from each SDK's `manifest.json`. See [Shared toolchain](#shared-toolchain)
+below. Host-PATH `protoc` is never consulted by `op` — codegen always
+resolves through the shared pool.
+
 ## Two ways to land a prebuilt
 
 `op sdk` exposes two explicit verbs — no silent fallback between them.
@@ -44,10 +50,17 @@ Initialise missing submodules with `git submodule update --init --recursive`.
 Installed prebuilts live under:
 
 ```text
-$OPPATH/sdk/<lang>/<version>/<target>/
-  manifest.json          # archive_sha256, tree_sha256, source URL
-                         # and optional codegen.plugins manifest
-  …                      # extracted SDK contents (lib/, include/, …)
+$OPPATH/sdk/
+  shared/                                # cross-SDK toolchain pool
+    protoc/<version>/
+      bin/protoc
+      include/google/protobuf/...        # well-known types
+      manifest.json                      # version, sha256, install source
+  <lang>/<version>/<target>/
+    manifest.json        # archive_sha256, tree_sha256, source URL,
+                         # codegen.plugins manifest, and the protoc
+                         # version this SDK requires (key: `protoc.version`)
+    …                    # extracted SDK contents (lib/, include/, bin/plugins…)
 ```
 
 `op sdk path <lang>` prints the install path. `op sdk uninstall <lang>` removes it.
@@ -56,7 +69,71 @@ $OPPATH/sdk/<lang>/<version>/<target>/
 `requires.sdk_prebuilts` field. Preflight injects an env var per matched SDK
 (`OP_SDK_C_PATH`, `OP_SDK_CPP_PATH`, `OP_SDK_RUBY_PATH`, `OP_SDK_ZIG_PATH`) so
 runners pick them up without per-runner glue. Hyphenated SDK names use an
-underscore in the environment variable, e.g. `OP_SDK_JS_WEB_PATH`.
+underscore in the environment variable, e.g. `OP_SDK_JS_WEB_PATH`. The shared
+protoc resolved for the current SDK is exposed as `OP_SDK_PROTOC` (absolute
+path to the `bin/protoc` inside `$OPPATH/sdk/shared/protoc/<version>/`).
+
+## Shared toolchain
+
+`protoc` is the only tool whose semantics are coupled across SDKs (the binary
+codegens for cpp/java/kotlin/python/ruby/csharp live inside `libprotoc`, so the
+protoc binary version determines stub layout and runtime ABI compatibility).
+For that reason it is materialized once per machine and shared by every SDK
+that needs it.
+
+**Layout.** A version-pinned protoc lives at:
+
+```text
+$OPPATH/sdk/shared/protoc/<version>/bin/protoc
+$OPPATH/sdk/shared/protoc/<version>/include/google/protobuf/*.proto
+$OPPATH/sdk/shared/protoc/<version>/manifest.json   # sha256, install source
+```
+
+Multiple versions can cohabit (e.g. during a transition) but a single seed
+release pins exactly one.
+
+**Per-SDK declaration.** Each SDK's `manifest.json` declares which protoc
+version it requires:
+
+```json
+{
+  "lang": "cpp",
+  "version": "1.80.0",
+  "target": "aarch64-apple-darwin",
+  "protoc": { "version": "32.0", "sha256": "..." },
+  "codegen": { "plugins": [ ... ] }
+}
+```
+
+For pure-plugin SDKs that don't invoke protoc (`go`, `dart`, `rust`,
+`swift`, `js-web`), the `protoc` field is `null` or absent — `op` skips
+resolution.
+
+**Self-healing on install.** `op sdk install <lang>` reads the SDK manifest,
+resolves the required `protoc.version`, then:
+
+- if `$OPPATH/sdk/shared/protoc/<version>/` is absent → downloads and installs;
+- if present but `manifest.json` sha256 mismatches the recorded value →
+  replaces;
+- if present and coherent → no-op.
+
+This makes every `op sdk install` an opportunity to repair `shared/` for all
+sibling SDKs. The first SDK installed pays the protoc download; subsequent
+installs that reference the same version are zero-cost.
+
+**`op` core never resolves protoc.** Consumer-tier paths — `op <slug> <rpc>`,
+`op run`, `op mcp`, `op proxy`, `op inspect` — neither read nor invoke
+`shared/`. The shared pool is touched only by `op sdk install` /
+`op sdk build` / `op sdk verify`, and by holon-build recipes that opt in via
+`requires.sdk_prebuilts`. A non-developer install of `op` populates nothing
+under `$OPPATH/sdk/shared/`.
+
+**CI parity.** `.github/scripts/build-prebuilt-<lang>.sh` consume the same
+shared pool — they call `op sdk install` (or its primitive) ahead of the
+codegen step rather than exporting a per-script `PROTOC_VERSION`. The
+historical `PROTOC_VERSION=32.0` exports (in 5 scripts) and the `34.1`
+default in `lib-codegen-prebuilt.sh` are removed in favor of the SDK
+manifest's declaration.
 
 ## Supported targets
 
@@ -135,9 +212,15 @@ remain unaffected. The build script sets `SDKROOT` automatically for any
 |---|---|
 | `SDK_TARGET` | The normalised target triplet (host if `--target` not given) |
 | `SDK_VERSION` | The pinned default for this lang, or `--version` if provided |
+| `OP_SDK_PROTOC` | Absolute path to `$OPPATH/sdk/shared/protoc/<version>/bin/protoc`, materialised by `op sdk install` before the script runs (empty for pure-plugin SDKs that declare `protoc: null` in their manifest) |
+| `OP_SDK_PROTOC_INCLUDE` | Companion include directory for well-known types (`$OPPATH/sdk/shared/protoc/<version>/include`) |
 | `<LANG>_HOLONS_JOBS` | `--jobs N` if non-zero (e.g. `ZIG_HOLONS_JOBS=8`) |
 | `MACOSX_DEPLOYMENT_TARGET` | Defaults to `11.0` if unset (darwin only) |
 | `ZIG`, `RUBY`, `BUNDLE` | Forwarded from the parent process if set |
+
+Scripts MUST consume `$OP_SDK_PROTOC` rather than calling `protoc` from
+PATH. Hardcoded `PROTOC_VERSION=...` exports inside build scripts are
+deprecated — the version is the SDK manifest's responsibility.
 
 Output tarball lands at:
 

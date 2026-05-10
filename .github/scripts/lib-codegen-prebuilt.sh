@@ -12,6 +12,42 @@ repo_root_or_pwd() {
   git rev-parse --show-toplevel 2>/dev/null || printf '%s\n' "${GITHUB_WORKSPACE:-$PWD}"
 }
 
+seed_toolchain() {
+  python3 "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)/seed_toolchain.py" "$@"
+}
+
+toolchain_manifest_json() {
+  local repo_root="$1"
+  local lang="$2"
+  local target="$3"
+  seed_toolchain manifest-json "$repo_root" "$lang" "$target"
+}
+
+plugin_version() {
+  local repo_root="$1"
+  local lang="$2"
+  local plugin="$3"
+  seed_toolchain plugin-version "$repo_root" "$lang" "$plugin"
+}
+
+plugin_sha256() {
+  local repo_root="$1"
+  local lang="$2"
+  local plugin="$3"
+  local target="$4"
+  seed_toolchain plugin-sha256 "$repo_root" "$lang" "$plugin" "$target"
+}
+
+seed_release() {
+  local repo_root="$1"
+  seed_toolchain seed-release "$repo_root"
+}
+
+cpp_protobuf_tag() {
+  local repo_root="$1"
+  seed_toolchain cpp-protobuf-tag "$repo_root"
+}
+
 cleanup_grpc_third_party_pollution() {
   local root="$1"
   git -C "$root" checkout -- sdk/zig-holons/third_party/grpc/third_party/zlib/ 2>/dev/null || true
@@ -50,10 +86,13 @@ protoc_release_asset() {
 install_protoc_release() {
   local target="$1"
   local dest="$2"
-  local version="${PROTOC_VERSION:-34.1}"
+  local repo_root
+  local version
   local asset
   local tmp
 
+  repo_root="$(repo_root_or_pwd)"
+  version="$(seed_toolchain protoc-version "$repo_root")"
   asset="$(protoc_release_asset "$target")"
   tmp="$(mktemp -d)"
   curl -fsSL "https://github.com/protocolbuffers/protobuf/releases/download/v${version}/protoc-${version}-${asset}.zip" -o "${tmp}/protoc.zip"
@@ -130,13 +169,22 @@ copy_grpc_sibling() {
 install_grpc_java_plugin() {
   local stage="$1"
   local target="${SDK_TARGET:?SDK_TARGET is required}"
-  local version="${GRPC_JAVA_PLUGIN_VERSION:-1.76.0}"
+  local repo_root
+  local version
   local classifier
   local expected_sha
   local suffix
   local tmp
   local actual_sha
   local url
+
+  repo_root="$(repo_root_or_pwd)"
+  version="$(plugin_version "$repo_root" java protoc-gen-grpc-java)"
+  expected_sha="$(plugin_sha256 "$repo_root" java protoc-gen-grpc-java "$target")"
+  if [[ -z "$expected_sha" ]]; then
+    echo "seed-toolchain.yaml missing sha256 for java/protoc-gen-grpc-java/${target}" >&2
+    return 1
+  fi
 
   case "$target" in
     aarch64-apple-darwin)
@@ -152,7 +200,6 @@ install_grpc_java_plugin() {
   tmp="$(mktemp)"
   url="https://repo1.maven.org/maven2/io/grpc/protoc-gen-grpc-java/${version}/protoc-gen-grpc-java-${version}-${classifier}.exe"
   curl -fsSL "$url" -o "$tmp"
-  expected_sha="$(curl -fsSL "${url}.sha256" | awk '{print $1}')"
   actual_sha="$(sha256_file "$tmp" | awk '{print $1}')"
   if [[ "$actual_sha" != "$expected_sha" ]]; then
     echo "protoc-gen-grpc-java sha256 mismatch: got ${actual_sha}, want ${expected_sha}" >&2
@@ -172,12 +219,21 @@ install_grpc_java_plugin() {
 
 install_grpc_kotlin_plugin() {
   local stage="$1"
-  local version="${GRPC_KOTLIN_PLUGIN_VERSION:-1.4.3}"
-  local expected_sha="f41827ddcaec57a153afe8fde4cf33bb6496765c5f989056fc4db89314b43621"
+  local repo_root
+  local version
+  local expected_sha
   local tmp
   local actual_sha
   local jar
   local wrapper
+
+  repo_root="$(repo_root_or_pwd)"
+  version="$(plugin_version "$repo_root" kotlin protoc-gen-grpc-kotlin)"
+  expected_sha="$(plugin_sha256 "$repo_root" kotlin protoc-gen-grpc-kotlin "${SDK_TARGET:?SDK_TARGET is required}")"
+  if [[ -z "$expected_sha" ]]; then
+    echo "seed-toolchain.yaml missing sha256 for kotlin/protoc-gen-grpc-kotlin/${SDK_TARGET}" >&2
+    return 1
+  fi
 
   tmp="$(mktemp)"
   curl -fsSL \
@@ -206,11 +262,15 @@ install_js_protoc_plugin() {
   local stage="$1"
   local work_dir="$2"
   local target="${SDK_TARGET:?SDK_TARGET is required}"
-  local version="${PROTOC_GEN_JS_VERSION:-3.21.4-4}"
+  local repo_root
+  local version
   local npm_prefix="${work_dir}/protoc-gen-js"
   local suffix
   local source
   local dest
+
+  repo_root="$(repo_root_or_pwd)"
+  version="$(plugin_version "$repo_root" js protoc-gen-js)"
 
   suffix="$(target_exe_suffix "$target")"
   rm -rf "$npm_prefix"
