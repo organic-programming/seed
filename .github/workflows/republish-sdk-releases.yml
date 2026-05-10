@@ -25,22 +25,57 @@ jobs:
             -R ${{ github.repository }} \
             --pattern 'sdk-*' \
             -D ./sdks
-      - name: Create one release per lang
+      - name: Create one release per lang (skip existing, continue on failure)
+        shell: bash {0}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -uo pipefail
           TAG="${{ github.event.inputs.tag_version }}"
+          REPO="${{ github.repository }}"
+
+          ok=()
+          fail=()
+          skip_existing=()
+          skip_empty=()
+
           for lang in c cpp csharp dart go java js js-web kotlin python ruby rust swift zig; do
-            files=$(find ./sdks \( -name "${lang}-holons-v*-*.tar.gz" -o -name "${lang}-holons-v*-*.tar.gz.sha256" \) ! -name '*-debug*' | sort | tr '\n' ' ')
-            if [ -z "$files" ]; then
-              echo "SKIP $lang"
+            release_tag="${lang}-holons-v${TAG}"
+
+            if gh release view "$release_tag" -R "$REPO" >/dev/null 2>&1; then
+              echo "SKIP $lang (release $release_tag already exists)"
+              skip_existing+=("$lang")
               continue
             fi
-            echo "→ ${lang}-holons-v${TAG}"
-            gh release create "${lang}-holons-v${TAG}" \
-              -R ${{ github.repository }} \
-              --title "${lang}-holons v${TAG}" \
-              --notes "Aligned release at seed_release ${TAG}, built from master run ${{ github.event.inputs.run_id }}." \
-              $files
+
+            files=$(find ./sdks \( -name "${lang}-holons-v*-*.tar.gz" -o -name "${lang}-holons-v*-*.tar.gz.sha256" \) ! -name '*-debug*' | sort | tr '\n' ' ')
+            if [ -z "$files" ]; then
+              echo "SKIP $lang (no tarballs found)"
+              skip_empty+=("$lang")
+              continue
+            fi
+
+            echo "→ Creating $release_tag"
+            if gh release create "$release_tag" \
+                 -R "$REPO" \
+                 --title "${lang}-holons v${TAG}" \
+                 --notes "Aligned release at seed_release ${TAG}, built from master run ${{ github.event.inputs.run_id }}." \
+                 $files; then
+              ok+=("$lang")
+            else
+              echo "FAIL $lang"
+              fail+=("$lang")
+              # Clean up any partial release (gh may leave one behind on upload failure)
+              gh release delete "$release_tag" -R "$REPO" --cleanup-tag --yes >/dev/null 2>&1 || true
+            fi
           done
+
+          echo
+          echo "=== Summary ==="
+          echo "OK            (${#ok[@]}): ${ok[*]:-(none)}"
+          echo "FAIL          (${#fail[@]}): ${fail[*]:-(none)}"
+          echo "SKIP existing (${#skip_existing[@]}): ${skip_existing[*]:-(none)}"
+          echo "SKIP empty    (${#skip_empty[@]}): ${skip_empty[*]:-(none)}"
+
+          # Exit non-zero only if there are real failures
+          [[ ${#fail[@]} -eq 0 ]]
