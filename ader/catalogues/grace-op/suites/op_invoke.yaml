@@ -5,20 +5,29 @@ steps:
   invoke-cli:
     check: op-invoke-cli
     lane: progression
+  invoke-cli-calculator:
+    check: op-invoke-cli-calculator
+    lane: progression
+  invoke-cli-multi-call:
+    check: op-invoke-cli-multi-call
+    lane: progression
+  invoke-cli-examples:
+    check: op-invoke-cli-examples
+    lane: regression
   invoke-api:
     check: op-invoke-api
     lane: progression
-    needs: [invoke-cli]
+    needs: [invoke-cli, invoke-cli-calculator, invoke-cli-multi-call]
   invoke-rpc:
     check: op-invoke-rpc
     lane: progression
     needs: [invoke-api]
 profiles:
   smoke:
-    description: Representative invoke verification with the CLI as the integration reference.
+    description: Go-targeted invoke verification with the CLI as the integration reference.
     archive: never
-    steps: [invoke-cli, invoke-api, invoke-rpc]
+    steps: [invoke-cli, invoke-cli-calculator, invoke-cli-multi-call, invoke-api, invoke-rpc]
   full:
     description: Exhaustive invoke verification across examples, OPService RPCs, and supported transports.
     archive: never
-    steps: [invoke-cli, invoke-api, invoke-rpc]
+    steps: [invoke-cli, invoke-cli-calculator, invoke-cli-multi-call, invoke-cli-examples, invoke-api, invoke-rpc]

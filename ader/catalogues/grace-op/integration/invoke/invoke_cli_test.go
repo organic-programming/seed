@@ -12,7 +12,7 @@ func TestInvoke_CLI_CleanFlag(t *testing.T) {
 	sb := integration.NewSandbox(t)
 	integration.BuildReportFor(t, sb, "gabriel-greeting-go")
 
-	result := sb.RunOP(t, "invoke", "--clean", "gabriel-greeting-go", "SayHello", `{"name":"World","lang_code":"en"}`)
+	result := sb.RunOPWithOptions(t, invokeOptionsForSlug(t, "gabriel-greeting-go"), "invoke", "--clean", "gabriel-greeting-go", "SayHello", `{"name":"World","lang_code":"en"}`)
 	integration.RequireSuccess(t, result)
 	payload := integration.DecodeJSON[map[string]any](t, result.Stdout)
 	if payload["greeting"] == "" {
@@ -25,7 +25,7 @@ func TestInvoke_CLI_NoBuildDoesNotBuild(t *testing.T) {
 	integration.RemoveArtifactFor(t, sb, "gabriel-greeting-go")
 	artifactPath := integration.ArtifactPathFor(t, sb, "gabriel-greeting-go")
 
-	result := sb.RunOP(t, "invoke", "gabriel-greeting-go", "SayHello", "--no-build", `{"name":"World","lang_code":"en"}`)
+	result := sb.RunOPWithOptions(t, invokeOptionsForSlug(t, "gabriel-greeting-go"), "invoke", "gabriel-greeting-go", "SayHello", "--no-build", `{"name":"World","lang_code":"en"}`)
 	if result.TimedOut {
 		t.Fatalf("--no-build timed out\nstdout:\n%s\nstderr:\n%s", result.Stdout, result.Stderr)
 	}
@@ -34,7 +34,7 @@ func TestInvoke_CLI_NoBuildDoesNotBuild(t *testing.T) {
 
 func TestInvoke_CLI_CleanNoBuildConflict(t *testing.T) {
 	sb := integration.NewSandbox(t)
-	result := sb.RunOP(t, "invoke", "--clean", "--no-build", "gabriel-greeting-go", "SayHello", `{"name":"World","lang_code":"en"}`)
+	result := sb.RunOPWithOptions(t, invokeOptionsForSlug(t, "gabriel-greeting-go"), "invoke", "--clean", "--no-build", "gabriel-greeting-go", "SayHello", `{"name":"World","lang_code":"en"}`)
 	integration.RequireFailure(t, result)
 	integration.RequireContains(t, result.Stderr, "--clean cannot be combined with --no-build")
 }

@@ -131,8 +131,12 @@ checks:
 
   op-invoke-cli:
     workdir: ader/catalogues/grace-op/integration/invoke
-    command: go test -tags e2e -v -count=1 -timeout 90m -run '^TestInvoke_CLI_' .
-    description: Verifies the exhaustive CLI invoke surface across examples, OPService RPCs, and transports.
+    command: go test -tags e2e -v -count=1 -timeout 30m -run '^TestInvoke_CLI_OPServiceAcrossTransports$' .
+    description: Verifies the Go-targeted OPService CLI invoke surface across supported transports.
+  op-invoke-cli-examples:
+    workdir: ader/catalogues/grace-op/integration/invoke
+    command: go test -tags e2e -v -count=1 -timeout 90m -run '^TestInvoke_CLI_(Examples|Composite)AcrossTransports$' .
+    description: Verifies exhaustive example and composite invoke coverage across supported transports.
   op-invoke-api:
     workdir: ader/catalogues/grace-op/integration/invoke
     command: go test -tags e2e -v -count=1 -timeout 15m -run '^TestInvoke_API_' .

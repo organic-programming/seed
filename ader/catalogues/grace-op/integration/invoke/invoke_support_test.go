@@ -22,13 +22,14 @@ type invokeTransport struct {
 }
 
 type invokeOPFixture struct {
-	Workspace  string
-	ShowUUID   string
-	ScratchDir string
-	ModRoot    string
-	DepPath    string
-	DepVersion string
-	TestTarget string
+	Workspace         string
+	SeedRootWorkspace string
+	ShowUUID          string
+	ScratchDir        string
+	ModRoot           string
+	DepPath           string
+	DepVersion        string
+	TestTarget        string
 }
 
 func invokeCLIResult(t *testing.T, sb *integration.Sandbox, opts integration.RunOptions, target, method, payload string) integration.CmdResult {
@@ -61,19 +62,20 @@ func exampleInvokeTransports() []invokeTransport {
 	return transports
 }
 
-func startExampleTransportTarget(t *testing.T, sb *integration.Sandbox, slug string, transport invokeTransport) (string, func()) {
+func startExampleTransportTarget(t *testing.T, sb *integration.Sandbox, slug string, transport invokeTransport, workDir string) (string, integration.RunOptions, func()) {
 	t.Helper()
 
+	opts := invokeWorkspaceOptions(t, workDir)
 	switch transport.Name {
 	case "stdio":
-		return "stdio://" + slug, func() {}
+		return "stdio://" + slug, opts, func() {}
 	case "tcp":
-		return "tcp://" + slug, func() {}
+		return "tcp://" + slug, opts, func() {}
 	case "unix":
-		return "unix://" + slug, func() {}
+		return "unix://" + slug, opts, func() {}
 	default:
 		t.Fatalf("unknown transport %q", transport.Name)
-		return "", func() {}
+		return "", opts, func() {}
 	}
 }
 
@@ -86,7 +88,9 @@ func newInvokeOPFixture(t *testing.T, sb *integration.Sandbox) invokeOPFixture {
 	})
 	t.Setenv("PATH", integration.PathWithPrepend(fakeGit))
 
-	list := integration.ReadListJSON(t, sb)
+	workspace := invokeWorkspaceForSlug(t, "gabriel-greeting-go")
+	seedRoot := integration.DefaultWorkspaceDir(t)
+	list := readInvokeListJSONAt(t, sb, workspace)
 	if len(list.Entries) == 0 {
 		t.Fatal("list returned no entries for invoke fixture")
 	}
@@ -102,14 +106,40 @@ func newInvokeOPFixture(t *testing.T, sb *integration.Sandbox) invokeOPFixture {
 	writeInvokeModRootFixture(t, modRoot)
 
 	return invokeOPFixture{
-		Workspace:  integration.DefaultWorkspaceDir(t),
-		ShowUUID:   list.Entries[0].Identity.UUID,
-		ScratchDir: t.TempDir(),
-		ModRoot:    modRoot,
-		DepPath:    "github.com/example/dep",
-		DepVersion: "v1.0.0",
-		TestTarget: testTarget,
+		Workspace:         workspace,
+		SeedRootWorkspace: seedRoot,
+		ShowUUID:          list.Entries[0].Identity.UUID,
+		ScratchDir:        t.TempDir(),
+		ModRoot:           modRoot,
+		DepPath:           "github.com/example/dep",
+		DepVersion:        "v1.0.0",
+		TestTarget:        testTarget,
 	}
+}
+
+func invokeWorkspaceForSlug(t *testing.T, slug string) string {
+	t.Helper()
+	return filepath.Join(integration.DefaultWorkspaceDir(t), integration.HolonPathForSlug(slug))
+}
+
+func invokeWorkspaceOptions(t *testing.T, workDir string) integration.RunOptions {
+	t.Helper()
+	if workDir == integration.DefaultWorkspaceDir(t) {
+		return integration.RunOptions{WorkDir: workDir}
+	}
+	return integration.RunOptions{WorkDir: workDir, DiscoverRoot: workDir}
+}
+
+func invokeOptionsForSlug(t *testing.T, slug string) integration.RunOptions {
+	t.Helper()
+	return invokeWorkspaceOptions(t, invokeWorkspaceForSlug(t, slug))
+}
+
+func readInvokeListJSONAt(t *testing.T, sb *integration.Sandbox, workDir string) integration.ListJSON {
+	t.Helper()
+	result := sb.RunOPWithOptions(t, invokeWorkspaceOptions(t, workDir), "--format", "json", "list")
+	integration.RequireSuccess(t, result)
+	return integration.DecodeJSON[integration.ListJSON](t, result.Stdout)
 }
 
 func writeInvokeModRootFixture(t *testing.T, root string) {
@@ -175,10 +205,7 @@ message PingResponse {}
 func startOPTarget(t *testing.T, sb *integration.Sandbox, transport invokeTransport, workDir string) (string, integration.RunOptions, func()) {
 	t.Helper()
 
-	opts := integration.RunOptions{WorkDir: workDir}
-	if workDir != integration.DefaultWorkspaceDir(t) {
-		opts.SkipDiscoverRoot = true
-	}
+	opts := invokeWorkspaceOptions(t, workDir)
 
 	switch transport.Name {
 	case "stdio":
@@ -244,4 +271,3 @@ func nonEmptyLines(s string) []string {
 	}
 	return out
 }
-

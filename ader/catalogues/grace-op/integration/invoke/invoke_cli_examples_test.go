@@ -18,12 +18,12 @@ func TestInvoke_CLI_ExamplesAcrossTransports(t *testing.T) {
 			for _, transport := range exampleInvokeTransports() {
 				transport := transport
 				t.Run(transport.Name, func(t *testing.T) {
-					target, cleanup := startExampleTransportTarget(t, sb, spec.Slug, transport)
+					target, opts, cleanup := startExampleTransportTarget(t, sb, spec.Slug, transport, invokeWorkspaceForSlug(t, spec.Slug))
 					defer cleanup()
 
 					for _, method := range methods {
 						t.Run(method.Method, func(t *testing.T) {
-							payload := invokeCLIJSON(t, sb, integration.RunOptions{}, target, method.Method, method.Payload)
+							payload := invokeCLIJSON(t, sb, opts, target, method.Method, method.Payload)
 							integration.AssertInvokePayload(t, spec, method.Method, payload)
 						})
 					}
@@ -80,12 +80,12 @@ func TestInvoke_CLI_CompositeAcrossTransports(t *testing.T) {
 			for _, transport := range exampleInvokeTransports() {
 				transport := transport
 				t.Run(transport.Name, func(t *testing.T) {
-					target, cleanup := startExampleTransportTarget(t, sb, spec.Slug, transport)
+					target, opts, cleanup := startExampleTransportTarget(t, sb, spec.Slug, transport, integration.DefaultWorkspaceDir(t))
 					defer cleanup()
 
 					for _, method := range methods {
 						t.Run(method.name, func(t *testing.T) {
-							payload := invokeCLIJSON(t, sb, integration.RunOptions{}, target, method.name, method.payload)
+							payload := invokeCLIJSON(t, sb, opts, target, method.name, method.payload)
 							method.assert(t, payload)
 						})
 					}

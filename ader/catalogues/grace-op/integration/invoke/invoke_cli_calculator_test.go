@@ -15,8 +15,9 @@ import (
 func TestInvoke_CLI_Calculator_DemoSequence(t *testing.T) {
 	sb := integration.NewSandbox(t)
 	integration.BuildReportFor(t, sb, "matt-calculator-go")
+	opts := invokeOptionsForSlug(t, "matt-calculator-go")
 
-	result := sb.RunOP(t,
+	result := sb.RunOPWithOptions(t, opts,
 		"invoke", "stdio://matt-calculator-go",
 		"Set", `{"value":20.0}`,
 		"Add", `{"value":1.0}`,
@@ -56,8 +57,9 @@ func TestInvoke_CLI_Calculator_DemoSequence(t *testing.T) {
 func TestInvoke_CLI_Calculator_DivideByZero(t *testing.T) {
 	sb := integration.NewSandbox(t)
 	integration.BuildReportFor(t, sb, "matt-calculator-go")
+	opts := invokeOptionsForSlug(t, "matt-calculator-go")
 
-	result := sb.RunOP(t,
+	result := sb.RunOPWithOptions(t, opts,
 		"invoke", "stdio://matt-calculator-go",
 		"Divide", `{"by":0}`,
 	)
@@ -70,10 +72,11 @@ func TestInvoke_CLI_Calculator_DivideByZero(t *testing.T) {
 func TestInvoke_CLI_Calculator_AccumulatorResetsBetweenInvocations(t *testing.T) {
 	sb := integration.NewSandbox(t)
 	integration.BuildReportFor(t, sb, "matt-calculator-go")
+	opts := invokeOptionsForSlug(t, "matt-calculator-go")
 
 	addTen := func() float64 {
 		t.Helper()
-		result := sb.RunOP(t,
+		result := sb.RunOPWithOptions(t, opts,
 			"invoke", "stdio://matt-calculator-go",
 			"Add", `{"value":10.0}`,
 		)

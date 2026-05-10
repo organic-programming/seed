@@ -180,7 +180,7 @@ func TestInvoke_CLI_OPServiceAcrossTransports(t *testing.T) {
 		},
 		{
 			name:    "Test",
-			workDir: func(t *testing.T, f invokeOPFixture) string { return f.Workspace },
+			workDir: func(t *testing.T, f invokeOPFixture) string { return f.SeedRootWorkspace },
 			payload: func(t *testing.T, f invokeOPFixture) string {
 				return mustJSON(t, map[string]any{"target": f.TestTarget})
 			},

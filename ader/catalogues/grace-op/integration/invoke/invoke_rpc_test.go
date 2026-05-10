@@ -14,7 +14,7 @@ import (
 
 func TestInvoke_RPC_GoVersion(t *testing.T) {
 	sb := integration.NewSandbox(t)
-	client, cleanup := integration.SetupSandboxStdioOPClient(t, sb)
+	client, cleanup := integration.SetupSandboxStdioOPClientAt(t, sb, invokeWorkspaceForSlug(t, "gabriel-greeting-go"))
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

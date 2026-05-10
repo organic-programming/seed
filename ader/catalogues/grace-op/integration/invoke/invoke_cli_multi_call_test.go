@@ -15,8 +15,9 @@ import (
 func TestInvoke_CLI_MultiCall_JSONLines(t *testing.T) {
 	sb := integration.NewSandbox(t)
 	integration.BuildReportFor(t, sb, "gabriel-greeting-go")
+	opts := invokeOptionsForSlug(t, "gabriel-greeting-go")
 
-	result := sb.RunOP(t,
+	result := sb.RunOPWithOptions(t, opts,
 		"invoke", "stdio://gabriel-greeting-go",
 		"SayHello", `{"name":"Alice","lang_code":"en"}`,
 		"SayHello", `{"name":"Bob","lang_code":"fr"}`,
@@ -43,8 +44,9 @@ func TestInvoke_CLI_MultiCall_JSONLines(t *testing.T) {
 func TestInvoke_CLI_MultiCall_SingleCallUnchanged(t *testing.T) {
 	sb := integration.NewSandbox(t)
 	integration.BuildReportFor(t, sb, "gabriel-greeting-go")
+	opts := invokeOptionsForSlug(t, "gabriel-greeting-go")
 
-	result := sb.RunOP(t,
+	result := sb.RunOPWithOptions(t, opts,
 		"invoke", "stdio://gabriel-greeting-go",
 		"SayHello", `{"name":"World","lang_code":"en"}`,
 	)
@@ -64,9 +66,10 @@ func TestInvoke_CLI_MultiCall_SingleCallUnchanged(t *testing.T) {
 func TestInvoke_CLI_MultiCall_ImplicitEmptyPayload(t *testing.T) {
 	sb := integration.NewSandbox(t)
 	integration.BuildReportFor(t, sb, "gabriel-greeting-go")
+	opts := invokeOptionsForSlug(t, "gabriel-greeting-go")
 
 	// ListLanguages takes no arguments — omitting JSON must work.
-	result := sb.RunOP(t,
+	result := sb.RunOPWithOptions(t, opts,
 		"invoke", "stdio://gabriel-greeting-go",
 		"ListLanguages",
 		"SayHello", `{"name":"World","lang_code":"en"}`,
@@ -84,10 +87,11 @@ func TestInvoke_CLI_MultiCall_ImplicitEmptyPayload(t *testing.T) {
 func TestInvoke_CLI_MultiCall_FailFast(t *testing.T) {
 	sb := integration.NewSandbox(t)
 	integration.BuildReportFor(t, sb, "gabriel-greeting-go")
+	opts := invokeOptionsForSlug(t, "gabriel-greeting-go")
 
-	result := sb.RunOP(t,
+	result := sb.RunOPWithOptions(t, opts,
 		"invoke", "stdio://gabriel-greeting-go",
-		"DoesNotExist", `{}`,            // will fail
+		"DoesNotExist", `{}`, // will fail
 		"SayHello", `{"name":"World","lang_code":"en"}`, // must not run
 	)
 	integration.RequireFailure(t, result)
@@ -112,10 +116,10 @@ func TestInvoke_CLI_MultiCall_AcrossTransports(t *testing.T) {
 	for _, transport := range exampleInvokeTransports() {
 		transport := transport
 		t.Run(transport.Name, func(t *testing.T) {
-			target, cleanup := startExampleTransportTarget(t, sb, "gabriel-greeting-go", transport)
+			target, opts, cleanup := startExampleTransportTarget(t, sb, "gabriel-greeting-go", transport, invokeWorkspaceForSlug(t, "gabriel-greeting-go"))
 			defer cleanup()
 
-			result := sb.RunOP(t,
+			result := sb.RunOPWithOptions(t, opts,
 				"invoke", target,
 				"SayHello", `{"name":"Alice","lang_code":"en"}`,
 				"SayHello", `{"name":"Bob","lang_code":"fr"}`,
