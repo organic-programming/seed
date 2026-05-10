@@ -10,15 +10,15 @@ import (
 type EventType int32
 
 const (
-	EventTypeUnspecified    EventType = 0
-	EventInstanceSpawned    EventType = 1
-	EventInstanceReady      EventType = 2
-	EventInstanceExited     EventType = 3
-	EventInstanceCrashed    EventType = 4
-	EventSessionStarted     EventType = 5
-	EventSessionEnded       EventType = 6
-	EventHandlerPanic       EventType = 7
-	EventConfigReloaded     EventType = 8
+	EventTypeUnspecified EventType = 0
+	EventInstanceSpawned EventType = 1
+	EventInstanceReady   EventType = 2
+	EventInstanceExited  EventType = 3
+	EventInstanceCrashed EventType = 4
+	EventSessionStarted  EventType = 5
+	EventSessionEnded    EventType = 6
+	EventHandlerPanic    EventType = 7
+	EventConfigReloaded  EventType = 8
 )
 
 // String returns the enum name.
@@ -60,12 +60,12 @@ type Event struct {
 // the buffer and broadcasts to live subscribers. Drain returns a
 // snapshot (oldest first).
 type EventBus struct {
-	mu      sync.Mutex
-	buf     []Event
-	next    int
-	filled  bool
-	cap     int
-	closed  bool
+	mu     sync.Mutex
+	buf    []Event
+	next   int
+	filled bool
+	cap    int
+	closed bool
 
 	subsMu sync.Mutex
 	subs   []chan Event
