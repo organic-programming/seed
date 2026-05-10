@@ -1,0 +1,46 @@
+name: Republish SDK releases
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: pipeline run ID source des artifacts
+        required: true
+      tag_version:
+        description: tag version cible
+        required: true
+        default: '0.7.0'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Download SDK artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "${{ github.event.inputs.run_id }}" \
+            -R ${{ github.repository }} \
+            --pattern 'sdk-*' \
+            -D ./sdks
+      - name: Create one release per lang
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          TAG="${{ github.event.inputs.tag_version }}"
+          for lang in c cpp csharp dart go java js js-web kotlin python ruby rust swift zig; do
+            files=$(find ./sdks \( -name "${lang}-holons-v*-*.tar.gz" -o -name "${lang}-holons-v*-*.tar.gz.sha256" \) ! -name '*-debug*' | sort | tr '\n' ' ')
+            if [ -z "$files" ]; then
+              echo "SKIP $lang"
+              continue
+            fi
+            echo "→ ${lang}-holons-v${TAG}"
+            gh release create "${lang}-holons-v${TAG}" \
+              -R ${{ github.repository }} \
+              --title "${lang}-holons v${TAG}" \
+              --notes "Aligned release at seed_release ${TAG}, built from master run ${{ github.event.inputs.run_id }}." \
+              $files
+          done
