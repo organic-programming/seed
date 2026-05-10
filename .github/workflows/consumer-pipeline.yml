@@ -770,6 +770,16 @@ jobs:
             op sdk install "$lang"
           done
 
+      - name: Checkout Zig vendored submodules
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          git submodule sync --recursive sdk/zig-holons/third_party/grpc sdk/zig-holons/third_party/protobuf-c
+          git submodule update --init --force --recursive --depth 1 --jobs 8 \
+            sdk/zig-holons/third_party/grpc \
+            sdk/zig-holons/third_party/protobuf-c
+
       - name: Build Flutter composite
         run: |
           set -euo pipefail
