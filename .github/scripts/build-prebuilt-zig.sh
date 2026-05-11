@@ -2,7 +2,6 @@
 set -euo pipefail
 
 sdk_target="${SDK_TARGET:?SDK_TARGET is required}"
-sdk_version="${SDK_VERSION:-0.1.0}"
 jobs="${ZIG_HOLONS_JOBS:-8}"
 zig_bin="${ZIG:-$(command -v zig)}"
 
@@ -38,6 +37,7 @@ repo_root="$(git rev-parse --show-toplevel)"
 # shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
 source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
 trap 'cleanup_grpc_third_party_pollution "$repo_root"' EXIT
+sdk_version="${SDK_VERSION:-$(seed_release "$repo_root")}"
 sdk_dir="${repo_root}/sdk/zig-holons"
 dist_dir="${repo_root}/dist/sdk-prebuilts/zig/${sdk_target}"
 work_dir="${sdk_dir}/.zig-prebuilt/${sdk_target}"

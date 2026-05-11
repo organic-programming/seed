@@ -3,13 +3,13 @@ set -euo pipefail
 
 sdk_lang="${SDK_LANG:?SDK_LANG is required}"
 sdk_target="${SDK_TARGET:?SDK_TARGET is required}"
-sdk_version="${SDK_VERSION:-0.1.0}"
 
 script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 # shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
 source "${script_dir}/lib-codegen-prebuilt.sh"
 
 repo_root="$(repo_root_or_pwd)"
+sdk_version="${SDK_VERSION:-$(seed_release "$repo_root")}"
 dist_dir="${repo_root}/dist/sdk-prebuilts/${sdk_lang}/${sdk_target}"
 work_dir="${repo_root}/sdk/${sdk_lang}-holons/.codegen-prebuilt/${sdk_target}"
 stage="${work_dir}/stage/${sdk_lang}-holons-v${sdk_version}-${sdk_target}"
@@ -45,7 +45,8 @@ EOF
 )
     ;;
   dart)
-    dart pub global activate protoc_plugin "$(plugin_version "$repo_root" dart protoc-gen-dart)"
+    dart_plugin_version="$(plugin_version "$repo_root" dart protoc-gen-dart)"
+    dart pub global activate protoc_plugin "$dart_plugin_version"
     dart_snapshot="$(find "${PUB_CACHE:-$HOME/.pub-cache}/global_packages/protoc_plugin/bin" -maxdepth 1 -name 'protoc_plugin.dart-*.snapshot' | sort | tail -n 1)"
     if [[ -z "$dart_snapshot" || ! -f "$dart_snapshot" ]]; then
       echo "protoc_plugin snapshot not found after pub global activate" >&2
@@ -53,11 +54,22 @@ EOF
     fi
     mkdir -p "${stage}/share/dart"
     cp "$dart_snapshot" "${stage}/share/dart/protoc_plugin.snapshot"
-    cat >"${stage}/bin/protoc-gen-dart" <<'EOF'
+    cat >"${stage}/bin/protoc-gen-dart" <<EOF
 #!/usr/bin/env sh
 set -eu
-bin_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
-exec dart "${bin_dir}/../share/dart/protoc_plugin.snapshot" "$@"
+bin_dir="\$(CDPATH= cd -- "\$(dirname "\$0")" && pwd)"
+snapshot="\${bin_dir}/../share/dart/protoc_plugin.snapshot"
+if [ -f "\$snapshot" ]; then
+  set +e
+  dart "\$snapshot" "\$@"
+  status=\$?
+  set -e
+  if [ "\$status" -ne 253 ]; then
+    exit "\$status"
+  fi
+fi
+dart pub global activate protoc_plugin "$dart_plugin_version" >/dev/null
+exec dart pub global run protoc_plugin:protoc_plugin "\$@"
 EOF
     chmod +x "${stage}/bin/protoc-gen-dart"
     plugins=$(cat <<EOF

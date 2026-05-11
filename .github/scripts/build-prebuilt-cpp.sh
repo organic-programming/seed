@@ -2,7 +2,6 @@
 set -euo pipefail
 
 sdk_target="${SDK_TARGET:?SDK_TARGET is required}"
-sdk_version="${SDK_VERSION:-1.80.0}"
 jobs="${CPP_HOLONS_JOBS:-${ZIG_HOLONS_JOBS:-8}}"
 zig_bin="${ZIG:-$(command -v zig || true)}"
 
@@ -112,6 +111,7 @@ repo_root="$(git rev-parse --show-toplevel)"
 # shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
 source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
 trap 'cleanup_grpc_third_party_pollution "$repo_root"' EXIT
+sdk_version="${SDK_VERSION:-$(seed_release "$repo_root")}"
 sdk_dir="${repo_root}/sdk/cpp-holons"
 grpc_source="${GRPC_SOURCE_DIR:-${repo_root}/sdk/zig-holons/third_party/grpc}"
 nlohmann_json_header="${sdk_dir}/third_party/nlohmann-json/single_include/nlohmann/json.hpp"

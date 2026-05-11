@@ -1,11 +1,15 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/organic-programming/grace-op/api"
 	opv1 "github.com/organic-programming/grace-op/gen/go/op/v1"
+	"github.com/organic-programming/grace-op/internal/sdkprebuilts"
 	"github.com/spf13/cobra"
 )
 
@@ -27,16 +31,28 @@ func newSdkCmd() *cobra.Command {
 
 func newSdkBuildCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "build <lang>",
+		Use:   "build <lang|all>",
 		Short: "Build a SDK prebuilt from local sources and install it",
 		Long: "build invokes the per-SDK script under .github/scripts/ to compile\n" +
 			"a SDK prebuilt from the gRPC + per-SDK sources in this checkout,\n" +
 			"then installs the resulting tarball into $OPPATH/sdk. Long-running\n" +
 			"(~30-60 min cold). Use install instead when a published release is\n" +
-			"available.",
+			"available.\n\n" +
+			"Use `op sdk build all` to build every SDK sequentially in the fixed\n" +
+			"batch order. Batch logs are written under $OPPATH/logs/sdk-build/.",
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeCompilableSdkLangs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if strings.TrimSpace(args[0]) == sdkAllSentinel {
+				if _, err := runSdkBuildAll(cmd); err != nil {
+					var batchErr sdkAllFailedError
+					if errors.As(err, &batchErr) {
+						return commandExitError{code: 1}
+					}
+					return fmt.Errorf("op sdk build all: %w", err)
+				}
+				return nil
+			}
 			format, err := currentFormat()
 			if err != nil {
 				return err
@@ -49,9 +65,9 @@ func newSdkBuildCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().String("target", "", "target triplet (defaults to host)")
+	cmd.Flags().String("target", "", "target triplet (defaults to host; with all, unsupported SDK-target pairs are skipped)")
 	cmd.Flags().String("version", "", "SDK prebuilt version")
-	cmd.Flags().Int("jobs", 0, "compile parallelism (0 = sensible default)")
+	cmd.Flags().Int("jobs", 0, "per-SDK compile parallelism (0 = sensible default; no inter-SDK parallelism)")
 	cmd.Flags().Bool("force", false, "rebuild even if a cached tarball exists")
 	cmd.Flags().Bool("no-install", false, "leave tarball in dist/ instead of installing")
 	_ = cmd.RegisterFlagCompletionFunc("target", completeAllowedSdkTargets)
@@ -61,11 +77,30 @@ func newSdkBuildCmd() *cobra.Command {
 
 func newSdkInstallCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "install <lang>",
-		Short:             "Install an SDK prebuilt",
+		Use:   "install <lang|all>",
+		Short: "Install an SDK prebuilt",
+		Long: "install downloads a published SDK prebuilt and unpacks it under $OPPATH/sdk.\n\n" +
+			"Use `op sdk install all` to install every SDK sequentially in the fixed\n" +
+			"batch order. Batch logs are written under $OPPATH/logs/sdk-install/.",
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeAvailableSdkLangs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if strings.TrimSpace(args[0]) == sdkAllSentinel {
+				if cmd.Flags().Changed("source") {
+					return fmt.Errorf("op sdk install all does not support --source; install a source archive one SDK at a time")
+				}
+				if cmd.Flags().Changed("version") {
+					return fmt.Errorf("op sdk install all does not support --version; each SDK resolves its release independently")
+				}
+				if _, err := runSdkInstallAll(cmd); err != nil {
+					var batchErr sdkAllFailedError
+					if errors.As(err, &batchErr) {
+						return commandExitError{code: 1}
+					}
+					return fmt.Errorf("op sdk install all: %w", err)
+				}
+				return nil
+			}
 			format, err := currentFormat()
 			if err != nil {
 				return err
@@ -78,12 +113,71 @@ func newSdkInstallCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().String("target", "", "target triplet (defaults to host, or to --source manifest target)")
+	cmd.Flags().String("target", "", "target triplet (defaults to host, or to --source manifest target; with all, applied to every SDK)")
 	cmd.Flags().String("version", "", "SDK prebuilt version")
 	cmd.Flags().String("source", "", "local tarball or URL source")
 	_ = cmd.RegisterFlagCompletionFunc("target", completeAllowedSdkTargets)
 	_ = cmd.RegisterFlagCompletionFunc("version", completeSdkVersionsForLang)
 	return cmd
+}
+
+func runSdkBuildAll(cmd *cobra.Command) ([]sdkAllResult, error) {
+	req := sdkBuildRequestFromCommand(cmd, "")
+	return runSdkAll(cmd.Context(), sdkAllOptions{
+		kind:   sdkAllBuild,
+		target: req.GetTarget(),
+		stdout: cmd.OutOrStdout(),
+		stderr: cmd.ErrOrStderr(),
+		runSDK: func(ctx context.Context, lang string, log io.Writer) error {
+			prebuilt, notes, err := sdkprebuilts.Build(ctx, sdkprebuilts.BuildOptions{
+				Lang:              lang,
+				Target:            req.GetTarget(),
+				Version:           req.GetVersion(),
+				Jobs:              int(req.GetJobs()),
+				Force:             req.GetForce(),
+				InstallAfterBuild: req.GetInstallAfterBuild(),
+				Stdout:            log,
+				Stderr:            log,
+			})
+			writeSdkOperationLog(log, prebuilt, notes, err)
+			return err
+		},
+		skipSDK: func(lang string) ([]string, error) {
+			return sdkBuildAllBlockers(lang, req.GetTarget())
+		},
+	})
+}
+
+func runSdkInstallAll(cmd *cobra.Command) ([]sdkAllResult, error) {
+	req := sdkInstallRequestFromCommand(cmd, "")
+	return runSdkAll(cmd.Context(), sdkAllOptions{
+		kind:   sdkAllInstall,
+		target: req.GetTarget(),
+		stdout: cmd.OutOrStdout(),
+		stderr: cmd.ErrOrStderr(),
+		runSDK: func(ctx context.Context, lang string, log io.Writer) error {
+			prebuilt, notes, err := sdkprebuilts.Install(ctx, sdkprebuilts.InstallOptions{
+				Lang:    lang,
+				Target:  req.GetTarget(),
+				Version: req.GetVersion(),
+				Source:  req.GetSource(),
+			})
+			writeSdkOperationLog(log, prebuilt, notes, err)
+			return err
+		},
+	})
+}
+
+func writeSdkOperationLog(log io.Writer, prebuilt sdkprebuilts.Prebuilt, notes []string, err error) {
+	if err != nil {
+		return
+	}
+	if prebuilt.Lang != "" {
+		fmt.Fprintf(log, "\nprebuilt=%s version=%s target=%s path=%s\n", prebuilt.Lang, prebuilt.Version, prebuilt.Target, prebuilt.Path)
+	}
+	for _, note := range notes {
+		fmt.Fprintf(log, "note: %s\n", note)
+	}
 }
 
 func newSdkListCmd() *cobra.Command {
