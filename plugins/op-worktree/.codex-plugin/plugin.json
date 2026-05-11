@@ -1,0 +1,30 @@
+{
+  "name": "op-worktree",
+  "version": "0.1.0",
+  "description": "Create isolated OP git worktrees for parallel op, ader, and SDK development.",
+  "author": {
+    "name": "Organic Programming",
+    "email": "support@example.com",
+    "url": "https://github.com/organic-programming/seed"
+  },
+  "homepage": "https://github.com/organic-programming/seed",
+  "repository": "https://github.com/organic-programming/seed",
+  "license": "UNLICENSED",
+  "keywords": ["op", "worktree", "isolation", "toolchain"],
+  "skills": "./skills/",
+  "hooks": "./hooks.json",
+  "interface": {
+    "displayName": "OP Worktree",
+    "shortDescription": "Create isolated worktrees for OP toolchain development",
+    "longDescription": "Use OP Worktree to create plain or isolated git worktrees for parallel core-dev work on op, ader, and SDKs. Isolated worktrees get their own .op runtime and project-local agent env files.",
+    "developerName": "Organic Programming",
+    "category": "Coding",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/organic-programming/seed",
+    "privacyPolicyURL": "https://github.com/organic-programming/seed",
+    "termsOfServiceURL": "https://github.com/organic-programming/seed",
+    "defaultPrompt": ["Create an isolated OP worktree for feature/X"],
+    "brandColor": "#0F766E",
+    "screenshots": []
+  }
+}

@@ -17,6 +17,7 @@ func addMiscCommands(root *cobra.Command, version string) {
 		newToolsCmd(),
 		newEnvCmd(),
 		newSdkCmd(),
+		newWorktreeCmd(),
 		newServeCmd(),
 		newVersionCmd(),
 	)

@@ -110,6 +110,11 @@ See `CONVENTIONS.md §4` for the per-language mapping of source dir / generated 
 - `OPROOT` — overrides discovery root (set by `--root`).
 - `.op/` inside a holon = build outputs, `.gitignore`-d.
 
+For parallel core-dev work on `op`, `ader`, or SDKs, use
+[`holons/grace-op/OP_WORKTREE.md`](./holons/grace-op/OP_WORKTREE.md).
+`op worktree` creates worktrees with a local `<worktree>/.op` runtime so
+rebuilds do not mutate `~/.op` or leak across branches.
+
 ## Status signals
 
 `INDEX.md` legend: ✅ validated, ? draft / unverified, ⚠️ known issues, `-` not implemented, ❌ ignore. Specs marked ⚠️/? are moving — re-read the current file rather than trust remembered detail. `op proxy` is **not yet implemented** (v0.6).

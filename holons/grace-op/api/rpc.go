@@ -118,6 +118,10 @@ func (RPCHandler) Env(_ context.Context, req *opv1.EnvRequest) (*opv1.EnvRespons
 	return Env(req)
 }
 
+func (RPCHandler) Worktree(_ context.Context, req *opv1.WorktreeRequest) (*opv1.WorktreeResponse, error) {
+	return Worktree(req)
+}
+
 func (RPCHandler) InstallSdkPrebuilt(ctx context.Context, req *opv1.InstallSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) {
 	return installSdkPrebuiltContext(ctx, req)
 }

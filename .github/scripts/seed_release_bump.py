@@ -10,12 +10,12 @@ from pathlib import Path
 SEED_RELEASE_RE = re.compile(r'^(seed_release:\s*)"?([^"#\s]+)"?(.*)$')
 
 
-def bump_minor(version: str) -> str:
+def bump_patch(version: str) -> str:
     parts = version.strip().split(".")
     if len(parts) != 3 or not all(part.isdigit() for part in parts):
         raise ValueError(f"seed_release is not a major.minor.patch version: {version}")
-    major, minor, _patch = (int(part) for part in parts)
-    return f"{major}.{minor + 1}.0"
+    major, minor, patch = (int(part) for part in parts)
+    return f"{major}.{minor}.{patch + 1}"
 
 
 def read_seed_release(path: Path) -> str:
@@ -38,7 +38,7 @@ def bump_file(path: Path) -> tuple[str, str]:
         match = SEED_RELEASE_RE.match(body)
         if match and not replaced:
             current = match.group(2)
-            next_version = bump_minor(current)
+            next_version = bump_patch(current)
             out.append(f'{match.group(1)}"{next_version}"{match.group(3)}{newline}')
             replaced = True
         else:
@@ -53,8 +53,8 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
 
-    next_minor = sub.add_parser("next-minor")
-    next_minor.add_argument("version")
+    next_patch = sub.add_parser("next-patch")
+    next_patch.add_argument("version")
 
     read = sub.add_parser("read")
     read.add_argument("path", type=Path)
@@ -64,8 +64,8 @@ def main(argv: list[str]) -> int:
 
     args = parser.parse_args(argv[1:])
     try:
-        if args.command == "next-minor":
-            print(bump_minor(args.version))
+        if args.command == "next-patch":
+            print(bump_patch(args.version))
         elif args.command == "read":
             print(read_seed_release(args.path))
         elif args.command == "bump-file":
