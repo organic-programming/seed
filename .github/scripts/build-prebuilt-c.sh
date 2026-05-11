@@ -2,7 +2,6 @@
 set -euo pipefail
 
 sdk_target="${SDK_TARGET:?SDK_TARGET is required}"
-sdk_version="${SDK_VERSION:-1.80.0}"
 jobs="${C_HOLONS_JOBS:-${CPP_HOLONS_JOBS:-${ZIG_HOLONS_JOBS:-8}}}"
 zig_bin="${ZIG:-$(command -v zig || true)}"
 
@@ -43,6 +42,7 @@ repo_root="$(git rev-parse --show-toplevel)"
 # shellcheck source=.github/scripts/lib-codegen-prebuilt.sh
 source "${repo_root}/.github/scripts/lib-codegen-prebuilt.sh"
 trap 'cleanup_grpc_third_party_pollution "$repo_root"' EXIT
+sdk_version="${SDK_VERSION:-$(seed_release "$repo_root")}"
 c_sdk_dir="${repo_root}/sdk/c-holons"
 cpp_sdk_dir="${repo_root}/sdk/cpp-holons"
 protobuf_c_source="${PROTOBUF_C_SOURCE_DIR:-${repo_root}/sdk/zig-holons/third_party/protobuf-c}"

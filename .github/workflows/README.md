@@ -1,124 +1,115 @@
 # GitHub Workflows
 
-The pre-merge workflow is intentionally ordered: prove the organic-programming tools first, build fresh run-local SDK prebuilts, then run domain coverage from artifacts produced by the same run.
+`pipeline.yml` is the single pre-merge and master pipeline. It always proves the
+core tools first, then gate 7 decides whether the run needs fresh SDK prebuilts.
 
 ```text
-pull_request / push on master
+pull_request / push on master / workflow_dispatch
         |
         v
-  gate-1-go-build-op (self-hosted macOS, fail-fast)
-        |
-  gate-2-op-self-build (self-hosted macOS, fail-fast)
-        |
-  gate-3-op-core-tests (self-hosted macOS, fail-fast)
-        |
-  gate-3a-go-codegen-sdk (self-hosted macOS, bootstrap artifact)
-        |
-  gate-4-op-build-ader (self-hosted macOS, fail-fast)
-        |
-  gate-5-ader-core-tests (self-hosted macOS, fail-fast)
-        |
-  gate-6-smoke-suite (self-hosted macOS, fail-fast)
+  gates 1-6: op, ader, bootstrap, smoke
         |
         v
-  tier 1 wave A: sdk-build-{zig,cpp,go,java,kotlin,dart,swift} (hosted/macOS)
+  gate-7-classify-changes
         |
-  tier 1 wave B: sdk-build-{c,ruby,python,csharp,js}
+        +-- sdk_source=false
+        |     skip sdk-build-* and sdk-deep-tests
+        |     op sdk install all
+        |     composites + local-dev bouquet
         |
-  fresh-sdk-delivery (ubuntu-hosted pass-through gate)
-        |
-        +--------------------------+
-        |                          |
-        v                          v
-  tier 2 composites          tier 3 sdk-deep-tests
-  swiftui / flutter /        zig host + cross-smoke
-  ader bouquet (macOS)       matrix (macOS)
-
-post-merge:
-  sdk-prebuilts.yml promote downloads successful tier-1 artifacts from the
-  merged PR's pipeline run and publishes only archives that actually exist.
-
-benchmark/maintenance:
-  ader-bench.yml is a manual diagnostic workflow that runs an ader bouquet,
-  separates runner wait from executed time, and uploads functional success /
-  failure reports. It does not enforce performance targets.
+        +-- sdk_source=true
+              sdk-build-* matrix
+              run-local artifacts
+              composites + local-dev bouquet
+              sdk-deep-tests (zig host only)
+              master push only: auto-bump seed_release
 ```
 
-## Jobs
+## Classification
 
-| Job | Runner | Trigger | Downstream effect | Warm target |
-|---|---|---|---|---|
-| `gate-1-go-build-op` | self-hosted macOS | same-repo PR, push, dispatch | blocks all later jobs | <1 min |
-| `gate-2-op-self-build` | self-hosted macOS | `needs: gate-1` | blocks all later jobs | <1 min |
-| `gate-3-op-core-tests` | self-hosted macOS | `needs: gate-2` | blocks all later jobs | 1-3 min |
-| `gate-3a-go-codegen-sdk` | self-hosted macOS | `needs: gate-3` | uploads `sdk-go-bootstrap-<target>` for the ader build manifest | <1 min |
-| `gate-4-op-build-ader` | self-hosted macOS | `needs: gate-3a-go-codegen-sdk` | blocks all later jobs | <1 min |
-| `gate-5-ader-core-tests` | self-hosted macOS | `needs: gate-4` | blocks all later jobs | 1-2 min |
-| `gate-6-smoke-suite` | self-hosted macOS | `needs: gate-5` | blocks all later jobs | 2-3 min |
-| `sdk-build-zig` | hosted/macOS | `needs: gate-6` | uploads `sdk-zig-<target>` | 10-30 min |
-| `sdk-build-cpp` | hosted/macOS | `needs: gate-6` | uploads `sdk-cpp-<target>` and `cpp-prefix-<target>` | 10-30 min |
-| `sdk-build-c` | hosted/macOS | `needs: sdk-build-cpp` | downloads `cpp-prefix-<target>`, uploads `sdk-c-<target>` | 10-30 min |
-| `sdk-build-ruby` | hosted/macOS | `needs: sdk-build-cpp` | downloads `cpp-prefix-<target>`, uploads `sdk-ruby-<target>` | 10-30 min |
-| `sdk-build-{go,java,kotlin,dart,swift}` | hosted macOS | `needs: gate-6` | uploads `sdk-<lang>-<target>` | 5-30 min |
-| `sdk-build-{python,csharp,js}` | hosted macOS | `needs: sdk-build-cpp` | downloads `cpp-prefix-<target>`, uploads `sdk-<lang>-<target>` | 5-30 min |
-| `fresh-sdk-delivery` | ubuntu-latest | after tier 1 | pass-through once run-local SDK artifacts exist | <1 min |
-| `composite-swiftui-full` | self-hosted macOS | `needs: fresh-sdk-delivery` | fail-isolated PR check | 1-2 h |
-| `composite-flutter-full` | self-hosted macOS | `needs: fresh-sdk-delivery` | fail-isolated PR check | 1-2 h |
-| `ader-bouquet-full` | self-hosted macOS | `needs: fresh-sdk-delivery` | fail-isolated PR check | 1-3 h |
-| `sdk-deep-tests` | self-hosted macOS | `needs: fresh-sdk-delivery` | fail-isolated matrix | 1-3 h |
-| `sdk-prebuilts.yml/promote` | ubuntu-latest | merged PR only | publishes releases | <10 min |
-| `ader-bench.yml/bench` | self-hosted macOS | dispatch | uploads objective bouquet timing and failure diagnostics | no performance target |
+Gate 7 uses `.github/scripts/sdk_ci_paths.py`:
 
-## Failed Check
+- Markdown, images, `README*`, `LICENSE*`, `CHANGELOG*`, and `docs/**` under
+  `sdk/**` are not SDK source.
+- SDK directories, `seed-toolchain.yaml`, `.gitmodules`, build-prebuilt scripts,
+  shared prebuilt helpers, SDK prebuilt runtime code, and protoc adapter/noop
+  generators are SDK source.
+- `seed-toolchain.yaml` or transverse prebuilt tooling republishes all 14 SDKs.
+- `sdk/cpp-holons/**` republishes `cpp,c,ruby,python,csharp,kotlin,java,js`.
+- `sdk/zig-holons/third_party/grpc/**` republishes
+  `zig,cpp,c,ruby,python,csharp,kotlin,java,js`.
 
-1. Find the tier. Gate failures mean `op` or `clem-ader` is broken and later checks are intentionally skipped. Tier-1 failures mean changed SDK prebuilts did not build. Tier-2 or tier-3 failures are domain coverage failures.
-2. Check whether the failing matrix entry is `continue-on-error`. Those entries do not block the workflow conclusion and are documented below.
-3. Fix in the owning layer: Go/tooling for gate jobs, SDK source or build scripts for tier 1, catalogues/examples for tier 2, SDK test tooling for tier 3.
+## Job Shape
 
-## Suspended Targets
+| Area | `sdk_source=false` | `sdk_source=true` |
+|---|---|---|
+| Gates 1-6 | yes | yes |
+| SDK build matrix | no | yes |
+| SDK source for downstream jobs | published releases via `op sdk install all` | artifacts from the same run |
+| Composites | SwiftUI, Flutter | SwiftUI, Flutter |
+| Bouquet | `local-dev` | `local-dev` |
+| SDK deep tests | no | `zig, host` |
 
-| Area | Target | State | Reason |
-|---|---|---|---|
-| zig prebuilt | `x86_64-apple-darwin` | omitted | target needs end-to-end validation |
-| cpp prebuilt | `x86_64-apple-darwin` | omitted | target needs end-to-end validation |
-| c prebuilt | `x86_64-apple-darwin` | omitted | target needs end-to-end validation |
-| ruby prebuilt | `x86_64-apple-darwin` | omitted | grpc native gem build fails on Intel mac with incompatible function pointer types |
-| zig/cpp/c/ruby prebuilts | linux and windows matrix entries | `continue-on-error` | target needs validation before gating |
-| zig cross-smoke | `aarch64-linux-android` | omitted | NDK/linker setup is not stable on the self-hosted macOS runner |
+`local-dev` includes the `op_invoke` smoke suite. `sdk-deep-tests` keeps only
+Zig host checks: `zig fmt --check`, `zig build vendor`, `zig build test`,
+`zig build test-c-abi`, and the `op build/test/clean/build gabriel-greeting-zig`
+lifecycle. Cross-compilation remains covered by the `sdk-build-zig` target
+matrix.
 
-## Inter-SDK dependency: cpp prefix
+## SDK Versions
 
-Only SDKs that need native gRPC artifacts consume files built by the cpp prebuilt job:
+All SDK prebuilt scripts default `SDK_VERSION` from `seed_release` in
+`seed-toolchain.yaml`. Explicit `SDK_VERSION` values still override this for
+ad hoc local builds. The reusable `_sdk-prebuilt-target.yml` workflow therefore
+passes an empty version by default.
 
-- `c` needs the cpp prefix libraries, `protoc`/upb generators, and the matching CMake toolchain file.
-- `ruby` needs `grpc_ruby_plugin` because the `grpc-tools arm64-darwin` gem upstream does not ship it.
-- `python` and `csharp` need the cpp-built `grpc_python_plugin` and `grpc_csharp_plugin` via `copy_grpc_sibling`.
-- `js` needs the cpp-built `grpc_node_plugin`; its SDK wraps that plugin to provide `@grpc/grpc-js` output on arm64 runners without using the x86_64-only `grpc-tools` binary.
-- `zig` is independent: its prebuilt script builds and consumes its own prefix under `sdk/zig-holons/.zig-prebuilt/<target>/prefix/`.
-- `go`, `java`, `kotlin`, `dart`, and `swift` are codegen-light SDKs that do not read the cpp prefix.
+## Auto-Bump Policy
 
-The cpp build configures `gRPC_BUILD_GRPC_<LANG>_PLUGIN=ON` so each plugin lands in `sdk/cpp-holons/.cpp-prebuilt/<target>/prefix/bin/`, and it writes the target CMake toolchain under `sdk/cpp-holons/.cpp-prebuilt/<target>/toolchain/`.
+On successful `push` runs to `master` where gate 7 reports `sdk_source=true`,
+`auto-bump-seed-release` runs after SDK builds, composites, the bouquet, and
+Zig deep tests all pass.
 
-To make these files available cross-job in CI:
+The job:
 
-1. The `sdk-build-cpp` job uploads `prefix/` and `toolchain/` as a dedicated artifact `cpp-prefix-<target>` (retention 1 day, just enough to feed downstream jobs in the same workflow run).
-2. Each dependent job declares `needs: sdk-build-cpp` and passes `needs-cpp-prefix: true` to `_sdk-prebuilt-target.yml`.
-3. The reusable workflow downloads `cpp-prefix-<target>` and extracts it under `sdk/cpp-holons/.cpp-prebuilt/<target>/` before the build script runs.
+- uses `SEED_AUTOBUMP_TOKEN`, which must have `contents:write`, `actions:write`,
+  and permission to bypass protection on `master`;
+- serializes through concurrency group `auto-bump-seed-release`;
+- fetches and resets to latest `origin/master` immediately before reading
+  `seed_release`;
+- bumps the minor segment, for example `0.7.0` to `0.8.0`;
+- commits `ci: bump seed_release to <version> [skip ci]`;
+- retries stale-base push rejection up to 5 times.
 
-When adding a new adapter SDK that needs a cpp-side plugin, mirror the ruby pattern: `needs: sdk-build-cpp` + `needs-cpp-prefix: true`, and ensure the cpp build enables the matching `gRPC_BUILD_GRPC_<LANG>_PLUGIN` flag.
+If the merged PR already changed `seed_release`, the job does not create another
+bump. In that case `sdk-prebuilts.yml` promotes the matching PR artifacts.
 
-## CI cache configuration
+Because `[skip ci]` prevents a normal push-triggered build for the bump commit,
+the auto-bump job dispatches `pipeline.yml` on `master` with release inputs.
 
-The pipeline does not hardcode any cache path. Cache locations are pulled from `~/.op-mac.env` on each Mac runner (self-hosted), via the composite action `.github/actions/load-mac-runner-env`. Cloud runners ignore the file and rely on `actions/cache@v4` where persistence matters.
+## Release Intent
 
-- **Self-hosted Mac runner provisioning**: install tooling via `scripts/setup-op-mac.sh`, then `cp scripts/op-mac.env.example ~/.op-mac.env`. **Nothing else to do** — every Mac job in the pipeline begins with `uses: ./.github/actions/load-mac-runner-env`, which sources the file and propagates the documented variables to `$GITHUB_ENV` for the rest of the job. The runner does not need to source the file from its shell rc.
-- **Cloud runners**: no `~/.op-mac.env`, the composite action no-ops. `actions/cache@v4` covers cross-run cache where it matters (Go modules, Go build cache).
-- **Adding a new Mac runner**: only step is `cp scripts/op-mac.env.example ~/.op-mac.env`. Adding a new variable to the contract: edit `scripts/op-mac.env.example` and the `for var in …` list inside `.github/actions/load-mac-runner-env/action.yml` in the same commit.
+Dispatched release builds upload a `release-intent` artifact containing
+`release-intent.json`:
 
-## Publish Semantics
+```json
+{
+  "version": "0.8.0",
+  "publish_set": ["c", "cpp", "csharp", "dart", "go", "java", "js", "js-web", "kotlin", "python", "ruby", "rust", "swift", "zig"],
+  "source_run_id": "123456789",
+  "source_commit": "abcdef..."
+}
+```
 
-Tier 1 uploads artifacts only for targets that build successfully. Matrix entries marked `continue-on-error` can fail without failing the workflow; the post-merge promote workflow downloads the merged PR's successful `pipeline.yml` run and publishes only `*-holons-v*.tar.gz` archives that are present. If no SDK archive exists, promotion exits cleanly.
+`sdk-prebuilts.yml` listens for successful completed `pipeline` workflow runs.
+If a completed workflow-dispatch run has `release-intent.json`, it downloads
+that run's `sdk-*` artifacts and promotes only `publish_set`.
+
+`sdk-prebuilts.yml` also keeps the `pull_request: closed` path for manual
+`seed_release` PRs. Non-manual SDK-source merges do not publish their PR
+artifacts directly; the auto-bump dispatch owns the new versioned release.
 
 ## Maintenance Contract
 
-Any PR that adds, removes, renames, or reorders jobs in `.github/workflows/pipeline.yml` must update this file in the same commit.
+Any PR that changes workflow names, job dependencies, path-classification rules,
+SDK publish-set rules, auto-bump behavior, or SDK deep-test coverage must update
+this file and the relevant `.github/scripts/tests/` tests in the same commit.

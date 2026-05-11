@@ -5,6 +5,7 @@ artifact_root="${1:-${RUNNER_TEMP:-/tmp}/sdk-prebuilt-artifacts}"
 repo="${GITHUB_REPOSITORY:-organic-programming/seed}"
 target_commit="${GITHUB_SHA:-master}"
 dry_run="${SDK_PREBUILTS_PROMOTE_DRY_RUN:-}"
+publish_sdks_json="${SDK_PREBUILTS_PROMOTE_SDKS_JSON:-}"
 
 if [[ ! -d "$artifact_root" ]]; then
   echo "artifact root not found: ${artifact_root}" >&2
@@ -45,18 +46,27 @@ mkdir -p "$manifest_root"
 groups_file="${tmp}/groups.txt"
 : >"$groups_file"
 
+sdk_selected() {
+  local sdk="$1"
+  if [[ -z "$publish_sdks_json" ]]; then
+    return 0
+  fi
+  jq -e --arg sdk "$sdk" 'index($sdk) != null' <<<"$publish_sdks_json" >/dev/null
+}
+
 while IFS= read -r -d '' archive; do
   name="$(basename "$archive")"
   [[ "$name" == *-debug.tar.gz ]] && continue
   [[ "$name" =~ ^([a-z][a-z0-9-]*)-holons-v([0-9][0-9A-Za-z.+]*)-.+\.tar\.gz$ ]] || continue
   sdk="${BASH_REMATCH[1]}"
+  sdk_selected "$sdk" || continue
   version="${BASH_REMATCH[2]}"
   printf '%s|%s\n' "$sdk" "$version" >>"$groups_file"
 done < <(find "$artifact_root" -type f -name '*-holons-v*.tar.gz' -print0)
 
 if [[ ! -s "$groups_file" ]]; then
-  echo "no SDK prebuilt archives found under ${artifact_root}" >&2
-  exit 1
+  echo "no SDK prebuilt archives selected under ${artifact_root}; nothing to promote"
+  exit 0
 fi
 
 while IFS='|' read -r sdk version; do

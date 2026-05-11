@@ -1,6 +1,7 @@
-# SDK prebuilt publish: promotes artifacts produced by pipeline.yml tier 1 after a merged PR.
-# Triggers: pull_request closed on master; runs on ubuntu-latest.
-# Owns: post-merge GitHub Release publication. See .github/workflows/README.md for pipeline order.
+# SDK prebuilt publish: promotes artifacts produced by pipeline.yml.
+# Triggers:
+# - pull_request closed on master, only for manual seed_release PRs;
+# - workflow_run completed for auto-bump dispatched release builds.
 name: sdk-prebuilts
 
 on:
@@ -27,7 +28,11 @@ on:
       - ".github/scripts/build-prebuilt-kotlin.sh"
       - ".github/scripts/build-prebuilt-js.sh"
       - ".github/scripts/lib-codegen-prebuilt.sh"
+      - ".github/scripts/seed_release_bump.py"
+      - ".github/scripts/seed_toolchain.py"
+      - ".github/scripts/sdk_ci_paths.py"
       - ".github/scripts/promote-sdk-prebuilts.sh"
+      - "seed-toolchain.yaml"
       - "sdk/zig-holons/**"
       - "sdk/cpp-holons/**"
       - "sdk/c-holons/**"
@@ -45,9 +50,12 @@ on:
       - "holons/grace-op/internal/sdkprebuilts/**"
       - "holons/grace-op/cmd/protoc-gen-op-adapter/**"
       - "holons/grace-op/cmd/protoc-gen-op-noop/**"
+  workflow_run:
+    workflows: [pipeline]
+    types: [completed]
 
 concurrency:
-  group: sdk-prebuilts-${{ github.event.pull_request.number }}
+  group: sdk-prebuilts-${{ github.event.pull_request.number || github.event.workflow_run.id }}
   cancel-in-progress: false
 
 permissions:
@@ -55,8 +63,8 @@ permissions:
   contents: write
 
 jobs:
-  promote:
-    if: github.event.pull_request.merged == true
+  promote-manual-seed-release:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -64,7 +72,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Resolve SDK publish set
+        id: publish-set
+        shell: bash
+        run: |
+          set -euo pipefail
+          files="$RUNNER_TEMP/changed-files.txt"
+          gh pr diff "${{ github.event.pull_request.number }}" --name-only >"$files"
+          echo "Changed files for PR #${{ github.event.pull_request.number }}:"
+          sed 's/^/changed: /' "$files"
+          publish_set="$(python3 .github/scripts/sdk_ci_paths.py publish-set --files "$files")"
+          echo "sdks=${publish_set}" >>"$GITHUB_OUTPUT"
+          if grep -Fxq "seed-toolchain.yaml" "$files"; then
+            echo "manual-seed-release=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "manual-seed-release=false" >>"$GITHUB_OUTPUT"
+            echo "No manual seed_release change; auto-bump dispatch will publish the new release set."
+          fi
+
       - name: Locate successful pipeline run
+        if: steps.publish-set.outputs.manual-seed-release == 'true'
         id: source-run
         shell: bash
         run: |
@@ -84,6 +111,7 @@ jobs:
           echo "run-id=${run_id}" >>"$GITHUB_OUTPUT"
 
       - name: Download PR artifacts
+        if: steps.publish-set.outputs.manual-seed-release == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -91,9 +119,64 @@ jobs:
           gh run download "${{ steps.source-run.outputs.run-id }}" --dir "$RUNNER_TEMP/sdk-prebuilt-artifacts"
 
       - name: Publish GitHub Releases
+        if: steps.publish-set.outputs.manual-seed-release == 'true'
+        shell: bash
+        env:
+          SDK_PREBUILTS_PROMOTE_SDKS_JSON: ${{ steps.publish-set.outputs.sdks }}
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if ! find "$RUNNER_TEMP/sdk-prebuilt-artifacts" \
+            -type f \
+            -name '*-holons-v*.tar.gz' \
+            ! -name '*-debug.tar.gz' \
+            -print -quit | grep -q .; then
+            echo "No SDK prebuilt archives found; nothing to promote."
+            exit 0
+          fi
+          .github/scripts/promote-sdk-prebuilts.sh "$RUNNER_TEMP/sdk-prebuilt-artifacts"
+
+  promote-dispatched-release:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.name == 'pipeline' && github.event.workflow_run.event == 'workflow_dispatch' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download release intent
+        id: release-intent
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release-intent"
+          if gh run download "$RUN_ID" --name release-intent --dir "$RUNNER_TEMP/release-intent"; then
+            echo "skip=false" >>"$GITHUB_OUTPUT"
+            jq . "$RUNNER_TEMP/release-intent/release-intent.json"
+          else
+            echo "No release-intent artifact found; this workflow_dispatch run is not an SDK release dispatch."
+            echo "skip=true" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Download SDK artifacts
+        if: steps.release-intent.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/sdk-prebuilt-artifacts"
+          gh run download "$RUN_ID" --pattern 'sdk-*' --dir "$RUNNER_TEMP/sdk-prebuilt-artifacts"
+
+      - name: Publish GitHub Releases
+        if: steps.release-intent.outputs.skip != 'true'
+        shell: bash
+        env:
+          GITHUB_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          intent="$RUNNER_TEMP/release-intent/release-intent.json"
+          export SDK_PREBUILTS_PROMOTE_SDKS_JSON="$(jq -c '.publish_set' "$intent")"
+          echo "Promoting SDK set ${SDK_PREBUILTS_PROMOTE_SDKS_JSON} for seed_release $(jq -r '.version' "$intent")"
           if ! find "$RUNNER_TEMP/sdk-prebuilt-artifacts" \
             -type f \
             -name '*-holons-v*.tar.gz' \

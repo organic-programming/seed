@@ -403,6 +403,24 @@ func ListCompilable(langFilter string) ([]Prebuilt, []string, error) {
 	return out, nil, nil
 }
 
+// CompileBlockers reports the same prerequisite blockers used by Build and
+// ListCompilable for a specific lang/target pair.
+func CompileBlockers(lang, target string) ([]string, error) {
+	normalized, err := NormalizeLang(lang)
+	if err != nil {
+		return nil, err
+	}
+	normalizedTarget, err := NormalizeTarget(target)
+	if err != nil {
+		return nil, err
+	}
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		return nil, fmt.Errorf("locate repo root: %w", err)
+	}
+	return collectCompileBlockers(repoRoot, normalized, normalizedTarget), nil
+}
+
 // suspendedReason returns the human-readable reason a (lang, target) pair is
 // temporarily unsupported, or "" if the pair is fine. Used by Build (refuse)
 // and ListCompilable (mark blocker).

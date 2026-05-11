@@ -12,6 +12,22 @@ on:
         description: bouquet name under ader/bouquets/
         required: false
         default: local-dev
+      release_version:
+        description: seed_release version to publish from this dispatched run
+        required: false
+        default: ''
+      publish_set_json:
+        description: JSON SDK list for release-intent.json, for example ["c","cpp"]
+        required: false
+        default: ''
+      source_run_id:
+        description: pipeline run ID that requested this release build
+        required: false
+        default: ''
+      source_commit:
+        description: commit SHA that requested this release build
+        required: false
+        default: ''
 
 concurrency:
   group: pipeline-${{ github.ref }}
@@ -272,7 +288,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SDK_TARGET="${{ steps.host.outputs.target }}" SDK_VERSION=0.1.0 .github/scripts/build-prebuilt-go.sh
+          SDK_TARGET="${{ steps.host.outputs.target }}" .github/scripts/build-prebuilt-go.sh
 
       - name: Upload Go codegen SDK bootstrap artifact
         uses: actions/upload-artifact@v4
@@ -545,8 +561,96 @@ jobs:
           ader test ader/catalogues/grace-op --suite op_version --profile smoke --lane both --source workspace
           ader test ader/catalogues/clem-ader --suite ader-self --profile smoke --lane both --source workspace
 
-  sdk-build-zig:
+  gate-7-classify-changes:
+    runs-on: ubuntu-latest
     needs: gate-6-smoke-suite
+    outputs:
+      sdk_source: ${{ steps.classify.outputs.sdk_source }}
+      publish_set: ${{ steps.publish-set.outputs.sdks }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collect changed files
+        id: changed-files
+        shell: bash
+        run: |
+          set -euo pipefail
+          files="$RUNNER_TEMP/changed-files.txt"
+          case "${{ github.event_name }}" in
+            pull_request)
+              git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" >"$files"
+              ;;
+            push)
+              git diff --name-only "${{ github.event.before }}...${{ github.sha }}" >"$files"
+              ;;
+            workflow_dispatch)
+              printf 'seed-toolchain.yaml\n' >"$files"
+              ;;
+            *)
+              : >"$files"
+              ;;
+          esac
+          echo "files=$files" >>"$GITHUB_OUTPUT"
+          sed 's/^/changed: /' "$files"
+
+      - name: Classify pipeline path
+        id: classify
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/sdk_ci_paths.py classify --files "${{ steps.changed-files.outputs.files }}" >>"$GITHUB_OUTPUT"
+
+      - name: Resolve SDK publish set
+        id: publish-set
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdks="$(python3 .github/scripts/sdk_ci_paths.py publish-set --files "${{ steps.changed-files.outputs.files }}")"
+          echo "sdks=${sdks}" >>"$GITHUB_OUTPUT"
+          echo "SDK publish set: ${sdks}"
+
+  release-intent:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_version != ''
+    runs-on: ubuntu-latest
+    needs: gate-7-classify-changes
+    steps:
+      - name: Write release-intent.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          publish_set='${{ github.event.inputs.publish_set_json }}'
+          if [[ -z "$publish_set" ]]; then
+            publish_set='["c","cpp","csharp","dart","go","java","js","js-web","kotlin","python","ruby","rust","swift","zig"]'
+          fi
+          jq -e . <<<"$publish_set" >/dev/null
+          # Schema consumed by sdk-prebuilts.yml workflow_run promotion:
+          # { version, publish_set, source_run_id, source_commit }
+          jq -n \
+            --arg version "${{ github.event.inputs.release_version }}" \
+            --arg source_run_id "${{ github.event.inputs.source_run_id }}" \
+            --arg source_commit "${{ github.event.inputs.source_commit }}" \
+            --argjson publish_set "$publish_set" \
+            '{
+              version: $version,
+              publish_set: $publish_set,
+              source_run_id: $source_run_id,
+              source_commit: $source_commit
+            }' > release-intent.json
+          cat release-intent.json
+
+      - name: Upload release intent
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-intent
+          path: release-intent.json
+          if-no-files-found: error
+          retention-days: 7
+
+  sdk-build-zig:
+    needs: gate-7-classify-changes
+    if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
       matrix:
@@ -571,13 +675,13 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: zig
-      sdk-version: '0.1.0'
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       continue-on-error: ${{ matrix.continue_on_error || false }}
 
   sdk-build-cpp:
-    needs: gate-6-smoke-suite
+    needs: gate-7-classify-changes
+    if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
       matrix:
@@ -602,7 +706,6 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: cpp
-      sdk-version: '1.80.0'
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       continue-on-error: ${{ matrix.continue_on_error || false }}
@@ -633,7 +736,6 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: c
-      sdk-version: '1.80.0'
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       continue-on-error: ${{ matrix.continue_on_error || false }}
@@ -665,14 +767,14 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: ruby
-      sdk-version: '1.58.3'
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       continue-on-error: ${{ matrix.continue_on_error || false }}
       needs-cpp-prefix: true
 
   sdk-build-go:
-    needs: gate-6-smoke-suite
+    needs: gate-7-classify-changes
+    if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
       matrix:
@@ -682,7 +784,21 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: go
-      sdk-version: '0.1.0'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+
+  sdk-build-rust:
+    needs: gate-7-classify-changes
+    if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: rust
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
 
@@ -697,7 +813,6 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: python
-      sdk-version: '0.1.0'
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       needs-cpp-prefix: true
@@ -713,13 +828,13 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: csharp
-      sdk-version: '0.1.0'
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       needs-cpp-prefix: true
 
   sdk-build-java:
-    needs: gate-6-smoke-suite
+    needs: gate-7-classify-changes
+    if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
       matrix:
@@ -729,12 +844,12 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: java
-      sdk-version: '0.1.0'
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
 
   sdk-build-kotlin:
-    needs: gate-6-smoke-suite
+    needs: gate-7-classify-changes
+    if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
       matrix:
@@ -744,12 +859,12 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: kotlin
-      sdk-version: '0.1.0'
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
 
   sdk-build-dart:
-    needs: gate-6-smoke-suite
+    needs: gate-7-classify-changes
+    if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
       matrix:
@@ -759,12 +874,12 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: dart
-      sdk-version: '0.1.0'
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
 
   sdk-build-swift:
-    needs: gate-6-smoke-suite
+    needs: gate-7-classify-changes
+    if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     strategy:
       fail-fast: false
       matrix:
@@ -774,7 +889,21 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: swift
-      sdk-version: '0.1.0'
+      sdk-target: ${{ matrix.target }}
+      runs-on: ${{ matrix.runs_on }}
+
+  sdk-build-js-web:
+    needs: gate-7-classify-changes
+    if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runs_on: '["macos-14"]'
+    uses: ./.github/workflows/_sdk-prebuilt-target.yml
+    with:
+      sdk: js-web
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
 
@@ -789,7 +918,6 @@ jobs:
     uses: ./.github/workflows/_sdk-prebuilt-target.yml
     with:
       sdk: js
-      sdk-version: '0.1.0'
       sdk-target: ${{ matrix.target }}
       runs-on: ${{ matrix.runs_on }}
       needs-cpp-prefix: true
@@ -797,26 +925,32 @@ jobs:
   fresh-sdk-delivery:
     runs-on: ubuntu-latest
     needs:
+      - gate-7-classify-changes
       - sdk-build-zig
       - sdk-build-cpp
       - sdk-build-c
       - sdk-build-ruby
       - sdk-build-go
+      - sdk-build-rust
       - sdk-build-python
       - sdk-build-csharp
       - sdk-build-java
       - sdk-build-kotlin
       - sdk-build-dart
       - sdk-build-swift
+      - sdk-build-js-web
       - sdk-build-js
+    if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - name: Summarize tier 1 result
         run: echo "Tier 1 SDK artifacts are available for this workflow run."
 
   composite-swiftui-full:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: always() && needs.gate-7-classify-changes.result == 'success' && (needs.gate-7-classify-changes.outputs.sdk_source == 'false' || needs.fresh-sdk-delivery.result == 'success') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, macOS]
-    needs: fresh-sdk-delivery
+    needs:
+      - gate-7-classify-changes
+      - fresh-sdk-delivery
     timeout-minutes: 240
     steps:
       - name: Reset runner-managed state and isolate this run
@@ -890,6 +1024,7 @@ jobs:
           done
 
       - name: Download SDK artifacts
+        if: needs.gate-7-classify-changes.outputs.sdk_source == 'true'
         uses: actions/download-artifact@v4
         with:
           pattern: sdk-*-${{ steps.host.outputs.target }}
@@ -906,6 +1041,7 @@ jobs:
           done
 
       - name: Install SDK artifacts into isolated OPPATH
+        if: needs.gate-7-classify-changes.outputs.sdk_source == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -937,6 +1073,11 @@ jobs:
               find "$d" -type f -exec chmod +x {} +
             fi
           done
+
+      - name: Install published SDK prebuilts
+        if: needs.gate-7-classify-changes.outputs.sdk_source == 'false'
+        shell: bash
+        run: op sdk install all
 
       - name: Build SwiftUI composite
         run: |
@@ -956,9 +1097,11 @@ jobs:
           if-no-files-found: warn
 
   composite-flutter-full:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: always() && needs.gate-7-classify-changes.result == 'success' && (needs.gate-7-classify-changes.outputs.sdk_source == 'false' || needs.fresh-sdk-delivery.result == 'success') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, macOS]
-    needs: fresh-sdk-delivery
+    needs:
+      - gate-7-classify-changes
+      - fresh-sdk-delivery
     timeout-minutes: 240
     steps:
       - name: Reset runner-managed state and isolate this run
@@ -1032,6 +1175,7 @@ jobs:
           done
 
       - name: Download SDK artifacts
+        if: needs.gate-7-classify-changes.outputs.sdk_source == 'true'
         uses: actions/download-artifact@v4
         with:
           pattern: sdk-*-${{ steps.host.outputs.target }}
@@ -1048,6 +1192,7 @@ jobs:
           done
 
       - name: Install SDK artifacts into isolated OPPATH
+        if: needs.gate-7-classify-changes.outputs.sdk_source == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -1080,6 +1225,11 @@ jobs:
             fi
           done
 
+      - name: Install published SDK prebuilts
+        if: needs.gate-7-classify-changes.outputs.sdk_source == 'false'
+        shell: bash
+        run: op sdk install all
+
       - name: Build Flutter composite
         run: |
           set -euo pipefail
@@ -1098,9 +1248,11 @@ jobs:
           if-no-files-found: warn
 
   ader-bouquet-full:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: always() && needs.gate-7-classify-changes.result == 'success' && (needs.gate-7-classify-changes.outputs.sdk_source == 'false' || needs.fresh-sdk-delivery.result == 'success') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, macOS]
-    needs: fresh-sdk-delivery
+    needs:
+      - gate-7-classify-changes
+      - fresh-sdk-delivery
     timeout-minutes: 240
     env:
       BOUQUET: ${{ github.event.inputs.bouquet || 'local-dev' }}
@@ -1176,6 +1328,7 @@ jobs:
           done
 
       - name: Download SDK artifacts
+        if: needs.gate-7-classify-changes.outputs.sdk_source == 'true'
         uses: actions/download-artifact@v4
         with:
           pattern: sdk-*-${{ steps.host.outputs.target }}
@@ -1201,6 +1354,7 @@ jobs:
             sdk/zig-holons/third_party/protobuf-c
 
       - name: Install SDK artifacts into isolated OPPATH
+        if: needs.gate-7-classify-changes.outputs.sdk_source == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -1233,6 +1387,20 @@ jobs:
             fi
           done
 
+      - name: Install published SDK prebuilts
+        if: needs.gate-7-classify-changes.outputs.sdk_source == 'false'
+        shell: bash
+        run: op sdk install all
+
+      - name: Install grpcurl for C smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v grpcurl >/dev/null 2>&1; then
+            go install github.com/fullstorydev/grpcurl/cmd/grpcurl@v1.9.3
+          fi
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
       - name: Run ader bouquet
         run: ader test-bouquet ader --name "$BOUQUET"
 
@@ -1248,9 +1416,11 @@ jobs:
           if-no-files-found: warn
 
   sdk-deep-tests:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: needs.gate-7-classify-changes.outputs.sdk_source == 'true' && needs.fresh-sdk-delivery.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, macOS]
-    needs: fresh-sdk-delivery
+    needs:
+      - gate-7-classify-changes
+      - fresh-sdk-delivery
     timeout-minutes: 240
     strategy:
       fail-fast: false
@@ -1258,18 +1428,6 @@ jobs:
         include:
           - lang: zig
             mode: host
-          - lang: zig
-            mode: cross
-            target: aarch64-linux-musl
-          - lang: zig
-            mode: cross
-            target: x86_64-linux-musl
-          - lang: zig
-            mode: cross
-            target: x86_64-windows-gnu
-          - lang: zig
-            mode: cross
-            target: aarch64-ios
     steps:
       - name: Reset runner-managed state and isolate this run
         id: op-run
@@ -1342,6 +1500,7 @@ jobs:
           done
 
       - name: Download SDK artifacts
+        if: needs.gate-7-classify-changes.outputs.sdk_source == 'true'
         uses: actions/download-artifact@v4
         with:
           pattern: sdk-*-${{ steps.host.outputs.target }}
@@ -1367,6 +1526,7 @@ jobs:
             sdk/zig-holons/third_party/protobuf-c
 
       - name: Install SDK artifacts into isolated OPPATH
+        if: needs.gate-7-classify-changes.outputs.sdk_source == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -1426,7 +1586,6 @@ jobs:
           op test gabriel-greeting-zig
           op clean gabriel-greeting-zig
           op build gabriel-greeting-zig
-          ader test ader/catalogues/grace-op --suite op_invoke --profile smoke --lane progression --source workspace
 
       - name: Upload Zig host deep-test reports
         if: always() && matrix.mode == 'host'
@@ -1439,23 +1598,89 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-      - name: Restore cross-smoke cache
-        if: matrix.mode == 'cross'
-        id: cross-cache
-        uses: actions/cache/restore@v4
+  auto-bump-seed-release:
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.gate-7-classify-changes.outputs.sdk_source == 'true' && needs.fresh-sdk-delivery.result == 'success' && needs.composite-swiftui-full.result == 'success' && needs.composite-flutter-full.result == 'success' && needs.ader-bouquet-full.result == 'success' && needs.sdk-deep-tests.result == 'success'
+    runs-on: ubuntu-latest
+    needs:
+      - gate-7-classify-changes
+      - fresh-sdk-delivery
+      - composite-swiftui-full
+      - composite-flutter-full
+      - ader-bouquet-full
+      - sdk-deep-tests
+    permissions:
+      actions: write
+      contents: write
+    concurrency:
+      group: auto-bump-seed-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
         with:
-          path: sdk/zig-holons/.zig-cross/${{ matrix.target }}
-          key: zig-sdk-cross-${{ matrix.target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('sdk/zig-holons/tools/cross_smoke.sh', '.gitmodules') }}
-          restore-keys: |
-            zig-sdk-cross-${{ matrix.target }}-${{ runner.os }}-${{ runner.arch }}-
+          fetch-depth: 0
+          token: ${{ secrets.SEED_AUTOBUMP_TOKEN }}
 
-      - name: Run Zig cross-smoke
-        if: matrix.mode == 'cross'
-        run: sdk/zig-holons/tools/cross_smoke.sh "${{ matrix.target }}"
+      - name: Bump seed_release minor on master
+        id: bump
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "seed-auto-bump"
+          git config user.email "seed-auto-bump@users.noreply.github.com"
 
-      - name: Save cross-smoke cache
-        if: matrix.mode == 'cross' && steps.cross-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: sdk/zig-holons/.zig-cross/${{ matrix.target }}
-          key: zig-sdk-cross-${{ matrix.target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('sdk/zig-holons/tools/cross_smoke.sh', '.gitmodules') }}
+          manual_bump=false
+          next=""
+          commit_sha=""
+          for attempt in 1 2 3 4 5; do
+            git fetch origin master
+            git checkout master
+            git reset --hard origin/master
+
+            current="$(python3 .github/scripts/seed_release_bump.py read seed-toolchain.yaml)"
+            if [[ "$attempt" == "1" ]]; then
+              previous="$(git show "${{ github.event.before }}:seed-toolchain.yaml" 2>/dev/null | grep -E '^seed_release:' | sed -E 's/^seed_release:[[:space:]]*"?([^"#[:space:]]+)"?.*/\1/' || true)"
+              if [[ -n "$previous" && "$current" != "$previous" ]]; then
+                manual_bump=true
+                next="$current"
+                commit_sha="$(git rev-parse HEAD)"
+                echo "Manual seed_release bump detected (${previous} -> ${current}); skipping auto-bump."
+                break
+              fi
+            fi
+
+            bump_output="$(python3 .github/scripts/seed_release_bump.py bump-file seed-toolchain.yaml)"
+            next="$(sed -n 's/^next=//p' <<<"$bump_output")"
+            git add seed-toolchain.yaml
+            git commit -m "ci: bump seed_release to ${next} [skip ci]"
+
+            if git push origin HEAD:master; then
+              commit_sha="$(git rev-parse HEAD)"
+              echo "Pushed seed_release ${current} -> ${next} on attempt ${attempt}."
+              break
+            fi
+
+            if [[ "$attempt" == "5" ]]; then
+              echo "::error::Failed to push seed_release bump after 5 attempts." >&2
+              exit 1
+            fi
+            echo "Push rejected on attempt ${attempt}; retrying after re-sync."
+          done
+
+          echo "manual_bump=${manual_bump}" >>"$GITHUB_OUTPUT"
+          echo "version=${next}" >>"$GITHUB_OUTPUT"
+          echo "commit=${commit_sha}" >>"$GITHUB_OUTPUT"
+
+      - name: Dispatch release build for bumped seed_release
+        if: steps.bump.outputs.manual_bump != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.SEED_AUTOBUMP_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          publish_set='["c","cpp","csharp","dart","go","java","js","js-web","kotlin","python","ruby","rust","swift","zig"]'
+          gh workflow run pipeline.yml \
+            --ref master \
+            -f release_version="${{ steps.bump.outputs.version }}" \
+            -f publish_set_json="$publish_set" \
+            -f source_run_id="${{ github.run_id }}" \
+            -f source_commit="${{ steps.bump.outputs.commit }}"
