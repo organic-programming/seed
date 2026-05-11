@@ -38,6 +38,7 @@ func TestCommandSurfaceSymmetry(t *testing.T) {
 		{Command: "tools", RPCs: []string{"Tools"}},
 		{Command: "uninstall", RPCs: []string{"Uninstall"}},
 		{Command: "version", RPCs: []string{"Version"}},
+		{Command: "worktree", RPCs: []string{"Worktree"}},
 	}
 	cliOnly := []string{"completion", "events", "instances", "logs", "mcp", "metrics", "ps", "serve"}
 
@@ -129,6 +130,7 @@ func publicAPINames() []string {
 	var _ func(*opv1.ModGraphRequest) (*opv1.ModGraphResponse, error) = api.ModGraph
 	var _ func(*opv1.ToolsRequest) (*opv1.ToolsResponse, error) = api.Tools
 	var _ func(*opv1.EnvRequest) (*opv1.EnvResponse, error) = api.Env
+	var _ func(*opv1.WorktreeRequest) (*opv1.WorktreeResponse, error) = api.Worktree
 	var _ func(*opv1.InstallSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) = api.InstallSdkPrebuilt
 	var _ func(*opv1.ListSdkPrebuiltsRequest) (*opv1.ListSdkPrebuiltsResponse, error) = api.ListSdkPrebuilts
 	var _ func(*opv1.UninstallSdkPrebuiltRequest) (*opv1.SdkPrebuiltResponse, error) = api.UninstallSdkPrebuilt
@@ -170,5 +172,6 @@ func publicAPINames() []string {
 		"UninstallSdkPrebuilt",
 		"VerifySdkPrebuilt",
 		"Version",
+		"Worktree",
 	}
 }

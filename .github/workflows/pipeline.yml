@@ -1620,7 +1620,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.SEED_AUTOBUMP_TOKEN }}
 
-      - name: Bump seed_release minor on master
+      - name: Bump seed_release patch on master
         id: bump
         shell: bash
         run: |

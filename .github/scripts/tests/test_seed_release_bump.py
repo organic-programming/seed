@@ -15,10 +15,10 @@ SPEC.loader.exec_module(seed_release_bump)
 
 
 class SeedReleaseBumpTests(unittest.TestCase):
-    def test_bump_minor(self) -> None:
-        self.assertEqual(seed_release_bump.bump_minor("0.7.0"), "0.8.0")
-        self.assertEqual(seed_release_bump.bump_minor("1.4.5"), "1.5.0")
-        self.assertEqual(seed_release_bump.bump_minor("2.99.0"), "2.100.0")
+    def test_bump_patch(self) -> None:
+        self.assertEqual(seed_release_bump.bump_patch("0.7.0"), "0.7.1")
+        self.assertEqual(seed_release_bump.bump_patch("1.4.5"), "1.4.6")
+        self.assertEqual(seed_release_bump.bump_patch("2.99.0"), "2.99.1")
 
     def test_bump_file_updates_once(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -27,8 +27,8 @@ class SeedReleaseBumpTests(unittest.TestCase):
             current, next_version = seed_release_bump.bump_file(path)
 
             self.assertEqual(current, "0.7.0")
-            self.assertEqual(next_version, "0.8.0")
-            self.assertEqual(path.read_text(encoding="utf-8"), 'seed_release: "0.8.0"\\nother: true\\n')
+            self.assertEqual(next_version, "0.7.1")
+            self.assertEqual(path.read_text(encoding="utf-8"), 'seed_release: "0.7.1"\\nother: true\\n')
 
 
 if __name__ == "__main__":

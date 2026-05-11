@@ -13,6 +13,10 @@
 
 # Tool state
 .op/
+.codex/
+.claude/settings.local.json
+.gemini/.env
+.runtime/
 .build/
 .dart_tool/
 .gradle/
@@ -29,5 +33,7 @@ tasks/*
 .tmp
 
 prompts/
-.agents
+.agents/*
+!.agents/plugins/
+!.agents/plugins/marketplace.json
 dist/

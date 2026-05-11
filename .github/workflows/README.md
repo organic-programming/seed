@@ -76,12 +76,17 @@ The job:
 - serializes through concurrency group `auto-bump-seed-release`;
 - fetches and resets to latest `origin/master` immediately before reading
   `seed_release`;
-- bumps the minor segment, for example `0.7.0` to `0.8.0`;
+- bumps the patch segment, for example `0.7.0` to `0.7.1`;
 - commits `ci: bump seed_release to <version> [skip ci]`;
 - retries stale-base push rejection up to 5 times.
 
 If the merged PR already changed `seed_release`, the job does not create another
 bump. In that case `sdk-prebuilts.yml` promotes the matching PR artifacts.
+
+Run `25671995484` used the previous minor-bump policy and may move
+`seed_release` from `0.7.0` to `0.8.0`. Treat that as a one-off legacy release;
+do not roll it back. After this patch policy lands, the next SDK-source merge
+should bump `0.8.0` to `0.8.1`.
 
 Because `[skip ci]` prevents a normal push-triggered build for the bump commit,
 the auto-bump job dispatches `pipeline.yml` on `master` with release inputs.
