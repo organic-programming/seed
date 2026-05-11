@@ -81,22 +81,7 @@ protobuf_target_version() {
   fi
 
   if [[ -f "${proto_dir}/version.json" ]]; then
-    version="$(python3 - "$proto_dir/version.json" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as fh:
-    data = json.load(fh)
-
-for release in data.values():
-    protoc_version = release.get("protoc_version")
-    if protoc_version:
-        print(f"v{protoc_version}")
-        break
-else:
-    sys.exit(1)
-PY
-)"
+    version="$(jq -r 'to_entries[] | .value.protoc_version // empty' "$proto_dir/version.json" | awk 'NF { print "v" $0; exit }')"
     if [[ -n "$version" ]]; then
       printf '%s\n' "$version"
       return 0

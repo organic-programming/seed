@@ -600,14 +600,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 .github/scripts/sdk_ci_paths.py classify --files "${{ steps.changed-files.outputs.files }}" >>"$GITHUB_OUTPUT"
+          go run .github/scripts/sdk_ci_paths.go classify --files "${{ steps.changed-files.outputs.files }}" >>"$GITHUB_OUTPUT"
 
       - name: Resolve SDK publish set
         id: publish-set
         shell: bash
         run: |
           set -euo pipefail
-          sdks="$(python3 .github/scripts/sdk_ci_paths.py publish-set --files "${{ steps.changed-files.outputs.files }}")"
+          sdks="$(go run .github/scripts/sdk_ci_paths.go publish-set --files "${{ steps.changed-files.outputs.files }}")"
           echo "sdks=${sdks}" >>"$GITHUB_OUTPUT"
           echo "SDK publish set: ${sdks}"
 
@@ -1636,7 +1636,7 @@ jobs:
             git checkout master
             git reset --hard origin/master
 
-            current="$(python3 .github/scripts/seed_release_bump.py read seed-toolchain.yaml)"
+            current="$(go run .github/scripts/seed_release_bump.go read seed-toolchain.yaml)"
             if [[ "$attempt" == "1" ]]; then
               previous="$(git show "${{ github.event.before }}:seed-toolchain.yaml" 2>/dev/null | grep -E '^seed_release:' | sed -E 's/^seed_release:[[:space:]]*"?([^"#[:space:]]+)"?.*/\1/' || true)"
               if [[ -n "$previous" && "$current" != "$previous" ]]; then
@@ -1648,7 +1648,7 @@ jobs:
               fi
             fi
 
-            bump_output="$(python3 .github/scripts/seed_release_bump.py bump-file seed-toolchain.yaml)"
+            bump_output="$(go run .github/scripts/seed_release_bump.go bump-file seed-toolchain.yaml)"
             next="$(sed -n 's/^next=//p' <<<"$bump_output")"
             git add seed-toolchain.yaml
             git commit -m "ci: bump seed_release to ${next} [skip ci]"

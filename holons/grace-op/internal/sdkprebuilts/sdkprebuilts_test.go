@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	seedtoolchain "github.com/organic-programming/seed-github-scripts/seed_toolchain"
 )
 
 const testTarget = "x86_64-unknown-linux-gnu"
@@ -502,13 +504,13 @@ func TestSeedToolchainScriptMatchesGoDerivation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ToolchainForSDK(java) returned error: %v", err)
 	}
-	out, err := exec.Command("python3", filepath.Join(repoRoot, ".github", "scripts", "seed_toolchain.py"), "manifest-json", repoRoot, "java", "aarch64-apple-darwin").Output()
+	scriptSeed, err := seedtoolchain.Load(repoRoot)
 	if err != nil {
-		t.Fatalf("seed_toolchain.py manifest-json returned error: %v", err)
+		t.Fatalf("seed_toolchain Load returned error: %v", err)
 	}
-	var scriptEntries []ToolchainEntry
-	if err := json.Unmarshal(out, &scriptEntries); err != nil {
-		t.Fatalf("parse seed_toolchain.py output: %v\n%s", err, string(out))
+	scriptEntries, err := seedtoolchain.ToolchainManifest(scriptSeed, "java", "aarch64-apple-darwin")
+	if err != nil {
+		t.Fatalf("seed_toolchain manifest returned error: %v", err)
 	}
 	goJSON, err := json.Marshal(goEntries)
 	if err != nil {
@@ -521,11 +523,7 @@ func TestSeedToolchainScriptMatchesGoDerivation(t *testing.T) {
 	if string(goJSON) != string(scriptJSON) {
 		t.Fatalf("script toolchain = %s, want %s", scriptJSON, goJSON)
 	}
-	tagOut, err := exec.Command("python3", filepath.Join(repoRoot, ".github", "scripts", "seed_toolchain.py"), "cpp-protobuf-tag", repoRoot).Output()
-	if err != nil {
-		t.Fatalf("seed_toolchain.py cpp-protobuf-tag returned error: %v", err)
-	}
-	if got, want := strings.TrimSpace(string(tagOut)), strings.TrimSpace(seed.CPPRuntime.ProtobufSubmoduleTag); got != want {
+	if got, want := seedtoolchain.CPPProtobufTag(scriptSeed), strings.TrimSpace(seed.CPPRuntime.ProtobufSubmoduleTag); got != want {
 		t.Fatalf("cpp-protobuf-tag = %q, want %q", got, want)
 	}
 }

@@ -17,6 +17,13 @@ func TestPrepareWorkspaceMirrorRemovesStaleFiles(t *testing.T) {
 	if err := os.WriteFile(sourceFile, []byte("fresh"), 0o644); err != nil {
 		t.Fatalf("write source: %v", err)
 	}
+	scriptModuleFile := filepath.Join(seedRoot, ".github", "scripts", "go.mod")
+	if err := os.MkdirAll(filepath.Dir(scriptModuleFile), 0o755); err != nil {
+		t.Fatalf("mkdir script module: %v", err)
+	}
+	if err := os.WriteFile(scriptModuleFile, []byte("module scripts\n"), 0o644); err != nil {
+		t.Fatalf("write script module: %v", err)
+	}
 
 	staleFile := filepath.Join(artifactsRoot, "workspace", "examples", "stale.txt")
 	if err := os.MkdirAll(filepath.Dir(staleFile), 0o755); err != nil {
@@ -40,6 +47,9 @@ func TestPrepareWorkspaceMirrorRemovesStaleFiles(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(mirrorRoot, "examples", "hello.txt")); err != nil {
 		t.Fatalf("fresh source file was not mirrored: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(mirrorRoot, ".github", "scripts", "go.mod")); err != nil {
+		t.Fatalf("script module was not mirrored: %v", err)
 	}
 }
 

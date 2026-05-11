@@ -1,11 +1,12 @@
 module github.com/organic-programming/grace-op
 
-go 1.24
+go 1.24.0
 
 require (
 	github.com/bufbuild/protocompile v0.14.1
 	github.com/google/uuid v1.6.0
 	github.com/organic-programming/go-holons v0.2.1-0.20260212114054-8fbeaa095fb9
+	github.com/organic-programming/seed-github-scripts v0.0.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
@@ -36,3 +37,5 @@ require (
 )
 
 replace github.com/organic-programming/go-holons => ../../sdk/go-holons
+
+replace github.com/organic-programming/seed-github-scripts => ../../.github/scripts

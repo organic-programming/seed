@@ -215,7 +215,7 @@ jobs:
         run: |
           set -euo pipefail
           report_started_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-          if [ ! -f .github/scripts/ader_bench_report.py ]; then
+          if [ ! -f .github/scripts/ader_bench_report.go ]; then
             now="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
             printf 'report-generation\tFAIL\t1\t%s\t%s\t0\treport generator missing after checkout\n' "$report_started_at" "$now" >> "$ADER_BENCH_REPORT_DIR/blocks.tsv"
             {
@@ -232,24 +232,17 @@ jobs:
               echo "| --- | --- | --- | ---: | --- |"
               awk -F '\t' 'NR > 1 { printf "| `%s` | `%s` | `%s` | %s | %s |\n", $1, $2, $3, $6, $7 }' "$ADER_BENCH_REPORT_DIR/blocks.tsv"
             } > "$ADER_BENCH_REPORT_DIR/summary.md"
-            python3 - "$ADER_BENCH_REPORT_DIR/summary.json" <<'PY'
-          import json
-          import sys
-          payload = {
-              "outcome": {
-                  "functional_status": "FAIL",
-                  "first_failure": "report generator missing after checkout",
-                  "failed_block": "report-generation",
+            jq -n '{
+              outcome: {
+                functional_status: "FAIL",
+                first_failure: "report generator missing after checkout",
+                failed_block: "report-generation"
               }
-          }
-          with open(sys.argv[1], "w", encoding="utf-8") as fh:
-              json.dump(payload, fh, indent=2)
-              fh.write("\n")
-          PY
+            }' > "$ADER_BENCH_REPORT_DIR/summary.json"
             cat "$ADER_BENCH_REPORT_DIR/summary.md" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          python3 .github/scripts/ader_bench_report.py \
+          go run .github/scripts/ader_bench_report.go \
             --repo-root "$GITHUB_WORKSPACE" \
             --report-dir "$ADER_BENCH_REPORT_DIR" \
             --bouquet "$BOUQUET" \
@@ -285,13 +278,8 @@ jobs:
             echo "Benchmark summary was not generated." >&2
             exit 1
           fi
-          python3 - "$summary" <<'PY'
-          import json
-          import sys
-          with open(sys.argv[1], "r", encoding="utf-8") as fh:
-              data = json.load(fh)
-          status = data.get("outcome", {}).get("functional_status")
-          if status != "PASS":
-              print(f"Benchmark functional status: {status}", file=sys.stderr)
-              sys.exit(1)
-          PY
+          status="$(jq -r '.outcome.functional_status // ""' "$summary")"
+          if [[ "$status" != "PASS" ]]; then
+            echo "Benchmark functional status: ${status}" >&2
+            exit 1
+          fi
