@@ -13,7 +13,14 @@ repo_root_or_pwd() {
 }
 
 seed_toolchain() {
-  python3 "$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)/seed_toolchain.py" "$@"
+  local script_dir
+  local args
+  script_dir="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  args=("$@")
+  if [[ ${#args[@]} -ge 2 && "${args[1]}" != /* ]]; then
+    args[1]="$(cd "${args[1]}" && pwd)"
+  fi
+  (cd "$script_dir" && go run ./seed_toolchain.go "${args[@]}")
 }
 
 toolchain_manifest_json() {

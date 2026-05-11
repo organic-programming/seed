@@ -27,7 +27,7 @@ pull_request / push on master / workflow_dispatch
 
 ## Classification
 
-Gate 7 uses `.github/scripts/sdk_ci_paths.py`:
+Gate 7 uses `.github/scripts/sdk_ci_paths.go`:
 
 - Markdown, images, `README*`, `LICENSE*`, `CHANGELOG*`, and `docs/**` under
   `sdk/**` are not SDK source.
@@ -117,4 +117,4 @@ artifacts directly; the auto-bump dispatch owns the new versioned release.
 
 Any PR that changes workflow names, job dependencies, path-classification rules,
 SDK publish-set rules, auto-bump behavior, or SDK deep-test coverage must update
-this file and the relevant `.github/scripts/tests/` tests in the same commit.
+this file and the relevant Go tests under `.github/scripts/` in the same commit.

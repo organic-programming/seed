@@ -655,6 +655,7 @@ func prepareWorkspaceMirror(rt *runtimeState) (string, error) {
 		{src: filepath.Join(rt.seedRoot, "sdk"), dst: filepath.Join(root, "sdk")},
 		{src: filepath.Join(rt.seedRoot, "holons"), dst: filepath.Join(root, "holons")},
 		{src: filepath.Join(rt.seedRoot, "scripts"), dst: filepath.Join(root, "scripts")},
+		{src: filepath.Join(rt.seedRoot, ".github", "scripts"), dst: filepath.Join(root, ".github", "scripts")},
 		{src: filepath.Join(rt.seedRoot, "ader", "catalogues", "grace-op", "integration"), dst: filepath.Join(root, "ader", "catalogues", "grace-op", "integration")},
 		{src: filepath.Join(rt.seedRoot, "go.work"), dst: filepath.Join(root, "go.work")},
 		{src: filepath.Join(rt.seedRoot, "go.work.sum"), dst: filepath.Join(root, "go.work.sum")},
