@@ -32,7 +32,22 @@ func newWorktreeCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <branch>",
 		Short: "Create a plain or isolated OP worktree",
-		Args:  cobra.ExactArgs(1),
+		Long: `Create or reuse an isolated or plain git worktree for parallel work.
+
+When the requested branch does not exist locally or as a remote tracking
+branch, op worktree create creates it from the current HEAD of the cwd
+where the command was invoked, not from master. This means:
+
+  - From the main checkout on master: the new branch starts at master.
+  - From a worktree on feature/X:     the new branch starts at feature/X.
+  - From a detached HEAD:             the new branch starts at that commit.
+
+This is git's native HEAD semantics; it also lets you chain worktrees
+(start feature/Y as a continuation of feature/X without merging).
+
+If the branch already exists (locally or as origin/<branch>), it is checked
+out as-is in the new worktree; the current HEAD of your cwd is ignored.`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			isolated, _ := cmd.Flags().GetBool("isolated")
 			plain, _ := cmd.Flags().GetBool("plain")

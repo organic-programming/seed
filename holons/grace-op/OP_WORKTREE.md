@@ -35,6 +35,26 @@ op worktree create feature/X --plain
 No mode is chosen silently in non-interactive use. Pass `--isolated` or
 `--plain`.
 
+## Branch Base Resolution
+
+When you run `op worktree create <new-branch>` and `<new-branch>` does not
+yet exist, neither locally nor as `origin/<new-branch>`, the new branch is
+created from the **current HEAD of the directory where you invoked the
+command**:
+
+| Where you run from | Base of new branch |
+|---|---|
+| `seed/` (main) on `master` | tip of `master` |
+| Worktree on `feature/X` | tip of `feature/X` |
+| Detached HEAD | exact commit you're sitting on |
+
+This is git's native `HEAD` semantics. It enables **chaining worktrees**:
+start `feature/Y` as a continuation of `feature/X` without merging the
+intermediate branch back to `master`.
+
+If `<new-branch>` already exists locally or as `origin/<new-branch>`, it is
+checked out as-is in the new worktree and the cwd's HEAD is ignored.
+
 ## Codex
 
 For the strongest Codex isolation, launch Codex through the worktree launcher:

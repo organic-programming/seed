@@ -334,7 +334,13 @@ func ensureOPWorktree(branch string) (string, string, string, error) {
 	case gitQuiet(base, "show-ref", "--verify", "--quiet", "refs/remotes/origin/"+branch) == nil:
 		args = append(args, "-b", branch, target, "origin/"+branch)
 	default:
-		args = append(args, "-b", branch, target, "HEAD")
+		// Resolve HEAD in the invoking cwd, not in base, so a new branch can
+		// continue from the tip of the worktree that launched the command.
+		head, err := gitOutput("", "rev-parse", "HEAD")
+		if err != nil {
+			return "", "", "", fmt.Errorf("resolve current HEAD: %w", err)
+		}
+		args = append(args, "-b", branch, target, strings.TrimSpace(head))
 	}
 	if _, err := gitOutput(base, args...); err != nil {
 		return "", "", "", err

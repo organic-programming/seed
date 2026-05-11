@@ -180,6 +180,84 @@ func TestBootstrapSeedsBootstrapSDKPoolFromGlobalHome(t *testing.T) {
 	}
 }
 
+func TestCreate_NewBranch_FromMainCheckout_StartsAtMainHEAD(t *testing.T) {
+	repo := setupGitRepo(t)
+	chdir(t, repo)
+	want := gitHead(t, repo)
+
+	result, err := Create("feature/main-base", ModePlain)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := gitHead(t, result.Worktree); got != want {
+		t.Fatalf("worktree HEAD = %s, want main HEAD %s", got, want)
+	}
+}
+
+func TestCreate_NewBranch_FromSubWorktree_StartsAtSubWorktreeHEAD_EnablesChaining(t *testing.T) {
+	repo := setupGitRepo(t)
+	chdir(t, repo)
+	mainHead := gitHead(t, repo)
+	first, err := Create("feature/X", ModePlain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chdir(t, first.Worktree)
+	commitFile(t, first.Worktree, "x.txt", "feature X\n", "feature X")
+	want := gitHead(t, first.Worktree)
+	if want == mainHead {
+		t.Fatal("feature/X HEAD did not advance beyond main HEAD")
+	}
+
+	second, err := Create("feature/Y", ModePlain)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := gitHead(t, second.Worktree); got != want {
+		t.Fatalf("feature/Y HEAD = %s, want feature/X HEAD %s", got, want)
+	}
+}
+
+func TestCreate_NewBranch_FromDetachedHEAD_StartsAtThatCommit(t *testing.T) {
+	repo := setupGitRepo(t)
+	initial := gitHead(t, repo)
+	commitFile(t, repo, "next.txt", "next\n", "next")
+	runGit(t, repo, "checkout", "--detach", initial)
+	chdir(t, repo)
+
+	result, err := Create("feature/detached", ModePlain)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := gitHead(t, result.Worktree); got != initial {
+		t.Fatalf("detached branch HEAD = %s, want detached HEAD %s", got, initial)
+	}
+}
+
+func TestCreate_ExistingBranch_IgnoresCwdHEAD(t *testing.T) {
+	repo := setupGitRepo(t)
+	initial := gitHead(t, repo)
+	runGit(t, repo, "branch", "feature/existing", initial)
+	commitFile(t, repo, "later.txt", "later\n", "later")
+	current := gitHead(t, repo)
+	if current == initial {
+		t.Fatal("main HEAD did not advance")
+	}
+	chdir(t, repo)
+
+	result, err := Create("feature/existing", ModePlain)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := gitHead(t, result.Worktree); got != initial {
+		t.Fatalf("existing branch HEAD = %s, want existing branch tip %s", got, initial)
+	}
+}
+
 func setupGitRepo(t *testing.T) string {
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "seed")
@@ -191,6 +269,13 @@ func setupGitRepo(t *testing.T) string {
 	runGit(t, root, "add", ".")
 	runGit(t, root, "commit", "-m", "initial")
 	return root
+}
+
+func commitFile(t *testing.T, repo, name, content, message string) {
+	t.Helper()
+	must(t, os.WriteFile(filepath.Join(repo, name), []byte(content), 0o644))
+	runGit(t, repo, "add", name)
+	runGit(t, repo, "commit", "-m", message)
 }
 
 func fakeBuildCommand(t *testing.T) (func(), *[]string) {
@@ -233,6 +318,17 @@ func runGit(t *testing.T, cwd string, args ...string) {
 	if err != nil {
 		t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, string(out))
 	}
+}
+
+func gitHead(t *testing.T, cwd string) string {
+	t.Helper()
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = cwd
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git rev-parse HEAD failed: %v\n%s", err, string(out))
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func chdir(t *testing.T, dir string) {
@@ -319,6 +415,8 @@ func TestEndUserDocsAndAgentEntryPointsMentionCanonicalCommand(t *testing.T) {
 		"op worktree launch feature/X -- codex",
 		"/op-worktree feature/X isolated",
 		"doctor",
+		"Branch Base Resolution",
+		"chaining worktrees",
 		"Idempotence",
 		"Promoting A Plain Worktree",
 		"~/.op",
