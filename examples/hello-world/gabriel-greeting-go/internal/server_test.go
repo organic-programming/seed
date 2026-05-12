@@ -3,6 +3,7 @@ package internal_test
 import (
 	"context"
 	"net"
+	"strings"
 	"testing"
 
 	pb "gabriel-greeting-go/gen/go/greeting/v1"
@@ -147,7 +148,8 @@ func TestSayHello_EmitsObservabilitySignals(t *testing.T) {
 	for _, sample := range snap.Counters {
 		if sample.Name == "greeting_emitted_total" &&
 			sample.Labels["lang_code"] == "en" &&
-			sample.Labels["language"] == "English" {
+			sample.Labels["language"] == "English" &&
+			sample.Labels["transport"] == "unknown" {
 			foundCounter = true
 			if sample.Value != 1 {
 				t.Fatalf("greeting_emitted_total = %d, want 1", sample.Value)
@@ -160,14 +162,21 @@ func TestSayHello_EmitsObservabilitySignals(t *testing.T) {
 
 	var foundLog bool
 	for _, entry := range observability.Current().LogRing().Drain() {
-		if entry.Message == "greeting emitted" && entry.Fields["lang_code"] == "en" {
+		if strings.HasPrefix(entry.Message, "Greeted ") &&
+			strings.HasSuffix(entry.Message, " (en)") &&
+			entry.Fields["lang_code"] == "en" {
 			foundLog = true
-			if entry.Fields["name"] != "Bob" || entry.Fields["greeting"] != "Hello Bob" {
+			if entry.Message != "Greeted Bob in English (en)" {
+				t.Fatalf("unexpected greeting log message: %q", entry.Message)
+			}
+			if entry.Fields["name"] != "Bob" ||
+				entry.Fields["greeting"] != "Hello Bob" ||
+				entry.Fields["transport"] != "unknown" {
 				t.Fatalf("unexpected greeting log fields: %+v", entry.Fields)
 			}
 		}
 	}
 	if !foundLog {
-		t.Fatal("missing greeting emitted log entry")
+		t.Fatal("missing canonical greeting log entry")
 	}
 }
