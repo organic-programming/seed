@@ -3,6 +3,7 @@ package internal_test
 import (
 	"context"
 	"net"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -173,6 +174,14 @@ func TestSayHello_EmitsObservabilitySignals(t *testing.T) {
 				entry.Fields["greeting"] != "Hello Bob" ||
 				entry.Fields["transport"] != "unknown" {
 				t.Fatalf("unexpected greeting log fields: %+v", entry.Fields)
+			}
+			duration, ok := entry.Fields["duration_ns"]
+			if !ok {
+				t.Fatalf("expected duration_ns field, got %+v", entry.Fields)
+			}
+			ns, parseErr := strconv.ParseInt(duration, 10, 64)
+			if parseErr != nil || ns < 0 {
+				t.Fatalf("duration_ns = %q, want non-negative int: %v", duration, parseErr)
 			}
 		}
 	}

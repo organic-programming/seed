@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/organic-programming/go-holons/pkg/observability"
 	"github.com/organic-programming/go-holons/pkg/serve"
@@ -34,6 +35,7 @@ func (s *Server) ListLanguages(_ context.Context, _ *pb.ListLanguagesRequest) (*
 
 // SayHello greets the user in the requested language.
 func (s *Server) SayHello(ctx context.Context, req *pb.SayHelloRequest) (*pb.SayHelloResponse, error) {
+	start := time.Now()
 	g := Lookup(req.LangCode)
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
@@ -45,6 +47,7 @@ func (s *Server) SayHello(ctx context.Context, req *pb.SayHelloRequest) (*pb.Say
 	}
 	greeting := fmt.Sprintf(g.Template, name)
 	msg := fmt.Sprintf("Greeted %s in %s (%s)", name, g.LangEnglish, g.LangCode)
+	elapsed := time.Since(start)
 	obs := observability.Current()
 	obs.Logger("greeting").InfoContext(ctx, msg,
 		"lang_code", req.LangCode,
@@ -52,6 +55,7 @@ func (s *Server) SayHello(ctx context.Context, req *pb.SayHelloRequest) (*pb.Say
 		"name", name,
 		"greeting", greeting,
 		"transport", transport,
+		"duration_ns", elapsed.Nanoseconds(),
 	)
 	obs.Counter("greeting_emitted_total", "Greetings emitted, partitioned by language and transport.", map[string]string{
 		"lang_code": g.LangCode,
