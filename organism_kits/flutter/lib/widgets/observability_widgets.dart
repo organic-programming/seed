@@ -265,18 +265,31 @@ class LogConsoleView extends StatelessWidget {
                 itemCount: entries.length,
                 itemBuilder: (context, index) {
                   final entry = entries[entries.length - index - 1];
+                  final secondaryStyle = Theme.of(context).textTheme.bodySmall;
+                  final fieldsText = _fieldsText(entry.fields);
+                  final contextText = _logContextText(entry);
                   return ListTile(
                     dense: true,
-                    leading: _LevelBadge(level: entry.level),
-                    title: Text(entry.message),
+                    trailing: _LevelBadge(level: entry.level),
+                    title: _LogTitle(entry: entry),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${entry.slug}  ${entry.timestamp.toIso8601String()}',
-                        ),
+                        if (contextText.isNotEmpty)
+                          Text(contextText, style: secondaryStyle),
+                        if (fieldsText.isNotEmpty)
+                          Text(
+                            fieldsText,
+                            style: secondaryStyle?.copyWith(
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        Text(_logOriginText(entry), style: secondaryStyle),
                         if (entry.chain.isNotEmpty)
-                          Text(_chainText(entry.chain)),
+                          Text(
+                            '← ${_chainText(entry.chain)}',
+                            style: secondaryStyle,
+                          ),
                       ],
                     ),
                   );
@@ -286,6 +299,31 @@ class LogConsoleView extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _LogTitle extends StatelessWidget {
+  const _LogTitle({required this.entry});
+
+  final holons.LogEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (entry.loggerName.isEmpty) {
+      return Text(entry.message);
+    }
+    final style = DefaultTextStyle.of(context).style;
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '[${entry.loggerName}]  ',
+            style: style.copyWith(fontFamily: 'monospace'),
+          ),
+          TextSpan(text: entry.message),
+        ],
+      ),
     );
   }
 }
@@ -508,6 +546,44 @@ class _HistogramPainter extends CustomPainter {
 
 String _chainText(List<holons.Hop> chain) {
   return chain.map((hop) => '${hop.slug}:${hop.instanceUid}').join(' > ');
+}
+
+String _logContextText(holons.LogEntry entry) {
+  final parts = <String>[];
+  if (entry.rpcMethod.isNotEmpty) {
+    parts.add(entry.rpcMethod);
+  }
+  if (entry.sessionId.isNotEmpty) {
+    final session = entry.sessionId.length <= 8
+        ? entry.sessionId
+        : entry.sessionId.substring(0, 8);
+    parts.add('session $session');
+  }
+  return parts.join(' · ');
+}
+
+String _logOriginText(holons.LogEntry entry) {
+  final parts = <String>[
+    entry.slug,
+    entry.timestamp.toIso8601String(),
+    if (entry.caller.isNotEmpty) entry.caller,
+  ];
+  return parts.join(' · ');
+}
+
+String _fieldsText(Map<String, String> fields) {
+  if (fields.isEmpty) return '';
+  final keys = fields.keys.toList()..sort();
+  return keys
+      .map((key) => '$key=${_fieldValueText(fields[key] ?? '')}')
+      .join('  ');
+}
+
+String _fieldValueText(String value) {
+  final needsQuotes =
+      value.isEmpty || value.contains(RegExp(r'\s')) || value.contains('"');
+  if (!needsQuotes) return value;
+  return '"${value.replaceAll('"', r'\"')}"';
 }
 
 extension _IterableFirstOrNull<T> on Iterable<T> {

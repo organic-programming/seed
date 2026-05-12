@@ -39,7 +39,7 @@ void main() {
         );
         await tester.pump();
 
-        expect(find.text('gabriel:g1 > clem:c1'), findsOneWidget);
+        expect(find.text('← gabriel:g1 > clem:c1'), findsOneWidget);
       } finally {
         kit.dispose();
       }
