@@ -629,14 +629,12 @@ class MemberRelay {
     required this.childUid,
     required this.channel,
     required this.observability,
-    this.onClosed,
   });
 
   final String childSlug;
   final String childUid;
   final ClientChannel channel;
   final Observability observability;
-  final void Function()? onClosed;
 
   StreamSubscription<obs_pb.LogEntry>? _logsSub;
   StreamSubscription<obs_pb.EventInfo>? _eventsSub;
@@ -741,9 +739,6 @@ class MemberRelay {
     _failed = true;
     _isRunning = false;
     _warn(error);
-    if (!_stopping) {
-      onClosed?.call();
-    }
     _stopping = true;
     unawaited(_cancelSubscriptions().whenComplete(() {
       _stopping = false;

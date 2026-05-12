@@ -223,15 +223,11 @@ void main() {
       const obs.Config(slug: 'parent', instanceUid: 'parent-uid'),
       env: const {'OP_OBS': 'logs'},
     );
-    var closed = 0;
     final relay = obs.MemberRelay(
       childSlug: 'child-x',
       childUid: 'uid-123',
       channel: fake.channel,
       observability: local,
-      onClosed: () {
-        closed += 1;
-      },
     );
 
     await relay.start();
@@ -245,34 +241,6 @@ void main() {
         entry.fields['child_slug'] == 'child-x' &&
         entry.fields['child_uid'] == 'uid-123' &&
         (entry.fields['error'] ?? '').contains('stream failed')));
-    expect(closed, equals(1));
-  });
-
-  test('MemberRelay stop does not invoke onClosed callback', () async {
-    final fake = await _startFakeObservabilityService();
-    addTearDown(fake.close);
-    final local = obs.configure(
-      const obs.Config(slug: 'parent', instanceUid: 'parent-uid'),
-      env: const {'OP_OBS': 'logs'},
-    );
-    var closed = 0;
-    final relay = obs.MemberRelay(
-      childSlug: 'child-x',
-      childUid: 'uid-123',
-      channel: fake.channel,
-      observability: local,
-      onClosed: () {
-        closed += 1;
-      },
-    );
-
-    await relay.start();
-    await _waitFor(() => fake.service.logsOpened == 1);
-    await relay.stop();
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-
-    expect(relay.isRunning, isFalse);
-    expect(closed, equals(0));
   });
 
   test('MemberRelay stop is idempotent', () async {
