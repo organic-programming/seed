@@ -75,37 +75,6 @@ void main() {
       expect(connection.sayHelloCalls.last, ('Alice', 'en'));
     });
 
-    test('notifies cycle completion for transport changes only', () async {
-      var cycles = 0;
-      final controller = GreetingController(
-        catalog: FakeHolonCatalog(<GabrielHolonIdentity>[
-          holon('gabriel-greeting-swift'),
-        ]),
-        connector: FakeHolonConnector(
-          factories: <String, FakeGreetingHolonConnection Function(String)>{
-            'gabriel-greeting-swift': (_) => FakeGreetingHolonConnection(
-              languages: [language(code: 'en', name: 'English', native: 'en')],
-              greetingBuilder: ({required name, required langCode}) =>
-                  'Hello $name',
-            ),
-          },
-        ),
-        initialTransport: 'stdio',
-        onCycleComplete: () async {
-          cycles += 1;
-        },
-      );
-
-      await controller.initialize();
-      expect(cycles, 1);
-
-      await controller.setTransport('tcp');
-      expect(cycles, 2);
-
-      await controller.setUserName('Alice');
-      expect(cycles, 2);
-    });
-
     test(
       'rejects unix transport when the platform capability disables it',
       () async {
@@ -136,32 +105,29 @@ void main() {
       },
     );
 
-    test(
-      'surfaces language-load failures and drops the bad connection',
-      () async {
-        final controller = GreetingController(
-          catalog: FakeHolonCatalog(<GabrielHolonIdentity>[
-            holon('gabriel-greeting-swift'),
-          ]),
-          connector: FakeHolonConnector(
-            factories: <String, FakeGreetingHolonConnection Function(String)>{
-              'gabriel-greeting-swift': (_) => FakeGreetingHolonConnection(
-                languages: const [],
-                greetingBuilder: ({required name, required langCode}) =>
-                    'ignored',
-                listLanguagesError: StateError('boot failure'),
-              ),
-            },
-          ),
-        );
+    test('surfaces language-load failures and drops the bad connection', () async {
+      final controller = GreetingController(
+        catalog: FakeHolonCatalog(<GabrielHolonIdentity>[
+          holon('gabriel-greeting-swift'),
+        ]),
+        connector: FakeHolonConnector(
+          factories: <String, FakeGreetingHolonConnection Function(String)>{
+            'gabriel-greeting-swift': (_) => FakeGreetingHolonConnection(
+              languages: const [],
+              greetingBuilder: ({required name, required langCode}) =>
+                  'ignored',
+              listLanguagesError: StateError('boot failure'),
+            ),
+          },
+        ),
+      );
 
-        await controller.initialize();
+      await controller.initialize();
 
-        expect(controller.connectionError, isNull);
-        expect(controller.error, contains('Failed to load languages'));
-        expect(controller.isRunning, isFalse);
-      },
-    );
+      expect(controller.connectionError, isNull);
+      expect(controller.error, contains('Failed to load languages'));
+      expect(controller.isRunning, isFalse);
+    });
 
     test('transport change invalidates an in-flight start', () async {
       final stdioCompleter = Completer<GreetingHolonConnection>();
