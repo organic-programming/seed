@@ -15,7 +15,7 @@ DescribeResponse staticDescribeResponse() {
       composer: "Codex",
       status: "draft",
       born: "2026-04-04",
-      version: "0.1.48",
+      version: "0.9.0",
     ),
     description: "A standalone Flutter desktop app that connects to all 13 Gabriel greeting holons and presents a multilingual greeting UI with COAX support.",
     lang: "dart",

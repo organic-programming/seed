@@ -13,13 +13,13 @@
 
 var jspb = require('google-protobuf');
 var goog = jspb;
-var global = (function() {
-  if (this) { return this; }
-  if (typeof window !== 'undefined') { return window; }
-  if (typeof global !== 'undefined') { return global; }
-  if (typeof self !== 'undefined') { return self; }
-  return Function('return this')();
-}.call(null));
+var global =
+    (typeof globalThis !== 'undefined' && globalThis) ||
+    (typeof window !== 'undefined' && window) ||
+    (typeof global !== 'undefined' && global) ||
+    (typeof self !== 'undefined' && self) ||
+    (function () { return this; }).call(null) ||
+    Function('return this')();
 
 goog.exportSymbol('proto.greeting.v1.Language', null, global);
 goog.exportSymbol('proto.greeting.v1.ListLanguagesRequest', null, global);
@@ -271,7 +271,7 @@ proto.greeting.v1.ListLanguagesResponse.prototype.toObject = function(opt_includ
  */
 proto.greeting.v1.ListLanguagesResponse.toObject = function(includeInstance, msg) {
   var f, obj = {
-    languagesList: jspb.Message.toObjectList(msg.getLanguagesList(),
+languagesList: jspb.Message.toObjectList(msg.getLanguagesList(),
     proto.greeting.v1.Language.toObject, includeInstance)
   };
 
@@ -424,9 +424,9 @@ proto.greeting.v1.Language.prototype.toObject = function(opt_includeInstance) {
  */
 proto.greeting.v1.Language.toObject = function(includeInstance, msg) {
   var f, obj = {
-    code: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    name: jspb.Message.getFieldWithDefault(msg, 2, ""),
-    pb_native: jspb.Message.getFieldWithDefault(msg, 3, "")
+code: jspb.Message.getFieldWithDefault(msg, 1, ""),
+name: jspb.Message.getFieldWithDefault(msg, 2, ""),
+pb_native: jspb.Message.getFieldWithDefault(msg, 3, "")
   };
 
   if (includeInstance) {
@@ -614,8 +614,8 @@ proto.greeting.v1.SayHelloRequest.prototype.toObject = function(opt_includeInsta
  */
 proto.greeting.v1.SayHelloRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
-    name: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    langCode: jspb.Message.getFieldWithDefault(msg, 2, "")
+name: jspb.Message.getFieldWithDefault(msg, 1, ""),
+langCode: jspb.Message.getFieldWithDefault(msg, 2, "")
   };
 
   if (includeInstance) {
@@ -774,9 +774,9 @@ proto.greeting.v1.SayHelloResponse.prototype.toObject = function(opt_includeInst
  */
 proto.greeting.v1.SayHelloResponse.toObject = function(includeInstance, msg) {
   var f, obj = {
-    greeting: jspb.Message.getFieldWithDefault(msg, 1, ""),
-    language: jspb.Message.getFieldWithDefault(msg, 2, ""),
-    langCode: jspb.Message.getFieldWithDefault(msg, 3, "")
+greeting: jspb.Message.getFieldWithDefault(msg, 1, ""),
+language: jspb.Message.getFieldWithDefault(msg, 2, ""),
+langCode: jspb.Message.getFieldWithDefault(msg, 3, "")
   };
 
   if (includeInstance) {
