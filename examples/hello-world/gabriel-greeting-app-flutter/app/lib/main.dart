@@ -35,15 +35,21 @@ Future<void> main() async {
   );
   await applyLaunchEnvironmentOverrides(settingsStore, defaults: coaxDefaults);
 
-  final greetingController = GreetingController(
-    holons: BundledHolons<GabrielHolonIdentity>(
-      fromDiscovered: GabrielHolonIdentity.fromDiscovered,
-      slugOf: (holon) => holon.slug,
-      sortRankOf: (holon) => holon.sortRank,
-      displayNameOf: (holon) => holon.displayName,
-    ),
-    connector: BundledGreetingHolonConnectionFactory(),
+  final greetingHolons = BundledHolons<GabrielHolonIdentity>(
+    fromDiscovered: GabrielHolonIdentity.fromDiscovered,
+    slugOf: (holon) => holon.slug,
+    sortRankOf: (holon) => holon.sortRank,
+    displayNameOf: (holon) => holon.displayName,
   );
+  final greetingConnector = BundledGreetingHolonConnectionFactory();
+  final greetingController = GreetingController(
+    holons: greetingHolons,
+    connector: greetingConnector,
+  );
+  final observabilityHolons = await _observabilityHolons(greetingController);
+  final observabilityHolonsBySlug = <String, GabrielHolonIdentity>{
+    for (final holon in observabilityHolons) holon.slug: holon,
+  };
   final observabilityKit = ObservabilityKit.standalone(
     slug: 'gabriel-greeting-app-flutter',
     declaredFamilies: const [
@@ -53,7 +59,17 @@ Future<void> main() async {
       holons.Family.prom,
     ],
     settings: settingsStore,
-    bundledHolons: await _observabilityMembers(greetingController),
+    bundledHolons: _observabilityMembers(observabilityHolons),
+    relayChannelOpener: (member) async {
+      final holon = observabilityHolonsBySlug[member.slug];
+      if (holon == null) {
+        throw StateError('Observability member ${member.slug} not found');
+      }
+      return greetingConnector.openChannel(
+        holon,
+        transport: greetingController.transport,
+      );
+    },
   );
   final observability = observabilityKit.obs;
   greetingController.attachObservability(observability);
@@ -88,21 +104,26 @@ Future<void> main() async {
   );
 }
 
-Future<List<ObservabilityMemberRef>> _observabilityMembers(
+Future<List<GabrielHolonIdentity>> _observabilityHolons(
   GreetingController greetingController,
 ) async {
   try {
-    final members = await greetingController.holons.list();
-    return members
-        .map(
-          (member) => ObservabilityMemberRef(
-            slug: member.slug,
-            uid: member.slug,
-            address: member.discoveryPath,
-          ),
-        )
-        .toList(growable: false);
+    return await greetingController.holons.list();
   } on Object {
     return const [];
   }
+}
+
+List<ObservabilityMemberRef> _observabilityMembers(
+  Iterable<GabrielHolonIdentity> members,
+) {
+  return members
+      .map(
+        (member) => ObservabilityMemberRef(
+          slug: member.slug,
+          uid: member.slug,
+          address: member.discoveryPath,
+        ),
+      )
+      .toList(growable: false);
 }
