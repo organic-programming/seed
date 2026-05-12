@@ -68,6 +68,7 @@ func ParseLevel(s string) Level {
 type LogEntry struct {
 	Timestamp   time.Time
 	Level       Level
+	LoggerName  string
 	Slug        string
 	InstanceUID string
 	SessionID   string
@@ -152,6 +153,7 @@ func (l *Logger) log(ctx context.Context, lvl Level, msg string, kv []any) {
 	entry := LogEntry{
 		Timestamp:   time.Now(),
 		Level:       lvl,
+		LoggerName:  l.name,
 		Slug:        l.obs.cfg.Slug,
 		InstanceUID: l.obs.cfg.InstanceUID,
 		SessionID:   sessionID,
@@ -306,4 +308,3 @@ func stringify(v any) string {
 		return fmt.Sprintf("%v", v)
 	}
 }
-

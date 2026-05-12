@@ -172,6 +172,31 @@ func TestConfigure_LogsFamily(t *testing.T) {
 	}
 }
 
+func TestLogger_EntryCarriesLoggerName(t *testing.T) {
+	Reset()
+	t.Setenv("OP_OBS", "logs")
+	obs := Configure(Config{Slug: "g", InstanceUID: "uid"})
+	t.Cleanup(func() {
+		_ = obs.Close()
+		Reset()
+	})
+
+	obs.Logger("foo").Info("hi", "k", "v")
+
+	entries := obs.LogRing().Drain()
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	entry := entries[0]
+	if entry.LoggerName != "foo" {
+		t.Fatalf("LoggerName = %q, want foo", entry.LoggerName)
+	}
+	rec := logEntryDiskRecord(entry)
+	if got := rec["logger_name"]; got != "foo" {
+		t.Fatalf("logger_name disk field = %v, want foo", got)
+	}
+}
+
 func TestLogger_LevelFiltering(t *testing.T) {
 	Reset()
 	t.Setenv("OP_OBS", "logs")

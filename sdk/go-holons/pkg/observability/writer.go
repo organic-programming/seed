@@ -252,6 +252,7 @@ func logEntryDiskRecord(e LogEntry) map[string]any {
 		"kind":         "log",
 		"ts":           e.Timestamp.UTC().Format(time.RFC3339Nano),
 		"level":        e.Level.String(),
+		"logger_name":  e.LoggerName,
 		"slug":         e.Slug,
 		"instance_uid": e.InstanceUID,
 		"message":      e.Message,
