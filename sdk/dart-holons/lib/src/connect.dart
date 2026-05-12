@@ -11,6 +11,7 @@ import 'discover.dart';
 import 'discovery_probe.dart';
 import 'discovery_types.dart';
 import 'grpcclient.dart';
+import 'observability.dart' as observability;
 import 'transport.dart';
 
 String Function() connectCurrentRootProvider = () => Directory.current.path;
@@ -62,6 +63,11 @@ String defaultUnixSocketURIForTest(String slug, String portFile) =>
 
 String defaultWorkingDirectoryForTest(String path, String binaryPath) =>
     _defaultWorkingDirectory(path, binaryPath);
+
+Map<String, String> launchEnvironmentForTest([
+  Map<String, String>? environment,
+]) =>
+    _launchEnvironment(environment);
 
 class _StdioClientChannel extends ClientChannel {
   final StdioTransportConnector _connector;
@@ -895,10 +901,26 @@ Future<void> _cleanupOwnedArtifacts(List<String> paths) async {
   }
 }
 
-Map<String, String> _launchEnvironment() {
-  final environment = Map<String, String>.from(Platform.environment);
+Map<String, String> _launchEnvironment([Map<String, String>? base]) {
+  final environment = Map<String, String>.from(
+    base ?? connectEnvironmentProvider(),
+  );
   environment['HOLONS_PARENT_PID'] = '$pid';
+  final activeFamilies = _activeObservabilityFamilies();
+  if (activeFamilies.isNotEmpty) {
+    environment['OP_OBS'] = activeFamilies;
+  }
   return environment;
+}
+
+String _activeObservabilityFamilies() {
+  final current = observability.current();
+  return const <observability.Family>[
+    observability.Family.logs,
+    observability.Family.metrics,
+    observability.Family.events,
+    observability.Family.prom,
+  ].where(current.enabled).map((family) => family.name).join(',');
 }
 
 String _recentLineDetails(List<String> recentLines) {
