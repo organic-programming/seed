@@ -22,9 +22,11 @@ class GreetingController extends ChangeNotifier implements HolonManager {
     required GreetingHolonConnectionFactory connector,
     AppPlatformCapabilities? capabilities,
     String? initialTransport,
+    Future<void> Function()? onCycleComplete,
   }) : assert(holons != null || catalog != null),
        _holons = holons ?? catalog!,
        _connector = connector,
+       _onCycleComplete = onCycleComplete,
        capabilities = capabilities ?? AppPlatformCapabilities.desktopCurrent(),
        transport = HolonTransportName.normalize(
          initialTransport ?? Platform.environment['OP_ASSEMBLY_TRANSPORT'],
@@ -32,6 +34,7 @@ class GreetingController extends ChangeNotifier implements HolonManager {
 
   final Holons<GabrielHolonIdentity> _holons;
   final GreetingHolonConnectionFactory _connector;
+  final Future<void> Function()? _onCycleComplete;
   final AppPlatformCapabilities capabilities;
   holons_obs.Logger? _logger;
   holons_obs.Counter? _sayHelloTotal;
@@ -95,6 +98,9 @@ class GreetingController extends ChangeNotifier implements HolonManager {
     notifyListeners();
     await refreshHolons();
     await loadLanguages(greetAfterLoad: false);
+    if (isRunning && error == null) {
+      await _notifyCycleComplete();
+    }
     if (selectedLanguageCode.isNotEmpty) {
       await greet();
     }
@@ -139,6 +145,9 @@ class GreetingController extends ChangeNotifier implements HolonManager {
     _safeNotify();
     if (reload) {
       await loadLanguages();
+      if (isRunning && error == null) {
+        await _notifyCycleComplete();
+      }
     }
   }
 
@@ -157,6 +166,9 @@ class GreetingController extends ChangeNotifier implements HolonManager {
     _safeNotify();
     if (reload) {
       await loadLanguages();
+    }
+    if (!reload || (isRunning && error == null)) {
+      await _notifyCycleComplete();
     }
   }
 
@@ -340,6 +352,9 @@ class GreetingController extends ChangeNotifier implements HolonManager {
     }
     await selectHolonBySlug(identity.slug, reload: false);
     await loadLanguages();
+    if (isRunning && error == null) {
+      await _notifyCycleComplete();
+    }
     return _memberForIdentity(
       identity,
       overrideState: isRunning && error == null
@@ -526,6 +541,18 @@ class GreetingController extends ChangeNotifier implements HolonManager {
   Future<void> shutdown() async {
     _disposed = true;
     await stop();
+  }
+
+  Future<void> _notifyCycleComplete() async {
+    final callback = _onCycleComplete;
+    if (callback == null) {
+      return;
+    }
+    try {
+      await callback();
+    } on Object catch (error, stack) {
+      debugPrint('GreetingController onCycleComplete threw: $error\n$stack');
+    }
   }
 
   void _safeNotify() {

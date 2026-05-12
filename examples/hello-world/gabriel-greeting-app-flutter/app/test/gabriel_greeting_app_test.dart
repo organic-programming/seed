@@ -445,7 +445,10 @@ void main() {
     await tester.tap(find.widgetWithText(Tab, 'Logs'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Greeting response received'), findsWidgets);
+    expect(
+      find.textContaining('Greeting response received', findRichText: true),
+      findsWidgets,
+    );
   });
 }
 
