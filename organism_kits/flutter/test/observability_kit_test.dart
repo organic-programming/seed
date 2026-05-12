@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart' as holons;
 import 'package:holons_app/holons_app.dart';
 
@@ -34,6 +35,214 @@ void main() {
     );
     expect(restored.masterEnabled, isFalse);
     expect(restored.memberOverride('go-1'), GateOverride.off);
+  });
+
+  test('RelayController starts relay when member is enabled', () async {
+    final channels = <ClientChannel>[];
+    addTearDown(() async {
+      for (final channel in channels) {
+        await channel.shutdown();
+      }
+      holons.reset();
+    });
+    final gate = RuntimeGate(
+      settings: MemorySettingsStore(),
+      members: const [
+        ObservabilityMemberRef(slug: 'gabriel-greeting-go', uid: 'go-1'),
+      ],
+    );
+    final local = holons.configure(
+      const holons.Config(slug: 'parent', instanceUid: 'parent-uid'),
+      env: const {'OP_OBS': 'logs,events'},
+    );
+    final fakes = <_FakeMemberRelay>[];
+    final controller = RelayController(
+      gate,
+      local,
+      channelOpener: (member) async => _dummyChannel(channels),
+      memberRelayFactory:
+          ({
+            required childSlug,
+            required childUid,
+            required channel,
+            required observability,
+          }) {
+            final fake = _FakeMemberRelay();
+            fakes.add(fake);
+            return fake;
+          },
+    );
+    addTearDown(controller.dispose);
+
+    await _waitFor(() => fakes.length == 1 && fakes.single.startCalls == 1);
+
+    expect(controller.runningRelayCount, equals(1));
+    expect(controller.activeMembers.map((member) => member.uid), ['go-1']);
+  });
+
+  test('RelayController stops and recreates relay as gate changes', () async {
+    final channels = <ClientChannel>[];
+    addTearDown(() async {
+      for (final channel in channels) {
+        await channel.shutdown();
+      }
+      holons.reset();
+    });
+    final gate = RuntimeGate(
+      settings: MemorySettingsStore(),
+      members: const [
+        ObservabilityMemberRef(slug: 'gabriel-greeting-go', uid: 'go-1'),
+      ],
+    );
+    final local = holons.configure(
+      const holons.Config(slug: 'parent', instanceUid: 'parent-uid'),
+      env: const {'OP_OBS': 'logs,events'},
+    );
+    final fakes = <_FakeMemberRelay>[];
+    final controller = RelayController(
+      gate,
+      local,
+      channelOpener: (member) async => _dummyChannel(channels),
+      memberRelayFactory:
+          ({
+            required childSlug,
+            required childUid,
+            required channel,
+            required observability,
+          }) {
+            final fake = _FakeMemberRelay();
+            fakes.add(fake);
+            return fake;
+          },
+    );
+    addTearDown(controller.dispose);
+
+    await _waitFor(
+      () => fakes.length == 1 && controller.runningRelayCount == 1,
+    );
+    final first = fakes.single;
+
+    await gate.setMemberOverride('go-1', GateOverride.off);
+    await _waitFor(() => controller.runningRelayCount == 0);
+    expect(first.stopCalls, equals(1));
+
+    await gate.setMemberOverride('go-1', GateOverride.on);
+    await _waitFor(
+      () => fakes.length == 2 && controller.runningRelayCount == 1,
+    );
+    expect(fakes.last, isNot(same(first)));
+    expect(fakes.last.startCalls, equals(1));
+  });
+
+  test(
+    'RelayController logs opener failures and starts other members',
+    () async {
+      final channels = <ClientChannel>[];
+      addTearDown(() async {
+        for (final channel in channels) {
+          await channel.shutdown();
+        }
+        holons.reset();
+      });
+      final gate = RuntimeGate(
+        settings: MemorySettingsStore(),
+        members: const [
+          ObservabilityMemberRef(slug: 'bad-child', uid: 'bad-1'),
+          ObservabilityMemberRef(slug: 'good-child', uid: 'good-1'),
+        ],
+      );
+      final local = holons.configure(
+        const holons.Config(slug: 'parent', instanceUid: 'parent-uid'),
+        env: const {'OP_OBS': 'logs,events'},
+      );
+      final fakes = <_FakeMemberRelay>[];
+      final controller = RelayController(
+        gate,
+        local,
+        channelOpener: (member) async {
+          if (member.uid == 'bad-1') {
+            throw StateError('boom');
+          }
+          return _dummyChannel(channels);
+        },
+        memberRelayFactory:
+            ({
+              required childSlug,
+              required childUid,
+              required channel,
+              required observability,
+            }) {
+              final fake = _FakeMemberRelay();
+              fakes.add(fake);
+              return fake;
+            },
+      );
+      addTearDown(controller.dispose);
+
+      await _waitFor(() => controller.runningRelayCount == 1);
+      await _waitFor(
+        () => local.logRing!.drain().any(
+          (entry) =>
+              entry.level == holons.Level.warn &&
+              entry.loggerName == 'relay-controller' &&
+              entry.fields['uid'] == 'bad-1' &&
+              (entry.fields['error'] ?? '').contains('boom'),
+        ),
+      );
+
+      expect(fakes, hasLength(1));
+      expect(controller.activeMembers.map((member) => member.uid), ['good-1']);
+    },
+  );
+
+  test('RelayController dispose stops all relays once', () async {
+    final channels = <ClientChannel>[];
+    addTearDown(() async {
+      for (final channel in channels) {
+        await channel.shutdown();
+      }
+      holons.reset();
+    });
+    final gate = RuntimeGate(
+      settings: MemorySettingsStore(),
+      members: const [
+        ObservabilityMemberRef(slug: 'child-a', uid: 'a'),
+        ObservabilityMemberRef(slug: 'child-b', uid: 'b'),
+        ObservabilityMemberRef(slug: 'child-c', uid: 'c'),
+      ],
+    );
+    final local = holons.configure(
+      const holons.Config(slug: 'parent', instanceUid: 'parent-uid'),
+      env: const {'OP_OBS': 'logs,events'},
+    );
+    final fakes = <_FakeMemberRelay>[];
+    final controller = RelayController(
+      gate,
+      local,
+      channelOpener: (member) async => _dummyChannel(channels),
+      memberRelayFactory:
+          ({
+            required childSlug,
+            required childUid,
+            required channel,
+            required observability,
+          }) {
+            final fake = _FakeMemberRelay();
+            fakes.add(fake);
+            return fake;
+          },
+    );
+
+    await _waitFor(
+      () => fakes.length == 3 && controller.runningRelayCount == 3,
+    );
+
+    controller.dispose();
+    expect(controller.runningRelayCount, equals(0));
+    expect(fakes.map((fake) => fake.stopCalls), everyElement(1));
+
+    controller.dispose();
+    expect(fakes.map((fake) => fake.stopCalls), everyElement(1));
   });
 
   test('controllers expose logs metrics events and export bundle', () async {
@@ -128,4 +337,47 @@ void main() {
       kit.dispose();
     }
   });
+}
+
+class _FakeMemberRelay implements RelaySession {
+  var startCalls = 0;
+  var stopCalls = 0;
+  var _isRunning = false;
+
+  @override
+  bool get isRunning => _isRunning;
+
+  @override
+  Future<void> start() async {
+    startCalls += 1;
+    _isRunning = true;
+  }
+
+  @override
+  Future<void> stop() async {
+    stopCalls += 1;
+    _isRunning = false;
+  }
+}
+
+ClientChannel _dummyChannel(List<ClientChannel> channels) {
+  final channel = ClientChannel(
+    '127.0.0.1',
+    port: 1,
+    options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
+  );
+  channels.add(channel);
+  return channel;
+}
+
+Future<void> _waitFor(
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 2),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (condition()) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('condition was not met within $timeout');
 }

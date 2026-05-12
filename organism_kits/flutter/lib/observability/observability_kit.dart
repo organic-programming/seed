@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart' as holons;
 import 'package:path/path.dart' as p;
 
@@ -261,20 +262,164 @@ class EventsController extends ChangeNotifier {
   }
 }
 
+typedef RelayChannelOpener =
+    Future<ClientChannel> Function(ObservabilityMemberRef member);
+
+typedef MemberRelayFactory =
+    RelaySession Function({
+      required String childSlug,
+      required String childUid,
+      required ClientChannel channel,
+      required holons.Observability observability,
+    });
+
+abstract interface class RelaySession {
+  Future<void> start();
+  Future<void> stop();
+  bool get isRunning;
+}
+
+class _MemberRelaySession implements RelaySession {
+  _MemberRelaySession(this._relay);
+
+  final holons.MemberRelay _relay;
+
+  @override
+  bool get isRunning => _relay.isRunning;
+
+  @override
+  Future<void> start() => _relay.start();
+
+  @override
+  Future<void> stop() => _relay.stop();
+}
+
+RelaySession _defaultMemberRelayFactory({
+  required String childSlug,
+  required String childUid,
+  required ClientChannel channel,
+  required holons.Observability observability,
+}) {
+  return _MemberRelaySession(
+    holons.MemberRelay(
+      childSlug: childSlug,
+      childUid: childUid,
+      channel: channel,
+      observability: observability,
+    ),
+  );
+}
+
 class RelayController extends ChangeNotifier {
-  RelayController(this.gate) {
-    gate.addListener(notifyListeners);
+  RelayController(
+    this.gate,
+    this.obs, {
+    RelayChannelOpener? channelOpener,
+    MemberRelayFactory memberRelayFactory = _defaultMemberRelayFactory,
+  }) : _channelOpener = channelOpener,
+       _memberRelayFactory = memberRelayFactory {
+    gate.addListener(_sync);
+    unawaited(_sync());
   }
 
   final RuntimeGate gate;
+  final holons.Observability obs;
+  final RelayChannelOpener? _channelOpener;
+  final MemberRelayFactory _memberRelayFactory;
+  final Map<String, RelaySession> _relays = {};
+  final Set<String> _starting = {};
+  bool _disposed = false;
 
   List<ObservabilityMemberRef> get activeMembers => gate.members
-      .where((member) => gate.memberEnabled(member.uid))
+      .where((member) => _relays.containsKey(member.uid))
       .toList(growable: false);
+
+  int get runningRelayCount => _relays.length;
+
+  Future<void> _sync() async {
+    if (_disposed) return;
+    final opener = _channelOpener;
+    if (opener == null) {
+      notifyListeners();
+      return;
+    }
+
+    final enabled = {
+      for (final member in gate.members)
+        if (gate.memberEnabled(member.uid)) member.uid,
+    };
+    final stopFutures = <Future<void>>[];
+    for (final uid in List<String>.from(_relays.keys)) {
+      if (!enabled.contains(uid)) {
+        stopFutures.add(_stopRelay(uid));
+      }
+    }
+
+    for (final member in gate.members) {
+      if (!enabled.contains(member.uid)) continue;
+      if (_relays.containsKey(member.uid) || _starting.contains(member.uid)) {
+        continue;
+      }
+      _starting.add(member.uid);
+      unawaited(_startRelay(member));
+    }
+
+    if (stopFutures.isNotEmpty) {
+      await Future.wait(stopFutures);
+      notifyListeners();
+    }
+  }
+
+  Future<void> _startRelay(ObservabilityMemberRef member) async {
+    final opener = _channelOpener;
+    if (opener == null || _disposed) {
+      _starting.remove(member.uid);
+      return;
+    }
+    try {
+      final channel = await opener(member);
+      if (_disposed || !gate.memberEnabled(member.uid)) return;
+      final relay = _memberRelayFactory(
+        childSlug: member.slug,
+        childUid: member.uid,
+        channel: channel,
+        observability: obs,
+      );
+      await relay.start();
+      if (_disposed || !gate.memberEnabled(member.uid)) {
+        await relay.stop();
+        return;
+      }
+      if (relay.isRunning) {
+        _relays[member.uid] = relay;
+        notifyListeners();
+      }
+    } on Object catch (error) {
+      obs.logger('relay-controller').warn('member relay start failed', {
+        'slug': member.slug,
+        'uid': member.uid,
+        'error': error,
+      });
+    } finally {
+      _starting.remove(member.uid);
+    }
+  }
+
+  Future<void> _stopRelay(String uid) async {
+    final relay = _relays.remove(uid);
+    if (relay == null) return;
+    await relay.stop();
+  }
 
   @override
   void dispose() {
-    gate.removeListener(notifyListeners);
+    if (_disposed) return;
+    _disposed = true;
+    gate.removeListener(_sync);
+    final relays = List<RelaySession>.from(_relays.values);
+    _relays.clear();
+    _starting.clear();
+    unawaited(Future.wait<void>([for (final relay in relays) relay.stop()]));
     super.dispose();
   }
 }
@@ -409,6 +554,8 @@ class ObservabilityKit extends ChangeNotifier {
     required SettingsStore settings,
     Iterable<ObservabilityMemberRef> bundledHolons = const [],
     Map<String, String>? environment,
+    RelayChannelOpener? relayChannelOpener,
+    MemberRelayFactory memberRelayFactory = _defaultMemberRelayFactory,
   }) {
     final families = declaredFamilies.map((family) => family.name).join(',');
     final baseEnv = environment ?? Platform.environment;
@@ -432,7 +579,12 @@ class ObservabilityKit extends ChangeNotifier {
       logs: LogConsoleController(obs, gate),
       metrics: MetricsController(obs, gate),
       events: EventsController(obs, gate),
-      relay: RelayController(gate),
+      relay: RelayController(
+        gate,
+        obs,
+        channelOpener: relayChannelOpener,
+        memberRelayFactory: memberRelayFactory,
+      ),
       prometheus: PrometheusController(obs, gate),
     );
     kit.export = ExportController(kit);

@@ -1,12 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:holons/holons.dart' as holons;
 
 import '../observability/observability_kit.dart';
 
 class ObservabilityPanel extends StatefulWidget {
-  const ObservabilityPanel({super.key, required this.kit});
+  const ObservabilityPanel({
+    super.key,
+    required this.kit,
+    this.exportDestination,
+  });
 
   final ObservabilityKit kit;
+  final Future<Directory?> Function()? exportDestination;
 
   @override
   State<ObservabilityPanel> createState() => _ObservabilityPanelState();
@@ -15,6 +22,8 @@ class ObservabilityPanel extends StatefulWidget {
 class _ObservabilityPanelState extends State<ObservabilityPanel>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
+  bool _exporting = false;
+  String _exportStatus = '';
 
   @override
   void initState() {
@@ -37,13 +46,40 @@ class _ObservabilityPanelState extends State<ObservabilityPanel>
           children: [
             Material(
               color: Theme.of(context).colorScheme.surface,
-              child: TabBar(
-                controller: _tabs,
-                tabs: const [
-                  Tab(icon: Icon(Icons.tune), text: 'Settings'),
-                  Tab(icon: Icon(Icons.notes), text: 'Logs'),
-                  Tab(icon: Icon(Icons.monitor_heart), text: 'Metrics'),
-                  Tab(icon: Icon(Icons.event_note), text: 'Events'),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TabBar(
+                          controller: _tabs,
+                          tabs: const [
+                            Tab(icon: Icon(Icons.tune), text: 'Settings'),
+                            Tab(icon: Icon(Icons.notes), text: 'Logs'),
+                            Tab(
+                              icon: Icon(Icons.monitor_heart),
+                              text: 'Metrics',
+                            ),
+                            Tab(icon: Icon(Icons.event_note), text: 'Events'),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Export observability bundle',
+                        icon: const Icon(Icons.file_download_outlined),
+                        onPressed:
+                            widget.exportDestination == null || _exporting
+                            ? null
+                            : _export,
+                      ),
+                    ],
+                  ),
+                  if (_exportStatus.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(_exportStatus),
+                    ),
                 ],
               ),
             ),
@@ -62,6 +98,38 @@ class _ObservabilityPanelState extends State<ObservabilityPanel>
         );
       },
     );
+  }
+
+  Future<void> _export() async {
+    final destination = widget.exportDestination;
+    if (destination == null) return;
+    setState(() {
+      _exporting = true;
+      _exportStatus = '';
+    });
+    try {
+      final dir = await destination();
+      if (dir == null) {
+        if (mounted) {
+          setState(() {
+            _exporting = false;
+          });
+        }
+        return;
+      }
+      final exported = await widget.kit.export.exportTo(dir);
+      if (!mounted) return;
+      setState(() {
+        _exporting = false;
+        _exportStatus = 'Exported to ${exported.path}';
+      });
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _exporting = false;
+        _exportStatus = 'Export failed: $error';
+      });
+    }
   }
 }
 
@@ -201,8 +269,15 @@ class LogConsoleView extends StatelessWidget {
                     dense: true,
                     leading: _LevelBadge(level: entry.level),
                     title: Text(entry.message),
-                    subtitle: Text(
-                      '${entry.slug}  ${entry.timestamp.toIso8601String()}',
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${entry.slug}  ${entry.timestamp.toIso8601String()}',
+                        ),
+                        if (entry.chain.isNotEmpty)
+                          Text(_chainText(entry.chain)),
+                      ],
                     ),
                   );
                 },
@@ -299,8 +374,12 @@ class EventsView extends StatelessWidget {
             return ListTile(
               leading: const Icon(Icons.bolt),
               title: Text(event.type.name),
-              subtitle: Text(
-                '${event.slug}  ${event.timestamp.toIso8601String()}',
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${event.slug}  ${event.timestamp.toIso8601String()}'),
+                  if (event.chain.isNotEmpty) Text(_chainText(event.chain)),
+                ],
               ),
             );
           },
@@ -425,6 +504,10 @@ class _HistogramPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _HistogramPainter oldDelegate) =>
       oldDelegate.snapshot != snapshot || oldDelegate.color != color;
+}
+
+String _chainText(List<holons.Hop> chain) {
+  return chain.map((hop) => '${hop.slug}:${hop.instanceUid}').join(' > ');
 }
 
 extension _IterableFirstOrNull<T> on Iterable<T> {
