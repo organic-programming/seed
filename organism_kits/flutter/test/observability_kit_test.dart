@@ -114,8 +114,9 @@ void main() {
             required childUid,
             required channel,
             required observability,
+            onClosed,
           }) {
-            final fake = _FakeMemberRelay();
+            final fake = _FakeMemberRelay(onClosed: onClosed);
             fakes.add(fake);
             return fake;
           },
@@ -157,8 +158,9 @@ void main() {
             required childUid,
             required channel,
             required observability,
+            onClosed,
           }) {
-            final fake = _FakeMemberRelay();
+            final fake = _FakeMemberRelay(onClosed: onClosed);
             fakes.add(fake);
             return fake;
           },
@@ -219,8 +221,9 @@ void main() {
               required childUid,
               required channel,
               required observability,
+              onClosed,
             }) {
-              final fake = _FakeMemberRelay();
+              final fake = _FakeMemberRelay(onClosed: onClosed);
               fakes.add(fake);
               return fake;
             },
@@ -274,8 +277,9 @@ void main() {
             required childUid,
             required channel,
             required observability,
+            onClosed,
           }) {
-            final fake = _FakeMemberRelay();
+            final fake = _FakeMemberRelay(onClosed: onClosed);
             fakes.add(fake);
             return fake;
           },
@@ -292,6 +296,178 @@ void main() {
     controller.dispose();
     expect(fakes.map((fake) => fake.stopCalls), everyElement(1));
   });
+
+  test('RelayController restarts relay after unexpected close', () async {
+    final channels = <ClientChannel>[];
+    addTearDown(() async {
+      for (final channel in channels) {
+        await channel.shutdown();
+      }
+      holons.reset();
+    });
+    final gate = RuntimeGate(
+      settings: MemorySettingsStore(),
+      members: const [
+        ObservabilityMemberRef(slug: 'gabriel-greeting-go', uid: 'go-1'),
+      ],
+    );
+    final local = holons.configure(
+      const holons.Config(slug: 'parent', instanceUid: 'parent-uid'),
+      env: const {'OP_OBS': 'logs,events'},
+    );
+    final fakes = <_FakeMemberRelay>[];
+    final controller = RelayController(
+      gate,
+      local,
+      channelOpener: (member) async => _dummyChannel(channels),
+      restartCooldown: const Duration(milliseconds: 10),
+      memberRelayFactory:
+          ({
+            required childSlug,
+            required childUid,
+            required channel,
+            required observability,
+            onClosed,
+          }) {
+            final fake = _FakeMemberRelay(onClosed: onClosed);
+            fakes.add(fake);
+            return fake;
+          },
+    );
+    addTearDown(controller.dispose);
+
+    await _waitFor(
+      () => fakes.length == 1 && controller.runningRelayCount == 1,
+    );
+    final first = fakes.single;
+
+    first.closeUnexpectedly();
+
+    await _waitFor(
+      () => fakes.length >= 2 && controller.runningRelayCount == 1,
+    );
+    expect(fakes.last, isNot(same(first)));
+    expect(fakes.last.startCalls, equals(1));
+  });
+
+  test(
+    'RelayController does not restart closed relay when gate is off',
+    () async {
+      final channels = <ClientChannel>[];
+      addTearDown(() async {
+        for (final channel in channels) {
+          await channel.shutdown();
+        }
+        holons.reset();
+      });
+      final gate = RuntimeGate(
+        settings: MemorySettingsStore(),
+        members: const [
+          ObservabilityMemberRef(slug: 'gabriel-greeting-go', uid: 'go-1'),
+        ],
+      );
+      final local = holons.configure(
+        const holons.Config(slug: 'parent', instanceUid: 'parent-uid'),
+        env: const {'OP_OBS': 'logs,events'},
+      );
+      final fakes = <_FakeMemberRelay>[];
+      final controller = RelayController(
+        gate,
+        local,
+        channelOpener: (member) async => _dummyChannel(channels),
+        restartCooldown: const Duration(milliseconds: 10),
+        memberRelayFactory:
+            ({
+              required childSlug,
+              required childUid,
+              required channel,
+              required observability,
+              onClosed,
+            }) {
+              final fake = _FakeMemberRelay(onClosed: onClosed);
+              fakes.add(fake);
+              return fake;
+            },
+      );
+      addTearDown(controller.dispose);
+
+      await _waitFor(
+        () => fakes.length == 1 && controller.runningRelayCount == 1,
+      );
+      final first = fakes.single;
+      await gate.setMemberOverride('go-1', GateOverride.off);
+      await _waitFor(() => controller.runningRelayCount == 0);
+
+      first.closeUnexpectedly();
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+
+      expect(fakes, hasLength(1));
+      expect(controller.runningRelayCount, equals(0));
+    },
+  );
+
+  test(
+    'RelayController refresh retries sync without gate notification',
+    () async {
+      final channels = <ClientChannel>[];
+      addTearDown(() async {
+        for (final channel in channels) {
+          await channel.shutdown();
+        }
+        holons.reset();
+      });
+      final gate = RuntimeGate(
+        settings: MemorySettingsStore(),
+        members: const [
+          ObservabilityMemberRef(slug: 'gabriel-greeting-go', uid: 'go-1'),
+        ],
+      );
+      final local = holons.configure(
+        const holons.Config(slug: 'parent', instanceUid: 'parent-uid'),
+        env: const {'OP_OBS': 'logs,events'},
+      );
+      var openerFails = true;
+      final fakes = <_FakeMemberRelay>[];
+      final controller = RelayController(
+        gate,
+        local,
+        channelOpener: (member) async {
+          if (openerFails) {
+            throw StateError('not ready');
+          }
+          return _dummyChannel(channels);
+        },
+        restartCooldown: const Duration(milliseconds: 50),
+        memberRelayFactory:
+            ({
+              required childSlug,
+              required childUid,
+              required channel,
+              required observability,
+              onClosed,
+            }) {
+              final fake = _FakeMemberRelay(onClosed: onClosed);
+              fakes.add(fake);
+              return fake;
+            },
+      );
+      addTearDown(controller.dispose);
+
+      await _waitFor(
+        () => local.logRing!.drain().any(
+          (entry) => (entry.fields['error'] ?? '').contains('not ready'),
+        ),
+      );
+      expect(controller.runningRelayCount, equals(0));
+
+      openerFails = false;
+      await controller.refresh();
+
+      await _waitFor(
+        () => fakes.length == 1 && controller.runningRelayCount == 1,
+      );
+    },
+  );
 
   test('controllers expose logs metrics events and export bundle', () async {
     final temp = await Directory.systemTemp.createTemp('obs-kit-flutter-');
@@ -388,6 +564,9 @@ void main() {
 }
 
 class _FakeMemberRelay implements RelaySession {
+  _FakeMemberRelay({this.onClosed});
+
+  final void Function()? onClosed;
   var startCalls = 0;
   var stopCalls = 0;
   var _isRunning = false;
@@ -405,6 +584,11 @@ class _FakeMemberRelay implements RelaySession {
   Future<void> stop() async {
     stopCalls += 1;
     _isRunning = false;
+  }
+
+  void closeUnexpectedly() {
+    _isRunning = false;
+    onClosed?.call();
   }
 }
 
