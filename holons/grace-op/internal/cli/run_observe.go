@@ -204,6 +204,11 @@ func emitUIDReturn(uid, slug, address string, pid int, metricsAddr string, jsonM
 // the allocated UID and registry root for later use. Returns ("", "")
 // as a no-op signal when observability is not requested.
 func applyRunObservability(cmd *exec.Cmd, slug string, opts runObserveOptions) (uid, runRoot string, err error) {
+	if opts.Observe == "" {
+		if envObserve := strings.TrimSpace(os.Getenv("OP_OBS")); envObserve != "" {
+			opts.Observe = envObserve
+		}
+	}
 	// Fast path: no observability requested and no JSON UID contract
 	// needed — leave the command untouched to preserve existing behaviour.
 	if opts.Observe == "" && opts.Prom == "" && opts.OTel == "" && opts.Sessions == "" && !opts.JSON {
