@@ -185,6 +185,45 @@ func TestRunServesGRPCOnRandomPort(t *testing.T) {
 	requireStreamEchoEventually(t, conn, []string{"serve-stream-1", "serve-stream-2"})
 }
 
+func TestCurrentTransportTracksRunLifecycle(t *testing.T) {
+	if got := serve.CurrentTransport(); got != "" {
+		t.Fatalf("CurrentTransport before Run = %q, want empty", got)
+	}
+
+	describe.UseStaticResponse(serveStaticDescribeResponse())
+	port := freeTCPPort(t)
+	listenURI := fmt.Sprintf("tcp://127.0.0.1:%d", port)
+	address := fmt.Sprintf("127.0.0.1:%d", port)
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- serve.RunWithOptions(listenURI, func(s *grpc.Server) {
+			testgrpc.RegisterTestServiceServer(s, &serveEchoServer{})
+		}, false)
+	}()
+
+	conn := dialServeAndWait(t, address)
+	_ = conn.Close()
+	if got := serve.CurrentTransport(); got != "tcp" {
+		t.Fatalf("CurrentTransport during Run = %q, want tcp", got)
+	}
+
+	if err := syscall.Kill(os.Getpid(), syscall.SIGTERM); err != nil {
+		t.Fatalf("signal self: %v", err)
+	}
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("RunWithOptions returned error: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("RunWithOptions did not stop after SIGTERM")
+	}
+	if got := serve.CurrentTransport(); got != "" {
+		t.Fatalf("CurrentTransport after Run = %q, want empty", got)
+	}
+}
+
 func TestRunAdvertisesResolvedRandomPort(t *testing.T) {
 	cmd, logs := startServeProcess(t, "run", "tcp://127.0.0.1:0", true)
 	defer stopServeProcess(t, cmd, logs)
