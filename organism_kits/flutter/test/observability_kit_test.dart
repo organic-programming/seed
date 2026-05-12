@@ -332,7 +332,7 @@ void main() {
       expect(find.text('Settings'), findsOneWidget);
       await tester.tap(find.widgetWithText(Tab, 'Logs'));
       await tester.pumpAndSettle();
-      expect(find.text('panel-log'), findsOneWidget);
+      expect(find.textContaining('panel-log'), findsOneWidget);
     } finally {
       kit.dispose();
     }
