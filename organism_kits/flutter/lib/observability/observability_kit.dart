@@ -273,7 +273,6 @@ typedef MemberRelayFactory =
       required String childUid,
       required ClientChannel channel,
       required holons.Observability observability,
-      void Function()? onClosed,
     });
 
 abstract interface class RelaySession {
@@ -302,7 +301,6 @@ RelaySession _defaultMemberRelayFactory({
   required String childUid,
   required ClientChannel channel,
   required holons.Observability observability,
-  void Function()? onClosed,
 }) {
   return _MemberRelaySession(
     holons.MemberRelay(
@@ -310,7 +308,6 @@ RelaySession _defaultMemberRelayFactory({
       childUid: childUid,
       channel: channel,
       observability: observability,
-      onClosed: onClosed,
     ),
   );
 }
@@ -321,10 +318,8 @@ class RelayController extends ChangeNotifier {
     this.obs, {
     RelayChannelOpener? channelOpener,
     MemberRelayFactory memberRelayFactory = _defaultMemberRelayFactory,
-    Duration restartCooldown = const Duration(seconds: 2),
   }) : _channelOpener = channelOpener,
-       _memberRelayFactory = memberRelayFactory,
-       _restartCooldown = restartCooldown {
+       _memberRelayFactory = memberRelayFactory {
     gate.addListener(_sync);
     unawaited(_sync());
   }
@@ -333,7 +328,6 @@ class RelayController extends ChangeNotifier {
   final holons.Observability obs;
   final RelayChannelOpener? _channelOpener;
   final MemberRelayFactory _memberRelayFactory;
-  final Duration _restartCooldown;
   final Map<String, RelaySession> _relays = {};
   final Set<String> _starting = {};
   bool _disposed = false;
@@ -343,11 +337,6 @@ class RelayController extends ChangeNotifier {
       .toList(growable: false);
 
   int get runningRelayCount => _relays.length;
-
-  Future<void> refresh() async {
-    if (_disposed) return;
-    await _sync();
-  }
 
   Future<void> _sync() async {
     if (_disposed) return;
@@ -392,13 +381,11 @@ class RelayController extends ChangeNotifier {
     try {
       final channel = await opener(member);
       if (_disposed || !gate.memberEnabled(member.uid)) return;
-      late final RelaySession relay;
-      relay = _memberRelayFactory(
+      final relay = _memberRelayFactory(
         childSlug: member.slug,
         childUid: member.uid,
         channel: channel,
         observability: obs,
-        onClosed: () => _handleRelayClosed(member, relay),
       );
       await relay.start();
       if (_disposed || !gate.memberEnabled(member.uid)) {
@@ -415,35 +402,9 @@ class RelayController extends ChangeNotifier {
         'uid': member.uid,
         'error': error,
       });
-      _scheduleRestart(member);
     } finally {
       _starting.remove(member.uid);
     }
-  }
-
-  void _handleRelayClosed(ObservabilityMemberRef member, RelaySession relay) {
-    if (_disposed) return;
-    if (identical(_relays[member.uid], relay)) {
-      _relays.remove(member.uid);
-      notifyListeners();
-    }
-    _scheduleRestart(member);
-  }
-
-  void _scheduleRestart(ObservabilityMemberRef member) {
-    if (_disposed) return;
-    unawaited(
-      Future<void>.delayed(_restartCooldown, () async {
-        if (_disposed ||
-            !gate.memberEnabled(member.uid) ||
-            _relays.containsKey(member.uid) ||
-            _starting.contains(member.uid)) {
-          return;
-        }
-        _starting.add(member.uid);
-        await _startRelay(member);
-      }),
-    );
   }
 
   Future<void> _stopRelay(String uid) async {
