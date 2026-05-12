@@ -37,6 +37,54 @@ void main() {
     expect(restored.memberOverride('go-1'), GateOverride.off);
   });
 
+  test('LogConsoleController returns entries sorted by timestamp', () async {
+    addTearDown(holons.reset);
+    final obs = holons.configure(
+      const holons.Config(slug: 'parent', instanceUid: 'parent-uid'),
+      env: const {'OP_OBS': 'logs'},
+    );
+    final gate = RuntimeGate(settings: MemorySettingsStore());
+    final controller = LogConsoleController(obs, gate);
+    addTearDown(controller.dispose);
+
+    final base = DateTime.utc(2026, 5, 12, 12);
+    obs.logRing!.push(
+      holons.LogEntry(
+        timestamp: base.add(const Duration(milliseconds: 200)),
+        level: holons.Level.info,
+        slug: 'parent',
+        instanceUid: 'parent-uid',
+        message: 'second',
+      ),
+    );
+    obs.logRing!.push(
+      holons.LogEntry(
+        timestamp: base.add(const Duration(milliseconds: 100)),
+        level: holons.Level.info,
+        slug: 'parent',
+        instanceUid: 'parent-uid',
+        message: 'first',
+      ),
+    );
+    obs.logRing!.push(
+      holons.LogEntry(
+        timestamp: base.add(const Duration(milliseconds: 300)),
+        level: holons.Level.info,
+        slug: 'parent',
+        instanceUid: 'parent-uid',
+        message: 'third',
+      ),
+    );
+
+    await _waitFor(() => controller.entries.length == 3);
+
+    expect(controller.entries.map((entry) => entry.message), [
+      'first',
+      'second',
+      'third',
+    ]);
+  });
+
   test('RelayController starts relay when member is enabled', () async {
     final channels = <ClientChannel>[];
     addTearDown(() async {

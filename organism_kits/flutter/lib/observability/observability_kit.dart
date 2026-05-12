@@ -149,14 +149,16 @@ class LogConsoleController extends ChangeNotifier {
   List<holons.LogEntry> get entries {
     if (!gate.familyEnabled(holons.Family.logs)) return const [];
     final q = query.trim().toLowerCase();
-    return List.unmodifiable(
-      _entries.where((entry) {
-        if (entry.level.value < minLevel.value) return false;
-        if (q.isEmpty) return true;
-        return entry.message.toLowerCase().contains(q) ||
-            entry.slug.toLowerCase().contains(q);
-      }),
-    );
+    final filtered = _entries
+        .where((entry) {
+          if (entry.level.value < minLevel.value) return false;
+          if (q.isEmpty) return true;
+          return entry.message.toLowerCase().contains(q) ||
+              entry.slug.toLowerCase().contains(q);
+        })
+        .toList(growable: false);
+    filtered.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return List.unmodifiable(filtered);
   }
 
   void setMinLevel(holons.Level value) {
