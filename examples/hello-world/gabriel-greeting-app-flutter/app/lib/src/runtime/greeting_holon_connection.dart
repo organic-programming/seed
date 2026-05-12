@@ -42,22 +42,33 @@ class BundledGreetingHolonConnectionFactory
     implements GreetingHolonConnectionFactory {
   BundledGreetingHolonConnectionFactory({
     HolonConnector<GabrielHolonIdentity>? connector,
-  }) : _connector =
-           connector ??
-           BundledHolonConnector<GabrielHolonIdentity>(
-             slugOf: (holon) => holon.slug,
-             buildRunnerOf: (holon) => holon.buildRunner,
-           );
+  }) : _channels = _SharedGreetingHolonChannels(
+         connector ??
+             BundledHolonConnector<GabrielHolonIdentity>(
+               slugOf: (holon) => holon.slug,
+               buildRunnerOf: (holon) => holon.buildRunner,
+             ),
+       );
 
-  final HolonConnector<GabrielHolonIdentity> _connector;
+  final _SharedGreetingHolonChannels _channels;
 
   @override
   Future<GreetingHolonConnection> connect(
     GabrielHolonIdentity holon, {
     required String transport,
   }) async {
-    final channel = await _connector.connect(holon, transport: transport);
-    return DesktopGreetingHolonConnection(channel);
+    final channel = await openChannel(holon, transport: transport);
+    return DesktopGreetingHolonConnection(
+      channel,
+      onClose: () => _channels.close(holon, transport: transport),
+    );
+  }
+
+  Future<ClientChannel> openChannel(
+    GabrielHolonIdentity holon, {
+    required String transport,
+  }) {
+    return _channels.open(holon, transport: transport);
   }
 }
 
@@ -66,10 +77,14 @@ typedef DesktopGreetingHolonConnectionFactory =
     BundledGreetingHolonConnectionFactory;
 
 class DesktopGreetingHolonConnection implements GreetingHolonConnection {
-  DesktopGreetingHolonConnection(this._channel)
-    : _client = GreetingServiceClient(_channel);
+  DesktopGreetingHolonConnection(
+    this._channel, {
+    Future<void> Function()? onClose,
+  }) : _onClose = onClose,
+       _client = GreetingServiceClient(_channel);
 
   final ClientChannel _channel;
+  final Future<void> Function()? _onClose;
   final GreetingServiceClient _client;
 
   @override
@@ -106,6 +121,50 @@ class DesktopGreetingHolonConnection implements GreetingHolonConnection {
 
   @override
   Future<void> close() async {
+    final close = _onClose;
+    if (close != null) {
+      await close();
+      return;
+    }
     await holons.disconnectAsync(_channel);
+  }
+}
+
+class _SharedGreetingHolonChannels {
+  _SharedGreetingHolonChannels(this._connector);
+
+  final HolonConnector<GabrielHolonIdentity> _connector;
+  final Map<String, Future<ClientChannel>> _channels = {};
+
+  Future<ClientChannel> open(
+    GabrielHolonIdentity holon, {
+    required String transport,
+  }) {
+    final key = _cacheKey(holon, transport);
+    return _channels.putIfAbsent(key, () async {
+      try {
+        return await _connector.connect(holon, transport: transport);
+      } on Object {
+        _channels.remove(key);
+        rethrow;
+      }
+    });
+  }
+
+  Future<void> close(
+    GabrielHolonIdentity holon, {
+    required String transport,
+  }) async {
+    final future = _channels.remove(_cacheKey(holon, transport));
+    if (future == null) return;
+    await holons.disconnectAsync(await future);
+  }
+
+  String _cacheKey(GabrielHolonIdentity holon, String transport) {
+    final effectiveTransport = effectiveHolonTransport(
+      requestedTransport: transport,
+      buildRunner: holon.buildRunner,
+    );
+    return '${holon.slug}\u0000$effectiveTransport';
   }
 }
