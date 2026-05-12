@@ -265,30 +265,42 @@ class LogConsoleView extends StatelessWidget {
                 itemCount: entries.length,
                 itemBuilder: (context, index) {
                   final entry = entries[entries.length - index - 1];
-                  final secondaryStyle = Theme.of(context).textTheme.bodySmall;
+                  final theme = Theme.of(context);
+                  final titleStyle = theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  );
+                  final contextStyle = theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  );
+                  final fieldsStyle = theme.textTheme.bodySmall?.copyWith(
+                    fontFamily: 'monospace',
+                    color: theme.colorScheme.onSurface,
+                  );
+                  final originStyle = theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  );
                   final fieldsText = _fieldsText(entry.fields);
                   final contextText = _logContextText(entry);
+                  final showChain =
+                      entry.chain.isNotEmpty && !_chainIsRedundant(entry);
                   return ListTile(
                     dense: true,
                     trailing: _LevelBadge(level: entry.level),
-                    title: _LogTitle(entry: entry),
+                    title: _LogTitle(entry: entry, style: titleStyle),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (contextText.isNotEmpty)
-                          Text(contextText, style: secondaryStyle),
+                          Text(contextText, style: contextStyle),
                         if (fieldsText.isNotEmpty)
-                          Text(
-                            fieldsText,
-                            style: secondaryStyle?.copyWith(
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                        Text(_logOriginText(entry), style: secondaryStyle),
-                        if (entry.chain.isNotEmpty)
+                          Text(fieldsText, style: fieldsStyle),
+                        if (contextText.isNotEmpty || fieldsText.isNotEmpty)
+                          const SizedBox(height: 4),
+                        Text(_logOriginText(entry), style: originStyle),
+                        if (showChain)
                           Text(
                             '← ${_chainText(entry.chain)}',
-                            style: secondaryStyle,
+                            style: contextStyle,
                           ),
                       ],
                     ),
@@ -304,24 +316,29 @@ class LogConsoleView extends StatelessWidget {
 }
 
 class _LogTitle extends StatelessWidget {
-  const _LogTitle({required this.entry});
+  const _LogTitle({required this.entry, this.style});
 
   final holons.LogEntry entry;
+  final TextStyle? style;
 
   @override
   Widget build(BuildContext context) {
     if (entry.loggerName.isEmpty) {
-      return Text(entry.message);
+      return Text(entry.message, style: style);
     }
-    final style = DefaultTextStyle.of(context).style;
+    final effectiveStyle = style ?? DefaultTextStyle.of(context).style;
     return Text.rich(
       TextSpan(
+        style: effectiveStyle,
         children: [
           TextSpan(
             text: '[${entry.loggerName}]  ',
-            style: style.copyWith(fontFamily: 'monospace'),
+            style: effectiveStyle.copyWith(fontFamily: 'monospace'),
           ),
-          TextSpan(text: entry.message),
+          TextSpan(
+            text: entry.message,
+            style: effectiveStyle.copyWith(fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
@@ -568,15 +585,35 @@ String _logOriginText(holons.LogEntry entry) {
     entry.timestamp.toIso8601String(),
     if (entry.caller.isNotEmpty) entry.caller,
   ];
-  return parts.join(' · ');
+  return parts.join('  ·  ');
 }
 
 String _fieldsText(Map<String, String> fields) {
   if (fields.isEmpty) return '';
   final keys = fields.keys.toList()..sort();
   return keys
-      .map((key) => '$key=${_fieldValueText(fields[key] ?? '')}')
+      .map((key) {
+        final rawValue = fields[key] ?? '';
+        if (key.endsWith('_ns')) {
+          return '${key.substring(0, key.length - 3)}=${_formatAdaptiveDuration(rawValue)}';
+        }
+        return '$key=${_fieldValueText(rawValue)}';
+      })
       .join('  ');
+}
+
+String _formatAdaptiveDuration(String rawValue) {
+  final ns = int.tryParse(rawValue);
+  if (ns == null) return rawValue;
+  if (ns < 1000) return '${ns}ns';
+  if (ns < 1000000) return '${(ns / 1000).toStringAsFixed(1)}µs';
+  if (ns < 1000000000) {
+    return '${(ns / 1000000).toStringAsFixed(1)}ms';
+  }
+  if (ns < 60 * 1000000000) {
+    return '${(ns / 1000000000).toStringAsFixed(1)}s';
+  }
+  return '${(ns / 60000000000).toStringAsFixed(1)}min';
 }
 
 String _fieldValueText(String value) {
@@ -584,6 +621,10 @@ String _fieldValueText(String value) {
       value.isEmpty || value.contains(RegExp(r'\s')) || value.contains('"');
   if (!needsQuotes) return value;
   return '"${value.replaceAll('"', r'\"')}"';
+}
+
+bool _chainIsRedundant(holons.LogEntry entry) {
+  return entry.chain.length == 1 && entry.chain.first.slug == entry.slug;
 }
 
 extension _IterableFirstOrNull<T> on Iterable<T> {

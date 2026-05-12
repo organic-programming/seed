@@ -15,6 +15,90 @@ ObservabilityKit _kit(String slug, List<holons.Family> families) {
 
 void main() {
   group('LogConsoleView relay chain', () {
+    testWidgets('renders adaptive duration fields', (tester) async {
+      final kit = _kit('panel-duration-log', const [holons.Family.logs]);
+      try {
+        for (final entry in <holons.LogEntry>[
+          holons.LogEntry(
+            timestamp: DateTime.now(),
+            level: holons.Level.info,
+            slug: 'parent',
+            instanceUid: 'parent-uid',
+            message: 'micro',
+            fields: const {'duration_ns': '215000', 'count': '42'},
+          ),
+          holons.LogEntry(
+            timestamp: DateTime.now(),
+            level: holons.Level.info,
+            slug: 'parent',
+            instanceUid: 'parent-uid',
+            message: 'milli',
+            fields: const {'duration_ns': '3200000'},
+          ),
+          holons.LogEntry(
+            timestamp: DateTime.now(),
+            level: holons.Level.info,
+            slug: 'parent',
+            instanceUid: 'parent-uid',
+            message: 'seconds',
+            fields: const {'duration_ns': '1400000000'},
+          ),
+        ]) {
+          kit.obs.logRing!.push(entry);
+        }
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: LogConsoleView(controller: kit.logs)),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.textContaining('duration=215.0µs'), findsOneWidget);
+        expect(find.textContaining('duration=3.2ms'), findsOneWidget);
+        expect(find.textContaining('duration=1.4s'), findsOneWidget);
+        expect(find.textContaining('count=42'), findsOneWidget);
+      } finally {
+        kit.dispose();
+      }
+    });
+
+    testWidgets('renders log title message in bold', (tester) async {
+      final kit = _kit('panel-title-log', const [holons.Family.logs]);
+      try {
+        kit.obs.logRing!.push(
+          holons.LogEntry(
+            timestamp: DateTime.now(),
+            level: holons.Level.info,
+            loggerName: 'rpc',
+            slug: 'parent',
+            instanceUid: 'parent-uid',
+            message: 'rpc handled',
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: LogConsoleView(controller: kit.logs)),
+          ),
+        );
+        await tester.pump();
+
+        final richText = tester.widget<RichText>(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is RichText &&
+                widget.text.toPlainText() == '[rpc]  rpc handled',
+          ),
+        );
+        final span = richText.text as TextSpan;
+        final messageSpan = span.children!.last as TextSpan;
+        expect(messageSpan.style?.fontWeight, FontWeight.w600);
+      } finally {
+        kit.dispose();
+      }
+    });
+
     testWidgets('renders chain text when LogEntry has hops', (tester) async {
       final kit = _kit('panel-chain-log', const [holons.Family.logs]);
       try {
@@ -40,6 +124,60 @@ void main() {
         await tester.pump();
 
         expect(find.text('← gabriel:g1 > clem:c1'), findsOneWidget);
+      } finally {
+        kit.dispose();
+      }
+    });
+
+    testWidgets('hides redundant single-hop chain', (tester) async {
+      final kit = _kit('panel-chain-redundant-log', const [holons.Family.logs]);
+      try {
+        kit.obs.logRing!.push(
+          holons.LogEntry(
+            timestamp: DateTime.now(),
+            level: holons.Level.info,
+            slug: 'parent',
+            instanceUid: 'parent-uid',
+            message: 'self-chain',
+            chain: const [holons.Hop(slug: 'parent', instanceUid: 'p1')],
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: LogConsoleView(controller: kit.logs)),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.textContaining('← parent:p1'), findsNothing);
+      } finally {
+        kit.dispose();
+      }
+    });
+
+    testWidgets('renders non-redundant single-hop chain', (tester) async {
+      final kit = _kit('panel-chain-source-log', const [holons.Family.logs]);
+      try {
+        kit.obs.logRing!.push(
+          holons.LogEntry(
+            timestamp: DateTime.now(),
+            level: holons.Level.info,
+            slug: 'parent',
+            instanceUid: 'parent-uid',
+            message: 'child-chain',
+            chain: const [holons.Hop(slug: 'child', instanceUid: 'c1')],
+          ),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: LogConsoleView(controller: kit.logs)),
+          ),
+        );
+        await tester.pump();
+
+        expect(find.text('← child:c1'), findsOneWidget);
       } finally {
         kit.dispose();
       }
@@ -148,10 +286,7 @@ void main() {
         );
         await tester.pump();
 
-        expect(
-          find.byTooltip('Export observability bundle'),
-          findsOneWidget,
-        );
+        expect(find.byTooltip('Export observability bundle'), findsOneWidget);
         final iconButton = find.widgetWithIcon(
           IconButton,
           Icons.file_download_outlined,
