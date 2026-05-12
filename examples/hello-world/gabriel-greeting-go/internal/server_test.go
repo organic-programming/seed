@@ -8,6 +8,8 @@ import (
 	pb "gabriel-greeting-go/gen/go/greeting/v1"
 	"gabriel-greeting-go/internal"
 
+	"github.com/organic-programming/go-holons/pkg/observability"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
@@ -117,5 +119,55 @@ func TestSayHello_UnknownLanguageFallsBackToEnglish(t *testing.T) {
 	}
 	if resp.Greeting != "Hello Bob" {
 		t.Errorf("expected 'Hello Bob', got %q", resp.Greeting)
+	}
+}
+
+func TestSayHello_EmitsObservabilitySignals(t *testing.T) {
+	observability.Reset()
+	t.Setenv("OP_OBS", "logs,metrics")
+	obs := observability.Configure(observability.Config{Slug: "gabriel-greeting-go"})
+	t.Cleanup(func() {
+		_ = obs.Close()
+		observability.Reset()
+	})
+
+	resp, err := (&internal.Server{}).SayHello(context.Background(), &pb.SayHelloRequest{
+		Name:     " Bob ",
+		LangCode: "en",
+	})
+	if err != nil {
+		t.Fatalf("SayHello: %v", err)
+	}
+	if resp.Greeting != "Hello Bob" {
+		t.Fatalf("expected greeting 'Hello Bob', got %q", resp.Greeting)
+	}
+
+	snap := observability.Current().Registry().Snapshot()
+	var foundCounter bool
+	for _, sample := range snap.Counters {
+		if sample.Name == "greeting_emitted_total" &&
+			sample.Labels["lang_code"] == "en" &&
+			sample.Labels["language"] == "English" {
+			foundCounter = true
+			if sample.Value != 1 {
+				t.Fatalf("greeting_emitted_total = %d, want 1", sample.Value)
+			}
+		}
+	}
+	if !foundCounter {
+		t.Fatalf("missing greeting_emitted_total counter in %+v", snap.Counters)
+	}
+
+	var foundLog bool
+	for _, entry := range observability.Current().LogRing().Drain() {
+		if entry.Message == "greeting emitted" && entry.Fields["lang_code"] == "en" {
+			foundLog = true
+			if entry.Fields["name"] != "Bob" || entry.Fields["greeting"] != "Hello Bob" {
+				t.Fatalf("unexpected greeting log fields: %+v", entry.Fields)
+			}
+		}
+	}
+	if !foundLog {
+		t.Fatal("missing greeting emitted log entry")
 	}
 }
