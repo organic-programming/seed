@@ -39,17 +39,24 @@ func (s *Server) SayHello(ctx context.Context, req *pb.SayHelloRequest) (*pb.Say
 	if name == "" {
 		name = g.DefaultName
 	}
+	transport := serve.CurrentTransport()
+	if transport == "" {
+		transport = "unknown"
+	}
 	greeting := fmt.Sprintf(g.Template, name)
+	msg := fmt.Sprintf("Greeted %s in %s (%s)", name, g.LangEnglish, g.LangCode)
 	obs := observability.Current()
-	obs.Logger("greeting").InfoContext(ctx, "greeting emitted",
+	obs.Logger("greeting").InfoContext(ctx, msg,
 		"lang_code", req.LangCode,
 		"language", g.LangEnglish,
 		"name", name,
 		"greeting", greeting,
+		"transport", transport,
 	)
-	obs.Counter("greeting_emitted_total", "Greetings emitted, partitioned by language.", map[string]string{
+	obs.Counter("greeting_emitted_total", "Greetings emitted, partitioned by language and transport.", map[string]string{
 		"lang_code": g.LangCode,
 		"language":  g.LangEnglish,
+		"transport": transport,
 	}).Inc()
 	return &pb.SayHelloResponse{
 		Greeting: greeting,
