@@ -162,6 +162,7 @@ List<Hop> enrichForMultilog(
 class LogEntry {
   final DateTime timestamp;
   final Level level;
+  final String loggerName;
   final String slug;
   final String instanceUid;
   final String sessionId;
@@ -174,6 +175,7 @@ class LogEntry {
   LogEntry({
     required this.timestamp,
     required this.level,
+    this.loggerName = '',
     required this.slug,
     required this.instanceUid,
     this.sessionId = '',
@@ -503,6 +505,7 @@ class Logger {
     final entry = LogEntry(
       timestamp: DateTime.now(),
       level: lvl,
+      loggerName: name,
       slug: _obs.cfg.slug,
       instanceUid: _obs.cfg.instanceUid,
       message: message,
@@ -618,6 +621,149 @@ class Observability {
   }
 
   void close() => eventBus?.close();
+}
+
+class MemberRelay {
+  MemberRelay({
+    required this.childSlug,
+    required this.childUid,
+    required this.channel,
+    required this.observability,
+  });
+
+  final String childSlug;
+  final String childUid;
+  final ClientChannel channel;
+  final Observability observability;
+
+  StreamSubscription<obs_pb.LogEntry>? _logsSub;
+  StreamSubscription<obs_pb.EventInfo>? _eventsSub;
+  bool _isRunning = false;
+  bool _stopping = false;
+  bool _failed = false;
+
+  bool get isRunning => _isRunning;
+
+  Future<void> start() async {
+    if (_isRunning) return;
+    final wantLogs = observability.enabled(Family.logs);
+    final wantEvents = observability.enabled(Family.events);
+    if (!wantLogs && !wantEvents) return;
+
+    _stopping = false;
+    _failed = false;
+    final client = obs_grpc.HolonObservabilityClient(channel);
+
+    try {
+      if (wantLogs) {
+        final stream = client.logs(obs_pb.LogsRequest(follow: true));
+        _logsSub = stream.listen(
+          _relayLog,
+          onError: (Object error) => _handleStreamFailure(error),
+          onDone: () => _handleStreamDone('logs'),
+          cancelOnError: true,
+        );
+      }
+      if (wantEvents) {
+        final stream = client.events(obs_pb.EventsRequest(follow: true));
+        _eventsSub = stream.listen(
+          _relayEvent,
+          onError: (Object error) => _handleStreamFailure(error),
+          onDone: () => _handleStreamDone('events'),
+          cancelOnError: true,
+        );
+      }
+      _isRunning = _logsSub != null || _eventsSub != null;
+    } catch (error) {
+      _isRunning = false;
+      await _cancelSubscriptions();
+      _warn(error);
+    }
+  }
+
+  Future<void> stop() async {
+    if (_logsSub == null && _eventsSub == null) {
+      _isRunning = false;
+      return;
+    }
+    _stopping = true;
+    await _cancelSubscriptions();
+    _isRunning = false;
+    _stopping = false;
+  }
+
+  void _relayLog(obs_pb.LogEntry proto) {
+    if (!observability.enabled(Family.logs) || observability.logRing == null) {
+      return;
+    }
+    final entry = _logEntryFromProto(proto);
+    observability.logRing!.push(LogEntry(
+      timestamp: entry.timestamp,
+      level: entry.level,
+      loggerName: entry.loggerName,
+      slug: entry.slug,
+      instanceUid: entry.instanceUid,
+      sessionId: entry.sessionId,
+      rpcMethod: entry.rpcMethod,
+      message: entry.message,
+      fields: entry.fields,
+      caller: entry.caller,
+      chain: appendDirectChild(entry.chain, childSlug, childUid),
+    ));
+  }
+
+  void _relayEvent(obs_pb.EventInfo proto) {
+    if (!observability.enabled(Family.events) ||
+        observability.eventBus == null) {
+      return;
+    }
+    final event = _eventFromProto(proto);
+    observability.eventBus!.emit(Event(
+      timestamp: event.timestamp,
+      type: event.type,
+      slug: event.slug,
+      instanceUid: event.instanceUid,
+      sessionId: event.sessionId,
+      payload: event.payload,
+      chain: appendDirectChild(event.chain, childSlug, childUid),
+    ));
+  }
+
+  void _handleStreamDone(String streamName) {
+    if (_stopping || _failed) return;
+    _handleStreamFailure('$streamName stream closed');
+  }
+
+  void _handleStreamFailure(Object error) {
+    if (_stopping || _failed) return;
+    _failed = true;
+    _isRunning = false;
+    _warn(error);
+    _stopping = true;
+    unawaited(_cancelSubscriptions().whenComplete(() {
+      _stopping = false;
+    }));
+  }
+
+  void _warn(Object error) {
+    observability.logger('member-relay').warn('member relay stream error', {
+      'child_slug': childSlug,
+      'child_uid': childUid,
+      'error': error,
+    });
+  }
+
+  Future<void> _cancelSubscriptions() async {
+    final subs = [
+      if (_logsSub != null) _logsSub!,
+      if (_eventsSub != null) _eventsSub!,
+    ];
+    _logsSub = null;
+    _eventsSub = null;
+    await Future.wait<void>([
+      for (final sub in subs) sub.cancel(),
+    ]);
+  }
 }
 
 final Logger _disabledLogger = Logger._(_DisabledObs(), '');
@@ -762,6 +908,46 @@ obs_pb.LogEntry toProtoLogEntry(LogEntry entry) {
   );
 }
 
+DateTime _dateTimeFromProto(pb_ts.Timestamp ts) {
+  final micros = ts.seconds.toInt() * 1000000 + ts.nanos ~/ 1000;
+  return DateTime.fromMicrosecondsSinceEpoch(micros, isUtc: true);
+}
+
+Hop _hopFromProto(obs_pb.ChainHop hop) {
+  return Hop(slug: hop.slug, instanceUid: hop.instanceUid);
+}
+
+Level _levelFromProto(obs_pb.LogLevel level) {
+  return Level.values.firstWhere(
+    (candidate) => candidate.value == level.value,
+    orElse: () => Level.unset,
+  );
+}
+
+EventType _eventTypeFromProto(obs_pb.EventType type) {
+  return EventType.values.firstWhere(
+    (candidate) => candidate.value == type.value,
+    orElse: () => EventType.unspecified,
+  );
+}
+
+LogEntry _logEntryFromProto(obs_pb.LogEntry entry) {
+  return LogEntry(
+    timestamp: entry.hasTs()
+        ? _dateTimeFromProto(entry.ts)
+        : DateTime.fromMicrosecondsSinceEpoch(0, isUtc: true),
+    level: _levelFromProto(entry.level),
+    slug: entry.slug,
+    instanceUid: entry.instanceUid,
+    sessionId: entry.sessionId,
+    rpcMethod: entry.rpcMethod,
+    message: entry.message,
+    fields: Map.unmodifiable(entry.fields),
+    caller: entry.caller,
+    chain: List.unmodifiable(entry.chain.map(_hopFromProto)),
+  );
+}
+
 obs_pb.HistogramSample _histogramToProto(HistogramSnapshot snapshot) {
   return obs_pb.HistogramSample(
     buckets: [
@@ -809,6 +995,20 @@ obs_pb.EventInfo toProtoEvent(Event event) {
     sessionId: event.sessionId,
     payload: event.payload.entries,
     chain: event.chain.map(_hopToProto),
+  );
+}
+
+Event _eventFromProto(obs_pb.EventInfo event) {
+  return Event(
+    timestamp: event.hasTs()
+        ? _dateTimeFromProto(event.ts)
+        : DateTime.fromMicrosecondsSinceEpoch(0, isUtc: true),
+    type: _eventTypeFromProto(event.type),
+    slug: event.slug,
+    instanceUid: event.instanceUid,
+    sessionId: event.sessionId,
+    payload: Map.unmodifiable(event.payload),
+    chain: List.unmodifiable(event.chain.map(_hopFromProto)),
   );
 }
 

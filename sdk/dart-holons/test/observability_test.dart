@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:grpc/grpc.dart';
@@ -115,6 +116,177 @@ void main() {
     expect(c2, hasLength(2));
     expect(c2.last.slug, equals('gabriel-greeting-go'));
     expect(c1, hasLength(1)); // original unchanged
+  });
+
+  test('MemberRelay forwards logs/events with child chain enrichment',
+      () async {
+    final fake = await _startFakeObservabilityService();
+    addTearDown(fake.close);
+    final local = obs.configure(
+      const obs.Config(slug: 'parent', instanceUid: 'parent-uid'),
+      env: const {'OP_OBS': 'logs,events'},
+    );
+    final relay = obs.MemberRelay(
+      childSlug: 'child-x',
+      childUid: 'uid-123',
+      channel: fake.channel,
+      observability: local,
+    );
+
+    await relay.start();
+    await _waitFor(() => fake.service.logsOpened == 1);
+    await _waitFor(() => fake.service.eventsOpened == 1);
+    expect(fake.service.lastLogsFollow, isTrue);
+    expect(fake.service.lastEventsFollow, isTrue);
+
+    fake.service.emitLog('one', obs.Level.info, {'k': 'v1'});
+    fake.service.emitLog('two', obs.Level.warn, {'k': 'v2'});
+    fake.service.emitEvent(obs.EventType.instanceReady);
+    fake.service.emitEvent(obs.EventType.instanceExited);
+
+    await _waitFor(() => local.logRing!.drain().length == 2);
+    await _waitFor(() => local.eventBus!.drain().length == 2);
+    await relay.stop();
+
+    final logs = local.logRing!.drain();
+    expect(logs.map((entry) => entry.message), equals(['one', 'two']));
+    expect(logs.map((entry) => entry.fields['k']), equals(['v1', 'v2']));
+    expect(logs.map((entry) => entry.level),
+        equals([obs.Level.info, obs.Level.warn]));
+    for (final entry in logs) {
+      _expectChildHopAppended(entry.chain);
+    }
+
+    final events = local.eventBus!.drain();
+    expect(events.map((event) => event.type),
+        equals([obs.EventType.instanceReady, obs.EventType.instanceExited]));
+    for (final event in events) {
+      _expectChildHopAppended(event.chain);
+    }
+  });
+
+  test('MemberRelay family gating short-circuits', () async {
+    final fake = await _startFakeObservabilityService();
+    addTearDown(fake.close);
+    final local = obs.configure(
+      const obs.Config(slug: 'parent', instanceUid: 'parent-uid'),
+      env: const {'OP_OBS': ''},
+    );
+    final relay = obs.MemberRelay(
+      childSlug: 'child-x',
+      childUid: 'uid-123',
+      channel: fake.channel,
+      observability: local,
+    );
+
+    await relay.start();
+
+    expect(relay.isRunning, isFalse);
+    expect(fake.service.logsOpened, equals(0));
+    expect(fake.service.eventsOpened, equals(0));
+    expect(local.logRing, isNull);
+    expect(local.eventBus, isNull);
+  });
+
+  test('MemberRelay stop halts forwarding', () async {
+    final fake = await _startFakeObservabilityService();
+    addTearDown(fake.close);
+    final local = obs.configure(
+      const obs.Config(slug: 'parent', instanceUid: 'parent-uid'),
+      env: const {'OP_OBS': 'logs'},
+    );
+    final relay = obs.MemberRelay(
+      childSlug: 'child-x',
+      childUid: 'uid-123',
+      channel: fake.channel,
+      observability: local,
+    );
+
+    await relay.start();
+    await _waitFor(() => fake.service.logsOpened == 1);
+    fake.service.emitLog('before-stop', obs.Level.info, {'k': 'v1'});
+    await _waitFor(() => local.logRing!.drain().length == 1);
+
+    await relay.stop();
+    fake.service.emitLog('after-stop', obs.Level.info, {'k': 'v2'});
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(local.logRing!.drain().map((entry) => entry.message),
+        equals(['before-stop']));
+    expect(relay.isRunning, isFalse);
+  });
+
+  test('MemberRelay logs warning and stops on stream error', () async {
+    final fake = await _startFakeObservabilityService();
+    addTearDown(fake.close);
+    final local = obs.configure(
+      const obs.Config(slug: 'parent', instanceUid: 'parent-uid'),
+      env: const {'OP_OBS': 'logs'},
+    );
+    final relay = obs.MemberRelay(
+      childSlug: 'child-x',
+      childUid: 'uid-123',
+      channel: fake.channel,
+      observability: local,
+    );
+
+    await relay.start();
+    await _waitFor(() => fake.service.logsOpened == 1);
+    fake.service.failLogs(GrpcError.unavailable('stream failed'));
+
+    await _waitFor(() => relay.isRunning == false);
+    await _waitFor(() => local.logRing!.drain().any((entry) =>
+        entry.level == obs.Level.warn &&
+        entry.loggerName == 'member-relay' &&
+        entry.fields['child_slug'] == 'child-x' &&
+        entry.fields['child_uid'] == 'uid-123' &&
+        (entry.fields['error'] ?? '').contains('stream failed')));
+  });
+
+  test('MemberRelay stop is idempotent', () async {
+    final fake = await _startFakeObservabilityService();
+    addTearDown(fake.close);
+    final local = obs.configure(
+      const obs.Config(slug: 'parent', instanceUid: 'parent-uid'),
+      env: const {'OP_OBS': 'logs'},
+    );
+    final relay = obs.MemberRelay(
+      childSlug: 'child-x',
+      childUid: 'uid-123',
+      channel: fake.channel,
+      observability: local,
+    );
+
+    await relay.start();
+    await _waitFor(() => fake.service.logsOpened == 1);
+    await relay.stop();
+    await relay.stop();
+
+    expect(relay.isRunning, isFalse);
+    expect(local.logRing!.drain(), isEmpty);
+  });
+
+  test('MemberRelay start remains no-op when families stay disabled', () async {
+    final fake = await _startFakeObservabilityService();
+    addTearDown(fake.close);
+    final local = obs.configure(
+      const obs.Config(slug: 'parent', instanceUid: 'parent-uid'),
+      env: const {'OP_OBS': ''},
+    );
+    final relay = obs.MemberRelay(
+      childSlug: 'child-x',
+      childUid: 'uid-123',
+      channel: fake.channel,
+      observability: local,
+    );
+
+    await relay.start();
+    await relay.stop();
+    await relay.start();
+
+    expect(relay.isRunning, isFalse);
+    expect(fake.service.logsOpened, equals(0));
+    expect(fake.service.eventsOpened, equals(0));
   });
 
   test('isOrganismRoot', () {
@@ -279,6 +451,113 @@ void main() {
     expect(payload, contains('"slug": "gabriel-greeting-app-flutter"'));
     expect(payload, contains(running.publicUri));
   });
+}
+
+class _FakeObservabilityHarness {
+  _FakeObservabilityHarness(this.service, this.server, this.channel);
+
+  final _FakeObservabilityService service;
+  final Server server;
+  final ClientChannel channel;
+
+  Future<void> close() async {
+    await channel.shutdown();
+    await service.close();
+    await server.shutdown();
+  }
+}
+
+class _FakeObservabilityService extends obsgrpc.HolonObservabilityServiceBase {
+  final _logs = StreamController<obsgrpc.LogEntry>.broadcast();
+  final _events = StreamController<obsgrpc.EventInfo>.broadcast();
+  var logsOpened = 0;
+  var eventsOpened = 0;
+  bool? lastLogsFollow;
+  bool? lastEventsFollow;
+
+  @override
+  Stream<obsgrpc.LogEntry> logs(ServiceCall call, obsgrpc.LogsRequest request) {
+    logsOpened += 1;
+    lastLogsFollow = request.follow;
+    return _logs.stream;
+  }
+
+  @override
+  Future<obsgrpc.MetricsSnapshot> metrics(
+      ServiceCall call, obsgrpc.MetricsRequest request) async {
+    return obsgrpc.MetricsSnapshot();
+  }
+
+  @override
+  Stream<obsgrpc.EventInfo> events(
+      ServiceCall call, obsgrpc.EventsRequest request) {
+    eventsOpened += 1;
+    lastEventsFollow = request.follow;
+    return _events.stream;
+  }
+
+  void emitLog(String message, obs.Level level, Map<String, String> fields) {
+    _logs.add(obs.toProtoLogEntry(obs.LogEntry(
+      timestamp: DateTime.now().toUtc(),
+      level: level,
+      slug: 'origin',
+      instanceUid: 'origin-uid',
+      message: message,
+      fields: fields,
+      chain: const [obs.Hop(slug: 'origin', instanceUid: 'origin-uid')],
+    )));
+  }
+
+  void emitEvent(obs.EventType type) {
+    _events.add(obs.toProtoEvent(obs.Event(
+      timestamp: DateTime.now().toUtc(),
+      type: type,
+      slug: 'origin',
+      instanceUid: 'origin-uid',
+      chain: const [obs.Hop(slug: 'origin', instanceUid: 'origin-uid')],
+    )));
+  }
+
+  void failLogs(Object error) {
+    _logs.addError(error);
+  }
+
+  Future<void> close() async {
+    await _logs.close();
+    await _events.close();
+  }
+}
+
+Future<_FakeObservabilityHarness> _startFakeObservabilityService() async {
+  final service = _FakeObservabilityService();
+  final server = Server.create(services: [service]);
+  await server.serve(address: InternetAddress.loopbackIPv4, port: 0);
+  final channel = ClientChannel(
+    '127.0.0.1',
+    port: server.port!,
+    options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
+  );
+  return _FakeObservabilityHarness(service, server, channel);
+}
+
+Future<void> _waitFor(
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 2),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (condition()) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('condition was not met within $timeout');
+}
+
+void _expectChildHopAppended(List<obs.Hop> chain) {
+  expect(chain, hasLength(2));
+  expect(chain.first.slug, equals('origin'));
+  expect(chain.first.instanceUid, equals('origin-uid'));
+  expect(chain.last.slug, equals('child-x'));
+  expect(chain.last.instanceUid, equals('uid-123'));
 }
 
 DescribeResponse _sampleDescribeResponse() {
