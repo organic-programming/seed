@@ -50,7 +50,7 @@ See INSTANCES.md §CLI. Columns: SLUG UID PID STARTED MODE TRANSPORT ADDRESS MET
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&all, "all", false, "Scan every known .op/run/ candidate (not just OP_RUN_DIR)")
+	cmd.Flags().BoolVar(&all, "all", false, "Scan every configured run-root candidate instead of only the first readable root")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Emit JSON objects instead of a table")
 	cmd.Flags().BoolVar(&stale, "stale", false, "Include entries whose PID is no longer alive")
 	cmd.Flags().BoolVar(&flat, "flat", false, "Render a flat list (default is tree-aware)")
@@ -612,12 +612,22 @@ func discoverInstances(slugFilter string, all bool, stale bool) ([]instanceRow, 
 }
 
 func candidateRunRoots(all bool) []string {
+	roots := candidateRunRootChain()
+	if all {
+		return roots
+	}
+	for _, root := range roots {
+		if isReadableDir(root) {
+			return []string{root}
+		}
+	}
+	return nil
+}
+
+func candidateRunRootChain() []string {
 	var roots []string
 	if v := os.Getenv("OP_RUN_DIR"); v != "" {
 		roots = append(roots, v)
-	}
-	if !all {
-		return roots
 	}
 	if v := os.Getenv("OPPATH"); v != "" {
 		roots = append(roots, filepath.Join(v, "run"))
@@ -630,6 +640,18 @@ func candidateRunRoots(all bool) []string {
 		roots = append(roots, filepath.Join(cwd, ".op", "run"))
 	}
 	return roots
+}
+
+func isReadableDir(path string) bool {
+	if path == "" {
+		return false
+	}
+	if entries, err := os.ReadDir(path); err != nil {
+		return false
+	} else {
+		_ = entries
+		return true
+	}
 }
 
 func isPidAlive(pid int) bool {
