@@ -4,9 +4,6 @@ import static io.grpc.MethodDescriptor.generateFullMethodName;
 
 /**
  */
-@javax.annotation.Generated(
-    value = "by gRPC proto compiler (version 1.60.0)",
-    comments = "Source: v1/greeting.proto")
 @io.grpc.stub.annotations.GrpcGenerated
 public final class GreetingServiceGrpc {
 
@@ -89,6 +86,21 @@ public final class GreetingServiceGrpc {
         }
       };
     return GreetingServiceStub.newStub(factory, channel);
+  }
+
+  /**
+   * Creates a new blocking-style stub that supports all types of calls on the service
+   */
+  public static GreetingServiceBlockingV2Stub newBlockingV2Stub(
+      io.grpc.Channel channel) {
+    io.grpc.stub.AbstractStub.StubFactory<GreetingServiceBlockingV2Stub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<GreetingServiceBlockingV2Stub>() {
+        @java.lang.Override
+        public GreetingServiceBlockingV2Stub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new GreetingServiceBlockingV2Stub(channel, callOptions);
+        }
+      };
+    return GreetingServiceBlockingV2Stub.newStub(factory, channel);
   }
 
   /**
@@ -204,6 +216,46 @@ public final class GreetingServiceGrpc {
 
   /**
    * A stub to allow clients to do synchronous rpc calls to service GreetingService.
+   */
+  public static final class GreetingServiceBlockingV2Stub
+      extends io.grpc.stub.AbstractBlockingStub<GreetingServiceBlockingV2Stub> {
+    private GreetingServiceBlockingV2Stub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+      super(channel, callOptions);
+    }
+
+    @java.lang.Override
+    protected GreetingServiceBlockingV2Stub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+      return new GreetingServiceBlockingV2Stub(channel, callOptions);
+    }
+
+    /**
+     * <pre>
+     * Returns all available greeting languages.
+     * &#64;example {}
+     * </pre>
+     */
+    public greeting.v1.Greeting.ListLanguagesResponse listLanguages(greeting.v1.Greeting.ListLanguagesRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getListLanguagesMethod(), getCallOptions(), request);
+    }
+
+    /**
+     * <pre>
+     * Greets the user in the chosen language.
+     * &#64;example {"name":"Bob","lang_code":"fr"}
+     * &#64;example {"name":"Bob","lang_code":"fr"} --origin
+     * </pre>
+     */
+    public greeting.v1.Greeting.SayHelloResponse sayHello(greeting.v1.Greeting.SayHelloRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getSayHelloMethod(), getCallOptions(), request);
+    }
+  }
+
+  /**
+   * A stub to allow clients to do limited synchronous rpc calls to service GreetingService.
    */
   public static final class GreetingServiceBlockingStub
       extends io.grpc.stub.AbstractBlockingStub<GreetingServiceBlockingStub> {

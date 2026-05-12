@@ -16,7 +16,7 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 				Composer:   "B. ALTER",
 				Status:     "draft",
 				Born:       "2026-04-12",
-				Version:    "0.1.3",
+				Version:    "0.9.0",
 			},
 			Description: "A Go gRPC daemon exposing an in-memory float64 accumulator. Designed to demonstrate op invoke multi-payload JSON Lines output. The accumulator is zero-initialized per process.",
 			Lang:        "go",
