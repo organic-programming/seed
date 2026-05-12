@@ -42,15 +42,17 @@ Future<void> main() async {
     displayNameOf: (holon) => holon.displayName,
   );
   final greetingConnector = BundledGreetingHolonConnectionFactory();
+  late final ObservabilityKit observabilityKit;
   final greetingController = GreetingController(
     holons: greetingHolons,
     connector: greetingConnector,
+    onCycleComplete: () async => observabilityKit.relay.refresh(),
   );
   final observabilityHolons = await _observabilityHolons(greetingController);
   final observabilityHolonsBySlug = <String, GabrielHolonIdentity>{
     for (final holon in observabilityHolons) holon.slug: holon,
   };
-  final observabilityKit = ObservabilityKit.standalone(
+  observabilityKit = ObservabilityKit.standalone(
     slug: 'gabriel-greeting-app-flutter',
     declaredFamilies: const [
       holons.Family.logs,
