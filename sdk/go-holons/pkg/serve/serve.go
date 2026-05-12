@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -63,6 +64,18 @@ type ServeOptions struct {
 type grpcEndpoint struct {
 	uri string
 	lis net.Listener
+}
+
+var currentTransport atomic.Value // string
+
+// CurrentTransport returns the transport scheme currently in use by the
+// active server: "stdio", "tcp", "unix", or "" if not yet started. Safe to
+// call from any goroutine, including RPC handlers.
+func CurrentTransport() string {
+	if v, ok := currentTransport.Load().(string); ok {
+		return v
+	}
+	return ""
 }
 
 // ParseFlags extracts --listen and --port from command-line args.
@@ -133,6 +146,8 @@ func RunWithOptions(listenURI string, register RegisterFunc, reflect bool, moreL
 // organism member endpoints for observability relay.
 func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeOptions, moreListenURIs ...string) (runErr error) {
 	listenURIs := normalizeListenURIs(listenURI, moreListenURIs)
+	currentTransport.Store(transport.Scheme(listenURIs[0]))
+	defer currentTransport.Store("")
 
 	// Observability: fail-fast on unknown OP_OBS tokens, then install
 	// the singleton (safe no-op when OP_OBS is empty).
