@@ -92,7 +92,7 @@ func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 
 		obs.Logger("rpc").InfoContext(ctx, "rpc handled",
 			"status", status.Code(err).String(),
-			"duration_ms", elapsed.Milliseconds())
+			"duration_ns", elapsed.Nanoseconds())
 
 		return resp, err
 	}
