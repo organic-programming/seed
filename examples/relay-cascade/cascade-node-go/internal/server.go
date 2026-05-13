@@ -19,20 +19,35 @@ type Server struct {
 	pb.UnimplementedRelayServiceServer
 }
 
-// Tick emits one minimal tick response. Observability is wired in step 2.
-func (s *Server) Tick(_ context.Context, _ *pb.TickRequest) (*pb.TickResponse, error) {
+// Tick emits the minimal business signal used by relay-cascade.
+func (s *Server) Tick(ctx context.Context, req *pb.TickRequest) (*pb.TickResponse, error) {
 	obs := observability.Current()
+	slug := responderSlug(obs)
+	uid := obs.InstanceUID()
+	obs.Logger("tick").InfoContext(ctx, "tick received",
+		"sender", req.GetSender(),
+		"note", req.GetNote(),
+		"responder_slug", slug,
+		"responder_uid", uid,
+	)
+	obs.Counter("cascade_ticks_total", "Ticks received by this cascade node.", map[string]string{
+		"responder_uid": uid,
+	}).Inc()
 	return &pb.TickResponse{
-		ResponderSlug:        responderSlug(obs),
-		ResponderInstanceUid: obs.InstanceUID(),
+		ResponderSlug:        slug,
+		ResponderInstanceUid: uid,
 	}, nil
 }
 
 // ListenAndServe starts the gRPC server at listenURI.
-func ListenAndServe(listenURI string, reflection bool) error {
-	return serve.RunWithOptions(listenURI, func(s *grpc.Server) {
+func ListenAndServe(listenURI string, reflection bool, members []serve.MemberRef, moreListenURIs ...string) error {
+	options := serve.ServeOptions{
+		Reflect:         reflection,
+		MemberEndpoints: members,
+	}
+	return serve.RunWithServeOptions(listenURI, func(s *grpc.Server) {
 		pb.RegisterRelayServiceServer(s, &Server{})
-	}, reflection)
+	}, options, moreListenURIs...)
 }
 
 func responderSlug(obs *observability.Observability) string {
