@@ -21,10 +21,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         manifest_dir.join("api/v1/holon.proto").display()
     );
     println!("cargo:rerun-if-changed={}", greeting_proto.display());
-    println!(
-        "cargo:rerun-if-changed={}",
-        proto_root.join("holons/v1/manifest.proto").display()
-    );
+    let manifest_proto = proto_root.join("holons/v1/manifest.proto");
+    if manifest_proto.is_file() {
+        println!("cargo:rerun-if-changed={}", manifest_proto.display());
+    }
 
     Ok(())
 }
@@ -32,16 +32,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn shared_proto_root(manifest_dir: &PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let candidates = [
         manifest_dir.join(".op/protos"),
-        manifest_dir.join("../../../_protos"),
+        manifest_dir.join("../_protos"),
     ];
 
     for candidate in candidates {
-        if candidate.join("holons/v1/manifest.proto").is_file()
-            && candidate.join("v1/greeting.proto").is_file()
-        {
+        if candidate.join("v1/greeting.proto").is_file() {
             return Ok(candidate);
         }
     }
 
-    Err("unable to locate shared holons proto root".into())
+    Err("unable to locate shared greeting proto root".into())
 }
