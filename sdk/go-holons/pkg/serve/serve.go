@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/url"
@@ -26,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	"github.com/organic-programming/go-holons/pkg/describe"
 	"github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/holonrpc"
@@ -522,7 +524,7 @@ func startMemberRelays(ctx context.Context, members []MemberRef) ([]*observabili
 		member.Slug = strings.TrimSpace(member.Slug)
 		member.UID = strings.TrimSpace(member.UID)
 		member.Address = strings.TrimSpace(member.Address)
-		if member.Slug == "" || member.UID == "" || member.Address == "" {
+		if member.Slug == "" || member.Address == "" {
 			log.Printf("warning: observability relay skipped incomplete member ref: slug=%q uid=%q address=%q", member.Slug, member.UID, member.Address)
 			continue
 		}
@@ -530,6 +532,10 @@ func startMemberRelays(ctx context.Context, members []MemberRef) ([]*observabili
 		if err != nil {
 			log.Printf("warning: observability relay dial %s/%s: %v", member.Slug, member.UID, err)
 			continue
+		}
+		member = resolveRelayMemberIdentity(ctx, conn, member)
+		if member.UID == "" {
+			log.Printf("warning: observability relay uid unresolved for %s at %s; chain hops will have empty uid", member.Slug, member.Address)
 		}
 		relay := observability.NewRelay(member.Slug, member.UID, conn)
 		if err := relay.Start(ctx); err != nil {
@@ -541,6 +547,46 @@ func startMemberRelays(ctx context.Context, members []MemberRef) ([]*observabili
 		conns = append(conns, conn)
 	}
 	return relays, conns
+}
+
+func resolveRelayMemberIdentity(ctx context.Context, conn *grpc.ClientConn, member MemberRef) MemberRef {
+	if member.UID != "" {
+		return member
+	}
+	client := holonsv1.NewHolonObservabilityClient(conn)
+	resolveCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	if stream, err := client.Events(resolveCtx, &holonsv1.EventsRequest{
+		Types:  []holonsv1.EventType{holonsv1.EventType_INSTANCE_READY},
+		Follow: false,
+	}); err == nil {
+		for {
+			ev, recvErr := stream.Recv()
+			if recvErr == io.EOF {
+				break
+			}
+			if recvErr != nil {
+				break
+			}
+			if ev.GetInstanceUid() == "" || len(ev.GetChain()) != 0 {
+				continue
+			}
+			member.UID = strings.TrimSpace(ev.GetInstanceUid())
+			if slug := strings.TrimSpace(ev.GetSlug()); slug != "" {
+				member.Slug = slug
+			}
+			return member
+		}
+	}
+
+	if snap, err := client.Metrics(resolveCtx, &holonsv1.MetricsRequest{}); err == nil && snap.GetInstanceUid() != "" {
+		member.UID = strings.TrimSpace(snap.GetInstanceUid())
+		if slug := strings.TrimSpace(snap.GetSlug()); slug != "" {
+			member.Slug = slug
+		}
+	}
+	return member
 }
 
 func normalizeRelayDialTarget(target string) string {
