@@ -31,7 +31,7 @@ The holon's `api/v1/holon.proto` imports from two shared `_protos` directories (
 | Path | Scope | Content |
 |------|-------|---------|
 | `../../../_protos/` | Platform | System types (`holons/v1/manifest.proto`) |
-| `../../_protos/` | Domain | Shared contract (`v1/greeting.proto` — service + messages) |
+| `../_protos/` | Domain | Shared contract (`v1/greeting.proto` — service + messages) |
 | `api/v1/holon.proto` | Local | Holon identity manifest + Node-specific metadata |
 
 ## Facets

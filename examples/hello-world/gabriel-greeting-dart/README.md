@@ -31,7 +31,7 @@ The holon's `api/v1/holon.proto` imports from two shared `_protos` directories (
 | Path | Scope | Content |
 |------|-------|---------|
 | `../../../_protos/` | Platform | System types (`holons/v1/manifest.proto`) |
-| `../../_protos/` | Domain | Shared contract (`v1/greeting.proto` — service + messages) |
+| `../_protos/` | Domain | Shared contract (`v1/greeting.proto` — service + messages) |
 | `api/v1/holon.proto` | Local | Holon identity manifest + Dart-specific metadata |
 
 ## Facets
@@ -66,7 +66,7 @@ dart cmd/main.dart listLanguages --format json
 dart cmd/main.dart sayHello Bob fr
 dart cmd/main.dart serve --port 9090
 grpcurl -plaintext \
-  -import-path ../../_protos \
+  -import-path ../_protos \
   -proto v1/greeting.proto \
   -d '{"name":"Bob","lang_code":"fr"}' \
   127.0.0.1:9090 \

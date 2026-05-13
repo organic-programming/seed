@@ -31,7 +31,7 @@ The holon's `api/v1/holon.proto` imports from two shared `_protos` directories (
 | Path | Scope | Content |
 |------|-------|---------|
 | `../../../_protos/` | Platform | System types (`holons/v1/manifest.proto`, `describe.proto`) |
-| `../../_protos/` | Domain | Shared contract (`v1/greeting.proto` — service + messages) |
+| `../_protos/` | Domain | Shared contract (`v1/greeting.proto` — service + messages) |
 | `api/v1/holon.proto` | Local | Holon identity manifest + Python-specific metadata |
 
 ## Facets
@@ -189,6 +189,6 @@ op gabriel-greeting-python SayHello '{"name":"Maria","lang_code":"fr"}'
 
 ```bash
 cd examples/hello-world/gabriel-greeting-python
-python3 -m grpc_tools.protoc -I api -I ../../_protos -I ../../../_protos --descriptor_set_out="$(mktemp)" v1/holon.proto
+python3 -m grpc_tools.protoc -I api -I ../_protos -I ../../../holons/grace-op/_protos --descriptor_set_out="$(mktemp)" v1/holon.proto
 ```
 <!-- don't modify preeceeding section -->

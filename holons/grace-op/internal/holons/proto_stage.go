@@ -74,7 +74,7 @@ func protoStage(manifest *LoadedManifest, reporter progress.Reporter) (*protoSta
 	}
 
 	// Stage shared _protos/ directories from ancestor paths.
-	// This handles shared contract protos (e.g., examples/_protos/v1/greeting.proto).
+	// This handles shared contract protos (e.g., examples/hello-world/_protos/v1/greeting.proto).
 	if err := stageAncestorProtos(manifest.Dir, protosDir); err != nil {
 		return nil, fmt.Errorf("proto stage: ancestor protos: %w", err)
 	}
@@ -138,7 +138,7 @@ func stageEmbeddedProtos(destDir string) error {
 
 // stageAncestorProtos walks up from holonDir, finds _protos/ directories,
 // and copies their .proto files into the staging area. This enables shared
-// contract protos (e.g., examples/_protos/v1/greeting.proto) to be available
+// contract protos (e.g., examples/hello-world/_protos/v1/greeting.proto) to be available
 // during the proto stage parse. Files already staged are skipped.
 func stageAncestorProtos(holonDir, destDir string) error {
 	for current := filepath.Dir(holonDir); current != "" && current != filepath.Dir(current); current = filepath.Dir(current) {
