@@ -371,6 +371,7 @@ func TestRunWithServeOptionsStartsRelayAndMultilog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("child listen: %v", err)
 	}
+	observability.EmitReady(context.Background(), "tcp://"+childLis.Addr().String())
 	go childServer.Serve(childLis)
 	defer childServer.Stop()
 
@@ -383,7 +384,6 @@ func TestRunWithServeOptionsStartsRelayAndMultilog(t *testing.T) {
 	t.Setenv("OP_ORGANISM_UID", rootUID)
 	t.Setenv("OP_ORGANISM_SLUG", rootSlug)
 	t.Setenv("GO_SERVE_MEMBER_SLUG", "child-holon")
-	t.Setenv("GO_SERVE_MEMBER_UID", "child-uid")
 	t.Setenv("GO_SERVE_MEMBER_ADDRESS", "tcp://"+childLis.Addr().String())
 
 	cmd, logs := startServeProcess(t, "run-with-member", "tcp://127.0.0.1:0", false)
