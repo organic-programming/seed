@@ -40,6 +40,8 @@ pub const MemberRelay = struct {
     obs: *observability.Observability,
     member: MemberRef,
     stop_requested: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    seen_log_hashes: std.ArrayList(u64) = .empty,
+    seen_event_hashes: std.ArrayList(u64) = .empty,
     logs_thread: ?std.Thread = null,
     events_thread: ?std.Thread = null,
 
@@ -56,6 +58,8 @@ pub const MemberRelay = struct {
         self.stop_requested.store(true, .release);
         if (self.logs_thread) |thread| thread.join();
         if (self.events_thread) |thread| thread.join();
+        self.seen_log_hashes.deinit(self.allocator);
+        self.seen_event_hashes.deinit(self.allocator);
         self.member.deinit(self.allocator);
     }
 
@@ -213,6 +217,7 @@ fn pumpLogsOnce(relay: *MemberRelay) !void {
         defer relay.allocator.free(bytes);
         var entry = observability.logEntryFromBytes(relay.allocator, bytes) catch continue;
         defer entry.deinit(relay.allocator);
+        if (!try rememberHash(relay.allocator, &relay.seen_log_hashes, logHash(entry))) continue;
         try appendRelayHop(relay.allocator, &entry.chain, relay.member.slug, relay.member.uid);
         if (relay.obs.log_ring) |*ring| try ring.push(entry);
     }
@@ -232,6 +237,7 @@ fn pumpEventsOnce(relay: *MemberRelay) !void {
         defer relay.allocator.free(bytes);
         var event = observability.eventFromBytes(relay.allocator, bytes) catch continue;
         defer event.deinit(relay.allocator);
+        if (!try rememberHash(relay.allocator, &relay.seen_event_hashes, eventHash(event))) continue;
         try appendRelayHop(relay.allocator, &event.chain, relay.member.slug, relay.member.uid);
         if (relay.obs.event_bus) |*bus| try bus.emit(event);
     }
@@ -248,6 +254,63 @@ fn appendRelayHop(
     for (old) |*hop| hop.deinit(allocator);
     allocator.free(old);
     chain.* = next;
+}
+
+fn rememberHash(allocator: std.mem.Allocator, seen: *std.ArrayList(u64), hash: u64) !bool {
+    for (seen.items) |existing| {
+        if (existing == hash) return false;
+    }
+    if (seen.items.len >= 2048) _ = seen.orderedRemove(0);
+    try seen.append(allocator, hash);
+    return true;
+}
+
+fn logHash(entry: observability.LogEntry) u64 {
+    var hasher = std.hash.Wyhash.init(0);
+    hashInt(&hasher, entry.timestamp_ns);
+    hashInt(&hasher, @intFromEnum(entry.level));
+    hashBytes(&hasher, entry.slug);
+    hashBytes(&hasher, entry.instance_uid);
+    hashBytes(&hasher, entry.session_id);
+    hashBytes(&hasher, entry.rpc_method);
+    hashBytes(&hasher, entry.message);
+    for (entry.fields) |label| {
+        hashBytes(&hasher, label.key);
+        hashBytes(&hasher, label.value);
+    }
+    for (entry.chain) |hop| {
+        hashBytes(&hasher, hop.slug);
+        hashBytes(&hasher, hop.instance_uid);
+    }
+    return hasher.final();
+}
+
+fn eventHash(event: observability.Event) u64 {
+    var hasher = std.hash.Wyhash.init(1);
+    hashInt(&hasher, event.timestamp_ns);
+    hashInt(&hasher, @intFromEnum(event.event_type));
+    hashBytes(&hasher, event.slug);
+    hashBytes(&hasher, event.instance_uid);
+    hashBytes(&hasher, event.session_id);
+    for (event.payload) |label| {
+        hashBytes(&hasher, label.key);
+        hashBytes(&hasher, label.value);
+    }
+    for (event.chain) |hop| {
+        hashBytes(&hasher, hop.slug);
+        hashBytes(&hasher, hop.instance_uid);
+    }
+    return hasher.final();
+}
+
+fn hashBytes(hasher: *std.hash.Wyhash, bytes: []const u8) void {
+    hasher.update(std.mem.asBytes(&bytes.len));
+    hasher.update(bytes);
+}
+
+fn hashInt(hasher: *std.hash.Wyhash, value: anytype) void {
+    const local = value;
+    hasher.update(std.mem.asBytes(&local));
 }
 
 fn sleepBackoff(relay: *MemberRelay) void {
