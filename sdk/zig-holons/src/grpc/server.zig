@@ -10,21 +10,26 @@ const posix = if (is_windows) struct {} else @cImport({
 });
 
 pub const UnaryHandler = *const fn (std.mem.Allocator, []const u8) anyerror![]u8;
+pub const ServerStreamHandler = *const fn (std.mem.Allocator, []const u8, *ServerStream) anyerror!void;
 
 pub const Method = struct {
     path: []const u8,
-    handler: UnaryHandler,
+    handler: ?UnaryHandler = null,
+    stream_handler: ?ServerStreamHandler = null,
 };
 
 const RuntimeMethod = struct {
     path: [:0]u8,
-    handler: UnaryHandler,
+    handler: ?UnaryHandler = null,
+    stream_handler: ?ServerStreamHandler = null,
     registered: ?*anyopaque = null,
 };
 
 const TagKind = enum {
     request,
     response,
+    stream_sync,
+    stream_close,
 };
 
 const CompletionTag = struct {
@@ -44,6 +49,130 @@ const ResponseTag = struct {
     call: *core.c.grpc_call,
     response_bb: ?*core.c.grpc_byte_buffer = null,
     status_details: core.c.grpc_slice,
+};
+
+const StreamState = struct {
+    refs: std.atomic.Value(usize),
+    cancelled_flag: std.atomic.Value(bool),
+
+    fn init() StreamState {
+        return .{
+            .refs = std.atomic.Value(usize).init(2),
+            .cancelled_flag = std.atomic.Value(bool).init(false),
+        };
+    }
+
+    fn release(self: *StreamState, allocator: std.mem.Allocator) void {
+        if (self.refs.fetchSub(1, .acq_rel) == 1) allocator.destroy(self);
+    }
+};
+
+const StreamSyncTag = struct {
+    mutex: std.Io.Mutex = .init,
+    cond: std.Io.Condition = .init,
+    done: bool = false,
+    success: bool = false,
+
+    fn wait(self: *StreamSyncTag) bool {
+        const io = blockingIo();
+        self.mutex.lockUncancelable(io);
+        defer self.mutex.unlock(io);
+        while (!self.done) self.cond.waitUncancelable(io, &self.mutex);
+        return self.success;
+    }
+
+    fn complete(self: *StreamSyncTag, success: bool) void {
+        const io = blockingIo();
+        self.mutex.lockUncancelable(io);
+        self.success = success;
+        self.done = true;
+        self.cond.signal(io);
+        self.mutex.unlock(io);
+    }
+};
+
+const StreamCloseTag = struct {
+    state: *StreamState,
+    call: *core.c.grpc_call,
+    cancelled: c_int = 0,
+};
+
+const StreamContext = struct {
+    server: *Server,
+    call: *core.c.grpc_call,
+    request: []u8,
+    handler: ServerStreamHandler,
+    state: *StreamState,
+    stream: ServerStream,
+};
+
+pub const ServerStream = struct {
+    server: *Server,
+    call: *core.c.grpc_call,
+    state: *StreamState,
+
+    pub fn send(self: *ServerStream, message: []const u8) !void {
+        if (self.cancelled()) return error.StreamCancelled;
+
+        var response_slice = core.c.grpc_slice_from_copied_buffer(@ptrCast(message.ptr), message.len);
+        defer core.c.grpc_slice_unref(response_slice);
+        const response_bb = core.c.grpc_raw_byte_buffer_create(&response_slice, 1) orelse
+            return error.ByteBufferCreateFailed;
+        defer core.c.grpc_byte_buffer_destroy(response_bb);
+
+        var ops: [1]core.c.grpc_op = [_]core.c.grpc_op{std.mem.zeroes(core.c.grpc_op)} ** 1;
+        ops[0].op = core.c.GRPC_OP_SEND_MESSAGE;
+        ops[0].data.send_message.send_message = response_bb;
+        try self.startSyncBatch(&ops);
+    }
+
+    pub fn cancelled(self: *ServerStream) bool {
+        return self.state.cancelled_flag.load(.acquire);
+    }
+
+    fn sendInitialMetadata(self: *ServerStream) !void {
+        var ops: [1]core.c.grpc_op = [_]core.c.grpc_op{std.mem.zeroes(core.c.grpc_op)} ** 1;
+        ops[0].op = core.c.GRPC_OP_SEND_INITIAL_METADATA;
+        ops[0].data.send_initial_metadata.count = 0;
+        ops[0].data.send_initial_metadata.metadata = null;
+        try self.startSyncBatch(&ops);
+    }
+
+    fn finish(
+        self: *ServerStream,
+        status: core.c.grpc_status_code,
+        details: []const u8,
+    ) !void {
+        var status_details = core.c.grpc_slice_from_copied_buffer(@ptrCast(details.ptr), details.len);
+        defer core.c.grpc_slice_unref(status_details);
+
+        var ops: [1]core.c.grpc_op = [_]core.c.grpc_op{std.mem.zeroes(core.c.grpc_op)} ** 1;
+        ops[0].op = core.c.GRPC_OP_SEND_STATUS_FROM_SERVER;
+        ops[0].data.send_status_from_server.trailing_metadata_count = 0;
+        ops[0].data.send_status_from_server.trailing_metadata = null;
+        ops[0].data.send_status_from_server.status = status;
+        ops[0].data.send_status_from_server.status_details = &status_details;
+        try self.startSyncBatch(&ops);
+    }
+
+    fn startSyncBatch(self: *ServerStream, ops: []core.c.grpc_op) !void {
+        const tag = try self.server.allocator.create(StreamSyncTag);
+        errdefer self.server.allocator.destroy(tag);
+        tag.* = .{};
+
+        const completion = try self.server.allocator.create(CompletionTag);
+        errdefer self.server.allocator.destroy(completion);
+        completion.* = .{
+            .kind = .stream_sync,
+            .data = tag,
+        };
+        if (core.c.grpc_call_start_batch(self.call, ops.ptr, ops.len, completion, null) != core.c.GRPC_CALL_OK) {
+            return error.CallStartBatchFailed;
+        }
+        const success = tag.wait();
+        self.server.allocator.destroy(tag);
+        if (!success) return error.StreamOperationFailed;
+    }
 };
 
 const describe_method = Method{
@@ -186,6 +315,7 @@ pub fn bind(allocator: std.mem.Allocator, raw_uri: []const u8, methods: []const 
         runtime_methods[index + 1] = .{
             .path = try allocator.dupeZ(u8, method.path),
             .handler = method.handler,
+            .stream_handler = method.stream_handler,
         };
     }
     errdefer {
@@ -281,6 +411,8 @@ fn eventLoop(self: *Server) void {
                 switch (completion.kind) {
                     .request => handleRequest(self, completion, @ptrCast(@alignCast(completion.data)), event.success != 0),
                     .response => handleResponse(self, completion, @ptrCast(@alignCast(completion.data))),
+                    .stream_sync => handleStreamSync(self, completion, @ptrCast(@alignCast(completion.data)), event.success != 0),
+                    .stream_close => handleStreamClose(self, completion, @ptrCast(@alignCast(completion.data))),
                 }
             },
             else => {},
@@ -296,12 +428,8 @@ fn drainQueue(cq: *core.c.grpc_completion_queue) void {
 }
 
 fn handleRequest(self: *Server, completion: *CompletionTag, tag: *RequestTag, success: bool) void {
-    defer {
-        if (tag.payload) |payload| core.c.grpc_byte_buffer_destroy(payload);
-        core.c.grpc_metadata_array_destroy(&tag.metadata);
-        self.allocator.destroy(tag);
-        self.allocator.destroy(completion);
-    }
+    var cleanup_tag = true;
+    defer if (cleanup_tag) cleanupRequestTag(self, completion, tag);
 
     const call = tag.call orelse return;
 
@@ -323,9 +451,26 @@ fn handleRequest(self: *Server, completion: *CompletionTag, tag: *RequestTag, su
             core.c.grpc_call_unref(call);
         return;
     };
+
+    const method = self.methods[tag.method_index];
+    if (method.stream_handler) |stream_handler| {
+        cleanupRequestTag(self, completion, tag);
+        cleanup_tag = false;
+        startStream(self, call, request, stream_handler) catch {
+            self.allocator.free(request);
+            sendStatusAsync(self, call, core.c.GRPC_STATUS_INTERNAL, "failed to start stream") catch
+                core.c.grpc_call_unref(call);
+        };
+        return;
+    }
     defer self.allocator.free(request);
 
-    const response = self.methods[tag.method_index].handler(self.allocator, request) catch {
+    const unary_handler = method.handler orelse {
+        sendStatusAsync(self, call, core.c.GRPC_STATUS_UNIMPLEMENTED, "method has no unary handler") catch
+            core.c.grpc_call_unref(call);
+        return;
+    };
+    const response = unary_handler(self.allocator, request) catch {
         sendStatusAsync(self, call, core.c.GRPC_STATUS_INTERNAL, "handler failed") catch
             core.c.grpc_call_unref(call);
         return;
@@ -334,12 +479,117 @@ fn handleRequest(self: *Server, completion: *CompletionTag, tag: *RequestTag, su
     sendResponseAsync(self, call, response) catch core.c.grpc_call_unref(call);
 }
 
+fn cleanupRequestTag(self: *Server, completion: *CompletionTag, tag: *RequestTag) void {
+    if (tag.payload) |payload| core.c.grpc_byte_buffer_destroy(payload);
+    core.c.grpc_metadata_array_destroy(&tag.metadata);
+    self.allocator.destroy(tag);
+    self.allocator.destroy(completion);
+}
+
 fn handleResponse(self: *Server, completion: *CompletionTag, tag: *ResponseTag) void {
     if (tag.response_bb) |response_bb| core.c.grpc_byte_buffer_destroy(response_bb);
     core.c.grpc_slice_unref(tag.status_details);
     core.c.grpc_call_unref(tag.call);
     self.allocator.destroy(tag);
     self.allocator.destroy(completion);
+}
+
+fn handleStreamSync(self: *Server, completion: *CompletionTag, tag: *StreamSyncTag, success: bool) void {
+    tag.complete(success);
+    self.allocator.destroy(completion);
+}
+
+fn handleStreamClose(self: *Server, completion: *CompletionTag, tag: *StreamCloseTag) void {
+    if (tag.cancelled != 0) {
+        tag.state.cancelled_flag.store(true, .release);
+    }
+    core.c.grpc_call_unref(tag.call);
+    tag.state.release(self.allocator);
+    self.allocator.destroy(tag);
+    self.allocator.destroy(completion);
+}
+
+fn startStream(
+    self: *Server,
+    call: *core.c.grpc_call,
+    request: []u8,
+    handler: ServerStreamHandler,
+) !void {
+    const state = try self.allocator.create(StreamState);
+    errdefer self.allocator.destroy(state);
+    state.* = StreamState.init();
+
+    const ctx = try self.allocator.create(StreamContext);
+    errdefer self.allocator.destroy(ctx);
+    ctx.* = .{
+        .server = self,
+        .call = call,
+        .request = request,
+        .handler = handler,
+        .state = state,
+        .stream = .{
+            .server = self,
+            .call = call,
+            .state = state,
+        },
+    };
+
+    try startCloseObserver(self, call, state);
+    errdefer state.release(self.allocator);
+
+    const worker = try std.Thread.spawn(.{}, streamWorker, .{ctx});
+    worker.detach();
+}
+
+fn startCloseObserver(self: *Server, call: *core.c.grpc_call, state: *StreamState) !void {
+    core.c.grpc_call_ref(call);
+    errdefer core.c.grpc_call_unref(call);
+
+    var tag = try self.allocator.create(StreamCloseTag);
+    errdefer self.allocator.destroy(tag);
+    tag.* = .{
+        .state = state,
+        .call = call,
+    };
+
+    const completion = try self.allocator.create(CompletionTag);
+    errdefer self.allocator.destroy(completion);
+    completion.* = .{
+        .kind = .stream_close,
+        .data = tag,
+    };
+
+    var ops: [1]core.c.grpc_op = [_]core.c.grpc_op{std.mem.zeroes(core.c.grpc_op)} ** 1;
+    ops[0].op = core.c.GRPC_OP_RECV_CLOSE_ON_SERVER;
+    ops[0].data.recv_close_on_server.cancelled = &tag.cancelled;
+
+    if (core.c.grpc_call_start_batch(call, &ops, ops.len, completion, null) != core.c.GRPC_CALL_OK) {
+        return error.CallStartBatchFailed;
+    }
+}
+
+fn streamWorker(ctx: *StreamContext) void {
+    defer {
+        ctx.server.allocator.free(ctx.request);
+        core.c.grpc_call_unref(ctx.call);
+        ctx.state.release(ctx.server.allocator);
+        ctx.server.allocator.destroy(ctx);
+    }
+
+    ctx.stream.sendInitialMetadata() catch return;
+    ctx.handler(ctx.server.allocator, ctx.request, &ctx.stream) catch |err| {
+        if (!ctx.stream.cancelled()) {
+            ctx.stream.finish(core.c.GRPC_STATUS_INTERNAL, @errorName(err)) catch {};
+        }
+        return;
+    };
+    if (!ctx.stream.cancelled()) {
+        ctx.stream.finish(core.c.GRPC_STATUS_OK, "") catch {};
+    }
+}
+
+fn blockingIo() std.Io {
+    return std.Io.Threaded.global_single_threaded.io();
 }
 
 fn sendResponseAsync(self: *Server, call: *core.c.grpc_call, response: []const u8) !void {
