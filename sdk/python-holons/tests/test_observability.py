@@ -5,7 +5,10 @@ from __future__ import annotations
 import os
 import threading
 import time
+from concurrent import futures
+from urllib.request import urlopen
 
+import grpc
 import pytest
 
 from holons import observability as obs
@@ -216,6 +219,103 @@ def test_holon_observability_service_replays_rings():
 
     events = list(svc.Events(observability_pb2.EventsRequest(follow=False), ctx))
     assert [event.type for event in events] == [observability_pb2.INSTANCE_READY]
+
+
+def test_proto_roundtrip_helpers_preserve_chain():
+    entry = obs.LogEntry(
+        timestamp=1.25,
+        level=obs.Level.INFO,
+        slug="child",
+        instance_uid="uid-child",
+        message="tick received",
+        fields={"sender": "sender-1"},
+        chain=[obs.Hop("D", "uid-d")],
+    )
+    got_entry = obs.from_proto_log_entry(obs.to_proto_log_entry(entry))
+    assert got_entry.message == "tick received"
+    assert got_entry.fields["sender"] == "sender-1"
+    assert [(hop.slug, hop.instance_uid) for hop in got_entry.chain] == [("D", "uid-d")]
+
+    event = obs.Event(
+        timestamp=2.5,
+        type=obs.EventType.INSTANCE_READY,
+        slug="child",
+        instance_uid="uid-child",
+        payload={"listener": "tcp://127.0.0.1:1"},
+        chain=[obs.Hop("C", "uid-c")],
+    )
+    got_event = obs.from_proto_event(obs.to_proto_event(event))
+    assert got_event.type == obs.EventType.INSTANCE_READY
+    assert got_event.payload["listener"] == "tcp://127.0.0.1:1"
+    assert [(hop.slug, hop.instance_uid) for hop in got_event.chain] == [("C", "uid-c")]
+
+
+def test_prometheus_text_and_server():
+    os.environ["OP_OBS"] = "metrics,prom"
+    o = obs.configure(obs.Config(slug="node", instance_uid="uid-node"))
+    counter = o.counter(
+        "cascade_ticks_total",
+        "Ticks received by this cascade node.",
+        {"responder_uid": "uid-node"},
+    )
+    assert counter is not None
+    counter.inc()
+
+    text = obs.to_prometheus_text(o)
+    assert "# HELP cascade_ticks_total Ticks received by this cascade node." in text
+    assert 'cascade_ticks_total{instance_uid="uid-node",responder_uid="uid-node",slug="node"} 1' in text
+
+    server = obs.PromServer(":0")
+    try:
+        url = server.start()
+        with urlopen(url, timeout=5) as response:
+            body = response.read().decode("utf-8")
+        assert "cascade_ticks_total" in body
+        assert 'responder_uid="uid-node"' in body
+    finally:
+        server.close()
+
+
+def test_member_relay_forwards_logs_and_events_with_chain():
+    os.environ["OP_OBS"] = "logs,events"
+    child = obs.configure(obs.Config(slug="child", instance_uid="uid-child"))
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
+    obs.register_service(server, child)
+    port = server.add_insecure_port("127.0.0.1:0")
+    server.start()
+
+    parent = obs.configure(obs.Config(slug="parent", instance_uid="uid-parent"))
+    channel = grpc.insecure_channel(f"127.0.0.1:{port}")
+    relay = obs.MemberRelay("child", "uid-child", channel, parent, retry_delay=0.05)
+    try:
+        relay.start()
+        child.logger("tick").info("tick received", sender="sender-1")
+        child.emit(obs.EventType.INSTANCE_READY, {"listener": "tcp://127.0.0.1:1"})
+
+        deadline = time.time() + 5
+        while time.time() < deadline:
+            logs = parent.log_ring.drain()
+            events = parent.event_bus.drain()
+            if logs and events:
+                break
+            time.sleep(0.02)
+
+        logs = parent.log_ring.drain()
+        events = parent.event_bus.drain()
+        assert any(
+            entry.message == "tick received"
+            and [(hop.slug, hop.instance_uid) for hop in entry.chain] == [("child", "uid-child")]
+            for entry in logs
+        )
+        assert any(
+            event.type == obs.EventType.INSTANCE_READY
+            and [(hop.slug, hop.instance_uid) for hop in event.chain] == [("child", "uid-child")]
+            for event in events
+        )
+    finally:
+        relay.stop()
+        channel.close()
+        server.stop(0)
 
 
 class _FakeContext:
