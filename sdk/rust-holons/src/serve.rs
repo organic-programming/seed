@@ -1,8 +1,13 @@
 //! Standard gRPC server runner for Rust holons.
 
 use crate::describe;
+use crate::gen::holons::v1::{
+    holon_observability_client::HolonObservabilityClient, EventType as ProtoEventType,
+    EventsRequest, MetricsRequest,
+};
 use crate::observability;
 use crate::transport::{self, Listener, StdioTransport, DEFAULT_URI};
+use hyper_util::rt::TokioIo;
 use std::convert::Infallible;
 use std::env;
 use std::error::Error;
@@ -14,15 +19,17 @@ use std::pin::Pin;
 use std::process::Command;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite};
+#[cfg(unix)]
+use tokio::net::UnixStream;
 use tokio_stream::wrappers::TcpListenerStream;
 #[cfg(unix)]
 use tokio_stream::wrappers::UnixListenerStream;
 use tokio_stream::Stream;
 use tonic::body::BoxBody;
-use tonic::codegen::http::{Request, Response};
+use tonic::codegen::http::{Request, Response, Uri};
 use tonic::server::NamedService;
 use tonic::transport::server::Connected;
-use tonic::transport::Server;
+use tonic::transport::{Channel, Endpoint, Server};
 use tower_service::Service;
 
 pub type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync>>;
@@ -36,6 +43,7 @@ pub struct RunOptions {
     pub describe_response: Option<crate::gen::holons::v1::DescribeResponse>,
     pub descriptor_set: Option<Vec<u8>>,
     pub env: Option<std::collections::HashMap<String, String>>,
+    pub member_endpoints: Vec<MemberRef>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,12 +52,20 @@ pub struct ParsedFlags {
     pub reflect: bool,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct MemberRef {
+    pub slug: String,
+    pub uid: String,
+    pub address: String,
+}
+
 macro_rules! serve_router {
     ($router:expr, $listen_uri:expr, $options:expr, $obs:expr) => {{
         let router = $router;
         let options = $options;
         let listen_uri = $listen_uri;
         let obs = $obs;
+        let _member_relays = start_member_relays(obs.as_ref(), &options.member_endpoints).await;
 
         match transport::listen(listen_uri).await? {
             Listener::Tcp(listener) => {
@@ -299,6 +315,7 @@ fn start_observability_runtime(
         payload.insert("listener".to_string(), public_uri.to_string());
         obs.emit(observability::EventType::InstanceReady, payload);
     }
+    let metrics_addr = observability::start_prometheus_endpoint((*obs).clone()).unwrap_or_default();
     let log_path = if obs.enabled(observability::Family::Logs) {
         Path::new(&obs.cfg.run_dir)
             .join("stdout.log")
@@ -317,7 +334,7 @@ fn start_observability_runtime(
             mode: "persistent".to_string(),
             transport: transport.to_string(),
             address: public_uri.to_string(),
-            metrics_addr: String::new(),
+            metrics_addr,
             log_path,
             log_bytes_rotated: 0,
             organism_uid: obs.cfg.organism_uid.clone(),
@@ -325,6 +342,180 @@ fn start_observability_runtime(
             is_default: false,
         },
     );
+}
+
+async fn start_member_relays(
+    obs: Option<&std::sync::Arc<observability::Observability>>,
+    members: &[MemberRef],
+) -> Vec<observability::MemberRelay> {
+    let Some(obs) = obs else {
+        return Vec::new();
+    };
+    if !obs.enabled(observability::Family::Logs) && !obs.enabled(observability::Family::Events) {
+        return Vec::new();
+    }
+    let mut relays = Vec::new();
+    for raw in members {
+        let mut member = MemberRef {
+            slug: raw.slug.trim().to_string(),
+            uid: raw.uid.trim().to_string(),
+            address: raw.address.trim().to_string(),
+        };
+        if member.slug.is_empty() || member.address.is_empty() {
+            eprintln!(
+                "warning: observability relay skipped incomplete member ref: slug=\"{}\" uid=\"{}\" address=\"{}\"",
+                member.slug, member.uid, member.address
+            );
+            continue;
+        }
+        match dial_member_address(&member.address).await {
+            Ok(channel) => {
+                member = resolve_relay_member_identity(channel.clone(), member).await;
+                if member.uid.is_empty() {
+                    eprintln!(
+                        "warning: observability relay uid unresolved for {} at {}; chain hops will have empty uid",
+                        member.slug, member.address
+                    );
+                }
+                relays.push(observability::MemberRelay::start(
+                    member.slug,
+                    member.uid,
+                    channel,
+                    (*obs).clone(),
+                ));
+            }
+            Err(error) => eprintln!(
+                "warning: observability relay start {}/{}: {}",
+                member.slug, member.uid, error
+            ),
+        }
+    }
+    relays
+}
+
+async fn resolve_relay_member_identity(channel: Channel, member: MemberRef) -> MemberRef {
+    if !member.uid.is_empty() {
+        return member;
+    }
+    let mut client = HolonObservabilityClient::new(channel);
+    let events = client
+        .events(EventsRequest {
+            types: vec![ProtoEventType::InstanceReady as i32],
+            since: None,
+            follow: false,
+        })
+        .await;
+    if let Ok(response) = events {
+        let mut stream = response.into_inner();
+        let resolved = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while let Some(next) = futures_util::StreamExt::next(&mut stream).await {
+                let Ok(event) = next else {
+                    continue;
+                };
+                if event.instance_uid.trim().is_empty() || !event.chain.is_empty() {
+                    continue;
+                }
+                return Some(MemberRef {
+                    slug: if event.slug.trim().is_empty() {
+                        member.slug.clone()
+                    } else {
+                        event.slug.trim().to_string()
+                    },
+                    uid: event.instance_uid.trim().to_string(),
+                    address: member.address.clone(),
+                });
+            }
+            None
+        })
+        .await
+        .ok()
+        .flatten();
+        if let Some(member) = resolved {
+            return member;
+        }
+    }
+
+    let metrics = client.metrics(MetricsRequest {
+        name_prefixes: Vec::new(),
+        include_session_rollup: false,
+    });
+    if let Ok(Ok(response)) = tokio::time::timeout(std::time::Duration::from_secs(2), metrics).await
+    {
+        let snapshot = response.into_inner();
+        if !snapshot.instance_uid.trim().is_empty() {
+            return MemberRef {
+                slug: if snapshot.slug.trim().is_empty() {
+                    member.slug
+                } else {
+                    snapshot.slug.trim().to_string()
+                },
+                uid: snapshot.instance_uid.trim().to_string(),
+                address: member.address,
+            };
+        }
+    }
+
+    member
+}
+
+async fn dial_member_address(address: &str) -> Result<Channel> {
+    let parsed = transport::parse_uri(address).map_err(boxed_err)?;
+    match parsed.scheme.as_str() {
+        "tcp" => {
+            let host = match parsed.host.as_deref() {
+                Some("") | Some("0.0.0.0") | Some("::") | None => "127.0.0.1",
+                Some(host) => host,
+            };
+            let port = parsed.port.ok_or_else(|| {
+                boxed_err(format!("invalid tcp target {address:?}: missing port"))
+            })?;
+            let endpoint = Endpoint::from_shared(format!("http://{host}:{port}"))
+                .map_err(|err| boxed_err(err.to_string()))?;
+            endpoint
+                .connect()
+                .await
+                .map_err(|err| boxed_err(err.to_string()))
+        }
+        #[cfg(unix)]
+        "unix" => {
+            let path = parsed.path.ok_or_else(|| {
+                boxed_err(format!("invalid unix target {address:?}: missing path"))
+            })?;
+            let endpoint = Endpoint::from_static("http://[::]:50051");
+            endpoint
+                .connect_with_connector(UnixConnector {
+                    path: PathBuf::from(path),
+                })
+                .await
+                .map_err(|err| boxed_err(err.to_string()))
+        }
+        _ => Err(boxed_err(format!(
+            "unsupported observability relay address {address:?}"
+        ))),
+    }
+}
+
+#[cfg(unix)]
+#[derive(Clone)]
+struct UnixConnector {
+    path: PathBuf,
+}
+
+#[cfg(unix)]
+impl Service<Uri> for UnixConnector {
+    type Response = TokioIo<UnixStream>;
+    type Error = std::io::Error;
+    type Future =
+        Pin<Box<dyn std::future::Future<Output = std::io::Result<TokioIo<UnixStream>>> + Send>>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, _uri: Uri) -> Self::Future {
+        let path = self.path.clone();
+        Box::pin(async move { UnixStream::connect(path).await.map(TokioIo::new) })
+    }
 }
 
 fn announce_bound_uri(uri: &str, options: RunOptions) {
@@ -445,10 +636,7 @@ fn cleanup_unix_socket(path: Option<&std::path::Path>) {
 }
 
 fn boxed_err(message: impl Into<String>) -> Box<dyn Error + Send + Sync> {
-    Box::new(std::io::Error::new(
-        std::io::ErrorKind::Other,
-        message.into(),
-    ))
+    Box::new(std::io::Error::other(message.into()))
 }
 
 /// Hold a single stdio connection open for the lifetime of the server.

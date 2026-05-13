@@ -624,10 +624,7 @@ fn decode_object(value: Option<Value>) -> Result<JSONObject> {
 }
 
 fn boxed_err(message: impl Into<String>) -> BoxError {
-    Box::new(std::io::Error::new(
-        std::io::ErrorKind::Other,
-        message.into(),
-    ))
+    Box::new(std::io::Error::other(message.into()))
 }
 
 #[cfg(test)]

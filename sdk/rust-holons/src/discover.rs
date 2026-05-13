@@ -1013,7 +1013,7 @@ fn absolute_path(path: &Path) -> Result<PathBuf, String> {
     };
 
     fs::canonicalize(&absolute)
-        .or_else(|_| Ok(absolute))
+        .or(Ok(absolute))
         .map_err(|err: std::io::Error| err.to_string())
 }
 
@@ -2127,9 +2127,9 @@ mod tests {
         native_probe_package_entry(root, dir, origin, timeout)
     }
 
-    static SOURCE_BRIDGE_CALLS: OnceLock<
-        Mutex<Vec<(i32, Option<String>, PathBuf, i32, i32, u32)>>,
-    > = OnceLock::new();
+    type SourceBridgeCall = (i32, Option<String>, PathBuf, i32, i32, u32);
+
+    static SOURCE_BRIDGE_CALLS: OnceLock<Mutex<Vec<SourceBridgeCall>>> = OnceLock::new();
 
     fn fake_source_bridge(
         scope: i32,
