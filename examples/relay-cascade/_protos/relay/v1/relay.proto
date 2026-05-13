@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package relay.v1;
+
+option go_package = "examples/relay-cascade/_protos/relay/v1;relayv1";
+
+service RelayService {
+  // Tick: emit one log + increment one metric counter at the receiver.
+  // Used to test cross-holon observability relay: send a Tick to a leaf
+  // holon and verify the log propagates up the MemberEndpoints chain.
+  // Metrics are NOT relayed by the SDK - they are exposed locally and
+  // verified at each node directly.
+  rpc Tick(TickRequest) returns (TickResponse);
+}
+
+message TickRequest {
+  string sender = 1;
+  string note = 2;
+}
+
+message TickResponse {
+  string responder_slug = 1;
+  string responder_instance_uid = 2;
+}
