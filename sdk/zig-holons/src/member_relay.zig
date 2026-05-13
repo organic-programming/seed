@@ -94,6 +94,7 @@ pub fn startAll(allocator: std.mem.Allocator, obs: *observability.Observability,
             continue;
         }
         resolveMemberIdentity(allocator, &member) catch {};
+        try emitResolvedMemberReady(allocator, obs, member);
         relays[count] = .{
             .allocator = allocator,
             .obs = obs,
@@ -134,6 +135,23 @@ fn resolveMemberIdentity(allocator: std.mem.Allocator, member: *MemberRef) !void
         member.uid = try allocator.dupe(u8, std.mem.trim(u8, event.instanceUid(), " \t\r\n"));
         return;
     }
+}
+
+fn emitResolvedMemberReady(allocator: std.mem.Allocator, obs: *observability.Observability, member: MemberRef) !void {
+    if (!obs.enabled(.events) or obs.event_bus == null or member.uid.len == 0) return;
+    var event: observability.Event = .{
+        .timestamp_ns = nowNs(),
+        .event_type = .instance_ready,
+        .slug = try allocator.dupe(u8, member.slug),
+        .instance_uid = try allocator.dupe(u8, member.uid),
+        .chain = try allocator.alloc(observability.Hop, 1),
+    };
+    event.chain[0] = .{
+        .slug = try allocator.dupe(u8, member.slug),
+        .instance_uid = try allocator.dupe(u8, member.uid),
+    };
+    defer event.deinit(allocator);
+    try obs.event_bus.?.emit(event);
 }
 
 fn pumpLogs(relay: *MemberRelay) void {
@@ -216,4 +234,10 @@ fn sleepMillis(ms: i64) void {
         std.Io.Duration.fromMilliseconds(ms),
         .awake,
     ) catch {};
+}
+
+fn nowNs() i128 {
+    var ts: std.c.timespec = undefined;
+    if (std.c.clock_gettime(.REALTIME, &ts) != 0) return 0;
+    return @as(i128, @intCast(ts.sec)) * std.time.ns_per_s + @as(i128, @intCast(ts.nsec));
 }
