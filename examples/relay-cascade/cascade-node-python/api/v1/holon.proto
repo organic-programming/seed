@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package relay.v1;
+
+import "holons/v1/manifest.proto";
+import "relay/v1/relay.proto";
+
+// Python-specific holon descriptor for cascade-node-python.
+// Layers Python runtime metadata and holon identity on top of the shared
+// relay-cascade contract.
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "3c7fb5bf-af35-4bfd-b380-3bb2532c1a4b"
+    given_name: "Cascade"
+    family_name: "Node-Python"
+    motto: "Minimal relay cascade node."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A minimal Python holon used to validate cross-holon observability relay chains."
+  lang: "python"
+  kind: "native"
+  build: {
+    runner: "python"
+    main: "./cmd/main.py"
+    templates: ["api/cli.py"]
+    codegen: { languages: ["python"] }
+  }
+  requires: {
+    commands: ["python3"]
+    files: ["cmd/main.py", "pyproject.toml", "requirements.txt"]
+    sdk_prebuilts: ["python"]
+  }
+  artifacts: {
+    binary: "cascade-node-python"
+  }
+  sequences: [{
+    name: "tick"
+    description: "Emit one relay-cascade tick signal."
+    params: [
+      {name: "sender", description: "Tick sender label", required: true},
+      {name: "note", description: "Free-form tick note", required: false}
+    ]
+    steps: [
+      "op cascade-node-python Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
+    ]
+  }]
+};
