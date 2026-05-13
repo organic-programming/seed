@@ -28,16 +28,23 @@ import (
 )
 
 const (
-	slug      = "cascade-node-go"
+	goSlug    = "cascade-node-go"
+	dartSlug  = "cascade-node-dart"
 	runTicks  = 3
 	runPhases = 4
 )
 
 var roleOrder = []string{"D", "C", "B", "A"}
 
+type roleSpec struct {
+	slug       string
+	binaryPath string
+}
+
 type roleRuntime struct {
 	role          string
 	uid           string
+	slug          string
 	binaryPath    string
 	listenURIs    []string
 	relayAddress  string
@@ -64,10 +71,13 @@ type checkResult struct {
 
 func main() {
 	liveStream := flag.Bool("live-stream", false, "exercise long-lived Follow:true streams across chain respawns")
+	multiPattern := flag.Bool("multi-pattern", false, "exercise go/dart relay cascade patterns using live streams")
 	flag.Parse()
 
 	var err error
-	if *liveStream {
+	if *multiPattern {
+		err = runMultiPattern()
+	} else if *liveStream {
 		err = runLiveStream()
 	} else {
 		err = run()
@@ -256,6 +266,128 @@ func runLiveStream() error {
 	return nil
 }
 
+type cascadePattern struct {
+	name  string
+	roles map[string]roleSpec
+}
+
+func runMultiPattern() error {
+	goBinary, err := findHolonBinary(goSlug)
+	if err != nil {
+		return err
+	}
+	dartBinary, err := findHolonBinary(dartSlug)
+	if err != nil {
+		return err
+	}
+	patterns := []cascadePattern{
+		{
+			name: "go-go-go-go",
+			roles: map[string]roleSpec{
+				"A": {slug: goSlug, binaryPath: goBinary},
+				"B": {slug: goSlug, binaryPath: goBinary},
+				"C": {slug: goSlug, binaryPath: goBinary},
+				"D": {slug: goSlug, binaryPath: goBinary},
+			},
+		},
+		{
+			name: "go-go-dart-go",
+			roles: map[string]roleSpec{
+				"A": {slug: goSlug, binaryPath: goBinary},
+				"B": {slug: goSlug, binaryPath: goBinary},
+				"C": {slug: dartSlug, binaryPath: dartBinary},
+				"D": {slug: goSlug, binaryPath: goBinary},
+			},
+		},
+		{
+			name: "go-go-dart-dart",
+			roles: map[string]roleSpec{
+				"A": {slug: goSlug, binaryPath: goBinary},
+				"B": {slug: goSlug, binaryPath: goBinary},
+				"C": {slug: dartSlug, binaryPath: dartBinary},
+				"D": {slug: dartSlug, binaryPath: dartBinary},
+			},
+		},
+	}
+	runRoot := filepath.Join(os.Getenv("HOME"), ".op", "run")
+	transports := []string{"tcp", "unix", "tcp", "unix"}
+
+	fmt.Println("=== relay-cascade-go (multi-pattern) ===")
+	fmt.Println()
+
+	totalPass := 0
+	totalFail := 0
+	for patternIdx, pattern := range patterns {
+		fmt.Printf("Pattern %d/%d: %s\n", patternIdx+1, len(patterns), pattern.name)
+		patternPass := 0
+		patternFail := 0
+		for phaseIdx, transport := range transports {
+			phaseNo := phaseIdx + 1
+			spawnStart := time.Now()
+			c, err := spawnPatternCascade(phaseNo, transport, pattern.roles, runRoot)
+			if err != nil {
+				patternFail += runTicks
+				totalFail += runTicks
+				fmt.Printf("  Phase %d/%d (%s): spawn FAIL (%v)\n", phaseNo, runPhases, transport, err)
+				continue
+			}
+			streams, streamOpenErr := startLiveStreams(c.roles["A"].conn)
+			if streamOpenErr == nil {
+				ready := waitForEvery(5*time.Second, 50*time.Millisecond, func() checkResult {
+					return c.checkLiveEvent(streams)
+				})
+				if !ready.pass {
+					streamOpenErr = fmt.Errorf("live relay readiness: %s", ready.evidence)
+				}
+			}
+
+			previousMetric := float64(0)
+			results := make([]string, 0, runTicks)
+			evidence := make([]string, 0)
+			for tick := 1; tick <= runTicks; tick++ {
+				sender := fmt.Sprintf("%s-phase-%d-tick-%d", pattern.name, phaseNo, tick)
+				result := c.runLiveTickWithSender(streams, streamOpenErr, sender, previousMetric)
+				if result.metric.pass {
+					previousMetric = result.metricValue
+				}
+				overall := result.log.pass && result.event.pass && result.metric.pass
+				if overall {
+					patternPass++
+					totalPass++
+					results = append(results, fmt.Sprintf("Tick %d PASS", tick))
+				} else {
+					patternFail++
+					totalFail++
+					summary := failureSummary(result)
+					results = append(results, fmt.Sprintf("Tick %d FAIL (%s)", tick, summary))
+					evidence = append(evidence, fmt.Sprintf("      Tick %d evidence: %s", tick, compactEvidence(result)))
+				}
+			}
+			fmt.Printf("  Phase %d/%d (%s): %s (spawned in %s)\n",
+				phaseNo,
+				runPhases,
+				transport,
+				strings.Join(results, ", "),
+				time.Since(spawnStart).Round(time.Millisecond),
+			)
+			for _, line := range evidence {
+				fmt.Println(line)
+			}
+			if streams != nil {
+				streams.stop()
+			}
+			c.stop()
+		}
+		fmt.Printf("  Subtotal: %d/12 PASS\n\n", patternPass)
+	}
+
+	fmt.Printf("Summary: %d PASS / %d FAIL across %d ticks\n", totalPass, totalFail, totalPass+totalFail)
+	if totalFail > 0 {
+		return fmt.Errorf("%d tick(s) failed", totalFail)
+	}
+	return nil
+}
+
 type tickOutcome struct {
 	log         checkResult
 	event       checkResult
@@ -302,6 +434,10 @@ func (c *cascade) runTickWithSender(sender string, previousMetric float64) tickO
 
 func (c *cascade) runLiveTick(streams *liveStreams, streamOpenErr error, tick int, previousMetric float64) tickOutcome {
 	sender := fmt.Sprintf("phase-%d-tick-%d", c.phase, tick)
+	return c.runLiveTickWithSender(streams, streamOpenErr, sender, previousMetric)
+}
+
+func (c *cascade) runLiveTickWithSender(streams *liveStreams, streamOpenErr error, sender string, previousMetric float64) tickOutcome {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_, tickErr := relayv1.NewRelayServiceClient(c.roles["D"].conn).Tick(ctx, &relayv1.TickRequest{
@@ -340,6 +476,16 @@ func (c *cascade) runLiveTick(streams *liveStreams, streamOpenErr error, tick in
 }
 
 func spawnCascade(phase int, transportName, binaryPath, runRoot string) (*cascade, error) {
+	specs := map[string]roleSpec{
+		"A": {slug: goSlug, binaryPath: binaryPath},
+		"B": {slug: goSlug, binaryPath: binaryPath},
+		"C": {slug: goSlug, binaryPath: binaryPath},
+		"D": {slug: goSlug, binaryPath: binaryPath},
+	}
+	return spawnPatternCascade(phase, transportName, specs, runRoot)
+}
+
+func spawnPatternCascade(phase int, transportName string, specs map[string]roleSpec, runRoot string) (*cascade, error) {
 	c := &cascade{
 		phase:     phase,
 		transport: transportName,
@@ -347,9 +493,13 @@ func spawnCascade(phase int, transportName, binaryPath, runRoot string) (*cascad
 		roles:     make(map[string]*roleRuntime, len(roleOrder)),
 	}
 	for _, role := range roleOrder {
-		r := newRoleRuntime(phase, transportName, role, binaryPath)
+		spec, ok := specs[role]
+		if !ok || spec.slug == "" || spec.binaryPath == "" {
+			return nil, fmt.Errorf("missing role spec for %s", role)
+		}
+		r := newRoleRuntime(phase, transportName, role, spec)
 		c.roles[role] = r
-		if err := os.RemoveAll(filepath.Join(runRoot, slug, r.uid)); err != nil {
+		if err := os.RemoveAll(filepath.Join(runRoot, r.slug, r.uid)); err != nil {
 			return nil, err
 		}
 		if transportName == "unix" || transportName == "stdio" {
@@ -375,12 +525,13 @@ func spawnCascade(phase int, transportName, binaryPath, runRoot string) (*cascad
 	return c, nil
 }
 
-func newRoleRuntime(phase int, transportName, role, binaryPath string) *roleRuntime {
+func newRoleRuntime(phase int, transportName, role string, spec roleSpec) *roleRuntime {
 	lower := strings.ToLower(role)
 	r := &roleRuntime{
 		role:       role,
 		uid:        fmt.Sprintf("relay-p%02d-%s", phase, lower),
-		binaryPath: binaryPath,
+		slug:       spec.slug,
+		binaryPath: spec.binaryPath,
 	}
 	switch transportName {
 	case "tcp":
@@ -414,7 +565,8 @@ func (c *cascade) startRole(r *roleRuntime) error {
 		args = append(args, "--listen", uri)
 	}
 	if r.memberAddress != "" {
-		args = append(args, "--member", slug+"="+r.memberAddress)
+		child := c.roles[childRole(r.role)]
+		args = append(args, "--member", child.slug+"="+r.memberAddress)
 	}
 	cmd := exec.Command(r.binaryPath, args...)
 	cmd.Env = append(os.Environ(),
@@ -422,7 +574,7 @@ func (c *cascade) startRole(r *roleRuntime) error {
 		"OP_RUN_DIR="+c.runRoot,
 		"OP_INSTANCE_UID="+r.uid,
 		"OP_ORGANISM_UID="+c.roles["A"].uid,
-		"OP_ORGANISM_SLUG="+slug,
+		"OP_ORGANISM_SLUG="+c.roles["A"].slug,
 		"OP_PROM_ADDR=127.0.0.1:0",
 	)
 	cmd.Stderr = &r.stderr
@@ -444,7 +596,7 @@ func (c *cascade) startRole(r *roleRuntime) error {
 		r.cmd = cmd
 	}
 
-	meta, err := waitMeta(c.runRoot, r.uid, 10*time.Second)
+	meta, err := waitMeta(c.runRoot, r.slug, r.uid, 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("wait %s meta: %w; stderr=%s", r.role, err, r.stderr.String())
 	}
@@ -459,6 +611,19 @@ func (c *cascade) startRole(r *roleRuntime) error {
 		return fmt.Errorf("describe %s: %w; stderr=%s", r.role, err, r.stderr.String())
 	}
 	return nil
+}
+
+func childRole(role string) string {
+	switch role {
+	case "A":
+		return "B"
+	case "B":
+		return "C"
+	case "C":
+		return "D"
+	default:
+		return ""
+	}
 }
 
 func (c *cascade) stop() {
@@ -587,13 +752,14 @@ func (c *cascade) checkMetric(previous float64) (checkResult, float64) {
 }
 
 func (c *cascade) checkChain(chain []*holonsv1.ChainHop) error {
-	want := []string{c.roles["D"].uid, c.roles["C"].uid, c.roles["B"].uid}
-	if len(chain) < len(want) {
-		return fmt.Errorf("chain length %d < %d", len(chain), len(want))
+	wantRoles := []string{"D", "C", "B"}
+	if len(chain) < len(wantRoles) {
+		return fmt.Errorf("chain length %d < %d", len(chain), len(wantRoles))
 	}
-	for i, uid := range want {
-		if chain[i].GetSlug() != slug || chain[i].GetInstanceUid() != uid {
-			return fmt.Errorf("hop %d = %s/%s, want %s/%s", i, chain[i].GetSlug(), chain[i].GetInstanceUid(), slug, uid)
+	for i, role := range wantRoles {
+		want := c.roles[role]
+		if chain[i].GetSlug() != want.slug || chain[i].GetInstanceUid() != want.uid {
+			return fmt.Errorf("hop %d = %s/%s, want %s/%s", i, chain[i].GetSlug(), chain[i].GetInstanceUid(), want.slug, want.uid)
 		}
 	}
 	return nil
@@ -755,7 +921,7 @@ func waitForEvery(timeout, interval time.Duration, fn func() checkResult) checkR
 	}
 }
 
-func waitMeta(runRoot, uid string, timeout time.Duration) (observability.MetaJSON, error) {
+func waitMeta(runRoot, slug, uid string, timeout time.Duration) (observability.MetaJSON, error) {
 	deadline := time.Now().Add(timeout)
 	dir := filepath.Join(runRoot, slug, uid)
 	for {
@@ -850,17 +1016,22 @@ func parseCascadeTicks(body, uid string) (float64, bool) {
 }
 
 func findCascadeNodeBinary() (string, error) {
-	if override := strings.TrimSpace(os.Getenv("CASCADE_NODE_GO_BIN")); override != "" {
+	return findHolonBinary(goSlug)
+}
+
+func findHolonBinary(slug string) (string, error) {
+	envName := "CASCADE_NODE_" + strings.ToUpper(strings.TrimPrefix(slug, "cascade-node-")) + "_BIN"
+	if override := strings.TrimSpace(os.Getenv(envName)); override != "" {
 		return override, nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	root := filepath.Join(home, ".op", "bin", "cascade-node-go.holon", "bin")
+	root := filepath.Join(home, ".op", "bin", slug+".holon", "bin")
 	var found string
 	err = filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
-		if walkErr != nil || d.IsDir() || d.Name() != "cascade-node-go" {
+		if walkErr != nil || d.IsDir() || d.Name() != slug {
 			return walkErr
 		}
 		info, err := d.Info()
@@ -879,7 +1050,7 @@ func findCascadeNodeBinary() (string, error) {
 		return "", err
 	}
 	if found == "" {
-		return "", fmt.Errorf("cascade-node-go binary not found under %s; run op build cascade-node-go --install", root)
+		return "", fmt.Errorf("%s binary not found under %s; run op build %s --install", slug, root, slug)
 	}
 	return found, nil
 }
@@ -900,6 +1071,48 @@ func printFailureEvidence(family string, result checkResult) {
 		evidence = "<empty>"
 	}
 	fmt.Printf("    %s evidence: %s\n", family, evidence)
+}
+
+func failureSummary(result tickOutcome) string {
+	families := make([]string, 0, 3)
+	if !result.log.pass {
+		families = append(families, "log family")
+	}
+	if !result.event.pass {
+		families = append(families, "event family")
+	}
+	if !result.metric.pass {
+		families = append(families, "metric family")
+	}
+	if len(families) == 0 {
+		return "unknown"
+	}
+	return strings.Join(families, ", ")
+}
+
+func compactEvidence(result tickOutcome) string {
+	parts := make([]string, 0, 3)
+	if !result.log.pass {
+		parts = append(parts, "log="+truncateEvidence(result.log.evidence))
+	}
+	if !result.event.pass {
+		parts = append(parts, "event="+truncateEvidence(result.event.evidence))
+	}
+	if !result.metric.pass {
+		parts = append(parts, "metric="+truncateEvidence(result.metric.evidence))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func truncateEvidence(value string) string {
+	value = strings.Join(strings.Fields(value), " ")
+	if value == "" {
+		return "<empty>"
+	}
+	if len(value) <= 240 {
+		return value
+	}
+	return value[:240] + "..."
 }
 
 func errorText(err error) string {
