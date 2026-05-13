@@ -3,9 +3,14 @@
 
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
+using Grpc.Net.Client;
 using System.Collections.Concurrent;
+using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 
 namespace Holons.Observability;
 
@@ -612,6 +617,29 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
                 continue;
             await responseStream.WriteAsync(ToProtoLogEntry(entry)).ConfigureAwait(false);
         }
+
+        if (!request.Follow)
+            return;
+
+        var queue = Channel.CreateUnbounded<LogEntry>();
+        using var subscription = _obs.LogRing.Subscribe(entry => queue.Writer.TryWrite(entry));
+        try
+        {
+            await foreach (var entry in queue.Reader.ReadAllAsync(context.CancellationToken).ConfigureAwait(false))
+            {
+                if ((int)entry.Level < minLevel)
+                    continue;
+                if (request.SessionIds.Count > 0 && !request.SessionIds.Contains(entry.SessionId))
+                    continue;
+                if (request.RpcMethods.Count > 0 && !request.RpcMethods.Contains(entry.RpcMethod))
+                    continue;
+                await responseStream.WriteAsync(ToProtoLogEntry(entry)).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Client closed the follow stream.
+        }
     }
 
     public override Task<global::Holons.V1.MetricsSnapshot> Metrics(
@@ -652,6 +680,25 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
             if (wanted.Count > 0 && !wanted.Contains((int)ev.Type))
                 continue;
             await responseStream.WriteAsync(ToProtoEvent(ev)).ConfigureAwait(false);
+        }
+
+        if (!request.Follow)
+            return;
+
+        var queue = Channel.CreateUnbounded<Event>();
+        using var subscription = _obs.EventBus.Subscribe(ev => queue.Writer.TryWrite(ev));
+        try
+        {
+            await foreach (var ev in queue.Reader.ReadAllAsync(context.CancellationToken).ConfigureAwait(false))
+            {
+                if (wanted.Count > 0 && !wanted.Contains((int)ev.Type))
+                    continue;
+                await responseStream.WriteAsync(ToProtoEvent(ev)).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Client closed the follow stream.
         }
     }
 
@@ -753,6 +800,418 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
         {
             Slug = hop.Slug,
             InstanceUid = hop.InstanceUid,
+        };
+
+    internal static LogEntry FromProtoLogEntry(global::Holons.V1.LogEntry entry) =>
+        new()
+        {
+            Timestamp = entry.Ts?.ToDateTime() ?? DateTime.UtcNow,
+            Level = (Level)entry.Level,
+            Slug = entry.Slug,
+            InstanceUid = entry.InstanceUid,
+            SessionId = entry.SessionId,
+            RpcMethod = entry.RpcMethod,
+            Message = entry.Message,
+            Fields = entry.Fields.ToDictionary(pair => pair.Key, pair => pair.Value),
+            Caller = entry.Caller,
+            Chain = entry.Chain.Select(FromProtoHop).ToList(),
+        };
+
+    internal static Event FromProtoEvent(global::Holons.V1.EventInfo ev) =>
+        new()
+        {
+            Timestamp = ev.Ts?.ToDateTime() ?? DateTime.UtcNow,
+            Type = (EventType)ev.Type,
+            Slug = ev.Slug,
+            InstanceUid = ev.InstanceUid,
+            SessionId = ev.SessionId,
+            Payload = ev.Payload.ToDictionary(pair => pair.Key, pair => pair.Value),
+            Chain = ev.Chain.Select(FromProtoHop).ToList(),
+        };
+
+    private static Hop FromProtoHop(global::Holons.V1.ChainHop hop) =>
+        new(hop.Slug, hop.InstanceUid);
+}
+
+internal static class PrometheusText
+{
+    public static string Render(Observability obs)
+    {
+        var registry = obs.Registry;
+        if (registry is null)
+            return "";
+
+        var sb = new StringBuilder();
+        foreach (var counter in registry.Counters)
+        {
+            AppendHelpType(sb, counter.Name, counter.Help, "counter");
+            sb.Append(counter.Name).Append(FormatLabels(WithIdentityLabels(obs, counter.Labels))).Append(' ')
+                .Append(counter.Value.ToString(CultureInfo.InvariantCulture)).Append('\n');
+        }
+        foreach (var gauge in registry.Gauges)
+        {
+            AppendHelpType(sb, gauge.Name, gauge.Help, "gauge");
+            sb.Append(gauge.Name).Append(FormatLabels(WithIdentityLabels(obs, gauge.Labels))).Append(' ')
+                .Append(gauge.Value.ToString("G17", CultureInfo.InvariantCulture)).Append('\n');
+        }
+        foreach (var histogram in registry.Histograms)
+        {
+            AppendHelpType(sb, histogram.Name, histogram.Help, "histogram");
+            var snapshot = histogram.Snapshot();
+            var labels = WithIdentityLabels(obs, histogram.Labels);
+            for (var i = 0; i < snapshot.Bounds.Count; i++)
+            {
+                var bucketLabels = new Dictionary<string, string>(labels)
+                {
+                    ["le"] = snapshot.Bounds[i].ToString("G17", CultureInfo.InvariantCulture),
+                };
+                sb.Append(histogram.Name).Append("_bucket").Append(FormatLabels(bucketLabels)).Append(' ')
+                    .Append(snapshot.Counts[i].ToString(CultureInfo.InvariantCulture)).Append('\n');
+            }
+            var infLabels = new Dictionary<string, string>(labels) { ["le"] = "+Inf" };
+            sb.Append(histogram.Name).Append("_bucket").Append(FormatLabels(infLabels)).Append(' ')
+                .Append(snapshot.Total.ToString(CultureInfo.InvariantCulture)).Append('\n');
+            sb.Append(histogram.Name).Append("_sum").Append(FormatLabels(labels)).Append(' ')
+                .Append(snapshot.Sum.ToString("G17", CultureInfo.InvariantCulture)).Append('\n');
+            sb.Append(histogram.Name).Append("_count").Append(FormatLabels(labels)).Append(' ')
+                .Append(snapshot.Total.ToString(CultureInfo.InvariantCulture)).Append('\n');
+        }
+        return sb.ToString();
+    }
+
+    private static void AppendHelpType(StringBuilder sb, string name, string help, string type)
+    {
+        if (!string.IsNullOrEmpty(help))
+            sb.Append("# HELP ").Append(name).Append(' ').Append(EscapeHelp(help)).Append('\n');
+        sb.Append("# TYPE ").Append(name).Append(' ').Append(type).Append('\n');
+    }
+
+    private static IReadOnlyDictionary<string, string> WithIdentityLabels(
+        Observability obs,
+        IReadOnlyDictionary<string, string> labels)
+    {
+        var result = new Dictionary<string, string>(labels);
+        if (!string.IsNullOrEmpty(obs.Config.Slug))
+            result.TryAdd("slug", obs.Config.Slug);
+        if (!string.IsNullOrEmpty(obs.Config.InstanceUid))
+            result.TryAdd("instance_uid", obs.Config.InstanceUid);
+        return result;
+    }
+
+    private static string FormatLabels(IReadOnlyDictionary<string, string> labels)
+    {
+        if (labels.Count == 0)
+            return "";
+
+        var parts = labels
+            .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+            .Select(pair => $"{pair.Key}=\"{EscapeLabelValue(pair.Value)}\"");
+        return "{" + string.Join(",", parts) + "}";
+    }
+
+    private static string EscapeHelp(string value) =>
+        value.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\n", "\\n", StringComparison.Ordinal);
+
+    private static string EscapeLabelValue(string value) =>
+        value.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\n", "\\n", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal);
+}
+
+internal sealed class PrometheusServer : IDisposable
+{
+    private readonly Observability _obs;
+    private readonly TcpListener _listener;
+    private readonly CancellationTokenSource _cts = new();
+    private readonly Task _task;
+
+    private PrometheusServer(Observability obs, TcpListener listener, string address)
+    {
+        _obs = obs;
+        _listener = listener;
+        Address = address;
+        _task = Task.Run(RunAsync);
+    }
+
+    public string Address { get; }
+
+    public static PrometheusServer Start(Observability obs, string bind)
+    {
+        var (ip, advertisedHost, port) = ParseBind(bind);
+        var listener = new TcpListener(ip, port);
+        listener.Start();
+        var actualPort = ((IPEndPoint)listener.LocalEndpoint).Port;
+        return new PrometheusServer(obs, listener, $"http://{advertisedHost}:{actualPort}/metrics");
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        try { _listener.Stop(); } catch { }
+        try { _task.Wait(TimeSpan.FromSeconds(2)); } catch { }
+        _cts.Dispose();
+    }
+
+    private async Task RunAsync()
+    {
+        while (!_cts.IsCancellationRequested)
+        {
+            TcpClient? client = null;
+            try
+            {
+                client = await _listener.AcceptTcpClientAsync(_cts.Token).ConfigureAwait(false);
+                _ = Task.Run(() => HandleAsync(client, _cts.Token));
+            }
+            catch (OperationCanceledException)
+            {
+                client?.Dispose();
+                break;
+            }
+            catch
+            {
+                client?.Dispose();
+                if (!_cts.IsCancellationRequested)
+                    await Task.Delay(100, _cts.Token).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async Task HandleAsync(TcpClient client, CancellationToken ct)
+    {
+        using var ownedClient = client;
+        try
+        {
+            await using var stream = ownedClient.GetStream();
+            using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
+            string? line;
+            var requestLine = await reader.ReadLineAsync(ct).ConfigureAwait(false) ?? "";
+            while (!string.IsNullOrEmpty(line = await reader.ReadLineAsync(ct).ConfigureAwait(false))) { }
+
+            var ok = requestLine.StartsWith("GET /metrics ", StringComparison.Ordinal)
+                || requestLine.StartsWith("GET / ", StringComparison.Ordinal);
+            var status = ok ? "200 OK" : "404 Not Found";
+            var body = ok ? PrometheusText.Render(_obs) : "not found\n";
+            var bodyBytes = Encoding.UTF8.GetBytes(body);
+            var header = Encoding.ASCII.GetBytes(
+                "HTTP/1.1 " + status + "\r\n" +
+                "Content-Type: text/plain; version=0.0.4; charset=utf-8\r\n" +
+                "Content-Length: " + bodyBytes.Length.ToString(CultureInfo.InvariantCulture) + "\r\n" +
+                "Connection: close\r\n\r\n");
+            await stream.WriteAsync(header, ct).ConfigureAwait(false);
+            await stream.WriteAsync(bodyBytes, ct).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Best effort HTTP endpoint for local diagnostics.
+        }
+    }
+
+    private static (IPAddress Ip, string AdvertisedHost, int Port) ParseBind(string bind)
+    {
+        var raw = string.IsNullOrWhiteSpace(bind) ? "127.0.0.1:0" : bind.Trim();
+        if (raw.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            var uri = new Uri(raw);
+            raw = $"{uri.Host}:{uri.Port}";
+        }
+
+        var split = raw.LastIndexOf(':');
+        var host = split > 0 ? raw[..split] : "127.0.0.1";
+        var portRaw = split > 0 ? raw[(split + 1)..] : raw;
+        var port = int.TryParse(portRaw, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedPort)
+            ? parsedPort
+            : 0;
+        var ip = host switch
+        {
+            "" or "0.0.0.0" or "*" => IPAddress.Any,
+            "::" => IPAddress.IPv6Any,
+            _ when IPAddress.TryParse(host, out var parsedIp) => parsedIp,
+            _ => Dns.GetHostAddresses(host).First(),
+        };
+        var advertised = host switch
+        {
+            "" or "0.0.0.0" or "*" => "127.0.0.1",
+            "::" => "::1",
+            _ => host,
+        };
+        return (ip, advertised, port);
+    }
+}
+
+internal sealed record MemberIdentity(string Slug, string InstanceUid);
+
+public sealed class MemberRelay : IAsyncDisposable, IDisposable
+{
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(2);
+    private readonly Observability _obs;
+    private readonly string _memberSlug;
+    private readonly string _address;
+    private readonly Action<string> _logger;
+    private readonly CancellationTokenSource _cts = new();
+    private readonly List<Task> _tasks = new();
+
+    public MemberRelay(Observability obs, string memberSlug, string address, Action<string>? logger = null)
+    {
+        _obs = obs;
+        _memberSlug = memberSlug;
+        _address = address;
+        _logger = logger ?? (_ => { });
+    }
+
+    public void Start()
+    {
+        if (_obs.Enabled(Family.Logs) && _obs.LogRing is not null)
+            _tasks.Add(Task.Run(() => PumpLogsAsync(_cts.Token)));
+        if (_obs.Enabled(Family.Events) && _obs.EventBus is not null)
+            _tasks.Add(Task.Run(() => PumpEventsAsync(_cts.Token)));
+    }
+
+    public void Dispose()
+    {
+        DisposeAsync().AsTask().GetAwaiter().GetResult();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _cts.Cancel();
+        try { await Task.WhenAll(_tasks).WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false); } catch { }
+        _cts.Dispose();
+    }
+
+    private async Task PumpLogsAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            GrpcChannel? channel = null;
+            try
+            {
+                channel = global::Holons.Connect.ConnectTarget(_address, new global::Holons.Connect.ConnectOptions { Timeout = TimeSpan.FromSeconds(5), Start = false });
+                var identity = await ResolveIdentityAsync(channel, ct).ConfigureAwait(false);
+                var client = new global::Holons.V1.HolonObservability.HolonObservabilityClient(channel);
+                using var call = client.Logs(
+                    new global::Holons.V1.LogsRequest
+                    {
+                        MinLevel = global::Holons.V1.LogLevel.Info,
+                        Follow = true,
+                    },
+                    cancellationToken: ct);
+                while (await call.ResponseStream.MoveNext(ct).ConfigureAwait(false))
+                {
+                    var entry = ObservabilityGrpcService.FromProtoLogEntry(call.ResponseStream.Current);
+                    _obs.LogRing?.Push(EnrichLog(entry, identity));
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception error)
+            {
+                _logger($"member relay logs {_memberSlug}: {error.Message}");
+            }
+            finally
+            {
+                global::Holons.Connect.Disconnect(channel);
+            }
+
+            await RetryAsync(ct).ConfigureAwait(false);
+        }
+    }
+
+    private async Task PumpEventsAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            GrpcChannel? channel = null;
+            try
+            {
+                channel = global::Holons.Connect.ConnectTarget(_address, new global::Holons.Connect.ConnectOptions { Timeout = TimeSpan.FromSeconds(5), Start = false });
+                var identity = await ResolveIdentityAsync(channel, ct).ConfigureAwait(false);
+                var client = new global::Holons.V1.HolonObservability.HolonObservabilityClient(channel);
+                using var call = client.Events(
+                    new global::Holons.V1.EventsRequest { Follow = true },
+                    cancellationToken: ct);
+                while (await call.ResponseStream.MoveNext(ct).ConfigureAwait(false))
+                {
+                    var ev = ObservabilityGrpcService.FromProtoEvent(call.ResponseStream.Current);
+                    _obs.EventBus?.Emit(EnrichEvent(ev, identity));
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception error)
+            {
+                _logger($"member relay events {_memberSlug}: {error.Message}");
+            }
+            finally
+            {
+                global::Holons.Connect.Disconnect(channel);
+            }
+
+            await RetryAsync(ct).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<MemberIdentity> ResolveIdentityAsync(GrpcChannel channel, CancellationToken ct)
+    {
+        var client = new global::Holons.V1.HolonObservability.HolonObservabilityClient(channel);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        using var call = client.Events(new global::Holons.V1.EventsRequest(), cancellationToken: timeout.Token);
+        try
+        {
+            while (await call.ResponseStream.MoveNext(timeout.Token).ConfigureAwait(false))
+            {
+                var ev = call.ResponseStream.Current;
+                if (ev.Type == global::Holons.V1.EventType.InstanceReady && !string.IsNullOrEmpty(ev.InstanceUid))
+                {
+                    var slug = string.IsNullOrEmpty(ev.Slug) ? _memberSlug : ev.Slug;
+                    return new MemberIdentity(slug, ev.InstanceUid);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // Fall back below when the member has no ready event yet.
+        }
+
+        return new MemberIdentity(_memberSlug, "");
+    }
+
+    private static async Task RetryAsync(CancellationToken ct)
+    {
+        try { await Task.Delay(RetryDelay, ct).ConfigureAwait(false); }
+        catch (OperationCanceledException) { }
+    }
+
+    private static LogEntry EnrichLog(LogEntry entry, MemberIdentity identity) =>
+        new()
+        {
+            Timestamp = entry.Timestamp,
+            Level = entry.Level,
+            Slug = entry.Slug,
+            InstanceUid = entry.InstanceUid,
+            SessionId = entry.SessionId,
+            RpcMethod = entry.RpcMethod,
+            Message = entry.Message,
+            Fields = entry.Fields,
+            Caller = entry.Caller,
+            Chain = Chain.EnrichForMultilog(entry.Chain, identity.Slug, identity.InstanceUid),
+        };
+
+    private static Event EnrichEvent(Event ev, MemberIdentity identity) =>
+        new()
+        {
+            Timestamp = ev.Timestamp,
+            Type = ev.Type,
+            Slug = ev.Slug,
+            InstanceUid = ev.InstanceUid,
+            SessionId = ev.SessionId,
+            Payload = ev.Payload,
+            Chain = Chain.EnrichForMultilog(ev.Chain, identity.Slug, identity.InstanceUid),
         };
 }
 
