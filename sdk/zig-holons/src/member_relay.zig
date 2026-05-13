@@ -3,7 +3,7 @@ const grpc_client = @import("grpc/client.zig");
 const observability = @import("observability.zig");
 const runtime = @import("protobuf/runtime.zig");
 
-const STREAM_TIMEOUT_MS = 5_000;
+const STREAM_TIMEOUT_MS = 2_000;
 const RESOLVE_TIMEOUT_MS = 5_000;
 const RESOLVE_ATTEMPT_TIMEOUT_MS = 1_000;
 const RETRY_BACKOFF_MS = 100;
