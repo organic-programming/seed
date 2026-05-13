@@ -188,6 +188,66 @@ test('HolonObservability handlers replay logs, metrics, and events', async () =>
   assert.deepEqual(events.writes.map((event) => event.type), ['INSTANCE_READY']);
 });
 
+test('Prometheus exposition includes injected runtime labels', async () => {
+  process.env.OP_OBS = 'all';
+  const o = obs.configure({ slug: 'node-prom', instanceUid: 'uid-prom' });
+  o.counter('cascade_ticks_total', 'Ticks received by this cascade node.', { responder_uid: 'uid-prom' }).inc();
+
+  const text = obs.toPrometheusText(o);
+  assert.match(text, /# HELP cascade_ticks_total Ticks received by this cascade node\./);
+  assert.ok(text.includes('cascade_ticks_total{instance_uid="uid-prom",responder_uid="uid-prom",slug="node-prom"} 1'));
+
+  const prom = new obs.PromServer('127.0.0.1:0');
+  try {
+    const addr = await prom.start();
+    const body = await httpGet(addr);
+    assert.match(body, /cascade_ticks_total/);
+  } finally {
+    await prom.close();
+  }
+});
+
+test('MemberRelay forwards logs and events with child chain hop', () => {
+  process.env.OP_OBS = 'logs,events';
+  const parent = obs.configure({ slug: 'parent-node', instanceUid: 'parent-uid' });
+  const logStream = new EventEmitter();
+  const eventStream = new EventEmitter();
+  logStream.cancel = () => {};
+  eventStream.cancel = () => {};
+  const relay = new obs.MemberRelay({
+    childSlug: 'child-node',
+    childUid: 'child-uid',
+    client: {
+      Logs() { return logStream; },
+      Events() { return eventStream; },
+    },
+    observability: parent,
+    retryDelayMs: 10,
+  });
+  relay.start();
+  logStream.emit('data', {
+    ts: { seconds: '1', nanos: 0 },
+    level: 'INFO',
+    slug: 'child-node',
+    instance_uid: 'child-uid',
+    message: 'relay-log',
+    fields: {},
+    chain: [],
+  });
+  eventStream.emit('data', {
+    ts: { seconds: '1', nanos: 0 },
+    type: 'INSTANCE_READY',
+    slug: 'child-node',
+    instance_uid: 'child-uid',
+    payload: {},
+    chain: [],
+  });
+  relay.stop();
+
+  assert.deepEqual(parent.logRing.drain()[0].chain, [{ slug: 'child-node', instance_uid: 'child-uid' }]);
+  assert.deepEqual(parent.eventBus.drain()[0].chain, [{ slug: 'child-node', instance_uid: 'child-uid' }]);
+});
+
 test('serve auto-registers HolonObservability when OP_OBS is set', async (t) => {
   if (!await canListenOnLoopback()) {
     t.skip('socket bind not permitted in this environment');
@@ -292,5 +352,17 @@ function collectStream(method, request) {
 function unary(method, request) {
   return new Promise((resolve, reject) => {
     method(request, (err, out) => (err ? reject(err) : resolve(out || {})));
+  });
+}
+
+function httpGet(addr) {
+  return new Promise((resolve, reject) => {
+    const req = require('node:http').get(addr, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => resolve(body));
+    });
+    req.on('error', reject);
   });
 }
