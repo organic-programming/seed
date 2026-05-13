@@ -1,4 +1,15 @@
 const std = @import("std");
+const grpc_server = @import("grpc/server.zig");
+const runtime = @import("protobuf/runtime.zig");
+
+const c = runtime.c;
+
+const net_c = @cImport({
+    @cInclude("arpa/inet.h");
+    @cInclude("netinet/in.h");
+    @cInclude("sys/socket.h");
+    @cInclude("unistd.h");
+});
 
 pub const Family = enum {
     logs,
@@ -768,6 +779,561 @@ pub const Observability = struct {
         if (self.event_bus) |*bus| bus.close();
     }
 };
+
+const service_methods = [_]grpc_server.Method{
+    .{ .path = "/holons.v1.HolonObservability/Logs", .stream_handler = logsHandler },
+    .{ .path = "/holons.v1.HolonObservability/Metrics", .handler = metricsHandler },
+    .{ .path = "/holons.v1.HolonObservability/Events", .stream_handler = eventsHandler },
+};
+
+pub fn serviceMethods() []const grpc_server.Method {
+    return service_methods[0..];
+}
+
+fn logsHandler(allocator: std.mem.Allocator, request_bytes: []const u8, stream: *grpc_server.ServerStream) !void {
+    const obs = current() orelse return error.ObservabilityNotConfigured;
+    if (!obs.enabled(.logs)) return error.LogsFamilyDisabled;
+    const ring = &(obs.log_ring orelse return error.LogsFamilyDisabled);
+    const request = c.holons__v1__logs_request__unpack(null, request_bytes.len, request_bytes.ptr) orelse
+        return error.DecodeLogsRequestFailed;
+    defer c.holons__v1__logs_request__free_unpacked(request, null);
+
+    const min_level = if (request.*.min_level == c.HOLONS__V1__LOG_LEVEL__LOG_LEVEL_UNSPECIFIED)
+        @intFromEnum(Level.info)
+    else
+        @as(i32, @intCast(request.*.min_level));
+    var last_seen_ns: i128 = 0;
+    try sendLogEntries(allocator, ring, request, min_level, stream, &last_seen_ns, cutoffFromDuration(request.*.since));
+
+    while (request.*.follow != 0 and !stream.cancelled()) {
+        sleepMillis(25);
+        try sendLogEntries(allocator, ring, request, min_level, stream, &last_seen_ns, if (last_seen_ns == 0) null else last_seen_ns + 1);
+    }
+}
+
+fn metricsHandler(allocator: std.mem.Allocator, request_bytes: []const u8) ![]u8 {
+    const obs = current() orelse return error.ObservabilityNotConfigured;
+    if (!obs.enabled(.metrics)) return error.MetricsFamilyDisabled;
+    const registry = &(obs.registry orelse return error.MetricsFamilyDisabled);
+    const request = c.holons__v1__metrics_request__unpack(null, request_bytes.len, request_bytes.ptr) orelse
+        return error.DecodeMetricsRequestFailed;
+    defer c.holons__v1__metrics_request__free_unpacked(request, null);
+    return packMetricsSnapshot(allocator, obs, registry, request);
+}
+
+fn eventsHandler(allocator: std.mem.Allocator, request_bytes: []const u8, stream: *grpc_server.ServerStream) !void {
+    const obs = current() orelse return error.ObservabilityNotConfigured;
+    if (!obs.enabled(.events)) return error.EventsFamilyDisabled;
+    const bus = &(obs.event_bus orelse return error.EventsFamilyDisabled);
+    const request = c.holons__v1__events_request__unpack(null, request_bytes.len, request_bytes.ptr) orelse
+        return error.DecodeEventsRequestFailed;
+    defer c.holons__v1__events_request__free_unpacked(request, null);
+
+    var last_seen_ns: i128 = 0;
+    try sendEvents(allocator, bus, request, stream, &last_seen_ns, cutoffFromDuration(request.*.since));
+
+    while (request.*.follow != 0 and !stream.cancelled()) {
+        sleepMillis(25);
+        try sendEvents(allocator, bus, request, stream, &last_seen_ns, if (last_seen_ns == 0) null else last_seen_ns + 1);
+    }
+}
+
+fn sendLogEntries(
+    allocator: std.mem.Allocator,
+    ring: *LogRing,
+    request: *c.Holons__V1__LogsRequest,
+    min_level: i32,
+    stream: *grpc_server.ServerStream,
+    last_seen_ns: *i128,
+    cutoff_ns: ?i128,
+) !void {
+    const entries = if (cutoff_ns) |cutoff| try ring.drainSince(allocator, cutoff) else try ring.drain(allocator);
+    defer freeLogEntries(allocator, entries);
+    for (entries) |entry| {
+        if (entry.timestamp_ns <= last_seen_ns.*) continue;
+        if (!matchesLogRequest(entry, request, min_level)) continue;
+        const encoded = try packLogEntry(allocator, entry);
+        defer allocator.free(encoded);
+        try stream.send(encoded);
+        if (entry.timestamp_ns > last_seen_ns.*) last_seen_ns.* = entry.timestamp_ns;
+    }
+}
+
+fn sendEvents(
+    allocator: std.mem.Allocator,
+    bus: *EventBus,
+    request: *c.Holons__V1__EventsRequest,
+    stream: *grpc_server.ServerStream,
+    last_seen_ns: *i128,
+    cutoff_ns: ?i128,
+) !void {
+    const events = if (cutoff_ns) |cutoff| try bus.drainSince(allocator, cutoff) else try bus.drain(allocator);
+    defer freeEventsSlice(allocator, events);
+    for (events) |event| {
+        if (event.timestamp_ns <= last_seen_ns.*) continue;
+        if (!matchesEventRequest(event, request)) continue;
+        const encoded = try packEventInfo(allocator, event);
+        defer allocator.free(encoded);
+        try stream.send(encoded);
+        if (event.timestamp_ns > last_seen_ns.*) last_seen_ns.* = event.timestamp_ns;
+    }
+}
+
+fn matchesLogRequest(entry: LogEntry, request: *c.Holons__V1__LogsRequest, min_level: i32) bool {
+    if (@intFromEnum(entry.level) < min_level) return false;
+    if (request.*.n_session_ids != 0 and !containsCStr(request.*.session_ids, request.*.n_session_ids, entry.session_id)) return false;
+    if (request.*.n_rpc_methods != 0 and !containsCStr(request.*.rpc_methods, request.*.n_rpc_methods, entry.rpc_method)) return false;
+    return true;
+}
+
+fn matchesEventRequest(event: Event, request: *c.Holons__V1__EventsRequest) bool {
+    if (request.*.n_types == 0) return true;
+    for (request.*.types[0..request.*.n_types]) |wanted| {
+        if (@as(i32, @intCast(wanted)) == @intFromEnum(event.event_type)) return true;
+    }
+    return false;
+}
+
+fn containsCStr(values: [*c][*c]u8, len: usize, needle: []const u8) bool {
+    for (values[0..len]) |value| {
+        if (std.mem.eql(u8, cstr(value), needle)) return true;
+    }
+    return false;
+}
+
+fn cutoffFromDuration(duration: ?*c.Google__Protobuf__Duration) ?i128 {
+    const value = duration orelse return null;
+    const seconds = @max(value.*.seconds, 0);
+    const nanos = @max(value.*.nanos, 0);
+    return nowNs() - (@as(i128, @intCast(seconds)) * std.time.ns_per_s + @as(i128, @intCast(nanos)));
+}
+
+fn packLogEntry(allocator: std.mem.Allocator, entry: LogEntry) ![]u8 {
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var msg: c.Holons__V1__LogEntry = undefined;
+    c.holons__v1__log_entry__init(&msg);
+    var ts: c.Google__Protobuf__Timestamp = undefined;
+    fillTimestamp(&ts, entry.timestamp_ns);
+    msg.ts = &ts;
+    msg.level = logLevelToProto(entry.level);
+    msg.slug = try z(a, entry.slug);
+    msg.instance_uid = try z(a, entry.instance_uid);
+    msg.session_id = try z(a, entry.session_id);
+    msg.rpc_method = try z(a, entry.rpc_method);
+    msg.message = try z(a, entry.message);
+    msg.caller = try z(a, entry.caller);
+    try fillLogFields(a, &msg, entry.fields);
+    try fillLogChain(a, &msg, entry.chain);
+    return packProto(allocator, &msg.base, c.holons__v1__log_entry__get_packed_size(&msg));
+}
+
+fn packEventInfo(allocator: std.mem.Allocator, event: Event) ![]u8 {
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var msg: c.Holons__V1__EventInfo = undefined;
+    c.holons__v1__event_info__init(&msg);
+    var ts: c.Google__Protobuf__Timestamp = undefined;
+    fillTimestamp(&ts, event.timestamp_ns);
+    msg.ts = &ts;
+    msg.type = eventTypeToProto(event.event_type);
+    msg.slug = try z(a, event.slug);
+    msg.instance_uid = try z(a, event.instance_uid);
+    msg.session_id = try z(a, event.session_id);
+    try fillEventPayload(a, &msg, event.payload);
+    try fillEventChain(a, &msg, event.chain);
+    return packProto(allocator, &msg.base, c.holons__v1__event_info__get_packed_size(&msg));
+}
+
+fn packMetricsSnapshot(
+    allocator: std.mem.Allocator,
+    obs: *Observability,
+    registry: *Registry,
+    request: *c.Holons__V1__MetricsRequest,
+) ![]u8 {
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    registry.mutex.lockUncancelable(std.Options.debug_io);
+    defer registry.mutex.unlock(std.Options.debug_io);
+
+    var sample_count: usize = 0;
+    for (registry.counters.items) |counter| {
+        if (metricAllowed(request, counter.name)) sample_count += 1;
+    }
+    for (registry.gauges.items) |gauge| {
+        if (metricAllowed(request, gauge.name)) sample_count += 1;
+    }
+    for (registry.histograms.items) |histogram| {
+        if (metricAllowed(request, histogram.name)) sample_count += 1;
+    }
+
+    var samples = try a.alloc(c.Holons__V1__MetricSample, sample_count);
+    var sample_ptrs = try a.alloc([*c]c.Holons__V1__MetricSample, sample_count);
+    var index: usize = 0;
+
+    for (registry.counters.items) |*counter| {
+        if (!metricAllowed(request, counter.name)) continue;
+        c.holons__v1__metric_sample__init(&samples[index]);
+        samples[index].name = try z(a, counter.name);
+        samples[index].help = try z(a, counter.help);
+        try fillMetricLabels(a, &samples[index], counter.labels);
+        samples[index].value_case = c.HOLONS__V1__METRIC_SAMPLE__VALUE_COUNTER;
+        samples[index].unnamed_0.counter = counter.read();
+        sample_ptrs[index] = &samples[index];
+        index += 1;
+    }
+    for (registry.gauges.items) |*gauge| {
+        if (!metricAllowed(request, gauge.name)) continue;
+        c.holons__v1__metric_sample__init(&samples[index]);
+        samples[index].name = try z(a, gauge.name);
+        samples[index].help = try z(a, gauge.help);
+        try fillMetricLabels(a, &samples[index], gauge.labels);
+        samples[index].value_case = c.HOLONS__V1__METRIC_SAMPLE__VALUE_GAUGE;
+        samples[index].unnamed_0.gauge = gauge.read();
+        sample_ptrs[index] = &samples[index];
+        index += 1;
+    }
+    for (registry.histograms.items) |*histogram| {
+        if (!metricAllowed(request, histogram.name)) continue;
+        const snapshot = try histogram.snapshot(a);
+        c.holons__v1__metric_sample__init(&samples[index]);
+        samples[index].name = try z(a, histogram.name);
+        samples[index].help = try z(a, histogram.help);
+        try fillMetricLabels(a, &samples[index], histogram.labels);
+        samples[index].value_case = c.HOLONS__V1__METRIC_SAMPLE__VALUE_HISTOGRAM;
+        const hist = try a.create(c.Holons__V1__HistogramSample);
+        c.holons__v1__histogram_sample__init(hist);
+        hist.count = snapshot.total;
+        hist.sum = snapshot.sum;
+        var buckets = try a.alloc(c.Holons__V1__Bucket, snapshot.bounds.len);
+        var bucket_ptrs = try a.alloc([*c]c.Holons__V1__Bucket, snapshot.bounds.len);
+        for (snapshot.bounds, 0..) |bound, bucket_index| {
+            c.holons__v1__bucket__init(&buckets[bucket_index]);
+            buckets[bucket_index].upper_bound = bound;
+            buckets[bucket_index].count = snapshot.counts[bucket_index];
+            bucket_ptrs[bucket_index] = &buckets[bucket_index];
+        }
+        hist.n_buckets = snapshot.bounds.len;
+        hist.buckets = bucket_ptrs.ptr;
+        samples[index].unnamed_0.histogram = hist;
+        sample_ptrs[index] = &samples[index];
+        index += 1;
+    }
+
+    var msg: c.Holons__V1__MetricsSnapshot = undefined;
+    c.holons__v1__metrics_snapshot__init(&msg);
+    var ts: c.Google__Protobuf__Timestamp = undefined;
+    fillTimestamp(&ts, nowNs());
+    msg.captured_at = &ts;
+    msg.slug = try z(a, obs.cfg.slug);
+    msg.instance_uid = try z(a, obs.cfg.instance_uid);
+    msg.n_samples = sample_count;
+    msg.samples = sample_ptrs.ptr;
+    return packProto(allocator, &msg.base, c.holons__v1__metrics_snapshot__get_packed_size(&msg));
+}
+
+fn metricAllowed(request: *c.Holons__V1__MetricsRequest, name: []const u8) bool {
+    if (request.*.n_name_prefixes == 0) return true;
+    for (request.*.name_prefixes[0..request.*.n_name_prefixes]) |prefix| {
+        if (std.mem.startsWith(u8, name, cstr(prefix))) return true;
+    }
+    return false;
+}
+
+pub fn prometheusText(allocator: std.mem.Allocator, registry: *Registry) ![]u8 {
+    var out: std.ArrayList(u8) = .empty;
+    errdefer out.deinit(allocator);
+
+    registry.mutex.lockUncancelable(std.Options.debug_io);
+    defer registry.mutex.unlock(std.Options.debug_io);
+
+    for (registry.counters.items) |*counter| {
+        if (counter.help.len != 0) try out.print(allocator, "# HELP {s} {s}\n", .{ counter.name, counter.help });
+        try out.print(allocator, "# TYPE {s} counter\n", .{counter.name});
+        try appendPromSample(&out, allocator, counter.name, counter.labels, @as(f64, @floatFromInt(counter.read())));
+    }
+    for (registry.gauges.items) |*gauge| {
+        if (gauge.help.len != 0) try out.print(allocator, "# HELP {s} {s}\n", .{ gauge.name, gauge.help });
+        try out.print(allocator, "# TYPE {s} gauge\n", .{gauge.name});
+        try appendPromSample(&out, allocator, gauge.name, gauge.labels, gauge.read());
+    }
+    for (registry.histograms.items) |*histogram| {
+        var snapshot = try histogram.snapshot(allocator);
+        defer snapshot.deinit(allocator);
+        if (histogram.help.len != 0) try out.print(allocator, "# HELP {s} {s}\n", .{ histogram.name, histogram.help });
+        try out.print(allocator, "# TYPE {s} histogram\n", .{histogram.name});
+        for (snapshot.bounds, 0..) |bound, index| {
+            const labels = try labelsWithLe(allocator, histogram.labels, bound);
+            defer freeLabels(allocator, labels);
+            const bucket_name = try std.fmt.allocPrint(allocator, "{s}_bucket", .{histogram.name});
+            defer allocator.free(bucket_name);
+            try appendPromSample(&out, allocator, bucket_name, labels, @as(f64, @floatFromInt(snapshot.counts[index])));
+        }
+        const count_name = try std.fmt.allocPrint(allocator, "{s}_count", .{histogram.name});
+        defer allocator.free(count_name);
+        try appendPromSample(&out, allocator, count_name, histogram.labels, @as(f64, @floatFromInt(snapshot.total)));
+        const sum_name = try std.fmt.allocPrint(allocator, "{s}_sum", .{histogram.name});
+        defer allocator.free(sum_name);
+        try appendPromSample(&out, allocator, sum_name, histogram.labels, snapshot.sum);
+    }
+    return out.toOwnedSlice(allocator);
+}
+
+pub fn startPrometheusEndpoint(obs: *Observability) !?[]u8 {
+    if (!obs.enabled(.prom)) return null;
+    const registry = &(obs.registry orelse return null);
+    const fd = net_c.socket(net_c.AF_INET, net_c.SOCK_STREAM, 0);
+    if (fd < 0) return error.SocketFailed;
+    errdefer _ = net_c.close(fd);
+
+    var yes: c_int = 1;
+    _ = net_c.setsockopt(fd, net_c.SOL_SOCKET, net_c.SO_REUSEADDR, &yes, @sizeOf(c_int));
+
+    var addr: net_c.struct_sockaddr_in = std.mem.zeroes(net_c.struct_sockaddr_in);
+    if (@hasField(net_c.struct_sockaddr_in, "sin_len")) addr.sin_len = @sizeOf(net_c.struct_sockaddr_in);
+    addr.sin_family = net_c.AF_INET;
+    addr.sin_port = 0;
+    addr.sin_addr.s_addr = net_c.htonl(0x7f000001);
+    if (obs.cfg.prom_addr.len != 0) {
+        const colon = std.mem.lastIndexOfScalar(u8, obs.cfg.prom_addr, ':') orelse return error.InvalidPrometheusAddress;
+        const port = try std.fmt.parseInt(u16, obs.cfg.prom_addr[colon + 1 ..], 10);
+        addr.sin_port = net_c.htons(port);
+    }
+    if (net_c.bind(fd, @ptrCast(&addr), @sizeOf(net_c.struct_sockaddr_in)) != 0) return error.BindFailed;
+    if (net_c.listen(fd, 16) != 0) return error.ListenFailed;
+
+    var len: net_c.socklen_t = @sizeOf(net_c.struct_sockaddr_in);
+    if (net_c.getsockname(fd, @ptrCast(&addr), &len) != 0) return error.GetSockNameFailed;
+    const port = net_c.ntohs(addr.sin_port);
+
+    const ctx = try obs.allocator.create(PrometheusContext);
+    ctx.* = .{ .obs = obs, .registry = registry, .fd = fd };
+    const worker = try std.Thread.spawn(.{}, prometheusWorker, .{ctx});
+    worker.detach();
+
+    return try std.fmt.allocPrint(obs.allocator, "http://127.0.0.1:{}/metrics", .{port});
+}
+
+const PrometheusContext = struct {
+    obs: *Observability,
+    registry: *Registry,
+    fd: c_int,
+};
+
+fn prometheusWorker(ctx: *PrometheusContext) void {
+    while (true) {
+        const client = net_c.accept(ctx.fd, null, null);
+        if (client < 0) break;
+        handlePrometheusClient(ctx, client) catch {};
+        _ = net_c.close(client);
+    }
+    _ = net_c.close(ctx.fd);
+    ctx.obs.allocator.destroy(ctx);
+}
+
+fn handlePrometheusClient(ctx: *PrometheusContext, client: c_int) !void {
+    var buf: [1024]u8 = undefined;
+    _ = net_c.read(client, &buf, buf.len);
+    const body = try prometheusText(ctx.obs.allocator, ctx.registry);
+    defer ctx.obs.allocator.free(body);
+    const response = try std.fmt.allocPrint(
+        ctx.obs.allocator,
+        "HTTP/1.1 200 OK\r\ncontent-type: text/plain; version=0.0.4\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{s}",
+        .{ body.len, body },
+    );
+    defer ctx.obs.allocator.free(response);
+    _ = net_c.write(client, response.ptr, response.len);
+}
+
+fn appendPromSample(out: *std.ArrayList(u8), allocator: std.mem.Allocator, name: []const u8, labels: []const Label, value: f64) !void {
+    try out.appendSlice(allocator, name);
+    try appendPromLabels(out, allocator, labels);
+    try out.print(allocator, " {d}\n", .{value});
+}
+
+fn appendPromLabels(out: *std.ArrayList(u8), allocator: std.mem.Allocator, labels: []const Label) !void {
+    if (labels.len == 0) return;
+    try out.append(allocator, '{');
+    for (labels, 0..) |label, index| {
+        if (index != 0) try out.append(allocator, ',');
+        const escaped = try promEscape(allocator, label.value);
+        defer allocator.free(escaped);
+        try out.print(allocator, "{s}=\"{s}\"", .{ label.key, escaped });
+    }
+    try out.append(allocator, '}');
+}
+
+fn promEscape(allocator: std.mem.Allocator, value: []const u8) ![]u8 {
+    var out: std.ArrayList(u8) = .empty;
+    errdefer out.deinit(allocator);
+    for (value) |ch| switch (ch) {
+        '\\' => try out.appendSlice(allocator, "\\\\"),
+        '\n' => try out.appendSlice(allocator, "\\n"),
+        '"' => try out.appendSlice(allocator, "\\\""),
+        else => try out.append(allocator, ch),
+    };
+    return out.toOwnedSlice(allocator);
+}
+
+fn labelsWithLe(allocator: std.mem.Allocator, labels: []const Label, bound: f64) ![]Label {
+    var out = try allocator.alloc(Label, labels.len + 1);
+    errdefer freeLabels(allocator, out);
+    for (labels, 0..) |label, index| {
+        out[index] = .{
+            .key = try allocator.dupe(u8, label.key),
+            .value = try allocator.dupe(u8, label.value),
+        };
+    }
+    out[labels.len] = .{
+        .key = try allocator.dupe(u8, "le"),
+        .value = try std.fmt.allocPrint(allocator, "{d}", .{bound}),
+    };
+    return out;
+}
+
+fn fillLogFields(a: std.mem.Allocator, msg: *c.Holons__V1__LogEntry, labels: []const Label) !void {
+    if (labels.len == 0) return;
+    var entries = try a.alloc(c.Holons__V1__LogEntry__FieldsEntry, labels.len);
+    var ptrs = try a.alloc([*c]c.Holons__V1__LogEntry__FieldsEntry, labels.len);
+    for (labels, 0..) |label, index| {
+        c.holons__v1__log_entry__fields_entry__init(&entries[index]);
+        entries[index].key = try z(a, label.key);
+        entries[index].value = try z(a, label.value);
+        ptrs[index] = &entries[index];
+    }
+    msg.n_fields = labels.len;
+    msg.fields = ptrs.ptr;
+}
+
+fn fillEventPayload(a: std.mem.Allocator, msg: *c.Holons__V1__EventInfo, labels: []const Label) !void {
+    if (labels.len == 0) return;
+    var entries = try a.alloc(c.Holons__V1__EventInfo__PayloadEntry, labels.len);
+    var ptrs = try a.alloc([*c]c.Holons__V1__EventInfo__PayloadEntry, labels.len);
+    for (labels, 0..) |label, index| {
+        c.holons__v1__event_info__payload_entry__init(&entries[index]);
+        entries[index].key = try z(a, label.key);
+        entries[index].value = try z(a, label.value);
+        ptrs[index] = &entries[index];
+    }
+    msg.n_payload = labels.len;
+    msg.payload = ptrs.ptr;
+}
+
+fn fillMetricLabels(a: std.mem.Allocator, msg: *c.Holons__V1__MetricSample, labels: []const Label) !void {
+    if (labels.len == 0) return;
+    var entries = try a.alloc(c.Holons__V1__MetricSample__LabelsEntry, labels.len);
+    var ptrs = try a.alloc([*c]c.Holons__V1__MetricSample__LabelsEntry, labels.len);
+    for (labels, 0..) |label, index| {
+        c.holons__v1__metric_sample__labels_entry__init(&entries[index]);
+        entries[index].key = try z(a, label.key);
+        entries[index].value = try z(a, label.value);
+        ptrs[index] = &entries[index];
+    }
+    msg.n_labels = labels.len;
+    msg.labels = ptrs.ptr;
+}
+
+fn fillLogChain(a: std.mem.Allocator, msg: *c.Holons__V1__LogEntry, chain: []const Hop) !void {
+    if (chain.len == 0) return;
+    var entries = try a.alloc(c.Holons__V1__ChainHop, chain.len);
+    var ptrs = try a.alloc([*c]c.Holons__V1__ChainHop, chain.len);
+    for (chain, 0..) |hop, index| {
+        c.holons__v1__chain_hop__init(&entries[index]);
+        entries[index].slug = try z(a, hop.slug);
+        entries[index].instance_uid = try z(a, hop.instance_uid);
+        ptrs[index] = &entries[index];
+    }
+    msg.n_chain = chain.len;
+    msg.chain = ptrs.ptr;
+}
+
+fn fillEventChain(a: std.mem.Allocator, msg: *c.Holons__V1__EventInfo, chain: []const Hop) !void {
+    if (chain.len == 0) return;
+    var entries = try a.alloc(c.Holons__V1__ChainHop, chain.len);
+    var ptrs = try a.alloc([*c]c.Holons__V1__ChainHop, chain.len);
+    for (chain, 0..) |hop, index| {
+        c.holons__v1__chain_hop__init(&entries[index]);
+        entries[index].slug = try z(a, hop.slug);
+        entries[index].instance_uid = try z(a, hop.instance_uid);
+        ptrs[index] = &entries[index];
+    }
+    msg.n_chain = chain.len;
+    msg.chain = ptrs.ptr;
+}
+
+fn fillTimestamp(ts: *c.Google__Protobuf__Timestamp, ns: i128) void {
+    c.google__protobuf__timestamp__init(ts);
+    ts.seconds = @intCast(@divFloor(ns, std.time.ns_per_s));
+    ts.nanos = @intCast(@mod(ns, std.time.ns_per_s));
+}
+
+fn logLevelToProto(level: Level) c.Holons__V1__LogLevel {
+    return switch (level) {
+        .trace => c.HOLONS__V1__LOG_LEVEL__TRACE,
+        .debug => c.HOLONS__V1__LOG_LEVEL__DEBUG,
+        .info => c.HOLONS__V1__LOG_LEVEL__INFO,
+        .warn => c.HOLONS__V1__LOG_LEVEL__WARN,
+        .err => c.HOLONS__V1__LOG_LEVEL__ERROR,
+        .fatal => c.HOLONS__V1__LOG_LEVEL__FATAL,
+        .unset => c.HOLONS__V1__LOG_LEVEL__LOG_LEVEL_UNSPECIFIED,
+    };
+}
+
+fn eventTypeToProto(event_type: EventType) c.Holons__V1__EventType {
+    return switch (event_type) {
+        .instance_spawned => c.HOLONS__V1__EVENT_TYPE__INSTANCE_SPAWNED,
+        .instance_ready => c.HOLONS__V1__EVENT_TYPE__INSTANCE_READY,
+        .instance_exited => c.HOLONS__V1__EVENT_TYPE__INSTANCE_EXITED,
+        .instance_crashed => c.HOLONS__V1__EVENT_TYPE__INSTANCE_CRASHED,
+        .session_started => c.HOLONS__V1__EVENT_TYPE__SESSION_STARTED,
+        .session_ended => c.HOLONS__V1__EVENT_TYPE__SESSION_ENDED,
+        .handler_panic => c.HOLONS__V1__EVENT_TYPE__HANDLER_PANIC,
+        .config_reloaded => c.HOLONS__V1__EVENT_TYPE__CONFIG_RELOADED,
+        .unspecified => c.HOLONS__V1__EVENT_TYPE__EVENT_TYPE_UNSPECIFIED,
+    };
+}
+
+fn packProto(allocator: std.mem.Allocator, base: *c.ProtobufCMessage, len: usize) ![]u8 {
+    const buf = try allocator.alloc(u8, len);
+    errdefer allocator.free(buf);
+    const encoded_len = c.protobuf_c_message_pack(base, buf.ptr);
+    if (encoded_len != len) return error.EncodeSizeMismatch;
+    return buf;
+}
+
+fn z(allocator: std.mem.Allocator, value: []const u8) ![*c]u8 {
+    const out = try allocator.dupeZ(u8, value);
+    return out.ptr;
+}
+
+fn cstr(ptr: [*c]const u8) []const u8 {
+    if (ptr == null) return "";
+    return std.mem.span(ptr);
+}
+
+fn freeLogEntries(allocator: std.mem.Allocator, entries: []LogEntry) void {
+    for (entries) |*entry| entry.deinit(allocator);
+    allocator.free(entries);
+}
+
+fn freeEventsSlice(allocator: std.mem.Allocator, events: []Event) void {
+    for (events) |*event| event.deinit(allocator);
+    allocator.free(events);
+}
+
+fn sleepMillis(ms: i64) void {
+    std.Io.sleep(
+        std.Io.Threaded.global_single_threaded.io(),
+        std.Io.Duration.fromMilliseconds(ms),
+        .awake,
+    ) catch {};
+}
 
 var current_mutex: std.Io.Mutex = .init;
 var current_obs: ?*Observability = null;

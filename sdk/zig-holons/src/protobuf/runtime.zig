@@ -3,6 +3,7 @@ const std = @import("std");
 pub const c = @cImport({
     @cInclude("protobuf-c/protobuf-c.h");
     @cInclude("holons/v1/describe.pb-c.h");
+    @cInclude("holons/v1/observability.pb-c.h");
     @cInclude("v1/greeting.pb-c.h");
 });
 
@@ -87,6 +88,67 @@ pub const ListLanguagesResponse = struct {
 
     pub fn len(self: ListLanguagesResponse) usize {
         return self.raw.*.n_languages;
+    }
+};
+
+pub const LogsRequestOptions = struct {
+    follow: bool = false,
+};
+
+pub const EventsRequestOptions = struct {
+    follow: bool = false,
+};
+
+pub const ObservabilityLogEntry = struct {
+    raw: *c.Holons__V1__LogEntry,
+
+    pub fn deinit(self: *ObservabilityLogEntry, allocator: std.mem.Allocator) void {
+        _ = allocator;
+        c.holons__v1__log_entry__free_unpacked(self.raw, null);
+    }
+
+    pub fn message(self: ObservabilityLogEntry) []const u8 {
+        return cstr(self.raw.*.message);
+    }
+
+    pub fn slug(self: ObservabilityLogEntry) []const u8 {
+        return cstr(self.raw.*.slug);
+    }
+};
+
+pub const MetricsSnapshot = struct {
+    raw: *c.Holons__V1__MetricsSnapshot,
+
+    pub fn deinit(self: *MetricsSnapshot) void {
+        c.holons__v1__metrics_snapshot__free_unpacked(self.raw, null);
+    }
+
+    pub fn slug(self: MetricsSnapshot) []const u8 {
+        return cstr(self.raw.*.slug);
+    }
+
+    pub fn counterValue(self: MetricsSnapshot, name: []const u8) ?i64 {
+        for (self.raw.*.samples[0..self.raw.*.n_samples]) |sample| {
+            if (std.mem.eql(u8, cstr(sample.*.name), name) and
+                sample.*.value_case == c.HOLONS__V1__METRIC_SAMPLE__VALUE_COUNTER)
+            {
+                return sample.*.unnamed_0.counter;
+            }
+        }
+        return null;
+    }
+};
+
+pub const ObservabilityEventInfo = struct {
+    raw: *c.Holons__V1__EventInfo,
+
+    pub fn deinit(self: *ObservabilityEventInfo, allocator: std.mem.Allocator) void {
+        _ = allocator;
+        c.holons__v1__event_info__free_unpacked(self.raw, null);
+    }
+
+    pub fn eventType(self: ObservabilityEventInfo) i32 {
+        return @intCast(self.raw.*.type);
     }
 };
 
@@ -188,6 +250,56 @@ pub fn packListLanguagesRequest(allocator: std.mem.Allocator) ![]u8 {
         &request.base,
         c.greeting__v1__list_languages_request__get_packed_size(&request),
     );
+}
+
+pub fn packLogsRequest(allocator: std.mem.Allocator, options: LogsRequestOptions) ![]u8 {
+    var request: c.Holons__V1__LogsRequest = undefined;
+    c.holons__v1__logs_request__init(&request);
+    request.follow = @intFromBool(options.follow);
+    return packMessage(
+        allocator,
+        &request.base,
+        c.holons__v1__logs_request__get_packed_size(&request),
+    );
+}
+
+pub fn unpackLogEntry(bytes: []const u8) !ObservabilityLogEntry {
+    const raw = c.holons__v1__log_entry__unpack(null, bytes.len, bytes.ptr) orelse
+        return error.DecodeLogEntryFailed;
+    return .{ .raw = raw };
+}
+
+pub fn packMetricsRequest(allocator: std.mem.Allocator) ![]u8 {
+    var request: c.Holons__V1__MetricsRequest = undefined;
+    c.holons__v1__metrics_request__init(&request);
+    return packMessage(
+        allocator,
+        &request.base,
+        c.holons__v1__metrics_request__get_packed_size(&request),
+    );
+}
+
+pub fn unpackMetricsSnapshot(bytes: []const u8) !MetricsSnapshot {
+    const raw = c.holons__v1__metrics_snapshot__unpack(null, bytes.len, bytes.ptr) orelse
+        return error.DecodeMetricsSnapshotFailed;
+    return .{ .raw = raw };
+}
+
+pub fn packEventsRequest(allocator: std.mem.Allocator, options: EventsRequestOptions) ![]u8 {
+    var request: c.Holons__V1__EventsRequest = undefined;
+    c.holons__v1__events_request__init(&request);
+    request.follow = @intFromBool(options.follow);
+    return packMessage(
+        allocator,
+        &request.base,
+        c.holons__v1__events_request__get_packed_size(&request),
+    );
+}
+
+pub fn unpackEventInfo(bytes: []const u8) !ObservabilityEventInfo {
+    const raw = c.holons__v1__event_info__unpack(null, bytes.len, bytes.ptr) orelse
+        return error.DecodeEventInfoFailed;
+    return .{ .raw = raw };
 }
 
 pub fn packListLanguagesResponse(allocator: std.mem.Allocator, languages: []const LanguageValue) ![]u8 {

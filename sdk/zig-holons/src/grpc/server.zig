@@ -127,7 +127,7 @@ pub const ServerStream = struct {
     }
 
     pub fn cancelled(self: *ServerStream) bool {
-        return self.state.cancelled_flag.load(.acquire);
+        return self.state.cancelled_flag.load(.acquire) or self.server.shutdown_requested.load(.acquire);
     }
 
     fn sendInitialMetadata(self: *ServerStream) !void {
@@ -193,6 +193,7 @@ pub const Server = struct {
     worker: ?std.Thread = null,
     accepting: std.atomic.Value(bool),
     shutdown_requested: std.atomic.Value(bool),
+    active_streams: std.atomic.Value(usize),
 
     pub fn start(self: *Server) !void {
         for (self.methods) |*method| {
@@ -221,6 +222,7 @@ pub const Server = struct {
     pub fn shutdown(self: *Server) void {
         if (self.shutdown_requested.swap(true, .acq_rel)) return;
         self.accepting.store(false, .release);
+        self.waitActiveStreams();
         core.c.grpc_server_shutdown_and_notify(self.raw, self.cq, shutdown_tag);
     }
 
@@ -241,6 +243,13 @@ pub const Server = struct {
         for (self.methods) |method| self.allocator.free(method.path);
         self.allocator.free(self.methods);
         core.shutdown();
+    }
+
+    fn waitActiveStreams(self: *Server) void {
+        var attempts: u32 = 0;
+        while (self.active_streams.load(.acquire) != 0 and attempts < 500) : (attempts += 1) {
+            sleepMillis(10);
+        }
     }
 
     fn requestNext(self: *Server, method_index: usize) !void {
@@ -332,6 +341,7 @@ pub fn bind(allocator: std.mem.Allocator, raw_uri: []const u8, methods: []const 
         .stdio_bridge = stdio_bridge,
         .accepting = std.atomic.Value(bool).init(false),
         .shutdown_requested = std.atomic.Value(bool).init(false),
+        .active_streams = std.atomic.Value(usize).init(0),
     };
 }
 
@@ -537,6 +547,9 @@ fn startStream(
     try startCloseObserver(self, call, state);
     errdefer state.release(self.allocator);
 
+    _ = self.active_streams.fetchAdd(1, .acq_rel);
+    errdefer _ = self.active_streams.fetchSub(1, .acq_rel);
+
     const worker = try std.Thread.spawn(.{}, streamWorker, .{ctx});
     worker.detach();
 }
@@ -573,6 +586,7 @@ fn streamWorker(ctx: *StreamContext) void {
         ctx.server.allocator.free(ctx.request);
         core.c.grpc_call_unref(ctx.call);
         ctx.state.release(ctx.server.allocator);
+        _ = ctx.server.active_streams.fetchSub(1, .acq_rel);
         ctx.server.allocator.destroy(ctx);
     }
 
@@ -590,6 +604,14 @@ fn streamWorker(ctx: *StreamContext) void {
 
 fn blockingIo() std.Io {
     return std.Io.Threaded.global_single_threaded.io();
+}
+
+fn sleepMillis(ms: i64) void {
+    std.Io.sleep(
+        blockingIo(),
+        std.Io.Duration.fromMilliseconds(ms),
+        .awake,
+    ) catch {};
 }
 
 fn sendResponseAsync(self: *Server, call: *core.c.grpc_call, response: []const u8) !void {
