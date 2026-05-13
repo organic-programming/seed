@@ -105,6 +105,10 @@ int holon_obs_enabled(uint32_t family);
  * logs are disabled.
  */
 void holon_obs_log(holon_level_t level, const char *message, const char *const *fields);
+void holon_obs_log_named(const char *logger_name,
+                         holon_level_t level,
+                         const char *message,
+                         const char *const *fields);
 
 /* Emits a lifecycle event. `payload` has the same alternating-kv shape. */
 void holon_obs_emit(holon_event_type_t type, const char *const *payload);
@@ -117,6 +121,13 @@ void holon_obs_emit(holon_event_type_t type, const char *const *payload);
  */
 int64_t holon_obs_counter_inc(const char *name, const char *const *labels);
 int64_t holon_obs_counter_add(const char *name, const char *const *labels, int64_t n);
+int64_t holon_obs_counter_inc_with_help(const char *name,
+                                        const char *help,
+                                        const char *const *labels);
+int64_t holon_obs_counter_add_with_help(const char *name,
+                                        const char *help,
+                                        const char *const *labels,
+                                        int64_t n);
 int64_t holon_obs_counter_value(const char *name, const char *const *labels);
 
 /*
