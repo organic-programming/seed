@@ -147,4 +147,45 @@ class ObservabilityTest {
             root.toFile().deleteRecursively()
         }
     }
+
+    @Test
+    fun prometheusTextInjectsIdentityLabelsAndRoundTripsProto() {
+        Observability.reset()
+        try {
+            val inst = Observability.configureFromEnv(
+                Observability.Config(
+                    slug = "cascade-node-kotlin",
+                    instanceUid = "kotlin-prom-1",
+                ),
+                mapOf("OP_OBS" to "logs,metrics,events,prom"),
+            )
+            inst.counter(
+                "cascade_ticks_total",
+                "Ticks received by this cascade node.",
+                mapOf("responder_uid" to "kotlin-prom-1"),
+            )!!.inc()
+
+            val text = Observability.toPrometheusText(inst)
+            assertTrue(text.contains("# HELP cascade_ticks_total Ticks received by this cascade node."))
+            assertTrue(text.contains("# TYPE cascade_ticks_total counter"))
+            assertTrue(text.contains("instance_uid=\"kotlin-prom-1\""))
+            assertTrue(text.contains("responder_uid=\"kotlin-prom-1\""))
+            assertTrue(text.contains("slug=\"cascade-node-kotlin\""))
+
+            val log = Observability.LogEntry(
+                timestamp = java.time.Instant.now(),
+                level = Observability.Level.INFO,
+                slug = "child",
+                instanceUid = "uid-child",
+                message = "tick received",
+                fields = mapOf("sender" to "test"),
+                chain = listOf(Observability.Hop("leaf", "uid-leaf")),
+            )
+            val roundTrip = Observability.fromProtoLogEntry(Observability.toProtoLogEntry(log))
+            assertEquals("tick received", roundTrip.message)
+            assertEquals("leaf", roundTrip.chain.single().slug)
+        } finally {
+            Observability.reset()
+        }
+    }
 }
