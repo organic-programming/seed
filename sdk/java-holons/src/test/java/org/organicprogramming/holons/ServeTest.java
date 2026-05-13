@@ -17,6 +17,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -149,6 +150,72 @@ class ServeTest {
             if (running != null) {
                 running.stop();
             }
+        }
+    }
+
+    @Test
+    void startWithOptionsRelaysMemberObservabilityAndWritesPrometheusAddress(@TempDir Path tmp) throws Exception {
+        Describe.useStaticResponse(staticDescribeResponse());
+        Observability.reset();
+        Path registryRoot = tmp.resolve("runs");
+
+        Serve.RunningServer child = null;
+        Serve.RunningServer parent = null;
+        try {
+            child = Serve.startWithOptions(
+                    "tcp://127.0.0.1:0",
+                    List.of(new EmptyService()),
+                    new Serve.Options()
+                            .withSlug("cascade-node-java-child")
+                            .withEnv(Map.of(
+                                    "OP_OBS", "logs,metrics,events",
+                                    "OP_RUN_DIR", registryRoot.toString(),
+                                    "OP_INSTANCE_UID", "java-child-1")));
+
+            Observability childObs = Observability.current();
+            childObs.logger("tick").info("tick received", Map.of("sender", "serve-test"));
+            childObs.emit(Observability.EventType.CONFIG_RELOADED, Map.of("source", "serve-test"));
+
+            parent = Serve.startWithOptions(
+                    "tcp://127.0.0.1:0",
+                    List.of(new EmptyService()),
+                    new Serve.Options()
+                            .withSlug("cascade-node-java-parent")
+                            .withEnv(Map.of(
+                                    "OP_OBS", "logs,metrics,events,prom",
+                                    "OP_RUN_DIR", registryRoot.toString(),
+                                    "OP_INSTANCE_UID", "java-parent-1",
+                                    "OP_PROM_ADDR", ":0"))
+                            .withMemberEndpoints(List.of(new Serve.MemberRef(
+                                    "cascade-node-java-child",
+                                    "",
+                                    child.publicUri()))));
+
+            Observability parentObs = Observability.current();
+            awaitCondition(() -> parentObs.logRing.drain().stream()
+                    .anyMatch(entry -> entry.message.equals("tick received")
+                            && entry.chain.size() == 1
+                            && entry.chain.get(0).slug.equals("cascade-node-java-child")
+                            && entry.chain.get(0).instanceUid.equals("java-child-1")));
+            awaitCondition(() -> parentObs.eventBus.drain().stream()
+                    .anyMatch(event -> event.type == Observability.EventType.CONFIG_RELOADED
+                            && event.chain.size() == 1
+                            && event.chain.get(0).instanceUid.equals("java-child-1")));
+
+            String parentMeta = Files.readString(registryRoot
+                    .resolve("cascade-node-java-parent")
+                    .resolve("java-parent-1")
+                    .resolve("meta.json"));
+            assertTrue(parentMeta.contains("\"metrics_addr\""));
+        } finally {
+            if (parent != null) {
+                parent.stop();
+            }
+            if (child != null) {
+                child.stop();
+            }
+            Observability.reset();
+            Describe.useStaticResponse(null);
         }
     }
 
@@ -294,5 +361,16 @@ class ServeTest {
                         .setLang("java")
                         .build())
                 .build();
+    }
+
+    private static void awaitCondition(BooleanSupplier condition) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (System.nanoTime() < deadline) {
+            if (condition.getAsBoolean()) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        assertTrue(condition.getAsBoolean());
     }
 }

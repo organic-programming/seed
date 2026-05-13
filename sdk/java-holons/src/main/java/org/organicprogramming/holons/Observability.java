@@ -5,20 +5,29 @@ package org.organicprogramming.holons;
 
 import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import io.grpc.CallOptions;
+import io.grpc.ManagedChannel;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.Status;
 import io.grpc.protobuf.ProtoUtils;
+import io.grpc.stub.ClientCalls;
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.ServerCalls;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -594,7 +603,23 @@ public final class Observability {
                             observer.onNext(toProtoLogEntry(entry));
                         }
                     }
-                    observer.onCompleted();
+                    if (!request.getFollow()) {
+                        observer.onCompleted();
+                        return;
+                    }
+                    AutoCloseable subscription = obs.logRing.subscribe(entry -> {
+                        if (!matchesLog(entry, minLevel, request.getSessionIdsList(), request.getRpcMethodsList())) {
+                            return;
+                        }
+                        try {
+                            observer.onNext(toProtoLogEntry(entry));
+                        } catch (Exception ignored) {
+                            // Cancelled clients are handled by the gRPC runtime.
+                        }
+                    });
+                    if (observer instanceof ServerCallStreamObserver<?> serverObserver) {
+                        serverObserver.setOnCancelHandler(() -> closeQuietly(subscription));
+                    }
                 }))
                 .addMethod(METRICS_METHOD, ServerCalls.asyncUnaryCall((request, observer) -> {
                     if (!obs.enabled(Family.METRICS) || obs.registry == null) {
@@ -633,7 +658,23 @@ public final class Observability {
                             observer.onNext(toProtoEvent(event));
                         }
                     }
-                    observer.onCompleted();
+                    if (!request.getFollow()) {
+                        observer.onCompleted();
+                        return;
+                    }
+                    AutoCloseable subscription = obs.eventBus.subscribe(event -> {
+                        if (!wanted.isEmpty() && !wanted.contains(event.type.code)) {
+                            return;
+                        }
+                        try {
+                            observer.onNext(toProtoEvent(event));
+                        } catch (Exception ignored) {
+                            // Cancelled clients are handled by the gRPC runtime.
+                        }
+                    });
+                    if (observer instanceof ServerCallStreamObserver<?> serverObserver) {
+                        serverObserver.setOnCancelHandler(() -> closeQuietly(subscription));
+                    }
                 }))
                 .build();
     }
@@ -672,6 +713,25 @@ public final class Observability {
             builder.addChain(toProtoHop(hop));
         }
         return builder.build();
+    }
+
+    public static LogEntry fromProtoLogEntry(holons.v1.Observability.LogEntry entry) {
+        Instant ts = entry.hasTs() ? instant(entry.getTs()) : Instant.now();
+        List<Hop> chain = new ArrayList<>();
+        for (holons.v1.Observability.ChainHop hop : entry.getChainList()) {
+            chain.add(fromProtoHop(hop));
+        }
+        return new LogEntry(
+                ts,
+                levelFromCode(entry.getLevelValue()),
+                entry.getSlug(),
+                entry.getInstanceUid(),
+                entry.getSessionId(),
+                entry.getRpcMethod(),
+                entry.getMessage(),
+                entry.getFieldsMap(),
+                entry.getCaller(),
+                chain);
     }
 
     public static List<holons.v1.Observability.MetricSample> toProtoMetricSamples(Registry registry) {
@@ -731,11 +791,444 @@ public final class Observability {
         return builder.build();
     }
 
+    public static Event fromProtoEvent(holons.v1.Observability.EventInfo event) {
+        Instant ts = event.hasTs() ? instant(event.getTs()) : Instant.now();
+        List<Hop> chain = new ArrayList<>();
+        for (holons.v1.Observability.ChainHop hop : event.getChainList()) {
+            chain.add(fromProtoHop(hop));
+        }
+        return new Event(
+                ts,
+                eventTypeFromCode(event.getTypeValue()),
+                event.getSlug(),
+                event.getInstanceUid(),
+                event.getSessionId(),
+                event.getPayloadMap(),
+                chain);
+    }
+
     private static holons.v1.Observability.ChainHop toProtoHop(Hop hop) {
         return holons.v1.Observability.ChainHop.newBuilder()
                 .setSlug(hop.slug)
                 .setInstanceUid(hop.instanceUid)
                 .build();
+    }
+
+    private static Hop fromProtoHop(holons.v1.Observability.ChainHop hop) {
+        return new Hop(hop.getSlug(), hop.getInstanceUid());
+    }
+
+    private static Instant instant(Timestamp ts) {
+        return Instant.ofEpochSecond(ts.getSeconds(), ts.getNanos());
+    }
+
+    private static Level levelFromCode(int code) {
+        for (Level level : Level.values()) {
+            if (level.code == code) {
+                return level;
+            }
+        }
+        return Level.UNSET;
+    }
+
+    private static EventType eventTypeFromCode(int code) {
+        for (EventType type : EventType.values()) {
+            if (type.code == code) {
+                return type;
+            }
+        }
+        return EventType.UNSPECIFIED;
+    }
+
+    // --- Prometheus exposition ---
+
+    public static final class PromServer implements AutoCloseable {
+        private final String addr;
+        private HttpServer server;
+
+        public PromServer(String addr) {
+            this.addr = addr == null || addr.isBlank() ? ":0" : addr.trim();
+        }
+
+        public synchronized void start() throws IOException {
+            if (server != null) {
+                return;
+            }
+            HostPort hostPort = parsePromAddr(addr);
+            server = HttpServer.create(new InetSocketAddress(hostPort.host(), hostPort.port()), 0);
+            server.createContext("/metrics", this::handleMetrics);
+            server.start();
+        }
+
+        public synchronized String addrUrl() {
+            if (server == null) {
+                return "";
+            }
+            InetSocketAddress address = server.getAddress();
+            return "http://" + advertisedPromHost(address.getHostString()) + ":" + address.getPort() + "/metrics";
+        }
+
+        @Override
+        public synchronized void close() {
+            if (server == null) {
+                return;
+            }
+            server.stop(0);
+            server = null;
+        }
+
+        private void handleMetrics(HttpExchange exchange) throws IOException {
+            String path = exchange.getRequestURI() != null ? exchange.getRequestURI().getPath() : "";
+            if (!"/metrics".equals(path)) {
+                exchange.sendResponseHeaders(404, -1);
+                exchange.close();
+                return;
+            }
+
+            Observability obs = current();
+            int status = 200;
+            String body;
+            if (!obs.enabled(Family.METRICS)) {
+                status = 503;
+                body = "# metrics family disabled (OP_OBS)\n";
+            } else if (!obs.enabled(Family.PROM)) {
+                status = 503;
+                body = "# prom family disabled (OP_OBS)\n";
+            } else {
+                body = toPrometheusText(obs);
+            }
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "text/plain; version=0.0.4");
+            exchange.sendResponseHeaders(status, bytes.length);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(bytes);
+            }
+        }
+    }
+
+    public static String toPrometheusText(Observability obs) {
+        if (obs == null || !obs.enabled(Family.METRICS) || obs.registry == null) {
+            return "# metrics family disabled (OP_OBS)\n";
+        }
+
+        StringBuilder out = new StringBuilder();
+        List<Counter> counters = obs.registry.counters();
+        List<Gauge> gauges = obs.registry.gauges();
+        List<Histogram> histograms = obs.registry.histograms();
+
+        for (Counter counter : counters) {
+            appendPromHelpType(out, counter.name, counter.help, "counter");
+            out.append(counter.name)
+                    .append(promLabels(mergePromLabels(counter.labels, obs)))
+                    .append(' ')
+                    .append(counter.value())
+                    .append('\n');
+        }
+        for (Gauge gauge : gauges) {
+            appendPromHelpType(out, gauge.name, gauge.help, "gauge");
+            out.append(gauge.name)
+                    .append(promLabels(mergePromLabels(gauge.labels, obs)))
+                    .append(' ')
+                    .append(formatPromFloat(gauge.value()))
+                    .append('\n');
+        }
+        for (Histogram histogram : histograms) {
+            appendPromHelpType(out, histogram.name, histogram.help, "histogram");
+            Map<String, String> labels = mergePromLabels(histogram.labels, obs);
+            HistogramSnapshot snapshot = histogram.snapshot();
+            for (int i = 0; i < snapshot.bounds.length; i++) {
+                Map<String, String> bucketLabels = new LinkedHashMap<>(labels);
+                bucketLabels.put("le", formatPromFloat(snapshot.bounds[i]));
+                out.append(histogram.name)
+                        .append("_bucket")
+                        .append(promLabels(bucketLabels))
+                        .append(' ')
+                        .append(snapshot.counts[i])
+                        .append('\n');
+            }
+            Map<String, String> infLabels = new LinkedHashMap<>(labels);
+            infLabels.put("le", "+Inf");
+            out.append(histogram.name).append("_bucket").append(promLabels(infLabels)).append(' ')
+                    .append(snapshot.total).append('\n');
+            out.append(histogram.name).append("_sum").append(promLabels(labels)).append(' ')
+                    .append(formatPromFloat(snapshot.sum)).append('\n');
+            out.append(histogram.name).append("_count").append(promLabels(labels)).append(' ')
+                    .append(snapshot.total).append('\n');
+        }
+
+        return out.toString();
+    }
+
+    private static void appendPromHelpType(StringBuilder out, String name, String help, String type) {
+        out.append("# HELP ").append(name).append(' ').append(promEscapeHelp(help)).append('\n');
+        out.append("# TYPE ").append(name).append(' ').append(type).append('\n');
+    }
+
+    private static Map<String, String> mergePromLabels(Map<String, String> labels, Observability obs) {
+        Map<String, String> out = new LinkedHashMap<>();
+        if (obs.cfg.slug != null && !obs.cfg.slug.isEmpty()) {
+            out.put("slug", obs.cfg.slug);
+        }
+        if (obs.cfg.instanceUid != null && !obs.cfg.instanceUid.isEmpty()) {
+            out.put("instance_uid", obs.cfg.instanceUid);
+        }
+        if (labels != null) {
+            out.putAll(labels);
+        }
+        return out;
+    }
+
+    private static String promLabels(Map<String, String> labels) {
+        if (labels == null || labels.isEmpty()) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder("{");
+        boolean first = true;
+        for (Map.Entry<String, String> entry : labels.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .toList()) {
+            if (!first) {
+                out.append(',');
+            }
+            first = false;
+            out.append(entry.getKey()).append("=\"").append(promEscapeValue(entry.getValue())).append('"');
+        }
+        out.append('}');
+        return out.toString();
+    }
+
+    private static String promEscapeValue(String value) {
+        return String.valueOf(value).replace("\\", "\\\\").replace("\n", "\\n").replace("\"", "\\\"");
+    }
+
+    private static String promEscapeHelp(String value) {
+        return String.valueOf(value == null ? "" : value).replace("\\", "\\\\").replace("\n", "\\n");
+    }
+
+    private static String formatPromFloat(double value) {
+        if (Double.isNaN(value)) {
+            return "NaN";
+        }
+        if (value == Double.POSITIVE_INFINITY) {
+            return "+Inf";
+        }
+        if (value == Double.NEGATIVE_INFINITY) {
+            return "-Inf";
+        }
+        return Double.toString(value);
+    }
+
+    private record HostPort(String host, int port) {
+    }
+
+    private static HostPort parsePromAddr(String raw) {
+        String trimmed = raw == null || raw.isBlank() ? ":0" : raw.trim();
+        if (trimmed.startsWith(":")) {
+            return new HostPort("0.0.0.0", Integer.parseInt(trimmed.substring(1).isEmpty() ? "0" : trimmed.substring(1)));
+        }
+        int idx = trimmed.lastIndexOf(':');
+        if (idx < 0) {
+            throw new IllegalArgumentException("invalid Prometheus address \"" + raw + "\"");
+        }
+        String host = trimmed.substring(0, idx);
+        int port = Integer.parseInt(trimmed.substring(idx + 1));
+        return new HostPort(host.isBlank() ? "0.0.0.0" : host, port);
+    }
+
+    private static String advertisedPromHost(String host) {
+        if (host == null || host.isBlank() || "0.0.0.0".equals(host)) {
+            return "127.0.0.1";
+        }
+        if ("::".equals(host)) {
+            return "::1";
+        }
+        return host;
+    }
+
+    // --- Member observability relay ---
+
+    public record MemberIdentity(String slug, String uid) {
+        public MemberIdentity {
+            slug = slug == null ? "" : slug.trim();
+            uid = uid == null ? "" : uid.trim();
+        }
+    }
+
+    public static MemberIdentity resolveMemberIdentity(ManagedChannel channel, String fallbackSlug, String fallbackUid) {
+        String fallbackSlugValue = fallbackSlug == null ? "" : fallbackSlug.trim();
+        String fallbackUidValue = fallbackUid == null ? "" : fallbackUid.trim();
+        if (!fallbackUidValue.isEmpty()) {
+            return new MemberIdentity(fallbackSlugValue, fallbackUidValue);
+        }
+
+        try {
+            Iterator<holons.v1.Observability.EventInfo> iterator = ClientCalls.blockingServerStreamingCall(
+                    channel,
+                    EVENTS_METHOD,
+                    CallOptions.DEFAULT,
+                    holons.v1.Observability.EventsRequest.newBuilder()
+                            .addTypesValue(EventType.INSTANCE_READY.code)
+                            .build());
+            while (iterator.hasNext()) {
+                holons.v1.Observability.EventInfo event = iterator.next();
+                if (event.getChainCount() == 0 && !event.getInstanceUid().isBlank()) {
+                    String slug = event.getSlug().isBlank() ? fallbackSlugValue : event.getSlug();
+                    return new MemberIdentity(slug, event.getInstanceUid());
+                }
+            }
+        } catch (Exception ignored) {
+            // Fall back to the Metrics snapshot.
+        }
+
+        try {
+            holons.v1.Observability.MetricsSnapshot snapshot = ClientCalls.blockingUnaryCall(
+                    channel,
+                    METRICS_METHOD,
+                    CallOptions.DEFAULT,
+                    holons.v1.Observability.MetricsRequest.getDefaultInstance());
+            if (!snapshot.getInstanceUid().isBlank()) {
+                String slug = snapshot.getSlug().isBlank() ? fallbackSlugValue : snapshot.getSlug();
+                return new MemberIdentity(slug, snapshot.getInstanceUid());
+            }
+        } catch (Exception ignored) {
+            // Leave unresolved.
+        }
+
+        return new MemberIdentity(fallbackSlugValue, fallbackUidValue);
+    }
+
+    public static final class MemberRelay implements AutoCloseable {
+        private final String childSlug;
+        private final String childUid;
+        private final ManagedChannel channel;
+        private final Observability observability;
+        private final long retryDelayMillis;
+        private final List<Thread> threads = new CopyOnWriteArrayList<>();
+        private volatile boolean stopped;
+
+        public MemberRelay(String childSlug, String childUid, ManagedChannel channel, Observability observability) {
+            this(childSlug, childUid, channel, observability, 2000);
+        }
+
+        public MemberRelay(
+                String childSlug,
+                String childUid,
+                ManagedChannel channel,
+                Observability observability,
+                long retryDelayMillis) {
+            this.childSlug = childSlug == null ? "" : childSlug.trim();
+            this.childUid = childUid == null ? "" : childUid.trim();
+            this.channel = Objects.requireNonNull(channel, "channel");
+            this.observability = Objects.requireNonNull(observability, "observability");
+            this.retryDelayMillis = Math.max(1, retryDelayMillis);
+        }
+
+        public void start() {
+            if (observability.enabled(Family.LOGS) && observability.logRing != null) {
+                startThread("logs", this::pumpLogs);
+            }
+            if (observability.enabled(Family.EVENTS) && observability.eventBus != null) {
+                startThread("events", this::pumpEvents);
+            }
+        }
+
+        @Override
+        public void close() {
+            stopped = true;
+            Connect.disconnect(channel);
+            for (Thread thread : threads) {
+                thread.interrupt();
+            }
+        }
+
+        private void startThread(String family, Runnable task) {
+            Thread thread = new Thread(task, "holons-member-relay-" + family + "-" + childSlug);
+            thread.setDaemon(true);
+            threads.add(thread);
+            thread.start();
+        }
+
+        private void pumpLogs() {
+            while (!stopped) {
+                try {
+                    Iterator<holons.v1.Observability.LogEntry> iterator = ClientCalls.blockingServerStreamingCall(
+                            channel,
+                            LOGS_METHOD,
+                            CallOptions.DEFAULT,
+                            holons.v1.Observability.LogsRequest.newBuilder()
+                                    .setFollow(true)
+                                    .setMinLevelValue(Level.INFO.code)
+                                    .build());
+                    while (!stopped && iterator.hasNext()) {
+                        LogEntry entry = fromProtoLogEntry(iterator.next());
+                        LogEntry enriched = new LogEntry(
+                                entry.timestamp,
+                                entry.level,
+                                entry.slug,
+                                entry.instanceUid,
+                                entry.sessionId,
+                                entry.rpcMethod,
+                                entry.message,
+                                entry.fields,
+                                entry.caller,
+                                appendDirectChild(entry.chain, childSlug, childUid));
+                        observability.logRing.push(enriched);
+                    }
+                } catch (Exception ignored) {
+                    retryPause();
+                }
+            }
+        }
+
+        private void pumpEvents() {
+            while (!stopped) {
+                try {
+                    Iterator<holons.v1.Observability.EventInfo> iterator = ClientCalls.blockingServerStreamingCall(
+                            channel,
+                            EVENTS_METHOD,
+                            CallOptions.DEFAULT,
+                            holons.v1.Observability.EventsRequest.newBuilder()
+                                    .setFollow(true)
+                                    .build());
+                    while (!stopped && iterator.hasNext()) {
+                        Event event = fromProtoEvent(iterator.next());
+                        Event enriched = new Event(
+                                event.timestamp,
+                                event.type,
+                                event.slug,
+                                event.instanceUid,
+                                event.sessionId,
+                                event.payload,
+                                appendDirectChild(event.chain, childSlug, childUid));
+                        observability.eventBus.emit(enriched);
+                    }
+                } catch (Exception ignored) {
+                    retryPause();
+                }
+            }
+        }
+
+        private void retryPause() {
+            if (stopped) {
+                return;
+            }
+            try {
+                TimeUnit.MILLISECONDS.sleep(retryDelayMillis);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    private static void closeQuietly(AutoCloseable closeable) {
+        if (closeable == null) {
+            return;
+        }
+        try {
+            closeable.close();
+        } catch (Exception ignored) {
+            // Best-effort subscription cleanup.
+        }
     }
 
     // --- Disk writers ---

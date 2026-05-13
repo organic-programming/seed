@@ -16,6 +16,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,6 +33,14 @@ public final class Serve {
     private Serve() {
     }
 
+    public record MemberRef(String slug, String uid, String address) {
+        public MemberRef {
+            slug = slug == null ? "" : slug.trim();
+            uid = uid == null ? "" : uid.trim();
+            address = address == null ? "" : address.trim();
+        }
+    }
+
     public static final class Options {
         private boolean describe = true;
         private boolean reflect = false;
@@ -40,6 +49,8 @@ public final class Serve {
         private long shutdownGracePeriodSeconds = 10;
         private Path protoDir;
         private Map<String, String> env;
+        private String slug = "";
+        private List<MemberRef> memberEndpoints = List.of();
 
         public boolean describe() {
             return describe;
@@ -101,6 +112,24 @@ public final class Serve {
 
         public Options withEnv(Map<String, String> env) {
             this.env = env;
+            return this;
+        }
+
+        public String slug() {
+            return slug;
+        }
+
+        public Options withSlug(String slug) {
+            this.slug = slug != null ? slug.trim() : "";
+            return this;
+        }
+
+        public List<MemberRef> memberEndpoints() {
+            return memberEndpoints;
+        }
+
+        public Options withMemberEndpoints(List<MemberRef> memberEndpoints) {
+            this.memberEndpoints = memberEndpoints == null ? List.of() : List.copyOf(memberEndpoints);
             return this;
         }
     }
@@ -252,9 +281,9 @@ public final class Serve {
                 String host = parsed.host() != null ? parsed.host() : "0.0.0.0";
                 int port = parsed.port() != null ? parsed.port() : 9090;
                 BoundServer bound = bindTcpServer(host, port, bindableServices, extraDefinitions);
-                startObservabilityRuntime(obs, bound.publicUri(), "tcp");
+                AuxiliaryRuntime auxiliary = startAuxiliaryRuntime(obs, bound.publicUri(), "tcp", resolvedOptions);
                 announce(bound.publicUri(), describeEnabled, reflectionEnabled, resolvedOptions);
-                yield new RunningServer(bound.server(), bound.publicUri(), resolvedOptions.logger(), null);
+                yield new RunningServer(bound.server(), bound.publicUri(), resolvedOptions.logger(), auxiliary);
             }
             case "stdio" -> {
                 BoundServer bound = bindTcpServer("127.0.0.1", 0, bindableServices, extraDefinitions);
@@ -274,10 +303,9 @@ public final class Serve {
                         bound.server(),
                         "stdio://",
                         resolvedOptions.logger(),
-                        bridge::close);
+                        combineStops(bridge::close, startAuxiliaryRuntime(obs, "stdio://", "stdio", resolvedOptions)));
                 runningRef[0] = running;
                 bridge.start();
-                startObservabilityRuntime(obs, "stdio://", "stdio");
                 announce("stdio://", describeEnabled, reflectionEnabled, resolvedOptions);
                 yield running;
             }
@@ -290,9 +318,8 @@ public final class Serve {
                         bound.server(),
                         publicUri,
                         resolvedOptions.logger(),
-                        bridge::close);
+                        combineStops(bridge::close, startAuxiliaryRuntime(obs, publicUri, "unix", resolvedOptions)));
                 bridge.start();
-                startObservabilityRuntime(obs, publicUri, "unix");
                 announce(publicUri, describeEnabled, reflectionEnabled, resolvedOptions);
                 yield running;
             }
@@ -353,7 +380,11 @@ public final class Serve {
         if (raw.isEmpty()) {
             return null;
         }
-        Observability obs = Observability.fromEnvMap(new Observability.Config(), env);
+        Observability.Config config = new Observability.Config();
+        if (options.slug() != null && !options.slug().isBlank()) {
+            config.slug = options.slug();
+        }
+        Observability obs = Observability.fromEnvMap(config, env);
         if (obs.families.isEmpty()) {
             return null;
         }
@@ -361,7 +392,70 @@ public final class Serve {
         return obs;
     }
 
-    private static void startObservabilityRuntime(Observability obs, String publicUri, String transport) {
+    private static AuxiliaryRuntime startAuxiliaryRuntime(
+            Observability obs,
+            String publicUri,
+            String transport,
+            Options options) {
+        Observability.PromServer promServer = startPromServer(obs, options);
+        String metricsAddr = promServer != null ? promServer.addrUrl() : "";
+        startObservabilityRuntime(obs, publicUri, transport, metricsAddr);
+        List<Observability.MemberRelay> relays = startMemberRelays(obs, options.memberEndpoints(), options);
+        return new AuxiliaryRuntime(promServer, relays);
+    }
+
+    private static Observability.PromServer startPromServer(Observability obs, Options options) {
+        if (obs == null || !obs.enabled(Observability.Family.PROM)) {
+            return null;
+        }
+        Observability.PromServer promServer = new Observability.PromServer(obs.cfg.promAddr);
+        try {
+            promServer.start();
+            return promServer;
+        } catch (IOException error) {
+            options.logger().accept("warning: prom HTTP bind failed: " + error.getMessage());
+            return null;
+        }
+    }
+
+    private static List<Observability.MemberRelay> startMemberRelays(
+            Observability obs,
+            List<MemberRef> members,
+            Options options) {
+        if (obs == null
+                || (!obs.enabled(Observability.Family.LOGS) && !obs.enabled(Observability.Family.EVENTS))) {
+            return List.of();
+        }
+
+        List<Observability.MemberRelay> relays = new ArrayList<>();
+        for (MemberRef raw : members) {
+            MemberRef member = raw == null ? new MemberRef("", "", "") : raw;
+            if (member.slug().isEmpty() || member.address().isEmpty()) {
+                options.logger().accept("warning: observability relay skipped incomplete member ref: slug=\""
+                        + member.slug() + "\" uid=\"" + member.uid() + "\" address=\"" + member.address() + "\"");
+                continue;
+            }
+            try {
+                io.grpc.ManagedChannel channel = Connect.connect(
+                        member.address(),
+                        new Connect.ConnectOptions(Duration.ofSeconds(5), "tcp", false, null));
+                Observability.MemberIdentity identity = Observability.resolveMemberIdentity(channel, member.slug(), member.uid());
+                Observability.MemberRelay relay = new Observability.MemberRelay(
+                        identity.slug(),
+                        identity.uid(),
+                        channel,
+                        obs);
+                relay.start();
+                relays.add(relay);
+            } catch (Exception error) {
+                options.logger().accept("warning: observability relay start "
+                        + member.slug() + "/" + member.uid() + ": " + error.getMessage());
+            }
+        }
+        return relays;
+    }
+
+    private static void startObservabilityRuntime(Observability obs, String publicUri, String transport, String metricsAddr) {
         if (obs == null || obs.cfg.runDir == null || obs.cfg.runDir.isEmpty()) {
             return;
         }
@@ -377,6 +471,7 @@ public final class Serve {
         meta.address = publicUri;
         meta.organismUid = obs.cfg.organismUid;
         meta.organismSlug = obs.cfg.organismSlug;
+        meta.metricsAddr = metricsAddr;
         if (obs.enabled(Observability.Family.LOGS)) {
             meta.logPath = Path.of(obs.cfg.runDir, "stdout.log").toString();
         }
@@ -384,6 +479,44 @@ public final class Serve {
             Observability.writeMetaJson(obs.cfg.runDir, meta);
         } catch (IOException ignored) {
             // Best-effort metadata mirrors the other tier-2 SDKs.
+        }
+    }
+
+    private static Runnable combineStops(Runnable... stops) {
+        return () -> {
+            for (Runnable stop : stops) {
+                if (stop == null) {
+                    continue;
+                }
+                try {
+                    stop.run();
+                } catch (Exception ignored) {
+                    // Best-effort auxiliary shutdown.
+                }
+            }
+        };
+    }
+
+    private static final class AuxiliaryRuntime implements Runnable {
+        private final Observability.PromServer promServer;
+        private final List<Observability.MemberRelay> relays;
+
+        private AuxiliaryRuntime(Observability.PromServer promServer, List<Observability.MemberRelay> relays) {
+            this.promServer = promServer;
+            this.relays = relays == null ? List.of() : List.copyOf(relays);
+        }
+
+        @Override
+        public void run() {
+            for (Observability.MemberRelay relay : relays) {
+                try {
+                    relay.close();
+                } catch (Exception ignored) {
+                }
+            }
+            if (promServer != null) {
+                promServer.close();
+            }
         }
     }
 
