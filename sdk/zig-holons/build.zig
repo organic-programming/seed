@@ -309,7 +309,7 @@ pub fn build(b: *std.Build) void {
         \\"$protoc" \
         \\  --plugin=protoc-gen-c="$ZIG_HOLONS_NATIVE_ROOT/bin/protoc-gen-c" \
         \\  -I ../../holons/grace-op/_protos \
-        \\  -I ../../examples/_protos \
+        \\  -I ../../examples/hello-world/_protos \
         \\  -I third_party/grpc/third_party/protobuf/src \
         \\  third_party/grpc/third_party/protobuf/src/google/protobuf/descriptor.proto \
         \\  third_party/grpc/third_party/protobuf/src/google/protobuf/timestamp.proto \
@@ -320,7 +320,7 @@ pub fn build(b: *std.Build) void {
         \\  ../../holons/grace-op/_protos/holons/v1/session.proto \
         \\  ../../holons/grace-op/_protos/holons/v1/observability.proto \
         \\  ../../holons/grace-op/_protos/holons/v1/instance.proto \
-        \\  ../../examples/_protos/v1/greeting.proto \
+        \\  ../../examples/hello-world/_protos/v1/greeting.proto \
         \\  --c_out=gen/c
     );
     generate_protos.setEnvironmentVariable("ZIG_HOLONS_NATIVE_ROOT", native_root.path);

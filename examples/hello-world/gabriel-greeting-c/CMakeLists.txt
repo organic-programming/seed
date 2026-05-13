@@ -137,7 +137,7 @@ target_compile_definitions(gabriel_greeting_c_server_test
   PRIVATE
     GABRIEL_GREETING_C_PUBLIC_BINARY="$<TARGET_FILE:gabriel-greeting-c>"
     GABRIEL_GREETING_C_GRPCURL="${GABRIEL_GREETING_C_GRPCURL}"
-    GABRIEL_GREETING_C_PROTO_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../_protos"
+    GABRIEL_GREETING_C_PROTO_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../_protos"
 )
 target_link_libraries(gabriel_greeting_c_server_test PRIVATE gabriel_greeting_c_lib)
 add_dependencies(gabriel_greeting_c_server_test gabriel-greeting-c)

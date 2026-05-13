@@ -50,7 +50,7 @@ lives in a shared `_protos/` directory — never copied, never symlinked
 (**No Copy, No Symlink** principle).
 
 ```
-_protos/v1/greeting.proto          # domain: GreetingService + messages
+examples/hello-world/_protos/v1/greeting.proto  # domain: GreetingService + messages
 ```
 
 - Language-neutral — no `go_package`, no language options.
@@ -117,8 +117,8 @@ them using a three-level hierarchy:
 ```bash
 protoc \
   --proto_path=. \
-  --proto_path=../../_protos \
-  --proto_path=../../../_protos \
+  --proto_path=../_protos \
+  --proto_path=../../../holons/grace-op/_protos \
   api/v1/holon.proto \
   --descriptor_set_out=/dev/null
 ```

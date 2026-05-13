@@ -54,8 +54,8 @@ op invoke matt-calculator-go Divide '{"by":0}'
 
 ## Service contract
 
-See [`api/v1/holon.proto`](api/v1/holon.proto) and the shared contract in
-[`examples/_protos/v1/calculator.proto`](../../_protos/v1/calculator.proto).
+See [`api/v1/holon.proto`](api/v1/holon.proto), which carries the calculator
+service contract and manifest locally.
 
 ## Operations
 
