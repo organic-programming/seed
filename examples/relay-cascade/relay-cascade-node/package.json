@@ -1,0 +1,13 @@
+{
+  "name": "relay-cascade-node",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node.js relay cascade composite verifier.",
+  "main": "bin/main.js",
+  "dependencies": {
+    "@grpc/grpc-js": "^1.10.0",
+    "@organic-programming/holons": "file:../../../sdk/js-holons",
+    "google-protobuf": "^3.21.4"
+  }
+}
+
