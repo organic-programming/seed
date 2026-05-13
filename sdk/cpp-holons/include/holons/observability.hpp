@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -15,6 +16,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <limits>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -264,6 +266,13 @@ public:
 
     std::vector<Event> drain() { std::scoped_lock lk(mu_); return buf_; }
 
+    std::vector<Event> drain_since(std::chrono::system_clock::time_point cutoff) {
+        std::scoped_lock lk(mu_);
+        std::vector<Event> out;
+        for (const auto& e : buf_) if (e.timestamp >= cutoff) out.push_back(e);
+        return out;
+    }
+
     void subscribe(std::function<void(const Event&)> fn) {
         std::scoped_lock lk(mu_);
         subs_.push_back(std::move(fn));
@@ -323,6 +332,24 @@ struct HistogramSnapshot {
             if (static_cast<double>(counts[i]) >= target) return bounds[i];
         return std::numeric_limits<double>::infinity();
     }
+};
+
+struct CounterSnapshot {
+    std::string name, help;
+    std::map<std::string, std::string> labels;
+    std::int64_t value{0};
+};
+
+struct GaugeSnapshot {
+    std::string name, help;
+    std::map<std::string, std::string> labels;
+    double value{0};
+};
+
+struct HistogramMetricSnapshot {
+    std::string name, help;
+    std::map<std::string, std::string> labels;
+    HistogramSnapshot value;
 };
 
 inline const std::vector<double>& default_buckets() {
@@ -412,8 +439,53 @@ public:
         return h;
     }
 
+    std::vector<CounterSnapshot> counters() const {
+        std::scoped_lock lk(mu_);
+        std::vector<CounterSnapshot> out;
+        out.reserve(counters_.size());
+        for (const auto& item : counters_) {
+            const auto& counter = item.second;
+            out.push_back({counter->name, counter->help, counter->labels,
+                           counter->value()});
+        }
+        std::sort(out.begin(), out.end(), [](const auto& a, const auto& b) {
+            return metric_key(a.name, a.labels) < metric_key(b.name, b.labels);
+        });
+        return out;
+    }
+
+    std::vector<GaugeSnapshot> gauges() const {
+        std::scoped_lock lk(mu_);
+        std::vector<GaugeSnapshot> out;
+        out.reserve(gauges_.size());
+        for (const auto& item : gauges_) {
+            const auto& gauge = item.second;
+            out.push_back({gauge->name, gauge->help, gauge->labels,
+                           gauge->value()});
+        }
+        std::sort(out.begin(), out.end(), [](const auto& a, const auto& b) {
+            return metric_key(a.name, a.labels) < metric_key(b.name, b.labels);
+        });
+        return out;
+    }
+
+    std::vector<HistogramMetricSnapshot> histograms() const {
+        std::scoped_lock lk(mu_);
+        std::vector<HistogramMetricSnapshot> out;
+        out.reserve(histograms_.size());
+        for (const auto& item : histograms_) {
+            const auto& histogram = item.second;
+            out.push_back({histogram->name, histogram->help, histogram->labels,
+                           histogram->snapshot()});
+        }
+        std::sort(out.begin(), out.end(), [](const auto& a, const auto& b) {
+            return metric_key(a.name, a.labels) < metric_key(b.name, b.labels);
+        });
+        return out;
+    }
+
 private:
-    std::mutex mu_;
+    mutable std::mutex mu_;
     std::unordered_map<std::string, std::shared_ptr<Counter>> counters_;
     std::unordered_map<std::string, std::shared_ptr<Gauge>> gauges_;
     std::unordered_map<std::string, std::shared_ptr<Histogram>> histograms_;
@@ -568,11 +640,19 @@ inline std::unique_ptr<Observability>& current_ptr() {
     static std::unique_ptr<Observability> p; return p;
 }
 
+inline std::string new_instance_uid() {
+    static std::atomic<std::uint64_t> counter{0};
+    auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::system_clock::now().time_since_epoch()).count();
+    return std::to_string(now) + "-" + std::to_string(++counter);
+}
+
 inline Observability& configure(Config cfg) {
     check_env();
     const char* raw = std::getenv("OP_OBS");
     std::uint32_t families = parse_op_obs(raw ? raw : "");
     if (cfg.slug.empty()) cfg.slug = "holon";
+    if (cfg.instance_uid.empty()) cfg.instance_uid = new_instance_uid();
     if (!cfg.run_dir.empty()) cfg.run_dir = derive_run_dir(cfg.run_dir, cfg.slug, cfg.instance_uid);
     auto obs = std::make_unique<Observability>(std::move(cfg), families);
     std::scoped_lock lk(current_mu());
@@ -641,6 +721,19 @@ namespace detail {
                       static_cast<long long>(ns));
         return buf;
     }
+
+    inline void write_chain_json(std::ostream& f, const std::vector<Hop>& chain) {
+        if (chain.empty()) return;
+        f << ",\"chain\":[";
+        bool first = true;
+        for (const auto& hop : chain) {
+            if (!first) f << ',';
+            first = false;
+            f << "{\"slug\":" << json_escape(hop.slug)
+              << ",\"instance_uid\":" << json_escape(hop.instance_uid) << "}";
+        }
+        f << ']';
+    }
 }
 
 inline void enable_disk_writers(const std::string& run_dir) {
@@ -668,6 +761,7 @@ inline void enable_disk_writers(const std::string& run_dir) {
                 }
                 f << '}';
             }
+            detail::write_chain_json(f, e.chain);
             f << "}\n";
         });
     }
@@ -691,6 +785,7 @@ inline void enable_disk_writers(const std::string& run_dir) {
                 }
                 f << '}';
             }
+            detail::write_chain_json(f, e.chain);
             f << "}\n";
         });
     }
