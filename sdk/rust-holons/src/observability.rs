@@ -4,6 +4,7 @@
 //! (OP_OBS env + zero cost when disabled), same public surface, same
 //! on-disk JSONL shape. See OBSERVABILITY.md.
 
+use futures_util::StreamExt as FuturesStreamExt;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -12,10 +13,14 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::Stream;
+use tonic::transport::Channel;
 use tonic::{Request, Response, Status};
 
 use crate::gen::holons::v1::{
+    holon_observability_client::HolonObservabilityClient,
     holon_observability_server::{HolonObservability, HolonObservabilityServer},
     metric_sample, Bucket, ChainHop, EventInfo, EventsRequest, HistogramSample,
     LogEntry as ProtoLogEntry, LogsRequest, MetricSample, MetricsRequest, MetricsSnapshot,
@@ -283,8 +288,10 @@ pub struct LogEntry {
 pub struct LogRing {
     capacity: usize,
     inner: Mutex<VecDeque<LogEntry>>,
-    subs: Mutex<Vec<Box<dyn Fn(&LogEntry) + Send + Sync>>>,
+    subs: Mutex<Vec<LogSubscriber>>,
 }
+
+type LogSubscriber = Box<dyn Fn(&LogEntry) + Send + Sync>;
 
 impl LogRing {
     pub fn new(capacity: usize) -> Self {
@@ -298,7 +305,7 @@ impl LogRing {
 
     pub fn push(&self, e: LogEntry) {
         let cap = self.capacity;
-        let snapshot: Vec<Box<dyn Fn(&LogEntry) + Send + Sync>> = {
+        let snapshot: Vec<LogSubscriber> = {
             let mut subs_guard = self.subs.lock().unwrap();
             // Copy the raw function pointer references by cloning is not
             // possible for Box<dyn Fn>; we fire under the lock instead.
@@ -366,9 +373,11 @@ pub struct Event {
 pub struct EventBus {
     capacity: usize,
     inner: Mutex<VecDeque<Event>>,
-    subs: Mutex<Vec<Box<dyn Fn(&Event) + Send + Sync>>>,
+    subs: Mutex<Vec<EventSubscriber>>,
     closed: Mutex<bool>,
 }
+
+type EventSubscriber = Box<dyn Fn(&Event) + Send + Sync>;
 
 impl EventBus {
     pub fn new(capacity: usize) -> Self {
@@ -680,6 +689,12 @@ impl Registry {
         let mut out: Vec<_> = self.histograms.read().unwrap().values().cloned().collect();
         out.sort_by(|a, b| a.name.cmp(&b.name));
         out
+    }
+}
+
+impl Default for Registry {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1051,6 +1066,64 @@ pub fn to_proto_log_entry(e: &LogEntry) -> ProtoLogEntry {
     }
 }
 
+fn system_time_from_proto(ts: Option<prost_types::Timestamp>) -> SystemTime {
+    let Some(ts) = ts else {
+        return UNIX_EPOCH;
+    };
+    if ts.seconds < 0 {
+        return UNIX_EPOCH;
+    }
+    UNIX_EPOCH + Duration::new(ts.seconds as u64, ts.nanos.max(0) as u32)
+}
+
+fn hop_from_proto(h: ChainHop) -> Hop {
+    Hop {
+        slug: h.slug,
+        instance_uid: h.instance_uid,
+    }
+}
+
+fn level_from_proto(level: i32) -> Level {
+    match level {
+        1 => Level::Trace,
+        2 => Level::Debug,
+        3 => Level::Info,
+        4 => Level::Warn,
+        5 => Level::Error,
+        6 => Level::Fatal,
+        _ => Level::Unset,
+    }
+}
+
+fn event_type_from_proto(event_type: i32) -> EventType {
+    match event_type {
+        1 => EventType::InstanceSpawned,
+        2 => EventType::InstanceReady,
+        3 => EventType::InstanceExited,
+        4 => EventType::InstanceCrashed,
+        5 => EventType::SessionStarted,
+        6 => EventType::SessionEnded,
+        7 => EventType::HandlerPanic,
+        8 => EventType::ConfigReloaded,
+        _ => EventType::Unspecified,
+    }
+}
+
+pub fn from_proto_log_entry(entry: ProtoLogEntry) -> LogEntry {
+    LogEntry {
+        timestamp: system_time_from_proto(entry.ts),
+        level: level_from_proto(entry.level),
+        slug: entry.slug,
+        instance_uid: entry.instance_uid,
+        session_id: entry.session_id,
+        rpc_method: entry.rpc_method,
+        message: entry.message,
+        fields: entry.fields.into_iter().collect(),
+        caller: entry.caller,
+        chain: entry.chain.into_iter().map(hop_from_proto).collect(),
+    }
+}
+
 fn histogram_to_proto(snapshot: HistogramSnapshot) -> HistogramSample {
     HistogramSample {
         buckets: snapshot
@@ -1098,6 +1171,144 @@ pub fn to_proto_metric_samples(registry: &Registry) -> Vec<MetricSample> {
     samples
 }
 
+pub fn prometheus_text(registry: &Registry) -> String {
+    let mut out = String::new();
+    for counter in registry.list_counters() {
+        if !counter.help.is_empty() {
+            out.push_str("# HELP ");
+            out.push_str(&counter.name);
+            out.push(' ');
+            out.push_str(&counter.help);
+            out.push('\n');
+        }
+        out.push_str("# TYPE ");
+        out.push_str(&counter.name);
+        out.push_str(" counter\n");
+        out.push_str(&counter.name);
+        out.push_str(&prom_labels(&counter.labels));
+        out.push(' ');
+        out.push_str(&counter.value().to_string());
+        out.push('\n');
+    }
+    for gauge in registry.list_gauges() {
+        if !gauge.help.is_empty() {
+            out.push_str("# HELP ");
+            out.push_str(&gauge.name);
+            out.push(' ');
+            out.push_str(&gauge.help);
+            out.push('\n');
+        }
+        out.push_str("# TYPE ");
+        out.push_str(&gauge.name);
+        out.push_str(" gauge\n");
+        out.push_str(&gauge.name);
+        out.push_str(&prom_labels(&gauge.labels));
+        out.push(' ');
+        out.push_str(&gauge.value().to_string());
+        out.push('\n');
+    }
+    for histogram in registry.list_histograms() {
+        let snapshot = histogram.snapshot();
+        if !histogram.help.is_empty() {
+            out.push_str("# HELP ");
+            out.push_str(&histogram.name);
+            out.push(' ');
+            out.push_str(&histogram.help);
+            out.push('\n');
+        }
+        out.push_str("# TYPE ");
+        out.push_str(&histogram.name);
+        out.push_str(" histogram\n");
+        for (upper_bound, count) in snapshot.bounds.iter().zip(snapshot.counts.iter()) {
+            let mut labels = histogram.labels.clone();
+            labels.insert("le".to_string(), upper_bound.to_string());
+            out.push_str(&histogram.name);
+            out.push_str("_bucket");
+            out.push_str(&prom_labels(&labels));
+            out.push(' ');
+            out.push_str(&count.to_string());
+            out.push('\n');
+        }
+        out.push_str(&histogram.name);
+        out.push_str("_count");
+        out.push_str(&prom_labels(&histogram.labels));
+        out.push(' ');
+        out.push_str(&snapshot.total.to_string());
+        out.push('\n');
+        out.push_str(&histogram.name);
+        out.push_str("_sum");
+        out.push_str(&prom_labels(&histogram.labels));
+        out.push(' ');
+        out.push_str(&snapshot.sum.to_string());
+        out.push('\n');
+    }
+    out
+}
+
+fn prom_labels(labels: &BTreeMap<String, String>) -> String {
+    if labels.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from("{");
+    let mut first = true;
+    for (key, value) in labels {
+        if !first {
+            out.push(',');
+        }
+        first = false;
+        out.push_str(key);
+        out.push_str("=\"");
+        out.push_str(&prom_escape(value));
+        out.push('"');
+    }
+    out.push('}');
+    out
+}
+
+fn prom_escape(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('\n', "\\n")
+        .replace('"', "\\\"")
+}
+
+pub fn start_prometheus_endpoint(obs: Arc<Observability>) -> Option<String> {
+    if !obs.enabled(Family::Prom) {
+        return None;
+    }
+    let registry = obs.registry.clone()?;
+    let bind = if obs.cfg.prom_addr.trim().is_empty() {
+        "127.0.0.1:0".to_string()
+    } else {
+        obs.cfg.prom_addr.clone()
+    };
+    let listener = std::net::TcpListener::bind(&bind).ok()?;
+    listener.set_nonblocking(true).ok()?;
+    let addr = listener.local_addr().ok()?;
+    let runtime_listener = tokio::net::TcpListener::from_std(listener).ok()?;
+    tokio::spawn(async move {
+        loop {
+            let Ok((mut socket, _)) = runtime_listener.accept().await else {
+                break;
+            };
+            let registry = registry.clone();
+            tokio::spawn(async move {
+                let mut buf = [0_u8; 1024];
+                let _ = socket.read(&mut buf).await;
+                let body = prometheus_text(&registry);
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\ncontent-type: text/plain; version=0.0.4\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                let _ = socket.write_all(response.as_bytes()).await;
+                let _ = socket.shutdown().await;
+            });
+        }
+    });
+    Some(format!("http://{addr}/metrics"))
+}
+
 pub fn to_proto_event(e: &Event) -> EventInfo {
     EventInfo {
         ts: Some(timestamp(e.timestamp)),
@@ -1109,6 +1320,152 @@ pub fn to_proto_event(e: &Event) -> EventInfo {
         chain: e.chain.iter().map(hop_to_proto).collect(),
     }
 }
+
+pub fn from_proto_event(event: EventInfo) -> Event {
+    Event {
+        timestamp: system_time_from_proto(event.ts),
+        event_type: event_type_from_proto(event.r#type),
+        slug: event.slug,
+        instance_uid: event.instance_uid,
+        session_id: event.session_id,
+        payload: event.payload.into_iter().collect(),
+        chain: event.chain.into_iter().map(hop_from_proto).collect(),
+    }
+}
+
+pub struct MemberRelay {
+    handles: Vec<tokio::task::JoinHandle<()>>,
+}
+
+impl MemberRelay {
+    pub fn start(
+        child_slug: String,
+        child_uid: String,
+        channel: Channel,
+        obs: Arc<Observability>,
+    ) -> Self {
+        let mut handles = Vec::new();
+        if obs.enabled(Family::Logs) && obs.log_ring.is_some() {
+            handles.push(tokio::spawn(pump_member_logs(
+                child_slug.clone(),
+                child_uid.clone(),
+                channel.clone(),
+                obs.clone(),
+            )));
+        }
+        if obs.enabled(Family::Events) && obs.event_bus.is_some() {
+            handles.push(tokio::spawn(pump_member_events(
+                child_slug, child_uid, channel, obs,
+            )));
+        }
+        Self { handles }
+    }
+}
+
+impl Drop for MemberRelay {
+    fn drop(&mut self) {
+        for handle in &self.handles {
+            handle.abort();
+        }
+    }
+}
+
+async fn pump_member_logs(
+    child_slug: String,
+    child_uid: String,
+    channel: Channel,
+    obs: Arc<Observability>,
+) {
+    loop {
+        let mut client = HolonObservabilityClient::new(channel.clone());
+        let result = client
+            .logs(LogsRequest {
+                min_level: Level::Info as i32,
+                session_ids: Vec::new(),
+                rpc_methods: Vec::new(),
+                since: None,
+                follow: true,
+            })
+            .await;
+        match result {
+            Ok(response) => {
+                let mut stream = response.into_inner();
+                while let Some(next) = FuturesStreamExt::next(&mut stream).await {
+                    match next {
+                        Ok(proto) => {
+                            if let Some(ref ring) = obs.log_ring {
+                                let mut entry = from_proto_log_entry(proto);
+                                entry.chain =
+                                    append_direct_child(&entry.chain, &child_slug, &child_uid);
+                                ring.push(entry);
+                            }
+                        }
+                        Err(err) => {
+                            warn_member_relay(&obs, &child_slug, &child_uid, err.to_string());
+                            break;
+                        }
+                    }
+                }
+            }
+            Err(err) => warn_member_relay(&obs, &child_slug, &child_uid, err.to_string()),
+        }
+        tokio::time::sleep(MEMBER_RELAY_RETRY_DELAY).await;
+    }
+}
+
+async fn pump_member_events(
+    child_slug: String,
+    child_uid: String,
+    channel: Channel,
+    obs: Arc<Observability>,
+) {
+    loop {
+        let mut client = HolonObservabilityClient::new(channel.clone());
+        let result = client
+            .events(EventsRequest {
+                types: Vec::new(),
+                since: None,
+                follow: true,
+            })
+            .await;
+        match result {
+            Ok(response) => {
+                let mut stream = response.into_inner();
+                while let Some(next) = FuturesStreamExt::next(&mut stream).await {
+                    match next {
+                        Ok(proto) => {
+                            if let Some(ref bus) = obs.event_bus {
+                                let mut event = from_proto_event(proto);
+                                event.chain =
+                                    append_direct_child(&event.chain, &child_slug, &child_uid);
+                                bus.emit(event);
+                            }
+                        }
+                        Err(err) => {
+                            warn_member_relay(&obs, &child_slug, &child_uid, err.to_string());
+                            break;
+                        }
+                    }
+                }
+            }
+            Err(err) => warn_member_relay(&obs, &child_slug, &child_uid, err.to_string()),
+        }
+        tokio::time::sleep(MEMBER_RELAY_RETRY_DELAY).await;
+    }
+}
+
+fn warn_member_relay(obs: &Arc<Observability>, child_slug: &str, child_uid: &str, error: String) {
+    obs.logger("member-relay").warn(
+        "member relay stream error",
+        &[
+            ("child_slug", child_slug),
+            ("child_uid", child_uid),
+            ("error", &error),
+        ],
+    );
+}
+
+const MEMBER_RELAY_RETRY_DELAY: Duration = Duration::from_millis(100);
 
 #[derive(Clone)]
 pub struct ObservabilityService {
@@ -1149,6 +1506,21 @@ impl HolonObservability for ObservabilityService {
         } else {
             req.min_level
         };
+        let (follow_tx, follow_rx) = if req.follow {
+            let (tx, rx) = tokio::sync::mpsc::channel(1024);
+            let tx_for_sub = tx.clone();
+            let min_level_for_sub = min_level;
+            let session_ids = req.session_ids.clone();
+            let rpc_methods = req.rpc_methods.clone();
+            ring.subscribe(move |e| {
+                if match_log(e, min_level_for_sub, &session_ids, &rpc_methods) {
+                    let _ = tx_for_sub.try_send(Ok(to_proto_log_entry(e)));
+                }
+            });
+            (Some(tx), Some(rx))
+        } else {
+            (None, None)
+        };
         let entries = if let Some(since) = req.since {
             ring.drain_since(cutoff_from_duration(since))
         } else {
@@ -1159,7 +1531,15 @@ impl HolonObservability for ObservabilityService {
             .filter(|e| match_log(e, min_level, &req.session_ids, &req.rpc_methods))
             .map(|e| Ok(to_proto_log_entry(&e)))
             .collect::<Vec<_>>();
-        Ok(Response::new(Box::pin(tokio_stream::iter(out))))
+        drop(follow_tx);
+        if let Some(rx) = follow_rx {
+            Ok(Response::new(Box::pin(tokio_stream::StreamExt::chain(
+                tokio_stream::iter(out),
+                ReceiverStream::new(rx),
+            ))))
+        } else {
+            Ok(Response::new(Box::pin(tokio_stream::iter(out))))
+        }
     }
 
     async fn metrics(
@@ -1208,6 +1588,19 @@ impl HolonObservability for ObservabilityService {
             ));
         }
         let wanted: HashSet<i32> = req.types.into_iter().collect();
+        let (follow_tx, follow_rx) = if req.follow {
+            let (tx, rx) = tokio::sync::mpsc::channel(1024);
+            let tx_for_sub = tx.clone();
+            let wanted_for_sub = wanted.clone();
+            bus.subscribe(move |e| {
+                if wanted_for_sub.is_empty() || wanted_for_sub.contains(&(e.event_type as i32)) {
+                    let _ = tx_for_sub.try_send(Ok(to_proto_event(e)));
+                }
+            });
+            (Some(tx), Some(rx))
+        } else {
+            (None, None)
+        };
         let events = if let Some(since) = req.since {
             bus.drain_since(cutoff_from_duration(since))
         } else {
@@ -1218,7 +1611,15 @@ impl HolonObservability for ObservabilityService {
             .filter(|e| wanted.is_empty() || wanted.contains(&(e.event_type as i32)))
             .map(|e| Ok(to_proto_event(&e)))
             .collect::<Vec<_>>();
-        Ok(Response::new(Box::pin(tokio_stream::iter(out))))
+        drop(follow_tx);
+        if let Some(rx) = follow_rx {
+            Ok(Response::new(Box::pin(tokio_stream::StreamExt::chain(
+                tokio_stream::iter(out),
+                ReceiverStream::new(rx),
+            ))))
+        } else {
+            Ok(Response::new(Box::pin(tokio_stream::iter(out))))
+        }
     }
 }
 
@@ -1387,9 +1788,10 @@ fn json_chain(chain: &[Hop]) -> String {
             s.push(',');
         }
         first = false;
-        let mut parts = Vec::new();
-        parts.push(("slug", json_string(&h.slug)));
-        parts.push(("instance_uid", json_string(&h.instance_uid)));
+        let parts = vec![
+            ("slug", json_string(&h.slug)),
+            ("instance_uid", json_string(&h.instance_uid)),
+        ];
         s.push_str(&object(parts));
     }
     s.push(']');
@@ -1520,8 +1922,14 @@ pub fn write_meta_json(run_dir: &str, m: &MetaJson) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::gen::holons::v1::holon_observability_server::HolonObservability;
-    use tokio_stream::StreamExt;
+    use crate::gen::holons::v1::{
+        holon_observability_server::HolonObservability,
+        holon_observability_server::HolonObservabilityServer,
+    };
+    use tokio::net::TcpListener;
+    use tokio::time::{timeout, Duration};
+    use tokio_stream::wrappers::TcpListenerStream;
+    use tonic::transport::{Endpoint, Server};
 
     fn fresh() {
         reset();
@@ -1766,20 +2174,21 @@ mod tests {
         obs.emit(EventType::InstanceReady, payload);
 
         let svc = ObservabilityService::new(obs);
-        let logs = HolonObservability::logs(
-            &svc,
-            Request::new(LogsRequest {
-                min_level: Level::Info as i32,
-                session_ids: Vec::new(),
-                rpc_methods: Vec::new(),
-                since: None,
-                follow: false,
-            }),
+        let logs = tokio_stream::StreamExt::collect::<Vec<_>>(
+            HolonObservability::logs(
+                &svc,
+                Request::new(LogsRequest {
+                    min_level: Level::Info as i32,
+                    session_ids: Vec::new(),
+                    rpc_methods: Vec::new(),
+                    since: None,
+                    follow: false,
+                }),
+            )
+            .await
+            .unwrap()
+            .into_inner(),
         )
-        .await
-        .unwrap()
-        .into_inner()
-        .collect::<Vec<_>>()
         .await;
         assert!(logs
             .iter()
@@ -1801,21 +2210,182 @@ mod tests {
             .any(|sample| sample.name == "rust_requests_total"));
         assert!(metrics.session_rollup.is_none());
 
-        let events = HolonObservability::events(
-            &svc,
-            Request::new(EventsRequest {
-                types: Vec::new(),
-                since: None,
-                follow: false,
-            }),
+        let events = tokio_stream::StreamExt::collect::<Vec<_>>(
+            HolonObservability::events(
+                &svc,
+                Request::new(EventsRequest {
+                    types: Vec::new(),
+                    since: None,
+                    follow: false,
+                }),
+            )
+            .await
+            .unwrap()
+            .into_inner(),
         )
-        .await
-        .unwrap()
-        .into_inner()
-        .collect::<Vec<_>>()
         .await;
         assert!(events
             .iter()
             .any(|event| event.as_ref().unwrap().r#type == EventType::InstanceReady as i32));
+    }
+
+    #[tokio::test]
+    async fn service_follow_streams_emit_new_entries() {
+        let obs = test_observability("follow-rust", "uid-follow", &[Family::Logs, Family::Events]);
+        let svc = ObservabilityService::new(obs.clone());
+
+        let mut logs = HolonObservability::logs(
+            &svc,
+            Request::new(LogsRequest {
+                min_level: Level::Info as i32,
+                session_ids: Vec::new(),
+                rpc_methods: Vec::new(),
+                since: None,
+                follow: true,
+            }),
+        )
+        .await
+        .unwrap()
+        .into_inner();
+        obs.logger("test").info("follow-log", &[]);
+        let log = timeout(
+            Duration::from_secs(1),
+            tokio_stream::StreamExt::next(&mut logs),
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+        assert_eq!(log.message, "follow-log");
+
+        let mut events = HolonObservability::events(
+            &svc,
+            Request::new(EventsRequest {
+                types: Vec::new(),
+                since: None,
+                follow: true,
+            }),
+        )
+        .await
+        .unwrap()
+        .into_inner();
+        obs.emit(EventType::InstanceReady, BTreeMap::new());
+        let event = timeout(
+            Duration::from_secs(1),
+            tokio_stream::StreamExt::next(&mut events),
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+        assert_eq!(event.r#type, EventType::InstanceReady as i32);
+    }
+
+    #[tokio::test]
+    async fn member_relay_forwards_logs_events_with_child_chain() {
+        let child = test_observability("child-rust", "child-uid", &[Family::Logs, Family::Events]);
+        let child_for_emit = child.clone();
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+        let server = tokio::spawn(async move {
+            Server::builder()
+                .add_service(HolonObservabilityServer::new(ObservabilityService::new(
+                    child.clone(),
+                )))
+                .serve_with_incoming_shutdown(TcpListenerStream::new(listener), async move {
+                    let _ = shutdown_rx.await;
+                })
+                .await
+                .unwrap();
+        });
+
+        let channel = Endpoint::from_shared(format!("http://{addr}"))
+            .unwrap()
+            .connect()
+            .await
+            .unwrap();
+        let local =
+            test_observability("parent-rust", "parent-uid", &[Family::Logs, Family::Events]);
+        let relay = MemberRelay::start(
+            "child-rust".to_string(),
+            "child-uid".to_string(),
+            channel,
+            local.clone(),
+        );
+
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        child_for_emit
+            .logger("test")
+            .info("relayed-log", &[("source", "child")]);
+        child_for_emit.emit(EventType::InstanceReady, BTreeMap::new());
+
+        wait_for(|| {
+            local
+                .log_ring
+                .as_ref()
+                .unwrap()
+                .drain()
+                .iter()
+                .any(|entry| {
+                    entry.message == "relayed-log"
+                        && entry.chain.len() == 1
+                        && entry.chain[0].slug == "child-rust"
+                        && entry.chain[0].instance_uid == "child-uid"
+                })
+        })
+        .await;
+        wait_for(|| {
+            local
+                .event_bus
+                .as_ref()
+                .unwrap()
+                .drain()
+                .iter()
+                .any(|event| {
+                    event.event_type == EventType::InstanceReady
+                        && event.chain.len() == 1
+                        && event.chain[0].slug == "child-rust"
+                        && event.chain[0].instance_uid == "child-uid"
+                })
+        })
+        .await;
+
+        drop(relay);
+        let _ = shutdown_tx.send(());
+        server.await.unwrap();
+    }
+
+    async fn wait_for(mut condition: impl FnMut() -> bool) {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        while tokio::time::Instant::now() < deadline {
+            if condition() {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        panic!("condition was not met");
+    }
+
+    fn test_observability(slug: &str, uid: &str, families: &[Family]) -> Arc<Observability> {
+        let family_set = families.iter().copied().collect::<HashSet<_>>();
+        Arc::new(Observability {
+            cfg: Config {
+                slug: slug.to_string(),
+                instance_uid: uid.to_string(),
+                ..Default::default()
+            },
+            log_ring: family_set
+                .contains(&Family::Logs)
+                .then(|| Arc::new(LogRing::new(1024))),
+            event_bus: family_set
+                .contains(&Family::Events)
+                .then(|| Arc::new(EventBus::new(256))),
+            registry: family_set
+                .contains(&Family::Metrics)
+                .then(|| Arc::new(Registry::new())),
+            families: family_set,
+            loggers: Mutex::new(HashMap::new()),
+        })
     }
 }
