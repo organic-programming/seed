@@ -151,6 +151,14 @@ public class ServeTests
                 "tcp://127.0.0.1:0",
                 new[] { Serve.Service(new Obs.ObservabilityGrpcService(childObs)) },
                 new Serve.ServeOptions { Describe = false });
+            childObs.EventBus!.Emit(new Obs.Event
+            {
+                Timestamp = DateTime.UtcNow,
+                Type = Obs.EventType.InstanceReady,
+                Slug = "grandchild-holon",
+                InstanceUid = "grandchild-1",
+                Chain = new List<Obs.Hop> { new("grandchild-holon", "grandchild-1") },
+            });
             childObs.Emit(Obs.EventType.InstanceReady, new Dictionary<string, string> { ["listener"] = child.PublicUri });
             childObs.Logger("tick").Info(
                 "tick received",
