@@ -97,6 +97,7 @@ pub const LogsRequestOptions = struct {
 
 pub const EventsRequestOptions = struct {
     follow: bool = false,
+    types: []const i32 = &.{},
 };
 
 pub const ObservabilityLogEntry = struct {
@@ -149,6 +150,18 @@ pub const ObservabilityEventInfo = struct {
 
     pub fn eventType(self: ObservabilityEventInfo) i32 {
         return @intCast(self.raw.*.type);
+    }
+
+    pub fn slug(self: ObservabilityEventInfo) []const u8 {
+        return cstr(self.raw.*.slug);
+    }
+
+    pub fn instanceUid(self: ObservabilityEventInfo) []const u8 {
+        return cstr(self.raw.*.instance_uid);
+    }
+
+    pub fn chainLen(self: ObservabilityEventInfo) usize {
+        return self.raw.*.n_chain;
     }
 };
 
@@ -289,6 +302,13 @@ pub fn packEventsRequest(allocator: std.mem.Allocator, options: EventsRequestOpt
     var request: c.Holons__V1__EventsRequest = undefined;
     c.holons__v1__events_request__init(&request);
     request.follow = @intFromBool(options.follow);
+    var types = try allocator.alloc(c.Holons__V1__EventType, options.types.len);
+    defer allocator.free(types);
+    for (options.types, 0..) |event_type, index| {
+        types[index] = @intCast(event_type);
+    }
+    request.n_types = options.types.len;
+    request.types = if (types.len == 0) null else types.ptr;
     return packMessage(
         allocator,
         &request.base,

@@ -597,7 +597,7 @@ fn streamWorker(ctx: *StreamContext) void {
         }
         return;
     };
-    if (!ctx.stream.cancelled()) {
+    if (!ctx.state.cancelled_flag.load(.acquire)) {
         ctx.stream.finish(core.c.GRPC_STATUS_OK, "") catch {};
     }
 }

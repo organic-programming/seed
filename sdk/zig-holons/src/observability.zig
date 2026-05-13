@@ -949,6 +949,47 @@ fn packEventInfo(allocator: std.mem.Allocator, event: Event) ![]u8 {
     return packProto(allocator, &msg.base, c.holons__v1__event_info__get_packed_size(&msg));
 }
 
+pub fn logEntryFromBytes(allocator: std.mem.Allocator, bytes: []const u8) !LogEntry {
+    const raw = c.holons__v1__log_entry__unpack(null, bytes.len, bytes.ptr) orelse
+        return error.DecodeLogEntryFailed;
+    defer c.holons__v1__log_entry__free_unpacked(raw, null);
+    return logEntryFromProto(allocator, raw);
+}
+
+pub fn eventFromBytes(allocator: std.mem.Allocator, bytes: []const u8) !Event {
+    const raw = c.holons__v1__event_info__unpack(null, bytes.len, bytes.ptr) orelse
+        return error.DecodeEventInfoFailed;
+    defer c.holons__v1__event_info__free_unpacked(raw, null);
+    return eventFromProto(allocator, raw);
+}
+
+fn logEntryFromProto(allocator: std.mem.Allocator, raw: *c.Holons__V1__LogEntry) !LogEntry {
+    return .{
+        .timestamp_ns = timestampFromProto(raw.*.ts),
+        .level = levelFromProto(raw.*.level),
+        .slug = try allocator.dupe(u8, cstr(raw.*.slug)),
+        .instance_uid = try allocator.dupe(u8, cstr(raw.*.instance_uid)),
+        .session_id = try allocator.dupe(u8, cstr(raw.*.session_id)),
+        .rpc_method = try allocator.dupe(u8, cstr(raw.*.rpc_method)),
+        .message = try allocator.dupe(u8, cstr(raw.*.message)),
+        .fields = try labelsFromLogProto(allocator, raw),
+        .caller = try allocator.dupe(u8, cstr(raw.*.caller)),
+        .chain = try chainFromProto(allocator, raw.*.chain, raw.*.n_chain),
+    };
+}
+
+fn eventFromProto(allocator: std.mem.Allocator, raw: *c.Holons__V1__EventInfo) !Event {
+    return .{
+        .timestamp_ns = timestampFromProto(raw.*.ts),
+        .event_type = eventTypeFromProto(raw.*.type),
+        .slug = try allocator.dupe(u8, cstr(raw.*.slug)),
+        .instance_uid = try allocator.dupe(u8, cstr(raw.*.instance_uid)),
+        .session_id = try allocator.dupe(u8, cstr(raw.*.session_id)),
+        .payload = try labelsFromEventProto(allocator, raw),
+        .chain = try chainFromProto(allocator, raw.*.chain, raw.*.n_chain),
+    };
+}
+
 fn packMetricsSnapshot(
     allocator: std.mem.Allocator,
     obs: *Observability,
@@ -1299,6 +1340,79 @@ fn eventTypeToProto(event_type: EventType) c.Holons__V1__EventType {
     };
 }
 
+fn levelFromProto(level: c.Holons__V1__LogLevel) Level {
+    return switch (level) {
+        c.HOLONS__V1__LOG_LEVEL__TRACE => .trace,
+        c.HOLONS__V1__LOG_LEVEL__DEBUG => .debug,
+        c.HOLONS__V1__LOG_LEVEL__INFO => .info,
+        c.HOLONS__V1__LOG_LEVEL__WARN => .warn,
+        c.HOLONS__V1__LOG_LEVEL__ERROR => .err,
+        c.HOLONS__V1__LOG_LEVEL__FATAL => .fatal,
+        else => .unset,
+    };
+}
+
+fn eventTypeFromProto(event_type: c.Holons__V1__EventType) EventType {
+    return switch (event_type) {
+        c.HOLONS__V1__EVENT_TYPE__INSTANCE_SPAWNED => .instance_spawned,
+        c.HOLONS__V1__EVENT_TYPE__INSTANCE_READY => .instance_ready,
+        c.HOLONS__V1__EVENT_TYPE__INSTANCE_EXITED => .instance_exited,
+        c.HOLONS__V1__EVENT_TYPE__INSTANCE_CRASHED => .instance_crashed,
+        c.HOLONS__V1__EVENT_TYPE__SESSION_STARTED => .session_started,
+        c.HOLONS__V1__EVENT_TYPE__SESSION_ENDED => .session_ended,
+        c.HOLONS__V1__EVENT_TYPE__HANDLER_PANIC => .handler_panic,
+        c.HOLONS__V1__EVENT_TYPE__CONFIG_RELOADED => .config_reloaded,
+        else => .unspecified,
+    };
+}
+
+fn timestampFromProto(ts: ?*c.Google__Protobuf__Timestamp) i128 {
+    const value = ts orelse return 0;
+    return @as(i128, @intCast(value.*.seconds)) * std.time.ns_per_s + @as(i128, @intCast(value.*.nanos));
+}
+
+fn labelsFromLogProto(allocator: std.mem.Allocator, raw: *c.Holons__V1__LogEntry) ![]Label {
+    var out = try allocator.alloc(Label, raw.*.n_fields);
+    errdefer freeLabels(allocator, out);
+    if (raw.*.n_fields == 0) return out;
+    const fields = raw.*.fields orelse return error.InvalidLogFields;
+    for (fields[0..raw.*.n_fields], 0..) |field, index| {
+        out[index] = .{
+            .key = try allocator.dupe(u8, cstr(field.*.key)),
+            .value = try allocator.dupe(u8, cstr(field.*.value)),
+        };
+    }
+    return out;
+}
+
+fn labelsFromEventProto(allocator: std.mem.Allocator, raw: *c.Holons__V1__EventInfo) ![]Label {
+    var out = try allocator.alloc(Label, raw.*.n_payload);
+    errdefer freeLabels(allocator, out);
+    if (raw.*.n_payload == 0) return out;
+    const payload = raw.*.payload orelse return error.InvalidEventPayload;
+    for (payload[0..raw.*.n_payload], 0..) |field, index| {
+        out[index] = .{
+            .key = try allocator.dupe(u8, cstr(field.*.key)),
+            .value = try allocator.dupe(u8, cstr(field.*.value)),
+        };
+    }
+    return out;
+}
+
+fn chainFromProto(allocator: std.mem.Allocator, raw_chain: [*c][*c]c.Holons__V1__ChainHop, len: usize) ![]Hop {
+    var out = try allocator.alloc(Hop, len);
+    errdefer freeHops(allocator, out);
+    if (len == 0) return out;
+    const chain = raw_chain orelse return error.InvalidChain;
+    for (chain[0..len], 0..) |hop, index| {
+        out[index] = .{
+            .slug = try allocator.dupe(u8, cstr(hop.*.slug)),
+            .instance_uid = try allocator.dupe(u8, cstr(hop.*.instance_uid)),
+        };
+    }
+    return out;
+}
+
 fn packProto(allocator: std.mem.Allocator, base: *c.ProtobufCMessage, len: usize) ![]u8 {
     const buf = try allocator.alloc(u8, len);
     errdefer allocator.free(buf);
@@ -1371,7 +1485,27 @@ pub fn configureFromEnv(allocator: std.mem.Allocator, cfg: Config, env: []const 
     return configureFromRaw(allocator, merged, envValue(env, "OP_OBS") orelse "");
 }
 
+pub fn createFromEnv(allocator: std.mem.Allocator, cfg: Config, env: []const EnvEntry) !*Observability {
+    var merged = cfg;
+    if (merged.instance_uid.len == 0) merged.instance_uid = envValue(env, "OP_INSTANCE_UID") orelse "";
+    if (merged.organism_uid.len == 0) merged.organism_uid = envValue(env, "OP_ORGANISM_UID") orelse "";
+    if (merged.organism_slug.len == 0) merged.organism_slug = envValue(env, "OP_ORGANISM_SLUG") orelse "";
+    if (merged.prom_addr.len == 0) merged.prom_addr = envValue(env, "OP_PROM_ADDR") orelse "";
+    if (merged.run_dir.len == 0) merged.run_dir = envValue(env, "OP_RUN_DIR") orelse "";
+    return createFromRaw(allocator, merged, envValue(env, "OP_OBS") orelse "");
+}
+
 fn configureFromRaw(allocator: std.mem.Allocator, cfg: Config, op_obs: []const u8) !*Observability {
+    const obs = try createFromRaw(allocator, cfg, op_obs);
+    errdefer destroy(obs);
+    reset();
+    current_mutex.lockUncancelable(std.Options.debug_io);
+    current_obs = obs;
+    current_mutex.unlock(std.Options.debug_io);
+    return obs;
+}
+
+fn createFromRaw(allocator: std.mem.Allocator, cfg: Config, op_obs: []const u8) !*Observability {
     const families = try parseOpObs(op_obs);
     var owned = try OwnedConfig.fromConfig(allocator, cfg);
     errdefer owned.deinit(allocator);
@@ -1398,10 +1532,6 @@ fn configureFromRaw(allocator: std.mem.Allocator, cfg: Config, op_obs: []const u
         .event_bus = if (families.events) EventBus.init(allocator, if (cfg.events_ring_size == 0) 256 else cfg.events_ring_size) else null,
         .registry = if (families.metrics) Registry.init(allocator) else null,
     };
-    reset();
-    current_mutex.lockUncancelable(std.Options.debug_io);
-    current_obs = obs;
-    current_mutex.unlock(std.Options.debug_io);
     return obs;
 }
 
@@ -1417,10 +1547,14 @@ pub fn reset() void {
     current_obs = null;
     current_mutex.unlock(std.Options.debug_io);
     if (obs) |ptr| {
-        const allocator = ptr.allocator;
-        ptr.deinit();
-        allocator.destroy(ptr);
+        destroy(ptr);
     }
+}
+
+pub fn destroy(obs: *Observability) void {
+    const allocator = obs.allocator;
+    obs.deinit();
+    allocator.destroy(obs);
 }
 
 pub fn deriveRunDir(allocator: std.mem.Allocator, root: []const u8, slug: []const u8, uid: []const u8) ![]u8 {

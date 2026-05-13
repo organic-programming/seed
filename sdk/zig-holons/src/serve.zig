@@ -1,6 +1,7 @@
 const std = @import("std");
 const describe = @import("describe.zig");
 const grpc_server = @import("grpc/server.zig");
+const member_relay = @import("member_relay.zig");
 const observability = @import("observability.zig");
 const transport = @import("transport.zig");
 
@@ -13,12 +14,25 @@ var shutdown_signal = std.atomic.Value(bool).init(false);
 pub const Options = struct {
     listen_uri: []const u8 = "stdio://",
     methods: []const grpc_server.Method = &.{},
+    member_endpoints: []const member_relay.MemberRef = &.{},
+};
+
+pub const ParsedOptions = struct {
+    options: Options,
+    member_endpoints: []member_relay.MemberRef = &.{},
+
+    pub fn deinit(self: *ParsedOptions, allocator: std.mem.Allocator) void {
+        for (self.member_endpoints) |*member| member.deinit(allocator);
+        allocator.free(self.member_endpoints);
+        self.* = .{ .options = .{} };
+    }
 };
 
 pub const Error = error{
     MissingListenValue,
+    MissingMemberValue,
     UnsupportedListenTransport,
-} || transport.uri.ParseError || describe.Error;
+} || transport.uri.ParseError || describe.Error || member_relay.ParseError || std.mem.Allocator.Error;
 
 pub fn parseOptions(args: []const []const u8) Error!Options {
     var options = Options{};
@@ -39,6 +53,32 @@ pub fn parseOptions(args: []const []const u8) Error!Options {
     return options;
 }
 
+pub fn parseOptionsAlloc(allocator: std.mem.Allocator, args: []const []const u8) Error!ParsedOptions {
+    var options = try parseOptions(args);
+    var members: std.ArrayList(member_relay.MemberRef) = .empty;
+    errdefer {
+        for (members.items) |*member| member.deinit(allocator);
+        members.deinit(allocator);
+    }
+
+    var i: usize = 0;
+    while (i < args.len) : (i += 1) {
+        const arg = args[i];
+        if (std.mem.eql(u8, arg, "--member")) {
+            i += 1;
+            if (i >= args.len) return error.MissingMemberValue;
+            try appendParsedMember(allocator, &members, args[i]);
+            continue;
+        }
+        if (std.mem.startsWith(u8, arg, "--member=")) {
+            try appendParsedMember(allocator, &members, arg["--member=".len..]);
+        }
+    }
+    const owned = try members.toOwnedSlice(allocator);
+    options.member_endpoints = owned;
+    return .{ .options = options, .member_endpoints = owned };
+}
+
 pub fn runSingle(options: Options) !void {
     _ = try describe.current();
     const owned_methods = try methodsWithObservability(std.heap.c_allocator, options.methods);
@@ -46,6 +86,12 @@ pub fn runSingle(options: Options) !void {
     var server = try grpc_server.bind(std.heap.c_allocator, options.listen_uri, owned_methods orelse options.methods);
     if (!transport.supportsServe(server.endpoint.scheme)) return error.UnsupportedListenTransport;
     defer server.deinit();
+    const relay_obs = observability.current();
+    const relays = if (relay_obs) |obs|
+        try member_relay.startAll(std.heap.c_allocator, obs, options.member_endpoints)
+    else
+        try std.heap.c_allocator.alloc(member_relay.MemberRelay, 0);
+    defer member_relay.stopAll(std.heap.c_allocator, relays);
     try server.start();
     if (server.endpoint.scheme != .stdio) {
         std.debug.print("{s}\n", .{server.endpoint.raw});
@@ -72,6 +118,19 @@ fn methodsWithObservability(allocator: std.mem.Allocator, methods: []const grpc_
     @memcpy(out[0..obs_methods.len], obs_methods);
     @memcpy(out[obs_methods.len..], methods);
     return out;
+}
+
+fn appendParsedMember(
+    allocator: std.mem.Allocator,
+    members: *std.ArrayList(member_relay.MemberRef),
+    raw: []const u8,
+) !void {
+    const parsed = try member_relay.parseMember(raw);
+    try members.append(allocator, .{
+        .slug = try allocator.dupe(u8, parsed.slug),
+        .uid = try allocator.dupe(u8, parsed.uid),
+        .address = try allocator.dupe(u8, parsed.address),
+    });
 }
 
 fn startSignalWatcher(server: *grpc_server.Server) !std.Thread {
@@ -108,4 +167,18 @@ fn sleepMillis(ms: c_long) void {
 test "parse listen option" {
     const options = try parseOptions(&.{ "serve", "--listen", "tcp://127.0.0.1:9090" });
     try std.testing.expectEqualStrings("tcp://127.0.0.1:9090", options.listen_uri);
+}
+
+test "parse repeated member options" {
+    var parsed = try parseOptionsAlloc(std.testing.allocator, &.{
+        "serve",
+        "--member",
+        "child-a@uid-a=tcp://127.0.0.1:9001",
+        "--member=child-b=tcp://127.0.0.1:9002",
+    });
+    defer parsed.deinit(std.testing.allocator);
+    try std.testing.expectEqual(@as(usize, 2), parsed.options.member_endpoints.len);
+    try std.testing.expectEqualStrings("child-a", parsed.options.member_endpoints[0].slug);
+    try std.testing.expectEqualStrings("uid-a", parsed.options.member_endpoints[0].uid);
+    try std.testing.expectEqualStrings("tcp://127.0.0.1:9002", parsed.options.member_endpoints[1].address);
 }
