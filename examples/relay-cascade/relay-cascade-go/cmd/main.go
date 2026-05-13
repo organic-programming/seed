@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -61,12 +62,19 @@ type checkResult struct {
 }
 
 func main() {
-	start := time.Now()
-	if err := run(); err != nil {
+	persistentRoot := flag.Bool("persistent-root", false, "keep A alive while respawning B/C/D across TCP phases")
+	flag.Parse()
+
+	var err error
+	if *persistentRoot {
+		err = runPersistentRoot()
+	} else {
+		err = run()
+	}
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nFAIL: %v\n", err)
 		os.Exit(1)
 	}
-	_ = start
 }
 
 func run() error {
@@ -147,6 +155,94 @@ func run() error {
 	return nil
 }
 
+func runPersistentRoot() error {
+	binaryPath, err := findCascadeNodeBinary()
+	if err != nil {
+		return err
+	}
+	runRoot := filepath.Join(os.Getenv("HOME"), ".op", "run")
+	c := &cascade{
+		transport: "tcp",
+		runRoot:   runRoot,
+		roles:     make(map[string]*roleRuntime, len(roleOrder)),
+	}
+
+	fmt.Println("=== relay-cascade-go --persistent-root ===")
+	fmt.Println()
+	fmt.Println("Setup: spawning A (persistent root) at tcp://127.0.0.1:9090")
+	fmt.Println("       with --member cascade-node-go=tcp://127.0.0.1:9091")
+	fmt.Println()
+
+	c.roles["A"] = newPersistentRole("A", binaryPath)
+	c.roles["A"].memberAddress = "tcp://127.0.0.1:9091"
+	if err := os.RemoveAll(filepath.Join(runRoot, slug, c.roles["A"].uid)); err != nil {
+		return err
+	}
+	if err := c.startRole(c.roles["A"]); err != nil {
+		c.stop()
+		return fmt.Errorf("start persistent root: %w", err)
+	}
+	defer c.stop()
+
+	totalPass := 0
+	totalFail := 0
+	for phase := 1; phase <= runPhases; phase++ {
+		c.phase = phase
+		if phase == 1 {
+			fmt.Printf("Phase %d/%d: initial sub-tree spawn (B/C/D)\n", phase, runPhases)
+		} else {
+			fmt.Printf("Phase %d/%d: sub-tree respawn (B, C, D killed and respawned at same addresses)\n", phase, runPhases)
+			killStart := time.Now()
+			c.stopSubtree()
+			fmt.Printf("  killed 3 nodes in %s\n", time.Since(killStart).Round(time.Millisecond))
+		}
+
+		spawnStart := time.Now()
+		if err := c.spawnSubtree(phase, binaryPath); err != nil {
+			totalFail += runTicks
+			fmt.Printf("  spawn FAIL: %v\n\n", err)
+			continue
+		}
+		fmt.Printf("  spawned 3 nodes (B, C, D) in %s\n", time.Since(spawnStart).Round(time.Millisecond))
+
+		previousMetric := float64(0)
+		for tick := 1; tick <= runTicks; tick++ {
+			tickStart := time.Now()
+			result := c.runPersistentTick(tick, previousMetric)
+			if result.metric.pass {
+				previousMetric = result.metricValue
+			}
+			overall := result.log.pass && result.event.pass && result.metric.pass
+			if overall {
+				totalPass++
+			} else {
+				totalFail++
+			}
+			fmt.Printf("  Tick %d/%d: log %s, event %s, metric %s (overall %s in %s)\n",
+				tick,
+				runTicks,
+				passText(result.log.pass),
+				passText(result.event.pass),
+				passText(result.metric.pass),
+				overallText(overall),
+				time.Since(tickStart).Round(time.Millisecond),
+			)
+			if !overall {
+				printFailureEvidence("log", result.log)
+				printFailureEvidence("event", result.event)
+				printFailureEvidence("metric", result.metric)
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Printf("Summary: %d PASS / %d FAIL across %d ticks\n", totalPass, totalFail, totalPass+totalFail)
+	if totalFail > 0 {
+		return fmt.Errorf("%d tick(s) failed", totalFail)
+	}
+	return nil
+}
+
 type tickOutcome struct {
 	log         checkResult
 	event       checkResult
@@ -156,6 +252,15 @@ type tickOutcome struct {
 
 func (c *cascade) runTick(tick int, previousMetric float64) tickOutcome {
 	sender := fmt.Sprintf("phase-%d-tick-%d", c.phase, tick)
+	return c.runTickWithSender(tick, previousMetric, sender)
+}
+
+func (c *cascade) runPersistentTick(tick int, previousMetric float64) tickOutcome {
+	sender := fmt.Sprintf("persistent-phase-%d-tick-%d", c.phase, tick)
+	return c.runTickWithSender(tick, previousMetric, sender)
+}
+
+func (c *cascade) runTickWithSender(_ int, previousMetric float64, sender string) tickOutcome {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_, tickErr := relayv1.NewRelayServiceClient(c.roles["D"].conn).Tick(ctx, &relayv1.TickRequest{
@@ -185,6 +290,26 @@ func (c *cascade) runTick(tick int, previousMetric float64) tickOutcome {
 		metric:      metricResult,
 		metricValue: metricValue,
 	}
+}
+
+func (c *cascade) spawnSubtree(phase int, binaryPath string) error {
+	for _, role := range []string{"D", "C", "B"} {
+		r := newRoleRuntime(phase, "tcp", role, binaryPath)
+		c.roles[role] = r
+		if err := os.RemoveAll(filepath.Join(c.runRoot, slug, r.uid)); err != nil {
+			return err
+		}
+	}
+	c.roles["C"].memberAddress = c.roles["D"].relayAddress
+	c.roles["B"].memberAddress = c.roles["C"].relayAddress
+	for _, role := range []string{"D", "C", "B"} {
+		if err := c.startRole(c.roles[role]); err != nil {
+			c.stopSubtree()
+			return err
+		}
+	}
+	time.Sleep(150 * time.Millisecond)
+	return nil
 }
 
 func spawnCascade(phase int, transportName, binaryPath, runRoot string) (*cascade, error) {
@@ -256,6 +381,12 @@ func newRoleRuntime(phase int, transportName, role, binaryPath string) *roleRunt
 	return r
 }
 
+func newPersistentRole(role, binaryPath string) *roleRuntime {
+	r := newRoleRuntime(0, "tcp", role, binaryPath)
+	r.uid = "relay-persistent-" + strings.ToLower(role)
+	return r
+}
+
 func (c *cascade) startRole(r *roleRuntime) error {
 	args := []string{"serve"}
 	for _, uri := range r.listenURIs {
@@ -324,6 +455,42 @@ func (c *cascade) stop() {
 	}
 	deadline := time.Now().Add(3 * time.Second)
 	for _, role := range roleOrder {
+		r := c.roles[role]
+		if r == nil || r.cmd == nil {
+			continue
+		}
+		done := make(chan error, 1)
+		go func(cmd *exec.Cmd) { done <- cmd.Wait() }(r.cmd)
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			remaining = 10 * time.Millisecond
+		}
+		select {
+		case <-done:
+		case <-time.After(remaining):
+			if r.cmd.Process != nil {
+				_ = r.cmd.Process.Kill()
+			}
+			<-done
+		}
+	}
+}
+
+func (c *cascade) stopSubtree() {
+	for i := len(roleOrder) - 2; i >= 0; i-- {
+		r := c.roles[roleOrder[i]]
+		if r == nil {
+			continue
+		}
+		if r.conn != nil {
+			_ = r.conn.Close()
+		}
+		if r.cmd != nil && r.cmd.Process != nil {
+			_ = r.cmd.Process.Signal(syscall.SIGTERM)
+		}
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for _, role := range []string{"D", "C", "B"} {
 		r := c.roles[role]
 		if r == nil || r.cmd == nil {
 			continue
@@ -595,6 +762,13 @@ func findCascadeNodeBinary() (string, error) {
 }
 
 func passText(pass bool) string {
+	if pass {
+		return "PASS"
+	}
+	return "FAIL"
+}
+
+func overallText(pass bool) string {
 	if pass {
 		return "PASS"
 	}
