@@ -1773,7 +1773,7 @@ fn processEnvOwned(allocator: std.mem.Allocator, key: []const u8) !?[]u8 {
     const key_z = try allocator.dupeZ(u8, key);
     defer allocator.free(key_z);
     const value = std.c.getenv(key_z.ptr) orelse return null;
-    return allocator.dupe(u8, std.mem.span(value));
+    return try allocator.dupe(u8, std.mem.span(value));
 }
 
 fn processSlug(allocator: std.mem.Allocator) ![]u8 {
