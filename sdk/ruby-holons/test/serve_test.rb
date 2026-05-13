@@ -297,8 +297,9 @@ class ServeTest < Minitest::Test
 
       cd #{File.dirname(script_path).inspect}
       export BUNDLE_GEMFILE=#{File.expand_path("../Gemfile", __dir__).inspect}
+      export GEM_PATH=#{ENV.fetch("GEM_PATH", "").inspect}
 
-      exec arch -x86_64 bundle exec ruby #{script_path.inspect} "$@"
+      exec #{RbConfig.ruby.inspect} #{script_path.inspect} "$@"
     SH
   end
 

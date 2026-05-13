@@ -8,6 +8,7 @@ require 'securerandom'
 require 'set'
 require 'thread'
 require 'time'
+require 'webrick'
 
 module Holons
   module Observability
@@ -32,6 +33,7 @@ module Holons
       LOG_LEVEL_UNSPECIFIED: 0, TRACE: 1, DEBUG: 2, INFO: 3,
       WARN: 4, ERROR: 5, FATAL: 6
     }.freeze
+    PROTO_LOG_LEVEL_REVERSE = PROTO_LOG_LEVEL_NUMBERS.invert.freeze
 
     EVENT_TYPES = {
       unspecified: 0, instance_spawned: 1, instance_ready: 2, instance_exited: 3,
@@ -48,6 +50,7 @@ module Holons
       INSTANCE_EXITED: 3, INSTANCE_CRASHED: 4, SESSION_STARTED: 5,
       SESSION_ENDED: 6, HANDLER_PANIC: 7, CONFIG_RELOADED: 8
     }.freeze
+    PROTO_EVENT_TYPE_REVERSE = PROTO_EVENT_TYPE_NUMBERS.invert.freeze
 
     DEFAULT_BUCKETS = [
       50e-6, 100e-6, 250e-6, 500e-6,
@@ -538,6 +541,21 @@ module Holons
       )
     end
 
+    def self.from_proto_log_entry(entry)
+      {
+        timestamp: from_proto_timestamp(entry.ts),
+        level: log_level_number(entry.level),
+        slug: entry.slug,
+        instance_uid: entry.instance_uid,
+        session_id: entry.session_id,
+        rpc_method: entry.rpc_method,
+        message: entry.message,
+        fields: entry.fields.to_h,
+        caller: entry.caller,
+        chain: entry.chain.map { |hop| from_proto_hop(hop) }
+      }
+    end
+
     def self.to_proto_metric_samples(registry)
       samples = []
       registry.counters.each do |counter|
@@ -579,6 +597,18 @@ module Holons
       )
     end
 
+    def self.from_proto_event(event)
+      {
+        timestamp: from_proto_timestamp(event.ts),
+        type: event_type_number(event.type),
+        slug: event.slug,
+        instance_uid: event.instance_uid,
+        session_id: event.session_id,
+        payload: event.payload.to_h,
+        chain: event.chain.map { |hop| from_proto_hop(hop) }
+      }
+    end
+
     def self.to_proto_histogram(snapshot)
       ::Holons::V1::HistogramSample.new(
         count: snapshot.total,
@@ -596,9 +626,19 @@ module Holons
       )
     end
 
+    def self.from_proto_hop(hop)
+      { slug: hop.slug, instance_uid: hop.instance_uid }
+    end
+
     def self.to_proto_timestamp(time)
       utc = time.utc
       ::Google::Protobuf::Timestamp.new(seconds: utc.to_i, nanos: utc.nsec)
+    end
+
+    def self.from_proto_timestamp(timestamp)
+      seconds = timestamp&.seconds.to_i
+      nanos = timestamp&.nanos.to_i
+      Time.at(seconds, nanos, :nsec)
     end
 
     def self.duration_seconds(duration)
@@ -615,6 +655,259 @@ module Holons
       return value.to_i unless value.is_a?(Symbol)
 
       PROTO_EVENT_TYPE_NUMBERS.fetch(value, 0)
+    end
+
+    # --- Prometheus exposition ---
+
+    class PromServer
+      def initialize(addr = ':0')
+        @addr = addr.to_s.empty? ? ':0' : addr.to_s
+        @server = nil
+        @thread = nil
+        @mu = Monitor.new
+      end
+
+      def start
+        @mu.synchronize do
+          return addr_url_unlocked unless @server.nil?
+
+          host, port = Holons::Observability.parse_prom_addr(@addr)
+          logger = WEBrick::Log.new(File::NULL)
+          @server = WEBrick::HTTPServer.new(
+            BindAddress: host,
+            Port: port,
+            Logger: logger,
+            AccessLog: [],
+            StartCallback: nil
+          )
+          @server.mount_proc('/metrics') { |_request, response| write_metrics_response(response) }
+          @thread = Thread.new { @server.start }
+          addr_url_unlocked
+        end
+      end
+
+      def close
+        server = nil
+        thread = nil
+        @mu.synchronize do
+          server = @server
+          thread = @thread
+          @server = nil
+          @thread = nil
+        end
+        return if server.nil?
+
+        server.shutdown
+        thread&.join(1)
+      rescue StandardError
+        nil
+      end
+
+      private
+
+      def write_metrics_response(response)
+        obs = Holons::Observability.current
+        response['Content-Type'] = 'text/plain; version=0.0.4'
+        if !obs.enabled?(:metrics)
+          response.status = 503
+          response.body = "# metrics family disabled (OP_OBS)\n"
+        elsif !obs.enabled?(:prom)
+          response.status = 503
+          response.body = "# prom family disabled (OP_OBS)\n"
+        else
+          response.status = 200
+          response.body = Holons::Observability.to_prometheus_text(obs)
+        end
+      end
+
+      def addr_url_unlocked
+        return '' if @server.nil? || @server.listeners.empty?
+
+        addr = @server.listeners.first.addr
+        port = addr[1]
+        host = Holons::Observability.advertised_prom_host(addr[3] || addr[2].to_s)
+        "http://#{host}:#{port}/metrics"
+      end
+    end
+
+    def self.to_prometheus_text(obs)
+      return "# metrics family disabled (OP_OBS)\n" unless obs.enabled?(:metrics) && obs.registry
+
+      groups = {}
+      ensure_group = lambda do |name, help, type|
+        groups[name] ||= { name: name, help: help, type: type, counters: [], gauges: [], histograms: [] }
+        groups[name][:help] = help if groups[name][:help].to_s.empty? && !help.to_s.empty?
+        groups[name]
+      end
+
+      obs.registry.counters.each { |counter| ensure_group.call(counter.name, counter.help, 'counter')[:counters] << counter }
+      obs.registry.gauges.each { |gauge| ensure_group.call(gauge.name, gauge.help, 'gauge')[:gauges] << gauge }
+      obs.registry.histograms.each { |histogram| ensure_group.call(histogram.name, histogram.help, 'histogram')[:histograms] << histogram }
+
+      injected = { 'slug' => obs.cfg.slug.to_s }
+      injected['instance_uid'] = obs.cfg.instance_uid.to_s unless obs.cfg.instance_uid.to_s.empty?
+
+      lines = []
+      groups.keys.sort.each do |name|
+        group = groups[name]
+        lines << "# HELP #{name} #{prom_escape_help(group[:help].to_s)}"
+        lines << "# TYPE #{name} #{group[:type]}"
+        group[:counters].each do |counter|
+          lines << "#{counter.name}#{prom_labels(merge_prom_labels(counter.labels, injected))} #{counter.value}"
+        end
+        group[:gauges].each do |gauge|
+          lines << "#{gauge.name}#{prom_labels(merge_prom_labels(gauge.labels, injected))} #{format_prom_float(gauge.value)}"
+        end
+        group[:histograms].each do |histogram|
+          labels = merge_prom_labels(histogram.labels, injected)
+          snapshot = histogram.snapshot
+          snapshot.bounds.each_with_index do |bound, idx|
+            bucket_labels = labels.merge('le' => format_prom_float(bound))
+            lines << "#{histogram.name}_bucket#{prom_labels(bucket_labels)} #{snapshot.counts[idx]}"
+          end
+          lines << "#{histogram.name}_bucket#{prom_labels(labels.merge('le' => '+Inf'))} #{snapshot.total}"
+          lines << "#{histogram.name}_sum#{prom_labels(labels)} #{format_prom_float(snapshot.sum)}"
+          lines << "#{histogram.name}_count#{prom_labels(labels)} #{snapshot.total}"
+        end
+      end
+      lines.empty? ? '' : "#{lines.join("\n")}\n"
+    end
+
+    def self.parse_prom_addr(raw)
+      trimmed = raw.to_s.strip
+      trimmed = ':0' if trimmed.empty?
+      return ['0.0.0.0', Integer(trimmed[1..] || '0', 10)] if trimmed.start_with?(':')
+
+      host, separator, port_text = trimmed.rpartition(':')
+      raise ArgumentError, %(invalid Prometheus address "#{raw}") if separator.empty? || port_text.empty?
+
+      [host.empty? ? '0.0.0.0' : host, Integer(port_text, 10)]
+    end
+
+    def self.advertised_prom_host(host)
+      case host.to_s
+      when '', '0.0.0.0'
+        '127.0.0.1'
+      when '::'
+        '::1'
+      else
+        host.to_s
+      end
+    end
+
+    def self.merge_prom_labels(base, extra)
+      out = {}
+      extra.each { |key, value| out[key.to_s] = value.to_s unless value.to_s.empty? }
+      (base || {}).each { |key, value| out[key.to_s] = value.to_s }
+      out
+    end
+
+    def self.prom_labels(labels)
+      return '' if labels.nil? || labels.empty?
+
+      '{' + labels.keys.sort.map { |key| %(#{key}="#{prom_escape_value(labels[key])}") }.join(',') + '}'
+    end
+
+    def self.prom_escape_value(value)
+      value.to_s.gsub('\\', '\\\\\\').gsub("\n", '\\n').gsub('"', '\\"')
+    end
+
+    def self.prom_escape_help(value)
+      value.to_s.gsub('\\', '\\\\\\').gsub("\n", '\\n')
+    end
+
+    def self.format_prom_float(value)
+      number = value.to_f
+      return '+Inf' if number.infinite? == 1
+      return '-Inf' if number.infinite? == -1
+      return 'NaN' if number.nan?
+
+      format('%g', number)
+    end
+
+    # --- Member observability relay ---
+
+    class MemberRelay
+      def initialize(child_slug:, child_uid:, stub:, observability: nil, retry_delay: 2.0)
+        @child_slug = child_slug.to_s
+        @child_uid = child_uid.to_s
+        @stub = stub
+        @observability = observability || Holons::Observability.current
+        @retry_delay = retry_delay.to_f
+        @stop = false
+        @threads = []
+        @mu = Mutex.new
+      end
+
+      def start
+        obs = @observability
+        return unless obs.enabled?(:logs) || obs.enabled?(:events)
+
+        if obs.enabled?(:logs) && obs.log_ring
+          @threads << Thread.new { pump_logs }
+        end
+        if obs.enabled?(:events) && obs.event_bus
+          @threads << Thread.new { pump_events }
+        end
+        @threads.each { |thread| thread.abort_on_exception = false }
+        self
+      end
+
+      def stop
+        @mu.synchronize { @stop = true }
+        @threads.each { |thread| thread.join(2) }
+      rescue StandardError
+        nil
+      end
+
+      private
+
+      def stopped?
+        @mu.synchronize { @stop }
+      end
+
+      def pump_logs
+        until stopped?
+          begin
+            @stub.logs(::Holons::V1::LogsRequest.new(follow: true)).each do |proto|
+              return if stopped?
+
+              obs = @observability
+              next unless obs.enabled?(:logs) && obs.log_ring
+
+              entry = Holons::Observability.from_proto_log_entry(proto)
+              entry[:chain] = Holons::Observability.append_direct_child(entry[:chain], @child_slug, @child_uid)
+              obs.log_ring.push(entry)
+            end
+          rescue StandardError
+            sleep_retry
+          end
+        end
+      end
+
+      def pump_events
+        until stopped?
+          begin
+            @stub.events(::Holons::V1::EventsRequest.new(follow: true)).each do |proto|
+              return if stopped?
+
+              obs = @observability
+              next unless obs.enabled?(:events) && obs.event_bus
+
+              event = Holons::Observability.from_proto_event(proto)
+              event[:chain] = Holons::Observability.append_direct_child(event[:chain], @child_slug, @child_uid)
+              obs.event_bus.emit(event)
+            end
+          rescue StandardError
+            sleep_retry
+          end
+        end
+      end
+
+      def sleep_retry
+        deadline = Time.now + @retry_delay
+        sleep 0.05 while !stopped? && Time.now < deadline
+      end
     end
 
     def self.require_grpc_observability_support!
