@@ -17,17 +17,21 @@ namespace Holons;
 /// <summary>Standard gRPC server runner utilities.</summary>
 public static class Serve
 {
+    public sealed record MemberRef(string Slug, string Address);
+
     public sealed record ServeOptions
     {
         public bool Describe { get; init; } = true;
         public bool Reflect { get; init; } = false;
+        public string Slug { get; init; } = "";
+        public IReadOnlyList<MemberRef> MemberEndpoints { get; init; } = Array.Empty<MemberRef>();
         public Action<string> Logger { get; init; } = message => Console.Error.WriteLine(message);
         public Action<string>? OnListen { get; init; }
         public int ShutdownGracePeriodSeconds { get; init; } = 10;
         public IReadOnlyDictionary<string, string>? Env { get; init; }
     }
 
-    public sealed record ParsedFlags(string ListenUri, bool Reflect);
+    public sealed record ParsedFlags(string ListenUri, bool Reflect, IReadOnlyList<MemberRef> MemberEndpoints);
 
     public sealed record GrpcServiceRegistration(
         Action<IServiceCollection> ConfigureServices,
@@ -102,6 +106,7 @@ public static class Serve
     {
         var listenUri = Transport.DefaultUri;
         var reflect = false;
+        var members = new List<MemberRef>();
         for (int i = 0; i < args.Length; i++)
         {
             if (args[i] == "--listen" && i + 1 < args.Length)
@@ -110,8 +115,21 @@ public static class Serve
                 listenUri = $"tcp://:{args[i + 1]}";
             if (args[i] == "--reflect")
                 reflect = true;
+            if (args[i] == "--member" && i + 1 < args.Length)
+                members.Add(ParseMemberRef(args[++i]));
+            else if (args[i].StartsWith("--member=", StringComparison.Ordinal))
+                members.Add(ParseMemberRef(args[i]["--member=".Length..]));
         }
-        return new ParsedFlags(listenUri, reflect);
+        return new ParsedFlags(listenUri, reflect, members);
+    }
+
+    private static MemberRef ParseMemberRef(string raw)
+    {
+        raw ??= string.Empty;
+        var split = raw.IndexOf('=', StringComparison.Ordinal);
+        if (split <= 0 || split == raw.Length - 1)
+            throw new ArgumentException("--member must be formatted as <slug>=<address>");
+        return new MemberRef(raw[..split].Trim(), raw[(split + 1)..].Trim());
     }
 
     public static GrpcServiceRegistration Service<TService>()
@@ -215,15 +233,17 @@ public static class Serve
         {
             running?.StopAsync(options.ShutdownGracePeriodSeconds).GetAwaiter().GetResult();
         });
+        var obsStop = StartObservabilityRuntime(observability, "stdio://", "stdio", options);
 
         running = new RunningServer(
             backing.App,
             "stdio://",
             options.Logger,
-            auxiliaryStop: async () => await bridge.DisposeAsync().ConfigureAwait(false));
+            auxiliaryStop: CombineStops(
+                obsStop,
+                async () => await bridge.DisposeAsync().ConfigureAwait(false)));
 
         bridge.Start();
-        StartObservabilityRuntime(observability, "stdio://", "stdio");
         var mode = FormatMode(describeEnabled, reflectionEnabled);
         options.OnListen?.Invoke("stdio://");
         options.Logger($"gRPC server listening on stdio:// ({mode})");
@@ -249,7 +269,7 @@ public static class Serve
         bridge.Start();
 
         var publicUri = $"unix://{path}";
-        StartObservabilityRuntime(observability, publicUri, "unix");
+        var obsStop = StartObservabilityRuntime(observability, publicUri, "unix", options);
         var mode = FormatMode(describeEnabled, reflectionEnabled);
         options.OnListen?.Invoke(publicUri);
         options.Logger($"gRPC server listening on {publicUri} ({mode})");
@@ -257,7 +277,9 @@ public static class Serve
             backing.App,
             publicUri,
             options.Logger,
-            auxiliaryStop: async () => await bridge.DisposeAsync().ConfigureAwait(false));
+            auxiliaryStop: CombineStops(
+                obsStop,
+                async () => await bridge.DisposeAsync().ConfigureAwait(false)));
     }
 
     private static RunningServer StartTcpServer(
@@ -272,7 +294,7 @@ public static class Serve
         bool suppressAnnouncement)
     {
         var started = StartApplication(host, port, registrations, publicUriOverride);
-        StartObservabilityRuntime(observability, started.PublicUri, "tcp");
+        var obsStop = StartObservabilityRuntime(observability, started.PublicUri, "tcp", options);
         if (!suppressAnnouncement)
         {
             var mode = FormatMode(describeEnabled, reflectionEnabled);
@@ -280,7 +302,7 @@ public static class Serve
             options.Logger($"gRPC server listening on {started.PublicUri} ({mode})");
         }
 
-        return new RunningServer(started.App, started.PublicUri, options.Logger);
+        return new RunningServer(started.App, started.PublicUri, options.Logger, obsStop);
     }
 
     private static StartedApplication StartApplication(
@@ -357,7 +379,7 @@ public static class Serve
             return null;
 
         var obs = Obs.ObservabilityRegistry.FromEnvMap(
-            new Obs.ObsConfig(),
+            new Obs.ObsConfig { Slug = options.Slug },
             env?.ToDictionary(pair => pair.Key, pair => pair.Value));
         if (obs.Families.Count == 0)
             return null;
@@ -366,28 +388,71 @@ public static class Serve
         return obs;
     }
 
-    private static void StartObservabilityRuntime(Obs.Observability? obs, string publicUri, string transport)
+    private static Func<Task>? StartObservabilityRuntime(
+        Obs.Observability? obs,
+        string publicUri,
+        string transport,
+        ServeOptions options)
     {
-        if (obs is null || string.IsNullOrEmpty(obs.Config.RunDir))
-            return;
+        if (obs is null)
+            return null;
 
-        Obs.DiskWriters.Enable(obs.Config.RunDir);
+        Obs.PrometheusServer? prom = null;
+        if (obs.Enabled(Obs.Family.Prom))
+            prom = Obs.PrometheusServer.Start(obs, string.IsNullOrEmpty(obs.Config.PromAddr) ? "127.0.0.1:0" : obs.Config.PromAddr);
+
+        var relays = new List<Obs.MemberRelay>();
+        foreach (var member in options.MemberEndpoints)
+        {
+            if (string.IsNullOrWhiteSpace(member.Slug) || string.IsNullOrWhiteSpace(member.Address))
+                continue;
+            var relay = new Obs.MemberRelay(obs, member.Slug, member.Address, options.Logger);
+            relay.Start();
+            relays.Add(relay);
+        }
+
+        if (!string.IsNullOrEmpty(obs.Config.RunDir))
+            Obs.DiskWriters.Enable(obs.Config.RunDir);
         if (obs.Enabled(Obs.Family.Events))
             obs.Emit(Obs.EventType.InstanceReady, new Dictionary<string, string> { ["listener"] = publicUri });
 
-        var meta = new Obs.MetaJson
+        if (!string.IsNullOrEmpty(obs.Config.RunDir))
         {
-            Slug = obs.Config.Slug,
-            Uid = obs.Config.InstanceUid,
-            Pid = Environment.ProcessId,
-            StartedAt = DateTime.UtcNow,
-            Transport = transport,
-            Address = publicUri,
-            LogPath = obs.Enabled(Obs.Family.Logs) ? Path.Combine(obs.Config.RunDir, "stdout.log") : "",
-            OrganismUid = obs.Config.OrganismUid,
-            OrganismSlug = obs.Config.OrganismSlug,
+            var meta = new Obs.MetaJson
+            {
+                Slug = obs.Config.Slug,
+                Uid = obs.Config.InstanceUid,
+                Pid = Environment.ProcessId,
+                StartedAt = DateTime.UtcNow,
+                Transport = transport,
+                Address = publicUri,
+                MetricsAddr = prom?.Address ?? "",
+                LogPath = obs.Enabled(Obs.Family.Logs) ? Path.Combine(obs.Config.RunDir, "stdout.log") : "",
+                OrganismUid = obs.Config.OrganismUid,
+                OrganismSlug = obs.Config.OrganismSlug,
+            };
+            try { Obs.MetaJson.Write(obs.Config.RunDir, meta); } catch { }
+        }
+
+        return async () =>
+        {
+            foreach (var relay in relays)
+                await relay.DisposeAsync().ConfigureAwait(false);
+            prom?.Dispose();
+            obs.Close();
         };
-        try { Obs.MetaJson.Write(obs.Config.RunDir, meta); } catch { }
+    }
+
+    private static Func<Task>? CombineStops(params Func<Task>?[] stops)
+    {
+        var active = stops.Where(stop => stop is not null).ToArray();
+        if (active.Length == 0)
+            return null;
+        return async () =>
+        {
+            foreach (var stop in active)
+                await stop!().ConfigureAwait(false);
+        };
     }
 
     private static string FormatMode(bool describeEnabled, bool reflectionEnabled) =>

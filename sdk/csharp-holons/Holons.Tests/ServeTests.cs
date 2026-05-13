@@ -2,6 +2,7 @@ using Grpc.Core;
 using Grpc.Net.Client;
 using Holons.V1;
 using Obs = Holons.Observability;
+using System.Text.Json;
 
 namespace Holons.Tests;
 
@@ -131,6 +132,93 @@ public class ServeTests
     }
 
     [Fact]
+    public async Task StartWithOptionsRelaysMemberObservabilityAndWritesPrometheusAddress()
+    {
+        var root = CreateTempHolon();
+        try
+        {
+            Describe.UseStaticResponse(null);
+            Obs.ObservabilityRegistry.Reset();
+
+            var childObs = Obs.ObservabilityRegistry.ConfigureFromEnv(
+                new Obs.ObsConfig
+                {
+                    Slug = "child-holon",
+                    InstanceUid = "child-1",
+                },
+                new Dictionary<string, string> { ["OP_OBS"] = "logs,events,metrics" });
+            await using var child = Serve.StartWithOptions(
+                "tcp://127.0.0.1:0",
+                new[] { Serve.Service(new Obs.ObservabilityGrpcService(childObs)) },
+                new Serve.ServeOptions { Describe = false });
+            childObs.Emit(Obs.EventType.InstanceReady, new Dictionary<string, string> { ["listener"] = child.PublicUri });
+            childObs.Logger("tick").Info(
+                "tick received",
+                new Dictionary<string, object?>
+                {
+                    ["sender"] = "serve-test",
+                    ["responder_uid"] = "child-1",
+                });
+
+            var registryRoot = Path.Combine(root, "runs");
+            await using var server = Serve.StartWithOptions(
+                "tcp://127.0.0.1:0",
+                Array.Empty<Serve.GrpcServiceRegistration>(),
+                new Serve.ServeOptions
+                {
+                    Describe = false,
+                    Slug = "root-holon",
+                    Env = new Dictionary<string, string>
+                    {
+                        ["OP_OBS"] = "logs,metrics,events,prom",
+                        ["OP_RUN_DIR"] = registryRoot,
+                        ["OP_INSTANCE_UID"] = "root-1",
+                        ["OP_PROM_ADDR"] = "127.0.0.1:0",
+                    },
+                    MemberEndpoints = new[] { new Serve.MemberRef("child-holon", child.PublicUri) },
+                });
+            var rootObs = Obs.ObservabilityRegistry.Current();
+            rootObs.Counter(
+                "root_ticks_total",
+                "root ticks",
+                new Dictionary<string, string> { ["responder_uid"] = "root-1" })!.Inc();
+
+            Assert.True(await WaitUntilAsync(() =>
+                rootObs.LogRing?.Drain().Any(entry =>
+                    entry.Message == "tick received" &&
+                    entry.InstanceUid == "child-1" &&
+                    entry.Chain.Count == 1 &&
+                    entry.Chain[0].Slug == "child-holon" &&
+                    entry.Chain[0].InstanceUid == "child-1") == true));
+            Assert.True(await WaitUntilAsync(() =>
+                rootObs.EventBus?.Drain().Any(ev =>
+                    ev.Type == Obs.EventType.InstanceReady &&
+                    ev.InstanceUid == "child-1" &&
+                    ev.Chain.Count == 1 &&
+                    ev.Chain[0].Slug == "child-holon" &&
+                    ev.Chain[0].InstanceUid == "child-1") == true));
+
+            var metaPath = Path.Combine(registryRoot, "root-holon", "root-1", "meta.json");
+            Assert.True(await WaitUntilAsync(() => File.Exists(metaPath)));
+            using var meta = JsonDocument.Parse(await File.ReadAllTextAsync(metaPath));
+            var metricsAddr = meta.RootElement.GetProperty("metrics_addr").GetString();
+            Assert.False(string.IsNullOrWhiteSpace(metricsAddr));
+
+            using var http = new HttpClient();
+            var prometheus = await http.GetStringAsync(metricsAddr);
+            Assert.Contains("# TYPE root_ticks_total counter", prometheus);
+            Assert.Contains("responder_uid=\"root-1\"", prometheus);
+            Assert.Contains("instance_uid=\"root-1\"", prometheus);
+        }
+        finally
+        {
+            Describe.UseStaticResponse(null);
+            Obs.ObservabilityRegistry.Reset();
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task StartWithOptionsAdvertisesUnixAndAutoRegistersDescribe()
     {
         var root = CreateTempHolon();
@@ -235,5 +323,17 @@ public class ServeTests
             """);
 
         return root;
+    }
+
+    private static async Task<bool> WaitUntilAsync(Func<bool> condition, int timeoutMillis = 5000)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(timeoutMillis);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (condition())
+                return true;
+            await Task.Delay(50);
+        }
+        return condition();
     }
 }
