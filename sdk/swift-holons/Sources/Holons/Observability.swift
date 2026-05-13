@@ -10,6 +10,12 @@ import GRPC
 import NIOCore
 import SwiftProtobuf
 
+#if os(Linux)
+import Glibc
+#else
+import Darwin
+#endif
+
 // MARK: - Families
 
 public enum Family: String, CaseIterable, Sendable {
@@ -821,7 +827,19 @@ public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvid
         for entry in entries where matchLog(entry, minLevel: minLevel, sessionIds: request.sessionIds, rpcMethods: request.rpcMethods) {
             future = future.flatMap { context.sendResponse(toProtoLogEntry(entry)) }
         }
-        return future.map { .ok }
+        guard request.follow else {
+            return future.map { .ok }
+        }
+        let followPromise = context.eventLoop.makePromise(of: GRPCStatus.self)
+        _ = ring.subscribe { entry in
+            guard matchLog(entry, minLevel: minLevel, sessionIds: request.sessionIds, rpcMethods: request.rpcMethods) else {
+                return
+            }
+            context.eventLoop.execute {
+                context.sendResponse(toProtoLogEntry(entry), promise: nil)
+            }
+        }
+        return future.flatMap { followPromise.futureResult }
     }
 
     public func metrics(
@@ -864,12 +882,406 @@ public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvid
         for event in events where matchEvent(event, wanted: wanted) {
             future = future.flatMap { context.sendResponse(toProtoEvent(event)) }
         }
-        return future.map { .ok }
+        guard request.follow else {
+            return future.map { .ok }
+        }
+        let followPromise = context.eventLoop.makePromise(of: GRPCStatus.self)
+        _ = bus.subscribe { event in
+            guard matchEvent(event, wanted: wanted) else {
+                return
+            }
+            context.eventLoop.execute {
+                context.sendResponse(toProtoEvent(event), promise: nil)
+            }
+        }
+        return future.flatMap { followPromise.futureResult }
     }
 }
 
 public func registerObservabilityService(_ obs: Observability = current()) -> CallHandlerProvider {
     HolonObservabilityService(obs)
+}
+
+public func fromProtoLogEntry(_ proto: Holons_V1_LogEntry) -> LogEntry {
+    LogEntry(
+        timestamp: proto.ts.date,
+        level: Level(rawValue: Int32(proto.level.rawValue)) ?? .unset,
+        slug: proto.slug,
+        instanceUid: proto.instanceUid,
+        sessionId: proto.sessionID,
+        rpcMethod: proto.rpcMethod,
+        message: proto.message,
+        fields: proto.fields,
+        caller: proto.caller,
+        chain: proto.chain.map { Hop(slug: $0.slug, instanceUid: $0.instanceUid) }
+    )
+}
+
+public func fromProtoEvent(_ proto: Holons_V1_EventInfo) -> Event {
+    Event(
+        timestamp: proto.ts.date,
+        type: EventType(rawValue: Int32(proto.type.rawValue)) ?? .unspecified,
+        slug: proto.slug,
+        instanceUid: proto.instanceUid,
+        sessionId: proto.sessionID,
+        payload: proto.payload,
+        chain: proto.chain.map { Hop(slug: $0.slug, instanceUid: $0.instanceUid) }
+    )
+}
+
+private func prometheusText(_ obs: Observability) -> String {
+    guard let registry = obs.registry else { return "" }
+    var lines: [String] = []
+    for counter in registry.listCounters() {
+        if !counter.help.isEmpty { lines.append("# HELP \(counter.name) \(escapePromHelp(counter.help))") }
+        lines.append("# TYPE \(counter.name) counter")
+        lines.append("\(counter.name)\(promLabels(counter.labels, obs: obs)) \(counter.read())")
+    }
+    for gauge in registry.listGauges() {
+        if !gauge.help.isEmpty { lines.append("# HELP \(gauge.name) \(escapePromHelp(gauge.help))") }
+        lines.append("# TYPE \(gauge.name) gauge")
+        lines.append("\(gauge.name)\(promLabels(gauge.labels, obs: obs)) \(gauge.read())")
+    }
+    for histogram in registry.listHistograms() {
+        if !histogram.help.isEmpty { lines.append("# HELP \(histogram.name) \(escapePromHelp(histogram.help))") }
+        lines.append("# TYPE \(histogram.name) histogram")
+        let snapshot = histogram.snapshot()
+        let baseLabels = identityLabels(histogram.labels, obs: obs)
+        for (bound, count) in zip(snapshot.bounds, snapshot.counts) {
+            var labels = baseLabels
+            labels["le"] = String(bound)
+            lines.append("\(histogram.name)_bucket\(formatPromLabels(labels)) \(count)")
+        }
+        var infLabels = baseLabels
+        infLabels["le"] = "+Inf"
+        lines.append("\(histogram.name)_bucket\(formatPromLabels(infLabels)) \(snapshot.total)")
+        lines.append("\(histogram.name)_sum\(formatPromLabels(baseLabels)) \(snapshot.sum)")
+        lines.append("\(histogram.name)_count\(formatPromLabels(baseLabels)) \(snapshot.total)")
+    }
+    return lines.joined(separator: "\n") + "\n"
+}
+
+private func identityLabels(_ labels: [String: String], obs: Observability) -> [String: String] {
+    var out = labels
+    if !obs.cfg.slug.isEmpty, out["slug"] == nil { out["slug"] = obs.cfg.slug }
+    if !obs.cfg.instanceUid.isEmpty, out["instance_uid"] == nil { out["instance_uid"] = obs.cfg.instanceUid }
+    return out
+}
+
+private func promLabels(_ labels: [String: String], obs: Observability) -> String {
+    formatPromLabels(identityLabels(labels, obs: obs))
+}
+
+private func formatPromLabels(_ labels: [String: String]) -> String {
+    guard !labels.isEmpty else { return "" }
+    let rendered = labels.keys.sorted().map { key in
+        "\(key)=\"\(escapePromLabel(labels[key] ?? ""))\""
+    }
+    return "{\(rendered.joined(separator: ","))}"
+}
+
+private func escapePromHelp(_ value: String) -> String {
+    value.replacingOccurrences(of: "\\", with: "\\\\")
+        .replacingOccurrences(of: "\n", with: "\\n")
+}
+
+private func escapePromLabel(_ value: String) -> String {
+    value.replacingOccurrences(of: "\\", with: "\\\\")
+        .replacingOccurrences(of: "\n", with: "\\n")
+        .replacingOccurrences(of: "\"", with: "\\\"")
+}
+
+final class PrometheusServer {
+    private let obs: Observability
+    private let fd: Int32
+    private let queue = DispatchQueue(label: "holons.prometheus.server")
+    private var stopped = false
+    private let lock = NSLock()
+    private(set) var address: String = ""
+
+    init(obs: Observability, bind: String) throws {
+        self.obs = obs
+        let parsed = parsePromBind(bind)
+        fd = obsSocket(AF_INET, obsSocketType, 0)
+        guard fd >= 0 else { throw NSError(domain: "prometheus", code: 1, userInfo: [NSLocalizedDescriptionKey: obsErrnoMessage()]) }
+        var one: Int32 = 1
+        _ = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, socklen_t(MemoryLayout<Int32>.size))
+        var addr = sockaddr_in()
+        #if os(Linux)
+        #else
+        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        #endif
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = in_port_t(parsed.port).bigEndian
+        addr.sin_addr = in_addr(s_addr: inet_addr(parsed.host))
+        let bindResult = withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                obsBind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        guard bindResult == 0 else {
+            obsClose(fd)
+            throw NSError(domain: "prometheus", code: 2, userInfo: [NSLocalizedDescriptionKey: obsErrnoMessage()])
+        }
+        guard obsListen(fd, 16) == 0 else {
+            obsClose(fd)
+            throw NSError(domain: "prometheus", code: 3, userInfo: [NSLocalizedDescriptionKey: obsErrnoMessage()])
+        }
+        var actual = sockaddr_in()
+        var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+        withUnsafeMutablePointer(to: &actual) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                _ = getsockname(fd, $0, &len)
+            }
+        }
+        let port = Int(UInt16(bigEndian: actual.sin_port))
+        address = "http://\(parsed.advertisedHost):\(port)/metrics"
+        queue.async { [weak self] in self?.acceptLoop() }
+    }
+
+    func stop() {
+        lock.lock()
+        if stopped {
+            lock.unlock()
+            return
+        }
+        stopped = true
+        lock.unlock()
+        obsClose(fd)
+    }
+
+    private func acceptLoop() {
+        while true {
+            lock.lock()
+            let isStopped = stopped
+            lock.unlock()
+            if isStopped { return }
+            let client = obsAccept(fd, nil, nil)
+            if client < 0 { continue }
+            handle(client)
+        }
+    }
+
+    private func handle(_ client: Int32) {
+        var buffer = [UInt8](repeating: 0, count: 1024)
+        _ = obsRead(client, &buffer, buffer.count)
+        let body = prometheusText(obs)
+        let response = """
+HTTP/1.1 200 OK\r
+Content-Type: text/plain; version=0.0.4; charset=utf-8\r
+Content-Length: \(body.utf8.count)\r
+Connection: close\r
+\r
+\(body)
+"""
+        response.withCString { pointer in
+            _ = obsWrite(client, pointer, strlen(pointer))
+        }
+        obsClose(client)
+    }
+}
+
+private func parsePromBind(_ raw: String) -> (host: String, advertisedHost: String, port: Int) {
+    var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    if value.isEmpty { value = "127.0.0.1:0" }
+    if value.hasPrefix("http://"), let url = URL(string: value) {
+        value = "\(url.host ?? "127.0.0.1"):\(url.port ?? 0)"
+    }
+    let idx = value.lastIndex(of: ":")
+    let rawHost = idx.map { String(value[..<$0]) } ?? ""
+    let host = rawHost.isEmpty ? "127.0.0.1" : rawHost
+    let portText = idx.map { String(value[value.index(after: $0)...]) } ?? "0"
+    let advertised = (host == "0.0.0.0" || host == "*") ? "127.0.0.1" : host
+    return (host == "*" ? "0.0.0.0" : host, advertised, Int(portText) ?? 0)
+}
+
+private struct MemberIdentity {
+    let slug: String
+    let instanceUid: String
+}
+
+public final class MemberRelay {
+    private let obs: Observability
+    private let memberSlug: String
+    private let address: String
+    private let logger: (String) -> Void
+    private var stopped = false
+    private let lock = NSLock()
+
+    public init(obs: Observability, memberSlug: String, address: String, logger: @escaping (String) -> Void = { _ in }) {
+        self.obs = obs
+        self.memberSlug = memberSlug
+        self.address = address
+        self.logger = logger
+    }
+
+    public func start() {
+        if obs.enabled(.logs), obs.logRing != nil {
+            DispatchQueue.global().async { [weak self] in self?.pumpLogs() }
+        }
+        if obs.enabled(.events), obs.eventBus != nil {
+            DispatchQueue.global().async { [weak self] in self?.pumpEvents() }
+        }
+    }
+
+    public func stop() {
+        lock.lock()
+        stopped = true
+        lock.unlock()
+    }
+
+    private var isStopped: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return stopped
+    }
+
+    private func pumpLogs() {
+        while !isStopped {
+            var channel: GRPCChannel?
+            do {
+                channel = try connect(address, options: ConnectOptions(timeout: 5, transport: "tcp", start: false))
+                let identity = resolveIdentity(channel!)
+                let client = Holons_V1_HolonObservabilityClient(channel: channel!)
+                var request = Holons_V1_LogsRequest()
+                request.minLevel = .info
+                request.follow = true
+                let call = client.logs(request) { [weak self] proto in
+                    guard let self = self else { return }
+                    var entry = fromProtoLogEntry(proto)
+                    entry = LogEntry(
+                        timestamp: entry.timestamp,
+                        level: entry.level,
+                        slug: entry.slug,
+                        instanceUid: entry.instanceUid,
+                        sessionId: entry.sessionId,
+                        rpcMethod: entry.rpcMethod,
+                        message: entry.message,
+                        fields: entry.fields,
+                        caller: entry.caller,
+                        chain: enrichForMultilog(entry.chain, streamSourceSlug: identity.slug, streamSourceUid: identity.instanceUid)
+                    )
+                    self.obs.logRing?.push(entry)
+                }
+                _ = try? call.status.wait()
+            } catch {
+                logger("member relay logs \(memberSlug): \(error)")
+            }
+            if let channel { try? disconnect(channel) }
+            if !isStopped { Thread.sleep(forTimeInterval: 2) }
+        }
+    }
+
+    private func pumpEvents() {
+        while !isStopped {
+            var channel: GRPCChannel?
+            do {
+                channel = try connect(address, options: ConnectOptions(timeout: 5, transport: "tcp", start: false))
+                let identity = resolveIdentity(channel!)
+                let client = Holons_V1_HolonObservabilityClient(channel: channel!)
+                var request = Holons_V1_EventsRequest()
+                request.follow = true
+                let call = client.events(request) { [weak self] proto in
+                    guard let self = self else { return }
+                    var event = fromProtoEvent(proto)
+                    event = Event(
+                        timestamp: event.timestamp,
+                        type: event.type,
+                        slug: event.slug,
+                        instanceUid: event.instanceUid,
+                        sessionId: event.sessionId,
+                        payload: event.payload,
+                        chain: enrichForMultilog(event.chain, streamSourceSlug: identity.slug, streamSourceUid: identity.instanceUid)
+                    )
+                    self.obs.eventBus?.emit(event)
+                }
+                _ = try? call.status.wait()
+            } catch {
+                logger("member relay events \(memberSlug): \(error)")
+            }
+            if let channel { try? disconnect(channel) }
+            if !isStopped { Thread.sleep(forTimeInterval: 2) }
+        }
+    }
+
+    private func resolveIdentity(_ channel: GRPCChannel) -> MemberIdentity {
+        let client = Holons_V1_HolonObservabilityClient(channel: channel)
+        var selected: MemberIdentity?
+        let call = client.events(Holons_V1_EventsRequest()) { [memberSlug] event in
+            guard event.type == .instanceReady, !event.instanceUid.isEmpty else { return }
+            let identity = MemberIdentity(slug: event.slug.isEmpty ? memberSlug : event.slug, instanceUid: event.instanceUid)
+            if event.chain.isEmpty || selected == nil {
+                selected = identity
+            }
+        }
+        _ = try? call.status.wait()
+        return selected ?? MemberIdentity(slug: memberSlug, instanceUid: "")
+    }
+}
+
+private var obsSocketType: Int32 {
+    #if os(Linux)
+    return Int32(SOCK_STREAM.rawValue)
+    #else
+    return SOCK_STREAM
+    #endif
+}
+
+private func obsErrnoMessage() -> String { String(cString: strerror(errno)) }
+
+private func obsSocket(_ domain: Int32, _ type: Int32, _ proto: Int32) -> Int32 {
+    #if os(Linux)
+    return Glibc.socket(domain, type, proto)
+    #else
+    return Darwin.socket(domain, type, proto)
+    #endif
+}
+
+private func obsBind(_ fd: Int32, _ addr: UnsafePointer<sockaddr>?, _ len: socklen_t) -> Int32 {
+    #if os(Linux)
+    return Glibc.bind(fd, addr, len)
+    #else
+    return Darwin.bind(fd, addr, len)
+    #endif
+}
+
+private func obsListen(_ fd: Int32, _ backlog: Int32) -> Int32 {
+    #if os(Linux)
+    return Glibc.listen(fd, backlog)
+    #else
+    return Darwin.listen(fd, backlog)
+    #endif
+}
+
+private func obsAccept(_ fd: Int32, _ addr: UnsafeMutablePointer<sockaddr>?, _ len: UnsafeMutablePointer<socklen_t>?) -> Int32 {
+    #if os(Linux)
+    return Glibc.accept(fd, addr, len)
+    #else
+    return Darwin.accept(fd, addr, len)
+    #endif
+}
+
+private func obsRead(_ fd: Int32, _ buf: UnsafeMutableRawPointer?, _ count: Int) -> Int {
+    #if os(Linux)
+    return Glibc.read(fd, buf, count)
+    #else
+    return Darwin.read(fd, buf, count)
+    #endif
+}
+
+private func obsWrite(_ fd: Int32, _ buf: UnsafeRawPointer?, _ count: Int) -> Int {
+    #if os(Linux)
+    return Glibc.write(fd, buf, count)
+    #else
+    return Darwin.write(fd, buf, count)
+    #endif
+}
+
+private func obsClose(_ fd: Int32) {
+    #if os(Linux)
+    _ = Glibc.close(fd)
+    #else
+    _ = Darwin.close(fd)
+    #endif
 }
 
 private func durationSeconds(_ duration: Google_Protobuf_Duration) -> TimeInterval {

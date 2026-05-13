@@ -10,18 +10,32 @@ import NIOPosix
 #endif
 
 public enum Serve {
+  public struct MemberRef: Sendable {
+    public var slug: String
+    public var address: String
+
+    public init(slug: String, address: String) {
+      self.slug = slug
+      self.address = address
+    }
+  }
+
   public struct ParsedFlags {
     public var listenURI: String
     public var reflect: Bool
+    public var memberEndpoints: [MemberRef]
 
-    public init(listenURI: String, reflect: Bool) {
+    public init(listenURI: String, reflect: Bool, memberEndpoints: [MemberRef] = []) {
       self.listenURI = listenURI
       self.reflect = reflect
+      self.memberEndpoints = memberEndpoints
     }
   }
 
   public struct Options {
     public var reflect: Bool
+    public var slug: String
+    public var memberEndpoints: [MemberRef]
     public var logger: (String) -> Void
     public var onListen: ((String) -> Void)?
     public var shutdownGracePeriodSeconds: TimeInterval
@@ -30,6 +44,8 @@ public enum Serve {
 
     public init(
       reflect: Bool = false,
+      slug: String = "",
+      memberEndpoints: [MemberRef] = [],
       logger: @escaping (String) -> Void = { message in
         guard let data = (message + "\n").data(using: .utf8) else {
           return
@@ -42,6 +58,8 @@ public enum Serve {
       environment: [String: String]? = nil
     ) {
       self.reflect = reflect
+      self.slug = slug
+      self.memberEndpoints = memberEndpoints
       self.logger = logger
       self.onListen = onListen
       self.shutdownGracePeriodSeconds = shutdownGracePeriodSeconds
@@ -110,6 +128,7 @@ public enum Serve {
   public static func parseOptions(_ args: [String]) -> ParsedFlags {
     var listenURI = Transport.defaultURI
     var reflect = false
+    var members: [MemberRef] = []
     var idx = 0
     while idx < args.count {
       if args[idx] == "--listen", idx + 1 < args.count {
@@ -121,9 +140,24 @@ public enum Serve {
       if args[idx] == "--reflect" {
         reflect = true
       }
+      if args[idx] == "--member", idx + 1 < args.count {
+        members.append(tryParseMember(args[idx + 1]))
+        idx += 1
+      } else if args[idx].hasPrefix("--member=") {
+        members.append(tryParseMember(String(args[idx].dropFirst("--member=".count))))
+      }
       idx += 1
     }
-    return ParsedFlags(listenURI: listenURI, reflect: reflect)
+    return ParsedFlags(listenURI: listenURI, reflect: reflect, memberEndpoints: members)
+  }
+
+  private static func tryParseMember(_ raw: String) -> MemberRef {
+    guard let idx = raw.firstIndex(of: "=") else {
+      return MemberRef(slug: "", address: "")
+    }
+    let slug = raw[..<idx].trimmingCharacters(in: .whitespacesAndNewlines)
+    let address = raw[raw.index(after: idx)...].trimmingCharacters(in: .whitespacesAndNewlines)
+    return MemberRef(slug: slug, address: address)
   }
 
   public static func run(
@@ -182,7 +216,7 @@ public enum Serve {
     try checkEnv(env)
     let obs = (env["OP_OBS"] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
       ? nil
-      : try fromEnv(ObsConfig(), env: env)
+      : try fromEnv(ObsConfig(slug: options.slug), env: env)
     let describeEnabled: Bool
     do {
       describeEnabled = try maybeAddDescribe(&providers)
@@ -207,8 +241,15 @@ public enum Serve {
         reflectionEnabled: reflectionEnabled,
         options: options
       )
-      startObservabilityRuntime(obs, publicURI: running.publicURI, transport: parsed.scheme)
-      return running
+      let obsStop = startObservabilityRuntime(obs, publicURI: running.publicURI, transport: parsed.scheme, options: options)
+      return RunningServer(
+        server: running.server,
+        group: running.group,
+        publicURI: running.publicURI,
+        logger: options.logger,
+        defaultGracePeriodSeconds: options.shutdownGracePeriodSeconds,
+        auxiliaryStop: obsStop
+      )
     case "stdio":
       let backing = try startTCPServer(
         host: "127.0.0.1",
@@ -229,7 +270,7 @@ public enum Serve {
       }
       bridge.start()
       let mode = formatMode(describeEnabled: describeEnabled, reflectionEnabled: reflectionEnabled)
-      startObservabilityRuntime(obs, publicURI: "stdio://", transport: parsed.scheme)
+      let obsStop = startObservabilityRuntime(obs, publicURI: "stdio://", transport: parsed.scheme, options: options)
       options.onListen?("stdio://")
       options.logger("gRPC server listening on stdio:// (\(mode))")
       return RunningServer(
@@ -238,7 +279,10 @@ public enum Serve {
         publicURI: "stdio://",
         logger: options.logger,
         defaultGracePeriodSeconds: options.shutdownGracePeriodSeconds,
-        auxiliaryStop: { bridge.stop() }
+        auxiliaryStop: {
+          obsStop?()
+          bridge.stop()
+        }
       )
     case "unix":
       let path = parsed.path ?? ""
@@ -261,7 +305,7 @@ public enum Serve {
       bridge.start()
       let publicURI = "unix://\(path)"
       let mode = formatMode(describeEnabled: describeEnabled, reflectionEnabled: reflectionEnabled)
-      startObservabilityRuntime(obs, publicURI: publicURI, transport: parsed.scheme)
+      let obsStop = startObservabilityRuntime(obs, publicURI: publicURI, transport: parsed.scheme, options: options)
       options.onListen?(publicURI)
       options.logger("gRPC server listening on \(publicURI) (\(mode))")
       return RunningServer(
@@ -270,7 +314,10 @@ public enum Serve {
         publicURI: publicURI,
         logger: options.logger,
         defaultGracePeriodSeconds: options.shutdownGracePeriodSeconds,
-        auxiliaryStop: { bridge.stop() }
+        auxiliaryStop: {
+          obsStop?()
+          bridge.stop()
+        }
       )
     default:
       throw TransportError.runtimeUnsupported(
@@ -283,30 +330,48 @@ public enum Serve {
   private static func startObservabilityRuntime(
     _ obs: Observability?,
     publicURI: String,
-    transport: String
-  ) {
-    guard let obs, !obs.families.isEmpty, !obs.cfg.runDir.isEmpty else { return }
-    enableDiskWriters(obs.cfg.runDir)
+    transport: String,
+    options: Options
+  ) -> (() -> Void)? {
+    guard let obs, !obs.families.isEmpty else { return nil }
+    let prom = obs.enabled(.prom) ? try? PrometheusServer(obs: obs, bind: obs.cfg.promAddr.isEmpty ? "127.0.0.1:0" : obs.cfg.promAddr) : nil
+    var relays: [MemberRelay] = []
+    for member in options.memberEndpoints where !member.slug.isEmpty && !member.address.isEmpty {
+      let relay = MemberRelay(obs: obs, memberSlug: member.slug, address: member.address, logger: options.logger)
+      relay.start()
+      relays.append(relay)
+    }
+    if !obs.cfg.runDir.isEmpty {
+      enableDiskWriters(obs.cfg.runDir)
+    }
     if obs.enabled(.events) {
       obs.emit(.instanceReady, payload: ["listener": publicURI])
     }
-    let logPath = obs.enabled(.logs)
-      ? (obs.cfg.runDir as NSString).appendingPathComponent("stdout.log")
-      : ""
-    try? writeMetaJson(
-      obs.cfg.runDir,
-      MetaJson(
-        slug: obs.cfg.slug,
-        uid: obs.cfg.instanceUid,
-        pid: Int(getpid()),
-        startedAt: Date(),
-        transport: transport,
-        address: publicURI,
-        logPath: logPath,
-        organismUid: obs.cfg.organismUid,
-        organismSlug: obs.cfg.organismSlug
+    if !obs.cfg.runDir.isEmpty {
+      let logPath = obs.enabled(.logs)
+        ? (obs.cfg.runDir as NSString).appendingPathComponent("stdout.log")
+        : ""
+      try? writeMetaJson(
+        obs.cfg.runDir,
+        MetaJson(
+          slug: obs.cfg.slug,
+          uid: obs.cfg.instanceUid,
+          pid: Int(getpid()),
+          startedAt: Date(),
+          transport: transport,
+          address: publicURI,
+          metricsAddr: prom?.address ?? "",
+          logPath: logPath,
+          organismUid: obs.cfg.organismUid,
+          organismSlug: obs.cfg.organismSlug
+        )
       )
-    )
+    }
+    return {
+      for relay in relays { relay.stop() }
+      prom?.stop()
+      obs.close()
+    }
   }
 
   private static func startTCPServer(
