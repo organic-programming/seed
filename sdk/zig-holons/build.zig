@@ -421,6 +421,22 @@ pub fn build(b: *std.Build) void {
     const run_serve_tcp_tests = b.addRunArtifact(serve_tcp_tests);
     test_step.dependOn(&run_serve_tcp_tests.step);
 
+    const grpc_streaming_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/grpc_streaming_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    grpc_streaming_tests.step.dependOn(&native_ready.step);
+    const run_grpc_streaming_tests = b.addRunArtifact(grpc_streaming_tests);
+    const test_grpc_streaming_step = b.step("test-grpc-streaming", "Run native gRPC streaming tests");
+    test_grpc_streaming_step.dependOn(&run_grpc_streaming_tests.step);
+    test_step.dependOn(&run_grpc_streaming_tests.step);
+
     const serve_unix_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("tests/serve_unix_test.zig"),
