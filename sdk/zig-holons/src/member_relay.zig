@@ -188,10 +188,9 @@ fn pumpLogsOnce(relay: *MemberRelay) !void {
 }
 
 fn pumpEventsOnce(relay: *MemberRelay) !void {
-    emitResolvedMemberReady(relay.allocator, relay.obs, relay.member) catch {};
     var channel = try grpc_client.connect(relay.allocator, relay.member.address);
     defer channel.deinit();
-    const request = try runtime.packEventsRequest(relay.allocator, .{ .follow = false });
+    const request = try runtime.packEventsRequest(relay.allocator, .{ .follow = true });
     defer relay.allocator.free(request);
     var stream = try channel.serverStream(relay.allocator, "/holons.v1.HolonObservability/Events", request, STREAM_TIMEOUT_MS);
     defer stream.deinit();
