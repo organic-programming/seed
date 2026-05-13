@@ -48,6 +48,7 @@ class MemberRef:
 class ServeOptions:
     reflect: bool = False
     member_endpoints: tuple[MemberRef, ...] = ()
+    slug: str = ""
 
 
 def parse_flags(args: list[str]) -> str:
@@ -114,7 +115,11 @@ def run_with_serve_options(
         ],
     )
     observability.check_env()
-    obs = observability.from_env(observability.Config()) if os.environ.get("OP_OBS", "").strip() else None
+    obs = (
+        observability.from_env(observability.Config(slug=options.slug))
+        if os.environ.get("OP_OBS", "").strip()
+        else None
+    )
     register_fn(server)
     _register_holon_meta(server)
     if obs is not None and obs.families:
