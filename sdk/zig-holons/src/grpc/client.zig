@@ -12,7 +12,6 @@ pub const Channel = struct {
     pub fn deinit(self: *Channel) void {
         core.c.grpc_channel_destroy(self.raw);
         if (self.child) |*child| child.close();
-        core.shutdown();
     }
 
     pub fn unaryAlloc(
