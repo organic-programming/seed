@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "minitest/autorun"
+require "net/http"
+require "timeout"
 require "tmpdir"
 require_relative "../lib/holons"
 require_relative "../lib/holons/observability"
@@ -96,6 +98,72 @@ class ObservabilityTest < Minitest::Test
     ensure
       Holons::Observability.reset
     end
+  end
+
+  def test_prometheus_text_and_http_server
+    Dir.mktmpdir("ruby-holons-prom-") do
+      obs = Holons::Observability.configure(
+        Holons::Observability::Config.new(slug: "prom-ruby", instance_uid: "prom-uid"),
+        env: { "OP_OBS" => "all" }
+      )
+      obs.counter("cascade_ticks_total", "Ticks received by this cascade node.", "responder_uid" => "prom-uid").inc
+
+      text = Holons::Observability.to_prometheus_text(obs)
+      assert_includes text, "# HELP cascade_ticks_total Ticks received by this cascade node."
+      assert_includes text, 'cascade_ticks_total{instance_uid="prom-uid",responder_uid="prom-uid",slug="prom-ruby"} 1'
+
+      server = Holons::Observability::PromServer.new("127.0.0.1:0")
+      addr = server.start
+      body = Net::HTTP.get(URI(addr))
+      assert_includes body, "cascade_ticks_total"
+    ensure
+      server&.close
+      Holons::Observability.reset
+    end
+  end
+
+  def test_member_relay_forwards_logs_and_events_with_child_chain
+    skip "grpc gem is unavailable in this Ruby environment" unless Holons.grpc_available?
+
+    child = Holons::Observability.configure(
+      Holons::Observability::Config.new(slug: "child-ruby", instance_uid: "child-uid"),
+      env: { "OP_OBS" => "logs,events" }
+    )
+
+    with_observability_server(child) do |target|
+      parent = Holons::Observability.configure(
+        Holons::Observability::Config.new(slug: "parent-ruby", instance_uid: "parent-uid"),
+        env: { "OP_OBS" => "logs,events" }
+      )
+      stub = Holons::V1::HolonObservability::Stub.new(target, :this_channel_is_insecure, timeout: 5)
+      relay = Holons::Observability::MemberRelay.new(
+        child_slug: "child-ruby",
+        child_uid: "child-uid",
+        stub: stub,
+        observability: parent,
+        retry_delay: 0.1
+      )
+      relay.start
+      child.logger("tick").info("relay-log", "component" => "ruby")
+      child.emit(Holons::Observability::EVENT_TYPES[:instance_ready], "listener" => "tcp://127.0.0.1:1")
+
+      Timeout.timeout(3) do
+        loop do
+          forwarded_log = parent.log_ring.drain.find { |entry| entry[:message] == "relay-log" }
+          forwarded_event = parent.event_bus.drain.find { |event| event[:type] == Holons::Observability::EVENT_TYPES[:instance_ready] }
+          if forwarded_log && forwarded_event
+            assert_equal [{ slug: "child-ruby", instance_uid: "child-uid" }], forwarded_log[:chain]
+            assert_equal [{ slug: "child-ruby", instance_uid: "child-uid" }], forwarded_event[:chain]
+            break
+          end
+          sleep 0.05
+        end
+      end
+    ensure
+      relay&.stop
+    end
+  ensure
+    Holons::Observability.reset
   end
 
   private
