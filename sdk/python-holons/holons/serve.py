@@ -14,13 +14,16 @@ import time
 from concurrent import futures
 from typing import Callable
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 import grpc
 from grpc_reflection.v1alpha import reflection
 
 from holons import describe
+from holons import grpcclient
 from holons import observability
 from holons.transport import DEFAULT_URI, scheme
+from holons.v1 import observability_pb2, observability_pb2_grpc
 
 logger = logging.getLogger("holons.serve")
 
@@ -32,6 +35,19 @@ _MAX_GRPC_MESSAGE_BYTES = 1 << 20
 class ParsedFlags:
     listen_uri: str = DEFAULT_URI
     reflect: bool = False
+
+
+@dataclass(frozen=True)
+class MemberRef:
+    slug: str
+    address: str
+    uid: str = ""
+
+
+@dataclass(frozen=True)
+class ServeOptions:
+    reflect: bool = False
+    member_endpoints: tuple[MemberRef, ...] = ()
 
 
 def parse_flags(args: list[str]) -> str:
@@ -67,11 +83,29 @@ def run_with_options(
     max_workers: int = 10,
     on_listen: Callable[[str], None] | None = None,
 ) -> None:
+    run_with_serve_options(
+        listen_uri,
+        register_fn,
+        ServeOptions(reflect=reflect),
+        max_workers=max_workers,
+        on_listen=on_listen,
+    )
+
+
+def run_with_serve_options(
+    listen_uri: str,
+    register_fn: RegisterFunc,
+    options: ServeOptions | None = None,
+    max_workers: int = 10,
+    on_listen: Callable[[str], None] | None = None,
+) -> None:
     """Start a gRPC server on the given transport URI.
 
     Native gRPC python transports: tcp://, unix://
     Bridged transports: stdio://
     """
+    if options is None:
+        options = ServeOptions()
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=max_workers),
         options=[
@@ -87,7 +121,7 @@ def run_with_options(
         observability.register_service(server, obs)
 
     reflection_enabled = False
-    if reflect:
+    if options.reflect:
         service_names = [reflection.SERVICE_NAME]
         for handler in getattr(server._state, "generic_handlers", ()):
             service_name = getattr(handler, "service_name", None)
@@ -124,13 +158,16 @@ def run_with_options(
         )
 
     mode = "reflection ON" if reflection_enabled else "reflection OFF"
+    prom_server = _start_prom_server(obs)
+    metrics_addr = prom_server[1] if prom_server is not None else ""
     if obs is not None and obs.families:
-        _start_observability_runtime(obs, actual_uri, transport)
+        _start_observability_runtime(obs, actual_uri, transport, metrics_addr)
     if on_listen is not None:
         on_listen(actual_uri)
     logger.info("gRPC server listening on %s (%s)", actual_uri, mode)
 
     server.start()
+    started_relays = _start_member_relays(obs, options.member_endpoints)
 
     # For stdio, start bridging after the server is ready
     if stdio_bridge is not None:
@@ -148,11 +185,21 @@ def run_with_options(
     try:
         server.wait_for_termination()
     finally:
+        for relay, channel in started_relays:
+            relay.stop()
+            _close_channel(channel)
+        if prom_server is not None:
+            prom_server[0].close()
         if stdio_bridge is not None:
             stdio_bridge.close()
 
 
-def _start_observability_runtime(obs: observability.Observability, actual_uri: str, transport: str) -> None:
+def _start_observability_runtime(
+    obs: observability.Observability,
+    actual_uri: str,
+    transport: str,
+    metrics_addr: str = "",
+) -> None:
     if not obs.cfg.run_dir:
         return
     observability.enable_disk_writers(obs.cfg.run_dir)
@@ -167,6 +214,7 @@ def _start_observability_runtime(obs: observability.Observability, actual_uri: s
             started_at=time.time(),
             transport=transport,
             address=actual_uri,
+            metrics_addr=metrics_addr,
             log_path=os.path.join(obs.cfg.run_dir, "stdout.log") if obs.enabled(observability.Family.LOGS) else "",
             organism_uid=obs.cfg.organism_uid,
             organism_slug=obs.cfg.organism_slug,
@@ -183,6 +231,131 @@ def _register_holon_meta(server: grpc.Server) -> None:
     except Exception as exc:
         logger.exception("HolonMeta registration failed: %s", exc)
         raise RuntimeError(f"register HolonMeta: {exc}") from exc
+
+
+def _start_prom_server(
+    obs: observability.Observability | None,
+) -> tuple[observability.PromServer, str] | None:
+    if obs is None or not obs.enabled(observability.Family.PROM):
+        return None
+    addr = obs.cfg.prom_addr or ":0"
+    server = observability.PromServer(addr)
+    try:
+        metrics_addr = server.start()
+    except Exception as exc:
+        logger.warning("warning: prom HTTP bind failed: %s", exc)
+        return None
+    logger.info("Prometheus /metrics listening on %s", metrics_addr)
+    return server, metrics_addr
+
+
+def _start_member_relays(
+    obs: observability.Observability | None,
+    members: tuple[MemberRef, ...],
+) -> list[tuple[observability.MemberRelay, grpc.Channel]]:
+    if (
+        obs is None
+        or (
+            not obs.enabled(observability.Family.LOGS)
+            and not obs.enabled(observability.Family.EVENTS)
+        )
+    ):
+        return []
+    started: list[tuple[observability.MemberRelay, grpc.Channel]] = []
+    for raw in members:
+        member = MemberRef(
+            slug=(raw.slug or "").strip(),
+            uid=(raw.uid or "").strip(),
+            address=(raw.address or "").strip(),
+        )
+        if not member.slug or not member.address:
+            logger.warning(
+                'warning: observability relay skipped incomplete member ref: slug="%s" uid="%s" address="%s"',
+                member.slug,
+                member.uid,
+                member.address,
+            )
+            continue
+        channel = None
+        try:
+            channel = grpcclient.dial_uri(_normalize_relay_dial_target(member.address))
+            member = _resolve_relay_member_identity(channel, member)
+            if not member.uid:
+                logger.warning(
+                    "warning: observability relay uid unresolved for %s at %s; chain hops will have empty uid",
+                    member.slug,
+                    member.address,
+                )
+            relay = observability.MemberRelay(
+                child_slug=member.slug,
+                child_uid=member.uid,
+                channel=channel,
+                observability=obs,
+            )
+            relay.start()
+            started.append((relay, channel))
+            channel = None
+        except Exception as exc:
+            if channel is not None:
+                _close_channel(channel)
+            logger.warning(
+                "warning: observability relay start %s/%s: %s",
+                member.slug,
+                member.uid,
+                exc,
+            )
+    return started
+
+
+def _resolve_relay_member_identity(channel: grpc.Channel, member: MemberRef) -> MemberRef:
+    if member.uid:
+        return member
+    client = observability_pb2_grpc.HolonObservabilityStub(channel)
+    try:
+        stream = client.Events(
+            observability_pb2.EventsRequest(
+                types=[observability_pb2.INSTANCE_READY],
+                follow=False,
+            ),
+            timeout=2.0,
+        )
+        for event in stream:
+            if not event.instance_uid or event.chain:
+                continue
+            slug = event.slug.strip() or member.slug
+            return MemberRef(slug=slug, uid=event.instance_uid.strip(), address=member.address)
+    except Exception:
+        pass
+
+    try:
+        snap = client.Metrics(observability_pb2.MetricsRequest(), timeout=2.0)
+        if snap.instance_uid:
+            slug = snap.slug.strip() or member.slug
+            return MemberRef(slug=slug, uid=snap.instance_uid.strip(), address=member.address)
+    except Exception:
+        pass
+    return member
+
+
+def _normalize_relay_dial_target(target: str) -> str:
+    trimmed = target.strip()
+    if "://" not in trimmed:
+        return trimmed
+    parsed = urlparse(trimmed)
+    if parsed.scheme != "tcp":
+        return trimmed
+    host = parsed.hostname or "127.0.0.1"
+    if host in ("0.0.0.0", "::"):
+        host = "127.0.0.1"
+    if parsed.port is None:
+        return trimmed
+    return f"tcp://{host}:{parsed.port}"
+
+
+def _close_channel(channel: grpc.Channel) -> None:
+    close = getattr(channel, "close", None)
+    if callable(close):
+        close()
 
 
 class _StdioServeBridge:

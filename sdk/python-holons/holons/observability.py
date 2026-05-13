@@ -21,6 +21,8 @@ import typing
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import grpc
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -125,6 +127,7 @@ _PROTO_LOG_LEVEL = {
     Level.ERROR: observability_pb2.ERROR,
     Level.FATAL: observability_pb2.FATAL,
 }
+_PROTO_LOG_LEVEL_REVERSE = {value: key for key, value in _PROTO_LOG_LEVEL.items()}
 
 
 def parse_level(s: str) -> Level:
@@ -416,6 +419,7 @@ _PROTO_EVENT_TYPE = {
     EventType.HANDLER_PANIC: observability_pb2.HANDLER_PANIC,
     EventType.CONFIG_RELOADED: observability_pb2.CONFIG_RELOADED,
 }
+_PROTO_EVENT_TYPE_REVERSE = {value: key for key, value in _PROTO_EVENT_TYPE.items()}
 
 
 @dataclass
@@ -697,6 +701,10 @@ def _hop_to_proto(hop: Hop) -> observability_pb2.ChainHop:
     return observability_pb2.ChainHop(slug=hop.slug, instance_uid=hop.instance_uid)
 
 
+def _hop_from_proto(hop: observability_pb2.ChainHop) -> Hop:
+    return Hop(slug=hop.slug, instance_uid=hop.instance_uid)
+
+
 def to_proto_log_entry(entry: LogEntry) -> observability_pb2.LogEntry:
     return observability_pb2.LogEntry(
         ts=_timestamp(entry.timestamp),
@@ -709,6 +717,21 @@ def to_proto_log_entry(entry: LogEntry) -> observability_pb2.LogEntry:
         fields=dict(entry.fields),
         caller=entry.caller,
         chain=[_hop_to_proto(h) for h in entry.chain],
+    )
+
+
+def from_proto_log_entry(entry: observability_pb2.LogEntry) -> LogEntry:
+    return LogEntry(
+        timestamp=entry.ts.seconds + entry.ts.nanos / 1_000_000_000,
+        level=_PROTO_LOG_LEVEL_REVERSE.get(entry.level, Level.UNSET),
+        slug=entry.slug,
+        instance_uid=entry.instance_uid,
+        session_id=entry.session_id,
+        rpc_method=entry.rpc_method,
+        message=entry.message,
+        fields=dict(entry.fields),
+        caller=entry.caller,
+        chain=[_hop_from_proto(h) for h in entry.chain],
     )
 
 
@@ -758,6 +781,18 @@ def to_proto_event(event: Event) -> observability_pb2.EventInfo:
         session_id=event.session_id,
         payload=dict(event.payload),
         chain=[_hop_to_proto(h) for h in event.chain],
+    )
+
+
+def from_proto_event(event: observability_pb2.EventInfo) -> Event:
+    return Event(
+        timestamp=event.ts.seconds + event.ts.nanos / 1_000_000_000,
+        type=_PROTO_EVENT_TYPE_REVERSE.get(event.type, EventType.UNSPECIFIED),
+        slug=event.slug,
+        instance_uid=event.instance_uid,
+        session_id=event.session_id,
+        payload=dict(event.payload),
+        chain=[_hop_from_proto(h) for h in event.chain],
     )
 
 
@@ -857,6 +892,258 @@ def _match_event(event: Event, wanted: set[int]) -> bool:
     if not wanted:
         return True
     return _PROTO_EVENT_TYPE.get(event.type, observability_pb2.EVENT_TYPE_UNSPECIFIED) in wanted
+
+
+# --- Prometheus exposition ----------------------------------------------------
+
+
+class PromServer:
+    def __init__(self, addr: str = ":0") -> None:
+        self.addr = addr or ":0"
+        self._server: ThreadingHTTPServer | None = None
+        self._thread: threading.Thread | None = None
+        self._lock = threading.Lock()
+
+    def start(self) -> str:
+        with self._lock:
+            if self._server is not None:
+                return self._addr_url_unlocked()
+            host, port = _parse_prom_addr(self.addr)
+            server = ThreadingHTTPServer((host, port), _PromHandler)
+            server.daemon_threads = True
+            self._server = server
+            self._thread = threading.Thread(target=server.serve_forever, daemon=True)
+            self._thread.start()
+            return self._addr_url_unlocked()
+
+    def addr_url(self) -> str:
+        with self._lock:
+            return self._addr_url_unlocked()
+
+    def _addr_url_unlocked(self) -> str:
+        if self._server is None:
+            return ""
+        host, port = self._server.server_address[:2]
+        return f"http://{_advertised_prom_host(str(host))}:{port}/metrics"
+
+    def close(self) -> None:
+        with self._lock:
+            server = self._server
+            thread = self._thread
+            self._server = None
+            self._thread = None
+        if server is None:
+            return
+        server.shutdown()
+        server.server_close()
+        if thread is not None:
+            thread.join(timeout=1.0)
+
+
+class _PromHandler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:  # noqa: N802 - stdlib callback name
+        if self.path.split("?", 1)[0] != "/metrics":
+            self.send_response(HTTPStatus.NOT_FOUND)
+            self.end_headers()
+            return
+
+        obs = current()
+        status = HTTPStatus.OK
+        if not obs.enabled(Family.METRICS):
+            body = "# metrics family disabled (OP_OBS)\n"
+            status = HTTPStatus.SERVICE_UNAVAILABLE
+        elif not obs.enabled(Family.PROM):
+            body = "# prom family disabled (OP_OBS)\n"
+            status = HTTPStatus.SERVICE_UNAVAILABLE
+        else:
+            body = to_prometheus_text(obs)
+
+        data = body.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/plain; version=0.0.4")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def log_message(self, _format: str, *_args: typing.Any) -> None:
+        return
+
+
+def to_prometheus_text(obs: Observability) -> str:
+    if not obs.enabled(Family.METRICS) or obs.registry is None:
+        return "# metrics family disabled (OP_OBS)\n"
+    snapshot = obs.registry.snapshot()
+    groups: dict[str, dict[str, typing.Any]] = {}
+
+    def ensure(name: str, help_: str, kind: str) -> dict[str, typing.Any]:
+        group = groups.get(name)
+        if group is None:
+            group = {
+                "name": name,
+                "help": help_,
+                "type": kind,
+                "counters": [],
+                "gauges": [],
+                "histograms": [],
+            }
+            groups[name] = group
+        if not group["help"]:
+            group["help"] = help_
+        return group
+
+    for counter in snapshot.get("counters", []):
+        ensure(counter[0], counter[1], "counter")["counters"].append(counter)
+    for gauge in snapshot.get("gauges", []):
+        ensure(gauge[0], gauge[1], "gauge")["gauges"].append(gauge)
+    for histogram in snapshot.get("histograms", []):
+        ensure(histogram[0], histogram[1], "histogram")["histograms"].append(histogram)
+
+    injected = {"slug": obs.cfg.slug}
+    if obs.cfg.instance_uid:
+        injected["instance_uid"] = obs.cfg.instance_uid
+
+    lines: list[str] = []
+    for name in sorted(groups):
+        group = groups[name]
+        lines.append(f"# HELP {name} {_prom_escape_help(group['help'])}")
+        lines.append(f"# TYPE {name} {group['type']}")
+        for metric_name, _help, labels, value in group["counters"]:
+            lines.append(f"{metric_name}{_prom_labels(_merge_labels(labels, injected))} {value}")
+        for metric_name, _help, labels, value in group["gauges"]:
+            lines.append(f"{metric_name}{_prom_labels(_merge_labels(labels, injected))} {_format_float(value)}")
+        for metric_name, _help, labels, hist in group["histograms"]:
+            merged = _merge_labels(labels, injected)
+            for upper, count in zip(hist.bounds, hist.counts):
+                bucket_labels = dict(merged)
+                bucket_labels["le"] = _format_float(upper)
+                lines.append(f"{metric_name}_bucket{_prom_labels(bucket_labels)} {count}")
+            bucket_labels = dict(merged)
+            bucket_labels["le"] = "+Inf"
+            lines.append(f"{metric_name}_bucket{_prom_labels(bucket_labels)} {hist.total}")
+            lines.append(f"{metric_name}_sum{_prom_labels(merged)} {_format_float(hist.sum)}")
+            lines.append(f"{metric_name}_count{_prom_labels(merged)} {hist.total}")
+    return "\n".join(lines) + ("\n" if lines else "")
+
+
+def _parse_prom_addr(raw: str) -> tuple[str, int]:
+    trimmed = (raw or ":0").strip() or ":0"
+    if trimmed.startswith(":"):
+        return "0.0.0.0", int(trimmed[1:] or "0")
+    host, sep, port = trimmed.rpartition(":")
+    if not sep or not port:
+        raise ValueError(f'invalid Prometheus address "{raw}"')
+    return host or "0.0.0.0", int(port)
+
+
+def _advertised_prom_host(host: str) -> str:
+    if host in ("", "0.0.0.0"):
+        return "127.0.0.1"
+    if host == "::":
+        return "::1"
+    return host
+
+
+def _merge_labels(base: dict[str, str], extra: dict[str, str]) -> dict[str, str]:
+    out = {k: v for k, v in extra.items() if v}
+    out.update(base)
+    return out
+
+
+def _prom_labels(labels: dict[str, str]) -> str:
+    if not labels:
+        return ""
+    parts = [f'{key}="{_prom_escape_value(labels[key])}"' for key in sorted(labels)]
+    return "{" + ",".join(parts) + "}"
+
+
+def _prom_escape_value(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("\n", "\\n").replace('"', '\\"')
+
+
+def _prom_escape_help(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("\n", "\\n")
+
+
+def _format_float(value: float) -> str:
+    if math.isinf(value):
+        return "+Inf" if value > 0 else "-Inf"
+    if math.isnan(value):
+        return "NaN"
+    return f"{value:g}"
+
+
+# --- Member observability relay ----------------------------------------------
+
+
+class MemberRelay:
+    def __init__(
+        self,
+        child_slug: str,
+        child_uid: str,
+        channel: grpc.Channel,
+        observability: Observability | None = None,
+        retry_delay: float = 2.0,
+    ) -> None:
+        self.child_slug = child_slug
+        self.child_uid = child_uid
+        self.channel = channel
+        self.observability = observability or current()
+        self.retry_delay = retry_delay
+        self._stop = threading.Event()
+        self._threads: list[threading.Thread] = []
+
+    def start(self) -> None:
+        obs = self.observability
+        if not obs.enabled(Family.LOGS) and not obs.enabled(Family.EVENTS):
+            return
+        client = observability_pb2_grpc.HolonObservabilityStub(self.channel)
+        if obs.enabled(Family.LOGS) and obs.log_ring is not None:
+            thread = threading.Thread(target=self._pump_logs, args=(client,), daemon=True)
+            self._threads.append(thread)
+            thread.start()
+        if obs.enabled(Family.EVENTS) and obs.event_bus is not None:
+            thread = threading.Thread(target=self._pump_events, args=(client,), daemon=True)
+            self._threads.append(thread)
+            thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        for thread in self._threads:
+            thread.join(timeout=2.0)
+
+    def _pump_logs(self, client: observability_pb2_grpc.HolonObservabilityStub) -> None:
+        while not self._stop.is_set():
+            try:
+                stream = client.Logs(observability_pb2.LogsRequest(follow=True))
+                for proto in stream:
+                    if self._stop.is_set():
+                        return
+                    obs = self.observability
+                    if not obs.enabled(Family.LOGS) or obs.log_ring is None:
+                        continue
+                    entry = from_proto_log_entry(proto)
+                    entry.chain = append_direct_child(entry.chain, self.child_slug, self.child_uid)
+                    obs.log_ring.push(entry)
+            except Exception:
+                if self._stop.wait(self.retry_delay):
+                    return
+
+    def _pump_events(self, client: observability_pb2_grpc.HolonObservabilityStub) -> None:
+        while not self._stop.is_set():
+            try:
+                stream = client.Events(observability_pb2.EventsRequest(follow=True))
+                for proto in stream:
+                    if self._stop.is_set():
+                        return
+                    obs = self.observability
+                    if not obs.enabled(Family.EVENTS) or obs.event_bus is None:
+                        continue
+                    event = from_proto_event(proto)
+                    event.chain = append_direct_child(event.chain, self.child_slug, self.child_uid)
+                    obs.event_bus.emit(event)
+            except Exception:
+                if self._stop.wait(self.retry_delay):
+                    return
 
 
 # --- Disk writers + meta.json -------------------------------------------------
@@ -987,9 +1274,10 @@ def _iso8601(unix_seconds: float) -> str:
 __all__ = [
     "Config", "Observability", "Family", "Level", "EventType", "LogEntry", "Event",
     "Counter", "Gauge", "Histogram", "Registry", "HistogramSnapshot",
-    "LogRing", "EventBus", "Hop", "Logger",
+    "LogRing", "EventBus", "Hop", "Logger", "MemberRelay", "PromServer",
     "configure", "from_env", "current", "reset",
     "check_env", "parse_level", "append_direct_child", "enrich_for_multilog",
+    "from_proto_log_entry", "from_proto_event", "to_prometheus_text",
     "derive_run_dir", "enable_disk_writers", "write_meta_json", "read_meta_json",
     "register_service", "HolonObservabilityService", "MetaJSON",
     "DEFAULT_BUCKETS", "InvalidTokenError",
