@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:grpc/grpc.dart';
+import 'package:holons/gen/holons/v1/observability.pb.dart' as obs_pb;
+import 'package:holons/gen/holons/v1/observability.pbgrpc.dart' as obs_grpc;
 
+import 'connect.dart' as connect_impl;
 import 'describe.dart';
 import 'observability.dart' as observability;
 import 'reflection.dart';
@@ -42,6 +45,7 @@ class ServeOptions {
   const ServeOptions({
     this.describe = true,
     this.reflect = false,
+    this.memberEndpoints = const [],
     this.onListen,
     this.logger = _defaultLogger,
     this.protoDir,
@@ -50,10 +54,23 @@ class ServeOptions {
 
   final bool describe;
   final bool reflect;
+  final List<MemberRef> memberEndpoints;
   final void Function(String publicUri)? onListen;
   final void Function(String message) logger;
   final String? protoDir;
   final Map<String, String>? environment;
+}
+
+class MemberRef {
+  const MemberRef({
+    required this.slug,
+    this.uid = '',
+    required this.address,
+  });
+
+  final String slug;
+  final String uid;
+  final String address;
 }
 
 class RunningServer {
@@ -149,8 +166,13 @@ Future<RunningServer> startWithOptions(
         reflectionEnabled: reflectionEnabled,
         options: options,
       );
-      _startObservabilityRuntime(obs, running.publicUri, parsed.scheme);
-      return running;
+      return _finalizeObservabilityRuntime(
+        running,
+        obs,
+        running.publicUri,
+        parsed.scheme,
+        options,
+      );
     case 'stdio':
       final backing = await _startTcpServer(
         host: '127.0.0.1',
@@ -182,10 +204,16 @@ Future<RunningServer> startWithOptions(
       );
       bridge.start();
       final mode = _formatMode(describeEnabled, reflectionEnabled);
-      _startObservabilityRuntime(obs, 'stdio://', parsed.scheme);
+      final finalized = await _finalizeObservabilityRuntime(
+        running,
+        obs,
+        'stdio://',
+        parsed.scheme,
+        options,
+      );
       options.onListen?.call('stdio://');
       options.logger('gRPC server listening on stdio:// ($mode)');
-      return running;
+      return finalized;
     case 'unix':
       final path = parsed.path ?? '';
       final backing = await _startTcpServer(
@@ -206,10 +234,7 @@ Future<RunningServer> startWithOptions(
       );
       final publicUri = 'unix://$path';
       final mode = _formatMode(describeEnabled, reflectionEnabled);
-      _startObservabilityRuntime(obs, publicUri, parsed.scheme);
-      options.onListen?.call(publicUri);
-      options.logger('gRPC server listening on $publicUri ($mode)');
-      return RunningServer._(
+      final running = RunningServer._(
         server: backing.server,
         publicUri: publicUri,
         completion: backing.completion,
@@ -218,12 +243,188 @@ Future<RunningServer> startWithOptions(
           await backing.stop();
         },
       );
+      final finalized = await _finalizeObservabilityRuntime(
+        running,
+        obs,
+        publicUri,
+        parsed.scheme,
+        options,
+      );
+      options.onListen?.call(publicUri);
+      options.logger('gRPC server listening on $publicUri ($mode)');
+      return finalized;
     default:
       throw ArgumentError.value(
         listenUri,
         'listenUri',
         'Serve.run(...) currently supports tcp://, unix://, and stdio:// only',
       );
+  }
+}
+
+Future<RunningServer> _finalizeObservabilityRuntime(
+  RunningServer running,
+  observability.Observability? obs,
+  String publicUri,
+  String transportName,
+  ServeOptions options,
+) async {
+  final promServer = await _startPromServer(obs, options.logger);
+  _startObservabilityRuntime(
+    obs,
+    publicUri,
+    transportName,
+    promServer?.$2 ?? '',
+  );
+  final memberRelays = await _startMemberRelays(
+    obs,
+    options.memberEndpoints,
+    options.logger,
+  );
+  if (promServer == null && memberRelays.isEmpty) {
+    return running;
+  }
+  return RunningServer._(
+    server: running.server,
+    publicUri: running.publicUri,
+    completion: running.completion,
+    stopCallback: () async {
+      await Future.wait<void>([
+        for (final relay in memberRelays) relay.stop(),
+      ]);
+      if (promServer != null) {
+        await promServer.$1.close();
+      }
+      await running.stop();
+    },
+  );
+}
+
+Future<(observability.PromServer, String)?> _startPromServer(
+  observability.Observability? obs,
+  void Function(String message) logger,
+) async {
+  if (obs == null || !obs.enabled(observability.Family.prom)) {
+    return null;
+  }
+  final addr = obs.cfg.promAddr.isEmpty ? ':0' : obs.cfg.promAddr;
+  final server = observability.PromServer(addr);
+  try {
+    final metricsAddr = await server.start();
+    logger('Prometheus /metrics listening on $metricsAddr');
+    return (server, metricsAddr);
+  } on Object catch (error) {
+    logger('warning: prom HTTP bind failed: $error');
+    return null;
+  }
+}
+
+Future<List<_StartedMemberRelay>> _startMemberRelays(
+  observability.Observability? obs,
+  List<MemberRef> members,
+  void Function(String message) logger,
+) async {
+  if (obs == null ||
+      (!obs.enabled(observability.Family.logs) &&
+          !obs.enabled(observability.Family.events))) {
+    return const [];
+  }
+  final relays = <_StartedMemberRelay>[];
+  for (final raw in members) {
+    var member = MemberRef(
+      slug: raw.slug.trim(),
+      uid: raw.uid.trim(),
+      address: raw.address.trim(),
+    );
+    if (member.slug.isEmpty || member.address.isEmpty) {
+      logger(
+          'warning: observability relay skipped incomplete member ref: slug="${member.slug}" uid="${member.uid}" address="${member.address}"');
+      continue;
+    }
+    ClientChannel? channel;
+    try {
+      channel = await connect_impl.connect(
+        member.address,
+        const connect_impl.ConnectOptions(start: false),
+      ) as ClientChannel;
+      member = await _resolveRelayMemberIdentity(channel, member);
+      if (member.uid.isEmpty) {
+        logger(
+            'warning: observability relay uid unresolved for ${member.slug} at ${member.address}; chain hops will have empty uid');
+      }
+      final relay = observability.MemberRelay(
+        childSlug: member.slug,
+        childUid: member.uid,
+        channel: channel,
+        observability: obs,
+      );
+      await relay.start();
+      relays.add(_StartedMemberRelay(relay, channel));
+      channel = null;
+    } on Object catch (error) {
+      await channel?.shutdown();
+      logger(
+          'warning: observability relay start ${member.slug}/${member.uid}: $error');
+    }
+  }
+  return relays;
+}
+
+Future<MemberRef> _resolveRelayMemberIdentity(
+  ClientChannel channel,
+  MemberRef member,
+) async {
+  if (member.uid.isNotEmpty) {
+    return member;
+  }
+  final client = obs_grpc.HolonObservabilityClient(channel);
+  try {
+    final stream = client.events(
+      obs_pb.EventsRequest(
+        types: [obs_pb.EventType.INSTANCE_READY],
+        follow: false,
+      ),
+    );
+    await for (final event in stream.timeout(const Duration(seconds: 2))) {
+      if (event.instanceUid.isEmpty || event.chain.isNotEmpty) {
+        continue;
+      }
+      return MemberRef(
+        slug: event.slug.trim().isEmpty ? member.slug : event.slug.trim(),
+        uid: event.instanceUid.trim(),
+        address: member.address,
+      );
+    }
+  } on Object {
+    // Fall back to Metrics below.
+  }
+
+  try {
+    final snap = await client
+        .metrics(obs_pb.MetricsRequest())
+        .timeout(const Duration(seconds: 2));
+    if (snap.instanceUid.isNotEmpty) {
+      return MemberRef(
+        slug: snap.slug.trim().isEmpty ? member.slug : snap.slug.trim(),
+        uid: snap.instanceUid.trim(),
+        address: member.address,
+      );
+    }
+  } on Object {
+    // Leave the UID empty and let the relay still run.
+  }
+  return member;
+}
+
+class _StartedMemberRelay {
+  _StartedMemberRelay(this.relay, this.channel);
+
+  final observability.MemberRelay relay;
+  final ClientChannel channel;
+
+  Future<void> stop() async {
+    await relay.stop();
+    await channel.shutdown();
   }
 }
 
@@ -281,6 +482,7 @@ void _startObservabilityRuntime(
   observability.Observability? obs,
   String publicUri,
   String transportName,
+  String metricsAddr,
 ) {
   if (obs == null || obs.families.isEmpty || obs.cfg.runDir.isEmpty) return;
   observability.enableDiskWriters(obs.cfg.runDir);
@@ -297,6 +499,7 @@ void _startObservabilityRuntime(
       startedAt: DateTime.now(),
       transport: transportName,
       address: publicUri,
+      metricsAddr: metricsAddr,
       logPath: obs.enabled(observability.Family.logs)
           ? '${obs.cfg.runDir}${Platform.pathSeparator}stdout.log'
           : '',
