@@ -3,9 +3,9 @@ const grpc_client = @import("grpc/client.zig");
 const observability = @import("observability.zig");
 const runtime = @import("protobuf/runtime.zig");
 
-const STREAM_TIMEOUT_MS = 1_000;
+const STREAM_TIMEOUT_MS = 500;
 const RESOLVE_TIMEOUT_MS = 2_000;
-const RETRY_BACKOFF_MS = 2_000;
+const RETRY_BACKOFF_MS = 100;
 
 pub const MemberRef = struct {
     slug: []const u8 = "",
@@ -188,6 +188,7 @@ fn pumpLogsOnce(relay: *MemberRelay) !void {
 }
 
 fn pumpEventsOnce(relay: *MemberRelay) !void {
+    emitResolvedMemberReady(relay.allocator, relay.obs, relay.member) catch {};
     var channel = try grpc_client.connect(relay.allocator, relay.member.address);
     defer channel.deinit();
     const request = try runtime.packEventsRequest(relay.allocator, .{ .follow = true });
