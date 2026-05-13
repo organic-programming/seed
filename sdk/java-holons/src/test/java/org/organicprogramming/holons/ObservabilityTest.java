@@ -134,4 +134,37 @@ final class ObservabilityTest {
             Observability.reset();
         }
     }
+
+    @Test
+    void prometheusTextInjectsIdentityLabelsAndRoundTripsProto() {
+        Observability.reset();
+        Observability.Config cfg = new Observability.Config();
+        cfg.slug = "cascade-node-java";
+        cfg.instanceUid = "java-prom-1";
+        Observability obs = Observability.configureFromEnv(cfg, Map.of("OP_OBS", "logs,metrics,events,prom"));
+
+        obs.counter("cascade_ticks_total", "Ticks received by this cascade node.", Map.of("responder_uid", "java-prom-1")).inc();
+        String text = Observability.toPrometheusText(obs);
+        assertTrue(text.contains("# HELP cascade_ticks_total Ticks received by this cascade node."));
+        assertTrue(text.contains("# TYPE cascade_ticks_total counter"));
+        assertTrue(text.contains("instance_uid=\"java-prom-1\""));
+        assertTrue(text.contains("responder_uid=\"java-prom-1\""));
+        assertTrue(text.contains("slug=\"cascade-node-java\""));
+
+        Observability.LogEntry log = new Observability.LogEntry(
+                java.time.Instant.now(),
+                Observability.Level.INFO,
+                "child",
+                "uid-child",
+                "",
+                "",
+                "tick received",
+                Map.of("sender", "test"),
+                "",
+                List.of(new Observability.Hop("leaf", "uid-leaf")));
+        Observability.LogEntry roundTrip = Observability.fromProtoLogEntry(Observability.toProtoLogEntry(log));
+        assertEquals("tick received", roundTrip.message);
+        assertEquals("leaf", roundTrip.chain.get(0).slug);
+        Observability.reset();
+    }
 }
