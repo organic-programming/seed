@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -61,12 +63,19 @@ type checkResult struct {
 }
 
 func main() {
-	start := time.Now()
-	if err := run(); err != nil {
+	liveStream := flag.Bool("live-stream", false, "exercise long-lived Follow:true streams across chain respawns")
+	flag.Parse()
+
+	var err error
+	if *liveStream {
+		err = runLiveStream()
+	} else {
+		err = run()
+	}
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nFAIL: %v\n", err)
 		os.Exit(1)
 	}
-	_ = start
 }
 
 func run() error {
@@ -147,6 +156,106 @@ func run() error {
 	return nil
 }
 
+func runLiveStream() error {
+	binaryPath, err := findCascadeNodeBinary()
+	if err != nil {
+		return err
+	}
+	runRoot := filepath.Join(os.Getenv("HOME"), ".op", "run")
+	transports := []string{"tcp", "unix", "tcp", "unix"}
+
+	fmt.Println("=== relay-cascade-go --live-stream ===")
+	fmt.Println()
+	fmt.Println("Setup: opening long-lived Follow:true streams on A")
+	fmt.Println("       (initial transport: tcp, port 9090)")
+	fmt.Println()
+
+	totalPass := 0
+	totalFail := 0
+	var c *cascade
+	var streams *liveStreams
+	var streamOpenErr error
+	defer func() {
+		if c != nil {
+			c.stop()
+		}
+		if streams != nil {
+			streams.stop()
+		}
+	}()
+
+	for phaseIdx, transport := range transports {
+		phaseNo := phaseIdx + 1
+		if phaseNo == 1 {
+			fmt.Printf("Phase %d/%d: initial chain (%s)\n", phaseNo, runPhases, transport)
+		} else {
+			fmt.Printf("Phase %d/%d: respawn on %s\n", phaseNo, runPhases, transport)
+			killStart := time.Now()
+			if c != nil {
+				c.stop()
+			}
+			if streams != nil {
+				streams.stop()
+			}
+			fmt.Printf("  killed 4 nodes in %s\n", time.Since(killStart).Round(time.Millisecond))
+		}
+
+		spawnStart := time.Now()
+		c, err = spawnCascade(phaseNo, transport, binaryPath, runRoot)
+		if err != nil {
+			totalFail += runTicks
+			fmt.Printf("  spawn FAIL: %v\n\n", err)
+			streams = nil
+			streamOpenErr = err
+			continue
+		}
+		fmt.Printf("  spawned 4 nodes in %s\n", time.Since(spawnStart).Round(time.Millisecond))
+		if phaseNo > 1 {
+			fmt.Println("  re-opening Follow:true streams on new A")
+		}
+		streams, streamOpenErr = startLiveStreams(c.roles["A"].conn)
+		if streamOpenErr != nil {
+			fmt.Printf("  stream re-open failed: %v\n", streamOpenErr)
+		}
+
+		previousMetric := float64(0)
+		for tick := 1; tick <= runTicks; tick++ {
+			tickStart := time.Now()
+			result := c.runLiveTick(streams, streamOpenErr, tick, previousMetric)
+			if result.metric.pass {
+				previousMetric = result.metricValue
+			}
+			overall := result.log.pass && result.event.pass && result.metric.pass
+			if overall {
+				totalPass++
+			} else {
+				totalFail++
+			}
+			fmt.Printf("  Tick %d/%d: log %s, event %s, metric %s (overall %s in %s)\n",
+				tick,
+				runTicks,
+				passText(result.log.pass),
+				passText(result.event.pass),
+				passText(result.metric.pass),
+				passText(overall),
+				time.Since(tickStart).Round(time.Millisecond),
+			)
+			if !overall {
+				printFailureEvidence("log", result.log)
+				printFailureEvidence("event", result.event)
+				printFailureEvidence("metric", result.metric)
+			}
+		}
+		fmt.Println()
+	}
+
+	fmt.Printf("Summary: %d PASS / %d FAIL across %d ticks\n", totalPass, totalFail, totalPass+totalFail)
+	if totalFail > 0 {
+		return fmt.Errorf("%d tick(s) failed", totalFail)
+	}
+	return nil
+}
+
 type tickOutcome struct {
 	log         checkResult
 	event       checkResult
@@ -156,6 +265,10 @@ type tickOutcome struct {
 
 func (c *cascade) runTick(tick int, previousMetric float64) tickOutcome {
 	sender := fmt.Sprintf("phase-%d-tick-%d", c.phase, tick)
+	return c.runTickWithSender(sender, previousMetric)
+}
+
+func (c *cascade) runTickWithSender(sender string, previousMetric float64) tickOutcome {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_, tickErr := relayv1.NewRelayServiceClient(c.roles["D"].conn).Tick(ctx, &relayv1.TickRequest{
@@ -173,6 +286,45 @@ func (c *cascade) runTick(tick int, previousMetric float64) tickOutcome {
 	eventResult := waitFor(3*time.Second, c.checkEvent)
 	metricValue := previousMetric
 	metricResult := waitFor(3*time.Second, func() checkResult {
+		res, value := c.checkMetric(previousMetric)
+		if res.pass {
+			metricValue = value
+		}
+		return res
+	})
+	return tickOutcome{
+		log:         logResult,
+		event:       eventResult,
+		metric:      metricResult,
+		metricValue: metricValue,
+	}
+}
+
+func (c *cascade) runLiveTick(streams *liveStreams, streamOpenErr error, tick int, previousMetric float64) tickOutcome {
+	sender := fmt.Sprintf("phase-%d-tick-%d", c.phase, tick)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, tickErr := relayv1.NewRelayServiceClient(c.roles["D"].conn).Tick(ctx, &relayv1.TickRequest{
+		Sender: sender,
+		Note:   c.transport,
+	})
+	if tickErr != nil {
+		errResult := checkResult{evidence: tickErr.Error()}
+		return tickOutcome{log: errResult, event: errResult, metric: errResult}
+	}
+
+	logResult := checkResult{evidence: "stream re-open failed: " + errorText(streamOpenErr)}
+	eventResult := logResult
+	if streamOpenErr == nil {
+		logResult = waitForEvery(time.Second, 50*time.Millisecond, func() checkResult {
+			return c.checkLiveLog(streams, sender)
+		})
+		eventResult = waitForEvery(time.Second, 50*time.Millisecond, func() checkResult {
+			return c.checkLiveEvent(streams)
+		})
+	}
+	metricValue := previousMetric
+	metricResult := waitForEvery(time.Second, 50*time.Millisecond, func() checkResult {
 		res, value := c.checkMetric(previousMetric)
 		if res.pass {
 			metricValue = value
@@ -382,6 +534,43 @@ func (c *cascade) checkEvent() checkResult {
 	return checkResult{evidence: fmt.Sprintf("no relayed D INSTANCE_READY event in %d A events", len(events))}
 }
 
+func (c *cascade) checkLiveLog(streams *liveStreams, sender string) checkResult {
+	if streams == nil {
+		return checkResult{evidence: "live streams are not open"}
+	}
+	entries := streams.logEntries()
+	for _, entry := range entries {
+		if entry.GetMessage() != "tick received" {
+			continue
+		}
+		if entry.GetFields()["sender"] != sender || entry.GetFields()["responder_uid"] != c.roles["D"].uid {
+			continue
+		}
+		if err := c.checkChain(entry.GetChain()); err != nil {
+			return checkResult{evidence: "matching live log has bad chain: " + err.Error() + " entry=" + marshalProto(entry)}
+		}
+		return checkResult{pass: true, evidence: marshalProto(entry)}
+	}
+	return checkResult{evidence: fmt.Sprintf("no live log found for sender=%s current_d_uid=%s within 1s (buffer=%d, stream_errors=%v)", sender, c.roles["D"].uid, len(entries), streams.streamErrors())}
+}
+
+func (c *cascade) checkLiveEvent(streams *liveStreams) checkResult {
+	if streams == nil {
+		return checkResult{evidence: "live streams are not open"}
+	}
+	events := streams.eventEntries()
+	for _, event := range events {
+		if event.GetType() != holonsv1.EventType_INSTANCE_READY || event.GetInstanceUid() != c.roles["D"].uid {
+			continue
+		}
+		if err := c.checkChain(event.GetChain()); err != nil {
+			return checkResult{evidence: "matching live event has bad chain: " + err.Error() + " event=" + marshalProto(event)}
+		}
+		return checkResult{pass: true, evidence: marshalProto(event)}
+	}
+	return checkResult{evidence: fmt.Sprintf("no live INSTANCE_READY event found for current_d_uid=%s within 1s (buffer=%d, stream_errors=%v)", c.roles["D"].uid, len(events), streams.streamErrors())}
+}
+
 func (c *cascade) checkMetric(previous float64) (checkResult, float64) {
 	body, err := fetchMetrics(c.roles["D"].metricsAddr)
 	if err != nil {
@@ -408,6 +597,103 @@ func (c *cascade) checkChain(chain []*holonsv1.ChainHop) error {
 		}
 	}
 	return nil
+}
+
+type liveStreams struct {
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
+
+	mu     sync.Mutex
+	logs   []*holonsv1.LogEntry
+	events []*holonsv1.EventInfo
+	errs   []string
+}
+
+func startLiveStreams(conn *grpc.ClientConn) (*liveStreams, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	client := holonsv1.NewHolonObservabilityClient(conn)
+	logStream, err := client.Logs(ctx, &holonsv1.LogsRequest{
+		MinLevel: holonsv1.LogLevel_INFO,
+		Follow:   true,
+	})
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	eventStream, err := client.Events(ctx, &holonsv1.EventsRequest{Follow: true})
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	streams := &liveStreams{cancel: cancel}
+	streams.wg.Add(2)
+	go streams.readLogs(ctx, logStream)
+	go streams.readEvents(ctx, eventStream)
+	return streams, nil
+}
+
+func (s *liveStreams) stop() {
+	if s == nil {
+		return
+	}
+	s.cancel()
+	s.wg.Wait()
+}
+
+func (s *liveStreams) readLogs(ctx context.Context, stream holonsv1.HolonObservability_LogsClient) {
+	defer s.wg.Done()
+	for {
+		entry, err := stream.Recv()
+		if err != nil {
+			if ctx.Err() == nil && !errors.Is(err, io.EOF) {
+				s.addErr("logs stream ended: " + err.Error())
+			}
+			return
+		}
+		s.mu.Lock()
+		s.logs = append(s.logs, entry)
+		s.mu.Unlock()
+	}
+}
+
+func (s *liveStreams) readEvents(ctx context.Context, stream holonsv1.HolonObservability_EventsClient) {
+	defer s.wg.Done()
+	for {
+		event, err := stream.Recv()
+		if err != nil {
+			if ctx.Err() == nil && !errors.Is(err, io.EOF) {
+				s.addErr("events stream ended: " + err.Error())
+			}
+			return
+		}
+		s.mu.Lock()
+		s.events = append(s.events, event)
+		s.mu.Unlock()
+	}
+}
+
+func (s *liveStreams) logEntries() []*holonsv1.LogEntry {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]*holonsv1.LogEntry(nil), s.logs...)
+}
+
+func (s *liveStreams) eventEntries() []*holonsv1.EventInfo {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]*holonsv1.EventInfo(nil), s.events...)
+}
+
+func (s *liveStreams) addErr(message string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.errs = append(s.errs, message)
+}
+
+func (s *liveStreams) streamErrors() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.errs...)
 }
 
 func readLogs(conn *grpc.ClientConn) ([]*holonsv1.LogEntry, error) {
@@ -454,6 +740,10 @@ func readEvents(conn *grpc.ClientConn) ([]*holonsv1.EventInfo, error) {
 }
 
 func waitFor(timeout time.Duration, fn func() checkResult) checkResult {
+	return waitForEvery(timeout, 100*time.Millisecond, fn)
+}
+
+func waitForEvery(timeout, interval time.Duration, fn func() checkResult) checkResult {
 	deadline := time.Now().Add(timeout)
 	var last checkResult
 	for {
@@ -461,7 +751,7 @@ func waitFor(timeout time.Duration, fn func() checkResult) checkResult {
 		if last.pass || time.Now().After(deadline) {
 			return last
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(interval)
 	}
 }
 
@@ -610,6 +900,13 @@ func printFailureEvidence(family string, result checkResult) {
 		evidence = "<empty>"
 	}
 	fmt.Printf("    %s evidence: %s\n", family, evidence)
+}
+
+func errorText(err error) string {
+	if err == nil {
+		return "<nil>"
+	}
+	return err.Error()
 }
 
 func marshalProto(msg proto.Message) string {
