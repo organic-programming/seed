@@ -449,6 +449,204 @@ class Registry {
   }
 }
 
+class PromServer {
+  PromServer(this.addr);
+
+  final String addr;
+  HttpServer? _server;
+
+  Future<String> start() async {
+    final current = _server;
+    if (current != null) {
+      return _metricsUrl(current);
+    }
+    final parsed = _parsePromAddr(addr);
+    final server = await HttpServer.bind(parsed.$1, parsed.$2);
+    _server = server;
+    unawaited(_serve(server));
+    return _metricsUrl(server);
+  }
+
+  Future<void> close() async {
+    final server = _server;
+    _server = null;
+    if (server != null) {
+      await server.close(force: true);
+    }
+  }
+
+  Future<void> _serve(HttpServer server) async {
+    await for (final request in server) {
+      if (request.uri.path != '/metrics') {
+        request.response.statusCode = HttpStatus.notFound;
+        await request.response.close();
+        continue;
+      }
+      final obs = current();
+      request.response.headers.contentType = ContentType(
+        'text',
+        'plain',
+        charset: 'utf-8',
+        parameters: const {'version': '0.0.4'},
+      );
+      if (!obs.enabled(Family.metrics)) {
+        request.response.statusCode = HttpStatus.serviceUnavailable;
+        request.response.write('# metrics family disabled (OP_OBS)\n');
+      } else if (!obs.enabled(Family.prom)) {
+        request.response.statusCode = HttpStatus.serviceUnavailable;
+        request.response.write('# prom family disabled (OP_OBS)\n');
+      } else {
+        request.response.write(toPrometheusText(obs));
+      }
+      await request.response.close();
+    }
+  }
+}
+
+String toPrometheusText(Observability obs) {
+  if (!obs.enabled(Family.metrics) || obs.registry == null) {
+    return '# metrics family disabled (OP_OBS)\n';
+  }
+  final groups = <String, _PromGroup>{};
+  _PromGroup ensure(String name, String help, String type) {
+    return groups.putIfAbsent(name, () => _PromGroup(name, help, type))
+      ..setHelp(help);
+  }
+
+  final injected = <String, String>{'slug': obs.cfg.slug};
+  if (obs.cfg.instanceUid.isNotEmpty) {
+    injected['instance_uid'] = obs.cfg.instanceUid;
+  }
+  for (final counter in obs.registry!.listCounters()) {
+    ensure(counter.name, counter.help, 'counter').counters.add(counter);
+  }
+  for (final gauge in obs.registry!.listGauges()) {
+    ensure(gauge.name, gauge.help, 'gauge').gauges.add(gauge);
+  }
+  for (final histogram in obs.registry!.listHistograms()) {
+    ensure(histogram.name, histogram.help, 'histogram')
+        .histograms
+        .add(histogram);
+  }
+
+  final names = groups.keys.toList()..sort();
+  final out = StringBuffer();
+  for (final name in names) {
+    final group = groups[name]!;
+    out.writeln('# HELP ${group.name} ${_promEscapeHelp(group.help)}');
+    out.writeln('# TYPE ${group.name} ${group.type}');
+    for (final counter in group.counters) {
+      out.writeln(
+          '${counter.name}${_promLabels(_mergeLabels(counter.labels, injected))} ${counter.value()}');
+    }
+    for (final gauge in group.gauges) {
+      out.writeln(
+          '${gauge.name}${_promLabels(_mergeLabels(gauge.labels, injected))} ${_formatFloat(gauge.value())}');
+    }
+    for (final histogram in group.histograms) {
+      final snapshot = histogram.snapshot();
+      final labels = _mergeLabels(histogram.labels, injected);
+      for (var i = 0; i < snapshot.bounds.length; i++) {
+        labels['le'] = _formatFloat(snapshot.bounds[i]);
+        out.writeln(
+            '${histogram.name}_bucket${_promLabels(labels)} ${snapshot.counts[i]}');
+      }
+      labels['le'] = '+Inf';
+      out.writeln(
+          '${histogram.name}_bucket${_promLabels(labels)} ${snapshot.total}');
+      labels.remove('le');
+      out.writeln(
+          '${histogram.name}_sum${_promLabels(labels)} ${_formatFloat(snapshot.sum)}');
+      out.writeln(
+          '${histogram.name}_count${_promLabels(labels)} ${snapshot.total}');
+    }
+  }
+  return out.toString();
+}
+
+class _PromGroup {
+  _PromGroup(this.name, String help, this.type) : help = help;
+
+  final String name;
+  String help;
+  final String type;
+  final counters = <Counter>[];
+  final gauges = <Gauge>[];
+  final histograms = <Histogram>[];
+
+  void setHelp(String next) {
+    if (help.isEmpty) {
+      help = next;
+    }
+  }
+}
+
+(String, int) _parsePromAddr(String raw) {
+  final trimmed = raw.trim().isEmpty ? ':0' : raw.trim();
+  if (trimmed.startsWith(':')) {
+    return ('0.0.0.0', int.parse(trimmed.substring(1)));
+  }
+  final index = trimmed.lastIndexOf(':');
+  if (index <= 0 || index == trimmed.length - 1) {
+    throw ArgumentError('invalid Prometheus address "$raw"');
+  }
+  return (trimmed.substring(0, index), int.parse(trimmed.substring(index + 1)));
+}
+
+String _metricsUrl(HttpServer server) {
+  final host = _advertisedPromHost(server.address.address);
+  return 'http://$host:${server.port}/metrics';
+}
+
+String _advertisedPromHost(String host) {
+  switch (host) {
+    case '':
+    case '0.0.0.0':
+      return '127.0.0.1';
+    case '::':
+      return '::1';
+    default:
+      return host;
+  }
+}
+
+Map<String, String> _mergeLabels(
+    Map<String, String> base, Map<String, String> extra) {
+  final out = <String, String>{};
+  extra.forEach((key, value) {
+    if (value.isNotEmpty) {
+      out[key] = value;
+    }
+  });
+  out.addAll(base);
+  return out;
+}
+
+String _promLabels(Map<String, String> labels) {
+  if (labels.isEmpty) return '';
+  final keys = labels.keys.toList()..sort();
+  return '{${keys.map((key) => '$key="${_promEscapeValue(labels[key] ?? '')}"').join(',')}}';
+}
+
+String _promEscapeValue(String value) {
+  return value
+      .replaceAll('\\', r'\\')
+      .replaceAll('\n', r'\n')
+      .replaceAll('"', r'\"');
+}
+
+String _promEscapeHelp(String value) {
+  return value.replaceAll('\\', r'\\').replaceAll('\n', r'\n');
+}
+
+String _formatFloat(double value) {
+  if (value.isInfinite) {
+    return value.isNegative ? '-Inf' : '+Inf';
+  }
+  if (value.isNaN) return 'NaN';
+  return value.toString();
+}
+
 // --- Config + Observability -------------------------------------------------
 
 class Config {
@@ -631,27 +829,37 @@ class MemberRelay {
     required this.observability,
   });
 
-  final String childSlug;
-  final String childUid;
+  String childSlug;
+  String childUid;
   final ClientChannel channel;
   final Observability observability;
 
   StreamSubscription<obs_pb.LogEntry>? _logsSub;
   StreamSubscription<obs_pb.EventInfo>? _eventsSub;
+  Timer? _retryTimer;
   bool _isRunning = false;
   bool _stopping = false;
   bool _failed = false;
+  bool _starting = false;
 
   bool get isRunning => _isRunning;
 
   Future<void> start() async {
-    if (_isRunning) return;
+    if (_isRunning || _starting) return;
+    _stopping = false;
+    await _openStreams();
+  }
+
+  Future<void> _openStreams() async {
+    if (_stopping || _starting) return;
     final wantLogs = observability.enabled(Family.logs);
     final wantEvents = observability.enabled(Family.events);
     if (!wantLogs && !wantEvents) return;
 
-    _stopping = false;
+    _starting = true;
     _failed = false;
+    _retryTimer?.cancel();
+    _retryTimer = null;
     final client = obs_grpc.HolonObservabilityClient(channel);
 
     try {
@@ -678,17 +886,19 @@ class MemberRelay {
       _isRunning = false;
       await _cancelSubscriptions();
       _warn(error);
+      _scheduleRetry();
+    } finally {
+      _starting = false;
     }
   }
 
   Future<void> stop() async {
-    if (_logsSub == null && _eventsSub == null) {
-      _isRunning = false;
-      return;
-    }
     _stopping = true;
+    _retryTimer?.cancel();
+    _retryTimer = null;
     await _cancelSubscriptions();
     _isRunning = false;
+    _starting = false;
     _stopping = false;
   }
 
@@ -697,6 +907,7 @@ class MemberRelay {
       return;
     }
     final entry = _logEntryFromProto(proto);
+    _refreshChildIdentity(entry.slug, entry.instanceUid, entry.chain);
     observability.logRing!.push(LogEntry(
       timestamp: entry.timestamp,
       level: entry.level,
@@ -718,6 +929,7 @@ class MemberRelay {
       return;
     }
     final event = _eventFromProto(proto);
+    _refreshChildIdentity(event.slug, event.instanceUid, event.chain);
     observability.eventBus!.emit(Event(
       timestamp: event.timestamp,
       type: event.type,
@@ -739,10 +951,31 @@ class MemberRelay {
     _failed = true;
     _isRunning = false;
     _warn(error);
-    _stopping = true;
     unawaited(_cancelSubscriptions().whenComplete(() {
-      _stopping = false;
+      _scheduleRetry();
     }));
+  }
+
+  void _scheduleRetry() {
+    if (_stopping || _retryTimer != null) return;
+    _retryTimer = Timer(const Duration(seconds: 2), () {
+      _retryTimer = null;
+      if (!_stopping) {
+        unawaited(_openStreams());
+      }
+    });
+  }
+
+  void _refreshChildIdentity(String slug, String uid, List<Hop> chain) {
+    if (chain.isNotEmpty) return;
+    final nextSlug = slug.trim();
+    final nextUid = uid.trim();
+    if (nextSlug.isNotEmpty) {
+      childSlug = nextSlug;
+    }
+    if (nextUid.isNotEmpty) {
+      childUid = nextUid;
+    }
   }
 
   void _warn(Object error) {
@@ -777,12 +1010,7 @@ class _DisabledObs extends Observability {
 
 Observability? _current;
 
-List<Hop> _selfChain(Config cfg) {
-  if (cfg.slug.isEmpty) {
-    return const [];
-  }
-  return [Hop(slug: cfg.slug, instanceUid: cfg.instanceUid)];
-}
+List<Hop> _selfChain(Config _) => const [];
 
 Observability configure(Config cfg, {Map<String, String>? env}) {
   env ??= Platform.environment;

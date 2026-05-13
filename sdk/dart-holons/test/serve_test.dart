@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart';
 import 'package:holons/gen/holons/v1/describe.pbgrpc.dart';
+import 'package:holons/gen/holons/v1/observability.pbgrpc.dart' as obsgrpc;
 import 'package:holons/src/connect.dart' as connect_impl;
 import 'package:holons/src/gen/grpc/reflection/v1alpha/reflection.pbgrpc.dart';
+import 'package:holons/src/observability.dart' as obs;
 import 'package:test/test.dart';
 
 void main() {
@@ -136,6 +139,59 @@ void main() {
       }
     });
 
+    test('startWithOptions relays configured member observability', () async {
+      final root = _writeEchoHolon();
+      final fake = await _startFakeMemberObservability();
+
+      try {
+        useStaticResponse(
+          buildDescribeResponse(protoDir: '${root.path}/protos'),
+        );
+        final running = await startWithOptions(
+          'tcp://127.0.0.1:0',
+          const <Service>[],
+          options: ServeOptions(
+            environment: const {
+              'OP_OBS': 'logs,events',
+              'OP_INSTANCE_UID': 'parent-uid',
+            },
+            logger: (_) {},
+            memberEndpoints: [
+              MemberRef(
+                slug: 'child-x',
+                address: 'tcp://127.0.0.1:${fake.server.port}',
+              ),
+            ],
+          ),
+        );
+
+        try {
+          await _waitFor(() =>
+              fake.service.logsOpened == 1 && fake.service.eventsOpened == 2);
+          fake.service.emitLog('relayed', {'k': 'v'});
+
+          await _waitFor(() => obs.current().logRing!.drain().any(
+                (entry) => entry.message == 'relayed',
+              ));
+          final entry = obs
+              .current()
+              .logRing!
+              .drain()
+              .firstWhere((entry) => entry.message == 'relayed');
+          expect(entry.fields['k'], equals('v'));
+          expect(entry.chain, hasLength(1));
+          expect(entry.chain.single.slug, equals('child-x'));
+          expect(entry.chain.single.instanceUid, equals('child-uid'));
+        } finally {
+          await running.stop();
+        }
+      } finally {
+        obs.reset();
+        await fake.close();
+        root.deleteSync(recursive: true);
+      }
+    });
+
     test('startWithOptions fails loudly when no static describe is registered',
         () async {
       final logs = <String>[];
@@ -163,6 +219,95 @@ void main() {
       );
     });
   });
+}
+
+class _FakeMemberObservability {
+  _FakeMemberObservability(this.service, this.server);
+
+  final _FakeMemberObservabilityService service;
+  final Server server;
+
+  Future<void> close() async {
+    await service.close();
+    await server.shutdown();
+  }
+}
+
+class _FakeMemberObservabilityService
+    extends obsgrpc.HolonObservabilityServiceBase {
+  final _logs = StreamController<obsgrpc.LogEntry>.broadcast();
+  final _events = StreamController<obsgrpc.EventInfo>.broadcast();
+  var logsOpened = 0;
+  var eventsOpened = 0;
+
+  @override
+  Stream<obsgrpc.LogEntry> logs(ServiceCall call, obsgrpc.LogsRequest request) {
+    logsOpened += 1;
+    return _logs.stream;
+  }
+
+  @override
+  Future<obsgrpc.MetricsSnapshot> metrics(
+      ServiceCall call, obsgrpc.MetricsRequest request) async {
+    return obsgrpc.MetricsSnapshot(
+      slug: 'child-x',
+      instanceUid: 'child-uid',
+    );
+  }
+
+  @override
+  Stream<obsgrpc.EventInfo> events(
+      ServiceCall call, obsgrpc.EventsRequest request) {
+    eventsOpened += 1;
+    if (!request.follow) {
+      return Stream<obsgrpc.EventInfo>.value(_readyEvent());
+    }
+    return _events.stream;
+  }
+
+  void emitLog(String message, Map<String, String> fields) {
+    _logs.add(obs.toProtoLogEntry(obs.LogEntry(
+      timestamp: DateTime.now().toUtc(),
+      level: obs.Level.info,
+      slug: 'child-x',
+      instanceUid: 'child-uid',
+      message: message,
+      fields: fields,
+    )));
+  }
+
+  obsgrpc.EventInfo _readyEvent() {
+    return obs.toProtoEvent(obs.Event(
+      timestamp: DateTime.now().toUtc(),
+      type: obs.EventType.instanceReady,
+      slug: 'child-x',
+      instanceUid: 'child-uid',
+    ));
+  }
+
+  Future<void> close() async {
+    await _logs.close();
+    await _events.close();
+  }
+}
+
+Future<_FakeMemberObservability> _startFakeMemberObservability() async {
+  final service = _FakeMemberObservabilityService();
+  final server = Server.create(services: [service]);
+  await server.serve(address: InternetAddress.loopbackIPv4, port: 0);
+  return _FakeMemberObservability(service, server);
+}
+
+Future<void> _waitFor(
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 2),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (condition()) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('condition was not met within $timeout');
 }
 
 Directory _writeEchoHolon() {
