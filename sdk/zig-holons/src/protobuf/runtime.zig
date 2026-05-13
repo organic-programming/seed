@@ -128,6 +128,10 @@ pub const MetricsSnapshot = struct {
         return cstr(self.raw.*.slug);
     }
 
+    pub fn instanceUid(self: MetricsSnapshot) []const u8 {
+        return cstr(self.raw.*.instance_uid);
+    }
+
     pub fn counterValue(self: MetricsSnapshot, name: []const u8) ?i64 {
         for (self.raw.*.samples[0..self.raw.*.n_samples]) |sample| {
             if (std.mem.eql(u8, cstr(sample.*.name), name) and

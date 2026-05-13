@@ -3,8 +3,9 @@ const grpc_client = @import("grpc/client.zig");
 const observability = @import("observability.zig");
 const runtime = @import("protobuf/runtime.zig");
 
-const STREAM_TIMEOUT_MS = 500;
-const RESOLVE_TIMEOUT_MS = 2_000;
+const STREAM_TIMEOUT_MS = 2_000;
+const RESOLVE_TIMEOUT_MS = 5_000;
+const RESOLVE_ATTEMPT_TIMEOUT_MS = 1_000;
 const RETRY_BACKOFF_MS = 100;
 
 pub const MemberRef = struct {
@@ -113,13 +114,27 @@ pub fn stopAll(allocator: std.mem.Allocator, relays: []MemberRelay) void {
 
 fn resolveMemberIdentity(allocator: std.mem.Allocator, member: *MemberRef) !void {
     if (member.uid.len != 0) return;
-    var channel = try grpc_client.connect(allocator, member.address);
-    defer channel.deinit();
+    const deadline_ns = nowNs() + (@as(i128, RESOLVE_TIMEOUT_MS) * std.time.ns_per_ms);
+    while (member.uid.len == 0 and nowNs() < deadline_ns) {
+        {
+            var channel = grpc_client.connect(allocator, member.address) catch {
+                sleepMillis(RETRY_BACKOFF_MS);
+                continue;
+            };
+            defer channel.deinit();
+            resolveMemberIdentityFromEvents(allocator, member, &channel) catch {};
+            if (member.uid.len == 0) resolveMemberIdentityFromMetrics(allocator, member, &channel) catch {};
+        }
+        if (member.uid.len != 0) return;
+        sleepMillis(RETRY_BACKOFF_MS);
+    }
+}
 
+fn resolveMemberIdentityFromEvents(allocator: std.mem.Allocator, member: *MemberRef, channel: *grpc_client.Channel) !void {
     const instance_ready = [_]i32{@intFromEnum(observability.EventType.instance_ready)};
     const request = try runtime.packEventsRequest(allocator, .{ .follow = false, .types = instance_ready[0..] });
     defer allocator.free(request);
-    var stream = try channel.serverStream(allocator, "/holons.v1.HolonObservability/Events", request, RESOLVE_TIMEOUT_MS);
+    var stream = try channel.serverStream(allocator, "/holons.v1.HolonObservability/Events", request, RESOLVE_ATTEMPT_TIMEOUT_MS);
     defer stream.deinit();
 
     while (try stream.next(allocator)) |bytes| {
@@ -135,6 +150,22 @@ fn resolveMemberIdentity(allocator: std.mem.Allocator, member: *MemberRef) !void
         member.uid = try allocator.dupe(u8, std.mem.trim(u8, event.instanceUid(), " \t\r\n"));
         return;
     }
+}
+
+fn resolveMemberIdentityFromMetrics(allocator: std.mem.Allocator, member: *MemberRef, channel: *grpc_client.Channel) !void {
+    const request = try runtime.packMetricsRequest(allocator);
+    defer allocator.free(request);
+    const response = try channel.unaryAlloc(allocator, "/holons.v1.HolonObservability/Metrics", request, RESOLVE_ATTEMPT_TIMEOUT_MS);
+    defer allocator.free(response);
+    var snapshot = try runtime.unpackMetricsSnapshot(response);
+    defer snapshot.deinit();
+    if (snapshot.instanceUid().len == 0) return;
+    if (snapshot.slug().len != 0) {
+        allocator.free(member.slug);
+        member.slug = try allocator.dupe(u8, std.mem.trim(u8, snapshot.slug(), " \t\r\n"));
+    }
+    allocator.free(member.uid);
+    member.uid = try allocator.dupe(u8, std.mem.trim(u8, snapshot.instanceUid(), " \t\r\n"));
 }
 
 fn emitResolvedMemberReady(allocator: std.mem.Allocator, obs: *observability.Observability, member: MemberRef) !void {

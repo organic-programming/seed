@@ -55,6 +55,25 @@ test "member relay retries streams after child restart" {
     try waitForLogChain(allocator, parent, "after-restart", "child-zig", "child-uid");
 }
 
+test "member relay resolves child identity from metrics when ready event is unavailable" {
+    const allocator = std.testing.allocator;
+    var child = try ChildFixture.initWithFamilies("child-zig", "child-uid", null, "logs,metrics");
+    defer holons.observability.reset();
+    defer child.deinit();
+    try child.start();
+
+    const parent = try standaloneObs("parent-zig", "parent-uid");
+    defer holons.observability.destroy(parent);
+
+    const relays = try holons.member_relay.startAll(std.heap.c_allocator, parent, &.{
+        .{ .slug = "child-zig", .address = child.listen },
+    });
+    defer holons.member_relay.stopAll(std.heap.c_allocator, relays);
+
+    try child.obs.logger("relay-test").info("metrics-resolved-log", &.{});
+    try waitForLogChain(allocator, parent, "metrics-resolved-log", "child-zig", "child-uid");
+}
+
 const ChildFixture = struct {
     obs: *holons.observability.Observability,
     server: holons.grpc.server.Server,
@@ -63,11 +82,15 @@ const ChildFixture = struct {
     port: u16,
 
     fn init(slug: []const u8, uid: []const u8, fixed_port: ?u16) !ChildFixture {
+        return initWithFamilies(slug, uid, fixed_port, "logs,events");
+    }
+
+    fn initWithFamilies(slug: []const u8, uid: []const u8, fixed_port: ?u16, families: []const u8) !ChildFixture {
         const port = fixed_port orelse try go_greeting.reserveLoopbackPort();
         const listen = try std.fmt.allocPrint(std.heap.c_allocator, "tcp://127.0.0.1:{}", .{port});
         errdefer std.heap.c_allocator.free(listen);
         const env = [_]holons.observability.EnvEntry{
-            .{ .key = "OP_OBS", .value = "logs,events" },
+            .{ .key = "OP_OBS", .value = families },
             .{ .key = "OP_INSTANCE_UID", .value = uid },
         };
         const obs = try holons.observability.configureFromEnv(std.heap.c_allocator, .{
