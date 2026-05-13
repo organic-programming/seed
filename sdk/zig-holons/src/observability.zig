@@ -214,6 +214,7 @@ pub fn enrichForMultilog(allocator: std.mem.Allocator, wire: []const Hop, source
 }
 
 pub const LogEntry = struct {
+    sequence: u64 = 0,
     timestamp_ns: i128 = 0,
     level: Level = .info,
     slug: []const u8 = "",
@@ -227,6 +228,7 @@ pub const LogEntry = struct {
 
     pub fn clone(allocator: std.mem.Allocator, entry: LogEntry) !LogEntry {
         return .{
+            .sequence = entry.sequence,
             .timestamp_ns = entry.timestamp_ns,
             .level = entry.level,
             .slug = try allocator.dupe(u8, entry.slug),
@@ -257,6 +259,7 @@ pub const LogRing = struct {
     allocator: std.mem.Allocator,
     capacity: usize,
     inner: std.ArrayList(LogEntry),
+    next_sequence: u64 = 1,
     mutex: std.Io.Mutex = .init,
 
     pub fn init(allocator: std.mem.Allocator, capacity: usize) LogRing {
@@ -277,7 +280,10 @@ pub const LogRing = struct {
             var old = self.inner.orderedRemove(0);
             old.deinit(self.allocator);
         }
-        try self.inner.append(self.allocator, try LogEntry.clone(self.allocator, entry));
+        var cloned = try LogEntry.clone(self.allocator, entry);
+        cloned.sequence = self.next_sequence;
+        self.next_sequence += 1;
+        try self.inner.append(self.allocator, cloned);
     }
 
     pub fn drain(self: *LogRing, allocator: std.mem.Allocator) ![]LogEntry {
@@ -311,6 +317,7 @@ pub const LogRing = struct {
 };
 
 pub const Event = struct {
+    sequence: u64 = 0,
     timestamp_ns: i128 = 0,
     event_type: EventType = .unspecified,
     slug: []const u8 = "",
@@ -321,6 +328,7 @@ pub const Event = struct {
 
     pub fn clone(allocator: std.mem.Allocator, event: Event) !Event {
         return .{
+            .sequence = event.sequence,
             .timestamp_ns = event.timestamp_ns,
             .event_type = event.event_type,
             .slug = try allocator.dupe(u8, event.slug),
@@ -345,6 +353,7 @@ pub const EventBus = struct {
     allocator: std.mem.Allocator,
     capacity: usize,
     inner: std.ArrayList(Event),
+    next_sequence: u64 = 1,
     closed: bool = false,
     mutex: std.Io.Mutex = .init,
 
@@ -367,7 +376,10 @@ pub const EventBus = struct {
             var old = self.inner.orderedRemove(0);
             old.deinit(self.allocator);
         }
-        try self.inner.append(self.allocator, try Event.clone(self.allocator, event));
+        var cloned = try Event.clone(self.allocator, event);
+        cloned.sequence = self.next_sequence;
+        self.next_sequence += 1;
+        try self.inner.append(self.allocator, cloned);
     }
 
     pub fn drain(self: *EventBus, allocator: std.mem.Allocator) ![]Event {
@@ -802,12 +814,13 @@ fn logsHandler(allocator: std.mem.Allocator, request_bytes: []const u8, stream: 
         @intFromEnum(Level.info)
     else
         @as(i32, @intCast(request.*.min_level));
-    var last_seen_ns: i128 = 0;
-    try sendLogEntries(allocator, ring, request, min_level, stream, &last_seen_ns, cutoffFromDuration(request.*.since));
+    var last_seen_sequence: u64 = 0;
+    const cutoff_ns = cutoffFromDuration(request.*.since);
+    try sendLogEntries(allocator, ring, request, min_level, stream, &last_seen_sequence, cutoff_ns);
 
     while (request.*.follow != 0 and !stream.cancelled()) {
         sleepMillis(25);
-        try sendLogEntries(allocator, ring, request, min_level, stream, &last_seen_ns, if (last_seen_ns == 0) null else last_seen_ns + 1);
+        try sendLogEntries(allocator, ring, request, min_level, stream, &last_seen_sequence, cutoff_ns);
     }
 }
 
@@ -829,12 +842,13 @@ fn eventsHandler(allocator: std.mem.Allocator, request_bytes: []const u8, stream
         return error.DecodeEventsRequestFailed;
     defer c.holons__v1__events_request__free_unpacked(request, null);
 
-    var last_seen_ns: i128 = 0;
-    try sendEvents(allocator, bus, request, stream, &last_seen_ns, cutoffFromDuration(request.*.since));
+    var last_seen_sequence: u64 = 0;
+    const cutoff_ns = cutoffFromDuration(request.*.since);
+    try sendEvents(allocator, bus, request, stream, &last_seen_sequence, cutoff_ns);
 
     while (request.*.follow != 0 and !stream.cancelled()) {
         sleepMillis(25);
-        try sendEvents(allocator, bus, request, stream, &last_seen_ns, if (last_seen_ns == 0) null else last_seen_ns + 1);
+        try sendEvents(allocator, bus, request, stream, &last_seen_sequence, cutoff_ns);
     }
 }
 
@@ -844,18 +858,18 @@ fn sendLogEntries(
     request: *c.Holons__V1__LogsRequest,
     min_level: i32,
     stream: *grpc_server.ServerStream,
-    last_seen_ns: *i128,
+    last_seen_sequence: *u64,
     cutoff_ns: ?i128,
 ) !void {
     const entries = if (cutoff_ns) |cutoff| try ring.drainSince(allocator, cutoff) else try ring.drain(allocator);
     defer freeLogEntries(allocator, entries);
     for (entries) |entry| {
-        if (entry.timestamp_ns <= last_seen_ns.*) continue;
+        if (entry.sequence <= last_seen_sequence.*) continue;
         if (!matchesLogRequest(entry, request, min_level)) continue;
         const encoded = try packLogEntry(allocator, entry);
         defer allocator.free(encoded);
         try stream.send(encoded);
-        if (entry.timestamp_ns > last_seen_ns.*) last_seen_ns.* = entry.timestamp_ns;
+        last_seen_sequence.* = entry.sequence;
     }
 }
 
@@ -864,18 +878,18 @@ fn sendEvents(
     bus: *EventBus,
     request: *c.Holons__V1__EventsRequest,
     stream: *grpc_server.ServerStream,
-    last_seen_ns: *i128,
+    last_seen_sequence: *u64,
     cutoff_ns: ?i128,
 ) !void {
     const events = if (cutoff_ns) |cutoff| try bus.drainSince(allocator, cutoff) else try bus.drain(allocator);
     defer freeEventsSlice(allocator, events);
     for (events) |event| {
-        if (event.timestamp_ns <= last_seen_ns.*) continue;
+        if (event.sequence <= last_seen_sequence.*) continue;
         if (!matchesEventRequest(event, request)) continue;
         const encoded = try packEventInfo(allocator, event);
         defer allocator.free(encoded);
         try stream.send(encoded);
-        if (event.timestamp_ns > last_seen_ns.*) last_seen_ns.* = event.timestamp_ns;
+        last_seen_sequence.* = event.sequence;
     }
 }
 

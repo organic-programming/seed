@@ -191,6 +191,48 @@ test "HolonObservability Events follow streams initial drain and live tail" {
     stream.cancel();
 }
 
+test "HolonObservability Events follow streams relayed older timestamps" {
+    const allocator = std.testing.allocator;
+    var fixture = try ObservabilityFixture.init("events");
+    defer fixture.deinit();
+
+    try fixture.obs.emit(.instance_ready, &.{.{ .key = "state", .value = "initial" }});
+    try fixture.start();
+
+    var channel = try holons.grpc.client.connectTcp(allocator, fixture.listen);
+    defer channel.deinit();
+
+    const request = try runtime.packEventsRequest(allocator, .{ .follow = true });
+    defer allocator.free(request);
+    var stream = try channel.serverStream(allocator, "/holons.v1.HolonObservability/Events", request, 5_000);
+    defer stream.deinit();
+
+    const initial_bytes = (try stream.next(allocator)).?;
+    defer allocator.free(initial_bytes);
+    var initial = try runtime.unpackEventInfo(initial_bytes);
+    defer initial.deinit(allocator);
+    try std.testing.expectEqual(@intFromEnum(holons.observability.EventType.instance_ready), initial.eventType());
+
+    var relayed_chain = [_]holons.observability.Hop{.{
+        .slug = "child-zig",
+        .instance_uid = "child-uid",
+    }};
+    try fixture.obs.event_bus.?.emit(.{
+        .timestamp_ns = 1,
+        .event_type = .handler_panic,
+        .slug = "child-zig",
+        .instance_uid = "child-uid",
+        .chain = relayed_chain[0..],
+    });
+    const relayed_bytes = (try stream.next(allocator)).?;
+    defer allocator.free(relayed_bytes);
+    var relayed = try runtime.unpackEventInfo(relayed_bytes);
+    defer relayed.deinit(allocator);
+    try std.testing.expectEqual(@intFromEnum(holons.observability.EventType.handler_panic), relayed.eventType());
+    try std.testing.expectEqualStrings("child-uid", relayed.instanceUid());
+    stream.cancel();
+}
+
 test "Prometheus endpoint exposes registry text" {
     var fixture = try ObservabilityFixture.init("metrics,prom");
     defer fixture.deinit();
