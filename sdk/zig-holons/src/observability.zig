@@ -805,7 +805,7 @@ pub fn serviceMethods() []const grpc_server.Method {
 fn logsHandler(allocator: std.mem.Allocator, request_bytes: []const u8, stream: *grpc_server.ServerStream) !void {
     const obs = current() orelse return error.ObservabilityNotConfigured;
     if (!obs.enabled(.logs)) return error.LogsFamilyDisabled;
-    const ring = &(obs.log_ring orelse return error.LogsFamilyDisabled);
+    const ring = if (obs.log_ring) |*value| value else return error.LogsFamilyDisabled;
     const request = c.holons__v1__logs_request__unpack(null, request_bytes.len, request_bytes.ptr) orelse
         return error.DecodeLogsRequestFailed;
     defer c.holons__v1__logs_request__free_unpacked(request, null);
@@ -827,7 +827,7 @@ fn logsHandler(allocator: std.mem.Allocator, request_bytes: []const u8, stream: 
 fn metricsHandler(allocator: std.mem.Allocator, request_bytes: []const u8) ![]u8 {
     const obs = current() orelse return error.ObservabilityNotConfigured;
     if (!obs.enabled(.metrics)) return error.MetricsFamilyDisabled;
-    const registry = &(obs.registry orelse return error.MetricsFamilyDisabled);
+    const registry = if (obs.registry) |*value| value else return error.MetricsFamilyDisabled;
     const request = c.holons__v1__metrics_request__unpack(null, request_bytes.len, request_bytes.ptr) orelse
         return error.DecodeMetricsRequestFailed;
     defer c.holons__v1__metrics_request__free_unpacked(request, null);
@@ -837,7 +837,7 @@ fn metricsHandler(allocator: std.mem.Allocator, request_bytes: []const u8) ![]u8
 fn eventsHandler(allocator: std.mem.Allocator, request_bytes: []const u8, stream: *grpc_server.ServerStream) !void {
     const obs = current() orelse return error.ObservabilityNotConfigured;
     if (!obs.enabled(.events)) return error.EventsFamilyDisabled;
-    const bus = &(obs.event_bus orelse return error.EventsFamilyDisabled);
+    const bus = if (obs.event_bus) |*value| value else return error.EventsFamilyDisabled;
     const request = c.holons__v1__events_request__unpack(null, request_bytes.len, request_bytes.ptr) orelse
         return error.DecodeEventsRequestFailed;
     defer c.holons__v1__events_request__free_unpacked(request, null);
