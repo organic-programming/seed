@@ -1161,6 +1161,7 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(5));
         using var call = client.Events(new global::Holons.V1.EventsRequest(), cancellationToken: timeout.Token);
+        MemberIdentity? fallback = null;
         try
         {
             while (await call.ResponseStream.MoveNext(timeout.Token).ConfigureAwait(false))
@@ -1169,7 +1170,10 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
                 if (ev.Type == global::Holons.V1.EventType.InstanceReady && !string.IsNullOrEmpty(ev.InstanceUid))
                 {
                     var slug = string.IsNullOrEmpty(ev.Slug) ? _memberSlug : ev.Slug;
-                    return new MemberIdentity(slug, ev.InstanceUid);
+                    var identity = new MemberIdentity(slug, ev.InstanceUid);
+                    if (ev.Chain.Count == 0)
+                        return identity;
+                    fallback ??= identity;
                 }
             }
         }
@@ -1178,7 +1182,7 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
             // Fall back below when the member has no ready event yet.
         }
 
-        return new MemberIdentity(_memberSlug, "");
+        return fallback ?? new MemberIdentity(_memberSlug, "");
     }
 
     private static async Task RetryAsync(CancellationToken ct)
