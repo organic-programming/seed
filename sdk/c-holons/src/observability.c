@@ -16,6 +16,38 @@
 #include <time.h>
 #include <unistd.h>
 
+#if defined(__GNUC__) || defined(__clang__)
+#define HOLONS_WEAK __attribute__((weak))
+#else
+#define HOLONS_WEAK
+#endif
+
+HOLONS_WEAK void holons_cpp_obs_log_from_c(const char *logger_name,
+                                           int level,
+                                           const char *message,
+                                           const char *const *fields) {
+    (void)logger_name;
+    (void)level;
+    (void)message;
+    (void)fields;
+}
+
+HOLONS_WEAK void holons_cpp_obs_event_from_c(int type,
+                                             const char *const *payload) {
+    (void)type;
+    (void)payload;
+}
+
+HOLONS_WEAK void holons_cpp_obs_counter_add_from_c(const char *name,
+                                                   const char *help,
+                                                   const char *const *labels,
+                                                   int64_t n) {
+    (void)name;
+    (void)help;
+    (void)labels;
+    (void)n;
+}
+
 /* -------- helpers -------- */
 
 static char *dup_or_null(const char *s) {
@@ -307,7 +339,10 @@ static void fmt_rfc3339(char *out, size_t outsz) {
 
 /* -------- Logging + events -------- */
 
-void holon_obs_log(holon_level_t level, const char *message, const char *const *fields) {
+void holon_obs_log_named(const char *logger_name,
+                         holon_level_t level,
+                         const char *message,
+                         const char *const *fields) {
     pthread_mutex_lock(&g_obs_lock);
     holon_obs_t *o = g_obs;
     int enabled = o && (o->families & HOLON_FAMILY_LOGS) && level >= o->default_log_level;
@@ -315,7 +350,11 @@ void holon_obs_log(holon_level_t level, const char *message, const char *const *
     const char *slug = o ? o->slug : "";
     const char *uid = o && o->instance_uid ? o->instance_uid : "";
     pthread_mutex_unlock(&g_obs_lock);
-    if (!enabled || !log_path) return;
+    if (!enabled) return;
+
+    holons_cpp_obs_log_from_c(logger_name, (int)level, message, fields);
+
+    if (!log_path) return;
 
     FILE *f = fopen(log_path, "a");
     if (!f) return;
@@ -333,6 +372,10 @@ void holon_obs_log(holon_level_t level, const char *message, const char *const *
     fclose(f);
 }
 
+void holon_obs_log(holon_level_t level, const char *message, const char *const *fields) {
+    holon_obs_log_named(NULL, level, message, fields);
+}
+
 void holon_obs_emit(holon_event_type_t type, const char *const *payload) {
     pthread_mutex_lock(&g_obs_lock);
     holon_obs_t *o = g_obs;
@@ -341,7 +384,11 @@ void holon_obs_emit(holon_event_type_t type, const char *const *payload) {
     const char *slug = o ? o->slug : "";
     const char *uid = o && o->instance_uid ? o->instance_uid : "";
     pthread_mutex_unlock(&g_obs_lock);
-    if (!enabled || !events_path) return;
+    if (!enabled) return;
+
+    holons_cpp_obs_event_from_c((int)type, payload);
+
+    if (!events_path) return;
 
     FILE *f = fopen(events_path, "a");
     if (!f) return;
@@ -423,6 +470,19 @@ int64_t holon_obs_counter_inc(const char *name, const char *const *labels) {
 }
 
 int64_t holon_obs_counter_add(const char *name, const char *const *labels, int64_t n) {
+    return holon_obs_counter_add_with_help(name, "", labels, n);
+}
+
+int64_t holon_obs_counter_inc_with_help(const char *name,
+                                        const char *help,
+                                        const char *const *labels) {
+    return holon_obs_counter_add_with_help(name, help, labels, 1);
+}
+
+int64_t holon_obs_counter_add_with_help(const char *name,
+                                        const char *help,
+                                        const char *const *labels,
+                                        int64_t n) {
     if (n < 0) return 0;
     pthread_mutex_lock(&g_obs_lock);
     holon_obs_t *o = g_obs;
@@ -431,6 +491,7 @@ int64_t holon_obs_counter_add(const char *name, const char *const *labels, int64
     int64_t v = 0;
     if (c) v = atomic_fetch_add(&c->value, n) + n;
     pthread_mutex_unlock(&g_obs_lock);
+    holons_cpp_obs_counter_add_from_c(name, help, labels, n);
     return v;
 }
 

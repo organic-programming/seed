@@ -195,6 +195,17 @@ typedef struct {
 } holons_grpc_serve_options_t;
 
 typedef struct {
+  const char *slug;
+  const char *address;
+} holons_grpc_member_ref_t;
+
+typedef struct {
+  const char *slug;
+  const holons_grpc_member_ref_t *member_endpoints;
+  size_t member_endpoint_count;
+} holons_grpc_observability_options_t;
+
+typedef struct {
   char service_name[HOLONS_MAX_FIELD_LEN];
   char method_name[HOLONS_MAX_FIELD_LEN];
   const holons_describe_response_t *response;
@@ -282,6 +293,9 @@ int holons_serve_grpc(const char *listen_uri,
                       const holons_grpc_serve_options_t *options,
                       char *err,
                       size_t err_len);
+int holons_grpc_set_observability_options(
+    const holons_grpc_observability_options_t *options);
+void holons_grpc_clear_observability_options(void);
 
 int holons_resolve_manifest(const char *path,
                             holons_manifest_t *out,

@@ -1,4 +1,5 @@
 #include "holons/holons.h"
+#include "holons/observability.h"
 
 #include "holons/serve.hpp"
 
@@ -10,13 +11,89 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 namespace {
+
+struct c_observability_options {
+  std::string slug;
+  std::vector<holons::serve::member_ref> members;
+};
+
+std::mutex &c_observability_options_mu() {
+  static std::mutex mu;
+  return mu;
+}
+
+c_observability_options &c_observability_options_state() {
+  static c_observability_options state;
+  return state;
+}
+
+std::map<std::string, std::string> c_kv_to_map(const char *const *items) {
+  std::map<std::string, std::string> out;
+  if (items == nullptr) {
+    return out;
+  }
+  for (size_t i = 0; items[i] != nullptr; i += 2) {
+    if (items[i + 1] == nullptr) {
+      break;
+    }
+    if (items[i][0] == '\0') {
+      continue;
+    }
+    out.emplace(items[i], items[i + 1]);
+  }
+  return out;
+}
+
+holons::observability::Level c_level_to_cpp(int level) {
+  switch (level) {
+    case HOLON_LEVEL_TRACE:
+      return holons::observability::Level::Trace;
+    case HOLON_LEVEL_DEBUG:
+      return holons::observability::Level::Debug;
+    case HOLON_LEVEL_INFO:
+      return holons::observability::Level::Info;
+    case HOLON_LEVEL_WARN:
+      return holons::observability::Level::Warn;
+    case HOLON_LEVEL_ERROR:
+      return holons::observability::Level::Error;
+    case HOLON_LEVEL_FATAL:
+      return holons::observability::Level::Fatal;
+    default:
+      return holons::observability::Level::Unset;
+  }
+}
+
+holons::observability::EventType c_event_to_cpp(int type) {
+  switch (type) {
+    case HOLON_EVENT_INSTANCE_SPAWNED:
+      return holons::observability::EventType::InstanceSpawned;
+    case HOLON_EVENT_INSTANCE_READY:
+      return holons::observability::EventType::InstanceReady;
+    case HOLON_EVENT_INSTANCE_EXITED:
+      return holons::observability::EventType::InstanceExited;
+    case HOLON_EVENT_INSTANCE_CRASHED:
+      return holons::observability::EventType::InstanceCrashed;
+    case HOLON_EVENT_SESSION_STARTED:
+      return holons::observability::EventType::SessionStarted;
+    case HOLON_EVENT_SESSION_ENDED:
+      return holons::observability::EventType::SessionEnded;
+    case HOLON_EVENT_HANDLER_PANIC:
+      return holons::observability::EventType::HandlerPanic;
+    case HOLON_EVENT_CONFIG_RELOADED:
+      return holons::observability::EventType::ConfigReloaded;
+    default:
+      return holons::observability::EventType::Unspecified;
+  }
+}
 
 void set_err(char *err, size_t err_len, const char *fmt, ...) {
   va_list ap;
@@ -172,6 +249,85 @@ class native_generic_service final : public grpc::CallbackGenericService {
 
 }  // namespace
 
+extern "C" int holons_grpc_set_observability_options(
+    const holons_grpc_observability_options_t *options) {
+  std::scoped_lock lk(c_observability_options_mu());
+  auto &state = c_observability_options_state();
+  state.slug.clear();
+  state.members.clear();
+  if (options == nullptr) {
+    return 0;
+  }
+  if (options->slug != nullptr) {
+    state.slug = options->slug;
+  }
+  if (options->member_endpoints != nullptr &&
+      options->member_endpoint_count > 0) {
+    state.members.reserve(options->member_endpoint_count);
+    for (size_t i = 0; i < options->member_endpoint_count; ++i) {
+      const auto &member = options->member_endpoints[i];
+      if (member.slug == nullptr || member.slug[0] == '\0' ||
+          member.address == nullptr || member.address[0] == '\0') {
+        state.slug.clear();
+        state.members.clear();
+        return -1;
+      }
+      state.members.push_back(
+          holons::serve::member_ref{member.slug, member.address});
+    }
+  }
+  return 0;
+}
+
+extern "C" void holons_grpc_clear_observability_options(void) {
+  std::scoped_lock lk(c_observability_options_mu());
+  auto &state = c_observability_options_state();
+  state.slug.clear();
+  state.members.clear();
+}
+
+extern "C" void holons_cpp_obs_log_from_c(const char *logger_name,
+                                           int level,
+                                           const char *message,
+                                           const char *const *fields) {
+  auto &obs = holons::observability::current();
+  if (!obs.enabled(holons::observability::Family::Logs)) {
+    return;
+  }
+  const char *name =
+      (logger_name != nullptr && logger_name[0] != '\0') ? logger_name : "c";
+  obs.logger(name).log(c_level_to_cpp(level), message != nullptr ? message : "",
+                       c_kv_to_map(fields));
+}
+
+extern "C" void holons_cpp_obs_event_from_c(int type,
+                                             const char *const *payload) {
+  auto &obs = holons::observability::current();
+  if (!obs.enabled(holons::observability::Family::Events)) {
+    return;
+  }
+  obs.emit(c_event_to_cpp(type), c_kv_to_map(payload));
+}
+
+extern "C" void holons_cpp_obs_counter_add_from_c(
+    const char *name,
+    const char *help,
+    const char *const *labels,
+    int64_t n) {
+  if (name == nullptr || name[0] == '\0' || n < 0) {
+    return;
+  }
+  auto &obs = holons::observability::current();
+  if (!obs.enabled(holons::observability::Family::Metrics)) {
+    return;
+  }
+  auto counter =
+      obs.counter(name, help != nullptr ? help : "", c_kv_to_map(labels));
+  if (counter) {
+    counter->add(n);
+  }
+}
+
 extern "C" int holons_serve_grpc(
     const char *listen_uri,
     const holons_grpc_unary_registration_t *registrations,
@@ -199,6 +355,12 @@ extern "C" int holons_serve_grpc(
   holons::serve::options serve_options;
   serve_options.auto_register_holon_meta = false;
   serve_options.announce = true;
+  {
+    std::scoped_lock lk(c_observability_options_mu());
+    const auto &state = c_observability_options_state();
+    serve_options.slug = state.slug;
+    serve_options.member_endpoints = state.members;
+  }
   if (options != nullptr) {
     serve_options.enable_reflection = options->enable_reflection != 0;
     serve_options.announce = options->announce != 0;
