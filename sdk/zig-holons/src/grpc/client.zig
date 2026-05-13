@@ -106,13 +106,22 @@ pub const ServerStream = struct {
         if (core.c.grpc_call_start_batch(self.call, &ops, ops.len, &tag_token, null) != core.c.GRPC_CALL_OK) {
             return error.CallStartBatchFailed;
         }
-        const event = core.c.grpc_completion_queue_pluck(
+        var event = core.c.grpc_completion_queue_pluck(
             self.cq,
             &tag_token,
             core.deadlineAfterMillis(self.timeout_ms),
             null,
         );
-        if (event.type != core.c.GRPC_OP_COMPLETE) return error.CallCompletionFailed;
+        if (event.type != core.c.GRPC_OP_COMPLETE) {
+            self.cancel();
+            event = core.c.grpc_completion_queue_pluck(
+                self.cq,
+                &tag_token,
+                core.deadlineAfterMillis(1_000),
+                null,
+            );
+            if (event.type != core.c.GRPC_OP_COMPLETE) return error.CallCompletionFailed;
+        }
         if (event.success == 0) {
             try self.receiveStatus();
             if (self.status != core.c.GRPC_STATUS_OK) return error.GrpcStatusNotOk;

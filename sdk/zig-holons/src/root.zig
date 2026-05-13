@@ -16,6 +16,7 @@ pub const grpc = struct {
 pub const holonrpc = @import("holonrpc.zig");
 pub const hub = @import("hub.zig");
 pub const identity = @import("identity.zig");
+pub const member_relay = @import("member_relay.zig");
 pub const observability = @import("observability.zig");
 pub const protobuf = struct {
     pub const runtime = @import("protobuf/runtime.zig");

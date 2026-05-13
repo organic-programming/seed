@@ -596,6 +596,22 @@ pub fn build(b: *std.Build) void {
     test_observability_step.dependOn(&run_observability_tests.step);
     test_step.dependOn(&run_observability_tests.step);
 
+    const member_relay_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/member_relay_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zig_holons", .module = mod },
+            },
+        }),
+    });
+    member_relay_tests.step.dependOn(&native_ready.step);
+    const run_member_relay_tests = b.addRunArtifact(member_relay_tests);
+    const test_member_relay_step = b.step("test-member-relay", "Run member relay tests");
+    test_member_relay_step.dependOn(&run_member_relay_tests.step);
+    test_step.dependOn(&run_member_relay_tests.step);
+
     const prepare_c_abi = sh(b, "mkdir -p zig-out/bin");
     prepare_c_abi.step.dependOn(b.getInstallStep());
 
