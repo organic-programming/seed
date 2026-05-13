@@ -107,6 +107,75 @@ void main() {
     await sub.cancel();
   });
 
+  test('HolonObservability follow streams subscribe before backlog drain',
+      () async {
+    final local = obs.configure(
+      const obs.Config(
+        slug: 'follow-race',
+        instanceUid: 'follow-race-uid',
+        logsRingSize: 4096,
+        eventsRingSize: 4096,
+      ),
+      env: const {'OP_OBS': 'logs,events'},
+    );
+    for (var i = 0; i < 2048; i++) {
+      local.logger('backlog').info('backlog-$i');
+      local.emit(obs.EventType.configReloaded, payload: {'idx': '$i'});
+    }
+
+    final server =
+        Server.create(services: [obs.HolonObservabilityService(local)]);
+    await server.serve(address: InternetAddress.loopbackIPv4, port: 0);
+    final channel = ClientChannel(
+      '127.0.0.1',
+      port: server.port!,
+      options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
+    );
+
+    final client = obsgrpc.HolonObservabilityClient(channel);
+    final logs = <obsgrpc.LogEntry>[];
+    final events = <obsgrpc.EventInfo>[];
+    var emittedLog = false;
+    var emittedEvent = false;
+    final logSub = client.logs(obsgrpc.LogsRequest(follow: true)).listen(
+      (entry) {
+        logs.add(entry);
+        if (!emittedLog && entry.message.startsWith('backlog-')) {
+          emittedLog = true;
+          local.logger('race').info('during-drain');
+        }
+      },
+    );
+    final eventSub = client.events(obsgrpc.EventsRequest(follow: true)).listen(
+      (event) {
+        events.add(event);
+        if (!emittedEvent && event.type == obsgrpc.EventType.CONFIG_RELOADED) {
+          emittedEvent = true;
+          local.emit(
+            obs.EventType.instanceExited,
+            payload: const {'marker': 'during-drain'},
+          );
+        }
+      },
+    );
+
+    try {
+      await _waitFor(
+        () => logs.any((entry) => entry.message == 'during-drain'),
+        timeout: const Duration(seconds: 5),
+      );
+      await _waitFor(
+        () => events.any((event) => event.payload['marker'] == 'during-drain'),
+        timeout: const Duration(seconds: 5),
+      );
+    } finally {
+      await logSub.cancel();
+      await eventSub.cancel();
+      await channel.shutdown();
+      await server.shutdown();
+    }
+  });
+
   test('Chain append + multilog enrichment', () {
     final c1 = obs.appendDirectChild([], 'gabriel-greeting-rust', '1c2d');
     expect(c1, hasLength(1));
@@ -216,7 +285,7 @@ void main() {
     expect(relay.isRunning, isFalse);
   });
 
-  test('MemberRelay logs warning and stops on stream error', () async {
+  test('MemberRelay logs warning on stream error', () async {
     final fake = await _startFakeObservabilityService();
     addTearDown(fake.close);
     final local = obs.configure(
@@ -234,13 +303,44 @@ void main() {
     await _waitFor(() => fake.service.logsOpened == 1);
     fake.service.failLogs(GrpcError.unavailable('stream failed'));
 
-    await _waitFor(() => relay.isRunning == false);
     await _waitFor(() => local.logRing!.drain().any((entry) =>
         entry.level == obs.Level.warn &&
         entry.loggerName == 'member-relay' &&
         entry.fields['child_slug'] == 'child-x' &&
         entry.fields['child_uid'] == 'uid-123' &&
         (entry.fields['error'] ?? '').contains('stream failed')));
+  });
+
+  test('MemberRelay reconnects quickly after stream error', () async {
+    final fake = await _startFakeObservabilityService();
+    addTearDown(fake.close);
+    final local = obs.configure(
+      const obs.Config(slug: 'parent', instanceUid: 'parent-uid'),
+      env: const {'OP_OBS': 'logs'},
+    );
+    final relay = obs.MemberRelay(
+      childSlug: 'child-x',
+      childUid: 'uid-123',
+      channel: fake.channel,
+      observability: local,
+    );
+
+    await relay.start();
+    await _waitFor(() => fake.service.logsOpened == 1);
+    fake.service.failLogs(GrpcError.unavailable('stream failed'));
+
+    await _waitFor(
+      () => fake.service.logsOpened >= 2,
+      timeout: const Duration(seconds: 1),
+    );
+    fake.service.emitLog('after-retry', obs.Level.info, {'k': 'v'});
+    await _waitFor(() => local.logRing!.drain().any(
+          (entry) =>
+              entry.message == 'after-retry' &&
+              entry.fields['k'] == 'v' &&
+              entry.chain.last.slug == 'child-x',
+        ));
+    await relay.stop();
   });
 
   test('MemberRelay stop is idempotent', () async {

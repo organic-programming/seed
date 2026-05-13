@@ -958,7 +958,7 @@ class MemberRelay {
 
   void _scheduleRetry() {
     if (_stopping || _retryTimer != null) return;
-    _retryTimer = Timer(const Duration(seconds: 2), () {
+    _retryTimer = Timer(_memberRelayRetryDelay, () {
       _retryTimer = null;
       if (!_stopping) {
         unawaited(_openStreams());
@@ -998,6 +998,8 @@ class MemberRelay {
     ]);
   }
 }
+
+const _memberRelayRetryDelay = Duration(milliseconds: 100);
 
 final Logger _disabledLogger = Logger._(_DisabledObs(), '');
 
@@ -1259,17 +1261,42 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
             microseconds: request.since.nanos ~/ 1000,
           ))
         : null;
-    final entries =
-        cutoff == null ? obs.logRing!.drain() : obs.logRing!.drainSince(cutoff);
-    for (final entry in entries) {
-      if (_matchLog(entry, minLevel, request.sessionIds, request.rpcMethods)) {
-        yield toProtoLogEntry(entry);
-      }
+
+    StreamController<obs_pb.LogEntry>? followBuffer;
+    StreamSubscription<LogEntry>? followSub;
+    if (request.follow) {
+      final buffer = StreamController<obs_pb.LogEntry>();
+      followBuffer = buffer;
+      followSub = obs.logRing!.watch().listen(
+        (entry) {
+          if (_matchLog(
+              entry, minLevel, request.sessionIds, request.rpcMethods)) {
+            buffer.add(toProtoLogEntry(entry));
+          }
+        },
+        onError: buffer.addError,
+        onDone: buffer.close,
+      );
     }
-    if (!request.follow) return;
-    await for (final entry in obs.logRing!.watch()) {
-      if (_matchLog(entry, minLevel, request.sessionIds, request.rpcMethods)) {
-        yield toProtoLogEntry(entry);
+
+    try {
+      final entries = cutoff == null
+          ? obs.logRing!.drain()
+          : obs.logRing!.drainSince(cutoff);
+      for (final entry in entries) {
+        if (_matchLog(
+            entry, minLevel, request.sessionIds, request.rpcMethods)) {
+          yield toProtoLogEntry(entry);
+        }
+      }
+      if (!request.follow) return;
+      await for (final entry in followBuffer!.stream) {
+        yield entry;
+      }
+    } finally {
+      await followSub?.cancel();
+      if (followBuffer != null && !followBuffer.isClosed) {
+        await followBuffer.close();
       }
     }
   }
@@ -1310,15 +1337,39 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
             microseconds: request.since.nanos ~/ 1000,
           ))
         : null;
-    final events = cutoff == null
-        ? obs.eventBus!.drain()
-        : obs.eventBus!.drainSince(cutoff);
-    for (final event in events) {
-      if (_matchEvent(event, wanted)) yield toProtoEvent(event);
+
+    StreamController<obs_pb.EventInfo>? followBuffer;
+    StreamSubscription<Event>? followSub;
+    if (request.follow) {
+      final buffer = StreamController<obs_pb.EventInfo>();
+      followBuffer = buffer;
+      followSub = obs.eventBus!.watch().listen(
+        (event) {
+          if (_matchEvent(event, wanted)) {
+            buffer.add(toProtoEvent(event));
+          }
+        },
+        onError: buffer.addError,
+        onDone: buffer.close,
+      );
     }
-    if (!request.follow) return;
-    await for (final event in obs.eventBus!.watch()) {
-      if (_matchEvent(event, wanted)) yield toProtoEvent(event);
+
+    try {
+      final events = cutoff == null
+          ? obs.eventBus!.drain()
+          : obs.eventBus!.drainSince(cutoff);
+      for (final event in events) {
+        if (_matchEvent(event, wanted)) yield toProtoEvent(event);
+      }
+      if (!request.follow) return;
+      await for (final event in followBuffer!.stream) {
+        yield event;
+      }
+    } finally {
+      await followSub?.cancel();
+      if (followBuffer != null && !followBuffer.isClosed) {
+        await followBuffer.close();
+      }
     }
   }
 }
