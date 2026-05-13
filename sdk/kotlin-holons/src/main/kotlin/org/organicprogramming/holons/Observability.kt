@@ -5,12 +5,20 @@ package org.organicprogramming.holons
 
 import com.google.protobuf.Duration
 import com.google.protobuf.Timestamp
+import com.sun.net.httpserver.HttpExchange
+import com.sun.net.httpserver.HttpServer
+import io.grpc.CallOptions
+import io.grpc.ManagedChannel
 import io.grpc.MethodDescriptor
 import io.grpc.ServerServiceDefinition
 import io.grpc.Status
 import io.grpc.protobuf.ProtoUtils
+import io.grpc.stub.ClientCalls
+import io.grpc.stub.ServerCallStreamObserver
 import io.grpc.stub.ServerCalls
 import java.io.IOException
+import java.io.OutputStream
+import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
@@ -22,8 +30,11 @@ import java.util.ArrayDeque
 import java.util.EnumSet
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
+import kotlinx.coroutines.runBlocking
 
 object Observability {
     private const val HOLON_OBSERVABILITY_SERVICE = "holons.v1.HolonObservability"
@@ -438,7 +449,22 @@ object Observability {
                                 (request.rpcMethodsList.isEmpty() || request.rpcMethodsList.contains(it.rpcMethod))
                         }
                         .forEach { observer.onNext(toProtoLogEntry(it)) }
-                    observer.onCompleted()
+                    if (!request.follow) {
+                        observer.onCompleted()
+                        return@asyncServerStreamingCall
+                    }
+                    val subscription = inst.logRing.subscribe { entry ->
+                        if (entry.level.code < minLevel ||
+                            (request.sessionIdsList.isNotEmpty() && !request.sessionIdsList.contains(entry.sessionId)) ||
+                            (request.rpcMethodsList.isNotEmpty() && !request.rpcMethodsList.contains(entry.rpcMethod))
+                        ) {
+                            return@subscribe
+                        }
+                        runCatching { observer.onNext(toProtoLogEntry(entry)) }
+                    }
+                    (observer as? ServerCallStreamObserver<*>)?.setOnCancelHandler {
+                        closeQuietly(subscription)
+                    }
                 },
             )
             .addMethod(
@@ -489,7 +515,19 @@ object Observability {
                         .asSequence()
                         .filter { wanted.isEmpty() || it.type.code in wanted }
                         .forEach { observer.onNext(toProtoEvent(it)) }
-                    observer.onCompleted()
+                    if (!request.follow) {
+                        observer.onCompleted()
+                        return@asyncServerStreamingCall
+                    }
+                    val subscription = bus.subscribe { event ->
+                        if (wanted.isNotEmpty() && event.type.code !in wanted) {
+                            return@subscribe
+                        }
+                        runCatching { observer.onNext(toProtoEvent(event)) }
+                    }
+                    (observer as? ServerCallStreamObserver<*>)?.setOnCancelHandler {
+                        closeQuietly(subscription)
+                    }
                 },
             )
             .build()
@@ -519,6 +557,20 @@ object Observability {
         entry.chain.forEach { builder.addChain(toProtoHop(it)) }
         return builder.build()
     }
+
+    fun fromProtoLogEntry(entry: holons.v1.Observability.LogEntry): LogEntry =
+        LogEntry(
+            timestamp = if (entry.hasTs()) instant(entry.ts) else Instant.now(),
+            level = levelFromCode(entry.levelValue),
+            slug = entry.slug,
+            instanceUid = entry.instanceUid,
+            sessionId = entry.sessionId,
+            rpcMethod = entry.rpcMethod,
+            message = entry.message,
+            fields = entry.fieldsMap,
+            caller = entry.caller,
+            chain = entry.chainList.map { fromProtoHop(it) },
+        )
 
     fun toProtoMetricSamples(registry: Registry): List<holons.v1.Observability.MetricSample> {
         val samples = mutableListOf<holons.v1.Observability.MetricSample>()
@@ -576,11 +628,317 @@ object Observability {
         return builder.build()
     }
 
+    fun fromProtoEvent(event: holons.v1.Observability.EventInfo): Event =
+        Event(
+            timestamp = if (event.hasTs()) instant(event.ts) else Instant.now(),
+            type = eventTypeFromCode(event.typeValue),
+            slug = event.slug,
+            instanceUid = event.instanceUid,
+            sessionId = event.sessionId,
+            payload = event.payloadMap,
+            chain = event.chainList.map { fromProtoHop(it) },
+        )
+
     private fun toProtoHop(hop: Hop): holons.v1.Observability.ChainHop =
         holons.v1.Observability.ChainHop.newBuilder()
             .setSlug(hop.slug)
             .setInstanceUid(hop.instanceUid)
             .build()
+
+    private fun fromProtoHop(hop: holons.v1.Observability.ChainHop): Hop =
+        Hop(hop.slug, hop.instanceUid)
+
+    private fun instant(ts: Timestamp): Instant =
+        Instant.ofEpochSecond(ts.seconds, ts.nanos.toLong())
+
+    private fun levelFromCode(code: Int): Level =
+        Level.entries.firstOrNull { it.code == code } ?: Level.UNSET
+
+    private fun eventTypeFromCode(code: Int): EventType =
+        EventType.entries.firstOrNull { it.code == code } ?: EventType.UNSPECIFIED
+
+    // --- Prometheus exposition ---
+
+    class PromServer(private val addr: String = ":0") : AutoCloseable {
+        private var server: HttpServer? = null
+
+        @Synchronized
+        fun start() {
+            if (server != null) return
+            val (host, port) = parsePromAddr(addr.ifBlank { ":0" })
+            server = HttpServer.create(InetSocketAddress(host, port), 0).also { http ->
+                http.createContext("/metrics", this::handleMetrics)
+                http.start()
+            }
+        }
+
+        @Synchronized
+        fun addrUrl(): String {
+            val http = server ?: return ""
+            val address = http.address
+            return "http://${advertisedPromHost(address.hostString)}:${address.port}/metrics"
+        }
+
+        @Synchronized
+        override fun close() {
+            server?.stop(0)
+            server = null
+        }
+
+        private fun handleMetrics(exchange: HttpExchange) {
+            if (exchange.requestURI?.path != "/metrics") {
+                exchange.sendResponseHeaders(404, -1)
+                exchange.close()
+                return
+            }
+
+            val inst = current()
+            val body: String
+            val status: Int
+            if (!inst.enabled(Family.METRICS)) {
+                status = 503
+                body = "# metrics family disabled (OP_OBS)\n"
+            } else if (!inst.enabled(Family.PROM)) {
+                status = 503
+                body = "# prom family disabled (OP_OBS)\n"
+            } else {
+                status = 200
+                body = toPrometheusText(inst)
+            }
+
+            val bytes = body.toByteArray(StandardCharsets.UTF_8)
+            exchange.responseHeaders.set("Content-Type", "text/plain; version=0.0.4")
+            exchange.sendResponseHeaders(status, bytes.size.toLong())
+            exchange.responseBody.use { out: OutputStream -> out.write(bytes) }
+        }
+    }
+
+    fun toPrometheusText(inst: Instance): String {
+        val registry = inst.registry ?: return "# metrics family disabled (OP_OBS)\n"
+        if (!inst.enabled(Family.METRICS)) {
+            return "# metrics family disabled (OP_OBS)\n"
+        }
+        val out = StringBuilder()
+        registry.counters().forEach { counter ->
+            appendPromHelpType(out, counter.name, counter.help, "counter")
+            out.append(counter.name)
+                .append(promLabels(mergePromLabels(counter.labels, inst)))
+                .append(' ')
+                .append(counter.value())
+                .append('\n')
+        }
+        registry.gauges().forEach { gauge ->
+            appendPromHelpType(out, gauge.name, gauge.help, "gauge")
+            out.append(gauge.name)
+                .append(promLabels(mergePromLabels(gauge.labels, inst)))
+                .append(' ')
+                .append(formatPromFloat(gauge.value()))
+                .append('\n')
+        }
+        registry.histograms().forEach { histogram ->
+            appendPromHelpType(out, histogram.name, histogram.help, "histogram")
+            val labels = mergePromLabels(histogram.labels, inst)
+            val snapshot = histogram.snapshot()
+            snapshot.bounds.indices.forEach { index ->
+                val bucketLabels = labels.toMutableMap()
+                bucketLabels["le"] = formatPromFloat(snapshot.bounds[index])
+                out.append(histogram.name)
+                    .append("_bucket")
+                    .append(promLabels(bucketLabels))
+                    .append(' ')
+                    .append(snapshot.counts[index])
+                    .append('\n')
+            }
+            val infLabels = labels.toMutableMap()
+            infLabels["le"] = "+Inf"
+            out.append(histogram.name).append("_bucket").append(promLabels(infLabels)).append(' ')
+                .append(snapshot.total).append('\n')
+            out.append(histogram.name).append("_sum").append(promLabels(labels)).append(' ')
+                .append(formatPromFloat(snapshot.sum)).append('\n')
+            out.append(histogram.name).append("_count").append(promLabels(labels)).append(' ')
+                .append(snapshot.total).append('\n')
+        }
+        return out.toString()
+    }
+
+    private fun appendPromHelpType(out: StringBuilder, name: String, help: String, type: String) {
+        out.append("# HELP ").append(name).append(' ').append(promEscapeHelp(help)).append('\n')
+        out.append("# TYPE ").append(name).append(' ').append(type).append('\n')
+    }
+
+    private fun mergePromLabels(labels: Map<String, String>, inst: Instance): Map<String, String> {
+        val out = linkedMapOf<String, String>()
+        if (inst.cfg.slug.isNotEmpty()) out["slug"] = inst.cfg.slug
+        if (inst.cfg.instanceUid.isNotEmpty()) out["instance_uid"] = inst.cfg.instanceUid
+        out.putAll(labels)
+        return out
+    }
+
+    private fun promLabels(labels: Map<String, String>): String {
+        if (labels.isEmpty()) return ""
+        return labels.toSortedMap().entries.joinToString(prefix = "{", postfix = "}") { (key, value) ->
+            "$key=\"${promEscapeValue(value)}\""
+        }
+    }
+
+    private fun promEscapeValue(value: String): String =
+        value.replace("\\", "\\\\").replace("\n", "\\n").replace("\"", "\\\"")
+
+    private fun promEscapeHelp(value: String): String =
+        value.replace("\\", "\\\\").replace("\n", "\\n")
+
+    private fun formatPromFloat(value: Double): String = when {
+        value.isNaN() -> "NaN"
+        value == Double.POSITIVE_INFINITY -> "+Inf"
+        value == Double.NEGATIVE_INFINITY -> "-Inf"
+        else -> value.toString()
+    }
+
+    private data class HostPort(val host: String, val port: Int)
+
+    private fun parsePromAddr(raw: String): HostPort {
+        val trimmed = raw.ifBlank { ":0" }
+        if (trimmed.startsWith(":")) {
+            return HostPort("0.0.0.0", trimmed.removePrefix(":").ifBlank { "0" }.toInt())
+        }
+        val idx = trimmed.lastIndexOf(':')
+        require(idx >= 0) { "invalid Prometheus address \"$raw\"" }
+        val host = trimmed.substring(0, idx).ifBlank { "0.0.0.0" }
+        val port = trimmed.substring(idx + 1).toInt()
+        return HostPort(host, port)
+    }
+
+    private fun advertisedPromHost(host: String): String = when (host) {
+        "", "0.0.0.0" -> "127.0.0.1"
+        "::" -> "::1"
+        else -> host
+    }
+
+    // --- Member observability relay ---
+
+    data class MemberIdentity(val slug: String, val uid: String)
+
+    fun resolveMemberIdentity(channel: ManagedChannel, fallbackSlug: String, fallbackUid: String = ""): MemberIdentity {
+        if (fallbackUid.isNotBlank()) {
+            return MemberIdentity(fallbackSlug.trim(), fallbackUid.trim())
+        }
+        runCatching {
+            val iterator = ClientCalls.blockingServerStreamingCall(
+                channel,
+                eventsMethod,
+                CallOptions.DEFAULT,
+                holons.v1.Observability.EventsRequest.newBuilder()
+                    .addTypesValue(EventType.INSTANCE_READY.code)
+                    .build(),
+            )
+            while (iterator.hasNext()) {
+                val event = iterator.next()
+                if (event.chainCount == 0 && event.instanceUid.isNotBlank()) {
+                    return MemberIdentity(event.slug.ifBlank { fallbackSlug.trim() }, event.instanceUid)
+                }
+            }
+        }
+        runCatching {
+            val snapshot = ClientCalls.blockingUnaryCall(
+                channel,
+                metricsMethod,
+                CallOptions.DEFAULT,
+                holons.v1.Observability.MetricsRequest.getDefaultInstance(),
+            )
+            if (snapshot.instanceUid.isNotBlank()) {
+                return MemberIdentity(snapshot.slug.ifBlank { fallbackSlug.trim() }, snapshot.instanceUid)
+            }
+        }
+        return MemberIdentity(fallbackSlug.trim(), "")
+    }
+
+    class MemberRelay(
+        private val childSlug: String,
+        private val childUid: String,
+        private val channel: ManagedChannel,
+        private val inst: Instance,
+        private val retryDelayMillis: Long = 2000,
+    ) : AutoCloseable {
+        @Volatile private var stopped = false
+        private val threads = CopyOnWriteArrayList<Thread>()
+
+        fun start() {
+            if (inst.enabled(Family.LOGS) && inst.logRing != null) {
+                startThread("logs") { pumpLogs() }
+            }
+            if (inst.enabled(Family.EVENTS) && inst.eventBus != null) {
+                startThread("events") { pumpEvents() }
+            }
+        }
+
+        override fun close() {
+            stopped = true
+            runBlocking { Connect.disconnect(channel) }
+            threads.forEach { it.interrupt() }
+        }
+
+        private fun startThread(family: String, block: () -> Unit) {
+            threads += thread(start = true, isDaemon = true, name = "holons-member-relay-$family-$childSlug") {
+                block()
+            }
+        }
+
+        private fun pumpLogs() {
+            while (!stopped) {
+                try {
+                    val iterator = ClientCalls.blockingServerStreamingCall(
+                        channel,
+                        logsMethod,
+                        CallOptions.DEFAULT,
+                        holons.v1.Observability.LogsRequest.newBuilder()
+                            .setFollow(true)
+                            .setMinLevelValue(Level.INFO.code)
+                            .build(),
+                    )
+                    while (!stopped && iterator.hasNext()) {
+                        val entry = fromProtoLogEntry(iterator.next())
+                        inst.logRing?.push(entry.copy(chain = appendDirectChild(entry.chain, childSlug, childUid)))
+                    }
+                } catch (_: Exception) {
+                    retryPause()
+                }
+            }
+        }
+
+        private fun pumpEvents() {
+            while (!stopped) {
+                try {
+                    val iterator = ClientCalls.blockingServerStreamingCall(
+                        channel,
+                        eventsMethod,
+                        CallOptions.DEFAULT,
+                        holons.v1.Observability.EventsRequest.newBuilder()
+                            .setFollow(true)
+                            .build(),
+                    )
+                    while (!stopped && iterator.hasNext()) {
+                        val event = fromProtoEvent(iterator.next())
+                        inst.eventBus?.emit(event.copy(chain = appendDirectChild(event.chain, childSlug, childUid)))
+                    }
+                } catch (_: Exception) {
+                    retryPause()
+                }
+            }
+        }
+
+        private fun retryPause() {
+            if (stopped) return
+            try {
+                Thread.sleep(retryDelayMillis.coerceAtLeast(1))
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
+    }
+
+    private fun closeQuietly(closeable: AutoCloseable?) {
+        runCatching { closeable?.close() }
+    }
 
     // --- Disk writers ---
 

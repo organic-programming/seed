@@ -133,6 +133,86 @@ class ServeTest {
     }
 
     @Test
+    fun startWithOptionsRelaysMemberObservabilityAndWritesPrometheusAddress() {
+        val root = Files.createTempDirectory("kotlin-holons-relay")
+        var child: Serve.RunningServer? = null
+        var parent: Serve.RunningServer? = null
+        try {
+            Describe.useStaticResponse(staticDescribeResponse())
+            Observability.reset()
+            val registryRoot = root.resolve("runs")
+
+            child = Serve.startWithOptions(
+                "tcp://127.0.0.1:0",
+                emptyList<io.grpc.BindableService>(),
+                Serve.Options(
+                    slug = "cascade-node-kotlin-child",
+                    env = mapOf(
+                        "OP_OBS" to "logs,metrics,events",
+                        "OP_RUN_DIR" to registryRoot.toString(),
+                        "OP_INSTANCE_UID" to "kotlin-child-1",
+                    ),
+                ),
+            )
+
+            val childObs = Observability.current()
+            childObs.logger("tick").info("tick received", mapOf("sender" to "serve-test"))
+            childObs.emit(Observability.EventType.CONFIG_RELOADED, mapOf("source" to "serve-test"))
+
+            parent = Serve.startWithOptions(
+                "tcp://127.0.0.1:0",
+                emptyList<io.grpc.BindableService>(),
+                Serve.Options(
+                    slug = "cascade-node-kotlin-parent",
+                    env = mapOf(
+                        "OP_OBS" to "logs,metrics,events,prom",
+                        "OP_RUN_DIR" to registryRoot.toString(),
+                        "OP_INSTANCE_UID" to "kotlin-parent-1",
+                        "OP_PROM_ADDR" to ":0",
+                    ),
+                    memberEndpoints = listOf(
+                        Serve.MemberRef(
+                            slug = "cascade-node-kotlin-child",
+                            address = child.publicUri,
+                        ),
+                    ),
+                ),
+            )
+
+            val parentObs = Observability.current()
+            awaitCondition {
+                parentObs.logRing!!.drain().any { entry ->
+                    entry.message == "tick received" &&
+                        entry.chain.size == 1 &&
+                        entry.chain[0].slug == "cascade-node-kotlin-child" &&
+                        entry.chain[0].instanceUid == "kotlin-child-1"
+                }
+            }
+            awaitCondition {
+                parentObs.eventBus!!.drain().any { event ->
+                    event.type == Observability.EventType.CONFIG_RELOADED &&
+                        event.chain.size == 1 &&
+                        event.chain[0].instanceUid == "kotlin-child-1"
+                }
+            }
+
+            val parentMeta = Files.readString(
+                registryRoot
+                    .resolve("cascade-node-kotlin-parent")
+                    .resolve("kotlin-parent-1")
+                    .resolve("meta.json"),
+            )
+            assertTrue(parentMeta.contains("\"metrics_addr\""))
+        } finally {
+            parent?.stop()
+            child?.stop()
+            Describe.useStaticResponse(null)
+            Observability.reset()
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun startWithOptionsAdvertisesUnixAndServesRegisteredDescribe() = runBlocking {
         val root = Files.createTempDirectory("kotlin-holons-serve")
         try {
@@ -265,6 +345,17 @@ class ServeTest {
         } finally {
             executor.shutdownNow()
         }
+    }
+
+    private fun awaitCondition(condition: () -> Boolean) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (System.nanoTime() < deadline) {
+            if (condition()) {
+                return
+            }
+            Thread.sleep(50)
+        }
+        assertTrue(condition())
     }
 
     private fun staticDescribeResponse(): HolonsDescribe.DescribeResponse =
