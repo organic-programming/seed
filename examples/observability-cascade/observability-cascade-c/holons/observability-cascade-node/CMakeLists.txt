@@ -55,11 +55,11 @@ find_library(UPB_LIBRARY NAMES upb
   PATHS "${OBSERVABILITY_CASCADE_NODE_C_PREBUILT_ROOT}/lib" /opt/homebrew/lib /usr/local/lib
   REQUIRED)
 
-set(HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/c-holons")
-set(CPP_HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/cpp-holons")
-set(HOLONS_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../holons/grace-op/_protos")
+set(HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../sdk/c-holons")
+set(CPP_HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../sdk/cpp-holons")
+set(HOLONS_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../holons/grace-op/_protos")
 set(OBSERVABILITY_CASCADE_NODE_C_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
-set(OBSERVABILITY_CASCADE_NODE_C_RELOCATE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/scripts/relocate-macos-dylibs.sh")
+set(OBSERVABILITY_CASCADE_NODE_C_RELOCATE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../sdk/scripts/relocate-macos-dylibs.sh")
 
 function(cascade_node_c_generate_grpc_cpp target_name)
   set(options)

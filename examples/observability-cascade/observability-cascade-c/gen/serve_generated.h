@@ -12,8 +12,15 @@
 extern "C" {
 #endif
 
+typedef struct observability_cascade_v1_CascadeReport observability_cascade_v1_CascadeReport;
+typedef struct observability_cascade_v1_MultiPatternReport observability_cascade_v1_MultiPatternReport;
+typedef struct observability_cascade_v1_RunRequest observability_cascade_v1_RunRequest;
+
 typedef struct observability_cascade_c_handlers {
   void *ctx;
+  observability_cascade_v1_CascadeReport *(*runDefault)(const observability_cascade_v1_RunRequest *request, upb_Arena *arena, void *ctx);
+  observability_cascade_v1_CascadeReport *(*runLiveStream)(const observability_cascade_v1_RunRequest *request, upb_Arena *arena, void *ctx);
+  observability_cascade_v1_MultiPatternReport *(*runMultiPattern)(const observability_cascade_v1_RunRequest *request, upb_Arena *arena, void *ctx);
 } observability_cascade_c_handlers_t;
 
 int observability_cascade_c_generated_serve(const char *listen_uri,

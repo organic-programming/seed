@@ -2,6 +2,8 @@
 
 #include "gen/serve_generated.h"
 
+#include "service.upb.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -61,6 +63,168 @@ static int holons_generated_handle_describe(const unsigned char *request_data,
   return holons_generated_copy_response(bytes, bytes_len, response_data, response_len, err, err_len);
 }
 
+static int observability_cascade_c_handle_runDefault_raw(const unsigned char *request_data,
+                                        size_t request_len,
+                                        void *ctx,
+                                        unsigned char **response_data,
+                                        size_t *response_len,
+                                        char *err,
+                                        size_t err_len) {
+  const observability_cascade_c_handlers_t *handlers = (const observability_cascade_c_handlers_t *)ctx;
+  upb_Arena *arena;
+  observability_cascade_v1_RunRequest *request;
+  observability_cascade_v1_CascadeReport *response;
+  char *serialized = NULL;
+  size_t serialized_len = 0;
+
+  if (handlers == NULL) {
+    holons_generated_set_err(err, err_len, "generated handlers are required");
+    return -1;
+  }
+  if (handlers->runDefault == NULL) {
+    holons_generated_set_err(err, err_len, "handler missing for ObservabilityCascadeService/RunDefault");
+    return -1;
+  }
+
+  arena = upb_Arena_New();
+  if (arena == NULL) {
+    holons_generated_set_err(err, err_len, "failed to allocate upb arena");
+    return -1;
+  }
+  request = observability_cascade_v1_RunRequest_parse((const char *)request_data, request_len, arena);
+  if (request == NULL) {
+    holons_generated_set_err(err, err_len, "failed to parse request for ObservabilityCascadeService/RunDefault");
+    upb_Arena_Free(arena);
+    return -1;
+  }
+  response = handlers->runDefault(request, arena, handlers->ctx);
+  if (response == NULL) {
+    holons_generated_set_err(err, err_len, "native handler returned no response for ObservabilityCascadeService/RunDefault");
+    upb_Arena_Free(arena);
+    return -1;
+  }
+  serialized = observability_cascade_v1_CascadeReport_serialize(response, arena, &serialized_len);
+  if (serialized == NULL && serialized_len > 0) {
+    holons_generated_set_err(err, err_len, "failed to serialize response for ObservabilityCascadeService/RunDefault");
+    upb_Arena_Free(arena);
+    return -1;
+  }
+  if (holons_generated_copy_response((const unsigned char *)serialized, serialized_len, response_data, response_len, err, err_len) != 0) {
+    upb_Arena_Free(arena);
+    return -1;
+  }
+  upb_Arena_Free(arena);
+  return 0;
+}
+
+static int observability_cascade_c_handle_runLiveStream_raw(const unsigned char *request_data,
+                                        size_t request_len,
+                                        void *ctx,
+                                        unsigned char **response_data,
+                                        size_t *response_len,
+                                        char *err,
+                                        size_t err_len) {
+  const observability_cascade_c_handlers_t *handlers = (const observability_cascade_c_handlers_t *)ctx;
+  upb_Arena *arena;
+  observability_cascade_v1_RunRequest *request;
+  observability_cascade_v1_CascadeReport *response;
+  char *serialized = NULL;
+  size_t serialized_len = 0;
+
+  if (handlers == NULL) {
+    holons_generated_set_err(err, err_len, "generated handlers are required");
+    return -1;
+  }
+  if (handlers->runLiveStream == NULL) {
+    holons_generated_set_err(err, err_len, "handler missing for ObservabilityCascadeService/RunLiveStream");
+    return -1;
+  }
+
+  arena = upb_Arena_New();
+  if (arena == NULL) {
+    holons_generated_set_err(err, err_len, "failed to allocate upb arena");
+    return -1;
+  }
+  request = observability_cascade_v1_RunRequest_parse((const char *)request_data, request_len, arena);
+  if (request == NULL) {
+    holons_generated_set_err(err, err_len, "failed to parse request for ObservabilityCascadeService/RunLiveStream");
+    upb_Arena_Free(arena);
+    return -1;
+  }
+  response = handlers->runLiveStream(request, arena, handlers->ctx);
+  if (response == NULL) {
+    holons_generated_set_err(err, err_len, "native handler returned no response for ObservabilityCascadeService/RunLiveStream");
+    upb_Arena_Free(arena);
+    return -1;
+  }
+  serialized = observability_cascade_v1_CascadeReport_serialize(response, arena, &serialized_len);
+  if (serialized == NULL && serialized_len > 0) {
+    holons_generated_set_err(err, err_len, "failed to serialize response for ObservabilityCascadeService/RunLiveStream");
+    upb_Arena_Free(arena);
+    return -1;
+  }
+  if (holons_generated_copy_response((const unsigned char *)serialized, serialized_len, response_data, response_len, err, err_len) != 0) {
+    upb_Arena_Free(arena);
+    return -1;
+  }
+  upb_Arena_Free(arena);
+  return 0;
+}
+
+static int observability_cascade_c_handle_runMultiPattern_raw(const unsigned char *request_data,
+                                        size_t request_len,
+                                        void *ctx,
+                                        unsigned char **response_data,
+                                        size_t *response_len,
+                                        char *err,
+                                        size_t err_len) {
+  const observability_cascade_c_handlers_t *handlers = (const observability_cascade_c_handlers_t *)ctx;
+  upb_Arena *arena;
+  observability_cascade_v1_RunRequest *request;
+  observability_cascade_v1_MultiPatternReport *response;
+  char *serialized = NULL;
+  size_t serialized_len = 0;
+
+  if (handlers == NULL) {
+    holons_generated_set_err(err, err_len, "generated handlers are required");
+    return -1;
+  }
+  if (handlers->runMultiPattern == NULL) {
+    holons_generated_set_err(err, err_len, "handler missing for ObservabilityCascadeService/RunMultiPattern");
+    return -1;
+  }
+
+  arena = upb_Arena_New();
+  if (arena == NULL) {
+    holons_generated_set_err(err, err_len, "failed to allocate upb arena");
+    return -1;
+  }
+  request = observability_cascade_v1_RunRequest_parse((const char *)request_data, request_len, arena);
+  if (request == NULL) {
+    holons_generated_set_err(err, err_len, "failed to parse request for ObservabilityCascadeService/RunMultiPattern");
+    upb_Arena_Free(arena);
+    return -1;
+  }
+  response = handlers->runMultiPattern(request, arena, handlers->ctx);
+  if (response == NULL) {
+    holons_generated_set_err(err, err_len, "native handler returned no response for ObservabilityCascadeService/RunMultiPattern");
+    upb_Arena_Free(arena);
+    return -1;
+  }
+  serialized = observability_cascade_v1_MultiPatternReport_serialize(response, arena, &serialized_len);
+  if (serialized == NULL && serialized_len > 0) {
+    holons_generated_set_err(err, err_len, "failed to serialize response for ObservabilityCascadeService/RunMultiPattern");
+    upb_Arena_Free(arena);
+    return -1;
+  }
+  if (holons_generated_copy_response((const unsigned char *)serialized, serialized_len, response_data, response_len, err, err_len) != 0) {
+    upb_Arena_Free(arena);
+    return -1;
+  }
+  upb_Arena_Free(arena);
+  return 0;
+}
+
 int observability_cascade_c_generated_serve(const char *listen_uri,
                              const observability_cascade_c_handlers_t *handlers,
                              const holons_grpc_serve_options_t *options,
@@ -68,7 +232,7 @@ int observability_cascade_c_generated_serve(const char *listen_uri,
                              size_t err_len) {
   holons_grpc_serve_options_t defaults;
   const holons_grpc_serve_options_t *effective = options;
-  holons_grpc_unary_registration_t registrations[1];
+  holons_grpc_unary_registration_t registrations[4];
   size_t registration_count = 0;
 
   if (handlers == NULL) {
@@ -86,6 +250,18 @@ int observability_cascade_c_generated_serve(const char *listen_uri,
   registrations[registration_count].full_method = "/holons.v1.HolonMeta/Describe";
   registrations[registration_count].handler = holons_generated_handle_describe;
   registrations[registration_count].ctx = NULL;
+  registration_count++;
+  registrations[registration_count].full_method = "/observability_cascade.v1.ObservabilityCascadeService/RunDefault";
+  registrations[registration_count].handler = observability_cascade_c_handle_runDefault_raw;
+  registrations[registration_count].ctx = (void *)handlers;
+  registration_count++;
+  registrations[registration_count].full_method = "/observability_cascade.v1.ObservabilityCascadeService/RunLiveStream";
+  registrations[registration_count].handler = observability_cascade_c_handle_runLiveStream_raw;
+  registrations[registration_count].ctx = (void *)handlers;
+  registration_count++;
+  registrations[registration_count].full_method = "/observability_cascade.v1.ObservabilityCascadeService/RunMultiPattern";
+  registrations[registration_count].handler = observability_cascade_c_handle_runMultiPattern_raw;
+  registrations[registration_count].ctx = (void *)handlers;
   registration_count++;
 
   return holons_serve_grpc(listen_uri, registrations, registration_count, effective, err, err_len);
