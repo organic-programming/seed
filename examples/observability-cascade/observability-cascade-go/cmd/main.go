@@ -20,7 +20,7 @@ import (
 
 	"observability-cascade-go/gen"
 	ocv1 "observability-cascade-go/gen/go/observability_cascade/v1"
-	relayv1 "observability-cascade-node-go/gen/go/relay/v1"
+	relayv1 "observability-cascade-go-node/gen/go/relay/v1"
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	"github.com/organic-programming/go-holons/pkg/describe"
 	"github.com/organic-programming/go-holons/pkg/grpcclient"
@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	goSlug    = "observability-cascade-node-go"
-	dartSlug  = "observability-cascade-node-dart"
+	goSlug    = "observability-cascade-go-node"
+	dartSlug  = "observability-cascade-dart-node"
 	runTicks  = 3
 	runPhases = 4
 )
@@ -1118,7 +1118,7 @@ func findCascadeNodeBinary() (string, error) {
 }
 
 func findHolonBinary(slug string) (string, error) {
-	envName := "OBSERVABILITY_CASCADE_NODE_" + strings.ToUpper(strings.TrimPrefix(slug, "observability-cascade-node-")) + "_BIN"
+	envName := "OBSERVABILITY_CASCADE_" + strings.ToUpper(strings.TrimSuffix(strings.TrimPrefix(slug, "observability-cascade-"), "-node")) + "_NODE_BIN"
 	if override := strings.TrimSpace(os.Getenv(envName)); override != "" {
 		return override, nil
 	}
@@ -1139,9 +1139,9 @@ func findHolonBinary(slug string) (string, error) {
 func localNodePackageRoot(slug string) string {
 	switch slug {
 	case goSlug:
-		return filepath.Join("holons", "observability-cascade-node", ".op", "build", "observability-cascade-node.holon", "bin")
+		return filepath.Join("..", "observability-cascade-go-node", ".op", "build", "observability-cascade-go-node.holon", "bin")
 	case dartSlug:
-		return filepath.Join("..", "observability-cascade-dart", "holons", "observability-cascade-node", ".op", "build", "observability-cascade-node.holon", "bin")
+		return filepath.Join("..", "observability-cascade-dart-node", ".op", "build", "observability-cascade-dart-node.holon", "bin")
 	default:
 		return ""
 	}

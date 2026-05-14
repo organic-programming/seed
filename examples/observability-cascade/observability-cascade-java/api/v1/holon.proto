@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "51ecc4c4-fe02-48d6-bcc5-9b73f9740664"
-    given_name: "Observability Cascade"
-    family_name: "Java Composite"
+    given_name: "observability-cascade"
+    family_name: "java-composite"
     motto: "Validates Java observability cascade observability."
     composer: "B. ALTER"
     status: "draft"
@@ -34,14 +34,14 @@ option (holons.v1.manifest) = {
       mode: "debug"
     }
     members: {
-      id: "node"
-      path: "./holons/observability-cascade-node"
+      id: "java-node"
+      path: "../observability-cascade-java-node"
       type: "holon"
     }
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "node" }
+        steps: { build_member: "java-node" }
         steps: {
           exec: {
             cwd: "."

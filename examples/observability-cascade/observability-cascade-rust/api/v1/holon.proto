@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "1002f937-9710-4fb2-834e-064025bd3e0a"
-    given_name: "Observability Cascade"
-    family_name: "Rust Composite"
+    given_name: "observability-cascade"
+    family_name: "rust-composite"
     motto: "Validates Rust observability cascade observability."
     composer: "B. ALTER"
     status: "draft"
@@ -36,14 +36,14 @@ option (holons.v1.manifest) = {
       mode: "debug"
     }
     members: {
-      id: "node"
-      path: "./holons/observability-cascade-node"
+      id: "rust-node"
+      path: "../observability-cascade-rust-node"
       type: "holon"
     }
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "node" }
+        steps: { build_member: "rust-node" }
         steps: {
           exec: {
             cwd: "."

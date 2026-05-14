@@ -11,8 +11,8 @@ public enum DescribeGenerated {
     $0.identity = Holons_V1_HolonManifest.Identity.with {
       $0.schema = "holon/v1"
       $0.uuid = "5f726cb8-eadc-4870-be30-9aceb1be0554"
-      $0.givenName = "Observability Cascade"
-      $0.familyName = "Swift Composite"
+      $0.givenName = "observability-cascade"
+      $0.familyName = "swift-composite"
       $0.motto = "Validates Swift observability cascade observability."
       $0.composer = "B. ALTER"
       $0.status = "draft"

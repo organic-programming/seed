@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "5f726cb8-eadc-4870-be30-9aceb1be0554"
-    given_name: "Observability Cascade"
-    family_name: "Swift Composite"
+    given_name: "observability-cascade"
+    family_name: "swift-composite"
     motto: "Validates Swift observability cascade observability."
     composer: "B. ALTER"
     status: "draft"
@@ -34,14 +34,14 @@ option (holons.v1.manifest) = {
       mode: "debug"
     }
     members: {
-      id: "node"
-      path: "./holons/observability-cascade-node"
+      id: "swift-node"
+      path: "../observability-cascade-swift-node"
       type: "holon"
     }
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "node" }
+        steps: { build_member: "swift-node" }
         steps: {
           exec: {
             cwd: "."

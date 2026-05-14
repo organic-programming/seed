@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "d220e0b2-48ee-473e-a86e-610ca528b69a"
-    given_name: "Observability Cascade"
-    family_name: "Ruby Composite"
+    given_name: "observability-cascade"
+    family_name: "ruby-composite"
     motto: "Validates Ruby observability cascade observability."
     composer: "B. ALTER"
     status: "draft"
@@ -34,14 +34,14 @@ option (holons.v1.manifest) = {
       mode: "debug"
     }
     members: {
-      id: "node"
-      path: "./holons/observability-cascade-node"
+      id: "ruby-node"
+      path: "../observability-cascade-ruby-node"
       type: "holon"
     }
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "node" }
+        steps: { build_member: "ruby-node" }
         steps: {
           exec: {
             cwd: "."

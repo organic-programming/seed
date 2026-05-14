@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "8e57cf8c-7f7c-4231-85d6-73f42967fe35"
-    given_name: "Observability Cascade"
-    family_name: "Kotlin Composite"
+    given_name: "observability-cascade"
+    family_name: "kotlin-composite"
     motto: "Validates Kotlin observability cascade observability."
     composer: "B. ALTER"
     status: "draft"
@@ -36,14 +36,14 @@ option (holons.v1.manifest) = {
       mode: "debug"
     }
     members: {
-      id: "node"
-      path: "./holons/observability-cascade-node"
+      id: "kotlin-node"
+      path: "../observability-cascade-kotlin-node"
       type: "holon"
     }
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "node" }
+        steps: { build_member: "kotlin-node" }
         steps: {
           exec: {
             cwd: "."

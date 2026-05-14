@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "462bb284-290d-44f8-b86b-d066f7226b22"
-    given_name: "Observability Cascade"
-    family_name: "Csharp Composite"
+    given_name: "observability-cascade"
+    family_name: "csharp-composite"
     motto: "Validates C# observability cascade observability."
     composer: "B. ALTER"
     status: "draft"
@@ -34,14 +34,14 @@ option (holons.v1.manifest) = {
       mode: "debug"
     }
     members: {
-      id: "node"
-      path: "./holons/observability-cascade-node"
+      id: "csharp-node"
+      path: "../observability-cascade-csharp-node"
       type: "holon"
     }
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "node" }
+        steps: { build_member: "csharp-node" }
         steps: {
           exec: {
             cwd: "."

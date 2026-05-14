@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "f638734a-0055-40f5-88e7-e4f85921fd43"
-    given_name: "Observability Cascade"
-    family_name: "C++ Composite"
+    given_name: "observability-cascade"
+    family_name: "cpp-composite"
     motto: "Validates C++ observability cascade observability."
     composer: "B. ALTER"
     status: "draft"
@@ -36,14 +36,14 @@ option (holons.v1.manifest) = {
       mode: "debug"
     }
     members: {
-      id: "node"
-      path: "./holons/observability-cascade-node"
+      id: "cpp-node"
+      path: "../observability-cascade-cpp-node"
       type: "holon"
     }
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "node" }
+        steps: { build_member: "cpp-node" }
         steps: {
           exec: {
             cwd: "."

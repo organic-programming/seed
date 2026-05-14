@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "64156f12-3985-4d72-b5b7-1b9b6da80f13"
-    given_name: "Observability Cascade"
-    family_name: "Zig Composite"
+    given_name: "observability-cascade"
+    family_name: "zig-composite"
     motto: "Validates Zig observability cascade observability."
     composer: "B. ALTER"
     status: "draft"
@@ -36,14 +36,14 @@ option (holons.v1.manifest) = {
       mode: "debug"
     }
     members: {
-      id: "node"
-      path: "./holons/observability-cascade-node"
+      id: "zig-node"
+      path: "../observability-cascade-zig-node"
       type: "holon"
     }
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "node" }
+        steps: { build_member: "zig-node" }
         steps: {
           exec: {
             cwd: "."

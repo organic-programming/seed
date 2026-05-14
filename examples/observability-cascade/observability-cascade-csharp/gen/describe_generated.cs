@@ -16,8 +16,8 @@ public static class DescribeGenerated
         {
             Schema = "holon/v1",
             Uuid = "462bb284-290d-44f8-b86b-d066f7226b22",
-            GivenName = "Observability Cascade",
-            FamilyName = "Csharp Composite",
+            GivenName = "observability-cascade",
+            FamilyName = "csharp-composite",
             Motto = "Validates C# observability cascade observability.",
             Composer = "B. ALTER",
             Status = "draft",

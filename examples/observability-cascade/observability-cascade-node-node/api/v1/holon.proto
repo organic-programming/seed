@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package relay.v1;
+
+import "holons/v1/manifest.proto";
+import "relay/v1/relay.proto";
+
+// Node-specific holon descriptor for observability-cascade-node-node.
+// Layers Node runtime metadata and holon identity on top of the shared
+// observability-cascade contract.
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "e0e1c52c-d428-4bbf-a3ff-4806f66a8c11"
+    given_name: "Observability"
+    family_name: "Cascade-Node-Node"
+    motto: "Minimal observability cascade node."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A minimal Node.js holon used to validate cross-holon observability relay chains."
+  lang: "js"
+  kind: "native"
+  build: {
+    runner: "npm"
+    main: "./cmd/main.js"
+    templates: ["api/cli.js"]
+    codegen: { languages: ["js"] }
+  }
+  requires: {
+    commands: ["node", "npm"]
+    files: ["cmd/main.js", "package.json"]
+    sdk_prebuilts: ["js"]
+  }
+  artifacts: {
+    binary: "observability-cascade-node-node"
+  }
+  sequences: [{
+    name: "tick"
+    description: "Emit one observability-cascade tick signal."
+    params: [
+      {name: "sender", description: "Tick sender label", required: true},
+      {name: "note", description: "Free-form tick note", required: false}
+    ]
+    steps: [
+      "op observability-cascade-node-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
+    ]
+  }]
+};
+

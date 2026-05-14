@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "2da61fdd-4a33-42ab-ab98-d66a2886a123"
-    given_name: "Observability Cascade"
-    family_name: "Python Composite"
+    given_name: "observability-cascade"
+    family_name: "python-composite"
     motto: "Validates Python observability cascade observability."
     composer: "B. ALTER"
     status: "draft"
@@ -34,14 +34,14 @@ option (holons.v1.manifest) = {
       mode: "debug"
     }
     members: {
-      id: "node"
-      path: "./holons/observability-cascade-node"
+      id: "python-node"
+      path: "../observability-cascade-python-node"
       type: "holon"
     }
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "node" }
+        steps: { build_member: "python-node" }
         steps: {
           exec: {
             cwd: "."

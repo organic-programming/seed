@@ -12,8 +12,8 @@ def static_describe_response() -> describe_pb2.DescribeResponse:
         identity=manifest_pb2.HolonManifest.Identity(
             schema="holon/v1",
             uuid="2da61fdd-4a33-42ab-ab98-d66a2886a123",
-            given_name="Observability Cascade",
-            family_name="Python Composite",
+            given_name="observability-cascade",
+            family_name="python-composite",
             motto="Validates Python observability cascade observability.",
             composer="B. ALTER",
             status="draft",

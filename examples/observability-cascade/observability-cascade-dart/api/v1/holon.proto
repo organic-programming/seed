@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "439ebe58-a8df-4ffd-8f28-5378cc00de29"
-    given_name: "Observability Cascade"
-    family_name: "Dart Composite"
+    given_name: "observability-cascade"
+    family_name: "dart-composite"
     motto: "Validates Dart observability cascade observability."
     composer: "B. ALTER"
     status: "draft"
@@ -34,14 +34,14 @@ option (holons.v1.manifest) = {
       mode: "debug"
     }
     members: {
-      id: "node"
-      path: "./holons/observability-cascade-node"
+      id: "dart-node"
+      path: "../observability-cascade-dart-node"
       type: "holon"
     }
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "node" }
+        steps: { build_member: "dart-node" }
         steps: {
           exec: {
             cwd: "."

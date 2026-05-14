@@ -14,8 +14,8 @@ module Gen
     identity: ::Holons::V1::HolonManifest::Identity.new(
       schema: "holon/v1",
       uuid: "d220e0b2-48ee-473e-a86e-610ca528b69a",
-      given_name: "Observability Cascade",
-      family_name: "Ruby Composite",
+      given_name: "observability-cascade",
+      family_name: "ruby-composite",
       motto: "Validates Ruby observability cascade observability.",
       composer: "B. ALTER",
       status: "draft",

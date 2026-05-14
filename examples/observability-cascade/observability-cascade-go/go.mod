@@ -3,7 +3,7 @@ module observability-cascade-go
 go 1.24
 
 require (
-	observability-cascade-node-go v0.0.0
+	observability-cascade-go-node v0.0.0
 	github.com/organic-programming/go-holons v0.2.0
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
@@ -23,6 +23,6 @@ require (
 	nhooyr.io/websocket v1.8.17 // indirect
 )
 
-replace observability-cascade-node-go => ./holons/observability-cascade-node
+replace observability-cascade-go-node => ../observability-cascade-go-node
 
 replace github.com/organic-programming/go-holons => ../../../sdk/go-holons

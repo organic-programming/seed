@@ -11,8 +11,8 @@ function staticDescribeResponse() {
             identity: {
                 schema: "holon/v1",
                 uuid: "db549442-f097-4691-9677-1708a03bd1e8",
-                given_name: "Observability Cascade",
-                family_name: "Node Composite",
+                given_name: "observability-cascade",
+                family_name: "node-composite",
                 motto: "Validates Node observability cascade observability.",
                 composer: "B. ALTER",
                 status: "draft",
