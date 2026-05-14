@@ -4,24 +4,30 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Gen;
 using Grpc.Core;
 using Grpc.Net.Client;
 using Holons;
 using Holons.V1;
+using ObservabilityCascade.V1;
 using Relay.V1;
 
 string[] roleOrder = ["D", "C", "B", "A"];
 string[] transports = ["tcp", "unix", "tcp", "unix"];
+static string CanonicalCommand(string raw) =>
+    raw.Trim().ToLowerInvariant().Replace("-", "", StringComparison.Ordinal).Replace("_", "", StringComparison.Ordinal).Replace(" ", "", StringComparison.Ordinal);
 
 var app = new App(roleOrder, transports);
 try
 {
-    if (args.Contains("--multi-pattern"))
-        await app.RunMultiPattern();
+    if (args.Length > 0 && CanonicalCommand(args[0]) == "serve")
+        app.ServeComposite(args.Skip(1).ToArray());
+    else if (args.Contains("--multi-pattern"))
+        await app.RunMultiPattern(true);
     else if (args.Contains("--live-stream"))
-        await app.RunLiveStream();
+        await app.RunLiveStream(true);
     else
-        await app.RunDefault();
+        await app.RunDefault(true);
 }
 catch (Exception error)
 {
@@ -40,23 +46,63 @@ sealed class App
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(2) };
     private readonly string[] _roleOrder;
     private readonly string[] _transports;
-    private readonly string _relayRoot;
+    private readonly string _sourceRoot;
+    private readonly string _examplesRoot;
     private readonly string _repoRoot;
 
     public App(string[] roleOrder, string[] transports)
     {
         _roleOrder = roleOrder;
         _transports = transports;
-        _relayRoot = FindRelayRoot();
-        _repoRoot = FindRepoRoot(_relayRoot);
+        _sourceRoot = FindSourceRoot();
+        _examplesRoot = Directory.GetParent(_sourceRoot)!.FullName;
+        _repoRoot = FindRepoRoot(_sourceRoot);
     }
 
-    public async Task RunDefault()
+    public void ServeComposite(string[] args)
+    {
+        Describe.UseStaticResponse(DescribeGenerated.StaticDescribeResponse());
+        var parsed = Serve.ParseOptions(args);
+        Serve.RunWithOptions(
+            NormalizeListenUri(parsed.ListenUri),
+            [Serve.Service(new ObservabilityCascadeServiceImpl(this))],
+            new Serve.ServeOptions
+            {
+                Reflect = parsed.Reflect,
+                Slug = "observability-cascade-csharp",
+            });
+    }
+
+    private sealed class ObservabilityCascadeServiceImpl(App app) : ObservabilityCascadeService.ObservabilityCascadeServiceBase
+    {
+        public override async Task<CascadeReport> RunDefault(RunRequest request, ServerCallContext context)
+        {
+            _ = request;
+            _ = context;
+            return ToCascadeReport(await app.RunDefault(false));
+        }
+
+        public override async Task<CascadeReport> RunLiveStream(RunRequest request, ServerCallContext context)
+        {
+            _ = request;
+            _ = context;
+            return ToCascadeReport(await app.RunLiveStream(false));
+        }
+
+        public override async Task<MultiPatternReport> RunMultiPattern(RunRequest request, ServerCallContext context)
+        {
+            _ = request;
+            _ = context;
+            return ToMultiPatternReport(await app.RunMultiPattern(false));
+        }
+    }
+
+    public async Task<CascadeReportData> RunDefault(bool emit)
     {
         var binary = await FindBinary(csharpSlug);
         var runRoot = Directory.CreateTempSubdirectory("observability-cascade-csharp-").FullName;
-        Console.WriteLine("=== observability-cascade-csharp ===");
-        Console.WriteLine();
+        Output(emit, "=== observability-cascade-csharp ===");
+        Output(emit);
         var totalPass = 0;
         var totalFail = 0;
         var previous = "";
@@ -64,7 +110,7 @@ sealed class App
         {
             var phase = index + 1;
             var transport = _transports[index];
-            Console.WriteLine(previous.Length == 0
+            Output(emit, previous.Length == 0
                 ? $"Phase {phase}/{runPhases}: transport={transport}"
                 : $"Phase {phase}/{runPhases}: transport={transport} (switching from {previous})");
             var started = NowMillis();
@@ -76,11 +122,11 @@ sealed class App
             catch (Exception error)
             {
                 totalFail += runTicks;
-                Console.WriteLine($"  spawn FAIL: {error.Message}\n");
+                Output(emit, $"  spawn FAIL: {error.Message}\n");
                 previous = transport;
                 continue;
             }
-            Console.WriteLine($"  spawned 4 nodes in {Elapsed(started)}");
+            Output(emit, $"  spawned 4 nodes in {Elapsed(started)}");
             var previousMetric = 0.0;
             for (var tick = 1; tick <= runTicks; tick++)
             {
@@ -90,30 +136,38 @@ sealed class App
                     previousMetric = outcome.MetricValue;
                 var overall = outcome.Log.Pass && outcome.Event.Pass && outcome.Metric.Pass;
                 if (overall) totalPass++; else totalFail++;
-                Console.WriteLine(
+                Output(emit,
                     $"  Tick {tick}/{runTicks}: log {PassText(outcome.Log.Pass)}, event {PassText(outcome.Event.Pass)}, metric {PassText(outcome.Metric.Pass)} (overall {PassText(overall)} in {Elapsed(tickStart)})");
-                PrintFailureEvidence("log", outcome.Log);
-                PrintFailureEvidence("event", outcome.Event);
-                PrintFailureEvidence("metric", outcome.Metric);
+                if (emit)
+                {
+                    PrintFailureEvidence("log", outcome.Log);
+                    PrintFailureEvidence("event", outcome.Event);
+                    PrintFailureEvidence("metric", outcome.Metric);
+                }
             }
             cascade.Stop();
-            Console.WriteLine();
+            Output(emit);
             previous = transport;
         }
-        Console.WriteLine($"Summary: {totalPass + totalFail} ticks, {totalPass} PASS, {totalFail} FAIL");
+        Output(emit, $"Summary: {totalPass + totalFail} ticks, {totalPass} PASS, {totalFail} FAIL");
         if (totalFail > 0)
             throw new InvalidOperationException($"{totalFail} tick(s) failed");
+        return new CascadeReportData(
+            totalPass + totalFail,
+            totalPass,
+            totalFail,
+            [new PhaseReportData("default", totalPass, totalFail)]);
     }
 
-    public async Task RunLiveStream()
+    public async Task<CascadeReportData> RunLiveStream(bool emit)
     {
         var binary = await FindBinary(csharpSlug);
         var runRoot = Directory.CreateTempSubdirectory("observability-cascade-csharp-live-").FullName;
-        Console.WriteLine("=== observability-cascade-csharp --live-stream ===");
-        Console.WriteLine();
-        Console.WriteLine("Setup: opening long-lived Follow:true streams on A");
-        Console.WriteLine("       (initial transport: tcp)");
-        Console.WriteLine();
+        Output(emit, "=== observability-cascade-csharp --live-stream ===");
+        Output(emit);
+        Output(emit, "Setup: opening long-lived Follow:true streams on A");
+        Output(emit, "       (initial transport: tcp)");
+        Output(emit);
         var totalPass = 0;
         var totalFail = 0;
         Cascade? cascade = null;
@@ -125,15 +179,15 @@ sealed class App
             var transport = _transports[index];
             if (phase == 1)
             {
-                Console.WriteLine($"Phase {phase}/{runPhases}: initial chain ({transport})");
+                Output(emit, $"Phase {phase}/{runPhases}: initial chain ({transport})");
             }
             else
             {
-                Console.WriteLine($"Phase {phase}/{runPhases}: respawn on {transport}");
+                Output(emit, $"Phase {phase}/{runPhases}: respawn on {transport}");
                 var killStart = NowMillis();
                 streams?.Stop();
                 cascade?.Stop();
-                Console.WriteLine($"  killed 4 nodes in {Elapsed(killStart)}");
+                Output(emit, $"  killed 4 nodes in {Elapsed(killStart)}");
             }
             var spawnStart = NowMillis();
             Cascade phaseCascade;
@@ -144,13 +198,13 @@ sealed class App
             catch (Exception error)
             {
                 totalFail += runTicks;
-                Console.WriteLine($"  spawn FAIL: {error.Message}\n");
+                Output(emit, $"  spawn FAIL: {error.Message}\n");
                 streams = null;
                 continue;
             }
-            Console.WriteLine($"  spawned 4 nodes in {Elapsed(spawnStart)}");
+            Output(emit, $"  spawned 4 nodes in {Elapsed(spawnStart)}");
             if (phase > 1)
-                Console.WriteLine("  re-opening Follow:true streams on new A");
+                Output(emit, "  re-opening Follow:true streams on new A");
             string? streamError = null;
             try
             {
@@ -161,7 +215,7 @@ sealed class App
             {
                 streams = null;
                 streamError = error.Message;
-                Console.WriteLine($"  stream re-open failed: {error.Message}");
+                Output(emit, $"  stream re-open failed: {error.Message}");
             }
             var previousMetric = 0.0;
             for (var tick = 1; tick <= runTicks; tick++)
@@ -172,23 +226,31 @@ sealed class App
                     previousMetric = outcome.MetricValue;
                 var overall = outcome.Log.Pass && outcome.Event.Pass && outcome.Metric.Pass;
                 if (overall) totalPass++; else totalFail++;
-                Console.WriteLine(
+                Output(emit,
                     $"  Tick {tick}/{runTicks}: log {PassText(outcome.Log.Pass)}, event {PassText(outcome.Event.Pass)}, metric {PassText(outcome.Metric.Pass)} (overall {PassText(overall)} in {Elapsed(tickStart)})");
-                PrintFailureEvidence("log", outcome.Log);
-                PrintFailureEvidence("event", outcome.Event);
-                PrintFailureEvidence("metric", outcome.Metric);
+                if (emit)
+                {
+                    PrintFailureEvidence("log", outcome.Log);
+                    PrintFailureEvidence("event", outcome.Event);
+                    PrintFailureEvidence("metric", outcome.Metric);
+                }
             }
-            Console.WriteLine();
+            Output(emit);
             cascade = phaseCascade;
         }
         streams?.Stop();
         cascade?.Stop();
-        Console.WriteLine($"Summary: {totalPass} PASS / {totalFail} FAIL across {totalPass + totalFail} ticks");
+        Output(emit, $"Summary: {totalPass} PASS / {totalFail} FAIL across {totalPass + totalFail} ticks");
         if (totalFail > 0)
             throw new InvalidOperationException($"{totalFail} tick(s) failed");
+        return new CascadeReportData(
+            totalPass + totalFail,
+            totalPass,
+            totalFail,
+            [new PhaseReportData("live-stream", totalPass, totalFail)]);
     }
 
-    public async Task RunMultiPattern()
+    public async Task<MultiPatternReportData> RunMultiPattern(bool emit)
     {
         var csharpBinary = await FindBinary(csharpSlug);
         var goBinary = await FindBinary(goSlug);
@@ -211,15 +273,18 @@ sealed class App
             }),
         };
         var runRoot = Directory.CreateTempSubdirectory("observability-cascade-csharp-multi-").FullName;
-        Console.WriteLine("=== observability-cascade-csharp (multi-pattern) ===");
-        Console.WriteLine();
+        Output(emit, "=== observability-cascade-csharp (multi-pattern) ===");
+        Output(emit);
         var totalPass = 0;
         var totalFail = 0;
+        var patternReports = new List<CascadeReportData>();
         for (var patternIndex = 0; patternIndex < patterns.Length; patternIndex++)
         {
             var pattern = patterns[patternIndex];
-            Console.WriteLine($"Pattern {patternIndex + 1}/{patterns.Length}: {pattern.Name}");
+            Output(emit, $"Pattern {patternIndex + 1}/{patterns.Length}: {pattern.Name}");
             var patternPass = 0;
+            var patternFail = 0;
+            var failures = new List<string>();
             for (var index = 0; index < _transports.Length; index++)
             {
                 var phase = index + 1;
@@ -233,7 +298,10 @@ sealed class App
                 catch (Exception error)
                 {
                     totalFail += runTicks;
-                    Console.WriteLine($"  Phase {phase}/{runPhases} ({transport}): spawn FAIL ({error.Message})");
+                    patternFail += runTicks;
+                    var failure = $"Phase {phase}/{runPhases} ({transport}): spawn FAIL ({error.Message})";
+                    failures.Add(failure);
+                    Output(emit, $"  {failure}");
                     continue;
                 }
                 string? streamError = null;
@@ -270,22 +338,34 @@ sealed class App
                     else
                     {
                         totalFail++;
+                        patternFail++;
                         results.Add($"Tick {tick} FAIL ({FailureSummary(outcome)})");
+                        var failure = $"Phase {phase}/{runPhases} ({transport}) tick {tick}: {CompactEvidence(outcome)}";
+                        failures.Add(failure);
                         evidence.Add($"      Tick {tick} evidence: {CompactEvidence(outcome)}");
                     }
                 }
-                Console.WriteLine($"  Phase {phase}/{runPhases} ({transport}): {string.Join(", ", results)} (spawned in {Elapsed(started)})");
-                foreach (var line in evidence)
-                    Console.WriteLine(line);
+                Output(emit, $"  Phase {phase}/{runPhases} ({transport}): {string.Join(", ", results)} (spawned in {Elapsed(started)})");
+                if (emit)
+                {
+                    foreach (var line in evidence)
+                        Console.WriteLine(line);
+                }
                 streams?.Stop();
                 cascade.Stop();
             }
-            Console.WriteLine($"  Subtotal: {patternPass}/12 PASS");
-            Console.WriteLine();
+            Output(emit, $"  Subtotal: {patternPass}/12 PASS");
+            Output(emit);
+            patternReports.Add(new CascadeReportData(
+                patternPass + patternFail,
+                patternPass,
+                patternFail,
+                [new PhaseReportData(pattern.Name, patternPass, patternFail, failures)]));
         }
-        Console.WriteLine($"Summary: {totalPass} PASS / {totalFail} FAIL across {totalPass + totalFail} ticks");
+        Output(emit, $"Summary: {totalPass} PASS / {totalFail} FAIL across {totalPass + totalFail} ticks");
         if (totalFail > 0)
             throw new InvalidOperationException($"{totalFail} tick(s) failed");
+        return new MultiPatternReportData(patternReports, totalPass, totalFail);
     }
 
     private async Task<Cascade> SpawnCascade(int phase, string transport, IReadOnlyDictionary<string, RoleSpec> specs, string runRoot)
@@ -438,9 +518,28 @@ sealed class App
         var fromEnv = Environment.GetEnvironmentVariable(envName);
         if (!string.IsNullOrWhiteSpace(fromEnv))
             return fromEnv.Trim();
+        var roots = new List<string>();
+        if (slug == csharpSlug)
+        {
+            var csharpNode = Path.Combine(_sourceRoot, "holons", "observability-cascade-node");
+            roots.Add(Path.Combine(csharpNode, ".op", "build", "observability-cascade-node.holon", "bin"));
+            roots.Add(Path.Combine(csharpNode, ".op", "build", "observability-cascade-node-csharp.holon", "bin"));
+        }
+        if (slug == goSlug)
+        {
+            var goNode = Path.Combine(_examplesRoot, "observability-cascade-go", "holons", "observability-cascade-node");
+            roots.Add(Path.Combine(goNode, ".op", "build", "observability-cascade-node.holon", "bin"));
+            roots.Add(Path.Combine(goNode, ".op", "build", "observability-cascade-node-go.holon", "bin"));
+        }
+        foreach (var root in roots)
+        {
+            var foundInRoot = FindExecutable(root, slug);
+            if (foundInRoot is not null)
+                return foundInRoot;
+        }
         var psi = new ProcessStartInfo("op", $"--bin {slug}")
         {
-            WorkingDirectory = _relayRoot,
+            WorkingDirectory = _repoRoot,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
@@ -476,24 +575,27 @@ sealed class App
         return null;
     }
 
-    private static string FindRelayRoot()
+    private static string FindSourceRoot()
     {
+        var fromEnv = Environment.GetEnvironmentVariable("OBSERVABILITY_CASCADE_CSHARP_SOURCE_ROOT");
+        if (!string.IsNullOrWhiteSpace(fromEnv))
+            return Path.GetFullPath(fromEnv.Trim());
         var current = new DirectoryInfo(Directory.GetCurrentDirectory());
         while (current is not null)
         {
-            if (IsRelayRoot(current.FullName))
+            if (IsSourceRoot(current.FullName))
                 return current.FullName;
-            var nested = Path.Combine(current.FullName, "examples", "observability-cascade");
-            if (IsRelayRoot(nested))
+            var nested = Path.Combine(current.FullName, "examples", "observability-cascade", "observability-cascade-csharp");
+            if (IsSourceRoot(nested))
                 return nested;
             current = current.Parent;
         }
-        throw new InvalidOperationException("observability-cascade root not found");
+        throw new InvalidOperationException("observability-cascade-csharp source root not found");
     }
 
-    private static bool IsRelayRoot(string path) =>
-        Directory.Exists(Path.Combine(path, "observability-cascade-node-csharp")) &&
-        Directory.Exists(Path.Combine(path, "observability-cascade-node-go"));
+    private static bool IsSourceRoot(string path) =>
+        File.Exists(Path.Combine(path, "api", "v1", "holon.proto")) &&
+        Directory.Exists(Path.Combine(path, "holons", "observability-cascade-node"));
 
     private static string FindRepoRoot(string start)
     {
@@ -565,6 +667,50 @@ sealed class App
         }
     }
 
+    private static CascadeReport ToCascadeReport(CascadeReportData report)
+    {
+        var output = new CascadeReport
+        {
+            Ticks = report.Ticks,
+            Pass = report.Pass,
+            Fail = report.Fail,
+        };
+        output.Phases.AddRange(report.Phases.Select(phase =>
+        {
+            var item = new PhaseResult
+            {
+                Name = phase.Name,
+                Pass = phase.Pass,
+                Fail = phase.Fail,
+            };
+            item.Failures.AddRange(phase.Failures);
+            return item;
+        }));
+        return output;
+    }
+
+    private static MultiPatternReport ToMultiPatternReport(MultiPatternReportData report)
+    {
+        var output = new MultiPatternReport
+        {
+            TotalPass = report.TotalPass,
+            TotalFail = report.TotalFail,
+        };
+        output.Patterns.AddRange(report.Patterns.Select(ToCascadeReport));
+        return output;
+    }
+
+    private static string NormalizeListenUri(string listenUri) =>
+        listenUri.StartsWith("tcp://:", StringComparison.Ordinal)
+            ? $"tcp://0.0.0.0:{listenUri["tcp://:".Length..]}"
+            : listenUri;
+
+    private static void Output(bool emit, string value = "")
+    {
+        if (emit)
+            Console.WriteLine(value);
+    }
+
     private static long NowMillis() => Stopwatch.GetTimestamp() * 1000 / Stopwatch.Frequency;
 
     private static string Elapsed(long startedMillis)
@@ -617,6 +763,14 @@ sealed class App
 
 sealed record RoleSpec(string Slug, string BinaryPath);
 sealed record CascadePattern(string Name, IReadOnlyDictionary<string, RoleSpec> Roles);
+sealed record PhaseReportData(string Name, int Pass, int Fail, IReadOnlyList<string> Failures)
+{
+    public PhaseReportData(string name, int pass, int fail) : this(name, pass, fail, Array.Empty<string>())
+    {
+    }
+}
+sealed record CascadeReportData(int Ticks, int Pass, int Fail, IReadOnlyList<PhaseReportData> Phases);
+sealed record MultiPatternReportData(IReadOnlyList<CascadeReportData> Patterns, int TotalPass, int TotalFail);
 sealed record CheckResult(bool Pass, string Evidence);
 sealed record TickOutcome(CheckResult Log, CheckResult Event, CheckResult Metric, double MetricValue);
 
