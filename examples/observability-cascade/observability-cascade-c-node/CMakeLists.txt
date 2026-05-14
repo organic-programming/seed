@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(observability-cascade-node-c LANGUAGES C CXX)
+project(observability-cascade-c-node LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -30,7 +30,7 @@ find_package(gRPC CONFIG QUIET)
 find_package(utf8_range CONFIG QUIET)
 if(NOT Protobuf_FOUND OR NOT gRPC_FOUND OR NOT utf8_range_FOUND)
   message(FATAL_ERROR
-    "observability-cascade-node-c requires the C SDK prebuilts. Run `op sdk install c` or build through `op build`.")
+    "observability-cascade-c-node requires the C SDK prebuilts. Run `op sdk install c` or build through `op build`.")
 endif()
 find_program(BASH_EXECUTABLE NAMES bash REQUIRED)
 
@@ -55,11 +55,11 @@ find_library(UPB_LIBRARY NAMES upb
   PATHS "${OBSERVABILITY_CASCADE_NODE_C_PREBUILT_ROOT}/lib" /opt/homebrew/lib /usr/local/lib
   REQUIRED)
 
-set(HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../sdk/c-holons")
-set(CPP_HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../sdk/cpp-holons")
-set(HOLONS_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../holons/grace-op/_protos")
+set(HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/c-holons")
+set(CPP_HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/cpp-holons")
+set(HOLONS_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../holons/grace-op/_protos")
 set(OBSERVABILITY_CASCADE_NODE_C_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
-set(OBSERVABILITY_CASCADE_NODE_C_RELOCATE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../sdk/scripts/relocate-macos-dylibs.sh")
+set(OBSERVABILITY_CASCADE_NODE_C_RELOCATE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/scripts/relocate-macos-dylibs.sh")
 
 function(cascade_node_c_generate_grpc_cpp target_name)
   set(options)
@@ -173,30 +173,30 @@ target_link_libraries(cascade_node_c_lib
     utf8_range::utf8_range
 )
 
-add_executable(observability-cascade-node-c cmd/main.c)
-target_link_libraries(observability-cascade-node-c PRIVATE cascade_node_c_lib)
-set_target_properties(observability-cascade-node-c PROPERTIES LINKER_LANGUAGE CXX)
+add_executable(observability-cascade-c-node cmd/main.c)
+target_link_libraries(observability-cascade-c-node PRIVATE cascade_node_c_lib)
+set_target_properties(observability-cascade-c-node PROPERTIES LINKER_LANGUAGE CXX)
 
 if(APPLE AND NOT OP_USE_INSTALL_LAYOUT)
   set(OBSERVABILITY_CASCADE_NODE_C_RELOCATE_STAMP "${OBSERVABILITY_CASCADE_NODE_C_RUNTIME_DIR}/.dylibs-relocated")
   add_custom_command(
     OUTPUT "${OBSERVABILITY_CASCADE_NODE_C_RELOCATE_STAMP}"
-    COMMAND "${BASH_EXECUTABLE}" "${OBSERVABILITY_CASCADE_NODE_C_RELOCATE_SCRIPT}" "${OBSERVABILITY_CASCADE_NODE_C_RUNTIME_DIR}" observability-cascade-node-c
+    COMMAND "${BASH_EXECUTABLE}" "${OBSERVABILITY_CASCADE_NODE_C_RELOCATE_SCRIPT}" "${OBSERVABILITY_CASCADE_NODE_C_RUNTIME_DIR}" observability-cascade-c-node
     COMMAND "${CMAKE_COMMAND}" -E touch "${OBSERVABILITY_CASCADE_NODE_C_RELOCATE_STAMP}"
-    DEPENDS observability-cascade-node-c "${OBSERVABILITY_CASCADE_NODE_C_RELOCATE_SCRIPT}"
+    DEPENDS observability-cascade-c-node "${OBSERVABILITY_CASCADE_NODE_C_RELOCATE_SCRIPT}"
     VERBATIM
   )
   add_custom_target(cascade_node_c_relocate ALL DEPENDS "${OBSERVABILITY_CASCADE_NODE_C_RELOCATE_STAMP}")
 endif()
 
-install(TARGETS observability-cascade-node-c
+install(TARGETS observability-cascade-c-node
   RUNTIME DESTINATION "bin/${OP_PACKAGE_ARCH}"
 )
 
 if(APPLE)
   install(CODE "
     execute_process(
-      COMMAND \"${BASH_EXECUTABLE}\" \"${OBSERVABILITY_CASCADE_NODE_C_RELOCATE_SCRIPT}\" \"${OBSERVABILITY_CASCADE_NODE_C_INSTALL_RUNTIME_DIR}\" observability-cascade-node-c
+      COMMAND \"${BASH_EXECUTABLE}\" \"${OBSERVABILITY_CASCADE_NODE_C_RELOCATE_SCRIPT}\" \"${OBSERVABILITY_CASCADE_NODE_C_INSTALL_RUNTIME_DIR}\" observability-cascade-c-node
       COMMAND_ERROR_IS_FATAL ANY
     )
   ")

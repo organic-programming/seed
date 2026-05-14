@@ -132,7 +132,7 @@ int cascade_node_c_run_cli(int argc, char **argv, FILE *stdout_stream, FILE *std
   (void)stdout_stream;
 
   if (argc < 1 || strcmp(argv[0], "serve") != 0) {
-    fprintf(stderr_stream, "usage: observability-cascade-node-c serve [--listen <uri>] [--member <slug>=<address>]\n");
+    fprintf(stderr_stream, "usage: observability-cascade-c-node serve [--listen <uri>] [--member <slug>=<address>]\n");
     return 1;
   }
 
@@ -147,4 +147,3 @@ int cascade_node_c_run_cli(int argc, char **argv, FILE *stdout_stream, FILE *std
   member_list_free(&members);
   return rc;
 }
-

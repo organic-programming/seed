@@ -27,35 +27,14 @@ option (holons.v1.manifest) = {
     rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
   }
   build: {
-    runner: "recipe"
+    runner: "cmake"
     codegen: {
       languages: ["cpp"]
-    }
-    defaults: {
-      target: "macos"
-      mode: "debug"
     }
     members: {
       id: "c-node"
       path: "../observability-cascade-c-node"
       type: "holon"
-    }
-    targets: {
-      key: "macos"
-      value: {
-        steps: { build_member: "c-node" }
-        steps: {
-          exec: {
-            cwd: "."
-            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-c.holon}\"\narch=\"darwin_arm64\"\nbuild=\".op/build/cmake\"\nrm -rf \"$pkg\" \"$build\"\ncmake -S . -B \"$build\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=\"$PWD/$build/bin\" >/dev/null\ncmake --build \"$build\" --target observability-cascade-c >/dev/null\nmkdir -p \"$pkg/bin/$arch\"\ncp \"$build/bin/observability-cascade-c\" \"$pkg/bin/$arch/observability-cascade-c-real\"\nbash ../../../sdk/scripts/relocate-macos-dylibs.sh \"$pkg/bin/$arch\" observability-cascade-c-real >/dev/null\ncat > \"$pkg/bin/$arch/observability-cascade-c\" <<EOF\n#!/bin/sh\nOBSERVABILITY_CASCADE_C_SOURCE_ROOT=\"$PWD\" exec \"\\$(dirname \"\\$0\")/observability-cascade-c-real\" \"\\$@\"\nEOF\nchmod +x \"$pkg/bin/$arch/observability-cascade-c\""]
-          }
-        }
-        steps: {
-          assert_file: {
-            path: ".op/build/observability-cascade-c.holon/bin/darwin_arm64/observability-cascade-c"
-          }
-        }
-      }
     }
   }
   requires: {

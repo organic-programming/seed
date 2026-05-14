@@ -370,12 +370,12 @@ static holons_service_doc_t holons_generated_services_1[] = {
   }
 };
 
-static const unsigned char holons_generated_describe_response_bytes_value[1612] = {
+static const unsigned char holons_generated_describe_response_bytes_value[1601] = {
   0x0a,
-  0xfb,
+  0xf0,
   0x02,
   0x0a,
-  0xaa,
+  0xa0,
   0x01,
   0x0a,
   0x08,
@@ -426,7 +426,7 @@ static const unsigned char holons_generated_describe_response_bytes_value[1612] 
   0x66,
   0x65,
   0x1a,
-  0x15,
+  0x0d,
   0x4f,
   0x62,
   0x73,
@@ -440,7 +440,8 @@ static const unsigned char holons_generated_describe_response_bytes_value[1612] 
   0x69,
   0x74,
   0x79,
-  0x20,
+  0x22,
+  0x09,
   0x43,
   0x61,
   0x73,
@@ -448,19 +449,8 @@ static const unsigned char holons_generated_describe_response_bytes_value[1612] 
   0x61,
   0x64,
   0x65,
-  0x22,
-  0x0b,
+  0x2d,
   0x43,
-  0x20,
-  0x43,
-  0x6f,
-  0x6d,
-  0x70,
-  0x6f,
-  0x73,
-  0x69,
-  0x74,
-  0x65,
   0x2a,
   0x30,
   0x56,
@@ -669,14 +659,13 @@ static const unsigned char holons_generated_describe_response_bytes_value[1612] 
   0x74,
   0x65,
   0x52,
-  0x08,
+  0x07,
   0x0a,
-  0x06,
-  0x72,
-  0x65,
+  0x05,
   0x63,
-  0x69,
-  0x70,
+  0x6d,
+  0x61,
+  0x6b,
   0x65,
   0x5a,
   0x1e,
@@ -1989,8 +1978,8 @@ static holons_describe_response_t holons_generated_describe_response_value = {
   .manifest = {
     .identity = {
       .uuid = "e8a35438-fa97-4dd7-b53e-7b32bf0fc5fe",
-      .given_name = "observability-cascade",
-      .family_name = "c-composite",
+      .given_name = "Observability",
+      .family_name = "Cascade-C",
       .motto = "Validates C observability cascade observability.",
       .composer = "B. ALTER",
       .status = "draft",
@@ -1999,7 +1988,7 @@ static holons_describe_response_t holons_generated_describe_response_value = {
     .lang = "c",
     .kind = "composite",
     .build = {
-      .runner = "recipe",
+      .runner = "cmake",
     },
     .artifacts = {
       .primary = ".op/build/observability-cascade-c.holon",
@@ -2011,7 +2000,7 @@ static holons_describe_response_t holons_generated_describe_response_value = {
 
 const unsigned char *holons_generated_describe_response_bytes(size_t *len) {
   if (len != NULL) {
-    *len = 1612;
+    *len = 1601;
   }
   return holons_generated_describe_response_bytes_value;
 }

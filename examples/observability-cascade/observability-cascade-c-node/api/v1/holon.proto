@@ -42,7 +42,7 @@ option (holons.v1.manifest) = {
       {name: "note", description: "Free-form tick note", required: false}
     ]
     steps: [
-      "op observability-cascade-node-c Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
+      "op observability-cascade-c-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
     ]
   }]
 };

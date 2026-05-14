@@ -10,16 +10,16 @@
 
 const holons_describe_response_t *holons_generated_describe_response(void);
 
-typedef struct observability_cascade_node_handlers {
+typedef struct observability_cascade_c_node_handlers {
   void *ctx;
   relay_v1_TickResponse *(*tick)(const relay_v1_TickRequest *request,
                                  upb_Arena *arena,
                                  void *ctx);
-} observability_cascade_node_handlers_t;
+} observability_cascade_c_node_handlers_t;
 
-int observability_cascade_node_generated_serve(
+int observability_cascade_c_node_generated_serve(
     const char *listen_uri,
-    const observability_cascade_node_handlers_t *handlers,
+    const observability_cascade_c_node_handlers_t *handlers,
     const holons_grpc_serve_options_t *options,
     char *err,
     size_t err_len);
@@ -82,7 +82,7 @@ static relay_v1_TickResponse *cascade_node_c_handle_tick(
   fields[2] = "note";
   fields[3] = note;
   fields[4] = "responder_slug";
-  fields[5] = "observability-cascade-node-c";
+  fields[5] = "observability-cascade-c-node";
   fields[6] = "responder_uid";
   fields[7] = uid;
   fields[8] = NULL;
@@ -99,7 +99,7 @@ static relay_v1_TickResponse *cascade_node_c_handle_tick(
     return NULL;
   }
   relay_v1_TickResponse_set_responder_slug(
-      response, arena_copy_cstr(arena, "observability-cascade-node-c"));
+      response, arena_copy_cstr(arena, "observability-cascade-c-node"));
   relay_v1_TickResponse_set_responder_instance_uid(
       response, arena_copy_cstr(arena, uid));
   return response;
@@ -109,7 +109,7 @@ int cascade_node_c_serve(const char *listen_uri,
                          const holons_grpc_member_ref_t *members,
                          size_t member_count,
                          FILE *stderr_stream) {
-  observability_cascade_node_handlers_t handlers;
+  observability_cascade_c_node_handlers_t handlers;
   holons_grpc_serve_options_t serve_options;
   holons_grpc_observability_options_t obs_options;
   holon_obs_config_t obs_config;
@@ -127,7 +127,7 @@ int cascade_node_c_serve(const char *listen_uri,
   serve_options.graceful_shutdown_timeout_ms = 10000;
 
   memset(&obs_options, 0, sizeof(obs_options));
-  obs_options.slug = "observability-cascade-node-c";
+  obs_options.slug = "observability-cascade-c-node";
   obs_options.member_endpoints = members;
   obs_options.member_endpoint_count = member_count;
   if (holons_grpc_set_observability_options(&obs_options) != 0) {
@@ -136,7 +136,7 @@ int cascade_node_c_serve(const char *listen_uri,
   }
 
   memset(&obs_config, 0, sizeof(obs_config));
-  obs_config.slug = "observability-cascade-node-c";
+  obs_config.slug = "observability-cascade-c-node";
   obs_config.instance_uid = getenv("OP_INSTANCE_UID");
   obs_config.organism_uid = getenv("OP_ORGANISM_UID");
   obs_config.organism_slug = getenv("OP_ORGANISM_SLUG");
@@ -144,7 +144,7 @@ int cascade_node_c_serve(const char *listen_uri,
   obs_config.default_log_level = HOLON_LEVEL_INFO;
   holon_obs_configure(&obs_config);
 
-  rc = observability_cascade_node_generated_serve(
+  rc = observability_cascade_c_node_generated_serve(
       listen_uri, &handlers, &serve_options, err, sizeof(err));
   holons_grpc_clear_observability_options();
   if (rc != 0) {

@@ -63,14 +63,14 @@ static int holons_generated_handle_describe(const unsigned char *request_data,
   return holons_generated_copy_response(bytes, bytes_len, response_data, response_len, err, err_len);
 }
 
-static int observability_cascade_node_handle_tick_raw(const unsigned char *request_data,
+static int observability_cascade_c_node_handle_tick_raw(const unsigned char *request_data,
                                         size_t request_len,
                                         void *ctx,
                                         unsigned char **response_data,
                                         size_t *response_len,
                                         char *err,
                                         size_t err_len) {
-  const observability_cascade_node_handlers_t *handlers = (const observability_cascade_node_handlers_t *)ctx;
+  const observability_cascade_c_node_handlers_t *handlers = (const observability_cascade_c_node_handlers_t *)ctx;
   upb_Arena *arena;
   relay_v1_TickRequest *request;
   relay_v1_TickResponse *response;
@@ -117,8 +117,8 @@ static int observability_cascade_node_handle_tick_raw(const unsigned char *reque
   return 0;
 }
 
-int observability_cascade_node_generated_serve(const char *listen_uri,
-                             const observability_cascade_node_handlers_t *handlers,
+int observability_cascade_c_node_generated_serve(const char *listen_uri,
+                             const observability_cascade_c_node_handlers_t *handlers,
                              const holons_grpc_serve_options_t *options,
                              char *err,
                              size_t err_len) {
@@ -144,7 +144,7 @@ int observability_cascade_node_generated_serve(const char *listen_uri,
   registrations[registration_count].ctx = NULL;
   registration_count++;
   registrations[registration_count].full_method = "/relay.v1.RelayService/Tick";
-  registrations[registration_count].handler = observability_cascade_node_handle_tick_raw;
+  registrations[registration_count].handler = observability_cascade_c_node_handle_tick_raw;
   registrations[registration_count].ctx = (void *)handlers;
   registration_count++;
 

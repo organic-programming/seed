@@ -41,7 +41,10 @@ endif()
 set(RELAY_CASCADE_C_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 set(HOLONS_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../holons/grace-op/_protos")
 set(RELAY_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../_protos")
-set(HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/cpp-holons")
+set(CPP_HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/cpp-holons")
+set(C_HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/c-holons")
+set(RELAY_CASCADE_C_RELOCATE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/scripts/relocate-macos-dylibs.sh")
+find_program(BASH_EXECUTABLE NAMES bash REQUIRED)
 
 function(observability_cascade_generate_grpc_cpp target_name)
   set(options)
@@ -118,8 +121,9 @@ add_executable(observability-cascade-c
 target_include_directories(observability-cascade-c
   PRIVATE
     "${RELAY_CASCADE_C_GENERATED_DIR}"
-    "${HOLONS_SDK_ROOT}/include"
-    "${HOLONS_SDK_ROOT}/gen/cpp"
+    "${CPP_HOLONS_SDK_ROOT}/include"
+    "${CPP_HOLONS_SDK_ROOT}/gen/cpp"
+    "${C_HOLONS_SDK_ROOT}/include"
 )
 
 if(RELAY_CASCADE_C_PREBUILT_ROOT)
@@ -134,3 +138,26 @@ target_link_libraries(observability-cascade-c
     gRPC::grpc++
     gRPC::grpc++_reflection
     protobuf::libprotobuf)
+
+if(NOT DEFINED OP_PACKAGE_ARCH OR OP_PACKAGE_ARCH STREQUAL "")
+  string(TOLOWER "${CMAKE_SYSTEM_NAME}" OP_PACKAGE_OS)
+  set(OP_PACKAGE_ARCH "${OP_PACKAGE_OS}_${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+if(NOT DEFINED OP_USE_INSTALL_LAYOUT)
+  set(OP_USE_INSTALL_LAYOUT OFF)
+endif()
+
+set(RELAY_CASCADE_C_INSTALL_RUNTIME_DIR "${CMAKE_INSTALL_PREFIX}/bin/${OP_PACKAGE_ARCH}")
+
+install(TARGETS observability-cascade-c
+  RUNTIME DESTINATION "bin/${OP_PACKAGE_ARCH}"
+)
+
+if(APPLE)
+  install(CODE "
+    execute_process(
+      COMMAND \"${BASH_EXECUTABLE}\" \"${RELAY_CASCADE_C_RELOCATE_SCRIPT}\" \"${RELAY_CASCADE_C_INSTALL_RUNTIME_DIR}\" observability-cascade-c
+      COMMAND_ERROR_IS_FATAL ANY
+    )
+  ")
+endif()

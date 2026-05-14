@@ -759,6 +759,55 @@ static void write_package_binary(const char *dir, const char *binary_name) {
                        0755);
 }
 
+static void test_composite_member_resolution(void) {
+  char root[1024] = "/tmp/holons_member_c_XXXXXX";
+  char arch_dir[64];
+  char parent_dir[1024];
+  char parent_path[1024];
+  char member_dir[1024];
+  char member_path[1024];
+  char ignored_path[1024];
+  char resolved[PATH_MAX];
+  char err[256];
+  char cleanup_cmd[1200];
+
+  check_int(make_temp_dir(root) == 0, "member temp dir");
+  canonicalize_temp_dir(root, sizeof(root));
+  test_package_arch_dir(arch_dir, sizeof(arch_dir));
+  assert(snprintf(parent_dir, sizeof(parent_dir), "%s/bin/%s", root, arch_dir) < (int)sizeof(parent_dir));
+  assert(snprintf(parent_path, sizeof(parent_path), "%s/composite", parent_dir) < (int)sizeof(parent_path));
+  assert(snprintf(member_dir, sizeof(member_dir), "%s/holons/c-node", parent_dir) < (int)sizeof(member_dir));
+  assert(snprintf(member_path, sizeof(member_path), "%s/observability-cascade-c-node", member_dir) < (int)sizeof(member_path));
+  assert(snprintf(ignored_path, sizeof(ignored_path), "%s/libdependency.dylib", member_dir) < (int)sizeof(ignored_path));
+
+  check_int(ensure_dir_with_system(member_dir) == 0, "member fixture dirs");
+  write_text_file_mode(parent_path, "#!/bin/sh\n", 0755);
+  write_text_file_mode(member_path, "#!/bin/sh\n", 0755);
+  write_text_file_mode(ignored_path, "", 0644);
+
+  err[0] = '\0';
+  check_int(holons_member_from_executable(parent_path,
+                                          "c-node",
+                                          resolved,
+                                          sizeof(resolved),
+                                          err,
+                                          sizeof(err)) == 0,
+            "member resolves executable");
+  check_int(strcmp(resolved, member_path) == 0, "member resolved path");
+
+  err[0] = '\0';
+  check_int(holons_member_from_executable(parent_path,
+                                          "missing",
+                                          resolved,
+                                          sizeof(resolved),
+                                          err,
+                                          sizeof(err)) != 0,
+            "member missing errors");
+
+  snprintf(cleanup_cmd, sizeof(cleanup_cmd), "rm -rf '%s'", root);
+  (void)system(cleanup_cmd);
+}
+
 static void write_package_holon_json(const char *dir,
                                      const char *slug,
                                      const char *uuid,
@@ -2858,6 +2907,7 @@ static void test_observability_disk_outputs(void) {
 int main(void) {
   test_observability_env();
   test_observability_disk_outputs();
+  test_composite_member_resolution();
   test_discover();
   test_connect_direct_dial();
   test_connect_starts_slug_ephemerally();
