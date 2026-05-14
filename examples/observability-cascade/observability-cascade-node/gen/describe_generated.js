@@ -21,10 +21,9 @@ function staticDescribeResponse() {
             },
             description: "A Node.js composite program that validates observability-cascade observability across three modes and patterns.",
             lang: "js",
-            kind: "native",
+            kind: "composite",
             build: {
-                runner: "npm",
-                main: "./bin/main.js",
+                runner: "recipe",
             },
             requires: {
                 files: [
@@ -33,9 +32,213 @@ function staticDescribeResponse() {
                 ],
             },
             artifacts: {
-                binary: "observability-cascade-node",
+                primary: ".op/build/observability-cascade-node.holon",
             },
         },
+        services: [
+            {
+                name: "observability_cascade.v1.ObservabilityCascadeService",
+                methods: [
+                    {
+                        name: "RunDefault",
+                        description: "Run the default 4-deep chain in this composite's own language.",
+                        input_type: "observability_cascade.v1.RunRequest",
+                        output_type: "observability_cascade.v1.CascadeReport",
+                        output_fields: [
+                            {
+                                name: "ticks",
+                                type: "int32",
+                                number: 1,
+                                label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                            },
+                            {
+                                name: "pass",
+                                type: "int32",
+                                number: 2,
+                                label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                            },
+                            {
+                                name: "fail",
+                                type: "int32",
+                                number: 3,
+                                label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                            },
+                            {
+                                name: "phases",
+                                type: "observability_cascade.v1.PhaseResult",
+                                number: 4,
+                                label: describe.holons.FieldLabel.FIELD_LABEL_REPEATED,
+                                nested_fields: [
+                                    {
+                                        name: "name",
+                                        type: "string",
+                                        number: 1,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                    },
+                                    {
+                                        name: "pass",
+                                        type: "int32",
+                                        number: 2,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                    },
+                                    {
+                                        name: "fail",
+                                        type: "int32",
+                                        number: 3,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                    },
+                                    {
+                                        name: "failures",
+                                        type: "string",
+                                        number: 4,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_REPEATED,
+                                    },
+                                ],
+                            },
+                        ],
+                        example_input: "{}",
+                    },
+                    {
+                        name: "RunLiveStream",
+                        description: "Run with long-lived Follow:true streams.",
+                        input_type: "observability_cascade.v1.RunRequest",
+                        output_type: "observability_cascade.v1.CascadeReport",
+                        output_fields: [
+                            {
+                                name: "ticks",
+                                type: "int32",
+                                number: 1,
+                                label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                            },
+                            {
+                                name: "pass",
+                                type: "int32",
+                                number: 2,
+                                label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                            },
+                            {
+                                name: "fail",
+                                type: "int32",
+                                number: 3,
+                                label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                            },
+                            {
+                                name: "phases",
+                                type: "observability_cascade.v1.PhaseResult",
+                                number: 4,
+                                label: describe.holons.FieldLabel.FIELD_LABEL_REPEATED,
+                                nested_fields: [
+                                    {
+                                        name: "name",
+                                        type: "string",
+                                        number: 1,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                    },
+                                    {
+                                        name: "pass",
+                                        type: "int32",
+                                        number: 2,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                    },
+                                    {
+                                        name: "fail",
+                                        type: "int32",
+                                        number: 3,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                    },
+                                    {
+                                        name: "failures",
+                                        type: "string",
+                                        number: 4,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_REPEATED,
+                                    },
+                                ],
+                            },
+                        ],
+                        example_input: "{}",
+                    },
+                    {
+                        name: "RunMultiPattern",
+                        description: "Run the full alter-language pattern matrix (3 patterns x 12 ticks = 36 ticks).",
+                        input_type: "observability_cascade.v1.RunRequest",
+                        output_type: "observability_cascade.v1.MultiPatternReport",
+                        output_fields: [
+                            {
+                                name: "patterns",
+                                type: "observability_cascade.v1.CascadeReport",
+                                number: 1,
+                                label: describe.holons.FieldLabel.FIELD_LABEL_REPEATED,
+                                nested_fields: [
+                                    {
+                                        name: "ticks",
+                                        type: "int32",
+                                        number: 1,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                    },
+                                    {
+                                        name: "pass",
+                                        type: "int32",
+                                        number: 2,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                    },
+                                    {
+                                        name: "fail",
+                                        type: "int32",
+                                        number: 3,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                    },
+                                    {
+                                        name: "phases",
+                                        type: "observability_cascade.v1.PhaseResult",
+                                        number: 4,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_REPEATED,
+                                        nested_fields: [
+                                            {
+                                                name: "name",
+                                                type: "string",
+                                                number: 1,
+                                                label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                            },
+                                            {
+                                                name: "pass",
+                                                type: "int32",
+                                                number: 2,
+                                                label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                            },
+                                            {
+                                                name: "fail",
+                                                type: "int32",
+                                                number: 3,
+                                                label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                            },
+                                            {
+                                                name: "failures",
+                                                type: "string",
+                                                number: 4,
+                                                label: describe.holons.FieldLabel.FIELD_LABEL_REPEATED,
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                name: "total_pass",
+                                type: "int32",
+                                number: 2,
+                                label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                            },
+                            {
+                                name: "total_fail",
+                                type: "int32",
+                                number: 3,
+                                label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                            },
+                        ],
+                        example_input: "{}",
+                    },
+                ],
+            },
+        ],
     }
 );
 }
