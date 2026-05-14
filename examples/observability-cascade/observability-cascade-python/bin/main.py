@@ -43,6 +43,7 @@ def find_cascade_root(start: pathlib.Path) -> pathlib.Path:
 
 ROOT = find_repo_root(HERE)
 CASCADE_ROOT = find_cascade_root(HERE)
+EXAMPLES_ROOT = HERE.parent
 PY_NODE = CASCADE_ROOT / "holons" / "observability-cascade-node"
 SDK_ROOT = ROOT / "sdk" / "python-holons"
 PY_GEN = HERE / "gen" / "python"
@@ -763,7 +764,7 @@ def find_binary(slug: str) -> str:
             ]
         )
     if slug == GO_SLUG:
-        go_node = CASCADE_ROOT / "observability-cascade-go" / "holons" / "observability-cascade-node"
+        go_node = EXAMPLES_ROOT / "observability-cascade-go" / "holons" / "observability-cascade-node"
         roots.extend(
             [
                 go_node / ".op" / "build" / "observability-cascade-node.holon" / "bin",
