@@ -16,8 +16,8 @@ public static class DescribeGenerated
         {
             Schema = "holon/v1",
             Uuid = "6322c728-d5e7-4fc8-ba25-90b24e2fc2b0",
-            GivenName = "observability-cascade",
-            FamilyName = "node-csharp",
+            GivenName = "Observability",
+            FamilyName = "Cascade-Csharp-Node",
             Motto = "Minimal observability cascade node.",
             Composer = "B. ALTER",
             Status = "draft",
@@ -35,13 +35,13 @@ public static class DescribeGenerated
         Requires = new HolonManifest.Types.Requires
         {
             Files = {
-                "observability-cascade-node-csharp.csproj",
+                "observability-cascade-csharp-node.csproj",
                 "cmd/Main.cs",
             },
         },
         Artifacts = new HolonManifest.Types.Artifacts
         {
-            Binary = "observability-cascade-node-csharp",
+            Binary = "observability-cascade-csharp-node",
         },
         Sequences = {
             new HolonManifest.Types.Sequence
@@ -62,7 +62,7 @@ public static class DescribeGenerated
                     },
                 },
                 Steps = {
-                    "op observability-cascade-node-csharp Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'",
+                    "op observability-cascade-csharp-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'",
                 },
             },
         },

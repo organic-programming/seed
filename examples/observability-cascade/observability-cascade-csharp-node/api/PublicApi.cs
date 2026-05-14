@@ -33,6 +33,6 @@ public static class PublicApi
     private static string ResponderSlug(Observability obs)
     {
         var configured = obs.Config.Slug?.Trim() ?? string.Empty;
-        return string.IsNullOrEmpty(configured) ? "observability-cascade-node-csharp" : configured;
+        return string.IsNullOrEmpty(configured) ? "observability-cascade-csharp-node" : configured;
     }
 }

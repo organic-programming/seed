@@ -30,7 +30,7 @@ public static class RelayServer
             new Serve.ServeOptions
             {
                 Reflect = reflect,
-                Slug = "observability-cascade-node-csharp",
+                Slug = "observability-cascade-csharp-node",
                 MemberEndpoints = members,
             });
         return Task.CompletedTask;

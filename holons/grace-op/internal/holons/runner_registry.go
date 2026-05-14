@@ -220,6 +220,8 @@ func writeDotnetLauncher(path string, dllName string) error {
 	}
 	script := fmt.Sprintf(`#!/bin/sh
 set -eu
+OP_HOLON_EXECUTABLE="${OP_HOLON_EXECUTABLE:-$0}"
+export OP_HOLON_EXECUTABLE
 %s
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 DOTNET_BIN=$(command -v dotnet 2>/dev/null || true)

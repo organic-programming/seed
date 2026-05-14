@@ -16,8 +16,8 @@ public static class DescribeGenerated
         {
             Schema = "holon/v1",
             Uuid = "462bb284-290d-44f8-b86b-d066f7226b22",
-            GivenName = "observability-cascade",
-            FamilyName = "csharp-composite",
+            GivenName = "Observability",
+            FamilyName = "Cascade-Csharp",
             Motto = "Validates C# observability cascade observability.",
             Composer = "B. ALTER",
             Status = "draft",
@@ -29,7 +29,7 @@ public static class DescribeGenerated
         Kind = "composite",
         Build = new HolonManifest.Types.Build
         {
-            Runner = "recipe",
+            Runner = "dotnet",
         },
         Requires = new HolonManifest.Types.Requires
         {

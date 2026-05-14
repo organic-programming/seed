@@ -5,13 +5,13 @@
     <UseAppHost>false</UseAppHost>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>observability-cascade-node-csharp</AssemblyName>
+    <AssemblyName>observability-cascade-csharp-node</AssemblyName>
     <RootNamespace>CascadeNode.Csharp</RootNamespace>
     <RollForward>Major</RollForward>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../../../../sdk/csharp-holons/Holons/Holons.csproj" />
+    <ProjectReference Include="../../../sdk/csharp-holons/Holons/Holons.csproj" />
     <PackageReference Include="Google.Protobuf" Version="3.32.0" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
     <PackageReference Include="Grpc.Net.Client" Version="2.76.0" />

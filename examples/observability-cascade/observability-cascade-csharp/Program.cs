@@ -40,23 +40,19 @@ sealed class App
 {
     private const int runPhases = 4;
     private const int runTicks = 3;
-    private const string csharpSlug = "observability-cascade-node-csharp";
-    private const string goSlug = "observability-cascade-node-go";
+    private const string csharpSlug = "observability-cascade-csharp-node";
+    private const string goSlug = "observability-cascade-go-node";
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(2) };
     private readonly string[] _roleOrder;
     private readonly string[] _transports;
-    private readonly string _sourceRoot;
-    private readonly string _examplesRoot;
-    private readonly string _repoRoot;
+    private readonly string? _repoRoot;
 
     public App(string[] roleOrder, string[] transports)
     {
         _roleOrder = roleOrder;
         _transports = transports;
-        _sourceRoot = FindSourceRoot();
-        _examplesRoot = Directory.GetParent(_sourceRoot)!.FullName;
-        _repoRoot = FindRepoRoot(_sourceRoot);
+        _repoRoot = FindRepoRoot(Directory.GetCurrentDirectory());
     }
 
     public void ServeComposite(string[] args)
@@ -415,7 +411,7 @@ sealed class App
         var psi = new ProcessStartInfo
         {
             FileName = runtime.BinaryPath,
-            WorkingDirectory = _repoRoot,
+            WorkingDirectory = WorkingDirectory(),
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -514,23 +510,14 @@ sealed class App
 
     private async Task<string> FindBinary(string slug)
     {
-        var envName = $"OBSERVABILITY_CASCADE_NODE_{slug["observability-cascade-node-".Length..].ToUpperInvariant().Replace('-', '_')}_BIN";
-        var fromEnv = Environment.GetEnvironmentVariable(envName);
-        if (!string.IsNullOrWhiteSpace(fromEnv))
-            return fromEnv.Trim();
-        var roots = new List<string>();
         if (slug == csharpSlug)
+            return Composite.Member("csharp-node");
+
+        var roots = new List<string>
         {
-            var csharpNode = Path.Combine(_sourceRoot, "holons", "observability-cascade-node");
-            roots.Add(Path.Combine(csharpNode, ".op", "build", "observability-cascade-node.holon", "bin"));
-            roots.Add(Path.Combine(csharpNode, ".op", "build", "observability-cascade-node-csharp.holon", "bin"));
-        }
-        if (slug == goSlug)
-        {
-            var goNode = Path.Combine(_examplesRoot, "observability-cascade-go", "holons", "observability-cascade-node");
-            roots.Add(Path.Combine(goNode, ".op", "build", "observability-cascade-node.holon", "bin"));
-            roots.Add(Path.Combine(goNode, ".op", "build", "observability-cascade-node-go.holon", "bin"));
-        }
+            Path.Combine(Environment.GetEnvironmentVariable("OPBIN") ??
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".op", "bin"), $"{slug}.holon", "bin"),
+        };
         foreach (var root in roots)
         {
             var foundInRoot = FindExecutable(root, slug);
@@ -539,7 +526,7 @@ sealed class App
         }
         var psi = new ProcessStartInfo("op", $"--bin {slug}")
         {
-            WorkingDirectory = _repoRoot,
+            WorkingDirectory = WorkingDirectory(),
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
@@ -554,6 +541,8 @@ sealed class App
             return found;
         throw new InvalidOperationException($"{slug} binary not found; run op build {slug} --install");
     }
+
+    private string WorkingDirectory() => _repoRoot ?? Directory.GetCurrentDirectory();
 
     private static string? FindExecutable(string root, string name)
     {
@@ -575,29 +564,7 @@ sealed class App
         return null;
     }
 
-    private static string FindSourceRoot()
-    {
-        var fromEnv = Environment.GetEnvironmentVariable("OBSERVABILITY_CASCADE_CSHARP_SOURCE_ROOT");
-        if (!string.IsNullOrWhiteSpace(fromEnv))
-            return Path.GetFullPath(fromEnv.Trim());
-        var current = new DirectoryInfo(Directory.GetCurrentDirectory());
-        while (current is not null)
-        {
-            if (IsSourceRoot(current.FullName))
-                return current.FullName;
-            var nested = Path.Combine(current.FullName, "examples", "observability-cascade", "observability-cascade-csharp");
-            if (IsSourceRoot(nested))
-                return nested;
-            current = current.Parent;
-        }
-        throw new InvalidOperationException("observability-cascade-csharp source root not found");
-    }
-
-    private static bool IsSourceRoot(string path) =>
-        File.Exists(Path.Combine(path, "api", "v1", "holon.proto")) &&
-        Directory.Exists(Path.Combine(path, "holons", "observability-cascade-node"));
-
-    private static string FindRepoRoot(string start)
+    private static string? FindRepoRoot(string start)
     {
         var current = new DirectoryInfo(start);
         while (current is not null)
@@ -607,7 +574,7 @@ sealed class App
                 return current.FullName;
             current = current.Parent;
         }
-        throw new InvalidOperationException("repository root not found");
+        return null;
     }
 
     private static string ChildRole(string role) => role switch

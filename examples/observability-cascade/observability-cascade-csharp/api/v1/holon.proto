@@ -27,33 +27,12 @@ option (holons.v1.manifest) = {
     rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
   }
   build: {
-    runner: "recipe"
+    runner: "dotnet"
     codegen: { languages: ["csharp"] }
-    defaults: {
-      target: "macos"
-      mode: "debug"
-    }
     members: {
       id: "csharp-node"
       path: "../observability-cascade-csharp-node"
       type: "holon"
-    }
-    targets: {
-      key: "macos"
-      value: {
-        steps: { build_member: "csharp-node" }
-        steps: {
-          exec: {
-            cwd: "."
-            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-csharp.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\"\ndotnet publish observability-cascade-csharp.csproj -c Release -o \"$pkg/bin/$arch\" >/dev/null\nchmod +x \"$pkg/bin/$arch/observability-cascade-csharp\""]
-          }
-        }
-        steps: {
-          assert_file: {
-            path: ".op/build/observability-cascade-csharp.holon/bin/darwin_arm64/observability-cascade-csharp"
-          }
-        }
-      }
     }
   }
   requires: {

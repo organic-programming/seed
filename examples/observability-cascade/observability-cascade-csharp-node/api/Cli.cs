@@ -6,7 +6,7 @@ namespace CascadeNode.Csharp.Api;
 
 public static class Cli
 {
-    public const string Version = "observability-cascade-node-csharp {{ .Version }}";
+    public const string Version = "observability-cascade-csharp-node {{ .Version }}";
 
     public static async Task<int> RunAsync(
         string[] args,
@@ -119,7 +119,7 @@ public static class Cli
 
     private static async Task PrintUsage(TextWriter output)
     {
-        await output.WriteLineAsync("usage: observability-cascade-node-csharp <command> [args] [flags]");
+        await output.WriteLineAsync("usage: observability-cascade-csharp-node <command> [args] [flags]");
         await output.WriteLineAsync();
         await output.WriteLineAsync("commands:");
         await output.WriteLineAsync("  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server");
