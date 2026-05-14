@@ -9,8 +9,8 @@ DescribeResponse staticDescribeResponse() {
     identity: HolonManifest_Identity(
       schema: "holon/v1",
       uuid: "6c907f2e-64d6-4d7c-89d4-e7283acfc20e",
-      givenName: "observability-cascade",
-      familyName: "node-dart",
+      givenName: "Observability",
+      familyName: "Cascade-Dart-Node",
       motto: "Minimal observability cascade node.",
       composer: "B. ALTER",
       status: "draft",
@@ -31,7 +31,7 @@ DescribeResponse staticDescribeResponse() {
       ],
     ),
     artifacts: HolonManifest_Artifacts(
-      binary: "observability-cascade-node-dart",
+      binary: "observability-cascade-dart-node",
     ),
     sequences: [
       HolonManifest_Sequence(
@@ -49,7 +49,7 @@ DescribeResponse staticDescribeResponse() {
           ),
         ],
         steps: [
-          "op observability-cascade-node-dart Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'",
+          "op observability-cascade-dart-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'",
         ],
       ),
     ],

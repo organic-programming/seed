@@ -8,20 +8,15 @@ import 'package:holons/gen/holons/v1/describe.pbgrpc.dart' as describe_pb;
 import 'package:holons/gen/holons/v1/observability.pbgrpc.dart' as obs_pb;
 import 'package:protobuf/protobuf.dart';
 
-import '../gen/dart/observability_cascade/v1/service.pbgrpc.dart'
-    as cascade_pb;
-import '../gen/describe_generated.dart';
-import '../holons/observability-cascade-node/gen/dart/relay/v1/relay.pbgrpc.dart'
+import '../../observability-cascade-dart-node/gen/dart/relay/v1/relay.pbgrpc.dart'
     as relay_pb;
+import '../gen/dart/observability_cascade/v1/service.pbgrpc.dart' as cascade_pb;
+import '../gen/describe_generated.dart';
 
-const goSlug = 'observability-cascade-node-go';
-const dartSlug = 'observability-cascade-node-dart';
+const goSlug = 'observability-cascade-go-node';
+const dartSlug = 'observability-cascade-dart-node';
 const runTicks = 3;
 const runPhases = 4;
-const sourceRoot = String.fromEnvironment(
-  'OBSERVABILITY_CASCADE_DART_SOURCE_ROOT',
-  defaultValue: '.',
-);
 
 const roleOrder = ['D', 'C', 'B', 'A'];
 
@@ -297,7 +292,7 @@ class Cascade {
     }
     return (
       CheckResult(pass: true, evidence: 'cascade_ticks_total=$value'),
-      value
+      value,
     );
   }
 
@@ -426,7 +421,8 @@ class MultiPatternReportData {
   final int totalFail;
 }
 
-class ObservabilityCascadeRpc extends cascade_pb.ObservabilityCascadeServiceBase {
+class ObservabilityCascadeRpc
+    extends cascade_pb.ObservabilityCascadeServiceBase {
   @override
   Future<cascade_pb.CascadeReport> runDefault(
     ServiceCall call,
@@ -479,10 +475,11 @@ Future<void> serveComposite(List<String> args) {
   useStaticResponse(staticDescribeResponse());
   final parsed = parseOptions(args);
   return runWithOptions(
-    parsed.listenUri,
-    <Service>[ObservabilityCascadeRpc()],
-    options: ServeOptions(reflect: parsed.reflect),
-  );
+      parsed.listenUri,
+      <Service>[
+        ObservabilityCascadeRpc(),
+      ],
+      options: ServeOptions(reflect: parsed.reflect));
 }
 
 Future<CascadeReportData> run({bool emit = true}) async {
@@ -785,9 +782,7 @@ Future<MultiPatternReportData> runMultiPatternMode({bool emit = true}) async {
         } else {
           totalFail++;
           results.add('Tick $tick FAIL (${failureSummary(result)})');
-          evidence.add(
-            '      Tick $tick evidence: ${compactEvidence(result)}',
-          );
+          evidence.add('      Tick $tick evidence: ${compactEvidence(result)}');
         }
       }
       output(
@@ -970,8 +965,10 @@ extension CascadeStart on Cascade {
       const Duration(seconds: 10),
     );
     runtime.metricsAddr = meta.metricsAddr;
-    runtime.conn =
-        await dialReady(runtime.clientTarget, const Duration(seconds: 10));
+    runtime.conn = await dialReady(
+      runtime.clientTarget,
+      const Duration(seconds: 10),
+    );
   }
 }
 
@@ -1200,56 +1197,20 @@ double? parseCascadeTicks(String body, String uid) {
   return null;
 }
 
-Future<String> findCascadeNodeBinary() {
-  return findHolonBinary(dartSlug);
+Future<String> findCascadeNodeBinary() async {
+  return member('dart-node');
 }
 
 Future<String> findHolonBinary(String slug) async {
-  final envName =
-      'OBSERVABILITY_CASCADE_NODE_${slug.replaceFirst('observability-cascade-node-', '').toUpperCase()}_BIN';
-  final override = Platform.environment[envName]?.trim() ?? '';
-  if (override.isNotEmpty) {
-    return override;
-  }
-  final home = Platform.environment['HOME'];
-  if (home == null || home.isEmpty) {
-    throw StateError('HOME is not set');
-  }
-
-  final roots = <Directory>[];
   if (slug == dartSlug) {
-    roots.add(
-      Directory(
-        '$sourceRoot/holons/observability-cascade-node/.op/build/observability-cascade-node.holon/bin',
-      ),
-    );
-    roots.add(
-      Directory(
-        '$sourceRoot/holons/observability-cascade-node/.op/build/observability-cascade-node-dart.holon/bin',
-      ),
-    );
+    return findCascadeNodeBinary();
   }
-  if (slug == goSlug) {
-    roots.add(
-      Directory(
-        '$sourceRoot/../observability-cascade-go/holons/observability-cascade-node/.op/build/observability-cascade-node.holon/bin',
-      ),
-    );
-    roots.add(
-      Directory(
-        '$sourceRoot/../observability-cascade-go/holons/observability-cascade-node/.op/build/observability-cascade-node-go.holon/bin',
-      ),
-    );
-  }
-  roots.add(Directory('$home/.op/bin/$slug.holon/bin'));
+  final root = Directory('${opBin()}/$slug.holon/bin');
 
   final osToken =
       Platform.operatingSystem == 'macos' ? 'darwin' : Platform.operatingSystem;
   String? found;
-  for (final root in roots) {
-    if (!await root.exists()) {
-      continue;
-    }
+  if (await root.exists()) {
     await for (final entity in root.list(recursive: true, followLinks: false)) {
       if (entity is! File || entity.uri.pathSegments.last != slug) {
         continue;
@@ -1258,16 +1219,25 @@ Future<String> findHolonBinary(String slug) async {
         found = entity.path;
       }
     }
-    if (found != null) {
-      break;
-    }
   }
   if (found == null) {
     throw StateError(
-      '$slug binary not found under ${roots.map((root) => root.path).join(', ')}; run op build $slug --install',
+      '$slug binary not found under ${root.path}; run op build $slug --install',
     );
   }
   return found;
+}
+
+String opBin() {
+  final override = Platform.environment['OPBIN']?.trim() ?? '';
+  if (override.isNotEmpty) {
+    return override;
+  }
+  final home = Platform.environment['HOME'];
+  if (home == null || home.isEmpty) {
+    throw StateError('HOME is not set');
+  }
+  return '$home/.op/bin';
 }
 
 void output(bool emit, [Object? value = '']) {

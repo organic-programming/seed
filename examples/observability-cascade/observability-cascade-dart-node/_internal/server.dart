@@ -19,11 +19,13 @@ class RelayServer extends RelayServiceBase {
       'responder_slug': slug,
       'responder_uid': uid,
     });
-    obs.counter(
-      'cascade_ticks_total',
-      help: 'Ticks received by this cascade node.',
-      labels: {'responder_uid': uid},
-    )?.inc();
+    obs
+        .counter(
+          'cascade_ticks_total',
+          help: 'Ticks received by this cascade node.',
+          labels: {'responder_uid': uid},
+        )
+        ?.inc();
     return TickResponse(responderSlug: slug, responderInstanceUid: uid);
   }
 }
@@ -34,12 +36,9 @@ Future<void> listenAndServe(
   List<MemberRef> members = const [],
 }) {
   useStaticResponse(staticDescribeResponse());
-  return runWithOptions(
-      listenUri,
-      <Service>[
-        RelayServer(),
-      ],
-      options: ServeOptions(reflect: reflect, memberEndpoints: members));
+  return runWithOptions(listenUri, <Service>[
+    RelayServer(),
+  ], options: ServeOptions(reflect: reflect, memberEndpoints: members));
 }
 
 String _responderSlug(Observability obs) {

@@ -27,33 +27,13 @@ option (holons.v1.manifest) = {
     rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
   }
   build: {
-    runner: "recipe"
+    runner: "dart"
+    main: "./cmd/main.dart"
     codegen: { languages: ["dart"] }
-    defaults: {
-      target: "macos"
-      mode: "debug"
-    }
     members: {
       id: "dart-node"
       path: "../observability-cascade-dart-node"
       type: "holon"
-    }
-    targets: {
-      key: "macos"
-      value: {
-        steps: { build_member: "dart-node" }
-        steps: {
-          exec: {
-            cwd: "."
-            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-dart.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\"\nmkdir -p \"$pkg/bin/$arch\"\ndart pub get\ndart compile exe -DOBSERVABILITY_CASCADE_DART_SOURCE_ROOT=\"$PWD\" cmd/main.dart -o \"$pkg/bin/$arch/observability-cascade-dart\""]
-          }
-        }
-        steps: {
-          assert_file: {
-            path: ".op/build/observability-cascade-dart.holon/bin/darwin_arm64/observability-cascade-dart"
-          }
-        }
-      }
     }
   }
   requires: {

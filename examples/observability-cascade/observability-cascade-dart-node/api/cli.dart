@@ -4,7 +4,7 @@ import 'package:holons/holons.dart';
 
 import '../_internal/server.dart' as rpc;
 
-const String version = 'observability-cascade-node-dart 0.1.0';
+const String version = 'observability-cascade-dart-node 0.1.0';
 
 Future<int> main(
   List<String> args, {
@@ -83,7 +83,9 @@ String canonicalCommand(String raw) {
 }
 
 void printUsage(StringSink out) {
-  out.writeln('usage: observability-cascade-node-dart <command> [args] [flags]');
+  out.writeln(
+    'usage: observability-cascade-dart-node <command> [args] [flags]',
+  );
   out.writeln('');
   out.writeln('commands:');
   out.writeln(

@@ -9,8 +9,8 @@ DescribeResponse staticDescribeResponse() {
     identity: HolonManifest_Identity(
       schema: "holon/v1",
       uuid: "439ebe58-a8df-4ffd-8f28-5378cc00de29",
-      givenName: "observability-cascade",
-      familyName: "dart-composite",
+      givenName: "Observability",
+      familyName: "Cascade-Dart",
       motto: "Validates Dart observability cascade observability.",
       composer: "B. ALTER",
       status: "draft",
@@ -21,7 +21,8 @@ DescribeResponse staticDescribeResponse() {
     lang: "dart",
     kind: "composite",
     build: HolonManifest_Build(
-      runner: "recipe",
+      runner: "dart",
+      main: "./cmd/main.dart",
     ),
     requires: HolonManifest_Requires(
       files: [
