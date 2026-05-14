@@ -24,7 +24,10 @@ private let app = App(roleOrder: roleOrder, transports: transports)
 do {
     let rawArgs = Array(CommandLine.arguments.dropFirst())
     let args = Set(rawArgs)
-    if let first = rawArgs.first, canonicalCommand(first) == "serve" {
+    if ProcessInfo.processInfo.environment["OP_COAX_SERVER_ENABLED"] == "1" {
+        let listenURI = ProcessInfo.processInfo.environment["OP_COAX_SERVER_LISTEN_URI"] ?? "tcp://127.0.0.1:0"
+        try app.serveComposite(["--listen", listenURI])
+    } else if let first = rawArgs.first, canonicalCommand(first) == "serve" {
         try app.serveComposite(Array(rawArgs.dropFirst()))
     } else if args.contains("--multi-pattern") {
         _ = try app.runMultiPattern(emit: true)
