@@ -6,8 +6,12 @@ const sdk_gen_root = sdk_root ++ "/gen/c";
 
 const generated_c_sources = [_][]const u8{
     "google/protobuf/descriptor.pb-c.c",
-    "holons/v1/manifest.pb-c.c",
+    "google/protobuf/duration.pb-c.c",
+    "google/protobuf/timestamp.pb-c.c",
     "holons/v1/describe.pb-c.c",
+    "holons/v1/manifest.pb-c.c",
+    "holons/v1/observability.pb-c.c",
+    "holons/v1/session.pb-c.c",
     "v1/greeting.pb-c.c",
 };
 
