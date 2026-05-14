@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "5f726cb8-eadc-4870-be30-9aceb1be0554"
-    given_name: "observability-cascade"
-    family_name: "swift-composite"
+    given_name: "Observability"
+    family_name: "Cascade-Swift"
     motto: "Validates Swift observability cascade observability."
     composer: "B. ALTER"
     status: "draft"

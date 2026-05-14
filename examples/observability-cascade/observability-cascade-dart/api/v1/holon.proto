@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "439ebe58-a8df-4ffd-8f28-5378cc00de29"
-    given_name: "observability-cascade"
-    family_name: "dart-composite"
+    given_name: "Observability"
+    family_name: "Cascade-Dart"
     motto: "Validates Dart observability cascade observability."
     composer: "B. ALTER"
     status: "draft"

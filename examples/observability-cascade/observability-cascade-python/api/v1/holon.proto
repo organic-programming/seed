@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "2da61fdd-4a33-42ab-ab98-d66a2886a123"
-    given_name: "observability-cascade"
-    family_name: "python-composite"
+    given_name: "Observability"
+    family_name: "Cascade-Python"
     motto: "Validates Python observability cascade observability."
     composer: "B. ALTER"
     status: "draft"

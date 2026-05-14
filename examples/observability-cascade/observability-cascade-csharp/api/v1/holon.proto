@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "462bb284-290d-44f8-b86b-d066f7226b22"
-    given_name: "observability-cascade"
-    family_name: "csharp-composite"
+    given_name: "Observability"
+    family_name: "Cascade-Csharp"
     motto: "Validates C# observability cascade observability."
     composer: "B. ALTER"
     status: "draft"

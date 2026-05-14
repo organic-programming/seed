@@ -9,8 +9,8 @@ option (holons.v1.manifest) = {
   identity: {
     schema: "holon/v1"
     uuid: "64156f12-3985-4d72-b5b7-1b9b6da80f13"
-    given_name: "observability-cascade"
-    family_name: "zig-composite"
+    given_name: "Observability"
+    family_name: "Cascade-Zig"
     motto: "Validates Zig observability cascade observability."
     composer: "B. ALTER"
     status: "draft"
