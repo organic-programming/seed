@@ -13,8 +13,8 @@ pub fn static_describe_response() -> DescribeResponse {
                 Identity {
                     schema: "holon/v1".to_string(),
                     uuid: "1002f937-9710-4fb2-834e-064025bd3e0a".to_string(),
-                    given_name: "observability-cascade".to_string(),
-                    family_name: "rust-composite".to_string(),
+                    given_name: "Observability".to_string(),
+                    family_name: "Cascade-Rust".to_string(),
                     motto: "Validates Rust observability cascade observability.".to_string(),
                     composer: "B. ALTER".to_string(),
                     status: "draft".to_string(),
@@ -32,8 +32,8 @@ pub fn static_describe_response() -> DescribeResponse {
             transport: "".to_string(),
             build: Some(
                 Build {
-                    runner: "recipe".to_string(),
-                    main: "".to_string(),
+                    runner: "cargo".to_string(),
+                    main: "./src/main.rs".to_string(),
                     defaults: None,
                     members: vec![],
                     targets: ::std::collections::HashMap::new(),

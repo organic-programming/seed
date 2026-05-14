@@ -819,17 +819,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
 
 [[package]]
-name = "observability-cascade-node-rust"
-version = "0.1.0"
-dependencies = [
- "holons",
- "prost",
- "tokio",
- "tonic",
- "tonic-build",
-]
-
-[[package]]
 name = "observability-cascade-rust"
 version = "0.1.0"
 dependencies = [
@@ -837,7 +826,7 @@ dependencies = [
  "holons",
  "hyper-util",
  "libc",
- "observability-cascade-node-rust",
+ "observability-cascade-rust-node",
  "prost",
  "reqwest",
  "serde",
@@ -846,6 +835,17 @@ dependencies = [
  "tonic",
  "tonic-build",
  "tower-service",
+]
+
+[[package]]
+name = "observability-cascade-rust-node"
+version = "0.1.0"
+dependencies = [
+ "holons",
+ "prost",
+ "tokio",
+ "tonic",
+ "tonic-build",
 ]
 
 [[package]]

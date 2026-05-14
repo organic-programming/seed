@@ -1,13 +1,14 @@
 use anyhow::{anyhow, Context, Result};
-use observability_cascade_node_rust::gen::rust::relay::v1::{
-    relay_service_client::RelayServiceClient, TickRequest,
-};
+use holons::composite;
 use holons::gen::holons::v1::{
     holon_meta_client::HolonMetaClient, holon_observability_client::HolonObservabilityClient,
     ChainHop, DescribeRequest, EventInfo, EventType, EventsRequest, LogEntry, LogLevel,
     LogsRequest,
 };
 use hyper_util::rt::TokioIo;
+use observability_cascade_rust_node::gen::rust::relay::v1::{
+    relay_service_client::RelayServiceClient, TickRequest,
+};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::env;
@@ -22,9 +23,9 @@ use std::task::{Context as TaskContext, Poll};
 use std::time::{Duration, Instant};
 use tokio::net::UnixStream;
 use tokio::task::JoinHandle;
-use tonic::{Request, Response, Status};
 use tonic::codegen::http::Uri;
 use tonic::transport::{Channel, Endpoint};
+use tonic::{Request, Response, Status};
 use tower_service::Service;
 
 mod gen {
@@ -49,8 +50,8 @@ mod gen {
 
 use gen::rust::observability_cascade::v1 as cascadepb;
 
-const GO_SLUG: &str = "observability-cascade-node-go";
-const RUST_SLUG: &str = "observability-cascade-node-rust";
+const GO_SLUG: &str = "observability-cascade-go-node";
+const RUST_SLUG: &str = "observability-cascade-rust-node";
 const RUN_TICKS: usize = 3;
 const RUN_PHASES: usize = 4;
 const ROLE_ORDER: [&str; 4] = ["D", "C", "B", "A"];
@@ -167,7 +168,9 @@ async fn main() {
         .map(|arg| canonical_command(arg) == "serve")
         .unwrap_or(false)
     {
-        serve_composite(&args[1..]).await.map_err(|err| anyhow!(err))
+        serve_composite(&args[1..])
+            .await
+            .map_err(|err| anyhow!(err))
     } else if args.iter().any(|arg| arg == "--multi-pattern") {
         run_multi_pattern(true).await.map(|_| ())
     } else if args.iter().any(|arg| arg == "--live-stream") {
@@ -239,9 +242,7 @@ async fn serve_composite(args: &[String]) -> holons::serve::Result<()> {
 fn register_static_describe() {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
-        holons::describe::use_static_response(
-            gen::describe_generated::static_describe_response(),
-        );
+        holons::describe::use_static_response(gen::describe_generated::static_describe_response());
     });
 }
 
@@ -368,7 +369,10 @@ async fn run_live_stream(emit: bool) -> Result<CascadeReportData> {
                 "Phase {phase_no}/{RUN_PHASES}: initial chain ({transport})"
             );
         } else {
-            outputln!(emit, "Phase {phase_no}/{RUN_PHASES}: respawn on {transport}");
+            outputln!(
+                emit,
+                "Phase {phase_no}/{RUN_PHASES}: respawn on {transport}"
+            );
             let kill_start = Instant::now();
             if let Some(mut s) = streams.take() {
                 s.stop().await;
@@ -1489,87 +1493,45 @@ fn pattern_roles(items: [(&'static str, &'static str, PathBuf); 4]) -> HashMap<S
 }
 
 fn find_cascade_node_binary() -> Result<PathBuf> {
-    find_holon_binary(RUST_SLUG)
+    composite::member("rust-node").map_err(|err| anyhow!(err))
 }
 
 fn find_holon_binary(slug: &str) -> Result<PathBuf> {
-    let lang = slug
-        .trim_start_matches("observability-cascade-node-")
-        .to_ascii_uppercase();
-    let env_name = format!("OBSERVABILITY_CASCADE_NODE_{lang}_BIN");
-    if let Ok(value) = env::var(&env_name) {
-        if !value.trim().is_empty() {
-            return Ok(PathBuf::from(value));
-        }
-    }
-
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let mut roots = Vec::new();
     if slug == RUST_SLUG {
-        roots.push(
-            manifest_dir
-                .join("holons/observability-cascade-node/.op/build/observability-cascade-node.holon/bin"),
-        );
-        roots.push(
-            manifest_dir
-                .join("holons/observability-cascade-node/.op/build/observability-cascade-node-rust.holon/bin"),
-        );
-    }
-    if slug == GO_SLUG {
-        roots.push(
-            manifest_dir
-                .join("../observability-cascade-go/holons/observability-cascade-node/.op/build/observability-cascade-node.holon/bin"),
-        );
-        roots.push(
-            manifest_dir
-                .join("../observability-cascade-go/holons/observability-cascade-node/.op/build/observability-cascade-node-go.holon/bin"),
-        );
+        return find_cascade_node_binary();
     }
 
-    let home = env::var("HOME").context("HOME is not set")?;
-    roots.push(Path::new(&home)
-        .join(".op")
-        .join("bin")
-        .join(format!("{slug}.holon"))
-        .join("bin"));
+    let root = installed_package_bin_root(slug)?;
 
     let mut found: Option<PathBuf> = None;
-    for root in &roots {
-        if !root.exists() {
-            continue;
-        }
-        visit_files(root, &mut |path| {
-            if path.file_name().and_then(|name| name.to_str()) != Some(slug) {
-                return;
-            }
-            let Ok(meta) = fs::metadata(path) else {
-                return;
-            };
-            #[cfg(unix)]
+    if root.exists() {
+        visit_files(&root, &mut |path| {
+            if path.file_name().and_then(|name| name.to_str()) == Some(slug)
+                && is_executable_file(path)
             {
-                use std::os::unix::fs::PermissionsExt;
-                if meta.permissions().mode() & 0o111 == 0 {
-                    return;
+                if path.to_string_lossy().contains(env::consts::OS) || found.is_none() {
+                    found = Some(path.to_path_buf());
                 }
             }
-            if path.to_string_lossy().contains(env::consts::OS) || found.is_none() {
-                found = Some(path.to_path_buf());
-            }
         })?;
-        if found.is_some() {
-            break;
-        }
     }
     found.ok_or_else(|| {
         anyhow!(
             "{slug} binary not found under {}; run op build {slug} --install",
-            roots
-                .iter()
-                .map(|path| path.display().to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
+            root.display()
         )
     })
+}
+
+fn installed_package_bin_root(slug: &str) -> Result<PathBuf> {
+    let opbin = match env::var("OPBIN") {
+        Ok(value) if !value.trim().is_empty() => PathBuf::from(value),
+        _ => {
+            let home = env::var("HOME").context("HOME is not set")?;
+            PathBuf::from(home).join(".op").join("bin")
+        }
+    };
+    Ok(opbin.join(format!("{slug}.holon")).join("bin"))
 }
 
 fn visit_files(root: &Path, visit: &mut impl FnMut(&Path)) -> Result<()> {
@@ -1583,6 +1545,28 @@ fn visit_files(root: &Path, visit: &mut impl FnMut(&Path)) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn is_executable_file(path: &Path) -> bool {
+    let Ok(meta) = fs::metadata(path) else {
+        return false;
+    };
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        meta.permissions().mode() & 0o111 != 0
+    }
+    #[cfg(windows)]
+    {
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("exe"))
+            .unwrap_or(false)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        meta.is_file()
+    }
 }
 
 fn run_root() -> PathBuf {

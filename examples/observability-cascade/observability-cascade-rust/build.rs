@@ -29,7 +29,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn shared_proto_root(manifest_dir: &PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let candidates = [manifest_dir.join(".op/protos"), manifest_dir.join("../_protos")];
+    let candidates = [
+        manifest_dir.join(".op/protos"),
+        manifest_dir.join("../_protos"),
+    ];
 
     for candidate in candidates {
         if candidate

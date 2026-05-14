@@ -1,6 +1,6 @@
 use std::io::Write;
 
-pub const VERSION: &str = "observability-cascade-node-rust 0.1.0";
+pub const VERSION: &str = "observability-cascade-rust-node 0.1.0";
 
 pub fn run_cli(args: &[String], stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
     if args.is_empty() {
@@ -97,7 +97,10 @@ fn canonical_command(raw: &str) -> String {
 }
 
 fn print_usage(out: &mut dyn Write) -> std::io::Result<()> {
-    writeln!(out, "usage: observability-cascade-node-rust <command> [args] [flags]")?;
+    writeln!(
+        out,
+        "usage: observability-cascade-rust-node <command> [args] [flags]"
+    )?;
     writeln!(out)?;
     writeln!(out, "commands:")?;
     writeln!(

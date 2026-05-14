@@ -6,7 +6,7 @@ build = "build.rs"
 
 [dependencies]
 anyhow = "1"
-observability-cascade-node-rust = { path = "holons/observability-cascade-node" }
+observability-cascade-rust-node = { path = "../observability-cascade-rust-node" }
 holons = { path = "../../../sdk/rust-holons" }
 hyper-util = { version = "0.1", features = ["tokio"] }
 libc = "0.2"

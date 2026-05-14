@@ -3,6 +3,7 @@
 //! Transport, serve, and identity utilities for building holons in Rust.
 
 mod command_channel;
+pub mod composite;
 pub mod connect;
 pub mod describe;
 pub mod discover;

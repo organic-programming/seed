@@ -88,5 +88,5 @@ fn responder_slug(obs: &holons::observability::Observability) -> String {
                 .file_name()
                 .map(|name| name.to_string_lossy().to_string())
         })
-        .unwrap_or_else(|| "observability-cascade-node-rust".to_string())
+        .unwrap_or_else(|| "observability-cascade-rust-node".to_string())
 }

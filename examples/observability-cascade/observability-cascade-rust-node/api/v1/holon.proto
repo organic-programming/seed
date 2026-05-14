@@ -5,7 +5,7 @@ package relay.v1;
 import "holons/v1/manifest.proto";
 import "relay/v1/relay.proto";
 
-// Rust-specific holon descriptor for observability-cascade-node-rust.
+// Rust-specific holon descriptor for observability-cascade-rust-node.
 // Layers Cargo build metadata and holon identity on top of the shared
 // observability-cascade contract.
 
@@ -45,7 +45,7 @@ option (holons.v1.manifest) = {
       {name: "note", description: "Free-form tick note", required: false}
     ]
     steps: [
-      "op observability-cascade-node-rust Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
+      "op observability-cascade-rust-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
     ]
   }]
 };

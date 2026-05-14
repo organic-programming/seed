@@ -13,8 +13,8 @@ pub fn static_describe_response() -> DescribeResponse {
                 Identity {
                     schema: "holon/v1".to_string(),
                     uuid: "7f780d1d-98b4-42eb-8f18-6f0860602bb0".to_string(),
-                    given_name: "observability-cascade".to_string(),
-                    family_name: "node-rust".to_string(),
+                    given_name: "Observability".to_string(),
+                    family_name: "Cascade-Rust-Node".to_string(),
                     motto: "Minimal observability cascade node.".to_string(),
                     composer: "B. ALTER".to_string(),
                     status: "draft".to_string(),
@@ -55,7 +55,7 @@ pub fn static_describe_response() -> DescribeResponse {
             ),
             artifacts: Some(
                 Artifacts {
-                    binary: "observability-cascade-node-rust".to_string(),
+                    binary: "observability-cascade-rust-node".to_string(),
                     primary: "".to_string(),
                     by_target: ::std::collections::HashMap::new(),
                 }
@@ -81,7 +81,7 @@ pub fn static_describe_response() -> DescribeResponse {
                         ,
                     ],
                     steps: vec![
-                        "op observability-cascade-node-rust Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'".to_string(),
+                        "op observability-cascade-rust-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'".to_string(),
                     ],
                 }
                 ,
