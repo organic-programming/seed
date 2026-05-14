@@ -16,7 +16,12 @@ import time
 from dataclasses import dataclass, field
 from urllib.request import urlopen
 
-HERE = pathlib.Path(__file__).resolve().parents[1]
+HERE = pathlib.Path(
+    os.environ.get(
+        "OBSERVABILITY_CASCADE_PYTHON_SOURCE_ROOT",
+        pathlib.Path(__file__).resolve().parents[1],
+    )
+).resolve()
 
 
 def find_repo_root(start: pathlib.Path) -> pathlib.Path:
@@ -29,23 +34,30 @@ def find_repo_root(start: pathlib.Path) -> pathlib.Path:
 def find_cascade_root(start: pathlib.Path) -> pathlib.Path:
     for candidate in [start, *start.parents]:
         parent = candidate.parent
+        if (candidate / "holons" / "observability-cascade-node").is_dir():
+            return candidate
         if (parent / "observability-cascade-node-python").is_dir():
             return parent
     raise RuntimeError("could not locate observability-cascade examples root")
 
 
-ROOT = find_repo_root(pathlib.Path(__file__).resolve())
-CASCADE_ROOT = find_cascade_root(pathlib.Path(__file__).resolve())
-PY_NODE = CASCADE_ROOT / "observability-cascade-node-python"
+ROOT = find_repo_root(HERE)
+CASCADE_ROOT = find_cascade_root(HERE)
+PY_NODE = CASCADE_ROOT / "holons" / "observability-cascade-node"
 SDK_ROOT = ROOT / "sdk" / "python-holons"
+PY_GEN = HERE / "gen" / "python"
 
-for path in (PY_NODE / "gen" / "python", SDK_ROOT):
+for path in (HERE, PY_GEN, PY_NODE / "gen" / "python", SDK_ROOT):
     text = str(path)
     if text not in sys.path:
         sys.path.insert(0, text)
 
 import grpc
+from gen import describe_generated
+from holons import describe
+from holons.serve import ServeOptions, parse_options, run_with_serve_options
 from holons.v1 import describe_pb2, describe_pb2_grpc, observability_pb2, observability_pb2_grpc
+from observability_cascade.v1 import service_pb2, service_pb2_grpc
 from relay.v1 import relay_pb2, relay_pb2_grpc
 
 RUN_PHASES = 4
@@ -90,6 +102,29 @@ class TickOutcome:
     event: CheckResult
     metric: CheckResult
     metric_value: float = 0.0
+
+
+@dataclass
+class PhaseReportData:
+    name: str
+    pass_count: int
+    fail_count: int
+    failures: list[str] = field(default_factory=list)
+
+
+@dataclass
+class CascadeReportData:
+    ticks: int
+    pass_count: int
+    fail_count: int
+    phases: list[PhaseReportData]
+
+
+@dataclass
+class MultiPatternReportData:
+    patterns: list[CascadeReportData]
+    total_pass: int
+    total_fail: int
 
 
 @dataclass
@@ -327,10 +362,43 @@ class LiveStreams:
                 self._errors.append(f"events stream ended: {exc}")
 
 
+class ObservabilityCascadeService(service_pb2_grpc.ObservabilityCascadeServiceServicer):
+    def RunDefault(self, request, context):
+        del request, context
+        return to_cascade_report(run_default(emit=False))
+
+    def RunLiveStream(self, request, context):
+        del request, context
+        return to_cascade_report(run_live_stream(emit=False))
+
+    def RunMultiPattern(self, request, context):
+        del request, context
+        return to_multi_pattern_report(run_multi_pattern(emit=False))
+
+
+def serve_composite(args: list[str]) -> None:
+    describe.use_static_response(describe_generated.static_describe_response())
+    options = parse_options(args)
+
+    def register(server) -> None:
+        service_pb2_grpc.add_ObservabilityCascadeServiceServicer_to_server(
+            ObservabilityCascadeService(),
+            server,
+        )
+
+    run_with_serve_options(
+        options.listen_uri,
+        register,
+        ServeOptions(reflect=options.reflect, slug="observability-cascade-python"),
+    )
+
+
 def main() -> int:
     args = sys.argv[1:]
     try:
-        if "--multi-pattern" in args:
+        if args and canonical_command(args[0]) == "serve":
+            serve_composite(args[1:])
+        elif "--multi-pattern" in args:
             run_multi_pattern()
         elif "--live-stream" in args:
             run_live_stream()
@@ -342,28 +410,28 @@ def main() -> int:
     return 0
 
 
-def run_default() -> None:
+def run_default(emit: bool = True) -> CascadeReportData:
     binary = find_binary(PY_SLUG)
     run_root = pathlib.Path(tempfile.mkdtemp(prefix="observability-cascade-python-"))
-    print("=== observability-cascade-python ===")
-    print()
+    output(emit, "=== observability-cascade-python ===")
+    output(emit)
     total_pass = 0
     total_fail = 0
     previous = ""
     for phase, transport in enumerate(TRANSPORTS, start=1):
         if not previous:
-            print(f"Phase {phase}/{RUN_PHASES}: transport={transport}")
+            output(emit, f"Phase {phase}/{RUN_PHASES}: transport={transport}")
         else:
-            print(f"Phase {phase}/{RUN_PHASES}: transport={transport} (switching from {previous})")
+            output(emit, f"Phase {phase}/{RUN_PHASES}: transport={transport} (switching from {previous})")
         started = time.time()
         try:
             cascade = spawn_cascade(phase, transport, {"A": RoleSpec(PY_SLUG, binary), "B": RoleSpec(PY_SLUG, binary), "C": RoleSpec(PY_SLUG, binary), "D": RoleSpec(PY_SLUG, binary)}, run_root)
         except Exception as exc:
             total_fail += RUN_TICKS
-            print(f"  spawn FAIL: {exc}\n")
+            output(emit, f"  spawn FAIL: {exc}\n")
             previous = transport
             continue
-        print(f"  spawned 4 nodes in {elapsed(started)}")
+        output(emit, f"  spawned 4 nodes in {elapsed(started)}")
         previous_metric = 0.0
         for tick in range(1, RUN_TICKS + 1):
             tick_start = time.time()
@@ -373,27 +441,33 @@ def run_default() -> None:
             overall = outcome.log.pass_ and outcome.event.pass_ and outcome.metric.pass_
             total_pass += 1 if overall else 0
             total_fail += 0 if overall else 1
-            print(f"  Tick {tick}/{RUN_TICKS}: log {pass_text(outcome.log.pass_)}, event {pass_text(outcome.event.pass_)}, metric {pass_text(outcome.metric.pass_)} (overall {pass_text(overall)} in {elapsed(tick_start)})")
-            if not overall:
+            output(emit, f"  Tick {tick}/{RUN_TICKS}: log {pass_text(outcome.log.pass_)}, event {pass_text(outcome.event.pass_)}, metric {pass_text(outcome.metric.pass_)} (overall {pass_text(overall)} in {elapsed(tick_start)})")
+            if emit and not overall:
                 print_failure_evidence("log", outcome.log)
                 print_failure_evidence("event", outcome.event)
                 print_failure_evidence("metric", outcome.metric)
         cascade.stop()
-        print()
+        output(emit)
         previous = transport
-    print(f"Summary: {total_pass + total_fail} ticks, {total_pass} PASS, {total_fail} FAIL")
+    output(emit, f"Summary: {total_pass + total_fail} ticks, {total_pass} PASS, {total_fail} FAIL")
     if total_fail:
         raise RuntimeError(f"{total_fail} tick(s) failed")
+    return CascadeReportData(
+        total_pass + total_fail,
+        total_pass,
+        total_fail,
+        [PhaseReportData("default", total_pass, total_fail)],
+    )
 
 
-def run_live_stream() -> None:
+def run_live_stream(emit: bool = True) -> CascadeReportData:
     binary = find_binary(PY_SLUG)
     run_root = pathlib.Path(tempfile.mkdtemp(prefix="observability-cascade-python-live-"))
-    print("=== observability-cascade-python --live-stream ===")
-    print()
-    print("Setup: opening long-lived Follow:true streams on A")
-    print("       (initial transport: tcp)")
-    print()
+    output(emit, "=== observability-cascade-python --live-stream ===")
+    output(emit)
+    output(emit, "Setup: opening long-lived Follow:true streams on A")
+    output(emit, "       (initial transport: tcp)")
+    output(emit)
     total_pass = 0
     total_fail = 0
     cascade = None
@@ -401,26 +475,26 @@ def run_live_stream() -> None:
     specs = {"A": RoleSpec(PY_SLUG, binary), "B": RoleSpec(PY_SLUG, binary), "C": RoleSpec(PY_SLUG, binary), "D": RoleSpec(PY_SLUG, binary)}
     for phase, transport in enumerate(TRANSPORTS, start=1):
         if phase == 1:
-            print(f"Phase {phase}/{RUN_PHASES}: initial chain ({transport})")
+            output(emit, f"Phase {phase}/{RUN_PHASES}: initial chain ({transport})")
         else:
-            print(f"Phase {phase}/{RUN_PHASES}: respawn on {transport}")
+            output(emit, f"Phase {phase}/{RUN_PHASES}: respawn on {transport}")
             kill_start = time.time()
             if streams is not None:
                 streams.stop()
             if cascade is not None:
                 cascade.stop()
-            print(f"  killed 4 nodes in {elapsed(kill_start)}")
+            output(emit, f"  killed 4 nodes in {elapsed(kill_start)}")
         spawn_start = time.time()
         try:
             phase_cascade = spawn_cascade(phase, transport, specs, run_root)
         except Exception as exc:
             total_fail += RUN_TICKS
-            print(f"  spawn FAIL: {exc}\n")
+            output(emit, f"  spawn FAIL: {exc}\n")
             streams = None
             continue
-        print(f"  spawned 4 nodes in {elapsed(spawn_start)}")
+        output(emit, f"  spawned 4 nodes in {elapsed(spawn_start)}")
         if phase > 1:
-            print("  re-opening Follow:true streams on new A")
+            output(emit, "  re-opening Follow:true streams on new A")
         stream_error = None
         try:
             streams = LiveStreams(phase_cascade.roles["A"].channel)
@@ -428,7 +502,7 @@ def run_live_stream() -> None:
         except Exception as exc:
             streams = None
             stream_error = str(exc)
-            print(f"  stream re-open failed: {exc}")
+            output(emit, f"  stream re-open failed: {exc}")
         previous_metric = 0.0
         for tick in range(1, RUN_TICKS + 1):
             tick_start = time.time()
@@ -438,23 +512,29 @@ def run_live_stream() -> None:
             overall = outcome.log.pass_ and outcome.event.pass_ and outcome.metric.pass_
             total_pass += 1 if overall else 0
             total_fail += 0 if overall else 1
-            print(f"  Tick {tick}/{RUN_TICKS}: log {pass_text(outcome.log.pass_)}, event {pass_text(outcome.event.pass_)}, metric {pass_text(outcome.metric.pass_)} (overall {pass_text(overall)} in {elapsed(tick_start)})")
-            if not overall:
+            output(emit, f"  Tick {tick}/{RUN_TICKS}: log {pass_text(outcome.log.pass_)}, event {pass_text(outcome.event.pass_)}, metric {pass_text(outcome.metric.pass_)} (overall {pass_text(overall)} in {elapsed(tick_start)})")
+            if emit and not overall:
                 print_failure_evidence("log", outcome.log)
                 print_failure_evidence("event", outcome.event)
                 print_failure_evidence("metric", outcome.metric)
-        print()
+        output(emit)
         cascade = phase_cascade
     if streams is not None:
         streams.stop()
     if cascade is not None:
         cascade.stop()
-    print(f"Summary: {total_pass} PASS / {total_fail} FAIL across {total_pass + total_fail} ticks")
+    output(emit, f"Summary: {total_pass} PASS / {total_fail} FAIL across {total_pass + total_fail} ticks")
     if total_fail:
         raise RuntimeError(f"{total_fail} tick(s) failed")
+    return CascadeReportData(
+        total_pass + total_fail,
+        total_pass,
+        total_fail,
+        [PhaseReportData("live-stream", total_pass, total_fail)],
+    )
 
 
-def run_multi_pattern() -> None:
+def run_multi_pattern(emit: bool = True) -> MultiPatternReportData:
     py_binary = find_binary(PY_SLUG)
     go_binary = find_binary(GO_SLUG)
     patterns = [
@@ -463,12 +543,12 @@ def run_multi_pattern() -> None:
         ("python-python-go-go", {"A": RoleSpec(PY_SLUG, py_binary), "B": RoleSpec(PY_SLUG, py_binary), "C": RoleSpec(GO_SLUG, go_binary), "D": RoleSpec(GO_SLUG, go_binary)}),
     ]
     run_root = pathlib.Path(tempfile.mkdtemp(prefix="observability-cascade-python-multi-"))
-    print("=== observability-cascade-python (multi-pattern) ===")
-    print()
+    output(emit, "=== observability-cascade-python (multi-pattern) ===")
+    output(emit)
     total_pass = 0
     total_fail = 0
     for pattern_idx, (name, specs) in enumerate(patterns, start=1):
-        print(f"Pattern {pattern_idx}/{len(patterns)}: {name}")
+        output(emit, f"Pattern {pattern_idx}/{len(patterns)}: {name}")
         pattern_pass = 0
         for phase, transport in enumerate(TRANSPORTS, start=1):
             started = time.time()
@@ -476,7 +556,7 @@ def run_multi_pattern() -> None:
                 cascade = spawn_cascade(phase, transport, specs, run_root)
             except Exception as exc:
                 total_fail += RUN_TICKS
-                print(f"  Phase {phase}/{RUN_PHASES} ({transport}): spawn FAIL ({exc})")
+                output(emit, f"  Phase {phase}/{RUN_PHASES} ({transport}): spawn FAIL ({exc})")
                 continue
             stream_error = None
             streams = None
@@ -505,17 +585,30 @@ def run_multi_pattern() -> None:
                     total_fail += 1
                     results.append(f"Tick {tick} FAIL ({failure_summary(outcome)})")
                     evidence.append(f"      Tick {tick} evidence: {compact_evidence(outcome)}")
-            print(f"  Phase {phase}/{RUN_PHASES} ({transport}): {', '.join(results)} (spawned in {elapsed(started)})")
-            for line in evidence:
-                print(line)
+            output(emit, f"  Phase {phase}/{RUN_PHASES} ({transport}): {', '.join(results)} (spawned in {elapsed(started)})")
+            if emit:
+                for line in evidence:
+                    print(line)
             if streams is not None:
                 streams.stop()
             cascade.stop()
-        print(f"  Subtotal: {pattern_pass}/12 PASS")
-        print()
-    print(f"Summary: {total_pass} PASS / {total_fail} FAIL across {total_pass + total_fail} ticks")
+        output(emit, f"  Subtotal: {pattern_pass}/12 PASS")
+        output(emit)
+    output(emit, f"Summary: {total_pass} PASS / {total_fail} FAIL across {total_pass + total_fail} ticks")
     if total_fail:
         raise RuntimeError(f"{total_fail} tick(s) failed")
+    return MultiPatternReportData(
+        [
+            CascadeReportData(
+                total_pass + total_fail,
+                total_pass,
+                total_fail,
+                [PhaseReportData("multi-pattern", total_pass, total_fail)],
+            )
+        ],
+        total_pass,
+        total_fail,
+    )
 
 
 def spawn_cascade(phase: int, transport: str, specs: dict[str, RoleSpec], run_root: pathlib.Path) -> Cascade:
@@ -660,17 +753,72 @@ def find_binary(slug: str) -> str:
     override = os.environ.get(env_name, "").strip()
     if override:
         return override
+
+    roots: list[pathlib.Path] = []
+    if slug == PY_SLUG:
+        roots.extend(
+            [
+                PY_NODE / ".op" / "build" / "observability-cascade-node.holon" / "bin",
+                PY_NODE / ".op" / "build" / "observability-cascade-node-python.holon" / "bin",
+            ]
+        )
+    if slug == GO_SLUG:
+        go_node = CASCADE_ROOT / "observability-cascade-go" / "holons" / "observability-cascade-node"
+        roots.extend(
+            [
+                go_node / ".op" / "build" / "observability-cascade-node.holon" / "bin",
+                go_node / ".op" / "build" / "observability-cascade-node-go.holon" / "bin",
+            ]
+        )
+    roots.append(pathlib.Path.home() / ".op" / "bin" / f"{slug}.holon" / "bin")
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in root.rglob(slug):
+            if os.access(path, os.X_OK):
+                return str(path)
+
     try:
         path = subprocess.check_output(["op", "--bin", slug], cwd=ROOT, text=True, stderr=subprocess.DEVNULL).strip()
         if path:
             return path
     except Exception:
         pass
-    root = pathlib.Path.home() / ".op" / "bin" / f"{slug}.holon" / "bin"
-    for path in root.rglob(slug):
-        if os.access(path, os.X_OK):
-            return str(path)
     raise RuntimeError(f"{slug} binary not found; run op build {slug} --install")
+
+
+def to_cascade_report(report: CascadeReportData):
+    message = service_pb2.CascadeReport(
+        ticks=report.ticks,
+        fail=report.fail_count,
+    )
+    setattr(message, "pass", report.pass_count)
+    for phase in report.phases:
+        phase_message = service_pb2.PhaseResult(
+            name=phase.name,
+            fail=phase.fail_count,
+            failures=phase.failures,
+        )
+        setattr(phase_message, "pass", phase.pass_count)
+        message.phases.append(phase_message)
+    return message
+
+
+def to_multi_pattern_report(report: MultiPatternReportData):
+    return service_pb2.MultiPatternReport(
+        patterns=[to_cascade_report(pattern) for pattern in report.patterns],
+        total_pass=report.total_pass,
+        total_fail=report.total_fail,
+    )
+
+
+def output(emit: bool, value: object = "") -> None:
+    if emit:
+        print(value)
+
+
+def canonical_command(raw: str) -> str:
+    return raw.strip().lower().replace("-", "").replace("_", "").replace(" ", "")
 
 
 def free_port() -> int:

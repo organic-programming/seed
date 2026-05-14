@@ -4,8 +4,17 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-SDK_ROOT = ROOT.parent.parent.parent / "sdk" / "python-holons"
 GEN_ROOT = ROOT / "gen" / "python"
+
+
+def find_repo_root(start: Path) -> Path:
+    for candidate in [start, *start.parents]:
+        if (candidate / "sdk" / "python-holons").is_dir():
+            return candidate
+    raise RuntimeError("could not locate repository root")
+
+
+SDK_ROOT = find_repo_root(ROOT) / "sdk" / "python-holons"
 
 
 def ensure_import_paths() -> None:
