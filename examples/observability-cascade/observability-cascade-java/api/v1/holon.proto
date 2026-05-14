@@ -3,6 +3,7 @@ syntax = "proto3";
 package observability.cascade.java.v1;
 
 import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
 
 option (holons.v1.manifest) = {
   identity: {
@@ -18,10 +19,42 @@ option (holons.v1.manifest) = {
   }
   description: "A Java composite program that validates observability-cascade observability across three modes and patterns."
   lang: "java"
-  kind: "native"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
   build: {
-    runner: "gradle"
-    main: "./src/main/java/org/organicprogramming/observability/cascade/javaapp/Main.java"
+    runner: "recipe"
+    codegen: { languages: ["java"] }
+    defaults: {
+      target: "macos"
+      mode: "debug"
+    }
+    members: {
+      id: "node"
+      path: "./holons/observability-cascade-node"
+      type: "holon"
+    }
+    targets: {
+      key: "macos"
+      value: {
+        steps: { build_member: "node" }
+        steps: {
+          exec: {
+            cwd: "."
+            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-java.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\"\ngradle --no-daemon installDist >/dev/null\nmkdir -p \"$pkg/bin/$arch\" \"$pkg/bin/lib\"\ncp build/install/observability-cascade-java/bin/observability-cascade-java \"$pkg/bin/$arch/observability-cascade-java\"\ncp -R build/install/observability-cascade-java/lib/. \"$pkg/bin/lib/\"\nchmod +x \"$pkg/bin/$arch/observability-cascade-java\""]
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/observability-cascade-java.holon/bin/darwin_arm64/observability-cascade-java"
+          }
+        }
+      }
+    }
   }
   requires: {
     commands: ["java", "gradle"]
@@ -29,6 +62,6 @@ option (holons.v1.manifest) = {
     sdk_prebuilts: ["java"]
   }
   artifacts: {
-    binary: "observability-cascade-java"
+    primary: ".op/build/observability-cascade-java.holon"
   }
 };

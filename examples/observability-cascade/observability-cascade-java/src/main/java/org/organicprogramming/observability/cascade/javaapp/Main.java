@@ -4,9 +4,13 @@ import com.google.gson.Gson;
 import io.grpc.CallOptions;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.ClientCalls;
+import io.grpc.stub.StreamObserver;
 import org.organicprogramming.holons.Connect;
 import org.organicprogramming.holons.Describe;
 import org.organicprogramming.holons.Observability;
+import org.organicprogramming.holons.Serve;
+import observability_cascade.v1.ObservabilityCascadeServiceGrpc;
+import observability_cascade.v1.Service;
 import relay.v1.Relay;
 import relay.v1.RelayServiceGrpc;
 
@@ -43,23 +47,27 @@ public final class Main {
             .connectTimeout(Duration.ofSeconds(2))
             .build();
 
-    private final Path relayRoot;
+    private final Path sourceRoot;
+    private final Path examplesRoot;
     private final Path repoRoot;
 
     private Main() {
-        relayRoot = findRelayRoot();
-        repoRoot = findRepoRoot(relayRoot);
+        sourceRoot = findSourceRoot();
+        examplesRoot = sourceRoot.getParent();
+        repoRoot = findRepoRoot(sourceRoot);
     }
 
     public static void main(String[] args) {
         try {
             Main main = new Main();
-            if (Arrays.asList(args).contains("--multi-pattern")) {
-                main.runMultiPattern();
+            if (args.length > 0 && "serve".equals(canonicalCommand(args[0]))) {
+                main.serveComposite(Arrays.copyOfRange(args, 1, args.length));
+            } else if (Arrays.asList(args).contains("--multi-pattern")) {
+                main.runMultiPattern(true);
             } else if (Arrays.asList(args).contains("--live-stream")) {
-                main.runLiveStream();
+                main.runLiveStream(true);
             } else {
-                main.runDefault();
+                main.runDefault(true);
             }
         } catch (Exception error) {
             System.err.println();
@@ -68,11 +76,60 @@ public final class Main {
         }
     }
 
-    private void runDefault() throws Exception {
+    private void serveComposite(String[] args) throws Exception {
+        Describe.useStaticResponse(gen.describe_generated.StaticDescribeResponse());
+        Serve.ParsedFlags parsed = Serve.parseOptions(args);
+        Serve.runWithOptions(
+                normalizeListenUri(parsed.listenUri()),
+                List.of(new ObservabilityCascadeServer(this)),
+                new Serve.Options()
+                        .withReflect(parsed.reflect())
+                        .withSlug("observability-cascade-java"));
+    }
+
+    private static final class ObservabilityCascadeServer extends ObservabilityCascadeServiceGrpc.ObservabilityCascadeServiceImplBase {
+        private final Main app;
+
+        private ObservabilityCascadeServer(Main app) {
+            this.app = app;
+        }
+
+        @Override
+        public void runDefault(Service.RunRequest request, StreamObserver<Service.CascadeReport> responseObserver) {
+            try {
+                responseObserver.onNext(toCascadeReport(app.runDefault(false)));
+                responseObserver.onCompleted();
+            } catch (Exception error) {
+                responseObserver.onError(error);
+            }
+        }
+
+        @Override
+        public void runLiveStream(Service.RunRequest request, StreamObserver<Service.CascadeReport> responseObserver) {
+            try {
+                responseObserver.onNext(toCascadeReport(app.runLiveStream(false)));
+                responseObserver.onCompleted();
+            } catch (Exception error) {
+                responseObserver.onError(error);
+            }
+        }
+
+        @Override
+        public void runMultiPattern(Service.RunRequest request, StreamObserver<Service.MultiPatternReport> responseObserver) {
+            try {
+                responseObserver.onNext(toMultiPatternReport(app.runMultiPattern(false)));
+                responseObserver.onCompleted();
+            } catch (Exception error) {
+                responseObserver.onError(error);
+            }
+        }
+    }
+
+    private CascadeReportData runDefault(boolean emit) throws Exception {
         Path binary = findBinary(JAVA_SLUG);
         Path runRoot = Files.createTempDirectory("observability-cascade-java-");
-        System.out.println("=== observability-cascade-java ===");
-        System.out.println();
+        output(emit, "=== observability-cascade-java ===");
+        output(emit);
         int totalPass = 0;
         int totalFail = 0;
         String previous = "";
@@ -80,9 +137,9 @@ public final class Main {
             int phase = index + 1;
             String transport = TRANSPORTS.get(index);
             if (previous.isEmpty()) {
-                System.out.printf("Phase %d/%d: transport=%s%n", phase, RUN_PHASES, transport);
+                outputf(emit, "Phase %d/%d: transport=%s%n", phase, RUN_PHASES, transport);
             } else {
-                System.out.printf("Phase %d/%d: transport=%s (switching from %s)%n", phase, RUN_PHASES, transport, previous);
+                outputf(emit, "Phase %d/%d: transport=%s (switching from %s)%n", phase, RUN_PHASES, transport, previous);
             }
             long started = nowMillis();
             Cascade cascade;
@@ -91,11 +148,11 @@ public final class Main {
                 cascade = spawnCascade(phase, transport, specs, runRoot);
             } catch (Exception error) {
                 totalFail += RUN_TICKS;
-                System.out.printf("  spawn FAIL: %s%n%n", error.getMessage());
+                outputf(emit, "  spawn FAIL: %s%n%n", error.getMessage());
                 previous = transport;
                 continue;
             }
-            System.out.printf("  spawned 4 nodes in %s%n", elapsed(started));
+            outputf(emit, "  spawned 4 nodes in %s%n", elapsed(started));
             double previousMetric = 0;
             for (int tick = 1; tick <= RUN_TICKS; tick++) {
                 long tickStart = nowMillis();
@@ -109,7 +166,7 @@ public final class Main {
                 } else {
                     totalFail++;
                 }
-                System.out.printf(
+                outputf(emit,
                         "  Tick %d/%d: log %s, event %s, metric %s (overall %s in %s)%n",
                         tick,
                         RUN_TICKS,
@@ -118,28 +175,35 @@ public final class Main {
                         passText(outcome.metric.pass),
                         passText(overall),
                         elapsed(tickStart));
-                printFailureEvidence("log", outcome.log);
-                printFailureEvidence("event", outcome.event);
-                printFailureEvidence("metric", outcome.metric);
+                if (emit) {
+                    printFailureEvidence("log", outcome.log);
+                    printFailureEvidence("event", outcome.event);
+                    printFailureEvidence("metric", outcome.metric);
+                }
             }
             cascade.stop();
-            System.out.println();
+            output(emit);
             previous = transport;
         }
-        System.out.printf("Summary: %d ticks, %d PASS, %d FAIL%n", totalPass + totalFail, totalPass, totalFail);
+        outputf(emit, "Summary: %d ticks, %d PASS, %d FAIL%n", totalPass + totalFail, totalPass, totalFail);
         if (totalFail > 0) {
             throw new IllegalStateException(totalFail + " tick(s) failed");
         }
+        return new CascadeReportData(
+                totalPass + totalFail,
+                totalPass,
+                totalFail,
+                List.of(new PhaseReportData("default", totalPass, totalFail, List.of())));
     }
 
-    private void runLiveStream() throws Exception {
+    private CascadeReportData runLiveStream(boolean emit) throws Exception {
         Path binary = findBinary(JAVA_SLUG);
         Path runRoot = Files.createTempDirectory("observability-cascade-java-live-");
-        System.out.println("=== observability-cascade-java --live-stream ===");
-        System.out.println();
-        System.out.println("Setup: opening long-lived Follow:true streams on A");
-        System.out.println("       (initial transport: tcp)");
-        System.out.println();
+        output(emit, "=== observability-cascade-java --live-stream ===");
+        output(emit);
+        output(emit, "Setup: opening long-lived Follow:true streams on A");
+        output(emit, "       (initial transport: tcp)");
+        output(emit);
         int totalPass = 0;
         int totalFail = 0;
         Cascade cascade = null;
@@ -149,9 +213,9 @@ public final class Main {
             int phase = index + 1;
             String transport = TRANSPORTS.get(index);
             if (phase == 1) {
-                System.out.printf("Phase %d/%d: initial chain (%s)%n", phase, RUN_PHASES, transport);
+                outputf(emit, "Phase %d/%d: initial chain (%s)%n", phase, RUN_PHASES, transport);
             } else {
-                System.out.printf("Phase %d/%d: respawn on %s%n", phase, RUN_PHASES, transport);
+                outputf(emit, "Phase %d/%d: respawn on %s%n", phase, RUN_PHASES, transport);
                 long killStart = nowMillis();
                 if (streams != null) {
                     streams.stop();
@@ -159,7 +223,7 @@ public final class Main {
                 if (cascade != null) {
                     cascade.stop();
                 }
-                System.out.printf("  killed 4 nodes in %s%n", elapsed(killStart));
+                outputf(emit, "  killed 4 nodes in %s%n", elapsed(killStart));
             }
             long spawnStart = nowMillis();
             Cascade phaseCascade;
@@ -167,13 +231,13 @@ public final class Main {
                 phaseCascade = spawnCascade(phase, transport, specs, runRoot);
             } catch (Exception error) {
                 totalFail += RUN_TICKS;
-                System.out.printf("  spawn FAIL: %s%n%n", error.getMessage());
+                outputf(emit, "  spawn FAIL: %s%n%n", error.getMessage());
                 streams = null;
                 continue;
             }
-            System.out.printf("  spawned 4 nodes in %s%n", elapsed(spawnStart));
+            outputf(emit, "  spawned 4 nodes in %s%n", elapsed(spawnStart));
             if (phase > 1) {
-                System.out.println("  re-opening Follow:true streams on new A");
+                output(emit, "  re-opening Follow:true streams on new A");
             }
             String streamError = null;
             try {
@@ -182,7 +246,7 @@ public final class Main {
             } catch (Exception error) {
                 streams = null;
                 streamError = error.getMessage();
-                System.out.printf("  stream re-open failed: %s%n", error.getMessage());
+                outputf(emit, "  stream re-open failed: %s%n", error.getMessage());
             }
             double previousMetric = 0;
             for (int tick = 1; tick <= RUN_TICKS; tick++) {
@@ -197,7 +261,7 @@ public final class Main {
                 } else {
                     totalFail++;
                 }
-                System.out.printf(
+                outputf(emit,
                         "  Tick %d/%d: log %s, event %s, metric %s (overall %s in %s)%n",
                         tick,
                         RUN_TICKS,
@@ -206,11 +270,13 @@ public final class Main {
                         passText(outcome.metric.pass),
                         passText(overall),
                         elapsed(tickStart));
-                printFailureEvidence("log", outcome.log);
-                printFailureEvidence("event", outcome.event);
-                printFailureEvidence("metric", outcome.metric);
+                if (emit) {
+                    printFailureEvidence("log", outcome.log);
+                    printFailureEvidence("event", outcome.event);
+                    printFailureEvidence("metric", outcome.metric);
+                }
             }
-            System.out.println();
+            output(emit);
             cascade = phaseCascade;
         }
         if (streams != null) {
@@ -219,13 +285,18 @@ public final class Main {
         if (cascade != null) {
             cascade.stop();
         }
-        System.out.printf("Summary: %d PASS / %d FAIL across %d ticks%n", totalPass, totalFail, totalPass + totalFail);
+        outputf(emit, "Summary: %d PASS / %d FAIL across %d ticks%n", totalPass, totalFail, totalPass + totalFail);
         if (totalFail > 0) {
             throw new IllegalStateException(totalFail + " tick(s) failed");
         }
+        return new CascadeReportData(
+                totalPass + totalFail,
+                totalPass,
+                totalFail,
+                List.of(new PhaseReportData("live-stream", totalPass, totalFail, List.of())));
     }
 
-    private void runMultiPattern() throws Exception {
+    private MultiPatternReportData runMultiPattern(boolean emit) throws Exception {
         Path javaBinary = findBinary(JAVA_SLUG);
         Path goBinary = findBinary(GO_SLUG);
         List<CascadePattern> patterns = List.of(
@@ -241,13 +312,13 @@ public final class Main {
                         "C", new RoleSpec(GO_SLUG, goBinary),
                         "D", new RoleSpec(GO_SLUG, goBinary))));
         Path runRoot = Files.createTempDirectory("observability-cascade-java-multi-");
-        System.out.println("=== observability-cascade-java (multi-pattern) ===");
-        System.out.println();
+        output(emit, "=== observability-cascade-java (multi-pattern) ===");
+        output(emit);
         int totalPass = 0;
         int totalFail = 0;
         for (int patternIndex = 0; patternIndex < patterns.size(); patternIndex++) {
             CascadePattern pattern = patterns.get(patternIndex);
-            System.out.printf("Pattern %d/%d: %s%n", patternIndex + 1, patterns.size(), pattern.name);
+            outputf(emit, "Pattern %d/%d: %s%n", patternIndex + 1, patterns.size(), pattern.name);
             int patternPass = 0;
             for (int index = 0; index < TRANSPORTS.size(); index++) {
                 int phase = index + 1;
@@ -258,7 +329,7 @@ public final class Main {
                     cascade = spawnCascade(phase, transport, pattern.roles, runRoot);
                 } catch (Exception error) {
                     totalFail += RUN_TICKS;
-                    System.out.printf("  Phase %d/%d (%s): spawn FAIL (%s)%n", phase, RUN_PHASES, transport, error.getMessage());
+                    outputf(emit, "  Phase %d/%d (%s): spawn FAIL (%s)%n", phase, RUN_PHASES, transport, error.getMessage());
                     continue;
                 }
                 String streamError = null;
@@ -294,27 +365,37 @@ public final class Main {
                         evidence.add("      Tick " + tick + " evidence: " + compactEvidence(outcome));
                     }
                 }
-                System.out.printf(
+                outputf(emit,
                         "  Phase %d/%d (%s): %s (spawned in %s)%n",
                         phase,
                         RUN_PHASES,
                         transport,
                         String.join(", ", results),
                         elapsed(started));
-                for (String line : evidence) {
-                    System.out.println(line);
+                if (emit) {
+                    for (String line : evidence) {
+                        System.out.println(line);
+                    }
                 }
                 if (streams != null) {
                     streams.stop();
                 }
                 cascade.stop();
             }
-            System.out.printf("  Subtotal: %d/12 PASS%n%n", patternPass);
+            outputf(emit, "  Subtotal: %d/12 PASS%n%n", patternPass);
         }
-        System.out.printf("Summary: %d PASS / %d FAIL across %d ticks%n", totalPass, totalFail, totalPass + totalFail);
+        outputf(emit, "Summary: %d PASS / %d FAIL across %d ticks%n", totalPass, totalFail, totalPass + totalFail);
         if (totalFail > 0) {
             throw new IllegalStateException(totalFail + " tick(s) failed");
         }
+        return new MultiPatternReportData(
+                List.of(new CascadeReportData(
+                        totalPass + totalFail,
+                        totalPass,
+                        totalFail,
+                        List.of(new PhaseReportData("multi-pattern", totalPass, totalFail, List.of())))),
+                totalPass,
+                totalFail);
     }
 
     private Cascade spawnCascade(int phase, String transport, Map<String, RoleSpec> specs, Path runRoot) throws Exception {
@@ -445,8 +526,25 @@ public final class Main {
         if (fromEnv != null && !fromEnv.isBlank()) {
             return Path.of(fromEnv.trim());
         }
+        List<Path> roots = new ArrayList<>();
+        if (JAVA_SLUG.equals(slug)) {
+            Path javaNode = sourceRoot.resolve("holons").resolve("observability-cascade-node");
+            roots.add(javaNode.resolve(".op/build/observability-cascade-node.holon/bin"));
+            roots.add(javaNode.resolve(".op/build/observability-cascade-node-java.holon/bin"));
+        }
+        if (GO_SLUG.equals(slug)) {
+            Path goNode = examplesRoot.resolve("observability-cascade-go").resolve("holons").resolve("observability-cascade-node");
+            roots.add(goNode.resolve(".op/build/observability-cascade-node.holon/bin"));
+            roots.add(goNode.resolve(".op/build/observability-cascade-node-go.holon/bin"));
+        }
+        for (Path root : roots) {
+            Path found = findExecutable(root, slug);
+            if (found != null) {
+                return found;
+            }
+        }
         Process process = new ProcessBuilder("op", "--bin", slug)
-                .directory(relayRoot.toFile())
+                .directory(repoRoot.toFile())
                 .redirectError(ProcessBuilder.Redirect.DISCARD)
                 .start();
         String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
@@ -480,24 +578,28 @@ public final class Main {
         return null;
     }
 
-    private static Path findRelayRoot() {
+    private static Path findSourceRoot() {
+        String fromEnv = System.getenv("OBSERVABILITY_CASCADE_JAVA_SOURCE_ROOT");
+        if (fromEnv != null && !fromEnv.isBlank()) {
+            return Path.of(fromEnv).toAbsolutePath().normalize();
+        }
         Path current = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
         while (current != null) {
-            if (isRelayRoot(current)) {
+            if (isSourceRoot(current)) {
                 return current;
             }
-            Path nested = current.resolve("examples").resolve("observability-cascade");
-            if (isRelayRoot(nested)) {
+            Path nested = current.resolve("examples").resolve("observability-cascade").resolve("observability-cascade-java");
+            if (isSourceRoot(nested)) {
                 return nested;
             }
             current = current.getParent();
         }
-        throw new IllegalStateException("observability-cascade root not found");
+        throw new IllegalStateException("observability-cascade-java source root not found");
     }
 
-    private static boolean isRelayRoot(Path path) {
-        return Files.isDirectory(path.resolve("observability-cascade-node-java"))
-                && Files.isDirectory(path.resolve("observability-cascade-node-go"));
+    private static boolean isSourceRoot(Path path) {
+        return Files.isRegularFile(path.resolve("api").resolve("v1").resolve("holon.proto"))
+                && Files.isDirectory(path.resolve("holons").resolve("observability-cascade-node"));
     }
 
     private static Path findRepoRoot(Path start) {
@@ -576,6 +678,62 @@ public final class Main {
             }
             sleep(intervalMillis);
         }
+    }
+
+    private static Service.CascadeReport toCascadeReport(CascadeReportData report) {
+        Service.CascadeReport.Builder out = Service.CascadeReport.newBuilder()
+                .setTicks(report.ticks())
+                .setPass(report.pass())
+                .setFail(report.fail());
+        for (PhaseReportData phase : report.phases()) {
+            out.addPhases(Service.PhaseResult.newBuilder()
+                    .setName(phase.name())
+                    .setPass(phase.pass())
+                    .setFail(phase.fail())
+                    .addAllFailures(phase.failures())
+                    .build());
+        }
+        return out.build();
+    }
+
+    private static Service.MultiPatternReport toMultiPatternReport(MultiPatternReportData report) {
+        Service.MultiPatternReport.Builder out = Service.MultiPatternReport.newBuilder()
+                .setTotalPass(report.totalPass())
+                .setTotalFail(report.totalFail());
+        for (CascadeReportData pattern : report.patterns()) {
+            out.addPatterns(toCascadeReport(pattern));
+        }
+        return out.build();
+    }
+
+    private static String normalizeListenUri(String listenUri) {
+        Matcher matcher = Pattern.compile("^tcp://:(\\d+)$").matcher(listenUri == null ? "" : listenUri);
+        if (matcher.matches()) {
+            return "tcp://0.0.0.0:" + matcher.group(1);
+        }
+        return listenUri;
+    }
+
+    private static void output(boolean emit) {
+        if (emit) {
+            System.out.println();
+        }
+    }
+
+    private static void output(boolean emit, String value) {
+        if (emit) {
+            System.out.println(value);
+        }
+    }
+
+    private static void outputf(boolean emit, String format, Object... args) {
+        if (emit) {
+            System.out.printf(format, args);
+        }
+    }
+
+    private static String canonicalCommand(String raw) {
+        return raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT).replace("-", "").replace("_", "").replace(" ", "");
     }
 
     private static long nowMillis() {
@@ -1007,6 +1165,15 @@ public final class Main {
                 errors.add("events stream ended: " + error.getMessage());
             }
         }
+    }
+
+    private record PhaseReportData(String name, int pass, int fail, List<String> failures) {
+    }
+
+    private record CascadeReportData(int ticks, int pass, int fail, List<PhaseReportData> phases) {
+    }
+
+    private record MultiPatternReportData(List<CascadeReportData> patterns, int totalPass, int totalFail) {
     }
 
     private static final class MetaJson {
