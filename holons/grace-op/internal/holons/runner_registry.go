@@ -1751,7 +1751,7 @@ func (npmRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repor
 		)
 	}
 	wrapper := fmt.Sprintf(
-		"#!/bin/sh\nset -eu\n_OP_BASE=%q\n%scd \"$_OP_BASE\"\nexec %q %q \"$@\"\n",
+		"#!/bin/sh\nset -eu\nOP_HOLON_EXECUTABLE=\"$0\"\nexport OP_HOLON_EXECUTABLE\n_OP_BASE=%q\n%scd \"$_OP_BASE\"\nexec %q %q \"$@\"\n",
 		isolatedDir,
 		descriptorSeed,
 		argsOrDefaultNodePath(),

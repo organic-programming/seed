@@ -27,33 +27,13 @@ option (holons.v1.manifest) = {
     rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
   }
   build: {
-    runner: "recipe"
+    runner: "npm"
+    main: "./cmd/main.js"
     codegen: { languages: ["js"] }
-    defaults: {
-      target: "macos"
-      mode: "debug"
-    }
     members: {
       id: "node-node"
       path: "../observability-cascade-node-node"
       type: "holon"
-    }
-    targets: {
-      key: "macos"
-      value: {
-        steps: { build_member: "node-node" }
-        steps: {
-          exec: {
-            cwd: "."
-            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-node.holon}\"\narch=\"darwin_arm64\"\nbuild=\".op/build/npm\"\nnode_bin=\"${OP_NODE_BIN:-$(command -v node)}\"\nnode_build=\"$PWD/holons/observability-cascade-node/.op/build/npm\"\nif [ ! -d \"$node_build/node_modules\" ]; then echo \"internal node dependencies missing: $node_build/node_modules\" >&2; exit 1; fi\nrm -rf \"$pkg\" \"$build/bin\" \"$build/gen\"\nmkdir -p \"$pkg/bin/$arch\" \"$build\"\ncp -R cmd gen package.json \"$build/\"\ncat > \"$pkg/bin/$arch/observability-cascade-node\" <<EOF\n#!/bin/sh\nset -eu\nexport OBSERVABILITY_CASCADE_NODE_SOURCE_ROOT=\"$PWD\"\nexec \"$node_bin\" \"$PWD/$build/cmd/main.js\" \"\\$@\"\nEOF\nchmod +x \"$pkg/bin/$arch/observability-cascade-node\""]
-          }
-        }
-        steps: {
-          assert_file: {
-            path: ".op/build/observability-cascade-node.holon/bin/darwin_arm64/observability-cascade-node"
-          }
-        }
-      }
     }
   }
   requires: {

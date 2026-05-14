@@ -11,8 +11,8 @@ function staticDescribeResponse() {
             identity: {
                 schema: "holon/v1",
                 uuid: "e0e1c52c-d428-4bbf-a3ff-4806f66a8c11",
-                given_name: "observability-cascade",
-                family_name: "node-node",
+                given_name: "Observability",
+                family_name: "Cascade-Node-Node",
                 motto: "Minimal observability cascade node.",
                 composer: "B. ALTER",
                 status: "draft",

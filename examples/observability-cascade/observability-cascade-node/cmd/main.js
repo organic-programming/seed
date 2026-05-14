@@ -4,7 +4,6 @@
 const childProcess = require('node:child_process');
 const fs = require('node:fs');
 const http = require('node:http');
-const Module = require('node:module');
 const os = require('node:os');
 const path = require('node:path');
 
@@ -13,54 +12,30 @@ function findRepoRoot(start) {
   for (;;) {
     if (fs.existsSync(path.join(current, 'sdk', 'js-holons'))) return current;
     const parent = path.dirname(current);
-    if (parent === current) throw new Error('could not locate repository root');
+    if (parent === current) return null;
     current = parent;
   }
 }
 
-function findCascadeRoot(start) {
-  let current = path.resolve(start);
-  for (;;) {
-    if (fs.existsSync(path.join(current, 'holons', 'observability-cascade-node'))) return current;
-    const parent = path.dirname(current);
-    if (fs.existsSync(path.join(parent, 'observability-cascade-node-node'))) return parent;
-    if (parent === current) throw new Error('could not locate observability-cascade examples root');
-    current = parent;
-  }
-}
-
-const HERE = path.resolve(process.env.OBSERVABILITY_CASCADE_NODE_SOURCE_ROOT || path.join(__dirname, '..'));
+const HERE = path.resolve(path.join(__dirname, '..'));
 const ROOT = findRepoRoot(HERE);
-const CASCADE_ROOT = findCascadeRoot(HERE);
-const EXAMPLES_ROOT = path.dirname(HERE);
-const NODE_NODE = path.join(CASCADE_ROOT, 'holons', 'observability-cascade-node');
-const SDK_ROOT = path.join(ROOT, 'sdk', 'js-holons');
-const NODE_NODE_MODULES = path.join(NODE_NODE, '.op', 'build', 'npm', 'node_modules');
 
-process.env.NODE_PATH = [
-  NODE_NODE_MODULES,
-  path.join(NODE_NODE, 'node_modules'),
-  path.join(SDK_ROOT, 'node_modules'),
-  process.env.NODE_PATH || '',
-].filter(Boolean).join(path.delimiter);
-Module._initPaths();
-
-const grpc = require(path.join(NODE_NODE_MODULES, '@grpc/grpc-js'));
+const grpc = require('@grpc/grpc-js');
 const describeGenerated = require(path.join(HERE, 'gen/describe_generated.js'));
 const cascadePb = require(path.join(HERE, 'gen/node/observability_cascade/v1/service_pb.js'));
 const cascadeGrpc = require(path.join(HERE, 'gen/node/observability_cascade/v1/service_grpc_pb.js'));
-const relayPb = require(path.join(NODE_NODE, 'gen/node/relay/v1/relay_pb.js'));
-const relayGrpc = require(path.join(NODE_NODE, 'gen/node/relay/v1/relay_grpc_pb.js'));
-const { describe, serve } = require(path.join(SDK_ROOT, 'src/index.js'));
-const observabilityWire = require(path.join(SDK_ROOT, 'src/gen/holons/v1/observability'));
-const describeWire = require(path.join(SDK_ROOT, 'src/gen/holons/v1/describe'));
+const relayPb = require(path.join(HERE, 'gen/node/relay/v1/relay_pb.js'));
+const relayGrpc = require(path.join(HERE, 'gen/node/relay/v1/relay_grpc_pb.js'));
+const { describe, serve, composite } = require('@organic-programming/holons');
+const observabilityWire = require('@organic-programming/holons/src/gen/holons/v1/observability');
+const describeWire = require('@organic-programming/holons/src/gen/holons/v1/describe');
 
 const RUN_PHASES = 4;
 const RUN_TICKS = 3;
 const ROLE_ORDER = ['D', 'C', 'B', 'A'];
 const TRANSPORTS = ['tcp', 'unix', 'tcp', 'unix'];
 const NODE_SLUG = 'observability-cascade-node-node';
-const GO_SLUG = 'observability-cascade-node-go';
+const GO_SLUG = 'observability-cascade-go-node';
 
 const ObservabilityClient = grpc.makeGenericClientConstructor(
   observabilityWire.HOLON_OBSERVABILITY_SERVICE_DEF,
@@ -647,7 +622,7 @@ async function startRole(cascade, runtime) {
   if (runtime.memberAddress) args.push('--member', `${runtime.memberSlug}=${runtime.memberAddress}`);
   const stderr = fs.openSync(runtime.stderrPath, 'w');
   runtime.process = childProcess.spawn(args[0], args.slice(1), {
-    cwd: ROOT,
+    cwd: ROOT || HERE,
     env: {
       ...process.env,
       OP_OBS: 'logs,events,metrics,prom',
@@ -804,29 +779,18 @@ async function waitFor(timeoutMs, fn, intervalMs = 100) {
 }
 
 function findBinary(slug) {
-  const envName = `OBSERVABILITY_CASCADE_NODE_${slug.replace(/^observability-cascade-node-/, '').toUpperCase().replace(/-/g, '_')}_BIN`;
-  if ((process.env[envName] || '').trim()) return process.env[envName].trim();
+  if (slug === NODE_SLUG) return composite.member('node-node');
+
   const roots = [];
-  if (slug === NODE_SLUG) {
-    roots.push(path.join(NODE_NODE, '.op', 'build', 'observability-cascade-node.holon', 'bin'));
-    roots.push(path.join(NODE_NODE, '.op', 'build', 'observability-cascade-node-node.holon', 'bin'));
-  }
-  if (slug === GO_SLUG) {
-    const goNode = path.join(EXAMPLES_ROOT, 'observability-cascade-go', 'holons', 'observability-cascade-node');
-    roots.push(path.join(goNode, '.op', 'build', 'observability-cascade-node.holon', 'bin'));
-    roots.push(path.join(goNode, '.op', 'build', 'observability-cascade-node-go.holon', 'bin'));
-  }
+  roots.push(path.join(process.env.OPBIN || path.join(os.homedir(), '.op', 'bin'), `${slug}.holon`, 'bin'));
   for (const root of roots) {
     const match = findExecutable(root, slug);
     if (match) return match;
   }
   try {
-    const out = childProcess.execFileSync('op', ['--bin', slug], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    const out = childProcess.execFileSync('op', ['--bin', slug], { cwd: ROOT || HERE, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     if (out) return out;
   } catch (_) {}
-  const root = path.join(os.homedir(), '.op', 'bin', `${slug}.holon`, 'bin');
-  const match = findExecutable(root, slug);
-  if (match) return match;
   throw new Error(`${slug} binary not found; run op build ${slug} --install`);
 }
 

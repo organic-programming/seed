@@ -11,8 +11,8 @@ function staticDescribeResponse() {
             identity: {
                 schema: "holon/v1",
                 uuid: "db549442-f097-4691-9677-1708a03bd1e8",
-                given_name: "observability-cascade",
-                family_name: "node-composite",
+                given_name: "Observability",
+                family_name: "Cascade-Node",
                 motto: "Validates Node observability cascade observability.",
                 composer: "B. ALTER",
                 status: "draft",
@@ -23,7 +23,8 @@ function staticDescribeResponse() {
             lang: "js",
             kind: "composite",
             build: {
-                runner: "recipe",
+                runner: "npm",
+                main: "./cmd/main.js",
             },
             requires: {
                 files: [
