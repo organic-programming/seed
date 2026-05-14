@@ -11,7 +11,7 @@ std::string ResponderSlug(const holons::observability::Observability &obs) {
   if (!obs.cfg.slug.empty()) {
     return obs.cfg.slug;
   }
-  return "observability-cascade-node-cpp";
+  return "observability-cascade-cpp-node";
 }
 
 } // namespace

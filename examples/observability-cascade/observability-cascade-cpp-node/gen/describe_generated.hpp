@@ -15,8 +15,8 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
       auto *identity = manifest->mutable_identity();
       identity->set_schema("holon/v1");
       identity->set_uuid("e750ab72-b9e8-4a72-9e1b-ff73a9d358cf");
-      identity->set_given_name("observability-cascade");
-      identity->set_family_name("node-cpp");
+      identity->set_given_name("Observability");
+      identity->set_family_name("Cascade-Cpp-Node");
       identity->set_motto("Minimal observability cascade node.");
       identity->set_composer("B. ALTER");
       identity->set_status("draft");
@@ -38,7 +38,7 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
     }
     {
       auto *artifacts = manifest->mutable_artifacts();
-      artifacts->set_binary("observability-cascade-node-cpp");
+      artifacts->set_binary("observability-cascade-cpp-node");
     }
     {
       auto *sequence = manifest->add_sequences();
@@ -55,7 +55,7 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
         param->set_name("note");
         param->set_description("Free-form tick note");
       }
-      sequence->add_steps("op observability-cascade-node-cpp Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'");
+      sequence->add_steps("op observability-cascade-cpp-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'");
     }
   }
   {

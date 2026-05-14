@@ -5,6 +5,8 @@
 #include "../include/holons/observability.hpp"
 #include "../include/holons/serve.hpp"
 
+#include <cassert>
+
 namespace {
 
 std::filesystem::path make_temp_dir(const std::string &prefix) {
@@ -112,6 +114,50 @@ void restore_env(const char *name, const std::optional<std::string> &value) {
 #endif
 }
 
+void test_composite_member_resolution(int &passed) {
+  auto root = make_temp_dir("holons_cpp_member_");
+  auto parent_dir = root / "bin" / "darwin_arm64";
+  auto member_dir = parent_dir / "holons" / "cpp-node";
+#ifdef _WIN32
+  auto parent = parent_dir / "composite.exe";
+  auto member = member_dir / "observability-cascade-cpp-node.exe";
+#else
+  auto parent = parent_dir / "composite";
+  auto member = member_dir / "observability-cascade-cpp-node";
+#endif
+  auto ignored = member_dir / "libdependency.dylib";
+
+  std::filesystem::create_directories(member_dir);
+  {
+    std::ofstream out(parent);
+    out << "#!/bin/sh\n";
+  }
+  {
+    std::ofstream out(member);
+    out << "#!/bin/sh\n";
+  }
+  {
+    std::ofstream out(ignored);
+    out << "";
+  }
+  std::filesystem::permissions(parent, std::filesystem::perms::owner_exec,
+                               std::filesystem::perm_options::add);
+  std::filesystem::permissions(member, std::filesystem::perms::owner_exec,
+                               std::filesystem::perm_options::add);
+
+  assert(holons::member_from_executable(parent, "cpp-node") == member);
+  ++passed;
+  bool missing_failed = false;
+  try {
+    (void)holons::member_from_executable(parent, "missing");
+  } catch (const std::runtime_error &) {
+    missing_failed = true;
+  }
+  assert(missing_failed);
+  ++passed;
+  std::filesystem::remove_all(root);
+}
+
 } // namespace
 
 #ifdef _WIN32
@@ -152,6 +198,8 @@ int connect_tcp(const std::string &host, int port) {
 
 int main() {
   int passed = 0;
+
+  test_composite_member_resolution(passed);
 
   assert(holons::scheme("tcp://:9090") == "tcp");
   ++passed;
@@ -1704,6 +1752,8 @@ int main() {
   int passed = 0;
   std::string bind_reason;
   bool bind_restricted = loopback_bind_restricted(bind_reason);
+
+  test_composite_member_resolution(passed);
 
   // --- observability env parsing ---
   {

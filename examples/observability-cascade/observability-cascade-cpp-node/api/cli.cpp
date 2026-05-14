@@ -198,7 +198,7 @@ int RunCLI(const std::vector<std::string> &args,
 }
 
 void PrintUsage(std::ostream &output) {
-  output << "usage: observability-cascade-node-cpp <command> [args] [flags]\n\n";
+  output << "usage: observability-cascade-cpp-node <command> [args] [flags]\n\n";
   output << "commands:\n";
   output << "  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server\n";
   output << "  tick [sender] [note]                                Emit one local tick\n";

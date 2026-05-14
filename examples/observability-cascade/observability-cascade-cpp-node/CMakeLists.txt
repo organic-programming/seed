@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(observability-cascade-node-cpp LANGUAGES CXX)
+project(observability-cascade-cpp-node LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -29,7 +29,7 @@ if(NOT Protobuf_FOUND OR NOT gRPC_FOUND)
       "OP_SDK_CPP_PATH=${OBSERVABILITY_CASCADE_NODE_CPP_PREBUILT_ROOT} is missing gRPC or Protobuf CMake packages; run `op sdk verify cpp` or reinstall with `op sdk install cpp`")
   else()
     message(FATAL_ERROR
-      "observability-cascade-node-cpp requires the C++ SDK prebuilts. Run `op sdk install cpp` or install gRPC system-wide.")
+      "observability-cascade-cpp-node requires the C++ SDK prebuilts. Run `op sdk install cpp` or install gRPC system-wide.")
   endif()
 endif()
 find_program(BASH_EXECUTABLE NAMES bash REQUIRED)
@@ -50,11 +50,11 @@ else()
     REQUIRED)
 endif()
 
-set(HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../sdk/cpp-holons")
-set(HOLONS_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../holons/grace-op/_protos")
-set(RELAY_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../_protos")
+set(HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/cpp-holons")
+set(HOLONS_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../holons/grace-op/_protos")
+set(RELAY_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../_protos")
 set(OBSERVABILITY_CASCADE_NODE_CPP_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
-set(OBSERVABILITY_CASCADE_NODE_CPP_RELOCATE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../sdk/scripts/relocate-macos-dylibs.sh")
+set(OBSERVABILITY_CASCADE_NODE_CPP_RELOCATE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/scripts/relocate-macos-dylibs.sh")
 
 function(cascade_generate_grpc_cpp target_name)
   set(options)
@@ -161,27 +161,27 @@ target_link_libraries(cascade_node_cpp_lib
     gRPC::grpc++_reflection
     protobuf::libprotobuf)
 
-add_executable(observability-cascade-node-cpp cmd/main.cpp)
-target_link_libraries(observability-cascade-node-cpp PRIVATE cascade_node_cpp_lib)
+add_executable(observability-cascade-cpp-node cmd/main.cpp)
+target_link_libraries(observability-cascade-cpp-node PRIVATE cascade_node_cpp_lib)
 
 if(APPLE AND NOT OP_USE_INSTALL_LAYOUT)
   set(OBSERVABILITY_CASCADE_NODE_CPP_RELOCATE_STAMP "${OBSERVABILITY_CASCADE_NODE_CPP_RUNTIME_DIR}/.dylibs-relocated")
   add_custom_command(
     OUTPUT "${OBSERVABILITY_CASCADE_NODE_CPP_RELOCATE_STAMP}"
-    COMMAND "${BASH_EXECUTABLE}" "${OBSERVABILITY_CASCADE_NODE_CPP_RELOCATE_SCRIPT}" "${OBSERVABILITY_CASCADE_NODE_CPP_RUNTIME_DIR}" observability-cascade-node-cpp
+    COMMAND "${BASH_EXECUTABLE}" "${OBSERVABILITY_CASCADE_NODE_CPP_RELOCATE_SCRIPT}" "${OBSERVABILITY_CASCADE_NODE_CPP_RUNTIME_DIR}" observability-cascade-cpp-node
     COMMAND "${CMAKE_COMMAND}" -E touch "${OBSERVABILITY_CASCADE_NODE_CPP_RELOCATE_STAMP}"
-    DEPENDS observability-cascade-node-cpp "${OBSERVABILITY_CASCADE_NODE_CPP_RELOCATE_SCRIPT}"
+    DEPENDS observability-cascade-cpp-node "${OBSERVABILITY_CASCADE_NODE_CPP_RELOCATE_SCRIPT}"
     VERBATIM)
   add_custom_target(cascade_node_cpp_relocate ALL DEPENDS "${OBSERVABILITY_CASCADE_NODE_CPP_RELOCATE_STAMP}")
 endif()
 
-install(TARGETS observability-cascade-node-cpp
+install(TARGETS observability-cascade-cpp-node
   RUNTIME DESTINATION "bin/${OP_PACKAGE_ARCH}")
 
 if(APPLE)
   install(CODE "
     execute_process(
-      COMMAND \"${BASH_EXECUTABLE}\" \"${OBSERVABILITY_CASCADE_NODE_CPP_RELOCATE_SCRIPT}\" \"${OBSERVABILITY_CASCADE_NODE_CPP_INSTALL_RUNTIME_DIR}\" observability-cascade-node-cpp
+      COMMAND \"${BASH_EXECUTABLE}\" \"${OBSERVABILITY_CASCADE_NODE_CPP_RELOCATE_SCRIPT}\" \"${OBSERVABILITY_CASCADE_NODE_CPP_INSTALL_RUNTIME_DIR}\" observability-cascade-cpp-node
       COMMAND_ERROR_IS_FATAL ANY
     )
   ")

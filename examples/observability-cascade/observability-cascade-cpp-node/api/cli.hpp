@@ -6,7 +6,7 @@
 
 namespace cascade::node::cppholon::api {
 
-inline constexpr char kVersion[] = "observability-cascade-node-cpp {{ .Version }}";
+inline constexpr char kVersion[] = "observability-cascade-cpp-node {{ .Version }}";
 
 int RunCLI(const std::vector<std::string> &args,
            std::ostream &stdout_stream,

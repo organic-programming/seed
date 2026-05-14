@@ -37,8 +37,8 @@ constexpr int kRunPhases = 4;
 constexpr int kRunTicks = 3;
 const std::vector<std::string> kRoleOrder = {"D", "C", "B", "A"};
 const std::vector<std::string> kTransports = {"tcp", "unix", "tcp", "unix"};
-constexpr const char *kCppSlug = "observability-cascade-node-cpp";
-constexpr const char *kGoSlug = "observability-cascade-node-go";
+constexpr const char *kCppSlug = "observability-cascade-cpp-node";
+constexpr const char *kGoSlug = "observability-cascade-go-node";
 
 struct CheckResult {
   bool pass = false;
@@ -118,34 +118,7 @@ std::string repo_root_from(const std::filesystem::path &start) {
     if (parent == current) break;
     current = parent;
   }
-  throw std::runtime_error("repository root not found");
-}
-
-bool is_source_root(const std::filesystem::path &path) {
-  return std::filesystem::exists(path / "api" / "v1" / "holon.proto") &&
-         std::filesystem::exists(path / "holons" / "observability-cascade-node");
-}
-
-std::string source_root_from(const std::filesystem::path &start) {
-  if (const char *env = std::getenv("OBSERVABILITY_CASCADE_CPP_SOURCE_ROOT");
-      env != nullptr && *env != '\0') {
-    return std::filesystem::absolute(trim(env)).string();
-  }
-  auto current = std::filesystem::absolute(start);
-  while (!current.empty()) {
-    if (is_source_root(current)) {
-      return current.string();
-    }
-    auto nested =
-        current / "examples" / "observability-cascade" / "observability-cascade-cpp";
-    if (is_source_root(nested)) {
-      return nested.string();
-    }
-    auto parent = current.parent_path();
-    if (parent == current) break;
-    current = parent;
-  }
-  throw std::runtime_error("observability-cascade-cpp source root not found");
+  return std::filesystem::absolute(start).string();
 }
 
 std::string trim(std::string value) {
@@ -182,31 +155,16 @@ std::optional<std::string> find_executable(const std::filesystem::path &root,
   return std::nullopt;
 }
 
-std::string find_binary(const std::string &slug, const std::string &source_root,
-                        const std::string &examples_root,
-                        const std::string &repo_root) {
-  auto suffix = slug.substr(std::string("observability-cascade-node-").size());
-  for (auto &ch : suffix) {
-    ch = ch == '-' ? '_' : static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
-  }
-  if (const char *env = std::getenv(("OBSERVABILITY_CASCADE_NODE_" + suffix + "_BIN").c_str());
-      env != nullptr && *env != '\0') {
-    return trim(env);
-  }
-  std::vector<std::filesystem::path> roots;
+std::string find_member_binary(std::string_view id) {
+  return holons::member(id).string();
+}
+
+std::string find_binary(const std::string &slug, const std::string &repo_root) {
   if (slug == kCppSlug) {
-    auto node = std::filesystem::path(source_root) / "holons" / "observability-cascade-node";
-    roots.push_back(node / ".op" / "build" / "observability-cascade-node.holon" / "bin");
-    roots.push_back(node / ".op" / "build" / "observability-cascade-node-cpp.holon" / "bin");
+    return find_member_binary("cpp-node");
   }
-  if (slug == kGoSlug) {
-    auto node = std::filesystem::path(examples_root) / "observability-cascade-go" /
-                "holons" / "observability-cascade-node";
-    roots.push_back(node / ".op" / "build" / "observability-cascade-node.holon" / "bin");
-    roots.push_back(node / ".op" / "build" / "observability-cascade-node-go.holon" / "bin");
-  }
-  for (const auto &root : roots) {
-    auto found = find_executable(root, slug);
+  if (const char *opbin = std::getenv("OPBIN"); opbin != nullptr && *opbin != '\0') {
+    auto found = find_executable(std::filesystem::path(opbin) / (slug + ".holon") / "bin", slug);
     if (found) return *found;
   }
   auto from_op = capture_command("cd '" + repo_root + "' && op --bin " + slug + " 2>/dev/null");
@@ -1159,19 +1117,15 @@ to_proto(const MultiPatternReportData &data) {
 class ObservabilityCascadeServiceImpl final
     : public observability_cascade::v1::ObservabilityCascadeService::Service {
 public:
-  ObservabilityCascadeServiceImpl(std::string source_root,
-                                  std::string examples_root,
-                                  std::string repo_root)
-      : source_root_(std::move(source_root)),
-        examples_root_(std::move(examples_root)),
-        repo_root_(std::move(repo_root)) {}
+  explicit ObservabilityCascadeServiceImpl(std::string repo_root)
+      : repo_root_(std::move(repo_root)) {}
 
   grpc::Status RunDefault(
       grpc::ServerContext *,
       const observability_cascade::v1::RunRequest *,
       observability_cascade::v1::CascadeReport *response) override {
     try {
-      auto cpp_binary = find_binary(kCppSlug, source_root_, examples_root_, repo_root_);
+      auto cpp_binary = find_binary(kCppSlug, repo_root_);
       *response = to_proto(run_default(cpp_binary, repo_root_, false));
       return grpc::Status::OK;
     } catch (const std::exception &error) {
@@ -1184,7 +1138,7 @@ public:
       const observability_cascade::v1::RunRequest *,
       observability_cascade::v1::CascadeReport *response) override {
     try {
-      auto cpp_binary = find_binary(kCppSlug, source_root_, examples_root_, repo_root_);
+      auto cpp_binary = find_binary(kCppSlug, repo_root_);
       *response = to_proto(run_live_stream(cpp_binary, repo_root_, false));
       return grpc::Status::OK;
     } catch (const std::exception &error) {
@@ -1197,8 +1151,8 @@ public:
       const observability_cascade::v1::RunRequest *,
       observability_cascade::v1::MultiPatternReport *response) override {
     try {
-      auto cpp_binary = find_binary(kCppSlug, source_root_, examples_root_, repo_root_);
-      auto go_binary = find_binary(kGoSlug, source_root_, examples_root_, repo_root_);
+      auto cpp_binary = find_binary(kCppSlug, repo_root_);
+      auto go_binary = find_binary(kGoSlug, repo_root_);
       *response =
           to_proto(run_multi_pattern(cpp_binary, go_binary, repo_root_, false));
       return grpc::Status::OK;
@@ -1208,14 +1162,10 @@ public:
   }
 
 private:
-  std::string source_root_;
-  std::string examples_root_;
   std::string repo_root_;
 };
 
-void serve_composite(const std::string &source_root,
-                     const std::string &examples_root,
-                     const std::string &repo_root,
+void serve_composite(const std::string &repo_root,
                      const std::vector<std::string> &args) {
   auto parsed = holons::serve::parse_options(args);
   holons::serve::options options;
@@ -1225,8 +1175,7 @@ void serve_composite(const std::string &source_root,
   options.slug = "observability-cascade-cpp";
   options.member_endpoints = parsed.member_endpoints;
 
-  auto service = std::make_shared<ObservabilityCascadeServiceImpl>(
-      source_root, examples_root, repo_root);
+  auto service = std::make_shared<ObservabilityCascadeServiceImpl>(repo_root);
   holons::serve::serve(
       parsed.listeners,
       [service](grpc::ServerBuilder &builder) {
@@ -1247,18 +1196,16 @@ int main(int argc, char **argv) {
       if (arg == "--multi-pattern") multi_pattern = true;
     }
     auto cwd = std::filesystem::current_path();
-    auto source_root = source_root_from(cwd);
-    auto examples_root = std::filesystem::path(source_root).parent_path().string();
-    auto repo_root = repo_root_from(source_root);
+    auto repo_root = repo_root_from(cwd);
     if (argc > 1 && std::string(argv[1]) == "serve") {
       std::vector<std::string> serve_args;
       for (int i = 2; i < argc; ++i) serve_args.emplace_back(argv[i]);
-      serve_composite(source_root, examples_root, repo_root, serve_args);
+      serve_composite(repo_root, serve_args);
       return 0;
     }
-    auto cpp_binary = find_binary(kCppSlug, source_root, examples_root, repo_root);
+    auto cpp_binary = find_binary(kCppSlug, repo_root);
     if (multi_pattern) {
-      auto go_binary = find_binary(kGoSlug, source_root, examples_root, repo_root);
+      auto go_binary = find_binary(kGoSlug, repo_root);
       run_multi_pattern(cpp_binary, go_binary, repo_root, true);
     } else if (live_stream) {
       run_live_stream(cpp_binary, repo_root, true);

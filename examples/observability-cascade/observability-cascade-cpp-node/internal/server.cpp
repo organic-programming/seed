@@ -9,7 +9,7 @@ std::string ResponderSlug(const holons::observability::Observability &obs) {
   if (!obs.cfg.slug.empty()) {
     return obs.cfg.slug;
   }
-  return std::filesystem::path("observability-cascade-node-cpp").filename().string();
+  return std::filesystem::path("observability-cascade-cpp-node").filename().string();
 }
 
 } // namespace
@@ -47,7 +47,7 @@ RunningServer StartServer(const std::vector<std::string> &listeners,
   options.enable_reflection = reflect;
   options.auto_register_holon_meta = false;
   options.announce = announce;
-  options.slug = "observability-cascade-node-cpp";
+  options.slug = "observability-cascade-cpp-node";
   options.member_endpoints = std::move(members);
 
   const std::vector<std::string> resolved =
@@ -69,7 +69,7 @@ void Serve(const std::vector<std::string> &listeners,
   options.enable_reflection = reflect;
   options.auto_register_holon_meta = false;
   options.announce = true;
-  options.slug = "observability-cascade-node-cpp";
+  options.slug = "observability-cascade-cpp-node";
   options.member_endpoints = std::move(members);
 
   auto service = std::make_shared<Server>();

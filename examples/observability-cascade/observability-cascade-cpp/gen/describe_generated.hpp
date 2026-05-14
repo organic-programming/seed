@@ -15,8 +15,8 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
       auto *identity = manifest->mutable_identity();
       identity->set_schema("holon/v1");
       identity->set_uuid("f638734a-0055-40f5-88e7-e4f85921fd43");
-      identity->set_given_name("observability-cascade");
-      identity->set_family_name("cpp-composite");
+      identity->set_given_name("Observability");
+      identity->set_family_name("Cascade-Cpp");
       identity->set_motto("Validates C++ observability cascade observability.");
       identity->set_composer("B. ALTER");
       identity->set_status("draft");
@@ -28,7 +28,7 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
     manifest->set_kind("composite");
     {
       auto *build = manifest->mutable_build();
-      build->set_runner("recipe");
+      build->set_runner("cmake");
     }
     {
       auto *manifest_requires = manifest->mutable_requires_();

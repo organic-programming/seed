@@ -53,6 +53,9 @@ using ssize_t = intptr_t;
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 #endif
 #if __has_include(<nlohmann/json.hpp>)
 #include <nlohmann/json.hpp>
@@ -217,6 +220,97 @@ inline int unlink_path(const char *path) {
 #else
   return ::unlink(path);
 #endif
+}
+
+namespace member_detail {
+
+inline bool executable_candidate(const std::filesystem::directory_entry &entry) {
+  std::error_code ec;
+  if (!entry.is_regular_file(ec)) {
+    return false;
+  }
+  const auto path = entry.path();
+#ifdef _WIN32
+  return path.extension() == ".exe";
+#else
+  if (!path.extension().empty()) {
+    return false;
+  }
+  const auto permissions = entry.status(ec).permissions();
+  if (ec) {
+    return false;
+  }
+  using perms = std::filesystem::perms;
+  return (permissions & (perms::owner_exec | perms::group_exec | perms::others_exec)) !=
+         perms::none;
+#endif
+}
+
+} // namespace member_detail
+
+inline std::filesystem::path member_from_executable(
+    const std::filesystem::path &executable, std::string_view id) {
+  if (executable.empty()) {
+    throw std::runtime_error("executable path is required");
+  }
+  if (id.empty()) {
+    throw std::runtime_error("member id is required");
+  }
+
+  const auto member_dir =
+      executable.parent_path() / "holons" / std::string(id);
+  std::error_code ec;
+  if (!std::filesystem::is_directory(member_dir, ec)) {
+    throw std::runtime_error("member directory not found: " +
+                             member_dir.string());
+  }
+
+  for (const auto &entry : std::filesystem::directory_iterator(member_dir, ec)) {
+    if (ec) {
+      break;
+    }
+    if (member_detail::executable_candidate(entry)) {
+      return entry.path();
+    }
+  }
+  throw std::runtime_error("no executable found in " + member_dir.string());
+}
+
+inline std::filesystem::path executable_path() {
+  if (const char *env = std::getenv("OP_HOLON_EXECUTABLE");
+      env != nullptr && *env != '\0') {
+    return std::filesystem::path(env);
+  }
+#ifdef _WIN32
+  std::array<char, 32768> buffer{};
+  DWORD len = ::GetModuleFileNameA(nullptr, buffer.data(),
+                                   static_cast<DWORD>(buffer.size()));
+  if (len == 0 || len >= buffer.size()) {
+    throw std::runtime_error("OP_HOLON_EXECUTABLE is not set");
+  }
+  return std::filesystem::path(std::string(buffer.data(), len));
+#elif defined(__APPLE__)
+  std::array<char, 4096> buffer{};
+  uint32_t size = static_cast<uint32_t>(buffer.size());
+  if (_NSGetExecutablePath(buffer.data(), &size) != 0) {
+    throw std::runtime_error("OP_HOLON_EXECUTABLE is not set");
+  }
+  return std::filesystem::path(buffer.data());
+#elif defined(__linux__)
+  std::array<char, 4096> buffer{};
+  const auto len = ::readlink("/proc/self/exe", buffer.data(), buffer.size() - 1);
+  if (len <= 0) {
+    throw std::runtime_error("OP_HOLON_EXECUTABLE is not set");
+  }
+  buffer[static_cast<std::size_t>(len)] = '\0';
+  return std::filesystem::path(buffer.data());
+#else
+  throw std::runtime_error("OP_HOLON_EXECUTABLE is not set");
+#endif
+}
+
+inline std::filesystem::path member(std::string_view id) {
+  return member_from_executable(executable_path(), id);
 }
 
 inline int socket_shutdown_both() {
