@@ -1,4 +1,3 @@
-import CascadeNodeSwift
 import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
@@ -17,8 +16,8 @@ private let runPhases = 4
 private let runTicks = 3
 private let roleOrder = ["D", "C", "B", "A"]
 private let transports = ["tcp", "unix", "tcp", "unix"]
-private let swiftSlug = "observability-cascade-node-swift"
-private let goSlug = "observability-cascade-node-go"
+private let swiftSlug = "observability-cascade-swift-node"
+private let goSlug = "observability-cascade-go-node"
 
 private let app = App(roleOrder: roleOrder, transports: transports)
 do {
@@ -44,16 +43,12 @@ do {
 private final class App {
     private let roleOrder: [String]
     private let transports: [String]
-    private let sourceRoot: String
-    private let examplesRoot: String
-    private let repoRoot: String
+    private let repoRoot: String?
 
     init(roleOrder: [String], transports: [String]) {
         self.roleOrder = roleOrder
         self.transports = transports
-        self.sourceRoot = try! Self.findSourceRoot()
-        self.examplesRoot = URL(fileURLWithPath: sourceRoot, isDirectory: true).deletingLastPathComponent().path
-        self.repoRoot = try! Self.findRepoRoot(start: sourceRoot)
+        self.repoRoot = Self.findRepoRoot(start: FileManager.default.currentDirectoryPath)
     }
 
     func serveComposite(_ args: [String]) throws {
@@ -452,7 +447,7 @@ private final class App {
             arguments += ["--member", "\(runtime.memberSlug)=\(runtime.memberAddress)"]
         }
         process.arguments = arguments
-        process.currentDirectoryURL = URL(fileURLWithPath: repoRoot, isDirectory: true)
+        process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory(), isDirectory: true)
         var environment = ProcessInfo.processInfo.environment
         environment["OP_OBS"] = "logs,events,metrics,prom"
         environment["OP_RUN_DIR"] = cascade.runRoot
@@ -519,37 +514,29 @@ private final class App {
     }
 
     private func findBinary(_ slug: String) throws -> String {
-        let suffix = slug.replacingOccurrences(of: "observability-cascade-node-", with: "").uppercased().replacingOccurrences(of: "-", with: "_")
-        let envName = "OBSERVABILITY_CASCADE_NODE_\(suffix)_BIN"
-        if let fromEnv = ProcessInfo.processInfo.environment[envName]?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !fromEnv.isEmpty {
-            return fromEnv
-        }
-        var roots: [String] = []
         if slug == swiftSlug {
-            let swiftNode = "\(sourceRoot)/holons/observability-cascade-node"
-            roots.append("\(swiftNode)/.op/build/observability-cascade-node.holon/bin")
-            roots.append("\(swiftNode)/.op/build/observability-cascade-node-swift.holon/bin")
+            return try Composite.member("swift-node")
         }
-        if slug == goSlug {
-            let goNode = "\(examplesRoot)/observability-cascade-go/holons/observability-cascade-node"
-            roots.append("\(goNode)/.op/build/observability-cascade-node.holon/bin")
-            roots.append("\(goNode)/.op/build/observability-cascade-node-go.holon/bin")
-        }
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let opbin = ProcessInfo.processInfo.environment["OPBIN"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let roots = ["\((opbin?.isEmpty == false) ? opbin! : "\(home)/.op/bin")/\(slug).holon/bin"]
         for root in roots {
             if let found = findExecutable(root: root, name: slug) {
                 return found
             }
         }
-        if let output = try? runCommand("/usr/bin/env", ["op", "--bin", slug], cwd: repoRoot).trimmingCharacters(in: .whitespacesAndNewlines),
+        if let output = try? runCommand("/usr/bin/env", ["op", "--bin", slug], cwd: workingDirectory()).trimmingCharacters(in: .whitespacesAndNewlines),
            !output.isEmpty {
             return output
         }
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
         if let found = findExecutable(root: "\(home)/.op/bin/\(slug).holon/bin", name: slug) {
             return found
         }
         throw RuntimeError("\(slug) binary not found; run op build \(slug) --install")
+    }
+
+    private func workingDirectory() -> String {
+        repoRoot ?? FileManager.default.currentDirectoryPath
     }
 
     private func runCommand(_ executable: String, _ arguments: [String], cwd: String) throws -> String {
@@ -585,35 +572,7 @@ private final class App {
         return nil
     }
 
-    private static func findSourceRoot() throws -> String {
-        if let fromEnv = ProcessInfo.processInfo.environment["OBSERVABILITY_CASCADE_SWIFT_SOURCE_ROOT"]?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !fromEnv.isEmpty {
-            return URL(fileURLWithPath: fromEnv, isDirectory: true).standardizedFileURL.path
-        }
-        var url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true).standardizedFileURL
-        while true {
-            if isSourceRoot(url.path) {
-                return url.path
-            }
-            let nested = url.appendingPathComponent("examples/observability-cascade/observability-cascade-swift", isDirectory: true)
-            if isSourceRoot(nested.path) {
-                return nested.path
-            }
-            let parent = url.deletingLastPathComponent()
-            if parent.path == url.path {
-                break
-            }
-            url = parent
-        }
-        throw RuntimeError("observability-cascade-swift source root not found")
-    }
-
-    private static func isSourceRoot(_ path: String) -> Bool {
-        FileManager.default.fileExists(atPath: "\(path)/api/v1/holon.proto") &&
-            FileManager.default.fileExists(atPath: "\(path)/holons/observability-cascade-node")
-    }
-
-    private static func findRepoRoot(start: String) throws -> String {
+    private static func findRepoRoot(start: String) -> String? {
         var url = URL(fileURLWithPath: start, isDirectory: true).standardizedFileURL
         while true {
             if FileManager.default.fileExists(atPath: url.appendingPathComponent("sdk", isDirectory: true).path),
@@ -626,7 +585,7 @@ private final class App {
             }
             url = parent
         }
-        throw RuntimeError("repository root not found")
+        return nil
     }
 
     private func childRole(_ role: String) -> String? {

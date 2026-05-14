@@ -8,7 +8,6 @@ let package = Package(
         .executable(name: "observability-cascade-swift", targets: ["observability-cascade-swift"]),
     ],
     dependencies: [
-        .package(path: "holons/observability-cascade-node"),
         .package(path: "../../../sdk/swift-holons"),
         .package(url: "https://github.com/grpc/grpc-swift.git", exact: "1.9.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.36.0"),
@@ -18,7 +17,6 @@ let package = Package(
         .executableTarget(
             name: "observability-cascade-swift",
             dependencies: [
-                .product(name: "CascadeNodeSwift", package: "observability-cascade-node"),
                 .product(name: "Holons", package: "swift-holons"),
                 .product(name: "GRPC", package: "grpc-swift"),
                 .product(name: "NIOCore", package: "swift-nio"),
@@ -33,6 +31,7 @@ let package = Package(
                 "Sources/observability-cascade-swift",
                 "gen/describe_generated.swift",
                 "gen/swift/observability_cascade/v1",
+                "gen/swift/relay/v1",
             ]
         ),
     ]

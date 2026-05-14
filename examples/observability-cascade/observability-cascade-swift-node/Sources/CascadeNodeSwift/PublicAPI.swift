@@ -30,6 +30,6 @@ public enum PublicAPI {
 
     private static func responderSlug(_ obs: Observability) -> String {
         let slug = obs.cfg.slug.trimmingCharacters(in: .whitespacesAndNewlines)
-        return slug.isEmpty ? "observability-cascade-node-swift" : slug
+        return slug.isEmpty ? "observability-cascade-swift-node" : slug
     }
 }

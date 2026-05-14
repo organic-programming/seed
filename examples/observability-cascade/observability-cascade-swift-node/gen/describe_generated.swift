@@ -11,8 +11,8 @@ public enum DescribeGenerated {
     $0.identity = Holons_V1_HolonManifest.Identity.with {
       $0.schema = "holon/v1"
       $0.uuid = "4f3d5cad-0910-4d58-b430-2d2b6c423cc2"
-      $0.givenName = "observability-cascade"
-      $0.familyName = "node-swift"
+      $0.givenName = "Observability"
+      $0.familyName = "Cascade-Swift-Node"
       $0.motto = "Minimal observability cascade node."
       $0.composer = "B. ALTER"
       $0.status = "draft"
@@ -31,7 +31,7 @@ public enum DescribeGenerated {
       ]
     }
     $0.artifacts = Holons_V1_HolonManifest.Artifacts.with {
-      $0.binary = "observability-cascade-node-swift"
+      $0.binary = "observability-cascade-swift-node"
     }
     $0.sequences = [
       Holons_V1_HolonManifest.Sequence.with {
@@ -49,7 +49,7 @@ public enum DescribeGenerated {
           },
         ]
         $0.steps = [
-          "op observability-cascade-node-swift Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'",
+          "op observability-cascade-swift-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'",
         ]
       },
     ]

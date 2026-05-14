@@ -27,33 +27,12 @@ option (holons.v1.manifest) = {
     rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
   }
   build: {
-    runner: "recipe"
+    runner: "swift-package"
     codegen: { languages: ["swift", "swift-grpc"] }
-    defaults: {
-      target: "macos"
-      mode: "debug"
-    }
     members: {
       id: "swift-node"
       path: "../observability-cascade-swift-node"
       type: "holon"
-    }
-    targets: {
-      key: "macos"
-      value: {
-        steps: { build_member: "swift-node" }
-        steps: {
-          exec: {
-            cwd: "."
-            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-swift.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\"\nswift build -c release --product observability-cascade-swift >/dev/null\nmkdir -p \"$pkg/bin/$arch\"\ncp .build/release/observability-cascade-swift \"$pkg/bin/$arch/observability-cascade-swift\"\nchmod +x \"$pkg/bin/$arch/observability-cascade-swift\""]
-          }
-        }
-        steps: {
-          assert_file: {
-            path: ".op/build/observability-cascade-swift.holon/bin/darwin_arm64/observability-cascade-swift"
-          }
-        }
-      }
     }
   }
   requires: {

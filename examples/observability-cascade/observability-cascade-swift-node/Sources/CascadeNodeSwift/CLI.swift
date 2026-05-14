@@ -3,7 +3,7 @@ import Holons
 import SwiftProtobuf
 
 public enum CLI {
-    public static let version = "observability-cascade-node-swift {{ .Version }}"
+    public static let version = "observability-cascade-swift-node {{ .Version }}"
 
     public static func run(_ args: [String], serve: ((String, Bool, [Serve.MemberRef]) throws -> Void)? = nil) -> Int {
         var stdout = FileTextOutputStream.standardOutput
@@ -129,7 +129,7 @@ public enum CLI {
     }
 
     private static func printUsage<Output: TextOutputStream>(to output: inout Output) {
-        output.write("usage: observability-cascade-node-swift <command> [args] [flags]\n")
+        output.write("usage: observability-cascade-swift-node <command> [args] [flags]\n")
         output.write("\n")
         output.write("commands:\n")
         output.write("  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server\n")

@@ -23,7 +23,7 @@ public func listenAndServe(_ listenURI: String, reflect: Bool = false, members: 
         serviceProviders: [RelayServiceProvider()],
         options: Serve.Options(
             reflect: reflect,
-            slug: "observability-cascade-node-swift",
+            slug: "observability-cascade-swift-node",
             memberEndpoints: members
         )
     )
