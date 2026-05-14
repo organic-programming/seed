@@ -33,7 +33,7 @@ dependencies {
 
 sourceSets {
     main {
-        java.srcDirs("src/main/kotlin", "gen", "gen/kotlin", "holons/observability-cascade-node/gen/kotlin")
+        java.srcDirs("src/main/kotlin", "gen", "gen/kotlin")
     }
 }
 

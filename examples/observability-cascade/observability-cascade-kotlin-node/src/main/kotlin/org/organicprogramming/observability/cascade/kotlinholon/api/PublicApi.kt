@@ -29,5 +29,5 @@ object PublicApi {
     }
 
     private fun responderSlug(obs: Observability.Instance): String =
-        obs.cfg.slug.trim().ifEmpty { "observability-cascade-node-kotlin" }
+        obs.cfg.slug.trim().ifEmpty { "observability-cascade-kotlin-node" }
 }

@@ -13,8 +13,8 @@ object DescribeGenerated {
                 holons.v1.Manifest.HolonManifest.Identity.newBuilder()
                     .setSchema("holon/v1")
                     .setUuid("5e167201-95a1-4371-a234-31679fb5e3bf")
-                    .setGivenName("observability-cascade")
-                    .setFamilyName("node-kotlin")
+                    .setGivenName("Observability")
+                    .setFamilyName("Cascade-Kotlin-Node")
                     .setMotto("Minimal observability cascade node.")
                     .setComposer("B. ALTER")
                     .setStatus("draft")
@@ -39,7 +39,7 @@ object DescribeGenerated {
             )
             .setArtifacts(
                 holons.v1.Manifest.HolonManifest.Artifacts.newBuilder()
-                    .setBinary("observability-cascade-node-kotlin")
+                    .setBinary("observability-cascade-kotlin-node")
                     .build()
             )
             .addSequences(
@@ -59,7 +59,7 @@ object DescribeGenerated {
                             .setDescription("Free-form tick note")
                             .build()
                     )
-                    .addSteps("op observability-cascade-node-kotlin Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'")
+                    .addSteps("op observability-cascade-kotlin-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'")
                     .build()
             )
             .build()

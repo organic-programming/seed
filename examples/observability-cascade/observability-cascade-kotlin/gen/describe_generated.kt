@@ -13,8 +13,8 @@ object DescribeGenerated {
                 holons.v1.Manifest.HolonManifest.Identity.newBuilder()
                     .setSchema("holon/v1")
                     .setUuid("8e57cf8c-7f7c-4231-85d6-73f42967fe35")
-                    .setGivenName("observability-cascade")
-                    .setFamilyName("kotlin-composite")
+                    .setGivenName("Observability")
+                    .setFamilyName("Cascade-Kotlin")
                     .setMotto("Validates Kotlin observability cascade observability.")
                     .setComposer("B. ALTER")
                     .setStatus("draft")
@@ -27,7 +27,7 @@ object DescribeGenerated {
             .setKind("composite")
             .setBuild(
                 holons.v1.Manifest.HolonManifest.Build.newBuilder()
-                    .setRunner("recipe")
+                    .setRunner("gradle")
                     .build()
             )
             .setRequires(

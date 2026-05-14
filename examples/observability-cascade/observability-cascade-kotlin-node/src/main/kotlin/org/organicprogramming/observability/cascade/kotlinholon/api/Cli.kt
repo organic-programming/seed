@@ -8,7 +8,7 @@ import relay.v1.Relay
 import java.io.PrintStream
 
 object Cli {
-    const val VERSION = "observability-cascade-node-kotlin {{ .Version }}"
+    const val VERSION = "observability-cascade-kotlin-node {{ .Version }}"
 
     fun run(args: Array<String>, stdout: PrintStream = System.out, stderr: PrintStream = System.err): Int {
         if (args.isEmpty()) {
@@ -115,7 +115,7 @@ object Cli {
         raw.trim().lowercase().replace("-", "").replace("_", "").replace(" ", "")
 
     private fun printUsage(output: PrintStream) {
-        output.println("usage: observability-cascade-node-kotlin <command> [args] [flags]")
+        output.println("usage: observability-cascade-kotlin-node <command> [args] [flags]")
         output.println()
         output.println("commands:")
         output.println("  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server")

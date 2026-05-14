@@ -1,2 +1,2 @@
-rootProject.name = "observability-cascade-node-kotlin"
-includeBuild("../../../../../sdk/kotlin-holons")
+rootProject.name = "observability-cascade-kotlin-node"
+includeBuild("../../../sdk/kotlin-holons")

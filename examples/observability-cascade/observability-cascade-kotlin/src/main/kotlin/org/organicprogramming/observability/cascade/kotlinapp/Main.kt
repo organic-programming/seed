@@ -23,6 +23,7 @@ import kotlin.io.path.isRegularFile
 import kotlinx.coroutines.runBlocking
 import org.organicprogramming.holons.Connect
 import org.organicprogramming.holons.ConnectOptions
+import org.organicprogramming.holons.Composite
 import org.organicprogramming.holons.Describe as HolonDescribe
 import org.organicprogramming.holons.Observability
 import org.organicprogramming.holons.Serve
@@ -35,8 +36,8 @@ private const val RUN_PHASES = 4
 private const val RUN_TICKS = 3
 private val ROLE_ORDER = listOf("D", "C", "B", "A")
 private val TRANSPORTS = listOf("tcp", "unix", "tcp", "unix")
-private const val KOTLIN_SLUG = "observability-cascade-node-kotlin"
-private const val GO_SLUG = "observability-cascade-node-go"
+private const val KOTLIN_SLUG = "observability-cascade-kotlin-node"
+private const val GO_SLUG = "observability-cascade-go-node"
 
 private val gson = Gson()
 private val http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build()
@@ -58,9 +59,7 @@ fun main(args: Array<String>) {
 }
 
 private class App {
-    private val sourceRoot = findSourceRoot()
-    private val examplesRoot = sourceRoot.parent
-    private val repoRoot = findRepoRoot(sourceRoot)
+    private val repoRoot = findRepoRoot(Path.of(System.getProperty("user.dir")))
 
     fun serveComposite(args: Array<String>) {
         HolonDescribe.useStaticResponse(gen.DescribeGenerated.StaticDescribeResponse())
@@ -395,7 +394,7 @@ private class App {
         val stderrPath = Files.createTempFile("observability-cascade-kotlin-${runtime.uid}-", ".stderr")
         runtime.stderrPath = stderrPath
         val builder = ProcessBuilder(args)
-            .directory(repoRoot.toFile())
+            .directory(workingDirectory().toFile())
             .redirectOutput(ProcessBuilder.Redirect.DISCARD)
             .redirectError(stderrPath.toFile())
         builder.environment().putAll(
@@ -467,24 +466,17 @@ private class App {
         ROLE_ORDER.associateWith { RoleSpec(KOTLIN_SLUG, binary) }
 
     private fun findBinary(slug: String): Path {
-        val envName = "OBSERVABILITY_CASCADE_NODE_${slug.removePrefix("observability-cascade-node-").uppercase(Locale.ROOT).replace('-', '_')}_BIN"
-        System.getenv(envName)?.trim()?.takeIf { it.isNotEmpty() }?.let { return Path.of(it) }
-        val roots = mutableListOf<Path>()
         if (slug == KOTLIN_SLUG) {
-            val kotlinNode = sourceRoot.resolve("holons").resolve("observability-cascade-node")
-            roots.add(kotlinNode.resolve(".op/build/observability-cascade-node.holon/bin"))
-            roots.add(kotlinNode.resolve(".op/build/observability-cascade-node-kotlin.holon/bin"))
+            return Composite.member("kotlin-node")
         }
-        if (slug == GO_SLUG) {
-            val goNode = examplesRoot.resolve("observability-cascade-go").resolve("holons").resolve("observability-cascade-node")
-            roots.add(goNode.resolve(".op/build/observability-cascade-node.holon/bin"))
-            roots.add(goNode.resolve(".op/build/observability-cascade-node-go.holon/bin"))
-        }
+
+        val roots = mutableListOf<Path>()
+        roots.add(Path.of(System.getenv("OPBIN") ?: Path.of(System.getProperty("user.home"), ".op", "bin").toString(), "$slug.holon", "bin"))
         roots.forEach { root ->
             findExecutable(root, slug)?.let { return it }
         }
         val process = ProcessBuilder("op", "--bin", slug)
-            .directory(repoRoot.toFile())
+            .directory(workingDirectory().toFile())
             .redirectError(ProcessBuilder.Redirect.DISCARD)
             .start()
         val out = process.inputStream.readAllBytes().toString(StandardCharsets.UTF_8).trim()
@@ -493,6 +485,9 @@ private class App {
         findExecutable(home, slug)?.let { return it }
         error("$slug binary not found; run op build $slug --install")
     }
+
+    private fun workingDirectory(): Path =
+        repoRoot ?: Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize()
 
     private fun findExecutable(root: Path, name: String): Path? {
         if (!Files.isDirectory(root)) return null
@@ -852,29 +847,7 @@ private fun childRole(role: String): String = when (role) {
     else -> ""
 }
 
-private fun findSourceRoot(): Path {
-    System.getenv("OBSERVABILITY_CASCADE_KOTLIN_SOURCE_ROOT")?.trim()?.takeIf { it.isNotEmpty() }?.let {
-        return Path.of(it).toAbsolutePath().normalize()
-    }
-    var current: Path? = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize()
-    while (current != null) {
-        if (isSourceRoot(current)) {
-            return current
-        }
-        val nested = current.resolve("examples").resolve("observability-cascade").resolve("observability-cascade-kotlin")
-        if (isSourceRoot(nested)) {
-            return nested
-        }
-        current = current.parent
-    }
-    error("observability-cascade-kotlin source root not found")
-}
-
-private fun isSourceRoot(path: Path): Boolean =
-    Files.isRegularFile(path.resolve("api").resolve("v1").resolve("holon.proto")) &&
-        Files.isDirectory(path.resolve("holons").resolve("observability-cascade-node"))
-
-private fun findRepoRoot(start: Path): Path {
+private fun findRepoRoot(start: Path): Path? {
     var current: Path? = start.toAbsolutePath().normalize()
     while (current != null) {
         if (Files.isDirectory(current.resolve("sdk")) && Files.isDirectory(current.resolve("examples"))) {
@@ -882,7 +855,7 @@ private fun findRepoRoot(start: Path): Path {
         }
         current = current.parent
     }
-    error("repository root not found")
+    return null
 }
 
 private fun nowMillis(): Long = System.nanoTime() / 1_000_000

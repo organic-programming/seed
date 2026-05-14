@@ -16,7 +16,7 @@ class RelayServer : RelayServiceGrpcKt.RelayServiceCoroutineImplBase() {
                 listOf(RelayServer()),
                 Serve.Options(
                     reflect = reflect,
-                    slug = "observability-cascade-node-kotlin",
+                    slug = "observability-cascade-kotlin-node",
                     memberEndpoints = members,
                 ),
             )
