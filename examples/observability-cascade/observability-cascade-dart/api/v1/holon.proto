@@ -3,6 +3,7 @@ syntax = "proto3";
 package observability.cascade.dart.v1;
 
 import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
 
 option (holons.v1.manifest) = {
   identity: {
@@ -18,10 +19,42 @@ option (holons.v1.manifest) = {
   }
   description: "A Dart composite program that validates observability-cascade observability across three modes and patterns."
   lang: "dart"
-  kind: "native"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
   build: {
-    runner: "dart"
-    main: "./bin/main.dart"
+    runner: "recipe"
+    codegen: { languages: ["dart"] }
+    defaults: {
+      target: "macos"
+      mode: "debug"
+    }
+    members: {
+      id: "node"
+      path: "./holons/observability-cascade-node"
+      type: "holon"
+    }
+    targets: {
+      key: "macos"
+      value: {
+        steps: { build_member: "node" }
+        steps: {
+          exec: {
+            cwd: "."
+            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-dart.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\"\nmkdir -p \"$pkg/bin/$arch\"\ndart pub get\ndart compile exe -DOBSERVABILITY_CASCADE_DART_SOURCE_ROOT=\"$PWD\" bin/main.dart -o \"$pkg/bin/$arch/observability-cascade-dart\""]
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/observability-cascade-dart.holon/bin/darwin_arm64/observability-cascade-dart"
+          }
+        }
+      }
+    }
   }
   requires: {
     commands: ["dart"]
@@ -29,6 +62,6 @@ option (holons.v1.manifest) = {
     sdk_prebuilts: ["dart"]
   }
   artifacts: {
-    binary: "observability-cascade-dart"
+    primary: ".op/build/observability-cascade-dart.holon"
   }
 };

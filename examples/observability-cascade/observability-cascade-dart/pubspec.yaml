@@ -7,9 +7,8 @@ environment:
 
 dependencies:
   cascade_node_dart:
-    path: ../observability-cascade-node-dart
+    path: holons/observability-cascade-node
   grpc: ^5.1.0
   holons:
     path: ../../../sdk/dart-holons
   protobuf: ^6.0.0
-

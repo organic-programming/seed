@@ -19,10 +19,9 @@ DescribeResponse staticDescribeResponse() {
     ),
     description: "A Dart composite program that validates observability-cascade observability across three modes and patterns.",
     lang: "dart",
-    kind: "native",
+    kind: "composite",
     build: HolonManifest_Build(
-      runner: "dart",
-      main: "./bin/main.dart",
+      runner: "recipe",
     ),
     requires: HolonManifest_Requires(
       files: [
@@ -31,8 +30,212 @@ DescribeResponse staticDescribeResponse() {
       ],
     ),
     artifacts: HolonManifest_Artifacts(
-      binary: "observability-cascade-dart",
+      primary: ".op/build/observability-cascade-dart.holon",
     ),
   ),
+  services: [
+    ServiceDoc(
+      name: "observability_cascade.v1.ObservabilityCascadeService",
+      methods: [
+        MethodDoc(
+          name: "RunDefault",
+          description: "Run the default 4-deep chain in this composite's own language.",
+          inputType: "observability_cascade.v1.RunRequest",
+          outputType: "observability_cascade.v1.CascadeReport",
+          outputFields: [
+            FieldDoc(
+              name: "ticks",
+              type: "int32",
+              number: 1,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+            FieldDoc(
+              name: "pass",
+              type: "int32",
+              number: 2,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+            FieldDoc(
+              name: "fail",
+              type: "int32",
+              number: 3,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+            FieldDoc(
+              name: "phases",
+              type: "observability_cascade.v1.PhaseResult",
+              number: 4,
+              label: FieldLabel.FIELD_LABEL_REPEATED,
+              nestedFields: [
+                FieldDoc(
+                  name: "name",
+                  type: "string",
+                  number: 1,
+                  label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                ),
+                FieldDoc(
+                  name: "pass",
+                  type: "int32",
+                  number: 2,
+                  label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                ),
+                FieldDoc(
+                  name: "fail",
+                  type: "int32",
+                  number: 3,
+                  label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                ),
+                FieldDoc(
+                  name: "failures",
+                  type: "string",
+                  number: 4,
+                  label: FieldLabel.FIELD_LABEL_REPEATED,
+                ),
+              ],
+            ),
+          ],
+          exampleInput: "{}",
+        ),
+        MethodDoc(
+          name: "RunLiveStream",
+          description: "Run with long-lived Follow:true streams.",
+          inputType: "observability_cascade.v1.RunRequest",
+          outputType: "observability_cascade.v1.CascadeReport",
+          outputFields: [
+            FieldDoc(
+              name: "ticks",
+              type: "int32",
+              number: 1,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+            FieldDoc(
+              name: "pass",
+              type: "int32",
+              number: 2,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+            FieldDoc(
+              name: "fail",
+              type: "int32",
+              number: 3,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+            FieldDoc(
+              name: "phases",
+              type: "observability_cascade.v1.PhaseResult",
+              number: 4,
+              label: FieldLabel.FIELD_LABEL_REPEATED,
+              nestedFields: [
+                FieldDoc(
+                  name: "name",
+                  type: "string",
+                  number: 1,
+                  label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                ),
+                FieldDoc(
+                  name: "pass",
+                  type: "int32",
+                  number: 2,
+                  label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                ),
+                FieldDoc(
+                  name: "fail",
+                  type: "int32",
+                  number: 3,
+                  label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                ),
+                FieldDoc(
+                  name: "failures",
+                  type: "string",
+                  number: 4,
+                  label: FieldLabel.FIELD_LABEL_REPEATED,
+                ),
+              ],
+            ),
+          ],
+          exampleInput: "{}",
+        ),
+        MethodDoc(
+          name: "RunMultiPattern",
+          description: "Run the full alter-language pattern matrix (3 patterns x 12 ticks = 36 ticks).",
+          inputType: "observability_cascade.v1.RunRequest",
+          outputType: "observability_cascade.v1.MultiPatternReport",
+          outputFields: [
+            FieldDoc(
+              name: "patterns",
+              type: "observability_cascade.v1.CascadeReport",
+              number: 1,
+              label: FieldLabel.FIELD_LABEL_REPEATED,
+              nestedFields: [
+                FieldDoc(
+                  name: "ticks",
+                  type: "int32",
+                  number: 1,
+                  label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                ),
+                FieldDoc(
+                  name: "pass",
+                  type: "int32",
+                  number: 2,
+                  label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                ),
+                FieldDoc(
+                  name: "fail",
+                  type: "int32",
+                  number: 3,
+                  label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                ),
+                FieldDoc(
+                  name: "phases",
+                  type: "observability_cascade.v1.PhaseResult",
+                  number: 4,
+                  label: FieldLabel.FIELD_LABEL_REPEATED,
+                  nestedFields: [
+                    FieldDoc(
+                      name: "name",
+                      type: "string",
+                      number: 1,
+                      label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                    ),
+                    FieldDoc(
+                      name: "pass",
+                      type: "int32",
+                      number: 2,
+                      label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                    ),
+                    FieldDoc(
+                      name: "fail",
+                      type: "int32",
+                      number: 3,
+                      label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                    ),
+                    FieldDoc(
+                      name: "failures",
+                      type: "string",
+                      number: 4,
+                      label: FieldLabel.FIELD_LABEL_REPEATED,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            FieldDoc(
+              name: "total_pass",
+              type: "int32",
+              number: 2,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+            FieldDoc(
+              name: "total_fail",
+              type: "int32",
+              number: 3,
+              label: FieldLabel.FIELD_LABEL_OPTIONAL,
+            ),
+          ],
+          exampleInput: "{}",
+        ),
+      ],
+    ),
+  ],
 );
 }
