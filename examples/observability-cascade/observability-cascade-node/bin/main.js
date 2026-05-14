@@ -21,6 +21,7 @@ function findRepoRoot(start) {
 function findCascadeRoot(start) {
   let current = path.resolve(start);
   for (;;) {
+    if (fs.existsSync(path.join(current, 'holons', 'observability-cascade-node'))) return current;
     const parent = path.dirname(current);
     if (fs.existsSync(path.join(parent, 'observability-cascade-node-node'))) return parent;
     if (parent === current) throw new Error('could not locate observability-cascade examples root');
@@ -28,9 +29,11 @@ function findCascadeRoot(start) {
   }
 }
 
-const ROOT = findRepoRoot(__dirname);
-const CASCADE_ROOT = findCascadeRoot(__dirname);
-const NODE_NODE = path.join(CASCADE_ROOT, 'observability-cascade-node-node');
+const HERE = path.resolve(process.env.OBSERVABILITY_CASCADE_NODE_SOURCE_ROOT || path.join(__dirname, '..'));
+const ROOT = findRepoRoot(HERE);
+const CASCADE_ROOT = findCascadeRoot(HERE);
+const EXAMPLES_ROOT = path.dirname(HERE);
+const NODE_NODE = path.join(CASCADE_ROOT, 'holons', 'observability-cascade-node');
 const SDK_ROOT = path.join(ROOT, 'sdk', 'js-holons');
 const NODE_NODE_MODULES = path.join(NODE_NODE, '.op', 'build', 'npm', 'node_modules');
 
@@ -43,8 +46,12 @@ process.env.NODE_PATH = [
 Module._initPaths();
 
 const grpc = require(path.join(NODE_NODE_MODULES, '@grpc/grpc-js'));
+const describeGenerated = require(path.join(HERE, 'gen/describe_generated.js'));
+const cascadePb = require(path.join(HERE, 'gen/node/observability_cascade/v1/service_pb.js'));
+const cascadeGrpc = require(path.join(HERE, 'gen/node/observability_cascade/v1/service_grpc_pb.js'));
 const relayPb = require(path.join(NODE_NODE, 'gen/node/relay/v1/relay_pb.js'));
 const relayGrpc = require(path.join(NODE_NODE, 'gen/node/relay/v1/relay_grpc_pb.js'));
+const { describe, serve } = require(path.join(SDK_ROOT, 'src/index.js'));
 const observabilityWire = require(path.join(SDK_ROOT, 'src/gen/holons/v1/observability'));
 const describeWire = require(path.join(SDK_ROOT, 'src/gen/holons/v1/describe'));
 
@@ -105,6 +112,32 @@ class TickOutcome {
     this.event = event;
     this.metric = metric;
     this.metricValue = metricValue;
+  }
+}
+
+class PhaseReportData {
+  constructor(name, pass, fail, failures = []) {
+    this.name = name;
+    this.pass = pass;
+    this.fail = fail;
+    this.failures = failures;
+  }
+}
+
+class CascadeReportData {
+  constructor(ticks, pass, fail, phases) {
+    this.ticks = ticks;
+    this.pass = pass;
+    this.fail = fail;
+    this.phases = phases;
+  }
+}
+
+class MultiPatternReportData {
+  constructor(patterns, totalPass, totalFail) {
+    this.patterns = patterns;
+    this.totalPass = totalPass;
+    this.totalFail = totalFail;
   }
 }
 
@@ -296,10 +329,49 @@ class LiveStreams {
   errors() { return [...this.errs]; }
 }
 
+class ObservabilityCascadeService {
+  async runDefault(_call, callback) {
+    try {
+      callback(null, toCascadeReport(await runDefault(false)));
+    } catch (error) {
+      callback(error);
+    }
+  }
+
+  async runLiveStream(_call, callback) {
+    try {
+      callback(null, toCascadeReport(await runLiveStream(false)));
+    } catch (error) {
+      callback(error);
+    }
+  }
+
+  async runMultiPattern(_call, callback) {
+    try {
+      callback(null, toMultiPatternReport(await runMultiPattern(false)));
+    } catch (error) {
+      callback(error);
+    }
+  }
+}
+
+async function serveComposite(args) {
+  describe.useStaticResponse(describeGenerated.staticDescribeResponse());
+  const options = serve.parseOptions(args);
+  await serve.runWithOptions(normalizeListenUri(options.listenUri), (server) => {
+    server.addService(cascadeGrpc.ObservabilityCascadeServiceService, new ObservabilityCascadeService());
+  }, {
+    reflect: options.reflect,
+    slug: 'observability-cascade-node',
+  });
+}
+
 async function main() {
   try {
-    if (process.argv.includes('--multi-pattern')) await runMultiPattern();
-    else if (process.argv.includes('--live-stream')) await runLiveStream();
+    const args = process.argv.slice(2);
+    if (args.length > 0 && canonicalCommand(args[0]) === 'serve') await serveComposite(args.slice(1));
+    else if (args.includes('--multi-pattern')) await runMultiPattern();
+    else if (args.includes('--live-stream')) await runLiveStream();
     else await runDefault();
     return 0;
   } catch (error) {
@@ -308,18 +380,18 @@ async function main() {
   }
 }
 
-async function runDefault() {
+async function runDefault(emit = true) {
   const binary = findBinary(NODE_SLUG);
   const runRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'observability-cascade-node-'));
-  console.log('=== observability-cascade-node ===');
-  console.log();
+  output(emit, '=== observability-cascade-node ===');
+  output(emit);
   let totalPass = 0;
   let totalFail = 0;
   let previous = '';
   for (let index = 0; index < TRANSPORTS.length; index += 1) {
     const phase = index + 1;
     const transport = TRANSPORTS[index];
-    console.log(previous ? `Phase ${phase}/${RUN_PHASES}: transport=${transport} (switching from ${previous})` : `Phase ${phase}/${RUN_PHASES}: transport=${transport}`);
+    output(emit, previous ? `Phase ${phase}/${RUN_PHASES}: transport=${transport} (switching from ${previous})` : `Phase ${phase}/${RUN_PHASES}: transport=${transport}`);
     const started = performanceNow();
     let cascade;
     try {
@@ -327,11 +399,11 @@ async function runDefault() {
       cascade = await spawnCascade(phase, transport, specs, runRoot);
     } catch (error) {
       totalFail += RUN_TICKS;
-      console.log(`  spawn FAIL: ${error.message}\n`);
+      output(emit, `  spawn FAIL: ${error.message}\n`);
       previous = transport;
       continue;
     }
-    console.log(`  spawned 4 nodes in ${elapsed(started)}`);
+    output(emit, `  spawned 4 nodes in ${elapsed(started)}`);
     let previousMetric = 0;
     for (let tick = 1; tick <= RUN_TICKS; tick += 1) {
       const tickStart = performanceNow();
@@ -339,27 +411,35 @@ async function runDefault() {
       if (outcome.metric.pass) previousMetric = outcome.metricValue;
       const overall = outcome.log.pass && outcome.event.pass && outcome.metric.pass;
       if (overall) totalPass += 1; else totalFail += 1;
-      console.log(`  Tick ${tick}/${RUN_TICKS}: log ${passText(outcome.log.pass)}, event ${passText(outcome.event.pass)}, metric ${passText(outcome.metric.pass)} (overall ${passText(overall)} in ${elapsed(tickStart)})`);
-      printFailureEvidence('log', outcome.log);
-      printFailureEvidence('event', outcome.event);
-      printFailureEvidence('metric', outcome.metric);
+      output(emit, `  Tick ${tick}/${RUN_TICKS}: log ${passText(outcome.log.pass)}, event ${passText(outcome.event.pass)}, metric ${passText(outcome.metric.pass)} (overall ${passText(overall)} in ${elapsed(tickStart)})`);
+      if (emit) {
+        printFailureEvidence('log', outcome.log);
+        printFailureEvidence('event', outcome.event);
+        printFailureEvidence('metric', outcome.metric);
+      }
     }
     cascade.stop();
-    console.log();
+    output(emit);
     previous = transport;
   }
-  console.log(`Summary: ${totalPass + totalFail} ticks, ${totalPass} PASS, ${totalFail} FAIL`);
+  output(emit, `Summary: ${totalPass + totalFail} ticks, ${totalPass} PASS, ${totalFail} FAIL`);
   if (totalFail) throw new Error(`${totalFail} tick(s) failed`);
+  return new CascadeReportData(
+    totalPass + totalFail,
+    totalPass,
+    totalFail,
+    [new PhaseReportData('default', totalPass, totalFail)],
+  );
 }
 
-async function runLiveStream() {
+async function runLiveStream(emit = true) {
   const binary = findBinary(NODE_SLUG);
   const runRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'observability-cascade-node-live-'));
-  console.log('=== observability-cascade-node --live-stream ===');
-  console.log();
-  console.log('Setup: opening long-lived Follow:true streams on A');
-  console.log('       (initial transport: tcp)');
-  console.log();
+  output(emit, '=== observability-cascade-node --live-stream ===');
+  output(emit);
+  output(emit, 'Setup: opening long-lived Follow:true streams on A');
+  output(emit, '       (initial transport: tcp)');
+  output(emit);
   let totalPass = 0;
   let totalFail = 0;
   let cascade = null;
@@ -369,13 +449,13 @@ async function runLiveStream() {
     const phase = index + 1;
     const transport = TRANSPORTS[index];
     if (phase === 1) {
-      console.log(`Phase ${phase}/${RUN_PHASES}: initial chain (${transport})`);
+      output(emit, `Phase ${phase}/${RUN_PHASES}: initial chain (${transport})`);
     } else {
-      console.log(`Phase ${phase}/${RUN_PHASES}: respawn on ${transport}`);
+      output(emit, `Phase ${phase}/${RUN_PHASES}: respawn on ${transport}`);
       const killStart = performanceNow();
       if (streams) streams.stop();
       if (cascade) cascade.stop();
-      console.log(`  killed 4 nodes in ${elapsed(killStart)}`);
+      output(emit, `  killed 4 nodes in ${elapsed(killStart)}`);
     }
     const spawnStart = performanceNow();
     let phaseCascade;
@@ -383,12 +463,12 @@ async function runLiveStream() {
       phaseCascade = await spawnCascade(phase, transport, specs, runRoot);
     } catch (error) {
       totalFail += RUN_TICKS;
-      console.log(`  spawn FAIL: ${error.message}\n`);
+      output(emit, `  spawn FAIL: ${error.message}\n`);
       streams = null;
       continue;
     }
-    console.log(`  spawned 4 nodes in ${elapsed(spawnStart)}`);
-    if (phase > 1) console.log('  re-opening Follow:true streams on new A');
+    output(emit, `  spawned 4 nodes in ${elapsed(spawnStart)}`);
+    if (phase > 1) output(emit, '  re-opening Follow:true streams on new A');
     let streamError = null;
     try {
       streams = new LiveStreams(phaseCascade.roles.A.obsClient);
@@ -396,7 +476,7 @@ async function runLiveStream() {
     } catch (error) {
       streams = null;
       streamError = error.message;
-      console.log(`  stream re-open failed: ${error.message}`);
+      output(emit, `  stream re-open failed: ${error.message}`);
     }
     let previousMetric = 0;
     for (let tick = 1; tick <= RUN_TICKS; tick += 1) {
@@ -405,21 +485,29 @@ async function runLiveStream() {
       if (outcome.metric.pass) previousMetric = outcome.metricValue;
       const overall = outcome.log.pass && outcome.event.pass && outcome.metric.pass;
       if (overall) totalPass += 1; else totalFail += 1;
-      console.log(`  Tick ${tick}/${RUN_TICKS}: log ${passText(outcome.log.pass)}, event ${passText(outcome.event.pass)}, metric ${passText(outcome.metric.pass)} (overall ${passText(overall)} in ${elapsed(tickStart)})`);
-      printFailureEvidence('log', outcome.log);
-      printFailureEvidence('event', outcome.event);
-      printFailureEvidence('metric', outcome.metric);
+      output(emit, `  Tick ${tick}/${RUN_TICKS}: log ${passText(outcome.log.pass)}, event ${passText(outcome.event.pass)}, metric ${passText(outcome.metric.pass)} (overall ${passText(overall)} in ${elapsed(tickStart)})`);
+      if (emit) {
+        printFailureEvidence('log', outcome.log);
+        printFailureEvidence('event', outcome.event);
+        printFailureEvidence('metric', outcome.metric);
+      }
     }
-    console.log();
+    output(emit);
     cascade = phaseCascade;
   }
   if (streams) streams.stop();
   if (cascade) cascade.stop();
-  console.log(`Summary: ${totalPass} PASS / ${totalFail} FAIL across ${totalPass + totalFail} ticks`);
+  output(emit, `Summary: ${totalPass} PASS / ${totalFail} FAIL across ${totalPass + totalFail} ticks`);
   if (totalFail) throw new Error(`${totalFail} tick(s) failed`);
+  return new CascadeReportData(
+    totalPass + totalFail,
+    totalPass,
+    totalFail,
+    [new PhaseReportData('live-stream', totalPass, totalFail)],
+  );
 }
 
-async function runMultiPattern() {
+async function runMultiPattern(emit = true) {
   const nodeBinary = findBinary(NODE_SLUG);
   const goBinary = findBinary(GO_SLUG);
   const patterns = [
@@ -434,13 +522,13 @@ async function runMultiPattern() {
     }],
   ];
   const runRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'observability-cascade-node-multi-'));
-  console.log('=== observability-cascade-node (multi-pattern) ===');
-  console.log();
+  output(emit, '=== observability-cascade-node (multi-pattern) ===');
+  output(emit);
   let totalPass = 0;
   let totalFail = 0;
   for (let patternIndex = 0; patternIndex < patterns.length; patternIndex += 1) {
     const [name, specs] = patterns[patternIndex];
-    console.log(`Pattern ${patternIndex + 1}/${patterns.length}: ${name}`);
+    output(emit, `Pattern ${patternIndex + 1}/${patterns.length}: ${name}`);
     let patternPass = 0;
     for (let index = 0; index < TRANSPORTS.length; index += 1) {
       const phase = index + 1;
@@ -451,7 +539,7 @@ async function runMultiPattern() {
         cascade = await spawnCascade(phase, transport, specs, runRoot);
       } catch (error) {
         totalFail += RUN_TICKS;
-        console.log(`  Phase ${phase}/${RUN_PHASES} (${transport}): spawn FAIL (${error.message})`);
+        output(emit, `  Phase ${phase}/${RUN_PHASES} (${transport}): spawn FAIL (${error.message})`);
         continue;
       }
       let streamError = null;
@@ -482,16 +570,28 @@ async function runMultiPattern() {
           evidence.push(`      Tick ${tick} evidence: ${compactEvidence(outcome)}`);
         }
       }
-      console.log(`  Phase ${phase}/${RUN_PHASES} (${transport}): ${results.join(', ')} (spawned in ${elapsed(started)})`);
-      evidence.forEach((line) => console.log(line));
+      output(emit, `  Phase ${phase}/${RUN_PHASES} (${transport}): ${results.join(', ')} (spawned in ${elapsed(started)})`);
+      if (emit) evidence.forEach((line) => console.log(line));
       if (streams) streams.stop();
       cascade.stop();
     }
-    console.log(`  Subtotal: ${patternPass}/12 PASS`);
-    console.log();
+    output(emit, `  Subtotal: ${patternPass}/12 PASS`);
+    output(emit);
   }
-  console.log(`Summary: ${totalPass} PASS / ${totalFail} FAIL across ${totalPass + totalFail} ticks`);
+  output(emit, `Summary: ${totalPass} PASS / ${totalFail} FAIL across ${totalPass + totalFail} ticks`);
   if (totalFail) throw new Error(`${totalFail} tick(s) failed`);
+  return new MultiPatternReportData(
+    [
+      new CascadeReportData(
+        totalPass + totalFail,
+        totalPass,
+        totalFail,
+        [new PhaseReportData('multi-pattern', totalPass, totalFail)],
+      ),
+    ],
+    totalPass,
+    totalFail,
+  );
 }
 
 async function spawnCascade(phase, transport, specs, runRoot) {
@@ -706,6 +806,20 @@ async function waitFor(timeoutMs, fn, intervalMs = 100) {
 function findBinary(slug) {
   const envName = `OBSERVABILITY_CASCADE_NODE_${slug.replace(/^observability-cascade-node-/, '').toUpperCase().replace(/-/g, '_')}_BIN`;
   if ((process.env[envName] || '').trim()) return process.env[envName].trim();
+  const roots = [];
+  if (slug === NODE_SLUG) {
+    roots.push(path.join(NODE_NODE, '.op', 'build', 'observability-cascade-node.holon', 'bin'));
+    roots.push(path.join(NODE_NODE, '.op', 'build', 'observability-cascade-node-node.holon', 'bin'));
+  }
+  if (slug === GO_SLUG) {
+    const goNode = path.join(EXAMPLES_ROOT, 'observability-cascade-go', 'holons', 'observability-cascade-node');
+    roots.push(path.join(goNode, '.op', 'build', 'observability-cascade-node.holon', 'bin'));
+    roots.push(path.join(goNode, '.op', 'build', 'observability-cascade-node-go.holon', 'bin'));
+  }
+  for (const root of roots) {
+    const match = findExecutable(root, slug);
+    if (match) return match;
+  }
   try {
     const out = childProcess.execFileSync('op', ['--bin', slug], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     if (out) return out;
@@ -731,6 +845,44 @@ function findExecutable(root, name) {
     }
   }
   return '';
+}
+
+function toCascadeReport(report) {
+  const out = new cascadePb.CascadeReport();
+  out.setTicks(report.ticks);
+  out.setPass(report.pass);
+  out.setFail(report.fail);
+  out.setPhasesList(report.phases.map((phase) => {
+    const item = new cascadePb.PhaseResult();
+    item.setName(phase.name);
+    item.setPass(phase.pass);
+    item.setFail(phase.fail);
+    item.setFailuresList(phase.failures || []);
+    return item;
+  }));
+  return out;
+}
+
+function toMultiPatternReport(report) {
+  const out = new cascadePb.MultiPatternReport();
+  out.setPatternsList(report.patterns.map((pattern) => toCascadeReport(pattern)));
+  out.setTotalPass(report.totalPass);
+  out.setTotalFail(report.totalFail);
+  return out;
+}
+
+function normalizeListenUri(listenUri) {
+  const match = String(listenUri || '').match(/^tcp:\/\/:(\d+)$/);
+  if (match) return `tcp://0.0.0.0:${match[1]}`;
+  return listenUri;
+}
+
+function output(emit, value = '') {
+  if (emit) console.log(value);
+}
+
+function canonicalCommand(raw) {
+  return String(raw || '').trim().toLowerCase().replace(/[-_ ]/g, '');
 }
 
 function elapsed(start) {

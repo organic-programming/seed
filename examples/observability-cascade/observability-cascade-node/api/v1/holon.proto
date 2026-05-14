@@ -3,6 +3,7 @@ syntax = "proto3";
 package observability.cascade.node.v1;
 
 import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
 
 option (holons.v1.manifest) = {
   identity: {
@@ -18,10 +19,42 @@ option (holons.v1.manifest) = {
   }
   description: "A Node.js composite program that validates observability-cascade observability across three modes and patterns."
   lang: "js"
-  kind: "native"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
   build: {
-    runner: "npm"
-    main: "./bin/main.js"
+    runner: "recipe"
+    codegen: { languages: ["js"] }
+    defaults: {
+      target: "macos"
+      mode: "debug"
+    }
+    members: {
+      id: "node"
+      path: "./holons/observability-cascade-node"
+      type: "holon"
+    }
+    targets: {
+      key: "macos"
+      value: {
+        steps: { build_member: "node" }
+        steps: {
+          exec: {
+            cwd: "."
+            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-node.holon}\"\narch=\"darwin_arm64\"\nbuild=\".op/build/npm\"\nnode_bin=\"${OP_NODE_BIN:-$(command -v node)}\"\nnode_build=\"$PWD/holons/observability-cascade-node/.op/build/npm\"\nif [ ! -d \"$node_build/node_modules\" ]; then echo \"internal node dependencies missing: $node_build/node_modules\" >&2; exit 1; fi\nrm -rf \"$pkg\" \"$build/bin\" \"$build/gen\"\nmkdir -p \"$pkg/bin/$arch\" \"$build\"\ncp -R bin gen package.json package-lock.json \"$build/\"\ncat > \"$pkg/bin/$arch/observability-cascade-node\" <<EOF\n#!/bin/sh\nset -eu\nexport OBSERVABILITY_CASCADE_NODE_SOURCE_ROOT=\"$PWD\"\nexec \"$node_bin\" \"$PWD/$build/bin/main.js\" \"\\$@\"\nEOF\nchmod +x \"$pkg/bin/$arch/observability-cascade-node\""]
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/observability-cascade-node.holon/bin/darwin_arm64/observability-cascade-node"
+          }
+        }
+      }
+    }
   }
   requires: {
     commands: ["node", "npm"]
@@ -29,6 +62,6 @@ option (holons.v1.manifest) = {
     sdk_prebuilts: ["js"]
   }
   artifacts: {
-    binary: "observability-cascade-node"
+    primary: ".op/build/observability-cascade-node.holon"
   }
 };
