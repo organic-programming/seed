@@ -26,11 +26,10 @@ public static class DescribeGenerated
         },
         Description = "A C# composite program that validates observability-cascade observability across three modes and patterns.",
         Lang = "csharp",
-        Kind = "native",
+        Kind = "composite",
         Build = new HolonManifest.Types.Build
         {
-            Runner = "dotnet",
-            Main = "./Program.cs",
+            Runner = "recipe",
         },
         Requires = new HolonManifest.Types.Requires
         {
@@ -41,7 +40,242 @@ public static class DescribeGenerated
         },
         Artifacts = new HolonManifest.Types.Artifacts
         {
-            Binary = "observability-cascade-csharp",
+            Primary = ".op/build/observability-cascade-csharp.holon",
+        },
+    },
+    Services = {
+        new ServiceDoc
+        {
+            Name = "observability_cascade.v1.ObservabilityCascadeService",
+            Methods = {
+                new MethodDoc
+                {
+                    Name = "RunDefault",
+                    Description = "Run the default 4-deep chain in this composite's own language.",
+                    InputType = "observability_cascade.v1.RunRequest",
+                    OutputType = "observability_cascade.v1.CascadeReport",
+                    OutputFields = {
+                        new FieldDoc
+                        {
+                            Name = "ticks",
+                            Type = "int32",
+                            Number = 1,
+                            Label = FieldLabel.Optional,
+                        },
+                        new FieldDoc
+                        {
+                            Name = "pass",
+                            Type = "int32",
+                            Number = 2,
+                            Label = FieldLabel.Optional,
+                        },
+                        new FieldDoc
+                        {
+                            Name = "fail",
+                            Type = "int32",
+                            Number = 3,
+                            Label = FieldLabel.Optional,
+                        },
+                        new FieldDoc
+                        {
+                            Name = "phases",
+                            Type = "observability_cascade.v1.PhaseResult",
+                            Number = 4,
+                            Label = FieldLabel.Repeated,
+                            NestedFields = {
+                                new FieldDoc
+                                {
+                                    Name = "name",
+                                    Type = "string",
+                                    Number = 1,
+                                    Label = FieldLabel.Optional,
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "pass",
+                                    Type = "int32",
+                                    Number = 2,
+                                    Label = FieldLabel.Optional,
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "fail",
+                                    Type = "int32",
+                                    Number = 3,
+                                    Label = FieldLabel.Optional,
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "failures",
+                                    Type = "string",
+                                    Number = 4,
+                                    Label = FieldLabel.Repeated,
+                                },
+                            },
+                        },
+                    },
+                    ExampleInput = "{}",
+                },
+                new MethodDoc
+                {
+                    Name = "RunLiveStream",
+                    Description = "Run with long-lived Follow:true streams.",
+                    InputType = "observability_cascade.v1.RunRequest",
+                    OutputType = "observability_cascade.v1.CascadeReport",
+                    OutputFields = {
+                        new FieldDoc
+                        {
+                            Name = "ticks",
+                            Type = "int32",
+                            Number = 1,
+                            Label = FieldLabel.Optional,
+                        },
+                        new FieldDoc
+                        {
+                            Name = "pass",
+                            Type = "int32",
+                            Number = 2,
+                            Label = FieldLabel.Optional,
+                        },
+                        new FieldDoc
+                        {
+                            Name = "fail",
+                            Type = "int32",
+                            Number = 3,
+                            Label = FieldLabel.Optional,
+                        },
+                        new FieldDoc
+                        {
+                            Name = "phases",
+                            Type = "observability_cascade.v1.PhaseResult",
+                            Number = 4,
+                            Label = FieldLabel.Repeated,
+                            NestedFields = {
+                                new FieldDoc
+                                {
+                                    Name = "name",
+                                    Type = "string",
+                                    Number = 1,
+                                    Label = FieldLabel.Optional,
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "pass",
+                                    Type = "int32",
+                                    Number = 2,
+                                    Label = FieldLabel.Optional,
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "fail",
+                                    Type = "int32",
+                                    Number = 3,
+                                    Label = FieldLabel.Optional,
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "failures",
+                                    Type = "string",
+                                    Number = 4,
+                                    Label = FieldLabel.Repeated,
+                                },
+                            },
+                        },
+                    },
+                    ExampleInput = "{}",
+                },
+                new MethodDoc
+                {
+                    Name = "RunMultiPattern",
+                    Description = "Run the full alter-language pattern matrix (3 patterns x 12 ticks = 36 ticks).",
+                    InputType = "observability_cascade.v1.RunRequest",
+                    OutputType = "observability_cascade.v1.MultiPatternReport",
+                    OutputFields = {
+                        new FieldDoc
+                        {
+                            Name = "patterns",
+                            Type = "observability_cascade.v1.CascadeReport",
+                            Number = 1,
+                            Label = FieldLabel.Repeated,
+                            NestedFields = {
+                                new FieldDoc
+                                {
+                                    Name = "ticks",
+                                    Type = "int32",
+                                    Number = 1,
+                                    Label = FieldLabel.Optional,
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "pass",
+                                    Type = "int32",
+                                    Number = 2,
+                                    Label = FieldLabel.Optional,
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "fail",
+                                    Type = "int32",
+                                    Number = 3,
+                                    Label = FieldLabel.Optional,
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "phases",
+                                    Type = "observability_cascade.v1.PhaseResult",
+                                    Number = 4,
+                                    Label = FieldLabel.Repeated,
+                                    NestedFields = {
+                                        new FieldDoc
+                                        {
+                                            Name = "name",
+                                            Type = "string",
+                                            Number = 1,
+                                            Label = FieldLabel.Optional,
+                                        },
+                                        new FieldDoc
+                                        {
+                                            Name = "pass",
+                                            Type = "int32",
+                                            Number = 2,
+                                            Label = FieldLabel.Optional,
+                                        },
+                                        new FieldDoc
+                                        {
+                                            Name = "fail",
+                                            Type = "int32",
+                                            Number = 3,
+                                            Label = FieldLabel.Optional,
+                                        },
+                                        new FieldDoc
+                                        {
+                                            Name = "failures",
+                                            Type = "string",
+                                            Number = 4,
+                                            Label = FieldLabel.Repeated,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                        new FieldDoc
+                        {
+                            Name = "total_pass",
+                            Type = "int32",
+                            Number = 2,
+                            Label = FieldLabel.Optional,
+                        },
+                        new FieldDoc
+                        {
+                            Name = "total_fail",
+                            Type = "int32",
+                            Number = 3,
+                            Label = FieldLabel.Optional,
+                        },
+                    },
+                    ExampleInput = "{}",
+                },
+            },
         },
     },
 };

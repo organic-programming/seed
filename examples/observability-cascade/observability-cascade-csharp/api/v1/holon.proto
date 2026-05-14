@@ -3,6 +3,7 @@ syntax = "proto3";
 package observability.cascade.csharp.v1;
 
 import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
 
 option (holons.v1.manifest) = {
   identity: {
@@ -18,10 +19,42 @@ option (holons.v1.manifest) = {
   }
   description: "A C# composite program that validates observability-cascade observability across three modes and patterns."
   lang: "csharp"
-  kind: "native"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
   build: {
-    runner: "dotnet"
-    main: "./Program.cs"
+    runner: "recipe"
+    codegen: { languages: ["csharp"] }
+    defaults: {
+      target: "macos"
+      mode: "debug"
+    }
+    members: {
+      id: "node"
+      path: "./holons/observability-cascade-node"
+      type: "holon"
+    }
+    targets: {
+      key: "macos"
+      value: {
+        steps: { build_member: "node" }
+        steps: {
+          exec: {
+            cwd: "."
+            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-csharp.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\"\ndotnet publish observability-cascade-csharp.csproj -c Release -o \"$pkg/bin/$arch\" >/dev/null\nchmod +x \"$pkg/bin/$arch/observability-cascade-csharp\""]
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/observability-cascade-csharp.holon/bin/darwin_arm64/observability-cascade-csharp"
+          }
+        }
+      }
+    }
   }
   requires: {
     commands: ["dotnet"]
@@ -29,6 +62,6 @@ option (holons.v1.manifest) = {
     sdk_prebuilts: ["csharp"]
   }
   artifacts: {
-    binary: "observability-cascade-csharp"
+    primary: ".op/build/observability-cascade-csharp.holon"
   }
 };
