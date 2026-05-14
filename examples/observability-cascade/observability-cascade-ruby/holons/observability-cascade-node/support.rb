@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "pathname"
+
 begin
   if ENV["OP_SDK_RUBY_PATH"] && !ENV["OP_SDK_RUBY_PATH"].empty?
     prebuilt_bundle = File.join(ENV["OP_SDK_RUBY_PATH"], "vendor", "bundle")
@@ -15,9 +17,22 @@ end
 
 module CascadeNodeRuby
   ROOT = File.expand_path(__dir__)
-  SDK_LIB = File.expand_path("../../../sdk/ruby-holons/lib", ROOT)
   GENERATED_ROOT = File.expand_path("gen", ROOT)
   GEN_ROOT = File.expand_path("gen/ruby", ROOT)
+
+  def self.find_repo_root(start)
+    current = Pathname.new(start).expand_path
+    loop do
+      return current.to_s if current.join("sdk", "ruby-holons", "lib").directory?
+
+      parent = current.parent
+      raise "could not locate repository root" if parent == current
+
+      current = parent
+    end
+  end
+
+  SDK_LIB = File.join(find_repo_root(ROOT), "sdk", "ruby-holons", "lib")
 
   class << self
     def ensure_load_paths
@@ -29,4 +44,3 @@ module CascadeNodeRuby
 end
 
 CascadeNodeRuby.ensure_load_paths
-

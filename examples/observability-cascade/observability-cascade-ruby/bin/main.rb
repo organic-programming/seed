@@ -25,6 +25,8 @@ end
 def find_cascade_root(start)
   current = Pathname.new(start).expand_path
   loop do
+    return current.to_s if current.join("holons", "observability-cascade-node").directory?
+
     parent = current.parent
     return parent.to_s if parent.join("observability-cascade-node-ruby").directory?
     raise "could not locate observability-cascade examples root" if parent == current
@@ -32,10 +34,14 @@ def find_cascade_root(start)
   end
 end
 
-ROOT = find_repo_root(__dir__)
-CASCADE_ROOT = find_cascade_root(__dir__)
-RUBY_NODE = File.join(CASCADE_ROOT, "observability-cascade-node-ruby")
+HERE = File.expand_path(ENV.fetch("OBSERVABILITY_CASCADE_RUBY_SOURCE_ROOT", File.expand_path("..", __dir__)))
+ROOT = find_repo_root(HERE)
+CASCADE_ROOT = find_cascade_root(HERE)
+RUBY_NODE = File.join(CASCADE_ROOT, "holons", "observability-cascade-node")
 SDK_ROOT = File.join(ROOT, "sdk", "ruby-holons", "lib")
+RUBY_GEN = File.join(HERE, "gen", "ruby")
+GENERATED_ROOT = File.join(HERE, "gen")
+EXAMPLES_ROOT = File.expand_path("..", HERE)
 
 begin
   if ENV["OP_SDK_RUBY_PATH"] && !ENV["OP_SDK_RUBY_PATH"].empty?
@@ -50,16 +56,19 @@ rescue LoadError
   nil
 end
 
-[File.join(RUBY_NODE, "gen", "ruby"), File.join(RUBY_NODE, "gen"), SDK_ROOT].each do |path|
+[RUBY_GEN, GENERATED_ROOT, File.join(RUBY_NODE, "gen", "ruby"), File.join(RUBY_NODE, "gen"), SDK_ROOT].each do |path|
   $LOAD_PATH.unshift(path) unless $LOAD_PATH.include?(path)
 end
 
 require "grpc"
 require "holons"
+load File.join(GENERATED_ROOT, "describe_generated.rb")
 require "holons/v1/describe_pb"
 require "holons/v1/describe_services_pb"
 require "holons/v1/observability_pb"
 require "holons/v1/observability_services_pb"
+require "observability_cascade/v1/service_pb"
+require "observability_cascade/v1/service_services_pb"
 require "relay/v1/relay_pb"
 require "relay/v1/relay_services_pb"
 
@@ -73,6 +82,9 @@ GO_SLUG = "observability-cascade-node-go"
 RoleSpec = Struct.new(:slug, :binary_path, keyword_init: true)
 CheckResult = Struct.new(:pass, :evidence, keyword_init: true)
 TickOutcome = Struct.new(:log, :event, :metric, :metric_value, keyword_init: true)
+PhaseReportData = Struct.new(:name, :pass_count, :fail_count, :failures, keyword_init: true)
+CascadeReportData = Struct.new(:ticks, :pass_count, :fail_count, :phases, keyword_init: true)
+MultiPatternReportData = Struct.new(:patterns, :total_pass, :total_fail, keyword_init: true)
 
 RoleRuntime = Struct.new(
   :role, :uid, :slug, :binary_path, :listen_uri, :relay_address, :client_target,
@@ -324,14 +336,43 @@ class LiveStreams
   end
 end
 
+class ObservabilityCascadeService < ObservabilityCascade::V1::ObservabilityCascadeService::Service
+  def run_default(_request, _call)
+    to_cascade_report(execute_default(emit: false))
+  end
+
+  def run_live_stream(_request, _call)
+    to_cascade_report(execute_live_stream(emit: false))
+  end
+
+  def run_multi_pattern(_request, _call)
+    to_multi_pattern_report(execute_multi_pattern(emit: false))
+  end
+end
+
+def serve_composite(args)
+  Holons::Describe.use_static_response(Gen::DescribeGenerated.static_describe_response)
+  options = Holons::Serve.parse_options(args)
+  Holons::Serve.run_with_serve_options(
+    normalize_listen_uri(options.listen_uri),
+    proc { |server| server.handle(ObservabilityCascadeService.new) },
+    Holons::Serve::ServeOptions.new(
+      reflect: options.reflect,
+      slug: "observability-cascade-ruby"
+    )
+  )
+end
+
 def main
   args = ARGV.dup
-  if args.include?("--multi-pattern")
-    run_multi_pattern
+  if !args.empty? && canonical_command(args.first) == "serve"
+    serve_composite(args[1..])
+  elsif args.include?("--multi-pattern")
+    execute_multi_pattern
   elsif args.include?("--live-stream")
-    run_live_stream
+    execute_live_stream
   else
-    run_default
+    execute_default
   end
   0
 rescue StandardError => e
@@ -339,28 +380,28 @@ rescue StandardError => e
   1
 end
 
-def run_default
+def execute_default(emit: true)
   binary = find_binary(RUBY_SLUG)
   run_root = Pathname.new(Dir.mktmpdir("observability-cascade-ruby-"))
-  puts "=== observability-cascade-ruby ==="
-  puts
+  output(emit, "=== observability-cascade-ruby ===")
+  output(emit)
   total_pass = 0
   total_fail = 0
   previous = ""
   TRANSPORTS.each_with_index do |transport, idx|
     phase = idx + 1
-    puts previous.empty? ? "Phase #{phase}/#{RUN_PHASES}: transport=#{transport}" : "Phase #{phase}/#{RUN_PHASES}: transport=#{transport} (switching from #{previous})"
+    output(emit, previous.empty? ? "Phase #{phase}/#{RUN_PHASES}: transport=#{transport}" : "Phase #{phase}/#{RUN_PHASES}: transport=#{transport} (switching from #{previous})")
     started = monotonic_now
     begin
       specs = ROLE_ORDER.to_h { |role| [role, RoleSpec.new(slug: RUBY_SLUG, binary_path: binary)] }
       cascade = spawn_cascade(phase, transport, specs, run_root)
     rescue StandardError => e
       total_fail += RUN_TICKS
-      puts "  spawn FAIL: #{e.message}\n\n"
+      output(emit, "  spawn FAIL: #{e.message}\n\n")
       previous = transport
       next
     end
-    puts "  spawned 4 nodes in #{elapsed(started)}"
+    output(emit, "  spawned 4 nodes in #{elapsed(started)}")
     previous_metric = 0.0
     (1..RUN_TICKS).each do |tick|
       tick_start = monotonic_now
@@ -369,27 +410,36 @@ def run_default
       overall = outcome.log.pass && outcome.event.pass && outcome.metric.pass
       total_pass += 1 if overall
       total_fail += 1 unless overall
-      puts "  Tick #{tick}/#{RUN_TICKS}: log #{pass_text(outcome.log.pass)}, event #{pass_text(outcome.event.pass)}, metric #{pass_text(outcome.metric.pass)} (overall #{pass_text(overall)} in #{elapsed(tick_start)})"
-      print_failure_evidence("log", outcome.log)
-      print_failure_evidence("event", outcome.event)
-      print_failure_evidence("metric", outcome.metric)
+      output(emit, "  Tick #{tick}/#{RUN_TICKS}: log #{pass_text(outcome.log.pass)}, event #{pass_text(outcome.event.pass)}, metric #{pass_text(outcome.metric.pass)} (overall #{pass_text(overall)} in #{elapsed(tick_start)})")
+      if emit
+        print_failure_evidence("log", outcome.log)
+        print_failure_evidence("event", outcome.event)
+        print_failure_evidence("metric", outcome.metric)
+      end
     end
     cascade.stop
-    puts
+    output(emit)
     previous = transport
   end
-  puts "Summary: #{total_pass + total_fail} ticks, #{total_pass} PASS, #{total_fail} FAIL"
+  output(emit, "Summary: #{total_pass + total_fail} ticks, #{total_pass} PASS, #{total_fail} FAIL")
   raise "#{total_fail} tick(s) failed" if total_fail.positive?
+
+  CascadeReportData.new(
+    ticks: total_pass + total_fail,
+    pass_count: total_pass,
+    fail_count: total_fail,
+    phases: [PhaseReportData.new(name: "default", pass_count: total_pass, fail_count: total_fail, failures: [])]
+  )
 end
 
-def run_live_stream
+def execute_live_stream(emit: true)
   binary = find_binary(RUBY_SLUG)
   run_root = Pathname.new(Dir.mktmpdir("observability-cascade-ruby-live-"))
-  puts "=== observability-cascade-ruby --live-stream ==="
-  puts
-  puts "Setup: opening long-lived Follow:true streams on A"
-  puts "       (initial transport: tcp)"
-  puts
+  output(emit, "=== observability-cascade-ruby --live-stream ===")
+  output(emit)
+  output(emit, "Setup: opening long-lived Follow:true streams on A")
+  output(emit, "       (initial transport: tcp)")
+  output(emit)
   total_pass = 0
   total_fail = 0
   cascade = nil
@@ -398,25 +448,25 @@ def run_live_stream
   TRANSPORTS.each_with_index do |transport, idx|
     phase = idx + 1
     if phase == 1
-      puts "Phase #{phase}/#{RUN_PHASES}: initial chain (#{transport})"
+      output(emit, "Phase #{phase}/#{RUN_PHASES}: initial chain (#{transport})")
     else
-      puts "Phase #{phase}/#{RUN_PHASES}: respawn on #{transport}"
+      output(emit, "Phase #{phase}/#{RUN_PHASES}: respawn on #{transport}")
       kill_start = monotonic_now
       streams&.stop
       cascade&.stop
-      puts "  killed 4 nodes in #{elapsed(kill_start)}"
+      output(emit, "  killed 4 nodes in #{elapsed(kill_start)}")
     end
     spawn_start = monotonic_now
     begin
       phase_cascade = spawn_cascade(phase, transport, specs, run_root)
     rescue StandardError => e
       total_fail += RUN_TICKS
-      puts "  spawn FAIL: #{e.message}\n\n"
+      output(emit, "  spawn FAIL: #{e.message}\n\n")
       streams = nil
       next
     end
-    puts "  spawned 4 nodes in #{elapsed(spawn_start)}"
-    puts "  re-opening Follow:true streams on new A" if phase > 1
+    output(emit, "  spawned 4 nodes in #{elapsed(spawn_start)}")
+    output(emit, "  re-opening Follow:true streams on new A") if phase > 1
     stream_error = nil
     begin
       streams = LiveStreams.new(phase_cascade.roles["A"].channel)
@@ -424,7 +474,7 @@ def run_live_stream
     rescue StandardError => e
       streams = nil
       stream_error = e.message
-      puts "  stream re-open failed: #{e.message}"
+      output(emit, "  stream re-open failed: #{e.message}")
     end
     previous_metric = 0.0
     (1..RUN_TICKS).each do |tick|
@@ -434,21 +484,30 @@ def run_live_stream
       overall = outcome.log.pass && outcome.event.pass && outcome.metric.pass
       total_pass += 1 if overall
       total_fail += 1 unless overall
-      puts "  Tick #{tick}/#{RUN_TICKS}: log #{pass_text(outcome.log.pass)}, event #{pass_text(outcome.event.pass)}, metric #{pass_text(outcome.metric.pass)} (overall #{pass_text(overall)} in #{elapsed(tick_start)})"
-      print_failure_evidence("log", outcome.log)
-      print_failure_evidence("event", outcome.event)
-      print_failure_evidence("metric", outcome.metric)
+      output(emit, "  Tick #{tick}/#{RUN_TICKS}: log #{pass_text(outcome.log.pass)}, event #{pass_text(outcome.event.pass)}, metric #{pass_text(outcome.metric.pass)} (overall #{pass_text(overall)} in #{elapsed(tick_start)})")
+      if emit
+        print_failure_evidence("log", outcome.log)
+        print_failure_evidence("event", outcome.event)
+        print_failure_evidence("metric", outcome.metric)
+      end
     end
-    puts
+    output(emit)
     cascade = phase_cascade
   end
   streams&.stop
   cascade&.stop
-  puts "Summary: #{total_pass} PASS / #{total_fail} FAIL across #{total_pass + total_fail} ticks"
+  output(emit, "Summary: #{total_pass} PASS / #{total_fail} FAIL across #{total_pass + total_fail} ticks")
   raise "#{total_fail} tick(s) failed" if total_fail.positive?
+
+  CascadeReportData.new(
+    ticks: total_pass + total_fail,
+    pass_count: total_pass,
+    fail_count: total_fail,
+    phases: [PhaseReportData.new(name: "live-stream", pass_count: total_pass, fail_count: total_fail, failures: [])]
+  )
 end
 
-def run_multi_pattern
+def execute_multi_pattern(emit: true)
   ruby_binary = find_binary(RUBY_SLUG)
   go_binary = find_binary(GO_SLUG)
   patterns = [
@@ -467,12 +526,12 @@ def run_multi_pattern
     }]
   ]
   run_root = Pathname.new(Dir.mktmpdir("observability-cascade-ruby-multi-"))
-  puts "=== observability-cascade-ruby (multi-pattern) ==="
-  puts
+  output(emit, "=== observability-cascade-ruby (multi-pattern) ===")
+  output(emit)
   total_pass = 0
   total_fail = 0
   patterns.each_with_index do |(name, specs), pattern_idx|
-    puts "Pattern #{pattern_idx + 1}/#{patterns.length}: #{name}"
+    output(emit, "Pattern #{pattern_idx + 1}/#{patterns.length}: #{name}")
     pattern_pass = 0
     TRANSPORTS.each_with_index do |transport, idx|
       phase = idx + 1
@@ -481,7 +540,7 @@ def run_multi_pattern
         cascade = spawn_cascade(phase, transport, specs, run_root)
       rescue StandardError => e
         total_fail += RUN_TICKS
-        puts "  Phase #{phase}/#{RUN_PHASES} (#{transport}): spawn FAIL (#{e.message})"
+        output(emit, "  Phase #{phase}/#{RUN_PHASES} (#{transport}): spawn FAIL (#{e.message})")
         next
       end
       stream_error = nil
@@ -512,16 +571,29 @@ def run_multi_pattern
           evidence << "      Tick #{tick} evidence: #{compact_evidence(outcome)}"
         end
       end
-      puts "  Phase #{phase}/#{RUN_PHASES} (#{transport}): #{results.join(', ')} (spawned in #{elapsed(started)})"
-      evidence.each { |line| puts line }
+      output(emit, "  Phase #{phase}/#{RUN_PHASES} (#{transport}): #{results.join(', ')} (spawned in #{elapsed(started)})")
+      evidence.each { |line| puts line } if emit
       streams&.stop
       cascade.stop
     end
-    puts "  Subtotal: #{pattern_pass}/12 PASS"
-    puts
+    output(emit, "  Subtotal: #{pattern_pass}/12 PASS")
+    output(emit)
   end
-  puts "Summary: #{total_pass} PASS / #{total_fail} FAIL across #{total_pass + total_fail} ticks"
+  output(emit, "Summary: #{total_pass} PASS / #{total_fail} FAIL across #{total_pass + total_fail} ticks")
   raise "#{total_fail} tick(s) failed" if total_fail.positive?
+
+  MultiPatternReportData.new(
+    patterns: [
+      CascadeReportData.new(
+        ticks: total_pass + total_fail,
+        pass_count: total_pass,
+        fail_count: total_fail,
+        phases: [PhaseReportData.new(name: "multi-pattern", pass_count: total_pass, fail_count: total_fail, failures: [])]
+      )
+    ],
+    total_pass: total_pass,
+    total_fail: total_fail
+  )
 end
 
 def spawn_cascade(phase, transport, specs, run_root)
@@ -687,19 +759,63 @@ def find_binary(slug)
   override = ENV.fetch(env_name, "").strip
   return override unless override.empty?
 
-  path = +""
-  begin
-    path = Open3.capture2e("op", "--bin", slug, chdir: ROOT).first.strip
-  rescue StandardError
-    nil
+  roots = []
+  if slug == RUBY_SLUG
+    roots << File.join(RUBY_NODE, ".op", "build", "observability-cascade-node.holon", "bin")
+    roots << File.join(RUBY_NODE, ".op", "build", "observability-cascade-node-ruby.holon", "bin")
   end
-  return path unless path.empty?
+  if slug == GO_SLUG
+    go_node = File.join(EXAMPLES_ROOT, "observability-cascade-go", "holons", "observability-cascade-node")
+    roots << File.join(go_node, ".op", "build", "observability-cascade-node.holon", "bin")
+    roots << File.join(go_node, ".op", "build", "observability-cascade-node-go.holon", "bin")
+  end
+  roots << File.join(Dir.home, ".op", "bin", "#{slug}.holon", "bin")
+  roots.each do |root|
+    next unless Dir.exist?(root)
 
-  root = File.join(Dir.home, ".op", "bin", "#{slug}.holon", "bin")
-  match = Dir.glob(File.join(root, "**", slug)).find { |candidate| File.executable?(candidate) }
-  return match if match
+    match = Dir.glob(File.join(root, "**", slug)).find { |candidate| File.executable?(candidate) }
+    return match if match
+  end
 
   raise "#{slug} binary not found; run op build #{slug} --install"
+end
+
+def to_cascade_report(report)
+  ObservabilityCascade::V1::CascadeReport.new(
+    ticks: report.ticks,
+    pass: report.pass_count,
+    fail: report.fail_count,
+    phases: report.phases.map do |phase|
+      ObservabilityCascade::V1::PhaseResult.new(
+        name: phase.name,
+        pass: phase.pass_count,
+        fail: phase.fail_count,
+        failures: phase.failures
+      )
+    end
+  )
+end
+
+def to_multi_pattern_report(report)
+  ObservabilityCascade::V1::MultiPatternReport.new(
+    patterns: report.patterns.map { |pattern| to_cascade_report(pattern) },
+    total_pass: report.total_pass,
+    total_fail: report.total_fail
+  )
+end
+
+def normalize_listen_uri(listen_uri)
+  return "tcp://0.0.0.0:#{Regexp.last_match(1)}" if listen_uri =~ %r{\Atcp://:(\d+)\z}
+
+  listen_uri
+end
+
+def output(emit, value = "")
+  puts value if emit
+end
+
+def canonical_command(raw)
+  raw.strip.downcase.tr("-_ ", "")
 end
 
 def free_port
