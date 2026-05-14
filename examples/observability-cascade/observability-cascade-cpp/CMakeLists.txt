@@ -19,7 +19,7 @@ endif()
 find_package(Protobuf CONFIG QUIET)
 find_package(gRPC CONFIG QUIET)
 if(NOT Protobuf_FOUND OR NOT gRPC_FOUND)
-  message(FATAL_ERROR "observability-cascade-cpp requires gRPC and Protobuf CMake packages")
+  message(FATAL_ERROR "observability-cascade-cpp requires the C++ SDK prebuilts. Run `op sdk install cpp` or build through `op build`.")
 endif()
 
 if(TARGET protobuf::protoc)
@@ -40,8 +40,8 @@ endif()
 
 set(RELAY_CASCADE_CPP_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 set(HOLONS_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../holons/grace-op/_protos")
+set(RELAY_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../_protos")
 set(HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/cpp-holons")
-set(OBSERVABILITY_CASCADE_NODE_CPP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../observability-cascade-node-cpp")
 
 function(observability_cascade_generate_grpc_cpp target_name)
   set(options)
@@ -101,16 +101,23 @@ observability_cascade_generate_grpc_cpp(observability_cascade_cpp_holons_proto_g
     "${HOLONS_PROTO_ROOT}/holons/v1/observability.proto"
   IMPORT_DIRS "${HOLONS_PROTO_ROOT}")
 
+observability_cascade_generate_grpc_cpp(observability_cascade_cpp_relay_proto_grpc
+  OUT_DIR "${RELAY_CASCADE_CPP_GENERATED_DIR}"
+  PROTOS "${RELAY_PROTO_ROOT}/relay/v1/relay.proto"
+  IMPORT_DIRS "${RELAY_PROTO_ROOT}")
+
+observability_cascade_generate_grpc_cpp(observability_cascade_cpp_service_proto_grpc
+  OUT_DIR "${RELAY_CASCADE_CPP_GENERATED_DIR}"
+  PROTOS "${RELAY_PROTO_ROOT}/observability_cascade/v1/service.proto"
+  IMPORT_DIRS "${RELAY_PROTO_ROOT}")
+
 add_executable(observability-cascade-cpp
   src/main.cpp
-  "${OBSERVABILITY_CASCADE_NODE_CPP_ROOT}/gen/cpp/relay/v1/relay.pb.cc"
-  "${OBSERVABILITY_CASCADE_NODE_CPP_ROOT}/gen/cpp/relay/v1/relay.grpc.pb.cc"
 )
 
 target_include_directories(observability-cascade-cpp
   PRIVATE
     "${RELAY_CASCADE_CPP_GENERATED_DIR}"
-    "${OBSERVABILITY_CASCADE_NODE_CPP_ROOT}/gen/cpp"
     "${HOLONS_SDK_ROOT}/include"
     "${HOLONS_SDK_ROOT}/gen/cpp"
 )
@@ -122,5 +129,8 @@ endif()
 target_link_libraries(observability-cascade-cpp
   PRIVATE
     observability_cascade_cpp_holons_proto_grpc
+    observability_cascade_cpp_relay_proto_grpc
+    observability_cascade_cpp_service_proto_grpc
     gRPC::grpc++
+    gRPC::grpc++_reflection
     protobuf::libprotobuf)

@@ -25,11 +25,10 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
     }
     manifest->set_description("A C++ composite program that validates observability-cascade observability across three modes and patterns.");
     manifest->set_lang("cpp");
-    manifest->set_kind("native");
+    manifest->set_kind("composite");
     {
       auto *build = manifest->mutable_build();
-      build->set_runner("cmake");
-      build->set_main("./src/main.cpp");
+      build->set_runner("recipe");
     }
     {
       auto *manifest_requires = manifest->mutable_requires_();
@@ -38,7 +37,224 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
     }
     {
       auto *artifacts = manifest->mutable_artifacts();
-      artifacts->set_binary("observability-cascade-cpp");
+      artifacts->set_primary(".op/build/observability-cascade-cpp.holon");
+    }
+  }
+  {
+    auto *service = response.add_services();
+    service->set_name("observability_cascade.v1.ObservabilityCascadeService");
+    {
+      auto *method = service->add_methods();
+      method->set_name("RunDefault");
+      method->set_description("Run the default 4-deep chain in this composite's own language.");
+      method->set_input_type("observability_cascade.v1.RunRequest");
+      method->set_output_type("observability_cascade.v1.CascadeReport");
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("ticks");
+        field_3->set_type("int32");
+        field_3->set_number(1);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("pass");
+        field_3->set_type("int32");
+        field_3->set_number(2);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("fail");
+        field_3->set_type("int32");
+        field_3->set_number(3);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("phases");
+        field_3->set_type("observability_cascade.v1.PhaseResult");
+        field_3->set_number(4);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(2));
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("name");
+          field_4->set_type("string");
+          field_4->set_number(1);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("pass");
+          field_4->set_type("int32");
+          field_4->set_number(2);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("fail");
+          field_4->set_type("int32");
+          field_4->set_number(3);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("failures");
+          field_4->set_type("string");
+          field_4->set_number(4);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(2));
+        }
+      }
+      method->set_example_input("{}");
+    }
+    {
+      auto *method = service->add_methods();
+      method->set_name("RunLiveStream");
+      method->set_description("Run with long-lived Follow:true streams.");
+      method->set_input_type("observability_cascade.v1.RunRequest");
+      method->set_output_type("observability_cascade.v1.CascadeReport");
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("ticks");
+        field_3->set_type("int32");
+        field_3->set_number(1);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("pass");
+        field_3->set_type("int32");
+        field_3->set_number(2);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("fail");
+        field_3->set_type("int32");
+        field_3->set_number(3);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("phases");
+        field_3->set_type("observability_cascade.v1.PhaseResult");
+        field_3->set_number(4);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(2));
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("name");
+          field_4->set_type("string");
+          field_4->set_number(1);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("pass");
+          field_4->set_type("int32");
+          field_4->set_number(2);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("fail");
+          field_4->set_type("int32");
+          field_4->set_number(3);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("failures");
+          field_4->set_type("string");
+          field_4->set_number(4);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(2));
+        }
+      }
+      method->set_example_input("{}");
+    }
+    {
+      auto *method = service->add_methods();
+      method->set_name("RunMultiPattern");
+      method->set_description("Run the full alter-language pattern matrix (3 patterns x 12 ticks = 36 ticks).");
+      method->set_input_type("observability_cascade.v1.RunRequest");
+      method->set_output_type("observability_cascade.v1.MultiPatternReport");
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("patterns");
+        field_3->set_type("observability_cascade.v1.CascadeReport");
+        field_3->set_number(1);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(2));
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("ticks");
+          field_4->set_type("int32");
+          field_4->set_number(1);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("pass");
+          field_4->set_type("int32");
+          field_4->set_number(2);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("fail");
+          field_4->set_type("int32");
+          field_4->set_number(3);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("phases");
+          field_4->set_type("observability_cascade.v1.PhaseResult");
+          field_4->set_number(4);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(2));
+          {
+            auto *field_5 = field_4->add_nested_fields();
+            field_5->set_name("name");
+            field_5->set_type("string");
+            field_5->set_number(1);
+            field_5->set_label(static_cast<holons::v1::FieldLabel>(1));
+          }
+          {
+            auto *field_5 = field_4->add_nested_fields();
+            field_5->set_name("pass");
+            field_5->set_type("int32");
+            field_5->set_number(2);
+            field_5->set_label(static_cast<holons::v1::FieldLabel>(1));
+          }
+          {
+            auto *field_5 = field_4->add_nested_fields();
+            field_5->set_name("fail");
+            field_5->set_type("int32");
+            field_5->set_number(3);
+            field_5->set_label(static_cast<holons::v1::FieldLabel>(1));
+          }
+          {
+            auto *field_5 = field_4->add_nested_fields();
+            field_5->set_name("failures");
+            field_5->set_type("string");
+            field_5->set_number(4);
+            field_5->set_label(static_cast<holons::v1::FieldLabel>(2));
+          }
+        }
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("total_pass");
+        field_3->set_type("int32");
+        field_3->set_number(2);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("total_fail");
+        field_3->set_type("int32");
+        field_3->set_number(3);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+      }
+      method->set_example_input("{}");
     }
   }
   return response;

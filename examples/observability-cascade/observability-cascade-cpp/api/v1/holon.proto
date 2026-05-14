@@ -3,6 +3,7 @@ syntax = "proto3";
 package observability.cascade.cpp.v1;
 
 import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
 
 option (holons.v1.manifest) = {
   identity: {
@@ -18,10 +19,44 @@ option (holons.v1.manifest) = {
   }
   description: "A C++ composite program that validates observability-cascade observability across three modes and patterns."
   lang: "cpp"
-  kind: "native"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
   build: {
-    runner: "cmake"
-    main: "./src/main.cpp"
+    runner: "recipe"
+    codegen: {
+      languages: ["cpp"]
+    }
+    defaults: {
+      target: "macos"
+      mode: "debug"
+    }
+    members: {
+      id: "node"
+      path: "./holons/observability-cascade-node"
+      type: "holon"
+    }
+    targets: {
+      key: "macos"
+      value: {
+        steps: { build_member: "node" }
+        steps: {
+          exec: {
+            cwd: "."
+            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-cpp.holon}\"\narch=\"darwin_arm64\"\nbuild=\".op/build/cmake\"\nrm -rf \"$pkg\" \"$build\"\ncmake -S . -B \"$build\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=\"$PWD/$build/bin\" >/dev/null\ncmake --build \"$build\" --target observability-cascade-cpp >/dev/null\nmkdir -p \"$pkg/bin/$arch\"\ncp \"$build/bin/observability-cascade-cpp\" \"$pkg/bin/$arch/observability-cascade-cpp-real\"\nbash ../../../sdk/scripts/relocate-macos-dylibs.sh \"$pkg/bin/$arch\" observability-cascade-cpp-real >/dev/null\ncat > \"$pkg/bin/$arch/observability-cascade-cpp\" <<EOF\n#!/bin/sh\nOBSERVABILITY_CASCADE_CPP_SOURCE_ROOT=\"$PWD\" exec \"\\$(dirname \"\\$0\")/observability-cascade-cpp-real\" \"\\$@\"\nEOF\nchmod +x \"$pkg/bin/$arch/observability-cascade-cpp\""]
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/observability-cascade-cpp.holon/bin/darwin_arm64/observability-cascade-cpp"
+          }
+        }
+      }
+    }
   }
   requires: {
     commands: ["cmake"]
@@ -29,6 +64,6 @@ option (holons.v1.manifest) = {
     sdk_prebuilts: ["cpp"]
   }
   artifacts: {
-    binary: "observability-cascade-cpp"
+    primary: ".op/build/observability-cascade-cpp.holon"
   }
 };

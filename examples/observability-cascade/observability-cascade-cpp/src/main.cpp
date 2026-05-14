@@ -1,5 +1,7 @@
 #include "holons/holons.hpp"
+#include "holons/serve.hpp"
 #include "holons/v1/observability.grpc.pb.h"
+#include "observability_cascade/v1/service.grpc.pb.h"
 #include "relay/v1/relay.grpc.pb.h"
 
 #include <fcntl.h>
@@ -7,12 +9,15 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <array>
 #include <chrono>
 #include <csignal>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -45,6 +50,26 @@ struct TickOutcome {
   CheckResult event;
   CheckResult metric;
   double metric_value = 0;
+};
+
+struct PhaseReportData {
+  std::string name;
+  int pass = 0;
+  int fail = 0;
+  std::vector<std::string> failures;
+};
+
+struct CascadeReportData {
+  int ticks = 0;
+  int pass = 0;
+  int fail = 0;
+  std::vector<PhaseReportData> phases;
+};
+
+struct MultiPatternReportData {
+  std::vector<CascadeReportData> patterns;
+  int total_pass = 0;
+  int total_fail = 0;
 };
 
 struct RoleSpec {
@@ -80,6 +105,8 @@ std::string lower(std::string value) {
   return value;
 }
 
+std::string trim(std::string value);
+
 std::string repo_root_from(const std::filesystem::path &start) {
   auto current = std::filesystem::absolute(start);
   while (!current.empty()) {
@@ -94,23 +121,31 @@ std::string repo_root_from(const std::filesystem::path &start) {
   throw std::runtime_error("repository root not found");
 }
 
-std::string relay_root_from(const std::filesystem::path &start) {
+bool is_source_root(const std::filesystem::path &path) {
+  return std::filesystem::exists(path / "api" / "v1" / "holon.proto") &&
+         std::filesystem::exists(path / "holons" / "observability-cascade-node");
+}
+
+std::string source_root_from(const std::filesystem::path &start) {
+  if (const char *env = std::getenv("OBSERVABILITY_CASCADE_CPP_SOURCE_ROOT");
+      env != nullptr && *env != '\0') {
+    return std::filesystem::absolute(trim(env)).string();
+  }
   auto current = std::filesystem::absolute(start);
   while (!current.empty()) {
-    if (std::filesystem::exists(current / "observability-cascade-node-go") &&
-        std::filesystem::exists(current / "observability-cascade-node-cpp")) {
+    if (is_source_root(current)) {
       return current.string();
     }
-    auto nested = current / "examples" / "observability-cascade";
-    if (std::filesystem::exists(nested / "observability-cascade-node-go") &&
-        std::filesystem::exists(nested / "observability-cascade-node-cpp")) {
+    auto nested =
+        current / "examples" / "observability-cascade" / "observability-cascade-cpp";
+    if (is_source_root(nested)) {
       return nested.string();
     }
     auto parent = current.parent_path();
     if (parent == current) break;
     current = parent;
   }
-  throw std::runtime_error("observability-cascade root not found");
+  throw std::runtime_error("observability-cascade-cpp source root not found");
 }
 
 std::string trim(std::string value) {
@@ -147,7 +182,9 @@ std::optional<std::string> find_executable(const std::filesystem::path &root,
   return std::nullopt;
 }
 
-std::string find_binary(const std::string &slug, const std::string &relay_root) {
+std::string find_binary(const std::string &slug, const std::string &source_root,
+                        const std::string &examples_root,
+                        const std::string &repo_root) {
   auto suffix = slug.substr(std::string("observability-cascade-node-").size());
   for (auto &ch : suffix) {
     ch = ch == '-' ? '_' : static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
@@ -156,7 +193,23 @@ std::string find_binary(const std::string &slug, const std::string &relay_root) 
       env != nullptr && *env != '\0') {
     return trim(env);
   }
-  auto from_op = capture_command("cd '" + relay_root + "' && op --bin " + slug + " 2>/dev/null");
+  std::vector<std::filesystem::path> roots;
+  if (slug == kCppSlug) {
+    auto node = std::filesystem::path(source_root) / "holons" / "observability-cascade-node";
+    roots.push_back(node / ".op" / "build" / "observability-cascade-node.holon" / "bin");
+    roots.push_back(node / ".op" / "build" / "observability-cascade-node-cpp.holon" / "bin");
+  }
+  if (slug == kGoSlug) {
+    auto node = std::filesystem::path(examples_root) / "observability-cascade-go" /
+                "holons" / "observability-cascade-node";
+    roots.push_back(node / ".op" / "build" / "observability-cascade-node.holon" / "bin");
+    roots.push_back(node / ".op" / "build" / "observability-cascade-node-go.holon" / "bin");
+  }
+  for (const auto &root : roots) {
+    auto found = find_executable(root, slug);
+    if (found) return *found;
+  }
+  auto from_op = capture_command("cd '" + repo_root + "' && op --bin " + slug + " 2>/dev/null");
   if (!from_op.empty()) return from_op;
   const char *home = std::getenv("HOME");
   if (home != nullptr) {
@@ -417,8 +470,13 @@ std::string elapsed(Clock::time_point start) {
   return out.str();
 }
 
-void print_failure_evidence(const std::string &family, const CheckResult &result) {
-  if (!result.pass) {
+void emit_line(bool emit, const std::string &line = {}) {
+  if (emit) std::cout << line << "\n";
+}
+
+void print_failure_evidence(bool emit, const std::string &family,
+                            const CheckResult &result) {
+  if (emit && !result.pass) {
     std::cout << "    " << family << " evidence: "
               << (result.evidence.empty() ? "<empty>" : result.evidence) << "\n";
   }
@@ -773,26 +831,33 @@ std::map<std::string, RoleSpec> all_specs(const std::string &slug, const std::st
   return specs;
 }
 
-void run_default(const std::string &cpp_binary, const std::string &repo_root) {
+CascadeReportData run_default(const std::string &cpp_binary,
+                              const std::string &repo_root,
+                              bool emit) {
   auto run_root = make_temp_dir("observability-cascade-cpp-");
-  std::cout << "=== observability-cascade-cpp ===\n\n";
+  emit_line(emit, "=== observability-cascade-cpp ===");
+  emit_line(emit);
   int pass = 0, fail = 0;
+  std::vector<std::string> failures;
   std::string previous;
   for (size_t index = 0; index < kTransports.size(); ++index) {
     int phase = static_cast<int>(index + 1);
     const auto &transport = kTransports[index];
-    std::cout << "Phase " << phase << "/" << kRunPhases << ": transport=" << transport;
-    if (!previous.empty()) std::cout << " (switching from " << previous << ")";
-    std::cout << "\n";
+    if (emit) {
+      std::cout << "Phase " << phase << "/" << kRunPhases << ": transport=" << transport;
+      if (!previous.empty()) std::cout << " (switching from " << previous << ")";
+      std::cout << "\n";
+    }
     auto started = Clock::now();
     std::optional<Cascade> cascade;
     try {
       cascade.emplace(spawn_cascade(phase, transport, all_specs(kCppSlug, cpp_binary),
                                     run_root, repo_root));
-      std::cout << "  spawned 4 nodes in " << elapsed(started) << "\n";
+      if (emit) std::cout << "  spawned 4 nodes in " << elapsed(started) << "\n";
     } catch (const std::exception &error) {
       fail += kRunTicks;
-      std::cout << "  spawn FAIL: " << error.what() << "\n\n";
+      failures.push_back("phase " + std::to_string(phase) + " spawn: " + error.what());
+      if (emit) std::cout << "  spawn FAIL: " << error.what() << "\n\n";
       previous = transport;
       continue;
     }
@@ -805,56 +870,82 @@ void run_default(const std::string &cpp_binary, const std::string &repo_root) {
       if (outcome.metric.pass) previous_metric = outcome.metric_value;
       bool overall = outcome.log.pass && outcome.event.pass && outcome.metric.pass;
       overall ? ++pass : ++fail;
-      std::cout << "  Tick " << tick << "/" << kRunTicks << ": log "
-                << pass_text(outcome.log.pass) << ", event "
-                << pass_text(outcome.event.pass) << ", metric "
-                << pass_text(outcome.metric.pass) << " (overall "
-                << pass_text(overall) << " in " << elapsed(tick_start) << ")\n";
-      print_failure_evidence("log", outcome.log);
-      print_failure_evidence("event", outcome.event);
-      print_failure_evidence("metric", outcome.metric);
+      if (emit) {
+        std::cout << "  Tick " << tick << "/" << kRunTicks << ": log "
+                  << pass_text(outcome.log.pass) << ", event "
+                  << pass_text(outcome.event.pass) << ", metric "
+                  << pass_text(outcome.metric.pass) << " (overall "
+                  << pass_text(overall) << " in " << elapsed(tick_start) << ")\n";
+      }
+      print_failure_evidence(emit, "log", outcome.log);
+      print_failure_evidence(emit, "event", outcome.event);
+      print_failure_evidence(emit, "metric", outcome.metric);
+      if (!overall) {
+        if (!outcome.log.pass) failures.push_back("phase " + std::to_string(phase) + " tick " + std::to_string(tick) + " log: " + outcome.log.evidence);
+        if (!outcome.event.pass) failures.push_back("phase " + std::to_string(phase) + " tick " + std::to_string(tick) + " event: " + outcome.event.evidence);
+        if (!outcome.metric.pass) failures.push_back("phase " + std::to_string(phase) + " tick " + std::to_string(tick) + " metric: " + outcome.metric.evidence);
+      }
     }
     cascade->stop();
-    std::cout << "\n";
+    emit_line(emit);
     previous = transport;
   }
   std::filesystem::remove_all(run_root);
-  std::cout << "Summary: " << pass + fail << " ticks, " << pass << " PASS, "
-            << fail << " FAIL\n";
+  if (emit) {
+    std::cout << "Summary: " << pass + fail << " ticks, " << pass << " PASS, "
+              << fail << " FAIL\n";
+  }
+  CascadeReportData report{pass + fail,
+                           pass,
+                           fail,
+                           {PhaseReportData{"default", pass, fail, failures}}};
   if (fail > 0) throw std::runtime_error(std::to_string(fail) + " tick(s) failed");
+  return report;
 }
 
-void run_live_stream(const std::string &cpp_binary, const std::string &repo_root) {
+CascadeReportData run_live_stream(const std::string &cpp_binary,
+                                  const std::string &repo_root,
+                                  bool emit) {
   auto run_root = make_temp_dir("observability-cascade-cpp-live-");
-  std::cout << "=== observability-cascade-cpp --live-stream ===\n\n";
-  std::cout << "Setup: opening long-lived Follow:true streams on A\n";
-  std::cout << "       (initial transport: tcp)\n\n";
+  emit_line(emit, "=== observability-cascade-cpp --live-stream ===");
+  emit_line(emit);
+  emit_line(emit, "Setup: opening long-lived Follow:true streams on A");
+  emit_line(emit, "       (initial transport: tcp)");
+  emit_line(emit);
   int pass = 0, fail = 0;
+  std::vector<std::string> failures;
   std::optional<Cascade> cascade;
   std::unique_ptr<LiveStreams> streams;
   for (size_t index = 0; index < kTransports.size(); ++index) {
     int phase = static_cast<int>(index + 1);
     const auto &transport = kTransports[index];
     if (phase == 1) {
-      std::cout << "Phase " << phase << "/" << kRunPhases << ": initial chain (" << transport << ")\n";
+      if (emit) {
+        std::cout << "Phase " << phase << "/" << kRunPhases
+                  << ": initial chain (" << transport << ")\n";
+      }
     } else {
-      std::cout << "Phase " << phase << "/" << kRunPhases << ": respawn on " << transport << "\n";
+      if (emit) {
+        std::cout << "Phase " << phase << "/" << kRunPhases
+                  << ": respawn on " << transport << "\n";
+      }
       auto kill_start = Clock::now();
       streams.reset();
       if (cascade) cascade->stop();
-      std::cout << "  killed 4 nodes in " << elapsed(kill_start) << "\n";
+      if (emit) std::cout << "  killed 4 nodes in " << elapsed(kill_start) << "\n";
     }
     auto spawn_start = Clock::now();
     try {
       cascade.emplace(spawn_cascade(phase, transport, all_specs(kCppSlug, cpp_binary),
                                     run_root, repo_root));
-      std::cout << "  spawned 4 nodes in " << elapsed(spawn_start) << "\n";
+      if (emit) std::cout << "  spawned 4 nodes in " << elapsed(spawn_start) << "\n";
     } catch (const std::exception &error) {
       fail += kRunTicks;
-      std::cout << "  spawn FAIL: " << error.what() << "\n\n";
+      failures.push_back("phase " + std::to_string(phase) + " spawn: " + error.what());
+      if (emit) std::cout << "  spawn FAIL: " << error.what() << "\n\n";
       continue;
     }
-    if (phase > 1) std::cout << "  re-opening Follow:true streams on new A\n";
+    if (phase > 1) emit_line(emit, "  re-opening Follow:true streams on new A");
     std::string stream_error;
     try {
       streams = std::make_unique<LiveStreams>(cascade->roles["A"].relay_address);
@@ -862,7 +953,7 @@ void run_live_stream(const std::string &cpp_binary, const std::string &repo_root
     } catch (const std::exception &error) {
       stream_error = error.what();
       streams.reset();
-      std::cout << "  stream re-open failed: " << stream_error << "\n";
+      if (emit) std::cout << "  stream re-open failed: " << stream_error << "\n";
     }
     double previous_metric = 0;
     for (int tick = 1; tick <= kRunTicks; ++tick) {
@@ -874,27 +965,43 @@ void run_live_stream(const std::string &cpp_binary, const std::string &repo_root
       if (outcome.metric.pass) previous_metric = outcome.metric_value;
       bool overall = outcome.log.pass && outcome.event.pass && outcome.metric.pass;
       overall ? ++pass : ++fail;
-      std::cout << "  Tick " << tick << "/" << kRunTicks << ": log "
-                << pass_text(outcome.log.pass) << ", event "
-                << pass_text(outcome.event.pass) << ", metric "
-                << pass_text(outcome.metric.pass) << " (overall "
-                << pass_text(overall) << " in " << elapsed(tick_start) << ")\n";
-      print_failure_evidence("log", outcome.log);
-      print_failure_evidence("event", outcome.event);
-      print_failure_evidence("metric", outcome.metric);
+      if (emit) {
+        std::cout << "  Tick " << tick << "/" << kRunTicks << ": log "
+                  << pass_text(outcome.log.pass) << ", event "
+                  << pass_text(outcome.event.pass) << ", metric "
+                  << pass_text(outcome.metric.pass) << " (overall "
+                  << pass_text(overall) << " in " << elapsed(tick_start) << ")\n";
+      }
+      print_failure_evidence(emit, "log", outcome.log);
+      print_failure_evidence(emit, "event", outcome.event);
+      print_failure_evidence(emit, "metric", outcome.metric);
+      if (!overall) {
+        if (!outcome.log.pass) failures.push_back("phase " + std::to_string(phase) + " tick " + std::to_string(tick) + " log: " + outcome.log.evidence);
+        if (!outcome.event.pass) failures.push_back("phase " + std::to_string(phase) + " tick " + std::to_string(tick) + " event: " + outcome.event.evidence);
+        if (!outcome.metric.pass) failures.push_back("phase " + std::to_string(phase) + " tick " + std::to_string(tick) + " metric: " + outcome.metric.evidence);
+      }
     }
-    std::cout << "\n";
+    emit_line(emit);
   }
   streams.reset();
   if (cascade) cascade->stop();
   std::filesystem::remove_all(run_root);
-  std::cout << "Summary: " << pass << " PASS / " << fail << " FAIL across "
-            << pass + fail << " ticks\n";
+  if (emit) {
+    std::cout << "Summary: " << pass << " PASS / " << fail << " FAIL across "
+              << pass + fail << " ticks\n";
+  }
+  CascadeReportData report{pass + fail,
+                           pass,
+                           fail,
+                           {PhaseReportData{"live-stream", pass, fail, failures}}};
   if (fail > 0) throw std::runtime_error(std::to_string(fail) + " tick(s) failed");
+  return report;
 }
 
-void run_multi_pattern(const std::string &cpp_binary, const std::string &go_binary,
-                       const std::string &repo_root) {
+MultiPatternReportData run_multi_pattern(const std::string &cpp_binary,
+                                         const std::string &go_binary,
+                                         const std::string &repo_root,
+                                         bool emit) {
   struct Pattern {
     std::string name;
     std::map<std::string, RoleSpec> roles;
@@ -909,13 +1016,19 @@ void run_multi_pattern(const std::string &cpp_binary, const std::string &go_bina
         {"C", {kGoSlug, go_binary}}, {"D", {kGoSlug, go_binary}}}},
   };
   auto run_root = make_temp_dir("observability-cascade-cpp-multi-");
-  std::cout << "=== observability-cascade-cpp (multi-pattern) ===\n\n";
+  emit_line(emit, "=== observability-cascade-cpp (multi-pattern) ===");
+  emit_line(emit);
   int pass = 0, fail = 0;
+  std::vector<CascadeReportData> pattern_reports;
   for (size_t pattern_index = 0; pattern_index < patterns.size(); ++pattern_index) {
     const auto &pattern = patterns[pattern_index];
-    std::cout << "Pattern " << pattern_index + 1 << "/" << patterns.size()
-              << ": " << pattern.name << "\n";
+    if (emit) {
+      std::cout << "Pattern " << pattern_index + 1 << "/" << patterns.size()
+                << ": " << pattern.name << "\n";
+    }
     int pattern_pass = 0;
+    int pattern_fail = 0;
+    std::vector<std::string> pattern_failures;
     for (size_t index = 0; index < kTransports.size(); ++index) {
       int phase = static_cast<int>(index + 1);
       const auto &transport = kTransports[index];
@@ -926,8 +1039,13 @@ void run_multi_pattern(const std::string &cpp_binary, const std::string &go_bina
                                       run_root, repo_root));
       } catch (const std::exception &error) {
         fail += kRunTicks;
-        std::cout << "  Phase " << phase << "/" << kRunPhases << " ("
-                  << transport << "): spawn FAIL (" << error.what() << ")\n";
+        pattern_fail += kRunTicks;
+        pattern_failures.push_back("phase " + std::to_string(phase) +
+                                   " spawn: " + error.what());
+        if (emit) {
+          std::cout << "  Phase " << phase << "/" << kRunPhases << " ("
+                    << transport << "): spawn FAIL (" << error.what() << ")\n";
+        }
         continue;
       }
       std::unique_ptr<LiveStreams> streams;
@@ -956,37 +1074,165 @@ void run_multi_pattern(const std::string &cpp_binary, const std::string &go_bina
           results.push_back("tick " + std::to_string(tick) + " PASS");
         } else {
           ++fail;
+          ++pattern_fail;
           results.push_back("tick " + std::to_string(tick) + " FAIL");
           if (!outcome.log.pass) evidence.push_back("log=" + outcome.log.evidence);
           if (!outcome.event.pass) evidence.push_back("event=" + outcome.event.evidence);
           if (!outcome.metric.pass) evidence.push_back("metric=" + outcome.metric.evidence);
+          for (const auto &item : evidence) {
+            pattern_failures.push_back("phase " + std::to_string(phase) +
+                                       " tick " + std::to_string(tick) + ": " + item);
+          }
         }
       }
       streams.reset();
       cascade->stop();
-      std::cout << "  Phase " << phase << "/" << kRunPhases << " (" << transport
-                << "): ";
-      for (size_t i = 0; i < results.size(); ++i) {
-        if (i) std::cout << ", ";
-        std::cout << results[i];
-      }
-      std::cout << " (spawned in " << elapsed(started) << ")\n";
-      if (!evidence.empty()) {
-        std::cout << "    evidence: ";
-        for (size_t i = 0; i < evidence.size(); ++i) {
-          if (i) std::cout << " | ";
-          std::cout << evidence[i];
+      if (emit) {
+        std::cout << "  Phase " << phase << "/" << kRunPhases << " (" << transport
+                  << "): ";
+        for (size_t i = 0; i < results.size(); ++i) {
+          if (i) std::cout << ", ";
+          std::cout << results[i];
         }
-        std::cout << "\n";
+        std::cout << " (spawned in " << elapsed(started) << ")\n";
+        if (!evidence.empty()) {
+          std::cout << "    evidence: ";
+          for (size_t i = 0; i < evidence.size(); ++i) {
+            if (i) std::cout << " | ";
+            std::cout << evidence[i];
+          }
+          std::cout << "\n";
+        }
       }
     }
-    std::cout << "Pattern summary: " << pattern_pass << " PASS / "
-              << (kRunPhases * kRunTicks - pattern_pass) << " FAIL\n\n";
+    pattern_fail = kRunPhases * kRunTicks - pattern_pass;
+    pattern_reports.push_back(
+        CascadeReportData{kRunPhases * kRunTicks,
+                          pattern_pass,
+                          pattern_fail,
+                          {PhaseReportData{pattern.name, pattern_pass,
+                                           pattern_fail, pattern_failures}}});
+    if (emit) {
+      std::cout << "Pattern summary: " << pattern_pass << " PASS / "
+                << pattern_fail << " FAIL\n\n";
+    }
   }
   std::filesystem::remove_all(run_root);
-  std::cout << "Summary: " << pass << " PASS / " << fail << " FAIL across "
-            << pass + fail << " ticks\n";
+  if (emit) {
+    std::cout << "Summary: " << pass << " PASS / " << fail << " FAIL across "
+              << pass + fail << " ticks\n";
+  }
+  MultiPatternReportData report{pattern_reports, pass, fail};
   if (fail > 0) throw std::runtime_error(std::to_string(fail) + " tick(s) failed");
+  return report;
+}
+
+observability_cascade::v1::CascadeReport
+to_proto(const CascadeReportData &data) {
+  observability_cascade::v1::CascadeReport response;
+  response.set_ticks(data.ticks);
+  response.set_pass(data.pass);
+  response.set_fail(data.fail);
+  for (const auto &phase : data.phases) {
+    auto *item = response.add_phases();
+    item->set_name(phase.name);
+    item->set_pass(phase.pass);
+    item->set_fail(phase.fail);
+    for (const auto &failure : phase.failures) {
+      item->add_failures(failure);
+    }
+  }
+  return response;
+}
+
+observability_cascade::v1::MultiPatternReport
+to_proto(const MultiPatternReportData &data) {
+  observability_cascade::v1::MultiPatternReport response;
+  response.set_total_pass(data.total_pass);
+  response.set_total_fail(data.total_fail);
+  for (const auto &pattern : data.patterns) {
+    *response.add_patterns() = to_proto(pattern);
+  }
+  return response;
+}
+
+class ObservabilityCascadeServiceImpl final
+    : public observability_cascade::v1::ObservabilityCascadeService::Service {
+public:
+  ObservabilityCascadeServiceImpl(std::string source_root,
+                                  std::string examples_root,
+                                  std::string repo_root)
+      : source_root_(std::move(source_root)),
+        examples_root_(std::move(examples_root)),
+        repo_root_(std::move(repo_root)) {}
+
+  grpc::Status RunDefault(
+      grpc::ServerContext *,
+      const observability_cascade::v1::RunRequest *,
+      observability_cascade::v1::CascadeReport *response) override {
+    try {
+      auto cpp_binary = find_binary(kCppSlug, source_root_, examples_root_, repo_root_);
+      *response = to_proto(run_default(cpp_binary, repo_root_, false));
+      return grpc::Status::OK;
+    } catch (const std::exception &error) {
+      return grpc::Status(grpc::StatusCode::INTERNAL, error.what());
+    }
+  }
+
+  grpc::Status RunLiveStream(
+      grpc::ServerContext *,
+      const observability_cascade::v1::RunRequest *,
+      observability_cascade::v1::CascadeReport *response) override {
+    try {
+      auto cpp_binary = find_binary(kCppSlug, source_root_, examples_root_, repo_root_);
+      *response = to_proto(run_live_stream(cpp_binary, repo_root_, false));
+      return grpc::Status::OK;
+    } catch (const std::exception &error) {
+      return grpc::Status(grpc::StatusCode::INTERNAL, error.what());
+    }
+  }
+
+  grpc::Status RunMultiPattern(
+      grpc::ServerContext *,
+      const observability_cascade::v1::RunRequest *,
+      observability_cascade::v1::MultiPatternReport *response) override {
+    try {
+      auto cpp_binary = find_binary(kCppSlug, source_root_, examples_root_, repo_root_);
+      auto go_binary = find_binary(kGoSlug, source_root_, examples_root_, repo_root_);
+      *response =
+          to_proto(run_multi_pattern(cpp_binary, go_binary, repo_root_, false));
+      return grpc::Status::OK;
+    } catch (const std::exception &error) {
+      return grpc::Status(grpc::StatusCode::INTERNAL, error.what());
+    }
+  }
+
+private:
+  std::string source_root_;
+  std::string examples_root_;
+  std::string repo_root_;
+};
+
+void serve_composite(const std::string &source_root,
+                     const std::string &examples_root,
+                     const std::string &repo_root,
+                     const std::vector<std::string> &args) {
+  auto parsed = holons::serve::parse_options(args);
+  holons::serve::options options;
+  options.enable_reflection = parsed.reflect;
+  options.auto_register_holon_meta = false;
+  options.announce = true;
+  options.slug = "observability-cascade-cpp";
+  options.member_endpoints = parsed.member_endpoints;
+
+  auto service = std::make_shared<ObservabilityCascadeServiceImpl>(
+      source_root, examples_root, repo_root);
+  holons::serve::serve(
+      parsed.listeners,
+      [service](grpc::ServerBuilder &builder) {
+        builder.RegisterService(service.get());
+      },
+      options);
 }
 
 } // namespace
@@ -1001,16 +1247,23 @@ int main(int argc, char **argv) {
       if (arg == "--multi-pattern") multi_pattern = true;
     }
     auto cwd = std::filesystem::current_path();
-    auto relay_root = relay_root_from(cwd);
-    auto repo_root = repo_root_from(relay_root);
-    auto cpp_binary = find_binary(kCppSlug, relay_root);
+    auto source_root = source_root_from(cwd);
+    auto examples_root = std::filesystem::path(source_root).parent_path().string();
+    auto repo_root = repo_root_from(source_root);
+    if (argc > 1 && std::string(argv[1]) == "serve") {
+      std::vector<std::string> serve_args;
+      for (int i = 2; i < argc; ++i) serve_args.emplace_back(argv[i]);
+      serve_composite(source_root, examples_root, repo_root, serve_args);
+      return 0;
+    }
+    auto cpp_binary = find_binary(kCppSlug, source_root, examples_root, repo_root);
     if (multi_pattern) {
-      auto go_binary = find_binary(kGoSlug, relay_root);
-      run_multi_pattern(cpp_binary, go_binary, repo_root);
+      auto go_binary = find_binary(kGoSlug, source_root, examples_root, repo_root);
+      run_multi_pattern(cpp_binary, go_binary, repo_root, true);
     } else if (live_stream) {
-      run_live_stream(cpp_binary, repo_root);
+      run_live_stream(cpp_binary, repo_root, true);
     } else {
-      run_default(cpp_binary, repo_root);
+      run_default(cpp_binary, repo_root, true);
     }
   } catch (const std::exception &error) {
     std::cerr << "\nFAIL: " << error.what() << "\n";
