@@ -22,13 +22,16 @@ private let goSlug = "observability-cascade-node-go"
 
 private let app = App(roleOrder: roleOrder, transports: transports)
 do {
-    let args = Set(CommandLine.arguments.dropFirst())
-    if args.contains("--multi-pattern") {
-        try app.runMultiPattern()
+    let rawArgs = Array(CommandLine.arguments.dropFirst())
+    let args = Set(rawArgs)
+    if let first = rawArgs.first, canonicalCommand(first) == "serve" {
+        try app.serveComposite(Array(rawArgs.dropFirst()))
+    } else if args.contains("--multi-pattern") {
+        _ = try app.runMultiPattern(emit: true)
     } else if args.contains("--live-stream") {
-        try app.runLiveStream()
+        _ = try app.runLiveStream(emit: true)
     } else {
-        try app.runDefault()
+        _ = try app.runDefault(emit: true)
     }
 } catch {
     FileHandle.standardError.write(Data("\nFAIL: \(error)\n".utf8))
@@ -38,21 +41,108 @@ do {
 private final class App {
     private let roleOrder: [String]
     private let transports: [String]
-    private let relayRoot: String
+    private let sourceRoot: String
+    private let examplesRoot: String
     private let repoRoot: String
 
     init(roleOrder: [String], transports: [String]) {
         self.roleOrder = roleOrder
         self.transports = transports
-        self.relayRoot = try! Self.findRelayRoot()
-        self.repoRoot = try! Self.findRepoRoot(start: relayRoot)
+        self.sourceRoot = try! Self.findSourceRoot()
+        self.examplesRoot = URL(fileURLWithPath: sourceRoot, isDirectory: true).deletingLastPathComponent().path
+        self.repoRoot = try! Self.findRepoRoot(start: sourceRoot)
     }
 
-    func runDefault() throws {
+    func serveComposite(_ args: [String]) throws {
+        try Describe.useStaticResponse(DescribeGenerated.StaticDescribeResponse())
+        let parsed = Serve.parseOptions(args)
+        try Serve.runWithOptions(
+            normalizedListenURI(parsed.listenURI),
+            serviceProviders: [ObservabilityCascadeProvider(app: self)],
+            options: Serve.Options(
+                reflect: parsed.reflect,
+                slug: "observability-cascade-swift"
+            )
+        )
+    }
+
+    private final class ObservabilityCascadeProvider: ObservabilityCascade_V1_ObservabilityCascadeServiceProvider {
+        let interceptors: ObservabilityCascade_V1_ObservabilityCascadeServiceServerInterceptorFactoryProtocol? = nil
+        private let app: App
+
+        init(app: App) {
+            self.app = app
+        }
+
+        func runDefault(
+            request: ObservabilityCascade_V1_RunRequest,
+            context: StatusOnlyCallContext
+        ) -> EventLoopFuture<ObservabilityCascade_V1_CascadeReport> {
+            _ = request
+            let promise = context.eventLoop.makePromise(of: ObservabilityCascade_V1_CascadeReport.self)
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let report = try self.app.runDefault(emit: false)
+                    context.eventLoop.execute {
+                        promise.succeed(toCascadeReport(report))
+                    }
+                } catch {
+                    context.eventLoop.execute {
+                        promise.fail(error)
+                    }
+                }
+            }
+            return promise.futureResult
+        }
+
+        func runLiveStream(
+            request: ObservabilityCascade_V1_RunRequest,
+            context: StatusOnlyCallContext
+        ) -> EventLoopFuture<ObservabilityCascade_V1_CascadeReport> {
+            _ = request
+            let promise = context.eventLoop.makePromise(of: ObservabilityCascade_V1_CascadeReport.self)
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let report = try self.app.runLiveStream(emit: false)
+                    context.eventLoop.execute {
+                        promise.succeed(toCascadeReport(report))
+                    }
+                } catch {
+                    context.eventLoop.execute {
+                        promise.fail(error)
+                    }
+                }
+            }
+            return promise.futureResult
+        }
+
+        func runMultiPattern(
+            request: ObservabilityCascade_V1_RunRequest,
+            context: StatusOnlyCallContext
+        ) -> EventLoopFuture<ObservabilityCascade_V1_MultiPatternReport> {
+            _ = request
+            let promise = context.eventLoop.makePromise(of: ObservabilityCascade_V1_MultiPatternReport.self)
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let report = try self.app.runMultiPattern(emit: false)
+                    context.eventLoop.execute {
+                        promise.succeed(toMultiPatternReport(report))
+                    }
+                } catch {
+                    context.eventLoop.execute {
+                        promise.fail(error)
+                    }
+                }
+            }
+            return promise.futureResult
+        }
+    }
+
+    func runDefault(emit: Bool) throws -> CascadeReportData {
         let binary = try findBinary(swiftSlug)
         let runRoot = try makeRunRoot(prefix: "observability-cascade-swift-")
-        print("=== observability-cascade-swift ===")
-        print()
+        output(emit, "=== observability-cascade-swift ===")
+        output(emit)
         var totalPass = 0
         var totalFail = 0
         var previous = ""
@@ -60,9 +150,9 @@ private final class App {
         for (index, transport) in transports.enumerated() {
             let phase = index + 1
             if previous.isEmpty {
-                print("Phase \(phase)/\(runPhases): transport=\(transport)")
+                output(emit, "Phase \(phase)/\(runPhases): transport=\(transport)")
             } else {
-                print("Phase \(phase)/\(runPhases): transport=\(transport) (switching from \(previous))")
+                output(emit, "Phase \(phase)/\(runPhases): transport=\(transport) (switching from \(previous))")
             }
 
             let started = Date()
@@ -71,11 +161,11 @@ private final class App {
                 cascade = try spawnCascade(phase: phase, transport: transport, specs: allSwiftSpecs(binary), runRoot: runRoot)
             } catch {
                 totalFail += runTicks
-                print("  spawn FAIL: \(error)\n")
+                output(emit, "  spawn FAIL: \(error)\n")
                 previous = transport
                 continue
             }
-            print("  spawned 4 nodes in \(elapsed(started))")
+            output(emit, "  spawned 4 nodes in \(elapsed(started))")
 
             var previousMetric = 0.0
             for tick in 1...runTicks {
@@ -90,30 +180,38 @@ private final class App {
                 } else {
                     totalFail += 1
                 }
-                print("  Tick \(tick)/\(runTicks): log \(passText(outcome.log.pass)), event \(passText(outcome.event.pass)), metric \(passText(outcome.metric.pass)) (overall \(passText(overall)) in \(elapsed(tickStart)))")
-                printFailureEvidence("log", outcome.log)
-                printFailureEvidence("event", outcome.event)
-                printFailureEvidence("metric", outcome.metric)
+                output(emit, "  Tick \(tick)/\(runTicks): log \(passText(outcome.log.pass)), event \(passText(outcome.event.pass)), metric \(passText(outcome.metric.pass)) (overall \(passText(overall)) in \(elapsed(tickStart)))")
+                if emit {
+                    printFailureEvidence("log", outcome.log)
+                    printFailureEvidence("event", outcome.event)
+                    printFailureEvidence("metric", outcome.metric)
+                }
             }
             cascade.stop()
-            print()
+            output(emit)
             previous = transport
         }
 
-        print("Summary: \(totalPass + totalFail) ticks, \(totalPass) PASS, \(totalFail) FAIL")
+        output(emit, "Summary: \(totalPass + totalFail) ticks, \(totalPass) PASS, \(totalFail) FAIL")
         if totalFail > 0 {
             throw RuntimeError("\(totalFail) tick(s) failed")
         }
+        return CascadeReportData(
+            ticks: totalPass + totalFail,
+            pass: totalPass,
+            fail: totalFail,
+            phases: [PhaseReportData(name: "default", pass: totalPass, fail: totalFail)]
+        )
     }
 
-    func runLiveStream() throws {
+    func runLiveStream(emit: Bool) throws -> CascadeReportData {
         let binary = try findBinary(swiftSlug)
         let runRoot = try makeRunRoot(prefix: "observability-cascade-swift-live-")
-        print("=== observability-cascade-swift --live-stream ===")
-        print()
-        print("Setup: opening long-lived Follow:true streams on A")
-        print("       (initial transport: tcp)")
-        print()
+        output(emit, "=== observability-cascade-swift --live-stream ===")
+        output(emit)
+        output(emit, "Setup: opening long-lived Follow:true streams on A")
+        output(emit, "       (initial transport: tcp)")
+        output(emit)
 
         var totalPass = 0
         var totalFail = 0
@@ -124,13 +222,13 @@ private final class App {
         for (index, transport) in transports.enumerated() {
             let phase = index + 1
             if phase == 1 {
-                print("Phase \(phase)/\(runPhases): initial chain (\(transport))")
+                output(emit, "Phase \(phase)/\(runPhases): initial chain (\(transport))")
             } else {
-                print("Phase \(phase)/\(runPhases): respawn on \(transport)")
+                output(emit, "Phase \(phase)/\(runPhases): respawn on \(transport)")
                 let killStart = Date()
                 streams?.stop()
                 cascade?.stop()
-                print("  killed 4 nodes in \(elapsed(killStart))")
+                output(emit, "  killed 4 nodes in \(elapsed(killStart))")
             }
 
             let spawnStart = Date()
@@ -139,13 +237,13 @@ private final class App {
                 phaseCascade = try spawnCascade(phase: phase, transport: transport, specs: specs, runRoot: runRoot)
             } catch {
                 totalFail += runTicks
-                print("  spawn FAIL: \(error)\n")
+                output(emit, "  spawn FAIL: \(error)\n")
                 streams = nil
                 continue
             }
-            print("  spawned 4 nodes in \(elapsed(spawnStart))")
+            output(emit, "  spawned 4 nodes in \(elapsed(spawnStart))")
             if phase > 1 {
-                print("  re-opening Follow:true streams on new A")
+                output(emit, "  re-opening Follow:true streams on new A")
             }
 
             var streamError: String?
@@ -156,7 +254,7 @@ private final class App {
             } catch {
                 streams = nil
                 streamError = "\(error)"
-                print("  stream re-open failed: \(error)")
+                output(emit, "  stream re-open failed: \(error)")
             }
 
             var previousMetric = 0.0
@@ -172,24 +270,32 @@ private final class App {
                 } else {
                     totalFail += 1
                 }
-                print("  Tick \(tick)/\(runTicks): log \(passText(outcome.log.pass)), event \(passText(outcome.event.pass)), metric \(passText(outcome.metric.pass)) (overall \(passText(overall)) in \(elapsed(tickStart)))")
-                printFailureEvidence("log", outcome.log)
-                printFailureEvidence("event", outcome.event)
-                printFailureEvidence("metric", outcome.metric)
+                output(emit, "  Tick \(tick)/\(runTicks): log \(passText(outcome.log.pass)), event \(passText(outcome.event.pass)), metric \(passText(outcome.metric.pass)) (overall \(passText(overall)) in \(elapsed(tickStart)))")
+                if emit {
+                    printFailureEvidence("log", outcome.log)
+                    printFailureEvidence("event", outcome.event)
+                    printFailureEvidence("metric", outcome.metric)
+                }
             }
-            print()
+            output(emit)
             cascade = phaseCascade
         }
 
         streams?.stop()
         cascade?.stop()
-        print("Summary: \(totalPass) PASS / \(totalFail) FAIL across \(totalPass + totalFail) ticks")
+        output(emit, "Summary: \(totalPass) PASS / \(totalFail) FAIL across \(totalPass + totalFail) ticks")
         if totalFail > 0 {
             throw RuntimeError("\(totalFail) tick(s) failed")
         }
+        return CascadeReportData(
+            ticks: totalPass + totalFail,
+            pass: totalPass,
+            fail: totalFail,
+            phases: [PhaseReportData(name: "live-stream", pass: totalPass, fail: totalFail)]
+        )
     }
 
-    func runMultiPattern() throws {
+    func runMultiPattern(emit: Bool) throws -> MultiPatternReportData {
         let swiftBinary = try findBinary(swiftSlug)
         let goBinary = try findBinary(goSlug)
         let patterns = [
@@ -208,14 +314,16 @@ private final class App {
             ]),
         ]
         let runRoot = try makeRunRoot(prefix: "observability-cascade-swift-multi-")
-        print("=== observability-cascade-swift (multi-pattern) ===")
-        print()
+        output(emit, "=== observability-cascade-swift (multi-pattern) ===")
+        output(emit)
 
         var totalPass = 0
         var totalFail = 0
+        var patternReports: [CascadeReportData] = []
         for (patternIndex, pattern) in patterns.enumerated() {
-            print("Pattern \(patternIndex + 1)/\(patterns.count): \(pattern.name)")
+            output(emit, "Pattern \(patternIndex + 1)/\(patterns.count): \(pattern.name)")
             var patternPass = 0
+            var patternFail = 0
             for (index, transport) in transports.enumerated() {
                 let phase = index + 1
                 let started = Date()
@@ -224,7 +332,8 @@ private final class App {
                     cascade = try spawnCascade(phase: phase, transport: transport, specs: pattern.roles, runRoot: runRoot)
                 } catch {
                     totalFail += runTicks
-                    print("  Phase \(phase)/\(runPhases) (\(transport)): spawn FAIL (\(error))")
+                    patternFail += runTicks
+                    output(emit, "  Phase \(phase)/\(runPhases) (\(transport)): spawn FAIL (\(error))")
                     continue
                 }
 
@@ -259,26 +368,36 @@ private final class App {
                         totalPass += 1
                         results.append("Tick \(tick) PASS")
                     } else {
+                        patternFail += 1
                         totalFail += 1
                         results.append("Tick \(tick) FAIL (\(failureSummary(outcome)))")
                         evidence.append("      Tick \(tick) evidence: \(compactEvidence(outcome))")
                     }
                 }
-                print("  Phase \(phase)/\(runPhases) (\(transport)): \(results.joined(separator: ", ")) (spawned in \(elapsed(started)))")
-                for line in evidence {
-                    print(line)
+                output(emit, "  Phase \(phase)/\(runPhases) (\(transport)): \(results.joined(separator: ", ")) (spawned in \(elapsed(started)))")
+                if emit {
+                    for line in evidence {
+                        print(line)
+                    }
                 }
                 streams?.stop()
                 cascade.stop()
             }
-            print("  Subtotal: \(patternPass)/12 PASS")
-            print()
+            output(emit, "  Subtotal: \(patternPass)/12 PASS")
+            output(emit)
+            patternReports.append(CascadeReportData(
+                ticks: patternPass + patternFail,
+                pass: patternPass,
+                fail: patternFail,
+                phases: [PhaseReportData(name: pattern.name, pass: patternPass, fail: patternFail)]
+            ))
         }
 
-        print("Summary: \(totalPass) PASS / \(totalFail) FAIL across \(totalPass + totalFail) ticks")
+        output(emit, "Summary: \(totalPass) PASS / \(totalFail) FAIL across \(totalPass + totalFail) ticks")
         if totalFail > 0 {
             throw RuntimeError("\(totalFail) tick(s) failed")
         }
+        return MultiPatternReportData(patterns: patternReports, totalPass: totalPass, totalFail: totalFail)
     }
 
     private func spawnCascade(phase: Int, transport: String, specs: [String: RoleSpec], runRoot: String) throws -> Cascade {
@@ -403,7 +522,23 @@ private final class App {
            !fromEnv.isEmpty {
             return fromEnv
         }
-        if let output = try? runCommand("/usr/bin/env", ["op", "--bin", slug], cwd: relayRoot).trimmingCharacters(in: .whitespacesAndNewlines),
+        var roots: [String] = []
+        if slug == swiftSlug {
+            let swiftNode = "\(sourceRoot)/holons/observability-cascade-node"
+            roots.append("\(swiftNode)/.op/build/observability-cascade-node.holon/bin")
+            roots.append("\(swiftNode)/.op/build/observability-cascade-node-swift.holon/bin")
+        }
+        if slug == goSlug {
+            let goNode = "\(examplesRoot)/observability-cascade-go/holons/observability-cascade-node"
+            roots.append("\(goNode)/.op/build/observability-cascade-node.holon/bin")
+            roots.append("\(goNode)/.op/build/observability-cascade-node-go.holon/bin")
+        }
+        for root in roots {
+            if let found = findExecutable(root: root, name: slug) {
+                return found
+            }
+        }
+        if let output = try? runCommand("/usr/bin/env", ["op", "--bin", slug], cwd: repoRoot).trimmingCharacters(in: .whitespacesAndNewlines),
            !output.isEmpty {
             return output
         }
@@ -447,17 +582,18 @@ private final class App {
         return nil
     }
 
-    private static func findRelayRoot() throws -> String {
+    private static func findSourceRoot() throws -> String {
+        if let fromEnv = ProcessInfo.processInfo.environment["OBSERVABILITY_CASCADE_SWIFT_SOURCE_ROOT"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !fromEnv.isEmpty {
+            return URL(fileURLWithPath: fromEnv, isDirectory: true).standardizedFileURL.path
+        }
         var url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true).standardizedFileURL
         while true {
-            let directSwift = url.appendingPathComponent("observability-cascade-node-swift", isDirectory: true).path
-            let directGo = url.appendingPathComponent("observability-cascade-node-go", isDirectory: true).path
-            if FileManager.default.fileExists(atPath: directSwift), FileManager.default.fileExists(atPath: directGo) {
+            if isSourceRoot(url.path) {
                 return url.path
             }
-            let nested = url.appendingPathComponent("examples/observability-cascade", isDirectory: true)
-            if FileManager.default.fileExists(atPath: nested.appendingPathComponent("observability-cascade-node-swift", isDirectory: true).path),
-               FileManager.default.fileExists(atPath: nested.appendingPathComponent("observability-cascade-node-go", isDirectory: true).path) {
+            let nested = url.appendingPathComponent("examples/observability-cascade/observability-cascade-swift", isDirectory: true)
+            if isSourceRoot(nested.path) {
                 return nested.path
             }
             let parent = url.deletingLastPathComponent()
@@ -466,7 +602,12 @@ private final class App {
             }
             url = parent
         }
-        throw RuntimeError("observability-cascade root not found")
+        throw RuntimeError("observability-cascade-swift source root not found")
+    }
+
+    private static func isSourceRoot(_ path: String) -> Bool {
+        FileManager.default.fileExists(atPath: "\(path)/api/v1/holon.proto") &&
+            FileManager.default.fileExists(atPath: "\(path)/holons/observability-cascade-node")
     }
 
     private static func findRepoRoot(start: String) throws -> String {
@@ -806,6 +947,33 @@ private struct CascadePattern {
     let roles: [String: RoleSpec]
 }
 
+private struct PhaseReportData {
+    let name: String
+    let pass: Int
+    let fail: Int
+    let failures: [String]
+
+    init(name: String, pass: Int, fail: Int, failures: [String] = []) {
+        self.name = name
+        self.pass = pass
+        self.fail = fail
+        self.failures = failures
+    }
+}
+
+private struct CascadeReportData {
+    let ticks: Int
+    let pass: Int
+    let fail: Int
+    let phases: [PhaseReportData]
+}
+
+private struct MultiPatternReportData {
+    let patterns: [CascadeReportData]
+    let totalPass: Int
+    let totalFail: Int
+}
+
 private struct CheckResult {
     let pass: Bool
     let evidence: String
@@ -909,6 +1077,51 @@ private func waitFor(timeout: TimeInterval, interval: TimeInterval, _ fn: () -> 
         }
         Thread.sleep(forTimeInterval: interval)
     }
+}
+
+private func toCascadeReport(_ report: CascadeReportData) -> ObservabilityCascade_V1_CascadeReport {
+    var output = ObservabilityCascade_V1_CascadeReport()
+    output.ticks = Int32(report.ticks)
+    output.pass = Int32(report.pass)
+    output.fail = Int32(report.fail)
+    output.phases = report.phases.map { phase in
+        var item = ObservabilityCascade_V1_PhaseResult()
+        item.name = phase.name
+        item.pass = Int32(phase.pass)
+        item.fail = Int32(phase.fail)
+        item.failures = phase.failures
+        return item
+    }
+    return output
+}
+
+private func toMultiPatternReport(_ report: MultiPatternReportData) -> ObservabilityCascade_V1_MultiPatternReport {
+    var output = ObservabilityCascade_V1_MultiPatternReport()
+    output.patterns = report.patterns.map(toCascadeReport)
+    output.totalPass = Int32(report.totalPass)
+    output.totalFail = Int32(report.totalFail)
+    return output
+}
+
+private func normalizedListenURI(_ listenURI: String) -> String {
+    if listenURI.hasPrefix("tcp://:") {
+        return "tcp://0.0.0.0:\(listenURI.dropFirst("tcp://:".count))"
+    }
+    return listenURI
+}
+
+private func output(_ emit: Bool, _ value: String = "") {
+    if emit {
+        print(value)
+    }
+}
+
+private func canonicalCommand(_ raw: String) -> String {
+    raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        .lowercased()
+        .replacingOccurrences(of: "-", with: "")
+        .replacingOccurrences(of: "_", with: "")
+        .replacingOccurrences(of: " ", with: "")
 }
 
 private func timeoutOptions(_ seconds: TimeInterval) -> CallOptions {
