@@ -838,11 +838,13 @@ dependencies = [
  "hyper-util",
  "libc",
  "observability-cascade-node-rust",
+ "prost",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
  "tonic",
+ "tonic-build",
  "tower-service",
 ]
 
