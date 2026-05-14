@@ -30,7 +30,7 @@ module Gen
     ),
     requires: ::Holons::V1::HolonManifest::Requires.new(
       files: [
-        "bin/main.rb",
+        "cmd/main.rb",
         "Gemfile",
       ],
     ),

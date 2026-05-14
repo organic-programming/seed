@@ -45,7 +45,7 @@ option (holons.v1.manifest) = {
         steps: {
           exec: {
             cwd: "."
-            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-dart.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\"\nmkdir -p \"$pkg/bin/$arch\"\ndart pub get\ndart compile exe -DOBSERVABILITY_CASCADE_DART_SOURCE_ROOT=\"$PWD\" bin/main.dart -o \"$pkg/bin/$arch/observability-cascade-dart\""]
+            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-dart.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\"\nmkdir -p \"$pkg/bin/$arch\"\ndart pub get\ndart compile exe -DOBSERVABILITY_CASCADE_DART_SOURCE_ROOT=\"$PWD\" cmd/main.dart -o \"$pkg/bin/$arch/observability-cascade-dart\""]
           }
         }
         steps: {
@@ -58,7 +58,7 @@ option (holons.v1.manifest) = {
   }
   requires: {
     commands: ["dart"]
-    files: ["bin/main.dart", "pubspec.yaml"]
+    files: ["cmd/main.dart", "pubspec.yaml"]
     sdk_prebuilts: ["dart"]
   }
   artifacts: {

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Node.js observability cascade composite verifier.",
-  "main": "bin/main.js",
+  "main": "cmd/main.js",
   "dependencies": {
     "@grpc/grpc-js": "^1.10.0",
     "@organic-programming/holons": "file:../../../sdk/js-holons",

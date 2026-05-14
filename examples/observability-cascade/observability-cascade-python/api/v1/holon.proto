@@ -45,7 +45,7 @@ option (holons.v1.manifest) = {
         steps: {
           exec: {
             cwd: "."
-            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-python.holon}\"\narch=\"darwin_arm64\"\nbuild=\".op/build/python\"\nrm -rf \"$pkg\" \"$build\"\nmkdir -p \"$pkg/bin/$arch\" \"$build\"\npython3 -m venv \"$build/.venv\"\n\"$build/.venv/bin/python\" -m pip install --upgrade pip >/dev/null\n\"$build/.venv/bin/python\" -m pip install -r requirements.txt >/dev/null\ncp -R bin gen \"$build/\"\ncat > \"$pkg/bin/$arch/observability-cascade-python\" <<EOF\n#!/bin/sh\nset -eu\nOBSERVABILITY_CASCADE_PYTHON_SOURCE_ROOT=\"$PWD\" exec \"$PWD/$build/.venv/bin/python\" \"$PWD/$build/bin/main.py\" \"\\$@\"\nEOF\nchmod +x \"$pkg/bin/$arch/observability-cascade-python\""]
+            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-python.holon}\"\narch=\"darwin_arm64\"\nbuild=\".op/build/python\"\nrm -rf \"$pkg\" \"$build\"\nmkdir -p \"$pkg/bin/$arch\" \"$build\"\npython3 -m venv \"$build/.venv\"\n\"$build/.venv/bin/python\" -m pip install --upgrade pip >/dev/null\n\"$build/.venv/bin/python\" -m pip install -r requirements.txt >/dev/null\ncp -R cmd gen \"$build/\"\ncat > \"$pkg/bin/$arch/observability-cascade-python\" <<EOF\n#!/bin/sh\nset -eu\nOBSERVABILITY_CASCADE_PYTHON_SOURCE_ROOT=\"$PWD\" exec \"$PWD/$build/.venv/bin/python\" \"$PWD/$build/cmd/main.py\" \"\\$@\"\nEOF\nchmod +x \"$pkg/bin/$arch/observability-cascade-python\""]
           }
         }
         steps: {
@@ -58,7 +58,7 @@ option (holons.v1.manifest) = {
   }
   requires: {
     commands: ["python3"]
-    files: ["bin/main.py", "pyproject.toml", "requirements.txt"]
+    files: ["cmd/main.py", "pyproject.toml", "requirements.txt"]
     sdk_prebuilts: ["python"]
   }
   artifacts: {

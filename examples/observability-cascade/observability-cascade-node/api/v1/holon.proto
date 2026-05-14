@@ -45,7 +45,7 @@ option (holons.v1.manifest) = {
         steps: {
           exec: {
             cwd: "."
-            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-node.holon}\"\narch=\"darwin_arm64\"\nbuild=\".op/build/npm\"\nnode_bin=\"${OP_NODE_BIN:-$(command -v node)}\"\nnode_build=\"$PWD/holons/observability-cascade-node/.op/build/npm\"\nif [ ! -d \"$node_build/node_modules\" ]; then echo \"internal node dependencies missing: $node_build/node_modules\" >&2; exit 1; fi\nrm -rf \"$pkg\" \"$build/bin\" \"$build/gen\"\nmkdir -p \"$pkg/bin/$arch\" \"$build\"\ncp -R bin gen package.json package-lock.json \"$build/\"\ncat > \"$pkg/bin/$arch/observability-cascade-node\" <<EOF\n#!/bin/sh\nset -eu\nexport OBSERVABILITY_CASCADE_NODE_SOURCE_ROOT=\"$PWD\"\nexec \"$node_bin\" \"$PWD/$build/bin/main.js\" \"\\$@\"\nEOF\nchmod +x \"$pkg/bin/$arch/observability-cascade-node\""]
+            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-node.holon}\"\narch=\"darwin_arm64\"\nbuild=\".op/build/npm\"\nnode_bin=\"${OP_NODE_BIN:-$(command -v node)}\"\nnode_build=\"$PWD/holons/observability-cascade-node/.op/build/npm\"\nif [ ! -d \"$node_build/node_modules\" ]; then echo \"internal node dependencies missing: $node_build/node_modules\" >&2; exit 1; fi\nrm -rf \"$pkg\" \"$build/bin\" \"$build/gen\"\nmkdir -p \"$pkg/bin/$arch\" \"$build\"\ncp -R cmd gen package.json \"$build/\"\ncat > \"$pkg/bin/$arch/observability-cascade-node\" <<EOF\n#!/bin/sh\nset -eu\nexport OBSERVABILITY_CASCADE_NODE_SOURCE_ROOT=\"$PWD\"\nexec \"$node_bin\" \"$PWD/$build/cmd/main.js\" \"\\$@\"\nEOF\nchmod +x \"$pkg/bin/$arch/observability-cascade-node\""]
           }
         }
         steps: {
@@ -58,7 +58,7 @@ option (holons.v1.manifest) = {
   }
   requires: {
     commands: ["node", "npm"]
-    files: ["bin/main.js", "package.json"]
+    files: ["cmd/main.js", "package.json"]
     sdk_prebuilts: ["js"]
   }
   artifacts: {
