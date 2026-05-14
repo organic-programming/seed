@@ -17,20 +17,60 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::process::{Child, Command, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Once};
 use std::task::{Context as TaskContext, Poll};
 use std::time::{Duration, Instant};
 use tokio::net::UnixStream;
 use tokio::task::JoinHandle;
+use tonic::{Request, Response, Status};
 use tonic::codegen::http::Uri;
 use tonic::transport::{Channel, Endpoint};
 use tower_service::Service;
+
+mod gen {
+    pub mod describe_generated {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/gen/describe_generated.rs"
+        ));
+    }
+
+    pub mod rust {
+        pub mod observability_cascade {
+            pub mod v1 {
+                include!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/gen/rust/observability_cascade/v1/observability_cascade.v1.rs"
+                ));
+            }
+        }
+    }
+}
+
+use gen::rust::observability_cascade::v1 as cascadepb;
 
 const GO_SLUG: &str = "observability-cascade-node-go";
 const RUST_SLUG: &str = "observability-cascade-node-rust";
 const RUN_TICKS: usize = 3;
 const RUN_PHASES: usize = 4;
 const ROLE_ORDER: [&str; 4] = ["D", "C", "B", "A"];
+const OBSERVABILITY_CASCADE_DESCRIPTOR_SET: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/gen/rust/observability_cascade/v1/observability_cascade_descriptor.bin"
+));
+
+macro_rules! outputln {
+    ($emit:expr) => {
+        if $emit {
+            println!();
+        }
+    };
+    ($emit:expr, $($arg:tt)*) => {
+        if $emit {
+            println!($($arg)*);
+        }
+    };
+}
 
 #[derive(Clone)]
 struct RoleSpec {
@@ -85,6 +125,29 @@ struct LiveStreams {
     tasks: Vec<JoinHandle<()>>,
 }
 
+struct PhaseReport {
+    name: String,
+    pass: i32,
+    fail: i32,
+    failures: Vec<String>,
+}
+
+struct CascadeReportData {
+    ticks: i32,
+    pass: i32,
+    fail: i32,
+    phases: Vec<PhaseReport>,
+}
+
+struct MultiPatternReportData {
+    patterns: Vec<CascadeReportData>,
+    total_pass: i32,
+    total_fail: i32,
+}
+
+#[derive(Default)]
+struct ObservabilityCascadeRpc;
+
 #[derive(Clone)]
 struct UnixConnector {
     path: Arc<PathBuf>,
@@ -99,12 +162,18 @@ struct MetaJson {
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
-    let result = if args.iter().any(|arg| arg == "--multi-pattern") {
-        run_multi_pattern().await
+    let result = if args
+        .first()
+        .map(|arg| canonical_command(arg) == "serve")
+        .unwrap_or(false)
+    {
+        serve_composite(&args[1..]).await.map_err(|err| anyhow!(err))
+    } else if args.iter().any(|arg| arg == "--multi-pattern") {
+        run_multi_pattern(true).await.map(|_| ())
     } else if args.iter().any(|arg| arg == "--live-stream") {
-        run_live_stream().await
+        run_live_stream(true).await.map(|_| ())
     } else {
-        run_default().await
+        run_default(true).await.map(|_| ())
     };
     if let Err(err) = result {
         eprintln!("\nFAIL: {err:#}");
@@ -112,13 +181,81 @@ async fn main() {
     }
 }
 
-async fn run_default() -> Result<()> {
+#[tonic::async_trait]
+impl cascadepb::observability_cascade_service_server::ObservabilityCascadeService
+    for ObservabilityCascadeRpc
+{
+    async fn run_default(
+        &self,
+        _request: Request<cascadepb::RunRequest>,
+    ) -> Result<Response<cascadepb::CascadeReport>, Status> {
+        run_default(false)
+            .await
+            .map(to_cascade_report)
+            .map(Response::new)
+            .map_err(to_status)
+    }
+
+    async fn run_live_stream(
+        &self,
+        _request: Request<cascadepb::RunRequest>,
+    ) -> Result<Response<cascadepb::CascadeReport>, Status> {
+        run_live_stream(false)
+            .await
+            .map(to_cascade_report)
+            .map(Response::new)
+            .map_err(to_status)
+    }
+
+    async fn run_multi_pattern(
+        &self,
+        _request: Request<cascadepb::RunRequest>,
+    ) -> Result<Response<cascadepb::MultiPatternReport>, Status> {
+        run_multi_pattern(false)
+            .await
+            .map(to_multi_pattern_report)
+            .map(Response::new)
+            .map_err(to_status)
+    }
+}
+
+async fn serve_composite(args: &[String]) -> holons::serve::Result<()> {
+    register_static_describe();
+    let parsed = holons::serve::parse_options(args);
+    holons::serve::run_single_with_options(
+        &parsed.listen_uri,
+        cascadepb::observability_cascade_service_server::ObservabilityCascadeServiceServer::new(
+            ObservabilityCascadeRpc,
+        ),
+        holons::serve::RunOptions {
+            reflect: parsed.reflect,
+            descriptor_set: Some(OBSERVABILITY_CASCADE_DESCRIPTOR_SET.to_vec()),
+            ..holons::serve::RunOptions::default()
+        },
+    )
+    .await
+}
+
+fn register_static_describe() {
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        holons::describe::use_static_response(
+            gen::describe_generated::static_describe_response(),
+        );
+    });
+}
+
+fn to_status(error: anyhow::Error) -> Status {
+    Status::internal(format!("{error:#}"))
+}
+
+async fn run_default(emit: bool) -> Result<CascadeReportData> {
     let binary_path = find_cascade_node_binary()?;
     let run_root = run_root();
     let transports = ["tcp", "unix", "tcp", "unix"];
 
-    println!("=== observability-cascade-rust ===");
-    println!();
+    outputln!(emit, "=== observability-cascade-rust ===");
+    outputln!(emit);
 
     let mut total_pass = 0;
     let mut total_fail = 0;
@@ -126,11 +263,15 @@ async fn run_default() -> Result<()> {
     for (phase_idx, transport) in transports.iter().enumerate() {
         let phase_no = phase_idx + 1;
         if previous.is_empty() {
-            println!("Phase {phase_no}/{RUN_PHASES}: transport={transport}");
+            outputln!(emit, "Phase {phase_no}/{RUN_PHASES}: transport={transport}");
         } else if phase_no == RUN_PHASES && *transport == transports[0] {
-            println!("Phase {phase_no}/{RUN_PHASES}: transport={transport} (cycle wrap)");
+            outputln!(
+                emit,
+                "Phase {phase_no}/{RUN_PHASES}: transport={transport} (cycle wrap)"
+            );
         } else {
-            println!(
+            outputln!(
+                emit,
                 "Phase {phase_no}/{RUN_PHASES}: transport={transport} (switching from {previous})"
             );
         }
@@ -141,12 +282,12 @@ async fn run_default() -> Result<()> {
                 Ok(cascade) => cascade,
                 Err(err) => {
                     total_fail += RUN_TICKS;
-                    println!("  spawn FAIL: {err}\n");
+                    outputln!(emit, "  spawn FAIL: {err}\n");
                     previous = transport;
                     continue;
                 }
             };
-        println!("  spawned 4 nodes in {}", elapsed(spawn_start));
+        outputln!(emit, "  spawned 4 nodes in {}", elapsed(spawn_start));
 
         let mut previous_metric = 0.0;
         for tick in 1..=RUN_TICKS {
@@ -161,7 +302,8 @@ async fn run_default() -> Result<()> {
             } else {
                 total_fail += 1;
             }
-            println!(
+            outputln!(
+                emit,
                 "  Tick {tick}/{RUN_TICKS}: log {}, event {}, metric {} (overall {} in {})",
                 pass_text(result.log.pass),
                 pass_text(result.event.pass),
@@ -169,18 +311,19 @@ async fn run_default() -> Result<()> {
                 pass_text(overall),
                 elapsed(tick_start),
             );
-            if !overall {
+            if emit && !overall {
                 print_failure_evidence("log", &result.log);
                 print_failure_evidence("event", &result.event);
                 print_failure_evidence("metric", &result.metric);
             }
         }
         cascade.stop().await;
-        println!();
+        outputln!(emit);
         previous = transport;
     }
 
-    println!(
+    outputln!(
+        emit,
         "Summary: {} ticks, {} PASS, {} FAIL",
         total_pass + total_fail,
         total_pass,
@@ -189,19 +332,29 @@ async fn run_default() -> Result<()> {
     if total_fail > 0 {
         return Err(anyhow!("{total_fail} tick(s) failed"));
     }
-    Ok(())
+    Ok(CascadeReportData {
+        ticks: (total_pass + total_fail) as i32,
+        pass: total_pass as i32,
+        fail: total_fail as i32,
+        phases: vec![PhaseReport {
+            name: "default".to_string(),
+            pass: total_pass as i32,
+            fail: total_fail as i32,
+            failures: Vec::new(),
+        }],
+    })
 }
 
-async fn run_live_stream() -> Result<()> {
+async fn run_live_stream(emit: bool) -> Result<CascadeReportData> {
     let binary_path = find_cascade_node_binary()?;
     let run_root = run_root();
     let transports = ["tcp", "unix", "tcp", "unix"];
 
-    println!("=== observability-cascade-rust --live-stream ===");
-    println!();
-    println!("Setup: opening long-lived Follow:true streams on A");
-    println!("       (initial transport: tcp, port 9090)");
-    println!();
+    outputln!(emit, "=== observability-cascade-rust --live-stream ===");
+    outputln!(emit);
+    outputln!(emit, "Setup: opening long-lived Follow:true streams on A");
+    outputln!(emit, "       (initial transport: tcp, port 9090)");
+    outputln!(emit);
 
     let mut total_pass = 0;
     let mut total_fail = 0;
@@ -210,9 +363,12 @@ async fn run_live_stream() -> Result<()> {
     for (phase_idx, transport) in transports.iter().enumerate() {
         let phase_no = phase_idx + 1;
         if phase_no == 1 {
-            println!("Phase {phase_no}/{RUN_PHASES}: initial chain ({transport})");
+            outputln!(
+                emit,
+                "Phase {phase_no}/{RUN_PHASES}: initial chain ({transport})"
+            );
         } else {
-            println!("Phase {phase_no}/{RUN_PHASES}: respawn on {transport}");
+            outputln!(emit, "Phase {phase_no}/{RUN_PHASES}: respawn on {transport}");
             let kill_start = Instant::now();
             if let Some(mut s) = streams.take() {
                 s.stop().await;
@@ -220,7 +376,7 @@ async fn run_live_stream() -> Result<()> {
             if let Some(mut c) = cascade.take() {
                 c.stop().await;
             }
-            println!("  killed 4 nodes in {}", elapsed(kill_start));
+            outputln!(emit, "  killed 4 nodes in {}", elapsed(kill_start));
         }
 
         let spawn_start = Instant::now();
@@ -229,14 +385,14 @@ async fn run_live_stream() -> Result<()> {
                 Ok(cascade) => cascade,
                 Err(err) => {
                     total_fail += RUN_TICKS;
-                    println!("  spawn FAIL: {err}\n");
+                    outputln!(emit, "  spawn FAIL: {err}\n");
                     streams = None;
                     continue;
                 }
             };
-        println!("  spawned 4 nodes in {}", elapsed(spawn_start));
+        outputln!(emit, "  spawned 4 nodes in {}", elapsed(spawn_start));
         if phase_no > 1 {
-            println!("  re-opening Follow:true streams on new A");
+            outputln!(emit, "  re-opening Follow:true streams on new A");
         }
         let stream_open_error =
             match start_live_streams(phase_cascade.roles["A"].channel.as_ref().unwrap().clone())
@@ -248,7 +404,7 @@ async fn run_live_stream() -> Result<()> {
                 }
                 Err(err) => {
                     streams = None;
-                    println!("  stream re-open failed: {err}");
+                    outputln!(emit, "  stream re-open failed: {err}");
                     Some(err.to_string())
                 }
             };
@@ -273,7 +429,8 @@ async fn run_live_stream() -> Result<()> {
             } else {
                 total_fail += 1;
             }
-            println!(
+            outputln!(
+                emit,
                 "  Tick {tick}/{RUN_TICKS}: log {}, event {}, metric {} (overall {} in {})",
                 pass_text(result.log.pass),
                 pass_text(result.event.pass),
@@ -281,13 +438,13 @@ async fn run_live_stream() -> Result<()> {
                 pass_text(overall),
                 elapsed(tick_start),
             );
-            if !overall {
+            if emit && !overall {
                 print_failure_evidence("log", &result.log);
                 print_failure_evidence("event", &result.event);
                 print_failure_evidence("metric", &result.metric);
             }
         }
-        println!();
+        outputln!(emit);
         cascade = Some(phase_cascade);
     }
 
@@ -298,17 +455,28 @@ async fn run_live_stream() -> Result<()> {
         c.stop().await;
     }
 
-    println!(
+    outputln!(
+        emit,
         "Summary: {total_pass} PASS / {total_fail} FAIL across {} ticks",
         total_pass + total_fail
     );
     if total_fail > 0 {
         return Err(anyhow!("{total_fail} tick(s) failed"));
     }
-    Ok(())
+    Ok(CascadeReportData {
+        ticks: (total_pass + total_fail) as i32,
+        pass: total_pass as i32,
+        fail: total_fail as i32,
+        phases: vec![PhaseReport {
+            name: "live-stream".to_string(),
+            pass: total_pass as i32,
+            fail: total_fail as i32,
+            failures: Vec::new(),
+        }],
+    })
 }
 
-async fn run_multi_pattern() -> Result<()> {
+async fn run_multi_pattern(emit: bool) -> Result<MultiPatternReportData> {
     let rust_binary = find_holon_binary(RUST_SLUG)?;
     let go_binary = find_holon_binary(GO_SLUG)?;
     let patterns = vec![
@@ -343,13 +511,14 @@ async fn run_multi_pattern() -> Result<()> {
     let run_root = run_root();
     let transports = ["tcp", "unix", "tcp", "unix"];
 
-    println!("=== observability-cascade-rust (multi-pattern) ===");
-    println!();
+    outputln!(emit, "=== observability-cascade-rust (multi-pattern) ===");
+    outputln!(emit);
 
     let mut total_pass = 0;
     let mut total_fail = 0;
     for (pattern_idx, pattern) in patterns.iter().enumerate() {
-        println!(
+        outputln!(
+            emit,
             "Pattern {}/{}: {}",
             pattern_idx + 1,
             patterns.len(),
@@ -366,7 +535,8 @@ async fn run_multi_pattern() -> Result<()> {
                     Ok(cascade) => cascade,
                     Err(err) => {
                         total_fail += RUN_TICKS;
-                        println!(
+                        outputln!(
+                            emit,
                             "  Phase {phase_no}/{RUN_PHASES} ({transport}): spawn FAIL ({err})"
                         );
                         continue;
@@ -429,31 +599,49 @@ async fn run_multi_pattern() -> Result<()> {
                     ));
                 }
             }
-            println!(
+            outputln!(
+                emit,
                 "  Phase {phase_no}/{RUN_PHASES} ({transport}): {} (spawned in {})",
                 results.join(", "),
                 elapsed(spawn_start)
             );
-            for line in evidence {
-                println!("{line}");
+            if emit {
+                for line in evidence {
+                    println!("{line}");
+                }
             }
             if let Some(mut streams) = streams.take() {
                 streams.stop().await;
             }
             cascade.stop().await;
         }
-        println!("  Subtotal: {pattern_pass}/12 PASS");
-        println!();
+        outputln!(emit, "  Subtotal: {pattern_pass}/12 PASS");
+        outputln!(emit);
     }
 
-    println!(
+    outputln!(
+        emit,
         "Summary: {total_pass} PASS / {total_fail} FAIL across {} ticks",
         total_pass + total_fail
     );
     if total_fail > 0 {
         return Err(anyhow!("{total_fail} tick(s) failed"));
     }
-    Ok(())
+    Ok(MultiPatternReportData {
+        patterns: vec![CascadeReportData {
+            ticks: (total_pass + total_fail) as i32,
+            pass: total_pass as i32,
+            fail: total_fail as i32,
+            phases: vec![PhaseReport {
+                name: "multi-pattern".to_string(),
+                pass: total_pass as i32,
+                fail: total_fail as i32,
+                failures: Vec::new(),
+            }],
+        }],
+        total_pass: total_pass as i32,
+        total_fail: total_fail as i32,
+    })
 }
 
 impl Cascade {
@@ -1255,6 +1443,36 @@ fn parse_cascade_ticks(body: &str, uid: &str) -> Option<f64> {
     None
 }
 
+fn to_cascade_report(report: CascadeReportData) -> cascadepb::CascadeReport {
+    cascadepb::CascadeReport {
+        ticks: report.ticks,
+        pass: report.pass,
+        fail: report.fail,
+        phases: report
+            .phases
+            .into_iter()
+            .map(|phase| cascadepb::PhaseResult {
+                name: phase.name,
+                pass: phase.pass,
+                fail: phase.fail,
+                failures: phase.failures,
+            })
+            .collect(),
+    }
+}
+
+fn to_multi_pattern_report(report: MultiPatternReportData) -> cascadepb::MultiPatternReport {
+    cascadepb::MultiPatternReport {
+        patterns: report.patterns.into_iter().map(to_cascade_report).collect(),
+        total_pass: report.total_pass,
+        total_fail: report.total_fail,
+    }
+}
+
+fn canonical_command(raw: &str) -> String {
+    raw.trim().to_ascii_lowercase().replace(['-', '_', ' '], "")
+}
+
 fn pattern_roles(items: [(&'static str, &'static str, PathBuf); 4]) -> HashMap<String, RoleSpec> {
     items
         .into_iter()
@@ -1284,35 +1502,72 @@ fn find_holon_binary(slug: &str) -> Result<PathBuf> {
             return Ok(PathBuf::from(value));
         }
     }
+
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut roots = Vec::new();
+    if slug == RUST_SLUG {
+        roots.push(
+            manifest_dir
+                .join("holons/observability-cascade-node/.op/build/observability-cascade-node.holon/bin"),
+        );
+        roots.push(
+            manifest_dir
+                .join("holons/observability-cascade-node/.op/build/observability-cascade-node-rust.holon/bin"),
+        );
+    }
+    if slug == GO_SLUG {
+        roots.push(
+            manifest_dir
+                .join("../observability-cascade-go/holons/observability-cascade-node/.op/build/observability-cascade-node.holon/bin"),
+        );
+        roots.push(
+            manifest_dir
+                .join("../observability-cascade-go/holons/observability-cascade-node/.op/build/observability-cascade-node-go.holon/bin"),
+        );
+    }
+
     let home = env::var("HOME").context("HOME is not set")?;
-    let root = Path::new(&home)
+    roots.push(Path::new(&home)
         .join(".op")
         .join("bin")
         .join(format!("{slug}.holon"))
-        .join("bin");
+        .join("bin"));
+
     let mut found: Option<PathBuf> = None;
-    visit_files(&root, &mut |path| {
-        if path.file_name().and_then(|name| name.to_str()) != Some(slug) {
-            return;
+    for root in &roots {
+        if !root.exists() {
+            continue;
         }
-        let Ok(meta) = fs::metadata(path) else {
-            return;
-        };
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            if meta.permissions().mode() & 0o111 == 0 {
+        visit_files(root, &mut |path| {
+            if path.file_name().and_then(|name| name.to_str()) != Some(slug) {
                 return;
             }
+            let Ok(meta) = fs::metadata(path) else {
+                return;
+            };
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if meta.permissions().mode() & 0o111 == 0 {
+                    return;
+                }
+            }
+            if path.to_string_lossy().contains(env::consts::OS) || found.is_none() {
+                found = Some(path.to_path_buf());
+            }
+        })?;
+        if found.is_some() {
+            break;
         }
-        if path.to_string_lossy().contains(env::consts::OS) || found.is_none() {
-            found = Some(path.to_path_buf());
-        }
-    })?;
+    }
     found.ok_or_else(|| {
         anyhow!(
             "{slug} binary not found under {}; run op build {slug} --install",
-            root.display()
+            roots
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
         )
     })
 }

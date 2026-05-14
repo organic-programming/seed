@@ -3,6 +3,7 @@ syntax = "proto3";
 package observability.cascade.rust.v1;
 
 import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
 
 option (holons.v1.manifest) = {
   identity: {
@@ -18,15 +19,51 @@ option (holons.v1.manifest) = {
   }
   description: "A Rust composite program that validates observability-cascade observability across three modes and patterns."
   lang: "rust"
-  kind: "native"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
   build: {
-    runner: "cargo"
+    runner: "recipe"
+    codegen: {
+      languages: ["rust"]
+    }
+    defaults: {
+      target: "macos"
+      mode: "debug"
+    }
+    members: {
+      id: "node"
+      path: "./holons/observability-cascade-node"
+      type: "holon"
+    }
+    targets: {
+      key: "macos"
+      value: {
+        steps: { build_member: "node" }
+        steps: {
+          exec: {
+            cwd: "."
+            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-rust.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\"\nmkdir -p \"$pkg/bin/$arch\"\ncargo build\ncp target/debug/observability-cascade-rust \"$pkg/bin/$arch/observability-cascade-rust\""]
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/observability-cascade-rust.holon/bin/darwin_arm64/observability-cascade-rust"
+          }
+        }
+      }
+    }
   }
   requires: {
     commands: ["cargo"]
     files: ["Cargo.toml"]
+    sdk_prebuilts: ["rust"]
   }
   artifacts: {
-    binary: "observability-cascade-rust"
+    primary: ".op/build/observability-cascade-rust.holon"
   }
 };
