@@ -15,12 +15,12 @@ pull_request / push on master / workflow_dispatch
         +-- sdk_source=false
         |     skip sdk-build-* and sdk-deep-tests
         |     op sdk install all
-        |     composites + local-dev bouquet
+        |     composites + observability-cascade + local-dev bouquet
         |
         +-- sdk_source=true
               sdk-build-* matrix
               run-local artifacts
-              composites + local-dev bouquet
+              composites + observability-cascade + local-dev bouquet
               sdk-deep-tests (zig host only)
               master push only: auto-bump seed_release
 ```
@@ -46,7 +46,7 @@ Gate 7 uses `.github/scripts/sdk_ci_paths.go`:
 | Gates 1-6 | yes | yes |
 | SDK build matrix | no | yes |
 | SDK source for downstream jobs | published releases via `op sdk install all` | artifacts from the same run |
-| Composites | SwiftUI, Flutter | SwiftUI, Flutter |
+| Composites | SwiftUI, Flutter, observability-cascade RPC matrix | SwiftUI, Flutter, observability-cascade RPC matrix |
 | Bouquet | `local-dev` | `local-dev` |
 | SDK deep tests | no | `zig, host` |
 
@@ -66,8 +66,8 @@ passes an empty version by default.
 ## Auto-Bump Policy
 
 On successful `push` runs to `master` where gate 7 reports `sdk_source=true`,
-`auto-bump-seed-release` runs after SDK builds, composites, the bouquet, and
-Zig deep tests all pass.
+`auto-bump-seed-release` runs after SDK builds, composites, observability-cascade,
+the bouquet, and Zig deep tests all pass.
 
 The job:
 
