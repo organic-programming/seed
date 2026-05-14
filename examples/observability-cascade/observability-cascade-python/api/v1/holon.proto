@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package observability.cascade.python.v1;
+
+import "holons/v1/manifest.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "2da61fdd-4a33-42ab-ab98-d66a2886a123"
+    given_name: "Observability Cascade"
+    family_name: "Python Composite"
+    motto: "Validates Python observability cascade observability."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A Python composite program that validates observability-cascade observability across three modes and patterns."
+  lang: "python"
+  kind: "native"
+  build: {
+    runner: "python"
+    main: "./bin/main.py"
+  }
+  requires: {
+    commands: ["python3"]
+    files: ["bin/main.py", "pyproject.toml", "requirements.txt"]
+    sdk_prebuilts: ["python"]
+  }
+  artifacts: {
+    binary: "observability-cascade-python"
+  }
+};

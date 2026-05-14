@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package observability.cascade.swift.v1;
+
+import "holons/v1/manifest.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "5f726cb8-eadc-4870-be30-9aceb1be0554"
+    given_name: "Observability Cascade"
+    family_name: "Swift Composite"
+    motto: "Validates Swift observability cascade observability."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A Swift composite program that validates observability-cascade observability across three modes and patterns."
+  lang: "swift"
+  kind: "native"
+  build: {
+    runner: "swift-package"
+  }
+  requires: {
+    commands: ["swift"]
+    files: ["Package.swift"]
+    sdk_prebuilts: ["swift"]
+  }
+  artifacts: {
+    binary: "observability-cascade-swift"
+  }
+};

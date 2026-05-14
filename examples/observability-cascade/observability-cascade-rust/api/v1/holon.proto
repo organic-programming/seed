@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package observability.cascade.rust.v1;
+
+import "holons/v1/manifest.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "1002f937-9710-4fb2-834e-064025bd3e0a"
+    given_name: "Observability Cascade"
+    family_name: "Rust Composite"
+    motto: "Validates Rust observability cascade observability."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A Rust composite program that validates observability-cascade observability across three modes and patterns."
+  lang: "rust"
+  kind: "native"
+  build: {
+    runner: "cargo"
+  }
+  requires: {
+    commands: ["cargo"]
+    files: ["Cargo.toml"]
+  }
+  artifacts: {
+    binary: "observability-cascade-rust"
+  }
+};

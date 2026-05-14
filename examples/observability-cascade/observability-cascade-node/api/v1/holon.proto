@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package observability.cascade.node.v1;
+
+import "holons/v1/manifest.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "db549442-f097-4691-9677-1708a03bd1e8"
+    given_name: "Observability Cascade"
+    family_name: "Node Composite"
+    motto: "Validates Node observability cascade observability."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A Node.js composite program that validates observability-cascade observability across three modes and patterns."
+  lang: "js"
+  kind: "native"
+  build: {
+    runner: "npm"
+    main: "./bin/main.js"
+  }
+  requires: {
+    commands: ["node", "npm"]
+    files: ["bin/main.js", "package.json"]
+    sdk_prebuilts: ["js"]
+  }
+  artifacts: {
+    binary: "observability-cascade-node"
+  }
+};

@@ -2,8 +2,8 @@ go 1.24.0
 
 use (
 	./.github/scripts
-	./examples/relay-cascade/cascade-node-go
-	./examples/relay-cascade/relay-cascade-go
+	./examples/observability-cascade/observability-cascade-node-go
+	./examples/observability-cascade/observability-cascade-go
 	./examples/hello-world/gabriel-greeting-go
 	./examples/calculator/matt-calculator-go
 	./holons/clem-ader

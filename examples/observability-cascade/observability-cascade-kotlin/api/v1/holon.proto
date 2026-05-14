@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package observability.cascade.kotlin.v1;
+
+import "holons/v1/manifest.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "8e57cf8c-7f7c-4231-85d6-73f42967fe35"
+    given_name: "Observability Cascade"
+    family_name: "Kotlin Composite"
+    motto: "Validates Kotlin observability cascade observability."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A Kotlin composite program that validates observability-cascade observability across three modes and patterns."
+  lang: "kotlin"
+  kind: "native"
+  build: {
+    runner: "gradle"
+    main: "./src/main/kotlin/org/organicprogramming/observability/cascade/kotlinapp/Main.kt"
+  }
+  requires: {
+    commands: ["java", "gradle"]
+    files: ["build.gradle.kts", "settings.gradle.kts"]
+    sdk_prebuilts: ["kotlin"]
+  }
+  artifacts: {
+    binary: "observability-cascade-kotlin"
+  }
+};

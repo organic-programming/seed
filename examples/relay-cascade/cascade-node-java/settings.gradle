@@ -1,2 +1,0 @@
-rootProject.name = 'cascade-node-java'
-includeBuild('../../../sdk/java-holons')
