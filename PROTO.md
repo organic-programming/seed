@@ -191,6 +191,13 @@ only CLI affordances outside `contract.rpcs` are `serve` and `help`.
 `identity.version` and surfaces it automatically across CLI, RPC, Code
 API, and tests.
 
+A composite test/validation holon declares each procedure (test mode,
+validation routine, demo sequence) as an RPC on its service, returning a
+structured result message. CLI flags and stdout parsing are forbidden for
+these procedures — they belong to the proto contract so they reach humans
+(`op invoke`), agents (`op mcp`), and other holons (programmatic RPC)
+identically.
+
 ### Identity
 
 ```protobuf
@@ -294,6 +301,12 @@ message Build {
   map<string, Target> targets = 5;
 }
 ```
+
+For recipe composites, `members.path` may point at an external sibling
+holon such as `../gabriel-greeting-go`, or at an internal sub-holon under
+`./holons/<sub>`. Internal sub-holons keep their own `api/v1/holon.proto`
+and manifest, but are scoped to the parent composite rather than surfaced
+as workspace-root source discoveries.
 
 ### Artifacts
 
