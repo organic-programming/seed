@@ -27,35 +27,15 @@ option (holons.v1.manifest) = {
     rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
   }
   build: {
-    runner: "recipe"
+    runner: "go-module"
+    main: "./cmd"
     codegen: {
       languages: ["go", "go-grpc"]
-    }
-    defaults: {
-      target: "macos"
-      mode: "debug"
     }
     members: {
       id: "go-node"
       path: "../observability-cascade-go-node"
       type: "holon"
-    }
-    targets: {
-      key: "macos"
-      value: {
-        steps: { build_member: "go-node" }
-        steps: {
-          exec: {
-            cwd: "."
-            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-go.holon}\"\narch=\"$(go env GOOS)_$(go env GOARCH)\"\nrm -rf \"$pkg\"\nmkdir -p \"$pkg/bin/$arch\"\ngo build -o \"$pkg/bin/$arch/observability-cascade-go\" ./cmd"]
-          }
-        }
-        steps: {
-          assert_file: {
-            path: ".op/build/observability-cascade-go.holon/bin/darwin_arm64/observability-cascade-go"
-          }
-        }
-      }
     }
   }
   requires: {

@@ -10,8 +10,8 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 			Identity: &holonsv1.HolonManifest_Identity{
 				Schema:     "holon/v1",
 				Uuid:       "6bcbb9a7-acf0-4953-b12d-600a53b6e6c4",
-				GivenName:  "observability-cascade",
-				FamilyName: "go-composite",
+				GivenName:  "Observability",
+				FamilyName: "Cascade-Go",
 				Motto:      "Validates Go observability cascade observability.",
 				Composer:   "B. ALTER",
 				Status:     "draft",
@@ -22,7 +22,8 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 			Lang:        "go",
 			Kind:        "composite",
 			Build: &holonsv1.HolonManifest_Build{
-				Runner: "recipe",
+				Runner: "go-module",
+				Main:   "./cmd",
 			},
 			Requires: &holonsv1.HolonManifest_Requires{
 				Files: []string{

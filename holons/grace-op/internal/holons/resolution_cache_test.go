@@ -105,6 +105,30 @@ func TestGlobalCacheHitShortCircuitsWalk(t *testing.T) {
 	}
 }
 
+func TestGlobalCacheHonorsRequestedSpecifiers(t *testing.T) {
+	root := setupResolutionCacheTest(t)
+	installed := cacheTestRef(t, filepath.Join(os.Getenv("OPBIN"), "alpha.holon"), "alpha", "alpha-installed", "package")
+	source := cacheTestRef(t, filepath.Join(root, "alpha"), "alpha", "alpha-source", "source")
+	if err := writeResolutionGlobalEntry(installed); err != nil {
+		t.Fatal(err)
+	}
+	calls := installResolutionDiscoverHook(t, func(_ *string, _ *string, specifiers int, _ int, _ int) sdkdiscover.DiscoverResult {
+		if specifiers != sdkdiscover.SOURCE {
+			t.Fatalf("fresh walk specifiers = 0x%02X, want SOURCE", specifiers)
+		}
+		return sdkdiscover.DiscoverResult{Found: []sdkdiscover.HolonRef{source}}
+	})
+
+	expr := "alpha"
+	result := DiscoverRefs(&expr, &root, sdkdiscover.SOURCE, 1, sdkdiscover.NO_TIMEOUT)
+	if result.Error != "" || len(result.Found) != 1 || result.Found[0].Info.UUID != "alpha-source" {
+		t.Fatalf("DiscoverRefs SOURCE = %+v, want source ref", result)
+	}
+	if got := *calls; got != 1 {
+		t.Fatalf("walk calls = %d, want 1 because installed global entry must not satisfy SOURCE", got)
+	}
+}
+
 func TestGlobalCacheStatInvalidationDropsEntry(t *testing.T) {
 	root := setupResolutionCacheTest(t)
 	stale := cacheTestRef(t, filepath.Join(root, "stale"), "alpha", "alpha-stale", "source")
