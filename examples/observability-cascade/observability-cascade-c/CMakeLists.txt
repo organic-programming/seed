@@ -6,8 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(RELAY_CASCADE_C_PREBUILT_ROOT "")
-if(DEFINED ENV{OP_SDK_CPP_PATH} AND NOT "$ENV{OP_SDK_CPP_PATH}" STREQUAL "")
-  file(TO_CMAKE_PATH "$ENV{OP_SDK_CPP_PATH}" RELAY_CASCADE_C_PREBUILT_ROOT)
+if(DEFINED ENV{OP_SDK_C_PATH} AND NOT "$ENV{OP_SDK_C_PATH}" STREQUAL "")
+  file(TO_CMAKE_PATH "$ENV{OP_SDK_C_PATH}" RELAY_CASCADE_C_PREBUILT_ROOT)
   set(CMAKE_PREFIX_PATH "${RELAY_CASCADE_C_PREBUILT_ROOT}" ${CMAKE_PREFIX_PATH})
   set(CMAKE_INCLUDE_PATH "${RELAY_CASCADE_C_PREBUILT_ROOT}/include" ${CMAKE_INCLUDE_PATH})
   set(CMAKE_LIBRARY_PATH "${RELAY_CASCADE_C_PREBUILT_ROOT}/lib" ${CMAKE_LIBRARY_PATH})
@@ -19,7 +19,7 @@ endif()
 find_package(Protobuf CONFIG QUIET)
 find_package(gRPC CONFIG QUIET)
 if(NOT Protobuf_FOUND OR NOT gRPC_FOUND)
-  message(FATAL_ERROR "observability-cascade-c requires gRPC and Protobuf CMake packages")
+  message(FATAL_ERROR "observability-cascade-c requires the C SDK prebuilts. Run `op sdk install c` or build through `op build`.")
 endif()
 
 if(TARGET protobuf::protoc)
@@ -106,6 +106,11 @@ observability_cascade_generate_grpc_cpp(observability_cascade_c_relay_proto_grpc
   PROTOS "${RELAY_PROTO_ROOT}/relay/v1/relay.proto"
   IMPORT_DIRS "${RELAY_PROTO_ROOT}")
 
+observability_cascade_generate_grpc_cpp(observability_cascade_c_service_proto_grpc
+  OUT_DIR "${RELAY_CASCADE_C_GENERATED_DIR}"
+  PROTOS "${RELAY_PROTO_ROOT}/observability_cascade/v1/service.proto"
+  IMPORT_DIRS "${RELAY_PROTO_ROOT}")
+
 add_executable(observability-cascade-c
   src/main.cpp
 )
@@ -125,5 +130,7 @@ target_link_libraries(observability-cascade-c
   PRIVATE
     observability_cascade_c_holons_proto_grpc
     observability_cascade_c_relay_proto_grpc
+    observability_cascade_c_service_proto_grpc
     gRPC::grpc++
+    gRPC::grpc++_reflection
     protobuf::libprotobuf)

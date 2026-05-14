@@ -10,16 +10,16 @@
 
 const holons_describe_response_t *holons_generated_describe_response(void);
 
-typedef struct cascade_node_c_handlers {
+typedef struct observability_cascade_node_handlers {
   void *ctx;
   relay_v1_TickResponse *(*tick)(const relay_v1_TickRequest *request,
                                  upb_Arena *arena,
                                  void *ctx);
-} cascade_node_c_handlers_t;
+} observability_cascade_node_handlers_t;
 
-int observability_cascade_node_c_generated_serve(
+int observability_cascade_node_generated_serve(
     const char *listen_uri,
-    const cascade_node_c_handlers_t *handlers,
+    const observability_cascade_node_handlers_t *handlers,
     const holons_grpc_serve_options_t *options,
     char *err,
     size_t err_len);
@@ -109,7 +109,7 @@ int cascade_node_c_serve(const char *listen_uri,
                          const holons_grpc_member_ref_t *members,
                          size_t member_count,
                          FILE *stderr_stream) {
-  cascade_node_c_handlers_t handlers;
+  observability_cascade_node_handlers_t handlers;
   holons_grpc_serve_options_t serve_options;
   holons_grpc_observability_options_t obs_options;
   holon_obs_config_t obs_config;
@@ -144,7 +144,7 @@ int cascade_node_c_serve(const char *listen_uri,
   obs_config.default_log_level = HOLON_LEVEL_INFO;
   holon_obs_configure(&obs_config);
 
-  rc = observability_cascade_node_c_generated_serve(
+  rc = observability_cascade_node_generated_serve(
       listen_uri, &handlers, &serve_options, err, sizeof(err));
   holons_grpc_clear_observability_options();
   if (rc != 0) {
