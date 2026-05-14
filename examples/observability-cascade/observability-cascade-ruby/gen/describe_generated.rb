@@ -24,10 +24,9 @@ module Gen
     ),
     description: "A Ruby composite program that validates observability-cascade observability across three modes and patterns.",
     lang: "ruby",
-    kind: "native",
+    kind: "composite",
     build: ::Holons::V1::HolonManifest::Build.new(
-      runner: "ruby",
-      main: "./bin/main.rb",
+      runner: "recipe",
     ),
     requires: ::Holons::V1::HolonManifest::Requires.new(
       files: [
@@ -36,9 +35,213 @@ module Gen
       ],
     ),
     artifacts: ::Holons::V1::HolonManifest::Artifacts.new(
-      binary: "observability-cascade-ruby",
+      primary: ".op/build/observability-cascade-ruby.holon",
     ),
   ),
+  services: [
+    ::Holons::V1::ServiceDoc.new(
+      name: "observability_cascade.v1.ObservabilityCascadeService",
+      methods: [
+        ::Holons::V1::MethodDoc.new(
+          name: "RunDefault",
+          description: "Run the default 4-deep chain in this composite's own language.",
+          input_type: "observability_cascade.v1.RunRequest",
+          output_type: "observability_cascade.v1.CascadeReport",
+          output_fields: [
+            ::Holons::V1::FieldDoc.new(
+              name: "ticks",
+              type: "int32",
+              number: 1,
+              label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+            ),
+            ::Holons::V1::FieldDoc.new(
+              name: "pass",
+              type: "int32",
+              number: 2,
+              label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+            ),
+            ::Holons::V1::FieldDoc.new(
+              name: "fail",
+              type: "int32",
+              number: 3,
+              label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+            ),
+            ::Holons::V1::FieldDoc.new(
+              name: "phases",
+              type: "observability_cascade.v1.PhaseResult",
+              number: 4,
+              label: ::Holons::V1::FieldLabel::FIELD_LABEL_REPEATED,
+              nested_fields: [
+                ::Holons::V1::FieldDoc.new(
+                  name: "name",
+                  type: "string",
+                  number: 1,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                ),
+                ::Holons::V1::FieldDoc.new(
+                  name: "pass",
+                  type: "int32",
+                  number: 2,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                ),
+                ::Holons::V1::FieldDoc.new(
+                  name: "fail",
+                  type: "int32",
+                  number: 3,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                ),
+                ::Holons::V1::FieldDoc.new(
+                  name: "failures",
+                  type: "string",
+                  number: 4,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_REPEATED,
+                ),
+              ],
+            ),
+          ],
+          example_input: "{}",
+        ),
+        ::Holons::V1::MethodDoc.new(
+          name: "RunLiveStream",
+          description: "Run with long-lived Follow:true streams.",
+          input_type: "observability_cascade.v1.RunRequest",
+          output_type: "observability_cascade.v1.CascadeReport",
+          output_fields: [
+            ::Holons::V1::FieldDoc.new(
+              name: "ticks",
+              type: "int32",
+              number: 1,
+              label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+            ),
+            ::Holons::V1::FieldDoc.new(
+              name: "pass",
+              type: "int32",
+              number: 2,
+              label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+            ),
+            ::Holons::V1::FieldDoc.new(
+              name: "fail",
+              type: "int32",
+              number: 3,
+              label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+            ),
+            ::Holons::V1::FieldDoc.new(
+              name: "phases",
+              type: "observability_cascade.v1.PhaseResult",
+              number: 4,
+              label: ::Holons::V1::FieldLabel::FIELD_LABEL_REPEATED,
+              nested_fields: [
+                ::Holons::V1::FieldDoc.new(
+                  name: "name",
+                  type: "string",
+                  number: 1,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                ),
+                ::Holons::V1::FieldDoc.new(
+                  name: "pass",
+                  type: "int32",
+                  number: 2,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                ),
+                ::Holons::V1::FieldDoc.new(
+                  name: "fail",
+                  type: "int32",
+                  number: 3,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                ),
+                ::Holons::V1::FieldDoc.new(
+                  name: "failures",
+                  type: "string",
+                  number: 4,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_REPEATED,
+                ),
+              ],
+            ),
+          ],
+          example_input: "{}",
+        ),
+        ::Holons::V1::MethodDoc.new(
+          name: "RunMultiPattern",
+          description: "Run the full alter-language pattern matrix (3 patterns x 12 ticks = 36 ticks).",
+          input_type: "observability_cascade.v1.RunRequest",
+          output_type: "observability_cascade.v1.MultiPatternReport",
+          output_fields: [
+            ::Holons::V1::FieldDoc.new(
+              name: "patterns",
+              type: "observability_cascade.v1.CascadeReport",
+              number: 1,
+              label: ::Holons::V1::FieldLabel::FIELD_LABEL_REPEATED,
+              nested_fields: [
+                ::Holons::V1::FieldDoc.new(
+                  name: "ticks",
+                  type: "int32",
+                  number: 1,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                ),
+                ::Holons::V1::FieldDoc.new(
+                  name: "pass",
+                  type: "int32",
+                  number: 2,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                ),
+                ::Holons::V1::FieldDoc.new(
+                  name: "fail",
+                  type: "int32",
+                  number: 3,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                ),
+                ::Holons::V1::FieldDoc.new(
+                  name: "phases",
+                  type: "observability_cascade.v1.PhaseResult",
+                  number: 4,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_REPEATED,
+                  nested_fields: [
+                    ::Holons::V1::FieldDoc.new(
+                      name: "name",
+                      type: "string",
+                      number: 1,
+                      label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                    ),
+                    ::Holons::V1::FieldDoc.new(
+                      name: "pass",
+                      type: "int32",
+                      number: 2,
+                      label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                    ),
+                    ::Holons::V1::FieldDoc.new(
+                      name: "fail",
+                      type: "int32",
+                      number: 3,
+                      label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                    ),
+                    ::Holons::V1::FieldDoc.new(
+                      name: "failures",
+                      type: "string",
+                      number: 4,
+                      label: ::Holons::V1::FieldLabel::FIELD_LABEL_REPEATED,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            ::Holons::V1::FieldDoc.new(
+              name: "total_pass",
+              type: "int32",
+              number: 2,
+              label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+            ),
+            ::Holons::V1::FieldDoc.new(
+              name: "total_fail",
+              type: "int32",
+              number: 3,
+              label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+            ),
+          ],
+          example_input: "{}",
+        ),
+      ],
+    ),
+  ],
 )
     end
   end
