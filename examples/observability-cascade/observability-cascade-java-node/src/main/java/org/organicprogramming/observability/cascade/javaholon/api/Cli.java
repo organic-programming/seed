@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class Cli {
-    public static final String VERSION = "observability-cascade-node-java {{ .Version }}";
+    public static final String VERSION = "observability-cascade-java-node {{ .Version }}";
 
     private Cli() {
     }
@@ -129,7 +129,7 @@ public final class Cli {
     }
 
     static void printUsage(PrintStream output) {
-        output.println("usage: observability-cascade-node-java <command> [args] [flags]");
+        output.println("usage: observability-cascade-java-node <command> [args] [flags]");
         output.println();
         output.println("commands:");
         output.println("  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server");

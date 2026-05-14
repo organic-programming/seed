@@ -6,6 +6,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.stub.ClientCalls;
 import io.grpc.stub.StreamObserver;
 import org.organicprogramming.holons.Connect;
+import org.organicprogramming.holons.Composite;
 import org.organicprogramming.holons.Describe;
 import org.organicprogramming.holons.Observability;
 import org.organicprogramming.holons.Serve;
@@ -40,21 +41,17 @@ public final class Main {
     private static final int RUN_TICKS = 3;
     private static final List<String> ROLE_ORDER = List.of("D", "C", "B", "A");
     private static final List<String> TRANSPORTS = List.of("tcp", "unix", "tcp", "unix");
-    private static final String JAVA_SLUG = "observability-cascade-node-java";
-    private static final String GO_SLUG = "observability-cascade-node-go";
+    private static final String JAVA_SLUG = "observability-cascade-java-node";
+    private static final String GO_SLUG = "observability-cascade-go-node";
     private static final Gson GSON = new Gson();
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(2))
             .build();
 
-    private final Path sourceRoot;
-    private final Path examplesRoot;
     private final Path repoRoot;
 
     private Main() {
-        sourceRoot = findSourceRoot();
-        examplesRoot = sourceRoot.getParent();
-        repoRoot = findRepoRoot(sourceRoot);
+        repoRoot = findRepoRoot(Path.of(System.getProperty("user.dir")));
     }
 
     public static void main(String[] args) {
@@ -448,7 +445,7 @@ public final class Main {
         }
         runtime.stderrPath = Files.createTempFile("observability-cascade-java-" + runtime.uid + "-", ".stderr");
         ProcessBuilder builder = new ProcessBuilder(args);
-        builder.directory(repoRoot.toFile());
+        builder.directory(workingDirectory().toFile());
         builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
         builder.redirectError(runtime.stderrPath.toFile());
         Map<String, String> env = builder.environment();
@@ -521,22 +518,12 @@ public final class Main {
     }
 
     private Path findBinary(String slug) throws IOException, InterruptedException {
-        String envName = "OBSERVABILITY_CASCADE_NODE_" + slug.replace("observability-cascade-node-", "").toUpperCase(Locale.ROOT).replace('-', '_') + "_BIN";
-        String fromEnv = System.getenv(envName);
-        if (fromEnv != null && !fromEnv.isBlank()) {
-            return Path.of(fromEnv.trim());
-        }
-        List<Path> roots = new ArrayList<>();
         if (JAVA_SLUG.equals(slug)) {
-            Path javaNode = sourceRoot.resolve("holons").resolve("observability-cascade-node");
-            roots.add(javaNode.resolve(".op/build/observability-cascade-node.holon/bin"));
-            roots.add(javaNode.resolve(".op/build/observability-cascade-node-java.holon/bin"));
+            return Composite.member("java-node");
         }
-        if (GO_SLUG.equals(slug)) {
-            Path goNode = examplesRoot.resolve("observability-cascade-go").resolve("holons").resolve("observability-cascade-node");
-            roots.add(goNode.resolve(".op/build/observability-cascade-node.holon/bin"));
-            roots.add(goNode.resolve(".op/build/observability-cascade-node-go.holon/bin"));
-        }
+
+        List<Path> roots = new ArrayList<>();
+        roots.add(Path.of(System.getenv().getOrDefault("OPBIN", Path.of(System.getProperty("user.home"), ".op", "bin").toString()), slug + ".holon", "bin"));
         for (Path root : roots) {
             Path found = findExecutable(root, slug);
             if (found != null) {
@@ -544,7 +531,7 @@ public final class Main {
             }
         }
         Process process = new ProcessBuilder("op", "--bin", slug)
-                .directory(repoRoot.toFile())
+                .directory(workingDirectory().toFile())
                 .redirectError(ProcessBuilder.Redirect.DISCARD)
                 .start();
         String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
@@ -578,30 +565,6 @@ public final class Main {
         return null;
     }
 
-    private static Path findSourceRoot() {
-        String fromEnv = System.getenv("OBSERVABILITY_CASCADE_JAVA_SOURCE_ROOT");
-        if (fromEnv != null && !fromEnv.isBlank()) {
-            return Path.of(fromEnv).toAbsolutePath().normalize();
-        }
-        Path current = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
-        while (current != null) {
-            if (isSourceRoot(current)) {
-                return current;
-            }
-            Path nested = current.resolve("examples").resolve("observability-cascade").resolve("observability-cascade-java");
-            if (isSourceRoot(nested)) {
-                return nested;
-            }
-            current = current.getParent();
-        }
-        throw new IllegalStateException("observability-cascade-java source root not found");
-    }
-
-    private static boolean isSourceRoot(Path path) {
-        return Files.isRegularFile(path.resolve("api").resolve("v1").resolve("holon.proto"))
-                && Files.isDirectory(path.resolve("holons").resolve("observability-cascade-node"));
-    }
-
     private static Path findRepoRoot(Path start) {
         Path current = start.toAbsolutePath().normalize();
         while (current != null) {
@@ -610,7 +573,11 @@ public final class Main {
             }
             current = current.getParent();
         }
-        throw new IllegalStateException("repository root not found");
+        return null;
+    }
+
+    private Path workingDirectory() {
+        return repoRoot != null ? repoRoot : Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
     }
 
     private static String childRole(String role) {

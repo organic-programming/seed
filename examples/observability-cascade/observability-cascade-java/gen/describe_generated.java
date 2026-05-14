@@ -16,8 +16,8 @@ public final class describe_generated {
                 holons.v1.Manifest.HolonManifest.Identity.newBuilder()
                     .setSchema("holon/v1")
                     .setUuid("51ecc4c4-fe02-48d6-bcc5-9b73f9740664")
-                    .setGivenName("observability-cascade")
-                    .setFamilyName("java-composite")
+                    .setGivenName("Observability")
+                    .setFamilyName("Cascade-Java")
                     .setMotto("Validates Java observability cascade observability.")
                     .setComposer("B. ALTER")
                     .setStatus("draft")
@@ -30,7 +30,7 @@ public final class describe_generated {
             .setKind("composite")
             .setBuild(
                 holons.v1.Manifest.HolonManifest.Build.newBuilder()
-                    .setRunner("recipe")
+                    .setRunner("gradle")
                     .build()
             )
             .setRequires(

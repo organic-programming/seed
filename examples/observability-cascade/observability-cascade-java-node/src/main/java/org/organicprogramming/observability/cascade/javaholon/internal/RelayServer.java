@@ -24,7 +24,7 @@ public final class RelayServer extends RelayServiceGrpc.RelayServiceImplBase {
                 List.of(new RelayServer()),
                 new Serve.Options()
                         .withReflect(reflect)
-                        .withSlug("observability-cascade-node-java")
+                        .withSlug("observability-cascade-java-node")
                         .withMemberEndpoints(members));
     }
 

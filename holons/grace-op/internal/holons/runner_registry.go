@@ -93,6 +93,40 @@ func syncBinaryArtifact(manifest *LoadedManifest, src string) error {
 	return copyFile(src, manifest.BinaryPath())
 }
 
+func injectShellLauncherEnv(path string, lines ...string) error {
+	if runtime.GOOS == "windows" || strings.TrimSpace(path) == "" || len(lines) == 0 {
+		return nil
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	text := string(b)
+	for _, line := range lines {
+		if !strings.Contains(text, line) {
+			goto inject
+		}
+	}
+	return nil
+
+inject:
+	insert := strings.Join(lines, "\n") + "\n"
+	if strings.HasPrefix(text, "#!") {
+		if idx := strings.IndexByte(text, '\n'); idx >= 0 {
+			text = text[:idx+1] + insert + text[idx+1:]
+		} else {
+			text += "\n" + insert
+		}
+	} else {
+		text = insert + text
+	}
+	return os.WriteFile(path, []byte(text), info.Mode().Perm())
+}
+
 func syncBinaryFromCandidates(manifest *LoadedManifest, candidates []string) error {
 	if manifest == nil || manifestHasPrimaryArtifact(manifest) {
 		return nil
@@ -1891,6 +1925,13 @@ func (gradleRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 		return missingBinaryFromCandidates(manifest, gradleArtifactCandidates(manifest))
 	}
 	if err := syncBinaryArtifact(manifest, launcherPath); err != nil {
+		return err
+	}
+	if err := injectShellLauncherEnv(
+		manifest.BinaryPath(),
+		`OP_HOLON_EXECUTABLE="${OP_HOLON_EXECUTABLE:-$0}"`,
+		"export OP_HOLON_EXECUTABLE",
+	); err != nil {
 		return err
 	}
 	if err := syncGradleInstallDistSupport(manifest, launcherPath); err != nil {

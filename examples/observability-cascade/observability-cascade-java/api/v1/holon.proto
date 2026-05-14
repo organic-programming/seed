@@ -27,33 +27,12 @@ option (holons.v1.manifest) = {
     rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
   }
   build: {
-    runner: "recipe"
+    runner: "gradle"
     codegen: { languages: ["java"] }
-    defaults: {
-      target: "macos"
-      mode: "debug"
-    }
     members: {
       id: "java-node"
       path: "../observability-cascade-java-node"
       type: "holon"
-    }
-    targets: {
-      key: "macos"
-      value: {
-        steps: { build_member: "java-node" }
-        steps: {
-          exec: {
-            cwd: "."
-            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-java.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\"\ngradle --no-daemon installDist >/dev/null\nmkdir -p \"$pkg/bin/$arch\" \"$pkg/bin/lib\"\ncp build/install/observability-cascade-java/bin/observability-cascade-java \"$pkg/bin/$arch/observability-cascade-java\"\ncp -R build/install/observability-cascade-java/lib/. \"$pkg/bin/lib/\"\nchmod +x \"$pkg/bin/$arch/observability-cascade-java\""]
-          }
-        }
-        steps: {
-          assert_file: {
-            path: ".op/build/observability-cascade-java.holon/bin/darwin_arm64/observability-cascade-java"
-          }
-        }
-      }
     }
   }
   requires: {

@@ -1,2 +1,2 @@
-rootProject.name = 'observability-cascade-node-java'
-includeBuild('../../../../../sdk/java-holons')
+rootProject.name = 'observability-cascade-java-node'
+includeBuild('../../../sdk/java-holons')

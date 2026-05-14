@@ -27,7 +27,7 @@ dependencies {
 sourceSets {
     main {
         java {
-            srcDirs = ['src/main/java', 'gen/java', 'gen', 'holons/observability-cascade-node/gen/java']
+            srcDirs = ['src/main/java', 'gen/java', 'gen']
         }
     }
 }

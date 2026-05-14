@@ -33,6 +33,6 @@ public final class PublicApi {
 
     static String responderSlug(Observability obs) {
         String configured = obs.cfg.slug == null ? "" : obs.cfg.slug.trim();
-        return configured.isEmpty() ? "observability-cascade-node-java" : configured;
+        return configured.isEmpty() ? "observability-cascade-java-node" : configured;
     }
 }

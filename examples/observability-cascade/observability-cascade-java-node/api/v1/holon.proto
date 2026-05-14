@@ -9,7 +9,7 @@ option java_package = "org.organicprogramming.observability.cascade.javaholon.ap
 option java_outer_classname = "HolonProto";
 option java_multiple_files = true;
 
-// Java-specific holon descriptor for observability-cascade-node-java.
+// Java-specific holon descriptor for observability-cascade-java-node.
 // Layers Gradle build metadata and holon identity on top of the shared
 // observability-cascade contract.
 
@@ -50,7 +50,7 @@ option (holons.v1.manifest) = {
       {name: "note", description: "Free-form tick note", required: false}
     ]
     steps: [
-      "op observability-cascade-node-java Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
+      "op observability-cascade-java-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
     ]
   }]
 };
