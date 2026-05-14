@@ -18,10 +18,8 @@ import (
 	"syscall"
 	"time"
 
-	"observability-cascade-go/gen"
-	ocv1 "observability-cascade-go/gen/go/observability_cascade/v1"
-	relayv1 "observability-cascade-go-node/gen/go/relay/v1"
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
+	"github.com/organic-programming/go-holons/pkg/composite"
 	"github.com/organic-programming/go-holons/pkg/describe"
 	"github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/observability"
@@ -29,6 +27,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	relayv1 "observability-cascade-go-node/gen/go/relay/v1"
+	"observability-cascade-go/gen"
+	ocv1 "observability-cascade-go/gen/go/observability_cascade/v1"
 )
 
 const (
@@ -124,12 +125,12 @@ func (s *cascadeService) RunMultiPattern(_ context.Context, _ *ocv1.RunRequest) 
 	err := runSilenced(runMultiPattern)
 	if err != nil {
 		return &ocv1.MultiPatternReport{
-			Patterns: []*ocv1.CascadeReport{failedReport("multi-pattern", 36, err)},
+			Patterns:  []*ocv1.CascadeReport{failedReport("multi-pattern", 36, err)},
 			TotalFail: 36,
 		}, nil
 	}
 	return &ocv1.MultiPatternReport{
-		Patterns: []*ocv1.CascadeReport{{Ticks: 36, Pass: 36}},
+		Patterns:  []*ocv1.CascadeReport{{Ticks: 36, Pass: 36}},
 		TotalPass: 36,
 	}, nil
 }
@@ -1114,37 +1115,33 @@ func parseCascadeTicks(body, uid string) (float64, bool) {
 }
 
 func findCascadeNodeBinary() (string, error) {
-	return findHolonBinary(goSlug)
+	return composite.Member("go-node")
 }
 
 func findHolonBinary(slug string) (string, error) {
-	envName := "OBSERVABILITY_CASCADE_" + strings.ToUpper(strings.TrimSuffix(strings.TrimPrefix(slug, "observability-cascade-"), "-node")) + "_NODE_BIN"
-	if override := strings.TrimSpace(os.Getenv(envName)); override != "" {
-		return override, nil
+	if slug == goSlug {
+		return findCascadeNodeBinary()
 	}
-	if found := findBuiltBinary(localNodePackageRoot(slug), slug); found != "" {
-		return found, nil
-	}
-	home, err := os.UserHomeDir()
+	root, err := installedPackageBinRoot(slug)
 	if err != nil {
 		return "", err
 	}
-	root := filepath.Join(home, ".op", "bin", slug+".holon", "bin")
 	if found := findBuiltBinary(root, slug); found != "" {
 		return found, nil
 	}
 	return "", fmt.Errorf("%s binary not found under %s; run op build %s --install", slug, root, slug)
 }
 
-func localNodePackageRoot(slug string) string {
-	switch slug {
-	case goSlug:
-		return filepath.Join("..", "observability-cascade-go-node", ".op", "build", "observability-cascade-go-node.holon", "bin")
-	case dartSlug:
-		return filepath.Join("..", "observability-cascade-dart-node", ".op", "build", "observability-cascade-dart-node.holon", "bin")
-	default:
-		return ""
+func installedPackageBinRoot(slug string) (string, error) {
+	opbin := strings.TrimSpace(os.Getenv("OPBIN"))
+	if opbin == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		opbin = filepath.Join(home, ".op", "bin")
 	}
+	return filepath.Join(opbin, slug+".holon", "bin"), nil
 }
 
 func findBuiltBinary(root, slug string) string {
