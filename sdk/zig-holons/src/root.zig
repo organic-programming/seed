@@ -4,6 +4,7 @@
 //! wrappers. The C ABI exported from `cabi.zig` uses opaque handles only.
 
 pub const cabi = @import("cabi.zig");
+pub const composite = @import("composite.zig");
 pub const connect = @import("connect.zig");
 pub const describe = @import("describe.zig");
 pub const discover = @import("discover.zig");

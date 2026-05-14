@@ -7,17 +7,14 @@ const c = @cImport({
     @cInclude("signal.h");
     @cInclude("stdlib.h");
     @cInclude("unistd.h");
-    @cInclude("arpa/inet.h");
-    @cInclude("netinet/in.h");
     @cInclude("protobuf-c/protobuf-c.h");
-    @cInclude("sys/socket.h");
     @cInclude("sys/wait.h");
     @cInclude("observability_cascade/v1/service.pb-c.h");
     @cInclude("relay/v1/relay.pb-c.h");
 });
 
-const zig_slug = "observability-cascade-node-zig";
-const go_slug = "observability-cascade-node-go";
+const zig_slug = "observability-cascade-zig-node";
+const go_slug = "observability-cascade-go-node";
 const run_ticks = 3;
 const roles = [_][]const u8{ "D", "C", "B", "A" };
 const transports = [_][]const u8{ "tcp", "unix", "tcp", "unix" };
@@ -367,13 +364,24 @@ fn waitFor(allocator: std.mem.Allocator, cascade: *Cascade, sender: []const u8, 
 fn waitForMetric(allocator: std.mem.Allocator, cascade: *Cascade, previous: f64, out: *f64) bool {
     var attempts: usize = 0;
     while (attempts < 100) : (attempts += 1) {
-        const body = httpGet(allocator, cascade.role_list[0].metrics_addr) catch {
+        const request = holons.protobuf.runtime.packMetricsRequest(allocator) catch {
             sleepMillis(50);
             continue;
         };
-        defer allocator.free(body);
-        if (parseCascadeTicks(body, cascade.role_list[0].uid)) |value| {
-            if (value > previous) {
+        defer allocator.free(request);
+        const response = cascade.role_list[0].conn.?.unaryAlloc(allocator, "/holons.v1.HolonObservability/Metrics", request, 2_000) catch {
+            sleepMillis(50);
+            continue;
+        };
+        defer allocator.free(response);
+        var snapshot = holons.protobuf.runtime.unpackMetricsSnapshot(response) catch {
+            sleepMillis(50);
+            continue;
+        };
+        defer snapshot.deinit();
+        if (snapshot.counterValue("cascade_ticks_total")) |raw_value| {
+            const value: f64 = @floatFromInt(raw_value);
+            if (value > previous and std.mem.eql(u8, snapshot.instanceUid(), cascade.role_list[0].uid)) {
                 out.* = value;
                 return true;
             }
@@ -479,53 +487,11 @@ fn waitMeta(allocator: std.mem.Allocator, run_root: []const u8, slug: []const u8
                 if (value.len != 0) return value;
                 allocator.free(value);
             } else |_| {}
+            return allocator.dupe(u8, "");
         }
         sleepMillis(50);
     }
     return error.MetaTimeout;
-}
-
-fn httpGet(allocator: std.mem.Allocator, url: []const u8) ![]u8 {
-    const prefix = "http://127.0.0.1:";
-    if (!std.mem.startsWith(u8, url, prefix)) return error.UnsupportedUrl;
-    const rest = url[prefix.len..];
-    const slash = std.mem.indexOfScalar(u8, rest, '/') orelse return error.UnsupportedUrl;
-    const port = try std.fmt.parseInt(u16, rest[0..slash], 10);
-    const path = rest[slash..];
-    const fd = c.socket(c.AF_INET, c.SOCK_STREAM, 0);
-    if (fd < 0) return error.SocketFailed;
-    defer _ = c.close(fd);
-    var addr: c.struct_sockaddr_in = std.mem.zeroes(c.struct_sockaddr_in);
-    if (@hasField(c.struct_sockaddr_in, "sin_len")) addr.sin_len = @sizeOf(c.struct_sockaddr_in);
-    addr.sin_family = c.AF_INET;
-    addr.sin_port = c.htons(port);
-    addr.sin_addr.s_addr = c.htonl(0x7f000001);
-    if (c.connect(fd, @ptrCast(&addr), @sizeOf(c.struct_sockaddr_in)) != 0) return error.ConnectFailed;
-    const request = try std.fmt.allocPrint(allocator, "GET {s} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n", .{path});
-    defer allocator.free(request);
-    if (c.write(fd, request.ptr, request.len) < 0) return error.WriteFailed;
-    var out: std.ArrayList(u8) = .empty;
-    var buf: [4096]u8 = undefined;
-    while (true) {
-        const n = c.read(fd, &buf, buf.len);
-        if (n < 0) return error.ReadFailed;
-        if (n == 0) break;
-        try out.appendSlice(allocator, buf[0..@intCast(n)]);
-    }
-    return out.toOwnedSlice(allocator);
-}
-
-fn parseCascadeTicks(body: []const u8, uid: []const u8) ?f64 {
-    var lines = std.mem.splitScalar(u8, body, '\n');
-    while (lines.next()) |line| {
-        if (!std.mem.startsWith(u8, line, "cascade_ticks_total{")) continue;
-        if (std.mem.indexOf(u8, line, uid) == null) continue;
-        var fields = std.mem.tokenizeAny(u8, line, " \t\r");
-        var last: []const u8 = "";
-        while (fields.next()) |field| last = field;
-        return std.fmt.parseFloat(f64, last) catch null;
-    }
-    return null;
 }
 
 fn chainOk(cascade: *Cascade, chain: []const holons.observability.Hop) bool {
@@ -558,108 +524,30 @@ fn freeEvents(allocator: std.mem.Allocator, entries: []holons.observability.Even
 }
 
 fn findHolonBinary(allocator: std.mem.Allocator, slug: []const u8) ![]u8 {
-    const env_name = try binaryEnvName(allocator, slug);
-    defer allocator.free(env_name);
-    const env_name_z = try allocator.dupeZ(u8, env_name);
-    defer allocator.free(env_name_z);
-    if (getenv(env_name_z.ptr)) |value| {
-        const trimmed = std.mem.trim(u8, value, " \t\r\n");
-        if (trimmed.len != 0) return allocator.dupe(u8, trimmed);
-    }
-
-    const source_root = try findSourceRoot(allocator);
-    defer allocator.free(source_root);
-    const examples_root = std.fs.path.dirname(source_root) orelse source_root;
     if (std.mem.eql(u8, slug, zig_slug)) {
-        const node_root = try std.fs.path.join(allocator, &.{ source_root, "holons", "observability-cascade-node" });
-        defer allocator.free(node_root);
-        if (try findExecutableInBuildRoots(allocator, node_root, slug, "observability-cascade-node-zig")) |found| return found;
+        return holons.composite.member(allocator, "zig-node");
     }
-    if (std.mem.eql(u8, slug, go_slug)) {
-        const node_root = try std.fs.path.join(allocator, &.{ examples_root, "observability-cascade-go", "holons", "observability-cascade-node" });
-        defer allocator.free(node_root);
-        if (try findExecutableInBuildRoots(allocator, node_root, slug, "observability-cascade-node-go")) |found| return found;
-    }
-
-    const home = getenv("HOME") orelse return error.HomeMissing;
-    const suffix = try std.fmt.allocPrint(allocator, ".op/bin/{s}.holon/bin", .{slug});
-    defer allocator.free(suffix);
-    const root = try std.fs.path.join(allocator, &.{ home, suffix });
-    defer allocator.free(root);
-    if (try findExecutable(allocator, root, slug)) |found| return found;
+    if (try findInstalledHolonBinary(allocator, slug)) |found| return found;
     return error.BinaryNotFound;
 }
 
-fn binaryEnvName(allocator: std.mem.Allocator, slug: []const u8) ![]u8 {
-    const prefix = "observability-cascade-node-";
-    const raw = if (std.mem.startsWith(u8, slug, prefix)) slug[prefix.len..] else slug;
-    var out = try allocator.alloc(u8, "OBSERVABILITY_CASCADE_NODE_".len + raw.len + "_BIN".len);
-    @memcpy(out[0.."OBSERVABILITY_CASCADE_NODE_".len], "OBSERVABILITY_CASCADE_NODE_");
-    var cursor: usize = "OBSERVABILITY_CASCADE_NODE_".len;
-    for (raw) |ch| {
-        out[cursor] = if (ch == '-') '_' else std.ascii.toUpper(ch);
-        cursor += 1;
-    }
-    @memcpy(out[cursor..][0.."_BIN".len], "_BIN");
-    return out;
-}
+fn findInstalledHolonBinary(allocator: std.mem.Allocator, slug: []const u8) !?[]u8 {
+    const package_dir = try std.fmt.allocPrint(allocator, "{s}.holon", .{slug});
+    defer allocator.free(package_dir);
 
-fn findSourceRoot(allocator: std.mem.Allocator) ![]u8 {
-    const env_name = "OBSERVABILITY_CASCADE_ZIG_SOURCE_ROOT";
-    if (getenv(env_name)) |value| {
-        const trimmed = std.mem.trim(u8, value, " \t\r\n");
-        if (trimmed.len != 0) return allocator.dupe(u8, trimmed);
-    }
-    var cwd_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
-    const cwd_len = try std.Io.Dir.cwd().realPath(std.Io.Threaded.global_single_threaded.io(), &cwd_buffer);
-    var current = try allocator.dupe(u8, cwd_buffer[0..cwd_len]);
-    errdefer allocator.free(current);
-    while (true) {
-        if (try isSourceRoot(allocator, current)) return current;
-        const nested = try std.fs.path.join(allocator, &.{ current, "examples", "observability-cascade", "observability-cascade-zig" });
-        defer allocator.free(nested);
-        if (try isSourceRoot(allocator, nested)) {
-            allocator.free(current);
-            return allocator.dupe(u8, nested);
+    if (getenv("OPBIN")) |opbin| {
+        const trimmed = std.mem.trim(u8, opbin, " \t\r\n");
+        if (trimmed.len != 0) {
+            const root = try std.fs.path.join(allocator, &.{ trimmed, package_dir, "bin" });
+            defer allocator.free(root);
+            if (try findExecutable(allocator, root, slug)) |found| return found;
         }
-        const parent = std.fs.path.dirname(current) orelse break;
-        if (std.mem.eql(u8, parent, current)) break;
-        const next = try allocator.dupe(u8, parent);
-        allocator.free(current);
-        current = next;
     }
-    allocator.free(current);
-    return error.SourceRootNotFound;
-}
 
-fn isSourceRoot(allocator: std.mem.Allocator, root: []const u8) !bool {
-    const manifest = try std.fs.path.join(allocator, &.{ root, "api", "v1", "holon.proto" });
-    defer allocator.free(manifest);
-    const node = try std.fs.path.join(allocator, &.{ root, "holons", "observability-cascade-node" });
-    defer allocator.free(node);
-    return fileExists(allocator, manifest) and fileExists(allocator, node);
-}
-
-fn fileExists(allocator: std.mem.Allocator, path: []const u8) bool {
-    const zpath = allocator.dupeZ(u8, path) catch return false;
-    defer allocator.free(zpath);
-    return c.access(zpath.ptr, c.F_OK) == 0;
-}
-
-fn findExecutableInBuildRoots(
-    allocator: std.mem.Allocator,
-    node_root: []const u8,
-    slug: []const u8,
-    package_slug: []const u8,
-) !?[]u8 {
-    const primary = try std.fs.path.join(allocator, &.{ node_root, ".op", "build", "observability-cascade-node.holon", "bin" });
-    defer allocator.free(primary);
-    if (try findExecutable(allocator, primary, slug)) |found| return found;
-    const secondary_dir = try std.fmt.allocPrint(allocator, "{s}.holon", .{package_slug});
-    defer allocator.free(secondary_dir);
-    const secondary = try std.fs.path.join(allocator, &.{ node_root, ".op", "build", secondary_dir, "bin" });
-    defer allocator.free(secondary);
-    return try findExecutable(allocator, secondary, slug);
+    const home = getenv("HOME") orelse return null;
+    const root = try std.fs.path.join(allocator, &.{ home, ".op", "bin", package_dir, "bin" });
+    defer allocator.free(root);
+    return try findExecutable(allocator, root, slug);
 }
 
 fn findExecutable(allocator: std.mem.Allocator, root: []const u8, slug: []const u8) !?[]u8 {
@@ -677,7 +565,7 @@ fn findExecutable(allocator: std.mem.Allocator, root: []const u8, slug: []const 
 
 fn listenUri(allocator: std.mem.Allocator, phase: usize, transport: []const u8, role: []const u8) ![]u8 {
     const idx = roleIndex(role);
-    if (std.mem.eql(u8, transport, "tcp")) return std.fmt.allocPrint(allocator, "tcp://127.0.0.1:{}", .{9090 + ((phase - 1) * 10) + idx});
+    if (std.mem.eql(u8, transport, "tcp")) return std.fmt.allocPrint(allocator, "tcp://localhost:{}", .{9090 + ((phase - 1) * 10) + idx});
     const path = try std.fmt.allocPrint(allocator, "/tmp/observability-cascade-zig-p{}-{s}.sock", .{ phase, lowerRole(role) });
     defer allocator.free(path);
     return std.fmt.allocPrint(allocator, "unix://{s}", .{path});

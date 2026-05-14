@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const sdk_root = "../../../../../sdk/zig-holons";
+const sdk_root = "../../../sdk/zig-holons";
 const sdk_vendor_root = sdk_root ++ "/.zig-vendor/native";
 const sdk_gen_root = sdk_root ++ "/gen/c";
 
@@ -231,7 +231,7 @@ pub fn build(b: *std.Build) void {
     app_mod.addIncludePath(b.path("gen/c"));
 
     const exe = b.addExecutable(.{
-        .name = "observability-cascade-node-zig",
+        .name = "observability-cascade-zig-node",
         .root_module = app_mod,
     });
     exe.step.dependOn(&native_ready.step);
@@ -242,6 +242,6 @@ pub fn build(b: *std.Build) void {
     });
     tests.step.dependOn(&native_ready.step);
     const run_tests = b.addRunArtifact(tests);
-    const test_step = b.step("test", "Run observability-cascade-node-zig tests");
+    const test_step = b.step("test", "Run observability-cascade-zig-node tests");
     test_step.dependOn(&run_tests.step);
 }

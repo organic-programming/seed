@@ -8,7 +8,7 @@ const c = @cImport({
     @cInclude("relay/v1/relay.pb-c.h");
 });
 
-const slug = "observability-cascade-node-zig";
+const slug = "observability-cascade-zig-node";
 const version = "0.1.0";
 
 const methods = [_]holons.grpc.server.Method{
@@ -28,7 +28,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
         return;
     }
     if (args.len < 2 or !std.mem.eql(u8, args[1], "serve")) {
-        try writeStderr("usage: observability-cascade-node-zig serve [--listen <uri>] [--member <slug>=<address>]\n");
+        try writeStderr("usage: observability-cascade-zig-node serve [--listen <uri>] [--member <slug>=<address>]\n");
         return error.InvalidCommand;
     }
 

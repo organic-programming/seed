@@ -3,7 +3,7 @@ const std = @import("std");
 const sdk_root = "../../../sdk/zig-holons";
 const sdk_vendor_root = sdk_root ++ "/.zig-vendor/native";
 const sdk_gen_root = sdk_root ++ "/gen/c";
-const relay_gen_root = "holons/observability-cascade-node/gen/c";
+const relay_gen_root = "../observability-cascade-zig-node/gen/c";
 
 const sdk_generated_c_sources = [_][]const u8{
     "google/protobuf/descriptor.pb-c.c",

@@ -8,9 +8,11 @@ pub const Channel = struct {
     endpoint: transport.Endpoint,
     raw: *core.c.grpc_channel,
     child: ?transport.stdio.Child = null,
+    owned_target: ?[:0]u8 = null,
 
     pub fn deinit(self: *Channel) void {
         core.c.grpc_channel_destroy(self.raw);
+        if (self.owned_target) |target| self.allocator.free(target);
         if (self.child) |*child| child.close();
     }
 
@@ -233,10 +235,36 @@ fn connectTcpEndpoint(allocator: std.mem.Allocator, endpoint: transport.Endpoint
     const creds = core.c.grpc_insecure_credentials_create() orelse return error.CredentialsCreateFailed;
     defer core.c.grpc_channel_credentials_release(creds);
 
-    const target = try allocator.dupeZ(u8, endpoint.address);
-    defer allocator.free(target);
+    const target = try tcpTarget(allocator, endpoint.address);
+    errdefer allocator.free(target);
     const raw = core.c.grpc_channel_create(target.ptr, creds, null) orelse return error.ChannelCreateFailed;
-    return .{ .allocator = allocator, .endpoint = endpoint, .raw = raw };
+    return .{ .allocator = allocator, .endpoint = endpoint, .raw = raw, .owned_target = target };
+}
+
+fn tcpTarget(allocator: std.mem.Allocator, address: []const u8) ![:0]u8 {
+    const prefix = if (isIpv4Address(tcpHost(address))) "ipv4:" else "dns:///";
+    const target = try allocator.allocSentinel(u8, prefix.len + address.len, 0);
+    @memcpy(target[0..prefix.len], prefix);
+    @memcpy(target[prefix.len..], address);
+    return target;
+}
+
+fn tcpHost(address: []const u8) []const u8 {
+    const colon = std.mem.lastIndexOfScalar(u8, address, ':') orelse return address;
+    return address[0..colon];
+}
+
+fn isIpv4Address(host: []const u8) bool {
+    if (host.len == 0) return false;
+    var dots: usize = 0;
+    for (host) |ch| {
+        switch (ch) {
+            '0'...'9' => {},
+            '.' => dots += 1,
+            else => return false,
+        }
+    }
+    return dots == 3;
 }
 
 fn connectUnixEndpoint(allocator: std.mem.Allocator, endpoint: transport.Endpoint) !Channel {
@@ -247,9 +275,9 @@ fn connectUnixEndpoint(allocator: std.mem.Allocator, endpoint: transport.Endpoin
     defer core.c.grpc_channel_credentials_release(creds);
 
     const target = try unixTarget(allocator, endpoint.address);
-    defer allocator.free(target);
+    errdefer allocator.free(target);
     const raw = core.c.grpc_channel_create(target.ptr, creds, null) orelse return error.ChannelCreateFailed;
-    return .{ .allocator = allocator, .endpoint = endpoint, .raw = raw };
+    return .{ .allocator = allocator, .endpoint = endpoint, .raw = raw, .owned_target = target };
 }
 
 fn unixTarget(allocator: std.mem.Allocator, path: []const u8) ![:0]u8 {
