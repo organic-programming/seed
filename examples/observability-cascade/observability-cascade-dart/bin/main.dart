@@ -3,17 +3,25 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:grpc/grpc.dart';
+import 'package:holons/holons.dart';
 import 'package:holons/gen/holons/v1/describe.pbgrpc.dart' as describe_pb;
 import 'package:holons/gen/holons/v1/observability.pbgrpc.dart' as obs_pb;
 import 'package:protobuf/protobuf.dart';
 
-import '../../observability-cascade-node-dart/gen/dart/relay/v1/relay.pbgrpc.dart'
+import '../gen/dart/observability_cascade/v1/service.pbgrpc.dart'
+    as cascade_pb;
+import '../gen/describe_generated.dart';
+import '../holons/observability-cascade-node/gen/dart/relay/v1/relay.pbgrpc.dart'
     as relay_pb;
 
 const goSlug = 'observability-cascade-node-go';
 const dartSlug = 'observability-cascade-node-dart';
 const runTicks = 3;
 const runPhases = 4;
+const sourceRoot = String.fromEnvironment(
+  'OBSERVABILITY_CASCADE_DART_SOURCE_ROOT',
+  defaultValue: '.',
+);
 
 const roleOrder = ['D', 'C', 'B', 'A'];
 
@@ -378,15 +386,86 @@ class CascadePattern {
   final Map<String, RoleSpec> roles;
 }
 
-Future<void> main(List<String> args) async {
-  final liveStream = args.contains('--live-stream');
-  final multiPattern = args.contains('--multi-pattern');
+class PhaseReportData {
+  const PhaseReportData({
+    required this.name,
+    required this.pass,
+    required this.fail,
+    this.failures = const [],
+  });
 
+  final String name;
+  final int pass;
+  final int fail;
+  final List<String> failures;
+}
+
+class CascadeReportData {
+  const CascadeReportData({
+    required this.ticks,
+    required this.pass,
+    required this.fail,
+    required this.phases,
+  });
+
+  final int ticks;
+  final int pass;
+  final int fail;
+  final List<PhaseReportData> phases;
+}
+
+class MultiPatternReportData {
+  const MultiPatternReportData({
+    required this.patterns,
+    required this.totalPass,
+    required this.totalFail,
+  });
+
+  final List<CascadeReportData> patterns;
+  final int totalPass;
+  final int totalFail;
+}
+
+class ObservabilityCascadeRpc extends cascade_pb.ObservabilityCascadeServiceBase {
+  @override
+  Future<cascade_pb.CascadeReport> runDefault(
+    ServiceCall call,
+    cascade_pb.RunRequest request,
+  ) async {
+    call;
+    request;
+    return toCascadeReport(await run(emit: false));
+  }
+
+  @override
+  Future<cascade_pb.CascadeReport> runLiveStream(
+    ServiceCall call,
+    cascade_pb.RunRequest request,
+  ) async {
+    call;
+    request;
+    return toCascadeReport(await runLiveStreamMode(emit: false));
+  }
+
+  @override
+  Future<cascade_pb.MultiPatternReport> runMultiPattern(
+    ServiceCall call,
+    cascade_pb.RunRequest request,
+  ) async {
+    call;
+    request;
+    return toMultiPatternReport(await runMultiPatternMode(emit: false));
+  }
+}
+
+Future<void> main(List<String> args) async {
   try {
-    if (multiPattern) {
-      await runMultiPattern();
-    } else if (liveStream) {
-      await runLiveStream();
+    if (args.isNotEmpty && canonicalCommand(args.first) == 'serve') {
+      await serveComposite(args.sublist(1));
+    } else if (args.contains('--multi-pattern')) {
+      await runMultiPatternMode();
+    } else if (args.contains('--live-stream')) {
+      await runLiveStreamMode();
     } else {
       await run();
     }
@@ -396,13 +475,23 @@ Future<void> main(List<String> args) async {
   }
 }
 
-Future<void> run() async {
+Future<void> serveComposite(List<String> args) {
+  useStaticResponse(staticDescribeResponse());
+  final parsed = parseOptions(args);
+  return runWithOptions(
+    parsed.listenUri,
+    <Service>[ObservabilityCascadeRpc()],
+    options: ServeOptions(reflect: parsed.reflect),
+  );
+}
+
+Future<CascadeReportData> run({bool emit = true}) async {
   final binaryPath = await findCascadeNodeBinary();
   final runRoot = '${Platform.environment['HOME']}/.op/run';
   final transports = ['tcp', 'unix', 'tcp', 'unix'];
 
-  print('=== observability-cascade-dart ===');
-  print('');
+  output(emit, '=== observability-cascade-dart ===');
+  output(emit);
 
   var totalPass = 0;
   var totalFail = 0;
@@ -411,11 +500,15 @@ Future<void> run() async {
     final phaseNo = phaseIdx + 1;
     final transport = transports[phaseIdx];
     if (previous.isEmpty) {
-      print('Phase $phaseNo/$runPhases: transport=$transport');
+      output(emit, 'Phase $phaseNo/$runPhases: transport=$transport');
     } else if (phaseNo == runPhases && transport == transports.first) {
-      print('Phase $phaseNo/$runPhases: transport=$transport (cycle wrap)');
+      output(
+        emit,
+        'Phase $phaseNo/$runPhases: transport=$transport (cycle wrap)',
+      );
     } else {
-      print(
+      output(
+        emit,
         'Phase $phaseNo/$runPhases: transport=$transport (switching from $previous)',
       );
     }
@@ -426,11 +519,11 @@ Future<void> run() async {
       cascade = await spawnCascade(phaseNo, transport, binaryPath, runRoot);
     } catch (error) {
       totalFail += runTicks;
-      print('  spawn FAIL: $error\n');
+      output(emit, '  spawn FAIL: $error\n');
       previous = transport;
       continue;
     }
-    print('  spawned 4 nodes in ${elapsed(spawnStart)}');
+    output(emit, '  spawned 4 nodes in ${elapsed(spawnStart)}');
 
     var previousMetric = 0.0;
     for (var tick = 1; tick <= runTicks; tick++) {
@@ -447,37 +540,48 @@ Future<void> run() async {
         totalFail++;
       }
       final status = overall ? 'PASS' : 'FAIL';
-      print(
+      output(
+        emit,
         '  Tick $tick/$runTicks: log ${passText(result.log.pass)}, event ${passText(result.event.pass)}, metric ${passText(result.metric.pass)} (overall $status in ${elapsed(tickStart)})',
       );
-      if (!overall) {
+      if (emit && !overall) {
         printFailureEvidence('log', result.log);
         printFailureEvidence('event', result.event);
         printFailureEvidence('metric', result.metric);
       }
     }
     await cascade.stop();
-    print('');
+    output(emit);
     previous = transport;
   }
 
-  print(
-      'Summary: ${totalPass + totalFail} ticks, $totalPass PASS, $totalFail FAIL');
+  output(
+    emit,
+    'Summary: ${totalPass + totalFail} ticks, $totalPass PASS, $totalFail FAIL',
+  );
   if (totalFail > 0) {
     throw StateError('$totalFail tick(s) failed');
   }
+  return CascadeReportData(
+    ticks: totalPass + totalFail,
+    pass: totalPass,
+    fail: totalFail,
+    phases: [
+      PhaseReportData(name: 'default', pass: totalPass, fail: totalFail),
+    ],
+  );
 }
 
-Future<void> runLiveStream() async {
+Future<CascadeReportData> runLiveStreamMode({bool emit = true}) async {
   final binaryPath = await findCascadeNodeBinary();
   final runRoot = '${Platform.environment['HOME']}/.op/run';
   final transports = ['tcp', 'unix', 'tcp', 'unix'];
 
-  print('=== observability-cascade-dart --live-stream ===');
-  print('');
-  print('Setup: opening long-lived Follow:true streams on A');
-  print('       (initial transport: tcp, port 9090)');
-  print('');
+  output(emit, '=== observability-cascade-dart --live-stream ===');
+  output(emit);
+  output(emit, 'Setup: opening long-lived Follow:true streams on A');
+  output(emit, '       (initial transport: tcp, port 9090)');
+  output(emit);
 
   var totalPass = 0;
   var totalFail = 0;
@@ -489,13 +593,13 @@ Future<void> runLiveStream() async {
       final phaseNo = phaseIdx + 1;
       final transport = transports[phaseIdx];
       if (phaseNo == 1) {
-        print('Phase $phaseNo/$runPhases: initial chain ($transport)');
+        output(emit, 'Phase $phaseNo/$runPhases: initial chain ($transport)');
       } else {
-        print('Phase $phaseNo/$runPhases: respawn on $transport');
+        output(emit, 'Phase $phaseNo/$runPhases: respawn on $transport');
         final killStart = DateTime.now();
         await streams?.stop();
         await cascade?.stop();
-        print('  killed 4 nodes in ${elapsed(killStart)}');
+        output(emit, '  killed 4 nodes in ${elapsed(killStart)}');
       }
 
       final spawnStart = DateTime.now();
@@ -503,14 +607,14 @@ Future<void> runLiveStream() async {
         cascade = await spawnCascade(phaseNo, transport, binaryPath, runRoot);
       } catch (error) {
         totalFail += runTicks;
-        print('  spawn FAIL: $error\n');
+        output(emit, '  spawn FAIL: $error\n');
         streams = null;
         streamOpenError = error;
         continue;
       }
-      print('  spawned 4 nodes in ${elapsed(spawnStart)}');
+      output(emit, '  spawned 4 nodes in ${elapsed(spawnStart)}');
       if (phaseNo > 1) {
-        print('  re-opening Follow:true streams on new A');
+        output(emit, '  re-opening Follow:true streams on new A');
       }
       try {
         streams = startLiveStreams(cascade.roles['A']!.conn!);
@@ -518,7 +622,7 @@ Future<void> runLiveStream() async {
       } catch (error) {
         streams = null;
         streamOpenError = error;
-        print('  stream re-open failed: $error');
+        output(emit, '  stream re-open failed: $error');
       }
 
       var previousMetric = 0.0;
@@ -540,30 +644,41 @@ Future<void> runLiveStream() async {
         } else {
           totalFail++;
         }
-        print(
+        output(
+          emit,
           '  Tick $tick/$runTicks: log ${passText(result.log.pass)}, event ${passText(result.event.pass)}, metric ${passText(result.metric.pass)} (overall ${passText(overall)} in ${elapsed(tickStart)})',
         );
-        if (!overall) {
+        if (emit && !overall) {
           printFailureEvidence('log', result.log);
           printFailureEvidence('event', result.event);
           printFailureEvidence('metric', result.metric);
         }
       }
-      print('');
+      output(emit);
     }
   } finally {
     await streams?.stop();
     await cascade?.stop();
   }
 
-  print(
-      'Summary: $totalPass PASS / $totalFail FAIL across ${totalPass + totalFail} ticks');
+  output(
+    emit,
+    'Summary: $totalPass PASS / $totalFail FAIL across ${totalPass + totalFail} ticks',
+  );
   if (totalFail > 0) {
     throw StateError('$totalFail tick(s) failed');
   }
+  return CascadeReportData(
+    ticks: totalPass + totalFail,
+    pass: totalPass,
+    fail: totalFail,
+    phases: [
+      PhaseReportData(name: 'live-stream', pass: totalPass, fail: totalFail),
+    ],
+  );
 }
 
-Future<void> runMultiPattern() async {
+Future<MultiPatternReportData> runMultiPatternMode({bool emit = true}) async {
   final dartBinary = await findHolonBinary(dartSlug);
   final goBinary = await findHolonBinary(goSlug);
   final patterns = [
@@ -598,14 +713,17 @@ Future<void> runMultiPattern() async {
   final runRoot = '${Platform.environment['HOME']}/.op/run';
   final transports = ['tcp', 'unix', 'tcp', 'unix'];
 
-  print('=== observability-cascade-dart (multi-pattern) ===');
-  print('');
+  output(emit, '=== observability-cascade-dart (multi-pattern) ===');
+  output(emit);
 
   var totalPass = 0;
   var totalFail = 0;
   for (var patternIdx = 0; patternIdx < patterns.length; patternIdx++) {
     final pattern = patterns[patternIdx];
-    print('Pattern ${patternIdx + 1}/${patterns.length}: ${pattern.name}');
+    output(
+      emit,
+      'Pattern ${patternIdx + 1}/${patterns.length}: ${pattern.name}',
+    );
     var patternPass = 0;
     for (var phaseIdx = 0; phaseIdx < transports.length; phaseIdx++) {
       final phaseNo = phaseIdx + 1;
@@ -621,7 +739,10 @@ Future<void> runMultiPattern() async {
         );
       } catch (error) {
         totalFail += runTicks;
-        print('  Phase $phaseNo/$runPhases ($transport): spawn FAIL ($error)');
+        output(
+          emit,
+          '  Phase $phaseNo/$runPhases ($transport): spawn FAIL ($error)',
+        );
         continue;
       }
 
@@ -669,24 +790,47 @@ Future<void> runMultiPattern() async {
           );
         }
       }
-      print(
+      output(
+        emit,
         '  Phase $phaseNo/$runPhases ($transport): ${results.join(', ')} (spawned in ${elapsed(spawnStart)})',
       );
-      for (final line in evidence) {
-        print(line);
+      if (emit) {
+        for (final line in evidence) {
+          print(line);
+        }
       }
       await streams?.stop();
       await cascade.stop();
     }
-    print('  Subtotal: $patternPass/12 PASS');
-    print('');
+    output(emit, '  Subtotal: $patternPass/12 PASS');
+    output(emit);
   }
 
-  print(
-      'Summary: $totalPass PASS / $totalFail FAIL across ${totalPass + totalFail} ticks');
+  output(
+    emit,
+    'Summary: $totalPass PASS / $totalFail FAIL across ${totalPass + totalFail} ticks',
+  );
   if (totalFail > 0) {
     throw StateError('$totalFail tick(s) failed');
   }
+  return MultiPatternReportData(
+    patterns: [
+      CascadeReportData(
+        ticks: totalPass + totalFail,
+        pass: totalPass,
+        fail: totalFail,
+        phases: [
+          PhaseReportData(
+            name: 'multi-pattern',
+            pass: totalPass,
+            fail: totalFail,
+          ),
+        ],
+      ),
+    ],
+    totalPass: totalPass,
+    totalFail: totalFail,
+  );
 }
 
 Future<Cascade> spawnCascade(
@@ -1071,27 +1215,98 @@ Future<String> findHolonBinary(String slug) async {
   if (home == null || home.isEmpty) {
     throw StateError('HOME is not set');
   }
-  final root = Directory('$home/.op/bin/$slug.holon/bin');
-  if (!await root.exists()) {
-    throw StateError(
-        '$slug binary not found under ${root.path}; run op build $slug --install');
+
+  final roots = <Directory>[];
+  if (slug == dartSlug) {
+    roots.add(
+      Directory(
+        '$sourceRoot/holons/observability-cascade-node/.op/build/observability-cascade-node.holon/bin',
+      ),
+    );
+    roots.add(
+      Directory(
+        '$sourceRoot/holons/observability-cascade-node/.op/build/observability-cascade-node-dart.holon/bin',
+      ),
+    );
   }
+  if (slug == goSlug) {
+    roots.add(
+      Directory(
+        '$sourceRoot/../observability-cascade-go/holons/observability-cascade-node/.op/build/observability-cascade-node.holon/bin',
+      ),
+    );
+    roots.add(
+      Directory(
+        '$sourceRoot/../observability-cascade-go/holons/observability-cascade-node/.op/build/observability-cascade-node-go.holon/bin',
+      ),
+    );
+  }
+  roots.add(Directory('$home/.op/bin/$slug.holon/bin'));
+
   final osToken =
       Platform.operatingSystem == 'macos' ? 'darwin' : Platform.operatingSystem;
   String? found;
-  await for (final entity in root.list(recursive: true, followLinks: false)) {
-    if (entity is! File || entity.uri.pathSegments.last != slug) {
+  for (final root in roots) {
+    if (!await root.exists()) {
       continue;
     }
-    if (entity.path.contains(osToken) || found == null) {
-      found = entity.path;
+    await for (final entity in root.list(recursive: true, followLinks: false)) {
+      if (entity is! File || entity.uri.pathSegments.last != slug) {
+        continue;
+      }
+      if (entity.path.contains(osToken) || found == null) {
+        found = entity.path;
+      }
+    }
+    if (found != null) {
+      break;
     }
   }
   if (found == null) {
     throw StateError(
-        '$slug binary not found under ${root.path}; run op build $slug --install');
+      '$slug binary not found under ${roots.map((root) => root.path).join(', ')}; run op build $slug --install',
+    );
   }
   return found;
+}
+
+void output(bool emit, [Object? value = '']) {
+  if (emit) {
+    print(value ?? '');
+  }
+}
+
+cascade_pb.CascadeReport toCascadeReport(CascadeReportData report) {
+  return cascade_pb.CascadeReport(
+    ticks: report.ticks,
+    pass: report.pass,
+    fail: report.fail,
+    phases: report.phases
+        .map(
+          (phase) => cascade_pb.PhaseResult(
+            name: phase.name,
+            pass: phase.pass,
+            fail: phase.fail,
+            failures: phase.failures,
+          ),
+        )
+        .toList(),
+  );
+}
+
+cascade_pb.MultiPatternReport toMultiPatternReport(
+  MultiPatternReportData report,
+) {
+  return cascade_pb.MultiPatternReport(
+    patterns: report.patterns.map(toCascadeReport).toList(),
+    totalPass: report.totalPass,
+    totalFail: report.totalFail,
+  );
+}
+
+String canonicalCommand(String raw) {
+  final normalized = raw.trim().toLowerCase();
+  return normalized.replaceAll('-', '').replaceAll('_', '').replaceAll(' ', '');
 }
 
 String passText(bool pass) => pass ? 'PASS' : 'FAIL';
