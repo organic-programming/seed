@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package relay.v1;
+
+import "holons/v1/manifest.proto";
+import "relay/v1/relay.proto";
+
+option java_package = "org.organicprogramming.observability.cascade.javaholon.api.v1";
+option java_outer_classname = "HolonProto";
+option java_multiple_files = true;
+
+// Java-specific holon descriptor for observability-cascade-node-java.
+// Layers Gradle build metadata and holon identity on top of the shared
+// observability-cascade contract.
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "60534b34-7bcd-41f8-9e72-420d3c40a8d3"
+    given_name: "Observability Cascade"
+    family_name: "Node-Java"
+    motto: "Minimal observability cascade node."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A minimal Java holon used to validate cross-holon observability relay chains."
+  lang: "java"
+  kind: "native"
+  build: {
+    runner: "gradle"
+    main: "./src/main/java/org/organicprogramming/observability/cascade/javaholon/cmd/Main.java"
+    templates: ["src/main/java/org/organicprogramming/observability/cascade/javaholon/api/Cli.java"]
+    codegen: { languages: ["java"] }
+  }
+  requires: {
+    commands: ["java", "gradle"]
+    files: ["build.gradle", "settings.gradle"]
+    sdk_prebuilts: ["java"]
+  }
+  artifacts: {
+    binary: "observability-cascade-node-java"
+  }
+  sequences: [{
+    name: "tick"
+    description: "Emit one observability-cascade tick signal."
+    params: [
+      {name: "sender", description: "Tick sender label", required: true},
+      {name: "note", description: "Free-form tick note", required: false}
+    ]
+    steps: [
+      "op observability-cascade-node-java Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
+    ]
+  }]
+};

@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package relay.v1;
+
+import "holons/v1/manifest.proto";
+import "relay/v1/relay.proto";
+
+// Ruby-specific holon descriptor for observability-cascade-node-ruby.
+// Layers Ruby runtime metadata and holon identity on top of the shared
+// observability-cascade contract.
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "6c4122d8-249f-46f0-b4e3-176695dd2af9"
+    given_name: "Observability Cascade"
+    family_name: "Node-Ruby"
+    motto: "Minimal observability cascade node."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A minimal Ruby holon used to validate cross-holon observability relay chains."
+  lang: "ruby"
+  kind: "native"
+  build: {
+    runner: "ruby"
+    main: "./cmd/main.rb"
+    templates: ["api/cli.rb"]
+    codegen: { languages: ["ruby"] }
+  }
+  requires: {
+    commands: ["ruby", "bundle"]
+    files: ["cmd/main.rb", "Gemfile"]
+    sdk_prebuilts: ["ruby"]
+  }
+  artifacts: {
+    binary: "observability-cascade-node-ruby"
+  }
+  sequences: [{
+    name: "tick"
+    description: "Emit one observability-cascade tick signal."
+    params: [
+      {name: "sender", description: "Tick sender label", required: true},
+      {name: "note", description: "Free-form tick note", required: false}
+    ]
+    steps: [
+      "op observability-cascade-node-ruby Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
+    ]
+  }]
+};
+

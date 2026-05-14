@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package relay.v1;
+
+import "holons/v1/manifest.proto";
+import "relay/v1/relay.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "db607f5a-02ac-4f55-90ce-7cf6bc696077"
+    given_name: "Observability Cascade"
+    family_name: "Node-Zig"
+    motto: "Minimal observability cascade node."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A minimal Zig holon used to validate cross-holon observability relay chains."
+  lang: "zig"
+  kind: "native"
+  build: {
+    runner: "zig"
+    main: "./src/main.zig"
+    templates: ["src/main.zig"]
+    codegen: { languages: ["zig"] }
+  }
+  requires: {
+    commands: ["zig"]
+    files: ["build.zig", "src/main.zig"]
+    sdk_prebuilts: ["zig"]
+  }
+  artifacts: {
+    binary: "observability-cascade-node-zig"
+  }
+  sequences: [{
+    name: "tick"
+    description: "Emit one observability-cascade tick signal."
+    params: [
+      {name: "sender", description: "Tick sender label", required: true},
+      {name: "note", description: "Free-form tick note", required: false}
+    ]
+    steps: [
+      "op observability-cascade-node-zig Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
+    ]
+  }]
+};

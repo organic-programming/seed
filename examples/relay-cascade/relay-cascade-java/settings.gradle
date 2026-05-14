@@ -1,2 +1,0 @@
-rootProject.name = 'relay-cascade-java'
-includeBuild('../../../sdk/java-holons')

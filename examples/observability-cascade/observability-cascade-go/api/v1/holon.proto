@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package observability.cascade.go.v1;
+
+import "holons/v1/manifest.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "6bcbb9a7-acf0-4953-b12d-600a53b6e6c4"
+    given_name: "Observability Cascade"
+    family_name: "Go Composite"
+    motto: "Validates Go observability cascade observability."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A Go composite program that validates observability-cascade observability across three modes and patterns."
+  lang: "go"
+  kind: "native"
+  build: {
+    runner: "go-module"
+    main: "./cmd"
+  }
+  requires: {
+    commands: ["go"]
+    files: ["go.mod"]
+    sdk_prebuilts: ["go"]
+  }
+  artifacts: {
+    binary: "observability-cascade-go"
+  }
+};

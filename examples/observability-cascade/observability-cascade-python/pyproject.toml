@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "observability-cascade-python"
+version = "0.1.0"
+description = "Python observability cascade composite verifier."
+requires-python = ">=3.10"
+dependencies = [
+  "grpcio>=1.60.0",
+  "protobuf>=5.0.0",
+]

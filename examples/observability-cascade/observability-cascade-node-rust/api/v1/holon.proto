@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package relay.v1;
+
+import "holons/v1/manifest.proto";
+import "relay/v1/relay.proto";
+
+// Rust-specific holon descriptor for observability-cascade-node-rust.
+// Layers Cargo build metadata and holon identity on top of the shared
+// observability-cascade contract.
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "7f780d1d-98b4-42eb-8f18-6f0860602bb0"
+    given_name: "Observability Cascade"
+    family_name: "Node-Rust"
+    motto: "Minimal observability cascade node."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A minimal Rust holon used to validate cross-holon observability relay chains."
+  lang: "rust"
+  kind: "native"
+  build: {
+    runner: "cargo"
+    main: "./cmd/main.rs"
+    templates: ["api/cli.rs"]
+  }
+  requires: {
+    commands: ["cargo"]
+    files: ["Cargo.toml"]
+    sdk_prebuilts: ["rust"]
+  }
+  artifacts: {
+    binary: "observability-cascade-node-rust"
+  }
+  sequences: [{
+    name: "tick"
+    description: "Emit one observability-cascade tick signal."
+    params: [
+      {name: "sender", description: "Tick sender label", required: true},
+      {name: "note", description: "Free-form tick note", required: false}
+    ]
+    steps: [
+      "op observability-cascade-node-rust Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
+    ]
+  }]
+};

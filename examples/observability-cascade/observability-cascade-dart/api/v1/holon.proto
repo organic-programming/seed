@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package observability.cascade.dart.v1;
+
+import "holons/v1/manifest.proto";
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "439ebe58-a8df-4ffd-8f28-5378cc00de29"
+    given_name: "Observability Cascade"
+    family_name: "Dart Composite"
+    motto: "Validates Dart observability cascade observability."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A Dart composite program that validates observability-cascade observability across three modes and patterns."
+  lang: "dart"
+  kind: "native"
+  build: {
+    runner: "dart"
+    main: "./bin/main.dart"
+  }
+  requires: {
+    commands: ["dart"]
+    files: ["bin/main.dart", "pubspec.yaml"]
+    sdk_prebuilts: ["dart"]
+  }
+  artifacts: {
+    binary: "observability-cascade-dart"
+  }
+};

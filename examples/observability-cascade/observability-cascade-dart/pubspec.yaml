@@ -1,0 +1,15 @@
+name: observability_cascade_dart
+description: Strict-parity Dart observability cascade composite.
+version: 0.1.0
+publish_to: none
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  cascade_node_dart:
+    path: ../observability-cascade-node-dart
+  grpc: ^5.1.0
+  holons:
+    path: ../../../sdk/dart-holons
+  protobuf: ^6.0.0
+

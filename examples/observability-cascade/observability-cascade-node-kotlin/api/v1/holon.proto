@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package relay.v1;
+
+import "holons/v1/manifest.proto";
+import "relay/v1/relay.proto";
+
+option java_package = "org.organicprogramming.observability.cascade.kotlinholon.api.v1";
+option java_outer_classname = "HolonProto";
+option java_multiple_files = true;
+
+// Kotlin-specific holon descriptor for observability-cascade-node-kotlin.
+// Layers Kotlin runtime metadata and holon identity on top of the shared
+// observability-cascade contract.
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "5e167201-95a1-4371-a234-31679fb5e3bf"
+    given_name: "Observability Cascade"
+    family_name: "Node-Kotlin"
+    motto: "Minimal observability cascade node."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A minimal Kotlin holon used to validate cross-holon observability relay chains."
+  lang: "kotlin"
+  kind: "native"
+  build: {
+    runner: "gradle"
+    codegen: {
+      languages: ["kotlin-java", "kotlin-java-grpc", "kotlin", "kotlin-grpc"]
+    }
+    main: "./src/main/kotlin/org/organicprogramming/observability/cascade/kotlinholon/cmd/Main.kt"
+    templates: ["src/main/kotlin/org/organicprogramming/observability/cascade/kotlinholon/api/Cli.kt"]
+  }
+  requires: {
+    commands: ["java", "gradle"]
+    sdk_prebuilts: ["kotlin"]
+    files: ["build.gradle.kts", "settings.gradle.kts"]
+  }
+  artifacts: {
+    binary: "observability-cascade-node-kotlin"
+  }
+  sequences: [{
+    name: "tick"
+    description: "Emit one observability-cascade tick signal."
+    params: [
+      {name: "sender", description: "Tick sender label", required: true},
+      {name: "note", description: "Free-form tick note", required: false}
+    ]
+    steps: [
+      "op observability-cascade-node-kotlin Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
+    ]
+  }]
+};

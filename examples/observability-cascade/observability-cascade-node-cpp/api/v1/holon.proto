@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package relay.v1;
+
+import "holons/v1/manifest.proto";
+import "relay/v1/relay.proto";
+
+// C++-specific holon descriptor for observability-cascade-node-cpp.
+// Layers CMake runtime metadata and holon identity on top of the shared
+// observability-cascade contract.
+
+option (holons.v1.manifest) = {
+  identity: {
+    schema: "holon/v1"
+    uuid: "e750ab72-b9e8-4a72-9e1b-ff73a9d358cf"
+    given_name: "Observability Cascade"
+    family_name: "Node-Cpp"
+    motto: "Minimal observability cascade node."
+    composer: "B. ALTER"
+    status: "draft"
+    born: "2026-05-13"
+    version: "0.1.0"
+  }
+  description: "A minimal C++ holon used to validate cross-holon observability relay chains."
+  lang: "cpp"
+  kind: "native"
+  build: {
+    runner: "cmake"
+    main: "./cmd/main.cpp"
+    templates: ["api/cli.hpp"]
+    codegen: { languages: ["cpp"] }
+  }
+  requires: {
+    commands: ["cmake"]
+    files: ["CMakeLists.txt", "cmd/main.cpp"]
+    sdk_prebuilts: ["cpp"]
+  }
+  artifacts: {
+    binary: "observability-cascade-node-cpp"
+  }
+  sequences: [{
+    name: "tick"
+    description: "Emit one observability-cascade tick signal."
+    params: [
+      {name: "sender", description: "Tick sender label", required: true},
+      {name: "note", description: "Free-form tick note", required: false}
+    ]
+    steps: [
+      "op observability-cascade-node-cpp Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
+    ]
+  }]
+};
