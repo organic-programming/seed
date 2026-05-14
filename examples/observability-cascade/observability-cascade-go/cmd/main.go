@@ -18,10 +18,14 @@ import (
 	"syscall"
 	"time"
 
+	"observability-cascade-go/gen"
+	ocv1 "observability-cascade-go/gen/go/observability_cascade/v1"
 	relayv1 "observability-cascade-node-go/gen/go/relay/v1"
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
+	"github.com/organic-programming/go-holons/pkg/describe"
 	"github.com/organic-programming/go-holons/pkg/grpcclient"
 	"github.com/organic-programming/go-holons/pkg/observability"
+	"github.com/organic-programming/go-holons/pkg/serve"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -35,6 +39,11 @@ const (
 )
 
 var roleOrder = []string{"D", "C", "B", "A"}
+var rpcStdoutMu sync.Mutex
+
+func init() {
+	describe.UseStaticResponse(gen.StaticDescribeResponse())
+}
 
 type roleSpec struct {
 	slug       string
@@ -64,12 +73,27 @@ type cascade struct {
 	roles     map[string]*roleRuntime
 }
 
+type cascadeService struct {
+	ocv1.UnimplementedObservabilityCascadeServiceServer
+}
+
 type checkResult struct {
 	pass     bool
 	evidence string
 }
 
 func main() {
+	if len(os.Args) > 1 && canonicalCommand(os.Args[1]) == "serve" {
+		options := serve.ParseOptions(os.Args[2:])
+		if err := serve.RunCLIOptions(options, func(s *grpc.Server) {
+			ocv1.RegisterObservabilityCascadeServiceServer(s, &cascadeService{})
+		}); err != nil {
+			fmt.Fprintf(os.Stderr, "serve: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	liveStream := flag.Bool("live-stream", false, "exercise long-lived Follow:true streams across chain respawns")
 	multiPattern := flag.Bool("multi-pattern", false, "exercise go/dart observability cascade patterns using live streams")
 	flag.Parse()
@@ -88,13 +112,89 @@ func main() {
 	}
 }
 
+func (s *cascadeService) RunDefault(_ context.Context, _ *ocv1.RunRequest) (*ocv1.CascadeReport, error) {
+	return reportForRun("default", run, 12), nil
+}
+
+func (s *cascadeService) RunLiveStream(_ context.Context, _ *ocv1.RunRequest) (*ocv1.CascadeReport, error) {
+	return reportForRun("live-stream", runLiveStream, 12), nil
+}
+
+func (s *cascadeService) RunMultiPattern(_ context.Context, _ *ocv1.RunRequest) (*ocv1.MultiPatternReport, error) {
+	err := runSilenced(runMultiPattern)
+	if err != nil {
+		return &ocv1.MultiPatternReport{
+			Patterns: []*ocv1.CascadeReport{failedReport("multi-pattern", 36, err)},
+			TotalFail: 36,
+		}, nil
+	}
+	return &ocv1.MultiPatternReport{
+		Patterns: []*ocv1.CascadeReport{{Ticks: 36, Pass: 36}},
+		TotalPass: 36,
+	}, nil
+}
+
+func reportForRun(name string, fn func() error, ticks int32) *ocv1.CascadeReport {
+	if err := runSilenced(fn); err != nil {
+		return failedReport(name, ticks, err)
+	}
+	return &ocv1.CascadeReport{
+		Ticks: ticks,
+		Pass:  ticks,
+		Phases: []*ocv1.PhaseResult{{
+			Name: name,
+			Pass: ticks,
+		}},
+	}
+}
+
+func failedReport(name string, ticks int32, err error) *ocv1.CascadeReport {
+	return &ocv1.CascadeReport{
+		Ticks: ticks,
+		Fail:  ticks,
+		Phases: []*ocv1.PhaseResult{{
+			Name:     name,
+			Fail:     ticks,
+			Failures: []string{err.Error()},
+		}},
+	}
+}
+
+func runSilenced(fn func() error) error {
+	rpcStdoutMu.Lock()
+	defer rpcStdoutMu.Unlock()
+
+	oldStdout := os.Stdout
+	readPipe, writePipe, err := os.Pipe()
+	if err != nil {
+		return err
+	}
+	done := make(chan struct{})
+	go func() {
+		_, _ = io.Copy(io.Discard, readPipe)
+		_ = readPipe.Close()
+		close(done)
+	}()
+	os.Stdout = writePipe
+	runErr := fn()
+	_ = writePipe.Close()
+	os.Stdout = oldStdout
+	<-done
+	return runErr
+}
+
+func canonicalCommand(raw string) string {
+	replacer := strings.NewReplacer("-", "", "_", "", " ", "")
+	return replacer.Replace(strings.ToLower(strings.TrimSpace(raw)))
+}
+
 func run() error {
 	binaryPath, err := findCascadeNodeBinary()
 	if err != nil {
 		return err
 	}
 	runRoot := filepath.Join(os.Getenv("HOME"), ".op", "run")
-	transports := []string{"stdio", "tcp", "unix", "stdio"}
+	transports := []string{"tcp", "unix", "tcp", "unix"}
 
 	fmt.Println("=== observability-cascade-go ===")
 	fmt.Println()
@@ -106,8 +206,6 @@ func run() error {
 		phaseNo := phaseIdx + 1
 		if previous == "" {
 			fmt.Printf("Phase %d/%d: transport=%s\n", phaseNo, runPhases, transport)
-		} else if phaseNo == runPhases && transport == transports[0] {
-			fmt.Printf("Phase %d/%d: transport=%s (cycle wrap)\n", phaseNo, runPhases, transport)
 		} else {
 			fmt.Printf("Phase %d/%d: transport=%s (switching from %s)\n", phaseNo, runPhases, transport, previous)
 		}
@@ -1024,13 +1122,37 @@ func findHolonBinary(slug string) (string, error) {
 	if override := strings.TrimSpace(os.Getenv(envName)); override != "" {
 		return override, nil
 	}
+	if found := findBuiltBinary(localNodePackageRoot(slug), slug); found != "" {
+		return found, nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
 	root := filepath.Join(home, ".op", "bin", slug+".holon", "bin")
+	if found := findBuiltBinary(root, slug); found != "" {
+		return found, nil
+	}
+	return "", fmt.Errorf("%s binary not found under %s; run op build %s --install", slug, root, slug)
+}
+
+func localNodePackageRoot(slug string) string {
+	switch slug {
+	case goSlug:
+		return filepath.Join("holons", "observability-cascade-node", ".op", "build", "observability-cascade-node.holon", "bin")
+	case dartSlug:
+		return filepath.Join("..", "observability-cascade-dart", "holons", "observability-cascade-node", ".op", "build", "observability-cascade-node.holon", "bin")
+	default:
+		return ""
+	}
+}
+
+func findBuiltBinary(root, slug string) string {
+	if strings.TrimSpace(root) == "" {
+		return ""
+	}
 	var found string
-	err = filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil || d.IsDir() || d.Name() != slug {
 			return walkErr
 		}
@@ -1047,12 +1169,9 @@ func findHolonBinary(slug string) (string, error) {
 		return nil
 	})
 	if err != nil {
-		return "", err
+		return ""
 	}
-	if found == "" {
-		return "", fmt.Errorf("%s binary not found under %s; run op build %s --install", slug, root, slug)
-	}
-	return found, nil
+	return found
 }
 
 func passText(pass bool) string {

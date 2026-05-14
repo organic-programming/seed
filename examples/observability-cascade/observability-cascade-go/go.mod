@@ -23,6 +23,6 @@ require (
 	nhooyr.io/websocket v1.8.17 // indirect
 )
 
-replace observability-cascade-node-go => ../observability-cascade-node-go
+replace observability-cascade-node-go => ./holons/observability-cascade-node
 
 replace github.com/organic-programming/go-holons => ../../../sdk/go-holons

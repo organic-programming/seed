@@ -22,4 +22,4 @@ require (
 	nhooyr.io/websocket v1.8.17 // indirect
 )
 
-replace github.com/organic-programming/go-holons => ../../../sdk/go-holons
+replace github.com/organic-programming/go-holons => ../../../../../sdk/go-holons
