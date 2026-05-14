@@ -60,7 +60,8 @@ func manifestHasPrimaryArtifact(manifest *LoadedManifest) bool {
 	if manifest == nil {
 		return false
 	}
-	return strings.TrimSpace(manifest.Manifest.Artifacts.Primary) != ""
+	primary := strings.TrimSpace(manifest.Manifest.Artifacts.Primary)
+	return primary != "" && !isHolonPackagePath(primary)
 }
 
 func requireRunnerCommands(commands ...string) error {
