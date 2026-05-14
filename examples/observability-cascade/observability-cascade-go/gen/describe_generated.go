@@ -20,10 +20,9 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 			},
 			Description: "A Go composite program that validates observability-cascade observability across three modes and patterns.",
 			Lang:        "go",
-			Kind:        "native",
+			Kind:        "composite",
 			Build: &holonsv1.HolonManifest_Build{
-				Runner: "go-module",
-				Main:   "./cmd",
+				Runner: "recipe",
 			},
 			Requires: &holonsv1.HolonManifest_Requires{
 				Files: []string{
@@ -31,7 +30,211 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 				},
 			},
 			Artifacts: &holonsv1.HolonManifest_Artifacts{
-				Binary: "observability-cascade-go",
+				Primary: ".op/build/observability-cascade-go.holon",
+			},
+		},
+		Services: []*holonsv1.ServiceDoc{
+			&holonsv1.ServiceDoc{
+				Name: "observability_cascade.v1.ObservabilityCascadeService",
+				Methods: []*holonsv1.MethodDoc{
+					&holonsv1.MethodDoc{
+						Name:        "RunDefault",
+						Description: "Run the default 4-deep chain in this composite's own language.",
+						InputType:   "observability_cascade.v1.RunRequest",
+						OutputType:  "observability_cascade.v1.CascadeReport",
+						OutputFields: []*holonsv1.FieldDoc{
+							&holonsv1.FieldDoc{
+								Name:   "ticks",
+								Type:   "int32",
+								Number: 1,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "pass",
+								Type:   "int32",
+								Number: 2,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "fail",
+								Type:   "int32",
+								Number: 3,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "phases",
+								Type:   "observability_cascade.v1.PhaseResult",
+								Number: 4,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
+								NestedFields: []*holonsv1.FieldDoc{
+									&holonsv1.FieldDoc{
+										Name:   "name",
+										Type:   "string",
+										Number: 1,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+									},
+									&holonsv1.FieldDoc{
+										Name:   "pass",
+										Type:   "int32",
+										Number: 2,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+									},
+									&holonsv1.FieldDoc{
+										Name:   "fail",
+										Type:   "int32",
+										Number: 3,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+									},
+									&holonsv1.FieldDoc{
+										Name:   "failures",
+										Type:   "string",
+										Number: 4,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
+									},
+								},
+							},
+						},
+						ExampleInput: "{}",
+					},
+					&holonsv1.MethodDoc{
+						Name:        "RunLiveStream",
+						Description: "Run with long-lived Follow:true streams.",
+						InputType:   "observability_cascade.v1.RunRequest",
+						OutputType:  "observability_cascade.v1.CascadeReport",
+						OutputFields: []*holonsv1.FieldDoc{
+							&holonsv1.FieldDoc{
+								Name:   "ticks",
+								Type:   "int32",
+								Number: 1,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "pass",
+								Type:   "int32",
+								Number: 2,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "fail",
+								Type:   "int32",
+								Number: 3,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "phases",
+								Type:   "observability_cascade.v1.PhaseResult",
+								Number: 4,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
+								NestedFields: []*holonsv1.FieldDoc{
+									&holonsv1.FieldDoc{
+										Name:   "name",
+										Type:   "string",
+										Number: 1,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+									},
+									&holonsv1.FieldDoc{
+										Name:   "pass",
+										Type:   "int32",
+										Number: 2,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+									},
+									&holonsv1.FieldDoc{
+										Name:   "fail",
+										Type:   "int32",
+										Number: 3,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+									},
+									&holonsv1.FieldDoc{
+										Name:   "failures",
+										Type:   "string",
+										Number: 4,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
+									},
+								},
+							},
+						},
+						ExampleInput: "{}",
+					},
+					&holonsv1.MethodDoc{
+						Name:        "RunMultiPattern",
+						Description: "Run the full alter-language pattern matrix (3 patterns x 12 ticks = 36 ticks).",
+						InputType:   "observability_cascade.v1.RunRequest",
+						OutputType:  "observability_cascade.v1.MultiPatternReport",
+						OutputFields: []*holonsv1.FieldDoc{
+							&holonsv1.FieldDoc{
+								Name:   "patterns",
+								Type:   "observability_cascade.v1.CascadeReport",
+								Number: 1,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
+								NestedFields: []*holonsv1.FieldDoc{
+									&holonsv1.FieldDoc{
+										Name:   "ticks",
+										Type:   "int32",
+										Number: 1,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+									},
+									&holonsv1.FieldDoc{
+										Name:   "pass",
+										Type:   "int32",
+										Number: 2,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+									},
+									&holonsv1.FieldDoc{
+										Name:   "fail",
+										Type:   "int32",
+										Number: 3,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+									},
+									&holonsv1.FieldDoc{
+										Name:   "phases",
+										Type:   "observability_cascade.v1.PhaseResult",
+										Number: 4,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
+										NestedFields: []*holonsv1.FieldDoc{
+											&holonsv1.FieldDoc{
+												Name:   "name",
+												Type:   "string",
+												Number: 1,
+												Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+											},
+											&holonsv1.FieldDoc{
+												Name:   "pass",
+												Type:   "int32",
+												Number: 2,
+												Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+											},
+											&holonsv1.FieldDoc{
+												Name:   "fail",
+												Type:   "int32",
+												Number: 3,
+												Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+											},
+											&holonsv1.FieldDoc{
+												Name:   "failures",
+												Type:   "string",
+												Number: 4,
+												Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
+											},
+										},
+									},
+								},
+							},
+							&holonsv1.FieldDoc{
+								Name:   "total_pass",
+								Type:   "int32",
+								Number: 2,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+							&holonsv1.FieldDoc{
+								Name:   "total_fail",
+								Type:   "int32",
+								Number: 3,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+							},
+						},
+						ExampleInput: "{}",
+					},
+				},
 			},
 		},
 	}
