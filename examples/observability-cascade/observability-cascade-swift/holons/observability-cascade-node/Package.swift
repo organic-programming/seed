@@ -10,7 +10,7 @@ let package = Package(
         .executable(name: "observability-cascade-node-swift", targets: ["observability-cascade-node-swift"]),
     ],
     dependencies: [
-        .package(path: "../../../sdk/swift-holons"),
+        .package(path: "../../../../../sdk/swift-holons"),
         .package(url: "https://github.com/grpc/grpc-swift.git", exact: "1.9.0"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.36.0"),
         .package(url: "https://github.com/apple/swift-protobuf.git", from: "1.35.0"),
