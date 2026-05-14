@@ -64,6 +64,9 @@ add_library(gabriel_greeting_cpp_lib
   "${HOLONS_SDK_ROOT}/gen/cpp/holons/v1/manifest.pb.cc"
   "${HOLONS_SDK_ROOT}/gen/cpp/holons/v1/describe.pb.cc"
   "${HOLONS_SDK_ROOT}/gen/cpp/holons/v1/describe.grpc.pb.cc"
+  "${HOLONS_SDK_ROOT}/gen/cpp/holons/v1/observability.pb.cc"
+  "${HOLONS_SDK_ROOT}/gen/cpp/holons/v1/observability.grpc.pb.cc"
+  "${HOLONS_SDK_ROOT}/gen/cpp/holons/v1/session.pb.cc"
 )
 
 target_include_directories(gabriel_greeting_cpp_lib
