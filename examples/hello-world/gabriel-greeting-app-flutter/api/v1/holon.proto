@@ -106,19 +106,6 @@ option (holons.v1.manifest) = {
     targets: {
       key: "macos"
       value: {
-        steps: { build_member: "greeting-go" }
-        steps: { build_member: "greeting-swift" }
-        steps: { build_member: "greeting-rust" }
-        steps: { build_member: "greeting-zig" }
-        steps: { build_member: "greeting-python" }
-        steps: { build_member: "greeting-c" }
-        steps: { build_member: "greeting-cpp" }
-        steps: { build_member: "greeting-csharp" }
-        steps: { build_member: "greeting-dart" }
-        steps: { build_member: "greeting-java" }
-        steps: { build_member: "greeting-kotlin" }
-        steps: { build_member: "greeting-node" }
-        steps: { build_member: "greeting-ruby" }
         steps: {
           exec: {
             cwd: "app"
@@ -152,19 +139,6 @@ option (holons.v1.manifest) = {
     targets: {
       key: "windows"
       value: {
-        steps: { build_member: "greeting-go" }
-        steps: { build_member: "greeting-swift" }
-        steps: { build_member: "greeting-rust" }
-        steps: { build_member: "greeting-zig" }
-        steps: { build_member: "greeting-python" }
-        steps: { build_member: "greeting-c" }
-        steps: { build_member: "greeting-cpp" }
-        steps: { build_member: "greeting-csharp" }
-        steps: { build_member: "greeting-dart" }
-        steps: { build_member: "greeting-java" }
-        steps: { build_member: "greeting-kotlin" }
-        steps: { build_member: "greeting-node" }
-        steps: { build_member: "greeting-ruby" }
         steps: {
           exec: {
             cwd: "app"
@@ -198,19 +172,6 @@ option (holons.v1.manifest) = {
     targets: {
       key: "linux"
       value: {
-        steps: { build_member: "greeting-go" }
-        steps: { build_member: "greeting-swift" }
-        steps: { build_member: "greeting-rust" }
-        steps: { build_member: "greeting-zig" }
-        steps: { build_member: "greeting-python" }
-        steps: { build_member: "greeting-c" }
-        steps: { build_member: "greeting-cpp" }
-        steps: { build_member: "greeting-csharp" }
-        steps: { build_member: "greeting-dart" }
-        steps: { build_member: "greeting-java" }
-        steps: { build_member: "greeting-kotlin" }
-        steps: { build_member: "greeting-node" }
-        steps: { build_member: "greeting-ruby" }
         steps: {
           exec: {
             cwd: "app"
