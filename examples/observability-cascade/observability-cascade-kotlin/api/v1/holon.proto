@@ -3,6 +3,7 @@ syntax = "proto3";
 package observability.cascade.kotlin.v1;
 
 import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
 
 option (holons.v1.manifest) = {
   identity: {
@@ -18,10 +19,44 @@ option (holons.v1.manifest) = {
   }
   description: "A Kotlin composite program that validates observability-cascade observability across three modes and patterns."
   lang: "kotlin"
-  kind: "native"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
   build: {
-    runner: "gradle"
-    main: "./src/main/kotlin/org/organicprogramming/observability/cascade/kotlinapp/Main.kt"
+    runner: "recipe"
+    codegen: {
+      languages: ["kotlin-java", "kotlin-java-grpc", "kotlin", "kotlin-grpc"]
+    }
+    defaults: {
+      target: "macos"
+      mode: "debug"
+    }
+    members: {
+      id: "node"
+      path: "./holons/observability-cascade-node"
+      type: "holon"
+    }
+    targets: {
+      key: "macos"
+      value: {
+        steps: { build_member: "node" }
+        steps: {
+          exec: {
+            cwd: "."
+            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-kotlin.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\"\ngradle --no-daemon installDist >/dev/null\nmkdir -p \"$pkg/bin/$arch\" \"$pkg/bin/lib\"\ncp build/install/observability-cascade-kotlin/bin/observability-cascade-kotlin \"$pkg/bin/$arch/observability-cascade-kotlin\"\ncp -R build/install/observability-cascade-kotlin/lib/. \"$pkg/bin/lib/\"\nchmod +x \"$pkg/bin/$arch/observability-cascade-kotlin\""]
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/observability-cascade-kotlin.holon/bin/darwin_arm64/observability-cascade-kotlin"
+          }
+        }
+      }
+    }
   }
   requires: {
     commands: ["java", "gradle"]
@@ -29,6 +64,6 @@ option (holons.v1.manifest) = {
     sdk_prebuilts: ["kotlin"]
   }
   artifacts: {
-    binary: "observability-cascade-kotlin"
+    primary: ".op/build/observability-cascade-kotlin.holon"
   }
 };
