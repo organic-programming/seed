@@ -768,8 +768,8 @@ func shouldSkipMirrorPath(rel string, info os.FileInfo) bool {
 			return true
 		}
 		// Example builds can leave recursive install trees under examples/**/bin/default.
-		// They are generated artifacts, not source inputs for mirrored integration workspaces.
-		if base == "bin" && len(parts) >= 2 && parts[0] == "examples" {
+		// Keep source-level bin directories such as Dart, Node, Python, and Ruby entrypoints.
+		if base == "default" && len(parts) >= 3 && parts[0] == "examples" && parts[len(parts)-2] == "bin" {
 			return true
 		}
 	}
