@@ -16,39 +16,23 @@ import time
 from dataclasses import dataclass, field
 from urllib.request import urlopen
 
-HERE = pathlib.Path(
-    os.environ.get(
-        "OBSERVABILITY_CASCADE_PYTHON_SOURCE_ROOT",
-        pathlib.Path(__file__).resolve().parents[1],
-    )
-).resolve()
+HERE = pathlib.Path(__file__).resolve().parents[1]
+PY_GEN = HERE / "gen" / "python"
 
 
-def find_repo_root(start: pathlib.Path) -> pathlib.Path:
+def find_repo_root(start: pathlib.Path) -> pathlib.Path | None:
     for candidate in [start, *start.parents]:
         if (candidate / "sdk" / "python-holons").is_dir():
             return candidate
-    raise RuntimeError("could not locate repository root")
-
-
-def find_cascade_root(start: pathlib.Path) -> pathlib.Path:
-    for candidate in [start, *start.parents]:
-        parent = candidate.parent
-        if (candidate / "holons" / "observability-cascade-node").is_dir():
-            return candidate
-        if (parent / "observability-cascade-node-python").is_dir():
-            return parent
-    raise RuntimeError("could not locate observability-cascade examples root")
+    return None
 
 
 ROOT = find_repo_root(HERE)
-CASCADE_ROOT = find_cascade_root(HERE)
-EXAMPLES_ROOT = HERE.parent
-PY_NODE = CASCADE_ROOT / "holons" / "observability-cascade-node"
-SDK_ROOT = ROOT / "sdk" / "python-holons"
-PY_GEN = HERE / "gen" / "python"
+SDK_ROOT = ROOT / "sdk" / "python-holons" if ROOT is not None else None
 
-for path in (HERE, PY_GEN, PY_NODE / "gen" / "python", SDK_ROOT):
+for path in (HERE, PY_GEN, SDK_ROOT):
+    if path is None:
+        continue
     text = str(path)
     if text not in sys.path:
         sys.path.insert(0, text)
@@ -56,6 +40,7 @@ for path in (HERE, PY_GEN, PY_NODE / "gen" / "python", SDK_ROOT):
 import grpc
 from gen import describe_generated
 from holons import describe
+from holons.composite import member as composite_member
 from holons.serve import ServeOptions, parse_options, run_with_serve_options
 from holons.v1 import describe_pb2, describe_pb2_grpc, observability_pb2, observability_pb2_grpc
 from observability_cascade.v1 import service_pb2, service_pb2_grpc
@@ -65,8 +50,8 @@ RUN_PHASES = 4
 RUN_TICKS = 3
 ROLE_ORDER = ["D", "C", "B", "A"]
 TRANSPORTS = ["tcp", "unix", "tcp", "unix"]
-PY_SLUG = "observability-cascade-node-python"
-GO_SLUG = "observability-cascade-node-go"
+PY_SLUG = "observability-cascade-python-node"
+GO_SLUG = "observability-cascade-go-node"
 
 
 @dataclass(frozen=True)
@@ -669,7 +654,15 @@ def start_role(cascade: Cascade, runtime: RoleRuntime) -> None:
         runtime.metrics_addr = meta["metrics_addr"]
         runtime.channel = dial_ready(runtime.client_target, 10.0)
     except Exception:
-        stderr = proc.stderr.read() if proc.stderr else ""
+        try:
+            _, stderr = proc.communicate(timeout=1)
+        except subprocess.TimeoutExpired:
+            proc.terminate()
+            try:
+                _, stderr = proc.communicate(timeout=1)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                _, stderr = proc.communicate(timeout=1)
         raise RuntimeError(f"start {runtime.role}: {stderr}") from None
 
 
@@ -750,28 +743,11 @@ def wait_for(timeout: float, fn, interval: float = 0.1) -> CheckResult:
 
 
 def find_binary(slug: str) -> str:
-    env_name = "OBSERVABILITY_CASCADE_NODE_" + slug.removeprefix("observability-cascade-node-").upper().replace("-", "_") + "_BIN"
-    override = os.environ.get(env_name, "").strip()
-    if override:
-        return override
+    if slug == PY_SLUG:
+        return composite_member("python-node")
 
     roots: list[pathlib.Path] = []
-    if slug == PY_SLUG:
-        roots.extend(
-            [
-                PY_NODE / ".op" / "build" / "observability-cascade-node.holon" / "bin",
-                PY_NODE / ".op" / "build" / "observability-cascade-node-python.holon" / "bin",
-            ]
-        )
-    if slug == GO_SLUG:
-        go_node = EXAMPLES_ROOT / "observability-cascade-go" / "holons" / "observability-cascade-node"
-        roots.extend(
-            [
-                go_node / ".op" / "build" / "observability-cascade-node.holon" / "bin",
-                go_node / ".op" / "build" / "observability-cascade-node-go.holon" / "bin",
-            ]
-        )
-    roots.append(pathlib.Path.home() / ".op" / "bin" / f"{slug}.holon" / "bin")
+    roots.append(pathlib.Path(os.environ.get("OPBIN", pathlib.Path.home() / ".op" / "bin")) / f"{slug}.holon" / "bin")
     for root in roots:
         if not root.exists():
             continue
@@ -780,7 +756,7 @@ def find_binary(slug: str) -> str:
                 return str(path)
 
     try:
-        path = subprocess.check_output(["op", "--bin", slug], cwd=ROOT, text=True, stderr=subprocess.DEVNULL).strip()
+        path = subprocess.check_output(["op", "--bin", slug], cwd=ROOT or HERE, text=True, stderr=subprocess.DEVNULL).strip()
         if path:
             return path
     except Exception:

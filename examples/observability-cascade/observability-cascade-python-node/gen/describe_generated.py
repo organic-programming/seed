@@ -12,8 +12,8 @@ def static_describe_response() -> describe_pb2.DescribeResponse:
         identity=manifest_pb2.HolonManifest.Identity(
             schema="holon/v1",
             uuid="3c7fb5bf-af35-4bfd-b380-3bb2532c1a4b",
-            given_name="observability-cascade",
-            family_name="node-python",
+            given_name="Observability",
+            family_name="Cascade-Python-Node",
             motto="Minimal observability cascade node.",
             composer="B. ALTER",
             status="draft",
@@ -35,7 +35,7 @@ def static_describe_response() -> describe_pb2.DescribeResponse:
             ],
         ),
         artifacts=manifest_pb2.HolonManifest.Artifacts(
-            binary="observability-cascade-node-python",
+            binary="observability-cascade-python-node",
         ),
         sequences=[
             manifest_pb2.HolonManifest.Sequence(
@@ -53,7 +53,7 @@ def static_describe_response() -> describe_pb2.DescribeResponse:
                     ),
                 ],
                 steps=[
-                    "op observability-cascade-node-python Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'",
+                    "op observability-cascade-python-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'",
                 ],
             ),
         ],

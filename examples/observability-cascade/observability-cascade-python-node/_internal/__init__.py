@@ -1,1 +1,1 @@
-"""Internal implementation for observability-cascade-node-python."""
+"""Internal implementation for observability-cascade-python-node."""

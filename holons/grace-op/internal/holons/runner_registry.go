@@ -1104,8 +1104,14 @@ func (pythonRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 	if strings.TrimSpace(pythonPath) == "" {
 		pythonPath = argsOrDefaultPythonPathForManifest(manifest)
 	}
+	pythonPathEntries := []string{isolatedDir, filepath.Join(isolatedDir, "gen", "python")}
+	if sdkRoot := pythonSDKRootForManifest(manifest); sdkRoot != "" {
+		pythonPathEntries = append(pythonPathEntries, sdkRoot)
+	}
 	wrapper := fmt.Sprintf(
-		"#!/bin/sh\nset -eu\nexec %q %q \"$@\"\n",
+		"#!/bin/sh\nset -eu\nOP_HOLON_EXECUTABLE=\"$0\"\nexport OP_HOLON_EXECUTABLE\nPYTHONPATH=%q${PYTHONPATH:+%s$PYTHONPATH}\nexport PYTHONPATH\nexec %q %q \"$@\"\n",
+		strings.Join(pythonPathEntries, string(os.PathListSeparator)),
+		string(os.PathListSeparator),
 		pythonPath,
 		filepath.Join(isolatedDir, filepath.FromSlash(entrypoint)),
 	)
@@ -1114,6 +1120,19 @@ func (pythonRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Re
 	}
 	report.Notes = append(report.Notes, fmt.Sprintf("python launcher prepared for %s", entrypoint))
 	return nil
+}
+
+func pythonSDKRootForManifest(manifest *LoadedManifest) string {
+	for dir := filepath.Clean(manifest.Dir); ; dir = filepath.Dir(dir) {
+		candidate := filepath.Join(dir, "sdk", "python-holons")
+		if dirExists(candidate) {
+			return candidate
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+	}
 }
 
 func argsOrDefaultPython() string {

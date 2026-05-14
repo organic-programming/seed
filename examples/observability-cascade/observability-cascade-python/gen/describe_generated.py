@@ -12,8 +12,8 @@ def static_describe_response() -> describe_pb2.DescribeResponse:
         identity=manifest_pb2.HolonManifest.Identity(
             schema="holon/v1",
             uuid="2da61fdd-4a33-42ab-ab98-d66a2886a123",
-            given_name="observability-cascade",
-            family_name="python-composite",
+            given_name="Observability",
+            family_name="Cascade-Python",
             motto="Validates Python observability cascade observability.",
             composer="B. ALTER",
             status="draft",
@@ -24,7 +24,8 @@ def static_describe_response() -> describe_pb2.DescribeResponse:
         lang="python",
         kind="composite",
         build=manifest_pb2.HolonManifest.Build(
-            runner="recipe",
+            runner="python",
+            main="./cmd/main.py",
         ),
         requires=manifest_pb2.HolonManifest.Requires(
             files=[

@@ -13,6 +13,7 @@ if _GENERATED_PACKAGE_DIR.is_dir():
         __path__.append(generated_path)
 
 from .connect import connect, disconnect
+from .composite import member
 from .discover import Discover, resolve
 from .discovery_types import (
     ALL,
@@ -43,6 +44,7 @@ _MODULE_EXPORTS = [
     "grpcclient",
     "holonrpc",
     "describe",
+    "composite",
 ]
 
 __all__ = [
@@ -50,6 +52,7 @@ __all__ = [
     "resolve",
     "connect",
     "disconnect",
+    "member",
     "LOCAL",
     "PROXY",
     "DELEGATED",

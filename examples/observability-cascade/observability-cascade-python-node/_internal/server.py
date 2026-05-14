@@ -65,7 +65,7 @@ def listen_and_serve(
         ServeOptions(
             reflect=reflect,
             member_endpoints=tuple(members),
-            slug="observability-cascade-node-python",
+            slug="observability-cascade-python-node",
         ),
         on_listen=on_listen,
     )
@@ -81,4 +81,4 @@ def responder_slug(obs: observability.Observability) -> str:
     configured = obs.cfg.slug.strip()
     if configured:
         return configured
-    return Path(sys.argv[0]).name or "observability-cascade-node-python"
+    return Path(sys.argv[0]).name or "observability-cascade-python-node"

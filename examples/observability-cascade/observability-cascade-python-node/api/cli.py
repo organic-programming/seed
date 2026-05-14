@@ -12,7 +12,7 @@ from holons.serve import MemberRef, parse_options
 
 from _internal import server as server_impl
 
-VERSION = "observability-cascade-node-python 0.1.0"
+VERSION = "observability-cascade-python-node 0.1.0"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -90,7 +90,7 @@ def canonical_command(raw: str) -> str:
 
 
 def print_usage(output: TextIO) -> None:
-    print("usage: observability-cascade-node-python <command> [args] [flags]", file=output)
+    print("usage: observability-cascade-python-node <command> [args] [flags]", file=output)
     print("", file=output)
     print("commands:", file=output)
     print("  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server", file=output)

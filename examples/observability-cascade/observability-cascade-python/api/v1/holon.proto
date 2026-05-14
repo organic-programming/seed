@@ -27,33 +27,13 @@ option (holons.v1.manifest) = {
     rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
   }
   build: {
-    runner: "recipe"
+    runner: "python"
+    main: "./cmd/main.py"
     codegen: { languages: ["python"] }
-    defaults: {
-      target: "macos"
-      mode: "debug"
-    }
     members: {
       id: "python-node"
       path: "../observability-cascade-python-node"
       type: "holon"
-    }
-    targets: {
-      key: "macos"
-      value: {
-        steps: { build_member: "python-node" }
-        steps: {
-          exec: {
-            cwd: "."
-            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-python.holon}\"\narch=\"darwin_arm64\"\nbuild=\".op/build/python\"\nrm -rf \"$pkg\" \"$build\"\nmkdir -p \"$pkg/bin/$arch\" \"$build\"\npython3 -m venv \"$build/.venv\"\n\"$build/.venv/bin/python\" -m pip install --upgrade pip >/dev/null\n\"$build/.venv/bin/python\" -m pip install -r requirements.txt >/dev/null\ncp -R cmd gen \"$build/\"\ncat > \"$pkg/bin/$arch/observability-cascade-python\" <<EOF\n#!/bin/sh\nset -eu\nOBSERVABILITY_CASCADE_PYTHON_SOURCE_ROOT=\"$PWD\" exec \"$PWD/$build/.venv/bin/python\" \"$PWD/$build/cmd/main.py\" \"\\$@\"\nEOF\nchmod +x \"$pkg/bin/$arch/observability-cascade-python\""]
-          }
-        }
-        steps: {
-          assert_file: {
-            path: ".op/build/observability-cascade-python.holon/bin/darwin_arm64/observability-cascade-python"
-          }
-        }
-      }
     }
   }
   requires: {

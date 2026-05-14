@@ -14,6 +14,7 @@ import json
 import math
 import os
 import queue
+import socketserver
 import sys
 import threading
 import time
@@ -897,6 +898,14 @@ def _match_event(event: Event, wanted: set[int]) -> bool:
 # --- Prometheus exposition ----------------------------------------------------
 
 
+class _FastThreadingHTTPServer(ThreadingHTTPServer):
+    def server_bind(self) -> None:
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = str(host)
+        self.server_port = int(port)
+
+
 class PromServer:
     def __init__(self, addr: str = ":0") -> None:
         self.addr = addr or ":0"
@@ -909,7 +918,7 @@ class PromServer:
             if self._server is not None:
                 return self._addr_url_unlocked()
             host, port = _parse_prom_addr(self.addr)
-            server = ThreadingHTTPServer((host, port), _PromHandler)
+            server = _FastThreadingHTTPServer((host, port), _PromHandler)
             server.daemon_threads = True
             self._server = server
             self._thread = threading.Thread(target=server.serve_forever, daemon=True)

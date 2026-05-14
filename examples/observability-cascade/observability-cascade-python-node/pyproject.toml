@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "observability-cascade-node-python"
+name = "observability-cascade-python-node"
 version = "0.1.0"
 description = "Minimal Python observability cascade holon."
 requires-python = ">=3.10"
