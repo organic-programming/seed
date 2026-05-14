@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 
@@ -39,13 +40,47 @@ func TestNew_CLI_ListTemplates(t *testing.T) {
 	result := sb.RunOPWithOptions(t, integration.RunOptions{SkipDiscoverRoot: true, WorkDir: root}, "new", "--list")
 	integration.RequireSuccess(t, result)
 	got := strings.Split(strings.TrimSpace(result.Stdout), "\n")
-	want := []string{
-		"coax-flutter\tFlutter organism app holon scaffold with reusable COAX runtime and UI.",
-		"coax-swiftui\tSwiftUI organism app holon scaffold with reusable COAX runtime and UI.",
-	}
+	want := expectedTemplateListLines()
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("template list = %v, want %v", got, want)
 	}
+}
+
+func expectedTemplateListLines() []string {
+	descriptions := map[string]string{
+		"coax-flutter": "Flutter organism app holon scaffold with reusable COAX runtime and UI.",
+		"coax-swiftui": "SwiftUI organism app holon scaffold with reusable COAX runtime and UI.",
+	}
+	labels := map[string]string{
+		"c":      "C",
+		"cpp":    "C++",
+		"csharp": "C#",
+		"dart":   "Dart",
+		"go":     "Go",
+		"java":   "Java",
+		"kotlin": "Kotlin",
+		"node":   "Node.js",
+		"python": "Python",
+		"ruby":   "Ruby",
+		"rust":   "Rust",
+		"swift":  "Swift",
+		"zig":    "Zig",
+	}
+	names := make([]string, 0, len(descriptions)+len(labels)*2)
+	for name := range descriptions {
+		names = append(names, name)
+	}
+	for language, label := range labels {
+		descriptions[language] = label + " atomic holon scaffold template entry."
+		descriptions["composite-"+language] = label + " composite holon scaffold template entry."
+		names = append(names, language, "composite-"+language)
+	}
+	sort.Strings(names)
+	lines := make([]string, 0, len(names))
+	for _, name := range names {
+		lines = append(lines, name+"\t"+descriptions[name])
+	}
+	return lines
 }
 
 func TestNew_CLI_TemplateJSONOutput(t *testing.T) {
