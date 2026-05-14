@@ -3,6 +3,7 @@ syntax = "proto3";
 package observability.cascade.python.v1;
 
 import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
 
 option (holons.v1.manifest) = {
   identity: {
@@ -18,10 +19,42 @@ option (holons.v1.manifest) = {
   }
   description: "A Python composite program that validates observability-cascade observability across three modes and patterns."
   lang: "python"
-  kind: "native"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
   build: {
-    runner: "python"
-    main: "./bin/main.py"
+    runner: "recipe"
+    codegen: { languages: ["python"] }
+    defaults: {
+      target: "macos"
+      mode: "debug"
+    }
+    members: {
+      id: "node"
+      path: "./holons/observability-cascade-node"
+      type: "holon"
+    }
+    targets: {
+      key: "macos"
+      value: {
+        steps: { build_member: "node" }
+        steps: {
+          exec: {
+            cwd: "."
+            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-python.holon}\"\narch=\"darwin_arm64\"\nbuild=\".op/build/python\"\nrm -rf \"$pkg\" \"$build\"\nmkdir -p \"$pkg/bin/$arch\" \"$build\"\npython3 -m venv \"$build/.venv\"\n\"$build/.venv/bin/python\" -m pip install --upgrade pip >/dev/null\n\"$build/.venv/bin/python\" -m pip install -r requirements.txt >/dev/null\ncp -R bin gen \"$build/\"\ncat > \"$pkg/bin/$arch/observability-cascade-python\" <<EOF\n#!/bin/sh\nset -eu\nOBSERVABILITY_CASCADE_PYTHON_SOURCE_ROOT=\"$PWD\" exec \"$PWD/$build/.venv/bin/python\" \"$PWD/$build/bin/main.py\" \"\\$@\"\nEOF\nchmod +x \"$pkg/bin/$arch/observability-cascade-python\""]
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/observability-cascade-python.holon/bin/darwin_arm64/observability-cascade-python"
+          }
+        }
+      }
+    }
   }
   requires: {
     commands: ["python3"]
@@ -29,6 +62,6 @@ option (holons.v1.manifest) = {
     sdk_prebuilts: ["python"]
   }
   artifacts: {
-    binary: "observability-cascade-python"
+    primary: ".op/build/observability-cascade-python.holon"
   }
 };
