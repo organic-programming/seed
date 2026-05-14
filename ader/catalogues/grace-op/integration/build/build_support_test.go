@@ -429,12 +429,36 @@ func assertSourceReport(t *testing.T, label string, report *lifecycleSnapshot, h
 	}
 	wantDir := filepath.ToSlash(integration.HolonPathForSlug(holon))
 	wantManifest := filepath.ToSlash(filepath.Join(integration.HolonPathForSlug(holon), "api", "v1", "holon.proto"))
-	if report.Dir != wantDir {
-		t.Fatalf("%s dir = %q, want %q", label, report.Dir, wantDir)
+	gotDir := normalizeSourceReportPath(t, report.Dir)
+	gotManifest := normalizeSourceReportPath(t, report.Manifest)
+	if gotDir != wantDir {
+		t.Fatalf("%s dir = %q, normalized %q, want %q", label, report.Dir, gotDir, wantDir)
 	}
-	if report.Manifest != wantManifest {
-		t.Fatalf("%s manifest = %q, want %q", label, report.Manifest, wantManifest)
+	if gotManifest != wantManifest {
+		t.Fatalf("%s manifest = %q, normalized %q, want %q", label, report.Manifest, gotManifest, wantManifest)
 	}
+}
+
+func normalizeSourceReportPath(t *testing.T, pathValue string) string {
+	t.Helper()
+
+	clean := filepath.Clean(pathValue)
+	root := absoluteRootPath(t)
+	if filepath.IsAbs(clean) {
+		if rel, err := filepath.Rel(root, clean); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return filepath.ToSlash(rel)
+		}
+	}
+
+	slash := filepath.ToSlash(clean)
+	rootSlash := filepath.ToSlash(filepath.Clean(root))
+	if strings.HasPrefix(slash, rootSlash+"/") {
+		return strings.TrimPrefix(slash, rootSlash+"/")
+	}
+	if idx := strings.LastIndex(slash, "/workspace/"); idx >= 0 {
+		return strings.TrimPrefix(slash[idx+len("/workspace/"):], "/")
+	}
+	return slash
 }
 
 func assertArtifactExists(t *testing.T, holon string) {
