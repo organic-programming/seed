@@ -198,6 +198,9 @@ func stageHolonProtos(manifest *LoadedManifest, destDir string) ([]string, error
 				base == ".venv" || base == "__pycache__" || base == ".bundle" {
 				return filepath.SkipDir
 			}
+			if isInternalHolonsDir(holonDir, path, base) {
+				return filepath.SkipDir
+			}
 			// Skip subdirectories that are themselves holons — they get
 			// their own proto stage when built as recipe members.
 			if path != holonDir {
