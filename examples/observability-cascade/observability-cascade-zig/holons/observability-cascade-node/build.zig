@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const sdk_root = "../../../sdk/zig-holons";
+const sdk_root = "../../../../../sdk/zig-holons";
 const sdk_vendor_root = sdk_root ++ "/.zig-vendor/native";
 const sdk_gen_root = sdk_root ++ "/gen/c";
 

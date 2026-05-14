@@ -3,7 +3,7 @@ const std = @import("std");
 const sdk_root = "../../../sdk/zig-holons";
 const sdk_vendor_root = sdk_root ++ "/.zig-vendor/native";
 const sdk_gen_root = sdk_root ++ "/gen/c";
-const relay_gen_root = "../observability-cascade-node-zig/gen/c";
+const relay_gen_root = "holons/observability-cascade-node/gen/c";
 
 const sdk_generated_c_sources = [_][]const u8{
     "google/protobuf/descriptor.pb-c.c",
@@ -18,7 +18,8 @@ const sdk_generated_c_sources = [_][]const u8{
     "v1/greeting.pb-c.c",
 };
 
-const app_generated_c_sources = [_][]const u8{"relay/v1/relay.pb-c.c"};
+const relay_generated_c_sources = [_][]const u8{"relay/v1/relay.pb-c.c"};
+const service_generated_c_sources = [_][]const u8{"observability_cascade/v1/service.pb-c.c"};
 
 const grpc_unsecure_static_libs = [_][]const u8{
     "grpc_unsecure",                       "address_sorting",                "upb_textformat_lib",                 "upb_reflection_lib",
@@ -70,8 +71,10 @@ fn addHolonsModule(b: *std.Build, target: std.Build.ResolvedTarget, optimize: st
     mod.addIncludePath(nativePath(b, native_root, "include"));
     mod.addIncludePath(b.path(sdk_gen_root));
     mod.addIncludePath(b.path(relay_gen_root));
+    mod.addIncludePath(b.path("gen/c"));
     mod.addCSourceFiles(.{ .root = b.path(sdk_gen_root), .files = &sdk_generated_c_sources, .flags = &.{ "-std=c99", "-Wno-unused-parameter", "-fno-sanitize=undefined" } });
-    mod.addCSourceFiles(.{ .root = b.path(relay_gen_root), .files = &app_generated_c_sources, .flags = &.{ "-std=c99", "-Wno-unused-parameter", "-fno-sanitize=undefined" } });
+    mod.addCSourceFiles(.{ .root = b.path(relay_gen_root), .files = &relay_generated_c_sources, .flags = &.{ "-std=c99", "-Wno-unused-parameter", "-fno-sanitize=undefined" } });
+    mod.addCSourceFiles(.{ .root = b.path("gen/c"), .files = &service_generated_c_sources, .flags = &.{ "-std=c99", "-Wno-unused-parameter", "-fno-sanitize=undefined" } });
     mod.addLibraryPath(nativePath(b, native_root, "lib"));
     mod.link_libc = true;
     mod.linkSystemLibrary("protobuf-c", .{ .use_pkg_config = .no, .preferred_link_mode = .static });
@@ -100,14 +103,24 @@ pub fn build(b: *std.Build) void {
     const native_root = selectedNativeRoot(b);
     const check = b.addSystemCommand(&.{ "bash", "-lc", "test -f \"$OP_SDK_ZIG_PATH/include/grpc/grpc.h\" || test -f ../../../sdk/zig-holons/.zig-vendor/native/include/grpc/grpc.h" });
     const holons_mod = addHolonsModule(b, target, optimize, native_root);
-    const app_mod = b.createModule(.{
-        .root_source_file = b.path("src/main.zig"),
+    const describe_mod = b.createModule(.{
+        .root_source_file = b.path("gen/describe_generated.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{.{ .name = "zig_holons", .module = holons_mod }},
     });
+    const app_mod = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "zig_holons", .module = holons_mod },
+            .{ .name = "describe_generated", .module = describe_mod },
+        },
+    });
     app_mod.addIncludePath(nativePath(b, native_root, "include"));
     app_mod.addIncludePath(b.path(relay_gen_root));
+    app_mod.addIncludePath(b.path("gen/c"));
     const exe = b.addExecutable(.{ .name = "observability-cascade-zig", .root_module = app_mod });
     exe.step.dependOn(&check.step);
     b.installArtifact(exe);

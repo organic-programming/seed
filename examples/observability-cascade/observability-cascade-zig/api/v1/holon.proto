@@ -3,6 +3,7 @@ syntax = "proto3";
 package observability.cascade.zig.v1;
 
 import "holons/v1/manifest.proto";
+import "observability_cascade/v1/service.proto";
 
 option (holons.v1.manifest) = {
   identity: {
@@ -18,10 +19,44 @@ option (holons.v1.manifest) = {
   }
   description: "A Zig composite program that validates observability-cascade observability across three modes and patterns."
   lang: "zig"
-  kind: "native"
+  kind: "composite"
+  transport: "tcp"
+  contract: {
+    proto: "observability_cascade/v1/service.proto"
+    service: "observability_cascade.v1.ObservabilityCascadeService"
+    rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
+  }
   build: {
-    runner: "zig"
-    main: "./src/main.zig"
+    runner: "recipe"
+    codegen: {
+      languages: ["zig"]
+    }
+    defaults: {
+      target: "macos"
+      mode: "debug"
+    }
+    members: {
+      id: "node"
+      path: "./holons/observability-cascade-node"
+      type: "holon"
+    }
+    targets: {
+      key: "macos"
+      value: {
+        steps: { build_member: "node" }
+        steps: {
+          exec: {
+            cwd: "."
+            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-zig.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\" zig-out\nzig build -Doptimize=ReleaseSafe >/dev/null\nmkdir -p \"$pkg/bin/$arch\"\ncp zig-out/bin/observability-cascade-zig \"$pkg/bin/$arch/observability-cascade-zig-real\"\ncat > \"$pkg/bin/$arch/observability-cascade-zig\" <<EOF\n#!/bin/sh\nOBSERVABILITY_CASCADE_ZIG_SOURCE_ROOT=\"$PWD\" exec \"\\$(dirname \"\\$0\")/observability-cascade-zig-real\" \"\\$@\"\nEOF\nchmod +x \"$pkg/bin/$arch/observability-cascade-zig\""]
+          }
+        }
+        steps: {
+          assert_file: {
+            path: ".op/build/observability-cascade-zig.holon/bin/darwin_arm64/observability-cascade-zig"
+          }
+        }
+      }
+    }
   }
   requires: {
     commands: ["zig"]
@@ -29,6 +64,6 @@ option (holons.v1.manifest) = {
     sdk_prebuilts: ["zig"]
   }
   artifacts: {
-    binary: "observability-cascade-zig"
+    primary: ".op/build/observability-cascade-zig.holon"
   }
 };

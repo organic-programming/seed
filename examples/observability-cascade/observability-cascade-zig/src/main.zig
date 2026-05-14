@@ -1,5 +1,6 @@
 const std = @import("std");
 const holons = @import("zig_holons");
+const describe_generated = @import("describe_generated");
 
 const c = @cImport({
     @cInclude("fcntl.h");
@@ -8,8 +9,10 @@ const c = @cImport({
     @cInclude("unistd.h");
     @cInclude("arpa/inet.h");
     @cInclude("netinet/in.h");
+    @cInclude("protobuf-c/protobuf-c.h");
     @cInclude("sys/socket.h");
     @cInclude("sys/wait.h");
+    @cInclude("observability_cascade/v1/service.pb-c.h");
     @cInclude("relay/v1/relay.pb-c.h");
 });
 
@@ -19,18 +22,42 @@ const run_ticks = 3;
 const roles = [_][]const u8{ "D", "C", "B", "A" };
 const transports = [_][]const u8{ "tcp", "unix", "tcp", "unix" };
 
+const rpc_methods = [_]holons.grpc.server.Method{
+    .{ .path = "/observability_cascade.v1.ObservabilityCascadeService/RunDefault", .handler = runDefaultRpc },
+    .{ .path = "/observability_cascade.v1.ObservabilityCascadeService/RunLiveStream", .handler = runLiveStreamRpc },
+    .{ .path = "/observability_cascade.v1.ObservabilityCascadeService/RunMultiPattern", .handler = runMultiPatternRpc },
+};
+
+const CascadeReportData = struct {
+    ticks: usize,
+    pass: usize,
+    fail: usize,
+};
+
+const MultiPatternReportData = struct {
+    total_pass: usize,
+    total_fail: usize,
+};
+
 pub fn main(init: std.process.Init.Minimal) !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
     const args = try init.args.toSlice(allocator);
     const mode = if (args.len > 1) args[1] else "";
+    holons.describe.useStaticResponse(describe_generated.staticDescribeResponse());
+    if (std.mem.eql(u8, mode, "serve")) {
+        var options = try holons.serve.parseOptions(args[1..]);
+        options.methods = rpc_methods[0..];
+        try holons.serve.runSingle(options);
+        return;
+    }
     if (std.mem.eql(u8, mode, "--multi-pattern")) {
-        try runMultiPattern(allocator);
+        _ = try runMultiPattern(allocator, true);
     } else if (std.mem.eql(u8, mode, "--live-stream")) {
-        try runMode(allocator, "=== observability-cascade-zig --live-stream ===", "Summary: {} PASS / {} FAIL across {} ticks", true);
+        _ = try runMode(allocator, "=== observability-cascade-zig --live-stream ===", "Summary: {} PASS / {} FAIL across {} ticks", true, true);
     } else {
-        try runMode(allocator, "=== observability-cascade-zig ===", "Summary: {} ticks, {} PASS, {} FAIL", false);
+        _ = try runMode(allocator, "=== observability-cascade-zig ===", "Summary: {} ticks, {} PASS, {} FAIL", false, true);
     }
 }
 
@@ -80,7 +107,50 @@ const Cascade = struct {
     }
 };
 
-fn runMode(allocator: std.mem.Allocator, header: []const u8, comptime summary_fmt: []const u8, live: bool) !void {
+fn runDefaultRpc(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
+    _ = bytes;
+    const report = try runMode(allocator, "=== observability-cascade-zig ===", "Summary: {} ticks, {} PASS, {} FAIL", false, false);
+    return packCascadeReport(allocator, report);
+}
+
+fn runLiveStreamRpc(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
+    _ = bytes;
+    const report = try runMode(allocator, "=== observability-cascade-zig --live-stream ===", "Summary: {} PASS / {} FAIL across {} ticks", true, false);
+    return packCascadeReport(allocator, report);
+}
+
+fn runMultiPatternRpc(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
+    _ = bytes;
+    const report = try runMultiPattern(allocator, false);
+    return packMultiPatternReport(allocator, report);
+}
+
+fn packCascadeReport(allocator: std.mem.Allocator, report: CascadeReportData) ![]u8 {
+    var response: c.ObservabilityCascade__V1__CascadeReport = undefined;
+    c.observability_cascade__v1__cascade_report__init(&response);
+    response.ticks = @intCast(report.ticks);
+    response.pass = @intCast(report.pass);
+    response.fail = @intCast(report.fail);
+    const len = c.observability_cascade__v1__cascade_report__get_packed_size(&response);
+    const out = try allocator.alloc(u8, len);
+    const encoded = c.observability_cascade__v1__cascade_report__pack(&response, out.ptr);
+    if (encoded != len) return error.EncodeCascadeReportFailed;
+    return out;
+}
+
+fn packMultiPatternReport(allocator: std.mem.Allocator, report: MultiPatternReportData) ![]u8 {
+    var response: c.ObservabilityCascade__V1__MultiPatternReport = undefined;
+    c.observability_cascade__v1__multi_pattern_report__init(&response);
+    response.total_pass = @intCast(report.total_pass);
+    response.total_fail = @intCast(report.total_fail);
+    const len = c.observability_cascade__v1__multi_pattern_report__get_packed_size(&response);
+    const out = try allocator.alloc(u8, len);
+    const encoded = c.observability_cascade__v1__multi_pattern_report__pack(&response, out.ptr);
+    if (encoded != len) return error.EncodeMultiPatternReportFailed;
+    return out;
+}
+
+fn runMode(allocator: std.mem.Allocator, header: []const u8, comptime summary_fmt: []const u8, live: bool, emit: bool) !CascadeReportData {
     const zig_bin = try findHolonBinary(allocator, zig_slug);
     defer allocator.free(zig_bin);
     const specs = [_]RoleSpec{
@@ -89,7 +159,7 @@ fn runMode(allocator: std.mem.Allocator, header: []const u8, comptime summary_fm
         .{ .slug = zig_slug, .binary = zig_bin },
         .{ .slug = zig_slug, .binary = zig_bin },
     };
-    try print("{s}\n\n", .{header});
+    if (emit) try print("{s}\n\n", .{header});
     var pass: usize = 0;
     var fail: usize = 0;
     for (transports, 0..) |transport, phase_idx| {
@@ -103,22 +173,23 @@ fn runMode(allocator: std.mem.Allocator, header: []const u8, comptime summary_fm
                 defer allocator.free(sender);
                 const ok, previous = try runTick(allocator, &cascade, sender, previous);
                 if (ok) pass += 1 else fail += 1;
-                try print("  Tick {}/{}: {s}\n", .{ tick_no, run_ticks, if (ok) "PASS" else "FAIL" });
+                if (emit) try print("  Tick {}/{}: {s}\n", .{ tick_no, run_ticks, if (ok) "PASS" else "FAIL" });
             }
             if (live) {
-                try print("  Phase {}/4 ({s}) complete\n", .{ phase_idx + 1, transport });
+                if (emit) try print("  Phase {}/4 ({s}) complete\n", .{ phase_idx + 1, transport });
             }
         }
     }
-    if (std.mem.eql(u8, summary_fmt, "Summary: {} ticks, {} PASS, {} FAIL")) {
+    if (emit and std.mem.eql(u8, summary_fmt, "Summary: {} ticks, {} PASS, {} FAIL")) {
         try print(summary_fmt ++ "\n", .{ pass + fail, pass, fail });
-    } else {
+    } else if (emit) {
         try print(summary_fmt ++ "\n", .{ pass, fail, pass + fail });
     }
     if (fail != 0) return error.CascadeFailed;
+    return .{ .ticks = pass + fail, .pass = pass, .fail = fail };
 }
 
-fn runMultiPattern(allocator: std.mem.Allocator) !void {
+fn runMultiPattern(allocator: std.mem.Allocator, emit: bool) !MultiPatternReportData {
     const zig_bin = try findHolonBinary(allocator, zig_slug);
     defer allocator.free(zig_bin);
     const go_bin = try findHolonBinary(allocator, go_slug);
@@ -137,11 +208,11 @@ fn runMultiPattern(allocator: std.mem.Allocator) !void {
             .{ .slug = zig_slug, .binary = zig_bin }, .{ .slug = zig_slug, .binary = zig_bin },
         } },
     };
-    try print("=== observability-cascade-zig (multi-pattern) ===\n\n", .{});
+    if (emit) try print("=== observability-cascade-zig (multi-pattern) ===\n\n", .{});
     var pass: usize = 0;
     var fail: usize = 0;
     for (patterns, 0..) |pattern, pattern_idx| {
-        try print("Pattern: {s}\n", .{pattern.name});
+        if (emit) try print("Pattern: {s}\n", .{pattern.name});
         for (transports, 0..) |transport, phase_idx| {
             const phase_id = pattern_idx * transports.len + phase_idx + 1;
             {
@@ -156,11 +227,12 @@ fn runMultiPattern(allocator: std.mem.Allocator) !void {
                     if (ok) pass += 1 else fail += 1;
                 }
             }
-            try print("  Phase {}/4 ({s}) complete\n", .{ phase_idx + 1, transport });
+            if (emit) try print("  Phase {}/4 ({s}) complete\n", .{ phase_idx + 1, transport });
         }
     }
-    try print("Summary: {} PASS / {} FAIL across {} ticks\n", .{ pass, fail, pass + fail });
+    if (emit) try print("Summary: {} PASS / {} FAIL across {} ticks\n", .{ pass, fail, pass + fail });
     if (fail != 0) return error.CascadeFailed;
+    return .{ .total_pass = pass, .total_fail = fail };
 }
 
 fn spawnCascade(allocator: std.mem.Allocator, phase: usize, transport: []const u8, specs: []const RoleSpec) !Cascade {
@@ -486,21 +558,121 @@ fn freeEvents(allocator: std.mem.Allocator, entries: []holons.observability.Even
 }
 
 fn findHolonBinary(allocator: std.mem.Allocator, slug: []const u8) ![]u8 {
+    const env_name = try binaryEnvName(allocator, slug);
+    defer allocator.free(env_name);
+    const env_name_z = try allocator.dupeZ(u8, env_name);
+    defer allocator.free(env_name_z);
+    if (getenv(env_name_z.ptr)) |value| {
+        const trimmed = std.mem.trim(u8, value, " \t\r\n");
+        if (trimmed.len != 0) return allocator.dupe(u8, trimmed);
+    }
+
+    const source_root = try findSourceRoot(allocator);
+    defer allocator.free(source_root);
+    const examples_root = std.fs.path.dirname(source_root) orelse source_root;
+    if (std.mem.eql(u8, slug, zig_slug)) {
+        const node_root = try std.fs.path.join(allocator, &.{ source_root, "holons", "observability-cascade-node" });
+        defer allocator.free(node_root);
+        if (try findExecutableInBuildRoots(allocator, node_root, slug, "observability-cascade-node-zig")) |found| return found;
+    }
+    if (std.mem.eql(u8, slug, go_slug)) {
+        const node_root = try std.fs.path.join(allocator, &.{ examples_root, "observability-cascade-go", "holons", "observability-cascade-node" });
+        defer allocator.free(node_root);
+        if (try findExecutableInBuildRoots(allocator, node_root, slug, "observability-cascade-node-go")) |found| return found;
+    }
+
+    const home = getenv("HOME") orelse return error.HomeMissing;
     const suffix = try std.fmt.allocPrint(allocator, ".op/bin/{s}.holon/bin", .{slug});
     defer allocator.free(suffix);
-    const home = getenv("HOME") orelse return error.HomeMissing;
     const root = try std.fs.path.join(allocator, &.{ home, suffix });
     defer allocator.free(root);
-    var dir = try std.Io.Dir.cwd().openDir(std.Io.Threaded.global_single_threaded.io(), root, .{ .iterate = true });
+    if (try findExecutable(allocator, root, slug)) |found| return found;
+    return error.BinaryNotFound;
+}
+
+fn binaryEnvName(allocator: std.mem.Allocator, slug: []const u8) ![]u8 {
+    const prefix = "observability-cascade-node-";
+    const raw = if (std.mem.startsWith(u8, slug, prefix)) slug[prefix.len..] else slug;
+    var out = try allocator.alloc(u8, "OBSERVABILITY_CASCADE_NODE_".len + raw.len + "_BIN".len);
+    @memcpy(out[0.."OBSERVABILITY_CASCADE_NODE_".len], "OBSERVABILITY_CASCADE_NODE_");
+    var cursor: usize = "OBSERVABILITY_CASCADE_NODE_".len;
+    for (raw) |ch| {
+        out[cursor] = if (ch == '-') '_' else std.ascii.toUpper(ch);
+        cursor += 1;
+    }
+    @memcpy(out[cursor..][0.."_BIN".len], "_BIN");
+    return out;
+}
+
+fn findSourceRoot(allocator: std.mem.Allocator) ![]u8 {
+    const env_name = "OBSERVABILITY_CASCADE_ZIG_SOURCE_ROOT";
+    if (getenv(env_name)) |value| {
+        const trimmed = std.mem.trim(u8, value, " \t\r\n");
+        if (trimmed.len != 0) return allocator.dupe(u8, trimmed);
+    }
+    var cwd_buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const cwd_len = try std.Io.Dir.cwd().realPath(std.Io.Threaded.global_single_threaded.io(), &cwd_buffer);
+    var current = try allocator.dupe(u8, cwd_buffer[0..cwd_len]);
+    errdefer allocator.free(current);
+    while (true) {
+        if (try isSourceRoot(allocator, current)) return current;
+        const nested = try std.fs.path.join(allocator, &.{ current, "examples", "observability-cascade", "observability-cascade-zig" });
+        defer allocator.free(nested);
+        if (try isSourceRoot(allocator, nested)) {
+            allocator.free(current);
+            return allocator.dupe(u8, nested);
+        }
+        const parent = std.fs.path.dirname(current) orelse break;
+        if (std.mem.eql(u8, parent, current)) break;
+        const next = try allocator.dupe(u8, parent);
+        allocator.free(current);
+        current = next;
+    }
+    allocator.free(current);
+    return error.SourceRootNotFound;
+}
+
+fn isSourceRoot(allocator: std.mem.Allocator, root: []const u8) !bool {
+    const manifest = try std.fs.path.join(allocator, &.{ root, "api", "v1", "holon.proto" });
+    defer allocator.free(manifest);
+    const node = try std.fs.path.join(allocator, &.{ root, "holons", "observability-cascade-node" });
+    defer allocator.free(node);
+    return fileExists(allocator, manifest) and fileExists(allocator, node);
+}
+
+fn fileExists(allocator: std.mem.Allocator, path: []const u8) bool {
+    const zpath = allocator.dupeZ(u8, path) catch return false;
+    defer allocator.free(zpath);
+    return c.access(zpath.ptr, c.F_OK) == 0;
+}
+
+fn findExecutableInBuildRoots(
+    allocator: std.mem.Allocator,
+    node_root: []const u8,
+    slug: []const u8,
+    package_slug: []const u8,
+) !?[]u8 {
+    const primary = try std.fs.path.join(allocator, &.{ node_root, ".op", "build", "observability-cascade-node.holon", "bin" });
+    defer allocator.free(primary);
+    if (try findExecutable(allocator, primary, slug)) |found| return found;
+    const secondary_dir = try std.fmt.allocPrint(allocator, "{s}.holon", .{package_slug});
+    defer allocator.free(secondary_dir);
+    const secondary = try std.fs.path.join(allocator, &.{ node_root, ".op", "build", secondary_dir, "bin" });
+    defer allocator.free(secondary);
+    return try findExecutable(allocator, secondary, slug);
+}
+
+fn findExecutable(allocator: std.mem.Allocator, root: []const u8, slug: []const u8) !?[]u8 {
+    var dir = std.Io.Dir.cwd().openDir(std.Io.Threaded.global_single_threaded.io(), root, .{ .iterate = true }) catch return null;
     defer dir.close(std.Io.Threaded.global_single_threaded.io());
     var walker = try dir.walk(allocator);
     defer walker.deinit();
     while (try walker.next(std.Io.Threaded.global_single_threaded.io())) |entry| {
         if (entry.kind == .file and std.mem.eql(u8, std.fs.path.basename(entry.path), slug)) {
-            return std.fs.path.join(allocator, &.{ root, entry.path });
+            return try std.fs.path.join(allocator, &.{ root, entry.path });
         }
     }
-    return error.BinaryNotFound;
+    return null;
 }
 
 fn listenUri(allocator: std.mem.Allocator, phase: usize, transport: []const u8, role: []const u8) ![]u8 {
