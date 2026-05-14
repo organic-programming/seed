@@ -26,7 +26,7 @@ module CascadeNodeRuby
             Holons::Serve::ServeOptions.new(
               reflect: reflect,
               member_endpoints: members,
-              slug: "observability-cascade-node-ruby"
+              slug: "observability-cascade-ruby-node"
             ),
             on_listen: on_listen
           )

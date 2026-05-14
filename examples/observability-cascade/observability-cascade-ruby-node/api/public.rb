@@ -35,7 +35,7 @@ module CascadeNodeRuby
           configured = obs.cfg.slug.to_s.strip
           return configured unless configured.empty?
 
-          File.basename($PROGRAM_NAME.to_s).empty? ? "observability-cascade-node-ruby" : File.basename($PROGRAM_NAME.to_s)
+          File.basename($PROGRAM_NAME.to_s).empty? ? "observability-cascade-ruby-node" : File.basename($PROGRAM_NAME.to_s)
         end
       end
     end

@@ -10,7 +10,7 @@ require_relative "../internal/server"
 module CascadeNodeRuby
   module Api
     module Cli
-      VERSION = "observability-cascade-node-ruby {{ .Version }}"
+      VERSION = "observability-cascade-ruby-node {{ .Version }}"
 
       class << self
         def main(argv = ARGV, stdout: $stdout, stderr: $stderr)
@@ -84,7 +84,7 @@ module CascadeNodeRuby
         end
 
         def print_usage(output)
-          output.puts("usage: observability-cascade-node-ruby <command> [args] [flags]")
+          output.puts("usage: observability-cascade-ruby-node <command> [args] [flags]")
           output.puts
           output.puts("commands:")
           output.puts("  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server")

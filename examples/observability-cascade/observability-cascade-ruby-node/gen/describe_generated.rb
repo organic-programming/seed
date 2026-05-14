@@ -14,8 +14,8 @@ module Gen
     identity: ::Holons::V1::HolonManifest::Identity.new(
       schema: "holon/v1",
       uuid: "6c4122d8-249f-46f0-b4e3-176695dd2af9",
-      given_name: "observability-cascade",
-      family_name: "node-ruby",
+      given_name: "Observability",
+      family_name: "Cascade-Ruby-Node",
       motto: "Minimal observability cascade node.",
       composer: "B. ALTER",
       status: "draft",
@@ -36,7 +36,7 @@ module Gen
       ],
     ),
     artifacts: ::Holons::V1::HolonManifest::Artifacts.new(
-      binary: "observability-cascade-node-ruby",
+      binary: "observability-cascade-ruby-node",
     ),
     sequences: [
       ::Holons::V1::HolonManifest::Sequence.new(
@@ -54,7 +54,7 @@ module Gen
           ),
         ],
         steps: [
-          "op observability-cascade-node-ruby Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'",
+          "op observability-cascade-ruby-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'",
         ],
       ),
     ],

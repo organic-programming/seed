@@ -27,33 +27,13 @@ option (holons.v1.manifest) = {
     rpcs: ["RunDefault", "RunLiveStream", "RunMultiPattern"]
   }
   build: {
-    runner: "recipe"
+    runner: "ruby"
+    main: "./cmd/main.rb"
     codegen: { languages: ["ruby"] }
-    defaults: {
-      target: "macos"
-      mode: "debug"
-    }
     members: {
       id: "ruby-node"
       path: "../observability-cascade-ruby-node"
       type: "holon"
-    }
-    targets: {
-      key: "macos"
-      value: {
-        steps: { build_member: "ruby-node" }
-        steps: {
-          exec: {
-            cwd: "."
-            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-ruby.holon}\"\narch=\"darwin_arm64\"\nbuild=\".op/build/ruby\"\nruby_bin=\"${OP_RUBY_BIN:-/opt/homebrew/opt/ruby@3.1/bin/ruby}\"\nbundle_bin=\"${OP_BUNDLE_BIN:-/opt/homebrew/opt/ruby@3.1/bin/bundle}\"\nnode_build=\"$PWD/holons/observability-cascade-node/.op/build/ruby\"\nbundle_gemfile=\"$node_build/Gemfile\"\nbundle_path=\"$node_build/.op/bundle\"\nif [ ! -x \"$ruby_bin\" ]; then ruby_bin=\"$(command -v ruby)\"; fi\nif [ ! -x \"$bundle_bin\" ]; then bundle_bin=\"$(command -v bundle)\"; fi\nrm -rf \"$pkg\" \"$build/bin\" \"$build/gen\"\nmkdir -p \"$pkg/bin/$arch\" \"$build\"\ncp -R cmd gen Gemfile Gemfile.lock \"$build/\"\nBUNDLE_GEMFILE=\"$bundle_gemfile\" BUNDLE_PATH=\"$bundle_path\" BUNDLE_DISABLE_SHARED_GEMS=true \"$bundle_bin\" check >/dev/null\ncat > \"$pkg/bin/$arch/observability-cascade-ruby\" <<EOF\n#!/bin/sh\nset -eu\nexport OBSERVABILITY_CASCADE_RUBY_SOURCE_ROOT=\"$PWD\"\nexport BUNDLE_GEMFILE=\"$bundle_gemfile\"\nexport BUNDLE_PATH=\"$bundle_path\"\nexport BUNDLE_DISABLE_SHARED_GEMS=true\nexec \"$bundle_bin\" exec \"$ruby_bin\" \"$PWD/$build/cmd/main.rb\" \"\\$@\"\nEOF\nchmod +x \"$pkg/bin/$arch/observability-cascade-ruby\""]
-          }
-        }
-        steps: {
-          assert_file: {
-            path: ".op/build/observability-cascade-ruby.holon/bin/darwin_arm64/observability-cascade-ruby"
-          }
-        }
-      }
     }
   }
   requires: {

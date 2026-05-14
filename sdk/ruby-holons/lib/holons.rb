@@ -8,6 +8,7 @@ require "json"
 
 require_relative "holons/transport"
 require_relative "holons/observability"
+require_relative "holons/composite"
 require_relative "holons/serve"
 require_relative "holons/identity"
 require_relative "holons/discovery_types"

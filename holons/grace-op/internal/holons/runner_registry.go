@@ -1357,7 +1357,7 @@ func (rubyRunner) build(manifest *LoadedManifest, ctx BuildContext, report *Repo
 	}
 	sourceEntrypoint := filepath.Join(manifest.Dir, filepath.FromSlash(entrypoint))
 	wrapper := fmt.Sprintf(
-		"#!/bin/sh\nset -eu\n%s\n%s\n_OP_BASE=%q\n_OP_SOURCE_ENTRYPOINT=%q\nexport BUNDLE_GEMFILE=\"$_OP_BASE/Gemfile\"\nexport BUNDLE_PATH=\"$_OP_BASE/.op/bundle\"\nexport BUNDLE_DISABLE_SHARED_GEMS=true\n%s%s\nexec %q exec %q \"$_OP_BASE/%s\" \"$@\"\n",
+		"#!/bin/sh\nset -eu\nOP_HOLON_EXECUTABLE=\"$0\"\nexport OP_HOLON_EXECUTABLE\n%s\n%s\n_OP_BASE=%q\n_OP_SOURCE_ENTRYPOINT=%q\nexport BUNDLE_GEMFILE=\"$_OP_BASE/Gemfile\"\nexport BUNDLE_PATH=\"$_OP_BASE/.op/bundle\"\nexport BUNDLE_DISABLE_SHARED_GEMS=true\n%s%s\nexec %q exec %q \"$_OP_BASE/%s\" \"$@\"\n",
 		launcherPATHExports(),
 		launcherUTF8LocaleExports(),
 		isolatedDir,

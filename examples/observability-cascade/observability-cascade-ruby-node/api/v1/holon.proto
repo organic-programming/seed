@@ -5,7 +5,7 @@ package relay.v1;
 import "holons/v1/manifest.proto";
 import "relay/v1/relay.proto";
 
-// Ruby-specific holon descriptor for observability-cascade-node-ruby.
+// Ruby-specific holon descriptor for observability-cascade-ruby-node.
 // Layers Ruby runtime metadata and holon identity on top of the shared
 // observability-cascade contract.
 
@@ -46,7 +46,7 @@ option (holons.v1.manifest) = {
       {name: "note", description: "Free-form tick note", required: false}
     ]
     steps: [
-      "op observability-cascade-node-ruby Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
+      "op observability-cascade-ruby-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
     ]
   }]
 };

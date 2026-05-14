@@ -17,31 +17,16 @@ def find_repo_root(start)
   loop do
     return current.to_s if current.join("sdk", "ruby-holons", "lib").directory?
     parent = current.parent
-    raise "could not locate repository root" if parent == current
+    return nil if parent == current
     current = parent
   end
 end
 
-def find_cascade_root(start)
-  current = Pathname.new(start).expand_path
-  loop do
-    return current.to_s if current.join("holons", "observability-cascade-node").directory?
-
-    parent = current.parent
-    return parent.to_s if parent.join("observability-cascade-node-ruby").directory?
-    raise "could not locate observability-cascade examples root" if parent == current
-    current = parent
-  end
-end
-
-HERE = File.expand_path(ENV.fetch("OBSERVABILITY_CASCADE_RUBY_SOURCE_ROOT", File.expand_path("..", __dir__)))
+HERE = File.expand_path("..", __dir__)
 ROOT = find_repo_root(HERE)
-CASCADE_ROOT = find_cascade_root(HERE)
-RUBY_NODE = File.join(CASCADE_ROOT, "holons", "observability-cascade-node")
-SDK_ROOT = File.join(ROOT, "sdk", "ruby-holons", "lib")
+SDK_ROOT = File.join(ROOT, "sdk", "ruby-holons", "lib") unless ROOT.nil?
 RUBY_GEN = File.join(HERE, "gen", "ruby")
 GENERATED_ROOT = File.join(HERE, "gen")
-EXAMPLES_ROOT = File.expand_path("..", HERE)
 
 begin
   if ENV["OP_SDK_RUBY_PATH"] && !ENV["OP_SDK_RUBY_PATH"].empty?
@@ -56,7 +41,9 @@ rescue LoadError
   nil
 end
 
-[RUBY_GEN, GENERATED_ROOT, File.join(RUBY_NODE, "gen", "ruby"), File.join(RUBY_NODE, "gen"), SDK_ROOT].each do |path|
+[RUBY_GEN, GENERATED_ROOT, SDK_ROOT].each do |path|
+  next if path.nil?
+
   $LOAD_PATH.unshift(path) unless $LOAD_PATH.include?(path)
 end
 
@@ -76,8 +63,8 @@ RUN_PHASES = 4
 RUN_TICKS = 3
 ROLE_ORDER = %w[D C B A].freeze
 TRANSPORTS = %w[tcp unix tcp unix].freeze
-RUBY_SLUG = "observability-cascade-node-ruby"
-GO_SLUG = "observability-cascade-node-go"
+RUBY_SLUG = "observability-cascade-ruby-node"
+GO_SLUG = "observability-cascade-go-node"
 
 RoleSpec = Struct.new(:slug, :binary_path, keyword_init: true)
 CheckResult = Struct.new(:pass, :evidence, keyword_init: true)
@@ -657,7 +644,7 @@ def start_role(cascade, runtime)
     "OP_PROM_ADDR" => "127.0.0.1:0"
   )
   File.open(runtime.stderr_path, "w") do |stderr|
-    runtime.pid = Process.spawn(env, *args, chdir: ROOT, out: File::NULL, err: stderr)
+    runtime.pid = Process.spawn(env, *args, chdir: ROOT || HERE, out: File::NULL, err: stderr)
   end
   runtime.wait_thread = Process.detach(runtime.pid)
   meta = wait_meta(cascade.run_root, runtime.slug, runtime.uid, 10.0)
@@ -755,21 +742,10 @@ def wait_for(timeout, interval: 0.1)
 end
 
 def find_binary(slug)
-  env_name = "OBSERVABILITY_CASCADE_NODE_#{slug.delete_prefix('observability-cascade-node-').upcase.tr('-', '_')}_BIN"
-  override = ENV.fetch(env_name, "").strip
-  return override unless override.empty?
+  return Holons::Composite.member("ruby-node") if slug == RUBY_SLUG
 
   roots = []
-  if slug == RUBY_SLUG
-    roots << File.join(RUBY_NODE, ".op", "build", "observability-cascade-node.holon", "bin")
-    roots << File.join(RUBY_NODE, ".op", "build", "observability-cascade-node-ruby.holon", "bin")
-  end
-  if slug == GO_SLUG
-    go_node = File.join(EXAMPLES_ROOT, "observability-cascade-go", "holons", "observability-cascade-node")
-    roots << File.join(go_node, ".op", "build", "observability-cascade-node.holon", "bin")
-    roots << File.join(go_node, ".op", "build", "observability-cascade-node-go.holon", "bin")
-  end
-  roots << File.join(Dir.home, ".op", "bin", "#{slug}.holon", "bin")
+  roots << File.join(ENV.fetch("OPBIN", File.join(Dir.home, ".op", "bin")), "#{slug}.holon", "bin")
   roots.each do |root|
     next unless Dir.exist?(root)
 

@@ -3,8 +3,40 @@ set -euo pipefail
 
 sdk_target="${SDK_TARGET:?SDK_TARGET is required}"
 jobs="${RUBY_HOLONS_JOBS:-4}"
-ruby_bin="${RUBY:-$(command -v ruby || true)}"
-bundle_bin="${BUNDLE:-$(command -v bundle || true)}"
+ruby_bin="${RUBY:-}"
+bundle_bin="${BUNDLE:-}"
+
+candidate_rubies=()
+if [[ -n "$ruby_bin" ]]; then
+  candidate_rubies+=("$ruby_bin")
+else
+  if found_ruby="$(command -v ruby 2>/dev/null || true)"; then
+    [[ -n "$found_ruby" ]] && candidate_rubies+=("$found_ruby")
+  fi
+  candidate_rubies+=(
+    "/opt/homebrew/opt/ruby@3.1/bin/ruby"
+    "/usr/local/opt/ruby@3.1/bin/ruby"
+    "/opt/homebrew/opt/ruby/bin/ruby"
+    "/usr/local/opt/ruby/bin/ruby"
+  )
+fi
+
+for candidate in "${candidate_rubies[@]}"; do
+  [[ -x "$candidate" ]] || continue
+  if "$candidate" -e 'v = Gem::Version.new(RUBY_VERSION); exit(v >= Gem::Version.new("3.1.0") && v < Gem::Version.new("3.2.0") ? 0 : 1)' >/dev/null 2>&1; then
+    ruby_bin="$candidate"
+    break
+  fi
+done
+
+if [[ -z "$bundle_bin" && -n "$ruby_bin" ]]; then
+  sibling_bundle="$(dirname "$ruby_bin")/bundle"
+  if [[ -x "$sibling_bundle" ]]; then
+    bundle_bin="$sibling_bundle"
+  else
+    bundle_bin="$(command -v bundle || true)"
+  fi
+fi
 
 if [[ -z "$ruby_bin" || -z "$bundle_bin" ]]; then
   echo "ruby and bundle are required to build Ruby prebuilts" >&2
