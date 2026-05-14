@@ -27,7 +27,7 @@ function staticDescribeResponse() {
             },
             requires: {
                 files: [
-                    "bin/main.js",
+                    "cmd/main.js",
                     "package.json",
                 ],
             },

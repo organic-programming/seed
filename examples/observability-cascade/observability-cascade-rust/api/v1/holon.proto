@@ -47,7 +47,7 @@ option (holons.v1.manifest) = {
         steps: {
           exec: {
             cwd: "."
-            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-rust.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\"\nmkdir -p \"$pkg/bin/$arch\"\ncargo build\ncp target/debug/observability-cascade-rust \"$pkg/bin/$arch/observability-cascade-rust\""]
+            argv: ["bash", "-lc", "set -euo pipefail\npkg=\"${OP_PACKAGE_DIR:-.op/build/observability-cascade-rust.holon}\"\narch=\"darwin_arm64\"\nrm -rf \"$pkg\"\nmkdir -p \"$pkg/bin/$arch\"\ncargo build --target-dir .op/build/cargo\ncp .op/build/cargo/debug/observability-cascade-rust \"$pkg/bin/$arch/observability-cascade-rust\""]
           }
         }
         steps: {

@@ -25,7 +25,7 @@ DescribeResponse staticDescribeResponse() {
     ),
     requires: HolonManifest_Requires(
       files: [
-        "bin/main.dart",
+        "cmd/main.dart",
         "pubspec.yaml",
       ],
     ),

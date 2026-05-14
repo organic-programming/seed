@@ -28,7 +28,7 @@ def static_describe_response() -> describe_pb2.DescribeResponse:
         ),
         requires=manifest_pb2.HolonManifest.Requires(
             files=[
-                "bin/main.py",
+                "cmd/main.py",
                 "pyproject.toml",
                 "requirements.txt",
             ],
