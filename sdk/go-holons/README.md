@@ -62,6 +62,25 @@ entry, err := discover.FindBySlug("gabriel-greeting-go")
 conn, err := connect.Connect("gabriel-greeting-go")
 ```
 
+## Transitive observability
+
+Every parent→child connection is transitive by default: dialing a
+child you spawn opens long-lived `HolonObservability.Logs(follow=true)`
+and `Events(follow=true)` streams in background and republishes received
+entries into the parent's local rings, appending a `ChainHop` for the
+child. Peer-to-peer `connect.Connect` defaults to OFF; opt-in
+explicitly when needed.
+
+```go
+// Opt-out for a single member; the rest of the tree stays observable.
+conn, err := composite.Dial(ctx, "gabriel-greeting-go",
+    composite.WithTransitiveObservability(false))
+```
+
+See [OBSERVABILITY.md §Transitive Observability](../../OBSERVABILITY.md#transitive-observability)
+for the full doctrine (defaults, peer-vs-spawn rules, per-emission
+`Private()` opt-out, v1 metrics non-coverage).
+
 ## Build and test
 
 ```sh
