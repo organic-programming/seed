@@ -100,6 +100,66 @@ class ObservabilityTest < Minitest::Test
     end
   end
 
+  def test_logs_follow_replays_ring_on_subscribe
+    skip "grpc gem is unavailable in this Ruby environment" unless Holons.grpc_available?
+
+    obs = Holons::Observability.configure(
+      Holons::Observability::Config.new(slug: "replay-ruby", instance_uid: "log-uid"),
+      env: { "OP_OBS" => "logs" }
+    )
+    obs.logger("test").info("replay")
+
+    with_observability_server(obs) do |target|
+      stub = Holons::V1::HolonObservability::Stub.new(target, :this_channel_is_insecure, timeout: 5)
+      q = Queue.new
+      reader = Thread.new do
+        stub.logs(Holons::V1::LogsRequest.new(min_level: :INFO, follow: true)).each do |entry|
+          q << entry
+          break if entry.message == "live"
+        end
+      end
+      first = Timeout.timeout(3) { q.pop }
+      assert_equal "replay", first.message
+
+      obs.logger("test").info("live")
+      second = Timeout.timeout(3) { q.pop }
+      assert_equal "live", second.message
+    ensure
+      reader&.kill
+      Holons::Observability.reset
+    end
+  end
+
+  def test_events_follow_replays_ring_on_subscribe
+    skip "grpc gem is unavailable in this Ruby environment" unless Holons.grpc_available?
+
+    obs = Holons::Observability.configure(
+      Holons::Observability::Config.new(slug: "replay-ruby", instance_uid: "event-uid"),
+      env: { "OP_OBS" => "events" }
+    )
+    obs.emit(Holons::Observability::EVENT_TYPES[:instance_ready], "phase" => "replay")
+
+    with_observability_server(obs) do |target|
+      stub = Holons::V1::HolonObservability::Stub.new(target, :this_channel_is_insecure, timeout: 5)
+      q = Queue.new
+      reader = Thread.new do
+        stub.events(Holons::V1::EventsRequest.new(follow: true)).each do |event|
+          q << event
+          break if event.payload["phase"] == "live"
+        end
+      end
+      first = Timeout.timeout(3) { q.pop }
+      assert_equal "replay", first.payload["phase"]
+
+      obs.emit(Holons::Observability::EVENT_TYPES[:instance_ready], "phase" => "live")
+      second = Timeout.timeout(3) { q.pop }
+      assert_equal "live", second.payload["phase"]
+    ensure
+      reader&.kill
+      Holons::Observability.reset
+    end
+  end
+
   def test_prometheus_text_and_http_server
     Dir.mktmpdir("ruby-holons-prom-") do
       obs = Holons::Observability.configure(

@@ -131,6 +131,16 @@ module Holons
         synchronize { @subs << fn }
         -> { synchronize { @subs.delete(fn) } }
       end
+
+      def replay_and_watch(cutoff = nil, &fn)
+        synchronize do
+          # Snapshot and subscription registration are one critical section:
+          # follow=true streams must not drop entries at the replay/live seam.
+          replay = cutoff.nil? ? @buf.dup : @buf.select { |e| e[:timestamp] >= cutoff }
+          @subs << fn
+          [replay, -> { synchronize { @subs.delete(fn) } }]
+        end
+      end
     end
 
     # --- EventBus ---
@@ -163,6 +173,16 @@ module Holons
       def subscribe(&fn)
         synchronize { @subs << fn }
         -> { synchronize { @subs.delete(fn) } }
+      end
+
+      def replay_and_watch(cutoff = nil, &fn)
+        synchronize do
+          # Snapshot and subscription registration are one critical section:
+          # follow=true streams must not drop events at the replay/live seam.
+          replay = cutoff.nil? ? @buf.dup : @buf.select { |e| e[:timestamp] >= cutoff }
+          @subs << fn
+          [replay, -> { synchronize { @subs.delete(fn) } }]
+        end
       end
 
       def close; synchronize { @closed = true; @subs.clear }; end
@@ -302,11 +322,14 @@ module Holons
       def set_level(l); @mu.synchronize { @level = l }; end
       def enabled?(l); @obs && l >= @mu.synchronize { @level }; end
 
-      def log(lvl, message, fields = nil)
+      def log(lvl, message, fields = nil, private: false, **keyword_fields)
         return unless enabled?(lvl)
         redact = @obs.cfg.redacted_fields.to_set
         out = {}
-        (fields || {}).each do |k, v|
+        merged_fields = {}
+        (fields || {}).each { |k, v| merged_fields[k] = v }
+        keyword_fields.each { |k, v| merged_fields[k] = v }
+        merged_fields.each do |k, v|
           next if k.nil? || k.to_s.empty?
           out[k.to_s] = redact.include?(k.to_s) ? '<redacted>' : v.to_s
         end
@@ -320,13 +343,14 @@ module Holons
           message: message,
           fields: out,
           caller: '',
-          chain: []
+          chain: [],
+          private: private ? true : false
         }
         @obs.log_ring&.push(entry)
       end
 
       %i[trace debug info warn error fatal].each do |m|
-        define_method(m) { |msg, fields = nil| log(LEVELS[m], msg, fields) }
+        define_method(m) { |msg, fields = nil, private: false, **keyword_fields| log(LEVELS[m], msg, fields, private: private, **keyword_fields) }
       end
     end
 
@@ -357,14 +381,18 @@ module Holons
       def gauge(name, help = '', labels = {}); @registry&.gauge(name, help, labels); end
       def histogram(name, help = '', labels = {}, bounds = nil); @registry&.histogram(name, help, labels, bounds); end
 
-      def emit(type, payload = nil)
+      def emit(type, payload = nil, private: false, **keyword_payload)
         return unless @event_bus
         redact = @cfg.redacted_fields.to_set
         p = {}
-        (payload || {}).each { |k, v| p[k.to_s] = redact.include?(k.to_s) ? '<redacted>' : v.to_s }
+        merged_payload = {}
+        (payload || {}).each { |k, v| merged_payload[k] = v }
+        keyword_payload.each { |k, v| merged_payload[k] = v }
+        merged_payload.each { |k, v| p[k.to_s] = redact.include?(k.to_s) ? '<redacted>' : v.to_s }
         @event_bus.emit({
           timestamp: Time.now, type: type, slug: @cfg.slug,
-          instance_uid: @cfg.instance_uid, session_id: '', payload: p, chain: []
+          instance_uid: @cfg.instance_uid, session_id: '', payload: p, chain: [],
+          private: private ? true : false
         })
       end
 
@@ -435,13 +463,19 @@ module Holons
         def logs(request, call)
           raise ::GRPC::FailedPrecondition, 'logs family is not enabled (OP_OBS)' unless @inst.enabled?(:logs) && @inst.log_ring
 
-          entries = request.since.nil? ? @inst.log_ring.drain : @inst.log_ring.drain_since(Time.now - Holons::Observability.duration_seconds(request.since))
           Enumerator.new do |y|
-            Holons::Observability.write_matching_logs(y, entries, request)
+            q = Queue.new
+            cutoff = request.since.nil? ? nil : Time.now - Holons::Observability.duration_seconds(request.since)
+            entries = nil
+            unsubscribe = nil
+            if request.follow
+              entries, unsubscribe = @inst.log_ring.replay_and_watch(cutoff) { |entry| q << entry }
+            else
+              entries = cutoff.nil? ? @inst.log_ring.drain : @inst.log_ring.drain_since(cutoff)
+            end
+            Holons::Observability.write_matching_logs(y, entries, request, include_private: !request.follow)
             next unless request.follow
 
-            q = Queue.new
-            unsubscribe = @inst.log_ring.subscribe { |entry| q << entry }
             begin
               loop do
                 break if call.respond_to?(:cancelled?) && call.cancelled?
@@ -449,10 +483,10 @@ module Holons
                 entry = Holons::Observability.queue_pop(q)
                 next if entry.nil?
 
-                Holons::Observability.write_matching_logs(y, [entry], request)
+                Holons::Observability.write_matching_logs(y, [entry], request, include_private: false)
               end
             ensure
-              unsubscribe.call
+              unsubscribe&.call
             end
           end
         end
@@ -474,13 +508,19 @@ module Holons
         def events(request, call)
           raise ::GRPC::FailedPrecondition, 'events family is not enabled (OP_OBS)' unless @inst.enabled?(:events) && @inst.event_bus
 
-          events = request.since.nil? ? @inst.event_bus.drain : @inst.event_bus.drain_since(Time.now - Holons::Observability.duration_seconds(request.since))
           Enumerator.new do |y|
-            Holons::Observability.write_matching_events(y, events, request)
+            q = Queue.new
+            cutoff = request.since.nil? ? nil : Time.now - Holons::Observability.duration_seconds(request.since)
+            events = nil
+            unsubscribe = nil
+            if request.follow
+              events, unsubscribe = @inst.event_bus.replay_and_watch(cutoff) { |event| q << event }
+            else
+              events = cutoff.nil? ? @inst.event_bus.drain : @inst.event_bus.drain_since(cutoff)
+            end
+            Holons::Observability.write_matching_events(y, events, request, include_private: !request.follow)
             next unless request.follow
 
-            q = Queue.new
-            unsubscribe = @inst.event_bus.subscribe { |event| q << event }
             begin
               loop do
                 break if call.respond_to?(:cancelled?) && call.cancelled?
@@ -488,20 +528,21 @@ module Holons
                 event = Holons::Observability.queue_pop(q)
                 next if event.nil?
 
-                Holons::Observability.write_matching_events(y, [event], request)
+                Holons::Observability.write_matching_events(y, [event], request, include_private: false)
               end
             ensure
-              unsubscribe.call
+              unsubscribe&.call
             end
           end
         end
       end
     end
 
-    def self.write_matching_logs(stream, entries, request)
+    def self.write_matching_logs(stream, entries, request, include_private: true)
       min_level = log_level_number(request.min_level)
       min_level = LEVELS[:info] if min_level.zero?
       entries.each do |entry|
+        next if !include_private && entry[:private]
         next if entry[:level] < min_level
         next if !request.session_ids.empty? && !request.session_ids.include?(entry[:session_id])
         next if !request.rpc_methods.empty? && !request.rpc_methods.include?(entry[:rpc_method])
@@ -510,9 +551,10 @@ module Holons
       end
     end
 
-    def self.write_matching_events(stream, events, request)
+    def self.write_matching_events(stream, events, request, include_private: true)
       wanted = request.types.map { |type| event_type_number(type) }.to_set
       events.each do |event|
+        next if !include_private && event[:private]
         next if !wanted.empty? && !wanted.include?(event[:type])
 
         stream << to_proto_event(event)
@@ -552,7 +594,8 @@ module Holons
         message: entry.message,
         fields: entry.fields.to_h,
         caller: entry.caller,
-        chain: entry.chain.map { |hop| from_proto_hop(hop) }
+        chain: entry.chain.map { |hop| from_proto_hop(hop) },
+        private: false
       }
     end
 
@@ -605,7 +648,8 @@ module Holons
         instance_uid: event.instance_uid,
         session_id: event.session_id,
         payload: event.payload.to_h,
-        chain: event.chain.map { |hop| from_proto_hop(hop) }
+        chain: event.chain.map { |hop| from_proto_hop(hop) },
+        private: false
       }
     end
 
@@ -855,7 +899,13 @@ module Holons
 
       def stop
         @mu.synchronize { @stop = true }
-        @threads.each { |thread| thread.join(2) }
+        @threads.each { |thread| thread.join(0.2) }
+        @threads.each do |thread|
+          next unless thread.alive?
+
+          thread.kill
+          thread.join(0.2)
+        end
       rescue StandardError
         nil
       end
@@ -879,7 +929,8 @@ module Holons
               entry[:chain] = Holons::Observability.append_direct_child(entry[:chain], @child_slug, @child_uid)
               obs.log_ring.push(entry)
             end
-          rescue StandardError
+          rescue StandardError => e
+            warn("warning: observability relay events: #{e.message}") if ENV["HOLONS_DEBUG_RELAY"]
             sleep_retry
           end
         end

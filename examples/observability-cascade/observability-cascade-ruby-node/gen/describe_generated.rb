@@ -38,26 +38,6 @@ module Gen
     artifacts: ::Holons::V1::HolonManifest::Artifacts.new(
       binary: "observability-cascade-ruby-node",
     ),
-    sequences: [
-      ::Holons::V1::HolonManifest::Sequence.new(
-        name: "tick",
-        description: "Emit one observability-cascade tick signal.",
-        params: [
-          ::Holons::V1::HolonManifest::Sequence::Param.new(
-            name: "sender",
-            description: "Tick sender label",
-            required: true,
-          ),
-          ::Holons::V1::HolonManifest::Sequence::Param.new(
-            name: "note",
-            description: "Free-form tick note",
-          ),
-        ],
-        steps: [
-          "op observability-cascade-ruby-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'",
-        ],
-      ),
-    ],
   ),
   services: [
     ::Holons::V1::ServiceDoc.new(
@@ -94,6 +74,32 @@ module Gen
               type: "string",
               number: 2,
               label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+            ),
+            ::Holons::V1::FieldDoc.new(
+              name: "hops",
+              type: "relay.v1.HopReceipt",
+              number: 3,
+              label: ::Holons::V1::FieldLabel::FIELD_LABEL_REPEATED,
+              nested_fields: [
+                ::Holons::V1::FieldDoc.new(
+                  name: "slug",
+                  type: "string",
+                  number: 1,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                ),
+                ::Holons::V1::FieldDoc.new(
+                  name: "uid",
+                  type: "string",
+                  number: 2,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                ),
+                ::Holons::V1::FieldDoc.new(
+                  name: "received",
+                  type: "int64",
+                  number: 3,
+                  label: ::Holons::V1::FieldLabel::FIELD_LABEL_OPTIONAL,
+                ),
+              ],
             ),
           ],
         ),

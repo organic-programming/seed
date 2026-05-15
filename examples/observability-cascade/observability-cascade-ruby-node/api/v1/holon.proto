@@ -38,16 +38,4 @@ option (holons.v1.manifest) = {
   artifacts: {
     binary: "observability-cascade-ruby-node"
   }
-  sequences: [{
-    name: "tick"
-    description: "Emit one observability-cascade tick signal."
-    params: [
-      {name: "sender", description: "Tick sender label", required: true},
-      {name: "note", description: "Free-form tick note", required: false}
-    ]
-    steps: [
-      "op observability-cascade-ruby-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
-    ]
-  }]
 };
-

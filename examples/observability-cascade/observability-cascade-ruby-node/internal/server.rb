@@ -5,36 +5,48 @@ require "grpc"
 require "holons"
 require "describe_generated"
 require "relay/v1/relay_services_pb"
-require_relative "../api/public"
 
 Holons::Describe.use_static_response(Gen::DescribeGenerated.static_describe_response)
 
 module CascadeNodeRuby
   module Internal
-    class RelayService < Relay::V1::RelayService::Service
-      def tick(request, _call)
-        Api::Public.tick(request)
-      end
-    end
-
     module Server
       class << self
-        def listen_and_serve(listen_uri, reflect: false, members: [], on_listen: nil)
+        def listen_and_serve(listen_uri, transport:, reflect: false, children: [], on_listen: nil)
+          Holons::Observability.from_env(
+            Holons::Observability::Config.new(slug: "observability-cascade-ruby-node")
+          )
+          downstream = spawn_downstream(children, transport)
           Holons::Serve.run_with_serve_options(
             normalize_listen_uri(listen_uri),
-            proc { |server| register_services(server, include_meta: false) },
+            proc { |server| register_services(server, downstream&.conn) },
             Holons::Serve::ServeOptions.new(
               reflect: reflect,
-              member_endpoints: members,
               slug: "observability-cascade-ruby-node"
             ),
             on_listen: on_listen
           )
+        ensure
+          downstream&.stop
         end
 
-        def register_services(server, include_meta: true)
-          Holons::Describe.register(server) if include_meta
-          server.handle(RelayService.new)
+        def register_services(server, downstream_channel = nil)
+          Holons::Relay.register_server(server, downstream_channel: downstream_channel)
+        end
+
+        def spawn_downstream(children, transport)
+          specs = Array(children)
+          return nil if specs.empty?
+
+          first = specs.first
+          Holons::Composite.spawn_member(
+            Holons::Composite::SpawnOptions.new(
+              slug: first.slug,
+              binary_path: first.binary,
+              transport: transport,
+              downstream_chain: specs.drop(1)
+            )
+          )
         end
 
         def normalize_listen_uri(listen_uri)
@@ -46,4 +58,3 @@ module CascadeNodeRuby
     end
   end
 end
-

@@ -13,8 +13,9 @@ module Holons
   module Serve
     SIGNALS = %w[INT TERM].freeze
     DEFAULT_SIGNAL_WAIT_INTERVAL = 0.25
-    ParsedFlags = Struct.new(:listen_uri, :reflect, keyword_init: true)
+    ParsedFlags = Struct.new(:listen_uri, :reflect, :transport, keyword_init: true)
     MemberRef = Struct.new(:slug, :address, :uid, keyword_init: true)
+    ChildSpec = Struct.new(:slug, :binary, keyword_init: true)
     ServeOptions = Struct.new(:reflect, :member_endpoints, :slug, keyword_init: true) do
       def initialize(**opts)
         super
@@ -40,7 +41,47 @@ module Holons
           reflect = true if arg == "--reflect"
         end
 
-        ParsedFlags.new(listen_uri: listen_uri, reflect: reflect)
+        ParsedFlags.new(listen_uri: listen_uri, reflect: reflect, transport: parse_transport(args))
+      end
+
+      def parse_transport(args)
+        Array(args).each_with_index do |arg, i|
+          return args[i + 1].to_s if arg == "--transport" && i + 1 < args.length
+          return Regexp.last_match(1).to_s if arg =~ /\A--transport=(.+)\z/
+        end
+        "stdio"
+      end
+
+      def parse_child_flags(args)
+        children = []
+        remaining = []
+        index = 0
+        while index < args.length
+          arg = args[index]
+          if arg == "--child"
+            index += 1
+            raise ArgumentError, "--child requires <slug>=<binary>" if index >= args.length
+
+            children << parse_child(args[index])
+          elsif arg =~ /\A--child=(.+)\z/
+            children << parse_child(Regexp.last_match(1))
+          else
+            remaining << arg
+          end
+          index += 1
+        end
+        [children, remaining]
+      end
+
+      def parse_child(raw)
+        slug, separator, binary = raw.to_s.partition("=")
+        raise ArgumentError, "--child requires <slug>=<binary>" if separator.empty?
+
+        slug = slug.strip
+        binary = binary.strip
+        raise ArgumentError, "--child requires non-empty slug and binary" if slug.empty? || binary.empty?
+
+        ChildSpec.new(slug: slug, binary: binary)
       end
 
       def run(listen_uri, register)
@@ -119,7 +160,10 @@ module Holons
         raw = (env["OP_OBS"] || "").strip
         return nil if raw.empty?
 
-        inst = Observability.from_env(Observability::Config.new(slug: options.slug.to_s), env: env)
+        inst = Observability.current
+        if inst.families.empty? || !env["OP_INSTANCE_UID"].to_s.empty? && inst.cfg.instance_uid != env["OP_INSTANCE_UID"].to_s
+          inst = Observability.from_env(Observability::Config.new(slug: options.slug.to_s), env: env)
+        end
         return nil if inst.families.empty?
 
         Observability.register_grpc_service(server, inst)
@@ -131,7 +175,13 @@ module Holons
 
         run_dir = inst.cfg.run_dir.to_s
         Observability.enable_disk_writers(run_dir) unless run_dir.empty?
-        inst.emit(Observability::EVENT_TYPES[:instance_ready], "listener" => actual_uri) if inst.enabled?(:events)
+        if inst.enabled?(:events)
+          inst.emit(
+            Observability::EVENT_TYPES[:instance_ready],
+            "listener" => actual_uri,
+            "metrics_addr" => metrics_addr.to_s
+          )
+        end
         return if run_dir.empty?
 
         Observability.write_meta_json(
