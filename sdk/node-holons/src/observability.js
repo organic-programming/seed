@@ -1,0 +1,1125 @@
+/**
+ * @fileoverview Node.js reference implementation of the cross-SDK
+ * observability layer. Mirrors sdk/go-holons/pkg/observability and the
+ * Python port in sdk/python-holons/holons/observability.py.
+ *
+ * Activation follows the OP_OBS env discipline from OBSERVABILITY.md:
+ * logs/metrics/events/prom are off by default; the parent launcher
+ * turns families on; code tunes granularity within enabled families.
+ * Zero cost when disabled — loggers and metrics return shared stubs.
+ */
+
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const crypto = require('crypto');
+const http = require('http');
+const grpc = require('@grpc/grpc-js');
+
+const observabilityWire = require('./gen/holons/v1/observability');
+
+// --- Families ----------------------------------------------------------------
+
+const Family = Object.freeze({
+  LOGS: 'logs',
+  METRICS: 'metrics',
+  EVENTS: 'events',
+  PROM: 'prom',
+  OTEL: 'otel', // reserved v2
+});
+
+const V1_TOKENS = new Set(['logs', 'metrics', 'events', 'prom', 'all']);
+
+class InvalidTokenError extends Error {
+  constructor(token, reason) {
+    super(`OP_OBS: ${reason}: ${token}`);
+    this.name = 'InvalidTokenError';
+    this.token = token;
+    this.reason = reason;
+  }
+}
+
+function parseOpObs(raw) {
+  const out = new Set();
+  if (!raw || !raw.trim()) return out;
+  for (const tokRaw of raw.split(',')) {
+    const tok = tokRaw.trim();
+    if (!tok) continue;
+    if (tok === 'otel') {
+      throw new InvalidTokenError('otel', 'otel export is reserved for v2; not implemented in v1');
+    }
+    if (tok === 'sessions') {
+      throw new InvalidTokenError('sessions', 'sessions are reserved for v2; not implemented in v1');
+    }
+    if (!V1_TOKENS.has(tok)) {
+      throw new InvalidTokenError(tok, 'unknown OP_OBS token');
+    }
+    if (tok === 'all') {
+      out.add(Family.LOGS);
+      out.add(Family.METRICS);
+      out.add(Family.EVENTS);
+      out.add(Family.PROM);
+    } else {
+      out.add(tok);
+    }
+  }
+  return out;
+}
+
+function checkEnv(env = process.env) {
+  if ((env.OP_SESSIONS || '').trim()) {
+    throw new InvalidTokenError(env.OP_SESSIONS.trim(), 'sessions are reserved for v2; not implemented in v1');
+  }
+  const raw = (env.OP_OBS || '').trim();
+  if (!raw) return;
+  for (const tokRaw of raw.split(',')) {
+    const tok = tokRaw.trim();
+    if (!tok) continue;
+    if (tok === 'otel') {
+      throw new InvalidTokenError('otel', 'otel export is reserved for v2; not implemented in v1');
+    }
+    if (tok === 'sessions') {
+      throw new InvalidTokenError('sessions', 'sessions are reserved for v2; not implemented in v1');
+    }
+    if (!V1_TOKENS.has(tok)) {
+      throw new InvalidTokenError(tok, 'unknown OP_OBS token');
+    }
+  }
+}
+
+// --- Levels ------------------------------------------------------------------
+
+const Level = Object.freeze({
+  UNSET: 0, TRACE: 1, DEBUG: 2, INFO: 3, WARN: 4, ERROR: 5, FATAL: 6,
+});
+const LEVEL_NAMES = { 1: 'TRACE', 2: 'DEBUG', 3: 'INFO', 4: 'WARN', 5: 'ERROR', 6: 'FATAL' };
+const PROTO_LEVEL_NAMES = {
+  0: 'LOG_LEVEL_UNSPECIFIED',
+  1: 'TRACE',
+  2: 'DEBUG',
+  3: 'INFO',
+  4: 'WARN',
+  5: 'ERROR',
+  6: 'FATAL',
+};
+function levelName(l) { return LEVEL_NAMES[l] || 'UNSPECIFIED'; }
+
+function parseLevel(s) {
+  if (!s) return Level.INFO;
+  const u = String(s).trim().toUpperCase();
+  return { TRACE: Level.TRACE, DEBUG: Level.DEBUG, INFO: Level.INFO,
+    WARN: Level.WARN, WARNING: Level.WARN,
+    ERROR: Level.ERROR, FATAL: Level.FATAL }[u] || Level.INFO;
+}
+
+// --- Event types -------------------------------------------------------------
+
+const EventType = Object.freeze({
+  UNSPECIFIED: 0,
+  INSTANCE_SPAWNED: 1, INSTANCE_READY: 2, INSTANCE_EXITED: 3, INSTANCE_CRASHED: 4,
+  SESSION_STARTED: 5, SESSION_ENDED: 6,
+  HANDLER_PANIC: 7, CONFIG_RELOADED: 8,
+});
+const EVENT_TYPE_NAMES = {
+  1: 'INSTANCE_SPAWNED', 2: 'INSTANCE_READY', 3: 'INSTANCE_EXITED', 4: 'INSTANCE_CRASHED',
+  5: 'SESSION_STARTED', 6: 'SESSION_ENDED', 7: 'HANDLER_PANIC', 8: 'CONFIG_RELOADED',
+};
+const PROTO_EVENT_TYPE_NAMES = {
+  0: 'EVENT_TYPE_UNSPECIFIED',
+  ...EVENT_TYPE_NAMES,
+};
+function eventTypeName(t) { return EVENT_TYPE_NAMES[t] || 'UNSPECIFIED'; }
+
+// --- Chain helpers -----------------------------------------------------------
+
+function appendDirectChild(src, childSlug, childUid) {
+  return [...(src || []), { slug: childSlug, instance_uid: childUid }];
+}
+
+function enrichForMultilog(wire, streamSourceSlug, streamSourceUid) {
+  return appendDirectChild(wire, streamSourceSlug, streamSourceUid);
+}
+
+// --- Ring buffer for log entries --------------------------------------------
+
+class LogRing {
+  constructor(capacity = 1024) {
+    this._capacity = Math.max(1, capacity);
+    this._buf = [];
+    this._subs = [];
+  }
+  push(entry) {
+    this._buf.push(entry);
+    if (this._buf.length > this._capacity) {
+      this._buf.splice(0, this._buf.length - this._capacity);
+    }
+    for (const fn of [...this._subs]) {
+      try { fn(entry); } catch (_) { /* ignore */ }
+    }
+  }
+  drain() { return [...this._buf]; }
+  drainSince(cutoff) { return this._buf.filter((e) => e.timestamp >= cutoff); }
+  subscribe(fn) {
+    this._subs.push(fn);
+    return () => {
+      const i = this._subs.indexOf(fn);
+      if (i >= 0) this._subs.splice(i, 1);
+    };
+  }
+  subscribeWithSnapshot(fn) {
+    const snapshot = [...this._buf];
+    const stop = this.subscribe(fn);
+    return { snapshot, stop };
+  }
+  get length() { return this._buf.length; }
+  get capacity() { return this._capacity; }
+}
+
+// --- Event bus ---------------------------------------------------------------
+
+class EventBus {
+  constructor(capacity = 256) {
+    this._capacity = Math.max(1, capacity);
+    this._buf = [];
+    this._subs = [];
+    this._closed = false;
+  }
+  emit(event) {
+    if (this._closed) return;
+    this._buf.push(event);
+    if (this._buf.length > this._capacity) {
+      this._buf.splice(0, this._buf.length - this._capacity);
+    }
+    for (const fn of [...this._subs]) {
+      try { fn(event); } catch (_) { /* ignore */ }
+    }
+  }
+  drain() { return [...this._buf]; }
+  drainSince(cutoff) { return this._buf.filter((e) => e.timestamp >= cutoff); }
+  subscribe(fn) {
+    this._subs.push(fn);
+    return () => {
+      const i = this._subs.indexOf(fn);
+      if (i >= 0) this._subs.splice(i, 1);
+    };
+  }
+  subscribeWithSnapshot(fn) {
+    const snapshot = [...this._buf];
+    const stop = this.subscribe(fn);
+    return { snapshot, stop };
+  }
+  close() {
+    this._closed = true;
+    this._subs.length = 0;
+  }
+}
+
+// --- Metrics -----------------------------------------------------------------
+
+class Counter {
+  constructor(name, help = '', labels = {}) {
+    this.name = name;
+    this.help = help;
+    this.labels = { ...labels };
+    this._v = 0;
+  }
+  inc(n = 1) { if (n >= 0) this._v += n; }
+  add(n) { this.inc(n); }
+  value() { return this._v; }
+}
+
+class Gauge {
+  constructor(name, help = '', labels = {}) {
+    this.name = name;
+    this.help = help;
+    this.labels = { ...labels };
+    this._v = 0;
+  }
+  set(v) { this._v = Number(v); }
+  add(d) { this._v += Number(d); }
+  value() { return this._v; }
+}
+
+const DEFAULT_BUCKETS = [
+  50e-6, 100e-6, 250e-6, 500e-6,
+  1e-3, 2.5e-3, 5e-3, 10e-3, 25e-3, 50e-3, 100e-3, 250e-3, 500e-3,
+  1.0, 2.5, 5.0, 10.0, 30.0, 60.0,
+];
+
+class Histogram {
+  constructor(name, help = '', labels = {}, bounds = null) {
+    this.name = name;
+    this.help = help;
+    this.labels = { ...labels };
+    this._bounds = [...(bounds && bounds.length ? bounds : DEFAULT_BUCKETS)].sort((a, b) => a - b);
+    this._counts = new Array(this._bounds.length).fill(0);
+    this._total = 0;
+    this._sum = 0;
+  }
+  observe(v) {
+    this._total += 1;
+    this._sum += v;
+    for (let i = 0; i < this._bounds.length; i++) {
+      if (v <= this._bounds[i]) this._counts[i] += 1;
+    }
+  }
+  observeDuration(seconds) { this.observe(seconds); }
+  snapshot() {
+    return { bounds: [...this._bounds], counts: [...this._counts], total: this._total, sum: this._sum };
+  }
+  static quantile(snap, q) {
+    if (snap.total === 0) return NaN;
+    const target = snap.total * q;
+    for (let i = 0; i < snap.counts.length; i++) {
+      if (snap.counts[i] >= target) return snap.bounds[i];
+    }
+    return Infinity;
+  }
+}
+
+function metricKey(name, labels) {
+  const keys = Object.keys(labels || {}).sort();
+  if (!keys.length) return name;
+  return name + '|' + keys.map((k) => `${k}=${labels[k]}`).join(',');
+}
+
+class Registry {
+  constructor() {
+    this._counters = new Map();
+    this._gauges = new Map();
+    this._histograms = new Map();
+  }
+  counter(name, help = '', labels = {}) {
+    const k = metricKey(name, labels);
+    let c = this._counters.get(k);
+    if (!c) { c = new Counter(name, help, labels); this._counters.set(k, c); }
+    return c;
+  }
+  gauge(name, help = '', labels = {}) {
+    const k = metricKey(name, labels);
+    let g = this._gauges.get(k);
+    if (!g) { g = new Gauge(name, help, labels); this._gauges.set(k, g); }
+    return g;
+  }
+  histogram(name, help = '', labels = {}, bounds = null) {
+    const k = metricKey(name, labels);
+    let h = this._histograms.get(k);
+    if (!h) { h = new Histogram(name, help, labels, bounds); this._histograms.set(k, h); }
+    return h;
+  }
+  snapshot() {
+    const counters = [...this._counters.values()]
+      .map((c) => ({ name: c.name, help: c.help, labels: { ...c.labels }, value: c.value() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const gauges = [...this._gauges.values()]
+      .map((g) => ({ name: g.name, help: g.help, labels: { ...g.labels }, value: g.value() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const histograms = [...this._histograms.values()]
+      .map((h) => ({ name: h.name, help: h.help, labels: { ...h.labels }, snap: h.snapshot() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return { capturedAt: new Date(), counters, gauges, histograms };
+  }
+}
+
+// --- Logger ------------------------------------------------------------------
+
+function stringify(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'boolean') return v ? 'true' : 'false';
+  if (v instanceof Error) return v.message;
+  if (typeof v === 'object') try { return JSON.stringify(v); } catch (_) { return String(v); }
+  return String(v);
+}
+
+class Logger {
+  constructor(obs, name) {
+    this._obs = obs;
+    this._name = name;
+    this._level = obs ? obs.cfg.defaultLogLevel : Level.FATAL;
+  }
+  get name() { return this._name; }
+  setLevel(l) { this._level = l; }
+  enabled(l) { return this._obs && l >= this._level; }
+  _log(level, message, fields, options = {}) {
+    if (!this.enabled(level)) return;
+    const redact = this._obs.cfg.redactedFields || new Set();
+    const outFields = {};
+    let isPrivate = Boolean(options.private);
+    if (fields) {
+      for (const k of Object.keys(fields)) {
+        if (k === '__holons_private') {
+          isPrivate = isPrivate || Boolean(fields[k]);
+          continue;
+        }
+        if (redact.has ? redact.has(k) : redact.includes && redact.includes(k)) {
+          outFields[k] = '<redacted>';
+        } else {
+          outFields[k] = stringify(fields[k]);
+        }
+      }
+    }
+    const caller = callerFrame();
+    const entry = {
+      timestamp: Date.now() / 1000,
+      level,
+      slug: this._obs.cfg.slug || '',
+      instance_uid: this._obs.cfg.instanceUid || '',
+      session_id: '', // P2 fills via async context when wired
+      rpc_method: '',
+      message,
+      fields: outFields,
+      caller,
+      chain: [],
+      private: isPrivate,
+    };
+    if (this._obs.logRing) this._obs.logRing.push(entry);
+  }
+  trace(msg, fields, options) { this._log(Level.TRACE, msg, fields, options); }
+  debug(msg, fields, options) { this._log(Level.DEBUG, msg, fields, options); }
+  info(msg, fields, options)  { this._log(Level.INFO,  msg, fields, options); }
+  warn(msg, fields, options)  { this._log(Level.WARN,  msg, fields, options); }
+  error(msg, fields, options) { this._log(Level.ERROR, msg, fields, options); }
+  fatal(msg, fields, options) { this._log(Level.FATAL, msg, fields, options); }
+  private() { return new PrivateLogger(this); }
+}
+
+class PrivateLogger {
+  constructor(base) {
+    this._base = base;
+  }
+  trace(msg, fields) { this._base.trace(msg, fields, { private: true }); }
+  debug(msg, fields) { this._base.debug(msg, fields, { private: true }); }
+  info(msg, fields)  { this._base.info(msg, fields, { private: true }); }
+  warn(msg, fields)  { this._base.warn(msg, fields, { private: true }); }
+  error(msg, fields) { this._base.error(msg, fields, { private: true }); }
+  fatal(msg, fields) { this._base.fatal(msg, fields, { private: true }); }
+}
+
+function Private(fields = {}) {
+  return { ...(fields || {}), __holons_private: true };
+}
+
+function callerFrame() {
+  // Best-effort file:line extraction from a fresh Error stack.
+  const err = new Error();
+  const stack = (err.stack || '').split('\n');
+  // Skip this function + Logger._log + level method + caller.
+  for (let i = 3; i < stack.length; i++) {
+    const m = stack[i].match(/\(([^()]+):(\d+):\d+\)$/) || stack[i].match(/at ([^\s]+):(\d+):\d+/);
+    if (m) return `${path.basename(m[1])}:${m[2]}`;
+  }
+  return '';
+}
+
+const _disabledLogger = Object.freeze({
+  _obs: null,
+  _name: '',
+  _level: Level.FATAL,
+  enabled() { return false; },
+  setLevel() { /* noop */ },
+  trace() {}, debug() {}, info() {}, warn() {}, error() {}, fatal() {},
+  private() { return this; },
+});
+
+// --- Observability root ------------------------------------------------------
+
+class Observability {
+  constructor(cfg, families) {
+    this.cfg = cfg;
+    this.families = families;
+    this.logRing = families.has(Family.LOGS) ? new LogRing(cfg.logsRingSize || 1024) : null;
+    this.registry = families.has(Family.METRICS) ? new Registry() : null;
+    this.eventBus = families.has(Family.EVENTS) ? new EventBus(cfg.eventsRingSize || 256) : null;
+    this._loggers = new Map();
+  }
+  enabled(family) { return this.families.has(family); }
+  isOrganismRoot() {
+    return !!this.cfg.organismUid && this.cfg.organismUid === this.cfg.instanceUid;
+  }
+  logger(name) {
+    if (!this.families.has(Family.LOGS)) return _disabledLogger;
+    let l = this._loggers.get(name);
+    if (!l) { l = new Logger(this, name); this._loggers.set(name, l); }
+    return l;
+  }
+  counter(name, help = '', labels = {}) { return this.registry ? this.registry.counter(name, help, labels) : null; }
+  gauge(name, help = '', labels = {}) { return this.registry ? this.registry.gauge(name, help, labels) : null; }
+  histogram(name, help = '', labels = {}, bounds = null) { return this.registry ? this.registry.histogram(name, help, labels, bounds) : null; }
+  emit(type, payload, options = {}) {
+    if (!this.eventBus) return;
+    const redact = this.cfg.redactedFields || new Set();
+    const p = {};
+    let isPrivate = Boolean(options.private);
+    if (payload) {
+      for (const k of Object.keys(payload)) {
+        if (k === '__holons_private') {
+          isPrivate = isPrivate || Boolean(payload[k]);
+          continue;
+        }
+        if (redact.has ? redact.has(k) : (redact.includes && redact.includes(k))) {
+          p[k] = '<redacted>';
+        } else {
+          p[k] = stringify(payload[k]);
+        }
+      }
+    }
+    this.eventBus.emit({
+      timestamp: Date.now() / 1000,
+      type,
+      slug: this.cfg.slug || '',
+      instance_uid: this.cfg.instanceUid || '',
+      session_id: '',
+      payload: p,
+      chain: [],
+      private: isPrivate,
+    });
+  }
+  emitPrivate(type, payload) {
+    this.emit(type, payload, { private: true });
+  }
+  close() {
+    if (this.eventBus) this.eventBus.close();
+  }
+}
+
+let _current = null;
+
+function configure(cfg = {}) {
+  checkEnv();
+  const slug = cfg.slug || (process.argv[1] ? path.basename(process.argv[1]) : '');
+  const instanceUid = cfg.instanceUid || crypto.randomUUID();
+  const runRoot = cfg.runDir || '';
+  const families = parseOpObs(process.env.OP_OBS || '');
+  const normalized = {
+    slug,
+    instanceUid,
+    organismUid: cfg.organismUid || '',
+    organismSlug: cfg.organismSlug || '',
+    promAddr: cfg.promAddr || '',
+    runDir: runRoot ? deriveRunDir(runRoot, slug, instanceUid) : '',
+    defaultLogLevel: cfg.defaultLogLevel || Level.INFO,
+    redactedFields: cfg.redactedFields ? new Set(cfg.redactedFields) : new Set(),
+    logsRingSize: cfg.logsRingSize,
+    eventsRingSize: cfg.eventsRingSize,
+  };
+  const obs = new Observability(normalized, families);
+  _current = obs;
+  return obs;
+}
+
+function fromEnv(base = {}) {
+  const cfg = { ...base };
+  cfg.instanceUid = cfg.instanceUid || process.env.OP_INSTANCE_UID || '';
+  cfg.organismUid = cfg.organismUid || process.env.OP_ORGANISM_UID || '';
+  cfg.organismSlug = cfg.organismSlug || process.env.OP_ORGANISM_SLUG || '';
+  cfg.promAddr = cfg.promAddr || process.env.OP_PROM_ADDR || '';
+  cfg.runDir = cfg.runDir || process.env.OP_RUN_DIR || '';
+  return configure(cfg);
+}
+
+function current() {
+  if (_current) return _current;
+  return new Observability({
+    slug: '', instanceUid: '', organismUid: '', organismSlug: '',
+    defaultLogLevel: Level.FATAL, redactedFields: new Set(),
+  }, new Set());
+}
+
+function reset() {
+  if (_current) _current.close();
+  _current = null;
+}
+
+function deriveRunDir(root, slug, uid) {
+  if (!root || !slug || !uid) return root || '';
+  return path.join(root, slug, uid);
+}
+
+// --- Proto conversion + gRPC service ----------------------------------------
+
+function timestamp(unixSeconds) {
+  const seconds = Math.trunc(Number(unixSeconds) || 0);
+  const nanos = Math.trunc(((Number(unixSeconds) || 0) - seconds) * 1_000_000_000);
+  return { seconds: String(seconds), nanos };
+}
+
+function durationSeconds(duration) {
+  if (!duration) return 0;
+  return Number(duration.seconds || 0) + Number(duration.nanos || 0) / 1e9;
+}
+
+function toProtoLogEntry(entry) {
+  return {
+    ts: timestamp(entry.timestamp),
+    level: PROTO_LEVEL_NAMES[entry.level] || 'LOG_LEVEL_UNSPECIFIED',
+    slug: entry.slug || '',
+    instance_uid: entry.instance_uid || '',
+    session_id: entry.session_id || '',
+    rpc_method: entry.rpc_method || '',
+    message: entry.message || '',
+    fields: { ...(entry.fields || {}) },
+    caller: entry.caller || '',
+    chain: (entry.chain || []).map((hop) => ({
+      slug: hop.slug || '',
+      instance_uid: hop.instance_uid || '',
+    })),
+  };
+}
+
+function fromProtoLogEntry(entry) {
+  return {
+    timestamp: fromProtoTimestamp(entry.ts),
+    level: normalizeLogLevel(entry.level),
+    slug: entry.slug || '',
+    instance_uid: entry.instance_uid || '',
+    session_id: entry.session_id || '',
+    rpc_method: entry.rpc_method || '',
+    message: entry.message || '',
+    fields: { ...(entry.fields || {}) },
+    caller: entry.caller || '',
+    chain: (entry.chain || []).map(fromProtoHop),
+  };
+}
+
+function histogramToProto(snap) {
+  return {
+    buckets: (snap.bounds || []).map((upper, index) => ({
+      upper_bound: upper,
+      count: Number((snap.counts || [])[index] || 0),
+    })),
+    count: Number(snap.total || 0),
+    sum: Number(snap.sum || 0),
+  };
+}
+
+function toProtoMetricSamples(snapshot) {
+  const samples = [];
+  for (const c of snapshot.counters || []) {
+    samples.push({
+      name: c.name,
+      help: c.help || '',
+      labels: { ...(c.labels || {}) },
+      counter: Number(c.value || 0),
+    });
+  }
+  for (const g of snapshot.gauges || []) {
+    samples.push({
+      name: g.name,
+      help: g.help || '',
+      labels: { ...(g.labels || {}) },
+      gauge: Number(g.value || 0),
+    });
+  }
+  for (const h of snapshot.histograms || []) {
+    samples.push({
+      name: h.name,
+      help: h.help || '',
+      labels: { ...(h.labels || {}) },
+      histogram: histogramToProto(h.snap || {}),
+    });
+  }
+  return samples;
+}
+
+function toProtoEvent(event) {
+  return {
+    ts: timestamp(event.timestamp),
+    type: PROTO_EVENT_TYPE_NAMES[event.type] || 'EVENT_TYPE_UNSPECIFIED',
+    slug: event.slug || '',
+    instance_uid: event.instance_uid || '',
+    session_id: event.session_id || '',
+    payload: { ...(event.payload || {}) },
+    chain: (event.chain || []).map((hop) => ({
+      slug: hop.slug || '',
+      instance_uid: hop.instance_uid || '',
+    })),
+  };
+}
+
+function fromProtoEvent(event) {
+  return {
+    timestamp: fromProtoTimestamp(event.ts),
+    type: normalizeEventType(event.type),
+    slug: event.slug || '',
+    instance_uid: event.instance_uid || '',
+    session_id: event.session_id || '',
+    payload: { ...(event.payload || {}) },
+    chain: (event.chain || []).map(fromProtoHop),
+  };
+}
+
+function fromProtoHop(hop) {
+  return {
+    slug: hop.slug || '',
+    instance_uid: hop.instance_uid || '',
+  };
+}
+
+function fromProtoTimestamp(ts) {
+  if (!ts) return 0;
+  return Number(ts.seconds || 0) + Number(ts.nanos || 0) / 1e9;
+}
+
+function makeHolonObservabilityHandlers(obs = current()) {
+  return {
+    Logs(call) {
+      if (!obs.enabled(Family.LOGS) || !obs.logRing) {
+        failStream(call, 'logs family is not enabled (OP_OBS)');
+        return;
+      }
+      const request = call.request || {};
+      const minLevel = requestMinLevel(request.min_level);
+      const cutoff = request.since ? Date.now() / 1000 - durationSeconds(request.since) : 0;
+      if (!request.follow) {
+        const entries = cutoff ? obs.logRing.drainSince(cutoff) : obs.logRing.drain();
+        for (const entry of entries) {
+          if (matchLog(entry, minLevel, request.session_ids, request.rpc_methods, false)) {
+            call.write(toProtoLogEntry(entry));
+          }
+        }
+        call.end();
+        return;
+      }
+      let closed = false;
+      // Replay-then-live: snapshot and subscriber registration stay adjacent.
+      const { snapshot, stop } = obs.logRing.subscribeWithSnapshot((entry) => {
+        if (closed || !matchLog(entry, minLevel, request.session_ids, request.rpc_methods, true)) return;
+        call.write(toProtoLogEntry(entry));
+      });
+      for (const entry of snapshot) {
+        if (closed) break;
+        if (cutoff && entry.timestamp < cutoff) continue;
+        if (matchLog(entry, minLevel, request.session_ids, request.rpc_methods, true)) {
+          call.write(toProtoLogEntry(entry));
+        }
+      }
+      const cleanup = () => {
+        if (closed) return;
+        closed = true;
+        stop();
+      };
+      call.on('cancelled', cleanup);
+      call.on('error', cleanup);
+      call.on('close', cleanup);
+    },
+
+    Metrics(call, callback) {
+      if (!obs.enabled(Family.METRICS) || !obs.registry) {
+        callback(failedPrecondition('metrics family is not enabled (OP_OBS)'));
+        return;
+      }
+      const request = call.request || {};
+      const snapshot = obs.registry.snapshot();
+      let samples = toProtoMetricSamples(snapshot);
+      if (request.name_prefixes && request.name_prefixes.length) {
+        const prefixes = request.name_prefixes.filter(Boolean);
+        samples = samples.filter((sample) => prefixes.some((prefix) => sample.name.startsWith(prefix)));
+      }
+      callback(null, {
+        captured_at: timestamp(snapshot.capturedAt.getTime() / 1000),
+        slug: obs.cfg.slug || '',
+        instance_uid: obs.cfg.instanceUid || '',
+        samples,
+      });
+    },
+
+    Events(call) {
+      if (!obs.enabled(Family.EVENTS) || !obs.eventBus) {
+        failStream(call, 'events family is not enabled (OP_OBS)');
+        return;
+      }
+      const request = call.request || {};
+      const wanted = new Set((request.types || []).map(normalizeEventType));
+      const cutoff = request.since ? Date.now() / 1000 - durationSeconds(request.since) : 0;
+      if (!request.follow) {
+        const events = cutoff ? obs.eventBus.drainSince(cutoff) : obs.eventBus.drain();
+        for (const event of events) {
+          if (matchEvent(event, wanted, false)) {
+            call.write(toProtoEvent(event));
+          }
+        }
+        call.end();
+        return;
+      }
+      let closed = false;
+      // Replay-then-live: snapshot and subscriber registration stay adjacent.
+      const { snapshot, stop } = obs.eventBus.subscribeWithSnapshot((event) => {
+        if (closed || !matchEvent(event, wanted, true)) return;
+        call.write(toProtoEvent(event));
+      });
+      for (const event of snapshot) {
+        if (closed) break;
+        if (cutoff && event.timestamp < cutoff) continue;
+        if (matchEvent(event, wanted, true)) {
+          call.write(toProtoEvent(event));
+        }
+      }
+      const cleanup = () => {
+        if (closed) return;
+        closed = true;
+        stop();
+      };
+      call.on('cancelled', cleanup);
+      call.on('error', cleanup);
+      call.on('close', cleanup);
+    },
+  };
+}
+
+function registerService(server, obs = current()) {
+  server.addService(observabilityWire.HOLON_OBSERVABILITY_SERVICE_DEF, makeHolonObservabilityHandlers(obs));
+}
+
+function requestMinLevel(value) {
+  const level = normalizeLogLevel(value);
+  return level || Level.INFO;
+}
+
+function normalizeLogLevel(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    if (Object.prototype.hasOwnProperty.call(Level, value)) return Level[value];
+    if (value === 'LOG_LEVEL_UNSPECIFIED') return Level.UNSET;
+  }
+  return Level.UNSET;
+}
+
+function normalizeEventType(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    if (Object.prototype.hasOwnProperty.call(EventType, value)) return EventType[value];
+    if (value === 'EVENT_TYPE_UNSPECIFIED') return EventType.UNSPECIFIED;
+  }
+  return EventType.UNSPECIFIED;
+}
+
+function matchLog(entry, minLevel, sessionIds, rpcMethods, follow = false) {
+  if (follow && entry.private) return false;
+  if (entry.level < minLevel) return false;
+  if (sessionIds && sessionIds.length && !sessionIds.includes(entry.session_id || '')) return false;
+  if (rpcMethods && rpcMethods.length && !rpcMethods.includes(entry.rpc_method || '')) return false;
+  return true;
+}
+
+function matchEvent(event, wanted, follow = false) {
+  if (follow && event.private) return false;
+  if (!wanted || wanted.size === 0) return true;
+  return wanted.has(Number(event.type || 0));
+}
+
+function failedPrecondition(message) {
+  const err = new Error(message);
+  err.code = grpc.status.FAILED_PRECONDITION;
+  err.details = message;
+  return err;
+}
+
+function failStream(call, message) {
+  const err = failedPrecondition(message);
+  if (typeof call.destroy === 'function') {
+    call.destroy(err);
+    return;
+  }
+  call.emit('error', err);
+}
+
+// --- Prometheus exposition --------------------------------------------------
+
+class PromServer {
+  constructor(addr = ':0') {
+    this.addr = addr || ':0';
+    this.server = null;
+  }
+
+  async start() {
+    if (this.server) return this.addrURL();
+    const { host, port } = parsePromAddr(this.addr);
+    this.server = http.createServer((req, res) => {
+      const pathname = (req.url || '').split('?', 1)[0];
+      if (pathname !== '/metrics') {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+      const obs = current();
+      let status = 200;
+      let body = '';
+      if (!obs.enabled(Family.METRICS)) {
+        status = 503;
+        body = '# metrics family disabled (OP_OBS)\n';
+      } else if (!obs.enabled(Family.PROM)) {
+        status = 503;
+        body = '# prom family disabled (OP_OBS)\n';
+      } else {
+        body = toPrometheusText(obs);
+      }
+      res.writeHead(status, {
+        'content-type': 'text/plain; version=0.0.4',
+        'content-length': Buffer.byteLength(body),
+      });
+      res.end(body);
+    });
+    await new Promise((resolve, reject) => {
+      this.server.once('error', reject);
+      this.server.listen(port, host, () => {
+        this.server.off('error', reject);
+        resolve();
+      });
+    });
+    return this.addrURL();
+  }
+
+  addrURL() {
+    if (!this.server || !this.server.address()) return '';
+    const address = this.server.address();
+    return `http://${advertisedPromHost(address.address)}:${address.port}/metrics`;
+  }
+
+  async close() {
+    const server = this.server;
+    this.server = null;
+    if (!server) return;
+    await new Promise((resolve) => server.close(() => resolve()));
+  }
+}
+
+function toPrometheusText(obs) {
+  if (!obs.enabled(Family.METRICS) || !obs.registry) {
+    return '# metrics family disabled (OP_OBS)\n';
+  }
+  const snapshot = obs.registry.snapshot();
+  const groups = new Map();
+  const ensure = (name, help, type) => {
+    let group = groups.get(name);
+    if (!group) {
+      group = { name, help, type, counters: [], gauges: [], histograms: [] };
+      groups.set(name, group);
+    }
+    if (!group.help && help) group.help = help;
+    return group;
+  };
+  for (const counter of snapshot.counters || []) ensure(counter.name, counter.help, 'counter').counters.push(counter);
+  for (const gauge of snapshot.gauges || []) ensure(gauge.name, gauge.help, 'gauge').gauges.push(gauge);
+  for (const histogram of snapshot.histograms || []) ensure(histogram.name, histogram.help, 'histogram').histograms.push(histogram);
+
+  const injected = { slug: obs.cfg.slug || '' };
+  if (obs.cfg.instanceUid) injected.instance_uid = obs.cfg.instanceUid;
+  const lines = [];
+  for (const name of [...groups.keys()].sort()) {
+    const group = groups.get(name);
+    lines.push(`# HELP ${name} ${promEscapeHelp(group.help || '')}`);
+    lines.push(`# TYPE ${name} ${group.type}`);
+    for (const counter of group.counters) {
+      lines.push(`${counter.name}${promLabels(mergeLabels(counter.labels, injected))} ${Number(counter.value || 0)}`);
+    }
+    for (const gauge of group.gauges) {
+      lines.push(`${gauge.name}${promLabels(mergeLabels(gauge.labels, injected))} ${formatPromFloat(gauge.value || 0)}`);
+    }
+    for (const histogram of group.histograms) {
+      const labels = mergeLabels(histogram.labels, injected);
+      const snap = histogram.snap || {};
+      const bounds = snap.bounds || [];
+      const counts = snap.counts || [];
+      for (let i = 0; i < bounds.length; i += 1) {
+        lines.push(`${histogram.name}_bucket${promLabels({ ...labels, le: formatPromFloat(bounds[i]) })} ${Number(counts[i] || 0)}`);
+      }
+      lines.push(`${histogram.name}_bucket${promLabels({ ...labels, le: '+Inf' })} ${Number(snap.total || 0)}`);
+      lines.push(`${histogram.name}_sum${promLabels(labels)} ${formatPromFloat(snap.sum || 0)}`);
+      lines.push(`${histogram.name}_count${promLabels(labels)} ${Number(snap.total || 0)}`);
+    }
+  }
+  return lines.length ? `${lines.join('\n')}\n` : '';
+}
+
+function parsePromAddr(raw) {
+  const trimmed = String(raw || ':0').trim() || ':0';
+  if (trimmed.startsWith(':')) {
+    return { host: '0.0.0.0', port: Number(trimmed.slice(1) || 0) };
+  }
+  const idx = trimmed.lastIndexOf(':');
+  if (idx < 0) throw new Error(`invalid Prometheus address "${raw}"`);
+  return { host: trimmed.slice(0, idx) || '0.0.0.0', port: Number(trimmed.slice(idx + 1)) };
+}
+
+function advertisedPromHost(host) {
+  if (!host || host === '0.0.0.0') return '127.0.0.1';
+  if (host === '::') return '::1';
+  return host;
+}
+
+function mergeLabels(base, extra) {
+  const out = {};
+  for (const [key, value] of Object.entries(extra || {})) {
+    if (value !== undefined && value !== null && String(value) !== '') out[key] = String(value);
+  }
+  for (const [key, value] of Object.entries(base || {})) out[key] = String(value);
+  return out;
+}
+
+function promLabels(labels) {
+  const keys = Object.keys(labels || {}).sort();
+  if (!keys.length) return '';
+  return `{${keys.map((key) => `${key}="${promEscapeValue(labels[key])}"`).join(',')}}`;
+}
+
+function promEscapeValue(value) {
+  return String(value).replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/"/g, '\\"');
+}
+
+function promEscapeHelp(value) {
+  return String(value).replace(/\\/g, '\\\\').replace(/\n/g, '\\n');
+}
+
+function formatPromFloat(value) {
+  const number = Number(value);
+  if (number === Infinity) return '+Inf';
+  if (number === -Infinity) return '-Inf';
+  if (Number.isNaN(number)) return 'NaN';
+  return String(number);
+}
+
+// --- Member observability relay --------------------------------------------
+
+class MemberRelay {
+  constructor({ childSlug, childUid, client, observability = current(), retryDelayMs = 2000 }) {
+    this.childSlug = childSlug || '';
+    this.childUid = childUid || '';
+    this.client = client;
+    this.observability = observability;
+    this.retryDelayMs = retryDelayMs;
+    this.stopped = false;
+    this.active = new Set();
+  }
+
+  start() {
+    const obs = this.observability;
+    if (obs.enabled(Family.LOGS) && obs.logRing) this.pumpLogs();
+    if (obs.enabled(Family.EVENTS) && obs.eventBus) this.pumpEvents();
+  }
+
+  stop() {
+    this.stopped = true;
+    for (const stream of [...this.active]) {
+      if (typeof stream.cancel === 'function') stream.cancel();
+      if (typeof stream.destroy === 'function') stream.destroy();
+    }
+    this.active.clear();
+  }
+
+  pumpLogs() {
+    if (this.stopped) return;
+    const stream = this.client.Logs({ follow: true });
+    this.active.add(stream);
+    const restart = () => {
+      this.active.delete(stream);
+      if (!this.stopped) setTimeout(() => this.pumpLogs(), this.retryDelayMs);
+    };
+    stream.on('data', (proto) => {
+      const obs = this.observability;
+      if (!obs.enabled(Family.LOGS) || !obs.logRing) return;
+      const entry = fromProtoLogEntry(proto);
+      entry.chain = appendDirectChild(entry.chain, this.childSlug, this.childUid);
+      obs.logRing.push(entry);
+    });
+    stream.on('error', restart);
+    stream.on('end', restart);
+    stream.on('close', restart);
+  }
+
+  pumpEvents() {
+    if (this.stopped) return;
+    const stream = this.client.Events({ follow: true });
+    this.active.add(stream);
+    const restart = () => {
+      this.active.delete(stream);
+      if (!this.stopped) setTimeout(() => this.pumpEvents(), this.retryDelayMs);
+    };
+    stream.on('data', (proto) => {
+      const obs = this.observability;
+      if (!obs.enabled(Family.EVENTS) || !obs.eventBus) return;
+      const event = fromProtoEvent(proto);
+      event.chain = appendDirectChild(event.chain, this.childSlug, this.childUid);
+      obs.eventBus.emit(event);
+    });
+    stream.on('error', restart);
+    stream.on('end', restart);
+    stream.on('close', restart);
+  }
+}
+
+// --- Disk writers -----------------------------------------------------------
+
+function enableDiskWriters(runDir) {
+  const obs = _current;
+  if (!obs || !runDir) return;
+  obs.cfg.runDir = runDir;
+  fs.mkdirSync(runDir, { recursive: true });
+  if (obs.enabled(Family.LOGS) && obs.logRing) {
+    const fp = path.join(runDir, 'stdout.log');
+    obs.logRing.subscribe((e) => {
+      const rec = {
+        kind: 'log',
+        ts: new Date(e.timestamp * 1000).toISOString(),
+        level: levelName(e.level),
+        slug: e.slug,
+        instance_uid: e.instance_uid,
+        message: e.message,
+      };
+      if (e.session_id) rec.session_id = e.session_id;
+      if (e.rpc_method) rec.rpc_method = e.rpc_method;
+      if (Object.keys(e.fields || {}).length) rec.fields = e.fields;
+      if (e.caller) rec.caller = e.caller;
+      if (e.chain && e.chain.length) rec.chain = e.chain;
+      try { fs.appendFileSync(fp, JSON.stringify(rec) + '\n'); } catch (_) {}
+    });
+  }
+  if (obs.enabled(Family.EVENTS) && obs.eventBus) {
+    const fp = path.join(runDir, 'events.jsonl');
+    obs.eventBus.subscribe((e) => {
+      const rec = {
+        kind: 'event',
+        ts: new Date(e.timestamp * 1000).toISOString(),
+        type: eventTypeName(e.type),
+        slug: e.slug,
+        instance_uid: e.instance_uid,
+      };
+      if (e.session_id) rec.session_id = e.session_id;
+      if (Object.keys(e.payload || {}).length) rec.payload = e.payload;
+      if (e.chain && e.chain.length) rec.chain = e.chain;
+      try { fs.appendFileSync(fp, JSON.stringify(rec) + '\n'); } catch (_) {}
+    });
+  }
+}
+
+function writeMetaJson(runDir, meta) {
+  if (!runDir) throw new Error('writeMetaJson: empty runDir');
+  fs.mkdirSync(runDir, { recursive: true });
+  const p = path.join(runDir, 'meta.json');
+  const tmp = p + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(meta, null, 2));
+  fs.renameSync(tmp, p);
+}
+
+function readMetaJson(runDir) {
+  const p = path.join(runDir, 'meta.json');
+  return JSON.parse(fs.readFileSync(p, 'utf8'));
+}
+
+module.exports = {
+  Family, Level, EventType, InvalidTokenError,
+  Counter, Gauge, Histogram, Registry, LogRing, EventBus,
+  Logger, Observability, Private,
+  MemberRelay, PromServer,
+  parseOpObs, checkEnv, parseLevel, levelName, eventTypeName,
+  appendDirectChild, enrichForMultilog,
+  configure, fromEnv, current, reset,
+  deriveRunDir,
+  fromProtoLogEntry, fromProtoEvent,
+  toProtoLogEntry, toProtoMetricSamples, toProtoEvent,
+  toPrometheusText,
+  makeHolonObservabilityHandlers, registerService,
+  enableDiskWriters, writeMetaJson, readMetaJson,
+  DEFAULT_BUCKETS,
+};

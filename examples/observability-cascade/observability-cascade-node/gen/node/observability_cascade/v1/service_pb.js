@@ -252,7 +252,8 @@ proto.observability_cascade.v1.PhaseResult.toObject = function(includeInstance, 
 name: jspb.Message.getFieldWithDefault(msg, 1, ""),
 pass: jspb.Message.getFieldWithDefault(msg, 2, 0),
 fail: jspb.Message.getFieldWithDefault(msg, 3, 0),
-failuresList: (f = jspb.Message.getRepeatedField(msg, 4)) == null ? undefined : f
+failuresList: (f = jspb.Message.getRepeatedField(msg, 4)) == null ? undefined : f,
+elapsedUs: jspb.Message.getFieldWithDefault(msg, 5, 0)
   };
 
   if (includeInstance) {
@@ -304,6 +305,10 @@ proto.observability_cascade.v1.PhaseResult.deserializeBinaryFromReader = functio
     case 4:
       var value = /** @type {string} */ (reader.readString());
       msg.addFailures(value);
+      break;
+    case 5:
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setElapsedUs(value);
       break;
     default:
       reader.skipField();
@@ -359,6 +364,13 @@ proto.observability_cascade.v1.PhaseResult.serializeBinaryToWriter = function(me
   if (f.length > 0) {
     writer.writeRepeatedString(
       4,
+      f
+    );
+  }
+  f = message.getElapsedUs();
+  if (f !== 0) {
+    writer.writeInt64(
+      5,
       f
     );
   }
@@ -456,6 +468,24 @@ proto.observability_cascade.v1.PhaseResult.prototype.clearFailuresList = functio
 };
 
 
+/**
+ * optional int64 elapsed_us = 5;
+ * @return {number}
+ */
+proto.observability_cascade.v1.PhaseResult.prototype.getElapsedUs = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 5, 0));
+};
+
+
+/**
+ * @param {number} value
+ * @return {!proto.observability_cascade.v1.PhaseResult} returns this
+ */
+proto.observability_cascade.v1.PhaseResult.prototype.setElapsedUs = function(value) {
+  return jspb.Message.setProto3IntField(this, 5, value);
+};
+
+
 
 /**
  * List of repeated fields within this message type.
@@ -499,7 +529,9 @@ ticks: jspb.Message.getFieldWithDefault(msg, 1, 0),
 pass: jspb.Message.getFieldWithDefault(msg, 2, 0),
 fail: jspb.Message.getFieldWithDefault(msg, 3, 0),
 phasesList: jspb.Message.toObjectList(msg.getPhasesList(),
-    proto.observability_cascade.v1.PhaseResult.toObject, includeInstance)
+    proto.observability_cascade.v1.PhaseResult.toObject, includeInstance),
+name: jspb.Message.getFieldWithDefault(msg, 5, ""),
+elapsedUs: jspb.Message.getFieldWithDefault(msg, 6, 0)
   };
 
   if (includeInstance) {
@@ -552,6 +584,14 @@ proto.observability_cascade.v1.CascadeReport.deserializeBinaryFromReader = funct
       var value = new proto.observability_cascade.v1.PhaseResult;
       reader.readMessage(value,proto.observability_cascade.v1.PhaseResult.deserializeBinaryFromReader);
       msg.addPhases(value);
+      break;
+    case 5:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setName(value);
+      break;
+    case 6:
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setElapsedUs(value);
       break;
     default:
       reader.skipField();
@@ -609,6 +649,20 @@ proto.observability_cascade.v1.CascadeReport.serializeBinaryToWriter = function(
       4,
       f,
       proto.observability_cascade.v1.PhaseResult.serializeBinaryToWriter
+    );
+  }
+  f = message.getName();
+  if (f.length > 0) {
+    writer.writeString(
+      5,
+      f
+    );
+  }
+  f = message.getElapsedUs();
+  if (f !== 0) {
+    writer.writeInt64(
+      6,
+      f
     );
   }
 };
@@ -706,6 +760,42 @@ proto.observability_cascade.v1.CascadeReport.prototype.clearPhasesList = functio
 };
 
 
+/**
+ * optional string name = 5;
+ * @return {string}
+ */
+proto.observability_cascade.v1.CascadeReport.prototype.getName = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 5, ""));
+};
+
+
+/**
+ * @param {string} value
+ * @return {!proto.observability_cascade.v1.CascadeReport} returns this
+ */
+proto.observability_cascade.v1.CascadeReport.prototype.setName = function(value) {
+  return jspb.Message.setProto3StringField(this, 5, value);
+};
+
+
+/**
+ * optional int64 elapsed_us = 6;
+ * @return {number}
+ */
+proto.observability_cascade.v1.CascadeReport.prototype.getElapsedUs = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 6, 0));
+};
+
+
+/**
+ * @param {number} value
+ * @return {!proto.observability_cascade.v1.CascadeReport} returns this
+ */
+proto.observability_cascade.v1.CascadeReport.prototype.setElapsedUs = function(value) {
+  return jspb.Message.setProto3IntField(this, 6, value);
+};
+
+
 
 /**
  * List of repeated fields within this message type.
@@ -748,7 +838,8 @@ proto.observability_cascade.v1.MultiPatternReport.toObject = function(includeIns
 patternsList: jspb.Message.toObjectList(msg.getPatternsList(),
     proto.observability_cascade.v1.CascadeReport.toObject, includeInstance),
 totalPass: jspb.Message.getFieldWithDefault(msg, 2, 0),
-totalFail: jspb.Message.getFieldWithDefault(msg, 3, 0)
+totalFail: jspb.Message.getFieldWithDefault(msg, 3, 0),
+totalElapsedUs: jspb.Message.getFieldWithDefault(msg, 4, 0)
   };
 
   if (includeInstance) {
@@ -798,6 +889,10 @@ proto.observability_cascade.v1.MultiPatternReport.deserializeBinaryFromReader = 
       var value = /** @type {number} */ (reader.readInt32());
       msg.setTotalFail(value);
       break;
+    case 4:
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setTotalElapsedUs(value);
+      break;
     default:
       reader.skipField();
       break;
@@ -846,6 +941,13 @@ proto.observability_cascade.v1.MultiPatternReport.serializeBinaryToWriter = func
   if (f !== 0) {
     writer.writeInt32(
       3,
+      f
+    );
+  }
+  f = message.getTotalElapsedUs();
+  if (f !== 0) {
+    writer.writeInt64(
+      4,
       f
     );
   }
@@ -923,6 +1025,24 @@ proto.observability_cascade.v1.MultiPatternReport.prototype.getTotalFail = funct
  */
 proto.observability_cascade.v1.MultiPatternReport.prototype.setTotalFail = function(value) {
   return jspb.Message.setProto3IntField(this, 3, value);
+};
+
+
+/**
+ * optional int64 total_elapsed_us = 4;
+ * @return {number}
+ */
+proto.observability_cascade.v1.MultiPatternReport.prototype.getTotalElapsedUs = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 4, 0));
+};
+
+
+/**
+ * @param {number} value
+ * @return {!proto.observability_cascade.v1.MultiPatternReport} returns this
+ */
+proto.observability_cascade.v1.MultiPatternReport.prototype.setTotalElapsedUs = function(value) {
+  return jspb.Message.setProto3IntField(this, 4, value);
 };
 
 

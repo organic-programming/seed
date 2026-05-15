@@ -3,14 +3,13 @@
 
 const childProcess = require('node:child_process');
 const fs = require('node:fs');
-const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 
 function findRepoRoot(start) {
   let current = path.resolve(start);
   for (;;) {
-    if (fs.existsSync(path.join(current, 'sdk', 'js-holons'))) return current;
+    if (fs.existsSync(path.join(current, 'sdk', 'node-holons'))) return current;
     const parent = path.dirname(current);
     if (parent === current) return null;
     current = parent;
@@ -24,309 +23,31 @@ const grpc = require('@grpc/grpc-js');
 const describeGenerated = require(path.join(HERE, 'gen/describe_generated.js'));
 const cascadePb = require(path.join(HERE, 'gen/node/observability_cascade/v1/service_pb.js'));
 const cascadeGrpc = require(path.join(HERE, 'gen/node/observability_cascade/v1/service_grpc_pb.js'));
-const relayPb = require(path.join(HERE, 'gen/node/relay/v1/relay_pb.js'));
-const relayGrpc = require(path.join(HERE, 'gen/node/relay/v1/relay_grpc_pb.js'));
-const { describe, serve, composite } = require('@organic-programming/holons');
-const observabilityWire = require('@organic-programming/holons/src/gen/holons/v1/observability');
-const describeWire = require('@organic-programming/holons/src/gen/holons/v1/describe');
+const { composite, describe, observability, relay, serve } = require('@organic-programming/holons');
 
-const RUN_PHASES = 4;
 const RUN_TICKS = 3;
-const ROLE_ORDER = ['D', 'C', 'B', 'A'];
-const TRANSPORTS = ['tcp', 'unix', 'tcp', 'unix'];
 const NODE_SLUG = 'observability-cascade-node-node';
 const GO_SLUG = 'observability-cascade-go-node';
 
-const ObservabilityClient = grpc.makeGenericClientConstructor(
-  observabilityWire.HOLON_OBSERVABILITY_SERVICE_DEF,
-  'HolonObservability',
-  {},
-);
-const HolonMetaClient = grpc.makeGenericClientConstructor(
-  describeWire.HOLON_META_SERVICE_DEF,
-  'HolonMeta',
-  {},
-);
-
-class RoleSpec {
-  constructor(slug, binaryPath) {
+class LanguageMember {
+  constructor(lang, slug, binary) {
+    this.lang = lang;
     this.slug = slug;
-    this.binaryPath = binaryPath;
+    this.binary = binary;
   }
 }
 
-class RoleRuntime {
-  constructor({ role, uid, slug, binaryPath, listenUri, relayAddress, clientTarget }) {
-    this.role = role;
-    this.uid = uid;
-    this.slug = slug;
-    this.binaryPath = binaryPath;
-    this.listenUri = listenUri;
-    this.relayAddress = relayAddress;
-    this.clientTarget = clientTarget;
-    this.memberAddress = '';
-    this.memberSlug = '';
-    this.metricsAddr = '';
-    this.process = null;
-    this.relayClient = null;
-    this.obsClient = null;
-    this.stderrPath = path.join(os.tmpdir(), `observability-cascade-node-${process.pid}-${uid}.stderr`);
-  }
-}
-
-class CheckResult {
-  constructor(pass = false, evidence = '') {
-    this.pass = pass;
-    this.evidence = evidence;
-  }
-}
-
-class TickOutcome {
-  constructor(log, event, metric, metricValue) {
-    this.log = log;
-    this.event = event;
-    this.metric = metric;
-    this.metricValue = metricValue;
-  }
-}
-
-class PhaseReportData {
-  constructor(name, pass, fail, failures = []) {
-    this.name = name;
-    this.pass = pass;
-    this.fail = fail;
-    this.failures = failures;
-  }
-}
-
-class CascadeReportData {
-  constructor(ticks, pass, fail, phases) {
-    this.ticks = ticks;
-    this.pass = pass;
-    this.fail = fail;
-    this.phases = phases;
-  }
-}
-
-class MultiPatternReportData {
-  constructor(patterns, totalPass, totalFail) {
-    this.patterns = patterns;
-    this.totalPass = totalPass;
-    this.totalFail = totalFail;
-  }
-}
-
-class Cascade {
-  constructor(phase, transport, runRoot, roles) {
-    this.phase = phase;
-    this.transport = transport;
-    this.runRoot = runRoot;
-    this.roles = roles;
-  }
-
-  async runTick(tick, previousMetric) {
-    return this.runTickWithSender(`phase-${this.phase}-tick-${tick}`, previousMetric);
-  }
-
-  async runTickWithSender(sender, previousMetric) {
-    const request = new relayPb.TickRequest();
-    request.setSender(sender);
-    request.setNote(this.transport);
-    try {
-      await unary(this.roles.D.relayClient.tick.bind(this.roles.D.relayClient), request, 5000);
-    } catch (error) {
-      const err = new CheckResult(false, error.message);
-      return new TickOutcome(err, err, err, previousMetric);
-    }
-
-    const log = await waitFor(3000, () => this.checkLog(sender));
-    const event = await waitFor(3000, () => this.checkEvent());
-    let metricValue = previousMetric;
-    const metric = await waitFor(3000, async () => {
-      const [result, value] = await this.checkMetric(previousMetric);
-      if (result.pass) metricValue = value;
-      return result;
-    });
-    return new TickOutcome(log, event, metric, metricValue);
-  }
-
-  async runLiveTick(streams, streamOpenError, tick, previousMetric) {
-    return this.runLiveTickWithSender(streams, streamOpenError, `phase-${this.phase}-tick-${tick}`, previousMetric);
-  }
-
-  async runLiveTickWithSender(streams, streamOpenError, sender, previousMetric) {
-    const request = new relayPb.TickRequest();
-    request.setSender(sender);
-    request.setNote(this.transport);
-    try {
-      await unary(this.roles.D.relayClient.tick.bind(this.roles.D.relayClient), request, 5000);
-    } catch (error) {
-      const err = new CheckResult(false, error.message);
-      return new TickOutcome(err, err, err, previousMetric);
-    }
-
-    let log;
-    let event;
-    if (!streamOpenError && streams) {
-      log = await waitFor(1000, () => this.checkLiveLog(streams, sender), 50);
-      event = await waitFor(1000, () => this.checkLiveEvent(streams), 50);
-    } else {
-      const evidence = `stream re-open failed: ${streamOpenError || 'streams not open'}`;
-      log = new CheckResult(false, evidence);
-      event = new CheckResult(false, evidence);
-    }
-
-    let metricValue = previousMetric;
-    const metric = await waitFor(1000, async () => {
-      const [result, value] = await this.checkMetric(previousMetric);
-      if (result.pass) metricValue = value;
-      return result;
-    }, 50);
-    return new TickOutcome(log, event, metric, metricValue);
-  }
-
-  async checkLog(sender) {
-    const entries = await readLogs(this.roles.A.obsClient);
-    for (const entry of entries) {
-      if (entry.message !== 'tick received') continue;
-      if ((entry.fields || {}).sender !== sender) continue;
-      if ((entry.fields || {}).responder_uid !== this.roles.D.uid) continue;
-      const err = this.checkChain(entry.chain || []);
-      if (err) return new CheckResult(false, `matching log has bad chain: ${err} entry=${JSON.stringify(entry)}`);
-      return new CheckResult(true, JSON.stringify(entry));
-    }
-    return new CheckResult(false, `no relayed D tick log for sender=${sender} in ${entries.length} A log entries`);
-  }
-
-  async checkEvent() {
-    const events = await readEvents(this.roles.A.obsClient);
-    for (const event of events) {
-      if (event.type !== 'INSTANCE_READY' || event.instance_uid !== this.roles.D.uid) continue;
-      const err = this.checkChain(event.chain || []);
-      if (err) return new CheckResult(false, `matching event has bad chain: ${err} event=${JSON.stringify(event)}`);
-      return new CheckResult(true, JSON.stringify(event));
-    }
-    return new CheckResult(false, `no relayed D INSTANCE_READY event in ${events.length} A events`);
-  }
-
-  checkLiveLog(streams, sender) {
-    const entries = streams.logEntries();
-    for (const entry of entries) {
-      if (entry.message !== 'tick received') continue;
-      if ((entry.fields || {}).sender !== sender) continue;
-      if ((entry.fields || {}).responder_uid !== this.roles.D.uid) continue;
-      const err = this.checkChain(entry.chain || []);
-      if (err) return new CheckResult(false, `matching live log has bad chain: ${err} entry=${JSON.stringify(entry)}`);
-      return new CheckResult(true, JSON.stringify(entry));
-    }
-    return new CheckResult(false, `no live log found for sender=${sender}; buffer=${entries.length} errors=${JSON.stringify(streams.errors())}`);
-  }
-
-  checkLiveEvent(streams) {
-    const events = streams.eventEntries();
-    for (const event of events) {
-      if (event.type !== 'INSTANCE_READY' || event.instance_uid !== this.roles.D.uid) continue;
-      const err = this.checkChain(event.chain || []);
-      if (err) return new CheckResult(false, `matching live event has bad chain: ${err} event=${JSON.stringify(event)}`);
-      return new CheckResult(true, JSON.stringify(event));
-    }
-    return new CheckResult(false, `no live INSTANCE_READY event for D; buffer=${events.length} errors=${JSON.stringify(streams.errors())}`);
-  }
-
-  async checkMetric(previous) {
-    try {
-      const body = await fetchMetrics(this.roles.D.metricsAddr);
-      const value = parseCascadeTicks(body, this.roles.D.uid);
-      if (value === null) return [new CheckResult(false, body), previous];
-      if (value <= previous) {
-        return [new CheckResult(false, `cascade_ticks_total=${value} did not increase beyond ${previous}\n${body}`), value];
-      }
-      return [new CheckResult(true, `cascade_ticks_total=${value}`), value];
-    } catch (error) {
-      return [new CheckResult(false, error.message), previous];
-    }
-  }
-
-  checkChain(chain) {
-    for (let index = 0; index < 3; index += 1) {
-      const role = ['D', 'C', 'B'][index];
-      if (index >= chain.length) return `chain length ${chain.length} < 3`;
-      const hop = chain[index];
-      const want = this.roles[role];
-      if (hop.slug !== want.slug || hop.instance_uid !== want.uid) {
-        return `hop ${index} = ${hop.slug}/${hop.instance_uid}, want ${want.slug}/${want.uid}`;
-      }
-    }
-    return '';
-  }
-
-  stop() {
-    for (const role of [...ROLE_ORDER].reverse()) {
-      const runtime = this.roles[role];
-      if (runtime.relayClient) runtime.relayClient.close();
-      if (runtime.obsClient) runtime.obsClient.close();
-      if (runtime.process && !runtime.process.killed) runtime.process.kill('SIGTERM');
-    }
-    for (const runtime of Object.values(this.roles)) {
-      if (runtime.process && !runtime.process.killed) runtime.process.kill('SIGKILL');
-    }
-  }
-}
-
-class LiveStreams {
-  constructor(client) {
-    this.client = client;
-    this.logs = [];
-    this.events = [];
-    this.errs = [];
-    this.streams = [];
-  }
-
-  start() {
-    const logStream = this.client.Logs({ min_level: 'INFO', follow: true });
-    const eventStream = this.client.Events({ follow: true });
-    this.streams = [logStream, eventStream];
-    logStream.on('data', (entry) => this.logs.push(entry));
-    logStream.on('error', (error) => this.errs.push(`logs stream ended: ${error.message}`));
-    eventStream.on('data', (event) => this.events.push(event));
-    eventStream.on('error', (error) => this.errs.push(`events stream ended: ${error.message}`));
-  }
-
-  stop() {
-    for (const stream of this.streams) {
-      if (typeof stream.cancel === 'function') stream.cancel();
-      if (typeof stream.destroy === 'function') stream.destroy();
-    }
-  }
-
-  logEntries() { return [...this.logs]; }
-  eventEntries() { return [...this.events]; }
-  errors() { return [...this.errs]; }
-}
-
-class ObservabilityCascadeService {
+class CascadeService {
   async runDefault(_call, callback) {
-    try {
-      callback(null, toCascadeReport(await runDefault(false)));
-    } catch (error) {
-      callback(error);
-    }
+    callback(null, toCascadeReport(await runReport('default', ownLanguageMembers(), false, false)));
   }
 
   async runLiveStream(_call, callback) {
-    try {
-      callback(null, toCascadeReport(await runLiveStream(false)));
-    } catch (error) {
-      callback(error);
-    }
+    callback(null, toCascadeReport(await runReport('live-stream', ownLanguageMembers(), true, false)));
   }
 
   async runMultiPattern(_call, callback) {
-    try {
-      callback(null, toMultiPatternReport(await runMultiPattern(false)));
-    } catch (error) {
-      callback(error);
-    }
+    callback(null, toMultiPatternReport(await runMultiPatternReport(false)));
   }
 }
 
@@ -334,7 +55,7 @@ async function serveComposite(args) {
   describe.useStaticResponse(describeGenerated.staticDescribeResponse());
   const options = serve.parseOptions(args);
   await serve.runWithOptions(normalizeListenUri(options.listenUri), (server) => {
-    server.addService(cascadeGrpc.ObservabilityCascadeServiceService, new ObservabilityCascadeService());
+    server.addService(cascadeGrpc.ObservabilityCascadeServiceService, new CascadeService());
   }, {
     reflect: options.reflect,
     slug: 'observability-cascade-node',
@@ -342,455 +63,258 @@ async function serveComposite(args) {
 }
 
 async function main() {
-  try {
-    const args = process.argv.slice(2);
-    if (args.length > 0 && canonicalCommand(args[0]) === 'serve') await serveComposite(args.slice(1));
-    else if (args.includes('--multi-pattern')) await runMultiPattern();
-    else if (args.includes('--live-stream')) await runLiveStream();
-    else await runDefault();
+  const args = process.argv.slice(2);
+  if (args.length > 0 && canonicalCommand(args[0]) === 'serve') {
+    await serveComposite(args.slice(1));
     return 0;
-  } catch (error) {
-    process.stderr.write(`\nFAIL: ${error.message}\n`);
-    return 1;
   }
+  if (args.includes('--multi-pattern')) {
+    const report = await runMultiPatternReport(true);
+    return report.totalFail > 0 ? 1 : 0;
+  }
+  const live = args.includes('--live-stream');
+  const report = await runReport(live ? 'live-stream' : 'default', ownLanguageMembers(), live, true);
+  return report.fail > 0 ? 1 : 0;
 }
 
-async function runDefault(emit = true) {
-  const binary = findBinary(NODE_SLUG);
-  const runRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'observability-cascade-node-'));
-  output(emit, '=== observability-cascade-node ===');
+async function runMultiPatternReport(emit) {
+  const totalStart = nowMicros();
+  const patterns = nodePatterns();
+  const out = { patterns: [], totalPass: 0, totalFail: 0, totalElapsedUs: 0 };
+  output(emit, '=== observability-cascade-node --multi-pattern ===');
   output(emit);
-  let totalPass = 0;
-  let totalFail = 0;
-  let previous = '';
-  for (let index = 0; index < TRANSPORTS.length; index += 1) {
-    const phase = index + 1;
-    const transport = TRANSPORTS[index];
-    output(emit, previous ? `Phase ${phase}/${RUN_PHASES}: transport=${transport} (switching from ${previous})` : `Phase ${phase}/${RUN_PHASES}: transport=${transport}`);
-    const started = performanceNow();
-    let cascade;
-    try {
-      const specs = Object.fromEntries(ROLE_ORDER.map((role) => [role, new RoleSpec(NODE_SLUG, binary)]));
-      cascade = await spawnCascade(phase, transport, specs, runRoot);
-    } catch (error) {
-      totalFail += RUN_TICKS;
-      output(emit, `  spawn FAIL: ${error.message}\n`);
-      previous = transport;
-      continue;
-    }
-    output(emit, `  spawned 4 nodes in ${elapsed(started)}`);
-    let previousMetric = 0;
-    for (let tick = 1; tick <= RUN_TICKS; tick += 1) {
-      const tickStart = performanceNow();
-      const outcome = await cascade.runTick(tick, previousMetric);
-      if (outcome.metric.pass) previousMetric = outcome.metricValue;
-      const overall = outcome.log.pass && outcome.event.pass && outcome.metric.pass;
-      if (overall) totalPass += 1; else totalFail += 1;
-      output(emit, `  Tick ${tick}/${RUN_TICKS}: log ${passText(outcome.log.pass)}, event ${passText(outcome.event.pass)}, metric ${passText(outcome.metric.pass)} (overall ${passText(overall)} in ${elapsed(tickStart)})`);
-      if (emit) {
-        printFailureEvidence('log', outcome.log);
-        printFailureEvidence('event', outcome.event);
-        printFailureEvidence('metric', outcome.metric);
-      }
-    }
-    cascade.stop();
+  for (let index = 0; index < patterns.length; index += 1) {
+    const pattern = patterns[index];
+    output(emit, `Pattern ${index + 1}/${patterns.length}: ${pattern.name}`);
+    const report = await runReport(pattern.name, pattern.members, true, emit);
+    out.patterns.push(report);
+    out.totalPass += report.pass;
+    out.totalFail += report.fail;
+    output(emit, `Pattern ${pattern.name}: ${report.pass}/${report.ticks} ${report.fail ? 'FAIL' : 'PASS'} (elapsed=${elapsedText(report.elapsedUs)})`);
     output(emit);
-    previous = transport;
   }
-  output(emit, `Summary: ${totalPass + totalFail} ticks, ${totalPass} PASS, ${totalFail} FAIL`);
-  if (totalFail) throw new Error(`${totalFail} tick(s) failed`);
-  return new CascadeReportData(
-    totalPass + totalFail,
-    totalPass,
-    totalFail,
-    [new PhaseReportData('default', totalPass, totalFail)],
-  );
+  out.totalElapsedUs = nowMicros() - totalStart;
+  output(emit, `Summary: ${out.totalPass} PASS / ${out.totalFail} FAIL across ${out.totalPass + out.totalFail} ticks (total elapsed=${elapsedText(out.totalElapsedUs)})`);
+  return out;
 }
 
-async function runLiveStream(emit = true) {
-  const binary = findBinary(NODE_SLUG);
-  const runRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'observability-cascade-node-live-'));
-  output(emit, '=== observability-cascade-node --live-stream ===');
+async function runReport(name, members, live, emit) {
+  ensureCascadeObservability();
+  const reportStart = nowMicros();
+  const report = { name, ticks: 0, pass: 0, fail: 0, phases: [], elapsedUs: 0 };
+  const timeoutMs = live ? 1000 : 3000;
+  const pollIntervalMs = live ? 50 : 100;
+  const runRoot = fs.mkdtempSync(path.join(os.tmpdir(), `observability-cascade-node-${name}-`));
+  output(emit, `=== observability-cascade-node ${modeSuffix(name)}===`);
   output(emit);
-  output(emit, 'Setup: opening long-lived Follow:true streams on A');
-  output(emit, '       (initial transport: tcp)');
-  output(emit);
-  let totalPass = 0;
-  let totalFail = 0;
-  let cascade = null;
-  let streams = null;
-  const specs = Object.fromEntries(ROLE_ORDER.map((role) => [role, new RoleSpec(NODE_SLUG, binary)]));
-  for (let index = 0; index < TRANSPORTS.length; index += 1) {
-    const phase = index + 1;
-    const transport = TRANSPORTS[index];
-    if (phase === 1) {
-      output(emit, `Phase ${phase}/${RUN_PHASES}: initial chain (${transport})`);
-    } else {
-      output(emit, `Phase ${phase}/${RUN_PHASES}: respawn on ${transport}`);
-      const killStart = performanceNow();
-      if (streams) streams.stop();
-      if (cascade) cascade.stop();
-      output(emit, `  killed 4 nodes in ${elapsed(killStart)}`);
-    }
-    const spawnStart = performanceNow();
-    let phaseCascade;
-    try {
-      phaseCascade = await spawnCascade(phase, transport, specs, runRoot);
-    } catch (error) {
-      totalFail += RUN_TICKS;
-      output(emit, `  spawn FAIL: ${error.message}\n`);
-      streams = null;
-      continue;
-    }
-    output(emit, `  spawned 4 nodes in ${elapsed(spawnStart)}`);
-    if (phase > 1) output(emit, '  re-opening Follow:true streams on new A');
-    let streamError = null;
-    try {
-      streams = new LiveStreams(phaseCascade.roles.A.obsClient);
-      streams.start();
-    } catch (error) {
-      streams = null;
-      streamError = error.message;
-      output(emit, `  stream re-open failed: ${error.message}`);
-    }
-    let previousMetric = 0;
-    for (let tick = 1; tick <= RUN_TICKS; tick += 1) {
-      const tickStart = performanceNow();
-      const outcome = await phaseCascade.runLiveTick(streams, streamError, tick, previousMetric);
-      if (outcome.metric.pass) previousMetric = outcome.metricValue;
-      const overall = outcome.log.pass && outcome.event.pass && outcome.metric.pass;
-      if (overall) totalPass += 1; else totalFail += 1;
-      output(emit, `  Tick ${tick}/${RUN_TICKS}: log ${passText(outcome.log.pass)}, event ${passText(outcome.event.pass)}, metric ${passText(outcome.metric.pass)} (overall ${passText(overall)} in ${elapsed(tickStart)})`);
-      if (emit) {
-        printFailureEvidence('log', outcome.log);
-        printFailureEvidence('event', outcome.event);
-        printFailureEvidence('metric', outcome.metric);
-      }
-    }
-    output(emit);
-    cascade = phaseCascade;
-  }
-  if (streams) streams.stop();
-  if (cascade) cascade.stop();
-  output(emit, `Summary: ${totalPass} PASS / ${totalFail} FAIL across ${totalPass + totalFail} ticks`);
-  if (totalFail) throw new Error(`${totalFail} tick(s) failed`);
-  return new CascadeReportData(
-    totalPass + totalFail,
-    totalPass,
-    totalFail,
-    [new PhaseReportData('live-stream', totalPass, totalFail)],
-  );
-}
 
-async function runMultiPattern(emit = true) {
-  const nodeBinary = findBinary(NODE_SLUG);
-  const goBinary = findBinary(GO_SLUG);
-  const patterns = [
-    ['node-node-node-node', Object.fromEntries(ROLE_ORDER.map((role) => [role, new RoleSpec(NODE_SLUG, nodeBinary)]))],
-    ['node-node-go-node', {
-      A: new RoleSpec(NODE_SLUG, nodeBinary), B: new RoleSpec(NODE_SLUG, nodeBinary),
-      C: new RoleSpec(GO_SLUG, goBinary), D: new RoleSpec(NODE_SLUG, nodeBinary),
-    }],
-    ['node-node-go-go', {
-      A: new RoleSpec(NODE_SLUG, nodeBinary), B: new RoleSpec(NODE_SLUG, nodeBinary),
-      C: new RoleSpec(GO_SLUG, goBinary), D: new RoleSpec(GO_SLUG, goBinary),
-    }],
-  ];
-  const runRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'observability-cascade-node-multi-'));
-  output(emit, '=== observability-cascade-node (multi-pattern) ===');
-  output(emit);
-  let totalPass = 0;
-  let totalFail = 0;
-  for (let patternIndex = 0; patternIndex < patterns.length; patternIndex += 1) {
-    const [name, specs] = patterns[patternIndex];
-    output(emit, `Pattern ${patternIndex + 1}/${patterns.length}: ${name}`);
-    let patternPass = 0;
-    for (let index = 0; index < TRANSPORTS.length; index += 1) {
-      const phase = index + 1;
-      const transport = TRANSPORTS[index];
-      const started = performanceNow();
-      let cascade;
-      try {
-        cascade = await spawnCascade(phase, transport, specs, runRoot);
-      } catch (error) {
-        totalFail += RUN_TICKS;
-        output(emit, `  Phase ${phase}/${RUN_PHASES} (${transport}): spawn FAIL (${error.message})`);
-        continue;
-      }
-      let streamError = null;
-      let streams = null;
-      try {
-        streams = new LiveStreams(cascade.roles.A.obsClient);
-        streams.start();
-        const ready = await waitFor(5000, () => cascade.checkLiveEvent(streams), 50);
-        if (!ready.pass) streamError = `live relay readiness: ${ready.evidence}`;
-      } catch (error) {
-        streamError = error.message;
-      }
-      let previousMetric = 0;
-      const results = [];
-      const evidence = [];
+  for (let phaseIndex = 0; phaseIndex < composite.TransportCoverageSequence.length; phaseIndex += 1) {
+    const phaseStart = nowMicros();
+    const transportName = composite.TransportCoverageSequence[phaseIndex];
+    const from = phaseIndex > 0 ? composite.TransportCoverageSequence[phaseIndex - 1] : transportName;
+    const phase = {
+      name: `${String(phaseIndex + 1).padStart(2, '0')}-${from}→${transportName}`,
+      pass: 0,
+      fail: 0,
+      failures: [],
+      elapsedUs: 0,
+    };
+    output(emit, `Phase ${phaseIndex + 1}/${composite.TransportCoverageSequence.length}: ${phase.name}`);
+
+    let cascade = null;
+    let tickClient = null;
+    try {
+      cascade = await composite.BuildCascade({
+        transport: transportName,
+        members: childSpecs(members),
+        extraEnv: {
+          OP_OBS: 'logs,events,metrics,prom',
+          OP_PROM_ADDR: '127.0.0.1:0',
+          OP_RUN_DIR: runRoot,
+        },
+      });
+      tickClient = new relay.relayGrpc.RelayServiceClient(cascade.top.target, grpc.credentials.createInsecure());
+      const previous = {};
       for (let tick = 1; tick <= RUN_TICKS; tick += 1) {
-        const sender = `${name}-phase-${phase}-tick-${tick}`;
-        const outcome = await cascade.runLiveTickWithSender(streams, streamError, sender, previousMetric);
-        if (outcome.metric.pass) previousMetric = outcome.metricValue;
-        const overall = outcome.log.pass && outcome.event.pass && outcome.metric.pass;
-        if (overall) {
-          patternPass += 1;
-          totalPass += 1;
-          results.push(`Tick ${tick} PASS`);
-        } else {
-          totalFail += 1;
-          results.push(`Tick ${tick} FAIL (${failureSummary(outcome)})`);
-          evidence.push(`      Tick ${tick} evidence: ${compactEvidence(outcome)}`);
+        const sender = `${name}-phase-${String(phaseIndex + 1).padStart(2, '0')}-tick-${tick}`;
+        const result = await runTick(tickClient, sender, transportName, members, previous, timeoutMs, pollIntervalMs);
+        if (result.pass) phase.pass += 1;
+        else {
+          phase.fail += 1;
+          phase.failures.push(evidenceLine(tick, result));
         }
+        output(emit, `  Tick ${tick}/${RUN_TICKS}: ${result.pass ? 'PASS' : 'FAIL'}`);
+        if (emit && !result.pass) process.stderr.write(`    ${evidenceLine(tick, result)}\n`);
       }
-      output(emit, `  Phase ${phase}/${RUN_PHASES} (${transport}): ${results.join(', ')} (spawned in ${elapsed(started)})`);
-      if (emit) evidence.forEach((line) => console.log(line));
-      if (streams) streams.stop();
-      cascade.stop();
+    } catch (error) {
+      phase.fail += RUN_TICKS;
+      for (let tick = 1; tick <= RUN_TICKS; tick += 1) {
+        phase.failures.push(`tick=${tick} log=spawn event=spawn hops=${compactEvidence(error.message)}`);
+      }
+      output(emit, `  spawn FAIL: ${error.message}`);
+    } finally {
+      if (tickClient) tickClient.close();
+      if (cascade) await cascade.stop().catch(() => {});
     }
-    output(emit, `  Subtotal: ${patternPass}/12 PASS`);
+
+    phase.elapsedUs = nowMicros() - phaseStart;
+    addPhase(report, phase);
+    output(emit, `Phase ${phase.name}: ${phase.pass}/${phase.pass + phase.fail} ${phase.fail ? 'FAIL' : 'PASS'} (elapsed=${elapsedText(phase.elapsedUs)})`);
     output(emit);
   }
-  output(emit, `Summary: ${totalPass} PASS / ${totalFail} FAIL across ${totalPass + totalFail} ticks`);
-  if (totalFail) throw new Error(`${totalFail} tick(s) failed`);
-  return new MultiPatternReportData(
-    [
-      new CascadeReportData(
-        totalPass + totalFail,
-        totalPass,
-        totalFail,
-        [new PhaseReportData('multi-pattern', totalPass, totalFail)],
-      ),
-    ],
-    totalPass,
-    totalFail,
-  );
+  report.elapsedUs = nowMicros() - reportStart;
+  output(emit, `Summary: ${report.ticks} ticks, ${report.pass} PASS, ${report.fail} FAIL (total elapsed=${elapsedText(report.elapsedUs)})`);
+  return report;
 }
 
-async function spawnCascade(phase, transport, specs, runRoot) {
-  const roles = {};
-  for (const role of ROLE_ORDER) roles[role] = newRoleRuntime(phase, transport, role, specs[role]);
-  for (const runtime of Object.values(roles)) {
-    fs.rmSync(path.join(runRoot, runtime.slug, runtime.uid), { recursive: true, force: true });
-  }
-  const cascade = new Cascade(phase, transport, runRoot, roles);
+async function runTick(client, sender, note, members, previous, timeoutMs, pollIntervalMs) {
+  const request = new relay.relayPb.TickRequest();
+  request.setSender(sender);
+  request.setNote(note);
+  let response;
   try {
-    for (const role of ROLE_ORDER) {
-      const runtime = roles[role];
-      const child = childRole(role);
-      if (child) {
-        runtime.memberAddress = roles[child].relayAddress;
-        runtime.memberSlug = roles[child].slug;
-      }
-      await startRole(cascade, runtime);
-    }
+    response = await unary(client.tick.bind(client), request, 5000);
   } catch (error) {
-    cascade.stop();
-    throw error;
+    const out = { pass: false, evidence: compactEvidence(error.message) };
+    return { pass: false, log: out, event: out, hops: out };
   }
-  await sleep(150);
-  return cascade;
-}
-
-function newRoleRuntime(phase, transport, role, spec) {
-  const uid = `relay-p${String(phase).padStart(2, '0')}-${role.toLowerCase()}`;
-  if (transport === 'tcp') {
-    return new RoleRuntime({
-      role, uid, slug: spec.slug, binaryPath: spec.binaryPath,
-      listenUri: 'tcp://127.0.0.1:0',
-      relayAddress: '',
-      clientTarget: '',
-    });
+  const hops = checkHops(response.getHopsList(), members, previous);
+  if (!hops.pass) {
+    return {
+      pass: false,
+      hops,
+      log: { pass: false, evidence: 'skipped' },
+      event: { pass: false, evidence: 'skipped' },
+    };
   }
-  if (transport === 'unix') {
-    const socketPath = `/tmp/observability-cascade-node-p${phase}-${role.toLowerCase()}-${process.pid}.sock`;
-    fs.rmSync(socketPath, { force: true });
-    return new RoleRuntime({
-      role, uid, slug: spec.slug, binaryPath: spec.binaryPath,
-      listenUri: `unix://${socketPath}`,
-      relayAddress: `unix://${socketPath}`,
-      clientTarget: `unix://${socketPath}`,
-    });
-  }
-  throw new Error(`unknown transport ${transport}`);
-}
-
-async function startRole(cascade, runtime) {
-  const args = [runtime.binaryPath, 'serve', '--listen', runtime.listenUri];
-  if (runtime.memberAddress) args.push('--member', `${runtime.memberSlug}=${runtime.memberAddress}`);
-  const stderr = fs.openSync(runtime.stderrPath, 'w');
-  runtime.process = childProcess.spawn(args[0], args.slice(1), {
-    cwd: ROOT || HERE,
-    env: {
-      ...process.env,
-      OP_OBS: 'logs,events,metrics,prom',
-      OP_RUN_DIR: cascade.runRoot,
-      OP_INSTANCE_UID: runtime.uid,
-      OP_ORGANISM_UID: cascade.roles.A.uid,
-      OP_ORGANISM_SLUG: cascade.roles.A.slug,
-      OP_PROM_ADDR: '127.0.0.1:0',
-    },
-    stdio: ['ignore', 'ignore', stderr],
+  const expectedChain = response.getHopsList().map((hop) => ({ slug: hop.getSlug(), instance_uid: hop.getUid() }));
+  const leafUID = expectedChain[0].instance_uid;
+  const log = await composite.CheckRelayedLog({
+    sender,
+    leafUID,
+    expectedChain,
+    timeoutMs,
+    pollIntervalMs,
   });
-  runtime.process.once('exit', () => {
-    try { fs.closeSync(stderr); } catch (_) {}
+  const event = await composite.CheckRelayedEvent({
+    eventType: observability.EventType.INSTANCE_READY,
+    leafUID,
+    expectedChain,
+    timeoutMs,
+    pollIntervalMs,
   });
-  try {
-    const meta = await waitMeta(cascade.runRoot, runtime.slug, runtime.uid, 10000);
-    runtime.metricsAddr = meta.metrics_addr;
-    runtime.relayAddress = meta.address;
-    runtime.clientTarget = normalizeDialTarget(meta.address);
-    runtime.relayClient = new relayGrpc.RelayServiceClient(runtime.clientTarget, grpc.credentials.createInsecure());
-    runtime.obsClient = new ObservabilityClient(runtime.clientTarget, grpc.credentials.createInsecure());
-    await dialReady(runtime.clientTarget, 10000);
-  } catch (error) {
-    const stderrText = fs.existsSync(runtime.stderrPath) ? fs.readFileSync(runtime.stderrPath, 'utf8') : '';
-    const detail = [error.message, stderrText].filter(Boolean).join('\n');
-    throw new Error(`start ${runtime.role}: ${detail}`);
+  return { pass: hops.pass && log.pass && event.pass, hops, log, event };
+}
+
+function checkHops(hops, members, previous) {
+  if (hops.length !== members.length) {
+    return { pass: false, evidence: `hops length ${hops.length} want ${members.length}` };
   }
-}
-
-function normalizeDialTarget(uri) {
-  if (!String(uri).includes('://')) return uri;
-  if (uri.startsWith('tcp://')) {
-    const rest = uri.slice('tcp://'.length);
-    const idx = rest.lastIndexOf(':');
-    let host = idx >= 0 ? rest.slice(0, idx) : rest;
-    const port = idx >= 0 ? rest.slice(idx + 1) : '';
-    if (!host || host === '0.0.0.0' || host === '::') host = '127.0.0.1';
-    return `${host}:${port}`;
-  }
-  if (uri.startsWith('unix://')) return uri;
-  return uri;
-}
-
-function childRole(role) {
-  return { A: 'B', B: 'C', C: 'D' }[role] || '';
-}
-
-async function waitMeta(runRoot, slug, uid, timeoutMs) {
-  const metaPath = path.join(runRoot, slug, uid, 'meta.json');
-  const deadline = Date.now() + timeoutMs;
-  let lastError = null;
-  while (Date.now() < deadline) {
-    try {
-      const data = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-      if (data.uid === uid && data.metrics_addr) return data;
-    } catch (error) {
-      lastError = error;
+  for (let index = 0; index < hops.length; index += 1) {
+    const hop = hops[index];
+    const want = members[members.length - 1 - index];
+    if (hop.getSlug() !== want.slug) return { pass: false, evidence: `hop ${index} slug=${hop.getSlug()} want ${want.slug}` };
+    if (!hop.getUid()) return { pass: false, evidence: `hop ${index} uid empty` };
+    if (Number(hop.getReceived()) <= Number(previous[hop.getUid()] || 0)) {
+      return { pass: false, evidence: `hop ${index} received=${hop.getReceived()} previous=${previous[hop.getUid()] || 0}` };
     }
-    await sleep(50);
+    previous[hop.getUid()] = Number(hop.getReceived());
   }
-  throw new Error(`meta not ready for ${slug}/${uid}: ${lastError && lastError.message}`);
+  return { pass: true, evidence: 'ok' };
 }
 
-async function dialReady(target, timeoutMs) {
-  const deadline = Date.now() + timeoutMs;
-  let lastError = null;
-  while (Date.now() < deadline) {
-    const client = new HolonMetaClient(target, grpc.credentials.createInsecure());
-    try {
-      await unary(client.Describe.bind(client), {}, 500);
-      client.close();
-      return;
-    } catch (error) {
-      lastError = error;
-      client.close();
-      await sleep(50);
-    }
-  }
-  throw new Error(`dial ${target}: ${lastError && lastError.message}`);
+function ownLanguageMembers() {
+  const nodeBinary = findBinary('node-node', NODE_SLUG);
+  return [
+    new LanguageMember('node', NODE_SLUG, nodeBinary),
+    new LanguageMember('node', NODE_SLUG, nodeBinary),
+    new LanguageMember('node', NODE_SLUG, nodeBinary),
+  ];
 }
 
-function readLogs(client) {
-  return collectStream(client.Logs.bind(client), { min_level: 'INFO', follow: false }, 2000);
+function nodePatterns() {
+  const nodeBinary = findBinary('node-node', NODE_SLUG);
+  const goBinary = findBinary('go-node', GO_SLUG);
+  const bins = {
+    node: new LanguageMember('node', NODE_SLUG, nodeBinary),
+    go: new LanguageMember('go', GO_SLUG, goBinary),
+  };
+  const names = [
+    'node-node-node', 'node-node-go', 'node-go-node', 'node-go-go',
+    'go-node-node', 'go-node-go', 'go-go-node', 'go-go-go',
+  ];
+  return names.map((name) => ({
+    name,
+    members: name.split('-').map((part) => bins[part]),
+  }));
 }
 
-function readEvents(client) {
-  return collectStream(client.Events.bind(client), { follow: false }, 2000);
+function childSpecs(members) {
+  return members.map((member) => ({ slug: member.slug, binary: member.binary }));
 }
 
-function collectStream(method, request, timeoutMs) {
-  return new Promise((resolve, reject) => {
-    const out = [];
-    const stream = method(request);
-    const timer = setTimeout(() => {
-      if (typeof stream.cancel === 'function') stream.cancel();
-      resolve(out);
-    }, timeoutMs);
-    stream.on('data', (entry) => out.push(entry));
-    stream.on('error', (error) => {
-      clearTimeout(timer);
-      reject(error);
-    });
-    stream.on('end', () => {
-      clearTimeout(timer);
-      resolve(out);
-    });
-  });
+function addPhase(report, phase) {
+  report.phases.push(phase);
+  report.pass += phase.pass;
+  report.fail += phase.fail;
+  report.ticks += phase.pass + phase.fail;
 }
 
-function unary(method, request, timeoutMs) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('timeout')), timeoutMs);
-    method(request, (error, response) => {
-      clearTimeout(timer);
-      if (error) reject(error);
-      else resolve(response || {});
-    });
-  });
+function ensureCascadeObservability() {
+  const current = observability.current();
+  if (current.enabled(observability.Family.LOGS) && current.enabled(observability.Family.EVENTS)) return;
+  process.env.OP_OBS = 'logs,events,metrics,prom';
+  process.env.OP_PROM_ADDR = process.env.OP_PROM_ADDR || '127.0.0.1:0';
+  observability.fromEnv({ slug: 'observability-cascade-node' });
 }
 
-function fetchMetrics(addr) {
-  return new Promise((resolve, reject) => {
-    const req = http.get(addr, (res) => {
-      let body = '';
-      res.setEncoding('utf8');
-      res.on('data', (chunk) => { body += chunk; });
-      res.on('end', () => resolve(body));
-    });
-    req.setTimeout(2000, () => {
-      req.destroy(new Error('metrics timeout'));
-    });
-    req.on('error', reject);
-  });
+function toCascadeReport(report) {
+  const out = new cascadePb.CascadeReport();
+  out.setName(report.name || '');
+  out.setTicks(report.ticks);
+  out.setPass(report.pass);
+  out.setFail(report.fail);
+  out.setElapsedUs(report.elapsedUs);
+  out.setPhasesList(report.phases.map((phase) => {
+    const item = new cascadePb.PhaseResult();
+    item.setName(phase.name);
+    item.setPass(phase.pass);
+    item.setFail(phase.fail);
+    item.setFailuresList(phase.failures || []);
+    item.setElapsedUs(phase.elapsedUs);
+    return item;
+  }));
+  return out;
 }
 
-function parseCascadeTicks(body, uid) {
-  const needle = `responder_uid="${uid}"`;
-  for (const line of body.split(/\r?\n/)) {
-    if (!line.startsWith('cascade_ticks_total{') || !line.includes(needle)) continue;
-    const parts = line.trim().split(/\s+/);
-    if (parts.length >= 2) return Number(parts[parts.length - 1]);
-  }
-  return null;
+function toMultiPatternReport(report) {
+  const out = new cascadePb.MultiPatternReport();
+  out.setPatternsList(report.patterns.map(toCascadeReport));
+  out.setTotalPass(report.totalPass);
+  out.setTotalFail(report.totalFail);
+  out.setTotalElapsedUs(report.totalElapsedUs);
+  return out;
 }
 
-async function waitFor(timeoutMs, fn, intervalMs = 100) {
-  const deadline = Date.now() + timeoutMs;
-  let last = new CheckResult(false, '');
-  while (true) {
-    last = await fn();
-    if (last.pass || Date.now() > deadline) return last;
-    await sleep(intervalMs);
-  }
-}
-
-function findBinary(slug) {
-  if (slug === NODE_SLUG) return composite.member('node-node');
-
-  const roots = [];
-  roots.push(path.join(process.env.OPBIN || path.join(os.homedir(), '.op', 'bin'), `${slug}.holon`, 'bin'));
-  for (const root of roots) {
-    const match = findExecutable(root, slug);
-    if (match) return match;
-  }
+function findBinary(memberID, slug) {
   try {
-    const out = childProcess.execFileSync('op', ['--bin', slug], { cwd: ROOT || HERE, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return composite.member(memberID);
+  } catch (_) {
+    // Fall through to installed or op-resolved binaries for direct source runs.
+  }
+  const opBin = process.env.OPBIN || path.join(os.homedir(), '.op', 'bin');
+  const installed = findExecutable(path.join(opBin, `${slug}.holon`, 'bin'), slug);
+  if (installed) return installed;
+  try {
+    const out = childProcess.execFileSync('op', ['--bin', slug], {
+      cwd: ROOT || HERE,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
     if (out) return out;
-  } catch (_) {}
+  } catch (_) {
+    // leave unresolved
+  }
   throw new Error(`${slug} binary not found; run op build ${slug} --install`);
 }
 
@@ -805,34 +329,36 @@ function findExecutable(root, name) {
       try {
         fs.accessSync(full, fs.constants.X_OK);
         return full;
-      } catch (_) {}
+      } catch (_) {
+        return '';
+      }
     }
   }
   return '';
 }
 
-function toCascadeReport(report) {
-  const out = new cascadePb.CascadeReport();
-  out.setTicks(report.ticks);
-  out.setPass(report.pass);
-  out.setFail(report.fail);
-  out.setPhasesList(report.phases.map((phase) => {
-    const item = new cascadePb.PhaseResult();
-    item.setName(phase.name);
-    item.setPass(phase.pass);
-    item.setFail(phase.fail);
-    item.setFailuresList(phase.failures || []);
-    return item;
-  }));
-  return out;
+function evidenceLine(tick, result) {
+  return `tick=${tick} log=${evidenceText(result.log)} event=${evidenceText(result.event)} hops=${evidenceText(result.hops)}`;
 }
 
-function toMultiPatternReport(report) {
-  const out = new cascadePb.MultiPatternReport();
-  out.setPatternsList(report.patterns.map((pattern) => toCascadeReport(pattern)));
-  out.setTotalPass(report.totalPass);
-  out.setTotalFail(report.totalFail);
-  return out;
+function evidenceText(out) {
+  return out && out.pass ? 'ok' : compactEvidence(out && out.evidence ? out.evidence : '<empty>');
+}
+
+function compactEvidence(value) {
+  const out = String(value || '').replace(/\s+/g, ' ').trim();
+  return out.length <= 240 ? out : `${out.slice(0, 240)}...`;
+}
+
+function unary(method, request, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), timeoutMs);
+    method(request, (err, out) => {
+      clearTimeout(timer);
+      if (err) reject(err);
+      else resolve(out || {});
+    });
+  });
 }
 
 function normalizeListenUri(listenUri) {
@@ -841,52 +367,34 @@ function normalizeListenUri(listenUri) {
   return listenUri;
 }
 
-function output(emit, value = '') {
-  if (emit) console.log(value);
-}
-
 function canonicalCommand(raw) {
   return String(raw || '').trim().toLowerCase().replace(/[-_ ]/g, '');
 }
 
-function elapsed(start) {
-  const seconds = Math.max(0, (performanceNow() - start) / 1000);
-  if (seconds < 1) return `${Math.trunc(seconds * 1000)}ms`;
-  return `${seconds.toFixed(1)}s`;
+function modeSuffix(name) {
+  return name === 'default' ? '' : `--${name} `;
 }
 
-function passText(value) {
-  return value ? 'PASS' : 'FAIL';
+function elapsedText(elapsedUs) {
+  const ms = Number(elapsedUs || 0) / 1000;
+  if (ms < 1000) return `${Math.trunc(ms)}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
+  return `${(ms / 60000).toFixed(1)}m`;
 }
 
-function printFailureEvidence(family, result) {
-  if (!result.pass) console.log(`    ${family} evidence: ${result.evidence || '<empty>'}`);
+function nowMicros() {
+  return Number(process.hrtime.bigint() / 1000n);
 }
 
-function failureSummary(outcome) {
-  const missing = [];
-  if (!outcome.log.pass) missing.push('log family');
-  if (!outcome.event.pass) missing.push('event family');
-  if (!outcome.metric.pass) missing.push('metric family');
-  return missing.length ? missing.join(', ') : 'unknown';
+function output(emit, value = '') {
+  if (emit) console.log(value);
 }
 
-function compactEvidence(outcome) {
-  const parts = [];
-  if (!outcome.log.pass) parts.push(`log=${outcome.log.evidence}`);
-  if (!outcome.event.pass) parts.push(`event=${outcome.event.evidence}`);
-  if (!outcome.metric.pass) parts.push(`metric=${outcome.metric.evidence}`);
-  return parts.join(' | ');
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function performanceNow() {
-  return Number(process.hrtime.bigint()) / 1e6;
-}
-
-main().then((code) => {
-  process.exitCode = code;
-});
+main()
+  .then((code) => {
+    process.exitCode = code;
+  })
+  .catch((error) => {
+    process.stderr.write(`FAIL: ${error.stack || error.message}\n`);
+    process.exitCode = 1;
+  });

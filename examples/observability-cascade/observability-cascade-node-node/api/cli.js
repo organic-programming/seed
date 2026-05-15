@@ -1,9 +1,8 @@
 'use strict';
 
-const publicApi = require('./public');
-const pb = require('../gen/node/relay/v1/relay_pb.js');
-const { serve } = require('@organic-programming/holons');
-const server = require('../_internal/server');
+const { composite, describe, observability, relay, serve } = require('@organic-programming/holons');
+
+const describeGenerated = require('../gen/describe_generated');
 
 const VERSION = 'observability-cascade-node-node {{ .Version }}';
 
@@ -14,25 +13,14 @@ async function main(args = process.argv.slice(2), stdout = process.stdout, stder
   }
 
   switch (canonicalCommand(args[0])) {
-    case 'serve': {
-      const serveArgs = args.slice(1);
-      const serveOptions = serve.parseOptions(serveArgs);
-      try {
-        await server.listenAndServe(serveOptions.listenUri, serveOptions.reflect, parseMembers(serveArgs));
-      } catch (error) {
-        stderr.write(`serve: ${error.message}\n`);
-        return 1;
-      }
-      return 0;
-    }
+    case 'serve':
+      return serveNode(args.slice(1), stderr);
     case 'version':
       stdout.write(`${VERSION}\n`);
       return 0;
     case 'help':
       printUsage(stdout);
       return 0;
-    case 'tick':
-      return runTick(args.slice(1), stdout, stderr);
     default:
       stderr.write(`unknown command "${args[0]}"\n`);
       printUsage(stderr);
@@ -40,63 +28,57 @@ async function main(args = process.argv.slice(2), stdout = process.stdout, stder
   }
 }
 
-function runTick(args, stdout, stderr) {
-  const request = new pb.TickRequest();
-  const positional = [];
+async function serveNode(args, stderr) {
+  const { children, remaining } = serve.parseChildFlags(args);
+  const serveOptions = serve.parseOptions(remaining);
+  const transportName = parseTransport(remaining);
+  describe.useStaticResponse(describeGenerated.staticDescribeResponse());
+  observability.fromEnv({ slug: 'observability-cascade-node-node' });
+
+  let downstream = null;
   try {
-    for (let index = 0; index < args.length; index += 1) {
-      const arg = args[index];
-      if (arg === '--sender') {
-        index += 1;
-        if (index >= args.length) throw new Error('--sender requires a value');
-        request.setSender(args[index]);
-      } else if (arg.startsWith('--sender=')) {
-        request.setSender(arg.slice('--sender='.length));
-      } else if (arg === '--note') {
-        index += 1;
-        if (index >= args.length) throw new Error('--note requires a value');
-        request.setNote(args[index]);
-      } else if (arg.startsWith('--note=')) {
-        request.setNote(arg.slice('--note='.length));
-      } else if (arg.startsWith('--')) {
-        throw new Error(`unknown flag "${arg}"`);
-      } else {
-        positional.push(arg);
-      }
+    if (children.length > 0) {
+      downstream = await composite.SpawnMember({
+        slug: children[0].slug,
+        binaryPath: children[0].binary,
+        transport: transportName,
+        downstreamChain: children.slice(1),
+      });
     }
-    if (!request.getSender() && positional[0]) request.setSender(positional[0]);
-    if (!request.getNote() && positional[1]) request.setNote(positional[1]);
-    const response = publicApi.tick(request);
-    stdout.write(`${JSON.stringify(response.toObject(), null, 2)}\n`);
+    const server = await serve.runWithOptions(normalizeListenUri(serveOptions.listenUri), (grpcServer) => {
+      relay.registerServer(grpcServer, { downstreamConn: downstream });
+    }, {
+      reflect: serveOptions.reflect,
+      slug: 'observability-cascade-node-node',
+    });
+    const stopServer = server.stopHolon ? server.stopHolon.bind(server) : async () => {};
+    server.stopHolon = async () => {
+      if (downstream) {
+        await downstream.stop().catch(() => {});
+        downstream = null;
+      }
+      await stopServer();
+    };
     return 0;
   } catch (error) {
-    stderr.write(`tick: ${error.message}\n`);
+    if (downstream) await downstream.stop().catch(() => {});
+    stderr.write(`serve: ${error.message}\n`);
     return 1;
   }
 }
 
-function parseMembers(args) {
-  const members = [];
+function parseTransport(args) {
   for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    if (arg === '--member') {
-      index += 1;
-      if (index >= args.length) throw new Error('--member requires <slug>=<address>');
-      members.push(parseMember(args[index]));
-    } else if (arg.startsWith('--member=')) {
-      members.push(parseMember(arg.slice('--member='.length)));
-    }
+    if (args[index] === '--transport' && index + 1 < args.length) return args[index + 1];
+    if (args[index].startsWith('--transport=')) return args[index].slice('--transport='.length);
   }
-  return members;
+  return 'stdio';
 }
 
-function parseMember(raw) {
-  const idx = String(raw).indexOf('=');
-  if (idx < 0) throw new Error('--member requires <slug>=<address>');
-  const slug = raw.slice(0, idx).trim();
-  const address = raw.slice(idx + 1).trim();
-  if (!slug || !address) throw new Error('--member requires non-empty slug and address');
-  return { slug, address };
+function normalizeListenUri(listenUri) {
+  const match = String(listenUri || '').match(/^tcp:\/\/:(\d+)$/);
+  if (match) return `tcp://0.0.0.0:${match[1]}`;
+  return listenUri;
 }
 
 function canonicalCommand(raw) {
@@ -107,19 +89,16 @@ function printUsage(output) {
   output.write('usage: observability-cascade-node-node <command> [args] [flags]\n');
   output.write('\n');
   output.write('commands:\n');
-  output.write('  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server\n');
-  output.write('  tick [sender] [note]                                Emit one local tick\n');
-  output.write('  version                                             Print version and exit\n');
-  output.write('  help                                                Print usage\n');
+  output.write('  serve [--listen <uri>] [--transport <name>] [--child <slug>=<binary>]  Start the gRPC server\n');
+  output.write('  version                                                           Print version and exit\n');
+  output.write('  help                                                              Print usage\n');
 }
 
 module.exports = {
   VERSION,
   main,
   runCLI: main,
-  parseMembers,
-  parseMember,
+  parseTransport,
   canonicalCommand,
   printUsage,
 };
-

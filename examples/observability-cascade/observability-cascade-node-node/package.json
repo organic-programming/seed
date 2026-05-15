@@ -10,7 +10,7 @@
   "dependencies": {
     "@grpc/grpc-js": "^1.10.0",
     "@grpc/proto-loader": "^0.8.0",
-    "@organic-programming/holons": "file:../../../sdk/js-holons",
+    "@organic-programming/holons": "file:../../../sdk/node-holons",
     "google-protobuf": "^3.21.4"
   },
   "devDependencies": {

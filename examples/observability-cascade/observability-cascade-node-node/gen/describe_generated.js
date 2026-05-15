@@ -35,26 +35,6 @@ function staticDescribeResponse() {
             artifacts: {
                 binary: "observability-cascade-node-node",
             },
-            sequences: [
-                {
-                    name: "tick",
-                    description: "Emit one observability-cascade tick signal.",
-                    params: [
-                        {
-                            name: "sender",
-                            description: "Tick sender label",
-                            required: true,
-                        },
-                        {
-                            name: "note",
-                            description: "Free-form tick note",
-                        },
-                    ],
-                    steps: [
-                        "op observability-cascade-node-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'",
-                    ],
-                },
-            ],
         },
         services: [
             {
@@ -91,6 +71,32 @@ function staticDescribeResponse() {
                                 type: "string",
                                 number: 2,
                                 label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                            },
+                            {
+                                name: "hops",
+                                type: "relay.v1.HopReceipt",
+                                number: 3,
+                                label: describe.holons.FieldLabel.FIELD_LABEL_REPEATED,
+                                nested_fields: [
+                                    {
+                                        name: "slug",
+                                        type: "string",
+                                        number: 1,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                    },
+                                    {
+                                        name: "uid",
+                                        type: "string",
+                                        number: 2,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                    },
+                                    {
+                                        name: "received",
+                                        type: "int64",
+                                        number: 3,
+                                        label: describe.holons.FieldLabel.FIELD_LABEL_OPTIONAL,
+                                    },
+                                ],
                             },
                         ],
                     },
