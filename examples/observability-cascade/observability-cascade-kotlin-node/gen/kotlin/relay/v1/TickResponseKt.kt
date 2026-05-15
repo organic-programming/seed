@@ -61,6 +61,77 @@ public object TickResponseKt {
     public fun clearResponderInstanceUid() {
       _builder.clearResponderInstanceUid()
     }
+
+    /**
+     * An uninstantiable, behaviorless type to represent the field in
+     * generics.
+     */
+    @kotlin.OptIn(com.google.protobuf.kotlin.OnlyForUseByGeneratedProtoCode::class)
+    public class HopsProxy private constructor() : com.google.protobuf.kotlin.DslProxy()
+    /**
+     * `repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];`
+     */
+     public val hops: com.google.protobuf.kotlin.DslList<relay.v1.Relay.HopReceipt, HopsProxy>
+      @kotlin.jvm.JvmSynthetic
+  get() = com.google.protobuf.kotlin.DslList(
+        _builder.hopsList
+      )
+    /**
+     * `repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];`
+     * @param value The hops to add.
+     */
+    @kotlin.jvm.JvmSynthetic
+@kotlin.jvm.JvmName("addHops")
+    public fun com.google.protobuf.kotlin.DslList<relay.v1.Relay.HopReceipt, HopsProxy>.add(value: relay.v1.Relay.HopReceipt) {
+      _builder.addHops(value)
+    }
+    /**
+     * `repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];`
+     * @param value The hops to add.
+     */
+    @kotlin.jvm.JvmSynthetic
+@kotlin.jvm.JvmName("plusAssignHops")
+    @Suppress("NOTHING_TO_INLINE")
+    public inline operator fun com.google.protobuf.kotlin.DslList<relay.v1.Relay.HopReceipt, HopsProxy>.plusAssign(value: relay.v1.Relay.HopReceipt) {
+      add(value)
+    }
+    /**
+     * `repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];`
+     * @param values The hops to add.
+     */
+    @kotlin.jvm.JvmSynthetic
+@kotlin.jvm.JvmName("addAllHops")
+    public fun com.google.protobuf.kotlin.DslList<relay.v1.Relay.HopReceipt, HopsProxy>.addAll(values: kotlin.collections.Iterable<relay.v1.Relay.HopReceipt>) {
+      _builder.addAllHops(values)
+    }
+    /**
+     * `repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];`
+     * @param values The hops to add.
+     */
+    @kotlin.jvm.JvmSynthetic
+@kotlin.jvm.JvmName("plusAssignAllHops")
+    @Suppress("NOTHING_TO_INLINE")
+    public inline operator fun com.google.protobuf.kotlin.DslList<relay.v1.Relay.HopReceipt, HopsProxy>.plusAssign(values: kotlin.collections.Iterable<relay.v1.Relay.HopReceipt>) {
+      addAll(values)
+    }
+    /**
+     * `repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];`
+     * @param index The index to set the value at.
+     * @param value The hops to set.
+     */
+    @kotlin.jvm.JvmSynthetic
+@kotlin.jvm.JvmName("setHops")
+    public operator fun com.google.protobuf.kotlin.DslList<relay.v1.Relay.HopReceipt, HopsProxy>.set(index: kotlin.Int, value: relay.v1.Relay.HopReceipt) {
+      _builder.setHops(index, value)
+    }
+    /**
+     * `repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];`
+     */
+    @kotlin.jvm.JvmSynthetic
+@kotlin.jvm.JvmName("clearHops")
+    public fun com.google.protobuf.kotlin.DslList<relay.v1.Relay.HopReceipt, HopsProxy>.clear() {
+      _builder.clearHops()
+    }
   }
 }
 @kotlin.jvm.JvmSynthetic

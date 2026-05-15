@@ -149,6 +149,40 @@ public object CascadeReportKt {
     public fun com.google.protobuf.kotlin.DslList<observability_cascade.v1.Service.PhaseResult, PhasesProxy>.clear() {
       _builder.clearPhases()
     }
+
+    /**
+     * `string name = 5 [json_name = "name"];`
+     */
+    public var name: kotlin.String
+      @kotlin.jvm.JvmName("getName")
+        get() = _builder.name
+      @kotlin.jvm.JvmName("setName")
+        set(value) {
+        _builder.name = value
+      }
+    /**
+     * `string name = 5 [json_name = "name"];`
+     */
+    public fun clearName() {
+      _builder.clearName()
+    }
+
+    /**
+     * `int64 elapsed_us = 6 [json_name = "elapsedUs"];`
+     */
+    public var elapsedUs: kotlin.Long
+      @kotlin.jvm.JvmName("getElapsedUs")
+        get() = _builder.elapsedUs
+      @kotlin.jvm.JvmName("setElapsedUs")
+        set(value) {
+        _builder.elapsedUs = value
+      }
+    /**
+     * `int64 elapsed_us = 6 [json_name = "elapsedUs"];`
+     */
+    public fun clearElapsedUs() {
+      _builder.clearElapsedUs()
+    }
   }
 }
 @kotlin.jvm.JvmSynthetic

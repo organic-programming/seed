@@ -1,901 +1,390 @@
 package org.organicprogramming.observability.cascade.kotlinapp
 
-import com.google.gson.Gson
-import holons.v1.Describe
-import holons.v1.Observability as ObsProto
-import io.grpc.CallOptions
-import io.grpc.ManagedChannel
-import io.grpc.stub.ClientCalls
 import io.grpc.stub.StreamObserver
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.nio.file.Path
 import java.time.Duration
-import java.util.Collections
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-import kotlin.io.path.isExecutable
-import kotlin.io.path.isRegularFile
-import kotlinx.coroutines.runBlocking
-import org.organicprogramming.holons.Connect
-import org.organicprogramming.holons.ConnectOptions
-import org.organicprogramming.holons.Composite
-import org.organicprogramming.holons.Describe as HolonDescribe
-import org.organicprogramming.holons.Observability
-import org.organicprogramming.holons.Serve
 import observability_cascade.v1.ObservabilityCascadeServiceGrpc
 import observability_cascade.v1.Service
+import org.organicprogramming.holons.Composite
+import org.organicprogramming.holons.Describe
+import org.organicprogramming.holons.Observability
+import org.organicprogramming.holons.Serve
 import relay.v1.Relay
 import relay.v1.RelayServiceGrpc
 
-private const val RUN_PHASES = 4
-private const val RUN_TICKS = 3
-private val ROLE_ORDER = listOf("D", "C", "B", "A")
-private val TRANSPORTS = listOf("tcp", "unix", "tcp", "unix")
 private const val KOTLIN_SLUG = "observability-cascade-kotlin-node"
 private const val GO_SLUG = "observability-cascade-go-node"
-
-private val gson = Gson()
-private val http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build()
+private const val RUN_TICKS = 3
 
 fun main(args: Array<String>) {
     try {
-        val app = App()
-        when {
-            args.isNotEmpty() && canonicalCommand(args[0]) == "serve" -> app.serveComposite(args.drop(1).toTypedArray())
-            "--multi-pattern" in args -> app.runMultiPattern(true)
-            "--live-stream" in args -> app.runLiveStream(true)
-            else -> app.runDefault(true)
+        if (args.isNotEmpty() && canonicalCommand(args[0]) == "serve") {
+            serveComposite(args.drop(1).toTypedArray())
+            return
+        }
+
+        val multi = "--multi-pattern" in args
+        val live = "--live-stream" in args
+        val failed = if (multi) {
+            runMultiPatternReport(emit = true).totalFail
+        } else {
+            runReport(
+                name = if (live) "live-stream" else "default",
+                members = ownLanguageMembers(),
+                live = live,
+                emit = true,
+            ).fail
+        }
+        if (failed > 0) {
+            kotlin.system.exitProcess(1)
         }
     } catch (error: Exception) {
-        System.err.println()
         System.err.println("FAIL: ${error.message}")
         kotlin.system.exitProcess(1)
     }
 }
 
-private class App {
-    private val repoRoot = findRepoRoot(Path.of(System.getProperty("user.dir")))
+private fun serveComposite(args: Array<String>) {
+    Describe.useStaticResponse(gen.DescribeGenerated.StaticDescribeResponse())
+    val parsed = Serve.parseOptions(args)
+    Serve.runWithOptions(
+        normalizeListenUri(parsed.listenUri),
+        listOf(CascadeService()),
+        Serve.Options(
+            reflect = parsed.reflect,
+            slug = "observability-cascade-kotlin",
+        ),
+    )
+}
 
-    fun serveComposite(args: Array<String>) {
-        HolonDescribe.useStaticResponse(gen.DescribeGenerated.StaticDescribeResponse())
-        val parsed = Serve.parseOptions(args)
-        Serve.runWithOptions(
-            normalizeListenUri(parsed.listenUri),
-            listOf(ObservabilityCascadeServer(this)),
-            Serve.Options(
-                reflect = parsed.reflect,
-                slug = "observability-cascade-kotlin",
-            ),
+private class CascadeService : ObservabilityCascadeServiceGrpc.ObservabilityCascadeServiceImplBase() {
+    override fun runDefault(
+        request: Service.RunRequest,
+        responseObserver: StreamObserver<Service.CascadeReport>,
+    ) {
+        responseObserver.onNext(runReport("default", ownLanguageMembers(), live = false, emit = false))
+        responseObserver.onCompleted()
+    }
+
+    override fun runLiveStream(
+        request: Service.RunRequest,
+        responseObserver: StreamObserver<Service.CascadeReport>,
+    ) {
+        responseObserver.onNext(runReport("live-stream", ownLanguageMembers(), live = true, emit = false))
+        responseObserver.onCompleted()
+    }
+
+    override fun runMultiPattern(
+        request: Service.RunRequest,
+        responseObserver: StreamObserver<Service.MultiPatternReport>,
+    ) {
+        responseObserver.onNext(runMultiPatternReport(emit = false))
+        responseObserver.onCompleted()
+    }
+}
+
+private fun runMultiPatternReport(emit: Boolean): Service.MultiPatternReport {
+    val totalStart = System.nanoTime()
+    val out = Service.MultiPatternReport.newBuilder()
+    val patterns = kotlinPatterns()
+    if (emit) {
+        println("=== observability-cascade-kotlin --multi-pattern ===")
+        println()
+    }
+    patterns.forEachIndexed { index, pattern ->
+        if (emit) {
+            println("Pattern ${index + 1}/${patterns.size}: ${pattern.name}")
+        }
+        val report = runReport(pattern.name, pattern.members, live = true, emit = emit)
+        out.addPatterns(report)
+            .setTotalPass(out.totalPass + report.pass)
+            .setTotalFail(out.totalFail + report.fail)
+        if (emit) {
+            val status = if (report.fail == 0) "PASS" else "FAIL"
+            println("Pattern ${pattern.name}: ${report.pass}/${report.ticks} $status (elapsed=${elapsedText(report.elapsedUs)})")
+            println()
+        }
+    }
+    out.totalElapsedUs = elapsedUs(totalStart)
+    if (emit) {
+        println(
+            "Summary: ${out.totalPass} PASS / ${out.totalFail} FAIL across " +
+                "${out.totalPass + out.totalFail} ticks (total elapsed=${elapsedText(out.totalElapsedUs)})",
         )
     }
+    return out.build()
+}
 
-    private class ObservabilityCascadeServer(private val app: App) :
-        ObservabilityCascadeServiceGrpc.ObservabilityCascadeServiceImplBase() {
-        override fun runDefault(
-            request: Service.RunRequest,
-            responseObserver: StreamObserver<Service.CascadeReport>,
-        ) {
-            runCatching { toCascadeReport(app.runDefault(false)) }
-                .onSuccess {
-                    responseObserver.onNext(it)
-                    responseObserver.onCompleted()
-                }
-                .onFailure { responseObserver.onError(it) }
-        }
-
-        override fun runLiveStream(
-            request: Service.RunRequest,
-            responseObserver: StreamObserver<Service.CascadeReport>,
-        ) {
-            runCatching { toCascadeReport(app.runLiveStream(false)) }
-                .onSuccess {
-                    responseObserver.onNext(it)
-                    responseObserver.onCompleted()
-                }
-                .onFailure { responseObserver.onError(it) }
-        }
-
-        override fun runMultiPattern(
-            request: Service.RunRequest,
-            responseObserver: StreamObserver<Service.MultiPatternReport>,
-        ) {
-            runCatching { toMultiPatternReport(app.runMultiPattern(false)) }
-                .onSuccess {
-                    responseObserver.onNext(it)
-                    responseObserver.onCompleted()
-                }
-                .onFailure { responseObserver.onError(it) }
-        }
+private fun runReport(
+    name: String,
+    members: List<LanguageMember>,
+    live: Boolean,
+    emit: Boolean,
+): Service.CascadeReport {
+    ensureCascadeObservability()
+    val reportStart = System.nanoTime()
+    val report = Service.CascadeReport.newBuilder().setName(name)
+    val timeout = if (live) Duration.ofSeconds(1) else Duration.ofSeconds(3)
+    val poll = if (live) Duration.ofMillis(50) else Duration.ofMillis(100)
+    if (emit) {
+        println("=== observability-cascade-kotlin ${modeSuffix(name)}===")
+        println()
     }
 
-    fun runDefault(emit: Boolean): CascadeReportData {
-        val binary = findBinary(KOTLIN_SLUG)
-        val runRoot = Files.createTempDirectory("observability-cascade-kotlin-")
-        output(emit, "=== observability-cascade-kotlin ===")
-        output(emit)
-        var totalPass = 0
-        var totalFail = 0
-        var previous = ""
-        TRANSPORTS.forEachIndexed { index, transport ->
-            val phase = index + 1
-            if (previous.isEmpty()) {
-                output(emit, "Phase $phase/$RUN_PHASES: transport=$transport")
-            } else {
-                output(emit, "Phase $phase/$RUN_PHASES: transport=$transport (switching from $previous)")
+    Composite.TRANSPORT_COVERAGE_SEQUENCE.forEachIndexed { phaseIndex, transport ->
+        val phaseStart = System.nanoTime()
+        val from = if (phaseIndex == 0) transport else Composite.TRANSPORT_COVERAGE_SEQUENCE[phaseIndex - 1]
+        val phase = Service.PhaseResult.newBuilder()
+            .setName("%02d-%s→%s".format(Locale.ROOT, phaseIndex + 1, from, transport))
+        if (emit) {
+            println("Phase ${phaseIndex + 1}/${Composite.TRANSPORT_COVERAGE_SEQUENCE.size}: ${phase.name}")
+        }
+
+        val cascade = try {
+            Composite.buildCascade(
+                Composite.CascadeOptions().apply {
+                    this.transport = transport
+                    this.members = childSpecs(members)
+                    extraEnv = mapOf(
+                        "OP_OBS" to "logs,events,metrics,prom",
+                        "OP_PROM_ADDR" to "127.0.0.1:0",
+                    )
+                },
+            )
+        } catch (error: Exception) {
+            phase.fail = RUN_TICKS
+            repeat(RUN_TICKS) { tick ->
+                phase.addFailures("tick=${tick + 1} log=spawn event=spawn hops=${compactEvidence(error.message)}")
             }
-            val started = nowMillis()
-            val cascade = try {
-                spawnCascade(phase, transport, allKotlinSpecs(binary), runRoot)
-            } catch (error: Exception) {
-                totalFail += RUN_TICKS
-                output(emit, "  spawn FAIL: ${error.message}\n")
-                previous = transport
-                return@forEachIndexed
-            }
-            output(emit, "  spawned 4 nodes in ${elapsed(started)}")
-            var previousMetric = 0.0
+            finishPhase(report, phase, phaseStart, emit)
+            return@forEachIndexed
+        }
+
+        val previous = linkedMapOf<String, Long>()
+        try {
             for (tick in 1..RUN_TICKS) {
-                val tickStart = nowMillis()
-                val outcome = cascade.runTick(tick, previousMetric)
-                if (outcome.metric.pass) previousMetric = outcome.metricValue
-                val overall = outcome.log.pass && outcome.event.pass && outcome.metric.pass
-                if (overall) totalPass++ else totalFail++
-                output(
-                    emit,
-                    "  Tick $tick/$RUN_TICKS: log ${passText(outcome.log.pass)}, " +
-                        "event ${passText(outcome.event.pass)}, metric ${passText(outcome.metric.pass)} " +
-                        "(overall ${passText(overall)} in ${elapsed(tickStart)})",
-                )
+                val sender = "%s-phase-%02d-tick-%d".format(Locale.ROOT, name, phaseIndex + 1, tick)
+                val result = runTick(cascade, sender, transport, members, previous, timeout, poll, live)
+                if (result.pass) {
+                    phase.pass = phase.pass + 1
+                } else {
+                    phase.fail = phase.fail + 1
+                    phase.addFailures(result.evidenceLine(tick))
+                }
                 if (emit) {
-                    printFailureEvidence("log", outcome.log)
-                    printFailureEvidence("event", outcome.event)
-                    printFailureEvidence("metric", outcome.metric)
-                }
-            }
-            cascade.stop()
-            output(emit)
-            previous = transport
-        }
-        output(emit, "Summary: ${totalPass + totalFail} ticks, $totalPass PASS, $totalFail FAIL")
-        check(totalFail == 0) { "$totalFail tick(s) failed" }
-        return CascadeReportData(
-            totalPass + totalFail,
-            totalPass,
-            totalFail,
-            listOf(PhaseReportData("default", totalPass, totalFail)),
-        )
-    }
-
-    fun runLiveStream(emit: Boolean): CascadeReportData {
-        val binary = findBinary(KOTLIN_SLUG)
-        val runRoot = Files.createTempDirectory("observability-cascade-kotlin-live-")
-        output(emit, "=== observability-cascade-kotlin --live-stream ===")
-        output(emit)
-        output(emit, "Setup: opening long-lived Follow:true streams on A")
-        output(emit, "       (initial transport: tcp)")
-        output(emit)
-        var totalPass = 0
-        var totalFail = 0
-        var cascade: Cascade? = null
-        var streams: LiveStreams? = null
-        val specs = allKotlinSpecs(binary)
-        TRANSPORTS.forEachIndexed { index, transport ->
-            val phase = index + 1
-            if (phase == 1) {
-                output(emit, "Phase $phase/$RUN_PHASES: initial chain ($transport)")
-            } else {
-                output(emit, "Phase $phase/$RUN_PHASES: respawn on $transport")
-                val killStart = nowMillis()
-                streams?.stop()
-                cascade?.stop()
-                output(emit, "  killed 4 nodes in ${elapsed(killStart)}")
-            }
-            val spawnStart = nowMillis()
-            val phaseCascade = try {
-                spawnCascade(phase, transport, specs, runRoot)
-            } catch (error: Exception) {
-                totalFail += RUN_TICKS
-                output(emit, "  spawn FAIL: ${error.message}\n")
-                streams = null
-                return@forEachIndexed
-            }
-            output(emit, "  spawned 4 nodes in ${elapsed(spawnStart)}")
-            if (phase > 1) output(emit, "  re-opening Follow:true streams on new A")
-            var streamError: String? = null
-            streams = try {
-                LiveStreams(phaseCascade.roles.getValue("A").relayAddress).also { it.start() }
-            } catch (error: Exception) {
-                streamError = error.message
-                output(emit, "  stream re-open failed: ${error.message}")
-                null
-            }
-            var previousMetric = 0.0
-            for (tick in 1..RUN_TICKS) {
-                val tickStart = nowMillis()
-                val outcome = phaseCascade.runLiveTick(streams, streamError, tick, previousMetric)
-                if (outcome.metric.pass) previousMetric = outcome.metricValue
-                val overall = outcome.log.pass && outcome.event.pass && outcome.metric.pass
-                if (overall) totalPass++ else totalFail++
-                output(
-                    emit,
-                    "  Tick $tick/$RUN_TICKS: log ${passText(outcome.log.pass)}, " +
-                        "event ${passText(outcome.event.pass)}, metric ${passText(outcome.metric.pass)} " +
-                        "(overall ${passText(overall)} in ${elapsed(tickStart)})",
-                )
-                if (emit) {
-                    printFailureEvidence("log", outcome.log)
-                    printFailureEvidence("event", outcome.event)
-                    printFailureEvidence("metric", outcome.metric)
-                }
-            }
-            output(emit)
-            cascade = phaseCascade
-        }
-        streams?.stop()
-        cascade?.stop()
-        output(emit, "Summary: $totalPass PASS / $totalFail FAIL across ${totalPass + totalFail} ticks")
-        check(totalFail == 0) { "$totalFail tick(s) failed" }
-        return CascadeReportData(
-            totalPass + totalFail,
-            totalPass,
-            totalFail,
-            listOf(PhaseReportData("live-stream", totalPass, totalFail)),
-        )
-    }
-
-    fun runMultiPattern(emit: Boolean): MultiPatternReportData {
-        val kotlinBinary = findBinary(KOTLIN_SLUG)
-        val goBinary = findBinary(GO_SLUG)
-        val patterns = listOf(
-            CascadePattern("kotlin-kotlin-kotlin-kotlin", allKotlinSpecs(kotlinBinary)),
-            CascadePattern(
-                "kotlin-kotlin-go-kotlin",
-                mapOf(
-                    "A" to RoleSpec(KOTLIN_SLUG, kotlinBinary),
-                    "B" to RoleSpec(KOTLIN_SLUG, kotlinBinary),
-                    "C" to RoleSpec(GO_SLUG, goBinary),
-                    "D" to RoleSpec(KOTLIN_SLUG, kotlinBinary),
-                ),
-            ),
-            CascadePattern(
-                "kotlin-kotlin-go-go",
-                mapOf(
-                    "A" to RoleSpec(KOTLIN_SLUG, kotlinBinary),
-                    "B" to RoleSpec(KOTLIN_SLUG, kotlinBinary),
-                    "C" to RoleSpec(GO_SLUG, goBinary),
-                    "D" to RoleSpec(GO_SLUG, goBinary),
-                ),
-            ),
-        )
-        val runRoot = Files.createTempDirectory("observability-cascade-kotlin-multi-")
-        output(emit, "=== observability-cascade-kotlin (multi-pattern) ===")
-        output(emit)
-        var totalPass = 0
-        var totalFail = 0
-        patterns.forEachIndexed { patternIndex, pattern ->
-            output(emit, "Pattern ${patternIndex + 1}/${patterns.size}: ${pattern.name}")
-            var patternPass = 0
-            TRANSPORTS.forEachIndexed { index, transport ->
-                val phase = index + 1
-                val started = nowMillis()
-                val cascade = try {
-                    spawnCascade(phase, transport, pattern.roles, runRoot)
-                } catch (error: Exception) {
-                    totalFail += RUN_TICKS
-                    output(emit, "  Phase $phase/$RUN_PHASES ($transport): spawn FAIL (${error.message})")
-                    return@forEachIndexed
-                }
-                var streams: LiveStreams? = null
-                var streamError: String? = null
-                try {
-                    val opened = LiveStreams(cascade.roles.getValue("A").relayAddress)
-                    opened.start()
-                    streams = opened
-                    val ready = waitFor(5000, { cascade.checkLiveEvent(opened) }, 50)
-                    if (!ready.pass) streamError = "live relay readiness: ${ready.evidence}"
-                } catch (error: Exception) {
-                    streamError = error.message
-                }
-                var previousMetric = 0.0
-                val results = mutableListOf<String>()
-                val evidence = mutableListOf<String>()
-                for (tick in 1..RUN_TICKS) {
-                    val sender = "${pattern.name}-phase-$phase-tick-$tick"
-                    val outcome = cascade.runLiveTickWithSender(streams, streamError, sender, previousMetric)
-                    if (outcome.metric.pass) previousMetric = outcome.metricValue
-                    val overall = outcome.log.pass && outcome.event.pass && outcome.metric.pass
-                    if (overall) {
-                        patternPass++
-                        totalPass++
-                        results += "Tick $tick PASS"
-                    } else {
-                        totalFail++
-                        results += "Tick $tick FAIL (${failureSummary(outcome)})"
-                        evidence += "      Tick $tick evidence: ${compactEvidence(outcome)}"
+                    println("  Tick $tick/$RUN_TICKS: ${if (result.pass) "PASS" else "FAIL"}")
+                    if (!result.pass) {
+                        System.err.println("    ${result.evidenceLine(tick)}")
                     }
                 }
-                output(emit, "  Phase $phase/$RUN_PHASES ($transport): ${results.joinToString(", ")} (spawned in ${elapsed(started)})")
-                if (emit) evidence.forEach(::println)
-                streams?.stop()
-                cascade.stop()
             }
-            output(emit, "  Subtotal: $patternPass/12 PASS")
-            output(emit)
+        } finally {
+            cascade.stop()
         }
-        output(emit, "Summary: $totalPass PASS / $totalFail FAIL across ${totalPass + totalFail} ticks")
-        check(totalFail == 0) { "$totalFail tick(s) failed" }
-        return MultiPatternReportData(
-            listOf(
-                CascadeReportData(
-                    totalPass + totalFail,
-                    totalPass,
-                    totalFail,
-                    listOf(PhaseReportData("multi-pattern", totalPass, totalFail)),
-                ),
-            ),
-            totalPass,
-            totalFail,
+        finishPhase(report, phase, phaseStart, emit)
+    }
+
+    report.elapsedUs = elapsedUs(reportStart)
+    if (emit) {
+        println()
+        println(
+            "Summary: ${report.ticks} ticks, ${report.pass} PASS, " +
+                "${report.fail} FAIL (total elapsed=${elapsedText(report.elapsedUs)})",
         )
     }
-
-    private fun spawnCascade(
-        phase: Int,
-        transport: String,
-        specs: Map<String, RoleSpec>,
-        runRoot: Path,
-    ): Cascade {
-        val roles = linkedMapOf<String, RoleRuntime>()
-        ROLE_ORDER.forEach { role ->
-            roles[role] = newRoleRuntime(phase, transport, role, specs.getValue(role))
-        }
-        roles.values.forEach { runtime ->
-            Files.createDirectories(runRoot)
-            deleteRecursively(runRoot.resolve(runtime.slug).resolve(runtime.uid))
-        }
-        val cascade = Cascade(phase, transport, runRoot, roles)
-        ROLE_ORDER.forEach { role ->
-            val runtime = roles.getValue(role)
-            val child = childRole(role)
-            if (child.isNotEmpty()) {
-                runtime.memberAddress = roles.getValue(child).relayAddress
-                runtime.memberSlug = roles.getValue(child).slug
-            }
-            startRole(cascade, runtime)
-        }
-        sleep(150)
-        return cascade
-    }
-
-    private fun newRoleRuntime(phase: Int, transport: String, role: String, spec: RoleSpec): RoleRuntime {
-        val uid = "relay-p${phase.toString().padStart(2, '0')}-${role.lowercase()}"
-        if (transport == "tcp") {
-            return RoleRuntime(role, uid, spec.slug, spec.binaryPath, "tcp://127.0.0.1:0")
-        }
-        if (transport == "unix") {
-            val socket = Path.of("/tmp/observability-cascade-kotlin-p$phase-${role.lowercase()}-${ProcessHandle.current().pid()}.sock")
-            Files.deleteIfExists(socket)
-            val uri = "unix://$socket"
-            return RoleRuntime(role, uid, spec.slug, spec.binaryPath, uri, relayAddress = uri, clientTarget = uri)
-        }
-        error("unknown transport $transport")
-    }
-
-    private fun startRole(cascade: Cascade, runtime: RoleRuntime) {
-        val args = mutableListOf(runtime.binaryPath.toString(), "serve", "--listen", runtime.listenUri)
-        if (runtime.memberAddress.isNotEmpty()) {
-            args += "--member"
-            args += "${runtime.memberSlug}=${runtime.memberAddress}"
-        }
-        val stderrPath = Files.createTempFile("observability-cascade-kotlin-${runtime.uid}-", ".stderr")
-        runtime.stderrPath = stderrPath
-        val builder = ProcessBuilder(args)
-            .directory(workingDirectory().toFile())
-            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
-            .redirectError(stderrPath.toFile())
-        builder.environment().putAll(
-            mapOf(
-                "OP_OBS" to "logs,events,metrics,prom",
-                "OP_RUN_DIR" to cascade.runRoot.toString(),
-                "OP_INSTANCE_UID" to runtime.uid,
-                "OP_ORGANISM_UID" to cascade.roles.getValue("A").uid,
-                "OP_ORGANISM_SLUG" to cascade.roles.getValue("A").slug,
-                "OP_PROM_ADDR" to "127.0.0.1:0",
-            ),
-        )
-        runtime.process = builder.start()
-        try {
-            val meta = waitMeta(cascade.runRoot, runtime.slug, runtime.uid, 15000)
-            runtime.metricsAddr = meta.metrics_addr
-            runtime.relayAddress = meta.address
-            runtime.channel = runBlocking {
-                Connect.connect(
-                    runtime.relayAddress,
-                    ConnectOptions(timeout = Duration.ofSeconds(5), transport = "tcp", start = false),
-                )
-            }
-            runtime.relayClient = RelayServiceGrpc.newBlockingStub(runtime.channel)
-            dialReady(runtime.channel)
-        } catch (error: Exception) {
-            val stderr = runtime.stderrPath?.takeIf { Files.exists(it) }?.let { Files.readString(it) }.orEmpty()
-            throw IllegalStateException("start ${runtime.role}: ${stderr.ifBlank { error.message.orEmpty() }}", error)
-        }
-    }
-
-    private fun waitMeta(runRoot: Path, slug: String, uid: String, timeoutMillis: Long): MetaJson {
-        val metaPath = runRoot.resolve(slug).resolve(uid).resolve("meta.json")
-        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis)
-        var last: Exception? = null
-        while (System.nanoTime() < deadline) {
-            try {
-                val meta = gson.fromJson(Files.readString(metaPath), MetaJson::class.java)
-                if (meta.uid == uid && meta.metrics_addr.isNotBlank()) return meta
-            } catch (error: Exception) {
-                last = error
-            }
-            sleep(50)
-        }
-        error("meta not ready for $slug/$uid: ${last?.message ?: "timeout"}")
-    }
-
-    private fun dialReady(channel: ManagedChannel) {
-        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
-        var last: Exception? = null
-        while (System.nanoTime() < deadline) {
-            try {
-                ClientCalls.blockingUnaryCall(
-                    channel,
-                    org.organicprogramming.holons.Describe.describeMethod(),
-                    CallOptions.DEFAULT.withDeadlineAfter(500, TimeUnit.MILLISECONDS),
-                    Describe.DescribeRequest.getDefaultInstance(),
-                )
-                return
-            } catch (error: Exception) {
-                last = error
-                sleep(50)
-            }
-        }
-        error("dial readiness failed: ${last?.message ?: "timeout"}")
-    }
-
-    private fun allKotlinSpecs(binary: Path): Map<String, RoleSpec> =
-        ROLE_ORDER.associateWith { RoleSpec(KOTLIN_SLUG, binary) }
-
-    private fun findBinary(slug: String): Path {
-        if (slug == KOTLIN_SLUG) {
-            return Composite.member("kotlin-node")
-        }
-
-        val roots = mutableListOf<Path>()
-        roots.add(Path.of(System.getenv("OPBIN") ?: Path.of(System.getProperty("user.home"), ".op", "bin").toString(), "$slug.holon", "bin"))
-        roots.forEach { root ->
-            findExecutable(root, slug)?.let { return it }
-        }
-        val process = ProcessBuilder("op", "--bin", slug)
-            .directory(workingDirectory().toFile())
-            .redirectError(ProcessBuilder.Redirect.DISCARD)
-            .start()
-        val out = process.inputStream.readAllBytes().toString(StandardCharsets.UTF_8).trim()
-        if (process.waitFor() == 0 && out.isNotBlank()) return Path.of(out)
-        val home = Path.of(System.getProperty("user.home"), ".op", "bin", "$slug.holon", "bin")
-        findExecutable(home, slug)?.let { return it }
-        error("$slug binary not found; run op build $slug --install")
-    }
-
-    private fun workingDirectory(): Path =
-        repoRoot ?: Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize()
-
-    private fun findExecutable(root: Path, name: String): Path? {
-        if (!Files.isDirectory(root)) return null
-        val paths = Files.list(root).use { stream -> stream.sorted().toList() }
-        for (path in paths) {
-            if (Files.isDirectory(path)) {
-                findExecutable(path, name)?.let { return it }
-            } else if (path.fileName.toString() == name && path.isRegularFile() && path.isExecutable()) {
-                return path
-            }
-        }
-        return null
-    }
+    return report.build()
 }
 
-private data class RoleSpec(val slug: String, val binaryPath: Path)
-private data class CascadePattern(val name: String, val roles: Map<String, RoleSpec>)
-
-private class RoleRuntime(
-    val role: String,
-    val uid: String,
-    val slug: String,
-    val binaryPath: Path,
-    val listenUri: String,
-    var relayAddress: String = "",
-    var clientTarget: String = "",
+private fun finishPhase(
+    report: Service.CascadeReport.Builder,
+    phase: Service.PhaseResult.Builder,
+    phaseStart: Long,
+    emit: Boolean,
 ) {
-    var memberAddress: String = ""
-    var memberSlug: String = ""
-    var metricsAddr: String = ""
-    var process: Process? = null
-    var stderrPath: Path? = null
-    lateinit var channel: ManagedChannel
-    lateinit var relayClient: RelayServiceGrpc.RelayServiceBlockingStub
-
-    fun hasChannel(): Boolean = this::channel.isInitialized
-}
-
-private data class CheckResult(val pass: Boolean, val evidence: String = "")
-private data class TickOutcome(val log: CheckResult, val event: CheckResult, val metric: CheckResult, val metricValue: Double)
-private data class PhaseReportData(val name: String, val pass: Int, val fail: Int, val failures: List<String> = emptyList())
-private data class CascadeReportData(val ticks: Int, val pass: Int, val fail: Int, val phases: List<PhaseReportData>)
-private data class MultiPatternReportData(val patterns: List<CascadeReportData>, val totalPass: Int, val totalFail: Int)
-
-private class Cascade(
-    val phase: Int,
-    val transport: String,
-    val runRoot: Path,
-    val roles: Map<String, RoleRuntime>,
-) {
-    fun runTick(tick: Int, previousMetric: Double): TickOutcome =
-        runTickWithSender("phase-$phase-tick-$tick", previousMetric)
-
-    fun runTickWithSender(sender: String, previousMetric: Double): TickOutcome {
-        val request = Relay.TickRequest.newBuilder()
-            .setSender(sender)
-            .setNote(transport)
-            .build()
-        try {
-            roles.getValue("D").relayClient.withDeadlineAfter(5, TimeUnit.SECONDS).tick(request)
-        } catch (error: Exception) {
-            val failed = CheckResult(false, error.message.orEmpty())
-            return TickOutcome(failed, failed, failed, previousMetric)
-        }
-        val log = waitFor(3000, { checkLog(sender) }, 100)
-        val event = waitFor(3000, { checkEvent() }, 100)
-        val metricCheck = MetricCheck(previousMetric)
-        val metric = waitFor(3000, { metricCheck.check(this) }, 100)
-        return TickOutcome(log, event, metric, metricCheck.value)
-    }
-
-    fun runLiveTick(streams: LiveStreams?, streamOpenError: String?, tick: Int, previousMetric: Double): TickOutcome =
-        runLiveTickWithSender(streams, streamOpenError, "phase-$phase-tick-$tick", previousMetric)
-
-    fun runLiveTickWithSender(
-        streams: LiveStreams?,
-        streamOpenError: String?,
-        sender: String,
-        previousMetric: Double,
-    ): TickOutcome {
-        val request = Relay.TickRequest.newBuilder()
-            .setSender(sender)
-            .setNote(transport)
-            .build()
-        try {
-            roles.getValue("D").relayClient.withDeadlineAfter(5, TimeUnit.SECONDS).tick(request)
-        } catch (error: Exception) {
-            val failed = CheckResult(false, error.message.orEmpty())
-            return TickOutcome(failed, failed, failed, previousMetric)
-        }
-        val log: CheckResult
-        val event: CheckResult
-        if (streamOpenError == null && streams != null) {
-            log = waitFor(1000, { checkLiveLog(streams, sender) }, 50)
-            event = waitFor(1000, { checkLiveEvent(streams) }, 50)
-        } else {
-            val evidence = "stream re-open failed: ${streamOpenError ?: "streams not open"}"
-            log = CheckResult(false, evidence)
-            event = CheckResult(false, evidence)
-        }
-        val metricCheck = MetricCheck(previousMetric)
-        val metric = waitFor(1000, { metricCheck.check(this) }, 50)
-        return TickOutcome(log, event, metric, metricCheck.value)
-    }
-
-    fun checkLog(sender: String): CheckResult {
-        val entries = readLogs(roles.getValue("A").channel)
-        entries.forEach { entry ->
-            if (entry.message != "tick received") return@forEach
-            if (entry.fieldsMap["sender"] != sender) return@forEach
-            if (entry.fieldsMap["responder_uid"] != roles.getValue("D").uid) return@forEach
-            val err = checkChain(entry.chainList)
-            if (err.isNotEmpty()) return CheckResult(false, "matching log has bad chain: $err entry=$entry")
-            return CheckResult(true, entry.toString())
-        }
-        return CheckResult(false, "no relayed D tick log for sender=$sender in ${entries.size} A log entries")
-    }
-
-    fun checkEvent(): CheckResult {
-        val events = readEvents(roles.getValue("A").channel)
-        events.forEach { event ->
-            if (event.typeValue != Observability.EventType.INSTANCE_READY.code || event.instanceUid != roles.getValue("D").uid) {
-                return@forEach
-            }
-            val err = checkChain(event.chainList)
-            if (err.isNotEmpty()) return CheckResult(false, "matching event has bad chain: $err event=$event")
-            return CheckResult(true, event.toString())
-        }
-        return CheckResult(false, "no relayed D INSTANCE_READY event in ${events.size} A events")
-    }
-
-    fun checkLiveLog(streams: LiveStreams, sender: String): CheckResult {
-        val entries = streams.logEntries()
-        entries.forEach { entry ->
-            if (entry.message != "tick received") return@forEach
-            if (entry.fieldsMap["sender"] != sender) return@forEach
-            if (entry.fieldsMap["responder_uid"] != roles.getValue("D").uid) return@forEach
-            val err = checkChain(entry.chainList)
-            if (err.isNotEmpty()) return CheckResult(false, "matching live log has bad chain: $err entry=$entry")
-            return CheckResult(true, entry.toString())
-        }
-        return CheckResult(false, "no live log found for sender=$sender; buffer=${entries.size} errors=${streams.errors()}")
-    }
-
-    fun checkLiveEvent(streams: LiveStreams): CheckResult {
-        val events = streams.eventEntries()
-        events.forEach { event ->
-            if (event.typeValue != Observability.EventType.INSTANCE_READY.code || event.instanceUid != roles.getValue("D").uid) {
-                return@forEach
-            }
-            val err = checkChain(event.chainList)
-            if (err.isNotEmpty()) return CheckResult(false, "matching live event has bad chain: $err event=$event")
-            return CheckResult(true, event.toString())
-        }
-        return CheckResult(false, "no live INSTANCE_READY event for D; buffer=${events.size} errors=${streams.errors()}")
-    }
-
-    fun checkMetric(metricCheck: MetricCheck): CheckResult {
-        val body = fetchMetrics(roles.getValue("D").metricsAddr)
-        val value = parseCascadeTicks(body, roles.getValue("D").uid)
-            ?: return CheckResult(false, body)
-        metricCheck.value = value
-        if (value <= metricCheck.previous) {
-            return CheckResult(false, "cascade_ticks_total=$value did not increase beyond ${metricCheck.previous}\n$body")
-        }
-        return CheckResult(true, "cascade_ticks_total=$value")
-    }
-
-    private fun checkChain(chain: List<ObsProto.ChainHop>): String {
-        listOf("D", "C", "B").forEachIndexed { index, role ->
-            if (index >= chain.size) return "chain length ${chain.size} < 3"
-            val hop = chain[index]
-            val want = roles.getValue(role)
-            if (hop.slug != want.slug || hop.instanceUid != want.uid) {
-                return "hop $index = ${hop.slug}/${hop.instanceUid}, want ${want.slug}/${want.uid}"
-            }
-        }
-        return ""
-    }
-
-    fun stop() {
-        ROLE_ORDER.asReversed().forEach { role ->
-            val runtime = roles.getValue(role)
-            runCatching { if (runtime.hasChannel()) runBlocking { Connect.disconnect(runtime.channel) } }
-            runtime.process?.takeIf { it.isAlive }?.destroy()
-        }
-        ROLE_ORDER.asReversed().forEach { role ->
-            val process = roles.getValue(role).process ?: return@forEach
-            if (process.isAlive && !process.waitFor(2, TimeUnit.SECONDS)) {
-                process.destroyForcibly()
-                process.waitFor(2, TimeUnit.SECONDS)
-            }
-        }
+    phase.elapsedUs = elapsedUs(phaseStart)
+    val built = phase.build()
+    report.addPhases(built)
+        .setPass(report.pass + built.pass)
+        .setFail(report.fail + built.fail)
+        .setTicks(report.ticks + built.pass + built.fail)
+    if (emit) {
+        val status = if (built.fail == 0) "PASS" else "FAIL"
+        println("Phase ${built.name}: ${built.pass}/${built.pass + built.fail} $status (elapsed=${elapsedText(built.elapsedUs)})")
     }
 }
 
-private class MetricCheck(val previous: Double) {
-    var value: Double = previous
-    fun check(cascade: Cascade): CheckResult = cascade.checkMetric(this)
+private fun runTick(
+    cascade: Composite.Cascade,
+    sender: String,
+    note: String,
+    members: List<LanguageMember>,
+    previous: MutableMap<String, Long>,
+    timeout: Duration,
+    poll: Duration,
+    live: Boolean,
+): TickResult {
+    val response = try {
+        RelayServiceGrpc.newBlockingStub(cascade.top.conn)
+            .withDeadlineAfter(5, TimeUnit.SECONDS)
+            .tick(Relay.TickRequest.newBuilder().setSender(sender).setNote(note).build())
+    } catch (error: Exception) {
+        val failed = Composite.CheckOutcome(false, compactEvidence(error.message))
+        return TickResult(false, failed, failed, failed)
+    }
+
+    val hops = checkHops(response.hopsList, members, previous)
+    if (!hops.pass) {
+        val skipped = Composite.CheckOutcome(false, "skipped")
+        return TickResult(false, skipped, skipped, hops)
+    }
+
+    val expected = hopChain(response.hopsList)
+    val leafUid = response.hopsList.first().uid
+    val log = Composite.checkRelayedLog(
+        Composite.LogCheckOptions().apply {
+            this.sender = sender
+            this.leafUid = leafUid
+            expectedChain = expected
+            this.timeout = timeout
+            pollInterval = poll
+            this.live = live
+        },
+    )
+    val event = Composite.checkRelayedEvent(
+        Composite.EventCheckOptions().apply {
+            eventType = Observability.EventType.INSTANCE_READY
+            this.leafUid = leafUid
+            expectedChain = expected
+            this.timeout = timeout
+            pollInterval = poll
+            this.live = live
+        },
+    )
+    return TickResult(hops.pass && log.pass && event.pass, log, event, hops)
 }
 
-private class LiveStreams(private val address: String) {
-    private lateinit var channel: ManagedChannel
-    private val logs = Collections.synchronizedList(mutableListOf<ObsProto.LogEntry>())
-    private val events = Collections.synchronizedList(mutableListOf<ObsProto.EventInfo>())
-    private val errs = Collections.synchronizedList(mutableListOf<String>())
-    private val threads = mutableListOf<Thread>()
-
-    fun start() {
-        channel = runBlocking {
-            Connect.connect(address, ConnectOptions(timeout = Duration.ofSeconds(5), transport = "tcp", start = false))
-        }
-        threads += Thread(::readLogStream, "observability-cascade-kotlin-live-logs").also {
-            it.isDaemon = true
-            it.start()
-        }
-        threads += Thread(::readEventStream, "observability-cascade-kotlin-live-events").also {
-            it.isDaemon = true
-            it.start()
-        }
+private fun checkHops(
+    hops: List<Relay.HopReceipt>,
+    members: List<LanguageMember>,
+    previous: MutableMap<String, Long>,
+): Composite.CheckOutcome {
+    if (hops.size != members.size) {
+        return Composite.CheckOutcome(false, "hops length ${hops.size} want ${members.size}")
     }
-
-    fun stop() {
-        runCatching { if (::channel.isInitialized) runBlocking { Connect.disconnect(channel) } }
-        threads.forEach { it.interrupt() }
-    }
-
-    fun logEntries(): List<ObsProto.LogEntry> = synchronized(logs) { logs.toList() }
-    fun eventEntries(): List<ObsProto.EventInfo> = synchronized(events) { events.toList() }
-    fun errors(): List<String> = synchronized(errs) { errs.toList() }
-
-    private fun readLogStream() {
-        try {
-            val iterator = ClientCalls.blockingServerStreamingCall(
-                channel,
-                Observability.logsMethod,
-                CallOptions.DEFAULT,
-                ObsProto.LogsRequest.newBuilder()
-                    .setMinLevel(ObsProto.LogLevel.INFO)
-                    .setFollow(true)
-                    .build(),
-            )
-            while (!Thread.currentThread().isInterrupted && iterator.hasNext()) {
-                logs += iterator.next()
-            }
-        } catch (error: Exception) {
-            errs += "logs stream ended: ${error.message}"
+    for (index in hops.indices) {
+        val hop = hops[index]
+        val want = members[members.size - 1 - index]
+        if (hop.slug != want.slug) {
+            return Composite.CheckOutcome(false, "hop $index slug=${hop.slug} want ${want.slug}")
         }
-    }
-
-    private fun readEventStream() {
-        try {
-            val iterator = ClientCalls.blockingServerStreamingCall(
-                channel,
-                Observability.eventsMethod,
-                CallOptions.DEFAULT,
-                ObsProto.EventsRequest.newBuilder()
-                    .setFollow(true)
-                    .build(),
-            )
-            while (!Thread.currentThread().isInterrupted && iterator.hasNext()) {
-                events += iterator.next()
-            }
-        } catch (error: Exception) {
-            errs += "events stream ended: ${error.message}"
+        if (hop.uid.isBlank()) {
+            return Composite.CheckOutcome(false, "hop $index uid empty")
         }
+        val last = previous[hop.uid] ?: 0L
+        if (hop.received <= last) {
+            return Composite.CheckOutcome(false, "hop $index received=${hop.received} previous=$last")
+        }
+        previous[hop.uid] = hop.received
     }
+    return Composite.CheckOutcome(true)
 }
 
-private data class MetaJson(
-    val uid: String = "",
-    val address: String = "",
-    val metrics_addr: String = "",
-)
+private fun hopChain(hops: List<Relay.HopReceipt>): List<Composite.ChainHop> =
+    hops.map { Composite.ChainHop(it.slug, it.uid) }
 
-private fun readLogs(channel: ManagedChannel): List<ObsProto.LogEntry> =
-    ClientCalls.blockingServerStreamingCall(
-        channel,
-        Observability.logsMethod,
-        CallOptions.DEFAULT.withDeadlineAfter(2, TimeUnit.SECONDS),
-        ObsProto.LogsRequest.newBuilder()
-            .setMinLevel(ObsProto.LogLevel.INFO)
-            .build(),
-    ).asSequence().toList()
-
-private fun readEvents(channel: ManagedChannel): List<ObsProto.EventInfo> =
-    ClientCalls.blockingServerStreamingCall(
-        channel,
-        Observability.eventsMethod,
-        CallOptions.DEFAULT.withDeadlineAfter(2, TimeUnit.SECONDS),
-        ObsProto.EventsRequest.getDefaultInstance(),
-    ).asSequence().toList()
-
-private fun fetchMetrics(addr: String): String {
-    val request = HttpRequest.newBuilder(URI.create(addr)).timeout(Duration.ofSeconds(2)).GET().build()
-    return http.send(request, HttpResponse.BodyHandlers.ofString()).body()
+private fun ownLanguageMembers(): List<LanguageMember> {
+    val binary = memberPath("kotlin-node")
+    return listOf(
+        LanguageMember("kotlin", KOTLIN_SLUG, binary),
+        LanguageMember("kotlin", KOTLIN_SLUG, binary),
+        LanguageMember("kotlin", KOTLIN_SLUG, binary),
+    )
 }
 
-private fun parseCascadeTicks(body: String, uid: String): Double? {
-    val needle = "responder_uid=\"$uid\""
-    body.lineSequence().forEach { line ->
-        if (line.startsWith("cascade_ticks_total{") && needle in line) {
-            return line.trim().split(Regex("\\s+")).lastOrNull()?.toDoubleOrNull()
-        }
-    }
-    return null
-}
-
-private fun waitFor(timeoutMillis: Long, fn: () -> CheckResult, intervalMillis: Long): CheckResult {
-    val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis)
-    var last = CheckResult(false)
-    while (true) {
-        last = fn()
-        if (last.pass || System.nanoTime() > deadline) return last
-        sleep(intervalMillis)
+private fun kotlinPatterns(): List<NamedPattern> {
+    val bins = mapOf(
+        "kotlin" to LanguageMember("kotlin", KOTLIN_SLUG, memberPath("kotlin-node")),
+        "go" to LanguageMember("go", GO_SLUG, memberPath("go-node")),
+    )
+    val names = listOf(
+        "kotlin-kotlin-kotlin",
+        "kotlin-kotlin-go",
+        "kotlin-go-kotlin",
+        "kotlin-go-go",
+        "go-kotlin-kotlin",
+        "go-kotlin-go",
+        "go-go-kotlin",
+        "go-go-go",
+    )
+    return names.map { name ->
+        val parts = name.split("-")
+        NamedPattern(name, listOf(bins.getValue(parts[0]), bins.getValue(parts[1]), bins.getValue(parts[2])))
     }
 }
 
-private fun toCascadeReport(report: CascadeReportData): Service.CascadeReport =
-    Service.CascadeReport.newBuilder()
-        .setTicks(report.ticks)
-        .setPass(report.pass)
-        .setFail(report.fail)
-        .addAllPhases(
-            report.phases.map { phase ->
-                Service.PhaseResult.newBuilder()
-                    .setName(phase.name)
-                    .setPass(phase.pass)
-                    .setFail(phase.fail)
-                    .addAllFailures(phase.failures)
-                    .build()
-            },
-        )
-        .build()
+private fun childSpecs(members: List<LanguageMember>): List<Composite.ChildSpec> =
+    members.map { Composite.ChildSpec(it.slug, it.binary) }
 
-private fun toMultiPatternReport(report: MultiPatternReportData): Service.MultiPatternReport =
-    Service.MultiPatternReport.newBuilder()
-        .addAllPatterns(report.patterns.map(::toCascadeReport))
-        .setTotalPass(report.totalPass)
-        .setTotalFail(report.totalFail)
-        .build()
+private fun memberPath(id: String): String =
+    try {
+        Composite.member(id).toString()
+    } catch (_: Exception) {
+        ""
+    }
+
+private fun ensureCascadeObservability() {
+    val obs = Observability.current()
+    if (obs.enabled(Observability.Family.LOGS) && obs.enabled(Observability.Family.EVENTS)) {
+        return
+    }
+    Observability.configureFromEnv(
+        Observability.Config(
+            slug = "observability-cascade-kotlin",
+            instanceUid = "kotlin-composite-${ProcessHandle.current().pid()}",
+        ),
+        mapOf("OP_OBS" to "logs,events,metrics,prom"),
+    )
+}
+
+private fun elapsedUs(startedNanos: Long): Long =
+    ((System.nanoTime() - startedNanos) / 1000).coerceAtLeast(1)
+
+private fun elapsedText(elapsedUs: Long): String {
+    val duration = Duration.ofNanos(elapsedUs * 1000)
+    return when {
+        duration < Duration.ofSeconds(1) -> "${duration.toMillis()}ms"
+        duration < Duration.ofMinutes(1) -> "%.2fs".format(Locale.ROOT, duration.toNanos() / 1_000_000_000.0)
+        else -> "%.1fm".format(Locale.ROOT, duration.seconds / 60.0)
+    }
+}
+
+private fun modeSuffix(name: String): String =
+    if (name == "default") "" else "--$name "
+
+private fun compactEvidence(value: String?): String {
+    val compact = value.orEmpty().split(Regex("\\s+")).joinToString(" ").trim().ifEmpty { "<empty>" }
+    return if (compact.length <= 240) compact else compact.take(240) + "..."
+}
 
 private fun normalizeListenUri(listenUri: String): String =
     Regex("^tcp://:(\\d+)$").matchEntire(listenUri)?.let { "tcp://0.0.0.0:${it.groupValues[1]}" } ?: listenUri
 
-private fun output(emit: Boolean, value: String = "") {
-    if (emit) println(value)
-}
-
 private fun canonicalCommand(raw: String): String =
     raw.trim().lowercase(Locale.ROOT).replace("-", "").replace("_", "").replace(" ", "")
 
-private fun childRole(role: String): String = when (role) {
-    "A" -> "B"
-    "B" -> "C"
-    "C" -> "D"
-    else -> ""
-}
+private data class LanguageMember(val lang: String, val slug: String, val binary: String)
+private data class NamedPattern(val name: String, val members: List<LanguageMember>)
 
-private fun findRepoRoot(start: Path): Path? {
-    var current: Path? = start.toAbsolutePath().normalize()
-    while (current != null) {
-        if (Files.isDirectory(current.resolve("sdk")) && Files.isDirectory(current.resolve("examples"))) {
-            return current
-        }
-        current = current.parent
-    }
-    return null
-}
+private data class TickResult(
+    val pass: Boolean,
+    val log: Composite.CheckOutcome,
+    val event: Composite.CheckOutcome,
+    val hops: Composite.CheckOutcome,
+) {
+    fun evidenceLine(tick: Int): String =
+        "tick=$tick log=${evidenceText(log)} event=${evidenceText(event)} hops=${evidenceText(hops)}"
 
-private fun nowMillis(): Long = System.nanoTime() / 1_000_000
-
-private fun elapsed(startedMillis: Long): String {
-    val elapsed = (nowMillis() - startedMillis).coerceAtLeast(0)
-    return if (elapsed < 1000) "${elapsed}ms" else "%.1fs".format(Locale.ROOT, elapsed / 1000.0)
-}
-
-private fun passText(value: Boolean): String = if (value) "PASS" else "FAIL"
-
-private fun printFailureEvidence(family: String, result: CheckResult) {
-    if (!result.pass) println("    $family evidence: ${result.evidence.ifBlank { "<empty>" }}")
-}
-
-private fun failureSummary(outcome: TickOutcome): String =
-    buildList {
-        if (!outcome.log.pass) add("log family")
-        if (!outcome.event.pass) add("event family")
-        if (!outcome.metric.pass) add("metric family")
-    }.ifEmpty { listOf("unknown") }.joinToString(", ")
-
-private fun compactEvidence(outcome: TickOutcome): String =
-    buildList {
-        if (!outcome.log.pass) add("log=${outcome.log.evidence}")
-        if (!outcome.event.pass) add("event=${outcome.event.evidence}")
-        if (!outcome.metric.pass) add("metric=${outcome.metric.evidence}")
-    }.joinToString(" | ")
-
-private fun sleep(millis: Long) {
-    try {
-        Thread.sleep(millis)
-    } catch (_: InterruptedException) {
-        Thread.currentThread().interrupt()
-    }
-}
-
-private fun deleteRecursively(path: Path) {
-    if (!Files.exists(path)) return
-    Files.walk(path).use { stream ->
-        stream.sorted(Collections.reverseOrder()).forEach { Files.deleteIfExists(it) }
-    }
+    private fun evidenceText(outcome: Composite.CheckOutcome): String =
+        if (outcome.pass) "ok" else compactEvidence(outcome.evidence)
 }

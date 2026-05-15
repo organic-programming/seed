@@ -239,6 +239,12 @@ object Serve {
         if (env["OP_OBS"].orEmpty().isBlank()) {
             return null
         }
+        val current = Observability.current()
+        val wantedSlug = options.slug.trim()
+        if (current.families.isNotEmpty() && (wantedSlug.isEmpty() || wantedSlug == current.cfg.slug)) {
+            definitions += Observability.service(current)
+            return current
+        }
         val obs = Observability.fromEnvMap(Observability.Config(slug = options.slug), env)
         if (obs.families.isEmpty()) {
             return null
@@ -333,7 +339,10 @@ object Serve {
         }
         Observability.enableDiskWriters(obs.cfg.runDir)
         if (obs.enabled(Observability.Family.EVENTS)) {
-            obs.emit(Observability.EventType.INSTANCE_READY, mapOf("listener" to publicUri))
+            obs.emit(
+                Observability.EventType.INSTANCE_READY,
+                mapOf("listener" to publicUri, "metrics_addr" to metricsAddr),
+            )
         }
         val meta = Observability.MetaJson(
             slug = obs.cfg.slug,

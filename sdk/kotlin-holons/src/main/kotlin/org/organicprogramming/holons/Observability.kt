@@ -28,8 +28,10 @@ import java.nio.file.StandardOpenOption
 import java.time.Instant
 import java.util.ArrayDeque
 import java.util.EnumSet
+import java.util.concurrent.BlockingQueue
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -153,6 +155,7 @@ object Observability {
         val fields: Map<String, String> = emptyMap(),
         val caller: String = "",
         val chain: List<Hop> = emptyList(),
+        val privateEntry: Boolean = false,
     )
 
     data class Event(
@@ -163,6 +166,7 @@ object Observability {
         val sessionId: String = "",
         val payload: Map<String, String> = emptyMap(),
         val chain: List<Hop> = emptyList(),
+        val privateEntry: Boolean = false,
     )
 
     class LogRing(capacity: Int = 1024) {
@@ -183,6 +187,16 @@ object Observability {
         fun subscribe(fn: (LogEntry) -> Unit): AutoCloseable {
             subs.add(fn)
             return AutoCloseable { subs.remove(fn) }
+        }
+        @Synchronized
+        fun replayAndSubscribe(cutoff: Instant? = null, bufferSize: Int = 128): ReplaySubscription<LogEntry> {
+            val replay = cutoff?.let { drainSince(it) } ?: buf.toList()
+            val queue = LinkedBlockingQueue<LogEntry>(bufferSize.coerceAtLeast(1))
+            val fn: (LogEntry) -> Unit = { entry -> queue.offer(entry) }
+            // Snapshot and live registration share this critical section so
+            // follow=true streams cannot drop entries at the replay/live seam.
+            subs.add(fn)
+            return ReplaySubscription(replay, queue, AutoCloseable { subs.remove(fn) })
         }
         @Synchronized fun size(): Int = buf.size
     }
@@ -208,7 +222,27 @@ object Observability {
             subs.add(fn)
             return AutoCloseable { subs.remove(fn) }
         }
+        @Synchronized
+        fun replayAndSubscribe(cutoff: Instant? = null, bufferSize: Int = 64): ReplaySubscription<Event> {
+            val replay = cutoff?.let { drainSince(it) } ?: buf.toList()
+            val queue = LinkedBlockingQueue<Event>(bufferSize.coerceAtLeast(1))
+            val fn: (Event) -> Unit = { event -> queue.offer(event) }
+            // Snapshot and live registration share this critical section so
+            // follow=true streams cannot drop entries at the replay/live seam.
+            subs.add(fn)
+            return ReplaySubscription(replay, queue, AutoCloseable { subs.remove(fn) })
+        }
         fun close() { closed = true; subs.clear() }
+    }
+
+    data class ReplaySubscription<T>(
+        val replay: List<T>,
+        val live: BlockingQueue<T>,
+        private val closeable: AutoCloseable,
+    ) : AutoCloseable {
+        override fun close() {
+            runCatching { closeable.close() }
+        }
     }
 
     class Counter internal constructor(
@@ -311,7 +345,7 @@ object Observability {
         fun setLevel(l: Level) { level = l }
         fun enabled(l: Level): Boolean = l.code >= level.code
 
-        fun log(l: Level, message: String, fields: Map<String, Any?>? = null) {
+        fun log(l: Level, message: String, fields: Map<String, Any?>? = null, privateEntry: Boolean = false) {
             if (!enabled(l)) return
             val redact = obs.cfg.redactedFields.toSet()
             val out = linkedMapOf<String, String>()
@@ -327,6 +361,7 @@ object Observability {
                 instanceUid = obs.cfg.instanceUid,
                 message = message,
                 fields = out,
+                privateEntry = privateEntry,
             )
             obs.logRing?.push(entry)
         }
@@ -337,6 +372,7 @@ object Observability {
         fun warn(m: String, f: Map<String, Any?>? = null)  = log(Level.WARN, m, f)
         fun error(m: String, f: Map<String, Any?>? = null) = log(Level.ERROR, m, f)
         fun fatal(m: String, f: Map<String, Any?>? = null) = log(Level.FATAL, m, f)
+        fun privateInfo(m: String, f: Map<String, Any?>? = null) = log(Level.INFO, m, f, privateEntry = true)
     }
 
     class Instance internal constructor(val cfg: Config, val families: Set<Family>) {
@@ -362,13 +398,16 @@ object Observability {
                       bounds: DoubleArray? = null): Histogram? =
             registry?.histogram(name, help, labels, bounds)
 
-        fun emit(type: EventType, payload: Map<String, String>? = null) {
+        fun emit(type: EventType, payload: Map<String, String>? = null, privateEntry: Boolean = false) {
             val bus = eventBus ?: return
             val redact = cfg.redactedFields.toSet()
             val p = linkedMapOf<String, String>()
             payload?.forEach { (k, v) -> p[k] = if (k in redact) "<redacted>" else v }
-            bus.emit(Event(Instant.now(), type, cfg.slug, cfg.instanceUid, payload = p))
+            bus.emit(Event(Instant.now(), type, cfg.slug, cfg.instanceUid, payload = p, privateEntry = privateEntry))
         }
+
+        fun emitPrivate(type: EventType, payload: Map<String, String>? = null) =
+            emit(type, payload, privateEntry = true)
 
         fun close() { eventBus?.close() }
     }
@@ -436,7 +475,15 @@ object Observability {
                         return@asyncServerStreamingCall
                     }
                     val minLevel = if (request.getMinLevelValue() == 0) Level.INFO.code else request.getMinLevelValue()
-                    val entries = if (request.hasSince()) {
+                    val subscription = if (request.follow) {
+                        inst.logRing.replayAndSubscribe(
+                            cutoff = if (request.hasSince()) cutoffFromDuration(request.getSince()) else null,
+                            bufferSize = 128,
+                        )
+                    } else {
+                        null
+                    }
+                    val entries = subscription?.replay ?: if (request.hasSince()) {
                         inst.logRing.drainSince(cutoffFromDuration(request.getSince()))
                     } else {
                         inst.logRing.drain()
@@ -444,7 +491,8 @@ object Observability {
                     entries
                         .asSequence()
                         .filter {
-                            it.level.code >= minLevel &&
+                            (!request.follow || !it.privateEntry) &&
+                                it.level.code >= minLevel &&
                                 (request.sessionIdsList.isEmpty() || request.sessionIdsList.contains(it.sessionId)) &&
                                 (request.rpcMethodsList.isEmpty() || request.rpcMethodsList.contains(it.rpcMethod))
                         }
@@ -453,17 +501,31 @@ object Observability {
                         observer.onCompleted()
                         return@asyncServerStreamingCall
                     }
-                    val subscription = inst.logRing.subscribe { entry ->
-                        if (entry.level.code < minLevel ||
-                            (request.sessionIdsList.isNotEmpty() && !request.sessionIdsList.contains(entry.sessionId)) ||
-                            (request.rpcMethodsList.isNotEmpty() && !request.rpcMethodsList.contains(entry.rpcMethod))
-                        ) {
-                            return@subscribe
+                    val liveSubscription = subscription ?: return@asyncServerStreamingCall
+                    val liveThread = thread(start = true, isDaemon = true, name = "holons-observability-logs-follow") {
+                        try {
+                            while (!Thread.currentThread().isInterrupted) {
+                                val entry = liveSubscription.live.take()
+                                if (entry.privateEntry ||
+                                    entry.level.code < minLevel ||
+                                    (request.sessionIdsList.isNotEmpty() && !request.sessionIdsList.contains(entry.sessionId)) ||
+                                    (request.rpcMethodsList.isNotEmpty() && !request.rpcMethodsList.contains(entry.rpcMethod))
+                                ) {
+                                    continue
+                                }
+                                observer.onNext(toProtoLogEntry(entry))
+                            }
+                        } catch (_: InterruptedException) {
+                            Thread.currentThread().interrupt()
+                        } catch (_: Exception) {
+                            // Cancelled clients are handled by the gRPC runtime.
+                        } finally {
+                            closeQuietly(liveSubscription)
                         }
-                        runCatching { observer.onNext(toProtoLogEntry(entry)) }
                     }
                     (observer as? ServerCallStreamObserver<*>)?.setOnCancelHandler {
-                        closeQuietly(subscription)
+                        closeQuietly(liveSubscription)
+                        liveThread.interrupt()
                     }
                 },
             )
@@ -506,27 +568,48 @@ object Observability {
                         return@asyncServerStreamingCall
                     }
                     val wanted = request.typesValueList.toSet()
-                    val events = if (request.hasSince()) {
+                    val subscription = if (request.follow) {
+                        bus.replayAndSubscribe(
+                            cutoff = if (request.hasSince()) cutoffFromDuration(request.getSince()) else null,
+                            bufferSize = 64,
+                        )
+                    } else {
+                        null
+                    }
+                    val events = subscription?.replay ?: if (request.hasSince()) {
                         bus.drainSince(cutoffFromDuration(request.getSince()))
                     } else {
                         bus.drain()
                     }
                     events
                         .asSequence()
-                        .filter { wanted.isEmpty() || it.type.code in wanted }
+                        .filter { (!request.follow || !it.privateEntry) && (wanted.isEmpty() || it.type.code in wanted) }
                         .forEach { observer.onNext(toProtoEvent(it)) }
                     if (!request.follow) {
                         observer.onCompleted()
                         return@asyncServerStreamingCall
                     }
-                    val subscription = bus.subscribe { event ->
-                        if (wanted.isNotEmpty() && event.type.code !in wanted) {
-                            return@subscribe
+                    val liveSubscription = subscription ?: return@asyncServerStreamingCall
+                    val liveThread = thread(start = true, isDaemon = true, name = "holons-observability-events-follow") {
+                        try {
+                            while (!Thread.currentThread().isInterrupted) {
+                                val event = liveSubscription.live.take()
+                                if (event.privateEntry || (wanted.isNotEmpty() && event.type.code !in wanted)) {
+                                    continue
+                                }
+                                observer.onNext(toProtoEvent(event))
+                            }
+                        } catch (_: InterruptedException) {
+                            Thread.currentThread().interrupt()
+                        } catch (_: Exception) {
+                            // Cancelled clients are handled by the gRPC runtime.
+                        } finally {
+                            closeQuietly(liveSubscription)
                         }
-                        runCatching { observer.onNext(toProtoEvent(event)) }
                     }
                     (observer as? ServerCallStreamObserver<*>)?.setOnCancelHandler {
-                        closeQuietly(subscription)
+                        closeQuietly(liveSubscription)
+                        liveThread.interrupt()
                     }
                 },
             )

@@ -148,7 +148,24 @@ public object PhaseResultKt {
 @kotlin.jvm.JvmName("setFailures")
     public fun com.google.protobuf.kotlin.DslList<kotlin.String, FailuresProxy>.clear() {
       _builder.clearFailures()
-    }}
+    }
+    /**
+     * `int64 elapsed_us = 5 [json_name = "elapsedUs"];`
+     */
+    public var elapsedUs: kotlin.Long
+      @kotlin.jvm.JvmName("getElapsedUs")
+        get() = _builder.elapsedUs
+      @kotlin.jvm.JvmName("setElapsedUs")
+        set(value) {
+        _builder.elapsedUs = value
+      }
+    /**
+     * `int64 elapsed_us = 5 [json_name = "elapsedUs"];`
+     */
+    public fun clearElapsedUs() {
+      _builder.clearElapsedUs()
+    }
+  }
 }
 @kotlin.jvm.JvmSynthetic
 public inline fun observability_cascade.v1.Service.PhaseResult.copy(block: `observability_cascade.v1`.PhaseResultKt.Dsl.() -> kotlin.Unit): observability_cascade.v1.Service.PhaseResult =

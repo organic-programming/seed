@@ -132,6 +132,23 @@ public object MultiPatternReportKt {
     public fun clearTotalFail() {
       _builder.clearTotalFail()
     }
+
+    /**
+     * `int64 total_elapsed_us = 4 [json_name = "totalElapsedUs"];`
+     */
+    public var totalElapsedUs: kotlin.Long
+      @kotlin.jvm.JvmName("getTotalElapsedUs")
+        get() = _builder.totalElapsedUs
+      @kotlin.jvm.JvmName("setTotalElapsedUs")
+        set(value) {
+        _builder.totalElapsedUs = value
+      }
+    /**
+     * `int64 total_elapsed_us = 4 [json_name = "totalElapsedUs"];`
+     */
+    public fun clearTotalElapsedUs() {
+      _builder.clearTotalElapsedUs()
+    }
   }
 }
 @kotlin.jvm.JvmSynthetic

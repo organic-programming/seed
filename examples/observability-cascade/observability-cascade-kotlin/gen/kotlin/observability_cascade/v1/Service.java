@@ -433,6 +433,12 @@ public final class Service {
      */
     com.google.protobuf.ByteString
         getFailuresBytes(int index);
+
+    /**
+     * <code>int64 elapsed_us = 5 [json_name = "elapsedUs"];</code>
+     * @return The elapsedUs.
+     */
+    long getElapsedUs();
   }
   /**
    * Protobuf type {@code observability_cascade.v1.PhaseResult}
@@ -487,7 +493,7 @@ public final class Service {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         name_ = s;
@@ -503,7 +509,7 @@ public final class Service {
         getNameBytes() {
       java.lang.Object ref = name_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         name_ = b;
@@ -572,6 +578,17 @@ public final class Service {
       return failures_.getByteString(index);
     }
 
+    public static final int ELAPSED_US_FIELD_NUMBER = 5;
+    private long elapsedUs_ = 0L;
+    /**
+     * <code>int64 elapsed_us = 5 [json_name = "elapsedUs"];</code>
+     * @return The elapsedUs.
+     */
+    @java.lang.Override
+    public long getElapsedUs() {
+      return elapsedUs_;
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -597,6 +614,9 @@ public final class Service {
       }
       for (int i = 0; i < failures_.size(); i++) {
         com.google.protobuf.GeneratedMessage.writeString(output, 4, failures_.getRaw(i));
+      }
+      if (elapsedUs_ != 0L) {
+        output.writeInt64(5, elapsedUs_);
       }
       getUnknownFields().writeTo(output);
     }
@@ -626,6 +646,10 @@ public final class Service {
         size += dataSize;
         size += 1 * getFailuresList().size();
       }
+      if (elapsedUs_ != 0L) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(5, elapsedUs_);
+      }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
       return size;
@@ -649,6 +673,8 @@ public final class Service {
           != other.getFail()) return false;
       if (!getFailuresList()
           .equals(other.getFailuresList())) return false;
+      if (getElapsedUs()
+          != other.getElapsedUs()) return false;
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
     }
@@ -670,6 +696,9 @@ public final class Service {
         hash = (37 * hash) + FAILURES_FIELD_NUMBER;
         hash = (53 * hash) + getFailuresList().hashCode();
       }
+      hash = (37 * hash) + ELAPSED_US_FIELD_NUMBER;
+      hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
+          getElapsedUs());
       hash = (29 * hash) + getUnknownFields().hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -806,6 +835,7 @@ public final class Service {
         fail_ = 0;
         failures_ =
             com.google.protobuf.LazyStringArrayList.emptyList();
+        elapsedUs_ = 0L;
         return this;
       }
 
@@ -852,6 +882,9 @@ public final class Service {
           failures_.makeImmutable();
           result.failures_ = failures_;
         }
+        if (((from_bitField0_ & 0x00000010) != 0)) {
+          result.elapsedUs_ = elapsedUs_;
+        }
       }
 
       @java.lang.Override
@@ -886,6 +919,9 @@ public final class Service {
             failures_.addAll(other.failures_);
           }
           onChanged();
+        }
+        if (other.getElapsedUs() != 0L) {
+          setElapsedUs(other.getElapsedUs());
         }
         this.mergeUnknownFields(other.getUnknownFields());
         onChanged();
@@ -934,6 +970,11 @@ public final class Service {
                 failures_.add(s);
                 break;
               } // case 34
+              case 40: {
+                elapsedUs_ = input.readInt64();
+                bitField0_ |= 0x00000010;
+                break;
+              } // case 40
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -976,7 +1017,7 @@ public final class Service {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -1198,6 +1239,38 @@ public final class Service {
         return this;
       }
 
+      private long elapsedUs_ ;
+      /**
+       * <code>int64 elapsed_us = 5 [json_name = "elapsedUs"];</code>
+       * @return The elapsedUs.
+       */
+      @java.lang.Override
+      public long getElapsedUs() {
+        return elapsedUs_;
+      }
+      /**
+       * <code>int64 elapsed_us = 5 [json_name = "elapsedUs"];</code>
+       * @param value The elapsedUs to set.
+       * @return This builder for chaining.
+       */
+      public Builder setElapsedUs(long value) {
+
+        elapsedUs_ = value;
+        bitField0_ |= 0x00000010;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>int64 elapsed_us = 5 [json_name = "elapsedUs"];</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearElapsedUs() {
+        bitField0_ = (bitField0_ & ~0x00000010);
+        elapsedUs_ = 0L;
+        onChanged();
+        return this;
+      }
+
       // @@protoc_insertion_point(builder_scope:observability_cascade.v1.PhaseResult)
     }
 
@@ -1274,7 +1347,7 @@ public final class Service {
     /**
      * <code>repeated .observability_cascade.v1.PhaseResult phases = 4 [json_name = "phases"];</code>
      */
-    java.util.List<observability_cascade.v1.Service.PhaseResult> 
+    java.util.List<observability_cascade.v1.Service.PhaseResult>
         getPhasesList();
     /**
      * <code>repeated .observability_cascade.v1.PhaseResult phases = 4 [json_name = "phases"];</code>
@@ -1287,13 +1360,31 @@ public final class Service {
     /**
      * <code>repeated .observability_cascade.v1.PhaseResult phases = 4 [json_name = "phases"];</code>
      */
-    java.util.List<? extends observability_cascade.v1.Service.PhaseResultOrBuilder> 
+    java.util.List<? extends observability_cascade.v1.Service.PhaseResultOrBuilder>
         getPhasesOrBuilderList();
     /**
      * <code>repeated .observability_cascade.v1.PhaseResult phases = 4 [json_name = "phases"];</code>
      */
     observability_cascade.v1.Service.PhaseResultOrBuilder getPhasesOrBuilder(
         int index);
+
+    /**
+     * <code>string name = 5 [json_name = "name"];</code>
+     * @return The name.
+     */
+    java.lang.String getName();
+    /**
+     * <code>string name = 5 [json_name = "name"];</code>
+     * @return The bytes for name.
+     */
+    com.google.protobuf.ByteString
+        getNameBytes();
+
+    /**
+     * <code>int64 elapsed_us = 6 [json_name = "elapsedUs"];</code>
+     * @return The elapsedUs.
+     */
+    long getElapsedUs();
   }
   /**
    * Protobuf type {@code observability_cascade.v1.CascadeReport}
@@ -1318,6 +1409,7 @@ public final class Service {
     }
     private CascadeReport() {
       phases_ = java.util.Collections.emptyList();
+      name_ = "";
     }
 
     public static final com.google.protobuf.Descriptors.Descriptor
@@ -1380,7 +1472,7 @@ public final class Service {
      * <code>repeated .observability_cascade.v1.PhaseResult phases = 4 [json_name = "phases"];</code>
      */
     @java.lang.Override
-    public java.util.List<? extends observability_cascade.v1.Service.PhaseResultOrBuilder> 
+    public java.util.List<? extends observability_cascade.v1.Service.PhaseResultOrBuilder>
         getPhasesOrBuilderList() {
       return phases_;
     }
@@ -1405,6 +1497,56 @@ public final class Service {
     public observability_cascade.v1.Service.PhaseResultOrBuilder getPhasesOrBuilder(
         int index) {
       return phases_.get(index);
+    }
+
+    public static final int NAME_FIELD_NUMBER = 5;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object name_ = "";
+    /**
+     * <code>string name = 5 [json_name = "name"];</code>
+     * @return The name.
+     */
+    @java.lang.Override
+    public java.lang.String getName() {
+      java.lang.Object ref = name_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        name_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string name = 5 [json_name = "name"];</code>
+     * @return The bytes for name.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getNameBytes() {
+      java.lang.Object ref = name_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        name_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int ELAPSED_US_FIELD_NUMBER = 6;
+    private long elapsedUs_ = 0L;
+    /**
+     * <code>int64 elapsed_us = 6 [json_name = "elapsedUs"];</code>
+     * @return The elapsedUs.
+     */
+    @java.lang.Override
+    public long getElapsedUs() {
+      return elapsedUs_;
     }
 
     private byte memoizedIsInitialized = -1;
@@ -1433,6 +1575,12 @@ public final class Service {
       for (int i = 0; i < phases_.size(); i++) {
         output.writeMessage(4, phases_.get(i));
       }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(name_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 5, name_);
+      }
+      if (elapsedUs_ != 0L) {
+        output.writeInt64(6, elapsedUs_);
+      }
       getUnknownFields().writeTo(output);
     }
 
@@ -1458,6 +1606,13 @@ public final class Service {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(4, phases_.get(i));
       }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(name_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(5, name_);
+      }
+      if (elapsedUs_ != 0L) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(6, elapsedUs_);
+      }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
       return size;
@@ -1481,6 +1636,10 @@ public final class Service {
           != other.getFail()) return false;
       if (!getPhasesList()
           .equals(other.getPhasesList())) return false;
+      if (!getName()
+          .equals(other.getName())) return false;
+      if (getElapsedUs()
+          != other.getElapsedUs()) return false;
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
     }
@@ -1502,6 +1661,11 @@ public final class Service {
         hash = (37 * hash) + PHASES_FIELD_NUMBER;
         hash = (53 * hash) + getPhasesList().hashCode();
       }
+      hash = (37 * hash) + NAME_FIELD_NUMBER;
+      hash = (53 * hash) + getName().hashCode();
+      hash = (37 * hash) + ELAPSED_US_FIELD_NUMBER;
+      hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
+          getElapsedUs());
       hash = (29 * hash) + getUnknownFields().hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -1643,6 +1807,8 @@ public final class Service {
           phasesBuilder_.clear();
         }
         bitField0_ = (bitField0_ & ~0x00000008);
+        name_ = "";
+        elapsedUs_ = 0L;
         return this;
       }
 
@@ -1698,6 +1864,12 @@ public final class Service {
         if (((from_bitField0_ & 0x00000004) != 0)) {
           result.fail_ = fail_;
         }
+        if (((from_bitField0_ & 0x00000010) != 0)) {
+          result.name_ = name_;
+        }
+        if (((from_bitField0_ & 0x00000020) != 0)) {
+          result.elapsedUs_ = elapsedUs_;
+        }
       }
 
       @java.lang.Override
@@ -1739,13 +1911,21 @@ public final class Service {
               phasesBuilder_ = null;
               phases_ = other.phases_;
               bitField0_ = (bitField0_ & ~0x00000008);
-              phasesBuilder_ = 
+              phasesBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetPhasesFieldBuilder() : null;
             } else {
               phasesBuilder_.addAllMessages(other.phases_);
             }
           }
+        }
+        if (!other.getName().isEmpty()) {
+          name_ = other.name_;
+          bitField0_ |= 0x00000010;
+          onChanged();
+        }
+        if (other.getElapsedUs() != 0L) {
+          setElapsedUs(other.getElapsedUs());
         }
         this.mergeUnknownFields(other.getUnknownFields());
         onChanged();
@@ -1801,6 +1981,16 @@ public final class Service {
                 }
                 break;
               } // case 34
+              case 42: {
+                name_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000010;
+                break;
+              } // case 42
+              case 48: {
+                elapsedUs_ = input.readInt64();
+                bitField0_ |= 0x00000020;
+                break;
+              } // case 48
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -2109,7 +2299,7 @@ public final class Service {
       /**
        * <code>repeated .observability_cascade.v1.PhaseResult phases = 4 [json_name = "phases"];</code>
        */
-      public java.util.List<? extends observability_cascade.v1.Service.PhaseResultOrBuilder> 
+      public java.util.List<? extends observability_cascade.v1.Service.PhaseResultOrBuilder>
            getPhasesOrBuilderList() {
         if (phasesBuilder_ != null) {
           return phasesBuilder_.getMessageOrBuilderList();
@@ -2135,12 +2325,12 @@ public final class Service {
       /**
        * <code>repeated .observability_cascade.v1.PhaseResult phases = 4 [json_name = "phases"];</code>
        */
-      public java.util.List<observability_cascade.v1.Service.PhaseResult.Builder> 
+      public java.util.List<observability_cascade.v1.Service.PhaseResult.Builder>
            getPhasesBuilderList() {
         return internalGetPhasesFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          observability_cascade.v1.Service.PhaseResult, observability_cascade.v1.Service.PhaseResult.Builder, observability_cascade.v1.Service.PhaseResultOrBuilder> 
+          observability_cascade.v1.Service.PhaseResult, observability_cascade.v1.Service.PhaseResult.Builder, observability_cascade.v1.Service.PhaseResultOrBuilder>
           internalGetPhasesFieldBuilder() {
         if (phasesBuilder_ == null) {
           phasesBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -2152,6 +2342,110 @@ public final class Service {
           phases_ = null;
         }
         return phasesBuilder_;
+      }
+
+      private java.lang.Object name_ = "";
+      /**
+       * <code>string name = 5 [json_name = "name"];</code>
+       * @return The name.
+       */
+      public java.lang.String getName() {
+        java.lang.Object ref = name_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          name_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string name = 5 [json_name = "name"];</code>
+       * @return The bytes for name.
+       */
+      public com.google.protobuf.ByteString
+          getNameBytes() {
+        java.lang.Object ref = name_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          name_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string name = 5 [json_name = "name"];</code>
+       * @param value The name to set.
+       * @return This builder for chaining.
+       */
+      public Builder setName(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        name_ = value;
+        bitField0_ |= 0x00000010;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string name = 5 [json_name = "name"];</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearName() {
+        name_ = getDefaultInstance().getName();
+        bitField0_ = (bitField0_ & ~0x00000010);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string name = 5 [json_name = "name"];</code>
+       * @param value The bytes for name to set.
+       * @return This builder for chaining.
+       */
+      public Builder setNameBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        name_ = value;
+        bitField0_ |= 0x00000010;
+        onChanged();
+        return this;
+      }
+
+      private long elapsedUs_ ;
+      /**
+       * <code>int64 elapsed_us = 6 [json_name = "elapsedUs"];</code>
+       * @return The elapsedUs.
+       */
+      @java.lang.Override
+      public long getElapsedUs() {
+        return elapsedUs_;
+      }
+      /**
+       * <code>int64 elapsed_us = 6 [json_name = "elapsedUs"];</code>
+       * @param value The elapsedUs to set.
+       * @return This builder for chaining.
+       */
+      public Builder setElapsedUs(long value) {
+
+        elapsedUs_ = value;
+        bitField0_ |= 0x00000020;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>int64 elapsed_us = 6 [json_name = "elapsedUs"];</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearElapsedUs() {
+        bitField0_ = (bitField0_ & ~0x00000020);
+        elapsedUs_ = 0L;
+        onChanged();
+        return this;
       }
 
       // @@protoc_insertion_point(builder_scope:observability_cascade.v1.CascadeReport)
@@ -2212,7 +2506,7 @@ public final class Service {
     /**
      * <code>repeated .observability_cascade.v1.CascadeReport patterns = 1 [json_name = "patterns"];</code>
      */
-    java.util.List<observability_cascade.v1.Service.CascadeReport> 
+    java.util.List<observability_cascade.v1.Service.CascadeReport>
         getPatternsList();
     /**
      * <code>repeated .observability_cascade.v1.CascadeReport patterns = 1 [json_name = "patterns"];</code>
@@ -2225,7 +2519,7 @@ public final class Service {
     /**
      * <code>repeated .observability_cascade.v1.CascadeReport patterns = 1 [json_name = "patterns"];</code>
      */
-    java.util.List<? extends observability_cascade.v1.Service.CascadeReportOrBuilder> 
+    java.util.List<? extends observability_cascade.v1.Service.CascadeReportOrBuilder>
         getPatternsOrBuilderList();
     /**
      * <code>repeated .observability_cascade.v1.CascadeReport patterns = 1 [json_name = "patterns"];</code>
@@ -2244,6 +2538,12 @@ public final class Service {
      * @return The totalFail.
      */
     int getTotalFail();
+
+    /**
+     * <code>int64 total_elapsed_us = 4 [json_name = "totalElapsedUs"];</code>
+     * @return The totalElapsedUs.
+     */
+    long getTotalElapsedUs();
   }
   /**
    * Protobuf type {@code observability_cascade.v1.MultiPatternReport}
@@ -2297,7 +2597,7 @@ public final class Service {
      * <code>repeated .observability_cascade.v1.CascadeReport patterns = 1 [json_name = "patterns"];</code>
      */
     @java.lang.Override
-    public java.util.List<? extends observability_cascade.v1.Service.CascadeReportOrBuilder> 
+    public java.util.List<? extends observability_cascade.v1.Service.CascadeReportOrBuilder>
         getPatternsOrBuilderList() {
       return patterns_;
     }
@@ -2346,6 +2646,17 @@ public final class Service {
       return totalFail_;
     }
 
+    public static final int TOTAL_ELAPSED_US_FIELD_NUMBER = 4;
+    private long totalElapsedUs_ = 0L;
+    /**
+     * <code>int64 total_elapsed_us = 4 [json_name = "totalElapsedUs"];</code>
+     * @return The totalElapsedUs.
+     */
+    @java.lang.Override
+    public long getTotalElapsedUs() {
+      return totalElapsedUs_;
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -2369,6 +2680,9 @@ public final class Service {
       if (totalFail_ != 0) {
         output.writeInt32(3, totalFail_);
       }
+      if (totalElapsedUs_ != 0L) {
+        output.writeInt64(4, totalElapsedUs_);
+      }
       getUnknownFields().writeTo(output);
     }
 
@@ -2389,6 +2703,10 @@ public final class Service {
       if (totalFail_ != 0) {
         size += com.google.protobuf.CodedOutputStream
           .computeInt32Size(3, totalFail_);
+      }
+      if (totalElapsedUs_ != 0L) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(4, totalElapsedUs_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
@@ -2411,6 +2729,8 @@ public final class Service {
           != other.getTotalPass()) return false;
       if (getTotalFail()
           != other.getTotalFail()) return false;
+      if (getTotalElapsedUs()
+          != other.getTotalElapsedUs()) return false;
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
     }
@@ -2430,6 +2750,9 @@ public final class Service {
       hash = (53 * hash) + getTotalPass();
       hash = (37 * hash) + TOTAL_FAIL_FIELD_NUMBER;
       hash = (53 * hash) + getTotalFail();
+      hash = (37 * hash) + TOTAL_ELAPSED_US_FIELD_NUMBER;
+      hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
+          getTotalElapsedUs());
       hash = (29 * hash) + getUnknownFields().hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -2570,6 +2893,7 @@ public final class Service {
         bitField0_ = (bitField0_ & ~0x00000001);
         totalPass_ = 0;
         totalFail_ = 0;
+        totalElapsedUs_ = 0L;
         return this;
       }
 
@@ -2622,6 +2946,9 @@ public final class Service {
         if (((from_bitField0_ & 0x00000004) != 0)) {
           result.totalFail_ = totalFail_;
         }
+        if (((from_bitField0_ & 0x00000008) != 0)) {
+          result.totalElapsedUs_ = totalElapsedUs_;
+        }
       }
 
       @java.lang.Override
@@ -2654,7 +2981,7 @@ public final class Service {
               patternsBuilder_ = null;
               patterns_ = other.patterns_;
               bitField0_ = (bitField0_ & ~0x00000001);
-              patternsBuilder_ = 
+              patternsBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetPatternsFieldBuilder() : null;
             } else {
@@ -2667,6 +2994,9 @@ public final class Service {
         }
         if (other.getTotalFail() != 0) {
           setTotalFail(other.getTotalFail());
+        }
+        if (other.getTotalElapsedUs() != 0L) {
+          setTotalElapsedUs(other.getTotalElapsedUs());
         }
         this.mergeUnknownFields(other.getUnknownFields());
         onChanged();
@@ -2717,6 +3047,11 @@ public final class Service {
                 bitField0_ |= 0x00000004;
                 break;
               } // case 24
+              case 32: {
+                totalElapsedUs_ = input.readInt64();
+                bitField0_ |= 0x00000008;
+                break;
+              } // case 32
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -2929,7 +3264,7 @@ public final class Service {
       /**
        * <code>repeated .observability_cascade.v1.CascadeReport patterns = 1 [json_name = "patterns"];</code>
        */
-      public java.util.List<? extends observability_cascade.v1.Service.CascadeReportOrBuilder> 
+      public java.util.List<? extends observability_cascade.v1.Service.CascadeReportOrBuilder>
            getPatternsOrBuilderList() {
         if (patternsBuilder_ != null) {
           return patternsBuilder_.getMessageOrBuilderList();
@@ -2955,12 +3290,12 @@ public final class Service {
       /**
        * <code>repeated .observability_cascade.v1.CascadeReport patterns = 1 [json_name = "patterns"];</code>
        */
-      public java.util.List<observability_cascade.v1.Service.CascadeReport.Builder> 
+      public java.util.List<observability_cascade.v1.Service.CascadeReport.Builder>
            getPatternsBuilderList() {
         return internalGetPatternsFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          observability_cascade.v1.Service.CascadeReport, observability_cascade.v1.Service.CascadeReport.Builder, observability_cascade.v1.Service.CascadeReportOrBuilder> 
+          observability_cascade.v1.Service.CascadeReport, observability_cascade.v1.Service.CascadeReport.Builder, observability_cascade.v1.Service.CascadeReportOrBuilder>
           internalGetPatternsFieldBuilder() {
         if (patternsBuilder_ == null) {
           patternsBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -3038,6 +3373,38 @@ public final class Service {
         return this;
       }
 
+      private long totalElapsedUs_ ;
+      /**
+       * <code>int64 total_elapsed_us = 4 [json_name = "totalElapsedUs"];</code>
+       * @return The totalElapsedUs.
+       */
+      @java.lang.Override
+      public long getTotalElapsedUs() {
+        return totalElapsedUs_;
+      }
+      /**
+       * <code>int64 total_elapsed_us = 4 [json_name = "totalElapsedUs"];</code>
+       * @param value The totalElapsedUs to set.
+       * @return This builder for chaining.
+       */
+      public Builder setTotalElapsedUs(long value) {
+
+        totalElapsedUs_ = value;
+        bitField0_ |= 0x00000008;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>int64 total_elapsed_us = 4 [json_name = "totalElapsedUs"];</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearTotalElapsedUs() {
+        bitField0_ = (bitField0_ & ~0x00000008);
+        totalElapsedUs_ = 0L;
+        onChanged();
+        return this;
+      }
+
       // @@protoc_insertion_point(builder_scope:observability_cascade.v1.MultiPatternReport)
     }
 
@@ -3091,22 +3458,22 @@ public final class Service {
 
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_observability_cascade_v1_RunRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_observability_cascade_v1_RunRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_observability_cascade_v1_PhaseResult_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_observability_cascade_v1_PhaseResult_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_observability_cascade_v1_CascadeReport_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_observability_cascade_v1_CascadeReport_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_observability_cascade_v1_MultiPatternReport_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_observability_cascade_v1_MultiPatternReport_fieldAccessorTable;
 
@@ -3120,27 +3487,30 @@ public final class Service {
     java.lang.String[] descriptorData = {
       "\n&observability_cascade/v1/service.proto" +
       "\022\030observability_cascade.v1\"\014\n\nRunRequest" +
-      "\"e\n\013PhaseResult\022\022\n\004name\030\001 \001(\tR\004name\022\022\n\004p" +
-      "ass\030\002 \001(\005R\004pass\022\022\n\004fail\030\003 \001(\005R\004fail\022\032\n\010f" +
-      "ailures\030\004 \003(\tR\010failures\"\214\001\n\rCascadeRepor" +
-      "t\022\024\n\005ticks\030\001 \001(\005R\005ticks\022\022\n\004pass\030\002 \001(\005R\004p" +
-      "ass\022\022\n\004fail\030\003 \001(\005R\004fail\022=\n\006phases\030\004 \003(\0132" +
-      "%.observability_cascade.v1.PhaseResultR\006" +
-      "phases\"\227\001\n\022MultiPatternReport\022C\n\010pattern" +
-      "s\030\001 \003(\0132\'.observability_cascade.v1.Casca" +
-      "deReportR\010patterns\022\035\n\ntotal_pass\030\002 \001(\005R\t" +
-      "totalPass\022\035\n\ntotal_fail\030\003 \001(\005R\ttotalFail" +
-      "2\301\002\n\033ObservabilityCascadeService\022[\n\nRunD" +
-      "efault\022$.observability_cascade.v1.RunReq" +
-      "uest\032\'.observability_cascade.v1.CascadeR" +
-      "eport\022^\n\rRunLiveStream\022$.observability_c" +
-      "ascade.v1.RunRequest\032\'.observability_cas" +
-      "cade.v1.CascadeReport\022e\n\017RunMultiPattern" +
-      "\022$.observability_cascade.v1.RunRequest\032," +
-      ".observability_cascade.v1.MultiPatternRe" +
-      "portBQZOobservability-cascade-go/gen/go/" +
-      "observability_cascade/v1;observabilityca" +
-      "scadev1b\006proto3"
+      "\"\204\001\n\013PhaseResult\022\022\n\004name\030\001 \001(\tR\004name\022\022\n\004" +
+      "pass\030\002 \001(\005R\004pass\022\022\n\004fail\030\003 \001(\005R\004fail\022\032\n\010" +
+      "failures\030\004 \003(\tR\010failures\022\035\n\nelapsed_us\030\005" +
+      " \001(\003R\telapsedUs\"\277\001\n\rCascadeReport\022\024\n\005tic" +
+      "ks\030\001 \001(\005R\005ticks\022\022\n\004pass\030\002 \001(\005R\004pass\022\022\n\004f" +
+      "ail\030\003 \001(\005R\004fail\022=\n\006phases\030\004 \003(\0132%.observ" +
+      "ability_cascade.v1.PhaseResultR\006phases\022\022" +
+      "\n\004name\030\005 \001(\tR\004name\022\035\n\nelapsed_us\030\006 \001(\003R\t" +
+      "elapsedUs\"\301\001\n\022MultiPatternReport\022C\n\010patt" +
+      "erns\030\001 \003(\0132\'.observability_cascade.v1.Ca" +
+      "scadeReportR\010patterns\022\035\n\ntotal_pass\030\002 \001(" +
+      "\005R\ttotalPass\022\035\n\ntotal_fail\030\003 \001(\005R\ttotalF" +
+      "ail\022(\n\020total_elapsed_us\030\004 \001(\003R\016totalElap" +
+      "sedUs2\301\002\n\033ObservabilityCascadeService\022[\n" +
+      "\nRunDefault\022$.observability_cascade.v1.R" +
+      "unRequest\032\'.observability_cascade.v1.Cas" +
+      "cadeReport\022^\n\rRunLiveStream\022$.observabil" +
+      "ity_cascade.v1.RunRequest\032\'.observabilit" +
+      "y_cascade.v1.CascadeReport\022e\n\017RunMultiPa" +
+      "ttern\022$.observability_cascade.v1.RunRequ" +
+      "est\032,.observability_cascade.v1.MultiPatt" +
+      "ernReportBQZOobservability-cascade-go/ge" +
+      "n/go/observability_cascade/v1;observabil" +
+      "itycascadev1b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -3157,19 +3527,19 @@ public final class Service {
     internal_static_observability_cascade_v1_PhaseResult_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_observability_cascade_v1_PhaseResult_descriptor,
-        new java.lang.String[] { "Name", "Pass", "Fail", "Failures", });
+        new java.lang.String[] { "Name", "Pass", "Fail", "Failures", "ElapsedUs", });
     internal_static_observability_cascade_v1_CascadeReport_descriptor =
       getDescriptor().getMessageTypes().get(2);
     internal_static_observability_cascade_v1_CascadeReport_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_observability_cascade_v1_CascadeReport_descriptor,
-        new java.lang.String[] { "Ticks", "Pass", "Fail", "Phases", });
+        new java.lang.String[] { "Ticks", "Pass", "Fail", "Phases", "Name", "ElapsedUs", });
     internal_static_observability_cascade_v1_MultiPatternReport_descriptor =
       getDescriptor().getMessageTypes().get(3);
     internal_static_observability_cascade_v1_MultiPatternReport_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_observability_cascade_v1_MultiPatternReport_descriptor,
-        new java.lang.String[] { "Patterns", "TotalPass", "TotalFail", });
+        new java.lang.String[] { "Patterns", "TotalPass", "TotalFail", "TotalElapsedUs", });
     descriptor.resolveAllFeaturesImmutable();
   }
 

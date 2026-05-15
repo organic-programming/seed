@@ -1,11 +1,13 @@
 package org.organicprogramming.observability.cascade.kotlinholon.api
 
-import com.google.protobuf.MessageOrBuilder
-import com.google.protobuf.util.JsonFormat
-import org.organicprogramming.holons.Serve
-import org.organicprogramming.observability.cascade.kotlinholon.internal.RelayServer
-import relay.v1.Relay
+import gen.DescribeGenerated
 import java.io.PrintStream
+import java.util.Locale
+import org.organicprogramming.holons.Composite
+import org.organicprogramming.holons.Describe
+import org.organicprogramming.holons.Observability
+import org.organicprogramming.holons.RelayService
+import org.organicprogramming.holons.Serve
 
 object Cli {
     const val VERSION = "observability-cascade-kotlin-node {{ .Version }}"
@@ -19,9 +21,7 @@ object Cli {
         return when (canonicalCommand(args[0])) {
             "serve" -> {
                 try {
-                    val serveArgs = args.drop(1).toTypedArray()
-                    val parsed = Serve.parseOptions(serveArgs)
-                    RelayServer.listenAndServe(parsed.listenUri, parsed.reflect, parseMembers(serveArgs))
+                    serve(args.drop(1).toTypedArray())
                     0
                 } catch (error: Exception) {
                     stderr.println("serve: ${error.message}")
@@ -36,7 +36,6 @@ object Cli {
                 printUsage(stdout)
                 0
             }
-            "tick" -> runTick(args.drop(1), stdout, stderr)
             else -> {
                 stderr.println("unknown command \"${args[0]}\"")
                 printUsage(stderr)
@@ -45,82 +44,68 @@ object Cli {
         }
     }
 
-    private fun runTick(args: List<String>, stdout: PrintStream, stderr: PrintStream): Int {
-        return try {
-            val request = Relay.TickRequest.newBuilder()
-            val positional = mutableListOf<String>()
-            var index = 0
-            while (index < args.size) {
-                when (val arg = args[index]) {
-                    "--sender" -> {
-                        index += 1
-                        require(index < args.size) { "--sender requires a value" }
-                        request.sender = args[index]
-                    }
-                    "--note" -> {
-                        index += 1
-                        require(index < args.size) { "--note requires a value" }
-                        request.note = args[index]
-                    }
-                    else -> when {
-                        arg.startsWith("--sender=") -> request.sender = arg.removePrefix("--sender=")
-                        arg.startsWith("--note=") -> request.note = arg.removePrefix("--note=")
-                        arg.startsWith("--") -> throw IllegalArgumentException("unknown flag \"$arg\"")
-                        else -> positional += arg
-                    }
-                }
-                index += 1
-            }
-            if (request.sender.isBlank() && positional.isNotEmpty()) request.sender = positional[0]
-            if (request.note.isBlank() && positional.size >= 2) request.note = positional[1]
-            writeResponse(stdout, PublicApi.tick(request.build()))
-            0
-        } catch (error: Exception) {
-            stderr.println("tick: ${error.message}")
-            1
+    private fun serve(args: Array<String>) {
+        val parsedChildren = Composite.parseChildFlags(args)
+        val remaining = parsedChildren.remaining
+        val parsedFlags = Serve.parseOptions(remaining)
+        val transport = parseTransport(remaining)
+        Observability.fromEnv(Observability.Config(slug = "observability-cascade-kotlin-node"))
+
+        var child: Composite.SpawnedMember? = null
+        if (parsedChildren.children.isNotEmpty()) {
+            val first = parsedChildren.children.first()
+            child = Composite.spawnMember(
+                Composite.SpawnOptions().apply {
+                    slug = first.slug
+                    binaryPath = first.binary
+                    this.transport = transport
+                    downstreamChain = parsedChildren.children.drop(1)
+                },
+            )
+        }
+
+        Describe.useStaticResponse(DescribeGenerated.StaticDescribeResponse())
+        try {
+            Serve.runWithOptions(
+                normalizeListenUri(parsedFlags.listenUri),
+                listOf(RelayService(child?.conn)),
+                Serve.Options(
+                    reflect = parsedFlags.reflect,
+                    slug = "observability-cascade-kotlin-node",
+                ),
+            )
+        } finally {
+            child?.stop()
         }
     }
 
-    private fun parseMembers(args: Array<String>): List<Serve.MemberRef> {
-        val members = mutableListOf<Serve.MemberRef>()
+    private fun parseTransport(args: Array<String>): String {
         var index = 0
         while (index < args.size) {
             val arg = args[index]
-            if (arg == "--member") {
-                index += 1
-                require(index < args.size) { "--member requires <slug>=<address>" }
-                members += parseMember(args[index])
-            } else if (arg.startsWith("--member=")) {
-                members += parseMember(arg.removePrefix("--member="))
-            }
+            if (arg == "--transport" && index + 1 < args.size) return args[index + 1]
+            if (arg.startsWith("--transport=")) return arg.removePrefix("--transport=")
             index += 1
         }
-        return members
+        return "stdio"
     }
 
-    private fun parseMember(raw: String): Serve.MemberRef {
-        val idx = raw.indexOf('=')
-        require(idx >= 0) { "--member requires <slug>=<address>" }
-        val slug = raw.substring(0, idx).trim()
-        val address = raw.substring(idx + 1).trim()
-        require(slug.isNotEmpty() && address.isNotEmpty()) { "--member requires non-empty slug and address" }
-        return Serve.MemberRef(slug = slug, address = address)
-    }
-
-    private fun writeResponse(stdout: PrintStream, message: MessageOrBuilder) {
-        stdout.println(JsonFormat.printer().print(message))
-    }
+    private fun normalizeListenUri(listenUri: String): String =
+        if (listenUri.startsWith("tcp://:")) {
+            "tcp://0.0.0.0:${listenUri.removePrefix("tcp://:")}"
+        } else {
+            listenUri
+        }
 
     private fun canonicalCommand(raw: String): String =
-        raw.trim().lowercase().replace("-", "").replace("_", "").replace(" ", "")
+        raw.trim().lowercase(Locale.ROOT).replace("-", "").replace("_", "").replace(" ", "")
 
     private fun printUsage(output: PrintStream) {
         output.println("usage: observability-cascade-kotlin-node <command> [args] [flags]")
         output.println()
         output.println("commands:")
-        output.println("  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server")
-        output.println("  tick [sender] [note]                                Emit one local tick")
-        output.println("  version                                             Print version and exit")
-        output.println("  help                                                Print usage")
+        output.println("  serve [--listen <uri>] [--transport <name>] [--child <slug>=<binary>]  Start the gRPC server")
+        output.println("  version                                                           Print version and exit")
+        output.println("  help                                                              Print usage")
     }
 }

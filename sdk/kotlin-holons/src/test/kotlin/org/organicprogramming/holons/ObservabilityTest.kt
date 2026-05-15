@@ -188,4 +188,81 @@ class ObservabilityTest {
             Observability.reset()
         }
     }
+
+    @Test
+    fun testLogsFollowReplaysRingOnSubscribe() {
+        Observability.reset()
+        val inst = Observability.configureFromEnv(
+            Observability.Config(slug = "kotlin-log-replay", instanceUid = "log-replay-1"),
+            mapOf("OP_OBS" to "logs"),
+        )
+        inst.logger("test").info("before-subscribe")
+
+        val server = ServerBuilder.forPort(0)
+            .addService(Observability.service(inst))
+            .build()
+            .start()
+        val channel = ManagedChannelBuilder.forAddress("127.0.0.1", server.port).usePlaintext().build()
+        try {
+            val iterator = ClientCalls.blockingServerStreamingCall(
+                channel,
+                Observability.logsMethod,
+                CallOptions.DEFAULT.withDeadlineAfter(2, TimeUnit.SECONDS),
+                ObsProto.LogsRequest.newBuilder()
+                    .setFollow(true)
+                    .setMinLevel(ObsProto.LogLevel.INFO)
+                    .build(),
+            )
+
+            assertTrue(iterator.hasNext())
+            assertEquals("before-subscribe", iterator.next().message)
+            inst.logger("test").info("after-subscribe")
+            assertTrue(iterator.hasNext())
+            assertEquals("after-subscribe", iterator.next().message)
+        } finally {
+            channel.shutdownNow()
+            channel.awaitTermination(5, TimeUnit.SECONDS)
+            server.shutdownNow()
+            server.awaitTermination(5, TimeUnit.SECONDS)
+            Observability.reset()
+        }
+    }
+
+    @Test
+    fun testEventsFollowReplaysRingOnSubscribe() {
+        Observability.reset()
+        val inst = Observability.configureFromEnv(
+            Observability.Config(slug = "kotlin-event-replay", instanceUid = "event-replay-1"),
+            mapOf("OP_OBS" to "events"),
+        )
+        inst.emit(Observability.EventType.INSTANCE_READY, mapOf("listener" to "tcp://127.0.0.1:1"))
+
+        val server = ServerBuilder.forPort(0)
+            .addService(Observability.service(inst))
+            .build()
+            .start()
+        val channel = ManagedChannelBuilder.forAddress("127.0.0.1", server.port).usePlaintext().build()
+        try {
+            val iterator = ClientCalls.blockingServerStreamingCall(
+                channel,
+                Observability.eventsMethod,
+                CallOptions.DEFAULT.withDeadlineAfter(2, TimeUnit.SECONDS),
+                ObsProto.EventsRequest.newBuilder()
+                    .setFollow(true)
+                    .build(),
+            )
+
+            assertTrue(iterator.hasNext())
+            assertEquals(ObsProto.EventType.INSTANCE_READY, iterator.next().type)
+            inst.emit(Observability.EventType.INSTANCE_EXITED, mapOf("listener" to "tcp://127.0.0.1:1"))
+            assertTrue(iterator.hasNext())
+            assertEquals(ObsProto.EventType.INSTANCE_EXITED, iterator.next().type)
+        } finally {
+            channel.shutdownNow()
+            channel.awaitTermination(5, TimeUnit.SECONDS)
+            server.shutdownNow()
+            server.awaitTermination(5, TimeUnit.SECONDS)
+            Observability.reset()
+        }
+    }
 }
