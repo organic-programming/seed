@@ -236,6 +236,8 @@ Future<SpawnedMember> spawnMemberWithOptions(SpawnOptions opts) async {
       forceStreams: true,
     );
     await relay.start();
+    await _waitRelayedReady(uid);
+    await Future<void>.delayed(const Duration(milliseconds: 25));
   }
 
   return SpawnedMember(
@@ -376,6 +378,27 @@ Future<_Meta> _waitMeta(
   }
   throw StateError(
       'meta not ready for $slug/$uid: ${lastError ?? 'not found'}');
+}
+
+Future<void> _waitRelayedReady(
+  String uid, {
+  Duration timeout = const Duration(seconds: 1),
+}) async {
+  final obs = observability.current();
+  if (!obs.enabled(observability.Family.events) || obs.eventBus == null) {
+    return;
+  }
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    final ready = obs.eventBus!.drain().any((event) =>
+        event.type == observability.EventType.instanceReady &&
+        event.instanceUid == uid);
+    if (ready) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  throw StateError('transitive observability not ready for $uid');
 }
 
 Future<grpc_api.ClientChannel> _dialReady(
