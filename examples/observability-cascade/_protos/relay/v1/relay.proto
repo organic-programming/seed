@@ -18,7 +18,14 @@ message TickRequest {
   string note = 2;
 }
 
+message HopReceipt {
+  string slug = 1;
+  string uid = 2;
+  int64 received = 3;
+}
+
 message TickResponse {
   string responder_slug = 1;
   string responder_instance_uid = 2;
+  repeated HopReceipt hops = 3;
 }

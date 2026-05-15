@@ -90,6 +90,32 @@ func StaticDescribeResponse() *holonsv1.DescribeResponse {
 								Number: 2,
 								Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
 							},
+							&holonsv1.FieldDoc{
+								Name:   "hops",
+								Type:   "relay.v1.HopReceipt",
+								Number: 3,
+								Label:  holonsv1.FieldLabel_FIELD_LABEL_REPEATED,
+								NestedFields: []*holonsv1.FieldDoc{
+									&holonsv1.FieldDoc{
+										Name:   "slug",
+										Type:   "string",
+										Number: 1,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+									},
+									&holonsv1.FieldDoc{
+										Name:   "uid",
+										Type:   "string",
+										Number: 2,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+									},
+									&holonsv1.FieldDoc{
+										Name:   "received",
+										Type:   "int64",
+										Number: 3,
+										Label:  holonsv1.FieldLabel_FIELD_LABEL_OPTIONAL,
+									},
+								},
+							},
 						},
 					},
 				},

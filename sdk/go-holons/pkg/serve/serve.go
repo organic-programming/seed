@@ -156,7 +156,7 @@ func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeO
 	if err := observability.CheckEnv(); err != nil {
 		return fmt.Errorf("observability env: %w", err)
 	}
-	obs := observability.FromEnv(observability.Config{})
+	obs := currentOrEnvObservability()
 
 	grpcOptions := []grpc.ServerOption{
 		grpc.UnaryInterceptor(observability.UnaryServerInterceptor()),
@@ -354,7 +354,7 @@ func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeO
 	// even when events are disabled the call is a no-op.
 	readyAddress, readyTransport := firstReadyEndpoint(grpcEndpoints, httpAddresses)
 	if readyAddress != "" {
-		observability.EmitReady(context.Background(), readyAddress)
+		observability.EmitReady(context.Background(), readyAddress, metricsAddr)
 		// Write meta.json for `op ps` / HolonInstance.List when we
 		// have a run directory. Skips silently when OP_RUN_DIR is
 		// empty (manual launch without `op run`).
@@ -428,6 +428,17 @@ func RunWithServeOptions(listenURI string, register RegisterFunc, options ServeO
 		serveWG.Wait()
 		return err
 	}
+}
+
+func currentOrEnvObservability() *observability.Observability {
+	obs := observability.Current()
+	if obs.Enabled(observability.FamilyLogs) ||
+		obs.Enabled(observability.FamilyMetrics) ||
+		obs.Enabled(observability.FamilyEvents) ||
+		obs.Enabled(observability.FamilyProm) {
+		return obs
+	}
+	return observability.FromEnv(observability.Config{})
 }
 
 func advertisedURI(listenURI string, addr net.Addr) string {

@@ -109,7 +109,7 @@ leaf-language SDKs. Each tier has explicit responsibilities:
 | Tier | Components | Obligations |
 |---|---|---|
 | **Tier 1 — full chain** | `sdk/go-holons` (reference), `organism_kits/flutter`, `organism_kits/swiftui`, `op` | Logger + Counter + Gauge + Histogram + EventBus + chain + auto-register `HolonObservability` + `HolonMeta.Describe` exclusions + `.op/run/` disk writers + `meta.json` + **Prometheus `/metrics` HTTP endpoint** + **OTLP push (v2 reserved)** + **Organism Relay** (parent ↔ child streams, ChainHop append) + **Multilog writer** at the root + **total-phase RPC interceptor in v1** + four-phase session decomposition and session rollup when the v2 session layer ships + **runtime toggle UI** (kits only) |
-| **Tier 2 — minimal emitter** | `sdk/python-holons`, `sdk/js-holons`, `sdk/dart-holons`, `sdk/swift-holons`, `sdk/rust-holons`, `sdk/java-holons`, `sdk/kotlin-holons`, `sdk/csharp-holons`, `sdk/ruby-holons`, `sdk/c-holons`, `sdk/cpp-holons` | Logger + Counter + Gauge + Histogram + EventBus + chain propagation + auto-register `HolonObservability` + `.op/run/` disk writers + `meta.json`. **No Prometheus HTTP server, no OTLP push, no multilog writer, no relay.** The root in tier 1 pulls from these SDKs via their auto-registered service. |
+| **Tier 2 — minimal emitter** | `sdk/python-holons`, `sdk/js-holons`, `sdk/dart-holons`, `sdk/swift-holons`, `sdk/rust-holons`, `sdk/java-holons`, `sdk/kotlin-holons`, `sdk/csharp-holons`, `sdk/ruby-holons`, `sdk/c-holons`, `sdk/cpp-holons` | Logger + Counter + Gauge + Histogram + EventBus + chain propagation + auto-register `HolonObservability` + `.op/run/` disk writers + `meta.json` + **Organism Relay client side** (transitive pull on `SpawnMember`-issued connections when `logs` / `events` families are enabled). **No Prometheus HTTP server, no OTLP push, no multilog writer.** The root in tier 1 pulls from these SDKs via their auto-registered service. |
 | **Tier 3 — dial-only** | `sdk/js-web-holons` | Logger + Counter + Gauge + Histogram + EventBus + chain. **Served over the existing WebSocket channel to the Hub**, not a local gRPC listener. No disk writers (browser sandbox). The Hub pulls via Holon-RPC using the bidirectional WS semantics of COMMUNICATION.md §4.1. |
 
 Rationale: centralising Prometheus / OTLP / multilog in tier 1 keeps
@@ -772,8 +772,10 @@ The observability layer reuses **existing bidirectional connections**
 No new RPC, no new dial direction, no `Ingest`:
 
 - Each holon opens `child.Logs(follow=true)` and `child.Events(follow=true)`
-  on every direct child it knows — typically the ones it spawned, or
-  declared organism members from the mesh.
+  on every direct child it spawned (transitive observability is on by
+  default for `SpawnMember`-issued connections; see
+  [§Transitive Observability](#transitive-observability)), or on declared
+  organism members from the mesh.
 - It polls `child.Metrics()` on a configurable interval (default 15s).
 - The child's stream handler is a long-lived emitter: it pushes local
   signals as they happen **and** re-emits signals it received from

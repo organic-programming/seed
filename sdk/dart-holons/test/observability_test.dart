@@ -54,7 +54,7 @@ void main() {
   test('disabled is no-op', () {
     final o = obs.configure(const obs.Config(slug: 't'));
     expect(o.enabled(obs.Family.logs), isFalse);
-    o.logger('x').info('drop', {'k': 'v'});
+    o.logger('x').info('drop', fields: {'k': 'v'});
     expect(o.counter('t_total'), isNull);
   });
 
@@ -430,7 +430,7 @@ void main() {
       env: const {'OP_OBS': 'logs,events'},
     );
     obs.enableDiskWriters(o.cfg.runDir);
-    o.logger('test').info('ready', {'port': 123});
+    o.logger('test').info('ready', fields: {'port': 123});
     o.emit(obs.EventType.instanceReady,
         payload: {'listener': 'tcp://127.0.0.1:123'});
     await Future<void>.delayed(const Duration(milliseconds: 20));

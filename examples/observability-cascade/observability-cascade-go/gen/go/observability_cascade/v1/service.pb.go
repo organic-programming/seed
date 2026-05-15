@@ -131,6 +131,7 @@ type CascadeReport struct {
 	Pass          int32                  `protobuf:"varint,2,opt,name=pass,proto3" json:"pass,omitempty"`
 	Fail          int32                  `protobuf:"varint,3,opt,name=fail,proto3" json:"fail,omitempty"`
 	Phases        []*PhaseResult         `protobuf:"bytes,4,rep,name=phases,proto3" json:"phases,omitempty"`
+	Name          string                 `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -191,6 +192,13 @@ func (x *CascadeReport) GetPhases() []*PhaseResult {
 		return x.Phases
 	}
 	return nil
+}
+
+func (x *CascadeReport) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
 }
 
 type MultiPatternReport struct {
@@ -264,12 +272,13 @@ const file_observability_cascade_v1_service_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04pass\x18\x02 \x01(\x05R\x04pass\x12\x12\n" +
 	"\x04fail\x18\x03 \x01(\x05R\x04fail\x12\x1a\n" +
-	"\bfailures\x18\x04 \x03(\tR\bfailures\"\x8c\x01\n" +
+	"\bfailures\x18\x04 \x03(\tR\bfailures\"\xa0\x01\n" +
 	"\rCascadeReport\x12\x14\n" +
 	"\x05ticks\x18\x01 \x01(\x05R\x05ticks\x12\x12\n" +
 	"\x04pass\x18\x02 \x01(\x05R\x04pass\x12\x12\n" +
 	"\x04fail\x18\x03 \x01(\x05R\x04fail\x12=\n" +
-	"\x06phases\x18\x04 \x03(\v2%.observability_cascade.v1.PhaseResultR\x06phases\"\x97\x01\n" +
+	"\x06phases\x18\x04 \x03(\v2%.observability_cascade.v1.PhaseResultR\x06phases\x12\x12\n" +
+	"\x04name\x18\x05 \x01(\tR\x04name\"\x97\x01\n" +
 	"\x12MultiPatternReport\x12C\n" +
 	"\bpatterns\x18\x01 \x03(\v2'.observability_cascade.v1.CascadeReportR\bpatterns\x12\x1d\n" +
 	"\n" +

@@ -1,8 +1,9 @@
 import 'dart:io' as io;
 
+import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart';
 
-import '../_internal/server.dart' as rpc;
+import '../gen/describe_generated.dart';
 
 const String version = 'observability-cascade-dart-node 0.1.0';
 
@@ -22,13 +23,32 @@ Future<int> main(
   switch (canonicalCommand(args.first)) {
     case 'serve':
       try {
-        final parsed = parseOptions(args.sublist(1));
-        final members = parseMemberRefs(args.sublist(1));
-        await rpc.listenAndServe(
-          parsed.listenUri,
-          reflect: parsed.reflect,
-          members: members,
-        );
+        useStaticResponse(staticDescribeResponse());
+        final childFlags = parseChildFlags(args.sublist(1));
+        final parsed = parseOptions(childFlags.remaining);
+        final transportName = parseTransport(childFlags.remaining);
+        fromEnv(const Config(), io.Platform.environment);
+        SpawnedMember? downstream;
+        try {
+          if (childFlags.children.isNotEmpty) {
+            final child = childFlags.children.first;
+            downstream = await spawnMember(
+              slug: child.slug,
+              binaryPath: child.binary,
+              transport: transportName,
+              downstreamChain: childFlags.children.skip(1).toList(),
+            );
+          }
+          await runWithOptions(
+            parsed.listenUri,
+            <Service>[
+              relayService(RelayOptions(downstreamConn: downstream?.conn)),
+            ],
+            options: ServeOptions(reflect: parsed.reflect),
+          );
+        } finally {
+          await downstream?.stop();
+        }
       } catch (error) {
         stderr.writeln('serve: $error');
         return 1;
@@ -47,34 +67,17 @@ Future<int> main(
   }
 }
 
-List<MemberRef> parseMemberRefs(List<String> args) {
-  final members = <MemberRef>[];
+String parseTransport(List<String> args) {
   for (var i = 0; i < args.length; i++) {
     final arg = args[i];
-    if (arg == '--member') {
-      if (i + 1 >= args.length) {
-        throw ArgumentError('--member requires <slug>=<address>');
-      }
-      members.add(parseMemberRef(args[i + 1]));
-      i += 1;
-    } else if (arg.startsWith('--member=')) {
-      members.add(parseMemberRef(arg.substring('--member='.length)));
+    if (arg == '--transport' && i + 1 < args.length) {
+      return args[i + 1];
+    }
+    if (arg.startsWith('--transport=')) {
+      return arg.substring('--transport='.length);
     }
   }
-  return members;
-}
-
-MemberRef parseMemberRef(String raw) {
-  final index = raw.indexOf('=');
-  if (index < 0) {
-    throw ArgumentError('--member requires <slug>=<address>');
-  }
-  final slug = raw.substring(0, index).trim();
-  final address = raw.substring(index + 1).trim();
-  if (slug.isEmpty || address.isEmpty) {
-    throw ArgumentError('--member requires non-empty slug and address');
-  }
-  return MemberRef(slug: slug, address: address);
+  return 'stdio';
 }
 
 String canonicalCommand(String raw) {
@@ -89,7 +92,7 @@ void printUsage(StringSink out) {
   out.writeln('');
   out.writeln('commands:');
   out.writeln(
-    '  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server',
+    '  serve [--listen <uri>] [--transport <name>] [--child <slug>=<binary>]  Start the gRPC server',
   );
   out.writeln(
     '  version                                             Print version and exit',

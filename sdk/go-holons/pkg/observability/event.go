@@ -10,15 +10,15 @@ import (
 type EventType int32
 
 const (
-	EventTypeUnspecified    EventType = 0
-	EventInstanceSpawned    EventType = 1
-	EventInstanceReady      EventType = 2
-	EventInstanceExited     EventType = 3
-	EventInstanceCrashed    EventType = 4
-	EventSessionStarted     EventType = 5
-	EventSessionEnded       EventType = 6
-	EventHandlerPanic       EventType = 7
-	EventConfigReloaded     EventType = 8
+	EventTypeUnspecified EventType = 0
+	EventInstanceSpawned EventType = 1
+	EventInstanceReady   EventType = 2
+	EventInstanceExited  EventType = 3
+	EventInstanceCrashed EventType = 4
+	EventSessionStarted  EventType = 5
+	EventSessionEnded    EventType = 6
+	EventHandlerPanic    EventType = 7
+	EventConfigReloaded  EventType = 8
 )
 
 // String returns the enum name.
@@ -54,18 +54,19 @@ type Event struct {
 	SessionID   string
 	Payload     map[string]string
 	Chain       []Hop
+	Private     bool
 }
 
 // EventBus is a bounded buffer + fan-out for events. Emit pushes into
 // the buffer and broadcasts to live subscribers. Drain returns a
 // snapshot (oldest first).
 type EventBus struct {
-	mu      sync.Mutex
-	buf     []Event
-	next    int
-	filled  bool
-	cap     int
-	closed  bool
+	mu     sync.Mutex
+	buf    []Event
+	next   int
+	filled bool
+	cap    int
+	closed bool
 
 	subsMu sync.Mutex
 	subs   []chan Event
@@ -204,9 +205,15 @@ func (b *EventBus) Close() {
 // Emit is a convenience that fills in well-known fields from the
 // Observability instance before publishing on the event bus. Payload
 // fields listed in RedactedFields are replaced with "<redacted>".
-func (o *Observability) Emit(ctx context.Context, typ EventType, payload map[string]string) {
+func (o *Observability) Emit(ctx context.Context, typ EventType, payload map[string]string, opts ...any) {
 	if o == nil || !o.families[FamilyEvents] {
 		return
+	}
+	private := false
+	for _, opt := range opts {
+		if isPrivateMarker(opt) {
+			private = true
+		}
 	}
 	sessionID, _ := fromContext(ctx)
 	// Apply redaction to payload.
@@ -228,6 +235,7 @@ func (o *Observability) Emit(ctx context.Context, typ EventType, payload map[str
 		InstanceUID: o.cfg.InstanceUID,
 		SessionID:   sessionID,
 		Payload:     payload,
+		Private:     private,
 	})
 }
 

@@ -23,20 +23,27 @@ class ConnectOptions {
   final String transport;
   final bool start;
   final String portFile;
+  final bool withTransitiveObservability;
 
   const ConnectOptions({
     this.timeout = const Duration(seconds: 5),
     this.transport = 'stdio',
     this.start = true,
     this.portFile = '',
+    this.withTransitiveObservability = false,
   });
 }
 
 class _StartedHandle {
   final Process process;
   final List<String> cleanupPaths;
+  final observability.MemberRelay? relay;
 
-  const _StartedHandle(this.process, {this.cleanupPaths = const <String>[]});
+  const _StartedHandle(
+    this.process, {
+    this.cleanupPaths = const <String>[],
+    this.relay,
+  });
 }
 
 final Expando<_StartedHandle> _started = Expando<_StartedHandle>('connect');
@@ -113,6 +120,10 @@ Future<dynamic> connect(
     final result = await _connectLegacy(scopeOrTarget, options);
     if (result.error != null && result.error!.isNotEmpty) {
       throw StateError(result.error!);
+    }
+    if (options?.withTransitiveObservability == true &&
+        result.channel != null) {
+      await _attachRelay(result.channel!, scopeOrTarget);
     }
     return result.channel;
   }
@@ -321,6 +332,7 @@ Future<void> _disconnectAsync(dynamic value) async {
   _started[channel] = null;
 
   try {
+    await handle?.relay?.stop();
     if (channel is ClientChannel) {
       await channel.shutdown();
     } else if (channel is ClientTransportConnectorChannel) {
@@ -340,6 +352,28 @@ Future<void> _disconnectAsync(dynamic value) async {
   }
 }
 
+Future<void> _attachRelay(dynamic channel, String target) async {
+  if (channel is! ClientChannel) {
+    return;
+  }
+  final relay = observability.MemberRelay(
+    childSlug: target.trim(),
+    childUid: '',
+    channel: channel,
+    observability: observability.current(),
+  );
+  await relay.start();
+  final current = _started[channel];
+  if (current == null) {
+    return;
+  }
+  _started[channel] = _StartedHandle(
+    current.process,
+    cleanupPaths: current.cleanupPaths,
+    relay: relay,
+  );
+}
+
 ConnectOptions _normalizeOptions(ConnectOptions? opts) {
   final options = opts ?? const ConnectOptions();
   final transportName = options.transport.trim().isEmpty
@@ -352,6 +386,7 @@ ConnectOptions _normalizeOptions(ConnectOptions? opts) {
     transport: transportName,
     start: options.start,
     portFile: options.portFile.trim(),
+    withTransitiveObservability: options.withTransitiveObservability,
   );
 }
 

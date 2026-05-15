@@ -77,6 +77,19 @@ type LogEntry struct {
 	Fields      map[string]string
 	Caller      string // "file:line"
 	Chain       []Hop
+	Private     bool
+}
+
+type privateMarker struct{}
+
+// Private marks a single log or event emission as local-only. The entry is
+// kept in the emitter's local ring and disk writer but is filtered out of
+// HolonObservability Logs/Events streams.
+func Private() any { return privateMarker{} }
+
+func isPrivateMarker(v any) bool {
+	_, ok := v.(privateMarker)
+	return ok
 }
 
 // Logger emits LogEntries into the active Observability. A zero-value
@@ -135,16 +148,31 @@ func (l *Logger) log(ctx context.Context, lvl Level, msg string, kv []any) {
 		return
 	}
 	fields := make(map[string]string, len(kv)/2)
-	for i := 0; i+1 < len(kv); i += 2 {
+	private := false
+	for i := 0; i < len(kv); {
+		if isPrivateMarker(kv[i]) {
+			private = true
+			i++
+			continue
+		}
+		if i+1 >= len(kv) {
+			break
+		}
 		k, _ := kv[i].(string)
 		if k == "" {
+			if isPrivateMarker(kv[i+1]) {
+				private = true
+			}
+			i += 2
 			continue
 		}
 		if _, redacted := l.obs.redact[k]; redacted {
 			fields[k] = "<redacted>"
+			i += 2
 			continue
 		}
 		fields[k] = stringify(kv[i+1])
+		i += 2
 	}
 
 	// SDK-managed well-known fields (spec §Well-known fields).
@@ -161,6 +189,7 @@ func (l *Logger) log(ctx context.Context, lvl Level, msg string, kv []any) {
 		Message:     msg,
 		Fields:      fields,
 		Caller:      callerFrame(3),
+		Private:     private,
 	}
 
 	l.obs.ringLogs.Push(entry)

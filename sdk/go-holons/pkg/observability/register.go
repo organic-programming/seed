@@ -25,9 +25,14 @@ func Register(s *grpc.Server) {
 // EmitReady publishes an INSTANCE_READY event through the active
 // Observability. Serve runners should call this immediately after the
 // first listener binds.
-func EmitReady(ctx context.Context, listenerURI string) {
+func EmitReady(ctx context.Context, listenerURI string, metricsAddr ...string) {
+	addr := ""
+	if len(metricsAddr) > 0 {
+		addr = metricsAddr[0]
+	}
 	Current().Emit(ctx, EventInstanceReady, map[string]string{
-		"listener": listenerURI,
+		"listener":     listenerURI,
+		"metrics_addr": addr,
 	})
 }
 

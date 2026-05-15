@@ -37,6 +37,11 @@ option (holons.v1.manifest) = {
       path: "../observability-cascade-go-node"
       type: "holon"
     }
+    members: {
+      id: "dart-node"
+      path: "../observability-cascade-dart-node"
+      type: "holon"
+    }
   }
   requires: {
     commands: ["go"]

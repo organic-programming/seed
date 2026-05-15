@@ -14,6 +14,7 @@ import 'dart:math';
 
 import 'package:fixnum/fixnum.dart';
 import 'package:grpc/grpc.dart';
+import 'package:grpc/service_api.dart' as grpc_api;
 import 'package:holons/gen/holons/v1/observability.pb.dart' as obs_pb;
 import 'package:holons/gen/holons/v1/observability.pbgrpc.dart' as obs_grpc;
 import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
@@ -171,6 +172,7 @@ class LogEntry {
   final Map<String, String> fields;
   final String caller;
   final List<Hop> chain;
+  final bool private;
 
   LogEntry({
     required this.timestamp,
@@ -184,6 +186,7 @@ class LogEntry {
     this.fields = const {},
     this.caller = '',
     this.chain = const [],
+    this.private = false,
   });
 }
 
@@ -228,6 +231,7 @@ class Event {
   final String sessionId;
   final Map<String, String> payload;
   final List<Hop> chain;
+  final bool private;
 
   Event({
     required this.timestamp,
@@ -237,6 +241,7 @@ class Event {
     this.sessionId = '',
     this.payload = const {},
     this.chain = const [],
+    this.private = false,
   });
 }
 
@@ -685,7 +690,8 @@ class Logger {
   void setLevel(Level l) => _level = l;
   bool enabled(Level l) => l.value >= _level.value;
 
-  void _log(Level lvl, String message, Map<String, dynamic>? fields) {
+  void _log(Level lvl, String message, Map<String, dynamic>? fields,
+      {bool private = false}) {
     if (!enabled(lvl)) return;
     final redact = Set<String>.from(_obs.cfg.redactedFields);
     final out = <String, String>{};
@@ -710,20 +716,27 @@ class Logger {
       fields: out,
       caller: _callerFrame(),
       chain: _selfChain(_obs.cfg),
+      private: private,
     );
     _obs.logRing?.push(entry);
   }
 
-  void trace(String msg, [Map<String, dynamic>? f]) =>
-      _log(Level.trace, msg, f);
-  void debug(String msg, [Map<String, dynamic>? f]) =>
-      _log(Level.debug, msg, f);
-  void info(String msg, [Map<String, dynamic>? f]) => _log(Level.info, msg, f);
-  void warn(String msg, [Map<String, dynamic>? f]) => _log(Level.warn, msg, f);
-  void error(String msg, [Map<String, dynamic>? f]) =>
-      _log(Level.error, msg, f);
-  void fatal(String msg, [Map<String, dynamic>? f]) =>
-      _log(Level.fatal, msg, f);
+  void trace(String msg,
+          {Map<String, dynamic>? fields, bool private = false}) =>
+      _log(Level.trace, msg, fields, private: private);
+  void debug(String msg,
+          {Map<String, dynamic>? fields, bool private = false}) =>
+      _log(Level.debug, msg, fields, private: private);
+  void info(String msg, {Map<String, dynamic>? fields, bool private = false}) =>
+      _log(Level.info, msg, fields, private: private);
+  void warn(String msg, {Map<String, dynamic>? fields, bool private = false}) =>
+      _log(Level.warn, msg, fields, private: private);
+  void error(String msg,
+          {Map<String, dynamic>? fields, bool private = false}) =>
+      _log(Level.error, msg, fields, private: private);
+  void fatal(String msg,
+          {Map<String, dynamic>? fields, bool private = false}) =>
+      _log(Level.fatal, msg, fields, private: private);
 }
 
 String _stringify(dynamic v) {
@@ -795,7 +808,8 @@ class Observability {
         help: help, labels: labels, bounds: bounds);
   }
 
-  void emit(EventType type, {Map<String, String>? payload}) {
+  void emit(EventType type,
+      {Map<String, String>? payload, bool private = false}) {
     if (eventBus == null) return;
     final redact = Set<String>.from(cfg.redactedFields);
     final p = <String, String>{};
@@ -815,6 +829,7 @@ class Observability {
       instanceUid: cfg.instanceUid,
       payload: p,
       chain: _selfChain(cfg),
+      private: private,
     ));
   }
 
@@ -827,12 +842,14 @@ class MemberRelay {
     required this.childUid,
     required this.channel,
     required this.observability,
+    this.forceStreams = false,
   });
 
   String childSlug;
   String childUid;
-  final ClientChannel channel;
+  final grpc_api.ClientChannel channel;
   final Observability observability;
+  final bool forceStreams;
 
   StreamSubscription<obs_pb.LogEntry>? _logsSub;
   StreamSubscription<obs_pb.EventInfo>? _eventsSub;
@@ -852,9 +869,13 @@ class MemberRelay {
 
   Future<void> _openStreams() async {
     if (_stopping || _starting) return;
-    final wantLogs = observability.enabled(Family.logs);
-    final wantEvents = observability.enabled(Family.events);
-    if (!wantLogs && !wantEvents) return;
+    var wantLogs = observability.enabled(Family.logs);
+    var wantEvents = observability.enabled(Family.events);
+    if (!wantLogs && !wantEvents) {
+      if (!forceStreams) return;
+      wantLogs = true;
+      wantEvents = true;
+    }
 
     _starting = true;
     _failed = false;
@@ -903,12 +924,13 @@ class MemberRelay {
   }
 
   void _relayLog(obs_pb.LogEntry proto) {
-    if (!observability.enabled(Family.logs) || observability.logRing == null) {
+    final obs = current();
+    if (!obs.enabled(Family.logs) || obs.logRing == null) {
       return;
     }
     final entry = _logEntryFromProto(proto);
     _refreshChildIdentity(entry.slug, entry.instanceUid, entry.chain);
-    observability.logRing!.push(LogEntry(
+    obs.logRing!.push(LogEntry(
       timestamp: entry.timestamp,
       level: entry.level,
       loggerName: entry.loggerName,
@@ -920,17 +942,18 @@ class MemberRelay {
       fields: entry.fields,
       caller: entry.caller,
       chain: appendDirectChild(entry.chain, childSlug, childUid),
+      private: entry.private,
     ));
   }
 
   void _relayEvent(obs_pb.EventInfo proto) {
-    if (!observability.enabled(Family.events) ||
-        observability.eventBus == null) {
+    final obs = current();
+    if (!obs.enabled(Family.events) || obs.eventBus == null) {
       return;
     }
     final event = _eventFromProto(proto);
     _refreshChildIdentity(event.slug, event.instanceUid, event.chain);
-    observability.eventBus!.emit(Event(
+    obs.eventBus!.emit(Event(
       timestamp: event.timestamp,
       type: event.type,
       slug: event.slug,
@@ -938,6 +961,7 @@ class MemberRelay {
       sessionId: event.sessionId,
       payload: event.payload,
       chain: appendDirectChild(event.chain, childSlug, childUid),
+      private: event.private,
     ));
   }
 
@@ -979,7 +1003,9 @@ class MemberRelay {
   }
 
   void _warn(Object error) {
-    observability.logger('member-relay').warn('member relay stream error', {
+    observability
+        .logger('member-relay')
+        .warn('member relay stream error', fields: {
       'child_slug': childSlug,
       'child_uid': childUid,
       'error': error,
@@ -1269,8 +1295,9 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
       followBuffer = buffer;
       followSub = obs.logRing!.watch().listen(
         (entry) {
-          if (_matchLog(
-              entry, minLevel, request.sessionIds, request.rpcMethods)) {
+          if (!entry.private &&
+              _matchLog(
+                  entry, minLevel, request.sessionIds, request.rpcMethods)) {
             buffer.add(toProtoLogEntry(entry));
           }
         },
@@ -1284,8 +1311,9 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
           ? obs.logRing!.drain()
           : obs.logRing!.drainSince(cutoff);
       for (final entry in entries) {
-        if (_matchLog(
-            entry, minLevel, request.sessionIds, request.rpcMethods)) {
+        if (!entry.private &&
+            _matchLog(
+                entry, minLevel, request.sessionIds, request.rpcMethods)) {
           yield toProtoLogEntry(entry);
         }
       }
@@ -1345,7 +1373,7 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
       followBuffer = buffer;
       followSub = obs.eventBus!.watch().listen(
         (event) {
-          if (_matchEvent(event, wanted)) {
+          if (!event.private && _matchEvent(event, wanted)) {
             buffer.add(toProtoEvent(event));
           }
         },
@@ -1359,7 +1387,8 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
           ? obs.eventBus!.drain()
           : obs.eventBus!.drainSince(cutoff);
       for (final event in events) {
-        if (_matchEvent(event, wanted)) yield toProtoEvent(event);
+        if (!event.private && _matchEvent(event, wanted))
+          yield toProtoEvent(event);
       }
       if (!request.follow) return;
       await for (final event in followBuffer!.stream) {

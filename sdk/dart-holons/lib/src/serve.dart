@@ -10,6 +10,7 @@ import 'describe.dart';
 import 'observability.dart' as observability;
 import 'reflection.dart';
 import 'transport.dart';
+import 'composite.dart' as composite;
 
 class ParsedFlags {
   const ParsedFlags({
@@ -19,6 +20,16 @@ class ParsedFlags {
 
   final String listenUri;
   final bool reflect;
+}
+
+class ParsedChildFlags {
+  const ParsedChildFlags({
+    required this.children,
+    required this.remaining,
+  });
+
+  final List<composite.ChildSpec> children;
+  final List<String> remaining;
 }
 
 /// Parse --listen or --port from command-line args.
@@ -39,6 +50,42 @@ ParsedFlags parseOptions(List<String> args) {
     }
   }
   return ParsedFlags(listenUri: listenUri, reflect: reflect);
+}
+
+ParsedChildFlags parseChildFlags(List<String> args) {
+  final children = <composite.ChildSpec>[];
+  final remaining = <String>[];
+  for (var i = 0; i < args.length; i++) {
+    final arg = args[i];
+    if (arg == '--child' && i + 1 < args.length) {
+      final parsed = _parseChildSpec(args[i + 1]);
+      if (parsed != null) {
+        children.add(parsed);
+      }
+      i += 1;
+    } else if (arg.startsWith('--child=')) {
+      final parsed = _parseChildSpec(arg.substring('--child='.length));
+      if (parsed != null) {
+        children.add(parsed);
+      }
+    } else {
+      remaining.add(arg);
+    }
+  }
+  return ParsedChildFlags(children: children, remaining: remaining);
+}
+
+composite.ChildSpec? _parseChildSpec(String raw) {
+  final index = raw.indexOf('=');
+  if (index < 0) {
+    return null;
+  }
+  final slug = raw.substring(0, index).trim();
+  final binary = raw.substring(index + 1).trim();
+  if (slug.isEmpty || binary.isEmpty) {
+    return null;
+  }
+  return composite.ChildSpec(slug: slug, binary: binary);
 }
 
 class ServeOptions {
@@ -488,7 +535,7 @@ void _startObservabilityRuntime(
   observability.enableDiskWriters(obs.cfg.runDir);
   if (obs.enabled(observability.Family.events)) {
     obs.emit(observability.EventType.instanceReady,
-        payload: {'listener': publicUri});
+        payload: {'listener': publicUri, 'metrics_addr': metricsAddr});
   }
   observability.writeMetaJson(
     obs.cfg.runDir,

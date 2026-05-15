@@ -74,6 +74,9 @@ func (s *service) Logs(req *v1.LogsRequest, stream v1.HolonObservability_LogsSer
 		replay = ring.Drain()
 	}
 	for _, e := range replay {
+		if e.Private {
+			continue
+		}
 		if !s.matchLog(e, minLevel, sessionFilter, methodFilter) {
 			continue
 		}
@@ -96,6 +99,9 @@ func (s *service) Logs(req *v1.LogsRequest, stream v1.HolonObservability_LogsSer
 		case e, ok := <-ch:
 			if !ok {
 				return nil
+			}
+			if e.Private {
+				continue
 			}
 			if !s.matchLog(e, minLevel, sessionFilter, methodFilter) {
 				continue
@@ -215,6 +221,9 @@ func (s *service) Events(req *v1.EventsRequest, stream v1.HolonObservability_Eve
 		replay = bus.Drain()
 	}
 	for _, e := range replay {
+		if e.Private {
+			continue
+		}
 		if !matchEventType(e.Type, types) {
 			continue
 		}
@@ -236,6 +245,9 @@ func (s *service) Events(req *v1.EventsRequest, stream v1.HolonObservability_Eve
 		case e, ok := <-ch:
 			if !ok {
 				return nil
+			}
+			if e.Private {
+				continue
 			}
 			if !matchEventType(e.Type, types) {
 				continue

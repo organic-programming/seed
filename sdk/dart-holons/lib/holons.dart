@@ -14,3 +14,4 @@ export 'src/holonrpc_server_cli.dart';
 export 'src/grpcclient.dart';
 export 'src/grpc_json.dart';
 export 'src/observability.dart' hide registerService;
+export 'src/relay.dart';

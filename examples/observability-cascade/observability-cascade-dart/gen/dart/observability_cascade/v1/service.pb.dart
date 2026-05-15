@@ -145,12 +145,14 @@ class CascadeReport extends $pb.GeneratedMessage {
     $core.int? pass,
     $core.int? fail,
     $core.Iterable<PhaseResult>? phases,
+    $core.String? name,
   }) {
     final result = create();
     if (ticks != null) result.ticks = ticks;
     if (pass != null) result.pass = pass;
     if (fail != null) result.fail = fail;
     if (phases != null) result.phases.addAll(phases);
+    if (name != null) result.name = name;
     return result;
   }
 
@@ -173,6 +175,7 @@ class CascadeReport extends $pb.GeneratedMessage {
     ..aI(3, _omitFieldNames ? '' : 'fail')
     ..pPM<PhaseResult>(4, _omitFieldNames ? '' : 'phases',
         subBuilder: PhaseResult.create)
+    ..aOS(5, _omitFieldNames ? '' : 'name')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -223,6 +226,15 @@ class CascadeReport extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(4)
   $pb.PbList<PhaseResult> get phases => $_getList(3);
+
+  @$pb.TagNumber(5)
+  $core.String get name => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set name($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasName() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearName() => $_clearField(5);
 }
 
 class MultiPatternReport extends $pb.GeneratedMessage {

@@ -90,6 +90,32 @@ DescribeResponse staticDescribeResponse() {
               number: 2,
               label: FieldLabel.FIELD_LABEL_OPTIONAL,
             ),
+            FieldDoc(
+              name: "hops",
+              type: "relay.v1.HopReceipt",
+              number: 3,
+              label: FieldLabel.FIELD_LABEL_REPEATED,
+              nestedFields: [
+                FieldDoc(
+                  name: "slug",
+                  type: "string",
+                  number: 1,
+                  label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                ),
+                FieldDoc(
+                  name: "uid",
+                  type: "string",
+                  number: 2,
+                  label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                ),
+                FieldDoc(
+                  name: "received",
+                  type: "int64",
+                  number: 3,
+                  label: FieldLabel.FIELD_LABEL_OPTIONAL,
+                ),
+              ],
+            ),
           ],
         ),
       ],

@@ -1,14 +1,19 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
-	"observability-cascade-go-node/internal"
+	_ "observability-cascade-go-node/internal"
 
+	"github.com/organic-programming/go-holons/pkg/composite"
+	"github.com/organic-programming/go-holons/pkg/observability"
+	"github.com/organic-programming/go-holons/pkg/relay"
 	"github.com/organic-programming/go-holons/pkg/serve"
+	"google.golang.org/grpc"
 )
 
 // RunCLI dispatches the observability-cascade-go-node CLI and returns a process exit code.
@@ -29,13 +34,35 @@ func RunCLI(args []string, outputs ...io.Writer) int {
 
 	switch canonicalCommand(args[0]) {
 	case "serve":
-		options := serve.ParseOptions(args[1:])
-		members, err := parseMemberRefs(args[1:])
-		if err != nil {
-			fmt.Fprintf(stderr, "serve: %v\n", err)
-			return 1
+		children, remaining := serve.ParseChildFlags(args[1:])
+		options := serve.ParseOptions(remaining)
+		transportName := parseTransport(remaining)
+		observability.FromEnv(observability.Config{})
+		var downstream *composite.SpawnedMember
+		if len(children) > 0 {
+			var err error
+			downstream, err = composite.SpawnMember(context.Background(), composite.SpawnOptions{
+				Slug:            children[0].Slug,
+				BinaryPath:      children[0].Binary,
+				Transport:       transportName,
+				DownstreamChain: children[1:],
+			})
+			if err != nil {
+				fmt.Fprintf(stderr, "serve: %v\n", err)
+				return 1
+			}
+			defer downstream.Stop(context.Background()) //nolint:errcheck
 		}
-		if err := internal.ListenAndServe(options.ListenURI, options.Reflect, members, options.ListenURIs[1:]...); err != nil {
+		if err := serve.RunCLIOptions(options, func(s *grpc.Server) {
+			var conn *grpc.ClientConn
+			if downstream != nil {
+				conn = downstream.Conn
+			}
+			relay.RegisterServer(s, relay.RelayOptions{DownstreamConn: conn})
+		}); err != nil {
+			if downstream != nil {
+				_ = downstream.Stop(context.Background())
+			}
 			fmt.Fprintf(stderr, "serve: %v\n", err)
 			return 1
 		}
@@ -53,42 +80,16 @@ func RunCLI(args []string, outputs ...io.Writer) int {
 	}
 }
 
-func parseMemberRefs(args []string) ([]serve.MemberRef, error) {
-	var members []serve.MemberRef
-	for i := 0; i < len(args); i++ {
-		switch arg := args[i]; {
-		case arg == "--member":
-			if i+1 >= len(args) {
-				return nil, fmt.Errorf("--member requires <slug>=<address>")
-			}
-			ref, err := parseMemberRef(args[i+1])
-			if err != nil {
-				return nil, err
-			}
-			members = append(members, ref)
-			i++
-		case strings.HasPrefix(arg, "--member="):
-			ref, err := parseMemberRef(strings.TrimPrefix(arg, "--member="))
-			if err != nil {
-				return nil, err
-			}
-			members = append(members, ref)
+func parseTransport(args []string) string {
+	for i, arg := range args {
+		if arg == "--transport" && i+1 < len(args) {
+			return args[i+1]
+		}
+		if strings.HasPrefix(arg, "--transport=") {
+			return strings.TrimPrefix(arg, "--transport=")
 		}
 	}
-	return members, nil
-}
-
-func parseMemberRef(raw string) (serve.MemberRef, error) {
-	left, address, ok := strings.Cut(raw, "=")
-	if !ok {
-		return serve.MemberRef{}, fmt.Errorf("--member requires <slug>=<address>")
-	}
-	slug := strings.TrimSpace(left)
-	address = strings.TrimSpace(address)
-	if slug == "" || address == "" {
-		return serve.MemberRef{}, fmt.Errorf("--member requires non-empty slug and address")
-	}
-	return serve.MemberRef{Slug: slug, Address: address}, nil
+	return "stdio"
 }
 
 func canonicalCommand(raw string) string {
@@ -100,7 +101,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "usage: observability-cascade-go-node <command> [args] [flags]")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "commands:")
-	fmt.Fprintln(w, "  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server")
-	fmt.Fprintln(w, "  version                                           Print version and exit")
-	fmt.Fprintln(w, "  help                                              Print this help")
+	fmt.Fprintln(w, "  serve [--listen <uri>] [--transport <name>] [--child <slug>=<binary>]  Start the gRPC server")
+	fmt.Fprintln(w, "  version                                                           Print version and exit")
+	fmt.Fprintln(w, "  help                                                              Print this help")
 }

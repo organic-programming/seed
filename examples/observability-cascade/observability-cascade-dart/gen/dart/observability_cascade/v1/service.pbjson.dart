@@ -55,6 +55,7 @@ const CascadeReport$json = {
       '6': '.observability_cascade.v1.PhaseResult',
       '10': 'phases'
     },
+    {'1': 'name', '3': 5, '4': 1, '5': 9, '10': 'name'},
   ],
 };
 
@@ -62,7 +63,7 @@ const CascadeReport$json = {
 final $typed_data.Uint8List cascadeReportDescriptor = $convert.base64Decode(
     'Cg1DYXNjYWRlUmVwb3J0EhQKBXRpY2tzGAEgASgFUgV0aWNrcxISCgRwYXNzGAIgASgFUgRwYX'
     'NzEhIKBGZhaWwYAyABKAVSBGZhaWwSPQoGcGhhc2VzGAQgAygLMiUub2JzZXJ2YWJpbGl0eV9j'
-    'YXNjYWRlLnYxLlBoYXNlUmVzdWx0UgZwaGFzZXM=');
+    'YXNjYWRlLnYxLlBoYXNlUmVzdWx0UgZwaGFzZXMSEgoEbmFtZRgFIAEoCVIEbmFtZQ==');
 
 @$core.Deprecated('Use multiPatternReportDescriptor instead')
 const MultiPatternReport$json = {

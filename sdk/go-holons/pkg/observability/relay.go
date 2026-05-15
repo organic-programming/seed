@@ -51,7 +51,8 @@ func (r *Relay) Start(ctx context.Context) error {
 	wantLogs := obs != nil && obs.Enabled(FamilyLogs)
 	wantEvents := obs != nil && obs.Enabled(FamilyEvents)
 	if !wantLogs && !wantEvents {
-		return nil
+		wantLogs = true
+		wantEvents = true
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	r.cancel = cancel

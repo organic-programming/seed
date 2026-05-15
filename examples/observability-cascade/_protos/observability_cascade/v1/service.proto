@@ -32,6 +32,7 @@ message CascadeReport {
   int32 pass = 2;
   int32 fail = 3;
   repeated PhaseResult phases = 4;
+  string name = 5;
 }
 
 message MultiPatternReport {
