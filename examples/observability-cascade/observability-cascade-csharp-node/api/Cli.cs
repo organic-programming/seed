@@ -1,6 +1,6 @@
-using Google.Protobuf;
 using Holons;
-using Relay.V1;
+using Holons.Observability;
+using Gen;
 
 namespace CascadeNode.Csharp.Api;
 
@@ -27,11 +27,46 @@ public static class Cli
             case "serve":
                 try
                 {
-                    var parsed = Serve.ParseOptions(args.Skip(1).ToArray());
-                    await _Internal.RelayServer.ListenAndServeAsync(
-                        parsed.ListenUri,
-                        parsed.Reflect,
-                        parsed.MemberEndpoints);
+                    Describe.UseStaticResponse(DescribeGenerated.StaticDescribeResponse());
+                    var childFlags = Composite.ParseChildFlags(args.Skip(1).ToArray());
+                    var transport = ParseTransport(childFlags.Remaining);
+                    var parsed = Serve.ParseOptions(childFlags.Remaining);
+                    ObservabilityRegistry.FromEnv(new ObsConfig { Slug = "observability-cascade-csharp-node" });
+                    SpawnedMember? downstream = null;
+                    try
+                    {
+                        if (childFlags.Children.Count > 0)
+                        {
+                            var child = childFlags.Children[0];
+                            downstream = await Composite.SpawnMember(
+                                new SpawnOptions
+                                {
+                                    Slug = child.Slug,
+                                    BinaryPath = child.Binary,
+                                    Transport = transport,
+                                    DownstreamChain = childFlags.Children.Skip(1).ToArray(),
+                                    ExtraEnv = new Dictionary<string, string>
+                                    {
+                                        ["OP_OBS"] = "logs,events,metrics,prom",
+                                        ["OP_PROM_ADDR"] = "127.0.0.1:0",
+                                    },
+                                });
+                        }
+
+                        Serve.RunWithOptions(
+                            parsed.ListenUri,
+                            [Holons.Relay.Service(downstream?.Conn)],
+                            new Serve.ServeOptions
+                            {
+                                Reflect = parsed.Reflect,
+                                Slug = "observability-cascade-csharp-node",
+                            });
+                    }
+                    finally
+                    {
+                        if (downstream is not null)
+                            await downstream.StopAsync();
+                    }
                     return 0;
                 }
                 catch (Exception error)
@@ -45,8 +80,6 @@ public static class Cli
             case "help":
                 await PrintUsage(stdout);
                 return 0;
-            case "tick":
-                return await RunTickAsync(args.Skip(1).ToArray(), stdout, stderr);
             default:
                 await stderr.WriteLineAsync($"unknown command \"{args[0]}\"");
                 await PrintUsage(stderr);
@@ -54,64 +87,17 @@ public static class Cli
         }
     }
 
-    private static async Task<int> RunTickAsync(string[] args, TextWriter stdout, TextWriter stderr)
+    private static string ParseTransport(IReadOnlyList<string> args)
     {
-        try
+        for (var index = 0; index < args.Count; index++)
         {
-            var request = new TickRequest();
-            var positional = new List<string>();
-            for (var index = 0; index < args.Length; index++)
-            {
-                var arg = args[index];
-                if (arg == "--sender")
-                {
-                    index += 1;
-                    if (index >= args.Length)
-                        throw new ArgumentException("--sender requires a value");
-                    request.Sender = args[index];
-                }
-                else if (arg.StartsWith("--sender=", StringComparison.Ordinal))
-                {
-                    request.Sender = arg["--sender=".Length..];
-                }
-                else if (arg == "--note")
-                {
-                    index += 1;
-                    if (index >= args.Length)
-                        throw new ArgumentException("--note requires a value");
-                    request.Note = args[index];
-                }
-                else if (arg.StartsWith("--note=", StringComparison.Ordinal))
-                {
-                    request.Note = arg["--note=".Length..];
-                }
-                else if (arg.StartsWith("--", StringComparison.Ordinal))
-                {
-                    throw new ArgumentException($"unknown flag \"{arg}\"");
-                }
-                else
-                {
-                    positional.Add(arg);
-                }
-            }
-            if (string.IsNullOrWhiteSpace(request.Sender) && positional.Count >= 1)
-                request.Sender = positional[0];
-            if (string.IsNullOrWhiteSpace(request.Note) && positional.Count >= 2)
-                request.Note = positional[1];
-
-            await WriteResponseAsync(stdout, PublicApi.Tick(request));
-            return 0;
+            var arg = args[index];
+            if (arg == "--transport" && index + 1 < args.Count)
+                return args[index + 1].Trim().ToLowerInvariant();
+            if (arg.StartsWith("--transport=", StringComparison.Ordinal))
+                return arg["--transport=".Length..].Trim().ToLowerInvariant();
         }
-        catch (Exception error)
-        {
-            await stderr.WriteLineAsync($"tick: {error.Message}");
-            return 1;
-        }
-    }
-
-    private static async Task WriteResponseAsync(TextWriter stdout, IMessage message)
-    {
-        await stdout.WriteLineAsync(JsonFormatter.Default.Format(message));
+        return "stdio";
     }
 
     private static string CanonicalCommand(string raw) =>
@@ -122,9 +108,8 @@ public static class Cli
         await output.WriteLineAsync("usage: observability-cascade-csharp-node <command> [args] [flags]");
         await output.WriteLineAsync();
         await output.WriteLineAsync("commands:");
-        await output.WriteLineAsync("  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server");
-        await output.WriteLineAsync("  tick [sender] [note]                                Emit one local tick");
-        await output.WriteLineAsync("  version                                             Print version and exit");
-        await output.WriteLineAsync("  help                                                Print usage");
+        await output.WriteLineAsync("  serve [--listen <uri>] [--transport <name>] [--child <slug>=<binary>]  Start the gRPC server");
+        await output.WriteLineAsync("  version                                                          Print version and exit");
+        await output.WriteLineAsync("  help                                                             Print usage");
     }
 }

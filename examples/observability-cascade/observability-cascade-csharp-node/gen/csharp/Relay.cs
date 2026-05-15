@@ -26,17 +26,21 @@ namespace Relay.V1 {
           string.Concat(
             "ChRyZWxheS92MS9yZWxheS5wcm90bxIIcmVsYXkudjEiOQoLVGlja1JlcXVl",
             "c3QSFgoGc2VuZGVyGAEgASgJUgZzZW5kZXISEgoEbm90ZRgCIAEoCVIEbm90",
-            "ZSJrCgxUaWNrUmVzcG9uc2USJQoOcmVzcG9uZGVyX3NsdWcYASABKAlSDXJl",
-            "c3BvbmRlclNsdWcSNAoWcmVzcG9uZGVyX2luc3RhbmNlX3VpZBgCIAEoCVIU",
-            "cmVzcG9uZGVySW5zdGFuY2VVaWQyRQoMUmVsYXlTZXJ2aWNlEjUKBFRpY2sS",
-            "FS5yZWxheS52MS5UaWNrUmVxdWVzdBoWLnJlbGF5LnYxLlRpY2tSZXNwb25z",
-            "ZUIxWi9leGFtcGxlcy9yZWxheS1jYXNjYWRlL19wcm90b3MvcmVsYXkvdjE7",
-            "cmVsYXl2MWIGcHJvdG8z"));
+            "ZSJOCgpIb3BSZWNlaXB0EhIKBHNsdWcYASABKAlSBHNsdWcSEAoDdWlkGAIg",
+            "ASgJUgN1aWQSGgoIcmVjZWl2ZWQYAyABKANSCHJlY2VpdmVkIpUBCgxUaWNr",
+            "UmVzcG9uc2USJQoOcmVzcG9uZGVyX3NsdWcYASABKAlSDXJlc3BvbmRlclNs",
+            "dWcSNAoWcmVzcG9uZGVyX2luc3RhbmNlX3VpZBgCIAEoCVIUcmVzcG9uZGVy",
+            "SW5zdGFuY2VVaWQSKAoEaG9wcxgDIAMoCzIULnJlbGF5LnYxLkhvcFJlY2Vp",
+            "cHRSBGhvcHMyRQoMUmVsYXlTZXJ2aWNlEjUKBFRpY2sSFS5yZWxheS52MS5U",
+            "aWNrUmVxdWVzdBoWLnJlbGF5LnYxLlRpY2tSZXNwb25zZUIxWi9leGFtcGxl",
+            "cy9yZWxheS1jYXNjYWRlL19wcm90b3MvcmVsYXkvdjE7cmVsYXl2MWIGcHJv",
+            "dG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::Relay.V1.TickRequest), global::Relay.V1.TickRequest.Parser, new[]{ "Sender", "Note" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::Relay.V1.TickResponse), global::Relay.V1.TickResponse.Parser, new[]{ "ResponderSlug", "ResponderInstanceUid" }, null, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::Relay.V1.HopReceipt), global::Relay.V1.HopReceipt.Parser, new[]{ "Slug", "Uid", "Received" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::Relay.V1.TickResponse), global::Relay.V1.TickResponse.Parser, new[]{ "ResponderSlug", "ResponderInstanceUid", "Hops" }, null, null, null, null)
           }));
     }
     #endregion
@@ -279,6 +283,278 @@ namespace Relay.V1 {
   }
 
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+  public sealed partial class HopReceipt : pb::IMessage<HopReceipt>
+  #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      , pb::IBufferMessage
+  #endif
+  {
+    private static readonly pb::MessageParser<HopReceipt> _parser = new pb::MessageParser<HopReceipt>(() => new HopReceipt());
+    private pb::UnknownFieldSet _unknownFields;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pb::MessageParser<HopReceipt> Parser { get { return _parser; } }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public static pbr::MessageDescriptor Descriptor {
+      get { return global::Relay.V1.RelayReflection.Descriptor.MessageTypes[1]; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    pbr::MessageDescriptor pb::IMessage.Descriptor {
+      get { return Descriptor; }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public HopReceipt() {
+      OnConstruction();
+    }
+
+    partial void OnConstruction();
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public HopReceipt(HopReceipt other) : this() {
+      slug_ = other.slug_;
+      uid_ = other.uid_;
+      received_ = other.received_;
+      _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public HopReceipt Clone() {
+      return new HopReceipt(this);
+    }
+
+    /// <summary>Field number for the "slug" field.</summary>
+    public const int SlugFieldNumber = 1;
+    private string slug_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Slug {
+      get { return slug_; }
+      set {
+        slug_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "uid" field.</summary>
+    public const int UidFieldNumber = 2;
+    private string uid_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Uid {
+      get { return uid_; }
+      set {
+        uid_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "received" field.</summary>
+    public const int ReceivedFieldNumber = 3;
+    private long received_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public long Received {
+      get { return received_; }
+      set {
+        received_ = value;
+      }
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override bool Equals(object other) {
+      return Equals(other as HopReceipt);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool Equals(HopReceipt other) {
+      if (ReferenceEquals(other, null)) {
+        return false;
+      }
+      if (ReferenceEquals(other, this)) {
+        return true;
+      }
+      if (Slug != other.Slug) return false;
+      if (Uid != other.Uid) return false;
+      if (Received != other.Received) return false;
+      return Equals(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override int GetHashCode() {
+      int hash = 1;
+      if (Slug.Length != 0) hash ^= Slug.GetHashCode();
+      if (Uid.Length != 0) hash ^= Uid.GetHashCode();
+      if (Received != 0L) hash ^= Received.GetHashCode();
+      if (_unknownFields != null) {
+        hash ^= _unknownFields.GetHashCode();
+      }
+      return hash;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public override string ToString() {
+      return pb::JsonFormatter.ToDiagnosticString(this);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void WriteTo(pb::CodedOutputStream output) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      output.WriteRawMessage(this);
+    #else
+      if (Slug.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(Slug);
+      }
+      if (Uid.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(Uid);
+      }
+      if (Received != 0L) {
+        output.WriteRawTag(24);
+        output.WriteInt64(Received);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(output);
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+      if (Slug.Length != 0) {
+        output.WriteRawTag(10);
+        output.WriteString(Slug);
+      }
+      if (Uid.Length != 0) {
+        output.WriteRawTag(18);
+        output.WriteString(Uid);
+      }
+      if (Received != 0L) {
+        output.WriteRawTag(24);
+        output.WriteInt64(Received);
+      }
+      if (_unknownFields != null) {
+        _unknownFields.WriteTo(ref output);
+      }
+    }
+    #endif
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CalculateSize() {
+      int size = 0;
+      if (Slug.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Slug);
+      }
+      if (Uid.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Uid);
+      }
+      if (Received != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(Received);
+      }
+      if (_unknownFields != null) {
+        size += _unknownFields.CalculateSize();
+      }
+      return size;
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(HopReceipt other) {
+      if (other == null) {
+        return;
+      }
+      if (other.Slug.Length != 0) {
+        Slug = other.Slug;
+      }
+      if (other.Uid.Length != 0) {
+        Uid = other.Uid;
+      }
+      if (other.Received != 0L) {
+        Received = other.Received;
+      }
+      _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+    }
+
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void MergeFrom(pb::CodedInputStream input) {
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+      input.ReadRawMessage(this);
+    #else
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+            break;
+          case 10: {
+            Slug = input.ReadString();
+            break;
+          }
+          case 18: {
+            Uid = input.ReadString();
+            break;
+          }
+          case 24: {
+            Received = input.ReadInt64();
+            break;
+          }
+        }
+      }
+    #endif
+    }
+
+    #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+      uint tag;
+      while ((tag = input.ReadTag()) != 0) {
+      if ((tag & 7) == 4) {
+        // Abort on any end group tag.
+        return;
+      }
+      switch(tag) {
+          default:
+            _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+            break;
+          case 10: {
+            Slug = input.ReadString();
+            break;
+          }
+          case 18: {
+            Uid = input.ReadString();
+            break;
+          }
+          case 24: {
+            Received = input.ReadInt64();
+            break;
+          }
+        }
+      }
+    }
+    #endif
+
+  }
+
+  [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class TickResponse : pb::IMessage<TickResponse>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
       , pb::IBufferMessage
@@ -293,7 +569,7 @@ namespace Relay.V1 {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pbr::MessageDescriptor Descriptor {
-      get { return global::Relay.V1.RelayReflection.Descriptor.MessageTypes[1]; }
+      get { return global::Relay.V1.RelayReflection.Descriptor.MessageTypes[2]; }
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -315,6 +591,7 @@ namespace Relay.V1 {
     public TickResponse(TickResponse other) : this() {
       responderSlug_ = other.responderSlug_;
       responderInstanceUid_ = other.responderInstanceUid_;
+      hops_ = other.hops_.Clone();
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -348,6 +625,17 @@ namespace Relay.V1 {
       }
     }
 
+    /// <summary>Field number for the "hops" field.</summary>
+    public const int HopsFieldNumber = 3;
+    private static readonly pb::FieldCodec<global::Relay.V1.HopReceipt> _repeated_hops_codec
+        = pb::FieldCodec.ForMessage(26, global::Relay.V1.HopReceipt.Parser);
+    private readonly pbc::RepeatedField<global::Relay.V1.HopReceipt> hops_ = new pbc::RepeatedField<global::Relay.V1.HopReceipt>();
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public pbc::RepeatedField<global::Relay.V1.HopReceipt> Hops {
+      get { return hops_; }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -365,6 +653,7 @@ namespace Relay.V1 {
       }
       if (ResponderSlug != other.ResponderSlug) return false;
       if (ResponderInstanceUid != other.ResponderInstanceUid) return false;
+      if(!hops_.Equals(other.hops_)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -374,6 +663,7 @@ namespace Relay.V1 {
       int hash = 1;
       if (ResponderSlug.Length != 0) hash ^= ResponderSlug.GetHashCode();
       if (ResponderInstanceUid.Length != 0) hash ^= ResponderInstanceUid.GetHashCode();
+      hash ^= hops_.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -400,6 +690,7 @@ namespace Relay.V1 {
         output.WriteRawTag(18);
         output.WriteString(ResponderInstanceUid);
       }
+      hops_.WriteTo(output, _repeated_hops_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -418,6 +709,7 @@ namespace Relay.V1 {
         output.WriteRawTag(18);
         output.WriteString(ResponderInstanceUid);
       }
+      hops_.WriteTo(ref output, _repeated_hops_codec);
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -434,6 +726,7 @@ namespace Relay.V1 {
       if (ResponderInstanceUid.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(ResponderInstanceUid);
       }
+      size += hops_.CalculateSize(_repeated_hops_codec);
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -452,6 +745,7 @@ namespace Relay.V1 {
       if (other.ResponderInstanceUid.Length != 0) {
         ResponderInstanceUid = other.ResponderInstanceUid;
       }
+      hops_.Add(other.hops_);
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -479,6 +773,10 @@ namespace Relay.V1 {
             ResponderInstanceUid = input.ReadString();
             break;
           }
+          case 26: {
+            hops_.AddEntriesFrom(input, _repeated_hops_codec);
+            break;
+          }
         }
       }
     #endif
@@ -504,6 +802,10 @@ namespace Relay.V1 {
           }
           case 18: {
             ResponderInstanceUid = input.ReadString();
+            break;
+          }
+          case 26: {
+            hops_.AddEntriesFrom(ref input, _repeated_hops_codec);
             break;
           }
         }

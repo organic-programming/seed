@@ -1,7 +1,7 @@
 namespace Holons;
 
 /// <summary>Helpers for composite holons.</summary>
-public static class Composite
+public static partial class Composite
 {
     public static string Member(string id)
     {

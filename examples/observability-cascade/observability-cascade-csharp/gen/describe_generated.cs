@@ -111,7 +111,28 @@ public static class DescribeGenerated
                                     Number = 4,
                                     Label = FieldLabel.Repeated,
                                 },
+                                new FieldDoc
+                                {
+                                    Name = "elapsed_us",
+                                    Type = "int64",
+                                    Number = 5,
+                                    Label = FieldLabel.Optional,
+                                },
                             },
+                        },
+                        new FieldDoc
+                        {
+                            Name = "name",
+                            Type = "string",
+                            Number = 5,
+                            Label = FieldLabel.Optional,
+                        },
+                        new FieldDoc
+                        {
+                            Name = "elapsed_us",
+                            Type = "int64",
+                            Number = 6,
+                            Label = FieldLabel.Optional,
                         },
                     },
                     ExampleInput = "{}",
@@ -179,7 +200,28 @@ public static class DescribeGenerated
                                     Number = 4,
                                     Label = FieldLabel.Repeated,
                                 },
+                                new FieldDoc
+                                {
+                                    Name = "elapsed_us",
+                                    Type = "int64",
+                                    Number = 5,
+                                    Label = FieldLabel.Optional,
+                                },
                             },
+                        },
+                        new FieldDoc
+                        {
+                            Name = "name",
+                            Type = "string",
+                            Number = 5,
+                            Label = FieldLabel.Optional,
+                        },
+                        new FieldDoc
+                        {
+                            Name = "elapsed_us",
+                            Type = "int64",
+                            Number = 6,
+                            Label = FieldLabel.Optional,
                         },
                     },
                     ExampleInput = "{}",
@@ -254,7 +296,28 @@ public static class DescribeGenerated
                                             Number = 4,
                                             Label = FieldLabel.Repeated,
                                         },
+                                        new FieldDoc
+                                        {
+                                            Name = "elapsed_us",
+                                            Type = "int64",
+                                            Number = 5,
+                                            Label = FieldLabel.Optional,
+                                        },
                                     },
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "name",
+                                    Type = "string",
+                                    Number = 5,
+                                    Label = FieldLabel.Optional,
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "elapsed_us",
+                                    Type = "int64",
+                                    Number = 6,
+                                    Label = FieldLabel.Optional,
                                 },
                             },
                         },
@@ -270,6 +333,13 @@ public static class DescribeGenerated
                             Name = "total_fail",
                             Type = "int32",
                             Number = 3,
+                            Label = FieldLabel.Optional,
+                        },
+                        new FieldDoc
+                        {
+                            Name = "total_elapsed_us",
+                            Type = "int64",
+                            Number = 4,
                             Label = FieldLabel.Optional,
                         },
                     },

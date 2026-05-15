@@ -124,6 +124,70 @@ public class ObservabilityTests
         }
     }
 
+    [Fact]
+    public async Task TestLogsFollowReplaysRingOnSubscribe()
+    {
+        try
+        {
+            var obs = ObservabilityRegistry.ConfigureFromEnv(
+                new ObsConfig { Slug = "logs-follow", InstanceUid = "uid-logs" },
+                new Dictionary<string, string> { ["OP_OBS"] = "logs" });
+            obs.Logger("test").Info("before-subscribe");
+
+            using var server = Serve.StartWithOptions(
+                "tcp://127.0.0.1:0",
+                new[] { Serve.Service(new ObservabilityGrpcService(obs)) },
+                new Serve.ServeOptions { Describe = false });
+            using var channel = GrpcChannel.ForAddress($"http://127.0.0.1:{server.PublicUri.Split(':').Last()}");
+            var client = new HolonObservability.HolonObservabilityClient(channel);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var call = client.Logs(new LogsRequest { MinLevel = Holons.V1.LogLevel.Info, Follow = true }, cancellationToken: cts.Token);
+
+            Assert.True(await call.ResponseStream.MoveNext(cts.Token));
+            Assert.Equal("before-subscribe", call.ResponseStream.Current.Message);
+
+            obs.Logger("test").Info("after-subscribe");
+            Assert.True(await call.ResponseStream.MoveNext(cts.Token));
+            Assert.Equal("after-subscribe", call.ResponseStream.Current.Message);
+        }
+        finally
+        {
+            ObservabilityRegistry.Reset();
+        }
+    }
+
+    [Fact]
+    public async Task TestEventsFollowReplaysRingOnSubscribe()
+    {
+        try
+        {
+            var obs = ObservabilityRegistry.ConfigureFromEnv(
+                new ObsConfig { Slug = "events-follow", InstanceUid = "uid-events" },
+                new Dictionary<string, string> { ["OP_OBS"] = "events" });
+            obs.Emit(Holons.Observability.EventType.InstanceReady, new Dictionary<string, string> { ["listener"] = "before", ["metrics_addr"] = "" });
+
+            using var server = Serve.StartWithOptions(
+                "tcp://127.0.0.1:0",
+                new[] { Serve.Service(new ObservabilityGrpcService(obs)) },
+                new Serve.ServeOptions { Describe = false });
+            using var channel = GrpcChannel.ForAddress($"http://127.0.0.1:{server.PublicUri.Split(':').Last()}");
+            var client = new HolonObservability.HolonObservabilityClient(channel);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var call = client.Events(new EventsRequest { Follow = true }, cancellationToken: cts.Token);
+
+            Assert.True(await call.ResponseStream.MoveNext(cts.Token));
+            Assert.Equal("before", call.ResponseStream.Current.Payload["listener"]);
+
+            obs.Emit(Holons.Observability.EventType.InstanceReady, new Dictionary<string, string> { ["listener"] = "after", ["metrics_addr"] = "" });
+            Assert.True(await call.ResponseStream.MoveNext(cts.Token));
+            Assert.Equal("after", call.ResponseStream.Current.Payload["listener"]);
+        }
+        finally
+        {
+            ObservabilityRegistry.Reset();
+        }
+    }
+
     private static string CreateTempDir()
     {
         var id = Guid.NewGuid().ToString("N")[..8];

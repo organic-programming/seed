@@ -378,9 +378,13 @@ public static class Serve
         if (string.IsNullOrWhiteSpace(raw))
             return null;
 
-        var obs = Obs.ObservabilityRegistry.FromEnvMap(
-            new Obs.ObsConfig { Slug = options.Slug },
-            env?.ToDictionary(pair => pair.Key, pair => pair.Value));
+        var current = Obs.ObservabilityRegistry.Current();
+        var obs = current.Families.Count > 0
+            && (string.IsNullOrWhiteSpace(options.Slug) || string.Equals(current.Config.Slug, options.Slug, StringComparison.Ordinal))
+            ? current
+            : Obs.ObservabilityRegistry.FromEnvMap(
+                new Obs.ObsConfig { Slug = options.Slug },
+                env?.ToDictionary(pair => pair.Key, pair => pair.Value));
         if (obs.Families.Count == 0)
             return null;
 
@@ -414,7 +418,13 @@ public static class Serve
         if (!string.IsNullOrEmpty(obs.Config.RunDir))
             Obs.DiskWriters.Enable(obs.Config.RunDir);
         if (obs.Enabled(Obs.Family.Events))
-            obs.Emit(Obs.EventType.InstanceReady, new Dictionary<string, string> { ["listener"] = publicUri });
+            obs.Emit(
+                Obs.EventType.InstanceReady,
+                new Dictionary<string, string>
+                {
+                    ["listener"] = publicUri,
+                    ["metrics_addr"] = prom?.Address ?? "",
+                });
 
         if (!string.IsNullOrEmpty(obs.Config.RunDir))
         {

@@ -157,6 +157,7 @@ public sealed class LogEntry
     public Dictionary<string, string> Fields { get; init; } = new();
     public string Caller { get; init; } = "";
     public List<Hop> Chain { get; init; } = new();
+    public bool Private { get; init; }
 }
 
 public sealed class LogRing
@@ -200,6 +201,18 @@ public sealed class LogRing
         return new Sub(() => { lock (_lock) _subs.Remove(fn); });
     }
 
+    public (List<LogEntry> Replay, IDisposable Subscription) ReplayAndSubscribe(DateTime? cutoff, Action<LogEntry> fn)
+    {
+        lock (_lock)
+        {
+            var replay = cutoff is { } since
+                ? _buf.Where(e => e.Timestamp >= since).ToList()
+                : new List<LogEntry>(_buf);
+            _subs.Add(fn);
+            return (replay, new Sub(() => { lock (_lock) _subs.Remove(fn); }));
+        }
+    }
+
     public int Count { get { lock (_lock) return _buf.Count; } }
 
     private sealed class Sub : IDisposable
@@ -219,6 +232,7 @@ public sealed class Event
     public string SessionId { get; init; } = "";
     public Dictionary<string, string> Payload { get; init; } = new();
     public List<Hop> Chain { get; init; } = new();
+    public bool Private { get; init; }
 }
 
 public sealed class EventBus
@@ -255,6 +269,19 @@ public sealed class EventBus
     {
         lock (_lock) _subs.Add(fn);
         return new Sub(() => { lock (_lock) _subs.Remove(fn); });
+    }
+
+    public (List<Event> Replay, IDisposable Subscription) ReplayAndSubscribe(DateTime? cutoff, Action<Event> fn)
+    {
+        lock (_lock)
+        {
+            var replay = cutoff is { } since
+                ? _buf.Where(e => e.Timestamp >= since).ToList()
+                : new List<Event>(_buf);
+            if (!_closed)
+                _subs.Add(fn);
+            return (replay, new Sub(() => { lock (_lock) _subs.Remove(fn); }));
+        }
     }
 
     public void Close()
@@ -424,7 +451,7 @@ public sealed class Logger
     public void SetLevel(Level l) => Interlocked.Exchange(ref _level, (int)l);
     public bool Enabled(Level l) => (int)l >= Volatile.Read(ref _level);
 
-    public void Log(Level lvl, string message, IDictionary<string, object?>? fields = null)
+    public void Log(Level lvl, string message, IDictionary<string, object?>? fields = null, bool privateEntry = false)
     {
         if (!Enabled(lvl)) return;
         var redact = new HashSet<string>(_obs.Config.RedactedFields);
@@ -445,15 +472,16 @@ public sealed class Logger
             InstanceUid = _obs.Config.InstanceUid,
             Message = message,
             Fields = outFields,
+            Private = privateEntry,
         });
     }
 
-    public void Trace(string m, IDictionary<string, object?>? f = null) => Log(Level.Trace, m, f);
-    public void Debug(string m, IDictionary<string, object?>? f = null) => Log(Level.Debug, m, f);
-    public void Info(string m, IDictionary<string, object?>? f = null) => Log(Level.Info, m, f);
-    public void Warn(string m, IDictionary<string, object?>? f = null) => Log(Level.Warn, m, f);
-    public void Error(string m, IDictionary<string, object?>? f = null) => Log(Level.Error, m, f);
-    public void Fatal(string m, IDictionary<string, object?>? f = null) => Log(Level.Fatal, m, f);
+    public void Trace(string m, IDictionary<string, object?>? f = null, bool privateEntry = false) => Log(Level.Trace, m, f, privateEntry);
+    public void Debug(string m, IDictionary<string, object?>? f = null, bool privateEntry = false) => Log(Level.Debug, m, f, privateEntry);
+    public void Info(string m, IDictionary<string, object?>? f = null, bool privateEntry = false) => Log(Level.Info, m, f, privateEntry);
+    public void Warn(string m, IDictionary<string, object?>? f = null, bool privateEntry = false) => Log(Level.Warn, m, f, privateEntry);
+    public void Error(string m, IDictionary<string, object?>? f = null, bool privateEntry = false) => Log(Level.Error, m, f, privateEntry);
+    public void Fatal(string m, IDictionary<string, object?>? f = null, bool privateEntry = false) => Log(Level.Fatal, m, f, privateEntry);
 }
 
 public sealed class Observability
@@ -492,7 +520,7 @@ public sealed class Observability
     public Histogram? Histogram(string name, string help = "", Dictionary<string, string>? labels = null,
         double[]? bounds = null) => Registry?.Histogram(name, help, labels, bounds);
 
-    public void Emit(EventType type, Dictionary<string, string>? payload = null)
+    public void Emit(EventType type, Dictionary<string, string>? payload = null, bool privateEntry = false)
     {
         if (EventBus is null) return;
         var redact = new HashSet<string>(Config.RedactedFields);
@@ -509,6 +537,7 @@ public sealed class Observability
             Slug = Config.Slug,
             InstanceUid = Config.InstanceUid,
             Payload = p,
+            Private = privateEntry,
         });
     }
 
@@ -604,11 +633,28 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
         var minLevel = request.MinLevel == global::Holons.V1.LogLevel.Unspecified
             ? (int)Level.Info
             : (int)request.MinLevel;
-        var entries = request.Since is null
-            ? _obs.LogRing.Drain()
-            : _obs.LogRing.DrainSince(DateTime.UtcNow - request.Since.ToTimeSpan());
+        var cutoff = request.Since is null
+            ? (DateTime?)null
+            : DateTime.UtcNow - request.Since.ToTimeSpan();
+        IDisposable? subscription = null;
+        var entries = request.Follow
+            ? new List<LogEntry>()
+            : cutoff is null
+                ? _obs.LogRing.Drain()
+                : _obs.LogRing.DrainSince(cutoff.Value);
+        Channel<LogEntry>? queue = null;
+        if (request.Follow)
+        {
+            queue = Channel.CreateUnbounded<LogEntry>();
+            // Snapshot and subscription are registered under one ring lock to avoid a replay/live drop.
+            var replayAndSub = _obs.LogRing.ReplayAndSubscribe(cutoff, entry => queue.Writer.TryWrite(entry));
+            entries = replayAndSub.Replay;
+            subscription = replayAndSub.Subscription;
+        }
         foreach (var entry in entries)
         {
+            if (entry.Private)
+                continue;
             if ((int)entry.Level < minLevel)
                 continue;
             if (request.SessionIds.Count > 0 && !request.SessionIds.Contains(entry.SessionId))
@@ -621,12 +667,14 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
         if (!request.Follow)
             return;
 
-        var queue = Channel.CreateUnbounded<LogEntry>();
-        using var subscription = _obs.LogRing.Subscribe(entry => queue.Writer.TryWrite(entry));
+        using (subscription)
+        {
         try
         {
-            await foreach (var entry in queue.Reader.ReadAllAsync(context.CancellationToken).ConfigureAwait(false))
+            await foreach (var entry in queue!.Reader.ReadAllAsync(context.CancellationToken).ConfigureAwait(false))
             {
+                if (entry.Private)
+                    continue;
                 if ((int)entry.Level < minLevel)
                     continue;
                 if (request.SessionIds.Count > 0 && !request.SessionIds.Contains(entry.SessionId))
@@ -639,6 +687,7 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
         catch (OperationCanceledException)
         {
             // Client closed the follow stream.
+        }
         }
     }
 
@@ -672,11 +721,28 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
             throw new RpcException(new Status(StatusCode.FailedPrecondition, "events family is not enabled (OP_OBS)"));
 
         var wanted = request.Types_.Select(t => (int)t).ToHashSet();
-        var events = request.Since is null
-            ? _obs.EventBus.Drain()
-            : _obs.EventBus.DrainSince(DateTime.UtcNow - request.Since.ToTimeSpan());
+        var cutoff = request.Since is null
+            ? (DateTime?)null
+            : DateTime.UtcNow - request.Since.ToTimeSpan();
+        IDisposable? subscription = null;
+        var events = request.Follow
+            ? new List<Event>()
+            : cutoff is null
+                ? _obs.EventBus.Drain()
+                : _obs.EventBus.DrainSince(cutoff.Value);
+        Channel<Event>? queue = null;
+        if (request.Follow)
+        {
+            queue = Channel.CreateUnbounded<Event>();
+            // Snapshot and subscription are registered under one bus lock to avoid a replay/live drop.
+            var replayAndSub = _obs.EventBus.ReplayAndSubscribe(cutoff, ev => queue.Writer.TryWrite(ev));
+            events = replayAndSub.Replay;
+            subscription = replayAndSub.Subscription;
+        }
         foreach (var ev in events)
         {
+            if (ev.Private)
+                continue;
             if (wanted.Count > 0 && !wanted.Contains((int)ev.Type))
                 continue;
             await responseStream.WriteAsync(ToProtoEvent(ev)).ConfigureAwait(false);
@@ -685,12 +751,14 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
         if (!request.Follow)
             return;
 
-        var queue = Channel.CreateUnbounded<Event>();
-        using var subscription = _obs.EventBus.Subscribe(ev => queue.Writer.TryWrite(ev));
+        using (subscription)
+        {
         try
         {
-            await foreach (var ev in queue.Reader.ReadAllAsync(context.CancellationToken).ConfigureAwait(false))
+            await foreach (var ev in queue!.Reader.ReadAllAsync(context.CancellationToken).ConfigureAwait(false))
             {
+                if (ev.Private)
+                    continue;
                 if (wanted.Count > 0 && !wanted.Contains((int)ev.Type))
                     continue;
                 await responseStream.WriteAsync(ToProtoEvent(ev)).ConfigureAwait(false);
@@ -699,6 +767,7 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
         catch (OperationCanceledException)
         {
             // Client closed the follow stream.
+        }
         }
     }
 
@@ -1047,6 +1116,8 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
     private readonly Observability _obs;
     private readonly string _memberSlug;
     private readonly string _address;
+    private readonly GrpcChannel? _channel;
+    private readonly MemberIdentity? _identity;
     private readonly Action<string> _logger;
     private readonly CancellationTokenSource _cts = new();
     private readonly List<Task> _tasks = new();
@@ -1056,6 +1127,16 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
         _obs = obs;
         _memberSlug = memberSlug;
         _address = address;
+        _logger = logger ?? (_ => { });
+    }
+
+    public MemberRelay(Observability obs, string memberSlug, string memberUid, GrpcChannel channel, Action<string>? logger = null)
+    {
+        _obs = obs;
+        _memberSlug = memberSlug;
+        _address = "";
+        _channel = channel;
+        _identity = new MemberIdentity(memberSlug, memberUid);
         _logger = logger ?? (_ => { });
     }
 
@@ -1081,6 +1162,12 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
 
     private async Task PumpLogsAsync(CancellationToken ct)
     {
+        if (_channel is not null && _identity is not null)
+        {
+            await PumpLogsFromChannelAsync(_channel, _identity, ct).ConfigureAwait(false);
+            return;
+        }
+
         while (!ct.IsCancellationRequested)
         {
             GrpcChannel? channel = null;
@@ -1088,19 +1175,7 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
             {
                 channel = global::Holons.Connect.ConnectTarget(_address, new global::Holons.Connect.ConnectOptions { Timeout = TimeSpan.FromSeconds(5), Start = false });
                 var identity = await ResolveIdentityAsync(channel, ct).ConfigureAwait(false);
-                var client = new global::Holons.V1.HolonObservability.HolonObservabilityClient(channel);
-                using var call = client.Logs(
-                    new global::Holons.V1.LogsRequest
-                    {
-                        MinLevel = global::Holons.V1.LogLevel.Info,
-                        Follow = true,
-                    },
-                    cancellationToken: ct);
-                while (await call.ResponseStream.MoveNext(ct).ConfigureAwait(false))
-                {
-                    var entry = ObservabilityGrpcService.FromProtoLogEntry(call.ResponseStream.Current);
-                    _obs.LogRing?.Push(EnrichLog(entry, identity));
-                }
+                await PumpLogsFromChannelAsync(channel, identity, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -1121,6 +1196,12 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
 
     private async Task PumpEventsAsync(CancellationToken ct)
     {
+        if (_channel is not null && _identity is not null)
+        {
+            await PumpEventsFromChannelAsync(_channel, _identity, ct).ConfigureAwait(false);
+            return;
+        }
+
         while (!ct.IsCancellationRequested)
         {
             GrpcChannel? channel = null;
@@ -1128,15 +1209,7 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
             {
                 channel = global::Holons.Connect.ConnectTarget(_address, new global::Holons.Connect.ConnectOptions { Timeout = TimeSpan.FromSeconds(5), Start = false });
                 var identity = await ResolveIdentityAsync(channel, ct).ConfigureAwait(false);
-                var client = new global::Holons.V1.HolonObservability.HolonObservabilityClient(channel);
-                using var call = client.Events(
-                    new global::Holons.V1.EventsRequest { Follow = true },
-                    cancellationToken: ct);
-                while (await call.ResponseStream.MoveNext(ct).ConfigureAwait(false))
-                {
-                    var ev = ObservabilityGrpcService.FromProtoEvent(call.ResponseStream.Current);
-                    _obs.EventBus?.Emit(EnrichEvent(ev, identity));
-                }
+                await PumpEventsFromChannelAsync(channel, identity, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -1185,6 +1258,36 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
         return fallback ?? new MemberIdentity(_memberSlug, "");
     }
 
+    private async Task PumpLogsFromChannelAsync(GrpcChannel channel, MemberIdentity identity, CancellationToken ct)
+    {
+        var client = new global::Holons.V1.HolonObservability.HolonObservabilityClient(channel);
+        using var call = client.Logs(
+            new global::Holons.V1.LogsRequest
+            {
+                MinLevel = global::Holons.V1.LogLevel.Info,
+                Follow = true,
+            },
+            cancellationToken: ct);
+        while (await call.ResponseStream.MoveNext(ct).ConfigureAwait(false))
+        {
+            var entry = ObservabilityGrpcService.FromProtoLogEntry(call.ResponseStream.Current);
+            _obs.LogRing?.Push(EnrichLog(entry, identity));
+        }
+    }
+
+    private async Task PumpEventsFromChannelAsync(GrpcChannel channel, MemberIdentity identity, CancellationToken ct)
+    {
+        var client = new global::Holons.V1.HolonObservability.HolonObservabilityClient(channel);
+        using var call = client.Events(
+            new global::Holons.V1.EventsRequest { Follow = true },
+            cancellationToken: ct);
+        while (await call.ResponseStream.MoveNext(ct).ConfigureAwait(false))
+        {
+            var ev = ObservabilityGrpcService.FromProtoEvent(call.ResponseStream.Current);
+            _obs.EventBus?.Emit(EnrichEvent(ev, identity));
+        }
+    }
+
     private static async Task RetryAsync(CancellationToken ct)
     {
         try { await Task.Delay(RetryDelay, ct).ConfigureAwait(false); }
@@ -1204,6 +1307,7 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
             Fields = entry.Fields,
             Caller = entry.Caller,
             Chain = Chain.EnrichForMultilog(entry.Chain, identity.Slug, identity.InstanceUid),
+            Private = entry.Private,
         };
 
     private static Event EnrichEvent(Event ev, MemberIdentity identity) =>
@@ -1216,6 +1320,7 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
             SessionId = ev.SessionId,
             Payload = ev.Payload,
             Chain = Chain.EnrichForMultilog(ev.Chain, identity.Slug, identity.InstanceUid),
+            Private = ev.Private,
         };
 }
 

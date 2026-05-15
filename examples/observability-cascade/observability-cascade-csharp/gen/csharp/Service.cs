@@ -25,32 +25,35 @@ namespace ObservabilityCascade.V1 {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "CiZvYnNlcnZhYmlsaXR5X2Nhc2NhZGUvdjEvc2VydmljZS5wcm90bxIYb2Jz",
-            "ZXJ2YWJpbGl0eV9jYXNjYWRlLnYxIgwKClJ1blJlcXVlc3QiZQoLUGhhc2VS",
-            "ZXN1bHQSEgoEbmFtZRgBIAEoCVIEbmFtZRISCgRwYXNzGAIgASgFUgRwYXNz",
-            "EhIKBGZhaWwYAyABKAVSBGZhaWwSGgoIZmFpbHVyZXMYBCADKAlSCGZhaWx1",
-            "cmVzIowBCg1DYXNjYWRlUmVwb3J0EhQKBXRpY2tzGAEgASgFUgV0aWNrcxIS",
-            "CgRwYXNzGAIgASgFUgRwYXNzEhIKBGZhaWwYAyABKAVSBGZhaWwSPQoGcGhh",
-            "c2VzGAQgAygLMiUub2JzZXJ2YWJpbGl0eV9jYXNjYWRlLnYxLlBoYXNlUmVz",
-            "dWx0UgZwaGFzZXMilwEKEk11bHRpUGF0dGVyblJlcG9ydBJDCghwYXR0ZXJu",
-            "cxgBIAMoCzInLm9ic2VydmFiaWxpdHlfY2FzY2FkZS52MS5DYXNjYWRlUmVw",
-            "b3J0UghwYXR0ZXJucxIdCgp0b3RhbF9wYXNzGAIgASgFUgl0b3RhbFBhc3MS",
-            "HQoKdG90YWxfZmFpbBgDIAEoBVIJdG90YWxGYWlsMsECChtPYnNlcnZhYmls",
-            "aXR5Q2FzY2FkZVNlcnZpY2USWwoKUnVuRGVmYXVsdBIkLm9ic2VydmFiaWxp",
-            "dHlfY2FzY2FkZS52MS5SdW5SZXF1ZXN0Gicub2JzZXJ2YWJpbGl0eV9jYXNj",
-            "YWRlLnYxLkNhc2NhZGVSZXBvcnQSXgoNUnVuTGl2ZVN0cmVhbRIkLm9ic2Vy",
-            "dmFiaWxpdHlfY2FzY2FkZS52MS5SdW5SZXF1ZXN0Gicub2JzZXJ2YWJpbGl0",
-            "eV9jYXNjYWRlLnYxLkNhc2NhZGVSZXBvcnQSZQoPUnVuTXVsdGlQYXR0ZXJu",
-            "EiQub2JzZXJ2YWJpbGl0eV9jYXNjYWRlLnYxLlJ1blJlcXVlc3QaLC5vYnNl",
-            "cnZhYmlsaXR5X2Nhc2NhZGUudjEuTXVsdGlQYXR0ZXJuUmVwb3J0QlFaT29i",
-            "c2VydmFiaWxpdHktY2FzY2FkZS1nby9nZW4vZ28vb2JzZXJ2YWJpbGl0eV9j",
-            "YXNjYWRlL3YxO29ic2VydmFiaWxpdHljYXNjYWRldjFiBnByb3RvMw=="));
+            "ZXJ2YWJpbGl0eV9jYXNjYWRlLnYxIgwKClJ1blJlcXVlc3QihAEKC1BoYXNl",
+            "UmVzdWx0EhIKBG5hbWUYASABKAlSBG5hbWUSEgoEcGFzcxgCIAEoBVIEcGFz",
+            "cxISCgRmYWlsGAMgASgFUgRmYWlsEhoKCGZhaWx1cmVzGAQgAygJUghmYWls",
+            "dXJlcxIdCgplbGFwc2VkX3VzGAUgASgDUgllbGFwc2VkVXMivwEKDUNhc2Nh",
+            "ZGVSZXBvcnQSFAoFdGlja3MYASABKAVSBXRpY2tzEhIKBHBhc3MYAiABKAVS",
+            "BHBhc3MSEgoEZmFpbBgDIAEoBVIEZmFpbBI9CgZwaGFzZXMYBCADKAsyJS5v",
+            "YnNlcnZhYmlsaXR5X2Nhc2NhZGUudjEuUGhhc2VSZXN1bHRSBnBoYXNlcxIS",
+            "CgRuYW1lGAUgASgJUgRuYW1lEh0KCmVsYXBzZWRfdXMYBiABKANSCWVsYXBz",
+            "ZWRVcyLBAQoSTXVsdGlQYXR0ZXJuUmVwb3J0EkMKCHBhdHRlcm5zGAEgAygL",
+            "Micub2JzZXJ2YWJpbGl0eV9jYXNjYWRlLnYxLkNhc2NhZGVSZXBvcnRSCHBh",
+            "dHRlcm5zEh0KCnRvdGFsX3Bhc3MYAiABKAVSCXRvdGFsUGFzcxIdCgp0b3Rh",
+            "bF9mYWlsGAMgASgFUgl0b3RhbEZhaWwSKAoQdG90YWxfZWxhcHNlZF91cxgE",
+            "IAEoA1IOdG90YWxFbGFwc2VkVXMywQIKG09ic2VydmFiaWxpdHlDYXNjYWRl",
+            "U2VydmljZRJbCgpSdW5EZWZhdWx0EiQub2JzZXJ2YWJpbGl0eV9jYXNjYWRl",
+            "LnYxLlJ1blJlcXVlc3QaJy5vYnNlcnZhYmlsaXR5X2Nhc2NhZGUudjEuQ2Fz",
+            "Y2FkZVJlcG9ydBJeCg1SdW5MaXZlU3RyZWFtEiQub2JzZXJ2YWJpbGl0eV9j",
+            "YXNjYWRlLnYxLlJ1blJlcXVlc3QaJy5vYnNlcnZhYmlsaXR5X2Nhc2NhZGUu",
+            "djEuQ2FzY2FkZVJlcG9ydBJlCg9SdW5NdWx0aVBhdHRlcm4SJC5vYnNlcnZh",
+            "YmlsaXR5X2Nhc2NhZGUudjEuUnVuUmVxdWVzdBosLm9ic2VydmFiaWxpdHlf",
+            "Y2FzY2FkZS52MS5NdWx0aVBhdHRlcm5SZXBvcnRCUVpPb2JzZXJ2YWJpbGl0",
+            "eS1jYXNjYWRlLWdvL2dlbi9nby9vYnNlcnZhYmlsaXR5X2Nhc2NhZGUvdjE7",
+            "b2JzZXJ2YWJpbGl0eWNhc2NhZGV2MWIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::ObservabilityCascade.V1.RunRequest), global::ObservabilityCascade.V1.RunRequest.Parser, null, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::ObservabilityCascade.V1.PhaseResult), global::ObservabilityCascade.V1.PhaseResult.Parser, new[]{ "Name", "Pass", "Fail", "Failures" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::ObservabilityCascade.V1.CascadeReport), global::ObservabilityCascade.V1.CascadeReport.Parser, new[]{ "Ticks", "Pass", "Fail", "Phases" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::ObservabilityCascade.V1.MultiPatternReport), global::ObservabilityCascade.V1.MultiPatternReport.Parser, new[]{ "Patterns", "TotalPass", "TotalFail" }, null, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::ObservabilityCascade.V1.PhaseResult), global::ObservabilityCascade.V1.PhaseResult.Parser, new[]{ "Name", "Pass", "Fail", "Failures", "ElapsedUs" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::ObservabilityCascade.V1.CascadeReport), global::ObservabilityCascade.V1.CascadeReport.Parser, new[]{ "Ticks", "Pass", "Fail", "Phases", "Name", "ElapsedUs" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::ObservabilityCascade.V1.MultiPatternReport), global::ObservabilityCascade.V1.MultiPatternReport.Parser, new[]{ "Patterns", "TotalPass", "TotalFail", "TotalElapsedUs" }, null, null, null, null)
           }));
     }
     #endregion
@@ -257,6 +260,7 @@ namespace ObservabilityCascade.V1 {
       pass_ = other.pass_;
       fail_ = other.fail_;
       failures_ = other.failures_.Clone();
+      elapsedUs_ = other.elapsedUs_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -313,6 +317,18 @@ namespace ObservabilityCascade.V1 {
       get { return failures_; }
     }
 
+    /// <summary>Field number for the "elapsed_us" field.</summary>
+    public const int ElapsedUsFieldNumber = 5;
+    private long elapsedUs_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public long ElapsedUs {
+      get { return elapsedUs_; }
+      set {
+        elapsedUs_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -332,6 +348,7 @@ namespace ObservabilityCascade.V1 {
       if (Pass != other.Pass) return false;
       if (Fail != other.Fail) return false;
       if(!failures_.Equals(other.failures_)) return false;
+      if (ElapsedUs != other.ElapsedUs) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -343,6 +360,7 @@ namespace ObservabilityCascade.V1 {
       if (Pass != 0) hash ^= Pass.GetHashCode();
       if (Fail != 0) hash ^= Fail.GetHashCode();
       hash ^= failures_.GetHashCode();
+      if (ElapsedUs != 0L) hash ^= ElapsedUs.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -374,6 +392,10 @@ namespace ObservabilityCascade.V1 {
         output.WriteInt32(Fail);
       }
       failures_.WriteTo(output, _repeated_failures_codec);
+      if (ElapsedUs != 0L) {
+        output.WriteRawTag(40);
+        output.WriteInt64(ElapsedUs);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -397,6 +419,10 @@ namespace ObservabilityCascade.V1 {
         output.WriteInt32(Fail);
       }
       failures_.WriteTo(ref output, _repeated_failures_codec);
+      if (ElapsedUs != 0L) {
+        output.WriteRawTag(40);
+        output.WriteInt64(ElapsedUs);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -417,6 +443,9 @@ namespace ObservabilityCascade.V1 {
         size += 1 + pb::CodedOutputStream.ComputeInt32Size(Fail);
       }
       size += failures_.CalculateSize(_repeated_failures_codec);
+      if (ElapsedUs != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(ElapsedUs);
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -439,6 +468,9 @@ namespace ObservabilityCascade.V1 {
         Fail = other.Fail;
       }
       failures_.Add(other.failures_);
+      if (other.ElapsedUs != 0L) {
+        ElapsedUs = other.ElapsedUs;
+      }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -474,6 +506,10 @@ namespace ObservabilityCascade.V1 {
             failures_.AddEntriesFrom(input, _repeated_failures_codec);
             break;
           }
+          case 40: {
+            ElapsedUs = input.ReadInt64();
+            break;
+          }
         }
       }
     #endif
@@ -507,6 +543,10 @@ namespace ObservabilityCascade.V1 {
           }
           case 34: {
             failures_.AddEntriesFrom(ref input, _repeated_failures_codec);
+            break;
+          }
+          case 40: {
+            ElapsedUs = input.ReadInt64();
             break;
           }
         }
@@ -555,6 +595,8 @@ namespace ObservabilityCascade.V1 {
       pass_ = other.pass_;
       fail_ = other.fail_;
       phases_ = other.phases_.Clone();
+      name_ = other.name_;
+      elapsedUs_ = other.elapsedUs_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -611,6 +653,30 @@ namespace ObservabilityCascade.V1 {
       get { return phases_; }
     }
 
+    /// <summary>Field number for the "name" field.</summary>
+    public const int NameFieldNumber = 5;
+    private string name_ = "";
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Name {
+      get { return name_; }
+      set {
+        name_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "elapsed_us" field.</summary>
+    public const int ElapsedUsFieldNumber = 6;
+    private long elapsedUs_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public long ElapsedUs {
+      get { return elapsedUs_; }
+      set {
+        elapsedUs_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -630,6 +696,8 @@ namespace ObservabilityCascade.V1 {
       if (Pass != other.Pass) return false;
       if (Fail != other.Fail) return false;
       if(!phases_.Equals(other.phases_)) return false;
+      if (Name != other.Name) return false;
+      if (ElapsedUs != other.ElapsedUs) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -641,6 +709,8 @@ namespace ObservabilityCascade.V1 {
       if (Pass != 0) hash ^= Pass.GetHashCode();
       if (Fail != 0) hash ^= Fail.GetHashCode();
       hash ^= phases_.GetHashCode();
+      if (Name.Length != 0) hash ^= Name.GetHashCode();
+      if (ElapsedUs != 0L) hash ^= ElapsedUs.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -672,6 +742,14 @@ namespace ObservabilityCascade.V1 {
         output.WriteInt32(Fail);
       }
       phases_.WriteTo(output, _repeated_phases_codec);
+      if (Name.Length != 0) {
+        output.WriteRawTag(42);
+        output.WriteString(Name);
+      }
+      if (ElapsedUs != 0L) {
+        output.WriteRawTag(48);
+        output.WriteInt64(ElapsedUs);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -695,6 +773,14 @@ namespace ObservabilityCascade.V1 {
         output.WriteInt32(Fail);
       }
       phases_.WriteTo(ref output, _repeated_phases_codec);
+      if (Name.Length != 0) {
+        output.WriteRawTag(42);
+        output.WriteString(Name);
+      }
+      if (ElapsedUs != 0L) {
+        output.WriteRawTag(48);
+        output.WriteInt64(ElapsedUs);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -715,6 +801,12 @@ namespace ObservabilityCascade.V1 {
         size += 1 + pb::CodedOutputStream.ComputeInt32Size(Fail);
       }
       size += phases_.CalculateSize(_repeated_phases_codec);
+      if (Name.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Name);
+      }
+      if (ElapsedUs != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(ElapsedUs);
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -737,6 +829,12 @@ namespace ObservabilityCascade.V1 {
         Fail = other.Fail;
       }
       phases_.Add(other.phases_);
+      if (other.Name.Length != 0) {
+        Name = other.Name;
+      }
+      if (other.ElapsedUs != 0L) {
+        ElapsedUs = other.ElapsedUs;
+      }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -772,6 +870,14 @@ namespace ObservabilityCascade.V1 {
             phases_.AddEntriesFrom(input, _repeated_phases_codec);
             break;
           }
+          case 42: {
+            Name = input.ReadString();
+            break;
+          }
+          case 48: {
+            ElapsedUs = input.ReadInt64();
+            break;
+          }
         }
       }
     #endif
@@ -805,6 +911,14 @@ namespace ObservabilityCascade.V1 {
           }
           case 34: {
             phases_.AddEntriesFrom(ref input, _repeated_phases_codec);
+            break;
+          }
+          case 42: {
+            Name = input.ReadString();
+            break;
+          }
+          case 48: {
+            ElapsedUs = input.ReadInt64();
             break;
           }
         }
@@ -852,6 +966,7 @@ namespace ObservabilityCascade.V1 {
       patterns_ = other.patterns_.Clone();
       totalPass_ = other.totalPass_;
       totalFail_ = other.totalFail_;
+      totalElapsedUs_ = other.totalElapsedUs_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -896,6 +1011,18 @@ namespace ObservabilityCascade.V1 {
       }
     }
 
+    /// <summary>Field number for the "total_elapsed_us" field.</summary>
+    public const int TotalElapsedUsFieldNumber = 4;
+    private long totalElapsedUs_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public long TotalElapsedUs {
+      get { return totalElapsedUs_; }
+      set {
+        totalElapsedUs_ = value;
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -914,6 +1041,7 @@ namespace ObservabilityCascade.V1 {
       if(!patterns_.Equals(other.patterns_)) return false;
       if (TotalPass != other.TotalPass) return false;
       if (TotalFail != other.TotalFail) return false;
+      if (TotalElapsedUs != other.TotalElapsedUs) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -924,6 +1052,7 @@ namespace ObservabilityCascade.V1 {
       hash ^= patterns_.GetHashCode();
       if (TotalPass != 0) hash ^= TotalPass.GetHashCode();
       if (TotalFail != 0) hash ^= TotalFail.GetHashCode();
+      if (TotalElapsedUs != 0L) hash ^= TotalElapsedUs.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -951,6 +1080,10 @@ namespace ObservabilityCascade.V1 {
         output.WriteRawTag(24);
         output.WriteInt32(TotalFail);
       }
+      if (TotalElapsedUs != 0L) {
+        output.WriteRawTag(32);
+        output.WriteInt64(TotalElapsedUs);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -970,6 +1103,10 @@ namespace ObservabilityCascade.V1 {
         output.WriteRawTag(24);
         output.WriteInt32(TotalFail);
       }
+      if (TotalElapsedUs != 0L) {
+        output.WriteRawTag(32);
+        output.WriteInt64(TotalElapsedUs);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -986,6 +1123,9 @@ namespace ObservabilityCascade.V1 {
       }
       if (TotalFail != 0) {
         size += 1 + pb::CodedOutputStream.ComputeInt32Size(TotalFail);
+      }
+      if (TotalElapsedUs != 0L) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(TotalElapsedUs);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -1005,6 +1145,9 @@ namespace ObservabilityCascade.V1 {
       }
       if (other.TotalFail != 0) {
         TotalFail = other.TotalFail;
+      }
+      if (other.TotalElapsedUs != 0L) {
+        TotalElapsedUs = other.TotalElapsedUs;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -1037,6 +1180,10 @@ namespace ObservabilityCascade.V1 {
             TotalFail = input.ReadInt32();
             break;
           }
+          case 32: {
+            TotalElapsedUs = input.ReadInt64();
+            break;
+          }
         }
       }
     #endif
@@ -1066,6 +1213,10 @@ namespace ObservabilityCascade.V1 {
           }
           case 24: {
             TotalFail = input.ReadInt32();
+            break;
+          }
+          case 32: {
+            TotalElapsedUs = input.ReadInt64();
             break;
           }
         }

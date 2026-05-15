@@ -34,6 +34,11 @@ option (holons.v1.manifest) = {
       path: "../observability-cascade-csharp-node"
       type: "holon"
     }
+    members: {
+      id: "go-node"
+      path: "../observability-cascade-go-node"
+      type: "holon"
+    }
   }
   requires: {
     commands: ["dotnet"]

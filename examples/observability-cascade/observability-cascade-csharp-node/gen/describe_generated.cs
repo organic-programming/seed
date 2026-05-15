@@ -109,6 +109,36 @@ public static class DescribeGenerated
                             Number = 2,
                             Label = FieldLabel.Optional,
                         },
+                        new FieldDoc
+                        {
+                            Name = "hops",
+                            Type = "relay.v1.HopReceipt",
+                            Number = 3,
+                            Label = FieldLabel.Repeated,
+                            NestedFields = {
+                                new FieldDoc
+                                {
+                                    Name = "slug",
+                                    Type = "string",
+                                    Number = 1,
+                                    Label = FieldLabel.Optional,
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "uid",
+                                    Type = "string",
+                                    Number = 2,
+                                    Label = FieldLabel.Optional,
+                                },
+                                new FieldDoc
+                                {
+                                    Name = "received",
+                                    Type = "int64",
+                                    Number = 3,
+                                    Label = FieldLabel.Optional,
+                                },
+                            },
+                        },
                     },
                 },
             },
