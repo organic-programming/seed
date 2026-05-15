@@ -27,6 +27,8 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -181,13 +183,19 @@ public final class Observability {
         public final String slug, instanceUid, sessionId, rpcMethod, message, caller;
         public final Map<String, String> fields;
         public final List<Hop> chain;
+        public final boolean privateEntry;
         public LogEntry(Instant ts, Level l, String slug, String uid, String sid, String m,
                         String msg, Map<String,String> f, String caller, List<Hop> chain) {
+            this(ts, l, slug, uid, sid, m, msg, f, caller, chain, false);
+        }
+        public LogEntry(Instant ts, Level l, String slug, String uid, String sid, String m,
+                        String msg, Map<String,String> f, String caller, List<Hop> chain, boolean privateEntry) {
             this.timestamp = ts; this.level = l; this.slug = slug; this.instanceUid = uid;
             this.sessionId = sid; this.rpcMethod = m; this.message = msg;
             this.fields = f == null ? Map.of() : Map.copyOf(f);
             this.caller = caller == null ? "" : caller;
             this.chain = chain == null ? List.of() : List.copyOf(chain);
+            this.privateEntry = privateEntry;
         }
     }
 
@@ -224,6 +232,16 @@ public final class Observability {
             return () -> subs.remove(fn);
         }
 
+        public synchronized ReplaySubscription<LogEntry> replayAndSubscribe(Instant cutoff, int bufferSize) {
+            List<LogEntry> replay = cutoff == null ? new ArrayList<>(buf) : drainSince(cutoff);
+            BlockingQueue<LogEntry> queue = new LinkedBlockingQueue<>(Math.max(1, bufferSize));
+            Consumer<LogEntry> fn = entry -> queue.offer(entry);
+            // Snapshot and subscription are in one critical section, so a
+            // follow=true stream cannot miss emissions at the replay/live seam.
+            subs.add(fn);
+            return new ReplaySubscription<>(replay, queue, () -> subs.remove(fn));
+        }
+
         public synchronized int size() { return buf.size(); }
     }
 
@@ -235,12 +253,18 @@ public final class Observability {
         public final String slug, instanceUid, sessionId;
         public final Map<String, String> payload;
         public final List<Hop> chain;
+        public final boolean privateEntry;
         public Event(Instant ts, EventType t, String slug, String uid, String sid,
                      Map<String,String> payload, List<Hop> chain) {
+            this(ts, t, slug, uid, sid, payload, chain, false);
+        }
+        public Event(Instant ts, EventType t, String slug, String uid, String sid,
+                     Map<String,String> payload, List<Hop> chain, boolean privateEntry) {
             this.timestamp = ts; this.type = t; this.slug = slug; this.instanceUid = uid;
             this.sessionId = sid == null ? "" : sid;
             this.payload = payload == null ? Map.of() : Map.copyOf(payload);
             this.chain = chain == null ? List.of() : List.copyOf(chain);
+            this.privateEntry = privateEntry;
         }
     }
 
@@ -276,9 +300,26 @@ public final class Observability {
             return () -> subs.remove(fn);
         }
 
+        public synchronized ReplaySubscription<Event> replayAndSubscribe(Instant cutoff, int bufferSize) {
+            List<Event> replay = cutoff == null ? new ArrayList<>(buf) : drainSince(cutoff);
+            BlockingQueue<Event> queue = new LinkedBlockingQueue<>(Math.max(1, bufferSize));
+            Consumer<Event> fn = event -> queue.offer(event);
+            // Snapshot and subscription are in one critical section, so a
+            // follow=true stream cannot miss emissions at the replay/live seam.
+            subs.add(fn);
+            return new ReplaySubscription<>(replay, queue, () -> subs.remove(fn));
+        }
+
         public void close() {
             closed = true;
             subs.clear();
+        }
+    }
+
+    public record ReplaySubscription<T>(List<T> replay, BlockingQueue<T> live, AutoCloseable closeable) implements AutoCloseable {
+        @Override
+        public void close() throws Exception {
+            closeable.close();
         }
     }
 
@@ -423,6 +464,10 @@ public final class Observability {
         public boolean enabled(Level l) { return obs != null && l.code >= level.code; }
 
         public void log(Level l, String msg, Map<String, Object> fields) {
+            log(l, msg, fields, false);
+        }
+
+        public void log(Level l, String msg, Map<String, Object> fields, boolean privateEntry) {
             if (!enabled(l)) return;
             Set<String> redact = new HashSet<>(obs.cfg.redactedFields);
             Map<String, String> out = new LinkedHashMap<>();
@@ -434,7 +479,7 @@ public final class Observability {
                 }
             }
             LogEntry entry = new LogEntry(Instant.now(), l, obs.cfg.slug, obs.cfg.instanceUid,
-                    "", "", msg, out, "", List.of());
+                    "", "", msg, out, "", List.of(), privateEntry);
             if (obs.logRing != null) obs.logRing.push(entry);
         }
 
@@ -444,6 +489,7 @@ public final class Observability {
         public void warn(String m, Map<String,Object> f)  { log(Level.WARN, m, f); }
         public void error(String m, Map<String,Object> f) { log(Level.ERROR, m, f); }
         public void fatal(String m, Map<String,Object> f) { log(Level.FATAL, m, f); }
+        public void privateInfo(String m, Map<String,Object> f) { log(Level.INFO, m, f, true); }
     }
 
     public final Config cfg;
@@ -485,6 +531,10 @@ public final class Observability {
     }
 
     public void emit(EventType type, Map<String, String> payload) {
+        emit(type, payload, false);
+    }
+
+    public void emit(EventType type, Map<String, String> payload, boolean privateEntry) {
         if (eventBus == null) return;
         Set<String> redact = new HashSet<>(cfg.redactedFields);
         Map<String, String> p = new LinkedHashMap<>();
@@ -493,7 +543,11 @@ public final class Observability {
                 p.put(e.getKey(), redact.contains(e.getKey()) ? "<redacted>" : e.getValue());
             }
         }
-        eventBus.emit(new Event(Instant.now(), type, cfg.slug, cfg.instanceUid, "", p, List.of()));
+        eventBus.emit(new Event(Instant.now(), type, cfg.slug, cfg.instanceUid, "", p, List.of(), privateEntry));
+    }
+
+    public void emitPrivate(EventType type, Map<String, String> payload) {
+        emit(type, payload, true);
     }
 
     public void close() {
@@ -595,10 +649,22 @@ public final class Observability {
                         return;
                     }
                     int minLevel = request.getMinLevelValue() == 0 ? Level.INFO.code : request.getMinLevelValue();
-                    List<LogEntry> entries = request.hasSince()
-                            ? obs.logRing.drainSince(cutoffFromDuration(request.getSince()))
-                            : obs.logRing.drain();
+                    ReplaySubscription<LogEntry> subscription = null;
+                    List<LogEntry> entries;
+                    if (request.getFollow()) {
+                        subscription = obs.logRing.replayAndSubscribe(
+                                request.hasSince() ? cutoffFromDuration(request.getSince()) : null,
+                                128);
+                        entries = subscription.replay();
+                    } else {
+                        entries = request.hasSince()
+                                ? obs.logRing.drainSince(cutoffFromDuration(request.getSince()))
+                                : obs.logRing.drain();
+                    }
                     for (LogEntry entry : entries) {
+                        if (request.getFollow() && entry.privateEntry) {
+                            continue;
+                        }
                         if (matchesLog(entry, minLevel, request.getSessionIdsList(), request.getRpcMethodsList())) {
                             observer.onNext(toProtoLogEntry(entry));
                         }
@@ -607,18 +673,32 @@ public final class Observability {
                         observer.onCompleted();
                         return;
                     }
-                    AutoCloseable subscription = obs.logRing.subscribe(entry -> {
-                        if (!matchesLog(entry, minLevel, request.getSessionIdsList(), request.getRpcMethodsList())) {
-                            return;
-                        }
+                    ReplaySubscription<LogEntry> liveSubscription = subscription;
+                    Thread liveThread = new Thread(() -> {
                         try {
-                            observer.onNext(toProtoLogEntry(entry));
+                            while (!Thread.currentThread().isInterrupted()) {
+                                LogEntry entry = liveSubscription.live().take();
+                                if (entry.privateEntry
+                                        || !matchesLog(entry, minLevel, request.getSessionIdsList(), request.getRpcMethodsList())) {
+                                    continue;
+                                }
+                                observer.onNext(toProtoLogEntry(entry));
+                            }
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
                         } catch (Exception ignored) {
                             // Cancelled clients are handled by the gRPC runtime.
+                        } finally {
+                            closeQuietly(liveSubscription);
                         }
-                    });
+                    }, "holons-observability-logs-follow");
+                    liveThread.setDaemon(true);
+                    liveThread.start();
                     if (observer instanceof ServerCallStreamObserver<?> serverObserver) {
-                        serverObserver.setOnCancelHandler(() -> closeQuietly(subscription));
+                        serverObserver.setOnCancelHandler(() -> {
+                            closeQuietly(liveSubscription);
+                            liveThread.interrupt();
+                        });
                     }
                 }))
                 .addMethod(METRICS_METHOD, ServerCalls.asyncUnaryCall((request, observer) -> {
@@ -650,10 +730,22 @@ public final class Observability {
                         return;
                     }
                     Set<Integer> wanted = new HashSet<>(request.getTypesValueList());
-                    List<Event> events = request.hasSince()
-                            ? obs.eventBus.drainSince(cutoffFromDuration(request.getSince()))
-                            : obs.eventBus.drain();
+                    ReplaySubscription<Event> subscription = null;
+                    List<Event> events;
+                    if (request.getFollow()) {
+                        subscription = obs.eventBus.replayAndSubscribe(
+                                request.hasSince() ? cutoffFromDuration(request.getSince()) : null,
+                                64);
+                        events = subscription.replay();
+                    } else {
+                        events = request.hasSince()
+                                ? obs.eventBus.drainSince(cutoffFromDuration(request.getSince()))
+                                : obs.eventBus.drain();
+                    }
                     for (Event event : events) {
+                        if (request.getFollow() && event.privateEntry) {
+                            continue;
+                        }
                         if (wanted.isEmpty() || wanted.contains(event.type.code)) {
                             observer.onNext(toProtoEvent(event));
                         }
@@ -662,18 +754,31 @@ public final class Observability {
                         observer.onCompleted();
                         return;
                     }
-                    AutoCloseable subscription = obs.eventBus.subscribe(event -> {
-                        if (!wanted.isEmpty() && !wanted.contains(event.type.code)) {
-                            return;
-                        }
+                    ReplaySubscription<Event> liveSubscription = subscription;
+                    Thread liveThread = new Thread(() -> {
                         try {
-                            observer.onNext(toProtoEvent(event));
+                            while (!Thread.currentThread().isInterrupted()) {
+                                Event event = liveSubscription.live().take();
+                                if (event.privateEntry || (!wanted.isEmpty() && !wanted.contains(event.type.code))) {
+                                    continue;
+                                }
+                                observer.onNext(toProtoEvent(event));
+                            }
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
                         } catch (Exception ignored) {
                             // Cancelled clients are handled by the gRPC runtime.
+                        } finally {
+                            closeQuietly(liveSubscription);
                         }
-                    });
+                    }, "holons-observability-events-follow");
+                    liveThread.setDaemon(true);
+                    liveThread.start();
                     if (observer instanceof ServerCallStreamObserver<?> serverObserver) {
-                        serverObserver.setOnCancelHandler(() -> closeQuietly(subscription));
+                        serverObserver.setOnCancelHandler(() -> {
+                            closeQuietly(liveSubscription);
+                            liveThread.interrupt();
+                        });
                     }
                 }))
                 .build();

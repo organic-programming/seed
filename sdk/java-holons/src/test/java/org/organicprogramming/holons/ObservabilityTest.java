@@ -167,4 +167,83 @@ final class ObservabilityTest {
         assertEquals("leaf", roundTrip.chain.get(0).slug);
         Observability.reset();
     }
+
+    @Test
+    void testLogsFollowReplaysRingOnSubscribe() throws Exception {
+        Observability.reset();
+        Observability.Config cfg = new Observability.Config();
+        cfg.slug = "java-log-replay";
+        cfg.instanceUid = "log-replay-1";
+        Observability obs = Observability.configureFromEnv(cfg, Map.of("OP_OBS", "logs"));
+        obs.logger("test").info("before-subscribe", Map.of());
+
+        Server server = ServerBuilder.forPort(0)
+                .addService(Observability.service(obs))
+                .build()
+                .start();
+        ManagedChannel channel = ManagedChannelBuilder.forAddress("127.0.0.1", server.getPort())
+                .usePlaintext()
+                .build();
+        try {
+            Iterator<holons.v1.Observability.LogEntry> iterator = ClientCalls.blockingServerStreamingCall(
+                    channel,
+                    Observability.logsMethod(),
+                    CallOptions.DEFAULT.withDeadlineAfter(2, TimeUnit.SECONDS),
+                    holons.v1.Observability.LogsRequest.newBuilder()
+                            .setFollow(true)
+                            .setMinLevel(holons.v1.Observability.LogLevel.INFO)
+                            .build());
+
+            assertTrue(iterator.hasNext());
+            assertEquals("before-subscribe", iterator.next().getMessage());
+            obs.logger("test").info("after-subscribe", Map.of());
+            assertTrue(iterator.hasNext());
+            assertEquals("after-subscribe", iterator.next().getMessage());
+        } finally {
+            channel.shutdownNow();
+            channel.awaitTermination(5, TimeUnit.SECONDS);
+            server.shutdownNow();
+            server.awaitTermination(5, TimeUnit.SECONDS);
+            Observability.reset();
+        }
+    }
+
+    @Test
+    void testEventsFollowReplaysRingOnSubscribe() throws Exception {
+        Observability.reset();
+        Observability.Config cfg = new Observability.Config();
+        cfg.slug = "java-event-replay";
+        cfg.instanceUid = "event-replay-1";
+        Observability obs = Observability.configureFromEnv(cfg, Map.of("OP_OBS", "events"));
+        obs.emit(Observability.EventType.INSTANCE_READY, Map.of("listener", "tcp://127.0.0.1:1"));
+
+        Server server = ServerBuilder.forPort(0)
+                .addService(Observability.service(obs))
+                .build()
+                .start();
+        ManagedChannel channel = ManagedChannelBuilder.forAddress("127.0.0.1", server.getPort())
+                .usePlaintext()
+                .build();
+        try {
+            Iterator<holons.v1.Observability.EventInfo> iterator = ClientCalls.blockingServerStreamingCall(
+                    channel,
+                    Observability.eventsMethod(),
+                    CallOptions.DEFAULT.withDeadlineAfter(2, TimeUnit.SECONDS),
+                    holons.v1.Observability.EventsRequest.newBuilder()
+                            .setFollow(true)
+                            .build());
+
+            assertTrue(iterator.hasNext());
+            assertEquals(holons.v1.Observability.EventType.INSTANCE_READY, iterator.next().getType());
+            obs.emit(Observability.EventType.INSTANCE_EXITED, Map.of("listener", "tcp://127.0.0.1:1"));
+            assertTrue(iterator.hasNext());
+            assertEquals(holons.v1.Observability.EventType.INSTANCE_EXITED, iterator.next().getType());
+        } finally {
+            channel.shutdownNow();
+            channel.awaitTermination(5, TimeUnit.SECONDS);
+            server.shutdownNow();
+            server.awaitTermination(5, TimeUnit.SECONDS);
+            Observability.reset();
+        }
+    }
 }

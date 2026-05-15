@@ -380,6 +380,13 @@ public final class Serve {
         if (raw.isEmpty()) {
             return null;
         }
+        Observability current = Observability.current();
+        String wantedSlug = options.slug() == null ? "" : options.slug().trim();
+        if (!current.families.isEmpty()
+                && (wantedSlug.isEmpty() || wantedSlug.equals(current.cfg.slug))) {
+            definitions.add(Observability.service(current));
+            return current;
+        }
         Observability.Config config = new Observability.Config();
         if (options.slug() != null && !options.slug().isBlank()) {
             config.slug = options.slug();
@@ -461,7 +468,9 @@ public final class Serve {
         }
         Observability.enableDiskWriters(obs.cfg.runDir);
         if (obs.enabled(Observability.Family.EVENTS)) {
-            obs.emit(Observability.EventType.INSTANCE_READY, Map.of("listener", publicUri));
+            obs.emit(Observability.EventType.INSTANCE_READY, Map.of(
+                    "listener", publicUri,
+                    "metrics_addr", metricsAddr));
         }
         Observability.MetaJson meta = new Observability.MetaJson();
         meta.slug = obs.cfg.slug;

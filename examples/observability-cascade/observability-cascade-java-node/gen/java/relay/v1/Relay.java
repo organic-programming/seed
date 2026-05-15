@@ -684,6 +684,737 @@ public final class Relay {
 
   }
 
+  public interface HopReceiptOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:relay.v1.HopReceipt)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>string slug = 1 [json_name = "slug"];</code>
+     * @return The slug.
+     */
+    java.lang.String getSlug();
+    /**
+     * <code>string slug = 1 [json_name = "slug"];</code>
+     * @return The bytes for slug.
+     */
+    com.google.protobuf.ByteString
+        getSlugBytes();
+
+    /**
+     * <code>string uid = 2 [json_name = "uid"];</code>
+     * @return The uid.
+     */
+    java.lang.String getUid();
+    /**
+     * <code>string uid = 2 [json_name = "uid"];</code>
+     * @return The bytes for uid.
+     */
+    com.google.protobuf.ByteString
+        getUidBytes();
+
+    /**
+     * <code>int64 received = 3 [json_name = "received"];</code>
+     * @return The received.
+     */
+    long getReceived();
+  }
+  /**
+   * Protobuf type {@code relay.v1.HopReceipt}
+   */
+  public static final class HopReceipt extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:relay.v1.HopReceipt)
+      HopReceiptOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 32,
+        /* patch= */ 0,
+        /* suffix= */ "",
+        HopReceipt.class.getName());
+    }
+    // Use HopReceipt.newBuilder() to construct.
+    private HopReceipt(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private HopReceipt() {
+      slug_ = "";
+      uid_ = "";
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return relay.v1.Relay.internal_static_relay_v1_HopReceipt_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return relay.v1.Relay.internal_static_relay_v1_HopReceipt_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              relay.v1.Relay.HopReceipt.class, relay.v1.Relay.HopReceipt.Builder.class);
+    }
+
+    public static final int SLUG_FIELD_NUMBER = 1;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object slug_ = "";
+    /**
+     * <code>string slug = 1 [json_name = "slug"];</code>
+     * @return The slug.
+     */
+    @java.lang.Override
+    public java.lang.String getSlug() {
+      java.lang.Object ref = slug_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        slug_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string slug = 1 [json_name = "slug"];</code>
+     * @return The bytes for slug.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getSlugBytes() {
+      java.lang.Object ref = slug_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        slug_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int UID_FIELD_NUMBER = 2;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object uid_ = "";
+    /**
+     * <code>string uid = 2 [json_name = "uid"];</code>
+     * @return The uid.
+     */
+    @java.lang.Override
+    public java.lang.String getUid() {
+      java.lang.Object ref = uid_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        uid_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string uid = 2 [json_name = "uid"];</code>
+     * @return The bytes for uid.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getUidBytes() {
+      java.lang.Object ref = uid_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        uid_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int RECEIVED_FIELD_NUMBER = 3;
+    private long received_ = 0L;
+    /**
+     * <code>int64 received = 3 [json_name = "received"];</code>
+     * @return The received.
+     */
+    @java.lang.Override
+    public long getReceived() {
+      return received_;
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(slug_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 1, slug_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(uid_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 2, uid_);
+      }
+      if (received_ != 0L) {
+        output.writeInt64(3, received_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(slug_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(1, slug_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(uid_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(2, uid_);
+      }
+      if (received_ != 0L) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(3, received_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof relay.v1.Relay.HopReceipt)) {
+        return super.equals(obj);
+      }
+      relay.v1.Relay.HopReceipt other = (relay.v1.Relay.HopReceipt) obj;
+
+      if (!getSlug()
+          .equals(other.getSlug())) return false;
+      if (!getUid()
+          .equals(other.getUid())) return false;
+      if (getReceived()
+          != other.getReceived()) return false;
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      hash = (37 * hash) + SLUG_FIELD_NUMBER;
+      hash = (53 * hash) + getSlug().hashCode();
+      hash = (37 * hash) + UID_FIELD_NUMBER;
+      hash = (53 * hash) + getUid().hashCode();
+      hash = (37 * hash) + RECEIVED_FIELD_NUMBER;
+      hash = (53 * hash) + com.google.protobuf.Internal.hashLong(
+          getReceived());
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static relay.v1.Relay.HopReceipt parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static relay.v1.Relay.HopReceipt parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static relay.v1.Relay.HopReceipt parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static relay.v1.Relay.HopReceipt parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static relay.v1.Relay.HopReceipt parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static relay.v1.Relay.HopReceipt parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static relay.v1.Relay.HopReceipt parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static relay.v1.Relay.HopReceipt parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static relay.v1.Relay.HopReceipt parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static relay.v1.Relay.HopReceipt parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static relay.v1.Relay.HopReceipt parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static relay.v1.Relay.HopReceipt parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(relay.v1.Relay.HopReceipt prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code relay.v1.HopReceipt}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:relay.v1.HopReceipt)
+        relay.v1.Relay.HopReceiptOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return relay.v1.Relay.internal_static_relay_v1_HopReceipt_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return relay.v1.Relay.internal_static_relay_v1_HopReceipt_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                relay.v1.Relay.HopReceipt.class, relay.v1.Relay.HopReceipt.Builder.class);
+      }
+
+      // Construct using relay.v1.Relay.HopReceipt.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        slug_ = "";
+        uid_ = "";
+        received_ = 0L;
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return relay.v1.Relay.internal_static_relay_v1_HopReceipt_descriptor;
+      }
+
+      @java.lang.Override
+      public relay.v1.Relay.HopReceipt getDefaultInstanceForType() {
+        return relay.v1.Relay.HopReceipt.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public relay.v1.Relay.HopReceipt build() {
+        relay.v1.Relay.HopReceipt result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public relay.v1.Relay.HopReceipt buildPartial() {
+        relay.v1.Relay.HopReceipt result = new relay.v1.Relay.HopReceipt(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(relay.v1.Relay.HopReceipt result) {
+        int from_bitField0_ = bitField0_;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          result.slug_ = slug_;
+        }
+        if (((from_bitField0_ & 0x00000002) != 0)) {
+          result.uid_ = uid_;
+        }
+        if (((from_bitField0_ & 0x00000004) != 0)) {
+          result.received_ = received_;
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof relay.v1.Relay.HopReceipt) {
+          return mergeFrom((relay.v1.Relay.HopReceipt)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(relay.v1.Relay.HopReceipt other) {
+        if (other == relay.v1.Relay.HopReceipt.getDefaultInstance()) return this;
+        if (!other.getSlug().isEmpty()) {
+          slug_ = other.slug_;
+          bitField0_ |= 0x00000001;
+          onChanged();
+        }
+        if (!other.getUid().isEmpty()) {
+          uid_ = other.uid_;
+          bitField0_ |= 0x00000002;
+          onChanged();
+        }
+        if (other.getReceived() != 0L) {
+          setReceived(other.getReceived());
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 10: {
+                slug_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000001;
+                break;
+              } // case 10
+              case 18: {
+                uid_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000002;
+                break;
+              } // case 18
+              case 24: {
+                received_ = input.readInt64();
+                bitField0_ |= 0x00000004;
+                break;
+              } // case 24
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int bitField0_;
+
+      private java.lang.Object slug_ = "";
+      /**
+       * <code>string slug = 1 [json_name = "slug"];</code>
+       * @return The slug.
+       */
+      public java.lang.String getSlug() {
+        java.lang.Object ref = slug_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          slug_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string slug = 1 [json_name = "slug"];</code>
+       * @return The bytes for slug.
+       */
+      public com.google.protobuf.ByteString
+          getSlugBytes() {
+        java.lang.Object ref = slug_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          slug_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string slug = 1 [json_name = "slug"];</code>
+       * @param value The slug to set.
+       * @return This builder for chaining.
+       */
+      public Builder setSlug(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        slug_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string slug = 1 [json_name = "slug"];</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearSlug() {
+        slug_ = getDefaultInstance().getSlug();
+        bitField0_ = (bitField0_ & ~0x00000001);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string slug = 1 [json_name = "slug"];</code>
+       * @param value The bytes for slug to set.
+       * @return This builder for chaining.
+       */
+      public Builder setSlugBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        slug_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object uid_ = "";
+      /**
+       * <code>string uid = 2 [json_name = "uid"];</code>
+       * @return The uid.
+       */
+      public java.lang.String getUid() {
+        java.lang.Object ref = uid_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          uid_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string uid = 2 [json_name = "uid"];</code>
+       * @return The bytes for uid.
+       */
+      public com.google.protobuf.ByteString
+          getUidBytes() {
+        java.lang.Object ref = uid_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          uid_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string uid = 2 [json_name = "uid"];</code>
+       * @param value The uid to set.
+       * @return This builder for chaining.
+       */
+      public Builder setUid(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        uid_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string uid = 2 [json_name = "uid"];</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearUid() {
+        uid_ = getDefaultInstance().getUid();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string uid = 2 [json_name = "uid"];</code>
+       * @param value The bytes for uid to set.
+       * @return This builder for chaining.
+       */
+      public Builder setUidBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        uid_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+
+      private long received_ ;
+      /**
+       * <code>int64 received = 3 [json_name = "received"];</code>
+       * @return The received.
+       */
+      @java.lang.Override
+      public long getReceived() {
+        return received_;
+      }
+      /**
+       * <code>int64 received = 3 [json_name = "received"];</code>
+       * @param value The received to set.
+       * @return This builder for chaining.
+       */
+      public Builder setReceived(long value) {
+
+        received_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>int64 received = 3 [json_name = "received"];</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearReceived() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        received_ = 0L;
+        onChanged();
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:relay.v1.HopReceipt)
+    }
+
+    // @@protoc_insertion_point(class_scope:relay.v1.HopReceipt)
+    private static final relay.v1.Relay.HopReceipt DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new relay.v1.Relay.HopReceipt();
+    }
+
+    public static relay.v1.Relay.HopReceipt getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<HopReceipt>
+        PARSER = new com.google.protobuf.AbstractParser<HopReceipt>() {
+      @java.lang.Override
+      public HopReceipt parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<HopReceipt> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<HopReceipt> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public relay.v1.Relay.HopReceipt getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
   public interface TickResponseOrBuilder extends
       // @@protoc_insertion_point(interface_extends:relay.v1.TickResponse)
       com.google.protobuf.MessageOrBuilder {
@@ -711,6 +1442,30 @@ public final class Relay {
      */
     com.google.protobuf.ByteString
         getResponderInstanceUidBytes();
+
+    /**
+     * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+     */
+    java.util.List<relay.v1.Relay.HopReceipt> 
+        getHopsList();
+    /**
+     * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+     */
+    relay.v1.Relay.HopReceipt getHops(int index);
+    /**
+     * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+     */
+    int getHopsCount();
+    /**
+     * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+     */
+    java.util.List<? extends relay.v1.Relay.HopReceiptOrBuilder> 
+        getHopsOrBuilderList();
+    /**
+     * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+     */
+    relay.v1.Relay.HopReceiptOrBuilder getHopsOrBuilder(
+        int index);
   }
   /**
    * Protobuf type {@code relay.v1.TickResponse}
@@ -736,6 +1491,7 @@ public final class Relay {
     private TickResponse() {
       responderSlug_ = "";
       responderInstanceUid_ = "";
+      hops_ = java.util.Collections.emptyList();
     }
 
     public static final com.google.protobuf.Descriptors.Descriptor
@@ -829,6 +1585,47 @@ public final class Relay {
       }
     }
 
+    public static final int HOPS_FIELD_NUMBER = 3;
+    @SuppressWarnings("serial")
+    private java.util.List<relay.v1.Relay.HopReceipt> hops_;
+    /**
+     * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+     */
+    @java.lang.Override
+    public java.util.List<relay.v1.Relay.HopReceipt> getHopsList() {
+      return hops_;
+    }
+    /**
+     * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+     */
+    @java.lang.Override
+    public java.util.List<? extends relay.v1.Relay.HopReceiptOrBuilder> 
+        getHopsOrBuilderList() {
+      return hops_;
+    }
+    /**
+     * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+     */
+    @java.lang.Override
+    public int getHopsCount() {
+      return hops_.size();
+    }
+    /**
+     * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+     */
+    @java.lang.Override
+    public relay.v1.Relay.HopReceipt getHops(int index) {
+      return hops_.get(index);
+    }
+    /**
+     * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+     */
+    @java.lang.Override
+    public relay.v1.Relay.HopReceiptOrBuilder getHopsOrBuilder(
+        int index) {
+      return hops_.get(index);
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -849,6 +1646,9 @@ public final class Relay {
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(responderInstanceUid_)) {
         com.google.protobuf.GeneratedMessage.writeString(output, 2, responderInstanceUid_);
       }
+      for (int i = 0; i < hops_.size(); i++) {
+        output.writeMessage(3, hops_.get(i));
+      }
       getUnknownFields().writeTo(output);
     }
 
@@ -863,6 +1663,10 @@ public final class Relay {
       }
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(responderInstanceUid_)) {
         size += com.google.protobuf.GeneratedMessage.computeStringSize(2, responderInstanceUid_);
+      }
+      for (int i = 0; i < hops_.size(); i++) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(3, hops_.get(i));
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
@@ -883,6 +1687,8 @@ public final class Relay {
           .equals(other.getResponderSlug())) return false;
       if (!getResponderInstanceUid()
           .equals(other.getResponderInstanceUid())) return false;
+      if (!getHopsList()
+          .equals(other.getHopsList())) return false;
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
     }
@@ -898,6 +1704,10 @@ public final class Relay {
       hash = (53 * hash) + getResponderSlug().hashCode();
       hash = (37 * hash) + RESPONDER_INSTANCE_UID_FIELD_NUMBER;
       hash = (53 * hash) + getResponderInstanceUid().hashCode();
+      if (getHopsCount() > 0) {
+        hash = (37 * hash) + HOPS_FIELD_NUMBER;
+        hash = (53 * hash) + getHopsList().hashCode();
+      }
       hash = (29 * hash) + getUnknownFields().hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -1031,6 +1841,13 @@ public final class Relay {
         bitField0_ = 0;
         responderSlug_ = "";
         responderInstanceUid_ = "";
+        if (hopsBuilder_ == null) {
+          hops_ = java.util.Collections.emptyList();
+        } else {
+          hops_ = null;
+          hopsBuilder_.clear();
+        }
+        bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
 
@@ -1057,9 +1874,22 @@ public final class Relay {
       @java.lang.Override
       public relay.v1.Relay.TickResponse buildPartial() {
         relay.v1.Relay.TickResponse result = new relay.v1.Relay.TickResponse(this);
+        buildPartialRepeatedFields(result);
         if (bitField0_ != 0) { buildPartial0(result); }
         onBuilt();
         return result;
+      }
+
+      private void buildPartialRepeatedFields(relay.v1.Relay.TickResponse result) {
+        if (hopsBuilder_ == null) {
+          if (((bitField0_ & 0x00000004) != 0)) {
+            hops_ = java.util.Collections.unmodifiableList(hops_);
+            bitField0_ = (bitField0_ & ~0x00000004);
+          }
+          result.hops_ = hops_;
+        } else {
+          result.hops_ = hopsBuilder_.build();
+        }
       }
 
       private void buildPartial0(relay.v1.Relay.TickResponse result) {
@@ -1093,6 +1923,32 @@ public final class Relay {
           responderInstanceUid_ = other.responderInstanceUid_;
           bitField0_ |= 0x00000002;
           onChanged();
+        }
+        if (hopsBuilder_ == null) {
+          if (!other.hops_.isEmpty()) {
+            if (hops_.isEmpty()) {
+              hops_ = other.hops_;
+              bitField0_ = (bitField0_ & ~0x00000004);
+            } else {
+              ensureHopsIsMutable();
+              hops_.addAll(other.hops_);
+            }
+            onChanged();
+          }
+        } else {
+          if (!other.hops_.isEmpty()) {
+            if (hopsBuilder_.isEmpty()) {
+              hopsBuilder_.dispose();
+              hopsBuilder_ = null;
+              hops_ = other.hops_;
+              bitField0_ = (bitField0_ & ~0x00000004);
+              hopsBuilder_ = 
+                com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
+                   internalGetHopsFieldBuilder() : null;
+            } else {
+              hopsBuilder_.addAllMessages(other.hops_);
+            }
+          }
         }
         this.mergeUnknownFields(other.getUnknownFields());
         onChanged();
@@ -1130,6 +1986,19 @@ public final class Relay {
                 bitField0_ |= 0x00000002;
                 break;
               } // case 18
+              case 26: {
+                relay.v1.Relay.HopReceipt m =
+                    input.readMessage(
+                        relay.v1.Relay.HopReceipt.parser(),
+                        extensionRegistry);
+                if (hopsBuilder_ == null) {
+                  ensureHopsIsMutable();
+                  hops_.add(m);
+                } else {
+                  hopsBuilder_.addMessage(m);
+                }
+                break;
+              } // case 26
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -1291,6 +2160,246 @@ public final class Relay {
         return this;
       }
 
+      private java.util.List<relay.v1.Relay.HopReceipt> hops_ =
+        java.util.Collections.emptyList();
+      private void ensureHopsIsMutable() {
+        if (!((bitField0_ & 0x00000004) != 0)) {
+          hops_ = new java.util.ArrayList<relay.v1.Relay.HopReceipt>(hops_);
+          bitField0_ |= 0x00000004;
+         }
+      }
+
+      private com.google.protobuf.RepeatedFieldBuilder<
+          relay.v1.Relay.HopReceipt, relay.v1.Relay.HopReceipt.Builder, relay.v1.Relay.HopReceiptOrBuilder> hopsBuilder_;
+
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public java.util.List<relay.v1.Relay.HopReceipt> getHopsList() {
+        if (hopsBuilder_ == null) {
+          return java.util.Collections.unmodifiableList(hops_);
+        } else {
+          return hopsBuilder_.getMessageList();
+        }
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public int getHopsCount() {
+        if (hopsBuilder_ == null) {
+          return hops_.size();
+        } else {
+          return hopsBuilder_.getCount();
+        }
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public relay.v1.Relay.HopReceipt getHops(int index) {
+        if (hopsBuilder_ == null) {
+          return hops_.get(index);
+        } else {
+          return hopsBuilder_.getMessage(index);
+        }
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public Builder setHops(
+          int index, relay.v1.Relay.HopReceipt value) {
+        if (hopsBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureHopsIsMutable();
+          hops_.set(index, value);
+          onChanged();
+        } else {
+          hopsBuilder_.setMessage(index, value);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public Builder setHops(
+          int index, relay.v1.Relay.HopReceipt.Builder builderForValue) {
+        if (hopsBuilder_ == null) {
+          ensureHopsIsMutable();
+          hops_.set(index, builderForValue.build());
+          onChanged();
+        } else {
+          hopsBuilder_.setMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public Builder addHops(relay.v1.Relay.HopReceipt value) {
+        if (hopsBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureHopsIsMutable();
+          hops_.add(value);
+          onChanged();
+        } else {
+          hopsBuilder_.addMessage(value);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public Builder addHops(
+          int index, relay.v1.Relay.HopReceipt value) {
+        if (hopsBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          ensureHopsIsMutable();
+          hops_.add(index, value);
+          onChanged();
+        } else {
+          hopsBuilder_.addMessage(index, value);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public Builder addHops(
+          relay.v1.Relay.HopReceipt.Builder builderForValue) {
+        if (hopsBuilder_ == null) {
+          ensureHopsIsMutable();
+          hops_.add(builderForValue.build());
+          onChanged();
+        } else {
+          hopsBuilder_.addMessage(builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public Builder addHops(
+          int index, relay.v1.Relay.HopReceipt.Builder builderForValue) {
+        if (hopsBuilder_ == null) {
+          ensureHopsIsMutable();
+          hops_.add(index, builderForValue.build());
+          onChanged();
+        } else {
+          hopsBuilder_.addMessage(index, builderForValue.build());
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public Builder addAllHops(
+          java.lang.Iterable<? extends relay.v1.Relay.HopReceipt> values) {
+        if (hopsBuilder_ == null) {
+          ensureHopsIsMutable();
+          com.google.protobuf.AbstractMessageLite.Builder.addAll(
+              values, hops_);
+          onChanged();
+        } else {
+          hopsBuilder_.addAllMessages(values);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public Builder clearHops() {
+        if (hopsBuilder_ == null) {
+          hops_ = java.util.Collections.emptyList();
+          bitField0_ = (bitField0_ & ~0x00000004);
+          onChanged();
+        } else {
+          hopsBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public Builder removeHops(int index) {
+        if (hopsBuilder_ == null) {
+          ensureHopsIsMutable();
+          hops_.remove(index);
+          onChanged();
+        } else {
+          hopsBuilder_.remove(index);
+        }
+        return this;
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public relay.v1.Relay.HopReceipt.Builder getHopsBuilder(
+          int index) {
+        return internalGetHopsFieldBuilder().getBuilder(index);
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public relay.v1.Relay.HopReceiptOrBuilder getHopsOrBuilder(
+          int index) {
+        if (hopsBuilder_ == null) {
+          return hops_.get(index);  } else {
+          return hopsBuilder_.getMessageOrBuilder(index);
+        }
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public java.util.List<? extends relay.v1.Relay.HopReceiptOrBuilder> 
+           getHopsOrBuilderList() {
+        if (hopsBuilder_ != null) {
+          return hopsBuilder_.getMessageOrBuilderList();
+        } else {
+          return java.util.Collections.unmodifiableList(hops_);
+        }
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public relay.v1.Relay.HopReceipt.Builder addHopsBuilder() {
+        return internalGetHopsFieldBuilder().addBuilder(
+            relay.v1.Relay.HopReceipt.getDefaultInstance());
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public relay.v1.Relay.HopReceipt.Builder addHopsBuilder(
+          int index) {
+        return internalGetHopsFieldBuilder().addBuilder(
+            index, relay.v1.Relay.HopReceipt.getDefaultInstance());
+      }
+      /**
+       * <code>repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];</code>
+       */
+      public java.util.List<relay.v1.Relay.HopReceipt.Builder> 
+           getHopsBuilderList() {
+        return internalGetHopsFieldBuilder().getBuilderList();
+      }
+      private com.google.protobuf.RepeatedFieldBuilder<
+          relay.v1.Relay.HopReceipt, relay.v1.Relay.HopReceipt.Builder, relay.v1.Relay.HopReceiptOrBuilder> 
+          internalGetHopsFieldBuilder() {
+        if (hopsBuilder_ == null) {
+          hopsBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
+              relay.v1.Relay.HopReceipt, relay.v1.Relay.HopReceipt.Builder, relay.v1.Relay.HopReceiptOrBuilder>(
+                  hops_,
+                  ((bitField0_ & 0x00000004) != 0),
+                  getParentForChildren(),
+                  isClean());
+          hops_ = null;
+        }
+        return hopsBuilder_;
+      }
+
       // @@protoc_insertion_point(builder_scope:relay.v1.TickResponse)
     }
 
@@ -1348,6 +2457,11 @@ public final class Relay {
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_relay_v1_TickRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_relay_v1_HopReceipt_descriptor;
+  private static final 
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_relay_v1_HopReceipt_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_relay_v1_TickResponse_descriptor;
   private static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
@@ -1363,13 +2477,16 @@ public final class Relay {
     java.lang.String[] descriptorData = {
       "\n\024relay/v1/relay.proto\022\010relay.v1\"9\n\013Tick" +
       "Request\022\026\n\006sender\030\001 \001(\tR\006sender\022\022\n\004note\030" +
-      "\002 \001(\tR\004note\"k\n\014TickResponse\022%\n\016responder" +
-      "_slug\030\001 \001(\tR\rresponderSlug\0224\n\026responder_" +
-      "instance_uid\030\002 \001(\tR\024responderInstanceUid" +
-      "2E\n\014RelayService\0225\n\004Tick\022\025.relay.v1.Tick" +
-      "Request\032\026.relay.v1.TickResponseB1Z/examp" +
-      "les/relay-cascade/_protos/relay/v1;relay" +
-      "v1b\006proto3"
+      "\002 \001(\tR\004note\"N\n\nHopReceipt\022\022\n\004slug\030\001 \001(\tR" +
+      "\004slug\022\020\n\003uid\030\002 \001(\tR\003uid\022\032\n\010received\030\003 \001(" +
+      "\003R\010received\"\225\001\n\014TickResponse\022%\n\016responde" +
+      "r_slug\030\001 \001(\tR\rresponderSlug\0224\n\026responder" +
+      "_instance_uid\030\002 \001(\tR\024responderInstanceUi" +
+      "d\022(\n\004hops\030\003 \003(\0132\024.relay.v1.HopReceiptR\004h" +
+      "ops2E\n\014RelayService\0225\n\004Tick\022\025.relay.v1.T" +
+      "ickRequest\032\026.relay.v1.TickResponseB1Z/ex" +
+      "amples/relay-cascade/_protos/relay/v1;re" +
+      "layv1b\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -1381,12 +2498,18 @@ public final class Relay {
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_relay_v1_TickRequest_descriptor,
         new java.lang.String[] { "Sender", "Note", });
-    internal_static_relay_v1_TickResponse_descriptor =
+    internal_static_relay_v1_HopReceipt_descriptor =
       getDescriptor().getMessageTypes().get(1);
+    internal_static_relay_v1_HopReceipt_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_relay_v1_HopReceipt_descriptor,
+        new java.lang.String[] { "Slug", "Uid", "Received", });
+    internal_static_relay_v1_TickResponse_descriptor =
+      getDescriptor().getMessageTypes().get(2);
     internal_static_relay_v1_TickResponse_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_relay_v1_TickResponse_descriptor,
-        new java.lang.String[] { "ResponderSlug", "ResponderInstanceUid", });
+        new java.lang.String[] { "ResponderSlug", "ResponderInstanceUid", "Hops", });
     descriptor.resolveAllFeaturesImmutable();
   }
 
