@@ -20,6 +20,7 @@
 .build/
 .dart_tool/
 .gradle/
+.swiftpm/
 
 # SDK prebuilt staging caches (transient build outputs)
 **/.codegen-prebuilt/

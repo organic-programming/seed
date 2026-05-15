@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -101,53 +102,66 @@ func TestRunWorkspaceSnapshotUsesWorkingTree(t *testing.T) {
 	})
 }
 
-func TestCopyWorkspaceTreeSkipsSiblingCatalogueRuntimeState(t *testing.T) {
+func TestCopyWorkspaceTreeUsesGitIgnoreSourceSet(t *testing.T) {
 	srcRoot := t.TempDir()
 	dstRoot := t.TempDir()
+
+	runGitCommand(t, srcRoot, "init")
+	runGitCommand(t, srcRoot, "config", "user.name", "Codex")
+	runGitCommand(t, srcRoot, "config", "user.email", "codex@example.invalid")
+
+	writeFile := func(path string, content string, mode os.FileMode) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+		}
+		if err := os.WriteFile(path, []byte(content), mode); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	writeFile(filepath.Join(srcRoot, ".gitignore"), ".op/\n.swiftpm/\nnode_modules/\n", 0o644)
+	writeFile(filepath.Join(srcRoot, "ader", ".gitignore"), ".artifacts/\n.snapshot_alias\nreports/\narchives/\n", 0o644)
+	writeFile(filepath.Join(srcRoot, "examples", ".gitignore"), ".zig-cache/\ntarget/\n__pycache__/\n.venv/\n", 0o644)
+	writeFile(filepath.Join(srcRoot, "examples", "hello-world", "gabriel-greeting-csharp", ".gitignore"), "/bin/\n/obj/\n", 0o644)
+	writeFile(filepath.Join(srcRoot, "sdk", "zig-holons", ".gitignore"), ".zig-cache/\n", 0o644)
 
 	keepPath := filepath.Join(srcRoot, "ader", "catalogues", "grace-op", "integration", "discover_test.go")
 	keepBuildPath := filepath.Join(srcRoot, "ader", "catalogues", "grace-op", "integration", "build", "build_cli_test.go")
 	keepThirdPartyObjPath := filepath.Join(srcRoot, "sdk", "zig-holons", "third_party", "grpc", "third_party", "boringssl-with-bazel", "src", "crypto", "obj", "obj.cc")
+	scriptPath := filepath.Join(srcRoot, "tools", "run.sh")
+	linkPath := filepath.Join(srcRoot, "links", "state-link")
+	untrackedPath := filepath.Join(srcRoot, "docs", "new-check.md")
+	skipZigPath := filepath.Join(srcRoot, "sdk", "zig-holons", ".zig-cache", "o", "test")
+	skipOpPath := filepath.Join(srcRoot, "examples", "observability-cascade", "observability-cascade-rust", ".op", "build", "cache.bin")
+	skipTargetPath := filepath.Join(srcRoot, "examples", "hello-world", "gabriel-greeting-rust", "target", "debug", "cache.bin")
+	skipNodePath := filepath.Join(srcRoot, "examples", "hello-world", "gabriel-greeting-node", "node_modules", "pkg", "index.js")
 	skipObjPath := filepath.Join(srcRoot, "examples", "hello-world", "gabriel-greeting-csharp", "obj", "cache.txt")
 	skipPath := filepath.Join(srcRoot, "ader", "catalogues", "clem-ader", ".artifacts", "tool-cache", "go-mod", "cache.txt")
 	skipAliasPath := filepath.Join(srcRoot, "ader", "catalogues", "grace-op", ".snapshot_alias", "tmp.txt")
 
-	if err := os.MkdirAll(filepath.Dir(keepPath), 0o755); err != nil {
-		t.Fatalf("mkdir keep path: %v", err)
+	writeFile(keepPath, "package integration\n", 0o644)
+	writeFile(keepBuildPath, "package build_test\n", 0o644)
+	writeFile(keepThirdPartyObjPath, "source\n", 0o644)
+	writeFile(filepath.Join(srcRoot, "state.txt"), "state\n", 0o644)
+	writeFile(scriptPath, "#!/usr/bin/env bash\n", 0o755)
+	if err := os.MkdirAll(filepath.Dir(linkPath), 0o755); err != nil {
+		t.Fatalf("mkdir link path: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(keepBuildPath), 0o755); err != nil {
-		t.Fatalf("mkdir keep build path: %v", err)
+	if err := os.Symlink("../state.txt", linkPath); err != nil {
+		t.Fatalf("create symlink: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(keepThirdPartyObjPath), 0o755); err != nil {
-		t.Fatalf("mkdir third-party obj path: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(skipObjPath), 0o755); err != nil {
-		t.Fatalf("mkdir build obj path: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(skipPath), 0o755); err != nil {
-		t.Fatalf("mkdir skip path: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(skipAliasPath), 0o755); err != nil {
-		t.Fatalf("mkdir skip alias path: %v", err)
-	}
-	if err := os.WriteFile(keepPath, []byte("package integration\n"), 0o644); err != nil {
-		t.Fatalf("write keep path: %v", err)
-	}
-	if err := os.WriteFile(keepBuildPath, []byte("package build_test\n"), 0o644); err != nil {
-		t.Fatalf("write keep build path: %v", err)
-	}
-	if err := os.WriteFile(keepThirdPartyObjPath, []byte("source\n"), 0o644); err != nil {
-		t.Fatalf("write third-party obj path: %v", err)
-	}
-	if err := os.WriteFile(skipObjPath, []byte("build cache\n"), 0o644); err != nil {
-		t.Fatalf("write build obj path: %v", err)
-	}
-	if err := os.WriteFile(skipPath, []byte("cache\n"), 0o644); err != nil {
-		t.Fatalf("write skip path: %v", err)
-	}
-	if err := os.WriteFile(skipAliasPath, []byte("alias\n"), 0o644); err != nil {
-		t.Fatalf("write skip alias path: %v", err)
-	}
+
+	runGitCommand(t, srcRoot, "add", ".")
+
+	writeFile(untrackedPath, "new source\n", 0o644)
+	writeFile(skipZigPath, "zig cache\n", 0o644)
+	writeFile(skipOpPath, "op cache\n", 0o644)
+	writeFile(skipTargetPath, "rust target\n", 0o644)
+	writeFile(skipNodePath, "node cache\n", 0o644)
+	writeFile(skipObjPath, "build cache\n", 0o644)
+	writeFile(skipPath, "cache\n", 0o644)
+	writeFile(skipAliasPath, "alias\n", 0o644)
 
 	if err := copyWorkspaceTree(srcRoot, dstRoot, filepath.Join("ader", "catalogues", "grace-op"), filepath.Join(srcRoot, "ader", "catalogues", "grace-op", ".snapshot_alias")); err != nil {
 		t.Fatalf("copyWorkspaceTree() error = %v", err)
@@ -162,6 +176,38 @@ func TestCopyWorkspaceTreeSkipsSiblingCatalogueRuntimeState(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dstRoot, "sdk", "zig-holons", "third_party", "grpc", "third_party", "boringssl-with-bazel", "src", "crypto", "obj", "obj.cc")); err != nil {
 		t.Fatalf("expected third-party obj source to be copied: %v", err)
 	}
+	if _, err := os.Stat(filepath.Join(dstRoot, "docs", "new-check.md")); err != nil {
+		t.Fatalf("expected untracked source file to be copied: %v", err)
+	}
+	if info, err := os.Stat(filepath.Join(dstRoot, "tools", "run.sh")); err != nil {
+		t.Fatalf("expected executable script to be copied: %v", err)
+	} else if info.Mode().Perm()&0o111 == 0 {
+		t.Fatalf("expected executable bit to be preserved, got mode %s", info.Mode())
+	}
+	linkInfo, err := os.Lstat(filepath.Join(dstRoot, "links", "state-link"))
+	if err != nil {
+		t.Fatalf("expected symlink to be copied: %v", err)
+	}
+	if linkInfo.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("expected copied path to be a symlink, got mode %s", linkInfo.Mode())
+	}
+	if target, err := os.Readlink(filepath.Join(dstRoot, "links", "state-link")); err != nil {
+		t.Fatalf("read copied symlink: %v", err)
+	} else if target != "../state.txt" {
+		t.Fatalf("copied symlink target = %q, want %q", target, "../state.txt")
+	}
+	if _, err := os.Stat(filepath.Join(dstRoot, "sdk", "zig-holons", ".zig-cache", "o", "test")); !os.IsNotExist(err) {
+		t.Fatalf("expected zig cache to be skipped, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dstRoot, "examples", "observability-cascade", "observability-cascade-rust", ".op", "build", "cache.bin")); !os.IsNotExist(err) {
+		t.Fatalf("expected op build cache to be skipped, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dstRoot, "examples", "hello-world", "gabriel-greeting-rust", "target", "debug", "cache.bin")); !os.IsNotExist(err) {
+		t.Fatalf("expected rust target cache to be skipped, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dstRoot, "examples", "hello-world", "gabriel-greeting-node", "node_modules", "pkg", "index.js")); !os.IsNotExist(err) {
+		t.Fatalf("expected node_modules cache to be skipped, stat err = %v", err)
+	}
 	if _, err := os.Stat(filepath.Join(dstRoot, "examples", "hello-world", "gabriel-greeting-csharp", "obj", "cache.txt")); !os.IsNotExist(err) {
 		t.Fatalf("expected example build obj cache to be skipped, stat err = %v", err)
 	}
@@ -170,6 +216,39 @@ func TestCopyWorkspaceTreeSkipsSiblingCatalogueRuntimeState(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dstRoot, "ader", "catalogues", "grace-op", ".snapshot_alias", "tmp.txt")); !os.IsNotExist(err) {
 		t.Fatalf("expected snapshot alias to be skipped, stat err = %v", err)
+	}
+}
+
+func runGitCommand(t testing.TB, root string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, string(output))
+	}
+}
+
+func TestRemoveAllWritableRemovesReadOnlyTree(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "readonly", "cache")
+	file := filepath.Join(target, "module.go")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatalf("mkdir readonly tree: %v", err)
+	}
+	if err := os.WriteFile(file, []byte("package cache\n"), 0o444); err != nil {
+		t.Fatalf("write readonly file: %v", err)
+	}
+	if err := os.Chmod(target, 0o555); err != nil {
+		t.Fatalf("chmod readonly dir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chmod(target, 0o755)
+	})
+
+	if err := removeAllWritable(filepath.Join(root, "readonly")); err != nil {
+		t.Fatalf("removeAllWritable() error = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "readonly")); !os.IsNotExist(err) {
+		t.Fatalf("expected readonly tree to be removed, stat err = %v", err)
 	}
 }
 
