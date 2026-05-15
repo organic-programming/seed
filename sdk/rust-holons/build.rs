@@ -17,6 +17,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .out_dir(&out_dir)
         .compile_protos(&protos, std::slice::from_ref(&proto_root))?;
 
+    let relay_proto_root = relay_proto_root()?;
+    let relay_proto = relay_proto_root.join("relay/v1/relay.proto");
+    tonic_build::configure()
+        .build_server(true)
+        .build_client(true)
+        .out_dir(&out_dir)
+        .compile_protos(
+            std::slice::from_ref(&relay_proto),
+            std::slice::from_ref(&relay_proto_root),
+        )?;
+
     for name in [
         "manifest.proto",
         "describe.proto",
@@ -30,6 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             proto_root.join(format!("holons/v1/{}", name)).display()
         );
     }
+    println!("cargo:rerun-if-changed={}", relay_proto.display());
     Ok(())
 }
 
@@ -47,4 +59,20 @@ fn shared_proto_root() -> Result<std::path::PathBuf, Box<dyn std::error::Error>>
     }
 
     Err("unable to locate shared holons proto root".into())
+}
+
+fn relay_proto_root() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    let manifest_dir = std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?);
+    let candidates = [
+        manifest_dir.join("../../examples/observability-cascade/_protos"),
+        manifest_dir.join("../observability-cascade/_protos"),
+    ];
+
+    for candidate in candidates {
+        if candidate.join("relay/v1/relay.proto").is_file() {
+            return Ok(candidate);
+        }
+    }
+
+    Err("unable to locate shared relay proto root".into())
 }

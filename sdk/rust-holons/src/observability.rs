@@ -283,12 +283,17 @@ pub struct LogEntry {
     pub fields: BTreeMap<String, String>,
     pub caller: String,
     pub chain: Vec<Hop>,
+    pub private: bool,
 }
 
 pub struct LogRing {
     capacity: usize,
-    inner: Mutex<VecDeque<LogEntry>>,
-    subs: Mutex<Vec<LogSubscriber>>,
+    inner: Mutex<LogRingInner>,
+}
+
+struct LogRingInner {
+    entries: VecDeque<LogEntry>,
+    subs: Vec<LogSubscriber>,
 }
 
 type LogSubscriber = Box<dyn Fn(&LogEntry) + Send + Sync>;
@@ -298,42 +303,34 @@ impl LogRing {
         let cap = capacity.max(1);
         Self {
             capacity: cap,
-            inner: Mutex::new(VecDeque::with_capacity(cap)),
-            subs: Mutex::new(Vec::new()),
+            inner: Mutex::new(LogRingInner {
+                entries: VecDeque::with_capacity(cap),
+                subs: Vec::new(),
+            }),
         }
     }
 
     pub fn push(&self, e: LogEntry) {
-        let cap = self.capacity;
-        let snapshot: Vec<LogSubscriber> = {
-            let mut subs_guard = self.subs.lock().unwrap();
-            // Copy the raw function pointer references by cloning is not
-            // possible for Box<dyn Fn>; we fire under the lock instead.
-            {
-                let mut buf = self.inner.lock().unwrap();
-                if buf.len() == cap {
-                    buf.pop_front();
-                }
-                buf.push_back(e.clone());
-            }
-            for fn_ in subs_guard.iter() {
-                fn_(&e);
-            }
-            std::mem::take(&mut *subs_guard)
-        };
-        // Restore subs to let future emits use them.
-        let mut subs_guard = self.subs.lock().unwrap();
-        subs_guard.extend(snapshot);
+        let mut inner = self.inner.lock().unwrap();
+        if inner.entries.len() == self.capacity {
+            inner.entries.pop_front();
+        }
+        inner.entries.push_back(e.clone());
+        for fn_ in inner.subs.iter() {
+            fn_(&e);
+        }
     }
 
     pub fn drain(&self) -> Vec<LogEntry> {
-        let buf = self.inner.lock().unwrap();
-        buf.iter().cloned().collect()
+        let inner = self.inner.lock().unwrap();
+        inner.entries.iter().cloned().collect()
     }
 
     pub fn drain_since(&self, cutoff: SystemTime) -> Vec<LogEntry> {
-        let buf = self.inner.lock().unwrap();
-        buf.iter()
+        let inner = self.inner.lock().unwrap();
+        inner
+            .entries
+            .iter()
             .filter(|e| e.timestamp >= cutoff)
             .cloned()
             .collect()
@@ -343,15 +340,30 @@ impl LogRing {
     where
         F: Fn(&LogEntry) + Send + Sync + 'static,
     {
-        self.subs.lock().unwrap().push(Box::new(f));
+        self.inner.lock().unwrap().subs.push(Box::new(f));
+    }
+
+    pub fn snapshot_and_subscribe<F>(&self, cutoff: Option<SystemTime>, f: F) -> Vec<LogEntry>
+    where
+        F: Fn(&LogEntry) + Send + Sync + 'static,
+    {
+        let mut inner = self.inner.lock().unwrap();
+        let snapshot = inner
+            .entries
+            .iter()
+            .filter(|e| cutoff.map_or(true, |cutoff| e.timestamp >= cutoff))
+            .cloned()
+            .collect();
+        inner.subs.push(Box::new(f));
+        snapshot
     }
 
     pub fn len(&self) -> usize {
-        self.inner.lock().unwrap().len()
+        self.inner.lock().unwrap().entries.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.inner.lock().unwrap().is_empty()
+        self.inner.lock().unwrap().entries.is_empty()
     }
 }
 
@@ -368,13 +380,18 @@ pub struct Event {
     pub session_id: String,
     pub payload: BTreeMap<String, String>,
     pub chain: Vec<Hop>,
+    pub private: bool,
 }
 
 pub struct EventBus {
     capacity: usize,
-    inner: Mutex<VecDeque<Event>>,
-    subs: Mutex<Vec<EventSubscriber>>,
-    closed: Mutex<bool>,
+    inner: Mutex<EventBusInner>,
+}
+
+struct EventBusInner {
+    events: VecDeque<Event>,
+    subs: Vec<EventSubscriber>,
+    closed: bool,
 }
 
 type EventSubscriber = Box<dyn Fn(&Event) + Send + Sync>;
@@ -384,37 +401,38 @@ impl EventBus {
         let cap = capacity.max(1);
         Self {
             capacity: cap,
-            inner: Mutex::new(VecDeque::with_capacity(cap)),
-            subs: Mutex::new(Vec::new()),
-            closed: Mutex::new(false),
+            inner: Mutex::new(EventBusInner {
+                events: VecDeque::with_capacity(cap),
+                subs: Vec::new(),
+                closed: false,
+            }),
         }
     }
 
     pub fn emit(&self, e: Event) {
-        if *self.closed.lock().unwrap() {
+        let mut inner = self.inner.lock().unwrap();
+        if inner.closed {
             return;
         }
-        {
-            let mut buf = self.inner.lock().unwrap();
-            if buf.len() == self.capacity {
-                buf.pop_front();
-            }
-            buf.push_back(e.clone());
+        if inner.events.len() == self.capacity {
+            inner.events.pop_front();
         }
-        let subs = self.subs.lock().unwrap();
-        for fn_ in subs.iter() {
+        inner.events.push_back(e.clone());
+        for fn_ in inner.subs.iter() {
             fn_(&e);
         }
     }
 
     pub fn drain(&self) -> Vec<Event> {
-        let buf = self.inner.lock().unwrap();
-        buf.iter().cloned().collect()
+        let inner = self.inner.lock().unwrap();
+        inner.events.iter().cloned().collect()
     }
 
     pub fn drain_since(&self, cutoff: SystemTime) -> Vec<Event> {
-        let buf = self.inner.lock().unwrap();
-        buf.iter()
+        let inner = self.inner.lock().unwrap();
+        inner
+            .events
+            .iter()
             .filter(|e| e.timestamp >= cutoff)
             .cloned()
             .collect()
@@ -424,12 +442,28 @@ impl EventBus {
     where
         F: Fn(&Event) + Send + Sync + 'static,
     {
-        self.subs.lock().unwrap().push(Box::new(f));
+        self.inner.lock().unwrap().subs.push(Box::new(f));
+    }
+
+    pub fn snapshot_and_subscribe<F>(&self, cutoff: Option<SystemTime>, f: F) -> Vec<Event>
+    where
+        F: Fn(&Event) + Send + Sync + 'static,
+    {
+        let mut inner = self.inner.lock().unwrap();
+        let snapshot = inner
+            .events
+            .iter()
+            .filter(|e| cutoff.map_or(true, |cutoff| e.timestamp >= cutoff))
+            .cloned()
+            .collect();
+        inner.subs.push(Box::new(f));
+        snapshot
     }
 
     pub fn close(&self) {
-        *self.closed.lock().unwrap() = true;
-        self.subs.lock().unwrap().clear();
+        let mut inner = self.inner.lock().unwrap();
+        inner.closed = true;
+        inner.subs.clear();
     }
 }
 
@@ -742,7 +776,7 @@ impl Logger {
         l >= *self.level.lock().unwrap()
     }
 
-    fn log(&self, lvl: Level, message: &str, fields: &[(&str, &str)]) {
+    fn log(&self, lvl: Level, message: &str, fields: &[(&str, &str)], private: bool) {
         if !self.enabled(lvl) {
             return;
         }
@@ -771,6 +805,7 @@ impl Logger {
             fields: out,
             caller: String::new(),
             chain: Vec::new(),
+            private,
         };
         if let Some(ref ring) = obs.log_ring {
             ring.push(entry);
@@ -778,22 +813,25 @@ impl Logger {
     }
 
     pub fn trace(&self, m: &str, f: &[(&str, &str)]) {
-        self.log(Level::Trace, m, f);
+        self.log(Level::Trace, m, f, false);
     }
     pub fn debug(&self, m: &str, f: &[(&str, &str)]) {
-        self.log(Level::Debug, m, f);
+        self.log(Level::Debug, m, f, false);
     }
     pub fn info(&self, m: &str, f: &[(&str, &str)]) {
-        self.log(Level::Info, m, f);
+        self.log(Level::Info, m, f, false);
     }
     pub fn warn(&self, m: &str, f: &[(&str, &str)]) {
-        self.log(Level::Warn, m, f);
+        self.log(Level::Warn, m, f, false);
     }
     pub fn error(&self, m: &str, f: &[(&str, &str)]) {
-        self.log(Level::Error, m, f);
+        self.log(Level::Error, m, f, false);
     }
     pub fn fatal(&self, m: &str, f: &[(&str, &str)]) {
-        self.log(Level::Fatal, m, f);
+        self.log(Level::Fatal, m, f, false);
+    }
+    pub fn private(&self, lvl: Level, m: &str, f: &[(&str, &str)]) {
+        self.log(lvl, m, f, true);
     }
 }
 
@@ -861,6 +899,19 @@ impl Observability {
     }
 
     pub fn emit(&self, event_type: EventType, payload: BTreeMap<String, String>) {
+        self.emit_with_private(event_type, payload, false);
+    }
+
+    pub fn emit_private(&self, event_type: EventType, payload: BTreeMap<String, String>) {
+        self.emit_with_private(event_type, payload, true);
+    }
+
+    fn emit_with_private(
+        &self,
+        event_type: EventType,
+        payload: BTreeMap<String, String>,
+        private: bool,
+    ) {
         let Some(ref bus) = self.event_bus else {
             return;
         };
@@ -887,6 +938,7 @@ impl Observability {
             session_id: String::new(),
             payload: p,
             chain: Vec::new(),
+            private,
         });
     }
 
@@ -1121,6 +1173,7 @@ pub fn from_proto_log_entry(entry: ProtoLogEntry) -> LogEntry {
         fields: entry.fields.into_iter().collect(),
         caller: entry.caller,
         chain: entry.chain.into_iter().map(hop_from_proto).collect(),
+        private: false,
     }
 }
 
@@ -1330,6 +1383,7 @@ pub fn from_proto_event(event: EventInfo) -> Event {
         session_id: event.session_id,
         payload: event.payload.into_iter().collect(),
         chain: event.chain.into_iter().map(hop_from_proto).collect(),
+        private: false,
     }
 }
 
@@ -1506,29 +1560,35 @@ impl HolonObservability for ObservabilityService {
         } else {
             req.min_level
         };
-        let (follow_tx, follow_rx) = if req.follow {
+        let cutoff = req.since.map(cutoff_from_duration);
+        let (entries, follow_tx, follow_rx) = if req.follow {
             let (tx, rx) = tokio::sync::mpsc::channel(1024);
             let tx_for_sub = tx.clone();
             let min_level_for_sub = min_level;
             let session_ids = req.session_ids.clone();
             let rpc_methods = req.rpc_methods.clone();
-            ring.subscribe(move |e| {
-                if match_log(e, min_level_for_sub, &session_ids, &rpc_methods) {
+            // Replay-then-live is atomic: snapshot and subscriber registration
+            // share the ring lock, so no emission can fall between them.
+            let entries = ring.snapshot_and_subscribe(cutoff, move |e| {
+                if !e.private && match_log(e, min_level_for_sub, &session_ids, &rpc_methods) {
                     let _ = tx_for_sub.try_send(Ok(to_proto_log_entry(e)));
                 }
             });
-            (Some(tx), Some(rx))
+            (entries, Some(tx), Some(rx))
         } else {
-            (None, None)
-        };
-        let entries = if let Some(since) = req.since {
-            ring.drain_since(cutoff_from_duration(since))
-        } else {
-            ring.drain()
+            let entries = if let Some(cutoff) = cutoff {
+                ring.drain_since(cutoff)
+            } else {
+                ring.drain()
+            };
+            (entries, None, None)
         };
         let out = entries
             .into_iter()
-            .filter(|e| match_log(e, min_level, &req.session_ids, &req.rpc_methods))
+            .filter(|e| {
+                (!req.follow || !e.private)
+                    && match_log(e, min_level, &req.session_ids, &req.rpc_methods)
+            })
             .map(|e| Ok(to_proto_log_entry(&e)))
             .collect::<Vec<_>>();
         drop(follow_tx);
@@ -1588,27 +1648,35 @@ impl HolonObservability for ObservabilityService {
             ));
         }
         let wanted: HashSet<i32> = req.types.into_iter().collect();
-        let (follow_tx, follow_rx) = if req.follow {
+        let cutoff = req.since.map(cutoff_from_duration);
+        let (events, follow_tx, follow_rx) = if req.follow {
             let (tx, rx) = tokio::sync::mpsc::channel(1024);
             let tx_for_sub = tx.clone();
             let wanted_for_sub = wanted.clone();
-            bus.subscribe(move |e| {
-                if wanted_for_sub.is_empty() || wanted_for_sub.contains(&(e.event_type as i32)) {
+            // Replay-then-live is atomic for events for the same reason as logs.
+            let events = bus.snapshot_and_subscribe(cutoff, move |e| {
+                if !e.private
+                    && (wanted_for_sub.is_empty()
+                        || wanted_for_sub.contains(&(e.event_type as i32)))
+                {
                     let _ = tx_for_sub.try_send(Ok(to_proto_event(e)));
                 }
             });
-            (Some(tx), Some(rx))
+            (events, Some(tx), Some(rx))
         } else {
-            (None, None)
-        };
-        let events = if let Some(since) = req.since {
-            bus.drain_since(cutoff_from_duration(since))
-        } else {
-            bus.drain()
+            let events = if let Some(cutoff) = cutoff {
+                bus.drain_since(cutoff)
+            } else {
+                bus.drain()
+            };
+            (events, None, None)
         };
         let out = events
             .into_iter()
-            .filter(|e| wanted.is_empty() || wanted.contains(&(e.event_type as i32)))
+            .filter(|e| {
+                (!req.follow || !e.private)
+                    && (wanted.is_empty() || wanted.contains(&(e.event_type as i32)))
+            })
             .map(|e| Ok(to_proto_event(&e)))
             .collect::<Vec<_>>();
         drop(follow_tx);
@@ -2026,6 +2094,7 @@ mod tests {
                 fields: BTreeMap::new(),
                 caller: String::new(),
                 chain: Vec::new(),
+                private: false,
             });
         }
         let entries = r.drain();
@@ -2279,6 +2348,88 @@ mod tests {
         .unwrap()
         .unwrap();
         assert_eq!(event.r#type, EventType::InstanceReady as i32);
+    }
+
+    #[tokio::test]
+    async fn test_logs_follow_replays_ring_on_subscribe() {
+        let obs = test_observability("follow-replay-rust", "uid-log-replay", &[Family::Logs]);
+        obs.logger("test").info("before-subscribe", &[]);
+        let svc = ObservabilityService::new(obs.clone());
+
+        let mut logs = HolonObservability::logs(
+            &svc,
+            Request::new(LogsRequest {
+                min_level: Level::Info as i32,
+                session_ids: Vec::new(),
+                rpc_methods: Vec::new(),
+                since: None,
+                follow: true,
+            }),
+        )
+        .await
+        .unwrap()
+        .into_inner();
+
+        let first = timeout(
+            Duration::from_secs(1),
+            tokio_stream::StreamExt::next(&mut logs),
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+        assert_eq!(first.message, "before-subscribe");
+
+        obs.logger("test").info("after-subscribe", &[]);
+        let second = timeout(
+            Duration::from_secs(1),
+            tokio_stream::StreamExt::next(&mut logs),
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+        assert_eq!(second.message, "after-subscribe");
+    }
+
+    #[tokio::test]
+    async fn test_events_follow_replays_ring_on_subscribe() {
+        let obs = test_observability("follow-replay-rust", "uid-event-replay", &[Family::Events]);
+        obs.emit(EventType::InstanceReady, BTreeMap::new());
+        let svc = ObservabilityService::new(obs.clone());
+
+        let mut events = HolonObservability::events(
+            &svc,
+            Request::new(EventsRequest {
+                types: Vec::new(),
+                since: None,
+                follow: true,
+            }),
+        )
+        .await
+        .unwrap()
+        .into_inner();
+
+        let first = timeout(
+            Duration::from_secs(1),
+            tokio_stream::StreamExt::next(&mut events),
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+        assert_eq!(first.r#type, EventType::InstanceReady as i32);
+
+        obs.emit(EventType::ConfigReloaded, BTreeMap::new());
+        let second = timeout(
+            Duration::from_secs(1),
+            tokio_stream::StreamExt::next(&mut events),
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+        assert_eq!(second.r#type, EventType::ConfigReloaded as i32);
     }
 
     #[tokio::test]

@@ -10,14 +10,9 @@ pub fn run_cli(args: &[String], stdout: &mut dyn Write, stderr: &mut dyn Write) 
 
     match canonical_command(&args[0]).as_str() {
         "serve" => {
-            let parsed = holons::serve::parse_options(&args[1..]);
-            let members = match parse_member_refs(&args[1..]) {
-                Ok(members) => members,
-                Err(error) => {
-                    let _ = writeln!(stderr, "serve: {error}");
-                    return 1;
-                }
-            };
+            let (children, remaining) = holons::serve::parse_child_flags(&args[1..]);
+            let parsed = holons::serve::parse_options(&remaining);
+            let transport = parse_transport(&remaining);
             let runtime = match tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()
@@ -29,17 +24,44 @@ pub fn run_cli(args: &[String], stdout: &mut dyn Write, stderr: &mut dyn Write) 
                 }
             };
 
-            match runtime.block_on(crate::server::listen_and_serve(
-                &parsed.listen_uri,
-                parsed.reflect,
-                members,
-            )) {
-                Ok(()) => 0,
-                Err(error) => {
-                    let _ = writeln!(stderr, "serve: {error}");
-                    1
+            runtime.block_on(async {
+                let _ = holons::observability::from_env(holons::observability::Config::default());
+                let mut downstream = None;
+                if let Some(first) = children.first() {
+                    match holons::composite::spawn_member(holons::composite::SpawnOptions {
+                        slug: first.slug.clone(),
+                        binary_path: first.binary.clone(),
+                        transport,
+                        downstream_chain: children.iter().skip(1).cloned().collect(),
+                        ..holons::composite::SpawnOptions::default()
+                    })
+                    .await
+                    {
+                        Ok(member) => downstream = Some(member),
+                        Err(error) => {
+                            let _ = writeln!(stderr, "serve: {error}");
+                            return 1;
+                        }
+                    }
                 }
-            }
+                let downstream_conn = downstream.as_ref().map(|member| member.conn.clone());
+                let result = crate::server::listen_and_serve(
+                    &parsed.listen_uri,
+                    parsed.reflect,
+                    downstream_conn,
+                )
+                .await;
+                if let Some(mut member) = downstream {
+                    let _ = member.stop().await;
+                }
+                match result {
+                    Ok(()) => 0,
+                    Err(error) => {
+                        let _ = writeln!(stderr, "serve: {error}");
+                        1
+                    }
+                }
+            })
         }
         "version" => {
             let _ = writeln!(stdout, "{VERSION}");
@@ -57,39 +79,19 @@ pub fn run_cli(args: &[String], stdout: &mut dyn Write, stderr: &mut dyn Write) 
     }
 }
 
-fn parse_member_refs(args: &[String]) -> Result<Vec<holons::serve::MemberRef>, String> {
-    let mut members = Vec::new();
+fn parse_transport(args: &[String]) -> String {
     let mut index = 0;
     while index < args.len() {
         let arg = &args[index];
-        if arg == "--member" {
-            index += 1;
-            if index >= args.len() {
-                return Err("--member requires <slug>=<address>".to_string());
-            }
-            members.push(parse_member_ref(&args[index])?);
-        } else if let Some(raw) = arg.strip_prefix("--member=") {
-            members.push(parse_member_ref(raw)?);
+        if arg == "--transport" && index + 1 < args.len() {
+            return args[index + 1].clone();
+        }
+        if let Some(raw) = arg.strip_prefix("--transport=") {
+            return raw.to_string();
         }
         index += 1;
     }
-    Ok(members)
-}
-
-fn parse_member_ref(raw: &str) -> Result<holons::serve::MemberRef, String> {
-    let Some((slug, address)) = raw.split_once('=') else {
-        return Err("--member requires <slug>=<address>".to_string());
-    };
-    let slug = slug.trim();
-    let address = address.trim();
-    if slug.is_empty() || address.is_empty() {
-        return Err("--member requires non-empty slug and address".to_string());
-    }
-    Ok(holons::serve::MemberRef {
-        slug: slug.to_string(),
-        uid: String::new(),
-        address: address.to_string(),
-    })
+    "stdio".to_string()
 }
 
 fn canonical_command(raw: &str) -> String {
@@ -105,7 +107,7 @@ fn print_usage(out: &mut dyn Write) -> std::io::Result<()> {
     writeln!(out, "commands:")?;
     writeln!(
         out,
-        "  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server"
+        "  serve [--listen <uri>] [--transport <name>] [--child <slug>=<binary>]  Start the gRPC server"
     )?;
     writeln!(
         out,

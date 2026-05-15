@@ -4,7 +4,7 @@ use std::path::PathBuf;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?);
     let proto_root = shared_proto_root(&manifest_dir)?;
-    let out_dir = PathBuf::from("gen/rust/observability_cascade/v1");
+    let out_dir = PathBuf::from("gen/tonic/observability_cascade/v1");
     fs::create_dir_all(&out_dir)?;
     let descriptor = out_dir.join("observability_cascade_descriptor.bin");
     let service_proto = proto_root.join("observability_cascade/v1/service.proto");
@@ -30,8 +30,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn shared_proto_root(manifest_dir: &PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let candidates = [
-        manifest_dir.join(".op/protos"),
         manifest_dir.join("../_protos"),
+        manifest_dir.join(".op/protos"),
     ];
 
     for candidate in candidates {

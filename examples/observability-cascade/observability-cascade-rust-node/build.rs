@@ -34,15 +34,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn shared_proto_root(manifest_dir: &PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let candidates = [
-        manifest_dir.join(".op/protos"),
         manifest_dir.join("../_protos"),
         manifest_dir.join("../../../_protos"),
+        manifest_dir.join(".op/protos"),
     ];
 
     for candidate in candidates {
-        if candidate.join("holons/v1/manifest.proto").is_file()
-            && candidate.join("relay/v1/relay.proto").is_file()
-        {
+        if candidate.join("relay/v1/relay.proto").is_file() {
             return Ok(candidate);
         }
     }

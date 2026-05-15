@@ -59,6 +59,8 @@ pub struct MemberRef {
     pub address: String,
 }
 
+pub type ChildSpec = crate::composite::ChildSpec;
+
 macro_rules! serve_router {
     ($router:expr, $listen_uri:expr, $options:expr, $obs:expr) => {{
         let router = $router;
@@ -140,6 +142,50 @@ pub fn parse_options(args: &[String]) -> ParsedFlags {
         listen_uri,
         reflect,
     }
+}
+
+pub fn parse_child_flags(args: &[String]) -> (Vec<ChildSpec>, Vec<String>) {
+    let mut children = Vec::new();
+    let mut remaining = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args[i];
+        if arg == "--child" && i + 1 < args.len() {
+            if let Some(child) = parse_child_spec(&args[i + 1]) {
+                children.push(child);
+            }
+            i += 2;
+            continue;
+        }
+        if let Some(raw) = arg.strip_prefix("--child=") {
+            if let Some(child) = parse_child_spec(raw) {
+                children.push(child);
+            }
+            i += 1;
+            continue;
+        }
+        remaining.push(arg.clone());
+        i += 1;
+    }
+    (children, remaining)
+}
+
+#[allow(non_snake_case)]
+pub fn ParseChildFlags(args: &[String]) -> (Vec<ChildSpec>, Vec<String>) {
+    parse_child_flags(args)
+}
+
+fn parse_child_spec(raw: &str) -> Option<ChildSpec> {
+    let (slug, binary) = raw.split_once('=')?;
+    let slug = slug.trim();
+    let binary = binary.trim();
+    if slug.is_empty() || binary.is_empty() {
+        return None;
+    }
+    Some(ChildSpec {
+        slug: slug.to_string(),
+        binary: binary.to_string(),
+    })
 }
 
 /// Run a single gRPC service on the requested transport URI.
@@ -292,6 +338,14 @@ fn observability_from_options(
         .clone()
         .unwrap_or_else(|| std::env::vars().collect());
     observability::check_env_from(&env).map_err(|err| boxed_err(err.to_string()))?;
+    let current = observability::current();
+    if current.enabled(observability::Family::Logs)
+        || current.enabled(observability::Family::Metrics)
+        || current.enabled(observability::Family::Events)
+        || current.enabled(observability::Family::Prom)
+    {
+        return Ok(Some(current));
+    }
     if env.get("OP_OBS").map(|s| s.trim()).unwrap_or("").is_empty() {
         return Ok(None);
     }
@@ -310,12 +364,13 @@ fn start_observability_runtime(
         return;
     }
     observability::enable_disk_writers(&obs.cfg.run_dir);
+    let metrics_addr = observability::start_prometheus_endpoint((*obs).clone()).unwrap_or_default();
     if obs.enabled(observability::Family::Events) {
         let mut payload = std::collections::BTreeMap::new();
         payload.insert("listener".to_string(), public_uri.to_string());
+        payload.insert("metrics_addr".to_string(), metrics_addr.clone());
         obs.emit(observability::EventType::InstanceReady, payload);
     }
-    let metrics_addr = observability::start_prometheus_endpoint((*obs).clone()).unwrap_or_default();
     let log_path = if obs.enabled(observability::Family::Logs) {
         Path::new(&obs.cfg.run_dir)
             .join("stdout.log")

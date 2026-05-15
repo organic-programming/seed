@@ -15,9 +15,15 @@ pub mod gen {
             include!("gen/holons.v1.rs");
         }
     }
+    pub mod relay {
+        pub mod v1 {
+            include!("gen/relay.v1.rs");
+        }
+    }
 }
 pub mod identity;
 pub mod observability;
+pub mod relay;
 pub mod serve;
 pub mod transport;
 

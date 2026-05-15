@@ -77,11 +77,23 @@ pub(crate) fn start_stdio_command(
     args: &[String],
     cwd: Option<&Path>,
 ) -> Result<(ChildStdioTransport, Child), String> {
+    start_stdio_command_with_env(command_path, args, cwd, &[])
+}
+
+pub(crate) fn start_stdio_command_with_env(
+    command_path: &Path,
+    args: &[String],
+    cwd: Option<&Path>,
+    env: &[(String, String)],
+) -> Result<(ChildStdioTransport, Child), String> {
     let mut command = Command::new(command_path);
     #[cfg(unix)]
     command.process_group(0);
     if let Some(cwd) = cwd {
         command.current_dir(cwd);
+    }
+    for (key, value) in env {
+        command.env(key, value);
     }
     command
         .args(args)
