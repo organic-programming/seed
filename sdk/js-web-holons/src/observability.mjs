@@ -104,6 +104,16 @@ const PROTO_EVENT_TYPE_NAMES = {
   8: 'CONFIG_RELOADED',
 };
 
+const PRIVATE_MARKER = Symbol('holons.private');
+
+export function Private() {
+  return { [PRIVATE_MARKER]: true };
+}
+
+export function WithTransitiveObservability(enabled = true) {
+  return { transitiveObservability: Boolean(enabled) };
+}
+
 export function appendDirectChild(src, childSlug, childUid) {
   return [...(src || []), { slug: childSlug, instance_uid: childUid }];
 }
@@ -128,6 +138,13 @@ export class LogRing {
     this._subs.push(fn);
     return () => { const i = this._subs.indexOf(fn); if (i >= 0) this._subs.splice(i, 1); };
   }
+  replayAndSubscribe(fn, cutoff = 0) {
+    // JS runs this synchronously; registering before returning replay preserves
+    // the replay-then-live invariant at the subscription boundary.
+    const replay = cutoff ? this._buf.filter((e) => e.timestamp >= cutoff) : [...this._buf];
+    this._subs.push(fn);
+    return [replay, () => { const i = this._subs.indexOf(fn); if (i >= 0) this._subs.splice(i, 1); }];
+  }
 }
 
 export class EventBus {
@@ -148,6 +165,12 @@ export class EventBus {
   subscribe(fn) {
     this._subs.push(fn);
     return () => { const i = this._subs.indexOf(fn); if (i >= 0) this._subs.splice(i, 1); };
+  }
+  replayAndSubscribe(fn, cutoff = 0) {
+    if (this._closed) return [[], () => {}];
+    const replay = cutoff ? this._buf.filter((e) => e.timestamp >= cutoff) : [...this._buf];
+    this._subs.push(fn);
+    return [replay, () => { const i = this._subs.indexOf(fn); if (i >= 0) this._subs.splice(i, 1); }];
   }
   close() { this._closed = true; this._subs.length = 0; }
 }
@@ -250,29 +273,32 @@ export class Logger {
   }
   setLevel(l) { this._level = l; }
   enabled(l) { return this._obs && l >= this._level; }
-  _log(level, message, fields) {
+  _log(level, message, fields, ...opts) {
     if (!this.enabled(level)) return;
+    const privateEntry = isPrivateMarker(fields) || opts.some(isPrivateMarker);
+    const rawFields = isPrivateMarker(fields) ? {} : fields;
     const redact = this._obs.cfg.redactedFields || new Set();
     const out = {};
-    if (fields) {
-      for (const k of Object.keys(fields)) {
+    if (rawFields) {
+      for (const k of Object.keys(rawFields)) {
         const has = redact.has ? redact.has(k) : (redact.includes && redact.includes(k));
-        out[k] = has ? '<redacted>' : String(fields[k] ?? '');
+        out[k] = has ? '<redacted>' : String(rawFields[k] ?? '');
       }
     }
     const entry = {
       timestamp: Date.now() / 1000,
       level, slug: this._obs.cfg.slug, instance_uid: this._obs.cfg.instanceUid,
       session_id: '', rpc_method: '', message, fields: out, caller: '', chain: [],
+      private: privateEntry,
     };
     if (this._obs.logRing) this._obs.logRing.push(entry);
   }
-  trace(m, f) { this._log(Level.TRACE, m, f); }
-  debug(m, f) { this._log(Level.DEBUG, m, f); }
-  info(m, f)  { this._log(Level.INFO,  m, f); }
-  warn(m, f)  { this._log(Level.WARN,  m, f); }
-  error(m, f) { this._log(Level.ERROR, m, f); }
-  fatal(m, f) { this._log(Level.FATAL, m, f); }
+  trace(m, f, ...opts) { this._log(Level.TRACE, m, f, ...opts); }
+  debug(m, f, ...opts) { this._log(Level.DEBUG, m, f, ...opts); }
+  info(m, f, ...opts)  { this._log(Level.INFO,  m, f, ...opts); }
+  warn(m, f, ...opts)  { this._log(Level.WARN,  m, f, ...opts); }
+  error(m, f, ...opts) { this._log(Level.ERROR, m, f, ...opts); }
+  fatal(m, f, ...opts) { this._log(Level.FATAL, m, f, ...opts); }
 }
 
 const _disabledLogger = Object.freeze({
@@ -301,8 +327,9 @@ export class Observability {
   counter(n, h = '', labels = {}) { return this.registry ? this.registry.counter(n, h, labels) : null; }
   gauge(n, h = '', labels = {}) { return this.registry ? this.registry.gauge(n, h, labels) : null; }
   histogram(n, h = '', labels = {}, bounds = null) { return this.registry ? this.registry.histogram(n, h, labels, bounds) : null; }
-  emit(type, payload) {
+  emit(type, payload, ...opts) {
     if (!this.eventBus) return;
+    const privateEvent = opts.some(isPrivateMarker);
     const redact = this.cfg.redactedFields || new Set();
     const p = {};
     if (payload) {
@@ -314,7 +341,7 @@ export class Observability {
     this.eventBus.emit({
       timestamp: Date.now() / 1000,
       type, slug: this.cfg.slug, instance_uid: this.cfg.instanceUid,
-      session_id: '', payload: p, chain: [],
+      session_id: '', payload: p, chain: [], private: privateEvent,
     });
   }
   close() { if (this.eventBus) this.eventBus.close(); }
@@ -363,10 +390,16 @@ export function makeHolonObservabilityHandlers(obs = current()) {
       }
       const minLevel = requestMinLevel(request.min_level);
       const cutoff = request.since ? Date.now() / 1000 - durationSeconds(request.since) : 0;
+      const matches = (entry) => !entry.private && matchLog(entry, minLevel, request.session_ids, request.rpc_methods);
+      if (request.follow) {
+        const queue = new AsyncQueue(128);
+        const [replay, stop] = obs.logRing.replayAndSubscribe((entry) => queue.push(entry), cutoff);
+        return replayThenLive(replay, queue, stop, matches, toWireLogEntry);
+      }
       const entries = cutoff ? obs.logRing.drainSince(cutoff) : obs.logRing.drain();
       return {
         entries: entries
-          .filter((entry) => matchLog(entry, minLevel, request.session_ids, request.rpc_methods))
+          .filter(matches)
           .map(toWireLogEntry),
       };
     },
@@ -395,9 +428,15 @@ export function makeHolonObservabilityHandlers(obs = current()) {
       }
       const wanted = new Set((request.types || []).map(normalizeEventType));
       const cutoff = request.since ? Date.now() / 1000 - durationSeconds(request.since) : 0;
+      const matches = (event) => !event.private && matchEvent(event, wanted);
+      if (request.follow) {
+        const queue = new AsyncQueue(64);
+        const [replay, stop] = obs.eventBus.replayAndSubscribe((event) => queue.push(event), cutoff);
+        return replayThenLive(replay, queue, stop, matches, toWireEvent);
+      }
       const events = cutoff ? obs.eventBus.drainSince(cutoff) : obs.eventBus.drain();
       return {
-        events: events.filter((event) => matchEvent(event, wanted)).map(toWireEvent),
+        events: events.filter(matches).map(toWireEvent),
       };
     },
   };
@@ -412,6 +451,90 @@ export function registerObservabilityService(endpoint, obs = current()) {
     endpoint.register(method, handler);
   }
   return endpoint;
+}
+
+export class TransitiveObservabilityRelay {
+  constructor({ client, observability = current(), retryDelayMs = 2000 } = {}) {
+    if (!client || typeof client.stream !== 'function') {
+      throw new TypeError('TransitiveObservabilityRelay requires a client with stream()');
+    }
+    this.client = client;
+    this.observability = observability;
+    this.retryDelayMs = retryDelayMs;
+    this.stopped = false;
+    this._controllers = new Set();
+    this._tasks = [];
+  }
+
+  start() {
+    const obs = this.observability;
+    if (obs.enabled(Family.LOGS) && obs.logRing) {
+      this._tasks.push(this._pumpLogs());
+    }
+    if (obs.enabled(Family.EVENTS) && obs.eventBus) {
+      this._tasks.push(this._pumpEvents());
+    }
+  }
+
+  stop() {
+    this.stopped = true;
+    for (const controller of this._controllers) {
+      controller.abort();
+    }
+    this._controllers.clear();
+  }
+
+  async _pumpLogs() {
+    await this._pump(OBSERVABILITY_METHODS.Logs, { follow: true }, (wire) => {
+      const obs = this.observability;
+      if (!obs.enabled(Family.LOGS) || !obs.logRing) return;
+      const entry = fromWireLogEntry(wire);
+      entry.chain = appendDirectChild(entry.chain, entry.slug, entry.instance_uid);
+      obs.logRing.push(entry);
+    });
+  }
+
+  async _pumpEvents() {
+    await this._pump(OBSERVABILITY_METHODS.Events, { follow: true }, (wire) => {
+      const obs = this.observability;
+      if (!obs.enabled(Family.EVENTS) || !obs.eventBus) return;
+      const event = fromWireEvent(wire);
+      event.chain = appendDirectChild(event.chain, event.slug, event.instance_uid);
+      obs.eventBus.emit(event);
+    });
+  }
+
+  async _pump(method, request, relay) {
+    while (!this.stopped) {
+      const controller = new AbortController();
+      this._controllers.add(controller);
+      try {
+        for await (const event of this.client.stream(method, request, { signal: controller.signal })) {
+          if (this.stopped) break;
+          if (event.error) throw event.error;
+          if (event.result) relay(event.result);
+        }
+      } catch (err) {
+        if (this.stopped || err?.code === 1 || err?.name === 'AbortError') return;
+      } finally {
+        this._controllers.delete(controller);
+      }
+      if (!this.stopped) await delay(this.retryDelayMs);
+    }
+  }
+}
+
+export function startTransitiveObservabilityRelay(client, options = {}) {
+  if (!options.transitiveObservability || !client || typeof client.stream !== 'function') {
+    return null;
+  }
+  const relay = new TransitiveObservabilityRelay({
+    client,
+    observability: options.observability || current(),
+    retryDelayMs: options.transitiveObservabilityRetryDelayMs || 2000,
+  });
+  relay.start();
+  return relay;
 }
 
 export function toWireLogEntry(entry) {
@@ -429,6 +552,22 @@ export function toWireLogEntry(entry) {
       slug: hop.slug || '',
       instance_uid: hop.instance_uid || '',
     })),
+  };
+}
+
+export function fromWireLogEntry(entry) {
+  return {
+    timestamp: fromWireTimestamp(entry.ts),
+    level: normalizeLogLevel(entry.level),
+    slug: entry.slug || '',
+    instance_uid: entry.instance_uid || '',
+    session_id: entry.session_id || '',
+    rpc_method: entry.rpc_method || '',
+    message: entry.message || '',
+    fields: { ...(entry.fields || {}) },
+    caller: entry.caller || '',
+    chain: (entry.chain || []).map(fromWireHop),
+    private: false,
   };
 }
 
@@ -476,11 +615,36 @@ export function toWireEvent(event) {
   };
 }
 
+export function fromWireEvent(event) {
+  return {
+    timestamp: fromWireTimestamp(event.ts),
+    type: normalizeEventType(event.type),
+    slug: event.slug || '',
+    instance_uid: event.instance_uid || '',
+    session_id: event.session_id || '',
+    payload: { ...(event.payload || {}) },
+    chain: (event.chain || []).map(fromWireHop),
+    private: false,
+  };
+}
+
 function timestamp(unixSeconds) {
   const value = Number(unixSeconds) || 0;
   const seconds = Math.trunc(value);
   const nanos = Math.trunc((value - seconds) * 1_000_000_000);
   return { seconds: String(seconds), nanos };
+}
+
+function fromWireTimestamp(ts) {
+  if (!ts) return 0;
+  return Number(ts.seconds || 0) + Number(ts.nanos || 0) / 1e9;
+}
+
+function fromWireHop(hop) {
+  return {
+    slug: hop.slug || '',
+    instance_uid: hop.instance_uid || '',
+  };
 }
 
 function durationSeconds(duration) {
@@ -532,4 +696,68 @@ function matchLog(entry, minLevel, sessionIds, rpcMethods) {
 function matchEvent(event, wanted) {
   if (!wanted || wanted.size === 0) return true;
   return wanted.has(Number(event.type || 0));
+}
+
+function isPrivateMarker(value) {
+  return Boolean(value && typeof value === 'object' && value[PRIVATE_MARKER]);
+}
+
+async function *replayThenLive(replay, queue, stop, match, map) {
+  try {
+    for (const item of replay) {
+      if (match(item)) yield map(item);
+    }
+    for (;;) {
+      const item = await queue.next();
+      if (item.done) return;
+      if (match(item.value)) yield map(item.value);
+    }
+  } finally {
+    stop();
+    queue.close();
+  }
+}
+
+class AsyncQueue {
+  constructor(capacity = 128) {
+    this.capacity = Math.max(1, capacity);
+    this.items = [];
+    this.waiters = [];
+    this.closed = false;
+  }
+
+  push(value) {
+    if (this.closed) return;
+    const waiter = this.waiters.shift();
+    if (waiter) {
+      waiter({ value, done: false });
+      return;
+    }
+    if (this.items.length < this.capacity) {
+      this.items.push(value);
+    }
+  }
+
+  next() {
+    if (this.items.length) {
+      return Promise.resolve({ value: this.items.shift(), done: false });
+    }
+    if (this.closed) {
+      return Promise.resolve({ value: undefined, done: true });
+    }
+    return new Promise((resolve) => this.waiters.push(resolve));
+  }
+
+  close() {
+    if (this.closed) return;
+    this.closed = true;
+    const waiters = this.waiters.splice(0, this.waiters.length);
+    for (const waiter of waiters) {
+      waiter({ value: undefined, done: true });
+    }
+  }
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
