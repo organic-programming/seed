@@ -84,10 +84,10 @@ caller (e.g. `op logs A --follow`)
    ▼ dial A
    A
    │
-   ▼ inside A, composite.Dial("B")   (default: transitive)
+   ▼ inside A, composite.SpawnMember(B)   (default: transitive)
    B
    │
-   ▼ inside B, composite.Dial("C")   (default: transitive)
+   ▼ inside B, composite.SpawnMember(C)   (default: transitive)
    C
 ```
 
@@ -101,9 +101,10 @@ op logs A --follow --json \
   | jq -r '"\(.ts) \(.level) [\(.chain | map(.slug) | join(" -> "))] \(.slug) \(.message)"'
 ```
 
-In-process, the same view is available to any holon that dialed A
-with `composite.Dial` (default transitive) — A's logs and its descendants
-land in the caller's local rings and disk writers automatically.
+In-process, the same view is available to any holon that spawned A
+with `composite.SpawnMember` (default transitive) — A's logs and its
+descendants land in the caller's local rings and disk writers
+automatically.
 
 Output, with one entry from each level of the tree:
 
@@ -118,6 +119,16 @@ ending one hop short of the stream source the reader is consuming (per
 [OBSERVABILITY.md §Organism Relay](OBSERVABILITY.md#organism-relay));
 the multilog file at the root carries the enriched form with the root
 appended.
+
+When the multi-hop chain is exercised through the
+`observability-cascade` example, each phase records its wall-time:
+`PhaseResult.elapsed_us`, `CascadeReport.elapsed_us`, and
+`MultiPatternReport.total_elapsed_us` carry microseconds. The CLI
+prints them as a teaser useful for cross-language comparison, e.g.:
+
+```
+phase=default                 pass=12  fail=0   elapsed=14.2ms
+```
 
 #### Per-emission opt-out
 
@@ -146,31 +157,42 @@ logger.info('rotating session key',
 #### Per-connection opt-out
 
 Disabling transitivity on a single child silences that subtree without
-affecting siblings:
+affecting siblings. `SpawnOptions.DialOptions` forwards dial-level
+options onto the connection the spawn opens:
 
 ```go
-silent, err := composite.Dial(ctx, "B",
-    composite.WithTransitiveObservability(false))
+silent, err := composite.SpawnMember(ctx, composite.SpawnOptions{
+    Slug:       "B",
+    BinaryPath: "/abs/path/to/B",
+    DialOptions: []composite.DialOption{
+        composite.WithTransitiveObservability(false),
+    },
+})
 ```
 
 Now A receives nothing from B (and nothing from C — silencing B cuts
 B's pump as well). A's own logs and other members' logs are unaffected.
 A `private` opt-out is the right tool for **a single record**; a
-`WithTransitiveObservability(false)` dial is the right tool for **an
+`WithTransitiveObservability(false)` spawn is the right tool for **an
 entire subtree** the composite considers internal.
 
 #### Peer-to-peer dial: opt-in required
 
-A holon dialed peer-to-peer (the caller did not spawn it) does **not**
-activate transitivity by default. To tail a peer explicitly:
+A holon reached peer-to-peer (the caller did not spawn it) does **not**
+activate transitivity by default. `composite.Dial` is the peer-to-peer
+entry point; it takes a concrete address (`tcp://host:port`,
+`unix:///path`, or `host:port`), not a slug. Resolve the slug first
+via `connect.Connect` or a manifest lookup, then opt-in:
 
 ```go
-remote, err := connect.Connect(ctx, "gabriel-greeting-rust",
-    connect.WithTransitiveObservability(true))
+peer, err := composite.Dial(ctx, "tcp://127.0.0.1:9090",
+    composite.WithTransitiveObservability(true))
+defer peer.Close()
 ```
 
 This respects the spawn boundary — a parent owns its children's
-signals, but a peer does not.
+signals, but a peer does not. Closing the returned connection closes
+the relay streams.
 
 ### 2.2 Launching an organism with centralized logs
 

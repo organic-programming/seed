@@ -68,24 +68,35 @@ final channel = await connect('gabriel-greeting-dart');
 
 ## Transitive observability
 
-Every parent→child connection is transitive by default: dialing a
-child you spawn opens long-lived `HolonObservability.Logs(follow=true)`
-and `Events(follow=true)` streams in background and republishes received
-entries into the parent's local rings, appending a `ChainHop` for the
-child. Peer-to-peer `connect` defaults to OFF; opt-in explicitly
-when needed.
+Every parent→child connection is transitive by default: spawning a
+child via `spawnMember` opens long-lived
+`HolonObservability.Logs(follow=true)` and `Events(follow=true)`
+streams in background and republishes received entries into the
+parent's local rings, appending a `ChainHop` for the child.
+Peer-to-peer `connect` defaults to OFF; opt-in explicitly when needed.
 
 ```dart
-// Opt-out for a single member; the rest of the tree stays observable.
-final channel = await connect(
-  'gabriel-greeting-dart',
+// Default-ON: spawnMember owns the child's lifecycle. The named
+// parameter travels through to the relay attached on the connection.
+final silent = await spawnMember(
+  binaryPath: '/abs/path/to/gabriel-greeting-dart',
+  slug: 'gabriel-greeting-dart',
   withTransitiveObservability: false,
+);
+
+// Peer-to-peer dial: connect takes a ConnectOptions object as its
+// positional second argument. Transitivity is OFF by default; opt-in
+// to tail a remote holon.
+final peer = await connect(
+  'gabriel-greeting-rust',
+  const ConnectOptions(withTransitiveObservability: true),
 );
 ```
 
 See [OBSERVABILITY.md §Transitive Observability](../../OBSERVABILITY.md#transitive-observability)
 for the full doctrine (defaults, peer-vs-spawn rules, per-emission
-`private: true` opt-out, v1 metrics non-coverage).
+`private: true` opt-out, subscription replay-then-live, v1 metrics
+non-coverage).
 
 ## Build and test
 

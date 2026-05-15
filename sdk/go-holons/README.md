@@ -64,22 +64,56 @@ conn, err := connect.Connect("gabriel-greeting-go")
 
 ## Transitive observability
 
-Every parent→child connection is transitive by default: dialing a
-child you spawn opens long-lived `HolonObservability.Logs(follow=true)`
-and `Events(follow=true)` streams in background and republishes received
-entries into the parent's local rings, appending a `ChainHop` for the
-child. Peer-to-peer `connect.Connect` defaults to OFF; opt-in
-explicitly when needed.
+Every parent→child connection is transitive by default: spawning a
+child via `composite.SpawnMember` opens long-lived
+`HolonObservability.Logs(follow=true)` and `Events(follow=true)`
+streams in background and republishes received entries into the
+parent's local rings, appending a `ChainHop` for the child.
+Peer-to-peer `composite.Dial` defaults to OFF; opt-in explicitly
+when needed.
 
 ```go
-// Opt-out for a single member; the rest of the tree stays observable.
-conn, err := composite.Dial(ctx, "gabriel-greeting-go",
-    composite.WithTransitiveObservability(false))
+// Default-ON: SpawnMember owns the child's lifecycle. DialOptions
+// forwards dial-level options onto the connection the spawn opens;
+// pass WithTransitiveObservability(false) to keep one member silent
+// without affecting siblings.
+silent, err := composite.SpawnMember(ctx, composite.SpawnOptions{
+    Slug:       "gabriel-greeting-go",
+    BinaryPath: "/abs/path/to/gabriel-greeting-go",
+    DialOptions: []composite.DialOption{
+        composite.WithTransitiveObservability(false),
+    },
+})
+defer silent.Stop(ctx)
+
+// composite.Dial takes a concrete address — tcp://host:port,
+// unix:///path/to/socket, or host:port. Slug-based discovery is the
+// caller's responsibility; resolve the slug via connect.Connect or a
+// manifest lookup and pass the resulting address here. Transitivity
+// is OFF by default on this peer-to-peer entry point; opt-in to tail
+// a remote holon's streams.
+peer, err := composite.Dial(ctx, "tcp://127.0.0.1:9090",
+    composite.WithTransitiveObservability(true))
+defer peer.Close()
 ```
+
+Closing the connection returned by `composite.Dial` closes the relay
+streams and lets the relay goroutines exit. Because `Dial` returns
+`*grpc.ClientConn` directly, callers that leak the connection keep
+the relay alive too.
+
+Shutdown is bounded. `SpawnedMember.Stop(ctx)` enforces a 3-second
+default deadline when the supplied context has none, killing the
+child process if it does not exit cleanly within that window.
+`observability.Relay.Stop()` bounds its internal `wg.Wait` at
+2 seconds so a slow transport surfacing the canceled stream to `Recv`
+cannot block process shutdown forever. Both invariants are
+defensive — the visible API is unchanged.
 
 See [OBSERVABILITY.md §Transitive Observability](../../OBSERVABILITY.md#transitive-observability)
 for the full doctrine (defaults, peer-vs-spawn rules, per-emission
-`Private()` opt-out, v1 metrics non-coverage).
+`Private()` opt-out, subscription replay-then-live, v1 metrics
+non-coverage).
 
 ## Build and test
 
