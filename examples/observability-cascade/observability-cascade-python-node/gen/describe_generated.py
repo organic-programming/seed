@@ -94,6 +94,32 @@ def static_describe_response() -> describe_pb2.DescribeResponse:
                             number=2,
                             label=describe_pb2.FIELD_LABEL_OPTIONAL,
                         ),
+                        describe_pb2.FieldDoc(
+                            name="hops",
+                            type="relay.v1.HopReceipt",
+                            number=3,
+                            label=describe_pb2.FIELD_LABEL_REPEATED,
+                            nested_fields=[
+                                describe_pb2.FieldDoc(
+                                    name="slug",
+                                    type="string",
+                                    number=1,
+                                    label=describe_pb2.FIELD_LABEL_OPTIONAL,
+                                ),
+                                describe_pb2.FieldDoc(
+                                    name="uid",
+                                    type="string",
+                                    number=2,
+                                    label=describe_pb2.FIELD_LABEL_OPTIONAL,
+                                ),
+                                describe_pb2.FieldDoc(
+                                    name="received",
+                                    type="int64",
+                                    number=3,
+                                    label=describe_pb2.FIELD_LABEL_OPTIONAL,
+                                ),
+                            ],
+                        ),
                     ],
                 ),
             ],

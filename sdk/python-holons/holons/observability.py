@@ -160,6 +160,7 @@ class LogEntry:
     fields: dict[str, str] = field(default_factory=dict)
     caller: str = ""
     chain: list[Hop] = field(default_factory=list)
+    private: bool = False
 
 
 # --- Chain helpers ------------------------------------------------------------
@@ -214,6 +215,26 @@ class LogRing:
                 except ValueError:
                     pass
         return unsub
+
+    def replay_and_subscribe(
+        self,
+        fn: typing.Callable[[LogEntry], None],
+        cutoff: float = 0.0,
+    ) -> tuple[list[LogEntry], typing.Callable[[], None]]:
+        # Snapshot and live registration must be atomic so follow=true never
+        # drops entries emitted while the subscriber is receiving the replay.
+        with self._lock:
+            replay = [e for e in self._buf if not cutoff or e.timestamp >= cutoff]
+            self._subs.append(fn)
+
+        def unsub() -> None:
+            with self._lock:
+                try:
+                    self._subs.remove(fn)
+                except ValueError:
+                    pass
+
+        return list(replay), unsub
 
     def capacity(self) -> int:
         return self._capacity
@@ -432,6 +453,7 @@ class Event:
     session_id: str = ""
     payload: dict[str, str] = field(default_factory=dict)
     chain: list[Hop] = field(default_factory=list)
+    private: bool = False
 
 
 class EventBus:
@@ -473,6 +495,28 @@ class EventBus:
                 except ValueError:
                     pass
         return unsub
+
+    def replay_and_subscribe(
+        self,
+        fn: typing.Callable[[Event], None],
+        cutoff: float = 0.0,
+    ) -> tuple[list[Event], typing.Callable[[], None]]:
+        # Snapshot and live registration must be atomic so follow=true never
+        # drops entries emitted while the subscriber is receiving the replay.
+        with self._lock:
+            if self._closed:
+                return [], lambda: None
+            replay = [e for e in self._buf if not cutoff or e.timestamp >= cutoff]
+            self._subs.append(fn)
+
+        def unsub() -> None:
+            with self._lock:
+                try:
+                    self._subs.remove(fn)
+                except ValueError:
+                    pass
+
+        return list(replay), unsub
 
     def close(self) -> None:
         with self._lock:
@@ -518,8 +562,15 @@ class Logger:
             return
         fields: dict[str, str] = {}
         redact = set(self._obs.cfg.redacted_fields)
+        private = False
         for k, v in kv.items():
             if not k:
+                continue
+            if k == "private":
+                private = _is_private_marker(v) or bool(v)
+                continue
+            if _is_private_marker(v):
+                private = True
                 continue
             if k in redact:
                 fields[k] = "<redacted>"
@@ -541,6 +592,7 @@ class Logger:
             message=message,
             fields=fields,
             caller=caller,
+            private=private,
         )
         if self._obs.log_ring is not None:
             self._obs.log_ring.push(entry)
@@ -551,6 +603,19 @@ class Logger:
     def warn(self, msg: str, **kv: typing.Any) -> None: self._log(Level.WARN, msg, **kv)
     def error(self, msg: str, **kv: typing.Any) -> None: self._log(Level.ERROR, msg, **kv)
     def fatal(self, msg: str, **kv: typing.Any) -> None: self._log(Level.FATAL, msg, **kv)
+
+
+class _PrivateMarker:
+    pass
+
+
+def Private() -> _PrivateMarker:
+    """Mark a single log or event emission as local-only."""
+    return _PrivateMarker()
+
+
+def _is_private_marker(value: typing.Any) -> bool:
+    return isinstance(value, _PrivateMarker)
 
 
 def _stringify(v: typing.Any) -> str:
@@ -596,7 +661,13 @@ class Observability:
     def histogram(self, name: str, help_: str = "", labels: typing.Optional[dict[str, str]] = None, bounds: typing.Optional[list[float]] = None) -> typing.Optional[Histogram]:
         return self.registry.histogram(name, help_, labels, bounds) if self.registry else None
 
-    def emit(self, event_type: EventType, payload: typing.Optional[dict[str, str]] = None) -> None:
+    def emit(
+        self,
+        event_type: EventType,
+        payload: typing.Optional[dict[str, str]] = None,
+        *,
+        private: typing.Union[bool, _PrivateMarker] = False,
+    ) -> None:
         if self.event_bus is None:
             return
         p = dict(payload or {})
@@ -610,6 +681,7 @@ class Observability:
             slug=self.cfg.slug,
             instance_uid=self.cfg.instance_uid,
             payload=p,
+            private=_is_private_marker(private) or bool(private),
         ))
 
     def close(self) -> None:
@@ -806,21 +878,28 @@ class HolonObservabilityService(observability_pb2_grpc.HolonObservabilityService
             context.abort(grpc.StatusCode.FAILED_PRECONDITION, "logs family is not enabled (OP_OBS)")
         min_level = Level(request.min_level or observability_pb2.INFO)
         cutoff = time.time() - (request.since.seconds + request.since.nanos / 1e9) if request.HasField("since") else 0
-        entries = self._obs.log_ring.drain_since(cutoff) if cutoff else self._obs.log_ring.drain()
+        q: queue.Queue[LogEntry | None] | None = None
+        stop: typing.Callable[[], None] | None = None
+        if request.follow:
+            q = queue.Queue(maxsize=128)
+            entries, stop = self._obs.log_ring.replay_and_subscribe(lambda e: _offer(q, e), cutoff)
+        else:
+            entries = self._obs.log_ring.drain_since(cutoff) if cutoff else self._obs.log_ring.drain()
         for entry in entries:
+            if entry.private:
+                continue
             if _match_log(entry, min_level, request.session_ids, request.rpc_methods):
                 yield to_proto_log_entry(entry)
         if not request.follow:
             return
-        q: queue.Queue[LogEntry | None] = queue.Queue(maxsize=128)
-        stop = self._obs.log_ring.subscribe(lambda e: _offer(q, e))
+        assert q is not None and stop is not None
         try:
             while context.is_active():
                 try:
                     entry = q.get(timeout=0.1)
                 except queue.Empty:
                     continue
-                if entry is not None and _match_log(entry, min_level, request.session_ids, request.rpc_methods):
+                if entry is not None and not entry.private and _match_log(entry, min_level, request.session_ids, request.rpc_methods):
                     yield to_proto_log_entry(entry)
         finally:
             stop()
@@ -845,21 +924,28 @@ class HolonObservabilityService(observability_pb2_grpc.HolonObservabilityService
             context.abort(grpc.StatusCode.FAILED_PRECONDITION, "events family is not enabled (OP_OBS)")
         wanted = set(request.types)
         cutoff = time.time() - (request.since.seconds + request.since.nanos / 1e9) if request.HasField("since") else 0
-        events = self._obs.event_bus.drain_since(cutoff) if cutoff else self._obs.event_bus.drain()
+        q: queue.Queue[Event | None] | None = None
+        stop: typing.Callable[[], None] | None = None
+        if request.follow:
+            q = queue.Queue(maxsize=64)
+            events, stop = self._obs.event_bus.replay_and_subscribe(lambda e: _offer(q, e), cutoff)
+        else:
+            events = self._obs.event_bus.drain_since(cutoff) if cutoff else self._obs.event_bus.drain()
         for event in events:
+            if event.private:
+                continue
             if _match_event(event, wanted):
                 yield to_proto_event(event)
         if not request.follow:
             return
-        q: queue.Queue[Event | None] = queue.Queue(maxsize=64)
-        stop = self._obs.event_bus.subscribe(lambda e: _offer(q, e))
+        assert q is not None and stop is not None
         try:
             while context.is_active():
                 try:
                     event = q.get(timeout=0.1)
                 except queue.Empty:
                     continue
-                if event is not None and _match_event(event, wanted):
+                if event is not None and not event.private and _match_event(event, wanted):
                     yield to_proto_event(event)
         finally:
             stop()
@@ -1286,6 +1372,7 @@ __all__ = [
     "LogRing", "EventBus", "Hop", "Logger", "MemberRelay", "PromServer",
     "configure", "from_env", "current", "reset",
     "check_env", "parse_level", "append_direct_child", "enrich_for_multilog",
+    "Private",
     "from_proto_log_entry", "from_proto_event", "to_prometheus_text",
     "derive_run_dir", "enable_disk_writers", "write_meta_json", "read_meta_json",
     "register_service", "HolonObservabilityService", "MetaJSON",

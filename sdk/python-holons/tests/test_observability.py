@@ -221,6 +221,42 @@ def test_holon_observability_service_replays_rings():
     assert [event.type for event in events] == [observability_pb2.INSTANCE_READY]
 
 
+def test_logs_follow_replays_ring_on_subscribe():
+    os.environ["OP_OBS"] = "logs"
+    o = obs.configure(obs.Config(slug="gabriel", instance_uid="uid-1"))
+    o.logger("test").info("before")
+    svc = obs.HolonObservabilityService(o)
+    ctx = _ActiveContext()
+    stream = svc.Logs(observability_pb2.LogsRequest(follow=True), ctx)
+    try:
+        first = next(stream)
+        assert first.message == "before"
+        o.logger("test").info("after")
+        second = _next_with_timeout(stream)
+        assert second.message == "after"
+    finally:
+        ctx.cancel()
+        stream.close()
+
+
+def test_events_follow_replays_ring_on_subscribe():
+    os.environ["OP_OBS"] = "events"
+    o = obs.configure(obs.Config(slug="gabriel", instance_uid="uid-1"))
+    o.emit(obs.EventType.INSTANCE_READY, {"listener": "stdio://"})
+    svc = obs.HolonObservabilityService(o)
+    ctx = _ActiveContext()
+    stream = svc.Events(observability_pb2.EventsRequest(follow=True), ctx)
+    try:
+        first = next(stream)
+        assert first.type == observability_pb2.INSTANCE_READY
+        o.emit(obs.EventType.CONFIG_RELOADED, {"listener": "tcp://127.0.0.1:1"})
+        second = _next_with_timeout(stream)
+        assert second.type == observability_pb2.CONFIG_RELOADED
+    finally:
+        ctx.cancel()
+        stream.close()
+
+
 def test_proto_roundtrip_helpers_preserve_chain():
     entry = obs.LogEntry(
         timestamp=1.25,
@@ -324,3 +360,22 @@ class _FakeContext:
 
     def is_active(self):
         return False
+
+
+class _ActiveContext:
+    def __init__(self):
+        self._active = True
+
+    def abort(self, _code, details):
+        raise RuntimeError(details)
+
+    def is_active(self):
+        return self._active
+
+    def cancel(self):
+        self._active = False
+
+
+def _next_with_timeout(stream, timeout: float = 2.0):
+    with futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(next, stream).result(timeout=timeout)

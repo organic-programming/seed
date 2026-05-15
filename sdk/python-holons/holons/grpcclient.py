@@ -245,6 +245,7 @@ class _StdioDialProxy:
             stderr=subprocess.PIPE,
             cwd=self._cwd,
             env=self._env,
+            close_fds=False,
         )
         self._proc = proc
 

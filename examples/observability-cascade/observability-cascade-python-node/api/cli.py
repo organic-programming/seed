@@ -8,7 +8,8 @@ from support import ensure_import_paths
 
 ensure_import_paths()
 
-from holons.serve import MemberRef, parse_options
+from holons import composite, observability
+from holons.serve import parse_child_flags, parse_options
 
 from _internal import server as server_impl
 
@@ -34,17 +35,38 @@ def run_cli(
 
     command = canonical_command(args[0])
     if command == "serve":
-        options = parse_options(args[1:])
+        children, remaining = parse_child_flags(args[1:])
+        options = parse_options(remaining)
+        transport = parse_transport(remaining)
+        observability.from_env(observability.Config(slug="observability-cascade-python-node"))
+        downstream = None
         try:
-            members = parse_member_refs(args[1:])
+            if children:
+                first = children[0]
+                downstream = composite.SpawnMember(
+                    composite.SpawnOptions(
+                        slug=first.slug,
+                        binary_path=first.binary,
+                        transport=transport,
+                        downstream_chain=tuple(
+                            composite.ChildSpec(child.slug, child.binary)
+                            for child in children[1:]
+                        ),
+                    )
+                )
             server_impl.listen_and_serve(
                 options.listen_uri,
                 reflect=options.reflect,
-                members=members,
+                downstream_conn=downstream.conn if downstream is not None else None,
             )
         except Exception as exc:
+            if downstream is not None:
+                downstream.stop()
             print(f"serve: {exc}", file=stderr)
             return 1
+        finally:
+            if downstream is not None:
+                downstream.stop()
         return 0
     if command == "version":
         print(VERSION, file=stdout)
@@ -58,31 +80,13 @@ def run_cli(
     return 1
 
 
-def parse_member_refs(args: list[str]) -> list[MemberRef]:
-    members: list[MemberRef] = []
-    index = 0
-    while index < len(args):
-        arg = args[index]
-        if arg == "--member":
-            index += 1
-            if index >= len(args):
-                raise ValueError("--member requires <slug>=<address>")
-            members.append(parse_member_ref(args[index]))
-        elif arg.startswith("--member="):
-            members.append(parse_member_ref(arg.removeprefix("--member=")))
-        index += 1
-    return members
-
-
-def parse_member_ref(raw: str) -> MemberRef:
-    if "=" not in raw:
-        raise ValueError("--member requires <slug>=<address>")
-    slug, address = raw.split("=", 1)
-    slug = slug.strip()
-    address = address.strip()
-    if not slug or not address:
-        raise ValueError("--member requires non-empty slug and address")
-    return MemberRef(slug=slug, address=address)
+def parse_transport(args: list[str]) -> str:
+    for index, arg in enumerate(args):
+        if arg == "--transport" and index + 1 < len(args):
+            return args[index + 1]
+        if arg.startswith("--transport="):
+            return arg.removeprefix("--transport=")
+    return "stdio"
 
 
 def canonical_command(raw: str) -> str:
@@ -93,7 +97,7 @@ def print_usage(output: TextIO) -> None:
     print("usage: observability-cascade-python-node <command> [args] [flags]", file=output)
     print("", file=output)
     print("commands:", file=output)
-    print("  serve [--listen <uri>] [--member <slug>=<address>]  Start the gRPC server", file=output)
+    print("  serve [--listen <uri>] [--transport <name>] [--child <slug>=<binary>]  Start the gRPC server", file=output)
     print("  version                                             Print version and exit", file=output)
     print("  help                                                Print this help", file=output)
 

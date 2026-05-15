@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import stat
+import sys
 import tempfile
 import unittest
 import importlib.util
@@ -12,6 +13,7 @@ _COMPOSITE_PATH = Path(__file__).resolve().parents[1] / "holons" / "composite.py
 _SPEC = importlib.util.spec_from_file_location("holons_composite_test", _COMPOSITE_PATH)
 assert _SPEC is not None and _SPEC.loader is not None
 _MODULE = importlib.util.module_from_spec(_SPEC)
+sys.modules[_SPEC.name] = _MODULE
 _SPEC.loader.exec_module(_MODULE)
 member_from_executable = _MODULE.member_from_executable
 

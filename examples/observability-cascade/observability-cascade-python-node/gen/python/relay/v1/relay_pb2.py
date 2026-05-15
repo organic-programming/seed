@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14relay/v1/relay.proto\x12\x08relay.v1\"9\n\x0bTickRequest\x12\x16\n\x06sender\x18\x01 \x01(\tR\x06sender\x12\x12\n\x04note\x18\x02 \x01(\tR\x04note\"k\n\x0cTickResponse\x12%\n\x0eresponder_slug\x18\x01 \x01(\tR\rresponderSlug\x12\x34\n\x16responder_instance_uid\x18\x02 \x01(\tR\x14responderInstanceUid2E\n\x0cRelayService\x12\x35\n\x04Tick\x12\x15.relay.v1.TickRequest\x1a\x16.relay.v1.TickResponseB1Z/examples/relay-cascade/_protos/relay/v1;relayv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14relay/v1/relay.proto\x12\x08relay.v1\"9\n\x0bTickRequest\x12\x16\n\x06sender\x18\x01 \x01(\tR\x06sender\x12\x12\n\x04note\x18\x02 \x01(\tR\x04note\"N\n\nHopReceipt\x12\x12\n\x04slug\x18\x01 \x01(\tR\x04slug\x12\x10\n\x03uid\x18\x02 \x01(\tR\x03uid\x12\x1a\n\x08received\x18\x03 \x01(\x03R\x08received\"\x95\x01\n\x0cTickResponse\x12%\n\x0eresponder_slug\x18\x01 \x01(\tR\rresponderSlug\x12\x34\n\x16responder_instance_uid\x18\x02 \x01(\tR\x14responderInstanceUid\x12(\n\x04hops\x18\x03 \x03(\x0b\x32\x14.relay.v1.HopReceiptR\x04hops2E\n\x0cRelayService\x12\x35\n\x04Tick\x12\x15.relay.v1.TickRequest\x1a\x16.relay.v1.TickResponseB1Z/examples/relay-cascade/_protos/relay/v1;relayv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,8 +34,10 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'Z/examples/relay-cascade/_protos/relay/v1;relayv1'
   _globals['_TICKREQUEST']._serialized_start=34
   _globals['_TICKREQUEST']._serialized_end=91
-  _globals['_TICKRESPONSE']._serialized_start=93
-  _globals['_TICKRESPONSE']._serialized_end=200
-  _globals['_RELAYSERVICE']._serialized_start=202
-  _globals['_RELAYSERVICE']._serialized_end=271
+  _globals['_HOPRECEIPT']._serialized_start=93
+  _globals['_HOPRECEIPT']._serialized_end=171
+  _globals['_TICKRESPONSE']._serialized_start=174
+  _globals['_TICKRESPONSE']._serialized_end=323
+  _globals['_RELAYSERVICE']._serialized_start=325
+  _globals['_RELAYSERVICE']._serialized_end=394
 # @@protoc_insertion_point(module_scope)

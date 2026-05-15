@@ -45,6 +45,12 @@ class MemberRef:
 
 
 @dataclass(frozen=True)
+class ChildSpec:
+    slug: str
+    binary: str
+
+
+@dataclass(frozen=True)
 class ServeOptions:
     reflect: bool = False
     member_endpoints: tuple[MemberRef, ...] = ()
@@ -70,6 +76,44 @@ def parse_options(args: list[str]) -> ParsedFlags:
             reflect_enabled = True
 
     return ParsedFlags(listen_uri=listen_uri, reflect=reflect_enabled)
+
+
+def parse_child_flags(args: list[str]) -> tuple[list[ChildSpec], list[str]]:
+    """Extract repeated --child <slug>=<binary> flags from args."""
+    children: list[ChildSpec] = []
+    remaining: list[str] = []
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--child" and index + 1 < len(args):
+            child = _parse_child_spec(args[index + 1])
+            if child is not None:
+                children.append(child)
+            index += 2
+            continue
+        if arg.startswith("--child="):
+            child = _parse_child_spec(arg.removeprefix("--child="))
+            if child is not None:
+                children.append(child)
+            index += 1
+            continue
+        remaining.append(arg)
+        index += 1
+    return children, remaining
+
+
+def _parse_child_spec(raw: str) -> ChildSpec | None:
+    if "=" not in raw:
+        return None
+    slug, binary = raw.split("=", 1)
+    slug = slug.strip()
+    binary = binary.strip()
+    if not slug or not binary:
+        return None
+    return ChildSpec(slug=slug, binary=binary)
+
+
+ParseChildFlags = parse_child_flags
 
 
 def run(listen_uri: str, register_fn: RegisterFunc) -> None:
@@ -115,11 +159,10 @@ def run_with_serve_options(
         ],
     )
     observability.check_env()
-    obs = (
-        observability.from_env(observability.Config(slug=options.slug))
-        if os.environ.get("OP_OBS", "").strip()
-        else None
-    )
+    obs = None
+    if os.environ.get("OP_OBS", "").strip():
+        active = observability.current()
+        obs = active if active.families else observability.from_env(observability.Config(slug=options.slug))
     register_fn(server)
     _register_holon_meta(server)
     if obs is not None and obs.families:
@@ -209,7 +252,10 @@ def _start_observability_runtime(
         return
     observability.enable_disk_writers(obs.cfg.run_dir)
     if obs.enabled(observability.Family.EVENTS):
-        obs.emit(observability.EventType.INSTANCE_READY, {"listener": actual_uri})
+        obs.emit(
+            observability.EventType.INSTANCE_READY,
+            {"listener": actual_uri, "metrics_addr": metrics_addr},
+        )
     observability.write_meta_json(
         obs.cfg.run_dir,
         observability.MetaJSON(
