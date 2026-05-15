@@ -121,7 +121,18 @@ func (r *Relay) Stop() {
 		return
 	}
 	r.cancel()
-	r.wg.Wait()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		r.wg.Wait()
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		// The caller owns the ClientConn and usually closes it immediately after
+		// Stop. Do not block process shutdown forever if a transport is slow to
+		// surface the canceled stream to Recv.
+	}
 }
 
 // ChildSlug / ChildUID expose the relay's target identity.

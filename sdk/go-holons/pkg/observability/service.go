@@ -68,7 +68,12 @@ func (s *service) Logs(req *v1.LogsRequest, stream v1.HolonObservability_LogsSer
 	}
 	ring := s.obs.LogRing()
 	var replay []LogEntry
-	if !cutoff.IsZero() {
+	var ch <-chan LogEntry
+	var stop func()
+	if req.Follow {
+		replay, ch, stop = ring.replayAndWatch(cutoff, 128)
+		defer stop()
+	} else if !cutoff.IsZero() {
 		replay = ring.DrainSince(cutoff)
 	} else {
 		replay = ring.Drain()
@@ -90,8 +95,6 @@ func (s *service) Logs(req *v1.LogsRequest, stream v1.HolonObservability_LogsSer
 
 	// Live phase.
 	ctx := stream.Context()
-	ch, stop := ring.Watch(128)
-	defer stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -215,7 +218,12 @@ func (s *service) Events(req *v1.EventsRequest, stream v1.HolonObservability_Eve
 	}
 	bus := s.obs.EventBus()
 	var replay []Event
-	if !cutoff.IsZero() {
+	var ch <-chan Event
+	var stop func()
+	if req.Follow {
+		replay, ch, stop = bus.replayAndWatch(cutoff, 64)
+		defer stop()
+	} else if !cutoff.IsZero() {
 		replay = bus.DrainSince(cutoff)
 	} else {
 		replay = bus.Drain()
@@ -236,8 +244,6 @@ func (s *service) Events(req *v1.EventsRequest, stream v1.HolonObservability_Eve
 	}
 
 	ctx := stream.Context()
-	ch, stop := bus.Watch(64)
-	defer stop()
 	for {
 		select {
 		case <-ctx.Done():

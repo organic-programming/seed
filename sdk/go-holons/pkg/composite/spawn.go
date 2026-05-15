@@ -67,9 +67,13 @@ func (m *SpawnedMember) Stop(ctx context.Context) error {
 		}
 		_ = m.cmd.Process.Signal(syscall.SIGTERM)
 		waitCtx := ctx
+		var cancel context.CancelFunc
 		if waitCtx == nil {
-			var cancel context.CancelFunc
 			waitCtx, cancel = context.WithTimeout(context.Background(), 3*time.Second)
+		} else if _, ok := waitCtx.Deadline(); !ok {
+			waitCtx, cancel = context.WithTimeout(waitCtx, 3*time.Second)
+		}
+		if cancel != nil {
 			defer cancel()
 		}
 		select {

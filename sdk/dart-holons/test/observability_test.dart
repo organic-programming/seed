@@ -176,6 +176,79 @@ void main() {
     }
   });
 
+  test('Events follow=true replays ring on subscribe', () async {
+    final local = obs.configure(
+      const obs.Config(slug: 'events-follow', instanceUid: 'events-uid'),
+      env: const {'OP_OBS': 'events'},
+    );
+    local.emit(obs.EventType.instanceReady, payload: const {'phase': 'replay'});
+
+    final server =
+        Server.create(services: [obs.HolonObservabilityService(local)]);
+    await server.serve(address: InternetAddress.loopbackIPv4, port: 0);
+    final channel = ClientChannel(
+      '127.0.0.1',
+      port: server.port!,
+      options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
+    );
+    final client = obsgrpc.HolonObservabilityClient(channel);
+    final events = <obsgrpc.EventInfo>[];
+    late final StreamSubscription<obsgrpc.EventInfo> sub;
+    sub = client.events(obsgrpc.EventsRequest(follow: true)).listen(events.add);
+
+    try {
+      await _waitFor(() => events.isNotEmpty);
+      expect(events.first.type, equals(obsgrpc.EventType.INSTANCE_READY));
+      expect(events.first.payload['phase'], equals('replay'));
+
+      local.emit(
+        obs.EventType.instanceExited,
+        payload: const {'phase': 'live'},
+      );
+      await _waitFor(() => events.length >= 2);
+      expect(events[1].type, equals(obsgrpc.EventType.INSTANCE_EXITED));
+      expect(events[1].payload['phase'], equals('live'));
+    } finally {
+      await sub.cancel();
+      await channel.shutdown();
+      await server.shutdown();
+    }
+  });
+
+  test('Logs follow=true replays ring on subscribe', () async {
+    final local = obs.configure(
+      const obs.Config(slug: 'logs-follow', instanceUid: 'logs-uid'),
+      env: const {'OP_OBS': 'logs'},
+    );
+    local.logger('test').info('replay');
+
+    final server =
+        Server.create(services: [obs.HolonObservabilityService(local)]);
+    await server.serve(address: InternetAddress.loopbackIPv4, port: 0);
+    final channel = ClientChannel(
+      '127.0.0.1',
+      port: server.port!,
+      options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
+    );
+    final client = obsgrpc.HolonObservabilityClient(channel);
+    final logs = <obsgrpc.LogEntry>[];
+    late final StreamSubscription<obsgrpc.LogEntry> sub;
+    sub = client.logs(obsgrpc.LogsRequest(follow: true)).listen(logs.add);
+
+    try {
+      await _waitFor(() => logs.isNotEmpty);
+      expect(logs.first.message, equals('replay'));
+
+      local.logger('test').info('live');
+      await _waitFor(() => logs.length >= 2);
+      expect(logs[1].message, equals('live'));
+    } finally {
+      await sub.cancel();
+      await channel.shutdown();
+      await server.shutdown();
+    }
+  });
+
   test('Chain append + multilog enrichment', () {
     final c1 = obs.appendDirectChild([], 'gabriel-greeting-rust', '1c2d');
     expect(c1, hasLength(1));

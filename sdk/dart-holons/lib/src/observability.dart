@@ -220,6 +220,28 @@ class LogRing {
     return c.stream;
   }
 
+  _ReplayAndWatch<LogEntry> replayAndWatch([DateTime? cutoff]) {
+    final replay = cutoff == null
+        ? List<LogEntry>.unmodifiable(_buf)
+        : List<LogEntry>.unmodifiable(
+            _buf.where((e) => !e.timestamp.isBefore(cutoff)),
+          );
+    final c = StreamController<LogEntry>();
+    // Dart executes this synchronous block without interleaving awaits:
+    // snapshot first, then register, so later pushes are buffered live without
+    // repeating entries that were already included in the replay.
+    _subs.add(c);
+    c.onCancel = () {
+      _subs.remove(c);
+    };
+    return _ReplayAndWatch(replay, c.stream, () async {
+      _subs.remove(c);
+      if (!c.isClosed) {
+        await c.close();
+      }
+    });
+  }
+
   int get length => _buf.length;
 }
 
@@ -275,11 +297,47 @@ class EventBus {
     return c.stream;
   }
 
+  _ReplayAndWatch<Event> replayAndWatch([DateTime? cutoff]) {
+    if (_closed) {
+      return _ReplayAndWatch(
+        const <Event>[],
+        const Stream<Event>.empty(),
+        () async {},
+      );
+    }
+    final replay = cutoff == null
+        ? List<Event>.unmodifiable(_buf)
+        : List<Event>.unmodifiable(
+            _buf.where((e) => !e.timestamp.isBefore(cutoff)),
+          );
+    final c = StreamController<Event>();
+    // Dart executes this synchronous block without interleaving awaits:
+    // snapshot first, then register, so later emits are buffered live without
+    // repeating events that were already included in the replay.
+    _subs.add(c);
+    c.onCancel = () {
+      _subs.remove(c);
+    };
+    return _ReplayAndWatch(replay, c.stream, () async {
+      _subs.remove(c);
+      if (!c.isClosed) {
+        await c.close();
+      }
+    });
+  }
+
   void close() {
     _closed = true;
     for (final s in _subs) s.close();
     _subs.clear();
   }
+}
+
+class _ReplayAndWatch<T> {
+  final List<T> replay;
+  final Stream<T> live;
+  final Future<void> Function() stop;
+  const _ReplayAndWatch(this.replay, this.live, this.stop);
 }
 
 // --- Metrics ----------------------------------------------------------------
@@ -1019,13 +1077,19 @@ class MemberRelay {
     ];
     _logsSub = null;
     _eventsSub = null;
-    await Future.wait<void>([
-      for (final sub in subs) sub.cancel(),
-    ]);
+    try {
+      await Future.wait<void>([
+        for (final sub in subs) sub.cancel(),
+      ]).timeout(_memberRelayStopTimeout);
+    } on TimeoutException {
+      // Process shutdown must not wait forever for a transport to surface
+      // cancellation on a follow stream.
+    }
   }
 }
 
 const _memberRelayRetryDelay = Duration(milliseconds: 100);
+const _memberRelayStopTimeout = Duration(seconds: 2);
 
 final Logger _disabledLogger = Logger._(_DisabledObs(), '');
 
@@ -1288,28 +1352,14 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
           ))
         : null;
 
-    StreamController<obs_pb.LogEntry>? followBuffer;
-    StreamSubscription<LogEntry>? followSub;
-    if (request.follow) {
-      final buffer = StreamController<obs_pb.LogEntry>();
-      followBuffer = buffer;
-      followSub = obs.logRing!.watch().listen(
-        (entry) {
-          if (!entry.private &&
-              _matchLog(
-                  entry, minLevel, request.sessionIds, request.rpcMethods)) {
-            buffer.add(toProtoLogEntry(entry));
-          }
-        },
-        onError: buffer.addError,
-        onDone: buffer.close,
-      );
-    }
+    final followed =
+        request.follow ? obs.logRing!.replayAndWatch(cutoff) : null;
 
     try {
-      final entries = cutoff == null
-          ? obs.logRing!.drain()
-          : obs.logRing!.drainSince(cutoff);
+      final entries = followed?.replay ??
+          (cutoff == null
+              ? obs.logRing!.drain()
+              : obs.logRing!.drainSince(cutoff));
       for (final entry in entries) {
         if (!entry.private &&
             _matchLog(
@@ -1318,14 +1368,15 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
         }
       }
       if (!request.follow) return;
-      await for (final entry in followBuffer!.stream) {
-        yield entry;
+      await for (final entry in followed!.live) {
+        if (!entry.private &&
+            _matchLog(
+                entry, minLevel, request.sessionIds, request.rpcMethods)) {
+          yield toProtoLogEntry(entry);
+        }
       }
     } finally {
-      await followSub?.cancel();
-      if (followBuffer != null && !followBuffer.isClosed) {
-        await followBuffer.close();
-      }
+      await followed?.stop();
     }
   }
 
@@ -1366,39 +1417,26 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
           ))
         : null;
 
-    StreamController<obs_pb.EventInfo>? followBuffer;
-    StreamSubscription<Event>? followSub;
-    if (request.follow) {
-      final buffer = StreamController<obs_pb.EventInfo>();
-      followBuffer = buffer;
-      followSub = obs.eventBus!.watch().listen(
-        (event) {
-          if (!event.private && _matchEvent(event, wanted)) {
-            buffer.add(toProtoEvent(event));
-          }
-        },
-        onError: buffer.addError,
-        onDone: buffer.close,
-      );
-    }
+    final followed =
+        request.follow ? obs.eventBus!.replayAndWatch(cutoff) : null;
 
     try {
-      final events = cutoff == null
-          ? obs.eventBus!.drain()
-          : obs.eventBus!.drainSince(cutoff);
+      final events = followed?.replay ??
+          (cutoff == null
+              ? obs.eventBus!.drain()
+              : obs.eventBus!.drainSince(cutoff));
       for (final event in events) {
         if (!event.private && _matchEvent(event, wanted))
           yield toProtoEvent(event);
       }
       if (!request.follow) return;
-      await for (final event in followBuffer!.stream) {
-        yield event;
+      await for (final event in followed!.live) {
+        if (!event.private && _matchEvent(event, wanted)) {
+          yield toProtoEvent(event);
+        }
       }
     } finally {
-      await followSub?.cancel();
-      if (followBuffer != null && !followBuffer.isClosed) {
-        await followBuffer.close();
-      }
+      await followed?.stop();
     }
   }
 }

@@ -68,8 +68,7 @@ type EventBus struct {
 	cap    int
 	closed bool
 
-	subsMu sync.Mutex
-	subs   []chan Event
+	subs []chan Event
 }
 
 // NewEventBus constructs an EventBus with the given buffer capacity.
@@ -100,16 +99,14 @@ func (b *EventBus) Emit(e Event) {
 	if !b.filled && b.next == 0 {
 		b.filled = true
 	}
-	b.mu.Unlock()
 
-	b.subsMu.Lock()
 	for _, ch := range b.subs {
 		select {
 		case ch <- e:
 		default:
 		}
 	}
-	b.subsMu.Unlock()
+	b.mu.Unlock()
 }
 
 // Drain returns a snapshot of all resident events in chronological order.
@@ -166,12 +163,12 @@ func (b *EventBus) Watch(bufSize int) (<-chan Event, func()) {
 		bufSize = 32
 	}
 	ch := make(chan Event, bufSize)
-	b.subsMu.Lock()
+	b.mu.Lock()
 	b.subs = append(b.subs, ch)
-	b.subsMu.Unlock()
+	b.mu.Unlock()
 	stop := func() {
-		b.subsMu.Lock()
-		defer b.subsMu.Unlock()
+		b.mu.Lock()
+		defer b.mu.Unlock()
 		for i, c := range b.subs {
 			if c == ch {
 				b.subs = append(b.subs[:i], b.subs[i+1:]...)
@@ -183,6 +180,53 @@ func (b *EventBus) Watch(bufSize int) (<-chan Event, func()) {
 	return ch, stop
 }
 
+func (b *EventBus) replayAndWatch(cutoff time.Time, bufSize int) ([]Event, <-chan Event, func()) {
+	if b == nil {
+		ch := make(chan Event)
+		close(ch)
+		return nil, ch, func() {}
+	}
+	if bufSize <= 0 {
+		bufSize = 32
+	}
+	ch := make(chan Event, bufSize)
+	b.mu.Lock()
+	if b.closed {
+		close(ch)
+		b.mu.Unlock()
+		return nil, ch, func() {}
+	}
+	// Snapshot and subscription are under one lock: entries already in the
+	// snapshot are not live-sent, and entries emitted after registration cannot
+	// be missed while the caller drains the snapshot.
+	replay := b.snapshotLocked()
+	if !cutoff.IsZero() {
+		out := replay[:0]
+		for _, e := range replay {
+			if !e.Timestamp.Before(cutoff) {
+				out = append(out, e)
+			}
+		}
+		replay = out
+	}
+	cpy := make([]Event, len(replay))
+	copy(cpy, replay)
+	b.subs = append(b.subs, ch)
+	b.mu.Unlock()
+	stop := func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		for i, c := range b.subs {
+			if c == ch {
+				b.subs = append(b.subs[:i], b.subs[i+1:]...)
+				close(ch)
+				return
+			}
+		}
+	}
+	return cpy, ch, stop
+}
+
 // Close disables future emits and closes every subscriber channel.
 func (b *EventBus) Close() {
 	if b == nil {
@@ -190,14 +234,11 @@ func (b *EventBus) Close() {
 	}
 	b.mu.Lock()
 	b.closed = true
-	b.mu.Unlock()
-
-	b.subsMu.Lock()
 	for _, ch := range b.subs {
 		close(ch)
 	}
 	b.subs = nil
-	b.subsMu.Unlock()
+	b.mu.Unlock()
 }
 
 // Accessors on Observability.

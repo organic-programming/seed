@@ -15,8 +15,7 @@ type LogRing struct {
 	filled  bool
 	cap     int
 
-	subsMu sync.Mutex
-	subs   []chan LogEntry
+	subs []chan LogEntry
 }
 
 // NewLogRing constructs an empty ring with the given capacity. Capacity
@@ -42,18 +41,15 @@ func (r *LogRing) Push(e LogEntry) {
 	if !r.filled && r.next == 0 {
 		r.filled = true
 	}
-	r.mu.Unlock()
-
 	// Fan-out to live subscribers. Non-blocking: a slow subscriber
 	// drops rather than stalling the emitter.
-	r.subsMu.Lock()
 	for _, ch := range r.subs {
 		select {
 		case ch <- e:
 		default:
 		}
 	}
-	r.subsMu.Unlock()
+	r.mu.Unlock()
 }
 
 // Len returns the number of entries currently held (<= cap).
@@ -137,12 +133,12 @@ func (r *LogRing) Watch(bufSize int) (<-chan LogEntry, func()) {
 		bufSize = 64
 	}
 	ch := make(chan LogEntry, bufSize)
-	r.subsMu.Lock()
+	r.mu.Lock()
 	r.subs = append(r.subs, ch)
-	r.subsMu.Unlock()
+	r.mu.Unlock()
 	stop := func() {
-		r.subsMu.Lock()
-		defer r.subsMu.Unlock()
+		r.mu.Lock()
+		defer r.mu.Unlock()
 		for i, c := range r.subs {
 			if c == ch {
 				r.subs = append(r.subs[:i], r.subs[i+1:]...)
@@ -152,4 +148,46 @@ func (r *LogRing) Watch(bufSize int) (<-chan LogEntry, func()) {
 		}
 	}
 	return ch, stop
+}
+
+func (r *LogRing) replayAndWatch(cutoff time.Time, bufSize int) ([]LogEntry, <-chan LogEntry, func()) {
+	if r == nil {
+		ch := make(chan LogEntry)
+		close(ch)
+		return nil, ch, func() {}
+	}
+	if bufSize <= 0 {
+		bufSize = 64
+	}
+	ch := make(chan LogEntry, bufSize)
+	r.mu.Lock()
+	// Snapshot and subscription are under one lock: entries already in the
+	// snapshot are not live-sent, and entries pushed after registration cannot
+	// be missed while the caller drains the snapshot.
+	replay := r.snapshotLocked()
+	if !cutoff.IsZero() {
+		out := replay[:0]
+		for _, e := range replay {
+			if !e.Timestamp.Before(cutoff) {
+				out = append(out, e)
+			}
+		}
+		replay = out
+	}
+	cpy := make([]LogEntry, len(replay))
+	copy(cpy, replay)
+	r.subs = append(r.subs, ch)
+	r.mu.Unlock()
+	stop := func() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		for i, c := range r.subs {
+			if c == ch {
+				r.subs = append(r.subs[:i], r.subs[i+1:]...)
+				close(ch)
+				return
+			}
+		}
+	}
+	return cpy, ch, stop
 }
