@@ -151,6 +151,44 @@ public enum Serve {
     return ParsedFlags(listenURI: listenURI, reflect: reflect, memberEndpoints: members)
   }
 
+  public static func parseChildFlags(_ args: [String]) -> (children: [ChildSpec], remaining: [String]) {
+    var children: [ChildSpec] = []
+    var remaining: [String] = []
+    var idx = 0
+    while idx < args.count {
+      let arg = args[idx]
+      if arg == "--child", idx + 1 < args.count {
+        if let child = parseChild(args[idx + 1]) {
+          children.append(child)
+        }
+        idx += 2
+        continue
+      }
+      if arg.hasPrefix("--child=") {
+        if let child = parseChild(String(arg.dropFirst("--child=".count))) {
+          children.append(child)
+        }
+        idx += 1
+        continue
+      }
+      remaining.append(arg)
+      idx += 1
+    }
+    return (children, remaining)
+  }
+
+  private static func parseChild(_ raw: String) -> ChildSpec? {
+    guard let idx = raw.firstIndex(of: "=") else {
+      return nil
+    }
+    let slug = raw[..<idx].trimmingCharacters(in: .whitespacesAndNewlines)
+    let binary = raw[raw.index(after: idx)...].trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !slug.isEmpty, !binary.isEmpty else {
+      return nil
+    }
+    return ChildSpec(slug: slug, binary: binary)
+  }
+
   private static func tryParseMember(_ raw: String) -> MemberRef {
     guard let idx = raw.firstIndex(of: "=") else {
       return MemberRef(slug: "", address: "")
@@ -186,6 +224,7 @@ public enum Serve {
       options.logger("shutting down gRPC server")
       running.stop(gracePeriodSeconds: options.shutdownGracePeriodSeconds)
     }
+    let parentMonitor = parentDeathMonitor(options: options, running: running)
 
     let termSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: queue)
     termSource.setEventHandler(handler: stopServer)
@@ -196,6 +235,7 @@ public enum Serve {
     intSource.resume()
 
     defer {
+      parentMonitor?.cancel()
       termSource.cancel()
       intSource.cancel()
       signal(SIGTERM, SIG_DFL)
@@ -203,6 +243,28 @@ public enum Serve {
     }
 
     try running.await()
+  }
+
+  private static func parentDeathMonitor(options: Options, running: RunningServer) -> DispatchSourceTimer? {
+    let env = options.environment ?? ProcessInfo.processInfo.environment
+    guard let raw = env["HOLONS_PARENT_PID"],
+          let parentPID = Int32(raw.trimmingCharacters(in: .whitespacesAndNewlines)),
+          parentPID > 1 else {
+      return nil
+    }
+
+    let queue = DispatchQueue(label: "holons.serve.parent-monitor")
+    let source = DispatchSource.makeTimerSource(queue: queue)
+    source.schedule(deadline: .now() + .milliseconds(250), repeating: .milliseconds(250))
+    source.setEventHandler {
+      if !servePidExists(parentPID) {
+        options.logger("parent process exited; shutting down gRPC server")
+        running.stop(gracePeriodSeconds: options.shutdownGracePeriodSeconds)
+        source.cancel()
+      }
+    }
+    source.resume()
+    return source
   }
 
   public static func startWithOptions(
@@ -214,9 +276,13 @@ public enum Serve {
     var providers = serviceProviders
     let env = options.environment ?? ProcessInfo.processInfo.environment
     try checkEnv(env)
-    let obs = (env["OP_OBS"] ?? "").trimmingCharacters(in: .whitespaces).isEmpty
-      ? nil
-      : try fromEnv(ObsConfig(slug: options.slug), env: env)
+    let obs: Observability?
+    if (env["OP_OBS"] ?? "").trimmingCharacters(in: .whitespaces).isEmpty {
+      obs = nil
+    } else {
+      let existing = current()
+      obs = existing.families.isEmpty ? try fromEnv(ObsConfig(slug: options.slug), env: env) : existing
+    }
     let describeEnabled: Bool
     do {
       describeEnabled = try maybeAddDescribe(&providers)
@@ -345,7 +411,7 @@ public enum Serve {
       enableDiskWriters(obs.cfg.runDir)
     }
     if obs.enabled(.events) {
-      obs.emit(.instanceReady, payload: ["listener": publicURI])
+      obs.emit(.instanceReady, payload: ["listener": publicURI, "metrics_addr": prom?.address ?? ""])
     }
     if !obs.cfg.runDir.isEmpty {
       let logPath = obs.enabled(.logs)
@@ -939,5 +1005,16 @@ private func bridgeClose(_ fd: Int32) -> Int32 {
     return Glibc.close(fd)
   #else
     return Darwin.close(fd)
+  #endif
+}
+
+private func servePidExists(_ pid: Int32) -> Bool {
+  guard pid > 0 else { return false }
+  #if os(Linux)
+    if Glibc.kill(pid, 0) == 0 { return true }
+    return Glibc.errno == EPERM
+  #else
+    if Darwin.kill(pid, 0) == 0 { return true }
+    return Darwin.errno == EPERM
   #endif
 }

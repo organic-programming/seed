@@ -90,6 +90,32 @@ public enum DescribeGenerated {
               $0.number = 2
               $0.label = .optional
             },
+            Holons_V1_FieldDoc.with {
+              $0.name = "hops"
+              $0.type = "relay.v1.HopReceipt"
+              $0.number = 3
+              $0.label = .repeated
+              $0.nestedFields = [
+                Holons_V1_FieldDoc.with {
+                  $0.name = "slug"
+                  $0.type = "string"
+                  $0.number = 1
+                  $0.label = .optional
+                },
+                Holons_V1_FieldDoc.with {
+                  $0.name = "uid"
+                  $0.type = "string"
+                  $0.number = 2
+                  $0.label = .optional
+                },
+                Holons_V1_FieldDoc.with {
+                  $0.name = "received"
+                  $0.type = "int64"
+                  $0.number = 3
+                  $0.label = .optional
+                },
+              ]
+            },
           ]
         },
       ]

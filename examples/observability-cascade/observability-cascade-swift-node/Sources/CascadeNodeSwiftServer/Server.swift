@@ -1,30 +1,29 @@
 import CascadeNodeSwift
 import GRPC
 import Holons
-import NIO
 
-public final class RelayServiceProvider: Relay_V1_RelayServiceProvider {
-    public let interceptors: Relay_V1_RelayServiceServerInterceptorFactoryProtocol? = nil
-
-    public init() {}
-
-    public func tick(
-        request: Relay_V1_TickRequest,
-        context: StatusOnlyCallContext
-    ) -> EventLoopFuture<Relay_V1_TickResponse> {
-        context.eventLoop.makeSucceededFuture(PublicAPI.tick(request))
-    }
-}
-
-public func listenAndServe(_ listenURI: String, reflect: Bool = false, members: [Serve.MemberRef] = []) throws {
+public func listenAndServe(_ listenURI: String, transport: String = "stdio", children: [ChildSpec] = []) throws {
     try Describe.useStaticResponse(DescribeGenerated.StaticDescribeResponse())
+    _ = try fromEnv(ObsConfig(slug: "observability-cascade-swift-node"))
+    let downstream: SpawnedMember?
+    if let first = children.first {
+        downstream = try Composite.spawnMember(SpawnOptions(
+            slug: first.slug,
+            binaryPath: first.binary,
+            transport: transport,
+            downstreamChain: Array(children.dropFirst())
+        ))
+    } else {
+        downstream = nil
+    }
+    defer { downstream?.stop() }
+
     try Serve.runWithOptions(
         normalizedListenURI(listenURI),
-        serviceProviders: [RelayServiceProvider()],
+        serviceProviders: [canonicalRelayServiceProvider(downstream: downstream?.channel)],
         options: Serve.Options(
-            reflect: reflect,
-            slug: "observability-cascade-swift-node",
-            memberEndpoints: members
+            reflect: false,
+            slug: "observability-cascade-swift-node"
         )
     )
 }

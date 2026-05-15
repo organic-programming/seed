@@ -43,6 +43,8 @@ public struct ObservabilityCascade_V1_PhaseResult: Sendable {
 
   public var failures: [String] = []
 
+  public var elapsedUs: Int64 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -61,6 +63,10 @@ public struct ObservabilityCascade_V1_CascadeReport: Sendable {
 
   public var phases: [ObservabilityCascade_V1_PhaseResult] = []
 
+  public var name: String = String()
+
+  public var elapsedUs: Int64 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -76,6 +82,8 @@ public struct ObservabilityCascade_V1_MultiPatternReport: Sendable {
   public var totalPass: Int32 = 0
 
   public var totalFail: Int32 = 0
+
+  public var totalElapsedUs: Int64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -107,7 +115,7 @@ extension ObservabilityCascade_V1_RunRequest: SwiftProtobuf.Message, SwiftProtob
 
 extension ObservabilityCascade_V1_PhaseResult: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PhaseResult"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}pass\0\u{1}fail\0\u{1}failures\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}pass\0\u{1}fail\0\u{1}failures\0\u{3}elapsed_us\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -119,6 +127,7 @@ extension ObservabilityCascade_V1_PhaseResult: SwiftProtobuf.Message, SwiftProto
       case 2: try { try decoder.decodeSingularInt32Field(value: &self.pass) }()
       case 3: try { try decoder.decodeSingularInt32Field(value: &self.fail) }()
       case 4: try { try decoder.decodeRepeatedStringField(value: &self.failures) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self.elapsedUs) }()
       default: break
       }
     }
@@ -137,6 +146,9 @@ extension ObservabilityCascade_V1_PhaseResult: SwiftProtobuf.Message, SwiftProto
     if !self.failures.isEmpty {
       try visitor.visitRepeatedStringField(value: self.failures, fieldNumber: 4)
     }
+    if self.elapsedUs != 0 {
+      try visitor.visitSingularInt64Field(value: self.elapsedUs, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -145,6 +157,7 @@ extension ObservabilityCascade_V1_PhaseResult: SwiftProtobuf.Message, SwiftProto
     if lhs.pass != rhs.pass {return false}
     if lhs.fail != rhs.fail {return false}
     if lhs.failures != rhs.failures {return false}
+    if lhs.elapsedUs != rhs.elapsedUs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -152,7 +165,7 @@ extension ObservabilityCascade_V1_PhaseResult: SwiftProtobuf.Message, SwiftProto
 
 extension ObservabilityCascade_V1_CascadeReport: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".CascadeReport"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ticks\0\u{1}pass\0\u{1}fail\0\u{1}phases\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ticks\0\u{1}pass\0\u{1}fail\0\u{1}phases\0\u{1}name\0\u{3}elapsed_us\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -164,6 +177,8 @@ extension ObservabilityCascade_V1_CascadeReport: SwiftProtobuf.Message, SwiftPro
       case 2: try { try decoder.decodeSingularInt32Field(value: &self.pass) }()
       case 3: try { try decoder.decodeSingularInt32Field(value: &self.fail) }()
       case 4: try { try decoder.decodeRepeatedMessageField(value: &self.phases) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 6: try { try decoder.decodeSingularInt64Field(value: &self.elapsedUs) }()
       default: break
       }
     }
@@ -182,6 +197,12 @@ extension ObservabilityCascade_V1_CascadeReport: SwiftProtobuf.Message, SwiftPro
     if !self.phases.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.phases, fieldNumber: 4)
     }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 5)
+    }
+    if self.elapsedUs != 0 {
+      try visitor.visitSingularInt64Field(value: self.elapsedUs, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -190,6 +211,8 @@ extension ObservabilityCascade_V1_CascadeReport: SwiftProtobuf.Message, SwiftPro
     if lhs.pass != rhs.pass {return false}
     if lhs.fail != rhs.fail {return false}
     if lhs.phases != rhs.phases {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.elapsedUs != rhs.elapsedUs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -197,7 +220,7 @@ extension ObservabilityCascade_V1_CascadeReport: SwiftProtobuf.Message, SwiftPro
 
 extension ObservabilityCascade_V1_MultiPatternReport: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MultiPatternReport"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}patterns\0\u{3}total_pass\0\u{3}total_fail\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}patterns\0\u{3}total_pass\0\u{3}total_fail\0\u{3}total_elapsed_us\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -208,6 +231,7 @@ extension ObservabilityCascade_V1_MultiPatternReport: SwiftProtobuf.Message, Swi
       case 1: try { try decoder.decodeRepeatedMessageField(value: &self.patterns) }()
       case 2: try { try decoder.decodeSingularInt32Field(value: &self.totalPass) }()
       case 3: try { try decoder.decodeSingularInt32Field(value: &self.totalFail) }()
+      case 4: try { try decoder.decodeSingularInt64Field(value: &self.totalElapsedUs) }()
       default: break
       }
     }
@@ -223,6 +247,9 @@ extension ObservabilityCascade_V1_MultiPatternReport: SwiftProtobuf.Message, Swi
     if self.totalFail != 0 {
       try visitor.visitSingularInt32Field(value: self.totalFail, fieldNumber: 3)
     }
+    if self.totalElapsedUs != 0 {
+      try visitor.visitSingularInt64Field(value: self.totalElapsedUs, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -230,6 +257,7 @@ extension ObservabilityCascade_V1_MultiPatternReport: SwiftProtobuf.Message, Swi
     if lhs.patterns != rhs.patterns {return false}
     if lhs.totalPass != rhs.totalPass {return false}
     if lhs.totalFail != rhs.totalFail {return false}
+    if lhs.totalElapsedUs != rhs.totalElapsedUs {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

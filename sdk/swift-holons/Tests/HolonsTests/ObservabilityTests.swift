@@ -77,6 +77,40 @@ final class ObservabilityTests: XCTestCase {
         wait(for: [exp], timeout: 0.5)
     }
 
+    func testLogsFollowReplaysRingOnSubscribe() {
+        let ring = LogRing(capacity: 8)
+        ring.push(LogEntry(timestamp: Date(), level: .info, slug: "g", instanceUid: "uid", message: "before"))
+        let exp = expectation(description: "live log delivered")
+        var live: [LogEntry] = []
+        let replay = ring.replayAndSubscribe(since: nil) { entry in
+            live.append(entry)
+            exp.fulfill()
+        }
+        defer { replay.1() }
+
+        XCTAssertEqual(replay.0.map(\.message), ["before"])
+        ring.push(LogEntry(timestamp: Date(), level: .info, slug: "g", instanceUid: "uid", message: "after"))
+        wait(for: [exp], timeout: 0.5)
+        XCTAssertEqual(live.map(\.message), ["after"])
+    }
+
+    func testEventsFollowReplaysRingOnSubscribe() {
+        let bus = EventBus(capacity: 8)
+        bus.emit(Event(timestamp: Date(), type: .instanceReady, slug: "g", instanceUid: "uid", payload: ["phase": "before"]))
+        let exp = expectation(description: "live event delivered")
+        var live: [Event] = []
+        let replay = bus.replayAndSubscribe(since: nil) { event in
+            live.append(event)
+            exp.fulfill()
+        }
+        defer { replay.1() }
+
+        XCTAssertEqual(replay.0.map { $0.payload["phase"] }, ["before"])
+        bus.emit(Event(timestamp: Date(), type: .instanceReady, slug: "g", instanceUid: "uid", payload: ["phase": "after"]))
+        wait(for: [exp], timeout: 0.5)
+        XCTAssertEqual(live.map { $0.payload["phase"] }, ["after"])
+    }
+
     func testChainAppendAndEnrichment() {
         let c1 = appendDirectChild([], childSlug: "gabriel-greeting-rust", childUid: "1c2d")
         XCTAssertEqual(c1.count, 1)
@@ -204,6 +238,31 @@ final class ObservabilityTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: meta.path))
         let metaJSON = try JSONSerialization.jsonObject(with: Data(contentsOf: meta)) as? [String: Any]
         XCTAssertEqual(metaJSON?["address"] as? String, running.publicURI)
+    }
+
+    func testMetaJsonDecodesGoOmittedDefaults() throws {
+        let data = Data("""
+        {
+          "slug": "observability-cascade-go-node",
+          "uid": "uid-1",
+          "pid": 42,
+          "started_at": "2026-05-16T01:03:52.008127+02:00",
+          "mode": "persistent",
+          "transport": "tcp",
+          "address": "tcp://127.0.0.1:60360",
+          "metrics_addr": "http://127.0.0.1:60359/metrics",
+          "log_path": "/tmp/stdout.log"
+        }
+        """.utf8)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let meta = try decoder.decode(MetaJson.self, from: data)
+        XCTAssertEqual(meta.slug, "observability-cascade-go-node")
+        XCTAssertEqual(meta.uid, "uid-1")
+        XCTAssertEqual(meta.address, "tcp://127.0.0.1:60360")
+        XCTAssertEqual(meta.logBytesRotated, 0)
+        XCTAssertEqual(meta.organismUid, "")
+        XCTAssertFalse(meta.isDefault)
     }
 
     private static func sampleDescribeResponse() -> Holons_V1_DescribeResponse {

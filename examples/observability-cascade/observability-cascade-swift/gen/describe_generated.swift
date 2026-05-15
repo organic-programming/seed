@@ -92,7 +92,25 @@ public enum DescribeGenerated {
                   $0.number = 4
                   $0.label = .repeated
                 },
+                Holons_V1_FieldDoc.with {
+                  $0.name = "elapsed_us"
+                  $0.type = "int64"
+                  $0.number = 5
+                  $0.label = .optional
+                },
               ]
+            },
+            Holons_V1_FieldDoc.with {
+              $0.name = "name"
+              $0.type = "string"
+              $0.number = 5
+              $0.label = .optional
+            },
+            Holons_V1_FieldDoc.with {
+              $0.name = "elapsed_us"
+              $0.type = "int64"
+              $0.number = 6
+              $0.label = .optional
             },
           ]
           $0.exampleInput = "{}"
@@ -151,7 +169,25 @@ public enum DescribeGenerated {
                   $0.number = 4
                   $0.label = .repeated
                 },
+                Holons_V1_FieldDoc.with {
+                  $0.name = "elapsed_us"
+                  $0.type = "int64"
+                  $0.number = 5
+                  $0.label = .optional
+                },
               ]
+            },
+            Holons_V1_FieldDoc.with {
+              $0.name = "name"
+              $0.type = "string"
+              $0.number = 5
+              $0.label = .optional
+            },
+            Holons_V1_FieldDoc.with {
+              $0.name = "elapsed_us"
+              $0.type = "int64"
+              $0.number = 6
+              $0.label = .optional
             },
           ]
           $0.exampleInput = "{}"
@@ -216,7 +252,25 @@ public enum DescribeGenerated {
                       $0.number = 4
                       $0.label = .repeated
                     },
+                    Holons_V1_FieldDoc.with {
+                      $0.name = "elapsed_us"
+                      $0.type = "int64"
+                      $0.number = 5
+                      $0.label = .optional
+                    },
                   ]
+                },
+                Holons_V1_FieldDoc.with {
+                  $0.name = "name"
+                  $0.type = "string"
+                  $0.number = 5
+                  $0.label = .optional
+                },
+                Holons_V1_FieldDoc.with {
+                  $0.name = "elapsed_us"
+                  $0.type = "int64"
+                  $0.number = 6
+                  $0.label = .optional
                 },
               ]
             },
@@ -230,6 +284,12 @@ public enum DescribeGenerated {
               $0.name = "total_fail"
               $0.type = "int32"
               $0.number = 3
+              $0.label = .optional
+            },
+            Holons_V1_FieldDoc.with {
+              $0.name = "total_elapsed_us"
+              $0.type = "int64"
+              $0.number = 4
               $0.label = .optional
             },
           ]

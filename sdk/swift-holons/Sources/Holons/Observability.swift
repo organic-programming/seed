@@ -183,11 +183,12 @@ public struct LogEntry: Sendable {
     public let fields: [String: String]
     public let caller: String
     public let chain: [Hop]
+    public let isPrivate: Bool
 
     public init(timestamp: Date, level: Level, slug: String, instanceUid: String,
                 sessionId: String = "", rpcMethod: String = "",
                 message: String, fields: [String: String] = [:], caller: String = "",
-                chain: [Hop] = []) {
+                chain: [Hop] = [], isPrivate: Bool = false) {
         self.timestamp = timestamp
         self.level = level
         self.slug = slug
@@ -198,6 +199,7 @@ public struct LogEntry: Sendable {
         self.fields = fields
         self.caller = caller
         self.chain = chain
+        self.isPrivate = isPrivate
     }
 }
 
@@ -250,10 +252,33 @@ public final class LogRing: @unchecked Sendable {
         }
     }
 
+    public func replayAndSubscribe(since cutoff: Date?, _ fn: @escaping (LogEntry) -> Void) -> ([LogEntry], () -> Void) {
+        lock.lock()
+        let snapshot = cutoff.map { cutoff in buf.filter { $0.timestamp >= cutoff } } ?? buf
+        subs.append(fn)
+        let token = ObjectIdentifier(SubscriptionBox(fn))
+        let index = subs.count - 1
+        lock.unlock()
+        return (snapshot, { [weak self] in
+            guard let self = self else { return }
+            _ = token
+            self.lock.lock()
+            if index < self.subs.count {
+                self.subs.remove(at: index)
+            }
+            self.lock.unlock()
+        })
+    }
+
     public var count: Int {
         lock.lock(); defer { lock.unlock() }
         return buf.count
     }
+}
+
+private final class SubscriptionBox {
+    let fn: Any
+    init(_ fn: Any) { self.fn = fn }
 }
 
 // MARK: - Events
@@ -266,9 +291,10 @@ public struct Event: Sendable {
     public let sessionId: String
     public let payload: [String: String]
     public let chain: [Hop]
+    public let isPrivate: Bool
 
     public init(timestamp: Date, type: EventType, slug: String, instanceUid: String,
-                sessionId: String = "", payload: [String: String] = [:], chain: [Hop] = []) {
+                sessionId: String = "", payload: [String: String] = [:], chain: [Hop] = [], isPrivate: Bool = false) {
         self.timestamp = timestamp
         self.type = type
         self.slug = slug
@@ -276,6 +302,7 @@ public struct Event: Sendable {
         self.sessionId = sessionId
         self.payload = payload
         self.chain = chain
+        self.isPrivate = isPrivate
     }
 }
 
@@ -326,6 +353,24 @@ public final class EventBus: @unchecked Sendable {
             }
             self.lock.unlock()
         }
+    }
+
+    public func replayAndSubscribe(since cutoff: Date?, _ fn: @escaping (Event) -> Void) -> ([Event], () -> Void) {
+        lock.lock()
+        let snapshot = cutoff.map { cutoff in buf.filter { $0.timestamp >= cutoff } } ?? buf
+        subs.append(fn)
+        let token = ObjectIdentifier(SubscriptionBox(fn))
+        let index = subs.count - 1
+        lock.unlock()
+        return (snapshot, { [weak self] in
+            guard let self = self else { return }
+            _ = token
+            self.lock.lock()
+            if index < self.subs.count {
+                self.subs.remove(at: index)
+            }
+            self.lock.unlock()
+        })
     }
 
     public func close() {
@@ -559,7 +604,7 @@ public final class HolonLogger: @unchecked Sendable {
         return obs != nil && l >= level
     }
 
-    public func log(_ lvl: Level, _ message: String, fields: [String: String] = [:],
+    public func log(_ lvl: Level, _ message: String, fields: [String: String] = [:], isPrivate: Bool = false,
                     file: String = #fileID, line: Int = #line) {
         guard enabled(lvl), let obs = obs else { return }
         let redact = Set(obs.cfg.redactedFields)
@@ -575,18 +620,21 @@ public final class HolonLogger: @unchecked Sendable {
             instanceUid: obs.cfg.instanceUid,
             message: message,
             fields: out,
-            caller: "\(file):\(line)"
+            caller: "\(file):\(line)",
+            isPrivate: isPrivate
         )
         obs.logRing?.push(entry)
     }
 
-    public func trace(_ m: String, _ f: [String: String] = [:], file: String = #fileID, line: Int = #line) { log(.trace, m, fields: f, file: file, line: line) }
-    public func debug(_ m: String, _ f: [String: String] = [:], file: String = #fileID, line: Int = #line) { log(.debug, m, fields: f, file: file, line: line) }
-    public func info(_ m: String, _ f: [String: String] = [:], file: String = #fileID, line: Int = #line) { log(.info, m, fields: f, file: file, line: line) }
-    public func warn(_ m: String, _ f: [String: String] = [:], file: String = #fileID, line: Int = #line) { log(.warn, m, fields: f, file: file, line: line) }
-    public func error(_ m: String, _ f: [String: String] = [:], file: String = #fileID, line: Int = #line) { log(.error, m, fields: f, file: file, line: line) }
-    public func fatal(_ m: String, _ f: [String: String] = [:], file: String = #fileID, line: Int = #line) { log(.fatal, m, fields: f, file: file, line: line) }
+    public func trace(_ m: String, _ f: [String: String] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.trace, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
+    public func debug(_ m: String, _ f: [String: String] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.debug, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
+    public func info(_ m: String, _ f: [String: String] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.info, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
+    public func warn(_ m: String, _ f: [String: String] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.warn, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
+    public func error(_ m: String, _ f: [String: String] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.error, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
+    public func fatal(_ m: String, _ f: [String: String] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.fatal, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
 }
+
+public func Private() -> Bool { true }
 
 public final class Observability: @unchecked Sendable {
     public let cfg: ObsConfig
@@ -633,7 +681,7 @@ public final class Observability: @unchecked Sendable {
         registry?.histogram(name, help: help, labels: labels, bounds: bounds)
     }
 
-    public func emit(_ type: EventType, payload: [String: String] = [:]) {
+    public func emit(_ type: EventType, payload: [String: String] = [:], isPrivate: Bool = false) {
         guard let bus = eventBus else { return }
         let redact = Set(cfg.redactedFields)
         var p: [String: String] = [:]
@@ -645,7 +693,8 @@ public final class Observability: @unchecked Sendable {
             type: type,
             slug: cfg.slug,
             instanceUid: cfg.instanceUid,
-            payload: p
+            payload: p,
+            isPrivate: isPrivate
         ))
     }
 
@@ -820,24 +869,52 @@ public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvid
             )
         }
         let minLevel = request.minLevel.rawValue == 0 ? Int(Level.info.rawValue) : request.minLevel.rawValue
-        let entries = request.hasSince
-            ? ring.drainSince(Date().addingTimeInterval(-durationSeconds(request.since)))
-            : ring.drain()
+        let cutoff = request.hasSince ? Date().addingTimeInterval(-durationSeconds(request.since)) : nil
+        var pendingLive: [LogEntry] = []
+        var bufferingLive = request.follow
+        let pendingLock = NSLock()
+        let entries: [LogEntry]
+        if request.follow {
+            let replay = ring.replayAndSubscribe(since: cutoff) { entry in
+                guard !entry.isPrivate,
+                      matchLog(entry, minLevel: minLevel, sessionIds: request.sessionIds, rpcMethods: request.rpcMethods) else {
+                    return
+                }
+                pendingLock.lock()
+                if bufferingLive {
+                    pendingLive.append(entry)
+                    pendingLock.unlock()
+                    return
+                }
+                pendingLock.unlock()
+                context.eventLoop.execute {
+                    context.sendResponse(toProtoLogEntry(entry), promise: nil)
+                }
+            }
+            entries = replay.0
+            _ = replay.1
+        } else {
+            entries = cutoff.map { ring.drainSince($0) } ?? ring.drain()
+        }
         var future = context.eventLoop.makeSucceededFuture(())
-        for entry in entries where matchLog(entry, minLevel: minLevel, sessionIds: request.sessionIds, rpcMethods: request.rpcMethods) {
+        for entry in entries where !entry.isPrivate && matchLog(entry, minLevel: minLevel, sessionIds: request.sessionIds, rpcMethods: request.rpcMethods) {
             future = future.flatMap { context.sendResponse(toProtoLogEntry(entry)) }
         }
         guard request.follow else {
             return future.map { .ok }
         }
         let followPromise = context.eventLoop.makePromise(of: GRPCStatus.self)
-        _ = ring.subscribe { entry in
-            guard matchLog(entry, minLevel: minLevel, sessionIds: request.sessionIds, rpcMethods: request.rpcMethods) else {
-                return
+        future = future.flatMap {
+            pendingLock.lock()
+            bufferingLive = false
+            let buffered = pendingLive
+            pendingLive.removeAll()
+            pendingLock.unlock()
+            var flush = context.eventLoop.makeSucceededFuture(())
+            for entry in buffered {
+                flush = flush.flatMap { context.sendResponse(toProtoLogEntry(entry)) }
             }
-            context.eventLoop.execute {
-                context.sendResponse(toProtoLogEntry(entry), promise: nil)
-            }
+            return flush
         }
         return future.flatMap { followPromise.futureResult }
     }
@@ -875,24 +952,51 @@ public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvid
             )
         }
         let wanted = Set(request.types.map { $0.rawValue })
-        let events = request.hasSince
-            ? bus.drainSince(Date().addingTimeInterval(-durationSeconds(request.since)))
-            : bus.drain()
+        let cutoff = request.hasSince ? Date().addingTimeInterval(-durationSeconds(request.since)) : nil
+        var pendingLive: [Event] = []
+        var bufferingLive = request.follow
+        let pendingLock = NSLock()
+        let events: [Event]
+        if request.follow {
+            let replay = bus.replayAndSubscribe(since: cutoff) { event in
+                guard !event.isPrivate, matchEvent(event, wanted: wanted) else {
+                    return
+                }
+                pendingLock.lock()
+                if bufferingLive {
+                    pendingLive.append(event)
+                    pendingLock.unlock()
+                    return
+                }
+                pendingLock.unlock()
+                context.eventLoop.execute {
+                    context.sendResponse(toProtoEvent(event), promise: nil)
+                }
+            }
+            events = replay.0
+            _ = replay.1
+        } else {
+            events = cutoff.map { bus.drainSince($0) } ?? bus.drain()
+        }
         var future = context.eventLoop.makeSucceededFuture(())
-        for event in events where matchEvent(event, wanted: wanted) {
+        for event in events where !event.isPrivate && matchEvent(event, wanted: wanted) {
             future = future.flatMap { context.sendResponse(toProtoEvent(event)) }
         }
         guard request.follow else {
             return future.map { .ok }
         }
         let followPromise = context.eventLoop.makePromise(of: GRPCStatus.self)
-        _ = bus.subscribe { event in
-            guard matchEvent(event, wanted: wanted) else {
-                return
+        future = future.flatMap {
+            pendingLock.lock()
+            bufferingLive = false
+            let buffered = pendingLive
+            pendingLive.removeAll()
+            pendingLock.unlock()
+            var flush = context.eventLoop.makeSucceededFuture(())
+            for event in buffered {
+                flush = flush.flatMap { context.sendResponse(toProtoEvent(event)) }
             }
-            context.eventLoop.execute {
-                context.sendResponse(toProtoEvent(event), promise: nil)
-            }
+            return flush
         }
         return future.flatMap { followPromise.futureResult }
     }
@@ -1412,6 +1516,28 @@ public struct MetaJson: Codable {
         self.organismSlug = organismSlug
         self.isDefault = isDefault
     }
+
+    public init(from decoder: Swift.Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.slug = try container.decode(String.self, forKey: .slug)
+        self.uid = try container.decode(String.self, forKey: .uid)
+        self.pid = try container.decode(Int.self, forKey: .pid)
+        if let decoded = try? container.decode(Date.self, forKey: .startedAt) {
+            self.startedAt = decoded
+        } else {
+            let raw = try container.decode(String.self, forKey: .startedAt)
+            self.startedAt = parseMetaDate(raw) ?? Date(timeIntervalSince1970: 0)
+        }
+        self.mode = try container.decodeIfPresent(String.self, forKey: .mode) ?? "persistent"
+        self.transport = try container.decodeIfPresent(String.self, forKey: .transport) ?? ""
+        self.address = try container.decodeIfPresent(String.self, forKey: .address) ?? ""
+        self.metricsAddr = try container.decodeIfPresent(String.self, forKey: .metricsAddr) ?? ""
+        self.logPath = try container.decodeIfPresent(String.self, forKey: .logPath) ?? ""
+        self.logBytesRotated = try container.decodeIfPresent(Int64.self, forKey: .logBytesRotated) ?? 0
+        self.organismUid = try container.decodeIfPresent(String.self, forKey: .organismUid) ?? ""
+        self.organismSlug = try container.decodeIfPresent(String.self, forKey: .organismSlug) ?? ""
+        self.isDefault = try container.decodeIfPresent(Bool.self, forKey: .isDefault) ?? false
+    }
 }
 
 public func writeMetaJson(_ runDir: String, _ meta: MetaJson) throws {
@@ -1427,4 +1553,13 @@ public func writeMetaJson(_ runDir: String, _ meta: MetaJson) throws {
         _ = try? FileManager.default.removeItem(at: url)
     }
     try FileManager.default.moveItem(at: tmp, to: url)
+}
+
+private func parseMetaDate(_ raw: String) -> Date? {
+    let fractional = ISO8601DateFormatter()
+    fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    if let date = fractional.date(from: raw) {
+        return date
+    }
+    return ISO8601DateFormatter().date(from: raw)
 }
