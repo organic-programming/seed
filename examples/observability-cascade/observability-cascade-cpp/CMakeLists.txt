@@ -119,6 +119,7 @@ add_executable(observability-cascade-cpp
 
 target_include_directories(observability-cascade-cpp
   PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
     "${RELAY_CASCADE_CPP_GENERATED_DIR}"
     "${HOLONS_SDK_ROOT}/include"
     "${HOLONS_SDK_ROOT}/gen/cpp"

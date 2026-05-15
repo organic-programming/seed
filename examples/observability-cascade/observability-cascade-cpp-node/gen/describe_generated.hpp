@@ -40,23 +40,6 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
       auto *artifacts = manifest->mutable_artifacts();
       artifacts->set_binary("observability-cascade-cpp-node");
     }
-    {
-      auto *sequence = manifest->add_sequences();
-      sequence->set_name("tick");
-      sequence->set_description("Emit one observability-cascade tick signal.");
-      {
-        auto *param = sequence->add_params();
-        param->set_name("sender");
-        param->set_description("Tick sender label");
-        param->set_required(true);
-      }
-      {
-        auto *param = sequence->add_params();
-        param->set_name("note");
-        param->set_description("Free-form tick note");
-      }
-      sequence->add_steps("op observability-cascade-cpp-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'");
-    }
   }
   {
     auto *service = response.add_services();
@@ -94,6 +77,34 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
         field_3->set_type("string");
         field_3->set_number(2);
         field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("hops");
+        field_3->set_type("relay.v1.HopReceipt");
+        field_3->set_number(3);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(2));
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("slug");
+          field_4->set_type("string");
+          field_4->set_number(1);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("uid");
+          field_4->set_type("string");
+          field_4->set_number(2);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("received");
+          field_4->set_type("int64");
+          field_4->set_number(3);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
       }
     }
   }

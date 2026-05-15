@@ -134,35 +134,27 @@ if(NOT DEFINED OP_USE_INSTALL_LAYOUT)
 endif()
 set(OBSERVABILITY_CASCADE_NODE_CPP_INSTALL_RUNTIME_DIR "${CMAKE_INSTALL_PREFIX}/bin/${OP_PACKAGE_ARCH}")
 
-add_library(cascade_node_cpp_lib
-  api/public.cpp
-  api/cli.cpp
-  internal/server.cpp
-)
-
-target_include_directories(cascade_node_cpp_lib
-  PUBLIC
+add_executable(observability-cascade-cpp-node cmd/main.cpp)
+target_include_directories(observability-cascade-cpp-node
+  PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${OBSERVABILITY_CASCADE_NODE_CPP_GENERATED_DIR}"
     "${HOLONS_SDK_ROOT}/include"
     "${HOLONS_SDK_ROOT}/gen/cpp"
 )
 if(OBSERVABILITY_CASCADE_NODE_CPP_PREBUILT_ROOT)
-  target_include_directories(cascade_node_cpp_lib
-    PUBLIC
+  target_include_directories(observability-cascade-cpp-node
+    PRIVATE
       "${OBSERVABILITY_CASCADE_NODE_CPP_PREBUILT_ROOT}/include")
 endif()
 
-target_link_libraries(cascade_node_cpp_lib
-  PUBLIC
+target_link_libraries(observability-cascade-cpp-node
+  PRIVATE
     cascade_node_cpp_holons_proto_grpc
     cascade_node_cpp_relay_grpc
     gRPC::grpc++
     gRPC::grpc++_reflection
     protobuf::libprotobuf)
-
-add_executable(observability-cascade-cpp-node cmd/main.cpp)
-target_link_libraries(observability-cascade-cpp-node PRIVATE cascade_node_cpp_lib)
 
 if(APPLE AND NOT OP_USE_INSTALL_LAYOUT)
   set(OBSERVABILITY_CASCADE_NODE_CPP_RELOCATE_STAMP "${OBSERVABILITY_CASCADE_NODE_CPP_RUNTIME_DIR}/.dylibs-relocated")

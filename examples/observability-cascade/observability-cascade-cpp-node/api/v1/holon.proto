@@ -27,7 +27,6 @@ option (holons.v1.manifest) = {
   build: {
     runner: "cmake"
     main: "./cmd/main.cpp"
-    templates: ["api/cli.hpp"]
     codegen: { languages: ["cpp"] }
   }
   requires: {
@@ -38,15 +37,4 @@ option (holons.v1.manifest) = {
   artifacts: {
     binary: "observability-cascade-cpp-node"
   }
-  sequences: [{
-    name: "tick"
-    description: "Emit one observability-cascade tick signal."
-    params: [
-      {name: "sender", description: "Tick sender label", required: true},
-      {name: "note", description: "Free-form tick note", required: false}
-    ]
-    steps: [
-      "op observability-cascade-cpp-node Tick '{\"sender\":\"{{ .sender }}\",\"note\":\"{{ .note }}\"}'"
-    ]
-  }]
 };

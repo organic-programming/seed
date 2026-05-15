@@ -27,36 +27,6 @@ namespace _fl = ::google::protobuf::internal::field_layout;
 namespace relay {
 namespace v1 {
 
-inline constexpr TickResponse::Impl_::Impl_(
-    ::_pbi::ConstantInitialized) noexcept
-      : _cached_size_{0},
-        responder_slug_(
-            &::google::protobuf::internal::fixed_address_empty_string,
-            ::_pbi::ConstantInitialized()),
-        responder_instance_uid_(
-            &::google::protobuf::internal::fixed_address_empty_string,
-            ::_pbi::ConstantInitialized()) {}
-
-template <typename>
-PROTOBUF_CONSTEXPR TickResponse::TickResponse(::_pbi::ConstantInitialized)
-#if defined(PROTOBUF_CUSTOM_VTABLE)
-    : ::google::protobuf::Message(TickResponse_class_data_.base()),
-#else   // PROTOBUF_CUSTOM_VTABLE
-    : ::google::protobuf::Message(),
-#endif  // PROTOBUF_CUSTOM_VTABLE
-      _impl_(::_pbi::ConstantInitialized()) {
-}
-struct TickResponseDefaultTypeInternal {
-  PROTOBUF_CONSTEXPR TickResponseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
-  ~TickResponseDefaultTypeInternal() {}
-  union {
-    TickResponse _instance;
-  };
-};
-
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
-    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 TickResponseDefaultTypeInternal _TickResponse_default_instance_;
-
 inline constexpr TickRequest::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
@@ -86,6 +56,68 @@ struct TickRequestDefaultTypeInternal {
 
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 TickRequestDefaultTypeInternal _TickRequest_default_instance_;
+
+inline constexpr HopReceipt::Impl_::Impl_(
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        slug_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        uid_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        received_{::int64_t{0}} {}
+
+template <typename>
+PROTOBUF_CONSTEXPR HopReceipt::HopReceipt(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(HopReceipt_class_data_.base()),
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(),
+#endif  // PROTOBUF_CUSTOM_VTABLE
+      _impl_(::_pbi::ConstantInitialized()) {
+}
+struct HopReceiptDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR HopReceiptDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~HopReceiptDefaultTypeInternal() {}
+  union {
+    HopReceipt _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 HopReceiptDefaultTypeInternal _HopReceipt_default_instance_;
+
+inline constexpr TickResponse::Impl_::Impl_(
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        hops_{},
+        responder_slug_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        responder_instance_uid_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()) {}
+
+template <typename>
+PROTOBUF_CONSTEXPR TickResponse::TickResponse(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(TickResponse_class_data_.base()),
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(),
+#endif  // PROTOBUF_CUSTOM_VTABLE
+      _impl_(::_pbi::ConstantInitialized()) {
+}
+struct TickResponseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR TickResponseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~TickResponseDefaultTypeInternal() {}
+  union {
+    TickResponse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 TickResponseDefaultTypeInternal _TickResponse_default_instance_;
 }  // namespace v1
 }  // namespace relay
 static constexpr const ::_pb::EnumDescriptor *PROTOBUF_NONNULL *PROTOBUF_NULLABLE
@@ -103,46 +135,62 @@ const ::uint32_t
         0,
         1,
         0x081, // bitmap
-        PROTOBUF_FIELD_OFFSET(::relay::v1::TickResponse, _impl_._has_bits_),
-        5, // hasbit index offset
-        PROTOBUF_FIELD_OFFSET(::relay::v1::TickResponse, _impl_.responder_slug_),
-        PROTOBUF_FIELD_OFFSET(::relay::v1::TickResponse, _impl_.responder_instance_uid_),
+        PROTOBUF_FIELD_OFFSET(::relay::v1::HopReceipt, _impl_._has_bits_),
+        6, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::relay::v1::HopReceipt, _impl_.slug_),
+        PROTOBUF_FIELD_OFFSET(::relay::v1::HopReceipt, _impl_.uid_),
+        PROTOBUF_FIELD_OFFSET(::relay::v1::HopReceipt, _impl_.received_),
         0,
         1,
+        2,
+        0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::relay::v1::TickResponse, _impl_._has_bits_),
+        6, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::relay::v1::TickResponse, _impl_.responder_slug_),
+        PROTOBUF_FIELD_OFFSET(::relay::v1::TickResponse, _impl_.responder_instance_uid_),
+        PROTOBUF_FIELD_OFFSET(::relay::v1::TickResponse, _impl_.hops_),
+        0,
+        1,
+        ~0u,
 };
 
 static const ::_pbi::MigrationSchema
     schemas[] ABSL_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
         {0, sizeof(::relay::v1::TickRequest)},
-        {7, sizeof(::relay::v1::TickResponse)},
+        {7, sizeof(::relay::v1::HopReceipt)},
+        {16, sizeof(::relay::v1::TickResponse)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::relay::v1::_TickRequest_default_instance_._instance,
+    &::relay::v1::_HopReceipt_default_instance_._instance,
     &::relay::v1::_TickResponse_default_instance_._instance,
 };
 const char descriptor_table_protodef_relay_2fv1_2frelay_2eproto[] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     protodesc_cold) = {
     "\n\024relay/v1/relay.proto\022\010relay.v1\"9\n\013Tick"
     "Request\022\026\n\006sender\030\001 \001(\tR\006sender\022\022\n\004note\030"
-    "\002 \001(\tR\004note\"k\n\014TickResponse\022%\n\016responder"
-    "_slug\030\001 \001(\tR\rresponderSlug\0224\n\026responder_"
-    "instance_uid\030\002 \001(\tR\024responderInstanceUid"
-    "2E\n\014RelayService\0225\n\004Tick\022\025.relay.v1.Tick"
-    "Request\032\026.relay.v1.TickResponseB1Z/examp"
-    "les/relay-cascade/_protos/relay/v1;relay"
-    "v1b\006proto3"
+    "\002 \001(\tR\004note\"N\n\nHopReceipt\022\022\n\004slug\030\001 \001(\tR"
+    "\004slug\022\020\n\003uid\030\002 \001(\tR\003uid\022\032\n\010received\030\003 \001("
+    "\003R\010received\"\225\001\n\014TickResponse\022%\n\016responde"
+    "r_slug\030\001 \001(\tR\rresponderSlug\0224\n\026responder"
+    "_instance_uid\030\002 \001(\tR\024responderInstanceUi"
+    "d\022(\n\004hops\030\003 \003(\0132\024.relay.v1.HopReceiptR\004h"
+    "ops2E\n\014RelayService\0225\n\004Tick\022\025.relay.v1.T"
+    "ickRequest\032\026.relay.v1.TickResponseB1Z/ex"
+    "amples/relay-cascade/_protos/relay/v1;re"
+    "layv1b\006proto3"
 };
 static ::absl::once_flag descriptor_table_relay_2fv1_2frelay_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_relay_2fv1_2frelay_2eproto = {
     false,
     false,
-    330,
+    453,
     descriptor_table_protodef_relay_2fv1_2frelay_2eproto,
     "relay/v1/relay.proto",
     &descriptor_table_relay_2fv1_2frelay_2eproto_once,
     nullptr,
     0,
-    2,
+    3,
     schemas,
     file_default_instances,
     TableStruct_relay_2fv1_2frelay_2eproto::offsets,
@@ -467,6 +515,351 @@ void TickRequest::InternalSwap(TickRequest* PROTOBUF_RESTRICT PROTOBUF_NONNULL o
 }
 // ===================================================================
 
+class HopReceipt::_Internal {
+ public:
+  using HasBits =
+      decltype(::std::declval<HopReceipt>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(HopReceipt, _impl_._has_bits_);
+};
+
+HopReceipt::HopReceipt(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, HopReceipt_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:relay.v1.HopReceipt)
+}
+PROTOBUF_NDEBUG_INLINE HopReceipt::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    [[maybe_unused]] const ::relay::v1::HopReceipt& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        slug_(arena, from.slug_),
+        uid_(arena, from.uid_) {}
+
+HopReceipt::HopReceipt(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const HopReceipt& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, HopReceipt_class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  HopReceipt* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  _impl_.received_ = from._impl_.received_;
+
+  // @@protoc_insertion_point(copy_constructor:relay.v1.HopReceipt)
+}
+PROTOBUF_NDEBUG_INLINE HopReceipt::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        slug_(arena),
+        uid_(arena) {}
+
+inline void HopReceipt::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  _impl_.received_ = {};
+}
+HopReceipt::~HopReceipt() {
+  // @@protoc_insertion_point(destructor:relay.v1.HopReceipt)
+  SharedDtor(*this);
+}
+inline void HopReceipt::SharedDtor(MessageLite& self) {
+  HopReceipt& this_ = static_cast<HopReceipt&>(self);
+  if constexpr (::_pbi::DebugHardenVerifyHasBitConsistency()) {
+    this_.VerifyHasBitConsistency();
+  }
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.slug_.Destroy();
+  this_._impl_.uid_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+inline void* PROTOBUF_NONNULL HopReceipt::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) HopReceipt(arena);
+}
+constexpr auto HopReceipt::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(HopReceipt),
+                                            alignof(HopReceipt));
+}
+constexpr auto HopReceipt::InternalGenerateClassData_() {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &_HopReceipt_default_instance_._instance,
+          &_table_.header,
+          nullptr,  // OnDemandRegisterArenaDtor
+          nullptr,  // IsInitialized
+          &HopReceipt::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<HopReceipt>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &HopReceipt::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<HopReceipt>(), &HopReceipt::ByteSizeLong,
+              &HopReceipt::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(HopReceipt, _impl_._cached_size_),
+          false,
+      },
+      &HopReceipt::kDescriptorMethods,
+      &descriptor_table_relay_2fv1_2frelay_2eproto,
+      nullptr,  // tracker
+  };
+}
+
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull HopReceipt_class_data_ =
+        HopReceipt::InternalGenerateClassData_();
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+HopReceipt::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&HopReceipt_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(HopReceipt_class_data_.tc_table);
+  return HopReceipt_class_data_.base();
+}
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::_pbi::TcParseTable<2, 3, 0, 35, 2>
+HopReceipt::_table_ = {
+  {
+    PROTOBUF_FIELD_OFFSET(HopReceipt, _impl_._has_bits_),
+    0, // no _extensions_
+    3, 24,  // max_field_number, fast_idx_mask
+    offsetof(decltype(_table_), field_lookup_table),
+    4294967288,  // skipmap
+    offsetof(decltype(_table_), field_entries),
+    3,  // num_field_entries
+    0,  // num_aux_entries
+    offsetof(decltype(_table_), field_names),  // no aux_entries
+    HopReceipt_class_data_.base(),
+    nullptr,  // post_loop_handler
+    ::_pbi::TcParser::GenericFallback,  // fallback
+    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+    ::_pbi::TcParser::GetTable<::relay::v1::HopReceipt>(),  // to_prefetch
+    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+  }, {{
+    {::_pbi::TcParser::MiniParse, {}},
+    // string slug = 1 [json_name = "slug"];
+    {::_pbi::TcParser::FastUS1,
+     {10, 0, 0, PROTOBUF_FIELD_OFFSET(HopReceipt, _impl_.slug_)}},
+    // string uid = 2 [json_name = "uid"];
+    {::_pbi::TcParser::FastUS1,
+     {18, 1, 0, PROTOBUF_FIELD_OFFSET(HopReceipt, _impl_.uid_)}},
+    // int64 received = 3 [json_name = "received"];
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(HopReceipt, _impl_.received_), 2>(),
+     {24, 2, 0, PROTOBUF_FIELD_OFFSET(HopReceipt, _impl_.received_)}},
+  }}, {{
+    65535, 65535
+  }}, {{
+    // string slug = 1 [json_name = "slug"];
+    {PROTOBUF_FIELD_OFFSET(HopReceipt, _impl_.slug_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    // string uid = 2 [json_name = "uid"];
+    {PROTOBUF_FIELD_OFFSET(HopReceipt, _impl_.uid_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    // int64 received = 3 [json_name = "received"];
+    {PROTOBUF_FIELD_OFFSET(HopReceipt, _impl_.received_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
+  }},
+  // no aux_entries
+  {{
+    "\23\4\3\0\0\0\0\0"
+    "relay.v1.HopReceipt"
+    "slug"
+    "uid"
+  }},
+};
+PROTOBUF_NOINLINE void HopReceipt::Clear() {
+// @@protoc_insertion_point(message_clear_start:relay.v1.HopReceipt)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if ((cached_has_bits & 0x00000003U) != 0) {
+    if ((cached_has_bits & 0x00000001U) != 0) {
+      _impl_.slug_.ClearNonDefaultToEmpty();
+    }
+    if ((cached_has_bits & 0x00000002U) != 0) {
+      _impl_.uid_.ClearNonDefaultToEmpty();
+    }
+  }
+  _impl_.received_ = ::int64_t{0};
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL HopReceipt::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const HopReceipt& this_ = static_cast<const HopReceipt&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL HopReceipt::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const HopReceipt& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  if constexpr (::_pbi::DebugHardenVerifyHasBitConsistency()) {
+    this_.VerifyHasBitConsistency();
+  }
+  // @@protoc_insertion_point(serialize_to_array_start:relay.v1.HopReceipt)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  // string slug = 1 [json_name = "slug"];
+  if ((this_._impl_._has_bits_[0] & 0x00000001U) != 0) {
+    if (!this_._internal_slug().empty()) {
+      const ::std::string& _s = this_._internal_slug();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "relay.v1.HopReceipt.slug");
+      target = stream->WriteStringMaybeAliased(1, _s, target);
+    }
+  }
+
+  // string uid = 2 [json_name = "uid"];
+  if ((this_._impl_._has_bits_[0] & 0x00000002U) != 0) {
+    if (!this_._internal_uid().empty()) {
+      const ::std::string& _s = this_._internal_uid();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "relay.v1.HopReceipt.uid");
+      target = stream->WriteStringMaybeAliased(2, _s, target);
+    }
+  }
+
+  // int64 received = 3 [json_name = "received"];
+  if ((this_._impl_._has_bits_[0] & 0x00000004U) != 0) {
+    if (this_._internal_received() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt64ToArrayWithField<3>(
+              stream, this_._internal_received(), target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:relay.v1.HopReceipt)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t HopReceipt::ByteSizeLong(const MessageLite& base) {
+  const HopReceipt& this_ = static_cast<const HopReceipt&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t HopReceipt::ByteSizeLong() const {
+  const HopReceipt& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:relay.v1.HopReceipt)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if ((cached_has_bits & 0x00000007U) != 0) {
+    // string slug = 1 [json_name = "slug"];
+    if ((cached_has_bits & 0x00000001U) != 0) {
+      if (!this_._internal_slug().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_slug());
+      }
+    }
+    // string uid = 2 [json_name = "uid"];
+    if ((cached_has_bits & 0x00000002U) != 0) {
+      if (!this_._internal_uid().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_uid());
+      }
+    }
+    // int64 received = 3 [json_name = "received"];
+    if ((cached_has_bits & 0x00000004U) != 0) {
+      if (this_._internal_received() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+            this_._internal_received());
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void HopReceipt::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::google::protobuf::MessageLite& from_msg) {
+  auto* const _this = static_cast<HopReceipt*>(&to_msg);
+  auto& from = static_cast<const HopReceipt&>(from_msg);
+  if constexpr (::_pbi::DebugHardenVerifyHasBitConsistency()) {
+    from.VerifyHasBitConsistency();
+  }
+  // @@protoc_insertion_point(class_specific_merge_from_start:relay.v1.HopReceipt)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if ((cached_has_bits & 0x00000007U) != 0) {
+    if ((cached_has_bits & 0x00000001U) != 0) {
+      if (!from._internal_slug().empty()) {
+        _this->_internal_set_slug(from._internal_slug());
+      } else {
+        if (_this->_impl_.slug_.IsDefault()) {
+          _this->_internal_set_slug("");
+        }
+      }
+    }
+    if ((cached_has_bits & 0x00000002U) != 0) {
+      if (!from._internal_uid().empty()) {
+        _this->_internal_set_uid(from._internal_uid());
+      } else {
+        if (_this->_impl_.uid_.IsDefault()) {
+          _this->_internal_set_uid("");
+        }
+      }
+    }
+    if ((cached_has_bits & 0x00000004U) != 0) {
+      if (from._internal_received() != 0) {
+        _this->_impl_.received_ = from._impl_.received_;
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void HopReceipt::CopyFrom(const HopReceipt& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:relay.v1.HopReceipt)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void HopReceipt::InternalSwap(HopReceipt* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.slug_, &other->_impl_.slug_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.uid_, &other->_impl_.uid_, arena);
+  swap(_impl_.received_, other->_impl_.received_);
+}
+
+::google::protobuf::Metadata HopReceipt::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
 class TickResponse::_Internal {
  public:
   using HasBits =
@@ -490,6 +883,7 @@ PROTOBUF_NDEBUG_INLINE TickResponse::Impl_::Impl_(
     [[maybe_unused]] const ::relay::v1::TickResponse& from_msg)
       : _has_bits_{from._has_bits_},
         _cached_size_{0},
+        hops_{visibility, arena, from.hops_},
         responder_slug_(arena, from.responder_slug_),
         responder_instance_uid_(arena, from.responder_instance_uid_) {}
 
@@ -513,6 +907,7 @@ PROTOBUF_NDEBUG_INLINE TickResponse::Impl_::Impl_(
     [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
     [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
       : _cached_size_{0},
+        hops_{visibility, arena},
         responder_slug_(arena),
         responder_instance_uid_(arena) {}
 
@@ -541,8 +936,20 @@ inline void* PROTOBUF_NONNULL TickResponse::PlacementNew_(
   return ::new (mem) TickResponse(arena);
 }
 constexpr auto TickResponse::InternalNewImpl_() {
-  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(TickResponse),
-                                            alignof(TickResponse));
+  constexpr auto arena_bits = ::google::protobuf::internal::EncodePlacementArenaOffsets({
+      PROTOBUF_FIELD_OFFSET(TickResponse, _impl_.hops_) +
+          decltype(TickResponse::_impl_.hops_)::
+              InternalGetArenaOffset(
+                  ::google::protobuf::Message::internal_visibility()),
+  });
+  if (arena_bits.has_value()) {
+    return ::google::protobuf::internal::MessageCreator::CopyInit(
+        sizeof(TickResponse), alignof(TickResponse), *arena_bits);
+  } else {
+    return ::google::protobuf::internal::MessageCreator(&TickResponse::PlacementNew_,
+                                 sizeof(TickResponse),
+                                 alignof(TickResponse));
+  }
 }
 constexpr auto TickResponse::InternalGenerateClassData_() {
   return ::google::protobuf::internal::ClassDataFull{
@@ -578,18 +985,18 @@ TickResponse::GetClassData() const {
   return TickResponse_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<1, 2, 0, 66, 2>
+const ::_pbi::TcParseTable<2, 3, 1, 66, 2>
 TickResponse::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(TickResponse, _impl_._has_bits_),
     0, // no _extensions_
-    2, 8,  // max_field_number, fast_idx_mask
+    3, 24,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967292,  // skipmap
+    4294967288,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    2,  // num_field_entries
-    0,  // num_aux_entries
-    offsetof(decltype(_table_), field_names),  // no aux_entries
+    3,  // num_field_entries
+    1,  // num_aux_entries
+    offsetof(decltype(_table_), aux_entries),
     TickResponse_class_data_.base(),
     nullptr,  // post_loop_handler
     ::_pbi::TcParser::GenericFallback,  // fallback
@@ -597,12 +1004,16 @@ TickResponse::_table_ = {
     ::_pbi::TcParser::GetTable<::relay::v1::TickResponse>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
-    // string responder_instance_uid = 2 [json_name = "responderInstanceUid"];
-    {::_pbi::TcParser::FastUS1,
-     {18, 1, 0, PROTOBUF_FIELD_OFFSET(TickResponse, _impl_.responder_instance_uid_)}},
+    {::_pbi::TcParser::MiniParse, {}},
     // string responder_slug = 1 [json_name = "responderSlug"];
     {::_pbi::TcParser::FastUS1,
      {10, 0, 0, PROTOBUF_FIELD_OFFSET(TickResponse, _impl_.responder_slug_)}},
+    // string responder_instance_uid = 2 [json_name = "responderInstanceUid"];
+    {::_pbi::TcParser::FastUS1,
+     {18, 1, 0, PROTOBUF_FIELD_OFFSET(TickResponse, _impl_.responder_instance_uid_)}},
+    // repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];
+    {::_pbi::TcParser::FastMtR1,
+     {26, 63, 0, PROTOBUF_FIELD_OFFSET(TickResponse, _impl_.hops_)}},
   }}, {{
     65535, 65535
   }}, {{
@@ -610,8 +1021,12 @@ TickResponse::_table_ = {
     {PROTOBUF_FIELD_OFFSET(TickResponse, _impl_.responder_slug_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
     // string responder_instance_uid = 2 [json_name = "responderInstanceUid"];
     {PROTOBUF_FIELD_OFFSET(TickResponse, _impl_.responder_instance_uid_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    // repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];
+    {PROTOBUF_FIELD_OFFSET(TickResponse, _impl_.hops_), -1, 0, (0 | ::_fl::kFcRepeated | ::_fl::kMessage | ::_fl::kTvTable)},
   }},
-  // no aux_entries
+  {{
+      {::_pbi::TcParser::GetTable<::relay::v1::HopReceipt>()},
+  }},
   {{
     "\25\16\26\0\0\0\0\0"
     "relay.v1.TickResponse"
@@ -626,6 +1041,7 @@ PROTOBUF_NOINLINE void TickResponse::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
+  _impl_.hops_.Clear();
   cached_has_bits = _impl_._has_bits_[0];
   if ((cached_has_bits & 0x00000003U) != 0) {
     if ((cached_has_bits & 0x00000001U) != 0) {
@@ -677,6 +1093,17 @@ PROTOBUF_NOINLINE void TickResponse::Clear() {
     }
   }
 
+  // repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];
+  for (unsigned i = 0, n = static_cast<unsigned>(
+                           this_._internal_hops_size());
+       i < n; i++) {
+    const auto& repfield = this_._internal_hops().Get(i);
+    target =
+        ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+            3, repfield, repfield.GetCachedSize(),
+            target, stream);
+  }
+
   if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
     target =
         ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
@@ -701,6 +1128,15 @@ PROTOBUF_NOINLINE void TickResponse::Clear() {
   (void)cached_has_bits;
 
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+   {
+    // repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];
+    {
+      total_size += 1UL * this_._internal_hops_size();
+      for (const auto& msg : this_._internal_hops()) {
+        total_size += ::google::protobuf::internal::WireFormatLite::MessageSize(msg);
+      }
+    }
+  }
   cached_has_bits = this_._impl_._has_bits_[0];
   if ((cached_has_bits & 0x00000003U) != 0) {
     // string responder_slug = 1 [json_name = "responderSlug"];
@@ -733,6 +1169,8 @@ void TickResponse::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::go
   ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
+  _this->_internal_mutable_hops()->MergeFrom(
+      from._internal_hops());
   cached_has_bits = from._impl_._has_bits_[0];
   if ((cached_has_bits & 0x00000003U) != 0) {
     if ((cached_has_bits & 0x00000001U) != 0) {
@@ -772,6 +1210,7 @@ void TickResponse::InternalSwap(TickResponse* PROTOBUF_RESTRICT PROTOBUF_NONNULL
   ABSL_DCHECK_EQ(arena, other->GetArena());
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _impl_.hops_.InternalSwap(&other->_impl_.hops_);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.responder_slug_, &other->_impl_.responder_slug_, arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.responder_instance_uid_, &other->_impl_.responder_instance_uid_, arena);
 }

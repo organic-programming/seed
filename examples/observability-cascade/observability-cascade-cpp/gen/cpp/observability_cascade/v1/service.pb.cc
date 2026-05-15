@@ -53,7 +53,8 @@ inline constexpr PhaseResult::Impl_::Impl_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
         pass_{0},
-        fail_{0} {}
+        fail_{0},
+        elapsed_us_{::int64_t{0}} {}
 
 template <typename>
 PROTOBUF_CONSTEXPR PhaseResult::PhaseResult(::_pbi::ConstantInitialized)
@@ -79,8 +80,12 @@ inline constexpr CascadeReport::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
         phases_{},
+        name_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
         ticks_{0},
         pass_{0},
+        elapsed_us_{::int64_t{0}},
         fail_{0} {}
 
 template <typename>
@@ -108,7 +113,8 @@ inline constexpr MultiPatternReport::Impl_::Impl_(
       : _cached_size_{0},
         patterns_{},
         total_pass_{0},
-        total_fail_{0} {}
+        total_fail_{0},
+        total_elapsed_us_{::int64_t{0}} {}
 
 template <typename>
 PROTOBUF_CONSTEXPR MultiPatternReport::MultiPatternReport(::_pbi::ConstantInitialized)
@@ -141,43 +147,51 @@ const ::uint32_t
         0x000, // bitmap
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::PhaseResult, _impl_._has_bits_),
-        7, // hasbit index offset
+        8, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::PhaseResult, _impl_.name_),
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::PhaseResult, _impl_.pass_),
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::PhaseResult, _impl_.fail_),
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::PhaseResult, _impl_.failures_),
+        PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::PhaseResult, _impl_.elapsed_us_),
         0,
         1,
         2,
         ~0u,
+        3,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::CascadeReport, _impl_._has_bits_),
-        7, // hasbit index offset
+        9, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::CascadeReport, _impl_.ticks_),
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::CascadeReport, _impl_.pass_),
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::CascadeReport, _impl_.fail_),
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::CascadeReport, _impl_.phases_),
-        0,
+        PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::CascadeReport, _impl_.name_),
+        PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::CascadeReport, _impl_.elapsed_us_),
         1,
         2,
+        4,
         ~0u,
+        0,
+        3,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::MultiPatternReport, _impl_._has_bits_),
-        6, // hasbit index offset
+        7, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::MultiPatternReport, _impl_.patterns_),
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::MultiPatternReport, _impl_.total_pass_),
         PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::MultiPatternReport, _impl_.total_fail_),
+        PROTOBUF_FIELD_OFFSET(::observability_cascade::v1::MultiPatternReport, _impl_.total_elapsed_us_),
         ~0u,
         0,
         1,
+        2,
 };
 
 static const ::_pbi::MigrationSchema
     schemas[] ABSL_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
         {0, sizeof(::observability_cascade::v1::RunRequest)},
         {1, sizeof(::observability_cascade::v1::PhaseResult)},
-        {12, sizeof(::observability_cascade::v1::CascadeReport)},
-        {23, sizeof(::observability_cascade::v1::MultiPatternReport)},
+        {14, sizeof(::observability_cascade::v1::CascadeReport)},
+        {29, sizeof(::observability_cascade::v1::MultiPatternReport)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::observability_cascade::v1::_RunRequest_default_instance_._instance,
@@ -189,33 +203,36 @@ const char descriptor_table_protodef_observability_5fcascade_2fv1_2fservice_2epr
     protodesc_cold) = {
     "\n&observability_cascade/v1/service.proto"
     "\022\030observability_cascade.v1\"\014\n\nRunRequest"
-    "\"e\n\013PhaseResult\022\022\n\004name\030\001 \001(\tR\004name\022\022\n\004p"
-    "ass\030\002 \001(\005R\004pass\022\022\n\004fail\030\003 \001(\005R\004fail\022\032\n\010f"
-    "ailures\030\004 \003(\tR\010failures\"\214\001\n\rCascadeRepor"
-    "t\022\024\n\005ticks\030\001 \001(\005R\005ticks\022\022\n\004pass\030\002 \001(\005R\004p"
-    "ass\022\022\n\004fail\030\003 \001(\005R\004fail\022=\n\006phases\030\004 \003(\0132"
-    "%.observability_cascade.v1.PhaseResultR\006"
-    "phases\"\227\001\n\022MultiPatternReport\022C\n\010pattern"
-    "s\030\001 \003(\0132\'.observability_cascade.v1.Casca"
-    "deReportR\010patterns\022\035\n\ntotal_pass\030\002 \001(\005R\t"
-    "totalPass\022\035\n\ntotal_fail\030\003 \001(\005R\ttotalFail"
-    "2\301\002\n\033ObservabilityCascadeService\022[\n\nRunD"
-    "efault\022$.observability_cascade.v1.RunReq"
-    "uest\032\'.observability_cascade.v1.CascadeR"
-    "eport\022^\n\rRunLiveStream\022$.observability_c"
-    "ascade.v1.RunRequest\032\'.observability_cas"
-    "cade.v1.CascadeReport\022e\n\017RunMultiPattern"
-    "\022$.observability_cascade.v1.RunRequest\032,"
-    ".observability_cascade.v1.MultiPatternRe"
-    "portBQZOobservability-cascade-go/gen/go/"
-    "observability_cascade/v1;observabilityca"
-    "scadev1b\006proto3"
+    "\"\204\001\n\013PhaseResult\022\022\n\004name\030\001 \001(\tR\004name\022\022\n\004"
+    "pass\030\002 \001(\005R\004pass\022\022\n\004fail\030\003 \001(\005R\004fail\022\032\n\010"
+    "failures\030\004 \003(\tR\010failures\022\035\n\nelapsed_us\030\005"
+    " \001(\003R\telapsedUs\"\277\001\n\rCascadeReport\022\024\n\005tic"
+    "ks\030\001 \001(\005R\005ticks\022\022\n\004pass\030\002 \001(\005R\004pass\022\022\n\004f"
+    "ail\030\003 \001(\005R\004fail\022=\n\006phases\030\004 \003(\0132%.observ"
+    "ability_cascade.v1.PhaseResultR\006phases\022\022"
+    "\n\004name\030\005 \001(\tR\004name\022\035\n\nelapsed_us\030\006 \001(\003R\t"
+    "elapsedUs\"\301\001\n\022MultiPatternReport\022C\n\010patt"
+    "erns\030\001 \003(\0132\'.observability_cascade.v1.Ca"
+    "scadeReportR\010patterns\022\035\n\ntotal_pass\030\002 \001("
+    "\005R\ttotalPass\022\035\n\ntotal_fail\030\003 \001(\005R\ttotalF"
+    "ail\022(\n\020total_elapsed_us\030\004 \001(\003R\016totalElap"
+    "sedUs2\301\002\n\033ObservabilityCascadeService\022[\n"
+    "\nRunDefault\022$.observability_cascade.v1.R"
+    "unRequest\032\'.observability_cascade.v1.Cas"
+    "cadeReport\022^\n\rRunLiveStream\022$.observabil"
+    "ity_cascade.v1.RunRequest\032\'.observabilit"
+    "y_cascade.v1.CascadeReport\022e\n\017RunMultiPa"
+    "ttern\022$.observability_cascade.v1.RunRequ"
+    "est\032,.observability_cascade.v1.MultiPatt"
+    "ernReportBQZOobservability-cascade-go/ge"
+    "n/go/observability_cascade/v1;observabil"
+    "itycascadev1b\006proto3"
 };
 static ::absl::once_flag descriptor_table_observability_5fcascade_2fv1_2fservice_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_observability_5fcascade_2fv1_2fservice_2eproto = {
     false,
     false,
-    895,
+    1020,
     descriptor_table_protodef_observability_5fcascade_2fv1_2fservice_2eproto,
     "observability_cascade/v1/service.proto",
     &descriptor_table_observability_5fcascade_2fv1_2fservice_2eproto_once,
@@ -384,9 +401,9 @@ PhaseResult::PhaseResult(
                offsetof(Impl_, pass_),
            reinterpret_cast<const char *>(&from._impl_) +
                offsetof(Impl_, pass_),
-           offsetof(Impl_, fail_) -
+           offsetof(Impl_, elapsed_us_) -
                offsetof(Impl_, pass_) +
-               sizeof(Impl_::fail_));
+               sizeof(Impl_::elapsed_us_));
 
   // @@protoc_insertion_point(copy_constructor:observability_cascade.v1.PhaseResult)
 }
@@ -402,9 +419,9 @@ inline void PhaseResult::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   ::memset(reinterpret_cast<char *>(&_impl_) +
                offsetof(Impl_, pass_),
            0,
-           offsetof(Impl_, fail_) -
+           offsetof(Impl_, elapsed_us_) -
                offsetof(Impl_, pass_) +
-               sizeof(Impl_::fail_));
+               sizeof(Impl_::elapsed_us_));
 }
 PhaseResult::~PhaseResult() {
   // @@protoc_insertion_point(destructor:observability_cascade.v1.PhaseResult)
@@ -476,16 +493,16 @@ PhaseResult::GetClassData() const {
   return PhaseResult_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<2, 4, 0, 57, 2>
+const ::_pbi::TcParseTable<3, 5, 0, 57, 2>
 PhaseResult::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(PhaseResult, _impl_._has_bits_),
     0, // no _extensions_
-    4, 24,  // max_field_number, fast_idx_mask
+    5, 56,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967280,  // skipmap
+    4294967264,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    4,  // num_field_entries
+    5,  // num_field_entries
     0,  // num_aux_entries
     offsetof(decltype(_table_), field_names),  // no aux_entries
     PhaseResult_class_data_.base(),
@@ -495,9 +512,7 @@ PhaseResult::_table_ = {
     ::_pbi::TcParser::GetTable<::observability_cascade::v1::PhaseResult>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
-    // repeated string failures = 4 [json_name = "failures"];
-    {::_pbi::TcParser::FastUR1,
-     {34, 63, 0, PROTOBUF_FIELD_OFFSET(PhaseResult, _impl_.failures_)}},
+    {::_pbi::TcParser::MiniParse, {}},
     // string name = 1 [json_name = "name"];
     {::_pbi::TcParser::FastUS1,
      {10, 0, 0, PROTOBUF_FIELD_OFFSET(PhaseResult, _impl_.name_)}},
@@ -507,6 +522,14 @@ PhaseResult::_table_ = {
     // int32 fail = 3 [json_name = "fail"];
     {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(PhaseResult, _impl_.fail_), 2>(),
      {24, 2, 0, PROTOBUF_FIELD_OFFSET(PhaseResult, _impl_.fail_)}},
+    // repeated string failures = 4 [json_name = "failures"];
+    {::_pbi::TcParser::FastUR1,
+     {34, 63, 0, PROTOBUF_FIELD_OFFSET(PhaseResult, _impl_.failures_)}},
+    // int64 elapsed_us = 5 [json_name = "elapsedUs"];
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(PhaseResult, _impl_.elapsed_us_), 3>(),
+     {40, 3, 0, PROTOBUF_FIELD_OFFSET(PhaseResult, _impl_.elapsed_us_)}},
+    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::MiniParse, {}},
   }}, {{
     65535, 65535
   }}, {{
@@ -518,6 +541,8 @@ PhaseResult::_table_ = {
     {PROTOBUF_FIELD_OFFSET(PhaseResult, _impl_.fail_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // repeated string failures = 4 [json_name = "failures"];
     {PROTOBUF_FIELD_OFFSET(PhaseResult, _impl_.failures_), -1, 0, (0 | ::_fl::kFcRepeated | ::_fl::kUtf8String | ::_fl::kRepSString)},
+    // int64 elapsed_us = 5 [json_name = "elapsedUs"];
+    {PROTOBUF_FIELD_OFFSET(PhaseResult, _impl_.elapsed_us_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
   }},
   // no aux_entries
   {{
@@ -539,10 +564,10 @@ PROTOBUF_NOINLINE void PhaseResult::Clear() {
   if ((cached_has_bits & 0x00000001U) != 0) {
     _impl_.name_.ClearNonDefaultToEmpty();
   }
-  if ((cached_has_bits & 0x00000006U) != 0) {
+  if ((cached_has_bits & 0x0000000eU) != 0) {
     ::memset(&_impl_.pass_, 0, static_cast<::size_t>(
-        reinterpret_cast<char*>(&_impl_.fail_) -
-        reinterpret_cast<char*>(&_impl_.pass_)) + sizeof(_impl_.fail_));
+        reinterpret_cast<char*>(&_impl_.elapsed_us_) -
+        reinterpret_cast<char*>(&_impl_.pass_)) + sizeof(_impl_.elapsed_us_));
   }
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
@@ -602,6 +627,15 @@ PROTOBUF_NOINLINE void PhaseResult::Clear() {
     target = stream->WriteString(4, s, target);
   }
 
+  // int64 elapsed_us = 5 [json_name = "elapsedUs"];
+  if ((this_._impl_._has_bits_[0] & 0x00000008U) != 0) {
+    if (this_._internal_elapsed_us() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt64ToArrayWithField<5>(
+              stream, this_._internal_elapsed_us(), target);
+    }
+  }
+
   if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
     target =
         ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
@@ -638,7 +672,7 @@ PROTOBUF_NOINLINE void PhaseResult::Clear() {
     }
   }
   cached_has_bits = this_._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000007U) != 0) {
+  if ((cached_has_bits & 0x0000000fU) != 0) {
     // string name = 1 [json_name = "name"];
     if ((cached_has_bits & 0x00000001U) != 0) {
       if (!this_._internal_name().empty()) {
@@ -660,6 +694,13 @@ PROTOBUF_NOINLINE void PhaseResult::Clear() {
             this_._internal_fail());
       }
     }
+    // int64 elapsed_us = 5 [json_name = "elapsedUs"];
+    if ((cached_has_bits & 0x00000008U) != 0) {
+      if (this_._internal_elapsed_us() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+            this_._internal_elapsed_us());
+      }
+    }
   }
   return this_.MaybeComputeUnknownFieldsSize(total_size,
                                              &this_._impl_._cached_size_);
@@ -678,7 +719,7 @@ void PhaseResult::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::goo
 
   _this->_internal_mutable_failures()->MergeFrom(from._internal_failures());
   cached_has_bits = from._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000007U) != 0) {
+  if ((cached_has_bits & 0x0000000fU) != 0) {
     if ((cached_has_bits & 0x00000001U) != 0) {
       if (!from._internal_name().empty()) {
         _this->_internal_set_name(from._internal_name());
@@ -696,6 +737,11 @@ void PhaseResult::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::goo
     if ((cached_has_bits & 0x00000004U) != 0) {
       if (from._internal_fail() != 0) {
         _this->_impl_.fail_ = from._impl_.fail_;
+      }
+    }
+    if ((cached_has_bits & 0x00000008U) != 0) {
+      if (from._internal_elapsed_us() != 0) {
+        _this->_impl_.elapsed_us_ = from._impl_.elapsed_us_;
       }
     }
   }
@@ -720,8 +766,8 @@ void PhaseResult::InternalSwap(PhaseResult* PROTOBUF_RESTRICT PROTOBUF_NONNULL o
   _impl_.failures_.InternalSwap(&other->_impl_.failures_);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.name_, &other->_impl_.name_, arena);
   ::google::protobuf::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(PhaseResult, _impl_.fail_)
-      + sizeof(PhaseResult::_impl_.fail_)
+      PROTOBUF_FIELD_OFFSET(PhaseResult, _impl_.elapsed_us_)
+      + sizeof(PhaseResult::_impl_.elapsed_us_)
       - PROTOBUF_FIELD_OFFSET(PhaseResult, _impl_.pass_)>(
           reinterpret_cast<char*>(&_impl_.pass_),
           reinterpret_cast<char*>(&other->_impl_.pass_));
@@ -755,7 +801,8 @@ PROTOBUF_NDEBUG_INLINE CascadeReport::Impl_::Impl_(
     [[maybe_unused]] const ::observability_cascade::v1::CascadeReport& from_msg)
       : _has_bits_{from._has_bits_},
         _cached_size_{0},
-        phases_{visibility, arena, from.phases_} {}
+        phases_{visibility, arena, from.phases_},
+        name_(arena, from.name_) {}
 
 CascadeReport::CascadeReport(
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
@@ -784,7 +831,8 @@ PROTOBUF_NDEBUG_INLINE CascadeReport::Impl_::Impl_(
     [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
     [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
       : _cached_size_{0},
-        phases_{visibility, arena} {}
+        phases_{visibility, arena},
+        name_(arena) {}
 
 inline void CascadeReport::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   new (&_impl_) Impl_(internal_visibility(), arena);
@@ -806,6 +854,7 @@ inline void CascadeReport::SharedDtor(MessageLite& self) {
   }
   this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
   ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.name_.Destroy();
   this_._impl_.~Impl_();
 }
 
@@ -822,7 +871,7 @@ constexpr auto CascadeReport::InternalNewImpl_() {
                   ::google::protobuf::Message::internal_visibility()),
   });
   if (arena_bits.has_value()) {
-    return ::google::protobuf::internal::MessageCreator::ZeroInit(
+    return ::google::protobuf::internal::MessageCreator::CopyInit(
         sizeof(CascadeReport), alignof(CascadeReport), *arena_bits);
   } else {
     return ::google::protobuf::internal::MessageCreator(&CascadeReport::PlacementNew_,
@@ -864,16 +913,16 @@ CascadeReport::GetClassData() const {
   return CascadeReport_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<2, 4, 1, 0, 2>
+const ::_pbi::TcParseTable<3, 6, 1, 51, 2>
 CascadeReport::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_._has_bits_),
     0, // no _extensions_
-    4, 24,  // max_field_number, fast_idx_mask
+    6, 56,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967280,  // skipmap
+    4294967232,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    4,  // num_field_entries
+    6,  // num_field_entries
     1,  // num_aux_entries
     offsetof(decltype(_table_), aux_entries),
     CascadeReport_class_data_.base(),
@@ -883,34 +932,49 @@ CascadeReport::_table_ = {
     ::_pbi::TcParser::GetTable<::observability_cascade::v1::CascadeReport>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
+    {::_pbi::TcParser::MiniParse, {}},
+    // int32 ticks = 1 [json_name = "ticks"];
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(CascadeReport, _impl_.ticks_), 1>(),
+     {8, 1, 0, PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.ticks_)}},
+    // int32 pass = 2 [json_name = "pass"];
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(CascadeReport, _impl_.pass_), 2>(),
+     {16, 2, 0, PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.pass_)}},
+    // int32 fail = 3 [json_name = "fail"];
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(CascadeReport, _impl_.fail_), 4>(),
+     {24, 4, 0, PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.fail_)}},
     // repeated .observability_cascade.v1.PhaseResult phases = 4 [json_name = "phases"];
     {::_pbi::TcParser::FastMtR1,
      {34, 63, 0, PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.phases_)}},
-    // int32 ticks = 1 [json_name = "ticks"];
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(CascadeReport, _impl_.ticks_), 0>(),
-     {8, 0, 0, PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.ticks_)}},
-    // int32 pass = 2 [json_name = "pass"];
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(CascadeReport, _impl_.pass_), 1>(),
-     {16, 1, 0, PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.pass_)}},
-    // int32 fail = 3 [json_name = "fail"];
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(CascadeReport, _impl_.fail_), 2>(),
-     {24, 2, 0, PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.fail_)}},
+    // string name = 5 [json_name = "name"];
+    {::_pbi::TcParser::FastUS1,
+     {42, 0, 0, PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.name_)}},
+    // int64 elapsed_us = 6 [json_name = "elapsedUs"];
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(CascadeReport, _impl_.elapsed_us_), 3>(),
+     {48, 3, 0, PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.elapsed_us_)}},
+    {::_pbi::TcParser::MiniParse, {}},
   }}, {{
     65535, 65535
   }}, {{
     // int32 ticks = 1 [json_name = "ticks"];
-    {PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.ticks_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    {PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.ticks_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // int32 pass = 2 [json_name = "pass"];
-    {PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.pass_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    {PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.pass_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // int32 fail = 3 [json_name = "fail"];
-    {PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.fail_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    {PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.fail_), _Internal::kHasBitsOffset + 4, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // repeated .observability_cascade.v1.PhaseResult phases = 4 [json_name = "phases"];
     {PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.phases_), -1, 0, (0 | ::_fl::kFcRepeated | ::_fl::kMessage | ::_fl::kTvTable)},
+    // string name = 5 [json_name = "name"];
+    {PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.name_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    // int64 elapsed_us = 6 [json_name = "elapsedUs"];
+    {PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.elapsed_us_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
   }},
   {{
       {::_pbi::TcParser::GetTable<::observability_cascade::v1::PhaseResult>()},
   }},
   {{
+    "\46\0\0\0\0\4\0\0"
+    "observability_cascade.v1.CascadeReport"
+    "name"
   }},
 };
 PROTOBUF_NOINLINE void CascadeReport::Clear() {
@@ -922,7 +986,10 @@ PROTOBUF_NOINLINE void CascadeReport::Clear() {
 
   _impl_.phases_.Clear();
   cached_has_bits = _impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000007U) != 0) {
+  if ((cached_has_bits & 0x00000001U) != 0) {
+    _impl_.name_.ClearNonDefaultToEmpty();
+  }
+  if ((cached_has_bits & 0x0000001eU) != 0) {
     ::memset(&_impl_.ticks_, 0, static_cast<::size_t>(
         reinterpret_cast<char*>(&_impl_.fail_) -
         reinterpret_cast<char*>(&_impl_.ticks_)) + sizeof(_impl_.fail_));
@@ -950,7 +1017,7 @@ PROTOBUF_NOINLINE void CascadeReport::Clear() {
   (void)cached_has_bits;
 
   // int32 ticks = 1 [json_name = "ticks"];
-  if ((this_._impl_._has_bits_[0] & 0x00000001U) != 0) {
+  if ((this_._impl_._has_bits_[0] & 0x00000002U) != 0) {
     if (this_._internal_ticks() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<1>(
@@ -959,7 +1026,7 @@ PROTOBUF_NOINLINE void CascadeReport::Clear() {
   }
 
   // int32 pass = 2 [json_name = "pass"];
-  if ((this_._impl_._has_bits_[0] & 0x00000002U) != 0) {
+  if ((this_._impl_._has_bits_[0] & 0x00000004U) != 0) {
     if (this_._internal_pass() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<2>(
@@ -968,7 +1035,7 @@ PROTOBUF_NOINLINE void CascadeReport::Clear() {
   }
 
   // int32 fail = 3 [json_name = "fail"];
-  if ((this_._impl_._has_bits_[0] & 0x00000004U) != 0) {
+  if ((this_._impl_._has_bits_[0] & 0x00000010U) != 0) {
     if (this_._internal_fail() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<3>(
@@ -985,6 +1052,25 @@ PROTOBUF_NOINLINE void CascadeReport::Clear() {
         ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
             4, repfield, repfield.GetCachedSize(),
             target, stream);
+  }
+
+  // string name = 5 [json_name = "name"];
+  if ((this_._impl_._has_bits_[0] & 0x00000001U) != 0) {
+    if (!this_._internal_name().empty()) {
+      const ::std::string& _s = this_._internal_name();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "observability_cascade.v1.CascadeReport.name");
+      target = stream->WriteStringMaybeAliased(5, _s, target);
+    }
+  }
+
+  // int64 elapsed_us = 6 [json_name = "elapsedUs"];
+  if ((this_._impl_._has_bits_[0] & 0x00000008U) != 0) {
+    if (this_._internal_elapsed_us() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt64ToArrayWithField<6>(
+              stream, this_._internal_elapsed_us(), target);
+    }
   }
 
   if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
@@ -1021,23 +1107,37 @@ PROTOBUF_NOINLINE void CascadeReport::Clear() {
     }
   }
   cached_has_bits = this_._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000007U) != 0) {
-    // int32 ticks = 1 [json_name = "ticks"];
+  if ((cached_has_bits & 0x0000001fU) != 0) {
+    // string name = 5 [json_name = "name"];
     if ((cached_has_bits & 0x00000001U) != 0) {
+      if (!this_._internal_name().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_name());
+      }
+    }
+    // int32 ticks = 1 [json_name = "ticks"];
+    if ((cached_has_bits & 0x00000002U) != 0) {
       if (this_._internal_ticks() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_ticks());
       }
     }
     // int32 pass = 2 [json_name = "pass"];
-    if ((cached_has_bits & 0x00000002U) != 0) {
+    if ((cached_has_bits & 0x00000004U) != 0) {
       if (this_._internal_pass() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_pass());
       }
     }
+    // int64 elapsed_us = 6 [json_name = "elapsedUs"];
+    if ((cached_has_bits & 0x00000008U) != 0) {
+      if (this_._internal_elapsed_us() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+            this_._internal_elapsed_us());
+      }
+    }
     // int32 fail = 3 [json_name = "fail"];
-    if ((cached_has_bits & 0x00000004U) != 0) {
+    if ((cached_has_bits & 0x00000010U) != 0) {
       if (this_._internal_fail() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_fail());
@@ -1062,18 +1162,32 @@ void CascadeReport::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::g
   _this->_internal_mutable_phases()->MergeFrom(
       from._internal_phases());
   cached_has_bits = from._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000007U) != 0) {
+  if ((cached_has_bits & 0x0000001fU) != 0) {
     if ((cached_has_bits & 0x00000001U) != 0) {
+      if (!from._internal_name().empty()) {
+        _this->_internal_set_name(from._internal_name());
+      } else {
+        if (_this->_impl_.name_.IsDefault()) {
+          _this->_internal_set_name("");
+        }
+      }
+    }
+    if ((cached_has_bits & 0x00000002U) != 0) {
       if (from._internal_ticks() != 0) {
         _this->_impl_.ticks_ = from._impl_.ticks_;
       }
     }
-    if ((cached_has_bits & 0x00000002U) != 0) {
+    if ((cached_has_bits & 0x00000004U) != 0) {
       if (from._internal_pass() != 0) {
         _this->_impl_.pass_ = from._impl_.pass_;
       }
     }
-    if ((cached_has_bits & 0x00000004U) != 0) {
+    if ((cached_has_bits & 0x00000008U) != 0) {
+      if (from._internal_elapsed_us() != 0) {
+        _this->_impl_.elapsed_us_ = from._impl_.elapsed_us_;
+      }
+    }
+    if ((cached_has_bits & 0x00000010U) != 0) {
       if (from._internal_fail() != 0) {
         _this->_impl_.fail_ = from._impl_.fail_;
       }
@@ -1093,9 +1207,12 @@ void CascadeReport::CopyFrom(const CascadeReport& from) {
 
 void CascadeReport::InternalSwap(CascadeReport* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
   using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   _impl_.phases_.InternalSwap(&other->_impl_.phases_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.name_, &other->_impl_.name_, arena);
   ::google::protobuf::internal::memswap<
       PROTOBUF_FIELD_OFFSET(CascadeReport, _impl_.fail_)
       + sizeof(CascadeReport::_impl_.fail_)
@@ -1151,9 +1268,9 @@ MultiPatternReport::MultiPatternReport(
                offsetof(Impl_, total_pass_),
            reinterpret_cast<const char *>(&from._impl_) +
                offsetof(Impl_, total_pass_),
-           offsetof(Impl_, total_fail_) -
+           offsetof(Impl_, total_elapsed_us_) -
                offsetof(Impl_, total_pass_) +
-               sizeof(Impl_::total_fail_));
+               sizeof(Impl_::total_elapsed_us_));
 
   // @@protoc_insertion_point(copy_constructor:observability_cascade.v1.MultiPatternReport)
 }
@@ -1168,9 +1285,9 @@ inline void MultiPatternReport::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena
   ::memset(reinterpret_cast<char *>(&_impl_) +
                offsetof(Impl_, total_pass_),
            0,
-           offsetof(Impl_, total_fail_) -
+           offsetof(Impl_, total_elapsed_us_) -
                offsetof(Impl_, total_pass_) +
-               sizeof(Impl_::total_fail_));
+               sizeof(Impl_::total_elapsed_us_));
 }
 MultiPatternReport::~MultiPatternReport() {
   // @@protoc_insertion_point(destructor:observability_cascade.v1.MultiPatternReport)
@@ -1241,16 +1358,16 @@ MultiPatternReport::GetClassData() const {
   return MultiPatternReport_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<2, 3, 1, 0, 2>
+const ::_pbi::TcParseTable<2, 4, 1, 0, 2>
 MultiPatternReport::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(MultiPatternReport, _impl_._has_bits_),
     0, // no _extensions_
-    3, 24,  // max_field_number, fast_idx_mask
+    4, 24,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967288,  // skipmap
+    4294967280,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    3,  // num_field_entries
+    4,  // num_field_entries
     1,  // num_aux_entries
     offsetof(decltype(_table_), aux_entries),
     MultiPatternReport_class_data_.base(),
@@ -1260,7 +1377,9 @@ MultiPatternReport::_table_ = {
     ::_pbi::TcParser::GetTable<::observability_cascade::v1::MultiPatternReport>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
-    {::_pbi::TcParser::MiniParse, {}},
+    // int64 total_elapsed_us = 4 [json_name = "totalElapsedUs"];
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(MultiPatternReport, _impl_.total_elapsed_us_), 2>(),
+     {32, 2, 0, PROTOBUF_FIELD_OFFSET(MultiPatternReport, _impl_.total_elapsed_us_)}},
     // repeated .observability_cascade.v1.CascadeReport patterns = 1 [json_name = "patterns"];
     {::_pbi::TcParser::FastMtR1,
      {10, 63, 0, PROTOBUF_FIELD_OFFSET(MultiPatternReport, _impl_.patterns_)}},
@@ -1279,6 +1398,8 @@ MultiPatternReport::_table_ = {
     {PROTOBUF_FIELD_OFFSET(MultiPatternReport, _impl_.total_pass_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // int32 total_fail = 3 [json_name = "totalFail"];
     {PROTOBUF_FIELD_OFFSET(MultiPatternReport, _impl_.total_fail_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    // int64 total_elapsed_us = 4 [json_name = "totalElapsedUs"];
+    {PROTOBUF_FIELD_OFFSET(MultiPatternReport, _impl_.total_elapsed_us_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
   }},
   {{
       {::_pbi::TcParser::GetTable<::observability_cascade::v1::CascadeReport>()},
@@ -1295,10 +1416,10 @@ PROTOBUF_NOINLINE void MultiPatternReport::Clear() {
 
   _impl_.patterns_.Clear();
   cached_has_bits = _impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000003U) != 0) {
+  if ((cached_has_bits & 0x00000007U) != 0) {
     ::memset(&_impl_.total_pass_, 0, static_cast<::size_t>(
-        reinterpret_cast<char*>(&_impl_.total_fail_) -
-        reinterpret_cast<char*>(&_impl_.total_pass_)) + sizeof(_impl_.total_fail_));
+        reinterpret_cast<char*>(&_impl_.total_elapsed_us_) -
+        reinterpret_cast<char*>(&_impl_.total_pass_)) + sizeof(_impl_.total_elapsed_us_));
   }
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
@@ -1351,6 +1472,15 @@ PROTOBUF_NOINLINE void MultiPatternReport::Clear() {
     }
   }
 
+  // int64 total_elapsed_us = 4 [json_name = "totalElapsedUs"];
+  if ((this_._impl_._has_bits_[0] & 0x00000004U) != 0) {
+    if (this_._internal_total_elapsed_us() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt64ToArrayWithField<4>(
+              stream, this_._internal_total_elapsed_us(), target);
+    }
+  }
+
   if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
     target =
         ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
@@ -1385,7 +1515,7 @@ PROTOBUF_NOINLINE void MultiPatternReport::Clear() {
     }
   }
   cached_has_bits = this_._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000003U) != 0) {
+  if ((cached_has_bits & 0x00000007U) != 0) {
     // int32 total_pass = 2 [json_name = "totalPass"];
     if ((cached_has_bits & 0x00000001U) != 0) {
       if (this_._internal_total_pass() != 0) {
@@ -1398,6 +1528,13 @@ PROTOBUF_NOINLINE void MultiPatternReport::Clear() {
       if (this_._internal_total_fail() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_total_fail());
+      }
+    }
+    // int64 total_elapsed_us = 4 [json_name = "totalElapsedUs"];
+    if ((cached_has_bits & 0x00000004U) != 0) {
+      if (this_._internal_total_elapsed_us() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+            this_._internal_total_elapsed_us());
       }
     }
   }
@@ -1419,7 +1556,7 @@ void MultiPatternReport::MergeImpl(::google::protobuf::MessageLite& to_msg, cons
   _this->_internal_mutable_patterns()->MergeFrom(
       from._internal_patterns());
   cached_has_bits = from._impl_._has_bits_[0];
-  if ((cached_has_bits & 0x00000003U) != 0) {
+  if ((cached_has_bits & 0x00000007U) != 0) {
     if ((cached_has_bits & 0x00000001U) != 0) {
       if (from._internal_total_pass() != 0) {
         _this->_impl_.total_pass_ = from._impl_.total_pass_;
@@ -1428,6 +1565,11 @@ void MultiPatternReport::MergeImpl(::google::protobuf::MessageLite& to_msg, cons
     if ((cached_has_bits & 0x00000002U) != 0) {
       if (from._internal_total_fail() != 0) {
         _this->_impl_.total_fail_ = from._impl_.total_fail_;
+      }
+    }
+    if ((cached_has_bits & 0x00000004U) != 0) {
+      if (from._internal_total_elapsed_us() != 0) {
+        _this->_impl_.total_elapsed_us_ = from._impl_.total_elapsed_us_;
       }
     }
   }
@@ -1449,8 +1591,8 @@ void MultiPatternReport::InternalSwap(MultiPatternReport* PROTOBUF_RESTRICT PROT
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   _impl_.patterns_.InternalSwap(&other->_impl_.patterns_);
   ::google::protobuf::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(MultiPatternReport, _impl_.total_fail_)
-      + sizeof(MultiPatternReport::_impl_.total_fail_)
+      PROTOBUF_FIELD_OFFSET(MultiPatternReport, _impl_.total_elapsed_us_)
+      + sizeof(MultiPatternReport::_impl_.total_elapsed_us_)
       - PROTOBUF_FIELD_OFFSET(MultiPatternReport, _impl_.total_pass_)>(
           reinterpret_cast<char*>(&_impl_.total_pass_),
           reinterpret_cast<char*>(&other->_impl_.total_pass_));

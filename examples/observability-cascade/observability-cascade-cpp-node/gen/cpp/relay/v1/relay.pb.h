@@ -54,6 +54,10 @@ extern const ::google::protobuf::internal::DescriptorTable descriptor_table_rela
 }  // extern "C"
 namespace relay {
 namespace v1 {
+class HopReceipt;
+struct HopReceiptDefaultTypeInternal;
+extern HopReceiptDefaultTypeInternal _HopReceipt_default_instance_;
+extern const ::google::protobuf::internal::ClassDataFull HopReceipt_class_data_;
 class TickRequest;
 struct TickRequestDefaultTypeInternal;
 extern TickRequestDefaultTypeInternal _TickRequest_default_instance_;
@@ -75,219 +79,6 @@ namespace v1 {
 // ===================================================================
 
 
-// -------------------------------------------------------------------
-
-class TickResponse final : public ::google::protobuf::Message
-/* @@protoc_insertion_point(class_definition:relay.v1.TickResponse) */ {
- public:
-  inline TickResponse() : TickResponse(nullptr) {}
-  ~TickResponse() PROTOBUF_FINAL;
-
-#if defined(PROTOBUF_CUSTOM_VTABLE)
-  void operator delete(TickResponse* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
-    SharedDtor(*msg);
-    ::google::protobuf::internal::SizedDelete(msg, sizeof(TickResponse));
-  }
-#endif
-
-  template <typename = void>
-  explicit PROTOBUF_CONSTEXPR TickResponse(::google::protobuf::internal::ConstantInitialized);
-
-  inline TickResponse(const TickResponse& from) : TickResponse(nullptr, from) {}
-  inline TickResponse(TickResponse&& from) noexcept
-      : TickResponse(nullptr, ::std::move(from)) {}
-  inline TickResponse& operator=(const TickResponse& from) {
-    CopyFrom(from);
-    return *this;
-  }
-  inline TickResponse& operator=(TickResponse&& from) noexcept {
-    if (this == &from) return *this;
-    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
-      InternalSwap(&from);
-    } else {
-      CopyFrom(from);
-    }
-    return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
-  }
-  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
-      ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
-  }
-
-  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
-    return GetDescriptor();
-  }
-  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
-    return default_instance().GetMetadata().descriptor;
-  }
-  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
-    return default_instance().GetMetadata().reflection;
-  }
-  static const TickResponse& default_instance() {
-    return *reinterpret_cast<const TickResponse*>(
-        &_TickResponse_default_instance_);
-  }
-  static constexpr int kIndexInFileMessages = 1;
-  friend void swap(TickResponse& a, TickResponse& b) { a.Swap(&b); }
-  inline void Swap(TickResponse* PROTOBUF_NONNULL other) {
-    if (other == this) return;
-    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
-      InternalSwap(other);
-    } else {
-      ::google::protobuf::internal::GenericSwap(this, other);
-    }
-  }
-  void UnsafeArenaSwap(TickResponse* PROTOBUF_NONNULL other) {
-    if (other == this) return;
-    ABSL_DCHECK(GetArena() == other->GetArena());
-    InternalSwap(other);
-  }
-
-  // implements Message ----------------------------------------------
-
-  TickResponse* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
-    return ::google::protobuf::Message::DefaultConstruct<TickResponse>(arena);
-  }
-  using ::google::protobuf::Message::CopyFrom;
-  void CopyFrom(const TickResponse& from);
-  using ::google::protobuf::Message::MergeFrom;
-  void MergeFrom(const TickResponse& from) { TickResponse::MergeImpl(*this, from); }
-
-  private:
-  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
-                        const ::google::protobuf::MessageLite& from_msg);
-
-  public:
-  bool IsInitialized() const {
-    return true;
-  }
-  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
-  #if defined(PROTOBUF_CUSTOM_VTABLE)
-  private:
-  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
-  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
-      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
-      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
-
-  public:
-  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
-  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
-      ::uint8_t* PROTOBUF_NONNULL target,
-      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
-    return _InternalSerialize(*this, target, stream);
-  }
-  #else   // PROTOBUF_CUSTOM_VTABLE
-  ::size_t ByteSizeLong() const final;
-  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
-      ::uint8_t* PROTOBUF_NONNULL target,
-      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
-  #endif  // PROTOBUF_CUSTOM_VTABLE
-  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
-
-  private:
-  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static void SharedDtor(MessageLite& self);
-  void InternalSwap(TickResponse* PROTOBUF_NONNULL other);
- private:
-  template <typename T>
-  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
-  static ::absl::string_view FullMessageName() { return "relay.v1.TickResponse"; }
-
- protected:
-  explicit TickResponse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  TickResponse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const TickResponse& from);
-  TickResponse(
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, TickResponse&& from) noexcept
-      : TickResponse(arena) {
-    *this = ::std::move(from);
-  }
-  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
-  static void* PROTOBUF_NONNULL PlacementNew_(
-      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
-      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-  static constexpr auto InternalNewImpl_();
-
- public:
-  static constexpr auto InternalGenerateClassData_();
-
-  ::google::protobuf::Metadata GetMetadata() const;
-  // nested types ----------------------------------------------------
-
-  // accessors -------------------------------------------------------
-  enum : int {
-    kResponderSlugFieldNumber = 1,
-    kResponderInstanceUidFieldNumber = 2,
-  };
-  // string responder_slug = 1 [json_name = "responderSlug"];
-  void clear_responder_slug() ;
-  const ::std::string& responder_slug() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_responder_slug(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_responder_slug();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_responder_slug();
-  void set_allocated_responder_slug(::std::string* PROTOBUF_NULLABLE value);
-
-  private:
-  const ::std::string& _internal_responder_slug() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_responder_slug(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_responder_slug();
-
-  public:
-  // string responder_instance_uid = 2 [json_name = "responderInstanceUid"];
-  void clear_responder_instance_uid() ;
-  const ::std::string& responder_instance_uid() const;
-  template <typename Arg_ = const ::std::string&, typename... Args_>
-  void set_responder_instance_uid(Arg_&& arg, Args_... args);
-  ::std::string* PROTOBUF_NONNULL mutable_responder_instance_uid();
-  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_responder_instance_uid();
-  void set_allocated_responder_instance_uid(::std::string* PROTOBUF_NULLABLE value);
-
-  private:
-  const ::std::string& _internal_responder_instance_uid() const;
-  PROTOBUF_ALWAYS_INLINE void _internal_set_responder_instance_uid(const ::std::string& value);
-  ::std::string* PROTOBUF_NONNULL _internal_mutable_responder_instance_uid();
-
-  public:
-  // @@protoc_insertion_point(class_scope:relay.v1.TickResponse)
- private:
-  class _Internal;
-  friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<1, 2,
-                                   0, 66,
-                                   2>
-      _table_;
-
-  friend class ::google::protobuf::MessageLite;
-  friend class ::google::protobuf::Arena;
-  template <typename T>
-  friend class ::google::protobuf::Arena::InternalHelper;
-  using InternalArenaConstructable_ = void;
-  using DestructorSkippable_ = void;
-  struct Impl_ {
-    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
-    inline explicit Impl_(
-        ::google::protobuf::internal::InternalVisibility visibility,
-        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
-    inline explicit Impl_(
-        ::google::protobuf::internal::InternalVisibility visibility,
-        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
-        const TickResponse& from_msg);
-    ::google::protobuf::internal::HasBits<1> _has_bits_;
-    ::google::protobuf::internal::CachedSize _cached_size_;
-    ::google::protobuf::internal::ArenaStringPtr responder_slug_;
-    ::google::protobuf::internal::ArenaStringPtr responder_instance_uid_;
-    PROTOBUF_TSAN_DECLARE_MEMBER
-  };
-  union { Impl_ _impl_; };
-  friend struct ::TableStruct_relay_2fv1_2frelay_2eproto;
-};
-
-extern const ::google::protobuf::internal::ClassDataFull TickResponse_class_data_;
 // -------------------------------------------------------------------
 
 class TickRequest final : public ::google::protobuf::Message
@@ -501,6 +292,463 @@ class TickRequest final : public ::google::protobuf::Message
 };
 
 extern const ::google::protobuf::internal::ClassDataFull TickRequest_class_data_;
+// -------------------------------------------------------------------
+
+class HopReceipt final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:relay.v1.HopReceipt) */ {
+ public:
+  inline HopReceipt() : HopReceipt(nullptr) {}
+  ~HopReceipt() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(HopReceipt* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(HopReceipt));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR HopReceipt(::google::protobuf::internal::ConstantInitialized);
+
+  inline HopReceipt(const HopReceipt& from) : HopReceipt(nullptr, from) {}
+  inline HopReceipt(HopReceipt&& from) noexcept
+      : HopReceipt(nullptr, ::std::move(from)) {}
+  inline HopReceipt& operator=(const HopReceipt& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline HopReceipt& operator=(HopReceipt&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const HopReceipt& default_instance() {
+    return *reinterpret_cast<const HopReceipt*>(
+        &_HopReceipt_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 1;
+  friend void swap(HopReceipt& a, HopReceipt& b) { a.Swap(&b); }
+  inline void Swap(HopReceipt* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(HopReceipt* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  HopReceipt* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<HopReceipt>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const HopReceipt& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const HopReceipt& from) { HopReceipt::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(HopReceipt* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "relay.v1.HopReceipt"; }
+
+ protected:
+  explicit HopReceipt(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  HopReceipt(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const HopReceipt& from);
+  HopReceipt(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, HopReceipt&& from) noexcept
+      : HopReceipt(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kSlugFieldNumber = 1,
+    kUidFieldNumber = 2,
+    kReceivedFieldNumber = 3,
+  };
+  // string slug = 1 [json_name = "slug"];
+  void clear_slug() ;
+  const ::std::string& slug() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_slug(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_slug();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_slug();
+  void set_allocated_slug(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_slug() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_slug(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_slug();
+
+  public:
+  // string uid = 2 [json_name = "uid"];
+  void clear_uid() ;
+  const ::std::string& uid() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_uid(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_uid();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_uid();
+  void set_allocated_uid(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_uid() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_uid(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_uid();
+
+  public:
+  // int64 received = 3 [json_name = "received"];
+  void clear_received() ;
+  ::int64_t received() const;
+  void set_received(::int64_t value);
+
+  private:
+  ::int64_t _internal_received() const;
+  void _internal_set_received(::int64_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:relay.v1.HopReceipt)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<2, 3,
+                                   0, 35,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const HopReceipt& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::internal::ArenaStringPtr slug_;
+    ::google::protobuf::internal::ArenaStringPtr uid_;
+    ::int64_t received_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_relay_2fv1_2frelay_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull HopReceipt_class_data_;
+// -------------------------------------------------------------------
+
+class TickResponse final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:relay.v1.TickResponse) */ {
+ public:
+  inline TickResponse() : TickResponse(nullptr) {}
+  ~TickResponse() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(TickResponse* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(TickResponse));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR TickResponse(::google::protobuf::internal::ConstantInitialized);
+
+  inline TickResponse(const TickResponse& from) : TickResponse(nullptr, from) {}
+  inline TickResponse(TickResponse&& from) noexcept
+      : TickResponse(nullptr, ::std::move(from)) {}
+  inline TickResponse& operator=(const TickResponse& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline TickResponse& operator=(TickResponse&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const TickResponse& default_instance() {
+    return *reinterpret_cast<const TickResponse*>(
+        &_TickResponse_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 2;
+  friend void swap(TickResponse& a, TickResponse& b) { a.Swap(&b); }
+  inline void Swap(TickResponse* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(TickResponse* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  TickResponse* PROTOBUF_NONNULL New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<TickResponse>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const TickResponse& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const TickResponse& from) { TickResponse::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(TickResponse* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "relay.v1.TickResponse"; }
+
+ protected:
+  explicit TickResponse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  TickResponse(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const TickResponse& from);
+  TickResponse(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, TickResponse&& from) noexcept
+      : TickResponse(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_();
+
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kHopsFieldNumber = 3,
+    kResponderSlugFieldNumber = 1,
+    kResponderInstanceUidFieldNumber = 2,
+  };
+  // repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];
+  int hops_size() const;
+  private:
+  int _internal_hops_size() const;
+
+  public:
+  void clear_hops() ;
+  ::relay::v1::HopReceipt* PROTOBUF_NONNULL mutable_hops(int index);
+  ::google::protobuf::RepeatedPtrField<::relay::v1::HopReceipt>* PROTOBUF_NONNULL mutable_hops();
+
+  private:
+  const ::google::protobuf::RepeatedPtrField<::relay::v1::HopReceipt>& _internal_hops() const;
+  ::google::protobuf::RepeatedPtrField<::relay::v1::HopReceipt>* PROTOBUF_NONNULL _internal_mutable_hops();
+  public:
+  const ::relay::v1::HopReceipt& hops(int index) const;
+  ::relay::v1::HopReceipt* PROTOBUF_NONNULL add_hops();
+  const ::google::protobuf::RepeatedPtrField<::relay::v1::HopReceipt>& hops() const;
+  // string responder_slug = 1 [json_name = "responderSlug"];
+  void clear_responder_slug() ;
+  const ::std::string& responder_slug() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_responder_slug(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_responder_slug();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_responder_slug();
+  void set_allocated_responder_slug(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_responder_slug() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_responder_slug(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_responder_slug();
+
+  public:
+  // string responder_instance_uid = 2 [json_name = "responderInstanceUid"];
+  void clear_responder_instance_uid() ;
+  const ::std::string& responder_instance_uid() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_responder_instance_uid(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_responder_instance_uid();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_responder_instance_uid();
+  void set_allocated_responder_instance_uid(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_responder_instance_uid() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_responder_instance_uid(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_responder_instance_uid();
+
+  public:
+  // @@protoc_insertion_point(class_scope:relay.v1.TickResponse)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<2, 3,
+                                   1, 66,
+                                   2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const TickResponse& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::RepeatedPtrField< ::relay::v1::HopReceipt > hops_;
+    ::google::protobuf::internal::ArenaStringPtr responder_slug_;
+    ::google::protobuf::internal::ArenaStringPtr responder_instance_uid_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_relay_2fv1_2frelay_2eproto;
+};
+
+extern const ::google::protobuf::internal::ClassDataFull TickResponse_class_data_;
 
 // ===================================================================
 
@@ -650,6 +898,164 @@ inline void TickRequest::set_allocated_note(::std::string* PROTOBUF_NULLABLE val
 
 // -------------------------------------------------------------------
 
+// HopReceipt
+
+// string slug = 1 [json_name = "slug"];
+inline void HopReceipt::clear_slug() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.slug_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001U;
+}
+inline const ::std::string& HopReceipt::slug() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:relay.v1.HopReceipt.slug)
+  return _internal_slug();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void HopReceipt::set_slug(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  _impl_.slug_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:relay.v1.HopReceipt.slug)
+}
+inline ::std::string* PROTOBUF_NONNULL HopReceipt::mutable_slug()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_slug();
+  // @@protoc_insertion_point(field_mutable:relay.v1.HopReceipt.slug)
+  return _s;
+}
+inline const ::std::string& HopReceipt::_internal_slug() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.slug_.Get();
+}
+inline void HopReceipt::_internal_set_slug(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  _impl_.slug_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL HopReceipt::_internal_mutable_slug() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  return _impl_.slug_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE HopReceipt::release_slug() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:relay.v1.HopReceipt.slug)
+  if ((_impl_._has_bits_[0] & 0x00000001U) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000001U;
+  auto* released = _impl_.slug_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.slug_.Set("", GetArena());
+  }
+  return released;
+}
+inline void HopReceipt::set_allocated_slug(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001U;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001U;
+  }
+  _impl_.slug_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.slug_.IsDefault()) {
+    _impl_.slug_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:relay.v1.HopReceipt.slug)
+}
+
+// string uid = 2 [json_name = "uid"];
+inline void HopReceipt::clear_uid() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.uid_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000002U;
+}
+inline const ::std::string& HopReceipt::uid() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:relay.v1.HopReceipt.uid)
+  return _internal_uid();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void HopReceipt::set_uid(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002U;
+  _impl_.uid_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:relay.v1.HopReceipt.uid)
+}
+inline ::std::string* PROTOBUF_NONNULL HopReceipt::mutable_uid()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_uid();
+  // @@protoc_insertion_point(field_mutable:relay.v1.HopReceipt.uid)
+  return _s;
+}
+inline const ::std::string& HopReceipt::_internal_uid() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.uid_.Get();
+}
+inline void HopReceipt::_internal_set_uid(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002U;
+  _impl_.uid_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL HopReceipt::_internal_mutable_uid() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000002U;
+  return _impl_.uid_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE HopReceipt::release_uid() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:relay.v1.HopReceipt.uid)
+  if ((_impl_._has_bits_[0] & 0x00000002U) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000002U;
+  auto* released = _impl_.uid_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.uid_.Set("", GetArena());
+  }
+  return released;
+}
+inline void HopReceipt::set_allocated_uid(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000002U;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002U;
+  }
+  _impl_.uid_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.uid_.IsDefault()) {
+    _impl_.uid_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:relay.v1.HopReceipt.uid)
+}
+
+// int64 received = 3 [json_name = "received"];
+inline void HopReceipt::clear_received() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.received_ = ::int64_t{0};
+  _impl_._has_bits_[0] &= ~0x00000004U;
+}
+inline ::int64_t HopReceipt::received() const {
+  // @@protoc_insertion_point(field_get:relay.v1.HopReceipt.received)
+  return _internal_received();
+}
+inline void HopReceipt::set_received(::int64_t value) {
+  _internal_set_received(value);
+  _impl_._has_bits_[0] |= 0x00000004U;
+  // @@protoc_insertion_point(field_set:relay.v1.HopReceipt.received)
+}
+inline ::int64_t HopReceipt::_internal_received() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.received_;
+}
+inline void HopReceipt::_internal_set_received(::int64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.received_ = value;
+}
+
+// -------------------------------------------------------------------
+
 // TickResponse
 
 // string responder_slug = 1 [json_name = "responderSlug"];
@@ -780,6 +1186,56 @@ inline void TickResponse::set_allocated_responder_instance_uid(::std::string* PR
     _impl_.responder_instance_uid_.Set("", GetArena());
   }
   // @@protoc_insertion_point(field_set_allocated:relay.v1.TickResponse.responder_instance_uid)
+}
+
+// repeated .relay.v1.HopReceipt hops = 3 [json_name = "hops"];
+inline int TickResponse::_internal_hops_size() const {
+  return _internal_hops().size();
+}
+inline int TickResponse::hops_size() const {
+  return _internal_hops_size();
+}
+inline void TickResponse::clear_hops() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.hops_.Clear();
+}
+inline ::relay::v1::HopReceipt* PROTOBUF_NONNULL TickResponse::mutable_hops(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:relay.v1.TickResponse.hops)
+  return _internal_mutable_hops()->Mutable(index);
+}
+inline ::google::protobuf::RepeatedPtrField<::relay::v1::HopReceipt>* PROTOBUF_NONNULL TickResponse::mutable_hops()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:relay.v1.TickResponse.hops)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_hops();
+}
+inline const ::relay::v1::HopReceipt& TickResponse::hops(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:relay.v1.TickResponse.hops)
+  return _internal_hops().Get(index);
+}
+inline ::relay::v1::HopReceipt* PROTOBUF_NONNULL TickResponse::add_hops()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::relay::v1::HopReceipt* _add = _internal_mutable_hops()->Add();
+  // @@protoc_insertion_point(field_add:relay.v1.TickResponse.hops)
+  return _add;
+}
+inline const ::google::protobuf::RepeatedPtrField<::relay::v1::HopReceipt>& TickResponse::hops() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:relay.v1.TickResponse.hops)
+  return _internal_hops();
+}
+inline const ::google::protobuf::RepeatedPtrField<::relay::v1::HopReceipt>&
+TickResponse::_internal_hops() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.hops_;
+}
+inline ::google::protobuf::RepeatedPtrField<::relay::v1::HopReceipt>* PROTOBUF_NONNULL
+TickResponse::_internal_mutable_hops() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.hops_;
 }
 
 #ifdef __GNUC__

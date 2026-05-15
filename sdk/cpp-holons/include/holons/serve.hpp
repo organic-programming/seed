@@ -328,9 +328,11 @@ struct pending_listener {
 #ifndef _WIN32
 class stdio_bridge {
 public:
-  explicit stdio_bridge(int port) : port_(port) {
+  explicit stdio_bridge(int socket_fd) : socket_fd_(socket_fd) {
     input_fd_ = ::dup(STDIN_FILENO);
     if (input_fd_ < 0) {
+      close_fd(socket_fd_, true);
+      socket_fd_ = -1;
       throw std::runtime_error("dup(STDIN_FILENO) failed for stdio:// serve");
     }
 
@@ -338,14 +340,19 @@ public:
     if (output_fd_ < 0) {
       close_fd(input_fd_, false);
       input_fd_ = -1;
+      close_fd(socket_fd_, true);
+      socket_fd_ = -1;
       throw std::runtime_error("dup(STDOUT_FILENO) failed for stdio:// serve");
     }
   }
 
   ~stdio_bridge() { stop(); }
 
+  static std::shared_ptr<stdio_bridge> connect_loopback(int port) {
+    return std::make_shared<stdio_bridge>(connect_loopback_fd(port));
+  }
+
   void start() {
-    socket_fd_ = connect_loopback();
     upstream_thread_ = std::thread([this]() {
       connect_detail::relay_fd(input_fd_, socket_fd_);
       if (socket_fd_ >= 0) {
@@ -382,7 +389,7 @@ public:
   }
 
 private:
-  int connect_loopback() const {
+  static int connect_loopback_fd(int port) {
     int fd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
       throw std::runtime_error("socket() failed for stdio:// serve bridge: " +
@@ -391,7 +398,7 @@ private:
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(static_cast<uint16_t>(port_));
+    addr.sin_port = htons(static_cast<uint16_t>(port));
     if (::inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr) != 1) {
       close_fd(fd, true);
       throw std::runtime_error("inet_pton() failed for stdio:// serve bridge");
@@ -407,7 +414,6 @@ private:
     return fd;
   }
 
-  int port_ = 0;
   int input_fd_ = -1;
   int output_fd_ = -1;
   int socket_fd_ = -1;
@@ -818,15 +824,37 @@ public:
       return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
                           "logs family is not enabled (OP_OBS)");
     }
-    const auto entries =
-        request != nullptr && request->has_since()
-            ? obs_->log_ring->drain_since(since_cutoff(request->since()))
-            : obs_->log_ring->drain();
+    auto cutoff = request != nullptr && request->has_since()
+                      ? since_cutoff(request->since())
+                      : std::chrono::system_clock::time_point{};
+    const bool follow = request != nullptr && request->follow();
+    auto queue = std::make_shared<follow_queue<observability::LogEntry>>();
+    std::function<void()> unsubscribe;
+    std::vector<observability::LogEntry> entries =
+        follow ? std::vector<observability::LogEntry>{}
+               : (cutoff == std::chrono::system_clock::time_point{}
+                      ? obs_->log_ring->drain()
+                      : obs_->log_ring->drain_since(cutoff));
+    if (follow) {
+      auto replay = obs_->log_ring->replay_and_subscribe(
+          cutoff, [queue](const observability::LogEntry &entry) {
+            queue->push(entry);
+          });
+      entries = std::move(replay.first);
+      unsubscribe = std::move(replay.second);
+    }
     for (const auto &entry : entries) {
+      if (entry.private_entry) {
+        continue;
+      }
       if (request != nullptr && !matches_log_request(entry, *request)) {
         continue;
       }
       if (!writer->Write(to_proto_log(entry))) {
+        if (unsubscribe) {
+          unsubscribe();
+        }
+        queue->close();
         return grpc::Status::OK;
       }
     }
@@ -834,19 +862,21 @@ public:
       return grpc::Status::OK;
     }
 
-    auto queue = std::make_shared<follow_queue<observability::LogEntry>>();
-    obs_->log_ring->subscribe([queue](const observability::LogEntry &entry) {
-      queue->push(entry);
-    });
     observability::LogEntry entry;
     while (!context->IsCancelled() &&
            queue->wait_pop(&entry, [context]() { return context->IsCancelled(); })) {
+      if (entry.private_entry) {
+        continue;
+      }
       if (!matches_log_request(entry, *request)) {
         continue;
       }
       if (!writer->Write(to_proto_log(entry))) {
         break;
       }
+    }
+    if (unsubscribe) {
+      unsubscribe();
     }
     queue->close();
     return grpc::Status::OK;
@@ -932,15 +962,37 @@ public:
       return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
                           "events family is not enabled (OP_OBS)");
     }
-    const auto events =
-        request != nullptr && request->has_since()
-            ? obs_->event_bus->drain_since(since_cutoff(request->since()))
-            : obs_->event_bus->drain();
+    auto cutoff = request != nullptr && request->has_since()
+                      ? since_cutoff(request->since())
+                      : std::chrono::system_clock::time_point{};
+    const bool follow = request != nullptr && request->follow();
+    auto queue = std::make_shared<follow_queue<observability::Event>>();
+    std::function<void()> unsubscribe;
+    std::vector<observability::Event> events =
+        follow ? std::vector<observability::Event>{}
+               : (cutoff == std::chrono::system_clock::time_point{}
+                      ? obs_->event_bus->drain()
+                      : obs_->event_bus->drain_since(cutoff));
+    if (follow) {
+      auto replay = obs_->event_bus->replay_and_subscribe(
+          cutoff, [queue](const observability::Event &event) {
+            queue->push(event);
+          });
+      events = std::move(replay.first);
+      unsubscribe = std::move(replay.second);
+    }
     for (const auto &event : events) {
+      if (event.private_entry) {
+        continue;
+      }
       if (request != nullptr && !matches_event_request(event, *request)) {
         continue;
       }
       if (!writer->Write(to_proto_event(event))) {
+        if (unsubscribe) {
+          unsubscribe();
+        }
+        queue->close();
         return grpc::Status::OK;
       }
     }
@@ -948,19 +1000,21 @@ public:
       return grpc::Status::OK;
     }
 
-    auto queue = std::make_shared<follow_queue<observability::Event>>();
-    obs_->event_bus->subscribe([queue](const observability::Event &event) {
-      queue->push(event);
-    });
     observability::Event event;
     while (!context->IsCancelled() &&
            queue->wait_pop(&event, [context]() { return context->IsCancelled(); })) {
+      if (event.private_entry) {
+        continue;
+      }
       if (!matches_event_request(event, *request)) {
         continue;
       }
       if (!writer->Write(to_proto_event(event))) {
         break;
       }
+    }
+    if (unsubscribe) {
+      unsubscribe();
     }
     queue->close();
     return grpc::Status::OK;
@@ -1440,7 +1494,8 @@ public:
     }
     if (obs_->enabled(observability::Family::Events)) {
       obs_->emit(observability::EventType::InstanceReady,
-                 {{"listener", public_uri}});
+                 {{"listener", public_uri},
+                  {"metrics_addr", prom_ ? prom_->address() : std::string{}}});
     }
     if (!obs_->cfg.run_dir.empty()) {
       observability::MetaJson meta;
@@ -1495,6 +1550,10 @@ maybe_make_observability_runtime(const options &opts) {
   if (raw == nullptr || trim_copy(raw).empty()) {
     observability::check_env();
     return nullptr;
+  }
+  auto &current = observability::current();
+  if (current.families != 0) {
+    return std::make_shared<observability_runtime>(&current);
   }
   auto &obs = observability::from_env(observability::Config{opts.slug});
   if (obs.families == 0) {
@@ -1613,7 +1672,7 @@ inline server_handle start(
       server->Shutdown();
       throw std::runtime_error("stdio:// serve bridge did not get a loopback port");
     }
-    auto bridge = std::make_shared<detail::stdio_bridge>(port);
+    auto bridge = detail::stdio_bridge::connect_loopback(port);
     bridge->start();
     owned_objects.push_back(std::move(bridge));
 #endif

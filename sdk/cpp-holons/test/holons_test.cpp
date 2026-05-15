@@ -1849,6 +1849,62 @@ int main() {
     std::filesystem::remove_all(root);
   }
 
+  // TestLogsFollowReplaysRingOnSubscribe
+  {
+    namespace obs = holons::observability;
+    obs::LogRing ring(8);
+    obs::LogEntry first;
+    first.timestamp = std::chrono::system_clock::now();
+    first.message = "before";
+    ring.push(first);
+
+    std::vector<obs::LogEntry> live;
+    auto replay = ring.replay_and_subscribe(
+        std::chrono::system_clock::time_point{},
+        [&live](const obs::LogEntry &entry) { live.push_back(entry); });
+    assert(replay.first.size() == 1);
+    assert(replay.first.front().message == "before");
+    ++passed;
+
+    obs::LogEntry second;
+    second.timestamp = std::chrono::system_clock::now();
+    second.message = "after";
+    ring.push(second);
+    assert(live.size() == 1);
+    assert(live.front().message == "after");
+    replay.second();
+    ++passed;
+  }
+
+  // TestEventsFollowReplaysRingOnSubscribe
+  {
+    namespace obs = holons::observability;
+    obs::EventBus bus(8);
+    obs::Event first;
+    first.timestamp = std::chrono::system_clock::now();
+    first.type = obs::EventType::InstanceReady;
+    first.instance_uid = "before";
+    bus.emit(first);
+
+    std::vector<obs::Event> live;
+    auto replay = bus.replay_and_subscribe(
+        std::chrono::system_clock::time_point{},
+        [&live](const obs::Event &event) { live.push_back(event); });
+    assert(replay.first.size() == 1);
+    assert(replay.first.front().instance_uid == "before");
+    ++passed;
+
+    obs::Event second;
+    second.timestamp = std::chrono::system_clock::now();
+    second.type = obs::EventType::InstanceReady;
+    second.instance_uid = "after";
+    bus.emit(second);
+    assert(live.size() == 1);
+    assert(live.front().instance_uid == "after");
+    replay.second();
+    ++passed;
+  }
+
   // --- echo wrapper scripts ---
   {
     assert(::access("./bin/echo-client", F_OK) == 0);

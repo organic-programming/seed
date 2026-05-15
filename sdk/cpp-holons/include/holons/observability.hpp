@@ -164,6 +164,10 @@ struct Hop {
     std::string instance_uid;
 };
 
+struct PrivateFlag {};
+
+inline PrivateFlag Private() { return {}; }
+
 inline std::vector<Hop> append_direct_child(const std::vector<Hop>& src,
                                              std::string child_slug, std::string child_uid) {
     std::vector<Hop> out = src;
@@ -194,6 +198,7 @@ struct LogEntry {
     std::map<std::string, std::string> fields;
     std::string caller;
     std::vector<Hop> chain;
+    bool private_entry{false};
 };
 
 struct Event {
@@ -204,6 +209,7 @@ struct Event {
     std::string session_id;
     std::map<std::string, std::string> payload;
     std::vector<Hop> chain;
+    bool private_entry{false};
 };
 
 class LogRing {
@@ -216,7 +222,7 @@ public:
             std::scoped_lock lk(mu_);
             buf_.push_back(e);
             if (buf_.size() > capacity_) buf_.erase(buf_.begin());
-            copy = subs_;
+            for (const auto& item : subs_) copy.push_back(item.second);
         }
         for (auto& fn : copy) try { fn(e); } catch (...) {}
     }
@@ -236,16 +242,45 @@ public:
     std::size_t size() const { std::scoped_lock lk(mu_); return buf_.size(); }
     std::size_t capacity() const { return capacity_; }
 
-    void subscribe(std::function<void(const LogEntry&)> fn) {
+    std::size_t subscribe(std::function<void(const LogEntry&)> fn) {
         std::scoped_lock lk(mu_);
-        subs_.push_back(std::move(fn));
+        const auto id = next_sub_id_++;
+        subs_.push_back({id, std::move(fn)});
+        return id;
+    }
+
+    void unsubscribe(std::size_t id) {
+        std::scoped_lock lk(mu_);
+        subs_.erase(std::remove_if(subs_.begin(), subs_.end(),
+                                   [id](const auto& item) { return item.first == id; }),
+                    subs_.end());
+    }
+
+    std::pair<std::vector<LogEntry>, std::function<void()>>
+    replay_and_subscribe(std::chrono::system_clock::time_point cutoff,
+                         std::function<void(const LogEntry&)> fn) {
+        std::scoped_lock lk(mu_);
+        // Snapshot and live registration stay under one lock: no entry can be
+        // lost or duplicated at the replay/live boundary.
+        auto replay = buf_;
+        if (cutoff != std::chrono::system_clock::time_point{}) {
+            std::vector<LogEntry> filtered;
+            for (const auto& entry : replay) {
+                if (entry.timestamp >= cutoff) filtered.push_back(entry);
+            }
+            replay = std::move(filtered);
+        }
+        const auto id = next_sub_id_++;
+        subs_.push_back({id, std::move(fn)});
+        return {std::move(replay), [this, id]() { unsubscribe(id); }};
     }
 
 private:
     std::size_t capacity_;
     mutable std::mutex mu_;
     std::vector<LogEntry> buf_;
-    std::vector<std::function<void(const LogEntry&)>> subs_;
+    std::vector<std::pair<std::size_t, std::function<void(const LogEntry&)>>> subs_;
+    std::size_t next_sub_id_{1};
 };
 
 class EventBus {
@@ -259,7 +294,7 @@ public:
             if (closed_) return;
             buf_.push_back(e);
             if (buf_.size() > capacity_) buf_.erase(buf_.begin());
-            copy = subs_;
+            for (const auto& item : subs_) copy.push_back(item.second);
         }
         for (auto& fn : copy) try { fn(e); } catch (...) {}
     }
@@ -273,9 +308,37 @@ public:
         return out;
     }
 
-    void subscribe(std::function<void(const Event&)> fn) {
+    std::size_t subscribe(std::function<void(const Event&)> fn) {
         std::scoped_lock lk(mu_);
-        subs_.push_back(std::move(fn));
+        const auto id = next_sub_id_++;
+        subs_.push_back({id, std::move(fn)});
+        return id;
+    }
+
+    void unsubscribe(std::size_t id) {
+        std::scoped_lock lk(mu_);
+        subs_.erase(std::remove_if(subs_.begin(), subs_.end(),
+                                   [id](const auto& item) { return item.first == id; }),
+                    subs_.end());
+    }
+
+    std::pair<std::vector<Event>, std::function<void()>>
+    replay_and_subscribe(std::chrono::system_clock::time_point cutoff,
+                         std::function<void(const Event&)> fn) {
+        std::scoped_lock lk(mu_);
+        // Snapshot and live registration stay under one lock: no entry can be
+        // lost or duplicated at the replay/live boundary.
+        auto replay = buf_;
+        if (cutoff != std::chrono::system_clock::time_point{}) {
+            std::vector<Event> filtered;
+            for (const auto& event : replay) {
+                if (event.timestamp >= cutoff) filtered.push_back(event);
+            }
+            replay = std::move(filtered);
+        }
+        const auto id = next_sub_id_++;
+        subs_.push_back({id, std::move(fn)});
+        return {std::move(replay), [this, id]() { unsubscribe(id); }};
     }
 
     void close() {
@@ -288,7 +351,8 @@ private:
     std::size_t capacity_;
     std::mutex mu_;
     std::vector<Event> buf_;
-    std::vector<std::function<void(const Event&)>> subs_;
+    std::vector<std::pair<std::size_t, std::function<void(const Event&)>>> subs_;
+    std::size_t next_sub_id_{1};
     bool closed_{false};
 };
 
@@ -516,7 +580,13 @@ public:
     bool enabled(Level l) const;
 
     void log(Level l, std::string_view message,
-             const std::map<std::string, std::string>& fields = {}) const;
+             const std::map<std::string, std::string>& fields = {},
+             bool private_entry = false) const;
+    void log(Level l, std::string_view message,
+             const std::map<std::string, std::string>& fields,
+             PrivateFlag) const {
+        log(l, message, fields, true);
+    }
 
     void trace(std::string_view m, const std::map<std::string, std::string>& f = {}) const { log(Level::Trace, m, f); }
     void debug(std::string_view m, const std::map<std::string, std::string>& f = {}) const { log(Level::Debug, m, f); }
@@ -524,6 +594,12 @@ public:
     void warn(std::string_view m, const std::map<std::string, std::string>& f = {}) const { log(Level::Warn, m, f); }
     void error(std::string_view m, const std::map<std::string, std::string>& f = {}) const { log(Level::Error, m, f); }
     void fatal(std::string_view m, const std::map<std::string, std::string>& f = {}) const { log(Level::Fatal, m, f); }
+    void trace(std::string_view m, const std::map<std::string, std::string>& f, PrivateFlag p) const { log(Level::Trace, m, f, p); }
+    void debug(std::string_view m, const std::map<std::string, std::string>& f, PrivateFlag p) const { log(Level::Debug, m, f, p); }
+    void info(std::string_view m, const std::map<std::string, std::string>& f, PrivateFlag p) const { log(Level::Info, m, f, p); }
+    void warn(std::string_view m, const std::map<std::string, std::string>& f, PrivateFlag p) const { log(Level::Warn, m, f, p); }
+    void error(std::string_view m, const std::map<std::string, std::string>& f, PrivateFlag p) const { log(Level::Error, m, f, p); }
+    void fatal(std::string_view m, const std::map<std::string, std::string>& f, PrivateFlag p) const { log(Level::Fatal, m, f, p); }
 
 private:
     Level defaultLevel() const;
@@ -580,7 +656,8 @@ public:
         return registry ? registry->histogram(name, help, labels, std::move(bounds)) : nullptr;
     }
 
-    void emit(EventType type, const std::map<std::string, std::string>& payload = {}) {
+    void emit(EventType type, const std::map<std::string, std::string>& payload = {},
+              bool private_entry = false) {
         if (!event_bus) return;
         std::unordered_set<std::string> redact(cfg.redacted_fields.begin(), cfg.redacted_fields.end());
         std::map<std::string, std::string> p;
@@ -593,7 +670,13 @@ public:
         e.slug = cfg.slug;
         e.instance_uid = cfg.instance_uid;
         e.payload = std::move(p);
+        e.private_entry = private_entry;
         event_bus->emit(e);
+    }
+
+    void emit(EventType type, const std::map<std::string, std::string>& payload,
+              PrivateFlag) {
+        emit(type, payload, true);
     }
 
     void close() { if (event_bus) event_bus->close(); }
@@ -616,7 +699,8 @@ inline bool Logger::enabled(Level l) const {
 }
 
 inline void Logger::log(Level l, std::string_view message,
-                         const std::map<std::string, std::string>& fields) const {
+                         const std::map<std::string, std::string>& fields,
+                         bool private_entry) const {
     if (!enabled(l)) return;
     std::unordered_set<std::string> redact(obs_->cfg.redacted_fields.begin(), obs_->cfg.redacted_fields.end());
     std::map<std::string, std::string> f;
@@ -631,6 +715,7 @@ inline void Logger::log(Level l, std::string_view message,
     e.instance_uid = obs_->cfg.instance_uid;
     e.message = std::string(message);
     e.fields = std::move(f);
+    e.private_entry = private_entry;
     if (obs_->log_ring) obs_->log_ring->push(e);
 }
 

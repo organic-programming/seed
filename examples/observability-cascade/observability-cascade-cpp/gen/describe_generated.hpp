@@ -104,6 +104,27 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
           field_4->set_number(4);
           field_4->set_label(static_cast<holons::v1::FieldLabel>(2));
         }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("elapsed_us");
+          field_4->set_type("int64");
+          field_4->set_number(5);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("name");
+        field_3->set_type("string");
+        field_3->set_number(5);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("elapsed_us");
+        field_3->set_type("int64");
+        field_3->set_number(6);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
       }
       method->set_example_input("{}");
     }
@@ -168,6 +189,27 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
           field_4->set_number(4);
           field_4->set_label(static_cast<holons::v1::FieldLabel>(2));
         }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("elapsed_us");
+          field_4->set_type("int64");
+          field_4->set_number(5);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("name");
+        field_3->set_type("string");
+        field_3->set_number(5);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("elapsed_us");
+        field_3->set_type("int64");
+        field_3->set_number(6);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
       }
       method->set_example_input("{}");
     }
@@ -238,6 +280,27 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
             field_5->set_number(4);
             field_5->set_label(static_cast<holons::v1::FieldLabel>(2));
           }
+          {
+            auto *field_5 = field_4->add_nested_fields();
+            field_5->set_name("elapsed_us");
+            field_5->set_type("int64");
+            field_5->set_number(5);
+            field_5->set_label(static_cast<holons::v1::FieldLabel>(1));
+          }
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("name");
+          field_4->set_type("string");
+          field_4->set_number(5);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
+        }
+        {
+          auto *field_4 = field_3->add_nested_fields();
+          field_4->set_name("elapsed_us");
+          field_4->set_type("int64");
+          field_4->set_number(6);
+          field_4->set_label(static_cast<holons::v1::FieldLabel>(1));
         }
       }
       {
@@ -252,6 +315,13 @@ inline const holons::v1::DescribeResponse &StaticDescribeResponse() {
         field_3->set_name("total_fail");
         field_3->set_type("int32");
         field_3->set_number(3);
+        field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
+      }
+      {
+        auto *field_3 = method->add_output_fields();
+        field_3->set_name("total_elapsed_us");
+        field_3->set_type("int64");
+        field_3->set_number(4);
         field_3->set_label(static_cast<holons::v1::FieldLabel>(1));
       }
       method->set_example_input("{}");
