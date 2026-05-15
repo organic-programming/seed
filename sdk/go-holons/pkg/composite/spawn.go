@@ -157,7 +157,7 @@ func SpawnMember(ctx context.Context, opts SpawnOptions) (*SpawnedMember, error)
 			return nil, fmt.Errorf("spawn member %s: %w", slug, err)
 		}
 		member.ListenURI = meta.Address
-		conn, err := dialReady(ctx, normalizeDialTarget(meta.Address), 10*time.Second)
+		conn, _, err := dialReady(ctx, normalizeDialTarget(meta.Address), 10*time.Second)
 		if err != nil {
 			_ = member.Stop(context.Background())
 			return nil, fmt.Errorf("spawn member %s dial %s: %w", slug, meta.Address, err)
@@ -171,11 +171,12 @@ func SpawnMember(ctx context.Context, opts SpawnOptions) (*SpawnedMember, error)
 		transitive = *dialOpts.transitiveObservability
 	}
 	if transitive {
-		member.relay = observability.NewRelay(slug, uid, member.Conn)
-		if err := member.relay.Start(ctx); err != nil {
+		relay, err := startRelayOn(ctx, slug, uid, member.Conn)
+		if err != nil {
 			_ = member.Stop(context.Background())
 			return nil, err
 		}
+		member.relay = relay
 	}
 	return member, nil
 }
@@ -331,7 +332,44 @@ func waitSpawnMeta(ctx context.Context, runRoot, slug, uid string, timeout time.
 	}
 }
 
-func dialReady(ctx context.Context, target string, timeout time.Duration) (*grpc.ClientConn, error) {
+func dialAddress(ctx context.Context, address string, timeout time.Duration) (*grpc.ClientConn, *holonsv1.DescribeResponse, error) {
+	target, err := normalizeAddressForDial(address)
+	if err != nil {
+		return nil, nil, err
+	}
+	return dialReady(ctx, target, timeout)
+}
+
+func normalizeAddressForDial(address string) (string, error) {
+	trimmed := strings.TrimSpace(address)
+	if trimmed == "" {
+		return "", fmt.Errorf("dial address is required")
+	}
+	if strings.HasPrefix(trimmed, "stdio://") {
+		return "", fmt.Errorf("composite.Dial does not support stdio addresses; spawn the child via SpawnMember instead")
+	}
+	if strings.HasPrefix(trimmed, "unix://") || strings.HasPrefix(trimmed, "tcp://") {
+		return normalizeDialTarget(trimmed), nil
+	}
+	if strings.Contains(trimmed, "://") {
+		return "", fmt.Errorf("unsupported dial address %q", address)
+	}
+	host, port, err := net.SplitHostPort(trimmed)
+	if err != nil || strings.TrimSpace(host) == "" || strings.TrimSpace(port) == "" {
+		return "", fmt.Errorf("dial address must be tcp://host:port, unix:///path, or host:port: %q", address)
+	}
+	return trimmed, nil
+}
+
+func startRelayOn(ctx context.Context, slug, uid string, conn *grpc.ClientConn) (*observability.Relay, error) {
+	relay := observability.NewRelay(slug, uid, conn)
+	if err := relay.Start(ctx); err != nil {
+		return nil, err
+	}
+	return relay, nil
+}
+
+func dialReady(ctx context.Context, target string, timeout time.Duration) (*grpc.ClientConn, *holonsv1.DescribeResponse, error) {
 	deadline := time.Now().Add(timeout)
 	var lastErr error
 	for {
@@ -339,8 +377,8 @@ func dialReady(ctx context.Context, target string, timeout time.Duration) (*grpc
 		conn, err := grpcclient.Dial(attemptCtx, target)
 		cancel()
 		if err == nil {
-			if err := describeReady(ctx, conn, time.Second); err == nil {
-				return conn, nil
+			if desc, err := describeReady(ctx, conn, time.Second); err == nil {
+				return conn, desc, nil
 			} else {
 				lastErr = err
 				_ = conn.Close()
@@ -349,33 +387,33 @@ func dialReady(ctx context.Context, target string, timeout time.Duration) (*grpc
 			lastErr = err
 		}
 		if time.Now().After(deadline) {
-			return nil, lastErr
+			return nil, nil, lastErr
 		}
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return nil, nil, ctx.Err()
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
 }
 
-func describeReady(ctx context.Context, conn *grpc.ClientConn, timeout time.Duration) error {
+func describeReady(ctx context.Context, conn *grpc.ClientConn, timeout time.Duration) (*holonsv1.DescribeResponse, error) {
 	deadline := time.Now().Add(timeout)
 	var lastErr error
 	for {
 		attemptCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
-		_, err := holonsv1.NewHolonMetaClient(conn).Describe(attemptCtx, &holonsv1.DescribeRequest{})
+		resp, err := holonsv1.NewHolonMetaClient(conn).Describe(attemptCtx, &holonsv1.DescribeRequest{})
 		cancel()
 		if err == nil {
-			return nil
+			return resp, nil
 		}
 		lastErr = err
 		if time.Now().After(deadline) {
-			return lastErr
+			return nil, lastErr
 		}
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil, ctx.Err()
 		case <-time.After(50 * time.Millisecond):
 		}
 	}

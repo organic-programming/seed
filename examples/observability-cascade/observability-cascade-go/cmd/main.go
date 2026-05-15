@@ -87,6 +87,7 @@ func (s *cascadeService) RunMultiPattern(context.Context, *ocv1.RunRequest) (*oc
 }
 
 func runMultiPatternReport(emit bool) *ocv1.MultiPatternReport {
+	totalStart := time.Now()
 	patterns := goPatterns()
 	out := &ocv1.MultiPatternReport{}
 	if emit {
@@ -102,17 +103,24 @@ func runMultiPatternReport(emit bool) *ocv1.MultiPatternReport {
 		out.TotalPass += report.GetPass()
 		out.TotalFail += report.GetFail()
 		if emit {
+			status := "PASS"
+			if report.GetFail() > 0 {
+				status = "FAIL"
+			}
+			fmt.Printf("Pattern %s: %d/%d %s (elapsed=%s)\n", pattern.name, report.GetPass(), report.GetTicks(), status, elapsedText(report.GetElapsedUs()))
 			fmt.Println()
 		}
 	}
+	out.TotalElapsedUs = time.Since(totalStart).Microseconds()
 	if emit {
-		fmt.Printf("Summary: %d PASS / %d FAIL across %d ticks\n", out.TotalPass, out.TotalFail, out.TotalPass+out.TotalFail)
+		fmt.Printf("Summary: %d PASS / %d FAIL across %d ticks (total elapsed=%s)\n", out.TotalPass, out.TotalFail, out.TotalPass+out.TotalFail, elapsedText(out.TotalElapsedUs))
 	}
 	return out
 }
 
 func runReport(name string, members []languageMember, live bool, emit bool) *ocv1.CascadeReport {
 	ensureCascadeObservability()
+	reportStart := time.Now()
 	report := &ocv1.CascadeReport{Name: name}
 	poll := 100 * time.Millisecond
 	timeout := 3 * time.Second
@@ -125,6 +133,7 @@ func runReport(name string, members []languageMember, live bool, emit bool) *ocv
 	}
 
 	for phaseIdx, transportName := range composite.TransportCoverageSequence {
+		phaseStart := time.Now()
 		from := transportName
 		if phaseIdx > 0 {
 			from = composite.TransportCoverageSequence[phaseIdx-1]
@@ -147,7 +156,11 @@ func runReport(name string, members []languageMember, live bool, emit bool) *ocv
 			for tick := 1; tick <= runTicks; tick++ {
 				phase.Failures = append(phase.Failures, fmt.Sprintf("tick=%d log=%s event=%s hops=%s", tick, "spawn", "spawn", compactEvidence(err.Error())))
 			}
+			phase.ElapsedUs = time.Since(phaseStart).Microseconds()
 			addPhase(report, phase)
+			if emit {
+				printPhaseSummary(phase)
+			}
 			continue
 		}
 
@@ -169,10 +182,15 @@ func runReport(name string, members []languageMember, live bool, emit bool) *ocv
 			}
 		}
 		_ = cascade.Stop(context.Background())
+		phase.ElapsedUs = time.Since(phaseStart).Microseconds()
 		addPhase(report, phase)
+		if emit {
+			printPhaseSummary(phase)
+		}
 	}
+	report.ElapsedUs = time.Since(reportStart).Microseconds()
 	if emit {
-		fmt.Printf("\nSummary: %d ticks, %d PASS, %d FAIL\n", report.Ticks, report.Pass, report.Fail)
+		fmt.Printf("\nSummary: %d ticks, %d PASS, %d FAIL (total elapsed=%s)\n", report.Ticks, report.Pass, report.Fail, elapsedText(report.ElapsedUs))
 	}
 	return report
 }
@@ -339,6 +357,26 @@ func passText(pass bool) string {
 		return "PASS"
 	}
 	return "FAIL"
+}
+
+func printPhaseSummary(phase *ocv1.PhaseResult) {
+	status := "PASS"
+	if phase.GetFail() > 0 {
+		status = "FAIL"
+	}
+	fmt.Printf("Phase %s: %d/%d %s (elapsed=%s)\n", phase.GetName(), phase.GetPass(), phase.GetPass()+phase.GetFail(), status, elapsedText(phase.GetElapsedUs()))
+}
+
+func elapsedText(elapsedUS int64) string {
+	d := time.Duration(elapsedUS) * time.Microsecond
+	switch {
+	case d < time.Second:
+		return fmt.Sprintf("%dms", d.Milliseconds())
+	case d < time.Minute:
+		return fmt.Sprintf("%.2fs", d.Seconds())
+	default:
+		return fmt.Sprintf("%.1fm", d.Minutes())
+	}
 }
 
 func modeSuffix(name string) string {

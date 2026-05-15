@@ -12,6 +12,7 @@
 
 import 'dart:core' as $core;
 
+import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -60,12 +61,14 @@ class PhaseResult extends $pb.GeneratedMessage {
     $core.int? pass,
     $core.int? fail,
     $core.Iterable<$core.String>? failures,
+    $fixnum.Int64? elapsedUs,
   }) {
     final result = create();
     if (name != null) result.name = name;
     if (pass != null) result.pass = pass;
     if (fail != null) result.fail = fail;
     if (failures != null) result.failures.addAll(failures);
+    if (elapsedUs != null) result.elapsedUs = elapsedUs;
     return result;
   }
 
@@ -87,6 +90,7 @@ class PhaseResult extends $pb.GeneratedMessage {
     ..aI(2, _omitFieldNames ? '' : 'pass')
     ..aI(3, _omitFieldNames ? '' : 'fail')
     ..pPS(4, _omitFieldNames ? '' : 'failures')
+    ..aInt64(5, _omitFieldNames ? '' : 'elapsedUs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -137,6 +141,15 @@ class PhaseResult extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(4)
   $pb.PbList<$core.String> get failures => $_getList(3);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get elapsedUs => $_getI64(4);
+  @$pb.TagNumber(5)
+  set elapsedUs($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasElapsedUs() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearElapsedUs() => $_clearField(5);
 }
 
 class CascadeReport extends $pb.GeneratedMessage {
@@ -146,6 +159,7 @@ class CascadeReport extends $pb.GeneratedMessage {
     $core.int? fail,
     $core.Iterable<PhaseResult>? phases,
     $core.String? name,
+    $fixnum.Int64? elapsedUs,
   }) {
     final result = create();
     if (ticks != null) result.ticks = ticks;
@@ -153,6 +167,7 @@ class CascadeReport extends $pb.GeneratedMessage {
     if (fail != null) result.fail = fail;
     if (phases != null) result.phases.addAll(phases);
     if (name != null) result.name = name;
+    if (elapsedUs != null) result.elapsedUs = elapsedUs;
     return result;
   }
 
@@ -176,6 +191,7 @@ class CascadeReport extends $pb.GeneratedMessage {
     ..pPM<PhaseResult>(4, _omitFieldNames ? '' : 'phases',
         subBuilder: PhaseResult.create)
     ..aOS(5, _omitFieldNames ? '' : 'name')
+    ..aInt64(6, _omitFieldNames ? '' : 'elapsedUs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -235,6 +251,15 @@ class CascadeReport extends $pb.GeneratedMessage {
   $core.bool hasName() => $_has(4);
   @$pb.TagNumber(5)
   void clearName() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get elapsedUs => $_getI64(5);
+  @$pb.TagNumber(6)
+  set elapsedUs($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasElapsedUs() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearElapsedUs() => $_clearField(6);
 }
 
 class MultiPatternReport extends $pb.GeneratedMessage {
@@ -242,11 +267,13 @@ class MultiPatternReport extends $pb.GeneratedMessage {
     $core.Iterable<CascadeReport>? patterns,
     $core.int? totalPass,
     $core.int? totalFail,
+    $fixnum.Int64? totalElapsedUs,
   }) {
     final result = create();
     if (patterns != null) result.patterns.addAll(patterns);
     if (totalPass != null) result.totalPass = totalPass;
     if (totalFail != null) result.totalFail = totalFail;
+    if (totalElapsedUs != null) result.totalElapsedUs = totalElapsedUs;
     return result;
   }
 
@@ -268,6 +295,7 @@ class MultiPatternReport extends $pb.GeneratedMessage {
         subBuilder: CascadeReport.create)
     ..aI(2, _omitFieldNames ? '' : 'totalPass')
     ..aI(3, _omitFieldNames ? '' : 'totalFail')
+    ..aInt64(4, _omitFieldNames ? '' : 'totalElapsedUs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -309,6 +337,15 @@ class MultiPatternReport extends $pb.GeneratedMessage {
   $core.bool hasTotalFail() => $_has(2);
   @$pb.TagNumber(3)
   void clearTotalFail() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get totalElapsedUs => $_getI64(3);
+  @$pb.TagNumber(4)
+  set totalElapsedUs($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasTotalElapsedUs() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTotalElapsedUs() => $_clearField(4);
 }
 
 const $core.bool _omitFieldNames =

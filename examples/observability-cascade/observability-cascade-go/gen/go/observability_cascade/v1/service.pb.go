@@ -63,6 +63,7 @@ type PhaseResult struct {
 	Pass          int32                  `protobuf:"varint,2,opt,name=pass,proto3" json:"pass,omitempty"`
 	Fail          int32                  `protobuf:"varint,3,opt,name=fail,proto3" json:"fail,omitempty"`
 	Failures      []string               `protobuf:"bytes,4,rep,name=failures,proto3" json:"failures,omitempty"`
+	ElapsedUs     int64                  `protobuf:"varint,5,opt,name=elapsed_us,json=elapsedUs,proto3" json:"elapsed_us,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -125,6 +126,13 @@ func (x *PhaseResult) GetFailures() []string {
 	return nil
 }
 
+func (x *PhaseResult) GetElapsedUs() int64 {
+	if x != nil {
+		return x.ElapsedUs
+	}
+	return 0
+}
+
 type CascadeReport struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ticks         int32                  `protobuf:"varint,1,opt,name=ticks,proto3" json:"ticks,omitempty"`
@@ -132,6 +140,7 @@ type CascadeReport struct {
 	Fail          int32                  `protobuf:"varint,3,opt,name=fail,proto3" json:"fail,omitempty"`
 	Phases        []*PhaseResult         `protobuf:"bytes,4,rep,name=phases,proto3" json:"phases,omitempty"`
 	Name          string                 `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty"`
+	ElapsedUs     int64                  `protobuf:"varint,6,opt,name=elapsed_us,json=elapsedUs,proto3" json:"elapsed_us,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -201,13 +210,21 @@ func (x *CascadeReport) GetName() string {
 	return ""
 }
 
+func (x *CascadeReport) GetElapsedUs() int64 {
+	if x != nil {
+		return x.ElapsedUs
+	}
+	return 0
+}
+
 type MultiPatternReport struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Patterns      []*CascadeReport       `protobuf:"bytes,1,rep,name=patterns,proto3" json:"patterns,omitempty"`
-	TotalPass     int32                  `protobuf:"varint,2,opt,name=total_pass,json=totalPass,proto3" json:"total_pass,omitempty"`
-	TotalFail     int32                  `protobuf:"varint,3,opt,name=total_fail,json=totalFail,proto3" json:"total_fail,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Patterns       []*CascadeReport       `protobuf:"bytes,1,rep,name=patterns,proto3" json:"patterns,omitempty"`
+	TotalPass      int32                  `protobuf:"varint,2,opt,name=total_pass,json=totalPass,proto3" json:"total_pass,omitempty"`
+	TotalFail      int32                  `protobuf:"varint,3,opt,name=total_fail,json=totalFail,proto3" json:"total_fail,omitempty"`
+	TotalElapsedUs int64                  `protobuf:"varint,4,opt,name=total_elapsed_us,json=totalElapsedUs,proto3" json:"total_elapsed_us,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *MultiPatternReport) Reset() {
@@ -261,30 +278,42 @@ func (x *MultiPatternReport) GetTotalFail() int32 {
 	return 0
 }
 
+func (x *MultiPatternReport) GetTotalElapsedUs() int64 {
+	if x != nil {
+		return x.TotalElapsedUs
+	}
+	return 0
+}
+
 var File_observability_cascade_v1_service_proto protoreflect.FileDescriptor
 
 const file_observability_cascade_v1_service_proto_rawDesc = "" +
 	"\n" +
 	"&observability_cascade/v1/service.proto\x12\x18observability_cascade.v1\"\f\n" +
 	"\n" +
-	"RunRequest\"e\n" +
+	"RunRequest\"\x84\x01\n" +
 	"\vPhaseResult\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04pass\x18\x02 \x01(\x05R\x04pass\x12\x12\n" +
 	"\x04fail\x18\x03 \x01(\x05R\x04fail\x12\x1a\n" +
-	"\bfailures\x18\x04 \x03(\tR\bfailures\"\xa0\x01\n" +
+	"\bfailures\x18\x04 \x03(\tR\bfailures\x12\x1d\n" +
+	"\n" +
+	"elapsed_us\x18\x05 \x01(\x03R\telapsedUs\"\xbf\x01\n" +
 	"\rCascadeReport\x12\x14\n" +
 	"\x05ticks\x18\x01 \x01(\x05R\x05ticks\x12\x12\n" +
 	"\x04pass\x18\x02 \x01(\x05R\x04pass\x12\x12\n" +
 	"\x04fail\x18\x03 \x01(\x05R\x04fail\x12=\n" +
 	"\x06phases\x18\x04 \x03(\v2%.observability_cascade.v1.PhaseResultR\x06phases\x12\x12\n" +
-	"\x04name\x18\x05 \x01(\tR\x04name\"\x97\x01\n" +
+	"\x04name\x18\x05 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"elapsed_us\x18\x06 \x01(\x03R\telapsedUs\"\xc1\x01\n" +
 	"\x12MultiPatternReport\x12C\n" +
 	"\bpatterns\x18\x01 \x03(\v2'.observability_cascade.v1.CascadeReportR\bpatterns\x12\x1d\n" +
 	"\n" +
 	"total_pass\x18\x02 \x01(\x05R\ttotalPass\x12\x1d\n" +
 	"\n" +
-	"total_fail\x18\x03 \x01(\x05R\ttotalFail2\xc1\x02\n" +
+	"total_fail\x18\x03 \x01(\x05R\ttotalFail\x12(\n" +
+	"\x10total_elapsed_us\x18\x04 \x01(\x03R\x0etotalElapsedUs2\xc1\x02\n" +
 	"\x1bObservabilityCascadeService\x12[\n" +
 	"\n" +
 	"RunDefault\x12$.observability_cascade.v1.RunRequest\x1a'.observability_cascade.v1.CascadeReport\x12^\n" +

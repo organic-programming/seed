@@ -1,5 +1,6 @@
 import 'dart:io' as io;
 
+import 'package:fixnum/fixnum.dart';
 import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart' as sdk;
 
@@ -100,6 +101,7 @@ Future<void> serveComposite(List<String> args) {
 Future<cascade_pb.MultiPatternReport> runMultiPatternReport({
   bool emit = false,
 }) async {
+  final totalWatch = Stopwatch()..start();
   final patterns = dartPatterns();
   final out = cascade_pb.MultiPatternReport();
   if (emit) {
@@ -117,12 +119,18 @@ Future<cascade_pb.MultiPatternReport> runMultiPatternReport({
     out.totalPass += report.pass;
     out.totalFail += report.fail;
     if (emit) {
+      final status = report.fail > 0 ? 'FAIL' : 'PASS';
+      io.stdout.writeln(
+        'Pattern ${pattern.name}: ${report.pass}/${report.ticks} $status (elapsed=${elapsedText(report.elapsedUs.toInt())})',
+      );
       io.stdout.writeln();
     }
   }
+  totalWatch.stop();
+  out.totalElapsedUs = Int64(totalWatch.elapsedMicroseconds);
   if (emit) {
     io.stdout.writeln(
-      'Summary: ${out.totalPass} PASS / ${out.totalFail} FAIL across ${out.totalPass + out.totalFail} ticks',
+      'Summary: ${out.totalPass} PASS / ${out.totalFail} FAIL across ${out.totalPass + out.totalFail} ticks (total elapsed=${elapsedText(out.totalElapsedUs.toInt())})',
     );
   }
   return out;
@@ -135,6 +143,7 @@ Future<cascade_pb.CascadeReport> runReport(
   bool emit = false,
 }) async {
   ensureCascadeObservability();
+  final reportWatch = Stopwatch()..start();
   final report = cascade_pb.CascadeReport(name: name);
   final poll = live
       ? const Duration(milliseconds: 50)
@@ -149,6 +158,7 @@ Future<cascade_pb.CascadeReport> runReport(
   for (var phaseIdx = 0;
       phaseIdx < sdk.transportCoverageSequence.length;
       phaseIdx++) {
+    final phaseWatch = Stopwatch()..start();
     final transport = sdk.transportCoverageSequence[phaseIdx];
     final from =
         phaseIdx == 0 ? transport : sdk.transportCoverageSequence[phaseIdx - 1];
@@ -178,7 +188,12 @@ Future<cascade_pb.CascadeReport> runReport(
           'tick=$tick log=spawn event=spawn hops=${compactEvidence('$error')}',
         );
       }
+      phaseWatch.stop();
+      phase.elapsedUs = Int64(phaseWatch.elapsedMicroseconds);
       addPhase(report, phase);
+      if (emit) {
+        printPhaseSummary(phase);
+      }
       continue;
     }
 
@@ -210,12 +225,19 @@ Future<cascade_pb.CascadeReport> runReport(
       }
     }
     await cascade.stop();
+    phaseWatch.stop();
+    phase.elapsedUs = Int64(phaseWatch.elapsedMicroseconds);
     addPhase(report, phase);
+    if (emit) {
+      printPhaseSummary(phase);
+    }
   }
+  reportWatch.stop();
+  report.elapsedUs = Int64(reportWatch.elapsedMicroseconds);
   if (emit) {
     io.stdout.writeln();
     io.stdout.writeln(
-      'Summary: ${report.ticks} ticks, ${report.pass} PASS, ${report.fail} FAIL',
+      'Summary: ${report.ticks} ticks, ${report.pass} PASS, ${report.fail} FAIL (total elapsed=${elapsedText(report.elapsedUs.toInt())})',
     );
   }
   return report;
@@ -408,6 +430,24 @@ String compactEvidence(String value) {
 }
 
 String passText(bool pass) => pass ? 'PASS' : 'FAIL';
+
+void printPhaseSummary(cascade_pb.PhaseResult phase) {
+  final status = phase.fail > 0 ? 'FAIL' : 'PASS';
+  io.stdout.writeln(
+    'Phase ${phase.name}: ${phase.pass}/${phase.pass + phase.fail} $status (elapsed=${elapsedText(phase.elapsedUs.toInt())})',
+  );
+}
+
+String elapsedText(int elapsedUs) {
+  final duration = Duration(microseconds: elapsedUs);
+  if (duration < const Duration(seconds: 1)) {
+    return '${duration.inMilliseconds}ms';
+  }
+  if (duration < const Duration(minutes: 1)) {
+    return '${(elapsedUs / Duration.microsecondsPerSecond).toStringAsFixed(2)}s';
+  }
+  return '${(elapsedUs / Duration.microsecondsPerMinute).toStringAsFixed(1)}m';
+}
 
 String modeSuffix(String name) => name == 'default' ? '' : '--$name ';
 

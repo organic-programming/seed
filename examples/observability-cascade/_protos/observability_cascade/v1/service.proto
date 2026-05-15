@@ -25,6 +25,7 @@ message PhaseResult {
   int32 pass = 2;
   int32 fail = 3;
   repeated string failures = 4;
+  int64 elapsed_us = 5;
 }
 
 message CascadeReport {
@@ -33,10 +34,12 @@ message CascadeReport {
   int32 fail = 3;
   repeated PhaseResult phases = 4;
   string name = 5;
+  int64 elapsed_us = 6;
 }
 
 message MultiPatternReport {
   repeated CascadeReport patterns = 1;
   int32 total_pass = 2;
   int32 total_fail = 3;
+  int64 total_elapsed_us = 4;
 }
