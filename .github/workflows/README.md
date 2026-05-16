@@ -1,7 +1,10 @@
 # GitHub Workflows
 
-`pipeline.yml` is the single pre-merge and master pipeline. It always proves the
+`pipeline.yml` is the main pre-merge and master pipeline. It always proves the
 core tools first, then gate 7 decides whether the run needs fresh SDK prebuilts.
+`observability-cascade-validation.yml` is a path-filtered companion workflow for
+PRs touching `sdk/**`, `examples/observability-cascade/**`, or
+`examples/hello-world/**`; it runs `scripts/pre-validate-cascade.sh` end to end.
 
 ```text
 pull_request / push on master / workflow_dispatch
@@ -55,6 +58,11 @@ Zig host checks: `zig fmt --check`, `zig build vendor`, `zig build test`,
 `zig build test-c-abi`, and the `op build/test/clean/build gabriel-greeting-zig`
 lifecycle. Cross-compilation remains covered by the `sdk-build-zig` target
 matrix.
+
+`scripts/pre-validate-cascade.sh` mirrors the dedicated cascade workflow for
+local use. It validates the committed successful cascade ports, excludes blocked
+C and uncommitted Zig, runs js-web as SDK-only coverage, and uses 10
+`RunMultiPattern` stress runs by default.
 
 ## SDK Versions
 

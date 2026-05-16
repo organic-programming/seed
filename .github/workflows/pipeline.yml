@@ -1257,7 +1257,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lang: [go, rust, dart, python, ruby, node, java, kotlin, csharp, swift, c, cpp, zig]
+        lang: [go, dart, csharp, rust, python, cpp, ruby, java, node, kotlin, swift]
     steps:
       - name: Reset runner-managed state and isolate this run
         id: op-run
@@ -1363,34 +1363,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          slug="observability-cascade-${{ matrix.lang }}"
-          tmp="$(mktemp -d)"
-          op build "$slug" --install
-          op invoke "$slug" RunDefault '{}' -f json > "$tmp/default.json"
-          op invoke "$slug" RunLiveStream '{}' -f json > "$tmp/live.json"
-          op invoke "$slug" RunMultiPattern '{}' -f json > "$tmp/multi.json"
-          python3 - "$tmp/default.json" "$tmp/live.json" "$tmp/multi.json" <<'PY'
-          import json
-          import sys
-
-          default_path, live_path, multi_path = sys.argv[1:4]
-          with open(default_path, "r", encoding="utf-8") as fh:
-              default = json.load(fh)
-          with open(live_path, "r", encoding="utf-8") as fh:
-              live = json.load(fh)
-          with open(multi_path, "r", encoding="utf-8") as fh:
-              multi = json.load(fh)
-
-          for name, report in (("RunDefault", default), ("RunLiveStream", live)):
-              ticks = int(report.get("ticks", 0))
-              passed = int(report.get("pass", 0))
-              failed = int(report.get("fail", 0))
-              if ticks == 0 or passed != ticks or failed != 0:
-                  raise SystemExit(f"{name} failed structured assertion: {report}")
-          if int(multi.get("totalPass", 0)) != 36 or int(multi.get("totalFail", 0)) != 0:
-              raise SystemExit(f"RunMultiPattern failed structured assertion: {multi}")
-          print("observability cascade RPC matrix passed")
-          PY
+          CASCADE_LANGS="${{ matrix.lang }}" \
+            SDK_TEST_LANGS="" \
+            PHASE3_APPS="" \
+            CASCADE_STRESS_RUNS=10 \
+            scripts/pre-validate-cascade.sh --no-sdk-tests --no-apps
 
   observability-cascade-ader-suite:
     if: always() && needs.observability-cascade-matrix.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
