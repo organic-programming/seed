@@ -368,6 +368,7 @@ class PhaseResult final : public ::google::protobuf::Message
     kNameFieldNumber = 1,
     kPassFieldNumber = 2,
     kFailFieldNumber = 3,
+    kElapsedUsFieldNumber = 5,
   };
   // repeated string failures = 4 [json_name = "failures"];
   int failures_size() const;
@@ -426,11 +427,21 @@ class PhaseResult final : public ::google::protobuf::Message
   void _internal_set_fail(::int32_t value);
 
   public:
+  // int64 elapsed_us = 5 [json_name = "elapsedUs"];
+  void clear_elapsed_us() ;
+  ::int64_t elapsed_us() const;
+  void set_elapsed_us(::int64_t value);
+
+  private:
+  ::int64_t _internal_elapsed_us() const;
+  void _internal_set_elapsed_us(::int64_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:observability_cascade.v1.PhaseResult)
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<2, 4,
+  static const ::google::protobuf::internal::TcParseTable<3, 5,
                                    0, 57,
                                    2>
       _table_;
@@ -456,6 +467,7 @@ class PhaseResult final : public ::google::protobuf::Message
     ::google::protobuf::internal::ArenaStringPtr name_;
     ::int32_t pass_;
     ::int32_t fail_;
+    ::int64_t elapsed_us_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -609,8 +621,10 @@ class CascadeReport final : public ::google::protobuf::Message
   // accessors -------------------------------------------------------
   enum : int {
     kPhasesFieldNumber = 4,
+    kNameFieldNumber = 5,
     kTicksFieldNumber = 1,
     kPassFieldNumber = 2,
+    kElapsedUsFieldNumber = 6,
     kFailFieldNumber = 3,
   };
   // repeated .observability_cascade.v1.PhaseResult phases = 4 [json_name = "phases"];
@@ -630,6 +644,21 @@ class CascadeReport final : public ::google::protobuf::Message
   const ::observability_cascade::v1::PhaseResult& phases(int index) const;
   ::observability_cascade::v1::PhaseResult* PROTOBUF_NONNULL add_phases();
   const ::google::protobuf::RepeatedPtrField<::observability_cascade::v1::PhaseResult>& phases() const;
+  // string name = 5 [json_name = "name"];
+  void clear_name() ;
+  const ::std::string& name() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_name(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_name();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_name();
+  void set_allocated_name(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_name() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_name(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_name();
+
+  public:
   // int32 ticks = 1 [json_name = "ticks"];
   void clear_ticks() ;
   ::int32_t ticks() const;
@@ -650,6 +679,16 @@ class CascadeReport final : public ::google::protobuf::Message
   void _internal_set_pass(::int32_t value);
 
   public:
+  // int64 elapsed_us = 6 [json_name = "elapsedUs"];
+  void clear_elapsed_us() ;
+  ::int64_t elapsed_us() const;
+  void set_elapsed_us(::int64_t value);
+
+  private:
+  ::int64_t _internal_elapsed_us() const;
+  void _internal_set_elapsed_us(::int64_t value);
+
+  public:
   // int32 fail = 3 [json_name = "fail"];
   void clear_fail() ;
   ::int32_t fail() const;
@@ -664,8 +703,8 @@ class CascadeReport final : public ::google::protobuf::Message
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<2, 4,
-                                   1, 0,
+  static const ::google::protobuf::internal::TcParseTable<3, 6,
+                                   1, 51,
                                    2>
       _table_;
 
@@ -687,8 +726,10 @@ class CascadeReport final : public ::google::protobuf::Message
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
     ::google::protobuf::RepeatedPtrField< ::observability_cascade::v1::PhaseResult > phases_;
+    ::google::protobuf::internal::ArenaStringPtr name_;
     ::int32_t ticks_;
     ::int32_t pass_;
+    ::int64_t elapsed_us_;
     ::int32_t fail_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
@@ -845,6 +886,7 @@ class MultiPatternReport final : public ::google::protobuf::Message
     kPatternsFieldNumber = 1,
     kTotalPassFieldNumber = 2,
     kTotalFailFieldNumber = 3,
+    kTotalElapsedUsFieldNumber = 4,
   };
   // repeated .observability_cascade.v1.CascadeReport patterns = 1 [json_name = "patterns"];
   int patterns_size() const;
@@ -883,11 +925,21 @@ class MultiPatternReport final : public ::google::protobuf::Message
   void _internal_set_total_fail(::int32_t value);
 
   public:
+  // int64 total_elapsed_us = 4 [json_name = "totalElapsedUs"];
+  void clear_total_elapsed_us() ;
+  ::int64_t total_elapsed_us() const;
+  void set_total_elapsed_us(::int64_t value);
+
+  private:
+  ::int64_t _internal_total_elapsed_us() const;
+  void _internal_set_total_elapsed_us(::int64_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:observability_cascade.v1.MultiPatternReport)
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<2, 3,
+  static const ::google::protobuf::internal::TcParseTable<2, 4,
                                    1, 0,
                                    2>
       _table_;
@@ -912,6 +964,7 @@ class MultiPatternReport final : public ::google::protobuf::Message
     ::google::protobuf::RepeatedPtrField< ::observability_cascade::v1::CascadeReport > patterns_;
     ::int32_t total_pass_;
     ::int32_t total_fail_;
+    ::int64_t total_elapsed_us_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -1117,6 +1170,30 @@ PhaseResult::_internal_mutable_failures() {
   return &_impl_.failures_;
 }
 
+// int64 elapsed_us = 5 [json_name = "elapsedUs"];
+inline void PhaseResult::clear_elapsed_us() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.elapsed_us_ = ::int64_t{0};
+  _impl_._has_bits_[0] &= ~0x00000008U;
+}
+inline ::int64_t PhaseResult::elapsed_us() const {
+  // @@protoc_insertion_point(field_get:observability_cascade.v1.PhaseResult.elapsed_us)
+  return _internal_elapsed_us();
+}
+inline void PhaseResult::set_elapsed_us(::int64_t value) {
+  _internal_set_elapsed_us(value);
+  _impl_._has_bits_[0] |= 0x00000008U;
+  // @@protoc_insertion_point(field_set:observability_cascade.v1.PhaseResult.elapsed_us)
+}
+inline ::int64_t PhaseResult::_internal_elapsed_us() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.elapsed_us_;
+}
+inline void PhaseResult::_internal_set_elapsed_us(::int64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.elapsed_us_ = value;
+}
+
 // -------------------------------------------------------------------
 
 // CascadeReport
@@ -1125,7 +1202,7 @@ PhaseResult::_internal_mutable_failures() {
 inline void CascadeReport::clear_ticks() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.ticks_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000001U;
+  _impl_._has_bits_[0] &= ~0x00000002U;
 }
 inline ::int32_t CascadeReport::ticks() const {
   // @@protoc_insertion_point(field_get:observability_cascade.v1.CascadeReport.ticks)
@@ -1133,7 +1210,7 @@ inline ::int32_t CascadeReport::ticks() const {
 }
 inline void CascadeReport::set_ticks(::int32_t value) {
   _internal_set_ticks(value);
-  _impl_._has_bits_[0] |= 0x00000001U;
+  _impl_._has_bits_[0] |= 0x00000002U;
   // @@protoc_insertion_point(field_set:observability_cascade.v1.CascadeReport.ticks)
 }
 inline ::int32_t CascadeReport::_internal_ticks() const {
@@ -1149,7 +1226,7 @@ inline void CascadeReport::_internal_set_ticks(::int32_t value) {
 inline void CascadeReport::clear_pass() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.pass_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000002U;
+  _impl_._has_bits_[0] &= ~0x00000004U;
 }
 inline ::int32_t CascadeReport::pass() const {
   // @@protoc_insertion_point(field_get:observability_cascade.v1.CascadeReport.pass)
@@ -1157,7 +1234,7 @@ inline ::int32_t CascadeReport::pass() const {
 }
 inline void CascadeReport::set_pass(::int32_t value) {
   _internal_set_pass(value);
-  _impl_._has_bits_[0] |= 0x00000002U;
+  _impl_._has_bits_[0] |= 0x00000004U;
   // @@protoc_insertion_point(field_set:observability_cascade.v1.CascadeReport.pass)
 }
 inline ::int32_t CascadeReport::_internal_pass() const {
@@ -1173,7 +1250,7 @@ inline void CascadeReport::_internal_set_pass(::int32_t value) {
 inline void CascadeReport::clear_fail() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.fail_ = 0;
-  _impl_._has_bits_[0] &= ~0x00000004U;
+  _impl_._has_bits_[0] &= ~0x00000010U;
 }
 inline ::int32_t CascadeReport::fail() const {
   // @@protoc_insertion_point(field_get:observability_cascade.v1.CascadeReport.fail)
@@ -1181,7 +1258,7 @@ inline ::int32_t CascadeReport::fail() const {
 }
 inline void CascadeReport::set_fail(::int32_t value) {
   _internal_set_fail(value);
-  _impl_._has_bits_[0] |= 0x00000004U;
+  _impl_._has_bits_[0] |= 0x00000010U;
   // @@protoc_insertion_point(field_set:observability_cascade.v1.CascadeReport.fail)
 }
 inline ::int32_t CascadeReport::_internal_fail() const {
@@ -1241,6 +1318,95 @@ inline ::google::protobuf::RepeatedPtrField<::observability_cascade::v1::PhaseRe
 CascadeReport::_internal_mutable_phases() {
   ::google::protobuf::internal::TSanRead(&_impl_);
   return &_impl_.phases_;
+}
+
+// string name = 5 [json_name = "name"];
+inline void CascadeReport::clear_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.name_.ClearToEmpty();
+  _impl_._has_bits_[0] &= ~0x00000001U;
+}
+inline const ::std::string& CascadeReport::name() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:observability_cascade.v1.CascadeReport.name)
+  return _internal_name();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void CascadeReport::set_name(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  _impl_.name_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:observability_cascade.v1.CascadeReport.name)
+}
+inline ::std::string* PROTOBUF_NONNULL CascadeReport::mutable_name()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::std::string* _s = _internal_mutable_name();
+  // @@protoc_insertion_point(field_mutable:observability_cascade.v1.CascadeReport.name)
+  return _s;
+}
+inline const ::std::string& CascadeReport::_internal_name() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.name_.Get();
+}
+inline void CascadeReport::_internal_set_name(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  _impl_.name_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL CascadeReport::_internal_mutable_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_._has_bits_[0] |= 0x00000001U;
+  return _impl_.name_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE CascadeReport::release_name() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:observability_cascade.v1.CascadeReport.name)
+  if ((_impl_._has_bits_[0] & 0x00000001U) == 0) {
+    return nullptr;
+  }
+  _impl_._has_bits_[0] &= ~0x00000001U;
+  auto* released = _impl_.name_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.name_.Set("", GetArena());
+  }
+  return released;
+}
+inline void CascadeReport::set_allocated_name(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    _impl_._has_bits_[0] |= 0x00000001U;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001U;
+  }
+  _impl_.name_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.name_.IsDefault()) {
+    _impl_.name_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:observability_cascade.v1.CascadeReport.name)
+}
+
+// int64 elapsed_us = 6 [json_name = "elapsedUs"];
+inline void CascadeReport::clear_elapsed_us() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.elapsed_us_ = ::int64_t{0};
+  _impl_._has_bits_[0] &= ~0x00000008U;
+}
+inline ::int64_t CascadeReport::elapsed_us() const {
+  // @@protoc_insertion_point(field_get:observability_cascade.v1.CascadeReport.elapsed_us)
+  return _internal_elapsed_us();
+}
+inline void CascadeReport::set_elapsed_us(::int64_t value) {
+  _internal_set_elapsed_us(value);
+  _impl_._has_bits_[0] |= 0x00000008U;
+  // @@protoc_insertion_point(field_set:observability_cascade.v1.CascadeReport.elapsed_us)
+}
+inline ::int64_t CascadeReport::_internal_elapsed_us() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.elapsed_us_;
+}
+inline void CascadeReport::_internal_set_elapsed_us(::int64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.elapsed_us_ = value;
 }
 
 // -------------------------------------------------------------------
@@ -1343,6 +1509,30 @@ inline ::int32_t MultiPatternReport::_internal_total_fail() const {
 inline void MultiPatternReport::_internal_set_total_fail(::int32_t value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.total_fail_ = value;
+}
+
+// int64 total_elapsed_us = 4 [json_name = "totalElapsedUs"];
+inline void MultiPatternReport::clear_total_elapsed_us() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.total_elapsed_us_ = ::int64_t{0};
+  _impl_._has_bits_[0] &= ~0x00000004U;
+}
+inline ::int64_t MultiPatternReport::total_elapsed_us() const {
+  // @@protoc_insertion_point(field_get:observability_cascade.v1.MultiPatternReport.total_elapsed_us)
+  return _internal_total_elapsed_us();
+}
+inline void MultiPatternReport::set_total_elapsed_us(::int64_t value) {
+  _internal_set_total_elapsed_us(value);
+  _impl_._has_bits_[0] |= 0x00000004U;
+  // @@protoc_insertion_point(field_set:observability_cascade.v1.MultiPatternReport.total_elapsed_us)
+}
+inline ::int64_t MultiPatternReport::_internal_total_elapsed_us() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.total_elapsed_us_;
+}
+inline void MultiPatternReport::_internal_set_total_elapsed_us(::int64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.total_elapsed_us_ = value;
 }
 
 #ifdef __GNUC__
