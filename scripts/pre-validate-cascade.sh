@@ -340,7 +340,7 @@ validate_cascade_lang() {
     mkdir -p "$slug_tmp"
   fi
 
-  if ! run_cmd "$slug build" op build "$slug" --install; then
+  if ! run_cmd "$slug build" op build "$slug"; then
     return 0
   fi
 
@@ -419,7 +419,7 @@ validate_phase3_app() {
   local app="$1"
   case "$app" in
     gabriel-greeting-swift)
-      run_cmd "$app op build" op build "$app" --install
+      run_cmd "$app op build" op build "$app"
       ;;
     gabriel-greeting-app-swiftui)
       run_cmd "$app hardened op build" op build "$app" --hardened
