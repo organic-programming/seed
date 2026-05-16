@@ -1,4 +1,5 @@
 const std = @import("std");
+const composite = @import("composite.zig");
 const describe = @import("describe.zig");
 const grpc_server = @import("grpc/server.zig");
 const member_relay = @import("member_relay.zig");
@@ -33,6 +34,72 @@ pub const Error = error{
     MissingMemberValue,
     UnsupportedListenTransport,
 } || transport.uri.ParseError || describe.Error || member_relay.ParseError || std.mem.Allocator.Error;
+
+pub const ChildSpec = composite.ChildSpec;
+
+pub const ChildFlagResult = struct {
+    children: []ChildSpec,
+    remaining: []const []const u8,
+
+    pub fn deinit(self: *ChildFlagResult, allocator: std.mem.Allocator) void {
+        for (self.children) |child| {
+            allocator.free(child.slug);
+            allocator.free(child.binary);
+        }
+        allocator.free(self.children);
+        allocator.free(self.remaining);
+        self.* = .{ .children = &.{}, .remaining = &.{} };
+    }
+};
+
+pub fn ParseChildFlags(allocator: std.mem.Allocator, args: []const []const u8) !ChildFlagResult {
+    var children: std.ArrayList(ChildSpec) = .empty;
+    var remaining: std.ArrayList([]const u8) = .empty;
+    errdefer {
+        for (children.items) |child| {
+            allocator.free(child.slug);
+            allocator.free(child.binary);
+        }
+        children.deinit(allocator);
+        remaining.deinit(allocator);
+    }
+
+    var i: usize = 0;
+    while (i < args.len) : (i += 1) {
+        const arg = args[i];
+        if (std.mem.eql(u8, arg, "--child")) {
+            if (i + 1 < args.len) {
+                if (try parseChildSpec(allocator, args[i + 1])) |child| {
+                    try children.append(allocator, child);
+                }
+                i += 1;
+                continue;
+            }
+        }
+        if (std.mem.startsWith(u8, arg, "--child=")) {
+            if (try parseChildSpec(allocator, arg["--child=".len..])) |child| {
+                try children.append(allocator, child);
+            }
+            continue;
+        }
+        try remaining.append(allocator, arg);
+    }
+    return .{
+        .children = try children.toOwnedSlice(allocator),
+        .remaining = try remaining.toOwnedSlice(allocator),
+    };
+}
+
+fn parseChildSpec(allocator: std.mem.Allocator, raw: []const u8) !?ChildSpec {
+    const eq = std.mem.indexOfScalar(u8, raw, '=') orelse return null;
+    const slug = std.mem.trim(u8, raw[0..eq], " \t\r\n");
+    const binary = std.mem.trim(u8, raw[eq + 1 ..], " \t\r\n");
+    if (slug.len == 0 or binary.len == 0) return null;
+    return .{
+        .slug = try allocator.dupe(u8, slug),
+        .binary = try allocator.dupe(u8, binary),
+    };
+}
 
 pub fn parseOptions(args: []const []const u8) Error!Options {
     var options = Options{};
@@ -97,6 +164,20 @@ pub fn runSingle(options: Options) !void {
         std.debug.print("{s}\n", .{server.endpoint.raw});
     }
     const watcher = try startSignalWatcher(&server);
+    defer stopSignalWatcher(watcher);
+    server.wait();
+}
+
+pub fn runBound(server: *grpc_server.Server) !void {
+    try server.start();
+    try waitStarted(server);
+}
+
+pub fn waitStarted(server: *grpc_server.Server) !void {
+    if (server.endpoint.scheme != .stdio) {
+        std.debug.print("{s}\n", .{server.endpoint.raw});
+    }
+    const watcher = try startSignalWatcher(server);
     defer stopSignalWatcher(watcher);
     server.wait();
 }

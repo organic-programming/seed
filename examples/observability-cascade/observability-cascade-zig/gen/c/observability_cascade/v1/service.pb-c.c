@@ -205,7 +205,7 @@ const ProtobufCMessageDescriptor observability_cascade__v1__run_request__descrip
   (ProtobufCMessageInit) observability_cascade__v1__run_request__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor observability_cascade__v1__phase_result__field_descriptors[4] =
+static const ProtobufCFieldDescriptor observability_cascade__v1__phase_result__field_descriptors[5] =
 {
   {
     "name",
@@ -255,8 +255,21 @@ static const ProtobufCFieldDescriptor observability_cascade__v1__phase_result__f
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "elapsed_us",
+    5,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_INT64,
+    0,   /* quantifier_offset */
+    offsetof(ObservabilityCascade__V1__PhaseResult, elapsed_us),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned observability_cascade__v1__phase_result__field_indices_by_name[] = {
+  4,   /* field[4] = elapsed_us */
   2,   /* field[2] = fail */
   3,   /* field[3] = failures */
   0,   /* field[0] = name */
@@ -265,7 +278,7 @@ static const unsigned observability_cascade__v1__phase_result__field_indices_by_
 static const ProtobufCIntRange observability_cascade__v1__phase_result__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 4 }
+  { 0, 5 }
 };
 const ProtobufCMessageDescriptor observability_cascade__v1__phase_result__descriptor =
 {
@@ -275,14 +288,14 @@ const ProtobufCMessageDescriptor observability_cascade__v1__phase_result__descri
   "ObservabilityCascade__V1__PhaseResult",
   "observability_cascade.v1",
   sizeof(ObservabilityCascade__V1__PhaseResult),
-  4,
+  5,
   observability_cascade__v1__phase_result__field_descriptors,
   observability_cascade__v1__phase_result__field_indices_by_name,
   1,  observability_cascade__v1__phase_result__number_ranges,
   (ProtobufCMessageInit) observability_cascade__v1__phase_result__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor observability_cascade__v1__cascade_report__field_descriptors[4] =
+static const ProtobufCFieldDescriptor observability_cascade__v1__cascade_report__field_descriptors[6] =
 {
   {
     "ticks",
@@ -332,9 +345,35 @@ static const ProtobufCFieldDescriptor observability_cascade__v1__cascade_report_
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "name",
+    5,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_STRING,
+    0,   /* quantifier_offset */
+    offsetof(ObservabilityCascade__V1__CascadeReport, name),
+    NULL,
+    &protobuf_c_empty_string,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "elapsed_us",
+    6,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_INT64,
+    0,   /* quantifier_offset */
+    offsetof(ObservabilityCascade__V1__CascadeReport, elapsed_us),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned observability_cascade__v1__cascade_report__field_indices_by_name[] = {
+  5,   /* field[5] = elapsed_us */
   2,   /* field[2] = fail */
+  4,   /* field[4] = name */
   1,   /* field[1] = pass */
   3,   /* field[3] = phases */
   0,   /* field[0] = ticks */
@@ -342,7 +381,7 @@ static const unsigned observability_cascade__v1__cascade_report__field_indices_b
 static const ProtobufCIntRange observability_cascade__v1__cascade_report__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 4 }
+  { 0, 6 }
 };
 const ProtobufCMessageDescriptor observability_cascade__v1__cascade_report__descriptor =
 {
@@ -352,14 +391,14 @@ const ProtobufCMessageDescriptor observability_cascade__v1__cascade_report__desc
   "ObservabilityCascade__V1__CascadeReport",
   "observability_cascade.v1",
   sizeof(ObservabilityCascade__V1__CascadeReport),
-  4,
+  6,
   observability_cascade__v1__cascade_report__field_descriptors,
   observability_cascade__v1__cascade_report__field_indices_by_name,
   1,  observability_cascade__v1__cascade_report__number_ranges,
   (ProtobufCMessageInit) observability_cascade__v1__cascade_report__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCFieldDescriptor observability_cascade__v1__multi_pattern_report__field_descriptors[3] =
+static const ProtobufCFieldDescriptor observability_cascade__v1__multi_pattern_report__field_descriptors[4] =
 {
   {
     "patterns",
@@ -397,16 +436,29 @@ static const ProtobufCFieldDescriptor observability_cascade__v1__multi_pattern_r
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
+  {
+    "total_elapsed_us",
+    4,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_INT64,
+    0,   /* quantifier_offset */
+    offsetof(ObservabilityCascade__V1__MultiPatternReport, total_elapsed_us),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
 };
 static const unsigned observability_cascade__v1__multi_pattern_report__field_indices_by_name[] = {
   0,   /* field[0] = patterns */
+  3,   /* field[3] = total_elapsed_us */
   2,   /* field[2] = total_fail */
   1,   /* field[1] = total_pass */
 };
 static const ProtobufCIntRange observability_cascade__v1__multi_pattern_report__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 3 }
+  { 0, 4 }
 };
 const ProtobufCMessageDescriptor observability_cascade__v1__multi_pattern_report__descriptor =
 {
@@ -416,7 +468,7 @@ const ProtobufCMessageDescriptor observability_cascade__v1__multi_pattern_report
   "ObservabilityCascade__V1__MultiPatternReport",
   "observability_cascade.v1",
   sizeof(ObservabilityCascade__V1__MultiPatternReport),
-  3,
+  4,
   observability_cascade__v1__multi_pattern_report__field_descriptors,
   observability_cascade__v1__multi_pattern_report__field_indices_by_name,
   1,  observability_cascade__v1__multi_pattern_report__number_ranges,

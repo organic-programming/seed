@@ -3,10 +3,11 @@ const grpc_client = @import("grpc/client.zig");
 const observability = @import("observability.zig");
 const runtime = @import("protobuf/runtime.zig");
 
-const STREAM_TIMEOUT_MS = 2_000;
-const RESOLVE_TIMEOUT_MS = 5_000;
-const RESOLVE_ATTEMPT_TIMEOUT_MS = 1_000;
-const RETRY_BACKOFF_MS = 100;
+const STREAM_TIMEOUT_MS: i64 = 500;
+const RESOLVE_TIMEOUT_MS: i64 = 5_000;
+const RESOLVE_ATTEMPT_TIMEOUT_MS: i64 = 1_000;
+const READY_WAIT_MS: i64 = 10_000;
+const RETRY_BACKOFF_MS: i64 = 100;
 
 pub const MemberRef = struct {
     slug: []const u8 = "",
@@ -39,19 +40,35 @@ pub const MemberRelay = struct {
     allocator: std.mem.Allocator,
     obs: *observability.Observability,
     member: MemberRef,
+    channel: ?*grpc_client.Channel = null,
+    require_first_replay: bool = false,
     stop_requested: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     seen_log_hashes: std.ArrayList(u64) = .empty,
     seen_event_hashes: std.ArrayList(u64) = .empty,
+    logs_ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    events_ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    first_replay_ready: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     logs_thread: ?std.Thread = null,
     events_thread: ?std.Thread = null,
 
     fn start(self: *MemberRelay) !void {
-        if (self.obs.enabled(.logs) and self.obs.log_ring != null) {
+        const want_logs = self.obs.enabled(.logs) and self.obs.log_ring != null;
+        const want_events = self.obs.enabled(.events) and self.obs.event_bus != null;
+        if (self.require_first_replay and want_events) {
+            self.events_thread = try std.Thread.spawn(.{}, pumpEvents, .{self});
+            try self.waitReady(false, true);
+            if (want_logs) {
+                self.logs_thread = try std.Thread.spawn(.{}, pumpLogs, .{self});
+            }
+            return;
+        }
+        if (want_logs) {
             self.logs_thread = try std.Thread.spawn(.{}, pumpLogs, .{self});
         }
-        if (self.obs.enabled(.events) and self.obs.event_bus != null) {
+        if (want_events) {
             self.events_thread = try std.Thread.spawn(.{}, pumpEvents, .{self});
         }
+        try self.waitReady(want_logs, want_events);
     }
 
     fn stop(self: *MemberRelay) void {
@@ -65,6 +82,20 @@ pub const MemberRelay = struct {
 
     fn stopping(self: *MemberRelay) bool {
         return self.stop_requested.load(.acquire);
+    }
+
+    fn waitReady(self: *MemberRelay, want_logs: bool, want_events: bool) !void {
+        const deadline_ns = nowNs() + (@as(i128, READY_WAIT_MS) * std.time.ns_per_ms);
+        while (nowNs() < deadline_ns) {
+            const logs_ok = !want_logs or self.logs_ready.load(.acquire);
+            const events_ok = !want_events or self.events_ready.load(.acquire);
+            const replay_ok = !self.require_first_replay or self.first_replay_ready.load(.acquire);
+            if (logs_ok and events_ok and replay_ok) return;
+            if (self.stopping()) return;
+            sleepMillis(25);
+        }
+        if (self.require_first_replay and !self.first_replay_ready.load(.acquire)) return error.FirstReplayTimeout;
+        return error.RelayReadyTimeout;
     }
 };
 
@@ -93,9 +124,11 @@ pub fn startAll(allocator: std.mem.Allocator, obs: *observability.Observability,
     if (!obs.enabled(.logs) and !obs.enabled(.events)) return relays[0..0];
     for (members) |raw| {
         var member = try MemberRef.cloneTrimmed(allocator, raw);
-        errdefer member.deinit(allocator);
+        var member_owned = true;
+        errdefer if (member_owned) member.deinit(allocator);
         if (member.slug.len == 0 or member.address.len == 0) {
             member.deinit(allocator);
+            member_owned = false;
             continue;
         }
         resolveMemberIdentity(allocator, &member) catch {};
@@ -105,10 +138,46 @@ pub fn startAll(allocator: std.mem.Allocator, obs: *observability.Observability,
             .obs = obs,
             .member = member,
         };
-        try relays[count].start();
+        member_owned = false;
+        relays[count].start() catch |err| {
+            relays[count].stop();
+            return err;
+        };
         count += 1;
     }
     return relays[0..count];
+}
+
+pub fn startForChannel(
+    allocator: std.mem.Allocator,
+    obs: *observability.Observability,
+    slug: []const u8,
+    uid: []const u8,
+    channel: *grpc_client.Channel,
+) ![]MemberRelay {
+    if (!obs.enabled(.logs) and !obs.enabled(.events)) return allocator.alloc(MemberRelay, 0);
+    var relays = try allocator.alloc(MemberRelay, 1);
+    errdefer allocator.free(relays);
+    var member = MemberRef{
+        .slug = try allocator.dupe(u8, slug),
+        .uid = try allocator.dupe(u8, uid),
+        .address = try allocator.dupe(u8, channel.endpoint.raw),
+    };
+    var member_owned = true;
+    errdefer if (member_owned) member.deinit(allocator);
+    relays[0] = .{
+        .allocator = allocator,
+        .obs = obs,
+        .member = member,
+        .channel = channel,
+        .require_first_replay = true,
+    };
+    member_owned = false;
+    relays[0].start() catch |err| {
+        relays[0].stop();
+        return err;
+    };
+    return relays;
 }
 
 pub fn stopAll(allocator: std.mem.Allocator, relays: []MemberRelay) void {
@@ -204,12 +273,21 @@ fn pumpEvents(relay: *MemberRelay) void {
 }
 
 fn pumpLogsOnce(relay: *MemberRelay) !void {
+    if (relay.channel) |channel| {
+        return pumpLogsWithChannel(relay, channel);
+    }
     var channel = try grpc_client.connect(relay.allocator, relay.member.address);
     defer channel.deinit();
+    try pumpLogsWithChannel(relay, &channel);
+}
+
+fn pumpLogsWithChannel(relay: *MemberRelay, channel: *grpc_client.Channel) !void {
     const request = try runtime.packLogsRequest(relay.allocator, .{ .follow = true });
     defer relay.allocator.free(request);
-    var stream = try channel.serverStream(relay.allocator, "/holons.v1.HolonObservability/Logs", request, STREAM_TIMEOUT_MS);
+    const timeout_ms = STREAM_TIMEOUT_MS;
+    var stream = try channel.serverStream(relay.allocator, "/holons.v1.HolonObservability/Logs", request, timeout_ms);
     defer stream.deinit();
+    relay.logs_ready.store(true, .release);
 
     while (!relay.stopping()) {
         const maybe_bytes = stream.next(relay.allocator) catch break;
@@ -224,12 +302,24 @@ fn pumpLogsOnce(relay: *MemberRelay) !void {
 }
 
 fn pumpEventsOnce(relay: *MemberRelay) !void {
+    if (relay.channel) |channel| {
+        return pumpEventsWithChannel(relay, channel);
+    }
     var channel = try grpc_client.connect(relay.allocator, relay.member.address);
     defer channel.deinit();
+    try pumpEventsWithChannel(relay, &channel);
+}
+
+fn pumpEventsWithChannel(relay: *MemberRelay, channel: *grpc_client.Channel) !void {
     const request = try runtime.packEventsRequest(relay.allocator, .{ .follow = true });
     defer relay.allocator.free(request);
-    var stream = try channel.serverStream(relay.allocator, "/holons.v1.HolonObservability/Events", request, STREAM_TIMEOUT_MS);
+    const timeout_ms = if (relay.require_first_replay and !relay.first_replay_ready.load(.acquire))
+        READY_WAIT_MS
+    else
+        STREAM_TIMEOUT_MS;
+    var stream = try channel.serverStream(relay.allocator, "/holons.v1.HolonObservability/Events", request, timeout_ms);
     defer stream.deinit();
+    relay.events_ready.store(true, .release);
 
     while (!relay.stopping()) {
         const maybe_bytes = stream.next(relay.allocator) catch break;
@@ -238,8 +328,16 @@ fn pumpEventsOnce(relay: *MemberRelay) !void {
         var event = observability.eventFromBytes(relay.allocator, bytes) catch continue;
         defer event.deinit(relay.allocator);
         if (!try rememberHash(relay.allocator, &relay.seen_event_hashes, eventHash(event))) continue;
+        const is_first_replay = relay.require_first_replay and
+            event.event_type == .instance_ready and
+            std.mem.eql(u8, event.instance_uid, relay.member.uid);
         try appendRelayHop(relay.allocator, &event.chain, relay.member.slug, relay.member.uid);
         if (relay.obs.event_bus) |*bus| try bus.emit(event);
+        // Direct-channel relays are ready only after the child's own replay reaches the parent ring.
+        if (is_first_replay) {
+            relay.first_replay_ready.store(true, .release);
+            return;
+        }
     }
 }
 
