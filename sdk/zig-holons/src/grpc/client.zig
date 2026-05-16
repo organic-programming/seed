@@ -3,6 +3,8 @@ const core = @import("core.zig");
 const runtime = @import("../protobuf/runtime.zig");
 const transport = @import("../transport.zig");
 
+var stdio_channel_sequence = std.atomic.Value(u64).init(0);
+
 pub const Channel = struct {
     allocator: std.mem.Allocator,
     endpoint: transport.Endpoint,
@@ -217,7 +219,12 @@ pub fn connectStdioCommand(allocator: std.mem.Allocator, command: transport.stdi
     const creds = core.c.grpc_insecure_credentials_create() orelse return error.CredentialsCreateFailed;
     defer core.c.grpc_channel_credentials_release(creds);
 
-    const raw = core.c.grpc_channel_create_from_fd("stdio-zig", child.socket_fd, creds, null) orelse
+    const seq = stdio_channel_sequence.fetchAdd(1, .acq_rel) + 1;
+    // gRPC Core keys fd-backed channels by target; respawns need a fresh identity.
+    const target = try std.fmt.allocPrintSentinel(allocator, "stdio-zig-{d}-{d}-{d}", .{ child.pid, child.socket_fd, seq }, 0);
+    errdefer allocator.free(target);
+
+    const raw = core.c.grpc_channel_create_from_fd(target.ptr, child.socket_fd, creds, null) orelse
         return error.ChannelCreateFromFdFailed;
 
     return .{
@@ -225,6 +232,7 @@ pub fn connectStdioCommand(allocator: std.mem.Allocator, command: transport.stdi
         .endpoint = .{ .raw = "stdio://", .scheme = .stdio, .address = "" },
         .raw = raw,
         .child = child,
+        .owned_target = target,
     };
 }
 

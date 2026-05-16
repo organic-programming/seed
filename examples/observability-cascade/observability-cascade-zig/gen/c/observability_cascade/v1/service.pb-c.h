@@ -43,10 +43,11 @@ struct  ObservabilityCascade__V1__PhaseResult
   int32_t fail;
   size_t n_failures;
   char **failures;
+  int64_t elapsed_us;
 };
 #define OBSERVABILITY_CASCADE__V1__PHASE_RESULT__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&observability_cascade__v1__phase_result__descriptor) \
-, (char *)protobuf_c_empty_string, 0, 0, 0,NULL }
+, (char *)protobuf_c_empty_string, 0, 0, 0,NULL, 0 }
 
 
 struct  ObservabilityCascade__V1__CascadeReport
@@ -57,10 +58,12 @@ struct  ObservabilityCascade__V1__CascadeReport
   int32_t fail;
   size_t n_phases;
   ObservabilityCascade__V1__PhaseResult **phases;
+  char *name;
+  int64_t elapsed_us;
 };
 #define OBSERVABILITY_CASCADE__V1__CASCADE_REPORT__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&observability_cascade__v1__cascade_report__descriptor) \
-, 0, 0, 0, 0,NULL }
+, 0, 0, 0, 0,NULL, (char *)protobuf_c_empty_string, 0 }
 
 
 struct  ObservabilityCascade__V1__MultiPatternReport
@@ -70,10 +73,11 @@ struct  ObservabilityCascade__V1__MultiPatternReport
   ObservabilityCascade__V1__CascadeReport **patterns;
   int32_t total_pass;
   int32_t total_fail;
+  int64_t total_elapsed_us;
 };
 #define OBSERVABILITY_CASCADE__V1__MULTI_PATTERN_REPORT__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&observability_cascade__v1__multi_pattern_report__descriptor) \
-, 0,NULL, 0, 0 }
+, 0,NULL, 0, 0, 0 }
 
 
 /* ObservabilityCascade__V1__RunRequest methods */

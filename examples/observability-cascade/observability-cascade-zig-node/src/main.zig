@@ -4,16 +4,10 @@ const describe_generated = @import("describe_generated");
 
 const c = @cImport({
     @cInclude("unistd.h");
-    @cInclude("protobuf-c/protobuf-c.h");
-    @cInclude("relay/v1/relay.pb-c.h");
 });
 
 const slug = "observability-cascade-zig-node";
 const version = "0.1.0";
-
-const methods = [_]holons.grpc.server.Method{
-    .{ .path = "/relay.v1.RelayService/Tick", .handler = tick },
-};
 
 pub fn main(init: std.process.Init.Minimal) !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.c_allocator);
@@ -28,13 +22,13 @@ pub fn main(init: std.process.Init.Minimal) !void {
         return;
     }
     if (args.len < 2 or !std.mem.eql(u8, args[1], "serve")) {
-        try writeStderr("usage: observability-cascade-zig-node serve [--listen <uri>] [--member <slug>=<address>]\n");
+        try writeStderr("usage: observability-cascade-zig-node serve [--listen <uri>] [--transport <name>] [--child <slug>=<binary>]\n");
         return error.InvalidCommand;
     }
 
-    var parsed = try holons.serve.parseOptionsAlloc(std.heap.c_allocator, args[1..]);
-    defer parsed.deinit(std.heap.c_allocator);
-    parsed.options.methods = methods[0..];
+    var parsed_children = try holons.serve.ParseChildFlags(std.heap.c_allocator, args[1..]);
+    defer parsed_children.deinit(std.heap.c_allocator);
+    var options = try holons.serve.parseOptions(parsed_children.remaining);
 
     const obs = try holons.observability.configure(std.heap.c_allocator, .{
         .slug = slug,
@@ -46,45 +40,41 @@ pub fn main(init: std.process.Init.Minimal) !void {
     if (obs.cfg.run_dir.len != 0) try holons.observability.enableDiskWriters(obs, obs.cfg.run_dir);
     const metrics_addr = (try holons.observability.startPrometheusEndpoint(obs)) orelse "";
     defer if (metrics_addr.len != 0) std.heap.c_allocator.free(metrics_addr);
-    if (obs.cfg.run_dir.len != 0) {
-        try writeMeta(allocator, obs, parsed.options.listen_uri, metrics_addr);
-    }
-    try obs.emit(.instance_ready, &.{});
 
-    try holons.serve.runSingle(parsed.options);
+    holons.relay.requireDownstream(parsed_children.children.len != 0);
+    options.methods = holons.relay.serviceMethods(null);
+    var server = try holons.serve.bind(std.heap.c_allocator, options);
+    defer server.deinit();
+    try server.start();
+    if (obs.cfg.run_dir.len != 0) {
+        try writeMeta(allocator, obs, server.endpoint.raw, metrics_addr);
+    }
+
+    var downstream: ?holons.composite.SpawnedMember = null;
+    if (parsed_children.children.len != 0) {
+        downstream = try holons.composite.SpawnMember(std.heap.c_allocator, .{
+            .slug = parsed_children.children[0].slug,
+            .binary_path = parsed_children.children[0].binary,
+            .transport_name = parseTransport(parsed_children.remaining),
+            .downstream_chain = parsed_children.children[1..],
+        });
+        if (downstream) |*member| holons.relay.setDownstream(member.conn);
+    }
+    defer if (downstream) |*member| member.Stop();
+
+    try obs.emit(.instance_ready, &.{
+        .{ .key = "listener", .value = server.endpoint.raw },
+        .{ .key = "metrics_addr", .value = metrics_addr },
+    });
+    try holons.serve.waitStarted(&server);
 }
 
-fn tick(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
-    const request = c.relay__v1__tick_request__unpack(null, bytes.len, bytes.ptr) orelse
-        return error.DecodeTickRequestFailed;
-    defer c.relay__v1__tick_request__free_unpacked(request, null);
-
-    const obs = holons.observability.current() orelse return error.ObservabilityNotConfigured;
-    const uid = obs.cfg.instance_uid;
-    var logger = obs.logger("tick");
-    try logger.info("tick received", &.{
-        .{ .key = "sender", .value = cstr(request.*.sender) },
-        .{ .key = "note", .value = cstr(request.*.note) },
-        .{ .key = "responder_slug", .value = slug },
-        .{ .key = "responder_uid", .value = uid },
-    });
-    if (try obs.counter("cascade_ticks_total", "Ticks received by this cascade node.", &.{
-        .{ .key = "responder_uid", .value = uid },
-    })) |counter| {
-        counter.inc();
+fn parseTransport(args: []const []const u8) []const u8 {
+    for (args, 0..) |arg, index| {
+        if (std.mem.eql(u8, arg, "--transport") and index + 1 < args.len) return args[index + 1];
+        if (std.mem.startsWith(u8, arg, "--transport=")) return arg["--transport=".len..];
     }
-
-    var response: c.Relay__V1__TickResponse = undefined;
-    c.relay__v1__tick_response__init(&response);
-    const response_slug = try allocator.dupeZ(u8, slug);
-    const response_uid = try allocator.dupeZ(u8, uid);
-    response.responder_slug = response_slug.ptr;
-    response.responder_instance_uid = response_uid.ptr;
-    const len = c.relay__v1__tick_response__get_packed_size(&response);
-    const out = try allocator.alloc(u8, len);
-    const encoded = c.relay__v1__tick_response__pack(&response, out.ptr);
-    if (encoded != len) return error.EncodeTickResponseFailed;
-    return out;
+    return "stdio";
 }
 
 fn writeMeta(
@@ -116,11 +106,6 @@ fn transportName(uri: []const u8) []const u8 {
     if (std.mem.startsWith(u8, uri, "unix://")) return "unix";
     if (std.mem.startsWith(u8, uri, "stdio://")) return "stdio";
     return "";
-}
-
-fn cstr(value: [*c]const u8) []const u8 {
-    if (value == null) return "";
-    return std.mem.span(value);
 }
 
 fn nowNs() i128 {
