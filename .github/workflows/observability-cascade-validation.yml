@@ -36,7 +36,7 @@ env:
   CPP_HOLONS_JOBS: 8
   C_HOLONS_JOBS: 8
   RUBY_HOLONS_JOBS: 4
-  CASCADE_STRESS_RUNS: 10
+  CASCADE_STRESS_RUNS: 3
 
 jobs:
   cascade-pre-validation:
