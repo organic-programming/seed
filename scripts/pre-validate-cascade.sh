@@ -230,7 +230,7 @@ def get_elapsed_us(phase):
 def validate_default_or_live(report, name):
     ticks = get_int(report, ("ticks",))
     passed = get_int(report, ("pass", "passed"))
-    failed = get_int(report, ("fail", "failed"))
+    failed = get_int(report, ("fail", "failed"), 0)
     if ticks != 30 or passed != 30 or failed != 0:
         raise AssertionError(f"{name} expected ticks=30 pass=30 fail=0, got {report}")
     phases = get_list(report, ("phases", "phaseReports", "phase_reports"))
@@ -245,7 +245,7 @@ def validate_default_or_live(report, name):
 
 def validate_multi(report):
     total_pass = get_int(report, ("total_pass", "totalPass"))
-    total_fail = get_int(report, ("total_fail", "totalFail"))
+    total_fail = get_int(report, ("total_fail", "totalFail"), 0)
     total = get_int(report, ("total", "total_ticks", "totalTicks"), total_pass + total_fail)
     if total != 240 or total_pass != 240 or total_fail != 0:
         raise AssertionError(f"RunMultiPattern expected total=240 total_pass=240 total_fail=0, got {report}")
@@ -255,7 +255,7 @@ def validate_multi(report):
             raise AssertionError(f"RunMultiPattern expected 8 patterns, got {len(patterns)}")
         for index, pattern in enumerate(patterns, start=1):
             passed = get_int(pattern, ("pass", "passed"))
-            failed = get_int(pattern, ("fail", "failed"))
+            failed = get_int(pattern, ("fail", "failed"), 0)
             if passed != 30 or failed != 0:
                 raise AssertionError(f"RunMultiPattern pattern {index} expected pass=30 fail=0, got {pattern}")
 
