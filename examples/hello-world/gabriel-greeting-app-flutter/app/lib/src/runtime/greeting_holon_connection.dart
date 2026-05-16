@@ -7,22 +7,19 @@ import '../model/app_model.dart';
 
 const _holonRpcTimeout = Duration(seconds: 20);
 final _callOptions = CallOptions(timeout: _holonRpcTimeout);
-final _greetingMethodRegistry = holons.UnaryJsonMethodRegistry(<
-  holons.UnaryJsonMethodDescriptor<dynamic, dynamic>
->[
-  holons.UnaryJsonMethodDescriptor<ListLanguagesRequest, ListLanguagesResponse>(
-    path: '/greeting.v1.GreetingService/ListLanguages',
-    createRequest: ListLanguagesRequest.new,
-    createResponse: ListLanguagesResponse.new,
-    defaultCallOptions: _callOptions,
-  ),
-  holons.UnaryJsonMethodDescriptor<SayHelloRequest, SayHelloResponse>(
-    path: '/greeting.v1.GreetingService/SayHello',
-    createRequest: SayHelloRequest.new,
-    createResponse: SayHelloResponse.new,
-    defaultCallOptions: _callOptions,
-  ),
-]);
+final _greetingMethodRegistry =
+    unaryJsonMethodRegistryBuilder(defaultCallOptions: _callOptions)
+        .add<ListLanguagesRequest, ListLanguagesResponse>(
+          path: '/greeting.v1.GreetingService/ListLanguages',
+          createRequest: ListLanguagesRequest.new,
+          createResponse: ListLanguagesResponse.new,
+        )
+        .add<SayHelloRequest, SayHelloResponse>(
+          path: '/greeting.v1.GreetingService/SayHello',
+          createRequest: SayHelloRequest.new,
+          createResponse: SayHelloResponse.new,
+        )
+        .build();
 
 abstract interface class GreetingHolonConnection {
   Future<List<Language>> listLanguages();
@@ -43,14 +40,18 @@ class BundledGreetingHolonConnectionFactory
   BundledGreetingHolonConnectionFactory({
     HolonConnector<GabrielHolonIdentity>? connector,
     bool withTransitiveObservability = true,
-  }) : _channels = _SharedGreetingHolonChannels(
+  }) : _channels = SharedHolonChannels<GabrielHolonIdentity>(
          connector ??
-             _GreetingHolonConnector(
+             BundledHolonConnector<GabrielHolonIdentity>(
+               slugOf: (holon) => holon.slug,
+               buildRunnerOf: (holon) => holon.buildRunner,
                withTransitiveObservability: withTransitiveObservability,
              ),
+         slugOf: (holon) => holon.slug,
+         buildRunnerOf: (holon) => holon.buildRunner,
        );
 
-  final _SharedGreetingHolonChannels _channels;
+  final SharedHolonChannels<GabrielHolonIdentity> _channels;
 
   @override
   Future<GreetingHolonConnection> connect(
@@ -127,70 +128,5 @@ class DesktopGreetingHolonConnection implements GreetingHolonConnection {
       return;
     }
     await holons.disconnectAsync(_channel);
-  }
-}
-
-class _SharedGreetingHolonChannels {
-  _SharedGreetingHolonChannels(this._connector);
-
-  final HolonConnector<GabrielHolonIdentity> _connector;
-  final Map<String, Future<ClientChannel>> _channels = {};
-
-  Future<ClientChannel> open(
-    GabrielHolonIdentity holon, {
-    required String transport,
-  }) {
-    final key = _cacheKey(holon, transport);
-    return _channels.putIfAbsent(key, () async {
-      try {
-        return await _connector.connect(holon, transport: transport);
-      } on Object {
-        _channels.remove(key);
-        rethrow;
-      }
-    });
-  }
-
-  Future<void> close(
-    GabrielHolonIdentity holon, {
-    required String transport,
-  }) async {
-    final future = _channels.remove(_cacheKey(holon, transport));
-    if (future == null) return;
-    await holons.disconnectAsync(await future);
-  }
-
-  String _cacheKey(GabrielHolonIdentity holon, String transport) {
-    final effectiveTransport = effectiveHolonTransport(
-      requestedTransport: transport,
-      buildRunner: holon.buildRunner,
-    );
-    return '${holon.slug}\u0000$effectiveTransport';
-  }
-}
-
-class _GreetingHolonConnector implements HolonConnector<GabrielHolonIdentity> {
-  _GreetingHolonConnector({required this.withTransitiveObservability});
-
-  final bool withTransitiveObservability;
-
-  @override
-  Future<ClientChannel> connect(
-    GabrielHolonIdentity holon, {
-    required String transport,
-  }) async {
-    final effectiveTransport = effectiveHolonTransport(
-      requestedTransport: transport,
-      buildRunner: holon.buildRunner,
-    );
-    return await holons.connect(
-          holon.slug,
-          holons.ConnectOptions(
-            transport: effectiveTransport,
-            timeout: const Duration(seconds: 7),
-            withTransitiveObservability: withTransitiveObservability,
-          ),
-        )
-        as ClientChannel;
   }
 }

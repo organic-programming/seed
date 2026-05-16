@@ -1,13 +1,16 @@
 import 'package:grpc/grpc.dart';
-import 'package:holons_app/holons_app.dart' show HolonTransportName;
+import 'package:holons_app/holons_app.dart' show HolonRpcSelectionAdapter;
 
 import '../controller/greeting_controller.dart';
 import '../gen/v1/holon.pbgrpc.dart';
+import '../model/app_model.dart';
 
 class GreetingAppRpcService extends GreetingAppServiceBase {
-  GreetingAppRpcService(this._controller);
+  GreetingAppRpcService(this._controller)
+    : _selection = HolonRpcSelectionAdapter<GabrielHolonIdentity>(_controller);
 
   final GreetingController _controller;
+  final HolonRpcSelectionAdapter<GabrielHolonIdentity> _selection;
 
   String _validatedLanguageCode(String value) {
     final code = value.trim();
@@ -28,21 +31,11 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
     ServiceCall call,
     SelectHolonRequest request,
   ) async {
-    try {
-      await _controller.selectHolonBySlug(request.slug);
-      final identity = _controller.selectedHolon;
-      if (identity == null) {
-        throw GrpcError.notFound("Holon '${request.slug}' not found");
-      }
-      return SelectHolonResponse(
-        slug: identity.slug,
-        displayName: identity.displayName,
-      );
-    } on GrpcError {
-      rethrow;
-    } on Object catch (error) {
-      throw GrpcError.notFound('$error');
-    }
+    final identity = await _selection.selectHolon(request.slug);
+    return SelectHolonResponse(
+      slug: identity.slug,
+      displayName: identity.displayName,
+    );
   }
 
   @override
@@ -50,26 +43,8 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
     ServiceCall call,
     SelectTransportRequest request,
   ) async {
-    final transport = HolonTransportName.parseCanonical(request.transport);
-    if (transport == null) {
-      throw GrpcError.invalidArgument(
-        'Unsupported transport "${request.transport}". Expected one of: stdio, tcp, unix',
-      );
-    }
-    if (!_controller.capabilities.holonTransportNames.contains(transport)) {
-      throw GrpcError.invalidArgument(
-        'Transport "${transport.rawValue}" is not available on this platform',
-      );
-    }
-
-    await _controller.setTransport(transport.rawValue, reload: true);
-    if (_controller.connectionError != null) {
-      throw GrpcError.unavailable(_controller.connectionError!);
-    }
-    if (_controller.error != null) {
-      throw GrpcError.unavailable(_controller.error!);
-    }
-    return SelectTransportResponse(transport: transport.rawValue);
+    final transport = await _selection.selectTransport(request.transport);
+    return SelectTransportResponse(transport: transport);
   }
 
   @override
@@ -79,9 +54,7 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
   ) async {
     final code = _validatedLanguageCode(request.code);
     await _controller.setSelectedLanguage(code);
-    if (_controller.error != null) {
-      throw GrpcError.unavailable(_controller.error!);
-    }
+    _selection.throwIfRuntimeError();
     return SelectLanguageResponse(code: code);
   }
 
@@ -101,9 +74,7 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
       name: request.name.trim().isEmpty ? null : request.name,
       langCode: request.langCode.trim().isEmpty ? null : request.langCode,
     );
-    if (_controller.error != null) {
-      throw GrpcError.unavailable(_controller.error!);
-    }
+    _selection.throwIfRuntimeError();
     return GreetResponse(greeting: _controller.greeting);
   }
 }

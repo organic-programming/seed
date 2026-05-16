@@ -1,7 +1,3 @@
-import 'dart:async';
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:holons/gen/holons/v1/coax.pb.dart';
 import 'package:holons/gen/holons/v1/manifest.pb.dart';
 import 'package:holons/holons.dart' as holons_obs;
@@ -11,7 +7,12 @@ import '../gen/v1/greeting.pb.dart';
 import '../model/app_model.dart';
 import '../runtime/greeting_holon_connection.dart';
 
-class GreetingController extends ChangeNotifier implements HolonManager {
+class GreetingController
+    extends
+        HolonOrchestratorController<
+          GabrielHolonIdentity,
+          GreetingHolonConnection
+        > {
   static const listLanguagesMethod =
       'greeting.v1.GreetingService/ListLanguages';
   static const sayHelloMethod = 'greeting.v1.GreetingService/SayHello';
@@ -20,48 +21,42 @@ class GreetingController extends ChangeNotifier implements HolonManager {
     Holons<GabrielHolonIdentity>? holons,
     @Deprecated('Use holons') HolonCatalog<GabrielHolonIdentity>? catalog,
     required GreetingHolonConnectionFactory connector,
-    AppPlatformCapabilities? capabilities,
-    String? initialTransport,
+    super.capabilities,
+    super.initialTransport,
   }) : assert(holons != null || catalog != null),
-       _holons = holons ?? catalog!,
-       _connector = connector,
-       capabilities = capabilities ?? AppPlatformCapabilities.desktopCurrent(),
-       transport = HolonTransportName.normalize(
-         initialTransport ?? Platform.environment['OP_ASSEMBLY_TRANSPORT'],
-       ).rawValue;
+       super(
+         holons: holons ?? catalog!,
+         connector: connector.connect,
+         connectionCloser: (connection) => connection.close(),
+         slugOf: (holon) => holon.slug,
+         buildRunnerOf: (holon) => holon.buildRunner,
+         preferredHolon: preferredHolon,
+         memberInfoBuilder: _gabrielMemberInfo,
+         discoveryErrorPrefix: 'Failed to discover Gabriel holons',
+         noHolonsMessage: 'No Gabriel holons found',
+         connectionErrorPrefix: 'Failed to start Gabriel holon',
+         stopErrorPrefix: 'Failed to stop Gabriel holon connection',
+       );
 
-  final Holons<GabrielHolonIdentity> _holons;
-  final GreetingHolonConnectionFactory _connector;
-  final AppPlatformCapabilities capabilities;
   holons_obs.Logger? _logger;
+  holons_obs.Logger? _responseLogger;
   holons_obs.Counter? _sayHelloTotal;
   holons_obs.Histogram? _sayHelloDuration;
 
-  GreetingHolonConnection? _connection;
-  Future<void>? _startFuture;
   bool _initialized = false;
-  bool _disposed = false;
-  int _connectionGeneration = 0;
   int _loadGeneration = 0;
   int _greetGeneration = 0;
 
-  bool isRunning = false;
   bool isLoading = true;
   bool isGreeting = false;
-  String? connectionError;
-  String? error;
   String greeting = '';
   String userName = '';
   String selectedLanguageCode = '';
-  String transport;
   List<Language> availableLanguages = const <Language>[];
-  List<GabrielHolonIdentity> availableHolons = const <GabrielHolonIdentity>[];
-  GabrielHolonIdentity? selectedHolon;
-
-  Holons<GabrielHolonIdentity> get holons => _holons;
 
   void attachObservability(holons_obs.Observability observability) {
     _logger = observability.logger('greeting-controller');
+    _responseLogger = observability.logger('');
     _sayHelloTotal = observability.counter(
       'gabriel_greeting_say_hello_total',
       help: 'Greeting requests sent from the Flutter app',
@@ -84,6 +79,7 @@ class GreetingController extends ChangeNotifier implements HolonManager {
     return 'Offline';
   }
 
+  @override
   Future<void> initialize() async {
     if (_initialized) {
       return;
@@ -100,72 +96,12 @@ class GreetingController extends ChangeNotifier implements HolonManager {
     }
   }
 
-  Future<void> refreshHolons() async {
-    final previousSelection = selectedHolon?.slug;
-    try {
-      final discovered = await _holons.list();
-      availableHolons = discovered;
-      if (availableHolons.isEmpty) {
-        selectedHolon = null;
-      } else {
-        selectedHolon = availableHolons.firstWhere(
-          (item) => item.slug == previousSelection,
-          orElse: () =>
-              preferredHolon(availableHolons) ?? availableHolons.first,
-        );
-      }
-      connectionError = null;
-    } on Object catch (error) {
-      availableHolons = const <GabrielHolonIdentity>[];
-      selectedHolon = null;
-      connectionError = 'Failed to discover Gabriel holons: $error';
-    }
-    _safeNotify();
-  }
-
-  Future<void> selectHolonBySlug(String slug, {bool reload = true}) async {
-    final identity = availableHolons.firstWhere(
-      (item) => item.slug == slug,
-      orElse: () => throw StateError("Holon '$slug' not found"),
-    );
-    if (selectedHolon == identity) {
-      if (reload) {
-        await loadLanguages();
-      }
-      return;
-    }
-    selectedHolon = identity;
-    await stop();
-    _safeNotify();
-    if (reload) {
-      await loadLanguages();
-    }
-  }
-
-  Future<void> setTransport(String value, {bool reload = true}) async {
-    final normalized = HolonTransportName.normalize(value);
-    if (!capabilities.holonTransportNames.contains(normalized)) {
-      throw StateError(
-        'Transport "${normalized.rawValue}" is not available on this platform',
-      );
-    }
-    if (normalized.rawValue == transport) {
-      return;
-    }
-    transport = normalized.rawValue;
-    await stop();
-    _safeNotify();
-    if (reload) {
-      await loadLanguages();
-    }
-  }
-
   Future<void> setSelectedLanguage(String code, {bool greetNow = true}) async {
     if (code == selectedLanguageCode) {
       return;
     }
     selectedLanguageCode = code;
-    _safeNotify();
+    safeNotify();
     if (greetNow) {
       await greet();
     }
@@ -176,7 +112,7 @@ class GreetingController extends ChangeNotifier implements HolonManager {
       return;
     }
     userName = value;
-    _safeNotify();
+    safeNotify();
     if (greetNow && selectedLanguageCode.isNotEmpty) {
       await greet();
     }
@@ -194,7 +130,7 @@ class GreetingController extends ChangeNotifier implements HolonManager {
     error = null;
     greeting = '';
     availableLanguages = const <Language>[];
-    _safeNotify();
+    safeNotify();
 
     final retryDelays = effectiveTransport == HolonTransportName.stdio.rawValue
         ? const <Duration>[Duration.zero, Duration(milliseconds: 400)]
@@ -211,10 +147,11 @@ class GreetingController extends ChangeNotifier implements HolonManager {
           await Future<void>.delayed(delay);
         }
         await ensureStarted();
-        if (!isRunning || _connection == null) {
+        final connection = activeConnection;
+        if (!isRunning || connection == null) {
           throw StateError(connectionError ?? 'Holon did not become ready');
         }
-        final languages = await _connection!.listLanguages();
+        final languages = await connection.listLanguages();
         if (_loadGeneration != generation) {
           return;
         }
@@ -241,18 +178,18 @@ class GreetingController extends ChangeNotifier implements HolonManager {
             );
         error = null;
         isLoading = false;
-        _safeNotify();
+        safeNotify();
         if (greetAfterLoad && selectedLanguageCode.isNotEmpty) {
           await greet();
         }
         return;
       } on Object catch (loadError) {
-        await _dropConnection();
+        await dropConnection();
         if (index == retryDelays.length - 1 && _loadGeneration == generation) {
           error =
               'Failed to load languages: ${connectionError ?? loadError.toString()}';
           isLoading = false;
-          _safeNotify();
+          safeNotify();
         }
       }
     }
@@ -266,11 +203,15 @@ class GreetingController extends ChangeNotifier implements HolonManager {
 
     final requestGeneration = ++_greetGeneration;
     isGreeting = true;
-    _safeNotify();
+    safeNotify();
     final startedAt = DateTime.now();
     try {
       await ensureStarted();
-      final response = await _connection!.sayHello(
+      final connection = activeConnection;
+      if (connection == null) {
+        throw StateError(connectionError ?? 'Holon did not become ready');
+      }
+      final response = await connection.sayHello(
         name: name ?? userName,
         langCode: resolvedCode,
       );
@@ -284,8 +225,8 @@ class GreetingController extends ChangeNotifier implements HolonManager {
         DateTime.now().difference(startedAt).inMicroseconds /
             Duration.microsecondsPerSecond,
       );
-      _logger?.info(
-        'Greeting request completed',
+      (_responseLogger ?? _logger)?.info(
+        'Greeting response received',
         fields: {
           'method': sayHelloMethod,
           'lang': resolvedCode,
@@ -309,67 +250,25 @@ class GreetingController extends ChangeNotifier implements HolonManager {
     } finally {
       if (_greetGeneration == requestGeneration) {
         isGreeting = false;
-        _safeNotify();
+        safeNotify();
       }
     }
   }
 
   @override
-  Future<List<MemberInfo>> listMembers() async {
-    return availableHolons.map(_memberForIdentity).toList(growable: false);
+  Future<void> reloadSelectedHolon() {
+    return loadLanguages();
   }
 
   @override
-  Future<MemberInfo?> memberStatus(String slug) async {
-    for (final identity in availableHolons) {
-      if (identity.slug == slug) {
-        return _memberForIdentity(identity);
-      }
-    }
-    return null;
-  }
-
-  @override
-  Future<MemberInfo> connectMember(String slug, {String transport = ''}) async {
-    final identity = availableHolons.firstWhere(
-      (item) => item.slug == slug,
-      orElse: () => throw StateError("Member '$slug' not found"),
-    );
-    if (transport.trim().isNotEmpty) {
-      await setTransport(transport, reload: false);
-    }
-    await selectHolonBySlug(identity.slug, reload: false);
-    await loadLanguages();
-    return _memberForIdentity(
-      identity,
-      overrideState: isRunning && error == null
-          ? MemberState.MEMBER_STATE_CONNECTED
-          : MemberState.MEMBER_STATE_ERROR,
-    );
-  }
-
-  @override
-  Future<void> disconnectMember(String slug) async {
-    if (slug.trim().isNotEmpty && selectedHolon?.slug != slug) {
-      return;
-    }
-    await stop();
-  }
-
-  @override
-  Future<Object?> tellMember({
+  Future<Object?> handleMemberTell({
     required String slug,
     required String method,
     Object? payloadJson,
   }) async {
-    final canonicalMethod = _canonicalMethod(method);
     final decodedPayload = payloadJson ?? const <String, Object?>{};
 
-    if (selectedHolon?.slug != slug) {
-      await selectHolonBySlug(slug, reload: false);
-    }
-
-    switch (canonicalMethod) {
+    switch (method) {
       case listLanguagesMethod:
         await loadLanguages(greetAfterLoad: false);
         return ListLanguagesResponse(
@@ -392,186 +291,51 @@ class GreetingController extends ChangeNotifier implements HolonManager {
     }
 
     await ensureStarted();
-    final connection = _connection;
+    final connection = activeConnection;
     if (connection == null) {
       throw StateError(connectionError ?? 'Holon did not become ready');
     }
-    return connection.tell(method: canonicalMethod, payload: decodedPayload);
-  }
-
-  Future<void> ensureStarted() async {
-    if (_connection != null) {
-      return;
-    }
-    final pendingStart = _startFuture;
-    if (pendingStart != null) {
-      await pendingStart;
-      if (_connection != null) {
-        return;
-      }
-    }
-
-    if (availableHolons.isEmpty) {
-      await refreshHolons();
-    }
-
-    final holon = selectedHolon ?? preferredHolon(availableHolons);
-    if (holon == null) {
-      connectionError = 'No Gabriel holons found';
-      isRunning = false;
-      _safeNotify();
-      throw StateError(connectionError!);
-    }
-
-    selectedHolon = holon;
-    connectionError = null;
-    final generation = ++_connectionGeneration;
-    final future = _connect(generation, holon);
-    _startFuture = future;
-
-    try {
-      await future;
-    } finally {
-      if (identical(_startFuture, future)) {
-        _startFuture = null;
-      }
-    }
-  }
-
-  Future<void> _connect(int generation, GabrielHolonIdentity holon) async {
-    final effectiveTransport = effectiveHolonTransport(
-      requestedTransport: transport,
-      buildRunner: holon.buildRunner,
-    );
-    final retryDelays = effectiveTransport == 'stdio'
-        ? const <Duration>[Duration.zero]
-        : const <Duration>[
-            Duration.zero,
-            Duration(milliseconds: 150),
-            Duration(milliseconds: 400),
-            Duration(milliseconds: 800),
-          ];
-    Object? lastError;
-
-    try {
-      for (var index = 0; index < retryDelays.length; index += 1) {
-        final delay = retryDelays[index];
-        if (delay > Duration.zero) {
-          await Future<void>.delayed(delay);
-        }
-        final transportLabel = effectiveTransport == transport
-            ? transport
-            : '$transport -> $effectiveTransport';
-        try {
-          final connection = await _connector.connect(
-            holon,
-            transport: transport,
-          );
-          if (generation != _connectionGeneration || _disposed) {
-            await connection.close();
-            return;
-          }
-          _connection = connection;
-          isRunning = true;
-          connectionError = null;
-          _logger?.info(
-            'Holon connection ready',
-            fields: {'holon': holon.slug, 'transport': transportLabel},
-          );
-          _safeNotify();
-          return;
-        } on Object catch (error) {
-          lastError = error;
-        }
-      }
-      throw lastError ?? StateError('Holon connection failed');
-    } on Object catch (error) {
-      if (generation != _connectionGeneration || _disposed) {
-        return;
-      }
-      _connection = null;
-      isRunning = false;
-      connectionError = 'Failed to start Gabriel holon: $error';
-      _logger?.error(
-        'Holon connection failed',
-        fields: {
-          'holon': holon.slug,
-          'transport': effectiveTransport,
-          'error': error.toString(),
-        },
-      );
-      _safeNotify();
-      rethrow;
-    }
-  }
-
-  Future<void> stop() async {
-    _connectionGeneration += 1;
-    _startFuture = null;
-    try {
-      await _dropConnection();
-    } on Object catch (error) {
-      connectionError = 'Failed to stop Gabriel holon connection: $error';
-    }
-    _safeNotify();
-  }
-
-  Future<void> _dropConnection() async {
-    final currentConnection = _connection;
-    _connection = null;
-    isRunning = false;
-    if (currentConnection == null) {
-      return;
-    }
-    await currentConnection.close();
-  }
-
-  Future<void> shutdown() async {
-    _disposed = true;
-    await stop();
-  }
-
-  void _safeNotify() {
-    if (!_disposed) {
-      notifyListeners();
-    }
-  }
-
-  static String _canonicalMethod(String method) {
-    final trimmed = method.trim();
-    if (trimmed.isEmpty) {
-      throw ArgumentError.value(method, 'method', 'Method must not be empty');
-    }
-    return trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
-  }
-
-  MemberInfo _memberForIdentity(
-    GabrielHolonIdentity identity, {
-    MemberState? overrideState,
-  }) {
-    return MemberInfo(
-      slug: identity.slug,
-      identity: HolonManifest_Identity(
-        familyName: identity.familyName,
-        givenName: identity.displayName,
-      ),
-      state: overrideState ?? _memberStateFor(identity),
-      isOrganism: false,
-    );
-  }
-
-  MemberState _memberStateFor(GabrielHolonIdentity identity) {
-    if (selectedHolon?.slug == identity.slug && isRunning) {
-      return MemberState.MEMBER_STATE_CONNECTED;
-    }
-    return MemberState.MEMBER_STATE_AVAILABLE;
+    return connection.tell(method: method, payload: decodedPayload);
   }
 
   @override
-  void dispose() {
-    _disposed = true;
-    super.dispose();
+  void didConnectHolon(GabrielHolonIdentity holon, String transportLabel) {
+    _logger?.info(
+      'Holon connection ready',
+      fields: {'holon': holon.slug, 'transport': transportLabel},
+    );
   }
+
+  @override
+  void didFailHolonConnection(
+    GabrielHolonIdentity holon,
+    String effectiveTransport,
+    Object error,
+  ) {
+    _logger?.error(
+      'Holon connection failed',
+      fields: {
+        'holon': holon.slug,
+        'transport': effectiveTransport,
+        'error': error.toString(),
+      },
+    );
+  }
+}
+
+MemberInfo _gabrielMemberInfo(
+  GabrielHolonIdentity identity,
+  MemberState state,
+) {
+  return MemberInfo(
+    slug: identity.slug,
+    identity: HolonManifest_Identity(
+      familyName: identity.familyName,
+      givenName: identity.displayName,
+    ),
+    state: state,
+    isOrganism: false,
+  );
 }
 
 extension on String {

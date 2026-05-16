@@ -1,7 +1,5 @@
 import 'dart:io';
 
-import 'coax_configuration.dart';
-
 enum HolonTransportName {
   stdio('stdio'),
   tcp('tcp'),
@@ -68,10 +66,6 @@ class AppPlatformCapabilities {
   List<String> get appTransports => holonTransportNames
       .map((transport) => transport.rawValue)
       .toList(growable: false);
-
-  List<CoaxServerTransport> get coaxServerTransports => supportsUnixSockets
-      ? CoaxServerTransport.values
-      : const [CoaxServerTransport.tcp];
 }
 
 @Deprecated('Use HolonTransportName.normalize(value).rawValue')

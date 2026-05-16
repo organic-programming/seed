@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:grpc/grpc.dart';
 import 'package:holons/gen/holons/v1/coax.pbgrpc.dart';
+import 'package:holons/holons.dart'
+    show AppPlatformCapabilities, HolonTransportName;
 
 import 'coax_controller.dart';
 
@@ -16,6 +18,65 @@ abstract interface class HolonManager {
     required String method,
     Object? payloadJson,
   });
+}
+
+abstract interface class HolonSelectionController<T> {
+  AppPlatformCapabilities get capabilities;
+  List<T> get availableHolons;
+  T? get selectedHolon;
+  String? get connectionError;
+  String? get error;
+  String slugOf(T holon);
+  Future<void> selectHolonBySlug(String slug, {bool reload = true});
+  Future<void> setTransport(String value, {bool reload = true});
+}
+
+class HolonRpcSelectionAdapter<T> {
+  const HolonRpcSelectionAdapter(this.controller);
+
+  final HolonSelectionController<T> controller;
+
+  Future<T> selectHolon(String slug) async {
+    try {
+      await controller.selectHolonBySlug(slug);
+      final selected = controller.selectedHolon;
+      if (selected == null || controller.slugOf(selected) != slug) {
+        throw GrpcError.notFound("Holon '$slug' not found");
+      }
+      return selected;
+    } on GrpcError {
+      rethrow;
+    } on Object catch (error) {
+      throw GrpcError.notFound('$error');
+    }
+  }
+
+  Future<String> selectTransport(String value, {bool reload = true}) async {
+    final transport = HolonTransportName.parseCanonical(value);
+    if (transport == null) {
+      throw GrpcError.invalidArgument(
+        'Unsupported transport "$value". Expected one of: stdio, tcp, unix',
+      );
+    }
+    if (!controller.capabilities.holonTransportNames.contains(transport)) {
+      throw GrpcError.invalidArgument(
+        'Transport "${transport.rawValue}" is not available on this platform',
+      );
+    }
+
+    await controller.setTransport(transport.rawValue, reload: reload);
+    throwIfRuntimeError();
+    return transport.rawValue;
+  }
+
+  void throwIfRuntimeError() {
+    if (controller.connectionError != null) {
+      throw GrpcError.unavailable(controller.connectionError!);
+    }
+    if (controller.error != null) {
+      throw GrpcError.unavailable(controller.error!);
+    }
+  }
 }
 
 class CoaxRpcService extends CoaxServiceBase {
@@ -35,9 +96,7 @@ class CoaxRpcService extends CoaxServiceBase {
     ServiceCall call,
     ListMembersRequest request,
   ) async {
-    return ListMembersResponse(
-      members: await _holonManager.listMembers(),
-    );
+    return ListMembersResponse(members: await _holonManager.listMembers());
   }
 
   @override
@@ -93,9 +152,7 @@ class CoaxRpcService extends CoaxServiceBase {
       final encodedPayload = responsePayload == null
           ? const <String, Object?>{}
           : responsePayload;
-      return TellResponse(
-        payload: utf8.encode(jsonEncode(encodedPayload)),
-      );
+      return TellResponse(payload: utf8.encode(jsonEncode(encodedPayload)));
     } on GrpcError {
       rethrow;
     } on ArgumentError catch (error) {

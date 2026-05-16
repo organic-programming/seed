@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:holons_app/holons_app.dart';
 
 class GabrielHolonIdentity {
   const GabrielHolonIdentity({
@@ -31,31 +31,28 @@ class GabrielHolonIdentity {
   String get variant => slug.replaceFirst('gabriel-greeting-', '');
 
   static GabrielHolonIdentity? fromDiscovered(dynamic ref) {
-    final info = ref.info;
-    if (info == null) {
+    final base = DiscoveredHolonIdentity.fromDiscovered(ref);
+    if (base == null) {
       return null;
     }
-    final slug = info.slug.trim();
+    final slug = base.slug;
     if (!slug.startsWith('gabriel-greeting-') ||
         slug == 'gabriel-greeting-app-swiftui' ||
         slug == 'gabriel-greeting-app-flutter') {
       return null;
     }
-    final entrypoint = info.entrypoint.trim();
     return GabrielHolonIdentity(
       slug: slug,
-      familyName: info.identity.familyName.trim(),
-      binaryName: entrypoint.isEmpty
-          ? slug
-          : entrypoint.split(Platform.pathSeparator).last,
-      buildRunner: info.runner.trim(),
+      familyName: base.familyName,
+      binaryName: base.binaryName,
+      buildRunner: base.buildRunner,
       displayName: displayNameFor(slug),
       sortRank: sortRankFor(slug),
-      holonUuid: info.uuid.trim(),
+      holonUuid: base.holonUuid,
       born: '',
-      sourceKind: _sourceKindForUrl(ref.url as String),
-      discoveryPath: _discoveryPathFromUrl(ref.url as String),
-      hasSource: info.hasSource,
+      sourceKind: base.sourceKind,
+      discoveryPath: base.discoveryPath,
+      hasSource: base.hasSource,
     );
   }
 
@@ -87,27 +84,6 @@ class GabrielHolonIdentity {
       return value;
     }
     return '${value[0].toUpperCase()}${value.substring(1)}';
-  }
-
-  static String _discoveryPathFromUrl(String url) {
-    final uri = Uri.tryParse(url);
-    if (uri != null && uri.scheme == 'file') {
-      return uri.toFilePath();
-    }
-    return url;
-  }
-
-  static String _sourceKindForUrl(String url) {
-    final path = _discoveryPathFromUrl(url);
-    if (path.contains('.op${Platform.pathSeparator}build')) {
-      return 'built';
-    }
-    if (path.contains(
-      '${Platform.pathSeparator}Holons${Platform.pathSeparator}',
-    )) {
-      return 'siblings';
-    }
-    return 'source';
   }
 
   @override

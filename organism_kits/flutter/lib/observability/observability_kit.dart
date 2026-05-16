@@ -5,9 +5,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart' as holons;
+import 'package:holons/holons.dart' show SettingsStore;
 import 'package:path/path.dart' as p;
-
-import '../src/settings_store.dart';
 
 const _masterKey = 'observability.master.enabled';
 const _logsKey = 'observability.family.logs';
@@ -397,11 +396,12 @@ class RelayController extends ChangeNotifier {
         notifyListeners();
       }
     } on Object catch (error) {
-      obs.logger('relay-controller').warn('member relay start failed', fields: {
-        'slug': member.slug,
-        'uid': member.uid,
-        'error': error,
-      });
+      obs
+          .logger('relay-controller')
+          .warn(
+            'member relay start failed',
+            fields: {'slug': member.slug, 'uid': member.uid, 'error': error},
+          );
     } finally {
       _starting.remove(member.uid);
     }
