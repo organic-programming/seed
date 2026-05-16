@@ -29,23 +29,45 @@ const upb_MiniTable relay__v1__TickRequest_msg_init = {
 };
 
 const upb_MiniTable* relay__v1__TickRequest_msg_init_ptr = &relay__v1__TickRequest_msg_init;
-static const upb_MiniTableField relay_v1_TickResponse__fields[2] = {
+static const upb_MiniTableField relay_v1_HopReceipt__fields[3] = {
   {1, 8, 0, kUpb_NoSub, 9, (int)kUpb_FieldMode_Scalar | ((int)kUpb_FieldRep_StringView << kUpb_FieldRep_Shift)},
   {2, UPB_SIZE(16, 24), 0, kUpb_NoSub, 9, (int)kUpb_FieldMode_Scalar | ((int)kUpb_FieldRep_StringView << kUpb_FieldRep_Shift)},
+  {3, UPB_SIZE(24, 40), 0, kUpb_NoSub, 3, (int)kUpb_FieldMode_Scalar | ((int)kUpb_FieldRep_8Byte << kUpb_FieldRep_Shift)},
+};
+
+const upb_MiniTable relay__v1__HopReceipt_msg_init = {
+  NULL,
+  &relay_v1_HopReceipt__fields[0],
+  UPB_SIZE(32, 48), 3, kUpb_ExtMode_NonExtendable, 3, UPB_FASTTABLE_MASK(255), 0,
+#ifdef UPB_TRACING_ENABLED
+  "relay.v1.HopReceipt",
+#endif
+};
+
+const upb_MiniTable* relay__v1__HopReceipt_msg_init_ptr = &relay__v1__HopReceipt_msg_init;
+static const upb_MiniTableSubInternal relay_v1_TickResponse__submsgs[1] = {
+  {.UPB_PRIVATE(submsg) = &relay__v1__HopReceipt_msg_init_ptr},
+};
+
+static const upb_MiniTableField relay_v1_TickResponse__fields[3] = {
+  {1, UPB_SIZE(12, 8), 0, kUpb_NoSub, 9, (int)kUpb_FieldMode_Scalar | ((int)kUpb_FieldRep_StringView << kUpb_FieldRep_Shift)},
+  {2, UPB_SIZE(20, 24), 0, kUpb_NoSub, 9, (int)kUpb_FieldMode_Scalar | ((int)kUpb_FieldRep_StringView << kUpb_FieldRep_Shift)},
+  {3, UPB_SIZE(8, 40), 0, 0, 11, (int)kUpb_FieldMode_Array | ((int)UPB_SIZE(kUpb_FieldRep_4Byte, kUpb_FieldRep_8Byte) << kUpb_FieldRep_Shift)},
 };
 
 const upb_MiniTable relay__v1__TickResponse_msg_init = {
-  NULL,
+  &relay_v1_TickResponse__submsgs[0],
   &relay_v1_TickResponse__fields[0],
-  UPB_SIZE(24, 40), 2, kUpb_ExtMode_NonExtendable, 2, UPB_FASTTABLE_MASK(255), 0,
+  UPB_SIZE(32, 48), 3, kUpb_ExtMode_NonExtendable, 3, UPB_FASTTABLE_MASK(255), 0,
 #ifdef UPB_TRACING_ENABLED
   "relay.v1.TickResponse",
 #endif
 };
 
 const upb_MiniTable* relay__v1__TickResponse_msg_init_ptr = &relay__v1__TickResponse_msg_init;
-static const upb_MiniTable *messages_layout[2] = {
+static const upb_MiniTable *messages_layout[3] = {
   &relay__v1__TickRequest_msg_init,
+  &relay__v1__HopReceipt_msg_init,
   &relay__v1__TickResponse_msg_init,
 };
 
@@ -53,7 +75,7 @@ const upb_MiniTableFile relay_v1_relay_proto_upb_file_layout = {
   messages_layout,
   NULL,
   NULL,
-  2,
+  3,
   0,
   0,
 };

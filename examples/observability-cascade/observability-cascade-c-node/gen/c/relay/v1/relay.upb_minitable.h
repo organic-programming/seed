@@ -20,6 +20,8 @@ extern "C" {
 
 extern const upb_MiniTable relay__v1__TickRequest_msg_init;
 extern const upb_MiniTable* relay__v1__TickRequest_msg_init_ptr;
+extern const upb_MiniTable relay__v1__HopReceipt_msg_init;
+extern const upb_MiniTable* relay__v1__HopReceipt_msg_init_ptr;
 extern const upb_MiniTable relay__v1__TickResponse_msg_init;
 extern const upb_MiniTable* relay__v1__TickResponse_msg_init_ptr;
 

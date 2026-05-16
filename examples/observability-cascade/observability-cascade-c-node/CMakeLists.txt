@@ -58,6 +58,7 @@ find_library(UPB_LIBRARY NAMES upb
 set(HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/c-holons")
 set(CPP_HOLONS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/cpp-holons")
 set(HOLONS_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../holons/grace-op/_protos")
+set(RELAY_PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../_protos")
 set(OBSERVABILITY_CASCADE_NODE_C_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 set(OBSERVABILITY_CASCADE_NODE_C_RELOCATE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../../../sdk/scripts/relocate-macos-dylibs.sh")
 
@@ -119,6 +120,11 @@ cascade_node_c_generate_grpc_cpp(cascade_node_c_holons_proto_grpc
     "${HOLONS_PROTO_ROOT}/holons/v1/observability.proto"
   IMPORT_DIRS "${HOLONS_PROTO_ROOT}")
 
+cascade_node_c_generate_grpc_cpp(cascade_node_c_relay_proto_grpc
+  OUT_DIR "${OBSERVABILITY_CASCADE_NODE_C_GENERATED_DIR}"
+  PROTOS "${RELAY_PROTO_ROOT}/relay/v1/relay.proto"
+  IMPORT_DIRS "${RELAY_PROTO_ROOT}")
+
 if(CMAKE_RUNTIME_OUTPUT_DIRECTORY)
   set(OBSERVABILITY_CASCADE_NODE_C_RUNTIME_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 else()
@@ -136,11 +142,8 @@ set(OBSERVABILITY_CASCADE_NODE_C_INSTALL_RUNTIME_DIR "${CMAKE_INSTALL_PREFIX}/bi
 
 add_library(cascade_node_c_lib
   api/cli.c
-  internal/server.c
+  internal/server.cpp
   gen/describe_generated.c
-  gen/serve_generated.c
-  gen/c/relay/v1/relay.upb.c
-  gen/c/relay/v1/relay.upb_minitable.c
   "${HOLONS_SDK_ROOT}/src/holons.c"
   "${HOLONS_SDK_ROOT}/src/observability.c"
   "${HOLONS_SDK_ROOT}/src/serve_grpc.cpp"
@@ -150,8 +153,6 @@ target_include_directories(cascade_node_c_lib
   PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${OBSERVABILITY_CASCADE_NODE_C_GENERATED_DIR}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/gen/c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/gen/c/relay/v1"
     "${HOLONS_SDK_ROOT}/include"
     "${CPP_HOLONS_SDK_ROOT}/include"
     ${PROTOBUF_INCLUDE_DIRS}
@@ -167,6 +168,7 @@ target_link_libraries(cascade_node_c_lib
   PUBLIC
     "${UPB_LIBRARY}"
     cascade_node_c_holons_proto_grpc
+    cascade_node_c_relay_proto_grpc
     gRPC::grpc++
     gRPC::grpc++_reflection
     protobuf::libprotobuf

@@ -27,6 +27,11 @@ UPB_INLINE const upb_MessageDef *relay_v1_TickRequest_getmsgdef(upb_DefPool *s) 
   return upb_DefPool_FindMessageByName(s, "relay.v1.TickRequest");
 }
 
+UPB_INLINE const upb_MessageDef *relay_v1_HopReceipt_getmsgdef(upb_DefPool *s) {
+  _upb_DefPool_LoadDefInit(s, &relay_v1_relay_proto_upbdefinit);
+  return upb_DefPool_FindMessageByName(s, "relay.v1.HopReceipt");
+}
+
 UPB_INLINE const upb_MessageDef *relay_v1_TickResponse_getmsgdef(upb_DefPool *s) {
   _upb_DefPool_LoadDefInit(s, &relay_v1_relay_proto_upbdefinit);
   return upb_DefPool_FindMessageByName(s, "relay.v1.TickResponse");

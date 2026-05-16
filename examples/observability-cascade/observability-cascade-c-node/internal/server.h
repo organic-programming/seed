@@ -6,10 +6,19 @@
 #include <stddef.h>
 #include <stdio.h>
 
-int cascade_node_c_serve(const char *listen_uri,
-                         const holons_grpc_member_ref_t *members,
-                         size_t member_count,
-                         FILE *stderr_stream);
-
+#ifdef __cplusplus
+extern "C" {
 #endif
 
+int cascade_node_c_serve(const char *const *listen_uris,
+                         size_t listen_uri_count,
+                         const char *transport,
+                         const holons_composite_child_spec_t *children,
+                         size_t child_count,
+                         FILE *stderr_stream);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
