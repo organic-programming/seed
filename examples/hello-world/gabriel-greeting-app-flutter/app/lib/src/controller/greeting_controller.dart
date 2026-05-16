@@ -268,12 +268,6 @@ class GreetingController extends ChangeNotifier implements HolonManager {
     isGreeting = true;
     _safeNotify();
     final startedAt = DateTime.now();
-    _logger?.info('Greeting request started', {
-      'method': sayHelloMethod,
-      'lang': resolvedCode,
-      'holon': selectedHolon?.slug ?? '',
-    });
-
     try {
       await ensureStarted();
       final response = await _connection!.sayHello(
@@ -290,22 +284,28 @@ class GreetingController extends ChangeNotifier implements HolonManager {
         DateTime.now().difference(startedAt).inMicroseconds /
             Duration.microsecondsPerSecond,
       );
-      _logger?.info('Greeting response received', {
-        'method': sayHelloMethod,
-        'lang': resolvedCode,
-        'holon': selectedHolon?.slug ?? '',
-      });
+      _logger?.info(
+        'Greeting request completed',
+        fields: {
+          'method': sayHelloMethod,
+          'lang': resolvedCode,
+          'holon': selectedHolon?.slug ?? '',
+        },
+      );
     } on Object catch (greetError) {
       if (_greetGeneration != requestGeneration) {
         return;
       }
       error = 'Greeting failed: $greetError';
-      _logger?.error('Greeting request failed', {
-        'method': sayHelloMethod,
-        'lang': resolvedCode,
-        'holon': selectedHolon?.slug ?? '',
-        'error': greetError.toString(),
-      });
+      _logger?.error(
+        'Greeting request failed',
+        fields: {
+          'method': sayHelloMethod,
+          'lang': resolvedCode,
+          'holon': selectedHolon?.slug ?? '',
+          'error': greetError.toString(),
+        },
+      );
     } finally {
       if (_greetGeneration == requestGeneration) {
         isGreeting = false;
@@ -462,9 +462,6 @@ class GreetingController extends ChangeNotifier implements HolonManager {
         final transportLabel = effectiveTransport == transport
             ? transport
             : '$transport -> $effectiveTransport';
-        _log(
-          '[HostUI] assembly=Gabriel-Greeting-App-Flutter holon=${holon.binaryName} transport=$transportLabel',
-        );
         try {
           final connection = await _connector.connect(
             holon,
@@ -477,16 +474,14 @@ class GreetingController extends ChangeNotifier implements HolonManager {
           _connection = connection;
           isRunning = true;
           connectionError = null;
-          _log('[HostUI] connected to ${holon.binaryName} on $transportLabel');
+          _logger?.info(
+            'Holon connection ready',
+            fields: {'holon': holon.slug, 'transport': transportLabel},
+          );
           _safeNotify();
           return;
         } on Object catch (error) {
           lastError = error;
-          if (index < retryDelays.length - 1) {
-            _log(
-              '[HostUI] retrying ${holon.binaryName} on $transportLabel after connect failure: $error',
-            );
-          }
         }
       }
       throw lastError ?? StateError('Holon connection failed');
@@ -497,6 +492,14 @@ class GreetingController extends ChangeNotifier implements HolonManager {
       _connection = null;
       isRunning = false;
       connectionError = 'Failed to start Gabriel holon: $error';
+      _logger?.error(
+        'Holon connection failed',
+        fields: {
+          'holon': holon.slug,
+          'transport': effectiveTransport,
+          'error': error.toString(),
+        },
+      );
       _safeNotify();
       rethrow;
     }
@@ -562,10 +565,6 @@ class GreetingController extends ChangeNotifier implements HolonManager {
       return MemberState.MEMBER_STATE_CONNECTED;
     }
     return MemberState.MEMBER_STATE_AVAILABLE;
-  }
-
-  void _log(String message) {
-    stderr.writeln(message);
   }
 
   @override

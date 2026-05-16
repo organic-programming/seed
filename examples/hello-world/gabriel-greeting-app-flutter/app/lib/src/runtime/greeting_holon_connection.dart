@@ -42,11 +42,11 @@ class BundledGreetingHolonConnectionFactory
     implements GreetingHolonConnectionFactory {
   BundledGreetingHolonConnectionFactory({
     HolonConnector<GabrielHolonIdentity>? connector,
+    bool withTransitiveObservability = true,
   }) : _channels = _SharedGreetingHolonChannels(
          connector ??
-             BundledHolonConnector<GabrielHolonIdentity>(
-               slugOf: (holon) => holon.slug,
-               buildRunnerOf: (holon) => holon.buildRunner,
+             _GreetingHolonConnector(
+               withTransitiveObservability: withTransitiveObservability,
              ),
        );
 
@@ -166,5 +166,31 @@ class _SharedGreetingHolonChannels {
       buildRunner: holon.buildRunner,
     );
     return '${holon.slug}\u0000$effectiveTransport';
+  }
+}
+
+class _GreetingHolonConnector implements HolonConnector<GabrielHolonIdentity> {
+  _GreetingHolonConnector({required this.withTransitiveObservability});
+
+  final bool withTransitiveObservability;
+
+  @override
+  Future<ClientChannel> connect(
+    GabrielHolonIdentity holon, {
+    required String transport,
+  }) async {
+    final effectiveTransport = effectiveHolonTransport(
+      requestedTransport: transport,
+      buildRunner: holon.buildRunner,
+    );
+    return await holons.connect(
+          holon.slug,
+          holons.ConnectOptions(
+            transport: effectiveTransport,
+            timeout: const Duration(seconds: 7),
+            withTransitiveObservability: withTransitiveObservability,
+          ),
+        )
+        as ClientChannel;
   }
 }

@@ -212,22 +212,19 @@ public final class GreetingHolonManager: ObservableObject {
 
     #if os(macOS)
       let startedAt = Date()
-      logger?.info("Greeting request started", [
-        "method": Self.sayHelloMethod,
-        "lang": selectedLanguageCode,
-        "holon": selectedHolon?.slug ?? "",
-      ])
     #endif
     do {
       let response = try await sayHello(name: userName, langCode: selectedLanguageCode)
       greeting = response
       #if os(macOS)
         sayHelloTotal?.inc()
-        sayHelloDuration?.observe(Date().timeIntervalSince(startedAt))
-        logger?.info("Greeting response received", [
+        let elapsed = Date().timeIntervalSince(startedAt)
+        sayHelloDuration?.observe(elapsed)
+        logger?.info("Greeting request completed", [
           "method": Self.sayHelloMethod,
           "lang": selectedLanguageCode,
           "holon": selectedHolon?.slug ?? "",
+          "elapsed_ms": String(format: "%.1f", elapsed * 1000),
         ])
       #endif
       return response
@@ -272,9 +269,6 @@ public final class GreetingHolonManager: ObservableObject {
           selectedHolon = holon
         }
 
-        logHostUI(
-          "[HostUI] assembly=\(assemblyFamily) holon=\(holon.binaryName) transport=\(transport)")
-
         var options = ConnectOptions()
         options.transport = transport
         options.lifecycle = "ephemeral"
@@ -295,13 +289,21 @@ public final class GreetingHolonManager: ObservableObject {
             return
           }
           client = connectedClient
-          logHostUI("[HostUI] connected to \(holon.binaryName) on \(connectionTarget())")
+          logger?.info("Holon connection ready", [
+            "holon": holon.slug,
+            "transport": connectionTarget(),
+          ])
           isRunning = true
         } catch {
           guard startTaskID == taskID else {
             return
           }
           connectionError = "Failed to start Gabriel holon: \(String(describing: error))"
+          logger?.error("Holon connection failed", [
+            "holon": holon.slug,
+            "transport": connectionTarget(),
+            "error": String(describing: error),
+          ])
           isRunning = false
         }
 
@@ -333,8 +335,6 @@ public final class GreetingHolonManager: ObservableObject {
       connectionError = "Failed to stop Gabriel holon connection: \(error.localizedDescription)"
     }
 
-    #if os(macOS)
-    #endif
     isRunning = false
   }
 
@@ -403,16 +403,6 @@ public final class GreetingHolonManager: ObservableObject {
     try? client?.close()
   }
 
-  public var assemblyFamily: String {
-    let value = ProcessInfo.processInfo.environment["OP_ASSEMBLY_FAMILY"]?
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-    return value?.isEmpty == false ? value! : "Gabriel-Greeting-App-SwiftUI"
-  }
-
-  public var holonBinaryName: String {
-    selectedHolon?.binaryName ?? "gabriel-greeting-swift"
-  }
-
   private var languageLoadRetryDelays: [UInt64] {
     HolonTransportName.normalize(transport) == .stdio
       ? [0, 80_000_000, 180_000_000]
@@ -434,12 +424,6 @@ public final class GreetingHolonManager: ObservableObject {
     return fallback ?? HolonError.notConnected
   }
 
-  private func logHostUI(_ line: String) {
-    guard let data = (line + "\n").data(using: .utf8) else {
-      return
-    }
-    FileHandle.standardError.write(data)
-  }
 }
 
 @available(*, deprecated, renamed: "GreetingHolonManager")

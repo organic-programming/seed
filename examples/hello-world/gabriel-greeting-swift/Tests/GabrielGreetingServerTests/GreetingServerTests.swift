@@ -76,8 +76,9 @@ final class GreetingServerTests: XCTestCase {
             .bind(host: "127.0.0.1", port: 0)
             .wait()
         let channel = ClientConnection.insecure(group: clientGroup)
+            .withConnectionReestablishment(enabled: false)
             .connect(host: "127.0.0.1", port: server.channel.localAddress?.port ?? 0)
-        let stub = Greeting_V1_GreetingServiceClient(channel: channel)
+        let stub = Greeting_V1_GreetingServiceNIOClient(channel: channel)
 
         return RunningClient(
             server: server,
@@ -94,12 +95,13 @@ private struct RunningClient {
     let serverGroup: MultiThreadedEventLoopGroup
     let clientGroup: MultiThreadedEventLoopGroup
     let channel: ClientConnection
-    let stub: Greeting_V1_GreetingServiceClient
+    let stub: Greeting_V1_GreetingServiceNIOClient
 
     func stop() {
-        _ = try? channel.close().wait()
         _ = try? server.initiateGracefulShutdown().wait()
-        try? clientGroup.syncShutdownGracefully()
+        _ = try? server.onClose.wait()
+        _ = try? channel.close().wait()
         try? serverGroup.syncShutdownGracefully()
+        try? clientGroup.syncShutdownGracefully()
     }
 }
