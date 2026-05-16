@@ -198,6 +198,25 @@ typedef struct {
   void *ctx;
 } holons_grpc_unary_registration_t;
 
+typedef struct holons_grpc_call_ctx {
+  const unsigned char *request_data;
+  size_t request_len;
+  void *stream_writer;
+  void *server_context;
+  char *err;
+  size_t err_len;
+} holons_grpc_call_ctx_t;
+
+typedef int (*holons_grpc_stream_handler_t)(
+    const holons_grpc_call_ctx_t *ctx,
+    void *user_data);
+
+typedef struct {
+  const char *full_method;
+  holons_grpc_stream_handler_t handler;
+  void *ctx;
+} holons_grpc_stream_registration_t;
+
 typedef struct {
   int announce;
   int enable_reflection;
@@ -220,6 +239,66 @@ typedef struct {
   char method_name[HOLONS_MAX_FIELD_LEN];
   const holons_describe_response_t *response;
 } holons_describe_registration_t;
+
+typedef struct {
+  const char *slug;
+  const char *binary;
+} holons_composite_child_spec_t;
+
+typedef struct holons_composite_spawned_member holons_composite_spawned_member_t;
+typedef struct holons_composite_cascade holons_composite_cascade_t;
+typedef struct holons_composite_channel holons_composite_channel_t;
+
+typedef struct {
+  int has_transitive_observability;
+  int transitive_observability;
+} holons_composite_dial_options_t;
+
+typedef struct {
+  const char *slug;
+  const char *binary_path;
+  const char *transport;
+  const char *instance_uid;
+  const holons_composite_child_spec_t *downstream_chain;
+  size_t downstream_chain_count;
+  const char *const *extra_env;
+  const holons_composite_dial_options_t *dial_options;
+  size_t dial_option_count;
+} holons_composite_spawn_options_t;
+
+typedef struct {
+  const char *transport;
+  const holons_composite_child_spec_t *members;
+  size_t member_count;
+  const char *const *extra_env;
+} holons_composite_cascade_options_t;
+
+typedef struct {
+  holons_composite_channel_t *channel;
+  const char *sender;
+  const char *leaf_uid;
+  const holons_composite_child_spec_t *expected_chain;
+  size_t expected_chain_count;
+  int timeout_ms;
+  int poll_interval_ms;
+  int live;
+} holons_composite_log_check_options_t;
+
+typedef struct {
+  holons_composite_channel_t *channel;
+  int event_type;
+  const char *leaf_uid;
+  const holons_composite_child_spec_t *expected_chain;
+  size_t expected_chain_count;
+  int timeout_ms;
+  int poll_interval_ms;
+  int live;
+} holons_composite_event_check_options_t;
+
+typedef struct {
+  int pass;
+  char evidence[HOLONS_MAX_DOC_LEN];
+} holons_composite_check_result_t;
 
 typedef struct {
   char *given_name;
@@ -303,9 +382,79 @@ int holons_serve_grpc(const char *listen_uri,
                       const holons_grpc_serve_options_t *options,
                       char *err,
                       size_t err_len);
+int holons_serve_grpc_with_streams(
+    const char *listen_uri,
+    const holons_grpc_unary_registration_t *unary_registrations,
+    size_t unary_registration_count,
+    const holons_grpc_stream_registration_t *stream_registrations,
+    size_t stream_registration_count,
+    const holons_grpc_serve_options_t *options,
+    char *err,
+    size_t err_len);
+int holons_grpc_stream_write(const holons_grpc_call_ctx_t *ctx,
+                             const void *buf,
+                             size_t len);
+int holons_grpc_stream_check_cancel(const holons_grpc_call_ctx_t *ctx);
 int holons_grpc_set_observability_options(
     const holons_grpc_observability_options_t *options);
 void holons_grpc_clear_observability_options(void);
+
+void holons_composite_with_transitive_observability(
+    holons_composite_dial_options_t *out,
+    int enabled);
+int holons_composite_spawn_member(
+    const holons_composite_spawn_options_t *options,
+    holons_composite_spawned_member_t **out,
+    char *err,
+    size_t err_len);
+void holons_composite_spawned_member_stop(
+    holons_composite_spawned_member_t *member);
+void holons_composite_spawned_member_free(
+    holons_composite_spawned_member_t *member);
+holons_composite_channel_t *holons_composite_spawned_member_channel(
+    holons_composite_spawned_member_t *member);
+const char *holons_composite_spawned_member_uid(
+    const holons_composite_spawned_member_t *member);
+const char *holons_composite_spawned_member_listen_uri(
+    const holons_composite_spawned_member_t *member);
+int holons_composite_build_cascade(
+    const holons_composite_cascade_options_t *options,
+    holons_composite_cascade_t **out,
+    char *err,
+    size_t err_len);
+void holons_composite_cascade_stop(holons_composite_cascade_t *cascade);
+void holons_composite_cascade_free(holons_composite_cascade_t *cascade);
+holons_composite_channel_t *holons_composite_cascade_top_channel(
+    holons_composite_cascade_t *cascade);
+const char *holons_composite_cascade_top_uid(
+    const holons_composite_cascade_t *cascade);
+int holons_composite_dial(const char *address,
+                          const holons_composite_dial_options_t *options,
+                          size_t option_count,
+                          holons_composite_channel_t **out,
+                          char *err,
+                          size_t err_len);
+void holons_composite_channel_free(holons_composite_channel_t *channel);
+int holons_composite_check_relayed_log(
+    const holons_composite_log_check_options_t *options,
+    holons_composite_check_result_t *out);
+int holons_composite_check_relayed_event(
+    const holons_composite_event_check_options_t *options,
+    holons_composite_check_result_t *out);
+int holons_composite_parse_child_flags(
+    int argc,
+    char **argv,
+    holons_composite_child_spec_t **out_children,
+    size_t *out_child_count,
+    char ***out_remaining,
+    size_t *out_remaining_count,
+    char *err,
+    size_t err_len);
+void holons_composite_free_child_flags(
+    holons_composite_child_spec_t *children,
+    size_t child_count,
+    char **remaining,
+    size_t remaining_count);
 
 int holons_resolve_manifest(const char *path,
                             holons_manifest_t *out,

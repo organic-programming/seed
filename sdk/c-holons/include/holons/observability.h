@@ -166,6 +166,55 @@ typedef struct {
 
 int holon_obs_write_meta_json(const char *run_dir, const holon_meta_t *meta);
 
+typedef struct {
+    const char *key;
+    const char *value;
+} holon_obs_kv_t;
+
+typedef struct {
+    const char *slug;
+    const char *instance_uid;
+} holon_obs_chain_hop_t;
+
+typedef struct {
+    int64_t unix_nanos;
+    holon_level_t level;
+    const char *slug;
+    const char *instance_uid;
+    const char *logger_name;
+    const char *message;
+    const holon_obs_kv_t *fields;
+    size_t field_count;
+    const holon_obs_chain_hop_t *chain;
+    size_t chain_count;
+    int private_entry;
+} holon_obs_log_snapshot_t;
+
+typedef struct {
+    int64_t unix_nanos;
+    holon_event_type_t type;
+    const char *slug;
+    const char *instance_uid;
+    const holon_obs_kv_t *payload;
+    size_t payload_count;
+    const holon_obs_chain_hop_t *chain;
+    size_t chain_count;
+    int private_entry;
+} holon_obs_event_snapshot_t;
+
+typedef int (*holon_obs_log_snapshot_fn)(const holon_obs_log_snapshot_t *entry,
+                                         void *user_data);
+typedef int (*holon_obs_event_snapshot_fn)(const holon_obs_event_snapshot_t *event,
+                                           void *user_data);
+
+const char *holon_obs_private(void);
+int holon_obs_replay_logs(int follow,
+                          holon_obs_log_snapshot_fn callback,
+                          void *user_data);
+int holon_obs_replay_events(int follow,
+                            holon_obs_event_snapshot_fn callback,
+                            void *user_data);
+
 /*
  * Releases all resources held by the singleton. Further log / emit
  * calls become no-ops until holon_obs_configure is called again.

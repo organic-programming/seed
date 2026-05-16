@@ -48,6 +48,26 @@ HOLONS_WEAK void holons_cpp_obs_counter_add_from_c(const char *name,
     (void)n;
 }
 
+HOLONS_WEAK int holons_cpp_obs_replay_logs_from_c(
+    int follow,
+    holon_obs_log_snapshot_fn callback,
+    void *user_data) {
+    (void)follow;
+    (void)callback;
+    (void)user_data;
+    return -1;
+}
+
+HOLONS_WEAK int holons_cpp_obs_replay_events_from_c(
+    int follow,
+    holon_obs_event_snapshot_fn callback,
+    void *user_data) {
+    (void)follow;
+    (void)callback;
+    (void)user_data;
+    return -1;
+}
+
 /* -------- helpers -------- */
 
 static char *dup_or_null(const char *s) {
@@ -403,6 +423,24 @@ void holon_obs_emit(holon_event_type_t type, const char *const *payload) {
     }
     fputs("}\n", f);
     fclose(f);
+}
+
+const char *holon_obs_private(void) {
+    return "__holons_private";
+}
+
+int holon_obs_replay_logs(int follow,
+                          holon_obs_log_snapshot_fn callback,
+                          void *user_data) {
+    if (callback == NULL) return -EINVAL;
+    return holons_cpp_obs_replay_logs_from_c(follow != 0, callback, user_data);
+}
+
+int holon_obs_replay_events(int follow,
+                            holon_obs_event_snapshot_fn callback,
+                            void *user_data) {
+    if (callback == NULL) return -EINVAL;
+    return holons_cpp_obs_replay_events_from_c(follow != 0, callback, user_data);
 }
 
 /* -------- Metrics -------- */
