@@ -14,7 +14,9 @@ targets:
     platform: macOS
     sources:
       - App
-      - gen
+      - path: gen
+        excludes:
+          - swift
     dependencies:
       - package: Modules
         product: GreetingKit

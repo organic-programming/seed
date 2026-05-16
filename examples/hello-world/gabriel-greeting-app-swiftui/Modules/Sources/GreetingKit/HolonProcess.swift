@@ -6,87 +6,55 @@ import HolonsApp
   import Holons
 #endif
 
-@MainActor
-public final class GreetingHolonManager: ObservableObject {
-  public static let listLanguagesMethod = "/greeting.v1.GreetingService/ListLanguages"
-  public static let sayHelloMethod = "/greeting.v1.GreetingService/SayHello"
-
-  @Published public var isRunning = false
-  @Published public var connectionError: String?
-  @Published public var availableHolons: [GabrielHolonIdentity] = []
-  @Published public var selectedHolon: GabrielHolonIdentity? = nil {
-    didSet {
-      guard oldValue != selectedHolon else { return }
-      stop()
-    }
-  }
-  @Published public var selectedLanguageCode: String = ""
-  @Published public var availableLanguages: [Greeting_V1_Language] = []
-  @Published public var userName: String = ""
-  @Published public var greeting: String = ""
-  @Published public var transport: String = {
-    HolonTransportName.normalize(
-      ProcessInfo.processInfo.environment["OP_ASSEMBLY_TRANSPORT"]
-    ).rawValue
-  }()
+#if os(macOS)
+  @MainActor
+  public final class GreetingHolonManager:
+    HolonProcessManager<GabrielHolonIdentity, any GreetingClientProtocol>
   {
-    didSet {
-      guard oldValue != transport else { return }
-      stop()
-    }
-  }
+    public static let listLanguagesMethod = "/greeting.v1.GreetingService/ListLanguages"
+    public static let sayHelloMethod = "/greeting.v1.GreetingService/SayHello"
 
-  private var client: GreetingClientProtocol?
-  private var startTask: Task<GreetingClientProtocol, Error>?
-  private var startTaskID: UUID?
-  #if os(macOS)
-    private let holons: BundledHolons<GabrielHolonIdentity>
-    private let clientFactory: GreetingClientFactory
-    private var observability: Observability?
-    private var logger: HolonLogger?
+    @Published public var selectedLanguageCode: String = ""
+    @Published public var availableLanguages: [Greeting_V1_Language] = []
+    @Published public var userName: String = ""
+    @Published public var greeting: String = ""
+
     private var sayHelloTotal: Counter?
     private var sayHelloDuration: Histogram?
-  #endif
 
-  #if os(macOS)
-    public init(
-      holons: BundledHolons<GabrielHolonIdentity> = BundledHolons<GabrielHolonIdentity>(
-        fromDiscovered: GabrielHolonIdentity.fromDiscovered,
-        slugOf: { $0.slug },
-        sortRankOf: { $0.sortRank },
-        displayNameOf: { $0.displayName }
+    public convenience init() {
+      self.init(
+        holons: Self.defaultHolons(),
+        clientFactory: connectClient,
+        autoRefresh: true
       )
-    ) {
-      self.holons = holons
-      self.clientFactory = connectClient
-      refreshHolons()
     }
 
     init(
-      holons: BundledHolons<GabrielHolonIdentity> = BundledHolons<GabrielHolonIdentity>(
-        fromDiscovered: GabrielHolonIdentity.fromDiscovered,
-        slugOf: { $0.slug },
-        sortRankOf: { $0.sortRank },
-        displayNameOf: { $0.displayName }
-      ),
+      holons: any HolonsApp.Holons<GabrielHolonIdentity> = GreetingHolonManager.defaultHolons(),
       clientFactory: @escaping GreetingClientFactory,
       autoRefresh: Bool = true
     ) {
-      self.holons = holons
-      self.clientFactory = clientFactory
-      if autoRefresh {
-        refreshHolons()
-      }
+      super.init(
+        holons: holons,
+        clientFactory: clientFactory,
+        closeClient: { try $0.close() },
+        slugOf: { $0.slug },
+        displayNameOf: { $0.displayName },
+        sortRankOf: { $0.sortRank },
+        connectionName: "Gabriel holon",
+        noHolonsError: { GreetingSelectionError.noHolonsFound },
+        notConnectedError: { HolonError.notConnected },
+        autoRefresh: autoRefresh
+      )
     }
-  #else
-    public init() {
-    }
-  #endif
 
-  #if os(macOS)
-    public func attachObservability(_ observability: Observability) {
-      self.observability = observability
-      self.logger = observability.logger("greeting-controller")
+    public override var observabilityLoggerName: String {
+      "greeting-controller"
+    }
+
+    public override func attachObservability(_ observability: Observability) {
+      super.attachObservability(observability)
       self.sayHelloTotal = observability.counter(
         "gabriel_greeting_say_hello_total",
         help: "Greeting requests sent from the SwiftUI app",
@@ -98,338 +66,221 @@ public final class GreetingHolonManager: ObservableObject {
         labels: ["origin": "app"]
       )
     }
-  #endif
 
-  @discardableResult
-  public func reloadLanguages(greetAfterLoad: Bool = false) async throws -> [Greeting_V1_Language] {
-    greeting = ""
-    availableLanguages = []
+    @discardableResult
+    public func reloadLanguages(greetAfterLoad: Bool = false) async throws -> [Greeting_V1_Language] {
+      greeting = ""
+      availableLanguages = []
 
-    await start()
-    guard isRunning else {
-      throw connectionFailure(nil)
-    }
+      await start()
+      guard isRunning else {
+        throw connectionFailure(nil)
+      }
 
-    var lastError: Error?
-    for delay in languageLoadRetryDelays {
-      #if os(macOS)
+      var lastError: Error?
+      for delay in languageLoadRetryDelays {
         if delay > 0 {
           try await Task.sleep(nanoseconds: delay)
         }
-      #endif
-      do {
-        let languages = try await listLanguages()
-        availableLanguages = languages
-        selectedLanguageCode = resolvedLanguageSelection(
-          availableLanguages: languages,
-          preferredCode: selectedLanguageCode
-        )
-        if greetAfterLoad, !selectedLanguageCode.isEmpty {
-          _ = try await greetCurrentSelection()
+        do {
+          let languages = try await listLanguages()
+          availableLanguages = languages
+          selectedLanguageCode = resolvedLanguageSelection(
+            availableLanguages: languages,
+            preferredCode: selectedLanguageCode
+          )
+          if greetAfterLoad, !selectedLanguageCode.isEmpty {
+            _ = try await greetCurrentSelection()
+          }
+          return languages
+        } catch {
+          lastError = error
         }
-        return languages
-      } catch {
-        lastError = error
       }
+
+      throw connectionFailure(lastError)
     }
 
-    throw connectionFailure(lastError)
-  }
-
-  @discardableResult
-  public func selectHolon(
-    slug: String,
-    greetAfterLoad: Bool = false
-  ) async throws -> GabrielHolonIdentity {
-    #if os(macOS)
+    @discardableResult
+    public func selectHolon(
+      slug: String,
+      greetAfterLoad: Bool = false
+    ) async throws -> GabrielHolonIdentity {
       if availableHolons.isEmpty {
         refreshHolons()
       }
-    #endif
-    let identity = try resolvedHolonSelection(slug: slug, availableHolons: availableHolons)
-    if selectedHolon != identity {
-      selectedHolon = identity
+      let identity = try resolvedHolonSelection(slug: slug, availableHolons: availableHolons)
+      if selectedHolon != identity {
+        selectedHolon = identity
+      }
+      try await reloadLanguages(greetAfterLoad: greetAfterLoad)
+      return identity
     }
-    try await reloadLanguages(greetAfterLoad: greetAfterLoad)
-    return identity
-  }
 
-  @discardableResult
-  public func selectTransport(
-    _ value: String,
-    greetAfterLoad: Bool = false
-  ) async throws -> String {
-    let transport = try validatedTransportSelection(value)
-    if self.transport != transport.rawValue {
-      self.transport = transport.rawValue
+    @discardableResult
+    public func selectTransport(
+      _ value: String,
+      greetAfterLoad: Bool = false
+    ) async throws -> String {
+      let transport = try validatedTransportSelection(value)
+      if self.transport != transport.rawValue {
+        self.transport = transport.rawValue
+      }
+      try await reloadLanguages(greetAfterLoad: greetAfterLoad)
+      return transport.rawValue
     }
-    try await reloadLanguages(greetAfterLoad: greetAfterLoad)
-    return transport.rawValue
-  }
 
-  @discardableResult
-  public func selectLanguage(_ value: String) async throws -> String {
-    if availableLanguages.isEmpty {
-      try await reloadLanguages(greetAfterLoad: false)
-    }
-    let code = try validatedLanguageSelection(value, availableLanguages: availableLanguages)
-    selectedLanguageCode = code
-    return code
-  }
-
-  @discardableResult
-  public func selectLanguageAndGreet(_ value: String) async throws -> String {
-    let code = try await selectLanguage(value)
-    _ = try await greetCurrentSelection()
-    return code
-  }
-
-  @discardableResult
-  public func greetCurrentSelection(
-    name: String? = nil,
-    langCode: String? = nil
-  ) async throws -> String {
-    if let name, !name.isEmpty {
-      userName = name
-    }
-    if let langCode, !langCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-      _ = try await selectLanguage(langCode)
-    } else if selectedLanguageCode.isEmpty {
+    @discardableResult
+    public func selectLanguage(_ value: String) async throws -> String {
       if availableLanguages.isEmpty {
         try await reloadLanguages(greetAfterLoad: false)
       }
-      guard !selectedLanguageCode.isEmpty else {
-        throw GreetingSelectionError.noLanguageSelected
+      let code = try validatedLanguageSelection(value, availableLanguages: availableLanguages)
+      selectedLanguageCode = code
+      return code
+    }
+
+    @discardableResult
+    public func selectLanguageAndGreet(_ value: String) async throws -> String {
+      let code = try await selectLanguage(value)
+      _ = try await greetCurrentSelection()
+      return code
+    }
+
+    @discardableResult
+    public func greetCurrentSelection(
+      name: String? = nil,
+      langCode: String? = nil
+    ) async throws -> String {
+      if let name, !name.isEmpty {
+        userName = name
       }
-    }
+      if let langCode, !langCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        _ = try await selectLanguage(langCode)
+      } else if selectedLanguageCode.isEmpty {
+        if availableLanguages.isEmpty {
+          try await reloadLanguages(greetAfterLoad: false)
+        }
+        guard !selectedLanguageCode.isEmpty else {
+          throw GreetingSelectionError.noLanguageSelected
+        }
+      }
 
-    if client == nil {
-      await start()
-    }
-    guard client != nil else {
-      throw connectionFailure(HolonError.notConnected)
-    }
+      if connectedClient == nil {
+        await start()
+      }
+      guard connectedClient != nil else {
+        throw connectionFailure(HolonError.notConnected)
+      }
 
-    #if os(macOS)
       let startedAt = Date()
-    #endif
-    do {
-      let response = try await sayHello(name: userName, langCode: selectedLanguageCode)
-      greeting = response
-      #if os(macOS)
+      do {
+        let response = try await sayHello(name: userName, langCode: selectedLanguageCode)
+        greeting = response
         sayHelloTotal?.inc()
         let elapsed = Date().timeIntervalSince(startedAt)
         sayHelloDuration?.observe(elapsed)
-        logger?.info("Greeting request completed", [
+        processLogger?.info("Greeting request completed", [
           "method": Self.sayHelloMethod,
           "lang": selectedLanguageCode,
           "holon": selectedHolon?.slug ?? "",
           "elapsed_ms": String(format: "%.1f", elapsed * 1000),
         ])
-      #endif
-      return response
-    } catch {
-      #if os(macOS)
-        logger?.error("Greeting request failed", [
+        return response
+      } catch {
+        processLogger?.error("Greeting request failed", [
           "method": Self.sayHelloMethod,
           "lang": selectedLanguageCode,
           "holon": selectedHolon?.slug ?? "",
           "error": error.localizedDescription,
         ])
-      #endif
-      throw error
-    }
-  }
-
-  public func start() async {
-    guard client == nil else { return }
-    if let startTask {
-      do {
-        _ = try await startTask.value
-      } catch {
-        if connectionError == nil {
-          connectionError = "Failed to start Gabriel holon: \(String(describing: error))"
-        }
-        isRunning = false
+        throw error
       }
-      return
     }
-    connectionError = nil
 
-    #if os(macOS)
-      do {
-        if availableHolons.isEmpty {
-          refreshHolons()
-        }
-        guard let holon = selectedHolon ?? preferredHolon(in: availableHolons) else {
-          throw GreetingSelectionError.noHolonsFound
-        }
-
-        if selectedHolon != holon {
-          selectedHolon = holon
-        }
-
-        var options = ConnectOptions()
-        options.transport = transport
-        options.lifecycle = "ephemeral"
-        options.timeout = 5.0
-
-        let taskID = UUID()
-        startTaskID = taskID
-        let factory = clientFactory
-        let connectTask = Task.detached(priority: .userInitiated) { [slug = holon.slug, options] in
-          try factory(slug, options)
-        }
-        startTask = connectTask
-
-        do {
-          let connectedClient = try await connectTask.value
-          guard startTaskID == taskID else {
-            try? connectedClient.close()
-            return
-          }
-          client = connectedClient
-          logger?.info("Holon connection ready", [
-            "holon": holon.slug,
-            "transport": connectionTarget(),
-          ])
-          isRunning = true
-        } catch {
-          guard startTaskID == taskID else {
-            return
-          }
-          connectionError = "Failed to start Gabriel holon: \(String(describing: error))"
-          logger?.error("Holon connection failed", [
-            "holon": holon.slug,
-            "transport": connectionTarget(),
-            "error": String(describing: error),
-          ])
-          isRunning = false
-        }
-
-        if startTaskID == taskID {
-          startTask = nil
-          startTaskID = nil
-        }
-      } catch {
-        connectionError = "Failed to start Gabriel holon: \(String(describing: error))"
-        isRunning = false
+    public func listLanguages() async throws -> [Greeting_V1_Language] {
+      if connectedClient == nil { await start() }
+      guard let client = connectedClient else {
+        throw HolonError.notConnected
       }
-    #else
-      connectionError = GreetingClientError.unsupportedPlatform.localizedDescription
-      isRunning = false
-    #endif
-  }
-
-  public func stop() {
-    startTaskID = nil
-    startTask?.cancel()
-    startTask = nil
-
-    let currentClient = client
-    client = nil
-
-    do {
-      try currentClient?.close()
-    } catch {
-      connectionError = "Failed to stop Gabriel holon connection: \(error.localizedDescription)"
+      return try await client.listLanguages()
     }
 
-    isRunning = false
-  }
-
-  public func listLanguages() async throws -> [Greeting_V1_Language] {
-    if client == nil { await start() }
-    guard let client else {
-      throw HolonError.notConnected
+    public func sayHello(name: String, langCode: String) async throws -> String {
+      guard let client = connectedClient else {
+        throw HolonError.notConnected
+      }
+      return try await client.sayHello(name: name, langCode: langCode)
     }
-    return try await client.listLanguages()
-  }
 
-  public func sayHello(name: String, langCode: String) async throws -> String {
-    guard let client else {
-      throw HolonError.notConnected
+    public override func invokeRPC(
+      on client: any GreetingClientProtocol,
+      method: String,
+      payload: Data
+    ) async throws -> Data {
+      try await client.tell(method: method, payloadJSON: payload)
     }
-    return try await client.sayHello(name: name, langCode: langCode)
-  }
 
-  public func tellMember(
-    slug: String,
-    method: String,
-    payloadJSON: Data
-  ) async throws -> Data {
-    let canonicalMethod = canonicalGRPCMethodPath(method)
-    let normalizedPayload = payloadJSON.isEmpty ? Data("{}".utf8) : payloadJSON
+    public func tellMember(
+      slug: String,
+      method: String,
+      payloadJSON: Data
+    ) async throws -> Data {
+      let canonicalMethod = canonicalGRPCMethodPath(method)
+      let normalizedPayload = payloadJSON.isEmpty ? Data("{}".utf8) : payloadJSON
 
-    #if os(macOS)
       if availableHolons.isEmpty {
         refreshHolons()
       }
-    #endif
 
-    if selectedHolon?.slug != slug {
-      _ = try await selectHolon(slug: slug, greetAfterLoad: false)
+      if selectedHolon?.slug != slug {
+        _ = try await selectHolon(slug: slug, greetAfterLoad: false)
+      }
+
+      switch canonicalMethod {
+      case Self.listLanguagesMethod:
+        let languages = try await reloadLanguages(greetAfterLoad: false)
+        var response = Greeting_V1_ListLanguagesResponse()
+        response.languages = languages
+        return try response.jsonUTF8Data()
+
+      case Self.sayHelloMethod:
+        let request = try Greeting_V1_SayHelloRequest(jsonUTF8Data: normalizedPayload)
+        let greeting = try await greetCurrentSelection(
+          name: request.name.isEmpty ? nil : request.name,
+          langCode: request.langCode.isEmpty ? nil : request.langCode
+        )
+        var response = Greeting_V1_SayHelloResponse()
+        response.greeting = greeting
+        return try response.jsonUTF8Data()
+
+      default:
+        if connectedClient == nil {
+          await start()
+        }
+        guard let client = connectedClient else {
+          throw connectionFailure(HolonError.notConnected)
+        }
+        return try await invokeRPC(on: client, method: canonicalMethod, payload: normalizedPayload)
+      }
     }
 
-    switch canonicalMethod {
-    case Self.listLanguagesMethod:
-      let languages = try await reloadLanguages(greetAfterLoad: false)
-      var response = Greeting_V1_ListLanguagesResponse()
-      response.languages = languages
-      return try response.jsonUTF8Data()
-
-    case Self.sayHelloMethod:
-      let request = try Greeting_V1_SayHelloRequest(jsonUTF8Data: normalizedPayload)
-      let greeting = try await greetCurrentSelection(
-        name: request.name.isEmpty ? nil : request.name,
-        langCode: request.langCode.isEmpty ? nil : request.langCode
-      )
-      var response = Greeting_V1_SayHelloResponse()
-      response.greeting = greeting
-      return try response.jsonUTF8Data()
-
-    default:
-      if client == nil {
-        await start()
-      }
-      guard let client else {
-        throw connectionFailure(HolonError.notConnected)
-      }
-      return try await client.tell(method: canonicalMethod, payloadJSON: normalizedPayload)
+    private var languageLoadRetryDelays: [UInt64] {
+      HolonTransportName.normalize(transport) == .stdio
+        ? [0, 80_000_000, 180_000_000]
+        : [120_000_000, 300_000_000, 600_000_000]
     }
-  }
 
-  deinit {
-    try? client?.close()
-  }
-
-  private var languageLoadRetryDelays: [UInt64] {
-    HolonTransportName.normalize(transport) == .stdio
-      ? [0, 80_000_000, 180_000_000]
-      : [120_000_000, 300_000_000, 600_000_000]
-  }
-
-  private func connectionTarget() -> String {
-    HolonTransportName.normalize(transport).rawValue
-  }
-
-  private func connectionFailure(_ fallback: Error?) -> Error {
-    if let connectionError, !connectionError.isEmpty {
-      return NSError(
-        domain: "GreetingKit.GreetingHolonManager",
-        code: 1,
-        userInfo: [NSLocalizedDescriptionKey: connectionError]
+    private static func defaultHolons() -> BundledHolons<GabrielHolonIdentity> {
+      BundledHolons<GabrielHolonIdentity>(
+        fromDiscovered: GabrielHolonIdentity.fromDiscovered,
+        slugOf: { $0.slug },
+        sortRankOf: { $0.sortRank },
+        displayNameOf: { $0.displayName }
       )
     }
-    return fallback ?? HolonError.notConnected
   }
 
-}
-
-@available(*, deprecated, renamed: "GreetingHolonManager")
-public typealias HolonProcess = GreetingHolonManager
-
-#if os(macOS)
   extension GreetingHolonManager: HolonManager {
     public func listMembers() async -> [CoaxMember] {
       availableHolons.map { coaxMember(for: $0) }
@@ -491,9 +342,33 @@ public typealias HolonProcess = GreetingHolonManager
       return .available
     }
   }
+#else
+  @MainActor
+  public final class GreetingHolonManager: ObservableObject {
+    @Published public var isRunning = false
+    @Published public var connectionError: String?
+    @Published public var availableHolons: [GabrielHolonIdentity] = []
+    @Published public var selectedHolon: GabrielHolonIdentity?
+    @Published public var selectedLanguageCode: String = ""
+    @Published public var availableLanguages: [Greeting_V1_Language] = []
+    @Published public var userName: String = ""
+    @Published public var greeting: String = ""
+    @Published public var transport: String = HolonTransportName.stdio.rawValue
+
+    public init() {}
+
+    public func attachObservability(_ observability: Any) {
+      _ = observability
+    }
+
+    public func stop() {}
+  }
 #endif
 
-protocol GreetingClientProtocol: AnyObject, Sendable {
+@available(*, deprecated, renamed: "GreetingHolonManager")
+public typealias HolonProcess = GreetingHolonManager
+
+public protocol GreetingClientProtocol: AnyObject, Sendable {
   func listLanguages() async throws -> [Greeting_V1_Language]
   func sayHello(name: String, langCode: String) async throws -> String
   func tell(method: String, payloadJSON: Data) async throws -> Data
@@ -502,18 +377,20 @@ protocol GreetingClientProtocol: AnyObject, Sendable {
 
 extension GreetingClient: GreetingClientProtocol {}
 
-typealias GreetingClientFactory = @Sendable (String, ConnectOptions) throws -> GreetingClientProtocol
+#if os(macOS)
+  typealias GreetingClientFactory = @Sendable (String, ConnectOptions) throws -> any GreetingClientProtocol
 
-private let connectClientLock = NSLock()
+  private let connectClientLock = NSLock()
 
-private func connectClient(
-  holonSlug: String,
-  options: ConnectOptions
-) throws -> GreetingClientProtocol {
-  connectClientLock.lock()
-  defer { connectClientLock.unlock() }
-  return try GreetingClient.connected(to: holonSlug, options: options)
-}
+  private func connectClient(
+    holonSlug: String,
+    options: ConnectOptions
+  ) throws -> any GreetingClientProtocol {
+    connectClientLock.lock()
+    defer { connectClientLock.unlock() }
+    return try GreetingClient.connected(to: holonSlug, options: options)
+  }
+#endif
 
 public enum HolonError: LocalizedError {
   case notConnected
@@ -526,7 +403,7 @@ public enum HolonError: LocalizedError {
   }
 }
 
-public struct GabrielHolonIdentity: Identifiable, Hashable {
+public struct GabrielHolonIdentity: Identifiable, Hashable, Sendable {
   public let slug: String
   public let familyName: String
   public let binaryName: String
@@ -544,39 +421,6 @@ public struct GabrielHolonIdentity: Identifiable, Hashable {
 }
 
 #if os(macOS)
-  extension GreetingHolonManager {
-    fileprivate func preferredHolon(in holons: [GabrielHolonIdentity]) -> GabrielHolonIdentity? {
-      holons.sorted(by: holonSort).first
-    }
-
-    fileprivate func holonSort(_ lhs: GabrielHolonIdentity, _ rhs: GabrielHolonIdentity) -> Bool {
-      if lhs.sortRank != rhs.sortRank {
-        return lhs.sortRank < rhs.sortRank
-      }
-      return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
-    }
-
-    fileprivate func refreshHolons() {
-      let previousSelection = selectedHolon?.slug
-
-      do {
-        let results = try holons.list()
-
-        availableHolons = results
-        if let previousSelection,
-          let holon = availableHolons.first(where: { $0.slug == previousSelection })
-        {
-          selectedHolon = holon
-        } else {
-          selectedHolon = preferredHolon(in: availableHolons)
-        }
-      } catch {
-        availableHolons = []
-        selectedHolon = nil
-        connectionError = "Failed to discover Gabriel holons: \(error.localizedDescription)"
-      }
-    }
-  }
   extension GabrielHolonIdentity {
     public static func fromDiscovered(_ entry: HolonEntry) -> GabrielHolonIdentity? {
       guard entry.slug.hasPrefix("gabriel-greeting-"),

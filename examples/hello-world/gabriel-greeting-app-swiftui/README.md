@@ -45,7 +45,7 @@ gabriel-greeting-app-swiftui/
 
 ## Codegen
 
-Swift protobuf types are generated from the shared contract at `examples/hello-world/_protos/v1/greeting.proto` using `protoc`. The generated file is committed at `Modules/Sources/GreetingKit/v1/greeting.pb.swift`.
+Swift protobuf types are generated from the shared contract at `examples/hello-world/_protos/v1/greeting.proto` using `protoc`. The canonical generated Swift files are committed under `gen/swift/`; the Swift package references those canonical files instead of keeping a second generated copy.
 
 Regenerate when the proto changes:
 
