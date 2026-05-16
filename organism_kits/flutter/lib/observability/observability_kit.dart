@@ -397,7 +397,7 @@ class RelayController extends ChangeNotifier {
         notifyListeners();
       }
     } on Object catch (error) {
-      obs.logger('relay-controller').warn('member relay start failed', {
+      obs.logger('relay-controller').warn('member relay start failed', fields: {
         'slug': member.slug,
         'uid': member.uid,
         'error': error,
