@@ -13,8 +13,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-type ChainHop = observability.Hop
-
 type CheckOutcome struct {
 	Pass     bool
 	Evidence string
@@ -24,7 +22,7 @@ type LogCheckOptions struct {
 	Conn          *grpc.ClientConn
 	Sender        string
 	LeafUID       string
-	ExpectedChain []ChainHop
+	ExpectedChain []string
 	Timeout       time.Duration
 	PollInterval  time.Duration
 	Live          bool
@@ -32,9 +30,9 @@ type LogCheckOptions struct {
 
 type EventCheckOptions struct {
 	Conn          *grpc.ClientConn
-	EventType     observability.EventType
+	EventName     string
 	LeafUID       string
-	ExpectedChain []ChainHop
+	ExpectedChain []string
 	Timeout       time.Duration
 	PollInterval  time.Duration
 	Live          bool
@@ -110,7 +108,7 @@ func CheckRelayedEvent(ctx context.Context, opts EventCheckOptions) CheckOutcome
 	}
 }
 
-func readLogEntries(ctx context.Context, conn *grpc.ClientConn) ([]observability.LogEntry, error) {
+func readLogEntries(ctx context.Context, conn *grpc.ClientConn) ([]observability.LogRecord, error) {
 	if conn == nil {
 		ring := observability.Current().LogRing()
 		if ring == nil {
@@ -121,13 +119,13 @@ func readLogEntries(ctx context.Context, conn *grpc.ClientConn) ([]observability
 	reqCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	stream, err := holonsv1.NewHolonObservabilityClient(conn).Logs(reqCtx, &holonsv1.LogsRequest{
-		MinLevel: holonsv1.LogLevel_INFO,
-		Follow:   false,
+		MinSeverityNumber: holonsv1.SeverityNumber_SEVERITY_NUMBER_INFO,
+		Follow:            false,
 	})
 	if err != nil {
 		return nil, err
 	}
-	var out []observability.LogEntry
+	var out []observability.LogRecord
 	for {
 		entry, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
@@ -136,11 +134,11 @@ func readLogEntries(ctx context.Context, conn *grpc.ClientConn) ([]observability
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, observability.FromProtoLogEntry(entry))
+		out = append(out, observability.FromProtoLogRecord(entry))
 	}
 }
 
-func readEventEntries(ctx context.Context, conn *grpc.ClientConn) ([]observability.Event, error) {
+func readEventEntries(ctx context.Context, conn *grpc.ClientConn) ([]observability.LogRecord, error) {
 	if conn == nil {
 		bus := observability.Current().EventBus()
 		if bus == nil {
@@ -154,7 +152,7 @@ func readEventEntries(ctx context.Context, conn *grpc.ClientConn) ([]observabili
 	if err != nil {
 		return nil, err
 	}
-	var out []observability.Event
+	var out []observability.LogRecord
 	for {
 		event, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
@@ -163,19 +161,20 @@ func readEventEntries(ctx context.Context, conn *grpc.ClientConn) ([]observabili
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, observability.FromProtoEvent(event))
+		out = append(out, observability.FromProtoLogRecord(event))
 	}
 }
 
-func matchRelayedLog(entries []observability.LogEntry, opts LogCheckOptions) CheckOutcome {
+func matchRelayedLog(entries []observability.LogRecord, opts LogCheckOptions) CheckOutcome {
 	for _, entry := range entries {
-		if entry.Message != "tick received" {
+		if entry.Record.GetBody().GetStringValue() != "tick received" {
 			continue
 		}
-		if entry.Fields["sender"] != opts.Sender || entry.Fields["responder_uid"] != opts.LeafUID {
+		if observability.StringAttribute(entry.Record.GetAttributes(), "sender") != opts.Sender ||
+			observability.StringAttribute(entry.Record.GetAttributes(), "responder_uid") != opts.LeafUID {
 			continue
 		}
-		if evidence := compareChain(entry.Chain, opts.ExpectedChain); evidence != "" {
+		if evidence := compareChain(entry.Record.GetChain(), opts.ExpectedChain); evidence != "" {
 			return CheckOutcome{Evidence: compactCheckEvidence("matching log bad chain: " + evidence)}
 		}
 		return CheckOutcome{Pass: true}
@@ -183,30 +182,31 @@ func matchRelayedLog(entries []observability.LogEntry, opts LogCheckOptions) Che
 	return CheckOutcome{Evidence: compactCheckEvidence(fmt.Sprintf("no relayed tick log sender=%s leaf_uid=%s entries=%d", opts.Sender, opts.LeafUID, len(entries)))}
 }
 
-func matchRelayedEvent(events []observability.Event, opts EventCheckOptions) CheckOutcome {
-	typ := opts.EventType
-	if typ == observability.EventTypeUnspecified {
-		typ = observability.EventInstanceReady
+func matchRelayedEvent(events []observability.LogRecord, opts EventCheckOptions) CheckOutcome {
+	name := opts.EventName
+	if name == "" {
+		name = observability.EventInstanceReady
 	}
 	for _, event := range events {
-		if event.Type != typ || event.InstanceUID != opts.LeafUID {
+		if event.Record.GetEventName() != name ||
+			observability.StringAttribute(event.Record.GetAttributes(), observability.AttrHolonsInstanceUID) != opts.LeafUID {
 			continue
 		}
-		if evidence := compareChain(event.Chain, opts.ExpectedChain); evidence != "" {
+		if evidence := compareChain(event.Record.GetChain(), opts.ExpectedChain); evidence != "" {
 			return CheckOutcome{Evidence: compactCheckEvidence("matching event bad chain: " + evidence)}
 		}
 		return CheckOutcome{Pass: true}
 	}
-	return CheckOutcome{Evidence: compactCheckEvidence(fmt.Sprintf("no relayed %s event leaf_uid=%s events=%d", typ.String(), opts.LeafUID, len(events)))}
+	return CheckOutcome{Evidence: compactCheckEvidence(fmt.Sprintf("no relayed %s event leaf_uid=%s events=%d", name, opts.LeafUID, len(events)))}
 }
 
-func compareChain(got, want []ChainHop) string {
+func compareChain(got, want []string) string {
 	if len(got) != len(want) {
 		return fmt.Sprintf("chain length %d want %d", len(got), len(want))
 	}
 	for i := range want {
-		if got[i].Slug != want[i].Slug || got[i].InstanceUID != want[i].InstanceUID {
-			return fmt.Sprintf("hop %d=%s/%s want %s/%s", i, got[i].Slug, got[i].InstanceUID, want[i].Slug, want[i].InstanceUID)
+		if got[i] != want[i] {
+			return fmt.Sprintf("hop %d=%s want %s", i, got[i], want[i])
 		}
 	}
 	return ""

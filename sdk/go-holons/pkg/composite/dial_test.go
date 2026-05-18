@@ -14,7 +14,6 @@ import (
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	"github.com/organic-programming/go-holons/pkg/observability"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type dialFakeServer struct {
@@ -43,14 +42,17 @@ func (s *dialFakeServer) Describe(context.Context, *holonsv1.DescribeRequest) (*
 	}, nil
 }
 
-func (s *dialFakeServer) Logs(req *holonsv1.LogsRequest, stream grpc.ServerStreamingServer[holonsv1.LogEntry]) error {
+func (s *dialFakeServer) Logs(req *holonsv1.LogsRequest, stream grpc.ServerStreamingServer[holonsv1.LogRecord]) error {
 	atomic.AddInt32(&s.logsCount, 1)
 	if !req.GetFollow() {
-		return stream.Send(&holonsv1.LogEntry{
-			Ts:          timestamppb.Now(),
-			Slug:        "peer-monitor",
-			InstanceUid: "peer-uid",
-			Message:     "ready",
+		now := time.Now()
+		return stream.Send(&holonsv1.LogRecord{
+			TimeUnixNano:         uint64(now.UnixNano()),
+			ObservedTimeUnixNano: uint64(now.UnixNano()),
+			SeverityNumber:       holonsv1.SeverityNumber_SEVERITY_NUMBER_INFO,
+			SeverityText:         "INFO",
+			Body:                 observability.ToAnyValue("ready"),
+			Attributes:           peerAttrs(),
 		})
 	}
 	atomic.AddInt32(&s.followLogs, 1)
@@ -59,14 +61,18 @@ func (s *dialFakeServer) Logs(req *holonsv1.LogsRequest, stream grpc.ServerStrea
 	return nil
 }
 
-func (s *dialFakeServer) Events(req *holonsv1.EventsRequest, stream grpc.ServerStreamingServer[holonsv1.EventInfo]) error {
+func (s *dialFakeServer) Events(req *holonsv1.EventsRequest, stream grpc.ServerStreamingServer[holonsv1.LogRecord]) error {
 	atomic.AddInt32(&s.eventsCount, 1)
 	if !req.GetFollow() {
-		return stream.Send(&holonsv1.EventInfo{
-			Ts:          timestamppb.Now(),
-			Type:        holonsv1.EventType_INSTANCE_READY,
-			Slug:        "peer-monitor",
-			InstanceUid: "peer-uid",
+		now := time.Now()
+		return stream.Send(&holonsv1.LogRecord{
+			TimeUnixNano:         uint64(now.UnixNano()),
+			ObservedTimeUnixNano: uint64(now.UnixNano()),
+			SeverityNumber:       holonsv1.SeverityNumber_SEVERITY_NUMBER_INFO,
+			SeverityText:         "INFO",
+			Body:                 observability.ToAnyValue(observability.EventInstanceReady),
+			Attributes:           peerAttrs(),
+			EventName:            observability.EventInstanceReady,
 		})
 	}
 	atomic.AddInt32(&s.followEvents, 1)
@@ -75,8 +81,15 @@ func (s *dialFakeServer) Events(req *holonsv1.EventsRequest, stream grpc.ServerS
 	return nil
 }
 
-func (s *dialFakeServer) Metrics(context.Context, *holonsv1.MetricsRequest) (*holonsv1.MetricsSnapshot, error) {
-	return &holonsv1.MetricsSnapshot{}, nil
+func (s *dialFakeServer) Metrics(*holonsv1.MetricsRequest, grpc.ServerStreamingServer[holonsv1.Metric]) error {
+	return nil
+}
+
+func peerAttrs() []*holonsv1.KeyValue {
+	return []*holonsv1.KeyValue{
+		{Key: observability.AttrHolonsSlug, Value: observability.ToAnyValue("peer-monitor")},
+		{Key: observability.AttrHolonsInstanceUID, Value: observability.ToAnyValue("peer-uid")},
+	}
 }
 
 func TestDialParsesAddressFormsWithoutTransitiveRelay(t *testing.T) {

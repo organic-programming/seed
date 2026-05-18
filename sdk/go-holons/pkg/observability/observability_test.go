@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	v1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	"google.golang.org/grpc"
 )
 
@@ -43,44 +44,11 @@ func TestParseOPOBS_Basic(t *testing.T) {
 	}
 }
 
-func TestCheckEnv_OtelRejected(t *testing.T) {
-	t.Setenv("OP_OBS", "logs,otel")
-	err := CheckEnv()
-	if err == nil {
-		t.Fatal("expected error for otel in v1")
-	}
-	if ite, ok := err.(*InvalidTokenError); !ok || ite.Token != "otel" {
-		t.Fatalf("expected InvalidTokenError{Token:otel}, got %v", err)
-	}
-}
-
 func TestCheckEnv_UnknownRejected(t *testing.T) {
 	t.Setenv("OP_OBS", "bogus")
 	err := CheckEnv()
 	if err == nil {
 		t.Fatal("expected error for unknown token")
-	}
-}
-
-func TestCheckEnv_SessionsRejected(t *testing.T) {
-	t.Setenv("OP_OBS", "logs,sessions")
-	err := CheckEnv()
-	if err == nil {
-		t.Fatal("expected error for sessions token in v1")
-	}
-	if ite, ok := err.(*InvalidTokenError); !ok || ite.Token != "sessions" {
-		t.Fatalf("expected InvalidTokenError{Token:sessions}, got %v", err)
-	}
-}
-
-func TestCheckEnv_OPSessionsRejected(t *testing.T) {
-	t.Setenv("OP_SESSIONS", "metrics")
-	err := CheckEnv()
-	if err == nil {
-		t.Fatal("expected error for OP_SESSIONS in v1")
-	}
-	if ite, ok := err.(*InvalidTokenError); !ok || ite.Var != "OP_SESSIONS" {
-		t.Fatalf("expected InvalidTokenError{Var:OP_SESSIONS}, got %v", err)
 	}
 }
 
@@ -161,14 +129,15 @@ func TestConfigure_LogsFamily(t *testing.T) {
 	if len(entries) != 2 {
 		t.Fatalf("expected 2 entries, got %d", len(entries))
 	}
-	if entries[0].Message != "recipe started" || entries[1].Message != "retry budget low" {
+	if entries[0].Record.GetBody().GetStringValue() != "recipe started" || entries[1].Record.GetBody().GetStringValue() != "retry budget low" {
 		t.Errorf("unexpected messages: %+v", entries)
 	}
-	if entries[0].Slug != "g" || entries[0].InstanceUID != "uid" {
+	if StringAttribute(entries[0].Record.GetAttributes(), AttrHolonsSlug) != "g" ||
+		StringAttribute(entries[0].Record.GetAttributes(), AttrHolonsInstanceUID) != "uid" {
 		t.Errorf("well-known fields not injected: %+v", entries[0])
 	}
-	if entries[0].Fields["name"] != "greeter" {
-		t.Errorf("user field missing: %+v", entries[0].Fields)
+	if StringAttribute(entries[0].Record.GetAttributes(), "name") != "greeter" {
+		t.Errorf("user field missing: %+v", entries[0].Record.GetAttributes())
 	}
 }
 
@@ -188,8 +157,8 @@ func TestLogger_EntryCarriesLoggerName(t *testing.T) {
 		t.Fatalf("expected 1 entry, got %d", len(entries))
 	}
 	entry := entries[0]
-	if entry.LoggerName != "foo" {
-		t.Fatalf("LoggerName = %q, want foo", entry.LoggerName)
+	if got := StringAttribute(entry.Record.GetAttributes(), AttrLoggerName); got != "foo" {
+		t.Fatalf("logger.name = %q, want foo", got)
 	}
 	rec := logEntryDiskRecord(entry)
 	if got := rec["logger_name"]; got != "foo" {
@@ -222,24 +191,27 @@ func TestLogger_RedactFields(t *testing.T) {
 	obs.Logger("login").Info("authenticated", "user", "bob", "password", "secret", "api_key", "abc123")
 
 	e := obs.LogRing().Drain()[0]
-	if e.Fields["user"] != "bob" {
-		t.Errorf("user field unexpectedly altered: %v", e.Fields["user"])
+	if got := StringAttribute(e.Record.GetAttributes(), "user"); got != "bob" {
+		t.Errorf("user field unexpectedly altered: %v", got)
 	}
-	if e.Fields["password"] != "<redacted>" || e.Fields["api_key"] != "<redacted>" {
-		t.Errorf("redaction failed: %v", e.Fields)
+	if StringAttribute(e.Record.GetAttributes(), "password") != "<redacted>" ||
+		StringAttribute(e.Record.GetAttributes(), "api_key") != "<redacted>" {
+		t.Errorf("redaction failed: %v", e.Record.GetAttributes())
 	}
 }
 
 func TestRing_PushEvictsOldest(t *testing.T) {
 	r := NewLogRing(3)
 	for i := 0; i < 5; i++ {
-		r.Push(LogEntry{Message: string(rune('a' + i))})
+		r.Push(testRecord(string(rune('a' + i))))
 	}
 	entries := r.Drain()
 	if len(entries) != 3 {
 		t.Fatalf("expected 3, got %d", len(entries))
 	}
-	if entries[0].Message != "c" || entries[1].Message != "d" || entries[2].Message != "e" {
+	if entries[0].Record.GetBody().GetStringValue() != "c" ||
+		entries[1].Record.GetBody().GetStringValue() != "d" ||
+		entries[2].Record.GetBody().GetStringValue() != "e" {
 		t.Errorf("wrong order: %+v", entries)
 	}
 }
@@ -251,7 +223,7 @@ func TestRing_Watch(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	received := make([]LogEntry, 0, 3)
+	received := make([]LogRecord, 0, 3)
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 3; i++ {
@@ -260,9 +232,9 @@ func TestRing_Watch(t *testing.T) {
 		}
 	}()
 
-	r.Push(LogEntry{Message: "1"})
-	r.Push(LogEntry{Message: "2"})
-	r.Push(LogEntry{Message: "3"})
+	r.Push(testRecord("1"))
+	r.Push(testRecord("2"))
+	r.Push(testRecord("3"))
 
 	wg.Wait()
 	if len(received) != 3 {
@@ -395,7 +367,7 @@ func TestEventBus_FanOut(t *testing.T) {
 
 	select {
 	case e := <-ch1:
-		if e.Type != EventInstanceReady {
+		if e.Record.GetEventName() != EventInstanceReady {
 			t.Errorf("ch1: unexpected event: %+v", e)
 		}
 	default:
@@ -403,7 +375,7 @@ func TestEventBus_FanOut(t *testing.T) {
 	}
 	select {
 	case e := <-ch2:
-		if e.Type != EventInstanceReady {
+		if e.Record.GetEventName() != EventInstanceReady {
 			t.Errorf("ch2: unexpected event: %+v", e)
 		}
 	default:
@@ -419,14 +391,14 @@ func TestEventBus_FanOut(t *testing.T) {
 
 func TestChain_AppendAndEnrich(t *testing.T) {
 	// Wire chain: start with [], direct-child relay appends.
-	c1 := AppendDirectChild(nil, "gabriel-greeting-rust", "1c2d")
-	if len(c1) != 1 || c1[0].Slug != "gabriel-greeting-rust" {
+	c1 := AppendDirectChild(nil, "gabriel-greeting-rust")
+	if len(c1) != 1 || c1[0] != "gabriel-greeting-rust" {
 		t.Fatalf("append direct child failed: %+v", c1)
 	}
 
 	// Multilog enrichment appends stream source.
-	c2 := EnrichForMultilog(c1, "gabriel-greeting-go", "ea34")
-	if len(c2) != 2 || c2[0].Slug != "gabriel-greeting-rust" || c2[1].Slug != "gabriel-greeting-go" {
+	c2 := EnrichForMultilog(c1, "gabriel-greeting-go")
+	if len(c2) != 2 || c2[0] != "gabriel-greeting-rust" || c2[1] != "gabriel-greeting-go" {
 		t.Fatalf("multilog enrichment failed: %+v", c2)
 	}
 	// Original wire chain must be unchanged.
@@ -513,3 +485,14 @@ func hasLabelKeys(labels map[string]string, keys ...string) bool {
 }
 
 var _ = time.Second
+
+func testRecord(body string) LogRecord {
+	now := time.Now()
+	return newLogRecord(&v1.LogRecord{
+		TimeUnixNano:         uint64(now.UnixNano()),
+		ObservedTimeUnixNano: uint64(now.UnixNano()),
+		SeverityNumber:       v1.SeverityNumber_SEVERITY_NUMBER_INFO,
+		SeverityText:         "INFO",
+		Body:                 ToAnyValue(body),
+	}, false)
+}

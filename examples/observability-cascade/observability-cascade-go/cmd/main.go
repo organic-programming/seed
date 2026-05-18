@@ -229,7 +229,7 @@ func runTick(cascade *composite.Cascade, sender, note string, members []language
 		Live:          live,
 	})
 	event := composite.CheckRelayedEvent(context.Background(), composite.EventCheckOptions{
-		EventType:     observability.EventInstanceReady,
+		EventName:     observability.EventInstanceReady,
 		LeafUID:       leafUID,
 		ExpectedChain: expected,
 		Timeout:       timeout,
@@ -259,10 +259,10 @@ func checkHops(hops []*relayv1.HopReceipt, members []languageMember, previous ma
 	return composite.CheckOutcome{Pass: true}
 }
 
-func hopChain(hops []*relayv1.HopReceipt) []composite.ChainHop {
-	out := make([]composite.ChainHop, 0, len(hops))
+func hopChain(hops []*relayv1.HopReceipt) []string {
+	out := make([]string, 0, len(hops))
 	for _, hop := range hops {
-		out = append(out, composite.ChainHop{Slug: hop.GetSlug(), InstanceUID: hop.GetUid()})
+		out = append(out, hop.GetSlug())
 	}
 	return out
 }

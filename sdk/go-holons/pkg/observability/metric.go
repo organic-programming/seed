@@ -114,9 +114,6 @@ func (g *Gauge) Name() string {
 // Histogram is a cumulative bucket histogram with Prometheus semantics:
 // each bucket counts observations whose value is <= bucket's upper
 // bound. The implicit +Inf bucket is the total count.
-//
-// v1 uses fixed-boundary buckets (configurable). A later iteration can
-// swap this for an HDR sketch without changing the public API.
 type Histogram struct {
 	name   string
 	help   string
@@ -128,6 +125,8 @@ type Histogram struct {
 	counts []int64 // parallel to bounds; counts[i] = # observations <= bounds[i]
 	total  int64
 	sum    float64
+	min    float64
+	max    float64
 }
 
 // DefaultBuckets covers the typical latency range for RPC work: 50µs
@@ -145,6 +144,12 @@ func (h *Histogram) Observe(v float64) {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.total == 0 || v < h.min {
+		h.min = v
+	}
+	if h.total == 0 || v > h.max {
+		h.max = v
+	}
 	h.total++
 	h.sum += v
 	for i, b := range h.bounds {
@@ -172,6 +177,8 @@ func (h *Histogram) Snapshot() HistogramSnapshot {
 		Counts: make([]int64, len(h.counts)),
 		Total:  h.total,
 		Sum:    h.sum,
+		Min:    h.min,
+		Max:    h.max,
 	}
 	copy(out.Bounds, h.bounds)
 	copy(out.Counts, h.counts)
@@ -184,6 +191,8 @@ type HistogramSnapshot struct {
 	Counts []int64   // cumulative counts aligned with Bounds
 	Total  int64     // implicit +Inf bucket count
 	Sum    float64
+	Min    float64
+	Max    float64
 }
 
 // Quantile returns an interpolated quantile estimate (q in [0,1]).

@@ -19,7 +19,7 @@ func TestEventsFollowReplaysRingOnSubscribe(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	stream := &captureEventsStream{
 		ctx:   ctx,
-		sends: make(chan *v1.EventInfo, 4),
+		sends: make(chan *v1.LogRecord, 4),
 		onSend: func(count int) {
 			if count == 1 {
 				obs.Emit(context.Background(), EventInstanceExited, map[string]string{"phase": "live"})
@@ -33,12 +33,12 @@ func TestEventsFollowReplaysRingOnSubscribe(t *testing.T) {
 	}()
 
 	first := recvEvent(t, stream.sends)
-	if first.GetType() != v1.EventType_INSTANCE_READY || first.GetPayload()["phase"] != "replay" {
-		t.Fatalf("first event = %+v, want replay INSTANCE_READY", first)
+	if first.GetEventName() != EventInstanceReady || StringAttribute(first.GetAttributes(), "phase") != "replay" {
+		t.Fatalf("first event = %+v, want replay instance.ready", first)
 	}
 	second := recvEvent(t, stream.sends)
-	if second.GetType() != v1.EventType_INSTANCE_EXITED || second.GetPayload()["phase"] != "live" {
-		t.Fatalf("second event = %+v, want live INSTANCE_EXITED", second)
+	if second.GetEventName() != EventInstanceExited || StringAttribute(second.GetAttributes(), "phase") != "live" {
+		t.Fatalf("second event = %+v, want live instance.exited", second)
 	}
 	cancel()
 	if err := <-done; err != nil {
@@ -56,7 +56,7 @@ func TestLogsFollowReplaysRingOnSubscribe(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	stream := &captureLogsStream{
 		ctx:   ctx,
-		sends: make(chan *v1.LogEntry, 4),
+		sends: make(chan *v1.LogRecord, 4),
 		onSend: func(count int) {
 			if count == 1 {
 				obs.Logger("test").Info("live")
@@ -70,11 +70,11 @@ func TestLogsFollowReplaysRingOnSubscribe(t *testing.T) {
 	}()
 
 	first := recvLog(t, stream.sends)
-	if first.GetMessage() != "replay" {
+	if first.GetBody().GetStringValue() != "replay" {
 		t.Fatalf("first log = %+v, want replay", first)
 	}
 	second := recvLog(t, stream.sends)
-	if second.GetMessage() != "live" {
+	if second.GetBody().GetStringValue() != "live" {
 		t.Fatalf("second log = %+v, want live", second)
 	}
 	cancel()
@@ -85,12 +85,12 @@ func TestLogsFollowReplaysRingOnSubscribe(t *testing.T) {
 
 type captureEventsStream struct {
 	ctx    context.Context
-	sends  chan *v1.EventInfo
+	sends  chan *v1.LogRecord
 	onSend func(count int)
 	count  int
 }
 
-func (s *captureEventsStream) Send(event *v1.EventInfo) error {
+func (s *captureEventsStream) Send(event *v1.LogRecord) error {
 	s.count++
 	if s.onSend != nil {
 		s.onSend(s.count)
@@ -108,12 +108,12 @@ func (s *captureEventsStream) RecvMsg(any) error            { return nil }
 
 type captureLogsStream struct {
 	ctx    context.Context
-	sends  chan *v1.LogEntry
+	sends  chan *v1.LogRecord
 	onSend func(count int)
 	count  int
 }
 
-func (s *captureLogsStream) Send(entry *v1.LogEntry) error {
+func (s *captureLogsStream) Send(entry *v1.LogRecord) error {
 	s.count++
 	if s.onSend != nil {
 		s.onSend(s.count)
@@ -129,7 +129,7 @@ func (s *captureLogsStream) Context() context.Context     { return s.ctx }
 func (s *captureLogsStream) SendMsg(any) error            { return nil }
 func (s *captureLogsStream) RecvMsg(any) error            { return nil }
 
-func recvEvent(t *testing.T, ch <-chan *v1.EventInfo) *v1.EventInfo {
+func recvEvent(t *testing.T, ch <-chan *v1.LogRecord) *v1.LogRecord {
 	t.Helper()
 	select {
 	case event := <-ch:
@@ -140,7 +140,7 @@ func recvEvent(t *testing.T, ch <-chan *v1.EventInfo) *v1.EventInfo {
 	}
 }
 
-func recvLog(t *testing.T, ch <-chan *v1.LogEntry) *v1.LogEntry {
+func recvLog(t *testing.T, ch <-chan *v1.LogRecord) *v1.LogRecord {
 	t.Helper()
 	select {
 	case entry := <-ch:

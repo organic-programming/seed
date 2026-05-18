@@ -9,57 +9,37 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	v1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestObservedRenderersIncludeChain(t *testing.T) {
-	chain := []*v1.ChainHop{
-		{Slug: "gabriel-greeting-app-flutter", InstanceUid: "root-1"},
-		{Slug: "gabriel-greeting-go", InstanceUid: "member-1"},
-	}
+	chain := []string{"gabriel-greeting-app-flutter", "gabriel-greeting-go"}
+	record := testCLIRecord("hello", "", chain)
 
 	logText := captureObservabilityStdout(t, func() {
-		renderLogEntry(&v1.LogEntry{
-			Ts:          timestamppb.Now(),
-			Level:       v1.LogLevel_INFO,
-			Slug:        "gabriel-greeting-go",
-			InstanceUid: "member-1",
-			Message:     "hello",
-			Chain:       chain,
-		}, false)
+		renderLogRecord(record, false)
 	})
-	if !strings.Contains(logText, "chain=gabriel-greeting-app-flutter/root-1>gabriel-greeting-go/member-1") {
+	if !strings.Contains(logText, "chain=gabriel-greeting-app-flutter>gabriel-greeting-go") {
 		t.Fatalf("log text missing chain annotation: %s", logText)
 	}
 
-	logJSON := logEntryJSON(&v1.LogEntry{Slug: "gabriel-greeting-go", InstanceUid: "member-1", Message: "hello", Chain: chain})
-	if got := logJSON["chain"].([]map[string]string); len(got) != 2 || got[1]["slug"] != "gabriel-greeting-go" {
+	logJSON := logRecordJSON(record)
+	if got := logJSON["chain"].([]string); len(got) != 2 || got[1] != "gabriel-greeting-go" {
 		t.Fatalf("log JSON chain = %#v", logJSON["chain"])
 	}
 
+	event := testCLIRecord("instance.ready", "instance.ready", chain)
 	eventText := captureObservabilityStdout(t, func() {
-		renderEvent(&v1.EventInfo{
-			Ts:          timestamppb.Now(),
-			Type:        v1.EventType_INSTANCE_READY,
-			Slug:        "gabriel-greeting-go",
-			InstanceUid: "member-1",
-			Chain:       chain,
-		}, false)
+		renderEvent(event, false)
 	})
-	if !strings.Contains(eventText, "chain=gabriel-greeting-app-flutter/root-1>gabriel-greeting-go/member-1") {
+	if !strings.Contains(eventText, "chain=gabriel-greeting-app-flutter>gabriel-greeting-go") {
 		t.Fatalf("event text missing chain annotation: %s", eventText)
 	}
 
 	eventJSONText := captureObservabilityStdout(t, func() {
-		renderEvent(&v1.EventInfo{
-			Ts:          timestamppb.Now(),
-			Type:        v1.EventType_INSTANCE_READY,
-			Slug:        "gabriel-greeting-go",
-			InstanceUid: "member-1",
-			Chain:       chain,
-		}, true)
+		renderEvent(event, true)
 	})
 	var eventJSON map[string]any
 	if err := json.Unmarshal([]byte(eventJSONText), &eventJSON); err != nil {
@@ -67,6 +47,23 @@ func TestObservedRenderersIncludeChain(t *testing.T) {
 	}
 	if got, ok := eventJSON["chain"].([]any); !ok || len(got) != 2 {
 		t.Fatalf("event JSON chain = %#v", eventJSON["chain"])
+	}
+}
+
+func testCLIRecord(body, eventName string, chain []string) *v1.LogRecord {
+	now := time.Now()
+	return &v1.LogRecord{
+		TimeUnixNano:         uint64(now.UnixNano()),
+		ObservedTimeUnixNano: uint64(now.UnixNano()),
+		SeverityNumber:       v1.SeverityNumber_SEVERITY_NUMBER_INFO,
+		SeverityText:         "INFO",
+		Body:                 &v1.AnyValue{Value: &v1.AnyValue_StringValue{StringValue: body}},
+		Attributes: []*v1.KeyValue{
+			{Key: "holons.slug", Value: &v1.AnyValue{Value: &v1.AnyValue_StringValue{StringValue: "gabriel-greeting-go"}}},
+			{Key: "holons.instance_uid", Value: &v1.AnyValue{Value: &v1.AnyValue_StringValue{StringValue: "member-1"}}},
+		},
+		EventName: eventName,
+		Chain:     chain,
 	}
 }
 

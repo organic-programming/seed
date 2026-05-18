@@ -30,7 +30,7 @@ func addObservabilityCommands(root *cobra.Command) {
 // --- op ps -------------------------------------------------------------------
 
 func newPsCmd() *cobra.Command {
-	var all, jsonOut, stale, flat bool
+	var all, jsonOut, stale bool
 	var slugFilter string
 	cmd := &cobra.Command{
 		Use:   "ps",
@@ -46,14 +46,13 @@ See INSTANCES.md §CLI. Columns: SLUG UID PID STARTED MODE TRANSPORT ADDRESS MET
 			if jsonOut {
 				return renderInstancesJSON(items)
 			}
-			renderInstancesTable(items, flat)
+			renderInstancesTable(items)
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&all, "all", false, "Scan every configured run-root candidate instead of only the first readable root")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Emit JSON objects instead of a table")
 	cmd.Flags().BoolVar(&stale, "stale", false, "Include entries whose PID is no longer alive")
-	cmd.Flags().BoolVar(&flat, "flat", false, "Render a flat list (default is tree-aware)")
 	cmd.Flags().StringVar(&slugFilter, "slug", "", "Only list instances of this slug")
 	return cmd
 }
@@ -68,7 +67,7 @@ func newInstancesCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			renderInstancesTable(items, false)
+			renderInstancesTable(items)
 			return nil
 		},
 	}
@@ -85,7 +84,7 @@ type instanceRow struct {
 
 func newLogsCmd() *cobra.Command {
 	var since, level, session, method string
-	var follow, jsonOut, all, localOnly bool
+	var follow, jsonOut bool
 	var chainOrigin string
 	cmd := &cobra.Command{
 		Use:   "logs <slug>",
@@ -94,7 +93,7 @@ func newLogsCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runLogs(cmd.Context(), args[0], logsOptions{
 				Since: since, Level: level, Session: session, Method: method,
-				Follow: follow, JSON: jsonOut, All: all, Local: localOnly,
+				Follow: follow, JSON: jsonOut,
 				ChainOrigin: chainOrigin,
 			})
 		},
@@ -106,26 +105,22 @@ func newLogsCmd() *cobra.Command {
 	cmd.Flags().StringVar(&chainOrigin, "chain-origin", "", "Filter to signals originated in this slug")
 	cmd.Flags().BoolVar(&follow, "follow", true, "Stream live entries (default true); --follow=false drains and exits")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Emit one JSON object per line")
-	cmd.Flags().BoolVar(&all, "all", false, "Aggregate across every running instance of the slug")
-	cmd.Flags().BoolVar(&localOnly, "local", false, "Bypass the multilog (organism roots only): show only the root's own entries")
 	return cmd
 }
 
 type logsOptions struct {
 	Since, Level, Session, Method, ChainOrigin string
-	Follow, JSON, All, Local                   bool
+	Follow, JSON                               bool
 }
 
 func runLogs(ctx context.Context, slug string, opts logsOptions) error {
-	instances, err := discoverInstances(slug, opts.All, false)
+	instances, err := discoverInstances(slug, false, false)
 	if err != nil {
 		return err
 	}
 	if len(instances) == 0 {
 		return fmt.Errorf("op logs: no running instance for %q (run `op ps` to list)", slug)
 	}
-	// For simplicity in v1, tail the first instance. --all aggregates
-	// across streams in a follow-up; ader-suite-driven.
 	inst := instances[0]
 	conn, err := dialInstance(ctx, inst)
 	if err != nil {
@@ -135,8 +130,8 @@ func runLogs(ctx context.Context, slug string, opts logsOptions) error {
 	client := v1.NewHolonObservabilityClient(conn)
 
 	req := &v1.LogsRequest{
-		MinLevel: parseLogLevel(opts.Level),
-		Follow:   opts.Follow,
+		MinSeverityNumber: parseSeverityNumber(opts.Level),
+		Follow:            opts.Follow,
 	}
 	if opts.Session != "" {
 		req.SessionIds = []string{opts.Session}
@@ -161,167 +156,216 @@ func runLogs(ctx context.Context, slug string, opts logsOptions) error {
 		if err != nil {
 			return err
 		}
-		if opts.ChainOrigin != "" && entry.Slug != opts.ChainOrigin {
+		if opts.ChainOrigin != "" && observability.StringAttribute(entry.GetAttributes(), observability.AttrHolonsSlug) != opts.ChainOrigin {
 			continue
 		}
-		renderLogEntry(entry, opts.JSON)
+		renderLogRecord(entry, opts.JSON)
 	}
 }
 
-func parseLogLevel(s string) v1.LogLevel {
+func parseSeverityNumber(s string) v1.SeverityNumber {
 	switch strings.ToUpper(strings.TrimSpace(s)) {
 	case "TRACE":
-		return v1.LogLevel_TRACE
+		return v1.SeverityNumber_SEVERITY_NUMBER_TRACE
 	case "DEBUG":
-		return v1.LogLevel_DEBUG
+		return v1.SeverityNumber_SEVERITY_NUMBER_DEBUG
 	case "INFO":
-		return v1.LogLevel_INFO
+		return v1.SeverityNumber_SEVERITY_NUMBER_INFO
 	case "WARN", "WARNING":
-		return v1.LogLevel_WARN
+		return v1.SeverityNumber_SEVERITY_NUMBER_WARN
 	case "ERROR":
-		return v1.LogLevel_ERROR
+		return v1.SeverityNumber_SEVERITY_NUMBER_ERROR
 	case "FATAL":
-		return v1.LogLevel_FATAL
+		return v1.SeverityNumber_SEVERITY_NUMBER_FATAL
 	default:
-		return v1.LogLevel_INFO
+		return v1.SeverityNumber_SEVERITY_NUMBER_INFO
 	}
 }
 
-func renderLogEntry(e *v1.LogEntry, jsonOut bool) {
+func renderLogRecord(e *v1.LogRecord, jsonOut bool) {
 	if jsonOut {
-		b, _ := json.Marshal(logEntryJSON(e))
+		b, _ := json.Marshal(logRecordJSON(e))
 		fmt.Println(string(b))
 		return
 	}
 	ts := ""
-	if e.Ts != nil {
-		ts = e.Ts.AsTime().UTC().Format(time.RFC3339Nano)
+	if e.GetTimeUnixNano() != 0 {
+		ts = time.Unix(0, int64(e.GetTimeUnixNano())).UTC().Format(time.RFC3339Nano)
 	}
-	fmt.Printf("%s %-5s slug=%s instance_uid=%s", ts, logLevelLabel(e.Level), e.Slug, e.InstanceUid)
-	if e.SessionId != "" {
-		fmt.Printf(" session_id=%s", e.SessionId)
+	attrs := e.GetAttributes()
+	fmt.Printf("%s %-5s slug=%s instance_uid=%s", ts, severityNumberLabel(e.GetSeverityNumber()),
+		observability.StringAttribute(attrs, observability.AttrHolonsSlug),
+		observability.StringAttribute(attrs, observability.AttrHolonsInstanceUID))
+	if sessionID := observability.StringAttribute(attrs, observability.AttrHolonsSessionID); sessionID != "" {
+		fmt.Printf(" session_id=%s", sessionID)
 	}
-	if e.RpcMethod != "" {
-		fmt.Printf(" method=%s", e.RpcMethod)
+	if rpcMethod := observability.StringAttribute(attrs, observability.AttrRPCMethod); rpcMethod != "" {
+		fmt.Printf(" method=%s", rpcMethod)
 	}
-	if chain := formatChain(e.Chain); chain != "" {
+	if chain := formatChain(e.GetChain()); chain != "" {
 		fmt.Printf(" chain=%s", chain)
 	}
-	fmt.Printf(" msg=%q", e.Message)
-	keys := make([]string, 0, len(e.Fields))
-	for k := range e.Fields {
+	fmt.Printf(" msg=%q", anyValueText(e.GetBody()))
+	fields := userAttributes(attrs)
+	keys := make([]string, 0, len(fields))
+	for k := range fields {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		fmt.Printf(" %s=%q", k, e.Fields[k])
+		fmt.Printf(" %s=%q", k, fields[k])
 	}
 	fmt.Println()
 }
 
-func logEntryJSON(e *v1.LogEntry) map[string]any {
+func logRecordJSON(e *v1.LogRecord) map[string]any {
+	attrs := e.GetAttributes()
 	out := map[string]any{
-		"kind":         "log",
-		"level":        logLevelLabel(e.Level),
-		"slug":         e.Slug,
-		"instance_uid": e.InstanceUid,
-		"message":      e.Message,
+		"kind":            "log",
+		"severity_number": e.GetSeverityNumber().String(),
+		"severity_text":   e.GetSeverityText(),
+		"body":            anyValuePlain(e.GetBody()),
+		"attributes":      attributesJSON(attrs),
 	}
-	if e.Ts != nil {
-		out["ts"] = e.Ts.AsTime().UTC().Format(time.RFC3339Nano)
+	if e.GetTimeUnixNano() != 0 {
+		out["time_unix_nano"] = e.GetTimeUnixNano()
+		out["ts"] = time.Unix(0, int64(e.GetTimeUnixNano())).UTC().Format(time.RFC3339Nano)
 	}
-	if e.SessionId != "" {
-		out["session_id"] = e.SessionId
+	if e.GetObservedTimeUnixNano() != 0 {
+		out["observed_time_unix_nano"] = e.GetObservedTimeUnixNano()
 	}
-	if e.RpcMethod != "" {
-		out["rpc_method"] = e.RpcMethod
+	if e.GetEventName() != "" {
+		out["event_name"] = e.GetEventName()
 	}
-	if len(e.Fields) > 0 {
-		out["fields"] = e.Fields
-	}
-	if e.Caller != "" {
-		out["caller"] = e.Caller
-	}
-	if len(e.Chain) > 0 {
-		out["chain"] = chainHopsJSON(e.Chain)
+	if len(e.GetChain()) > 0 {
+		out["chain"] = e.GetChain()
 	}
 	return out
 }
 
-func chainHopsJSON(chain []*v1.ChainHop) []map[string]string {
-	hops := make([]map[string]string, len(chain))
-	for i, h := range chain {
-		if h == nil {
-			hops[i] = map[string]string{}
+func attributesJSON(attrs []*v1.KeyValue) []map[string]any {
+	out := make([]map[string]any, 0, len(attrs))
+	for _, attr := range attrs {
+		if attr == nil {
 			continue
 		}
-		hops[i] = map[string]string{"slug": h.Slug, "instance_uid": h.InstanceUid}
+		out = append(out, map[string]any{"key": attr.Key, "value": anyValuePlain(attr.Value)})
 	}
-	return hops
+	return out
 }
 
-func formatChain(chain []*v1.ChainHop) string {
+func userAttributes(attrs []*v1.KeyValue) map[string]any {
+	out := map[string]any{}
+	for _, attr := range attrs {
+		if attr == nil || isSystemAttribute(attr.Key) {
+			continue
+		}
+		out[attr.Key] = anyValuePlain(attr.Value)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func isSystemAttribute(key string) bool {
+	switch key {
+	case observability.AttrHolonsSlug, observability.AttrHolonsInstanceUID, observability.AttrHolonsSessionID,
+		observability.AttrHolonsTransport, observability.AttrServiceName, observability.AttrServiceInstanceID,
+		observability.AttrRPCMethod, observability.AttrLoggerName, observability.AttrCodeCaller:
+		return true
+	default:
+		return false
+	}
+}
+
+func formatChain(chain []string) string {
 	if len(chain) == 0 {
 		return ""
 	}
 	parts := make([]string, 0, len(chain))
-	for _, h := range chain {
-		if h == nil || h.Slug == "" {
+	for _, slug := range chain {
+		if slug == "" {
 			continue
 		}
-		if h.InstanceUid == "" {
-			parts = append(parts, h.Slug)
-			continue
-		}
-		parts = append(parts, h.Slug+"/"+h.InstanceUid)
+		parts = append(parts, slug)
 	}
 	return strings.Join(parts, ">")
 }
 
-func logLevelLabel(l v1.LogLevel) string {
+func severityNumberLabel(l v1.SeverityNumber) string {
 	switch l {
-	case v1.LogLevel_TRACE:
+	case v1.SeverityNumber_SEVERITY_NUMBER_TRACE:
 		return "TRACE"
-	case v1.LogLevel_DEBUG:
+	case v1.SeverityNumber_SEVERITY_NUMBER_DEBUG:
 		return "DEBUG"
-	case v1.LogLevel_INFO:
+	case v1.SeverityNumber_SEVERITY_NUMBER_INFO:
 		return "INFO"
-	case v1.LogLevel_WARN:
+	case v1.SeverityNumber_SEVERITY_NUMBER_WARN:
 		return "WARN"
-	case v1.LogLevel_ERROR:
+	case v1.SeverityNumber_SEVERITY_NUMBER_ERROR:
 		return "ERROR"
-	case v1.LogLevel_FATAL:
+	case v1.SeverityNumber_SEVERITY_NUMBER_FATAL:
 		return "FATAL"
 	default:
 		return "UNSPECIFIED"
 	}
 }
 
+func anyValueText(v *v1.AnyValue) string {
+	switch x := v.GetValue().(type) {
+	case *v1.AnyValue_StringValue:
+		return x.StringValue
+	case *v1.AnyValue_BoolValue:
+		return fmt.Sprintf("%t", x.BoolValue)
+	case *v1.AnyValue_IntValue:
+		return fmt.Sprintf("%d", x.IntValue)
+	case *v1.AnyValue_DoubleValue:
+		return fmt.Sprintf("%g", x.DoubleValue)
+	default:
+		return ""
+	}
+}
+
+func anyValuePlain(v *v1.AnyValue) any {
+	switch x := v.GetValue().(type) {
+	case *v1.AnyValue_StringValue:
+		return x.StringValue
+	case *v1.AnyValue_BoolValue:
+		return x.BoolValue
+	case *v1.AnyValue_IntValue:
+		return x.IntValue
+	case *v1.AnyValue_DoubleValue:
+		return x.DoubleValue
+	default:
+		return nil
+	}
+}
+
 // --- op metrics --------------------------------------------------------------
 
 func newMetricsCmd() *cobra.Command {
-	var promOut, jsonOut, sessionRollup bool
+	var promOut, jsonOut bool
 	var prefix string
 	cmd := &cobra.Command{
 		Use:   "metrics <slug>",
-		Short: "Fetch a metrics snapshot from a running holon",
+		Short: "Fetch OTLP-shaped metrics from a running holon",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runMetrics(cmd.Context(), args[0], metricsOptions{
-				Prom: promOut, JSON: jsonOut, Prefix: prefix, Rollup: sessionRollup,
+				Prom: promOut, JSON: jsonOut, Prefix: prefix,
 			})
 		},
 	}
 	cmd.Flags().BoolVar(&promOut, "prom", false, "Emit Prometheus text exposition format")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Emit the snapshot as JSON")
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "Emit metrics as JSON")
 	cmd.Flags().StringVar(&prefix, "prefix", "", "Filter metric names by prefix")
-	cmd.Flags().BoolVar(&sessionRollup, "include-session-rollup", false, "Include session metrics rollup")
 	return cmd
 }
 
 type metricsOptions struct {
-	Prom, JSON, Rollup bool
-	Prefix             string
+	Prom, JSON bool
+	Prefix     string
 }
 
 func runMetrics(ctx context.Context, slug string, opts metricsOptions) error {
@@ -339,78 +383,104 @@ func runMetrics(ctx context.Context, slug string, opts metricsOptions) error {
 	}
 	defer conn.Close()
 	client := v1.NewHolonObservabilityClient(conn)
-	req := &v1.MetricsRequest{IncludeSessionRollup: opts.Rollup}
+	req := &v1.MetricsRequest{}
 	if opts.Prefix != "" {
 		req.NamePrefixes = []string{opts.Prefix}
 	}
-	snap, err := client.Metrics(ctx, req)
+	stream, err := client.Metrics(ctx, req)
 	if err != nil {
 		return fmt.Errorf("op metrics: %w", err)
 	}
+	var metrics []*v1.Metric
+	for {
+		metric, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		metrics = append(metrics, metric)
+	}
 	if opts.JSON {
-		b, _ := json.MarshalIndent(snap, "", "  ")
+		items := make([]map[string]any, 0, len(metrics))
+		for _, metric := range metrics {
+			items = append(items, metricJSON(metric))
+		}
+		b, _ := json.MarshalIndent(items, "", "  ")
 		fmt.Println(string(b))
 		return nil
 	}
 	if opts.Prom {
-		renderMetricsProm(snap)
+		renderMetricsProm(metrics)
 		return nil
 	}
-	renderMetricsTable(snap)
+	renderMetricsTable(metrics)
 	return nil
 }
 
-func renderMetricsTable(snap *v1.MetricsSnapshot) {
+func renderMetricsTable(metrics []*v1.Metric) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "METRIC\tTYPE\tVALUE")
-	for _, s := range snap.Samples {
-		name := s.Name + renderLabels(s.Labels)
-		switch v := s.Value.(type) {
-		case *v1.MetricSample_Counter:
-			fmt.Fprintf(w, "%s\tcounter\t%d\n", name, v.Counter)
-		case *v1.MetricSample_Gauge:
-			fmt.Fprintf(w, "%s\tgauge\t%g\n", name, v.Gauge)
-		case *v1.MetricSample_Histogram:
-			if v.Histogram != nil {
-				fmt.Fprintf(w, "%s\thistogram\tcount=%d sum=%g\n", name, v.Histogram.Count, v.Histogram.Sum)
+	for _, metric := range metrics {
+		switch data := metric.GetData().(type) {
+		case *v1.Metric_Sum:
+			for _, dp := range data.Sum.GetDataPoints() {
+				fmt.Fprintf(w, "%s%s\tsum\t%d\n", metric.Name, renderLabels(dp.GetAttributes()), dp.GetAsInt())
+			}
+		case *v1.Metric_Gauge:
+			for _, dp := range data.Gauge.GetDataPoints() {
+				fmt.Fprintf(w, "%s%s\tgauge\t%g\n", metric.Name, renderLabels(dp.GetAttributes()), dp.GetAsDouble())
+			}
+		case *v1.Metric_Histogram:
+			for _, dp := range data.Histogram.GetDataPoints() {
+				fmt.Fprintf(w, "%s%s\thistogram\tcount=%d sum=%g\n", metric.Name, renderLabels(dp.GetAttributes()), dp.GetCount(), dp.GetSum())
 			}
 		}
 	}
 	_ = w.Flush()
 }
 
-func renderMetricsProm(snap *v1.MetricsSnapshot) {
-	for _, s := range snap.Samples {
-		switch v := s.Value.(type) {
-		case *v1.MetricSample_Counter:
-			fmt.Printf("# TYPE %s counter\n", s.Name)
-			fmt.Printf("%s%s %d\n", s.Name, renderLabels(s.Labels), v.Counter)
-		case *v1.MetricSample_Gauge:
-			fmt.Printf("# TYPE %s gauge\n", s.Name)
-			fmt.Printf("%s%s %g\n", s.Name, renderLabels(s.Labels), v.Gauge)
-		case *v1.MetricSample_Histogram:
-			if v.Histogram == nil {
-				continue
+func renderMetricsProm(metrics []*v1.Metric) {
+	for _, metric := range metrics {
+		switch data := metric.GetData().(type) {
+		case *v1.Metric_Sum:
+			fmt.Printf("# TYPE %s counter\n", metric.Name)
+			for _, dp := range data.Sum.GetDataPoints() {
+				fmt.Printf("%s%s %d\n", metric.Name, renderLabels(dp.GetAttributes()), dp.GetAsInt())
 			}
-			fmt.Printf("# TYPE %s histogram\n", s.Name)
-			for _, b := range v.Histogram.Buckets {
-				labels := mergeMap(s.Labels, map[string]string{"le": fmt.Sprintf("%g", b.UpperBound)})
-				fmt.Printf("%s_bucket%s %d\n", s.Name, renderLabels(labels), b.Count)
+		case *v1.Metric_Gauge:
+			fmt.Printf("# TYPE %s gauge\n", metric.Name)
+			for _, dp := range data.Gauge.GetDataPoints() {
+				fmt.Printf("%s%s %g\n", metric.Name, renderLabels(dp.GetAttributes()), dp.GetAsDouble())
 			}
-			inf := mergeMap(s.Labels, map[string]string{"le": "+Inf"})
-			fmt.Printf("%s_bucket%s %d\n", s.Name, renderLabels(inf), v.Histogram.Count)
-			fmt.Printf("%s_sum%s %g\n", s.Name, renderLabels(s.Labels), v.Histogram.Sum)
-			fmt.Printf("%s_count%s %d\n", s.Name, renderLabels(s.Labels), v.Histogram.Count)
+		case *v1.Metric_Histogram:
+			fmt.Printf("# TYPE %s histogram\n", metric.Name)
+			for _, dp := range data.Histogram.GetDataPoints() {
+				var cumulative uint64
+				for i, count := range dp.GetBucketCounts() {
+					cumulative += count
+					le := "+Inf"
+					if i < len(dp.GetExplicitBounds()) {
+						le = fmt.Sprintf("%g", dp.GetExplicitBounds()[i])
+					}
+					labels := append(cloneKeyValues(dp.GetAttributes()), &v1.KeyValue{Key: "le", Value: &v1.AnyValue{Value: &v1.AnyValue_StringValue{StringValue: le}}})
+					fmt.Printf("%s_bucket%s %d\n", metric.Name, renderLabels(labels), cumulative)
+				}
+				fmt.Printf("%s_sum%s %g\n", metric.Name, renderLabels(dp.GetAttributes()), dp.GetSum())
+				fmt.Printf("%s_count%s %d\n", metric.Name, renderLabels(dp.GetAttributes()), dp.GetCount())
+			}
 		}
 	}
 }
 
-func renderLabels(m map[string]string) string {
-	if len(m) == 0 {
+func renderLabels(attrs []*v1.KeyValue) string {
+	labels := userAttributes(attrs)
+	if len(labels) == 0 {
 		return ""
 	}
-	keys := make([]string, 0, len(m))
-	for k := range m {
+	keys := make([]string, 0, len(labels))
+	for k := range labels {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
@@ -422,20 +492,76 @@ func renderLabels(m map[string]string) string {
 		}
 		b.WriteString(k)
 		b.WriteString(`="`)
-		b.WriteString(m[k])
+		b.WriteString(fmt.Sprintf("%v", labels[k]))
 		b.WriteByte('"')
 	}
 	b.WriteByte('}')
 	return b.String()
 }
 
-func mergeMap(a, b map[string]string) map[string]string {
-	out := make(map[string]string, len(a)+len(b))
-	for k, v := range a {
-		out[k] = v
+func cloneKeyValues(attrs []*v1.KeyValue) []*v1.KeyValue {
+	out := make([]*v1.KeyValue, 0, len(attrs))
+	for _, attr := range attrs {
+		if attr == nil {
+			continue
+		}
+		out = append(out, &v1.KeyValue{Key: attr.Key, Value: attr.Value})
 	}
-	for k, v := range b {
-		out[k] = v
+	return out
+}
+
+func metricJSON(metric *v1.Metric) map[string]any {
+	out := map[string]any{
+		"name":        metric.GetName(),
+		"description": metric.GetDescription(),
+		"unit":        metric.GetUnit(),
+	}
+	switch data := metric.GetData().(type) {
+	case *v1.Metric_Sum:
+		out["type"] = "sum"
+		out["is_monotonic"] = data.Sum.GetIsMonotonic()
+		out["aggregation_temporality"] = data.Sum.GetAggregationTemporality().String()
+		out["data_points"] = numberDataPointsJSON(data.Sum.GetDataPoints())
+	case *v1.Metric_Gauge:
+		out["type"] = "gauge"
+		out["data_points"] = numberDataPointsJSON(data.Gauge.GetDataPoints())
+	case *v1.Metric_Histogram:
+		out["type"] = "histogram"
+		out["aggregation_temporality"] = data.Histogram.GetAggregationTemporality().String()
+		points := make([]map[string]any, 0, len(data.Histogram.GetDataPoints()))
+		for _, dp := range data.Histogram.GetDataPoints() {
+			points = append(points, map[string]any{
+				"start_time_unix_nano": dp.GetStartTimeUnixNano(),
+				"time_unix_nano":       dp.GetTimeUnixNano(),
+				"attributes":           attributesJSON(dp.GetAttributes()),
+				"count":                dp.GetCount(),
+				"sum":                  dp.GetSum(),
+				"bucket_counts":        dp.GetBucketCounts(),
+				"explicit_bounds":      dp.GetExplicitBounds(),
+				"min":                  dp.GetMin(),
+				"max":                  dp.GetMax(),
+			})
+		}
+		out["data_points"] = points
+	}
+	return out
+}
+
+func numberDataPointsJSON(points []*v1.NumberDataPoint) []map[string]any {
+	out := make([]map[string]any, 0, len(points))
+	for _, dp := range points {
+		item := map[string]any{
+			"start_time_unix_nano": dp.GetStartTimeUnixNano(),
+			"time_unix_nano":       dp.GetTimeUnixNano(),
+			"attributes":           attributesJSON(dp.GetAttributes()),
+		}
+		switch v := dp.GetValue().(type) {
+		case *v1.NumberDataPoint_AsDouble:
+			item["as_double"] = v.AsDouble
+		case *v1.NumberDataPoint_AsInt:
+			item["as_int"] = v.AsInt
+		}
+		out = append(out, item)
 	}
 	return out
 }
@@ -445,28 +571,28 @@ func mergeMap(a, b map[string]string) map[string]string {
 func newEventsCmd() *cobra.Command {
 	var follow, jsonOut bool
 	var since string
-	var types []string
+	var eventNames []string
 	cmd := &cobra.Command{
 		Use:   "events <slug>",
 		Short: "Stream lifecycle events from a running holon",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runEvents(cmd.Context(), args[0], eventsOptions{
-				Follow: follow, JSON: jsonOut, Since: since, Types: types,
+				Follow: follow, JSON: jsonOut, Since: since, EventNames: eventNames,
 			})
 		},
 	}
 	cmd.Flags().BoolVar(&follow, "follow", true, "Stream new events")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Emit one JSON object per line")
 	cmd.Flags().StringVar(&since, "since", "", "Replay events newer than this duration")
-	cmd.Flags().StringSliceVar(&types, "type", nil, "Filter to these event types (repeatable)")
+	cmd.Flags().StringSliceVar(&eventNames, "event-name", nil, "Filter to these event_name values (repeatable)")
 	return cmd
 }
 
 type eventsOptions struct {
 	Follow, JSON bool
 	Since        string
-	Types        []string
+	EventNames   []string
 }
 
 func runEvents(ctx context.Context, slug string, opts eventsOptions) error {
@@ -490,11 +616,7 @@ func runEvents(ctx context.Context, slug string, opts eventsOptions) error {
 			req.Since = durationpb.New(d)
 		}
 	}
-	for _, t := range opts.Types {
-		if parsed, ok := parseEventType(t); ok {
-			req.Types = append(req.Types, parsed)
-		}
-	}
+	req.EventNames = append(req.EventNames, opts.EventNames...)
 	stream, err := client.Events(ctx, req)
 	if err != nil {
 		return fmt.Errorf("op events: %w", err)
@@ -511,53 +633,33 @@ func runEvents(ctx context.Context, slug string, opts eventsOptions) error {
 	}
 }
 
-func parseEventType(s string) (v1.EventType, bool) {
-	switch strings.ToUpper(strings.ReplaceAll(s, "-", "_")) {
-	case "INSTANCE_SPAWNED":
-		return v1.EventType_INSTANCE_SPAWNED, true
-	case "INSTANCE_READY":
-		return v1.EventType_INSTANCE_READY, true
-	case "INSTANCE_EXITED":
-		return v1.EventType_INSTANCE_EXITED, true
-	case "INSTANCE_CRASHED":
-		return v1.EventType_INSTANCE_CRASHED, true
-	case "SESSION_STARTED":
-		return v1.EventType_SESSION_STARTED, true
-	case "SESSION_ENDED":
-		return v1.EventType_SESSION_ENDED, true
-	case "HANDLER_PANIC":
-		return v1.EventType_HANDLER_PANIC, true
-	case "CONFIG_RELOADED":
-		return v1.EventType_CONFIG_RELOADED, true
-	}
-	return v1.EventType_EVENT_TYPE_UNSPECIFIED, false
-}
-
-func renderEvent(e *v1.EventInfo, jsonOut bool) {
+func renderEvent(e *v1.LogRecord, jsonOut bool) {
 	if jsonOut {
-		out := map[string]any{
-			"kind":         "event",
-			"ts":           e.Ts.AsTime().UTC().Format(time.RFC3339Nano),
-			"type":         e.Type.String(),
-			"slug":         e.Slug,
-			"instance_uid": e.InstanceUid,
-			"session_id":   e.SessionId,
-			"payload":      e.Payload,
-		}
-		if len(e.Chain) > 0 {
-			out["chain"] = chainHopsJSON(e.Chain)
-		}
+		out := logRecordJSON(e)
+		out["kind"] = "event"
 		b, _ := json.Marshal(out)
 		fmt.Println(string(b))
 		return
 	}
-	fmt.Printf("%s %-20s slug=%s instance_uid=%s", e.Ts.AsTime().UTC().Format(time.RFC3339Nano),
-		e.Type.String(), e.Slug, e.InstanceUid)
-	if chain := formatChain(e.Chain); chain != "" {
+	ts := ""
+	if e.GetTimeUnixNano() != 0 {
+		ts = time.Unix(0, int64(e.GetTimeUnixNano())).UTC().Format(time.RFC3339Nano)
+	}
+	attrs := e.GetAttributes()
+	fmt.Printf("%s %-20s slug=%s instance_uid=%s", ts, e.GetEventName(),
+		observability.StringAttribute(attrs, observability.AttrHolonsSlug),
+		observability.StringAttribute(attrs, observability.AttrHolonsInstanceUID))
+	if chain := formatChain(e.GetChain()); chain != "" {
 		fmt.Printf(" chain=%s", chain)
 	}
-	for k, v := range e.Payload {
-		fmt.Printf(" %s=%q", k, v)
+	payload := userAttributes(attrs)
+	keys := make([]string, 0, len(payload))
+	for k := range payload {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Printf(" %s=%q", k, payload[k])
 	}
 	fmt.Println()
 }
@@ -680,8 +782,7 @@ func dialInstance(ctx context.Context, inst instanceRow) (*grpc.ClientConn, erro
 
 // --- rendering for ps --------------------------------------------------------
 
-func renderInstancesTable(items []instanceRow, flat bool) {
-	_ = flat // reserved for the tree renderer; falls through to flat view for now.
+func renderInstancesTable(items []instanceRow) {
 	if len(items) == 0 {
 		fmt.Println("No running instances.")
 		return

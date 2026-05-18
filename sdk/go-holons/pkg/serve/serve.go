@@ -569,8 +569,8 @@ func resolveRelayMemberIdentity(ctx context.Context, conn *grpc.ClientConn, memb
 	defer cancel()
 
 	if stream, err := client.Events(resolveCtx, &holonsv1.EventsRequest{
-		Types:  []holonsv1.EventType{holonsv1.EventType_INSTANCE_READY},
-		Follow: false,
+		EventNames: []string{observability.EventInstanceReady},
+		Follow:     false,
 	}); err == nil {
 		for {
 			ev, recvErr := stream.Recv()
@@ -580,24 +580,54 @@ func resolveRelayMemberIdentity(ctx context.Context, conn *grpc.ClientConn, memb
 			if recvErr != nil {
 				break
 			}
-			if ev.GetInstanceUid() == "" || len(ev.GetChain()) != 0 {
+			uid := strings.TrimSpace(observability.StringAttribute(ev.GetAttributes(), observability.AttrHolonsInstanceUID))
+			if uid == "" || len(ev.GetChain()) != 0 {
 				continue
 			}
-			member.UID = strings.TrimSpace(ev.GetInstanceUid())
-			if slug := strings.TrimSpace(ev.GetSlug()); slug != "" {
+			member.UID = uid
+			if slug := strings.TrimSpace(observability.StringAttribute(ev.GetAttributes(), observability.AttrHolonsSlug)); slug != "" {
 				member.Slug = slug
 			}
 			return member
 		}
 	}
 
-	if snap, err := client.Metrics(resolveCtx, &holonsv1.MetricsRequest{}); err == nil && snap.GetInstanceUid() != "" {
-		member.UID = strings.TrimSpace(snap.GetInstanceUid())
-		if slug := strings.TrimSpace(snap.GetSlug()); slug != "" {
-			member.Slug = slug
+	if stream, err := client.Metrics(resolveCtx, &holonsv1.MetricsRequest{}); err == nil {
+		for {
+			metric, recvErr := stream.Recv()
+			if recvErr == io.EOF {
+				break
+			}
+			if recvErr != nil {
+				break
+			}
+			attrs := metricAttributes(metric)
+			if uid := strings.TrimSpace(observability.StringAttribute(attrs, observability.AttrHolonsInstanceUID)); uid != "" {
+				member.UID = uid
+				if slug := strings.TrimSpace(observability.StringAttribute(attrs, observability.AttrHolonsSlug)); slug != "" {
+					member.Slug = slug
+				}
+				break
+			}
 		}
 	}
 	return member
+}
+
+func metricAttributes(metric *holonsv1.Metric) []*holonsv1.KeyValue {
+	if metric == nil {
+		return nil
+	}
+	if gauge := metric.GetGauge(); gauge != nil && len(gauge.GetDataPoints()) > 0 {
+		return gauge.GetDataPoints()[0].GetAttributes()
+	}
+	if sum := metric.GetSum(); sum != nil && len(sum.GetDataPoints()) > 0 {
+		return sum.GetDataPoints()[0].GetAttributes()
+	}
+	if hist := metric.GetHistogram(); hist != nil && len(hist.GetDataPoints()) > 0 {
+		return hist.GetDataPoints()[0].GetAttributes()
+	}
+	return nil
 }
 
 func normalizeRelayDialTarget(target string) string {

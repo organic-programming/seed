@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	holonsv1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
+	"github.com/organic-programming/go-holons/pkg/observability"
 	"google.golang.org/grpc"
 )
 
@@ -92,17 +93,18 @@ func identityFromEvents(ctx context.Context, conn *grpc.ClientConn, fallbackSlug
 		if err != nil {
 			return relayMemberIdentity{}, false, err
 		}
-		if len(event.GetChain()) > 0 || strings.TrimSpace(event.GetInstanceUid()) == "" {
+		uid := strings.TrimSpace(observability.StringAttribute(event.GetAttributes(), observability.AttrHolonsInstanceUID))
+		if len(event.GetChain()) > 0 || uid == "" {
 			continue
 		}
-		slug := strings.TrimSpace(event.GetSlug())
+		slug := strings.TrimSpace(observability.StringAttribute(event.GetAttributes(), observability.AttrHolonsSlug))
 		if slug == "" {
 			slug = fallbackSlug
 		}
 		if slug == "" {
 			continue
 		}
-		return relayMemberIdentity{slug: slug, uid: event.GetInstanceUid()}, true, nil
+		return relayMemberIdentity{slug: slug, uid: uid}, true, nil
 	}
 }
 
@@ -119,17 +121,18 @@ func identityFromLogs(ctx context.Context, conn *grpc.ClientConn, fallbackSlug s
 		if err != nil {
 			return relayMemberIdentity{}, false, err
 		}
-		if len(entry.GetChain()) > 0 || strings.TrimSpace(entry.GetInstanceUid()) == "" {
+		uid := strings.TrimSpace(observability.StringAttribute(entry.GetAttributes(), observability.AttrHolonsInstanceUID))
+		if len(entry.GetChain()) > 0 || uid == "" {
 			continue
 		}
-		slug := strings.TrimSpace(entry.GetSlug())
+		slug := strings.TrimSpace(observability.StringAttribute(entry.GetAttributes(), observability.AttrHolonsSlug))
 		if slug == "" {
 			slug = fallbackSlug
 		}
 		if slug == "" {
 			continue
 		}
-		return relayMemberIdentity{slug: slug, uid: entry.GetInstanceUid()}, true, nil
+		return relayMemberIdentity{slug: slug, uid: uid}, true, nil
 	}
 }
 

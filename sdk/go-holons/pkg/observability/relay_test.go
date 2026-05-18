@@ -15,7 +15,7 @@ import (
 // TestOrganismRelay_TwoLevel spins up a fake "child" holon exposing
 // HolonObservability, then configures a local Observability as the
 // parent + relay and verifies that a log pushed by the child lands on
-// the parent's ring with the appended ChainHop. Demonstrates the core
+// the parent's ring with the appended chain slug. Demonstrates the core
 // mechanics of OBSERVABILITY.md §Organism Relay.
 func TestOrganismRelay_TwoLevel(t *testing.T) {
 	// --- child side ---
@@ -76,8 +76,8 @@ func TestOrganismRelay_TwoLevel(t *testing.T) {
 			// Verify the relayed entries carry the child's chain hop.
 			seen := 0
 			for _, e := range entries {
-				if e.Slug == "gabriel-greeting-rust" && len(e.Chain) == 1 &&
-					e.Chain[0].Slug == "gabriel-greeting-rust" {
+				if StringAttribute(e.Record.GetAttributes(), AttrHolonsSlug) == "gabriel-greeting-rust" &&
+					len(e.Record.GetChain()) == 1 && e.Record.GetChain()[0] == "gabriel-greeting-rust" {
 					seen++
 				}
 			}
@@ -132,7 +132,8 @@ func TestRelayRespectsFamilyGate(t *testing.T) {
 	deadline := time.Now().Add(1500 * time.Millisecond)
 	for time.Now().Before(deadline) {
 		for _, entry := range parentObs.LogRing().Drain() {
-			if entry.Slug == "child" && len(entry.Chain) == 1 && entry.Chain[0].Slug == "child" {
+			if StringAttribute(entry.Record.GetAttributes(), AttrHolonsSlug) == "child" &&
+				len(entry.Record.GetChain()) == 1 && entry.Record.GetChain()[0] == "child" {
 				return
 			}
 		}
@@ -166,16 +167,16 @@ func TestMultilogWriter_WritesEnrichedChain(t *testing.T) {
 	defer mw.Stop()
 
 	// Simulate a relay delivering an entry with an already-populated chain.
-	entry := LogEntry{
-		Timestamp:   time.Now(),
-		Level:       LevelInfo,
-		Slug:        "leaf-holon",
-		InstanceUID: "leaf-uid",
-		Message:     "rendered banner",
-		Chain: []Hop{
-			{Slug: "leaf-holon", InstanceUID: "leaf-uid"},
-		},
-	}
+	now := time.Now()
+	entry := newLogRecord(&v1.LogRecord{
+		TimeUnixNano:         uint64(now.UnixNano()),
+		ObservedTimeUnixNano: uint64(now.UnixNano()),
+		SeverityNumber:       v1.SeverityNumber_SEVERITY_NUMBER_INFO,
+		SeverityText:         "INFO",
+		Body:                 ToAnyValue("rendered banner"),
+		Attributes:           resourceAttributes("leaf-holon", "leaf-uid"),
+		Chain:                []string{"leaf-holon"},
+	}, false)
 	obs.LogRing().Push(entry)
 
 	// Also push an emit from the root itself to exercise the local-only case.

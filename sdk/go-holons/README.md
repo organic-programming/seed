@@ -68,7 +68,7 @@ Every parent→child connection is transitive by default: spawning a
 child via `composite.SpawnMember` opens long-lived
 `HolonObservability.Logs(follow=true)` and `Events(follow=true)`
 streams in background and republishes received entries into the
-parent's local rings, appending a `ChainHop` for the child.
+parent's local rings, appending the child's slug to `LogRecord.chain`.
 Peer-to-peer `composite.Dial` defaults to OFF; opt-in explicitly
 when needed.
 

@@ -5,17 +5,17 @@ import (
 	"time"
 )
 
-// LogRing is a thread-safe bounded ring buffer of LogEntry. Once full,
+// LogRing is a thread-safe bounded ring buffer of LogRecord. Once full,
 // pushing a new entry evicts the oldest. A snapshot can be read with
 // Drain or DrainSince; readers of live entries subscribe via Watch.
 type LogRing struct {
 	mu      sync.Mutex
-	entries []LogEntry
+	entries []LogRecord
 	next    int
 	filled  bool
 	cap     int
 
-	subs []chan LogEntry
+	subs []chan LogRecord
 }
 
 // NewLogRing constructs an empty ring with the given capacity. Capacity
@@ -25,13 +25,13 @@ func NewLogRing(capacity int) *LogRing {
 		capacity = 1024
 	}
 	return &LogRing{
-		entries: make([]LogEntry, capacity),
+		entries: make([]LogRecord, capacity),
 		cap:     capacity,
 	}
 }
 
 // Push appends an entry. Evicts the oldest when full.
-func (r *LogRing) Push(e LogEntry) {
+func (r *LogRing) Push(e LogRecord) {
 	if r == nil {
 		return
 	}
@@ -75,7 +75,7 @@ func (r *LogRing) Cap() int {
 
 // Drain returns a snapshot copy of all resident entries in
 // chronological order (oldest first).
-func (r *LogRing) Drain() []LogEntry {
+func (r *LogRing) Drain() []LogRecord {
 	if r == nil {
 		return nil
 	}
@@ -85,7 +85,7 @@ func (r *LogRing) Drain() []LogEntry {
 }
 
 // DrainSince returns entries with timestamp >= cutoff, in order.
-func (r *LogRing) DrainSince(cutoff time.Time) []LogEntry {
+func (r *LogRing) DrainSince(cutoff time.Time) []LogRecord {
 	if r == nil {
 		return nil
 	}
@@ -94,21 +94,21 @@ func (r *LogRing) DrainSince(cutoff time.Time) []LogEntry {
 	all := r.snapshotLocked()
 	out := all[:0]
 	for _, e := range all {
-		if !e.Timestamp.Before(cutoff) {
+		if !e.timestamp().Before(cutoff) {
 			out = append(out, e)
 		}
 	}
-	cpy := make([]LogEntry, len(out))
+	cpy := make([]LogRecord, len(out))
 	copy(cpy, out)
 	return cpy
 }
 
-func (r *LogRing) snapshotLocked() []LogEntry {
+func (r *LogRing) snapshotLocked() []LogRecord {
 	n := r.cap
 	if !r.filled {
 		n = r.next
 	}
-	out := make([]LogEntry, n)
+	out := make([]LogRecord, n)
 	if !r.filled {
 		copy(out, r.entries[:n])
 		return out
@@ -123,16 +123,16 @@ func (r *LogRing) snapshotLocked() []LogEntry {
 // pushed, starting after the call. The channel is buffered; a slow
 // consumer drops without blocking the producer. Close the returned
 // stop func to release the subscription.
-func (r *LogRing) Watch(bufSize int) (<-chan LogEntry, func()) {
+func (r *LogRing) Watch(bufSize int) (<-chan LogRecord, func()) {
 	if r == nil {
-		ch := make(chan LogEntry)
+		ch := make(chan LogRecord)
 		close(ch)
 		return ch, func() {}
 	}
 	if bufSize <= 0 {
 		bufSize = 64
 	}
-	ch := make(chan LogEntry, bufSize)
+	ch := make(chan LogRecord, bufSize)
 	r.mu.Lock()
 	r.subs = append(r.subs, ch)
 	r.mu.Unlock()
@@ -150,16 +150,16 @@ func (r *LogRing) Watch(bufSize int) (<-chan LogEntry, func()) {
 	return ch, stop
 }
 
-func (r *LogRing) replayAndWatch(cutoff time.Time, bufSize int) ([]LogEntry, <-chan LogEntry, func()) {
+func (r *LogRing) replayAndWatch(cutoff time.Time, bufSize int) ([]LogRecord, <-chan LogRecord, func()) {
 	if r == nil {
-		ch := make(chan LogEntry)
+		ch := make(chan LogRecord)
 		close(ch)
 		return nil, ch, func() {}
 	}
 	if bufSize <= 0 {
 		bufSize = 64
 	}
-	ch := make(chan LogEntry, bufSize)
+	ch := make(chan LogRecord, bufSize)
 	r.mu.Lock()
 	// Snapshot and subscription are under one lock: entries already in the
 	// snapshot are not live-sent, and entries pushed after registration cannot
@@ -168,13 +168,13 @@ func (r *LogRing) replayAndWatch(cutoff time.Time, bufSize int) ([]LogEntry, <-c
 	if !cutoff.IsZero() {
 		out := replay[:0]
 		for _, e := range replay {
-			if !e.Timestamp.Before(cutoff) {
+			if !e.timestamp().Before(cutoff) {
 				out = append(out, e)
 			}
 		}
 		replay = out
 	}
-	cpy := make([]LogEntry, len(replay))
+	cpy := make([]LogRecord, len(replay))
 	copy(cpy, replay)
 	r.subs = append(r.subs, ch)
 	r.mu.Unlock()

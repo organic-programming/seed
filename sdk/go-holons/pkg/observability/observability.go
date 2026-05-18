@@ -32,10 +32,9 @@ const (
 	FamilyMetrics Family = "metrics"
 	FamilyEvents  Family = "events"
 	FamilyProm    Family = "prom"
-	FamilyOTel    Family = "otel" // reserved v2
 )
 
-// OP_OBS tokens that are valid in v1.
+// OP_OBS tokens that are valid.
 var v1Tokens = map[string]bool{
 	"logs":    true,
 	"metrics": true,
@@ -275,8 +274,7 @@ func (o *Observability) Close() error {
 }
 
 // parseOPOBS turns the comma-separated env value into a family set.
-// "all" expands to logs+metrics+events+prom. Unknown and v2-only
-// tokens are rejected in v1.
+// "all" expands to logs+metrics+events+prom. Unknown tokens are rejected.
 func parseOPOBS(v string) (map[Family]bool, error) {
 	out := map[Family]bool{}
 	v = strings.TrimSpace(v)
@@ -287,12 +285,6 @@ func parseOPOBS(v string) (map[Family]bool, error) {
 		tok := strings.TrimSpace(raw)
 		if tok == "" {
 			continue
-		}
-		if tok == "otel" {
-			return nil, &InvalidTokenError{Token: tok, Reason: "otel export is reserved for v2; not implemented in v1"}
-		}
-		if tok == "sessions" {
-			return nil, &InvalidTokenError{Token: tok, Reason: "sessions are reserved for v2; not implemented in v1"}
 		}
 		if !v1Tokens[tok] {
 			return nil, &InvalidTokenError{Token: tok, Reason: "unknown OP_OBS token"}
@@ -310,17 +302,10 @@ func parseOPOBS(v string) (map[Family]bool, error) {
 	return out, nil
 }
 
-// CheckEnv returns a non-nil error if OP_OBS contains an unknown or
-// v2-only token, or if OP_SESSIONS is set in v1. Call once at process
-// start to satisfy the fail-fast rule from OBSERVABILITY.md §Layer 3.
+// CheckEnv returns a non-nil error if OP_OBS contains an unknown token.
+// Call once at process start to satisfy the fail-fast rule from
+// OBSERVABILITY.md §Layer 3.
 func CheckEnv() error {
-	if v := strings.TrimSpace(os.Getenv("OP_SESSIONS")); v != "" {
-		return &InvalidTokenError{
-			Var:    "OP_SESSIONS",
-			Token:  v,
-			Reason: "sessions are reserved for v2; not implemented in v1",
-		}
-	}
 	v := strings.TrimSpace(os.Getenv("OP_OBS"))
 	if v == "" {
 		return nil
@@ -330,21 +315,11 @@ func CheckEnv() error {
 		if tok == "" {
 			continue
 		}
-		if tok == "otel" {
-			return &InvalidTokenError{Token: tok, Reason: "otel export is reserved for v2; not implemented in v1"}
-		}
-		if tok == "sessions" {
-			return &InvalidTokenError{Token: tok, Reason: "sessions are reserved for v2; not implemented in v1"}
-		}
 		if !v1Tokens[tok] {
 			return &InvalidTokenError{Token: tok, Reason: "unknown OP_OBS token"}
 		}
 	}
 	return nil
-}
-
-func isV2OnlyToken(tok string) bool {
-	return tok == "otel" || tok == "sessions"
 }
 
 // InvalidTokenError is returned by CheckEnv when OP_OBS contains an

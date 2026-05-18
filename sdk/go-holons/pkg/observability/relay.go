@@ -12,12 +12,11 @@ import (
 
 	v1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // Relay opens Logs / Events streams on a direct child's
 // HolonObservability service and forwards every entry back through
-// this holon's own rings after appending the child's ChainHop. The
+// this holon's own rings after appending the child's slug to the chain. The
 // parent's own Logs stream then automatically includes the relayed
 // entries because the ring is the source of truth for Logs.Serve.
 //
@@ -92,8 +91,8 @@ func (r *Relay) pumpLogs(stream v1.HolonObservability_LogsClient) {
 		if obs == nil || !obs.Enabled(FamilyLogs) || obs.LogRing() == nil {
 			continue
 		}
-		entry := FromProtoLogEntry(proto)
-		entry.Chain = AppendDirectChild(entry.Chain, r.childSlug, r.childUID)
+		entry := FromProtoLogRecord(proto)
+		entry.Record.Chain = AppendDirectChild(entry.Record.GetChain(), r.childSlug)
 		obs.LogRing().Push(entry)
 	}
 }
@@ -109,8 +108,8 @@ func (r *Relay) pumpEvents(stream v1.HolonObservability_EventsClient) {
 		if obs == nil || !obs.Enabled(FamilyEvents) || obs.EventBus() == nil {
 			continue
 		}
-		ev := FromProtoEvent(proto)
-		ev.Chain = AppendDirectChild(ev.Chain, r.childSlug, r.childUID)
+		ev := FromProtoLogRecord(proto)
+		ev.Record.Chain = AppendDirectChild(ev.Record.GetChain(), r.childSlug)
 		obs.EventBus().Emit(ev)
 	}
 }
@@ -240,63 +239,57 @@ func (m *MultilogWriter) Stop() error {
 	return m.writer.Close()
 }
 
-// multilogLog renders an in-memory LogEntry as the JSONL record the
+// multilogLog renders an in-memory LogRecord as the JSONL record the
 // spec requires. The chain is enriched with the stream source before
 // serialization so root-local entries carry the root hop and relayed
 // entries carry child hops plus the root hop.
-func multilogLog(e LogEntry, streamSourceSlug, streamSourceUID string) map[string]any {
-	e.Chain = EnrichForMultilog(e.Chain, streamSourceSlug, streamSourceUID)
+func multilogLog(e LogRecord, streamSourceSlug, streamSourceUID string) map[string]any {
+	chain := EnrichForMultilog(e.Record.GetChain(), streamSourceSlug)
 	rec := map[string]any{
 		"kind":         "log",
-		"ts":           e.Timestamp.UTC().Format(time.RFC3339Nano),
-		"level":        e.Level.String(),
-		"slug":         e.Slug,
-		"instance_uid": e.InstanceUID,
-		"message":      e.Message,
+		"ts":           e.timestamp().UTC().Format(time.RFC3339Nano),
+		"level":        severityLabel(e.Record.GetSeverityNumber()),
+		"slug":         e.attr(AttrHolonsSlug),
+		"instance_uid": e.attr(AttrHolonsInstanceUID),
+		"message":      e.bodyString(),
 	}
-	if e.SessionID != "" {
-		rec["session_id"] = e.SessionID
+	if sessionID := e.attr(AttrHolonsSessionID); sessionID != "" {
+		rec["session_id"] = sessionID
 	}
-	if e.RPCMethod != "" {
-		rec["rpc_method"] = e.RPCMethod
+	if rpcMethod := e.attr(AttrRPCMethod); rpcMethod != "" {
+		rec["rpc_method"] = rpcMethod
 	}
-	if len(e.Fields) > 0 {
-		rec["fields"] = e.Fields
+	fields := userAttributesMap(e.Record.GetAttributes())
+	if len(fields) > 0 {
+		rec["fields"] = fields
 	}
-	if e.Caller != "" {
-		rec["caller"] = e.Caller
+	if caller := e.attr(AttrCodeCaller); caller != "" {
+		rec["caller"] = caller
 	}
-	if len(e.Chain) > 0 {
-		hops := make([]map[string]string, len(e.Chain))
-		for i, h := range e.Chain {
-			hops[i] = map[string]string{"slug": h.Slug, "instance_uid": h.InstanceUID}
-		}
-		rec["chain"] = hops
+	if len(chain) > 0 {
+		rec["chain"] = chain
 	}
 	return rec
 }
 
-func multilogEvent(e Event, streamSourceSlug, streamSourceUID string) map[string]any {
-	e.Chain = EnrichForMultilog(e.Chain, streamSourceSlug, streamSourceUID)
+func multilogEvent(e LogRecord, streamSourceSlug, streamSourceUID string) map[string]any {
+	chain := EnrichForMultilog(e.Record.GetChain(), streamSourceSlug)
 	rec := map[string]any{
 		"kind":         "event",
-		"ts":           e.Timestamp.UTC().Format(time.RFC3339Nano),
-		"type":         e.Type.String(),
-		"slug":         e.Slug,
-		"instance_uid": e.InstanceUID,
+		"ts":           e.timestamp().UTC().Format(time.RFC3339Nano),
+		"event_name":   e.Record.GetEventName(),
+		"slug":         e.attr(AttrHolonsSlug),
+		"instance_uid": e.attr(AttrHolonsInstanceUID),
 	}
-	if e.SessionID != "" {
-		rec["session_id"] = e.SessionID
+	if sessionID := e.attr(AttrHolonsSessionID); sessionID != "" {
+		rec["session_id"] = sessionID
 	}
-	if len(e.Payload) > 0 {
-		rec["payload"] = e.Payload
+	payload := userAttributesMap(e.Record.GetAttributes())
+	if len(payload) > 0 {
+		rec["payload"] = payload
 	}
-	if len(e.Chain) > 0 {
-		hops := make([]map[string]string, len(e.Chain))
-		for i, h := range e.Chain {
-			hops[i] = map[string]string{"slug": h.Slug, "instance_uid": h.InstanceUID}
-		}
-		rec["chain"] = hops
+	if len(chain) > 0 {
+		rec["chain"] = chain
 	}
 	return rec
 }
@@ -354,4 +347,3 @@ func StartOrganismMultilog() (*MultilogWriter, error) {
 // idleDeadline is deferred — kept here so linters don't complain
 // about unused imports during partial build states.
 var _ = time.Second
-var _ = durationpb.New
