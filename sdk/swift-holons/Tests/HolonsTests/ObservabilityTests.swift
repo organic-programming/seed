@@ -55,48 +55,96 @@ final class ObservabilityTests: XCTestCase {
         XCTAssertEqual(snap.quantile(0.99), 1.0)
     }
 
+    func testOTLPWireEncodingUsesTypedAttributesAndMetricOneofs() throws {
+        let o = try configure(
+            ObsConfig(slug: "wire-test", instanceUid: "uid-1"),
+            env: ["OP_OBS": "logs,metrics"]
+        )
+        o.logger("wire").info("typed", [
+            "transport": "stdio",
+            "duration_ns": .int64(42),
+            "ok": true,
+            "ratio": 1.5,
+        ])
+        let record = try XCTUnwrap(o.logRing?.drain().first?.record)
+        XCTAssertEqual(record.body.stringValue, "typed")
+        XCTAssertEqual(record.severityNumber, .info)
+        XCTAssertEqual(record.attributes.first { $0.key == AttrHolonsSlug }?.value.stringValue, "wire-test")
+        XCTAssertEqual(record.attributes.first { $0.key == AttrServiceName }?.value.stringValue, "wire-test")
+        XCTAssertEqual(record.attributes.first { $0.key == AttrHolonsInstanceUID }?.value.stringValue, "uid-1")
+        XCTAssertEqual(record.attributes.first { $0.key == AttrServiceInstanceID }?.value.stringValue, "uid-1")
+        XCTAssertEqual(record.attributes.first { $0.key == AttrHolonsSessionID }?.value.stringValue, "")
+        XCTAssertEqual(record.attributes.first { $0.key == "transport" }?.value.stringValue, "stdio")
+        XCTAssertEqual(record.attributes.first { $0.key == "duration_ns" }?.value.intValue, 42)
+        XCTAssertEqual(record.attributes.first { $0.key == "ok" }?.value.boolValue, true)
+        XCTAssertEqual(record.attributes.first { $0.key == "ratio" }?.value.doubleValue, 1.5)
+
+        o.counter("requests_total")?.inc(2)
+        o.gauge("queue_depth")?.set(3.5)
+        o.histogram("latency_s", bounds: [0.1, 1.0])?.observe(0.25)
+        let metrics = toProtoMetrics(try XCTUnwrap(o.registry), slug: o.cfg.slug, uid: o.cfg.instanceUid, startTime: o.startTime)
+        XCTAssertEqual(metrics.first { $0.name == "requests_total" }?.sum.isMonotonic, true)
+        XCTAssertEqual(metrics.first { $0.name == "requests_total" }?.sum.aggregationTemporality, .cumulative)
+        XCTAssertEqual(metrics.first { $0.name == "requests_total" }?.sum.dataPoints.first?.asInt, 2)
+        XCTAssertEqual(metrics.first { $0.name == "queue_depth" }?.gauge.dataPoints.first?.asDouble, 3.5)
+        XCTAssertEqual(metrics.first { $0.name == "latency_s" }?.histogram.aggregationTemporality, .cumulative)
+        XCTAssertEqual(metrics.first { $0.name == "latency_s" }?.histogram.dataPoints.first?.bucketCounts, [0, 1, 0])
+    }
+
+    func testEventEncodingUsesCanonicalEventName() throws {
+        let o = try configure(
+            ObsConfig(slug: "event-test", instanceUid: "uid-1"),
+            env: ["OP_OBS": "events"]
+        )
+        o.emit(EventConfigReloaded, payload: ["source": "test"])
+        let event = try XCTUnwrap(o.eventBus?.drain().first?.record)
+        XCTAssertEqual(event.eventName, EventConfigReloaded)
+        XCTAssertEqual(event.body.stringValue, EventConfigReloaded)
+        XCTAssertEqual(event.attributes.first { $0.key == "source" }?.value.stringValue, "test")
+    }
+
     func testLogRingRetention() {
         let r = LogRing(capacity: 3)
         for ch in ["a", "b", "c", "d", "e"] {
-            r.push(LogEntry(timestamp: Date(), level: .info, slug: "g", instanceUid: "", message: ch))
+            r.push(Self.logRecord(ch))
         }
         let entries = r.drain()
         XCTAssertEqual(entries.count, 3)
-        XCTAssertEqual(entries.first?.message, "c")
-        XCTAssertEqual(entries.last?.message, "e")
+        XCTAssertEqual(entries.first?.bodyString, "c")
+        XCTAssertEqual(entries.last?.bodyString, "e")
     }
 
     func testEventBusFanOut() {
         let bus = EventBus(capacity: 16)
         let exp = expectation(description: "event delivered")
         let _ = bus.subscribe { e in
-            XCTAssertEqual(e.type, .instanceReady)
+            XCTAssertEqual(e.record.eventName, EventInstanceReady)
             exp.fulfill()
         }
-        bus.emit(Event(timestamp: Date(), type: .instanceReady, slug: "g", instanceUid: "uid"))
+        bus.emit(Self.eventRecord(EventInstanceReady))
         wait(for: [exp], timeout: 0.5)
     }
 
     func testLogsFollowReplaysRingOnSubscribe() {
         let ring = LogRing(capacity: 8)
-        ring.push(LogEntry(timestamp: Date(), level: .info, slug: "g", instanceUid: "uid", message: "before"))
+        ring.push(Self.logRecord("before"))
         let exp = expectation(description: "live log delivered")
-        var live: [LogEntry] = []
+        var live: [LogRecord] = []
         let replay = ring.replayAndSubscribe(since: nil) { entry in
             live.append(entry)
             exp.fulfill()
         }
         defer { replay.1() }
 
-        XCTAssertEqual(replay.0.map(\.message), ["before"])
-        ring.push(LogEntry(timestamp: Date(), level: .info, slug: "g", instanceUid: "uid", message: "after"))
+        XCTAssertEqual(replay.0.map(\.bodyString), ["before"])
+        ring.push(Self.logRecord("after"))
         wait(for: [exp], timeout: 0.5)
-        XCTAssertEqual(live.map(\.message), ["after"])
+        XCTAssertEqual(live.map(\.bodyString), ["after"])
     }
 
     func testEventsFollowReplaysRingOnSubscribe() {
         let bus = EventBus(capacity: 8)
-        bus.emit(Event(timestamp: Date(), type: .instanceReady, slug: "g", instanceUid: "uid", payload: ["phase": "before"]))
+        bus.emit(Self.eventRecord(EventInstanceReady, payload: ["phase": "before"]))
         let exp = expectation(description: "live event delivered")
         var live: [Event] = []
         let replay = bus.replayAndSubscribe(since: nil) { event in
@@ -105,19 +153,19 @@ final class ObservabilityTests: XCTestCase {
         }
         defer { replay.1() }
 
-        XCTAssertEqual(replay.0.map { $0.payload["phase"] }, ["before"])
-        bus.emit(Event(timestamp: Date(), type: .instanceReady, slug: "g", instanceUid: "uid", payload: ["phase": "after"]))
+        XCTAssertEqual(replay.0.map { $0.attribute("phase") }, ["before"])
+        bus.emit(Self.eventRecord(EventInstanceReady, payload: ["phase": "after"]))
         wait(for: [exp], timeout: 0.5)
-        XCTAssertEqual(live.map { $0.payload["phase"] }, ["after"])
+        XCTAssertEqual(live.map { $0.attribute("phase") }, ["after"])
     }
 
     func testChainAppendAndEnrichment() {
         let c1 = appendDirectChild([], childSlug: "gabriel-greeting-rust", childUid: "1c2d")
         XCTAssertEqual(c1.count, 1)
-        XCTAssertEqual(c1.first?.slug, "gabriel-greeting-rust")
+        XCTAssertEqual(c1.first, "gabriel-greeting-rust")
         let c2 = enrichForMultilog(c1, streamSourceSlug: "gabriel-greeting-go", streamSourceUid: "ea34")
         XCTAssertEqual(c2.count, 2)
-        XCTAssertEqual(c2.last?.slug, "gabriel-greeting-go")
+        XCTAssertEqual(c2.last, "gabriel-greeting-go")
         // original unchanged
         XCTAssertEqual(c1.count, 1)
     }
@@ -157,7 +205,7 @@ final class ObservabilityTests: XCTestCase {
         )
         enableDiskWriters(o.cfg.runDir)
         o.logger("test").info("ready", ["port": "123"])
-        o.emit(.instanceReady, payload: ["listener": "tcp://127.0.0.1:123"])
+        o.emit(EventInstanceReady, payload: ["listener": "tcp://127.0.0.1:123"])
         try writeMetaJson(
             o.cfg.runDir,
             MetaJson(
@@ -175,7 +223,7 @@ final class ObservabilityTests: XCTestCase {
         let events = try String(contentsOfFile: (o.cfg.runDir as NSString).appendingPathComponent("events.jsonl"))
         let meta = try String(contentsOfFile: (o.cfg.runDir as NSString).appendingPathComponent("meta.json"))
         XCTAssertTrue(stdout.contains("ready"))
-        XCTAssertTrue(events.contains("INSTANCE_READY"))
+        XCTAssertTrue(events.contains("instance.ready"))
         XCTAssertTrue(meta.contains(#""slug" : "gabriel""#))
         XCTAssertTrue(meta.contains(#""uid" : "uid-1""#))
     }
@@ -195,7 +243,7 @@ final class ObservabilityTests: XCTestCase {
         let running = try Serve.startWithOptions(
             "tcp://127.0.0.1:0",
             serviceProviders: [],
-            options: Serve.Options(logger: { _ in }, environment: env)
+            options: Serve.Options(slug: "swift-observability-test", logger: { _ in }, environment: env)
         )
         let parsed = try Transport.parse(running.publicURI)
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
@@ -210,26 +258,28 @@ final class ObservabilityTests: XCTestCase {
         let o = current()
         o.logger("test").info("served")
         o.counter("requests_total", help: "requests")?.inc()
-        o.emit(.configReloaded, payload: ["source": "test"])
+        o.emit(EventConfigReloaded, payload: ["source": "test"])
 
         let client = Holons_V1_HolonObservabilityClient(channel: channel)
-        var logs: [Holons_V1_LogEntry] = []
+        var logs: [Holons_V1_LogRecord] = []
         var logRequest = Holons_V1_LogsRequest()
         logRequest.follow = false
         let logCall = client.logs(logRequest) { logs.append($0) }
         XCTAssertEqual(try logCall.status.wait().code, .ok)
-        XCTAssertTrue(logs.contains { $0.message == "served" })
+        XCTAssertTrue(logs.contains { $0.body.stringValue == "served" })
 
-        let metrics = try client.metrics(Holons_V1_MetricsRequest()).response.wait()
-        XCTAssertTrue(metrics.samples.contains { $0.name == "requests_total" })
+        var metrics: [Holons_V1_Metric] = []
+        let metricsCall = client.metrics(Holons_V1_MetricsRequest()) { metrics.append($0) }
+        XCTAssertEqual(try metricsCall.status.wait().code, .ok)
+        XCTAssertTrue(metrics.contains { $0.name == "requests_total" && $0.sum.isMonotonic })
 
-        var events: [Holons_V1_EventInfo] = []
+        var events: [Holons_V1_LogRecord] = []
         var eventRequest = Holons_V1_EventsRequest()
         eventRequest.follow = false
         let eventCall = client.events(eventRequest) { events.append($0) }
         XCTAssertEqual(try eventCall.status.wait().code, .ok)
-        XCTAssertTrue(events.contains { $0.type == .instanceReady })
-        XCTAssertTrue(events.contains { $0.type == .configReloaded })
+        XCTAssertTrue(events.contains { $0.eventName == EventInstanceReady })
+        XCTAssertTrue(events.contains { $0.eventName == EventConfigReloaded })
 
         let meta = runRoot
             .appendingPathComponent(o.cfg.slug)
@@ -290,5 +340,29 @@ final class ObservabilityTests: XCTestCase {
         response.manifest = manifest
         response.services = [service]
         return response
+    }
+
+    private static func logRecord(_ body: String) -> LogRecord {
+        var record = Holons_V1_LogRecord()
+        record.timeUnixNano = UInt64(Date().timeIntervalSince1970 * 1_000_000_000)
+        record.observedTimeUnixNano = record.timeUnixNano
+        record.severityNumber = .info
+        record.severityText = "INFO"
+        record.body = toAnyValue(.string(body))
+        record.attributes = [
+            keyValue(AttrHolonsSlug, .string("g")),
+            keyValue(AttrServiceName, .string("g")),
+            keyValue(AttrHolonsInstanceUID, .string("uid")),
+            keyValue(AttrServiceInstanceID, .string("uid")),
+            keyValue(AttrHolonsSessionID, .string("")),
+        ]
+        return LogRecord(record: record)
+    }
+
+    private static func eventRecord(_ eventName: String, payload: [String: String] = [:]) -> Event {
+        var record = logRecord(eventName).record
+        record.eventName = eventName
+        record.attributes += payload.map { keyValue($0.key, .string($0.value)) }
+        return Event(record: record)
     }
 }

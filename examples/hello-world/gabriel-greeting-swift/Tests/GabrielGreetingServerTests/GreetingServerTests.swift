@@ -101,15 +101,19 @@ final class GreetingServerTests: XCTestCase {
         XCTAssertEqual(counter?.read(), 1)
 
         let entry = obs.logRing?.drain().first { entry in
-            entry.message == "Greeted Bob in English (en)"
+            entry.bodyString == "Greeted Bob in English (en)"
         }
-        XCTAssertEqual(entry?.fields["lang_code"], "en")
-        XCTAssertEqual(entry?.fields["language"], "English")
-        XCTAssertEqual(entry?.fields["name"], "Bob")
-        XCTAssertEqual(entry?.fields["greeting"], "Hello Bob")
-        XCTAssertEqual(entry?.fields["transport"], "unknown")
-        guard let duration = entry?.fields["duration_ns"], let durationNS = Int64(duration) else {
-            XCTFail("duration_ns should be a parseable integer field")
+        XCTAssertEqual(entry?.record.severityNumber, .info)
+        XCTAssertEqual(entry?.attribute(AttrHolonsSlug), "gabriel-greeting-swift")
+        XCTAssertEqual(entry?.attribute(AttrServiceName), "gabriel-greeting-swift")
+        XCTAssertEqual(entry?.attribute("lang_code"), "en")
+        XCTAssertEqual(entry?.attribute("language"), "English")
+        XCTAssertEqual(entry?.attribute("name"), "Bob")
+        XCTAssertEqual(entry?.attribute("greeting"), "Hello Bob")
+        XCTAssertEqual(entry?.attribute("transport"), "unknown")
+        guard let durationValue = entry?.record.attributes.first(where: { $0.key == "duration_ns" })?.value,
+              case .intValue(let durationNS)? = durationValue.value else {
+            XCTFail("duration_ns should be encoded as int_value")
             return
         }
         XCTAssertGreaterThanOrEqual(durationNS, 0)

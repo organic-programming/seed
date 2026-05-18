@@ -9,6 +9,31 @@ import NIOPosix
   import Darwin
 #endif
 
+public enum CurrentTransport {
+  private static let lock = NSLock()
+  private nonisolated(unsafe) static var scheme = ""
+
+  public static var value: String {
+    lock.lock()
+    defer { lock.unlock() }
+    return scheme
+  }
+
+  fileprivate static func set(_ value: String) {
+    lock.lock()
+    scheme = value
+    lock.unlock()
+  }
+
+  fileprivate static func clear() {
+    set("")
+  }
+}
+
+public func currentTransport() -> String {
+  CurrentTransport.value
+}
+
 public enum Serve {
   public struct MemberRef: Sendable {
     public var slug: String
@@ -273,15 +298,31 @@ public enum Serve {
     options: Options = Options()
   ) throws -> RunningServer {
     let parsed = try Transport.parse(listenURI.isEmpty ? Transport.defaultURI : listenURI)
+    CurrentTransport.set(parsed.scheme)
+    do {
+      return try startWithParsedOptions(parsed, originalListenURI: listenURI, serviceProviders: serviceProviders, options: options)
+    } catch {
+      CurrentTransport.clear()
+      throw error
+    }
+  }
+
+  private static func startWithParsedOptions(
+    _ parsed: TransportURI,
+    originalListenURI listenURI: String,
+    serviceProviders: [CallHandlerProvider],
+    options: Options
+  ) throws -> RunningServer {
     var providers = serviceProviders
     let env = options.environment ?? ProcessInfo.processInfo.environment
     try checkEnv(env)
+    let observabilitySlug = resolvedObservabilitySlug(options: options)
     let obs: Observability?
     if (env["OP_OBS"] ?? "").trimmingCharacters(in: .whitespaces).isEmpty {
       obs = nil
     } else {
       let existing = current()
-      obs = existing.families.isEmpty ? try fromEnv(ObsConfig(slug: options.slug), env: env) : existing
+      obs = existing.families.isEmpty ? try fromEnv(ObsConfig(slug: observabilitySlug), env: env) : existing
     }
     let describeEnabled: Bool
     do {
@@ -314,7 +355,10 @@ public enum Serve {
         publicURI: running.publicURI,
         logger: options.logger,
         defaultGracePeriodSeconds: options.shutdownGracePeriodSeconds,
-        auxiliaryStop: obsStop
+        auxiliaryStop: {
+          obsStop?()
+          CurrentTransport.clear()
+        }
       )
     case "stdio":
       let backing = try startTCPServer(
@@ -348,6 +392,7 @@ public enum Serve {
         auxiliaryStop: {
           obsStop?()
           bridge.stop()
+          CurrentTransport.clear()
         }
       )
     case "unix":
@@ -383,6 +428,7 @@ public enum Serve {
         auxiliaryStop: {
           obsStop?()
           bridge.stop()
+          CurrentTransport.clear()
         }
       )
     default:
@@ -391,6 +437,21 @@ public enum Serve {
         reason: "Serve.run(...) currently supports tcp://, unix://, and stdio:// only"
       )
     }
+  }
+
+  private static func resolvedObservabilitySlug(options: Options) -> String {
+    let explicit = options.slug.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !explicit.isEmpty {
+      return explicit
+    }
+    guard let response = Describe.staticResponse() else {
+      return ""
+    }
+    let binary = response.manifest.artifacts.binary.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !binary.isEmpty {
+      return binary
+    }
+    return ""
   }
 
   private static func startObservabilityRuntime(
@@ -411,7 +472,7 @@ public enum Serve {
       enableDiskWriters(obs.cfg.runDir)
     }
     if obs.enabled(.events) {
-      obs.emit(.instanceReady, payload: ["listener": publicURI, "metrics_addr": prom?.address ?? ""])
+      obs.emit(EventInstanceReady, payload: ["listener": .string(publicURI), "metrics_addr": .string(prom?.address ?? "")])
     }
     if !obs.cfg.runDir.isEmpty {
       let logPath = obs.enabled(.logs)
@@ -550,7 +611,10 @@ private final class StdioBridge {
       self.completion.leave()
     }
 
-    completion.notify(queue: .global(qos: .utility)) { [onDisconnect] in
+    completion.notify(queue: .global(qos: .utility)) { [weak self, onDisconnect] in
+      guard let self, !self.isStopped else {
+        return
+      }
       onDisconnect()
     }
   }
@@ -663,6 +727,13 @@ private final class StdioBridge {
     let fd = socketFD
     stateLock.unlock()
     return fd
+  }
+
+  private var isStopped: Bool {
+    stateLock.lock()
+    let value = stopped
+    stateLock.unlock()
+    return value
   }
 }
 

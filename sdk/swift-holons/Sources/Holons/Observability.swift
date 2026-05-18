@@ -92,11 +92,11 @@ public func checkEnv(_ env: [String: String] = ProcessInfo.processInfo.environme
 public enum Level: Int32, Sendable, Comparable {
     case unset = 0
     case trace = 1
-    case debug = 2
-    case info = 3
-    case warn = 4
-    case error = 5
-    case fatal = 6
+    case debug = 5
+    case info = 9
+    case warn = 13
+    case error = 17
+    case fatal = 21
 
     public static func < (lhs: Level, rhs: Level) -> Bool { lhs.rawValue < rhs.rawValue }
 
@@ -125,30 +125,37 @@ public func parseLevel(_ s: String) -> Level {
     }
 }
 
-public enum EventType: Int32, Sendable {
-    case unspecified = 0
-    case instanceSpawned = 1
-    case instanceReady = 2
-    case instanceExited = 3
-    case instanceCrashed = 4
-    case sessionStarted = 5
-    case sessionEnded = 6
-    case handlerPanic = 7
-    case configReloaded = 8
+public let EventInstanceSpawned = "instance.spawned"
+public let EventInstanceReady = "instance.ready"
+public let EventInstanceExited = "instance.exited"
+public let EventInstanceCrashed = "instance.crashed"
+public let EventSessionStarted = "session.started"
+public let EventSessionEnded = "session.ended"
+public let EventHandlerPanic = "handler.panic"
+public let EventConfigReloaded = "config.reloaded"
 
-    public var protoName: String {
-        switch self {
-        case .instanceSpawned: return "INSTANCE_SPAWNED"
-        case .instanceReady: return "INSTANCE_READY"
-        case .instanceExited: return "INSTANCE_EXITED"
-        case .instanceCrashed: return "INSTANCE_CRASHED"
-        case .sessionStarted: return "SESSION_STARTED"
-        case .sessionEnded: return "SESSION_ENDED"
-        case .handlerPanic: return "HANDLER_PANIC"
-        case .configReloaded: return "CONFIG_RELOADED"
-        case .unspecified: return "UNSPECIFIED"
-        }
-    }
+public let AttrHolonsSlug = "holons.slug"
+public let AttrServiceName = "service.name"
+public let AttrHolonsInstanceUID = "holons.instance_uid"
+public let AttrServiceInstanceID = "service.instance.id"
+public let AttrHolonsSessionID = "holons.session_id"
+public let AttrHolonsTransport = "holons.transport"
+public let AttrLoggerName = "logger.name"
+public let AttrCodeCaller = "code.caller"
+public let AttrRPCMethod = "rpc.method"
+
+public enum LogField: Sendable, Equatable,
+    ExpressibleByStringLiteral, ExpressibleByBooleanLiteral,
+    ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
+    case string(String)
+    case bool(Bool)
+    case int64(Int64)
+    case float64(Double)
+
+    public init(stringLiteral value: String) { self = .string(value) }
+    public init(booleanLiteral value: Bool) { self = .bool(value) }
+    public init(integerLiteral value: Int64) { self = .int64(value) }
+    public init(floatLiteral value: Double) { self = .float64(value) }
 }
 
 // MARK: - Chain helpers
@@ -162,58 +169,50 @@ public struct Hop: Sendable {
     }
 }
 
-public func appendDirectChild(_ src: [Hop], childSlug: String, childUid: String) -> [Hop] {
-    src + [Hop(slug: childSlug, instanceUid: childUid)]
+public func appendDirectChild(_ src: [String], childSlug: String, childUid: String = "") -> [String] {
+    src + [childSlug]
 }
 
-public func enrichForMultilog(_ wire: [Hop], streamSourceSlug: String, streamSourceUid: String) -> [Hop] {
+public func enrichForMultilog(_ wire: [String], streamSourceSlug: String, streamSourceUid: String = "") -> [String] {
     appendDirectChild(wire, childSlug: streamSourceSlug, childUid: streamSourceUid)
 }
 
-// MARK: - Log entries + ring
+// MARK: - Log records + ring
 
-public struct LogEntry: Sendable {
-    public let timestamp: Date
-    public let level: Level
-    public let slug: String
-    public let instanceUid: String
-    public let sessionId: String
-    public let rpcMethod: String
-    public let message: String
-    public let fields: [String: String]
-    public let caller: String
-    public let chain: [Hop]
-    public let isPrivate: Bool
+public struct LogRecord: Sendable {
+    public var record: Holons_V1_LogRecord
+    public var isPrivate: Bool
 
-    public init(timestamp: Date, level: Level, slug: String, instanceUid: String,
-                sessionId: String = "", rpcMethod: String = "",
-                message: String, fields: [String: String] = [:], caller: String = "",
-                chain: [Hop] = [], isPrivate: Bool = false) {
-        self.timestamp = timestamp
-        self.level = level
-        self.slug = slug
-        self.instanceUid = instanceUid
-        self.sessionId = sessionId
-        self.rpcMethod = rpcMethod
-        self.message = message
-        self.fields = fields
-        self.caller = caller
-        self.chain = chain
+    public init(record: Holons_V1_LogRecord = Holons_V1_LogRecord(), isPrivate: Bool = false) {
+        self.record = record
         self.isPrivate = isPrivate
+    }
+
+    public var timestamp: Date {
+        guard record.timeUnixNano > 0 else { return Date(timeIntervalSince1970: 0) }
+        return Date(timeIntervalSince1970: TimeInterval(record.timeUnixNano) / 1_000_000_000)
+    }
+
+    public var bodyString: String {
+        anyValueString(record.body)
+    }
+
+    public func attribute(_ key: String) -> String {
+        stringAttribute(record.attributes, key: key)
     }
 }
 
 public final class LogRing: @unchecked Sendable {
     private let capacity: Int
-    private var buf: [LogEntry] = []
-    private var subs: [(LogEntry) -> Void] = []
+    private var buf: [LogRecord] = []
+    private var subs: [(LogRecord) -> Void] = []
     private let lock = NSLock()
 
     public init(capacity: Int = 1024) {
         self.capacity = max(1, capacity)
     }
 
-    public func push(_ e: LogEntry) {
+    public func push(_ e: LogRecord) {
         lock.lock()
         buf.append(e)
         if buf.count > capacity {
@@ -226,18 +225,18 @@ public final class LogRing: @unchecked Sendable {
         }
     }
 
-    public func drain() -> [LogEntry] {
+    public func drain() -> [LogRecord] {
         lock.lock(); defer { lock.unlock() }
         return buf
     }
 
-    public func drainSince(_ cutoff: Date) -> [LogEntry] {
+    public func drainSince(_ cutoff: Date) -> [LogRecord] {
         lock.lock(); defer { lock.unlock() }
         return buf.filter { $0.timestamp >= cutoff }
     }
 
     @discardableResult
-    public func subscribe(_ fn: @escaping (LogEntry) -> Void) -> () -> Void {
+    public func subscribe(_ fn: @escaping (LogRecord) -> Void) -> () -> Void {
         lock.lock()
         subs.append(fn)
         let index = subs.count - 1
@@ -252,7 +251,7 @@ public final class LogRing: @unchecked Sendable {
         }
     }
 
-    public func replayAndSubscribe(since cutoff: Date?, _ fn: @escaping (LogEntry) -> Void) -> ([LogEntry], () -> Void) {
+    public func replayAndSubscribe(since cutoff: Date?, _ fn: @escaping (LogRecord) -> Void) -> ([LogRecord], () -> Void) {
         lock.lock()
         let snapshot = cutoff.map { cutoff in buf.filter { $0.timestamp >= cutoff } } ?? buf
         subs.append(fn)
@@ -283,33 +282,12 @@ private final class SubscriptionBox {
 
 // MARK: - Events
 
-public struct Event: Sendable {
-    public let timestamp: Date
-    public let type: EventType
-    public let slug: String
-    public let instanceUid: String
-    public let sessionId: String
-    public let payload: [String: String]
-    public let chain: [Hop]
-    public let isPrivate: Bool
-
-    public init(timestamp: Date, type: EventType, slug: String, instanceUid: String,
-                sessionId: String = "", payload: [String: String] = [:], chain: [Hop] = [], isPrivate: Bool = false) {
-        self.timestamp = timestamp
-        self.type = type
-        self.slug = slug
-        self.instanceUid = instanceUid
-        self.sessionId = sessionId
-        self.payload = payload
-        self.chain = chain
-        self.isPrivate = isPrivate
-    }
-}
+public typealias Event = LogRecord
 
 public final class EventBus: @unchecked Sendable {
     private let capacity: Int
-    private var buf: [Event] = []
-    private var subs: [(Event) -> Void] = []
+    private var buf: [LogRecord] = []
+    private var subs: [(LogRecord) -> Void] = []
     private var closed = false
     private let lock = NSLock()
 
@@ -317,7 +295,7 @@ public final class EventBus: @unchecked Sendable {
         self.capacity = max(1, capacity)
     }
 
-    public func emit(_ e: Event) {
+    public func emit(_ e: LogRecord) {
         lock.lock()
         if closed { lock.unlock(); return }
         buf.append(e)
@@ -329,18 +307,18 @@ public final class EventBus: @unchecked Sendable {
         for fn in snapshot { fn(e) }
     }
 
-    public func drain() -> [Event] {
+    public func drain() -> [LogRecord] {
         lock.lock(); defer { lock.unlock() }
         return buf
     }
 
-    public func drainSince(_ cutoff: Date) -> [Event] {
+    public func drainSince(_ cutoff: Date) -> [LogRecord] {
         lock.lock(); defer { lock.unlock() }
         return buf.filter { $0.timestamp >= cutoff }
     }
 
     @discardableResult
-    public func subscribe(_ fn: @escaping (Event) -> Void) -> () -> Void {
+    public func subscribe(_ fn: @escaping (LogRecord) -> Void) -> () -> Void {
         lock.lock()
         subs.append(fn)
         let index = subs.count - 1
@@ -355,7 +333,7 @@ public final class EventBus: @unchecked Sendable {
         }
     }
 
-    public func replayAndSubscribe(since cutoff: Date?, _ fn: @escaping (Event) -> Void) -> ([Event], () -> Void) {
+    public func replayAndSubscribe(since cutoff: Date?, _ fn: @escaping (LogRecord) -> Void) -> ([LogRecord], () -> Void) {
         lock.lock()
         let snapshot = cutoff.map { cutoff in buf.filter { $0.timestamp >= cutoff } } ?? buf
         subs.append(fn)
@@ -604,34 +582,36 @@ public final class HolonLogger: @unchecked Sendable {
         return obs != nil && l >= level
     }
 
-    public func log(_ lvl: Level, _ message: String, fields: [String: String] = [:], isPrivate: Bool = false,
+    public func log(_ lvl: Level, _ message: String, fields: [String: LogField] = [:], isPrivate: Bool = false,
                     file: String = #fileID, line: Int = #line) {
         guard enabled(lvl), let obs = obs else { return }
         let redact = Set(obs.cfg.redactedFields)
-        var out: [String: String] = [:]
+        var attrs = resourceAttributes(slug: obs.cfg.slug, uid: obs.cfg.instanceUid, sessionId: "")
+        if !name.isEmpty {
+            attrs.append(keyValue(AttrLoggerName, .string(name)))
+        }
         for (k, v) in fields {
             if k.isEmpty { continue }
-            out[k] = redact.contains(k) ? "<redacted>" : v
+            attrs.append(keyValue(k, redact.contains(k) ? .string("<redacted>") : v))
         }
-        let entry = LogEntry(
-            timestamp: Date(),
-            level: lvl,
-            slug: obs.cfg.slug,
-            instanceUid: obs.cfg.instanceUid,
-            message: message,
-            fields: out,
-            caller: "\(file):\(line)",
-            isPrivate: isPrivate
-        )
-        obs.logRing?.push(entry)
+        attrs.append(keyValue(AttrCodeCaller, .string("\(file):\(line)")))
+        let now = unixNano(Date())
+        var record = Holons_V1_LogRecord()
+        record.timeUnixNano = now
+        record.observedTimeUnixNano = now
+        record.severityNumber = severityToProto(lvl)
+        record.severityText = lvl.name
+        record.body = toAnyValue(.string(message))
+        record.attributes = attrs
+        obs.logRing?.push(LogRecord(record: record, isPrivate: isPrivate))
     }
 
-    public func trace(_ m: String, _ f: [String: String] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.trace, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
-    public func debug(_ m: String, _ f: [String: String] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.debug, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
-    public func info(_ m: String, _ f: [String: String] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.info, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
-    public func warn(_ m: String, _ f: [String: String] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.warn, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
-    public func error(_ m: String, _ f: [String: String] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.error, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
-    public func fatal(_ m: String, _ f: [String: String] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.fatal, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
+    public func trace(_ m: String, _ f: [String: LogField] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.trace, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
+    public func debug(_ m: String, _ f: [String: LogField] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.debug, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
+    public func info(_ m: String, _ f: [String: LogField] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.info, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
+    public func warn(_ m: String, _ f: [String: LogField] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.warn, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
+    public func error(_ m: String, _ f: [String: LogField] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.error, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
+    public func fatal(_ m: String, _ f: [String: LogField] = [:], isPrivate: Bool = false, file: String = #fileID, line: Int = #line) { log(.fatal, m, fields: f, isPrivate: isPrivate, file: file, line: line) }
 }
 
 public func Private() -> Bool { true }
@@ -642,12 +622,14 @@ public final class Observability: @unchecked Sendable {
     public let logRing: LogRing?
     public let eventBus: EventBus?
     public let registry: Registry?
+    let startTime: Date
     private var loggers: [String: HolonLogger] = [:]
     private let lock = NSLock()
 
     fileprivate init(cfg: ObsConfig, families: Set<Family>) {
         self.cfg = cfg
         self.families = families
+        self.startTime = Date()
         self.logRing = families.contains(.logs) ? LogRing(capacity: cfg.logsRingSize) : nil
         self.eventBus = families.contains(.events) ? EventBus(capacity: cfg.eventsRingSize) : nil
         self.registry = families.contains(.metrics) ? Registry() : nil
@@ -681,21 +663,24 @@ public final class Observability: @unchecked Sendable {
         registry?.histogram(name, help: help, labels: labels, bounds: bounds)
     }
 
-    public func emit(_ type: EventType, payload: [String: String] = [:], isPrivate: Bool = false) {
+    public func emit(_ eventName: String, payload: [String: LogField] = [:], isPrivate: Bool = false) {
         guard let bus = eventBus else { return }
         let redact = Set(cfg.redactedFields)
-        var p: [String: String] = [:]
+        var attrs = resourceAttributes(slug: cfg.slug, uid: cfg.instanceUid, sessionId: "")
         for (k, v) in payload {
-            p[k] = redact.contains(k) ? "<redacted>" : v
+            if k.isEmpty { continue }
+            attrs.append(keyValue(k, redact.contains(k) ? .string("<redacted>") : v))
         }
-        bus.emit(Event(
-            timestamp: Date(),
-            type: type,
-            slug: cfg.slug,
-            instanceUid: cfg.instanceUid,
-            payload: p,
-            isPrivate: isPrivate
-        ))
+        let now = unixNano(Date())
+        var record = Holons_V1_LogRecord()
+        record.timeUnixNano = now
+        record.observedTimeUnixNano = now
+        record.severityNumber = .info
+        record.severityText = "INFO"
+        record.body = toAnyValue(.string(eventName))
+        record.attributes = attrs
+        record.eventName = eventName
+        bus.emit(LogRecord(record: record, isPrivate: isPrivate))
     }
 
     public func close() {
@@ -718,9 +703,6 @@ private nonisolated(unsafe) var _current: Observability?
 public func configure(_ cfg: ObsConfig, env: [String: String] = ProcessInfo.processInfo.environment) throws -> Observability {
     let families = try parseOpObs(env["OP_OBS"] ?? "")
     var normalized = cfg
-    if normalized.slug.isEmpty {
-        normalized.slug = CommandLine.arguments.first.map { (($0 as NSString).lastPathComponent) } ?? ""
-    }
     if normalized.instanceUid.isEmpty {
         normalized.instanceUid = UUID().uuidString
     }
@@ -764,95 +746,149 @@ public func deriveRunDir(root: String, slug: String, uid: String) -> String {
 
 // MARK: - Proto conversion + gRPC service
 
-private func timestamp(_ date: Date) -> Google_Protobuf_Timestamp {
-    Google_Protobuf_Timestamp(date: date)
+private func unixNano(_ date: Date) -> UInt64 {
+    UInt64(max(0, date.timeIntervalSince1970 * 1_000_000_000))
 }
 
-private func hopToProto(_ hop: Hop) -> Holons_V1_ChainHop {
-    var out = Holons_V1_ChainHop()
-    out.slug = hop.slug
-    out.instanceUid = hop.instanceUid
-    return out
+private func severityToProto(_ level: Level) -> Holons_V1_SeverityNumber {
+    Holons_V1_SeverityNumber(rawValue: Int(level.rawValue)) ?? .unspecified
 }
 
-private func levelToProto(_ level: Level) -> Holons_V1_LogLevel {
-    Holons_V1_LogLevel(rawValue: Int(level.rawValue)) ?? .unspecified
-}
-
-private func eventTypeToProto(_ type: EventType) -> Holons_V1_EventType {
-    Holons_V1_EventType(rawValue: Int(type.rawValue)) ?? .unspecified
-}
-
-public func toProtoLogEntry(_ entry: LogEntry) -> Holons_V1_LogEntry {
-    var out = Holons_V1_LogEntry()
-    out.ts = timestamp(entry.timestamp)
-    out.level = levelToProto(entry.level)
-    out.slug = entry.slug
-    out.instanceUid = entry.instanceUid
-    out.sessionID = entry.sessionId
-    out.rpcMethod = entry.rpcMethod
-    out.message = entry.message
-    out.fields = entry.fields
-    out.caller = entry.caller
-    out.chain = entry.chain.map(hopToProto)
-    return out
-}
-
-private func histogramToProto(_ snapshot: HistogramSnapshot) -> Holons_V1_HistogramSample {
-    var out = Holons_V1_HistogramSample()
-    out.buckets = zip(snapshot.bounds, snapshot.counts).map { upper, count in
-        var bucket = Holons_V1_Bucket()
-        bucket.upperBound = upper
-        bucket.count = count
-        return bucket
+public func toAnyValue(_ field: LogField) -> Holons_V1_AnyValue {
+    var out = Holons_V1_AnyValue()
+    switch field {
+    case .string(let value):
+        out.stringValue = value
+    case .bool(let value):
+        out.boolValue = value
+    case .int64(let value):
+        out.intValue = value
+    case .float64(let value):
+        out.doubleValue = value
     }
-    out.count = snapshot.total
-    out.sum = snapshot.sum
     return out
 }
 
-public func toProtoMetricSamples(_ registry: Registry) -> [Holons_V1_MetricSample] {
-    var samples: [Holons_V1_MetricSample] = []
+public func anyValueString(_ value: Holons_V1_AnyValue) -> String {
+    switch value.value {
+    case .stringValue(let value)?:
+        return value
+    case .boolValue(let value)?:
+        return value ? "true" : "false"
+    case .intValue(let value)?:
+        return String(value)
+    case .doubleValue(let value)?:
+        return String(value)
+    case nil:
+        return ""
+    }
+}
+
+public func keyValue(_ key: String, _ value: LogField) -> Holons_V1_KeyValue {
+    var out = Holons_V1_KeyValue()
+    out.key = key
+    out.value = toAnyValue(value)
+    return out
+}
+
+public func stringAttribute(_ attrs: [Holons_V1_KeyValue], key: String) -> String {
+    for attr in attrs where attr.key == key {
+        return anyValueString(attr.value)
+    }
+    return ""
+}
+
+private func resourceAttributes(slug: String, uid: String, sessionId: String) -> [Holons_V1_KeyValue] {
+    [
+        keyValue(AttrHolonsSlug, .string(slug)),
+        keyValue(AttrServiceName, .string(slug)),
+        keyValue(AttrHolonsInstanceUID, .string(uid)),
+        keyValue(AttrServiceInstanceID, .string(uid)),
+        keyValue(AttrHolonsSessionID, .string(sessionId)),
+    ]
+}
+
+private func sortedMapAttributes(_ labels: [String: String]) -> [Holons_V1_KeyValue] {
+    labels.keys.sorted().map { keyValue($0, .string(labels[$0] ?? "")) }
+}
+
+public func toProtoLogRecord(_ entry: LogRecord) -> Holons_V1_LogRecord {
+    entry.record
+}
+
+public func fromProtoLogRecord(_ proto: Holons_V1_LogRecord) -> LogRecord {
+    LogRecord(record: proto)
+}
+
+private func histogramBucketCounts(_ snapshot: HistogramSnapshot) -> [UInt64] {
+    var out: [UInt64] = []
+    var previous: Int64 = 0
+    for cumulative in snapshot.counts {
+        out.append(UInt64(max(0, cumulative - previous)))
+        previous = cumulative
+    }
+    out.append(UInt64(max(0, snapshot.total - previous)))
+    return out
+}
+
+public func toProtoMetrics(_ registry: Registry, slug: String = "", uid: String = "", startTime: Date = Date()) -> [Holons_V1_Metric] {
+    var samples: [Holons_V1_Metric] = []
+    let startNano = unixNano(startTime)
+    let timeNano = unixNano(Date())
     for counter in registry.listCounters() {
-        var sample = Holons_V1_MetricSample()
+        var point = Holons_V1_NumberDataPoint()
+        point.startTimeUnixNano = startNano
+        point.timeUnixNano = timeNano
+        point.asInt = counter.read()
+        point.attributes = resourceAttributes(slug: slug, uid: uid, sessionId: "") + sortedMapAttributes(counter.labels)
+        var sum = Holons_V1_Sum()
+        sum.aggregationTemporality = .cumulative
+        sum.isMonotonic = true
+        sum.dataPoints = [point]
+        var sample = Holons_V1_Metric()
         sample.name = counter.name
-        sample.help = counter.help
-        sample.labels = counter.labels
-        sample.counter = counter.read()
+        sample.description_p = counter.help
+        sample.sum = sum
         samples.append(sample)
     }
     for gauge in registry.listGauges() {
-        var sample = Holons_V1_MetricSample()
+        var point = Holons_V1_NumberDataPoint()
+        point.startTimeUnixNano = startNano
+        point.timeUnixNano = timeNano
+        point.asDouble = gauge.read()
+        point.attributes = resourceAttributes(slug: slug, uid: uid, sessionId: "") + sortedMapAttributes(gauge.labels)
+        var gaugeData = Holons_V1_Gauge()
+        gaugeData.dataPoints = [point]
+        var sample = Holons_V1_Metric()
         sample.name = gauge.name
-        sample.help = gauge.help
-        sample.labels = gauge.labels
-        sample.gauge = gauge.read()
+        sample.description_p = gauge.help
+        sample.gauge = gaugeData
         samples.append(sample)
     }
     for histogram in registry.listHistograms() {
-        var sample = Holons_V1_MetricSample()
+        let snap = histogram.snapshot()
+        var point = Holons_V1_HistogramDataPoint()
+        point.startTimeUnixNano = startNano
+        point.timeUnixNano = timeNano
+        point.count = UInt64(max(0, snap.total))
+        point.sum = snap.sum
+        point.bucketCounts = histogramBucketCounts(snap)
+        point.explicitBounds = snap.bounds
+        point.attributes = resourceAttributes(slug: slug, uid: uid, sessionId: "") + sortedMapAttributes(histogram.labels)
+        var histogramData = Holons_V1_Histogram()
+        histogramData.aggregationTemporality = .cumulative
+        histogramData.dataPoints = [point]
+        var sample = Holons_V1_Metric()
         sample.name = histogram.name
-        sample.help = histogram.help
-        sample.labels = histogram.labels
-        sample.histogram = histogramToProto(histogram.snapshot())
+        sample.description_p = histogram.help
+        sample.histogram = histogramData
         samples.append(sample)
     }
     return samples
 }
 
-public func toProtoEvent(_ event: Event) -> Holons_V1_EventInfo {
-    var out = Holons_V1_EventInfo()
-    out.ts = timestamp(event.timestamp)
-    out.type = eventTypeToProto(event.type)
-    out.slug = event.slug
-    out.instanceUid = event.instanceUid
-    out.sessionID = event.sessionId
-    out.payload = event.payload
-    out.chain = event.chain.map(hopToProto)
-    return out
-}
-
 public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvider {
+    public let interceptors: Holons_V1_HolonObservabilityServerInterceptorFactoryProtocol? = nil
     private let obs: Observability
 
     public init(_ obs: Observability = current()) {
@@ -861,19 +897,19 @@ public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvid
 
     public func logs(
         request: Holons_V1_LogsRequest,
-        context: StreamingResponseCallContext<Holons_V1_LogEntry>
+        context: StreamingResponseCallContext<Holons_V1_LogRecord>
     ) -> EventLoopFuture<GRPCStatus> {
         guard obs.enabled(.logs), let ring = obs.logRing else {
             return context.eventLoop.makeSucceededFuture(
                 GRPCStatus(code: .failedPrecondition, message: "logs family is not enabled (OP_OBS)")
             )
         }
-        let minLevel = request.minLevel.rawValue == 0 ? Int(Level.info.rawValue) : request.minLevel.rawValue
+        let minLevel = request.minSeverityNumber.rawValue == 0 ? Int(Level.info.rawValue) : request.minSeverityNumber.rawValue
         let cutoff = request.hasSince ? Date().addingTimeInterval(-durationSeconds(request.since)) : nil
-        var pendingLive: [LogEntry] = []
+        var pendingLive: [LogRecord] = []
         var bufferingLive = request.follow
         let pendingLock = NSLock()
-        let entries: [LogEntry]
+        let entries: [LogRecord]
         if request.follow {
             let replay = ring.replayAndSubscribe(since: cutoff) { entry in
                 guard !entry.isPrivate,
@@ -888,7 +924,7 @@ public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvid
                 }
                 pendingLock.unlock()
                 context.eventLoop.execute {
-                    context.sendResponse(toProtoLogEntry(entry), promise: nil)
+                    context.sendResponse(toProtoLogRecord(entry), promise: nil)
                 }
             }
             entries = replay.0
@@ -898,7 +934,7 @@ public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvid
         }
         var future = context.eventLoop.makeSucceededFuture(())
         for entry in entries where !entry.isPrivate && matchLog(entry, minLevel: minLevel, sessionIds: request.sessionIds, rpcMethods: request.rpcMethods) {
-            future = future.flatMap { context.sendResponse(toProtoLogEntry(entry)) }
+            future = future.flatMap { context.sendResponse(toProtoLogRecord(entry)) }
         }
         guard request.follow else {
             return future.map { .ok }
@@ -912,7 +948,7 @@ public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvid
             pendingLock.unlock()
             var flush = context.eventLoop.makeSucceededFuture(())
             for entry in buffered {
-                flush = flush.flatMap { context.sendResponse(toProtoLogEntry(entry)) }
+                flush = flush.flatMap { context.sendResponse(toProtoLogRecord(entry)) }
             }
             return flush
         }
@@ -921,42 +957,41 @@ public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvid
 
     public func metrics(
         request: Holons_V1_MetricsRequest,
-        context: StatusOnlyCallContext
-    ) -> EventLoopFuture<Holons_V1_MetricsSnapshot> {
+        context: StreamingResponseCallContext<Holons_V1_Metric>
+    ) -> EventLoopFuture<GRPCStatus> {
         guard obs.enabled(.metrics), let registry = obs.registry else {
-            return context.eventLoop.makeFailedFuture(
+            return context.eventLoop.makeSucceededFuture(
                 GRPCStatus(code: .failedPrecondition, message: "metrics family is not enabled (OP_OBS)")
             )
         }
-        var samples = toProtoMetricSamples(registry)
+        var samples = toProtoMetrics(registry, slug: obs.cfg.slug, uid: obs.cfg.instanceUid, startTime: obs.startTime)
         if !request.namePrefixes.isEmpty {
             samples = samples.filter { sample in
                 request.namePrefixes.contains { prefix in sample.name.hasPrefix(prefix) }
             }
         }
-        var snapshot = Holons_V1_MetricsSnapshot()
-        snapshot.capturedAt = timestamp(Date())
-        snapshot.slug = obs.cfg.slug
-        snapshot.instanceUid = obs.cfg.instanceUid
-        snapshot.samples = samples
-        return context.eventLoop.makeSucceededFuture(snapshot)
+        var future = context.eventLoop.makeSucceededFuture(())
+        for sample in samples {
+            future = future.flatMap { context.sendResponse(sample) }
+        }
+        return future.map { .ok }
     }
 
     public func events(
         request: Holons_V1_EventsRequest,
-        context: StreamingResponseCallContext<Holons_V1_EventInfo>
+        context: StreamingResponseCallContext<Holons_V1_LogRecord>
     ) -> EventLoopFuture<GRPCStatus> {
         guard obs.enabled(.events), let bus = obs.eventBus else {
             return context.eventLoop.makeSucceededFuture(
                 GRPCStatus(code: .failedPrecondition, message: "events family is not enabled (OP_OBS)")
             )
         }
-        let wanted = Set(request.types.map { $0.rawValue })
+        let wanted = Set(request.eventNames)
         let cutoff = request.hasSince ? Date().addingTimeInterval(-durationSeconds(request.since)) : nil
-        var pendingLive: [Event] = []
+        var pendingLive: [LogRecord] = []
         var bufferingLive = request.follow
         let pendingLock = NSLock()
-        let events: [Event]
+        let events: [LogRecord]
         if request.follow {
             let replay = bus.replayAndSubscribe(since: cutoff) { event in
                 guard !event.isPrivate, matchEvent(event, wanted: wanted) else {
@@ -970,7 +1005,7 @@ public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvid
                 }
                 pendingLock.unlock()
                 context.eventLoop.execute {
-                    context.sendResponse(toProtoEvent(event), promise: nil)
+                    context.sendResponse(toProtoLogRecord(event), promise: nil)
                 }
             }
             events = replay.0
@@ -980,7 +1015,7 @@ public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvid
         }
         var future = context.eventLoop.makeSucceededFuture(())
         for event in events where !event.isPrivate && matchEvent(event, wanted: wanted) {
-            future = future.flatMap { context.sendResponse(toProtoEvent(event)) }
+            future = future.flatMap { context.sendResponse(toProtoLogRecord(event)) }
         }
         guard request.follow else {
             return future.map { .ok }
@@ -994,7 +1029,7 @@ public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvid
             pendingLock.unlock()
             var flush = context.eventLoop.makeSucceededFuture(())
             for event in buffered {
-                flush = flush.flatMap { context.sendResponse(toProtoEvent(event)) }
+                flush = flush.flatMap { context.sendResponse(toProtoLogRecord(event)) }
             }
             return flush
         }
@@ -1004,33 +1039,6 @@ public final class HolonObservabilityService: Holons_V1_HolonObservabilityProvid
 
 public func registerObservabilityService(_ obs: Observability = current()) -> CallHandlerProvider {
     HolonObservabilityService(obs)
-}
-
-public func fromProtoLogEntry(_ proto: Holons_V1_LogEntry) -> LogEntry {
-    LogEntry(
-        timestamp: proto.ts.date,
-        level: Level(rawValue: Int32(proto.level.rawValue)) ?? .unset,
-        slug: proto.slug,
-        instanceUid: proto.instanceUid,
-        sessionId: proto.sessionID,
-        rpcMethod: proto.rpcMethod,
-        message: proto.message,
-        fields: proto.fields,
-        caller: proto.caller,
-        chain: proto.chain.map { Hop(slug: $0.slug, instanceUid: $0.instanceUid) }
-    )
-}
-
-public func fromProtoEvent(_ proto: Holons_V1_EventInfo) -> Event {
-    Event(
-        timestamp: proto.ts.date,
-        type: EventType(rawValue: Int32(proto.type.rawValue)) ?? .unspecified,
-        slug: proto.slug,
-        instanceUid: proto.instanceUid,
-        sessionId: proto.sessionID,
-        payload: proto.payload,
-        chain: proto.chain.map { Hop(slug: $0.slug, instanceUid: $0.instanceUid) }
-    )
 }
 
 private func prometheusText(_ obs: Observability) -> String {
@@ -1247,23 +1255,12 @@ public final class MemberRelay {
                 let identity = resolveIdentity(channel!)
                 let client = Holons_V1_HolonObservabilityClient(channel: channel!)
                 var request = Holons_V1_LogsRequest()
-                request.minLevel = .info
+                request.minSeverityNumber = .info
                 request.follow = true
                 let call = client.logs(request) { [weak self] proto in
                     guard let self = self else { return }
-                    var entry = fromProtoLogEntry(proto)
-                    entry = LogEntry(
-                        timestamp: entry.timestamp,
-                        level: entry.level,
-                        slug: entry.slug,
-                        instanceUid: entry.instanceUid,
-                        sessionId: entry.sessionId,
-                        rpcMethod: entry.rpcMethod,
-                        message: entry.message,
-                        fields: entry.fields,
-                        caller: entry.caller,
-                        chain: enrichForMultilog(entry.chain, streamSourceSlug: identity.slug, streamSourceUid: identity.instanceUid)
-                    )
+                    var entry = fromProtoLogRecord(proto)
+                    entry.record.chain = enrichForMultilog(entry.record.chain, streamSourceSlug: identity.slug, streamSourceUid: identity.instanceUid)
                     self.obs.logRing?.push(entry)
                 }
                 _ = try? call.status.wait()
@@ -1286,16 +1283,8 @@ public final class MemberRelay {
                 request.follow = true
                 let call = client.events(request) { [weak self] proto in
                     guard let self = self else { return }
-                    var event = fromProtoEvent(proto)
-                    event = Event(
-                        timestamp: event.timestamp,
-                        type: event.type,
-                        slug: event.slug,
-                        instanceUid: event.instanceUid,
-                        sessionId: event.sessionId,
-                        payload: event.payload,
-                        chain: enrichForMultilog(event.chain, streamSourceSlug: identity.slug, streamSourceUid: identity.instanceUid)
-                    )
+                    var event = fromProtoLogRecord(proto)
+                    event.record.chain = enrichForMultilog(event.record.chain, streamSourceSlug: identity.slug, streamSourceUid: identity.instanceUid)
                     self.obs.eventBus?.emit(event)
                 }
                 _ = try? call.status.wait()
@@ -1311,8 +1300,10 @@ public final class MemberRelay {
         let client = Holons_V1_HolonObservabilityClient(channel: channel)
         var selected: MemberIdentity?
         let call = client.events(Holons_V1_EventsRequest()) { [memberSlug] event in
-            guard event.type == .instanceReady, !event.instanceUid.isEmpty else { return }
-            let identity = MemberIdentity(slug: event.slug.isEmpty ? memberSlug : event.slug, instanceUid: event.instanceUid)
+            let uid = stringAttribute(event.attributes, key: AttrHolonsInstanceUID)
+            let slug = stringAttribute(event.attributes, key: AttrHolonsSlug)
+            guard event.eventName == EventInstanceReady, !uid.isEmpty else { return }
+            let identity = MemberIdentity(slug: slug.isEmpty ? memberSlug : slug, instanceUid: uid)
             if event.chain.isEmpty || selected == nil {
                 selected = identity
             }
@@ -1392,15 +1383,15 @@ private func durationSeconds(_ duration: Google_Protobuf_Duration) -> TimeInterv
     TimeInterval(duration.seconds) + TimeInterval(duration.nanos) / 1_000_000_000
 }
 
-private func matchLog(_ entry: LogEntry, minLevel: Int, sessionIds: [String], rpcMethods: [String]) -> Bool {
-    if Int(entry.level.rawValue) < minLevel { return false }
-    if !sessionIds.isEmpty && !sessionIds.contains(entry.sessionId) { return false }
-    if !rpcMethods.isEmpty && !rpcMethods.contains(entry.rpcMethod) { return false }
+private func matchLog(_ entry: LogRecord, minLevel: Int, sessionIds: [String], rpcMethods: [String]) -> Bool {
+    if entry.record.severityNumber.rawValue < minLevel { return false }
+    if !sessionIds.isEmpty && !sessionIds.contains(entry.attribute(AttrHolonsSessionID)) { return false }
+    if !rpcMethods.isEmpty && !rpcMethods.contains(entry.attribute(AttrRPCMethod)) { return false }
     return true
 }
 
-private func matchEvent(_ event: Event, wanted: Set<Int>) -> Bool {
-    wanted.isEmpty || wanted.contains(Int(event.type.rawValue))
+private func matchEvent(_ event: LogRecord, wanted: Set<String>) -> Bool {
+    wanted.isEmpty || wanted.contains(event.record.eventName)
 }
 
 // MARK: - Disk writers
@@ -1418,17 +1409,19 @@ public func enableDiskWriters(_ runDir: String) {
             var rec: [String: Any] = [
                 "kind": "log",
                 "ts": ISO8601DateFormatter().string(from: entry.timestamp),
-                "level": entry.level.name,
-                "slug": entry.slug,
-                "instance_uid": entry.instanceUid,
-                "message": entry.message,
+                "level": entry.record.severityText,
+                "slug": entry.attribute(AttrHolonsSlug),
+                "instance_uid": entry.attribute(AttrHolonsInstanceUID),
+                "message": entry.bodyString,
             ]
-            if !entry.sessionId.isEmpty { rec["session_id"] = entry.sessionId }
-            if !entry.rpcMethod.isEmpty { rec["rpc_method"] = entry.rpcMethod }
-            if !entry.fields.isEmpty { rec["fields"] = entry.fields }
-            if !entry.caller.isEmpty { rec["caller"] = entry.caller }
-            if !entry.chain.isEmpty {
-                rec["chain"] = entry.chain.map { ["slug": $0.slug, "instance_uid": $0.instanceUid] }
+            let sessionId = entry.attribute(AttrHolonsSessionID)
+            let rpcMethod = entry.attribute(AttrRPCMethod)
+            let caller = entry.attribute(AttrCodeCaller)
+            if !sessionId.isEmpty { rec["session_id"] = sessionId }
+            if !rpcMethod.isEmpty { rec["rpc_method"] = rpcMethod }
+            if !caller.isEmpty { rec["caller"] = caller }
+            if !entry.record.chain.isEmpty {
+                rec["chain"] = entry.record.chain
             }
             appendJSONL(fp, rec)
         }
@@ -1440,14 +1433,14 @@ public func enableDiskWriters(_ runDir: String) {
             var rec: [String: Any] = [
                 "kind": "event",
                 "ts": ISO8601DateFormatter().string(from: e.timestamp),
-                "type": e.type.protoName,
-                "slug": e.slug,
-                "instance_uid": e.instanceUid,
+                "event_name": e.record.eventName,
+                "slug": e.attribute(AttrHolonsSlug),
+                "instance_uid": e.attribute(AttrHolonsInstanceUID),
             ]
-            if !e.sessionId.isEmpty { rec["session_id"] = e.sessionId }
-            if !e.payload.isEmpty { rec["payload"] = e.payload }
-            if !e.chain.isEmpty {
-                rec["chain"] = e.chain.map { ["slug": $0.slug, "instance_uid": $0.instanceUid] }
+            let sessionId = e.attribute(AttrHolonsSessionID)
+            if !sessionId.isEmpty { rec["session_id"] = sessionId }
+            if !e.record.chain.isEmpty {
+                rec["chain"] = e.record.chain
             }
             appendJSONL(fp, rec)
         }

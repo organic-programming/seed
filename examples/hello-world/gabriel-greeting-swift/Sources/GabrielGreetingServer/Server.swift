@@ -25,8 +25,7 @@ public final class GreetingServiceProvider: Greeting_V1_GreetingServiceProvider 
         let start = DispatchTime.now().uptimeNanoseconds
         let response = GreetingAPI.sayHello(request)
         let durationNS = DispatchTime.now().uptimeNanoseconds &- start
-        // Swift Serve does not yet expose a handler-visible current transport.
-        let transport = "unknown"
+        let transport = CurrentTransport.value.isEmpty ? "unknown" : CurrentTransport.value
         let name = resolvedGreetingName(request: request, response: response)
 
         emitGreetingObservability(
@@ -92,12 +91,12 @@ private func emitGreetingObservability(
     let obs = current()
     let message = "Greeted \(name) in \(response.language) (\(response.langCode))"
     obs.logger("greeting").info(message, [
-        "lang_code": response.langCode,
-        "language": response.language,
-        "name": name,
-        "greeting": response.greeting,
-        "transport": transport,
-        "duration_ns": String(durationNS),
+        "lang_code": .string(response.langCode),
+        "language": .string(response.language),
+        "name": .string(name),
+        "greeting": .string(response.greeting),
+        "transport": .string(transport),
+        "duration_ns": .int64(Int64(clamping: durationNS)),
     ])
     obs.counter(
         "greeting_emitted_total",
@@ -115,6 +114,6 @@ public func listenAndServe(_ listenURI: String, reflect: Bool = false) throws {
     try Serve.runWithOptions(
         listenURI,
         serviceProviders: [GreetingServiceProvider()],
-        options: Serve.Options(reflect: reflect)
+        options: Serve.Options(reflect: reflect, slug: "gabriel-greeting-swift")
     )
 }

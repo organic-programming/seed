@@ -2,7 +2,7 @@ import Foundation
 import GRPC
 import NIOCore
 
-public typealias ChainHop = Hop
+public typealias ChainHop = String
 
 private struct RelayRuntimeError: Error, CustomStringConvertible {
     let description: String
@@ -16,8 +16,8 @@ public final class TransitiveObservabilityRelay: @unchecked Sendable {
     private let channel: GRPCChannel
     private let lock = NSLock()
     private var stopped = false
-    private var logCall: ServerStreamingCall<Holons_V1_LogsRequest, Holons_V1_LogEntry>?
-    private var eventCall: ServerStreamingCall<Holons_V1_EventsRequest, Holons_V1_EventInfo>?
+    private var logCall: ServerStreamingCall<Holons_V1_LogsRequest, Holons_V1_LogRecord>?
+    private var eventCall: ServerStreamingCall<Holons_V1_EventsRequest, Holons_V1_LogRecord>?
 
     public init(obs: Observability = current(), memberSlug: String, memberUid: String, channel: GRPCChannel) {
         self.obs = obs
@@ -54,23 +54,12 @@ public final class TransitiveObservabilityRelay: @unchecked Sendable {
         while !isStopped {
             let client = Holons_V1_HolonObservabilityClient(channel: channel)
             var request = Holons_V1_LogsRequest()
-            request.minLevel = .info
+            request.minSeverityNumber = .info
             request.follow = true
             let call = client.logs(request) { [weak self] proto in
                 guard let self = self else { return }
-                let received = fromProtoLogEntry(proto)
-                let relayed = LogEntry(
-                    timestamp: received.timestamp,
-                    level: received.level,
-                    slug: received.slug,
-                    instanceUid: received.instanceUid,
-                    sessionId: received.sessionId,
-                    rpcMethod: received.rpcMethod,
-                    message: received.message,
-                    fields: received.fields,
-                    caller: received.caller,
-                    chain: appendDirectChild(received.chain, childSlug: self.memberSlug, childUid: self.memberUid)
-                )
+                var relayed = fromProtoLogRecord(proto)
+                relayed.record.chain = appendDirectChild(relayed.record.chain, childSlug: self.memberSlug, childUid: self.memberUid)
                 self.obs.logRing?.push(relayed)
             }
             lock.lock()
@@ -88,16 +77,8 @@ public final class TransitiveObservabilityRelay: @unchecked Sendable {
             request.follow = true
             let call = client.events(request) { [weak self] proto in
                 guard let self = self else { return }
-                let received = fromProtoEvent(proto)
-                let relayed = Event(
-                    timestamp: received.timestamp,
-                    type: received.type,
-                    slug: received.slug,
-                    instanceUid: received.instanceUid,
-                    sessionId: received.sessionId,
-                    payload: received.payload,
-                    chain: appendDirectChild(received.chain, childSlug: self.memberSlug, childUid: self.memberUid)
-                )
+                var relayed = fromProtoLogRecord(proto)
+                relayed.record.chain = appendDirectChild(relayed.record.chain, childSlug: self.memberSlug, childUid: self.memberUid)
                 self.obs.eventBus?.emit(relayed)
             }
             lock.lock()
@@ -118,20 +99,24 @@ func resolveRelayIdentity(channel: GRPCChannel, fallbackSlug: String) -> RelayId
     let client = Holons_V1_HolonObservabilityClient(channel: channel)
     var selected: RelayIdentity?
     let call = client.events(Holons_V1_EventsRequest(), callOptions: timeoutOptions(1)) { event in
-        guard event.chain.isEmpty, !event.instanceUid.isEmpty else { return }
-        let slug = event.slug.isEmpty ? fallbackSlug : event.slug
+        let uid = stringAttribute(event.attributes, key: AttrHolonsInstanceUID)
+        let attrSlug = stringAttribute(event.attributes, key: AttrHolonsSlug)
+        guard event.chain.isEmpty, !uid.isEmpty else { return }
+        let slug = attrSlug.isEmpty ? fallbackSlug : attrSlug
         if !slug.isEmpty, selected == nil {
-            selected = RelayIdentity(slug: slug, uid: event.instanceUid)
+            selected = RelayIdentity(slug: slug, uid: uid)
         }
     }
     _ = try? call.status.wait()
     if let selected { return selected }
 
     let logCall = client.logs(Holons_V1_LogsRequest(), callOptions: timeoutOptions(1)) { entry in
-        guard entry.chain.isEmpty, !entry.instanceUid.isEmpty else { return }
-        let slug = entry.slug.isEmpty ? fallbackSlug : entry.slug
+        let uid = stringAttribute(entry.attributes, key: AttrHolonsInstanceUID)
+        let attrSlug = stringAttribute(entry.attributes, key: AttrHolonsSlug)
+        guard entry.chain.isEmpty, !uid.isEmpty else { return }
+        let slug = attrSlug.isEmpty ? fallbackSlug : attrSlug
         if !slug.isEmpty, selected == nil {
-            selected = RelayIdentity(slug: slug, uid: entry.instanceUid)
+            selected = RelayIdentity(slug: slug, uid: uid)
         }
     }
     _ = try? logCall.status.wait()
@@ -169,16 +154,16 @@ public struct LogCheckOptions {
 
 public struct EventCheckOptions {
     public var channel: GRPCChannel?
-    public var eventType: EventType
+    public var eventName: String
     public var leafUid: String
     public var expectedChain: [ChainHop]
     public var timeout: TimeInterval
     public var pollInterval: TimeInterval
 
-    public init(channel: GRPCChannel? = nil, eventType: EventType = .instanceReady, leafUid: String,
+    public init(channel: GRPCChannel? = nil, eventName: String = EventInstanceReady, leafUid: String,
                 expectedChain: [ChainHop], timeout: TimeInterval = 3, pollInterval: TimeInterval = 0.1) {
         self.channel = channel
-        self.eventType = eventType
+        self.eventName = eventName
         self.leafUid = leafUid
         self.expectedChain = expectedChain
         self.timeout = timeout
@@ -216,19 +201,19 @@ public func checkRelayedEvent(_ opts: EventCheckOptions) -> CheckOutcome {
     return last
 }
 
-private func readLogEntries(channel: GRPCChannel?) throws -> [LogEntry] {
+private func readLogEntries(channel: GRPCChannel?) throws -> [LogRecord] {
     guard let channel else {
         guard let ring = current().logRing else {
             throw RelayRuntimeError("logs family is not enabled")
         }
         return ring.drain()
     }
-    var entries: [LogEntry] = []
+    var entries: [LogRecord] = []
     let client = Holons_V1_HolonObservabilityClient(channel: channel)
     var request = Holons_V1_LogsRequest()
-    request.minLevel = .info
+    request.minSeverityNumber = .info
     let call = client.logs(request, callOptions: timeoutOptions(2)) { entry in
-        entries.append(fromProtoLogEntry(entry))
+        entries.append(fromProtoLogRecord(entry))
     }
     _ = try call.status.wait()
     return entries
@@ -244,20 +229,20 @@ private func readEventEntries(channel: GRPCChannel?) throws -> [Event] {
     var events: [Event] = []
     let client = Holons_V1_HolonObservabilityClient(channel: channel)
     let call = client.events(Holons_V1_EventsRequest(), callOptions: timeoutOptions(2)) { event in
-        events.append(fromProtoEvent(event))
+        events.append(fromProtoLogRecord(event))
     }
     _ = try call.status.wait()
     return events
 }
 
-private func matchRelayedLog(_ entries: [LogEntry], opts: LogCheckOptions) -> CheckOutcome {
+private func matchRelayedLog(_ entries: [LogRecord], opts: LogCheckOptions) -> CheckOutcome {
     for entry in entries {
-        guard entry.message == "tick received",
-              entry.fields["sender"] == opts.sender,
-              entry.fields["responder_uid"] == opts.leafUid else {
+        guard entry.bodyString == "tick received",
+              entry.attribute("sender") == opts.sender,
+              entry.attribute("responder_uid") == opts.leafUid else {
             continue
         }
-        if let evidence = compareChain(entry.chain, opts.expectedChain) {
+        if let evidence = compareChain(entry.record.chain, opts.expectedChain) {
             return CheckOutcome(evidence: compactCheckEvidence("matching log bad chain: \(evidence)"))
         }
         return CheckOutcome(pass: true)
@@ -267,15 +252,16 @@ private func matchRelayedLog(_ entries: [LogEntry], opts: LogCheckOptions) -> Ch
 
 private func matchRelayedEvent(_ events: [Event], opts: EventCheckOptions) -> CheckOutcome {
     for event in events {
-        guard event.type == opts.eventType, event.instanceUid == opts.leafUid else {
+        guard event.record.eventName == opts.eventName,
+              event.attribute(AttrHolonsInstanceUID) == opts.leafUid else {
             continue
         }
-        if let evidence = compareChain(event.chain, opts.expectedChain) {
+        if let evidence = compareChain(event.record.chain, opts.expectedChain) {
             return CheckOutcome(evidence: compactCheckEvidence("matching event bad chain: \(evidence)"))
         }
         return CheckOutcome(pass: true)
     }
-    return CheckOutcome(evidence: compactCheckEvidence("no relayed \(opts.eventType.protoName) event leaf_uid=\(opts.leafUid) events=\(events.count)"))
+    return CheckOutcome(evidence: compactCheckEvidence("no relayed \(opts.eventName) event leaf_uid=\(opts.leafUid) events=\(events.count)"))
 }
 
 private func compareChain(_ got: [ChainHop], _ want: [ChainHop]) -> String? {
@@ -283,8 +269,8 @@ private func compareChain(_ got: [ChainHop], _ want: [ChainHop]) -> String? {
         return "chain length \(got.count) want \(want.count)"
     }
     for idx in want.indices {
-        if got[idx].slug != want[idx].slug || got[idx].instanceUid != want[idx].instanceUid {
-            return "hop \(idx)=\(got[idx].slug)/\(got[idx].instanceUid) want \(want[idx].slug)/\(want[idx].instanceUid)"
+        if got[idx] != want[idx] {
+            return "hop \(idx)=\(got[idx]) want \(want[idx])"
         }
     }
     return nil
@@ -318,10 +304,10 @@ public final class CanonicalRelayServiceProvider: Relay_V1_RelayServiceProvider 
         obs.logger("tick").info(
             "tick received",
             [
-                "sender": request.sender,
-                "note": request.note,
-                "responder_slug": slug,
-                "responder_uid": uid,
+                "sender": .string(request.sender),
+                "note": .string(request.note),
+                "responder_slug": .string(slug),
+                "responder_uid": .string(uid),
             ]
         )
         obs.counter(
@@ -373,7 +359,7 @@ public final class CanonicalRelayServiceProvider: Relay_V1_RelayServiceProvider 
     private func responderSlug(_ obs: Observability) -> String {
         let slug = obs.cfg.slug.trimmingCharacters(in: .whitespacesAndNewlines)
         if !slug.isEmpty { return slug }
-        return URL(fileURLWithPath: CommandLine.arguments.first ?? "").lastPathComponent
+        return ""
     }
 }
 

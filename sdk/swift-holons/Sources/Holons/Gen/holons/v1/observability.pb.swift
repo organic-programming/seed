@@ -8,6 +8,11 @@
 // For information on using the generated types, please see the documentation:
 //   https://github.com/apple/swift-protobuf/
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 import SwiftProtobuf
 
 // If the compiler emits an error on this type, it is because this file
@@ -20,15 +25,16 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public enum Holons_V1_LogLevel: SwiftProtobuf.Enum, Swift.CaseIterable {
+/// Structurally mirrors opentelemetry.proto.logs.v1.SeverityNumber.
+public enum Holons_V1_SeverityNumber: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
   case trace // = 1
-  case debug // = 2
-  case info // = 3
-  case warn // = 4
-  case error // = 5
-  case fatal // = 6
+  case debug // = 5
+  case info // = 9
+  case warn // = 13
+  case error // = 17
+  case fatal // = 21
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -39,11 +45,11 @@ public enum Holons_V1_LogLevel: SwiftProtobuf.Enum, Swift.CaseIterable {
     switch rawValue {
     case 0: self = .unspecified
     case 1: self = .trace
-    case 2: self = .debug
-    case 3: self = .info
-    case 4: self = .warn
-    case 5: self = .error
-    case 6: self = .fatal
+    case 5: self = .debug
+    case 9: self = .info
+    case 13: self = .warn
+    case 17: self = .error
+    case 21: self = .fatal
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -52,17 +58,17 @@ public enum Holons_V1_LogLevel: SwiftProtobuf.Enum, Swift.CaseIterable {
     switch self {
     case .unspecified: return 0
     case .trace: return 1
-    case .debug: return 2
-    case .info: return 3
-    case .warn: return 4
-    case .error: return 5
-    case .fatal: return 6
+    case .debug: return 5
+    case .info: return 9
+    case .warn: return 13
+    case .error: return 17
+    case .fatal: return 21
     case .UNRECOGNIZED(let i): return i
     }
   }
 
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Holons_V1_LogLevel] = [
+  public static let allCases: [Holons_V1_SeverityNumber] = [
     .unspecified,
     .trace,
     .debug,
@@ -74,17 +80,11 @@ public enum Holons_V1_LogLevel: SwiftProtobuf.Enum, Swift.CaseIterable {
 
 }
 
-public enum Holons_V1_EventType: SwiftProtobuf.Enum, Swift.CaseIterable {
+public enum Holons_V1_AggregationTemporality: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unspecified // = 0
-  case instanceSpawned // = 1
-  case instanceReady // = 2
-  case instanceExited // = 3
-  case instanceCrashed // = 4
-  case sessionStarted // = 5
-  case sessionEnded // = 6
-  case handlerPanic // = 7
-  case configReloaded // = 8
+  case delta // = 1
+  case cumulative // = 2
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -94,14 +94,8 @@ public enum Holons_V1_EventType: SwiftProtobuf.Enum, Swift.CaseIterable {
   public init?(rawValue: Int) {
     switch rawValue {
     case 0: self = .unspecified
-    case 1: self = .instanceSpawned
-    case 2: self = .instanceReady
-    case 3: self = .instanceExited
-    case 4: self = .instanceCrashed
-    case 5: self = .sessionStarted
-    case 6: self = .sessionEnded
-    case 7: self = .handlerPanic
-    case 8: self = .configReloaded
+    case 1: self = .delta
+    case 2: self = .cumulative
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -109,29 +103,17 @@ public enum Holons_V1_EventType: SwiftProtobuf.Enum, Swift.CaseIterable {
   public var rawValue: Int {
     switch self {
     case .unspecified: return 0
-    case .instanceSpawned: return 1
-    case .instanceReady: return 2
-    case .instanceExited: return 3
-    case .instanceCrashed: return 4
-    case .sessionStarted: return 5
-    case .sessionEnded: return 6
-    case .handlerPanic: return 7
-    case .configReloaded: return 8
+    case .delta: return 1
+    case .cumulative: return 2
     case .UNRECOGNIZED(let i): return i
     }
   }
 
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Holons_V1_EventType] = [
+  public static let allCases: [Holons_V1_AggregationTemporality] = [
     .unspecified,
-    .instanceSpawned,
-    .instanceReady,
-    .instanceExited,
-    .instanceCrashed,
-    .sessionStarted,
-    .sessionEnded,
-    .handlerPanic,
-    .configReloaded,
+    .delta,
+    .cumulative,
   ]
 
 }
@@ -141,7 +123,7 @@ public struct Holons_V1_LogsRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var minLevel: Holons_V1_LogLevel = .unspecified
+  public var minSeverityNumber: Holons_V1_SeverityNumber = .unspecified
 
   public var sessionIds: [String] = []
 
@@ -165,196 +147,12 @@ public struct Holons_V1_LogsRequest: Sendable {
   fileprivate var _since: SwiftProtobuf.Google_Protobuf_Duration? = nil
 }
 
-public struct Holons_V1_LogEntry: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var ts: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_ts = newValue}
-  }
-  /// Returns true if `ts` has been explicitly set.
-  public var hasTs: Bool {self._ts != nil}
-  /// Clears the value of `ts`. Subsequent reads from it will return its default value.
-  public mutating func clearTs() {self._ts = nil}
-
-  public var level: Holons_V1_LogLevel = .unspecified
-
-  public var slug: String = String()
-
-  public var instanceUid: String = String()
-
-  public var sessionID: String = String()
-
-  public var rpcMethod: String = String()
-
-  public var message: String = String()
-
-  public var fields: Dictionary<String,String> = [:]
-
-  public var caller: String = String()
-
-  /// Relay path: ordered hops from the originator up through each
-  /// relay before arriving on the stream being read. Empty when the
-  /// entry was emitted by the holon whose stream the reader is
-  /// consuming. See OBSERVABILITY.md §Organism Relay.
-  public var chain: [Holons_V1_ChainHop] = []
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-
-  fileprivate var _ts: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
-}
-
-public struct Holons_V1_ChainHop: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var slug: String = String()
-
-  public var instanceUid: String = String()
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
 public struct Holons_V1_MetricsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   public var namePrefixes: [String] = []
-
-  public var includeSessionRollup: Bool = false
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-public struct Holons_V1_MetricsSnapshot: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var capturedAt: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_capturedAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_capturedAt = newValue}
-  }
-  /// Returns true if `capturedAt` has been explicitly set.
-  public var hasCapturedAt: Bool {self._capturedAt != nil}
-  /// Clears the value of `capturedAt`. Subsequent reads from it will return its default value.
-  public mutating func clearCapturedAt() {self._capturedAt = nil}
-
-  public var slug: String = String()
-
-  public var instanceUid: String = String()
-
-  public var samples: [Holons_V1_MetricSample] = []
-
-  /// Reserved for v2; always empty in v1.
-  public var sessionRollup: Holons_V1_SessionMetrics {
-    get {_sessionRollup ?? Holons_V1_SessionMetrics()}
-    set {_sessionRollup = newValue}
-  }
-  /// Returns true if `sessionRollup` has been explicitly set.
-  public var hasSessionRollup: Bool {self._sessionRollup != nil}
-  /// Clears the value of `sessionRollup`. Subsequent reads from it will return its default value.
-  public mutating func clearSessionRollup() {self._sessionRollup = nil}
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-
-  fileprivate var _capturedAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
-  fileprivate var _sessionRollup: Holons_V1_SessionMetrics? = nil
-}
-
-public struct Holons_V1_MetricSample: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var name: String = String()
-
-  public var labels: Dictionary<String,String> = [:]
-
-  public var value: Holons_V1_MetricSample.OneOf_Value? = nil
-
-  public var counter: Int64 {
-    get {
-      if case .counter(let v)? = value {return v}
-      return 0
-    }
-    set {value = .counter(newValue)}
-  }
-
-  public var gauge: Double {
-    get {
-      if case .gauge(let v)? = value {return v}
-      return 0
-    }
-    set {value = .gauge(newValue)}
-  }
-
-  public var histogram: Holons_V1_HistogramSample {
-    get {
-      if case .histogram(let v)? = value {return v}
-      return Holons_V1_HistogramSample()
-    }
-    set {value = .histogram(newValue)}
-  }
-
-  public var help: String = String()
-
-  /// Relay path (see LogEntry.chain). Typically empty for metrics:
-  /// the caller asks `child.Metrics()` directly on each direct child,
-  /// so the stream identifies the source. Populated only when a holon
-  /// folds a direct child's cached samples into its own snapshot.
-  public var chain: [Holons_V1_ChainHop] = []
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public enum OneOf_Value: Equatable, Sendable {
-    case counter(Int64)
-    case gauge(Double)
-    case histogram(Holons_V1_HistogramSample)
-
-  }
-
-  public init() {}
-}
-
-public struct Holons_V1_HistogramSample: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Cumulative buckets — bucket.count includes all samples
-  /// where value <= bucket.upper_bound. Prometheus semantics.
-  public var buckets: [Holons_V1_Bucket] = []
-
-  public var count: Int64 = 0
-
-  public var sum: Double = 0
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-public struct Holons_V1_Bucket: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var upperBound: Double = 0
-
-  public var count: Int64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -366,7 +164,7 @@ public struct Holons_V1_EventsRequest: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var types: [Holons_V1_EventType] = []
+  public var eventNames: [String] = []
 
   public var since: SwiftProtobuf.Google_Protobuf_Duration {
     get {_since ?? SwiftProtobuf.Google_Protobuf_Duration()}
@@ -386,55 +184,317 @@ public struct Holons_V1_EventsRequest: Sendable {
   fileprivate var _since: SwiftProtobuf.Google_Protobuf_Duration? = nil
 }
 
-public struct Holons_V1_EventInfo: Sendable {
+/// Structurally mirrors opentelemetry.proto.common.v1.AnyValue.
+public struct Holons_V1_AnyValue: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var ts: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {_ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_ts = newValue}
+  public var value: Holons_V1_AnyValue.OneOf_Value? = nil
+
+  public var stringValue: String {
+    get {
+      if case .stringValue(let v)? = value {return v}
+      return String()
+    }
+    set {value = .stringValue(newValue)}
   }
-  /// Returns true if `ts` has been explicitly set.
-  public var hasTs: Bool {self._ts != nil}
-  /// Clears the value of `ts`. Subsequent reads from it will return its default value.
-  public mutating func clearTs() {self._ts = nil}
 
-  public var type: Holons_V1_EventType = .unspecified
+  public var boolValue: Bool {
+    get {
+      if case .boolValue(let v)? = value {return v}
+      return false
+    }
+    set {value = .boolValue(newValue)}
+  }
 
-  public var slug: String = String()
+  public var intValue: Int64 {
+    get {
+      if case .intValue(let v)? = value {return v}
+      return 0
+    }
+    set {value = .intValue(newValue)}
+  }
 
-  public var instanceUid: String = String()
+  public var doubleValue: Double {
+    get {
+      if case .doubleValue(let v)? = value {return v}
+      return 0
+    }
+    set {value = .doubleValue(newValue)}
+  }
 
-  public var sessionID: String = String()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public var payload: Dictionary<String,String> = [:]
+  public enum OneOf_Value: Equatable, Sendable {
+    case stringValue(String)
+    case boolValue(Bool)
+    case intValue(Int64)
+    case doubleValue(Double)
 
-  /// Relay path (see LogEntry.chain, same semantics).
-  public var chain: [Holons_V1_ChainHop] = []
+  }
+
+  public init() {}
+}
+
+/// Structurally mirrors opentelemetry.proto.common.v1.KeyValue.
+public struct Holons_V1_KeyValue: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var key: String = String()
+
+  public var value: Holons_V1_AnyValue {
+    get {_value ?? Holons_V1_AnyValue()}
+    set {_value = newValue}
+  }
+  /// Returns true if `value` has been explicitly set.
+  public var hasValue: Bool {self._value != nil}
+  /// Clears the value of `value`. Subsequent reads from it will return its default value.
+  public mutating func clearValue() {self._value = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _ts: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _value: Holons_V1_AnyValue? = nil
+}
+
+/// Structurally mirrors opentelemetry.proto.resource.v1.Resource.
+public struct Holons_V1_Resource: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var attributes: [Holons_V1_KeyValue] = []
+
+  public var droppedAttributesCount: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Structurally mirrors opentelemetry.proto.logs.v1.LogRecord.
+public struct Holons_V1_LogRecord: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var timeUnixNano: UInt64 = 0
+
+  public var severityNumber: Holons_V1_SeverityNumber = .unspecified
+
+  public var severityText: String = String()
+
+  public var body: Holons_V1_AnyValue {
+    get {_body ?? Holons_V1_AnyValue()}
+    set {_body = newValue}
+  }
+  /// Returns true if `body` has been explicitly set.
+  public var hasBody: Bool {self._body != nil}
+  /// Clears the value of `body`. Subsequent reads from it will return its default value.
+  public mutating func clearBody() {self._body = nil}
+
+  public var attributes: [Holons_V1_KeyValue] = []
+
+  public var droppedAttributesCount: UInt32 = 0
+
+  public var flags: UInt32 = 0
+
+  public var traceID: Data = Data()
+
+  public var spanID: Data = Data()
+
+  public var observedTimeUnixNano: UInt64 = 0
+
+  public var eventName: String = String()
+
+  public var chain: [String] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _body: Holons_V1_AnyValue? = nil
+}
+
+/// Structurally mirrors opentelemetry.proto.metrics.v1.Metric.
+public struct Holons_V1_Metric: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var name: String = String()
+
+  public var description_p: String = String()
+
+  public var unit: String = String()
+
+  public var data: Holons_V1_Metric.OneOf_Data? = nil
+
+  public var gauge: Holons_V1_Gauge {
+    get {
+      if case .gauge(let v)? = data {return v}
+      return Holons_V1_Gauge()
+    }
+    set {data = .gauge(newValue)}
+  }
+
+  public var sum: Holons_V1_Sum {
+    get {
+      if case .sum(let v)? = data {return v}
+      return Holons_V1_Sum()
+    }
+    set {data = .sum(newValue)}
+  }
+
+  public var histogram: Holons_V1_Histogram {
+    get {
+      if case .histogram(let v)? = data {return v}
+      return Holons_V1_Histogram()
+    }
+    set {data = .histogram(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Data: Equatable, Sendable {
+    case gauge(Holons_V1_Gauge)
+    case sum(Holons_V1_Sum)
+    case histogram(Holons_V1_Histogram)
+
+  }
+
+  public init() {}
+}
+
+public struct Holons_V1_Gauge: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var dataPoints: [Holons_V1_NumberDataPoint] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Holons_V1_Sum: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var dataPoints: [Holons_V1_NumberDataPoint] = []
+
+  public var aggregationTemporality: Holons_V1_AggregationTemporality = .unspecified
+
+  public var isMonotonic: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Holons_V1_Histogram: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var dataPoints: [Holons_V1_HistogramDataPoint] = []
+
+  public var aggregationTemporality: Holons_V1_AggregationTemporality = .unspecified
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Holons_V1_NumberDataPoint: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var startTimeUnixNano: UInt64 = 0
+
+  public var timeUnixNano: UInt64 = 0
+
+  public var value: Holons_V1_NumberDataPoint.OneOf_Value? = nil
+
+  public var asDouble: Double {
+    get {
+      if case .asDouble(let v)? = value {return v}
+      return 0
+    }
+    set {value = .asDouble(newValue)}
+  }
+
+  public var asInt: Int64 {
+    get {
+      if case .asInt(let v)? = value {return v}
+      return 0
+    }
+    set {value = .asInt(newValue)}
+  }
+
+  public var attributes: [Holons_V1_KeyValue] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Value: Equatable, Sendable {
+    case asDouble(Double)
+    case asInt(Int64)
+
+  }
+
+  public init() {}
+}
+
+public struct Holons_V1_HistogramDataPoint: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var startTimeUnixNano: UInt64 = 0
+
+  public var timeUnixNano: UInt64 = 0
+
+  public var count: UInt64 = 0
+
+  public var sum: Double = 0
+
+  public var bucketCounts: [UInt64] = []
+
+  public var explicitBounds: [Double] = []
+
+  public var attributes: [Holons_V1_KeyValue] = []
+
+  public var min: Double = 0
+
+  public var max: Double = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "holons.v1"
 
-extension Holons_V1_LogLevel: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0LOG_LEVEL_UNSPECIFIED\0\u{1}TRACE\0\u{1}DEBUG\0\u{1}INFO\0\u{1}WARN\0\u{1}ERROR\0\u{1}FATAL\0")
+extension Holons_V1_SeverityNumber: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0SEVERITY_NUMBER_UNSPECIFIED\0\u{1}SEVERITY_NUMBER_TRACE\0\u{2}\u{4}SEVERITY_NUMBER_DEBUG\0\u{2}\u{4}SEVERITY_NUMBER_INFO\0\u{2}\u{4}SEVERITY_NUMBER_WARN\0\u{2}\u{4}SEVERITY_NUMBER_ERROR\0\u{2}\u{4}SEVERITY_NUMBER_FATAL\0")
 }
 
-extension Holons_V1_EventType: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0EVENT_TYPE_UNSPECIFIED\0\u{1}INSTANCE_SPAWNED\0\u{1}INSTANCE_READY\0\u{1}INSTANCE_EXITED\0\u{1}INSTANCE_CRASHED\0\u{1}SESSION_STARTED\0\u{1}SESSION_ENDED\0\u{1}HANDLER_PANIC\0\u{1}CONFIG_RELOADED\0")
+extension Holons_V1_AggregationTemporality: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0AGGREGATION_TEMPORALITY_UNSPECIFIED\0\u{1}AGGREGATION_TEMPORALITY_DELTA\0\u{1}AGGREGATION_TEMPORALITY_CUMULATIVE\0")
 }
 
 extension Holons_V1_LogsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LogsRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}min_level\0\u{3}session_ids\0\u{3}rpc_methods\0\u{1}since\0\u{1}follow\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}min_severity_number\0\u{3}session_ids\0\u{3}rpc_methods\0\u{1}since\0\u{1}follow\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -442,7 +502,7 @@ extension Holons_V1_LogsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularEnumField(value: &self.minLevel) }()
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.minSeverityNumber) }()
       case 2: try { try decoder.decodeRepeatedStringField(value: &self.sessionIds) }()
       case 3: try { try decoder.decodeRepeatedStringField(value: &self.rpcMethods) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._since) }()
@@ -457,8 +517,8 @@ extension Holons_V1_LogsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    if self.minLevel != .unspecified {
-      try visitor.visitSingularEnumField(value: self.minLevel, fieldNumber: 1)
+    if self.minSeverityNumber != .unspecified {
+      try visitor.visitSingularEnumField(value: self.minSeverityNumber, fieldNumber: 1)
     }
     if !self.sessionIds.isEmpty {
       try visitor.visitRepeatedStringField(value: self.sessionIds, fieldNumber: 2)
@@ -476,7 +536,7 @@ extension Holons_V1_LogsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 
   public static func ==(lhs: Holons_V1_LogsRequest, rhs: Holons_V1_LogsRequest) -> Bool {
-    if lhs.minLevel != rhs.minLevel {return false}
+    if lhs.minSeverityNumber != rhs.minSeverityNumber {return false}
     if lhs.sessionIds != rhs.sessionIds {return false}
     if lhs.rpcMethods != rhs.rpcMethods {return false}
     if lhs._since != rhs._since {return false}
@@ -486,123 +546,9 @@ extension Holons_V1_LogsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 }
 
-extension Holons_V1_LogEntry: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".LogEntry"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ts\0\u{1}level\0\u{1}slug\0\u{3}instance_uid\0\u{3}session_id\0\u{3}rpc_method\0\u{1}message\0\u{1}fields\0\u{1}caller\0\u{1}chain\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._ts) }()
-      case 2: try { try decoder.decodeSingularEnumField(value: &self.level) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.slug) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.instanceUid) }()
-      case 5: try { try decoder.decodeSingularStringField(value: &self.sessionID) }()
-      case 6: try { try decoder.decodeSingularStringField(value: &self.rpcMethod) }()
-      case 7: try { try decoder.decodeSingularStringField(value: &self.message) }()
-      case 8: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &self.fields) }()
-      case 9: try { try decoder.decodeSingularStringField(value: &self.caller) }()
-      case 10: try { try decoder.decodeRepeatedMessageField(value: &self.chain) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._ts {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    if self.level != .unspecified {
-      try visitor.visitSingularEnumField(value: self.level, fieldNumber: 2)
-    }
-    if !self.slug.isEmpty {
-      try visitor.visitSingularStringField(value: self.slug, fieldNumber: 3)
-    }
-    if !self.instanceUid.isEmpty {
-      try visitor.visitSingularStringField(value: self.instanceUid, fieldNumber: 4)
-    }
-    if !self.sessionID.isEmpty {
-      try visitor.visitSingularStringField(value: self.sessionID, fieldNumber: 5)
-    }
-    if !self.rpcMethod.isEmpty {
-      try visitor.visitSingularStringField(value: self.rpcMethod, fieldNumber: 6)
-    }
-    if !self.message.isEmpty {
-      try visitor.visitSingularStringField(value: self.message, fieldNumber: 7)
-    }
-    if !self.fields.isEmpty {
-      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: self.fields, fieldNumber: 8)
-    }
-    if !self.caller.isEmpty {
-      try visitor.visitSingularStringField(value: self.caller, fieldNumber: 9)
-    }
-    if !self.chain.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.chain, fieldNumber: 10)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Holons_V1_LogEntry, rhs: Holons_V1_LogEntry) -> Bool {
-    if lhs._ts != rhs._ts {return false}
-    if lhs.level != rhs.level {return false}
-    if lhs.slug != rhs.slug {return false}
-    if lhs.instanceUid != rhs.instanceUid {return false}
-    if lhs.sessionID != rhs.sessionID {return false}
-    if lhs.rpcMethod != rhs.rpcMethod {return false}
-    if lhs.message != rhs.message {return false}
-    if lhs.fields != rhs.fields {return false}
-    if lhs.caller != rhs.caller {return false}
-    if lhs.chain != rhs.chain {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Holons_V1_ChainHop: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ChainHop"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}slug\0\u{3}instance_uid\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.slug) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.instanceUid) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.slug.isEmpty {
-      try visitor.visitSingularStringField(value: self.slug, fieldNumber: 1)
-    }
-    if !self.instanceUid.isEmpty {
-      try visitor.visitSingularStringField(value: self.instanceUid, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Holons_V1_ChainHop, rhs: Holons_V1_ChainHop) -> Bool {
-    if lhs.slug != rhs.slug {return false}
-    if lhs.instanceUid != rhs.instanceUid {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
 extension Holons_V1_MetricsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MetricsRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}name_prefixes\0\u{3}include_session_rollup\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}name_prefixes\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -611,7 +557,6 @@ extension Holons_V1_MetricsRequest: SwiftProtobuf.Message, SwiftProtobuf._Messag
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeRepeatedStringField(value: &self.namePrefixes) }()
-      case 2: try { try decoder.decodeSingularBoolField(value: &self.includeSessionRollup) }()
       default: break
       }
     }
@@ -621,23 +566,19 @@ extension Holons_V1_MetricsRequest: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if !self.namePrefixes.isEmpty {
       try visitor.visitRepeatedStringField(value: self.namePrefixes, fieldNumber: 1)
     }
-    if self.includeSessionRollup != false {
-      try visitor.visitSingularBoolField(value: self.includeSessionRollup, fieldNumber: 2)
-    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Holons_V1_MetricsRequest, rhs: Holons_V1_MetricsRequest) -> Bool {
     if lhs.namePrefixes != rhs.namePrefixes {return false}
-    if lhs.includeSessionRollup != rhs.includeSessionRollup {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Holons_V1_MetricsSnapshot: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".MetricsSnapshot"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}captured_at\0\u{1}slug\0\u{3}instance_uid\0\u{1}samples\0\u{3}session_rollup\0")
+extension Holons_V1_EventsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".EventsRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}event_names\0\u{1}since\0\u{1}follow\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -645,11 +586,9 @@ extension Holons_V1_MetricsSnapshot: SwiftProtobuf.Message, SwiftProtobuf._Messa
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._capturedAt) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.slug) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.instanceUid) }()
-      case 4: try { try decoder.decodeRepeatedMessageField(value: &self.samples) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._sessionRollup) }()
+      case 1: try { try decoder.decodeRepeatedStringField(value: &self.eventNames) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._since) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.follow) }()
       default: break
       }
     }
@@ -660,38 +599,274 @@ extension Holons_V1_MetricsSnapshot: SwiftProtobuf.Message, SwiftProtobuf._Messa
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._capturedAt {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    if !self.eventNames.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.eventNames, fieldNumber: 1)
+    }
+    try { if let v = self._since {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
-    if !self.slug.isEmpty {
-      try visitor.visitSingularStringField(value: self.slug, fieldNumber: 2)
+    if self.follow != false {
+      try visitor.visitSingularBoolField(value: self.follow, fieldNumber: 3)
     }
-    if !self.instanceUid.isEmpty {
-      try visitor.visitSingularStringField(value: self.instanceUid, fieldNumber: 3)
-    }
-    if !self.samples.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.samples, fieldNumber: 4)
-    }
-    try { if let v = self._sessionRollup {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Holons_V1_MetricsSnapshot, rhs: Holons_V1_MetricsSnapshot) -> Bool {
-    if lhs._capturedAt != rhs._capturedAt {return false}
-    if lhs.slug != rhs.slug {return false}
-    if lhs.instanceUid != rhs.instanceUid {return false}
-    if lhs.samples != rhs.samples {return false}
-    if lhs._sessionRollup != rhs._sessionRollup {return false}
+  public static func ==(lhs: Holons_V1_EventsRequest, rhs: Holons_V1_EventsRequest) -> Bool {
+    if lhs.eventNames != rhs.eventNames {return false}
+    if lhs._since != rhs._since {return false}
+    if lhs.follow != rhs.follow {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Holons_V1_MetricSample: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".MetricSample"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}labels\0\u{1}counter\0\u{1}gauge\0\u{1}histogram\0\u{1}help\0\u{1}chain\0")
+extension Holons_V1_AnyValue: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".AnyValue"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}string_value\0\u{3}bool_value\0\u{3}int_value\0\u{3}double_value\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: String?
+        try decoder.decodeSingularStringField(value: &v)
+        if let v = v {
+          if self.value != nil {try decoder.handleConflictingOneOf()}
+          self.value = .stringValue(v)
+        }
+      }()
+      case 2: try {
+        var v: Bool?
+        try decoder.decodeSingularBoolField(value: &v)
+        if let v = v {
+          if self.value != nil {try decoder.handleConflictingOneOf()}
+          self.value = .boolValue(v)
+        }
+      }()
+      case 3: try {
+        var v: Int64?
+        try decoder.decodeSingularInt64Field(value: &v)
+        if let v = v {
+          if self.value != nil {try decoder.handleConflictingOneOf()}
+          self.value = .intValue(v)
+        }
+      }()
+      case 4: try {
+        var v: Double?
+        try decoder.decodeSingularDoubleField(value: &v)
+        if let v = v {
+          if self.value != nil {try decoder.handleConflictingOneOf()}
+          self.value = .doubleValue(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.value {
+    case .stringValue?: try {
+      guard case .stringValue(let v)? = self.value else { preconditionFailure() }
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    }()
+    case .boolValue?: try {
+      guard case .boolValue(let v)? = self.value else { preconditionFailure() }
+      try visitor.visitSingularBoolField(value: v, fieldNumber: 2)
+    }()
+    case .intValue?: try {
+      guard case .intValue(let v)? = self.value else { preconditionFailure() }
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 3)
+    }()
+    case .doubleValue?: try {
+      guard case .doubleValue(let v)? = self.value else { preconditionFailure() }
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 4)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Holons_V1_AnyValue, rhs: Holons_V1_AnyValue) -> Bool {
+    if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Holons_V1_KeyValue: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".KeyValue"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}key\0\u{1}value\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.key) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._value) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.key.isEmpty {
+      try visitor.visitSingularStringField(value: self.key, fieldNumber: 1)
+    }
+    try { if let v = self._value {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Holons_V1_KeyValue, rhs: Holons_V1_KeyValue) -> Bool {
+    if lhs.key != rhs.key {return false}
+    if lhs._value != rhs._value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Holons_V1_Resource: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Resource"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}attributes\0\u{3}dropped_attributes_count\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.attributes) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.droppedAttributesCount) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.attributes.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.attributes, fieldNumber: 1)
+    }
+    if self.droppedAttributesCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.droppedAttributesCount, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Holons_V1_Resource, rhs: Holons_V1_Resource) -> Bool {
+    if lhs.attributes != rhs.attributes {return false}
+    if lhs.droppedAttributesCount != rhs.droppedAttributesCount {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Holons_V1_LogRecord: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LogRecord"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}time_unix_nano\0\u{3}severity_number\0\u{3}severity_text\0\u{2}\u{2}body\0\u{1}attributes\0\u{3}dropped_attributes_count\0\u{1}flags\0\u{3}trace_id\0\u{3}span_id\0\u{3}observed_time_unix_nano\0\u{4}\u{9}event_name\0\u{1}chain\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularFixed64Field(value: &self.timeUnixNano) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.severityNumber) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.severityText) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._body) }()
+      case 6: try { try decoder.decodeRepeatedMessageField(value: &self.attributes) }()
+      case 7: try { try decoder.decodeSingularUInt32Field(value: &self.droppedAttributesCount) }()
+      case 8: try { try decoder.decodeSingularUInt32Field(value: &self.flags) }()
+      case 9: try { try decoder.decodeSingularBytesField(value: &self.traceID) }()
+      case 10: try { try decoder.decodeSingularBytesField(value: &self.spanID) }()
+      case 11: try { try decoder.decodeSingularFixed64Field(value: &self.observedTimeUnixNano) }()
+      case 20: try { try decoder.decodeSingularStringField(value: &self.eventName) }()
+      case 21: try { try decoder.decodeRepeatedStringField(value: &self.chain) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.timeUnixNano != 0 {
+      try visitor.visitSingularFixed64Field(value: self.timeUnixNano, fieldNumber: 1)
+    }
+    if self.severityNumber != .unspecified {
+      try visitor.visitSingularEnumField(value: self.severityNumber, fieldNumber: 2)
+    }
+    if !self.severityText.isEmpty {
+      try visitor.visitSingularStringField(value: self.severityText, fieldNumber: 3)
+    }
+    try { if let v = self._body {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
+    if !self.attributes.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.attributes, fieldNumber: 6)
+    }
+    if self.droppedAttributesCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.droppedAttributesCount, fieldNumber: 7)
+    }
+    if self.flags != 0 {
+      try visitor.visitSingularUInt32Field(value: self.flags, fieldNumber: 8)
+    }
+    if !self.traceID.isEmpty {
+      try visitor.visitSingularBytesField(value: self.traceID, fieldNumber: 9)
+    }
+    if !self.spanID.isEmpty {
+      try visitor.visitSingularBytesField(value: self.spanID, fieldNumber: 10)
+    }
+    if self.observedTimeUnixNano != 0 {
+      try visitor.visitSingularFixed64Field(value: self.observedTimeUnixNano, fieldNumber: 11)
+    }
+    if !self.eventName.isEmpty {
+      try visitor.visitSingularStringField(value: self.eventName, fieldNumber: 20)
+    }
+    if !self.chain.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.chain, fieldNumber: 21)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Holons_V1_LogRecord, rhs: Holons_V1_LogRecord) -> Bool {
+    if lhs.timeUnixNano != rhs.timeUnixNano {return false}
+    if lhs.severityNumber != rhs.severityNumber {return false}
+    if lhs.severityText != rhs.severityText {return false}
+    if lhs._body != rhs._body {return false}
+    if lhs.attributes != rhs.attributes {return false}
+    if lhs.droppedAttributesCount != rhs.droppedAttributesCount {return false}
+    if lhs.flags != rhs.flags {return false}
+    if lhs.traceID != rhs.traceID {return false}
+    if lhs.spanID != rhs.spanID {return false}
+    if lhs.observedTimeUnixNano != rhs.observedTimeUnixNano {return false}
+    if lhs.eventName != rhs.eventName {return false}
+    if lhs.chain != rhs.chain {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Holons_V1_Metric: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Metric"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{1}description\0\u{1}unit\0\u{2}\u{2}gauge\0\u{2}\u{2}sum\0\u{2}\u{2}histogram\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -700,38 +875,47 @@ extension Holons_V1_MetricSample: SwiftProtobuf.Message, SwiftProtobuf._MessageI
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.name) }()
-      case 2: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &self.labels) }()
-      case 3: try {
-        var v: Int64?
-        try decoder.decodeSingularInt64Field(value: &v)
-        if let v = v {
-          if self.value != nil {try decoder.handleConflictingOneOf()}
-          self.value = .counter(v)
-        }
-      }()
-      case 4: try {
-        var v: Double?
-        try decoder.decodeSingularDoubleField(value: &v)
-        if let v = v {
-          if self.value != nil {try decoder.handleConflictingOneOf()}
-          self.value = .gauge(v)
-        }
-      }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.description_p) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.unit) }()
       case 5: try {
-        var v: Holons_V1_HistogramSample?
+        var v: Holons_V1_Gauge?
         var hadOneofValue = false
-        if let current = self.value {
+        if let current = self.data {
+          hadOneofValue = true
+          if case .gauge(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.data = .gauge(v)
+        }
+      }()
+      case 7: try {
+        var v: Holons_V1_Sum?
+        var hadOneofValue = false
+        if let current = self.data {
+          hadOneofValue = true
+          if case .sum(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.data = .sum(v)
+        }
+      }()
+      case 9: try {
+        var v: Holons_V1_Histogram?
+        var hadOneofValue = false
+        if let current = self.data {
           hadOneofValue = true
           if case .histogram(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.value = .histogram(v)
+          self.data = .histogram(v)
         }
       }()
-      case 6: try { try decoder.decodeSingularStringField(value: &self.help) }()
-      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.chain) }()
       default: break
       }
     }
@@ -745,47 +929,43 @@ extension Holons_V1_MetricSample: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     if !self.name.isEmpty {
       try visitor.visitSingularStringField(value: self.name, fieldNumber: 1)
     }
-    if !self.labels.isEmpty {
-      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: self.labels, fieldNumber: 2)
+    if !self.description_p.isEmpty {
+      try visitor.visitSingularStringField(value: self.description_p, fieldNumber: 2)
     }
-    switch self.value {
-    case .counter?: try {
-      guard case .counter(let v)? = self.value else { preconditionFailure() }
-      try visitor.visitSingularInt64Field(value: v, fieldNumber: 3)
-    }()
+    if !self.unit.isEmpty {
+      try visitor.visitSingularStringField(value: self.unit, fieldNumber: 3)
+    }
+    switch self.data {
     case .gauge?: try {
-      guard case .gauge(let v)? = self.value else { preconditionFailure() }
-      try visitor.visitSingularDoubleField(value: v, fieldNumber: 4)
+      guard case .gauge(let v)? = self.data else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case .sum?: try {
+      guard case .sum(let v)? = self.data else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
     }()
     case .histogram?: try {
-      guard case .histogram(let v)? = self.value else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      guard case .histogram(let v)? = self.data else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
     }()
     case nil: break
     }
-    if !self.help.isEmpty {
-      try visitor.visitSingularStringField(value: self.help, fieldNumber: 6)
-    }
-    if !self.chain.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.chain, fieldNumber: 7)
-    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Holons_V1_MetricSample, rhs: Holons_V1_MetricSample) -> Bool {
+  public static func ==(lhs: Holons_V1_Metric, rhs: Holons_V1_Metric) -> Bool {
     if lhs.name != rhs.name {return false}
-    if lhs.labels != rhs.labels {return false}
-    if lhs.value != rhs.value {return false}
-    if lhs.help != rhs.help {return false}
-    if lhs.chain != rhs.chain {return false}
+    if lhs.description_p != rhs.description_p {return false}
+    if lhs.unit != rhs.unit {return false}
+    if lhs.data != rhs.data {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Holons_V1_HistogramSample: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".HistogramSample"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}buckets\0\u{1}count\0\u{1}sum\0")
+extension Holons_V1_Gauge: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Gauge"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}data_points\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -793,174 +973,238 @@ extension Holons_V1_HistogramSample: SwiftProtobuf.Message, SwiftProtobuf._Messa
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.buckets) }()
-      case 2: try { try decoder.decodeSingularInt64Field(value: &self.count) }()
-      case 3: try { try decoder.decodeSingularDoubleField(value: &self.sum) }()
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.dataPoints) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.buckets.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.buckets, fieldNumber: 1)
+    if !self.dataPoints.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.dataPoints, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Holons_V1_Gauge, rhs: Holons_V1_Gauge) -> Bool {
+    if lhs.dataPoints != rhs.dataPoints {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Holons_V1_Sum: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Sum"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}data_points\0\u{3}aggregation_temporality\0\u{3}is_monotonic\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.dataPoints) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.aggregationTemporality) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.isMonotonic) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.dataPoints.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.dataPoints, fieldNumber: 1)
+    }
+    if self.aggregationTemporality != .unspecified {
+      try visitor.visitSingularEnumField(value: self.aggregationTemporality, fieldNumber: 2)
+    }
+    if self.isMonotonic != false {
+      try visitor.visitSingularBoolField(value: self.isMonotonic, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Holons_V1_Sum, rhs: Holons_V1_Sum) -> Bool {
+    if lhs.dataPoints != rhs.dataPoints {return false}
+    if lhs.aggregationTemporality != rhs.aggregationTemporality {return false}
+    if lhs.isMonotonic != rhs.isMonotonic {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Holons_V1_Histogram: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Histogram"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}data_points\0\u{3}aggregation_temporality\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.dataPoints) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.aggregationTemporality) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.dataPoints.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.dataPoints, fieldNumber: 1)
+    }
+    if self.aggregationTemporality != .unspecified {
+      try visitor.visitSingularEnumField(value: self.aggregationTemporality, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Holons_V1_Histogram, rhs: Holons_V1_Histogram) -> Bool {
+    if lhs.dataPoints != rhs.dataPoints {return false}
+    if lhs.aggregationTemporality != rhs.aggregationTemporality {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Holons_V1_NumberDataPoint: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".NumberDataPoint"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{2}start_time_unix_nano\0\u{3}time_unix_nano\0\u{3}as_double\0\u{4}\u{2}as_int\0\u{1}attributes\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 2: try { try decoder.decodeSingularFixed64Field(value: &self.startTimeUnixNano) }()
+      case 3: try { try decoder.decodeSingularFixed64Field(value: &self.timeUnixNano) }()
+      case 4: try {
+        var v: Double?
+        try decoder.decodeSingularDoubleField(value: &v)
+        if let v = v {
+          if self.value != nil {try decoder.handleConflictingOneOf()}
+          self.value = .asDouble(v)
+        }
+      }()
+      case 6: try {
+        var v: Int64?
+        try decoder.decodeSingularInt64Field(value: &v)
+        if let v = v {
+          if self.value != nil {try decoder.handleConflictingOneOf()}
+          self.value = .asInt(v)
+        }
+      }()
+      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.attributes) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.startTimeUnixNano != 0 {
+      try visitor.visitSingularFixed64Field(value: self.startTimeUnixNano, fieldNumber: 2)
+    }
+    if self.timeUnixNano != 0 {
+      try visitor.visitSingularFixed64Field(value: self.timeUnixNano, fieldNumber: 3)
+    }
+    switch self.value {
+    case .asDouble?: try {
+      guard case .asDouble(let v)? = self.value else { preconditionFailure() }
+      try visitor.visitSingularDoubleField(value: v, fieldNumber: 4)
+    }()
+    case .asInt?: try {
+      guard case .asInt(let v)? = self.value else { preconditionFailure() }
+      try visitor.visitSingularInt64Field(value: v, fieldNumber: 6)
+    }()
+    case nil: break
+    }
+    if !self.attributes.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.attributes, fieldNumber: 7)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Holons_V1_NumberDataPoint, rhs: Holons_V1_NumberDataPoint) -> Bool {
+    if lhs.startTimeUnixNano != rhs.startTimeUnixNano {return false}
+    if lhs.timeUnixNano != rhs.timeUnixNano {return false}
+    if lhs.value != rhs.value {return false}
+    if lhs.attributes != rhs.attributes {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Holons_V1_HistogramDataPoint: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".HistogramDataPoint"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{2}start_time_unix_nano\0\u{3}time_unix_nano\0\u{1}count\0\u{1}sum\0\u{3}bucket_counts\0\u{3}explicit_bounds\0\u{2}\u{2}attributes\0\u{2}\u{2}min\0\u{1}max\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 2: try { try decoder.decodeSingularFixed64Field(value: &self.startTimeUnixNano) }()
+      case 3: try { try decoder.decodeSingularFixed64Field(value: &self.timeUnixNano) }()
+      case 4: try { try decoder.decodeSingularUInt64Field(value: &self.count) }()
+      case 5: try { try decoder.decodeSingularDoubleField(value: &self.sum) }()
+      case 6: try { try decoder.decodeRepeatedUInt64Field(value: &self.bucketCounts) }()
+      case 7: try { try decoder.decodeRepeatedDoubleField(value: &self.explicitBounds) }()
+      case 9: try { try decoder.decodeRepeatedMessageField(value: &self.attributes) }()
+      case 11: try { try decoder.decodeSingularDoubleField(value: &self.min) }()
+      case 12: try { try decoder.decodeSingularDoubleField(value: &self.max) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.startTimeUnixNano != 0 {
+      try visitor.visitSingularFixed64Field(value: self.startTimeUnixNano, fieldNumber: 2)
+    }
+    if self.timeUnixNano != 0 {
+      try visitor.visitSingularFixed64Field(value: self.timeUnixNano, fieldNumber: 3)
     }
     if self.count != 0 {
-      try visitor.visitSingularInt64Field(value: self.count, fieldNumber: 2)
+      try visitor.visitSingularUInt64Field(value: self.count, fieldNumber: 4)
     }
     if self.sum.bitPattern != 0 {
-      try visitor.visitSingularDoubleField(value: self.sum, fieldNumber: 3)
+      try visitor.visitSingularDoubleField(value: self.sum, fieldNumber: 5)
+    }
+    if !self.bucketCounts.isEmpty {
+      try visitor.visitPackedUInt64Field(value: self.bucketCounts, fieldNumber: 6)
+    }
+    if !self.explicitBounds.isEmpty {
+      try visitor.visitPackedDoubleField(value: self.explicitBounds, fieldNumber: 7)
+    }
+    if !self.attributes.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.attributes, fieldNumber: 9)
+    }
+    if self.min.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.min, fieldNumber: 11)
+    }
+    if self.max.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.max, fieldNumber: 12)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Holons_V1_HistogramSample, rhs: Holons_V1_HistogramSample) -> Bool {
-    if lhs.buckets != rhs.buckets {return false}
+  public static func ==(lhs: Holons_V1_HistogramDataPoint, rhs: Holons_V1_HistogramDataPoint) -> Bool {
+    if lhs.startTimeUnixNano != rhs.startTimeUnixNano {return false}
+    if lhs.timeUnixNano != rhs.timeUnixNano {return false}
     if lhs.count != rhs.count {return false}
     if lhs.sum != rhs.sum {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Holons_V1_Bucket: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Bucket"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}upper_bound\0\u{1}count\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularDoubleField(value: &self.upperBound) }()
-      case 2: try { try decoder.decodeSingularInt64Field(value: &self.count) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.upperBound.bitPattern != 0 {
-      try visitor.visitSingularDoubleField(value: self.upperBound, fieldNumber: 1)
-    }
-    if self.count != 0 {
-      try visitor.visitSingularInt64Field(value: self.count, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Holons_V1_Bucket, rhs: Holons_V1_Bucket) -> Bool {
-    if lhs.upperBound != rhs.upperBound {return false}
-    if lhs.count != rhs.count {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Holons_V1_EventsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".EventsRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}types\0\u{1}since\0\u{1}follow\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeRepeatedEnumField(value: &self.types) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._since) }()
-      case 3: try { try decoder.decodeSingularBoolField(value: &self.follow) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if !self.types.isEmpty {
-      try visitor.visitPackedEnumField(value: self.types, fieldNumber: 1)
-    }
-    try { if let v = self._since {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    if self.follow != false {
-      try visitor.visitSingularBoolField(value: self.follow, fieldNumber: 3)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Holons_V1_EventsRequest, rhs: Holons_V1_EventsRequest) -> Bool {
-    if lhs.types != rhs.types {return false}
-    if lhs._since != rhs._since {return false}
-    if lhs.follow != rhs.follow {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Holons_V1_EventInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".EventInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}ts\0\u{1}type\0\u{1}slug\0\u{3}instance_uid\0\u{3}session_id\0\u{1}payload\0\u{1}chain\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._ts) }()
-      case 2: try { try decoder.decodeSingularEnumField(value: &self.type) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.slug) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.instanceUid) }()
-      case 5: try { try decoder.decodeSingularStringField(value: &self.sessionID) }()
-      case 6: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: &self.payload) }()
-      case 7: try { try decoder.decodeRepeatedMessageField(value: &self.chain) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._ts {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    if self.type != .unspecified {
-      try visitor.visitSingularEnumField(value: self.type, fieldNumber: 2)
-    }
-    if !self.slug.isEmpty {
-      try visitor.visitSingularStringField(value: self.slug, fieldNumber: 3)
-    }
-    if !self.instanceUid.isEmpty {
-      try visitor.visitSingularStringField(value: self.instanceUid, fieldNumber: 4)
-    }
-    if !self.sessionID.isEmpty {
-      try visitor.visitSingularStringField(value: self.sessionID, fieldNumber: 5)
-    }
-    if !self.payload.isEmpty {
-      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufString>.self, value: self.payload, fieldNumber: 6)
-    }
-    if !self.chain.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.chain, fieldNumber: 7)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Holons_V1_EventInfo, rhs: Holons_V1_EventInfo) -> Bool {
-    if lhs._ts != rhs._ts {return false}
-    if lhs.type != rhs.type {return false}
-    if lhs.slug != rhs.slug {return false}
-    if lhs.instanceUid != rhs.instanceUid {return false}
-    if lhs.sessionID != rhs.sessionID {return false}
-    if lhs.payload != rhs.payload {return false}
-    if lhs.chain != rhs.chain {return false}
+    if lhs.bucketCounts != rhs.bucketCounts {return false}
+    if lhs.explicitBounds != rhs.explicitBounds {return false}
+    if lhs.attributes != rhs.attributes {return false}
+    if lhs.min != rhs.min {return false}
+    if lhs.max != rhs.max {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
