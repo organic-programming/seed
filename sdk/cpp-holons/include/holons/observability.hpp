@@ -23,9 +23,11 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace holons::observability {
@@ -82,6 +84,20 @@ inline const char* event_label(EventType t) {
         case EventType::HandlerPanic: return "HANDLER_PANIC";
         case EventType::ConfigReloaded: return "CONFIG_RELOADED";
         default: return "UNSPECIFIED";
+    }
+}
+
+inline std::string event_name(EventType t) {
+    switch (t) {
+        case EventType::InstanceSpawned: return "instance.spawned";
+        case EventType::InstanceReady: return "instance.ready";
+        case EventType::InstanceExited: return "instance.exited";
+        case EventType::InstanceCrashed: return "instance.crashed";
+        case EventType::SessionStarted: return "session.started";
+        case EventType::SessionEnded: return "session.ended";
+        case EventType::HandlerPanic: return "handler.panic";
+        case EventType::ConfigReloaded: return "config.reloaded";
+        default: return "event.unspecified";
     }
 }
 
@@ -159,25 +175,89 @@ inline void check_env(const std::map<std::string, std::string>& env = {}) {
     }
 }
 
-struct Hop {
-    std::string slug;
-    std::string instance_uid;
-};
+using AnyValue = std::variant<std::int64_t, double, bool, std::string>;
 
 struct PrivateFlag {};
 
 inline PrivateFlag Private() { return {}; }
 
-inline std::vector<Hop> append_direct_child(const std::vector<Hop>& src,
-                                             std::string child_slug, std::string child_uid) {
-    std::vector<Hop> out = src;
-    out.push_back({std::move(child_slug), std::move(child_uid)});
+inline std::string natural_string(double value) {
+    std::ostringstream out;
+    out << value;
+    return out.str();
+}
+
+inline std::string natural_string(bool value) {
+    return value ? "true" : "false";
+}
+
+template <typename T,
+          typename = std::enable_if_t<std::is_integral_v<std::decay_t<T>> &&
+                                      !std::is_same_v<std::decay_t<T>, bool>>>
+inline std::string natural_string(T value) {
+    return std::to_string(static_cast<std::int64_t>(value));
+}
+
+inline std::string natural_string(const char* value) {
+    return value == nullptr ? std::string{} : std::string(value);
+}
+
+inline std::string natural_string(std::string_view value) {
+    return std::string(value);
+}
+
+inline std::string natural_string(const std::string& value) {
+    return value;
+}
+
+template <typename T,
+          typename = std::enable_if_t<!std::is_arithmetic_v<std::decay_t<T>> &&
+                                      !std::is_convertible_v<T, std::string_view>>>
+inline std::string natural_string(const T& value) {
+    std::ostringstream out;
+    out << value;
+    return out.str();
+}
+
+struct Field {
+    std::string key;
+    AnyValue value;
+
+    Field(std::string k, AnyValue v) : key(std::move(k)), value(std::move(v)) {}
+    Field(std::string k, const char* v) : key(std::move(k)), value(natural_string(v)) {}
+    Field(std::string k, std::string v) : key(std::move(k)), value(std::move(v)) {}
+    Field(std::string k, std::string_view v) : key(std::move(k)), value(std::string(v)) {}
+    Field(std::string k, bool v) : key(std::move(k)), value(v) {}
+    Field(std::string k, double v) : key(std::move(k)), value(v) {}
+    Field(std::string k, float v) : key(std::move(k)), value(static_cast<double>(v)) {}
+    template <typename T,
+              typename = std::enable_if_t<std::is_integral_v<std::decay_t<T>> &&
+                                          !std::is_same_v<std::decay_t<T>, bool>>>
+    Field(std::string k, T v) : key(std::move(k)), value(static_cast<std::int64_t>(v)) {}
+    template <typename T,
+              typename = std::enable_if_t<!std::is_arithmetic_v<std::decay_t<T>> &&
+                                          !std::is_convertible_v<T, std::string_view>>>
+    Field(std::string k, const T& v) : key(std::move(k)), value(natural_string(v)) {}
+};
+
+inline std::string any_value_string(const AnyValue& value) {
+    return std::visit([](const auto& v) -> std::string {
+        return natural_string(v);
+    }, value);
+}
+
+inline std::vector<std::string> append_direct_child(const std::vector<std::string>& src,
+                                                     std::string child_slug,
+                                                     std::string = {}) {
+    std::vector<std::string> out = src;
+    out.push_back(std::move(child_slug));
     return out;
 }
 
-inline std::vector<Hop> enrich_for_multilog(const std::vector<Hop>& wire,
-                                             std::string src_slug, std::string src_uid) {
-    return append_direct_child(wire, std::move(src_slug), std::move(src_uid));
+inline std::vector<std::string> enrich_for_multilog(const std::vector<std::string>& wire,
+                                                     std::string src_slug,
+                                                     std::string = {}) {
+    return append_direct_child(wire, std::move(src_slug));
 }
 
 inline std::string derive_run_dir(const std::string& root,
@@ -187,37 +267,31 @@ inline std::string derive_run_dir(const std::string& root,
     return (std::filesystem::path(root) / slug / uid).string();
 }
 
-struct LogEntry {
+struct LogRecord {
     std::chrono::system_clock::time_point timestamp;
     Level level{Level::Info};
-    std::string slug;
-    std::string instance_uid;
-    std::string session_id;
-    std::string rpc_method;
-    std::string message;
-    std::map<std::string, std::string> fields;
-    std::string caller;
-    std::vector<Hop> chain;
+    AnyValue body{std::string{}};
+    std::vector<Field> attributes;
+    std::string event_name;
+    std::vector<std::string> chain;
     bool private_entry{false};
 };
 
-struct Event {
-    std::chrono::system_clock::time_point timestamp;
-    EventType type{EventType::Unspecified};
-    std::string slug;
-    std::string instance_uid;
-    std::string session_id;
-    std::map<std::string, std::string> payload;
-    std::vector<Hop> chain;
-    bool private_entry{false};
-};
+using Event = LogRecord;
+
+inline std::string attribute_string(const LogRecord& record, std::string_view key) {
+    for (const auto& attr : record.attributes) {
+        if (attr.key == key) return any_value_string(attr.value);
+    }
+    return {};
+}
 
 class LogRing {
 public:
     explicit LogRing(std::size_t capacity = 1024) : capacity_(std::max<std::size_t>(1, capacity)) {}
 
-    void push(const LogEntry& e) {
-        std::vector<std::function<void(const LogEntry&)>> copy;
+    void push(const LogRecord& e) {
+        std::vector<std::function<void(const LogRecord&)>> copy;
         {
             std::scoped_lock lk(mu_);
             buf_.push_back(e);
@@ -227,14 +301,14 @@ public:
         for (auto& fn : copy) try { fn(e); } catch (...) {}
     }
 
-    std::vector<LogEntry> drain() {
+    std::vector<LogRecord> drain() {
         std::scoped_lock lk(mu_);
         return buf_;
     }
 
-    std::vector<LogEntry> drain_since(std::chrono::system_clock::time_point cutoff) {
+    std::vector<LogRecord> drain_since(std::chrono::system_clock::time_point cutoff) {
         std::scoped_lock lk(mu_);
-        std::vector<LogEntry> out;
+        std::vector<LogRecord> out;
         for (const auto& e : buf_) if (e.timestamp >= cutoff) out.push_back(e);
         return out;
     }
@@ -242,7 +316,7 @@ public:
     std::size_t size() const { std::scoped_lock lk(mu_); return buf_.size(); }
     std::size_t capacity() const { return capacity_; }
 
-    std::size_t subscribe(std::function<void(const LogEntry&)> fn) {
+    std::size_t subscribe(std::function<void(const LogRecord&)> fn) {
         std::scoped_lock lk(mu_);
         const auto id = next_sub_id_++;
         subs_.push_back({id, std::move(fn)});
@@ -256,15 +330,15 @@ public:
                     subs_.end());
     }
 
-    std::pair<std::vector<LogEntry>, std::function<void()>>
+    std::pair<std::vector<LogRecord>, std::function<void()>>
     replay_and_subscribe(std::chrono::system_clock::time_point cutoff,
-                         std::function<void(const LogEntry&)> fn) {
+                         std::function<void(const LogRecord&)> fn) {
         std::scoped_lock lk(mu_);
         // Snapshot and live registration stay under one lock: no entry can be
         // lost or duplicated at the replay/live boundary.
         auto replay = buf_;
         if (cutoff != std::chrono::system_clock::time_point{}) {
-            std::vector<LogEntry> filtered;
+            std::vector<LogRecord> filtered;
             for (const auto& entry : replay) {
                 if (entry.timestamp >= cutoff) filtered.push_back(entry);
             }
@@ -278,8 +352,8 @@ public:
 private:
     std::size_t capacity_;
     mutable std::mutex mu_;
-    std::vector<LogEntry> buf_;
-    std::vector<std::pair<std::size_t, std::function<void(const LogEntry&)>>> subs_;
+    std::vector<LogRecord> buf_;
+    std::vector<std::pair<std::size_t, std::function<void(const LogRecord&)>>> subs_;
     std::size_t next_sub_id_{1};
 };
 
@@ -388,6 +462,8 @@ struct HistogramSnapshot {
     std::vector<std::int64_t> counts;
     std::int64_t total{0};
     double sum{0};
+    double min{0};
+    double max{0};
 
     double quantile(double q) const {
         if (total == 0) return std::numeric_limits<double>::quiet_NaN();
@@ -440,6 +516,8 @@ public:
 
     void observe(double v) {
         std::scoped_lock lk(mu_);
+        if (total_ == 0 || v < min_) min_ = v;
+        if (total_ == 0 || v > max_) max_ = v;
         ++total_;
         sum_ += v;
         for (std::size_t i = 0; i < bounds_.size(); ++i)
@@ -448,7 +526,7 @@ public:
 
     HistogramSnapshot snapshot() const {
         std::scoped_lock lk(mu_);
-        return {bounds_, counts_, total_, sum_};
+        return {bounds_, counts_, total_, sum_, min_, max_};
     }
 
 private:
@@ -457,6 +535,8 @@ private:
     std::vector<std::int64_t> counts_;
     std::int64_t total_{0};
     double sum_{0};
+    double min_{0};
+    double max_{0};
 };
 
 inline std::string metric_key(const std::string& name,
@@ -564,6 +644,7 @@ struct Config {
     std::size_t events_ring_size{256};
     std::string run_dir;
     std::string instance_uid;
+    std::string session_id;
     std::string organism_uid;
     std::string organism_slug;
 };
@@ -583,7 +664,18 @@ public:
              const std::map<std::string, std::string>& fields = {},
              bool private_entry = false) const;
     void log(Level l, std::string_view message,
+             std::initializer_list<Field> fields,
+             bool private_entry = false) const;
+    void log(Level l, std::string_view message,
+             const std::vector<Field>& fields,
+             bool private_entry = false) const;
+    void log(Level l, std::string_view message,
              const std::map<std::string, std::string>& fields,
+             PrivateFlag) const {
+        log(l, message, fields, true);
+    }
+    void log(Level l, std::string_view message,
+             std::initializer_list<Field> fields,
              PrivateFlag) const {
         log(l, message, fields, true);
     }
@@ -600,6 +692,18 @@ public:
     void warn(std::string_view m, const std::map<std::string, std::string>& f, PrivateFlag p) const { log(Level::Warn, m, f, p); }
     void error(std::string_view m, const std::map<std::string, std::string>& f, PrivateFlag p) const { log(Level::Error, m, f, p); }
     void fatal(std::string_view m, const std::map<std::string, std::string>& f, PrivateFlag p) const { log(Level::Fatal, m, f, p); }
+    void trace(std::string_view m, std::initializer_list<Field> f) const { log(Level::Trace, m, f); }
+    void debug(std::string_view m, std::initializer_list<Field> f) const { log(Level::Debug, m, f); }
+    void info(std::string_view m, std::initializer_list<Field> f) const { log(Level::Info, m, f); }
+    void warn(std::string_view m, std::initializer_list<Field> f) const { log(Level::Warn, m, f); }
+    void error(std::string_view m, std::initializer_list<Field> f) const { log(Level::Error, m, f); }
+    void fatal(std::string_view m, std::initializer_list<Field> f) const { log(Level::Fatal, m, f); }
+    void trace(std::string_view m, std::initializer_list<Field> f, PrivateFlag p) const { log(Level::Trace, m, f, p); }
+    void debug(std::string_view m, std::initializer_list<Field> f, PrivateFlag p) const { log(Level::Debug, m, f, p); }
+    void info(std::string_view m, std::initializer_list<Field> f, PrivateFlag p) const { log(Level::Info, m, f, p); }
+    void warn(std::string_view m, std::initializer_list<Field> f, PrivateFlag p) const { log(Level::Warn, m, f, p); }
+    void error(std::string_view m, std::initializer_list<Field> f, PrivateFlag p) const { log(Level::Error, m, f, p); }
+    void fatal(std::string_view m, std::initializer_list<Field> f, PrivateFlag p) const { log(Level::Fatal, m, f, p); }
 
 private:
     Level defaultLevel() const;
@@ -615,6 +719,7 @@ public:
     std::unique_ptr<LogRing> log_ring;
     std::unique_ptr<EventBus> event_bus;
     std::unique_ptr<Registry> registry;
+    std::chrono::system_clock::time_point start_wall{std::chrono::system_clock::now()};
 
     Observability(Config c, std::uint32_t fam) : cfg(std::move(c)), families(fam) {
         if (has_family(families, Family::Logs))
@@ -660,16 +765,16 @@ public:
               bool private_entry = false) {
         if (!event_bus) return;
         std::unordered_set<std::string> redact(cfg.redacted_fields.begin(), cfg.redacted_fields.end());
-        std::map<std::string, std::string> p;
+        std::vector<Field> attrs = resource_attributes();
         for (const auto& [k, v] : payload) {
-            p[k] = redact.count(k) ? "<redacted>" : v;
+            attrs.emplace_back(k, redact.count(k) ? "<redacted>" : v);
         }
-        Event e;
+        LogRecord e;
         e.timestamp = std::chrono::system_clock::now();
-        e.type = type;
-        e.slug = cfg.slug;
-        e.instance_uid = cfg.instance_uid;
-        e.payload = std::move(p);
+        e.level = Level::Info;
+        e.event_name = event_name(type);
+        e.body = std::string(e.event_name);
+        e.attributes = std::move(attrs);
         e.private_entry = private_entry;
         event_bus->emit(e);
     }
@@ -682,6 +787,16 @@ public:
     void close() { if (event_bus) event_bus->close(); }
 
 private:
+    friend class Logger;
+
+    std::vector<Field> resource_attributes() const {
+        return {{"holons.slug", cfg.slug},
+                {"service.name", cfg.slug},
+                {"holons.instance_uid", cfg.instance_uid},
+                {"service.instance.id", cfg.instance_uid},
+                {"holons.session_id", cfg.session_id}};
+    }
+
     static Logger& disabled_logger() {
         static Logger l(nullptr, "");
         return l;
@@ -699,22 +814,37 @@ inline bool Logger::enabled(Level l) const {
 }
 
 inline void Logger::log(Level l, std::string_view message,
+                         std::initializer_list<Field> fields,
+                         bool private_entry) const {
+    log(l, message, std::vector<Field>(fields.begin(), fields.end()), private_entry);
+}
+
+inline void Logger::log(Level l, std::string_view message,
                          const std::map<std::string, std::string>& fields,
+                         bool private_entry) const {
+    std::vector<Field> converted;
+    converted.reserve(fields.size());
+    for (const auto& [key, value] : fields) converted.emplace_back(key, value);
+    log(l, message, converted, private_entry);
+}
+
+inline void Logger::log(Level l, std::string_view message,
+                         const std::vector<Field>& fields,
                          bool private_entry) const {
     if (!enabled(l)) return;
     std::unordered_set<std::string> redact(obs_->cfg.redacted_fields.begin(), obs_->cfg.redacted_fields.end());
-    std::map<std::string, std::string> f;
-    for (const auto& [k, v] : fields) {
-        if (k.empty()) continue;
-        f[k] = redact.count(k) ? std::string{"<redacted>"} : v;
+    std::vector<Field> attrs = obs_->resource_attributes();
+    if (!name.empty()) attrs.emplace_back("logger.name", name);
+    for (const auto& field : fields) {
+        if (field.key.empty()) continue;
+        attrs.push_back(field);
+        if (redact.count(field.key)) attrs.back().value = std::string{"<redacted>"};
     }
-    LogEntry e;
+    LogRecord e;
     e.timestamp = std::chrono::system_clock::now();
     e.level = l;
-    e.slug = obs_->cfg.slug;
-    e.instance_uid = obs_->cfg.instance_uid;
-    e.message = std::string(message);
-    e.fields = std::move(f);
+    e.body = std::string(message);
+    e.attributes = std::move(attrs);
     e.private_entry = private_entry;
     if (obs_->log_ring) obs_->log_ring->push(e);
 }
@@ -738,6 +868,7 @@ inline Observability& configure(Config cfg) {
     std::uint32_t families = parse_op_obs(raw ? raw : "");
     if (cfg.slug.empty()) cfg.slug = "holon";
     if (cfg.instance_uid.empty()) cfg.instance_uid = new_instance_uid();
+    if (cfg.session_id.empty()) cfg.session_id = new_instance_uid();
     if (!cfg.run_dir.empty()) cfg.run_dir = derive_run_dir(cfg.run_dir, cfg.slug, cfg.instance_uid);
     auto obs = std::make_unique<Observability>(std::move(cfg), families);
     std::scoped_lock lk(current_mu());
@@ -748,6 +879,7 @@ inline Observability& configure(Config cfg) {
 inline Observability& from_env(Config base = {}) {
     auto get = [](const char* k) -> std::string { const char* v = std::getenv(k); return v ? std::string(v) : ""; };
     if (base.instance_uid.empty()) base.instance_uid = get("OP_INSTANCE_UID");
+    if (base.session_id.empty()) base.session_id = get("OP_SESSION_ID");
     if (base.organism_uid.empty()) base.organism_uid = get("OP_ORGANISM_UID");
     if (base.organism_slug.empty()) base.organism_slug = get("OP_ORGANISM_SLUG");
     if (base.prom_addr.empty()) base.prom_addr = get("OP_PROM_ADDR");
@@ -807,15 +939,14 @@ namespace detail {
         return buf;
     }
 
-    inline void write_chain_json(std::ostream& f, const std::vector<Hop>& chain) {
+    inline void write_chain_json(std::ostream& f, const std::vector<std::string>& chain) {
         if (chain.empty()) return;
         f << ",\"chain\":[";
         bool first = true;
-        for (const auto& hop : chain) {
+        for (const auto& slug : chain) {
             if (!first) f << ',';
             first = false;
-            f << "{\"slug\":" << json_escape(hop.slug)
-              << ",\"instance_uid\":" << json_escape(hop.instance_uid) << "}";
+            f << json_escape(slug);
         }
         f << ']';
     }
@@ -828,21 +959,21 @@ inline void enable_disk_writers(const std::string& run_dir) {
 
     if (obs.enabled(Family::Logs) && obs.log_ring) {
         auto fp = std::filesystem::path(run_dir) / "stdout.log";
-        obs.log_ring->subscribe([fp](const LogEntry& e) {
+        obs.log_ring->subscribe([fp](const LogRecord& e) {
             std::ofstream f(fp, std::ios::app);
             if (!f) return;
             f << "{\"kind\":\"log\""
               << ",\"ts\":" << detail::json_escape(detail::rfc3339(e.timestamp))
               << ",\"level\":\"" << level_label(e.level) << "\""
-              << ",\"slug\":" << detail::json_escape(e.slug)
-              << ",\"instance_uid\":" << detail::json_escape(e.instance_uid)
-              << ",\"message\":" << detail::json_escape(e.message);
-            if (!e.fields.empty()) {
+              << ",\"slug\":" << detail::json_escape(attribute_string(e, "holons.slug"))
+              << ",\"instance_uid\":" << detail::json_escape(attribute_string(e, "holons.instance_uid"))
+              << ",\"message\":" << detail::json_escape(any_value_string(e.body));
+            if (!e.attributes.empty()) {
                 f << ",\"fields\":{";
                 bool first = true;
-                for (const auto& [k, v] : e.fields) {
+                for (const auto& attr : e.attributes) {
                     if (!first) f << ','; first = false;
-                    f << detail::json_escape(k) << ':' << detail::json_escape(v);
+                    f << detail::json_escape(attr.key) << ':' << detail::json_escape(any_value_string(attr.value));
                 }
                 f << '}';
             }
@@ -853,20 +984,21 @@ inline void enable_disk_writers(const std::string& run_dir) {
 
     if (obs.enabled(Family::Events) && obs.event_bus) {
         auto fp = std::filesystem::path(run_dir) / "events.jsonl";
-        obs.event_bus->subscribe([fp](const Event& e) {
+        obs.event_bus->subscribe([fp](const LogRecord& e) {
             std::ofstream f(fp, std::ios::app);
             if (!f) return;
             f << "{\"kind\":\"event\""
               << ",\"ts\":" << detail::json_escape(detail::rfc3339(e.timestamp))
-              << ",\"type\":\"" << event_label(e.type) << "\""
-              << ",\"slug\":" << detail::json_escape(e.slug)
-              << ",\"instance_uid\":" << detail::json_escape(e.instance_uid);
-            if (!e.payload.empty()) {
+              << ",\"event_name\":" << detail::json_escape(e.event_name)
+              << ",\"slug\":" << detail::json_escape(attribute_string(e, "holons.slug"))
+              << ",\"instance_uid\":" << detail::json_escape(attribute_string(e, "holons.instance_uid"));
+            if (!e.attributes.empty()) {
                 f << ",\"payload\":{";
                 bool first = true;
-                for (const auto& [k, v] : e.payload) {
+                for (const auto& attr : e.attributes) {
+                    if (attr.key.rfind("holons.", 0) == 0 || attr.key.rfind("service.", 0) == 0) continue;
                     if (!first) f << ','; first = false;
-                    f << detail::json_escape(k) << ':' << detail::json_escape(v);
+                    f << detail::json_escape(attr.key) << ':' << detail::json_escape(any_value_string(attr.value));
                 }
                 f << '}';
             }

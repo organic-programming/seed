@@ -41,6 +41,14 @@
 
 namespace holons::serve {
 
+std::string CurrentTransport();
+
+namespace detail {
+extern thread_local std::string current_transport;
+void set_current_transport(std::string transport);
+void clear_current_transport();
+} // namespace detail
+
 struct member_ref {
   std::string slug;
   std::string address;
@@ -125,10 +133,12 @@ public:
 #if HOLONS_HAS_GRPCPP
   server_handle(std::unique_ptr<grpc::Server> server,
                 std::vector<bound_listener> listeners,
-                std::vector<std::shared_ptr<void>> owned_objects = {})
+                std::vector<std::shared_ptr<void>> owned_objects = {},
+                bool clears_current_transport = false)
       : server_(std::move(server)),
         listeners_(std::move(listeners)),
-        owned_objects_(std::move(owned_objects)) {}
+        owned_objects_(std::move(owned_objects)),
+        clears_current_transport_(clears_current_transport) {}
 #endif
 
   server_handle(server_handle &&) noexcept = default;
@@ -157,6 +167,10 @@ public:
                     std::chrono::milliseconds(
                         std::max(graceful_shutdown_timeout_ms, 1));
     server_->Shutdown(deadline);
+    if (clears_current_transport_) {
+      detail::clear_current_transport();
+      clears_current_transport_ = false;
+    }
 #else
     (void)graceful_shutdown_timeout_ms;
     throw std::runtime_error("grpc++ headers are required for serve()");
@@ -180,6 +194,7 @@ private:
   std::vector<bound_listener> listeners_;
 #if HOLONS_HAS_GRPCPP
   std::vector<std::shared_ptr<void>> owned_objects_;
+  bool clears_current_transport_ = false;
 #endif
 };
 
@@ -201,7 +216,11 @@ inline void debug_parent_watch_log(const char *fmt, Args... args) {
     return;
   }
   char message[512];
-  std::snprintf(message, sizeof(message), fmt, args...);
+  if constexpr (sizeof...(args) == 0) {
+    std::snprintf(message, sizeof(message), "%s", fmt);
+  } else {
+    std::snprintf(message, sizeof(message), fmt, args...);
+  }
   std::fprintf(stderr, "[holons parent-watch pid=%d] ", static_cast<int>(::getpid()));
   std::fputs(message, stderr);
   std::fputc('\n', stderr);
@@ -595,26 +614,6 @@ inline std::shared_ptr<grpc::Service> maybe_make_holon_meta_service(
 #endif
 
 #if HOLONS_HAS_OBSERVABILITY_GRPC
-inline void set_timestamp(google::protobuf::Timestamp *target,
-                          std::chrono::system_clock::time_point value) {
-  if (target == nullptr) {
-    return;
-  }
-  auto ns =
-      std::chrono::duration_cast<std::chrono::nanoseconds>(value.time_since_epoch());
-  auto sec = std::chrono::duration_cast<std::chrono::seconds>(ns);
-  target->set_seconds(sec.count());
-  target->set_nanos(static_cast<int>((ns - sec).count()));
-}
-
-inline std::chrono::system_clock::time_point from_timestamp(
-    const google::protobuf::Timestamp &value) {
-  auto duration = std::chrono::seconds(value.seconds()) +
-                  std::chrono::nanoseconds(value.nanos());
-  return std::chrono::system_clock::time_point{
-      std::chrono::duration_cast<std::chrono::system_clock::duration>(duration)};
-}
-
 inline std::chrono::system_clock::time_point since_cutoff(
     const google::protobuf::Duration &value) {
   auto duration = std::chrono::seconds(value.seconds()) +
@@ -623,146 +622,136 @@ inline std::chrono::system_clock::time_point since_cutoff(
          std::chrono::duration_cast<std::chrono::system_clock::duration>(duration);
 }
 
-inline holons::v1::LogLevel to_proto_level(observability::Level level) {
-  return static_cast<holons::v1::LogLevel>(static_cast<int>(level));
+inline std::uint64_t unix_nano(std::chrono::system_clock::time_point value) {
+  return static_cast<std::uint64_t>(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+          value.time_since_epoch()).count());
 }
 
-inline observability::Level from_proto_level(holons::v1::LogLevel level) {
-  if (!holons::v1::LogLevel_IsValid(static_cast<int>(level))) {
-    return observability::Level::Unset;
-  }
-  return static_cast<observability::Level>(static_cast<int>(level));
+inline std::chrono::system_clock::time_point from_unix_nano(std::uint64_t value) {
+  return std::chrono::system_clock::time_point{
+      std::chrono::duration_cast<std::chrono::system_clock::duration>(
+          std::chrono::nanoseconds(value))};
 }
 
-inline holons::v1::EventType to_proto_event_type(observability::EventType type) {
-  return static_cast<holons::v1::EventType>(static_cast<int>(type));
-}
-
-inline observability::EventType from_proto_event_type(
-    holons::v1::EventType type) {
-  if (!holons::v1::EventType_IsValid(static_cast<int>(type))) {
-    return observability::EventType::Unspecified;
-  }
-  return static_cast<observability::EventType>(static_cast<int>(type));
-}
-
-inline void append_chain(const std::vector<observability::Hop> &chain,
-                         google::protobuf::RepeatedPtrField<holons::v1::ChainHop> *out) {
-  if (out == nullptr) {
-    return;
-  }
-  for (const auto &hop : chain) {
-    auto *proto = out->Add();
-    proto->set_slug(hop.slug);
-    proto->set_instance_uid(hop.instance_uid);
+inline holons::v1::SeverityNumber to_proto_level(observability::Level level) {
+  switch (level) {
+  case observability::Level::Trace: return holons::v1::SEVERITY_NUMBER_TRACE;
+  case observability::Level::Debug: return holons::v1::SEVERITY_NUMBER_DEBUG;
+  case observability::Level::Info: return holons::v1::SEVERITY_NUMBER_INFO;
+  case observability::Level::Warn: return holons::v1::SEVERITY_NUMBER_WARN;
+  case observability::Level::Error: return holons::v1::SEVERITY_NUMBER_ERROR;
+  case observability::Level::Fatal: return holons::v1::SEVERITY_NUMBER_FATAL;
+  default: return holons::v1::SEVERITY_NUMBER_UNSPECIFIED;
   }
 }
 
-inline std::vector<observability::Hop> from_proto_chain(
-    const google::protobuf::RepeatedPtrField<holons::v1::ChainHop> &chain) {
-  std::vector<observability::Hop> out;
+inline observability::Level from_proto_level(holons::v1::SeverityNumber level) {
+  switch (level) {
+  case holons::v1::SEVERITY_NUMBER_TRACE: return observability::Level::Trace;
+  case holons::v1::SEVERITY_NUMBER_DEBUG: return observability::Level::Debug;
+  case holons::v1::SEVERITY_NUMBER_INFO: return observability::Level::Info;
+  case holons::v1::SEVERITY_NUMBER_WARN: return observability::Level::Warn;
+  case holons::v1::SEVERITY_NUMBER_ERROR: return observability::Level::Error;
+  case holons::v1::SEVERITY_NUMBER_FATAL: return observability::Level::Fatal;
+  default: return observability::Level::Unset;
+  }
+}
+
+inline void set_any_value(holons::v1::AnyValue *target,
+                          const observability::AnyValue &value) {
+  if (target == nullptr) return;
+  std::visit([target](const auto &item) {
+    using T = std::decay_t<decltype(item)>;
+    if constexpr (std::is_same_v<T, std::int64_t>) target->set_int_value(item);
+    else if constexpr (std::is_same_v<T, double>) target->set_double_value(item);
+    else if constexpr (std::is_same_v<T, bool>) target->set_bool_value(item);
+    else target->set_string_value(item);
+  }, value);
+}
+
+inline observability::AnyValue from_proto_any_value(const holons::v1::AnyValue &value) {
+  switch (value.value_case()) {
+  case holons::v1::AnyValue::kIntValue: return static_cast<std::int64_t>(value.int_value());
+  case holons::v1::AnyValue::kDoubleValue: return value.double_value();
+  case holons::v1::AnyValue::kBoolValue: return value.bool_value();
+  case holons::v1::AnyValue::kStringValue: return value.string_value();
+  default: return std::string{};
+  }
+}
+
+inline void append_attrs(const std::vector<observability::Field> &attrs,
+                         google::protobuf::RepeatedPtrField<holons::v1::KeyValue> *out) {
+  if (out == nullptr) return;
+  for (const auto &attr : attrs) {
+    auto *kv = out->Add();
+    kv->set_key(attr.key);
+    set_any_value(kv->mutable_value(), attr.value);
+  }
+}
+
+inline void append_chain(const std::vector<std::string> &chain,
+                         google::protobuf::RepeatedPtrField<std::string> *out) {
+  if (out == nullptr) return;
+  for (const auto &slug : chain) *out->Add() = slug;
+}
+
+inline std::vector<std::string> from_proto_chain(
+    const google::protobuf::RepeatedPtrField<std::string> &chain) {
+  std::vector<std::string> out;
   out.reserve(static_cast<size_t>(chain.size()));
-  for (const auto &hop : chain) {
-    out.push_back({hop.slug(), hop.instance_uid()});
-  }
+  for (const auto &slug : chain) out.push_back(slug);
   return out;
 }
 
-inline holons::v1::LogEntry to_proto_log(const observability::LogEntry &entry) {
-  holons::v1::LogEntry proto;
-  set_timestamp(proto.mutable_ts(), entry.timestamp);
-  proto.set_level(to_proto_level(entry.level));
-  proto.set_slug(entry.slug);
-  proto.set_instance_uid(entry.instance_uid);
-  proto.set_session_id(entry.session_id);
-  proto.set_rpc_method(entry.rpc_method);
-  proto.set_message(entry.message);
-  proto.set_caller(entry.caller);
-  for (const auto &[key, value] : entry.fields) {
-    (*proto.mutable_fields())[key] = value;
-  }
+inline holons::v1::LogRecord to_proto_log(const observability::LogRecord &entry) {
+  holons::v1::LogRecord proto;
+  proto.set_time_unix_nano(unix_nano(entry.timestamp));
+  proto.set_observed_time_unix_nano(unix_nano(entry.timestamp));
+  proto.set_severity_number(to_proto_level(entry.level));
+  proto.set_severity_text(observability::level_label(entry.level));
+  set_any_value(proto.mutable_body(), entry.body);
+  append_attrs(entry.attributes, proto.mutable_attributes());
+  proto.set_event_name(entry.event_name);
   append_chain(entry.chain, proto.mutable_chain());
   return proto;
 }
 
-inline observability::LogEntry from_proto_log(
-    const holons::v1::LogEntry &proto) {
-  observability::LogEntry entry;
-  entry.timestamp = proto.has_ts() ? from_timestamp(proto.ts())
-                                   : std::chrono::system_clock::now();
-  entry.level = from_proto_level(proto.level());
-  entry.slug = proto.slug();
-  entry.instance_uid = proto.instance_uid();
-  entry.session_id = proto.session_id();
-  entry.rpc_method = proto.rpc_method();
-  entry.message = proto.message();
-  entry.caller = proto.caller();
-  for (const auto &field : proto.fields()) {
-    entry.fields[field.first] = field.second;
+inline observability::LogRecord from_proto_log(const holons::v1::LogRecord &proto) {
+  observability::LogRecord entry;
+  entry.timestamp = proto.time_unix_nano() == 0 ? std::chrono::system_clock::now()
+                                                : from_unix_nano(proto.time_unix_nano());
+  entry.level = from_proto_level(proto.severity_number());
+  entry.body = proto.has_body() ? from_proto_any_value(proto.body())
+                                : observability::AnyValue{std::string{}};
+  for (const auto &attr : proto.attributes()) {
+    entry.attributes.push_back({attr.key(), attr.has_value()
+      ? from_proto_any_value(attr.value()) : observability::AnyValue{std::string{}}});
   }
+  entry.event_name = proto.event_name();
   entry.chain = from_proto_chain(proto.chain());
   return entry;
 }
 
-inline holons::v1::EventInfo to_proto_event(const observability::Event &event) {
-  holons::v1::EventInfo proto;
-  set_timestamp(proto.mutable_ts(), event.timestamp);
-  proto.set_type(to_proto_event_type(event.type));
-  proto.set_slug(event.slug);
-  proto.set_instance_uid(event.instance_uid);
-  proto.set_session_id(event.session_id);
-  for (const auto &[key, value] : event.payload) {
-    (*proto.mutable_payload())[key] = value;
-  }
-  append_chain(event.chain, proto.mutable_chain());
-  return proto;
-}
-
-inline observability::Event from_proto_event(
-    const holons::v1::EventInfo &proto) {
-  observability::Event event;
-  event.timestamp = proto.has_ts() ? from_timestamp(proto.ts())
-                                   : std::chrono::system_clock::now();
-  event.type = from_proto_event_type(proto.type());
-  event.slug = proto.slug();
-  event.instance_uid = proto.instance_uid();
-  event.session_id = proto.session_id();
-  for (const auto &item : proto.payload()) {
-    event.payload[item.first] = item.second;
-  }
-  event.chain = from_proto_chain(proto.chain());
-  return event;
-}
-
-inline bool matches_log_request(const observability::LogEntry &entry,
+inline bool matches_log_request(const observability::LogRecord &entry,
                                 const holons::v1::LogsRequest &request) {
-  int min_level = request.min_level() == holons::v1::LOG_LEVEL_UNSPECIFIED
-                      ? static_cast<int>(observability::Level::Info)
-                      : static_cast<int>(request.min_level());
-  if (static_cast<int>(entry.level) < min_level) {
-    return false;
-  }
+  auto min_level = request.min_severity_number() == holons::v1::SEVERITY_NUMBER_UNSPECIFIED
+      ? observability::Level::Info : from_proto_level(request.min_severity_number());
+  if (static_cast<int>(entry.level) < static_cast<int>(min_level)) return false;
   if (request.session_ids_size() > 0 &&
       std::find(request.session_ids().begin(), request.session_ids().end(),
-                entry.session_id) == request.session_ids().end()) {
-    return false;
-  }
+                observability::attribute_string(entry, "holons.session_id")) == request.session_ids().end()) return false;
   if (request.rpc_methods_size() > 0 &&
       std::find(request.rpc_methods().begin(), request.rpc_methods().end(),
-                entry.rpc_method) == request.rpc_methods().end()) {
-    return false;
-  }
+                observability::attribute_string(entry, "rpc.method")) == request.rpc_methods().end()) return false;
   return true;
 }
 
-inline bool matches_event_request(const observability::Event &event,
+inline bool matches_event_request(const observability::LogRecord &event,
                                   const holons::v1::EventsRequest &request) {
-  if (request.types_size() == 0) {
-    return true;
-  }
-  return std::find(request.types().begin(), request.types().end(),
-                   static_cast<int>(to_proto_event_type(event.type))) !=
-         request.types().end();
+  if (request.event_names_size() == 0) return true;
+  return std::find(request.event_names().begin(), request.event_names().end(),
+                   event.event_name) != request.event_names().end();
 }
 
 template <typename T> class follow_queue {
@@ -818,7 +807,7 @@ public:
 
   grpc::Status Logs(grpc::ServerContext *context,
                     const holons::v1::LogsRequest *request,
-                    grpc::ServerWriter<holons::v1::LogEntry> *writer) override {
+                    grpc::ServerWriter<holons::v1::LogRecord> *writer) override {
     if (obs_ == nullptr || !obs_->enabled(observability::Family::Logs) ||
         !obs_->log_ring) {
       return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
@@ -828,16 +817,16 @@ public:
                       ? since_cutoff(request->since())
                       : std::chrono::system_clock::time_point{};
     const bool follow = request != nullptr && request->follow();
-    auto queue = std::make_shared<follow_queue<observability::LogEntry>>();
+    auto queue = std::make_shared<follow_queue<observability::LogRecord>>();
     std::function<void()> unsubscribe;
-    std::vector<observability::LogEntry> entries =
-        follow ? std::vector<observability::LogEntry>{}
+    std::vector<observability::LogRecord> entries =
+        follow ? std::vector<observability::LogRecord>{}
                : (cutoff == std::chrono::system_clock::time_point{}
                       ? obs_->log_ring->drain()
                       : obs_->log_ring->drain_since(cutoff));
     if (follow) {
       auto replay = obs_->log_ring->replay_and_subscribe(
-          cutoff, [queue](const observability::LogEntry &entry) {
+          cutoff, [queue](const observability::LogRecord &entry) {
             queue->push(entry);
           });
       entries = std::move(replay.first);
@@ -862,7 +851,7 @@ public:
       return grpc::Status::OK;
     }
 
-    observability::LogEntry entry;
+    observability::LogRecord entry;
     while (!context->IsCancelled() &&
            queue->wait_pop(&entry, [context]() { return context->IsCancelled(); })) {
       if (entry.private_entry) {
@@ -884,15 +873,14 @@ public:
 
   grpc::Status Metrics(grpc::ServerContext *,
                        const holons::v1::MetricsRequest *request,
-                       holons::v1::MetricsSnapshot *response) override {
+                       grpc::ServerWriter<holons::v1::Metric> *writer) override {
     if (obs_ == nullptr || !obs_->enabled(observability::Family::Metrics) ||
         !obs_->registry) {
       return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
                           "metrics family is not enabled (OP_OBS)");
     }
-    set_timestamp(response->mutable_captured_at(), std::chrono::system_clock::now());
-    response->set_slug(obs_->cfg.slug);
-    response->set_instance_uid(obs_->cfg.instance_uid);
+    const auto start = unix_nano(obs_->start_wall);
+    const auto now = unix_nano(std::chrono::system_clock::now());
 
     auto matches_name = [request](const std::string &name) {
       if (request == nullptr || request->name_prefixes_size() == 0) {
@@ -910,53 +898,74 @@ public:
       if (!matches_name(counter.name)) {
         continue;
       }
-      auto *sample = response->add_samples();
-      sample->set_name(counter.name);
-      sample->set_help(counter.help);
-      sample->set_counter(counter.value);
-      for (const auto &[key, value] : counter.labels) {
-        (*sample->mutable_labels())[key] = value;
-      }
+      holons::v1::Metric metric;
+      metric.set_name(counter.name);
+      metric.set_description(counter.help);
+      auto *sum = metric.mutable_sum();
+      sum->set_is_monotonic(true);
+      sum->set_aggregation_temporality(
+          holons::v1::AGGREGATION_TEMPORALITY_CUMULATIVE);
+      auto *point = sum->add_data_points();
+      point->set_start_time_unix_nano(start);
+      point->set_time_unix_nano(now);
+      point->set_as_int(counter.value);
+      append_attrs(metric_attributes(counter.labels), point->mutable_attributes());
+      if (!writer->Write(metric)) return grpc::Status::OK;
     }
     for (const auto &gauge : obs_->registry->gauges()) {
       if (!matches_name(gauge.name)) {
         continue;
       }
-      auto *sample = response->add_samples();
-      sample->set_name(gauge.name);
-      sample->set_help(gauge.help);
-      sample->set_gauge(gauge.value);
-      for (const auto &[key, value] : gauge.labels) {
-        (*sample->mutable_labels())[key] = value;
-      }
+      holons::v1::Metric metric;
+      metric.set_name(gauge.name);
+      metric.set_description(gauge.help);
+      auto *point = metric.mutable_gauge()->add_data_points();
+      point->set_start_time_unix_nano(start);
+      point->set_time_unix_nano(now);
+      point->set_as_double(gauge.value);
+      append_attrs(metric_attributes(gauge.labels), point->mutable_attributes());
+      if (!writer->Write(metric)) return grpc::Status::OK;
     }
     for (const auto &histogram : obs_->registry->histograms()) {
       if (!matches_name(histogram.name)) {
         continue;
       }
-      auto *sample = response->add_samples();
-      sample->set_name(histogram.name);
-      sample->set_help(histogram.help);
-      auto *proto_histogram = sample->mutable_histogram();
-      proto_histogram->set_count(histogram.value.total);
-      proto_histogram->set_sum(histogram.value.sum);
+      holons::v1::Metric metric;
+      metric.set_name(histogram.name);
+      metric.set_description(histogram.help);
+      auto *proto_histogram = metric.mutable_histogram();
+      proto_histogram->set_aggregation_temporality(
+          holons::v1::AGGREGATION_TEMPORALITY_CUMULATIVE);
+      auto *point = proto_histogram->add_data_points();
+      point->set_start_time_unix_nano(start);
+      point->set_time_unix_nano(now);
+      point->set_count(static_cast<std::uint64_t>(histogram.value.total));
+      point->set_sum(histogram.value.sum);
+      if (histogram.value.total > 0) {
+        point->set_min(histogram.value.min);
+        point->set_max(histogram.value.max);
+      }
+      std::int64_t previous = 0;
       for (size_t i = 0; i < histogram.value.bounds.size(); ++i) {
-        auto *bucket = proto_histogram->add_buckets();
-        bucket->set_upper_bound(histogram.value.bounds[i]);
-        bucket->set_count(i < histogram.value.counts.size()
-                              ? histogram.value.counts[i]
-                              : 0);
+        point->add_explicit_bounds(histogram.value.bounds[i]);
+        const auto cumulative = i < histogram.value.counts.size()
+                                    ? histogram.value.counts[i]
+                                    : previous;
+        point->add_bucket_counts(static_cast<std::uint64_t>(
+            std::max<std::int64_t>(0, cumulative - previous)));
+        previous = cumulative;
       }
-      for (const auto &[key, value] : histogram.labels) {
-        (*sample->mutable_labels())[key] = value;
-      }
+      point->add_bucket_counts(static_cast<std::uint64_t>(
+          std::max<std::int64_t>(0, histogram.value.total - previous)));
+      append_attrs(metric_attributes(histogram.labels), point->mutable_attributes());
+      if (!writer->Write(metric)) return grpc::Status::OK;
     }
     return grpc::Status::OK;
   }
 
   grpc::Status Events(grpc::ServerContext *context,
                       const holons::v1::EventsRequest *request,
-                      grpc::ServerWriter<holons::v1::EventInfo> *writer) override {
+                      grpc::ServerWriter<holons::v1::LogRecord> *writer) override {
     if (obs_ == nullptr || !obs_->enabled(observability::Family::Events) ||
         !obs_->event_bus) {
       return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
@@ -966,16 +975,16 @@ public:
                       ? since_cutoff(request->since())
                       : std::chrono::system_clock::time_point{};
     const bool follow = request != nullptr && request->follow();
-    auto queue = std::make_shared<follow_queue<observability::Event>>();
+    auto queue = std::make_shared<follow_queue<observability::LogRecord>>();
     std::function<void()> unsubscribe;
-    std::vector<observability::Event> events =
-        follow ? std::vector<observability::Event>{}
+    std::vector<observability::LogRecord> events =
+        follow ? std::vector<observability::LogRecord>{}
                : (cutoff == std::chrono::system_clock::time_point{}
                       ? obs_->event_bus->drain()
                       : obs_->event_bus->drain_since(cutoff));
     if (follow) {
       auto replay = obs_->event_bus->replay_and_subscribe(
-          cutoff, [queue](const observability::Event &event) {
+          cutoff, [queue](const observability::LogRecord &event) {
             queue->push(event);
           });
       events = std::move(replay.first);
@@ -988,7 +997,7 @@ public:
       if (request != nullptr && !matches_event_request(event, *request)) {
         continue;
       }
-      if (!writer->Write(to_proto_event(event))) {
+      if (!writer->Write(to_proto_log(event))) {
         if (unsubscribe) {
           unsubscribe();
         }
@@ -1000,7 +1009,7 @@ public:
       return grpc::Status::OK;
     }
 
-    observability::Event event;
+    observability::LogRecord event;
     while (!context->IsCancelled() &&
            queue->wait_pop(&event, [context]() { return context->IsCancelled(); })) {
       if (event.private_entry) {
@@ -1009,7 +1018,7 @@ public:
       if (!matches_event_request(event, *request)) {
         continue;
       }
-      if (!writer->Write(to_proto_event(event))) {
+      if (!writer->Write(to_proto_log(event))) {
         break;
       }
     }
@@ -1021,6 +1030,17 @@ public:
   }
 
 private:
+  std::vector<observability::Field>
+  metric_attributes(const std::map<std::string, std::string> &labels) const {
+    std::vector<observability::Field> attrs{{"holons.slug", obs_->cfg.slug},
+                                            {"service.name", obs_->cfg.slug},
+                                            {"holons.instance_uid", obs_->cfg.instance_uid},
+                                            {"service.instance.id", obs_->cfg.instance_uid},
+                                            {"holons.session_id", obs_->cfg.session_id}};
+    for (const auto &[key, value] : labels) attrs.emplace_back(key, value);
+    return attrs;
+  }
+
   observability::Observability *obs_ = nullptr;
 };
 
@@ -1353,13 +1373,15 @@ private:
                          std::chrono::seconds(5));
     holons::v1::EventsRequest request;
     auto reader = stub.Events(&context, request);
-    holons::v1::EventInfo event;
+    holons::v1::LogRecord event;
     member_identity fallback{slug_, ""};
     while (reader->Read(&event)) {
-      if (event.type() == holons::v1::INSTANCE_READY &&
-          !event.instance_uid().empty()) {
-        member_identity identity{event.slug().empty() ? slug_ : event.slug(),
-                                 event.instance_uid()};
+      auto record = from_proto_log(event);
+      const auto uid = observability::attribute_string(record, "holons.instance_uid");
+      if (record.event_name == observability::event_name(observability::EventType::InstanceReady) &&
+          !uid.empty()) {
+        auto slug = observability::attribute_string(record, "holons.slug");
+        member_identity identity{slug.empty() ? slug_ : slug, uid};
         if (event.chain_size() == 0) {
           reader->Finish();
           return identity;
@@ -1378,11 +1400,11 @@ private:
         auto stub = holons::v1::HolonObservability::NewStub(channel);
         auto identity = resolve_identity(*stub);
         holons::v1::LogsRequest request;
-        request.set_min_level(holons::v1::INFO);
+        request.set_min_severity_number(holons::v1::SEVERITY_NUMBER_INFO);
         request.set_follow(true);
         auto context = make_context();
         auto reader = stub->Logs(context.get(), request);
-        holons::v1::LogEntry proto;
+        holons::v1::LogRecord proto;
         while (!stopped_.load(std::memory_order_relaxed) &&
                reader->Read(&proto)) {
           auto entry = from_proto_log(proto);
@@ -1409,10 +1431,10 @@ private:
         request.set_follow(true);
         auto context = make_context();
         auto reader = stub->Events(context.get(), request);
-        holons::v1::EventInfo proto;
+        holons::v1::LogRecord proto;
         while (!stopped_.load(std::memory_order_relaxed) &&
                reader->Read(&proto)) {
-          auto event = from_proto_event(proto);
+          auto event = from_proto_log(proto);
           event.chain = observability::enrich_for_multilog(
               event.chain, identity.slug, identity.instance_uid);
           if (obs_ != nullptr && obs_->event_bus) {
@@ -1555,7 +1577,33 @@ maybe_make_observability_runtime(const options &opts) {
   if (current.families != 0) {
     return std::make_shared<observability_runtime>(&current);
   }
-  auto &obs = observability::from_env(observability::Config{opts.slug});
+  auto slug = trim_copy(opts.slug);
+  if (slug.empty()) {
+    if (auto desc = describe::registered_static_response()) {
+      const auto &identity = desc->manifest().identity();
+      if (identity.aliases_size() > 0 && !trim_copy(identity.aliases(0)).empty()) {
+        slug = trim_copy(identity.aliases(0));
+      } else {
+        slug = identity.given_name() + "-" + identity.family_name();
+        std::string normalized;
+        bool dash = false;
+        for (char raw : slug) {
+          auto ch = static_cast<unsigned char>(raw);
+          if (std::isalnum(ch)) {
+            normalized.push_back(static_cast<char>(std::tolower(ch)));
+            dash = false;
+          } else if (!dash) {
+            normalized.push_back('-');
+            dash = true;
+          }
+        }
+        while (!normalized.empty() && normalized.front() == '-') normalized.erase(normalized.begin());
+        while (!normalized.empty() && normalized.back() == '-') normalized.pop_back();
+        slug = std::move(normalized);
+      }
+    }
+  }
+  auto &obs = observability::from_env(observability::Config{slug});
   if (obs.families == 0) {
     return nullptr;
   }
@@ -1693,8 +1741,9 @@ inline server_handle start(
     observability_runtime->start(bound, opts);
   }
 
+  detail::set_current_transport(pending.empty() ? std::string{} : pending.front().parsed.scheme);
   return server_handle(std::move(server), std::move(bound),
-                       std::move(owned_objects));
+                       std::move(owned_objects), true);
 #endif
 }
 

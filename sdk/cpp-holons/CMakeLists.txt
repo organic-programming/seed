@@ -42,7 +42,7 @@ else()
   target_include_directories(holons INTERFACE /opt/homebrew/include /usr/local/include)
 endif()
 
-add_executable(test_runner test/holons_test.cpp)
+add_executable(test_runner test/holons_test.cpp src/serve.cpp)
 target_link_libraries(test_runner PRIVATE holons)
 
 if (HOLONS_USING_CPP_PREBUILT)

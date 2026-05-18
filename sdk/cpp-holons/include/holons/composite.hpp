@@ -50,7 +50,10 @@ struct CheckOutcome {
   std::string evidence;
 };
 
-using ChainHop = observability::Hop;
+struct ChainHop {
+  std::string slug;
+  std::string instance_uid;
+};
 
 struct LogCheckOptions {
   std::shared_ptr<grpc::Channel> channel;
@@ -434,10 +437,10 @@ private:
     auto stub = holons::v1::HolonObservability::NewStub(channel_);
     auto ctx = context();
     holons::v1::LogsRequest request;
-    request.set_min_level(holons::v1::INFO);
+    request.set_min_severity_number(holons::v1::SEVERITY_NUMBER_INFO);
     request.set_follow(true);
     auto reader = stub->Logs(ctx.get(), request);
-    holons::v1::LogEntry proto;
+    holons::v1::LogRecord proto;
     while (!stopped_.load(std::memory_order_relaxed) && reader->Read(&proto)) {
       auto entry = serve::detail::from_proto_log(proto);
       entry.chain = observability::append_direct_child(entry.chain, slug_, uid_);
@@ -453,9 +456,9 @@ private:
     holons::v1::EventsRequest request;
     request.set_follow(true);
     auto reader = stub->Events(ctx.get(), request);
-    holons::v1::EventInfo proto;
+    holons::v1::LogRecord proto;
     while (!stopped_.load(std::memory_order_relaxed) && reader->Read(&proto)) {
-      auto event = serve::detail::from_proto_event(proto);
+      auto event = serve::detail::from_proto_log(proto);
       event.chain = observability::append_direct_child(event.chain, slug_, uid_);
       auto &obs = observability::current();
       if (obs.event_bus) obs.event_bus->emit(event);
@@ -513,10 +516,13 @@ identity_from_events(const std::shared_ptr<grpc::Channel> &channel,
   context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(1));
   holons::v1::EventsRequest request;
   auto reader = stub->Events(&context, request);
-  holons::v1::EventInfo event;
+  holons::v1::LogRecord event;
   while (reader->Read(&event)) {
-    if (event.chain_size() == 0 && !event.instance_uid().empty()) {
-      return {{event.slug().empty() ? fallback_slug : event.slug(), event.instance_uid()}};
+    auto record = serve::detail::from_proto_log(event);
+    auto uid = observability::attribute_string(record, "holons.instance_uid");
+    if (event.chain_size() == 0 && !uid.empty()) {
+      auto slug = observability::attribute_string(record, "holons.slug");
+      return {{slug.empty() ? fallback_slug : slug, uid}};
     }
   }
   reader->Finish();
@@ -531,10 +537,13 @@ identity_from_logs(const std::shared_ptr<grpc::Channel> &channel,
   context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(1));
   holons::v1::LogsRequest request;
   auto reader = stub->Logs(&context, request);
-  holons::v1::LogEntry entry;
+  holons::v1::LogRecord entry;
   while (reader->Read(&entry)) {
-    if (entry.chain_size() == 0 && !entry.instance_uid().empty()) {
-      return {{entry.slug().empty() ? fallback_slug : entry.slug(), entry.instance_uid()}};
+    auto record = serve::detail::from_proto_log(entry);
+    auto uid = observability::attribute_string(record, "holons.instance_uid");
+    if (entry.chain_size() == 0 && !uid.empty()) {
+      auto slug = observability::attribute_string(record, "holons.slug");
+      return {{slug.empty() ? fallback_slug : slug, uid}};
     }
   }
   reader->Finish();
@@ -550,7 +559,7 @@ resolve_identity(const std::shared_ptr<grpc::Channel> &channel,
   throw std::runtime_error("peer did not expose slug and instance_uid");
 }
 
-inline std::vector<observability::LogEntry>
+inline std::vector<observability::LogRecord>
 read_log_entries(const std::shared_ptr<grpc::Channel> &channel) {
   if (!channel) {
     auto &obs = observability::current();
@@ -561,16 +570,16 @@ read_log_entries(const std::shared_ptr<grpc::Channel> &channel) {
   grpc::ClientContext context;
   context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(2));
   holons::v1::LogsRequest request;
-  request.set_min_level(holons::v1::INFO);
+  request.set_min_severity_number(holons::v1::SEVERITY_NUMBER_INFO);
   auto reader = stub->Logs(&context, request);
-  std::vector<observability::LogEntry> out;
-  holons::v1::LogEntry entry;
+  std::vector<observability::LogRecord> out;
+  holons::v1::LogRecord entry;
   while (reader->Read(&entry)) out.push_back(serve::detail::from_proto_log(entry));
   reader->Finish();
   return out;
 }
 
-inline std::vector<observability::Event>
+inline std::vector<observability::LogRecord>
 read_event_entries(const std::shared_ptr<grpc::Channel> &channel) {
   if (!channel) {
     auto &obs = observability::current();
@@ -582,9 +591,9 @@ read_event_entries(const std::shared_ptr<grpc::Channel> &channel) {
   context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(2));
   holons::v1::EventsRequest request;
   auto reader = stub->Events(&context, request);
-  std::vector<observability::Event> out;
-  holons::v1::EventInfo event;
-  while (reader->Read(&event)) out.push_back(serve::detail::from_proto_event(event));
+  std::vector<observability::LogRecord> out;
+  holons::v1::LogRecord event;
+  while (reader->Read(&event)) out.push_back(serve::detail::from_proto_log(event));
   reader->Finish();
   return out;
 }
@@ -617,6 +626,20 @@ inline std::string compare_chain(const std::vector<ChainHop> &got,
       return "hop " + std::to_string(i) + "=" + got[i].slug + "/" +
              got[i].instance_uid + " want " + want[i].slug + "/" +
              want[i].instance_uid;
+    }
+  }
+  return {};
+}
+
+inline std::string compare_chain(const std::vector<std::string> &got,
+                                 const std::vector<ChainHop> &want) {
+  if (got.size() != want.size()) {
+    return "chain length " + std::to_string(got.size()) + " want " +
+           std::to_string(want.size());
+  }
+  for (size_t i = 0; i < want.size(); ++i) {
+    if (got[i] != want[i].slug) {
+      return "hop " + std::to_string(i) + "=" + got[i] + " want " + want[i].slug;
     }
   }
   return {};
@@ -865,11 +888,10 @@ inline CheckOutcome CheckRelayedLog(LogCheckOptions opts) {
     try {
       auto entries = detail::read_log_entries(opts.channel);
       for (const auto &entry : entries) {
-        auto sender = entry.fields.find("sender");
-        auto uid = entry.fields.find("responder_uid");
-        if (entry.message != "tick received" || sender == entry.fields.end() ||
-            uid == entry.fields.end() || sender->second != opts.sender ||
-            uid->second != opts.leaf_uid) {
+        auto sender = observability::attribute_string(entry, "sender");
+        auto uid = observability::attribute_string(entry, "responder_uid");
+        if (observability::any_value_string(entry.body) != "tick received" ||
+            sender != opts.sender || uid != opts.leaf_uid) {
           continue;
         }
         if (auto evidence = detail::compare_chain(entry.chain, opts.expected_chain);
@@ -899,7 +921,8 @@ inline CheckOutcome CheckRelayedEvent(EventCheckOptions opts) {
     try {
       auto events = detail::read_event_entries(opts.channel);
       for (const auto &event : events) {
-        if (event.type != opts.event_type || event.instance_uid != opts.leaf_uid) {
+        if (event.event_name != observability::event_name(opts.event_type) ||
+            observability::attribute_string(event, "holons.instance_uid") != opts.leaf_uid) {
           continue;
         }
         if (auto evidence = detail::compare_chain(event.chain, opts.expected_chain);

@@ -3,6 +3,7 @@
 #include "api/public.hpp"
 #include "gen/describe_generated.hpp"
 #include "holons/observability.hpp"
+#include "holons/serve.hpp"
 #include "internal/greetings.hpp"
 
 #include <chrono>
@@ -47,12 +48,13 @@ std::string ResolvedName(const ::greeting::v1::SayHelloRequest &request) {
 void EmitGreetingObservability(
     const std::string &name, const ::greeting::v1::SayHelloResponse &response,
     std::chrono::steady_clock::time_point start) {
-  // C++ Serve does not yet expose a handler-visible current transport.
-  const std::string transport = "unknown";
+  std::string transport = holons::serve::CurrentTransport();
+  if (transport.empty()) {
+    transport = "unknown";
+  }
   const auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
                                std::chrono::steady_clock::now() - start)
                                .count();
-  const std::string duration_text = std::to_string(duration_ns);
   const std::string message = "Greeted " + name + " in " + response.language() +
                               " (" + response.lang_code() + ")";
   auto &obs = holons::observability::current();
@@ -63,7 +65,7 @@ void EmitGreetingObservability(
                       {"name", name},
                       {"greeting", response.greeting()},
                       {"transport", transport},
-                      {"duration_ns", duration_text}});
+                      {"duration_ns", duration_ns}});
 
   auto counter = obs.counter(
       "greeting_emitted_total",

@@ -1792,6 +1792,12 @@ int main() {
       return false;
     })());
     ++passed;
+    assert(holons::serve::CurrentTransport().empty());
+    holons::serve::detail::set_current_transport("stdio");
+    assert(holons::serve::CurrentTransport() == "stdio");
+    holons::serve::detail::clear_current_transport();
+    assert(holons::serve::CurrentTransport().empty());
+    ++passed;
   }
 
   // --- observability disk outputs ---
@@ -1838,7 +1844,7 @@ int main() {
     assert(stdout_log.find("\"message\":\"service-log\"") != std::string::npos);
     ++passed;
     auto events_log = read_file_text((std::filesystem::path(inst.cfg.run_dir) / "events.jsonl").string());
-    assert(events_log.find("\"type\":\"INSTANCE_READY\"") != std::string::npos);
+    assert(events_log.find("\"event_name\":\"instance.ready\"") != std::string::npos);
     ++passed;
     auto meta_json = read_file_text((std::filesystem::path(inst.cfg.run_dir) / "meta.json").string());
     assert(meta_json.find("\"uid\":\"uid-1\"") != std::string::npos);
@@ -1853,25 +1859,25 @@ int main() {
   {
     namespace obs = holons::observability;
     obs::LogRing ring(8);
-    obs::LogEntry first;
+    obs::LogRecord first;
     first.timestamp = std::chrono::system_clock::now();
-    first.message = "before";
+    first.body = std::string("before");
     ring.push(first);
 
-    std::vector<obs::LogEntry> live;
+    std::vector<obs::LogRecord> live;
     auto replay = ring.replay_and_subscribe(
         std::chrono::system_clock::time_point{},
-        [&live](const obs::LogEntry &entry) { live.push_back(entry); });
+        [&live](const obs::LogRecord &entry) { live.push_back(entry); });
     assert(replay.first.size() == 1);
-    assert(replay.first.front().message == "before");
+    assert(obs::any_value_string(replay.first.front().body) == "before");
     ++passed;
 
-    obs::LogEntry second;
+    obs::LogRecord second;
     second.timestamp = std::chrono::system_clock::now();
-    second.message = "after";
+    second.body = std::string("after");
     ring.push(second);
     assert(live.size() == 1);
-    assert(live.front().message == "after");
+    assert(obs::any_value_string(live.front().body) == "after");
     replay.second();
     ++passed;
   }
@@ -1882,8 +1888,8 @@ int main() {
     obs::EventBus bus(8);
     obs::Event first;
     first.timestamp = std::chrono::system_clock::now();
-    first.type = obs::EventType::InstanceReady;
-    first.instance_uid = "before";
+    first.event_name = obs::event_name(obs::EventType::InstanceReady);
+    first.attributes.push_back({"holons.instance_uid", "before"});
     bus.emit(first);
 
     std::vector<obs::Event> live;
@@ -1891,16 +1897,16 @@ int main() {
         std::chrono::system_clock::time_point{},
         [&live](const obs::Event &event) { live.push_back(event); });
     assert(replay.first.size() == 1);
-    assert(replay.first.front().instance_uid == "before");
+    assert(obs::attribute_string(replay.first.front(), "holons.instance_uid") == "before");
     ++passed;
 
     obs::Event second;
     second.timestamp = std::chrono::system_clock::now();
-    second.type = obs::EventType::InstanceReady;
-    second.instance_uid = "after";
+    second.event_name = obs::event_name(obs::EventType::InstanceReady);
+    second.attributes.push_back({"holons.instance_uid", "after"});
     bus.emit(second);
     assert(live.size() == 1);
-    assert(live.front().instance_uid == "after");
+    assert(obs::attribute_string(live.front(), "holons.instance_uid") == "after");
     replay.second();
     ++passed;
   }
