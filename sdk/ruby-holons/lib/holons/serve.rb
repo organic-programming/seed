@@ -26,6 +26,10 @@ module Holons
     end
 
     class << self
+      def current_transport
+        current_transport_mutex.synchronize { @current_transport.to_s }
+      end
+
       # Parse --listen or --port from args.
       def parse_flags(args)
         parse_options(args).listen_uri
@@ -104,41 +108,59 @@ module Holons
 
         options ||= ServeOptions.new
         parsed = Transport.parse_uri(listen_uri)
-        server = GRPC::RpcServer.new
-        register.call(server)
-        auto_register_describe(server)
-        observability = auto_register_observability(server, env, options)
-        reflection_enabled = maybe_register_reflection(server, options.reflect)
+        with_current_transport(parsed.scheme) do
+          server = GRPC::RpcServer.new
+          register.call(server)
+          auto_register_describe(server)
+          observability = auto_register_observability(server, env, options)
+          reflection_enabled = maybe_register_reflection(server, options.reflect)
 
-        actual_uri, cleanup, stdio_bridge = prepare_runtime(parsed, server)
-        mode = reflection_mode(reflection_enabled)
-        prom_server = start_prom_server(observability)
-        metrics_addr = prom_server&.start.to_s
-        start_observability_runtime(observability, actual_uri, parsed.scheme, metrics_addr)
-        started_relays = []
+          actual_uri, cleanup, stdio_bridge = prepare_runtime(parsed, server)
+          mode = reflection_mode(reflection_enabled)
+          prom_server = start_prom_server(observability)
+          metrics_addr = prom_server&.start.to_s
+          start_observability_runtime(observability, actual_uri, parsed.scheme, metrics_addr)
+          started_relays = []
 
-        begin
-          with_signal_handlers(server) do
-            run_server(server) do
-              stdio_bridge&.connect_to_server
-              publish_listen_uri(actual_uri, on_listen) unless parsed.scheme == "stdio"
-              on_listen&.call(actual_uri) if parsed.scheme == "stdio"
-              warn("gRPC server listening on #{actual_uri} (#{mode})")
-              started_relays = start_member_relays(observability, options.member_endpoints)
+          begin
+            with_signal_handlers(server) do
+              run_server(server) do
+                stdio_bridge&.connect_to_server
+                publish_listen_uri(actual_uri, on_listen) unless parsed.scheme == "stdio"
+                on_listen&.call(actual_uri) if parsed.scheme == "stdio"
+                warn("gRPC server listening on #{actual_uri} (#{mode})")
+                started_relays = start_member_relays(observability, options.member_endpoints)
+              end
             end
+          ensure
+            started_relays.each do |relay, channel|
+              relay.stop
+              Holons::DiscoverySupport.close_channel(channel) if defined?(Holons::DiscoverySupport)
+            end
+            prom_server&.close
+            stdio_bridge&.close
+            cleanup&.call
           end
-        ensure
-          started_relays.each do |relay, channel|
-            relay.stop
-            Holons::DiscoverySupport.close_channel(channel) if defined?(Holons::DiscoverySupport)
-          end
-          prom_server&.close
-          stdio_bridge&.close
-          cleanup&.call
         end
       end
 
       private
+
+      def current_transport_mutex
+        @current_transport_mutex ||= Mutex.new
+      end
+
+      def set_current_transport(value)
+        current_transport_mutex.synchronize { @current_transport = value.to_s }
+      end
+
+      def with_current_transport(value)
+        previous = current_transport
+        set_current_transport(value)
+        yield
+      ensure
+        set_current_transport(previous)
+      end
 
       def ensure_grpc_runtime!
         require "grpc"

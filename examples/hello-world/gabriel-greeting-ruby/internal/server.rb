@@ -22,8 +22,8 @@ module GabrielGreetingRuby
         response = Api::Public.say_hello(request)
         name = request.name.to_s.strip
         name = Internal.lookup(response.lang_code).default_name if name.empty?
-        # Ruby Serve does not yet expose a handler-visible current transport.
-        transport = "unknown"
+        transport = Holons.current_transport.to_s
+        transport = "unknown" if transport.empty?
         duration_ns = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond) - start_time
         message = "Greeted #{name} in #{response.language} (#{response.lang_code})"
         obs = Holons::Observability.current

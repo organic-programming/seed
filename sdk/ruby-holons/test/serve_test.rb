@@ -62,6 +62,35 @@ class ServeTest < Minitest::Test
     end
   end
 
+  def test_current_transport_tracks_stdio_serve_lifecycle
+    with_serve_fixture do |fixture|
+      env = { "HOLONS_SERVE_TEST_CURRENT_TRANSPORT" => "1" }
+      stdin, stdout, stderr, wait_thr = Open3.popen3(
+        env,
+        RbConfig.ruby,
+        fixture[:script_path],
+        "serve",
+        "--listen",
+        "stdio://",
+        chdir: fixture[:holon_dir]
+      )
+
+      begin
+        status = Timeout.timeout(5) { wait_thr.value }
+        output = stderr.read
+        assert status.success?, output
+        assert_match(/^before=$/, output)
+        assert_match(/^during=stdio$/, output)
+        assert_match(/^after=$/, output)
+      ensure
+        stdin.close unless stdin.closed?
+        stdout.close unless stdout.closed?
+        stderr.close unless stderr.closed?
+        terminate_process(wait_thr.pid) if wait_thr.alive?
+      end
+    end
+  end
+
   def test_run_with_options_auto_registers_observability
     with_serve_fixture do |fixture|
       Holons::Observability.require_grpc_observability_support!
@@ -234,7 +263,25 @@ class ServeTest < Minitest::Test
         args.shift if args.first == "serve"
 
         parsed = Holons::Serve.parse_options(args)
-        Holons::Serve.run_with_options(parsed.listen_uri, ->(_server) {}, parsed.reflect)
+        if ENV["HOLONS_SERVE_TEST_CURRENT_TRANSPORT"] == "1"
+          warn("before=\#{Holons.current_transport}")
+          begin
+            Holons::Serve.run_with_options(
+              parsed.listen_uri,
+              ->(_server) {},
+              parsed.reflect,
+              on_listen: proc do
+                warn("during=\#{Holons.current_transport}")
+                raise "stop-current-transport-test"
+              end
+            )
+          rescue RuntimeError => e
+            raise unless e.message == "stop-current-transport-test"
+          end
+          warn("after=\#{Holons.current_transport}")
+        else
+          Holons::Serve.run_with_options(parsed.listen_uri, ->(_server) {}, parsed.reflect)
+        end
       rescue StandardError => e
         warn(e.message)
         exit 1

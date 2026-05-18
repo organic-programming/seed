@@ -19,4 +19,7 @@ require_relative "holons/describe"
 require_relative "holons/holonrpc"
 
 module Holons
+  def self.current_transport
+    Serve.current_transport
+  end
 end

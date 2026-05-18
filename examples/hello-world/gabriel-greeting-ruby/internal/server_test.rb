@@ -112,6 +112,51 @@ class GreetingServerTest < Minitest::Test
     end
   end
 
+  def test_say_hello_emits_stdio_transport_under_stdio_serve
+    Holons::Observability.require_grpc_observability_support!
+    env = ENV.to_h.merge(
+      "OP_OBS" => "logs",
+      "OP_INSTANCE_UID" => "ruby-stdio-fixture"
+    )
+    proxy = Holons::DiscoverySupport::StdioDialProxy.new(
+      RbConfig.ruby,
+      args: ["cmd/main.rb"],
+      chdir: GabrielGreetingRuby::ROOT,
+      env: env
+    )
+    proxy.start
+    channel = Holons::DiscoverySupport.dial_ready(proxy.target, 5000)
+
+    greeting_stub = Greeting::V1::GreetingService::Stub.new(
+      "unused",
+      :this_channel_is_insecure,
+      channel_override: channel,
+      timeout: 5
+    )
+    observability_stub = Holons::V1::HolonObservability::Stub.new(
+      "unused",
+      :this_channel_is_insecure,
+      channel_override: channel,
+      timeout: 5
+    )
+
+    response = greeting_stub.say_hello(
+      Greeting::V1::SayHelloRequest.new(name: "Ana", lang_code: "es")
+    )
+    assert_equal "Hola Ana", response.greeting
+
+    records = observability_stub.logs(Holons::V1::LogsRequest.new).to_a
+    record = records.find { |candidate| Holons::Observability.body_string(candidate) == "Greeted Ana in Spanish (es)" }
+    refute_nil record
+    fields = Holons::Observability.attributes_hash(record.attributes)
+    assert_equal "stdio", fields["transport"]
+    assert_instance_of Integer, fields["duration_ns"]
+    assert_equal :int_value, Holons::Observability.attribute_value(record.attributes, "duration_ns").value
+  ensure
+    Holons::DiscoverySupport.close_channel(channel) unless channel.nil?
+    proxy&.close
+  end
+
   def test_describe_uses_static_manifest
     response = @meta_stub.describe(Holons::V1::DescribeRequest.new)
 
