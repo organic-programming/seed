@@ -121,7 +121,7 @@ public sealed record LogCheckOptions
 public sealed record EventCheckOptions
 {
     public GrpcChannel? Conn { get; init; }
-    public Observability.EventType EventType { get; init; } = Observability.EventType.InstanceReady;
+    public string EventName { get; init; } = Observability.EventNames.InstanceReady;
     public string LeafUid { get; init; } = "";
     public IReadOnlyList<Hop> ExpectedChain { get; init; } = Array.Empty<Hop>();
     public TimeSpan Timeout { get; init; } = default;
@@ -381,7 +381,7 @@ public static partial class Composite
         return last;
     }
 
-    private static async Task<IReadOnlyList<Observability.LogEntry>> ReadLogs(GrpcChannel? channel, CancellationToken ct)
+    private static async Task<IReadOnlyList<Observability.LogRecord>> ReadLogs(GrpcChannel? channel, CancellationToken ct)
     {
         if (channel is null)
             return ObservabilityRegistry.Current().LogRing?.Drain() ?? throw new InvalidOperationException("logs family is not enabled");
@@ -389,14 +389,14 @@ public static partial class Composite
         var client = new HolonObservability.HolonObservabilityClient(channel);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(2));
-        using var call = client.Logs(new LogsRequest { MinLevel = LogLevel.Info }, cancellationToken: timeout.Token);
-        var entries = new List<Observability.LogEntry>();
+        using var call = client.Logs(new LogsRequest { MinSeverityNumber = SeverityNumber.Info }, cancellationToken: timeout.Token);
+        var entries = new List<Observability.LogRecord>();
         while (await call.ResponseStream.MoveNext(timeout.Token).ConfigureAwait(false))
-            entries.Add(ObservabilityGrpcService.FromProtoLogEntry(call.ResponseStream.Current));
+            entries.Add(ObservabilityGrpcService.FromProtoLogRecord(call.ResponseStream.Current));
         return entries;
     }
 
-    private static async Task<IReadOnlyList<Event>> ReadEvents(GrpcChannel? channel, CancellationToken ct)
+    private static async Task<IReadOnlyList<Observability.LogRecord>> ReadEvents(GrpcChannel? channel, CancellationToken ct)
     {
         if (channel is null)
             return ObservabilityRegistry.Current().EventBus?.Drain() ?? throw new InvalidOperationException("events family is not enabled");
@@ -405,23 +405,24 @@ public static partial class Composite
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(2));
         using var call = client.Events(new EventsRequest(), cancellationToken: timeout.Token);
-        var events = new List<Event>();
+        var events = new List<Observability.LogRecord>();
         while (await call.ResponseStream.MoveNext(timeout.Token).ConfigureAwait(false))
-            events.Add(ObservabilityGrpcService.FromProtoEvent(call.ResponseStream.Current));
+            events.Add(ObservabilityGrpcService.FromProtoLogRecord(call.ResponseStream.Current));
         return events;
     }
 
-    private static CheckOutcome MatchRelayedLog(IReadOnlyList<Observability.LogEntry> entries, LogCheckOptions opts)
+    private static CheckOutcome MatchRelayedLog(IReadOnlyList<Observability.LogRecord> entries, LogCheckOptions opts)
     {
         foreach (var entry in entries)
         {
-            if (entry.Message != "tick received")
+            if (Observability.Wire.AnyValueString(entry.Record.Body) != "tick received")
                 continue;
-            if (!entry.Fields.TryGetValue("sender", out var sender) || sender != opts.Sender)
+            var attrs = AttrMap(entry.Record.Attributes);
+            if (!attrs.TryGetValue("sender", out var sender) || Observability.Wire.AnyValueString(sender) != opts.Sender)
                 continue;
-            if (!entry.Fields.TryGetValue("responder_uid", out var responderUid) || responderUid != opts.LeafUid)
+            if (!attrs.TryGetValue("responder_uid", out var responderUid) || Observability.Wire.AnyValueString(responderUid) != opts.LeafUid)
                 continue;
-            var evidence = CompareChain(entry.Chain, opts.ExpectedChain);
+            var evidence = CompareChain(entry.Record.Chain, opts.ExpectedChain);
             return evidence.Length == 0
                 ? new CheckOutcome(true)
                 : new CheckOutcome(Evidence: CompactEvidence("matching log bad chain: " + evidence));
@@ -429,31 +430,35 @@ public static partial class Composite
         return new CheckOutcome(Evidence: CompactEvidence($"no relayed tick log sender={opts.Sender} leaf_uid={opts.LeafUid} entries={entries.Count}"));
     }
 
-    private static CheckOutcome MatchRelayedEvent(IReadOnlyList<Event> events, EventCheckOptions opts)
+    private static CheckOutcome MatchRelayedEvent(IReadOnlyList<Observability.LogRecord> events, EventCheckOptions opts)
     {
         foreach (var ev in events)
         {
-            if (ev.Type != opts.EventType || ev.InstanceUid != opts.LeafUid)
+            if (ev.Record.EventName != opts.EventName ||
+                Observability.Wire.AttributeString(ev.Record.Attributes, Observability.AttributeNames.HolonsInstanceUid) != opts.LeafUid)
                 continue;
-            var evidence = CompareChain(ev.Chain, opts.ExpectedChain);
+            var evidence = CompareChain(ev.Record.Chain, opts.ExpectedChain);
             return evidence.Length == 0
                 ? new CheckOutcome(true)
                 : new CheckOutcome(Evidence: CompactEvidence("matching event bad chain: " + evidence));
         }
-        return new CheckOutcome(Evidence: CompactEvidence($"no relayed {opts.EventType.Name()} event leaf_uid={opts.LeafUid} events={events.Count}"));
+        return new CheckOutcome(Evidence: CompactEvidence($"no relayed {opts.EventName} event leaf_uid={opts.LeafUid} events={events.Count}"));
     }
 
-    private static string CompareChain(IReadOnlyList<Hop> got, IReadOnlyList<Hop> want)
+    private static string CompareChain(IReadOnlyList<string> got, IReadOnlyList<Hop> want)
     {
         if (got.Count != want.Count)
             return $"chain length {got.Count} want {want.Count}";
         for (var i = 0; i < want.Count; i++)
         {
-            if (got[i].Slug != want[i].Slug || got[i].InstanceUid != want[i].InstanceUid)
-                return $"hop {i}={got[i].Slug}/{got[i].InstanceUid} want {want[i].Slug}/{want[i].InstanceUid}";
+            if (got[i] != want[i].Slug)
+                return $"hop {i}={got[i]} want {want[i].Slug}";
         }
         return "";
     }
+
+    private static Dictionary<string, AnyValue> AttrMap(IEnumerable<KeyValue> attrs) =>
+        attrs.ToDictionary(attr => attr.Key, attr => attr.Value, StringComparer.Ordinal);
 
     private static async Task<DescribeResponse> DescribeReadyAsync(GrpcChannel channel, TimeSpan timeout, CancellationToken cancellationToken)
     {
@@ -488,8 +493,12 @@ public static partial class Composite
             while (await events.ResponseStream.MoveNext(timeout.Token).ConfigureAwait(false))
             {
                 var ev = events.ResponseStream.Current;
-                if (ev.Chain.Count == 0 && !string.IsNullOrWhiteSpace(ev.InstanceUid))
-                    return new MemberIdentity(string.IsNullOrWhiteSpace(ev.Slug) ? fallbackSlug : ev.Slug, ev.InstanceUid);
+                var instanceUid = Observability.Wire.AttributeString(ev.Attributes, Observability.AttributeNames.HolonsInstanceUid);
+                if (ev.Chain.Count == 0 && !string.IsNullOrWhiteSpace(instanceUid))
+                {
+                    var slug = Observability.Wire.AttributeString(ev.Attributes, Observability.AttributeNames.HolonsSlug);
+                    return new MemberIdentity(string.IsNullOrWhiteSpace(slug) ? fallbackSlug : slug, instanceUid);
+                }
             }
         }
         catch { }

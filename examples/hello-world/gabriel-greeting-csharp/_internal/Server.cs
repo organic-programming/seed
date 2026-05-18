@@ -21,8 +21,7 @@ public sealed class GreetingServiceImpl : GreetingService.GreetingServiceBase
         var start = Stopwatch.GetTimestamp();
         var response = Api.PublicApi.SayHello(request);
         var durationNs = ElapsedNanoseconds(start);
-        // C# Serve does not yet expose a handler-visible current transport.
-        var transport = "unknown";
+        var transport = string.IsNullOrEmpty(Serve.CurrentTransport) ? "unknown" : Serve.CurrentTransport;
         var name = ResolveGreetingName(request, response);
 
         EmitGreetingObservability(response, name, transport, durationNs);
@@ -85,14 +84,17 @@ public static class GreetingServer
 
     public static Task ListenAndServeAsync(string listenUri, bool reflect)
     {
-        Serve.RunWithOptions(listenUri, CreateRegistrations(), new Serve.ServeOptions { Reflect = reflect });
+        Serve.RunWithOptions(listenUri, CreateRegistrations(), ServeOptions(reflect));
         return Task.CompletedTask;
     }
 
     public static Task<Serve.RunningServer> StartAsync(string listenUri, bool reflect = false)
     {
-        return Task.FromResult(Serve.StartWithOptions(listenUri, CreateRegistrations(), new Serve.ServeOptions { Reflect = reflect }));
+        return Task.FromResult(Serve.StartWithOptions(listenUri, CreateRegistrations(), ServeOptions(reflect)));
     }
+
+    private static Serve.ServeOptions ServeOptions(bool reflect) =>
+        new() { Reflect = reflect, Slug = "gabriel-greeting-csharp" };
 
     private static Serve.GrpcServiceRegistration[] CreateRegistrations() =>
     [

@@ -18,7 +18,7 @@ public enum Family { Logs, Metrics, Events, Prom, Otel }
 
 public enum Level
 {
-    Unset = 0, Trace = 1, Debug = 2, Info = 3, Warn = 4, Error = 5, Fatal = 6,
+    Unset = 0, Trace = 1, Debug = 5, Info = 9, Warn = 13, Error = 17, Fatal = 21,
 }
 
 public static class LevelExt
@@ -31,28 +31,16 @@ public static class LevelExt
     };
 }
 
-public enum EventType
+public static class EventNames
 {
-    Unspecified = 0,
-    InstanceSpawned = 1, InstanceReady = 2, InstanceExited = 3, InstanceCrashed = 4,
-    SessionStarted = 5, SessionEnded = 6,
-    HandlerPanic = 7, ConfigReloaded = 8,
-}
-
-public static class EventTypeExt
-{
-    public static string Name(this EventType t) => t switch
-    {
-        EventType.InstanceSpawned => "INSTANCE_SPAWNED",
-        EventType.InstanceReady => "INSTANCE_READY",
-        EventType.InstanceExited => "INSTANCE_EXITED",
-        EventType.InstanceCrashed => "INSTANCE_CRASHED",
-        EventType.SessionStarted => "SESSION_STARTED",
-        EventType.SessionEnded => "SESSION_ENDED",
-        EventType.HandlerPanic => "HANDLER_PANIC",
-        EventType.ConfigReloaded => "CONFIG_RELOADED",
-        _ => "UNSPECIFIED",
-    };
+    public const string InstanceSpawned = "instance.spawned";
+    public const string InstanceReady = "instance.ready";
+    public const string InstanceExited = "instance.exited";
+    public const string InstanceCrashed = "instance.crashed";
+    public const string SessionStarted = "session.started";
+    public const string SessionEnded = "session.ended";
+    public const string HandlerPanic = "handler.panic";
+    public const string ConfigReloaded = "config.reloaded";
 }
 
 public sealed class InvalidTokenException : Exception
@@ -134,80 +122,92 @@ public sealed class Hop
 
 public static class Chain
 {
-    public static List<Hop> AppendDirectChild(IEnumerable<Hop> src, string childSlug, string childUid)
+    public static List<string> AppendDirectChild(IEnumerable<string> src, string childSlug, string childUid = "")
     {
-        var l = new List<Hop>(src);
-        l.Add(new Hop(childSlug, childUid));
+        var l = new List<string>(src);
+        if (!string.IsNullOrEmpty(childSlug))
+            l.Add(childSlug);
         return l;
     }
 
-    public static List<Hop> EnrichForMultilog(IEnumerable<Hop> wire, string srcSlug, string srcUid)
+    public static List<string> EnrichForMultilog(IEnumerable<string> wire, string srcSlug, string srcUid = "")
         => AppendDirectChild(wire, srcSlug, srcUid);
 }
 
-public sealed class LogEntry
+public static class AttributeNames
 {
-    public DateTime Timestamp { get; init; }
-    public Level Level { get; init; }
-    public string Slug { get; init; } = "";
-    public string InstanceUid { get; init; } = "";
-    public string SessionId { get; init; } = "";
-    public string RpcMethod { get; init; } = "";
-    public string Message { get; init; } = "";
-    public Dictionary<string, string> Fields { get; init; } = new();
-    public string Caller { get; init; } = "";
-    public List<Hop> Chain { get; init; } = new();
+    public const string HolonsSlug = "holons.slug";
+    public const string ServiceName = "service.name";
+    public const string HolonsInstanceUid = "holons.instance_uid";
+    public const string ServiceInstanceId = "service.instance.id";
+    public const string HolonsSessionId = "holons.session_id";
+    public const string HolonsTransport = "holons.transport";
+    public const string RpcMethod = "rpc.method";
+    public const string LoggerName = "logger.name";
+    public const string CodeCaller = "code.caller";
+}
+
+public sealed class LogRecord
+{
+    public global::Holons.V1.LogRecord Record { get; init; } = new();
     public bool Private { get; init; }
+
+    public DateTime Timestamp =>
+        Record.TimeUnixNano == 0
+            ? DateTime.MinValue
+            : DateTimeOffset.FromUnixTimeMilliseconds(0)
+                .AddTicks((long)(Record.TimeUnixNano / 100))
+                .UtcDateTime;
 }
 
 public sealed class LogRing
 {
     private readonly int _capacity;
-    private readonly Queue<LogEntry> _buf;
-    private readonly List<Action<LogEntry>> _subs = new();
+    private readonly Queue<LogRecord> _buf;
+    private readonly List<Action<LogRecord>> _subs = new();
     private readonly object _lock = new();
 
     public LogRing(int capacity = 1024)
     {
         _capacity = Math.Max(1, capacity);
-        _buf = new Queue<LogEntry>(_capacity);
+        _buf = new Queue<LogRecord>(_capacity);
     }
 
-    public void Push(LogEntry e)
+    public void Push(LogRecord e)
     {
-        List<Action<LogEntry>> copy;
+        List<Action<LogRecord>> copy;
         lock (_lock)
         {
             if (_buf.Count == _capacity) _buf.Dequeue();
             _buf.Enqueue(e);
-            copy = new List<Action<LogEntry>>(_subs);
+            copy = new List<Action<LogRecord>>(_subs);
         }
         foreach (var s in copy) try { s(e); } catch { }
     }
 
-    public List<LogEntry> Drain()
+    public List<LogRecord> Drain()
     {
-        lock (_lock) return new List<LogEntry>(_buf);
+        lock (_lock) return new List<LogRecord>(_buf);
     }
 
-    public List<LogEntry> DrainSince(DateTime cutoff)
+    public List<LogRecord> DrainSince(DateTime cutoff)
     {
         lock (_lock) return _buf.Where(e => e.Timestamp >= cutoff).ToList();
     }
 
-    public IDisposable Subscribe(Action<LogEntry> fn)
+    public IDisposable Subscribe(Action<LogRecord> fn)
     {
         lock (_lock) _subs.Add(fn);
         return new Sub(() => { lock (_lock) _subs.Remove(fn); });
     }
 
-    public (List<LogEntry> Replay, IDisposable Subscription) ReplayAndSubscribe(DateTime? cutoff, Action<LogEntry> fn)
+    public (List<LogRecord> Replay, IDisposable Subscription) ReplayAndSubscribe(DateTime? cutoff, Action<LogRecord> fn)
     {
         lock (_lock)
         {
             var replay = cutoff is { } since
                 ? _buf.Where(e => e.Timestamp >= since).ToList()
-                : new List<LogEntry>(_buf);
+                : new List<LogRecord>(_buf);
             _subs.Add(fn);
             return (replay, new Sub(() => { lock (_lock) _subs.Remove(fn); }));
         }
@@ -223,61 +223,49 @@ public sealed class LogRing
     }
 }
 
-public sealed class Event
-{
-    public DateTime Timestamp { get; init; }
-    public EventType Type { get; init; }
-    public string Slug { get; init; } = "";
-    public string InstanceUid { get; init; } = "";
-    public string SessionId { get; init; } = "";
-    public Dictionary<string, string> Payload { get; init; } = new();
-    public List<Hop> Chain { get; init; } = new();
-    public bool Private { get; init; }
-}
-
 public sealed class EventBus
 {
     private readonly int _capacity;
-    private readonly Queue<Event> _buf;
-    private readonly List<Action<Event>> _subs = new();
+    private readonly Queue<LogRecord> _buf;
+    private readonly List<Action<LogRecord>> _subs = new();
     private readonly object _lock = new();
     private bool _closed;
 
     public EventBus(int capacity = 256)
     {
         _capacity = Math.Max(1, capacity);
-        _buf = new Queue<Event>(_capacity);
+        _buf = new Queue<LogRecord>(_capacity);
     }
 
-    public void Emit(Event e)
+    public void Emit(LogRecord e)
     {
-        List<Action<Event>> copy;
+        List<Action<LogRecord>> copy;
         lock (_lock)
         {
             if (_closed) return;
             if (_buf.Count == _capacity) _buf.Dequeue();
             _buf.Enqueue(e);
-            copy = new List<Action<Event>>(_subs);
+            copy = new List<Action<LogRecord>>(_subs);
         }
         foreach (var s in copy) try { s(e); } catch { }
     }
 
-    public List<Event> Drain() { lock (_lock) return new List<Event>(_buf); }
-    public List<Event> DrainSince(DateTime cutoff) { lock (_lock) return _buf.Where(e => e.Timestamp >= cutoff).ToList(); }
+    public List<LogRecord> Drain() { lock (_lock) return new List<LogRecord>(_buf); }
+    public List<LogRecord> DrainSince(DateTime cutoff) { lock (_lock) return _buf.Where(e => e.Timestamp >= cutoff).ToList(); }
 
-    public IDisposable Subscribe(Action<Event> fn)
+    public IDisposable Subscribe(Action<LogRecord> fn)
     {
         lock (_lock) _subs.Add(fn);
         return new Sub(() => { lock (_lock) _subs.Remove(fn); });
     }
 
-    public (List<Event> Replay, IDisposable Subscription) ReplayAndSubscribe(DateTime? cutoff, Action<Event> fn)
+    public (List<LogRecord> Replay, IDisposable Subscription) ReplayAndSubscribe(DateTime? cutoff, Action<LogRecord> fn)
     {
         lock (_lock)
         {
             var replay = cutoff is { } since
                 ? _buf.Where(e => e.Timestamp >= since).ToList()
-                : new List<Event>(_buf);
+                : new List<LogRecord>(_buf);
             if (!_closed)
                 _subs.Add(fn);
             return (replay, new Sub(() => { lock (_lock) _subs.Remove(fn); }));
@@ -334,6 +322,8 @@ public sealed class HistogramSnapshot
     public IReadOnlyList<long> Counts { get; init; } = Array.Empty<long>();
     public long Total { get; init; }
     public double Sum { get; init; }
+    public double Min { get; init; }
+    public double Max { get; init; }
     public double Quantile(double q)
     {
         if (Total == 0) return double.NaN;
@@ -358,6 +348,8 @@ public sealed class Histogram
     private readonly long[] _counts;
     private long _total;
     private double _sum;
+    private double _min = double.NaN;
+    private double _max = double.NaN;
     private readonly object _lock = new();
 
     internal Histogram(string name, string help, Dictionary<string, string> labels, double[]? bounds)
@@ -374,6 +366,8 @@ public sealed class Histogram
         {
             _total++;
             _sum += v;
+            _min = double.IsNaN(_min) ? v : Math.Min(_min, v);
+            _max = double.IsNaN(_max) ? v : Math.Max(_max, v);
             for (var i = 0; i < _bounds.Length; i++)
                 if (v <= _bounds[i]) _counts[i]++;
         }
@@ -391,6 +385,8 @@ public sealed class Histogram
                 Counts = (long[])_counts.Clone(),
                 Total = _total,
                 Sum = _sum,
+                Min = double.IsNaN(_min) ? 0 : _min,
+                Max = double.IsNaN(_max) ? 0 : _max,
             };
         }
     }
@@ -428,6 +424,7 @@ public sealed record ObsConfig
 {
     public string Slug { get; init; } = "";
     public Level DefaultLogLevel { get; init; } = Level.Info;
+    public string SessionId { get; init; } = "";
     public string PromAddr { get; init; } = "";
     public string[] RedactedFields { get; init; } = Array.Empty<string>();
     public int LogsRingSize { get; init; } = 1024;
@@ -436,6 +433,65 @@ public sealed record ObsConfig
     public string InstanceUid { get; init; } = "";
     public string OrganismUid { get; init; } = "";
     public string OrganismSlug { get; init; } = "";
+}
+
+public static class Wire
+{
+    public static global::Holons.V1.AnyValue ToAnyValue(object? value)
+    {
+        return value switch
+        {
+            null => new global::Holons.V1.AnyValue { StringValue = "" },
+            string s => new global::Holons.V1.AnyValue { StringValue = s },
+            bool b => new global::Holons.V1.AnyValue { BoolValue = b },
+            byte i => new global::Holons.V1.AnyValue { IntValue = i },
+            sbyte i => new global::Holons.V1.AnyValue { IntValue = i },
+            short i => new global::Holons.V1.AnyValue { IntValue = i },
+            ushort i => new global::Holons.V1.AnyValue { IntValue = i },
+            int i => new global::Holons.V1.AnyValue { IntValue = i },
+            uint i => new global::Holons.V1.AnyValue { IntValue = i },
+            long i => new global::Holons.V1.AnyValue { IntValue = i },
+            ulong i when i <= long.MaxValue => new global::Holons.V1.AnyValue { IntValue = (long)i },
+            float f => new global::Holons.V1.AnyValue { DoubleValue = f },
+            double d => new global::Holons.V1.AnyValue { DoubleValue = d },
+            IFormattable formattable => new global::Holons.V1.AnyValue { StringValue = formattable.ToString(null, CultureInfo.InvariantCulture) },
+            _ => new global::Holons.V1.AnyValue { StringValue = value.ToString() ?? "" },
+        };
+    }
+
+    public static string AnyValueString(global::Holons.V1.AnyValue? value)
+    {
+        if (value is null) return "";
+        return value.ValueCase switch
+        {
+            global::Holons.V1.AnyValue.ValueOneofCase.StringValue => value.StringValue,
+            global::Holons.V1.AnyValue.ValueOneofCase.BoolValue => value.BoolValue ? "true" : "false",
+            global::Holons.V1.AnyValue.ValueOneofCase.IntValue => value.IntValue.ToString(CultureInfo.InvariantCulture),
+            global::Holons.V1.AnyValue.ValueOneofCase.DoubleValue => value.DoubleValue.ToString("G17", CultureInfo.InvariantCulture),
+            _ => "",
+        };
+    }
+
+    public static global::Holons.V1.KeyValue KeyValue(string key, object? value) =>
+        new() { Key = key, Value = ToAnyValue(value) };
+
+    public static IReadOnlyList<global::Holons.V1.KeyValue> ResourceAttributes(ObsConfig cfg)
+    {
+        return
+        [
+            KeyValue(AttributeNames.HolonsSlug, cfg.Slug),
+            KeyValue(AttributeNames.ServiceName, cfg.Slug),
+            KeyValue(AttributeNames.HolonsInstanceUid, cfg.InstanceUid),
+            KeyValue(AttributeNames.ServiceInstanceId, cfg.InstanceUid),
+            KeyValue(AttributeNames.HolonsSessionId, cfg.SessionId),
+        ];
+    }
+
+    public static string AttributeString(IEnumerable<global::Holons.V1.KeyValue> attrs, string key)
+    {
+        var attr = attrs.FirstOrDefault(a => string.Equals(a.Key, key, StringComparison.Ordinal));
+        return attr is null ? "" : AnyValueString(attr.Value);
+    }
 }
 
 public sealed class Logger
@@ -455,23 +511,29 @@ public sealed class Logger
     {
         if (!Enabled(lvl)) return;
         var redact = new HashSet<string>(_obs.Config.RedactedFields);
-        var outFields = new Dictionary<string, string>();
+        var attrs = new List<global::Holons.V1.KeyValue>(Wire.ResourceAttributes(_obs.Config));
+        if (!string.IsNullOrEmpty(Name))
+            attrs.Add(Wire.KeyValue(AttributeNames.LoggerName, Name));
         if (fields != null)
         {
             foreach (var (k, v) in fields)
             {
                 if (string.IsNullOrEmpty(k)) continue;
-                outFields[k] = redact.Contains(k) ? "<redacted>" : (v?.ToString() ?? "");
+                attrs.Add(Wire.KeyValue(k, redact.Contains(k) ? "<redacted>" : v));
             }
         }
-        _obs.LogRing?.Push(new LogEntry
+        var now = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000;
+        _obs.LogRing?.Push(new LogRecord
         {
-            Timestamp = DateTime.UtcNow,
-            Level = lvl,
-            Slug = _obs.Config.Slug,
-            InstanceUid = _obs.Config.InstanceUid,
-            Message = message,
-            Fields = outFields,
+            Record = new global::Holons.V1.LogRecord
+            {
+                TimeUnixNano = now,
+                ObservedTimeUnixNano = now,
+                SeverityNumber = (global::Holons.V1.SeverityNumber)lvl,
+                SeverityText = lvl.Name(),
+                Body = Wire.ToAnyValue(message),
+                Attributes = { attrs },
+            },
             Private = privateEntry,
         });
     }
@@ -491,12 +553,14 @@ public sealed class Observability
     public LogRing? LogRing { get; }
     public EventBus? EventBus { get; }
     public Registry? Registry { get; }
+    public ulong StartTimeUnixNano { get; }
     private readonly ConcurrentDictionary<string, Logger> _loggers = new();
 
     internal Observability(ObsConfig cfg, HashSet<Family> families)
     {
         Config = cfg;
         Families = families;
+        StartTimeUnixNano = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000;
         LogRing = families.Contains(Family.Logs) ? new LogRing(cfg.LogsRingSize) : null;
         EventBus = families.Contains(Family.Events) ? new EventBus(cfg.EventsRingSize) : null;
         Registry = families.Contains(Family.Metrics) ? new Registry() : null;
@@ -520,23 +584,30 @@ public sealed class Observability
     public Histogram? Histogram(string name, string help = "", Dictionary<string, string>? labels = null,
         double[]? bounds = null) => Registry?.Histogram(name, help, labels, bounds);
 
-    public void Emit(EventType type, Dictionary<string, string>? payload = null, bool privateEntry = false)
+    public void Emit(string eventName, IDictionary<string, object?>? payload = null, bool privateEntry = false)
     {
         if (EventBus is null) return;
         var redact = new HashSet<string>(Config.RedactedFields);
-        var p = new Dictionary<string, string>();
+        var attrs = new List<global::Holons.V1.KeyValue>(Wire.ResourceAttributes(Config));
         if (payload != null)
         {
             foreach (var (k, v) in payload)
-                p[k] = redact.Contains(k) ? "<redacted>" : v;
+            {
+                if (string.IsNullOrEmpty(k)) continue;
+                attrs.Add(Wire.KeyValue(k, redact.Contains(k) ? "<redacted>" : v));
+            }
         }
-        EventBus.Emit(new Event
+        var now = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000;
+        EventBus.Emit(new LogRecord
         {
-            Timestamp = DateTime.UtcNow,
-            Type = type,
-            Slug = Config.Slug,
-            InstanceUid = Config.InstanceUid,
-            Payload = p,
+            Record = new global::Holons.V1.LogRecord
+            {
+                TimeUnixNano = now,
+                ObservedTimeUnixNano = now,
+                EventName = eventName,
+                Body = Wire.ToAnyValue(eventName),
+                Attributes = { attrs },
+            },
             Private = privateEntry,
         });
     }
@@ -559,7 +630,7 @@ public static class ObservabilityRegistry
         var families = Env.ParseOpObs(Read(env, "OP_OBS"));
         var normalized = cfg with { };
         if (string.IsNullOrEmpty(normalized.Slug))
-            normalized = normalized with { Slug = AppDomain.CurrentDomain.FriendlyName };
+            normalized = normalized with { Slug = ResolveManifestSlug() };
         if (string.IsNullOrEmpty(normalized.InstanceUid))
             normalized = normalized with { InstanceUid = NewInstanceUid() };
         if (!string.IsNullOrEmpty(normalized.RunDir))
@@ -577,6 +648,7 @@ public static class ObservabilityRegistry
         var cfg = b with
         {
             InstanceUid = string.IsNullOrEmpty(b.InstanceUid) ? Read(env, "OP_INSTANCE_UID") : b.InstanceUid,
+            SessionId = string.IsNullOrEmpty(b.SessionId) ? Read(env, "OP_SESSION_ID") : b.SessionId,
             OrganismUid = string.IsNullOrEmpty(b.OrganismUid) ? Read(env, "OP_ORGANISM_UID") : b.OrganismUid,
             OrganismSlug = string.IsNullOrEmpty(b.OrganismSlug) ? Read(env, "OP_ORGANISM_SLUG") : b.OrganismSlug,
             PromAddr = string.IsNullOrEmpty(b.PromAddr) ? Read(env, "OP_PROM_ADDR") : b.PromAddr,
@@ -611,6 +683,18 @@ public static class ObservabilityRegistry
             return value;
         return Environment.GetEnvironmentVariable(key) ?? "";
     }
+
+    private static string ResolveManifestSlug()
+    {
+        try
+        {
+            return global::Holons.Identity.Resolve(".").Identity.Slug();
+        }
+        catch
+        {
+            return "";
+        }
+    }
 }
 
 public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservability.HolonObservabilityBase
@@ -624,28 +708,28 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
 
     public override async Task Logs(
         global::Holons.V1.LogsRequest request,
-        IServerStreamWriter<global::Holons.V1.LogEntry> responseStream,
+        IServerStreamWriter<global::Holons.V1.LogRecord> responseStream,
         ServerCallContext context)
     {
         if (!_obs.Enabled(Family.Logs) || _obs.LogRing == null)
             throw new RpcException(new Status(StatusCode.FailedPrecondition, "logs family is not enabled (OP_OBS)"));
 
-        var minLevel = request.MinLevel == global::Holons.V1.LogLevel.Unspecified
+        var minLevel = request.MinSeverityNumber == global::Holons.V1.SeverityNumber.Unspecified
             ? (int)Level.Info
-            : (int)request.MinLevel;
+            : (int)request.MinSeverityNumber;
         var cutoff = request.Since is null
             ? (DateTime?)null
             : DateTime.UtcNow - request.Since.ToTimeSpan();
         IDisposable? subscription = null;
         var entries = request.Follow
-            ? new List<LogEntry>()
+            ? new List<LogRecord>()
             : cutoff is null
                 ? _obs.LogRing.Drain()
                 : _obs.LogRing.DrainSince(cutoff.Value);
-        Channel<LogEntry>? queue = null;
+        Channel<LogRecord>? queue = null;
         if (request.Follow)
         {
-            queue = Channel.CreateUnbounded<LogEntry>();
+            queue = Channel.CreateUnbounded<LogRecord>();
             // Snapshot and subscription are registered under one ring lock to avoid a replay/live drop.
             var replayAndSub = _obs.LogRing.ReplayAndSubscribe(cutoff, entry => queue.Writer.TryWrite(entry));
             entries = replayAndSub.Replay;
@@ -655,13 +739,13 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
         {
             if (entry.Private)
                 continue;
-            if ((int)entry.Level < minLevel)
+            if ((int)entry.Record.SeverityNumber < minLevel)
                 continue;
-            if (request.SessionIds.Count > 0 && !request.SessionIds.Contains(entry.SessionId))
+            if (request.SessionIds.Count > 0 && !request.SessionIds.Contains(Wire.AttributeString(entry.Record.Attributes, AttributeNames.HolonsSessionId)))
                 continue;
-            if (request.RpcMethods.Count > 0 && !request.RpcMethods.Contains(entry.RpcMethod))
+            if (request.RpcMethods.Count > 0 && !request.RpcMethods.Contains(Wire.AttributeString(entry.Record.Attributes, AttributeNames.RpcMethod)))
                 continue;
-            await responseStream.WriteAsync(ToProtoLogEntry(entry)).ConfigureAwait(false);
+            await responseStream.WriteAsync(ToProtoLogRecord(entry)).ConfigureAwait(false);
         }
 
         if (!request.Follow)
@@ -675,13 +759,13 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
             {
                 if (entry.Private)
                     continue;
-                if ((int)entry.Level < minLevel)
+                if ((int)entry.Record.SeverityNumber < minLevel)
                     continue;
-                if (request.SessionIds.Count > 0 && !request.SessionIds.Contains(entry.SessionId))
+                if (request.SessionIds.Count > 0 && !request.SessionIds.Contains(Wire.AttributeString(entry.Record.Attributes, AttributeNames.HolonsSessionId)))
                     continue;
-                if (request.RpcMethods.Count > 0 && !request.RpcMethods.Contains(entry.RpcMethod))
+                if (request.RpcMethods.Count > 0 && !request.RpcMethods.Contains(Wire.AttributeString(entry.Record.Attributes, AttributeNames.RpcMethod)))
                     continue;
-                await responseStream.WriteAsync(ToProtoLogEntry(entry)).ConfigureAwait(false);
+                await responseStream.WriteAsync(ToProtoLogRecord(entry)).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -691,49 +775,44 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
         }
     }
 
-    public override Task<global::Holons.V1.MetricsSnapshot> Metrics(
+    public override async Task Metrics(
         global::Holons.V1.MetricsRequest request,
+        IServerStreamWriter<global::Holons.V1.Metric> responseStream,
         ServerCallContext context)
     {
+        _ = context;
         if (!_obs.Enabled(Family.Metrics) || _obs.Registry == null)
             throw new RpcException(new Status(StatusCode.FailedPrecondition, "metrics family is not enabled (OP_OBS)"));
 
-        var snapshot = new global::Holons.V1.MetricsSnapshot
+        foreach (var metric in ToProtoMetrics(_obs.Registry, _obs.Config, _obs.StartTimeUnixNano))
         {
-            CapturedAt = Timestamp.FromDateTime(DateTime.UtcNow),
-            Slug = _obs.Config.Slug,
-            InstanceUid = _obs.Config.InstanceUid,
-        };
-        foreach (var sample in ToProtoMetricSamples(_obs.Registry))
-        {
-            if (request.NamePrefixes.Count == 0 || request.NamePrefixes.Any(prefix => sample.Name.StartsWith(prefix, StringComparison.Ordinal)))
-                snapshot.Samples.Add(sample);
+            if (request.NamePrefixes.Count == 0 || request.NamePrefixes.Any(prefix => metric.Name.StartsWith(prefix, StringComparison.Ordinal)))
+                await responseStream.WriteAsync(metric).ConfigureAwait(false);
         }
-        return Task.FromResult(snapshot);
     }
 
     public override async Task Events(
         global::Holons.V1.EventsRequest request,
-        IServerStreamWriter<global::Holons.V1.EventInfo> responseStream,
+        IServerStreamWriter<global::Holons.V1.LogRecord> responseStream,
         ServerCallContext context)
     {
         if (!_obs.Enabled(Family.Events) || _obs.EventBus == null)
             throw new RpcException(new Status(StatusCode.FailedPrecondition, "events family is not enabled (OP_OBS)"));
 
-        var wanted = request.Types_.Select(t => (int)t).ToHashSet();
+        var wanted = request.EventNames.ToHashSet(StringComparer.Ordinal);
         var cutoff = request.Since is null
             ? (DateTime?)null
             : DateTime.UtcNow - request.Since.ToTimeSpan();
         IDisposable? subscription = null;
         var events = request.Follow
-            ? new List<Event>()
+            ? new List<LogRecord>()
             : cutoff is null
                 ? _obs.EventBus.Drain()
                 : _obs.EventBus.DrainSince(cutoff.Value);
-        Channel<Event>? queue = null;
+        Channel<LogRecord>? queue = null;
         if (request.Follow)
         {
-            queue = Channel.CreateUnbounded<Event>();
+            queue = Channel.CreateUnbounded<LogRecord>();
             // Snapshot and subscription are registered under one bus lock to avoid a replay/live drop.
             var replayAndSub = _obs.EventBus.ReplayAndSubscribe(cutoff, ev => queue.Writer.TryWrite(ev));
             events = replayAndSub.Replay;
@@ -743,9 +822,9 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
         {
             if (ev.Private)
                 continue;
-            if (wanted.Count > 0 && !wanted.Contains((int)ev.Type))
+            if (wanted.Count > 0 && !wanted.Contains(ev.Record.EventName))
                 continue;
-            await responseStream.WriteAsync(ToProtoEvent(ev)).ConfigureAwait(false);
+            await responseStream.WriteAsync(ToProtoLogRecord(ev)).ConfigureAwait(false);
         }
 
         if (!request.Follow)
@@ -759,9 +838,9 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
             {
                 if (ev.Private)
                     continue;
-                if (wanted.Count > 0 && !wanted.Contains((int)ev.Type))
+                if (wanted.Count > 0 && !wanted.Contains(ev.Record.EventName))
                     continue;
-                await responseStream.WriteAsync(ToProtoEvent(ev)).ConfigureAwait(false);
+                await responseStream.WriteAsync(ToProtoLogRecord(ev)).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -771,135 +850,111 @@ public sealed class ObservabilityGrpcService : global::Holons.V1.HolonObservabil
         }
     }
 
-    public static global::Holons.V1.LogEntry ToProtoLogEntry(LogEntry entry)
-    {
-        var proto = new global::Holons.V1.LogEntry
-        {
-            Ts = Timestamp.FromDateTime(DateTime.SpecifyKind(entry.Timestamp, DateTimeKind.Utc)),
-            Level = (global::Holons.V1.LogLevel)entry.Level,
-            Slug = entry.Slug,
-            InstanceUid = entry.InstanceUid,
-            SessionId = entry.SessionId,
-            RpcMethod = entry.RpcMethod,
-            Message = entry.Message,
-            Caller = entry.Caller,
-        };
-        proto.Fields.Add(entry.Fields);
-        proto.Chain.Add(entry.Chain.Select(ToProtoHop));
-        return proto;
-    }
+    public static global::Holons.V1.LogRecord ToProtoLogRecord(LogRecord entry) =>
+        entry.Record.Clone();
 
-    public static IReadOnlyList<global::Holons.V1.MetricSample> ToProtoMetricSamples(Registry registry)
+    public static IReadOnlyList<global::Holons.V1.Metric> ToProtoMetrics(Registry registry, ObsConfig config, ulong startTimeUnixNano)
     {
-        var samples = new List<global::Holons.V1.MetricSample>();
+        var metrics = new List<global::Holons.V1.Metric>();
+        var now = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000;
         foreach (var counter in registry.Counters)
         {
-            var sample = new global::Holons.V1.MetricSample
+            var point = new global::Holons.V1.NumberDataPoint
+            {
+                StartTimeUnixNano = startTimeUnixNano,
+                TimeUnixNano = now,
+                AsInt = counter.Value,
+            };
+            point.Attributes.Add(MetricAttributes(config, counter.Labels));
+            metrics.Add(new global::Holons.V1.Metric
             {
                 Name = counter.Name,
-                Help = counter.Help,
-                Counter = counter.Value,
-            };
-            foreach (var (key, value) in counter.Labels)
-                sample.Labels[key] = value;
-            samples.Add(sample);
+                Description = counter.Help,
+                Sum = new global::Holons.V1.Sum
+                {
+                    AggregationTemporality = global::Holons.V1.AggregationTemporality.Cumulative,
+                    IsMonotonic = true,
+                    DataPoints = { point },
+                },
+            });
         }
         foreach (var gauge in registry.Gauges)
         {
-            var sample = new global::Holons.V1.MetricSample
+            var point = new global::Holons.V1.NumberDataPoint
+            {
+                StartTimeUnixNano = startTimeUnixNano,
+                TimeUnixNano = now,
+                AsDouble = gauge.Value,
+            };
+            point.Attributes.Add(MetricAttributes(config, gauge.Labels));
+            metrics.Add(new global::Holons.V1.Metric
             {
                 Name = gauge.Name,
-                Help = gauge.Help,
-                Gauge = gauge.Value,
-            };
-            foreach (var (key, value) in gauge.Labels)
-                sample.Labels[key] = value;
-            samples.Add(sample);
+                Description = gauge.Help,
+                Gauge = new global::Holons.V1.Gauge { DataPoints = { point } },
+            });
         }
         foreach (var histogram in registry.Histograms)
         {
-            var sample = new global::Holons.V1.MetricSample
+            var snapshot = histogram.Snapshot();
+            var point = new global::Holons.V1.HistogramDataPoint
+            {
+                StartTimeUnixNano = startTimeUnixNano,
+                TimeUnixNano = now,
+                Count = (ulong)snapshot.Total,
+                Sum = snapshot.Sum,
+                Min = snapshot.Min,
+                Max = snapshot.Max,
+            };
+            point.ExplicitBounds.Add(snapshot.Bounds);
+            point.BucketCounts.Add(HistogramBucketCounts(snapshot));
+            point.Attributes.Add(MetricAttributes(config, histogram.Labels));
+            metrics.Add(new global::Holons.V1.Metric
             {
                 Name = histogram.Name,
-                Help = histogram.Help,
-                Histogram = ToProtoHistogram(histogram.Snapshot()),
-            };
-            foreach (var (key, value) in histogram.Labels)
-                sample.Labels[key] = value;
-            samples.Add(sample);
-        }
-        return samples;
-    }
-
-    public static global::Holons.V1.EventInfo ToProtoEvent(Event ev)
-    {
-        var proto = new global::Holons.V1.EventInfo
-        {
-            Ts = Timestamp.FromDateTime(DateTime.SpecifyKind(ev.Timestamp, DateTimeKind.Utc)),
-            Type = (global::Holons.V1.EventType)ev.Type,
-            Slug = ev.Slug,
-            InstanceUid = ev.InstanceUid,
-            SessionId = ev.SessionId,
-        };
-        proto.Payload.Add(ev.Payload);
-        proto.Chain.Add(ev.Chain.Select(ToProtoHop));
-        return proto;
-    }
-
-    private static global::Holons.V1.HistogramSample ToProtoHistogram(HistogramSnapshot snapshot)
-    {
-        var proto = new global::Holons.V1.HistogramSample
-        {
-            Count = snapshot.Total,
-            Sum = snapshot.Sum,
-        };
-        for (var i = 0; i < snapshot.Bounds.Count; i++)
-        {
-            proto.Buckets.Add(new global::Holons.V1.Bucket
-            {
-                UpperBound = snapshot.Bounds[i],
-                Count = snapshot.Counts[i],
+                Description = histogram.Help,
+                Histogram = new global::Holons.V1.Histogram
+                {
+                    AggregationTemporality = global::Holons.V1.AggregationTemporality.Cumulative,
+                    DataPoints = { point },
+                },
             });
         }
-        return proto;
+        return metrics;
     }
 
-    private static global::Holons.V1.ChainHop ToProtoHop(Hop hop) =>
-        new()
+    private static IReadOnlyList<ulong> HistogramBucketCounts(HistogramSnapshot snapshot)
+    {
+        var counts = new List<ulong>(snapshot.Counts.Count + 1);
+        long previous = 0;
+        foreach (var count in snapshot.Counts)
         {
-            Slug = hop.Slug,
-            InstanceUid = hop.InstanceUid,
-        };
+            var delta = Math.Max(0, count - previous);
+            counts.Add((ulong)delta);
+            previous = count;
+        }
+        counts.Add((ulong)Math.Max(0, snapshot.Total - previous));
+        return counts;
+    }
 
-    internal static LogEntry FromProtoLogEntry(global::Holons.V1.LogEntry entry) =>
-        new()
+    private static IReadOnlyList<global::Holons.V1.KeyValue> MetricAttributes(
+        ObsConfig config,
+        IReadOnlyDictionary<string, string> labels)
+    {
+        var attrs = new List<global::Holons.V1.KeyValue>
         {
-            Timestamp = entry.Ts?.ToDateTime() ?? DateTime.UtcNow,
-            Level = (Level)entry.Level,
-            Slug = entry.Slug,
-            InstanceUid = entry.InstanceUid,
-            SessionId = entry.SessionId,
-            RpcMethod = entry.RpcMethod,
-            Message = entry.Message,
-            Fields = entry.Fields.ToDictionary(pair => pair.Key, pair => pair.Value),
-            Caller = entry.Caller,
-            Chain = entry.Chain.Select(FromProtoHop).ToList(),
+            Wire.KeyValue(AttributeNames.HolonsSlug, config.Slug),
+            Wire.KeyValue(AttributeNames.ServiceName, config.Slug),
+            Wire.KeyValue(AttributeNames.HolonsInstanceUid, config.InstanceUid),
+            Wire.KeyValue(AttributeNames.ServiceInstanceId, config.InstanceUid),
         };
+        foreach (var (key, value) in labels.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+            attrs.Add(Wire.KeyValue(key, value));
+        return attrs;
+    }
 
-    internal static Event FromProtoEvent(global::Holons.V1.EventInfo ev) =>
-        new()
-        {
-            Timestamp = ev.Ts?.ToDateTime() ?? DateTime.UtcNow,
-            Type = (EventType)ev.Type,
-            Slug = ev.Slug,
-            InstanceUid = ev.InstanceUid,
-            SessionId = ev.SessionId,
-            Payload = ev.Payload.ToDictionary(pair => pair.Key, pair => pair.Value),
-            Chain = ev.Chain.Select(FromProtoHop).ToList(),
-        };
-
-    private static Hop FromProtoHop(global::Holons.V1.ChainHop hop) =>
-        new(hop.Slug, hop.InstanceUid);
+    internal static LogRecord FromProtoLogRecord(global::Holons.V1.LogRecord record) =>
+        new() { Record = record.Clone() };
 }
 
 internal static class PrometheusText
@@ -1240,10 +1295,11 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
             while (await call.ResponseStream.MoveNext(timeout.Token).ConfigureAwait(false))
             {
                 var ev = call.ResponseStream.Current;
-                if (ev.Type == global::Holons.V1.EventType.InstanceReady && !string.IsNullOrEmpty(ev.InstanceUid))
+                var instanceUid = Wire.AttributeString(ev.Attributes, AttributeNames.HolonsInstanceUid);
+                if (ev.EventName == EventNames.InstanceReady && !string.IsNullOrEmpty(instanceUid))
                 {
-                    var slug = string.IsNullOrEmpty(ev.Slug) ? _memberSlug : ev.Slug;
-                    var identity = new MemberIdentity(slug, ev.InstanceUid);
+                    var slug = Wire.AttributeString(ev.Attributes, AttributeNames.HolonsSlug);
+                    var identity = new MemberIdentity(string.IsNullOrEmpty(slug) ? _memberSlug : slug, instanceUid);
                     if (ev.Chain.Count == 0)
                         return identity;
                     fallback ??= identity;
@@ -1264,13 +1320,13 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
         using var call = client.Logs(
             new global::Holons.V1.LogsRequest
             {
-                MinLevel = global::Holons.V1.LogLevel.Info,
+                MinSeverityNumber = global::Holons.V1.SeverityNumber.Info,
                 Follow = true,
             },
             cancellationToken: ct);
         while (await call.ResponseStream.MoveNext(ct).ConfigureAwait(false))
         {
-            var entry = ObservabilityGrpcService.FromProtoLogEntry(call.ResponseStream.Current);
+            var entry = ObservabilityGrpcService.FromProtoLogRecord(call.ResponseStream.Current);
             _obs.LogRing?.Push(EnrichLog(entry, identity));
         }
     }
@@ -1283,7 +1339,7 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
             cancellationToken: ct);
         while (await call.ResponseStream.MoveNext(ct).ConfigureAwait(false))
         {
-            var ev = ObservabilityGrpcService.FromProtoEvent(call.ResponseStream.Current);
+            var ev = ObservabilityGrpcService.FromProtoLogRecord(call.ResponseStream.Current);
             _obs.EventBus?.Emit(EnrichEvent(ev, identity));
         }
     }
@@ -1294,34 +1350,17 @@ public sealed class MemberRelay : IAsyncDisposable, IDisposable
         catch (OperationCanceledException) { }
     }
 
-    private static LogEntry EnrichLog(LogEntry entry, MemberIdentity identity) =>
-        new()
-        {
-            Timestamp = entry.Timestamp,
-            Level = entry.Level,
-            Slug = entry.Slug,
-            InstanceUid = entry.InstanceUid,
-            SessionId = entry.SessionId,
-            RpcMethod = entry.RpcMethod,
-            Message = entry.Message,
-            Fields = entry.Fields,
-            Caller = entry.Caller,
-            Chain = Chain.EnrichForMultilog(entry.Chain, identity.Slug, identity.InstanceUid),
-            Private = entry.Private,
-        };
+    private static LogRecord EnrichLog(LogRecord entry, MemberIdentity identity) => EnrichRecord(entry, identity);
 
-    private static Event EnrichEvent(Event ev, MemberIdentity identity) =>
-        new()
-        {
-            Timestamp = ev.Timestamp,
-            Type = ev.Type,
-            Slug = ev.Slug,
-            InstanceUid = ev.InstanceUid,
-            SessionId = ev.SessionId,
-            Payload = ev.Payload,
-            Chain = Chain.EnrichForMultilog(ev.Chain, identity.Slug, identity.InstanceUid),
-            Private = ev.Private,
-        };
+    private static LogRecord EnrichEvent(LogRecord entry, MemberIdentity identity) => EnrichRecord(entry, identity);
+
+    private static LogRecord EnrichRecord(LogRecord entry, MemberIdentity identity)
+    {
+        var record = entry.Record.Clone();
+        record.Chain.Clear();
+        record.Chain.Add(Chain.EnrichForMultilog(entry.Record.Chain, identity.Slug, identity.InstanceUid));
+        return new LogRecord { Record = record, Private = entry.Private };
+    }
 }
 
 public static class DiskWriters
@@ -1337,21 +1376,24 @@ public static class DiskWriters
             var fp = Path.Combine(runDir, "stdout.log");
             obs.LogRing.Subscribe(e =>
             {
+                var attrs = UserAttributes(e.Record.Attributes);
                 var rec = new Dictionary<string, object?>
                 {
                     ["kind"] = "log",
                     ["ts"] = e.Timestamp.ToString("o"),
-                    ["level"] = e.Level.Name(),
-                    ["slug"] = e.Slug,
-                    ["instance_uid"] = e.InstanceUid,
-                    ["message"] = e.Message,
+                    ["level"] = e.Record.SeverityText,
+                    ["slug"] = Wire.AttributeString(e.Record.Attributes, AttributeNames.HolonsSlug),
+                    ["instance_uid"] = Wire.AttributeString(e.Record.Attributes, AttributeNames.HolonsInstanceUid),
+                    ["message"] = Wire.AnyValueString(e.Record.Body),
                 };
-                if (!string.IsNullOrEmpty(e.SessionId)) rec["session_id"] = e.SessionId;
-                if (!string.IsNullOrEmpty(e.RpcMethod)) rec["rpc_method"] = e.RpcMethod;
-                if (e.Fields.Count > 0) rec["fields"] = e.Fields;
-                if (!string.IsNullOrEmpty(e.Caller)) rec["caller"] = e.Caller;
-                if (e.Chain.Count > 0)
-                    rec["chain"] = e.Chain.Select(h => new { slug = h.Slug, instance_uid = h.InstanceUid }).ToArray();
+                var sessionId = Wire.AttributeString(e.Record.Attributes, AttributeNames.HolonsSessionId);
+                var rpcMethod = Wire.AttributeString(e.Record.Attributes, AttributeNames.RpcMethod);
+                var caller = Wire.AttributeString(e.Record.Attributes, AttributeNames.CodeCaller);
+                if (!string.IsNullOrEmpty(sessionId)) rec["session_id"] = sessionId;
+                if (!string.IsNullOrEmpty(rpcMethod)) rec["rpc_method"] = rpcMethod;
+                if (attrs.Count > 0) rec["fields"] = attrs;
+                if (!string.IsNullOrEmpty(caller)) rec["caller"] = caller;
+                if (e.Record.Chain.Count > 0) rec["chain"] = e.Record.Chain.ToArray();
                 try { File.AppendAllText(fp, JsonSerializer.Serialize(rec) + "\n"); } catch { }
             });
         }
@@ -1361,22 +1403,46 @@ public static class DiskWriters
             var fp = Path.Combine(runDir, "events.jsonl");
             obs.EventBus.Subscribe(e =>
             {
+                var attrs = UserAttributes(e.Record.Attributes);
                 var rec = new Dictionary<string, object?>
                 {
                     ["kind"] = "event",
                     ["ts"] = e.Timestamp.ToString("o"),
-                    ["type"] = e.Type.Name(),
-                    ["slug"] = e.Slug,
-                    ["instance_uid"] = e.InstanceUid,
+                    ["event_name"] = e.Record.EventName,
+                    ["slug"] = Wire.AttributeString(e.Record.Attributes, AttributeNames.HolonsSlug),
+                    ["instance_uid"] = Wire.AttributeString(e.Record.Attributes, AttributeNames.HolonsInstanceUid),
                 };
-                if (!string.IsNullOrEmpty(e.SessionId)) rec["session_id"] = e.SessionId;
-                if (e.Payload.Count > 0) rec["payload"] = e.Payload;
-                if (e.Chain.Count > 0)
-                    rec["chain"] = e.Chain.Select(h => new { slug = h.Slug, instance_uid = h.InstanceUid }).ToArray();
+                var sessionId = Wire.AttributeString(e.Record.Attributes, AttributeNames.HolonsSessionId);
+                if (!string.IsNullOrEmpty(sessionId)) rec["session_id"] = sessionId;
+                if (attrs.Count > 0) rec["payload"] = attrs;
+                if (e.Record.Chain.Count > 0) rec["chain"] = e.Record.Chain.ToArray();
                 try { File.AppendAllText(fp, JsonSerializer.Serialize(rec) + "\n"); } catch { }
             });
         }
     }
+
+    private static Dictionary<string, string> UserAttributes(IEnumerable<global::Holons.V1.KeyValue> attributes)
+    {
+        var result = new Dictionary<string, string>();
+        foreach (var attr in attributes)
+        {
+            if (IsSystemAttribute(attr.Key))
+                continue;
+            result[attr.Key] = Wire.AnyValueString(attr.Value);
+        }
+        return result;
+    }
+
+    private static bool IsSystemAttribute(string key) => key is
+        AttributeNames.HolonsSlug or
+        AttributeNames.ServiceName or
+        AttributeNames.HolonsInstanceUid or
+        AttributeNames.ServiceInstanceId or
+        AttributeNames.HolonsSessionId or
+        AttributeNames.HolonsTransport or
+        AttributeNames.RpcMethod or
+        AttributeNames.LoggerName or
+        AttributeNames.CodeCaller;
 }
 
 public sealed class MetaJson

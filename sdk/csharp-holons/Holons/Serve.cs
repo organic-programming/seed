@@ -17,6 +17,10 @@ namespace Holons;
 /// <summary>Standard gRPC server runner utilities.</summary>
 public static class Serve
 {
+    private static readonly AsyncLocal<string?> CurrentTransportSlot = new();
+
+    public static string CurrentTransport => CurrentTransportSlot.Value ?? "";
+
     public sealed record MemberRef(string Slug, string Address);
 
     public sealed record ServeOptions
@@ -62,14 +66,16 @@ public static class Serve
 
         public Task AwaitAsync() => _app.WaitForShutdownAsync();
 
-        public async Task StopAsync(int shutdownGracePeriodSeconds = 10)
+        public Task StopAsync(int shutdownGracePeriodSeconds = 10)
         {
             if (Interlocked.Exchange(ref _stopped, 1) != 0)
-            {
-                await _app.WaitForShutdownAsync().ConfigureAwait(false);
-                return;
-            }
+                return Task.CompletedTask;
+            CurrentTransportSlot.Value = null;
+            return StopCoreAsync(shutdownGracePeriodSeconds);
+        }
 
+        private async Task StopCoreAsync(int shutdownGracePeriodSeconds)
+        {
             if (_auxiliaryStop is not null)
                 await _auxiliaryStop().ConfigureAwait(false);
 
@@ -190,28 +196,37 @@ public static class Serve
     {
         options ??= new ServeOptions();
         var parsed = Transport.ParseUri(string.IsNullOrWhiteSpace(listenUri) ? Transport.DefaultUri : listenUri);
+        CurrentTransportSlot.Value = parsed.Scheme;
         var registrations = services.ToList();
-        var describeEnabled = MaybeAddDescribe(registrations, options);
-        var reflectionEnabled = MaybeAddReflection(registrations, options);
-        var observability = MaybeAddObservability(registrations, options);
-
-        return parsed.Scheme switch
+        try
         {
-            "tcp" => StartTcpServer(
-                host: string.IsNullOrWhiteSpace(parsed.Host) ? "0.0.0.0" : parsed.Host,
-                port: parsed.Port ?? 9090,
-                registrations: registrations,
-                describeEnabled: describeEnabled,
-                reflectionEnabled: reflectionEnabled,
-                options: options,
-                observability: observability,
-                publicUriOverride: null,
-                suppressAnnouncement: false),
-            "stdio" => StartStdioServer(registrations, describeEnabled, reflectionEnabled, options, observability),
-            "unix" => StartUnixServer(parsed.Path ?? throw new ArgumentException("unix path missing"), registrations, describeEnabled, reflectionEnabled, options, observability),
-            _ => throw new ArgumentException(
-                $"Serve.Run(...) currently supports tcp://, unix://, and stdio:// only: {listenUri}"),
-        };
+            var describeEnabled = MaybeAddDescribe(registrations, options);
+            var reflectionEnabled = MaybeAddReflection(registrations, options);
+            var observability = MaybeAddObservability(registrations, options);
+
+            return parsed.Scheme switch
+            {
+                "tcp" => StartTcpServer(
+                    host: string.IsNullOrWhiteSpace(parsed.Host) ? "0.0.0.0" : parsed.Host,
+                    port: parsed.Port ?? 9090,
+                    registrations: registrations,
+                    describeEnabled: describeEnabled,
+                    reflectionEnabled: reflectionEnabled,
+                    options: options,
+                    observability: observability,
+                    publicUriOverride: null,
+                    suppressAnnouncement: false),
+                "stdio" => StartStdioServer(registrations, describeEnabled, reflectionEnabled, options, observability),
+                "unix" => StartUnixServer(parsed.Path ?? throw new ArgumentException("unix path missing"), registrations, describeEnabled, reflectionEnabled, options, observability),
+                _ => throw new ArgumentException(
+                    $"Serve.Run(...) currently supports tcp://, unix://, and stdio:// only: {listenUri}"),
+            };
+        }
+        catch
+        {
+            CurrentTransportSlot.Value = null;
+            throw;
+        }
     }
 
     private static RunningServer StartStdioServer(
@@ -225,7 +240,8 @@ public static class Serve
             host: "127.0.0.1",
             port: 0,
             registrations: registrations,
-            publicUriOverride: null);
+            publicUriOverride: null,
+            transportScheme: "stdio");
 
         var (host, port) = ParseTarget(backing.PublicUri);
         RunningServer? running = null;
@@ -262,7 +278,8 @@ public static class Serve
             host: "127.0.0.1",
             port: 0,
             registrations: registrations,
-            publicUriOverride: null);
+            publicUriOverride: null,
+            transportScheme: "unix");
 
         var (host, port) = ParseTarget(backing.PublicUri);
         var bridge = new UnixServerBridge(path, host, port);
@@ -293,7 +310,7 @@ public static class Serve
         string? publicUriOverride,
         bool suppressAnnouncement)
     {
-        var started = StartApplication(host, port, registrations, publicUriOverride);
+        var started = StartApplication(host, port, registrations, publicUriOverride, "tcp");
         var obsStop = StartObservabilityRuntime(observability, started.PublicUri, "tcp", options);
         if (!suppressAnnouncement)
         {
@@ -309,7 +326,8 @@ public static class Serve
         string host,
         int port,
         IReadOnlyList<GrpcServiceRegistration> registrations,
-        string? publicUriOverride)
+        string? publicUriOverride,
+        string transportScheme)
     {
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
@@ -326,6 +344,19 @@ public static class Serve
             registration.ConfigureServices(builder.Services);
 
         var app = builder.Build();
+        app.Use(async (context, next) =>
+        {
+            var previous = CurrentTransportSlot.Value;
+            CurrentTransportSlot.Value = transportScheme;
+            try
+            {
+                await next().ConfigureAwait(false);
+            }
+            finally
+            {
+                CurrentTransportSlot.Value = previous;
+            }
+        });
         foreach (var registration in registrations)
             registration.MapEndpoints(app);
         app.Start();
@@ -419,8 +450,8 @@ public static class Serve
             Obs.DiskWriters.Enable(obs.Config.RunDir);
         if (obs.Enabled(Obs.Family.Events))
             obs.Emit(
-                Obs.EventType.InstanceReady,
-                new Dictionary<string, string>
+                Obs.EventNames.InstanceReady,
+                new Dictionary<string, object?>
                 {
                     ["listener"] = publicUri,
                     ["metrics_addr"] = prom?.Address ?? "",

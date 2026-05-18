@@ -86,6 +86,7 @@ public class ServeTests
                 Array.Empty<Serve.GrpcServiceRegistration>(),
                 new Serve.ServeOptions
                 {
+                    Slug = "echo-server",
                     Env = new Dictionary<string, string>
                     {
                         ["OP_OBS"] = "logs,metrics,events",
@@ -97,31 +98,36 @@ public class ServeTests
             var obs = Obs.ObservabilityRegistry.Current();
             obs.Logger("serve-test").Info("serve-log", new Dictionary<string, object?> { ["sdk"] = "csharp" });
             obs.Counter("serve_requests_total")!.Inc();
-            obs.Emit(Obs.EventType.InstanceReady);
+            obs.Emit(Obs.EventNames.InstanceReady);
 
             using var channel = GrpcChannel.ForAddress($"http://127.0.0.1:{server.PublicUri.Split(':').Last()}");
             var client = new HolonObservability.HolonObservabilityClient(channel);
 
-            var logs = new List<LogEntry>();
-            using (var call = client.Logs(new LogsRequest { MinLevel = LogLevel.Info }))
+            var logs = new List<LogRecord>();
+            using (var call = client.Logs(new LogsRequest { MinSeverityNumber = SeverityNumber.Info }))
             {
                 while (await call.ResponseStream.MoveNext(CancellationToken.None))
                     logs.Add(call.ResponseStream.Current);
             }
-            Assert.Contains(logs, entry => entry.Message == "serve-log");
+            Assert.Contains(logs, entry => Obs.Wire.AnyValueString(entry.Body) == "serve-log");
 
-            var metrics = await client.MetricsAsync(new MetricsRequest());
-            Assert.Contains(metrics.Samples, sample => sample.Name == "serve_requests_total");
+            var metrics = new List<Metric>();
+            using (var call = client.Metrics(new MetricsRequest()))
+            {
+                while (await call.ResponseStream.MoveNext(CancellationToken.None))
+                    metrics.Add(call.ResponseStream.Current);
+            }
+            Assert.Contains(metrics, sample => sample.Name == "serve_requests_total");
 
-            var events = new List<EventInfo>();
+            var events = new List<LogRecord>();
             using (var call = client.Events(new EventsRequest()))
             {
                 while (await call.ResponseStream.MoveNext(CancellationToken.None))
                     events.Add(call.ResponseStream.Current);
             }
-            Assert.Contains(events, ev => ev.Type == EventType.InstanceReady);
+            Assert.Contains(events, ev => ev.EventName == Obs.EventNames.InstanceReady);
 
-            Assert.True(File.Exists(Path.Combine(registryRoot, obs.Config.Slug, "csharp-obs-1", "meta.json")));
+            Assert.True(File.Exists(Path.Combine(registryRoot, "echo-server", "csharp-obs-1", "meta.json")));
         }
         finally
         {
@@ -129,6 +135,20 @@ public class ServeTests
             Obs.ObservabilityRegistry.Reset();
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task CurrentTransportTracksStdioServeLifecycle()
+    {
+        Assert.Equal("", Serve.CurrentTransport);
+        await using var server = Serve.StartWithOptions(
+            "stdio://",
+            Array.Empty<Serve.GrpcServiceRegistration>(),
+            new Serve.ServeOptions { Describe = false, Logger = _ => { } });
+
+        Assert.Equal("stdio", Serve.CurrentTransport);
+        await server.StopAsync();
+        Assert.Equal("", Serve.CurrentTransport);
     }
 
     [Fact]
@@ -151,15 +171,20 @@ public class ServeTests
                 "tcp://127.0.0.1:0",
                 new[] { Serve.Service(new Obs.ObservabilityGrpcService(childObs)) },
                 new Serve.ServeOptions { Describe = false });
-            childObs.EventBus!.Emit(new Obs.Event
+            var childEvent = new LogRecord
             {
-                Timestamp = DateTime.UtcNow,
-                Type = Obs.EventType.InstanceReady,
-                Slug = "grandchild-holon",
-                InstanceUid = "grandchild-1",
-                Chain = new List<Obs.Hop> { new("grandchild-holon", "grandchild-1") },
-            });
-            childObs.Emit(Obs.EventType.InstanceReady, new Dictionary<string, string> { ["listener"] = child.PublicUri });
+                TimeUnixNano = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000,
+                ObservedTimeUnixNano = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000,
+                EventName = Obs.EventNames.InstanceReady,
+            };
+            childEvent.Attributes.Add(Obs.Wire.KeyValue(Obs.AttributeNames.HolonsSlug, "grandchild-holon"));
+            childEvent.Attributes.Add(Obs.Wire.KeyValue(Obs.AttributeNames.ServiceName, "grandchild-holon"));
+            childEvent.Attributes.Add(Obs.Wire.KeyValue(Obs.AttributeNames.HolonsInstanceUid, "grandchild-1"));
+            childEvent.Attributes.Add(Obs.Wire.KeyValue(Obs.AttributeNames.ServiceInstanceId, "grandchild-1"));
+            childEvent.Attributes.Add(Obs.Wire.KeyValue(Obs.AttributeNames.HolonsSessionId, ""));
+            childEvent.Chain.Add("grandchild-holon");
+            childObs.EventBus!.Emit(new Obs.LogRecord { Record = childEvent });
+            childObs.Emit(Obs.EventNames.InstanceReady, new Dictionary<string, object?> { ["listener"] = child.PublicUri });
             childObs.Logger("tick").Info(
                 "tick received",
                 new Dictionary<string, object?>
@@ -193,18 +218,16 @@ public class ServeTests
 
             Assert.True(await WaitUntilAsync(() =>
                 rootObs.LogRing?.Drain().Any(entry =>
-                    entry.Message == "tick received" &&
-                    entry.InstanceUid == "child-1" &&
-                    entry.Chain.Count == 1 &&
-                    entry.Chain[0].Slug == "child-holon" &&
-                    entry.Chain[0].InstanceUid == "child-1") == true));
+                    Obs.Wire.AnyValueString(entry.Record.Body) == "tick received" &&
+                    Obs.Wire.AttributeString(entry.Record.Attributes, Obs.AttributeNames.HolonsInstanceUid) == "child-1" &&
+                    entry.Record.Chain.Count == 1 &&
+                    entry.Record.Chain[0] == "child-holon") == true));
             Assert.True(await WaitUntilAsync(() =>
                 rootObs.EventBus?.Drain().Any(ev =>
-                    ev.Type == Obs.EventType.InstanceReady &&
-                    ev.InstanceUid == "child-1" &&
-                    ev.Chain.Count == 1 &&
-                    ev.Chain[0].Slug == "child-holon" &&
-                    ev.Chain[0].InstanceUid == "child-1") == true));
+                    ev.Record.EventName == Obs.EventNames.InstanceReady &&
+                    Obs.Wire.AttributeString(ev.Record.Attributes, Obs.AttributeNames.HolonsInstanceUid) == "child-1" &&
+                    ev.Record.Chain.Count == 1 &&
+                    ev.Record.Chain[0] == "child-holon") == true));
 
             var metaPath = Path.Combine(registryRoot, "root-holon", "root-1", "meta.json");
             Assert.True(await WaitUntilAsync(() => File.Exists(metaPath)));

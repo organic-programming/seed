@@ -2,6 +2,7 @@ using Holons.Observability;
 using Holons.V1;
 using Grpc.Net.Client;
 using System.Text.Json;
+using ProtoLogRecord = Holons.V1.LogRecord;
 
 namespace Holons.Tests;
 
@@ -70,7 +71,7 @@ public class ObservabilityTests
             DiskWriters.Enable(obs.Config.RunDir);
             obs.Logger("test").Info("service-log", new Dictionary<string, object?> { ["component"] = "csharp" });
             obs.Counter("csharp_requests_total")!.Inc();
-            obs.Emit(Holons.Observability.EventType.InstanceReady, new Dictionary<string, string> { ["listener"] = "tcp://127.0.0.1:1" });
+            obs.Emit(EventNames.InstanceReady, new Dictionary<string, object?> { ["listener"] = "tcp://127.0.0.1:1" });
             MetaJson.Write(
                 obs.Config.RunDir,
                 new MetaJson
@@ -86,7 +87,7 @@ public class ObservabilityTests
 
             var runDir = Path.Combine(root, "gabriel-greeting-csharp", "uid-2");
             Assert.Contains("\"message\":\"service-log\"", File.ReadAllText(Path.Combine(runDir, "stdout.log")));
-            Assert.Contains("\"type\":\"INSTANCE_READY\"", File.ReadAllText(Path.Combine(runDir, "events.jsonl")));
+            Assert.Contains("\"event_name\":\"instance.ready\"", File.ReadAllText(Path.Combine(runDir, "events.jsonl")));
             using var meta = JsonDocument.Parse(File.ReadAllText(Path.Combine(runDir, "meta.json")));
             Assert.Equal("uid-2", meta.RootElement.GetProperty("uid").GetString());
 
@@ -97,25 +98,32 @@ public class ObservabilityTests
             using var channel = GrpcChannel.ForAddress($"http://127.0.0.1:{server.PublicUri.Split(':').Last()}");
             var client = new HolonObservability.HolonObservabilityClient(channel);
 
-            var logs = new List<Holons.V1.LogEntry>();
-            using (var call = client.Logs(new LogsRequest { MinLevel = Holons.V1.LogLevel.Info }))
+            var logs = new List<ProtoLogRecord>();
+            using (var call = client.Logs(new LogsRequest { MinSeverityNumber = SeverityNumber.Info }))
             {
                 while (await call.ResponseStream.MoveNext(CancellationToken.None))
                     logs.Add(call.ResponseStream.Current);
             }
-            Assert.Contains(logs, entry => entry.Message == "service-log");
+            Assert.Contains(logs, entry => Wire.AnyValueString(entry.Body) == "service-log");
 
-            var metrics = await client.MetricsAsync(new MetricsRequest());
-            Assert.Contains(metrics.Samples, sample => sample.Name == "csharp_requests_total");
-            Assert.Null(metrics.SessionRollup);
+            var metrics = new List<Metric>();
+            using (var call = client.Metrics(new MetricsRequest()))
+            {
+                while (await call.ResponseStream.MoveNext(CancellationToken.None))
+                    metrics.Add(call.ResponseStream.Current);
+            }
+            var counter = Assert.Single(metrics, metric => metric.Name == "csharp_requests_total");
+            Assert.Equal(Metric.DataOneofCase.Sum, counter.DataCase);
+            Assert.True(counter.Sum.IsMonotonic);
+            Assert.Equal(AggregationTemporality.Cumulative, counter.Sum.AggregationTemporality);
 
-            var events = new List<EventInfo>();
+            var events = new List<ProtoLogRecord>();
             using (var call = client.Events(new EventsRequest()))
             {
                 while (await call.ResponseStream.MoveNext(CancellationToken.None))
                     events.Add(call.ResponseStream.Current);
             }
-            Assert.Contains(events, ev => ev.Type == Holons.V1.EventType.InstanceReady);
+            Assert.Contains(events, ev => ev.EventName == EventNames.InstanceReady);
         }
         finally
         {
@@ -141,14 +149,14 @@ public class ObservabilityTests
             using var channel = GrpcChannel.ForAddress($"http://127.0.0.1:{server.PublicUri.Split(':').Last()}");
             var client = new HolonObservability.HolonObservabilityClient(channel);
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            using var call = client.Logs(new LogsRequest { MinLevel = Holons.V1.LogLevel.Info, Follow = true }, cancellationToken: cts.Token);
+            using var call = client.Logs(new LogsRequest { MinSeverityNumber = SeverityNumber.Info, Follow = true }, cancellationToken: cts.Token);
 
             Assert.True(await call.ResponseStream.MoveNext(cts.Token));
-            Assert.Equal("before-subscribe", call.ResponseStream.Current.Message);
+            Assert.Equal("before-subscribe", Wire.AnyValueString(call.ResponseStream.Current.Body));
 
             obs.Logger("test").Info("after-subscribe");
             Assert.True(await call.ResponseStream.MoveNext(cts.Token));
-            Assert.Equal("after-subscribe", call.ResponseStream.Current.Message);
+            Assert.Equal("after-subscribe", Wire.AnyValueString(call.ResponseStream.Current.Body));
         }
         finally
         {
@@ -164,7 +172,7 @@ public class ObservabilityTests
             var obs = ObservabilityRegistry.ConfigureFromEnv(
                 new ObsConfig { Slug = "events-follow", InstanceUid = "uid-events" },
                 new Dictionary<string, string> { ["OP_OBS"] = "events" });
-            obs.Emit(Holons.Observability.EventType.InstanceReady, new Dictionary<string, string> { ["listener"] = "before", ["metrics_addr"] = "" });
+            obs.Emit(EventNames.InstanceReady, new Dictionary<string, object?> { ["listener"] = "before", ["metrics_addr"] = "" });
 
             using var server = Serve.StartWithOptions(
                 "tcp://127.0.0.1:0",
@@ -176,11 +184,11 @@ public class ObservabilityTests
             using var call = client.Events(new EventsRequest { Follow = true }, cancellationToken: cts.Token);
 
             Assert.True(await call.ResponseStream.MoveNext(cts.Token));
-            Assert.Equal("before", call.ResponseStream.Current.Payload["listener"]);
+            Assert.Equal("before", Attr(call.ResponseStream.Current, "listener").StringValue);
 
-            obs.Emit(Holons.Observability.EventType.InstanceReady, new Dictionary<string, string> { ["listener"] = "after", ["metrics_addr"] = "" });
+            obs.Emit(EventNames.InstanceReady, new Dictionary<string, object?> { ["listener"] = "after", ["metrics_addr"] = "" });
             Assert.True(await call.ResponseStream.MoveNext(cts.Token));
-            Assert.Equal("after", call.ResponseStream.Current.Payload["listener"]);
+            Assert.Equal("after", Attr(call.ResponseStream.Current, "listener").StringValue);
         }
         finally
         {
@@ -195,4 +203,7 @@ public class ObservabilityTests
         Directory.CreateDirectory(root);
         return root;
     }
+
+    private static AnyValue Attr(ProtoLogRecord record, string key) =>
+        record.Attributes.First(attr => attr.Key == key).Value;
 }
