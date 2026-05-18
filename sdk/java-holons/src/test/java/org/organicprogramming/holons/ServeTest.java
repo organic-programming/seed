@@ -1,11 +1,16 @@
 package org.organicprogramming.holons;
 
+import com.google.protobuf.StringValue;
 import io.grpc.BindableService;
 import io.grpc.CallOptions;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.MethodDescriptor;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.stub.ClientCalls;
+import io.grpc.stub.ServerCalls;
+import io.grpc.stub.StreamObserver;
+import io.grpc.protobuf.ProtoUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -173,6 +178,44 @@ class ServeTest {
             Describe.useStaticResponse(null);
         }
         assertEquals("", Serve.currentTransport());
+    }
+
+    @Test
+    void currentTransportIsVisibleInsideRpcHandlers() throws Exception {
+        Describe.useStaticResponse(staticDescribeResponse());
+        Serve.RunningServer running = null;
+        try {
+            running = Serve.startWithOptions(
+                    "tcp://127.0.0.1:0",
+                    List.of(new CurrentTransportService()),
+                    new Serve.Options().withOnListen(uri -> {
+                    }));
+
+            String target = running.publicUri().substring("tcp://".length());
+            int idx = target.lastIndexOf(':');
+            String host = target.substring(0, idx);
+            int port = Integer.parseInt(target.substring(idx + 1));
+
+            ManagedChannel channel = ManagedChannelBuilder.forAddress(host, port)
+                    .usePlaintext()
+                    .build();
+            try {
+                StringValue response = ClientCalls.blockingUnaryCall(
+                        channel,
+                        CurrentTransportService.METHOD,
+                        CallOptions.DEFAULT,
+                        StringValue.getDefaultInstance());
+                assertEquals("tcp", response.getValue());
+            } finally {
+                channel.shutdownNow();
+                channel.awaitTermination(5, TimeUnit.SECONDS);
+            }
+        } finally {
+            if (running != null) {
+                running.stop();
+            }
+            Describe.useStaticResponse(null);
+        }
     }
 
     @Test
@@ -368,6 +411,28 @@ class ServeTest {
         @Override
         public ServerServiceDefinition bindService() {
             return ServerServiceDefinition.builder("empty.v1.Empty").build();
+        }
+    }
+
+    private static final class CurrentTransportService implements BindableService {
+        private static final MethodDescriptor<StringValue, StringValue> METHOD =
+                MethodDescriptor.<StringValue, StringValue>newBuilder()
+                        .setType(MethodDescriptor.MethodType.UNARY)
+                        .setFullMethodName(MethodDescriptor.generateFullMethodName("test.v1.Transport", "Current"))
+                        .setRequestMarshaller(ProtoUtils.marshaller(StringValue.getDefaultInstance()))
+                        .setResponseMarshaller(ProtoUtils.marshaller(StringValue.getDefaultInstance()))
+                        .build();
+
+        @Override
+        public ServerServiceDefinition bindService() {
+            return ServerServiceDefinition.builder("test.v1.Transport")
+                    .addMethod(METHOD, ServerCalls.asyncUnaryCall(this::current))
+                    .build();
+        }
+
+        private void current(StringValue request, StreamObserver<StringValue> responseObserver) {
+            responseObserver.onNext(StringValue.of(Serve.currentTransport()));
+            responseObserver.onCompleted();
         }
     }
 

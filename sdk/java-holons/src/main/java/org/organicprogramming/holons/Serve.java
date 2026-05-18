@@ -1,7 +1,13 @@
 package org.organicprogramming.holons;
 
 import io.grpc.BindableService;
+import io.grpc.ForwardingServerCallListener;
+import io.grpc.Metadata;
 import io.grpc.Server;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
+import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import io.grpc.protobuf.services.ProtoReflectionService;
@@ -290,14 +296,14 @@ public final class Serve {
                 CURRENT_TRANSPORT.set("tcp");
                 String host = parsed.host() != null ? parsed.host() : "0.0.0.0";
                 int port = parsed.port() != null ? parsed.port() : 9090;
-                BoundServer bound = bindTcpServer(host, port, bindableServices, extraDefinitions);
+                BoundServer bound = bindTcpServer(host, port, bindableServices, extraDefinitions, "tcp");
                 AuxiliaryRuntime auxiliary = startAuxiliaryRuntime(obs, bound.publicUri(), "tcp", resolvedOptions);
                 announce(bound.publicUri(), describeEnabled, reflectionEnabled, resolvedOptions);
                 yield new RunningServer(bound.server(), bound.publicUri(), resolvedOptions.logger(), auxiliary, "tcp");
             }
             case "stdio" -> {
                 CURRENT_TRANSPORT.set("stdio");
-                BoundServer bound = bindTcpServer("127.0.0.1", 0, bindableServices, extraDefinitions);
+                BoundServer bound = bindTcpServer("127.0.0.1", 0, bindableServices, extraDefinitions, "stdio");
                 String[] target = parseTarget(bound.publicUri());
                 RunningServer[] runningRef = new RunningServer[1];
                 StdioServerBridge bridge = new StdioServerBridge(target[0], Integer.parseInt(target[1]), () -> {
@@ -323,7 +329,7 @@ public final class Serve {
             }
             case "unix" -> {
                 CURRENT_TRANSPORT.set("unix");
-                BoundServer bound = bindTcpServer("127.0.0.1", 0, bindableServices, extraDefinitions);
+                BoundServer bound = bindTcpServer("127.0.0.1", 0, bindableServices, extraDefinitions, "unix");
                 String[] target = parseTarget(bound.publicUri());
                 String publicUri = "unix://" + Objects.requireNonNull(parsed.path());
                 UnixServerBridge bridge = new UnixServerBridge(Objects.requireNonNull(parsed.path()), target[0], Integer.parseInt(target[1]));
@@ -346,17 +352,92 @@ public final class Serve {
             String host,
             int port,
             Iterable<? extends BindableService> services,
-            Iterable<ServerServiceDefinition> definitions) throws IOException {
+            Iterable<ServerServiceDefinition> definitions,
+            String transport) throws IOException {
         NettyServerBuilder builder = NettyServerBuilder.forAddress(new InetSocketAddress(host, port));
+        ServerInterceptor transportContext = transportContextInterceptor(transport);
         for (BindableService service : services) {
-            builder.addService(service);
+            builder.addService(ServerInterceptors.intercept(service, transportContext));
         }
         for (ServerServiceDefinition definition : definitions) {
-            builder.addService(definition);
+            builder.addService(ServerInterceptors.intercept(definition, transportContext));
         }
         Server server = builder.build().start();
         String publicUri = "tcp://" + advertisedHost(host) + ":" + server.getPort();
         return new BoundServer(server, publicUri);
+    }
+
+    private static ServerInterceptor transportContextInterceptor(String transport) {
+        String scheme = transport == null ? "" : transport;
+        return new ServerInterceptor() {
+            @Override
+            public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+                    ServerCall<ReqT, RespT> call,
+                    Metadata headers,
+                    ServerCallHandler<ReqT, RespT> next) {
+                ServerCall.Listener<ReqT> listener = withCurrentTransport(scheme, () -> next.startCall(call, headers));
+                return new ForwardingServerCallListener.SimpleForwardingServerCallListener<>(listener) {
+                    @Override
+                    public void onMessage(ReqT message) {
+                        withCurrentTransport(scheme, () -> {
+                            super.onMessage(message);
+                            return null;
+                        });
+                    }
+
+                    @Override
+                    public void onHalfClose() {
+                        withCurrentTransport(scheme, () -> {
+                            super.onHalfClose();
+                            return null;
+                        });
+                    }
+
+                    @Override
+                    public void onCancel() {
+                        withCurrentTransport(scheme, () -> {
+                            super.onCancel();
+                            return null;
+                        });
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        withCurrentTransport(scheme, () -> {
+                            super.onComplete();
+                            return null;
+                        });
+                    }
+
+                    @Override
+                    public void onReady() {
+                        withCurrentTransport(scheme, () -> {
+                            super.onReady();
+                            return null;
+                        });
+                    }
+                };
+            }
+        };
+    }
+
+    private static <T> T withCurrentTransport(String transport, CheckedSupplier<T> supplier) {
+        String previous = CURRENT_TRANSPORT.get();
+        CURRENT_TRANSPORT.set(transport == null ? "" : transport);
+        try {
+            return supplier.get();
+        } finally {
+            if (previous == null || previous.isBlank()) {
+                CURRENT_TRANSPORT.remove();
+            } else {
+                CURRENT_TRANSPORT.set(previous);
+            }
+        }
+    }
+
+    @FunctionalInterface
+    private interface CheckedSupplier<T> {
+        T get();
     }
 
     private static void announce(String publicUri, boolean describeEnabled, boolean reflectionEnabled, Options options) {
