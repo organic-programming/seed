@@ -29,6 +29,25 @@ logger = logging.getLogger("holons.serve")
 
 RegisterFunc = Callable[[grpc.Server], None]
 _MAX_GRPC_MESSAGE_BYTES = 1 << 20
+_current_transport = ""
+_current_transport_lock = threading.Lock()
+
+
+def CurrentTransport() -> str:
+    """Return the active serve transport scheme, or empty when not serving."""
+    with _current_transport_lock:
+        return _current_transport
+
+
+def current_transport() -> str:
+    """Pythonic alias for CurrentTransport."""
+    return CurrentTransport()
+
+
+def _set_current_transport(value: str) -> None:
+    global _current_transport
+    with _current_transport_lock:
+        _current_transport = value
 
 
 @dataclass(frozen=True)
@@ -151,6 +170,29 @@ def run_with_serve_options(
     """
     if options is None:
         options = ServeOptions()
+    transport = scheme(listen_uri)
+    _set_current_transport(transport)
+    try:
+        _run_with_serve_options(
+            listen_uri,
+            register_fn,
+            options,
+            max_workers=max_workers,
+            on_listen=on_listen,
+            transport=transport,
+        )
+    finally:
+        _set_current_transport("")
+
+
+def _run_with_serve_options(
+    listen_uri: str,
+    register_fn: RegisterFunc,
+    options: ServeOptions,
+    max_workers: int,
+    on_listen: Callable[[str], None] | None,
+    transport: str,
+) -> None:
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=max_workers),
         options=[
@@ -180,7 +222,6 @@ def run_with_serve_options(
         reflection.enable_server_reflection(tuple(service_names), server)
         reflection_enabled = True
 
-    transport = scheme(listen_uri)
     stdio_bridge = None
 
     if transport == "tcp":

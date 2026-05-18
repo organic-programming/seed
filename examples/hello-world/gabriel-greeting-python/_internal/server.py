@@ -8,7 +8,7 @@ from support import ensure_import_paths
 ensure_import_paths()
 
 from holons import describe, observability
-from holons.serve import ServeOptions, run_with_serve_options
+from holons.serve import CurrentTransport, ServeOptions, run_with_serve_options
 from gen import describe_generated
 from v1 import greeting_pb2_grpc
 
@@ -29,8 +29,7 @@ class GreetingService(greeting_pb2_grpc.GreetingServiceServicer):
         start_ns = time.perf_counter_ns()
         response = public.say_hello(request)
         name = request.name.strip() or lookup(response.lang_code).default_name
-        # Python serve does not yet expose a handler-visible current transport.
-        transport = "unknown"
+        transport = CurrentTransport() or "unknown"
         duration_ns = time.perf_counter_ns() - start_ns
         message = f"Greeted {name} in {response.language} ({response.lang_code})"
         obs = observability.current()

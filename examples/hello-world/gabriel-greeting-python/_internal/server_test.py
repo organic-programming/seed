@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import os
+import sys
 import unittest
 from concurrent import futures
+from pathlib import Path
 from unittest.mock import patch
 
 import grpc
@@ -11,6 +14,8 @@ from support import ensure_import_paths
 ensure_import_paths()
 
 from holons import describe, observability
+from holons.grpcclient import dial_stdio
+from holons.v1 import observability_pb2, observability_pb2_grpc
 from v1 import greeting_pb2, greeting_pb2_grpc
 
 from _internal.server import GreetingService, normalize_listen_uri
@@ -123,6 +128,44 @@ class GreetingServerTest(unittest.TestCase):
         self.assertEqual(attrs["lang_code"].WhichOneof("value"), "string_value")
         self.assertEqual(attrs["duration_ns"].WhichOneof("value"), "int_value")
         self.assertEqual(attrs["transport"].string_value, "unknown")
+
+    def test_say_hello_emits_stdio_transport_under_stdio_serve(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        env = dict(os.environ)
+        env["OP_OBS"] = "logs,metrics"
+        channel = dial_stdio(
+            sys.executable,
+            str(root / "cmd" / "main.py"),
+            "serve",
+            "--listen",
+            "stdio://",
+            env=env,
+            cwd=str(root),
+        )
+        try:
+            stub = greeting_pb2_grpc.GreetingServiceStub(channel)
+            response = stub.SayHello(
+                greeting_pb2.SayHelloRequest(name="Ana", lang_code="es"),
+                timeout=5,
+            )
+            self.assertEqual(response.greeting, "Hola Ana")
+
+            obs_stub = observability_pb2_grpc.HolonObservabilityStub(channel)
+            records = list(
+                obs_stub.Logs(observability_pb2.LogsRequest(follow=False), timeout=5)
+            )
+        finally:
+            channel.close()
+
+        matches = [
+            record
+            for record in records
+            if observability.body_string(record) == "Greeted Ana in Spanish (es)"
+        ]
+        self.assertEqual(len(matches), 1)
+        attrs = {attr.key: attr.value for attr in matches[0].attributes}
+        self.assertEqual(attrs["transport"].string_value, "stdio")
+        self.assertEqual(attrs["duration_ns"].WhichOneof("value"), "int_value")
 
     def test_normalize_listen_uri_expands_empty_tcp_host(self) -> None:
         self.assertEqual(normalize_listen_uri("tcp://:9090"), "tcp://0.0.0.0:9090")
