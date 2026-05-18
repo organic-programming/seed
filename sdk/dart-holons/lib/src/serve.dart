@@ -12,6 +12,12 @@ import 'reflection.dart';
 import 'transport.dart';
 import 'composite.dart' as composite;
 
+String CurrentTransport = '';
+
+void setCurrentTransport(String transport) {
+  CurrentTransport = transport.trim();
+}
+
 class ParsedFlags {
   const ParsedFlags({
     required this.listenUri,
@@ -190,123 +196,145 @@ Future<RunningServer> startWithOptions(
   ServeOptions options = const ServeOptions(),
 }) async {
   final parsed = parseUri(listenUri.isEmpty ? defaultUri : listenUri);
-  final resolvedServices = List<Service>.from(services);
-  final env = options.environment ?? Platform.environment;
-  observability.checkEnv(env);
-  final obs = _resolveObservability(env);
-  final describeEnabled = _maybeAddDescribe(resolvedServices, options);
-  if (obs != null && obs.families.isNotEmpty) {
-    resolvedServices.add(observability.registerService(obs));
-  }
-  final reflectionEnabled = _maybeAddReflection(resolvedServices, options);
+  setCurrentTransport(parsed.scheme);
+  try {
+    final resolvedServices = List<Service>.from(services);
+    final env = options.environment ?? Platform.environment;
+    observability.checkEnv(env);
+    final obs = _resolveObservability(env);
+    final describeEnabled = _maybeAddDescribe(resolvedServices, options);
+    if (obs != null && obs.families.isNotEmpty) {
+      resolvedServices.add(observability.registerService(obs));
+    }
+    final reflectionEnabled = _maybeAddReflection(resolvedServices, options);
 
-  switch (parsed.scheme) {
-    case 'tcp':
-      final host = parsed.host ?? '0.0.0.0';
-      final port = parsed.port ?? 9090;
-      final running = await _startTcpServer(
-        host: host,
-        port: port,
-        publicUri: null,
-        services: resolvedServices,
-        describeEnabled: describeEnabled,
-        reflectionEnabled: reflectionEnabled,
-        options: options,
-      );
-      return _finalizeObservabilityRuntime(
-        running,
-        obs,
-        running.publicUri,
-        parsed.scheme,
-        options,
-      );
-    case 'stdio':
-      final backing = await _startTcpServer(
-        host: '127.0.0.1',
-        port: 0,
-        publicUri: null,
-        services: resolvedServices,
-        describeEnabled: describeEnabled,
-        reflectionEnabled: reflectionEnabled,
-        options: options,
-        suppressAnnouncement: true,
-      );
-      final port = int.parse(backing.publicUri.split(':').last);
-      late final RunningServer running;
-      final bridge = await _StdioServerBridge.connect(
-        host: '127.0.0.1',
-        port: port,
-        onDisconnect: () {
-          unawaited(running.stop());
-        },
-      );
-      running = RunningServer._(
-        server: backing.server,
-        publicUri: 'stdio://',
-        completion: backing.completion,
-        stopCallback: () async {
-          await bridge.close();
-          await backing.stop();
-        },
-      );
-      bridge.start();
-      final mode = _formatMode(describeEnabled, reflectionEnabled);
-      final finalized = await _finalizeObservabilityRuntime(
-        running,
-        obs,
-        'stdio://',
-        parsed.scheme,
-        options,
-      );
-      options.onListen?.call('stdio://');
-      options.logger('gRPC server listening on stdio:// ($mode)');
-      return finalized;
-    case 'unix':
-      final path = parsed.path ?? '';
-      final backing = await _startTcpServer(
-        host: '127.0.0.1',
-        port: 0,
-        publicUri: null,
-        services: resolvedServices,
-        describeEnabled: describeEnabled,
-        reflectionEnabled: reflectionEnabled,
-        options: options,
-        suppressAnnouncement: true,
-      );
-      final port = int.parse(backing.publicUri.split(':').last);
-      final bridge = await _UnixServerBridge.bind(
-        path: path,
-        host: '127.0.0.1',
-        port: port,
-      );
-      final publicUri = 'unix://$path';
-      final mode = _formatMode(describeEnabled, reflectionEnabled);
-      final running = RunningServer._(
-        server: backing.server,
-        publicUri: publicUri,
-        completion: backing.completion,
-        stopCallback: () async {
-          await bridge.close();
-          await backing.stop();
-        },
-      );
-      final finalized = await _finalizeObservabilityRuntime(
-        running,
-        obs,
-        publicUri,
-        parsed.scheme,
-        options,
-      );
-      options.onListen?.call(publicUri);
-      options.logger('gRPC server listening on $publicUri ($mode)');
-      return finalized;
-    default:
-      throw ArgumentError.value(
-        listenUri,
-        'listenUri',
-        'Serve.run(...) currently supports tcp://, unix://, and stdio:// only',
-      );
+    switch (parsed.scheme) {
+      case 'tcp':
+        final host = parsed.host ?? '0.0.0.0';
+        final port = parsed.port ?? 9090;
+        final running = await _startTcpServer(
+          host: host,
+          port: port,
+          publicUri: null,
+          services: resolvedServices,
+          describeEnabled: describeEnabled,
+          reflectionEnabled: reflectionEnabled,
+          options: options,
+        );
+        return _withCurrentTransportLifecycle(
+            await _finalizeObservabilityRuntime(
+          running,
+          obs,
+          running.publicUri,
+          parsed.scheme,
+          options,
+        ));
+      case 'stdio':
+        final backing = await _startTcpServer(
+          host: '127.0.0.1',
+          port: 0,
+          publicUri: null,
+          services: resolvedServices,
+          describeEnabled: describeEnabled,
+          reflectionEnabled: reflectionEnabled,
+          options: options,
+          suppressAnnouncement: true,
+        );
+        final port = int.parse(backing.publicUri.split(':').last);
+        late final RunningServer running;
+        final bridge = await _StdioServerBridge.connect(
+          host: '127.0.0.1',
+          port: port,
+          onDisconnect: () {
+            unawaited(running.stop());
+          },
+        );
+        running = RunningServer._(
+          server: backing.server,
+          publicUri: 'stdio://',
+          completion: backing.completion,
+          stopCallback: () async {
+            await bridge.close();
+            await backing.stop();
+          },
+        );
+        bridge.start();
+        final mode = _formatMode(describeEnabled, reflectionEnabled);
+        final finalized = await _finalizeObservabilityRuntime(
+          running,
+          obs,
+          'stdio://',
+          parsed.scheme,
+          options,
+        );
+        options.onListen?.call('stdio://');
+        options.logger('gRPC server listening on stdio:// ($mode)');
+        return _withCurrentTransportLifecycle(finalized);
+      case 'unix':
+        final path = parsed.path ?? '';
+        final backing = await _startTcpServer(
+          host: '127.0.0.1',
+          port: 0,
+          publicUri: null,
+          services: resolvedServices,
+          describeEnabled: describeEnabled,
+          reflectionEnabled: reflectionEnabled,
+          options: options,
+          suppressAnnouncement: true,
+        );
+        final port = int.parse(backing.publicUri.split(':').last);
+        final bridge = await _UnixServerBridge.bind(
+          path: path,
+          host: '127.0.0.1',
+          port: port,
+        );
+        final publicUri = 'unix://$path';
+        final mode = _formatMode(describeEnabled, reflectionEnabled);
+        final running = RunningServer._(
+          server: backing.server,
+          publicUri: publicUri,
+          completion: backing.completion,
+          stopCallback: () async {
+            await bridge.close();
+            await backing.stop();
+          },
+        );
+        final finalized = await _finalizeObservabilityRuntime(
+          running,
+          obs,
+          publicUri,
+          parsed.scheme,
+          options,
+        );
+        options.onListen?.call(publicUri);
+        options.logger('gRPC server listening on $publicUri ($mode)');
+        return _withCurrentTransportLifecycle(finalized);
+      default:
+        throw ArgumentError.value(
+          listenUri,
+          'listenUri',
+          'Serve.run(...) currently supports tcp://, unix://, and stdio:// only',
+        );
+    }
+  } catch (_) {
+    setCurrentTransport('');
+    rethrow;
   }
+}
+
+RunningServer _withCurrentTransportLifecycle(RunningServer running) {
+  return RunningServer._(
+    server: running.server,
+    publicUri: running.publicUri,
+    completion: running.completion,
+    stopCallback: () async {
+      try {
+        await running.stop();
+      } finally {
+        setCurrentTransport('');
+      }
+    },
+  );
 }
 
 Future<RunningServer> _finalizeObservabilityRuntime(
@@ -428,17 +456,21 @@ Future<MemberRef> _resolveRelayMemberIdentity(
   try {
     final stream = client.events(
       obs_pb.EventsRequest(
-        types: [obs_pb.EventType.INSTANCE_READY],
+        eventNames: [observability.eventInstanceReady],
         follow: false,
       ),
     );
     await for (final event in stream.timeout(const Duration(seconds: 2))) {
-      if (event.instanceUid.isEmpty || event.chain.isNotEmpty) {
+      final uid = observability.stringAttribute(
+          event.attributes, observability.attrHolonsInstanceUid);
+      if (uid.isEmpty || event.chain.isNotEmpty) {
         continue;
       }
+      final slug = observability.stringAttribute(
+          event.attributes, observability.attrHolonsSlug);
       return MemberRef(
-        slug: event.slug.trim().isEmpty ? member.slug : event.slug.trim(),
-        uid: event.instanceUid.trim(),
+        slug: slug.trim().isEmpty ? member.slug : slug.trim(),
+        uid: uid.trim(),
         address: member.address,
       );
     }
@@ -447,20 +479,41 @@ Future<MemberRef> _resolveRelayMemberIdentity(
   }
 
   try {
-    final snap = await client
+    final metrics = await client
         .metrics(obs_pb.MetricsRequest())
+        .toList()
         .timeout(const Duration(seconds: 2));
-    if (snap.instanceUid.isNotEmpty) {
+    for (final metric in metrics) {
+      final attrs = _metricAttributes(metric);
+      final uid = observability.stringAttribute(
+          attrs, observability.attrHolonsInstanceUid);
+      if (uid.isEmpty) {
+        continue;
+      }
+      final slug =
+          observability.stringAttribute(attrs, observability.attrHolonsSlug);
       return MemberRef(
-        slug: snap.slug.trim().isEmpty ? member.slug : snap.slug.trim(),
-        uid: snap.instanceUid.trim(),
-        address: member.address,
-      );
+          slug: slug.trim().isEmpty ? member.slug : slug.trim(),
+          uid: uid.trim(),
+          address: member.address);
     }
   } on Object {
     // Leave the UID empty and let the relay still run.
   }
   return member;
+}
+
+List<obs_pb.KeyValue> _metricAttributes(obs_pb.Metric metric) {
+  if (metric.hasGauge() && metric.gauge.dataPoints.isNotEmpty) {
+    return metric.gauge.dataPoints.first.attributes;
+  }
+  if (metric.hasSum() && metric.sum.dataPoints.isNotEmpty) {
+    return metric.sum.dataPoints.first.attributes;
+  }
+  if (metric.hasHistogram() && metric.histogram.dataPoints.isNotEmpty) {
+    return metric.histogram.dataPoints.first.attributes;
+  }
+  return const [];
 }
 
 class _StartedMemberRelay {
@@ -483,7 +536,10 @@ observability.Observability? _resolveObservability(Map<String, String> env) {
   if (current.families.isNotEmpty) {
     return current;
   }
-  return observability.fromEnv(const observability.Config(), env);
+  return observability.fromEnv(
+    observability.Config(slug: registeredManifestSlug()),
+    env,
+  );
 }
 
 Future<RunningServer> _startTcpServer({
@@ -534,7 +590,7 @@ void _startObservabilityRuntime(
   if (obs == null || obs.families.isEmpty || obs.cfg.runDir.isEmpty) return;
   observability.enableDiskWriters(obs.cfg.runDir);
   if (obs.enabled(observability.Family.events)) {
-    obs.emit(observability.EventType.instanceReady,
+    obs.emit(observability.eventInstanceReady,
         payload: {'listener': publicUri, 'metrics_addr': metricsAddr});
   }
   observability.writeMetaJson(

@@ -211,12 +211,13 @@ Future<({String kind, Duration elapsed})?> _waitForSignal(
 ) async {
   final stopwatch = Stopwatch()..start();
   while (stopwatch.elapsed < timeout) {
-    final logs = observability.logRing?.drain() ?? const <holons.LogEntry>[];
+    final logs = observability.logRing?.drain() ?? const <holons.LogRecord>[];
     if (logs.any((entry) => entry.slug == _childSlug)) {
       return (kind: 'log', elapsed: stopwatch.elapsed);
     }
 
-    final events = observability.eventBus?.drain() ?? const <holons.Event>[];
+    final events =
+        observability.eventBus?.drain() ?? const <holons.LogRecord>[];
     if (events.any((event) => event.slug == _childSlug)) {
       return (kind: 'event', elapsed: stopwatch.elapsed);
     }

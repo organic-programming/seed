@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:fixnum/fixnum.dart';
 import 'package:grpc/grpc.dart';
 import 'package:holons/holons.dart';
 import 'package:holons/gen/holons/v1/describe.pbgrpc.dart';
@@ -14,6 +15,24 @@ void main() {
   group('serve', () {
     tearDown(() {
       useStaticResponse(null);
+    });
+
+    test('CurrentTransport tracks stdio serve lifecycle', () async {
+      setCurrentTransport('');
+      expect(CurrentTransport, isEmpty);
+
+      final running = await startWithOptions(
+        'stdio://',
+        const <Service>[],
+        options: const ServeOptions(
+          describe: false,
+          logger: _ignoreLog,
+        ),
+      );
+      expect(CurrentTransport, equals('stdio'));
+
+      await running.stop();
+      expect(CurrentTransport, isEmpty);
     });
 
     test(
@@ -235,54 +254,81 @@ class _FakeMemberObservability {
 
 class _FakeMemberObservabilityService
     extends obsgrpc.HolonObservabilityServiceBase {
-  final _logs = StreamController<obsgrpc.LogEntry>.broadcast();
-  final _events = StreamController<obsgrpc.EventInfo>.broadcast();
+  final _logs = StreamController<obsgrpc.LogRecord>.broadcast();
+  final _events = StreamController<obsgrpc.LogRecord>.broadcast();
   var logsOpened = 0;
   var eventsOpened = 0;
 
   @override
-  Stream<obsgrpc.LogEntry> logs(ServiceCall call, obsgrpc.LogsRequest request) {
+  Stream<obsgrpc.LogRecord> logs(
+      ServiceCall call, obsgrpc.LogsRequest request) {
     logsOpened += 1;
     return _logs.stream;
   }
 
   @override
-  Future<obsgrpc.MetricsSnapshot> metrics(
-      ServiceCall call, obsgrpc.MetricsRequest request) async {
-    return obsgrpc.MetricsSnapshot(
-      slug: 'child-x',
-      instanceUid: 'child-uid',
+  Stream<obsgrpc.Metric> metrics(
+      ServiceCall call, obsgrpc.MetricsRequest request) async* {
+    yield obsgrpc.Metric(
+      name: 'child_identity',
+      gauge: obsgrpc.Gauge(
+        dataPoints: [
+          obsgrpc.NumberDataPoint(
+            asInt: Int64(1),
+            attributes: obs.resourceAttributes(
+              const obs.Config(slug: 'child-x', instanceUid: 'child-uid'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   @override
-  Stream<obsgrpc.EventInfo> events(
+  Stream<obsgrpc.LogRecord> events(
       ServiceCall call, obsgrpc.EventsRequest request) {
     eventsOpened += 1;
     if (!request.follow) {
-      return Stream<obsgrpc.EventInfo>.value(_readyEvent());
+      return Stream<obsgrpc.LogRecord>.value(_readyEvent());
     }
     return _events.stream;
   }
 
   void emitLog(String message, Map<String, String> fields) {
-    _logs.add(obs.toProtoLogEntry(obs.LogEntry(
-      timestamp: DateTime.now().toUtc(),
-      level: obs.Level.info,
-      slug: 'child-x',
-      instanceUid: 'child-uid',
-      message: message,
-      fields: fields,
-    )));
+    _logs.add(_logRecord(message, fields));
   }
 
-  obsgrpc.EventInfo _readyEvent() {
-    return obs.toProtoEvent(obs.Event(
-      timestamp: DateTime.now().toUtc(),
-      type: obs.EventType.instanceReady,
-      slug: 'child-x',
-      instanceUid: 'child-uid',
-    ));
+  obsgrpc.LogRecord _readyEvent() {
+    final now = Int64(DateTime.now().microsecondsSinceEpoch) * Int64(1000);
+    return obsgrpc.LogRecord(
+      timeUnixNano: now,
+      observedTimeUnixNano: now,
+      severityNumber: obsgrpc.SeverityNumber.SEVERITY_NUMBER_INFO,
+      severityText: 'INFO',
+      body: obs.anyValue(obs.eventInstanceReady),
+      attributes: obs.resourceAttributes(
+        const obs.Config(slug: 'child-x', instanceUid: 'child-uid'),
+      ),
+      eventName: obs.eventInstanceReady,
+    );
+  }
+
+  obsgrpc.LogRecord _logRecord(String message, Map<String, String> fields) {
+    final now = Int64(DateTime.now().microsecondsSinceEpoch) * Int64(1000);
+    return obsgrpc.LogRecord(
+      timeUnixNano: now,
+      observedTimeUnixNano: now,
+      severityNumber: obsgrpc.SeverityNumber.SEVERITY_NUMBER_INFO,
+      severityText: 'INFO',
+      body: obs.anyValue(message),
+      attributes: [
+        ...obs.resourceAttributes(
+          const obs.Config(slug: 'child-x', instanceUid: 'child-uid'),
+        ),
+        for (final entry in fields.entries)
+          obs.keyValue(entry.key, entry.value),
+      ],
+    );
   }
 
   Future<void> close() async {
@@ -297,6 +343,8 @@ Future<_FakeMemberObservability> _startFakeMemberObservability() async {
   await server.serve(address: InternetAddress.loopbackIPv4, port: 0);
   return _FakeMemberObservability(service, server);
 }
+
+void _ignoreLog(String _) {}
 
 Future<void> _waitFor(
   bool Function() condition, {

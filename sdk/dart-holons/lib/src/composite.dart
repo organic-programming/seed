@@ -391,7 +391,7 @@ Future<void> _waitRelayedReady(
   final deadline = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(deadline)) {
     final ready = obs.eventBus!.drain().any((event) =>
-        event.type == observability.EventType.instanceReady &&
+        event.eventName == observability.eventInstanceReady &&
         event.instanceUid == uid);
     if (ready) {
       return;
@@ -519,7 +519,7 @@ class LogCheckOptions {
 class EventCheckOptions {
   const EventCheckOptions({
     this.conn,
-    this.eventType = observability.EventType.instanceReady,
+    this.eventName = observability.eventInstanceReady,
     required this.leafUid,
     required this.expectedChain,
     this.timeout = const Duration(seconds: 3),
@@ -528,7 +528,7 @@ class EventCheckOptions {
   });
 
   final grpc_api.ClientChannel? conn;
-  final observability.EventType eventType;
+  final String eventName;
   final String leafUid;
   final List<ChainHop> expectedChain;
   final Duration timeout;
@@ -576,7 +576,7 @@ Future<CheckOutcome> checkRelayedEvent(EventCheckOptions opts) async {
   }
 }
 
-Future<List<observability.LogEntry>> _readLogEntries(
+Future<List<observability.LogRecord>> _readLogEntries(
     grpc_api.ClientChannel? conn) async {
   if (conn == null) {
     final ring = observability.current().logRing;
@@ -587,33 +587,17 @@ Future<List<observability.LogEntry>> _readLogEntries(
   }
   final client = obs_pb.HolonObservabilityClient(conn);
   final entries = await client
-      .logs(obs_pb.LogsRequest(minLevel: obs_pb.LogLevel.INFO, follow: false))
+      .logs(obs_pb.LogsRequest(
+          minSeverityNumber: obs_pb.SeverityNumber.SEVERITY_NUMBER_INFO,
+          follow: false))
       .toList()
       .timeout(const Duration(seconds: 2));
   return [
-    for (final entry in entries)
-      observability.LogEntry(
-        timestamp: DateTime.now(),
-        level: observability.Level.values.firstWhere(
-          (candidate) => candidate.value == entry.level.value,
-          orElse: () => observability.Level.unset,
-        ),
-        slug: entry.slug,
-        instanceUid: entry.instanceUid,
-        sessionId: entry.sessionId,
-        rpcMethod: entry.rpcMethod,
-        message: entry.message,
-        fields: Map.unmodifiable(entry.fields),
-        caller: entry.caller,
-        chain: [
-          for (final hop in entry.chain)
-            observability.Hop(slug: hop.slug, instanceUid: hop.instanceUid),
-        ],
-      ),
+    for (final entry in entries) observability.fromProtoLogRecord(entry),
   ];
 }
 
-Future<List<observability.Event>> _readEventEntries(
+Future<List<observability.LogRecord>> _readEventEntries(
     grpc_api.ClientChannel? conn) async {
   if (conn == null) {
     final bus = observability.current().eventBus;
@@ -628,27 +612,12 @@ Future<List<observability.Event>> _readEventEntries(
       .toList()
       .timeout(const Duration(seconds: 2));
   return [
-    for (final event in events)
-      observability.Event(
-        timestamp: DateTime.now(),
-        type: observability.EventType.values.firstWhere(
-          (candidate) => candidate.value == event.type.value,
-          orElse: () => observability.EventType.unspecified,
-        ),
-        slug: event.slug,
-        instanceUid: event.instanceUid,
-        sessionId: event.sessionId,
-        payload: Map.unmodifiable(event.payload),
-        chain: [
-          for (final hop in event.chain)
-            observability.Hop(slug: hop.slug, instanceUid: hop.instanceUid),
-        ],
-      ),
+    for (final event in events) observability.fromProtoLogRecord(event),
   ];
 }
 
 CheckOutcome _matchRelayedLog(
-  List<observability.LogEntry> entries,
+  List<observability.LogRecord> entries,
   LogCheckOptions opts,
 ) {
   for (final entry in entries) {
@@ -675,11 +644,12 @@ CheckOutcome _matchRelayedLog(
 }
 
 CheckOutcome _matchRelayedEvent(
-  List<observability.Event> events,
+  List<observability.LogRecord> events,
   EventCheckOptions opts,
 ) {
   for (final event in events) {
-    if (event.type != opts.eventType || event.instanceUid != opts.leafUid) {
+    if (event.eventName != opts.eventName ||
+        event.instanceUid != opts.leafUid) {
       continue;
     }
     final chainEvidence = _compareChain(event.chain, opts.expectedChain);
@@ -692,7 +662,7 @@ CheckOutcome _matchRelayedEvent(
   }
   return CheckOutcome(
     evidence: _compactEvidence(
-      'no relayed ${opts.eventType.protoName} event leaf_uid=${opts.leafUid} events=${events.length}',
+      'no relayed ${opts.eventName} event leaf_uid=${opts.leafUid} events=${events.length}',
     ),
   );
 }

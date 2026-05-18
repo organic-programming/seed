@@ -6,7 +6,6 @@ import '../gen/describe_generated.dart';
 import '../gen/dart/greeting/v1/greeting.pbgrpc.dart';
 import 'greetings.dart';
 
-// Dart serve does not yet expose a handler-visible current transport.
 const _transportUnknown = 'unknown';
 const _greetingCounterHelp =
     'Greetings emitted, partitioned by language and transport.';
@@ -45,7 +44,8 @@ String _resolvedName(SayHelloRequest request, SayHelloResponse response) {
   return lookup(response.langCode).defaultName;
 }
 
-String _currentTransport() => _transportUnknown;
+String _currentTransport() =>
+    CurrentTransport.trim().isEmpty ? _transportUnknown : CurrentTransport;
 
 void _emitGreeting(
   SayHelloResponse response,

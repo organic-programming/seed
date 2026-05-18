@@ -17,8 +17,6 @@ import 'package:grpc/grpc.dart';
 import 'package:grpc/service_api.dart' as grpc_api;
 import 'package:holons/gen/holons/v1/observability.pb.dart' as obs_pb;
 import 'package:holons/gen/holons/v1/observability.pbgrpc.dart' as obs_grpc;
-import 'package:protobuf/well_known_types/google/protobuf/timestamp.pb.dart'
-    as pb_ts;
 
 // --- Families ---------------------------------------------------------------
 
@@ -97,11 +95,11 @@ void checkEnv([Map<String, String>? env]) {
 enum Level {
   unset(0),
   trace(1),
-  debug(2),
-  info(3),
-  warn(4),
-  error(5),
-  fatal(6);
+  debug(5),
+  info(9),
+  warn(13),
+  error(17),
+  fatal(21);
 
   final int value;
   const Level(this.value);
@@ -121,23 +119,26 @@ Level parseLevel(String s) {
       Level.info;
 }
 
-// --- Event types ------------------------------------------------------------
+// --- OTLP attribute and event names -----------------------------------------
 
-enum EventType {
-  unspecified(0, 'UNSPECIFIED'),
-  instanceSpawned(1, 'INSTANCE_SPAWNED'),
-  instanceReady(2, 'INSTANCE_READY'),
-  instanceExited(3, 'INSTANCE_EXITED'),
-  instanceCrashed(4, 'INSTANCE_CRASHED'),
-  sessionStarted(5, 'SESSION_STARTED'),
-  sessionEnded(6, 'SESSION_ENDED'),
-  handlerPanic(7, 'HANDLER_PANIC'),
-  configReloaded(8, 'CONFIG_RELOADED');
+const eventInstanceSpawned = 'instance.spawned';
+const eventInstanceReady = 'instance.ready';
+const eventInstanceExited = 'instance.exited';
+const eventInstanceCrashed = 'instance.crashed';
+const eventSessionStarted = 'session.started';
+const eventSessionEnded = 'session.ended';
+const eventHandlerPanic = 'handler.panic';
+const eventConfigReloaded = 'config.reloaded';
 
-  final int value;
-  final String protoName;
-  const EventType(this.value, this.protoName);
-}
+const attrHolonsSlug = 'holons.slug';
+const attrHolonsInstanceUid = 'holons.instance_uid';
+const attrHolonsSessionId = 'holons.session_id';
+const attrHolonsTransport = 'holons.transport';
+const attrServiceName = 'service.name';
+const attrServiceInstanceId = 'service.instance.id';
+const attrRpcMethod = 'rpc.method';
+const attrLoggerName = 'logger.name';
+const attrCodeCaller = 'code.caller';
 
 // --- Chain helpers ----------------------------------------------------------
 
@@ -158,47 +159,56 @@ List<Hop> enrichForMultilog(
   return appendDirectChild(wire, streamSourceSlug, streamSourceUid);
 }
 
-// --- Log entry --------------------------------------------------------------
+// --- Log record -------------------------------------------------------------
 
-class LogEntry {
-  final DateTime timestamp;
-  final Level level;
-  final String loggerName;
-  final String slug;
-  final String instanceUid;
-  final String sessionId;
-  final String rpcMethod;
-  final String message;
-  final Map<String, String> fields;
-  final String caller;
-  final List<Hop> chain;
+class LogRecord {
+  final obs_pb.LogRecord record;
   final bool private;
 
-  LogEntry({
-    required this.timestamp,
-    required this.level,
-    this.loggerName = '',
-    required this.slug,
-    required this.instanceUid,
-    this.sessionId = '',
-    this.rpcMethod = '',
-    required this.message,
-    this.fields = const {},
-    this.caller = '',
-    this.chain = const [],
+  LogRecord({
+    obs_pb.LogRecord? record,
     this.private = false,
-  });
+  }) : record = record == null
+            ? obs_pb.LogRecord()
+            : obs_pb.LogRecord.fromBuffer(record.writeToBuffer());
+
+  DateTime get timestamp {
+    if (record.timeUnixNano == Int64.ZERO) {
+      return DateTime.fromMicrosecondsSinceEpoch(0, isUtc: true);
+    }
+    return DateTime.fromMicrosecondsSinceEpoch(
+      (record.timeUnixNano ~/ Int64(1000)).toInt(),
+      isUtc: true,
+    );
+  }
+
+  Level get level => Level.values.firstWhere(
+        (candidate) => candidate.value == record.severityNumber.value,
+        orElse: () => Level.unset,
+      );
+
+  String get message => anyValueString(record.body);
+  String get eventName => record.eventName;
+  List<Hop> get chain => List.unmodifiable(record.chain.map(_hopFromString));
+  String attr(String key) => stringAttribute(record.attributes, key);
+  String get slug => attr(attrHolonsSlug);
+  String get instanceUid => attr(attrHolonsInstanceUid);
+  String get sessionId => attr(attrHolonsSessionId);
+  String get rpcMethod => attr(attrRpcMethod);
+  String get loggerName => attr(attrLoggerName);
+  String get caller => attr(attrCodeCaller);
+  Map<String, String> get fields => userAttributesMap(record.attributes);
 }
 
 // --- Ring buffer + event bus ------------------------------------------------
 
 class LogRing {
   final int capacity;
-  final List<LogEntry> _buf = [];
-  final _subs = <StreamController<LogEntry>>[];
+  final List<LogRecord> _buf = [];
+  final _subs = <StreamController<LogRecord>>[];
   LogRing([this.capacity = 1024]);
 
-  void push(LogEntry e) {
+  void push(LogRecord e) {
     _buf.add(e);
     if (_buf.length > capacity) _buf.removeRange(0, _buf.length - capacity);
     for (final s in List.of(_subs)) {
@@ -206,12 +216,12 @@ class LogRing {
     }
   }
 
-  List<LogEntry> drain() => List.unmodifiable(_buf);
-  List<LogEntry> drainSince(DateTime cutoff) =>
+  List<LogRecord> drain() => List.unmodifiable(_buf);
+  List<LogRecord> drainSince(DateTime cutoff) =>
       List.unmodifiable(_buf.where((e) => !e.timestamp.isBefore(cutoff)));
 
-  Stream<LogEntry> watch() {
-    final c = StreamController<LogEntry>.broadcast();
+  Stream<LogRecord> watch() {
+    final c = StreamController<LogRecord>.broadcast();
     _subs.add(c);
     c.onCancel = () {
       _subs.remove(c);
@@ -220,13 +230,13 @@ class LogRing {
     return c.stream;
   }
 
-  _ReplayAndWatch<LogEntry> replayAndWatch([DateTime? cutoff]) {
+  _ReplayAndWatch<LogRecord> replayAndWatch([DateTime? cutoff]) {
     final replay = cutoff == null
-        ? List<LogEntry>.unmodifiable(_buf)
-        : List<LogEntry>.unmodifiable(
+        ? List<LogRecord>.unmodifiable(_buf)
+        : List<LogRecord>.unmodifiable(
             _buf.where((e) => !e.timestamp.isBefore(cutoff)),
           );
-    final c = StreamController<LogEntry>();
+    final c = StreamController<LogRecord>();
     // Dart executes this synchronous block without interleaving awaits:
     // snapshot first, then register, so later pushes are buffered live without
     // repeating entries that were already included in the replay.
@@ -245,36 +255,14 @@ class LogRing {
   int get length => _buf.length;
 }
 
-class Event {
-  final DateTime timestamp;
-  final EventType type;
-  final String slug;
-  final String instanceUid;
-  final String sessionId;
-  final Map<String, String> payload;
-  final List<Hop> chain;
-  final bool private;
-
-  Event({
-    required this.timestamp,
-    required this.type,
-    required this.slug,
-    required this.instanceUid,
-    this.sessionId = '',
-    this.payload = const {},
-    this.chain = const [],
-    this.private = false,
-  });
-}
-
 class EventBus {
   final int capacity;
-  final List<Event> _buf = [];
-  final _subs = <StreamController<Event>>[];
+  final List<LogRecord> _buf = [];
+  final _subs = <StreamController<LogRecord>>[];
   bool _closed = false;
   EventBus([this.capacity = 256]);
 
-  void emit(Event e) {
+  void emit(LogRecord e) {
     if (_closed) return;
     _buf.add(e);
     if (_buf.length > capacity) _buf.removeRange(0, _buf.length - capacity);
@@ -283,12 +271,12 @@ class EventBus {
     }
   }
 
-  List<Event> drain() => List.unmodifiable(_buf);
-  List<Event> drainSince(DateTime cutoff) =>
+  List<LogRecord> drain() => List.unmodifiable(_buf);
+  List<LogRecord> drainSince(DateTime cutoff) =>
       List.unmodifiable(_buf.where((e) => !e.timestamp.isBefore(cutoff)));
 
-  Stream<Event> watch() {
-    final c = StreamController<Event>.broadcast();
+  Stream<LogRecord> watch() {
+    final c = StreamController<LogRecord>.broadcast();
     _subs.add(c);
     c.onCancel = () {
       _subs.remove(c);
@@ -297,20 +285,20 @@ class EventBus {
     return c.stream;
   }
 
-  _ReplayAndWatch<Event> replayAndWatch([DateTime? cutoff]) {
+  _ReplayAndWatch<LogRecord> replayAndWatch([DateTime? cutoff]) {
     if (_closed) {
       return _ReplayAndWatch(
-        const <Event>[],
-        const Stream<Event>.empty(),
+        const <LogRecord>[],
+        const Stream<LogRecord>.empty(),
         () async {},
       );
     }
     final replay = cutoff == null
-        ? List<Event>.unmodifiable(_buf)
-        : List<Event>.unmodifiable(
+        ? List<LogRecord>.unmodifiable(_buf)
+        : List<LogRecord>.unmodifiable(
             _buf.where((e) => !e.timestamp.isBefore(cutoff)),
           );
-    final c = StreamController<Event>();
+    final c = StreamController<LogRecord>();
     // Dart executes this synchronous block without interleaving awaits:
     // snapshot first, then register, so later emits are buffered live without
     // repeating events that were already included in the replay.
@@ -375,11 +363,15 @@ class HistogramSnapshot {
   final List<int> counts;
   final int total;
   final double sum;
+  final double min;
+  final double max;
   HistogramSnapshot(
       {required this.bounds,
       required this.counts,
       required this.total,
-      required this.sum});
+      required this.sum,
+      required this.min,
+      required this.max});
 
   double quantile(double q) {
     if (total == 0) return double.nan;
@@ -421,6 +413,8 @@ class Histogram {
   final List<int> _counts;
   int _total = 0;
   double _sum = 0.0;
+  double _min = 0.0;
+  double _max = 0.0;
 
   Histogram({
     required this.name,
@@ -439,6 +433,13 @@ class Histogram {
             0);
 
   void observe(double v) {
+    if (_total == 0) {
+      _min = v;
+      _max = v;
+    } else {
+      if (v < _min) _min = v;
+      if (v > _max) _max = v;
+    }
     _total += 1;
     _sum += v;
     for (var i = 0; i < _bounds.length; i++) {
@@ -453,6 +454,8 @@ class Histogram {
         counts: List.unmodifiable(_counts),
         total: _total,
         sum: _sum,
+        min: _min,
+        max: _max,
       );
 }
 
@@ -752,31 +755,37 @@ class Logger {
       {bool private = false}) {
     if (!enabled(lvl)) return;
     final redact = Set<String>.from(_obs.cfg.redactedFields);
-    final out = <String, String>{};
+    final attributes = resourceAttributes(_obs.cfg);
+    if (name.isNotEmpty) {
+      attributes.add(keyValue(attrLoggerName, name));
+    }
     if (fields != null) {
       for (final entry in fields.entries) {
         final k = entry.key;
         if (k.isEmpty) continue;
         if (redact.contains(k)) {
-          out[k] = '<redacted>';
+          attributes.add(keyValue(k, '<redacted>'));
         } else {
-          out[k] = _stringify(entry.value);
+          attributes.add(keyValue(k, entry.value));
         }
       }
     }
-    final entry = LogEntry(
-      timestamp: DateTime.now(),
-      level: lvl,
-      loggerName: name,
-      slug: _obs.cfg.slug,
-      instanceUid: _obs.cfg.instanceUid,
-      message: message,
-      fields: out,
-      caller: _callerFrame(),
-      chain: _selfChain(_obs.cfg),
+    final caller = _callerFrame();
+    if (caller.isNotEmpty) {
+      attributes.add(keyValue(attrCodeCaller, caller));
+    }
+    final now = _nowUnixNano();
+    _obs.logRing?.push(LogRecord(
+      record: obs_pb.LogRecord(
+        timeUnixNano: now,
+        observedTimeUnixNano: now,
+        severityNumber: _levelToSeverity(lvl),
+        severityText: lvl.name.toUpperCase(),
+        body: anyValue(message),
+        attributes: attributes,
+      ),
       private: private,
-    );
-    _obs.logRing?.push(entry);
+    ));
   }
 
   void trace(String msg,
@@ -795,12 +804,6 @@ class Logger {
   void fatal(String msg,
           {Map<String, dynamic>? fields, bool private = false}) =>
       _log(Level.fatal, msg, fields, private: private);
-}
-
-String _stringify(dynamic v) {
-  if (v == null) return '';
-  if (v is bool) return v ? 'true' : 'false';
-  return v.toString();
 }
 
 String _callerFrame() {
@@ -828,6 +831,7 @@ class Observability {
   final LogRing? logRing;
   final EventBus? eventBus;
   final Registry? registry;
+  final DateTime startedAt;
   final Map<String, Logger> _loggers = {};
 
   Observability._(this.cfg, this.families)
@@ -836,7 +840,8 @@ class Observability {
         eventBus = families.contains(Family.events)
             ? EventBus(cfg.eventsRingSize)
             : null,
-        registry = families.contains(Family.metrics) ? Registry() : null;
+        registry = families.contains(Family.metrics) ? Registry() : null,
+        startedAt = DateTime.now();
 
   bool enabled(Family f) => families.contains(f);
 
@@ -866,27 +871,32 @@ class Observability {
         help: help, labels: labels, bounds: bounds);
   }
 
-  void emit(EventType type,
-      {Map<String, String>? payload, bool private = false}) {
+  void emit(String eventName,
+      {Map<String, dynamic>? payload, bool private = false}) {
     if (eventBus == null) return;
     final redact = Set<String>.from(cfg.redactedFields);
-    final p = <String, String>{};
+    final attributes = resourceAttributes(cfg);
     if (payload != null) {
       for (final entry in payload.entries) {
+        if (entry.key.isEmpty) continue;
         if (redact.contains(entry.key)) {
-          p[entry.key] = '<redacted>';
+          attributes.add(keyValue(entry.key, '<redacted>'));
         } else {
-          p[entry.key] = entry.value;
+          attributes.add(keyValue(entry.key, entry.value));
         }
       }
     }
-    eventBus!.emit(Event(
-      timestamp: DateTime.now(),
-      type: type,
-      slug: cfg.slug,
-      instanceUid: cfg.instanceUid,
-      payload: p,
-      chain: _selfChain(cfg),
+    final now = _nowUnixNano();
+    eventBus!.emit(LogRecord(
+      record: obs_pb.LogRecord(
+        timeUnixNano: now,
+        observedTimeUnixNano: now,
+        severityNumber: obs_pb.SeverityNumber.SEVERITY_NUMBER_INFO,
+        severityText: 'INFO',
+        body: anyValue(eventName),
+        attributes: attributes,
+        eventName: eventName,
+      ),
       private: private,
     ));
   }
@@ -909,8 +919,8 @@ class MemberRelay {
   final Observability observability;
   final bool forceStreams;
 
-  StreamSubscription<obs_pb.LogEntry>? _logsSub;
-  StreamSubscription<obs_pb.EventInfo>? _eventsSub;
+  StreamSubscription<obs_pb.LogRecord>? _logsSub;
+  StreamSubscription<obs_pb.LogRecord>? _eventsSub;
   Timer? _retryTimer;
   bool _isRunning = false;
   bool _stopping = false;
@@ -981,46 +991,24 @@ class MemberRelay {
     _stopping = false;
   }
 
-  void _relayLog(obs_pb.LogEntry proto) {
+  void _relayLog(obs_pb.LogRecord proto) {
     final obs = current();
     if (!obs.enabled(Family.logs) || obs.logRing == null) {
       return;
     }
-    final entry = _logEntryFromProto(proto);
-    _refreshChildIdentity(entry.slug, entry.instanceUid, entry.chain);
-    obs.logRing!.push(LogEntry(
-      timestamp: entry.timestamp,
-      level: entry.level,
-      loggerName: entry.loggerName,
-      slug: entry.slug,
-      instanceUid: entry.instanceUid,
-      sessionId: entry.sessionId,
-      rpcMethod: entry.rpcMethod,
-      message: entry.message,
-      fields: entry.fields,
-      caller: entry.caller,
-      chain: appendDirectChild(entry.chain, childSlug, childUid),
-      private: entry.private,
-    ));
+    final record = fromProtoLogRecord(proto);
+    _refreshChildIdentity(record.slug, record.instanceUid, record.chain);
+    obs.logRing!.push(_withAppendedChain(record, childSlug, childUid));
   }
 
-  void _relayEvent(obs_pb.EventInfo proto) {
+  void _relayEvent(obs_pb.LogRecord proto) {
     final obs = current();
     if (!obs.enabled(Family.events) || obs.eventBus == null) {
       return;
     }
-    final event = _eventFromProto(proto);
-    _refreshChildIdentity(event.slug, event.instanceUid, event.chain);
-    obs.eventBus!.emit(Event(
-      timestamp: event.timestamp,
-      type: event.type,
-      slug: event.slug,
-      instanceUid: event.instanceUid,
-      sessionId: event.sessionId,
-      payload: event.payload,
-      chain: appendDirectChild(event.chain, childSlug, childUid),
-      private: event.private,
-    ));
+    final record = fromProtoLogRecord(proto);
+    _refreshChildIdentity(record.slug, record.instanceUid, record.chain);
+    obs.eventBus!.emit(_withAppendedChain(record, childSlug, childUid));
   }
 
   void _handleStreamDone(String streamName) {
@@ -1102,15 +1090,11 @@ class _DisabledObs extends Observability {
 
 Observability? _current;
 
-List<Hop> _selfChain(Config _) => const [];
-
 Observability configure(Config cfg, {Map<String, String>? env}) {
   env ??= Platform.environment;
   checkEnv(env);
   final families = parseOpObs(env['OP_OBS'] ?? '');
-  // If slug is empty, derive from executable.
-  final slug =
-      cfg.slug.isEmpty ? _basename(Platform.resolvedExecutable) : cfg.slug;
+  final slug = cfg.slug;
   final uid = cfg.instanceUid.isEmpty ? _newInstanceUid() : cfg.instanceUid;
   final effective = Config(
     slug: slug,
@@ -1166,12 +1150,6 @@ void reset() {
   _current = null;
 }
 
-String _basename(String path) {
-  final i = path.lastIndexOf(Platform.pathSeparator);
-  if (i < 0) return path;
-  return path.substring(i + 1);
-}
-
 String deriveRunDir(String root, String slug, String uid) {
   if (root.isEmpty || slug.isEmpty || uid.isEmpty) return root;
   return [root, slug, uid].join(Platform.pathSeparator);
@@ -1190,146 +1168,203 @@ String _newInstanceUid() {
 
 // --- Proto conversion + gRPC service ---------------------------------------
 
-pb_ts.Timestamp _timestamp(DateTime dt) {
-  final utc = dt.toUtc();
-  final micros = utc.microsecondsSinceEpoch;
-  return pb_ts.Timestamp(
-    seconds: Int64(micros ~/ 1000000),
-    nanos: (micros % 1000000) * 1000,
-  );
+Int64 _nowUnixNano() =>
+    Int64(DateTime.now().microsecondsSinceEpoch) * Int64(1000);
+
+obs_pb.SeverityNumber _levelToSeverity(Level level) {
+  return obs_pb.SeverityNumber.valueOf(level.value) ??
+      obs_pb.SeverityNumber.SEVERITY_NUMBER_UNSPECIFIED;
 }
 
-obs_pb.ChainHop _hopToProto(Hop hop) {
-  return obs_pb.ChainHop(slug: hop.slug, instanceUid: hop.instanceUid);
+obs_pb.AnyValue anyValue(dynamic value) {
+  if (value is int) {
+    return obs_pb.AnyValue(intValue: Int64(value));
+  }
+  if (value is double) {
+    return obs_pb.AnyValue(doubleValue: value);
+  }
+  if (value is bool) {
+    return obs_pb.AnyValue(boolValue: value);
+  }
+  if (value is String) {
+    return obs_pb.AnyValue(stringValue: value);
+  }
+  return obs_pb.AnyValue(stringValue: value?.toString() ?? '');
 }
 
-obs_pb.LogLevel _levelToProto(Level level) {
-  return obs_pb.LogLevel.valueOf(level.value) ??
-      obs_pb.LogLevel.LOG_LEVEL_UNSPECIFIED;
+String anyValueString(obs_pb.AnyValue value) {
+  switch (value.whichValue()) {
+    case obs_pb.AnyValue_Value.stringValue:
+      return value.stringValue;
+    case obs_pb.AnyValue_Value.boolValue:
+      return value.boolValue ? 'true' : 'false';
+    case obs_pb.AnyValue_Value.intValue:
+      return value.intValue.toString();
+    case obs_pb.AnyValue_Value.doubleValue:
+      return value.doubleValue.toString();
+    case obs_pb.AnyValue_Value.notSet:
+      return '';
+  }
 }
 
-obs_pb.EventType _eventTypeToProto(EventType type) {
-  return obs_pb.EventType.valueOf(type.value) ??
-      obs_pb.EventType.EVENT_TYPE_UNSPECIFIED;
-}
+obs_pb.KeyValue keyValue(String key, dynamic value) =>
+    obs_pb.KeyValue(key: key, value: anyValue(value));
 
-obs_pb.LogEntry toProtoLogEntry(LogEntry entry) {
-  return obs_pb.LogEntry(
-    ts: _timestamp(entry.timestamp),
-    level: _levelToProto(entry.level),
-    slug: entry.slug,
-    instanceUid: entry.instanceUid,
-    sessionId: entry.sessionId,
-    rpcMethod: entry.rpcMethod,
-    message: entry.message,
-    fields: entry.fields.entries,
-    caller: entry.caller,
-    chain: entry.chain.map(_hopToProto),
-  );
-}
-
-DateTime _dateTimeFromProto(pb_ts.Timestamp ts) {
-  final micros = ts.seconds.toInt() * 1000000 + ts.nanos ~/ 1000;
-  return DateTime.fromMicrosecondsSinceEpoch(micros, isUtc: true);
-}
-
-Hop _hopFromProto(obs_pb.ChainHop hop) {
-  return Hop(slug: hop.slug, instanceUid: hop.instanceUid);
-}
-
-Level _levelFromProto(obs_pb.LogLevel level) {
-  return Level.values.firstWhere(
-    (candidate) => candidate.value == level.value,
-    orElse: () => Level.unset,
-  );
-}
-
-EventType _eventTypeFromProto(obs_pb.EventType type) {
-  return EventType.values.firstWhere(
-    (candidate) => candidate.value == type.value,
-    orElse: () => EventType.unspecified,
-  );
-}
-
-LogEntry _logEntryFromProto(obs_pb.LogEntry entry) {
-  return LogEntry(
-    timestamp: entry.hasTs()
-        ? _dateTimeFromProto(entry.ts)
-        : DateTime.fromMicrosecondsSinceEpoch(0, isUtc: true),
-    level: _levelFromProto(entry.level),
-    slug: entry.slug,
-    instanceUid: entry.instanceUid,
-    sessionId: entry.sessionId,
-    rpcMethod: entry.rpcMethod,
-    message: entry.message,
-    fields: Map.unmodifiable(entry.fields),
-    caller: entry.caller,
-    chain: List.unmodifiable(entry.chain.map(_hopFromProto)),
-  );
-}
-
-obs_pb.HistogramSample _histogramToProto(HistogramSnapshot snapshot) {
-  return obs_pb.HistogramSample(
-    buckets: [
-      for (var i = 0; i < snapshot.bounds.length; i++)
-        obs_pb.Bucket(
-            upperBound: snapshot.bounds[i], count: Int64(snapshot.counts[i])),
-    ],
-    count: Int64(snapshot.total),
-    sum: snapshot.sum,
-  );
-}
-
-List<obs_pb.MetricSample> toProtoMetricSamples(Registry registry) {
+List<obs_pb.KeyValue> resourceAttributes(Config cfg, {String sessionId = ''}) {
   return [
-    for (final counter in registry.listCounters())
-      obs_pb.MetricSample(
-        name: counter.name,
-        help: counter.help,
-        labels: counter.labels.entries,
-        counter: Int64(counter.value()),
-      ),
-    for (final gauge in registry.listGauges())
-      obs_pb.MetricSample(
-        name: gauge.name,
-        help: gauge.help,
-        labels: gauge.labels.entries,
-        gauge: gauge.value(),
-      ),
-    for (final histogram in registry.listHistograms())
-      obs_pb.MetricSample(
-        name: histogram.name,
-        help: histogram.help,
-        labels: histogram.labels.entries,
-        histogram: _histogramToProto(histogram.snapshot()),
-      ),
+    keyValue(attrHolonsSlug, cfg.slug),
+    keyValue(attrServiceName, cfg.slug),
+    keyValue(attrHolonsInstanceUid, cfg.instanceUid),
+    keyValue(attrServiceInstanceId, cfg.instanceUid),
+    keyValue(attrHolonsSessionId, sessionId),
   ];
 }
 
-obs_pb.EventInfo toProtoEvent(Event event) {
-  return obs_pb.EventInfo(
-    ts: _timestamp(event.timestamp),
-    type: _eventTypeToProto(event.type),
-    slug: event.slug,
-    instanceUid: event.instanceUid,
-    sessionId: event.sessionId,
-    payload: event.payload.entries,
-    chain: event.chain.map(_hopToProto),
+String stringAttribute(Iterable<obs_pb.KeyValue> attributes, String key) {
+  for (final attr in attributes) {
+    if (attr.key == key) {
+      return anyValueString(attr.value);
+    }
+  }
+  return '';
+}
+
+Map<String, String> userAttributesMap(Iterable<obs_pb.KeyValue> attributes) {
+  final out = <String, String>{};
+  for (final attr in attributes) {
+    if (!_isSystemAttribute(attr.key)) {
+      out[attr.key] = anyValueString(attr.value);
+    }
+  }
+  return Map.unmodifiable(out);
+}
+
+bool _isSystemAttribute(String key) {
+  return key == attrHolonsSlug ||
+      key == attrServiceName ||
+      key == attrHolonsInstanceUid ||
+      key == attrServiceInstanceId ||
+      key == attrHolonsSessionId ||
+      key == attrHolonsTransport ||
+      key == attrRpcMethod ||
+      key == attrLoggerName ||
+      key == attrCodeCaller;
+}
+
+obs_pb.LogRecord toProtoLogRecord(LogRecord record) {
+  return obs_pb.LogRecord.fromBuffer(record.record.writeToBuffer());
+}
+
+LogRecord fromProtoLogRecord(obs_pb.LogRecord record) {
+  return LogRecord(record: record);
+}
+
+String _hopToString(Hop hop) => '${hop.slug}/${hop.instanceUid}';
+
+Hop _hopFromString(String value) {
+  final index = value.lastIndexOf('/');
+  if (index < 0) {
+    return Hop(slug: value, instanceUid: '');
+  }
+  return Hop(
+    slug: value.substring(0, index),
+    instanceUid: value.substring(index + 1),
   );
 }
 
-Event _eventFromProto(obs_pb.EventInfo event) {
-  return Event(
-    timestamp: event.hasTs()
-        ? _dateTimeFromProto(event.ts)
-        : DateTime.fromMicrosecondsSinceEpoch(0, isUtc: true),
-    type: _eventTypeFromProto(event.type),
-    slug: event.slug,
-    instanceUid: event.instanceUid,
-    sessionId: event.sessionId,
-    payload: Map.unmodifiable(event.payload),
-    chain: List.unmodifiable(event.chain.map(_hopFromProto)),
-  );
+LogRecord _withAppendedChain(
+    LogRecord record, String childSlug, String childUid) {
+  final clone = toProtoLogRecord(record);
+  clone.chain.add(_hopToString(Hop(slug: childSlug, instanceUid: childUid)));
+  return LogRecord(record: clone, private: record.private);
+}
+
+List<obs_pb.KeyValue> _metricAttributes(
+  Config cfg,
+  Map<String, String> labels,
+) {
+  final attrs = resourceAttributes(cfg);
+  final keys = labels.keys.toList()..sort();
+  for (final key in keys) {
+    attrs.add(keyValue(key, labels[key] ?? ''));
+  }
+  return attrs;
+}
+
+List<Int64> _histogramBucketCounts(HistogramSnapshot snapshot) {
+  final counts = <Int64>[];
+  var previous = 0;
+  for (final cumulative in snapshot.counts) {
+    final delta = max(0, cumulative - previous);
+    counts.add(Int64(delta));
+    previous = cumulative;
+  }
+  counts.add(Int64(max(0, snapshot.total - previous)));
+  return counts;
+}
+
+List<obs_pb.Metric> toProtoMetrics(Observability obs) {
+  final registry = obs.registry;
+  if (registry == null) return const [];
+  final start = Int64(obs.startedAt.microsecondsSinceEpoch) * Int64(1000);
+  final now = _nowUnixNano();
+  return [
+    for (final counter in registry.listCounters())
+      obs_pb.Metric(
+        name: counter.name,
+        description: counter.help,
+        sum: obs_pb.Sum(
+          aggregationTemporality:
+              obs_pb.AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE,
+          isMonotonic: true,
+          dataPoints: [
+            obs_pb.NumberDataPoint(
+              startTimeUnixNano: start,
+              timeUnixNano: now,
+              asInt: Int64(counter.value()),
+              attributes: _metricAttributes(obs.cfg, counter.labels),
+            ),
+          ],
+        ),
+      ),
+    for (final gauge in registry.listGauges())
+      obs_pb.Metric(
+        name: gauge.name,
+        description: gauge.help,
+        gauge: obs_pb.Gauge(
+          dataPoints: [
+            obs_pb.NumberDataPoint(
+              startTimeUnixNano: start,
+              timeUnixNano: now,
+              asDouble: gauge.value(),
+              attributes: _metricAttributes(obs.cfg, gauge.labels),
+            ),
+          ],
+        ),
+      ),
+    for (final histogram in registry.listHistograms())
+      obs_pb.Metric(
+        name: histogram.name,
+        description: histogram.help,
+        histogram: obs_pb.Histogram(
+          aggregationTemporality:
+              obs_pb.AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE,
+          dataPoints: [
+            obs_pb.HistogramDataPoint(
+              startTimeUnixNano: start,
+              timeUnixNano: now,
+              count: Int64(histogram.snapshot().total),
+              sum: histogram.snapshot().sum,
+              bucketCounts: _histogramBucketCounts(histogram.snapshot()),
+              explicitBounds: histogram.snapshot().bounds,
+              attributes: _metricAttributes(obs.cfg, histogram.labels),
+              min: histogram.snapshot().min,
+              max: histogram.snapshot().max,
+            ),
+          ],
+        ),
+      ),
+  ];
 }
 
 class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
@@ -1337,14 +1372,15 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
   HolonObservabilityService([Observability? obs]) : obs = obs ?? current();
 
   @override
-  Stream<obs_pb.LogEntry> logs(
+  Stream<obs_pb.LogRecord> logs(
       ServiceCall call, obs_pb.LogsRequest request) async* {
     if (!obs.enabled(Family.logs) || obs.logRing == null) {
       throw GrpcError.failedPrecondition('logs family is not enabled (OP_OBS)');
     }
-    final minLevel = request.hasMinLevel() && request.minLevel.value != 0
-        ? request.minLevel.value
-        : Level.info.value;
+    final minLevel =
+        request.hasMinSeverityNumber() && request.minSeverityNumber.value != 0
+            ? request.minSeverityNumber.value
+            : Level.info.value;
     final cutoff = request.hasSince()
         ? DateTime.now().subtract(Duration(
             seconds: request.since.seconds.toInt(),
@@ -1364,7 +1400,7 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
         if (!entry.private &&
             _matchLog(
                 entry, minLevel, request.sessionIds, request.rpcMethods)) {
-          yield toProtoLogEntry(entry);
+          yield toProtoLogRecord(entry);
         }
       }
       if (!request.follow) return;
@@ -1372,7 +1408,7 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
         if (!entry.private &&
             _matchLog(
                 entry, minLevel, request.sessionIds, request.rpcMethods)) {
-          yield toProtoLogEntry(entry);
+          yield toProtoLogRecord(entry);
         }
       }
     } finally {
@@ -1381,35 +1417,32 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
   }
 
   @override
-  Future<obs_pb.MetricsSnapshot> metrics(
-      ServiceCall call, obs_pb.MetricsRequest request) async {
+  Stream<obs_pb.Metric> metrics(
+      ServiceCall call, obs_pb.MetricsRequest request) async* {
     if (!obs.enabled(Family.metrics) || obs.registry == null) {
       throw GrpcError.failedPrecondition(
           'metrics family is not enabled (OP_OBS)');
     }
-    var samples = toProtoMetricSamples(obs.registry!);
+    var metrics = toProtoMetrics(obs);
     if (request.namePrefixes.isNotEmpty) {
-      samples = samples
-          .where((sample) => request.namePrefixes
-              .any((prefix) => sample.name.startsWith(prefix)))
+      metrics = metrics
+          .where((metric) => request.namePrefixes
+              .any((prefix) => metric.name.startsWith(prefix)))
           .toList();
     }
-    return obs_pb.MetricsSnapshot(
-      capturedAt: _timestamp(DateTime.now()),
-      slug: obs.cfg.slug,
-      instanceUid: obs.cfg.instanceUid,
-      samples: samples,
-    );
+    for (final metric in metrics) {
+      yield metric;
+    }
   }
 
   @override
-  Stream<obs_pb.EventInfo> events(
+  Stream<obs_pb.LogRecord> events(
       ServiceCall call, obs_pb.EventsRequest request) async* {
     if (!obs.enabled(Family.events) || obs.eventBus == null) {
       throw GrpcError.failedPrecondition(
           'events family is not enabled (OP_OBS)');
     }
-    final wanted = request.types.map((t) => t.value).toSet();
+    final wanted = request.eventNames.toSet();
     final cutoff = request.hasSince()
         ? DateTime.now().subtract(Duration(
             seconds: request.since.seconds.toInt(),
@@ -1427,12 +1460,12 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
               : obs.eventBus!.drainSince(cutoff));
       for (final event in events) {
         if (!event.private && _matchEvent(event, wanted))
-          yield toProtoEvent(event);
+          yield toProtoLogRecord(event);
       }
       if (!request.follow) return;
       await for (final event in followed!.live) {
         if (!event.private && _matchEvent(event, wanted)) {
-          yield toProtoEvent(event);
+          yield toProtoLogRecord(event);
         }
       }
     } finally {
@@ -1443,7 +1476,7 @@ class HolonObservabilityService extends obs_grpc.HolonObservabilityServiceBase {
 
 Service registerService([Observability? obs]) => HolonObservabilityService(obs);
 
-bool _matchLog(LogEntry entry, int minLevel, List<String> sessionIds,
+bool _matchLog(LogRecord entry, int minLevel, List<String> sessionIds,
     List<String> rpcMethods) {
   if (entry.level.value < minLevel) return false;
   if (sessionIds.isNotEmpty && !sessionIds.contains(entry.sessionId))
@@ -1453,9 +1486,9 @@ bool _matchLog(LogEntry entry, int minLevel, List<String> sessionIds,
   return true;
 }
 
-bool _matchEvent(Event event, Set<int> wanted) {
+bool _matchEvent(LogRecord event, Set<String> wanted) {
   if (wanted.isEmpty) return true;
-  return wanted.contains(event.type.value);
+  return wanted.contains(event.eventName);
 }
 
 // --- Disk writers -----------------------------------------------------------
@@ -1495,12 +1528,12 @@ void enableDiskWriters(String runDir) {
       final rec = <String, dynamic>{
         'kind': 'event',
         'ts': e.timestamp.toUtc().toIso8601String(),
-        'type': e.type.protoName,
+        'event_name': e.eventName,
         'slug': e.slug,
         'instance_uid': e.instanceUid,
       };
       if (e.sessionId.isNotEmpty) rec['session_id'] = e.sessionId;
-      if (e.payload.isNotEmpty) rec['payload'] = e.payload;
+      if (e.fields.isNotEmpty) rec['payload'] = e.fields;
       if (e.chain.isNotEmpty)
         rec['chain'] = e.chain.map((h) => h.toJson()).toList();
       try {

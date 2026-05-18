@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:fixnum/fixnum.dart';
 import 'package:grpc/grpc.dart';
 import 'package:holons/gen/holons/v1/describe.pbgrpc.dart';
 import 'package:holons/gen/holons/v1/manifest.pb.dart' as manifestpb;
@@ -74,14 +75,53 @@ void main() {
     expect(snap.quantile(0.99), equals(1.0));
   });
 
+  test('metric registry emits OTLP Metric oneofs', () {
+    final local = obs.configure(
+      const obs.Config(slug: 'metric-holon', instanceUid: 'metric-uid'),
+      env: const {'OP_OBS': 'metrics'},
+    );
+    local.counter('requests_total', labels: {'route': 'hello'})!.inc(2);
+    local.gauge('queue_depth')!.set(3.5);
+    local.histogram('latency_s', bounds: [0.1, 1.0])!.observe(0.2);
+
+    final metrics = {
+      for (final metric in obs.toProtoMetrics(local)) metric.name: metric,
+    };
+    final counter = metrics['requests_total']!;
+    expect(counter.hasSum(), isTrue);
+    expect(counter.sum.isMonotonic, isTrue);
+    expect(
+      counter.sum.aggregationTemporality,
+      equals(obsgrpc.AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE),
+    );
+    expect(counter.sum.dataPoints.single.asInt.toInt(), equals(2));
+    expect(
+      _attrs(counter.sum.dataPoints.single.attributes)[obs.attrHolonsSlug]
+          ?.stringValue,
+      equals('metric-holon'),
+    );
+
+    final gauge = metrics['queue_depth']!;
+    expect(gauge.hasGauge(), isTrue);
+    expect(gauge.gauge.dataPoints.single.asDouble, equals(3.5));
+
+    final histogram = metrics['latency_s']!;
+    expect(histogram.hasHistogram(), isTrue);
+    expect(
+      histogram.histogram.aggregationTemporality,
+      equals(obsgrpc.AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE),
+    );
+    expect(
+        histogram.histogram.dataPoints.single.bucketCounts
+            .map((v) => v.toInt()),
+        equals([0, 1, 0]));
+  });
+
   test('LogRing retention + ordering', () {
     final ring = obs.LogRing(3);
     for (var i = 0; i < 5; i++) {
-      ring.push(obs.LogEntry(
-        timestamp: DateTime.now(),
-        level: obs.Level.info,
+      ring.push(_logRecord(
         slug: 'g',
-        instanceUid: '',
         message: String.fromCharCode('a'.codeUnitAt(0) + i),
       ));
     }
@@ -93,17 +133,16 @@ void main() {
 
   test('EventBus fan-out', () async {
     final bus = obs.EventBus(16);
-    final received = <obs.Event>[];
+    final received = <obs.LogRecord>[];
     final sub = bus.watch().listen(received.add);
-    bus.emit(obs.Event(
-      timestamp: DateTime.now(),
-      type: obs.EventType.instanceReady,
+    bus.emit(_eventRecord(
+      eventName: obs.eventInstanceReady,
       slug: 'g',
       instanceUid: 'uid',
     ));
     await Future.delayed(Duration(milliseconds: 10));
     expect(received, hasLength(1));
-    expect(received.first.type, equals(obs.EventType.instanceReady));
+    expect(received.first.eventName, equals(obs.eventInstanceReady));
     await sub.cancel();
   });
 
@@ -120,7 +159,7 @@ void main() {
     );
     for (var i = 0; i < 2048; i++) {
       local.logger('backlog').info('backlog-$i');
-      local.emit(obs.EventType.configReloaded, payload: {'idx': '$i'});
+      local.emit(obs.eventConfigReloaded, payload: {'idx': '$i'});
     }
 
     final server =
@@ -133,14 +172,14 @@ void main() {
     );
 
     final client = obsgrpc.HolonObservabilityClient(channel);
-    final logs = <obsgrpc.LogEntry>[];
-    final events = <obsgrpc.EventInfo>[];
+    final logs = <obsgrpc.LogRecord>[];
+    final events = <obsgrpc.LogRecord>[];
     var emittedLog = false;
     var emittedEvent = false;
     final logSub = client.logs(obsgrpc.LogsRequest(follow: true)).listen(
       (entry) {
         logs.add(entry);
-        if (!emittedLog && entry.message.startsWith('backlog-')) {
+        if (!emittedLog && entry.body.stringValue.startsWith('backlog-')) {
           emittedLog = true;
           local.logger('race').info('during-drain');
         }
@@ -149,10 +188,10 @@ void main() {
     final eventSub = client.events(obsgrpc.EventsRequest(follow: true)).listen(
       (event) {
         events.add(event);
-        if (!emittedEvent && event.type == obsgrpc.EventType.CONFIG_RELOADED) {
+        if (!emittedEvent && event.eventName == obs.eventConfigReloaded) {
           emittedEvent = true;
           local.emit(
-            obs.EventType.instanceExited,
+            obs.eventInstanceExited,
             payload: const {'marker': 'during-drain'},
           );
         }
@@ -161,11 +200,12 @@ void main() {
 
     try {
       await _waitFor(
-        () => logs.any((entry) => entry.message == 'during-drain'),
+        () => logs.any((entry) => entry.body.stringValue == 'during-drain'),
         timeout: const Duration(seconds: 5),
       );
       await _waitFor(
-        () => events.any((event) => event.payload['marker'] == 'during-drain'),
+        () => events.any((event) =>
+            _attrs(event.attributes)['marker']?.stringValue == 'during-drain'),
         timeout: const Duration(seconds: 5),
       );
     } finally {
@@ -181,7 +221,7 @@ void main() {
       const obs.Config(slug: 'events-follow', instanceUid: 'events-uid'),
       env: const {'OP_OBS': 'events'},
     );
-    local.emit(obs.EventType.instanceReady, payload: const {'phase': 'replay'});
+    local.emit(obs.eventInstanceReady, payload: const {'phase': 'replay'});
 
     final server =
         Server.create(services: [obs.HolonObservabilityService(local)]);
@@ -192,22 +232,24 @@ void main() {
       options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
     );
     final client = obsgrpc.HolonObservabilityClient(channel);
-    final events = <obsgrpc.EventInfo>[];
-    late final StreamSubscription<obsgrpc.EventInfo> sub;
+    final events = <obsgrpc.LogRecord>[];
+    late final StreamSubscription<obsgrpc.LogRecord> sub;
     sub = client.events(obsgrpc.EventsRequest(follow: true)).listen(events.add);
 
     try {
       await _waitFor(() => events.isNotEmpty);
-      expect(events.first.type, equals(obsgrpc.EventType.INSTANCE_READY));
-      expect(events.first.payload['phase'], equals('replay'));
+      expect(events.first.eventName, equals(obs.eventInstanceReady));
+      expect(_attrs(events.first.attributes)['phase']?.stringValue,
+          equals('replay'));
 
       local.emit(
-        obs.EventType.instanceExited,
+        obs.eventInstanceExited,
         payload: const {'phase': 'live'},
       );
       await _waitFor(() => events.length >= 2);
-      expect(events[1].type, equals(obsgrpc.EventType.INSTANCE_EXITED));
-      expect(events[1].payload['phase'], equals('live'));
+      expect(events[1].eventName, equals(obs.eventInstanceExited));
+      expect(
+          _attrs(events[1].attributes)['phase']?.stringValue, equals('live'));
     } finally {
       await sub.cancel();
       await channel.shutdown();
@@ -231,17 +273,17 @@ void main() {
       options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
     );
     final client = obsgrpc.HolonObservabilityClient(channel);
-    final logs = <obsgrpc.LogEntry>[];
-    late final StreamSubscription<obsgrpc.LogEntry> sub;
+    final logs = <obsgrpc.LogRecord>[];
+    late final StreamSubscription<obsgrpc.LogRecord> sub;
     sub = client.logs(obsgrpc.LogsRequest(follow: true)).listen(logs.add);
 
     try {
       await _waitFor(() => logs.isNotEmpty);
-      expect(logs.first.message, equals('replay'));
+      expect(logs.first.body.stringValue, equals('replay'));
 
       local.logger('test').info('live');
       await _waitFor(() => logs.length >= 2);
-      expect(logs[1].message, equals('live'));
+      expect(logs[1].body.stringValue, equals('live'));
     } finally {
       await sub.cancel();
       await channel.shutdown();
@@ -283,8 +325,8 @@ void main() {
 
     fake.service.emitLog('one', obs.Level.info, {'k': 'v1'});
     fake.service.emitLog('two', obs.Level.warn, {'k': 'v2'});
-    fake.service.emitEvent(obs.EventType.instanceReady);
-    fake.service.emitEvent(obs.EventType.instanceExited);
+    fake.service.emitEvent(obs.eventInstanceReady);
+    fake.service.emitEvent(obs.eventInstanceExited);
 
     await _waitFor(() => local.logRing!.drain().length == 2);
     await _waitFor(() => local.eventBus!.drain().length == 2);
@@ -300,8 +342,8 @@ void main() {
     }
 
     final events = local.eventBus!.drain();
-    expect(events.map((event) => event.type),
-        equals([obs.EventType.instanceReady, obs.EventType.instanceExited]));
+    expect(events.map((event) => event.eventName),
+        equals([obs.eventInstanceReady, obs.eventInstanceExited]));
     for (final event in events) {
       _expectChildHopAppended(event.chain);
     }
@@ -504,7 +546,7 @@ void main() {
     );
     obs.enableDiskWriters(o.cfg.runDir);
     o.logger('test').info('ready', fields: {'port': 123});
-    o.emit(obs.EventType.instanceReady,
+    o.emit(obs.eventInstanceReady,
         payload: {'listener': 'tcp://127.0.0.1:123'});
     await Future<void>.delayed(const Duration(milliseconds: 20));
 
@@ -528,7 +570,7 @@ void main() {
     expect(
         File('${o.cfg.runDir}${Platform.pathSeparator}events.jsonl')
             .readAsStringSync(),
-        contains('INSTANCE_READY'));
+        contains(obs.eventInstanceReady));
     final meta = File('${o.cfg.runDir}${Platform.pathSeparator}meta.json')
         .readAsStringSync();
     expect(meta, contains('"slug": "gabriel"'));
@@ -558,7 +600,7 @@ void main() {
     final current = obs.current();
     current.logger('test').info('served');
     current.counter('requests_total', help: 'requests')!.inc();
-    current.emit(obs.EventType.configReloaded, payload: {'source': 'test'});
+    current.emit(obs.eventConfigReloaded, payload: {'source': 'test'});
     await Future<void>.delayed(const Duration(milliseconds: 20));
 
     final port = int.parse(running.publicUri.split(':').last);
@@ -571,18 +613,17 @@ void main() {
 
     final client = obsgrpc.HolonObservabilityClient(channel);
     final logs = await client.logs(obsgrpc.LogsRequest(follow: false)).toList();
-    expect(logs.map((entry) => entry.message), contains('served'));
+    expect(logs.map((entry) => entry.body.stringValue), contains('served'));
 
-    final metrics = await client.metrics(obsgrpc.MetricsRequest());
-    expect(metrics.samples.map((sample) => sample.name),
-        contains('requests_total'));
+    final metrics = await client.metrics(obsgrpc.MetricsRequest()).toList();
+    expect(metrics.map((metric) => metric.name), contains('requests_total'));
 
     final events =
         await client.events(obsgrpc.EventsRequest(follow: false)).toList();
-    expect(events.map((event) => event.type),
-        contains(obsgrpc.EventType.INSTANCE_READY));
-    expect(events.map((event) => event.type),
-        contains(obsgrpc.EventType.CONFIG_RELOADED));
+    expect(events.map((event) => event.eventName),
+        contains(obs.eventInstanceReady));
+    expect(events.map((event) => event.eventName),
+        contains(obs.eventConfigReloaded));
 
     final meta = File(
         '${root.path}${Platform.pathSeparator}${current.cfg.slug}${Platform.pathSeparator}uid-1${Platform.pathSeparator}meta.json');
@@ -641,28 +682,29 @@ class _FakeObservabilityHarness {
 }
 
 class _FakeObservabilityService extends obsgrpc.HolonObservabilityServiceBase {
-  final _logs = StreamController<obsgrpc.LogEntry>.broadcast();
-  final _events = StreamController<obsgrpc.EventInfo>.broadcast();
+  final _logs = StreamController<obsgrpc.LogRecord>.broadcast();
+  final _events = StreamController<obsgrpc.LogRecord>.broadcast();
   var logsOpened = 0;
   var eventsOpened = 0;
   bool? lastLogsFollow;
   bool? lastEventsFollow;
 
   @override
-  Stream<obsgrpc.LogEntry> logs(ServiceCall call, obsgrpc.LogsRequest request) {
+  Stream<obsgrpc.LogRecord> logs(
+      ServiceCall call, obsgrpc.LogsRequest request) {
     logsOpened += 1;
     lastLogsFollow = request.follow;
     return _logs.stream;
   }
 
   @override
-  Future<obsgrpc.MetricsSnapshot> metrics(
-      ServiceCall call, obsgrpc.MetricsRequest request) async {
-    return obsgrpc.MetricsSnapshot();
+  Stream<obsgrpc.Metric> metrics(
+      ServiceCall call, obsgrpc.MetricsRequest request) async* {
+    return;
   }
 
   @override
-  Stream<obsgrpc.EventInfo> events(
+  Stream<obsgrpc.LogRecord> events(
       ServiceCall call, obsgrpc.EventsRequest request) {
     eventsOpened += 1;
     lastEventsFollow = request.follow;
@@ -670,8 +712,7 @@ class _FakeObservabilityService extends obsgrpc.HolonObservabilityServiceBase {
   }
 
   void emitLog(String message, obs.Level level, Map<String, String> fields) {
-    _logs.add(obs.toProtoLogEntry(obs.LogEntry(
-      timestamp: DateTime.now().toUtc(),
+    _logs.add(obs.toProtoLogRecord(_logRecord(
       level: level,
       slug: 'origin',
       instanceUid: 'origin-uid',
@@ -681,10 +722,9 @@ class _FakeObservabilityService extends obsgrpc.HolonObservabilityServiceBase {
     )));
   }
 
-  void emitEvent(obs.EventType type) {
-    _events.add(obs.toProtoEvent(obs.Event(
-      timestamp: DateTime.now().toUtc(),
-      type: type,
+  void emitEvent(String eventName) {
+    _events.add(obs.toProtoLogRecord(_eventRecord(
+      eventName: eventName,
       slug: 'origin',
       instanceUid: 'origin-uid',
       chain: const [obs.Hop(slug: 'origin', instanceUid: 'origin-uid')],
@@ -731,6 +771,70 @@ void _expectChildHopAppended(List<obs.Hop> chain) {
   expect(chain.first.instanceUid, equals('origin-uid'));
   expect(chain.last.slug, equals('child-x'));
   expect(chain.last.instanceUid, equals('uid-123'));
+}
+
+obs.LogRecord _logRecord({
+  obs.Level level = obs.Level.info,
+  required String slug,
+  String instanceUid = '',
+  required String message,
+  Map<String, String> fields = const {},
+  List<obs.Hop> chain = const [],
+}) {
+  final cfg = obs.Config(slug: slug, instanceUid: instanceUid);
+  final now = Int64(DateTime.now().microsecondsSinceEpoch) * Int64(1000);
+  return obs.LogRecord(
+    record: obsgrpc.LogRecord(
+      timeUnixNano: now,
+      observedTimeUnixNano: now,
+      severityNumber: obsgrpc.SeverityNumber.valueOf(level.value),
+      severityText: level.name.toUpperCase(),
+      body: obs.anyValue(message),
+      attributes: [
+        ...obs.resourceAttributes(cfg),
+        for (final entry in fields.entries)
+          obs.keyValue(entry.key, entry.value),
+      ],
+      chain: [
+        for (final hop in chain) '${hop.slug}/${hop.instanceUid}',
+      ],
+    ),
+  );
+}
+
+obs.LogRecord _eventRecord({
+  required String eventName,
+  required String slug,
+  required String instanceUid,
+  Map<String, String> fields = const {},
+  List<obs.Hop> chain = const [],
+}) {
+  final cfg = obs.Config(slug: slug, instanceUid: instanceUid);
+  final now = Int64(DateTime.now().microsecondsSinceEpoch) * Int64(1000);
+  return obs.LogRecord(
+    record: obsgrpc.LogRecord(
+      timeUnixNano: now,
+      observedTimeUnixNano: now,
+      severityNumber: obsgrpc.SeverityNumber.SEVERITY_NUMBER_INFO,
+      severityText: 'INFO',
+      body: obs.anyValue(eventName),
+      attributes: [
+        ...obs.resourceAttributes(cfg),
+        for (final entry in fields.entries)
+          obs.keyValue(entry.key, entry.value),
+      ],
+      eventName: eventName,
+      chain: [
+        for (final hop in chain) '${hop.slug}/${hop.instanceUid}',
+      ],
+    ),
+  );
+}
+
+Map<String, obsgrpc.AnyValue> _attrs(Iterable<obsgrpc.KeyValue> attrs) {
+  return {
+    for (final attr in attrs) attr.key: attr.value,
+  };
 }
 
 DescribeResponse _sampleDescribeResponse() {

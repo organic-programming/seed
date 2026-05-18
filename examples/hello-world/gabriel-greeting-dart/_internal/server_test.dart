@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:grpc/grpc.dart';
+import 'package:holons/gen/holons/v1/observability.pb.dart' as obspb;
 import 'package:holons/holons.dart' as holons;
 import 'package:test/test.dart';
 
@@ -120,10 +121,17 @@ void main() {
       () async {
     holons.reset();
     final obs = holons.fromEnv(
-      const holons.Config(slug: 'gabriel-greeting-dart-test'),
+      const holons.Config(
+        slug: 'gabriel-greeting-dart-test',
+        instanceUid: 'greeting-test-uid',
+      ),
       const {'OP_OBS': 'logs,metrics'},
     );
-    addTearDown(holons.reset);
+    holons.setCurrentTransport('stdio');
+    addTearDown(() {
+      holons.setCurrentTransport('');
+      holons.reset();
+    });
 
     final server = Server.create(services: <Service>[GreetingService()]);
     await server.serve(address: InternetAddress.loopbackIPv4, port: 0);
@@ -148,8 +156,23 @@ void main() {
     final entry = obs.logRing!.drain().singleWhere(
           (log) => log.message == 'Greeted Bob in French (fr)',
         );
+    final record = holons.toProtoLogRecord(entry);
+    final attrs = _attrs(record.attributes);
+    expect(record.body.stringValue, equals('Greeted Bob in French (fr)'));
+    expect(record.severityNumber,
+        equals(obspb.SeverityNumber.SEVERITY_NUMBER_INFO));
+    expect(attrs[holons.attrHolonsSlug]?.stringValue,
+        equals('gabriel-greeting-dart-test'));
+    expect(attrs[holons.attrServiceName]?.stringValue,
+        equals('gabriel-greeting-dart-test'));
+    expect(attrs[holons.attrHolonsInstanceUid]?.stringValue,
+        equals('greeting-test-uid'));
+    expect(attrs[holons.attrServiceInstanceId]?.stringValue,
+        equals('greeting-test-uid'));
+    expect(attrs[holons.attrHolonsSessionId]?.stringValue, equals(''));
     expect(
-      entry.fields.keys,
+      attrs.keys.where(
+          (key) => !key.startsWith('holons.') && !key.startsWith('service.')),
       unorderedEquals(<String>[
         'lang_code',
         'language',
@@ -157,16 +180,18 @@ void main() {
         'greeting',
         'transport',
         'duration_ns',
+        holons.attrLoggerName,
+        holons.attrCodeCaller,
       ]),
     );
-    expect(entry.fields['lang_code'], equals('fr'));
-    expect(entry.fields['language'], equals('French'));
-    expect(entry.fields['name'], equals('Bob'));
-    expect(entry.fields['greeting'], equals('Bonjour Bob'));
-    expect(entry.fields['transport'], equals('unknown'));
-    final durationNs = int.tryParse(entry.fields['duration_ns'] ?? '');
-    expect(durationNs, isNotNull);
-    expect(durationNs!, greaterThanOrEqualTo(0));
+    expect(attrs['lang_code']?.stringValue, equals('fr'));
+    expect(attrs['language']?.stringValue, equals('French'));
+    expect(attrs['name']?.stringValue, equals('Bob'));
+    expect(attrs['greeting']?.stringValue, equals('Bonjour Bob'));
+    expect(attrs['transport']?.stringValue, equals('stdio'));
+    expect(attrs['duration_ns']?.whichValue(),
+        equals(obspb.AnyValue_Value.intValue));
+    expect(attrs['duration_ns']!.intValue.toInt(), greaterThanOrEqualTo(0));
 
     final counter = obs.registry!.listCounters().singleWhere(
           (metric) => metric.name == 'greeting_emitted_total',
@@ -177,8 +202,12 @@ void main() {
       equals(<String, String>{
         'lang_code': 'fr',
         'language': 'French',
-        'transport': 'unknown',
+        'transport': 'stdio',
       }),
     );
   });
 }
+
+Map<String, obspb.AnyValue> _attrs(Iterable<obspb.KeyValue> attrs) => {
+      for (final attr in attrs) attr.key: attr.value,
+    };

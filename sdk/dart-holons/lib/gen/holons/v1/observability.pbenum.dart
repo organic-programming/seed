@@ -14,72 +14,64 @@ import 'dart:core' as $core;
 
 import 'package:protobuf/protobuf.dart' as $pb;
 
-class LogLevel extends $pb.ProtobufEnum {
-  static const LogLevel LOG_LEVEL_UNSPECIFIED =
-      LogLevel._(0, _omitEnumNames ? '' : 'LOG_LEVEL_UNSPECIFIED');
-  static const LogLevel TRACE = LogLevel._(1, _omitEnumNames ? '' : 'TRACE');
-  static const LogLevel DEBUG = LogLevel._(2, _omitEnumNames ? '' : 'DEBUG');
-  static const LogLevel INFO = LogLevel._(3, _omitEnumNames ? '' : 'INFO');
-  static const LogLevel WARN = LogLevel._(4, _omitEnumNames ? '' : 'WARN');
-  static const LogLevel ERROR = LogLevel._(5, _omitEnumNames ? '' : 'ERROR');
-  static const LogLevel FATAL = LogLevel._(6, _omitEnumNames ? '' : 'FATAL');
+/// Structurally mirrors opentelemetry.proto.logs.v1.SeverityNumber.
+class SeverityNumber extends $pb.ProtobufEnum {
+  static const SeverityNumber SEVERITY_NUMBER_UNSPECIFIED =
+      SeverityNumber._(0, _omitEnumNames ? '' : 'SEVERITY_NUMBER_UNSPECIFIED');
+  static const SeverityNumber SEVERITY_NUMBER_TRACE =
+      SeverityNumber._(1, _omitEnumNames ? '' : 'SEVERITY_NUMBER_TRACE');
+  static const SeverityNumber SEVERITY_NUMBER_DEBUG =
+      SeverityNumber._(5, _omitEnumNames ? '' : 'SEVERITY_NUMBER_DEBUG');
+  static const SeverityNumber SEVERITY_NUMBER_INFO =
+      SeverityNumber._(9, _omitEnumNames ? '' : 'SEVERITY_NUMBER_INFO');
+  static const SeverityNumber SEVERITY_NUMBER_WARN =
+      SeverityNumber._(13, _omitEnumNames ? '' : 'SEVERITY_NUMBER_WARN');
+  static const SeverityNumber SEVERITY_NUMBER_ERROR =
+      SeverityNumber._(17, _omitEnumNames ? '' : 'SEVERITY_NUMBER_ERROR');
+  static const SeverityNumber SEVERITY_NUMBER_FATAL =
+      SeverityNumber._(21, _omitEnumNames ? '' : 'SEVERITY_NUMBER_FATAL');
 
-  static const $core.List<LogLevel> values = <LogLevel>[
-    LOG_LEVEL_UNSPECIFIED,
-    TRACE,
-    DEBUG,
-    INFO,
-    WARN,
-    ERROR,
-    FATAL,
+  static const $core.List<SeverityNumber> values = <SeverityNumber>[
+    SEVERITY_NUMBER_UNSPECIFIED,
+    SEVERITY_NUMBER_TRACE,
+    SEVERITY_NUMBER_DEBUG,
+    SEVERITY_NUMBER_INFO,
+    SEVERITY_NUMBER_WARN,
+    SEVERITY_NUMBER_ERROR,
+    SEVERITY_NUMBER_FATAL,
   ];
 
-  static final $core.List<LogLevel?> _byValue =
-      $pb.ProtobufEnum.$_initByValueList(values, 6);
-  static LogLevel? valueOf($core.int value) =>
-      value < 0 || value >= _byValue.length ? null : _byValue[value];
+  static final $core.Map<$core.int, SeverityNumber> _byValue =
+      $pb.ProtobufEnum.initByValue(values);
+  static SeverityNumber? valueOf($core.int value) => _byValue[value];
 
-  const LogLevel._(super.value, super.name);
+  const SeverityNumber._(super.value, super.name);
 }
 
-class EventType extends $pb.ProtobufEnum {
-  static const EventType EVENT_TYPE_UNSPECIFIED =
-      EventType._(0, _omitEnumNames ? '' : 'EVENT_TYPE_UNSPECIFIED');
-  static const EventType INSTANCE_SPAWNED =
-      EventType._(1, _omitEnumNames ? '' : 'INSTANCE_SPAWNED');
-  static const EventType INSTANCE_READY =
-      EventType._(2, _omitEnumNames ? '' : 'INSTANCE_READY');
-  static const EventType INSTANCE_EXITED =
-      EventType._(3, _omitEnumNames ? '' : 'INSTANCE_EXITED');
-  static const EventType INSTANCE_CRASHED =
-      EventType._(4, _omitEnumNames ? '' : 'INSTANCE_CRASHED');
-  static const EventType SESSION_STARTED =
-      EventType._(5, _omitEnumNames ? '' : 'SESSION_STARTED');
-  static const EventType SESSION_ENDED =
-      EventType._(6, _omitEnumNames ? '' : 'SESSION_ENDED');
-  static const EventType HANDLER_PANIC =
-      EventType._(7, _omitEnumNames ? '' : 'HANDLER_PANIC');
-  static const EventType CONFIG_RELOADED =
-      EventType._(8, _omitEnumNames ? '' : 'CONFIG_RELOADED');
+class AggregationTemporality extends $pb.ProtobufEnum {
+  static const AggregationTemporality AGGREGATION_TEMPORALITY_UNSPECIFIED =
+      AggregationTemporality._(
+          0, _omitEnumNames ? '' : 'AGGREGATION_TEMPORALITY_UNSPECIFIED');
+  static const AggregationTemporality AGGREGATION_TEMPORALITY_DELTA =
+      AggregationTemporality._(
+          1, _omitEnumNames ? '' : 'AGGREGATION_TEMPORALITY_DELTA');
+  static const AggregationTemporality AGGREGATION_TEMPORALITY_CUMULATIVE =
+      AggregationTemporality._(
+          2, _omitEnumNames ? '' : 'AGGREGATION_TEMPORALITY_CUMULATIVE');
 
-  static const $core.List<EventType> values = <EventType>[
-    EVENT_TYPE_UNSPECIFIED,
-    INSTANCE_SPAWNED,
-    INSTANCE_READY,
-    INSTANCE_EXITED,
-    INSTANCE_CRASHED,
-    SESSION_STARTED,
-    SESSION_ENDED,
-    HANDLER_PANIC,
-    CONFIG_RELOADED,
+  static const $core.List<AggregationTemporality> values =
+      <AggregationTemporality>[
+    AGGREGATION_TEMPORALITY_UNSPECIFIED,
+    AGGREGATION_TEMPORALITY_DELTA,
+    AGGREGATION_TEMPORALITY_CUMULATIVE,
   ];
 
-  static final $core.List<EventType?> _byValue =
-      $pb.ProtobufEnum.$_initByValueList(values, 8);
-  static EventType? valueOf($core.int value) =>
+  static final $core.List<AggregationTemporality?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 2);
+  static AggregationTemporality? valueOf($core.int value) =>
       value < 0 || value >= _byValue.length ? null : _byValue[value];
 
-  const EventType._(super.value, super.name);
+  const AggregationTemporality._(super.value, super.name);
 }
 
 const $core.bool _omitEnumNames =
