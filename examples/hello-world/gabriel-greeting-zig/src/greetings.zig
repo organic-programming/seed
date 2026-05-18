@@ -83,7 +83,7 @@ pub fn lookup(code: []const u8) Greeting {
 }
 
 pub fn sayHello(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
-    const start_ns = std.time.nanoTimestamp();
+    const start_ns = nowNs();
     var request = try runtime.unpackSayHelloRequest(bytes);
     defer request.deinit();
 
@@ -135,13 +135,11 @@ fn emitGreetingObservability(
     start_ns: i128,
 ) !void {
     const obs = holons.observability.current() orelse return;
-    // Zig serve does not yet expose a handler-visible current transport.
-    const transport = "unknown";
+    const current_transport = holons.serve.CurrentTransport();
+    const transport = if (current_transport.len == 0) "unknown" else current_transport;
     var response = try runtime.unpackSayHelloResponse(response_bytes);
     defer response.deinit();
-    const duration_ns = std.time.nanoTimestamp() - start_ns;
-    const duration_text = try std.fmt.allocPrint(allocator, "{d}", .{duration_ns});
-    defer allocator.free(duration_text);
+    const duration_ns: i64 = @intCast(@max(nowNs() - start_ns, 0));
     const message = try std.fmt.allocPrint(
         allocator,
         "Greeted {s} in {s} ({s})",
@@ -149,13 +147,13 @@ fn emitGreetingObservability(
     );
     defer allocator.free(message);
 
-    const fields = [_]holons.observability.Label{
-        .{ .key = "lang_code", .value = response.langCode() },
-        .{ .key = "language", .value = response.language() },
-        .{ .key = "name", .value = name },
-        .{ .key = "greeting", .value = response.greeting() },
-        .{ .key = "transport", .value = transport },
-        .{ .key = "duration_ns", .value = duration_text },
+    const fields = [_]holons.observability.Field{
+        holons.observability.Field.string("lang_code", response.langCode()),
+        holons.observability.Field.string("language", response.language()),
+        holons.observability.Field.string("name", name),
+        holons.observability.Field.string("greeting", response.greeting()),
+        holons.observability.Field.string("transport", transport),
+        holons.observability.Field.int("duration_ns", duration_ns),
     };
     try obs.logger("greeting").info(message, fields[0..]);
 
@@ -173,6 +171,12 @@ fn emitGreetingObservability(
     }
 }
 
+fn nowNs() i128 {
+    var ts: std.c.timespec = undefined;
+    if (std.c.clock_gettime(.REALTIME, &ts) != 0) return 0;
+    return @as(i128, @intCast(ts.sec)) * std.time.ns_per_s + @as(i128, @intCast(ts.nsec));
+}
+
 test "lookup falls back to English" {
     try std.testing.expectEqualStrings("English", lookup("missing").lang_english);
 }
@@ -181,4 +185,38 @@ test "render greeting template" {
     const greeting = try renderTemplate(std.testing.allocator, lookup("ja").template, "Bob");
     defer std.testing.allocator.free(greeting);
     try std.testing.expectEqualStrings("こんにちは、Bobさん", greeting);
+}
+
+test "SayHello emits typed greeting LogRecord fields" {
+    const allocator = std.testing.allocator;
+    defer holons.observability.reset();
+    const env = [_]holons.observability.EnvEntry{.{ .key = "OP_OBS", .value = "logs" }};
+    const obs = try holons.observability.configureFromEnv(allocator, .{
+        .slug = "gabriel-greeting-zig",
+        .instance_uid = "test-instance",
+    }, env[0..]);
+    const request = try runtime.packSayHelloRequest(allocator, "Ana", "es");
+    defer allocator.free(request);
+    const response = try sayHello(allocator, request);
+    defer allocator.free(response);
+    const logs = try obs.log_ring.?.drain(allocator);
+    defer freeLogs(allocator, logs);
+    try std.testing.expectEqual(@as(usize, 1), logs.len);
+    try std.testing.expectEqualStrings("Greeted Ana in Spanish (es)", logs[0].message);
+    try std.testing.expectEqual(
+        std.meta.activeTag(holons.observability.AnyValue{ .int_value = 0 }),
+        std.meta.activeTag(logs[0].fields[findField(logs[0].fields, "duration_ns")].value),
+    );
+}
+
+fn findField(fields: []const holons.observability.Field, key: []const u8) usize {
+    for (fields, 0..) |field, index| {
+        if (std.mem.eql(u8, field.key, key)) return index;
+    }
+    unreachable;
+}
+
+fn freeLogs(allocator: std.mem.Allocator, logs: []holons.observability.LogRecord) void {
+    for (logs) |*log| log.deinit(allocator);
+    allocator.free(logs);
 }

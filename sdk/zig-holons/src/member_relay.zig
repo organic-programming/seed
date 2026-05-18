@@ -212,7 +212,7 @@ fn resolveMemberIdentityFromEvents(allocator: std.mem.Allocator, member: *Member
 
     while (try stream.next(allocator)) |bytes| {
         defer allocator.free(bytes);
-        var event = try runtime.unpackEventInfo(bytes);
+        var event = try runtime.unpackEventRecord(bytes);
         defer event.deinit(allocator);
         if (event.instanceUid().len == 0 or event.chainLen() != 0) continue;
         if (event.slug().len != 0) {
@@ -228,17 +228,19 @@ fn resolveMemberIdentityFromEvents(allocator: std.mem.Allocator, member: *Member
 fn resolveMemberIdentityFromMetrics(allocator: std.mem.Allocator, member: *MemberRef, channel: *grpc_client.Channel) !void {
     const request = try runtime.packMetricsRequest(allocator);
     defer allocator.free(request);
-    const response = try channel.unaryAlloc(allocator, "/holons.v1.HolonObservability/Metrics", request, RESOLVE_ATTEMPT_TIMEOUT_MS);
+    var stream = try channel.serverStream(allocator, "/holons.v1.HolonObservability/Metrics", request, RESOLVE_ATTEMPT_TIMEOUT_MS);
+    defer stream.deinit();
+    const response = (try stream.next(allocator)) orelse return;
     defer allocator.free(response);
-    var snapshot = try runtime.unpackMetricsSnapshot(response);
-    defer snapshot.deinit();
-    if (snapshot.instanceUid().len == 0) return;
-    if (snapshot.slug().len != 0) {
+    var metric = try runtime.unpackMetric(response);
+    defer metric.deinit();
+    if (metric.instanceUid().len == 0) return;
+    if (metric.slug().len != 0) {
         allocator.free(member.slug);
-        member.slug = try allocator.dupe(u8, std.mem.trim(u8, snapshot.slug(), " \t\r\n"));
+        member.slug = try allocator.dupe(u8, std.mem.trim(u8, metric.slug(), " \t\r\n"));
     }
     allocator.free(member.uid);
-    member.uid = try allocator.dupe(u8, std.mem.trim(u8, snapshot.instanceUid(), " \t\r\n"));
+    member.uid = try allocator.dupe(u8, std.mem.trim(u8, metric.instanceUid(), " \t\r\n"));
 }
 
 fn emitResolvedMemberReady(allocator: std.mem.Allocator, obs: *observability.Observability, member: MemberRef) !void {
@@ -293,7 +295,7 @@ fn pumpLogsWithChannel(relay: *MemberRelay, channel: *grpc_client.Channel) !void
         const maybe_bytes = stream.next(relay.allocator) catch break;
         const bytes = maybe_bytes orelse break;
         defer relay.allocator.free(bytes);
-        var entry = observability.logEntryFromBytes(relay.allocator, bytes) catch continue;
+        var entry = observability.logRecordFromBytes(relay.allocator, bytes) catch continue;
         defer entry.deinit(relay.allocator);
         if (!try rememberHash(relay.allocator, &relay.seen_log_hashes, logHash(entry))) continue;
         try appendRelayHop(relay.allocator, &entry.chain, relay.member.slug, relay.member.uid);
@@ -363,7 +365,7 @@ fn rememberHash(allocator: std.mem.Allocator, seen: *std.ArrayList(u64), hash: u
     return true;
 }
 
-fn logHash(entry: observability.LogEntry) u64 {
+fn logHash(entry: observability.LogRecord) u64 {
     var hasher = std.hash.Wyhash.init(0);
     hashInt(&hasher, entry.timestamp_ns);
     hashInt(&hasher, @intFromEnum(entry.level));
@@ -372,9 +374,9 @@ fn logHash(entry: observability.LogEntry) u64 {
     hashBytes(&hasher, entry.session_id);
     hashBytes(&hasher, entry.rpc_method);
     hashBytes(&hasher, entry.message);
-    for (entry.fields) |label| {
-        hashBytes(&hasher, label.key);
-        hashBytes(&hasher, label.value);
+    for (entry.fields) |field| {
+        hashBytes(&hasher, field.key);
+        hashAnyValue(&hasher, field.value);
     }
     for (entry.chain) |hop| {
         hashBytes(&hasher, hop.slug);
@@ -390,9 +392,9 @@ fn eventHash(event: observability.Event) u64 {
     hashBytes(&hasher, event.slug);
     hashBytes(&hasher, event.instance_uid);
     hashBytes(&hasher, event.session_id);
-    for (event.payload) |label| {
-        hashBytes(&hasher, label.key);
-        hashBytes(&hasher, label.value);
+    for (event.payload) |field| {
+        hashBytes(&hasher, field.key);
+        hashAnyValue(&hasher, field.value);
     }
     for (event.chain) |hop| {
         hashBytes(&hasher, hop.slug);
@@ -409,6 +411,27 @@ fn hashBytes(hasher: *std.hash.Wyhash, bytes: []const u8) void {
 fn hashInt(hasher: *std.hash.Wyhash, value: anytype) void {
     const local = value;
     hasher.update(std.mem.asBytes(&local));
+}
+
+fn hashAnyValue(hasher: *std.hash.Wyhash, value: observability.AnyValue) void {
+    switch (value) {
+        .string_value => |v| {
+            hashInt(hasher, @as(u8, 1));
+            hashBytes(hasher, v);
+        },
+        .bool_value => |v| {
+            hashInt(hasher, @as(u8, 2));
+            hashInt(hasher, v);
+        },
+        .int_value => |v| {
+            hashInt(hasher, @as(u8, 3));
+            hashInt(hasher, v);
+        },
+        .double_value => |v| {
+            hashInt(hasher, @as(u8, 4));
+            hashInt(hasher, v);
+        },
+    }
 }
 
 fn sleepBackoff(relay: *MemberRelay) void {

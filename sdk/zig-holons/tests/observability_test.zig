@@ -41,8 +41,8 @@ test "observability exposes tier two logs metrics events and disk metadata" {
     });
 
     var logger = obs.logger("test");
-    try logger.info("ready", &.{.{ .key = "token", .value = "secret" }});
-    try obs.emit(.instance_ready, &.{.{ .key = "state", .value = "ready" }});
+    try logger.info("ready", &.{holons.observability.Field.string("token", "secret")});
+    try obs.emit(.instance_ready, &.{holons.observability.Field.string("state", "ready")});
 
     const counter = (try obs.counter("requests_total", "Total requests.", &.{})).?;
     counter.add(2);
@@ -86,7 +86,7 @@ test "HolonObservability Logs drains current ring" {
     defer fixture.deinit();
 
     var logger = fixture.obs.logger("test");
-    try logger.info("drain-log", &.{.{ .key = "kind", .value = "initial" }});
+    try logger.info("drain-log", &.{holons.observability.Field.string("kind", "initial")});
     try fixture.start();
 
     var channel = try holons.grpc.client.connectTcp(allocator, fixture.listen);
@@ -99,7 +99,7 @@ test "HolonObservability Logs drains current ring" {
 
     const first_bytes = (try stream.next(allocator)).?;
     defer allocator.free(first_bytes);
-    var first = try runtime.unpackLogEntry(first_bytes);
+    var first = try runtime.unpackLogRecord(first_bytes);
     defer first.deinit(allocator);
     try std.testing.expectEqualStrings("drain-log", first.message());
     try std.testing.expectEqual(@as(?[]u8, null), try stream.next(allocator));
@@ -124,14 +124,14 @@ test "HolonObservability Logs follow streams initial drain and live tail" {
 
     const initial_bytes = (try stream.next(allocator)).?;
     defer allocator.free(initial_bytes);
-    var initial = try runtime.unpackLogEntry(initial_bytes);
+    var initial = try runtime.unpackLogRecord(initial_bytes);
     defer initial.deinit(allocator);
     try std.testing.expectEqualStrings("initial-log", initial.message());
 
     try logger.info("live-log", &.{});
     const live_bytes = (try stream.next(allocator)).?;
     defer allocator.free(live_bytes);
-    var live = try runtime.unpackLogEntry(live_bytes);
+    var live = try runtime.unpackLogRecord(live_bytes);
     defer live.deinit(allocator);
     try std.testing.expectEqualStrings("live-log", live.message());
     stream.cancel();
@@ -151,13 +151,17 @@ test "HolonObservability Metrics returns registry snapshot" {
 
     const request = try runtime.packMetricsRequest(allocator);
     defer allocator.free(request);
-    const response = try channel.unaryAlloc(allocator, "/holons.v1.HolonObservability/Metrics", request, 5_000);
+    var stream = try channel.serverStream(allocator, "/holons.v1.HolonObservability/Metrics", request, 5_000);
+    defer stream.deinit();
+    const response = (try stream.next(allocator)).?;
     defer allocator.free(response);
-    var snapshot = try runtime.unpackMetricsSnapshot(response);
-    defer snapshot.deinit();
+    var metric = try runtime.unpackMetric(response);
+    defer metric.deinit();
 
-    try std.testing.expectEqualStrings("zig-observable", snapshot.slug());
-    try std.testing.expectEqual(@as(i64, 7), snapshot.counterValue("zig_requests_total").?);
+    try std.testing.expectEqualStrings("zig-observable", metric.slug());
+    try std.testing.expectEqualStrings("zig_requests_total", metric.name());
+    try std.testing.expect(metric.sumIsMonotonic());
+    try std.testing.expectEqual(@as(i64, 7), metric.sumValue().?);
 }
 
 test "HolonObservability Events follow streams initial drain and live tail" {
@@ -165,7 +169,7 @@ test "HolonObservability Events follow streams initial drain and live tail" {
     var fixture = try ObservabilityFixture.init("events");
     defer fixture.deinit();
 
-    try fixture.obs.emit(.instance_ready, &.{.{ .key = "state", .value = "initial" }});
+    try fixture.obs.emit(.instance_ready, &.{holons.observability.Field.string("state", "initial")});
     try fixture.start();
 
     var channel = try holons.grpc.client.connectTcp(allocator, fixture.listen);
@@ -178,16 +182,16 @@ test "HolonObservability Events follow streams initial drain and live tail" {
 
     const initial_bytes = (try stream.next(allocator)).?;
     defer allocator.free(initial_bytes);
-    var initial = try runtime.unpackEventInfo(initial_bytes);
+    var initial = try runtime.unpackEventRecord(initial_bytes);
     defer initial.deinit(allocator);
-    try std.testing.expectEqual(@intFromEnum(holons.observability.EventType.instance_ready), initial.eventType());
+    try std.testing.expectEqualStrings("instance.ready", initial.eventName());
 
-    try fixture.obs.emit(.handler_panic, &.{.{ .key = "state", .value = "live" }});
+    try fixture.obs.emit(.handler_panic, &.{holons.observability.Field.string("state", "live")});
     const live_bytes = (try stream.next(allocator)).?;
     defer allocator.free(live_bytes);
-    var live = try runtime.unpackEventInfo(live_bytes);
+    var live = try runtime.unpackEventRecord(live_bytes);
     defer live.deinit(allocator);
-    try std.testing.expectEqual(@intFromEnum(holons.observability.EventType.handler_panic), live.eventType());
+    try std.testing.expectEqualStrings("handler.panic", live.eventName());
     stream.cancel();
 }
 
@@ -196,7 +200,7 @@ test "HolonObservability Events follow streams relayed older timestamps" {
     var fixture = try ObservabilityFixture.init("events");
     defer fixture.deinit();
 
-    try fixture.obs.emit(.instance_ready, &.{.{ .key = "state", .value = "initial" }});
+    try fixture.obs.emit(.instance_ready, &.{holons.observability.Field.string("state", "initial")});
     try fixture.start();
 
     var channel = try holons.grpc.client.connectTcp(allocator, fixture.listen);
@@ -209,9 +213,9 @@ test "HolonObservability Events follow streams relayed older timestamps" {
 
     const initial_bytes = (try stream.next(allocator)).?;
     defer allocator.free(initial_bytes);
-    var initial = try runtime.unpackEventInfo(initial_bytes);
+    var initial = try runtime.unpackEventRecord(initial_bytes);
     defer initial.deinit(allocator);
-    try std.testing.expectEqual(@intFromEnum(holons.observability.EventType.instance_ready), initial.eventType());
+    try std.testing.expectEqualStrings("instance.ready", initial.eventName());
 
     var relayed_chain = [_]holons.observability.Hop{.{
         .slug = "child-zig",
@@ -226,9 +230,9 @@ test "HolonObservability Events follow streams relayed older timestamps" {
     });
     const relayed_bytes = (try stream.next(allocator)).?;
     defer allocator.free(relayed_bytes);
-    var relayed = try runtime.unpackEventInfo(relayed_bytes);
+    var relayed = try runtime.unpackEventRecord(relayed_bytes);
     defer relayed.deinit(allocator);
-    try std.testing.expectEqual(@intFromEnum(holons.observability.EventType.handler_panic), relayed.eventType());
+    try std.testing.expectEqualStrings("handler.panic", relayed.eventName());
     try std.testing.expectEqualStrings("child-uid", relayed.instanceUid());
     stream.cancel();
 }
@@ -248,7 +252,7 @@ test "Prometheus endpoint exposes registry text" {
     try std.testing.expect(std.mem.indexOf(u8, body, "zig_active_sessions 3") != null);
 }
 
-fn freeLogs(allocator: std.mem.Allocator, logs: []holons.observability.LogEntry) void {
+fn freeLogs(allocator: std.mem.Allocator, logs: []holons.observability.LogRecord) void {
     for (logs) |*entry| entry.deinit(allocator);
     allocator.free(logs);
 }

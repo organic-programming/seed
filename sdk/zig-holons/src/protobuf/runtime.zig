@@ -100,71 +100,108 @@ pub const EventsRequestOptions = struct {
     types: []const i32 = &.{},
 };
 
-pub const ObservabilityLogEntry = struct {
-    raw: *c.Holons__V1__LogEntry,
+pub const ObservabilityLogRecord = struct {
+    raw: *c.Holons__V1__LogRecord,
 
-    pub fn deinit(self: *ObservabilityLogEntry, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *ObservabilityLogRecord, allocator: std.mem.Allocator) void {
         _ = allocator;
-        c.holons__v1__log_entry__free_unpacked(self.raw, null);
+        c.holons__v1__log_record__free_unpacked(self.raw, null);
     }
 
-    pub fn message(self: ObservabilityLogEntry) []const u8 {
-        return cstr(self.raw.*.message);
+    pub fn message(self: ObservabilityLogRecord) []const u8 {
+        return anyValueString(self.raw.*.body) orelse "";
     }
 
-    pub fn slug(self: ObservabilityLogEntry) []const u8 {
-        return cstr(self.raw.*.slug);
-    }
-};
-
-pub const MetricsSnapshot = struct {
-    raw: *c.Holons__V1__MetricsSnapshot,
-
-    pub fn deinit(self: *MetricsSnapshot) void {
-        c.holons__v1__metrics_snapshot__free_unpacked(self.raw, null);
+    pub fn slug(self: ObservabilityLogRecord) []const u8 {
+        return logRecordAttributeString(self.raw, "holons.slug") orelse "";
     }
 
-    pub fn slug(self: MetricsSnapshot) []const u8 {
-        return cstr(self.raw.*.slug);
+    pub fn eventName(self: ObservabilityLogRecord) []const u8 {
+        const explicit = cstr(self.raw.*.event_name);
+        return if (explicit.len == 0) anyValueString(self.raw.*.body) orelse "" else explicit;
     }
 
-    pub fn instanceUid(self: MetricsSnapshot) []const u8 {
-        return cstr(self.raw.*.instance_uid);
+    pub fn severityNumber(self: ObservabilityLogRecord) i32 {
+        return @intCast(self.raw.*.severity_number);
     }
 
-    pub fn counterValue(self: MetricsSnapshot, name: []const u8) ?i64 {
-        for (self.raw.*.samples[0..self.raw.*.n_samples]) |sample| {
-            if (std.mem.eql(u8, cstr(sample.*.name), name) and
-                sample.*.value_case == c.HOLONS__V1__METRIC_SAMPLE__VALUE_COUNTER)
+    pub fn attributeString(self: ObservabilityLogRecord, key: []const u8) ?[]const u8 {
+        return logRecordAttributeString(self.raw, key);
+    }
+
+    pub fn attributeInt(self: ObservabilityLogRecord, key: []const u8) ?i64 {
+        for (self.raw.*.attributes[0..self.raw.*.n_attributes]) |attr| {
+            if (std.mem.eql(u8, cstr(attr.*.key), key) and attr.*.value != null and
+                attr.*.value.*.value_case == c.HOLONS__V1__ANY_VALUE__VALUE_INT_VALUE)
             {
-                return sample.*.unnamed_0.counter;
+                return attr.*.value.*.unnamed_0.int_value;
             }
         }
         return null;
     }
 };
 
-pub const ObservabilityEventInfo = struct {
-    raw: *c.Holons__V1__EventInfo,
+pub const ObservabilityMetric = struct {
+    raw: *c.Holons__V1__Metric,
 
-    pub fn deinit(self: *ObservabilityEventInfo, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *ObservabilityMetric) void {
+        c.holons__v1__metric__free_unpacked(self.raw, null);
+    }
+
+    pub fn name(self: ObservabilityMetric) []const u8 {
+        return cstr(self.raw.*.name);
+    }
+
+    pub fn slug(self: ObservabilityMetric) []const u8 {
+        return metricAttributeString(self.raw, "holons.slug") orelse "";
+    }
+
+    pub fn instanceUid(self: ObservabilityMetric) []const u8 {
+        return metricAttributeString(self.raw, "holons.instance_uid") orelse "";
+    }
+
+    pub fn sumValue(self: ObservabilityMetric) ?i64 {
+        if (self.raw.*.data_case != c.HOLONS__V1__METRIC__DATA_SUM) return null;
+        const sum = self.raw.*.unnamed_0.sum orelse return null;
+        if (sum.*.n_data_points == 0) return null;
+        const point = sum.*.data_points[0];
+        if (point.*.value_case != c.HOLONS__V1__NUMBER_DATA_POINT__VALUE_AS_INT) return null;
+        return point.*.unnamed_0.as_int;
+    }
+
+    pub fn dataCase(self: ObservabilityMetric) i32 {
+        return @intCast(self.raw.*.data_case);
+    }
+
+    pub fn sumIsMonotonic(self: ObservabilityMetric) bool {
+        if (self.raw.*.data_case != c.HOLONS__V1__METRIC__DATA_SUM) return false;
+        const sum = self.raw.*.unnamed_0.sum orelse return false;
+        return sum.*.is_monotonic != 0;
+    }
+};
+
+pub const ObservabilityEventRecord = struct {
+    raw: *c.Holons__V1__LogRecord,
+
+    pub fn deinit(self: *ObservabilityEventRecord, allocator: std.mem.Allocator) void {
         _ = allocator;
-        c.holons__v1__event_info__free_unpacked(self.raw, null);
+        c.holons__v1__log_record__free_unpacked(self.raw, null);
     }
 
-    pub fn eventType(self: ObservabilityEventInfo) i32 {
-        return @intCast(self.raw.*.type);
+    pub fn eventName(self: ObservabilityEventRecord) []const u8 {
+        const explicit = cstr(self.raw.*.event_name);
+        return if (explicit.len == 0) anyValueString(self.raw.*.body) orelse "" else explicit;
     }
 
-    pub fn slug(self: ObservabilityEventInfo) []const u8 {
-        return cstr(self.raw.*.slug);
+    pub fn slug(self: ObservabilityEventRecord) []const u8 {
+        return logRecordAttributeString(self.raw, "holons.slug") orelse "";
     }
 
-    pub fn instanceUid(self: ObservabilityEventInfo) []const u8 {
-        return cstr(self.raw.*.instance_uid);
+    pub fn instanceUid(self: ObservabilityEventRecord) []const u8 {
+        return logRecordAttributeString(self.raw, "holons.instance_uid") orelse "";
     }
 
-    pub fn chainLen(self: ObservabilityEventInfo) usize {
+    pub fn chainLen(self: ObservabilityEventRecord) usize {
         return self.raw.*.n_chain;
     }
 };
@@ -280,9 +317,9 @@ pub fn packLogsRequest(allocator: std.mem.Allocator, options: LogsRequestOptions
     );
 }
 
-pub fn unpackLogEntry(bytes: []const u8) !ObservabilityLogEntry {
-    const raw = c.holons__v1__log_entry__unpack(null, bytes.len, bytes.ptr) orelse
-        return error.DecodeLogEntryFailed;
+pub fn unpackLogRecord(bytes: []const u8) !ObservabilityLogRecord {
+    const raw = c.holons__v1__log_record__unpack(null, bytes.len, bytes.ptr) orelse
+        return error.DecodeLogRecordFailed;
     return .{ .raw = raw };
 }
 
@@ -296,9 +333,9 @@ pub fn packMetricsRequest(allocator: std.mem.Allocator) ![]u8 {
     );
 }
 
-pub fn unpackMetricsSnapshot(bytes: []const u8) !MetricsSnapshot {
-    const raw = c.holons__v1__metrics_snapshot__unpack(null, bytes.len, bytes.ptr) orelse
-        return error.DecodeMetricsSnapshotFailed;
+pub fn unpackMetric(bytes: []const u8) !ObservabilityMetric {
+    const raw = c.holons__v1__metric__unpack(null, bytes.len, bytes.ptr) orelse
+        return error.DecodeMetricFailed;
     return .{ .raw = raw };
 }
 
@@ -306,13 +343,20 @@ pub fn packEventsRequest(allocator: std.mem.Allocator, options: EventsRequestOpt
     var request: c.Holons__V1__EventsRequest = undefined;
     c.holons__v1__events_request__init(&request);
     request.follow = @intFromBool(options.follow);
-    var types = try allocator.alloc(c.Holons__V1__EventType, options.types.len);
-    defer allocator.free(types);
-    for (options.types, 0..) |event_type, index| {
-        types[index] = @intCast(event_type);
+    var event_names = try allocator.alloc([*c]u8, options.types.len);
+    defer allocator.free(event_names);
+    var owned_names: std.ArrayList([]u8) = .empty;
+    defer {
+        for (owned_names.items) |item| allocator.free(item);
+        owned_names.deinit(allocator);
     }
-    request.n_types = options.types.len;
-    request.types = if (types.len == 0) null else types.ptr;
+    for (options.types, 0..) |event_type, index| {
+        const name = try allocator.dupeZ(u8, eventNameFromLegacy(event_type));
+        try owned_names.append(allocator, name);
+        event_names[index] = name.ptr;
+    }
+    request.n_event_names = options.types.len;
+    request.event_names = if (event_names.len == 0) null else event_names.ptr;
     return packMessage(
         allocator,
         &request.base,
@@ -320,9 +364,9 @@ pub fn packEventsRequest(allocator: std.mem.Allocator, options: EventsRequestOpt
     );
 }
 
-pub fn unpackEventInfo(bytes: []const u8) !ObservabilityEventInfo {
-    const raw = c.holons__v1__event_info__unpack(null, bytes.len, bytes.ptr) orelse
-        return error.DecodeEventInfoFailed;
+pub fn unpackEventRecord(bytes: []const u8) !ObservabilityEventRecord {
+    const raw = c.holons__v1__log_record__unpack(null, bytes.len, bytes.ptr) orelse
+        return error.DecodeEventRecordFailed;
     return .{ .raw = raw };
 }
 
@@ -378,6 +422,70 @@ fn packMessage(allocator: std.mem.Allocator, base: *c.ProtobufCMessage, len: usi
     const encoded_len = c.protobuf_c_message_pack(base, buf.ptr);
     if (encoded_len != len) return error.EncodeSizeMismatch;
     return buf;
+}
+
+fn anyValueString(value: ?*c.Holons__V1__AnyValue) ?[]const u8 {
+    const raw = value orelse return null;
+    if (raw.*.value_case != c.HOLONS__V1__ANY_VALUE__VALUE_STRING_VALUE) return null;
+    return cstr(raw.*.unnamed_0.string_value);
+}
+
+fn logRecordAttributeString(raw: *c.Holons__V1__LogRecord, key: []const u8) ?[]const u8 {
+    for (raw.*.attributes[0..raw.*.n_attributes]) |attr| {
+        if (std.mem.eql(u8, cstr(attr.*.key), key)) return anyValueString(attr.*.value);
+    }
+    return null;
+}
+
+fn metricAttributeString(raw: *c.Holons__V1__Metric, key: []const u8) ?[]const u8 {
+    const attrs = metricAttributes(raw) orelse return null;
+    for (attrs.ptr[0..attrs.len]) |attr| {
+        if (std.mem.eql(u8, cstr(attr.*.key), key)) return anyValueString(attr.*.value);
+    }
+    return null;
+}
+
+const AttributeSlice = struct {
+    ptr: [*c][*c]c.Holons__V1__KeyValue,
+    len: usize,
+};
+
+fn metricAttributes(raw: *c.Holons__V1__Metric) ?AttributeSlice {
+    switch (raw.*.data_case) {
+        c.HOLONS__V1__METRIC__DATA_GAUGE => {
+            const gauge = raw.*.unnamed_0.gauge orelse return null;
+            if (gauge.*.n_data_points == 0) return null;
+            const point = gauge.*.data_points[0];
+            return .{ .ptr = point.*.attributes, .len = point.*.n_attributes };
+        },
+        c.HOLONS__V1__METRIC__DATA_SUM => {
+            const sum = raw.*.unnamed_0.sum orelse return null;
+            if (sum.*.n_data_points == 0) return null;
+            const point = sum.*.data_points[0];
+            return .{ .ptr = point.*.attributes, .len = point.*.n_attributes };
+        },
+        c.HOLONS__V1__METRIC__DATA_HISTOGRAM => {
+            const histogram = raw.*.unnamed_0.histogram orelse return null;
+            if (histogram.*.n_data_points == 0) return null;
+            const point = histogram.*.data_points[0];
+            return .{ .ptr = point.*.attributes, .len = point.*.n_attributes };
+        },
+        else => return null,
+    }
+}
+
+fn eventNameFromLegacy(value: i32) []const u8 {
+    return switch (value) {
+        1 => "instance.spawned",
+        2 => "instance.ready",
+        3 => "instance.exited",
+        4 => "instance.crashed",
+        5 => "session.started",
+        6 => "session.ended",
+        7 => "handler.panic",
+        8 => "config.reloaded",
+        else => "event.unspecified",
+    };
 }
 
 fn cstr(ptr: [*c]const u8) []const u8 {

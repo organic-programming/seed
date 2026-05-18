@@ -18,8 +18,8 @@ test "member relay forwards logs and events with direct child chain" {
     });
     defer holons.member_relay.stopAll(std.heap.c_allocator, relays);
 
-    try child.obs.logger("relay-test").info("relayed-log", &.{.{ .key = "source", .value = "child" }});
-    try child.obs.emit(.handler_panic, &.{.{ .key = "source", .value = "child" }});
+    try child.obs.logger("relay-test").info("relayed-log", &.{holons.observability.Field.string("source", "child")});
+    try child.obs.emit(.handler_panic, &.{holons.observability.Field.string("source", "child")});
 
     try waitForLogChain(allocator, parent, "relayed-log", "child-zig", "child-uid");
     try waitForEventChain(allocator, parent, .handler_panic, "child-zig", "child-uid");
@@ -182,7 +182,7 @@ fn waitForEventChain(
     return error.ExpectedRelayedEventNotFound;
 }
 
-fn freeLogs(allocator: std.mem.Allocator, logs: []holons.observability.LogEntry) void {
+fn freeLogs(allocator: std.mem.Allocator, logs: []holons.observability.LogRecord) void {
     for (logs) |*entry| entry.deinit(allocator);
     allocator.free(logs);
 }

@@ -103,10 +103,10 @@ fn tick(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
 
     var logger = obs.logger("tick");
     try logger.info("tick received", &.{
-        .{ .key = "sender", .value = cstr(request.*.sender) },
-        .{ .key = "note", .value = cstr(request.*.note) },
-        .{ .key = "responder_slug", .value = slug },
-        .{ .key = "responder_uid", .value = uid },
+        observability.Field.string("sender", cstr(request.*.sender)),
+        observability.Field.string("note", cstr(request.*.note)),
+        observability.Field.string("responder_slug", slug),
+        observability.Field.string("responder_uid", uid),
     });
     if (try obs.counter("cascade_ticks_total", "Ticks received by this cascade node.", &.{
         .{ .key = "responder_uid", .value = uid },

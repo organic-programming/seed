@@ -592,9 +592,9 @@ fn resolveRelayIdentity(allocator: std.mem.Allocator, conn: *grpc_client.Channel
     return error.IdentityNotResolved;
 }
 
-fn hasLabel(labels: []const observability.Label, key: []const u8, value: []const u8) bool {
+fn hasLabel(labels: []const observability.Field, key: []const u8, value: []const u8) bool {
     for (labels) |label| {
-        if (std.mem.eql(u8, label.key, key) and std.mem.eql(u8, label.value, value)) return true;
+        if (std.mem.eql(u8, label.key, key) and label.value == .string_value and std.mem.eql(u8, label.value.string_value, value)) return true;
     }
     return false;
 }
@@ -608,7 +608,7 @@ fn chainMatches(got: []const observability.Hop, want: []const ChainHop) bool {
     return true;
 }
 
-fn freeLogs(allocator: std.mem.Allocator, entries: []observability.LogEntry) void {
+fn freeLogs(allocator: std.mem.Allocator, entries: []observability.LogRecord) void {
     for (entries) |*entry| entry.deinit(allocator);
     allocator.free(entries);
 }

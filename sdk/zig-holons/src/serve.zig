@@ -11,6 +11,23 @@ const c = @cImport({
 });
 
 var shutdown_signal = std.atomic.Value(bool).init(false);
+var current_transport_mutex: std.Io.Mutex = .init;
+var current_transport_buf: [16]u8 = [_]u8{0} ** 16;
+var current_transport_len: usize = 0;
+
+pub fn CurrentTransport() []const u8 {
+    current_transport_mutex.lockUncancelable(std.Options.debug_io);
+    defer current_transport_mutex.unlock(std.Options.debug_io);
+    return current_transport_buf[0..current_transport_len];
+}
+
+fn setCurrentTransport(value: []const u8) void {
+    current_transport_mutex.lockUncancelable(std.Options.debug_io);
+    defer current_transport_mutex.unlock(std.Options.debug_io);
+    const len = @min(value.len, current_transport_buf.len);
+    @memcpy(current_transport_buf[0..len], value[0..len]);
+    current_transport_len = len;
+}
 
 pub const Options = struct {
     listen_uri: []const u8 = "stdio://",
@@ -153,6 +170,8 @@ pub fn runSingle(options: Options) !void {
     var server = try grpc_server.bind(std.heap.c_allocator, options.listen_uri, owned_methods orelse options.methods);
     if (!transport.supportsServe(server.endpoint.scheme)) return error.UnsupportedListenTransport;
     defer server.deinit();
+    setCurrentTransport(server.endpoint.scheme.text());
+    defer setCurrentTransport("");
     const relay_obs = observability.current();
     const relays = if (relay_obs) |obs|
         try member_relay.startAll(std.heap.c_allocator, obs, options.member_endpoints)
@@ -174,6 +193,8 @@ pub fn runBound(server: *grpc_server.Server) !void {
 }
 
 pub fn waitStarted(server: *grpc_server.Server) !void {
+    setCurrentTransport(server.endpoint.scheme.text());
+    defer setCurrentTransport("");
     if (server.endpoint.scheme != .stdio) {
         std.debug.print("{s}\n", .{server.endpoint.raw});
     }
@@ -262,4 +283,12 @@ test "parse repeated member options" {
     try std.testing.expectEqualStrings("child-a", parsed.options.member_endpoints[0].slug);
     try std.testing.expectEqualStrings("uid-a", parsed.options.member_endpoints[0].uid);
     try std.testing.expectEqualStrings("tcp://127.0.0.1:9002", parsed.options.member_endpoints[1].address);
+}
+
+test "current transport tracks serve lifecycle state" {
+    try std.testing.expectEqualStrings("", CurrentTransport());
+    setCurrentTransport("stdio");
+    try std.testing.expectEqualStrings("stdio", CurrentTransport());
+    setCurrentTransport("");
+    try std.testing.expectEqualStrings("", CurrentTransport());
 }

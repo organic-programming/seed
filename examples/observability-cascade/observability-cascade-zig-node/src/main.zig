@@ -63,8 +63,8 @@ pub fn main(init: std.process.Init.Minimal) !void {
     defer if (downstream) |*member| member.Stop();
 
     try obs.emit(.instance_ready, &.{
-        .{ .key = "listener", .value = server.endpoint.raw },
-        .{ .key = "metrics_addr", .value = metrics_addr },
+        holons.observability.Field.string("listener", server.endpoint.raw),
+        holons.observability.Field.string("metrics_addr", metrics_addr),
     });
     try holons.serve.waitStarted(&server);
 }
