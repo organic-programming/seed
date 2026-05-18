@@ -3,13 +3,13 @@ package internal_test
 import (
 	"context"
 	"net"
-	"strconv"
 	"strings"
 	"testing"
 
 	pb "gabriel-greeting-go/gen/go/greeting/v1"
 	"gabriel-greeting-go/internal"
 
+	v1 "github.com/organic-programming/go-holons/gen/go/holons/v1"
 	"github.com/organic-programming/go-holons/pkg/observability"
 
 	"google.golang.org/grpc"
@@ -127,7 +127,7 @@ func TestSayHello_UnknownLanguageFallsBackToEnglish(t *testing.T) {
 func TestSayHello_EmitsObservabilitySignals(t *testing.T) {
 	observability.Reset()
 	t.Setenv("OP_OBS", "logs,metrics")
-	obs := observability.Configure(observability.Config{Slug: "gabriel-greeting-go"})
+	obs := observability.Configure(observability.Config{Slug: "gabriel-greeting-go", InstanceUID: "greeting-test-uid"})
 	t.Cleanup(func() {
 		_ = obs.Close()
 		observability.Reset()
@@ -163,29 +163,50 @@ func TestSayHello_EmitsObservabilitySignals(t *testing.T) {
 
 	var foundLog bool
 	for _, entry := range observability.Current().LogRing().Drain() {
-		if strings.HasPrefix(entry.Message, "Greeted ") &&
-			strings.HasSuffix(entry.Message, " (en)") &&
-			entry.Fields["lang_code"] == "en" {
+		record := observability.ToProtoLogRecord(entry)
+		attrs := keyValues(record.GetAttributes())
+		body := record.GetBody().GetStringValue()
+		if strings.HasPrefix(body, "Greeted ") &&
+			strings.HasSuffix(body, " (en)") &&
+			attrs["lang_code"].GetStringValue() == "en" {
 			foundLog = true
-			if entry.Message != "Greeted Bob in English (en)" {
-				t.Fatalf("unexpected greeting log message: %q", entry.Message)
+			if body != "Greeted Bob in English (en)" {
+				t.Fatalf("unexpected greeting log message: %q", body)
 			}
-			if entry.Fields["name"] != "Bob" ||
-				entry.Fields["greeting"] != "Hello Bob" ||
-				entry.Fields["transport"] != "unknown" {
-				t.Fatalf("unexpected greeting log fields: %+v", entry.Fields)
+			if record.GetSeverityNumber() != v1.SeverityNumber_SEVERITY_NUMBER_INFO {
+				t.Fatalf("severity_number = %v, want INFO", record.GetSeverityNumber())
 			}
-			duration, ok := entry.Fields["duration_ns"]
-			if !ok {
-				t.Fatalf("expected duration_ns field, got %+v", entry.Fields)
+			if attrs[observability.AttrHolonsSlug].GetStringValue() != "gabriel-greeting-go" ||
+				attrs[observability.AttrHolonsInstanceUID].GetStringValue() != "greeting-test-uid" ||
+				attrs[observability.AttrServiceName].GetStringValue() != "gabriel-greeting-go" ||
+				attrs[observability.AttrServiceInstanceID].GetStringValue() != "greeting-test-uid" {
+				t.Fatalf("resource attributes missing or mistyped: %+v", attrs)
 			}
-			ns, parseErr := strconv.ParseInt(duration, 10, 64)
-			if parseErr != nil || ns < 0 {
-				t.Fatalf("duration_ns = %q, want non-negative int: %v", duration, parseErr)
+			if attrs["language"].GetStringValue() != "English" ||
+				attrs["name"].GetStringValue() != "Bob" ||
+				attrs["greeting"].GetStringValue() != "Hello Bob" ||
+				attrs["transport"].GetStringValue() != "unknown" {
+				t.Fatalf("unexpected greeting log attributes: %+v", attrs)
+			}
+			if _, ok := attrs["duration_ns"].GetValue().(*v1.AnyValue_IntValue); !ok {
+				t.Fatalf("duration_ns = %+v, want int_value", attrs["duration_ns"])
+			}
+			if attrs["duration_ns"].GetIntValue() < 0 {
+				t.Fatalf("duration_ns = %d, want non-negative", attrs["duration_ns"].GetIntValue())
 			}
 		}
 	}
 	if !foundLog {
 		t.Fatal("missing canonical greeting log entry")
 	}
+}
+
+func keyValues(attrs []*v1.KeyValue) map[string]*v1.AnyValue {
+	out := make(map[string]*v1.AnyValue, len(attrs))
+	for _, attr := range attrs {
+		if attr != nil {
+			out[attr.GetKey()] = attr.GetValue()
+		}
+	}
+	return out
 }
