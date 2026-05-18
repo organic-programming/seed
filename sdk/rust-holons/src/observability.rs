@@ -20,10 +20,12 @@ use tonic::transport::Channel;
 use tonic::{Request, Response, Status};
 
 use crate::gen::holons::v1::{
+    any_value,
     holon_observability_client::HolonObservabilityClient,
     holon_observability_server::{HolonObservability, HolonObservabilityServer},
-    metric_sample, Bucket, ChainHop, EventInfo, EventsRequest, HistogramSample,
-    LogEntry as ProtoLogEntry, LogsRequest, MetricSample, MetricsRequest, MetricsSnapshot,
+    metric, number_data_point, AggregationTemporality, AnyValue, EventsRequest,
+    Gauge as ProtoGauge, Histogram as ProtoHistogram, HistogramDataPoint, KeyValue,
+    LogRecord as ProtoLogRecord, LogsRequest, Metric, MetricsRequest, NumberDataPoint, Sum,
 };
 
 // ---------------------------------------------------------------------------
@@ -181,11 +183,11 @@ pub fn check_env() -> Result<(), InvalidTokenError> {
 pub enum Level {
     Unset = 0,
     Trace = 1,
-    Debug = 2,
-    Info = 3,
-    Warn = 4,
-    Error = 5,
-    Fatal = 6,
+    Debug = 5,
+    Info = 9,
+    Warn = 13,
+    Error = 17,
+    Fatal = 21,
 }
 
 impl Level {
@@ -214,33 +216,142 @@ pub fn parse_level(s: &str) -> Level {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(i32)]
-pub enum EventType {
-    Unspecified = 0,
-    InstanceSpawned = 1,
-    InstanceReady = 2,
-    InstanceExited = 3,
-    InstanceCrashed = 4,
-    SessionStarted = 5,
-    SessionEnded = 6,
-    HandlerPanic = 7,
-    ConfigReloaded = 8,
+pub const EVENT_INSTANCE_SPAWNED: &str = "instance.spawned";
+pub const EVENT_INSTANCE_READY: &str = "instance.ready";
+pub const EVENT_INSTANCE_EXITED: &str = "instance.exited";
+pub const EVENT_INSTANCE_CRASHED: &str = "instance.crashed";
+pub const EVENT_SESSION_STARTED: &str = "session.started";
+pub const EVENT_SESSION_ENDED: &str = "session.ended";
+pub const EVENT_HANDLER_PANIC: &str = "handler.panic";
+pub const EVENT_CONFIG_RELOADED: &str = "config.reloaded";
+
+pub const ATTR_HOLONS_SLUG: &str = "holons.slug";
+pub const ATTR_HOLONS_INSTANCE_UID: &str = "holons.instance_uid";
+pub const ATTR_HOLONS_SESSION_ID: &str = "holons.session_id";
+pub const ATTR_SERVICE_NAME: &str = "service.name";
+pub const ATTR_SERVICE_INSTANCE_ID: &str = "service.instance.id";
+pub const ATTR_RPC_METHOD: &str = "rpc.method";
+pub const ATTR_LOGGER_NAME: &str = "logger.name";
+pub const ATTR_CODE_CALLER: &str = "code.caller";
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Field {
+    String(String),
+    Bool(bool),
+    Int64(i64),
+    Float64(f64),
 }
 
-impl EventType {
-    pub fn name(&self) -> &'static str {
+impl Field {
+    pub fn string(value: impl Into<String>) -> Self {
+        Self::String(value.into())
+    }
+
+    fn as_string(&self) -> String {
         match self {
-            EventType::InstanceSpawned => "INSTANCE_SPAWNED",
-            EventType::InstanceReady => "INSTANCE_READY",
-            EventType::InstanceExited => "INSTANCE_EXITED",
-            EventType::InstanceCrashed => "INSTANCE_CRASHED",
-            EventType::SessionStarted => "SESSION_STARTED",
-            EventType::SessionEnded => "SESSION_ENDED",
-            EventType::HandlerPanic => "HANDLER_PANIC",
-            EventType::ConfigReloaded => "CONFIG_RELOADED",
-            EventType::Unspecified => "UNSPECIFIED",
+            Field::String(value) => value.clone(),
+            Field::Bool(value) => value.to_string(),
+            Field::Int64(value) => value.to_string(),
+            Field::Float64(value) => value.to_string(),
         }
+    }
+}
+
+impl From<&str> for Field {
+    fn from(value: &str) -> Self {
+        Self::String(value.to_string())
+    }
+}
+
+impl From<String> for Field {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<bool> for Field {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
+
+impl From<i64> for Field {
+    fn from(value: i64) -> Self {
+        Self::Int64(value)
+    }
+}
+
+impl From<i32> for Field {
+    fn from(value: i32) -> Self {
+        Self::Int64(value as i64)
+    }
+}
+
+impl From<i16> for Field {
+    fn from(value: i16) -> Self {
+        Self::Int64(value as i64)
+    }
+}
+
+impl From<i8> for Field {
+    fn from(value: i8) -> Self {
+        Self::Int64(value as i64)
+    }
+}
+
+impl From<isize> for Field {
+    fn from(value: isize) -> Self {
+        Self::Int64(value as i64)
+    }
+}
+
+impl From<usize> for Field {
+    fn from(value: usize) -> Self {
+        if value > i64::MAX as usize {
+            Self::String(value.to_string())
+        } else {
+            Self::Int64(value as i64)
+        }
+    }
+}
+
+impl From<u64> for Field {
+    fn from(value: u64) -> Self {
+        if value > i64::MAX as u64 {
+            Self::String(value.to_string())
+        } else {
+            Self::Int64(value as i64)
+        }
+    }
+}
+
+impl From<u32> for Field {
+    fn from(value: u32) -> Self {
+        Self::Int64(value as i64)
+    }
+}
+
+impl From<u16> for Field {
+    fn from(value: u16) -> Self {
+        Self::Int64(value as i64)
+    }
+}
+
+impl From<u8> for Field {
+    fn from(value: u8) -> Self {
+        Self::Int64(value as i64)
+    }
+}
+
+impl From<f64> for Field {
+    fn from(value: f64) -> Self {
+        Self::Float64(value)
+    }
+}
+
+impl From<f32> for Field {
+    fn from(value: f32) -> Self {
+        Self::Float64(value as f64)
     }
 }
 
@@ -268,11 +379,11 @@ pub fn enrich_for_multilog(wire: &[Hop], source_slug: &str, source_uid: &str) ->
 }
 
 // ---------------------------------------------------------------------------
-// Log entry & ring
+// Log record & ring
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone)]
-pub struct LogEntry {
+pub struct LogRecord {
     pub timestamp: SystemTime,
     pub level: Level,
     pub slug: String,
@@ -280,10 +391,17 @@ pub struct LogEntry {
     pub session_id: String,
     pub rpc_method: String,
     pub message: String,
-    pub fields: BTreeMap<String, String>,
+    pub fields: BTreeMap<String, Field>,
     pub caller: String,
     pub chain: Vec<Hop>,
+    pub event_name: String,
     pub private: bool,
+}
+
+impl LogRecord {
+    pub fn attr_string(&self, key: &str) -> Option<String> {
+        self.fields.get(key).map(Field::as_string)
+    }
 }
 
 pub struct LogRing {
@@ -292,11 +410,11 @@ pub struct LogRing {
 }
 
 struct LogRingInner {
-    entries: VecDeque<LogEntry>,
+    entries: VecDeque<LogRecord>,
     subs: Vec<LogSubscriber>,
 }
 
-type LogSubscriber = Box<dyn Fn(&LogEntry) + Send + Sync>;
+type LogSubscriber = Box<dyn Fn(&LogRecord) + Send + Sync>;
 
 impl LogRing {
     pub fn new(capacity: usize) -> Self {
@@ -310,7 +428,7 @@ impl LogRing {
         }
     }
 
-    pub fn push(&self, e: LogEntry) {
+    pub fn push(&self, e: LogRecord) {
         let mut inner = self.inner.lock().unwrap();
         if inner.entries.len() == self.capacity {
             inner.entries.pop_front();
@@ -321,12 +439,12 @@ impl LogRing {
         }
     }
 
-    pub fn drain(&self) -> Vec<LogEntry> {
+    pub fn drain(&self) -> Vec<LogRecord> {
         let inner = self.inner.lock().unwrap();
         inner.entries.iter().cloned().collect()
     }
 
-    pub fn drain_since(&self, cutoff: SystemTime) -> Vec<LogEntry> {
+    pub fn drain_since(&self, cutoff: SystemTime) -> Vec<LogRecord> {
         let inner = self.inner.lock().unwrap();
         inner
             .entries
@@ -338,14 +456,14 @@ impl LogRing {
 
     pub fn subscribe<F>(&self, f: F)
     where
-        F: Fn(&LogEntry) + Send + Sync + 'static,
+        F: Fn(&LogRecord) + Send + Sync + 'static,
     {
         self.inner.lock().unwrap().subs.push(Box::new(f));
     }
 
-    pub fn snapshot_and_subscribe<F>(&self, cutoff: Option<SystemTime>, f: F) -> Vec<LogEntry>
+    pub fn snapshot_and_subscribe<F>(&self, cutoff: Option<SystemTime>, f: F) -> Vec<LogRecord>
     where
-        F: Fn(&LogEntry) + Send + Sync + 'static,
+        F: Fn(&LogRecord) + Send + Sync + 'static,
     {
         let mut inner = self.inner.lock().unwrap();
         let snapshot = inner
@@ -371,30 +489,18 @@ impl LogRing {
 // Event bus
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone)]
-pub struct Event {
-    pub timestamp: SystemTime,
-    pub event_type: EventType,
-    pub slug: String,
-    pub instance_uid: String,
-    pub session_id: String,
-    pub payload: BTreeMap<String, String>,
-    pub chain: Vec<Hop>,
-    pub private: bool,
-}
-
 pub struct EventBus {
     capacity: usize,
     inner: Mutex<EventBusInner>,
 }
 
 struct EventBusInner {
-    events: VecDeque<Event>,
+    events: VecDeque<LogRecord>,
     subs: Vec<EventSubscriber>,
     closed: bool,
 }
 
-type EventSubscriber = Box<dyn Fn(&Event) + Send + Sync>;
+type EventSubscriber = Box<dyn Fn(&LogRecord) + Send + Sync>;
 
 impl EventBus {
     pub fn new(capacity: usize) -> Self {
@@ -409,7 +515,7 @@ impl EventBus {
         }
     }
 
-    pub fn emit(&self, e: Event) {
+    pub fn emit(&self, e: LogRecord) {
         let mut inner = self.inner.lock().unwrap();
         if inner.closed {
             return;
@@ -423,12 +529,12 @@ impl EventBus {
         }
     }
 
-    pub fn drain(&self) -> Vec<Event> {
+    pub fn drain(&self) -> Vec<LogRecord> {
         let inner = self.inner.lock().unwrap();
         inner.events.iter().cloned().collect()
     }
 
-    pub fn drain_since(&self, cutoff: SystemTime) -> Vec<Event> {
+    pub fn drain_since(&self, cutoff: SystemTime) -> Vec<LogRecord> {
         let inner = self.inner.lock().unwrap();
         inner
             .events
@@ -440,14 +546,14 @@ impl EventBus {
 
     pub fn subscribe<F>(&self, f: F)
     where
-        F: Fn(&Event) + Send + Sync + 'static,
+        F: Fn(&LogRecord) + Send + Sync + 'static,
     {
         self.inner.lock().unwrap().subs.push(Box::new(f));
     }
 
-    pub fn snapshot_and_subscribe<F>(&self, cutoff: Option<SystemTime>, f: F) -> Vec<Event>
+    pub fn snapshot_and_subscribe<F>(&self, cutoff: Option<SystemTime>, f: F) -> Vec<LogRecord>
     where
-        F: Fn(&Event) + Send + Sync + 'static,
+        F: Fn(&LogRecord) + Send + Sync + 'static,
     {
         let mut inner = self.inner.lock().unwrap();
         let snapshot = inner
@@ -776,7 +882,7 @@ impl Logger {
         l >= *self.level.lock().unwrap()
     }
 
-    fn log(&self, lvl: Level, message: &str, fields: &[(&str, &str)], private: bool) {
+    fn log(&self, lvl: Level, message: &str, fields: &[(&str, Field)], private: bool) {
         if !self.enabled(lvl) {
             return;
         }
@@ -788,13 +894,13 @@ impl Logger {
                 continue;
             }
             let value = if redact.contains(*k) {
-                "<redacted>"
+                Field::String("<redacted>".to_string())
             } else {
-                *v
+                v.clone()
             };
-            out.insert((*k).to_string(), value.to_string());
+            out.insert((*k).to_string(), value);
         }
-        let entry = LogEntry {
+        let entry = LogRecord {
             timestamp: SystemTime::now(),
             level: lvl,
             slug: obs.cfg.slug.clone(),
@@ -805,6 +911,7 @@ impl Logger {
             fields: out,
             caller: String::new(),
             chain: Vec::new(),
+            event_name: String::new(),
             private,
         };
         if let Some(ref ring) = obs.log_ring {
@@ -812,26 +919,34 @@ impl Logger {
         }
     }
 
-    pub fn trace(&self, m: &str, f: &[(&str, &str)]) {
+    pub fn trace(&self, m: &str, f: &[(&str, Field)]) {
         self.log(Level::Trace, m, f, false);
     }
-    pub fn debug(&self, m: &str, f: &[(&str, &str)]) {
+    pub fn debug(&self, m: &str, f: &[(&str, Field)]) {
         self.log(Level::Debug, m, f, false);
     }
-    pub fn info(&self, m: &str, f: &[(&str, &str)]) {
+    pub fn info(&self, m: &str, f: &[(&str, Field)]) {
         self.log(Level::Info, m, f, false);
     }
-    pub fn warn(&self, m: &str, f: &[(&str, &str)]) {
+    pub fn warn(&self, m: &str, f: &[(&str, Field)]) {
         self.log(Level::Warn, m, f, false);
     }
-    pub fn error(&self, m: &str, f: &[(&str, &str)]) {
+    pub fn error(&self, m: &str, f: &[(&str, Field)]) {
         self.log(Level::Error, m, f, false);
     }
-    pub fn fatal(&self, m: &str, f: &[(&str, &str)]) {
+    pub fn fatal(&self, m: &str, f: &[(&str, Field)]) {
         self.log(Level::Fatal, m, f, false);
     }
-    pub fn private(&self, lvl: Level, m: &str, f: &[(&str, &str)]) {
+    pub fn private(&self, lvl: Level, m: &str, f: &[(&str, Field)]) {
         self.log(lvl, m, f, true);
+    }
+
+    pub fn info_strings(&self, m: &str, f: &[(&str, &str)]) {
+        let fields = f
+            .iter()
+            .map(|(key, value)| (*key, Field::String((*value).to_string())))
+            .collect::<Vec<_>>();
+        self.info(m, &fields);
     }
 }
 
@@ -898,18 +1013,30 @@ impl Observability {
             .map(|r| r.histogram(name, help, labels, bounds))
     }
 
-    pub fn emit(&self, event_type: EventType, payload: BTreeMap<String, String>) {
-        self.emit_with_private(event_type, payload, false);
+    pub fn emit(&self, event_name: &str, payload: BTreeMap<String, String>) {
+        let fields = payload
+            .into_iter()
+            .map(|(key, value)| (key, Field::String(value)))
+            .collect();
+        self.emit_fields_with_private(event_name, fields, false);
     }
 
-    pub fn emit_private(&self, event_type: EventType, payload: BTreeMap<String, String>) {
-        self.emit_with_private(event_type, payload, true);
+    pub fn emit_private(&self, event_name: &str, payload: BTreeMap<String, String>) {
+        let fields = payload
+            .into_iter()
+            .map(|(key, value)| (key, Field::String(value)))
+            .collect();
+        self.emit_fields_with_private(event_name, fields, true);
     }
 
-    fn emit_with_private(
+    pub fn emit_fields(&self, event_name: &str, payload: BTreeMap<String, Field>) {
+        self.emit_fields_with_private(event_name, payload, false);
+    }
+
+    fn emit_fields_with_private(
         &self,
-        event_type: EventType,
-        payload: BTreeMap<String, String>,
+        event_name: &str,
+        payload: BTreeMap<String, Field>,
         private: bool,
     ) {
         let Some(ref bus) = self.event_bus else {
@@ -924,20 +1051,24 @@ impl Observability {
         let mut p = BTreeMap::new();
         for (k, v) in payload {
             let value = if redact.contains(k.as_str()) {
-                "<redacted>".to_string()
+                Field::String("<redacted>".to_string())
             } else {
                 v
             };
             p.insert(k, value);
         }
-        bus.emit(Event {
+        bus.emit(LogRecord {
             timestamp: SystemTime::now(),
-            event_type,
+            level: Level::Info,
             slug: self.cfg.slug.clone(),
             instance_uid: self.cfg.instance_uid.clone(),
             session_id: String::new(),
-            payload: p,
+            rpc_method: String::new(),
+            message: event_name.to_string(),
+            fields: p,
+            caller: String::new(),
             chain: Vec::new(),
+            event_name: event_name.to_string(),
             private,
         });
     }
@@ -966,13 +1097,7 @@ pub fn configure_from_env(
 ) -> Result<Arc<Observability>, InvalidTokenError> {
     let families = parse_op_obs(env.get("OP_OBS").map(String::as_str).unwrap_or(""))?;
     if cfg.slug.is_empty() {
-        cfg.slug = std::env::args()
-            .next()
-            .unwrap_or_default()
-            .rsplit('/')
-            .next()
-            .unwrap_or_default()
-            .to_string();
+        cfg.slug = env.get("OP_HOLON_SLUG").cloned().unwrap_or_default();
     }
     if cfg.instance_uid.is_empty() {
         cfg.instance_uid = new_instance_uid();
@@ -1088,140 +1213,242 @@ fn new_instance_uid() -> String {
 // Proto conversion + gRPC service
 // ---------------------------------------------------------------------------
 
-fn timestamp(t: SystemTime) -> prost_types::Timestamp {
+fn unix_nano(t: SystemTime) -> u64 {
     let d = t.duration_since(UNIX_EPOCH).unwrap_or_default();
-    prost_types::Timestamp {
-        seconds: d.as_secs() as i64,
-        nanos: d.subsec_nanos() as i32,
-    }
+    d.as_secs()
+        .saturating_mul(1_000_000_000)
+        .saturating_add(d.subsec_nanos() as u64)
 }
 
-fn hop_to_proto(h: &Hop) -> ChainHop {
-    ChainHop {
-        slug: h.slug.clone(),
-        instance_uid: h.instance_uid.clone(),
-    }
+pub fn to_any_value(value: impl Into<Field>) -> AnyValue {
+    field_to_any_value(&value.into())
 }
 
-pub fn to_proto_log_entry(e: &LogEntry) -> ProtoLogEntry {
-    ProtoLogEntry {
-        ts: Some(timestamp(e.timestamp)),
-        level: e.level as i32,
-        slug: e.slug.clone(),
-        instance_uid: e.instance_uid.clone(),
-        session_id: e.session_id.clone(),
-        rpc_method: e.rpc_method.clone(),
-        message: e.message.clone(),
-        fields: e.fields.clone().into_iter().collect(),
-        caller: e.caller.clone(),
-        chain: e.chain.iter().map(hop_to_proto).collect(),
-    }
-}
-
-fn system_time_from_proto(ts: Option<prost_types::Timestamp>) -> SystemTime {
-    let Some(ts) = ts else {
-        return UNIX_EPOCH;
+fn field_to_any_value(value: &Field) -> AnyValue {
+    let value = match value {
+        Field::String(value) => any_value::Value::StringValue(value.clone()),
+        Field::Bool(value) => any_value::Value::BoolValue(*value),
+        Field::Int64(value) => any_value::Value::IntValue(*value),
+        Field::Float64(value) => any_value::Value::DoubleValue(*value),
     };
-    if ts.seconds < 0 {
-        return UNIX_EPOCH;
-    }
-    UNIX_EPOCH + Duration::new(ts.seconds as u64, ts.nanos.max(0) as u32)
+    AnyValue { value: Some(value) }
 }
 
-fn hop_from_proto(h: ChainHop) -> Hop {
-    Hop {
-        slug: h.slug,
-        instance_uid: h.instance_uid,
+fn any_value_to_field(value: Option<AnyValue>) -> Field {
+    match value.and_then(|value| value.value) {
+        Some(any_value::Value::StringValue(value)) => Field::String(value),
+        Some(any_value::Value::BoolValue(value)) => Field::Bool(value),
+        Some(any_value::Value::IntValue(value)) => Field::Int64(value),
+        Some(any_value::Value::DoubleValue(value)) => Field::Float64(value),
+        None => Field::String(String::new()),
+    }
+}
+
+fn key_value(key: &str, value: impl Into<Field>) -> KeyValue {
+    KeyValue {
+        key: key.to_string(),
+        value: Some(to_any_value(value)),
+    }
+}
+
+fn resource_attributes(slug: &str, uid: &str, session_id: &str) -> Vec<KeyValue> {
+    vec![
+        key_value(ATTR_HOLONS_SLUG, slug.to_string()),
+        key_value(ATTR_SERVICE_NAME, slug.to_string()),
+        key_value(ATTR_HOLONS_INSTANCE_UID, uid.to_string()),
+        key_value(ATTR_SERVICE_INSTANCE_ID, uid.to_string()),
+        key_value(ATTR_HOLONS_SESSION_ID, session_id.to_string()),
+    ]
+}
+
+fn sorted_field_attributes(fields: &BTreeMap<String, Field>) -> Vec<KeyValue> {
+    fields
+        .iter()
+        .map(|(key, value)| KeyValue {
+            key: key.clone(),
+            value: Some(field_to_any_value(value)),
+        })
+        .collect()
+}
+
+pub fn string_attribute(attrs: &[KeyValue], key: &str) -> String {
+    attrs
+        .iter()
+        .find(|attr| attr.key == key)
+        .map(|attr| any_value_to_field(attr.value.clone()))
+        .map(|field| field.as_string())
+        .unwrap_or_default()
+}
+
+pub fn to_proto_log_record(e: &LogRecord) -> ProtoLogRecord {
+    let mut attributes = resource_attributes(&e.slug, &e.instance_uid, &e.session_id);
+    if !e.rpc_method.is_empty() {
+        attributes.push(key_value(ATTR_RPC_METHOD, e.rpc_method.clone()));
+    }
+    if !e.caller.is_empty() {
+        attributes.push(key_value(ATTR_CODE_CALLER, e.caller.clone()));
+    }
+    attributes.extend(sorted_field_attributes(&e.fields));
+    ProtoLogRecord {
+        time_unix_nano: unix_nano(e.timestamp),
+        observed_time_unix_nano: unix_nano(e.timestamp),
+        severity_number: e.level as i32,
+        severity_text: e.level.name().to_string(),
+        body: Some(to_any_value(e.message.clone())),
+        attributes,
+        dropped_attributes_count: 0,
+        flags: 0,
+        trace_id: Vec::new(),
+        span_id: Vec::new(),
+        event_name: e.event_name.clone(),
+        chain: e.chain.iter().map(|hop| hop.slug.clone()).collect(),
     }
 }
 
 fn level_from_proto(level: i32) -> Level {
     match level {
         1 => Level::Trace,
-        2 => Level::Debug,
-        3 => Level::Info,
-        4 => Level::Warn,
-        5 => Level::Error,
-        6 => Level::Fatal,
+        5 => Level::Debug,
+        9 => Level::Info,
+        13 => Level::Warn,
+        17 => Level::Error,
+        21 => Level::Fatal,
         _ => Level::Unset,
     }
 }
 
-fn event_type_from_proto(event_type: i32) -> EventType {
-    match event_type {
-        1 => EventType::InstanceSpawned,
-        2 => EventType::InstanceReady,
-        3 => EventType::InstanceExited,
-        4 => EventType::InstanceCrashed,
-        5 => EventType::SessionStarted,
-        6 => EventType::SessionEnded,
-        7 => EventType::HandlerPanic,
-        8 => EventType::ConfigReloaded,
-        _ => EventType::Unspecified,
-    }
+fn system_time_from_nano(nanos: u64) -> SystemTime {
+    UNIX_EPOCH + Duration::new(nanos / 1_000_000_000, (nanos % 1_000_000_000) as u32)
 }
 
-pub fn from_proto_log_entry(entry: ProtoLogEntry) -> LogEntry {
-    LogEntry {
-        timestamp: system_time_from_proto(entry.ts),
-        level: level_from_proto(entry.level),
-        slug: entry.slug,
-        instance_uid: entry.instance_uid,
-        session_id: entry.session_id,
-        rpc_method: entry.rpc_method,
-        message: entry.message,
-        fields: entry.fields.into_iter().collect(),
-        caller: entry.caller,
-        chain: entry.chain.into_iter().map(hop_from_proto).collect(),
+pub fn from_proto_log_record(entry: ProtoLogRecord) -> LogRecord {
+    let mut fields = BTreeMap::new();
+    let mut slug = String::new();
+    let mut instance_uid = String::new();
+    let mut session_id = String::new();
+    let mut rpc_method = String::new();
+    let mut caller = String::new();
+    for attr in entry.attributes {
+        match attr.key.as_str() {
+            ATTR_HOLONS_SLUG => slug = any_value_to_field(attr.value).as_string(),
+            ATTR_HOLONS_INSTANCE_UID => instance_uid = any_value_to_field(attr.value).as_string(),
+            ATTR_HOLONS_SESSION_ID => session_id = any_value_to_field(attr.value).as_string(),
+            ATTR_RPC_METHOD => rpc_method = any_value_to_field(attr.value).as_string(),
+            ATTR_CODE_CALLER => caller = any_value_to_field(attr.value).as_string(),
+            ATTR_SERVICE_NAME | ATTR_SERVICE_INSTANCE_ID => {}
+            _ => {
+                fields.insert(attr.key, any_value_to_field(attr.value));
+            }
+        }
+    }
+    LogRecord {
+        timestamp: system_time_from_nano(entry.time_unix_nano),
+        level: level_from_proto(entry.severity_number),
+        slug,
+        instance_uid,
+        session_id,
+        rpc_method,
+        message: any_value_to_field(entry.body).as_string(),
+        fields,
+        caller,
+        chain: entry
+            .chain
+            .into_iter()
+            .map(|slug| Hop {
+                slug,
+                instance_uid: String::new(),
+            })
+            .collect(),
+        event_name: entry.event_name,
         private: false,
     }
 }
 
-fn histogram_to_proto(snapshot: HistogramSnapshot) -> HistogramSample {
-    HistogramSample {
-        buckets: snapshot
-            .bounds
-            .into_iter()
-            .zip(snapshot.counts)
-            .map(|(upper_bound, count)| Bucket { upper_bound, count })
-            .collect(),
-        count: snapshot.total,
-        sum: snapshot.sum,
-    }
-}
-
-pub fn to_proto_metric_samples(registry: &Registry) -> Vec<MetricSample> {
-    let mut samples = Vec::new();
+pub fn to_proto_metrics(
+    registry: &Registry,
+    slug: &str,
+    uid: &str,
+    start: SystemTime,
+) -> Vec<Metric> {
+    let mut metrics = Vec::new();
+    let start_nano = unix_nano(start);
+    let time_nano = unix_nano(SystemTime::now());
     for counter in registry.list_counters() {
-        samples.push(MetricSample {
+        metrics.push(Metric {
             name: counter.name.clone(),
-            labels: counter.labels.clone().into_iter().collect(),
-            value: Some(metric_sample::Value::Counter(counter.value())),
-            help: counter.help.clone(),
-            chain: Vec::new(),
+            description: counter.help.clone(),
+            unit: String::new(),
+            data: Some(metric::Data::Sum(Sum {
+                aggregation_temporality: AggregationTemporality::Cumulative as i32,
+                is_monotonic: true,
+                data_points: vec![NumberDataPoint {
+                    start_time_unix_nano: start_nano,
+                    time_unix_nano: time_nano,
+                    attributes: metric_attributes(slug, uid, &counter.labels),
+                    value: Some(number_data_point::Value::AsInt(counter.value())),
+                }],
+            })),
         });
     }
     for gauge in registry.list_gauges() {
-        samples.push(MetricSample {
+        metrics.push(Metric {
             name: gauge.name.clone(),
-            labels: gauge.labels.clone().into_iter().collect(),
-            value: Some(metric_sample::Value::Gauge(gauge.value())),
-            help: gauge.help.clone(),
-            chain: Vec::new(),
+            description: gauge.help.clone(),
+            unit: String::new(),
+            data: Some(metric::Data::Gauge(ProtoGauge {
+                data_points: vec![NumberDataPoint {
+                    start_time_unix_nano: start_nano,
+                    time_unix_nano: time_nano,
+                    attributes: metric_attributes(slug, uid, &gauge.labels),
+                    value: Some(number_data_point::Value::AsDouble(gauge.value())),
+                }],
+            })),
         });
     }
     for histogram in registry.list_histograms() {
-        samples.push(MetricSample {
+        let snapshot = histogram.snapshot();
+        metrics.push(Metric {
             name: histogram.name.clone(),
-            labels: histogram.labels.clone().into_iter().collect(),
-            value: Some(metric_sample::Value::Histogram(histogram_to_proto(
-                histogram.snapshot(),
-            ))),
-            help: histogram.help.clone(),
-            chain: Vec::new(),
+            description: histogram.help.clone(),
+            unit: String::new(),
+            data: Some(metric::Data::Histogram(ProtoHistogram {
+                aggregation_temporality: AggregationTemporality::Cumulative as i32,
+                data_points: vec![HistogramDataPoint {
+                    start_time_unix_nano: start_nano,
+                    time_unix_nano: time_nano,
+                    count: snapshot.total.max(0) as u64,
+                    sum: snapshot.sum,
+                    bucket_counts: histogram_bucket_counts(&snapshot),
+                    explicit_bounds: snapshot.bounds,
+                    attributes: metric_attributes(slug, uid, &histogram.labels),
+                    min: 0.0,
+                    max: 0.0,
+                }],
+            })),
         });
     }
-    samples
+    metrics
+}
+
+fn metric_attributes(slug: &str, uid: &str, labels: &BTreeMap<String, String>) -> Vec<KeyValue> {
+    let mut attrs = resource_attributes(slug, uid, "");
+    attrs.extend(
+        labels
+            .iter()
+            .map(|(key, value)| key_value(key, value.clone())),
+    );
+    attrs
+}
+
+fn histogram_bucket_counts(snapshot: &HistogramSnapshot) -> Vec<u64> {
+    let mut counts = Vec::with_capacity(snapshot.counts.len() + 1);
+    let mut prev = 0_i64;
+    for count in &snapshot.counts {
+        counts.push((*count - prev).max(0) as u64);
+        prev = *count;
+    }
+    counts.push((snapshot.total - prev).max(0) as u64);
+    counts
 }
 
 pub fn prometheus_text(registry: &Registry) -> String {
@@ -1362,31 +1589,6 @@ pub fn start_prometheus_endpoint(obs: Arc<Observability>) -> Option<String> {
     Some(format!("http://{addr}/metrics"))
 }
 
-pub fn to_proto_event(e: &Event) -> EventInfo {
-    EventInfo {
-        ts: Some(timestamp(e.timestamp)),
-        r#type: e.event_type as i32,
-        slug: e.slug.clone(),
-        instance_uid: e.instance_uid.clone(),
-        session_id: e.session_id.clone(),
-        payload: e.payload.clone().into_iter().collect(),
-        chain: e.chain.iter().map(hop_to_proto).collect(),
-    }
-}
-
-pub fn from_proto_event(event: EventInfo) -> Event {
-    Event {
-        timestamp: system_time_from_proto(event.ts),
-        event_type: event_type_from_proto(event.r#type),
-        slug: event.slug,
-        instance_uid: event.instance_uid,
-        session_id: event.session_id,
-        payload: event.payload.into_iter().collect(),
-        chain: event.chain.into_iter().map(hop_from_proto).collect(),
-        private: false,
-    }
-}
-
 pub struct MemberRelay {
     handles: Vec<tokio::task::JoinHandle<()>>,
 }
@@ -1434,7 +1636,7 @@ async fn pump_member_logs(
         let mut client = HolonObservabilityClient::new(channel.clone());
         let result = client
             .logs(LogsRequest {
-                min_level: Level::Info as i32,
+                min_severity_number: Level::Info as i32,
                 session_ids: Vec::new(),
                 rpc_methods: Vec::new(),
                 since: None,
@@ -1448,7 +1650,7 @@ async fn pump_member_logs(
                     match next {
                         Ok(proto) => {
                             if let Some(ref ring) = obs.log_ring {
-                                let mut entry = from_proto_log_entry(proto);
+                                let mut entry = from_proto_log_record(proto);
                                 entry.chain =
                                     append_direct_child(&entry.chain, &child_slug, &child_uid);
                                 ring.push(entry);
@@ -1477,7 +1679,7 @@ async fn pump_member_events(
         let mut client = HolonObservabilityClient::new(channel.clone());
         let result = client
             .events(EventsRequest {
-                types: Vec::new(),
+                event_names: Vec::new(),
                 since: None,
                 follow: true,
             })
@@ -1489,7 +1691,7 @@ async fn pump_member_events(
                     match next {
                         Ok(proto) => {
                             if let Some(ref bus) = obs.event_bus {
-                                let mut event = from_proto_event(proto);
+                                let mut event = from_proto_log_record(proto);
                                 event.chain =
                                     append_direct_child(&event.chain, &child_slug, &child_uid);
                                 bus.emit(event);
@@ -1512,9 +1714,9 @@ fn warn_member_relay(obs: &Arc<Observability>, child_slug: &str, child_uid: &str
     obs.logger("member-relay").warn(
         "member relay stream error",
         &[
-            ("child_slug", child_slug),
-            ("child_uid", child_uid),
-            ("error", &error),
+            ("child_slug", Field::String(child_slug.to_string())),
+            ("child_uid", Field::String(child_uid.to_string())),
+            ("error", Field::String(error)),
         ],
     );
 }
@@ -1538,7 +1740,7 @@ pub fn service(obs: Arc<Observability>) -> HolonObservabilityServer<Observabilit
 
 #[tonic::async_trait]
 impl HolonObservability for ObservabilityService {
-    type LogsStream = Pin<Box<dyn Stream<Item = Result<ProtoLogEntry, Status>> + Send + 'static>>;
+    type LogsStream = Pin<Box<dyn Stream<Item = Result<ProtoLogRecord, Status>> + Send + 'static>>;
 
     async fn logs(
         &self,
@@ -1555,10 +1757,10 @@ impl HolonObservability for ObservabilityService {
                 "logs family is not enabled (OP_OBS)",
             ));
         }
-        let min_level = if req.min_level == 0 {
+        let min_level = if req.min_severity_number == 0 {
             Level::Info as i32
         } else {
-            req.min_level
+            req.min_severity_number
         };
         let cutoff = req.since.map(cutoff_from_duration);
         let (entries, follow_tx, follow_rx) = if req.follow {
@@ -1571,7 +1773,7 @@ impl HolonObservability for ObservabilityService {
             // share the ring lock, so no emission can fall between them.
             let entries = ring.snapshot_and_subscribe(cutoff, move |e| {
                 if !e.private && match_log(e, min_level_for_sub, &session_ids, &rpc_methods) {
-                    let _ = tx_for_sub.try_send(Ok(to_proto_log_entry(e)));
+                    let _ = tx_for_sub.try_send(Ok(to_proto_log_record(e)));
                 }
             });
             (entries, Some(tx), Some(rx))
@@ -1589,7 +1791,7 @@ impl HolonObservability for ObservabilityService {
                 (!req.follow || !e.private)
                     && match_log(e, min_level, &req.session_ids, &req.rpc_methods)
             })
-            .map(|e| Ok(to_proto_log_entry(&e)))
+            .map(|e| Ok(to_proto_log_record(&e)))
             .collect::<Vec<_>>();
         drop(follow_tx);
         if let Some(rx) = follow_rx {
@@ -1605,7 +1807,7 @@ impl HolonObservability for ObservabilityService {
     async fn metrics(
         &self,
         request: Request<MetricsRequest>,
-    ) -> Result<Response<MetricsSnapshot>, Status> {
+    ) -> Result<Response<Self::MetricsStream>, Status> {
         let req = request.into_inner();
         let Some(registry) = self.obs.registry.as_ref() else {
             return Err(Status::failed_precondition(
@@ -1617,20 +1819,23 @@ impl HolonObservability for ObservabilityService {
                 "metrics family is not enabled (OP_OBS)",
             ));
         }
-        let mut samples = to_proto_metric_samples(registry);
+        let mut metrics = to_proto_metrics(
+            registry,
+            &self.obs.cfg.slug,
+            &self.obs.cfg.instance_uid,
+            UNIX_EPOCH,
+        );
         if !req.name_prefixes.is_empty() {
-            samples.retain(|s| req.name_prefixes.iter().any(|p| s.name.starts_with(p)));
+            metrics.retain(|s| req.name_prefixes.iter().any(|p| s.name.starts_with(p)));
         }
-        Ok(Response::new(MetricsSnapshot {
-            captured_at: Some(timestamp(SystemTime::now())),
-            slug: self.obs.cfg.slug.clone(),
-            instance_uid: self.obs.cfg.instance_uid.clone(),
-            samples,
-            session_rollup: None,
-        }))
+        let out = metrics.into_iter().map(Ok).collect::<Vec<_>>();
+        Ok(Response::new(Box::pin(tokio_stream::iter(out))))
     }
 
-    type EventsStream = Pin<Box<dyn Stream<Item = Result<EventInfo, Status>> + Send + 'static>>;
+    type MetricsStream = Pin<Box<dyn Stream<Item = Result<Metric, Status>> + Send + 'static>>;
+
+    type EventsStream =
+        Pin<Box<dyn Stream<Item = Result<ProtoLogRecord, Status>> + Send + 'static>>;
 
     async fn events(
         &self,
@@ -1647,7 +1852,7 @@ impl HolonObservability for ObservabilityService {
                 "events family is not enabled (OP_OBS)",
             ));
         }
-        let wanted: HashSet<i32> = req.types.into_iter().collect();
+        let wanted: HashSet<String> = req.event_names.into_iter().collect();
         let cutoff = req.since.map(cutoff_from_duration);
         let (events, follow_tx, follow_rx) = if req.follow {
             let (tx, rx) = tokio::sync::mpsc::channel(1024);
@@ -1656,10 +1861,9 @@ impl HolonObservability for ObservabilityService {
             // Replay-then-live is atomic for events for the same reason as logs.
             let events = bus.snapshot_and_subscribe(cutoff, move |e| {
                 if !e.private
-                    && (wanted_for_sub.is_empty()
-                        || wanted_for_sub.contains(&(e.event_type as i32)))
+                    && (wanted_for_sub.is_empty() || wanted_for_sub.contains(&e.event_name))
                 {
-                    let _ = tx_for_sub.try_send(Ok(to_proto_event(e)));
+                    let _ = tx_for_sub.try_send(Ok(to_proto_log_record(e)));
                 }
             });
             (events, Some(tx), Some(rx))
@@ -1674,10 +1878,9 @@ impl HolonObservability for ObservabilityService {
         let out = events
             .into_iter()
             .filter(|e| {
-                (!req.follow || !e.private)
-                    && (wanted.is_empty() || wanted.contains(&(e.event_type as i32)))
+                (!req.follow || !e.private) && (wanted.is_empty() || wanted.contains(&e.event_name))
             })
-            .map(|e| Ok(to_proto_event(&e)))
+            .map(|e| Ok(to_proto_log_record(&e)))
             .collect::<Vec<_>>();
         drop(follow_tx);
         if let Some(rx) = follow_rx {
@@ -1699,7 +1902,12 @@ fn cutoff_from_duration(duration: prost_types::Duration) -> SystemTime {
         .unwrap_or(UNIX_EPOCH)
 }
 
-fn match_log(e: &LogEntry, min_level: i32, session_ids: &[String], rpc_methods: &[String]) -> bool {
+fn match_log(
+    e: &LogRecord,
+    min_level: i32,
+    session_ids: &[String],
+    rpc_methods: &[String],
+) -> bool {
     if (e.level as i32) < min_level {
         return false;
     }
@@ -1743,7 +1951,7 @@ pub fn enable_disk_writers(run_dir: &str) {
     }
 }
 
-fn log_entry_to_json(e: &LogEntry) -> String {
+fn log_entry_to_json(e: &LogRecord) -> String {
     let mut parts = vec![
         ("kind", json_string("log")),
         ("ts", json_string(&rfc3339(e.timestamp))),
@@ -1759,7 +1967,7 @@ fn log_entry_to_json(e: &LogEntry) -> String {
         parts.push(("rpc_method", json_string(&e.rpc_method)));
     }
     if !e.fields.is_empty() {
-        parts.push(("fields", json_map(&e.fields)));
+        parts.push(("fields", json_field_map(&e.fields)));
     }
     if !e.caller.is_empty() {
         parts.push(("caller", json_string(&e.caller)));
@@ -1770,19 +1978,19 @@ fn log_entry_to_json(e: &LogEntry) -> String {
     object(parts)
 }
 
-fn event_to_json(e: &Event) -> String {
+fn event_to_json(e: &LogRecord) -> String {
     let mut parts = vec![
         ("kind", json_string("event")),
         ("ts", json_string(&rfc3339(e.timestamp))),
-        ("type", json_string(e.event_type.name())),
+        ("event_name", json_string(&e.event_name)),
         ("slug", json_string(&e.slug)),
         ("instance_uid", json_string(&e.instance_uid)),
     ];
     if !e.session_id.is_empty() {
         parts.push(("session_id", json_string(&e.session_id)));
     }
-    if !e.payload.is_empty() {
-        parts.push(("payload", json_map(&e.payload)));
+    if !e.fields.is_empty() {
+        parts.push(("payload", json_field_map(&e.fields)));
     }
     if !e.chain.is_empty() {
         parts.push(("chain", json_chain(&e.chain)));
@@ -1846,6 +2054,14 @@ fn json_map(m: &BTreeMap<String, String>) -> String {
     }
     s.push('}');
     s
+}
+
+fn json_field_map(m: &BTreeMap<String, Field>) -> String {
+    let strings = m
+        .iter()
+        .map(|(key, value)| (key.clone(), value.as_string()))
+        .collect::<BTreeMap<_, _>>();
+    json_map(&strings)
 }
 
 fn json_chain(chain: &[Hop]) -> String {
@@ -2083,7 +2299,7 @@ mod tests {
     fn log_ring_retention() {
         let r = LogRing::new(3);
         for ch in ['a', 'b', 'c', 'd', 'e'] {
-            r.push(LogEntry {
+            r.push(LogRecord {
                 timestamp: SystemTime::now(),
                 level: Level::Info,
                 slug: "g".to_string(),
@@ -2094,6 +2310,7 @@ mod tests {
                 fields: BTreeMap::new(),
                 caller: String::new(),
                 chain: Vec::new(),
+                event_name: String::new(),
                 private: false,
             });
         }
@@ -2181,10 +2398,11 @@ mod tests {
         .unwrap();
 
         enable_disk_writers(&obs.cfg.run_dir);
-        obs.logger("test").info("ready", &[("phase", "unit")]);
+        obs.logger("test")
+            .info("ready", &[("phase", Field::String("unit".to_string()))]);
         let mut payload = BTreeMap::new();
         payload.insert("listener".to_string(), "tcp://127.0.0.1:1".to_string());
-        obs.emit(EventType::InstanceReady, payload);
+        obs.emit(EVENT_INSTANCE_READY, payload);
         write_meta_json(
             &obs.cfg.run_dir,
             &MetaJson {
@@ -2214,7 +2432,7 @@ mod tests {
         let meta = std::fs::read_to_string(run_dir.join("meta.json")).unwrap();
 
         assert!(stdout.contains("\"message\":\"ready\""));
-        assert!(events.contains("\"type\":\"INSTANCE_READY\""));
+        assert!(events.contains("\"event_name\":\"instance.ready\""));
         assert!(meta.contains("\"slug\":\"gabriel-greeting-rust\""));
         assert!(meta.contains("\"uid\":\"uid-2\""));
     }
@@ -2233,21 +2451,39 @@ mod tests {
             &env,
         )
         .unwrap();
-        obs.logger("test")
-            .info("service-log", &[("component", "rust")]);
+        obs.logger("test").info(
+            "service-log",
+            &[
+                ("component", Field::String("rust".to_string())),
+                ("duration_ns", Field::Int64(42)),
+                ("cache_hit", Field::Bool(true)),
+                ("ratio", Field::Float64(0.5)),
+            ],
+        );
         obs.counter("rust_requests_total", "", BTreeMap::new())
             .unwrap()
             .inc();
+        obs.gauge("rust_queue_depth", "", BTreeMap::new())
+            .unwrap()
+            .set(3.5);
+        obs.histogram(
+            "rust_request_duration_seconds",
+            "",
+            BTreeMap::new(),
+            Some(vec![0.1, 1.0]),
+        )
+        .unwrap()
+        .observe(0.2);
         let mut payload = BTreeMap::new();
         payload.insert("listener".to_string(), "tcp://127.0.0.1:2".to_string());
-        obs.emit(EventType::InstanceReady, payload);
+        obs.emit(EVENT_INSTANCE_READY, payload);
 
         let svc = ObservabilityService::new(obs);
         let logs = tokio_stream::StreamExt::collect::<Vec<_>>(
             HolonObservability::logs(
                 &svc,
                 Request::new(LogsRequest {
-                    min_level: Level::Info as i32,
+                    min_severity_number: Level::Info as i32,
                     session_ids: Vec::new(),
                     rpc_methods: Vec::new(),
                     since: None,
@@ -2259,31 +2495,117 @@ mod tests {
             .into_inner(),
         )
         .await;
-        assert!(logs
+        let service_log = logs
             .iter()
-            .any(|entry| entry.as_ref().unwrap().message == "service-log"));
+            .find_map(|entry| {
+                let entry = entry.as_ref().unwrap();
+                (from_proto_log_record(entry.clone()).message == "service-log").then_some(entry)
+            })
+            .expect("missing service-log record");
+        assert_eq!(
+            service_log.body.as_ref().unwrap().value.as_ref(),
+            Some(&any_value::Value::StringValue("service-log".to_string()))
+        );
+        assert_eq!(
+            attr_value(service_log, ATTR_HOLONS_SLUG),
+            Some(&any_value::Value::StringValue(
+                "gabriel-greeting-rust".to_string()
+            ))
+        );
+        assert_eq!(
+            attr_value(service_log, ATTR_SERVICE_NAME),
+            Some(&any_value::Value::StringValue(
+                "gabriel-greeting-rust".to_string()
+            ))
+        );
+        assert_eq!(
+            attr_value(service_log, ATTR_HOLONS_INSTANCE_UID),
+            Some(&any_value::Value::StringValue("uid-3".to_string()))
+        );
+        assert_eq!(
+            attr_value(service_log, ATTR_SERVICE_INSTANCE_ID),
+            Some(&any_value::Value::StringValue("uid-3".to_string()))
+        );
+        assert_eq!(
+            attr_value(service_log, ATTR_HOLONS_SESSION_ID),
+            Some(&any_value::Value::StringValue(String::new()))
+        );
+        assert_eq!(
+            attr_value(service_log, "duration_ns"),
+            Some(&any_value::Value::IntValue(42))
+        );
+        assert_eq!(
+            attr_value(service_log, "cache_hit"),
+            Some(&any_value::Value::BoolValue(true))
+        );
+        assert_eq!(
+            attr_value(service_log, "ratio"),
+            Some(&any_value::Value::DoubleValue(0.5))
+        );
 
-        let metrics = HolonObservability::metrics(
-            &svc,
-            Request::new(MetricsRequest {
-                name_prefixes: Vec::new(),
-                include_session_rollup: false,
-            }),
+        let metrics = tokio_stream::StreamExt::collect::<Vec<_>>(
+            HolonObservability::metrics(
+                &svc,
+                Request::new(MetricsRequest {
+                    name_prefixes: Vec::new(),
+                }),
+            )
+            .await
+            .unwrap()
+            .into_inner(),
         )
-        .await
-        .unwrap()
-        .into_inner();
-        assert!(metrics
-            .samples
+        .await;
+        let counter_metric = metrics
             .iter()
-            .any(|sample| sample.name == "rust_requests_total"));
-        assert!(metrics.session_rollup.is_none());
+            .find_map(|sample| {
+                let sample = sample.as_ref().unwrap();
+                (sample.name == "rust_requests_total").then_some(sample)
+            })
+            .expect("missing rust_requests_total metric");
+        let Some(metric::Data::Sum(sum)) = counter_metric.data.as_ref() else {
+            panic!("counter metric did not emit Sum");
+        };
+        assert!(sum.is_monotonic);
+        assert_eq!(
+            sum.aggregation_temporality,
+            AggregationTemporality::Cumulative as i32
+        );
+        assert!(matches!(
+            sum.data_points[0].value,
+            Some(number_data_point::Value::AsInt(1))
+        ));
+        let gauge_metric = metrics
+            .iter()
+            .find_map(|sample| {
+                let sample = sample.as_ref().unwrap();
+                (sample.name == "rust_queue_depth").then_some(sample)
+            })
+            .expect("missing rust_queue_depth metric");
+        assert!(matches!(
+            gauge_metric.data.as_ref(),
+            Some(metric::Data::Gauge(_))
+        ));
+        let histogram_metric = metrics
+            .iter()
+            .find_map(|sample| {
+                let sample = sample.as_ref().unwrap();
+                (sample.name == "rust_request_duration_seconds").then_some(sample)
+            })
+            .expect("missing rust_request_duration_seconds metric");
+        let Some(metric::Data::Histogram(histogram)) = histogram_metric.data.as_ref() else {
+            panic!("histogram metric did not emit Histogram");
+        };
+        assert_eq!(
+            histogram.aggregation_temporality,
+            AggregationTemporality::Cumulative as i32
+        );
+        assert_eq!(histogram.data_points[0].count, 1);
 
         let events = tokio_stream::StreamExt::collect::<Vec<_>>(
             HolonObservability::events(
                 &svc,
                 Request::new(EventsRequest {
-                    types: Vec::new(),
+                    event_names: Vec::new(),
                     since: None,
                     follow: false,
                 }),
@@ -2295,7 +2617,7 @@ mod tests {
         .await;
         assert!(events
             .iter()
-            .any(|event| event.as_ref().unwrap().r#type == EventType::InstanceReady as i32));
+            .any(|event| event.as_ref().unwrap().event_name == EVENT_INSTANCE_READY));
     }
 
     #[tokio::test]
@@ -2306,7 +2628,7 @@ mod tests {
         let mut logs = HolonObservability::logs(
             &svc,
             Request::new(LogsRequest {
-                min_level: Level::Info as i32,
+                min_severity_number: Level::Info as i32,
                 session_ids: Vec::new(),
                 rpc_methods: Vec::new(),
                 since: None,
@@ -2325,12 +2647,12 @@ mod tests {
         .unwrap()
         .unwrap()
         .unwrap();
-        assert_eq!(log.message, "follow-log");
+        assert_eq!(from_proto_log_record(log).message, "follow-log");
 
         let mut events = HolonObservability::events(
             &svc,
             Request::new(EventsRequest {
-                types: Vec::new(),
+                event_names: Vec::new(),
                 since: None,
                 follow: true,
             }),
@@ -2338,7 +2660,7 @@ mod tests {
         .await
         .unwrap()
         .into_inner();
-        obs.emit(EventType::InstanceReady, BTreeMap::new());
+        obs.emit(EVENT_INSTANCE_READY, BTreeMap::new());
         let event = timeout(
             Duration::from_secs(1),
             tokio_stream::StreamExt::next(&mut events),
@@ -2347,7 +2669,7 @@ mod tests {
         .unwrap()
         .unwrap()
         .unwrap();
-        assert_eq!(event.r#type, EventType::InstanceReady as i32);
+        assert_eq!(event.event_name, EVENT_INSTANCE_READY);
     }
 
     #[tokio::test]
@@ -2359,7 +2681,7 @@ mod tests {
         let mut logs = HolonObservability::logs(
             &svc,
             Request::new(LogsRequest {
-                min_level: Level::Info as i32,
+                min_severity_number: Level::Info as i32,
                 session_ids: Vec::new(),
                 rpc_methods: Vec::new(),
                 since: None,
@@ -2378,7 +2700,7 @@ mod tests {
         .unwrap()
         .unwrap()
         .unwrap();
-        assert_eq!(first.message, "before-subscribe");
+        assert_eq!(from_proto_log_record(first).message, "before-subscribe");
 
         obs.logger("test").info("after-subscribe", &[]);
         let second = timeout(
@@ -2389,19 +2711,19 @@ mod tests {
         .unwrap()
         .unwrap()
         .unwrap();
-        assert_eq!(second.message, "after-subscribe");
+        assert_eq!(from_proto_log_record(second).message, "after-subscribe");
     }
 
     #[tokio::test]
     async fn test_events_follow_replays_ring_on_subscribe() {
         let obs = test_observability("follow-replay-rust", "uid-event-replay", &[Family::Events]);
-        obs.emit(EventType::InstanceReady, BTreeMap::new());
+        obs.emit(EVENT_INSTANCE_READY, BTreeMap::new());
         let svc = ObservabilityService::new(obs.clone());
 
         let mut events = HolonObservability::events(
             &svc,
             Request::new(EventsRequest {
-                types: Vec::new(),
+                event_names: Vec::new(),
                 since: None,
                 follow: true,
             }),
@@ -2418,9 +2740,9 @@ mod tests {
         .unwrap()
         .unwrap()
         .unwrap();
-        assert_eq!(first.r#type, EventType::InstanceReady as i32);
+        assert_eq!(first.event_name, EVENT_INSTANCE_READY);
 
-        obs.emit(EventType::ConfigReloaded, BTreeMap::new());
+        obs.emit(EVENT_CONFIG_RELOADED, BTreeMap::new());
         let second = timeout(
             Duration::from_secs(1),
             tokio_stream::StreamExt::next(&mut events),
@@ -2429,7 +2751,7 @@ mod tests {
         .unwrap()
         .unwrap()
         .unwrap();
-        assert_eq!(second.r#type, EventType::ConfigReloaded as i32);
+        assert_eq!(second.event_name, EVENT_CONFIG_RELOADED);
     }
 
     #[tokio::test]
@@ -2466,10 +2788,11 @@ mod tests {
         );
 
         tokio::time::sleep(Duration::from_millis(150)).await;
-        child_for_emit
-            .logger("test")
-            .info("relayed-log", &[("source", "child")]);
-        child_for_emit.emit(EventType::InstanceReady, BTreeMap::new());
+        child_for_emit.logger("test").info(
+            "relayed-log",
+            &[("source", Field::String("child".to_string()))],
+        );
+        child_for_emit.emit(EVENT_INSTANCE_READY, BTreeMap::new());
 
         wait_for(|| {
             local
@@ -2494,7 +2817,7 @@ mod tests {
                 .drain()
                 .iter()
                 .any(|event| {
-                    event.event_type == EventType::InstanceReady
+                    event.event_name == EVENT_INSTANCE_READY
                         && event.chain.len() == 1
                         && event.chain[0].slug == "child-rust"
                         && event.chain[0].instance_uid == "child-uid"
@@ -2538,5 +2861,14 @@ mod tests {
             families: family_set,
             loggers: Mutex::new(HashMap::new()),
         })
+    }
+
+    fn attr_value<'a>(record: &'a ProtoLogRecord, key: &str) -> Option<&'a any_value::Value> {
+        record
+            .attributes
+            .iter()
+            .find(|attr| attr.key == key)
+            .and_then(|attr| attr.value.as_ref())
+            .and_then(|value| value.value.as_ref())
     }
 }

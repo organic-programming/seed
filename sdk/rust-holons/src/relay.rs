@@ -1,7 +1,6 @@
 use crate::gen::relay::v1 as pb;
-use crate::observability;
+use crate::observability::{self, Field};
 use std::collections::BTreeMap;
-use std::path::Path;
 use std::sync::atomic::{AtomicI64, Ordering};
 use tonic::{Request, Response, Status};
 
@@ -40,10 +39,10 @@ impl pb::relay_service_server::RelayService for RelayServer {
         obs.logger("tick").info(
             "tick received",
             &[
-                ("sender", &request.sender),
-                ("note", &request.note),
-                ("responder_slug", &slug),
-                ("responder_uid", &uid),
+                ("sender", Field::String(request.sender.clone())),
+                ("note", Field::String(request.note.clone())),
+                ("responder_slug", Field::String(slug.clone())),
+                ("responder_uid", Field::String(uid.clone())),
             ],
         );
         let mut labels = BTreeMap::new();
@@ -81,12 +80,5 @@ fn responder_slug(obs: &observability::Observability) -> String {
     if !configured.is_empty() {
         return configured.to_string();
     }
-    std::env::args()
-        .next()
-        .and_then(|arg| {
-            Path::new(&arg)
-                .file_name()
-                .map(|name| name.to_string_lossy().trim_end_matches(".exe").to_string())
-        })
-        .unwrap_or_default()
+    "unknown".to_string()
 }

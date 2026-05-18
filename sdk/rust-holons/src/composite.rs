@@ -3,7 +3,7 @@
 use crate::command_channel::{connect_stdio_transport, start_stdio_command_with_env, stop_child};
 use crate::gen::holons::v1::{
     holon_meta_client::HolonMetaClient, holon_observability_client::HolonObservabilityClient,
-    DescribeRequest, EventType as ProtoEventType, EventsRequest, LogLevel, LogsRequest,
+    DescribeRequest, EventsRequest, LogsRequest,
 };
 use crate::{observability, transport};
 use hyper_util::rt::TokioIo;
@@ -274,7 +274,7 @@ pub struct LogCheckOptions {
 #[derive(Debug, Clone)]
 pub struct EventCheckOptions {
     pub conn: Option<Channel>,
-    pub event_type: observability::EventType,
+    pub event_name: String,
     pub leaf_uid: String,
     pub expected_chain: Vec<ChainHop>,
     pub timeout: Duration,
@@ -286,7 +286,7 @@ impl Default for EventCheckOptions {
     fn default() -> Self {
         Self {
             conn: None,
-            event_type: observability::EventType::Unspecified,
+            event_name: String::new(),
             leaf_uid: String::new(),
             expected_chain: Vec::new(),
             timeout: Duration::ZERO,
@@ -655,7 +655,7 @@ async fn resolve_relay_member_identity(
     let mut client = HolonObservabilityClient::new(channel.clone());
     if let Ok(response) = client
         .events(EventsRequest {
-            types: vec![ProtoEventType::InstanceReady as i32],
+            event_names: vec![observability::EVENT_INSTANCE_READY.to_string()],
             since: None,
             follow: false,
         })
@@ -663,19 +663,22 @@ async fn resolve_relay_member_identity(
     {
         let mut stream = response.into_inner();
         while let Some(event) = stream.message().await.map_err(|err| err.to_string())? {
-            if event.instance_uid.trim().is_empty() || !event.chain.is_empty() {
+            let uid = observability::string_attribute(
+                &event.attributes,
+                observability::ATTR_HOLONS_INSTANCE_UID,
+            );
+            if uid.trim().is_empty() || !event.chain.is_empty() {
                 continue;
             }
-            let slug = if event.slug.trim().is_empty() {
+            let wire_slug =
+                observability::string_attribute(&event.attributes, observability::ATTR_HOLONS_SLUG);
+            let slug = if wire_slug.trim().is_empty() {
                 fallback_slug.to_string()
             } else {
-                event.slug.trim().to_string()
+                wire_slug.trim().to_string()
             };
             if !slug.is_empty() {
-                return Ok(RelayIdentity {
-                    slug,
-                    uid: event.instance_uid,
-                });
+                return Ok(RelayIdentity { slug, uid });
             }
         }
     }
@@ -683,7 +686,7 @@ async fn resolve_relay_member_identity(
     let mut client = HolonObservabilityClient::new(channel);
     if let Ok(response) = client
         .logs(LogsRequest {
-            min_level: LogLevel::Info as i32,
+            min_severity_number: observability::Level::Info as i32,
             follow: false,
             ..LogsRequest::default()
         })
@@ -691,31 +694,34 @@ async fn resolve_relay_member_identity(
     {
         let mut stream = response.into_inner();
         while let Some(entry) = stream.message().await.map_err(|err| err.to_string())? {
-            if entry.instance_uid.trim().is_empty() || !entry.chain.is_empty() {
+            let uid = observability::string_attribute(
+                &entry.attributes,
+                observability::ATTR_HOLONS_INSTANCE_UID,
+            );
+            if uid.trim().is_empty() || !entry.chain.is_empty() {
                 continue;
             }
-            let slug = if entry.slug.trim().is_empty() {
+            let wire_slug =
+                observability::string_attribute(&entry.attributes, observability::ATTR_HOLONS_SLUG);
+            let slug = if wire_slug.trim().is_empty() {
                 fallback_slug.to_string()
             } else {
-                entry.slug.trim().to_string()
+                wire_slug.trim().to_string()
             };
             if !slug.is_empty() {
-                return Ok(RelayIdentity {
-                    slug,
-                    uid: entry.instance_uid,
-                });
+                return Ok(RelayIdentity { slug, uid });
             }
         }
     }
     Err("resolve relay identity: peer did not expose a local log or event with slug and instance_uid".to_string())
 }
 
-async fn read_log_entries(conn: Option<Channel>) -> Result<Vec<observability::LogEntry>, String> {
+async fn read_log_entries(conn: Option<Channel>) -> Result<Vec<observability::LogRecord>, String> {
     if let Some(channel) = conn {
         let mut client = HolonObservabilityClient::new(channel);
         let mut stream = client
             .logs(LogsRequest {
-                min_level: LogLevel::Info as i32,
+                min_severity_number: observability::Level::Info as i32,
                 follow: false,
                 ..LogsRequest::default()
             })
@@ -724,7 +730,7 @@ async fn read_log_entries(conn: Option<Channel>) -> Result<Vec<observability::Lo
             .into_inner();
         let mut out = Vec::new();
         while let Some(entry) = stream.message().await.map_err(|err| err.to_string())? {
-            out.push(observability::from_proto_log_entry(entry));
+            out.push(observability::from_proto_log_record(entry));
         }
         return Ok(out);
     }
@@ -735,7 +741,9 @@ async fn read_log_entries(conn: Option<Channel>) -> Result<Vec<observability::Lo
         .ok_or_else(|| "logs family is not enabled".to_string())
 }
 
-async fn read_event_entries(conn: Option<Channel>) -> Result<Vec<observability::Event>, String> {
+async fn read_event_entries(
+    conn: Option<Channel>,
+) -> Result<Vec<observability::LogRecord>, String> {
     if let Some(channel) = conn {
         let mut client = HolonObservabilityClient::new(channel);
         let mut stream = client
@@ -748,7 +756,7 @@ async fn read_event_entries(conn: Option<Channel>) -> Result<Vec<observability::
             .into_inner();
         let mut out = Vec::new();
         while let Some(event) = stream.message().await.map_err(|err| err.to_string())? {
-            out.push(observability::from_proto_event(event));
+            out.push(observability::from_proto_log_record(event));
         }
         return Ok(out);
     }
@@ -759,13 +767,13 @@ async fn read_event_entries(conn: Option<Channel>) -> Result<Vec<observability::
         .ok_or_else(|| "events family is not enabled".to_string())
 }
 
-fn match_relayed_log(entries: &[observability::LogEntry], opts: &LogCheckOptions) -> CheckOutcome {
+fn match_relayed_log(entries: &[observability::LogRecord], opts: &LogCheckOptions) -> CheckOutcome {
     for entry in entries {
         if entry.message != "tick received" {
             continue;
         }
-        if entry.fields.get("sender").map(String::as_str) != Some(opts.sender.as_str())
-            || entry.fields.get("responder_uid").map(String::as_str) != Some(opts.leaf_uid.as_str())
+        if entry.attr_string("sender").as_deref() != Some(opts.sender.as_str())
+            || entry.attr_string("responder_uid").as_deref() != Some(opts.leaf_uid.as_str())
         {
             continue;
         }
@@ -791,14 +799,17 @@ fn match_relayed_log(entries: &[observability::LogEntry], opts: &LogCheckOptions
     }
 }
 
-fn match_relayed_event(events: &[observability::Event], opts: &EventCheckOptions) -> CheckOutcome {
-    let event_type = if opts.event_type == observability::EventType::Unspecified {
-        observability::EventType::InstanceReady
+fn match_relayed_event(
+    events: &[observability::LogRecord],
+    opts: &EventCheckOptions,
+) -> CheckOutcome {
+    let event_name = if opts.event_name.trim().is_empty() {
+        observability::EVENT_INSTANCE_READY
     } else {
-        opts.event_type
+        opts.event_name.as_str()
     };
     for event in events {
-        if event.event_type != event_type || event.instance_uid != opts.leaf_uid {
+        if event.event_name != event_name || event.instance_uid != opts.leaf_uid {
             continue;
         }
         if let Some(evidence) = compare_chain(&event.chain, &opts.expected_chain) {

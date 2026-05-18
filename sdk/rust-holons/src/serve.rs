@@ -2,8 +2,7 @@
 
 use crate::describe;
 use crate::gen::holons::v1::{
-    holon_observability_client::HolonObservabilityClient, EventType as ProtoEventType,
-    EventsRequest, MetricsRequest,
+    holon_observability_client::HolonObservabilityClient, EventsRequest, MetricsRequest,
 };
 use crate::observability;
 use crate::transport::{self, Listener, StdioTransport, DEFAULT_URI};
@@ -17,6 +16,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::process::Command;
+use std::sync::{OnceLock, RwLock};
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite};
 #[cfg(unix)]
@@ -61,6 +61,33 @@ pub struct MemberRef {
 
 pub type ChildSpec = crate::composite::ChildSpec;
 
+static CURRENT_TRANSPORT: OnceLock<RwLock<Option<String>>> = OnceLock::new();
+
+fn current_transport_slot() -> &'static RwLock<Option<String>> {
+    CURRENT_TRANSPORT.get_or_init(|| RwLock::new(None))
+}
+
+pub fn current_transport() -> String {
+    current_transport_slot()
+        .read()
+        .unwrap()
+        .clone()
+        .unwrap_or_default()
+}
+
+#[allow(non_snake_case)]
+pub fn CurrentTransport() -> String {
+    current_transport()
+}
+
+fn set_current_transport(value: &str) {
+    *current_transport_slot().write().unwrap() = Some(value.to_string());
+}
+
+fn clear_current_transport() {
+    *current_transport_slot().write().unwrap() = None;
+}
+
 macro_rules! serve_router {
     ($router:expr, $listen_uri:expr, $options:expr, $obs:expr) => {{
         let router = $router;
@@ -74,36 +101,44 @@ macro_rules! serve_router {
                 let actual_uri = bound_tcp_uri(listen_uri, &listener)?;
                 start_observability_runtime(obs.as_ref(), &actual_uri, "tcp");
                 announce_bound_uri(&actual_uri, options);
-                router
+                set_current_transport("tcp");
+                let result = router
                     .serve_with_incoming_shutdown(
                         TcpListenerStream::new(listener),
                         shutdown_signal(),
                     )
-                    .await?;
+                    .await;
+                clear_current_transport();
+                result?;
             }
             #[cfg(unix)]
             Listener::Unix(listener) => {
                 let cleanup = unix_socket_path(listen_uri)?;
                 start_observability_runtime(obs.as_ref(), listen_uri, "unix");
                 announce_bound_uri(listen_uri, options);
+                set_current_transport("unix");
                 let result = router
                     .serve_with_incoming_shutdown(
                         UnixListenerStream::new(listener),
                         shutdown_signal(),
                     )
                     .await;
+                clear_current_transport();
                 cleanup_unix_socket(cleanup.as_deref());
                 result?;
             }
             Listener::Stdio => {
                 start_observability_runtime(obs.as_ref(), "stdio://", "stdio");
                 announce_bound_uri("stdio://", options);
-                router
+                set_current_transport("stdio");
+                let result = router
                     .serve_with_incoming_shutdown(
                         StdioIncoming::new(transport::listen_stdio()?),
                         shutdown_signal(),
                     )
-                    .await?;
+                    .await;
+                clear_current_transport();
+                result?;
             }
             Listener::Ws(_) => {
                 return Err(boxed_err(
@@ -349,9 +384,40 @@ fn observability_from_options(
     if env.get("OP_OBS").map(|s| s.trim()).unwrap_or("").is_empty() {
         return Ok(None);
     }
-    let obs = observability::from_env_map(observability::Config::default(), &env)
-        .map_err(|err| boxed_err(err.to_string()))?;
+    let obs = observability::from_env_map(
+        observability::Config {
+            slug: holon_slug_from_options(options),
+            ..observability::Config::default()
+        },
+        &env,
+    )
+    .map_err(|err| boxed_err(err.to_string()))?;
     Ok((!obs.families.is_empty()).then_some(obs))
+}
+
+fn holon_slug_from_options(options: &RunOptions) -> String {
+    options
+        .describe_response
+        .as_ref()
+        .cloned()
+        .or_else(describe::static_response)
+        .as_ref()
+        .and_then(|response| response.manifest.as_ref())
+        .and_then(|manifest| manifest.identity.as_ref())
+        .map(|identity| {
+            format!(
+                "{}-{}",
+                identity.given_name.trim(),
+                identity.family_name.trim().trim_end_matches('?')
+            )
+            .trim()
+            .to_ascii_lowercase()
+            .replace(' ', "-")
+            .trim_matches('-')
+            .to_string()
+        })
+        .filter(|slug| !slug.is_empty())
+        .unwrap_or_default()
 }
 
 fn start_observability_runtime(
@@ -369,7 +435,7 @@ fn start_observability_runtime(
         let mut payload = std::collections::BTreeMap::new();
         payload.insert("listener".to_string(), public_uri.to_string());
         payload.insert("metrics_addr".to_string(), metrics_addr.clone());
-        obs.emit(observability::EventType::InstanceReady, payload);
+        obs.emit(observability::EVENT_INSTANCE_READY, payload);
     }
     let log_path = if obs.enabled(observability::Family::Logs) {
         Path::new(&obs.cfg.run_dir)
@@ -455,7 +521,7 @@ async fn resolve_relay_member_identity(channel: Channel, member: MemberRef) -> M
     let mut client = HolonObservabilityClient::new(channel);
     let events = client
         .events(EventsRequest {
-            types: vec![ProtoEventType::InstanceReady as i32],
+            event_names: vec![observability::EVENT_INSTANCE_READY.to_string()],
             since: None,
             follow: false,
         })
@@ -467,16 +533,31 @@ async fn resolve_relay_member_identity(channel: Channel, member: MemberRef) -> M
                 let Ok(event) = next else {
                     continue;
                 };
-                if event.instance_uid.trim().is_empty() || !event.chain.is_empty() {
+                let instance_uid = observability::string_attribute(
+                    &event.attributes,
+                    observability::ATTR_HOLONS_INSTANCE_UID,
+                );
+                if instance_uid.trim().is_empty() || !event.chain.is_empty() {
                     continue;
                 }
                 return Some(MemberRef {
-                    slug: if event.slug.trim().is_empty() {
+                    slug: if observability::string_attribute(
+                        &event.attributes,
+                        observability::ATTR_HOLONS_SLUG,
+                    )
+                    .trim()
+                    .is_empty()
+                    {
                         member.slug.clone()
                     } else {
-                        event.slug.trim().to_string()
+                        observability::string_attribute(
+                            &event.attributes,
+                            observability::ATTR_HOLONS_SLUG,
+                        )
+                        .trim()
+                        .to_string()
                     },
-                    uid: event.instance_uid.trim().to_string(),
+                    uid: instance_uid.trim().to_string(),
                     address: member.address.clone(),
                 });
             }
@@ -492,25 +573,57 @@ async fn resolve_relay_member_identity(channel: Channel, member: MemberRef) -> M
 
     let metrics = client.metrics(MetricsRequest {
         name_prefixes: Vec::new(),
-        include_session_rollup: false,
     });
     if let Ok(Ok(response)) = tokio::time::timeout(std::time::Duration::from_secs(2), metrics).await
     {
-        let snapshot = response.into_inner();
-        if !snapshot.instance_uid.trim().is_empty() {
+        let mut stream = response.into_inner();
+        while let Ok(Some(metric)) = stream.message().await {
+            let attrs = metric.data.as_ref().and_then(first_metric_attributes);
+            let instance_uid = attrs
+                .map(|attrs| {
+                    observability::string_attribute(attrs, observability::ATTR_HOLONS_INSTANCE_UID)
+                })
+                .unwrap_or_default();
+            if instance_uid.trim().is_empty() {
+                continue;
+            }
+            let metric_slug = attrs
+                .map(|attrs| {
+                    observability::string_attribute(attrs, observability::ATTR_HOLONS_SLUG)
+                })
+                .unwrap_or_default();
             return MemberRef {
-                slug: if snapshot.slug.trim().is_empty() {
+                slug: if metric_slug.trim().is_empty() {
                     member.slug
                 } else {
-                    snapshot.slug.trim().to_string()
+                    metric_slug.trim().to_string()
                 },
-                uid: snapshot.instance_uid.trim().to_string(),
+                uid: instance_uid.trim().to_string(),
                 address: member.address,
             };
         }
     }
 
     member
+}
+
+fn first_metric_attributes(
+    data: &crate::gen::holons::v1::metric::Data,
+) -> Option<&[crate::gen::holons::v1::KeyValue]> {
+    match data {
+        crate::gen::holons::v1::metric::Data::Gauge(gauge) => gauge
+            .data_points
+            .first()
+            .map(|point| point.attributes.as_slice()),
+        crate::gen::holons::v1::metric::Data::Sum(sum) => sum
+            .data_points
+            .first()
+            .map(|point| point.attributes.as_slice()),
+        crate::gen::holons::v1::metric::Data::Histogram(histogram) => histogram
+            .data_points
+            .first()
+            .map(|point| point.attributes.as_slice()),
+    }
 }
 
 async fn dial_member_address(address: &str) -> Result<Channel> {
@@ -801,6 +914,16 @@ mod tests {
         assert!(parsed.reflect);
     }
 
+    #[test]
+    fn test_current_transport_tracks_stdio_lifecycle_slot() {
+        clear_current_transport();
+        assert_eq!(current_transport(), "");
+        set_current_transport("stdio");
+        assert_eq!(current_transport(), "stdio");
+        clear_current_transport();
+        assert_eq!(current_transport(), "");
+    }
+
     #[tokio::test]
     async fn test_bound_tcp_uri_normalizes_wildcard_host() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -1004,8 +1127,10 @@ mod tests {
         let endpoint = format!("http://127.0.0.1:{port}");
         let mut client = wait_for_holon_observability_client(&endpoint).await;
         let obs = observability::current();
-        obs.logger("serve-test")
-            .info("serve-log", &[("sdk", "rust")]);
+        obs.logger("serve-test").info(
+            "serve-log",
+            &[("sdk", observability::Field::String("rust".to_string()))],
+        );
         obs.counter(
             "serve_requests_total",
             "",
@@ -1014,13 +1139,13 @@ mod tests {
         .unwrap()
         .inc();
         obs.emit(
-            observability::EventType::InstanceReady,
+            observability::EVENT_INSTANCE_READY,
             std::collections::BTreeMap::new(),
         );
 
         let logs = client
             .logs(LogsRequest {
-                min_level: observability::Level::Info as i32,
+                min_severity_number: observability::Level::Info as i32,
                 session_ids: Vec::new(),
                 rpc_methods: Vec::new(),
                 since: None,
@@ -1033,24 +1158,28 @@ mod tests {
             .await;
         assert!(logs
             .iter()
-            .any(|entry| entry.as_ref().unwrap().message == "serve-log"));
+            .any(
+                |entry| observability::from_proto_log_record(entry.as_ref().unwrap().clone())
+                    .message
+                    == "serve-log"
+            ));
 
         let metrics = client
             .metrics(MetricsRequest {
                 name_prefixes: Vec::new(),
-                include_session_rollup: false,
             })
             .await
             .unwrap()
-            .into_inner();
+            .into_inner()
+            .collect::<Vec<_>>()
+            .await;
         assert!(metrics
-            .samples
             .iter()
-            .any(|sample| sample.name == "serve_requests_total"));
+            .any(|sample| sample.as_ref().unwrap().name == "serve_requests_total"));
 
         let events = client
             .events(EventsRequest {
-                types: Vec::new(),
+                event_names: Vec::new(),
                 since: None,
                 follow: false,
             })
@@ -1059,9 +1188,12 @@ mod tests {
             .into_inner()
             .collect::<Vec<_>>()
             .await;
-        assert!(events.iter().any(|event| {
-            event.as_ref().unwrap().r#type == observability::EventType::InstanceReady as i32
-        }));
+        assert!(
+            events
+                .iter()
+                .any(|event| event.as_ref().unwrap().event_name
+                    == observability::EVENT_INSTANCE_READY)
+        );
 
         let meta_path = registry
             .path()

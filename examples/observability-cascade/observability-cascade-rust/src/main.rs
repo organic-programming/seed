@@ -363,7 +363,7 @@ async fn run_tick(
     })
     .await;
     let event = composite::check_relayed_event(composite::EventCheckOptions {
-        event_type: observability::EventType::InstanceReady,
+        event_name: observability::EVENT_INSTANCE_READY.to_string(),
         leaf_uid,
         expected_chain: expected,
         timeout,
