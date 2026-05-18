@@ -81,7 +81,14 @@ add_library(gabriel_greeting_c_lib
   gen/c/greeting/v1/greeting.upb.c
   gen/c/greeting/v1/greeting.upb_minitable.c
   "${HOLONS_SDK_ROOT}/src/holons.c"
+  "${HOLONS_SDK_ROOT}/src/observability.c"
   "${HOLONS_SDK_ROOT}/src/serve_grpc.cpp"
+  "${CPP_HOLONS_SDK_ROOT}/gen/cpp/holons/v1/manifest.pb.cc"
+  "${CPP_HOLONS_SDK_ROOT}/gen/cpp/holons/v1/describe.pb.cc"
+  "${CPP_HOLONS_SDK_ROOT}/gen/cpp/holons/v1/describe.grpc.pb.cc"
+  "${CPP_HOLONS_SDK_ROOT}/gen/cpp/holons/v1/observability.pb.cc"
+  "${CPP_HOLONS_SDK_ROOT}/gen/cpp/holons/v1/observability.grpc.pb.cc"
+  "${CPP_HOLONS_SDK_ROOT}/gen/cpp/holons/v1/session.pb.cc"
 )
 
 target_include_directories(gabriel_greeting_c_lib
@@ -90,6 +97,7 @@ target_include_directories(gabriel_greeting_c_lib
     "${CMAKE_CURRENT_SOURCE_DIR}/gen/c/greeting/v1"
     "${HOLONS_SDK_ROOT}/include"
     "${CPP_HOLONS_SDK_ROOT}/include"
+    "${CPP_HOLONS_SDK_ROOT}/gen/cpp"
     ${PROTOBUF_INCLUDE_DIRS}
 )
 if(GABRIEL_GREETING_C_PREBUILT_ROOT)
