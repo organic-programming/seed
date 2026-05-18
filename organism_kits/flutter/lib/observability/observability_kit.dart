@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:grpc/grpc.dart';
+import 'package:holons/gen/holons/v1/observability.pb.dart' as obs_pb;
 import 'package:holons/holons.dart' as holons;
 import 'package:holons/holons.dart' show SettingsStore;
 import 'package:path/path.dart' as p;
@@ -28,6 +29,236 @@ class ObservabilityMemberRef {
   final String slug;
   final String uid;
   final String address;
+}
+
+enum AnyValueBranch { stringValue, boolValue, intValue, doubleValue, notSet }
+
+class ObservabilityAnyValue {
+  const ObservabilityAnyValue._({
+    this.stringValue = '',
+    this.boolValue = false,
+    this.intValue = 0,
+    this.doubleValue = 0,
+    required this.branch,
+  });
+
+  const ObservabilityAnyValue.string(String value)
+    : this._(stringValue: value, branch: AnyValueBranch.stringValue);
+
+  const ObservabilityAnyValue.bool(bool value)
+    : this._(boolValue: value, branch: AnyValueBranch.boolValue);
+
+  const ObservabilityAnyValue.int(int value)
+    : this._(intValue: value, branch: AnyValueBranch.intValue);
+
+  const ObservabilityAnyValue.double(double value)
+    : this._(doubleValue: value, branch: AnyValueBranch.doubleValue);
+
+  const ObservabilityAnyValue.notSet() : this._(branch: AnyValueBranch.notSet);
+
+  factory ObservabilityAnyValue.fromProto(obs_pb.AnyValue value) {
+    return switch (value.whichValue()) {
+      obs_pb.AnyValue_Value.stringValue => ObservabilityAnyValue.string(
+        value.stringValue,
+      ),
+      obs_pb.AnyValue_Value.boolValue => ObservabilityAnyValue.bool(
+        value.boolValue,
+      ),
+      obs_pb.AnyValue_Value.intValue => ObservabilityAnyValue.int(
+        value.intValue.toInt(),
+      ),
+      obs_pb.AnyValue_Value.doubleValue => ObservabilityAnyValue.double(
+        value.doubleValue,
+      ),
+      obs_pb.AnyValue_Value.notSet => const ObservabilityAnyValue.notSet(),
+    };
+  }
+
+  final String stringValue;
+  final bool boolValue;
+  final int intValue;
+  final double doubleValue;
+  final AnyValueBranch branch;
+}
+
+class ObservabilityKeyValue {
+  const ObservabilityKeyValue({required this.key, required this.value});
+
+  final String key;
+  final ObservabilityAnyValue value;
+}
+
+class ObservabilityLogRecord {
+  const ObservabilityLogRecord({
+    required this.timestamp,
+    required this.level,
+    required this.slug,
+    required this.instanceUid,
+    required this.body,
+    this.severityText = '',
+    this.loggerName = '',
+    this.sessionId = '',
+    this.rpcMethod = '',
+    this.attributes = const [],
+    this.caller = '',
+    this.chain = const [],
+    this.eventName = '',
+    this.private = false,
+  });
+
+  factory ObservabilityLogRecord.fromLogRecord(obs_pb.LogRecord record) {
+    return ObservabilityLogRecord(
+      timestamp: _dateTimeFromUnixNano(record.timeUnixNano.toInt()),
+      level: _levelFromSeverity(record.severityNumber),
+      severityText: record.severityText,
+      slug: _attributeString(record.attributes, 'holons.slug'),
+      instanceUid: _attributeString(record.attributes, 'holons.instance_uid'),
+      sessionId: _attributeString(record.attributes, 'holons.session_id'),
+      rpcMethod: _attributeString(record.attributes, 'rpc.method'),
+      body: record.hasBody()
+          ? ObservabilityAnyValue.fromProto(record.body)
+          : const ObservabilityAnyValue.notSet(),
+      attributes: [
+        for (final attribute in record.attributes)
+          if (!_wellKnownAttributeKeys.contains(attribute.key))
+            ObservabilityKeyValue(
+              key: attribute.key,
+              value: attribute.hasValue()
+                  ? ObservabilityAnyValue.fromProto(attribute.value)
+                  : const ObservabilityAnyValue.notSet(),
+            ),
+      ],
+      caller: _attributeString(record.attributes, 'code.caller'),
+      chain: [
+        for (final hop in record.chain) holons.Hop(slug: hop, instanceUid: ''),
+      ],
+      eventName: record.eventName,
+    );
+  }
+
+  factory ObservabilityLogRecord.fromLegacyLogEntry(dynamic entry) {
+    return ObservabilityLogRecord(
+      timestamp: entry.timestamp,
+      level: entry.level,
+      severityText: entry.level.name.toUpperCase(),
+      loggerName: entry.loggerName,
+      slug: entry.slug,
+      instanceUid: entry.instanceUid,
+      sessionId: entry.sessionId,
+      rpcMethod: entry.rpcMethod,
+      body: ObservabilityAnyValue.string(entry.message),
+      attributes: [
+        for (final item in entry.fields.entries)
+          ObservabilityKeyValue(
+            key: item.key,
+            value: ObservabilityAnyValue.string(item.value),
+          ),
+      ],
+      caller: entry.caller,
+      chain: entry.chain,
+      private: entry.private,
+    );
+  }
+
+  factory ObservabilityLogRecord.fromLegacyEvent(dynamic event) {
+    return ObservabilityLogRecord(
+      timestamp: event.timestamp,
+      level: holons.Level.info,
+      severityText: holons.Level.info.name.toUpperCase(),
+      slug: event.slug,
+      instanceUid: event.instanceUid,
+      sessionId: event.sessionId,
+      body: ObservabilityAnyValue.string(event.type.name),
+      attributes: [
+        for (final item in event.payload.entries)
+          ObservabilityKeyValue(
+            key: item.key,
+            value: ObservabilityAnyValue.string(item.value),
+          ),
+      ],
+      chain: event.chain,
+      eventName: event.type.name,
+      private: event.private,
+    );
+  }
+
+  String get message => switch (body.branch) {
+    AnyValueBranch.stringValue => body.stringValue,
+    AnyValueBranch.boolValue => body.boolValue.toString(),
+    AnyValueBranch.intValue => body.intValue.toString(),
+    AnyValueBranch.doubleValue => body.doubleValue.toString(),
+    AnyValueBranch.notSet => '',
+  };
+
+  final DateTime timestamp;
+  final holons.Level level;
+  final String severityText;
+  final String loggerName;
+  final String slug;
+  final String instanceUid;
+  final String sessionId;
+  final String rpcMethod;
+  final ObservabilityAnyValue body;
+  final List<ObservabilityKeyValue> attributes;
+  final String caller;
+  final List<holons.Hop> chain;
+  final String eventName;
+  final bool private;
+}
+
+const _wellKnownAttributeKeys = {
+  'holons.slug',
+  'service.name',
+  'holons.instance_uid',
+  'service.instance.id',
+  'holons.session_id',
+  'rpc.method',
+  'code.caller',
+};
+
+ObservabilityLogRecord _logRecordFromObject(Object entry) {
+  if (entry is obs_pb.LogRecord) {
+    return ObservabilityLogRecord.fromLogRecord(entry);
+  }
+  return ObservabilityLogRecord.fromLegacyLogEntry(entry);
+}
+
+ObservabilityLogRecord _eventRecordFromObject(Object event) {
+  if (event is obs_pb.LogRecord) {
+    return ObservabilityLogRecord.fromLogRecord(event);
+  }
+  return ObservabilityLogRecord.fromLegacyEvent(event);
+}
+
+DateTime _dateTimeFromUnixNano(int ns) {
+  return DateTime.fromMicrosecondsSinceEpoch(ns ~/ 1000, isUtc: true);
+}
+
+holons.Level _levelFromSeverity(obs_pb.SeverityNumber severity) {
+  return switch (severity) {
+    obs_pb.SeverityNumber.SEVERITY_NUMBER_TRACE => holons.Level.trace,
+    obs_pb.SeverityNumber.SEVERITY_NUMBER_DEBUG => holons.Level.debug,
+    obs_pb.SeverityNumber.SEVERITY_NUMBER_INFO => holons.Level.info,
+    obs_pb.SeverityNumber.SEVERITY_NUMBER_WARN => holons.Level.warn,
+    obs_pb.SeverityNumber.SEVERITY_NUMBER_ERROR => holons.Level.error,
+    obs_pb.SeverityNumber.SEVERITY_NUMBER_FATAL => holons.Level.fatal,
+    _ => holons.Level.unset,
+  };
+}
+
+String _attributeString(Iterable<obs_pb.KeyValue> attributes, String key) {
+  for (final attribute in attributes) {
+    if (attribute.key != key || !attribute.hasValue()) continue;
+    final value = ObservabilityAnyValue.fromProto(attribute.value);
+    return switch (value.branch) {
+      AnyValueBranch.stringValue => value.stringValue,
+      AnyValueBranch.boolValue => value.boolValue.toString(),
+      AnyValueBranch.intValue => value.intValue.toString(),
+      AnyValueBranch.doubleValue => value.doubleValue.toString(),
+      AnyValueBranch.notSet => '',
+    };
+  }
+  return '';
 }
 
 class RuntimeGate extends ChangeNotifier {
@@ -130,9 +361,11 @@ class RuntimeGate extends ChangeNotifier {
 
 class LogConsoleController extends ChangeNotifier {
   LogConsoleController(this.obs, this.gate) {
-    _entries.addAll(obs.logRing?.drain() ?? const []);
+    _entries.addAll(
+      (obs.logRing?.drain() ?? const <Object>[]).map(_logRecordFromObject),
+    );
     _sub = obs.logRing?.watch().listen((entry) {
-      _entries.add(entry);
+      _entries.add(_logRecordFromObject(entry));
       notifyListeners();
     });
     gate.addListener(notifyListeners);
@@ -140,12 +373,12 @@ class LogConsoleController extends ChangeNotifier {
 
   final holons.Observability obs;
   final RuntimeGate gate;
-  final List<holons.LogEntry> _entries = [];
-  StreamSubscription<holons.LogEntry>? _sub;
+  final List<ObservabilityLogRecord> _entries = [];
+  StreamSubscription<dynamic>? _sub;
   holons.Level minLevel = holons.Level.trace;
   String query = '';
 
-  List<holons.LogEntry> get entries {
+  List<ObservabilityLogRecord> get entries {
     if (!gate.familyEnabled(holons.Family.logs)) return const [];
     final q = query.trim().toLowerCase();
     final filtered = _entries
@@ -167,6 +400,12 @@ class LogConsoleController extends ChangeNotifier {
 
   void setQuery(String value) {
     query = value;
+    notifyListeners();
+  }
+
+  @visibleForTesting
+  void addRecord(ObservabilityLogRecord record) {
+    _entries.add(record);
     notifyListeners();
   }
 
@@ -238,9 +477,11 @@ class MetricsController extends ChangeNotifier {
 
 class EventsController extends ChangeNotifier {
   EventsController(this.obs, this.gate) {
-    _events.addAll(obs.eventBus?.drain() ?? const []);
+    _events.addAll(
+      (obs.eventBus?.drain() ?? const <Object>[]).map(_eventRecordFromObject),
+    );
     _sub = obs.eventBus?.watch().listen((event) {
-      _events.add(event);
+      _events.add(_eventRecordFromObject(event));
       notifyListeners();
     });
     gate.addListener(notifyListeners);
@@ -248,12 +489,19 @@ class EventsController extends ChangeNotifier {
 
   final holons.Observability obs;
   final RuntimeGate gate;
-  final List<holons.Event> _events = [];
-  StreamSubscription<holons.Event>? _sub;
+  final List<ObservabilityLogRecord> _events = [];
+  StreamSubscription<dynamic>? _sub;
 
-  List<holons.Event> get events => gate.familyEnabled(holons.Family.events)
+  List<ObservabilityLogRecord> get events =>
+      gate.familyEnabled(holons.Family.events)
       ? List.unmodifiable(_events)
       : const [];
+
+  @visibleForTesting
+  void addRecord(ObservabilityLogRecord record) {
+    _events.add(record);
+    notifyListeners();
+  }
 
   @override
   void dispose() {
@@ -502,8 +750,8 @@ class ExportController {
       p.join(parent.path, 'observability-${kit.slug}-$timestamp'),
     );
     await dir.create(recursive: true);
-    final logs = kit.obs.logRing?.drain() ?? const <holons.LogEntry>[];
-    final events = kit.obs.eventBus?.drain() ?? const <holons.Event>[];
+    final logs = kit.obs.logRing?.drain() ?? const <Object>[];
+    final events = kit.obs.eventBus?.drain() ?? const <Object>[];
     await File(
       p.join(dir.path, 'logs.jsonl'),
     ).writeAsString(logs.map(_logJson).join('\n') + '\n');
@@ -643,19 +891,41 @@ String _labels(Map<String, String> labels) {
   return '{$parts}';
 }
 
-String _logJson(holons.LogEntry entry) => jsonEncode({
-  'ts': entry.timestamp.toUtc().toIso8601String(),
-  'level': entry.level.name,
-  'slug': entry.slug,
-  'instance_uid': entry.instanceUid,
-  'message': entry.message,
-  'fields': entry.fields,
-});
+String _logJson(Object entry) {
+  final record = _logRecordFromObject(entry);
+  return jsonEncode({
+    'ts': record.timestamp.toUtc().toIso8601String(),
+    'level': record.level.name,
+    'slug': record.slug,
+    'instance_uid': record.instanceUid,
+    'message': record.message,
+    'fields': {
+      for (final attribute in record.attributes)
+        attribute.key: _jsonValue(attribute.value),
+    },
+  });
+}
 
-String _eventJson(holons.Event event) => jsonEncode({
-  'ts': event.timestamp.toUtc().toIso8601String(),
-  'type': event.type.name,
-  'slug': event.slug,
-  'instance_uid': event.instanceUid,
-  'payload': event.payload,
-});
+String _eventJson(Object event) {
+  final record = _eventRecordFromObject(event);
+  return jsonEncode({
+    'ts': record.timestamp.toUtc().toIso8601String(),
+    'event_name': record.eventName,
+    'slug': record.slug,
+    'instance_uid': record.instanceUid,
+    'payload': {
+      for (final attribute in record.attributes)
+        attribute.key: _jsonValue(attribute.value),
+    },
+  });
+}
+
+Object _jsonValue(ObservabilityAnyValue value) {
+  return switch (value.branch) {
+    AnyValueBranch.stringValue => value.stringValue,
+    AnyValueBranch.boolValue => value.boolValue,
+    AnyValueBranch.intValue => value.intValue,
+    AnyValueBranch.doubleValue => value.doubleValue,
+    AnyValueBranch.notSet => '',
+  };
+}

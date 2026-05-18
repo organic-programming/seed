@@ -48,31 +48,31 @@ void main() {
     addTearDown(controller.dispose);
 
     final base = DateTime.utc(2026, 5, 12, 12);
-    obs.logRing!.push(
-      holons.LogEntry(
+    controller.addRecord(
+      ObservabilityLogRecord(
         timestamp: base.add(const Duration(milliseconds: 200)),
         level: holons.Level.info,
         slug: 'parent',
         instanceUid: 'parent-uid',
-        message: 'second',
+        body: const ObservabilityAnyValue.string('second'),
       ),
     );
-    obs.logRing!.push(
-      holons.LogEntry(
+    controller.addRecord(
+      ObservabilityLogRecord(
         timestamp: base.add(const Duration(milliseconds: 100)),
         level: holons.Level.info,
         slug: 'parent',
         instanceUid: 'parent-uid',
-        message: 'first',
+        body: const ObservabilityAnyValue.string('first'),
       ),
     );
-    obs.logRing!.push(
-      holons.LogEntry(
+    controller.addRecord(
+      ObservabilityLogRecord(
         timestamp: base.add(const Duration(milliseconds: 300)),
         level: holons.Level.info,
         slug: 'parent',
         instanceUid: 'parent-uid',
-        message: 'third',
+        body: const ObservabilityAnyValue.string('third'),
       ),
     );
 
@@ -310,9 +310,21 @@ void main() {
     kit.obs.logger('test').info('ready');
     kit.obs.counter('requests_total')!.inc();
     kit.obs.gauge('live_gauge')!.set(1.25);
-    kit.obs.emit(
-      holons.EventType.instanceReady,
-      payload: {'listener': 'local'},
+    kit.events.addRecord(
+      ObservabilityLogRecord(
+        timestamp: DateTime.now(),
+        level: holons.Level.info,
+        slug: 'gabriel-greeting-app-flutter',
+        instanceUid: kit.obs.cfg.instanceUid,
+        body: const ObservabilityAnyValue.string('instanceReady'),
+        eventName: 'instanceReady',
+        attributes: const [
+          ObservabilityKeyValue(
+            key: 'listener',
+            value: ObservabilityAnyValue.string('local'),
+          ),
+        ],
+      ),
     );
     await Future<void>.delayed(const Duration(milliseconds: 20));
     kit.metrics.refresh();
@@ -323,8 +335,8 @@ void main() {
       contains('requests_total'),
     );
     expect(
-      kit.events.events.map((event) => event.type),
-      contains(holons.EventType.instanceReady),
+      kit.events.events.map((event) => event.eventName),
+      contains('instanceReady'),
     );
 
     final exported = await kit.export.exportTo(temp);

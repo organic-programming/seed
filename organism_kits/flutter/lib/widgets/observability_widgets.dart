@@ -279,7 +279,7 @@ class LogConsoleView extends StatelessWidget {
                   final originStyle = theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   );
-                  final fieldsText = _fieldsText(entry.fields);
+                  final fieldsText = _fieldsText(entry.attributes);
                   final contextText = _logContextText(entry);
                   final showChain =
                       entry.chain.isNotEmpty && !_chainIsRedundant(entry);
@@ -318,7 +318,7 @@ class LogConsoleView extends StatelessWidget {
 class _LogTitle extends StatelessWidget {
   const _LogTitle({required this.entry, this.style});
 
-  final holons.LogEntry entry;
+  final ObservabilityLogRecord entry;
   final TextStyle? style;
 
   @override
@@ -428,7 +428,7 @@ class EventsView extends StatelessWidget {
             final event = events[events.length - index - 1];
             return ListTile(
               leading: const Icon(Icons.bolt),
-              title: Text(event.type.name),
+              title: Text(event.eventName),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -562,10 +562,16 @@ class _HistogramPainter extends CustomPainter {
 }
 
 String _chainText(List<holons.Hop> chain) {
-  return chain.map((hop) => '${hop.slug}:${hop.instanceUid}').join(' > ');
+  return chain
+      .map(
+        (hop) => hop.instanceUid.isEmpty
+            ? hop.slug
+            : '${hop.slug}:${hop.instanceUid}',
+      )
+      .join(' > ');
 }
 
-String _logContextText(holons.LogEntry entry) {
+String _logContextText(ObservabilityLogRecord entry) {
   final parts = <String>[];
   if (entry.rpcMethod.isNotEmpty) {
     parts.add(entry.rpcMethod);
@@ -579,7 +585,7 @@ String _logContextText(holons.LogEntry entry) {
   return parts.join(' · ');
 }
 
-String _logOriginText(holons.LogEntry entry) {
+String _logOriginText(ObservabilityLogRecord entry) {
   final parts = <String>[
     entry.slug,
     entry.timestamp.toIso8601String(),
@@ -588,23 +594,21 @@ String _logOriginText(holons.LogEntry entry) {
   return parts.join('  ·  ');
 }
 
-String _fieldsText(Map<String, String> fields) {
+String _fieldsText(List<ObservabilityKeyValue> fields) {
   if (fields.isEmpty) return '';
-  final keys = fields.keys.toList()..sort();
-  return keys
-      .map((key) {
-        final rawValue = fields[key] ?? '';
-        if (key.endsWith('_ns')) {
-          return '${key.substring(0, key.length - 3)}=${_formatAdaptiveDuration(rawValue)}';
-        }
-        return '$key=${_fieldValueText(rawValue)}';
+  final sorted = fields.toList()..sort((a, b) => a.key.compareTo(b.key));
+  return sorted
+      .map((field) {
+        final key = field.key;
+        final label = key.endsWith('_ns')
+            ? key.substring(0, key.length - 3)
+            : key;
+        return '$label=${_fieldValueText(key, field.value)}';
       })
       .join('  ');
 }
 
-String _formatAdaptiveDuration(String rawValue) {
-  final ns = int.tryParse(rawValue);
-  if (ns == null) return rawValue;
+String _formatAdaptiveDuration(int ns) {
   if (ns < 1000) return '${ns}ns';
   if (ns < 1000000) return '${(ns / 1000).toStringAsFixed(1)}µs';
   if (ns < 1000000000) {
@@ -616,14 +620,25 @@ String _formatAdaptiveDuration(String rawValue) {
   return '${(ns / 60000000000).toStringAsFixed(1)}min';
 }
 
-String _fieldValueText(String value) {
+String _fieldValueText(String key, ObservabilityAnyValue value) {
+  if (value.branch == AnyValueBranch.intValue && key.endsWith('_ns')) {
+    return _formatAdaptiveDuration(value.intValue);
+  }
+  final text = switch (value.branch) {
+    AnyValueBranch.intValue => value.intValue.toString(),
+    AnyValueBranch.doubleValue => value.doubleValue.toString(),
+    AnyValueBranch.boolValue => value.boolValue.toString(),
+    AnyValueBranch.stringValue => value.stringValue,
+    AnyValueBranch.notSet => '',
+  };
+  if (value.branch != AnyValueBranch.stringValue) return text;
   final needsQuotes =
-      value.isEmpty || value.contains(RegExp(r'\s')) || value.contains('"');
-  if (!needsQuotes) return value;
-  return '"${value.replaceAll('"', r'\"')}"';
+      text.isEmpty || text.contains(RegExp(r'\s')) || text.contains('"');
+  if (!needsQuotes) return text;
+  return '"${text.replaceAll('"', r'\"')}"';
 }
 
-bool _chainIsRedundant(holons.LogEntry entry) {
+bool _chainIsRedundant(ObservabilityLogRecord entry) {
   return entry.chain.length == 1 && entry.chain.first.slug == entry.slug;
 }
 
