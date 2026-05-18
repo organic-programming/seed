@@ -134,7 +134,10 @@ if(NOT DEFINED OP_USE_INSTALL_LAYOUT)
 endif()
 set(OBSERVABILITY_CASCADE_NODE_CPP_INSTALL_RUNTIME_DIR "${CMAKE_INSTALL_PREFIX}/bin/${OP_PACKAGE_ARCH}")
 
-add_executable(observability-cascade-cpp-node cmd/main.cpp)
+add_executable(observability-cascade-cpp-node
+  cmd/main.cpp
+  "${HOLONS_SDK_ROOT}/src/serve.cpp"
+)
 target_include_directories(observability-cascade-cpp-node
   PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"

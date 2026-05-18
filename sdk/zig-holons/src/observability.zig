@@ -1478,7 +1478,11 @@ fn fillLogChain(a: std.mem.Allocator, msg: *c.Holons__V1__LogRecord, chain: []co
     if (chain.len == 0) return;
     var entries = try a.alloc([*c]u8, chain.len);
     for (chain, 0..) |hop, index| {
-        entries[index] = try z(a, hop.slug);
+        const encoded = if (hop.instance_uid.len == 0)
+            hop.slug
+        else
+            try std.fmt.allocPrint(a, "{s}/{s}", .{ hop.slug, hop.instance_uid });
+        entries[index] = try z(a, encoded);
     }
     msg.n_chain = chain.len;
     msg.chain = entries.ptr;
@@ -1551,9 +1555,11 @@ fn chainFromStrings(allocator: std.mem.Allocator, raw_chain: [*c][*c]u8, len: us
     if (len == 0) return out;
     const chain = raw_chain orelse return error.InvalidChain;
     for (chain[0..len], 0..) |hop, index| {
+        const raw_hop = cstr(hop);
+        const slash = std.mem.indexOfScalar(u8, raw_hop, '/');
         out[index] = .{
-            .slug = try allocator.dupe(u8, cstr(hop)),
-            .instance_uid = try allocator.dupe(u8, ""),
+            .slug = try allocator.dupe(u8, if (slash) |pos| raw_hop[0..pos] else raw_hop),
+            .instance_uid = try allocator.dupe(u8, if (slash) |pos| raw_hop[pos + 1 ..] else ""),
         };
     }
     return out;

@@ -115,6 +115,7 @@ observability_cascade_generate_grpc_cpp(observability_cascade_cpp_service_proto_
 
 add_executable(observability-cascade-cpp
   src/main.cpp
+  "${HOLONS_SDK_ROOT}/src/serve.cpp"
 )
 
 target_include_directories(observability-cascade-cpp

@@ -88,6 +88,7 @@ add_library(gabriel_greeting_c_lib
   "${HOLONS_SDK_ROOT}/gen/c/holons/v1/observability.pb-c.c"
   "${HOLONS_SDK_ROOT}/gen/c/google/protobuf/duration.pb-c.c"
   "${HOLONS_SDK_ROOT}/src/serve_grpc.cpp"
+  "${CPP_HOLONS_SDK_ROOT}/src/serve.cpp"
   "${CPP_HOLONS_SDK_ROOT}/gen/cpp/holons/v1/manifest.pb.cc"
   "${CPP_HOLONS_SDK_ROOT}/gen/cpp/holons/v1/describe.pb.cc"
   "${CPP_HOLONS_SDK_ROOT}/gen/cpp/holons/v1/describe.grpc.pb.cc"

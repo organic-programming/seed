@@ -1701,8 +1701,18 @@ inline server_handle start(
     register_services(builder);
   }
 
-  auto server = builder.BuildAndStart();
+  const auto active_scheme =
+      pending.empty() ? std::string{} : pending.front().parsed.scheme;
+  detail::set_current_transport(active_scheme);
+  std::unique_ptr<grpc::Server> server;
+  try {
+    server = builder.BuildAndStart();
+  } catch (...) {
+    detail::clear_current_transport();
+    throw;
+  }
   if (!server) {
+    detail::clear_current_transport();
     throw std::runtime_error("grpc::ServerBuilder::BuildAndStart() failed");
   }
 
@@ -1712,12 +1722,14 @@ inline server_handle start(
     }
 #ifdef _WIN32
     server->Shutdown();
+    detail::clear_current_transport();
     throw std::runtime_error(
         "stdio:// serve is not supported on Windows in cpp-holons");
 #else
     auto port = item.selected_port ? *item.selected_port : 0;
     if (port <= 0) {
       server->Shutdown();
+      detail::clear_current_transport();
       throw std::runtime_error("stdio:// serve bridge did not get a loopback port");
     }
     auto bridge = detail::stdio_bridge::connect_loopback(port);
@@ -1741,7 +1753,6 @@ inline server_handle start(
     observability_runtime->start(bound, opts);
   }
 
-  detail::set_current_transport(pending.empty() ? std::string{} : pending.front().parsed.scheme);
   return server_handle(std::move(server), std::move(bound),
                        std::move(owned_objects), true);
 #endif

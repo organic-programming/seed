@@ -20,6 +20,7 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -55,30 +56,6 @@ std::map<std::string, std::string> c_kv_to_map(const char *const *items) {
     out.emplace(items[i], items[i + 1]);
   }
   return out;
-}
-
-std::pair<std::map<std::string, std::string>, bool>
-c_kv_to_map_and_private(const char *const *items) {
-  std::map<std::string, std::string> out;
-  bool private_entry = false;
-  if (items == nullptr) {
-    return {out, private_entry};
-  }
-  const char *private_key = holon_obs_private();
-  for (size_t i = 0; items[i] != nullptr; i += 2) {
-    if (items[i + 1] == nullptr) {
-      break;
-    }
-    if (private_key != nullptr && std::strcmp(items[i], private_key) == 0) {
-      private_entry = true;
-      continue;
-    }
-    if (items[i][0] == '\0') {
-      continue;
-    }
-    out.emplace(items[i], items[i + 1]);
-  }
-  return {out, private_entry};
 }
 
 holons::observability::Level c_level_to_cpp(int level) {
@@ -204,67 +181,159 @@ holon_level_t cpp_level_to_c(holons::observability::Level level) {
   }
 }
 
-holon_event_type_t cpp_event_to_c(holons::observability::EventType type) {
-  switch (type) {
-    case holons::observability::EventType::InstanceSpawned:
-      return HOLON_EVENT_INSTANCE_SPAWNED;
-    case holons::observability::EventType::InstanceReady:
-      return HOLON_EVENT_INSTANCE_READY;
-    case holons::observability::EventType::InstanceExited:
-      return HOLON_EVENT_INSTANCE_EXITED;
-    case holons::observability::EventType::InstanceCrashed:
-      return HOLON_EVENT_INSTANCE_CRASHED;
-    case holons::observability::EventType::SessionStarted:
-      return HOLON_EVENT_SESSION_STARTED;
-    case holons::observability::EventType::SessionEnded:
-      return HOLON_EVENT_SESSION_ENDED;
-    case holons::observability::EventType::HandlerPanic:
-      return HOLON_EVENT_HANDLER_PANIC;
-    case holons::observability::EventType::ConfigReloaded:
-      return HOLON_EVENT_CONFIG_RELOADED;
-    default:
-      return HOLON_EVENT_UNSPECIFIED;
-  }
+bool is_resource_attribute(const std::string &key) {
+  return key == "holons.slug" || key == "service.name" ||
+         key == "holons.instance_uid" ||
+         key == "service.instance.id" || key == "holons.session_id" ||
+         key == "logger.name";
 }
 
-std::vector<holon_obs_kv_t> snapshot_kv(
-    const std::map<std::string, std::string> &items) {
-  std::vector<holon_obs_kv_t> out;
-  out.reserve(items.size());
-  for (const auto &[key, value] : items) {
-    out.push_back(holon_obs_kv_t{key.c_str(), value.c_str()});
+struct kv_snapshot {
+  std::vector<std::string> keys;
+  std::vector<std::string> values;
+  std::vector<holon_obs_kv_t> items;
+};
+
+kv_snapshot snapshot_fields(
+    const std::vector<holons::observability::Field> &fields,
+    bool include_resource_attributes = false) {
+  kv_snapshot out;
+  out.keys.reserve(fields.size());
+  out.values.reserve(fields.size());
+  out.items.reserve(fields.size());
+  for (const auto &field : fields) {
+    if (field.key.empty()) {
+      continue;
+    }
+    if (!include_resource_attributes && is_resource_attribute(field.key)) {
+      continue;
+    }
+    out.keys.push_back(field.key);
+    out.values.push_back(holons::observability::any_value_string(field.value));
+    out.items.push_back(
+        holon_obs_kv_t{out.keys.back().c_str(), out.values.back().c_str()});
   }
   return out;
 }
 
-std::vector<holon_obs_chain_hop_t> snapshot_chain(
-    const std::vector<holons::observability::Hop> &chain) {
-  std::vector<holon_obs_chain_hop_t> out;
-  out.reserve(chain.size());
+struct chain_snapshot {
+  std::vector<std::string> slugs;
+  std::vector<std::string> instance_uids;
+  std::vector<holon_obs_chain_hop_t> items;
+};
+
+chain_snapshot snapshot_chain(const std::vector<std::string> &chain) {
+  chain_snapshot out;
+  out.slugs.reserve(chain.size());
+  out.instance_uids.reserve(chain.size());
+  out.items.reserve(chain.size());
   for (const auto &hop : chain) {
-    out.push_back(holon_obs_chain_hop_t{hop.slug.c_str(),
-                                        hop.instance_uid.c_str()});
+    const auto slash = hop.find('/');
+    if (slash == std::string::npos) {
+      out.slugs.push_back(hop);
+      out.instance_uids.emplace_back();
+    } else {
+      out.slugs.push_back(hop.substr(0, slash));
+      out.instance_uids.push_back(hop.substr(slash + 1));
+    }
+    out.items.push_back(holon_obs_chain_hop_t{
+        out.slugs.back().c_str(), out.instance_uids.back().c_str()});
   }
   return out;
 }
 
-int deliver_log_snapshot(const holons::observability::LogEntry &entry,
+holon_event_type_t cpp_event_name_to_c(const std::string &name) {
+  if (name == HOLON_EVENT_NAME_INSTANCE_SPAWNED) {
+    return HOLON_EVENT_INSTANCE_SPAWNED;
+  }
+  if (name == HOLON_EVENT_NAME_INSTANCE_READY) {
+    return HOLON_EVENT_INSTANCE_READY;
+  }
+  if (name == HOLON_EVENT_NAME_INSTANCE_EXITED) {
+    return HOLON_EVENT_INSTANCE_EXITED;
+  }
+  if (name == HOLON_EVENT_NAME_INSTANCE_CRASHED) {
+    return HOLON_EVENT_INSTANCE_CRASHED;
+  }
+  if (name == HOLON_EVENT_NAME_SESSION_STARTED) {
+    return HOLON_EVENT_SESSION_STARTED;
+  }
+  if (name == HOLON_EVENT_NAME_SESSION_ENDED) {
+    return HOLON_EVENT_SESSION_ENDED;
+  }
+  if (name == HOLON_EVENT_NAME_HANDLER_PANIC) {
+    return HOLON_EVENT_HANDLER_PANIC;
+  }
+  if (name == HOLON_EVENT_NAME_CONFIG_RELOADED) {
+    return HOLON_EVENT_CONFIG_RELOADED;
+  }
+  return HOLON_EVENT_UNSPECIFIED;
+}
+
+holons::observability::Field c_field_to_cpp(const holons_field_t &field) {
+  std::string key = field.key != nullptr ? field.key : "";
+  switch (field.value.type) {
+    case HOLONS_ANYVALUE_BOOL:
+      return {std::move(key), field.value.value.bool_value != 0};
+    case HOLONS_ANYVALUE_INT:
+      return {std::move(key), static_cast<std::int64_t>(field.value.value.int_value)};
+    case HOLONS_ANYVALUE_DOUBLE:
+      return {std::move(key), field.value.value.double_value};
+    case HOLONS_ANYVALUE_STRING:
+    default:
+      return {std::move(key), field.value.value.string_value != nullptr
+                                  ? field.value.value.string_value
+                                  : ""};
+  }
+}
+
+std::vector<holons::observability::Field> c_fields_to_cpp(
+    const holons_field_t *fields,
+    size_t field_count,
+    bool *private_entry) {
+  std::vector<holons::observability::Field> out;
+  out.reserve(field_count);
+  const char *private_key = holon_obs_private();
+  for (size_t i = 0; i < field_count; ++i) {
+    const char *key = fields != nullptr ? fields[i].key : nullptr;
+    if (key == nullptr || key[0] == '\0') {
+      continue;
+    }
+    if (private_key != nullptr && std::strcmp(key, private_key) == 0) {
+      if (private_entry != nullptr) {
+        *private_entry = true;
+      }
+      continue;
+    }
+    out.push_back(c_field_to_cpp(fields[i]));
+  }
+  return out;
+}
+
+int deliver_log_snapshot(const holons::observability::LogRecord &entry,
                          holon_obs_log_snapshot_fn callback,
                          void *user_data) {
-  auto fields = snapshot_kv(entry.fields);
+  auto fields = snapshot_fields(entry.attributes);
   auto chain = snapshot_chain(entry.chain);
+  std::string slug =
+      holons::observability::attribute_string(entry, "holons.slug");
+  std::string instance_uid =
+      holons::observability::attribute_string(entry, "holons.instance_uid");
+  std::string logger_name =
+      holons::observability::attribute_string(entry, "logger.name");
+  std::string message = holons::observability::any_value_string(entry.body);
   holon_obs_log_snapshot_t snapshot;
   std::memset(&snapshot, 0, sizeof(snapshot));
   snapshot.unix_nanos = unix_nanos(entry.timestamp);
   snapshot.level = cpp_level_to_c(entry.level);
-  snapshot.slug = entry.slug.c_str();
-  snapshot.instance_uid = entry.instance_uid.c_str();
-  snapshot.logger_name = "";
-  snapshot.message = entry.message.c_str();
-  snapshot.fields = fields.empty() ? nullptr : fields.data();
-  snapshot.field_count = fields.size();
-  snapshot.chain = chain.empty() ? nullptr : chain.data();
-  snapshot.chain_count = chain.size();
+  snapshot.slug = slug.c_str();
+  snapshot.instance_uid = instance_uid.c_str();
+  snapshot.logger_name = logger_name.c_str();
+  snapshot.message = message.c_str();
+  snapshot.fields = fields.items.empty() ? nullptr : fields.items.data();
+  snapshot.field_count = fields.items.size();
+  snapshot.chain = chain.items.empty() ? nullptr : chain.items.data();
+  snapshot.chain_count = chain.items.size();
   snapshot.private_entry = entry.private_entry ? 1 : 0;
   return callback(&snapshot, user_data);
 }
@@ -272,18 +341,22 @@ int deliver_log_snapshot(const holons::observability::LogEntry &entry,
 int deliver_event_snapshot(const holons::observability::Event &event,
                            holon_obs_event_snapshot_fn callback,
                            void *user_data) {
-  auto payload = snapshot_kv(event.payload);
+  auto payload = snapshot_fields(event.attributes);
   auto chain = snapshot_chain(event.chain);
+  std::string slug =
+      holons::observability::attribute_string(event, "holons.slug");
+  std::string instance_uid =
+      holons::observability::attribute_string(event, "holons.instance_uid");
   holon_obs_event_snapshot_t snapshot;
   std::memset(&snapshot, 0, sizeof(snapshot));
   snapshot.unix_nanos = unix_nanos(event.timestamp);
-  snapshot.type = cpp_event_to_c(event.type);
-  snapshot.slug = event.slug.c_str();
-  snapshot.instance_uid = event.instance_uid.c_str();
-  snapshot.payload = payload.empty() ? nullptr : payload.data();
-  snapshot.payload_count = payload.size();
-  snapshot.chain = chain.empty() ? nullptr : chain.data();
-  snapshot.chain_count = chain.size();
+  snapshot.type = cpp_event_name_to_c(event.event_name);
+  snapshot.slug = slug.c_str();
+  snapshot.instance_uid = instance_uid.c_str();
+  snapshot.payload = payload.items.empty() ? nullptr : payload.items.data();
+  snapshot.payload_count = payload.items.size();
+  snapshot.chain = chain.items.empty() ? nullptr : chain.items.data();
+  snapshot.chain_count = chain.items.size();
   snapshot.private_entry = event.private_entry ? 1 : 0;
   return callback(&snapshot, user_data);
 }
@@ -739,25 +812,71 @@ extern "C" void holons_cpp_obs_log_from_c(const char *logger_name,
                                            int level,
                                            const char *message,
                                            const char *const *fields) {
+  (void)logger_name;
+  (void)level;
+  (void)message;
+  (void)fields;
+}
+
+extern "C" void holons_cpp_obs_log_fields_from_c(
+    const char *logger_name,
+    int level,
+    const char *message,
+    const holons_field_t *fields,
+    size_t field_count) {
   auto &obs = holons::observability::current();
   if (!obs.enabled(holons::observability::Family::Logs)) {
     return;
   }
   const char *name =
       (logger_name != nullptr && logger_name[0] != '\0') ? logger_name : "c";
-  auto mapped = c_kv_to_map_and_private(fields);
+  bool private_entry = false;
+  auto mapped = c_fields_to_cpp(fields, field_count, &private_entry);
   obs.logger(name).log(c_level_to_cpp(level), message != nullptr ? message : "",
-                       mapped.first, mapped.second);
+                       mapped, private_entry);
 }
 
 extern "C" void holons_cpp_obs_event_from_c(int type,
                                              const char *const *payload) {
+  (void)type;
+  (void)payload;
+}
+
+extern "C" void holons_cpp_obs_event_fields_from_c(
+    int type,
+    const holons_field_t *payload,
+    size_t payload_count) {
   auto &obs = holons::observability::current();
   if (!obs.enabled(holons::observability::Family::Events)) {
     return;
   }
-  auto mapped = c_kv_to_map_and_private(payload);
-  obs.emit(c_event_to_cpp(type), mapped.first, mapped.second);
+  bool private_entry = false;
+  auto mapped = c_fields_to_cpp(payload, payload_count, &private_entry);
+  std::unordered_set<std::string> redact(obs.cfg.redacted_fields.begin(),
+                                         obs.cfg.redacted_fields.end());
+  std::vector<holons::observability::Field> attrs;
+  attrs.reserve(mapped.size() + 5);
+  attrs.emplace_back("holons.slug", obs.cfg.slug);
+  attrs.emplace_back("service.name", obs.cfg.slug);
+  attrs.emplace_back("holons.instance_uid", obs.cfg.instance_uid);
+  attrs.emplace_back("service.instance.id", obs.cfg.instance_uid);
+  attrs.emplace_back("holons.session_id", obs.cfg.session_id);
+  for (auto &field : mapped) {
+    if (redact.count(field.key)) {
+      field.value = std::string{"<redacted>"};
+    }
+    attrs.push_back(std::move(field));
+  }
+  holons::observability::LogRecord event;
+  event.timestamp = std::chrono::system_clock::now();
+  event.level = holons::observability::Level::Info;
+  event.event_name = holons::observability::event_name(c_event_to_cpp(type));
+  event.body = std::string(event.event_name);
+  event.attributes = std::move(attrs);
+  event.private_entry = private_entry;
+  if (obs.event_bus) {
+    obs.event_bus->emit(event);
+  }
 }
 
 extern "C" void holons_cpp_obs_counter_add_from_c(
@@ -798,10 +917,10 @@ extern "C" int holons_cpp_obs_replay_logs_from_c(
     }
     return 0;
   }
-  auto queue = std::make_shared<c_follow_queue<holons::observability::LogEntry>>();
+  auto queue = std::make_shared<c_follow_queue<holons::observability::LogRecord>>();
   auto replay = obs.log_ring->replay_and_subscribe(
       std::chrono::system_clock::time_point{},
-      [queue](const holons::observability::LogEntry &entry) {
+      [queue](const holons::observability::LogRecord &entry) {
         queue->push(entry);
       });
   for (const auto &entry : replay.first) {
@@ -811,7 +930,7 @@ extern "C" int holons_cpp_obs_replay_logs_from_c(
       return 0;
     }
   }
-  holons::observability::LogEntry entry;
+  holons::observability::LogRecord entry;
   while (queue->wait_pop(&entry)) {
     if (!deliver_log_snapshot(entry, callback, user_data)) {
       break;
