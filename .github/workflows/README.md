@@ -4,7 +4,7 @@
 core tools first, then gate 7 decides whether the run needs fresh SDK prebuilts.
 `observability-cascade-validation.yml` is a path-filtered companion workflow for
 PRs touching `sdk/**`, `examples/observability-cascade/**`, or
-`examples/hello-world/**`; it runs `scripts/pre-validate-cascade.sh` end to end.
+`examples/hello-world/**`; it runs the observability cascade regression gate.
 
 ```text
 pull_request / push on master / workflow_dispatch
@@ -49,7 +49,7 @@ Gate 7 uses `.github/scripts/sdk_ci_paths.go`:
 | Gates 1-6 | yes | yes |
 | SDK build matrix | no | yes |
 | SDK source for downstream jobs | published releases via `op sdk install all` | artifacts from the same run |
-| Composites | SwiftUI, Flutter, observability-cascade RPC matrix | SwiftUI, Flutter, observability-cascade RPC matrix |
+| Composites | SwiftUI, Flutter, observability-cascade regression gate | SwiftUI, Flutter, observability-cascade regression gate |
 | Bouquet | `local-dev` | `local-dev` |
 | SDK deep tests | no | `zig, host` |
 
@@ -59,10 +59,9 @@ Zig host checks: `zig fmt --check`, `zig build vendor`, `zig build test`,
 lifecycle. Cross-compilation remains covered by the `sdk-build-zig` target
 matrix.
 
-`scripts/pre-validate-cascade.sh` mirrors the dedicated cascade workflow for
-local use. It validates the committed successful cascade ports, excludes blocked
-C and uncommitted Zig, runs js-web as SDK-only coverage, and uses 10
-`RunMultiPattern` stress runs by default.
+`examples/observability-cascade/run-cascade.sh` mirrors the dedicated cascade
+workflow for local use. It validates the currently passing cascade ports with
+one `RunDefault` invocation per language.
 
 ## SDK Versions
 

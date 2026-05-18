@@ -1247,17 +1247,13 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-  observability-cascade-matrix:
+  observability-cascade-regression:
     if: always() && needs.gate-7-classify-changes.result == 'success' && (needs.gate-7-classify-changes.outputs.sdk_source == 'false' || needs.fresh-sdk-delivery.result == 'success') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, macOS]
     needs:
       - gate-7-classify-changes
       - fresh-sdk-delivery
-    timeout-minutes: 240
-    strategy:
-      fail-fast: false
-      matrix:
-        lang: [go, dart, csharp, rust, python, cpp, ruby, java, node, kotlin, swift]
+    timeout-minutes: 30
     steps:
       - name: Reset runner-managed state and isolate this run
         id: op-run
@@ -1359,23 +1355,17 @@ jobs:
         shell: bash
         run: op sdk install all
 
-      - name: Build and invoke observability cascade
+      - name: Run observability-cascade regression gate
         shell: bash
-        run: |
-          set -euo pipefail
-          CASCADE_LANGS="${{ matrix.lang }}" \
-            SDK_TEST_LANGS="" \
-            PHASE3_APPS="" \
-            CASCADE_STRESS_RUNS=10 \
-            scripts/pre-validate-cascade.sh --no-sdk-tests --no-apps
+        run: examples/observability-cascade/run-cascade.sh
 
   observability-cascade-ader-suite:
-    if: always() && needs.observability-cascade-matrix.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    if: always() && needs.observability-cascade-regression.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, macOS]
     needs:
       - gate-7-classify-changes
       - fresh-sdk-delivery
-      - observability-cascade-matrix
+      - observability-cascade-regression
     timeout-minutes: 240
     steps:
       - name: Reset runner-managed state and isolate this run

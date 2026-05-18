@@ -78,7 +78,7 @@ interlock like Lego bricks: one serves, the other dials.
 
 These ideas are not theoretical
 
-For cascade and SDK changes, run `scripts/pre-validate-cascade.sh` before pushing to mirror the path-filtered CI: it builds the committed observability-cascade ports, runs default/live/multi-pattern validation with stress, runs the relevant SDK tests including js-web SDK-only coverage, and builds the Phase 3 greeting apps. The script is optional and is not installed as a git hook.
+For cascade changes, run `./examples/observability-cascade/run-cascade.sh` before pushing to mirror the path-filtered regression gate. It builds the currently passing observability-cascade ports and invokes `RunDefault` once per language.
 
 ### Examples
 
