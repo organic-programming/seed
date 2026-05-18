@@ -36,6 +36,7 @@ module.exports = {
     resolve: discover.resolve,
     connect: connectApi.connect,
     disconnect: connectApi.disconnect,
+    CurrentTransport: serve.CurrentTransport,
     discover: {
         ...discoveryTypes,
         Discover: discover.Discover,

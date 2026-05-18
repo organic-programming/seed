@@ -122,6 +122,7 @@ export namespace serve {
     function parseFlags(args: string[]): string;
     function parseOptions(args: string[]): ParsedFlags;
     function parseChildFlags(args: string[]): { children: ChildSpec[]; remaining: string[] };
+    function CurrentTransport(): string;
     function run(listenUri: string, registerFn: RegisterFunc): Promise<HolonServer>;
     function runWithOptions(
         listenUri: string,
@@ -130,6 +131,8 @@ export namespace serve {
     ): Promise<HolonServer>;
     const DEFAULT_URI: string;
 }
+
+export function CurrentTransport(): string;
 
 export namespace describe {
     type DescribeResponseMessage = protobuf.Message<{}>;

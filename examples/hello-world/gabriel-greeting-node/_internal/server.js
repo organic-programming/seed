@@ -1,6 +1,6 @@
 'use strict';
 
-const { describe, observability, serve } = require('@organic-programming/holons');
+const { CurrentTransport, describe, observability, serve } = require('@organic-programming/holons');
 
 const publicApi = require('../api/public');
 const describeGenerated = require('../gen/describe_generated');
@@ -16,8 +16,7 @@ class GreetingService {
     const start = process.hrtime.bigint();
     const response = publicApi.sayHello(call.request);
     const name = (call.request.getName() || '').trim() || lookup(response.getLangCode()).defaultName;
-    // Node Serve does not yet expose a handler-visible current transport.
-    const transport = 'unknown';
+    const transport = CurrentTransport() || 'unknown';
     const durationNs = Number(process.hrtime.bigint() - start);
     const message = `Greeted ${name} in ${response.getLanguage()} (${response.getLangCode()})`;
     const obs = observability.current();

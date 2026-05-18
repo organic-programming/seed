@@ -16,6 +16,12 @@ const transport = require('./transport');
 const DEFAULT_URI = transport.DEFAULT_URI;
 const MAX_GRPC_MESSAGE_BYTES = 1 * 1024 * 1024;
 
+let currentTransport = '';
+
+function CurrentTransport() {
+    return currentTransport;
+}
+
 function parseFlags(args) {
     return parseOptions(args).listenUri;
 }
@@ -69,63 +75,73 @@ async function runWithOptions(listenUri, registerFn, reflectOrOptions = false) {
     const options = normalizeRunOptions(reflectOrOptions);
     const parsed = transport.parseURI(listenUri || DEFAULT_URI);
     const logger = options.logger || console;
+    currentTransport = parsed.scheme;
 
-    const server = new grpc.Server({
-        'grpc.max_receive_message_length': MAX_GRPC_MESSAGE_BYTES,
-        'grpc.max_send_message_length': MAX_GRPC_MESSAGE_BYTES,
-    });
-    observability.checkEnv();
-    const obs = (process.env.OP_OBS || '').trim()
-        ? configuredObservability(options.slug || '')
-        : null;
-    registerFn(server);
     try {
-        autoRegisterHolonMeta(server);
+        const server = new grpc.Server({
+            'grpc.max_receive_message_length': MAX_GRPC_MESSAGE_BYTES,
+            'grpc.max_send_message_length': MAX_GRPC_MESSAGE_BYTES,
+        });
+        observability.checkEnv();
+        const obs = (process.env.OP_OBS || '').trim()
+            ? configuredObservability(options.slug || '')
+            : null;
+        registerFn(server);
+        try {
+            autoRegisterHolonMeta(server);
+        } catch (err) {
+            logger.error(`HolonMeta registration failed: ${err.message}`);
+            throw err;
+        }
+        if (obs && obs.families && obs.families.size > 0) {
+            observability.registerService(server, obs);
+        }
+
+        const reflectionEnabled = maybeEnableReflection(server, options);
+
+        let runtime;
+
+        if (parsed.scheme === 'tcp') {
+            runtime = await startTCPServer(server, parsed);
+        } else if (parsed.scheme === 'unix') {
+            runtime = await startUnixServer(server, parsed);
+        } else if (parsed.scheme === 'stdio') {
+            runtime = await startStdioServer(server);
+        } else if (parsed.scheme === 'ws' || parsed.scheme === 'wss') {
+            runtime = await startWSServer(server, parsed.uri, options.ws);
+        } else {
+            throw new Error(`unsupported serve transport: ${parsed.scheme}://`);
+        }
+
+        const promServer = await startPromServer(obs, logger);
+        const metricsAddr = promServer ? promServer.addrURL() : '';
+        if (obs && obs.families && obs.families.size > 0) {
+            startObservabilityRuntime(obs, runtime.publicURI, parsed.scheme, metricsAddr);
+        }
+        const startedRelays = await startMemberRelays(obs, options.memberEndpoints, logger);
+        const closeRuntime = runtime.close;
+        runtime.close = async () => {
+            try {
+                for (const relay of startedRelays) relay.stop();
+                for (const relay of startedRelays) {
+                    if (relay.client && typeof relay.client.close === 'function') relay.client.close();
+                }
+                if (promServer) await promServer.close();
+                await closeRuntime.call(runtime);
+            } finally {
+                currentTransport = '';
+            }
+        };
+        attachRuntime(server, runtime, options.logger || console);
+
+        const mode = reflectionEnabled ? 'reflection ON' : 'reflection OFF';
+        logger.error(`gRPC server listening on ${runtime.publicURI} (${mode})`);
+
+        return server;
     } catch (err) {
-        logger.error(`HolonMeta registration failed: ${err.message}`);
+        currentTransport = '';
         throw err;
     }
-    if (obs && obs.families && obs.families.size > 0) {
-        observability.registerService(server, obs);
-    }
-
-    const reflectionEnabled = maybeEnableReflection(server, options);
-
-    let runtime;
-
-    if (parsed.scheme === 'tcp') {
-        runtime = await startTCPServer(server, parsed);
-    } else if (parsed.scheme === 'unix') {
-        runtime = await startUnixServer(server, parsed);
-    } else if (parsed.scheme === 'stdio') {
-        runtime = await startStdioServer(server);
-    } else if (parsed.scheme === 'ws' || parsed.scheme === 'wss') {
-        runtime = await startWSServer(server, parsed.uri, options.ws);
-    } else {
-        throw new Error(`unsupported serve transport: ${parsed.scheme}://`);
-    }
-
-    const promServer = await startPromServer(obs, logger);
-    const metricsAddr = promServer ? promServer.addrURL() : '';
-    if (obs && obs.families && obs.families.size > 0) {
-        startObservabilityRuntime(obs, runtime.publicURI, parsed.scheme, metricsAddr);
-    }
-    const startedRelays = await startMemberRelays(obs, options.memberEndpoints, logger);
-    const closeRuntime = runtime.close;
-    runtime.close = async () => {
-        for (const relay of startedRelays) relay.stop();
-        for (const relay of startedRelays) {
-            if (relay.client && typeof relay.client.close === 'function') relay.client.close();
-        }
-        if (promServer) await promServer.close();
-        await closeRuntime.call(runtime);
-    };
-    attachRuntime(server, runtime, options.logger || console);
-
-    const mode = reflectionEnabled ? 'reflection ON' : 'reflection OFF';
-    logger.error(`gRPC server listening on ${runtime.publicURI} (${mode})`);
-
-    return server;
 }
 
 function configuredObservability(slug) {
@@ -642,6 +658,7 @@ function normalizePublicHost(host) {
 }
 
 module.exports = {
+    CurrentTransport,
     parseFlags,
     parseOptions,
     parseChildFlags,

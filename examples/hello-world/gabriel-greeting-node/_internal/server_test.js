@@ -7,7 +7,7 @@ const { observability } = require('@organic-programming/holons');
 
 const pb = require('../gen/node/greeting/v1/greeting_pb.js');
 const grpcPb = require('../gen/node/greeting/v1/greeting_grpc_pb.js');
-const { GreetingService } = require('./server');
+const { GreetingService, listenAndServe } = require('./server');
 
 function startServer() {
   const server = new grpc.Server();
@@ -109,7 +109,7 @@ test('RPC SayHello falls back to English', async (t) => {
   assert.equal(response.getLangCode(), 'en');
 });
 
-test('RPC SayHello emits observability signals', async (t) => {
+test('SayHello emits observability signals with stdio transport', async (t) => {
   const oldOpObs = process.env.OP_OBS;
   process.env.OP_OBS = 'logs,metrics';
   observability.reset();
@@ -123,15 +123,24 @@ test('RPC SayHello emits observability signals', async (t) => {
     }
   });
 
-  const runtime = await startServer();
-  t.after(() => runtime.client.close());
-  t.after(() => runtime.server.forceShutdown());
+  const server = await listenAndServe('stdio://');
+  t.after(async () => {
+    if (server.__holonsRuntime) await server.stopHolon();
+  });
 
   const request = new pb.SayHelloRequest();
   request.setName(' Bob ');
   request.setLangCode('en');
 
-  const response = await callUnary(runtime.client, 'sayHello', request);
+  const response = await new Promise((resolve, reject) => {
+    new GreetingService().sayHello({ request }, (error, out) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(out);
+    });
+  });
 
   assert.equal(response.getGreeting(), 'Hello Bob');
   const snapshot = obs.registry.snapshot();
@@ -140,7 +149,7 @@ test('RPC SayHello emits observability signals', async (t) => {
   assert.deepEqual(counter.labels, {
     lang_code: 'en',
     language: 'English',
-    transport: 'unknown',
+    transport: 'stdio',
   });
   assert.equal(counter.value, 1);
 
@@ -164,7 +173,7 @@ test('RPC SayHello emits observability signals', async (t) => {
   assert.deepEqual(attr(entry, 'language').value, { string_value: 'English' });
   assert.deepEqual(attr(entry, 'name').value, { string_value: 'Bob' });
   assert.deepEqual(attr(entry, 'greeting').value, { string_value: 'Hello Bob' });
-  assert.deepEqual(attr(entry, 'transport').value, { string_value: 'unknown' });
+  assert.deepEqual(attr(entry, 'transport').value, { string_value: 'stdio' });
   assert.equal(Object.prototype.hasOwnProperty.call(attr(entry, 'duration_ns').value, 'int_value'), true);
   assert.ok(Number(attr(entry, 'duration_ns').value.int_value) >= 0);
 });

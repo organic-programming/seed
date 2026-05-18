@@ -545,6 +545,31 @@ describe('serve', () => {
         });
     });
 
+    it('CurrentTransport tracks stdio serve lifecycle', async (t) => {
+        if (!await canListenOnLoopback()) {
+            t.skip('socket bind not permitted in this environment');
+            return;
+        }
+
+        assert.equal(serve.CurrentTransport(), '');
+        useStaticDescribeResponse(t, holonDescribe);
+
+        const server = await serve.runWithOptions('stdio://', () => {}, {
+            reflect: false,
+            logger: {
+                error() {},
+                warn() {},
+            },
+        });
+        t.after(async () => {
+            if (server.__holonsRuntime) await server.stopHolon();
+        });
+
+        assert.equal(serve.CurrentTransport(), 'stdio');
+        await server.stopHolon();
+        assert.equal(serve.CurrentTransport(), '');
+    });
+
     it('runWithOptions() fails loudly when no Incode Description is registered', async () => {
         const logs = [];
 
