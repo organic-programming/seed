@@ -106,7 +106,10 @@ class ObservabilityLogRecord {
     this.private = false,
   });
 
-  factory ObservabilityLogRecord.fromLogRecord(obs_pb.LogRecord record) {
+  factory ObservabilityLogRecord.fromLogRecord(
+    obs_pb.LogRecord record, {
+    bool private = false,
+  }) {
     return ObservabilityLogRecord(
       timestamp: _dateTimeFromUnixNano(record.timeUnixNano.toInt()),
       level: _levelFromSeverity(record.severityNumber),
@@ -133,6 +136,7 @@ class ObservabilityLogRecord {
         for (final hop in record.chain) holons.Hop(slug: hop, instanceUid: ''),
       ],
       eventName: record.eventName,
+      private: private,
     );
   }
 
@@ -140,7 +144,7 @@ class ObservabilityLogRecord {
     return ObservabilityLogRecord(
       timestamp: entry.timestamp,
       level: entry.level,
-      severityText: entry.level.name.toUpperCase(),
+      severityText: _levelLabel(entry.level),
       loggerName: entry.loggerName,
       slug: entry.slug,
       instanceUid: entry.instanceUid,
@@ -164,7 +168,7 @@ class ObservabilityLogRecord {
     return ObservabilityLogRecord(
       timestamp: event.timestamp,
       level: holons.Level.info,
-      severityText: holons.Level.info.name.toUpperCase(),
+      severityText: _levelLabel(holons.Level.info),
       slug: event.slug,
       instanceUid: event.instanceUid,
       sessionId: event.sessionId,
@@ -220,12 +224,24 @@ ObservabilityLogRecord _logRecordFromObject(Object entry) {
   if (entry is obs_pb.LogRecord) {
     return ObservabilityLogRecord.fromLogRecord(entry);
   }
+  if (entry is holons.LogRecord) {
+    return ObservabilityLogRecord.fromLogRecord(
+      entry.record,
+      private: entry.private,
+    );
+  }
   return ObservabilityLogRecord.fromLegacyLogEntry(entry);
 }
 
 ObservabilityLogRecord _eventRecordFromObject(Object event) {
   if (event is obs_pb.LogRecord) {
     return ObservabilityLogRecord.fromLogRecord(event);
+  }
+  if (event is holons.LogRecord) {
+    return ObservabilityLogRecord.fromLogRecord(
+      event.record,
+      private: event.private,
+    );
   }
   return ObservabilityLogRecord.fromLegacyEvent(event);
 }
@@ -244,6 +260,16 @@ holons.Level _levelFromSeverity(obs_pb.SeverityNumber severity) {
     obs_pb.SeverityNumber.SEVERITY_NUMBER_FATAL => holons.Level.fatal,
     _ => holons.Level.unset,
   };
+}
+
+String _levelLabel(holons.Level level) {
+  if (level == holons.Level.trace) return 'TRACE';
+  if (level == holons.Level.debug) return 'DEBUG';
+  if (level == holons.Level.info) return 'INFO';
+  if (level == holons.Level.warn) return 'WARN';
+  if (level == holons.Level.error) return 'ERROR';
+  if (level == holons.Level.fatal) return 'FATAL';
+  return 'UNSPECIFIED';
 }
 
 String _attributeString(Iterable<obs_pb.KeyValue> attributes, String key) {

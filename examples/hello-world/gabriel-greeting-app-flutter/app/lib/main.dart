@@ -74,7 +74,7 @@ Future<void> main() async {
   final observability = observabilityKit.obs;
   greetingController.attachObservability(observability);
   observability.emit(
-    holons.EventType.instanceSpawned,
+    holons.eventInstanceSpawned,
     payload: const {'runtime': 'flutter'},
   );
   observability.logger('app').info('Flutter main starting');
