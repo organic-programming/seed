@@ -25,7 +25,10 @@ pub fn run_cli(args: &[String], stdout: &mut dyn Write, stderr: &mut dyn Write) 
             };
 
             runtime.block_on(async {
-                let _ = holons::observability::from_env(holons::observability::Config::default());
+                let _ = holons::observability::from_env(holons::observability::Config {
+                    slug: manifest_slug(),
+                    ..holons::observability::Config::default()
+                });
                 let mut downstream = None;
                 if let Some(first) = children.first() {
                     match holons::composite::spawn_member(holons::composite::SpawnOptions {
@@ -92,6 +95,32 @@ fn parse_transport(args: &[String]) -> String {
         index += 1;
     }
     "stdio".to_string()
+}
+
+fn manifest_slug() -> String {
+    let response = crate::gen::describe_generated::static_describe_response();
+    let Some(manifest) = response.manifest else {
+        return String::new();
+    };
+    if let Some(artifacts) = manifest.artifacts {
+        let binary = artifacts.binary.trim();
+        if !binary.is_empty() {
+            return binary.to_string();
+        }
+    }
+    let Some(identity) = manifest.identity else {
+        return String::new();
+    };
+    format!(
+        "{}-{}",
+        identity.given_name.trim(),
+        identity.family_name.trim().trim_end_matches('?')
+    )
+    .trim()
+    .to_ascii_lowercase()
+    .replace(' ', "-")
+    .trim_matches('-')
+    .to_string()
 }
 
 fn canonical_command(raw: &str) -> String {

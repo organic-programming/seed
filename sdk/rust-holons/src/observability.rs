@@ -1301,7 +1301,27 @@ pub fn to_proto_log_record(e: &LogRecord) -> ProtoLogRecord {
         trace_id: Vec::new(),
         span_id: Vec::new(),
         event_name: e.event_name.clone(),
-        chain: e.chain.iter().map(|hop| hop.slug.clone()).collect(),
+        chain: e.chain.iter().map(hop_to_string).collect(),
+    }
+}
+
+fn hop_to_string(hop: &Hop) -> String {
+    if hop.instance_uid.is_empty() {
+        return hop.slug.clone();
+    }
+    format!("{}/{}", hop.slug, hop.instance_uid)
+}
+
+fn hop_from_string(value: String) -> Hop {
+    if let Some(index) = value.rfind('/') {
+        return Hop {
+            slug: value[..index].to_string(),
+            instance_uid: value[index + 1..].to_string(),
+        };
+    }
+    Hop {
+        slug: value,
+        instance_uid: String::new(),
     }
 }
 
@@ -1351,14 +1371,7 @@ pub fn from_proto_log_record(entry: ProtoLogRecord) -> LogRecord {
         message: any_value_to_field(entry.body).as_string(),
         fields,
         caller,
-        chain: entry
-            .chain
-            .into_iter()
-            .map(|slug| Hop {
-                slug,
-                instance_uid: String::new(),
-            })
-            .collect(),
+        chain: entry.chain.into_iter().map(hop_from_string).collect(),
         event_name: entry.event_name,
         private: false,
     }
@@ -2328,6 +2341,16 @@ mod tests {
         let c2 = enrich_for_multilog(&c1, "gabriel-greeting-go", "ea34");
         assert_eq!(c2.len(), 2);
         assert_eq!(c2[1].slug, "gabriel-greeting-go");
+        assert_eq!(c2[1].instance_uid, "ea34");
+        assert_eq!(hop_to_string(&c2[1]), "gabriel-greeting-go/ea34");
+        assert_eq!(
+            hop_from_string("gabriel-greeting-go/ea34".to_string()).instance_uid,
+            "ea34"
+        );
+        assert_eq!(
+            hop_from_string("legacy-slug-only".to_string()).instance_uid,
+            ""
+        );
         // original unchanged
         assert_eq!(c1.len(), 1);
     }

@@ -374,11 +374,11 @@ fn observability_from_options(
         .unwrap_or_else(|| std::env::vars().collect());
     observability::check_env_from(&env).map_err(|err| boxed_err(err.to_string()))?;
     let current = observability::current();
-    if current.enabled(observability::Family::Logs)
+    let current_enabled = current.enabled(observability::Family::Logs)
         || current.enabled(observability::Family::Metrics)
         || current.enabled(observability::Family::Events)
-        || current.enabled(observability::Family::Prom)
-    {
+        || current.enabled(observability::Family::Prom);
+    if current_enabled && !current.cfg.slug.trim().is_empty() {
         return Ok(Some(current));
     }
     if env.get("OP_OBS").map(|s| s.trim()).unwrap_or("").is_empty() {
@@ -922,6 +922,48 @@ mod tests {
         assert_eq!(current_transport(), "stdio");
         clear_current_transport();
         assert_eq!(current_transport(), "");
+    }
+
+    #[test]
+    fn test_observability_from_options_repairs_slugless_current_runtime() {
+        observability::reset();
+        let registry = TempDir::new().unwrap();
+        let mut env = std::collections::HashMap::new();
+        env.insert("OP_OBS".to_string(), "logs,events".to_string());
+        env.insert(
+            "OP_RUN_DIR".to_string(),
+            registry.path().to_string_lossy().into_owned(),
+        );
+        env.insert("OP_INSTANCE_UID".to_string(), "rust-obs-1".to_string());
+
+        let configured =
+            observability::from_env_map(observability::Config::default(), &env).unwrap();
+        assert!(configured.enabled(observability::Family::Logs));
+        assert!(configured.cfg.slug.is_empty());
+
+        let obs = observability_from_options(&RunOptions {
+            env: Some(env),
+            describe_response: Some(DescribeResponse {
+                manifest: Some(embedded_manifest(
+                    "Observable",
+                    "Holon",
+                    "Repairs slugless observability.",
+                    "1.0.0",
+                )),
+                services: Vec::new(),
+            }),
+            ..RunOptions::default()
+        })
+        .unwrap()
+        .unwrap();
+
+        assert_eq!(obs.cfg.slug, "observable-holon");
+        assert!(obs.cfg.run_dir.ends_with(&format!(
+            "{}observable-holon{}rust-obs-1",
+            std::path::MAIN_SEPARATOR,
+            std::path::MAIN_SEPARATOR
+        )));
+        observability::reset();
     }
 
     #[tokio::test]
