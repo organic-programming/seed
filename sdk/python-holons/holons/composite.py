@@ -209,7 +209,7 @@ class CheckOutcome:
     evidence: str = ""
 
 
-ChainHop = observability.Hop
+ChainSlug = str
 
 
 @dataclass(frozen=True)
@@ -217,7 +217,7 @@ class LogCheckOptions:
     conn: grpc.Channel | None = None
     sender: str = ""
     leaf_uid: str = ""
-    expected_chain: tuple[ChainHop, ...] = ()
+    expected_chain: tuple[ChainSlug, ...] = ()
     timeout: float = 3.0
     poll_interval: float = 0.1
     live: bool = False
@@ -226,9 +226,9 @@ class LogCheckOptions:
 @dataclass(frozen=True)
 class EventCheckOptions:
     conn: grpc.Channel | None = None
-    event_type: observability.EventType = observability.EventType.INSTANCE_READY
+    event_name: str = observability.EVENT_INSTANCE_READY
     leaf_uid: str = ""
-    expected_chain: tuple[ChainHop, ...] = ()
+    expected_chain: tuple[ChainSlug, ...] = ()
     timeout: float = 3.0
     poll_interval: float = 0.1
     live: bool = False
@@ -429,14 +429,30 @@ def _resolve_relay_identity(conn: grpc.Channel, desc: describe_pb2.DescribeRespo
     client = observability_pb2_grpc.HolonObservabilityStub(conn)
     try:
         for event in client.Events(observability_pb2.EventsRequest(follow=False), timeout=1.0):
-            if not event.chain and event.instance_uid:
-                return _RelayIdentity(slug=event.slug or fallback, uid=event.instance_uid)
+            uid = observability.string_attribute(
+                event.attributes,
+                observability.ATTR_HOLONS_INSTANCE_UID,
+            )
+            if not event.chain and uid:
+                slug = observability.string_attribute(
+                    event.attributes,
+                    observability.ATTR_HOLONS_SLUG,
+                )
+                return _RelayIdentity(slug=slug or fallback, uid=uid)
     except Exception:
         pass
     try:
         for entry in client.Logs(observability_pb2.LogsRequest(follow=False), timeout=1.0):
-            if not entry.chain and entry.instance_uid:
-                return _RelayIdentity(slug=entry.slug or fallback, uid=entry.instance_uid)
+            uid = observability.string_attribute(
+                entry.attributes,
+                observability.ATTR_HOLONS_INSTANCE_UID,
+            )
+            if not entry.chain and uid:
+                slug = observability.string_attribute(
+                    entry.attributes,
+                    observability.ATTR_HOLONS_SLUG,
+                )
+                return _RelayIdentity(slug=slug or fallback, uid=uid)
     except Exception:
         pass
     raise RuntimeError("resolve relay identity: peer did not expose a local log or event with slug and instance_uid")
@@ -456,20 +472,23 @@ def _slugify(value: str) -> str:
     return value.strip("-")
 
 
-def _read_log_entries(conn: grpc.Channel | None) -> list[observability.LogEntry]:
+def _read_log_entries(conn: grpc.Channel | None) -> list[observability.LogRecord]:
     if conn is None:
         ring = observability.current().log_ring
         if ring is None:
             raise RuntimeError("logs family is not enabled")
         return ring.drain()
     stream = observability_pb2_grpc.HolonObservabilityStub(conn).Logs(
-        observability_pb2.LogsRequest(min_level=observability_pb2.INFO, follow=False),
+        observability_pb2.LogsRequest(
+            min_severity_number=observability_pb2.SEVERITY_NUMBER_INFO,
+            follow=False,
+        ),
         timeout=2.0,
     )
-    return [observability.from_proto_log_entry(entry) for entry in stream]
+    return [observability.from_proto_log_record(entry) for entry in stream]
 
 
-def _read_event_entries(conn: grpc.Channel | None) -> list[observability.Event]:
+def _read_event_entries(conn: grpc.Channel | None) -> list[observability.LogRecord]:
     if conn is None:
         bus = observability.current().event_bus
         if bus is None:
@@ -479,42 +498,49 @@ def _read_event_entries(conn: grpc.Channel | None) -> list[observability.Event]:
         observability_pb2.EventsRequest(follow=False),
         timeout=2.0,
     )
-    return [observability.from_proto_event(event) for event in stream]
+    return [observability.from_proto_log_record(event) for event in stream]
 
 
-def _match_relayed_log(entries: list[observability.LogEntry], opts: LogCheckOptions) -> CheckOutcome:
+def _match_relayed_log(entries: list[observability.LogRecord], opts: LogCheckOptions) -> CheckOutcome:
     for entry in entries:
-        if entry.message != "tick received":
+        record = entry.record
+        if observability.body_string(record) != "tick received":
             continue
-        if entry.fields.get("sender") != opts.sender or entry.fields.get("responder_uid") != opts.leaf_uid:
+        fields = observability.attributes_map(record.attributes)
+        if fields.get("sender") != opts.sender or fields.get("responder_uid") != opts.leaf_uid:
             continue
-        chain_err = _compare_chain(entry.chain, opts.expected_chain)
+        chain_err = _compare_chain(record.chain, opts.expected_chain)
         if chain_err:
             return CheckOutcome(evidence=_compact(f"matching log bad chain: {chain_err}"))
         return CheckOutcome(pass_=True)
     return CheckOutcome(evidence=_compact(f"no relayed tick log sender={opts.sender} leaf_uid={opts.leaf_uid} entries={len(entries)}"))
 
 
-def _match_relayed_event(events: list[observability.Event], opts: EventCheckOptions) -> CheckOutcome:
-    wanted = opts.event_type
+def _match_relayed_event(events: list[observability.LogRecord], opts: EventCheckOptions) -> CheckOutcome:
+    wanted = opts.event_name
     for event in events:
-        if event.type != wanted or event.instance_uid != opts.leaf_uid:
+        record = event.record
+        uid = observability.string_attribute(
+            record.attributes,
+            observability.ATTR_HOLONS_INSTANCE_UID,
+        )
+        if record.event_name != wanted or uid != opts.leaf_uid:
             continue
-        chain_err = _compare_chain(event.chain, opts.expected_chain)
+        chain_err = _compare_chain(record.chain, opts.expected_chain)
         if chain_err:
             return CheckOutcome(evidence=_compact(f"matching event bad chain: {chain_err}"))
         return CheckOutcome(pass_=True)
-    return CheckOutcome(evidence=_compact(f"no relayed {wanted.name} event leaf_uid={opts.leaf_uid} events={len(events)}"))
+    return CheckOutcome(evidence=_compact(f"no relayed {wanted} event leaf_uid={opts.leaf_uid} events={len(events)}"))
 
 
-def _compare_chain(got: Iterable[ChainHop], want: Iterable[ChainHop]) -> str:
+def _compare_chain(got: Iterable[str], want: Iterable[str]) -> str:
     got_list = list(got)
     want_list = list(want)
     if len(got_list) != len(want_list):
         return f"chain length {len(got_list)} want {len(want_list)}"
     for idx, (actual, expected) in enumerate(zip(got_list, want_list)):
-        if actual.slug != expected.slug or actual.instance_uid != expected.instance_uid:
-            return f"hop {idx}={actual.slug}/{actual.instance_uid} want {expected.slug}/{expected.instance_uid}"
+        if actual != expected:
+            return f"hop {idx}={actual} want {expected}"
     return ""
 
 

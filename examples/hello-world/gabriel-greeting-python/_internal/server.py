@@ -8,7 +8,7 @@ from support import ensure_import_paths
 ensure_import_paths()
 
 from holons import describe, observability
-from holons.serve import run_with_options
+from holons.serve import ServeOptions, run_with_serve_options
 from gen import describe_generated
 from v1 import greeting_pb2_grpc
 
@@ -66,10 +66,10 @@ def listen_and_serve(
     reflect: bool = False,
     on_listen: Callable[[str], None] | None = None,
 ) -> None:
-    run_with_options(
+    run_with_serve_options(
         normalize_listen_uri(listen_uri),
         _register,
-        reflect=reflect,
+        ServeOptions(reflect=reflect, slug="gabriel-greeting-python"),
         on_listen=on_listen,
     )
 

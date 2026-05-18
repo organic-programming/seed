@@ -253,7 +253,7 @@ def _start_observability_runtime(
     observability.enable_disk_writers(obs.cfg.run_dir)
     if obs.enabled(observability.Family.EVENTS):
         obs.emit(
-            observability.EventType.INSTANCE_READY,
+            observability.EVENT_INSTANCE_READY,
             {"listener": actual_uri, "metrics_addr": metrics_addr},
         )
     observability.write_meta_json(
@@ -365,27 +365,57 @@ def _resolve_relay_member_identity(channel: grpc.Channel, member: MemberRef) -> 
     try:
         stream = client.Events(
             observability_pb2.EventsRequest(
-                types=[observability_pb2.INSTANCE_READY],
+                event_names=[observability.EVENT_INSTANCE_READY],
                 follow=False,
             ),
             timeout=2.0,
         )
         for event in stream:
-            if not event.instance_uid or event.chain:
+            uid = observability.string_attribute(
+                event.attributes,
+                observability.ATTR_HOLONS_INSTANCE_UID,
+            )
+            if not uid or event.chain:
                 continue
-            slug = event.slug.strip() or member.slug
-            return MemberRef(slug=slug, uid=event.instance_uid.strip(), address=member.address)
+            slug = observability.string_attribute(
+                event.attributes,
+                observability.ATTR_HOLONS_SLUG,
+            ).strip() or member.slug
+            return MemberRef(slug=slug, uid=uid.strip(), address=member.address)
     except Exception:
         pass
 
     try:
-        snap = client.Metrics(observability_pb2.MetricsRequest(), timeout=2.0)
-        if snap.instance_uid:
-            slug = snap.slug.strip() or member.slug
-            return MemberRef(slug=slug, uid=snap.instance_uid.strip(), address=member.address)
+        for metric in client.Metrics(observability_pb2.MetricsRequest(), timeout=2.0):
+            identity = _metric_identity(metric, member.slug)
+            if identity is not None:
+                return MemberRef(slug=identity.slug, uid=identity.uid, address=member.address)
     except Exception:
         pass
     return member
+
+
+def _metric_identity(metric: observability_pb2.Metric, fallback_slug: str) -> MemberRef | None:
+    attr_sets = []
+    if metric.HasField("gauge"):
+        attr_sets.extend(point.attributes for point in metric.gauge.data_points)
+    if metric.HasField("sum"):
+        attr_sets.extend(point.attributes for point in metric.sum.data_points)
+    if metric.HasField("histogram"):
+        attr_sets.extend(point.attributes for point in metric.histogram.data_points)
+    for attrs in attr_sets:
+        uid = observability.string_attribute(
+            attrs,
+            observability.ATTR_HOLONS_INSTANCE_UID,
+        )
+        if not uid:
+            continue
+        slug = observability.string_attribute(
+            attrs,
+            observability.ATTR_HOLONS_SLUG,
+        ).strip() or fallback_slug
+        return MemberRef(slug=slug, uid=uid.strip(), address="")
+    return None
 
 
 def _normalize_relay_dial_target(target: str) -> str:

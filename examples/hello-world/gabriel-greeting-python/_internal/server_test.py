@@ -100,10 +100,12 @@ class GreetingServerTest(unittest.TestCase):
         entries = [
             entry
             for entry in obs.log_ring.drain()
-            if entry.message == "Greeted Bob in English (en)"
+            if observability.body_string(entry.record) == "Greeted Bob in English (en)"
         ]
         self.assertEqual(len(entries), 1)
-        fields = entries[0].fields
+        record = entries[0].record
+        attrs = {attr.key: attr.value for attr in record.attributes}
+        fields = observability.attributes_map(record.attributes)
         self.assertEqual(
             set(fields),
             {"lang_code", "language", "name", "greeting", "transport", "duration_ns"},
@@ -113,7 +115,14 @@ class GreetingServerTest(unittest.TestCase):
         self.assertEqual(fields["name"], "Bob")
         self.assertEqual(fields["greeting"], "Hello Bob")
         self.assertEqual(fields["transport"], "unknown")
-        self.assertGreaterEqual(int(fields["duration_ns"]), 0)
+        self.assertGreaterEqual(fields["duration_ns"], 0)
+        self.assertEqual(record.body.string_value, "Greeted Bob in English (en)")
+        self.assertEqual(attrs["holons.slug"].string_value, "gabriel-greeting-python")
+        self.assertEqual(attrs["service.name"].string_value, "gabriel-greeting-python")
+        self.assertTrue(attrs["holons.session_id"].string_value)
+        self.assertEqual(attrs["lang_code"].WhichOneof("value"), "string_value")
+        self.assertEqual(attrs["duration_ns"].WhichOneof("value"), "int_value")
+        self.assertEqual(attrs["transport"].string_value, "unknown")
 
     def test_normalize_listen_uri_expands_empty_tcp_host(self) -> None:
         self.assertEqual(normalize_listen_uri("tcp://:9090"), "tcp://0.0.0.0:9090")
