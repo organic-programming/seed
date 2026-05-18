@@ -665,6 +665,39 @@ void main() {
     expect(payload, contains('"slug": "gabriel-greeting-app-flutter"'));
     expect(payload, contains(running.publicUri));
   });
+
+  test('serve repairs slugless configured observability runtime', () async {
+    final root =
+        Directory.systemTemp.createTempSync('dart-obs-serve-slugless-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    useStaticResponse(_sampleDescribeResponse());
+
+    final env = {
+      'OP_OBS': 'logs,events',
+      'OP_RUN_DIR': root.path,
+      'OP_INSTANCE_UID': 'uid-1',
+    };
+    final configured = obs.fromEnv(const obs.Config(), env);
+    expect(configured.cfg.slug, isEmpty);
+
+    final running = await startWithOptions(
+      'tcp://127.0.0.1:0',
+      const [],
+      options: ServeOptions(
+        environment: env,
+        logger: (_) {},
+      ),
+    );
+    addTearDown(running.stop);
+
+    expect(obs.current().cfg.slug, equals('dart-observability'));
+    final meta = File(
+        '${root.path}${Platform.pathSeparator}dart-observability${Platform.pathSeparator}uid-1${Platform.pathSeparator}meta.json');
+    expect(meta.existsSync(), isTrue);
+    final payload = meta.readAsStringSync();
+    expect(payload, contains('"slug": "dart-observability"'));
+    expect(payload, contains(running.publicUri));
+  });
 }
 
 class _FakeObservabilityHarness {

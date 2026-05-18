@@ -533,7 +533,7 @@ observability.Observability? _resolveObservability(Map<String, String> env) {
     return null;
   }
   final current = observability.current();
-  if (current.families.isNotEmpty) {
+  if (current.families.isNotEmpty && current.cfg.slug.trim().isNotEmpty) {
     return current;
   }
   return observability.fromEnv(

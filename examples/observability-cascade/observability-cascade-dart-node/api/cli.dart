@@ -27,7 +27,10 @@ Future<int> main(
         final childFlags = parseChildFlags(args.sublist(1));
         final parsed = parseOptions(childFlags.remaining);
         final transportName = parseTransport(childFlags.remaining);
-        fromEnv(const Config(), io.Platform.environment);
+        fromEnv(
+          Config(slug: registeredManifestSlug()),
+          io.Platform.environment,
+        );
         SpawnedMember? downstream;
         try {
           if (childFlags.children.isNotEmpty) {
