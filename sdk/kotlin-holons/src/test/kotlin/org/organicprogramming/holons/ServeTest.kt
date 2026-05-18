@@ -84,25 +84,25 @@ class ServeTest {
                 val inst = Observability.current()
                 inst.logger("serve-test").info("serve-log", mapOf("sdk" to "kotlin"))
                 inst.counter("serve_requests_total")!!.inc()
-                inst.emit(Observability.EventType.INSTANCE_READY)
+                inst.emit(Observability.EventName.INSTANCE_READY)
 
                 val logs = ClientCalls.blockingServerStreamingCall(
                     channel,
                     Observability.logsMethod,
                     CallOptions.DEFAULT,
                     ObsProto.LogsRequest.newBuilder()
-                        .setMinLevel(ObsProto.LogLevel.INFO)
+                        .setMinSeverityNumber(ObsProto.SeverityNumber.SEVERITY_NUMBER_INFO)
                         .build(),
                 ).asSequence().toList()
-                assertTrue(logs.any { it.message == "serve-log" })
+                assertTrue(logs.any { it.body.stringValue == "serve-log" })
 
-                val metrics = ClientCalls.blockingUnaryCall(
+                val metrics = ClientCalls.blockingServerStreamingCall(
                     channel,
                     Observability.metricsMethod,
                     CallOptions.DEFAULT,
                     ObsProto.MetricsRequest.getDefaultInstance(),
-                )
-                assertTrue(metrics.samplesList.any { it.name == "serve_requests_total" })
+                ).asSequence().toList()
+                assertTrue(metrics.any { it.name == "serve_requests_total" && it.hasSum() })
 
                 val events = ClientCalls.blockingServerStreamingCall(
                     channel,
@@ -110,7 +110,7 @@ class ServeTest {
                     CallOptions.DEFAULT,
                     ObsProto.EventsRequest.getDefaultInstance(),
                 ).asSequence().toList()
-                assertTrue(events.any { it.type == ObsProto.EventType.INSTANCE_READY })
+                assertTrue(events.any { it.eventName == Observability.EventName.INSTANCE_READY })
 
                 assertTrue(
                     Files.isRegularFile(
@@ -130,6 +130,24 @@ class ServeTest {
             Observability.reset()
             root.toFile().deleteRecursively()
         }
+    }
+
+    @Test
+    fun currentTransportTracksStdioServeLifecycle() {
+        assertEquals("", CurrentTransport.get())
+        Describe.useStaticResponse(staticDescribeResponse())
+        val running = Serve.startWithOptions(
+            "stdio://",
+            emptyList<io.grpc.BindableService>(),
+            Serve.Options(describe = true, logger = {}),
+        )
+        try {
+            assertEquals("stdio", CurrentTransport.get())
+        } finally {
+            running.stop()
+            Describe.useStaticResponse(null)
+        }
+        assertEquals("", CurrentTransport.get())
     }
 
     @Test
@@ -157,7 +175,7 @@ class ServeTest {
 
             val childObs = Observability.current()
             childObs.logger("tick").info("tick received", mapOf("sender" to "serve-test"))
-            childObs.emit(Observability.EventType.CONFIG_RELOADED, mapOf("source" to "serve-test"))
+            childObs.emit(Observability.EventName.CONFIG_RELOADED, mapOf("source" to "serve-test"))
 
             parent = Serve.startWithOptions(
                 "tcp://127.0.0.1:0",
@@ -184,15 +202,14 @@ class ServeTest {
                 parentObs.logRing!!.drain().any { entry ->
                     entry.message == "tick received" &&
                         entry.chain.size == 1 &&
-                        entry.chain[0].slug == "cascade-node-kotlin-child" &&
-                        entry.chain[0].instanceUid == "kotlin-child-1"
+                        entry.chain[0] == "cascade-node-kotlin-child"
                 }
             }
             awaitCondition {
                 parentObs.eventBus!!.drain().any { event ->
-                    event.type == Observability.EventType.CONFIG_RELOADED &&
+                    event.eventName == Observability.EventName.CONFIG_RELOADED &&
                         event.chain.size == 1 &&
-                        event.chain[0].instanceUid == "kotlin-child-1"
+                        event.chain[0] == "cascade-node-kotlin-child"
                 }
             }
 

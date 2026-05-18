@@ -69,6 +69,7 @@ object Serve {
                 server.shutdownNow()
                 server.awaitTermination(gracePeriodSeconds, TimeUnit.SECONDS)
             }
+            CurrentTransport.clear()
         }
     }
 
@@ -125,68 +126,74 @@ object Serve {
         options: Options = Options(),
     ): RunningServer {
         val parsed = Transport.parseURI(listenUri.ifBlank { Transport.DEFAULT_URI })
-        val resolvedServices = services.toMutableList()
-        val extraDefinitions = mutableListOf<ServerServiceDefinition>()
-        val describeEnabled =
-            try {
-                maybeAddDescribe(extraDefinitions, options)
-            } catch (error: Exception) {
-                val message = error.message ?: error::class.simpleName ?: "unknown error"
-                options.logger("HolonMeta registration failed: $message")
-                throw error
-            }
-        val reflectionEnabled = maybeAddReflection(extraDefinitions, options)
-        val obs = maybeAddObservability(extraDefinitions, options)
-
-        return when (parsed.scheme) {
-            "tcp" -> {
-                val host = parsed.host ?: "0.0.0.0"
-                val port = parsed.port ?: 9090
-                val bound = bindTcpServer(host, port, resolvedServices, extraDefinitions)
-                val auxiliary = startAuxiliaryRuntime(obs, bound.publicUri, "tcp", options)
-                announce(bound.publicUri, describeEnabled, reflectionEnabled, options)
-                RunningServer(bound.server, bound.publicUri, options.logger, auxiliaryStop = auxiliary)
-            }
-            "stdio" -> {
-                val bound = bindTcpServer("127.0.0.1", 0, resolvedServices, extraDefinitions)
-                lateinit var running: RunningServer
-                val bridge = StdioServerBridge("127.0.0.1", parseTarget(bound.publicUri).second) {
-                    running.stop(options.shutdownGracePeriodSeconds)
+        CurrentTransport.set(parsed.scheme)
+        return try {
+            val resolvedServices = services.toMutableList()
+            val extraDefinitions = mutableListOf<ServerServiceDefinition>()
+            val describeEnabled =
+                try {
+                    maybeAddDescribe(extraDefinitions, options)
+                } catch (error: Exception) {
+                    val message = error.message ?: error::class.simpleName ?: "unknown error"
+                    options.logger("HolonMeta registration failed: $message")
+                    throw error
                 }
-                running = RunningServer(
-                    bound.server,
-                    "stdio://",
-                    options.logger,
-                    auxiliaryStop = combineStops(
-                        { bridge.close() },
-                        startAuxiliaryRuntime(obs, "stdio://", "stdio", options),
-                    ),
+            val reflectionEnabled = maybeAddReflection(extraDefinitions, options)
+            val obs = maybeAddObservability(extraDefinitions, options)
+
+            when (parsed.scheme) {
+                "tcp" -> {
+                    val host = parsed.host ?: "0.0.0.0"
+                    val port = parsed.port ?: 9090
+                    val bound = bindTcpServer(host, port, resolvedServices, extraDefinitions)
+                    val auxiliary = startAuxiliaryRuntime(obs, bound.publicUri, "tcp", options)
+                    announce(bound.publicUri, describeEnabled, reflectionEnabled, options)
+                    RunningServer(bound.server, bound.publicUri, options.logger, auxiliaryStop = auxiliary)
+                }
+                "stdio" -> {
+                    val bound = bindTcpServer("127.0.0.1", 0, resolvedServices, extraDefinitions)
+                    lateinit var running: RunningServer
+                    val bridge = StdioServerBridge("127.0.0.1", parseTarget(bound.publicUri).second) {
+                        running.stop(options.shutdownGracePeriodSeconds)
+                    }
+                    running = RunningServer(
+                        bound.server,
+                        "stdio://",
+                        options.logger,
+                        auxiliaryStop = combineStops(
+                            { bridge.close() },
+                            startAuxiliaryRuntime(obs, "stdio://", "stdio", options),
+                        ),
+                    )
+                    bridge.start()
+                    announce("stdio://", describeEnabled, reflectionEnabled, options)
+                    running
+                }
+                "unix" -> {
+                    val bound = bindTcpServer("127.0.0.1", 0, resolvedServices, extraDefinitions)
+                    val (host, port) = parseTarget(bound.publicUri)
+                    val path = parsed.path ?: error("unix path missing")
+                    val publicUri = "unix://$path"
+                    val bridge = UnixServerBridge(path, host, port)
+                    bridge.start()
+                    announce(publicUri, describeEnabled, reflectionEnabled, options)
+                    RunningServer(
+                        bound.server,
+                        publicUri,
+                        options.logger,
+                        auxiliaryStop = combineStops(
+                            { bridge.close() },
+                            startAuxiliaryRuntime(obs, publicUri, "unix", options),
+                        ),
+                    )
+                }
+                else -> throw IllegalArgumentException(
+                    "Serve.run(...) currently supports tcp://, unix:// and stdio:// only: $listenUri",
                 )
-                bridge.start()
-                announce("stdio://", describeEnabled, reflectionEnabled, options)
-                running
             }
-            "unix" -> {
-                val bound = bindTcpServer("127.0.0.1", 0, resolvedServices, extraDefinitions)
-                val (host, port) = parseTarget(bound.publicUri)
-                val path = parsed.path ?: error("unix path missing")
-                val publicUri = "unix://$path"
-                val bridge = UnixServerBridge(path, host, port)
-                bridge.start()
-                announce(publicUri, describeEnabled, reflectionEnabled, options)
-                RunningServer(
-                    bound.server,
-                    publicUri,
-                    options.logger,
-                    auxiliaryStop = combineStops(
-                        { bridge.close() },
-                        startAuxiliaryRuntime(obs, publicUri, "unix", options),
-                    ),
-                )
-            }
-            else -> throw IllegalArgumentException(
-                "Serve.run(...) currently supports tcp://, unix:// and stdio:// only: $listenUri",
-            )
+        } catch (error: Throwable) {
+            CurrentTransport.clear()
+            throw error
         }
     }
 
@@ -240,17 +247,29 @@ object Serve {
             return null
         }
         val current = Observability.current()
-        val wantedSlug = options.slug.trim()
+        val wantedSlug = observabilitySlug(options)
         if (current.families.isNotEmpty() && (wantedSlug.isEmpty() || wantedSlug == current.cfg.slug)) {
             definitions += Observability.service(current)
             return current
         }
-        val obs = Observability.fromEnvMap(Observability.Config(slug = options.slug), env)
+        val obs = Observability.fromEnvMap(Observability.Config(slug = wantedSlug), env)
         if (obs.families.isEmpty()) {
             return null
         }
         definitions += Observability.service(obs)
         return obs
+    }
+
+    private fun observabilitySlug(options: Options): String {
+        options.slug.trim().takeIf { it.isNotEmpty() }?.let { return it }
+        val manifest = Describe.staticResponse()?.manifest ?: return ""
+        manifest.artifacts.binary.trim().takeIf { it.isNotEmpty() }?.let { return it }
+        val given = manifest.identity.givenName.trim()
+        val family = manifest.identity.familyName.trim()
+        return listOf(given, family)
+            .filter { it.isNotEmpty() }
+            .joinToString("-")
+            .lowercase()
     }
 
     private fun startAuxiliaryRuntime(
@@ -340,7 +359,7 @@ object Serve {
         Observability.enableDiskWriters(obs.cfg.runDir)
         if (obs.enabled(Observability.Family.EVENTS)) {
             obs.emit(
-                Observability.EventType.INSTANCE_READY,
+                Observability.EventName.INSTANCE_READY,
                 mapOf("listener" to publicUri, "metrics_addr" to metricsAddr),
             )
         }

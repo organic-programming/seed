@@ -2,6 +2,7 @@ package org.organicprogramming.gabriel.greeting.kotlinholon.internal
 
 import greeting.v1.Greeting
 import greeting.v1.GreetingServiceGrpcKt
+import org.organicprogramming.holons.CurrentTransport
 import org.organicprogramming.gabriel.greeting.kotlinholon.api.PublicApi
 import org.organicprogramming.holons.Observability
 import org.organicprogramming.holons.Serve
@@ -31,7 +32,7 @@ class GreetingServer : GreetingServiceGrpcKt.GreetingServiceCoroutineImplBase() 
         return GREETING_BY_CODE.getValue(response.langCode).defaultName
     }
 
-    private fun currentTransport(): String = TRANSPORT_UNKNOWN
+    private fun currentTransport(): String = CurrentTransport.get().ifEmpty { TRANSPORT_UNKNOWN }
 
     private fun emitGreeting(
         response: Greeting.SayHelloResponse,
@@ -68,7 +69,11 @@ class GreetingServer : GreetingServiceGrpcKt.GreetingServiceCoroutineImplBase() 
         private const val TRANSPORT_UNKNOWN = "unknown"
 
         fun listenAndServe(listenUri: String, reflect: Boolean) {
-            Serve.runWithOptions(listenUri, listOf(GreetingServer()), Serve.Options(reflect = reflect))
+            Serve.runWithOptions(
+                listenUri,
+                listOf(GreetingServer()),
+                Serve.Options(reflect = reflect, slug = "gabriel-greeting-kotlin"),
+            )
         }
     }
 }

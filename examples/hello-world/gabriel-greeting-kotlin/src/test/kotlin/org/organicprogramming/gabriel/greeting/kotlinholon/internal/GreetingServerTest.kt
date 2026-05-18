@@ -5,6 +5,7 @@ import greeting.v1.GreetingServiceGrpcKt
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import kotlinx.coroutines.test.runTest
+import org.organicprogramming.holons.CurrentTransport
 import org.organicprogramming.holons.Observability
 import java.util.UUID
 import kotlin.test.Test
@@ -132,28 +133,30 @@ class GreetingServerTest {
             mapOf("OP_OBS" to "logs,metrics"),
         )
         try {
-            val serverName = UUID.randomUUID().toString()
-            val server = InProcessServerBuilder.forName(serverName)
-                .directExecutor()
-                .addService(GreetingServer())
-                .build()
-                .start()
-            try {
-                val channel = InProcessChannelBuilder.forName(serverName).directExecutor().build()
+            CurrentTransport.scoped("stdio").use {
+                val serverName = UUID.randomUUID().toString()
+                val server = InProcessServerBuilder.forName(serverName)
+                    .directExecutor()
+                    .addService(GreetingServer())
+                    .build()
+                    .start()
                 try {
-                    val stub = GreetingServiceGrpcKt.GreetingServiceCoroutineStub(channel)
-                    val response = stub.sayHello(
-                        Greeting.SayHelloRequest.newBuilder()
-                            .setName("Bob")
-                            .setLangCode("fr")
-                            .build(),
-                    )
-                    assertEquals("Bonjour Bob", response.greeting)
+                    val channel = InProcessChannelBuilder.forName(serverName).directExecutor().build()
+                    try {
+                        val stub = GreetingServiceGrpcKt.GreetingServiceCoroutineStub(channel)
+                        val response = stub.sayHello(
+                            Greeting.SayHelloRequest.newBuilder()
+                                .setName("Bob")
+                                .setLangCode("fr")
+                                .build(),
+                        )
+                        assertEquals("Bonjour Bob", response.greeting)
+                    } finally {
+                        channel.shutdownNow()
+                    }
                 } finally {
-                    channel.shutdownNow()
+                    server.shutdownNow()
                 }
-            } finally {
-                server.shutdownNow()
             }
 
             val entry = obs.logRing?.drain()
@@ -164,15 +167,28 @@ class GreetingServerTest {
             assertEquals("French", entry.fields["language"])
             assertEquals("Bob", entry.fields["name"])
             assertEquals("Bonjour Bob", entry.fields["greeting"])
-            assertEquals("unknown", entry.fields["transport"])
-            assertTrue(entry.fields.getValue("duration_ns").toLong() >= 0)
+            assertEquals("stdio", entry.fields["transport"])
+            assertTrue((entry.fields.getValue("duration_ns") as Long) >= 0)
+
+            val wire = Observability.toProtoLogRecord(entry)
+            val attrs = wire.attributesList.associateBy { it.key }
+            assertEquals("gabriel-greeting-kotlin-test", attrs.getValue(Observability.ATTR_HOLONS_SLUG).value.stringValue)
+            assertEquals("gabriel-greeting-kotlin-test", attrs.getValue(Observability.ATTR_SERVICE_NAME).value.stringValue)
+            assertEquals("gabriel-greeting-kotlin-test-1", attrs.getValue(Observability.ATTR_HOLONS_INSTANCE_UID).value.stringValue)
+            assertEquals("gabriel-greeting-kotlin-test-1", attrs.getValue(Observability.ATTR_SERVICE_INSTANCE_ID).value.stringValue)
+            assertEquals("", attrs.getValue(Observability.ATTR_HOLONS_SESSION_ID).value.stringValue)
+            assertEquals("stdio", attrs.getValue("transport").value.stringValue)
+            assertEquals(
+                holons.v1.Observability.AnyValue.ValueCase.INT_VALUE,
+                attrs.getValue("duration_ns").value.valueCase,
+            )
 
             val counter = obs.registry?.counters()
                 ?.singleOrNull { it.name == "greeting_emitted_total" }
             assertNotNull(counter)
             assertEquals(1, counter.value())
             assertEquals(setOf("lang_code", "language", "transport"), counter.labels.keys)
-            assertEquals(mapOf("lang_code" to "fr", "language" to "French", "transport" to "unknown"), counter.labels)
+            assertEquals(mapOf("lang_code" to "fr", "language" to "French", "transport" to "stdio"), counter.labels)
         } finally {
             Observability.reset()
         }

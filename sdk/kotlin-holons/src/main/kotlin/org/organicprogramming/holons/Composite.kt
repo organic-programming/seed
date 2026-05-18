@@ -291,7 +291,7 @@ object Composite {
 
     class EventCheckOptions {
         var conn: ManagedChannel? = null
-        var eventType: Observability.EventType = Observability.EventType.INSTANCE_READY
+        var eventName: String = Observability.EventName.INSTANCE_READY
         var leafUid: String = ""
         var expectedChain: List<ChainHop> = emptyList()
         var timeout: Duration = Duration.ofSeconds(3)
@@ -331,7 +331,7 @@ object Composite {
         }
     }
 
-    private fun readLogEntries(conn: ManagedChannel?): List<Observability.LogEntry> {
+    private fun readLogEntries(conn: ManagedChannel?): List<Observability.LogRecord> {
         if (conn == null) {
             return Observability.current().logRing?.drain() ?: emptyList()
         }
@@ -340,13 +340,13 @@ object Composite {
             Observability.logsMethod,
             CallOptions.DEFAULT.withDeadlineAfter(2, TimeUnit.SECONDS),
             ObsProto.LogsRequest.newBuilder()
-                .setMinLevel(ObsProto.LogLevel.INFO)
+                .setMinSeverityNumber(ObsProto.SeverityNumber.SEVERITY_NUMBER_INFO)
                 .build(),
         )
-        return iterator.asSequence().map { Observability.fromProtoLogEntry(it) }.toList()
+        return iterator.asSequence().map { Observability.fromProtoLogRecord(it) }.toList()
     }
 
-    private fun readEventEntries(conn: ManagedChannel?): List<Observability.Event> {
+    private fun readEventEntries(conn: ManagedChannel?): List<Observability.LogRecord> {
         if (conn == null) {
             return Observability.current().eventBus?.drain() ?: emptyList()
         }
@@ -359,10 +359,12 @@ object Composite {
         return iterator.asSequence().map { Observability.fromProtoEvent(it) }.toList()
     }
 
-    private fun matchRelayedLog(entries: List<Observability.LogEntry>, opts: LogCheckOptions): CheckOutcome {
+    private fun matchRelayedLog(entries: List<Observability.LogRecord>, opts: LogCheckOptions): CheckOutcome {
         for (entry in entries) {
             if (entry.message != "tick received") continue
-            if (entry.fields["sender"] != opts.sender || entry.fields["responder_uid"] != opts.leafUid) continue
+            if (entry.fields["sender"]?.toString() != opts.sender ||
+                entry.fields["responder_uid"]?.toString() != opts.leafUid
+            ) continue
             val evidence = compareChain(entry.chain, opts.expectedChain)
             if (evidence.isNotEmpty()) {
                 return CheckOutcome(false, compactEvidence("matching log bad chain: $evidence"))
@@ -375,9 +377,9 @@ object Composite {
         )
     }
 
-    private fun matchRelayedEvent(events: List<Observability.Event>, opts: EventCheckOptions): CheckOutcome {
+    private fun matchRelayedEvent(events: List<Observability.LogRecord>, opts: EventCheckOptions): CheckOutcome {
         for (event in events) {
-            if (event.type != opts.eventType || event.instanceUid != opts.leafUid) continue
+            if (event.eventName != opts.eventName || event.instanceUid != opts.leafUid) continue
             val evidence = compareChain(event.chain, opts.expectedChain)
             if (evidence.isNotEmpty()) {
                 return CheckOutcome(false, compactEvidence("matching event bad chain: $evidence"))
@@ -386,17 +388,17 @@ object Composite {
         }
         return CheckOutcome(
             false,
-            compactEvidence("no relayed ${opts.eventType} event leaf_uid=${opts.leafUid} events=${events.size}"),
+            compactEvidence("no relayed ${opts.eventName} event leaf_uid=${opts.leafUid} events=${events.size}"),
         )
     }
 
-    private fun compareChain(got: List<Observability.Hop>, want: List<ChainHop>): String {
+    private fun compareChain(got: List<String>, want: List<ChainHop>): String {
         if (got.size != want.size) return "chain length ${got.size} want ${want.size}"
         for (index in want.indices) {
             val actual = got[index]
             val expected = want[index]
-            if (actual.slug != expected.slug || actual.instanceUid != expected.instanceUid) {
-                return "hop $index=${actual.slug}/${actual.instanceUid} want ${expected.slug}/${expected.instanceUid}"
+            if (actual != expected.slug) {
+                return "hop $index=$actual want ${expected.slug}"
             }
         }
         return ""
