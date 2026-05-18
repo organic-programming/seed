@@ -129,19 +129,15 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
   }) {
     final message = 'Greeted $name in $language ($langCode)';
     final obs = holons_obs.current();
-    obs
-        .logger('greeting')
-        .info(
-          message,
-          fields: {
-            'lang_code': langCode,
-            'language': language,
-            'name': name,
-            'greeting': response.greeting,
-            'transport': transport,
-            'duration_ns': durationNs,
-          },
-        );
+    final fields = <String, Object?>{
+      'lang_code': langCode,
+      'language': language,
+      'name': name,
+      'greeting': response.greeting,
+      'transport': transport,
+      'duration_ns': durationNs,
+    };
+    obs.logger('greeting').info(message, fields: fields);
     obs
         .counter(
           'greeting_emitted_total',

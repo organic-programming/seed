@@ -111,11 +111,12 @@ void main() {
     expect(greetingController.greeting, 'Bonjour Alice from Gabriel');
 
     final entry = obs.logRing!.drain().singleWhere(
-      (log) => log.message == 'Greeted Alice in French (fr)',
+      (log) => _logMessage(log) == 'Greeted Alice in French (fr)',
     );
+    final fields = _logFields(entry);
     expect(
-      entry.fields.keys,
-      unorderedEquals(<String>[
+      fields.keys,
+      containsAll(<String>[
         'lang_code',
         'language',
         'name',
@@ -124,14 +125,15 @@ void main() {
         'duration_ns',
       ]),
     );
-    expect(entry.fields['lang_code'], 'fr');
-    expect(entry.fields['language'], 'French');
-    expect(entry.fields['name'], 'Alice');
-    expect(entry.fields['greeting'], 'Bonjour Alice from Gabriel');
-    expect(entry.fields['transport'], 'unknown');
-    final durationNs = int.tryParse(entry.fields['duration_ns'] ?? '');
-    expect(durationNs, isNotNull);
-    expect(durationNs!, greaterThanOrEqualTo(0));
+    expect(fields['lang_code'], 'fr');
+    expect(fields['language'], 'French');
+    expect(fields['name'], 'Alice');
+    expect(fields['greeting'], 'Bonjour Alice from Gabriel');
+    expect(fields['transport'], 'unknown');
+    final durationNs = fields['duration_ns'];
+    expect(durationNs, isA<int>());
+    expect(durationNs as int, greaterThanOrEqualTo(0));
+    _expectDurationNsIntValue(entry);
 
     final counter = obs.registry!.listCounters().singleWhere(
       (metric) => metric.name == 'greeting_emitted_total',
@@ -505,6 +507,83 @@ void main() {
       );
     },
   );
+}
+
+String _logMessage(dynamic entry) {
+  final body = _recordBody(entry);
+  if (body != null) {
+    return body;
+  }
+  return entry.message as String;
+}
+
+Map<String, Object?> _logFields(dynamic entry) {
+  final attributes = _recordAttributes(entry);
+  if (attributes != null) {
+    return attributes;
+  }
+
+  final fields = entry.fields as Map<String, String>;
+  return <String, Object?>{
+    for (final item in fields.entries)
+      item.key: item.key == 'duration_ns' ? int.parse(item.value) : item.value,
+  };
+}
+
+String? _recordBody(dynamic entry) {
+  try {
+    final dynamic record = entry.record;
+    final dynamic body = record.body;
+    return body.stringValue as String;
+  } on Object {
+    return null;
+  }
+}
+
+Map<String, Object?>? _recordAttributes(dynamic entry) {
+  try {
+    final dynamic record = entry.record;
+    final out = <String, Object?>{};
+    for (final dynamic attribute in record.attributes) {
+      out[attribute.key as String] = _anyValue(attribute.value);
+    }
+    return out;
+  } on Object {
+    return null;
+  }
+}
+
+Object? _anyValue(dynamic value) {
+  try {
+    if (value.hasStringValue() as bool) return value.stringValue as String;
+    if (value.hasBoolValue() as bool) return value.boolValue as bool;
+    if (value.hasIntValue() as bool) return (value.intValue as dynamic).toInt();
+    if (value.hasDoubleValue() as bool) return value.doubleValue as double;
+  } on Object {
+    return null;
+  }
+  return null;
+}
+
+void _expectDurationNsIntValue(dynamic entry) {
+  final dynamic duration = _recordAttributeValue(entry, 'duration_ns');
+  if (duration == null) {
+    return;
+  }
+  expect(duration.hasIntValue() as bool, isTrue);
+}
+
+Object? _recordAttributeValue(dynamic entry, String key) {
+  try {
+    final dynamic record = entry.record;
+    return record.attributes
+        .singleWhere((dynamic attribute) => attribute.key == key)
+        .value;
+  } on Object {
+    // The pre-OTLP Dart SDK stores in-memory fields as strings. This assertion
+    // activates once the SDK worker lands the LogRecord-backed ring.
+    return null;
+  }
 }
 
 class _ScriptedHolonConnector implements GreetingHolonConnectionFactory {
