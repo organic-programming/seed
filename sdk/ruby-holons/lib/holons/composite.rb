@@ -34,7 +34,7 @@ module Holons
       keyword_init: true
     )
     EventCheckOptions = Struct.new(
-      :conn, :event_type, :leaf_uid, :expected_chain, :timeout, :poll_interval,
+      :conn, :event_name, :leaf_uid, :expected_chain, :timeout, :poll_interval,
       :live,
       keyword_init: true
     )
@@ -276,7 +276,7 @@ module Holons
       data = symbolize_hash(options)
       EventCheckOptions.new(
         conn: data[:conn],
-        event_type: data[:event_type],
+        event_name: data[:event_name],
         leaf_uid: data[:leaf_uid],
         expected_chain: data[:expected_chain] || [],
         timeout: data[:timeout],
@@ -464,9 +464,11 @@ module Holons
 
     def identity_from_events(stub)
       stub.events(Holons::V1::EventsRequest.new(follow: false)).each do |event|
-        next if !event.chain.empty? || event.instance_uid.to_s.empty? || event.slug.to_s.empty?
+        slug = Holons::Observability.record_slug(event)
+        uid = Holons::Observability.record_instance_uid(event)
+        next if !event.chain.empty? || uid.empty? || slug.empty?
 
-        return RelayIdentity.new(slug: event.slug, uid: event.instance_uid)
+        return RelayIdentity.new(slug: slug, uid: uid)
       end
       nil
     rescue StandardError
@@ -475,9 +477,11 @@ module Holons
 
     def identity_from_logs(stub)
       stub.logs(Holons::V1::LogsRequest.new(follow: false)).each do |entry|
-        next if !entry.chain.empty? || entry.instance_uid.to_s.empty? || entry.slug.to_s.empty?
+        slug = Holons::Observability.record_slug(entry)
+        uid = Holons::Observability.record_instance_uid(entry)
+        next if !entry.chain.empty? || uid.empty? || slug.empty?
 
-        return RelayIdentity.new(slug: entry.slug, uid: entry.instance_uid)
+        return RelayIdentity.new(slug: slug, uid: uid)
       end
       nil
     rescue StandardError
@@ -493,8 +497,8 @@ module Holons
       end
       Holons::Observability.require_grpc_observability_support!
       stub = Holons::V1::HolonObservability::Stub.new("unused", :this_channel_is_insecure, channel_override: conn, timeout: 2)
-      stub.logs(Holons::V1::LogsRequest.new(min_level: :INFO, follow: false)).map do |entry|
-        Holons::Observability.from_proto_log_entry(entry)
+      stub.logs(Holons::V1::LogsRequest.new(min_severity_number: :SEVERITY_NUMBER_INFO, follow: false)).map do |entry|
+        Holons::Observability.from_proto_log_record(entry)
       end
     end
 
@@ -508,17 +512,19 @@ module Holons
       Holons::Observability.require_grpc_observability_support!
       stub = Holons::V1::HolonObservability::Stub.new("unused", :this_channel_is_insecure, channel_override: conn, timeout: 2)
       stub.events(Holons::V1::EventsRequest.new(follow: false)).map do |event|
-        Holons::Observability.from_proto_event(event)
+        Holons::Observability.from_proto_log_record(event)
       end
     end
 
     def match_relayed_log(entries, opts)
       entries.each do |entry|
-        next unless entry[:message] == "tick received"
-        next unless entry[:fields]["sender"] == opts.sender.to_s
-        next unless entry[:fields]["responder_uid"] == opts.leaf_uid.to_s
+        record = entry.record
+        fields = Holons::Observability.attributes_hash(record.attributes)
+        next unless Holons::Observability.body_string(record) == "tick received"
+        next unless fields["sender"].to_s == opts.sender.to_s
+        next unless fields["responder_uid"].to_s == opts.leaf_uid.to_s
 
-        chain_error = compare_chain(entry[:chain], opts.expected_chain)
+        chain_error = compare_chain(record.chain, opts.expected_chain)
         return CheckOutcome.new(pass: false, evidence: compact_evidence("matching log bad chain: #{chain_error}")) unless chain_error.empty?
 
         return CheckOutcome.new(pass: true, evidence: "ok")
@@ -527,13 +533,13 @@ module Holons
     end
 
     def match_relayed_event(events, opts)
-      event_type = opts.event_type || Holons::Observability::EVENT_TYPES[:instance_ready]
-      event_type = Holons::Observability.event_type_number(event_type)
+      event_name = opts.event_name.nil? ? Holons::Observability::EVENT_INSTANCE_READY : Holons::Observability.canonical_event_name(opts.event_name)
       events.each do |event|
-        next unless event[:type] == event_type
-        next unless event[:instance_uid] == opts.leaf_uid.to_s
+        record = event.record
+        next unless record.event_name == event_name
+        next unless Holons::Observability.record_instance_uid(record) == opts.leaf_uid.to_s
 
-        chain_error = compare_chain(event[:chain], opts.expected_chain)
+        chain_error = compare_chain(record.chain, opts.expected_chain)
         return CheckOutcome.new(pass: false, evidence: compact_evidence("matching event bad chain: #{chain_error}")) unless chain_error.empty?
 
         return CheckOutcome.new(pass: true, evidence: "ok")
@@ -542,26 +548,25 @@ module Holons
     end
 
     def compare_chain(got, want)
-      got = Array(got)
-      want = Array(want)
+      got = Array(got).map { |hop| normalize_hop(hop) }
+      want = Array(want).map { |hop| normalize_hop(hop) }
       return "chain length #{got.length} want #{want.length}" unless got.length == want.length
 
       want.each_with_index do |expected, idx|
-        actual = normalize_hop(got[idx])
-        expected = normalize_hop(expected)
-        if actual[:slug] != expected[:slug] || actual[:instance_uid] != expected[:instance_uid]
-          return "hop #{idx}=#{actual[:slug]}/#{actual[:instance_uid]} want #{expected[:slug]}/#{expected[:instance_uid]}"
+        actual = got[idx]
+        if actual != expected
+          return "hop #{idx}=#{actual} want #{expected}"
         end
       end
       ""
     end
 
     def normalize_hop(hop)
-      return { slug: hop.slug, instance_uid: hop.instance_uid } if hop.respond_to?(:slug) && hop.respond_to?(:instance_uid)
-      return { slug: hop.slug, instance_uid: hop.uid } if hop.respond_to?(:slug) && hop.respond_to?(:uid)
+      return hop.to_s if hop.is_a?(String) || hop.is_a?(Symbol)
+      return hop.slug.to_s if hop.respond_to?(:slug)
 
       data = symbolize_hash(hop)
-      { slug: data[:slug].to_s, instance_uid: (data[:instance_uid] || data[:uid]).to_s }
+      (data[:slug] || data[:name]).to_s
     end
 
     def poll_until(timeout, interval)

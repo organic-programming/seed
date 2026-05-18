@@ -92,7 +92,7 @@ class ServeTest < Minitest::Test
             timeout: 5
           )
           events = stub.events(Holons::V1::EventsRequest.new).to_a
-          assert events.any? { |event| event.type == :INSTANCE_READY }
+          assert events.any? { |event| event.event_name == Holons::Observability::EVENT_INSTANCE_READY }
         ensure
           Holons.disconnect(result)
         end

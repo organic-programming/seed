@@ -177,7 +177,7 @@ module Holons
         Observability.enable_disk_writers(run_dir) unless run_dir.empty?
         if inst.enabled?(:events)
           inst.emit(
-            Observability::EVENT_TYPES[:instance_ready],
+            Observability::EVENT_INSTANCE_READY,
             "listener" => actual_uri,
             "metrics_addr" => metrics_addr.to_s
           )
@@ -276,13 +276,14 @@ module Holons
           timeout: 2
         )
         begin
-          request = Holons::V1::EventsRequest.new(types: [:INSTANCE_READY], follow: false)
+          request = Holons::V1::EventsRequest.new(event_names: [Observability::EVENT_INSTANCE_READY], follow: false)
           stub.events(request).each do |event|
-            next if event.instance_uid.to_s.empty? || !event.chain.empty?
+            uid = Observability.record_instance_uid(event)
+            next if uid.empty? || !event.chain.empty?
 
             return MemberRef.new(
-              slug: event.slug.to_s.empty? ? member.slug : event.slug.to_s,
-              uid: event.instance_uid.to_s,
+              slug: Observability.record_slug(event).empty? ? member.slug : Observability.record_slug(event),
+              uid: uid,
               address: member.address
             )
           end
@@ -291,16 +292,34 @@ module Holons
         end
 
         begin
-          snapshot = stub.metrics(Holons::V1::MetricsRequest.new)
-          return member if snapshot.instance_uid.to_s.empty?
+          stub.metrics(Holons::V1::MetricsRequest.new).each do |metric|
+            attrs = first_metric_attributes(metric)
+            uid = Observability.attribute_string(attrs, Observability::ATTR_HOLONS_INSTANCE_UID)
+            next if uid.empty?
 
-          MemberRef.new(
-            slug: snapshot.slug.to_s.empty? ? member.slug : snapshot.slug.to_s,
-            uid: snapshot.instance_uid.to_s,
-            address: member.address
-          )
+            slug = Observability.attribute_string(attrs, Observability::ATTR_HOLONS_SLUG)
+            return MemberRef.new(
+              slug: slug.empty? ? member.slug : slug,
+              uid: uid,
+              address: member.address
+            )
+          end
+          member
         rescue StandardError
           member
+        end
+      end
+
+      def first_metric_attributes(metric)
+        case metric.data
+        when :sum
+          metric.sum.data_points.first&.attributes || []
+        when :gauge
+          metric.gauge.data_points.first&.attributes || []
+        when :histogram
+          metric.histogram.data_points.first&.attributes || []
+        else
+          []
         end
       end
 

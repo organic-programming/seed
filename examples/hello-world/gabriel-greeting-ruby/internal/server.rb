@@ -54,10 +54,13 @@ module GabrielGreetingRuby
     module Server
       class << self
         def listen_and_serve(listen_uri, reflect: false, on_listen: nil)
-          Holons::Serve.run_with_options(
+          Holons::Serve.run_with_serve_options(
             normalize_listen_uri(listen_uri),
             proc { |server| register_services(server, include_meta: false) },
-            reflect,
+            Holons::Serve::ServeOptions.new(
+              reflect: reflect,
+              slug: "gabriel-greeting-ruby"
+            ),
             on_listen: on_listen
           )
         end

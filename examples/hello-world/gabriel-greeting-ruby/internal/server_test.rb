@@ -78,18 +78,31 @@ class GreetingServerTest < Minitest::Test
     )
     assert_equal 1, counter.value
 
-    entry = obs.log_ring.drain.find { |log_entry| log_entry[:message] == "Greeted Bob in English (en)" }
+    entry = obs.log_ring.drain.find { |log_entry| Holons::Observability.body_string(log_entry.record) == "Greeted Bob in English (en)" }
     refute_nil entry
+    fields = Holons::Observability.attributes_hash(entry.record.attributes)
     assert_equal(
       %w[duration_ns greeting lang_code language name transport],
-      entry[:fields].keys.sort
+      fields.keys.sort
     )
-    assert_equal "en", entry[:fields]["lang_code"]
-    assert_equal "English", entry[:fields]["language"]
-    assert_equal "Bob", entry[:fields]["name"]
-    assert_equal "Hello Bob", entry[:fields]["greeting"]
-    assert_equal "unknown", entry[:fields]["transport"]
-    assert_operator Integer(entry[:fields]["duration_ns"]), :>=, 0
+    assert_equal "en", fields["lang_code"]
+    assert_equal "English", fields["language"]
+    assert_equal "Bob", fields["name"]
+    assert_equal "Hello Bob", fields["greeting"]
+    assert_equal "unknown", fields["transport"]
+    assert_instance_of Integer, fields["duration_ns"]
+    assert_operator fields["duration_ns"], :>=, 0
+    assert_equal(
+      "gabriel-greeting-ruby",
+      Holons::Observability.attribute_string(entry.record.attributes, Holons::Observability::ATTR_HOLONS_SLUG)
+    )
+    assert_equal(
+      "gabriel-greeting-ruby",
+      Holons::Observability.attribute_string(entry.record.attributes, Holons::Observability::ATTR_SERVICE_NAME)
+    )
+    refute_empty Holons::Observability.attribute_string(entry.record.attributes, Holons::Observability::ATTR_HOLONS_SESSION_ID)
+    duration_attr = Holons::Observability.attribute_value(entry.record.attributes, "duration_ns")
+    assert_equal :int_value, duration_attr.value
   ensure
     Holons::Observability.reset
     if old_op_obs.nil?
