@@ -29,6 +29,7 @@ import java.util.function.Consumer;
 
 /** Standard gRPC server runner utilities. */
 public final class Serve {
+    private static final ThreadLocal<String> CURRENT_TRANSPORT = ThreadLocal.withInitial(() -> "");
 
     private Serve() {
     }
@@ -139,17 +140,20 @@ public final class Serve {
         private final String publicUri;
         private final Consumer<String> logger;
         private final Runnable auxiliaryStop;
+        private final String transport;
         private final AtomicBoolean stopped = new AtomicBoolean(false);
 
         private RunningServer(
                 Server server,
                 String publicUri,
                 Consumer<String> logger,
-                Runnable auxiliaryStop) {
+                Runnable auxiliaryStop,
+                String transport) {
             this.server = server;
             this.publicUri = publicUri;
             this.logger = logger;
             this.auxiliaryStop = auxiliaryStop;
+            this.transport = transport == null ? "" : transport;
         }
 
         public String publicUri() {
@@ -172,6 +176,7 @@ public final class Serve {
             if (auxiliaryStop != null) {
                 auxiliaryStop.run();
             }
+            CURRENT_TRANSPORT.remove();
 
             server.shutdown();
             if (!server.awaitTermination(gracePeriodSeconds, TimeUnit.SECONDS)) {
@@ -186,6 +191,10 @@ public final class Serve {
     }
 
     public record ParsedFlags(String listenUri, boolean reflect) {
+    }
+
+    public static String currentTransport() {
+        return CURRENT_TRANSPORT.get();
     }
 
     /**
@@ -278,14 +287,16 @@ public final class Serve {
 
         return switch (parsed.scheme()) {
             case "tcp" -> {
+                CURRENT_TRANSPORT.set("tcp");
                 String host = parsed.host() != null ? parsed.host() : "0.0.0.0";
                 int port = parsed.port() != null ? parsed.port() : 9090;
                 BoundServer bound = bindTcpServer(host, port, bindableServices, extraDefinitions);
                 AuxiliaryRuntime auxiliary = startAuxiliaryRuntime(obs, bound.publicUri(), "tcp", resolvedOptions);
                 announce(bound.publicUri(), describeEnabled, reflectionEnabled, resolvedOptions);
-                yield new RunningServer(bound.server(), bound.publicUri(), resolvedOptions.logger(), auxiliary);
+                yield new RunningServer(bound.server(), bound.publicUri(), resolvedOptions.logger(), auxiliary, "tcp");
             }
             case "stdio" -> {
+                CURRENT_TRANSPORT.set("stdio");
                 BoundServer bound = bindTcpServer("127.0.0.1", 0, bindableServices, extraDefinitions);
                 String[] target = parseTarget(bound.publicUri());
                 RunningServer[] runningRef = new RunningServer[1];
@@ -303,13 +314,15 @@ public final class Serve {
                         bound.server(),
                         "stdio://",
                         resolvedOptions.logger(),
-                        combineStops(bridge::close, startAuxiliaryRuntime(obs, "stdio://", "stdio", resolvedOptions)));
+                        combineStops(bridge::close, startAuxiliaryRuntime(obs, "stdio://", "stdio", resolvedOptions)),
+                        "stdio");
                 runningRef[0] = running;
                 bridge.start();
                 announce("stdio://", describeEnabled, reflectionEnabled, resolvedOptions);
                 yield running;
             }
             case "unix" -> {
+                CURRENT_TRANSPORT.set("unix");
                 BoundServer bound = bindTcpServer("127.0.0.1", 0, bindableServices, extraDefinitions);
                 String[] target = parseTarget(bound.publicUri());
                 String publicUri = "unix://" + Objects.requireNonNull(parsed.path());
@@ -318,7 +331,8 @@ public final class Serve {
                         bound.server(),
                         publicUri,
                         resolvedOptions.logger(),
-                        combineStops(bridge::close, startAuxiliaryRuntime(obs, publicUri, "unix", resolvedOptions)));
+                        combineStops(bridge::close, startAuxiliaryRuntime(obs, publicUri, "unix", resolvedOptions)),
+                        "unix");
                 bridge.start();
                 announce(publicUri, describeEnabled, reflectionEnabled, resolvedOptions);
                 yield running;
@@ -381,22 +395,28 @@ public final class Serve {
             return null;
         }
         Observability current = Observability.current();
-        String wantedSlug = options.slug() == null ? "" : options.slug().trim();
+        String wantedSlug = resolvedSlug(options);
         if (!current.families.isEmpty()
                 && (wantedSlug.isEmpty() || wantedSlug.equals(current.cfg.slug))) {
             definitions.add(Observability.service(current));
             return current;
         }
         Observability.Config config = new Observability.Config();
-        if (options.slug() != null && !options.slug().isBlank()) {
-            config.slug = options.slug();
-        }
+        config.slug = wantedSlug;
         Observability obs = Observability.fromEnvMap(config, env);
         if (obs.families.isEmpty()) {
             return null;
         }
         definitions.add(Observability.service(obs));
         return obs;
+    }
+
+    private static String resolvedSlug(Options options) {
+        String configured = options.slug() == null ? "" : options.slug().trim();
+        if (!configured.isEmpty()) {
+            return configured;
+        }
+        return Describe.registeredSlug();
     }
 
     private static AuxiliaryRuntime startAuxiliaryRuntime(
@@ -468,7 +488,7 @@ public final class Serve {
         }
         Observability.enableDiskWriters(obs.cfg.runDir);
         if (obs.enabled(Observability.Family.EVENTS)) {
-            obs.emit(Observability.EventType.INSTANCE_READY, Map.of(
+            obs.emit(Observability.EVENT_INSTANCE_READY, Map.of(
                     "listener", publicUri,
                     "metrics_addr", metricsAddr));
         }

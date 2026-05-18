@@ -348,7 +348,7 @@ public final class Composite {
 
     public static final class EventCheckOptions {
         public ManagedChannel conn;
-        public Observability.EventType eventType = Observability.EventType.INSTANCE_READY;
+        public String eventName = Observability.EVENT_INSTANCE_READY;
         public String leafUid = "";
         public List<ChainHop> expectedChain = List.of();
         public Duration timeout = Duration.ofSeconds(3);
@@ -394,7 +394,7 @@ public final class Composite {
         }
     }
 
-    private static List<Observability.LogEntry> readLogEntries(ManagedChannel conn) {
+    private static List<Observability.LogRecord> readLogEntries(ManagedChannel conn) {
         if (conn == null) {
             return Observability.current().logRing == null ? List.of() : Observability.current().logRing.drain();
         }
@@ -403,14 +403,14 @@ public final class Composite {
                 Observability.logsMethod(),
                 CallOptions.DEFAULT.withDeadlineAfter(2, TimeUnit.SECONDS),
                 holons.v1.Observability.LogsRequest.newBuilder()
-                        .setMinLevel(holons.v1.Observability.LogLevel.INFO)
+                        .setMinSeverityNumber(holons.v1.Observability.SeverityNumber.SEVERITY_NUMBER_INFO)
                         .build());
-        List<Observability.LogEntry> out = new ArrayList<>();
-        iterator.forEachRemaining(entry -> out.add(Observability.fromProtoLogEntry(entry)));
+        List<Observability.LogRecord> out = new ArrayList<>();
+        iterator.forEachRemaining(entry -> out.add(Observability.fromProtoLogRecord(entry)));
         return out;
     }
 
-    private static List<Observability.Event> readEventEntries(ManagedChannel conn) {
+    private static List<Observability.LogRecord> readEventEntries(ManagedChannel conn) {
         if (conn == null) {
             return Observability.current().eventBus == null ? List.of() : Observability.current().eventBus.drain();
         }
@@ -419,21 +419,21 @@ public final class Composite {
                 Observability.eventsMethod(),
                 CallOptions.DEFAULT.withDeadlineAfter(2, TimeUnit.SECONDS),
                 holons.v1.Observability.EventsRequest.getDefaultInstance());
-        List<Observability.Event> out = new ArrayList<>();
-        iterator.forEachRemaining(event -> out.add(Observability.fromProtoEvent(event)));
+        List<Observability.LogRecord> out = new ArrayList<>();
+        iterator.forEachRemaining(event -> out.add(Observability.fromProtoLogRecord(event)));
         return out;
     }
 
-    private static CheckOutcome matchRelayedLog(List<Observability.LogEntry> entries, LogCheckOptions opts) {
-        for (Observability.LogEntry entry : entries) {
-            if (!"tick received".equals(entry.message)) {
+    private static CheckOutcome matchRelayedLog(List<Observability.LogRecord> entries, LogCheckOptions opts) {
+        for (Observability.LogRecord entry : entries) {
+            if (!"tick received".equals(entry.bodyString())) {
                 continue;
             }
-            if (!opts.sender.equals(entry.fields.getOrDefault("sender", ""))
-                    || !opts.leafUid.equals(entry.fields.getOrDefault("responder_uid", ""))) {
+            if (!opts.sender.equals(entry.attr("sender"))
+                    || !opts.leafUid.equals(entry.attr("responder_uid"))) {
                 continue;
             }
-            String evidence = compareChain(entry.chain, opts.expectedChain);
+            String evidence = compareChain(entry.record.getChainList(), opts.expectedChain);
             if (!evidence.isEmpty()) {
                 return new CheckOutcome(false, compactEvidence("matching log bad chain: " + evidence));
             }
@@ -443,31 +443,31 @@ public final class Composite {
                 "no relayed tick log sender=" + opts.sender + " leaf_uid=" + opts.leafUid + " entries=" + entries.size()));
     }
 
-    private static CheckOutcome matchRelayedEvent(List<Observability.Event> events, EventCheckOptions opts) {
-        for (Observability.Event event : events) {
-            if (event.type != opts.eventType || !opts.leafUid.equals(event.instanceUid)) {
+    private static CheckOutcome matchRelayedEvent(List<Observability.LogRecord> events, EventCheckOptions opts) {
+        for (Observability.LogRecord event : events) {
+            if (!opts.eventName.equals(event.record.getEventName())
+                    || !opts.leafUid.equals(event.attr(Observability.ATTR_HOLONS_INSTANCE_UID))) {
                 continue;
             }
-            String evidence = compareChain(event.chain, opts.expectedChain);
+            String evidence = compareChain(event.record.getChainList(), opts.expectedChain);
             if (!evidence.isEmpty()) {
                 return new CheckOutcome(false, compactEvidence("matching event bad chain: " + evidence));
             }
             return new CheckOutcome(true, "");
         }
         return new CheckOutcome(false, compactEvidence(
-                "no relayed " + opts.eventType + " event leaf_uid=" + opts.leafUid + " events=" + events.size()));
+                "no relayed " + opts.eventName + " event leaf_uid=" + opts.leafUid + " events=" + events.size()));
     }
 
-    private static String compareChain(List<Observability.Hop> got, List<ChainHop> want) {
+    private static String compareChain(List<String> got, List<ChainHop> want) {
         if (got.size() != want.size()) {
             return "chain length " + got.size() + " want " + want.size();
         }
         for (int index = 0; index < want.size(); index++) {
-            Observability.Hop actual = got.get(index);
+            String actual = got.get(index);
             ChainHop expected = want.get(index);
-            if (!expected.slug().equals(actual.slug) || !expected.instanceUid().equals(actual.instanceUid)) {
-                return "hop " + index + "=" + actual.slug + "/" + actual.instanceUid
-                        + " want " + expected.slug() + "/" + expected.instanceUid();
+            if (!expected.slug().equals(actual)) {
+                return "hop " + index + "=" + actual + " want " + expected.slug();
             }
         }
         return "";

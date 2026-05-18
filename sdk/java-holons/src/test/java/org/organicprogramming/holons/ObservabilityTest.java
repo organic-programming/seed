@@ -74,7 +74,7 @@ final class ObservabilityTest {
         Observability.enableDiskWriters(obs.cfg.runDir);
         obs.logger("test").info("service-log", Map.of("component", "java"));
         obs.counter("java_requests_total", "", Map.of()).inc();
-        obs.emit(Observability.EventType.INSTANCE_READY, Map.of("listener", "tcp://127.0.0.1:1"));
+        obs.emit(Observability.EVENT_INSTANCE_READY, Map.of("listener", "tcp://127.0.0.1:1"));
         Observability.MetaJson meta = new Observability.MetaJson();
         meta.slug = obs.cfg.slug;
         meta.uid = obs.cfg.instanceUid;
@@ -86,7 +86,7 @@ final class ObservabilityTest {
 
         Path runDir = tmp.resolve("gabriel-greeting-java").resolve("uid-2");
         assertTrue(Files.readString(runDir.resolve("stdout.log")).contains("\"message\":\"service-log\""));
-        assertTrue(Files.readString(runDir.resolve("events.jsonl")).contains("\"type\":\"INSTANCE_READY\""));
+        assertTrue(Files.readString(runDir.resolve("events.jsonl")).contains("\"event_name\":\"instance.ready\""));
         assertTrue(Files.readString(runDir.resolve("meta.json")).contains("\"uid\":\"uid-2\""));
 
         Server server = ServerBuilder.forPort(0)
@@ -97,35 +97,39 @@ final class ObservabilityTest {
                 .usePlaintext()
                 .build();
         try {
-            List<holons.v1.Observability.LogEntry> logs = new ArrayList<>();
-            Iterator<holons.v1.Observability.LogEntry> logIterator = ClientCalls.blockingServerStreamingCall(
+            List<holons.v1.Observability.LogRecord> logs = new ArrayList<>();
+            Iterator<holons.v1.Observability.LogRecord> logIterator = ClientCalls.blockingServerStreamingCall(
                     channel,
                     Observability.logsMethod(),
                     CallOptions.DEFAULT,
                     holons.v1.Observability.LogsRequest.newBuilder()
-                            .setMinLevel(holons.v1.Observability.LogLevel.INFO)
+                            .setMinSeverityNumber(holons.v1.Observability.SeverityNumber.SEVERITY_NUMBER_INFO)
                             .build());
             logIterator.forEachRemaining(logs::add);
-            assertTrue(logs.stream().anyMatch(entry -> entry.getMessage().equals("service-log")));
+            assertTrue(logs.stream().anyMatch(entry -> entry.getBody().getStringValue().equals("service-log")));
 
-            holons.v1.Observability.MetricsSnapshot metrics = ClientCalls.blockingUnaryCall(
+            List<holons.v1.Observability.Metric> metrics = new ArrayList<>();
+            Iterator<holons.v1.Observability.Metric> metricIterator = ClientCalls.blockingServerStreamingCall(
                     channel,
                     Observability.metricsMethod(),
                     CallOptions.DEFAULT,
                     holons.v1.Observability.MetricsRequest.getDefaultInstance());
-            assertTrue(metrics.getSamplesList().stream()
-                    .anyMatch(sample -> sample.getName().equals("java_requests_total")));
-            assertFalse(metrics.hasSessionRollup());
+            metricIterator.forEachRemaining(metrics::add);
+            assertTrue(metrics.stream().anyMatch(metric -> metric.getName().equals("java_requests_total")
+                    && metric.hasSum()
+                    && metric.getSum().getIsMonotonic()
+                    && metric.getSum().getAggregationTemporality()
+                    == holons.v1.Observability.AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE));
 
-            List<holons.v1.Observability.EventInfo> events = new ArrayList<>();
-            Iterator<holons.v1.Observability.EventInfo> eventIterator = ClientCalls.blockingServerStreamingCall(
+            List<holons.v1.Observability.LogRecord> events = new ArrayList<>();
+            Iterator<holons.v1.Observability.LogRecord> eventIterator = ClientCalls.blockingServerStreamingCall(
                     channel,
                     Observability.eventsMethod(),
                     CallOptions.DEFAULT,
                     holons.v1.Observability.EventsRequest.getDefaultInstance());
             eventIterator.forEachRemaining(events::add);
             assertTrue(events.stream()
-                    .anyMatch(event -> event.getType() == holons.v1.Observability.EventType.INSTANCE_READY));
+                    .anyMatch(event -> event.getEventName().equals(Observability.EVENT_INSTANCE_READY)));
         } finally {
             channel.shutdownNow();
             channel.awaitTermination(5, TimeUnit.SECONDS);
@@ -151,20 +155,16 @@ final class ObservabilityTest {
         assertTrue(text.contains("responder_uid=\"java-prom-1\""));
         assertTrue(text.contains("slug=\"cascade-node-java\""));
 
-        Observability.LogEntry log = new Observability.LogEntry(
-                java.time.Instant.now(),
-                Observability.Level.INFO,
-                "child",
-                "uid-child",
-                "",
-                "",
-                "tick received",
-                Map.of("sender", "test"),
-                "",
-                List.of(new Observability.Hop("leaf", "uid-leaf")));
-        Observability.LogEntry roundTrip = Observability.fromProtoLogEntry(Observability.toProtoLogEntry(log));
-        assertEquals("tick received", roundTrip.message);
-        assertEquals("leaf", roundTrip.chain.get(0).slug);
+        Observability.LogRecord log = new Observability.LogRecord(holons.v1.Observability.LogRecord.newBuilder()
+                .setBody(Observability.anyValue("tick received"))
+                .addChain("leaf")
+                .addAttributes(holons.v1.Observability.KeyValue.newBuilder()
+                        .setKey("sender")
+                        .setValue(Observability.anyValue("test")))
+                .build());
+        Observability.LogRecord roundTrip = Observability.fromProtoLogRecord(Observability.toProtoLogRecord(log));
+        assertEquals("tick received", roundTrip.bodyString());
+        assertEquals("leaf", roundTrip.record.getChain(0));
         Observability.reset();
     }
 
@@ -185,20 +185,20 @@ final class ObservabilityTest {
                 .usePlaintext()
                 .build();
         try {
-            Iterator<holons.v1.Observability.LogEntry> iterator = ClientCalls.blockingServerStreamingCall(
+            Iterator<holons.v1.Observability.LogRecord> iterator = ClientCalls.blockingServerStreamingCall(
                     channel,
                     Observability.logsMethod(),
                     CallOptions.DEFAULT.withDeadlineAfter(2, TimeUnit.SECONDS),
                     holons.v1.Observability.LogsRequest.newBuilder()
                             .setFollow(true)
-                            .setMinLevel(holons.v1.Observability.LogLevel.INFO)
+                            .setMinSeverityNumber(holons.v1.Observability.SeverityNumber.SEVERITY_NUMBER_INFO)
                             .build());
 
             assertTrue(iterator.hasNext());
-            assertEquals("before-subscribe", iterator.next().getMessage());
+            assertEquals("before-subscribe", iterator.next().getBody().getStringValue());
             obs.logger("test").info("after-subscribe", Map.of());
             assertTrue(iterator.hasNext());
-            assertEquals("after-subscribe", iterator.next().getMessage());
+            assertEquals("after-subscribe", iterator.next().getBody().getStringValue());
         } finally {
             channel.shutdownNow();
             channel.awaitTermination(5, TimeUnit.SECONDS);
@@ -215,7 +215,7 @@ final class ObservabilityTest {
         cfg.slug = "java-event-replay";
         cfg.instanceUid = "event-replay-1";
         Observability obs = Observability.configureFromEnv(cfg, Map.of("OP_OBS", "events"));
-        obs.emit(Observability.EventType.INSTANCE_READY, Map.of("listener", "tcp://127.0.0.1:1"));
+        obs.emit(Observability.EVENT_INSTANCE_READY, Map.of("listener", "tcp://127.0.0.1:1"));
 
         Server server = ServerBuilder.forPort(0)
                 .addService(Observability.service(obs))
@@ -225,7 +225,7 @@ final class ObservabilityTest {
                 .usePlaintext()
                 .build();
         try {
-            Iterator<holons.v1.Observability.EventInfo> iterator = ClientCalls.blockingServerStreamingCall(
+            Iterator<holons.v1.Observability.LogRecord> iterator = ClientCalls.blockingServerStreamingCall(
                     channel,
                     Observability.eventsMethod(),
                     CallOptions.DEFAULT.withDeadlineAfter(2, TimeUnit.SECONDS),
@@ -234,10 +234,10 @@ final class ObservabilityTest {
                             .build());
 
             assertTrue(iterator.hasNext());
-            assertEquals(holons.v1.Observability.EventType.INSTANCE_READY, iterator.next().getType());
-            obs.emit(Observability.EventType.INSTANCE_EXITED, Map.of("listener", "tcp://127.0.0.1:1"));
+            assertEquals(Observability.EVENT_INSTANCE_READY, iterator.next().getEventName());
+            obs.emit(Observability.EVENT_INSTANCE_EXITED, Map.of("listener", "tcp://127.0.0.1:1"));
             assertTrue(iterator.hasNext());
-            assertEquals(holons.v1.Observability.EventType.INSTANCE_EXITED, iterator.next().getType());
+            assertEquals(Observability.EVENT_INSTANCE_EXITED, iterator.next().getEventName());
         } finally {
             channel.shutdownNow();
             channel.awaitTermination(5, TimeUnit.SECONDS);

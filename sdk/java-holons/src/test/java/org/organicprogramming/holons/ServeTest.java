@@ -96,7 +96,7 @@ class ServeTest {
             Observability obs = Observability.current();
             obs.logger("serve-test").info("serve-log", Map.of("sdk", "java"));
             obs.counter("serve_requests_total", "", Map.of()).inc();
-            obs.emit(Observability.EventType.INSTANCE_READY, Map.of());
+            obs.emit(Observability.EVENT_INSTANCE_READY, Map.of());
 
             String target = running.publicUri().substring("tcp://".length());
             int idx = target.lastIndexOf(':');
@@ -107,34 +107,35 @@ class ServeTest {
                     .build();
 
             try {
-                List<holons.v1.Observability.LogEntry> logs = new ArrayList<>();
-                Iterator<holons.v1.Observability.LogEntry> logIterator = ClientCalls.blockingServerStreamingCall(
+                List<holons.v1.Observability.LogRecord> logs = new ArrayList<>();
+                Iterator<holons.v1.Observability.LogRecord> logIterator = ClientCalls.blockingServerStreamingCall(
                         channel,
                         Observability.logsMethod(),
                         CallOptions.DEFAULT,
                         holons.v1.Observability.LogsRequest.newBuilder()
-                                .setMinLevel(holons.v1.Observability.LogLevel.INFO)
+                                .setMinSeverityNumber(holons.v1.Observability.SeverityNumber.SEVERITY_NUMBER_INFO)
                                 .build());
                 logIterator.forEachRemaining(logs::add);
-                assertTrue(logs.stream().anyMatch(entry -> entry.getMessage().equals("serve-log")));
+                assertTrue(logs.stream().anyMatch(entry -> entry.getBody().getStringValue().equals("serve-log")));
 
-                holons.v1.Observability.MetricsSnapshot metrics = ClientCalls.blockingUnaryCall(
+                List<holons.v1.Observability.Metric> metrics = new ArrayList<>();
+                Iterator<holons.v1.Observability.Metric> metricIterator = ClientCalls.blockingServerStreamingCall(
                         channel,
                         Observability.metricsMethod(),
                         CallOptions.DEFAULT,
                         holons.v1.Observability.MetricsRequest.getDefaultInstance());
-                assertTrue(metrics.getSamplesList().stream()
-                        .anyMatch(sample -> sample.getName().equals("serve_requests_total")));
+                metricIterator.forEachRemaining(metrics::add);
+                assertTrue(metrics.stream().anyMatch(metric -> metric.getName().equals("serve_requests_total")));
 
-                List<holons.v1.Observability.EventInfo> events = new ArrayList<>();
-                Iterator<holons.v1.Observability.EventInfo> eventIterator = ClientCalls.blockingServerStreamingCall(
+                List<holons.v1.Observability.LogRecord> events = new ArrayList<>();
+                Iterator<holons.v1.Observability.LogRecord> eventIterator = ClientCalls.blockingServerStreamingCall(
                         channel,
                         Observability.eventsMethod(),
                         CallOptions.DEFAULT,
                         holons.v1.Observability.EventsRequest.getDefaultInstance());
                 eventIterator.forEachRemaining(events::add);
                 assertTrue(events.stream()
-                        .anyMatch(event -> event.getType() == holons.v1.Observability.EventType.INSTANCE_READY));
+                        .anyMatch(event -> event.getEventName().equals(Observability.EVENT_INSTANCE_READY)));
             } finally {
                 channel.shutdownNow();
                 channel.awaitTermination(5, TimeUnit.SECONDS);
@@ -151,6 +152,27 @@ class ServeTest {
                 running.stop();
             }
         }
+    }
+
+    @Test
+    void currentTransportTracksServeLifecycle() throws Exception {
+        Describe.useStaticResponse(staticDescribeResponse());
+        assertEquals("", Serve.currentTransport());
+        Serve.RunningServer running = null;
+        try {
+            running = Serve.startWithOptions(
+                    "stdio://",
+                    List.of(new EmptyService()),
+                    new Serve.Options().withOnListen(uri -> {
+                    }));
+            assertEquals("stdio", Serve.currentTransport());
+        } finally {
+            if (running != null) {
+                running.stop();
+            }
+            Describe.useStaticResponse(null);
+        }
+        assertEquals("", Serve.currentTransport());
     }
 
     @Test
@@ -174,7 +196,7 @@ class ServeTest {
 
             Observability childObs = Observability.current();
             childObs.logger("tick").info("tick received", Map.of("sender", "serve-test"));
-            childObs.emit(Observability.EventType.CONFIG_RELOADED, Map.of("source", "serve-test"));
+            childObs.emit(Observability.EVENT_CONFIG_RELOADED, Map.of("source", "serve-test"));
 
             parent = Serve.startWithOptions(
                     "tcp://127.0.0.1:0",
@@ -193,14 +215,13 @@ class ServeTest {
 
             Observability parentObs = Observability.current();
             awaitCondition(() -> parentObs.logRing.drain().stream()
-                    .anyMatch(entry -> entry.message.equals("tick received")
-                            && entry.chain.size() == 1
-                            && entry.chain.get(0).slug.equals("cascade-node-java-child")
-                            && entry.chain.get(0).instanceUid.equals("java-child-1")));
+                    .anyMatch(entry -> entry.bodyString().equals("tick received")
+                            && entry.record.getChainCount() == 1
+                            && entry.record.getChain(0).equals("cascade-node-java-child")));
             awaitCondition(() -> parentObs.eventBus.drain().stream()
-                    .anyMatch(event -> event.type == Observability.EventType.CONFIG_RELOADED
-                            && event.chain.size() == 1
-                            && event.chain.get(0).instanceUid.equals("java-child-1")));
+                    .anyMatch(event -> event.record.getEventName().equals(Observability.EVENT_CONFIG_RELOADED)
+                            && event.record.getChainCount() == 1
+                            && event.record.getChain(0).equals("cascade-node-java-child")));
 
             String parentMeta = Files.readString(registryRoot
                     .resolve("cascade-node-java-parent")

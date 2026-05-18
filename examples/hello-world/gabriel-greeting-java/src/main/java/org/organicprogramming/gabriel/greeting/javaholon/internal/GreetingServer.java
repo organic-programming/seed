@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 
 public final class GreetingServer extends GreetingServiceGrpc.GreetingServiceImplBase {
-    // Java Serve does not yet expose a handler-visible current transport.
     private static final String TRANSPORT_UNKNOWN = "unknown";
 
     @Override
@@ -48,7 +47,8 @@ public final class GreetingServer extends GreetingServiceGrpc.GreetingServiceImp
     }
 
     private static String currentTransport() {
-        return TRANSPORT_UNKNOWN;
+        String transport = Serve.currentTransport();
+        return transport == null || transport.isBlank() ? TRANSPORT_UNKNOWN : transport;
     }
 
     private static void emitGreeting(
@@ -86,6 +86,8 @@ public final class GreetingServer extends GreetingServiceGrpc.GreetingServiceImp
         Serve.runWithOptions(
                 listenUri,
                 List.of(new GreetingServer()),
-                new Serve.Options().withReflect(reflect));
+                new Serve.Options()
+                        .withReflect(reflect)
+                        .withSlug("gabriel-greeting-java"));
     }
 }
