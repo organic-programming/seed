@@ -572,6 +572,23 @@ func TestLocalSourceTreeSHA256TreatsNonGitWorkspaceAsNoSource(t *testing.T) {
 	}
 }
 
+func TestBuildRejectsEmptyVersion(t *testing.T) {
+	cases := []string{"", "   "}
+	for _, version := range cases {
+		_, _, err := Build(context.Background(), BuildOptions{
+			Lang:    "go",
+			Target:  testTarget,
+			Version: version,
+		})
+		if err == nil {
+			t.Fatalf("Build(version=%q): want error, got nil", version)
+		}
+		if !strings.Contains(err.Error(), "version is required") {
+			t.Fatalf("Build(version=%q) error %q does not mention version requirement", version, err.Error())
+		}
+	}
+}
+
 func TestListInstalledIteratesRuntimeTree(t *testing.T) {
 	runtimeHome := t.TempDir()
 	t.Setenv("OPPATH", runtimeHome)

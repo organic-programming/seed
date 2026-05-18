@@ -46,7 +46,7 @@ func Build(ctx context.Context, opts BuildOptions) (Prebuilt, []string, error) {
 	}
 	version := strings.TrimSpace(opts.Version)
 	if version == "" {
-		version = defaultVersions[lang]
+		return Prebuilt{}, nil, fmt.Errorf("version is required; example: op sdk build %s --version 1.0.0", lang)
 	}
 	version, err = NormalizeVersion(version)
 	if err != nil {
