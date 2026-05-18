@@ -1,9 +1,15 @@
 import 'package:grpc/grpc.dart';
+import 'package:holons/holons.dart' as holons_obs;
 import 'package:holons_app/holons_app.dart' show HolonRpcSelectionAdapter;
 
 import '../controller/greeting_controller.dart';
 import '../gen/v1/holon.pbgrpc.dart';
 import '../model/app_model.dart';
+
+// Dart serve does not yet expose a handler-visible current transport.
+const _transportUnknown = 'unknown';
+const _greetingCounterHelp =
+    'Greetings emitted, partitioned by language and transport.';
 
 class GreetingAppRpcService extends GreetingAppServiceBase {
   GreetingAppRpcService(this._controller)
@@ -60,6 +66,8 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
 
   @override
   Future<GreetResponse> greet(ServiceCall call, GreetRequest request) async {
+    call;
+    final stopwatch = Stopwatch()..start();
     if (request.name.trim().isNotEmpty) {
       await _controller.setUserName(request.name, greetNow: false);
     }
@@ -75,6 +83,75 @@ class GreetingAppRpcService extends GreetingAppServiceBase {
       langCode: request.langCode.trim().isEmpty ? null : request.langCode,
     );
     _selection.throwIfRuntimeError();
-    return GreetResponse(greeting: _controller.greeting);
+    final response = GreetResponse(greeting: _controller.greeting);
+    final langCode = _controller.selectedLanguageCode.trim();
+    final language = _languageName(langCode);
+    final name = _resolvedName(request.name);
+    final transport = _currentTransport();
+    final durationNs = stopwatch.elapsedMicroseconds * 1000;
+    _emitGreeting(
+      response: response,
+      langCode: langCode,
+      language: language,
+      name: name,
+      transport: transport,
+      durationNs: durationNs,
+    );
+    return response;
+  }
+
+  String _resolvedName(String requestedName) {
+    final name = requestedName.trim();
+    if (name.isNotEmpty) {
+      return name;
+    }
+    return _controller.userName.trim();
+  }
+
+  String _languageName(String langCode) {
+    for (final language in _controller.availableLanguages) {
+      if (language.code == langCode) {
+        return language.name;
+      }
+    }
+    return langCode;
+  }
+
+  String _currentTransport() => _transportUnknown;
+
+  void _emitGreeting({
+    required GreetResponse response,
+    required String langCode,
+    required String language,
+    required String name,
+    required String transport,
+    required int durationNs,
+  }) {
+    final message = 'Greeted $name in $language ($langCode)';
+    final obs = holons_obs.current();
+    obs
+        .logger('greeting')
+        .info(
+          message,
+          fields: {
+            'lang_code': langCode,
+            'language': language,
+            'name': name,
+            'greeting': response.greeting,
+            'transport': transport,
+            'duration_ns': durationNs,
+          },
+        );
+    obs
+        .counter(
+          'greeting_emitted_total',
+          help: _greetingCounterHelp,
+          labels: {
+            'lang_code': langCode,
+            'language': language,
+            'transport': transport,
+          },
+        )
+        ?.inc();
   }
 }

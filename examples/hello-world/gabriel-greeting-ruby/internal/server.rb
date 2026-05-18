@@ -6,6 +6,7 @@ require "holons"
 require "describe_generated"
 require "v1/greeting_services_pb"
 require_relative "../api/public"
+require_relative "greetings"
 
 Holons::Describe.use_static_response(Gen::DescribeGenerated.static_describe_response)
 
@@ -17,7 +18,36 @@ module GabrielGreetingRuby
       end
 
       def say_hello(request, _call)
-        Api::Public.say_hello(request)
+        start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
+        response = Api::Public.say_hello(request)
+        name = request.name.to_s.strip
+        name = Internal.lookup(response.lang_code).default_name if name.empty?
+        # Ruby Serve does not yet expose a handler-visible current transport.
+        transport = "unknown"
+        duration_ns = Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond) - start_time
+        message = "Greeted #{name} in #{response.language} (#{response.lang_code})"
+        obs = Holons::Observability.current
+        obs.logger("greeting").info(
+          message,
+          {
+            "lang_code" => response.lang_code,
+            "language" => response.language,
+            "name" => name,
+            "greeting" => response.greeting,
+            "transport" => transport,
+            "duration_ns" => duration_ns
+          }
+        )
+        obs.counter(
+          "greeting_emitted_total",
+          "Greetings emitted, partitioned by language and transport.",
+          {
+            "lang_code" => response.lang_code,
+            "language" => response.language,
+            "transport" => transport
+          }
+        )&.inc
+        response
       end
     end
 

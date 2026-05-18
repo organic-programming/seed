@@ -1,6 +1,7 @@
 import GabrielGreeting
 import GabrielGreetingServer
 import GRPC
+import Holons
 import NIOPosix
 import XCTest
 
@@ -66,6 +67,52 @@ final class GreetingServerTests: XCTestCase {
 
         XCTAssertEqual(response.langCode, "en")
         XCTAssertEqual(response.greeting, "Hello Bob")
+    }
+
+    func testSayHelloEmitsObservabilitySignals() throws {
+        reset()
+        let obs = try configure(
+            ObsConfig(slug: "gabriel-greeting-swift"),
+            env: ["OP_OBS": "logs,metrics"]
+        )
+        defer {
+            obs.close()
+            reset()
+        }
+
+        let client = try startClient()
+        defer { client.stop() }
+
+        var request = Greeting_V1_SayHelloRequest()
+        request.name = " Bob "
+        request.langCode = "en"
+
+        let response = try client.stub.sayHello(request).response.wait()
+
+        XCTAssertEqual(response.greeting, "Hello Bob")
+
+        let counters = obs.registry?.listCounters() ?? []
+        let counter = counters.first { sample in
+            sample.name == "greeting_emitted_total"
+                && sample.labels["lang_code"] == "en"
+                && sample.labels["language"] == "English"
+                && sample.labels["transport"] == "unknown"
+        }
+        XCTAssertEqual(counter?.read(), 1)
+
+        let entry = obs.logRing?.drain().first { entry in
+            entry.message == "Greeted Bob in English (en)"
+        }
+        XCTAssertEqual(entry?.fields["lang_code"], "en")
+        XCTAssertEqual(entry?.fields["language"], "English")
+        XCTAssertEqual(entry?.fields["name"], "Bob")
+        XCTAssertEqual(entry?.fields["greeting"], "Hello Bob")
+        XCTAssertEqual(entry?.fields["transport"], "unknown")
+        guard let duration = entry?.fields["duration_ns"], let durationNS = Int64(duration) else {
+            XCTFail("duration_ns should be a parseable integer field")
+            return
+        }
+        XCTAssertGreaterThanOrEqual(durationNS, 0)
     }
 
     private func startClient() throws -> RunningClient {

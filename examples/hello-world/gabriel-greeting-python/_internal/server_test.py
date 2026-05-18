@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from concurrent import futures
+from unittest.mock import patch
 
 import grpc
 
@@ -9,7 +10,7 @@ from support import ensure_import_paths
 
 ensure_import_paths()
 
-from holons import describe
+from holons import describe, observability
 from v1 import greeting_pb2, greeting_pb2_grpc
 
 from _internal.server import GreetingService, normalize_listen_uri
@@ -66,6 +67,53 @@ class GreetingServerTest(unittest.TestCase):
         )
         self.assertEqual(response.greeting, "Hello Bob")
         self.assertEqual(response.lang_code, "en")
+
+    def test_say_hello_emits_observability_signals(self) -> None:
+        self.addCleanup(observability.reset)
+        observability.reset()
+        with patch.dict("os.environ", {"OP_OBS": "logs,metrics"}):
+            obs = observability.configure(
+                observability.Config(slug="gabriel-greeting-python")
+            )
+            response = self.stub.SayHello(
+                greeting_pb2.SayHelloRequest(name=" Bob ", lang_code="en"),
+                timeout=5,
+            )
+
+        self.assertEqual(response.greeting, "Hello Bob")
+        self.assertIsNotNone(obs.registry)
+        snapshot = obs.registry.snapshot()
+        counters = [
+            counter
+            for counter in snapshot["counters"]
+            if counter[0] == "greeting_emitted_total"
+        ]
+        self.assertEqual(len(counters), 1)
+        _name, _help, labels, value = counters[0]
+        self.assertEqual(
+            labels,
+            {"lang_code": "en", "language": "English", "transport": "unknown"},
+        )
+        self.assertEqual(value, 1)
+
+        self.assertIsNotNone(obs.log_ring)
+        entries = [
+            entry
+            for entry in obs.log_ring.drain()
+            if entry.message == "Greeted Bob in English (en)"
+        ]
+        self.assertEqual(len(entries), 1)
+        fields = entries[0].fields
+        self.assertEqual(
+            set(fields),
+            {"lang_code", "language", "name", "greeting", "transport", "duration_ns"},
+        )
+        self.assertEqual(fields["lang_code"], "en")
+        self.assertEqual(fields["language"], "English")
+        self.assertEqual(fields["name"], "Bob")
+        self.assertEqual(fields["greeting"], "Hello Bob")
+        self.assertEqual(fields["transport"], "unknown")
+        self.assertGreaterEqual(int(fields["duration_ns"]), 0)
 
     def test_normalize_listen_uri_expands_empty_tcp_host(self) -> None:
         self.assertEqual(normalize_listen_uri("tcp://:9090"), "tcp://0.0.0.0:9090")

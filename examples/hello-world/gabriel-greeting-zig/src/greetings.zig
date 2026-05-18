@@ -83,6 +83,7 @@ pub fn lookup(code: []const u8) Greeting {
 }
 
 pub fn sayHello(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
+    const start_ns = std.time.nanoTimestamp();
     var request = try runtime.unpackSayHelloRequest(bytes);
     defer request.deinit();
 
@@ -93,12 +94,15 @@ pub fn sayHello(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
     const greeting = try renderTemplate(allocator, selected.template, name);
     defer allocator.free(greeting);
 
-    return runtime.packSayHelloResponse(
+    const response = try runtime.packSayHelloResponse(
         allocator,
         greeting,
         selected.lang_english,
         selected.lang_code,
     );
+    errdefer allocator.free(response);
+    emitGreetingObservability(allocator, name, response, start_ns) catch {};
+    return response;
 }
 
 pub fn listLanguages(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
@@ -122,6 +126,51 @@ fn renderTemplate(allocator: std.mem.Allocator, template: []const u8, name: []co
         "{s}{s}{s}",
         .{ template[0..marker], name, template[marker + 2 ..] },
     );
+}
+
+fn emitGreetingObservability(
+    allocator: std.mem.Allocator,
+    name: []const u8,
+    response_bytes: []const u8,
+    start_ns: i128,
+) !void {
+    const obs = holons.observability.current() orelse return;
+    // Zig serve does not yet expose a handler-visible current transport.
+    const transport = "unknown";
+    var response = try runtime.unpackSayHelloResponse(response_bytes);
+    defer response.deinit();
+    const duration_ns = std.time.nanoTimestamp() - start_ns;
+    const duration_text = try std.fmt.allocPrint(allocator, "{d}", .{duration_ns});
+    defer allocator.free(duration_text);
+    const message = try std.fmt.allocPrint(
+        allocator,
+        "Greeted {s} in {s} ({s})",
+        .{ name, response.language(), response.langCode() },
+    );
+    defer allocator.free(message);
+
+    const fields = [_]holons.observability.Label{
+        .{ .key = "lang_code", .value = response.langCode() },
+        .{ .key = "language", .value = response.language() },
+        .{ .key = "name", .value = name },
+        .{ .key = "greeting", .value = response.greeting() },
+        .{ .key = "transport", .value = transport },
+        .{ .key = "duration_ns", .value = duration_text },
+    };
+    try obs.logger("greeting").info(message, fields[0..]);
+
+    const labels = [_]holons.observability.Label{
+        .{ .key = "lang_code", .value = response.langCode() },
+        .{ .key = "language", .value = response.language() },
+        .{ .key = "transport", .value = transport },
+    };
+    if (try obs.counter(
+        "greeting_emitted_total",
+        "Greetings emitted, partitioned by language and transport.",
+        labels[0..],
+    )) |counter| {
+        counter.inc();
+    }
 }
 
 test "lookup falls back to English" {

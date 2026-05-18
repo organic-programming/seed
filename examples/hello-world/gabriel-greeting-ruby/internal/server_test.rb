@@ -53,6 +53,52 @@ class GreetingServerTest < Minitest::Test
     assert_equal "fr", response.lang_code
   end
 
+  def test_say_hello_emits_observability_signals
+    old_op_obs = ENV["OP_OBS"]
+    ENV["OP_OBS"] = "logs,metrics"
+    Holons::Observability.reset
+    obs = Holons::Observability.configure(
+      Holons::Observability::Config.new(slug: "gabriel-greeting-ruby")
+    )
+
+    response = @greeting_stub.say_hello(
+      Greeting::V1::SayHelloRequest.new(name: " Bob ", lang_code: "en")
+    )
+
+    assert_equal "Hello Bob", response.greeting
+    counter = obs.registry.counters.find { |sample| sample.name == "greeting_emitted_total" }
+    refute_nil counter
+    assert_equal(
+      {
+        "lang_code" => "en",
+        "language" => "English",
+        "transport" => "unknown"
+      },
+      counter.labels
+    )
+    assert_equal 1, counter.value
+
+    entry = obs.log_ring.drain.find { |log_entry| log_entry[:message] == "Greeted Bob in English (en)" }
+    refute_nil entry
+    assert_equal(
+      %w[duration_ns greeting lang_code language name transport],
+      entry[:fields].keys.sort
+    )
+    assert_equal "en", entry[:fields]["lang_code"]
+    assert_equal "English", entry[:fields]["language"]
+    assert_equal "Bob", entry[:fields]["name"]
+    assert_equal "Hello Bob", entry[:fields]["greeting"]
+    assert_equal "unknown", entry[:fields]["transport"]
+    assert_operator Integer(entry[:fields]["duration_ns"]), :>=, 0
+  ensure
+    Holons::Observability.reset
+    if old_op_obs.nil?
+      ENV.delete("OP_OBS")
+    else
+      ENV["OP_OBS"] = old_op_obs
+    end
+  end
+
   def test_describe_uses_static_manifest
     response = @meta_stub.describe(Holons::V1::DescribeRequest.new)
 

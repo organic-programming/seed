@@ -1,6 +1,7 @@
 using GabrielGreeting.Csharp._Internal;
 using Greeting.V1;
 using Grpc.Net.Client;
+using Obs = Holons.Observability;
 
 namespace GabrielGreeting.Csharp.Tests.Internal;
 
@@ -71,5 +72,46 @@ public class ServerTests
 
         Assert.Equal("Hello Bob", response.Greeting);
         Assert.Equal("en", response.LangCode);
+    }
+
+    [Fact]
+    public async Task SayHelloEmitsObservabilitySignals()
+    {
+        Obs.ObservabilityRegistry.Reset();
+        var obs = Obs.ObservabilityRegistry.ConfigureFromEnv(
+            new Obs.ObsConfig { Slug = "gabriel-greeting-csharp" },
+            new Dictionary<string, string> { ["OP_OBS"] = "logs,metrics" });
+        try
+        {
+            var service = new GreetingServiceImpl();
+            var response = await service.SayHello(new SayHelloRequest
+            {
+                Name = " Bob ",
+                LangCode = "en",
+            }, null!);
+
+            Assert.Equal("Hello Bob", response.Greeting);
+
+            var counter = Assert.Single(obs.Registry!.Counters, sample =>
+                sample.Name == "greeting_emitted_total" &&
+                sample.Labels["lang_code"] == "en" &&
+                sample.Labels["language"] == "English" &&
+                sample.Labels["transport"] == "unknown");
+            Assert.Equal(1, counter.Value);
+
+            var entry = Assert.Single(obs.LogRing!.Drain(), entry =>
+                entry.Message == "Greeted Bob in English (en)");
+            Assert.Equal("en", entry.Fields["lang_code"]);
+            Assert.Equal("English", entry.Fields["language"]);
+            Assert.Equal("Bob", entry.Fields["name"]);
+            Assert.Equal("Hello Bob", entry.Fields["greeting"]);
+            Assert.Equal("unknown", entry.Fields["transport"]);
+            Assert.True(long.TryParse(entry.Fields["duration_ns"], out var durationNs));
+            Assert.True(durationNs >= 0);
+        }
+        finally
+        {
+            Obs.ObservabilityRegistry.Reset();
+        }
     }
 }

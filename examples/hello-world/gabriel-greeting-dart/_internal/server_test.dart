@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:grpc/grpc.dart';
+import 'package:holons/holons.dart' as holons;
 import 'package:test/test.dart';
 
-import '../gen/dart/greeting/v1/greeting.pb.dart';
 import '../gen/dart/greeting/v1/greeting.pbgrpc.dart';
 import 'server.dart';
 
@@ -114,5 +114,71 @@ void main() {
 
     expect(response.greeting, equals('Hello Bob'));
     expect(response.langCode, equals('en'));
+  });
+
+  test('RPC SayHello emits greeting observability at the handler boundary',
+      () async {
+    holons.reset();
+    final obs = holons.fromEnv(
+      const holons.Config(slug: 'gabriel-greeting-dart-test'),
+      const {'OP_OBS': 'logs,metrics'},
+    );
+    addTearDown(holons.reset);
+
+    final server = Server.create(services: <Service>[GreetingService()]);
+    await server.serve(address: InternetAddress.loopbackIPv4, port: 0);
+    addTearDown(server.shutdown);
+
+    final channel = ClientChannel(
+      '127.0.0.1',
+      port: server.port!,
+      options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
+    );
+    addTearDown(channel.shutdown);
+
+    final client = GreetingServiceClient(channel);
+    final response = await client.sayHello(
+      SayHelloRequest()
+        ..name = 'Bob'
+        ..langCode = 'fr',
+    );
+
+    expect(response.greeting, equals('Bonjour Bob'));
+
+    final entry = obs.logRing!.drain().singleWhere(
+          (log) => log.message == 'Greeted Bob in French (fr)',
+        );
+    expect(
+      entry.fields.keys,
+      unorderedEquals(<String>[
+        'lang_code',
+        'language',
+        'name',
+        'greeting',
+        'transport',
+        'duration_ns',
+      ]),
+    );
+    expect(entry.fields['lang_code'], equals('fr'));
+    expect(entry.fields['language'], equals('French'));
+    expect(entry.fields['name'], equals('Bob'));
+    expect(entry.fields['greeting'], equals('Bonjour Bob'));
+    expect(entry.fields['transport'], equals('unknown'));
+    final durationNs = int.tryParse(entry.fields['duration_ns'] ?? '');
+    expect(durationNs, isNotNull);
+    expect(durationNs!, greaterThanOrEqualTo(0));
+
+    final counter = obs.registry!.listCounters().singleWhere(
+          (metric) => metric.name == 'greeting_emitted_total',
+        );
+    expect(counter.value(), equals(1));
+    expect(
+      counter.labels,
+      equals(<String, String>{
+        'lang_code': 'fr',
+        'language': 'French',
+        'transport': 'unknown',
+      }),
+    );
   });
 }

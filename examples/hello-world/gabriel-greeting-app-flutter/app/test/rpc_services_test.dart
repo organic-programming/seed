@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:holons/gen/holons/v1/describe.pbgrpc.dart';
 import 'package:grpc/grpc.dart';
 import 'package:holons/gen/holons/v1/coax.pbgrpc.dart';
+import 'package:holons/holons.dart' as holons;
 import 'package:holons_app/holons_app.dart';
 
 import 'package:gabriel_greeting_app_flutter/src/controller/greeting_controller.dart';
@@ -15,6 +16,13 @@ import 'support/fakes.dart';
 
 void main() {
   test('COAX and GreetingApp RPC services drive the shared state', () async {
+    holons.reset();
+    final obs = holons.fromEnv(
+      const holons.Config(slug: 'gabriel-greeting-app-flutter-test'),
+      const {'OP_OBS': 'logs,metrics'},
+    );
+    addTearDown(holons.reset);
+
     final connection = FakeGreetingHolonConnection(
       languages: [
         language(code: 'en', name: 'English', native: 'English'),
@@ -101,6 +109,39 @@ void main() {
     );
     expect(greeting.greeting, 'Bonjour Alice from Gabriel');
     expect(greetingController.greeting, 'Bonjour Alice from Gabriel');
+
+    final entry = obs.logRing!.drain().singleWhere(
+      (log) => log.message == 'Greeted Alice in French (fr)',
+    );
+    expect(
+      entry.fields.keys,
+      unorderedEquals(<String>[
+        'lang_code',
+        'language',
+        'name',
+        'greeting',
+        'transport',
+        'duration_ns',
+      ]),
+    );
+    expect(entry.fields['lang_code'], 'fr');
+    expect(entry.fields['language'], 'French');
+    expect(entry.fields['name'], 'Alice');
+    expect(entry.fields['greeting'], 'Bonjour Alice from Gabriel');
+    expect(entry.fields['transport'], 'unknown');
+    final durationNs = int.tryParse(entry.fields['duration_ns'] ?? '');
+    expect(durationNs, isNotNull);
+    expect(durationNs!, greaterThanOrEqualTo(0));
+
+    final counter = obs.registry!.listCounters().singleWhere(
+      (metric) => metric.name == 'greeting_emitted_total',
+    );
+    expect(counter.value(), 1);
+    expect(counter.labels, <String, String>{
+      'lang_code': 'fr',
+      'language': 'French',
+      'transport': 'unknown',
+    });
 
     final status = await coaxClient.memberStatus(
       MemberStatusRequest(slug: 'gabriel-greeting-go'),

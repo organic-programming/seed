@@ -1,5 +1,8 @@
 use crate::gen::rust::greeting::v1 as pb;
+use crate::internal::greetings::lookup;
+use std::collections::BTreeMap;
 use std::sync::Once;
+use std::time::{Duration, Instant};
 use tonic::{Request, Response, Status};
 
 const DESCRIPTOR_SET: &[u8] = include_bytes!(concat!(
@@ -25,16 +28,16 @@ impl pb::greeting_service_server::GreetingService for GreetingServer {
         &self,
         request: Request<pb::SayHelloRequest>,
     ) -> Result<Response<pb::SayHelloResponse>, Status> {
-        Ok(Response::new(crate::public::say_hello(
-            request.into_inner(),
-        )))
+        let start = Instant::now();
+        let request = request.into_inner();
+        let name = resolved_name(&request);
+        let response = crate::public::say_hello(request);
+        emit_greeting_observability(&name, &response, start.elapsed());
+        Ok(Response::new(response))
     }
 }
 
-pub(crate) async fn listen_and_serve(
-    listen_uri: &str,
-    reflect: bool,
-) -> holons::serve::Result<()> {
+pub(crate) async fn listen_and_serve(listen_uri: &str, reflect: bool) -> holons::serve::Result<()> {
     register_static_describe();
 
     holons::serve::run_single_with_options(
@@ -56,4 +59,49 @@ fn register_static_describe() {
             crate::gen::describe_generated::static_describe_response(),
         );
     });
+}
+
+fn resolved_name(request: &pb::SayHelloRequest) -> String {
+    let name = request.name.trim();
+    if name.is_empty() {
+        lookup(&request.lang_code).default_name.to_string()
+    } else {
+        name.to_string()
+    }
+}
+
+fn emit_greeting_observability(name: &str, response: &pb::SayHelloResponse, elapsed: Duration) {
+    // Rust serve does not yet expose a handler-visible current transport.
+    let transport = "unknown";
+    let duration_ns = elapsed.as_nanos().to_string();
+    let message = format!(
+        "Greeted {} in {} ({})",
+        name, response.language, response.lang_code
+    );
+    let obs = holons::observability::current();
+
+    obs.logger("greeting").info(
+        &message,
+        &[
+            ("lang_code", response.lang_code.as_str()),
+            ("language", response.language.as_str()),
+            ("name", name),
+            ("greeting", response.greeting.as_str()),
+            ("transport", transport),
+            ("duration_ns", duration_ns.as_str()),
+        ],
+    );
+
+    let labels = BTreeMap::from([
+        ("lang_code".to_string(), response.lang_code.clone()),
+        ("language".to_string(), response.language.clone()),
+        ("transport".to_string(), transport.to_string()),
+    ]);
+    if let Some(counter) = obs.counter(
+        "greeting_emitted_total",
+        "Greetings emitted, partitioned by language and transport.",
+        labels,
+    ) {
+        counter.inc();
+    }
 }
